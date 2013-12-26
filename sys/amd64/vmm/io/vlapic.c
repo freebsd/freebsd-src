@@ -125,72 +125,71 @@ vlapic_get_id(struct vlapic *vlapic)
 		return (vlapic->vcpuid << 24);
 }
 
-static __inline uint32_t
-vlapic_get_ldr(struct vlapic *vlapic)
+static uint32_t
+x2apic_ldr(struct vlapic *vlapic)
 {
-	struct LAPIC *lapic;
 	int apicid;
 	uint32_t ldr;
 
-	lapic = vlapic->apic_page;
-	if (x2apic(vlapic)) {
-		apicid = vlapic_get_id(vlapic);
-		ldr = 1 << (apicid & 0xf);
-		ldr |= (apicid & 0xffff0) << 12;
-		return (ldr);
-	} else
-		return (lapic->ldr);
+	apicid = vlapic_get_id(vlapic);
+	ldr = 1 << (apicid & 0xf);
+	ldr |= (apicid & 0xffff0) << 12;
+	return (ldr);
 }
 
-static __inline uint32_t
-vlapic_get_dfr(struct vlapic *vlapic)
+void
+vlapic_dfr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
 
 	lapic = vlapic->apic_page;
-	if (x2apic(vlapic))
-		return (0);
-	else
-		return (lapic->dfr);
-}
-
-static void
-vlapic_set_dfr(struct vlapic *vlapic, uint32_t data)
-{
-	uint32_t dfr;
-	struct LAPIC *lapic;
-	
 	if (x2apic(vlapic)) {
-		VM_CTR1(vlapic->vm, "write to DFR in x2apic mode: %#x", data);
+		VM_CTR1(vlapic->vm, "ignoring write to DFR in x2apic mode: %#x",
+		    lapic->dfr);
+		lapic->dfr = 0;
 		return;
 	}
 
-	lapic = vlapic->apic_page;
-	dfr = (lapic->dfr & APIC_DFR_RESERVED) | (data & APIC_DFR_MODEL_MASK);
-	if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_FLAT)
+	lapic->dfr &= APIC_DFR_MODEL_MASK;
+	lapic->dfr |= APIC_DFR_RESERVED;
+
+	if ((lapic->dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_FLAT)
 		VLAPIC_CTR0(vlapic, "vlapic DFR in Flat Model");
-	else if ((dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_CLUSTER)
+	else if ((lapic->dfr & APIC_DFR_MODEL_MASK) == APIC_DFR_MODEL_CLUSTER)
 		VLAPIC_CTR0(vlapic, "vlapic DFR in Cluster Model");
 	else
-		VLAPIC_CTR1(vlapic, "vlapic DFR in Unknown Model %#x", dfr);
-
-	lapic->dfr = dfr;
+		VLAPIC_CTR1(vlapic, "DFR in Unknown Model %#x", lapic->dfr);
 }
 
-static void
-vlapic_set_ldr(struct vlapic *vlapic, uint32_t data)
+void
+vlapic_ldr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
+
+	lapic = vlapic->apic_page;
 
 	/* LDR is read-only in x2apic mode */
 	if (x2apic(vlapic)) {
-		VLAPIC_CTR1(vlapic, "write to LDR in x2apic mode: %#x", data);
-		return;
+		VLAPIC_CTR1(vlapic, "ignoring write to LDR in x2apic mode: %#x",
+		    lapic->ldr);
+		lapic->ldr = x2apic_ldr(vlapic);
+	} else {
+		lapic->ldr &= ~APIC_LDR_RESERVED;
+		VLAPIC_CTR1(vlapic, "vlapic LDR set to %#x", lapic->ldr);
 	}
+}
 
+void
+vlapic_id_write_handler(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+	
+	/*
+	 * We don't allow the ID register to be modified so reset it back to
+	 * its default value.
+	 */
 	lapic = vlapic->apic_page;
-	lapic->ldr = data & ~APIC_LDR_RESERVED;
-	VLAPIC_CTR1(vlapic, "vlapic LDR set to %#x", lapic->ldr);
+	lapic->id = vlapic_get_id(vlapic);
 }
 
 static int
@@ -314,6 +313,7 @@ vlapic_reset(struct vlapic *vlapic)
 	lapic = vlapic->apic_page;
 	bzero(lapic, sizeof(struct LAPIC));
 
+	lapic->id = vlapic_get_id(vlapic);
 	lapic->version = VLAPIC_VERSION;
 	lapic->version |= (VLAPIC_MAXLVT_ENTRIES << MAXLVTSHIFT);
 	lapic->dfr = 0xffffffff;
@@ -843,8 +843,8 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 			CPU_CLR(vcpuid, &amask);
 
 			vlapic = vm_lapic(vm, vcpuid);
-			dfr = vlapic_get_dfr(vlapic);
-			ldr = vlapic_get_ldr(vlapic);
+			dfr = vlapic->apic_page->dfr;
+			ldr = vlapic->apic_page->ldr;
 
 			if ((dfr & APIC_DFR_MODEL_MASK) ==
 			    APIC_DFR_MODEL_FLAT) {
@@ -1099,7 +1099,7 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
-			*data = vlapic_get_id(vlapic);
+			*data = lapic->id;
 			break;
 		case APIC_OFFSET_VER:
 			*data = lapic->version;
@@ -1117,10 +1117,10 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 			*data = lapic->eoi;
 			break;
 		case APIC_OFFSET_LDR:
-			*data = vlapic_get_ldr(vlapic);
+			*data = lapic->ldr;
 			break;
 		case APIC_OFFSET_DFR:
-			*data = vlapic_get_dfr(vlapic);
+			*data = lapic->dfr;
 			break;
 		case APIC_OFFSET_SVR:
 			*data = lapic->svr;
@@ -1178,6 +1178,9 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 	struct LAPIC	*lapic = vlapic->apic_page;
 	int		retval;
 
+	KASSERT((offset & 0xf) == 0 && offset < PAGE_SIZE,
+	    ("vlapic_write: invalid offset %#lx", offset));
+
 	VLAPIC_CTR2(vlapic, "vlapic write offset %#x, data %#lx", offset, data);
 
 	if (offset > sizeof(*lapic)) {
@@ -1185,10 +1188,11 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 	}
 
 	retval = 0;
-	offset &= ~3;
 	switch(offset)
 	{
 		case APIC_OFFSET_ID:
+			lapic->id = data;
+			vlapic_id_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_TPR:
 			lapic->tpr = data & 0xff;
@@ -1198,10 +1202,12 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 			vlapic_process_eoi(vlapic);
 			break;
 		case APIC_OFFSET_LDR:
-			vlapic_set_ldr(vlapic, data);
+			lapic->ldr = data;
+			vlapic_ldr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_DFR:
-			vlapic_set_dfr(vlapic, data);
+			lapic->dfr = data;
+			vlapic_dfr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_SVR:
 			lapic_set_svr(vlapic, data);
@@ -1292,19 +1298,38 @@ vlapic_get_apicbase(struct vlapic *vlapic)
 }
 
 void
-vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val)
+vlapic_set_apicbase(struct vlapic *vlapic, uint64_t new)
 {
-	int err;
+	struct LAPIC *lapic;
 	enum x2apic_state state;
+	uint64_t old;
+	int err;
 
 	err = vm_get_x2apic_state(vlapic->vm, vlapic->vcpuid, &state);
 	if (err)
 		panic("vlapic_set_apicbase: err %d fetching x2apic state", err);
 
 	if (state == X2APIC_DISABLED)
-		val &= ~APICBASE_X2APIC;
+		new &= ~APICBASE_X2APIC;
 
-	vlapic->msr_apicbase = val;
+	old = vlapic->msr_apicbase;
+	vlapic->msr_apicbase = new;
+
+	/*
+	 * If the vlapic is switching between xAPIC and x2APIC modes then
+	 * reset the mode-dependent registers.
+	 */
+	if ((old ^ new) & APICBASE_X2APIC) {
+		lapic = vlapic->apic_page;
+		lapic->id = vlapic_get_id(vlapic);
+		if (x2apic(vlapic)) {
+			lapic->ldr = x2apic_ldr(vlapic);
+			lapic->dfr = 0;
+		} else {
+			lapic->ldr = 0;
+			lapic->dfr = 0xffffffff;
+		}
+	}
 }
 
 void
