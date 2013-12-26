@@ -70,4 +70,9 @@ bool vlapic_enabled(struct vlapic *vlapic);
 void vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
     int delmode, int vec);
 void vlapic_post_intr(struct vlapic *vlapic, int hostcpu);
+
+/* APIC write handlers */
+void vlapic_id_write_handler(struct vlapic *vlapic);
+void vlapic_ldr_write_handler(struct vlapic *vlapic);
+void vlapic_dfr_write_handler(struct vlapic *vlapic);
 #endif	/* _VLAPIC_H_ */
