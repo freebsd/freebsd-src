@@ -92,9 +92,15 @@ struct vmxstate {
 	uint16_t vpid;
 };
 
+struct apic_page {
+	uint32_t reg[PAGE_SIZE / 4];
+};
+CTASSERT(sizeof(struct apic_page) == PAGE_SIZE);
+
 /* virtual machine softc */
 struct vmx {
 	struct vmcs	vmcs[VM_MAXCPU];	/* one vmcs per virtual cpu */
+	struct apic_page apic_page[VM_MAXCPU];	/* one apic page per vcpu */
 	char		msr_bitmap[PAGE_SIZE];
 	struct msr_entry guest_msrs[VM_MAXCPU][GUEST_MSR_MAX_ENTRIES];
 	struct vmxctx	ctx[VM_MAXCPU];

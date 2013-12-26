@@ -126,6 +126,7 @@ if [ "x${TARGET}" != "x" ] && [ "x${TARGET_ARCH}" != "x" ]; then
 else
 	ARCH_FLAGS=
 fi
+CHROOT_MAKEENV="MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
 CHROOT_DMAKEFLAGS="${CONF_FILES}"
@@ -162,12 +163,14 @@ if [ "x${NOPORTS}" = "x" ]; then
 	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
-cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 cd ${CHROOTDIR}/usr/src
-make ${CHROOT_WMAKEFLAGS} buildworld
-make ${CHROOT_IMAKEFLAGS} installworld DESTDIR=${CHROOTDIR}
-make ${CHROOT_DMAKEFLAGS} distribution DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_WMAKEFLAGS} buildworld
+env ${CHROOT_MAKEENV} make ${CHROOT_IMAKEFLAGS} installworld \
+	DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
+	DESTDIR=${CHROOTDIR}
 mount -t devfs devfs ${CHROOTDIR}/dev
+cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
 build_doc_ports() {

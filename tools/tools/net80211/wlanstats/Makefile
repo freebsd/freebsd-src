@@ -7,8 +7,6 @@ BINDIR=	/usr/local/bin
 NO_MAN=
 
 SRCS=	statfoo.c wlanstats.c main.c
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+= -fbracket-depth=512
-.endif
+CFLAGS.clang+= -fbracket-depth=512
 
 .include <bsd.prog.mk>

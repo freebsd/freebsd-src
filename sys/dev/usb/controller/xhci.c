@@ -1942,6 +1942,8 @@ restart:
 	/* remove chain bit because this is the last data TRB in the chain */
 	td->td_trb[td->ntrb - 1].dwTrb2 &= ~htole32(XHCI_TRB_2_TDSZ_SET(15));
 	td->td_trb[td->ntrb - 1].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
+	/* remove CHAIN-BIT from last LINK TRB */
+	td->td_trb[td->ntrb].dwTrb3 &= ~htole32(XHCI_TRB_3_CHAIN_BIT);
 
 	usb_pc_cpu_flush(td->page_cache);
 

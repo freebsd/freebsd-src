@@ -85,12 +85,14 @@ static tsw_open_t	termtty_open;
 static tsw_close_t	termtty_close;
 static tsw_outwakeup_t	termtty_outwakeup;
 static tsw_ioctl_t	termtty_ioctl;
+static tsw_mmap_t	termtty_mmap;
 
 static struct ttydevsw terminal_tty_class = {
 	.tsw_open	= termtty_open,
 	.tsw_close	= termtty_close,
 	.tsw_outwakeup	= termtty_outwakeup,
 	.tsw_ioctl	= termtty_ioctl,
+	.tsw_mmap	= termtty_mmap,
 };
 
 /*
@@ -128,7 +130,7 @@ static const teken_attr_t default_message = {
 };
 
 #define	TCHAR_CREATE(c, a)	((c) | \
-	(a)->ta_format << 22 | \
+	(a)->ta_format << 21 | \
 	teken_256to8((a)->ta_fgcolor) << 26 | \
 	teken_256to8((a)->ta_bgcolor) << 29)
 
@@ -247,7 +249,13 @@ terminal_input_char(struct terminal *tm, term_char_t c)
 	if (tp == NULL)
 		return;
 
-	/* Strip off any attributes. */
+	/*
+	 * Strip off any attributes. Also ignore input of second part of
+	 * CJK fullwidth characters, as we don't want to return these
+	 * characters twice.
+	 */
+	if (TCHAR_FORMAT(c) & TF_CJK_RIGHT)
+		return;
 	c = TCHAR_CHARACTER(c);
 
 	tty_lock(tp);
@@ -407,6 +415,15 @@ termtty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 	error = tm->tm_class->tc_ioctl(tm, cmd, data, td);
 	tty_lock(tp);
 	return (error);
+}
+
+static int
+termtty_mmap(struct tty *tp, vm_ooffset_t offset, vm_paddr_t * paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct terminal *tm = tty_softc(tp);
+
+	return (tm->tm_class->tc_mmap(tm, offset, paddr, nprot, memattr));
 }
 
 /*

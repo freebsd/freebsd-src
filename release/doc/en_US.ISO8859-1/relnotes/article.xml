@@ -120,7 +120,12 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="amd64">The maximum amount of memory the &os; kernel
+    <para revision="248508">The use of unmapped VMIO buffers eliminates the need to perform
+      TLB shootdown for mapping on buffer creation and reuse, greatly reducing the
+      amount of IPIs for shootdown on big-SMP machines and eliminating up to 25-30%
+      of the system time on i/o intensive workloads.</para>
+
+    <para arch="amd64" revision="254466">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
     <para>A new &man.cpuset.2; API has been added
@@ -172,6 +177,75 @@
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
+    <para arch="amd64,i386" revision="240135">Support was added for
+      the new Intel on-CPU Bull Mountain random number
+      generator, found on IvyBridge and supposedly later CPUs,
+      accessible with RDRAND instruction.</para>
+
+    <sect3 xml:id="kernel-virtualization">
+      <title>Virtualization support</title>
+      <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
+        with &os;.  &man.bhyve.8; requires Intel CPUs with VT-x and Extended Page Table (EPT)
+        support. These features are on all Nehalem models and beyond
+        (e.g. Nehalem and newer), but not on the lower-end Atom CPUs.</para> 
+  
+      <para revision="227652">&man.virtio.4; support has been added.  &man.virtio.4; is the
+        name for the paravirtualization interface developed for the Linux KVM, but
+        since adopted to other virtual machine hypervisors (with the notable exception of Xen).
+        This work brings in a BSD-licensed clean-room implementation of the virtio kernel drivers
+        for disk IO (&man.virtio_blk.4; and &man.virtio_scsi.4;), network IO (&man.vtnet.4;),
+        memory ballooning (&man.virtio_balloon.4;), and PCI.
+        Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
+  
+      <para arch="amd64,i386" revision="255524">Paravirtualized drivers which
+        support Microsoft Hyper-V have been imported and made
+        part of the amd64 GENERIC kernel.  For i386, these drivers are not part of
+        GENERIC, so the following lines must be added to
+        <filename>/boot/loader.conf</filename> to load these drivers:
+        <programlisting>hv_ata_pci_disengage_load="YES"
+hv_netsvc_load="YES"
+hv_utils_load="YES"
+hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be added to the i386
+        kernel by adding <literal>device hyperv</literal> to the kernel config, and then
+        recompiling the kernel.  Please refer to:
+        <link xlink:href="http://wiki.freebsd.org/HyperV">FreeBSD and Microsoft Windows Server Hyper-V support</link>
+        for full instructions on how to set up Hyper-V support under FreeBSD.</para>
+
+      <para revision="254738">The &man.vmx.4; driver has been added.
+        &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
+        OpenBSD.</para>
+
+      <para revision="255744" arch="amd64,i386">Xen PVHVM virtualization is now
+        part of the GENERIC kernel.</para>
+
+    </sect3>
+
+    <sect3 xml:id="kernel-arm">
+      <title>ARM support</title>
+
+      <para revision="239922">Raspberry PI support has been added.
+        Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
+        and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
+        guide</link>.</para>
+  
+      <para revision="253396">The default ABI on ARM is now the ARM EABI. This brings a number of
+        improvements and allows future support for VFP and Thumb-2.</para> 
+  
+      <para revision="239268">ARM support has been greatly improved, including support
+        for ARMv6 and ARMv7, SMP and thread-local storage (TLS).
+        Additionally support for some newer SoC like the MV78x60 and OMAP4 was added.
+        See <link xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">this announcement</link>
+        for further details.</para>
+  
+      <para revision="254918">Superpages support on ARM has been added.  Superpages support
+        provides improved performance and scalability by allowing TLB
+        translations to dynamically cover large physical memory regions.
+        All ARMv6 and ARMv7-based platforms can take advantage of this feature.
+        See <link xlink:href="https://wiki.freebsd.org/ARMSuperpages">this page</link>
+        for further details.</para>
+
+    </sect3>
+
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
@@ -204,7 +278,7 @@
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-        <para>Support for version 2.0 of the USB Audio reference design
+        <para revision="240609">Support for version 2.0 of the USB Audio reference design
           has been added. New devices should support higher bandwidth,
           increased sampling frequency and wider dynamic range.</para>
 
@@ -248,27 +322,55 @@
 	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver has
 	  been updated to include a number of stability fixes.</para>
 
+	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
+	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
+
+	<para revision="256694">The iw_cxgbe driver has been added.  This is an
+	  experimental iWARP/RDMA driver
+	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
+
+	<para revision="255932">The Open Fabrics Enterprise Distribution (OFED) and
+	  OFED Infiniband core has been
+	  updated to the same version as supplied by Linux version 3.7</para>
+
+	<para revision="255932">The Mellanox Infiniband driver has been updated to firmware
+	  version 2.30.3200 for ConnectX3 NICs.  Support has been added for ConnectX3 VPI NICs, where
+	  each port can be used as Infiniband 56 GB/s or Ethernet 40 GB/s.  Support has been added
+	  for dynamically loading kernel modules for Infiniband core (ibcore) and
+	  IP over Infiniband (ipoib).</para>
+
+	<para revision="227614">&man.netmap.4; has been added.  &man.netmap.4; is a framework for
+          high-performance direct-to-hardware packet IO, offering low latency and high PPS
+          rates to userland applications while bypassing any kernel-side packet processing.
+          With &man.netmap.4; it is trivially possible to fully saturate a 10 Gbps network interface with
+          minimal packet sizes.  For more information, see:
+          <link xlink:href="http://info.iet.unipi.it/~luigi/netmap/">Netmap Project</link>.</para> 
+
       </sect4>
     </sect3>
 
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>&man.carp.4; has been rewritten to make addresses
+      <para revision="228571">&man.carp.4; has been rewritten to make addresses
         more sane from the viewpoint of routing daemons such as
         quagga/zebra. It also brings support for a single redundant
         address on the subnet (carpdev), switching state with
-        ifconfig, better locking and using modern kernel
-        interfaces to allocate multicast memberships.</para>
+        &man.ifconfig.8;, better locking and using modern kernel
+        interfaces to allocate multicast memberships.
+        Configuration of the CARP protocol via &man.ifconfig.8; has changed, as well as format
+	of CARP events submitted to &man.devd.8; has changed. See &man.carp.4;
+	for more information. The arpbalance feature of &man.carp.4; is currently
+	not supported anymore.</para>
 
-      <para>The &man.pf.4; firewall now supports fine-grain locking
+      <para revision="240233">The &man.pf.4; firewall now supports fine-grain locking
         and better utilization on multi-cpu machines resulting in
         significant improvements in performance.</para>
 
-      <para>Support for up to 65536 routing tables has been
+      <para revision="250700">Support for up to 65536 routing tables has been
         introduced.</para>
 
-      <para>Support for setting/matching differentiated services
+      <para revision="248552">Support for setting/matching differentiated services
         codepoints (DSCP) in IP header has been added to
         &man.ipfw.8;.</para>
 
@@ -290,36 +392,64 @@
       <para role="merged">The &man.hptrr.4; driver has been updated to version 1.2
         from Highpoint.</para>
 
+      <para revision="240616">&man.nvme.4; has been added and provides NVM Express support.
+        NVM Express is an optimized register interface, command set and feature set of
+        PCI Express (PCIe)-based Solid-State Drives (SSDs).  For more information,
+        see <link xlink:href="http://http://www.nvmexpress.org/">nvmexpress.org</link>.</para>
+
     </sect3>
 
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>A new kernel-based iSCSI target and initiator has been
+      <para revision="255570">A new kernel-based iSCSI target and initiator has been
         added</para>
 
-      <para>UFS filesystems can now be enlarged with &man.growfs.8; while
+      <para revision="243246">UFS filesystems can now be enlarged with &man.growfs.8; while
         mounted read-write. This is especially useful for virtual
         machines, allowing the addition of more harddrive space without
         interruption of service.</para>
 
-      <para>A state of the art FUSE implementation is now part of the
+      <para revision="241519">A state of the art FUSE implementation is now part of the
         base system. It allows the use of nearly all fusefs file
         systems</para>
 
-      <para>Support for the high performance LZ4 compression algorithm
-        has been added to ZFS. LZ4 is usually faster and can achieve a
-        higher compression ratio than LZJB, the default compression
-        algorithm</para>
+      <sect4 xml:id="fs-zfs">
+	<title>ZFS</title>
 
-      <para>Support for L2ARC compression has been added to ZFS.</para>
+        <para revision="">&man.bsdinstall.8; now supports installing
+          ZFS on the root file system.  It includes a single configuration menu
+          that allows you to select all of the required details, including
+          which drives to use, what ZFS RAID level to use (taking into consideration
+          the selected number of drives), GPT or MBR, GELI encryption, forcing 4K sectors,
+          pool name, etc.</para>
 
-      <para>ZFS will now compare the checksums of incoming writes to
-        the checksum of the existing on-disk data and avoid issuing any
-        write I/O for data that has not changed. This will reduce I/O
-        as well as space usage because if the old block is referenced
-        by a snapshot, both copies of the block are kept even though
-        both contain the same data.</para>
+        <para revision="240868">TRIM support has been added for
+          ZFS.</para>
+
+        <para revision="246586">Support for the high performance LZ4 compression algorithm
+          has been added to ZFS. LZ4 is usually faster and can achieve a
+          higher compression ratio than LZJB, the default compression
+          algorithm</para>
+
+        <para revision="252140">Support for L2ARC compression has been added to ZFS.</para>
+
+        <para revision="243524">The zio nop-write improvement from Illumos
+          was imported into &os;. To reduce I/O, nop-write skips overwriting
+          data if the checksum (cryptographically secure) of new data
+          matches the checksum of existing data. It also saves space if
+          snapshots are in use.  This improvement only works only on
+          datasets with enabled compression, disabled deduplication and
+          sha256 checksums.</para>
+
+        <para>ZFS will now compare the checksums of incoming writes to
+          the checksum of the existing on-disk data and avoid issuing any
+          write I/O for data that has not changed. This will reduce I/O
+          as well as space usage because if the old block is referenced
+          by a snapshot, both copies of the block are kept even though
+          both contain the same data.</para>
+
+      </sect4>
 
     </sect3>
 
@@ -328,12 +458,50 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para role="merged">BIND has been replaced by &man.unbound.8; for
+   <para revision="255321">On platforms where &man.clang.1; is the default
+      system compiler, (such as i386, amd64, arm) GCC and GNU libstdc++ are no
+      longer built by default.  &man.clang.1; and libc++ from LLVM are used on
+      these platforms by instead.  GCC 4.2.1 and libstdc++ are still built
+      and used by default on pc98 and all other platforms where &man.clang.1;
+      is not the default system compiler.
+   </para>
+
+   <para revision="251662">&man.clang.1; and llvm have been updated to
+     version 3.3 release.  Please refer to
+     <link xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
+     Clang 3.3 Release Notes.</link></para>
+
+    <para role="merged" revision="255949">BIND has been replaced by &man.unbound.8; for
       local dns resolution in the base system.  With this change, nslookup
       and dig are no longer a part of the base system.  Users should
       instead use &man.host.1; and &man.drill.1; Alternatively,
       nslookup and dig can be obtained by installing the
       dns/bind-tools port.</para>
+
+    <para revision="225937">sysinstall has been removed from the base system.
+      Auxiliary libraries and tools used by sysinstall such as libdisk, libftpio,
+      and sade have also been removed.  sysinstall has been replaced by
+      &man.bsdinstall.8; and &man.bsdconfig.8;.</para>
+
+    <para revision="256106">&man.freebsd-version.1; has been added.  This tool
+      makes a best effort to determine the version and patch level of
+      the installed kernel and userland.</para>
+
+    <para revision="255191">GNU patch has been removed from the base system, and replaced
+      by a BSD-licensed &man.patch.1; program.</para>
+
+    <para revision="241511">GNU sort has been removed from the base system, and replaced
+      by a BSD-licensed &man.sort.1; program.</para>
+
+    <para revision="235723">Berkely yacc (byacc) has been imported
+      from <link xlink:href="http://invisible-island.net/byacc/">invisible island</link>.
+      This brings bison compatibilities to &man.yacc.1; while preserving full
+      backwards compatibility with previous version of &man.yacc.1;.</para>
+
+    <para revision="250881">&man.lex.1; has been replaced by flex 2.5.37</para>
+
+    <para revision="250699">&man.make.1; has been replaced with the 
+      "Portable" BSD make tool (bmake) from NetBSD.</para>
 
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
@@ -458,6 +626,10 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
+    <para revision="251300">&man.jemalloc.3; has been updated to 3.4.0.
+      See <link xlink:href="http://www.facebook.com/jemalloc/">this link</link>.
+      for more details.</para>
+
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
       to 6.1.5.</para>
 
@@ -467,29 +639,32 @@
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
-    <para><application>CVS</application> has been removed from the
+    <para revision="251794"><application>CVS</application> has been removed from the
     base system, but is still available from ports</para>
 
-    <para><application>FILE</application> has been updated from 4.23
-      to 5.03.</para>
+    <para revision="251886">Subversion has been imported into the base system and
+      is installed as <application>svnlite</application>.  <application>svnlite</application>
+      should only be used for checking out &os; source and committing, and does not
+      replace the full Subversion port.</para>
 
-    <para><application>hostapd</application> has been
+    <para revision="234449"><application>file</application> has been updated to 5.11.</para>
+
+    <para revision="252726"><application>hostapd</application> has been
       updated from 0.5.8 to 0.5.10.</para>
 
-    <para><application>IPFilter</application> has been updated from
-      4.1.23 to 4.1.28.</para>
+    <para><application>IPFilter</application> has been updated to 5.1.2.</para>
 
-    <para><application>less</application> has been updated from
-      v408 to v429.</para>
+    <para revision="250592"><application>less</application> has been updated to
+      v458.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20080503.</para>
+      to 5.7-20081102.</para>
 
     <para role="merged"><application>OpenSSH</application> has been updated
-      from 4.5p1 to 5.1p1.</para>
+      to 6.4.</para>
 
-    <para role="merged"><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
+    <para revision="236109"><application>OpenPAM</application> has been updated to
+      the Micrampelis release.</para>
 
     <para role="merged"><application>sendmail</application> has been updated from
       8.14.1 to 8.14.7.</para>
@@ -505,29 +680,25 @@
       then please run &man.tzsetup.8; to install a new /etc/localtime.
       </para>
 
-    <para><application>WPA Supplicant</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
+    <para revision="252726"><application>WPA Supplicant</application> has been
+      updated to 2.0.</para>
 
     <para role="merged"><application>xz</application> has been updated
       from snapshot as of 12 April 2010 to 5.0.0.</para>
+
+    <para revision="258231" role="merged">&man.nvi.1; has been updated to 2.1.2.</para>
+
+    <para revision="254225">&man.nvi.1; supports wide character locales.</para>
 
   </sect2>
 
   <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>The &man.pkg.create.1; utility now supports
-      <option>-n</option>.  When this option is specified and a
-      package tarball exists, it will not be overwritten.  This is
-      useful when multiple packages are saved with several consecutive
-      runs of &man.pkg.create.1; with the <option>-Rb</option>
-      options.</para>
-
-    <para>The pkg_sign and pkg_check utilities for cryptographically
-      signing &os; packages have been removed.  They were only useful
-      for packages compressed using &man.gzip.1;; however
-      &man.bzip2.1; compression has been the norm for some time
-      now.</para>
+    <para revision="257444">The pkg_add, pkg_create, pkg_delete, pkg_info,
+      pkg_updating, and pkg_version utilities have been removed.
+      &man.pkg.7; must now be used to install binary packages.  &man.pkg.7;
+      is the next generation &os; package manager, also referred to as "pkgng".</para>
 
   </sect2>
 

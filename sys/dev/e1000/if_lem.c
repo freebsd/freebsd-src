@@ -2679,7 +2679,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 			void *addr;
 
 			addr = PNMB(slot + si, &paddr);
-			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
+			adapter->tx_desc_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
 			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}

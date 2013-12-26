@@ -1469,8 +1469,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
  * Updates the file rev and sets the mtime and ctime
  * to the current clock time, returning the va_filerev and va_Xtime
  * values.
+ * Return ESTALE to indicate the vnode is VI_DOOMED.
  */
-void
+int
 nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
     struct ucred *cred, struct thread *p)
 {
@@ -1478,8 +1479,14 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 
 	VATTR_NULL(&va);
 	vfs_timestamp(&va.va_mtime);
+	if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ESTALE);
+	}
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
+	return (0);
 }
 
 /*
@@ -1984,6 +1991,27 @@ again:
 	}
 
 	/*
+	 * Check to see if entries in this directory can be safely acquired
+	 * via VFS_VGET() or if a switch to VOP_LOOKUP() is required.
+	 * ZFS snapshot directories need VOP_LOOKUP(), so that any
+	 * automount of the snapshot directory that is required will
+	 * be done.
+	 * This needs to be done here for NFSv4, since NFSv4 never does
+	 * a VFS_VGET() for "." or "..".
+	 */
+	if (not_zfs == 0) {
+		r = VFS_VGET(mp, at.na_fileid, LK_SHARED, &nvp);
+		if (r == EOPNOTSUPP) {
+			usevget = 0;
+			cn.cn_nameiop = LOOKUP;
+			cn.cn_lkflags = LK_SHARED | LK_RETRY;
+			cn.cn_cred = nd->nd_cred;
+			cn.cn_thread = p;
+		} else if (r == 0)
+			vput(nvp);
+	}
+
+	/*
 	 * Save this position, in case there is an error before one entry
 	 * is created.
 	 */
@@ -2120,6 +2148,22 @@ again:
 					if (!r)
 					    r = nfsvno_getattr(nvp, nvap,
 						nd->nd_cred, p, 1);
+					if (r == 0 && not_zfs == 0 &&
+					    nfsrv_enable_crossmntpt != 0 &&
+					    (nd->nd_flag & ND_NFSV4) != 0 &&
+					    nvp->v_type == VDIR &&
+					    vp->v_mount != nvp->v_mount) {
+					    /*
+					     * For a ZFS snapshot, there is a
+					     * pseudo mount that does not set
+					     * v_mountedhere, so it needs to
+					     * be detected via a different
+					     * mount structure.
+					     */
+					    at_root = 1;
+					    if (new_mp == mp)
+						new_mp = nvp->v_mount;
+					}
 				    }
 				} else {
 				    nvp = NULL;

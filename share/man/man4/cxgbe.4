@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011-2012, Chelsio Inc
+.\" Copyright (c) 2011-2013, Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -31,12 +31,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd December 18, 2013
 .Dt CXGBE 4
 .Os
 .Sh NAME
 .Nm cxgbe
-.Nd "Chelsio T4 10Gb and 1Gb Ethernet adapter driver"
+.Nd "Chelsio T4 and T5 based 40Gb, 10Gb, and 1Gb Ethernet adapter driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -50,13 +50,14 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 t4fw_cfg_load="YES"
+t5fw_cfg_load="YES"
 if_cxgbe_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver provides support for PCI Express Ethernet adapters based on
-the Chelsio Terminator 4 (T4) ASIC.
+the Chelsio Terminator 4 and Terminator 5 ASICs (T4 and T5).
 The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
 tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
@@ -65,9 +66,47 @@ For further hardware information and questions related to hardware
 requirements, see
 .Pa http://www.chelsio.com/ .
 .Pp
+Note that ports of T5 cards are named cxl and attach to a t5nex parent device
+(in contrast to ports named cxgbe that attach to a t4nex parent for a T4 card).
+Loader tunables with the hw.cxgbe prefix apply to both T4 and T5 cards.
+The sysctl MIBs are at dev.t5nex and dev.cxl for T5 cards and at dev.t4nex and
+dev.cxgbe for T4 cards.
+.Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Sh HARDWARE
+The
+.Nm
+driver supports 40Gb, 10Gb and 1Gb Ethernet adapters based on the T5 ASIC
+(ports will be named cxl):
+.Pp
+.Bl -bullet -compact
+.It
+Chelsio T580-CR
+.It
+Chelsio T580-LP-CR
+.It
+Chelsio T580-LP-SO-CR
+.It
+Chelsio T560-CR
+.It
+Chelsio T540-CR
+.It
+Chelsio T540-LP-CR
+.It
+Chelsio T522-CR
+.It
+Chelsio T520-LL-CR
+.It
+Chelsio T520-CR
+.It
+Chelsio T520-SO
+.It
+Chelsio T520-BT
+.It
+Chelsio T504-BT
+.El
+.Pp
 The
 .Nm
 driver supports 10Gb and 1Gb Ethernet adapters based on the T4 ASIC:
@@ -139,8 +178,8 @@ by default (all values are in microseconds) and the index selects a
 value from this list.
 The default value is 1 for both 10Gb and 1Gb ports, which means the
 timer value is 5us.
-Different cxgbe interfaces can be assigned different values at any time via the
-dev.cxgbe.X.holdoff_tmr_idx sysctl.
+Different interfaces can be assigned different values at any time via the
+dev.cxgbe.X.holdoff_tmr_idx or dev.cxl.X.holdoff_tmr_idx sysctl.
 .It Va hw.cxgbe.holdoff_pktc_idx_10G
 .It Va hw.cxgbe.holdoff_pktc_idx_1G
 The packet-count index value to use to delay interrupts.
@@ -149,8 +188,8 @@ and the index selects a value from this list.
 The default value is -1 for both 10Gb and 1Gb ports, which means packet
 counting is disabled and interrupts are generated based solely on the
 holdoff timer value.
-Different cxgbe interfaces can be assigned different values via the
-dev.cxgbe.X.holdoff_pktc_idx sysctl.
+Different interfaces can be assigned different values via the
+dev.cxgbe.X.holdoff_pktc_idx or dev.cxl.X.holdoff_pktc_idx sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_txq
@@ -161,16 +200,16 @@ software queuing.
 See
 .Xr ifnet 9 .
 The default value is 1024.
-Different cxgbe interfaces can be assigned different values via the
-dev.cxgbe.X.qsize_txq sysctl.
+Different interfaces can be assigned different values via the
+dev.cxgbe.X.qsize_txq sysctl or dev.cxl.X.qsize_txq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.qsize_rxq
 The size, in number of entries, of the descriptor ring used for an
 rx queue.
 The default value is 1024.
-Different cxgbe interfaces can be assigned different values via the
-dev.cxgbe.X.qsize_rxq sysctl.
+Different interfaces can be assigned different values via the
+dev.cxgbe.X.qsize_rxq or dev.cxl.X.qsize_rxq sysctl.
 This sysctl works only when the interface has never been marked up (as done by
 ifconfig up).
 .It Va hw.cxgbe.interrupt_types
@@ -231,6 +270,10 @@ The
 .Nm
 device driver first appeared in
 .Fx 9.0 .
+Support for T5 cards first appeared in
+.Fx 9.2
+and
+.Fx 10.0 .
 .Sh AUTHORS
 .An -nosplit
 The

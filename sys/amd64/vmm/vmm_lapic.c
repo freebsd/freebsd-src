@@ -38,28 +38,17 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/vmm.h>
 #include "vmm_ipi.h"
+#include "vmm_ktr.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
 
-int
-lapic_pending_intr(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_pending_intr(vlapic));
-}
-
-void
-lapic_intr_accepted(struct vm *vm, int cpu, int vector)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	vlapic_intr_accepted(vlapic, vector);
-}
+/*
+ * Some MSI message definitions
+ */
+#define	MSI_X86_ADDR_MASK	0xfff00000
+#define	MSI_X86_ADDR_BASE	0xfee00000
+#define	MSI_X86_ADDR_RH		0x00000008	/* Redirection Hint */
+#define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
 
 int
 lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
@@ -74,9 +63,72 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 
 	vlapic = vm_lapic(vm, cpu);
 	vlapic_set_intr_ready(vlapic, vector, level);
+	vcpu_notify_event(vm, cpu, true);
+	return (0);
+}
 
-	vcpu_notify_event(vm, cpu);
+int
+lapic_set_local_intr(struct vm *vm, int cpu, int vector)
+{
+	struct vlapic *vlapic;
+	cpuset_t dmask;
+	int error;
 
+	if (cpu < -1 || cpu >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (cpu == -1)
+		dmask = vm_active_cpus(vm);
+	else
+		CPU_SETOF(cpu, &dmask);
+	error = 0;
+	while ((cpu = CPU_FFS(&dmask)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &dmask);
+		vlapic = vm_lapic(vm, cpu);
+		error = vlapic_trigger_lvt(vlapic, vector);
+		if (error)
+			break;
+	}
+
+	return (error);
+}
+
+int
+lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg)
+{
+	int delmode, vec;
+	uint32_t dest;
+	bool phys;
+
+	VM_CTR2(vm, "lapic MSI addr: %#lx msg: %#lx", addr, msg);
+
+	if ((addr & MSI_X86_ADDR_MASK) != MSI_X86_ADDR_BASE) {
+		VM_CTR1(vm, "lapic MSI invalid addr %#lx", addr);
+		return (-1);
+	}
+
+	/*
+	 * Extract the x86-specific fields from the MSI addr/msg
+	 * params according to the Intel Arch spec, Vol3 Ch 10.
+	 *
+	 * The PCI specification does not support level triggered
+	 * MSI/MSI-X so ignore trigger level in 'msg'.
+	 *
+	 * The 'dest' is interpreted as a logical APIC ID if both
+	 * the Redirection Hint and Destination Mode are '1' and
+	 * physical otherwise.
+	 */
+	dest = (addr >> 12) & 0xff;
+	phys = ((addr & (MSI_X86_ADDR_RH | MSI_X86_ADDR_LOG)) !=
+	    (MSI_X86_ADDR_RH | MSI_X86_ADDR_LOG));
+	delmode = msg & APIC_DELMODE_MASK;
+	vec = msg & 0xff;
+
+	VM_CTR3(vm, "lapic MSI %s dest %#x, vec %d",
+	    phys ? "physical" : "logical", dest, vec);
+
+	vlapic_deliver_intr(vm, LAPIC_TRIG_EDGE, dest, phys, delmode, vec);
 	return (0);
 }
 

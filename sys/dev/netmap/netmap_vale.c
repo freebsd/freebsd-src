@@ -79,8 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/refcount.h>
 
-// #define prefetch(x)	__builtin_prefetch(x)
-
 
 #define BDG_RWLOCK_T		struct rwlock // struct rwlock
 
@@ -1003,7 +1001,7 @@ nm_bdg_preflush(struct netmap_vp_adapter *na, u_int ring_nr,
 		ft[ft_i].ft_next = NM_FT_NULL;
 		buf = ft[ft_i].ft_buf = (slot->flags & NS_INDIRECT) ?
 			(void *)(uintptr_t)slot->ptr : BDG_NMB(&na->up, slot);
-		prefetch(buf);
+		__builtin_prefetch(buf);
 		++ft_i;
 		if (slot->flags & NS_MOREFRAG) {
 			frags++;

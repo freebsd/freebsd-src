@@ -28,8 +28,8 @@ union pmc_md_pmc {
 	struct pmc_md_powerpc_pmc	pm_powerpc;
 };
 
-#define	PMC_TRAPFRAME_TO_PC(TF)	(0)	/* Stubs */
-#define	PMC_TRAPFRAME_TO_FP(TF)	(0)
+#define	PMC_TRAPFRAME_TO_PC(TF)	((TF)->srr0)
+#define	PMC_TRAPFRAME_TO_FP(TF)	((TF)->fixreg[1])
 #define	PMC_TRAPFRAME_TO_SP(TF)	(0)
 
 #endif

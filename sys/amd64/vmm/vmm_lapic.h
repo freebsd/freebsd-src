@@ -43,26 +43,6 @@ int	lapic_mmio_write(void *vm, int cpu, uint64_t gpa,
 			 uint64_t wval, int size, void *arg);
 
 /*
- * Returns a vector between 32 and 255 if an interrupt is pending in the
- * IRR that can be delivered based on the current state of ISR and TPR.
- *
- * Note that the vector does not automatically transition to the ISR as a
- * result of calling this function.
- *
- * Returns -1 if there is no eligible vector that can be delivered to the
- * guest at this time.
- */
-int	lapic_pending_intr(struct vm *vm, int cpu);
-
-/*
- * Transition 'vector' from IRR to ISR. This function is called with the
- * vector returned by 'lapic_pending_intr()' when the guest is able to
- * accept this interrupt (i.e. RFLAGS.IF = 1 and no conditions exist that
- * block interrupt delivery).
- */
-void	lapic_intr_accepted(struct vm *vm, int cpu, int vector);
-
-/*
  * Signals to the LAPIC that an interrupt at 'vector' needs to be generated
  * to the 'cpu', the state is recorded in IRR.
  */
@@ -83,5 +63,13 @@ lapic_intr_edge(struct vm *vm, int cpu, int vector)
 
 	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
 }
+
+/*
+ * Triggers the LAPIC local interrupt (LVT) 'vector' on 'cpu'.  'cpu' can
+ * be set to -1 to trigger the interrupt on all CPUs.
+ */
+int	lapic_set_local_intr(struct vm *vm, int cpu, int vector);
+
+int	lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg);
 
 #endif
