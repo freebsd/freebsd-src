@@ -100,20 +100,23 @@ _kvm_pa2off(kvm_t *kd, uint64_t pa, off_t *ofs, size_t pgsz)
 	Elf64_Phdr *p = (Elf64_Phdr*)((char*)e + e->e_phoff);
 	int n = e->e_phnum;
 
-	if (pa != REGION_ADDR(pa)) {
-		_kvm_err(kd, kd->program, "internal error");
-		return (0);
-	}
+	if (pa != REGION_ADDR(pa))
+		goto fail;
 
 	while (n && (pa < p->p_paddr || pa >= p->p_paddr + p->p_memsz))
 		p++, n--;
 	if (n == 0)
-		return (0);
+		goto fail;
 
 	*ofs = (pa - p->p_paddr) + p->p_offset;
 	if (pgsz == 0)
 		return (p->p_memsz - (pa - p->p_paddr));
 	return (pgsz - ((size_t)pa & (pgsz - 1)));
+
+ fail:
+	_kvm_err(kd, kd->program, "invalid physical address %#llx",
+	    (unsigned long long)pa);
+	return (0);
 }
 
 static ssize_t
@@ -225,7 +228,7 @@ _kvm_initvtop(kvm_t *kd)
 		return (-1);
 	}
 
-	if (va < REGION_BASE(6)) {
+	if (va == REGION_BASE(5)) {
 		_kvm_err(kd, kd->program, "kptdir is itself virtual");
 		return (-1);
 	}
@@ -286,7 +289,8 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *ofs)
 	}
 
  fail:
-	_kvm_err(kd, kd->program, "invalid kernel virtual address");
+	_kvm_err(kd, kd->program, "invalid kernel virtual address %#llx",
+	    (unsigned long long)va);
 	*ofs = ~0UL;
 	return (0);
 }
