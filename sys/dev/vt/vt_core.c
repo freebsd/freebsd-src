@@ -417,6 +417,8 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 	} else {
 		switch (c & ~RELKEY) {
 		case (SPCLKEY | RALT):
+			if (vt_enable_altgr != 0)
+				break;
 		case (SPCLKEY | LALT):
 			vd->vd_kbstate |= ALKED;
 		}
