@@ -44,6 +44,8 @@
 #define	EXT2_UNDELDIRINO	((ino_t)6)
 #define	EXT2_RESIZEINO		((ino_t)7)
 #define	EXT2_JOURNALINO		((ino_t)8)
+#define	EXT2_EXCLUDEINO		((ino_t)9)
+#define	EXT2_REPLICAINO		((ino_t)10)
 #define	EXT2_FIRSTINO		((ino_t)11)
 
 /*
