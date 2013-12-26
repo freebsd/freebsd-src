@@ -2745,13 +2745,6 @@ bxe_drv_pulse(struct bxe_softc *sc)
              sc->fw_drv_pulse_wr_seq);
 }
 
-static inline int
-bxe_has_tx_work_unload(struct bxe_fastpath *fp)
-{
-    mb(); /* consumer and producer can change */
-    return (fp->tx_pkt_prod != fp->tx_pkt_cons);
-}
-
 static inline uint16_t
 bxe_tx_avail(struct bxe_softc *sc,
              struct bxe_fastpath *fp)
