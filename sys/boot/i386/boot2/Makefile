@@ -23,10 +23,7 @@ BOOT2_UFS?=	UFS1_AND_UFS2
 #BOOT2_UFS?=	UFS1_ONLY
 
 CFLAGS=	-Os \
-	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
 	-DUSE_XREAD \
@@ -42,6 +39,10 @@ CFLAGS=	-Os \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100 \
 	${CLANG_OPT_SMALL}
+
+CFLAGS.gcc+=	-fno-guess-branch-probability \
+		-fno-unit-at-a-time \
+		-mno-align-long-strings \
 
 LDFLAGS=-static -N --gc-sections
 
