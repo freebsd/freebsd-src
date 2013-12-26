@@ -273,7 +273,6 @@ audit_ctlname_to_sysctlevent(int name[], uint64_t valid_arg)
 	case KERN_USRSTACK:
 	case KERN_LOGSIGEXIT:
 	case KERN_IOV_MAX:
-	case KERN_MAXID:
 		return ((valid_arg & ARG_VALUE) ?
 		    AUE_SYSCTL : AUE_SYSCTL_NONADMIN);
 
