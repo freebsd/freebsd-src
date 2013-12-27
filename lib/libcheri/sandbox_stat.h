@@ -38,8 +38,6 @@
  * NB: These are quite ABI-sensitive, don't change their length or layout, and
  * consider carefully the effects of changes on padding on both 32-bit and
  * 64-bit systems.  Padding has been provided for (bounded) future growth.
- *
- * XXXRW: Is there value in having a sandbox_object_stat...?
  */
 
 #define	SANDBOX_CLASSID_FREE	0	/* Class array slot is unallocated. */
