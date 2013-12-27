@@ -218,13 +218,17 @@ vlapic_timer_divisor(uint32_t dcr)
 }
 
 static void
-vlapic_mask_lvts(uint32_t *lvts, int num_lvt)
+vlapic_mask_lvts(struct vlapic *vlapic)
 {
-	int i;
-	for (i = 0; i < num_lvt; i++) {
-		*lvts |= APIC_LVT_M;
-		lvts += 4;
-	}
+	struct LAPIC *lapic = vlapic->apic_page;
+
+	lapic->lvt_cmci |= APIC_LVT_M;
+	lapic->lvt_timer |= APIC_LVT_M;
+	lapic->lvt_thermal |= APIC_LVT_M;
+	lapic->lvt_pcint |= APIC_LVT_M;
+	lapic->lvt_lint0 |= APIC_LVT_M;
+	lapic->lvt_lint1 |= APIC_LVT_M;
+	lapic->lvt_error |= APIC_LVT_M;
 }
 
 #if 0
@@ -318,14 +322,15 @@ vlapic_reset(struct vlapic *vlapic)
 	lapic->version |= (VLAPIC_MAXLVT_ENTRIES << MAXLVTSHIFT);
 	lapic->dfr = 0xffffffff;
 	lapic->svr = APIC_SVR_VECTOR;
-	vlapic_mask_lvts(&lapic->lvt_timer, 6);
-	vlapic_mask_lvts(&lapic->lvt_cmci, 1);
+	vlapic_mask_lvts(vlapic);
 	vlapic_set_dcr(vlapic, 0);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
 	else
 		vlapic->boot_state = BS_INIT;		/* AP */
+
+	vlapic->svr_last = lapic->svr;
 }
 
 void
@@ -1052,24 +1057,30 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 	vlapic_update_ppr(vlapic);
 }
 
-static void
-lapic_set_svr(struct vlapic *vlapic, uint32_t new)
+void
+vlapic_svr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
-	uint32_t old, changed;
+	uint32_t old, new, changed;
 
 	lapic = vlapic->apic_page;
-	old = lapic->svr;
+
+	new = lapic->svr;
+	old = vlapic->svr_last;
+	vlapic->svr_last = new;
+
 	changed = old ^ new;
 	if ((changed & APIC_SVR_ENABLE) != 0) {
 		if ((new & APIC_SVR_ENABLE) == 0) {
 			/*
-			 * The apic is now disabled so stop the apic timer.
+			 * The apic is now disabled so stop the apic timer
+			 * and mask all the LVT entries.
 			 */
 			VLAPIC_CTR0(vlapic, "vlapic is software-disabled");
 			VLAPIC_TIMER_LOCK(vlapic);
 			callout_stop(&vlapic->callout);
 			VLAPIC_TIMER_UNLOCK(vlapic);
+			vlapic_mask_lvts(vlapic);
 		} else {
 			/*
 			 * The apic is now enabled so restart the apic timer
@@ -1080,7 +1091,6 @@ lapic_set_svr(struct vlapic *vlapic, uint32_t new)
 				vlapic_set_icr_timer(vlapic, lapic->icr_timer);
 		}
 	}
-	lapic->svr = new;
 }
 
 int
@@ -1210,7 +1220,8 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 			vlapic_dfr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_SVR:
-			lapic_set_svr(vlapic, data);
+			lapic->svr = data;
+			vlapic_svr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_ICR_LOW: 
 			if (!x2apic(vlapic)) {
