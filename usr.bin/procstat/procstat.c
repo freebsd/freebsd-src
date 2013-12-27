@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, 2011 Robert N. M. Watson
+ * Copyright (c) 2007, 2011-2013 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,7 @@
 
 #include "procstat.h"
 
+static int Lflag, Rflag, Sflag;
 static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, sflag;
 static int tflag, vflag, xflag;
 int	hflag, nflag, Cflag;
@@ -49,8 +50,9 @@ usage(void)
 
 	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
 	    "[-w interval] \n");
-	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-l | -s | -t | -v | -x] [-a | pid | core ...]\n");
+	fprintf(stderr, "                [-L | -R | -S | -b | -c | -e | -f | -i | -j | -k | "
+	    "-l | -s | -t | -v | -x]\n");
+	fprintf(stderr, "                [-a | pid | core ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -58,7 +60,13 @@ static void
 procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 {
 
-	if (bflag)
+	if (Lflag)
+		procstat_sandbox_classes(prstat, kipp);
+	else if (Rflag)
+		procstat_sandbox_methods(prstat, kipp);
+	else if (Sflag)
+		procstat_sandbox_objects(prstat, kipp);
+	else if (bflag)
 		procstat_bin(prstat, kipp);
 	else if (cflag)
 		procstat_args(prstat, kipp);
@@ -125,10 +133,14 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CN:M:abcefijklhstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CLN:M:RSabcefijklhstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
+			break;
+
+		case 'L':
+			Lflag++;
 			break;
 
 		case 'M':
@@ -137,6 +149,15 @@ main(int argc, char *argv[])
 		case 'N':
 			nlistf = optarg;
 			break;
+
+		case 'R':
+			Rflag++;
+			break;
+
+		case 'S':
+			Sflag++;
+			break;
+
 		case 'a':
 			aflag++;
 			break;
@@ -216,8 +237,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = bflag + cflag + eflag + fflag + iflag + jflag + (kflag ? 1 : 0) +
-	    lflag + sflag + tflag + vflag + xflag;
+	tmp = Lflag + Rflag + Sflag + bflag + cflag + eflag + fflag + iflag +
+	    jflag + (kflag ? 1 : 0) + lflag + sflag + tflag + vflag + xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 

@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2007-2009 Robert N. M. Watson
+.\" Copyright (c) 2007-2009, 2013 Robert N. M. Watson
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 27, 2013
+.Dd December 26, 2013
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Op Fl n
 .Op Fl C
 .Op Fl w Ar interval
-.Op Fl b | c | e | f | i | j | k | l | s | t | v | x
+.Op Fl L | M | S | b | c | e | f | i | j | k | l | s | t | v | x
 .Op Fl a | Ar pid | Ar core ...
 .Sh DESCRIPTION
 The
@@ -54,6 +54,12 @@ By default, basic process statistics are printed; one of the following
 options may be specified in order to select more detailed process information
 for printing:
 .Bl -tag -width indent
+.It Fl L
+Display sandbox classes for the process.
+.It Fl M
+Display sandbox methods for the process.
+.It Fl S
+Display sandbox objects for the process.
 .It Fl b
 Display binary information for the process.
 .It Fl c
@@ -104,6 +110,12 @@ descriptor view.
 .Pp
 Some information, such as VM and file descriptor information, is available
 only to the owner of a process or the superuser.
+.Ss Sandbox Classes
+XXX: Fill this in.
+.Ss Sandbox Methods
+XXX: Fill this in.
+.Ss Sandbox Objects
+XXX: Fill this in.
 .Ss Binary Information
 Display the process ID, command, and path to the process binary:
 .Pp
@@ -466,3 +478,8 @@ the cache, a path will not be displayed.
 .Nm
 currently supports extracting data only from a live kernel, and not from
 kernel crash dumps.
+.Pp
+Some information, such as ELF and sandbox data, is retrieved by inspecting
+target-process memory.
+As a result, it may be unreliable due to unsynchronized memory access or
+memory corruption bugs in the target process.

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2007, 2013 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,6 +44,12 @@ void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_kstack(struct procstat *prstat, struct kinfo_proc *kipp,
     int kflag);
 void	procstat_rlimit(struct procstat *prstat, struct kinfo_proc *kipp);
+void	procstat_sandbox_classes(struct procstat *procstat,
+	    struct kinfo_proc *kipp);
+void	procstat_sandbox_methods(struct procstat *procstat,
+	    struct kinfo_proc *kipp);
+void	procstat_sandbox_objects(struct procstat *procstat,
+	    struct kinfo_proc *kipp);
 void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads(struct procstat *prstat, struct kinfo_proc *kipp);
 void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
