@@ -38,6 +38,8 @@ guest inside a bhyve virtual machine
 .Op Fl m Ar mem-size
 .Op Fl d Ar disk-path
 .Op Fl h Ar host-path
+.Op Fl e Ar name=value
+.Op Fl c Ar cons-dev
 .Ar vmname
 .Sh DESCRIPTION
 .Nm
@@ -60,13 +62,29 @@ and will be created if it does not already exist.
 .Sh OPTIONS
 The following options are available:
 .Bl -tag -width indent
-.It Fl m Ar mem-size
+.It Fl m Ar mem-size Xo
+.Sm off
+.Op Cm K | k | M | m | G | g | T | t
+.Xc
+.Sm on
 .Ar mem-size
-is the amount of memory allocated to the guest in units of megabytes.
+is the amount of memory allocated to the guest.
+.Pp
+The
+.Ar mem-size
+argument may be suffixed with one of
+.Cm K ,
+.Cm M ,
+.Cm G
+or
+.Cm T
+(either upper or lower case) to indicate a multiple of
+Kilobytes, Megabytes, Gigabytes or Terabytes
+respectively.
 .Pp
 The default value of
 .Ar mem-size
-is 256.
+is 256M.
 .It Fl d Ar disk-path
 The
 .Ar disk-path
@@ -75,6 +93,24 @@ is the pathname of the guest's boot disk image.
 The
 .Ar host-path
 is the directory at the top of the guest's boot filesystem.
+.It Fl e Ar name=value
+Set the FreeBSD loader environment variable
+.Ar name
+to
+.Ar value .
+.Pp
+The option may be used more than once to set more than one environment
+variable.
+.It Fl c Ar cons-dev
+.Ar cons-dev
+is a
+.Xr tty 4
+device to use for
+.Nm
+terminal I/O.
+.Pp
+The text string "stdio" is also accepted and selects the use of
+unbuffered standard I/O. This is the default value.
 .El
 .Sh EXAMPLES
 To create a virtual machine named
@@ -83,11 +119,24 @@ that boots off the ISO image
 .Pa /freebsd/release.iso
 and has 1GB memory allocated to it:
 .Pp
-.Dl "bhyveload -m 1024 -d /freebsd/release.iso freebsd-vm"
+.Dl "bhyveload -m 1G -d /freebsd/release.iso freebsd-vm"
+.Pp
+To create a virtual machine named
+.Ar test-vm
+with 256MB of memory allocated, the guest root filesystem under the host
+directory
+.Pa /user/images/test
+and terminal I/O sent to the
+.Xr nmdm 4
+device
+.Pa /dev/nmdm1B
+.Pp
+.Dl "bhyveload -m 256MB -h /usr/images/test -c /dev/nmdm1B test-vm"
 .Sh SEE ALSO
 .Xr bhyve 4 ,
 .Xr bhyve 8 ,
 .Xr loader 8 ,
+.Xr nmdm 4,
 .Xr vmm 4
 .Sh HISTORY
 .Nm

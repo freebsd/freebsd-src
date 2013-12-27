@@ -1,4 +1,4 @@
-/* $Id: bsd-cygwin_util.h,v 1.15.4.1 2013/04/04 23:53:31 dtucker Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.16 2013/04/01 01:40:49 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000, 2001, 2011, 2013 Corinna Vinschen <vinschen@redhat.com>

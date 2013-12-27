@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2013
+.Dd September 10, 2013
 .Dt GEOM 4
 .Os
 .Sh NAME
@@ -354,24 +354,6 @@ only be done with their cooperation.
 Finally: the spoiling only happens when the write count goes from
 zero to non-zero and the retasting happens only when the write count goes
 from non-zero to zero.
-.It Em INSERT/DELETE
-are very special operations which allow a new geom
-to be instantiated between a consumer and a provider attached to
-each other and to remove it again.
-.Pp
-To understand the utility of this, imagine a provider
-being mounted as a file system.
-Between the DEVFS geom's consumer and its provider we insert
-a mirror module which configures itself with one mirror
-copy and consequently is transparent to the I/O requests
-on the path.
-We can now configure yet a mirror copy on the mirror geom,
-request a synchronization, and finally drop the first mirror
-copy.
-We have now, in essence, moved a mounted file system from one
-disk to another while it was being used.
-At this point the mirror geom can be deleted from the path
-again; it has served its purpose.
 .It Em CONFIGURE
 is the process where the administrator issues instructions
 for a particular class to instantiate itself.

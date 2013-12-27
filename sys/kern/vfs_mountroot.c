@@ -389,13 +389,6 @@ parse_advance(char **conf)
 	(*conf)++;
 }
 
-static __inline int
-parse_isspace(int c)
-{
-
-	return ((c == ' ' || c == '\t' || c == '\n') ? 1 : 0);
-}
-
 static int
 parse_skipto(char **conf, int mc)
 {
@@ -710,7 +703,7 @@ parse_mount(char **conf)
 	errmsg = malloc(ERRMSGL, M_TEMP, M_WAITOK | M_ZERO);
 
 	if (vfs_byname(fs) == NULL) {
-		strlcpy(errmsg, "unknown file system", sizeof(errmsg));
+		strlcpy(errmsg, "unknown file system", ERRMSGL);
 		error = ENOENT;
 		goto out;
 	}

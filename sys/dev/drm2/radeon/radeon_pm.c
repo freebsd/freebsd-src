@@ -248,7 +248,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
 		return;
 
-	DRM_LOCK(rdev->ddev);
+	//DRM_LOCK(rdev->ddev); XXX Recursion, already locked in drm_attach/drm_load -- dumbbell@
 	sx_xlock(&rdev->pm.mclk_lock);
 	sx_xlock(&rdev->ring_lock);
 
@@ -263,7 +263,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 			/* needs a GPU reset dont reset here */
 			sx_xunlock(&rdev->ring_lock);
 			sx_xunlock(&rdev->pm.mclk_lock);
-			DRM_UNLOCK(rdev->ddev);
+			//DRM_UNLOCK(rdev->ddev); XXX Recursion, already locked in drm_attach/drm_load -- dumbbell@
 			return;
 		}
 	}
@@ -299,7 +299,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	sx_xunlock(&rdev->ring_lock);
 	sx_xunlock(&rdev->pm.mclk_lock);
-	DRM_UNLOCK(rdev->ddev);
+	//DRM_UNLOCK(rdev->ddev); XXX Recursion, already locked in drm_attach/drm_load -- dumbbell@
 }
 
 static void radeon_pm_print_states(struct radeon_device *rdev)

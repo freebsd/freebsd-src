@@ -9,10 +9,10 @@
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
-<sect1 id="trouble">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="trouble">
   <title>Решение проблем</title>
 
-  <sect2 id="repairing">
+  <sect2 xml:id="repairing">
     <title>Восстановление существующей установки &os;</title>
 
     <para>&os; предоставляет опцию <quote>fixit</quote> в главном меню
@@ -37,7 +37,7 @@
     <para>Пользователям, которые не могут загрузиться с компакт-диска,
       но могут загрузиться с дискет, потребуется выполнить несколько больше
       шагов.  В дополнение к дискетам <filename>boot.flp</filename> и
-      <filename>kern<replaceable>X</replaceable>.flp</filename>,
+      <filename>kernX.flp</filename>,
       необходимым для установки, создайте дискету
       <filename>fixit.flp</filename>, тем же способом, что и другие
       дискеты.  Следуйте инструкциям по загрузке программы установки
@@ -146,8 +146,8 @@
 	  <para>В первой ситуации имеются два IDE диска, каждый настроен
 	    как основной на своей шине IDE, и загружать &os; нужно со второго
 	    диска.  BIOS видит их как диск 0 и диск 1, а &os; видит их
-	    как <devicename>ad0</devicename>
-	    <devicename>ad2</devicename>.</para>
+	    как <filename>ad0</filename>
+	    <filename>ad2</filename>.</para>
 
 	  <para>&os; находится на диске 1 по нумерации BIOS, тип
 	    <literal>ad</literal> и &os; нумерация диска 2, наберите:</para>
@@ -225,8 +225,8 @@
 	  <para>Установите переменные <quote>hint.mcd.0.disabled="1"</quote>
 	    и <quote>hint.mcd.1.disabled="1"</quote> на третьей стадии
 	    загрузчика для отмены тестирования
-	    устройств <devicename>mcd0</devicename> и
-	    <devicename>mcd1</devicename>.  Вообще говоря, вы должны
+	    устройств <filename>mcd0</filename> и
+	    <filename>mcd1</filename>.  Вообще говоря, вы должны
 	    оставить включенными только те устройства, которые
 	    вы будете использовать.</para>
 	</answer>

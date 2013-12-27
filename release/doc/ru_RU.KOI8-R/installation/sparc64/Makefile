@@ -15,7 +15,6 @@ INSTALL_ONLY_COMPRESSED?=
 
 # SGML content
 SRCS+=	article.xml
-SRCS+=	../../../en_US.ISO8859-1/installation/sparc64/install.xml
 SRCS+=	../common/artheader.xml
 SRCS+=	../common/install.xml
 SRCS+=	../common/layout.xml

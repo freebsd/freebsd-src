@@ -117,7 +117,10 @@ typedef enum {
 	CTLADM_CMD_PRES_OUT,
 	CTLADM_CMD_INQ_VPD_DEVID,
 	CTLADM_CMD_RTPG,
-	CTLADM_CMD_MODIFY
+	CTLADM_CMD_MODIFY,
+	CTLADM_CMD_ISLIST,
+	CTLADM_CMD_ISLOGOUT,
+	CTLADM_CMD_ISTERMINATE
 } ctladm_cmdfunction;
 
 typedef enum {
@@ -180,6 +183,9 @@ static struct ctladm_opts option_table[] = {
 	{"help", CTLADM_CMD_HELP, CTLADM_ARG_NONE, NULL},
 	{"inject", CTLADM_CMD_ERR_INJECT, CTLADM_ARG_NEED_TL, "cd:i:p:r:s:"},
 	{"inquiry", CTLADM_CMD_INQUIRY, CTLADM_ARG_NEED_TL, NULL},
+	{"islist", CTLADM_CMD_ISLIST, CTLADM_ARG_NONE, "vx"},
+	{"islogout", CTLADM_CMD_ISLOGOUT, CTLADM_ARG_NONE, "ac:i:p:"},
+	{"isterminate", CTLADM_CMD_ISTERMINATE, CTLADM_ARG_NONE, "ac:i:p:"},
 	{"lunlist", CTLADM_CMD_LUNLIST, CTLADM_ARG_NONE, NULL},
 	{"modesense", CTLADM_CMD_MODESENSE, CTLADM_ARG_NEED_TL, "P:S:dlm:c:"},
 	{"modify", CTLADM_CMD_MODIFY, CTLADM_ARG_NONE, "b:l:s:"},
@@ -489,6 +495,9 @@ retry:
 		case CTL_PORT_ISC:
 			type = "ISC";
 			break;
+		case CTL_PORT_ISCSI:
+			type = "ISCSI";
+			break;
 		default:
 			type = "UNKNOWN";
 			break;
@@ -578,6 +587,7 @@ static struct ctladm_opts cctl_fe_table[] = {
 	{"fc", CTL_PORT_FC, CTLADM_ARG_NONE, NULL},
 	{"scsi", CTL_PORT_SCSI, CTLADM_ARG_NONE, NULL},
 	{"internal", CTL_PORT_INTERNAL, CTLADM_ARG_NONE, NULL},
+	{"iscsi", CTL_PORT_ISCSI, CTLADM_ARG_NONE, NULL},
 	{"all", CTL_PORT_ALL, CTLADM_ARG_NONE, NULL},
 	{NULL, 0, 0, NULL}
 };
@@ -690,7 +700,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 	} else if ((targ_port == -1) && (port_type == CTL_PORT_NONE))
 		port_type = CTL_PORT_ALL;
 
-	bzero(&entry, sizeof(&entry));
+	bzero(&entry, sizeof(entry));
 
 	/*
 	 * These are needed for all but list/dump mode.
@@ -3399,6 +3409,403 @@ bailout:
 	return (retval);
 }
 
+struct cctl_islist_conn {
+	int connection_id;
+	char *initiator;
+	char *initiator_addr;
+	char *initiator_alias;
+	char *target;
+	char *target_alias;
+	char *header_digest;
+	char *data_digest;
+	char *max_data_segment_length;;
+	int immediate_data;
+	int iser;
+	STAILQ_ENTRY(cctl_islist_conn) links;
+};
+
+struct cctl_islist_data {
+	int num_conns;
+	STAILQ_HEAD(,cctl_islist_conn) conn_list;
+	struct cctl_islist_conn *cur_conn;
+	int level;
+	struct sbuf *cur_sb[32];
+};
+
+static void
+cctl_islist_start_element(void *user_data, const char *name, const char **attr)
+{
+	int i;
+	struct cctl_islist_data *islist;
+	struct cctl_islist_conn *cur_conn;
+
+	islist = (struct cctl_islist_data *)user_data;
+	cur_conn = islist->cur_conn;
+	islist->level++;
+	if ((u_int)islist->level >= (sizeof(islist->cur_sb) /
+	    sizeof(islist->cur_sb[0])))
+		errx(1, "%s: too many nesting levels, %zd max", __func__,
+		     sizeof(islist->cur_sb) / sizeof(islist->cur_sb[0]));
+
+	islist->cur_sb[islist->level] = sbuf_new_auto();
+	if (islist->cur_sb[islist->level] == NULL)
+		err(1, "%s: Unable to allocate sbuf", __func__);
+
+	if (strcmp(name, "connection") == 0) {
+		if (cur_conn != NULL)
+			errx(1, "%s: improper connection element nesting",
+			    __func__);
+
+		cur_conn = calloc(1, sizeof(*cur_conn));
+		if (cur_conn == NULL)
+			err(1, "%s: cannot allocate %zd bytes", __func__,
+			    sizeof(*cur_conn));
+
+		islist->num_conns++;
+		islist->cur_conn = cur_conn;
+
+		STAILQ_INSERT_TAIL(&islist->conn_list, cur_conn, links);
+
+		for (i = 0; attr[i] != NULL; i += 2) {
+			if (strcmp(attr[i], "id") == 0) {
+				cur_conn->connection_id =
+				    strtoull(attr[i+1], NULL, 0);
+			} else {
+				errx(1,
+				    "%s: invalid connection attribute %s = %s",
+				     __func__, attr[i], attr[i+1]);
+			}
+		}
+	}
+}
+
+static void
+cctl_islist_end_element(void *user_data, const char *name)
+{
+	struct cctl_islist_data *islist;
+	struct cctl_islist_conn *cur_conn;
+	char *str;
+
+	islist = (struct cctl_islist_data *)user_data;
+	cur_conn = islist->cur_conn;
+
+	if ((cur_conn == NULL)
+	 && (strcmp(name, "ctlislist") != 0))
+		errx(1, "%s: cur_conn == NULL! (name = %s)", __func__, name);
+
+	if (islist->cur_sb[islist->level] == NULL)
+		errx(1, "%s: no valid sbuf at level %d (name %s)", __func__,
+		     islist->level, name);
+
+	sbuf_finish(islist->cur_sb[islist->level]);
+	str = strdup(sbuf_data(islist->cur_sb[islist->level]));
+	if (str == NULL)
+		err(1, "%s can't allocate %zd bytes for string", __func__,
+		    sbuf_len(islist->cur_sb[islist->level]));
+
+	sbuf_delete(islist->cur_sb[islist->level]);
+	islist->cur_sb[islist->level] = NULL;
+	islist->level--;
+
+	if (strcmp(name, "initiator") == 0) {
+		cur_conn->initiator = str;
+		str = NULL;
+	} else if (strcmp(name, "initiator_addr") == 0) {
+		cur_conn->initiator_addr = str;
+		str = NULL;
+	} else if (strcmp(name, "initiator_alias") == 0) {
+		cur_conn->initiator_alias = str;
+		str = NULL;
+	} else if (strcmp(name, "target") == 0) {
+		cur_conn->target = str;
+		str = NULL;
+	} else if (strcmp(name, "target_alias") == 0) {
+		cur_conn->target_alias = str;
+		str = NULL;
+	} else if (strcmp(name, "header_digest") == 0) {
+		cur_conn->header_digest = str;
+		str = NULL;
+	} else if (strcmp(name, "data_digest") == 0) {
+		cur_conn->data_digest = str;
+		str = NULL;
+	} else if (strcmp(name, "max_data_segment_length") == 0) {
+		cur_conn->max_data_segment_length = str;
+		str = NULL;
+	} else if (strcmp(name, "immediate_data") == 0) {
+		cur_conn->immediate_data = atoi(str);
+	} else if (strcmp(name, "iser") == 0) {
+		cur_conn->iser = atoi(str);
+	} else if (strcmp(name, "connection") == 0) {
+		islist->cur_conn = NULL;
+	} else if (strcmp(name, "ctlislist") == 0) {
+	} else
+		errx(1, "unknown element %s", name);
+
+	free(str);
+}
+
+static void
+cctl_islist_char_handler(void *user_data, const XML_Char *str, int len)
+{
+	struct cctl_islist_data *islist;
+
+	islist = (struct cctl_islist_data *)user_data;
+
+	sbuf_bcat(islist->cur_sb[islist->level], str, len);
+}
+
+static int
+cctl_islist(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_iscsi req;
+	struct cctl_islist_data islist;
+	struct cctl_islist_conn *conn;
+	XML_Parser parser;
+	char *conn_str;
+	int conn_len;
+	int dump_xml = 0;
+	int c, retval, verbose = 0;
+
+	retval = 0;
+	conn_len = 4096;
+
+	bzero(&islist, sizeof(islist));
+	STAILQ_INIT(&islist.conn_list);
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'v':
+			verbose = 1;
+			break;
+		case 'x':
+			dump_xml = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+retry:
+	conn_str = malloc(conn_len);
+
+	bzero(&req, sizeof(req));
+	req.type = CTL_ISCSI_LIST;
+	req.data.list.alloc_len = conn_len;
+	req.data.list.conn_xml = conn_str;
+
+	if (ioctl(fd, CTL_ISCSI, &req) == -1) {
+		warn("%s: error issuing CTL_ISCSI ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status == CTL_ISCSI_ERROR) {
+		warnx("%s: error returned from CTL_ISCSI ioctl:\n%s",
+		      __func__, req.error_str);
+	} else if (req.status == CTL_ISCSI_LIST_NEED_MORE_SPACE) {
+		conn_len = conn_len << 1;
+		goto retry;
+	}
+
+	if (dump_xml != 0) {
+		printf("%s", conn_str);
+		goto bailout;
+	}
+
+	parser = XML_ParserCreate(NULL);
+	if (parser == NULL) {
+		warn("%s: Unable to create XML parser", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	XML_SetUserData(parser, &islist);
+	XML_SetElementHandler(parser, cctl_islist_start_element,
+	    cctl_islist_end_element);
+	XML_SetCharacterDataHandler(parser, cctl_islist_char_handler);
+
+	retval = XML_Parse(parser, conn_str, strlen(conn_str), 1);
+	XML_ParserFree(parser);
+	if (retval != 1) {
+		retval = 1;
+		goto bailout;
+	}
+
+	if (verbose != 0) {
+		STAILQ_FOREACH(conn, &islist.conn_list, links) {
+			printf("Session ID:       %d\n", conn->connection_id);
+			printf("Initiator name:   %s\n", conn->initiator);
+			printf("Initiator portal: %s\n", conn->initiator_addr);
+			printf("Initiator alias:  %s\n", conn->initiator_alias);
+			printf("Target name:      %s\n", conn->target);
+			printf("Target alias:     %s\n", conn->target_alias);
+			printf("Header digest:    %s\n", conn->header_digest);
+			printf("Data digest:      %s\n", conn->data_digest);
+			printf("DataSegmentLen:   %s\n", conn->max_data_segment_length);
+			printf("ImmediateData:    %s\n", conn->immediate_data ? "Yes" : "No");
+			printf("iSER (RDMA):      %s\n", conn->iser ? "Yes" : "No");
+			printf("\n");
+		}
+	} else {
+		printf("%4s %-16s %-36s %-36s\n", "ID", "Portal", "Initiator name",
+		    "Target name");
+		STAILQ_FOREACH(conn, &islist.conn_list, links) {
+			printf("%4u %-16s %-36s %-36s\n",
+			    conn->connection_id, conn->initiator_addr, conn->initiator,
+			    conn->target);
+		}
+	}
+bailout:
+	free(conn_str);
+
+	return (retval);
+}
+
+static int
+cctl_islogout(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_iscsi req;
+	int retval = 0, c;
+	int all = 0, connection_id = -1, nargs = 0;
+	char *initiator_name = NULL, *initiator_addr = NULL;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'a':
+			all = 1;
+			nargs++;
+			break;
+		case 'c':
+			connection_id = strtoul(optarg, NULL, 0);
+			nargs++;
+			break;
+		case 'i':
+			initiator_name = strdup(optarg);
+			if (initiator_name == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
+		case 'p':
+			initiator_addr = strdup(optarg);
+			if (initiator_addr == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (nargs == 0)
+		errx(1, "%s: either -a, -c, -i, or -p must be specified",
+		    __func__);
+	if (nargs > 1)
+		errx(1, "%s: only one of -a, -c, -i, or -p may be specified",
+		    __func__);
+
+	bzero(&req, sizeof(req));
+	req.type = CTL_ISCSI_LOGOUT;
+	req.data.logout.connection_id = connection_id;
+	if (initiator_addr != NULL)
+		strlcpy(req.data.logout.initiator_addr,
+		    initiator_addr, sizeof(req.data.logout.initiator_addr));
+	if (initiator_name != NULL)
+		strlcpy(req.data.logout.initiator_name,
+		    initiator_name, sizeof(req.data.logout.initiator_name));
+	if (all != 0)
+		req.data.logout.all = 1;
+
+	if (ioctl(fd, CTL_ISCSI, &req) == -1) {
+		warn("%s: error issuing CTL_ISCSI ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		warnx("%s: error returned from CTL iSCSI logout request:\n%s",
+		      __func__, req.error_str);
+		retval = 1;
+		goto bailout;
+	}
+
+	printf("iSCSI logout requests submitted\n");
+
+bailout:
+	return (retval);
+}
+
+static int
+cctl_isterminate(int fd, int argc, char **argv, char *combinedopt)
+{
+	struct ctl_iscsi req;
+	int retval = 0, c;
+	int all = 0, connection_id = -1, nargs = 0;
+	char *initiator_name = NULL, *initiator_addr = NULL;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch (c) {
+		case 'a':
+			all = 1;
+			nargs++;
+			break;
+		case 'c':
+			connection_id = strtoul(optarg, NULL, 0);
+			nargs++;
+			break;
+		case 'i':
+			initiator_name = strdup(optarg);
+			if (initiator_name == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
+		case 'p':
+			initiator_addr = strdup(optarg);
+			if (initiator_addr == NULL)
+				err(1, "%s: strdup", __func__);
+			nargs++;
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (nargs == 0)
+		errx(1, "%s: either -a, -c, -i, or -p must be specified",
+		    __func__);
+	if (nargs > 1)
+		errx(1, "%s: only one of -a, -c, -i, or -p may be specified",
+		    __func__);
+
+	bzero(&req, sizeof(req));
+	req.type = CTL_ISCSI_TERMINATE;
+	req.data.terminate.connection_id = connection_id;
+	if (initiator_addr != NULL)
+		strlcpy(req.data.terminate.initiator_addr,
+		    initiator_addr, sizeof(req.data.terminate.initiator_addr));
+	if (initiator_name != NULL)
+		strlcpy(req.data.terminate.initiator_name,
+		    initiator_name, sizeof(req.data.terminate.initiator_name));
+	if (all != 0)
+		req.data.terminate.all = 1;
+
+	if (ioctl(fd, CTL_ISCSI, &req) == -1) {
+		warn("%s: error issuing CTL_ISCSI ioctl", __func__);
+		retval = 1;
+		goto bailout;
+	}
+
+	if (req.status != CTL_ISCSI_OK) {
+		warnx("%s: error returned from CTL iSCSI connection "
+		    "termination request:\n%s", __func__, req.error_str);
+		retval = 1;
+		goto bailout;
+	}
+
+	printf("iSCSI connections terminated\n");
+
+bailout:
+	return (retval);
+}
 
 /*
  * Name/value pair used for per-LUN attributes.
@@ -3441,7 +3848,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level > (sizeof(devlist->cur_sb) /
+	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
 	    sizeof(devlist->cur_sb[0])))
 		errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(devlist->cur_sb) / sizeof(devlist->cur_sb[0]));
@@ -3713,6 +4120,9 @@ usage(int error)
 "                            [-s len fmt [args]] [-c] [-d delete_id]\n"
 "         ctladm port        <-l | -o <on|off> | [-w wwnn][-W wwpn]>\n"
 "                            [-p targ_port] [-t port_type] [-q] [-x]\n"
+"         ctladm islist      [-v | -x]\n"
+"         ctladm islogout    <-a | -c connection-id | -i name | -p portal>\n"
+"         ctladm isterminate <-a | -c connection-id | -i name | -p portal>\n"
 "         ctladm dumpooa\n"
 "         ctladm dumpstructs\n"
 "         ctladm help\n"
@@ -4092,6 +4502,15 @@ main(int argc, char **argv)
 		break;
 	case CTLADM_CMD_MODIFY:
 	        retval = cctl_modify_lun(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_ISLIST:
+	        retval = cctl_islist(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_ISLOGOUT:
+	        retval = cctl_islogout(fd, argc, argv, combinedopt);
+		break;
+	case CTLADM_CMD_ISTERMINATE:
+	        retval = cctl_isterminate(fd, argc, argv, combinedopt);
 		break;
 	case CTLADM_CMD_HELP:
 	default:

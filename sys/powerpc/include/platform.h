@@ -52,6 +52,7 @@ int	platform_smp_first_cpu(struct cpuref *);
 int	platform_smp_next_cpu(struct cpuref *);
 int	platform_smp_get_bsp(struct cpuref *);
 int	platform_smp_start_cpu(struct pcpu *);
+void	platform_smp_ap_init(void);
   
 const char *installed_platform(void);
 void platform_probe_and_attach(void);

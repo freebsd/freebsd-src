@@ -300,7 +300,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }
@@ -342,7 +342,7 @@ while getopts f:h$GETOPTS_STDARGS flag; do
 	h|\?) usage ;;
 	esac
 done
-shift $(( $OPTIND -1 ))
+shift $(( $OPTIND - 1 ))
 
 # If we've loaded any scripts, do not continue any further
 [ $scripts_loaded -gt 0 ] && exit
@@ -396,11 +396,10 @@ while :; do
 	f_dialog_menutag_fetch mtag
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
-	if [ $retval -eq 2 ]; then
-		# The Help button was pressed
+	if [ $retval -eq $DIALOG_HELP ]; then
 		f_show_help "$BSDCONFIG_HELPFILE"
 		continue
-	elif [ $retval -ne 0 ]; then
+	elif [ $retval -ne $DIALOG_OK ]; then
 		f_die
 	fi
 

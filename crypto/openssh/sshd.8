@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: sshd.8,v 1.267 2012/10/04 13:21:50 markus Exp $
+.\" $OpenBSD: sshd.8,v 1.270 2013/06/27 14:05:37 jmc Exp $
 .\" $FreeBSD$
-.Dd October 4, 2012
+.Dd June 27, 2013
 .Dt SSHD 8
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl b Ar bits
 .Op Fl C Ar connection_spec
 .Op Fl c Ar host_certificate_file
+.Op Fl E Ar log_file
 .Op Fl f Ar config_file
 .Op Fl g Ar login_grace_time
 .Op Fl h Ar host_key_file
@@ -147,10 +148,12 @@ Multiple
 .Fl d
 options increase the debugging level.
 Maximum is 3.
+.It Fl E Ar log_file
+Append debug logs to
+.Ar log_file
+instead of the system log.
 .It Fl e
-When this option is specified,
-.Nm
-will send the output to the standard error instead of the system log.
+Write debug logs to standard error instead of the system log.
 .It Fl f Ar config_file
 Specifies the name of the configuration file.
 The default is
@@ -567,9 +570,7 @@ is enabled.
 Specifies that in addition to public key authentication, either the canonical
 name of the remote host or its IP address must be present in the
 comma-separated list of patterns.
-See
-.Sx PATTERNS
-in
+See PATTERNS in
 .Xr ssh_config 5
 for more information on patterns.
 .Pp

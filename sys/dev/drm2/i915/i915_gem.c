@@ -1291,7 +1291,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	addr = 0;
 	vm_object_reference(obj->vm_obj);
 	DRM_UNLOCK(dev);
-	rv = vm_map_find(map, obj->vm_obj, args->offset, &addr, args->size,
+	rv = vm_map_find(map, obj->vm_obj, args->offset, &addr, args->size, 0,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {

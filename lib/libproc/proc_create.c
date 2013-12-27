@@ -75,7 +75,7 @@ proc_attach(pid_t pid, int flags, struct proc_handle **pphdl)
 
 	/* Check for an unexpected status. */
 	if (WIFSTOPPED(status) == 0)
-		DPRINTF("ERROR: child process %d status 0x%x", pid, status);
+		DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 	else
 		phdl->status = PS_STOP;
 
@@ -130,14 +130,14 @@ proc_create(const char *file, char * const *argv, proc_child_func *pcf,
 		/* Wait for the child process to stop. */
 		if (waitpid(pid, &status, WUNTRACED) == -1) {
 			error = errno;
-                	DPRINTF("ERROR: child process %d didn't stop as expected", pid);
+			DPRINTF("ERROR: child process %d didn't stop as expected", pid);
 			goto bad;
 		}
 
 		/* Check for an unexpected status. */
 		if (WIFSTOPPED(status) == 0) {
 			error = errno;
-                	DPRINTF("ERROR: child process %d status 0x%x", pid, status);
+			DPRINTFX("ERROR: child process %d status 0x%x", pid, status);
 			goto bad;
 		} else
 			phdl->status = PS_STOP;

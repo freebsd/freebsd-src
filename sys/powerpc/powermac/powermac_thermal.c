@@ -68,6 +68,8 @@ struct pmac_fan_le {
 struct pmac_sens_le {
 	struct pmac_therm		*sensor;
 	int				last_val;
+#define MAX_CRITICAL_COUNT 6
+	int				critical_count;
 	SLIST_ENTRY(pmac_sens_le)	entries;
 };
 static SLIST_HEAD(pmac_fans, pmac_fan_le) fans = SLIST_HEAD_INITIALIZER(fans);
@@ -106,14 +108,27 @@ pmac_therm_manage_fans(void)
 			sensor->last_val = temp;
 
 		if (sensor->last_val > sensor->sensor->max_temp) {
+			sensor->critical_count++;
 			printf("WARNING: Current temperature (%s: %d.%d C) "
-			    "exceeds critical temperature (%d.%d C)! "
-			    "Shutting down!\n", sensor->sensor->name,
-			       (sensor->last_val - ZERO_C_TO_K) / 10,
-			       (sensor->last_val - ZERO_C_TO_K) % 10,
-			       (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
-			       (sensor->sensor->max_temp - ZERO_C_TO_K) % 10);
-			shutdown_nice(RB_POWEROFF);
+			    "exceeds critical temperature (%d.%d C); "
+			    "count=%d\n",
+			    sensor->sensor->name,
+			    (sensor->last_val - ZERO_C_TO_K) / 10,
+			    (sensor->last_val - ZERO_C_TO_K) % 10,
+			    (sensor->sensor->max_temp - ZERO_C_TO_K) / 10,
+			    (sensor->sensor->max_temp - ZERO_C_TO_K) % 10,
+			    sensor->critical_count);
+			if (sensor->critical_count >= MAX_CRITICAL_COUNT) {
+				printf("WARNING: %s temperature exceeded "
+				    "critical temperature %d times in a row; "
+				    "shutting down!\n",
+				    sensor->sensor->name,
+				    sensor->critical_count);
+				shutdown_nice(RB_POWEROFF);
+			}
+		} else {
+			if (sensor->critical_count > 0)
+				sensor->critical_count--;
 		}
 	}
 
@@ -177,6 +192,8 @@ pmac_thermal_sensor_register(struct pmac_therm *sensor)
 	list_entry = malloc(sizeof(struct pmac_sens_le), M_PMACTHERM,
 	    M_ZERO | M_WAITOK);
 	list_entry->sensor = sensor;
+	list_entry->last_val = 0;
+	list_entry->critical_count = 0;
 
 	SLIST_INSERT_HEAD(&sensors, list_entry, entries);
 }

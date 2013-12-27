@@ -138,12 +138,6 @@ filemon_dtr(void *data)
 	}
 }
 
-#if __FreeBSD_version < 900041
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
-#else
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), CAP_WRITE | CAP_SEEK, (a3))
-#endif
-
 static int
 filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
     struct thread *td)
@@ -151,13 +145,21 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	int error = 0;
 	struct filemon *filemon;
 	struct proc *p;
+#if __FreeBSD_version >= 900041
+	cap_rights_t rights;
+#endif
 
 	devfs_get_cdevpriv((void **) &filemon);
 
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-		if ((error = FGET_WRITE(td, *(int *)data, &filemon->fp)) == 0)
+		error = fget_write(td, *(int *)data,
+#if __FreeBSD_version >= 900041
+		    cap_rights_init(&rights, CAP_PWRITE),
+#endif
+		    &filemon->fp);
+		if (error == 0)
 			/* Write the file header. */
 			filemon_comment(filemon);
 		break;

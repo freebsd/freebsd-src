@@ -39,7 +39,7 @@
  */
 
 #ifdef __arm__
-#if defined(__VFP_FP__)
+#if defined(__VFP_FP__) || defined(__ARM_EABI__)
 #define	IEEE_WORD_ORDER	BYTE_ORDER
 #else
 #define	IEEE_WORD_ORDER	BIG_ENDIAN

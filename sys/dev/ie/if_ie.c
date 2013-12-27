@@ -130,6 +130,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 
@@ -172,17 +173,12 @@ static void	iestart_locked		(struct ifnet *);
 
 static __inline void
 		ee16_interrupt_enable	(struct ie_softc *);
-static void	ee16_eeprom_outbits	(struct ie_softc *, int, int);
-static void	ee16_eeprom_clock	(struct ie_softc *, int);
-static u_short	ee16_read_eeprom	(struct ie_softc *, int);
-static int	ee16_eeprom_inbits	(struct ie_softc *);
 
 static __inline void
 		ie_ack			(struct ie_softc *, u_int);
 static void	iereset			(struct ie_softc *);
 static void	ie_readframe		(struct ie_softc *, int);
 static void	ie_drop_packet_buffer	(struct ie_softc *);
-static void	find_ie_mem_size	(struct ie_softc *);
 static int	command_and_wait	(struct ie_softc *,
 					 int, void volatile *, int);
 static void	run_tdr			(struct ie_softc *,
@@ -1090,26 +1086,6 @@ check_ie_present(struct ie_softc *sc)
 	return (1);
 }
 
-/*
- * Divine the memory size of ie board UNIT.
- * Better hope there's nothing important hiding just below the ie card...
- */
-static void
-find_ie_mem_size(struct ie_softc *sc)
-{
-	unsigned size;
-
-	sc->iosize = 0;
-
-	for (size = 65536; size >= 8192; size -= 8192) {
-		if (check_ie_present(sc)) {
-			return;
-		}
-	}
-
-	return;
-}
-
 void
 el_reset_586(struct ie_softc *sc)
 {
@@ -1150,82 +1126,6 @@ void
 ee16_chan_attn(struct ie_softc *sc)
 {
 	outb(PORT(sc) + IEE16_ATTN, 0);
-}
-
-u_short
-ee16_read_eeprom(struct ie_softc *sc, int location)
-{
-	int	ectrl, edata;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= IEE16_ECTRL_MASK;
-	ectrl |= IEE16_ECTRL_EECS;
-	outb(sc->port + IEE16_ECTRL, ectrl);
-
-	ee16_eeprom_outbits(sc, IEE16_EEPROM_READ, IEE16_EEPROM_OPSIZE1);
-	ee16_eeprom_outbits(sc, location, IEE16_EEPROM_ADDR_SIZE);
-	edata = ee16_eeprom_inbits(sc);
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EEDI | IEE16_ECTRL_EECS);
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	ee16_eeprom_clock(sc, 1);
-	ee16_eeprom_clock(sc, 0);
-	return edata;
-}
-
-static void
-ee16_eeprom_outbits(struct ie_softc *sc, int edata, int count)
-{
-	int	ectrl, i;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~IEE16_RESET_ASIC;
-	for (i = count - 1; i >= 0; i--) {
-		ectrl &= ~IEE16_ECTRL_EEDI;
-		if (edata & (1 << i)) {
-			ectrl |= IEE16_ECTRL_EEDI;
-		}
-		outb(sc->port + IEE16_ECTRL, ectrl);
-		DELAY(1);	/* eeprom data must be setup for 0.4 uSec */
-		ee16_eeprom_clock(sc, 1);
-		ee16_eeprom_clock(sc, 0);
-	}
-	ectrl &= ~IEE16_ECTRL_EEDI;
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	DELAY(1);		/* eeprom data must be held for 0.4 uSec */
-}
-
-static int
-ee16_eeprom_inbits(struct ie_softc *sc)
-{
-	int	ectrl, edata, i;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~IEE16_RESET_ASIC;
-	for (edata = 0, i = 0; i < 16; i++) {
-		edata = edata << 1;
-		ee16_eeprom_clock(sc, 1);
-		ectrl = inb(sc->port + IEE16_ECTRL);
-		if (ectrl & IEE16_ECTRL_EEDO) {
-			edata |= 1;
-		}
-		ee16_eeprom_clock(sc, 0);
-	}
-	return (edata);
-}
-
-static void
-ee16_eeprom_clock(struct ie_softc *sc, int state)
-{
-	int	ectrl;
-
-	ectrl = inb(sc->port + IEE16_ECTRL);
-	ectrl &= ~(IEE16_RESET_ASIC | IEE16_ECTRL_EESK);
-	if (state) {
-		ectrl |= IEE16_ECTRL_EESK;
-	}
-	outb(sc->port + IEE16_ECTRL, ectrl);
-	DELAY(9);		/* EESK must be stable for 8.38 uSec */
 }
 
 static __inline void

@@ -104,6 +104,19 @@ __FBSDID("$FreeBSD$");
 #define CF "/etc/devd.conf"
 #define SYSCTL "hw.bus.devctl_disable"
 
+/*
+ * Since the client socket is nonblocking, we must increase its send buffer to
+ * handle brief event storms.  On FreeBSD, AF_UNIX sockets don't have a receive
+ * buffer, so the client can't increate the buffersize by itself.
+ *
+ * For example, when creating a ZFS pool, devd emits one 165 character
+ * resource.fs.zfs.statechange message for each vdev in the pool.  A 64k
+ * buffer has enough space for almost 400 drives, which would be very large but
+ * not impossibly large pool.  A 128k buffer has enough space for 794 drives,
+ * which is more than can fit in a rack with modern technology.
+ */
+#define CLIENT_BUFSIZE 131072
+
 using namespace std;
 
 extern FILE *yyin;
@@ -248,7 +261,7 @@ bool
 action::do_action(config &c)
 {
 	string s = c.expand_string(_cmd.c_str());
-	devdlog(LOG_NOTICE, "Executing '%s'\n", s.c_str());
+	devdlog(LOG_INFO, "Executing '%s'\n", s.c_str());
 	my_system(s.c_str());
 	return (true);
 }
@@ -759,7 +772,7 @@ process_event(char *buffer)
 	char *sp;
 
 	sp = buffer + 1;
-	devdlog(LOG_DEBUG, "Processing event '%s'\n", buffer);
+	devdlog(LOG_INFO, "Processing event '%s'\n", buffer);
 	type = *buffer++;
 	cfg.push_var_table();
 	// No match doesn't have a device, and the format is a little
@@ -892,6 +905,7 @@ void
 new_client(int fd)
 {
 	int s;
+	int sndbuf_size;
 
 	/*
 	 * First go reap any zombie clients, then accept the connection, and
@@ -901,10 +915,15 @@ new_client(int fd)
 	check_clients();
 	s = accept(fd, NULL, NULL);
 	if (s != -1) {
+		sndbuf_size = CLIENT_BUFSIZE;
+		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_size,
+		    sizeof(sndbuf_size)))
+			err(1, "setsockopt");
 		shutdown(s, SHUT_RD);
 		clients.push_back(s);
 		++num_clients;
-	}
+	} else
+		err(1, "accept");
 }
 
 static void
@@ -970,7 +989,7 @@ event_loop(void)
 		}
 		rv = select(max_fd, &fds, NULL, NULL, &tv);
 		if (got_siginfo) {
-			devdlog(LOG_INFO, "Events received so far=%u\n",
+			devdlog(LOG_NOTICE, "Events received so far=%u\n",
 			    total_events);
 			got_siginfo = 0;
 		}
@@ -1111,7 +1130,7 @@ siginfohand(int)
 }
 
 /*
- * Local logging function.  Prints to syslog if we're daemonized; syslog
+ * Local logging function.  Prints to syslog if we're daemonized; stderr
  * otherwise.
  */
 static void

@@ -1,9 +1,9 @@
 /*
- *  $Id: menubox.c,v 1.145 2012/12/30 21:11:02 tom Exp $
+ *  $Id: menubox.c,v 1.148 2013/09/02 17:15:13 tom Exp $
  *
  *  menubox.c -- implements the menu box
  *
- *  Copyright 2000-2011,2012	Thomas E. Dickey
+ *  Copyright 2000-2012,2013	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public Licens, version 2.1e
@@ -191,19 +191,16 @@ input_menu_edit(ALL_DATA * data,
 static int
 handle_button(int code, DIALOG_LISTITEM * items, int choice)
 {
+    char *help_result;
+
     switch (code) {
     case DLG_EXIT_OK:		/* FALLTHRU */
     case DLG_EXIT_EXTRA:
 	dlg_add_string(items[choice].name);
 	break;
     case DLG_EXIT_HELP:
-	dlg_add_result("HELP ");
-	if (USE_ITEM_HELP(items[choice].help)) {
-	    dlg_add_string(items[choice].help);
-	    code = DLG_EXIT_ITEM_HELP;
-	} else {
-	    dlg_add_string(items[choice].name);
-	}
+	dlg_add_help_listitem(&code, &help_result, &items[choice]);
+	dlg_add_string(help_result);
 	break;
     }
     return code;

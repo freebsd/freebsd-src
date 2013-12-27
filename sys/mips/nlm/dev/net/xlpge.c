@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -306,29 +307,12 @@ static int
 xlpnae_get_maxchannels(struct nlm_xlpnae_softc *sc)
 {
 	int maxchans = 0;
-	int i, j, port = 0;
+	int i;
 
-	for (i = 0; i < sc->nblocks; i++) {
-		switch (sc->cmplx_type[i]) {
-		case SGMIIC:
-			for (j = 0; j < 4; j++) { /* 4 ports */
-				if ((i == 4) && (j > 1))
-					continue;
-				maxchans += sc->portcfg[port].num_channels;
-				port++;
-			}
-			break;
-		case XAUIC:
-			maxchans += sc->portcfg[port].num_channels;
-			port += 4;
-			break;
-		case ILC:
-			if (((i%2) == 0) && (i != 4)) {
-				maxchans += sc->portcfg[port].num_channels;
-				port += 4;
-				break;
-			}
-		}
+	for (i = 0; i < sc->max_ports; i++) {
+		if (sc->portcfg[i].type == UNKNOWN)
+			continue;
+		maxchans += sc->portcfg[i].num_channels;
 	}
 
 	return (maxchans);
@@ -374,7 +358,7 @@ nlm_setup_interfaces(struct nlm_xlpnae_softc *sc)
 	uint32_t cur_slot, cur_slot_base;
 	uint32_t cur_flow_base, port, flow_mask;
 	int max_channels;
-	int i, j, context;
+	int i, context;
 
 	cur_slot = 0;
 	cur_slot_base = 0;
@@ -386,39 +370,13 @@ nlm_setup_interfaces(struct nlm_xlpnae_softc *sc)
 
 	port = 0;
 	context = 0;
-	for (i = 0; i < sc->nblocks; i++) {
-		switch (sc->cmplx_type[i]) {
-		case SGMIIC:
-			for (j = 0; j < 4; j++) { /* 4 ports */
-				if ((i == 4) && (j > 1))
-					continue;
-				nlm_setup_interface(sc, i, port,
-				    cur_flow_base, flow_mask,
-				    max_channels, context);
-				cur_flow_base += sc->per_port_num_flows;
-				context += sc->portcfg[port].num_channels;
-				port++;
-			}
-			break;
-		case XAUIC:
-			nlm_setup_interface(sc, i, port, cur_flow_base,
-			    flow_mask, max_channels, context);
-			cur_flow_base += sc->per_port_num_flows;
-			context += sc->portcfg[port].num_channels;
-			port += 4; 
-			break; 
-		case ILC:
-			if (((i%2) == 0) && (i != 4)) {
-				nlm_setup_interface(sc, i, port,
-				    cur_flow_base, flow_mask,
-				    max_channels, context);
-				cur_flow_base += sc->per_port_num_flows;
-				context += sc->portcfg[port].num_channels;
-				port += 4;
-			}
-			break;
-		}
-		cur_slot_base++;
+	for (i = 0; i < sc->max_ports; i++) {
+		if (sc->portcfg[i].type == UNKNOWN)
+			continue;
+		nlm_setup_interface(sc, sc->portcfg[i].block, i, cur_flow_base,
+		    flow_mask, max_channels, context);
+		cur_flow_base += sc->per_port_num_flows;
+		context += sc->portcfg[i].num_channels;
 	}
 }
 
@@ -481,8 +439,6 @@ nlm_xlpnae_init(int node, struct nlm_xlpnae_softc *sc)
 	nlm_setup_interfaces(sc);
 	nlm_config_poe(sc->poe_base, sc->poedv_base);
 
-	nlm_xlpnae_print_frin_desc_carving(sc);
-
 	if (sc->hw_parser_en)
 		nlm_enable_hardware_parser(nae_base);
 
@@ -530,6 +486,12 @@ nlm_setup_portcfg(struct nlm_xlpnae_softc *sc, struct xlp_nae_ivars *naep,
 	bp = &(naep->block_ivars[block]);
 	p  = &(bp->port_ivars[port & 0x3]);
 
+	sc->portcfg[port].node = p->node;
+	sc->portcfg[port].block = p->block;
+	sc->portcfg[port].port = p->port;
+	sc->portcfg[port].type = p->type;
+	sc->portcfg[port].mdio_bus = p->mdio_bus;
+	sc->portcfg[port].phy_addr = p->phy_addr;
 	sc->portcfg[port].loopback_mode = p->loopback_mode;
 	sc->portcfg[port].num_channels = p->num_channels;
 	if (p->free_desc_sizes != MCLBYTES) {
@@ -584,7 +546,7 @@ nlm_xlpnae_attach(device_t dev)
 	struct nlm_xlpnae_softc *sc;
 	device_t tmpd;
 	uint32_t dv[NUM_WORDS_PER_DV];
-	int port, i, j, n, nchan, nblock, node, qstart, qnum;
+	int port, i, j, nchan, nblock, node, qstart, qnum;
 	int offset, context, txq_base, rxvcbase;
 	uint64_t poe_pcibase, nae_pcibase;
 
@@ -598,6 +560,8 @@ nlm_xlpnae_attach(device_t dev)
 	sc->poe_base = nlm_get_poe_regbase(sc->node);
 	sc->poedv_base = nlm_get_poedv_regbase(sc->node);
 	sc->portcfg = nae_port_config;
+	sc->blockmask = nae_ivars->blockmask;
+	sc->ilmask = nae_ivars->ilmask;
 	sc->xauimask = nae_ivars->xauimask;
 	sc->sgmiimask = nae_ivars->sgmiimask;
 	sc->nblocks = nae_ivars->nblocks;
@@ -615,9 +579,10 @@ nlm_xlpnae_attach(device_t dev)
 	sc->ncontexts = nlm_read_reg(nae_pcibase, XLP_PCI_DEVINFO_REG5);
 	sc->nucores = nlm_num_uengines(nae_pcibase);
 
-	/* Initialize the 1st four complexes from board config */
-	for (nblock = 0; nblock < sc->nblocks; nblock++) 
+	for (nblock = 0; nblock < sc->nblocks; nblock++) {
 		sc->cmplx_type[nblock] = nae_ivars->block_ivars[nblock].type;
+		sc->portmask[nblock] = nae_ivars->block_ivars[nblock].portmask;
+	}
 
 	for (i = 0; i < sc->ncontexts; i++)
 		cntx2port[i] = 18;	/* 18 is an invalid port */
@@ -627,6 +592,8 @@ nlm_xlpnae_attach(device_t dev)
 	else
 		sc->max_ports = sc->nblocks * PORTS_PER_CMPLX;
 
+	for (i = 0; i < sc->max_ports; i++)
+		sc->portcfg[i].type = UNKNOWN; /* Port Not Present */
 	/*
 	 * Now setup all internal fifo carvings based on
 	 * total number of ports in the system
@@ -638,13 +605,15 @@ nlm_xlpnae_attach(device_t dev)
 	txq_base = nlm_qidstart(nae_pcibase);
 	rxvcbase = txq_base + sc->ncontexts;
 	for (i = 0; i < sc->nblocks; i++) {
-		/* only 2 SGMII ports in last complex */
-		n = (sc->cmplx_type[i] == SGMIIC && i == 4) ? 2 : 4;
-		for (j = 0; j < n; j++, port++) {
-			if (sc->cmplx_type[i] == XAUIC && j != 0)
-				continue;
-			if (sc->cmplx_type[i] == ILC &&
-			    (i != 0 || i != 2 || j != 0))
+		uint32_t portmask;
+
+		if ((nae_ivars->blockmask & (1 << i)) == 0) {
+			port += 4;
+			continue;
+		}
+		portmask = nae_ivars->block_ivars[i].portmask;
+		for (j = 0; j < PORTS_PER_CMPLX; j++, port++) {
+			if ((portmask & (1 << j)) == 0)
 				continue;
 			nlm_setup_portcfg(sc, nae_ivars, i, port);
 			nchan = sc->portcfg[port].num_channels;
@@ -687,31 +656,27 @@ nlm_xlpnae_attach(device_t dev)
 
 	nlm_xlpnae_init(node, sc);
 
-	for (i = 0; i < sc->nblocks; i++) {
+	for (i = 0; i < sc->max_ports; i++) {
 		char desc[32];
-		struct xlp_block_ivars *bv;
+		int block, port;
 
-		if ((nae_ivars->blockmask & (1 << i)) == 0)
+		if (sc->portcfg[i].type == UNKNOWN)
 			continue;
-		bv = &nae_ivars->block_ivars[i];
-		for (j = 0; j < PORTS_PER_CMPLX; j++) {
-			int port = i * 4 + j;
-
-			if ((bv->portmask & (1 << j)) == 0)
-				continue;
-			tmpd = device_add_child(dev, "xlpge", port);
-			device_set_ivars(tmpd, &(bv->port_ivars[j]));
-			sprintf(desc, "XLP NAE Port %d,%d", i, j);
-			device_set_desc_copy(tmpd, desc);
-		}
-
-		nlm_setup_iface_fifo_cfg(sc->base, i, sc->portcfg);
-		nlm_setup_rx_base_config(sc->base, i, sc->portcfg);
-		nlm_setup_rx_buf_config(sc->base, i, sc->portcfg);
-		nlm_setup_freein_fifo_cfg(sc->base, i, sc->portcfg);
-		nlm_program_nae_parser_seq_fifo(sc->base, i, sc->portcfg);
+		block = sc->portcfg[i].block;
+		port = sc->portcfg[i].port;
+		tmpd = device_add_child(dev, "xlpge", i);
+		device_set_ivars(tmpd,
+		    &(nae_ivars->block_ivars[block].port_ivars[port]));
+		sprintf(desc, "XLP NAE Port %d,%d", block, port);
+		device_set_desc_copy(tmpd, desc);
 	}
+	nlm_setup_iface_fifo_cfg(sc->base, sc->max_ports, sc->portcfg);
+	nlm_setup_rx_base_config(sc->base, sc->max_ports, sc->portcfg);
+	nlm_setup_rx_buf_config(sc->base, sc->max_ports, sc->portcfg);
+	nlm_setup_freein_fifo_cfg(sc->base, sc->portcfg);
+	nlm_program_nae_parser_seq_fifo(sc->base, sc->max_ports, sc->portcfg);
 
+	nlm_xlpnae_print_frin_desc_carving(sc);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
 

@@ -35,7 +35,12 @@
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/types.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/rwlock.h>
+#include <sys/sx.h>
+#include <vm/uma.h>
+
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 #include <machine/bus.h>
@@ -43,6 +48,7 @@
 #include <sys/sysctl.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <netinet/in.h>
 #include <netinet/tcp_lro.h>
@@ -194,6 +200,7 @@ struct port_info {
 	unsigned long flags;
 	int if_flags;
 
+	uint16_t *rss;
 	uint16_t viid;
 	int16_t  xact_addr_filt;/* index of exact MAC address filter */
 	uint16_t rss_size;	/* size of VI's RSS table slice */
@@ -510,7 +517,8 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
-	int s_qpp;
+	int eq_s_qpp;
+	int iq_s_qpp;
 
 	int nrxq;	/* total # of Ethernet rx queues */
 	int ntxq;	/* total # of Ethernet tx tx queues */

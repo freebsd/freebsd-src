@@ -564,7 +564,7 @@ static void radeon_do_cp_flush(drm_radeon_private_t * dev_priv)
 #if 0
 	u32 tmp;
 
-	tmp = RADEON_READ(RADEON_CP_RB_WPTR) | (1 << 31);
+	tmp = RADEON_READ(RADEON_CP_RB_WPTR) | (1U << 31);
 	RADEON_WRITE(RADEON_CP_RB_WPTR, tmp);
 #endif
 }

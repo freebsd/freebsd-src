@@ -64,7 +64,6 @@ char *ahd_chip_names[] =
 	"aic7902",
 	"aic7901A"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahd_chip_names);
 
 /*
  * Hardware error codes.
@@ -10343,9 +10342,9 @@ ahd_handle_target_cmd(struct ahd_softc *ahd, struct target_cmd *cmd)
 		/* Tag was included */
 		atio->tag_action = *byte++;
 		atio->tag_id = *byte++;
-		atio->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atio->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	} else {
-		atio->ccb_h.flags = 0;
+		atio->ccb_h.flags &= ~CAM_TAG_ACTION_VALID;
 	}
 	byte++;
 

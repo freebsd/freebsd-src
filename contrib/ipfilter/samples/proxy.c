@@ -51,8 +51,8 @@
 
 
 main(argc, argv)
-int argc;
-char *argv[];
+	int argc;
+	char *argv[];
 {
 	struct	sockaddr_in	sin, sloc, sout;
 	ipfobj_t	obj;
@@ -132,9 +132,9 @@ char *argv[];
 
 #ifdef	DO_NAT_OUT
 do_nat_out(in, out, fd, nlp, extif)
-int fd;
-natlookup_t *nlp;
-char *extif;
+	int fd;
+	natlookup_t *nlp;
+	char *extif;
 {
 	nat_save_t ns, *nsp = &ns;
 	struct sockaddr_in usin;
@@ -228,7 +228,7 @@ fflush(stdout);
 
 
 relay(in, out, net)
-int in, out, net;
+	int in, out, net;
 {
 	char netbuf[1024], outbuf[1024];
 	char *nwptr, *nrptr, *owptr, *orptr;

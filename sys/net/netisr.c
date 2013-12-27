@@ -129,7 +129,7 @@ static SYSCTL_NODE(_net, OID_AUTO, isr, CTLFLAG_RW, 0, "netisr");
 /*-
  * Three global direct dispatch policies are supported:
  *
- * NETISR_DISPATCH_QUEUED: All work is deferred for a netisr, regardless of
+ * NETISR_DISPATCH_DEFERRED: All work is deferred for a netisr, regardless of
  * context (may be overriden by protocols).
  *
  * NETISR_DISPATCH_HYBRID: If the executing context allows direct dispatch,
@@ -152,19 +152,6 @@ static int	sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_net_isr, OID_AUTO, dispatch, CTLTYPE_STRING | CTLFLAG_RW |
     CTLFLAG_TUN, 0, 0, sysctl_netisr_dispatch_policy, "A",
     "netisr dispatch policy");
-
-/*
- * These sysctls were used in previous versions to control and export
- * dispatch policy state.  Now, we provide read-only export via them so that
- * older netstat binaries work.  At some point they can be garbage collected.
- */
-static int	netisr_direct_force;
-SYSCTL_INT(_net_isr, OID_AUTO, direct_force, CTLFLAG_RD,
-    &netisr_direct_force, 0, "compat: force direct dispatch");
-
-static int	netisr_direct;
-SYSCTL_INT(_net_isr, OID_AUTO, direct, CTLFLAG_RD, &netisr_direct, 0,
-    "compat: enable direct dispatch");
 
 /*
  * Allow the administrator to limit the number of threads (CPUs) to use for
@@ -338,32 +325,6 @@ netisr_dispatch_policy_from_str(const char *str, u_int *dispatch_policyp)
 	return (EINVAL);
 }
 
-static void
-netisr_dispatch_policy_compat(void)
-{
-
-	switch (netisr_dispatch_policy) {
-	case NETISR_DISPATCH_DEFERRED:
-		netisr_direct_force = 0;
-		netisr_direct = 0;
-		break;
-
-	case NETISR_DISPATCH_HYBRID:
-		netisr_direct_force = 0;
-		netisr_direct = 1;
-		break;
-
-	case NETISR_DISPATCH_DIRECT:
-		netisr_direct_force = 1;
-		netisr_direct = 1;
-		break;
-
-	default:
-		panic("%s: unknown policy %u", __func__,
-		    netisr_dispatch_policy);
-	}
-}
-
 static int
 sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
 {
@@ -379,10 +340,8 @@ sysctl_netisr_dispatch_policy(SYSCTL_HANDLER_ARGS)
 		    &dispatch_policy);
 		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
 			error = EINVAL;
-		if (error == 0) {
+		if (error == 0)
 			netisr_dispatch_policy = dispatch_policy;
-			netisr_dispatch_policy_compat();
-		}
 	}
 	return (error);
 }
@@ -1199,10 +1158,9 @@ netisr_init(void *arg)
 		    &dispatch_policy);
 		if (error == 0 && dispatch_policy == NETISR_DISPATCH_DEFAULT)
 			error = EINVAL;
-		if (error == 0) {
+		if (error == 0)
 			netisr_dispatch_policy = dispatch_policy;
-			netisr_dispatch_policy_compat();
-		} else
+		else
 			printf(
 			    "%s: invalid dispatch policy %s, using default\n",
 			    __func__, tmp);

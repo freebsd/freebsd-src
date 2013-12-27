@@ -660,7 +660,8 @@ send_vc(res_state statp,
 		if (statp->_vcsock >= 0)
 			res_nclose(statp);
 
-		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM, 0);
+		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM |
+		    SOCK_CLOEXEC, 0);
 #if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (statp->_vcsock > highestFD) {
 			res_nclose(statp);
@@ -851,7 +852,7 @@ send_dg(res_state statp,
 	nsaplen = get_salen(nsap);
 	if (EXT(statp).nssocks[ns] == -1) {
 		EXT(statp).nssocks[ns] = _socket(nsap->sa_family,
-		    SOCK_DGRAM, 0);
+		    SOCK_DGRAM | SOCK_CLOEXEC, 0);
 #if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (EXT(statp).nssocks[ns] > highestFD) {
 			res_nclose(statp);

@@ -846,7 +846,7 @@ usb_hw_ep_resolve(struct usb_device *udev,
 	struct usb_hw_ep_scratch *ues;
 	struct usb_hw_ep_scratch_sub *ep;
 	const struct usb_hw_ep_profile *pf;
-	struct usb_bus_methods *methods;
+	const struct usb_bus_methods *methods;
 	struct usb_device_descriptor *dd;
 	uint16_t mps;
 

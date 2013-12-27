@@ -113,7 +113,7 @@ pl190_intc_attach(device_t dev)
 	/* Disable all interrupts */
 	intc_vic_write_4(VICINTENCLEAR, 0xffffffff);
 	/* Enable INT31, SIC IRQ */
-	intc_vic_write_4(VICINTENABLE, (1 << 31));
+	intc_vic_write_4(VICINTENABLE, (1U << 31));
 
 	id = 0;
 	for (i = 3; i >= 0; i--) {

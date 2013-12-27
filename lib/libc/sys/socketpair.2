@@ -28,7 +28,7 @@
 .\"     @(#)socketpair.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd September 11, 2013
 .Dt SOCKETPAIR 2
 .Os
 .Sh NAME
@@ -40,13 +40,13 @@
 .In sys/types.h
 .In sys/socket.h
 .Ft int
-.Fn socketpair "int d" "int type" "int protocol" "int *sv"
+.Fn socketpair "int fd" "int type" "int protocol" "int *sv"
 .Sh DESCRIPTION
 The
 .Fn socketpair
 system call creates an unnamed pair of connected sockets in
 the specified domain
-.Fa d ,
+.Fa fd ,
 of the specified
 .Fa type ,
 and using the optionally specified

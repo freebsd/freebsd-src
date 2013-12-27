@@ -6,7 +6,7 @@
 	This section contains the contents of the old UPGRADE.TXT
 	file.
 -->
-<sect1 id="upgrading">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="upgrading">
   <title>Aktualisierung einer &os;-Installation</title>
 
   <para>In diesem Abschnitt erfahren Sie, wie Sie Ihre
@@ -209,7 +209,7 @@
         waren.</para>
     </sect3>
 
-    <sect3 id="fstab">
+    <sect3 xml:id="fstab">
       <title>Nach der Installation</title>
 
       <para>Sobald die Installation abgeschlossen ist, werden Sie
@@ -226,9 +226,8 @@
 
     <para>Wenn Sie an einer flexibleren und ausgefeilteren
       M&ouml;glichkeit zur Aktualisierung Ihres Systems interessiert
-      sind, sollten Sie einen Blick in das Kapitel <ulink
-      url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/cutting-edge.html">The
-      Cutting Edge</ulink> des &os; Handbuchs werfen.  Bei dieser
+      sind, sollten Sie einen Blick in das Kapitel <link xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/cutting-edge.html">The
+      Cutting Edge</link> des &os; Handbuchs werfen.  Bei dieser
       Variante erzeugen Sie &os; aus dem Quellcode komplett neu.
       Diese Variante braucht eine verl&auml;&szlig;liche
       Netzwerkverbindung, mehr Plattenplatz und mehr Zeit, bietet aber

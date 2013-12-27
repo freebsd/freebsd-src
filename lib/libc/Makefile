@@ -50,6 +50,9 @@ LDADD+= -lgcc
 LDADD+= -lssp_nonshared
 .endif
 
+# Extras that live in either libc.a or libc_nonshared.a
+LIBC_NONSHARED_SRCS=
+
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
 MDSRCS=
@@ -100,6 +103,7 @@ NOASM=
 CFLAGS+= -DYP
 .include "${.CURDIR}/yp/Makefile.inc"
 .endif
+.include "${.CURDIR}/capability/Makefile.inc"
 .if ${MK_HESIOD} != "no"
 CFLAGS+= -DHESIOD
 .endif
@@ -112,6 +116,8 @@ CFLAGS+= -DNS_CACHING
 .if defined(_FREEFALL_CONFIG)
 CFLAGS+=-D_FREEFALL_CONFIG
 .endif
+
+STATICOBJS+=${LIBC_NONSHARED_SRCS:S/.c$/.o/}
 
 VERSION_DEF=${.CURDIR}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}

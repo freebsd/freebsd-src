@@ -65,11 +65,26 @@ __FBSDID("$FreeBSD$");
 #undef _KERNEL
 
 #include <err.h>
+#include <nlist.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "netstat.h"
 
+/*
+ * kvm(3) bindings for every needed symbol
+ */
+static struct nlist mrl[] = {
+#define	N_MRTSTAT	0
+	{ .n_name = "_mrtstat" },
+#define	N_MFCHASHTBL	1
+	{ .n_name = "_mfchashtbl" },
+#define	N_VIFTABLE	2
+	{ .n_name = "_viftable" },
+#define	N_MFCTABLESIZE	3
+	{ .n_name = "_mfctablesize" },
+	{ .n_name = NULL },
+};
 
 static void	print_bw_meter(struct bw_meter *, int *);
 static void	print_mfc(struct mfc *, int, int *);
@@ -193,11 +208,12 @@ print_mfc(struct mfc *m, int maxvif, int *banner_printed)
 }
 
 void
-mroutepr(u_long pmfchashtbl, u_long pmfctablesize, u_long pviftbl)
+mroutepr()
 {
 	struct vif viftable[MAXVIFS];
 	struct vif *v;
 	struct mfc *m;
+	u_long pmfchashtbl, pmfctablesize, pviftbl;
 	int banner_printed;
 	int saved_numeric_addr;
 	size_t len;
@@ -220,6 +236,16 @@ mroutepr(u_long pmfchashtbl, u_long pmfctablesize, u_long pviftbl)
 	 * functionality was deprecated, as PIM does not use it.
 	 */
 	maxvif = 0;
+
+	kresolve_list(mrl);
+	pmfchashtbl = mrl[N_MFCHASHTBL].n_value;
+	pmfctablesize = mrl[N_MFCTABLESIZE].n_value;
+	pviftbl = mrl[N_VIFTABLE].n_value;
+
+	if (pmfchashtbl == 0 || pmfctablesize == 0 || pviftbl == 0) {
+		fprintf(stderr, "No IPv4 MROUTING kernel support.\n");
+		return;
+	}
 
 	len = sizeof(viftable);
 	if (live) {
@@ -338,15 +364,24 @@ mroutepr(u_long pmfchashtbl, u_long pmfctablesize, u_long pviftbl)
 }
 
 void
-mrt_stats(u_long mstaddr)
+mrt_stats()
 {
 	struct mrtstat mrtstat;
-	size_t len = sizeof mrtstat;
+	u_long mstaddr;
+	size_t len = sizeof(mrtstat);
+
+	kresolve_list(mrl);
+	mstaddr = mrl[N_MRTSTAT].n_value;
+
+	if (mstaddr == 0) {
+		fprintf(stderr, "No IPv4 MROUTING kernel support.\n");
+		return;
+	}
 
 	if (live) {
 		if (sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len, NULL,
 		    0) < 0) {
-			warn("sysctl: net.inet.ip.mrtstat");
+			warn("sysctl: net.inet.ip.mrtstat failed.");
 			return;
 		}
 	} else

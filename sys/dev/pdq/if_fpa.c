@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h> 
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h> 
 #include <net/fddi.h>
 

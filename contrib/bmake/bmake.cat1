@@ -1257,6 +1257,10 @@ SSPPEECCIIAALL TTAARRGGEETTSS
               source is the special ..DDOOTTLLAASSTT target, then the current working
               directory is searched last.
 
+     ..PPAATTHH.._s_u_f_f_i_x
+              Like ..PPAATTHH but applies only to files with a particular suffix.
+              The suffix must have been previously declared with ..SSUUFFFFIIXXEESS.
+
      ..PPHHOONNYY   Apply the ..PPHHOONNYY attribute to any specified sources.
 
      ..PPRREECCIIOOUUSS
@@ -1374,4 +1378,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                       July 30, 2013                      NetBSD 5.1
+NetBSD 5.1                      August 11, 2013                     NetBSD 5.1

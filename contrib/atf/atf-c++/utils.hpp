@@ -30,169 +30,37 @@
 #if !defined(_ATF_CXX_UTILS_HPP_)
 #define _ATF_CXX_UTILS_HPP_
 
-#include <cstddef>
+extern "C" {
+#include <unistd.h>
+}
+
+#include <string>
 
 namespace atf {
 namespace utils {
 
-// ------------------------------------------------------------------------
-// The "auto_array" class.
-// ------------------------------------------------------------------------
+void cat_file(const std::string&, const std::string&);
+bool compare_file(const std::string&, const std::string&);
+void copy_file(const std::string&, const std::string&);
+void create_file(const std::string&, const std::string&);
+bool file_exists(const std::string&);
+pid_t fork(void);
+bool grep_file(const std::string&, const std::string&);
+bool grep_string(const std::string&, const std::string&);
+void redirect(const int, const std::string&);
+void wait(const pid_t, const int, const std::string&, const std::string&);
 
-template< class T >
-struct auto_array_ref {
-    T* m_ptr;
-
-    explicit auto_array_ref(T*);
-};
-
-template< class T >
-auto_array_ref< T >::auto_array_ref(T* ptr) :
-    m_ptr(ptr)
+template< typename Collection >
+bool
+grep_collection(const std::string& regexp, const Collection& collection)
 {
-}
-
-template< class T >
-class auto_array {
-    T* m_ptr;
-
-public:
-    auto_array(T* = NULL) throw();
-    auto_array(auto_array< T >&) throw();
-    auto_array(auto_array_ref< T >) throw();
-    ~auto_array(void) throw();
-
-    T* get(void) throw();
-    const T* get(void) const throw();
-    T* release(void) throw();
-    void reset(T* = NULL) throw();
-
-    auto_array< T >& operator=(auto_array< T >&) throw();
-    auto_array< T >& operator=(auto_array_ref< T >) throw();
-
-    T& operator[](int) throw();
-    operator auto_array_ref< T >(void) throw();
-};
-
-template< class T >
-auto_array< T >::auto_array(T* ptr)
-    throw() :
-    m_ptr(ptr)
-{
-}
-
-template< class T >
-auto_array< T >::auto_array(auto_array< T >& ptr)
-    throw() :
-    m_ptr(ptr.release())
-{
-}
-
-template< class T >
-auto_array< T >::auto_array(auto_array_ref< T > ref)
-    throw() :
-    m_ptr(ref.m_ptr)
-{
-}
-
-template< class T >
-auto_array< T >::~auto_array(void)
-    throw()
-{
-    if (m_ptr != NULL)
-        delete [] m_ptr;
-}
-
-template< class T >
-T*
-auto_array< T >::get(void)
-    throw()
-{
-    return m_ptr;
-}
-
-template< class T >
-const T*
-auto_array< T >::get(void)
-    const throw()
-{
-    return m_ptr;
-}
-
-template< class T >
-T*
-auto_array< T >::release(void)
-    throw()
-{
-    T* ptr = m_ptr;
-    m_ptr = NULL;
-    return ptr;
-}
-
-template< class T >
-void
-auto_array< T >::reset(T* ptr)
-    throw()
-{
-    if (m_ptr != NULL)
-        delete [] m_ptr;
-    m_ptr = ptr;
-}
-
-template< class T >
-auto_array< T >&
-auto_array< T >::operator=(auto_array< T >& ptr)
-    throw()
-{
-    reset(ptr.release());
-    return *this;
-}
-
-template< class T >
-auto_array< T >&
-auto_array< T >::operator=(auto_array_ref< T > ref)
-    throw()
-{
-    if (m_ptr != ref.m_ptr) {
-        delete [] m_ptr;
-        m_ptr = ref.m_ptr;
+    for (typename Collection::const_iterator iter = collection.begin();
+         iter != collection.end(); ++iter) {
+        if (grep_string(regexp, *iter))
+            return true;
     }
-    return *this;
+    return false;
 }
-
-template< class T >
-T&
-auto_array< T >::operator[](int pos)
-    throw()
-{
-    return m_ptr[pos];
-}
-
-template< class T >
-auto_array< T >::operator auto_array_ref< T >(void)
-    throw()
-{
-    return auto_array_ref< T >(release());
-}
-
-// ------------------------------------------------------------------------
-// The "noncopyable" class.
-// ------------------------------------------------------------------------
-
-class noncopyable {
-    // The class cannot be empty; otherwise we get ABI-stability warnings
-    // during the build, which will break it due to strict checking.
-    int m_noncopyable_dummy;
-
-    noncopyable(const noncopyable& nc);
-    noncopyable& operator=(const noncopyable& nc);
-
-protected:
-    // Explicitly needed to provide some non-private functions.  Otherwise
-    // we also get some warnings during the build.
-    noncopyable(void) {}
-    ~noncopyable(void) {}
-};
 
 } // namespace utils
 } // namespace atf

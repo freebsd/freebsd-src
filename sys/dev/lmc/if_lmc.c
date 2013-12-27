@@ -111,6 +111,7 @@
 # include <sys/bus.h>
 # include <sys/lock.h>
 # include <net/if.h>
+# include <net/if_var.h>
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>
@@ -168,6 +169,7 @@
 # include <sys/device.h>
 # include <sys/lock.h>
 # include <net/if.h>
+# include <net/if_var.h>
 # include <net/if_types.h>
 # include <net/if_media.h>
 # include <net/netisr.h>
@@ -4480,7 +4482,6 @@ lmc_raw_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 # if (defined(__FreeBSD__) && defined(DEVICE_POLLING))  /* XXX necessary? */
     case SIOCSIFCAP:
 # endif
-    case SIOCSIFDSTADDR:
     case SIOCAIFADDR:
     case SIOCSIFFLAGS:
 #if 0

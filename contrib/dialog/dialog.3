@@ -1,5 +1,5 @@
 '\" t
-.\" $Id: dialog.3,v 1.91 2013/03/15 09:07:30 tom Exp $
+.\" $Id: dialog.3,v 1.93 2013/09/22 23:58:11 tom Exp $
 .\" Copyright 2005-2012,2013  Thomas E. Dickey
 .\"
 .\" This program is free software; you can redistribute it and/or modify
@@ -39,7 +39,7 @@
 .de bP
 .IP \(bu 4
 ..
-.TH \*D 3 "" "$Date: 2013/03/15 09:07:30 $"
+.TH \*D 3 "" "$Date: 2013/09/22 23:58:11 $"
 .SH NAME
 dialog \- widgets and utilities for the \*p program
 .SH SYNOPSIS
@@ -126,6 +126,11 @@ some control over the box dimensions when using auto
 sizing (specifying 0 for height and width).
 It represents width / height.
 The default is 9, which means 9 characters wide to every 1 line high.
+.\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_STATE.finish_string
+When set to true, this allows calls to \fBdlg_finish_string\fP to discard the
+corresponding data which is created to speed up layout computations for the
+given string parameter.  The \fBgauge\fP widget uses this feature.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_STATE.getc_callbacks
 This is setup in \fIui_getc.c\fP to record windows which must be polled
@@ -395,6 +400,14 @@ writes the checklist or radiolist information
 after the item-help "HELP" information.
 This can be used to reconstruct the state of a checklist after processing
 the help request.
+.\" ---------------------------------------------------------------------------
+.IP \fIDIALOG_VARS.help_tags
+This corresponds to the command-line option "\fB--help-tags\fP".
+If true,
+\fBdlg_add_help_formitem\fP and
+\fBdlg_add_help_listitem\fP use the item's tag value consistently
+rather than using the tag's help-text value
+when \fIDIALOG_VARS.item_help\fP is set.
 .\" ---------------------------------------------------------------------------
 .IP \fIDIALOG_VARS.input_length
 This is nonzero if \fIDIALOG_VARS.input_result\fP is allocated,
@@ -879,6 +892,7 @@ implements the "\fB--gauge\fP" option.
 Alternatively, a simpler or customized gauge widget can be
 setup using
 \fBdlg_allocate_gauge\fP,
+\fBdlg_reallocate_gauge\fP,
 \fBdlg_update_gauge\fP and
 \fBdlg_free_gauge\fP.
 .RS
@@ -1383,6 +1397,38 @@ zeroed when input ends.
 .TP 5
 .B DIALOG_FREEBACK \fIfunc\fP
 function to call when input ends, e.g., to free caller's additional data.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_add_help_formitem
+This is a utility function used enforce consistent behavior for
+the \fIDIALOG_VARS.help_tags\fP and \fIDIALOG_VARS.item_help\fP variables.
+.RS
+.TP 5
+.B int *\fIresult\fP
+this is updated to DLG_EXIT_ITEM_HELP if \fIDIALOG_VARS.item_help\fP is set.
+.TP 5
+.B char **\fItag\fP
+the tag- or help-text is stored here.
+.TP 5
+.B DIALOG_FORMITEM *\fIitem\fP
+contains the list item to use for tag- or help-text.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_add_help_listitem
+This is a utility function used enforce consistent behavior for
+the \fIDIALOG_VARS.help_tags\fP and \fIDIALOG_VARS.item_help\fP variables.
+.RS
+.TP 5
+.B int *\fIresult\fP
+this is updated to DLG_EXIT_ITEM_HELP if \fIDIALOG_VARS.item_help\fP is set.
+.TP 5
+.B char **\fItag\fP
+the tag- or help-text is stored here.
+.TP 5
+.B DIALOG_LISTITEM *\fIitem\fP
+contains the list item to use for tag- or help-text.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
@@ -2518,6 +2564,18 @@ is the character-offset to find.
 .RE
 .\" ---------------------------------------------------------------------------
 .TP 5
+.B dlg_finish_string
+If \fIDIALOG_STATE.finish_string\fP is true,
+this function discards data used to speed up layout computations.
+.RS
+.TP 5
+.B const char * \fIstring
+is the address of the string whose data should be discarded.
+The address rather than contents is used as the unique identifier because
+some of the caching is used for editable input-fields.
+.RE
+.\" ---------------------------------------------------------------------------
+.TP 5
 .B dlg_flush_getc
 Cancel the local data saved by \fBdlg_last_getc\fP.
 .\" ---------------------------------------------------------------------------
@@ -3300,6 +3358,38 @@ is the file pointer, which may be a pipe or a regular file.
 .B dlg_put_backtitle
 Display the background title if \fBdialog_vars.backtitle\fP is non-null.
 The background title is shown at the top of the screen.
+.\" ---------------------------------------------------------------------------
+.TP 5
+.B dlg_reallocate_gauge
+Allocates or reallocates a gauge widget (see \fBdlg_allocate_gauge\fP).
+Use \fBdlg_update_gauge\fP to display the result.
+.RS
+.TP 5
+.B void ** \fIobjptr
+If the pointer referenced by this parameter is null, the function creates
+a new gauge widget using \fBdlg_allocate_gauge\fP.
+Otherwise, it updates the title and cprompt values, reusing the window
+from the previous call on this function.
+As a side-effect, the function stores the updated object-pointer via
+the \fIobjptr\fP parameter.
+.TP 5
+.B const char * \fItitle
+is the title string to display at the top of the widget.
+.TP 5
+.B const char * \fIcprompt
+is the prompt text shown within the widget.
+.TP 5
+.B int \fIheight
+is the desired height of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIwidth
+is the desired width of the box.
+If zero, the height is adjusted to use the available screen size.
+.TP 5
+.B int \fIpercent
+is the percentage to show in the progress bar.
+.RE
 .\" ---------------------------------------------------------------------------
 .TP 5
 .B dlg_register_buttons

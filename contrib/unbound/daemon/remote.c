@@ -648,7 +648,7 @@ print_thread_stats(SSL* ssl, int i, struct stats_info* s)
 
 /** print long number */
 static int
-print_longnum(SSL* ssl, char* desc, size_t x)
+print_longnum(SSL* ssl, const char* desc, size_t x)
 {
 	if(x > 1024*1024*1024) {
 		/* more than a Gb */
@@ -1380,7 +1380,7 @@ do_flush_name(SSL* ssl, struct worker* w, char* arg)
 
 /** printout a delegation point info */
 static int
-ssl_print_name_dp(SSL* ssl, char* str, uint8_t* nm, uint16_t dclass,
+ssl_print_name_dp(SSL* ssl, const char* str, uint8_t* nm, uint16_t dclass,
 	struct delegpt* dp)
 {
 	char buf[257];

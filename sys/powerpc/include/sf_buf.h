@@ -45,6 +45,9 @@ struct sf_buf {
 	int		ref_count;	/* usage of this mapping */
 };
 
+struct sf_buf * sf_buf_alloc(struct vm_page *m, int flags);
+void sf_buf_free(struct sf_buf *sf);
+
 /*
  * On 32-bit OEA, the only purpose for which sf_buf is used is to implement
  * an opaque pointer required by the machine-independent parts of the kernel.

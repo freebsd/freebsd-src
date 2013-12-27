@@ -40,10 +40,17 @@
 #define	GXEMUL_ETHER_DEV_COMMAND	(0x4020)
 #define	GXEMUL_ETHER_DEV_MAC		(0x4040)
 
+#ifdef _LP64
 #define	GXEMUL_ETHER_DEV_FUNCTION(f)					\
 	(volatile uint64_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_ETHER_DEV_BASE + (f))
 #define	GXEMUL_ETHER_DEV_READ(f)					\
 	(volatile uint64_t)*GXEMUL_ETHER_DEV_FUNCTION(f)
+#else
+#define	GXEMUL_ETHER_DEV_FUNCTION(f)					\
+	(volatile uint32_t *)MIPS_PHYS_TO_DIRECT_UNCACHED(GXEMUL_ETHER_DEV_BASE + (f))
+#define	GXEMUL_ETHER_DEV_READ(f)					\
+	(volatile uint32_t)*GXEMUL_ETHER_DEV_FUNCTION(f)
+#endif
 #define	GXEMUL_ETHER_DEV_WRITE(f, v)					\
 	*GXEMUL_ETHER_DEV_FUNCTION(f) = (v)
 

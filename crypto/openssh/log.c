@@ -1,4 +1,4 @@
-/* $OpenBSD: log.c,v 1.43 2012/09/06 04:37:39 dtucker Exp $ */
+/* $OpenBSD: log.c,v 1.45 2013/05/16 09:08:41 dtucker Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,6 +38,7 @@
 
 #include <sys/types.h>
 
+#include <fcntl.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +55,7 @@
 
 static LogLevel log_level = SYSLOG_LEVEL_INFO;
 static int log_on_stderr = 1;
+static int log_stderr_fd = STDERR_FILENO;
 static int log_facility = LOG_AUTH;
 static char *argv0;
 static log_handler_fn *log_handler;
@@ -344,6 +346,20 @@ log_is_on_stderr(void)
 	return log_on_stderr;
 }
 
+/* redirect what would usually get written to stderr to specified file */
+void
+log_redirect_stderr_to(const char *logfile)
+{
+	int fd;
+
+	if ((fd = open(logfile, O_WRONLY|O_CREAT|O_APPEND, 0600)) == -1) {
+		fprintf(stderr, "Couldn't open logfile %s: %s\n", logfile,
+		     strerror(errno));
+		exit(1);
+	}
+	log_stderr_fd = fd;
+}
+
 #define MSGBUFSIZ 1024
 
 void
@@ -429,7 +445,7 @@ do_log(LogLevel level, const char *fmt, va_list args)
 		log_handler = tmp_handler;
 	} else if (log_on_stderr) {
 		snprintf(msgbuf, sizeof msgbuf, "%s\r\n", fmtbuf);
-		write(STDERR_FILENO, msgbuf, strlen(msgbuf));
+		(void)write(log_stderr_fd, msgbuf, strlen(msgbuf));
 	} else {
 #if defined(HAVE_OPENLOG_R) && defined(SYSLOG_DATA_INIT)
 		openlog_r(argv0 ? argv0 : __progname, LOG_PID, log_facility, &sdata);

@@ -106,6 +106,9 @@ abts_suite *abts_add_suite(abts_suite *suite, const char *suite_name_full)
     /* suite_name_full may be an absolute path depending on __FILE__ 
      * expansion */
     suite_name = strrchr(suite_name_full, '/');
+    if (!suite_name) {
+        suite_name = strrchr(suite_name_full, '\\');
+    }
     if (suite_name) {
         suite_name++;
     } else {
@@ -247,7 +250,8 @@ void abts_int_nequal(abts_case *tc, const int expected, const int actual, int li
 
     tc->failed = TRUE;
     if (verbose) {
-        fprintf(stderr, "Line %d: expected <%d>, but saw <%d>\n", lineno, expected, actual);
+        fprintf(stderr, "Line %d: expected something other than <%d>, but saw <%d>\n",
+                lineno, expected, actual);
         fflush(stderr);
     }
 }
@@ -279,7 +283,8 @@ void abts_str_nequal(abts_case *tc, const char *expected, const char *actual,
 
     tc->failed = TRUE;
     if (verbose) {
-        fprintf(stderr, "Line %d: expected <%s>, but saw <%s>\n", lineno, expected, actual);
+        fprintf(stderr, "Line %d: expected something other than <%s>, but saw <%s>\n",
+                lineno, expected, actual);
         fflush(stderr);
     }
 }

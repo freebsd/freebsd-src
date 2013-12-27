@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/md5.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/route.h>
@@ -808,6 +809,9 @@ in6_ifdetach(struct ifnet *ifp)
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
 	struct in6_multi_mship *imm;
+
+	if (ifp->if_afdata[AF_INET6] == NULL)
+		return;
 
 	/* remove neighbor management table */
 	nd6_purge(ifp);

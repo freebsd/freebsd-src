@@ -106,6 +106,7 @@ g_zero_init(struct g_class *mp)
 	gp->start = g_zero_start;
 	gp->access = g_std_access;
 	gpp = pp = g_new_providerf(gp, "%s", gp->name);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	if (!g_zero_clear)
 		pp->flags |= G_PF_ACCEPT_UNMAPPED;
 	pp->mediasize = 1152921504606846976LLU;

@@ -36,12 +36,13 @@
 # $FreeBSD$
 
 OPENPAM=	${.CURDIR}/../../../contrib/openpam
-.PATH: ${OPENPAM}/include ${OPENPAM}/lib ${OPENPAM}/doc/man
+.PATH: ${OPENPAM}/include ${OPENPAM}/lib/libpam ${OPENPAM}/doc/man
 
 LIB=	pam
 NO_PROFILE=
 
-SRCS=	openpam_borrow_cred.c \
+SRCS=	openpam_asprintf.c \
+	openpam_borrow_cred.c \
 	openpam_check_owner_perms.c \
 	openpam_configure.c \
 	openpam_constants.c \
@@ -63,8 +64,11 @@ SRCS=	openpam_borrow_cred.c \
 	openpam_set_feature.c \
 	openpam_set_option.c \
 	openpam_straddch.c \
+	openpam_strlcat.c \
+	openpam_strlcpy.c \
 	openpam_subst.c \
 	openpam_ttyconv.c \
+	openpam_vasprintf.c \
 	pam_acct_mgmt.c \
 	pam_authenticate.c \
 	pam_chauthtok.c \
@@ -150,7 +154,8 @@ MLINKS=	pam.conf.5 pam.d.5
 CSTD?= c99
 CFLAGS+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS+= -DLIB_MAJ=${SHLIB_MAJOR}
-CFLAGS+= -DOPENPAM_MODULES_DIR='"${PAM_MOD_DIR:C/\/*$//}/"'
+CFLAGS+= -DOPENPAM_MODULES_DIRECTORY='"${PAM_MOD_DIR:C/\/*$//}/"'
+CFLAGS+= -DHAVE_DLFUNC=1
 CFLAGS+= -DHAVE_FDLOPEN=1
 CFLAGS+= -DHAVE_FPURGE=1
 CFLAGS+= -DHAVE_STRLCAT=1

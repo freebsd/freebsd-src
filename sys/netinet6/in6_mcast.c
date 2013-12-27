@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -131,7 +132,9 @@ static int	in6_mc_get(struct ifnet *, const struct in6_addr *,
 static int	in6m_get_source(struct in6_multi *inm,
 		    const struct in6_addr *addr, const int noalloc,
 		    struct ip6_msource **pims);
+#ifdef KTR
 static int	in6m_is_ifp_detached(const struct in6_multi *);
+#endif
 static int	in6m_merge(struct in6_multi *, /*const*/ struct in6_mfilter *);
 static void	in6m_purge(struct in6_multi *);
 static void	in6m_reap(struct in6_multi *);
@@ -175,6 +178,7 @@ static SYSCTL_NODE(_net_inet6_ip6_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip6_mcast_filters,
     "Per-interface stack-wide source filters");
 
+#ifdef KTR
 /*
  * Inline function which wraps assertions for a valid ifp.
  * The ifnet layer will set the ifma's ifp pointer to NULL if the ifp
@@ -197,6 +201,7 @@ in6m_is_ifp_detached(const struct in6_multi *inm)
 
 	return (ifp == NULL);
 }
+#endif
 
 /*
  * Initialize an in6_mfilter structure to a known state at t0, t1
@@ -1846,8 +1851,7 @@ in6p_join_group(struct inpcb *inp, struct sockopt *sopt)
 		if (mreq.ipv6mr_interface == 0) {
 			ifp = in6p_lookup_mcast_ifp(inp, &gsa->sin6);
 		} else {
-			if (mreq.ipv6mr_interface < 0 ||
-			    V_if_index < mreq.ipv6mr_interface)
+			if (V_if_index < mreq.ipv6mr_interface)
 				return (EADDRNOTAVAIL);
 			ifp = ifnet_byindex(mreq.ipv6mr_interface);
 		}
@@ -2193,7 +2197,7 @@ in6p_leave_group(struct inpcb *inp, struct sockopt *sopt)
 	 * XXX SCOPE6 lock potentially taken here.
 	 */
 	if (ifindex != 0) {
-		if (ifindex < 0 || V_if_index < ifindex)
+		if (V_if_index < ifindex)
 			return (EADDRNOTAVAIL);
 		ifp = ifnet_byindex(ifindex);
 		if (ifp == NULL)
@@ -2351,7 +2355,7 @@ in6p_set_multicast_if(struct inpcb *inp, struct sockopt *sopt)
 	error = sooptcopyin(sopt, &ifindex, sizeof(u_int), sizeof(u_int));
 	if (error)
 		return (error);
-	if (ifindex < 0 || V_if_index < ifindex)
+	if (V_if_index < ifindex)
 		return (EINVAL);
 
 	ifp = ifnet_byindex(ifindex);

@@ -41,7 +41,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)snit.c	1.5 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: snit.c,v 2.3 2001/06/09 17:09:26 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 #define	CHUNKSIZE	8192
@@ -58,8 +58,8 @@ static	int	timeout;
 
 
 int	initdevice(device, tout)
-char	*device;
-int	tout;
+	char	*device;
+	int	tout;
 {
 	struct	strioctl si;
 	struct	timeval to;
@@ -115,9 +115,9 @@ int	tout;
  * output an IP packet onto a fd opened for /dev/nit
  */
 int	sendip(fd, pkt, len)
-int	fd, len;
-char	*pkt;
-{			
+	int	fd, len;
+	char	*pkt;
+{
 	struct	sockaddr sk, *sa = &sk;
 	struct	strbuf	cbuf, *cp = &cbuf, dbuf, *dp = &dbuf;
 

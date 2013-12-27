@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2013
+.Dd October 30, 2013
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -196,6 +196,16 @@
 .Ic dumpooa
 .Nm
 .Ic dumpstructs
+.Nm
+.Ic islist
+.Op Fl v
+.Op Fl x
+.Nm
+.Ic islogout
+.Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
+.Nm
+.Ic isterminate
+.Aq Fl a | Fl c Ar connection-id | Fl i Ar name | Fl p Ar portal
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -883,6 +893,41 @@ If you specify
 .Fl x ,
 the entire LUN database is displayed in XML format.
 .El
+.It Ic islist
+Get a list of currently running iSCSI connections.
+This includes initiator and target names and the unique connection IDs.
+.Bl -tag -width 11n
+.It Fl v
+Verbose mode.
+.It Fl x
+Dump the raw XML.
+The connections list information from the kernel comes in XML format, and this
+option allows the display of the raw XML data.
+.El
+.It Ic islogout
+Ask the initiator to log out iSCSI connections matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Log out all connections.
+.It Fl c
+Specify connection ID.
+.It Fl i
+Specify initiator name.
+.It Fl p
+Specify initiator portal (hostname or IP address).
+.El
+.It Ic isterminate
+Forcibly terminate iSCSI connections matching criteria.
+.Bl -tag -width 11n
+.It Fl a
+Terminate all connections.
+.It Fl c
+Specify connection ID.
+.It Fl i
+Specify initiator name.
+.It Fl p
+Specify initiator portal (hostname or IP address).
+.El
 .It Ic help
 Display
 .Nm
@@ -977,7 +1022,8 @@ This will result in a sense key of NOT READY (0x02), and an ASC/ASCQ of
 .Xr cam 4 ,
 .Xr ctl 4 ,
 .Xr xpt 4 ,
-.Xr camcontrol 8
+.Xr camcontrol 8 ,
+.Xr ctld 8
 .Sh HISTORY
 The
 .Nm

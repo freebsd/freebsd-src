@@ -33,6 +33,8 @@
 #ifndef _SYS_KTRACE_H_
 #define _SYS_KTRACE_H_
 
+#include <sys/caprights.h>
+
 /*
  * operations to ktrace system call  (KTROP(op))
  */
@@ -264,7 +266,10 @@ void	ktrprocexit(struct thread *);
 void	ktrprocfork(struct proc *, struct proc *);
 void	ktruserret(struct thread *);
 void	ktrstruct(const char *, void *, size_t);
-void	ktrcapfail(enum ktr_cap_fail_type, cap_rights_t, cap_rights_t);
+void	ktrcapfail(enum ktr_cap_fail_type, const cap_rights_t *,
+	    const cap_rights_t *);
+#define ktrcaprights(s) \
+	ktrstruct("caprights", (s), sizeof(cap_rights_t))
 #define ktrsockaddr(s) \
 	ktrstruct("sockaddr", (s), ((struct sockaddr *)(s))->sa_len)
 #define ktrstat(s) \

@@ -31,6 +31,7 @@
 #define _CITRUS_ICONV_LOCAL_H_
 
 #include <iconv.h>
+#include <stdbool.h>
 
 #define _CITRUS_ICONV_GETOPS_FUNC_BASE(_n_)				\
     int _n_(struct _citrus_iconv_ops *)
@@ -98,6 +99,7 @@ struct _citrus_iconv_shared {
 	char						*ci_convname;
 	bool						 ci_discard_ilseq;
 	struct iconv_hooks				*ci_hooks;
+	bool						 ci_ilseq_invalid;
 };
 
 struct _citrus_iconv {

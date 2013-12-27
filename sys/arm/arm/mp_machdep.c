@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 #ifdef VFP
 #include <machine/vfp.h>
 #endif
+#ifdef CPU_MV_PJ4B
+#include <arm/mv/mvwin.h>
+#include <dev/fdt/fdt_common.h>
+#endif
 
 #include "opt_smp.h"
 
@@ -131,8 +135,8 @@ cpu_mp_start(void)
 
 #if defined(CPU_MV_PJ4B)
 	/* Add ARMADAXP registers required for snoop filter initialization */
-	((int *)(temp_pagetable_va))[0xf1000000 >> L1_S_SHIFT] =
-	    L1_TYPE_S|L1_SHARED|L1_S_B|L1_S_AP(AP_KRW)|0xd0000000;
+	((int *)(temp_pagetable_va))[MV_BASE >> L1_S_SHIFT] =
+	    L1_TYPE_S|L1_SHARED|L1_S_B|L1_S_AP(AP_KRW)|fdt_immr_pa;
 #endif
 
 	temp_pagetable = (void*)(vtophys(temp_pagetable_va));

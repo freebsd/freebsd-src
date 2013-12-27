@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_isa.h"
 #include "opt_kdb.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -114,9 +113,8 @@ dtrace_doubletrap_func_t	dtrace_doubletrap_func;
 systrace_probe_func_t	systrace_probe_func;
 
 /*
- * These hooks are necessary for the pid, usdt and fasttrap providers.
+ * These hooks are necessary for the pid and usdt providers.
  */
-dtrace_fasttrap_probe_ptr_t	dtrace_fasttrap_probe_ptr;
 dtrace_pid_probe_ptr_t		dtrace_pid_probe_ptr;
 dtrace_return_probe_ptr_t	dtrace_return_probe_ptr;
 #endif
@@ -128,7 +126,7 @@ void dblfault_handler(struct trapframe *frame);
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 
-#define MAX_TRAP_MSG		33
+#define MAX_TRAP_MSG		32
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -163,7 +161,6 @@ static char *trap_msg[] = {
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
 	"",					/* 31 unused (reserved) */
 	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
-	"DTrace fasttrap probe trap",		/* 33 T_DTRACE_PROBE */
 };
 
 #ifdef KDB
@@ -255,16 +252,11 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
-	    type == T_BPTFLT) {
+	if (type == T_DTRACE_RET || type == T_BPTFLT) {
 		struct reg regs;
 
 		fill_frame_regs(frame, &regs);
-		if (type == T_DTRACE_PROBE &&
-		    dtrace_fasttrap_probe_ptr != NULL &&
-		    dtrace_fasttrap_probe_ptr(&regs) == 0)
-			goto out;
-		else if (type == T_BPTFLT &&
+		if (type == T_BPTFLT &&
 		    dtrace_pid_probe_ptr != NULL &&
 		    dtrace_pid_probe_ptr(&regs) == 0)
 			goto out;
@@ -734,6 +726,14 @@ trap_pfault(frame, usermode)
 	}
 
 	/*
+	 * If the trap was caused by errant bits in the PTE then panic.
+	 */
+	if (frame->tf_err & PGEX_RSV) {
+		trap_fatal(frame, eva);
+		return (-1);
+	}
+
+	/*
 	 * PGEX_I is defined only if the execute disable bit capability is
 	 * supported and enabled.
 	 */
@@ -822,10 +822,11 @@ trap_fatal(frame, eva)
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
-		printf("fault code		= %s %s %s, %s\n",
+		printf("fault code		= %s %s %s%s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_I ? "instruction" : "data",
+			code & PGEX_RSV ? " rsv" : "",
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",

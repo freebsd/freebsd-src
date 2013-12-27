@@ -240,7 +240,11 @@ boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
-#define PHYS_AVAIL_SZ	128
+#define PHYS_AVAIL_SZ	256	/* Allows up to 16GB Ram on pSeries with
+				 * logical memory block size of 64MB.
+				 * For more Ram increase the lmb or this value.
+				 */
+
 extern	vm_offset_t phys_avail[PHYS_AVAIL_SZ];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
@@ -253,6 +257,8 @@ extern vm_offset_t pmap_dumpsys_map(struct pmap_md *, vm_size_t, vm_size_t *);
 extern void pmap_dumpsys_unmap(struct pmap_md *, vm_size_t, vm_offset_t);
 
 extern struct pmap_md *pmap_scan_md(struct pmap_md *);
+
+vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 
 #endif
 

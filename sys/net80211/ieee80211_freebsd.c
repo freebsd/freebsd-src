@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_clone.h>
 #include <net/if_media.h>
@@ -808,9 +809,9 @@ static eventhandler_tag wlan_ifllevent;
 static void
 bpf_track(void *arg, struct ifnet *ifp, int dlt, int attach)
 {
-	/* NB: identify vap's by if_start */
+	/* NB: identify vap's by if_init */
 	if (dlt == DLT_IEEE802_11_RADIO &&
-	    ifp->if_transmit == ieee80211_vap_transmit) {
+	    ifp->if_init == ieee80211_init) {
 		struct ieee80211vap *vap = ifp->if_softc;
 		/*
 		 * Track bpf radiotap listener state.  We mark the vap

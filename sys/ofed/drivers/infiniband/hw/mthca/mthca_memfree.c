@@ -448,6 +448,7 @@ static u64 mthca_uarc_virt(struct mthca_dev *dev, struct mthca_uar *uar, int pag
 		page * MTHCA_ICM_PAGE_SIZE;
 }
 
+
 #include <vm/vm_map.h>
 #include <vm/vm_pageout.h>
 #include <vm/pmap.h>

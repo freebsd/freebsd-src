@@ -8,8 +8,8 @@ a root login. You can add a user to the wheel group by editing /etc/group.
 By pressing "Scroll Lock" you can use the arrow keys to scroll backward
 through the console output.  Press "Scroll Lock" again to turn it off.
 %
-Can't remember if you've installed a certain port or not? Try "pkg_info
--Ix port_name".
+Can't remember if you've installed a certain port or not? Try "pkg info
+-x port_name".
 %
 Ever wonder what those numbers after command names were, as in cat(1)?  It's
 the section of the manual the man page is in.  "man man" will tell you more.
@@ -95,12 +95,6 @@ then use 'df -h'.
 If you want to play CDs with FreeBSD, a utility for this is already included.
 Type 'cdcontrol' then 'help' to learn more.  (You may need to set the CDROM
 environment variable in order to make cdcontrol want to start.)
-%
-If you want to quickly check for duplicate package/port installations,
-try the following pkg_info command.
-
-	pkg_info | sort | sed -e 's/-[0-9].*$//' | \
-	uniq -c | grep -v '^[[:space:]]*1'
 %
 If you'd like to keep track of applications in the FreeBSD ports tree, take a
 look at FreshPorts;
@@ -356,11 +350,10 @@ adjust, just type 'mixer'.
 %
 You can automatically download and install binary packages by doing
 
-	pkg_add -r <URL>
+	pkg install <package>
 
-where you replace <URL> with the URL to the package.  This will also
-automatically install the packages the package you download is dependent on
-(ie, the packages it needs in order to work.)
+This will also automatically install the packages that are dependencies
+for the package you install (ie, the packages it needs in order to work.)
 %
 You can change the video mode on all consoles by adding something like
 the following to /etc/rc.conf:
@@ -448,8 +441,7 @@ You can use /etc/make.conf to control the options used to compile software
 on this system.  Example entries are in
 /usr/share/examples/etc/make.conf.
 %
-You can use "pkg_info" to see a list of packages you have installed.
-		-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+You can use "pkg info" to see a list of packages you have installed.
 %
 You can use the 'fetch' command to retrieve files over ftp or http.
 

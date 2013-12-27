@@ -179,17 +179,6 @@ METHOD void clear_modify {
 
 
 /**
- * @brief Clear the 'referenced' bit on the given physical page
- *
- * @param _pg		physical page
- */
-METHOD void clear_reference {
-	mmu_t		_mmu;
-	vm_page_t	_pg;
-};
-
-
-/**
  * @brief Clear the write and modified bits in each of the given
  * physical page's mappings
  *

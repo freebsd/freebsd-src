@@ -7,7 +7,8 @@
 KMOD=	ipl
 SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \
 	ip_log.c ip_fil_freebsd.c fil.c ip_lookup.c ip_pool.c ip_htable.c \
-	ip_sync.c
+	ip_sync.c \
+	ip_nat6.c ip_rules.c ip_scan.c ip_dstlist.c radix_ipf.c
 SRCS+=	opt_bpf.h opt_inet6.h
 
 .if !defined(KERNBUILDDIR)

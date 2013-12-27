@@ -1,5 +1,5 @@
 #
-# $FreeBSD: projects/diffused_head/lib/libz/Makefile 243577 2012-11-27 00:42:30Z lstewart $
+# $FreeBSD$
 #
 
 LIB=		z

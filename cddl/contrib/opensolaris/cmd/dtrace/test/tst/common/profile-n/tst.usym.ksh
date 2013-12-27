@@ -63,7 +63,7 @@ child=$!
 # This test is essentially the same as that in the ufunc test; see that
 # test for the rationale.
 #
-script | tee /dev/fd/2 | grep 'ksh`[a-zA-Z_]' > /dev/null
+script | tee /dev/fd/2 | egrep 'ksh(93)?`[a-zA-Z_]' > /dev/null
 status=$? 
 
 kill $child

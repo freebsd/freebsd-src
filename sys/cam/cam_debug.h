@@ -99,6 +99,17 @@ extern u_int32_t cam_debug_delay;
 			DELAY(cam_debug_delay);		\
 	}
 
+#define	CAM_DEBUG_DEV(dev, flag, printfargs)		\
+	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)	\
+	 && (cam_dpath != NULL)				\
+	 && (xpt_path_comp_dev(cam_dpath, dev) >= 0)	\
+	 && (xpt_path_comp_dev(cam_dpath, dev) < 2)) {	\
+		xpt_print_device(dev);			\
+		printf printfargs;			\
+		if (cam_debug_delay != 0)		\
+			DELAY(cam_debug_delay);		\
+	}
+
 #define	CAM_DEBUG_PRINT(flag, printfargs)		\
 	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)) {	\
 		printf("cam_debug: ");			\

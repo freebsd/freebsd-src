@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.161 2013/01/08 18:49:04 markus Exp $
+.\" $OpenBSD: ssh_config.5,v 1.166 2013/06/27 14:05:37 jmc Exp $
 .\" $FreeBSD$
-.Dd January 8, 2013
+.Dd June 27, 2013
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -475,8 +475,7 @@ option is also enabled.
 .It Cm ForwardX11Timeout
 Specify a timeout for untrusted X11 forwarding
 using the format described in the
-.Sx TIME FORMATS
-section of
+TIME FORMATS section of
 .Xr sshd_config 5 .
 X11 connections received by
 .Xr ssh 1
@@ -629,7 +628,9 @@ and
 .Pa ~/.ssh/id_rsa
 for protocol version 2.
 Additionally, any identities represented by the authentication agent
-will be used for authentication.
+will be used for authentication unless
+.Cm IdentitiesOnly
+is set.
 .Xr ssh 1
 will try to load certificate information from the filename obtained by
 appending
@@ -658,6 +659,22 @@ Multiple
 .Cm IdentityFile
 directives will add to the list of identities tried (this behaviour
 differs from that of other configuration directives).
+.Pp
+.Cm IdentityFile
+may be used in conjunction with
+.Cm IdentitiesOnly
+to select which identities in an agent are offered during authentication.
+.It Cm IgnoreUnknown
+Specifies a pattern-list of unknown options to be ignored if they are
+encountered in configuration parsing.
+This may be used to suppress errors if
+.Nm
+contains options that are unrecognised by
+.Xr ssh 1 .
+It is recommended that
+.Cm IgnoreUnknown
+be listed early in the configuration file as it will not be applied
+to unknown options that appear before it.
 .It Cm IPQoS
 Specifies the IPv4 type-of-service or DSCP class for connections.
 Accepted values are
@@ -932,8 +949,9 @@ The default is
 This option applies to protocol version 2 only.
 .It Cm RekeyLimit
 Specifies the maximum amount of data that may be transmitted before the
-session key is renegotiated.
-The argument is the number of bytes, with an optional suffix of
+session key is renegotiated, optionally followed a maximum amount of
+time that may pass before the session key is renegotiated.
+The first argument is specified in bytes and may have a suffix of
 .Sq K ,
 .Sq M ,
 or
@@ -944,6 +962,16 @@ The default is between
 and
 .Sq 4G ,
 depending on the cipher.
+The optional second value is specified in seconds and may use any of the
+units documented in the
+TIME FORMATS section of
+.Xr sshd_config 5 .
+The default value for
+.Cm RekeyLimit
+is
+.Dq default none ,
+which means that rekeying is performed after the cipher's default amount
+of data has been sent or received and no time based rekeying is done.
 This option applies to protocol version 2 only.
 .It Cm RemoteForward
 Specifies that a TCP port on the remote machine be forwarded over
@@ -1219,18 +1247,19 @@ The argument must be
 or
 .Dq ask .
 The default is
-.Dq no .
+.Dq yes
+if compiled with LDNS and
+.Dq no
+otherwise.
 Note that this option applies to protocol version 2 only.
 .Pp
-See also
-.Sx VERIFYING HOST KEYS
-in
+See also VERIFYING HOST KEYS in
 .Xr ssh 1 .
 .It Cm VersionAddendum
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20130515 .
+.Dq FreeBSD-20131111 .
 .It Cm VisualHostKey
 If this flag is set to
 .Dq yes ,

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
  
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
@@ -281,11 +282,13 @@ struct mwltxrec {
  * that all BAR 1 operations are done in the "hal" and
  * there should be no reference to them here.
  */
+#ifdef MWL_DEBUG
 static __inline uint32_t
 RD4(struct mwl_softc *sc, bus_size_t off)
 {
 	return bus_space_read_4(sc->sc_io0t, sc->sc_io0h, off);
 }
+#endif
 
 static __inline void
 WR4(struct mwl_softc *sc, bus_size_t off, uint32_t val)

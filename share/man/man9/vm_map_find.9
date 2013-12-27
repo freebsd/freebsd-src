@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 10, 2008
+.Dd September 12, 2013
 .Dt VM_MAP_FIND 9
 .Os
 .Sh NAME
@@ -38,8 +38,8 @@
 .Ft int
 .Fo vm_map_find
 .Fa "vm_map_t map" "vm_object_t object" "vm_ooffset_t offset"
-.Fa "vm_offset_t *addr" "vm_size_t length" "int find_space"
-.Fa "vm_prot_t prot" "vm_prot_t max" "int cow"
+.Fa "vm_offset_t *addr" "vm_size_t length" "vm_offset_t max_addr"
+.Fa "int find_space" "vm_prot_t prot" "vm_prot_t max" "int cow"
 .Fc
 .Sh DESCRIPTION
 The
@@ -47,9 +47,13 @@ The
 function attempts to find a free region in the target
 .Fa map ,
 with the given
-.Fa length ,
-and will also optionally create a mapping of
-.Fa object .
+.Fa length.
+If a free region is found,
+.Fn vm_map_find
+creates a mapping of
+.Fa object
+via a call to
+.Xr vm_map_insert 9 .
 .Pp
 The arguments
 .Fa offset ,
@@ -69,26 +73,56 @@ the reference count on the object must be incremented
 by the caller before calling this function to account for the new entry.
 .Pp
 If
+.Fa max_addr
+is non-zero,
+it specifies an upper bound on the mapping.
+The mapping will only succeed if a free region can be found that resides
+entirely below
+.Fa max_addr .
+.Pp
+The
 .Fa find_space
-is either
-.Dv VMFS_ALIGNED_SPACE
-or
-.Dv VMFS_ANY_SPACE ,
-the function will call
-.Xr vm_map_findspace 9
-to discover a free region.
-Moreover, if
-.Fa find_space
-is
-.Dv VMFS_ALIGNED_SPACE ,
-the address of the free region will be optimized for the use of superpages.
-Otherwise, if
-.Fa find_space
-is
+argument specifies the strategy to use when searching for a free region of
+the requested length.
+For all values other than
 .Dv VMFS_NO_SPACE ,
-.Xr vm_map_insert 9
-is called with the given address,
-.Fa addr .
+.Xr vm_map_findspace 9
+is called to locate a free region of the requested length with a starting
+address at or above
+.Fa *addr .
+The following strategies are supported:
+.Bl -tag -width "Dv VMFS_ALIGNED_SPACE Ns"
+.It Dv VMFS_NO_SPACE
+The mapping will only succeed if there is a free region of the requested
+length at the given address
+.Fa *addr .
+.It Dv VMFS_ANY_SPACE
+The mapping will succeed as long as there is a free region.
+.It Dv VMFS_SUPER_SPACE
+The mapping will succeed as long as there is a free region that begins on
+a superpage boundary.
+If
+.Fa object
+is
+.Pf non- Dv NULL
+and is already backed by superpages,
+then the mapping will require a free region that aligns relative to the
+existing superpages rather than one beginning on a superpage boundary.
+.It Dv VMFS_OPTIMAL_SPACE
+The mapping will succeed as long as there is a free region.
+However, if
+.Fa object
+is
+.Pf non- Dv NULL
+and is already backed by superpages,
+this strategy will attempt to find a free region aligned relative to
+the existing superpages.
+.It Dv VMFS_ALIGNED_SPACE Ns Pq Fa n
+The mapping will succeed as long as there is a free region that aligns on
+a
+.Pf 2^ Fa n
+boundary.
+.El
 .Sh IMPLEMENTATION NOTES
 This function acquires a lock on
 .Fa map

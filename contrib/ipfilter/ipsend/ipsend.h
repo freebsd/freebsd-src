@@ -29,7 +29,9 @@
 #ifdef	linux
 #include <linux/sockios.h>
 #endif
-#include "tcpip.h"
+/* XXX:	The following is needed by tcpip.h */
+#include <netinet/ip_var.h>
+#include "netinet/tcpip.h"
 #include "ipt.h"
 
 extern	int	resolve __P((char *, char *));

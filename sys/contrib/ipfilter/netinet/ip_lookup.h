@@ -1,4 +1,10 @@
-
+/*
+ * Copyright (C) 2012 by Darren Reed.
+ *
+ * See the IPFILTER.LICENCE file for details on licencing.
+ *
+ * $Id$
+ */
 #ifndef __IP_LOOKUP_H__
 #define __IP_LOOKUP_H__
 
@@ -24,6 +30,9 @@
 # define	SIOCLOOKUPDELNODEW	_IOW(r, 68, struct iplookupop)
 #endif
 
+#define	LOOKUP_POOL_MAX	(IPL_LOGSIZE)
+#define	LOOKUP_POOL_SZ	(IPL_LOGSIZE + 1)
+
 typedef	struct	iplookupop	{
 	int	iplo_type;	/* IPLT_* */
 	int	iplo_unit;	/* IPL_LOG* */
@@ -40,7 +49,7 @@ typedef	struct	iplookupflush	{
 	int	iplf_type;	/* IPLT_* */
 	int	iplf_unit;	/* IPL_LOG* */
 	u_int	iplf_arg;
-	size_t	iplf_count;
+	u_int	iplf_count;
 	char	iplf_name[FR_GROUPLEN];
 } iplookupflush_t;
 
@@ -55,16 +64,18 @@ typedef	struct	iplookuplink	{
 #define	IPLT_NONE	0
 #define	IPLT_POOL	1
 #define	IPLT_HASH	2
+#define	IPLT_DSTLIST	3
+
 
 #define	IPLT_ANON	0x80000000
 
 
 typedef	union	{
 	struct	iplookupiterkey {
-		char	ilik_ival;
+		u_char	ilik_ival;
 		u_char	ilik_type;	/* IPLT_* */
 		u_char	ilik_otype;
-		u_char	ilik_unit;	/* IPL_LOG* */
+		signed char	ilik_unit;	/* IPL_LOG* */
 	} ilik_unstr;
 	u_32_t	ilik_key;
 } iplookupiterkey_t;
@@ -86,10 +97,56 @@ typedef	struct	ipflookupiter	{
 #define	IPFLOOKUPITER_NODE	1
 
 
-extern int ip_lookup_init __P((void));
-extern int ip_lookup_ioctl __P((caddr_t, ioctlcmd_t, int, int, void *));
-extern void ip_lookup_unload __P((void));
-extern void ip_lookup_deref __P((int, void *));
-extern void ip_lookup_iterderef __P((u_32_t, void *));
+typedef struct ipf_lookup {
+	int	ipfl_type;
+	void	*(*ipfl_create) __P((ipf_main_softc_t *));
+	void	(*ipfl_destroy) __P((ipf_main_softc_t *, void *));
+	int	(*ipfl_init) __P((ipf_main_softc_t *, void *));
+	void	(*ipfl_fini) __P((ipf_main_softc_t *, void *));
+	int	(*ipfl_addr_find) __P((ipf_main_softc_t *, void *,
+				       int, void *, u_int));
+	size_t	(*ipfl_flush) __P((ipf_main_softc_t *, void *,
+				   iplookupflush_t *));
+	int	(*ipfl_iter_deref) __P((ipf_main_softc_t *, void *,
+					int, int, void *));
+	int	(*ipfl_iter_next) __P((ipf_main_softc_t *, void *,
+				       ipftoken_t *, ipflookupiter_t *));
+	int	(*ipfl_node_add) __P((ipf_main_softc_t *, void *,
+				      iplookupop_t *, int));
+	int	(*ipfl_node_del) __P((ipf_main_softc_t *, void *,
+				      iplookupop_t *, int));
+	int	(*ipfl_stats_get) __P((ipf_main_softc_t *, void *,
+				       iplookupop_t *));
+	int	(*ipfl_table_add) __P((ipf_main_softc_t *, void *,
+				       iplookupop_t *));
+	int	(*ipfl_table_del) __P((ipf_main_softc_t *, void *,
+				       iplookupop_t *));
+	int	(*ipfl_table_deref) __P((ipf_main_softc_t *, void *, void *));
+	void	*(*ipfl_table_find) __P((void *, int, char *));
+	void	*(*ipfl_select_add_ref) __P((void *, int, char *));
+	int	(*ipfl_select_node) __P((fr_info_t *, void *, u_32_t *,
+					 frdest_t *));
+	void	(*ipfl_expire) __P((ipf_main_softc_t *, void *));
+	void	(*ipfl_sync) __P((ipf_main_softc_t *, void *));
+} ipf_lookup_t;
 
+extern int ipf_lookup_init __P((void));
+extern int ipf_lookup_ioctl __P((ipf_main_softc_t *, caddr_t, ioctlcmd_t, int, int, void *));
+extern void ipf_lookup_main_unload __P((void));
+extern void ipf_lookup_deref __P((ipf_main_softc_t *, int, void *));
+extern void ipf_lookup_iterderef __P((ipf_main_softc_t *, u_32_t, void *));
+extern void *ipf_lookup_res_name __P((ipf_main_softc_t *, int, u_int, char *,
+				      lookupfunc_t *));
+extern void *ipf_lookup_res_num __P((ipf_main_softc_t *, int, u_int, u_int,
+				     lookupfunc_t *));
+extern void ipf_lookup_soft_destroy __P((ipf_main_softc_t *, void *));
+extern void *ipf_lookup_soft_create __P((ipf_main_softc_t *));
+extern int ipf_lookup_soft_init __P((ipf_main_softc_t *, void *));
+extern int ipf_lookup_soft_fini __P((ipf_main_softc_t *, void *));
+extern void *ipf_lookup_find_htable __P((ipf_main_softc_t *, int, char *));
+extern void ipf_lookup_expire __P((ipf_main_softc_t *));
+extern void ipf_lookup_sync __P((ipf_main_softc_t *, void *));
+#ifndef _KERNEL
+extern	void	ipf_lookup_dump __P((ipf_main_softc_t *, void *));
+#endif
 #endif /* __IP_LOOKUP_H__ */

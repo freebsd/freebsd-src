@@ -38,20 +38,22 @@ struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
+struct vhpet;
+struct vioapic;
 struct vlapic;
+struct vmspace;
+struct vm_object;
+struct pmap;
 
 enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
-typedef void *	(*vmi_init_func_t)(struct vm *vm); /* instance specific apis */
-typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip);
+typedef void	(*vmm_resume_func_t)(void);
+typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
+typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
+				  struct pmap *pmap);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
-typedef int	(*vmi_mmap_set_func_t)(void *vmi, vm_paddr_t gpa,
-				       vm_paddr_t hpa, size_t length,
-				       vm_memattr_t attr, int prot,
-				       boolean_t superpages_ok);
-typedef vm_paddr_t (*vmi_mmap_get_func_t)(void *vmi, vm_paddr_t gpa);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
 typedef int	(*vmi_set_register_t)(void *vmi, int vcpu, int num,
@@ -65,16 +67,19 @@ typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
 				      uint32_t code, int code_valid);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
+typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
+typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
+typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
+typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
 	vmm_cleanup_func_t	cleanup;
+	vmm_resume_func_t	resume;
 
 	vmi_init_func_t		vminit;		/* vm-specific initialization */
 	vmi_run_func_t		vmrun;
 	vmi_cleanup_func_t	vmcleanup;
-	vmi_mmap_set_func_t	vmmmap_set;
-	vmi_mmap_get_func_t	vmmmap_get;
 	vmi_get_register_t	vmgetreg;
 	vmi_set_register_t	vmsetreg;
 	vmi_get_desc_t		vmgetdesc;
@@ -82,6 +87,10 @@ struct vmm_ops {
 	vmi_inject_event_t	vminject;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
+	vmi_vmspace_alloc	vmspace_alloc;
+	vmi_vmspace_free	vmspace_free;
+	vmi_vlapic_init		vlapic_init;
+	vmi_vlapic_cleanup	vlapic_cleanup;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -93,9 +102,14 @@ const char *vm_name(struct vm *vm);
 int vm_malloc(struct vm *vm, vm_paddr_t gpa, size_t len);
 int vm_map_mmio(struct vm *vm, vm_paddr_t gpa, size_t len, vm_paddr_t hpa);
 int vm_unmap_mmio(struct vm *vm, vm_paddr_t gpa, size_t len);
-vm_paddr_t vm_gpa2hpa(struct vm *vm, vm_paddr_t gpa, size_t size);
+void *vm_gpa_hold(struct vm *, vm_paddr_t gpa, size_t len, int prot,
+		  void **cookie);
+void vm_gpa_release(void *cookie);
 int vm_gpabase2memseg(struct vm *vm, vm_paddr_t gpabase,
 	      struct vm_memory_segment *seg);
+int vm_get_memobj(struct vm *vm, vm_paddr_t gpa, size_t len,
+		  vm_offset_t *offset, struct vm_object **object);
+boolean_t vm_mem_allocated(struct vm *vm, vm_paddr_t gpa);
 int vm_get_register(struct vm *vm, int vcpu, int reg, uint64_t *retval);
 int vm_set_register(struct vm *vm, int vcpu, int reg, uint64_t val);
 int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
@@ -110,10 +124,13 @@ int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
+struct vioapic *vm_ioapic(struct vm *vm);
+struct vhpet *vm_hpet(struct vm *vm);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
+int vm_apicid2vcpuid(struct vm *vm, int apicid);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
@@ -130,11 +147,13 @@ void *vm_iommu_domain(struct vm *vm);
 
 enum vcpu_state {
 	VCPU_IDLE,
+	VCPU_FROZEN,
 	VCPU_RUNNING,
-	VCPU_CANNOT_RUN,
+	VCPU_SLEEPING,
 };
 
-int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
+int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
+    bool from_idle);
 enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
 static int __inline
@@ -144,13 +163,15 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
-
+void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
+struct vmspace *vm_get_vmspace(struct vm *vm);
+int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
+int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
 
-#define	VM_MAXCPU	8			/* maximum virtual cpus */
+#define	VM_MAXCPU	16			/* maximum virtual cpus */
 
 /*
  * Identifiers for events that can be injected into the VM
@@ -214,6 +235,7 @@ enum vm_cap_type {
 	VM_CAP_MTRAP_EXIT,
 	VM_CAP_PAUSE_EXIT,
 	VM_CAP_UNRESTRICTED_GUEST,
+	VM_CAP_ENABLE_INVPCID,
 	VM_CAP_MAX
 };
 
@@ -247,7 +269,9 @@ enum vm_exitcode {
 	VM_EXITCODE_MTRAP,
 	VM_EXITCODE_PAUSE,
 	VM_EXITCODE_PAGING,
+	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
+	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_MAX
 };
 
@@ -266,8 +290,14 @@ struct vm_exit {
 		} inout;
 		struct {
 			uint64_t	gpa;
-			struct vie	vie;
+			int		fault_type;
 		} paging;
+		struct {
+			uint64_t	gpa;
+			uint64_t	gla;
+			uint64_t	cr3;
+			struct vie	vie;
+		} inst_emul;
 		/*
 		 * VMX specific payload. Used when there is no "better"
 		 * exitcode to represent the VM-exit.
@@ -285,6 +315,9 @@ struct vm_exit {
 			int		vcpu;
 			uint64_t	rip;
 		} spinup_ap;
+		struct {
+			uint64_t	rflags;
+		} hlt;
 	} u;
 };
 

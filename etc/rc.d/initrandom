@@ -14,26 +14,6 @@ name="initrandom"
 start_cmd="initrandom_start"
 stop_cmd=":"
 
-feed_dev_random()
-{
-	if [ -f "${1}" -a -r "${1}" -a -s "${1}" ]; then
-		cat "${1}" | dd of=/dev/random bs=8k 2>/dev/null
-	fi
-}
-
-better_than_nothing()
-{
-	# XXX temporary until we can improve the entropy
-	# harvesting rate.
-	# Entropy below is not great, but better than nothing.
-	# This unblocks the generator at startup
-	# Note: commands are ordered to cause the most variance across reboots.
-	( kenv; dmesg; df -ib; ps -fauxww; date; sysctl -a ) \
-	    | dd of=/dev/random bs=8k 2>/dev/null
-	/sbin/sha256 -q `sysctl -n kern.bootfile` \
-	    | dd of=/dev/random bs=8k 2>/dev/null
-}
-
 initrandom_start()
 {
 	soft_random_generator=`sysctl kern.random 2>/dev/null`
@@ -63,23 +43,15 @@ initrandom_start()
 			else
 				${SYSCTL} kern.random.sys.harvest.point_to_point=0 >/dev/null
 			fi
+
+			if checkyesno harvest_swi; then
+				${SYSCTL} kern.random.sys.harvest.swi=1 >/dev/null
+				echo -n ' swi'
+			else
+				${SYSCTL} kern.random.sys.harvest.swi=0 >/dev/null
+			fi
 		fi
 
-		# First pass at reseeding /dev/random.
-		#
-		case ${entropy_file} in
-		[Nn][Oo] | '')
-			;;
-		*)
-			if [ -w /dev/random ]; then
-				feed_dev_random "${entropy_file}"
-			fi
-			;;
-		esac
-
-		better_than_nothing
-
-		echo -n ' kickstart'
 	fi
 
 	echo '.'

@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pamtest.c 595 2012-04-14 14:28:35Z des $
+ * $Id: pamtest.c 685 2013-07-11 16:33:34Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -35,6 +34,7 @@
 #endif
 
 #include <err.h>
+#include <limits.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -116,6 +116,7 @@ pt_authenticate(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_authenticate()");
 	if ((pame = pam_authenticate(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_authenticate()");
 	return (pame);
@@ -130,6 +131,7 @@ pt_acct_mgmt(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_acct_mgmt()");
 	if ((pame = pam_acct_mgmt(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_acct_mgmt()");
 	return (pame);
@@ -144,6 +146,7 @@ pt_chauthtok(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_chauthtok()");
 	if ((pame = pam_chauthtok(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_chauthtok()");
 	return (pame);
@@ -158,6 +161,7 @@ pt_setcred(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_setcred()");
 	if ((pame = pam_setcred(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_setcred()");
 	return (pame);
@@ -172,6 +176,7 @@ pt_open_session(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_open_session()");
 	if ((pame = pam_open_session(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_open_session()");
 	return (pame);
@@ -186,6 +191,7 @@ pt_close_session(int flags)
 	int pame;
 
 	flags |= silent;
+	pt_verbose("pam_close_session()");
 	if ((pame = pam_close_session(pamh, flags)) != PAM_SUCCESS)
 		pt_error(pame, "pam_close_session()");
 	return (pame);
@@ -270,6 +276,24 @@ usage(void)
 }
 
 /*
+ * Handle an option that takes an int argument and can be used only once
+ */
+static void
+opt_num_once(int opt, long *num, const char *arg)
+{
+	char *end;
+	long l;
+
+	l = strtol(arg, &end, 0);
+	if (end == optarg || *end != '\0') {
+		fprintf(stderr,
+		    "The -%c option expects a numeric argument\n", opt);
+		usage();
+	}
+	*num = l;
+}
+
+/*
  * Handle an option that takes a string argument and can be used only once
  */
 static void
@@ -296,11 +320,12 @@ main(int argc, char *argv[])
 	const char *user = NULL;
 	const char *service = NULL;
 	const char *tty = NULL;
+	long timeout = 0;
 	int keepatit = 0;
 	int pame;
 	int opt;
 
-	while ((opt = getopt(argc, argv, "dH:h:kMPst:U:u:v")) != -1)
+	while ((opt = getopt(argc, argv, "dH:h:kMPsT:t:U:u:v")) != -1)
 		switch (opt) {
 		case 'd':
 			openpam_debug++;
@@ -324,6 +349,15 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			silent = PAM_SILENT;
+			break;
+		case 'T':
+			opt_num_once(opt, &timeout, optarg);
+			if (timeout < 0 || timeout > INT_MAX) {
+				fprintf(stderr,
+				    "Invalid conversation timeout\n");
+				usage();
+			}
+			openpam_ttyconv_timeout = (int)timeout;
 			break;
 		case 't':
 			opt_str_once(opt, &tty, optarg);
@@ -352,6 +386,8 @@ main(int argc, char *argv[])
 	++argv;
 
 	/* defaults */
+	if (service == NULL)
+		service = "pamtest";
 	if (rhost == NULL) {
 		if (gethostname(hostname, sizeof(hostname)) == -1)
 			err(1, "gethostname()");

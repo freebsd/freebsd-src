@@ -31,7 +31,7 @@
 .\"	@(#)sigpending.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd January 12, 1994
+.Dd September 6, 2013
 .Dt SIGPENDING 2
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 The
 .Fn sigpending
 system call returns a mask of the signals pending for delivery
-to the calling process in the location indicated by
+to the calling thread or the calling process in the location indicated by
 .Fa set .
 Signals may be pending because they are currently masked,
 or transiently before delivery (although the latter case is not

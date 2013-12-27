@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Setting this variable will prevent any part of BIND from being built.

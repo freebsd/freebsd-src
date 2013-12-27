@@ -50,9 +50,7 @@ non-root user without a valid login class in
 A user with a uid of 0 without a valid login class will use the record
 "root" if it exists, or "default" if not.
 .Pp
-In
-.Fx ,
-users may individually create a file called
+Users may individually create a file called
 .Pa .login_conf
 in their home directory using the same format, consisting of a single
 entry with a record id of "me".
@@ -132,6 +130,7 @@ tag being delimited from the value by '=' instead of '#').
 Whichever method is used, then all records in the database must use the
 same method to allow values to be correctly overridden in interpolated
 records.
+A numeric value may be infinite.
 .It size
 A number which expresses a size.
 The default interpretation of a value is the number of bytes, but a
@@ -150,6 +149,7 @@ represents terabytes.
 .El
 A size value is a numeric quantity and case of the suffix is not significant.
 Concatenated values are added together.
+A size value may be infinite.
 .It time
 A period of time, by default in seconds.
 A prefix may specify a different unit:
@@ -170,7 +170,15 @@ the number of seconds.
 Concatenated values are added together.
 For example, 2 hours and 40 minutes may be written either as
 9600s, 160m or 2h40m.
+A time value may be infinite.
 .El
+.Pp
+.Dq infinity ,
+.Dq inf ,
+.Dq unlimited ,
+.Dq unlimit,
+and -1
+are considered infinite values.
 .Pp
 The usual convention to interpolate capability entries using the special
 .Em tc=value

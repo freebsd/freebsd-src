@@ -100,14 +100,16 @@ static bool igp_read_bios_from_vram(struct radeon_device *rdev)
 
 static bool radeon_read_bios(struct radeon_device *rdev)
 {
+	device_t vga_dev;
 	uint8_t __iomem *bios;
 	size_t size;
 
 	DRM_INFO("%s: ===> Try PCI Expansion ROM...\n", __func__);
 
+	vga_dev = device_get_parent(rdev->dev);
 	rdev->bios = NULL;
 	/* XXX: some cards may return 0 for rom size? ddx has a workaround */
-	bios = vga_pci_map_bios(rdev->dev, &size);
+	bios = vga_pci_map_bios(vga_dev, &size);
 	if (!bios) {
 		return false;
 	}
@@ -120,11 +122,12 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 			DRM_INFO("%s: Incorrect BIOS signature: 0x%02X%02X\n",
 			    __func__, bios[0], bios[1]);
 		}
-		vga_pci_unmap_bios(rdev->dev, bios);
+		vga_pci_unmap_bios(vga_dev, bios);
+		return false;
 	}
 	rdev->bios = malloc(size, DRM_MEM_DRIVER, M_WAITOK);
 	memcpy(rdev->bios, bios, size);
-	vga_pci_unmap_bios(rdev->dev, bios);
+	vga_pci_unmap_bios(vga_dev, bios);
 	return true;
 }
 

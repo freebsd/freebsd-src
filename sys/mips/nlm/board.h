@@ -116,6 +116,7 @@ struct xlp_nae_ivars {
 	int 	node;
 	int	nblocks;
 	u_int	blockmask;
+	u_int	ilmask;
 	u_int	xauimask;
 	u_int	sgmiimask;
 	int	freq;

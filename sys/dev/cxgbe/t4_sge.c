@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/types.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <machine/md_var.h>
 
 #include "common/common.h"
 #include "common/t4_regs.h"
@@ -214,10 +216,6 @@ static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
-
-#if defined(__i386__) || defined(__amd64__)
-extern u_int cpu_clflush_line_size;
-#endif
 
 /*
  * Called on MOD_LOAD.  Validates and calculates the SGE tunables.
@@ -572,12 +570,17 @@ t4_read_chip_settings(struct adapter *sc)
 	r = t4_read_reg(sc, A_SGE_CONM_CTRL);
 	s->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
 
-	if (is_t5(sc)) {
-		r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
-		r >>= S_QUEUESPERPAGEPF0 +
-		    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
-		s->s_qpp = r & M_QUEUESPERPAGEPF0;
-	}
+	/* egress queues: log2 of # of doorbells per BAR2 page */
+	r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
+	r >>= S_QUEUESPERPAGEPF0 +
+	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
+	s->eq_s_qpp = r & M_QUEUESPERPAGEPF0;
+
+	/* ingress queues: log2 of # of doorbells per BAR2 page */
+	r = t4_read_reg(sc, A_SGE_INGRESS_QUEUES_PER_PAGE_PF);
+	r >>= S_QUEUESPERPAGEPF0 +
+	    (S_QUEUESPERPAGEPF1 - S_QUEUESPERPAGEPF0) * sc->pf;
+	s->iq_s_qpp = r & M_QUEUESPERPAGEPF0;
 
 	t4_init_tp_params(sc);
 
@@ -1389,7 +1392,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	uma_zone_t zone = arg1;
 	caddr_t cl = arg2;
-#ifdef INVARIANTS
+#ifdef notyet
 	u_int refcount;
 
 	refcount = *find_buf_refcnt(cl);
@@ -1675,7 +1678,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
-	m0->m_pkthdr.flowid = rss->hash_val;
+	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&
@@ -2802,7 +2805,7 @@ alloc_eq(struct adapter *sc, struct port_info *pi, struct sge_eq *eq)
 	if (isset(&eq->doorbells, DOORBELL_UDB) ||
 	    isset(&eq->doorbells, DOORBELL_UDBWC) ||
 	    isset(&eq->doorbells, DOORBELL_WCWR)) {
-		uint32_t s_qpp = sc->sge.s_qpp;
+		uint32_t s_qpp = sc->sge.eq_s_qpp;
 		uint32_t mask = (1 << s_qpp) - 1;
 		volatile uint8_t *udb;
 
@@ -2897,7 +2900,6 @@ alloc_wrq(struct adapter *sc, struct port_info *pi, struct sge_wrq *wrq,
 	    "# of times queue ran out of hardware descriptors");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "unstalled", CTLFLAG_RD,
 	    &wrq->eq.unstalled, 0, "# of times queue recovered after stall");
-
 
 	return (rc);
 }

@@ -50,8 +50,6 @@
 /* Force a proper event-channel callback from Xen. */
 void force_evtchn_callback(void);
 
-extern int gdtset;
-
 extern shared_info_t *HYPERVISOR_shared_info;
 
 enum xen_domain_type {

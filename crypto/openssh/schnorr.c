@@ -1,4 +1,4 @@
-/* $OpenBSD: schnorr.c,v 1.5 2010/12/03 23:49:26 djm Exp $ */
+/* $OpenBSD: schnorr.c,v 1.8 2013/11/08 00:39:15 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -105,7 +105,7 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
  out:
 	buffer_free(&b);
 	bzero(digest, digest_len);
-	xfree(digest);
+	free(digest);
 	digest_len = 0;
 	if (success == 0)
 		return h;
@@ -491,12 +491,13 @@ debug3_bn(const BIGNUM *n, const char *fmt, ...)
 {
 	char *out, *h;
 	va_list args;
+	int ret;
 
 	out = NULL;
 	va_start(args, fmt);
-	vasprintf(&out, fmt, args);
+	ret = vasprintf(&out, fmt, args);
 	va_end(args);
-	if (out == NULL)
+	if (ret == -1 || out == NULL)
 		fatal("%s: vasprintf failed", __func__);
 
 	if (n == NULL)
@@ -516,12 +517,13 @@ debug3_buf(const u_char *buf, u_int len, const char *fmt, ...)
 	char *out, h[65];
 	u_int i, j;
 	va_list args;
+	int ret;
 
 	out = NULL;
 	va_start(args, fmt);
-	vasprintf(&out, fmt, args);
+	ret = vasprintf(&out, fmt, args);
 	va_end(args);
-	if (out == NULL)
+	if (ret == -1 || out == NULL)
 		fatal("%s: vasprintf failed", __func__);
 
 	debug3("%s length %u%s", out, len, buf == NULL ? " (null)" : "");
@@ -550,7 +552,7 @@ modp_group_from_g_and_safe_p(const char *grp_g, const char *grp_p)
 {
 	struct modp_group *ret;
 
-	ret = xmalloc(sizeof(*ret));
+	ret = xcalloc(1, sizeof(*ret));
 	ret->p = ret->q = ret->g = NULL;
 	if (BN_hex2bn(&ret->p, grp_p) == 0 ||
 	    BN_hex2bn(&ret->g, grp_g) == 0)
@@ -574,7 +576,7 @@ modp_group_free(struct modp_group *grp)
 	if (grp->q != NULL)
 		BN_clear_free(grp->q);
 	bzero(grp, sizeof(*grp));
-	xfree(grp);
+	free(grp);
 }
 
 /* main() function for self-test */
@@ -609,7 +611,7 @@ schnorr_selftest_one(const BIGNUM *grp_p, const BIGNUM *grp_q,
 	if (schnorr_verify_buf(grp_p, grp_q, grp_g, g_x, "junk", 4,
 	    sig, siglen) != 0)
 		fatal("%s: verify should have failed (bit error)", __func__);
-	xfree(sig);
+	free(sig);
 	BN_free(g_x);
 	BN_CTX_free(bn_ctx);
 }

@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2006 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: facpri.c,v 1.6.2.5 2006/06/16 17:20:58 darrenr Exp $
+ * $Id$
  */
 
 #include <stdio.h>
@@ -22,7 +22,7 @@
 #include "facpri.h"
 
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: facpri.c,v 1.6.2.5 2006/06/16 17:20:58 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 
 
@@ -96,7 +96,7 @@ fac_toname(facpri)
 /*
  * map a facility name to its number
  */
-int     
+int
 fac_findname(name)
 	char *name;
 {
@@ -116,6 +116,22 @@ table_t	pris[] = {
 	{ "info", LOG_INFO },		{ "debug", LOG_DEBUG  },
 	{ NULL, 0 }
 };
+
+
+/*
+ * map a facility name to its number
+ */
+int
+pri_findname(name)
+	char *name;
+{
+	int     i;
+
+	for (i = 0; pris[i].name; i++)
+		if (!strcmp(pris[i].name, name))
+			return pris[i].value;
+	return -1;
+}
 
 
 /*

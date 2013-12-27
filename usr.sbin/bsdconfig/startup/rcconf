@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/startup/rcconf.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ GLOBALS
 
@@ -195,7 +195,7 @@ dialog_menu_main()
 	f_dialog_menutag_store "$menu_choice"
 
 	# Only update default-item on success
-	[ $retval -eq 0 ] && f_dialog_default_store "$menu_choice"
+	[ $retval -eq $DIALOG_OK ] && f_dialog_default_store "$menu_choice"
 
 	return $retval
 }
@@ -236,13 +236,13 @@ while :; do
 			f_dialog_input_view_details
 			continue
 		esac
-	elif [ $retval -eq 2 ]; then
+	elif [ $retval -eq $DIALOG_HELP ]; then
 		# The ``Help'' button (labeled "Details") was pressed
 		f_dialog_input_view_details
 		continue
 	fi
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	"X $msg_exit") break ;;

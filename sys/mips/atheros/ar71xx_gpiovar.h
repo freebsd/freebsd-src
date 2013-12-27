@@ -64,7 +64,7 @@ struct ar71xx_gpio_softc {
         int			gpio_irq_rid;
         void			*gpio_ih;
 	int			gpio_npins;
-	struct gpio_pin		gpio_pins[AR71XX_GPIO_PINS];
+	struct gpio_pin		*gpio_pins;
 };
 
 #endif	/* __AR71XX_GPIOVAR_H__ */

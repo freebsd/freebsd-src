@@ -24,10 +24,6 @@ FILES=	100.clean-disks \
 FILES+=	310.accounting
 .endif
 
-.if ${MK_BIND_NAMED} != "no"
-FILES+=	470.status-named
-.endif
-
 .if ${MK_CALENDAR} != "no"
 FILES+=	300.calendar
 .endif
@@ -38,11 +34,6 @@ FILES+=	130.clean-msgs
 
 .if ${MK_NTP} != "no"
 FILES+=	480.status-ntpd
-.endif
-
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	220.backup-pkgdb \
-	490.status-pkg-changes
 .endif
 
 .if ${MK_RCMDS} != "no"

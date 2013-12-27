@@ -44,15 +44,6 @@
  * other processors"
  */
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
 #if defined(XEN)
 
 /* These are peridically updated in shared_info, and then copied here. */
@@ -71,13 +62,13 @@ struct shadow_time_info {
 	vm_paddr_t *pc_pdir_shadow;					\
 	uint64_t pc_processed_system_time;				\
 	struct shadow_time_info pc_shadow_time;				\
-	char	__pad[189]
+	char	__pad[185]
 
 #else /* !XEN */
 
 #define PCPU_XEN_FIELDS							\
 	;								\
-	char	__pad[237]
+	char	__pad[233]
 
 #endif
 
@@ -93,7 +84,8 @@ struct shadow_time_info {
 	u_int   pc_acpi_id;		/* ACPI CPU id */		\
 	u_int	pc_apic_id;						\
 	int	pc_private_tss;		/* Flag indicating private tss*/\
-	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
+	u_int	pc_vcpu_id		/* Xen vCPU ID */		\
 	PCPU_XEN_FIELDS
 
 #ifdef _KERNEL

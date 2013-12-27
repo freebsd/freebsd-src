@@ -23,6 +23,7 @@
 #include <apr_atomic.h>
 
 #include "svn_cache_config.h"
+#include "private/svn_atomic.h"
 #include "private/svn_cache.h"
 
 #include "svn_pools.h"
@@ -69,30 +70,27 @@ svn_cache_config_get(void)
   return &cache_settings;
 }
 
-/* Access the process-global (singleton) membuffer cache. The first call
- * will automatically allocate the cache using the current cache config.
- * NULL will be returned if the desired cache size is 0 or if the cache
- * could not be created for some reason.
+/* Initializer function as required by svn_atomic__init_once.  Allocate
+ * the process-global (singleton) membuffer cache and return it in the
+ * svn_membuffer_t * in *BATON.  UNUSED_POOL is unused and should be NULL.
  */
-svn_membuffer_t *
-svn_cache__get_global_membuffer_cache(void)
+static svn_error_t *
+initialize_cache(void *baton, apr_pool_t *unused_pool)
 {
-  static svn_membuffer_t * volatile cache = NULL;
+  svn_membuffer_t **cache_p = baton;
+  svn_membuffer_t *cache = NULL;
 
   apr_uint64_t cache_size = cache_settings.cache_size;
-  if (!cache && cache_size)
+  if (cache_size)
     {
       svn_error_t *err;
-
-      svn_membuffer_t *old_cache = NULL;
-      svn_membuffer_t *new_cache = NULL;
 
       /* auto-allocate cache */
       apr_allocator_t *allocator = NULL;
       apr_pool_t *pool = NULL;
 
       if (apr_allocator_create(&allocator))
-        return NULL;
+        return SVN_NO_ERROR;
 
       /* Ensure that we free partially allocated data if we run OOM
        * before the cache is complete: If the cache cannot be allocated
@@ -112,11 +110,11 @@ svn_cache__get_global_membuffer_cache(void)
        */
       apr_pool_create_ex(&pool, NULL, NULL, allocator);
       if (pool == NULL)
-        return NULL;
+        return SVN_NO_ERROR;
       apr_allocator_owner_set(allocator, pool);
 
       err = svn_cache__membuffer_cache_create(
-          &new_cache,
+          &cache,
           (apr_size_t)cache_size,
           (apr_size_t)(cache_size / 10),
           0,
@@ -129,33 +127,40 @@ svn_cache__get_global_membuffer_cache(void)
        */
       if (err)
         {
-          /* Memory and error cleanup */
-          svn_error_clear(err);
+          /* Memory cleanup */
           svn_pool_destroy(pool);
 
-          /* Prevent future attempts to create the cache. However, an
-           * existing cache instance (see next comment) remains valid.
-           */
+          /* Document that we actually don't have a cache. */
           cache_settings.cache_size = 0;
 
-          /* The current caller won't get the cache object.
-           * However, a concurrent call might have succeeded in creating
-           * the cache object. That call and all following ones will then
-           * use the successfully created cache instance.
-           */
-          return NULL;
+          return svn_error_trace(err);
         }
 
-      /* Handle race condition: if we are the first to create a
-       * cache object, make it our global singleton. Otherwise,
-       * discard the new cache and keep the existing one.
-       *
-       * Cast is necessary because of APR bug:
-       * https://issues.apache.org/bugzilla/show_bug.cgi?id=50731
-       */
-      old_cache = apr_atomic_casptr((volatile void **)&cache, new_cache, NULL);
-      if (old_cache != NULL)
-        svn_pool_destroy(pool);
+      /* done */
+      *cache_p = cache;
+    }
+
+  return SVN_NO_ERROR;
+}
+
+/* Access the process-global (singleton) membuffer cache. The first call
+ * will automatically allocate the cache using the current cache config.
+ * NULL will be returned if the desired cache size is 0 or if the cache
+ * could not be created for some reason.
+ */
+svn_membuffer_t *
+svn_cache__get_global_membuffer_cache(void)
+{
+  static svn_membuffer_t *cache = NULL;
+  static svn_atomic_t initialized = 0;
+
+  svn_error_t *err
+    = svn_atomic__init_once(&initialized, initialize_cache, &cache, NULL);
+  if (err)
+    {
+      /* no caches today ... */
+      svn_error_clear(err);
+      return NULL;
     }
 
   return cache;

@@ -254,7 +254,7 @@ static int get_nvlist(uint64_t nvl, uint64_t size, int iflag, nvlist_t **nvp);
  
 static void zfsdev_close(void *data);
 
-static int zfs_prop_activate_feature(spa_t *spa, zfeature_info_t *feature);
+static int zfs_prop_activate_feature(spa_t *spa, spa_feature_t feature);
 
 /* _NOTE(PRINTFLIKE(4)) - this is printf-like, but lint is too whiney */
 void
@@ -2433,8 +2433,6 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 	case ZFS_PROP_COMPRESSION:
 	{
 		if (intval == ZIO_COMPRESS_LZ4) {
-			zfeature_info_t *feature =
-			    &spa_feature_table[SPA_FEATURE_LZ4_COMPRESS];
 			spa_t *spa;
 
 			if ((err = spa_open(dsname, &spa, FTAG)) != 0)
@@ -2444,9 +2442,10 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 			 * Setting the LZ4 compression algorithm activates
 			 * the feature.
 			 */
-			if (!spa_feature_is_active(spa, feature)) {
+			if (!spa_feature_is_active(spa,
+			    SPA_FEATURE_LZ4_COMPRESS)) {
 				if ((err = zfs_prop_activate_feature(spa,
-				    feature)) != 0) {
+				    SPA_FEATURE_LZ4_COMPRESS)) != 0) {
 					spa_close(spa, FTAG);
 					return (err);
 				}
@@ -3731,15 +3730,13 @@ zfs_check_settable(const char *dsname, nvpair_t *pair, cred_t *cr)
 				return (SET_ERROR(ENOTSUP));
 
 			if (intval == ZIO_COMPRESS_LZ4) {
-				zfeature_info_t *feature =
-				    &spa_feature_table[
-				    SPA_FEATURE_LZ4_COMPRESS];
 				spa_t *spa;
 
 				if ((err = spa_open(dsname, &spa, FTAG)) != 0)
 					return (err);
 
-				if (!spa_feature_is_enabled(spa, feature)) {
+				if (!spa_feature_is_enabled(spa,
+				    SPA_FEATURE_LZ4_COMPRESS)) {
 					spa_close(spa, FTAG);
 					return (SET_ERROR(ENOTSUP));
 				}
@@ -3797,9 +3794,9 @@ static int
 zfs_prop_activate_feature_check(void *arg, dmu_tx_t *tx)
 {
 	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
-	zfeature_info_t *feature = arg;
+	spa_feature_t *featurep = arg;
 
-	if (!spa_feature_is_active(spa, feature))
+	if (!spa_feature_is_active(spa, *featurep))
 		return (0);
 	else
 		return (SET_ERROR(EBUSY));
@@ -3813,9 +3810,9 @@ static void
 zfs_prop_activate_feature_sync(void *arg, dmu_tx_t *tx)
 {
 	spa_t *spa = dmu_tx_pool(tx)->dp_spa;
-	zfeature_info_t *feature = arg;
+	spa_feature_t *featurep = arg;
 
-	spa_feature_incr(spa, feature, tx);
+	spa_feature_incr(spa, *featurep, tx);
 }
 
 /*
@@ -3824,14 +3821,14 @@ zfs_prop_activate_feature_sync(void *arg, dmu_tx_t *tx)
  * as being active.
  */
 static int
-zfs_prop_activate_feature(spa_t *spa, zfeature_info_t *feature)
+zfs_prop_activate_feature(spa_t *spa, spa_feature_t feature)
 {
 	int err;
 
 	/* EBUSY here indicates that the feature is already active */
 	err = dsl_sync_task(spa_name(spa),
 	    zfs_prop_activate_feature_check, zfs_prop_activate_feature_sync,
-	    feature, 2);
+	    &feature, 2);
 
 	if (err != 0 && err != EBUSY)
 		return (err);
@@ -4005,6 +4002,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 	char *origin = NULL;
 	char *tosnap;
 	char tofs[ZFS_MAXNAMELEN];
+	cap_rights_t rights;
 	boolean_t first_recvd_props = B_FALSE;
 
 	if (dataset_namecheck(zc->zc_value, NULL, NULL) != 0 ||
@@ -4022,7 +4020,7 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		return (error);
 
 	fd = zc->zc_cookie;
-	fp = getf(fd, CAP_PREAD);
+	fp = getf(fd, cap_rights_init(&rights, CAP_PREAD));
 	if (fp == NULL) {
 		nvlist_free(props);
 		return (SET_ERROR(EBADF));
@@ -4260,7 +4258,11 @@ zfs_ioc_send(zfs_cmd_t *zc)
 		dsl_dataset_rele(tosnap, FTAG);
 		dsl_pool_rele(dp, FTAG);
 	} else {
-		file_t *fp = getf(zc->zc_cookie, CAP_WRITE);
+		file_t *fp;
+		cap_rights_t rights;
+
+		fp = getf(zc->zc_cookie,
+		    cap_rights_init(&rights, CAP_WRITE));
 		if (fp == NULL)
 			return (SET_ERROR(EBADF));
 
@@ -4851,10 +4853,11 @@ static int
 zfs_ioc_diff(zfs_cmd_t *zc)
 {
 	file_t *fp;
+	cap_rights_t rights;
 	offset_t off;
 	int error;
 
-	fp = getf(zc->zc_cookie, CAP_WRITE);
+	fp = getf(zc->zc_cookie, cap_rights_init(&rights, CAP_WRITE));
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 
@@ -5214,6 +5217,7 @@ zfs_ioc_unjail(zfs_cmd_t *zc)
 static int
 zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 {
+	cap_rights_t rights;
 	int error;
 	offset_t off;
 	char *fromname = NULL;
@@ -5225,7 +5229,7 @@ zfs_ioc_send_new(const char *snapname, nvlist_t *innvl, nvlist_t *outnvl)
 
 	(void) nvlist_lookup_string(innvl, "fromsnap", &fromname);
 
-	file_t *fp = getf(fd, CAP_READ);
+	file_t *fp = getf(fd, cap_rights_init(&rights, CAP_READ));
 	if (fp == NULL)
 		return (SET_ERROR(EBADF));
 

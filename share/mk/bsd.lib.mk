@@ -119,16 +119,24 @@ PO_FLAG=-pg
 
 all: objwarn
 
+.if defined(PRIVATELIB)
+_LIBDIR:=${LIBPRIVATEDIR}
+_SHLIBDIR:=${LIBPRIVATEDIR}
+.else
+_LIBDIR:=${LIBDIR}
+_SHLIBDIR:=${SHLIBDIR}
+.endif
+
 .if defined(SHLIB_NAME)
 .if ${MK_DEBUG_FILES} != "no"
 SHLIB_NAME_FULL=${SHLIB_NAME}.full
 # Use ${DEBUGDIR} for base system debug files, else .debug subdirectory
-.if ${SHLIBDIR} == "/boot" ||\
+.if ${_SHLIBDIR} == "/boot" ||\
     ${SHLIBDIR:C%/lib(/.*)?$%/lib%} == "/lib" ||\
     ${SHLIBDIR:C%/usr/lib(32)?(/.*)?%/usr/lib%} == "/usr/lib"
-DEBUGFILEDIR=${DEBUGDIR}${SHLIBDIR}
+DEBUGFILEDIR=${DEBUGDIR}${_SHLIBDIR}
 .else
-DEBUGFILEDIR=${SHLIBDIR}/.debug
+DEBUGFILEDIR=${_SHLIBDIR}/.debug
 DEBUGMKDIR=
 .endif
 .else
@@ -143,6 +151,10 @@ SHLIB_NAME_FULL=${SHLIB_NAME}
 .if ${MK_SYMVER} == "yes" && !empty(VERSION_MAP)
 ${SHLIB_NAME_FULL}:	${VERSION_MAP}
 LDFLAGS+=	-Wl,--version-script=${VERSION_MAP}
+.endif
+
+.if defined(USEPRIVATELIB)
+LDFLAGS+= -L${_SHLIBDIRPREFIX}${LIBPRIVATEDIR} -rpath ${LIBPRIVATEDIR}
 .endif
 
 .if defined(LIB) && !empty(LIB) || defined(SHLIB_NAME)
@@ -291,16 +303,16 @@ realinstall: _libinstall
 _libinstall:
 .if defined(LIB) && !empty(LIB) && ${MK_INSTALLLIB} != "no"
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}.a ${DESTDIR}${_LIBDIR}
 .endif
 .if ${MK_PROFILE} != "no" && defined(LIB) && !empty(LIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_p.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(SHLIB_NAME)
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
-	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+	    ${SHLIB_NAME} ${DESTDIR}${_SHLIBDIR}
 .if ${MK_DEBUG_FILES} != "no"
 .if defined(DEBUGMKDIR)
 	${INSTALL} -T debug -d ${DESTDIR}${DEBUGFILEDIR}
@@ -328,23 +340,23 @@ _libinstall:
 # installworld; in the later case ${_LDSCRIPTROOT} must be obviously empty
 # because on the target system, libraries are meant to be looked up from /.
 .if defined(SHLIB_LDSCRIPT) && !empty(SHLIB_LDSCRIPT) && exists(${.CURDIR}/${SHLIB_LDSCRIPT})
-	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${SHLIBDIR}/${SHLIB_NAME},g' \
-	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${LIBDIR},g' \
-	    ${.CURDIR}/${SHLIB_LDSCRIPT} > ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld
+	sed -e 's,@@SHLIB@@,${_LDSCRIPTROOT}${_SHLIBDIR}/${SHLIB_NAME},g' \
+	    -e 's,@@LIBDIR@@,${_LDSCRIPTROOT}${_LIBDIR},g' \
+	    ${.CURDIR}/${SHLIB_LDSCRIPT} > ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
 	${INSTALL} -S -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld \
-	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
-	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_LINK:R}.ld
+	    ${_INSTALLFLAGS} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_LINK:R}.ld
 
 .else
-.if ${SHLIBDIR} == ${LIBDIR}
-	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
+.if ${_SHLIBDIR} == ${_LIBDIR}
+	${INSTALL_SYMLINK} ${SHLIB_NAME} ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
 .else
-	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${SHLIBDIR}/${SHLIB_NAME} \
-	    ${DESTDIR}${LIBDIR}/${SHLIB_LINK}
-.if exists(${DESTDIR}${LIBDIR}/${SHLIB_NAME})
-	-chflags noschg ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
-	rm -f ${DESTDIR}${LIBDIR}/${SHLIB_NAME}
+	${INSTALL_SYMLINK} ${_SHLIBDIRPREFIX}${_SHLIBDIR}/${SHLIB_NAME} \
+	    ${DESTDIR}${_LIBDIR}/${SHLIB_LINK}
+.if exists(${DESTDIR}${_LIBDIR}/${SHLIB_NAME})
+	-chflags noschg ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
+	rm -f ${DESTDIR}${_LIBDIR}/${SHLIB_NAME}
 .endif
 .endif
 .endif # SHLIB_LDSCRIPT
@@ -352,7 +364,7 @@ _libinstall:
 .endif # SHIB_NAME
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${LIBDIR}
+	    ${_INSTALLFLAGS} lib${LIB}_pic.a ${DESTDIR}${_LIBDIR}
 .endif
 .if defined(WANT_LINT) && !defined(NO_LINT) && defined(LIB) && !empty(LIB)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \

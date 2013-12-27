@@ -93,6 +93,7 @@ main(int argc, char *argv[])
 	struct whod *w;
 	struct whoent *we;
 	struct myutmp *mp;
+	cap_rights_t rights;
 	int f, n, i;
 	int d_first;
 	int dfd;
@@ -124,7 +125,8 @@ main(int argc, char *argv[])
 		err(1, "opendir(%s)", _PATH_RWHODIR);
 	dfd = dirfd(dirp);
 	mp = myutmp;
-	if (cap_rights_limit(dfd, CAP_READ | CAP_LOOKUP) < 0 && errno != ENOSYS)
+	cap_rights_init(&rights, CAP_READ, CAP_LOOKUP);
+	if (cap_rights_limit(dfd, &rights) < 0 && errno != ENOSYS)
 		err(1, "cap_rights_limit failed: %s", _PATH_RWHODIR);
 	/*
 	 * Cache files required for time(3) and localtime(3) before entering
@@ -135,13 +137,14 @@ main(int argc, char *argv[])
 	if (cap_enter() < 0 && errno != ENOSYS)
 		err(1, "cap_enter");
 	(void) time(&now);
+	cap_rights_init(&rights, CAP_READ);
 	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_ino == 0 || strncmp(dp->d_name, "whod.", 5) != 0)
 			continue;
 		f = openat(dfd, dp->d_name, O_RDONLY);
 		if (f < 0)
 			continue;
-		if (cap_rights_limit(f, CAP_READ) < 0 && errno != ENOSYS)
+		if (cap_rights_limit(f, &rights) < 0 && errno != ENOSYS)
 			err(1, "cap_rights_limit failed: %s", dp->d_name);
 		cc = read(f, (char *)&wd, sizeof(struct whod));
 		if (cc < WHDRSIZE) {

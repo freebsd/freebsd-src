@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/usermgmt/group_input.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -56,16 +56,12 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 save_changes()
 {
-	local err retval=$SUCCESS
+	local funcname=save_changes
 
 	case "$mode" in
 	Delete)
-		err=$( pw groupdel "$group_name" 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+		f_eval_catch $funcname pw 'pw groupdel "%s"' "$group_name" ||
+			return $?
 		f_show_msg "$msg_group_deleted"
 		;;
 	Add)
@@ -74,17 +70,13 @@ save_changes()
 		[ "$group_members" != "$cur_group_members" ] &&
 			cmd="$cmd -M '$group_members'"
 		if [ "$pw_group_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			cmd="echo \"\$group_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$group_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_group_added"
 		;;
 	Edit/View)
@@ -93,17 +85,13 @@ save_changes()
 		[ "$group_members" != "$cur_group_members" ] &&
 			cmd="$cmd -M '$group_members'"
 		if [ "$pw_group_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			cmd="echo \"\$group_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$group_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_group_updated"
 		;;
 	esac
@@ -162,9 +150,9 @@ if [ "$mode" = "Add" ]; then
 	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
 	retval=$?
 
-	if [ $retval -eq 255 ]; then # User pressed ESC
+	if [ $retval -eq $DIALOG_ESC ]; then
 		exit $SUCCESS
-	elif [ $retval -ne $SUCCESS ]; then
+	elif [ $retval -ne $DIALOG_OK ]; then
 		#
 		# Ask a series of questions to pre-fill the editor screen.
 		#
@@ -174,9 +162,9 @@ if [ "$mode" = "Add" ]; then
 		#
 	
 		[ "$passwdtype" = "yes" ] &&
-			{ f_dialog_input_group_password || exit 0; }
-		f_dialog_input_group_gid  || exit 0
-		f_dialog_input_group_members || exit 0
+			{ f_dialog_input_group_password || exit $SUCCESS; }
+		f_dialog_input_group_gid  || exit $SUCCESS
+		f_dialog_input_group_members || exit $SUCCESS
 	fi
 fi
 
@@ -255,13 +243,11 @@ while :; do
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	X) # Exit
-	   if [ "$save_flag" ]; then
-	   	save_changes || continue
-	   fi
+	   [ "$save_flag" ] && { save_changes || continue; }
 	   break
 	   ;;
 	1) # Group Name
@@ -274,7 +260,7 @@ while :; do
 	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
-	   	[ $retval -eq $SUCCESS ] || continue
+	   	[ $retval -eq $DIALOG_OK ] || continue
 
 	   	[ "$mtag" = "X $msg_exit" ] && continue
 

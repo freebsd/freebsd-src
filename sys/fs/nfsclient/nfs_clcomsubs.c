@@ -203,10 +203,11 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
 			if (sep == NULL)
-				nfsv4_setsequence(nd, NFSMNT_MDSSESSION(nmp),
+				nfsv4_setsequence(nmp, nd,
+				    NFSMNT_MDSSESSION(nmp),
 				    nfs_bigreply[procnum]);
 			else
-				nfsv4_setsequence(nd, sep,
+				nfsv4_setsequence(nmp, nd, sep,
 				    nfs_bigreply[procnum]);
 		}
 		if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh > 0) {

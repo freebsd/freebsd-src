@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to avoid installing the default files to
-.Pa /var/named/etc/namedb .

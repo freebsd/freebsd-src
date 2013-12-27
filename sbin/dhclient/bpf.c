@@ -43,6 +43,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
+
 #include "dhcpd.h"
 #include "privsep.h"
 #include <sys/capability.h>
@@ -132,6 +134,7 @@ int dhcp_bpf_wfilter_len = sizeof(dhcp_bpf_wfilter) / sizeof(struct bpf_insn);
 void
 if_register_send(struct interface_info *info)
 {
+	cap_rights_t rights;
 	struct bpf_version v;
 	struct bpf_program p;
 	int sock, on = 1;
@@ -160,7 +163,8 @@ if_register_send(struct interface_info *info)
 	if (ioctl(info->wfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
 
-	if (cap_rights_limit(info->wfdesc, CAP_WRITE) < 0 && errno != ENOSYS)
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(info->wfdesc, &rights) < 0 && errno != ENOSYS)
 		error("Can't limit bpf descriptor: %m");
 
 	/*
@@ -213,6 +217,7 @@ void
 if_register_receive(struct interface_info *info)
 {
 	static const unsigned long cmds[2] = { SIOCGIFFLAGS, SIOCGIFMEDIA };
+	cap_rights_t rights;
 	struct bpf_version v;
 	struct bpf_program p;
 	int flag = 1, sz;
@@ -264,10 +269,9 @@ if_register_receive(struct interface_info *info)
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
 
-	if (cap_rights_limit(info->rfdesc,
-	    CAP_IOCTL | CAP_POLL_EVENT | CAP_READ) < 0 && errno != ENOSYS) {
+	cap_rights_init(&rights, CAP_IOCTL, CAP_POLL_EVENT, CAP_READ);
+	if (cap_rights_limit(info->rfdesc, &rights) < 0 && errno != ENOSYS)
 		error("Can't limit bpf descriptor: %m");
-	}
 	if (cap_ioctls_limit(info->rfdesc, cmds, 2) < 0 && errno != ENOSYS)
 		error("Can't limit ioctls for bpf descriptor: %m");
 }

@@ -168,6 +168,21 @@ equal_body()
         grep '^failed: \${x} != \${y} (a != b)$' resfile
 }
 
+atf_test_case flush_stdout_on_timeout
+flush_stdout_on_timeout_body()
+{
+    "$(atf_get_srcdir)/misc_helpers" -s "$(atf_get_srcdir)" atf_check_timeout \
+        >out 2>err &
+    pid="${!}"
+    sleep 1
+    kill "${pid}"
+
+    grep 'Executing command.*true' out \
+        || atf_fail 'First command not in output'
+    grep 'Executing command.*sleep 42' out \
+        || atf_fail 'Second command not in output'
+}
+
 atf_init_test_cases()
 {
     atf_add_test_case info_ok
@@ -176,6 +191,7 @@ atf_init_test_cases()
     atf_add_test_case null_stdout
     atf_add_test_case null_stderr
     atf_add_test_case equal
+    atf_add_test_case flush_stdout_on_timeout
 }
 
 # vim: syntax=sh:expandtab:shiftwidth=4:softtabstop=4

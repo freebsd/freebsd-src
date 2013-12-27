@@ -1,9 +1,9 @@
-dnl $Id: configure.ac 610 2012-05-26 14:03:45Z des $
+dnl $Id: configure.ac 741 2013-09-07 13:34:02Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$Id: configure.ac 610 2012-05-26 14:03:45Z des $])
-AC_INIT([OpenPAM], [20120526], [des@des.no])
-AC_CONFIG_SRCDIR([lib/pam_start.c])
+AC_REVISION([$Id: configure.ac 741 2013-09-07 13:34:02Z des $])
+AC_INIT([OpenPAM], [20130907], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
 AM_CONFIG_HEADER([config.h])
@@ -31,8 +31,8 @@ AC_DEFINE_UNQUOTED(LIB_MAJ, $LIB_MAJ, [OpenPAM library major number])
 
 AC_ARG_ENABLE([debug],
     AC_HELP_STRING([--enable-debug],
-	[turn debugging on by default]),
-    AC_DEFINE(OPENPAM_DEBUG, 1, [Turn debugging on by default]))
+	[turn debugging macros on]),
+    AC_DEFINE(OPENPAM_DEBUG, 1, [Turn debugging macros on]))
 
 AC_ARG_ENABLE([unversioned-modules],
     AC_HELP_STRING([--disable-unversioned-modules],
@@ -48,14 +48,12 @@ AC_ARG_WITH([modules-dir],
 	[OpenPAM modules directory]),
     [AS_IF([test x"$withval" != x"no"], [
 	OPENPAM_MODULES_DIR="$withval"
-    ], [
-	OPENPAM_MODULES_DIR="$libdir"
-    ])],
-    [OPENPAM_MODULES_DIR="$libdir"])
-AC_DEFINE_UNQUOTED(OPENPAM_MODULES_DIR,
-    "${OPENPAM_MODULES_DIR%/}/",
-    [OpenPAM modules directory])
+	AC_DEFINE_UNQUOTED(OPENPAM_MODULES_DIR, 
+	    "${OPENPAM_MODULES_DIR%/}",
+	    [OpenPAM modules directory])
+    ])])
 AC_SUBST(OPENPAM_MODULES_DIR)
+AM_CONDITIONAL([CUSTOM_MODULES_DIR], [test x"$OPENPAM_MODULES_DIR" != x""])
 
 AC_ARG_WITH([doc],
     AC_HELP_STRING([--without-doc], [do not build documentation]),
@@ -64,7 +62,7 @@ AC_ARG_WITH([doc],
 AM_CONDITIONAL([WITH_DOC], [test x"$with_doc" = x"yes"])
 
 AC_ARG_WITH([pam-unix],
-    AC_HELP_STRING([--with-pam-unix], [compile sample pam_unix(8) implementation]),
+    AC_HELP_STRING([--with-pam-unix], [compile sample pam_unix(8) module]),
     [],
     [with_pam_unix=no])
 AM_CONDITIONAL([WITH_PAM_UNIX], [test x"$with_pam_unix" = x"yes"])
@@ -83,7 +81,11 @@ AM_CONDITIONAL([WITH_SU], [test x"$with_su" = x"yes"])
 
 AC_CHECK_HEADERS([crypt.h])
 
-AC_CHECK_FUNCS([fdlopen fpurge strlcat strlcmp strlcpy])
+AC_CHECK_FUNCS([asprintf vasprintf])
+AC_CHECK_FUNCS([dlfunc fdlopen])
+AC_CHECK_FUNCS([fpurge])
+AC_CHECK_FUNCS([setlogmask])
+AC_CHECK_FUNCS([strlcat strlcmp strlcpy])
 
 saved_LIBS="${LIBS}"
 LIBS=""
@@ -98,6 +100,13 @@ AC_CHECK_LIB([crypt], [crypt])
 CRYPT_LIBS="${LIBS}"
 LIBS="${saved_LIBS}"
 AC_SUBST(CRYPT_LIBS)
+
+saved_LIBS="${LIBS}"
+LIBS=""
+AC_CHECK_LIB([crypto], [HMAC_CTX_init])
+CRYPTO_LIBS="${LIBS}"
+LIBS="${saved_LIBS}"
+AC_SUBST(CRYPTO_LIBS)
 
 AC_ARG_ENABLE([developer-warnings],
     AS_HELP_STRING([--enable-developer-warnings], [enable strict warnings (default is NO)]),
@@ -120,6 +129,7 @@ AC_CONFIG_FILES([
     include/Makefile
     include/security/Makefile
     lib/Makefile
+    lib/libpam/Makefile
     modules/Makefile
     modules/pam_deny/Makefile
     modules/pam_permit/Makefile
@@ -127,4 +137,5 @@ AC_CONFIG_FILES([
     t/Makefile
 ])
 AC_CONFIG_FILES([pamgdb],[chmod +x pamgdb])
+AC_CONFIG_FILES([mkpkgng],[chmod +x mkpkgng])
 AC_OUTPUT

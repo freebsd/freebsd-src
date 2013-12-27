@@ -1,40 +1,6 @@
-.\"-
-.\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
-.\" All rights reserved.
-.\"
-.\" This software was developed for the FreeBSD Project by ThinkSec AS and
-.\" Network Associates Laboratories, the Security Research Division of
-.\" Network Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035
-.\" ("CBOSS"), as part of the DARPA CHATS research program.
-.\"
-.\" Redistribution and use in source and binary forms, with or without
-.\" modification, are permitted provided that the following conditions
-.\" are met:
-.\" 1. Redistributions of source code must retain the above copyright
-.\"    notice, this list of conditions and the following disclaimer.
-.\" 2. Redistributions in binary form must reproduce the above copyright
-.\"    notice, this list of conditions and the following disclaimer in the
-.\"    documentation and/or other materials provided with the distribution.
-.\" 3. The name of the author may not be used to endorse or promote
-.\"    products derived from this software without specific prior written
-.\"    permission.
-.\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
-.\"
-.\" $Id$
-.\"
-.Dd May 26, 2012
+.\" Generated from pam_get_authtok.c by gendoc.pl
+.\" $Id: pam_get_authtok.c 670 2013-03-17 19:26:07Z des $
+.Dd September 7, 2013
 .Dt PAM_GET_AUTHTOK 3
 .Os
 .Sh NAME
@@ -50,12 +16,14 @@
 .Sh DESCRIPTION
 The
 .Fn pam_get_authtok
-function returns the cached authentication token,
-or prompts the user if no token is currently cached.
+function either prompts the user for an
+authentication token or retrieves a cached authentication token,
+depending on circumstances.
 Either way, a pointer to the authentication token is stored in the
 location pointed to by the
 .Fa authtok
-argument.
+argument, and the corresponding PAM
+item is updated.
 .Pp
 The
 .Fa item
@@ -83,25 +51,14 @@ as appropriate, will be used.
 If that item is also
 .Dv NULL ,
 a hardcoded default prompt will be used.
-Either way, the prompt is expanded using
-.Xr openpam_subst 3
-before it is
-passed to the conversation function.
-.Pp
-If
+Additionally, when
 .Fn pam_get_authtok
-is called from a module and the
-.Dv authtok_prompt
-/
-.Dv oldauthtok_prompt
-option is set in the policy file, the value of that
-option takes precedence over both the
-.Fa prompt
-argument and the
-.Dv PAM_AUTHTOK_PROMPT
-/
-.Dv PAM_OLDAUTHTOK_PROMPT
-item.
+is called from a service module,
+the prompt may be affected by module options as described below.
+The prompt is then expanded using
+.Xr openpam_subst 3
+before it is passed to
+the conversation function.
 .Pp
 If
 .Fa item
@@ -117,7 +74,50 @@ If there is a mismatch,
 .Fn pam_get_authtok
 will return
 .Dv PAM_TRY_AGAIN .
-.Pp
+.Sh MODULE OPTIONS
+When called by a service module,
+.Fn pam_get_authtok
+will recognize the
+following module options:
+.Bl -tag -width 18n
+.It Dv authtok_prompt
+Prompt to use when
+.Fa item
+is set to
+.Dv PAM_AUTHTOK .
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_AUTHTOK_PROMPT
+item.
+.It Dv echo_pass
+If the application's conversation function allows it, this
+lets the user see what they are typing.
+This should only be used for non-reusable authentication
+tokens.
+.It Dv oldauthtok_prompt
+Prompt to use when
+.Fa item
+is set to
+.Dv PAM_OLDAUTHTOK .
+This option overrides both the
+.Fa prompt
+argument and the
+.Dv PAM_OLDAUTHTOK_PROMPT
+item.
+.It Dv try_first_pass
+If the requested item is non-null, return it without
+prompting the user.
+Typically, the service module will verify the token, and
+if it does not match, clear the item before calling
+.Fn pam_get_authtok
+a second time.
+.It Dv use_first_pass
+Do not prompt the user at all; just return the cached
+value, or
+.Dv PAM_AUTH_ERR
+if there is none.
+.El
 .Sh RETURN VALUES
 The
 .Fn pam_get_authtok
@@ -133,8 +133,10 @@ System error.
 Try again.
 .El
 .Sh SEE ALSO
+.Xr openpam_get_option 3 ,
 .Xr openpam_subst 3 ,
 .Xr pam 3 ,
+.Xr pam_conv 3 ,
 .Xr pam_get_item 3 ,
 .Xr pam_get_user 3 ,
 .Xr pam_strerror 3
@@ -153,3 +155,6 @@ Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
+.Pp
+The OpenPAM library is maintained by
+.An Dag-Erling Sm\(/orgrav Aq des@des.no .

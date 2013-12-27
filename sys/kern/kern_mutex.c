@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ddb.h"
 #include "opt_global.h"
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -101,14 +100,14 @@ static void	assert_mtx(const struct lock_object *lock, int what);
 #ifdef DDB
 static void	db_show_mtx(const struct lock_object *lock);
 #endif
-static void	lock_mtx(struct lock_object *lock, int how);
-static void	lock_spin(struct lock_object *lock, int how);
+static void	lock_mtx(struct lock_object *lock, uintptr_t how);
+static void	lock_spin(struct lock_object *lock, uintptr_t how);
 #ifdef KDTRACE_HOOKS
 static int	owner_mtx(const struct lock_object *lock,
 		    struct thread **owner);
 #endif
-static int	unlock_mtx(struct lock_object *lock);
-static int	unlock_spin(struct lock_object *lock);
+static uintptr_t unlock_mtx(struct lock_object *lock);
+static uintptr_t unlock_spin(struct lock_object *lock);
 
 /*
  * Lock classes for sleep and spin mutexes.
@@ -154,20 +153,20 @@ assert_mtx(const struct lock_object *lock, int what)
 }
 
 void
-lock_mtx(struct lock_object *lock, int how)
+lock_mtx(struct lock_object *lock, uintptr_t how)
 {
 
 	mtx_lock((struct mtx *)lock);
 }
 
 void
-lock_spin(struct lock_object *lock, int how)
+lock_spin(struct lock_object *lock, uintptr_t how)
 {
 
 	panic("spin locks can only use msleep_spin");
 }
 
-int
+uintptr_t
 unlock_mtx(struct lock_object *lock)
 {
 	struct mtx *m;
@@ -178,7 +177,7 @@ unlock_mtx(struct lock_object *lock)
 	return (0);
 }
 
-int
+uintptr_t
 unlock_spin(struct lock_object *lock)
 {
 
@@ -249,8 +248,6 @@ __mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file, int line)
 	    line);
 	mtx_assert(m, MA_OWNED);
 
-	if (m->mtx_recurse == 0)
-		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_MTX_UNLOCK_RELEASE, m);
 	__mtx_unlock(m, curthread, opts, file, line);
 	curthread->td_locks--;
 }

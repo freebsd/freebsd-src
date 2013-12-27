@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2006 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -61,41 +61,48 @@ int	poolflush __P((int, char *[]));
 int	poolstats __P((int, char *[]));
 int	gettype __P((char *, u_int *));
 int	getrole __P((char *));
-int	setnodeaddr __P((ip_pool_node_t *node, char *arg));
-void	showpools_live __P((int, int, ip_pool_stat_t *, char *));
+int	setnodeaddr __P((int, int, void *ptr, char *arg));
+void	showpools_live __P((int, int, ipf_pool_stat_t *, char *));
 void	showhashs_live __P((int, int, iphtstat_t *, char *));
+void	showdstls_live __P((int, int, ipf_dstl_stat_t *, char *));
 
 int	opts = 0;
 int	fd = -1;
 int	use_inet6 = 0;
+wordtab_t *pool_fields = NULL;
+int	nohdrfields = 0;
 
 
-void usage(prog)
-char *prog;
+void
+usage(prog)
+	char *prog;
 {
 	fprintf(stderr, "Usage:\t%s\n", prog);
-	fprintf(stderr, "\t\t\t-a [-dnv] [-m <name>] [-o <role>] -i <ipaddr>[/netmask]\n");
-	fprintf(stderr, "\t\t\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
-	fprintf(stderr, "\t\t\t-f <file> [-dnuv]\n");
-	fprintf(stderr, "\t\t\t-F [-dv] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t\t\t-l [-dv] [-m <name>] [-t <type>]\n");
-	fprintf(stderr, "\t\t\t-r [-dnv] [-m <name>] [-o <role>] -i <ipaddr>[/netmask]\n");
-	fprintf(stderr, "\t\t\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
-	fprintf(stderr, "\t\t\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
+	fprintf(stderr, "\t-a [-dnv] [-m <name>] [-o <role>] [-t type] [-T ttl] -i <ipaddr>[/netmask]\n");
+	fprintf(stderr, "\t-A [-dnv] [-m <name>] [-o <role>] [-S <seed>] [-t <type>]\n");
+	fprintf(stderr, "\t-f <file> [-dnuv]\n");
+	fprintf(stderr, "\t-F [-dv] [-o <role>] [-t <type>]\n");
+	fprintf(stderr, "\t-l [-dv] [-m <name>] [-t <type>] [-O <fields>]\n");
+	fprintf(stderr, "\t-r [-dnv] [-m <name>] [-o <role>] [-t type] -i <ipaddr>[/netmask]\n");
+	fprintf(stderr, "\t-R [-dnv] [-m <name>] [-o <role>] [-t <type>]\n");
+	fprintf(stderr, "\t-s [-dtv] [-M <core>] [-N <namelist>]\n");
 	exit(1);
 }
 
 
-int main(argc, argv)
-int argc;
-char *argv[];
+int
+main(argc, argv)
+	int argc;
+	char *argv[];
 {
-	int err;
+	int err = 1;
 
 	if (argc < 2)
 		usage(argv[0]);
 
-	switch (getopt(argc, argv, "aAf:FlrRs"))
+	assigndefined(getenv("IPPOOL_PREDEFINED"));
+
+	switch (getopt(argc, argv, "aAf:FlnrRsv"))
 	{
 	case 'a' :
 		err = poolnodecommand(0, argc, argv);
@@ -112,6 +119,9 @@ char *argv[];
 	case 'l' :
 		err = poollist(argc, argv);
 		break;
+	case 'n' :
+		opts |= OPT_DONOTHING|OPT_DONTOPEN;
+		break;
 	case 'r' :
 		err = poolnodecommand(1, argc, argv);
 		break;
@@ -120,6 +130,9 @@ char *argv[];
 		break;
 	case 's' :
 		err = poolstats(argc, argv);
+		break;
+	case 'v' :
+		opts |= OPT_VERBOSE;
 		break;
 	default :
 		exit(1);
@@ -131,19 +144,23 @@ char *argv[];
 }
 
 
-int poolnodecommand(remove, argc, argv)
-int remove, argc;
-char *argv[];
+int
+poolnodecommand(remove, argc, argv)
+	int remove, argc;
+	char *argv[];
 {
-	int err, c, ipset, role;
+	int err = 0, c, ipset, role, type = IPLT_POOL, ttl = 0;
 	char *poolname = NULL;
-	ip_pool_node_t node;
+	ip_pool_node_t pnode;
+	iphtent_t hnode;
+	void *ptr = &pnode;
 
 	ipset = 0;
 	role = IPL_LOGIPF;
-	bzero((char *)&node, sizeof(node));
+	bzero((char *)&pnode, sizeof(pnode));
+	bzero((char *)&hnode, sizeof(hnode));
 
-	while ((c = getopt(argc, argv, "di:m:no:Rv")) != -1)
+	while ((c = getopt(argc, argv, "di:m:no:Rt:T:v")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -151,16 +168,21 @@ char *argv[];
 			ippool_yydebug++;
 			break;
 		case 'i' :
-			if (setnodeaddr(&node, optarg) == 0)
+			if (setnodeaddr(type, role, ptr, optarg) == 0)
 				ipset = 1;
 			break;
 		case 'm' :
 			poolname = optarg;
 			break;
 		case 'n' :
-			opts |= OPT_DONOTHING;
+			opts |= OPT_DONOTHING|OPT_DONTOPEN;
 			break;
 		case 'o' :
+			if (ipset == 1) {
+				fprintf(stderr,
+					"cannot set role after ip address\n");
+				return -1;
+			}
 			role = getrole(optarg);
 			if (role == IPL_LOGNONE)
 				return -1;
@@ -168,13 +190,39 @@ char *argv[];
 		case 'R' :
 			opts |= OPT_NORESOLVE;
 			break;
+		case 't' :
+			if (ipset == 1) {
+				fprintf(stderr,
+					"cannot set type after ip address\n");
+				return -1;
+			}
+			type = gettype(optarg, NULL);
+			switch (type) {
+			case IPLT_NONE :
+				fprintf(stderr, "unknown type '%s'\n", optarg);
+				return -1;
+			case IPLT_HASH :
+				ptr = &hnode;
+				break;
+			case IPLT_POOL :
+			default :
+				break;
+			}
+			break;
+		case 'T' :
+			ttl = atoi(optarg);
+			if (ttl < 0) {
+				fprintf(stderr, "cannot set negative ttl\n");
+				return -1;
+			}
+			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
 		}
 
 	if (argv[optind] != NULL && ipset == 0) {
-		if (setnodeaddr(&node, argv[optind]) == 0)
+		if (setnodeaddr(type, role, ptr, argv[optind]) == 0)
 			ipset = 1;
 	}
 
@@ -191,17 +239,30 @@ char *argv[];
 		return -1;
 	}
 
-	if (remove == 0)
-		err = load_poolnode(0, poolname, &node, ioctl);
-	else
-		err = remove_poolnode(0, poolname, &node, ioctl);
+	switch (type) {
+	case IPLT_POOL :
+		if (remove == 0)
+			err = load_poolnode(role, poolname, &pnode, ttl, ioctl);
+		else
+			err = remove_poolnode(role, poolname, &pnode, ioctl);
+		break;
+	case IPLT_HASH :
+		if (remove == 0)
+			err = load_hashnode(role, poolname, &hnode, ttl, ioctl);
+		else
+			err = remove_hashnode(role, poolname, &hnode, ioctl);
+		break;
+	default :
+		break;
+	}
 	return err;
 }
 
 
-int poolcommand(remove, argc, argv)
-int remove, argc;
-char *argv[];
+int
+poolcommand(remove, argc, argv)
+	int remove, argc;
+	char *argv[];
 {
 	int type, role, c, err;
 	char *poolname;
@@ -216,7 +277,7 @@ char *argv[];
 	bzero((char *)&iph, sizeof(iph));
 	bzero((char *)&pool, sizeof(pool));
 
-	while ((c = getopt(argc, argv, "dm:no:RSt:v")) != -1)
+	while ((c = getopt(argc, argv, "dm:no:RSv")) != -1)
 		switch (c)
 		{
 		case 'd' :
@@ -227,7 +288,7 @@ char *argv[];
 			poolname = optarg;
 			break;
 		case 'n' :
-			opts |= OPT_DONOTHING;
+			opts |= OPT_DONOTHING|OPT_DONTOPEN;
 			break;
 		case 'o' :
 			role = getrole(optarg);
@@ -242,13 +303,6 @@ char *argv[];
 		case 'S' :
 			iph.iph_seed = atoi(optarg);
 			break;
-		case 't' :
-			type = gettype(optarg, &iph.iph_type);
-			if (type == IPLT_NONE) {
-				fprintf(stderr, "unknown type '%s'\n", optarg);
-				return -1;
-			}
-			break;
 		case 'v' :
 			opts |= OPT_VERBOSE;
 			break;
@@ -259,6 +313,12 @@ char *argv[];
 
 	if (poolname == NULL) {
 		fprintf(stderr, "poolname not given with add/remove pool\n");
+		return -1;
+	}
+
+	type = gettype(argv[optind], &iph.iph_type);
+	if (type == IPLT_NONE) {
+		fprintf(stderr, "unknown type '%s'\n", argv[optind]);
 		return -1;
 	}
 
@@ -297,9 +357,10 @@ char *argv[];
 }
 
 
-int loadpoolfile(argc, argv, infile)
-int argc;
-char *argv[], *infile;
+int
+loadpoolfile(argc, argv, infile)
+	int argc;
+	char *argv[], *infile;
 {
 	int c;
 
@@ -313,7 +374,7 @@ char *argv[], *infile;
 			ippool_yydebug++;
 			break;
 		case 'n' :
-			opts |= OPT_DONOTHING;
+			opts |= OPT_DONOTHING|OPT_DONTOPEN;
 			break;
 		case 'R' :
 			opts |= OPT_NORESOLVE;
@@ -329,7 +390,7 @@ char *argv[], *infile;
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "loadpoolfile: opts = %#x\n", opts);
 
-	if (!(opts & OPT_DONOTHING) && (fd == -1)) {
+	if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN)) && (fd == -1)) {
 		fd = open(IPLOOKUP_NAME, O_RDWR);
 		if (fd == -1) {
 			perror("open(IPLOOKUP_NAME)");
@@ -343,12 +404,14 @@ char *argv[], *infile;
 }
 
 
-int poolstats(argc, argv)
-int argc;
-char *argv[];
+int
+poolstats(argc, argv)
+	int argc;
+	char *argv[];
 {
 	int c, type, role, live_kernel;
-	ip_pool_stat_t plstat;
+	ipf_pool_stat_t plstat;
+	ipf_dstl_stat_t dlstat;
 	char *kernel, *core;
 	iphtstat_t htstat;
 	iplookupop_t op;
@@ -398,7 +461,7 @@ char *argv[];
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolstats: opts = %#x\n", opts);
 
-	if (!(opts & OPT_DONOTHING) && (fd == -1)) {
+	if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN)) && (fd == -1)) {
 		fd = open(IPLOOKUP_NAME, O_RDWR);
 		if (fd == -1) {
 			perror("open(IPLOOKUP_NAME)");
@@ -410,14 +473,14 @@ char *argv[];
 		op.iplo_type = IPLT_POOL;
 		op.iplo_struct = &plstat;
 		op.iplo_size = sizeof(plstat);
-		if (!(opts & OPT_DONOTHING)) {
+		if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN))) {
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
-				perror("ioctl(SIOCLOOKUPSTAT)");
+				ipferror(fd, "ioctl(S0IOCLOOKUPSTAT)");
 				return -1;
 			}
-			printf("Pools:\t%lu\n", plstat.ipls_pools);
-			printf("Nodes:\t%lu\n", plstat.ipls_nodes);
+			printf("%lu\taddress pools\n", plstat.ipls_pools);
+			printf("%lu\taddress pool nodes\n", plstat.ipls_nodes);
 		}
 	}
 
@@ -425,24 +488,49 @@ char *argv[];
 		op.iplo_type = IPLT_HASH;
 		op.iplo_struct = &htstat;
 		op.iplo_size = sizeof(htstat);
-		if (!(opts & OPT_DONOTHING)) {
+		if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN))) {
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
-				perror("ioctl(SIOCLOOKUPSTAT)");
+				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
 				return -1;
 			}
-			printf("Hash Tables:\t%lu\n", htstat.iphs_numtables);
-			printf("Nodes:\t%lu\n", htstat.iphs_numnodes);
-			printf("Out of Memory:\t%lu\n", htstat.iphs_nomem);
+			printf("%lu\thash tables\n", htstat.iphs_numtables);
+			printf("%lu\thash table nodes\n", htstat.iphs_numnodes);
+			printf("%lu\thash table no memory \n",
+				htstat.iphs_nomem);
+		}
+	}
+
+	if (type == IPLT_ALL || type == IPLT_DSTLIST) {
+		op.iplo_type = IPLT_DSTLIST;
+		op.iplo_struct = &dlstat;
+		op.iplo_size = sizeof(dlstat);
+		if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN))) {
+			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
+			if (c == -1) {
+				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
+				return -1;
+			}
+			printf("%u\tdestination lists\n",
+			       dlstat.ipls_numlists);
+			printf("%u\tdestination list nodes\n",
+			       dlstat.ipls_numnodes);
+			printf("%lu\tdestination list no memory\n",
+			       dlstat.ipls_nomem);
+			printf("%u\tdestination list zombies\n",
+			       dlstat.ipls_numdereflists);
+			printf("%u\tdesetination list node zombies\n",
+			       dlstat.ipls_numderefnodes);
 		}
 	}
 	return 0;
 }
 
 
-int poolflush(argc, argv)
-int argc;
-char *argv[];
+int
+poolflush(argc, argv)
+	int argc;
+	char *argv[];
 {
 	int c, role, type, arg;
 	iplookupflush_t flush;
@@ -479,7 +567,7 @@ char *argv[];
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poolflush: opts = %#x\n", opts);
 
-	if (!(opts & OPT_DONOTHING) && (fd == -1)) {
+	if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN)) && (fd == -1)) {
 		fd = open(IPLOOKUP_NAME, O_RDWR);
 		if (fd == -1) {
 			perror("open(IPLOOKUP_NAME)");
@@ -492,22 +580,23 @@ char *argv[];
 	flush.iplf_unit = role;
 	flush.iplf_arg = arg;
 
-	if (!(opts & OPT_DONOTHING)) {
+	if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN))) {
 		if (ioctl(fd, SIOCLOOKUPFLUSH, &flush) == -1) {
-			perror("ioctl(SIOCLOOKUPFLUSH)");
+			ipferror(fd, "ioctl(SIOCLOOKUPFLUSH)");
 			exit(1);
 		}
 
 	}
-	printf("%zd object%s flushed\n", flush.iplf_count,
+	printf("%u object%s flushed\n", flush.iplf_count,
 	       (flush.iplf_count == 1) ? "" : "s");
 
 	return 0;
 }
 
 
-int getrole(rolename)
-char *rolename;
+int
+getrole(rolename)
+	char *rolename;
 {
 	int role;
 
@@ -537,19 +626,20 @@ char *rolename;
 }
 
 
-int gettype(typename, minor)
-char *typename;
-u_int *minor;
+int
+gettype(typename, minor)
+	char *typename;
+	u_int *minor;
 {
 	int type;
 
-	if (!strcasecmp(optarg, "tree") || !strcasecmp(optarg, "pool")) {
+	if (!strcasecmp(typename, "tree") || !strcasecmp(typename, "pool")) {
 		type = IPLT_POOL;
-	} else if (!strcasecmp(optarg, "hash")) {
+	} else if (!strcasecmp(typename, "hash")) {
 		type = IPLT_HASH;
 		if (minor != NULL)
 			*minor = IPHASH_LOOKUP;
-	} else if (!strcasecmp(optarg, "group-map")) {
+	} else if (!strcasecmp(typename, "group-map")) {
 		type = IPLT_HASH;
 		if (minor != NULL)
 			*minor = IPHASH_GROUPMAP;
@@ -560,9 +650,10 @@ u_int *minor;
 }
 
 
-int poollist(argc, argv)
-int argc;
-char *argv[];
+int
+poollist(argc, argv)
+	int argc;
+	char *argv[];
 {
 	char *kernel, *core, *poolname;
 	int c, role, type, live_kernel;
@@ -599,6 +690,9 @@ char *argv[];
 				return -1;
 			}
 			break;
+		case 'O' :
+			pool_fields = parsefields(poolfields, optarg);
+			break;
 		case 'R' :
 			opts |= OPT_NORESOLVE;
 			break;
@@ -617,7 +711,7 @@ char *argv[];
 	if (opts & OPT_DEBUG)
 		fprintf(stderr, "poollist: opts = %#x\n", opts);
 
-	if (!(opts & OPT_DONOTHING) && (fd == -1)) {
+	if (!(opts & (OPT_DONOTHING|OPT_DONTOPEN)) && (fd == -1)) {
 		fd = open(IPLOOKUP_NAME, O_RDWR);
 		if (fd == -1) {
 			perror("open(IPLOOKUP_NAME)");
@@ -640,9 +734,10 @@ char *argv[];
 }
 
 
-void poollist_dead(role, poolname, type, kernel, core)
-int role, type;
-char *poolname, *kernel, *core;
+void
+poollist_dead(role, poolname, type, kernel, core)
+	int role, type;
+	char *poolname, *kernel, *core;
 {
 	iphtable_t *hptr;
 	ip_pool_t *ptr;
@@ -665,14 +760,15 @@ char *poolname, *kernel, *core;
 			ptr = pools[role];
 			while (ptr != NULL) {
 				ptr = printpool(ptr, kmemcpywrap, poolname,
-						opts);
+						opts, pool_fields);
 			}
 		} else {
 			for (role = 0; role <= IPL_LOGMAX; role++) {
 				ptr = pools[role];
 				while (ptr != NULL) {
 					ptr = printpool(ptr, kmemcpywrap,
-							poolname, opts);
+							poolname, opts,
+							pool_fields);
 				}
 			}
 			role = IPL_LOGALL;
@@ -693,14 +789,15 @@ char *poolname, *kernel, *core;
 			hptr = tables[role];
 			while (hptr != NULL) {
 				hptr = printhash(hptr, kmemcpywrap,
-						 poolname, opts);
+						 poolname, opts, pool_fields);
 			}
 		} else {
 			for (role = 0; role <= IPL_LOGMAX; role++) {
 				hptr = tables[role];
 				while (hptr != NULL) {
 					hptr = printhash(hptr, kmemcpywrap,
-							 poolname, opts);
+							 poolname, opts,
+							 pool_fields);
 				}
 			}
 		}
@@ -708,12 +805,12 @@ char *poolname, *kernel, *core;
 }
 
 
-void poollist_live(role, poolname, type, fd)
-int role, type, fd;
-char *poolname;
+void
+poollist_live(role, poolname, type, fd)
+	int role, type, fd;
+	char *poolname;
 {
-	ip_pool_stat_t plstat;
-	iphtstat_t htstat;
+	ipf_pool_stat_t plstat;
 	iplookupop_t op;
 	int c;
 
@@ -729,18 +826,18 @@ char *poolname;
 
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
-				perror("ioctl(SIOCLOOKUPSTAT)");
+				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
 				return;
 			}
 
 			showpools_live(fd, role, &plstat, poolname);
 		} else {
-			for (role = 0; role <= IPL_LOGMAX; role++) {
+			for (role = -1; role <= IPL_LOGMAX; role++) {
 				op.iplo_unit = role;
 
 				c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 				if (c == -1) {
-					perror("ioctl(SIOCLOOKUPSTAT)");
+					ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
 					return;
 				}
 
@@ -752,6 +849,8 @@ char *poolname;
 	}
 
 	if (type == IPLT_ALL || type == IPLT_HASH) {
+		iphtstat_t htstat;
+
 		op.iplo_type = IPLT_HASH;
 		op.iplo_size = sizeof(htstat);
 		op.iplo_struct = &htstat;
@@ -763,7 +862,7 @@ char *poolname;
 
 			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 			if (c == -1) {
-				perror("ioctl(SIOCLOOKUPSTAT)");
+				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
 				return;
 			}
 			showhashs_live(fd, role, &htstat, poolname);
@@ -773,21 +872,57 @@ char *poolname;
 				op.iplo_unit = role;
 				c = ioctl(fd, SIOCLOOKUPSTAT, &op);
 				if (c == -1) {
-					perror("ioctl(SIOCLOOKUPSTAT)");
+					ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
 					return;
 				}
 
 				showhashs_live(fd, role, &htstat, poolname);
 			}
+			role = IPL_LOGALL;
+		}
+	}
+
+	if (type == IPLT_ALL || type == IPLT_DSTLIST) {
+		ipf_dstl_stat_t dlstat;
+
+		op.iplo_type = IPLT_DSTLIST;
+		op.iplo_size = sizeof(dlstat);
+		op.iplo_struct = &dlstat;
+		op.iplo_name[0] = '\0';
+		op.iplo_arg = 0;
+
+		if (role != IPL_LOGALL) {
+			op.iplo_unit = role;
+
+			c = ioctl(fd, SIOCLOOKUPSTAT, &op);
+			if (c == -1) {
+				ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
+				return;
+			}
+			showdstls_live(fd, role, &dlstat, poolname);
+		} else {
+			for (role = 0; role <= IPL_LOGMAX; role++) {
+
+				op.iplo_unit = role;
+				c = ioctl(fd, SIOCLOOKUPSTAT, &op);
+				if (c == -1) {
+					ipferror(fd, "ioctl(SIOCLOOKUPSTAT)");
+					return;
+				}
+
+				showdstls_live(fd, role, &dlstat, poolname);
+			}
+			role = IPL_LOGALL;
 		}
 	}
 }
 
 
-void showpools_live(fd, role, plstp, poolname)
-int fd, role;
-ip_pool_stat_t *plstp;
-char *poolname;
+void
+showpools_live(fd, role, plstp, poolname)
+	int fd, role;
+	ipf_pool_stat_t *plstp;
+	char *poolname;
 {
 	ipflookupiter_t iter;
 	ip_pool_t pool;
@@ -806,22 +941,27 @@ char *poolname;
 	iter.ili_unit = role;
 	*iter.ili_name = '\0';
 
-	while (plstp->ipls_list[role] != NULL) {
+	bzero((char *)&pool, sizeof(pool));
+
+	while (plstp->ipls_list[role + 1] != NULL) {
 		if (ioctl(fd, SIOCLOOKUPITER, &obj)) {
-			perror("ioctl(SIOCLOOKUPITER)");
+			ipferror(fd, "ioctl(SIOCLOOKUPITER)");
 			break;
 		}
-		printpool_live(&pool, fd, poolname, opts);
+		if (((pool.ipo_flags & IPOOL_DELETE) == 0) ||
+		    ((opts & OPT_DEBUG) != 0))
+			printpool_live(&pool, fd, poolname, opts, pool_fields);
 
-		plstp->ipls_list[role] = pool.ipo_next;
+		plstp->ipls_list[role + 1] = pool.ipo_next;
 	}
 }
 
 
-void showhashs_live(fd, role, htstp, poolname)
-int fd, role;
-iphtstat_t *htstp;
-char *poolname;
+void
+showhashs_live(fd, role, htstp, poolname)
+	int fd, role;
+	iphtstat_t *htstp;
+	char *poolname;
 {
 	ipflookupiter_t iter;
 	iphtable_t table;
@@ -842,18 +982,55 @@ char *poolname;
 
 	while (htstp->iphs_tables != NULL) {
 		if (ioctl(fd, SIOCLOOKUPITER, &obj)) {
-			perror("ioctl(SIOCLOOKUPITER)");
+			ipferror(fd, "ioctl(SIOCLOOKUPITER)");
 			break;
 		}
 
-		printhash_live(&table, fd, poolname, opts);
+		printhash_live(&table, fd, poolname, opts, pool_fields);
 
 		htstp->iphs_tables = table.iph_next;
 	}
 }
 
 
-int setnodeaddr(ip_pool_node_t *node, char *arg)
+void
+showdstls_live(fd, role, dlstp, poolname)
+	int fd, role;
+	ipf_dstl_stat_t *dlstp;
+	char *poolname;
+{
+	ipflookupiter_t iter;
+	ippool_dst_t table;
+	ipfobj_t obj;
+
+	obj.ipfo_rev = IPFILTER_VERSION;
+	obj.ipfo_type = IPFOBJ_LOOKUPITER;
+	obj.ipfo_size = sizeof(iter);
+	obj.ipfo_ptr = &iter;
+
+	iter.ili_type = IPLT_DSTLIST;
+	iter.ili_otype = IPFLOOKUPITER_LIST;
+	iter.ili_ival = IPFGENITER_LOOKUP;
+	iter.ili_nitems = 1;
+	iter.ili_data = &table;
+	iter.ili_unit = role;
+	*iter.ili_name = '\0';
+
+	while (dlstp->ipls_list[role] != NULL) {
+		if (ioctl(fd, SIOCLOOKUPITER, &obj)) {
+			ipferror(fd, "ioctl(SIOCLOOKUPITER)");
+			break;
+		}
+
+		printdstl_live(&table, fd, poolname, opts, pool_fields);
+
+		dlstp->ipls_list[role] = table.ipld_next;
+	}
+}
+
+
+int
+setnodeaddr(int type, int role, void *ptr, char *arg)
 {
 	struct in_addr mask;
 	char *s;
@@ -862,17 +1039,38 @@ int setnodeaddr(ip_pool_node_t *node, char *arg)
 	if (s == NULL)
 		mask.s_addr = 0xffffffff;
 	else if (strchr(s, '.') == NULL) {
-		if (ntomask(4, atoi(s + 1), &mask.s_addr) != 0)
+		if (ntomask(AF_INET, atoi(s + 1), &mask.s_addr) != 0)
 			return -1;
 	} else {
 		mask.s_addr = inet_addr(s + 1);
 	}
 	if (s != NULL)
 		*s = '\0';
-	node->ipn_addr.adf_len = sizeof(node->ipn_addr);
-	node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
-	node->ipn_mask.adf_len = sizeof(node->ipn_mask);
-	node->ipn_mask.adf_addr.in4.s_addr = mask.s_addr;
+
+	if (type == IPLT_POOL) {
+		ip_pool_node_t *node = ptr;
+
+		if (node->ipn_addr.adf_family == AF_INET)
+			node->ipn_addr.adf_len = offsetof(addrfamily_t,
+							  adf_addr) +
+						 sizeof(struct in_addr);
+#ifdef USE_INET6
+		else
+			node->ipn_addr.adf_len = offsetof(addrfamily_t,
+							  adf_addr) +
+						 sizeof(struct in6_addr);
+#endif
+		node->ipn_addr.adf_addr.in4.s_addr = inet_addr(arg);
+		node->ipn_mask.adf_len = node->ipn_addr.adf_len;
+		node->ipn_mask.adf_addr.in4.s_addr = mask.s_addr;
+	} else if (type == IPLT_HASH) {
+		iphtent_t *node = ptr;
+
+		node->ipe_addr.in4.s_addr = inet_addr(arg);
+		node->ipe_mask.in4.s_addr = mask.s_addr;
+        	node->ipe_family = AF_INET;
+        	node->ipe_unit = role;
+	}
 
 	return 0;
 }

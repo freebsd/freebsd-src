@@ -119,7 +119,9 @@ enum action {
 	ACTION_FSTATAT,
 	ACTION_PATHCONF,
 	ACTION_FPATHCONF,
+#ifdef HAS_LPATHCONF
 	ACTION_LPATHCONF,
+#endif
 #ifdef HAS_FREEBSD_ACL
 	ACTION_PREPENDACL,
 	ACTION_READACL,
@@ -200,7 +202,9 @@ static struct syscall_desc syscalls[] = {
 	{ "fstatat", ACTION_FSTATAT, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "pathconf", ACTION_PATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "fpathconf", ACTION_FPATHCONF, { TYPE_DESCRIPTOR, TYPE_STRING, TYPE_NONE } },
+#ifdef HAS_LPATHCONF
 	{ "lpathconf", ACTION_LPATHCONF, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
+#endif
 #ifdef HAS_FREEBSD_ACL
 	{ "prependacl", ACTION_PREPENDACL, { TYPE_STRING, TYPE_STRING, TYPE_NONE } },
 	{ "readacl", ACTION_READACL, { TYPE_STRING, TYPE_NONE } },
@@ -899,7 +903,9 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		break;
 	case ACTION_PATHCONF:
 	case ACTION_FPATHCONF:
+#ifdef HAS_LPATHCONF
 	case ACTION_LPATHCONF:
+#endif
 	    {
 		long lrval;
 
@@ -916,9 +922,11 @@ call_syscall(struct syscall_desc *scall, char *argv[])
 		case ACTION_FPATHCONF:
 			lrval = fpathconf(NUM(0), name);
 			break;
+#ifdef HAS_LPATHCONF
 		case ACTION_LPATHCONF:
 			lrval = lpathconf(STR(0), name);
 			break;
+#endif
 		default:
 			abort();
 		}

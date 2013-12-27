@@ -61,8 +61,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_procdesc.h"
-
 #include <sys/param.h>
 #include <sys/capability.h>
 #include <sys/fcntl.h>
@@ -84,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
-
-#ifdef PROCDESC
 
 FEATURE(process_descriptors, "Process Descriptors");
 
@@ -138,14 +134,14 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_ANY, procdesc_init, NULL);
  * died.
  */
 int
-procdesc_find(struct thread *td, int fd, cap_rights_t rights,
+procdesc_find(struct thread *td, int fd, cap_rights_t *rightsp,
     struct proc **p)
 {
 	struct procdesc *pd;
 	struct file *fp;
 	int error;
 
-	error = fget(td, fd, rights, &fp);
+	error = fget(td, fd, rightsp, &fp);
 	if (error)
 		return (error);
 	if (fp->f_type != DTYPE_PROCDESC) {
@@ -185,12 +181,12 @@ procdesc_pid(struct file *fp_procdesc)
  * Retrieve the PID associated with a process descriptor.
  */
 int
-kern_pdgetpid(struct thread *td, int fd, cap_rights_t rights, pid_t *pidp)
+kern_pdgetpid(struct thread *td, int fd, cap_rights_t *rightsp, pid_t *pidp)
 {
 	struct file *fp;
 	int error;
 
-	error = fget(td, fd, rights, &fp);
+	error = fget(td, fd, rightsp, &fp);
 	if (error)
 		return (error);
 	if (fp->f_type != DTYPE_PROCDESC) {
@@ -209,11 +205,13 @@ out:
 int
 sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 {
+	cap_rights_t rights;
 	pid_t pid;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
-	error = kern_pdgetpid(td, uap->fd, CAP_PDGETPID, &pid);
+	error = kern_pdgetpid(td, uap->fd,
+	    cap_rights_init(&rights, CAP_PDGETPID), &pid);
 	if (error == 0)
 		error = copyout(&pid, uap->pidp, sizeof(pid));
 	return (error);
@@ -520,14 +518,3 @@ procdesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 	return (EOPNOTSUPP);
 }
-
-#else /* !PROCDESC */
-
-int
-sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-#endif /* PROCDESC */

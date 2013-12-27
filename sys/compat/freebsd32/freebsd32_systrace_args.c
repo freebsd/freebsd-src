@@ -2990,23 +2990,16 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
-	/* cap_new */
-	case 514: {
-		struct cap_new_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights; /* uint64_t */
-		*n_args = 2;
-		break;
-	}
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515: {
-		struct cap_rights_get_args *p = params;
-		iarg[0] = p->fd; /* int */
-		uarg[1] = (intptr_t) p->rightsp; /* uint64_t * */
-		*n_args = 2;
+		struct __cap_rights_get_args *p = params;
+		iarg[0] = p->version; /* int */
+		iarg[1] = p->fd; /* int */
+		uarg[2] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 3;
 		break;
 	}
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516: {
 		*n_args = 0;
 		break;
@@ -3159,16 +3152,6 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 8;
 		break;
 	}
-	/* freebsd32_cap_rights_limit */
-	case 533: {
-		struct freebsd32_cap_rights_limit_args *p = params;
-		iarg[0] = p->fd; /* int */
-		iarg[1] = p->pad; /* int */
-		uarg[2] = p->rights1; /* uint32_t */
-		uarg[3] = p->rights2; /* uint32_t */
-		*n_args = 4;
-		break;
-	}
 #else
 	/* freebsd32_posix_fallocate */
 	case 530: {
@@ -3206,16 +3189,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 7;
 		break;
 	}
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533: {
-		struct freebsd32_cap_rights_limit_args *p = params;
+		struct cap_rights_limit_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->rights1; /* uint32_t */
-		uarg[2] = p->rights2; /* uint32_t */
-		*n_args = 3;
+		uarg[1] = (intptr_t) p->rightsp; /* cap_rights_t * */
+		*n_args = 2;
 		break;
 	}
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534: {
 		struct freebsd32_cap_ioctls_limit_args *p = params;
@@ -3284,8 +3266,8 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 541: {
 		struct accept4_args *p = params;
 		iarg[0] = p->s; /* int */
-		uarg[1] = (intptr_t) p->name; /* struct sockaddr *__restrict */
-		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t *__restrict */
+		uarg[1] = (intptr_t) p->name; /* struct sockaddr * */
+		uarg[2] = (intptr_t) p->anamelen; /* __socklen_t * */
 		iarg[3] = p->flags; /* int */
 		*n_args = 4;
 		break;
@@ -3305,6 +3287,32 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+#ifdef PAD64_REQUIRED
+	/* freebsd32_procctl */
+	case 544: {
+		struct freebsd32_procctl_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->pad; /* int */
+		uarg[2] = p->id1; /* uint32_t */
+		uarg[3] = p->id2; /* uint32_t */
+		iarg[4] = p->com; /* int */
+		uarg[5] = (intptr_t) p->data; /* void * */
+		*n_args = 6;
+		break;
+	}
+#else
+	/* freebsd32_procctl */
+	case 544: {
+		struct freebsd32_procctl_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		uarg[1] = p->id1; /* uint32_t */
+		uarg[2] = p->id2; /* uint32_t */
+		iarg[3] = p->com; /* int */
+		uarg[4] = (intptr_t) p->data; /* void * */
+		*n_args = 5;
+		break;
+	}
+#endif
 	default:
 		*n_args = 0;
 		break;
@@ -8277,33 +8285,23 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* cap_new */
-	case 514:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "uint64_t";
-			break;
-		default:
-			break;
-		};
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint64_t *";
+			p = "int";
+			break;
+		case 2:
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
 		};
 		break;
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516:
 		break;
 	/* cap_getmode */
@@ -8583,25 +8581,6 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_cap_rights_limit */
-	case 533:
-		switch(ndx) {
-		case 0:
-			p = "int";
-			break;
-		case 1:
-			p = "int";
-			break;
-		case 2:
-			p = "uint32_t";
-			break;
-		case 3:
-			p = "uint32_t";
-			break;
-		default:
-			break;
-		};
-		break;
 #else
 	/* freebsd32_posix_fallocate */
 	case 530:
@@ -8678,23 +8657,20 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533:
 		switch(ndx) {
 		case 0:
 			p = "int";
 			break;
 		case 1:
-			p = "uint32_t";
-			break;
-		case 2:
-			p = "uint32_t";
+			p = "cap_rights_t *";
 			break;
 		default:
 			break;
 		};
 		break;
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534:
 		switch(ndx) {
@@ -8817,10 +8793,10 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "int";
 			break;
 		case 1:
-			p = "struct sockaddr *__restrict";
+			p = "struct sockaddr *";
 			break;
 		case 2:
-			p = "__socklen_t *__restrict";
+			p = "__socklen_t *";
 			break;
 		case 3:
 			p = "int";
@@ -8852,6 +8828,56 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_procctl */
+	case 544:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "int";
+			break;
+		case 5:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+#else
+	/* freebsd32_procctl */
+	case 544:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "void *";
+			break;
+		default:
+			break;
+		};
+		break;
+#endif
 	default:
 		break;
 	};
@@ -10567,17 +10593,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_new */
-	case 514:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
-	/* cap_rights_get */
+	/* __cap_rights_get */
 	case 515:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* cap_enter */
+	/* freebsd32_cap_enter */
 	case 516:
 	/* cap_getmode */
 	case 517:
@@ -10655,11 +10676,6 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_cap_rights_limit */
-	case 533:
-		if (ndx == 0 || ndx == 1)
-			p = "int";
-		break;
 #else
 	/* freebsd32_posix_fallocate */
 	case 530:
@@ -10676,12 +10692,12 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-	/* freebsd32_cap_rights_limit */
+#endif
+	/* cap_rights_limit */
 	case 533:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
-#endif
 	/* freebsd32_cap_ioctls_limit */
 	case 534:
 		if (ndx == 0 || ndx == 1)
@@ -10732,6 +10748,19 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
+#ifdef PAD64_REQUIRED
+	/* freebsd32_procctl */
+	case 544:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#else
+	/* freebsd32_procctl */
+	case 544:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+#endif
 	default:
 		break;
 	};

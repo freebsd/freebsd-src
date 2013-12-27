@@ -56,14 +56,14 @@ __FBSDID("$FreeBSD$");
 #define CUSEEME_PORT_NUMBER 7648
 
 static void
-AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip, 
+AliasHandleCUSeeMeOut(struct libalias *la, struct ip *pip,
 		      struct alias_link *lnk);
 
 static void
-AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip, 
+AliasHandleCUSeeMeIn(struct libalias *la, struct ip *pip,
 		     struct in_addr original_addr);
 
-static int 
+static int
 fingerprint(struct libalias *la, struct alias_data *ah)
 {
 
@@ -74,7 +74,7 @@ fingerprint(struct libalias *la, struct alias_data *ah)
 	return (-1);
 }
 
-static int 
+static int
 protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
@@ -82,7 +82,7 @@ protohandlerin(struct libalias *la, struct ip *pip, struct alias_data *ah)
 	return (0);
 }
 
-static int 
+static int
 protohandlerout(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 	
@@ -92,20 +92,20 @@ protohandlerout(struct libalias *la, struct ip *pip, struct alias_data *ah)
 
 /* Kernel module definition. */
 struct proto_handler handlers[] = {
-	{ 
-	  .pri = 120, 
-	  .dir = OUT, 
-	  .proto = UDP, 
-	  .fingerprint = &fingerprint, 
-	  .protohandler = &protohandlerout
-	}, 
 	{
-	  .pri = 120, 
-	  .dir = IN, 
-	  .proto = UDP, 
-	  .fingerprint = &fingerprint, 
+	  .pri = 120,
+	  .dir = OUT,
+	  .proto = UDP,
+	  .fingerprint = &fingerprint,
+	  .protohandler = &protohandlerout
+	},
+	{
+	  .pri = 120,
+	  .dir = IN,
+	  .proto = UDP,
+	  .fingerprint = &fingerprint,
 	  .protohandler = &protohandlerin
-	}, 
+	},
 	{ EOH }
 };
 
@@ -130,9 +130,9 @@ mod_handler(module_t mod, int type, void *data)
 }
 
 #ifdef _KERNEL
-static 
+static
 #endif
-moduledata_t 
+moduledata_t
 alias_mod = {
        "alias_cuseeme", mod_handler, NULL
 };

@@ -47,11 +47,14 @@
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <linux/scatterlist.h>
+#include <linux/workqueue.h>
 
-#include <asm/atomic.h>
+#include <linux/atomic.h>
 #include <asm/uaccess.h>
 #include <linux/rbtree.h>
 #include <linux/mutex.h>
+
+extern struct workqueue_struct *ib_wq;
 
 union ib_gid {
 	u8	raw[16];
@@ -114,6 +117,11 @@ enum ib_device_cap_flags {
 	IB_DEVICE_XRC			= (1<<20),
 	IB_DEVICE_MEM_MGT_EXTENSIONS	= (1<<21),
 	IB_DEVICE_BLOCK_MULTICAST_LOOPBACK = (1<<22),
+	IB_DEVICE_MR_ALLOCATE		= (1<<23),
+	IB_DEVICE_SHARED_MR             = (1<<24),
+	IB_DEVICE_QPG			= (1<<25),
+	IB_DEVICE_UD_RSS		= (1<<26),
+	IB_DEVICE_UD_TSS		= (1<<27)
 };
 
 enum ib_atomic_cap {
@@ -161,6 +169,7 @@ struct ib_device_attr {
 	int			max_srq_wr;
 	int			max_srq_sge;
 	unsigned int		max_fast_reg_page_list_len;
+	int			max_rss_tbl_sz;
 	u16			max_pkeys;
 	u8			local_ca_ack_delay;
 };
@@ -207,6 +216,7 @@ enum ib_port_cap_flags {
 	IB_PORT_SM_DISABLED			= 1 << 10,
 	IB_PORT_SYS_IMAGE_GUID_SUP		= 1 << 11,
 	IB_PORT_PKEY_SW_EXT_PORT_TRAP_SUP	= 1 << 12,
+	IB_PORT_EXTENDED_SPEEDS_SUP             = 1 << 14,
 	IB_PORT_CM_SUP				= 1 << 16,
 	IB_PORT_SNMP_TUNNEL_SUP			= 1 << 17,
 	IB_PORT_REINIT_SUP			= 1 << 18,
@@ -236,6 +246,15 @@ static inline int ib_width_enum_to_int(enum ib_port_width width)
 	default: 	  return -1;
 	}
 }
+
+enum ib_port_speed {
+	IB_SPEED_SDR	= 1,
+	IB_SPEED_DDR	= 2,
+	IB_SPEED_QDR	= 4,
+	IB_SPEED_FDR10	= 8,
+	IB_SPEED_FDR	= 16,
+	IB_SPEED_EDR	= 32
+};
 
 struct ib_protocol_stats {
 	/* TBD... */
@@ -421,7 +440,15 @@ enum ib_rate {
 	IB_RATE_40_GBPS  = 7,
 	IB_RATE_60_GBPS  = 8,
 	IB_RATE_80_GBPS  = 9,
-	IB_RATE_120_GBPS = 10
+	IB_RATE_120_GBPS = 10,
+	IB_RATE_14_GBPS  = 11,
+	IB_RATE_56_GBPS  = 12,
+	IB_RATE_112_GBPS = 13,
+	IB_RATE_168_GBPS = 14,
+	IB_RATE_25_GBPS  = 15,
+	IB_RATE_100_GBPS = 16,
+	IB_RATE_200_GBPS = 17,
+	IB_RATE_300_GBPS = 18
 };
 
 /**
@@ -431,6 +458,13 @@ enum ib_rate {
  * @rate: rate to convert.
  */
 int ib_rate_to_mult(enum ib_rate rate) __attribute_const__;
+
+/**
+ * ib_rate_to_mbps - Convert the IB rate enum to Mbps.
+ * For example, IB_RATE_2_5_GBPS will be converted to 2500.
+ * @rate: rate to convert.
+ */
+int ib_rate_to_mbps(enum ib_rate rate) __attribute_const__;
 
 /**
  * mult_to_ib_rate - Convert a multiple of 2.5 Gbit/sec to an IB rate
@@ -498,6 +532,7 @@ enum ib_wc_flags {
 	IB_WC_GRH		= 1,
 	IB_WC_WITH_IMM		= (1<<1),
 	IB_WC_WITH_INVALIDATE	= (1<<2),
+	IB_WC_IP_CSUM_OK	= (1<<3),
 };
 
 struct ib_wc {
@@ -528,6 +563,11 @@ enum ib_cq_notify_flags {
 	IB_CQ_REPORT_MISSED_EVENTS	= 1 << 2,
 };
 
+enum ib_srq_type {
+	IB_SRQT_BASIC,
+	IB_SRQT_XRC
+};
+
 enum ib_srq_attr_mask {
 	IB_SRQ_MAX_WR	= 1 << 0,
 	IB_SRQ_LIMIT	= 1 << 1,
@@ -543,6 +583,14 @@ struct ib_srq_init_attr {
 	void		      (*event_handler)(struct ib_event *, void *);
 	void		       *srq_context;
 	struct ib_srq_attr	attr;
+	enum ib_srq_type	srq_type;
+
+	union {
+		struct {
+			struct ib_xrcd *xrcd;
+			struct ib_cq   *cq;
+		} xrc;
+	} ext;
 };
 
 struct ib_qp_cap {
@@ -551,6 +599,7 @@ struct ib_qp_cap {
 	u32	max_send_sge;
 	u32	max_recv_sge;
 	u32	max_inline_data;
+	u32	qpg_tss_mask_sz;
 };
 
 enum ib_sig_type {
@@ -572,13 +621,32 @@ enum ib_qp_type {
 	IB_QPT_UD,
 	IB_QPT_XRC,
 	IB_QPT_RAW_IPV6,
-	IB_QPT_RAW_ETY,
-	IB_QPT_RAW_ETH
+	IB_QPT_RAW_ETHERTYPE,
+	IB_QPT_RAW_PACKET = 8,
+	IB_QPT_XRC_INI = 9,
+	IB_QPT_XRC_TGT,
+	IB_QPT_MAX,
 };
 
 enum ib_qp_create_flags {
 	IB_QP_CREATE_IPOIB_UD_LSO		= 1 << 0,
 	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
+	IB_QP_CREATE_NETIF_QP			= 1 << 2,
+	/* reserve bits 26-31 for low level drivers' internal use */
+	IB_QP_CREATE_RESERVED_START		= 1 << 26,
+	IB_QP_CREATE_RESERVED_END		= 1 << 31,
+};
+
+enum ib_qpg_type {
+	IB_QPG_NONE	= 0,
+	IB_QPG_PARENT	= (1<<0),
+	IB_QPG_CHILD_RX = (1<<1),
+	IB_QPG_CHILD_TX = (1<<2)
+};
+
+struct ib_qpg_init_attrib {
+	u32 tss_child_count;
+	u32 rss_child_count;
 };
 
 struct ib_qp_init_attr {
@@ -587,12 +655,24 @@ struct ib_qp_init_attr {
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
 	struct ib_srq	       *srq;
+	struct ib_xrcd	       *xrcd;     /* XRC TGT QPs only */
 	struct ib_qp_cap	cap;
+	union {
+		struct ib_qp *qpg_parent; /* see qpg_type */
+		struct ib_qpg_init_attrib parent_attrib;
+	} pp;
 	enum ib_sig_type	sq_sig_type;
 	enum ib_qp_type		qp_type;
 	enum ib_qp_create_flags	create_flags;
-	struct ib_xrcd	       *xrc_domain; /* XRC qp's only */
+	enum ib_qpg_type	qpg_type;
 	u8			port_num; /* special QP types only */
+};
+
+struct ib_qp_open_attr {
+	void                  (*event_handler)(struct ib_event *, void *);
+	void		       *qp_context;
+	u32			qp_num;
+	enum ib_qp_type		qp_type;
 };
 
 enum ib_rnr_timeout {
@@ -651,7 +731,8 @@ enum ib_qp_attr_mask {
 	IB_QP_MAX_DEST_RD_ATOMIC	= (1<<17),
 	IB_QP_PATH_MIG_STATE		= (1<<18),
 	IB_QP_CAP			= (1<<19),
-	IB_QP_DEST_QPN			= (1<<20)
+	IB_QP_DEST_QPN			= (1<<20),
+	IB_QP_GROUP_RSS			= (1<<21)
 };
 
 enum ib_qp_state {
@@ -724,6 +805,20 @@ enum ib_send_flags {
 	IB_SEND_IP_CSUM		= (1<<4)
 };
 
+enum ib_flow_types {
+	IB_FLOW_ETH = 0,
+	IB_FLOW_IB_UC = 1,
+	IB_FLOW_IB_MC_IPV4 = 2,
+	IB_FLOW_IB_MC_IPV6 = 3
+};
+
+enum {
+	IB_FLOW_L4_NONE = 0,
+	IB_FLOW_L4_OTHER = 3,
+	IB_FLOW_L4_UDP = 5,
+	IB_FLOW_L4_TCP = 6
+};
+
 struct ib_sge {
 	u64	addr;
 	u32	length;
@@ -785,7 +880,7 @@ struct ib_send_wr {
 			u8			static_rate;
 		} raw_ety;
 	} wr;
-	u32			xrc_remote_srq_num; /* valid for XRC sends only */
+	u32			xrc_remote_srq_num;	/* XRC TGT QPs only */
 };
 
 struct ib_recv_wr {
@@ -800,7 +895,15 @@ enum ib_access_flags {
 	IB_ACCESS_REMOTE_WRITE	= (1<<1),
 	IB_ACCESS_REMOTE_READ	= (1<<2),
 	IB_ACCESS_REMOTE_ATOMIC	= (1<<3),
-	IB_ACCESS_MW_BIND	= (1<<4)
+	IB_ACCESS_MW_BIND	= (1<<4),
+	IB_ACCESS_ALLOCATE_MR	= (1<<5),
+	IB_ACCESS_SHARED_MR_USER_READ   = (1<<6),
+	IB_ACCESS_SHARED_MR_USER_WRITE  = (1<<7),
+	IB_ACCESS_SHARED_MR_GROUP_READ  = (1<<8),
+	IB_ACCESS_SHARED_MR_GROUP_WRITE = (1<<9),
+	IB_ACCESS_SHARED_MR_OTHER_READ  = (1<<10),
+	IB_ACCESS_SHARED_MR_OTHER_WRITE = (1<<11)
+
 };
 
 struct ib_phys_buf {
@@ -847,7 +950,7 @@ struct ib_ucontext {
 	struct list_head	qp_list;
 	struct list_head	srq_list;
 	struct list_head	ah_list;
-	struct list_head	xrc_domain_list;
+	struct list_head	xrcd_list;
 	int			closing;
 };
 
@@ -884,11 +987,13 @@ struct ib_pd {
 struct ib_xrcd {
 	struct ib_device       *device;
 	struct ib_uobject      *uobject;
+	atomic_t		usecnt; /* count all exposed resources */
 	struct inode	       *inode;
 	struct rb_node		node;
-	atomic_t		usecnt; /* count all resources */
+	
+	struct mutex		tgt_qp_mutex;
+	struct list_head	tgt_qp_list;
 };
-
 
 struct ib_ah {
 	struct ib_device	*device;
@@ -911,13 +1016,19 @@ struct ib_cq {
 struct ib_srq {
 	struct ib_device       *device;
 	struct ib_pd	       *pd;
-	struct ib_cq	       *xrc_cq;
-	struct ib_xrcd	       *xrcd;
 	struct ib_uobject      *uobject;
 	void		      (*event_handler)(struct ib_event *, void *);
 	void		       *srq_context;
+	enum ib_srq_type	srq_type;
 	atomic_t		usecnt;
-	u32			xrc_srq_num;
+
+	union {
+		struct {
+			struct ib_xrcd *xrcd;
+			struct ib_cq   *cq;
+			u32		srq_num;
+		} xrc;
+	} ext;
 };
 
 struct ib_qp {
@@ -926,12 +1037,17 @@ struct ib_qp {
 	struct ib_cq	       *send_cq;
 	struct ib_cq	       *recv_cq;
 	struct ib_srq	       *srq;
+	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
+	struct list_head	xrcd_list;
+	atomic_t		usecnt; /* count times opened, mcast attaches */
+	struct list_head	open_list;
+	struct ib_qp           *real_qp;
 	struct ib_uobject      *uobject;
 	void                  (*event_handler)(struct ib_event *, void *);
 	void		       *qp_context;
 	u32			qp_num;
 	enum ib_qp_type		qp_type;
-	struct ib_xrcd	       *xrcd;  /* XRC QPs only */
+	enum ib_qpg_type	qpg_type;
 };
 
 struct ib_mr {
@@ -956,6 +1072,32 @@ struct ib_fmr {
 	struct list_head	list;
 	u32			lkey;
 	u32			rkey;
+};
+
+struct ib_flow_spec {
+	enum ib_flow_types type;
+	union {
+		struct {
+			__be16 ethertype;
+			__be16 vlan;
+			u8 vlan_present;
+			u8  mac[6];
+			u8  port;
+		} eth;
+		struct {
+			__be32 qpn;
+		} ib_uc;
+		struct {
+			u8  mgid[16];
+		} ib_mc;
+	} l2_id;
+	__be32 src_ip;
+	__be32 dst_ip;
+	__be16 src_port;
+	__be16 dst_port;
+	u8 l4_protocol;
+	u8 block_mc_loopback;
+	u8 rule_type;
 };
 
 struct ib_mad;
@@ -1037,9 +1179,9 @@ struct ib_device {
 	struct list_head              event_handler_list;
 	spinlock_t                    event_handler_lock;
 
+	spinlock_t                    client_data_lock;
 	struct list_head              core_list;
 	struct list_head              client_data_list;
-	spinlock_t                    client_data_lock;
 
 	struct ib_cache               cache;
 	int                          *pkey_tbl_len;
@@ -1143,7 +1285,8 @@ struct ib_device {
 						  u64 start, u64 length,
 						  u64 virt_addr,
 						  int mr_access_flags,
-						  struct ib_udata *udata);
+						  struct ib_udata *udata,
+							int mr_id);
 	int                        (*query_mr)(struct ib_mr *mr,
 					       struct ib_mr_attr *mr_attr);
 	int                        (*dereg_mr)(struct ib_mr *mr);
@@ -1191,7 +1334,7 @@ struct ib_device {
 						     struct ib_srq_init_attr *srq_init_attr,
 						     struct ib_udata *udata);
 	struct ib_xrcd *	   (*alloc_xrcd)(struct ib_device *device,
-						 struct ib_ucontext *context,
+						 struct ib_ucontext *ucontext,
 						 struct ib_udata *udata);
 	int			   (*dealloc_xrcd)(struct ib_xrcd *xrcd);
 	int			   (*create_xrc_rcv_qp)(struct ib_qp_init_attr *init_attr,
@@ -1211,7 +1354,17 @@ struct ib_device {
 	int 			   (*unreg_xrc_rcv_qp)(struct ib_xrcd *xrcd,
 						       void *context,
 						       u32 qp_num);
+	int                        (*attach_flow)(struct ib_qp *qp,
+						  struct ib_flow_spec *spec,
+						  int priority);
+	int                        (*detach_flow)(struct ib_qp *qp,
+						  struct ib_flow_spec *spec,
+						  int priority);
 
+	unsigned long		   (*get_unmapped_area)(struct file *file,
+					unsigned long addr,
+					unsigned long len, unsigned long pgoff,
+					unsigned long flags);
 	struct ib_dma_mapping_ops   *dma_ops;
 
 	struct module               *owner;
@@ -1225,8 +1378,8 @@ struct ib_device {
 		IB_DEV_UNREGISTERED
 	}                            reg_state;
 
-	u64			     uverbs_cmd_mask;
 	int			     uverbs_abi_ver;
+	u64			     uverbs_cmd_mask;
 
 	char			     node_desc[64];
 	__be64			     node_guid;
@@ -1248,7 +1401,9 @@ struct ib_client {
 struct ib_device *ib_alloc_device(size_t size);
 void ib_dealloc_device(struct ib_device *device);
 
-int ib_register_device   (struct ib_device *device);
+int ib_register_device(struct ib_device *device,
+		       int (*port_callback)(struct ib_device *,
+					    u8, struct kobject *));
 void ib_unregister_device(struct ib_device *device);
 
 int ib_register_client   (struct ib_client *client);
@@ -1267,15 +1422,6 @@ static inline int ib_copy_to_udata(struct ib_udata *udata, void *src, size_t len
 {
 	return copy_to_user(udata->outbuf, src, len) ? -EFAULT : 0;
 }
-
-/**
- * ib_sysfs_create_port_files - iterate over port sysfs directories
- * @device: the IB device
- * @create: a function to create sysfs files in each port directory
- */
-int ib_sysfs_create_port_files(struct ib_device *device,
-			       int (*create)(struct ib_device *dev, u8 port_num,
-					     struct kobject *kobj));
 
 /**
  * ib_modify_qp_is_ok - Check that the supplied attribute mask
@@ -1427,8 +1573,8 @@ struct ib_srq *ib_create_xrc_srq(struct ib_pd *pd,
 				 struct ib_srq_init_attr *srq_init_attr);
 
 /**
- * ib_create_srq - Creates an SRQ associated with the specified
- *   protection domain.
+ * ib_create_srq - Creates a SRQ associated with the specified protection
+ *   domain.
  * @pd: The protection domain associated with the SRQ.
  * @srq_init_attr: A list of initial attributes required to create the
  *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
@@ -1534,12 +1680,36 @@ int ib_query_qp(struct ib_qp *qp,
 int ib_destroy_qp(struct ib_qp *qp);
 
 /**
+ * ib_open_qp - Obtain a reference to an existing sharable QP.
+ * @xrcd - XRC domain
+ * @qp_open_attr: Attributes identifying the QP to open.
+ *
+ * Returns a reference to a sharable QP.
+ */
+struct ib_qp *ib_open_qp(struct ib_xrcd *xrcd,
+			 struct ib_qp_open_attr *qp_open_attr);
+
+/**
+ * ib_close_qp - Release an external reference to a QP.
+ * @qp: The QP handle to release
+ *
+ * The opened QP handle is released by the caller.  The underlying
+ * shared QP is not destroyed until all internal references are released.
+ */
+int ib_close_qp(struct ib_qp *qp);
+
+/**
  * ib_post_send - Posts a list of work requests to the send queue of
  *   the specified QP.
  * @qp: The QP to post the work request on.
  * @send_wr: A list of work requests to post on the send queue.
  * @bad_send_wr: On an immediate failure, this parameter will reference
  *   the work request that failed to be posted on the QP.
+ *
+ * While IBA Vol. 1 section 11.4.1.1 specifies that if an immediate
+ * error is returned, the QP state shall not be affected,
+ * ib_post_send() will return an immediate error after queueing any
+ * earlier work requests in the list.
  */
 static inline int ib_post_send(struct ib_qp *qp,
 			       struct ib_send_wr *send_wr,
@@ -1581,8 +1751,7 @@ static inline int ib_post_recv(struct ib_qp *qp,
  *   the associated completion and event handlers.
  * @cqe: The minimum size of the CQ.
  * @comp_vector - Completion vector used to signal completion events.
- *     Must be >= 0 and < context->num_comp_vectors
- *     or IB_CQ_VECTOR_LEAST_ATTACHED.
+ *     Must be >= 0 and < context->num_comp_vectors.
  *
  * Users can examine the cq structure to determine the actual CQ size.
  */
@@ -2154,17 +2323,19 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
  */
 int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 
+/**
+ * ib_alloc_xrcd - Allocates an XRC domain.
+ * @device: The device on which to allocate the XRC domain.
+ */
+struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
 
 /**
- * ib_dealloc_xrcd - Deallocates an extended reliably connected domain.
- * @xrcd: The xrc domain to deallocate.
+ * ib_dealloc_xrcd - Deallocates an XRC domain.
+ * @xrcd: The XRC domain to deallocate.
  */
 int ib_dealloc_xrcd(struct ib_xrcd *xrcd);
 
-/**
- * ib_alloc_xrcd - Allocates an extended reliably connected domain.
- * @device: The device on which to allocate the xrcd.
- */
-struct ib_xrcd *ib_alloc_xrcd(struct ib_device *device);
+int ib_attach_flow(struct ib_qp *qp, struct ib_flow_spec *spec, int priority);
+int ib_detach_flow(struct ib_qp *qp, struct ib_flow_spec *spec, int priority);
 
 #endif /* IB_VERBS_H */

@@ -16,8 +16,4 @@ FILES+=	310.locate
 FILES+=	320.whatis 330.catman
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	400.status-pkg
-.endif
-
 .include <bsd.prog.mk>

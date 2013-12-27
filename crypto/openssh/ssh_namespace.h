@@ -7,7 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { printf("#define %-39s ssh_%s\n", $3, $3) }' | unexpand -a | sort
+ * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { printf("#define %-39s ssh_%s\n", $3, $3) }' | unexpand -a | sort -u
  * $FreeBSD$
  */
 
@@ -147,6 +147,7 @@
 #define check_key_in_hostkeys			ssh_check_key_in_hostkeys
 #define choose_dh				ssh_choose_dh
 #define chop					ssh_chop
+#define cipher_alg_list				ssh_cipher_alg_list
 #define cipher_authlen				ssh_cipher_authlen
 #define cipher_blocksize			ssh_cipher_blocksize
 #define cipher_by_name				ssh_cipher_by_name
@@ -167,7 +168,6 @@
 #define cipher_set_key_string			ssh_cipher_set_key_string
 #define cipher_set_keycontext			ssh_cipher_set_keycontext
 #define cipher_set_keyiv			ssh_cipher_set_keyiv
-#define ciphers					ssh_ciphers
 #define ciphers_valid				ssh_ciphers_valid
 #define cleanhostname				ssh_cleanhostname
 #define cleanup_exit				ssh_cleanup_exit
@@ -239,11 +239,10 @@
 #define init_hostkeys				ssh_init_hostkeys
 #define iptos2str				ssh_iptos2str
 #define ipv64_normalise_mapped			ssh_ipv64_normalise_mapped
+#define kex_alg_list				ssh_kex_alg_list
 #define kex_derive_keys				ssh_kex_derive_keys
 #define kex_dh_hash				ssh_kex_dh_hash
 #define kex_ecdh_hash				ssh_kex_ecdh_hash
-#define kex_ecdh_name_to_evpmd			ssh_kex_ecdh_name_to_evpmd
-#define kex_ecdh_name_to_nid			ssh_kex_ecdh_name_to_nid
 #define kex_finish				ssh_kex_finish
 #define kex_get_newkeys				ssh_kex_get_newkeys
 #define kex_input_kexinit			ssh_kex_input_kexinit
@@ -255,6 +254,7 @@
 #define kexgex_client				ssh_kexgex_client
 #define kexgex_hash				ssh_kexgex_hash
 #define key_add_private				ssh_key_add_private
+#define key_alg_list				ssh_key_alg_list
 #define key_cert_check_authority		ssh_key_cert_check_authority
 #define key_cert_copy				ssh_key_cert_copy
 #define key_cert_is_legacy			ssh_key_cert_is_legacy
@@ -315,14 +315,15 @@
 #define log_is_on_stderr			ssh_log_is_on_stderr
 #define log_level_name				ssh_log_level_name
 #define log_level_number			ssh_log_level_number
+#define log_redirect_stderr_to			ssh_log_redirect_stderr_to
 #define logit					ssh_logit
 #define lookup_key_in_hostkeys_by_type		ssh_lookup_key_in_hostkeys_by_type
+#define mac_alg_list				ssh_mac_alg_list
 #define mac_clear				ssh_mac_clear
 #define mac_compute				ssh_mac_compute
 #define mac_init				ssh_mac_init
 #define mac_setup				ssh_mac_setup
 #define mac_valid				ssh_mac_valid
-#define macs					ssh_macs
 #define match_host_and_ip			ssh_match_host_and_ip
 #define match_hostname				ssh_match_hostname
 #define match_list				ssh_match_list
@@ -332,6 +333,7 @@
 #define mktemp_proto				ssh_mktemp_proto
 #define mm_receive_fd				ssh_mm_receive_fd
 #define mm_send_fd				ssh_mm_send_fd
+#define monotime				ssh_monotime
 #define ms_subtract_diff			ssh_ms_subtract_diff
 #define ms_to_timeval				ssh_ms_to_timeval
 #define mysignal				ssh_mysignal
@@ -360,6 +362,7 @@
 #define packet_get_output			ssh_packet_get_output
 #define packet_get_protocol_flags		ssh_packet_get_protocol_flags
 #define packet_get_raw				ssh_packet_get_raw
+#define packet_get_rekey_timeout		ssh_packet_get_rekey_timeout
 #define packet_get_ssh1_cipher			ssh_packet_get_ssh1_cipher
 #define packet_get_state			ssh_packet_get_state
 #define packet_get_string			ssh_packet_get_string
@@ -398,7 +401,7 @@
 #define packet_set_maxsize			ssh_packet_set_maxsize
 #define packet_set_nonblocking			ssh_packet_set_nonblocking
 #define packet_set_protocol_flags		ssh_packet_set_protocol_flags
-#define packet_set_rekey_limit			ssh_packet_set_rekey_limit
+#define packet_set_rekey_limits			ssh_packet_set_rekey_limits
 #define packet_set_server			ssh_packet_set_server
 #define packet_set_state			ssh_packet_set_state
 #define packet_set_timeout			ssh_packet_set_timeout
@@ -461,10 +464,11 @@
 #define tty_make_modes				ssh_tty_make_modes
 #define tty_parse_modes				ssh_tty_parse_modes
 #define tun_open				ssh_tun_open
+#define umac128_ctx				ssh_umac128_ctx
+#define umac128_delete				ssh_umac128_delete
+#define umac128_final				ssh_umac128_final
 #define umac128_new				ssh_umac128_new
 #define umac128_update				ssh_umac128_update
-#define umac128_final				ssh_umac128_final
-#define umac128_delete				ssh_umac128_delete
 #define umac_ctx				ssh_umac_ctx
 #define umac_delete				ssh_umac_delete
 #define umac_final				ssh_umac_final
@@ -483,7 +487,6 @@
 #define xasprintf				ssh_xasprintf
 #define xcalloc					ssh_xcalloc
 #define xcrypt					ssh_xcrypt
-#define xfree					ssh_xfree
 #define xmalloc					ssh_xmalloc
 #define xmmap					ssh_xmmap
 #define xrealloc				ssh_xrealloc

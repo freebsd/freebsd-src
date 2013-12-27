@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.105 2012/12/05 15:42:52 markus Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.106 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -90,7 +90,7 @@ clear_pass(void)
 {
 	if (pass) {
 		memset(pass, 0, strlen(pass));
-		xfree(pass);
+		free(pass);
 		pass = NULL;
 	}
 }
@@ -215,7 +215,7 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 			pass = read_passphrase(msg, RP_ALLOW_STDIN);
 			if (strcmp(pass, "") == 0) {
 				clear_pass();
-				xfree(comment);
+				free(comment);
 				buffer_free(&keyblob);
 				return -1;
 			}
@@ -282,8 +282,8 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 		fprintf(stderr, "The user must confirm each use of the key\n");
  out:
 	if (certpath != NULL)
-		xfree(certpath);
-	xfree(comment);
+		free(certpath);
+	free(comment);
 	key_free(private);
 
 	return ret;
@@ -308,7 +308,7 @@ update_card(AuthenticationConnection *ac, int add, const char *id)
 		    add ? "add" : "remove", id);
 		ret = -1;
 	}
-	xfree(pin);
+	free(pin);
 	return ret;
 }
 
@@ -330,14 +330,14 @@ list_identities(AuthenticationConnection *ac, int do_fp)
 				    SSH_FP_HEX);
 				printf("%d %s %s (%s)\n",
 				    key_size(key), fp, comment, key_type(key));
-				xfree(fp);
+				free(fp);
 			} else {
 				if (!key_write(key, stdout))
 					fprintf(stderr, "key_write failed");
 				fprintf(stdout, " %s\n", comment);
 			}
 			key_free(key);
-			xfree(comment);
+			free(comment);
 		}
 	}
 	if (!had_identities) {
@@ -363,7 +363,7 @@ lock_agent(AuthenticationConnection *ac, int lock)
 			passok = 0;
 		}
 		memset(p2, 0, strlen(p2));
-		xfree(p2);
+		free(p2);
 	}
 	if (passok && ssh_lock_agent(ac, lock, p1)) {
 		fprintf(stderr, "Agent %slocked.\n", lock ? "" : "un");
@@ -371,7 +371,7 @@ lock_agent(AuthenticationConnection *ac, int lock)
 	} else
 		fprintf(stderr, "Failed to %slock agent.\n", lock ? "" : "un");
 	memset(p1, 0, strlen(p1));
-	xfree(p1);
+	free(p1);
 	return (ret);
 }
 

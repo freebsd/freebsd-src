@@ -42,10 +42,17 @@ struct vmxnet3_dma_alloc {
 #define VMXNET3_RXRINGS_PERQ	2
 
 /*
- * The maximum number of descriptors in each Rx/Tx ring.
+ * The number of descriptors in each Rx/Tx ring.
  */
-#define VMXNET3_MAX_TX_NDESC		512
-#define VMXNET3_MAX_RX_NDESC		256
+#define VMXNET3_DEF_TX_NDESC		512
+#define VMXNET3_MAX_TX_NDESC		4096
+#define VMXNET3_MIN_TX_NDESC		32
+#define VMXNET3_MASK_TX_NDESC		0x1F
+#define VMXNET3_DEF_RX_NDESC		256
+#define VMXNET3_MAX_RX_NDESC		2048
+#define VMXNET3_MIN_RX_NDESC		32
+#define VMXNET3_MASK_RX_NDESC		0x1F
+
 #define VMXNET3_MAX_TX_NCOMPDESC	VMXNET3_MAX_TX_NDESC
 #define VMXNET3_MAX_RX_NCOMPDESC \
     (VMXNET3_MAX_RX_NDESC * VMXNET3_RXRINGS_PERQ)
@@ -221,7 +228,7 @@ struct vmxnet3_softc {
 	struct ifmedia			 vmx_media;
 	eventhandler_tag		 vmx_vlan_attach;
 	eventhandler_tag		 vmx_vlan_detach;
-	uint8_t				 vmx_vlan_filter[4096/32];
+	uint32_t			 vmx_vlan_filter[4096/32];
 	uint8_t				 vmx_lladdr[ETHER_ADDR_LEN];
 };
 
@@ -239,17 +246,6 @@ struct vmxnet3_softc {
  * this value constant.
  */
 #define VMXNET3_DRIVER_VERSION 0x00010000
-
-/*
- * Convert the FreeBSD version in to something the hypervisor
- * understands. This is apparently what VMware's driver reports
- * so mimic it even though it probably is not required.
- */
-#define VMXNET3_GUEST_OS_VERSION \
-   (((__FreeBSD_version / 100000) << 14)	| \
-    (((__FreeBSD_version / 1000) % 100)	<< 6 )	| \
-    (((__FreeBSD_version / 100) % 10) << 30)	| \
-    ((__FreeBSD_version % 100) << 22))
 
 /*
  * Max descriptors per Tx packet. We must limit the size of the

@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -77,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -162,7 +162,7 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
 VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_RW,
     &VNET_NAME(tcp_do_initcwnd10), 0,
-    "Enable draft-ietf-tcpm-initcwnd-05 (Increasing initial CWND to 10)");
+    "Enable RFC 6928 (Increasing initial CWND to 10)");
 
 VNET_DEFINE(int, tcp_do_rfc3465) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
@@ -360,7 +360,7 @@ cc_conn_init(struct tcpcb *tp)
 	 *
 	 * RFC5681 Section 3.1 specifies the default conservative values.
 	 * RFC3390 specifies slightly more aggressive values.
-	 * Draft-ietf-tcpm-initcwnd-05 increases it to ten segments.
+	 * RFC6928 increases it to ten segments.
 	 *
 	 * If a SYN or SYN/ACK was lost and retransmitted, we have to
 	 * reduce the initial CWND to one segment as congestion is likely
@@ -508,10 +508,13 @@ do { \
  *	  the ack that opens up a 0-sized window and
  *		- delayed acks are enabled or
  *		- this is a half-synchronized T/TCP connection.
+ *	- the segment size is not larger than the MSS and LRO wasn't used
+ *	  for this segment.
  */
-#define DELAY_ACK(tp)							\
+#define DELAY_ACK(tp, tlen)						\
 	((!tcp_timer_active(tp, TT_DELACK) &&				\
 	    (tp->t_flags & TF_RXWIN0SENT) == 0) &&			\
+	    (tlen <= tp->t_maxopd) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
 /*
@@ -1390,7 +1393,7 @@ relocked:
 	}
 #endif
 
-	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	/*
 	 * Segment belongs to a connection in SYN_SENT, ESTABLISHED or later
@@ -1402,7 +1405,7 @@ relocked:
 	return;
 
 dropwithreset:
-	TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+	TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1426,7 +1429,7 @@ dropwithreset:
 
 dropunlock:
 	if (m != NULL)
-		TCP_PROBE5(receive, NULL, tp, m->m_data, tp, th);
+		TCP_PROBE5(receive, NULL, tp, mtod(m, const char *), tp, th);
 
 	if (ti_locked == TI_WLOCKED) {
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -1461,6 +1464,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	u_long tiwin;
 	char *s;
 	struct in_conninfo *inc;
+	struct mbuf *mfree;
 	struct tcpopt to;
 
 #ifdef TCPDEBUG
@@ -1862,7 +1866,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			}
 			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
-			if (DELAY_ACK(tp)) {
+			if (DELAY_ACK(tp, tlen)) {
 				tp->t_flags |= TF_DELACK;
 			} else {
 				tp->t_flags |= TF_ACKNOW;
@@ -1924,8 +1928,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			goto dropwithreset;
 		}
 		if ((thflags & (TH_ACK|TH_RST)) == (TH_ACK|TH_RST)) {
-			TCP_PROBE5(connect_refused, NULL, tp, m->m_data, tp,
-			    th);
+			TCP_PROBE5(connect__refused, NULL, tp,
+			    mtod(m, const char *), tp, th);
 			tp = tcp_drop(tp, ECONNREFUSED);
 		}
 		if (thflags & TH_RST)
@@ -1953,7 +1957,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (DELAY_ACK(tp) && tlen != 0)
+			if (DELAY_ACK(tp, tlen) && tlen != 0)
 				tcp_timer_activate(tp, TT_DELACK,
 				    tcp_delacktime);
 			else
@@ -1977,8 +1981,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 				thflags &= ~TH_SYN;
 			} else {
 				tcp_state_change(tp, TCPS_ESTABLISHED);
-				TCP_PROBE5(connect_established, NULL, tp,
-				    m->m_data, tp, th);
+				TCP_PROBE5(connect__established, NULL, tp,
+				    mtod(m, const char *), tp, th);
 				cc_conn_init(tp);
 				tcp_timer_activate(tp, TT_KEEP,
 				    TP_KEEPIDLE(tp));
@@ -2383,8 +2387,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			tp->t_flags &= ~TF_NEEDFIN;
 		} else {
 			tcp_state_change(tp, TCPS_ESTABLISHED);
-			TCP_PROBE5(accept_established, NULL, tp, m->m_data, tp,
-			    th);
+			TCP_PROBE5(accept__established, NULL, tp,
+			    mtod(m, const char *), tp, th);
 			cc_conn_init(tp);
 			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
@@ -2425,13 +2429,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		hhook_run_tcp_est_in(tp, th, &to);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			if (tlen == 0 && tiwin == tp->snd_wnd) {
+			if (tlen == 0 && tiwin == tp->snd_wnd &&
+			    !(thflags & TH_FIN)) {
 				TCPSTAT_INC(tcps_rcvdupack);
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
 				 * duplicate ack (ie, window info didn't
-				 * change), the ack is the biggest we've
+				 * change and FIN isn't set),
+				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
 				 * threshhold of them, assume a packet
 				 * has been dropped and retransmit it.
@@ -2718,15 +2724,17 @@ process_ACK:
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
-			sbdrop_locked(&so->so_snd, (int)so->so_snd.sb_cc);
+			mfree = sbcut_locked(&so->so_snd,
+			    (int)so->so_snd.sb_cc);
 			ourfinisacked = 1;
 		} else {
-			sbdrop_locked(&so->so_snd, acked);
+			mfree = sbcut_locked(&so->so_snd, acked);
 			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */
 		sowwakeup_locked(so);
+		m_freem(mfree);
 		/* Detect una wraparound. */
 		if (!IN_RECOVERY(tp->t_flags) &&
 		    SEQ_GT(tp->snd_una, tp->snd_recover) &&
@@ -2923,7 +2931,7 @@ dodata:							/* XXX */
 		if (th->th_seq == tp->rcv_nxt &&
 		    LIST_EMPTY(&tp->t_segq) &&
 		    TCPS_HAVEESTABLISHED(tp->t_state)) {
-			if (DELAY_ACK(tp))
+			if (DELAY_ACK(tp, tlen))
 				tp->t_flags |= TF_DELACK;
 			else
 				tp->t_flags |= TF_ACKNOW;

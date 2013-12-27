@@ -1,4 +1,4 @@
-.\"	$NetBSD: make.1,v 1.220 2013/07/30 19:09:57 sjg Exp $
+.\"	$NetBSD: make.1,v 1.222 2013/08/11 09:53:49 apb Exp $
 .\"
 .\" Copyright (c) 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\"	from: @(#)make.1	8.4 (Berkeley) 3/19/94
 .\"
-.Dd July 30, 2013
+.Dd August 11, 2013
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -1971,6 +1971,12 @@ If the source is the special
 .Ic .DOTLAST
 target, then the current working
 directory is searched last.
+.It Ic .PATH. Ns Va suffix
+Like
+.Ic .PATH
+but applies only to files with a particular suffix.
+The suffix must have been previously declared with
+.Ic .SUFFIXES .
 .It Ic .PHONY
 Apply the
 .Ic .PHONY

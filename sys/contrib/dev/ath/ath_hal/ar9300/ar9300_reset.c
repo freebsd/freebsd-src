@@ -1332,7 +1332,7 @@ ar9300_set_operating_mode(struct ath_hal *ah, int opmode)
 }
 
 /* XXX need the logic for Osprey */
-inline void
+void
 ar9300_init_pll(struct ath_hal *ah, struct ieee80211_channel *chan)
 {
     u_int32_t pll;

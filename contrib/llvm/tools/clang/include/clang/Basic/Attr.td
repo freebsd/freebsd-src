@@ -417,6 +417,10 @@ def MayAlias : InheritableAttr {
   let Spellings = [GNU<"may_alias">, CXX11<"gnu", "may_alias">];
 }
 
+def MSABI : InheritableAttr {
+  let Spellings = [GNU<"ms_abi">, CXX11<"gnu", "ms_abi">];
+}
+
 def MSP430Interrupt : InheritableAttr {
   let Spellings = [];
   let Args = [UnsignedArgument<"Number">];
@@ -662,6 +666,10 @@ def Sentinel : InheritableAttr {
 def StdCall : InheritableAttr {
   let Spellings = [GNU<"stdcall">, CXX11<"gnu", "stdcall">,
                    Keyword<"__stdcall">, Keyword<"_stdcall">];
+}
+
+def SysVABI : InheritableAttr {
+  let Spellings = [GNU<"sysv_abi">, CXX11<"gnu", "sysv_abi">];
 }
 
 def ThisCall : InheritableAttr {

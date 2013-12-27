@@ -400,10 +400,14 @@ tftp_open(const char *path, struct open_file *f)
 	struct iodesc  *io;
 	int             res;
 
-#ifndef __i386__
-	if (strcmp(f->f_dev->dv_name, "net") != 0)
+	if (strcmp(f->f_dev->dv_name, "net") != 0) {
+#ifdef __i386__
+		if (strcmp(f->f_dev->dv_name, "pxe") != 0)
+			return (EINVAL);
+#else
 		return (EINVAL);
 #endif
+	}
 
 	if (is_open)
 		return (EBUSY);

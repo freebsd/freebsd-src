@@ -177,12 +177,15 @@ if the line does not contain a <tab> character, it is not displayed.
 If the first character in the line is a <tab> character, it is treated as
 a continuation of the previous line.
 .Pp
-The ``calendar'' file is preprocessed by
-.Xr cpp 1 ,
-allowing the inclusion of shared files such as lists of company holidays or
-meetings.
-If the shared file is not referenced by a full pathname,
+The
+.Nm
+file is preprocessed by a limited subset of
 .Xr cpp 1
+internally, allowing the inclusion of shared files such as
+lists of company holidays or meetings.
+This limited subset consists of \fB#include #ifndef #endif\fR and \fB#define\fR.
+If the shared file is not referenced by a full pathname,
+.Xr calendar 1
 searches in the current (or home) directory first, and then in the
 directory
 .Pa /usr/share/calendar .
@@ -321,7 +324,11 @@ double-check the start and end time of solar and lunar events.
 .Sh BUGS
 The
 .Nm
-utility does not handle Jewish holidays.
+internal cpp does not correctly do #ifndef and will discard the rest
+of the file if a #ifndef is triggered.
+It also has a maximum of 50 include file and/or 100 #defines
+and only recognises #include, #define and
+#ifndef.
 .Pp
 There is no possibility to properly specify the local position
 needed for solar and lunar calculations.

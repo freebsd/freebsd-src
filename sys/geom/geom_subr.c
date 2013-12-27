@@ -271,7 +271,7 @@ g_retaste_event(void *arg, int flag)
 	g_topology_assert();
 	if (flag == EV_CANCEL)  /* XXX: can't happen ? */
 		return;
-	if (g_shutdown)
+	if (g_shutdown || g_notaste)
 		return;
 
 	hh = arg;
@@ -540,6 +540,8 @@ g_new_provider_event(void *arg, int flag)
 		    cp->geom->attrchanged != NULL)
 			cp->geom->attrchanged(cp, "GEOM::media");
 	}
+	if (g_notaste)
+		return;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
@@ -943,6 +945,13 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 
 int
 g_handleattr_int(struct bio *bp, const char *attribute, int val)
+{
+
+	return (g_handleattr(bp, attribute, &val, sizeof val));
+}
+
+int
+g_handleattr_uint16_t(struct bio *bp, const char *attribute, uint16_t val)
 {
 
 	return (g_handleattr(bp, attribute, &val, sizeof val));

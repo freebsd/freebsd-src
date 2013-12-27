@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/rman.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
@@ -418,7 +419,14 @@ ar71xx_gpio_attach(device_t dev)
 	    "pinon", &pinon) != 0)
 		pinon = 0;
 	device_printf(dev, "gpio pinmask=0x%x\n", mask);
-	for (i = 0, j = 0; j < maxpin; j++) {
+	for (j = 0; j <= maxpin; j++) {
+		if ((mask & (1 << j)) == 0)
+			continue;
+		sc->gpio_npins++;
+	}
+	sc->gpio_pins = malloc(sizeof(*sc->gpio_pins) * sc->gpio_npins,
+	    M_DEVBUF, M_WAITOK | M_ZERO);
+	for (i = 0, j = 0; j <= maxpin; j++) {
 		if ((mask & (1 << j)) == 0)
 			continue;
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
@@ -429,7 +437,6 @@ ar71xx_gpio_attach(device_t dev)
 		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], DEFAULT_CAPS);
 		i++;
 	}
-	sc->gpio_npins = i;
 	for (i = 0; i < sc->gpio_npins; i++) {
 		j = sc->gpio_pins[i].gp_pin;
 		if ((pinon & (1 << j)) != 0)
@@ -455,6 +462,7 @@ ar71xx_gpio_detach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
 		    sc->gpio_mem_res);
 
+	free(sc->gpio_pins, M_DEVBUF);
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);

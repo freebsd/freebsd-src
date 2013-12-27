@@ -28,7 +28,7 @@
 .\"     @(#)sigreturn.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 6, 2013
 .Dt SIGRETURN 2
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@ The
 system call
 allows users to atomically unmask, switch stacks,
 and return from a signal context.
-The processes signal mask and stack status are
+The thread's signal mask and stack status are
 restored from the context structure pointed to by
 .Fa scp .
 The system call does not return;
@@ -65,7 +65,7 @@ is set to indicate the error.
 The
 .Fn sigreturn
 system call
-will fail and the process context will remain unchanged
+will fail and the thread context will remain unchanged
 if one of the following occurs.
 .Bl -tag -width Er
 .It Bq Er EFAULT

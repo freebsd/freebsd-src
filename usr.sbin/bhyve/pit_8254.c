@@ -29,15 +29,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
 #include <sys/time.h>
+#include <machine/vmm.h>
 
 #include <machine/clock.h>
 
-#include <stdio.h>
 #include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <vmmapi.h>
 
 #include "bhyverun.h"
 #include "inout.h"
+#include "mevent.h"
 #include "pit_8254.h"
 
 #define	TIMER_SEL_MASK		0xc0
@@ -51,13 +58,18 @@ __FBSDID("$FreeBSD$");
 static const int nsecs_per_tick = 1000000000 / PIT_8254_FREQ;
 
 struct counter {
+	struct vmctx	*ctx;
+	struct mevent	*tevp;	
 	struct timeval	tv;		/* uptime when counter was loaded */
+	int		mode;
 	uint16_t	initial;	/* initial counter value */
 	uint8_t		cr[2];
 	uint8_t		ol[2];
 	int		crbyte;
 	int		olbyte;
+	int		frbyte;
 };
+
 
 static void
 timevalfix(struct timeval *t1)
@@ -82,16 +94,54 @@ timevalsub(struct timeval *t1, const struct timeval *t2)
 	timevalfix(t1);
 }
 
+static uint64_t pit_mev_count;
+
 static void
-latch(struct counter *c)
+pit_mevent_cb(int fd, enum ev_type type, void *param)
+{
+	struct counter *c;
+
+	c = param;
+
+	pit_mev_count++;
+
+	vm_ioapic_pulse_irq(c->ctx, 2);
+
+	/*
+	 * Delete the timer for one-shots
+	 */
+	if (c->mode != TIMER_RATEGEN) {
+		mevent_delete(c->tevp);
+		c->tevp = NULL;
+	}
+}
+
+static void
+pit_timer_start(struct vmctx *ctx, struct counter *c)
+{
+	int msecs;
+
+	if (c->initial != 0) {
+		msecs = c->initial * nsecs_per_tick / 1000000;
+		if (msecs == 0)
+			msecs = 1;
+
+		if (c->tevp == NULL)
+			c->tevp = mevent_add(msecs, EVF_TIMER, pit_mevent_cb,
+			    c);
+	}
+}
+
+static uint16_t
+pit_update_counter(struct counter *c, int latch)
 {
 	struct timeval tv2;
 	uint16_t lval;
 	uint64_t delta_nsecs, delta_ticks;
 
 	/* cannot latch a new value until the old one has been consumed */
-	if (c->olbyte != 0)
-		return;
+	if (latch && c->olbyte != 0)
+		return (0);
 
 	if (c->initial == 0 || c->initial == 1) {
 		/*
@@ -101,10 +151,10 @@ latch(struct counter *c)
 		 * of the program.
 		 *
 		 * If the counter's initial value is not programmed we
-		 * assume a value that would be set to generate 'guest_hz'
+		 * assume a value that would be set to generate 100
 		 * interrupts per second.
 		 */
-		c->initial = TIMER_DIV(PIT_8254_FREQ, guest_hz);
+		c->initial = TIMER_DIV(PIT_8254_FREQ, 100);
 		gettimeofday(&c->tv, NULL);
 	}
 	
@@ -114,9 +164,14 @@ latch(struct counter *c)
 	delta_ticks = delta_nsecs / nsecs_per_tick;
 
 	lval = c->initial - delta_ticks % c->initial;
-	c->olbyte = 2;
-	c->ol[1] = lval;		/* LSB */
-	c->ol[0] = lval >> 8;		/* MSB */
+
+	if (latch) {
+		c->olbyte = 2;
+		c->ol[1] = lval;		/* LSB */
+		c->ol[0] = lval >> 8;		/* MSB */
+	}
+
+	return (lval);
 }
 
 static int
@@ -150,13 +205,18 @@ pit_8254_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 			 * Counter mode is not affected when issuing a
 			 * latch command.
 			 */
-			if (mode != TIMER_RATEGEN && mode != TIMER_SQWAVE)
+			if (mode != TIMER_INTTC &&
+			    mode != TIMER_RATEGEN &&
+			    mode != TIMER_SQWAVE &&
+			    mode != TIMER_SWSTROBE)
 				return (-1);
 		}
 		
 		c = &counter[sel >> 6];
+		c->ctx = ctx;
+		c->mode = mode;
 		if (rw == TIMER_LATCH)
-			latch(c);
+			pit_update_counter(c, 1);
 		else
 			c->olbyte = 0;	/* reset latch after reprogramming */
 		
@@ -169,20 +229,32 @@ pit_8254_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	if (in) {
 		/*
-		 * XXX
 		 * The spec says that once the output latch is completely
-		 * read it should revert to "following" the counter. We don't
-		 * do this because it is hard and any reasonable OS should
-		 * always latch the counter before trying to read it.
+		 * read it should revert to "following" the counter. Use
+		 * the free running counter for this case (i.e. Linux
+		 * TSC calibration). Assuming the access mode is 16-bit,
+		 * toggle the MSB/LSB bit on each read.
 		 */
-		if (c->olbyte == 0)
-			c->olbyte = 2;
-		*eax = c->ol[--c->olbyte];
+		if (c->olbyte == 0) {
+			uint16_t tmp;
+
+			tmp = pit_update_counter(c, 0);
+			if (c->frbyte)
+				tmp >>= 8;
+			tmp &= 0xff;
+			*eax = tmp;
+			c->frbyte ^= 1;
+		}  else
+			*eax = c->ol[--c->olbyte];
 	} else {
 		c->cr[c->crbyte++] = *eax;
 		if (c->crbyte == 2) {
+			c->frbyte = 0;
 			c->crbyte = 0;
 			c->initial = c->cr[0] | (uint16_t)c->cr[1] << 8;
+			/* Start an interval timer for counter 0 */
+			if (port == 0x40)
+				pit_timer_start(ctx, c);
 			if (c->initial == 0)
 				c->initial = 0xffff;
 			gettimeofday(&c->tv, NULL);

@@ -534,12 +534,34 @@ public:
     bool
     CalculateSymbolContextLineEntry (LineEntry &line_entry) const;
 
+    //------------------------------------------------------------------
+    // Returns true if the section should be valid, but isn't because
+    // the shared pointer to the section can't be reconstructed from
+    // a weak pointer that contains a valid weak reference to a section.
+    // Returns false if the section weak pointer has no reference to
+    // a section, or if the section is still valid
+    //------------------------------------------------------------------
+    bool
+    SectionWasDeleted() const;
+
 protected:
     //------------------------------------------------------------------
     // Member variables.
     //------------------------------------------------------------------
     lldb::SectionWP m_section_wp;   ///< The section for the address, can be NULL.
     std::atomic<lldb::addr_t> m_offset;      ///< Offset into section if \a m_section_wp is valid...
+    
+    //------------------------------------------------------------------
+    // Returns true if the m_section_wp once had a reference to a valid
+    // section shared pointer, but no longer does. This can happen if
+    // we have an address from a module that gets unloaded and deleted.
+    // This function should only be called if GetSection() returns an
+    // empty shared pointer and you want to know if this address used to
+    // have a valid section.
+    //------------------------------------------------------------------
+    bool
+    SectionWasDeletedPrivate() const;
+
 };
 
 

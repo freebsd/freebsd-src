@@ -43,7 +43,7 @@ static	char	*eth_dev = NULL;
 
 
 int	ack_recv(bp)
-char	*bp;
+	char	*bp;
 {
 	struct	tcpip	tip;
 	tcphdr_t	*tcp;
@@ -61,8 +61,8 @@ char	*bp;
 
 
 void	readloop(fd, port, dst)
-int 	fd, port;
-struct	in_addr dst;
+	int 	fd, port;
+	struct	in_addr dst;
 {
 	static	u_char	buf[BUFSPACE];
 	struct	sockaddr dest;
@@ -102,8 +102,8 @@ struct	in_addr dst;
 }
 
 int	initdevice(dev, tout)
-char	*dev;
-int	tout;
+	char	*dev;
+	int	tout;
 {
 	int fd;
 

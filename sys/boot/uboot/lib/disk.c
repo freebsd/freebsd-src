@@ -45,9 +45,6 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 #include "libuboot.h"
 
-#define DEBUG
-#undef DEBUG
-
 #define stor_printf(fmt, args...) do {			\
     printf("%s%d: ", dev->d_dev->dv_name, dev->d_unit);	\
     printf(fmt, ##args);				\

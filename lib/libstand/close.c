@@ -75,8 +75,10 @@ close(int fd)
 	errno = EBADF;
 	return (-1);
     }
-    if (f->f_rabuf != NULL)
+    if (f->f_rabuf != NULL) {
 	free(f->f_rabuf);
+	f->f_rabuf = NULL;
+    }
     if (!(f->f_flags & F_RAW) && f->f_ops)
 	err1 = (f->f_ops->fo_close)(f);
     if (!(f->f_flags & F_NODEV) && f->f_dev)

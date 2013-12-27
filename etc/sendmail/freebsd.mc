@@ -42,6 +42,11 @@ divert(-1)
 #  /usr/share/sendmail/cf/README or
 #  /usr/src/contrib/sendmail/cf/README
 # 
+#
+#  NOTE: If you enable RunAsUser, make sure that you adjust the permissions
+#  and owner of the SSL certificates and keys in /etc/mail/certs to be usable
+#  by that user.
+#
 
 divert(0)
 VERSIONID(`$FreeBSD$')
@@ -53,6 +58,16 @@ FEATURE(blacklist_recipients)
 FEATURE(local_lmtp)
 FEATURE(mailertable, `hash -o /etc/mail/mailertable')
 FEATURE(virtusertable, `hash -o /etc/mail/virtusertable')
+
+dnl Enable STARTTLS for receiving email.
+define(`CERT_DIR', `/etc/mail/certs')dnl
+define(`confSERVER_CERT', `CERT_DIR/host.cert')dnl
+define(`confSERVER_KEY', `CERT_DIR/host.key')dnl
+define(`confCLIENT_CERT', `CERT_DIR/host.cert')dnl
+define(`confCLIENT_KEY', `CERT_DIR/host.key')dnl
+define(`confCACERT', `CERT_DIR/cacert.pem')dnl
+define(`confCACERT_PATH', `CERT_DIR')dnl
+define(`confDH_PARAMETERS', `CERT_DIR/dh.param')dnl
 
 dnl Uncomment to allow relaying based on your MX records.
 dnl NOTE: This can allow sites to use your server as a backup MX without

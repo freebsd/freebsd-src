@@ -333,24 +333,6 @@ RetryFault:;
 		 */
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
-			/* 
-			 * check for page-based copy on write.
-			 * We check fs.object == fs.first_object so
-			 * as to ensure the legacy COW mechanism is
-			 * used when the page in question is part of
-			 * a shadow object.  Otherwise, vm_page_cowfault()
-			 * removes the page from the backing object, 
-			 * which is not what we want.
-			 */
-			vm_page_lock(fs.m);
-			if ((fs.m->cow) && 
-			    (fault_type & VM_PROT_WRITE) &&
-			    (fs.object == fs.first_object)) {
-				vm_page_cowfault(fs.m);
-				unlock_and_deallocate(&fs);
-				goto RetryFault;
-			}
-
 			/*
 			 * Wait/Retry if the page is busy.  We have to do this
 			 * if the page is either exclusive or shared busy
@@ -374,7 +356,6 @@ RetryFault:;
 				 * likely to reclaim it. 
 				 */
 				vm_page_aflag_set(fs.m, PGA_REFERENCED);
-				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
 					if (!VM_OBJECT_TRYWLOCK(
 					    fs.first_object)) {
@@ -400,6 +381,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
+			vm_page_lock(fs.m);
 			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
@@ -1097,7 +1079,7 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 
 	if (len == 0)
 		return (0);
-	end = round_page(addr + len);	
+	end = round_page(addr + len);
 	addr = trunc_page(addr);
 
 	/*
@@ -1106,9 +1088,9 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	if (addr < vm_map_min(map) || addr > end || end > vm_map_max(map))
 		return (-1);
 
-	count = howmany(end - addr, PAGE_SIZE);
-	if (count > max_count)
+	if (atop(end - addr) > max_count)
 		panic("vm_fault_quick_hold_pages: count > max_count");
+	count = atop(end - addr);
 
 	/*
 	 * Most likely, the physical pages are resident in the pmap, so it is

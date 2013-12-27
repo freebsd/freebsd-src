@@ -135,7 +135,14 @@
 	atomic_set_long(&(p)->__bits[__bitset_word(_s, n)],		\
 	    __bitset_mask((_s), n))
 
-/* Convenience functions catering special cases. */ 
+/* Convenience functions catering special cases. */
+#define	BIT_AND_ATOMIC(_s, d, s) do {					\
+	__size_t __i;							\
+	for (__i = 0; __i < __bitset_words((_s)); __i++)		\
+		atomic_clear_long(&(d)->__bits[__i],			\
+		    ~(s)->__bits[__i]);					\
+} while (0)
+
 #define	BIT_OR_ATOMIC(_s, d, s) do {					\
 	__size_t __i;							\
 	for (__i = 0; __i < __bitset_words((_s)); __i++)		\

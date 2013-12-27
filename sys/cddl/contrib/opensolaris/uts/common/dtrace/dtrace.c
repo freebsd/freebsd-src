@@ -185,6 +185,9 @@ hrtime_t	dtrace_deadman_interval = NANOSEC;
 hrtime_t	dtrace_deadman_timeout = (hrtime_t)10 * NANOSEC;
 hrtime_t	dtrace_deadman_user = (hrtime_t)30 * NANOSEC;
 hrtime_t	dtrace_unregister_defunct_reap = (hrtime_t)60 * NANOSEC;
+#if !defined(sun)
+int		dtrace_memstr_max = 4096;
+#endif
 
 /*
  * DTrace External Variables
@@ -4920,6 +4923,45 @@ inetout:	regs[rd] = (uintptr_t)end + 1;
 		break;
 	}
 
+#if !defined(sun)
+	case DIF_SUBR_MEMSTR: {
+		char *str = (char *)mstate->dtms_scratch_ptr;
+		uintptr_t mem = tupregs[0].dttk_value;
+		char c = tupregs[1].dttk_value;
+		size_t size = tupregs[2].dttk_value;
+		uint8_t n;
+		int i;
+
+		regs[rd] = 0;
+
+		if (size == 0)
+			break;
+
+		if (!dtrace_canload(mem, size - 1, mstate, vstate))
+			break;
+
+		if (!DTRACE_INSCRATCH(mstate, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOSCRATCH);
+			break;
+		}
+
+		if (dtrace_memstr_max != 0 && size > dtrace_memstr_max) {
+			*flags |= CPU_DTRACE_ILLOP;
+			break;
+		}
+
+		for (i = 0; i < size - 1; i++) {
+			n = dtrace_load8(mem++);
+			str[i] = (n == 0) ? c : n;
+		}
+		str[size - 1] = 0;
+
+		regs[rd] = (uintptr_t)str;
+		mstate->dtms_scratch_ptr += size;
+		break;
+	}
+#endif
+
 	case DIF_SUBR_TYPEREF: {
 		uintptr_t size = 4 * sizeof(uintptr_t);
 		uintptr_t *typeref = (uintptr_t *) P2ROUNDUP(mstate->dtms_scratch_ptr, sizeof(uintptr_t));
@@ -9102,6 +9144,9 @@ dtrace_difo_validate_helper(dtrace_difo_t *dp)
 			    subr == DIF_SUBR_NTOHL ||
 			    subr == DIF_SUBR_NTOHLL ||
 			    subr == DIF_SUBR_MEMREF ||
+#if !defined(sun)
+			    subr == DIF_SUBR_MEMSTR ||
+#endif
 			    subr == DIF_SUBR_TYPEREF)
 				break;
 
@@ -15751,10 +15796,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #else
 	devfs_set_cdevpriv(state, dtrace_dtr);
 #endif
-	/* This code actually belongs in dtrace_attach() */
-	if (dtrace_opens == 1)
-		dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri,
-		    1, INT_MAX, 0);
 #endif
 
 	mutex_exit(&cpu_lock);
@@ -15842,11 +15883,6 @@ dtrace_dtr(void *data)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 	--dtrace_opens;
-	/* This code actually belongs in dtrace_detach() */
-	if ((dtrace_opens == 0) && (dtrace_taskq != NULL)) {
-		taskq_destroy(dtrace_taskq);
-		dtrace_taskq = NULL;
-	}
 #endif
 
 	mutex_exit(&dtrace_lock);

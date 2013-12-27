@@ -1,7 +1,7 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
@@ -79,8 +79,8 @@ static int ipfrule_ioctl __P((struct lkm_table *, int));
 #if defined(__FreeBSD_version) && (__FreeBSD_version < 220000)
 
 int xxxinit(lkmtp, cmd, ver)
-struct lkm_table *lkmtp;
-int cmd, ver;
+	struct lkm_table *lkmtp;
+	int cmd, ver;
 {
 	DISPATCH(lkmtp, cmd, ver, ipfrule_ioctl, ipfrule_ioctl, ipfrule_ioctl);
 }
@@ -107,8 +107,8 @@ int ipfrule __P((struct lkm_table *, int, int));
 
 
 int ipfrule(lkmtp, cmd, ver)
-struct lkm_table *lkmtp;
-int cmd, ver;
+	struct lkm_table *lkmtp;
+	int cmd, ver;
 {
 #  if (__FreeBSD_version >= 300000)
 	MOD_DISPATCH(ipfrule, lkmtp, cmd, ver, ipfrule_ioctl, ipfrule_ioctl,
@@ -121,24 +121,24 @@ int cmd, ver;
 
 
 int ipfrule_load(lkmtp, cmd)
-struct lkm_table *lkmtp;
-int cmd;
+	struct lkm_table *lkmtp;
+	int cmd;
 {
 	return ipfrule_add();
 }
 
 
 int ipfrule_unload(lkmtp, cmd)
-struct lkm_table *lkmtp;
-int cmd;
+	struct lkm_table *lkmtp;
+	int cmd;
 {
 	return ipfrule_remove();
 }
 
 
 static int ipfrule_ioctl(lkmtp, cmd)
-struct lkm_table *lkmtp;
-int cmd;
+	struct lkm_table *lkmtp;
+	int cmd;
 {
 	int err = 0;
 
@@ -150,12 +150,12 @@ int cmd;
 
 		err = ipfrule_load(lkmtp, cmd);
 		if (!err)
-			fr_refcnt++;
+			ipf_refcnt++;
 		break;
 	case LKM_E_UNLOAD :
 		err = ipfrule_unload(lkmtp, cmd);
 		if (!err)
-			fr_refcnt--;
+			ipf_refcnt--;
 		break;
 	case LKM_E_STAT :
 		break;

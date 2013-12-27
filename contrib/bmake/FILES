@@ -114,6 +114,7 @@ unit-tests/order
 unit-tests/phony-end
 unit-tests/posix
 unit-tests/qequals
+unit-tests/sunshcmd
 unit-tests/sysv
 unit-tests/ternary
 unit-tests/test.exp

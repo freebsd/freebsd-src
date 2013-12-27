@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -85,10 +85,15 @@ flags=$( f_sysrc_get moused_flags )
 # Start the mouse daemon
 #
 f_dialog_info "$msg_trying_to_start_the_mouse_daemon"
-[ -r "$MOUSED_PIDFILE" ] &&
-	f_quietly kill "$( cat "$MOUSED_PIDFILE" 2> /dev/null )"
-f_quietly vidcontrol -m on
-f_quietly moused -t "$type" -p "$port" $flags
+if [ -r "$MOUSED_PIDFILE" ]; then
+	f_eval_catch -dk pid "$0" cat 'cat "%s"' "$MOUSED_PIDFILE" &&
+		f_isinteger "$pid" &&
+		[ $pid -gt 0 ] &&
+		f_eval_catch -d "$0" kill 'kill %s' $pid
+fi
+f_eval_catch -d "$0" vidcontrol 'vidcontrol -m on'
+f_eval_catch -d "$0" moused \
+	'moused -t "%s" -p "%s" %s' "$type" "$port" "$flags"
 
 #
 # Confirm with the user that the mouse is working
@@ -101,14 +106,19 @@ f_dialog_title_restore
 #
 # Stop the mouse daemon
 #
-f_quietly vidcontrol -m off
-if [ $retval -eq $SUCCESS ]; then
-	f_sysrc_set moused_enable "YES" || f_die
-	ln -fs /dev/sysmouse /dev/mouse || f_die # backwards compat
+f_eval_catch -d "$0" vidcontrol 'vidcontrol -m off'
+if [ $retval -eq $DIALOG_OK ]; then
+	f_eval_catch "$0" f_sysrc_set 'f_sysrc_set moused_enable YES' || f_die
+	f_eval_catch "$0" ln \
+		'ln -fs /dev/sysmouse /dev/mouse' || f_die # backwards compat
 else
-	[ -r "$MOUSED_PIDFILE" ] &&
-		f_quietly kill "$( cat "$MOUSED_PIDFILE" )"
-	f_sysrc_set moused_enable "NO" || f_die
+	if [ -r "$MOUSED_PIDFILE" ]; then
+		f_eval_catch -dk pid "$0" cat 'cat "%s"' "$MOUSED_PIDFILE" &&
+			f_isinteger "$pid" &&
+			[ $pid -gt 0 ] &&
+			f_eval_catch -d "$0" kill 'kill %s' $pid
+	fi
+	f_eval_catch "$0" f_sysrc_set 'f_sysrc_set moused_enable NO' || f_die
 fi
 
 exit $SUCCESS

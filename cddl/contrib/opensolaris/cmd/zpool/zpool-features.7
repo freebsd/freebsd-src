@@ -19,10 +19,11 @@
 .\"
 .\" Copyright (c) 2012 by Delphix. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
+.\" Copyright (c) 2013, Joyent, Inc. All rights reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2013
+.Dd October 08, 2013
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -229,6 +230,62 @@ feature. At the
 moment, this operation cannot be reversed. Booting off of
 .Sy lz4
 -compressed root pools is supported.
+.It Sy multi_vdev_crash_dump
+.Bl -column "READ\-ONLY COMPATIBLE" "com.joyent:multi_vdev_crash_dump"
+.It GUID Ta com.joyent:multi_vdev_crash_dump
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows a dump device to be configured with a pool comprised
+of multiple vdevs.
+Those vdevs may be arranged in any mirrored or raidz
+configuration.
+.\" TODO: this is not yet supported on FreeBSD.
+.\" .Pp
+.\" When the
+.\" .Sy multi_vdev_crash_dump
+.\" feature is set to
+.\" .Sy enabled ,
+.\" the administrator can use the
+.\" .Xr dumpon 8
+.\" command to configure a
+.\" dump device on a pool comprised of multiple vdevs.
+.It Sy spacemap_histogram
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:spacemap_histogram"
+.It GUID Ta com.delphix:spacemap_histogram
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This features allows ZFS to maintain more information about how free space
+is organized within the pool. If this feature is
+.Sy enabled ,
+ZFS will
+set this feature to
+.Sy active
+when a new space map object is created or
+an existing space map is upgraded to the new format.
+Once the feature is
+.Sy active ,
+it will remain in that state until the pool is destroyed.
+.It Sy extensible_dataset
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:extensible_dataset"
+.It GUID Ta com.delphix:extensible_dataset
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows more flexible use of internal ZFS data structures,
+and exists for other features to depend on.
+.Pp
+This feature will be
+.Sy active
+when the first dependent feature uses it,
+and will be returned to the
+.Sy enabled
+state when all datasets that use
+this feature are destroyed.
 .El
 .Sh SEE ALSO
 .Xr zpool 8

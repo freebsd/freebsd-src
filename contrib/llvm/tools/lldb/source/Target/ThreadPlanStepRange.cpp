@@ -173,6 +173,25 @@ ThreadPlanStepRange::InRange ()
                         log->Printf ("Step range plan stepped to another range of same line: %s", s.GetData());
                     }
                 }
+                else if (new_context.line_entry.line == 0)
+                {
+                    new_context.line_entry.line = m_addr_context.line_entry.line;
+                    m_addr_context = new_context;
+                    AddRange(m_addr_context.line_entry.range);
+                    ret_value = true;
+                    if (log)
+                    {
+                        StreamString s;
+                        m_addr_context.line_entry.Dump (&s,
+                                                        m_thread.CalculateTarget().get(),
+                                                        true,
+                                                        Address::DumpStyleLoadAddress,
+                                                        Address::DumpStyleLoadAddress,
+                                                        true);
+
+                        log->Printf ("Step range plan stepped to a range at linenumber 0 stepping through that range: %s", s.GetData());
+                    }
+                }
                 else if (new_context.line_entry.range.GetBaseAddress().GetLoadAddress(m_thread.CalculateTarget().get())
                          != pc_load_addr)
                 {
@@ -284,11 +303,13 @@ ThreadPlanStepRange::GetInstructionsForAddress(lldb::addr_t addr, size_t &range_
                 ExecutionContext exe_ctx (m_thread.GetProcess());
                 const char *plugin_name = NULL;
                 const char *flavor = NULL;
+                const bool prefer_file_cache = true;
                 m_instruction_ranges[i] = Disassembler::DisassembleRange(GetTarget().GetArchitecture(),
                                                                          plugin_name,
                                                                          flavor,
                                                                          exe_ctx,
-                                                                         m_address_ranges[i]);
+                                                                         m_address_ranges[i],
+                                                                         prefer_file_cache);
                 
             }
             if (!m_instruction_ranges[i])
@@ -361,7 +382,7 @@ ThreadPlanStepRange::SetNextBranchBreakpoint ()
         {
             const bool is_internal = true;
             run_to_address = instructions->GetInstructionAtIndex(branch_index)->GetAddress();
-            m_next_branch_bp_sp = GetTarget().CreateBreakpoint(run_to_address, is_internal);
+            m_next_branch_bp_sp = GetTarget().CreateBreakpoint(run_to_address, is_internal, false);
             if (m_next_branch_bp_sp)
             {
                 if (log)

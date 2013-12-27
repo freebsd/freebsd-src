@@ -2041,6 +2041,9 @@ void	radeon_pm_acpi_event_handler(struct radeon_device *rdev);
 int	radeon_ttm_init(struct radeon_device *rdev);
 void	radeon_ttm_fini(struct radeon_device *rdev);
 
+/* radeon_fb.c */
+struct fb_info *	radeon_fb_helper_getinfo(device_t kdev);
+
 /* r600.c */
 int r600_ih_ring_alloc(struct radeon_device *rdev);
 void r600_ih_ring_fini(struct radeon_device *rdev);

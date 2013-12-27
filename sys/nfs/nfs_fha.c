@@ -130,7 +130,6 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
     struct fha_callbacks *cb)
 {
 	struct mbuf *md;
-	fhandle_t fh;
 	caddr_t dpos;
 	static u_int64_t random_fh = 0;
 	int error;
@@ -177,11 +176,9 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
 	dpos = mtod(md, caddr_t);
 
 	/* Grab the filehandle. */
-	error = cb->get_fh(&fh, v3, &md, &dpos);
+	error = cb->get_fh(&i->fh, v3, &md, &dpos);
 	if (error)
 		goto out;
-
-	bcopy(fh.fh_fid.fid_data, &i->fh, sizeof(i->fh));
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (cb->is_read(procnum) || cb->is_write(procnum))
@@ -289,19 +286,6 @@ fha_hash_entry_add_op(struct fha_hash_entry *fhe, int locktype, int count)
 		fhe->num_rw += count;
 }
 
-static SVCTHREAD *
-get_idle_thread(SVCPOOL *pool)
-{
-	SVCTHREAD *st;
-
-	LIST_FOREACH(st, &pool->sp_idlethreads, st_ilink) {
-		if (st->st_xprt == NULL && STAILQ_EMPTY(&st->st_reqs))
-			return (st);
-	}
-	return (NULL);
-}
-
-
 /*
  * Get the service thread currently associated with the fhe that is
  * appropriate to handle this operation.
@@ -386,7 +370,7 @@ fha_hash_entry_choose_thread(struct fha_params *softc,
 			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)t", thread, thread->st_reqcount);
 #endif
-		} else if ((thread = get_idle_thread(pool))) {
+		} else if ((thread = LIST_FIRST(&pool->sp_idlethreads))) {
 #if 0
 			ITRACE_CURPROC(ITRACE_NFS, ITRACE_INFO,
 			    "fha: %p(%d)i", thread, thread->st_reqcount);
@@ -418,7 +402,6 @@ SVCTHREAD *
 fha_assign(SVCTHREAD *this_thread, struct svc_req *req,
     struct fha_params *softc)
 {
-	SVCPOOL *pool;
 	SVCTHREAD *thread;
 	struct fha_info i;
 	struct fha_hash_entry *fhe;
@@ -439,7 +422,6 @@ fha_assign(SVCTHREAD *this_thread, struct svc_req *req,
 	if (req->rq_vers != 2 && req->rq_vers != 3)
 		return (this_thread);
 
-	pool = req->rq_xprt->xp_pool;
 	fha_extract_info(req, &i, cb);
 
 	/*

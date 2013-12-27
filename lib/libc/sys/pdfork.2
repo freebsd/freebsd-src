@@ -125,12 +125,6 @@ is set; if the process is still alive and this is
 the last reference to the process descriptor, the process will be terminated
 with the signal
 .Dv SIGKILL .
-.Pp
-.Nm
-and associated functions depend on
-.Cd "options PROCDESC"
-described in
-.Xr procdesc 4 .
 .Sh RETURN VALUES
 .Fn pdfork
 returns a PID, 0 or -1, as

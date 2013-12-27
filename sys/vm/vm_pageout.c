@@ -570,6 +570,7 @@ vm_pageout_launder(struct vm_pagequeue *pq, int tries, vm_paddr_t low,
 	vm_object_t object;
 	vm_paddr_t pa;
 	vm_page_t m, m_tmp, next;
+	int lockmode;
 
 	vm_pagequeue_lock(pq);
 	TAILQ_FOREACH_SAFE(m, &pq->pq_pl, plinks.q, next) {
@@ -605,7 +606,9 @@ vm_pageout_launder(struct vm_pagequeue *pq, int tries, vm_paddr_t low,
 				vm_object_reference_locked(object);
 				VM_OBJECT_WUNLOCK(object);
 				(void)vn_start_write(vp, &mp, V_WAIT);
-				vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+				lockmode = MNT_SHARED_WRITES(vp->v_mount) ?
+				    LK_SHARED : LK_EXCLUSIVE;
+				vn_lock(vp, lockmode | LK_RETRY);
 				VM_OBJECT_WLOCK(object);
 				vm_object_page_clean(object, 0, 0, OBJPC_SYNC);
 				VM_OBJECT_WUNLOCK(object);
@@ -872,6 +875,14 @@ vm_pageout_map_deactivate_pages(map, desired)
 		tmpe = tmpe->next;
 	}
 
+#ifdef __ia64__
+	/*
+	 * Remove all non-wired, managed mappings if a process is swapped out.
+	 * This will free page table pages.
+	 */
+	if (desired == 0)
+		pmap_remove_pages(map->pmap);
+#else
 	/*
 	 * Remove all mappings if a process is swapped out, this will free page
 	 * table pages.
@@ -880,6 +891,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 		pmap_remove(vm_map_pmap(map), vm_map_min(map),
 		    vm_map_max(map));
 	}
+#endif
+
 	vm_map_unlock(map);
 }
 #endif		/* !defined(NO_SWAPPING) */
@@ -902,6 +915,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	int act_delta;
 	int vnodes_skipped = 0;
 	int maxlaunder;
+	int lockmode;
 	boolean_t queues_locked;
 
 	/*
@@ -1193,7 +1207,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				    ("vp %p with NULL v_mount", vp));
 				vm_object_reference_locked(object);
 				VM_OBJECT_WUNLOCK(object);
-				if (vget(vp, LK_EXCLUSIVE | LK_TIMELOCK,
+				lockmode = MNT_SHARED_WRITES(vp->v_mount) ?
+				    LK_SHARED : LK_EXCLUSIVE;
+				if (vget(vp, lockmode | LK_TIMELOCK,
 				    curthread)) {
 					VM_OBJECT_WLOCK(object);
 					++pageout_lock_miss;
@@ -1693,7 +1709,7 @@ vm_pageout(void)
 		}
 	}
 #endif
-	vm_pageout_worker((uintptr_t)0);
+	vm_pageout_worker((void *)(uintptr_t)0);
 }
 
 /*

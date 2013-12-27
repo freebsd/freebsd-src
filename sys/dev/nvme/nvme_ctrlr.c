@@ -617,9 +617,35 @@ nvme_ctrlr_get_log_page_size(struct nvme_controller *ctrlr, uint8_t page_id)
 }
 
 static void
+nvme_ctrlr_log_critical_warnings(struct nvme_controller *ctrlr,
+    union nvme_critical_warning_state state)
+{
+
+	if (state.bits.available_spare == 1)
+		nvme_printf(ctrlr, "available spare space below threshold\n");
+
+	if (state.bits.temperature == 1)
+		nvme_printf(ctrlr, "temperature above threshold\n");
+
+	if (state.bits.device_reliability == 1)
+		nvme_printf(ctrlr, "device reliability degraded\n");
+
+	if (state.bits.read_only == 1)
+		nvme_printf(ctrlr, "media placed in read only mode\n");
+
+	if (state.bits.volatile_memory_backup == 1)
+		nvme_printf(ctrlr, "volatile memory backup device failed\n");
+
+	if (state.bits.reserved != 0)
+		nvme_printf(ctrlr,
+		    "unknown critical warning(s): state = 0x%02x\n", state.raw);
+}
+
+static void
 nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 {
-	struct nvme_async_event_request	*aer = arg;
+	struct nvme_async_event_request		*aer = arg;
+	struct nvme_health_information_page	*health_info;
 
 	/*
 	 * If the log page fetch for some reason completed with an error,
@@ -629,13 +655,33 @@ nvme_ctrlr_async_event_log_page_cb(void *arg, const struct nvme_completion *cpl)
 	if (nvme_completion_is_error(cpl))
 		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
 		    aer->log_page_id, NULL, 0);
-	else
+	else {
+		if (aer->log_page_id == NVME_LOG_HEALTH_INFORMATION) {
+			health_info = (struct nvme_health_information_page *)
+			    aer->log_page_buffer;
+			nvme_ctrlr_log_critical_warnings(aer->ctrlr,
+			    health_info->critical_warning);
+			/*
+			 * Critical warnings reported through the
+			 *  SMART/health log page are persistent, so
+			 *  clear the associated bits in the async event
+			 *  config so that we do not receive repeated
+			 *  notifications for the same event.
+			 */
+			aer->ctrlr->async_event_config.raw &=
+			    ~health_info->critical_warning.raw;
+			nvme_ctrlr_cmd_set_async_event_config(aer->ctrlr,
+			    aer->ctrlr->async_event_config, NULL, NULL);
+		}
+
+
 		/*
 		 * Pass the cpl data from the original async event completion,
 		 *  not the log page fetch.
 		 */
 		nvme_notify_async_consumers(aer->ctrlr, &aer->cpl,
 		    aer->log_page_id, aer->log_page_buffer, aer->log_page_size);
+	}
 
 	/*
 	 * Repost another asynchronous event request to replace the one
@@ -708,13 +754,27 @@ nvme_ctrlr_construct_and_submit_aer(struct nvme_controller *ctrlr,
 static void
 nvme_ctrlr_configure_aer(struct nvme_controller *ctrlr)
 {
-	union nvme_critical_warning_state	state;
+	struct nvme_completion_poll_status	status;
 	struct nvme_async_event_request		*aer;
 	uint32_t				i;
 
-	state.raw = 0xFF;
-	state.bits.reserved = 0;
-	nvme_ctrlr_cmd_set_async_event_config(ctrlr, state, NULL, NULL);
+	ctrlr->async_event_config.raw = 0xFF;
+	ctrlr->async_event_config.bits.reserved = 0;
+
+	status.done = FALSE;
+	nvme_ctrlr_cmd_get_feature(ctrlr, NVME_FEAT_TEMPERATURE_THRESHOLD,
+	    0, NULL, 0, nvme_completion_poll_cb, &status);
+	while (status.done == FALSE)
+		pause("nvme", 1);
+	if (nvme_completion_is_error(&status.cpl) ||
+	    (status.cpl.cdw0 & 0xFFFF) == 0xFFFF ||
+	    (status.cpl.cdw0 & 0xFFFF) == 0x0000) {
+		nvme_printf(ctrlr, "temperature threshold not supported\n");
+		ctrlr->async_event_config.bits.temperature = 0;
+	}
+
+	nvme_ctrlr_cmd_set_async_event_config(ctrlr,
+	    ctrlr->async_event_config, NULL, NULL);
 
 	/* aerl is a zero-based value, so we need to add 1 here. */
 	ctrlr->num_aers = min(NVME_MAX_ASYNC_EVENTS, (ctrlr->cdata.aerl+1));
@@ -1090,8 +1150,8 @@ intx:
 	if (status != 0)
 		return (status);
 
-	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    "nvme%d", device_get_unit(dev));
+	ctrlr->cdev = make_dev(&nvme_ctrlr_cdevsw, device_get_unit(dev),
+	    UID_ROOT, GID_WHEEL, 0600, "nvme%d", device_get_unit(dev));
 
 	if (ctrlr->cdev == NULL)
 		return (ENXIO);

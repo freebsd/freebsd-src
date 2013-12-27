@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="gb2312"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+<info><title>&os; &release.current; 发行说明</title>
+  
 
-<article>
-<articleinfo>
-  <title>&os; &release.current; 发行说明</title>
-
-  <corpauthor>The &os; Project</corpauthor>
+  <author><orgname>The &os; Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -26,7 +25,7 @@
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
-  <legalnotice id="trademarks" role="trademarks">
+  <legalnotice xml:id="trademarks" role="trademarks">
     &tm-attrib.freebsd;
     &tm-attrib.ibm;
     &tm-attrib.ieee;
@@ -42,9 +41,9 @@
       &os; 内核以及系统附带的应用程序所做的重要修改。
       对在升级时需要注意的一些问题， 也进行了简略的介绍。</para>
   </abstract>
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>简介</title>
 
   <para>这篇文档包括了 &os;
@@ -55,21 +54,20 @@
   <para releasetype="current">这篇文档所介绍的 &release.type; 软件包，
     介绍了 &release.branch; 开发分支自 &release.branch;
     创建以来的进展。 关于这一分支上预编译的、 二进制版本的
-    &release.type; 软件包， 可以在 <ulink url="&release.url;"></ulink>
+    &release.type; 软件包， 可以在 <uri xlink:href="&release.url;">&release.url;</uri>
     找到。</para>
 
   <para releasetype="snapshot">这份说明所说的 &release.type; 版本，
     是在 &release.branch; 开发分支上 &release.prev; 到未来的 &release.next;
     上的一点。 这一开发分支上预编译的二进制形式的 &release.type;
-    安装包， 可以在 <ulink url="&release.url;"></ulink> 找到。</para>
+    安装包， 可以在 <uri xlink:href="&release.url;">&release.url;</uri> 找到。</para>
 
   <para releasetype="release">这是一份 &os; &release.current; 的
-    &release.type; 发布包。 您可以从 <ulink
-    url="&release.url;"></ulink> 或其他镜像那里得到它的副本。
+    &release.type; 发布包。 您可以从 <uri xlink:href="&release.url;">&release.url;</uri> 或其他镜像那里得到它的副本。
     关于这个 (或其他) &release.type; 发布包的更多信息，可以在
-    <ulink url="&url.books.handbook;/">&os; 手册</ulink>
-    中的 <ulink url="&url.books.handbook;/mirrors.html"><quote>如何获得
-    &os;</quote>附录</ulink> 中找到。</para>
+    <link xlink:href="&url.books.handbook;/">&os; 手册</link>
+    中的 <link xlink:href="&url.books.handbook;/mirrors.html"><quote>如何获得
+    &os;</quote>附录</link> 中找到。</para>
 
   <para>我们鼓励所有的用户在开始安装 &os;
     之前首先参考这一版本所对应的勘误信息。
@@ -80,7 +78,7 @@
 
 </sect1>
 
-<sect1 id="new">
+<sect1 xml:id="new">
   <title>最新变动</title>
 
   <para>这一节描述了
@@ -97,14 +95,14 @@
     这篇文档主要关注的，仍然是安全公告，用户可以察觉的修改，
     以及重要的架构改良。</para>
 
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>安全公告</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>对内核的改动</title>
     
     <para>&man.acpi.4; 提供了对 HPET 时钟计数器的基本支持。&merged;</para>
@@ -146,7 +144,7 @@
     <para arch="amd64,i386,ia64,powerpc" role="merged">ULE
       调度器成为了 <filename>GENERIC</filename> 内核的默认进程调度器。</para>
 
-    <sect3 id="boot">
+    <sect3 xml:id="boot">
       <title>引导加载器变动</title>
 
       <para arch="amd64,i386" role="merged">对引导加载器使用的 BTX 内核进行了修改，
@@ -161,7 +159,7 @@
 
     </sect3>
 
-    <sect3 id="proc">
+    <sect3 xml:id="proc">
       <title>硬件支持</title>
 
       <para role="merged">新增了用于支持 Omnikey CardMan 4040
@@ -172,14 +170,14 @@
       <para role="merged">从 OpenBSD 引入了用于支持基于 Silicon
         Laboratories CP2101/CP2102 USB 串口适配器的 &man.uslcom.4; 驱动。</para>
 
-      <sect4 id="mm">
+      <sect4 xml:id="mm">
 	<title>多媒体支持</title>
 
-	<para></para>
+	<para/>
 
       </sect4>
 
-      <sect4 id="net-if">
+      <sect4 xml:id="net-if">
 	<title>网络接口支持</title>
 
 	<para>将 &man.em.4; 驱动程序拆分成了部分代码共用的两个驱动程序。
@@ -211,7 +209,7 @@
       </sect4>
     </sect3>
 
-    <sect3 id="net-proto">
+    <sect3 xml:id="net-proto">
       <title>网络协议</title>
 
       <para>为 &man.bpf.4; 包过滤及捕捉机制新增了免复制 (zero-copy) 操作模式，
@@ -226,7 +224,7 @@
 
     </sect3>
 
-    <sect3 id="disks">
+    <sect3 xml:id="disks">
       <title>磁盘和存储</title>
 
       <para role="merged">&man.aac.4; 驱动程序支持尺寸超过
@@ -243,7 +241,7 @@
 
     </sect3>
 
-    <sect3 id="fs">
+    <sect3 xml:id="fs">
       <title>文件系统</title>
 
       <para>修正了在 ZFS 上使用 &man.mmap.2; 时的一个问题。</para>
@@ -254,7 +252,7 @@
     </sect3>
   </sect2>
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>用户态环境变动</title>
 
     <para role="merged">&man.adduser.8; 工具新增了用于指定新用户主目录的
@@ -334,15 +332,15 @@
     <para>&man.traceroute6.8; 新增了与常见的 UDP 探测包不同的、
       不采用上层协议的探测包进行探测的 <option>-U</option> 选项。</para>
 
-    <sect3 id="rc-scripts">
+    <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
-      <para></para>
+      <para/>
 
     </sect3>
   </sect2>
 
-  <sect2 id="contrib">
+  <sect2 xml:id="contrib">
     <title>基本系统中的第三方软件</title>
 
     <para role="merged"><application>AMD</application> 从 6.0.10
@@ -382,7 +380,7 @@
 
   </sect2>
 
-  <sect2 id="ports">
+  <sect2 xml:id="ports">
     <title>Ports/Packages 套件基础结构</title>
 
     <para>&man.pkg.create.1; 工具新增了
@@ -396,26 +394,26 @@
 
   </sect2>
 
-  <sect2 id="releng">
+  <sect2 xml:id="releng">
     <title>发布工程与系统集成</title>
 
 
     <para role="merged">支持的
       <application>GNOME</application> 桌面环境
-      (<filename role="package">x11/gnome2</filename>)
+      (<package>x11/gnome2</package>)
       版本从 2.20.1 升级到了 2.22。</para>
 
   </sect2>
 
-  <sect2 id="doc">
+  <sect2 xml:id="doc">
     <title>文档</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 </sect1>
 
-<sect1 id="upgrade">
+<sect1 xml:id="upgrade">
   <title>从先前版本的 &os; 升级</title>
 
   <para arch="amd64,i386">从 &os; 6.2-RELEASE 开始，

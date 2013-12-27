@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming_client.c,v 1.4 2011/12/07 05:44:38 djm Exp $ */
+/* $OpenBSD: roaming_client.c,v 1.5 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -187,10 +187,10 @@ roaming_resume(void)
 		debug("server doesn't allow resume");
 		goto fail;
 	}
-	xfree(str);
+	free(str);
 	for (i = 1; i < PROPOSAL_MAX; i++) {
 		/* kex algorithm taken care of so start with i=1 and not 0 */
-		xfree(packet_get_string(&len));
+		free(packet_get_string(&len));
 	}
 	i = packet_get_char(); /* first_kex_packet_follows */
 	if (i && (c = strchr(kexlist, ',')))
@@ -226,8 +226,7 @@ roaming_resume(void)
 	return 0;
 
 fail:
-	if (kexlist)
-		xfree(kexlist);
+	free(kexlist);
 	if (packet_get_connection_in() == packet_get_connection_out())
 		close(packet_get_connection_in());
 	else {

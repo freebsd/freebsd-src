@@ -68,6 +68,7 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -101,7 +102,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.10";
+char igb_driver_version[] = "version - 2.4.0";
 
 
 /*********************************************************************
@@ -155,10 +156,19 @@ static igb_vendor_info_t igb_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_I210_COPPER_IT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_COPPER_OEM1,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER_FLASHLESS,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_SERDES_FLASHLESS,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I210_SGMII,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I211_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I354_BACKPLANE_1GBPS,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I354_BACKPLANE_2_5GBPS,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I354_SGMII,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -233,9 +243,10 @@ static __inline void igb_rx_input(struct rx_ring *,
 
 static bool	igb_rxeof(struct igb_queue *, int, int *);
 static void	igb_rx_checksum(u32, struct mbuf *, u32);
-static bool	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
-static bool	igb_tso_setup(struct tx_ring *, struct mbuf *, int,
-		    struct ip *, struct tcphdr *);
+static int	igb_tx_ctx_setup(struct tx_ring *,
+		    struct mbuf *, u32 *, u32 *);
+static int	igb_tso_setup(struct tx_ring *,
+		    struct mbuf *, u32 *, u32 *);
 static void	igb_set_promisc(struct adapter *);
 static void	igb_disable_promisc(struct adapter *);
 static void	igb_set_multi(struct adapter *);
@@ -351,7 +362,7 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 SYSCTL_INT(_hw_igb, OID_AUTO, max_interrupt_rate, CTLFLAG_RDTUN,
     &igb_max_interrupt_rate, 0, "Maximum interrupts per second");
 
-#if __FreeBSD_version >= 800000
+#ifndef IGB_LEGACY_TX
 /*
 ** Tuneable number of buffers in the buf-ring (drbr_xxx)
 */
@@ -557,7 +568,6 @@ igb_attach(device_t dev)
 	 * standard ethernet sized frames.
 	 */
 	adapter->max_frame_size = ETHERMTU + ETHER_HDR_LEN + ETHERNET_FCS_SIZE;
-	adapter->min_frame_size = ETH_ZLEN + ETHERNET_FCS_SIZE;
 
 	/*
 	** Allocate and Setup Queues
@@ -603,8 +613,12 @@ igb_attach(device_t dev)
 		    OID_AUTO, "eee_disabled", CTLTYPE_INT|CTLFLAG_RW,
 		    adapter, 0, igb_sysctl_eee, "I",
 		    "Disable Energy Efficient Ethernet");
-		if (adapter->hw.phy.media_type == e1000_media_type_copper)
-			e1000_set_eee_i350(&adapter->hw);
+		if (adapter->hw.phy.media_type == e1000_media_type_copper) {
+			if (adapter->hw.mac.type == e1000_i354)
+				e1000_set_eee_i354(&adapter->hw);
+			else
+				e1000_set_eee_i350(&adapter->hw);
+		}
 	}
 
 	/*
@@ -988,7 +1002,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 {
 	struct adapter  *adapter = txr->adapter;
         struct mbuf     *next;
-        int             err = 0, enq;
+        int             err = 0, enq = 0;
 
 	IGB_TX_LOCK_ASSERT(txr);
 
@@ -996,7 +1010,6 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr)
 	    adapter->link_active == 0)
 		return (ENETDOWN);
 
-	enq = 0;
 
 	/* Process the queue */
 	while ((next = drbr_peek(ifp, txr->br)) != NULL) {
@@ -1224,6 +1237,10 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_TSO4;
 			reinit = 1;
 		}
+		if (mask & IFCAP_TSO6) {
+			ifp->if_capenable ^= IFCAP_TSO6;
+			reinit = 1;
+		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
@@ -1301,7 +1318,7 @@ igb_init_locked(struct adapter *adapter)
 #endif
 	}
 
-	if (ifp->if_capenable & IFCAP_TSO4)
+	if (ifp->if_capenable & IFCAP_TSO)
 		ifp->if_hwassist |= CSUM_TSO;
 
 	/* Configure for OS presence */
@@ -1365,8 +1382,12 @@ igb_init_locked(struct adapter *adapter)
 	}
 
 	/* Set Energy Efficient Ethernet */
-	if (adapter->hw.phy.media_type == e1000_media_type_copper)
-		e1000_set_eee_i350(&adapter->hw);
+	if (adapter->hw.phy.media_type == e1000_media_type_copper) {
+		if (adapter->hw.mac.type == e1000_i354)
+			e1000_set_eee_i354(&adapter->hw);
+		else
+			e1000_set_eee_i350(&adapter->hw);
+	}
 }
 
 static void
@@ -1734,6 +1755,9 @@ igb_media_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 	case 1000:
 		ifmr->ifm_active |= IFM_1000_T;
 		break;
+	case 2500:
+		ifmr->ifm_active |= IFM_2500_SX;
+		break;
 	}
 
 	if (adapter->link_duplex == FULL_DUPLEX)
@@ -1810,273 +1834,142 @@ igb_media_change(struct ifnet *ifp)
 static int
 igb_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 {
-	struct adapter		*adapter = txr->adapter;
-	bus_dma_segment_t	segs[IGB_MAX_SCATTER];
-	bus_dmamap_t		map;
-	struct igb_tx_buffer	*tx_buffer, *tx_buffer_mapped;
-	union e1000_adv_tx_desc	*txd = NULL;
-	struct mbuf		*m_head = *m_headp;
-	struct ether_vlan_header *eh = NULL;
-	struct ip		*ip = NULL;
-	struct tcphdr		*th = NULL;
-	u32			hdrlen, cmd_type_len, olinfo_status = 0;
-	int			ehdrlen, poff;
-	int			nsegs, i, first, last = 0;
-	int			error, do_tso, remap = 1;
+	struct adapter  *adapter = txr->adapter;
+	u32		olinfo_status = 0, cmd_type_len;
+	int             i, j, error, nsegs;
+	int		first;
+	bool		remap = TRUE;
+	struct mbuf	*m_head;
+	bus_dma_segment_t segs[IGB_MAX_SCATTER];
+	bus_dmamap_t	map;
+	struct igb_tx_buf *txbuf;
+	union e1000_adv_tx_desc *txd = NULL;
 
-	/* Set basic descriptor constants */
-	cmd_type_len = E1000_ADVTXD_DTYP_DATA;
-	cmd_type_len |= E1000_ADVTXD_DCMD_IFCS | E1000_ADVTXD_DCMD_DEXT;
-	if (m_head->m_flags & M_VLANTAG)
-		cmd_type_len |= E1000_ADVTXD_DCMD_VLE;
-
-retry:
 	m_head = *m_headp;
-	do_tso = ((m_head->m_pkthdr.csum_flags & CSUM_TSO) != 0);
-	hdrlen = ehdrlen = poff = 0;
+
+	/* Basic descriptor defines */
+        cmd_type_len = (E1000_ADVTXD_DTYP_DATA |
+	    E1000_ADVTXD_DCMD_IFCS | E1000_ADVTXD_DCMD_DEXT);
+
+	if (m_head->m_flags & M_VLANTAG)
+        	cmd_type_len |= E1000_ADVTXD_DCMD_VLE;
+
+        /*
+         * Important to capture the first descriptor
+         * used because it will contain the index of
+         * the one we tell the hardware to report back
+         */
+        first = txr->next_avail_desc;
+	txbuf = &txr->tx_buffers[first];
+	map = txbuf->map;
 
 	/*
-	 * Intel recommends entire IP/TCP header length reside in a single
-	 * buffer. If multiple descriptors are used to describe the IP and
-	 * TCP header, each descriptor should describe one or more
-	 * complete headers; descriptors referencing only parts of headers
-	 * are not supported. If all layer headers are not coalesced into
-	 * a single buffer, each buffer should not cross a 4KB boundary,
-	 * or be larger than the maximum read request size.
-	 * Controller also requires modifing IP/TCP header to make TSO work
-	 * so we firstly get a writable mbuf chain then coalesce ethernet/
-	 * IP/TCP header into a single buffer to meet the requirement of
-	 * controller. This also simplifies IP/TCP/UDP checksum offloading
-	 * which also has similiar restrictions.
+	 * Map the packet for DMA.
 	 */
-	if (do_tso || m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD) {
-		if (do_tso || (m_head->m_next != NULL && 
-		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
-			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_NOWAIT);
-				m_freem(*m_headp);
-				if (m_head == NULL) {
-					*m_headp = NULL;
-					return (ENOBUFS);
-				}
-				*m_headp = m_head;
-			}
-		}
-		/*
-		 * Assume IPv4, we don't have TSO/checksum offload support
-		 * for IPv6 yet.
-		 */
-		ehdrlen = sizeof(struct ether_header);
-		m_head = m_pullup(m_head, ehdrlen);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		eh = mtod(m_head, struct ether_vlan_header *);
-		if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
-			ehdrlen = sizeof(struct ether_vlan_header);
-			m_head = m_pullup(m_head, ehdrlen);
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-		}
-		m_head = m_pullup(m_head, ehdrlen + sizeof(struct ip));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		ip = (struct ip *)(mtod(m_head, char *) + ehdrlen);
-		poff = ehdrlen + (ip->ip_hl << 2);
-		if (do_tso) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			/*
-			 * The pseudo TCP checksum does not include TCP payload
-			 * length so driver should recompute the checksum here
-			 * what hardware expect to see. This is adherence of
-			 * Microsoft's Large Send specification.
-			 */
-			th = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			th->th_sum = in_pseudo(ip->ip_src.s_addr,
-			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
-			/* Keep track of the full header length */
-			hdrlen = poff + (th->th_off << 2);
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_TCP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct tcphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			th = (struct tcphdr *)(mtod(m_head, char *) + poff);
-			m_head = m_pullup(m_head, poff + (th->th_off << 2));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			ip = (struct ip *)(mtod(m_head, char *) + ehdrlen);
-			th = (struct tcphdr *)(mtod(m_head, char *) + poff);
-		} else if (m_head->m_pkthdr.csum_flags & CSUM_UDP) {
-			m_head = m_pullup(m_head, poff + sizeof(struct udphdr));
-			if (m_head == NULL) {
-				*m_headp = NULL;
-				return (ENOBUFS);
-			}
-			ip = (struct ip *)(mtod(m_head, char *) + ehdrlen);
-		}
-		*m_headp = m_head;
-	}
-
-	/*
-	 * Map the packet for DMA
-	 *
-	 * Capture the first descriptor index,
-	 * this descriptor will have the index
-	 * of the EOP which is the only one that
-	 * now gets a DONE bit writeback.
-	 */
-	first = txr->next_avail_desc;
-	tx_buffer = &txr->tx_buffers[first];
-	tx_buffer_mapped = tx_buffer;
-	map = tx_buffer->map;
-
+retry:
 	error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 	    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-	/*
-	 * There are two types of errors we can (try) to handle:
-	 * - EFBIG means the mbuf chain was too long and bus_dma ran
-	 *   out of segments.  Defragment the mbuf chain and try again.
-	 * - ENOMEM means bus_dma could not obtain enough bounce buffers
-	 *   at this point in time.  Defer sending and try again later.
-	 * All other errors, in particular EINVAL, are fatal and prevent the
-	 * mbuf chain from ever going through.  Drop it and report error.
-	 */
-	if (error == EFBIG && remap) {
+	if (__predict_false(error)) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_NOWAIT);
-		if (m == NULL) {
-			adapter->mbuf_defrag_failed++;
+		switch (error) {
+		case EFBIG:
+			/* Try it again? - one try */
+			if (remap == TRUE) {
+				remap = FALSE;
+				m = m_defrag(*m_headp, M_NOWAIT);
+				if (m == NULL) {
+					adapter->mbuf_defrag_failed++;
+					m_freem(*m_headp);
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
+				*m_headp = m;
+				goto retry;
+			} else
+				return (error);
+		case ENOMEM:
+			txr->no_tx_dma_setup++;
+			return (error);
+		default:
+			txr->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
-			return (ENOBUFS);
+			return (error);
 		}
-		*m_headp = m;
+	}
 
-		/* Try it again, but only once */
-		remap = 0;
-		goto retry;
-	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
-		return (error);
-	} else if (error != 0) {
-		adapter->no_tx_dma_setup++;
+	/* Make certain there are enough descriptors */
+	if (nsegs > txr->tx_avail - 2) {
+		txr->no_desc_avail++;
+		bus_dmamap_unload(txr->txtag, map);
+		return (ENOBUFS);
+	}
+	m_head = *m_headp;
+
+	/*
+	** Set up the appropriate offload context
+	** this will consume the first descriptor
+	*/
+	error = igb_tx_ctx_setup(txr, m_head, &cmd_type_len, &olinfo_status);
+	if (__predict_false(error)) {
 		m_freem(*m_headp);
 		*m_headp = NULL;
 		return (error);
 	}
 
-	/*
-	** Make sure we don't overrun the ring,
-	** we need nsegs descriptors and one for
-	** the context descriptor used for the
-	** offloads.
-	*/
-        if ((nsegs + 1) > (txr->tx_avail - 2)) {
-                txr->no_desc_avail++;
-		bus_dmamap_unload(txr->txtag, map);
-		return (ENOBUFS);
-        }
-	m_head = *m_headp;
-
-	/* Do hardware assists:
-         * Set up the context descriptor, used
-         * when any hardware offload is done.
-         * This includes CSUM, VLAN, and TSO.
-         * It will use the first descriptor.
-         */
-
-	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
-		if (igb_tso_setup(txr, m_head, ehdrlen, ip, th)) {
-			cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
-			olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
-			olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-		} else
-			return (ENXIO);
-	} else if (igb_tx_ctx_setup(txr, m_head))
-			olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
-
-	/* Calculate payload length */
-	olinfo_status |= ((m_head->m_pkthdr.len - hdrlen)
-	    << E1000_ADVTXD_PAYLEN_SHIFT);
-
 	/* 82575 needs the queue index added */
 	if (adapter->hw.mac.type == e1000_82575)
 		olinfo_status |= txr->me << 4;
 
-	/* Set up our transmit descriptors */
 	i = txr->next_avail_desc;
-	for (int j = 0; j < nsegs; j++) {
-		bus_size_t seg_len;
-		bus_addr_t seg_addr;
+	for (j = 0; j < nsegs; j++) {
+		bus_size_t seglen;
+		bus_addr_t segaddr;
 
-		tx_buffer = &txr->tx_buffers[i];
-		txd = (union e1000_adv_tx_desc *)&txr->tx_base[i];
-		seg_addr = segs[j].ds_addr;
-		seg_len  = segs[j].ds_len;
+		txbuf = &txr->tx_buffers[i];
+		txd = &txr->tx_base[i];
+		seglen = segs[j].ds_len;
+		segaddr = htole64(segs[j].ds_addr);
 
-		txd->read.buffer_addr = htole64(seg_addr);
-		txd->read.cmd_type_len = htole32(cmd_type_len | seg_len);
+		txd->read.buffer_addr = segaddr;
+		txd->read.cmd_type_len = htole32(E1000_TXD_CMD_IFCS |
+		    cmd_type_len | seglen);
 		txd->read.olinfo_status = htole32(olinfo_status);
-		last = i;
-		if (++i == adapter->num_tx_desc)
+
+		if (++i == txr->num_desc)
 			i = 0;
-		tx_buffer->m_head = NULL;
-		tx_buffer->next_eop = -1;
 	}
 
-	txr->next_avail_desc = i;
+	txd->read.cmd_type_len |=
+	    htole32(E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS);
 	txr->tx_avail -= nsegs;
-        tx_buffer->m_head = m_head;
+	txr->next_avail_desc = i;
 
+	txbuf->m_head = m_head;
 	/*
 	** Here we swap the map so the last descriptor,
 	** which gets the completion interrupt has the
 	** real map, and the first descriptor gets the
 	** unused map from this descriptor.
 	*/
-	tx_buffer_mapped->map = tx_buffer->map;
-	tx_buffer->map = map;
-        bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
+	txr->tx_buffers[first].map = txbuf->map;
+	txbuf->map = map;
+	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
 
-        /*
-         * Last Descriptor of Packet
-	 * needs End Of Packet (EOP)
-	 * and Report Status (RS)
-         */
-        txd->read.cmd_type_len |=
-	    htole32(E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS);
-	/*
-	 * Keep track in the first buffer which
-	 * descriptor will be written back
-	 */
-	tx_buffer = &txr->tx_buffers[first];
-	tx_buffer->next_eop = last;
-	/* Update the watchdog time early and often */
-	txr->watchdog_time = ticks;
+        /* Set the EOP descriptor that will be marked done */
+        txbuf = &txr->tx_buffers[first];
+	txbuf->eop = txd;
 
+        bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
+            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	/*
-	 * Advance the Transmit Descriptor Tail (TDT), this tells the E1000
-	 * that this frame is available to transmit.
+	 * Advance the Transmit Descriptor Tail (Tdt), this tells the
+	 * hardware that this frame is available to transmit.
 	 */
-	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	++txr->total_packets;
 	E1000_WRITE_REG(&adapter->hw, E1000_TDT(txr->me), i);
-	++txr->tx_packets;
 
 	return (0);
 }
@@ -2345,6 +2238,17 @@ igb_update_link_status(struct adapter *adapter)
 		if ((ctrl & E1000_CTRL_EXT_LINK_MODE_GMII) &&
 		    (thstat & E1000_THSTAT_LINK_THROTTLE))
 			device_printf(dev, "Link: thermal downshift\n");
+		/* Delay Link Up for Phy update */
+		if (((hw->mac.type == e1000_i210) ||
+		    (hw->mac.type == e1000_i211)) &&
+		    (hw->phy.id == I210_I_PHY_ID))
+			msec_delay(I210_LINK_DELAY);
+		/* Reset if the media type changed. */
+		if (hw->dev_spec._82575.media_changed) {
+			hw->dev_spec._82575.media_changed = false;
+			adapter->flags |= IGB_MEDIA_RESET;
+			igb_reset(adapter);
+		}	
 		/* This can sleep */
 		if_link_state_change(ifp, LINK_STATE_UP);
 	} else if (!link_check && (adapter->link_active == 1)) {
@@ -2477,6 +2381,7 @@ igb_allocate_legacy(struct adapter *adapter)
 {
 	device_t		dev = adapter->dev;
 	struct igb_queue	*que = adapter->queues;
+	struct tx_ring		*txr = adapter->tx_rings;
 	int			error, rid = 0;
 
 	/* Turn off all interrupts */
@@ -2496,7 +2401,7 @@ igb_allocate_legacy(struct adapter *adapter)
 	}
 
 #ifndef IGB_LEGACY_TX
-	TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start, que->txr);
+	TASK_INIT(&txr->txq_task, 0, igb_deferred_mq_start, txr);
 #endif
 
 	/*
@@ -2633,6 +2538,7 @@ igb_configure_queues(struct adapter *adapter)
 	switch (adapter->hw.mac.type) {
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 	case e1000_vfadapt:
@@ -2818,7 +2724,7 @@ mem:
 
 	if (adapter->msix_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(IGB_MSIX_BAR), adapter->msix_mem);
+		    adapter->memrid, adapter->msix_mem);
 
 	if (adapter->pci_mem != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2832,8 +2738,8 @@ mem:
 static int
 igb_setup_msix(struct adapter *adapter)
 {
-	device_t dev = adapter->dev;
-	int rid, want, queues, msgs, maxqueues;
+	device_t	dev = adapter->dev;
+	int		bar, want, queues, msgs, maxqueues;
 
 	/* tuneable override */
 	if (igb_enable_msix == 0)
@@ -2843,9 +2749,17 @@ igb_setup_msix(struct adapter *adapter)
 	msgs = pci_msix_count(dev); 
 	if (msgs == 0)
 		goto msi;
-	rid = PCIR_BAR(IGB_MSIX_BAR);
+	/*
+	** Some new devices, as with ixgbe, now may
+	** use a different BAR, so we need to keep
+	** track of which is used.
+	*/
+	adapter->memrid = PCIR_BAR(IGB_MSIX_BAR);
+	bar = pci_read_config(dev, adapter->memrid, 4);
+	if (bar == 0) /* use next bar */
+		adapter->memrid += 4;
 	adapter->msix_mem = bus_alloc_resource_any(dev,
-	    SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	    SYS_RES_MEMORY, &adapter->memrid, RF_ACTIVE);
        	if (adapter->msix_mem == NULL) {
 		/* May not be enabled */
 		device_printf(adapter->dev,
@@ -2868,6 +2782,7 @@ igb_setup_msix(struct adapter *adapter)
 		case e1000_82576:
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 			maxqueues = 8;
 			break;
 		case e1000_i210:
@@ -2882,6 +2797,10 @@ igb_setup_msix(struct adapter *adapter)
 	}
 	if (queues > maxqueues)
 		queues = maxqueues;
+
+	/* Manual override */
+	if (igb_num_queues != 0)
+		queues = igb_num_queues;
 
 	/*
 	** One vector (RX/TX pair) per queue
@@ -2926,6 +2845,129 @@ msi:
 
 /*********************************************************************
  *
+ *  Initialize the DMA Coalescing feature
+ *
+ **********************************************************************/
+static void
+igb_init_dmac(struct adapter *adapter, u32 pba)
+{
+	device_t	dev = adapter->dev;
+	struct e1000_hw *hw = &adapter->hw;
+	u32 		dmac, reg = ~E1000_DMACR_DMAC_EN;
+	u16		hwm;
+
+	if (hw->mac.type == e1000_i211)
+		return;
+
+	if (hw->mac.type > e1000_82580) {
+
+		if (adapter->dmac == 0) { /* Disabling it */
+			E1000_WRITE_REG(hw, E1000_DMACR, reg);
+			return;
+		} else
+			device_printf(dev, "DMA Coalescing enabled\n");
+
+		/* Set starting threshold */
+		E1000_WRITE_REG(hw, E1000_DMCTXTH, 0);
+
+		hwm = 64 * pba - adapter->max_frame_size / 16;
+		if (hwm < 64 * (pba - 6))
+			hwm = 64 * (pba - 6);
+		reg = E1000_READ_REG(hw, E1000_FCRTC);
+		reg &= ~E1000_FCRTC_RTH_COAL_MASK;
+		reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
+		    & E1000_FCRTC_RTH_COAL_MASK);
+		E1000_WRITE_REG(hw, E1000_FCRTC, reg);
+
+
+		dmac = pba - adapter->max_frame_size / 512;
+		if (dmac < pba - 10)
+			dmac = pba - 10;
+		reg = E1000_READ_REG(hw, E1000_DMACR);
+		reg &= ~E1000_DMACR_DMACTHR_MASK;
+		reg = ((dmac << E1000_DMACR_DMACTHR_SHIFT)
+		    & E1000_DMACR_DMACTHR_MASK);
+
+		/* transition to L0x or L1 if available..*/
+		reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
+
+		/* Check if status is 2.5Gb backplane connection
+		* before configuration of watchdog timer, which is
+		* in msec values in 12.8usec intervals
+		* watchdog timer= msec values in 32usec intervals
+		* for non 2.5Gb connection
+		*/
+		if (hw->mac.type == e1000_i354) {
+			int status = E1000_READ_REG(hw, E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
+				reg |= ((adapter->dmac * 5) >> 6);
+			else
+				reg |= (adapter->dmac >> 5);
+		} else {
+			reg |= (adapter->dmac >> 5);
+		}
+
+		E1000_WRITE_REG(hw, E1000_DMACR, reg);
+
+#ifdef I210_OBFF_SUPPORT
+		/*
+		 * Set the OBFF Rx threshold to DMA Coalescing Rx
+		 * threshold - 2KB and enable the feature in the
+		 * hardware for I210.
+		 */
+		if (hw->mac.type == e1000_i210) {
+			int obff = dmac - 2;
+			reg = E1000_READ_REG(hw, E1000_DOBFFCTL);
+			reg &= ~E1000_DOBFFCTL_OBFFTHR_MASK;
+			reg |= (obff & E1000_DOBFFCTL_OBFFTHR_MASK)
+			    | E1000_DOBFFCTL_EXIT_ACT_MASK;
+			E1000_WRITE_REG(hw, E1000_DOBFFCTL, reg);
+		}
+#endif
+		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
+
+		/* Set the interval before transition */
+		reg = E1000_READ_REG(hw, E1000_DMCTLX);
+		if (hw->mac.type == e1000_i350)
+			reg |= IGB_DMCTLX_DCFLUSH_DIS;
+		/*
+		** in 2.5Gb connection, TTLX unit is 0.4 usec
+		** which is 0x4*2 = 0xA. But delay is still 4 usec
+		*/
+		if (hw->mac.type == e1000_i354) {
+			int status = E1000_READ_REG(hw, E1000_STATUS);
+			if ((status & E1000_STATUS_2P5_SKU) &&
+			    (!(status & E1000_STATUS_2P5_SKU_OVER)))
+				reg |= 0xA;
+			else
+				reg |= 0x4;
+		} else {
+			reg |= 0x4;
+		}
+
+		E1000_WRITE_REG(hw, E1000_DMCTLX, reg);
+
+		/* free space in tx packet buffer to wake from DMA coal */
+		E1000_WRITE_REG(hw, E1000_DMCTXTH, (IGB_TXPBSIZE -
+		    (2 * adapter->max_frame_size)) >> 6);
+
+		/* make low power state decision controlled by DMA coal */
+		reg = E1000_READ_REG(hw, E1000_PCIEMISC);
+		reg &= ~E1000_PCIEMISC_LX_DECISION;
+		E1000_WRITE_REG(hw, E1000_PCIEMISC, reg);
+
+	} else if (hw->mac.type == e1000_82580) {
+		u32 reg = E1000_READ_REG(hw, E1000_PCIEMISC);
+		E1000_WRITE_REG(hw, E1000_PCIEMISC,
+		    reg & ~E1000_PCIEMISC_LX_DECISION);
+		E1000_WRITE_REG(hw, E1000_DMACR, 0);
+	}
+}
+
+
+/*********************************************************************
+ *
  *  Set up an fresh starting state
  *
  **********************************************************************/
@@ -2960,6 +3002,7 @@ igb_reset(struct adapter *adapter)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_vfadapt_i350:
 		pba = E1000_READ_REG(hw, E1000_RXPBS);
 		pba = e1000_rxpbs_adjust_82580(pba);
@@ -3030,70 +3073,19 @@ igb_reset(struct adapter *adapter)
 	e1000_reset_hw(hw);
 	E1000_WRITE_REG(hw, E1000_WUC, 0);
 
+	/* Reset for AutoMediaDetect */
+	if (adapter->flags & IGB_MEDIA_RESET) {
+		e1000_setup_init_funcs(hw, TRUE);
+		e1000_get_bus_info(hw);
+		adapter->flags &= ~IGB_MEDIA_RESET;
+	}
+
 	if (e1000_init_hw(hw) < 0)
 		device_printf(dev, "Hardware Initialization Failed\n");
 
 	/* Setup DMA Coalescing */
-	if ((hw->mac.type > e1000_82580) &&
-	    (hw->mac.type != e1000_i211)) {
-		u32 dmac;
-		u32 reg = ~E1000_DMACR_DMAC_EN;
+	igb_init_dmac(adapter, pba);
 
-		if (adapter->dmac == 0) { /* Disabling it */
-			E1000_WRITE_REG(hw, E1000_DMACR, reg);
-			goto reset_out;
-		}
-
-		/* Set starting thresholds */
-		E1000_WRITE_REG(hw, E1000_DMCTXTH, 0);
-		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
-
-		hwm = 64 * pba - adapter->max_frame_size / 16;
-		if (hwm < 64 * (pba - 6))
-			hwm = 64 * (pba - 6);
-		reg = E1000_READ_REG(hw, E1000_FCRTC);
-		reg &= ~E1000_FCRTC_RTH_COAL_MASK;
-		reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
-		    & E1000_FCRTC_RTH_COAL_MASK);
-		E1000_WRITE_REG(hw, E1000_FCRTC, reg);
-
-
-		dmac = pba - adapter->max_frame_size / 512;
-		if (dmac < pba - 10)
-			dmac = pba - 10;
-		reg = E1000_READ_REG(hw, E1000_DMACR);
-		reg &= ~E1000_DMACR_DMACTHR_MASK;
-		reg = ((dmac << E1000_DMACR_DMACTHR_SHIFT)
-		    & E1000_DMACR_DMACTHR_MASK);
-		/* transition to L0x or L1 if available..*/
-		reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
-		/* timer = value in adapter->dmac in 32usec intervals */
-		reg |= (adapter->dmac >> 5);
-		E1000_WRITE_REG(hw, E1000_DMACR, reg);
-
-		/* Set the interval before transition */
-		reg = E1000_READ_REG(hw, E1000_DMCTLX);
-		reg |= 0x80000004;
-		E1000_WRITE_REG(hw, E1000_DMCTLX, reg);
-
-		/* free space in tx packet buffer to wake from DMA coal */
-		E1000_WRITE_REG(hw, E1000_DMCTXTH,
-		    (20480 - (2 * adapter->max_frame_size)) >> 6);
-
-		/* make low power state decision controlled by DMA coal */
-		reg = E1000_READ_REG(hw, E1000_PCIEMISC);
-		reg &= ~E1000_PCIEMISC_LX_DECISION;
-		E1000_WRITE_REG(hw, E1000_PCIEMISC, reg);
-		device_printf(dev, "DMA Coalescing enabled\n");
-
-	} else if (hw->mac.type == e1000_82580) {
-		u32 reg = E1000_READ_REG(hw, E1000_PCIEMISC);
-		E1000_WRITE_REG(hw, E1000_DMACR, 0);
-		E1000_WRITE_REG(hw, E1000_PCIEMISC,
-		    reg & ~E1000_PCIEMISC_LX_DECISION);
-	}
-
-reset_out:
 	E1000_WRITE_REG(&adapter->hw, E1000_VET, ETHERTYPE_VLAN);
 	e1000_get_phy_info(hw);
 	e1000_check_for_link(hw);
@@ -3137,7 +3129,7 @@ igb_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM;
-	ifp->if_capabilities |= IFCAP_TSO4;
+	ifp->if_capabilities |= IFCAP_TSO;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -3343,6 +3335,7 @@ igb_allocate_queues(struct adapter *adapter)
 		txr = &adapter->tx_rings[i];
 		txr->adapter = adapter;
 		txr->me = i;
+		txr->num_desc = adapter->num_tx_desc;
 
 		/* Initialize the TX lock */
 		snprintf(txr->mtx_name, sizeof(txr->mtx_name), "%s:tx(%d)",
@@ -3356,7 +3349,7 @@ igb_allocate_queues(struct adapter *adapter)
 			error = ENOMEM;
 			goto err_tx_desc;
 		}
-		txr->tx_base = (struct e1000_tx_desc *)txr->txdma.dma_vaddr;
+		txr->tx_base = (union e1000_adv_tx_desc *)txr->txdma.dma_vaddr;
 		bzero((void *)txr->tx_base, tsize);
 
         	/* Now allocate transmit buffers for the ring */
@@ -3449,7 +3442,7 @@ igb_allocate_transmit_buffers(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
 	device_t dev = adapter->dev;
-	struct igb_tx_buffer *txbuf;
+	struct igb_tx_buf *txbuf;
 	int error, i;
 
 	/*
@@ -3472,7 +3465,7 @@ igb_allocate_transmit_buffers(struct tx_ring *txr)
 	}
 
 	if (!(txr->tx_buffers =
-	    (struct igb_tx_buffer *) malloc(sizeof(struct igb_tx_buffer) *
+	    (struct igb_tx_buf *) malloc(sizeof(struct igb_tx_buf) *
 	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO))) {
 		device_printf(dev, "Unable to allocate tx_buffer memory\n");
 		error = ENOMEM;
@@ -3505,7 +3498,7 @@ static void
 igb_setup_transmit_ring(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
-	struct igb_tx_buffer *txbuf;
+	struct igb_tx_buf *txbuf;
 	int i;
 #ifdef DEV_NETMAP
 	struct netmap_adapter *na = NA(adapter->ifp);
@@ -3541,7 +3534,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		}
 #endif /* DEV_NETMAP */
 		/* clear the watch index */
-		txbuf->next_eop = -1;
+		txbuf->eop = NULL;
         }
 
 	/* Set number of descriptors available */
@@ -3655,7 +3648,7 @@ static void
 igb_free_transmit_buffers(struct tx_ring *txr)
 {
 	struct adapter *adapter = txr->adapter;
-	struct igb_tx_buffer *tx_buffer;
+	struct igb_tx_buf *tx_buffer;
 	int             i;
 
 	INIT_DEBUGOUT("free_transmit_ring: begin");
@@ -3702,44 +3695,100 @@ igb_free_transmit_buffers(struct tx_ring *txr)
 
 /**********************************************************************
  *
- *  Setup work for hardware segmentation offload (TSO)
+ *  Setup work for hardware segmentation offload (TSO) on
+ *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static bool
-igb_tso_setup(struct tx_ring *txr, struct mbuf *mp, int ehdrlen,
-	struct ip *ip, struct tcphdr *th)
+static int
+igb_tso_setup(struct tx_ring *txr, struct mbuf *mp,
+    u32 *cmd_type_len, u32 *olinfo_status)
 {
 	struct adapter *adapter = txr->adapter;
 	struct e1000_adv_tx_context_desc *TXD;
-	struct igb_tx_buffer        *tx_buffer;
 	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
-	u32 mss_l4len_idx = 0;
-	u16 vtag = 0;
-	int ctxd, ip_hlen, tcp_hlen;
+	u32 mss_l4len_idx = 0, paylen;
+	u16 vtag = 0, eh_type;
+	int ctxd, ehdrlen, ip_hlen, tcp_hlen;
+	struct ether_vlan_header *eh;
+#ifdef INET6
+	struct ip6_hdr *ip6;
+#endif
+#ifdef INET
+	struct ip *ip;
+#endif
+	struct tcphdr *th;
+
+
+	/*
+	 * Determine where frame payload starts.
+	 * Jump over vlan headers if already present
+	 */
+	eh = mtod(mp, struct ether_vlan_header *);
+	if (eh->evl_encap_proto == htons(ETHERTYPE_VLAN)) {
+		ehdrlen = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
+		eh_type = eh->evl_proto;
+	} else {
+		ehdrlen = ETHER_HDR_LEN;
+		eh_type = eh->evl_encap_proto;
+	}
+
+	switch (ntohs(eh_type)) {
+#ifdef INET6
+	case ETHERTYPE_IPV6:
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		/* XXX-BZ For now we do not pretend to support ext. hdrs. */
+		if (ip6->ip6_nxt != IPPROTO_TCP)
+			return (ENXIO);
+		ip_hlen = sizeof(struct ip6_hdr);
+		ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
+		th = (struct tcphdr *)((caddr_t)ip6 + ip_hlen);
+		th->th_sum = in6_cksum_pseudo(ip6, 0, IPPROTO_TCP, 0);
+		type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV6;
+		break;
+#endif
+#ifdef INET
+	case ETHERTYPE_IP:
+		ip = (struct ip *)(mp->m_data + ehdrlen);
+		if (ip->ip_p != IPPROTO_TCP)
+			return (ENXIO);
+		ip->ip_sum = 0;
+		ip_hlen = ip->ip_hl << 2;
+		th = (struct tcphdr *)((caddr_t)ip + ip_hlen);
+		th->th_sum = in_pseudo(ip->ip_src.s_addr,
+		    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+		type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV4;
+		/* Tell transmit desc to also do IPv4 checksum. */
+		*olinfo_status |= E1000_TXD_POPTS_IXSM << 8;
+		break;
+#endif
+	default:
+		panic("%s: CSUM_TSO but no supported IP version (0x%04x)",
+		    __func__, ntohs(eh_type));
+		break;
+	}
 
 	ctxd = txr->next_avail_desc;
-	tx_buffer = &txr->tx_buffers[ctxd];
 	TXD = (struct e1000_adv_tx_context_desc *) &txr->tx_base[ctxd];
 
-	ip->ip_sum = 0;
-	ip_hlen = ip->ip_hl << 2;
 	tcp_hlen = th->th_off << 2;
+
+	/* This is used in the transmit desc in encap */
+	paylen = mp->m_pkthdr.len - ehdrlen - ip_hlen - tcp_hlen;
 
 	/* VLAN MACLEN IPLEN */
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
-		vlan_macip_lens |= (vtag << E1000_ADVTXD_VLAN_SHIFT);
+                vlan_macip_lens |= (vtag << E1000_ADVTXD_VLAN_SHIFT);
 	}
 
-	vlan_macip_lens |= (ehdrlen << E1000_ADVTXD_MACLEN_SHIFT);
+	vlan_macip_lens |= ehdrlen << E1000_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= ip_hlen;
-	TXD->vlan_macip_lens |= htole32(vlan_macip_lens);
+	TXD->vlan_macip_lens = htole32(vlan_macip_lens);
 
 	/* ADV DTYPE TUCMD */
 	type_tucmd_mlhl |= E1000_ADVTXD_DCMD_DEXT | E1000_ADVTXD_DTYP_CTXT;
 	type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_TCP;
-	type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV4;
-	TXD->type_tucmd_mlhl |= htole32(type_tucmd_mlhl);
+	TXD->type_tucmd_mlhl = htole32(type_tucmd_mlhl);
 
 	/* MSS L4LEN IDX */
 	mss_l4len_idx |= (mp->m_pkthdr.tso_segsz << E1000_ADVTXD_MSS_SHIFT);
@@ -3750,57 +3799,65 @@ igb_tso_setup(struct tx_ring *txr, struct mbuf *mp, int ehdrlen,
 	TXD->mss_l4len_idx = htole32(mss_l4len_idx);
 
 	TXD->seqnum_seed = htole32(0);
-	tx_buffer->m_head = NULL;
-	tx_buffer->next_eop = -1;
 
-	if (++ctxd == adapter->num_tx_desc)
+	if (++ctxd == txr->num_desc)
 		ctxd = 0;
 
 	txr->tx_avail--;
 	txr->next_avail_desc = ctxd;
-	return TRUE;
+	*cmd_type_len |= E1000_ADVTXD_DCMD_TSE;
+	*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+	*olinfo_status |= paylen << E1000_ADVTXD_PAYLEN_SHIFT;
+	++txr->tso_tx;
+	return (0);
 }
-
 
 /*********************************************************************
  *
- *  Context Descriptor setup for VLAN or CSUM
+ *  Advanced Context Descriptor setup for VLAN, CSUM or TSO
  *
  **********************************************************************/
 
-static bool
-igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
+static int
+igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
+    u32 *cmd_type_len, u32 *olinfo_status)
 {
-	struct adapter *adapter = txr->adapter;
 	struct e1000_adv_tx_context_desc *TXD;
-	struct igb_tx_buffer        *tx_buffer;
-	u32 vlan_macip_lens, type_tucmd_mlhl, mss_l4len_idx;
+	struct adapter *adapter = txr->adapter;
 	struct ether_vlan_header *eh;
-	struct ip *ip = NULL;
+	struct ip *ip;
 	struct ip6_hdr *ip6;
-	int  ehdrlen, ctxd, ip_hlen = 0;
-	u16	etype, vtag = 0;
+	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0, mss_l4len_idx = 0;
+	int	ehdrlen, ip_hlen = 0;
+	u16	etype;
 	u8	ipproto = 0;
-	bool	offload = TRUE;
+	int	offload = TRUE;
+	int	ctxd = txr->next_avail_desc;
+	u16	vtag = 0;
+
+	/* First check if TSO is to be used */
+	if (mp->m_pkthdr.csum_flags & CSUM_TSO)
+		return (igb_tso_setup(txr, mp, cmd_type_len, olinfo_status));
 
 	if ((mp->m_pkthdr.csum_flags & CSUM_OFFLOAD) == 0)
 		offload = FALSE;
 
-	vlan_macip_lens = type_tucmd_mlhl = mss_l4len_idx = 0;
-	ctxd = txr->next_avail_desc;
-	tx_buffer = &txr->tx_buffers[ctxd];
+	/* Indicate the whole packet as payload when not doing TSO */
+       	*olinfo_status |= mp->m_pkthdr.len << E1000_ADVTXD_PAYLEN_SHIFT;
+
+	/* Now ready a context descriptor */
 	TXD = (struct e1000_adv_tx_context_desc *) &txr->tx_base[ctxd];
 
 	/*
 	** In advanced descriptors the vlan tag must 
-	** be placed into the context descriptor, thus
-	** we need to be here just for that setup.
+	** be placed into the context descriptor. Hence
+	** we need to make one even if not doing offloads.
 	*/
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
 		vlan_macip_lens |= (vtag << E1000_ADVTXD_VLAN_SHIFT);
-	} else if (offload == FALSE)
-		return FALSE;
+	} else if (offload == FALSE) /* ... no offload to do */
+		return (0);
 
 	/*
 	 * Determine where frame payload starts.
@@ -3823,16 +3880,13 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 		case ETHERTYPE_IP:
 			ip = (struct ip *)(mp->m_data + ehdrlen);
 			ip_hlen = ip->ip_hl << 2;
-			if (mp->m_len < ehdrlen + ip_hlen) {
-				offload = FALSE;
-				break;
-			}
 			ipproto = ip->ip_p;
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV4;
 			break;
 		case ETHERTYPE_IPV6:
 			ip6 = (struct ip6_hdr *)(mp->m_data + ehdrlen);
 			ip_hlen = sizeof(struct ip6_hdr);
+			/* XXX-BZ this will go badly in case of ext hdrs. */
 			ipproto = ip6->ip6_nxt;
 			type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_IPV6;
 			break;
@@ -3853,6 +3907,7 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 			if (mp->m_pkthdr.csum_flags & CSUM_UDP)
 				type_tucmd_mlhl |= E1000_ADVTXD_TUCMD_L4T_UDP;
 			break;
+
 #if __FreeBSD_version >= 800000
 		case IPPROTO_SCTP:
 			if (mp->m_pkthdr.csum_flags & CSUM_SCTP)
@@ -3864,28 +3919,27 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 			break;
 	}
 
+	if (offload) /* For the TX descriptor setup */
+		*olinfo_status |= E1000_TXD_POPTS_TXSM << 8;
+
 	/* 82575 needs the queue index added */
 	if (adapter->hw.mac.type == e1000_82575)
 		mss_l4len_idx = txr->me << 4;
 
 	/* Now copy bits into descriptor */
-	TXD->vlan_macip_lens |= htole32(vlan_macip_lens);
-	TXD->type_tucmd_mlhl |= htole32(type_tucmd_mlhl);
+	TXD->vlan_macip_lens = htole32(vlan_macip_lens);
+	TXD->type_tucmd_mlhl = htole32(type_tucmd_mlhl);
 	TXD->seqnum_seed = htole32(0);
 	TXD->mss_l4len_idx = htole32(mss_l4len_idx);
 
-	tx_buffer->m_head = NULL;
-	tx_buffer->next_eop = -1;
-
 	/* We've consumed the first desc, adjust counters */
-	if (++ctxd == adapter->num_tx_desc)
+	if (++ctxd == txr->num_desc)
 		ctxd = 0;
 	txr->next_avail_desc = ctxd;
 	--txr->tx_avail;
 
-        return (offload);
+        return (0);
 }
-
 
 /**********************************************************************
  *
@@ -3898,90 +3952,103 @@ igb_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 static bool
 igb_txeof(struct tx_ring *txr)
 {
-	struct adapter	*adapter = txr->adapter;
-        int first, last, done, processed;
-        struct igb_tx_buffer *tx_buffer;
-        struct e1000_tx_desc   *tx_desc, *eop_desc;
-	struct ifnet   *ifp = adapter->ifp;
+	struct adapter		*adapter = txr->adapter;
+	struct ifnet		*ifp = adapter->ifp;
+	u32			work, processed = 0;
+	u16			limit = txr->process_limit;
+	struct igb_tx_buf	*buf;
+	union e1000_adv_tx_desc *txd;
 
-	IGB_TX_LOCK_ASSERT(txr);
+	mtx_assert(&txr->tx_mtx, MA_OWNED);
 
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, txr->me |
-	    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, txr->me))
 		return (FALSE);
 #endif /* DEV_NETMAP */
-        if (txr->tx_avail == adapter->num_tx_desc) {
+
+	if (txr->tx_avail == txr->num_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
-                return FALSE;
+		return FALSE;
 	}
 
-	processed = 0;
-        first = txr->next_to_clean;
-        tx_desc = &txr->tx_base[first];
-        tx_buffer = &txr->tx_buffers[first];
-	last = tx_buffer->next_eop;
-        eop_desc = &txr->tx_base[last];
-
-	/*
-	 * What this does is get the index of the
-	 * first descriptor AFTER the EOP of the 
-	 * first packet, that way we can do the
-	 * simple comparison on the inner while loop.
-	 */
-	if (++last == adapter->num_tx_desc)
- 		last = 0;
-	done = last;
-
+	/* Get work starting point */
+	work = txr->next_to_clean;
+	buf = &txr->tx_buffers[work];
+	txd = &txr->tx_base[work];
+	work -= txr->num_desc; /* The distance to ring end */
         bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
             BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	do {
+		union e1000_adv_tx_desc *eop = buf->eop;
+		if (eop == NULL) /* No work */
+			break;
 
-        while (eop_desc->upper.fields.status & E1000_TXD_STAT_DD) {
-		/* We clean the range of the packet */
-		while (first != done) {
-                	tx_desc->upper.data = 0;
-                	tx_desc->lower.data = 0;
-                	tx_desc->buffer_addr = 0;
-                	++txr->tx_avail;
-			++processed;
+		if ((eop->wb.status & E1000_TXD_STAT_DD) == 0)
+			break;	/* I/O not complete */
 
-			if (tx_buffer->m_head) {
+		if (buf->m_head) {
+			txr->bytes +=
+			    buf->m_head->m_pkthdr.len;
+			bus_dmamap_sync(txr->txtag,
+			    buf->map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(txr->txtag,
+			    buf->map);
+			m_freem(buf->m_head);
+			buf->m_head = NULL;
+		}
+		buf->eop = NULL;
+		++txr->tx_avail;
+
+		/* We clean the range if multi segment */
+		while (txd != eop) {
+			++txd;
+			++buf;
+			++work;
+			/* wrap the ring? */
+			if (__predict_false(!work)) {
+				work -= txr->num_desc;
+				buf = txr->tx_buffers;
+				txd = txr->tx_base;
+			}
+			if (buf->m_head) {
 				txr->bytes +=
-				    tx_buffer->m_head->m_pkthdr.len;
+				    buf->m_head->m_pkthdr.len;
 				bus_dmamap_sync(txr->txtag,
-				    tx_buffer->map,
+				    buf->map,
 				    BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(txr->txtag,
-				    tx_buffer->map);
+				    buf->map);
+				m_freem(buf->m_head);
+				buf->m_head = NULL;
+			}
+			++txr->tx_avail;
+			buf->eop = NULL;
 
-                        	m_freem(tx_buffer->m_head);
-                        	tx_buffer->m_head = NULL;
-                	}
-			tx_buffer->next_eop = -1;
-			txr->watchdog_time = ticks;
-
-	                if (++first == adapter->num_tx_desc)
-				first = 0;
-
-	                tx_buffer = &txr->tx_buffers[first];
-			tx_desc = &txr->tx_base[first];
 		}
 		++txr->packets;
+		++processed;
 		++ifp->if_opackets;
-		/* See if we can continue to the next packet */
-		last = tx_buffer->next_eop;
-		if (last != -1) {
-        		eop_desc = &txr->tx_base[last];
-			/* Get new done point */
-			if (++last == adapter->num_tx_desc) last = 0;
-			done = last;
-		} else
-			break;
-        }
-        bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
-            BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+		txr->watchdog_time = ticks;
 
-        txr->next_to_clean = first;
+		/* Try the next packet */
+		++txd;
+		++buf;
+		++work;
+		/* reset with a wrap */
+		if (__predict_false(!work)) {
+			work -= txr->num_desc;
+			buf = txr->tx_buffers;
+			txd = txr->tx_base;
+		}
+		prefetch(txd);
+	} while (__predict_true(--limit));
+
+	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+
+	work += txr->num_desc;
+	txr->next_to_clean = work;
 
 	/*
 	** Watchdog calculation, we know there's
@@ -3991,18 +4058,14 @@ igb_txeof(struct tx_ring *txr)
 	*/
 	if ((!processed) && ((ticks - txr->watchdog_time) > IGB_WATCHDOG))
 		txr->queue_status |= IGB_QUEUE_HUNG;
-        /*
-         * If we have a minimum free,
-         * clear depleted state bit
-         */
-        if (txr->tx_avail >= IGB_QUEUE_THRESHOLD)          
-                txr->queue_status &= ~IGB_QUEUE_DEPLETED;
 
-	/* All clean, turn off the watchdog */
-	if (txr->tx_avail == adapter->num_tx_desc) {
+	if (txr->tx_avail >= IGB_QUEUE_THRESHOLD)
+		txr->queue_status &= ~IGB_QUEUE_DEPLETED;	
+
+	if (txr->tx_avail == txr->num_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
 		return (FALSE);
-        }
+	}
 
 	return (TRUE);
 }
@@ -4165,15 +4228,13 @@ igb_allocate_receive_buffers(struct rx_ring *rxr)
 
 	for (i = 0; i < adapter->num_rx_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->htag,
-		    BUS_DMA_NOWAIT, &rxbuf->hmap);
+		error = bus_dmamap_create(rxr->htag, 0, &rxbuf->hmap);
 		if (error) {
 			device_printf(dev,
 			    "Unable to create RX head DMA maps\n");
 			goto fail;
 		}
-		error = bus_dmamap_create(rxr->ptag,
-		    BUS_DMA_NOWAIT, &rxbuf->pmap);
+		error = bus_dmamap_create(rxr->ptag, 0, &rxbuf->pmap);
 		if (error) {
 			device_printf(dev,
 			    "Unable to create RX packet DMA maps\n");
@@ -4693,11 +4754,13 @@ igb_rx_discard(struct rx_ring *rxr, int i)
 	if (rbuf->m_head) {
 		m_free(rbuf->m_head);
 		rbuf->m_head = NULL;
+		bus_dmamap_unload(rxr->htag, rbuf->hmap);
 	}
 
 	if (rbuf->m_pack) {
 		m_free(rbuf->m_pack);
 		rbuf->m_pack = NULL;
+		bus_dmamap_unload(rxr->ptag, rbuf->pmap);
 	}
 
 	return;
@@ -4763,8 +4826,10 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		IGB_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	/* Main clean loop */
@@ -4786,7 +4851,8 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		rxbuf = &rxr->rx_buffers[i];
 		plen = le16toh(cur->wb.upper.length);
 		ptype = le32toh(cur->wb.lower.lo_dword.data) & IGB_PKTTYPE_MASK;
-		if ((adapter->hw.mac.type == e1000_i350) &&
+		if (((adapter->hw.mac.type == e1000_i350) ||
+		    (adapter->hw.mac.type == e1000_i354)) &&
 		    (staterr & E1000_RXDEXT_STATERR_LB))
 			vtag = be16toh(cur->wb.upper.vlan);
 		else
@@ -4819,6 +4885,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		** case only the first header is valid.
 		*/
 		if (rxr->hdr_split && rxr->fmp == NULL) {
+			bus_dmamap_unload(rxr->htag, rxbuf->hmap);
 			hlen = (hdr & E1000_RXDADV_HDRBUFLEN_MASK) >>
 			    E1000_RXDADV_HDRBUFLEN_SHIFT;
 			if (hlen > IGB_HDR_BUF)
@@ -4851,6 +4918,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			/* clear buf info for refresh */
 			rxbuf->m_pack = NULL;
 		}
+		bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 
 		++processed; /* So we know when to refresh */
 
@@ -5587,8 +5655,8 @@ igb_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "no_desc_avail", 
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
-		SYSCTL_ADD_QUAD(ctx, queue_list, OID_AUTO, "tx_packets",
-				CTLFLAG_RD, &txr->tx_packets,
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "tx_packets",
+				CTLFLAG_RD, &txr->total_packets,
 				"Queue Packets Transmitted");
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rxd_head", 
@@ -6029,7 +6097,7 @@ igb_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 		default:
 			/* Do nothing, illegal value */
 			adapter->dmac = 0;
-			return (error);
+			return (EINVAL);
 	}
 	/* Reinit the interface */
 	igb_init(adapter);

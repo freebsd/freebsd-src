@@ -111,7 +111,7 @@ kva_import(void *unused, vmem_size_t size, int flags, vmem_addr_t *addrp)
 	int result;
  
 	addr = vm_map_min(kernel_map);
-	result = vm_map_find(kernel_map, NULL, 0, &addr, size,
+	result = vm_map_find(kernel_map, NULL, 0, &addr, size, 0,
 	    VMFS_SUPER_SPACE, VM_PROT_ALL, VM_PROT_ALL, MAP_NOFAULT);
 	if (result != KERN_SUCCESS)
                 return (ENOMEM);

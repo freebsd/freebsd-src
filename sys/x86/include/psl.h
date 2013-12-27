@@ -77,8 +77,16 @@
  * is undesirable but it may as well be allowed since users can inflict
  * it on the kernel directly.  Changes to PSL_AC are silently ignored on
  * 386's.
+ *
+ * Users are allowed to change the privileged flag PSL_RF.  The cpu sets PSL_RF
+ * in tf_eflags for faults.  Debuggers should sometimes set it there too.
+ * tf_eflags is kept in the signal context during signal handling and there is
+ * no other place to remember it, so the PSL_RF bit may be corrupted by the
+ * signal handler without us knowing.  Corruption of the PSL_RF bit at worst
+ * causes one more or one less debugger trap, so allowing it is fairly
+ * harmless.   
  */
 #define	PSL_USERCHANGE (PSL_C | PSL_PF | PSL_AF | PSL_Z | PSL_N | PSL_T \
-			| PSL_D | PSL_V | PSL_NT | PSL_AC | PSL_ID)
+			| PSL_D | PSL_V | PSL_NT | PSL_RF | PSL_AC | PSL_ID)
 
 #endif /* !_MACHINE_PSL_H_ */

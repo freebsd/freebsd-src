@@ -99,6 +99,7 @@ f_media_verify()
 # 
 f_media_generic_get()
 {
+	local funcname=f_media_generic_get
 	local base="$1" file="$2" probe_type="$3"
 
 	local fname=f_media_generic_get
@@ -117,17 +118,14 @@ f_media_generic_get()
 			f_dprintf "%s: file exists path=[%s]" $fname "$path"
 			if [ "$probe_type" = "$PROBE_SIZE" ]; then
 				local size
-				if ! size=$( stat -f %z "$path" 2>&1 ); then
-					f_dprintf "stat: %s" "$size"
-					echo "-1"
-				else
-					f_isinteger "$size" || size=-1
-					echo $size
-				fi
+				f_eval_catch -dk size $funcname stat \
+					'stat -f %%z "%s"' "$path" || size=-1
+				f_isinteger "$size" || size=-1
+				echo $size
 			fi
 			[ "$probe_type" ] && return $SUCCESS
 			cat "$path"
-			return
+			return $?
 		fi
 	done
 
@@ -136,13 +134,10 @@ f_media_generic_get()
 		f_dprintf "%s: file exists path=[%s]" $fname "$path"
 		if [ "$probe_type" = "$PROBE_SIZE" ]; then
 			local size
-			if ! size=$( stat -f %z "$path" 2>&1 ); then
-				f_dprintf "stat: %s" "$size"
-				echo "-1"
-			else
-				f_isinteger "$size" || size=-1
-				echo $size
-			fi
+			f_eval_catch -dk size $funcname stat \
+				'stat -f %%z "%s"' "$path" || size=-1
+			f_isinteger "$size" || size=-1
+			echo $size
 		fi
 		[ "$probe_type" ] && return $SUCCESS
 	elif [ "$probe_type" ]; then

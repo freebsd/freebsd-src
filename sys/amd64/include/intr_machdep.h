@@ -102,7 +102,7 @@ struct pic {
 	int (*pic_vector)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct pic *);
-	void (*pic_resume)(struct pic *);
+	void (*pic_resume)(struct pic *, bool suspend_cancelled);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
@@ -170,7 +170,7 @@ struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
-void	intr_resume(void);
+void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);

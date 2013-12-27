@@ -1,15 +1,10 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2002-2004 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  */
-
-typedef	struct	wordtab	{
-	char	*w_word;
-	int	w_value;
-} wordtab_t;
 
 #ifdef	NO_YACC
 #define	YY_COMMENT	1000
@@ -29,6 +24,7 @@ typedef	struct	wordtab	{
 
 extern	wordtab_t	*yysettab __P((wordtab_t *));
 extern	void		yysetdict __P((wordtab_t *));
+extern	void		yysetfixeddict __P((wordtab_t *));
 extern	int		yylex __P((void));
 extern	void		yyerror __P((char *));
 extern	char		*yykeytostr __P((int));

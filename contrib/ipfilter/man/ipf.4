@@ -46,7 +46,6 @@ active and inactive, respectively.  All of these ioctl's are implemented
 as being routing ioctls and thus the same rules for the various routing
 ioctls and the file descriptor are employed, mainly being that the fd must
 be that of the device associated with the module (i.e., /dev/ipl).
-.LP
 .PP
 The three groups of ioctls above perform adding rules to the end of the
 list (SIOCAD*), deletion of rules from any place in the list (SIOCRM*)
@@ -83,10 +82,10 @@ typedef struct  frentry {
         u_short fr_icmp;
 
         u_char  fr_scmp;        /* data for port comparisons */
-        u_char  fr_dcmp; 
+        u_char  fr_dcmp;
         u_short fr_dport;
         u_short fr_sport;
-        u_short fr_stop;        /* top port for <> and >< */ 
+        u_short fr_stop;        /* top port for <> and >< */
         u_short fr_dtop;        /* top port for <> and >< */
         u_32_t  fr_flags;       /* per-rule flags && options (see below) */
         u_short fr_skip;        /* # of rules to skip */
@@ -96,7 +95,7 @@ typedef struct  frentry {
         char    fr_ifname[IFNAMSIZ];
 #if BSD > 199306
         char    fr_oifname[IFNAMSIZ];
-#endif  
+#endif
         struct  frdest  fr_tif; /* "to" interface */
         struct  frdest  fr_dif; /* duplicate packet interfaces */
 } frentry_t;
@@ -106,7 +105,6 @@ When adding a new rule, all unused fields (in the filter rule) should be
 initialised to be zero.  To insert a rule, at a particular position in the
 filter list, the number of the rule which it is to be inserted before must
 be put in the "fr_hits" field (the first rule is number 0).
-.LP
 .PP
 Flags which are recognised in fr_flags:
 .nf
@@ -137,7 +135,7 @@ Flags which are recognised in fr_flags:
      FR_NOTDSTIP     0x100000   /* not the dst IP# */
      FR_AUTH         0x200000   /* use authentication */
      FR_PREAUTH      0x400000   /* require preauthentication */
-	
+
 .fi
 .PP
 Values for fr_scomp and fr_dcomp (source and destination port value

@@ -1,4 +1,5 @@
 /*	$NetBSD: execinfo.h,v 1.2 2012/06/09 21:22:17 christos Exp $	*/
+/*	$FreeBSD$ */
 
 /*-
  * Copyright (c) 2012 The NetBSD Foundation, Inc.

@@ -8,7 +8,7 @@
 	This section contains the contents of the old UPGRADE.TXT
 	file.
 -->
-<sect1 id="upgrading">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="upgrading">
   <title>***Non traduit ***Upgrading &os;</title>
 
   <para>These instructions describe a procedure for doing a binary
@@ -181,7 +181,7 @@
       functionality.</para>
     </sect3>
 
-    <sect3 id="fstab">
+    <sect3 xml:id="fstab">
       <title>After Installation</title>
 
       <para>Once the installation procedure has completed, the
@@ -198,9 +198,8 @@
 
     <para>Those interested in an upgrade method that allows more
     flexibility and sophistication should take a look at
-    <ulink
-    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The
-    Cutting Edge</ulink> in the &os; Handbook.  This procedure involves
+    <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/cutting-edge.html">The
+    Cutting Edge</link> in the &os; Handbook.  This procedure involves
     rebuilding all of &os; from source code.  It requires reliable
     network connectivity, extra disk space, and time, but has
     advantages for networks and other more complex
@@ -212,4 +211,4 @@
     various issues resulting from changes in &os; that may affect an
     upgrade.</para>
   </sect2>
-</sect1>  
+</sect1>

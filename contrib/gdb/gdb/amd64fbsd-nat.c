@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <sys/ptrace.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <machine/reg.h>
 
 #ifdef HAVE_SYS_PROCFS_H
@@ -212,24 +213,23 @@ Please report this to <bug-gdb@gnu.org>.",
 
   SC_RBP_OFFSET = offset;
 
-  /* FreeBSD provides a kern.ps_strings sysctl that we can use to
+  /* FreeBSD provides a kern.proc.sigtramp sysctl that we can use to
      locate the sigtramp.  That way we can still recognize a sigtramp
-     if its location is changed in a new kernel.  Of course this is
-     still based on the assumption that the sigtramp is placed
-     directly under the location where the program arguments and
-     environment can be found.  */
+     if its location is changed in a new kernel. */
   {
-    int mib[2];
-    long ps_strings;
+    int mib[4];
+    struct kinfo_sigtramp kst;
     size_t len;
 
     mib[0] = CTL_KERN;
-    mib[1] = KERN_PS_STRINGS;
-    len = sizeof (ps_strings);
-    if (sysctl (mib, 2, &ps_strings, &len, NULL, 0) == 0)
+    mib[1] = KERN_PROC;
+    mib[2] = KERN_PROC_SIGTRAMP;
+    mib[3] = getpid();
+    len = sizeof (kst);
+    if (sysctl (mib, sizeof(mib) / sizeof(mib[0]), &kst, &len, NULL, 0) == 0)
       {
-	amd64fbsd_sigtramp_start_addr = ps_strings - 32;
-	amd64fbsd_sigtramp_end_addr = ps_strings;
+	amd64fbsd_sigtramp_start_addr = kst.ksigtramp_start;
+	amd64fbsd_sigtramp_end_addr = kst.ksigtramp_end;
       }
   }
 }

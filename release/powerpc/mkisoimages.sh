@@ -40,7 +40,7 @@ if [ "x$1" = "x-b" ]; then
 <chrp-boot>
 <description>FreeBSD Install</description>
 <os-name>FreeBSD</os-name>
-<boot-script>boot &device;:&partition;,\ppc\chrp\loader</boot-script>
+<boot-script>boot &device;:,\ppc\chrp\loader</boot-script>
 </chrp-boot>
 EOF
 	bootable="$bootable -o chrp-boot"

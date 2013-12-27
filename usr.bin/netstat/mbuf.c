@@ -69,16 +69,16 @@ mbpr(void *kvmd, u_long mbaddr)
 	struct memory_type *mtp;
 	uintmax_t mbuf_count, mbuf_bytes, mbuf_free, mbuf_failures, mbuf_size;
 	uintmax_t mbuf_sleeps;
-	uintmax_t cluster_count, cluster_bytes, cluster_limit, cluster_free;
+	uintmax_t cluster_count, cluster_limit, cluster_free;
 	uintmax_t cluster_failures, cluster_size, cluster_sleeps;
 	uintmax_t packet_count, packet_bytes, packet_free, packet_failures;
 	uintmax_t packet_sleeps;
-	uintmax_t tag_count, tag_bytes;
-	uintmax_t jumbop_count, jumbop_bytes, jumbop_limit, jumbop_free;
+	uintmax_t tag_bytes;
+	uintmax_t jumbop_count, jumbop_limit, jumbop_free;
 	uintmax_t jumbop_failures, jumbop_sleeps, jumbop_size;
-	uintmax_t jumbo9_count, jumbo9_bytes, jumbo9_limit, jumbo9_free;
+	uintmax_t jumbo9_count, jumbo9_limit, jumbo9_free;
 	uintmax_t jumbo9_failures, jumbo9_sleeps, jumbo9_size;
-	uintmax_t jumbo16_count, jumbo16_bytes, jumbo16_limit, jumbo16_free;
+	uintmax_t jumbo16_count, jumbo16_limit, jumbo16_free;
 	uintmax_t jumbo16_failures, jumbo16_sleeps, jumbo16_size;
 	uintmax_t bytes_inuse, bytes_incache, bytes_total;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
@@ -146,7 +146,6 @@ mbpr(void *kvmd, u_long mbaddr)
 		goto out;
 	}
 	cluster_count = memstat_get_count(mtp);
-	cluster_bytes = memstat_get_bytes(mtp);
 	cluster_limit = memstat_get_countlimit(mtp);
 	cluster_free = memstat_get_free(mtp);
 	cluster_failures = memstat_get_failures(mtp);
@@ -159,7 +158,6 @@ mbpr(void *kvmd, u_long mbaddr)
 		    MBUF_TAG_MEM_NAME);
 		goto out;
 	}
-	tag_count = memstat_get_count(mtp);
 	tag_bytes = memstat_get_bytes(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBOP_MEM_NAME);
@@ -169,7 +167,6 @@ mbpr(void *kvmd, u_long mbaddr)
 		goto out;
 	}
 	jumbop_count = memstat_get_count(mtp);
-	jumbop_bytes = memstat_get_bytes(mtp);
 	jumbop_limit = memstat_get_countlimit(mtp);
 	jumbop_free = memstat_get_free(mtp);
 	jumbop_failures = memstat_get_failures(mtp);
@@ -183,7 +180,6 @@ mbpr(void *kvmd, u_long mbaddr)
 		goto out;
 	}
 	jumbo9_count = memstat_get_count(mtp);
-	jumbo9_bytes = memstat_get_bytes(mtp);
 	jumbo9_limit = memstat_get_countlimit(mtp);
 	jumbo9_free = memstat_get_free(mtp);
 	jumbo9_failures = memstat_get_failures(mtp);
@@ -197,7 +193,6 @@ mbpr(void *kvmd, u_long mbaddr)
 		goto out;
 	}
 	jumbo16_count = memstat_get_count(mtp);
-	jumbo16_bytes = memstat_get_bytes(mtp);
 	jumbo16_limit = memstat_get_countlimit(mtp);
 	jumbo16_free = memstat_get_free(mtp);
 	jumbo16_failures = memstat_get_failures(mtp);

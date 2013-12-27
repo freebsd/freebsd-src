@@ -128,6 +128,7 @@ void opieunlockaeh __P((void));
 void opiedisableaeh __P((void));
 int  opielookup __P((struct opie *,char *));
 int  opiepasscheck __P((char *));
+int opienewseed __P((char *));
 void opierandomchallenge __P((char *));
 char * opieskipspace __P((register char *));
 void opiestripcrlf __P((char *));
@@ -139,6 +140,8 @@ const char *opie_get_algorithm __P((void));
 int  opie_haskey __P((char *username));
 char *opie_keyinfo __P((char *));
 int  opie_passverify __P((char *username, char *passwd));
+int opieinsecure __P((void));
+void opieversion __P((void));
 __END_DECLS
 
 #if _OPIE
@@ -158,6 +161,7 @@ FILE *__opieopen __P((char *, int, int));
 int __opiereadrec __P((struct opie *));
 int __opiewriterec __P((struct opie *));
 int __opieparsechallenge __P((char *buffer, int *algorithm, int *sequence, char **seed, int *exts));
+VOIDRET opiehashlen __P((int algorithm, VOIDPTR in, struct opie_otpkey *out, int n));
 __END_DECLS
 
 #define opiestrncpy(dst, src, n) \

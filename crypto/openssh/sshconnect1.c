@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect1.c,v 1.70 2006/11/06 21:25:28 markus Exp $ */
+/* $OpenBSD: sshconnect1.c,v 1.71 2013/05/17 00:13:14 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -84,7 +84,7 @@ try_agent_authentication(void)
 
 		/* Try this identity. */
 		debug("Trying RSA authentication via agent with '%.100s'", comment);
-		xfree(comment);
+		free(comment);
 
 		/* Tell the server that we are willing to authenticate using this key. */
 		packet_start(SSH_CMSG_AUTH_RSA);
@@ -231,7 +231,7 @@ try_rsa_authentication(int idx)
 	 */
 	if (type == SSH_SMSG_FAILURE) {
 		debug("Server refused our key.");
-		xfree(comment);
+		free(comment);
 		return 0;
 	}
 	/* Otherwise, the server should respond with a challenge. */
@@ -270,14 +270,14 @@ try_rsa_authentication(int idx)
 				quit = 1;
 			}
 			memset(passphrase, 0, strlen(passphrase));
-			xfree(passphrase);
+			free(passphrase);
 			if (private != NULL || quit)
 				break;
 			debug2("bad passphrase given, try again...");
 		}
 	}
 	/* We no longer need the comment. */
-	xfree(comment);
+	free(comment);
 
 	if (private == NULL) {
 		if (!options.batch_mode && perm_ok)
@@ -412,7 +412,7 @@ try_challenge_response_authentication(void)
 		packet_check_eom();
 		snprintf(prompt, sizeof prompt, "%s%s", challenge,
 		    strchr(challenge, '\n') ? "" : "\nResponse: ");
-		xfree(challenge);
+		free(challenge);
 		if (i != 0)
 			error("Permission denied, please try again.");
 		if (options.cipher == SSH_CIPHER_NONE)
@@ -420,13 +420,13 @@ try_challenge_response_authentication(void)
 			    "Response will be transmitted in clear text.");
 		response = read_passphrase(prompt, 0);
 		if (strcmp(response, "") == 0) {
-			xfree(response);
+			free(response);
 			break;
 		}
 		packet_start(SSH_CMSG_AUTH_TIS_RESPONSE);
 		ssh_put_password(response);
 		memset(response, 0, strlen(response));
-		xfree(response);
+		free(response);
 		packet_send();
 		packet_write_wait();
 		type = packet_read();
@@ -459,7 +459,7 @@ try_password_authentication(char *prompt)
 		packet_start(SSH_CMSG_AUTH_PASSWORD);
 		ssh_put_password(password);
 		memset(password, 0, strlen(password));
-		xfree(password);
+		free(password);
 		packet_send();
 		packet_write_wait();
 

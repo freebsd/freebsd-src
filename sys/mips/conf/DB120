@@ -13,7 +13,7 @@ ident           DB120
 hints           "DB120.hints"
 
 # Force the board memory - the base DB120 has 128MB RAM
-options         AR71XX_REALMEM=(32*1024*1024)
+options         AR71XX_REALMEM=(128*1024*1024)
 
 # i2c GPIO bus
 #device		gpioiic

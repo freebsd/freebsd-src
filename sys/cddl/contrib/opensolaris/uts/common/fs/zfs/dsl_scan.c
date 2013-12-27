@@ -132,7 +132,7 @@ dsl_scan_init(dsl_pool_t *dp, uint64_t txg)
 	 */
 	ASSERT(!scn->scn_async_destroying);
 	scn->scn_async_destroying = spa_feature_is_active(dp->dp_spa,
-	    &spa_feature_table[SPA_FEATURE_ASYNC_DESTROY]);
+	    SPA_FEATURE_ASYNC_DESTROY);
 
 	err = zap_lookup(dp->dp_meta_objset, DMU_POOL_DIRECTORY_OBJECT,
 	    "scrub_func", sizeof (uint64_t), 1, &f);
@@ -444,7 +444,7 @@ dsl_scan_check_pause(dsl_scan_t *scn, const zbookmark_t *zb)
 	    zfs_resilver_min_time_ms : zfs_scan_min_time_ms;
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	if (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||
-	    (elapsed_nanosecs / MICROSEC > mintime &&
+	    (NSEC2MSEC(elapsed_nanosecs) > mintime &&
 	    txg_sync_waiting(scn->scn_dp)) ||
 	    spa_shutting_down(scn->scn_dp->dp_spa)) {
 		if (zb) {
@@ -1349,7 +1349,7 @@ dsl_scan_free_should_pause(dsl_scan_t *scn)
 
 	elapsed_nanosecs = gethrtime() - scn->scn_sync_start_time;
 	return (elapsed_nanosecs / NANOSEC > zfs_txg_timeout ||
-	    (elapsed_nanosecs / MICROSEC > zfs_free_min_time_ms &&
+	    (NSEC2MSEC(elapsed_nanosecs) > zfs_free_min_time_ms &&
 	    txg_sync_waiting(scn->scn_dp)) ||
 	    spa_shutting_down(scn->scn_dp->dp_spa));
 }
@@ -1384,7 +1384,6 @@ dsl_scan_active(dsl_scan_t *scn)
 		return (B_FALSE);
 	if (spa_shutting_down(spa))
 		return (B_FALSE);
-
 	if (scn->scn_phys.scn_state == DSS_SCANNING ||
 	    scn->scn_async_destroying)
 		return (B_TRUE);
@@ -1443,7 +1442,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 		VERIFY3U(0, ==, zio_wait(scn->scn_zio_root));
 
 		if (err == 0 && spa_feature_is_active(spa,
-		    &spa_feature_table[SPA_FEATURE_ASYNC_DESTROY])) {
+		    SPA_FEATURE_ASYNC_DESTROY)) {
 			ASSERT(scn->scn_async_destroying);
 			scn->scn_is_bptree = B_TRUE;
 			scn->scn_zio_root = zio_root(dp->dp_spa, NULL,
@@ -1454,11 +1453,11 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 			VERIFY0(zio_wait(scn->scn_zio_root));
 
 			if (err == 0) {
-				zfeature_info_t *feat = &spa_feature_table
-				    [SPA_FEATURE_ASYNC_DESTROY];
 				/* finished; deactivate async destroy feature */
-				spa_feature_decr(spa, feat, tx);
-				ASSERT(!spa_feature_is_active(spa, feat));
+				spa_feature_decr(spa, SPA_FEATURE_ASYNC_DESTROY,
+				    tx);
+				ASSERT(!spa_feature_is_active(spa,
+				    SPA_FEATURE_ASYNC_DESTROY));
 				VERIFY0(zap_remove(dp->dp_meta_objset,
 				    DMU_POOL_DIRECTORY_OBJECT,
 				    DMU_POOL_BPTREE_OBJ, tx));
@@ -1473,7 +1472,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 			    "free_bpobj/bptree txg %llu",
 			    (longlong_t)scn->scn_visited_this_txg,
 			    (longlong_t)
-			    (gethrtime() - scn->scn_sync_start_time) / MICROSEC,
+			    NSEC2MSEC(gethrtime() - scn->scn_sync_start_time),
 			    (longlong_t)tx->tx_txg);
 			scn->scn_visited_this_txg = 0;
 			/*
@@ -1531,7 +1530,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 
 	zfs_dbgmsg("visited %llu blocks in %llums",
 	    (longlong_t)scn->scn_visited_this_txg,
-	    (longlong_t)(gethrtime() - scn->scn_sync_start_time) / MICROSEC);
+	    (longlong_t)NSEC2MSEC(gethrtime() - scn->scn_sync_start_time));
 
 	if (!scn->scn_pausing) {
 		scn->scn_done_txg = tx->tx_txg + 1;
@@ -1658,7 +1657,6 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	uint64_t phys_birth = BP_PHYSICAL_BIRTH(bp);
 	boolean_t needs_io;
 	int zio_flags = ZIO_FLAG_SCAN_THREAD | ZIO_FLAG_RAW | ZIO_FLAG_CANFAIL;
-	int zio_priority;
 	unsigned int scan_delay = 0;
 
 	if (phys_birth <= scn->scn_phys.scn_min_txg ||
@@ -1670,13 +1668,11 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 	ASSERT(DSL_SCAN_IS_SCRUB_RESILVER(scn));
 	if (scn->scn_phys.scn_func == POOL_SCAN_SCRUB) {
 		zio_flags |= ZIO_FLAG_SCRUB;
-		zio_priority = ZIO_PRIORITY_SCRUB;
 		needs_io = B_TRUE;
 		scan_delay = zfs_scrub_delay;
 	} else {
 		ASSERT3U(scn->scn_phys.scn_func, ==, POOL_SCAN_RESILVER);
 		zio_flags |= ZIO_FLAG_RESILVER;
-		zio_priority = ZIO_PRIORITY_RESILVER;
 		needs_io = B_FALSE;
 		scan_delay = zfs_resilver_delay;
 	}
@@ -1735,7 +1731,7 @@ dsl_scan_scrub_cb(dsl_pool_t *dp,
 			delay(MAX((int)scan_delay, 0));
 
 		zio_nowait(zio_read(NULL, spa, bp, data, size,
-		    dsl_scan_scrub_done, NULL, zio_priority,
+		    dsl_scan_scrub_done, NULL, ZIO_PRIORITY_SCRUB,
 		    zio_flags, zb));
 	}
 

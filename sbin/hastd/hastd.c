@@ -806,12 +806,6 @@ listen_accept(struct hastd_listen *lst)
 		 */
 		version = 1;
 	}
-	if (version > HAST_PROTO_VERSION) {
-		pjdlog_info("Remote protocol version %hhu is not supported, falling back to version %hhu.",
-		    version, (unsigned char)HAST_PROTO_VERSION);
-		version = HAST_PROTO_VERSION;
-	}
-	pjdlog_debug(1, "Negotiated protocol version %hhu.", version);
 	token = nv_get_uint8_array(nvin, &size, "token");
 	/*
 	 * NULL token means that this is first connection.
@@ -925,6 +919,12 @@ listen_accept(struct hastd_listen *lst)
 	 */
 
 	if (token == NULL) {
+		if (version > HAST_PROTO_VERSION) {
+			pjdlog_info("Remote protocol version %hhu is not supported, falling back to version %hhu.",
+			    version, (unsigned char)HAST_PROTO_VERSION);
+			version = HAST_PROTO_VERSION;
+		}
+		pjdlog_debug(1, "Negotiated protocol version %hhu.", version);
 		res->hr_version = version;
 		arc4random_buf(res->hr_token, sizeof(res->hr_token));
 		nvout = nv_alloc();

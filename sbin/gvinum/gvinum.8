@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 10, 2009
+.Dd October 1, 2013
 .Dt GVINUM 8
 .Os
 .Sh NAME
@@ -279,27 +279,27 @@ directory with device nodes for
 objects
 .El
 .Sh EXAMPLES
-To create a mirror on disks /dev/ad1 and /dev/ad2, create a filesystem, mount,
-unmount and then stop
+To create a mirror on disks /dev/ada1 and /dev/ada2, create a filesystem,
+mount, unmount and then stop
 .Ic gvinum :
 .Pp
-.Dl "gvinum mirror /dev/ad1 /dev/ad2"
+.Dl "gvinum mirror /dev/ada1 /dev/ada2"
 .Dl "newfs /dev/gvinum/gvinumvolume0"
 .Dl "mount /dev/gvinum/gvinumvolume0 /mnt"
 .Dl "..."
 .Dl "unmount /mnt"
 .Dl "gvinum stop"
 .Pp
-To create a striped mirror on disks /dev/ad1 /dev/ad2 /dev/ad3 and /dev/ad4
-named "data" and create a filesystem:
+To create a striped mirror on disks /dev/ada1 /dev/ada2 /dev/ada3 and
+/dev/ada4 named "data" and create a filesystem:
 .Pp
-.Dl "gvinum mirror -s -n data /dev/ad1 /dev/ad2 /dev/ad3 /dev/ad4"
+.Dl "gvinum mirror -s -n data /dev/ada1 /dev/ada2 /dev/ada3 /dev/ada4"
 .Dl "newfs /dev/gvinum/data"
 .Pp
-To create a raid5 array on disks /dev/ad1 /dev/ad2 and /dev/ad3, with stripesize
-493k you can use the raid5 command:
+To create a raid5 array on disks /dev/ada1 /dev/ada2 and /dev/ada3,
+with stripesize 493k you can use the raid5 command:
 .Pp
-.Dl "gvinum raid5 -s 493k /dev/ad1 /dev/ad2 /dev/ad3"
+.Dl "gvinum raid5 -s 493k /dev/ada1 /dev/ada2 /dev/ada3"
 .Pp
 Then the volume will be created automatically.
 Afterwards, you have to initialize the volume:
@@ -313,9 +313,9 @@ The list command will give you information about its progress.
 Imagine that one of the drives fails, and the output of 'printconfig' looks
 something like this:
 .Pp
-.Dl "drive gvinumdrive1 device /dev/ad2"
+.Dl "drive gvinumdrive1 device /dev/ada2"
 .Dl "drive gvinumdrive2 device /dev/???"
-.Dl "drive gvinumdrive0 device /dev/ad1"
+.Dl "drive gvinumdrive0 device /dev/ada1"
 .Dl "volume myraid5vol"
 .Dl "plex name myraid5vol.p0 org raid5 986s vol myraid5vol"
 .Dl "sd name myraid5vol.p0.s2 drive gvinumdrive2 len 32538s driveoffset 265s"
@@ -327,7 +327,7 @@ something like this:
 .Pp
 Create a new drive with this configuration:
 .Pp
-.Dl "drive gdrive4 device /dev/ad4"
+.Dl "drive gdrive4 device /dev/ada4"
 .Pp
 Then move the stale subdisk to the new drive:
 .Pp
@@ -344,7 +344,7 @@ might be delayed.
 Given the configuration as in the previous example, growing a RAID-5 or STRIPED
 array is accomplished by using the grow command:
 .Pp
-.Dl "gvinum grow myraid5vol.p0 /dev/ad4"
+.Dl "gvinum grow myraid5vol.p0 /dev/ada4"
 .Pp
 If everything went ok, the plex state should now be set to growable.
 You can then start the growing with the

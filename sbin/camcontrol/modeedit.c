@@ -886,12 +886,12 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 	    timeout, data, sizeof(data));
 
 	mh = (struct scsi_mode_header_6 *)data;
-	len = mh->blk_desc_len;		/* Skip block descriptors. */
+	len = sizeof(*mh) + mh->blk_desc_len;	/* Skip block descriptors. */
 	/* Iterate through the pages in the reply. */
 	while (len < mh->data_length) {
 		/* Locate the next mode page header. */
 		mph = (struct scsi_mode_page_header *)
-		    ((intptr_t)mh + sizeof(*mh) + len);
+		    ((intptr_t)mh + len);
 
 		mph->page_code &= SMS_PAGE_CODE;
 		nameentry = nameentry_lookup(mph->page_code);

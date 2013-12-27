@@ -35,18 +35,17 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <stdbool.h>
 #include <wchar.h>
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <_libiconv_compat.h>
-#ifdef __LIBICONV_COMPAT
-#define libiconv_open		iconv_open
-#define libiconv_close		iconv_close
-#define libiconv		iconv
-#define libiconv_t		iconv_t
+#ifdef __cplusplus
+typedef	bool	__iconv_bool;
+#elif __STDC_VERSION__ >= 199901L
+typedef	_Bool	__iconv_bool;
+#else
+typedef	int	__iconv_bool;
 #endif
 
 struct __tag_iconv_t;
@@ -61,7 +60,7 @@ int	iconv_close(iconv_t);
 /*
  * non-portable interfaces for iconv
  */
-int	__iconv_get_list(char ***, size_t *, bool);
+int	__iconv_get_list(char ***, size_t *, __iconv_bool);
 void	__iconv_free_list(char **, size_t);
 size_t	__iconv(iconv_t, const char **, size_t *, char **,
 		     size_t *, __uint32_t, size_t *);
@@ -70,29 +69,12 @@ size_t	__iconv(iconv_t, const char **, size_t *, char **,
 /*
  * GNU interfaces for iconv
  */
-#ifdef __LIBICONV_COMPAT
-#define libiconv_open_into		iconv_open_into
-#define libiconvctl			iconvctl
-#define libiconvlist			iconvlist
-#define libiconv_set_relocation_prefix	iconv_set_relocation_prefix
-#endif
-
-/* We have iconvctl() */
-#define _ICONV_VERSION	0x0108
-extern int _iconv_version;
-
-#ifdef __LIBICONV_COMPAT
-#define _libiconv_version		_iconv_version
-#define _LIBICONV_VERSION		_ICONV_VERSION
-#endif
-
 typedef struct {
 	void	*spaceholder[64];
 } iconv_allocation_t;
 
 int	 iconv_open_into(const char *, const char *, iconv_allocation_t *);
-void	 iconv_set_relocation_prefix(const char *orig_prefix,
-	     const char *curr_prefix);
+void	 iconv_set_relocation_prefix(const char *, const char *);
 
 /*
  * iconvctl() request macros
@@ -104,6 +86,8 @@ void	 iconv_set_relocation_prefix(const char *orig_prefix,
 #define ICONV_SET_DISCARD_ILSEQ	4
 #define ICONV_SET_HOOKS		5
 #define ICONV_SET_FALLBACKS	6
+#define ICONV_GET_ILSEQ_INVALID	128
+#define ICONV_SET_ILSEQ_INVALID	129
 
 typedef void (*iconv_unicode_char_hook) (unsigned int mbr, void *data);
 typedef void (*iconv_wide_char_hook) (wchar_t wc, void *data);

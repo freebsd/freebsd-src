@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/libalias/alias_local.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -674,7 +676,7 @@ static moduledata_t ipfw_nat_mod = {
 };
 
 /* Define startup order. */
-#define	IPFW_NAT_SI_SUB_FIREWALL	SI_SUB_PROTO_IFATTACHDOMAIN
+#define	IPFW_NAT_SI_SUB_FIREWALL	(SI_SUB_PROTO_IFATTACHDOMAIN + 1)
 #define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 255)
 #define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
 #define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)

@@ -59,16 +59,6 @@
 
 /** global config during parsing */
 struct config_parser_state* cfg_parser = 0;
-/** lex in file */
-extern FILE* ub_c_in;
-/** lex out file */
-extern FILE* ub_c_out;
-/** the yacc lex generated parse function */
-int ub_c_parse(void);
-/** the lexer function */
-int ub_c_lex(void);
-/** wrap function */
-int ub_c_wrap(void);
 
 /** init ports possible for use */
 static void init_outgoing_availports(int* array, int num);

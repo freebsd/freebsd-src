@@ -17,6 +17,7 @@ SUBDIR=	adduser \
 	crashinfo \
 	cron \
 	ctladm \
+	ctld \
 	daemon \
 	dconschat \
 	devinfo \
@@ -35,7 +36,7 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
-	isfctl \
+	iscsid \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -120,29 +121,6 @@ SUBDIR+=	praudit
 
 .if ${MK_AUTHPF} != "no"
 SUBDIR+=	authpf
-.endif
-
-.if ${MK_BIND_DNSSEC} != "no" && ${MK_OPENSSL} != "no"
-SUBDIR+=	dnssec-dsfromkey
-SUBDIR+=	dnssec-keyfromlabel
-SUBDIR+=	dnssec-keygen
-SUBDIR+=	dnssec-revoke
-SUBDIR+=	dnssec-settime
-SUBDIR+=	dnssec-signzone
-SUBDIR+=	dnssec-verify
-.endif
-.if ${MK_BIND_NAMED} != "no"
-SUBDIR+=	arpaname
-SUBDIR+=	ddns-confgen
-SUBDIR+=	genrandom
-SUBDIR+=	isc-hmac-fixup
-SUBDIR+=	named
-SUBDIR+=	named-checkconf
-SUBDIR+=	named-checkzone
-SUBDIR+=	named-journalprint
-SUBDIR+=	nsec3hash
-SUBDIR+=	rndc
-SUBDIR+=	rndc-confgen
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
@@ -273,10 +251,6 @@ SUBDIR+=	ftp-proxy
 SUBDIR+=	pkg
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-SUBDIR+=	pkg_install
-.endif
-
 # XXX MK_TOOLCHAIN?
 .if ${MK_PMC} != "no"
 SUBDIR+=	pmcannotate
@@ -313,6 +287,10 @@ SUBDIR+=	sendmail
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config
 SUBDIR+=	crunch
+.endif
+
+.if ${MK_UNBOUND} != "no"
+SUBDIR+=	unbound
 .endif
 
 .if ${MK_USB} != "no"

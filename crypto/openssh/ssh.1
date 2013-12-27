@@ -33,9 +33,9 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.330 2012/10/04 13:21:50 markus Exp $
+.\" $OpenBSD: ssh.1,v 1.334 2013/07/18 01:12:26 djm Exp $
 .\" $FreeBSD$
-.Dd October 4, 2012
+.Dd July 18, 2013
 .Dt SSH 1
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
 .Op Fl D Oo Ar bind_address : Oc Ns Ar port
+.Op Fl E Ar log_file
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
 .Op Fl I Ar pkcs11
@@ -65,6 +66,8 @@
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
 .Ek
+.Nm
+.Fl Q Ar protocol_feature
 .Sh DESCRIPTION
 .Nm
 (SSH client) is a program for logging into a remote machine and for
@@ -218,6 +221,10 @@ indicates that the listening port be bound for local use only, while an
 empty address or
 .Sq *
 indicates that the port should be available from all interfaces.
+.It Fl E Ar log_file
+Append debug logs to
+.Ar log_file
+instead of standard error.
 .It Fl e Ar escape_char
 Sets the escape character for sessions with a pty (default:
 .Ql ~ ) .
@@ -484,6 +491,21 @@ For full details of the options listed below, and their possible values, see
 Port to connect to on the remote host.
 This can be specified on a
 per-host basis in the configuration file.
+.It Fl Q Ar protocol_feature
+Queries
+.Nm
+for the algorithms supported for the specified version 2
+.Ar protocol_feature .
+The queriable features are:
+.Dq cipher
+(supported symmetric ciphers),
+.Dq MAC
+(supported message integrity codes),
+.Dq KEX
+(key exchange algorithms),
+.Dq key
+(key types).
+Protocol features are treated case-insensitively.
 .It Fl q
 Quiet mode.
 Causes most warning and diagnostic messages to be suppressed.
@@ -734,9 +756,7 @@ implements public key authentication protocol automatically,
 using one of the DSA, ECDSA or RSA algorithms.
 Protocol 1 is restricted to using only RSA keys,
 but protocol 2 may use any.
-The
-.Sx HISTORY
-section of
+The HISTORY section of
 .Xr ssl 8
 contains a brief discussion of the DSA and RSA algorithms.
 .Pp
@@ -792,9 +812,7 @@ instead of a set of public/private keys,
 signed certificates are used.
 This has the advantage that a single trusted certification authority
 can be used in place of many public/private keys.
-See the
-.Sx CERTIFICATES
-section of
+See the CERTIFICATES section of
 .Xr ssh-keygen 1
 for more information.
 .Pp
@@ -1321,7 +1339,7 @@ This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
 Because of the potential for abuse, this file must have strict permissions:
-read/write for the user, and not accessible by others.
+read/write for the user, and not writable by others.
 .Pp
 .It Pa ~/.ssh/environment
 Contains additional definitions for environment variables; see

@@ -15,10 +15,16 @@
 #endif
 
 #include "lldb/Core/ConnectionFileDescriptor.h"
+#include "lldb/Host/Config.h"
+#include "lldb/Host/SocketAddress.h"
 
 // C Includes
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#ifndef LLDB_DISABLE_POSIX
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -26,13 +32,17 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <termios.h>
-#include <sys/types.h>
-#include <string.h>
-#include <stdlib.h>
 #include <unistd.h>
+#endif
+#ifdef _WIN32
+#include "lldb/Host/windows/windows.h"
+#include <winsock2.h>
+#include <WS2tcpip.h>
+#endif
 
 // C++ Includes
 // Other libraries and framework includes
+#include "llvm/Support/ErrorHandling.h"
 #if defined(__APPLE__)
 #include "llvm/ADT/SmallVector.h"
 #endif
@@ -43,6 +53,8 @@
 #include "lldb/Core/Log.h"
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Timer.h"
+#include "lldb/Host/Host.h"
+
 
 using namespace lldb;
 using namespace lldb_private;
@@ -84,7 +96,7 @@ ConnectionFileDescriptor::ConnectionFileDescriptor () :
     m_fd_recv (-1),
     m_fd_send_type (eFDTypeFile),
     m_fd_recv_type (eFDTypeFile),
-    m_udp_send_sockaddr (),
+    m_udp_send_sockaddr (new SocketAddress()),
     m_should_close_fd (false), 
     m_socket_timeout_usec(0),
     m_pipe_read(-1),
@@ -103,7 +115,7 @@ ConnectionFileDescriptor::ConnectionFileDescriptor (int fd, bool owns_fd) :
     m_fd_recv (fd),
     m_fd_send_type (eFDTypeFile),
     m_fd_recv_type (eFDTypeFile),
-    m_udp_send_sockaddr (),
+    m_udp_send_sockaddr (new SocketAddress()),
     m_should_close_fd (owns_fd),
     m_socket_timeout_usec(0),
     m_pipe_read(-1),
@@ -135,11 +147,15 @@ ConnectionFileDescriptor::OpenCommandPipe ()
     Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_CONNECTION));
     // Make the command file descriptor here:
     int filedes[2];
+#ifndef LLDB_DISABLE_POSIX
     int result = pipe (filedes);
+#else
+    int result = -1;
+#endif
     if (result != 0)
     {
         if (log)
-            log->Printf ("%p ConnectionFileDescriptor::ConnectionFileDescriptor () - could not make pipe: %s",
+            log->Printf ("%p ConnectionFileDescriptor::OpenCommandPipe () - could not make pipe: %s",
                          this,
                          strerror(errno));
     }
@@ -147,21 +163,39 @@ ConnectionFileDescriptor::OpenCommandPipe ()
     {
         m_pipe_read  = filedes[0];
         m_pipe_write = filedes[1];
+        if (log)
+            log->Printf ("%p ConnectionFileDescriptor::OpenCommandPipe() - success readfd=%d writefd=%d",
+                         this,
+                         m_pipe_read,
+                         m_pipe_write);
     }
 }
 
 void
 ConnectionFileDescriptor::CloseCommandPipe ()
 {
+    Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_CONNECTION));
+    if (log)
+        log->Printf ("%p ConnectionFileDescriptor::CloseCommandPipe()",
+                     this);
+
     if (m_pipe_read != -1)
     {
+#ifdef _MSC_VER
+        llvm_unreachable("pipe close unsupported in MSVC");
+#else
         close (m_pipe_read);
+#endif
         m_pipe_read = -1;
     }
     
     if (m_pipe_write != -1)
     {
+#ifdef _MSC_VER
+        llvm_unreachable("pipe close unsupported in MSVC");
+#else
         close (m_pipe_write);
+#endif
         m_pipe_write = -1;
     }
 }
@@ -223,7 +257,11 @@ ConnectionFileDescriptor::Connect (const char *s, Error *error_ptr)
                 // get the flags from the file descriptor and making sure it 
                 // isn't a bad fd.
                 errno = 0;
+#ifndef LLDB_DISABLE_POSIX
                 int flags = ::fcntl (m_fd_send, F_GETFL, 0);
+#else
+                int flags = -1;
+#endif
                 if (flags == -1 || errno == EBADF)
                 {
                     if (error_ptr)
@@ -262,6 +300,7 @@ ConnectionFileDescriptor::Connect (const char *s, Error *error_ptr)
         {
             // file:///PATH
             const char *path = s + strlen("file://");
+#ifndef LLDB_DISABLE_POSIX
             do
             {
                 m_fd_send = m_fd_recv = ::open (path, O_RDWR);
@@ -304,6 +343,9 @@ ConnectionFileDescriptor::Connect (const char *s, Error *error_ptr)
             }
             m_should_close_fd = true;
             return eConnectionStatusSuccess;
+#else
+            return eConnectionStatusError;
+#endif
         }
         if (error_ptr)
             error_ptr->SetErrorStringWithFormat ("unsupported connection URL: '%s'", s);
@@ -344,27 +386,30 @@ ConnectionFileDescriptor::Disconnect (Error *error_ptr)
     {
         if (m_pipe_write != -1 )
         {
-            write (m_pipe_write, "q", 1);
-            close (m_pipe_write);
-            m_pipe_write = -1;
+            int result;
+            result = write (m_pipe_write, "q", 1);
+            if (log)
+                log->Printf ("%p ConnectionFileDescriptor::Disconnect(): Couldn't get the lock, sent 'q' to %d, result = %d.", this, m_pipe_write, result);
         }
+        else if (log)
+            log->Printf ("%p ConnectionFileDescriptor::Disconnect(): Couldn't get the lock, but no command pipe is available.", this);
         locker.Lock (m_mutex);
     }
-    
+
     if (m_should_close_fd == true)
     {
         if (m_fd_send == m_fd_recv)
         {
-            status = Close (m_fd_send, error_ptr);
+            status = Close (m_fd_send, m_fd_send_type, error_ptr);
         }
         else
         {
             // File descriptors are the different, close both if needed
             if (m_fd_send >= 0)
-                status = Close (m_fd_send, error_ptr);
+                status = Close (m_fd_send, m_fd_send_type, error_ptr);
             if (m_fd_recv >= 0)
             {
-                ConnectionStatus recv_status = Close (m_fd_recv, error_ptr);
+                ConnectionStatus recv_status = Close (m_fd_recv, m_fd_recv_type, error_ptr);
                 if (status == eConnectionStatusSuccess)
                     status = recv_status;
             }
@@ -420,7 +465,21 @@ ConnectionFileDescriptor::Read (void *dst,
     {
         do
         {
+#ifndef LLDB_DISABLE_POSIX
             bytes_read = ::read (m_fd_recv, dst, dst_len);
+#else
+            switch (m_fd_send_type) {
+            case eFDTypeSocket:
+            case eFDTypeSocketUDP:
+                bytes_read = ::recv (m_fd_recv, (char*)dst, dst_len, 0);
+                break;
+            default:
+                bytes_read = -1;
+                break;
+
+            }
+
+#endif
         } while (bytes_read < 0 && errno == EINTR);
     }
 
@@ -494,6 +553,13 @@ ConnectionFileDescriptor::Read (void *dst,
         case ETIMEDOUT: // A transmission timeout occurs during a read attempt on a socket.
             status = eConnectionStatusTimedOut;
             return 0;
+
+        default:
+            if (log)
+                log->Printf("%p ConnectionFileDescriptor::Read (), unexpected error: %s", this, strerror(error_value));
+            status = eConnectionStatusError;
+            break;  // Break to close....
+
         }
 
         return 0;
@@ -523,30 +589,31 @@ ConnectionFileDescriptor::Write (const void *src, size_t src_len, ConnectionStat
 
     switch (m_fd_send_type)
     {
+#ifndef LLDB_DISABLE_POSIX
         case eFDTypeFile:       // Other FD requireing read/write
             do
             {
                 bytes_sent = ::write (m_fd_send, src, src_len);
             } while (bytes_sent < 0 && errno == EINTR);
             break;
-            
+#endif
         case eFDTypeSocket:     // Socket requiring send/recv
             do
             {
-                bytes_sent = ::send (m_fd_send, src, src_len, 0);
+                bytes_sent = ::send (m_fd_send, (char*)src, src_len, 0);
             } while (bytes_sent < 0 && errno == EINTR);
             break;
             
         case eFDTypeSocketUDP:  // Unconnected UDP socket requiring sendto/recvfrom
-            assert (m_udp_send_sockaddr.GetFamily() != 0);
+            assert (m_udp_send_sockaddr->GetFamily() != 0);
             do
             {
                 bytes_sent = ::sendto (m_fd_send, 
-                                       src, 
+                                       (char*)src, 
                                        src_len, 
                                        0, 
-                                       m_udp_send_sockaddr, 
-                                       m_udp_send_sockaddr.GetLength());
+                                       *m_udp_send_sockaddr,
+                                       m_udp_send_sockaddr->GetLength());
             } while (bytes_sent < 0 && errno == EINTR);
             break;
     }
@@ -656,7 +723,8 @@ ConnectionFileDescriptor::BytesAvailable (uint32_t timeout_usec, Error *error_pt
     {
         TimeValue time_value;
         time_value.OffsetWithMicroSeconds (timeout_usec);
-        tv = time_value.GetAsTimeVal();
+        tv.tv_sec = time_value.seconds();
+        tv.tv_usec = time_value.microseconds();
         tv_ptr = &tv;
     }
     
@@ -806,7 +874,8 @@ ConnectionFileDescriptor::BytesAvailable (uint32_t timeout_usec, Error *error_pt
     {
         TimeValue time_value;
         time_value.OffsetWithMicroSeconds (timeout_usec);
-        tv = time_value.GetAsTimeVal();
+        tv.tv_sec = time_value.seconds();
+        tv.tv_usec = time_value.microseconds();
         tv_ptr = &tv;
     }
     
@@ -821,7 +890,9 @@ ConnectionFileDescriptor::BytesAvailable (uint32_t timeout_usec, Error *error_pt
         // If this assert fires off on MacOSX, we will need to switch to using
         // libdispatch to read from file descriptors because poll() is causing
         // kernel panics and if we exceed FD_SETSIZE we will have no choice...
+#ifndef _MSC_VER
         assert (data_fd < FD_SETSIZE);
+#endif
         
         const bool have_pipe_fd = pipe_fd >= 0;
         
@@ -1077,7 +1148,7 @@ ConnectionFileDescriptor::BytesAvailable (uint32_t timeout_usec, Error *error_pt
 #endif
 
 ConnectionStatus
-ConnectionFileDescriptor::Close (int& fd, Error *error_ptr)
+ConnectionFileDescriptor::Close (int& fd, FDType type, Error *error_ptr)
 {
     if (error_ptr)
         error_ptr->Clear();
@@ -1093,7 +1164,11 @@ ConnectionFileDescriptor::Close (int& fd, Error *error_ptr)
             Log *log(lldb_private::GetLogIfAnyCategoriesSet (LIBLLDB_LOG_CONNECTION));
             if (log)
                 log->Printf ("%p ConnectionFileDescriptor::Close (fd = %i)", this,fd);
-
+#if _WIN32
+            if (type != eFDTypeFile)
+              success = closesocket(fd) == 0;
+            else
+#endif
             success = ::close (fd) == 0;
             // A reference to a FD was passed in, set it to an invalid value
             fd = -1;
@@ -1115,6 +1190,7 @@ ConnectionFileDescriptor::Close (int& fd, Error *error_ptr)
 ConnectionStatus
 ConnectionFileDescriptor::NamedSocketAccept (const char *socket_name, Error *error_ptr)
 {
+#ifndef LLDB_DISABLE_POSIX
     ConnectionStatus result = eConnectionStatusError;
     struct sockaddr_un saddr_un;
 
@@ -1131,10 +1207,11 @@ ConnectionFileDescriptor::NamedSocketAccept (const char *socket_name, Error *err
     saddr_un.sun_family = AF_UNIX;
     ::strncpy(saddr_un.sun_path, socket_name, sizeof(saddr_un.sun_path) - 1);
     saddr_un.sun_path[sizeof(saddr_un.sun_path) - 1] = '\0';
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     saddr_un.sun_len = SUN_LEN (&saddr_un);
 #endif
 
+    Host::Unlink (socket_name);
     if (::bind (listen_socket, (struct sockaddr *)&saddr_un, SUN_LEN (&saddr_un)) == 0) 
     {
         if (::listen (listen_socket, 5) == 0) 
@@ -1157,13 +1234,17 @@ ConnectionFileDescriptor::NamedSocketAccept (const char *socket_name, Error *err
             error_ptr->SetErrorToErrno();
     }
     // We are done with the listen port
-    Close (listen_socket, NULL);
+    Close (listen_socket, eFDTypeSocket, NULL);
     return result;
+#else
+    return eConnectionStatusError;
+#endif
 }
 
 ConnectionStatus
 ConnectionFileDescriptor::NamedSocketConnect (const char *socket_name, Error *error_ptr)
 {
+#ifndef LLDB_DISABLE_POSIX
     Disconnect (NULL);
     m_fd_send_type = m_fd_recv_type = eFDTypeSocket;
 
@@ -1180,7 +1261,7 @@ ConnectionFileDescriptor::NamedSocketConnect (const char *socket_name, Error *er
     saddr_un.sun_family = AF_UNIX;
     ::strncpy(saddr_un.sun_path, socket_name, sizeof(saddr_un.sun_path) - 1);
     saddr_un.sun_path[sizeof(saddr_un.sun_path) - 1] = '\0';
-#if defined(__APPLE__) || defined(__FreeBSD__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     saddr_un.sun_len = SUN_LEN (&saddr_un);
 #endif
 
@@ -1194,6 +1275,9 @@ ConnectionFileDescriptor::NamedSocketConnect (const char *socket_name, Error *er
     if (error_ptr)
         error_ptr->Clear();
     return eConnectionStatusSuccess;
+#else
+    return eConnectionStatusError;
+#endif
 }
 
 ConnectionStatus
@@ -1224,7 +1308,7 @@ ConnectionFileDescriptor::SocketListen (uint16_t listen_port_num, Error *error_p
         {
             if (error_ptr)
                 error_ptr->SetErrorToErrno();
-            Close (listen_port, NULL);
+            Close (listen_port, eFDTypeSocket, NULL);
             return eConnectionStatusError;
         }
 
@@ -1233,7 +1317,7 @@ ConnectionFileDescriptor::SocketListen (uint16_t listen_port_num, Error *error_p
         {
             if (error_ptr)
                 error_ptr->SetErrorToErrno();
-            Close (listen_port, NULL);
+            Close (listen_port, eFDTypeSocket, NULL);
             return eConnectionStatusError;
         }
 
@@ -1242,13 +1326,13 @@ ConnectionFileDescriptor::SocketListen (uint16_t listen_port_num, Error *error_p
         {
             if (error_ptr)
                 error_ptr->SetErrorToErrno();
-            Close (listen_port, NULL);
+            Close (listen_port, eFDTypeSocket, NULL);
             return eConnectionStatusError;
         }
     }
 
     // We are done with the listen port
-    Close (listen_port, NULL);
+    Close (listen_port, eFDTypeSocket, NULL);
 
     m_should_close_fd = true;
 
@@ -1408,7 +1492,7 @@ ConnectionFileDescriptor::ConnectUDP (const char *host_and_port, Error *error_pt
         
         if (m_fd_send != -1)
         {
-            m_udp_send_sockaddr = service_info_ptr;
+            *m_udp_send_sockaddr = service_info_ptr;
             break;
         }
         else
@@ -1430,18 +1514,18 @@ ConnectionFileDescriptor::ConnectUDP (const char *host_and_port, Error *error_pt
     return eConnectionStatusSuccess;
 }
 
-#if defined(__MINGW32__) || defined(__MINGW64__)
+#if defined(_WIN32)
 typedef const char * set_socket_option_arg_type;
 typedef char * get_socket_option_arg_type;
-#else // #if defined(__MINGW32__) || defined(__MINGW64__)
+#else // #if defined(_WIN32)
 typedef const void * set_socket_option_arg_type;
 typedef void * get_socket_option_arg_type;
-#endif // #if defined(__MINGW32__) || defined(__MINGW64__)
+#endif // #if defined(_WIN32)
 
 int
 ConnectionFileDescriptor::GetSocketOption(int fd, int level, int option_name, int &option_value)
 {
-    get_socket_option_arg_type option_value_p = static_cast<get_socket_option_arg_type>(&option_value);
+    get_socket_option_arg_type option_value_p = reinterpret_cast<get_socket_option_arg_type>(&option_value);
     socklen_t option_value_size = sizeof(int);
 	return ::getsockopt(fd, level, option_name, option_value_p, &option_value_size);
 }
@@ -1449,7 +1533,7 @@ ConnectionFileDescriptor::GetSocketOption(int fd, int level, int option_name, in
 int
 ConnectionFileDescriptor::SetSocketOption(int fd, int level, int option_name, int option_value)
 {
-    set_socket_option_arg_type option_value_p = static_cast<get_socket_option_arg_type>(&option_value);
+    set_socket_option_arg_type option_value_p = reinterpret_cast<get_socket_option_arg_type>(&option_value);
 	return ::setsockopt(fd, level, option_name, option_value_p, sizeof(option_value));
 }
 
@@ -1487,7 +1571,7 @@ ConnectionFileDescriptor::SetSocketReceiveTimeout (uint32_t timeout_usec)
                 timeout.tv_sec = timeout_usec / TimeValue::MicroSecPerSec;
                 timeout.tv_usec = timeout_usec % TimeValue::MicroSecPerSec;
             }
-            if (::setsockopt (m_fd_recv, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) == 0)
+            if (::setsockopt (m_fd_recv, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<get_socket_option_arg_type>(&timeout), sizeof(timeout)) == 0)
             {
                 m_socket_timeout_usec = timeout_usec;
                 return true;

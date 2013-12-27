@@ -42,13 +42,25 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 
 #include <sys/param.h>
+#include <sys/lock.h>
+#include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
-#include <net/pf_mtag.h>
+
+#include <netinet/in.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
+
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet/icmp6.h>
+#endif
 
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
@@ -58,10 +70,9 @@ static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
 			    uint16_t, int, struct pf_anchor_stackframe *);
-static int		 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
-			    struct pf_addr *, struct pf_addr *, u_int16_t,
-			    struct pf_addr *, u_int16_t*, u_int16_t, u_int16_t,
-			    struct pf_src_node **);
+static int pf_get_sport(sa_family_t, uint8_t, struct pf_rule *,
+    struct pf_addr *, uint16_t, struct pf_addr *, uint16_t, struct pf_addr *,
+    uint16_t *, uint16_t, uint16_t, struct pf_src_node **);
 
 #define mix(a,b,c) \
 	do {					\
@@ -210,51 +221,66 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 
 static int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
-    struct pf_addr *saddr, struct pf_addr *daddr, u_int16_t dport,
-    struct pf_addr *naddr, u_int16_t *nport, u_int16_t low, u_int16_t high,
-    struct pf_src_node **sn)
+    struct pf_addr *saddr, uint16_t sport, struct pf_addr *daddr,
+    uint16_t dport, struct pf_addr *naddr, uint16_t *nport, uint16_t low,
+    uint16_t high, struct pf_src_node **sn)
 {
 	struct pf_state_key_cmp	key;
 	struct pf_addr		init_addr;
-	u_int16_t		cut;
 
 	bzero(&init_addr, sizeof(init_addr));
 	if (pf_map_addr(af, r, saddr, naddr, &init_addr, sn))
 		return (1);
 
-	if (proto == IPPROTO_ICMP) {
+	switch (proto) {
+	case IPPROTO_ICMP:
+		if (dport != htons(ICMP_ECHO))
+			return (0);
 		low = 1;
 		high = 65535;
+		break;
+#ifdef INET6
+	case IPPROTO_ICMPV6:
+		if (dport != htons(ICMP6_ECHO_REQUEST))
+			return (0);
+		low = 1;
+		high = 65535;
+		break;
+#endif
 	}
 
+	bzero(&key, sizeof(key));
+	key.af = af;
+	key.proto = proto;
+	key.port[0] = dport;
+	PF_ACPY(&key.addr[0], daddr, key.af);
+
 	do {
-		key.af = af;
-		key.proto = proto;
-		PF_ACPY(&key.addr[1], daddr, key.af);
-		PF_ACPY(&key.addr[0], naddr, key.af);
-		key.port[1] = dport;
+		PF_ACPY(&key.addr[1], naddr, key.af);
 
 		/*
 		 * port search; start random, step;
 		 * similar 2 portloop in in_pcbbind
 		 */
 		if (!(proto == IPPROTO_TCP || proto == IPPROTO_UDP ||
-		    proto == IPPROTO_ICMP)) {
-			key.port[0] = dport;
-			if (pf_find_state_all(&key, PF_IN, NULL) == NULL)
+		    proto == IPPROTO_ICMP) || (low == 0 && high == 0)) {
+			/*
+			 * XXX bug: icmp states don't use the id on both sides.
+			 * (traceroute -I through nat)
+			 */
+			key.port[1] = sport;
+			if (pf_find_state_all(&key, PF_IN, NULL) == NULL) {
+				*nport = sport;
 				return (0);
-		} else if (low == 0 && high == 0) {
-			key.port[0] = *nport;
-			if (pf_find_state_all(&key, PF_IN, NULL) == NULL)
-				return (0);
+			}
 		} else if (low == high) {
-			key.port[0] = htons(low);
+			key.port[1] = htons(low);
 			if (pf_find_state_all(&key, PF_IN, NULL) == NULL) {
 				*nport = htons(low);
 				return (0);
 			}
 		} else {
-			u_int16_t tmp;
+			uint16_t tmp, cut;
 
 			if (low > high) {
 				tmp = low;
@@ -262,10 +288,10 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				high = tmp;
 			}
 			/* low < high */
-			cut = htonl(arc4random()) % (1 + high - low) + low;
+			cut = arc4random() % (1 + high - low) + low;
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high; ++(tmp)) {
-				key.port[0] = htons(tmp);
+				key.port[1] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
 				    NULL) {
 					*nport = htons(tmp);
@@ -273,7 +299,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				}
 			}
 			for (tmp = cut - 1; tmp >= low; --(tmp)) {
-				key.port[0] = htons(tmp);
+				key.port[1] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
 				    NULL) {
 					*nport = htons(tmp);
@@ -551,8 +577,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 
 	switch (r->action) {
 	case PF_NAT:
-		if (pf_get_sport(pd->af, pd->proto, r, saddr, daddr, dport,
-		    naddr, nport, r->rpool.proxy_port[0],
+		if (pf_get_sport(pd->af, pd->proto, r, saddr, sport, daddr,
+		    dport, naddr, nport, r->rpool.proxy_port[0],
 		    r->rpool.proxy_port[1], sn)) {
 			DPFPRINTF(PF_DEBUG_MISC,
 			    ("pf: NAT proxy port allocation (%u-%u) failed\n",

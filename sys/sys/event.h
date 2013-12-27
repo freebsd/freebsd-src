@@ -135,7 +135,7 @@ struct kevent {
 struct knote;
 SLIST_HEAD(klist, knote);
 struct kqueue;
-SLIST_HEAD(kqlist, kqueue);
+TAILQ_HEAD(kqlist, kqueue);
 struct knlist {
 	struct	klist	kl_list;
 	void    (*kl_lock)(void *);	/* lock function */

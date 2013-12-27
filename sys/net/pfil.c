@@ -45,6 +45,7 @@
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/pfil.h>
 
 static struct mtx pfil_global_lock;

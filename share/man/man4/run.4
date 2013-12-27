@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2012
+.Dd December 27, 2013
 .Dt RUN 4
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ runfw_load="YES"
 The
 .Nm
 driver supports USB 2.0 wireless adapters based on the Ralink RT2700U,
-RT2800U and RT3000U chipsets.
+RT2800U, RT3000U and RT3900E chipsets.
 .Pp
 The RT2700U chipset consists of two integrated chips, an RT2770 MAC/BBP and
 an RT2720 (1T2R) or RT2750 (dual-band 1T2R) radio transceiver.
@@ -63,6 +63,9 @@ an RT2820 (2T3R) or RT2850 (dual-band 2T3R) radio transceiver.
 The RT3000U is a single-chip solution based on an RT3070 MAC/BBP and
 an RT3020 (1T1R), RT3021 (1T2R) or RT3022 (2T2R) single-band radio
 transceiver.
+.Pp
+The RT3900E is a single-chip solution based on an RT5390 MAC/BBP and
+an RT5370 (1T1R) or RT5372 (2T2R) single-band radio transceiver.
 .Pp
 These are the modes the
 .Nm
@@ -129,7 +132,8 @@ driver supports the following wireless adapters:
 .It Corega CG-WLUSB300AGN
 .It Corega CG-WLUSB300GNM
 .It D-Link DWA-130 rev B1
-.It D-Link DWA-140 rev B1, B2
+.It D-Link DWA-140 rev B1, B2, B3, D1
+.It D-Link DWA-160 rev B2
 .It DrayTek Vigor N61
 .It Edimax EW-7711UAn
 .It Edimax EW-7711UTn
@@ -156,6 +160,8 @@ driver supports the following wireless adapters:
 .It SMC SMCWUSBS-N2
 .It Sweex LW303
 .It Sweex LW313
+.It TP-LINK TL-WDN3200
+.It TP-LINK TL-WN727N v3
 .It Unex DNUR-81
 .It Unex DNUR-82
 .It ZyXEL NWD210N

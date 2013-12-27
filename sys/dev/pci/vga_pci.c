@@ -67,6 +67,12 @@ struct vga_pci_softc {
 
 SYSCTL_DECL(_hw_pci);
 
+static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
+static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+static int	vga_pci_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
+
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
@@ -75,17 +81,58 @@ SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
 int
 vga_pci_is_boot_display(device_t dev)
 {
+	int unit;
+	device_t pcib;
+	uint16_t config;
+
+	/* Check that the given device is a video card */
+	if ((pci_get_class(dev) != PCIC_DISPLAY &&
+	    (pci_get_class(dev) != PCIC_OLD ||
+	     pci_get_subclass(dev) != PCIS_OLD_VGA)))
+		return (0);
+
+	unit = device_get_unit(dev);
+
+	if (vga_pci_default_unit >= 0) {
+		/*
+		 * The boot display device was determined by a previous
+		 * call to this function, or the user forced it using
+		 * the hw.pci.default_vgapci_unit tunable.
+		 */
+		return (vga_pci_default_unit == unit);
+	}
 
 	/*
-	 * Return true if the given device is the default display used
-	 * at boot time.
+	 * The primary video card used as a boot display must have the
+	 * "I/O" and "Memory Address Space Decoding" bits set in its
+	 * Command register.
+	 *
+	 * Furthermore, if the card is attached to a bridge, instead of
+	 * the root PCI bus, the bridge must have the "VGA Enable" bit
+	 * set in its Control register.
 	 */
 
-	return (
-	    (pci_get_class(dev) == PCIC_DISPLAY ||
-	     (pci_get_class(dev) == PCIC_OLD &&
-	      pci_get_subclass(dev) == PCIS_OLD_VGA)) &&
-	    device_get_unit(dev) == vga_pci_default_unit);
+	pcib = device_get_parent(device_get_parent(dev));
+	if (device_get_devclass(device_get_parent(pcib)) ==
+	    devclass_find("pci")) {
+		/*
+		 * The parent bridge is a PCI-to-PCI bridge: check the
+		 * value of the "VGA Enable" bit.
+		 */
+		config = pci_read_config(pcib, PCIR_BRIDGECTL_1, 2);
+		if ((config & PCIB_BCR_VGA_ENABLE) == 0)
+			return (0);
+	}
+
+	config = pci_read_config(dev, PCIR_COMMAND, 2);
+	if ((config & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN)) == 0)
+		return (0);
+
+	/* This video card is the boot display: record its unit number. */
+	vga_pci_default_unit = unit;
+	device_set_flags(dev, 1);
+
+	return (1);
 }
 
 void *
@@ -111,7 +158,8 @@ vga_pci_map_bios(device_t dev, size_t *size)
 #endif
 
 	rid = PCIR_BIOS;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0ul,
+	    ~0ul, 1, RF_ACTIVE);
 	if (res == NULL) {
 		return (NULL);
 	}
@@ -123,8 +171,7 @@ vga_pci_map_bios(device_t dev, size_t *size)
 void
 vga_pci_unmap_bios(device_t dev, void *bios)
 {
-	int rid;
-	struct resource *res;
+	struct vga_resource *vr;
 
 	if (bios == NULL) {
 		return;
@@ -140,33 +187,20 @@ vga_pci_unmap_bios(device_t dev, void *bios)
 #endif
 
 	/*
-	 * FIXME: We returned only the virtual address of the resource
-	 * to the caller. Now, to get the resource struct back, we
-	 * allocate it again: the struct exists once in memory in
-	 * device softc. Therefore, we release twice now to release the
-	 * reference we just obtained to get the structure back and the
-	 * caller's reference.
+	 * Look up the PCIR_BIOS resource in our softc.  It should match
+	 * the address we returned previously.
 	 */
-
-	rid = PCIR_BIOS;
-	res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, RF_ACTIVE);
-
-	KASSERT(res != NULL,
-	    ("%s: Can't get BIOS resource back", __func__));
-	KASSERT(bios == rman_get_virtual(res),
-	    ("%s: Given BIOS address doesn't match "
-	     "resource virtual address", __func__));
-
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
-	bus_release_resource(dev, SYS_RES_MEMORY, rid, bios);
+	vr = lookup_res(device_get_softc(dev), PCIR_BIOS);
+	KASSERT(vr->vr_res != NULL, ("vga_pci_unmap_bios: bios not mapped"));
+	KASSERT(rman_get_virtual(vr->vr_res) == bios,
+	    ("vga_pci_unmap_bios: mismatch"));
+	vga_pci_release_resource(dev, NULL, SYS_RES_MEMORY, PCIR_BIOS,
+	    vr->vr_res);
 }
 
 static int
 vga_pci_probe(device_t dev)
 {
-	device_t bdev;
-	int unit;
-	uint16_t bctl;
 
 	switch (pci_get_class(dev)) {
 	case PCIC_DISPLAY:
@@ -180,13 +214,7 @@ vga_pci_probe(device_t dev)
 	}
 
 	/* Probe default display. */
-	unit = device_get_unit(dev);
-	bdev = device_get_parent(device_get_parent(dev));
-	bctl = pci_read_config(bdev, PCIR_BRIDGECTL_1, 2);
-	if (vga_pci_default_unit < 0 && (bctl & PCIB_BCR_VGA_ENABLE) != 0)
-		vga_pci_default_unit = unit;
-	if (vga_pci_default_unit == unit)
-		device_set_flags(dev, 1);
+	vga_pci_is_boot_display(dev);
 
 	device_set_desc(dev, "VGA-compatible display");
 	return (BUS_PROBE_GENERIC);
@@ -202,6 +230,10 @@ vga_pci_attach(device_t dev)
 	device_add_child(dev, "drm", -1);
 	device_add_child(dev, "drmn", -1);
 	bus_generic_attach(dev);
+
+	if (vga_pci_is_boot_display(dev))
+		device_printf(dev, "Boot video device\n");
+
 	return (0);
 }
 

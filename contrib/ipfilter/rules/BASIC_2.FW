@@ -56,7 +56,7 @@ pass out quick on lo0 all
 #
 # Allow all outgoing connections (SSH, TELNET, FTP, WWW, gopher, etc)
 #
-pass in log quick proto tcp all flags S/SA keep state group 200 
+pass in log quick proto tcp all flags S/SA keep state group 200
 #
 # Support all UDP `connections' initiated from inside.
 #

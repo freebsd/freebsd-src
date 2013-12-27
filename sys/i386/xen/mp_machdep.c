@@ -85,19 +85,57 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 #include <machine/pcpu.h>
 
-
-
 #include <xen/xen-os.h>
 #include <xen/evtchn.h>
 #include <xen/xen_intr.h>
 #include <xen/hypervisor.h>
 #include <xen/interface/vcpu.h>
 
+/*---------------------------- Extern Declarations ---------------------------*/
+extern	struct pcpu __pcpu[];
+
+extern void Xhypervisor_callback(void);
+extern void failsafe_callback(void);
+extern void pmap_lazyfix_action(void);
+
+/*--------------------------- Forward Declarations ---------------------------*/
+static driver_filter_t	smp_reschedule_interrupt;
+static driver_filter_t	smp_call_function_interrupt;
+static void		assign_cpu_ids(void);
+static void		set_interrupt_apic_ids(void);
+static int		start_all_aps(void);
+static int		start_ap(int apic_id);
+static void		release_aps(void *dummy);
+
+/*---------------------------------- Macros ----------------------------------*/
+#define	IPI_TO_IDX(ipi) ((ipi) - APIC_IPI_INTS)
+
+/*-------------------------------- Local Types -------------------------------*/
+typedef void call_data_func_t(uintptr_t , uintptr_t);
+
+struct cpu_info {
+	int	cpu_present:1;
+	int	cpu_bsp:1;
+	int	cpu_disabled:1;
+};
+
+struct xen_ipi_handler
+{
+	driver_filter_t	*filter;
+	const char	*description;
+};
+
+enum {
+	RESCHEDULE_VECTOR,
+	CALL_FUNCTION_VECTOR,
+};
+
+/*-------------------------------- Global Data -------------------------------*/
+static u_int	hyperthreading_cpus;
+static cpuset_t	hyperthreading_cpus_mask;
 
 int	mp_naps;		/* # of Applications processors */
 int	boot_cpu_id = -1;	/* designated BSP */
-
-extern	struct pcpu __pcpu[];
 
 static int bootAP;
 static union descriptor *bootAPgdt;
@@ -112,8 +150,6 @@ vm_offset_t smp_tlb_addr1;
 vm_offset_t smp_tlb_addr2;
 volatile int smp_tlb_wait;
 
-typedef void call_data_func_t(uintptr_t , uintptr_t);
-
 static u_int logical_cpus;
 static volatile cpuset_t ipi_nmi_pending;
 
@@ -127,11 +163,7 @@ static volatile int aps_ready = 0;
  * Store data from cpu_add() until later in the boot when we actually setup
  * the APs.
  */
-struct cpu_info {
-	int	cpu_present:1;
-	int	cpu_bsp:1;
-	int	cpu_disabled:1;
-} static cpu_info[MAX_APIC_ID + 1];
+static struct cpu_info cpu_info[MAX_APIC_ID + 1];
 int cpu_apic_ids[MAXCPU];
 int apic_cpuids[MAX_APIC_ID + 1];
 
@@ -141,22 +173,17 @@ static volatile u_int cpu_ipi_pending[MAXCPU];
 static int cpu_logical;
 static int cpu_cores;
 
-static void	assign_cpu_ids(void);
-static void	set_interrupt_apic_ids(void);
-int	start_all_aps(void);
-static int	start_ap(int apic_id);
-static void	release_aps(void *dummy);
+static const struct xen_ipi_handler xen_ipis[] = 
+{
+	[RESCHEDULE_VECTOR]	= { smp_reschedule_interrupt,	"resched"  },
+	[CALL_FUNCTION_VECTOR]	= { smp_call_function_interrupt,"callfunc" }
+};
 
-static u_int	hyperthreading_cpus;
-static cpuset_t	hyperthreading_cpus_mask;
-
-extern void Xhypervisor_callback(void);
-extern void failsafe_callback(void);
-extern void pmap_lazyfix_action(void);
-
-DPCPU_DEFINE(xen_intr_handle_t, ipi_port[NR_IPIS]);
+/*------------------------------- Per-CPU Data -------------------------------*/
+DPCPU_DEFINE(xen_intr_handle_t, ipi_handle[nitems(xen_ipis)]);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
+/*------------------------------ Implementation ------------------------------*/
 struct cpu_group *
 cpu_topo(void)
 {
@@ -355,12 +382,12 @@ iv_lazypmap(uintptr_t a, uintptr_t b)
  */
 static call_data_func_t *ipi_vectors[6] = 
 {
-  iv_rendezvous,
-  iv_invltlb,
-  iv_invlpg,
-  iv_invlrng,
-  iv_invlcache,
-  iv_lazypmap,
+	iv_rendezvous,
+	iv_invltlb,
+	iv_invlpg,
+	iv_invlrng,
+	iv_invlcache,
+	iv_lazypmap,
 };
 
 /*
@@ -414,10 +441,11 @@ smp_call_function_interrupt(void *unused)
 	atomic_t *finished = &call_data->finished;
 
 	/* We only handle function IPIs, not bitmap IPIs */
-	if (call_data->func_id < APIC_IPI_INTS || call_data->func_id > IPI_BITMAP_VECTOR)
+	if (call_data->func_id < APIC_IPI_INTS ||
+	    call_data->func_id > IPI_BITMAP_VECTOR)
 		panic("invalid function id %u", call_data->func_id);
 	
-	func = ipi_vectors[call_data->func_id - APIC_IPI_INTS];
+	func = ipi_vectors[IPI_TO_IDX(call_data->func_id)];
 	/*
 	 * Notify initiating CPU that I've grabbed the data and am
 	 * about to execute the function
@@ -463,45 +491,44 @@ cpu_mp_announce(void)
 static int
 xen_smp_cpu_init(unsigned int cpu)
 {
-	int rc;
-	xen_intr_handle_t irq_handle;
+	xen_intr_handle_t *ipi_handle;
+	const struct xen_ipi_handler *ipi;
+	int idx, rc;
 
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
+	ipi_handle = DPCPU_ID_GET(cpu, ipi_handle);
+	for (ipi = xen_ipis, idx = 0; idx < nitems(xen_ipis); ipi++, idx++) {
 
-	/*
-	 * The PCPU variable pc_device is not initialized on i386 PV,
-	 * so we have to use the root_bus device in order to setup
-	 * the IPIs.
-	 */
-	rc = xen_intr_bind_ipi(root_bus, RESCHEDULE_VECTOR,
-	    cpu, smp_reschedule_interrupt, INTR_TYPE_TTY, &irq_handle);
-	if (rc < 0)
-		goto fail;
-	xen_intr_describe(irq_handle, "resched%u", cpu);
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], irq_handle);
+		/*
+		 * The PCPU variable pc_device is not initialized on i386 PV,
+		 * so we have to use the root_bus device in order to setup
+		 * the IPIs.
+		 */
+		rc = xen_intr_alloc_and_bind_ipi(root_bus, cpu,
+		    ipi->filter, INTR_TYPE_TTY, &ipi_handle[idx]);
+		if (rc != 0) {
+			printf("Unable to allocate a XEN IPI port. "
+			    "Error %d\n", rc);
+			break;
+		}
+		xen_intr_describe(ipi_handle[idx], "%s", ipi->description);
+	}
 
-	printf("[XEN] IPI cpu=%d port=%d vector=RESCHEDULE_VECTOR (%d)\n",
-	    cpu, xen_intr_port(irq_handle), RESCHEDULE_VECTOR);
+	for (;idx < nitems(xen_ipis); idx++)
+		    ipi_handle[idx] = NULL;
 
-	rc = xen_intr_bind_ipi(root_bus, CALL_FUNCTION_VECTOR,
-	    cpu, smp_call_function_interrupt, INTR_TYPE_TTY, &irq_handle);
-	if (rc < 0)
-		goto fail;
-	xen_intr_describe(irq_handle, "callfunc%u", cpu);
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], irq_handle);
+	if (rc == 0)
+		return (0);
 
-	printf("[XEN] IPI cpu=%d port=%d vector=CALL_FUNCTION_VECTOR (%d)\n",
-	    cpu, xen_intr_port(irq_handle), CALL_FUNCTION_VECTOR);
+	/* Either all are successfully mapped, or none at all. */
+	for (idx = 0; idx < nitems(xen_ipis); idx++) {
+		if (ipi_handle[idx] == NULL)
+			continue;
 
-	return 0;
+		xen_intr_unbind(ipi_handle[idx]);
+		ipi_handle[idx] = NULL;
+	}
 
- fail:
-	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[RESCHEDULE_VECTOR]));
-	DPCPU_ID_SET(cpu, ipi_port[RESCHEDULE_VECTOR], NULL);
-	xen_intr_unbind(DPCPU_ID_GET(cpu, ipi_port[CALL_FUNCTION_VECTOR]));
-	DPCPU_ID_SET(cpu, ipi_port[CALL_FUNCTION_VECTOR], NULL);
-	return rc;
+	return (rc);
 }
 
 static void
@@ -756,6 +783,7 @@ start_all_aps(void)
 		dpcpu_init((void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
 		    M_WAITOK | M_ZERO), bootAP);
 		pc->pc_apic_id = cpu_apic_ids[bootAP];
+		pc->pc_vcpu_id = cpu_apic_ids[bootAP];
 		pc->pc_prvspace = pc;
 		pc->pc_curthread = 0;
 
@@ -795,7 +823,7 @@ start_all_aps(void)
 	pmap_invalidate_range(kernel_pmap, 0, NKPT * NBPDR - 1);
 	
 	/* number of APs actually started */
-	return mp_naps;
+	return (mp_naps);
 }
 
 extern uint8_t *pcpu_boot_stack;
@@ -900,7 +928,8 @@ cpu_initialize_context(unsigned int cpu)
 	smp_trap_init(ctxt.trap_ctxt);
 
 	ctxt.ldt_ents = 0;
-	ctxt.gdt_frames[0] = (uint32_t)((uint64_t)vtomach(bootAPgdt) >> PAGE_SHIFT);
+	ctxt.gdt_frames[0] =
+	    (uint32_t)((uint64_t)vtomach(bootAPgdt) >> PAGE_SHIFT);
 	ctxt.gdt_ents      = 512;
 
 #ifdef __i386__
@@ -960,17 +989,17 @@ start_ap(int apic_id)
 	/* Wait up to 5 seconds for it to start. */
 	for (ms = 0; ms < 5000; ms++) {
 		if (mp_naps > cpus)
-			return 1;	/* return SUCCESS */
+			return (1);	/* return SUCCESS */
 		DELAY(1000);
 	}
-	return 0;		/* return FAILURE */
+	return (0);		/* return FAILURE */
 }
 
 static void
 ipi_pcpu(int cpu, u_int ipi)
 {
-	KASSERT((ipi <= NR_IPIS), ("invalid IPI"));
-	xen_intr_signal(DPCPU_ID_GET(cpu, ipi_port[ipi]));
+	KASSERT((ipi <= nitems(xen_ipis)), ("invalid IPI"));
+	xen_intr_signal(DPCPU_ID_GET(cpu, ipi_handle[ipi]));
 }
 
 /*
@@ -1026,7 +1055,8 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
 }
 
 static void
-smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1, vm_offset_t addr2)
+smp_targeted_tlb_shootdown(cpuset_t mask, u_int vector, vm_offset_t addr1,
+    vm_offset_t addr2)
 {
 	int cpu, ncpu, othercpus;
 	struct _call_data data;
@@ -1262,4 +1292,3 @@ release_aps(void *dummy __unused)
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
 SYSINIT(start_ipis, SI_SUB_SMP, SI_ORDER_ANY, xen_smp_intr_init_cpus, NULL);
 SYSINIT(start_cpu, SI_SUB_INTR, SI_ORDER_ANY, xen_smp_intr_setup_cpus, NULL);
-

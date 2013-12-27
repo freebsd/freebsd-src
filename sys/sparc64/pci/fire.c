@@ -756,12 +756,10 @@ fire_attach(device_t dev)
 	free(range, M_OFWPROP);
 
 	/* Allocate our tags. */
-	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[FIRE_PCI]), PCI_IO_BUS_SPACE, NULL);
+	sc->sc_pci_iot = sparc64_alloc_bus_tag(NULL, PCI_IO_BUS_SPACE);
 	if (sc->sc_pci_iot == NULL)
 		panic("%s: could not allocate PCI I/O tag", __func__);
-	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, rman_get_bustag(
-	    sc->sc_mem_res[FIRE_PCI]), PCI_CONFIG_BUS_SPACE, NULL);
+	sc->sc_pci_cfgt = sparc64_alloc_bus_tag(NULL, PCI_CONFIG_BUS_SPACE);
 	if (sc->sc_pci_cfgt == NULL)
 		panic("%s: could not allocate PCI configuration space tag",
 		    __func__);
@@ -1472,13 +1470,12 @@ fire_route_interrupt(device_t bridge, device_t dev, int pin)
 	struct fire_softc *sc;
 	struct ofw_pci_register reg;
 	ofw_pci_intr_t pintr, mintr;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bridge);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
 	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    NULL, maskbuf) != 0)
+	    NULL) != 0)
 		return (mintr);
 
 	device_printf(bridge, "could not route pin %d for device %d.%d\n",
@@ -2072,8 +2069,7 @@ fire_activate_resource(device_t bus, device_t child, int type, int rid,
 		return (bus_generic_activate_resource(bus, child, type, rid,
 		    r));
 	case SYS_RES_MEMORY:
-		tag = sparc64_alloc_bus_tag(r, rman_get_bustag(
-		    sc->sc_mem_res[FIRE_PCI]), PCI_MEMORY_BUS_SPACE, NULL);
+		tag = sparc64_alloc_bus_tag(r, PCI_MEMORY_BUS_SPACE);
 		if (tag == NULL)
 			return (ENOMEM);
 		rman_set_bustag(r, tag);

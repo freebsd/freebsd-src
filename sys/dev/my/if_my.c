@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #define NBPFILTER	1
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>

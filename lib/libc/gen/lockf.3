@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 19, 1997
+.Dd September 11, 2013
 .Dt LOCKF 3
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .In unistd.h
 .Ft int
-.Fn lockf "int filedes" "int function" "off_t size"
+.Fn lockf "int fd" "int function" "off_t size"
 .Sh DESCRIPTION
 The
 .Fn lockf
@@ -52,7 +52,7 @@ either return an error value or block until the section becomes unlocked.
 All the locks for a process are removed when the process terminates.
 .Pp
 The argument
-.Fa filedes
+.Fa fd
 is an open file descriptor.
 The file descriptor must have been opened either for write-only
 .Dv ( O_WRONLY )
@@ -207,7 +207,7 @@ or
 and the section is already locked by another process.
 .It Bq Er EBADF
 The argument
-.Fa filedes
+.Fa fd
 is not a valid open file descriptor.
 .Pp
 The argument
@@ -217,7 +217,7 @@ is
 or
 .Dv F_TLOCK ,
 and
-.Fa filedes
+.Fa fd
 is not a valid file descriptor open for writing.
 .It Bq Er EDEADLK
 The argument
@@ -243,7 +243,7 @@ or
 .Dv F_TEST .
 .Pp
 The argument
-.Fa filedes
+.Fa fd
 refers to a file that does not support locking.
 .It Bq Er ENOLCK
 The argument

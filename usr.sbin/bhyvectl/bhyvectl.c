@@ -188,12 +188,16 @@ usage(void)
 	"       [--unassign-pptdev=<bus/slot/func>]\n"
 	"       [--set-mem=<memory in units of MB>]\n"
 	"       [--get-lowmem]\n"
-	"       [--get-highmem]\n",
+	"       [--get-highmem]\n"
+	"       [--get-gpa-pmap]\n"
+	"       [--assert-lapic-lvt=<pin>]\n"
+	"       [--inject-nmi]\n",
 	progname);
 	exit(1);
 }
 
-static int get_stats, getcap, setcap, capval;
+static int get_stats, getcap, setcap, capval, get_gpa_pmap;
+static int inject_nmi, assert_lapic_lvt;
 static const char *capname;
 static int create, destroy, get_lowmem, get_highmem;
 static uint64_t memsize;
@@ -377,18 +381,21 @@ enum {
 	SET_CAP,
 	CAPNAME,
 	UNASSIGN_PPTDEV,
+	GET_GPA_PMAP,
+	ASSERT_LAPIC_LVT,
 };
 
 int
 main(int argc, char *argv[])
 {
 	char *vmname;
-	int error, ch, vcpu;
-	vm_paddr_t gpa;
+	int error, ch, vcpu, ptenum;
+	vm_paddr_t gpa, gpa_pmap;
 	size_t len;
 	struct vm_exit vmexit;
-	uint64_t ctl, eptp, bm, addr, u64;
+	uint64_t ctl, eptp, bm, addr, u64, pteval[4], *pte;
 	struct vmctx *ctx;
+	int wired;
 
 	uint64_t cr0, cr3, cr4, dr7, rsp, rip, rflags, efer, pat;
 	uint64_t rax, rbx, rcx, rdx, rsi, rdi, rbp;
@@ -427,6 +434,8 @@ main(int argc, char *argv[])
 		{ "capname",	REQ_ARG,	0,	CAPNAME },
 		{ "unassign-pptdev", REQ_ARG,	0,	UNASSIGN_PPTDEV },
 		{ "setcap",	REQ_ARG,	0,	SET_CAP },
+		{ "get-gpa-pmap", REQ_ARG,	0,	GET_GPA_PMAP },
+		{ "assert-lapic-lvt", REQ_ARG,	0,	ASSERT_LAPIC_LVT },
 		{ "getcap",	NO_ARG,		&getcap,	1 },
 		{ "get-stats",	NO_ARG,		&get_stats,	1 },
 		{ "get-desc-ds",NO_ARG,		&get_desc_ds,	1 },
@@ -553,10 +562,12 @@ main(int argc, char *argv[])
 		{ "run",	NO_ARG,		&run,		1 },
 		{ "create",	NO_ARG,		&create,	1 },
 		{ "destroy",	NO_ARG,		&destroy,	1 },
+		{ "inject-nmi",	NO_ARG,		&inject_nmi,	1 },
 		{ NULL,		0,		NULL,		0 }
 	};
 
 	vcpu = 0;
+	assert_lapic_lvt = -1;
 	progname = basename(argv[0]);
 
 	while ((ch = getopt_long(argc, argv, "", opts, NULL)) != -1) {
@@ -666,6 +677,10 @@ main(int argc, char *argv[])
 			capval = strtoul(optarg, NULL, 0);
 			setcap = 1;
 			break;
+		case GET_GPA_PMAP:
+			gpa_pmap = strtoul(optarg, NULL, 0);
+			get_gpa_pmap = 1;
+			break;
 		case CAPNAME:
 			capname = optarg;
 			break;
@@ -673,6 +688,9 @@ main(int argc, char *argv[])
 			unassign_pptdev = 1;
 			if (sscanf(optarg, "%d/%d/%d", &bus, &slot, &func) != 3)
 				usage();
+			break;
+		case ASSERT_LAPIC_LVT:
+			assert_lapic_lvt = atoi(optarg);
 			break;
 		default:
 			usage();
@@ -817,18 +835,28 @@ main(int argc, char *argv[])
 					  vmcs_entry_interruption_info);
 	}
 
+	if (!error && inject_nmi) {
+		error = vm_inject_nmi(ctx, vcpu);
+	}
+
+	if (!error && assert_lapic_lvt != -1) {
+		error = vm_lapic_local_irq(ctx, vcpu, assert_lapic_lvt);
+	}
+
 	if (!error && (get_lowmem || get_all)) {
 		gpa = 0;
-		error = vm_get_memory_seg(ctx, gpa, &len);
+		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
 		if (error == 0)
-			printf("lowmem\t\t0x%016lx/%ld\n", gpa, len);
+			printf("lowmem\t\t0x%016lx/%ld%s\n", gpa, len,
+			    wired ? " wired" : "");
 	}
 
 	if (!error && (get_highmem || get_all)) {
 		gpa = 4 * GB;
-		error = vm_get_memory_seg(ctx, gpa, &len);
+		error = vm_get_memory_seg(ctx, gpa, &len, &wired);
 		if (error == 0)
-			printf("highmem\t\t0x%016lx/%ld\n", gpa, len);
+			printf("highmem\t\t0x%016lx/%ld%s\n", gpa, len,
+			    wired ? " wired" : "");
 	}
 
 	if (!error && (get_efer || get_all)) {
@@ -1457,6 +1485,17 @@ main(int argc, char *argv[])
 			printf("Capability \"%s\" is not available\n", capname);
 	}
 
+	if (!error && get_gpa_pmap) {
+		error = vm_get_gpa_pmap(ctx, gpa_pmap, pteval, &ptenum);
+		if (error == 0) {
+			printf("gpa %#lx:", gpa_pmap);
+			pte = &pteval[0];
+			while (ptenum-- > 0)
+				printf(" %#lx", *pte++);
+			printf("\n");
+		}
+	}
+
 	if (!error && (getcap || get_all)) {
 		int captype, val, getcaptype;
 
@@ -1474,6 +1513,7 @@ main(int argc, char *argv[])
 					vm_capability_type2name(captype),
 					val ? "set" : "not set", vcpu);
 			} else if (errno == ENOENT) {
+				error = 0;
 				printf("Capability \"%s\" is not available\n",
 					vm_capability_type2name(captype));
 			} else {

@@ -1611,14 +1611,13 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
-	case AUE_CAP_NEW:
 	case AUE_CAP_RIGHTS_LIMIT:
 		/*
 		 * XXXRW/XXXJA: Would be nice to audit socket/etc information.
 		 */
 		FD_VNODE1_TOKENS;
 		if (ARG_IS_VALID(kar, ARG_RIGHTS)) {
-			tok = au_to_arg64(2, "rights", ar->ar_arg_rights);
+			tok = au_to_rights(&ar->ar_arg_rights);
 			kau_write(rec, tok);
 		}
 		break;

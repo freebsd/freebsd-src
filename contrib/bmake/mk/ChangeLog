@@ -1,3 +1,14 @@
+2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* gendirdeps.mk (_objtops): fix typo also
+	  while processing M2D_OBJROOTS to gather qualdir_list
+	  qualify $ql with loop iterator to ensure correct results.
+
+2013-08-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): 20130801
+	* libs.mk: update to match progs.mk
+	
 2013-07-26  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* install-mk (MK_VERSION): 20130726

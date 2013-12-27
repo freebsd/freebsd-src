@@ -1,4 +1,4 @@
-See http://www.openssh.com/txt/release-6.2p2 for the release notes.
+See http://www.openssh.com/txt/release-6.4 for the release notes.
 
 - A Japanese translation of this document and of the OpenSSH FAQ is
 - available at http://www.unixuser.org/~haruyama/security/openssh/index.html
@@ -62,4 +62,4 @@ References -
 [6] http://www.openbsd.org/cgi-bin/man.cgi?query=style&sektion=9
 [7] http://www.openssh.com/faq.html
 
-$Id: README,v 1.82.2.1 2013/05/10 06:12:54 djm Exp $
+$Id: README,v 1.83.4.1 2013/11/08 01:36:17 djm Exp $

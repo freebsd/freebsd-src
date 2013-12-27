@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2012
+.Dd September 11, 2013
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -43,14 +43,14 @@
 .In sys/types.h
 .In unistd.h
 .Ft ssize_t
-.Fn write "int d" "const void *buf" "size_t nbytes"
+.Fn write "int fd" "const void *buf" "size_t nbytes"
 .Ft ssize_t
-.Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
+.Fn pwrite "int fd" "const void *buf" "size_t nbytes" "off_t offset"
 .In sys/uio.h
 .Ft ssize_t
-.Fn writev "int d" "const struct iovec *iov" "int iovcnt"
+.Fn writev "int fd" "const struct iovec *iov" "int iovcnt"
 .Ft ssize_t
-.Fn pwritev "int d" "const struct iovec *iov" "int iovcnt" "off_t offset"
+.Fn pwritev "int fd" "const struct iovec *iov" "int iovcnt" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn write
@@ -58,7 +58,7 @@ system call
 attempts to write
 .Fa nbytes
 of data to the object referenced by the descriptor
-.Fa d
+.Fa fd
 from the buffer pointed to by
 .Fa buf .
 The
@@ -107,7 +107,7 @@ On objects capable of seeking, the
 .Fn write
 starts at a position
 given by the pointer associated with
-.Fa d ,
+.Fa fd ,
 see
 .Xr lseek 2 .
 Upon return from
@@ -154,7 +154,7 @@ will fail and the file pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
-.Fa d
+.Fa fd
 argument
 is not a valid descriptor open for writing.
 .It Bq Er EPIPE
@@ -174,7 +174,7 @@ or data to be written to the file
 points outside the process's allocated address space.
 .It Bq Er EINVAL
 The pointer associated with
-.Fa d
+.Fa fd
 was negative.
 .It Bq Er ENOSPC
 There is no free space remaining on the file system

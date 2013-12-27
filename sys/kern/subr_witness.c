@@ -305,13 +305,6 @@ witness_lock_type_equal(struct witness *w1, struct witness *w2)
 }
 
 static __inline int
-witness_lock_order_key_empty(const struct witness_lock_order_key *key)
-{
-
-	return (key->from == 0 && key->to == 0);
-}
-
-static __inline int
 witness_lock_order_key_equal(const struct witness_lock_order_key *a,
     const struct witness_lock_order_key *b)
 {
@@ -1138,18 +1131,12 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 		iclass = LOCK_CLASS(interlock);
 		lock1 = find_instance(lock_list, interlock);
 		if (lock1 == NULL)
-			kassert_panic(
-			    "interlock (%s) %s not locked while locking"
-			    " %s @ %s:%d",
+			kassert_panic("interlock (%s) %s not locked @ %s:%d",
 			    iclass->lc_name, interlock->lo_name,
-			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
 			    fixup_filename(file), line);
 		else if ((lock1->li_flags & LI_RECURSEMASK) != 0)
-			kassert_panic(
-			    "interlock (%s) %s recursed while locking %s"
-			    " @ %s:%d",
+			kassert_panic("interlock (%s) %s recursed @ %s:%d",
 			    iclass->lc_name, interlock->lo_name,
-			    flags & LOP_EXCLUSIVE ? "exclusive" : "shared",
 			    fixup_filename(file), line);
 	}
 

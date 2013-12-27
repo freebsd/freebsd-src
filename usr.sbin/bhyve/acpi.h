@@ -29,6 +29,6 @@
 #ifndef _ACPI_H_
 #define _ACPI_H_
 
-int	acpi_build(struct vmctx *ctx, int ncpu, int ioapic);
+int	acpi_build(struct vmctx *ctx, int ncpu);
 
 #endif /* _ACPI_H_ */

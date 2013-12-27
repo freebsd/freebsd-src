@@ -179,7 +179,7 @@ f_debugging()
 	f_getvar $VAR_DEBUG value && [ "$value" ]
 }
 
-# f_interactive()
+# f_interactive
 #
 # Are we running interactively? Return error if $nonInteractive is set and non-
 # NULL, otherwise return success.
@@ -190,7 +190,7 @@ f_interactive()
 	! f_getvar $VAR_NONINTERACTIVE value || [ ! "$value" ]
 }
 
-# f_netinteractive()
+# f_netinteractive
 #
 # Has the user specifically requested the network-portion of configuration and
 # setup to be performed interactively? Returns success if the user has asked
@@ -203,6 +203,21 @@ f_netinteractive()
 {
 	local value
 	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
+}
+
+# f_zfsinteractive
+#
+# Has the user specifically requested the ZFS-portion of configuration and
+# setup to be performed interactively? Returns success if the user has asked
+# for the ZFS configuration to be done interactively even if perhaps overall
+# non-interactive mode has been requested (by setting nonInteractive).
+#
+# Returns success if $zfsInteractive is set and non-NULL.
+#
+f_zfsinteractive()
+{
+	local value
+	f_getvar $VAR_ZFSINTERACTIVE value && [ "$value" ]
 }
 
 ############################################################ MAIN
@@ -240,6 +255,7 @@ f_variable_new VAR_IFCONFIG		ifconfig_
 f_variable_new VAR_IPADDR		ipaddr
 f_variable_new VAR_IPV6ADDR		ipv6addr
 f_variable_new VAR_IPV6_ENABLE		ipv6_activate_all_interfaces
+f_variable_new VAR_KEYMAP		keymap
 f_variable_new VAR_MEDIA_TIMEOUT	MEDIA_TIMEOUT
 f_variable_new VAR_MEDIA_TYPE		mediaType
 f_variable_new VAR_NAMESERVER		nameserver
@@ -263,6 +279,7 @@ f_variable_new VAR_SLOW_ETHER		slowEthernetCard
 f_variable_new VAR_TRY_DHCP		tryDHCP
 f_variable_new VAR_TRY_RTSOL		tryRTSOL
 f_variable_new VAR_UFS_PATH		ufs
+f_variable_new VAR_ZFSINTERACTIVE	zfsInteractive
 
 #
 # Self-initialize unless requested otherwise

@@ -205,6 +205,10 @@ msse4a
 Target Report Mask(SSE4A)
 Support MMX, SSE, SSE2, SSE3 and SSE4A built-in functions and code generation
 
+maes
+Target Report Mask(AES)
+Support AES built-in functions and code generation.
+
 mpopcnt
 Target Report Mask(POPCNT)
 Support code generation of popcount instruction for popcount built-ins 

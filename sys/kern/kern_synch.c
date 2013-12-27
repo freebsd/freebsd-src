@@ -37,7 +37,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_sched.h"
 
@@ -108,18 +107,18 @@ SYSCTL_INT(_kern, OID_AUTO, fscale, CTLFLAG_RD, 0, FSCALE, "");
 static void	loadav(void *arg);
 
 SDT_PROVIDER_DECLARE(sched);
-SDT_PROBE_DEFINE(sched, , , preempt, preempt);
+SDT_PROBE_DEFINE(sched, , , preempt);
 
 /*
  * These probes reference Solaris features that are not implemented in FreeBSD.
  * Create the probes anyway for compatibility with existing D scripts; they'll
  * just never fire.
  */
-SDT_PROBE_DEFINE(sched, , , cpucaps_sleep, cpucaps-sleep);
-SDT_PROBE_DEFINE(sched, , , cpucaps_wakeup, cpucaps-wakeup);
-SDT_PROBE_DEFINE(sched, , , schedctl_nopreempt, schedctl-nopreempt);
-SDT_PROBE_DEFINE(sched, , , schedctl_preempt, schedctl-preempt);
-SDT_PROBE_DEFINE(sched, , , schedctl_yield, schedctl-yield);
+SDT_PROBE_DEFINE(sched, , , cpucaps__sleep);
+SDT_PROBE_DEFINE(sched, , , cpucaps__wakeup);
+SDT_PROBE_DEFINE(sched, , , schedctl__nopreempt);
+SDT_PROBE_DEFINE(sched, , , schedctl__preempt);
+SDT_PROBE_DEFINE(sched, , , schedctl__yield);
 
 static void
 sleepinit(void *unused)
@@ -157,7 +156,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	struct thread *td;
 	struct proc *p;
 	struct lock_class *class;
-	int catch, lock_state, pri, rval, sleepq_flags;
+	uintptr_t lock_state;
+	int catch, pri, rval, sleepq_flags;
 	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
@@ -356,10 +356,7 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 int
 pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 {
-	int sbt_sec;
-
-	sbt_sec = sbintime_getsec(sbt);
-	KASSERT(sbt_sec >= 0, ("pause: timo must be >= 0"));
+	KASSERT(sbt >= 0, ("pause: timeout must be >= 0"));
 
 	/* silently convert invalid timeouts */
 	if (sbt == 0)
@@ -370,11 +367,14 @@ pause_sbt(const char *wmesg, sbintime_t sbt, sbintime_t pr, int flags)
 		 * We delay one second at a time to avoid overflowing the
 		 * system specific DELAY() function(s):
 		 */
-		while (sbt_sec > 0) {
+		while (sbt >= SBT_1S) {
 			DELAY(1000000);
-			sbt_sec--;
+			sbt -= SBT_1S;
 		}
-		DELAY((sbt & 0xffffffff) / SBT_1US);
+		/* Do the delay remainder, if any */
+		sbt = (sbt + SBT_1US - 1) / SBT_1US;
+		if (sbt > 0)
+			DELAY(sbt);
 		return (0);
 	}
 	return (_sleep(&pause_wchan[curcpu], NULL, 0, wmesg, sbt, pr, flags));
@@ -569,8 +569,8 @@ loadav(void *arg)
 	 * run at regular intervals.
 	 */
 	callout_reset_sbt(&loadav_callout,
-	    tick_sbt * (hz * 4 + (int)(random() % (hz * 2 + 1))), 0,
-	    loadav, NULL, C_DIRECT_EXEC | C_HARDCLOCK);
+	    SBT_1US * (4000000 + (int)(random() % 2000001)), SBT_1US,
+	    loadav, NULL, C_DIRECT_EXEC | C_PREL(32));
 }
 
 /* ARGSUSED */
@@ -587,7 +587,7 @@ int
 should_yield(void)
 {
 
-	return ((unsigned int)(ticks - curthread->td_swvoltick) >= hogticks);
+	return ((u_int)ticks - (u_int)curthread->td_swvoltick >= hogticks);
 }
 
 void

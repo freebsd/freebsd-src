@@ -247,6 +247,15 @@ int bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 			void *callback_arg, int flags);
 
 /*
+ * Placeholder for use by busdma implementations which do not benefit
+ * from optimized procedure to load an array of vm_page_t.  Falls back
+ * to do _bus_dmamap_load_phys() in loop.
+ */
+int bus_dmamap_load_ma_triv(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp);
+
+/*
  * XXX sparc64 uses the same interface, but a much different implementation.
  *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
  *     declarations.
@@ -323,6 +332,10 @@ int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
 int _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
 			  vm_paddr_t paddr, bus_size_t buflen,
 			  int flags, bus_dma_segment_t *segs, int *segp);
+
+int _bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp);
 
 bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
 			   		bus_dmamap_t map,

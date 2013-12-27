@@ -250,8 +250,8 @@ struct ib_srq *ib_create_srq(struct ib_pd *pd,
 		srq->uobject       = NULL;
 		srq->event_handler = srq_init_attr->event_handler;
 		srq->srq_context   = srq_init_attr->srq_context;
-		srq->xrc_cq = NULL;
-		srq->xrcd = NULL;
+		srq->ext.xrc.cq = NULL;
+		srq->ext.xrc.xrcd = NULL;
 		atomic_inc(&pd->usecnt);
 		atomic_set(&srq->usecnt, 0);
 	}
@@ -278,8 +278,8 @@ struct ib_srq *ib_create_xrc_srq(struct ib_pd *pd,
 		srq->uobject	   = NULL;
 		srq->event_handler = srq_init_attr->event_handler;
 		srq->srq_context   = srq_init_attr->srq_context;
-		srq->xrc_cq	   = xrc_cq;
-		srq->xrcd	   = xrcd;
+		srq->ext.xrc.cq	   = xrc_cq;
+		srq->ext.xrc.xrcd	   = xrcd;
 		atomic_inc(&pd->usecnt);
 		atomic_inc(&xrcd->usecnt);
 		atomic_inc(&xrc_cq->usecnt);
@@ -319,8 +319,8 @@ int ib_destroy_srq(struct ib_srq *srq)
 		return -EBUSY;
 
 	pd = srq->pd;
-	xrc_cq = srq->xrc_cq;
-	xrcd = srq->xrcd;
+	xrc_cq = srq->ext.xrc.cq;
+	xrcd = srq->ext.xrc.xrcd;
 
 	ret = srq->device->destroy_srq(srq);
 	if (!ret) {
@@ -355,7 +355,7 @@ struct ib_qp *ib_create_qp(struct ib_pd *pd,
 		qp->qp_context    = qp_init_attr->qp_context;
 		qp->qp_type	  = qp_init_attr->qp_type;
 		qp->xrcd	  = qp->qp_type == IB_QPT_XRC ?
-			qp_init_attr->xrc_domain : NULL;
+			qp_init_attr->xrcd : NULL;
 		atomic_inc(&pd->usecnt);
 		atomic_inc(&qp_init_attr->send_cq->usecnt);
 		atomic_inc(&qp_init_attr->recv_cq->usecnt);
@@ -371,8 +371,8 @@ EXPORT_SYMBOL(ib_create_qp);
 
 static const struct {
 	int			valid;
-	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_ETH + 1];
-	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_ETH + 1];
+	enum ib_qp_attr_mask	req_param[IB_QPT_RAW_PACKET + 1];
+	enum ib_qp_attr_mask	opt_param[IB_QPT_RAW_PACKET + 1];
 } qp_state_table[IB_QPS_ERR + 1][IB_QPS_ERR + 1] = {
 	[IB_QPS_RESET] = {
 		[IB_QPS_RESET] = { .valid = 1 },
@@ -382,7 +382,7 @@ static const struct {
 				[IB_QPT_UD]  = (IB_QP_PKEY_INDEX		|
 						IB_QP_PORT			|
 						IB_QP_QKEY),
-				[IB_QPT_RAW_ETH] = IB_QP_PORT,
+				[IB_QPT_RAW_PACKET] = IB_QP_PORT,
 				[IB_QPT_UC]  = (IB_QP_PKEY_INDEX		|
 						IB_QP_PORT			|
 						IB_QP_ACCESS_FLAGS),
@@ -1005,7 +1005,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 
 	switch (rdma_node_get_transport(qp->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (qp->qp_type == IB_QPT_RAW_ETH) {
+		if (qp->qp_type == IB_QPT_RAW_PACKET) {
 			/* In raw Etherent mgids the 63 msb's should be 0 */
 			if (gid->global.subnet_prefix & cpu_to_be64(~1ULL))
 				return -EINVAL;
@@ -1013,7 +1013,7 @@ int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 			return -EINVAL;
 		break;
 	case RDMA_TRANSPORT_IWARP:
-		if (qp->qp_type != IB_QPT_RAW_ETH)
+		if (qp->qp_type != IB_QPT_RAW_PACKET)
 			return -EINVAL;
 		break;
 	}
@@ -1028,7 +1028,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 
 	switch (rdma_node_get_transport(qp->device->node_type)) {
 	case RDMA_TRANSPORT_IB:
-		if (qp->qp_type == IB_QPT_RAW_ETH) {
+		if (qp->qp_type == IB_QPT_RAW_PACKET) {
 			/* In raw Etherent mgids the 63 msb's should be 0 */
 			if (gid->global.subnet_prefix & cpu_to_be64(~1ULL))
 				return -EINVAL;
@@ -1036,7 +1036,7 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 			return -EINVAL;
 		break;
 	case RDMA_TRANSPORT_IWARP:
-		if (qp->qp_type != IB_QPT_RAW_ETH)
+		if (qp->qp_type != IB_QPT_RAW_PACKET)
 			return -EINVAL;
 		break;
 	}

@@ -80,6 +80,10 @@ CODE {
 	{
 		return (VM_MAX_ADDRESS);
 	}
+	static void platform_null_smp_ap_init(platform_t plat)
+	{
+		return;
+	}
 };
 
 /**
@@ -116,9 +120,9 @@ METHOD int attach {
 
 METHOD void mem_regions {
 	platform_t	    _plat;
-	struct mem_region **_memp;
+	struct mem_region  *_memp;
 	int		   *_memsz;
-	struct mem_region **_availp;
+	struct mem_region  *_availp;
 	int		   *_availsz;
 };
 
@@ -183,6 +187,14 @@ METHOD int smp_start_cpu {
 	platform_t	_plat;
 	struct pcpu	*_cpu;
 };
+
+/**
+ * @brief Start a CPU
+ *
+ */
+METHOD void smp_ap_init {
+	platform_t	_plat;
+} DEFAULT platform_null_smp_ap_init;
 
 /**
  * @brief Return SMP topology

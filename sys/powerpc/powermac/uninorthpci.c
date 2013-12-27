@@ -134,7 +134,9 @@ uninorth_attach(device_t dev)
 	struct		uninorth_softc *sc;
 	const char	*compatible;
 	phandle_t	node;
-	u_int32_t	reg[3];
+	uint32_t	reg[3];
+	uint64_t	regbase;
+	cell_t		acells;
 
 	node = ofw_bus_get_node(dev);
 	sc = device_get_softc(dev);
@@ -149,13 +151,17 @@ uninorth_attach(device_t dev)
 	if (strcmp(compatible, "u4-pcie") == 0)
 		sc->sc_ver = 4;
 
-	if (sc->sc_ver >= 3) {
-	   sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[1] + 0x800000, PAGE_SIZE);
-	   sc->sc_data = (vm_offset_t)pmap_mapdev(reg[1] + 0xc00000, PAGE_SIZE);
-	} else {
-	   sc->sc_addr = (vm_offset_t)pmap_mapdev(reg[0] + 0x800000, PAGE_SIZE);
-	   sc->sc_data = (vm_offset_t)pmap_mapdev(reg[0] + 0xc00000, PAGE_SIZE);
+	acells = 1;
+	OF_getprop(OF_parent(node), "#address-cells", &acells, sizeof(acells));
+
+	regbase = reg[0];
+	if (acells == 2) {
+		regbase <<= 32;
+		regbase |= reg[1];
 	}
+
+	sc->sc_addr = (vm_offset_t)pmap_mapdev(regbase + 0x800000, PAGE_SIZE);
+	sc->sc_data = (vm_offset_t)pmap_mapdev(regbase + 0xc00000, PAGE_SIZE);
 
 	return (ofw_pci_attach(dev));
 }

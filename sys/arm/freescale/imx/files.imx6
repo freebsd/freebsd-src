@@ -1,0 +1,55 @@
+# $FreeBSD$
+
+#
+# Standard ARM support.
+#
+arm/arm/bus_space_asm_generic.S		standard
+arm/arm/bus_space_generic.c		standard
+arm/arm/cpufunc_asm_arm11.S		standard
+arm/arm/cpufunc_asm_armv5.S		standard
+arm/arm/cpufunc_asm_armv7.S		standard
+arm/arm/irq_dispatch.S			standard
+kern/kern_clocksource.c			standard
+
+#
+# Standard imx6 devices and support.
+#
+arm/arm/gic.c				standard
+arm/arm/pl310.c				standard
+arm/arm/bus_space-v6.c			standard
+arm/freescale/imx/common.c		standard
+arm/freescale/imx/imx6_anatop.c		standard
+arm/freescale/imx/imx6_ccm.c		standard
+arm/freescale/imx/imx6_machdep.c	standard
+arm/freescale/imx/imx6_pl310.c		standard
+arm/freescale/imx/imx_machdep.c		standard
+arm/freescale/imx/imx_gpt.c		standard
+
+#
+# Optional devices.
+#
+arm/freescale/imx/imx_sdhci.c		optional sdhci
+
+arm/freescale/imx/imx_wdog.c		optional imxwdt
+
+dev/ffec/if_ffec.c			optional ffec
+
+dev/uart/uart_dev_imx.c			optional uart
+
+dev/usb/controller/ehci_imx.c		optional ehci
+arm/freescale/imx/imx6_usbphy.c		optional ehci
+
+#
+# Low-level serial console for debugging early kernel startup.
+#
+#arm/freescale/imx/console.c  		standard
+
+#
+# Not ready yet...
+#
+#arm/freescale/imx/imx51_iomux.c  	optional iomux
+#arm/freescale/imx/imx51_gpio.c  	optional gpio
+#dev/ata/chipsets/ata-fsl.c  		optional imxata
+#arm/freescale/imx/i2c.c  		optional fsliic
+#arm/freescale/imx/imx51_ipuv3.c  	optional sc
+

@@ -231,6 +231,9 @@
 /* Define to 1 if you have the `clock' function. */
 #define HAVE_CLOCK 1
 
+/* Have clock_gettime */
+#define HAVE_CLOCK_GETTIME 1
+
 /* define if you have clock_t data type */
 #define HAVE_CLOCK_T 1
 
@@ -242,6 +245,9 @@
 
 /* Define if your system uses ancillary data style file descriptor passing */
 #define HAVE_CONTROL_IN_MSGHDR 1
+
+/* Define to 1 if you have the `crypt' function. */
+#define HAVE_CRYPT 1
 
 /* Define to 1 if you have the <crypto/sha2.h> header file. */
 /* #undef HAVE_CRYPTO_SHA2_H */
@@ -267,6 +273,10 @@
    and to 0 if you don't. */
 /* #undef HAVE_DECL_GSS_C_NT_HOSTBASED_SERVICE */
 
+/* Define to 1 if you have the declaration of `howmany', and to 0 if you
+   don't. */
+#define HAVE_DECL_HOWMANY 1
+
 /* Define to 1 if you have the declaration of `h_errno', and to 0 if you
    don't. */
 #define HAVE_DECL_H_ERRNO 1
@@ -286,6 +296,10 @@
 /* Define to 1 if you have the declaration of `MAXSYMLINKS', and to 0 if you
    don't. */
 #define HAVE_DECL_MAXSYMLINKS 1
+
+/* Define to 1 if you have the declaration of `NFDBITS', and to 0 if you
+   don't. */
+#define HAVE_DECL_NFDBITS 1
 
 /* Define to 1 if you have the declaration of `offsetof', and to 0 if you
    don't. */
@@ -319,6 +333,9 @@
    don't. */
 #define HAVE_DECL__GETSHORT 0
 
+/* Define to 1 if you have the `DES_crypt' function. */
+#define HAVE_DES_CRYPT 1
+
 /* Define if you have /dev/ptmx */
 /* #undef HAVE_DEV_PTMX */
 
@@ -339,6 +356,9 @@
 
 /* Define to 1 if you have the <elf.h> header file. */
 #define HAVE_ELF_H 1
+
+/* Define to 1 if you have the `endgrent' function. */
+#define HAVE_ENDGRENT 1
 
 /* Define to 1 if you have the <endian.h> header file. */
 /* #undef HAVE_ENDIAN_H */
@@ -372,6 +392,9 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
+
+/* Define to 1 if the system has the type `fd_mask'. */
+#define HAVE_FD_MASK 1
 
 /* Define to 1 if you have the <features.h> header file. */
 /* #undef HAVE_FEATURES_H */
@@ -577,6 +600,15 @@
 /* Define if you have isblank(3C). */
 #define HAVE_ISBLANK 1
 
+/* Define to 1 if you have the `krb5_cc_new_unique' function. */
+/* #undef HAVE_KRB5_CC_NEW_UNIQUE */
+
+/* Define to 1 if you have the `krb5_free_error_message' function. */
+/* #undef HAVE_KRB5_FREE_ERROR_MESSAGE */
+
+/* Define to 1 if you have the `krb5_get_error_message' function. */
+/* #undef HAVE_KRB5_GET_ERROR_MESSAGE */
+
 /* Define to 1 if you have the <lastlog.h> header file. */
 /* #undef HAVE_LASTLOG_H */
 
@@ -637,6 +669,9 @@
 /* Define to 1 if you have the <linux/seccomp.h> header file. */
 /* #undef HAVE_LINUX_SECCOMP_H */
 
+/* Define to 1 if you have the <locale.h> header file. */
+#define HAVE_LOCALE_H 1
+
 /* Define to 1 if you have the `login' function. */
 /* #undef HAVE_LOGIN */
 
@@ -663,6 +698,9 @@
 
 /* Define to 1 if you have the <maillock.h> header file. */
 /* #undef HAVE_MAILLOCK_H */
+
+/* Define to 1 if you have the `mblen' function. */
+#define HAVE_MBLEN 1
 
 /* Define to 1 if you have the `md5_crypt' function. */
 /* #undef HAVE_MD5_CRYPT */
@@ -770,15 +808,6 @@
 /* Define to 1 if you have the `pututxline' function. */
 #define HAVE_PUTUTXLINE 1
 
-/* Define if your password has a pw_change field */
-#define HAVE_PW_CHANGE_IN_PASSWD 1
-
-/* Define if your password has a pw_class field */
-#define HAVE_PW_CLASS_IN_PASSWD 1
-
-/* Define if your password has a pw_expire field */
-#define HAVE_PW_EXPIRE_IN_PASSWD 1
-
 /* Define to 1 if you have the `readpassphrase' function. */
 #define HAVE_READPASSPHRASE 1
 
@@ -814,6 +843,9 @@
 
 /* define if you have sa_family_t data type */
 #define HAVE_SA_FAMILY_T 1
+
+/* Define to 1 if you have the `scan_scaled' function. */
+/* #undef HAVE_SCAN_SCALED */
 
 /* Define if you have SecureWare-based protected password database */
 /* #undef HAVE_SECUREWARE */
@@ -1003,6 +1035,18 @@
 
 /* define if you have struct in6_addr data type */
 #define HAVE_STRUCT_IN6_ADDR 1
+
+/* Define to 1 if `pw_change' is a member of `struct passwd'. */
+#define HAVE_STRUCT_PASSWD_PW_CHANGE 1
+
+/* Define to 1 if `pw_class' is a member of `struct passwd'. */
+#define HAVE_STRUCT_PASSWD_PW_CLASS 1
+
+/* Define to 1 if `pw_expire' is a member of `struct passwd'. */
+#define HAVE_STRUCT_PASSWD_PW_EXPIRE 1
+
+/* Define to 1 if `pw_gecos' is a member of `struct passwd'. */
+#define HAVE_STRUCT_PASSWD_PW_GECOS 1
 
 /* define if you have struct sockaddr_in6 data type */
 #define HAVE_STRUCT_SOCKADDR_IN6 1
@@ -1324,15 +1368,6 @@
 /* Set this to your mail directory if you do not have _PATH_MAILDIR */
 /* #undef MAIL_DIRECTORY */
 
-/* Define on *nto-qnx systems */
-/* #undef MISSING_FD_MASK */
-
-/* Define on *nto-qnx systems */
-/* #undef MISSING_HOWMANY */
-
-/* Define on *nto-qnx systems */
-/* #undef MISSING_NFDBITS */
-
 /* Need setpgrp to acquire controlling tty */
 /* #undef NEED_SETPGRP */
 
@@ -1434,7 +1469,7 @@
 #define SIZEOF_INT 4
 
 /* The size of `long int', as computed by sizeof. */
-#define SIZEOF_LONG_INT 4
+#define SIZEOF_LONG_INT 8
 
 /* The size of `long long int', as computed by sizeof. */
 #define SIZEOF_LONG_LONG_INT 8
@@ -1569,11 +1604,6 @@
 
 /* Define if xauth is found in your path */
 /* #undef XAUTH_PATH */
-
-/* Enable large inode numbers on Mac OS X 10.5.  */
-#ifndef _DARWIN_USE_64_BIT_INODE
-# define _DARWIN_USE_64_BIT_INODE 1
-#endif
 
 /* Number of bits in a file offset, on hosts where this is settable. */
 /* #undef _FILE_OFFSET_BITS */

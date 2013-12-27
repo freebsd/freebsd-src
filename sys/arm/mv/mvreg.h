@@ -142,7 +142,11 @@
 /*
  * Power Control
  */
+#if defined(SOC_MV_KIRKWOOD)
+#define CPU_PM_CTRL		0x18
+#else
 #define CPU_PM_CTRL		0x1C
+#endif
 #define CPU_PM_CTRL_NONE	0
 #define CPU_PM_CTRL_ALL		~0x0
 

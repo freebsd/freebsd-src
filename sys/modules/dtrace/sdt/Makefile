@@ -4,7 +4,7 @@
 
 KMOD=		sdt
 SRCS=		sdt.c
-SRCS+=		vnode_if.h opt_kdtrace.h
+SRCS+=		vnode_if.h
 
 CFLAGS+=	-I${.CURDIR}/../../../cddl/compat/opensolaris \
 		-I${.CURDIR}/../../../cddl/contrib/opensolaris/uts/common \

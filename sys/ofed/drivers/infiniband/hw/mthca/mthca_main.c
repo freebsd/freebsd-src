@@ -1325,7 +1325,7 @@ static void __init mthca_validate_profile(void)
 	if (log_mtts_per_seg == 0)
 		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	if ((log_mtts_per_seg < 1) || (log_mtts_per_seg > 5)) {
-		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %ld\n",
+		printk(KERN_WARNING PFX "bad log_mtts_per_seg (%d). Using default - %d\n",
 		       log_mtts_per_seg, ilog2(MTHCA_MTT_SEG_SIZE / 8));
 		log_mtts_per_seg = ilog2(MTHCA_MTT_SEG_SIZE / 8);
 	}

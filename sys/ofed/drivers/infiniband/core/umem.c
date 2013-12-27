@@ -530,3 +530,46 @@ int ib_umem_page_count(struct ib_umem *umem)
 	return n;
 }
 EXPORT_SYMBOL(ib_umem_page_count);
+
+/**********************************************/
+/* 
+ * Stub functions for contiguous pages - 
+ * We currently do not support this feature
+ */
+/**********************************************/
+
+/**
+ * ib_cmem_release_contiguous_pages - release memory allocated by
+ *                                              ib_cmem_alloc_contiguous_pages.
+ * @cmem: cmem struct to release
+ */
+void ib_cmem_release_contiguous_pages(struct ib_cmem *cmem)
+{
+}
+EXPORT_SYMBOL(ib_cmem_release_contiguous_pages);
+
+/**
+ *  * ib_cmem_alloc_contiguous_pages - allocate contiguous pages
+ *  *  @context: userspace context to allocate memory for
+ *   * @total_size: total required size for that allocation.
+ *    * @page_size_order: order of one contiguous page.
+ *     */
+struct ib_cmem *ib_cmem_alloc_contiguous_pages(struct ib_ucontext *context,
+                                unsigned long total_size,
+				                                unsigned long page_size_order)
+{
+	return NULL;
+}
+EXPORT_SYMBOL(ib_cmem_alloc_contiguous_pages);
+
+/**
+ *  * ib_cmem_map_contiguous_pages_to_vma - map contiguous pages into VMA
+ *   * @ib_cmem: cmem structure returned by ib_cmem_alloc_contiguous_pages
+ *    * @vma: VMA to inject pages into.
+ *     */
+int ib_cmem_map_contiguous_pages_to_vma(struct ib_cmem *ib_cmem,
+                                                struct vm_area_struct *vma)
+{
+	return 0;
+}
+EXPORT_SYMBOL(ib_cmem_map_contiguous_pages_to_vma);

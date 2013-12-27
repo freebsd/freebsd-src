@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/fddi.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
@@ -1605,12 +1606,12 @@ carp_free_if(struct carp_if *cif)
 
 	IF_ADDR_WLOCK(ifp);
 	ifp->if_carp = NULL;
-	if_rele(ifp);
 	IF_ADDR_WUNLOCK(ifp);
 
 	CIF_LOCK_DESTROY(cif);
 
 	ifpromisc(ifp, 0);
+	if_rele(ifp);
 
 	free(cif, M_CARP);
 }

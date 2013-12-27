@@ -936,7 +936,7 @@ struct ioctl
 #define IOCTL_RESET_CNTRS	  54	/* reset event counters            */
 
 /* storage for these strings is allocated here! */
-const char *ssi_cables[] =
+static const char *ssi_cables[] =
   {
   "V.10/EIA423",
   "V.11/EIA530A",

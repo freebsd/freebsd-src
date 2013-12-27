@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 
 static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
+volatile sig_atomic_t pendingsig_waitcmd;	/* indicates SIGINT/SIGQUIT received */
 int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
@@ -361,10 +362,12 @@ void
 ignoresig(int signo)
 {
 
+	if (sigmode[signo] == 0)
+		setsignal(signo);
 	if (sigmode[signo] != S_IGN && sigmode[signo] != S_HARD_IGN) {
 		signal(signo, SIG_IGN);
+		sigmode[signo] = S_IGN;
 	}
-	sigmode[signo] = S_HARD_IGN;
 }
 
 
@@ -389,23 +392,13 @@ onsig(int signo)
 	}
 
 	/* If we are currently in a wait builtin, prepare to break it */
-	if ((signo == SIGINT || signo == SIGQUIT) && in_waitcmd != 0) {
-		breakwaitcmd = 1;
-		pendingsig = signo;
-	}
+	if (signo == SIGINT || signo == SIGQUIT)
+		pendingsig_waitcmd = signo;
 
 	if (trap[signo] != NULL && trap[signo][0] != '\0' &&
 	    (signo != SIGCHLD || !ignore_sigchld)) {
 		gotsig[signo] = 1;
 		pendingsig = signo;
-
-		/*
-		 * If a trap is set, not ignored and not the null command, we
-		 * need to make sure traps are executed even when a child
-		 * blocks signals.
-		 */
-		if (Tflag && !(trap[signo][0] == ':' && trap[signo][1] == '\0'))
-			breakwaitcmd = 1;
 	}
 
 #ifndef NO_HISTORY
@@ -428,6 +421,7 @@ dotrap(void)
 	in_dotrap++;
 	for (;;) {
 		pendingsig = 0;
+		pendingsig_waitcmd = 0;
 		for (i = 1; i < NSIG; i++) {
 			if (gotsig[i]) {
 				gotsig[i] = 0;

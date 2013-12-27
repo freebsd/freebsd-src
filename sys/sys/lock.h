@@ -34,6 +34,7 @@
 
 #include <sys/queue.h>
 #include <sys/_lock.h>
+#include <sys/ktr_class.h>
 
 struct lock_list_entry;
 struct thread;
@@ -56,13 +57,14 @@ struct thread;
  */
 
 struct lock_class {
-	const	char *lc_name;
-	u_int	lc_flags;
-	void	(*lc_assert)(const struct lock_object *lock, int what);
-	void	(*lc_ddb_show)(const struct lock_object *lock);
-	void	(*lc_lock)(struct lock_object *lock, int how);
-	int	(*lc_owner)(const struct lock_object *lock, struct thread **owner);
-	int	(*lc_unlock)(struct lock_object *lock);
+	const		char *lc_name;
+	u_int		lc_flags;
+	void		(*lc_assert)(const struct lock_object *lock, int what);
+	void		(*lc_ddb_show)(const struct lock_object *lock);
+	void		(*lc_lock)(struct lock_object *lock, uintptr_t how);
+	int		(*lc_owner)(const struct lock_object *lock,
+			    struct thread **owner);
+	uintptr_t	(*lc_unlock)(struct lock_object *lock);
 };
 
 #define	LC_SLEEPLOCK	0x00000001	/* Sleep lock. */
@@ -122,7 +124,7 @@ struct lock_class {
  * calling conventions for this debugging code in modules so that modules can
  * work with both debug and non-debug kernels.
  */
-#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(KTR) || defined(LOCK_PROFILING)
+#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(LOCK_PROFILING) || (defined(KTR) && (KTR_COMPILE & KTR_LOCK))
 #define	LOCK_DEBUG	1
 #else
 #define	LOCK_DEBUG	0

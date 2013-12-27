@@ -73,7 +73,7 @@ CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
-		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
+		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
@@ -114,12 +114,19 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
+.if !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang"
 CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
 CFLAGS+=	 -Qunused-arguments
+CFLAGS+=	 ${CFLAGS.clang}
+CXXFLAGS+=	 ${CXXFLAGS.clang}
+.else # !CLANG
+CFLAGS+=	 ${CFLAGS.gcc}
+CXXFLAGS+=	 ${CXXFLAGS.gcc}
 .endif # CLANG
+.endif # !EARLY_BUILD
 
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"

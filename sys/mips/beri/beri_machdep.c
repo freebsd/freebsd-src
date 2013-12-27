@@ -116,14 +116,19 @@ mips_init(void)
 
 /*
  * Perform a board-level soft-reset.
- *
- * XXXRW: BERI doesn't yet have a board-level soft-reset.
  */
 void
 platform_reset(void)
 {
 
-	panic("%s: not yet", __func__);
+	/* XXX SMP will likely require us to do more. */
+	__asm__ __volatile__(
+		"mfc0 $k0, $12\n\t"
+		"li $k1, 0x00100000\n\t"
+		"or $k0, $k0, $k1\n\t"
+		"mtc0 $k0, $12\n");
+	for( ; ; )
+		__asm__ __volatile("wait");
 }
 
 void
@@ -173,7 +178,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
 		while (1);
-	if (OF_init(&fdt_static_dtb) != 0)
+	if (OF_init((void *)dtbp) != 0)
 		while (1);
 #endif
 

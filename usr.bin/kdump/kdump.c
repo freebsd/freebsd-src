@@ -59,6 +59,7 @@ extern int errno;
 #include <sys/sysent.h>
 #include <sys/un.h>
 #include <sys/queue.h>
+#include <sys/wait.h>
 #ifdef IPX
 #include <sys/types.h>
 #include <netipx/ipx.h>
@@ -73,9 +74,18 @@ extern int errno;
 #include <err.h>
 #include <grp.h>
 #include <inttypes.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <libcapsicum.h>
+#include <libcapsicum_grp.h>
+#include <libcapsicum_pwd.h>
+#include <libcapsicum_service.h>
+#endif
 #include <locale.h>
 #include <netdb.h>
 #include <nl_types.h>
+#ifdef HAVE_LIBCAPSICUM
+#include <nv.h>
+#endif
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -103,6 +113,7 @@ void ktrcsw_old(struct ktr_csw_old *);
 void ktruser_malloc(unsigned char *);
 void ktruser_rtld(int, unsigned char *);
 void ktruser(int, unsigned char *);
+void ktrcaprights(cap_rights_t *);
 void ktrsockaddr(struct sockaddr *);
 void ktrstat(struct stat *);
 void ktrstruct(char *, size_t);
@@ -165,6 +176,10 @@ struct proc_info
 
 TAILQ_HEAD(trace_procs, proc_info) trace_procs;
 
+#ifdef HAVE_LIBCAPSICUM
+static cap_channel_t *cappwd, *capgrp;
+#endif
+
 static void
 strerror_init(void)
 {
@@ -189,6 +204,50 @@ localtime_init(void)
 	(void)time(&ltime);
 	(void)localtime(&ltime);
 }
+
+#ifdef HAVE_LIBCAPSICUM
+static int
+cappwdgrp_setup(cap_channel_t **cappwdp, cap_channel_t **capgrpp)
+{
+	cap_channel_t *capcas, *cappwdloc, *capgrploc;
+	const char *cmds[1], *fields[1];
+
+	capcas = cap_init();
+	if (capcas == NULL) {
+		warn("unable to contact casperd");
+		return (-1);
+	}
+	cappwdloc = cap_service_open(capcas, "system.pwd");
+	capgrploc = cap_service_open(capcas, "system.grp");
+	/* Casper capability no longer needed. */
+	cap_close(capcas);
+	if (cappwdloc == NULL || capgrploc == NULL) {
+		if (cappwdloc == NULL)
+			warn("unable to open system.pwd service");
+		if (capgrploc == NULL)
+			warn("unable to open system.grp service");
+		exit(1);
+	}
+	/* Limit system.pwd to only getpwuid() function and pw_name field. */
+	cmds[0] = "getpwuid";
+	if (cap_pwd_limit_cmds(cappwdloc, cmds, 1) < 0)
+		err(1, "unable to limit system.pwd service");
+	fields[0] = "pw_name";
+	if (cap_pwd_limit_fields(cappwdloc, fields, 1) < 0)
+		err(1, "unable to limit system.pwd service");
+	/* Limit system.grp to only getgrgid() function and gr_name field. */
+	cmds[0] = "getgrgid";
+	if (cap_grp_limit_cmds(capgrploc, cmds, 1) < 0)
+		err(1, "unable to limit system.grp service");
+	fields[0] = "gr_name";
+	if (cap_grp_limit_fields(capgrploc, fields, 1) < 0)
+		err(1, "unable to limit system.grp service");
+
+	*cappwdp = cappwdloc;
+	*capgrpp = capgrploc;
+	return (0);
+}
+#endif	/* HAVE_LIBCAPSICUM */
 
 int
 main(int argc, char *argv[])
@@ -263,14 +322,28 @@ main(int argc, char *argv[])
 
 	strerror_init();
 	localtime_init();
-
+#ifdef HAVE_LIBCAPSICUM
+	if (resolv != 0) {
+		if (cappwdgrp_setup(&cappwd, &capgrp) < 0) {
+			cappwd = NULL;
+			capgrp = NULL;
+		}
+	}
+	if (resolv == 0 || (cappwd != NULL && capgrp != NULL)) {
+		if (cap_enter() < 0 && errno != ENOSYS)
+			err(1, "unable to enter capability mode");
+	}
+#else
 	if (resolv == 0) {
 		if (cap_enter() < 0 && errno != ENOSYS)
 			err(1, "unable to enter capability mode");
 	}
+#endif
 	limitfd(STDIN_FILENO);
 	limitfd(STDOUT_FILENO);
 	limitfd(STDERR_FILENO);
+	if (cap_sandboxed())
+		fprintf(stderr, "capability mode sandbox enabled\n");
 
 	TAILQ_INIT(&trace_procs);
 	drop_logged = 0;
@@ -379,21 +452,21 @@ limitfd(int fd)
 	cap_rights_t rights;
 	unsigned long cmd;
 
-	rights = CAP_FSTAT;
+	cap_rights_init(&rights, CAP_FSTAT);
 	cmd = -1;
 
 	switch (fd) {
 	case STDIN_FILENO:
-		rights |= CAP_READ;
+		cap_rights_set(&rights, CAP_READ);
 		break;
 	case STDOUT_FILENO:
-		rights |= CAP_IOCTL | CAP_WRITE;
+		cap_rights_set(&rights, CAP_IOCTL, CAP_WRITE);
 		cmd = TIOCGETA;	/* required by isatty(3) in printf(3) */
 		break;
 	case STDERR_FILENO:
-		rights |= CAP_WRITE;
+		cap_rights_set(&rights, CAP_WRITE);
 		if (!suppressdata) {
-			rights |= CAP_IOCTL;
+			cap_rights_set(&rights, CAP_IOCTL);
 			cmd = TIOCGWINSZ;
 		}
 		break;
@@ -401,7 +474,7 @@ limitfd(int fd)
 		abort();
 	}
 
-	if (cap_rights_limit(fd, rights) < 0 && errno != ENOSYS)
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
 		err(1, "unable to limit rights for descriptor %d", fd);
 	if (cmd != -1 && cap_ioctls_limit(fd, &cmd, 1) < 0 && errno != ENOSYS)
 		err(1, "unable to limit ioctls for descriptor %d", fd);
@@ -665,8 +738,30 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_wait4:
 				print_number(ip, narg, c);
 				print_number(ip, narg, c);
+				/*
+				 * A flags value of zero is valid for
+				 * wait4() but not for wait6(), so
+				 * handle zero special here.
+				 */
+				if (*ip == 0) {
+					print_number(ip, narg, c);
+				} else {
+					putchar(',');
+					wait6optname(*ip);
+					ip++;
+					narg--;
+				}
+				break;
+			case SYS_wait6:
+				putchar('(');
+				idtypename(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
 				putchar(',');
-				wait4optname(*ip);
+				wait6optname(*ip);
 				ip++;
 				narg--;
 				break;
@@ -1120,35 +1215,6 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
-			case SYS_cap_new:
-			case SYS_cap_rights_limit:
-				print_number(ip, narg, c);
-				putchar(',');
-				arg = *ip;
-				ip++;
-				narg--;
-				/*
-				 * Hack: the second argument is a
-				 * cap_rights_t, which 64 bits wide, so on
-				 * 32-bit systems, it is split between two
-				 * registers.
-				 *
-				 * Since sizeof() is not evaluated by the
-				 * preprocessor, we can't use an #ifdef,
-				 * but the compiler will probably optimize
-				 * the code out anyway.
-				 */
-				if (sizeof(cap_rights_t) > sizeof(register_t)) {
-#if _BYTE_ORDER == _LITTLE_ENDIAN
-					arg = ((intmax_t)*ip << 32) + arg;
-#else
-					arg = (arg << 32) + *ip;
-#endif
-					ip++;
-					narg--;
-				}
-				capname(arg);
-				break;
 			case SYS_cap_fcntls_limit:
 				print_number(ip, narg, c);
 				putchar(',');
@@ -1163,6 +1229,18 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				print_number(ip, narg, c);
 				(void)putchar(',');
 				fadvisebehavname((int)*ip);
+				ip++;
+				narg--;
+				break;
+			case SYS_procctl:
+				putchar('(');
+				idtypename(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				print_number(ip, narg, c);
+				putchar(',');
+				procctlcmdname(*ip);
 				ip++;
 				narg--;
 				break;
@@ -1536,6 +1614,15 @@ ktruser(int len, unsigned char *p)
 }
 
 void
+ktrcaprights(cap_rights_t *rightsp)
+{
+
+	printf("cap_rights_t ");
+	capname(rightsp);
+	printf("\n");
+}
+
+void
 ktrsockaddr(struct sockaddr *sa)
 {
 /*
@@ -1639,15 +1726,40 @@ ktrstat(struct stat *statp)
 	 * buffer exactly sizeof(struct stat) bytes long.
 	 */
 	printf("struct stat {");
-	strmode(statp->st_mode, mode);
-	printf("dev=%ju, ino=%ju, mode=%s, nlink=%ju, ",
-		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino, mode,
-		(uintmax_t)statp->st_nlink);
-	if (resolv == 0 || (pwd = getpwuid(statp->st_uid)) == NULL)
+	printf("dev=%ju, ino=%ju, ",
+		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino);
+	if (resolv == 0)
+		printf("mode=0%jo, ", (uintmax_t)statp->st_mode);
+	else {
+		strmode(statp->st_mode, mode);
+		printf("mode=%s, ", mode);
+	}
+	printf("nlink=%ju, ", (uintmax_t)statp->st_nlink);
+	if (resolv == 0) {
+		pwd = NULL;
+	} else {
+#ifdef HAVE_LIBCAPSICUM
+		if (cappwd != NULL)
+			pwd = cap_getpwuid(cappwd, statp->st_uid);
+		else
+#endif
+			pwd = getpwuid(statp->st_uid);
+	}
+	if (pwd == NULL)
 		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
 	else
 		printf("uid=\"%s\", ", pwd->pw_name);
-	if (resolv == 0 || (grp = getgrgid(statp->st_gid)) == NULL)
+	if (resolv == 0) {
+		grp = NULL;
+	} else {
+#ifdef HAVE_LIBCAPSICUM
+		if (capgrp != NULL)
+			grp = cap_getgrgid(capgrp, statp->st_gid);
+		else
+#endif
+			grp = getgrgid(statp->st_gid);
+	}
+	if (grp == NULL)
 		printf("gid=%ju, ", (uintmax_t)statp->st_gid);
 	else
 		printf("gid=\"%s\", ", grp->gr_name);
@@ -1712,6 +1824,7 @@ ktrstruct(char *buf, size_t buflen)
 	char *name, *data;
 	size_t namelen, datalen;
 	int i;
+	cap_rights_t rights;
 	struct stat sb;
 	struct sockaddr_storage ss;
 
@@ -1731,7 +1844,12 @@ ktrstruct(char *buf, size_t buflen)
 	for (i = 0; i < (int)namelen; ++i)
 		if (!isalpha(name[i]))
 			goto invalid;
-	if (strcmp(name, "stat") == 0) {
+	if (strcmp(name, "caprights") == 0) {
+		if (datalen != sizeof(cap_rights_t))
+			goto invalid;
+		memcpy(&rights, data, datalen);
+		ktrcaprights(&rights);
+	} else if (strcmp(name, "stat") == 0) {
 		if (datalen != sizeof(struct stat))
 			goto invalid;
 		memcpy(&sb, data, datalen);
@@ -1758,16 +1876,16 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 	case CAPFAIL_NOTCAPABLE:
 		/* operation on fd with insufficient capabilities */
 		printf("operation requires ");
-		capname((intmax_t)ktr->cap_needed);
+		capname(&ktr->cap_needed);
 		printf(", process holds ");
-		capname((intmax_t)ktr->cap_held);
+		capname(&ktr->cap_held);
 		break;
 	case CAPFAIL_INCREASE:
 		/* requested more capabilities than fd already has */
 		printf("attempt to increase capabilities from ");
-		capname((intmax_t)ktr->cap_held);
+		capname(&ktr->cap_held);
 		printf(" to ");
-		capname((intmax_t)ktr->cap_needed);
+		capname(&ktr->cap_needed);
 		break;
 	case CAPFAIL_SYSCALL:
 		/* called restricted syscall */
@@ -1779,9 +1897,9 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 		break;
 	default:
 		printf("unknown capability failure: ");
-		capname((intmax_t)ktr->cap_needed);
+		capname(&ktr->cap_needed);
 		printf(" ");
-		capname((intmax_t)ktr->cap_held);
+		capname(&ktr->cap_held);
 		break;
 	}
 	printf("\n");

@@ -31,7 +31,7 @@ static const char rcsid[] _U_ =
 #include <stdio.h>
 
 void
-bpf_dump(struct bpf_program *p, int option)
+bpf_dump(const struct bpf_program *p, int option)
 {
 	const struct bpf_insn *insn;
 	int i;

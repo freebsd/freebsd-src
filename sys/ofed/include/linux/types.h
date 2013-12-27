@@ -45,6 +45,8 @@ typedef _Bool bool;
 #define	false	FALSE
 #endif
 
+typedef u64 phys_addr_t;
+
 typedef unsigned long kernel_ulong_t;
 typedef unsigned int    uint;
 typedef unsigned gfp_t;

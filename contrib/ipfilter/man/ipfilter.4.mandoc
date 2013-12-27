@@ -30,7 +30,7 @@ send back an ICMP error/TCP reset for blocked packets
 .It
 keep packet state information for TCP, UDP and ICMP packet flows
 .It
-keep fragment state information for any IP packet, applying the same rule 
+keep fragment state information for any IP packet, applying the same rule
 to all fragments.
 .It
 act as a Network Address Translator (NAT)
@@ -57,7 +57,7 @@ On any arbitrary combination of TCP flags
 .It
 "short" (fragmented) IP packets with incomplete headers can be filtered
 .It
-any of the 19 IP options or 8 registered IP security classes TOS (Type of 
+any of the 19 IP options or 8 registered IP security classes TOS (Type of
 Service) field in packets
 .El
 .Pp
@@ -83,7 +83,7 @@ it matches a rule setup to look for suspicious packets
 IP Filter keeps its own set of statistics on:
 .Bl -bullet -offset indent -compact
 .It
-packets blocked 
+packets blocked
 .It
 packets (and bytes!) used for accounting
 .It
@@ -97,7 +97,7 @@ and much more, for packets going both in and out.
 
 .Sh Tools
 The current implementation provides a small set of tools, which can easily
-be used and integrated with regular unix shells and tools. A brief description 
+be used and integrated with regular unix shells and tools. A brief description
 of the tools provided:
 .Pp
 .Xr ipf 8
@@ -111,7 +111,7 @@ described in
 is a utility to temporarily lock the IP Filter kernel tables (state tables
 and NAT mappings) and write them to disk. After that the system can be
 rebooted, and ipfs can be used to read these tables from disk and restore
-them into the kernel. This way the system can be rebooted without the 
+them into the kernel. This way the system can be rebooted without the
 connections being terminated.
 .Pp
 .Xr ipfstat 8
@@ -129,7 +129,7 @@ reads buffered data from the logging device (default is /dev/ipl)
 for output to either:
 .Bl  -bullet -offset indent -compact
 .It
-screen (standard output) 
+screen (standard output)
 .It
 file
 .It
@@ -152,7 +152,7 @@ aimed at. WARNING: this may crash machine(s) targeted!
 reads in a set of rules, from either stdin or a file and adds them
 to the kernels current list of active NAT rules. NAT rules can also be
 deleted using ipnat. The format of the configuration file to be used
-with ipnat is described in 
+with ipnat is described in
 .Xr ipnat 5 .
 .Pp
 For use in your own programs (e.g. for writing of transparent application
@@ -162,15 +162,15 @@ documented in
 
 Documentation on ioctl's and the format of data saved
 to the logging character device is provided in
-.Xr ipl 4 
-so that you may develop your own applications to work with or in place of any 
+.Xr ipl 4
+so that you may develop your own applications to work with or in place of any
 of the above.
 
-Similar, the interface to the NAT code is documented in 
+Similar, the interface to the NAT code is documented in
 .Xr ipnat 4 .
 
 .Sh PACKET PROCESSING FLOW
-The following diagram illustrates the flow of TCP/IP packets through the 
+The following diagram illustrates the flow of TCP/IP packets through the
 various stages introduced by IP Filter.
 .Pp
 .nf

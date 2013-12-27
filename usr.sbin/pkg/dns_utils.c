@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Baptiste Daroussin <bapt@FreeBSD.org>
+ * Copyright (c) 2012-2013 Baptiste Daroussin <bapt@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,77 @@ typedef union {
 	unsigned char buf[1024];
 } dns_query;
 
+static int
+srv_priority_cmp(const void *a, const void *b)
+{
+	const struct dns_srvinfo *da, *db;
+	unsigned int r, l;
+
+	da = *(struct dns_srvinfo * const *)a;
+	db = *(struct dns_srvinfo * const *)b;
+
+	l = da->priority;
+	r = db->priority;
+
+	return ((l > r) - (l < r));
+}
+
+static int
+srv_final_cmp(const void *a, const void *b)
+{
+	const struct dns_srvinfo *da, *db;
+	unsigned int r, l, wr, wl;
+	int res;
+
+	da = *(struct dns_srvinfo * const *)a;
+	db = *(struct dns_srvinfo * const *)b;
+
+	l = da->priority;
+	r = db->priority;
+
+	res = ((l > r) - (l < r));
+
+	if (res == 0) {
+		wl = da->finalweight;
+		wr = db->finalweight;
+		res = ((wr > wl) - (wr < wl));
+	}
+
+	return (res);
+}
+
+static void
+compute_weight(struct dns_srvinfo **d, int first, int last)
+{
+	int i, j, totalweight;
+	int *chosen;
+
+	chosen = malloc(sizeof(int) * (last - first + 1));
+	totalweight = 0;
+	
+	for (i = 0; i <= last; i++)
+		totalweight += d[i]->weight;
+
+	if (totalweight == 0)
+		return;
+
+	for (i = 0; i <= last; i++) {
+		for (;;) {
+			chosen[i] = random() % (d[i]->weight * 100 / totalweight);
+			for (j = 0; j < i; j++) {
+				if (chosen[i] == chosen[j])
+					break;
+			}
+			if (j == i) {
+				d[i]->finalweight = chosen[i];
+				break;
+			}
+		}
+	}
+
+	free(chosen);
+}
+
 struct dns_srvinfo *
 dns_getsrvinfo(const char *zone)
 {
@@ -46,7 +117,7 @@ dns_getsrvinfo(const char *zone)
 	unsigned char *end, *p;
 	char host[MAXHOSTNAMELEN];
 	dns_query q;
-	int len, qdcount, ancount, n, i;
+	int len, qdcount, ancount, n, i, f, l;
 	unsigned int type, class, ttl, priority, weight, port;
 
 	if ((len = res_query(zone, C_IN, T_SRV, q.buf, sizeof(q.buf))) == -1 ||
@@ -124,6 +195,21 @@ dns_getsrvinfo(const char *zone)
 		p += len;
 		n++;
 	}
+
+	qsort(res, n, sizeof(res[0]), srv_priority_cmp);
+
+	priority = f = l = 0;
+	for (i = 0; i < n; i++) {
+		if (res[i]->priority != priority) {
+			if (f != l)
+				compute_weight(res, f, l);
+			f = i;
+			priority = res[i]->priority;
+		}
+		l = i;
+	}
+
+	qsort(res, n, sizeof(res[0]), srv_final_cmp);
 
 	for (i = 0; i < n - 1; i++)
 		res[i]->next = res[i + 1];

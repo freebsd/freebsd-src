@@ -78,7 +78,8 @@ protected:
     GCCVersion Version;
 
   public:
-    GCCInstallationDetector(const Driver &D, const llvm::Triple &TargetTriple,
+    GCCInstallationDetector() : IsValid(false) {}
+    void init(const Driver &D, const llvm::Triple &TargetTriple,
                             const ArgList &Args);
 
     /// \brief Check whether we detected a valid GCC install.
@@ -458,8 +459,13 @@ class LLVM_LIBRARY_VISIBILITY FreeBSD : public Generic_ELF {
 public:
   FreeBSD(const Driver &D, const llvm::Triple& Triple, const ArgList &Args);
 
+  virtual CXXStdlibType GetCXXStdlibType(const ArgList &Args) const;
+
   virtual bool IsMathErrnoDefault() const { return false; }
   virtual bool IsObjCNonFragileABIDefault() const { return true; }
+
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
 
   virtual bool UseSjLjExceptions() const;
 protected:

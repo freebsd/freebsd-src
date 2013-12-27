@@ -3,7 +3,13 @@
 	    FreeBSD maintainer's guide to OpenSSH-portable
 	    ==============================================
 
-[needs rewriting for svn]
+XXX
+XXX this needs a complete rewrite
+XXX svn merge from vendor branch, resolve conflicts manually
+XXX   (see FREEBSD-tricks for tips on how to reduce conflicts)
+XXX run freebsd-configure.sh to generate config.h and krb5_config.h
+XXX svn diff Makefile.in to see if the Makefiles need adjusting
+XXX
 
 0) Make sure your mail spool has plenty of free space.  It'll fill up
    pretty fast once you're done with this checklist.
@@ -116,7 +122,7 @@ B) Re-commit everything on repoman (you *did* use a test repo for
 
 
 This port was brought to you by (in no particular order) DARPA, NAI
-Labs, ThinkSec, Nescafé, the Aberlour Glenlivet Distillery Co.,
+Labs, ThinkSec, NescafÃ©, the Aberlour Glenlivet Distillery Co.,
 Suzanne Vega, and a Sanford's #69 Deluxe Marker.
 
 					-- des@FreeBSD.org

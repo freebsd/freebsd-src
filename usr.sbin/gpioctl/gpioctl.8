@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2011
+.Dd November 7, 2013
 .Dt GPIOCTL 1
 .Os
 .Sh NAME
@@ -36,20 +36,20 @@
 .Sh SYNOPSIS
 .Nm
 .Cm -l
-.Fl f Ar ctldev
+.Op Fl f Ar ctldev
 .Op Fl v
 .Nm
 .Cm -t
-.Fl f Ar ctldev
+.Op Fl f Ar ctldev
 .Ar pin
 .Nm
 .Cm -c
-.Fl f Ar ctldev
+.Op Fl f Ar ctldev
 .Ar pin
 .Ar flag
 .Op flag ...
 .Nm
-.Cm -f Ar ctldev
+.Op Cm -f Ar ctldev
 .Ar pin
 .Ar [0|1]
 .Sh DESCRIPTION
@@ -83,6 +83,8 @@ Inverted output pin
 .El
 .It Fl f Ar ctldev
 GPIO controller device to use
+If not specified, defaults to
+.Pa /dev/gpioc0
 .It Fl l
 list available pins
 .It Fl t Ar pin
@@ -105,6 +107,10 @@ Configure pin 12 to be input pin
 .Pp
 gpioctl -f /dev/gpioc0 -c 12 IN
 .El
+.Sh SEE ALSO
+.Xr gpio 4
+.Xr gpioiic 4
+.Xr gpioled 4
 .Sh HISTORY
 The
 .Nm

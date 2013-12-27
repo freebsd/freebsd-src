@@ -1539,3 +1539,20 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
+
+#undef MODULE_VERSION
+#include <sys/module.h>
+static int
+ipoib_evhand(module_t mod, int event, void *arg)
+{
+	                return (0);
+}
+
+static moduledata_t ipoib_mod = {
+	                .name = "ipoib",
+			                .evhand = ipoib_evhand,
+};
+
+DECLARE_MODULE(ipoib, ipoib_mod, SI_SUB_SMP, SI_ORDER_ANY);
+MODULE_DEPEND(ipoib, ibcore, 1, 1, 1);
+

@@ -10716,7 +10716,7 @@ log_find_operative_revs(void *baton,
 
           suffix = svn_relpath_skip_ancestor(subtree_missing_this_rev,
                                              source_rel_path);
-          if (suffix)
+          if (suffix && suffix[0] != '\0')
             {
               missing_path = apr_pstrmemdup(pool, path,
                                             strlen(path) - strlen(suffix) - 1);
@@ -12051,11 +12051,15 @@ short_circuit_mergeinfo_log(svn_mergeinfo_catalog_t *target_mergeinfo_cat,
                             svn_log_entry_receiver_t receiver,
                             svn_revnum_t *revision,
                             svn_client_ctx_t *ctx,
+                            svn_ra_session_t *ra_session,
                             apr_pool_t *result_pool,
                             apr_pool_t *scratch_pool)
 {
   apr_array_header_t *revprops;
   svn_error_t *err;
+  const char *session_url;
+
+  SVN_ERR(svn_ra_get_session_url(ra_session, &session_url, scratch_pool));
 
   revprops = apr_array_make(scratch_pool, 0, sizeof(const char *));
   err = svn_client__mergeinfo_log(finding_merged,
@@ -12068,8 +12072,12 @@ short_circuit_mergeinfo_log(svn_mergeinfo_catalog_t *target_mergeinfo_cat,
                                   source_end_revision,
                                   receiver, revision,
                                   TRUE, svn_depth_infinity,
-                                  revprops, ctx, result_pool,
-                                  scratch_pool);
+                                  revprops, ctx, ra_session,
+                                  result_pool, scratch_pool);
+
+  err = svn_error_compose_create(
+                  err,
+                  svn_ra_reparent(ra_session, session_url, scratch_pool));
 
   if (err)
     {
@@ -12133,6 +12141,7 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
                           const branch_history_t *source_branch,
                           svn_client__pathrev_t *target,
                           svn_client_ctx_t *ctx,
+                          svn_ra_session_t *ra_session,
                           apr_pool_t *result_pool,
                           apr_pool_t *scratch_pool)
 {
@@ -12160,7 +12169,8 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
                                       &source_end_rev, &source_start_rev,
                                       operative_rev_receiver,
                                       &youngest_merged_rev,
-                                      ctx, result_pool, scratch_pool));
+                                      ctx, ra_session,
+                                      result_pool, scratch_pool));
 
   if (!SVN_IS_VALID_REVNUM(youngest_merged_rev))
     {
@@ -12195,7 +12205,8 @@ find_last_merged_location(svn_client__pathrev_t **base_p,
                                           &source_start_rev, &source_end_rev,
                                           operative_rev_receiver,
                                           &oldest_eligible_rev,
-                                          ctx, scratch_pool, scratch_pool));
+                                          ctx, ra_session,
+                                          scratch_pool, scratch_pool));
 
       /* If there are revisions eligible for merging, use the oldest one
          to calculate the base.  Otherwise there are no operative revisions
@@ -12249,7 +12260,9 @@ find_base_on_source(svn_client__pathrev_t **base_p,
                                     s_t->yca,
                                     &s_t->source_branch,
                                     s_t->target_branch.tip,
-                                    ctx, result_pool, scratch_pool));
+                                    ctx,
+                                    s_t->source_ra_session,
+                                    result_pool, scratch_pool));
   return SVN_NO_ERROR;
 }
 
@@ -12282,7 +12295,9 @@ find_base_on_target(svn_client__pathrev_t **base_p,
                                     s_t->yca,
                                     &s_t->target_branch,
                                     s_t->source,
-                                    ctx, result_pool, scratch_pool));
+                                    ctx,
+                                    s_t->target_ra_session,
+                                    result_pool, scratch_pool));
 
   return SVN_NO_ERROR;
 }

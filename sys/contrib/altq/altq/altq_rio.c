@@ -81,6 +81,7 @@
 #endif
 
 #include <net/if.h>
+#include <net/if_var.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -89,7 +90,8 @@
 #include <netinet/ip6.h>
 #endif
 
-#include <net/pfvar.h>
+#include <netpfil/pf/pf.h>
+#include <netpfil/pf/pf_altq.h>
 #include <altq/altq.h>
 #include <altq/altq_cdnr.h>
 #include <altq/altq_red.h>

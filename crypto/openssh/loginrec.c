@@ -347,7 +347,7 @@ logininfo *login_alloc_entry(pid_t pid, const char *username,
 void
 login_free_entry(struct logininfo *li)
 {
-	xfree(li);
+	free(li);
 }
 
 

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2012
+.Dd October 1, 2013
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -972,7 +972,7 @@ autoboot 5
 .Pp
 Set the disk unit of the root device to 2, and then boot.
 This would be needed in a system with two IDE disks,
-with the second IDE disk hardwired to ad2 instead of ad1.
+with the second IDE disk hardwired to ada2 instead of ada1.
 .Bd -literal -offset indent
 set root_disk_unit=2
 boot /boot/kernel/kernel

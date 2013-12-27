@@ -6,13 +6,11 @@
      $FreeBSD$
      Original revision: 1.3
 -->
-
-
-<articleinfo>
-  <title>&os;/&arch; &release.current; compatibilit&eacute; 
+<info xmlns="http://docbook.org/ns/docbook"><title>&os;/&arch; &release.current; compatibilit&eacute; 
   mat&eacute;rielle</title>
+  
 
-  <corpauthor>Le projet de documentation FreeBSD</corpauthor>
+  <author><orgname>Le projet de documentation FreeBSD</orgname></author>
 
   <copyright>
     <year>2000</year>
@@ -21,4 +19,4 @@
     <year>2003</year>
     <holder role="mailto:doc@FreeBSD.org">Le projet de documentation FreeBSD</holder>
   </copyright>
-</articleinfo>
+</info>

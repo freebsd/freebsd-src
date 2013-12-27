@@ -1321,10 +1321,12 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 			sc->cbw.bCDBLength = sc->sc_transfer.cmd_len;
 
+			/* copy SCSI command data */
 			memcpy(sc->cbw.CBWCDB, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
-			memset(sc->sc_transfer.cmd_data +
+			/* clear remaining command area */
+			memset(sc->cbw.CBWCDB +
 			    sc->sc_transfer.cmd_len, 0,
 			    sizeof(sc->cbw.CBWCDB) -
 			    sc->sc_transfer.cmd_len);
@@ -2117,10 +2119,9 @@ umass_cam_attach(struct umass_softc *sc)
 #ifndef USB_DEBUG
 	if (bootverbose)
 #endif
-		printf("%s:%d:%d:%d: Attached to scbus%d\n",
+		printf("%s:%d:%d: Attached to scbus%d\n",
 		    sc->sc_name, cam_sim_path(sc->sc_sim),
-		    sc->sc_unit, CAM_LUN_WILDCARD,
-		    cam_sim_path(sc->sc_sim));
+		    sc->sc_unit, cam_sim_path(sc->sc_sim));
 }
 
 /* umass_cam_detach
@@ -2171,19 +2172,19 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 				cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_bytes);
 			}
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SCSI_IO: "
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SCSI_IO: "
 			    "cmd: 0x%02x, flags: 0x%02x, "
 			    "%db cmd/%db data/%db sense\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun, cmd[0],
+			    (uintmax_t)ccb->ccb_h.target_lun, cmd[0],
 			    ccb->ccb_h.flags & CAM_DIR_MASK, ccb->csio.cdb_len,
 			    ccb->csio.dxfer_len, ccb->csio.sense_len);
 
 			if (sc->sc_transfer.ccb) {
-				DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SCSI_IO: "
+				DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SCSI_IO: "
 				    "I/O in progress, deferring\n",
 				    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-				    ccb->ccb_h.target_lun);
+				    (uintmax_t)ccb->ccb_h.target_lun);
 				ccb->ccb_h.status = CAM_SCSI_BUSY;
 				xpt_done(ccb);
 				goto done;
@@ -2301,9 +2302,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		{
 			struct ccb_pathinq *cpi = &ccb->cpi;
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_PATH_INQ:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_PATH_INQ:.\n",
 			    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			/* host specific information */
 			cpi->version_num = 1;
@@ -2356,9 +2357,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_RESET_DEV:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_RESET_DEV:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_RESET_DEV:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			umass_reset(sc);
 
@@ -2370,9 +2371,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		{
 			struct ccb_trans_settings *cts = &ccb->cts;
 
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_GET_TRAN_SETTINGS:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_GET_TRAN_SETTINGS:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
@@ -2386,9 +2387,9 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_SET_TRAN_SETTINGS:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_SET_TRAN_SETTINGS:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_SET_TRAN_SETTINGS:.\n",
 			    cam_sim_path(sc->sc_sim), ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			xpt_done(ccb);
@@ -2402,19 +2403,19 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		}
 	case XPT_NOOP:
 		{
-			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:XPT_NOOP:.\n",
+			DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:XPT_NOOP:.\n",
 			    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-			    ccb->ccb_h.target_lun);
+			    (uintmax_t)ccb->ccb_h.target_lun);
 
 			ccb->ccb_h.status = CAM_REQ_CMP;
 			xpt_done(ccb);
 			break;
 		}
 	default:
-		DPRINTF(sc, UDMASS_SCSI, "%d:%d:%d:func_code 0x%04x: "
+		DPRINTF(sc, UDMASS_SCSI, "%d:%d:%jx:func_code 0x%04x: "
 		    "Not implemented\n",
 		    sc ? cam_sim_path(sc->sc_sim) : -1, ccb->ccb_h.target_id,
-		    ccb->ccb_h.target_lun, ccb->ccb_h.func_code);
+		    (uintmax_t)ccb->ccb_h.target_lun, ccb->ccb_h.func_code);
 
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		xpt_done(ccb);

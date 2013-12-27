@@ -265,7 +265,8 @@ int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_storage *,
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, struct mbuf *);
-void nfsv4_setsequence(struct nfsrv_descript *, struct nfsclsession *, int);
+void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
+    struct nfsclsession *, int);
 void nfsv4_freeslot(struct nfsclsession *, int);
 
 /* nfs_clcomsubs.c */
@@ -612,7 +613,7 @@ void nfsvno_open(struct nfsrv_descript *, struct nameidata *, nfsquad_t,
     nfsv4stateid_t *, struct nfsstate *, int *, struct nfsvattr *, int32_t *,
     int, NFSACL_T *, nfsattrbit_t *, struct ucred *, NFSPROC_T *,
     struct nfsexstuff *, vnode_t *);
-void nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,
+int nfsvno_updfilerev(vnode_t, struct nfsvattr *, struct ucred *,
     NFSPROC_T *);
 int nfsvno_fillattr(struct nfsrv_descript *, struct mount *, vnode_t,
     struct nfsvattr *, fhandle_t *, int, nfsattrbit_t *,

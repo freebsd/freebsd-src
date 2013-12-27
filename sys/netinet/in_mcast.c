@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -139,7 +140,9 @@ static int	in_getmulti(struct ifnet *, const struct in_addr *,
 		    struct in_multi **);
 static int	inm_get_source(struct in_multi *inm, const in_addr_t haddr,
 		    const int noalloc, struct ip_msource **pims);
+#ifdef KTR
 static int	inm_is_ifp_detached(const struct in_multi *);
+#endif
 static int	inm_merge(struct in_multi *, /*const*/ struct in_mfilter *);
 static void	inm_purge(struct in_multi *);
 static void	inm_reap(struct in_multi *);
@@ -186,6 +189,7 @@ static STAILQ_HEAD(, ip_moptions) imo_gc_list =
     STAILQ_HEAD_INITIALIZER(imo_gc_list);
 static struct task imo_gc_task = TASK_INITIALIZER(0, inp_gcmoptions, NULL);
 
+#ifdef KTR
 /*
  * Inline function which wraps assertions for a valid ifp.
  * The ifnet layer will set the ifma's ifp pointer to NULL if the ifp
@@ -208,6 +212,7 @@ inm_is_ifp_detached(const struct in_multi *inm)
 
 	return (ifp == NULL);
 }
+#endif
 
 /*
  * Initialize an in_mfilter structure to a known state at t0, t1
@@ -220,6 +225,49 @@ imf_init(struct in_mfilter *imf, const int st0, const int st1)
 	RB_INIT(&imf->imf_sources);
 	imf->imf_st[0] = st0;
 	imf->imf_st[1] = st1;
+}
+
+/*
+ * Function for looking up an in_multi record for an IPv4 multicast address
+ * on a given interface. ifp must be valid. If no record found, return NULL.
+ * The IN_MULTI_LOCK and IF_ADDR_LOCK on ifp must be held.
+ */
+struct in_multi *
+inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
+{
+	struct ifmultiaddr *ifma;
+	struct in_multi *inm;
+
+	IN_MULTI_LOCK_ASSERT();
+	IF_ADDR_LOCK_ASSERT(ifp);
+
+	inm = NULL;
+	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
+		if (ifma->ifma_addr->sa_family == AF_INET) {
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			if (inm->inm_addr.s_addr == ina.s_addr)
+				break;
+			inm = NULL;
+		}
+	}
+	return (inm);
+}
+
+/*
+ * Wrapper for inm_lookup_locked().
+ * The IF_ADDR_LOCK will be taken on ifp and released on return.
+ */
+struct in_multi *
+inm_lookup(struct ifnet *ifp, const struct in_addr ina)
+{
+	struct in_multi *inm;
+
+	IN_MULTI_LOCK_ASSERT();
+	IF_ADDR_RLOCK(ifp);
+	inm = inm_lookup_locked(ifp, ina);
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (inm);
 }
 
 /*

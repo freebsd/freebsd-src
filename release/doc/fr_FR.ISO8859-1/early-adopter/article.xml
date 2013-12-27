@@ -1,13 +1,12 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 
-<!ENTITY release.4x "4.<replaceable>X</replaceable>">
-<!ENTITY release.5x "5.<replaceable>X</replaceable>">
+<!ENTITY release.4x "4.<replaceable xmlns='http://docbook.org/ns/docbook'>X</replaceable>">
+<!ENTITY release.5x "5.<replaceable xmlns='http://docbook.org/ns/docbook'>X</replaceable>">
 ]>
-
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -16,13 +15,12 @@
      $FreeBSD$
      Original revision: 1.3
 -->
-
-<article>
-  <articleinfo>
-    <title>Guide pour les testeurs des nouvelles fonctions &agrave; &release.current;</title>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>Guide pour les testeurs des nouvelles fonctions &agrave; &release.current;</title>
+    
 
     <authorgroup>
-      <corpauthor>L'&eacute;quipe de confection des versions de &os;</corpauthor>
+      <author><orgname>L'&eacute;quipe de confection des versions de &os;</orgname></author>
     </authorgroup>
 
     <pubdate>$FreeBSD$</pubdate>
@@ -33,9 +31,9 @@
       <holder role="mailto:re@FreeBSD.org">L'&eacute;quipe de confection des
       versions de &os;</holder>
     </copyright>
-  </articleinfo>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>&os; &release.5x; annonce une nouvelle version majeur de &os; depuis
@@ -128,10 +126,8 @@
     version 5.1-RELEASE ou 5.2-RELEASE.</para>
 
     <para>Plus d'informations sur le procesuss de version de &os; se
-    trouve &agrave; <ulink
-      url="http://www.FreeBSD.org/releng/index.html">la page Web de
-      confection des versions</ulink> et dans l'article sur <ulink
-      url="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">le m&eacute;canisme de versions </ulink>.</para>
+    trouve &agrave; <link xlink:href="http://www.FreeBSD.org/releng/index.html">la page Web de
+      confection des versions</link> et dans l'article sur <link xlink:href="http://www.freebsd.org/doc/en_US.ISO8859-1/articles/releng/index.html">le m&eacute;canisme de versions </link>.</para>
 
   </sect1>
 
@@ -306,9 +302,8 @@
 
     <para>&a.security-officer; continuera &agrave; supporter les futures
     version de la branche 4-STABLE en fonction de sa politique, qui
-    peut &ecirc;tre trouv&eacute;e &agrave;  <ulink
-      url="http://www.FreeBSD.org/security/index.html">la page sur la
-      s&eacute;curit&eacute;</ulink> sur le site web de  &os;. G&eacute;n&eacute;rallement les
+    peut &ecirc;tre trouv&eacute;e &agrave;  <link xlink:href="http://www.FreeBSD.org/security/index.html">la page sur la
+      s&eacute;curit&eacute;</link> sur le site web de  &os;. G&eacute;n&eacute;rallement les
       deux derni&egrave;res plus r&eacute;centes versions de toutes les branches
       sont support&eacute;es en respectant les avis de s&eacute;curit&eacute; et leur
       correctifs. L'&eacute;quipe peut aussi supporter d'autres versions &agrave; sa

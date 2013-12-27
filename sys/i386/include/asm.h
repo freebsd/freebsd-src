@@ -91,11 +91,15 @@
 #endif
 
 /*
- * WEAK_ALIAS: create a weak alias.
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
+ * The macro is not a general asm macro that takes arbitrary names,
+ * but one that takes only C names. It does the non-null name
+ * translation inside the macro.
  */
-#define	WEAK_ALIAS(alias,sym)						\
-	.weak alias;							\
-	alias = sym
+
+#define	WEAK_REFERENCE(sym, alias)					\
+	.weak CNAME(alias);						\
+	.equ CNAME(alias),CNAME(sym)
 
 /*
  * STRONG_ALIAS: create a strong alias.

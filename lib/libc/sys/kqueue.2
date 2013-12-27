@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 21, 2013
+.Dd November 4, 2013
 .Dt KQUEUE 2
 .Os
 .Sh NAME
@@ -532,6 +532,13 @@ system call fails if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 The kernel failed to allocate enough memory for the kernel queue.
+.It Bq Er ENOMEM
+The
+.Dv RLIMIT_KQUEUES
+rlimit
+(see
+.Xr getrlimit 2 )
+for the current user would be exceeded.
 .It Bq Er EMFILE
 The per-process descriptor table is full.
 .It Bq Er ENFILE

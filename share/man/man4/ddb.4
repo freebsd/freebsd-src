@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2011
+.Dd September 30, 2013
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -219,6 +219,8 @@ look at by bytes (8 bits)
 look at by half words (16 bits)
 .It Cm l
 look at by long words (32 bits)
+.It Cm g
+look at by quad words (64 bits)
 .It Cm a
 print the location being displayed
 .It Cm A
@@ -249,19 +251,7 @@ The location is also displayed in hex at the beginning of each line.
 display as an instruction
 .It Cm I
 display as an instruction with possible alternate formats depending on the
-machine:
-.Bl -tag -width ".Tn powerpc" -compact
-.It Tn amd64
-No alternate format.
-.It Tn i386
-No alternate format.
-.It Tn ia64
-No alternate format.
-.It Tn powerpc
-No alternate format.
-.It Tn sparc64
-No alternate format.
-.El
+machine, but none of the supported architectures have an alternate format.
 .It Cm S
 display a symbol name for the pointer stored at the address
 .El

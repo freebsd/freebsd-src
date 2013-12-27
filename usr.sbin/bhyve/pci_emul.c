@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include "bhyverun.h"
 #include "inout.h"
+#include "legacy_irq.h"
 #include "mem.h"
 #include "pci_emul.h"
-#include "ioapic.h"
 
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
@@ -75,17 +75,6 @@ static struct slotinfo {
 	struct pci_devinst *si_devi;
 	int	si_legacy;
 } pci_slotinfo[MAXSLOTS][MAXFUNCS];
-
-/*
- * Used to keep track of legacy interrupt owners/requestors
- */
-#define NLIRQ		16
-
-static struct lirqinfo {
-	int	li_generic;
-	int	li_acount;
-	struct pci_devinst *li_owner;	/* XXX should be a list */
-} lirq[NLIRQ];
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
@@ -682,6 +671,7 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	pdi->pi_bus = 0;
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
+	pdi->pi_lintr_pin = -1;
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s-pci-%d", pde->pe_emu, slot);
 
@@ -860,19 +850,14 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		else
 			msgdata = pci_get_cfgdata16(pi, capoff + 8);
 
-		/*
-		 * XXX check delivery mode, destination mode etc
-		 */
 		mme = msgctrl & PCIM_MSICTRL_MME_MASK;
 		pi->pi_msi.enabled = msgctrl & PCIM_MSICTRL_MSI_ENABLE ? 1 : 0;
 		if (pi->pi_msi.enabled) {
-			pi->pi_msi.cpu = (addrlo >> 12) & 0xff;
-			pi->pi_msi.vector = msgdata & 0xff;
-			pi->pi_msi.msgnum = 1 << (mme >> 4);
+			pi->pi_msi.addr = addrlo;
+			pi->pi_msi.msg_data = msgdata;
+			pi->pi_msi.maxmsgnum = 1 << (mme >> 4);
 		} else {
-			pi->pi_msi.cpu = 0;
-			pi->pi_msi.vector = 0;
-			pi->pi_msi.msgnum = 0;
+			pi->pi_msi.maxmsgnum = 0;
 		}
 	}
 
@@ -941,10 +926,19 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	assert(offset >= capoff);
 
 	/*
-	 * Capability ID and Next Capability Pointer are readonly
+	 * Capability ID and Next Capability Pointer are readonly.
+	 * However, some o/s's do 4-byte writes that include these.
+	 * For this case, trim the write back to 2 bytes and adjust
+	 * the data.
 	 */
-	if (offset == capoff || offset == capoff + 1)
-		return;
+	if (offset == capoff || offset == capoff + 1) {
+		if (offset == capoff && bytes == 4) {
+			bytes = 2;
+			offset += 2;
+			val >>= 16;
+		} else
+			return;
+	}
 
 	switch (capid) {
 	case PCIY_MSI:
@@ -1014,16 +1008,6 @@ init_pci(struct vmctx *ctx)
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
-	/*
-	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for
-	 * generic use
-	 */
-	lirq[5].li_generic = 1;
-	lirq[10].li_generic = 1;
-	lirq[11].li_generic = 1;
-	lirq[12].li_generic = 1;
-	lirq[15].li_generic = 1;
-
 	for (slot = 0; slot < MAXSLOTS; slot++) {
 		for (func = 0; func < MAXFUNCS; func++) {
 			si = &pci_slotinfo[slot][func];
@@ -1048,7 +1032,7 @@ init_pci(struct vmctx *ctx)
 	 * Accesses to memory addresses that are not allocated to system
 	 * memory or PCI devices return 0xff's.
 	 */
-	error = vm_get_memory_seg(ctx, 0, &lowmem);
+	error = vm_get_memory_seg(ctx, 0, &lowmem, NULL);
 	assert(error == 0);
 
 	memset(&memp, 0, sizeof(struct mem_range));
@@ -1071,10 +1055,10 @@ pci_msi_enabled(struct pci_devinst *pi)
 }
 
 int
-pci_msi_msgnum(struct pci_devinst *pi)
+pci_msi_maxmsgnum(struct pci_devinst *pi)
 {
 	if (pi->pi_msi.enabled)
-		return (pi->pi_msi.msgnum);
+		return (pi->pi_msi.maxmsgnum);
 	else
 		return (0);
 }
@@ -1103,19 +1087,17 @@ pci_generate_msix(struct pci_devinst *pi, int index)
 	mte = &pi->pi_msix.table[index];
 	if ((mte->vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
 		/* XXX Set PBA bit if interrupt is disabled */
-		vm_lapic_irq(pi->pi_vmctx,
-			     (mte->addr >> 12) & 0xff, mte->msg_data & 0xff);
+		vm_lapic_msi(pi->pi_vmctx, mte->addr, mte->msg_data);
 	}
 }
 
 void
-pci_generate_msi(struct pci_devinst *pi, int msg)
+pci_generate_msi(struct pci_devinst *pi, int index)
 {
 
-	if (pci_msi_enabled(pi) && msg < pci_msi_msgnum(pi)) {
-		vm_lapic_irq(pi->pi_vmctx,
-			     pi->pi_msi.cpu,
-			     pi->pi_msi.vector + msg);
+	if (pci_msi_enabled(pi) && index < pci_msi_maxmsgnum(pi)) {
+		vm_lapic_msi(pi->pi_vmctx, pi->pi_msi.addr,
+			     pi->pi_msi.msg_data + index);
 	}
 }
 
@@ -1126,40 +1108,17 @@ pci_is_legacy(struct pci_devinst *pi)
 	return (pci_slotinfo[pi->pi_slot][pi->pi_func].si_legacy);
 }
 
-static int
-pci_lintr_alloc(struct pci_devinst *pi, int vec)
-{
-	int i;
-
-	assert(vec < NLIRQ);
-
-	if (vec == -1) {
-		for (i = 0; i < NLIRQ; i++) {
-			if (lirq[i].li_generic &&
-			    lirq[i].li_owner == NULL) {
-				vec = i;
-				break;
-			}
-		}
-	} else {
-		if (lirq[vec].li_owner != NULL) {
-			vec = -1;
-		}
-	}
-	assert(vec != -1);
-
-	lirq[vec].li_owner = pi;
-	pi->pi_lintr_pin = vec;
-
-	return (vec);
-}
-
 int
-pci_lintr_request(struct pci_devinst *pi, int vec)
+pci_lintr_request(struct pci_devinst *pi, int req)
 {
+	int irq;
 
-	vec = pci_lintr_alloc(pi, vec);
-	pci_set_cfgdata8(pi, PCIR_INTLINE, vec);
+	irq = legacy_irq_alloc(req);
+	if (irq < 0)
+		return (-1);
+
+	pi->pi_lintr_pin = irq;
+	pci_set_cfgdata8(pi, PCIR_INTLINE, irq);
 	pci_set_cfgdata8(pi, PCIR_INTPIN, 1);
 	return (0);
 }
@@ -1168,16 +1127,24 @@ void
 pci_lintr_assert(struct pci_devinst *pi)
 {
 
-	assert(pi->pi_lintr_pin);
-	ioapic_assert_pin(pi->pi_vmctx, pi->pi_lintr_pin);
+	assert(pi->pi_lintr_pin >= 0);
+
+	if (pi->pi_lintr_state == 0) {
+		pi->pi_lintr_state = 1;
+		vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	}
 }
 
 void
 pci_lintr_deassert(struct pci_devinst *pi)
 {
 
-	assert(pi->pi_lintr_pin);
-	ioapic_deassert_pin(pi->pi_vmctx, pi->pi_lintr_pin);
+	assert(pi->pi_lintr_pin >= 0);
+
+	if (pi->pi_lintr_state == 1) {
+		pi->pi_lintr_state = 0;
+		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	}
 }
 
 /*
@@ -1285,7 +1252,7 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 	 * If the MMIO or I/O address space decoding has changed then
 	 * register/unregister all BARs that decode that address space.
 	 */
-	for (i = 0; i < PCI_BARMAX; i++) {
+	for (i = 0; i <= PCI_BARMAX; i++) {
 		switch (pi->pi_bar[i].type) {
 			case PCIBAR_NONE:
 			case PCIBAR_MEMHI64:
@@ -1537,10 +1504,10 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 * Special magic value to generate an interrupt
 		 */
 		if (offset == 4 && size == 4 && pci_msi_enabled(pi))
-			pci_generate_msi(pi, value % pci_msi_msgnum(pi));
+			pci_generate_msi(pi, value % pci_msi_maxmsgnum(pi));
 
 		if (value == 0xabcdef) {
-			for (i = 0; i < pci_msi_msgnum(pi); i++)
+			for (i = 0; i < pci_msi_maxmsgnum(pi); i++)
 				pci_generate_msi(pi, i);
 		}
 	}

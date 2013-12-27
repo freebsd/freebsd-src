@@ -160,6 +160,7 @@ struct g_mirror_event {
 #define	G_MIRROR_DEVICE_FLAG_WAIT	0x0200000000000000ULL
 #define	G_MIRROR_DEVICE_FLAG_DESTROYING	0x0400000000000000ULL
 #define	G_MIRROR_DEVICE_FLAG_TASTING	0x0800000000000000ULL
+#define	G_MIRROR_DEVICE_FLAG_WIPE	0x1000000000000000ULL
 
 #define	G_MIRROR_DEVICE_STATE_STARTING		0
 #define	G_MIRROR_DEVICE_STATE_RUNNING		1
@@ -212,6 +213,8 @@ struct g_mirror_softc {
 	struct callout	sc_callout;
 
 	struct root_hold_token *sc_rootmount;
+
+	struct mtx	 sc_done_mtx;
 };
 #define	sc_name	sc_geom->name
 

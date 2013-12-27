@@ -397,10 +397,18 @@ checkout_dir(dir_context_t *dir,
     {
       if (p_dir->added)
         {
+          /* Calculate the working_url by skipping the shared ancestor bewteen
+           * the parent->relpath and dir->relpath.  This is safe since an
+           * add is guaranteed to have a parent that is checked out. */
+          dir_context_t *parent = p_dir->parent_dir;
+          const char *relpath = svn_relpath_skip_ancestor(parent->relpath,
+                                                          dir->relpath);
+
           /* Implicitly checkout this dir now. */
+          SVN_ERR_ASSERT(parent->working_url);
           dir->working_url = svn_path_url_add_component2(
-                                   dir->parent_dir->working_url,
-                                   dir->name, dir->pool);
+                                   parent->working_url,
+                                   relpath, dir->pool);
           return SVN_NO_ERROR;
         }
       p_dir = p_dir->parent_dir;
@@ -1924,7 +1932,18 @@ add_file(const char *path,
 
       if (handler->sline.code != 404)
         {
-          return svn_error_createf(SVN_ERR_RA_DAV_ALREADY_EXISTS, NULL,
+          if (handler->sline.code != 200)
+            {
+              svn_error_t *err;
+
+              err = svn_ra_serf__error_on_status(handler->sline,
+                                                 handler->path,
+                                                 handler->location);
+
+              SVN_ERR(err);
+            }
+
+          return svn_error_createf(SVN_ERR_FS_ALREADY_EXISTS, NULL,
                                    _("File '%s' already exists"), path);
         }
     }

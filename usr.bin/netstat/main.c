@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 
 static struct nlist nl[] = {
 #define	N_IFNET		0
-	{ .n_name = "_ifnet" },
+	{ .n_name = "_ifnet" },		/* XXXGL: can be deleted */
 #define	N_RTSTAT	1
 	{ .n_name = "_rtstat" },
 #define	N_RTREE		2
@@ -214,8 +214,10 @@ struct protox {
 	  pim_stats,	NULL,		"pim",	1,	IPPROTO_PIM },
 	{ -1,		N_CARPSTAT,	1,	NULL,
 	  carp_stats,	NULL,		"carp",	1,	0 },
+#ifdef PF
 	{ -1,		N_PFSYNCSTAT,	1,	NULL,
 	  pfsync_stats,	NULL,		"pfsync", 1,	0 },
+#endif
 	{ -1,		N_ARPSTAT,	1,	NULL,
 	  arp_stats,	NULL,		"arp", 1,	0 },
 	{ -1,		-1,		0,	NULL,
@@ -550,39 +552,39 @@ main(int argc, char *argv[])
 	 * used for the queries, which is slower.
 	 */
 #endif
-	kread(0, NULL, 0);
 	if (iflag && !sflag) {
-		intpr(interval, nl[N_IFNET].n_value, NULL);
+		intpr(interval, NULL, af);
 		exit(0);
 	}
 	if (rflag) {
 		if (sflag)
-			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
+			rt_stats();
 		else
-			routepr(nl[N_RTREE].n_value, fib);
+			routepr(fib, af);
 		exit(0);
 	}
+
 	if (gflag) {
 		if (sflag) {
 			if (af == AF_INET || af == AF_UNSPEC)
-				mrt_stats(nl[N_MRTSTAT].n_value);
+				mrt_stats();
 #ifdef INET6
 			if (af == AF_INET6 || af == AF_UNSPEC)
-				mrt6_stats(nl[N_MRT6STAT].n_value);
+				mrt6_stats();
 #endif
 		} else {
 			if (af == AF_INET || af == AF_UNSPEC)
-				mroutepr(nl[N_MFCHASHTBL].n_value,
-					 nl[N_MFCTABLESIZE].n_value,
-					 nl[N_VIFTABLE].n_value);
+				mroutepr();
 #ifdef INET6
 			if (af == AF_INET6 || af == AF_UNSPEC)
-				mroute6pr(nl[N_MF6CTABLE].n_value,
-					  nl[N_MIF6TABLE].n_value);
+				mroute6pr();
 #endif
 		}
 		exit(0);
 	}
+
+	/* Load all necessary kvm symbols */
+	kresolve_list(nl);
 
 	if (tp) {
 		printproto(tp, tp->pr_name);
@@ -636,8 +638,7 @@ printproto(struct protox *tp, const char *name)
 	if (sflag) {
 		if (iflag) {
 			if (tp->pr_istats)
-				intpr(interval, nl[N_IFNET].n_value,
-				      tp->pr_istats);
+				intpr(interval, tp->pr_istats, af);
 			else if (pflag)
 				printf("%s: no per-interface stats routine\n",
 				    tp->pr_name);
@@ -700,19 +701,28 @@ kvmd_init(void)
 		return (-1);
 	}
 
-	if (kvm_nlist(kvmd, nl) < 0) {
+	return (0);
+}
+
+/*
+ * Resolve symbol list, return 0 on success.
+ */
+int
+kresolve_list(struct nlist *_nl)
+{
+
+	if ((kvmd == NULL) && (kvmd_init() != 0))
+		return (-1);
+
+	if (_nl[0].n_type != 0)
+		return (0);
+
+	if (kvm_nlist(kvmd, _nl) < 0) {
 		if (nlistf)
 			errx(1, "%s: kvm_nlist: %s", nlistf,
 			     kvm_geterr(kvmd));
 		else
 			errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-	}
-
-	if (nl[0].n_type == 0) {
-		if (nlistf)
-			errx(1, "%s: no namelist", nlistf);
-		else
-			errx(1, "no namelist");
 	}
 
 	return (0);
