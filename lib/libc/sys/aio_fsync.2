@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 4, 2013
+.Dd December 27, 2013
 .Dt AIO_FSYNC 2
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ completed at the time the call returns.
 .Pp
 The
 .Fa op
-argument could be set only to
+argument can only be set to
 .Dv O_SYNC
 to cause all currently queued I/O operations to be completed
 as if by a call to
@@ -109,7 +109,8 @@ returned in
 .It Bq Er EBADF
 The
 .Fa iocb->aio_fildes
-is invalid for writing.
+argument
+is not a valid descriptor.
 .It Bq Er EINVAL
 This implementation does not support synchronized I/O for this file.
 .El

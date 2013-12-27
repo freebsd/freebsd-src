@@ -151,6 +151,11 @@
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
 
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
+
 2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
 
 	* doc/invoke.texi (Debugging Options): Add documentation for the
