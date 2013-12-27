@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 
 #include <err.h>
@@ -456,9 +457,8 @@ check_intparams(struct cfjail *j)
 	char avalue4[INET_ADDRSTRLEN];
 #endif
 #ifdef INET6
-	struct in6_addr addr6;
 	int ip6ok;
-	char avalue6[INET6_ADDRSTRLEN];
+	char avalue6[INET6_ADDRSTRLEN + IF_NAMESIZE + 1];
 #endif
 
 	error = 0;
@@ -556,14 +556,11 @@ check_intparams(struct cfjail *j)
 #endif
 #ifdef INET6
 					case AF_INET6:
-						memcpy(&addr6,
-						    &((struct sockaddr_in6 *)
-						    (void *)ai->ai_addr)->
-						    sin6_addr, sizeof(addr6));
-						if (inet_ntop(AF_INET6,
-						    &addr6, avalue6,
-						    INET6_ADDRSTRLEN) == NULL)
-							err(1, "inet_ntop");
+						if (getnameinfo(ai->ai_addr,
+						    ai->ai_addrlen, avalue6,
+						    sizeof(avalue6), NULL, 0,
+						    NI_NUMERICHOST) != 0)
+							err(1, "getnameinfo");
 						add_param(j, NULL, KP_IP6_ADDR,
 						    avalue6);
 						break;
