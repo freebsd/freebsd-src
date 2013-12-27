@@ -40,8 +40,10 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mbuf.h>
+#include <sys/rwlock.h>
 #else
 #include <sys/types.h>
 #include <stdio.h>
