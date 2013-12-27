@@ -289,6 +289,7 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	(void)sandbox_stat_object_register(&sb->sb_sandbox_object_stat,
 	    sb->sb_sandbox_class_stat, SANDBOX_OBJECT_TYPE_POINTER,
 	    (uintptr_t)sb->sb_mem);
+	SANDBOX_CLASS_ALLOC(sb->sb_sandbox_class_stat);
 
 #ifdef USE_C_CAPS
 	/*
@@ -491,6 +492,7 @@ void
 sandbox_destroy(struct sandbox *sb)
 {
 
+	SANDBOX_CLASS_FREE(sb->sb_sandbox_class_stat);
 	if (sb->sb_sandbox_object_stat != NULL)
 		(void)sandbox_stat_object_deregister(
 		    sb->sb_sandbox_object_stat);

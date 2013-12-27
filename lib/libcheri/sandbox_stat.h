@@ -72,13 +72,15 @@ struct sandbox_class_stat {
  */
 #define	SANDBOX_CLASS_ALLOC(scsp)	do {				\
 	(scsp)->scs_stat_alloc++;					\
-while (0)
+} while (0)
+
 #define	SANDBOX_CLASS_RESET(scsp)	do {				\
 	(scsp)->scs_stat_reset++;					\
-while (0)
+} while (0)
+
 #define	SANDBOX_CLASS_FREE(scsp)	do {				\
 	(scsp)->scs_stat_free++;					\
-while (0)
+} while (0)
 
 /*
  * Per-sandbox method description.
