@@ -3087,13 +3087,8 @@ validate:
 		}
 
 		if (prot & VM_PROT_WRITE) {
-			/*
-			 * Enable write permission if the access type
-			 * indicates write intention. Emulate modified
-			 * bit otherwise.
-			 */
-			if ((access & VM_PROT_WRITE) != 0)
-				npte &= ~(L2_APX);
+			/* Write enable */
+			npte &= ~(L2_APX);
 
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
 				vm_page_aflag_set(m, PGA_WRITEABLE);
