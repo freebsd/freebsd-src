@@ -173,21 +173,6 @@ mount -t devfs devfs ${CHROOTDIR}/dev
 cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
 
-build_doc_ports() {
-	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
-	# is created.  This is needed by ports-mgmt/pkg.
-	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
-
-	## Trick the ports 'run-autotools-fixup' target to do the right thing.
-	_OSVERSION=$(sysctl -n kern.osreldate)
-	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-		PBUILD_FLAGS="${PBUILD_FLAGS}"
-		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
-	fi
-}
-
 # If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
 # copy them to the chroot.
 if [ -e ${MAKE_CONF} ] && [ ! -c ${MAKE_CONF} ]; then
@@ -200,7 +185,18 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
-	build_doc_ports ${CHROOTDIR}
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
+	## Trick the ports 'run-autotools-fixup' target to do the right thing.
+	_OSVERSION=$(sysctl -n kern.osreldate)
+	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS}"
+		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+	fi
 fi
 
 if [ "x${RELSTRING}" = "x" ]; then
