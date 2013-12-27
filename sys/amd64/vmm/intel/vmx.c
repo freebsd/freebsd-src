@@ -1114,6 +1114,7 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	if (cr != 0 && cr != 4)
 		return (UNHANDLED);
 
+	regval = 0; /* silence gcc */
 	vmxctx = &vmx->ctx[vcpu];
 
 	/*
