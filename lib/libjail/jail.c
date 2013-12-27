@@ -34,7 +34,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include <errno.h>
 #include <inttypes.h>
@@ -293,6 +295,7 @@ jailparam_init(struct jailparam *jp, const char *name)
 int
 jailparam_import(struct jailparam *jp, const char *value)
 {
+	struct addrinfo hints, *res;
 	char *p, *ep, *tvalue;
 	const char *avalue;
 	int i, nval, fw;
@@ -410,9 +413,11 @@ jailparam_import(struct jailparam *jp, const char *value)
 				}
 				break;
 			case JPS_IN6_ADDR:
-				if (inet_pton(AF_INET6, tvalue,
-				    &((struct in6_addr *)jp->jp_value)[i]) != 1)
-				{
+				memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_INET6;
+				hints.ai_flags = AI_NUMERICHOST;
+				if (getaddrinfo(tvalue, NULL, &hints,
+				    &res) != 0) {
 					snprintf(jail_errmsg,
 					    JAIL_ERRMSGLEN,
 					    "%s: not an IPv6 address: %s",
@@ -420,6 +425,10 @@ jailparam_import(struct jailparam *jp, const char *value)
 					errno = EINVAL;
 					goto error;
 				}
+				memcpy(&((struct sockaddr_in6 *)
+				    jp->jp_value)[i], res->ai_addr,
+				    res->ai_addrlen);
+				freeaddrinfo(res);
 				break;
 			default:
 				goto unknown_type;
@@ -723,11 +732,12 @@ jailparam_get(struct jailparam *jp, unsigned njp, int flags)
 char *
 jailparam_export(struct jailparam *jp)
 {
+	struct sockaddr_in6 *sa6;
 	size_t *valuelens;
 	char *value, *tvalue, **values;
 	size_t valuelen;
 	int i, nval, ival;
-	char valbuf[INET6_ADDRSTRLEN];
+	char valbuf[INET6_ADDRSTRLEN + IF_NAMESIZE + 1];
 
 	if ((jp->jp_ctltype & CTLTYPE) == CTLTYPE_STRING) {
 		value = strdup(jp->jp_value);
@@ -796,11 +806,13 @@ jailparam_export(struct jailparam *jp)
 				}
 				break;
 			case JPS_IN6_ADDR:
-				if (inet_ntop(AF_INET6,
-				    &((struct in6_addr *)jp->jp_value)[i],
-				    valbuf, sizeof(valbuf)) == NULL) {
-					strerror_r(errno, jail_errmsg,
-					    JAIL_ERRMSGLEN);
+				sa6 = &((struct sockaddr_in6 *)jp->jp_value)[i];
+				if ((errno = getnameinfo((struct sockaddr *)sa6,
+				    sa6->sin6_len, valbuf, sizeof(valbuf),
+				    NULL, 0, NI_NUMERICHOST)) != 0) {
+					snprintf(jail_errmsg, JAIL_ERRMSGLEN,
+					    "getnameinfo: %s",
+					    gai_strerror(errno));
 					return (NULL);
 				}
 				break;
@@ -969,9 +981,9 @@ jailparam_type(struct jailparam *jp)
 		if (!strcmp(desc.s, "S,in_addr")) {
 			jp->jp_structtype = JPS_IN_ADDR;
 			jp->jp_valuelen = sizeof(struct in_addr);
-		} else if (!strcmp(desc.s, "S,in6_addr")) {
+		} else if (!strcmp(desc.s, "S,sockaddr_in6")) {
 			jp->jp_structtype = JPS_IN6_ADDR;
-			jp->jp_valuelen = sizeof(struct in6_addr);
+			jp->jp_valuelen = sizeof(struct sockaddr_in6);
 		} else {
 			desclen = 0;
 			if (sysctl(mib + 2, miblen / sizeof(int),
