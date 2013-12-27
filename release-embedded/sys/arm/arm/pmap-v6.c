@@ -3094,21 +3094,16 @@ validate:
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
 				vm_page_aflag_set(m, PGA_WRITEABLE);
 				/*
-				 * Enable write permission if the access type
-				 * indicates write intention. Emulate modified
-				 * bit otherwise.
+				 * XXX: Skip modified bit emulation for now.
+				 *	The emulation reveals problems
+				 *	that result in random failures
+				 *	during memory allocation on some
+				 *	platforms.
+				 *	Therefore, the page is marked RW
+				 *	immediately.
 				 */
-				if ((access & VM_PROT_WRITE) != 0) {
-					npte &= ~(L2_APX);
-					/*
-					 * The access type and permissions
-					 * indicate that the page will be
-					 * written as soon as returned from
-					 * fault service.
-					 * Mark it dirty from the outset.
-					 */
-					vm_page_dirty(m);
-				}
+				npte &= ~(L2_APX);
+				vm_page_dirty(m);
 			} else
 				npte &= ~(L2_APX);
 		}

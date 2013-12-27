@@ -116,6 +116,7 @@ struct vlapic {
 
 	uint64_t		msr_apicbase;
 	enum boot_state		boot_state;
+	uint32_t		svr_last;
 };
 
 void vlapic_init(struct vlapic *vlapic);
