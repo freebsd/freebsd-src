@@ -51,6 +51,14 @@
 	* doc/extend.texi: Document the 0b-prefixed binary integer
 	constant extension.
 	
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
+
 2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
 
 	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
@@ -73,6 +81,14 @@
 	* rtlanal.c (reg_set_p): Check whether REG overlaps
 	regs_invalidated_by_call, rather than just checking the
 	membership of REGNO (REG).
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
 
 2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
 
@@ -376,6 +392,19 @@
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
 	* config.gcc: Support core2 processor.
+
+2007-01-11  Joseph Myers  <joseph@codesourcery.com> (r120688)
+
+	* c-common.c (vector_types_convertible_p): Treat opaque types as
+	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
 
 2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
 
