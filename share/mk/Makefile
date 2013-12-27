@@ -45,6 +45,8 @@ FILESDIR=	${BINDIR}/mk
 
 .if ${MK_ATF} != "no"
 FILES+=	atf.test.mk
+FILES+=	plain.test.mk
+FILES+=	tap.test.mk
 .endif
 
 .include <bsd.prog.mk>
