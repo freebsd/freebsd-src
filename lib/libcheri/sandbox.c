@@ -35,6 +35,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
@@ -45,6 +46,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,12 +54,12 @@
 
 #include "sandbox.h"
 #include "sandboxasm.h"
+#include "sandbox_stat.h"
 #include "sandbox_internal.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
 #define	GUARD_PAGE_SIZE	0x1000
-#define	PAGE_SIZE	0x1000
 #define	METADATA_SIZE	0x1000
 #define	STACK_SIZE	(32*PAGE_SIZE)
 
@@ -86,11 +88,15 @@ struct sandbox {
 	struct chericap	 sb_datacap;	/* Sealed data capability for CCall. */
 #endif
 	struct stat	 sb_stat;
+	struct sandbox_class_stat	*sb_sandbox_class_stat;
+	struct sandbox_method_stat	*sb_sandbox_method_stat;
+	struct sandbox_object_stat	*sb_sandbox_object_stat;
 };
 
 int
 sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 {
+	char sandbox_basename[MAXPATHLEN];
 #ifdef USE_C_CAPS
 	__capability void *sbcap;
 #endif
@@ -266,6 +272,23 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 		warn("%s: mprotect metadata", __func__);
 		goto error;
 	}
+	
+	/*
+	 * Register the class/object for statistics; also register a single
+	 * "default" method.
+	 *
+	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
+	 * the object, since this is most useful for comparison to capability
+	 * values.  However, you could also see an argument for using 'sb'
+	 * itself here.
+	 */
+	(void)sandbox_stat_class_register(&sb->sb_sandbox_class_stat,
+	    basename_r(path, sandbox_basename));
+	(void)sandbox_stat_method_register(&sb->sb_sandbox_method_stat,
+	    sb->sb_sandbox_class_stat, "default");
+	(void)sandbox_stat_object_register(&sb->sb_sandbox_object_stat,
+	    sb->sb_sandbox_class_stat, SANDBOX_OBJECT_TYPE_POINTER,
+	    (uintptr_t)sb->sb_mem);
 
 #ifdef USE_C_CAPS
 	/*
@@ -426,7 +449,12 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 #ifdef USE_C_CAPS
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
 	__capability void *cclear;
+#endif
+	register_t v0;
 
+	SANDBOX_METHOD_INVOKE(sb->sb_sandbox_method_stat);
+	SANDBOX_OBJECT_INVOKE(sb->sb_sandbox_object_stat);
+#ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
 	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
 	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
@@ -437,8 +465,8 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	c9 = (c9p != NULL ? *(__capability void **)c9p : cclear);
 	c10 = (c10p != NULL ? (__capability void *)c10p : cclear);
 
-	return (sandbox_cinvoke(sb, a0, a1, a2, a3, 0, 0, 0, 0, c3, c4, c5,
-	    c6, c7, c8, c9, c10));
+	v0 = sandbox_cinvoke(sb, a0, a1, a2, a3, 0, 0, 0, 0, c3, c4, c5, c6,
+	    c7, c8, c9, c10);
 #else
 	CHERI_CLC(1, 0, &sb->sb_codecap, 0);
 	CHERI_CLC(2, 0, &sb->sb_datacap, 0);
@@ -450,14 +478,28 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	CHERI_CLOADORCLEAR(8, c8p);
 	CHERI_CLOADORCLEAR(9, c9p);
 	CHERI_CLOADORCLEAR(10, c10p);
-	return (_chsbrt_invoke(a0, a1, a2, a3, 0, 0, 0, 0));
+	v0 = _chsbrt_invoke(a0, a1, a2, a3, 0, 0, 0, 0);
 #endif
+	if (v0 < 0) {
+		SANDBOX_METHOD_FAULT(sb->sb_sandbox_method_stat);
+		SANDBOX_OBJECT_FAULT(sb->sb_sandbox_object_stat);
+	}
+	return (v0);
 }
 
 void
 sandbox_destroy(struct sandbox *sb)
 {
 
+	if (sb->sb_sandbox_object_stat != NULL)
+		(void)sandbox_stat_object_deregister(
+		    sb->sb_sandbox_object_stat);
+	if (sb->sb_sandbox_method_stat != NULL)
+		(void)sandbox_stat_method_deregister(
+		    sb->sb_sandbox_method_stat);
+	if (sb->sb_sandbox_class_stat != NULL)
+		(void)sandbox_stat_class_deregister(
+		    sb->sb_sandbox_class_stat);
 	munmap(sb->sb_mem, sb->sb_sandboxlen);
 	bzero(sb, sizeof(*sb));		/* Clears tags. */
 	free(sb);

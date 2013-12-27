@@ -32,6 +32,11 @@
 #define	_SANDBOX_H_
 
 /*
+ * This section defines the interface between 'inside' and 'outside' the
+ * sandbox model.
+ */
+
+/*
  * Per-sandbox meta-data structure mapped read-only within the sandbox at a
  * fixed address to allow sandboxed code to find its stack, heap, etc.
  *
@@ -45,6 +50,11 @@ struct sandbox_metadata {
 	register_t	sbm_heapbase;		/* Offset: 0 */
 	register_t	sbm_heaplen;		/* Offset: 8 */
 };
+
+/*
+ * This section defines interfaces for setting up, invoking, resetting, and
+ * destroying sandboxes.
+ */
 
 extern int sb_verbose;
 
