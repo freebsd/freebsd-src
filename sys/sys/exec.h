@@ -45,12 +45,24 @@
  * it; normally ps_argvstr points to the argv vector, and ps_nargvstr
  * is the same as the program's argc. The fields ps_envstr and ps_nenvstr
  * are the equivalent for the environment.
+ *
+ * XXXRW: It appears this is safely extensible by appending new fields without
+ * damaging the ABI.  However, good to confirm before upstreaming this change.
+ *
+ * XXXRW: Although it is not strictly required for CHERI, I have made similar
+ * changes to freebsd32_ps_strings.
  */
 struct ps_strings {
 	char	**ps_argvstr;	/* first of 0 or more argument strings */
 	unsigned int ps_nargvstr; /* the number of argument strings */
 	char	**ps_envstr;	/* first of 0 or more environment strings */
 	unsigned int ps_nenvstr; /* the number of environment strings */
+	void	*ps_sbclasses;		/* pointer to sandbox class data */
+	size_t	 ps_sbclasseslen;	/* length of sandbox class data */
+	void	*ps_sbmethods;		/* pointer to sandbox method data */
+	size_t	 ps_sbmethodslen;	/* length of sandbox method data */
+	void	*ps_sbobjects;		/* pointer to sandbox object data */
+	size_t	 ps_sbobjectslen;	/* length of sandbox object data */
 };
 
 /*

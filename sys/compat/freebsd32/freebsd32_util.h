@@ -40,11 +40,18 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
+/* XXXRW: ps_nargvstr, etc, are unsigned ints in ps_strings? */
 struct freebsd32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
 	int	ps_nargvstr;	/* the number of argument strings */
 	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
 	int	ps_nenvstr;	/* the number of environment strings */
+	u_int32_t ps_sbclasses;		/* pointer to sandbox class data */
+	u_int32_t ps_sbclasseslen;	/* length of sandbox class data */
+	u_int32_t ps_sbmethods;		/* pointer to sandbox method data */
+	u_int32_t ps_sbmethodslen;	/* length of sandbox method data */
+	u_int32_t ps_sbobjects;		/* pointer to sandbox object data */
+	u_int32_t ps_sbobjectslen;	/* length of sandbox method data */
 };
 
 #if defined(__amd64__) || defined(__ia64__)
