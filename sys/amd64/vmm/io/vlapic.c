@@ -100,14 +100,9 @@ do {									\
 
 /*
  * The 'vlapic->timer_mtx' is used to provide mutual exclusion between the
- * vlapic_callout_handler() and vcpu accesses to the following registers:
- * - initial count register aka icr_timer
- * - current count register aka ccr_timer
- * - divide config register aka dcr_timer
+ * vlapic_callout_handler() and vcpu accesses to:
+ * - timer_freq_bt, timer_period_bt, timer_fire_bt
  * - timer LVT register
- *
- * Note that the vlapic_callout_handler() does not write to any of these
- * registers so they can be safely read from the vcpu context without locking.
  */
 #define	VLAPIC_TIMER_LOCK(vlapic)	mtx_lock_spin(&((vlapic)->timer_mtx))
 #define	VLAPIC_TIMER_UNLOCK(vlapic)	mtx_unlock_spin(&((vlapic)->timer_mtx))
@@ -273,8 +268,8 @@ vlapic_get_ccr(struct vlapic *vlapic)
 	return (ccr);
 }
 
-static void
-vlapic_set_dcr(struct vlapic *vlapic, uint32_t dcr)
+void
+vlapic_dcr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
 	int divisor;
@@ -282,9 +277,9 @@ vlapic_set_dcr(struct vlapic *vlapic, uint32_t dcr)
 	lapic = vlapic->apic_page;
 	VLAPIC_TIMER_LOCK(vlapic);
 
-	lapic->dcr_timer = dcr;
-	divisor = vlapic_timer_divisor(dcr);
-	VLAPIC_CTR2(vlapic, "vlapic dcr_timer=%#x, divisor=%d", dcr, divisor);
+	divisor = vlapic_timer_divisor(lapic->dcr_timer);
+	VLAPIC_CTR2(vlapic, "vlapic dcr_timer=%#x, divisor=%d",
+	    lapic->dcr_timer, divisor);
 
 	/*
 	 * Update the timer frequency and the timer period.
@@ -299,8 +294,8 @@ vlapic_set_dcr(struct vlapic *vlapic, uint32_t dcr)
 	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
-static void
-vlapic_update_errors(struct vlapic *vlapic)
+void
+vlapic_esr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
 	
@@ -323,7 +318,9 @@ vlapic_reset(struct vlapic *vlapic)
 	lapic->dfr = 0xffffffff;
 	lapic->svr = APIC_SVR_VECTOR;
 	vlapic_mask_lvts(vlapic);
-	vlapic_set_dcr(vlapic, 0);
+
+	lapic->dcr_timer = 0;
+	vlapic_dcr_write_handler(vlapic);
 
 	if (vlapic->vcpuid == 0)
 		vlapic->boot_state = BS_RUNNING;	/* BSP */
@@ -711,8 +708,6 @@ vlapic_callout_handler(void *arg)
 
 	callout_deactivate(&vlapic->callout);
 
-	KASSERT(vlapic->apic_page->icr_timer != 0, ("timer is disabled"));
-
 	vlapic_fire_timer(vlapic);
 
 	if (vlapic_periodic_timer(vlapic)) {
@@ -757,16 +752,17 @@ done:
 	VLAPIC_TIMER_UNLOCK(vlapic);
 }
 
-static void
-vlapic_set_icr_timer(struct vlapic *vlapic, uint32_t icr_timer)
+void
+vlapic_icrtmr_write_handler(struct vlapic *vlapic)
 {
 	struct LAPIC *lapic;
 	sbintime_t sbt;
+	uint32_t icr_timer;
 
 	VLAPIC_TIMER_LOCK(vlapic);
 
 	lapic = vlapic->apic_page;
-	lapic->icr_timer = icr_timer;
+	icr_timer = lapic->icr_timer;
 
 	vlapic->timer_period_bt = vlapic->timer_freq_bt;
 	bintime_mul(&vlapic->timer_period_bt, icr_timer);
@@ -888,16 +884,22 @@ vlapic_calcdest(struct vm *vm, cpuset_t *dmask, uint32_t dest, bool phys,
 
 static VMM_STAT_ARRAY(IPIS_SENT, VM_MAXCPU, "ipis sent to vcpu");
 
-static int
-lapic_process_icr(struct vlapic *vlapic, uint64_t icrval, bool *retu)
+int
+vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 {
 	int i;
 	bool phys;
 	cpuset_t dmask;
+	uint64_t icrval;
 	uint32_t dest, vec, mode;
 	struct vlapic *vlapic2;
 	struct vm_exit *vmexit;
-	
+	struct LAPIC *lapic;
+
+	lapic = vlapic->apic_page;
+	lapic->icr_lo &= ~APIC_DELSTAT_PEND;
+	icrval = ((uint64_t)lapic->icr_hi << 32) | lapic->icr_lo;
+
 	if (x2apic(vlapic))
 		dest = icrval >> 32;
 	else
@@ -1088,7 +1090,7 @@ vlapic_svr_write_handler(struct vlapic *vlapic)
 			 */
 			VLAPIC_CTR0(vlapic, "vlapic is software-enabled");
 			if (vlapic_periodic_timer(vlapic))
-				vlapic_set_icr_timer(vlapic, lapic->icr_timer);
+				vlapic_icrtmr_write_handler(vlapic);
 		}
 	}
 }
@@ -1155,6 +1157,8 @@ vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data, bool *retu)
 			break;
 		case APIC_OFFSET_ICR_LOW: 
 			*data = lapic->icr_lo;
+			if (x2apic(vlapic))
+				*data |= (uint64_t)lapic->icr_hi << 32;
 			break;
 		case APIC_OFFSET_ICR_HI: 
 			*data = lapic->icr_hi;
@@ -1224,32 +1228,30 @@ vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data, bool *retu)
 			vlapic_svr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_ICR_LOW: 
-			if (!x2apic(vlapic)) {
-				data &= 0xffffffff;
-				data |= (uint64_t)lapic->icr_hi << 32;
-			}
-			retval = lapic_process_icr(vlapic, data, retu);
+			lapic->icr_lo = data;
+			if (x2apic(vlapic))
+				lapic->icr_hi = data >> 32;
+			retval = vlapic_icrlo_write_handler(vlapic, retu);
 			break;
 		case APIC_OFFSET_ICR_HI:
-			if (!x2apic(vlapic)) {
-				retval = 0;
-				lapic->icr_hi = data;
-			}
+			lapic->icr_hi = data;
 			break;
 		case APIC_OFFSET_CMCI_LVT:
 		case APIC_OFFSET_TIMER_LVT ... APIC_OFFSET_ERROR_LVT:
 			vlapic_set_lvt(vlapic, offset, data);
 			break;
 		case APIC_OFFSET_TIMER_ICR:
-			vlapic_set_icr_timer(vlapic, data);
+			lapic->icr_timer = data;
+			vlapic_icrtmr_write_handler(vlapic);
 			break;
 
 		case APIC_OFFSET_TIMER_DCR:
-			vlapic_set_dcr(vlapic, data);
+			lapic->dcr_timer = data;
+			vlapic_dcr_write_handler(vlapic);
 			break;
 
 		case APIC_OFFSET_ESR:
-			vlapic_update_errors(vlapic);
+			vlapic_esr_write_handler(vlapic);
 			break;
 		case APIC_OFFSET_VER:
 		case APIC_OFFSET_APR:
