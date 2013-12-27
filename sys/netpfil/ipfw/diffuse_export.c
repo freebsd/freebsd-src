@@ -289,9 +289,6 @@ diffuse_export_prune_recs(void)
 	if (V_ex_max_qsize > 65535)
 		V_ex_max_qsize = 65535;
 
-	if (V_ex_max_qsize < 0)
-		V_ex_max_qsize = 0;
-
 	while (di_config.export_rec_count > V_ex_max_qsize) {
 		r = TAILQ_FIRST(&di_config.export_rec_list);
 		remove_rec(r);
