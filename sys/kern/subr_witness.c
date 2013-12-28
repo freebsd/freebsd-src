@@ -305,13 +305,6 @@ witness_lock_type_equal(struct witness *w1, struct witness *w2)
 }
 
 static __inline int
-witness_lock_order_key_empty(const struct witness_lock_order_key *key)
-{
-
-	return (key->from == 0 && key->to == 0);
-}
-
-static __inline int
 witness_lock_order_key_equal(const struct witness_lock_order_key *a,
     const struct witness_lock_order_key *b)
 {
