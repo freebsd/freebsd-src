@@ -137,6 +137,8 @@ struct hastd_config {
 #define	HAST_CHECKSUM_CRC32	1
 #define	HAST_CHECKSUM_SHA256	2
 
+struct nv;
+
 /*
  * Structure that describes single resource.
  */
@@ -253,6 +255,9 @@ struct hast_resource {
 	uint64_t	hr_stat_activemap_write_error;
 	/* Number of activemap flush errors. */
 	uint64_t	hr_stat_activemap_flush_error;
+
+	/* Function to output worker specific info on control status request. */
+	void	(*output_status_aux)(struct nv *);
 
 	/* Next resource. */
 	TAILQ_ENTRY(hast_resource) hr_next;
