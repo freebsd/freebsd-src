@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #define PMTMR_FREQ	3579545  /* 3.579545MHz */
 
 static pthread_mutex_t pmtmr_mtx;
+static pthread_once_t pmtmr_once = PTHREAD_ONCE_INIT;
 
 static uint64_t	pmtmr_old;
 
@@ -123,6 +124,7 @@ pmtmr_init(void)
 		pmtmr_uptime_old = tsnew;
 		pmtmr_old = timespec_to_pmtmr(&tsnew, &tsold);
 	}
+	pthread_mutex_init(&pmtmr_mtx, NULL);
 }
 
 static uint32_t
@@ -133,13 +135,7 @@ pmtmr_val(void)
 	uint64_t	pmtmr_new;
 	int		error;
 
-	static int	inited = 0;
-
-	if (!inited) {
-		pthread_mutex_init(&pmtmr_mtx, NULL);
-		pmtmr_init();
-		inited = 1;
-	}
+	pthread_once(&pmtmr_once, pmtmr_init);
 
 	pthread_mutex_lock(&pmtmr_mtx);
 
