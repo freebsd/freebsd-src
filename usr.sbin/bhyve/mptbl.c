@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "acpi.h"
 #include "bhyverun.h"
 #include "mptbl.h"
 
@@ -227,13 +228,21 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
 			mpie->int_type = INTENTRY_TYPE_INT;
 			mpie->src_bus_irq = 0;
 			break;
+		case SCI_INT:
+			/* ACPI SCI is level triggered and active-lo. */
+			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
+			    INTENTRY_FLAGS_TRIGGER_LEVEL;
+			mpie->int_type = INTENTRY_TYPE_INT;
+			mpie->src_bus_irq = SCI_INT;
+			break;
 		case 5:
 		case 10:
 		case 11:
 			/*
-			 * PCI Irqs set to level triggered.
+			 * PCI Irqs set to level triggered and active-lo.
 			 */
-			mpie->int_flags = INTENTRY_FLAGS_TRIGGER_LEVEL;
+			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
+			    INTENTRY_FLAGS_TRIGGER_LEVEL;
 			mpie->src_bus_id = 0;
 			/* fall through.. */
 		default:
