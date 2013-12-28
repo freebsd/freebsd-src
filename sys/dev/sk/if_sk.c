@@ -139,11 +139,6 @@ MODULE_DEPEND(sk, miibus, 1, 1, 1);
 /* "device miibus" required.  See GENERIC if you get errors here. */
 #include "miibus_if.h"
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 static const struct sk_type sk_devs[] = {
 	{
 		VENDORID_SK,
