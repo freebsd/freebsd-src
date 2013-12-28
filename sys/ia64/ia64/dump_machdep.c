@@ -219,26 +219,112 @@ phys_foreach(phys_callback_t cb, void *arg)
  * Virtual dump (aka minidump) support
  */
 
-static int
-virt_size(uint64_t *dumpsize)
-{
+typedef int virt_callback_t(vm_offset_t, vm_size_t, int, void*);
 
+static int
+virt_cb_size(vm_offset_t va, vm_size_t sz, int seqnr, void *arg)
+{
+	uint64_t *dumpsize = (uint64_t *)arg;
+
+	*dumpsize += sz;
 	return (0);
 }
 
 static int
-virt_dumphdrs(struct dumperinfo *di)
+virt_cb_dumphdr(vm_offset_t va, vm_size_t sz, int seqnr, void *arg)
 {
+	struct dumperinfo *di = (struct dumperinfo *)arg;
+	Elf64_Phdr phdr;
+	int error;
+ 
+	bzero(&phdr, sizeof(phdr));
+	phdr.p_type = PT_LOAD;
+	phdr.p_flags = PF_R;			/* XXX */
+	phdr.p_offset = fileofs;
+	phdr.p_vaddr = va;
+	phdr.p_paddr = ~0UL;
+	phdr.p_filesz = sz;
+	phdr.p_memsz = sz;
+	phdr.p_align = PAGE_SIZE;
 
-	return (-ENOSYS);
+	error = buf_write(di, (char*)&phdr, sizeof(phdr));
+	fileofs += phdr.p_filesz;
+	return (error);
 }
 
 static int
-virt_dumpdata(struct dumperinfo *di)
+virt_cb_dumpdata(vm_offset_t va, vm_size_t sz, int seqnr, void *arg) 
 {
+	struct dumperinfo *di = (struct dumperinfo *)arg;
+	size_t counter, iosz;
+	int c, error, twiddle;
+ 
+	error = 0;	/* catch case in which pgs is 0 */
+	counter = 0;	/* Update twiddle every 16MB */
+	twiddle = 0;
 
-	return (-ENOSYS);
+	printf("  chunk %d: %ld pages ", seqnr, atop(sz));
+
+	while (sz) {
+		iosz = (sz > DFLTPHYS) ? DFLTPHYS : sz;
+		counter += iosz;
+		if (counter >> 24) {
+			printf("%c\b", "|/-\\"[twiddle++ & 3]);
+			counter &= (1<<24) - 1;
+		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
+		error = dump_write(di, (void*)va, 0, dumplo, iosz);
+		if (error)
+			break;
+		dumplo += iosz;
+		sz -= iosz;
+		va += iosz;
+
+		/* Check for user abort. */
+		c = cncheckc();
+		if (c == 0x03)
+			return (ECANCELED);
+		if (c != -1)
+			printf("(CTRL-C to abort)  ");
+	}
+	printf("... %s\n", (error) ? "fail" : "ok");
+	return (error);
 }
+
+static int
+virt_foreach(virt_callback_t cb, void *arg)
+{
+	vm_offset_t va;
+	vm_size_t sz;
+	int error, seqnr;
+
+	seqnr = 0;
+	while (1) {
+		switch (seqnr) {
+		case 0:
+			va = IA64_PBVM_BASE;
+			sz = round_page(bootinfo->bi_kernend) - va;
+			break;
+		default:
+			va = 0;
+			sz = 0;
+			break;
+		}
+		if (va == 0 && sz == 0)
+			break;
+		error = (*cb)(va, sz, seqnr, arg);
+		if (error)
+			return (-error);
+		seqnr++;
+	}
+	return (seqnr);
+}
+
+/*
+ * main entry point.
+ */
 
 void
 dumpsys(struct dumperinfo *di)
@@ -274,7 +360,7 @@ dumpsys(struct dumperinfo *di)
 
 	/* Calculate dump size. */
 	dumpsize = 0L;
-	status = (minidump) ? virt_size(&dumpsize) :
+	status = (minidump) ? virt_foreach(virt_cb_size, &dumpsize) :
 	    phys_foreach(phys_cb_size, &dumpsize);
 	if (status < 0) {
 		error = -status;
@@ -311,7 +397,7 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump program headers */
-	status = (minidump) ? virt_dumphdrs(di) :
+	status = (minidump) ? virt_foreach(virt_cb_dumphdr, di) :
 	    phys_foreach(phys_cb_dumphdr, di);
 	if (status < 0) {
 		error = -status;
@@ -329,7 +415,7 @@ dumpsys(struct dumperinfo *di)
 	dumplo += hdrgap;
 
 	/* Dump memory chunks (updates dumplo) */
-	status = (minidump) ? virt_dumpdata(di) :
+	status = (minidump) ? virt_foreach(virt_cb_dumpdata, di) :
 	    phys_foreach(phys_cb_dumpdata, di);
 	if (status < 0) {
 		error = -status;
