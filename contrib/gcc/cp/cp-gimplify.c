@@ -188,7 +188,10 @@ gimplify_if_stmt (tree *stmt_p)
    loop body as in do-while loops.  */
 
 static tree
-gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+gimplify_cp_loop (tree cond, tree body, tree incr, tree attrs,
+		  bool cond_is_first, tree inner_foreach)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
   tree top, entry, exit, cont_block, break_block, stmt_list, t;
   location_t stmt_locus;
@@ -223,6 +226,12 @@ gimplify_cp_loop (tree cond, tree body, tree incr, bool cond_is_first)
 	 out of the loop, or to the top of it.  If there's no exit condition,
 	 then we just build a jump back to the top.  */
       exit = build_and_jump (&LABEL_EXPR_LABEL (top));
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+
+      /* Add the attributes to the 'top' label.  */
+      decl_attributes (&LABEL_EXPR_LABEL (top), attrs, 0);
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       if (cond && !integer_nonzerop (cond))
 	{
 	  t = build_bc_goto (bc_break);
@@ -270,8 +279,11 @@ gimplify_for_stmt (tree *stmt_p, tree *pre_p)
   if (FOR_INIT_STMT (stmt))
     gimplify_and_add (FOR_INIT_STMT (stmt), pre_p);
 
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
   *stmt_p = gimplify_cp_loop (FOR_COND (stmt), FOR_BODY (stmt),
-			      FOR_EXPR (stmt), 1);
+			      FOR_EXPR (stmt), FOR_ATTRIBUTES (stmt), 1,
+			      NULL_TREE);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 /* Gimplify a WHILE_STMT node.  */
@@ -280,8 +292,11 @@ static void
 gimplify_while_stmt (tree *stmt_p)
 {
   tree stmt = *stmt_p;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
   *stmt_p = gimplify_cp_loop (WHILE_COND (stmt), WHILE_BODY (stmt),
-			      NULL_TREE, 1);
+			      NULL_TREE, WHILE_ATTRIBUTES (stmt), 1,
+			      NULL_TREE);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 /* Gimplify a DO_STMT node.  */
@@ -290,8 +305,11 @@ static void
 gimplify_do_stmt (tree *stmt_p)
 {
   tree stmt = *stmt_p;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
   *stmt_p = gimplify_cp_loop (DO_COND (stmt), DO_BODY (stmt),
-			      NULL_TREE, 0);
+			      NULL_TREE, DO_ATTRIBUTES (stmt), 0,
+			      DO_FOREACH (stmt));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 }
 
 /* Genericize a SWITCH_STMT by turning it into a SWITCH_EXPR.  */
