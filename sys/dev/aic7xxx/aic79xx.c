@@ -64,7 +64,6 @@ char *ahd_chip_names[] =
 	"aic7902",
 	"aic7901A"
 };
-static const u_int num_chip_names = NUM_ELEMENTS(ahd_chip_names);
 
 /*
  * Hardware error codes.
