@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #define ccb_acb_ptr spriv_ptr0
 #define ccb_adw_ptr spriv_ptr1
 
-static __inline cam_status	adwccbstatus(union ccb*);
 static __inline struct acb*	adwgetacb(struct adw_softc *adw);
 static __inline void		adwfreeacb(struct adw_softc *adw,
 					   struct acb *acb);
@@ -99,12 +98,6 @@ static void		adw_handle_device_reset(struct adw_softc *adw,
 						u_int target);
 static void		adw_handle_bus_reset(struct adw_softc *adw,
 					     int initiated);
-
-static __inline cam_status
-adwccbstatus(union ccb* ccb)
-{
-	return (ccb->ccb_h.status & CAM_STATUS_MASK);
-}
 
 static __inline struct acb*
 adwgetacb(struct adw_softc *adw)
