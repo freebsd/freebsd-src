@@ -307,8 +307,7 @@ static const struct iwn_base_params iwn_6050_base_params = {
 	.calib_need =
 	    (IWN_FLG_NEED_PHY_CALIB_LO
 	    | IWN_FLG_NEED_PHY_CALIB_TX_IQ
-	    | IWN_FLG_NEED_PHY_CALIB_BASE_BAND
-	    | IWN_FLG_NEED_PHY_CALIB_TEMP_OFFSET ),
+	    | IWN_FLG_NEED_PHY_CALIB_BASE_BAND ),
 	.support_hostap = false,
 	.no_multi_vaps = true,
 	.additional_gp_drv_bit = IWN_GP_DRIVER_NONE,
