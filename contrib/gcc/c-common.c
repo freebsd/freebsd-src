@@ -541,6 +541,9 @@ static tree handle_pure_attribute (tree *, tree, tree, int, bool *);
 static tree handle_novops_attribute (tree *, tree, tree, int, bool *);
 static tree handle_deprecated_attribute (tree *, tree, tree, int,
 					 bool *);
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+static tree handle_unavailable_attribute (tree *, tree, tree, int,  bool *);
+/* APPLE LOCAL end "unavailable" attribute --ilr */
 static tree handle_vector_size_attribute (tree *, tree, tree, int,
 					  bool *);
 static tree handle_nonnull_attribute (tree *, tree, tree, int, bool *);
@@ -626,6 +629,10 @@ const struct attribute_spec c_common_attribute_table[] =
 			      handle_novops_attribute },
   { "deprecated",             0, 0, false, false, false,
 			      handle_deprecated_attribute },
+  /* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+  { "unavailable",            0, 0, false, false, false,
+			      handle_unavailable_attribute },
+  /* APPLE LOCAL end "unavailable" attribute --ilr */
   { "vector_size",	      1, 1, false, true, false,
 			      handle_vector_size_attribute },
   { "visibility",	      1, 1, false, false, false,
@@ -4394,7 +4401,10 @@ handle_unused_attribute (tree *node, tree name, tree ARG_UNUSED (args),
       if (TREE_CODE (decl) == PARM_DECL
 	  || TREE_CODE (decl) == VAR_DECL
 	  || TREE_CODE (decl) == FUNCTION_DECL
-	  || TREE_CODE (decl) == LABEL_DECL
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	  || (TREE_CODE (decl) == LABEL_DECL
+	      && ! DECL_ARTIFICIAL (decl))
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	  || TREE_CODE (decl) == TYPE_DECL)
 	TREE_USED (decl) = 1;
       else
@@ -4842,7 +4852,10 @@ handle_aligned_attribute (tree *node, tree ARG_UNUSED (name), tree args,
       TYPE_USER_ALIGN (*type) = 1;
     }
   else if (! VAR_OR_FUNCTION_DECL_P (decl)
-	   && TREE_CODE (decl) != FIELD_DECL)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	   && TREE_CODE (decl) != FIELD_DECL
+	   && TREE_CODE (decl) != LABEL_DECL)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
     {
       error ("alignment may not be specified for %q+D", decl);
       *no_add_attrs = true;
@@ -5344,6 +5357,67 @@ handle_deprecated_attribute (tree *node, tree name,
 
   return NULL_TREE;
 }
+
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) --ilr */
+/* Handle a "unavailable" attribute; arguments as in
+   struct attribute_spec.handler.  */
+
+static tree
+handle_unavailable_attribute (tree *node, tree name,
+			      tree args ATTRIBUTE_UNUSED,
+			      int flags ATTRIBUTE_UNUSED,
+			      bool *no_add_attrs)
+{
+  tree type = NULL_TREE;
+  int warn = 0;
+  const char *what = NULL;
+
+  if (DECL_P (*node))
+    {
+      tree decl = *node;
+      type = TREE_TYPE (decl);
+
+      if (TREE_CODE (decl) == TYPE_DECL
+      	  || TREE_CODE (decl) == PARM_DECL
+	  || TREE_CODE (decl) == VAR_DECL
+	  || TREE_CODE (decl) == FUNCTION_DECL)
+	{
+	  TREE_UNAVAILABLE (decl) = 1;
+	}
+      else
+	warn = 1;
+    }
+  else if (TYPE_P (*node))
+    {
+      if (!(flags & (int) ATTR_FLAG_TYPE_IN_PLACE))
+	*node = build_variant_type_copy (*node);
+      TREE_UNAVAILABLE (*node) = 1;
+      type = *node;
+    }
+  else
+    warn = 1;
+
+  if (warn)
+    {
+      *no_add_attrs = true;
+      if (type && TYPE_NAME (type))
+	{
+	  if (TREE_CODE (TYPE_NAME (type)) == IDENTIFIER_NODE)
+	    what = IDENTIFIER_POINTER (TYPE_NAME (*node));
+	  else if (TREE_CODE (TYPE_NAME (type)) == TYPE_DECL
+		   && DECL_NAME (TYPE_NAME (type)))
+	    what = IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (type)));
+	}
+      if (what)
+	warning (0, "`%s' attribute ignored for `%s'",
+		 IDENTIFIER_POINTER (name), what);
+      else
+	warning (0, "`%s' attribute ignored", IDENTIFIER_POINTER (name));
+    }
+
+  return NULL_TREE;
+}
+/* APPLE LOCAL end "unavailable" attribute --ilr */
 
 /* Handle a "vector_size" attribute; arguments as in
    struct attribute_spec.handler.  */
