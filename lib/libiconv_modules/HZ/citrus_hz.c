@@ -153,6 +153,7 @@ _citrus_HZ_init_state(_HZEncodingInfo * __restrict ei,
 	psenc->inuse = INIT0(ei);
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_HZ_pack_state(_HZEncodingInfo * __restrict ei __unused,
@@ -170,6 +171,7 @@ _citrus_HZ_unpack_state(_HZEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)psenc, pspriv, sizeof(*psenc));
 }
+#endif
 
 static int
 _citrus_HZ_mbrtowc_priv(_HZEncodingInfo * __restrict ei,
