@@ -45,6 +45,9 @@ SRCBRANCH="base/head@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
 
+# Set for embedded device builds.
+EMBEDDEDBUILD=
+
 # Sometimes one needs to checkout src with --force svn option.
 # If custom kernel configs copied to src tree before checkout, e.g.
 SRC_FORCE_CHECKOUT=
@@ -97,6 +100,11 @@ while getopts c: opt; do
 	esac
 done
 shift $(($OPTIND - 1))
+
+if [ "x${EMBEDDEDBUILD}" != "x" ]; then
+	WITH_DVD=
+	NODOC=yes
+fi
 
 # If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
 # is required to build the documentation set.
@@ -182,6 +190,21 @@ fi
 if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 	mkdir -p ${CHROOTDIR}/$(dirname ${SRC_CONF})
 	cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
+fi
+
+# Embedded builds do not use the 'make release' target.
+if [ "X${EMBEDDEDBUILD}" != "X" ]; then
+	if [ -e ${CHROOTDIR}/usr/src/release/${XDEV}/release.sh ]; then
+		/bin/sh ${CHROOTDIR}/usr/src/release/${XDEV}/release.sh
+	fi
+	# If the script does not exist for this architecture, exit.
+	# This probably should be checked earlier, but allowing the rest
+	# of the build process to get this far will at least set up the
+	# chroot environment for testing.
+	exit 0
+else
+	# Not embedded.
+	continue
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
