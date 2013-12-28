@@ -280,53 +280,53 @@ template <class _Tp> using remove_cv_t = typename remove_cv<_Tp>::type;
 
 // is_void
 
-template <class _Tp> struct __is_void       : public false_type {};
-template <>          struct __is_void<void> : public true_type {};
+template <class _Tp> struct __libcpp_is_void       : public false_type {};
+template <>          struct __libcpp_is_void<void> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_void
-    : public __is_void<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_void<typename remove_cv<_Tp>::type> {};
 
 // __is_nullptr_t
 
-template <class _Tp> struct ____is_nullptr_t       : public false_type {};
-template <>          struct ____is_nullptr_t<nullptr_t> : public true_type {};
+template <class _Tp> struct __libcpp___is_nullptr       : public false_type {};
+template <>          struct __libcpp___is_nullptr<nullptr_t> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS __is_nullptr_t
-    : public ____is_nullptr_t<typename remove_cv<_Tp>::type> {};
+    : public __libcpp___is_nullptr<typename remove_cv<_Tp>::type> {};
 
 // is_integral
 
-template <class _Tp> struct __is_integral                     : public false_type {};
-template <>          struct __is_integral<bool>               : public true_type {};
-template <>          struct __is_integral<char>               : public true_type {};
-template <>          struct __is_integral<signed char>        : public true_type {};
-template <>          struct __is_integral<unsigned char>      : public true_type {};
-template <>          struct __is_integral<wchar_t>            : public true_type {};
+template <class _Tp> struct __libcpp_is_integral                     : public false_type {};
+template <>          struct __libcpp_is_integral<bool>               : public true_type {};
+template <>          struct __libcpp_is_integral<char>               : public true_type {};
+template <>          struct __libcpp_is_integral<signed char>        : public true_type {};
+template <>          struct __libcpp_is_integral<unsigned char>      : public true_type {};
+template <>          struct __libcpp_is_integral<wchar_t>            : public true_type {};
 #ifndef _LIBCPP_HAS_NO_UNICODE_CHARS
-template <>          struct __is_integral<char16_t>           : public true_type {};
-template <>          struct __is_integral<char32_t>           : public true_type {};
+template <>          struct __libcpp_is_integral<char16_t>           : public true_type {};
+template <>          struct __libcpp_is_integral<char32_t>           : public true_type {};
 #endif  // _LIBCPP_HAS_NO_UNICODE_CHARS
-template <>          struct __is_integral<short>              : public true_type {};
-template <>          struct __is_integral<unsigned short>     : public true_type {};
-template <>          struct __is_integral<int>                : public true_type {};
-template <>          struct __is_integral<unsigned int>       : public true_type {};
-template <>          struct __is_integral<long>               : public true_type {};
-template <>          struct __is_integral<unsigned long>      : public true_type {};
-template <>          struct __is_integral<long long>          : public true_type {};
-template <>          struct __is_integral<unsigned long long> : public true_type {};
+template <>          struct __libcpp_is_integral<short>              : public true_type {};
+template <>          struct __libcpp_is_integral<unsigned short>     : public true_type {};
+template <>          struct __libcpp_is_integral<int>                : public true_type {};
+template <>          struct __libcpp_is_integral<unsigned int>       : public true_type {};
+template <>          struct __libcpp_is_integral<long>               : public true_type {};
+template <>          struct __libcpp_is_integral<unsigned long>      : public true_type {};
+template <>          struct __libcpp_is_integral<long long>          : public true_type {};
+template <>          struct __libcpp_is_integral<unsigned long long> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_integral
-    : public __is_integral<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_integral<typename remove_cv<_Tp>::type> {};
 
 // is_floating_point
 
-template <class _Tp> struct __is_floating_point              : public false_type {};
-template <>          struct __is_floating_point<float>       : public true_type {};
-template <>          struct __is_floating_point<double>      : public true_type {};
-template <>          struct __is_floating_point<long double> : public true_type {};
+template <class _Tp> struct __libcpp_is_floating_point              : public false_type {};
+template <>          struct __libcpp_is_floating_point<float>       : public true_type {};
+template <>          struct __libcpp_is_floating_point<double>      : public true_type {};
+template <>          struct __libcpp_is_floating_point<long double> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_floating_point
-    : public __is_floating_point<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_floating_point<typename remove_cv<_Tp>::type> {};
 
 // is_array
 
@@ -339,11 +339,11 @@ template <class _Tp, size_t _Np> struct _LIBCPP_TYPE_VIS is_array<_Tp[_Np]>
 
 // is_pointer
 
-template <class _Tp> struct __is_pointer       : public false_type {};
-template <class _Tp> struct __is_pointer<_Tp*> : public true_type {};
+template <class _Tp> struct __libcpp_is_pointer       : public false_type {};
+template <class _Tp> struct __libcpp_is_pointer<_Tp*> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_pointer
-    : public __is_pointer<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_pointer<typename remove_cv<_Tp>::type> {};
 
 // is_reference
 
@@ -419,29 +419,29 @@ template <class _Tp, bool = is_class<_Tp>::value ||
                             is_void<_Tp>::value  ||
                             is_reference<_Tp>::value ||
                             is_same<_Tp, nullptr_t>::value >
-struct __is_function
+struct __libcpp_is_function
     : public integral_constant<bool, sizeof(__is_function_imp::__test<_Tp>(__is_function_imp::__source<_Tp>())) == 1>
     {};
-template <class _Tp> struct __is_function<_Tp, true> : public false_type {};
+template <class _Tp> struct __libcpp_is_function<_Tp, true> : public false_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_function
-    : public __is_function<_Tp> {};
+    : public __libcpp_is_function<_Tp> {};
 
 // is_member_function_pointer
 
-template <class _Tp> struct            __is_member_function_pointer             : public false_type {};
-template <class _Tp, class _Up> struct __is_member_function_pointer<_Tp _Up::*> : public is_function<_Tp> {};
+template <class _Tp> struct            __libcpp_is_member_function_pointer             : public false_type {};
+template <class _Tp, class _Up> struct __libcpp_is_member_function_pointer<_Tp _Up::*> : public is_function<_Tp> {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_member_function_pointer
-    : public __is_member_function_pointer<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_member_function_pointer<typename remove_cv<_Tp>::type> {};
 
 // is_member_pointer
 
-template <class _Tp>            struct __is_member_pointer             : public false_type {};
-template <class _Tp, class _Up> struct __is_member_pointer<_Tp _Up::*> : public true_type {};
+template <class _Tp>            struct __libcpp_is_member_pointer             : public false_type {};
+template <class _Tp, class _Up> struct __libcpp_is_member_pointer<_Tp _Up::*> : public true_type {};
 
 template <class _Tp> struct _LIBCPP_TYPE_VIS is_member_pointer
-    : public __is_member_pointer<typename remove_cv<_Tp>::type> {};
+    : public __libcpp_is_member_pointer<typename remove_cv<_Tp>::type> {};
 
 // is_member_object_pointer
 
@@ -640,11 +640,11 @@ template <class _Tp>
 struct ___is_signed<_Tp, false> : public true_type {};  // floating point
 
 template <class _Tp, bool = is_arithmetic<_Tp>::value>
-struct __is_signed : public ___is_signed<_Tp> {};
+struct __libcpp_is_signed : public ___is_signed<_Tp> {};
 
-template <class _Tp> struct __is_signed<_Tp, false> : public false_type {};
+template <class _Tp> struct __libcpp_is_signed<_Tp, false> : public false_type {};
 
-template <class _Tp> struct _LIBCPP_TYPE_VIS is_signed : public __is_signed<_Tp> {};
+template <class _Tp> struct _LIBCPP_TYPE_VIS is_signed : public __libcpp_is_signed<_Tp> {};
 
 // is_unsigned
 
@@ -655,11 +655,11 @@ template <class _Tp>
 struct ___is_unsigned<_Tp, false> : public false_type {};  // floating point
 
 template <class _Tp, bool = is_arithmetic<_Tp>::value>
-struct __is_unsigned : public ___is_unsigned<_Tp> {};
+struct __libcpp_is_unsigned : public ___is_unsigned<_Tp> {};
 
-template <class _Tp> struct __is_unsigned<_Tp, false> : public false_type {};
+template <class _Tp> struct __libcpp_is_unsigned<_Tp, false> : public false_type {};
 
-template <class _Tp> struct _LIBCPP_TYPE_VIS is_unsigned : public __is_unsigned<_Tp> {};
+template <class _Tp> struct _LIBCPP_TYPE_VIS is_unsigned : public __libcpp_is_unsigned<_Tp> {};
 
 // rank
 
