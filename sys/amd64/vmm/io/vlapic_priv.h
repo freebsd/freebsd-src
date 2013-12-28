@@ -29,6 +29,8 @@
 #ifndef _VLAPIC_PRIV_H_
 #define	_VLAPIC_PRIV_H_
 
+#include <x86/apicreg.h>
+
 /*
  * APIC Register:		Offset	   Description
  */
@@ -91,6 +93,8 @@ enum boot_state {
  */
 #define	ISRVEC_STK_SIZE		(16 + 1)
 
+#define VLAPIC_MAXLVT_INDEX	APIC_LVT_CMCI
+
 struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
@@ -111,12 +115,20 @@ struct vlapic {
 	 * The vector on the top of the stack is used to compute the
 	 * Processor Priority in conjunction with the TPR.
 	 */
-	uint8_t			 isrvec_stk[ISRVEC_STK_SIZE];
-	int			 isrvec_stk_top;
+	uint8_t		isrvec_stk[ISRVEC_STK_SIZE];
+	int		isrvec_stk_top;
 
-	uint64_t		msr_apicbase;
-	enum boot_state		boot_state;
-	uint32_t		svr_last;
+	uint64_t	msr_apicbase;
+	enum boot_state	boot_state;
+
+	/*
+	 * Copies of some registers in the virtual APIC page. We do this for
+	 * a couple of different reasons:
+	 * - to be able to detect what changed (e.g. svr_last)
+	 * - to maintain a coherent snapshot of the register (e.g. lvt_last)
+	 */
+	uint32_t	svr_last;
+	uint32_t	lvt_last[VLAPIC_MAXLVT_INDEX + 1];
 };
 
 void vlapic_init(struct vlapic *vlapic);
