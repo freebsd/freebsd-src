@@ -704,10 +704,14 @@ finish_if_stmt (tree if_stmt)
    appropriate.  */
 
 tree
-begin_while_stmt (void)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+begin_while_stmt (tree attribs)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
   tree r;
-  r = build_stmt (WHILE_STMT, NULL_TREE, NULL_TREE);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  r = build_stmt (WHILE_STMT, NULL_TREE, NULL_TREE, attribs);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   add_stmt (r);
   WHILE_BODY (r) = do_pushlevel (sk_block);
   begin_cond (&WHILE_COND (r));
@@ -737,9 +741,14 @@ finish_while_stmt (tree while_stmt)
    appropriate.  */
 
 tree
-begin_do_stmt (void)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+begin_do_stmt (tree attribs)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
-  tree r = build_stmt (DO_STMT, NULL_TREE, NULL_TREE);
+  /* APPLE LOCAL radar 4445586 */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  tree r = build_stmt (DO_STMT, NULL_TREE, NULL_TREE, attribs, NULL_TREE);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   add_stmt (r);
   DO_BODY (r) = push_stmt_list ();
   return r;
@@ -803,12 +812,17 @@ finish_return_stmt (tree expr)
 /* Begin a for-statement.  Returns a new FOR_STMT if appropriate.  */
 
 tree
-begin_for_stmt (void)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+begin_for_stmt (tree attribs)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
   tree r;
 
   r = build_stmt (FOR_STMT, NULL_TREE, NULL_TREE,
-		  NULL_TREE, NULL_TREE);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+		  NULL_TREE, NULL_TREE, attribs);
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 
   if (flag_new_for_scope > 0)
     TREE_CHAIN (r) = do_pushlevel (sk_for);
