@@ -210,10 +210,6 @@ SUBDIR=	alias \
 SUBDIR+=	at
 .endif
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
 .endif
@@ -330,6 +326,10 @@ SUBDIR+=	vacation
 
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
 .endif
 
 .if ${MK_TEXTPROC} != "no"

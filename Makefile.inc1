@@ -85,6 +85,9 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 .if ${MK_OFED} != "no"
 SUBDIR+=contrib/ofed
 .endif
@@ -488,6 +491,10 @@ _worldtmp:
 	    -p ${WORLDTMP}/legacy/usr/lib >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.debug.dist \
 	    -p ${WORLDTMP}/usr/lib >/dev/null
+.endif
+.if ${MK_TESTS} != "no"
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
+	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -1487,7 +1494,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
 
-.if ${MK_ATF} != "no"
+.if ${MK_TESTS} != "no"
 _lib_atf_libatf_c=	lib/atf/libatf-c
 .endif
 
@@ -1597,10 +1604,12 @@ ${_lib}__PL: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} DIRPRFX=${_lib}/ obj && \
-		${MAKE} DIRPRFX=${_lib}/ depend && \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all && \
-		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS -DNO_PROFILE -DNO_PIC \
+		    DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1609,10 +1618,10 @@ ${_lib}__L: .PHONY .MAKE
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_lib} && \
-		${MAKE} DIRPRFX=${_lib}/ obj && \
-		${MAKE} DIRPRFX=${_lib}/ depend && \
-		${MAKE} DIRPRFX=${_lib}/ all && \
-		${MAKE} DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ all && \
+		${MAKE} -DNO_TESTS DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1622,10 +1631,12 @@ ${_lib}__L: .PHONY .MAKE
 lib/libpam__L: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
 		cd ${.CURDIR}/lib/libpam && \
-		${MAKE} DIRPRFX=lib/libpam/ obj && \
-		${MAKE} DIRPRFX=lib/libpam/ depend && \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all && \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ obj && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ depend && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET all && \
+		${MAKE} -DNO_TESTS DIRPRFX=lib/libpam/ \
+		    -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
