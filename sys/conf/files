@@ -1042,7 +1042,7 @@ contrib/dev/ath/ath_hal/ar9300/ar9300_recv.c optional ath_hal | ath_ar9300 \
 contrib/dev/ath/ath_hal/ar9300/ar9300_recv_ds.c optional ath_hal | ath_ar9300 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
 contrib/dev/ath/ath_hal/ar9300/ar9300_reset.c optional ath_hal | ath_ar9300 \
-	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal ${NO_WSOMETIMES_UNINITIALIZED}"
+	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal ${NO_WSOMETIMES_UNINITIALIZED} -Wno-unused-function"
 contrib/dev/ath/ath_hal/ar9300/ar9300_stub.c optional ath_hal | ath_ar9300 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal -I$S/contrib/dev/ath/ath_hal"
 contrib/dev/ath/ath_hal/ar9300/ar9300_stub_funcs.c optional ath_hal | ath_ar9300 \
