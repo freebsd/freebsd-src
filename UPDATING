@@ -27,6 +27,12 @@ older version of current is a bit fragile.
 	big-endian integer in accordance with RFC 4402.
 	__FreeBSD_version is bumped to 1000701.
 
+20131108:
+	The WITHOUT_ATF build knob has been removed and its functionality
+	has been subsumed into the more generic WITHOUT_TESTS.  If you were
+	using the former to disable the build of the ATF libraries, you
+	should change your settings to use the latter.
+
 20131031:
 	The default version of mtree is nmtree which is obtained from
 	NetBSD.  The output is generally the same, but may vary
