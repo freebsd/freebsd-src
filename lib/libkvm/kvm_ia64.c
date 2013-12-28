@@ -32,9 +32,15 @@
 #include <sys/elf64.h>
 #include <sys/mman.h>
 
+#ifndef CROSS_LIBKVM
 #include <machine/atomic.h>
 #include <machine/bootinfo.h>
 #include <machine/pte.h>
+#else
+#include "../../sys/ia64/include/atomic.h"
+#include "../../sys/ia64/include/bootinfo.h"
+#include "../../sys/ia64/include/pte.h"
+#endif
 
 #include <kvm.h>
 #include <limits.h>
@@ -163,7 +169,11 @@ _kvm_initvtop(kvm_t *kd)
 		return (-1);
 	}
 
+#ifndef CROSS_LIBKVM
 	kd->vmst->pagesize = getpagesize();
+#else
+	kd->vmst->pagesize = 8192;
+#endif
 
 	if (_kvm_maphdrs(kd, sizeof(Elf64_Ehdr)) == -1)
 		return (-1);
