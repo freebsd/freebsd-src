@@ -8925,7 +8925,7 @@ tsubst_copy_and_build (tree t,
 				     /*template_arg_p=*/false,
 				     &error_msg);
 	if (error_msg)
-	  error (error_msg);
+	  error ("%s", error_msg);
 	if (!function_p && TREE_CODE (decl) == IDENTIFIER_NODE)
 	  decl = unqualified_name_lookup_error (decl);
 	return decl;
