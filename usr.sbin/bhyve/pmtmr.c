@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <pthread.h>
 
+#include "acpi.h"
 #include "inout.h"
 
 /*
@@ -48,8 +49,6 @@ __FBSDID("$FreeBSD$");
  *
  * This implementation will be 32-bits
  */
-
-#define	IO_PMTMR	0x408	/* 4-byte i/o port for the timer */
 
 #define PMTMR_FREQ	3579545  /* 3.579545MHz */
 
