@@ -3302,7 +3302,7 @@ bge_attach(device_t dev)
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg, pcistate;
 	u_char eaddr[ETHER_ADDR_LEN];
-	int capmask, error, msicount, reg, rid, trys;
+	int capmask, error, reg, rid, trys;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -3311,11 +3311,11 @@ bge_attach(device_t dev)
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
 
-	/*
-	 * Map control/status registers.
-	 */
 	pci_enable_busmaster(dev);
 
+	/*
+	 * Allocate control/status registers.
+	 */
 	rid = PCIR_BAR(0);
 	sc->bge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -3625,13 +3625,8 @@ bge_attach(device_t dev)
 	rid = 0;
 	if (pci_find_cap(sc->bge_dev, PCIY_MSI, &reg) == 0) {
 		sc->bge_msicap = reg;
-		if (bge_can_use_msi(sc)) {
-			msicount = pci_msi_count(dev);
-			if (msicount > 1)
-				msicount = 1;
-		} else
-			msicount = 0;
-		if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+		reg = 1;
+		if (bge_can_use_msi(sc) && pci_alloc_msi(dev, &reg) == 0) {
 			rid = 1;
 			sc->bge_flags |= BGE_FLAG_MSI;
 		}
@@ -3648,7 +3643,7 @@ bge_attach(device_t dev)
 #endif
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
+	    RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE));
 
 	if (sc->bge_irq == NULL) {
 		device_printf(sc->bge_dev, "couldn't map interrupt\n");
@@ -3991,20 +3986,19 @@ bge_release_resources(struct bge_softc *sc)
 	if (sc->bge_intrhand != NULL)
 		bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
 
-	if (sc->bge_irq != NULL)
+	if (sc->bge_irq != NULL) {
 		bus_release_resource(dev, SYS_RES_IRQ,
-		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
-
-	if (sc->bge_flags & BGE_FLAG_MSI)
+		    rman_get_rid(sc->bge_irq), sc->bge_irq);
 		pci_release_msi(dev);
+	}
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(0), sc->bge_res);
+		    rman_get_rid(sc->bge_res), sc->bge_res);
 
 	if (sc->bge_res2 != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
-		    PCIR_BAR(2), sc->bge_res2);
+		    rman_get_rid(sc->bge_res2), sc->bge_res2);
 
 	if (sc->bge_ifp != NULL)
 		if_free(sc->bge_ifp);
