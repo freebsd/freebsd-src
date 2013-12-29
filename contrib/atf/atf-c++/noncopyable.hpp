@@ -27,19 +27,30 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-#include "atf-c++/macros.hpp"
+#if !defined(_ATF_CXX_NONCOPYABLE_HPP_)
+#define _ATF_CXX_NONCOPYABLE_HPP_
 
-ATF_TEST_CASE(main);
-ATF_TEST_CASE_HEAD(main)
-{
-    set_md_var("descr", "Helper test case that always fails");
-}
-ATF_TEST_CASE_BODY(main)
-{
-    fail("This always fails");
-}
+namespace atf {
 
-ATF_INIT_TEST_CASES(tcs)
-{
-    ATF_ADD_TEST_CASE(tcs, main);
-}
+// ------------------------------------------------------------------------
+// The "noncopyable" class.
+// ------------------------------------------------------------------------
+
+class noncopyable {
+    // The class cannot be empty; otherwise we get ABI-stability warnings
+    // during the build, which will break it due to strict checking.
+    int m_noncopyable_dummy;
+
+    noncopyable(const noncopyable& nc);
+    noncopyable& operator=(const noncopyable& nc);
+
+protected:
+    // Explicitly needed to provide some non-private functions.  Otherwise
+    // we also get some warnings during the build.
+    noncopyable(void) {}
+    ~noncopyable(void) {}
+};
+
+} // namespace atf
+
+#endif // !defined(_ATF_CXX_NONCOPYABLE_HPP_)
