@@ -54,7 +54,7 @@
 struct sandbox_class_stat {
 	char	scs_class_name[SANDBOX_CLASS_MAXNAMELEN];
 	uint64_t	scs_classid;		/* Unique class identifier. */
-	uint64_t	scs_pad0[16];		/* Future growth. */
+	uint64_t	scs_pad0[8];		/* Future growth. */
 
 	/*
 	 * Statistics.
@@ -62,7 +62,7 @@ struct sandbox_class_stat {
 	uint64_t	scs_stat_alloc;		/* Number allocated to date. */
 	uint64_t	scs_stat_reset;		/* Number of resets to date. */
 	uint64_t	scs_stat_free;		/* Number freed to date. */
-	uint64_t	scs_pad1[16];		/* Future growth. */
+	uint64_t	scs_pad1[8];		/* Future growth. */
 };
 
 /*
@@ -95,7 +95,7 @@ struct sandbox_method_stat {
 	char	sms_class_name[SANDBOX_CLASS_MAXNAMELEN];
 	uint64_t	sms_classid;		/* Associated class. */
 	uint64_t	sms_methodid;		/* Per-class unique method. */
-	uint64_t	sms_pad0[16];		/* Future growth. */
+	uint64_t	sms_pad0[8];		/* Future growth. */
 
 	/*
 	 * Statistics.
@@ -107,7 +107,7 @@ struct sandbox_method_stat {
 	uint64_t	sms_stat_maxrun;	/* Maximum invoke time. */
 	uint64_t	sms_stat_sampmed;	/* Sampled median inv. time. */
 	uint64_t	sms_stat_sampmean;	/* Sampled mean inv. time. */
-	uint64_t	sms_pad1[16];		/* Future growth. */
+	uint64_t	sms_pad1[8];		/* Future growth. */
 };
 
 /*
@@ -158,7 +158,7 @@ struct sandbox_object_stat {
 	uint64_t	sos_object_type;	/* PID, pointer, etc. */
 	uint64_t	sos_object_name;	/* Model-specific name.  E.g.,
 						 * 64-bit pointer or PID. */
-	uint64_t	sos_pad0[16];		/* Future growth. */
+	uint64_t	sos_pad0[8];		/* Future growth. */
 	/*
 	 * Statistics.
 	 */
@@ -169,7 +169,7 @@ struct sandbox_object_stat {
 	uint64_t	sos_stat_maxrun;	/* Maximum invoke time. */
 	uint64_t	sos_stat_sampmed;	/* Sampled median inv. time. */
 	uint64_t	sos_stat_sampmean;	/* Sampled mean inv. time. */
-	uint64_t	sos_pad1[16];		/* Future growth. */
+	uint64_t	sos_pad1[8];		/* Future growth. */
 };
 
 /*

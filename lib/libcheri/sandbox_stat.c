@@ -87,8 +87,8 @@
  * XXXRW: 640K will be enough for anybody.
  */
 #define	SANDBOX_CLASS_STAT_MAX	32
-#define	SANDBOX_METHOD_STAT_MAX	32
-#define	SANDBOX_OBJECT_STAT_MAX	32
+#define	SANDBOX_METHOD_STAT_MAX	256
+#define	SANDBOX_OBJECT_STAT_MAX	256
 
 /*
  * Synchronisation in this file is slightly obscure.  From an in-process

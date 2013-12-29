@@ -73,20 +73,23 @@ int sb_verbose;
  * Description of a 'sandbox class': an instance of code that may be sandboxed
  * and invoked, along with statistics/monitoring information, etc.
  *
- * XXXRW: For now, support a single method description.  In the future, we
- * will want to allow descriptions of multiple methods -- ideally configured
- * by analysing the target ELF rather than letting the caller provide the
- * information.
+ * NB: For now, support up to 'SANDBOX_CLASS_METHOD_COUNT' sets of method
+ * statistics, which will be indexed by method number.  If the requested
+ * method number isn't in range, use the catchall entry instead.
+ *
+ * XXXRW: Ideally, we would load this data from the target ELF rather than
+ * letting the caller provide it.
  */
+#define	SANDBOX_CLASS_METHOD_COUNT	32
 struct sandbox_class {
 	char			*sbc_path;
 	int			 sbc_fd;
 	struct stat		 sbc_stat;
 	size_t			 sbc_sandboxlen;
 	struct sandbox_class_stat	*sbc_sandbox_class_statp;
-
-	/* XXXRW: Eventually, a set of method stats here. */
-	struct sandbox_method_stat	*sbc_sandbox_method_statp;
+	struct sandbox_method_stat	*sbc_sandbox_method_unregisteredp;
+	struct sandbox_method_stat	*sbc_sandbox_methods[
+					    SANDBOX_CLASS_METHOD_COUNT];
 };
 
 /*-
@@ -184,7 +187,8 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 
 	/*
 	 * Register the class/object for statistics; also register a single
-	 * "default" method.
+	 * "unregistered" method to catch statistics for unnamed or overflow
+	 * methods.
 	 *
 	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
 	 * the object, since this is most useful for comparison to capability
@@ -193,8 +197,9 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 	 */
 	(void)sandbox_stat_class_register(&sbcp->sbc_sandbox_class_statp,
 	    basename_r(path, sandbox_basename));
-	(void)sandbox_stat_method_register(&sbcp->sbc_sandbox_method_statp,
-	    sbcp->sbc_sandbox_class_statp, "default");
+	(void)sandbox_stat_method_register(
+	    &sbcp->sbc_sandbox_method_unregisteredp,
+	    sbcp->sbc_sandbox_class_statp, "unregistered");
 	*sbcpp = sbcp;
 	return (0);
 
@@ -208,21 +213,36 @@ error:
 }
 
 int
-sandbox_class_method_declare(struct sandbox_class *sbcp __unused,
-    u_int methodnum __unused, const char *methodname __unused)
+sandbox_class_method_declare(struct sandbox_class *sbcp, u_int methodnum,
+    const char *methodname)
 {
 
-	/* XXXRW: Implement. */
-	return (0);
+	if (methodnum >= SANDBOX_CLASS_METHOD_COUNT) {
+		errno = E2BIG;
+		return (-1);
+	}
+	if (sbcp->sbc_sandbox_methods[methodnum] != NULL) {
+		errno = EEXIST;
+		return (-1);
+	}
+	return (sandbox_stat_method_register(
+	    &sbcp->sbc_sandbox_methods[methodnum],
+	    sbcp->sbc_sandbox_class_statp, methodname));
 }
 
 void
 sandbox_class_destroy(struct sandbox_class *sbcp)
 {
+	u_int i;
 
-	if (sbcp->sbc_sandbox_method_statp != NULL)
+	for (i = 0; i < SANDBOX_CLASS_METHOD_COUNT; i++) {
+		if (sbcp->sbc_sandbox_methods[i] != NULL)
+			(void)sandbox_stat_method_deregister(
+			    sbcp->sbc_sandbox_methods[i]);
+	}
+	if (sbcp->sbc_sandbox_method_unregisteredp != NULL)
 		(void)sandbox_stat_method_deregister(
-		    sbcp->sbc_sandbox_method_statp);
+		    sbcp->sbc_sandbox_method_unregisteredp);
 	if (sbcp->sbc_sandbox_class_statp != NULL)
 		(void)sandbox_stat_class_deregister(
 		    sbcp->sbc_sandbox_class_statp);
@@ -512,12 +532,20 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	 * 2. Does the right thing happen with $a0..$a7, $c3..$c10?
 	 */
 	sbcp = sbop->sbo_sandbox_classp;
-	SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_statp);
+	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
+	else
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_unregisteredp);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	v0 = _chsbrt_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
 	    a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
 	if (v0 < 0) {
-		SANDBOX_METHOD_FAULT(sbcp->sbc_sandbox_method_statp);
+		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
+			SANDBOX_METHOD_FAULT(
+			    sbcp->sbc_sandbox_methods[methodnum]);
+		else
+			SANDBOX_METHOD_FAULT(
+			    sbcp->sbc_sandbox_method_unregisteredp);
 		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
 	}
 	return (v0);
@@ -547,14 +575,18 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
     struct chericap *c7p, struct chericap *c8p, struct chericap *c9p,
     struct chericap *c10p)
 {
+	struct sandbox_class *sbcp;
 #ifdef USE_C_CAPS
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
 	__capability void *cclear;
 #endif
 	register_t v0;
 
-	SANDBOX_METHOD_INVOKE(
-	    sbop->sbo_sandbox_classp->sbc_sandbox_method_statp);
+	sbcp = sbop->sbo_sandbox_classp;
+	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
+	else
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_unregisteredp);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 #ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
@@ -583,8 +615,12 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	v0 = _chsbrt_invoke(methodnum, a1, a2, a3, 0, 0, 0, 0);
 #endif
 	if (v0 < 0) {
-		SANDBOX_METHOD_FAULT(
-		    sbop->sbo_sandbox_classp->sbc_sandbox_method_statp);
+		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
+			SANDBOX_METHOD_FAULT(
+			    sbcp->sbc_sandbox_methods[methodnum]);
+		else
+			SANDBOX_METHOD_FAULT(
+			    sbcp->sbc_sandbox_method_unregisteredp);
 		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
 	}
 	return (v0);
