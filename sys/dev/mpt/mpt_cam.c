@@ -110,12 +110,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/sysctl.h>
 
-#if __FreeBSD_version >= 700025
-#ifndef	CAM_NEW_TRAN_CODE
-#define	CAM_NEW_TRAN_CODE	1
-#endif
-#endif
-
 static void mpt_poll(struct cam_sim *);
 static timeout_t mpt_timeout;
 static void mpt_action(struct cam_sim *, union ccb *);
@@ -344,7 +338,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Register exactly this bus.
 	 */
 	MPT_LOCK(mpt);
-	if (mpt_xpt_bus_register(mpt->sim, mpt->dev, 0) != CAM_SUCCESS) {
+	if (xpt_bus_register(mpt->sim, mpt->dev, 0) != CAM_SUCCESS) {
 		mpt_prt(mpt, "Bus registration Failed!\n");
 		error = ENOMEM;
 		MPT_UNLOCK(mpt);
@@ -383,7 +377,7 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	 * Register this bus.
 	 */
 	MPT_LOCK(mpt);
-	if (mpt_xpt_bus_register(mpt->phydisk_sim, mpt->dev, 1) !=
+	if (xpt_bus_register(mpt->phydisk_sim, mpt->dev, 1) !=
 	    CAM_SUCCESS) {
 		mpt_prt(mpt, "Physical Disk Bus registration Failed!\n");
 		error = ENOMEM;
@@ -2338,7 +2332,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		break;
 
 	case MPI_EVENT_RESCAN:
-#if __FreeBSD_version >= 600000
 	{
 		union ccb *ccb;
 		uint32_t pathid;
@@ -2373,10 +2366,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		xpt_rescan(ccb);
 		break;
 	}
-#else
-		mpt_prt(mpt, "Rescan Port: %d\n", (data0 >> 8) & 0xff);
-		break;
-#endif
+
 	case MPI_EVENT_LINK_STATUS_CHANGE:
 		mpt_prt(mpt, "Port %d: LinkState: %s\n",
 		    (data1 >> 8) & 0xff,
@@ -3324,11 +3314,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 
-#ifdef	CAM_NEW_TRAN_CODE
 #define	IS_CURRENT_SETTINGS(c)	((c)->type == CTS_TYPE_CURRENT_SETTINGS)
-#else
-#define	IS_CURRENT_SETTINGS(c)	((c)->flags & CCB_TRANS_CURRENT_SETTINGS)
-#endif
+
 #define	DP_DISC_ENABLE	0x1
 #define	DP_DISC_DISABL	0x2
 #define	DP_DISC		(DP_DISC_ENABLE|DP_DISC_DISABL)
@@ -3345,10 +3332,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 	{
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		struct ccb_trans_settings_spi *spi;
-#endif
 		uint8_t dval;
 		u_int period;
 		u_int offset;
@@ -3361,7 +3346,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
-#ifdef	CAM_NEW_TRAN_CODE
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 
@@ -3372,7 +3356,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
-#endif
 
 		/*
 		 * Skip attempting settings on RAID volume disks.
@@ -3402,28 +3385,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		period = 0;
 		offset = 0;
 
-#ifndef	CAM_NEW_TRAN_CODE
-		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
-			dval |= (cts->flags & CCB_TRANS_DISC_ENB) ?
-			    DP_DISC_ENABLE : DP_DISC_DISABL;
-		}
-
-		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-			dval |= (cts->flags & CCB_TRANS_TAG_ENB) ?
-			    DP_TQING_ENABLE : DP_TQING_DISABL;
-		}
-
-		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			dval |= cts->bus_width ? DP_WIDE : DP_NARROW;
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
-		    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
-			dval |= DP_SYNC;
-			period = cts->sync_period;
-			offset = cts->sync_offset;
-		}
-#else
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
 			dval |= ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) ?
 			    DP_DISC_ENABLE : DP_DISC_DISABL;
@@ -3459,7 +3420,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			period &= MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
 	    		period >>= MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
 		}
-#endif
+
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
 		} else if (dval & DP_DISC_DISABL) {
@@ -3492,7 +3453,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_GET_TRAN_SETTINGS:
 	{
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		cts = &ccb->cts;
 		cts->protocol = PROTO_SCSI;
@@ -3524,21 +3484,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		scsi = &cts->proto_specific.scsi;
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
-#else
-		cts = &ccb->cts;
-		if (mpt->is_fc) {
-			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
-			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-		} else if (mpt->is_sas) {
-			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
-			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-		} else if (mpt_get_spi_settings(mpt, cts) != 0) {
-			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-			break;
-		}
-#endif
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
 	}
@@ -3592,7 +3537,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		/*
 		 * The base speed is the speed of the underlying connection.
 		 */
-#ifdef	CAM_NEW_TRAN_CODE
 		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET | PIM_UNMAPPED;
@@ -3616,21 +3560,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->transport_version = 2;
 			cpi->protocol_version = SCSI_REV_2;
 		}
-#else
-		if (mpt->is_fc) {
-			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->base_transfer_speed = 100000;
-			cpi->hba_inquiry = PI_TAG_ABLE;
-		} else if (mpt->is_sas) {
-			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->base_transfer_speed = 300000;
-			cpi->hba_inquiry = PI_TAG_ABLE;
-		} else {
-			cpi->hba_misc = PIM_SEQSCAN;
-			cpi->base_transfer_speed = 3300;
-			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-		}
-#endif
 
 		/*
 		 * We give our fake RAID passhtru bus a width that is MaxVolumes
@@ -3726,10 +3655,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 static int
 mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 {
-#ifdef	CAM_NEW_TRAN_CODE
 	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
-#endif
 	target_id_t tgt;
 	uint32_t dval, pval, oval;
 	int rv;
@@ -3790,29 +3717,6 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		pval = MPI_SCSIPORTPAGE0_CAP_GET_MIN_SYNC_PERIOD(pval);
 	}
 
-#ifndef	CAM_NEW_TRAN_CODE
-	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-	cts->valid = 0;
-	cts->sync_period = pval;
-	cts->sync_offset = oval;
-	cts->valid |= CCB_TRANS_SYNC_RATE_VALID;
-	cts->valid |= CCB_TRANS_SYNC_OFFSET_VALID;
-	cts->valid |= CCB_TRANS_BUS_WIDTH_VALID;
-	if (dval & DP_WIDE) {
-		cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-	} else {
-		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-	}
-	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
-		cts->valid |= CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-		if (dval & DP_DISC_ENABLE) {
-			cts->flags |= CCB_TRANS_DISC_ENB;
-		}
-		if (dval & DP_TQING_ENABLE) {
-			cts->flags |= CCB_TRANS_TAG_ENB;
-		}
-	}
-#else
 	spi->valid = 0;
 	scsi->valid = 0;
 	spi->flags = 0;
@@ -3837,10 +3741,10 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 		}
 	}
-#endif
+
 	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 	    "mpt_get_spi_settings[%d]: %s flags 0x%x per 0x%x off=%d\n", tgt,
-	    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", dval, pval, oval);
+	    IS_CURRENT_SETTINGS(cts) ? "ACTIVE" : "NVRAM ", dval, pval, oval);
 	return (0);
 }
 
@@ -3910,7 +3814,7 @@ mpt_spawn_recovery_thread(struct mpt_softc *mpt)
 {
 	int error;
 
-	error = mpt_kthread_create(mpt_recovery_thread, mpt,
+	error = kproc_create(mpt_recovery_thread, mpt,
 	    &mpt->recovery_thread, /*flags*/0,
 	    /*altstack*/0, "mpt_recovery%d", mpt->unit);
 	return (error);
@@ -3953,7 +3857,7 @@ mpt_recovery_thread(void *arg)
 	mpt->recovery_thread = NULL;
 	wakeup(&mpt->recovery_thread);
 	MPT_UNLOCK(mpt);
-	mpt_kthread_exit(0);
+	kproc_exit(0);
 }
 
 static int
