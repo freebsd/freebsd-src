@@ -202,7 +202,7 @@ static struct camcontrol_opts option_table[] = {
 	{"defects", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 	{"defectlist", CAM_CMD_READ_DEFECTS, CAM_ARG_NONE, readdefect_opts},
 #endif /* MINIMALISTIC */
-	{"devlist", CAM_CMD_DEVTREE, CAM_ARG_NONE, NULL},
+	{"devlist", CAM_CMD_DEVTREE, CAM_ARG_NONE, "-b"},
 #ifndef MINIMALISTIC
 	{"periphlist", CAM_CMD_DEVLIST, CAM_ARG_NONE, NULL},
 	{"modepage", CAM_CMD_MODE_PAGE, CAM_ARG_NONE, "bdelm:P:"},
@@ -254,7 +254,7 @@ camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 #ifndef MINIMALISTIC
 static int getdevlist(struct cam_device *device);
 #endif /* MINIMALISTIC */
-static int getdevtree(void);
+static int getdevtree(int argc, char **argv, char *combinedopt);
 #ifndef MINIMALISTIC
 static int testunitready(struct cam_device *device, int retry_count,
 			 int timeout, int quiet);
@@ -411,7 +411,7 @@ getdevlist(struct cam_device *device)
 #endif /* MINIMALISTIC */
 
 static int
-getdevtree(void)
+getdevtree(int argc, char **argv, char *combinedopt)
 {
 	union ccb ccb;
 	int bufsize, fd;
@@ -419,6 +419,19 @@ getdevtree(void)
 	int need_close = 0;
 	int error = 0;
 	int skip_device = 0;
+	int busonly = 0;
+	char c;
+
+	while ((c = getopt(argc, argv, combinedopt)) != -1) {
+		switch(c) {
+		case 'b':
+			if ((arglist & CAM_ARG_VERBOSE) == 0)
+				busonly = 1;
+			break;
+		default:
+			break;
+		}
+	}
 
 	if ((fd = open(XPT_DEVICE, O_RDWR)) == -1) {
 		warn("couldn't open %s", XPT_DEVICE);
@@ -478,7 +491,8 @@ getdevtree(void)
 				 * Only print the bus information if the
 				 * user turns on the verbose flag.
 				 */
-				if ((arglist & CAM_ARG_VERBOSE) == 0)
+				if ((busonly == 0) &&
+				    (arglist & CAM_ARG_VERBOSE) == 0)
 					break;
 
 				bus_result =
@@ -489,17 +503,21 @@ getdevtree(void)
 					need_close = 0;
 				}
 
-				fprintf(stdout, "scbus%d on %s%d bus %d:\n",
+				fprintf(stdout, "scbus%d on %s%d bus %d%s\n",
 					bus_result->path_id,
 					bus_result->dev_name,
 					bus_result->unit_number,
-					bus_result->bus_id);
+					bus_result->bus_id,
+					(busonly ? "" : ":"));
 				break;
 			}
 			case DEV_MATCH_DEVICE: {
 				struct device_match_result *dev_result;
 				char vendor[16], product[48], revision[16];
 				char fw[5], tmpstr[256];
+
+				if (busonly == 1)
+					break;
 
 				dev_result =
 				     &ccb.cdm.matches[i].result.device_result;
@@ -582,7 +600,7 @@ getdevtree(void)
 				periph_result =
 				      &ccb.cdm.matches[i].result.periph_result;
 
-				if (skip_device != 0)
+				if (busonly || skip_device != 0)
 					break;
 
 				if (need_close > 1)
@@ -8178,7 +8196,7 @@ main(int argc, char **argv)
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_DEVTREE:
-			error = getdevtree();
+			error = getdevtree(argc, argv, combinedopt);
 			break;
 #ifndef MINIMALISTIC
 		case CAM_CMD_TUR:
