@@ -1032,7 +1032,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
-		SDT_PROBE2(sched, , , off__cpu, td, td->td_proc);
+		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
                 /* I feel sleepy */
 		lock_profile_release_lock(&sched_lock.lock_object);
