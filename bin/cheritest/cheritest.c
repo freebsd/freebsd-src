@@ -44,13 +44,12 @@
 #include <cheritest-helper.h>
 #include <err.h>
 #include <inttypes.h>
+#include <sandbox.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
-#include "sandbox.h"
 
 #include "cheritest_sandbox.h"
 
@@ -85,6 +84,9 @@
 	    (uintmax_t)c_length);					\
 } while (0)
 #endif
+
+static struct sandbox_class	*cheritest_classp;
+static struct sandbox_object	*cheritest_objectp;
 
 static void
 usage(void)
@@ -324,22 +326,16 @@ cheritest_listregs(void)
 static void
 cheritest_invoke_simple_op(int op)
 {
-	struct sandbox *sb;
 	register_t v;
 
-	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 1024 * 1024,
-	    &sb) < 0)
-		err(1, "sandbox_setup");
-
 #ifdef USE_C_CAPS
-	v = sandbox_cinvoke(sb, op, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL,
-	    NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #else
-	v = sandbox_invoke(sb, op, 0, 0, 0, NULL, NULL, NULL, NULL, NULL,
-	    NULL, NULL, NULL);
+	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, NULL, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
-	sandbox_destroy(sb);
 }
 
 /*
@@ -357,22 +353,17 @@ cheritest_invoke_md5(void)
 #ifdef USE_C_CAPS
 	__capability void *md5cap, *bufcap, *cclear;
 #endif
-	struct sandbox *sb;
 	char buf[33];
 	register_t v;
-
-	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 4*1024*1024,
-	    &sb) < 0)
-		err(1, "sandbox_setup");
 
 #ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
 	md5cap = cheri_ptrperm(md5string, sizeof(md5string), CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
-	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_MD5, strlen(md5string), 0,
-	    0, 0, 0, 0, 0, md5cap, bufcap, cclear, cclear, cclear, cclear,
-	    cclear, cclear);
+	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
+	    strlen(md5string), 0, 0, 0, 0, 0, 0, md5cap, bufcap, cclear,
+	    cclear, cclear, cclear, cclear, cclear);
 #else
 	CHERI_CINCBASE(10, 0, &md5string);
 	CHERI_CSETLEN(10, 10, strlen(md5string));
@@ -384,55 +375,58 @@ cheritest_invoke_md5(void)
 	CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
 	CHERI_CSC(10, 0, &c4, 0);
 
-	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_MD5, strlen(md5string), 0,
-	    0, &c3, &c4, NULL, NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_object_invoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
+	    strlen(md5string), 0, 0, &c3, &c4, NULL, NULL, NULL, NULL, NULL,
+	    NULL);
 #endif
 
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
-	sandbox_destroy(sb);
 	buf[32] = '\0';
 	printf("MD5 checksum of '%s' is %s\n", md5string, buf);
 }
 
-static void
-cheritest_invoke_spin(void)
+static int
+cheritest_libcheri_setup(void)
 {
-	struct sandbox *sb;
-	register_t v;
 
-	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 4*1024*1024,
-	    &sb) < 0)
-		err(1, "sandbox_setup");
-
-#ifdef USE_C_CAPS
-	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-#else
-	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_SPIN, 0, 0, 0, NULL, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
-#endif
-	sandbox_destroy(sb);
-	printf("Recovered from spin (surprising)\n");
+	if (sandbox_class_new("/usr/libexec/cheritest-helper.bin",
+	    4*1024*1024, &cheritest_classp) < 0)
+		return (-1);
+	if (sandbox_object_new(cheritest_classp, &cheritest_objectp) < 0)
+		return (-1);
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_MD5, "md5");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_ABORT, "abort");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_SPIN, "spin");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_BOUND, "cp2_bound");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_PERM, "cp2_perm");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_TAG, "cp2_tag");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_CP2_SEAL, "cp2_seal");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_VM_RFAULT, "vm_rfault");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_VM_WFAULT, "vm_wfault");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_VM_XFAULT, "vm_xfault");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_SYSCALL, "syscall");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
+	return (0);
 }
 
 static void
-cheritest_invoke_syscall(void)
+cheritest_libcheri_destroy(void)
 {
-	struct sandbox *sb;
-	register_t v;
 
-	if (sandbox_setup("/usr/libexec/cheritest-helper.bin", 4*1024*1024,
-	    &sb) < 0)
-		err(1, "sandbox_setup");
-
-#ifdef USE_C_CAPS
-	v = sandbox_cinvoke(sb, CHERITEST_HELPER_OP_SYSCALL, 0, 0, 0, 0, 0, 0,
-	    0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-#else
-	v = sandbox_invoke(sb, CHERITEST_HELPER_OP_SYSCALL, 0, 0, 0, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL);
-#endif
-	sandbox_destroy(sb);
+	sandbox_object_destroy(cheritest_objectp);
+	sandbox_class_destroy(cheritest_classp);
 }
 
 int
@@ -451,6 +445,7 @@ main(__unused int argc, __unused char *argv[])
 	if (argc == 0)
 		usage();
 
+	cheritest_libcheri_setup();
 	for (i = 0; i < argc; i++) {
 		if (strcmp(argv[i], "listcausereg") == 0)
 			cheritest_listcausereg();
@@ -486,9 +481,11 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_md5") == 0)
 			cheritest_invoke_md5();
 		else if (strcmp(argv[i], "invoke_spin") == 0)
-			cheritest_invoke_spin();
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_SPIN);
 		else if (strcmp(argv[i], "invoke_syscall") == 0)
-			cheritest_invoke_syscall();
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_SYSCALL);
 		else if (strcmp(argv[i], "invoke_vm_rfault") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_VM_RFAULT);
@@ -505,5 +502,6 @@ main(__unused int argc, __unused char *argv[])
 		else
 			usage();
 	}
+	cheritest_libcheri_destroy();
 	exit(EX_OK);
 }
