@@ -48,8 +48,8 @@ procstat_sandbox_classes(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %5s %5s %7s\n", "PID", "COMM", "CLASS",
-		    "CLSID", "COUNT", "RESET");
+		printf("%5s %-12s %-20s %3s %5s %7s\n", "PID", "COMM", "CLASS",
+		    "CID", "COUNT", "RESET");
 	}
 	scsp_free = scsp = procstat_getsbclasses(procstat, kipp, &len);
 	if (scsp == NULL)
@@ -60,7 +60,7 @@ procstat_sandbox_classes(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5d ", kipp->ki_pid);
 		printf("%-12s ", kipp->ki_comm);
 		printf("%-20s ", scsp->scs_class_name);
-		printf("%5jd ", (uintmax_t)scsp->scs_classid);
+		printf("%3jd ", (uintmax_t)scsp->scs_classid);
 		printf("%5jd ", (uintmax_t)(scsp->scs_stat_alloc -
 		    scsp->scs_stat_free));
 		printf("%7jd\n", (uintmax_t)scsp->scs_stat_reset);
@@ -76,8 +76,8 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %5s %-10s %5s %7s %7s\n", "PID",
-		    "COMM", "CLASS", "CLSID", "METHOD", "MTHID", "INVOKE",
+		printf("%5s %-12s %-20s %3s %-12s %3s %7s %7s\n", "PID",
+		    "COMM", "CLASS", "CID", "METHOD", "MID", "INVOKE",
 		    "FAULT");
 	}
 	smsp_free = smsp = procstat_getsbmethods(procstat, kipp, &len);
@@ -89,9 +89,9 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5d ", kipp->ki_pid);
 		printf("%-12s ", kipp->ki_comm);
 		printf("%-20s ", smsp->sms_class_name);
-		printf("%5jd ", (uintmax_t)smsp->sms_classid);
-		printf("%-10s ", smsp->sms_method_name);
-		printf("%5jd ", (uintmax_t)smsp->sms_methodid);
+		printf("%3jd ", (uintmax_t)smsp->sms_classid);
+		printf("%-12s ", smsp->sms_method_name);
+		printf("%3jd ", (uintmax_t)smsp->sms_methodid);
 		printf("%7jd ", (uintmax_t)smsp->sms_stat_invoke);
 		printf("%7jd\n", (uintmax_t)smsp->sms_stat_fault);
 	}
@@ -146,8 +146,8 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %5s %4s %-18s %7s\n", "PID", "COMM",
-		    "CLASS", "CLSID", "TYPE", "NAME", "INVOKE");
+		printf("%5s %-12s %-20s %3s %4s %-18s %7s\n", "PID", "COMM",
+		    "CLASS", "CID", "TYPE", "NAME", "INVOKE");
 	}
 	sosp_free = sosp = procstat_getsbobjects(procstat, kipp, &len);
 	if (sosp == NULL)
@@ -158,7 +158,7 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%5d ", kipp->ki_pid);
 		printf("%-12s ", kipp->ki_comm);
 		printf("%-20s ", sosp->sos_class_name);
-		printf("%5jd ", (uintmax_t)sosp->sos_classid);
+		printf("%3jd ", (uintmax_t)sosp->sos_classid);
 		print_sbobject_type(sosp->sos_object_type);
 		print_sbobject_name(sosp->sos_object_type,
 		    sosp->sos_object_name);
