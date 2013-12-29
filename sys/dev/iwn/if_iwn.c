@@ -352,7 +352,8 @@ static device_method_t iwn_methods[] = {
 	DEVMETHOD(device_shutdown,	iwn_shutdown),
 	DEVMETHOD(device_suspend,	iwn_suspend),
 	DEVMETHOD(device_resume,	iwn_resume),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t iwn_driver = {
@@ -362,7 +363,7 @@ static driver_t iwn_driver = {
 };
 static devclass_t iwn_devclass;
 
-DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
+DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, NULL, NULL);
 
 MODULE_VERSION(iwn, 1);
 
@@ -392,7 +393,7 @@ iwn_attach(device_t dev)
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
 	uint32_t reg;
-	int i, error, result;
+	int i, error, rid;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
@@ -433,8 +434,8 @@ iwn_attach(device_t dev)
 	/* Enable bus-mastering. */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = PCIR_BAR(0);
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	rid = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "can't map mem space\n");
@@ -444,13 +445,13 @@ iwn_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	if ((result = pci_msi_count(dev)) == 1 &&
-	    pci_alloc_msi(dev, &result) == 0)
-		sc->irq_rid = 1;
+	i = 1;
+	rid = 0;
+	if (pci_alloc_msi(dev, &i) == 0)
+		rid = 1;
 	/* Install interrupt handler. */
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
+	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->irq == NULL) {
 		device_printf(dev, "can't map interrupt\n");
 		error = ENOMEM;
@@ -1319,9 +1320,9 @@ iwn_detach(device_t dev)
 	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
-		if (sc->irq_rid == 1)
-			pci_release_msi(dev);
+		bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq),
+		    sc->irq);
+		pci_release_msi(dev);
 	}
 
 	/* Free DMA resources. */
@@ -1335,7 +1336,8 @@ iwn_detach(device_t dev)
 	iwn_free_fwmem(sc);
 
 	if (sc->mem != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->mem), sc->mem);
 
 	if (ifp != NULL)
 		if_free(ifp);
