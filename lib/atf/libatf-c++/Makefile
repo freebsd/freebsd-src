@@ -59,12 +59,14 @@ SRCS=		application.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp
+		ui.cpp \
+		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
 		config.hpp \
 		macros.hpp \
+		noncopyable.hpp \
 		tests.hpp \
 		utils.hpp
 INCSDIR=	${INCLUDEDIR}/atf-c++

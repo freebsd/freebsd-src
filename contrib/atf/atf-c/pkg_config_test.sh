@@ -59,7 +59,7 @@ atf_test_case version
 version_head()
 {
     atf_set "descr" "Checks that the version in atf-c is correct"
-    atf_set "require.progs" "pkg-config"
+    atf_set "require.progs" "atf-version pkg-config"
 }
 version_body()
 {

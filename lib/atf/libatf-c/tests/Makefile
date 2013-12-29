@@ -47,7 +47,6 @@ ATF_TESTS_SH=	pkg_config_test
 		map_test \
 		process_test \
 		sanity_test \
-		test_helpers_test \
 		text_test \
 		user_test
 ATF_TESTS_C+=	${_T}
