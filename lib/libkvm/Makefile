@@ -1,35 +1,23 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 # $FreeBSD$
 
-.if defined(TARGET_ARCH)
-TARGET_CPUARCH=${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
-.else
-TARGET_ARCH=${MACHINE_ARCH}
-TARGET_CPUARCH=${MACHINE_CPUARCH}
-.endif
-
-.if ${TARGET_ARCH} != ${MACHINE_ARCH}
-LIB=   kvm-${TARGET_ARCH}
-CFLAGS+=-DCROSS_LIBKVM
-.else
 LIB=	kvm
-.endif
-
 SHLIBDIR?= /lib
 SHLIB_MAJOR=	6
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 
-.if exists(${.CURDIR}/kvm_${TARGET_ARCH}.c)
-KVM_ARCH=${TARGET_ARCH}
+.if exists(${.CURDIR}/kvm_${MACHINE_ARCH}.c)
+KVM_ARCH=${MACHINE_ARCH}
 .else
-KVM_ARCH=${TARGET_CPUARCH}
+KVM_ARCH=${MACHINE_CPUARCH}
 .endif
 
 WARNS?=	3
 
 SRCS=	kvm.c kvm_${KVM_ARCH}.c kvm_cptime.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_pcpu.c kvm_proc.c kvm_vnet.c
-.if exists(${.CURDIR}/kvm_minidump_${KVM_ARCH}.c)
+.if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386" || \
+    ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 SRCS+=	kvm_minidump_${KVM_ARCH}.c
 .endif
 INCS=	kvm.h
