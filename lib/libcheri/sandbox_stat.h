@@ -71,15 +71,18 @@ struct sandbox_class_stat {
  * XXXRW: Should these use atomic(9)?
  */
 #define	SANDBOX_CLASS_ALLOC(scsp)	do {				\
-	(scsp)->scs_stat_alloc++;					\
+	if ((scsp) != NULL)						\
+		(scsp)->scs_stat_alloc++;				\
 } while (0)
 
 #define	SANDBOX_CLASS_RESET(scsp)	do {				\
-	(scsp)->scs_stat_reset++;					\
+	if ((scsp) != NULL)						\
+		(scsp)->scs_stat_reset++;				\
 } while (0)
 
 #define	SANDBOX_CLASS_FREE(scsp)	do {				\
-	(scsp)->scs_stat_free++;					\
+	if ((scsp) != NULL)						\
+		(scsp)->scs_stat_free++;				\
 } while (0)
 
 /*
@@ -115,25 +118,32 @@ struct sandbox_method_stat {
  * XXXRW: Should these use atomic(9)?
  */
 #define	SANDBOX_METHOD_INVOKE(smsp)	do {				\
-	(smsp)->sms_stat_invoke++;					\
+	if ((smsp) != NULL)						\
+		(smsp)->sms_stat_invoke++;				\
 } while (0)
 
 #define	SANDBOX_METHOD_FAULT(smsp)	do {				\
-	(smsp)->sms_stat_fault++;					\
+	if ((smsp) != NULL)						\
+		(smsp)->sms_stat_fault++;				\
 } while (0)
 
 #define	SANDBOX_METHOD_TIMEOUT(smsp)	do {				\
-	(smsp)->sms_stat_timeout++;					\
+	if ((smsp) != NULL)						\
+		(smsp)->sms_stat_timeout++;				\
 } while (0)
 
 #define	SANDBOX_METHOD_MINRUN(smsp, min)	do {			\
-	if ((min) < (smsp)->sms_stat_minrun)				\
-		(smsp)->sms_stat_minrun = (min);			\
+	if ((smsp) != NULL) {						\
+		if ((min) < (smsp)->sms_stat_minrun)			\
+			(smsp)->sms_stat_minrun = (min);		\
+	}								\
 } while (0)
 
 #define	SANDBOX_METHOD_MAXRUN(smsp, max)	do {			\
-	if ((map) > (smsp)->sms_stat_maxrun)				\
-		(smsp)->sms_stat_maxrun = (max);			\
+	if ((smsp) != NULL) {						\
+		if ((map) > (smsp)->sms_stat_maxrun)			\
+			(smsp)->sms_stat_maxrun = (max);		\
+	}								\
 } while (0)
 
 /*
@@ -170,11 +180,13 @@ struct sandbox_object_stat {
  * XXXRW: Should these use atomic(9)?
  */
 #define	SANDBOX_OBJECT_INVOKE(sosp)	do {				\
-	(sosp)->sos_stat_invoke++;					\
+	if ((sosp) != NULL)						\
+		(sosp)->sos_stat_invoke++;				\
 } while (0)
 
 #define	SANDBOX_OBJECT_FAULT(sosp)	do {				\
-	(sosp)->sos_stat_fault++;					\
+	if ((sosp) != NULL)						\
+		(sosp)->sos_stat_fault++;				\
 } while (0)
 
 /*

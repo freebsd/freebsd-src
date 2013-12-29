@@ -63,52 +63,86 @@
 #define	METADATA_SIZE	0x1000
 #define	STACK_SIZE	(32*PAGE_SIZE)
 
+/*
+ * Control verbose debugging output around sandbox invocation; disabled by
+ * default but may be enabled using an environmental variable.
+ */
 int sb_verbose;
 
+/*
+ * Description of a 'sandbox class': an instance of code that may be sandboxed
+ * and invoked, along with statistics/monitoring information, etc.
+ *
+ * XXXRW: For now, support a single method description.  In the future, we
+ * will want to allow descriptions of multiple methods -- ideally configured
+ * by analysing the target ELF rather than letting the caller provide the
+ * information.
+ */
+struct sandbox_class {
+	char			*sbc_path;
+	int			 sbc_fd;
+	struct stat		 sbc_stat;
+	size_t			 sbc_sandboxlen;
+	struct sandbox_class_stat	*sbc_sandbox_class_statp;
+
+	/* XXXRW: Eventually, a set of method stats here. */
+	struct sandbox_method_stat	*sbc_sandbox_method_statp;
+};
+
 /*-
- * Opaque data structure describing each sandbox; returned by sandbox_setup()
- * and destroyed by sandbox_destroy().  Currently, sandboxes are
- * single-threaded.
+ * Description of a 'sandbox object' or 'sandbox instance': an in-flight
+ * combination of code and data.  Currently, due to compiler limitations, we
+ * must conflate 'code', 'heap', and 'stack', but eventually would like to
+ * allow one VM mapping of code to serve many object instances.  This would
+ * also ease supporting multithreaded objects.
  *
  * TODO:
  * - Add atomically set flag and assertion to ensure single-threaded entry to
  *   the sandbox.
+ * - Once the compiler supports it, move the code memory mapping and
+ *   capability out of sandbox_object into sandbox_class.
  */
-struct sandbox {
-	char		*sb_path;
-	void		*sb_mem;
-	register_t	 sb_sandboxlen;
-	register_t	 sb_heapbase;
-	register_t	 sb_heaplen;
+struct sandbox_object {
+	struct sandbox_class	*sbo_sandbox_classp;
+	void			*sbo_mem;
+	register_t		 sbo_sandboxlen;
+	register_t		 sbo_heapbase;
+	register_t		 sbo_heaplen;
 #ifdef USE_C_CAPS
-	__capability void	*sb_codecap;	/* Sealed code capability. */
-	__capability void	*sb_datacap;	/* Sealed data capability. */
+	__capability void	*sbo_codecap;	/* Sealed code capability. */
+	__capability void	*sbo_datacap;	/* Sealed data capability. */
 #else
-	struct chericap	 sb_codecap;	/* Sealed code capability for CCall. */
-	struct chericap	 sb_datacap;	/* Sealed data capability for CCall. */
+	struct chericap		 sbo_codecap;	/* Sealed code cap for CCall. */
+	struct chericap		 sbo_datacap;	/* Sealed data cap for CCall. */
 #endif
-	struct stat	 sb_stat;
-	struct sandbox_class_stat	*sb_sandbox_class_stat;
-	struct sandbox_method_stat	*sb_sandbox_method_stat;
-	struct sandbox_object_stat	*sb_sandbox_object_stat;
+	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
-int
-sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
+/*
+ * A classic 'sandbox' is actually a combination of a sandbox class and a
+ * sandbox object.  We continue to support this model as it is used in some
+ * CHERI demo and test code.
+ */
+struct sandbox {
+	struct sandbox_class	*sb_sandbox_classp;
+	struct sandbox_object	*sb_sandbox_objectp;
+};
+
+__attribute__ ((constructor)) static void
+sandbox_init(void)
 {
-	char sandbox_basename[MAXPATHLEN];
-#ifdef USE_C_CAPS
-	__capability void *sbcap;
-#endif
-	struct sandbox_metadata *sbm;
-	struct sandbox *sb;
-	int fd, saved_errno;
-	size_t length;
-	uint8_t *base;
-	register_t v;
 
 	if (getenv("LIBCHERI_SB_VERBOSE"))
 		sb_verbose = 1;
+}
+
+int
+sandbox_class_new(const char *path, size_t sandboxlen,
+    struct sandbox_class **sbcpp)
+{
+	char sandbox_basename[MAXPATHLEN];
+	struct sandbox_class *sbcp;
+	int fd, saved_errno;
 
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
@@ -118,31 +152,102 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 		return (-1);
 	}
 
-	sb = calloc(1, sizeof(*sb));
-	if (sb == NULL) {
+	sbcp = calloc(1, sizeof(*sbcp));
+	if (sbcp == NULL) {
 		saved_errno = errno;
 		warn("%s: malloc", __func__);
-		goto error;
+		close(fd);
+		errno = saved_errno;
+		return (-1);
 	}
-	sb->sb_path = strdup(path);
-	if (sb->sb_path == NULL) {
+	sbcp->sbc_sandboxlen = sandboxlen;
+	sbcp->sbc_fd = fd;
+	sbcp->sbc_path = strdup(path);
+	if (sbcp->sbc_path == NULL) {
 		saved_errno = errno;
 		warn("%s: fstat %s", __func__, path);
 		goto error;
 	}
 
-	if (fstat(fd, &sb->sb_stat) < 0) {
+	if (fstat(sbcp->sbc_fd, &sbcp->sbc_stat) < 0) {
 		saved_errno = errno;
 		warn("%s: fstat %s", __func__, path);
 		goto error;
 	}
 
 	/* For now, support only "small" sandboxed programs. */
-	if (sb->sb_stat.st_size >= sandboxlen/2) {
+	if (sbcp->sbc_stat.st_size >= (off_t)sbcp->sbc_sandboxlen/2) {
 		saved_errno = EINVAL;
 		warnx("%s: %s too large", __func__, path);
 		goto error;
 	}
+
+	/*
+	 * Register the class/object for statistics; also register a single
+	 * "default" method.
+	 *
+	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
+	 * the object, since this is most useful for comparison to capability
+	 * values.  However, you could also see an argument for using 'sb'
+	 * itself here.
+	 */
+	(void)sandbox_stat_class_register(&sbcp->sbc_sandbox_class_statp,
+	    basename_r(path, sandbox_basename));
+	(void)sandbox_stat_method_register(&sbcp->sbc_sandbox_method_statp,
+	    sbcp->sbc_sandbox_class_statp, "default");
+	*sbcpp = sbcp;
+	return (0);
+
+error:
+	if (sbcp->sbc_path != NULL)
+		free(sbcp->sbc_path);
+	close(sbcp->sbc_fd);
+	free(sbcp);
+	errno = saved_errno;
+	return (-1);
+}
+
+int
+sandbox_class_method_declare(struct sandbox_class *sbcp __unused,
+    u_int methodnum __unused, const char *methodname __unused)
+{
+
+	/* XXXRW: Implement. */
+	return (0);
+}
+
+void
+sandbox_class_destroy(struct sandbox_class *sbcp)
+{
+
+	if (sbcp->sbc_sandbox_method_statp != NULL)
+		(void)sandbox_stat_method_deregister(
+		    sbcp->sbc_sandbox_method_statp);
+	if (sbcp->sbc_sandbox_class_statp != NULL)
+		(void)sandbox_stat_class_deregister(
+		    sbcp->sbc_sandbox_class_statp);
+	close(sbcp->sbc_fd);
+	free(sbcp->sbc_path);
+	free(sbcp);
+}
+
+int
+sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
+{
+#ifdef USE_C_CAPS
+	__capability void *sbcap;
+#endif
+	struct sandbox_object *sbop;
+	struct sandbox_metadata *sbm;
+	size_t length;
+	int saved_errno;
+	uint8_t *base;
+	register_t v;
+
+	sbop = calloc(1, sizeof(*sbop));
+	if (sbop == NULL)
+		return (-1);
+	sbop->sbo_sandbox_classp = sbcp;
 
 	/*
 	 * Perform an initial reservation of space for the sandbox, but using
@@ -165,9 +270,9 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * implemented here.  Location and contents of sandbox metadata is
 	 * part of the ABI.
 	 */
-	length = sandboxlen;
-	base = sb->sb_mem = mmap(NULL, length, 0, MAP_ANON, -1, 0);
-	if (sb->sb_mem == MAP_FAILED) {
+	length = sbcp->sbc_sandboxlen;
+	base = sbop->sbo_mem = mmap(NULL, length, 0, MAP_ANON, -1, 0);
+	if (sbop->sbo_mem == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap region", __func__);
 		goto error;
@@ -196,24 +301,21 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * the sandbox entry address.  This address is hard to change as it is
 	 * the address used in static linking for sandboxed code.
 	 */
-	assert((register_t)base - (register_t)sb->sb_mem < SANDBOX_ENTRY);
-	base = (void *)((register_t)sb->sb_mem + SANDBOX_ENTRY);
-	length = sandboxlen - SANDBOX_ENTRY;
+	assert((register_t)base - (register_t)sbop->sbo_mem < SANDBOX_ENTRY);
+	base = (void *)((register_t)sbop->sbo_mem + SANDBOX_ENTRY);
+	length = sbcp->sbc_sandboxlen - SANDBOX_ENTRY;
 
 	/*
 	 * Map program binary.
 	 */
-	if (mmap(base, sb->sb_stat.st_size, PROT_READ | PROT_WRITE,
-	    MAP_PRIVATE | MAP_FIXED, fd, 0) == MAP_FAILED) {
+	if (mmap(base, sbcp->sbc_stat.st_size, PROT_READ | PROT_WRITE,
+	    MAP_PRIVATE | MAP_FIXED, sbcp->sbc_fd, 0) == MAP_FAILED) {
 		saved_errno = errno;
-		warn("%s: mmap %s", __func__, path);
+		warn("%s: mmap %s", __func__, sbcp->sbc_path);
 		goto error;
 	}
-	base += roundup2(sb->sb_stat.st_size, PAGE_SIZE);
-	length += roundup2(sb->sb_stat.st_size, PAGE_SIZE);
-
-	close(fd);
-	fd = -1;
+	base += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
+	length += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
 
 	/*
 	 * Skip guard page.
@@ -224,17 +326,17 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	/*
 	 * Heap.
 	 */
-	sb->sb_heapbase = (register_t)base - (register_t)sb->sb_mem;
-	sb->sb_heaplen = length - (GUARD_PAGE_SIZE + STACK_SIZE);
-	if (mmap(base, sb->sb_heaplen, PROT_READ | PROT_WRITE,
+	sbop->sbo_heapbase = (register_t)base - (register_t)sbop->sbo_mem;
+	sbop->sbo_heaplen = length - (GUARD_PAGE_SIZE + STACK_SIZE);
+	if (mmap(base, sbop->sbo_heaplen, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap heap", __func__);
 		goto error;
 	}
-	memset(base, 0, sb->sb_heaplen);
-	base += sb->sb_heaplen;
-	length -= sb->sb_heaplen;
+	memset(base, 0, sbop->sbo_heaplen);
+	base += sbop->sbo_heaplen;
+	length -= sbop->sbo_heaplen;
 
 	/*
 	 * Skip guard page.
@@ -265,49 +367,40 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 * Now that addresses are known, write out metadata for in-sandbox
 	 * use; then mprotect() so that it can't be modified by the sandbox.
 	 */
-	sbm->sbm_heapbase = sb->sb_heapbase;
-	sbm->sbm_heaplen = sb->sb_heaplen;
+	sbm->sbm_heapbase = sbop->sbo_heapbase;
+	sbm->sbm_heaplen = sbop->sbo_heaplen;
 	if (mprotect(base, METADATA_SIZE, PROT_READ) < 0) {
 		saved_errno = errno;
 		warn("%s: mprotect metadata", __func__);
 		goto error;
 	}
-	
-	/*
-	 * Register the class/object for statistics; also register a single
-	 * "default" method.
-	 *
-	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
-	 * the object, since this is most useful for comparison to capability
-	 * values.  However, you could also see an argument for using 'sb'
-	 * itself here.
-	 */
-	(void)sandbox_stat_class_register(&sb->sb_sandbox_class_stat,
-	    basename_r(path, sandbox_basename));
-	(void)sandbox_stat_method_register(&sb->sb_sandbox_method_stat,
-	    sb->sb_sandbox_class_stat, "default");
-	(void)sandbox_stat_object_register(&sb->sb_sandbox_object_stat,
-	    sb->sb_sandbox_class_stat, SANDBOX_OBJECT_TYPE_POINTER,
-	    (uintptr_t)sb->sb_mem);
-	SANDBOX_CLASS_ALLOC(sb->sb_sandbox_class_stat);
+
+	if (sbcp->sbc_sandbox_class_statp != NULL) {
+		(void)sandbox_stat_object_register(
+		    &sbop->sbo_sandbox_object_statp,
+		    sbcp->sbc_sandbox_class_statp,
+		    SANDBOX_OBJECT_TYPE_POINTER, (uintptr_t)sbop->sbo_mem);
+		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
+	}
 
 #ifdef USE_C_CAPS
 	/*
 	 * Construct a generic capability that describes the combined
 	 * data/code segment that we will seal.
 	 */
-	sbcap = cheri_ptrtype(sb->sb_mem, sandboxlen, SANDBOX_ENTRY);
+	sbcap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	    SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
-	sb->sb_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
+	sbop->sbo_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
 	    CHERI_PERM_SEAL);
-	sb->sb_codecap = cheri_sealcode(sb->sb_codecap);
+	sbop->sbo_codecap = cheri_sealcode(sbop->sbo_codecap);
 
 	/* Construct sealed data capability. */
-	sb->sb_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
+	sbop->sbo_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_EPHEM_CAP);
-	sb->sb_datacap = cheri_sealdata(sb->sb_datacap, sbcap);
+	sbop->sbo_datacap = cheri_sealdata(sbop->sbo_datacap, sbcap);
 #else
 	/*
 	 * Construct a generic capability in $c10 that describes the combined
@@ -319,9 +412,9 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	 *
 	 * XXXRW: $c3 is probably not the right thing.
 	 */
-	CHERI_CINCBASE(3, 0, sb->sb_mem);
+	CHERI_CINCBASE(3, 0, sbop->sbo_mem);
 	CHERI_CSETTYPE(3, 3, SANDBOX_ENTRY);
-	CHERI_CSETLEN(3, 3, sandboxlen);
+	CHERI_CSETLEN(3, 3, sbcp->sbc_sandboxlen);
 
 	/*
 	 * Construct a code capability in $c1, derived from $c3, suitable for
@@ -339,17 +432,16 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	    CHERI_PERM_STORE_EPHEM_CAP);
 	CHERI_CSEALDATA(2, 2, 3);
 
-	CHERI_CSC(1, 0, &sb->sb_codecap, 0);
-	CHERI_CSC(2, 0, &sb->sb_datacap, 0);
+	CHERI_CSC(1, 0, &sbop->sbo_codecap, 0);
+	CHERI_CSC(2, 0, &sbop->sbo_datacap, 0);
 #endif
 
-	sb->sb_sandboxlen = sandboxlen;
-
+	/* XXXRW: This is not right for USE_C_CAPS. */
 	if (sb_verbose) {
 		printf("Sandbox configured:\n");
-		printf("  Path: %s\n", sb->sb_path);
-		printf("  Mem: %p\n", sb->sb_mem);
-		printf("  Len: %ju\n", (uintmax_t)sb->sb_sandboxlen);
+		printf("  Path: %s\n", sbcp->sbc_path);
+		printf("  Mem: %p\n", sbop->sbo_mem);
+		printf("  Len: %ju\n", (uintmax_t)sbcp->sbc_sandboxlen);
 		printf("  Code capability:\n");
 		CHERI_CGETTAG(v, 1);
 		printf("    t %u", (u_int)v);
@@ -388,31 +480,30 @@ sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbp)
 	CHERI_CCLEARTAG(3);
 #endif
 
-	*sbp = sb;
+	*sbopp = sbop;
 	return (0);
 
 error:
-	if (sb != NULL) {
-		if (sb->sb_path != NULL)
-			free(sb->sb_path);
-		if (sb->sb_mem != NULL)
-			munmap(sb->sb_mem, sandboxlen);
-		free(sb);
+	if (sbop != NULL) {
+		if (sbop->sbo_mem != NULL)
+			munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
+		free(sbop);
 	}
-	if (fd != -1)
-		close(fd);
 	errno = saved_errno;
 	return (-1);
 }
 
 #ifdef USE_C_CAPS
 register_t
-sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
-    register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
-    register_t a7, __capability void *c3, __capability void *c4,
-    __capability void *c5, __capability void *c6, __capability void *c7,
-    __capability void *c8, __capability void *c9, __capability void *c10)
+sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
+    register_t a1, register_t a2, register_t a3, register_t a4, register_t a5,
+    register_t a6, register_t a7, __capability void *c3,
+    __capability void *c4, __capability void *c5, __capability void *c6,
+    __capability void *c7, __capability void *c8, __capability void *c9,
+    __capability void *c10)
 {
+	struct sandbox_class *sbcp;
+	register_t v0;
 
 	/*
 	 * XXXRW: TODO:
@@ -420,8 +511,16 @@ sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
 	 * 1. What about $v1, capability return values?
 	 * 2. Does the right thing happen with $a0..$a7, $c3..$c10?
 	 */
-	return (_chsbrt_invoke(sb->sb_codecap, sb->sb_datacap, a0, a1, a2, a3,
-	    a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10));
+	sbcp = sbop->sbo_sandbox_classp;
+	SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_statp);
+	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
+	v0 = _chsbrt_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
+	    a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
+	if (v0 < 0) {
+		SANDBOX_METHOD_FAULT(sbcp->sbc_sandbox_method_statp);
+		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
+	}
+	return (v0);
 }
 #endif
 
@@ -442,10 +541,11 @@ sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
  * canonical 'NULL' for the capability space (connoting no rights).
  */
 register_t
-sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
-    register_t a2, register_t a3, struct chericap *c3p, struct chericap *c4p,
-    struct chericap *c5p, struct chericap *c6p, struct chericap *c7p,
-    struct chericap *c8p, struct chericap *c9p, struct chericap *c10p)
+sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
+    register_t a1, register_t a2, register_t a3, struct chericap *c3p,
+    struct chericap *c4p, struct chericap *c5p, struct chericap *c6p,
+    struct chericap *c7p, struct chericap *c8p, struct chericap *c9p,
+    struct chericap *c10p)
 {
 #ifdef USE_C_CAPS
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
@@ -453,8 +553,9 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 #endif
 	register_t v0;
 
-	SANDBOX_METHOD_INVOKE(sb->sb_sandbox_method_stat);
-	SANDBOX_OBJECT_INVOKE(sb->sb_sandbox_object_stat);
+	SANDBOX_METHOD_INVOKE(
+	    sbop->sbo_sandbox_classp->sbc_sandbox_method_statp);
+	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 #ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
 	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
@@ -466,11 +567,11 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	c9 = (c9p != NULL ? *(__capability void **)c9p : cclear);
 	c10 = (c10p != NULL ? (__capability void *)c10p : cclear);
 
-	v0 = sandbox_cinvoke(sb, a0, a1, a2, a3, 0, 0, 0, 0, c3, c4, c5, c6,
-	    c7, c8, c9, c10);
+	v0 = sandbox_object_cinvoke(sbop, methodnum, a1, a2, a3, 0, 0, 0, 0,
+	    c3, c4, c5, c6, c7, c8, c9, c10);
 #else
-	CHERI_CLC(1, 0, &sb->sb_codecap, 0);
-	CHERI_CLC(2, 0, &sb->sb_datacap, 0);
+	CHERI_CLC(1, 0, &sbop->sbo_codecap, 0);
+	CHERI_CLC(2, 0, &sbop->sbo_datacap, 0);
 	CHERI_CLOADORCLEAR(3, c3p);
 	CHERI_CLOADORCLEAR(4, c4p);
 	CHERI_CLOADORCLEAR(5, c5p);
@@ -479,30 +580,93 @@ sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
 	CHERI_CLOADORCLEAR(8, c8p);
 	CHERI_CLOADORCLEAR(9, c9p);
 	CHERI_CLOADORCLEAR(10, c10p);
-	v0 = _chsbrt_invoke(a0, a1, a2, a3, 0, 0, 0, 0);
+	v0 = _chsbrt_invoke(methodnum, a1, a2, a3, 0, 0, 0, 0);
 #endif
 	if (v0 < 0) {
-		SANDBOX_METHOD_FAULT(sb->sb_sandbox_method_stat);
-		SANDBOX_OBJECT_FAULT(sb->sb_sandbox_object_stat);
+		SANDBOX_METHOD_FAULT(
+		    sbop->sbo_sandbox_classp->sbc_sandbox_method_statp);
+		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
 	}
 	return (v0);
+}
+
+void
+sandbox_object_destroy(struct sandbox_object *sbop)
+{
+	struct sandbox_class *sbcp;
+
+	sbcp = sbop->sbo_sandbox_classp;
+	SANDBOX_CLASS_FREE(sbcp->sbc_sandbox_class_statp);
+	if (sbop->sbo_sandbox_object_statp != NULL)
+		(void)sandbox_stat_object_deregister(
+		    sbop->sbo_sandbox_object_statp);
+	munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
+	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
+	free(sbop);
+}
+
+int
+sandbox_setup(const char *path, register_t sandboxlen, struct sandbox **sbpp)
+{
+	struct sandbox *sbp;
+
+	sbp = calloc(1, sizeof(*sbp));
+	if (sbp == NULL)
+		return (-1);
+	if (sandbox_class_new(path, sandboxlen, &sbp->sb_sandbox_classp) !=
+	    0) {
+		free(sbp);
+		return (-1);
+	}
+	if (sandbox_object_new(sbp->sb_sandbox_classp,
+	    &sbp->sb_sandbox_objectp) != 0) {
+		sandbox_class_destroy(sbp->sb_sandbox_classp);
+		free(sbp);
+		return (-1);
+	}
+	*sbpp = sbp;
+	return (0);
 }
 
 void
 sandbox_destroy(struct sandbox *sb)
 {
 
-	SANDBOX_CLASS_FREE(sb->sb_sandbox_class_stat);
-	if (sb->sb_sandbox_object_stat != NULL)
-		(void)sandbox_stat_object_deregister(
-		    sb->sb_sandbox_object_stat);
-	if (sb->sb_sandbox_method_stat != NULL)
-		(void)sandbox_stat_method_deregister(
-		    sb->sb_sandbox_method_stat);
-	if (sb->sb_sandbox_class_stat != NULL)
-		(void)sandbox_stat_class_deregister(
-		    sb->sb_sandbox_class_stat);
-	munmap(sb->sb_mem, sb->sb_sandboxlen);
-	bzero(sb, sizeof(*sb));		/* Clears tags. */
+	sandbox_object_destroy(sb->sb_sandbox_objectp);
+	sandbox_class_destroy(sb->sb_sandbox_classp);
 	free(sb);
+}
+
+#ifdef USE_C_CAPS
+register_t
+sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
+    register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
+    register_t a7, __capability void *c3, __capability void *c4,
+    __capability void *c5, __capability void *c6, __capability void *c7,
+    __capability void *c8, __capability void *c9, __capability void *c10)
+{
+
+	return (sandbox_object_cinvoke(sb->sb_sandbox_objectp, a0, a1, a2, a3,
+	    a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10));
+}
+#endif
+
+/*
+ * This version of invoke() is intended for callers not implementing CHERI
+ * compiler support -- but internally, it can be implemented either way.
+ *
+ * XXXRW: Zeroing the capability pointer will clear the tag, but it seems a
+ * bit ugly.  It would be nice to have a pretty way to do this.  Note that C
+ * NULL != an untagged capability pointer, and we would benefit from having a
+ * canonical 'NULL' for the capability space (connoting no rights).
+ */
+register_t
+sandbox_invoke(struct sandbox *sb, register_t a0, register_t a1,
+    register_t a2, register_t a3, struct chericap *c3p, struct chericap *c4p,
+    struct chericap *c5p, struct chericap *c6p, struct chericap *c7p,
+    struct chericap *c8p, struct chericap *c9p, struct chericap *c10p)
+{
+
+	return (sandbox_object_invoke(sb->sb_sandbox_objectp, a0, a1, a2, a3,
+	    c3p, c4p, c5p, c6p, c7p, c8p, c9p, c10p));
 }

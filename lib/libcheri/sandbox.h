@@ -77,4 +77,35 @@ register_t	sandbox_invoke(struct sandbox *sb, register_t a0,
 	    struct chericap *c7, struct chericap *c8, struct chericap *c9,
 	    struct chericap *c10);
 
+/*
+ * Second-generation sandbox API with a more object-oriented spin.
+ */
+struct sandbox_class;
+int	sandbox_class_new(const char *path, size_t sandboxlen,
+	    struct sandbox_class **sbcpp);
+int	sandbox_class_method_declare(struct sandbox_class *sbcp,
+	    u_int methodnum, const char *methodname);
+void	sandbox_class_destroy(struct sandbox_class *sbcp);
+
+struct sandbox_object;
+int	sandbox_object_new(struct sandbox_class *sbcp,
+	    struct sandbox_object **sbipp);
+#if defined(__CHERI__) && defined(__capability)
+register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
+		    u_int methodnum, register_t a1, register_t a2,
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6, register_t a7, __capability void *c3,
+		    __capability void *c4, __capability void *c5,
+		    __capability void *c6,   __capability void *c7,
+		    __capability void *c8, __capability void *c9,
+		    __capability void *c10);
+#endif
+register_t	sandbox_object_invoke(struct sandbox_object *sbop,
+		    register_t methodnum, register_t a1, register_t a2,
+		    register_t a3, struct chericap *c3p, struct chericap *c4p,
+		    struct chericap *c5p, struct chericap *c6p,
+		    struct chericap *c7p, struct chericap *c8p,
+		    struct chericap *c9p, struct chericap *c10p);
+void	sandbox_object_destroy(struct sandbox_object *sbip);
+
 #endif /* !_SANDBOX_H_ */
