@@ -231,7 +231,7 @@ static int
 at91_probe(device_t dev)
 {
 
-	device_set_desc(dev, "AT91 device bus");
+	device_set_desc(dev, soc_info.name);
 	return (BUS_PROBE_NOWILDCARD);
 }
 
