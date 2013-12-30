@@ -57,6 +57,4 @@ VERSION_MAP=	${.CURDIR}/Version.map
 # Filter out libc++-specific flags, and -std= flags above c++98 or gnu++98.
 CXXFLAGS:=	${CXXFLAGS:N-stdlib=libc++:N-std=c++[01][13x]:N-std=gnu++[01][13x]}
 
-.if ${COMPILER_TYPE} == "clang"
-CXXFLAGS+=	-stdlib=libstdc++
-.endif
+CXXFLAGS.clang+= -stdlib=libstdc++
