@@ -420,7 +420,7 @@ getdevtree(int argc, char **argv, char *combinedopt)
 	int error = 0;
 	int skip_device = 0;
 	int busonly = 0;
-	char c;
+	int c;
 
 	while ((c = getopt(argc, argv, combinedopt)) != -1) {
 		switch(c) {
