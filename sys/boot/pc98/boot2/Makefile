@@ -4,6 +4,7 @@
 
 # XXX: clang can compile the boot code just fine, but boot2 gets too big
 CC:=		gcc
+COMPILER_TYPE:=	gcc
 
 FILES=		boot boot1 boot2
 
