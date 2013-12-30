@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2013
+.Dd December 7, 2013
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -257,6 +257,19 @@ servers on the client.
 Note that this option will only be honored when performing the
 initial mount, it will be silently ignored if used while updating
 the mount options.
+.It Cm noncontigwr
+This mount option allows the NFS client to
+combine non-contiguous byte ranges being written
+such that the dirty byte range becomes a superset of the bytes
+that are dirty.
+This reduces the number of writes significantly for software
+builds.
+The merging of byte ranges isn't done if the file has been file
+locked, since most applications modifying a file from multiple
+clients will use file locking.
+As such, this option could result in a corrupted file for the
+rare case of an application modifying the file from multiple
+clients concurrently without using file locking.
 .It Cm principal
 For the RPCSEC_GSS security flavors, such as krb5, krb5i and krb5p,
 this option sets the name of the host based principal name expected
