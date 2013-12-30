@@ -5380,7 +5380,9 @@ handle_unavailable_attribute (tree *node, tree name,
       if (TREE_CODE (decl) == TYPE_DECL
       	  || TREE_CODE (decl) == PARM_DECL
 	  || TREE_CODE (decl) == VAR_DECL
-	  || TREE_CODE (decl) == FUNCTION_DECL)
+	  || TREE_CODE (decl) == FUNCTION_DECL
+	  || TREE_CODE (decl) == FIELD_DECL)
+	  /* Removed radar 3803157 - objc attribute */
 	{
 	  TREE_UNAVAILABLE (decl) = 1;
 	}
