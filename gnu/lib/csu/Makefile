@@ -15,9 +15,7 @@ OBJS=		crtbegin.o crtend.o crtbeginT.o
 SOBJS=		crtbeginS.o crtendS.o
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
-.if ${COMPILER_TYPE} == "gcc"
-CFLAGS+=	-finhibit-size-directive -fno-toplevel-reorder
-.endif
+CFLAGS.gcc+=	-finhibit-size-directive -fno-toplevel-reorder
 CFLAGS+=	-fno-inline-functions -fno-exceptions \
 		-fno-zero-initialized-in-bss -fno-asynchronous-unwind-tables \
 		-fno-omit-frame-pointer
