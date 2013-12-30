@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2012
+.Dd December 25, 2013
 .Dt SECURITY 7
 .Os
 .Sh NAME
@@ -350,13 +350,6 @@ now defaults to running
 and
 .Xr fingerd 8
 in a sandbox.
-Another program which may be a candidate for running in a sandbox is
-.Xr named 8 .
-The default
-.Pa rc.conf
-includes the arguments necessary to run
-.Xr named 8
-in a sandbox in a commented-out form.
 Depending on whether you
 are installing a new system or upgrading an existing system, the special
 user accounts used by these sandboxes may not be installed.
@@ -825,8 +818,6 @@ ports A, B, C, D, and M-Z
 This
 way you can firewall off all of your low ports except for certain specific
 services such as
-.Xr named 8
-(if you are primary for a zone),
 .Xr talkd 8 ,
 .Xr sendmail 8 ,
 and other internet-accessible services.
