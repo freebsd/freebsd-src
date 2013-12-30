@@ -21,3 +21,6 @@ CFLAGS+= -DINET6 -DINET -DOFED
 .include <bsd.kmod.mk>
 
 CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
+
+CWARNFLAGS.cm.c=	-Wno-unused-function
+CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}
