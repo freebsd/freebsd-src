@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.75"
+#define BXE_DRIVER_VERSION "1.78.76"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -5004,6 +5004,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
               uint8_t          contents)
 {
     char * type;
+    int i = 0;
 
     if (!(sc->debug & DBG_MBUF)) {
         return;
@@ -5016,28 +5017,21 @@ bxe_dump_mbuf(struct bxe_softc *sc,
 
     while (m) {
         BLOGD(sc, DBG_MBUF,
-              "mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
-              m, m->m_len, m->m_flags,
-              "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY", m->m_data);
+              "%02d: mbuf=%p m_len=%d m_flags=0x%b m_data=%p\n",
+              i, m, m->m_len, m->m_flags, M_FLAG_BITS, m->m_data);
 
         if (m->m_flags & M_PKTHDR) {
              BLOGD(sc, DBG_MBUF,
-                   "- m_pkthdr: len=%d flags=0x%b csum_flags=%b\n",
-                   m->m_pkthdr.len, m->m_flags,
-                   "\20\12M_BCAST\13M_MCAST\14M_FRAG"
-                   "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
-                   "\22M_PROMISC\23M_NOFREE",
-                   (int)m->m_pkthdr.csum_flags,
-                   "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
-                   "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
-                   "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
-                   "\14CSUM_PSEUDO_HDR");
+                   "%02d: - m_pkthdr: tot_len=%d flags=0x%b csum_flags=%b\n",
+                   i, m->m_pkthdr.len, m->m_flags, M_FLAG_BITS,
+                   (int)m->m_pkthdr.csum_flags, CSUM_BITS);
         }
 
         if (m->m_flags & M_EXT) {
             switch (m->m_ext.ext_type) {
             case EXT_CLUSTER:    type = "EXT_CLUSTER";    break;
             case EXT_SFBUF:      type = "EXT_SFBUF";      break;
+            case EXT_JUMBOP:     type = "EXT_JUMBOP";     break;
             case EXT_JUMBO9:     type = "EXT_JUMBO9";     break;
             case EXT_JUMBO16:    type = "EXT_JUMBO16";    break;
             case EXT_PACKET:     type = "EXT_PACKET";     break;
@@ -5050,8 +5044,8 @@ bxe_dump_mbuf(struct bxe_softc *sc,
             }
 
             BLOGD(sc, DBG_MBUF,
-                  "- m_ext: %p ext_size=%d, type=%s\n",
-                  m->m_ext.ext_buf, m->m_ext.ext_size, type);
+                  "%02d: - m_ext: %p ext_size=%d type=%s\n",
+                  i, m->m_ext.ext_buf, m->m_ext.ext_size, type);
         }
 
         if (contents) {
@@ -5059,6 +5053,7 @@ bxe_dump_mbuf(struct bxe_softc *sc,
         }
 
         m = m->m_next;
+        i++;
     }
 }
 
@@ -5669,6 +5664,7 @@ bxe_tx_encap_continue:
             /* split the first BD into header/data making the fw job easy */
             nbds++;
             tx_start_bd->nbd = htole16(nbds);
+            tx_start_bd->nbytes = htole16(hlen);
 
             bd_prod = TX_BD_NEXT(bd_prod);
 
