@@ -38,7 +38,7 @@
 .Nd file system consistency check and interactive repair
 .Sh SYNOPSIS
 .Nm
-.Op Fl BEFfnpryZ
+.Op Fl BEFfnpRryZ
 .Op Fl b Ar block
 .Op Fl c Ar level
 .Op Fl m Ar mode
@@ -266,6 +266,11 @@ which is assumed to be affirmative;
 do not open the file system for writing.
 .It Fl p
 Preen file systems (see above).
+.It Fl R
+Instruct fsck_ffs to restart itself if it encounters certain errors that
+warrant another run.  It will limit itself to a maximum of 10 restarts
+in a given run in order to avoid an endless loop with extremely corrupted
+filesystems.
 .It Fl r
 Free up excess unused inodes.
 Decreasing the number of preallocated inodes reduces the
