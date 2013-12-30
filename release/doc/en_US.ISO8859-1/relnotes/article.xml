@@ -3,6 +3,22 @@
         "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
+
+<!-- local entities not available in doc/release/10.0.0 tag -->
+<!ENTITY man.drill.1 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>drill</refentrytitle><manvolnum>1</manvolnum></citerefentry>">
+<!ENTITY man.freebsd-version.1 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>freebsd-version</refentrytitle><manvolnum>1</manvolnum></citerefentry>">
+<!ENTITY man.jemalloc.3 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>jemalloc</refentrytitle><manvolnum>3</manvolnum></citerefentry>">
+<!ENTITY man.bhyve.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bhyve</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.nvme.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>nvme</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.virtio.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.virtio_balloon.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio_balloon</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.virtio_blk.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio_blk</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.virtio_scsi.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio_scsi</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.vmx.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>vmx</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.pkg.7 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>pkg</refentrytitle><manvolnum>7</manvolnum></citerefentry>">
+<!ENTITY man.bhyve.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bhyve</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
+<!ENTITY man.bsdconfig.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bsdconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
+<!ENTITY man.unbound.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>unbound</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
 ]>
 <article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
 <info><title>&os; &release.current; Release Notes</title>
