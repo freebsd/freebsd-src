@@ -104,7 +104,7 @@ dtrace_unload()
 
 	kmem_cache_destroy(dtrace_state_cache);
 
-	delete_unrhdr(dtrace_arena);
+	vmem_destroy(dtrace_arena);
 
 	if (dtrace_toxrange != NULL) {
 		kmem_free(dtrace_toxrange, 0);
