@@ -146,7 +146,7 @@ static int nfscl_trylock(struct nfsmount *, vnode_t , u_int8_t *,
 static int nfsrpc_reopen(struct nfsmount *, u_int8_t *, int, u_int32_t,
     struct nfsclopen *, struct nfscldeleg **, struct ucred *, NFSPROC_T *);
 static void nfscl_freedeleg(struct nfscldeleghead *, struct nfscldeleg *);
-static int nfscl_errmap(struct nfsrv_descript *);
+static int nfscl_errmap(struct nfsrv_descript *, u_int32_t);
 static void nfscl_cleanup_common(struct nfsclclient *, u_int8_t *);
 static int nfscl_recalldeleg(struct nfsclclient *, struct nfsmount *,
     struct nfscldeleg *, vnode_t, struct ucred *, NFSPROC_T *, int);
@@ -3146,7 +3146,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 	struct nfsclclient *clp;
 	struct nfscldeleg *dp = NULL;
 	int numops, taglen = -1, error = 0, trunc;
-	u_int32_t minorvers, retops = 0, *retopsp = NULL, *repp, cbident;
+	u_int32_t minorvers = 0, retops = 0, *retopsp = NULL, *repp, cbident;
 	u_char tag[NFSV4_SMALLSTR + 1], *tagstr;
 	vnode_t vp = NULL;
 	struct nfsnode *np;
@@ -3210,7 +3210,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 		   (op > NFSV4OP_CBNOTIFYDEVID &&
 		    minorvers == NFSV41_MINORVERSION)) {
 		    nd->nd_repstat = NFSERR_OPILLEGAL;
-		    *repp = nfscl_errmap(nd);
+		    *repp = nfscl_errmap(nd, minorvers);
 		    retops++;
 		    break;
 		}
@@ -3518,7 +3518,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 		}
 		retops++;
 		if (nd->nd_repstat) {
-			*repp = nfscl_errmap(nd);
+			*repp = nfscl_errmap(nd, minorvers);
 			break;
 		} else
 			*repp = 0;	/* NFS4_OK */
@@ -3539,7 +3539,7 @@ nfsmout:
 	} else {
 		*retopsp = txdr_unsigned(retops);
 	}
-	*nd->nd_errp = nfscl_errmap(nd);
+	*nd->nd_errp = nfscl_errmap(nd, minorvers);
 out:
 	if (gotseq_ok != 0) {
 		rep = m_copym(nd->nd_mreq, 0, M_COPYALL, M_WAITOK);
@@ -4645,7 +4645,7 @@ nfscl_deleggetmodtime(vnode_t vp, struct timespec *mtime)
 }
 
 static int
-nfscl_errmap(struct nfsrv_descript *nd)
+nfscl_errmap(struct nfsrv_descript *nd, u_int32_t minorvers)
 {
 	short *defaulterrp, *errp;
 
@@ -4658,6 +4658,11 @@ nfscl_errmap(struct nfsrv_descript *nd)
 	if (nd->nd_repstat == NFSERR_MINORVERMISMATCH ||
 	    nd->nd_repstat == NFSERR_OPILLEGAL)
 		return (txdr_unsigned(nd->nd_repstat));
+	if (nd->nd_repstat >= NFSERR_BADIOMODE && nd->nd_repstat < 20000 &&
+	    minorvers > NFSV4_MINORVERSION) {
+		/* NFSv4.n error. */
+		return (txdr_unsigned(nd->nd_repstat));
+	}
 	if (nd->nd_procnum < NFSV4OP_CBNOPS)
 		errp = defaulterrp = nfscl_cberrmap[nd->nd_procnum];
 	else
