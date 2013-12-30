@@ -119,10 +119,16 @@ extern short int __get_eh_table_version (struct exception_descriptor *);
 
 /* FIXME: This #ifdef probably should be removed, ie. enable the test
    for mips too.  */
+/* Don't use IBM Extended Double TFmode for TI->SF calculations.
+   The conversion from long double to float suffers from double
+   rounding, because we convert via double.  In other cases, going
+   through the software fp routines is much slower than the fallback.  */
 #ifdef __powerpc__
-#define IS_IBM_EXTENDED(SIZE) (SIZE == 106)
+#define AVOID_FP_TYPE_CONVERSION(SIZE) (SIZE == 106)
+#elif defined(WIDEST_HARDWARE_FP_SIZE)
+#define AVOID_FP_TYPE_CONVERSION(SIZE) (SIZE > WIDEST_HARDWARE_FP_SIZE)
 #else
-#define IS_IBM_EXTENDED(SIZE) 0
+#define AVOID_FP_TYPE_CONVERSION(SIZE) 0
 #endif
 
 /* In the first part of this file, we are interfacing to calls generated
