@@ -380,7 +380,7 @@ iwn_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
@@ -392,7 +392,6 @@ iwn_attach(device_t dev)
 	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
-	uint32_t reg;
 	int i, error, rid;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
@@ -421,15 +420,6 @@ iwn_attach(device_t dev)
 
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
-
-	/* Hardware bug workaround. */
-	reg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (reg & PCIM_CMD_INTxDIS) {
-		DPRINTF(sc, IWN_DEBUG_RESET, "%s: PCIe INTx Disable set\n",
-		    __func__);
-		reg &= ~PCIM_CMD_INTxDIS;
-		pci_write_config(dev, PCIR_COMMAND, reg, 2);
-	}
 
 	/* Enable bus-mastering. */
 	pci_enable_busmaster(dev);
@@ -6065,7 +6055,6 @@ iwn_send_advanced_btcoex(struct iwn_softc *sc)
 		error = iwn_cmd(sc, IWN_CMD_BT_COEX, &btconfig,
 		    sizeof(btconfig), 1);
 	}
-
 
 	if (error != 0)
 		return error;
