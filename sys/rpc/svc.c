@@ -71,6 +71,8 @@ static struct svc_callout *svc_find(SVCPOOL *pool, rpcprog_t, rpcvers_t,
     char *);
 static void svc_new_thread(SVCPOOL *pool);
 static void xprt_unregister_locked(SVCXPRT *xprt);
+static void svc_change_space_used(SVCPOOL *pool, int delta);
+static bool_t svc_request_space_available(SVCPOOL *pool);
 
 /* ***************  SVCXPRT related stuff **************** */
 
@@ -373,7 +375,8 @@ xprt_active(SVCXPRT *xprt)
 	if (!xprt->xp_active) {
 		xprt->xp_active = TRUE;
 		if (xprt->xp_thread == NULL) {
-			if (!xprt_assignthread(xprt))
+			if (!svc_request_space_available(pool) ||
+			    !xprt_assignthread(xprt))
 				TAILQ_INSERT_TAIL(&pool->sp_active, xprt,
 				    xp_alink);
 		}
@@ -965,11 +968,34 @@ svc_assign_waiting_sockets(SVCPOOL *pool)
 {
 	SVCXPRT *xprt;
 
+	mtx_lock(&pool->sp_lock);
 	while ((xprt = TAILQ_FIRST(&pool->sp_active)) != NULL) {
 		if (xprt_assignthread(xprt))
 			TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
 		else
 			break;
+	}
+	mtx_unlock(&pool->sp_lock);
+}
+
+static void
+svc_change_space_used(SVCPOOL *pool, int delta)
+{
+	unsigned int value;
+
+	value = atomic_fetchadd_int(&pool->sp_space_used, delta) + delta;
+	if (delta > 0) {
+		if (value >= pool->sp_space_high && !pool->sp_space_throttled) {
+			pool->sp_space_throttled = TRUE;
+			pool->sp_space_throttle_count++;
+		}
+		if (value > pool->sp_space_used_highest)
+			pool->sp_space_used_highest = value;
+	} else {
+		if (value < pool->sp_space_low && pool->sp_space_throttled) {
+			pool->sp_space_throttled = FALSE;
+			svc_assign_waiting_sockets(pool);
+		}
 	}
 }
 
@@ -977,44 +1003,28 @@ static bool_t
 svc_request_space_available(SVCPOOL *pool)
 {
 
-	mtx_assert(&pool->sp_lock, MA_OWNED);
-
-	if (pool->sp_space_throttled) {
-		/*
-		 * Below the low-water yet? If so, assign any waiting sockets.
-		 */
-		if (pool->sp_space_used < pool->sp_space_low) {
-			pool->sp_space_throttled = FALSE;
-			svc_assign_waiting_sockets(pool);
-			return TRUE;
-		}
-		
-		return FALSE;
-	} else {
-		if (pool->sp_space_used
-		    >= pool->sp_space_high) {
-			pool->sp_space_throttled = TRUE;
-			pool->sp_space_throttle_count++;
-			return FALSE;
-		}
-
-		return TRUE;
-	}
+	if (pool->sp_space_throttled)
+		return (FALSE);
+	return (TRUE);
 }
 
 static void
 svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 {
+	struct svc_reqlist reqs;
 	SVCTHREAD *st, *stpref;
 	SVCXPRT *xprt;
 	enum xprt_stat stat;
 	struct svc_req *rqstp;
+	size_t sz;
 	int error;
 
 	st = mem_alloc(sizeof(*st));
+	st->st_pool = pool;
 	st->st_xprt = NULL;
 	STAILQ_INIT(&st->st_reqs);
 	cv_init(&st->st_cond, "rpcsvc");
+	STAILQ_INIT(&reqs);
 
 	mtx_lock(&pool->sp_lock);
 	LIST_INSERT_HEAD(&pool->sp_threads, st, st_link);
@@ -1108,15 +1118,14 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			 * RPCs.
 			 */
 			xprt->xp_lastactive = time_uptime;
-			stat = XPRT_IDLE;
 			do {
+				mtx_unlock(&pool->sp_lock);
 				if (!svc_request_space_available(pool))
 					break;
 				rqstp = NULL;
-				mtx_unlock(&pool->sp_lock);
 				stat = svc_getreq(xprt, &rqstp);
-				mtx_lock(&pool->sp_lock);
 				if (rqstp) {
+					svc_change_space_used(pool, rqstp->rq_size);
 					/*
 					 * See if the application has
 					 * a preference for some other
@@ -1126,17 +1135,12 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 					if (pool->sp_assign)
 						stpref = pool->sp_assign(st,
 						    rqstp);
+					else
+						mtx_lock(&pool->sp_lock);
 					
-					pool->sp_space_used +=
-						rqstp->rq_size;
-					if (pool->sp_space_used
-					    > pool->sp_space_used_highest)
-						pool->sp_space_used_highest =
-							pool->sp_space_used;
 					rqstp->rq_thread = stpref;
 					STAILQ_INSERT_TAIL(&stpref->st_reqs,
 					    rqstp, rq_link);
-					stpref->st_reqcount++;
 
 					/*
 					 * If we assigned the request
@@ -1156,7 +1160,8 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 						stpref->st_idle = FALSE;
 						cv_signal(&stpref->st_cond);
 					}
-				}
+				} else
+					mtx_lock(&pool->sp_lock);
 			} while (stat == XPRT_MOREREQS
 			    && pool->sp_state != SVCPOOL_CLOSING);
 		       
@@ -1171,25 +1176,30 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			xprt->xp_thread = NULL;
 			st->st_xprt = NULL;
 			if (xprt->xp_active) {
-				if (!xprt_assignthread(xprt))
+				if (!svc_request_space_available(pool) ||
+				    !xprt_assignthread(xprt))
 					TAILQ_INSERT_TAIL(&pool->sp_active,
 					    xprt, xp_alink);
 			}
+			STAILQ_CONCAT(&reqs, &st->st_reqs);
 			mtx_unlock(&pool->sp_lock);
 			SVC_RELEASE(xprt);
-			mtx_lock(&pool->sp_lock);
+		} else {
+			STAILQ_CONCAT(&reqs, &st->st_reqs);
+			mtx_unlock(&pool->sp_lock);
 		}
 
 		/*
 		 * Execute what we have queued.
 		 */
-		while ((rqstp = STAILQ_FIRST(&st->st_reqs)) != NULL) {
-			size_t sz = rqstp->rq_size;
-			mtx_unlock(&pool->sp_lock);
+		sz = 0;
+		while ((rqstp = STAILQ_FIRST(&reqs)) != NULL) {
+			STAILQ_REMOVE_HEAD(&reqs, rq_link);
+			sz += rqstp->rq_size;
 			svc_executereq(rqstp);
-			mtx_lock(&pool->sp_lock);
-			pool->sp_space_used -= sz;
 		}
+		svc_change_space_used(pool, -sz);
+		mtx_lock(&pool->sp_lock);
 	}
 
 	if (st->st_xprt) {
@@ -1309,24 +1319,13 @@ void
 svc_freereq(struct svc_req *rqstp)
 {
 	SVCTHREAD *st;
-	SVCXPRT *xprt;
 	SVCPOOL *pool;
 
 	st = rqstp->rq_thread;
-	xprt = rqstp->rq_xprt;
-	if (xprt)
-		pool = xprt->xp_pool;
-	else
-		pool = NULL;
 	if (st) {
-		mtx_lock(&pool->sp_lock);
-		KASSERT(rqstp == STAILQ_FIRST(&st->st_reqs),
-		    ("Freeing request out of order"));
-		STAILQ_REMOVE_HEAD(&st->st_reqs, rq_link);
-		st->st_reqcount--;
+		pool = st->st_pool;
 		if (pool->sp_done)
 			pool->sp_done(st, rqstp);
-		mtx_unlock(&pool->sp_lock);
 	}
 
 	if (rqstp->rq_auth.svc_ah_ops)
