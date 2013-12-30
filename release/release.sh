@@ -41,18 +41,13 @@ CHROOTDIR="/scratch"
 # The default svn checkout server, and svn branches for src/, doc/,
 # and ports/.
 SVNROOT="svn://svn.freebsd.org"
-SRCBRANCH="base/head"
-DOCBRANCH="doc/head"
-PORTBRANCH="ports/head"
+SRCBRANCH="base/head@rHEAD"
+DOCBRANCH="doc/head@rHEAD"
+PORTBRANCH="ports/head@rHEAD"
 
 # Sometimes one needs to checkout src with --force svn option.
 # If custom kernel configs copied to src tree before checkout, e.g.
 SRC_FORCE_CHECKOUT=
-
-# The default src/, doc/, and ports/ revisions.
-SRCREVISION="-rHEAD"
-DOCREVISION="-rHEAD"
-PORTREVISION="-rHEAD"
 
 # The default make.conf and src.conf to use.  Set to /dev/null
 # by default to avoid polluting the chroot(8) environment with
@@ -62,16 +57,15 @@ SRC_CONF="/dev/null"
 
 # The number of make(1) jobs, defaults to the number of CPUs available for
 # buildworld, and half of number of CPUs available for buildkernel.
-WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
-KERNEL_FLAGS="-j$(expr $(sysctl -n hw.ncpu) / 2)"
+NCPU=$(sysctl -n hw.ncpu)
+if [ ${NCPU} -gt 1 ]; then
+	WORLD_FLAGS="-j${NCPU}"
+	KERNEL_FLAGS="-j$(expr ${NCPU} / 2)"
+fi
 MAKE_FLAGS="-s"
 
 # The name of the kernel to build, defaults to GENERIC.
 KERNEL="GENERIC"
-
-# The TARGET and TARGET_ARCH to build, defaults to the running system.
-TARGET="$(uname -p)"
-TARGET_ARCH="${TARGET}"
 
 # Set to non-empty value to disable checkout of doc/ and/or ports/.  Disabling
 # ports/ checkout also forces NODOC to be set.
@@ -127,7 +121,12 @@ fi
 # this file, unless overridden by release.conf.  In most cases, these
 # will not need to be changed.
 CONF_FILES="__MAKE_CONF=${MAKE_CONF} SRCCONF=${SRC_CONF}"
-ARCH_FLAGS="TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}"
+if [ "x${TARGET}" != "x" ] && [ "x${TARGET_ARCH}" != "x" ]; then
+	ARCH_FLAGS="TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}"
+else
+	ARCH_FLAGS=
+fi
+CHROOT_MAKEENV="MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
 CHROOT_DMAKEFLAGS="${CONF_FILES}"
@@ -156,36 +155,23 @@ set -e # Everything must succeed
 
 mkdir -p ${CHROOTDIR}/usr
 
-svn co ${FORCE_SRC_KEY} ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src $SRCREVISION
+svn co ${FORCE_SRC_KEY} ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src
 if [ "x${NODOC}" = "x" ]; then
-	svn co ${SVNROOT}/${DOCBRANCH} ${CHROOTDIR}/usr/doc $DOCREVISION
+	svn co ${SVNROOT}/${DOCBRANCH} ${CHROOTDIR}/usr/doc
 fi
 if [ "x${NOPORTS}" = "x" ]; then
-	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports $PORTREVISION
+	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
-cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 cd ${CHROOTDIR}/usr/src
-make ${CHROOT_WMAKEFLAGS} buildworld
-make ${CHROOT_IMAKEFLAGS} installworld DESTDIR=${CHROOTDIR}
-make ${CHROOT_DMAKEFLAGS} distribution DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_WMAKEFLAGS} buildworld
+env ${CHROOT_MAKEENV} make ${CHROOT_IMAKEFLAGS} installworld \
+	DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
+	DESTDIR=${CHROOTDIR}
 mount -t devfs devfs ${CHROOTDIR}/dev
+cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
-
-build_doc_ports() {
-	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
-	# is created.  This is needed by ports-mgmt/pkg.
-	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
-
-	## Trick the ports 'run-autotools-fixup' target to do the right thing.
-	_OSVERSION=$(sysctl -n kern.osreldate)
-	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
-		PBUILD_FLAGS="${PBUILD_FLAGS}"
-		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
-	fi
-}
 
 # If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
 # copy them to the chroot.
@@ -199,7 +185,18 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
-	build_doc_ports ${CHROOTDIR}
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
+	## Trick the ports 'run-autotools-fixup' target to do the right thing.
+	_OSVERSION=$(sysctl -n kern.osreldate)
+	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS}"
+		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+	fi
 fi
 
 if [ "x${RELSTRING}" = "x" ]; then
