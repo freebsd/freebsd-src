@@ -206,12 +206,11 @@ const char	dtrace_zero[256] = { 0 };	/* zero-filled memory */
 #if defined(sun)
 static dev_info_t	*dtrace_devi;		/* device info */
 #endif
-#if defined(sun)
 static vmem_t		*dtrace_arena;		/* probe ID arena */
+#if defined(sun)
 static vmem_t		*dtrace_minor;		/* minor number arena */
 #else
 static taskq_t		*dtrace_taskq;		/* task queue */
-static struct unrhdr	*dtrace_arena;		/* Probe ID number.     */
 #endif
 static dtrace_probe_t	**dtrace_probes;	/* array of all probes */
 static int		dtrace_nprobes;		/* number of probes */
@@ -7832,7 +7831,7 @@ dtrace_unregister(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)(probe->dtpr_id), 1);
 #else
-		free_unr(dtrace_arena, probe->dtpr_id);
+		vmem_free(dtrace_arena, (vmem_addr_t)(probe->dtpr_id), 1);
 #endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
@@ -7953,7 +7952,7 @@ dtrace_condense(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)((uintptr_t)i + 1), 1);
 #else
-		free_unr(dtrace_arena, i + 1);
+		vmem_free(dtrace_arena, (vmem_addr_t)i + 1, 1);
 #endif
 	}
 
@@ -7983,6 +7982,9 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 	dtrace_probe_t *probe, **probes;
 	dtrace_provider_t *provider = (dtrace_provider_t *)prov;
 	dtrace_id_t id;
+#if !defined(sun)
+	vmem_addr_t addr;
+#endif
 
 	if (provider == dtrace_provider) {
 		ASSERT(MUTEX_HELD(&dtrace_lock));
@@ -7992,9 +7994,10 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 
 #if defined(sun)
 	id = (dtrace_id_t)(uintptr_t)vmem_alloc(dtrace_arena, 1,
-	    VM_BESTFIT | VM_SLEEP);
+	    VM_BESTFIT | VM_WAITOK);
 #else
-	id = alloc_unr(dtrace_arena);
+	vmem_alloc(dtrace_arena, 1, M_BESTFIT | M_WAITOK, &addr);
+	id = (dtrace_id_t)addr;
 #endif
 	probe = kmem_zalloc(sizeof (dtrace_probe_t), KM_SLEEP);
 
@@ -10045,6 +10048,9 @@ dtrace_ecb_aggregation_create(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 	dtrace_recdesc_t *frec;
 	dtrace_aggid_t aggid;
 	dtrace_state_t *state = ecb->dte_state;
+#if !defined(sun)
+	vmem_addr_t addr;
+#endif
 
 	agg = kmem_zalloc(sizeof (dtrace_aggregation_t), KM_SLEEP);
 	agg->dtag_ecb = ecb;
@@ -10184,7 +10190,8 @@ success:
 	aggid = (dtrace_aggid_t)(uintptr_t)vmem_alloc(state->dts_aggid_arena, 1,
 	    VM_BESTFIT | VM_SLEEP);
 #else
-	aggid = alloc_unr(state->dts_aggid_arena);
+	vmem_alloc(state->dts_aggid_arena, 1, M_BESTFIT | M_WAITOK, &addr);
+	aggid = (dtrace_aggid_t)addr;
 #endif
 
 	if (aggid - 1 >= state->dts_naggregations) {
@@ -10237,7 +10244,7 @@ dtrace_ecb_aggregation_destroy(dtrace_ecb_t *ecb, dtrace_action_t *act)
 #if defined(sun)
 	vmem_free(state->dts_aggid_arena, (void *)(uintptr_t)aggid, 1);
 #else
-	free_unr(state->dts_aggid_arena, aggid);
+	vmem_free(state->dts_aggid_arena, (vmem_addr_t)aggid, 1);
 #endif
 
 	ASSERT(state->dts_aggregations[aggid - 1] == agg);
@@ -13205,7 +13212,7 @@ dtrace_state_create(struct cdev *dev)
 	if (dev != NULL) {
 		cr = dev->si_cred;
 		m = dev2unit(dev);
-		}
+	}
 
 	/* Allocate memory for the state. */
 	state = kmem_zalloc(sizeof(dtrace_state_t), KM_SLEEP);
@@ -13217,7 +13224,12 @@ dtrace_state_create(struct cdev *dev)
 #if defined(sun)
 	state->dts_aggid_arena = vmem_create(c, (void *)1, UINT32_MAX, 1,
 	    NULL, NULL, NULL, 0, VM_SLEEP | VMC_IDENTIFIER);
+#else
+	state->dts_aggid_arena = vmem_create(c, (vmem_addr_t)1, UINT32_MAX, 1,
+	    0, M_WAITOK);
+#endif
 
+#if defined(sun)
 	if (devp != NULL) {
 		major = getemajor(*devp);
 	} else {
@@ -13229,7 +13241,6 @@ dtrace_state_create(struct cdev *dev)
 	if (devp != NULL)
 		*devp = state->dts_dev;
 #else
-	state->dts_aggid_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
 	state->dts_dev = dev;
 #endif
 
@@ -14036,11 +14047,7 @@ dtrace_state_destroy(dtrace_state_t *state)
 	dtrace_format_destroy(state);
 
 	if (state->dts_aggid_arena != NULL) {
-#if defined(sun)
 		vmem_destroy(state->dts_aggid_arena);
-#else
-		delete_unrhdr(state->dts_aggid_arena);
-#endif
 		state->dts_aggid_arena = NULL;
 	}
 #if defined(sun)
@@ -15375,7 +15382,7 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)probe->dtpr_id, 1);
 #else
-		free_unr(dtrace_arena, probe->dtpr_id);
+		vmem_free(dtrace_arena, (vmem_addr_t)probe->dtpr_id, 1);
 #endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
