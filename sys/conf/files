@@ -3461,7 +3461,7 @@ ofed/drivers/infiniband/core/mad.c		optional ofed		\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/cm.c		optional ofed		\
 	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/ -Wno-unused-function"
 ofed/drivers/infiniband/core/cma.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
