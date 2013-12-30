@@ -28,12 +28,13 @@
 .\"     from: @(#)tanh.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd May 2, 1991
+.Dd August 17, 2013
 .Dt TANH 3
 .Os
 .Sh NAME
 .Nm tanh ,
-.Nm tanhf
+.Nm tanhf ,
+.Nm tanhl
 .Nd hyperbolic tangent functions
 .Sh LIBRARY
 .Lb libm
@@ -43,20 +44,24 @@
 .Fn tanh "double x"
 .Ft float
 .Fn tanhf "float x"
+.Ft long double
+.Fn tanhl "long double x"
 .Sh DESCRIPTION
 The
-.Fn tanh
+.Fn tanh ,
+.Fn tanhf ,
 and the
-.Fn tanhf
+.Fn tanhl
 functions compute the hyperbolic tangent of
 .Fa x .
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES
 The
-.Fn tanh
+.Fn tanh ,
+.Fn tanhf ,
 and the
-.Fn tanhf
+.Fn tanhl
 functions return the hyperbolic tangent value.
 .Sh SEE ALSO
 .Xr acos 3 ,
