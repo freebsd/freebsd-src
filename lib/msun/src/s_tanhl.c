@@ -86,9 +86,8 @@ static inline long double
 divl(long double a, long double b, long double c, long double d,
     long double e, long double f)
 {
-	long double inv, r, w;
+	long double inv, r;
 	float fr, fw;
-	uint32_t hx;
 
 	_2sumF(a, c);
 	b = b + c;
@@ -128,12 +127,13 @@ tanhl(long double x)
 
 	ENTERI();
 
-	if (fabsl(x) < 40) {	/* |x|<40 */
+    /* |x| < 40 */
+	if (ix < 0x4004 || fabsl(x) < 40) {	/* |x|<40 */
 	    if (__predict_false(ix<BIAS-(LDBL_MANT_DIG+1)/2)) {	/* |x|<TINY */
 		/* tanh(+-0) = +0; tanh(tiny) = tiny(-+) with inexact: */
 		return (x == 0 ? x : (0x1p200 * x - x) * 0x1p-200);
 	    }
-	    if (fabsl(x) < 0.25) {		/* |x|<0.25 */
+	    if (ix<0x3ffd) {		/* |x|<0.25 */
 		x2 = x*x;
 #if LDBL_MANT_DIG == 64
 		x4 = x2*x2;
@@ -142,15 +142,23 @@ tanhl(long double x)
 		    T3*(x2*x) + x);
 #elif LDBL_MANT_DIG == 113
 		dx2 = x2;
+#if 0
 		RETURNI(((((((((((((((T33*dx2 + T31)*dx2 + T29)*dx2 + T27)*dx2 +
 		    T25)*x2 + T23)*x2 + T21)*x2 + T19)*x2 + T17)*x2 +
 		    T15)*x2 + T13)*x2 + T11)*x2 + T9)*x2 + T7)*x2 + T5)*
 		    (x2*x*x2) +
 		    T3*(x2*x) + x);
+#else
+		long double q = ((((((((((((((T33*dx2 + T31)*dx2 + T29)*dx2 + T27)*dx2 +
+		    T25)*x2 + T23)*x2 + T21)*x2 + T19)*x2 + T17)*x2 +
+		    T15)*x2 + T13)*x2 + T11)*x2 + T9)*x2 + T7)*x2 + T5)*
+		    (x2*x*x2);
+		RETURNI(q + T3*(x2*x) + x);
+#endif
 #endif
 	    }
 	    k_hexpl(2*fabsl(x), &hi, &lo);
-	    if (fabsl(x) < 1.5)	/* |x|<1.5 */
+	    if (ix<0x4001 && fabsl(x) < 1.5)	/* |x|<1.5 */
 		z = divl(hi, lo, -0.5, hi, lo, 0.5);
 	    else
 		z = one - one/(lo+0.5+hi);
