@@ -35,12 +35,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <arpa/inet.h>
+#include <net/if.h>
 #include <netinet/in.h>
 
 #include <err.h>
 #include <errno.h>
 #include <jail.h>
 #include <limits.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -363,7 +365,7 @@ print_jail(int pflags, int jflags)
 	char *nname;
 	char **param_values;
 	int i, ai, jid, count, n, spc;
-	char ipbuf[INET6_ADDRSTRLEN];
+	char ipbuf[INET6_ADDRSTRLEN + IF_NAMESIZE + 1];
 
 	jid = jailparam_get(params, nparams, jflags);
 	if (jid < 0)
@@ -396,15 +398,20 @@ print_jail(int pflags, int jflags)
 #endif
 #ifdef INET6
 		if (ip6_ok && !strcmp(params[n].jp_name, "ip6.addr")) {
-			count = params[n].jp_valuelen / sizeof(struct in6_addr);
-			for (ai = 0; ai < count; ai++)
-				if (inet_ntop(AF_INET6,
-				    &((struct in6_addr *)
-					params[n].jp_value)[ai],
-				    ipbuf, sizeof(ipbuf)) == NULL)
-					err(1, "inet_ntop");
+			struct sockaddr_in6 *sa6;
+
+			count = params[n].jp_valuelen /
+			    sizeof(struct sockaddr_in6);
+			for (ai = 0; ai < count; ai++) {
+				sa6 = &((struct sockaddr_in6 *)
+				    params[n].jp_value)[ai];
+				if (getnameinfo((struct sockaddr *)sa6,
+				    sa6->sin6_len, ipbuf, sizeof(ipbuf),
+				    NULL, 0, NI_NUMERICHOST) != 0)
+					err(1, "getnameinfo");
 				else
 					printf("%6s  %s\n", "", ipbuf);
+			}
 			n++;
 		}
 #endif
