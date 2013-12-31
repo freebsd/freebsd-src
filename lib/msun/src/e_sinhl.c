@@ -77,7 +77,7 @@ S25 =  6.5067867911512749e-26;		/*  0x1423352626048a.0p-136 */
 #error "Unsupported long double format"
 #endif /* LDBL_MANT_DIG == 64 */
 
-/* log(2**16385 - 0.5) rounded towards up: */
+/* log(2**16385 - 0.5) rounded up: */
 static const float
 o_threshold =  1.13572168e4;		/*  0xb174de.0p-10 */
 
