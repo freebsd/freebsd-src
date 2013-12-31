@@ -2033,19 +2033,19 @@ dev/usb/net/uhso.c		optional uhso
 dev/usb/wlan/if_rum.c		optional rum
 dev/usb/wlan/if_run.c		optional run
 runfw.c				optional runfw							\
-	compile-with	"${AWK} -f $S/tools/fw_stub.awk runfw:runfw -mrunfw -c${.TARGET}"	\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk run.fw:runfw -mrunfw -c${.TARGET}"	\
 	no-implicit-rule before-depend local							\
 	clean		"runfw.c"
 runfw.fwo			optional runfw							\
-	dependency	"runfw"									\
+	dependency	"run.fw"								\
 	compile-with	"${NORMAL_FWO}"								\
 	no-implicit-rule									\
 	clean		"runfw.fwo"
-runfw				optional runfw							\
+run.fw				optional runfw							\
 	dependency	"$S/contrib/dev/run/rt2870.fw.uu"					\
 	compile-with	"${NORMAL_FW}"								\
 	no-obj no-implicit-rule									\
-	clean		"runfw"
+	clean		"run.fw"
 dev/usb/wlan/if_uath.c		optional uath
 dev/usb/wlan/if_upgt.c		optional upgt
 dev/usb/wlan/if_ural.c		optional ural
