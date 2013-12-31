@@ -94,6 +94,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -142,7 +143,7 @@ static int wb_probe(device_t);
 static int wb_attach(device_t);
 static int wb_detach(device_t);
 
-static void wb_bfree(void *addr, void *args);
+static int wb_bfree(struct mbuf *, void *addr, void *args);
 static int wb_newbuf(struct wb_softc *, struct wb_chain_onefrag *,
 		struct mbuf *);
 static int wb_encap(struct wb_softc *, struct wb_chain *, struct mbuf *);
@@ -822,12 +823,11 @@ wb_list_rx_init(sc)
 	return(0);
 }
 
-static void
-wb_bfree(buf, args)
-	void			*buf;
-	void			*args;
+static int
+wb_bfree(struct mbuf *m, void *buf, void *args)
 {
 
+	return (EXT_FREE_OK);
 }
 
 /*

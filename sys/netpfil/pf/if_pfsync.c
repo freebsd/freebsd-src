@@ -81,8 +81,10 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
+#include <net/vnet.h>
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
 
@@ -1324,7 +1326,10 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		else if ((sifp = ifunit_ref(pfsyncr.pfsyncr_syncdev)) == NULL)
 			return (EINVAL);
 
-		if (pfsyncr.pfsyncr_syncpeer.s_addr == 0 && sifp != NULL)
+		if (sifp != NULL && (
+		    pfsyncr.pfsyncr_syncpeer.s_addr == 0 ||
+		    pfsyncr.pfsyncr_syncpeer.s_addr ==
+		    htonl(INADDR_PFSYNC_GROUP)))
 			mship = malloc((sizeof(struct in_multi *) *
 			    IP_MIN_MEMBERSHIPS), M_PFSYNC, M_WAITOK | M_ZERO);
 

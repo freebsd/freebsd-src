@@ -211,11 +211,6 @@ struct pfsync_tdb {
 #define	PFSYNCCTL_STATS		1	/* PFSYNC stats */
 #define	PFSYNCCTL_MAXID		2
 
-#define	PFSYNCCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-}
-
 struct pfsyncstats {
 	u_int64_t	pfsyncs_ipackets;	/* total input packets, IPv4 */
 	u_int64_t	pfsyncs_ipackets6;	/* total input packets, IPv6 */

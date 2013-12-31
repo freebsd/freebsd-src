@@ -164,6 +164,7 @@ struct fileops pipeops = {
 	.fo_close = pipe_close,
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
+	.fo_sendfile = invfo_sendfile,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -523,7 +524,7 @@ retry:
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
 	error = vm_map_find(pipe_map, NULL, 0,
-		(vm_offset_t *) &buffer, size, 1,
+		(vm_offset_t *) &buffer, size, 0, VMFS_ANY_SPACE,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
 	if (error != KERN_SUCCESS) {
 		if ((cpipe->pipe_buffer.buffer == NULL) &&

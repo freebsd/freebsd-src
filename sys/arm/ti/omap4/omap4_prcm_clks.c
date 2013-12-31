@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/frame.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
@@ -1384,10 +1383,14 @@ omap4_prcm_probe(device_t dev)
  *	RETURNS:
  *	Always returns 0
  */
+
+extern uint32_t platform_arm_tmr_freq;
+
 static int
 omap4_prcm_attach(device_t dev)
 {
 	struct omap4_prcm_softc *sc = device_get_softc(dev);
+	unsigned int freq;
 
 	if (bus_alloc_resources(dev, omap4_scm_res_spec, sc->sc_res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -1396,6 +1399,8 @@ omap4_prcm_attach(device_t dev)
 
 	omap4_prcm_sc = sc;
 	ti_cpu_reset = omap4_prcm_reset;
+	omap4_clk_get_arm_fclk_freq(NULL, &freq);
+	platform_arm_tmr_freq = freq / 2;
 
 	return (0);
 }

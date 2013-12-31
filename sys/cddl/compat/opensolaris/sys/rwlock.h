@@ -47,7 +47,7 @@ typedef enum {
 
 typedef	struct sx	krwlock_t;
 
-#ifndef DEBUG
+#ifndef OPENSOLARIS_WITNESS
 #define	RW_FLAGS	(SX_DUPOK | SX_NOWITNESS)
 #else
 #define	RW_FLAGS	(SX_DUPOK)

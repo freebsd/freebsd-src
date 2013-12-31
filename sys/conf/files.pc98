@@ -247,6 +247,7 @@ x86/isa/atpic.c			optional atpic
 x86/isa/clock.c			standard
 x86/isa/isa.c			optional isa
 x86/pci/pci_bus.c		optional pci
+x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/intr_machdep.c		standard

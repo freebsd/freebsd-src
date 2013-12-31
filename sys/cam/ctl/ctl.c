@@ -360,7 +360,6 @@ static union ctl_io *ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port,
 				   int can_wait);
 static void ctl_kfree_io(union ctl_io *io);
 #endif /* unused */
-static void ctl_free_io_internal(union ctl_io *io, int have_lock);
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
 static int ctl_free_lun(struct ctl_lun *lun);
@@ -894,8 +893,13 @@ ctl_isc_event_handler(ctl_ha_channel channel, ctl_ha_event event, int param)
 			struct ctl_lun *lun;
 			struct ctl_page_index *page_index;
 			struct copan_aps_subpage *current_sp;
+			uint32_t targ_lun;
 
-			lun = ctl_softc->ctl_luns[msg_info.hdr.nexus.targ_lun];
+			targ_lun = msg_info.hdr.nexus.targ_lun;
+			if (msg_info.hdr.nexus.lun_map_fn != NULL)
+				targ_lun = msg_info.hdr.nexus.lun_map_fn(msg_info.hdr.nexus.lun_map_arg, targ_lun);
+
+			lun = ctl_softc->ctl_luns[targ_lun];
 			page_index = &lun->mode_pages.index[index_to_aps_page];
 			current_sp = (struct copan_aps_subpage *)
 				     (page_index->page_data +
@@ -993,6 +997,7 @@ ctl_init(void)
 		       "Report no lun possible for invalid LUNs");
 
 	mtx_init(&softc->ctl_lock, "CTL mutex", NULL, MTX_DEF);
+	mtx_init(&softc->pool_lock, "CTL pool mutex", NULL, MTX_DEF);
 	softc->open_count = 0;
 
 	/*
@@ -1052,7 +1057,7 @@ ctl_init(void)
 			    CTL_POOL_ENTRIES_EMERGENCY, &emergency_pool) != 0) {
 		printf("ctl: can't allocate %d entry emergency pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_EMERGENCY);
-		ctl_pool_free(softc, internal_pool);
+		ctl_pool_free(internal_pool);
 		return (ENOMEM);
 	}
 
@@ -1061,18 +1066,14 @@ ctl_init(void)
 	{
 		printf("ctl: can't allocate %d entry other SC pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_OTHER_SC);
-		ctl_pool_free(softc, internal_pool);
-		ctl_pool_free(softc, emergency_pool);
+		ctl_pool_free(internal_pool);
+		ctl_pool_free(emergency_pool);
 		return (ENOMEM);
 	}
 
 	softc->internal_pool = internal_pool;
 	softc->emergency_pool = emergency_pool;
 	softc->othersc_pool = other_pool;
-
-	ctl_pool_acquire(internal_pool);
-	ctl_pool_acquire(emergency_pool);
-	ctl_pool_acquire(other_pool);
 
 	/*
 	 * We used to allocate a processor LUN here.  The new scheme is to
@@ -1088,13 +1089,16 @@ ctl_init(void)
 			 "ctl_thrd");
 	if (error != 0) {
 		printf("error creating CTL work thread!\n");
+		mtx_lock(&softc->ctl_lock);
 		ctl_free_lun(lun);
-		ctl_pool_free(softc, internal_pool);
-		ctl_pool_free(softc, emergency_pool);
-		ctl_pool_free(softc, other_pool);
+		mtx_unlock(&softc->ctl_lock);
+		ctl_pool_free(internal_pool);
+		ctl_pool_free(emergency_pool);
+		ctl_pool_free(other_pool);
 		return (error);
 	}
-	printf("ctl: CAM Target Layer loaded\n");
+	if (bootverbose)
+		printf("ctl: CAM Target Layer loaded\n");
 
 	/*
 	 * Initialize the initiator and portname mappings
@@ -1144,7 +1148,7 @@ ctl_shutdown(void)
 {
 	struct ctl_softc *softc;
 	struct ctl_lun *lun, *next_lun;
-	struct ctl_io_pool *pool, *next_pool;
+	struct ctl_io_pool *pool;
 
 	softc = (struct ctl_softc *)control_softc;
 
@@ -1161,6 +1165,8 @@ ctl_shutdown(void)
 		ctl_free_lun(lun);
 	}
 
+	mtx_unlock(&softc->ctl_lock);
+
 	/*
 	 * This will rip the rug out from under any FETDs or anyone else
 	 * that has a pool allocated.  Since we increment our module
@@ -1169,18 +1175,14 @@ ctl_shutdown(void)
 	 * able to unload the CTL module until client modules have
 	 * successfully unloaded.
 	 */
-	for (pool = STAILQ_FIRST(&softc->io_pools); pool != NULL;
-	     pool = next_pool) {
-		next_pool = STAILQ_NEXT(pool, links);
-		ctl_pool_free(softc, pool);
-	}
-
-	mtx_unlock(&softc->ctl_lock);
+	while ((pool = STAILQ_FIRST(&softc->io_pools)) != NULL)
+		ctl_pool_free(pool);
 
 #if 0
 	ctl_shutdown_thread(softc->work_thread);
 #endif
 
+	mtx_destroy(&softc->pool_lock);
 	mtx_destroy(&softc->ctl_lock);
 
 	destroy_dev(softc->dev);
@@ -1190,7 +1192,8 @@ ctl_shutdown(void)
 	free(control_softc, M_DEVBUF);
 	control_softc = NULL;
 
-	printf("ctl: CAM Target Layer unloaded\n");
+	if (bootverbose)
+		printf("ctl: CAM Target Layer unloaded\n");
 }
 
 static int
@@ -1372,7 +1375,6 @@ ctl_ioctl_offline(void *arg)
 /*
  * Remove an initiator by port number and initiator ID.
  * Returns 0 for success, 1 for failure.
- * Assumes the caller does NOT hold the CTL lock.
  */
 int
 ctl_remove_initiator(int32_t targ_port, uint32_t iid)
@@ -1380,6 +1382,8 @@ ctl_remove_initiator(int32_t targ_port, uint32_t iid)
 	struct ctl_softc *softc;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	if ((targ_port < 0)
 	 || (targ_port > CTL_MAX_PORTS)) {
@@ -1404,7 +1408,6 @@ ctl_remove_initiator(int32_t targ_port, uint32_t iid)
 /*
  * Add an initiator to the initiator map.
  * Returns 0 for success, 1 for failure.
- * Assumes the caller does NOT hold the CTL lock.
  */
 int
 ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
@@ -1413,6 +1416,8 @@ ctl_add_initiator(uint64_t wwpn, int32_t targ_port, uint32_t iid)
 	int retval;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	retval = 0;
 
@@ -1672,12 +1677,16 @@ ctl_serialize_other_sc_cmd(struct ctl_scsiio *ctsio, int have_lock)
 	union ctl_ha_msg msg_info;
 	struct ctl_lun *lun;
 	int retval = 0;
+	uint32_t targ_lun;
 
 	ctl_softc = control_softc;
 	if (have_lock == 0)
 		mtx_lock(&ctl_softc->ctl_lock);
 
-	lun = ctl_softc->ctl_luns[ctsio->io_hdr.nexus.targ_lun];
+	targ_lun = ctsio->io_hdr.nexus.targ_lun;
+	if (ctsio->io_hdr.nexus.lun_map_fn != NULL)
+		targ_lun = ctsio->io_hdr.nexus.lun_map_fn(ctsio->io_hdr.nexus.lun_map_arg, targ_lun);
+	lun = ctl_softc->ctl_luns[targ_lun];
 	if (lun==NULL)
 	{
 		/*
@@ -1970,7 +1979,6 @@ ctl_ioctl_bbrread_callback(void *arg, struct cfi_metatask *metatask)
 }
 
 /*
- * Must be called with the ctl_lock held.
  * Returns 0 for success, errno for failure.
  */
 static int
@@ -1981,6 +1989,8 @@ ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 	int retval;
 
 	retval = 0;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	for (io = (union ctl_io *)TAILQ_FIRST(&lun->ooa_queue); (io != NULL);
 	     (*cur_fill_num)++, io = (union ctl_io *)TAILQ_NEXT(&io->io_hdr,
@@ -2973,6 +2983,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		struct sbuf *sb;
 		struct ctl_lun *lun;
 		struct ctl_lun_list *list;
+		struct ctl_be_lun_option *opt;
 
 		list = (struct ctl_lun_list *)addr;
 
@@ -3090,17 +3101,16 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			if (retval != 0)
 				break;
 
-			if (lun->backend->lun_info == NULL) {
-				retval = sbuf_printf(sb, "</lun>\n");
+			if (lun->backend->lun_info != NULL) {
+				retval = lun->backend->lun_info(lun->be_lun->be_lun, sb);
 				if (retval != 0)
 					break;
-				continue;
 			}
-
-			retval =lun->backend->lun_info(lun->be_lun->be_lun, sb);
-
-			if (retval != 0)
-				break;
+			STAILQ_FOREACH(opt, &lun->be_lun->options, links) {
+				retval = sbuf_printf(sb, "<%s>%s</%s>", opt->name, opt->value, opt->name);
+				if (retval != 0)
+					break;
+			}
 
 			retval = sbuf_printf(sb, "</lun>\n");
 
@@ -3128,6 +3138,28 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		list->fill_len = sbuf_len(sb) + 1;
 		list->status = CTL_LUN_LIST_OK;
 		sbuf_delete(sb);
+		break;
+	}
+	case CTL_ISCSI: {
+		struct ctl_iscsi *ci;
+		struct ctl_frontend *fe;
+
+		ci = (struct ctl_iscsi *)addr;
+
+		mtx_lock(&softc->ctl_lock);
+		STAILQ_FOREACH(fe, &softc->fe_list, links) {
+			if (strcmp(fe->port_name, "iscsi") == 0)
+				break;
+		}
+		mtx_unlock(&softc->ctl_lock);
+
+		if (fe == NULL) {
+			ci->status = CTL_ISCSI_ERROR;
+			snprintf(ci->error_str, sizeof(ci->error_str), "Backend \"iscsi\" not found.");
+			break;
+		}
+
+		retval = fe->ioctl(dev, cmd, addr, flag, td);
 		break;
 	}
 	default: {
@@ -3327,11 +3359,12 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 	pool->type = pool_type;
 	pool->ctl_softc = ctl_softc;
 
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	pool->id = ctl_softc->cur_pool_id++;
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	pool->flags = CTL_POOL_FLAG_NONE;
+	pool->refcount = 1;		/* Reference for validity. */
 	STAILQ_INIT(&pool->free_queue);
 
 	/*
@@ -3367,7 +3400,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		free(pool, M_CTL);
 		goto bailout;
 	}
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	ctl_softc->num_pools++;
 	STAILQ_INSERT_TAIL(&ctl_softc->io_pools, pool, links);
 	/*
@@ -3386,7 +3419,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		MOD_INC_USE_COUNT;
 #endif
 
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	*npool = pool;
 
@@ -3395,14 +3428,11 @@ bailout:
 	return (retval);
 }
 
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
-int
+static int
 ctl_pool_acquire(struct ctl_io_pool *pool)
 {
-	if (pool == NULL)
-		return (-EINVAL);
+
+	mtx_assert(&pool->ctl_softc->pool_lock, MA_OWNED);
 
 	if (pool->flags & CTL_POOL_FLAG_INVALID)
 		return (-EINVAL);
@@ -3412,52 +3442,21 @@ ctl_pool_acquire(struct ctl_io_pool *pool)
 	return (0);
 }
 
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
-int
-ctl_pool_invalidate(struct ctl_io_pool *pool)
-{
-	if (pool == NULL)
-		return (-EINVAL);
-
-	pool->flags |= CTL_POOL_FLAG_INVALID;
-
-	return (0);
-}
-
-/*
- * Caller must hold ctl_softc->ctl_lock.
- */
-int
+static void
 ctl_pool_release(struct ctl_io_pool *pool)
 {
-	if (pool == NULL)
-		return (-EINVAL);
+	struct ctl_softc *ctl_softc = pool->ctl_softc;
+	union ctl_io *io;
 
-	if ((--pool->refcount == 0)
-	 && (pool->flags & CTL_POOL_FLAG_INVALID)) {
-		ctl_pool_free(pool->ctl_softc, pool);
-	}
+	mtx_assert(&ctl_softc->pool_lock, MA_OWNED);
 
-	return (0);
-}
+	if (--pool->refcount != 0)
+		return;
 
-/*
- * Must be called with ctl_softc->ctl_lock held.
- */
-void
-ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool)
-{
-	union ctl_io *cur_io, *next_io;
-
-	for (cur_io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue);
-	     cur_io != NULL; cur_io = next_io) {
-		next_io = (union ctl_io *)STAILQ_NEXT(&cur_io->io_hdr,
-						      links);
-		STAILQ_REMOVE(&pool->free_queue, &cur_io->io_hdr, ctl_io_hdr,
+	while ((io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue)) != NULL) {
+		STAILQ_REMOVE(&pool->free_queue, &io->io_hdr, ctl_io_hdr,
 			      links);
-		free(cur_io, M_CTL);
+		free(io, M_CTL);
 	}
 
 	STAILQ_REMOVE(&ctl_softc->io_pools, pool, ctl_io_pool, links);
@@ -3474,6 +3473,21 @@ ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool)
 #endif
 
 	free(pool, M_CTL);
+}
+
+void
+ctl_pool_free(struct ctl_io_pool *pool)
+{
+	struct ctl_softc *ctl_softc;
+
+	if (pool == NULL)
+		return;
+
+	ctl_softc = pool->ctl_softc;
+	mtx_lock(&ctl_softc->pool_lock);
+	pool->flags |= CTL_POOL_FLAG_INVALID;
+	ctl_pool_release(pool);
+	mtx_unlock(&ctl_softc->pool_lock);
 }
 
 /*
@@ -3500,7 +3514,7 @@ ctl_alloc_io(void *pool_ref)
 
 	ctl_softc = pool->ctl_softc;
 
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	/*
 	 * First, try to get the io structure from the user's pool.
 	 */
@@ -3510,7 +3524,7 @@ ctl_alloc_io(void *pool_ref)
 			STAILQ_REMOVE_HEAD(&pool->free_queue, links);
 			pool->total_allocated++;
 			pool->free_ctl_io--;
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 			return (io);
 		} else
 			ctl_pool_release(pool);
@@ -3533,14 +3547,14 @@ ctl_alloc_io(void *pool_ref)
 			STAILQ_REMOVE_HEAD(&npool->free_queue, links);
 			npool->total_allocated++;
 			npool->free_ctl_io--;
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 			return (io);
 		} else
 			ctl_pool_release(npool);
 	}
 
 	/* Drop the spinlock before we malloc */
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	/*
 	 * The emergency pool (if it exists) didn't have one, so try an
@@ -3553,7 +3567,7 @@ ctl_alloc_io(void *pool_ref)
 		 * ctl_io to its list when it gets freed.
 		 */
 		if (emergency_pool != NULL) {
-			mtx_lock(&ctl_softc->ctl_lock);
+			mtx_lock(&ctl_softc->pool_lock);
 			if (ctl_pool_acquire(emergency_pool) == 0) {
 				io->io_hdr.pool = emergency_pool;
 				emergency_pool->total_ctl_io++;
@@ -3565,7 +3579,7 @@ ctl_alloc_io(void *pool_ref)
 				 */
 				emergency_pool->total_allocated++;
 			}
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 		} else
 			io->io_hdr.pool = NULL;
 	}
@@ -3573,8 +3587,8 @@ ctl_alloc_io(void *pool_ref)
 	return (io);
 }
 
-static void
-ctl_free_io_internal(union ctl_io *io, int have_lock)
+void
+ctl_free_io(union ctl_io *io)
 {
 	if (io == NULL)
 		return;
@@ -3595,8 +3609,7 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 
 		pool = (struct ctl_io_pool *)io->io_hdr.pool;
 
-		if (have_lock == 0)
-			mtx_lock(&pool->ctl_softc->ctl_lock);
+		mtx_lock(&pool->ctl_softc->pool_lock);
 #if 0
 		save_flags(xflags);
 
@@ -3633,8 +3646,7 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 		pool->total_freed++;
 		pool->free_ctl_io++;
 		ctl_pool_release(pool);
-		if (have_lock == 0)
-			mtx_unlock(&pool->ctl_softc->ctl_lock);
+		mtx_unlock(&pool->ctl_softc->pool_lock);
 	} else {
 		/*
 		 * Otherwise, just free it.  We probably malloced it and
@@ -3643,12 +3655,6 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 		free(io, M_CTL);
 	}
 
-}
-
-void
-ctl_free_io(union ctl_io *io)
-{
-	ctl_free_io_internal(io, /*have_lock*/ 0);
 }
 
 void
@@ -4392,7 +4398,6 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 /*
  * Delete a LUN.
  * Assumptions:
- * - caller holds ctl_softc->ctl_lock.
  * - LUN has already been marked invalid and any pending I/O has been taken
  *   care of.
  */
@@ -4408,6 +4413,8 @@ ctl_free_lun(struct ctl_lun *lun)
 	int i;
 
 	softc = lun->ctl_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_OWNED);
 
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
 
@@ -4425,9 +4432,14 @@ ctl_free_lun(struct ctl_lun *lun)
 	 */
 	for (io = (union ctl_io *)STAILQ_FIRST(&softc->rtr_queue); io != NULL;
 	     io = next_io) {
+		uint32_t targ_lun;
+
 		next_io = (union ctl_io *)STAILQ_NEXT(&io->io_hdr, links);
+		targ_lun = io->io_hdr.nexus.targ_lun;
+		if (io->io_hdr.nexus.lun_map_fn != NULL)
+			targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
 		if ((io->io_hdr.nexus.targ_target.id == lun->target.id)
-		 && (io->io_hdr.nexus.targ_lun == lun->lun))
+		 && (targ_lun == lun->lun))
 			STAILQ_REMOVE(&softc->rtr_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
 	}
@@ -4451,7 +4463,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	     io = next_io) {
 		next_io = (union ctl_io *)TAILQ_NEXT(&io->io_hdr, ooa_links);
 		TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
-		ctl_free_io_internal(io, /*have_lock*/ 1);
+		ctl_free_io(io);
 	}
 
 	softc->num_luns--;
@@ -8240,12 +8252,16 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
 	int i;
+	uint32_t targ_lun;
 
 	softc = control_softc;
 
 	mtx_lock(&softc->ctl_lock);
 
-	lun = softc->ctl_luns[msg->hdr.nexus.targ_lun];
+	targ_lun = msg->hdr.nexus.targ_lun;
+	if (msg->hdr.nexus.lun_map_fn != NULL)
+		targ_lun = msg->hdr.nexus.lun_map_fn(msg->hdr.nexus.lun_map_arg, targ_lun);
+	lun = softc->ctl_luns[targ_lun];
 	switch(msg->pr.pr_info.action) {
 	case CTL_PR_REG_KEY:
 		if (!lun->per_res[msg->pr.pr_info.residx].registered) {
@@ -8594,7 +8610,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	int num_luns, retval;
 	uint32_t alloc_len, lun_datalen;
 	int num_filled, well_known;
-	uint32_t initidx;
+	uint32_t initidx, targ_lun_id, lun_id;
 
 	retval = CTL_RETVAL_COMPLETE;
 	well_known = 0;
@@ -8655,63 +8671,47 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	lun_data = (struct scsi_report_luns_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
-	if (lun_datalen < alloc_len) {
-		ctsio->residual = alloc_len - lun_datalen;
-		ctsio->kern_data_len = lun_datalen;
-		ctsio->kern_total_len = lun_datalen;
-	} else {
-		ctsio->residual = 0;
-		ctsio->kern_data_len = alloc_len;
-		ctsio->kern_total_len = alloc_len;
-	}
-	ctsio->kern_data_resid = 0;
-	ctsio->kern_rel_offset = 0;
-	ctsio->kern_sg_entries = 0;
-
 	initidx = ctl_get_initindex(&ctsio->io_hdr.nexus);
 
-	/*
-	 * We set this to the actual data length, regardless of how much
-	 * space we actually have to return results.  If the user looks at
-	 * this value, he'll know whether or not he allocated enough space
-	 * and reissue the command if necessary.  We don't support well
-	 * known logical units, so if the user asks for that, return none.
-	 */
-	scsi_ulto4b(lun_datalen - 8, lun_data->length);
-
 	mtx_lock(&control_softc->ctl_lock);
-	for (num_filled = 0, lun = STAILQ_FIRST(&control_softc->lun_list);
-	     (lun != NULL) && (num_filled < num_luns);
-	     lun = STAILQ_NEXT(lun, links)) {
+	for (targ_lun_id = 0, num_filled = 0; targ_lun_id < CTL_MAX_LUNS && num_filled < num_luns; targ_lun_id++) {
+		lun_id = targ_lun_id;
+		if (ctsio->io_hdr.nexus.lun_map_fn != NULL)
+			lun_id = ctsio->io_hdr.nexus.lun_map_fn(ctsio->io_hdr.nexus.lun_map_arg, lun_id);
+		if (lun_id >= CTL_MAX_LUNS)
+			continue;
+		lun = control_softc->ctl_luns[lun_id];
+		if (lun == NULL)
+			continue;
 
-		if (lun->lun <= 0xff) {
+		if (targ_lun_id <= 0xff) {
 			/*
 			 * Peripheral addressing method, bus number 0.
 			 */
 			lun_data->luns[num_filled].lundata[0] =
 				RPL_LUNDATA_ATYP_PERIPH;
-			lun_data->luns[num_filled].lundata[1] = lun->lun;
+			lun_data->luns[num_filled].lundata[1] = targ_lun_id;
 			num_filled++;
-		} else if (lun->lun <= 0x3fff) {
+		} else if (targ_lun_id <= 0x3fff) {
 			/*
 			 * Flat addressing method.
 			 */
 			lun_data->luns[num_filled].lundata[0] =
 				RPL_LUNDATA_ATYP_FLAT |
-				(lun->lun & RPL_LUNDATA_FLAT_LUN_MASK);
+				(targ_lun_id & RPL_LUNDATA_FLAT_LUN_MASK);
 #ifdef OLDCTLHEADERS
 				(SRLD_ADDR_FLAT << SRLD_ADDR_SHIFT) |
-				(lun->lun & SRLD_BUS_LUN_MASK);
+				(targ_lun_id & SRLD_BUS_LUN_MASK);
 #endif
 			lun_data->luns[num_filled].lundata[1] =
 #ifdef OLDCTLHEADERS
-				lun->lun >> SRLD_BUS_LUN_BITS;
+				targ_lun_id >> SRLD_BUS_LUN_BITS;
 #endif
-				lun->lun >> RPL_LUNDATA_FLAT_LUN_BITS;
+				targ_lun_id >> RPL_LUNDATA_FLAT_LUN_BITS;
 			num_filled++;
 		} else {
 			printf("ctl_report_luns: bogus LUN number %jd, "
-			       "skipping\n", (intmax_t)lun->lun);
+			       "skipping\n", (intmax_t)targ_lun_id);
 		}
 		/*
 		 * According to SPC-3, rev 14 section 6.21:
@@ -8734,6 +8734,35 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 				~CTL_UA_LUN_CHANGE;
 	}
 	mtx_unlock(&control_softc->ctl_lock);
+
+	/*
+	 * It's quite possible that we've returned fewer LUNs than we allocated
+	 * space for.  Trim it.
+	 */
+	lun_datalen = sizeof(*lun_data) +
+		(num_filled * sizeof(struct scsi_report_luns_lundata));
+
+	if (lun_datalen < alloc_len) {
+		ctsio->residual = alloc_len - lun_datalen;
+		ctsio->kern_data_len = lun_datalen;
+		ctsio->kern_total_len = lun_datalen;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/*
+	 * We set this to the actual data length, regardless of how much
+	 * space we actually have to return results.  If the user looks at
+	 * this value, he'll know whether or not he allocated enough space
+	 * and reissue the command if necessary.  We don't support well
+	 * known logical units, so if the user asks for that, return none.
+	 */
+	scsi_ulto4b(lun_datalen - 8, lun_data->length);
 
 	/*
 	 * We can only return SCSI_STATUS_CHECK_COND when we can't satisfy
@@ -8941,17 +8970,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 
 	sup_page_size = sizeof(struct scsi_vpd_supported_pages) +
 		SCSI_EVPD_NUM_SUPPORTED_PAGES;
-	/*
-	 * XXX KDM GFP_???  We probably don't want to wait here,
-	 * unless we end up having a process/thread context.
-	 */
 	ctsio->kern_data_ptr = malloc(sup_page_size, M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	pages = (struct scsi_vpd_supported_pages *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9006,14 +9025,7 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	/* XXX KDM which malloc flags here?? */
 	ctsio->kern_data_ptr = malloc(sizeof(*sn_ptr), M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	sn_ptr = (struct scsi_vpd_unit_serial_number *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9087,6 +9099,14 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	int devid_len;
 
 	ctl_softc = control_softc;
+
+	mtx_lock(&ctl_softc->ctl_lock);
+	fe = ctl_softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
+	mtx_unlock(&ctl_softc->ctl_lock);
+
+	if (fe->devid != NULL)
+		return ((fe->devid)(ctsio, alloc_len));
+
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	devid_len = sizeof(struct scsi_vpd_device_id) +
@@ -9098,14 +9118,7 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 		sizeof(struct scsi_vpd_id_descriptor) +
 		sizeof(struct scsi_vpd_id_trgt_port_grp_id);
 
-	/* XXX KDM which malloc flags here ?? */
 	ctsio->kern_data_ptr = malloc(devid_len, M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	devid_ptr = (struct scsi_vpd_device_id *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 
@@ -9146,8 +9159,6 @@ ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 	scsi_ulto2b(devid_len - 4, devid_ptr->length);
 
 	mtx_lock(&ctl_softc->ctl_lock);
-
-	fe = ctl_softc->ctl_ports[ctl_port_idx(ctsio->io_hdr.nexus.targ_port)];
 
 	/*
 	 * For Fibre channel,
@@ -9328,14 +9339,7 @@ ctl_inquiry_std(struct ctl_scsiio *ctsio)
 	 * in.  If the user only asks for less, we'll give him
 	 * that much.
 	 */
-	/* XXX KDM what malloc flags should we use here?? */
 	ctsio->kern_data_ptr = malloc(sizeof(*inq_ptr), M_CTL, M_WAITOK | M_ZERO);
-	if (ctsio->kern_data_ptr == NULL) {
-		ctsio->io_hdr.status = CTL_SCSI_ERROR;
-		ctsio->scsi_status = SCSI_STATUS_BUSY;
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
-	}
 	inq_ptr = (struct scsi_inquiry_data *)ctsio->kern_data_ptr;
 	ctsio->kern_sg_entries = 0;
 	ctsio->kern_data_resid = 0;
@@ -9803,7 +9807,6 @@ ctl_check_for_blockage(union ctl_io *pending_io, union ctl_io *ooa_io)
 /*
  * Check for blockage or overlaps against the OOA (Order Of Arrival) queue.
  * Assumptions:
- * - caller holds ctl_lock
  * - pending_io is generally either incoming, or on the blocked queue
  * - starting I/O is the I/O we want to start the check with.
  */
@@ -9813,6 +9816,8 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
 {
 	union ctl_io *ooa_io;
 	ctl_action action;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	/*
 	 * Run back along the OOA queue, starting with the current
@@ -9854,12 +9859,13 @@ ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
  * Assumptions:
  * - An I/O has just completed, and has been removed from the per-LUN OOA
  *   queue, so some items on the blocked queue may now be unblocked.
- * - The caller holds ctl_softc->ctl_lock
  */
 static int
 ctl_check_blocked(struct ctl_lun *lun)
 {
 	union ctl_io *cur_blocked, *next_blocked;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	/*
 	 * Run forward from the head of the blocked queue, checking each
@@ -10172,7 +10178,7 @@ ctl_failover(void)
 					TAILQ_REMOVE(&lun->ooa_queue,
 						     &io->io_hdr, ooa_links);
 
-					ctl_free_io_internal(io, 1);
+					ctl_free_io(io);
 				}
 			}
 
@@ -10188,7 +10194,7 @@ ctl_failover(void)
 						&io->io_hdr,
 					     	ooa_links);
 
-					ctl_free_io_internal(io, 1);
+					ctl_free_io(io);
 				}
 			}
 			ctl_check_blocked(lun);
@@ -10372,7 +10378,7 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	struct ctl_cmd_entry *entry;
 	uint8_t opcode;
-	uint32_t initidx;
+	uint32_t initidx, targ_lun;
 	int retval;
 
 	retval = 0;
@@ -10383,9 +10389,12 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 
 	mtx_lock(&ctl_softc->ctl_lock);
 
-	if ((ctsio->io_hdr.nexus.targ_lun < CTL_MAX_LUNS)
-	 && (ctl_softc->ctl_luns[ctsio->io_hdr.nexus.targ_lun] != NULL)) {
-		lun = ctl_softc->ctl_luns[ctsio->io_hdr.nexus.targ_lun];
+	targ_lun = ctsio->io_hdr.nexus.targ_lun;
+	if (ctsio->io_hdr.nexus.lun_map_fn != NULL)
+		targ_lun = ctsio->io_hdr.nexus.lun_map_fn(ctsio->io_hdr.nexus.lun_map_arg, targ_lun);
+	if ((targ_lun < CTL_MAX_LUNS)
+	 && (ctl_softc->ctl_luns[targ_lun] != NULL)) {
+		lun = ctl_softc->ctl_luns[targ_lun];
 		/*
 		 * If the LUN is invalid, pretend that it doesn't exist.
 		 * It will go away as soon as all pending I/O has been
@@ -10425,6 +10434,7 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 		ctl_set_unsupported_lun(ctsio);
 		mtx_unlock(&ctl_softc->ctl_lock);
 		ctl_done((union ctl_io *)ctsio);
+		CTL_DEBUG_PRINT(("ctl_scsiio_precheck: bailing out due to invalid LUN\n"));
 		goto bailout;
 	} else {
 		/*
@@ -10791,6 +10801,7 @@ ctl_abort_task(union ctl_io *io)
 	char printbuf[128];
 #endif
 	int found;
+	uint32_t targ_lun;
 
 	ctl_softc = control_softc;
 	found = 0;
@@ -10798,9 +10809,12 @@ ctl_abort_task(union ctl_io *io)
 	/*
 	 * Look up the LUN.
 	 */
-	if ((io->io_hdr.nexus.targ_lun < CTL_MAX_LUNS)
-	 && (ctl_softc->ctl_luns[io->io_hdr.nexus.targ_lun] != NULL))
-		lun = ctl_softc->ctl_luns[io->io_hdr.nexus.targ_lun];
+	targ_lun = io->io_hdr.nexus.targ_lun;
+	if (io->io_hdr.nexus.lun_map_fn != NULL)
+		targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
+	if ((targ_lun < CTL_MAX_LUNS)
+	 && (ctl_softc->ctl_luns[targ_lun] != NULL))
+		lun = ctl_softc->ctl_luns[targ_lun];
 	else
 		goto bailout;
 
@@ -10924,8 +10938,6 @@ bailout:
 }
 
 /*
- * Assumptions:  caller holds ctl_softc->ctl_lock
- *
  * This routine cannot block!  It must be callable from an interrupt
  * handler as well as from the work thread.
  */
@@ -10933,6 +10945,8 @@ static void
 ctl_run_task_queue(struct ctl_softc *ctl_softc)
 {
 	union ctl_io *io, *next_io;
+
+	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
 
 	CTL_DEBUG_PRINT(("ctl_run_task_queue\n"));
 
@@ -10990,6 +11004,8 @@ ctl_run_task_queue(struct ctl_softc *ctl_softc)
 				int retval;
 
 				targ_lun = io->io_hdr.nexus.targ_lun;
+				if (io->io_hdr.nexus.lun_map_fn != NULL)
+					targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
 
 				if ((targ_lun < CTL_MAX_LUNS)
 				 && (ctl_softc->ctl_luns[targ_lun] != NULL))
@@ -11064,12 +11080,12 @@ ctl_run_task_queue(struct ctl_softc *ctl_softc)
 			       (uintmax_t)io->io_hdr.nexus.initid.id,
 			       io->io_hdr.nexus.targ_port,
 			       (uintmax_t)io->io_hdr.nexus.targ_target.id,
-			       io->io_hdr.nexus.targ_lun,
+			       io->io_hdr.nexus.targ_lun /* XXX */,
 			       (io->io_hdr.io_type == CTL_IO_TASK) ?
 			       io->taskio.tag_num : io->scsiio.tag_num);
 			STAILQ_REMOVE(&ctl_softc->task_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-			ctl_free_io_internal(io, 1);
+			ctl_free_io(io);
 			break;
 		}
 		}
@@ -11088,10 +11104,14 @@ ctl_handle_isc(union ctl_io *io)
 	int free_io;
 	struct ctl_lun *lun;
 	struct ctl_softc *ctl_softc;
+	uint32_t targ_lun;
 
 	ctl_softc = control_softc;
 
-	lun = ctl_softc->ctl_luns[io->io_hdr.nexus.targ_lun];
+	targ_lun = io->io_hdr.nexus.targ_lun;
+	if (io->io_hdr.nexus.lun_map_fn != NULL)
+		targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
+	lun = ctl_softc->ctl_luns[targ_lun];
 
 	switch (io->io_hdr.msg_type) {
 	case CTL_MSG_SERIALIZE:
@@ -11162,7 +11182,7 @@ ctl_handle_isc(union ctl_io *io)
 		break;
 	}
 	if (free_io)
-		ctl_free_io_internal(io, 0);
+		ctl_free_io(io);
 
 }
 
@@ -11235,13 +11255,12 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 	return (filtered_pattern);
 }
 
-/*
- * Called with the CTL lock held.
- */
 static void
 ctl_inject_error(struct ctl_lun *lun, union ctl_io *io)
 {
 	struct ctl_error_desc *desc, *desc2;
+
+	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
 
 	STAILQ_FOREACH_SAFE(desc, &lun->error_list, links, desc2) {
 		ctl_lun_error_pattern pattern;
@@ -11312,13 +11331,12 @@ ctl_datamove_timer_wakeup(void *arg)
 }
 #endif /* CTL_IO_DELAY */
 
-/*
- * Assumption:  caller does NOT hold ctl_lock
- */
 void
 ctl_datamove(union ctl_io *io)
 {
 	void (*fe_datamove)(union ctl_io *io);
+
+	mtx_assert(&control_softc->ctl_lock, MA_NOTOWNED);
 
 	CTL_DEBUG_PRINT(("ctl_datamove\n"));
 
@@ -12165,8 +12183,6 @@ ctl_datamove_remote_read(union ctl_io *io)
  * first.  Once that is complete, the data gets DMAed into the remote
  * controller's memory.  For reads, we DMA from the remote controller's
  * memory into our memory first, and then move it out to the FETD.
- *
- * Should be called without the ctl_lock held.
  */
 static void
 ctl_datamove_remote(union ctl_io *io)
@@ -12174,6 +12190,8 @@ ctl_datamove_remote(union ctl_io *io)
 	struct ctl_softc *softc;
 
 	softc = control_softc;
+
+	mtx_assert(&softc->ctl_lock, MA_NOTOWNED);
 
 	/*
 	 * Note that we look for an aborted I/O here, but don't do some of
@@ -12312,7 +12330,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_TASK:
 		ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
-			ctl_free_io_internal(io, /*have_lock*/ 0);
+			ctl_free_io(io);
 		else
 			fe_done(io);
 		return (CTL_RETVAL_COMPLETE);
@@ -12631,7 +12649,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 			/* XXX do something here */
 		}
 
-		ctl_free_io_internal(io, /*have_lock*/ 0);
+		ctl_free_io(io);
 	} else 
 		fe_done(io);
 
@@ -12649,7 +12667,7 @@ ctl_queue_sense(union ctl_io *io)
 {
 	struct ctl_lun *lun;
 	struct ctl_softc *ctl_softc;
-	uint32_t initidx;
+	uint32_t initidx, targ_lun;
 
 	ctl_softc = control_softc;
 
@@ -12668,9 +12686,12 @@ ctl_queue_sense(union ctl_io *io)
 	 * If we don't have a LUN for this, just toss the sense
 	 * information.
 	 */
-	if ((io->io_hdr.nexus.targ_lun < CTL_MAX_LUNS)
-	 && (ctl_softc->ctl_luns[io->io_hdr.nexus.targ_lun] != NULL))
-		lun = ctl_softc->ctl_luns[io->io_hdr.nexus.targ_lun];
+	targ_lun = io->io_hdr.nexus.targ_lun;
+	if (io->io_hdr.nexus.lun_map_fn != NULL)
+		targ_lun = io->io_hdr.nexus.lun_map_fn(io->io_hdr.nexus.lun_map_arg, targ_lun);
+	if ((targ_lun < CTL_MAX_LUNS)
+	 && (ctl_softc->ctl_luns[targ_lun] != NULL))
+		lun = ctl_softc->ctl_luns[targ_lun];
 	else
 		goto bailout;
 
@@ -13070,6 +13091,8 @@ static ctl_ha_comp_status
 ctl_isc_start(struct ctl_ha_component *c, ctl_ha_state state)
 {
 	ctl_ha_comp_status ret = CTL_HA_COMP_STATUS_OK;
+
+	printf("%s: go\n", __func__);
 
 	// UNKNOWN->HA or UNKNOWN->SINGLE (bootstrap)
 	if (c->state == CTL_HA_STATE_UNKNOWN ) {

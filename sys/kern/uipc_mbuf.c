@@ -85,6 +85,14 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
 #endif
 
 /*
+ * Ensure the correct size of various mbuf parameters.  It could be off due
+ * to compiler-induced padding and alignment artifacts.
+ */
+CTASSERT(sizeof(struct mbuf) == MSIZE);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
+CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
+
+/*
  * m_get2() allocates minimum mbuf that would fit "size" argument.
  */
 struct mbuf *
@@ -247,8 +255,8 @@ m_freem(struct mbuf *mb)
  */
 int
 m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
-    void (*freef)(void *, void *), void *arg1, void *arg2, int flags, int type,
-    int wait)
+    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2,
+    int flags, int type, int wait)
 {
 	KASSERT(type != EXT_CLUSTER, ("%s: EXT_CLUSTER not allowed", __func__));
 
@@ -267,6 +275,7 @@ m_extadd(struct mbuf *mb, caddr_t buf, u_int size,
 	mb->m_ext.ext_arg1 = arg1;
 	mb->m_ext.ext_arg2 = arg2;
 	mb->m_ext.ext_type = type;
+	mb->m_ext.ext_flags = 0;
 
 	return (0);
 }
@@ -283,12 +292,11 @@ mb_free_ext(struct mbuf *m)
 	KASSERT((m->m_flags & M_EXT) == M_EXT, ("%s: M_EXT not set", __func__));
 	KASSERT(m->m_ext.ref_cnt != NULL, ("%s: ref_cnt not set", __func__));
 
-
 	/*
 	 * check if the header is embedded in the cluster
-	 */     
+	 */
 	skipmbuf = (m->m_flags & M_NOFREE);
-	
+
 	/* Free attached storage if this mbuf is the only reference to it. */
 	if (*(m->m_ext.ref_cnt) == 1 ||
 	    atomic_fetchadd_int(m->m_ext.ref_cnt, -1) == 1) {
@@ -321,7 +329,7 @@ mb_free_ext(struct mbuf *m)
 		case EXT_EXTREF:
 			KASSERT(m->m_ext.ext_free != NULL,
 				("%s: ext_free not set", __func__));
-			(*(m->m_ext.ext_free))(m->m_ext.ext_arg1,
+			(void)(*(m->m_ext.ext_free))(m, m->m_ext.ext_arg1,
 			    m->m_ext.ext_arg2);
 			break;
 		default:
@@ -343,6 +351,7 @@ mb_free_ext(struct mbuf *m)
 	m->m_ext.ref_cnt = NULL;
 	m->m_ext.ext_size = 0;
 	m->m_ext.ext_type = 0;
+	m->m_ext.ext_flags = 0;
 	m->m_flags &= ~M_EXT;
 	uma_zfree(zone_mbuf, m);
 }
@@ -369,6 +378,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
 	n->m_ext.ext_size = m->m_ext.ext_size;
 	n->m_ext.ref_cnt = m->m_ext.ref_cnt;
 	n->m_ext.ext_type = m->m_ext.ext_type;
+	n->m_ext.ext_flags = m->m_ext.ext_flags;
 	n->m_flags |= M_EXT;
 	n->m_flags |= m->m_flags & M_RDONLY;
 }
@@ -436,11 +446,6 @@ m_sanity(struct mbuf *m0, int sanitize)
 			M_SANITY_ACTION("m_data outside mbuf data range right");
 		if ((caddr_t)m->m_data + m->m_len > b)
 			M_SANITY_ACTION("m_data + m_len exeeds mbuf space");
-		if ((m->m_flags & M_PKTHDR) && m->m_pkthdr.header) {
-			if ((caddr_t)m->m_pkthdr.header < a ||
-			    (caddr_t)m->m_pkthdr.header > b)
-				M_SANITY_ACTION("m_pkthdr.header outside mbuf data range");
-		}
 
 		/* m->m_nextpkt may only be set on first mbuf in chain. */
 		if (m != m0 && m->m_nextpkt != NULL) {
@@ -649,13 +654,10 @@ m_copym(struct mbuf *m, int off0, int len, int wait)
 		m = m->m_next;
 		np = &n->m_next;
 	}
-	if (top == NULL)
-		mbstat.m_mcfail++;	/* XXX: No consistency. */
 
 	return (top);
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -747,7 +749,6 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 			return NULL;
 		bcopy(&buf, mm->m_ext.ext_buf, mm->m_len);
 		mm->m_data = mm->m_ext.ext_buf;
-		mm->m_pkthdr.header = NULL;
 	}
 	if (prep && !(mm->m_flags & M_EXT) && len > M_LEADINGSPACE(mm)) {
 		bcopy(mm->m_data, &buf, mm->m_len);
@@ -758,7 +759,6 @@ m_copymdata(struct mbuf *m, struct mbuf *n, int off, int len,
 		       mm->m_ext.ext_size - mm->m_len, mm->m_len);
 		mm->m_data = (caddr_t)mm->m_ext.ext_buf +
 			      mm->m_ext.ext_size - mm->m_len;
-		mm->m_pkthdr.header = NULL;
 	}
 
 	/* Append/prepend as many mbuf (clusters) as necessary to fit len. */
@@ -860,7 +860,6 @@ m_copypacket(struct mbuf *m, int how)
 	return top;
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */ 
 	return (NULL);
 }
 
@@ -964,7 +963,6 @@ m_dup(struct mbuf *m, int how)
 
 nospace:
 	m_freem(top);
-	mbstat.m_mcfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1124,7 +1122,6 @@ m_pullup(struct mbuf *n, int len)
 	return (m);
 bad:
 	m_freem(n);
-	mbstat.m_mpfail++;	/* XXX: No consistency. */
 	return (NULL);
 }
 
@@ -1199,6 +1196,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 	remain = m->m_len - len;
 	if (m0->m_flags & M_PKTHDR && remain == 0) {
 		n = m_gethdr(wait, m0->m_type);
+		if (n == NULL)
 			return (NULL);
 		n->m_next = m->m_next;
 		m->m_next = NULL;

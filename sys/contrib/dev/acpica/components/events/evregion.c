@@ -234,18 +234,12 @@ AcpiEvAddressSpaceDispatch (
         {
             RegionObj->Region.Flags |= AOPOBJ_SETUP_COMPLETE;
 
-            if (RegionObj2->Extra.RegionContext)
+            /*
+             * Save the returned context for use in all accesses to
+             * the handler for this particular region
+             */
+            if (!(RegionObj2->Extra.RegionContext))
             {
-                /* The handler for this region was already installed */
-
-                ACPI_FREE (RegionContext);
-            }
-            else
-            {
-                /*
-                 * Save the returned context for use in all accesses to
-                 * this particular region
-                 */
                 RegionObj2->Extra.RegionContext = RegionContext;
             }
         }
@@ -260,7 +254,6 @@ AcpiEvAddressSpaceDispatch (
         &RegionObj->Region.Handler->AddressSpace, Handler,
         ACPI_FORMAT_NATIVE_UINT (RegionObj->Region.Address + RegionOffset),
         AcpiUtGetRegionName (RegionObj->Region.SpaceId)));
-
 
     /*
      * Special handling for GenericSerialBus and GeneralPurposeIo:
@@ -423,6 +416,15 @@ AcpiEvDetachRegion(
                 RegionSetup = HandlerObj->AddressSpace.Setup;
                 Status = RegionSetup (RegionObj, ACPI_REGION_DEACTIVATE,
                     HandlerObj->AddressSpace.Context, RegionContext);
+
+                /*
+                 * RegionContext should have been released by the deactivate
+                 * operation. We don't need access to it anymore here.
+                 */
+                if (RegionContext)
+                {
+                    *RegionContext = NULL;
+                }
 
                 /* Init routine may fail, Just ignore errors */
 

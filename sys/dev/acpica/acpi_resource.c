@@ -135,6 +135,17 @@ acpi_config_intr(device_t dev, ACPI_RESOURCE *res)
     default:
 	panic("%s: bad resource type %u", __func__, res->Type);
     }
+
+#if defined(__amd64__) || defined(__i386__)
+    /*
+     * XXX: Certain BIOSes have buggy AML that specify an IRQ that is
+     * edge-sensitive and active-lo.  However, edge-sensitive IRQs
+     * should be active-hi.  Force IRQs with an ISA IRQ value to be
+     * active-hi instead.
+     */
+    if (irq < 16 && trig == ACPI_EDGE_SENSITIVE && pol == ACPI_ACTIVE_LOW)
+	pol = ACPI_ACTIVE_HIGH;
+#endif
     BUS_CONFIG_INTR(dev, irq, (trig == ACPI_EDGE_SENSITIVE) ?
 	INTR_TRIGGER_EDGE : INTR_TRIGGER_LEVEL, (pol == ACPI_ACTIVE_HIGH) ?
 	INTR_POLARITY_HIGH : INTR_POLARITY_LOW);

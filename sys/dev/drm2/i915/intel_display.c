@@ -2261,8 +2261,8 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	int ret;
 
 	mtx_lock(&dev->event_lock);
-	while (!atomic_read(&dev_priv->mm.wedged) &&
-	    atomic_read(&obj->pending_flip) != 0) {
+	while (!atomic_load_acq_int(&dev_priv->mm.wedged) &&
+	    atomic_load_acq_int(&obj->pending_flip) != 0) {
 		msleep(&obj->pending_flip, &dev->event_lock,
 		    0, "915flp", 0);
 	}
@@ -2948,7 +2948,7 @@ static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 	dev = crtc->dev;
 	dev_priv = dev->dev_private;
 	mtx_lock(&dev->event_lock);
-	while (atomic_read(&obj->pending_flip) != 0)
+	while (atomic_load_acq_int(&obj->pending_flip) != 0)
 		msleep(&obj->pending_flip, &dev->event_lock, 0, "915wfl", 0);
 	mtx_unlock(&dev->event_lock);
 }
@@ -3512,7 +3512,7 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 }
 
 static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
-				  struct drm_display_mode *mode,
+				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -7333,7 +7333,7 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	obj = work->old_fb_obj;
 
 	atomic_clear_int(&obj->pending_flip, 1 << intel_crtc->plane);
-	if (atomic_read(&obj->pending_flip) == 0)
+	if (atomic_load_acq_int(&obj->pending_flip) == 0)
 		wakeup(&obj->pending_flip);
 	mtx_unlock(&dev->event_lock);
 
@@ -7640,7 +7640,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	return 0;
 
 cleanup_pending:
-	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
+	atomic_clear_int(&work->old_fb_obj->pending_flip, 1 << intel_crtc->plane);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	DRM_UNLOCK(dev);

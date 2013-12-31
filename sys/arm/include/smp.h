@@ -4,6 +4,7 @@
 #define _MACHINE_SMP_H_
 
 #include <sys/_cpuset.h>
+#include <machine/pcb.h>
 
 #define IPI_AST		0
 #define IPI_PREEMPT	2
@@ -31,5 +32,8 @@ void	platform_mp_start_ap(void);
 void	platform_mp_init_secondary(void);
 
 void	platform_ipi_send(cpuset_t cpus, u_int ipi);
+
+/* global data in mp_machdep.c */
+extern struct pcb               stoppcbs[];
 
 #endif /* !_MACHINE_SMP_H_ */

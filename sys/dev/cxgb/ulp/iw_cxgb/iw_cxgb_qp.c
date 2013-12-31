@@ -1097,9 +1097,8 @@ out:
 	 * If free is 1, then we've disassociated the EP from the QP
 	 * and we need to dereference the EP.
 	 */
-	if (free) 
+	if (free)
 		put_ep(&ep->com);
-	
 
 	CTR2(KTR_IW_CXGB, "%s exit state %d", __FUNCTION__, qhp->attr.state);
 	return ret;

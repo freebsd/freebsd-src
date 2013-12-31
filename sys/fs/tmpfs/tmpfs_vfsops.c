@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
@@ -79,7 +81,7 @@ static int	tmpfs_statfs(struct mount *, struct statfs *);
 
 static const char *tmpfs_opts[] = {
 	"from", "size", "maxfilesize", "inodes", "uid", "gid", "mode", "export",
-	NULL
+	"union", NULL
 };
 
 static const char *tmpfs_updateopts[] = {
@@ -138,6 +140,7 @@ tmpfs_mount(struct mount *mp)
 	    sizeof(struct tmpfs_dirent) + sizeof(struct tmpfs_node));
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *root;
+	struct thread *td = curthread;
 	int error;
 	/* Size counters. */
 	u_quad_t pages;
@@ -149,6 +152,9 @@ tmpfs_mount(struct mount *mp)
 	mode_t root_mode;
 
 	struct vattr va;
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_TMPFS))
+		return (EPERM);
 
 	if (vfs_filteropt(mp->mnt_optnew, tmpfs_opts))
 		return (EINVAL);
@@ -420,4 +426,4 @@ struct vfsops tmpfs_vfsops = {
 	.vfs_statfs =			tmpfs_statfs,
 	.vfs_fhtovp =			tmpfs_fhtovp,
 };
-VFS_SET(tmpfs_vfsops, tmpfs, 0);
+VFS_SET(tmpfs_vfsops, tmpfs, VFCF_JAIL);

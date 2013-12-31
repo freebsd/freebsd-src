@@ -29,6 +29,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 
+#include <sys/param.h>
+#include <sys/eventhandler.h>
+
 #include "common.h"
 #include "t4_regs.h"
 #include "t4_regs_values.h"
@@ -3624,22 +3627,24 @@ void t4_get_chan_txrate(struct adapter *adap, u64 *nic_rate, u64 *ofld_rate)
  *	@idx: which filter to configure
  *	@enable: whether to enable or disable the filter
  *
- *	Configures one of the tracing filters available in HW.  If @enable is
- *	%0 @tp is not examined and may be %NULL. The user is responsible to
- *	set the single/multiple trace mode by writing to A_MPS_TRC_CFG register
- *	by using "cxgbtool iface reg reg_addr=val" command. See t4_sniffer/
- *	docs/readme.txt for a complete description of how to setup traceing on
- *	T4.
+ *	Configures one of the tracing filters available in HW.  If @tp is %NULL
+ *	it indicates that the filter is already written in the register and it
+ *	just needs to be enabled or disabled.
  */
-int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp, int idx,
-			int enable)
+int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
+    int idx, int enable)
 {
 	int i, ofst = idx * 4;
 	u32 data_reg, mask_reg, cfg;
 	u32 multitrc = F_TRCMULTIFILTER;
+	u32 en = is_t4(adap) ? F_TFEN : F_T5_TFEN;
 
-	if (!enable) {
-		t4_write_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
+	if (idx < 0 || idx >= NTRACE)
+		return -EINVAL;
+
+	if (tp == NULL || !enable) {
+		t4_set_reg_field(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, en,
+		    enable ? en : 0);
 		return 0;
 	}
 
@@ -3660,8 +3665,7 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp, int
 		 */
 		if (tp->snap_len > ((10 * 1024 / 4) - (2 * 8)))
 			return -EINVAL;		
-	}
-	else {
+	} else {
 		/*
 		 * If multiple tracers are disabled, to avoid deadlocks 
 		 * maximum packet capture size of 9600 bytes is recommended.
@@ -3672,12 +3676,13 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp, int
 			return -EINVAL;
 	}
 
-	if (tp->port > 11 || tp->invert > 1 || tp->skip_len > M_TFLENGTH ||
-	    tp->skip_ofst > M_TFOFFSET || tp->min_len > M_TFMINPKTSIZE)
+	if (tp->port > (is_t4(adap) ? 11 : 19) || tp->invert > 1 ||
+	    tp->skip_len > M_TFLENGTH || tp->skip_ofst > M_TFOFFSET ||
+	    tp->min_len > M_TFMINPKTSIZE)
 		return -EINVAL;
 
 	/* stop the tracer we'll be changing */
-	t4_write_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, 0);
+	t4_set_reg_field(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst, en, 0);
 
 	idx *= (A_MPS_TRC_FILTER1_MATCH - A_MPS_TRC_FILTER0_MATCH);
 	data_reg = A_MPS_TRC_FILTER0_MATCH + idx;
@@ -3691,11 +3696,10 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp, int
 		     V_TFCAPTUREMAX(tp->snap_len) |
 		     V_TFMINPKTSIZE(tp->min_len));
 	t4_write_reg(adap, A_MPS_TRC_FILTER_MATCH_CTL_A + ofst,
-		     V_TFOFFSET(tp->skip_ofst) | V_TFLENGTH(tp->skip_len) |
-		     is_t4(adap) ?
-		     V_TFPORT(tp->port) | F_TFEN | V_TFINVERTMATCH(tp->invert) :
-		     V_T5_TFPORT(tp->port) | F_T5_TFEN |
-		     V_T5_TFINVERTMATCH(tp->invert));
+		     V_TFOFFSET(tp->skip_ofst) | V_TFLENGTH(tp->skip_len) | en |
+		     (is_t4(adap) ?
+		     V_TFPORT(tp->port) | V_TFINVERTMATCH(tp->invert) :
+		     V_T5_TFPORT(tp->port) | V_T5_TFINVERTMATCH(tp->invert)));
 
 	return 0;
 }
@@ -3722,15 +3726,16 @@ void t4_get_trace_filter(struct adapter *adap, struct trace_params *tp, int idx,
 	if (is_t4(adap)) {
 		*enabled = !!(ctla & F_TFEN);
 		tp->port =  G_TFPORT(ctla);
+		tp->invert = !!(ctla & F_TFINVERTMATCH);
 	} else {
 		*enabled = !!(ctla & F_T5_TFEN);
 		tp->port = G_T5_TFPORT(ctla);
+		tp->invert = !!(ctla & F_T5_TFINVERTMATCH);
 	}
 	tp->snap_len = G_TFCAPTUREMAX(ctlb);
 	tp->min_len = G_TFMINPKTSIZE(ctlb);
 	tp->skip_ofst = G_TFOFFSET(ctla);
 	tp->skip_len = G_TFLENGTH(ctla);
-	tp->invert = !!(ctla & F_TFINVERTMATCH);
 
 	ofst = (A_MPS_TRC_FILTER1_MATCH - A_MPS_TRC_FILTER0_MATCH) * idx;
 	data_reg = A_MPS_TRC_FILTER0_MATCH + ofst;
@@ -5658,4 +5663,51 @@ int __devinit t4_port_init(struct port_info *p, int mbox, int pf, int vf)
 	init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 
 	return 0;
+}
+
+int t4_sched_config(struct adapter *adapter, int type, int minmaxen)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.config.sc = FW_SCHED_SC_CONFIG;
+	cmd.u.config.type = type;
+	cmd.u.config.minmaxen = minmaxen;
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
+}
+
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int cl,
+		    int minrate, int maxrate, int weight, int pktsize)
+{
+	struct fw_sched_cmd cmd;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_write = cpu_to_be32(V_FW_CMD_OP(FW_SCHED_CMD) |
+				      F_FW_CMD_REQUEST |
+				      F_FW_CMD_WRITE);
+	cmd.retval_len16 = cpu_to_be32(FW_LEN16(cmd));
+
+	cmd.u.params.sc = FW_SCHED_SC_PARAMS;
+	cmd.u.params.type = type;
+	cmd.u.params.level = level;
+	cmd.u.params.mode = mode;
+	cmd.u.params.ch = channel;
+	cmd.u.params.cl = cl;
+	cmd.u.params.unit = rateunit;
+	cmd.u.params.rate = ratemode;
+	cmd.u.params.min = cpu_to_be32(minrate);
+	cmd.u.params.max = cpu_to_be32(maxrate);
+	cmd.u.params.weight = cpu_to_be16(weight);
+	cmd.u.params.pktsize = cpu_to_be16(pktsize);
+
+	return t4_wr_mbox_meat(adapter,adapter->mbox, &cmd, sizeof(cmd),
+			       NULL, 1);
 }

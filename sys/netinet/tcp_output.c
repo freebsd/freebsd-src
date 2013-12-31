@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/cc.h>
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
@@ -1174,6 +1176,18 @@ send:
 		 */
 		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
 
+		/*
+		 * Set the packet size here for the benefit of DTrace probes.
+		 * ip6_output() will set it properly; it's supposed to include
+		 * the option header lengths as well.
+		 */
+		ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
+
+		if (tp->t_state == TCPS_SYN_SENT)
+			TCP_PROBE5(connect__request, NULL, tp, ip6, tp, th);
+
+		TCP_PROBE5(send, NULL, tp, ip6, tp, th);
+
 		/* TODO: IPv6 IP6TOS_ECT bit on */
 		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
 		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
@@ -1207,6 +1221,11 @@ send:
 	 */
 	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
 		ip->ip_off |= htons(IP_DF);
+
+	if (tp->t_state == TCPS_SYN_SENT)
+		TCP_PROBE5(connect__request, NULL, tp, ip, tp, th);
+
+	TCP_PROBE5(send, NULL, tp, ip, tp, th);
 
 	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,

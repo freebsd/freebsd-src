@@ -50,41 +50,74 @@
  * of the fields not present here and there, depending on a lot of things.
  */
 				/* ---- Intel Nomenclature ---- */
-#define	PG_V		0x001	/* P	Valid			*/
-#define PG_RW		0x002	/* R/W	Read/Write		*/
-#define PG_U		0x004	/* U/S  User/Supervisor		*/
-#define	PG_NC_PWT	0x008	/* PWT	Write through		*/
-#define	PG_NC_PCD	0x010	/* PCD	Cache disable		*/
-#define PG_A		0x020	/* A	Accessed		*/
-#define	PG_M		0x040	/* D	Dirty			*/
-#define	PG_PS		0x080	/* PS	Page size (0=4k,1=2M)	*/
-#define	PG_PTE_PAT	0x080	/* PAT	PAT index		*/
-#define	PG_G		0x100	/* G	Global			*/
-#define	PG_AVAIL1	0x200	/*    /	Available for system	*/
-#define	PG_AVAIL2	0x400	/*   <	programmers use		*/
-#define	PG_AVAIL3	0x800	/*    \				*/
-#define	PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
-#define	PG_NX		(1ul<<63) /* No-execute */
-
-
-/* Our various interpretations of the above */
-#define PG_W		PG_AVAIL1	/* "Wired" pseudoflag */
-#define	PG_MANAGED	PG_AVAIL2
-#define	PG_FRAME	(0x000ffffffffff000ul)
-#define	PG_PS_FRAME	(0x000fffffffe00000ul)
-#define	PG_PROT		(PG_RW|PG_U)	/* all protection bits . */
-#define PG_N		(PG_NC_PWT|PG_NC_PCD)	/* Non-cacheable */
+#define	X86_PG_V	0x001	/* P	Valid			*/
+#define	X86_PG_RW	0x002	/* R/W	Read/Write		*/
+#define	X86_PG_U	0x004	/* U/S  User/Supervisor		*/
+#define	X86_PG_NC_PWT	0x008	/* PWT	Write through		*/
+#define	X86_PG_NC_PCD	0x010	/* PCD	Cache disable		*/
+#define	X86_PG_A	0x020	/* A	Accessed		*/
+#define	X86_PG_M	0x040	/* D	Dirty			*/
+#define	X86_PG_PS	0x080	/* PS	Page size (0=4k,1=2M)	*/
+#define	X86_PG_PTE_PAT	0x080	/* PAT	PAT index		*/
+#define	X86_PG_G	0x100	/* G	Global			*/
+#define	X86_PG_AVAIL1	0x200	/*    /	Available for system	*/
+#define	X86_PG_AVAIL2	0x400	/*   <	programmers use		*/
+#define	X86_PG_AVAIL3	0x800	/*    \				*/
+#define	X86_PG_PDE_PAT	0x1000	/* PAT	PAT index		*/
+#define	X86_PG_NX	(1ul<<63) /* No-execute */
+#define	X86_PG_AVAIL(x)	(1ul << (x))
 
 /* Page level cache control fields used to determine the PAT type */
-#define PG_PDE_CACHE	(PG_PDE_PAT | PG_NC_PWT | PG_NC_PCD)
-#define PG_PTE_CACHE	(PG_PTE_PAT | PG_NC_PWT | PG_NC_PCD)
+#define	X86_PG_PDE_CACHE (X86_PG_PDE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
+#define	X86_PG_PTE_CACHE (X86_PG_PTE_PAT | X86_PG_NC_PWT | X86_PG_NC_PCD)
+
+/*
+ * Intel extended page table (EPT) bit definitions.
+ */
+#define	EPT_PG_READ		0x001	/* R	Read		*/
+#define	EPT_PG_WRITE		0x002	/* W	Write		*/
+#define	EPT_PG_EXECUTE		0x004	/* X	Execute		*/
+#define	EPT_PG_IGNORE_PAT	0x040	/* IPAT	Ignore PAT	*/
+#define	EPT_PG_PS		0x080	/* PS	Page size	*/
+#define	EPT_PG_A		0x100	/* A	Accessed	*/
+#define	EPT_PG_M		0x200	/* D	Dirty		*/
+#define	EPT_PG_MEMORY_TYPE(x)	((x) << 3) /* MT Memory Type	*/
+
+/*
+ * Define the PG_xx macros in terms of the bits on x86 PTEs.
+ */
+#define	PG_V		X86_PG_V
+#define	PG_RW		X86_PG_RW
+#define	PG_U		X86_PG_U
+#define	PG_NC_PWT	X86_PG_NC_PWT
+#define	PG_NC_PCD	X86_PG_NC_PCD
+#define	PG_A		X86_PG_A
+#define	PG_M		X86_PG_M
+#define	PG_PS		X86_PG_PS
+#define	PG_PTE_PAT	X86_PG_PTE_PAT
+#define	PG_G		X86_PG_G
+#define	PG_AVAIL1	X86_PG_AVAIL1
+#define	PG_AVAIL2	X86_PG_AVAIL2
+#define	PG_AVAIL3	X86_PG_AVAIL3
+#define	PG_PDE_PAT	X86_PG_PDE_PAT
+#define	PG_NX		X86_PG_NX
+#define	PG_PDE_CACHE	X86_PG_PDE_CACHE
+#define	PG_PTE_CACHE	X86_PG_PTE_CACHE
+
+/* Our various interpretations of the above */
+#define	PG_W		X86_PG_AVAIL3	/* "Wired" pseudoflag */
+#define	PG_MANAGED	X86_PG_AVAIL2
+#define	EPT_PG_EMUL_V	X86_PG_AVAIL(52)
+#define	EPT_PG_EMUL_RW	X86_PG_AVAIL(53)
+#define	PG_FRAME	(0x000ffffffffff000ul)
+#define	PG_PS_FRAME	(0x000fffffffe00000ul)
 
 /*
  * Promotion to a 2MB (PDE) page mapping requires that the corresponding 4KB
  * (PTE) page mappings have identical settings for the following fields:
  */
-#define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_PAT | \
-	    PG_M | PG_A | PG_NC_PCD | PG_NC_PWT | PG_U | PG_RW | PG_V)
+#define	PG_PTE_PROMOTE	(PG_NX | PG_MANAGED | PG_W | PG_G | PG_PTE_CACHE | \
+	    PG_M | PG_A | PG_U | PG_RW | PG_V)
 
 /*
  * Page Protection Exception bits
@@ -95,6 +128,28 @@
 #define PGEX_U		0x04	/* access from User mode (UPL) */
 #define PGEX_RSV	0x08	/* reserved PTE field is non-zero */
 #define PGEX_I		0x10	/* during an instruction fetch */
+
+/* 
+ * undef the PG_xx macros that define bits in the regular x86 PTEs that
+ * have a different position in nested PTEs. This is done when compiling
+ * code that needs to be aware of the differences between regular x86 and
+ * nested PTEs.
+ *
+ * The appropriate bitmask will be calculated at runtime based on the pmap
+ * type.
+ */
+#ifdef AMD64_NPT_AWARE
+#undef PG_AVAIL1		/* X86_PG_AVAIL1 aliases with EPT_PG_M */
+#undef PG_G
+#undef PG_A
+#undef PG_M
+#undef PG_PDE_PAT
+#undef PG_PDE_CACHE
+#undef PG_PTE_PAT
+#undef PG_PTE_CACHE
+#undef PG_RW
+#undef PG_V
+#endif
 
 /*
  * Pte related macros.  This is complicated by having to deal with
@@ -113,28 +168,49 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
-#define NKPML4E		1		/* number of kernel PML4 slots */
+/*
+ * Number of kernel PML4 slots.  Can be anywhere from 1 to 64 or so,
+ * but setting it larger than NDMPML4E makes no sense.
+ *
+ * Each slot provides .5 TB of kernel virtual space.
+ */
+#define NKPML4E		4
 
 #define	NUPML4E		(NPML4EPG/2)	/* number of userland PML4 pages */
 #define	NUPDPE		(NUPML4E*NPDPEPG)/* number of userland PDP pages */
 #define	NUPDE		(NUPDPE*NPDEPG)	/* number of userland PD entries */
 
 /*
- * NDMPML4E is the number of PML4 entries that are used to implement the
- * direct map.  It must be a power of two.
+ * NDMPML4E is the maximum number of PML4 entries that will be
+ * used to implement the direct map.  It must be a power of two,
+ * and should generally exceed NKPML4E.  The maximum possible
+ * value is 64; using 128 will make the direct map intrude into
+ * the recursive page table map.
  */
-#define	NDMPML4E	2
+#define	NDMPML4E	8
 
 /*
- * The *PDI values control the layout of virtual memory.  The starting address
+ * These values control the layout of virtual memory.  The starting address
  * of the direct map, which is controlled by DMPML4I, must be a multiple of
  * its size.  (See the PHYS_TO_DMAP() and DMAP_TO_PHYS() macros.)
+ *
+ * Note: KPML4I is the index of the (single) level 4 page that maps
+ * the KVA that holds KERNBASE, while KPML4BASE is the index of the
+ * first level 4 page that maps VM_MIN_KERNEL_ADDRESS.  If NKPML4E
+ * is 1, these are the same, otherwise KPML4BASE < KPML4I and extra
+ * level 4 PDEs are needed to map from VM_MIN_KERNEL_ADDRESS up to
+ * KERNBASE.
+ *
+ * (KPML4I combines with KPDPI to choose where KERNBASE starts.
+ * Or, in other words, KPML4I provides bits 39..47 of KERNBASE,
+ * and KPDPI provides bits 30..38.)
  */
 #define	PML4PML4I	(NPML4EPG/2)	/* Index of recursive pml4 mapping */
 
-#define	KPML4I		(NPML4EPG-1)	/* Top 512GB for KVM */
-#define	DMPML4I		rounddown(KPML4I - NDMPML4E, NDMPML4E) /* Below KVM */
+#define	KPML4BASE	(NPML4EPG-NKPML4E) /* KVM at highest addresses */
+#define	DMPML4I		rounddown(KPML4BASE-NDMPML4E, NDMPML4E) /* Below KVM */
 
+#define	KPML4I		(NPML4EPG-1)
 #define	KPDPI		(NPDPEPG-2)	/* kernbase at -2GB */
 
 /*
@@ -185,41 +261,14 @@ extern u_int64_t KPML4phys;	/* physical address of kernel level 4 */
 pt_entry_t *vtopte(vm_offset_t);
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
-static __inline pt_entry_t
-pte_load(pt_entry_t *ptep)
-{
-	pt_entry_t r;
+#define	pte_load_store(ptep, pte)	atomic_swap_long(ptep, pte)
+#define	pte_load_clear(ptep)		atomic_swap_long(ptep, 0)
+#define	pte_store(ptep, pte) do { \
+	*(u_long *)(ptep) = (u_long)(pte); \
+} while (0)
+#define	pte_clear(ptep)			pte_store(ptep, 0)
 
-	r = *ptep;
-	return (r);
-}
-
-static __inline pt_entry_t
-pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-	pt_entry_t r;
-
-	__asm __volatile(
-	    "xchgq %0,%1"
-	    : "=m" (*ptep),
-	      "=r" (r)
-	    : "1" (pte),
-	      "m" (*ptep));
-	return (r);
-}
-
-#define	pte_load_clear(pte)	atomic_readandclear_long(pte)
-
-static __inline void
-pte_store(pt_entry_t *ptep, pt_entry_t pte)
-{
-
-	*ptep = pte;
-}
-
-#define	pte_clear(ptep)		pte_store((ptep), (pt_entry_t)0ULL)
-
-#define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+#define	pde_store(pdep, pde)		pte_store(pdep, pde)
 
 extern pt_entry_t pg_nx;
 
@@ -233,7 +282,14 @@ struct	pv_chunk;
 
 struct md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
+	int			pv_gen;
 	int			pat_mode;
+};
+
+enum pmap_type {
+	PT_X86,			/* regular x86 page tables */
+	PT_EPT,			/* Intel's nested page tables */
+	PT_RVI,			/* AMD's nested page tables */
 };
 
 /*
@@ -243,12 +299,23 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	pml4_entry_t		*pm_pml4;	/* KVA of level 4 page table */
+	uint64_t		pm_cr3;
 	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	cpuset_t		pm_active;	/* active on cpus */
-	/* spare u_int here due to padding */
+	cpuset_t		pm_save;	/* Context valid on cpus mask */
+	int			pm_pcid;	/* context id */
+	enum pmap_type		pm_type;	/* regular or nested tables */
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 	struct vm_radix		pm_root;	/* spare page table pages */
+	long			pm_eptgen;	/* EPT pmap generation id */
+	int			pm_flags;
 };
+
+/* flags */
+#define	PMAP_NESTED_IPIMASK	0xff
+#define	PMAP_PDE_SUPERPAGE	(1 << 8)	/* supports 2MB superpages */
+#define	PMAP_EMULATE_AD_BITS	(1 << 9)	/* needs A/D bits emulation */
+#define	PMAP_SUPPORTS_EXEC_ONLY	(1 << 10)	/* execute only mappings ok */
 
 typedef struct pmap	*pmap_t;
 
@@ -266,6 +333,9 @@ extern struct pmap	kernel_pmap_store;
 #define	PMAP_MTX(pmap)		(&(pmap)->pm_mtx)
 #define	PMAP_TRYLOCK(pmap)	mtx_trylock(&(pmap)->pm_mtx)
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
+
+int	pmap_pinit_type(pmap_t pmap, enum pmap_type pm_type, int flags);
+int	pmap_emulate_accessed_dirty(pmap_t pmap, vm_offset_t va, int ftype);
 #endif
 
 /*
@@ -324,7 +394,7 @@ void	pmap_invalidate_all(pmap_t);
 void	pmap_invalidate_cache(void);
 void	pmap_invalidate_cache_pages(vm_page_t *pages, int count);
 void	pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva);
-
+void	pmap_get_mapping(pmap_t pmap, vm_offset_t va, uint64_t *ptr, int *num);
 #endif /* _KERNEL */
 
 #endif /* !LOCORE */

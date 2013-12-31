@@ -65,9 +65,6 @@ __FBSDID("$FreeBSD$");
 #ifdef KDB
 #include <sys/kdb.h>
 #endif
-#ifdef FAST_FPE
-#include <sys/acct.h>
-#endif
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -89,9 +86,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static int gdb_trapper(u_int, u_int, struct trapframe *, int);
-#ifdef FAST_FPE
-extern int want_resched;
-#endif
 
 LIST_HEAD(, undefined_handler) undefined_handlers[MAX_COPROCS];
 
@@ -172,7 +166,7 @@ undefined_init()
 
 
 void
-undefinedinstruction(trapframe_t *frame)
+undefinedinstruction(struct trapframe *frame)
 {
 	struct thread *td;
 	u_int fault_pc;
@@ -240,13 +234,13 @@ undefinedinstruction(trapframe_t *frame)
 	coprocessor = 0;
 	if ((fault_instruction & (1 << 27)) != 0)
 		coprocessor = (fault_instruction >> 8) & 0x0f;
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	else {          /* check for special instructions */
 		if (((fault_instruction & 0xfe000000) == 0xf2000000) ||
 		    ((fault_instruction & 0xff100000) == 0xf4000000))
 			coprocessor = 10;       /* vfp / simd */
 	}
-#endif	/* ARM_VFP_SUPPORT */
+#endif	/* VFP */
 
 	if ((frame->tf_spsr & PSR_MODE) == PSR_USR32_MODE) {
 		/*
@@ -294,33 +288,5 @@ undefinedinstruction(trapframe_t *frame)
 			panic("Undefined instruction in kernel.\n");
 	}
 
-#ifdef FAST_FPE
-	/* Optimised exit code */
-	{
-
-		/*
-		 * Check for reschedule request, at the moment there is only
-		 * 1 ast so this code should always be run
-		 */
-
-		if (want_resched) {
-			/*
-			 * We are being preempted.
-			 */
-			preempt(0);
-		}
-
-		/* Invoke MI userret code */
-		mi_userret(td);
-
-#if 0
-		l->l_priority = l->l_usrpri;
-
-		curcpu()->ci_schedstate.spc_curpriority = l->l_priority;
-#endif
-	}
-
-#else
 	userret(td, frame);
-#endif
 }

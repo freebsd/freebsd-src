@@ -15,7 +15,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/bus.h>
 #include <machine/stdarg.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <xen/hypervisor.h>
 #include <xen/xen_intr.h>
 #include <sys/cons.h>
@@ -71,6 +71,8 @@ static char rbuf[RBUF_SIZE];
 static int rc, rp;
 static unsigned int cnsl_evt_reg;
 static unsigned int wc, wp; /* write_cons, write_prod */
+xen_intr_handle_t xen_intr_handle;
+device_t xencons_dev;
 
 #ifdef KDB
 static int	xc_altbrk;
@@ -224,7 +226,7 @@ static int
 xc_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -232,6 +234,7 @@ xc_attach(device_t dev)
 {
 	int error;
 
+	xencons_dev = dev;
 	xccons = tty_alloc(&xc_ttydevsw, NULL);
 	tty_makedev(xccons, NULL, "xc%r", 0);
 
@@ -243,15 +246,10 @@ xc_attach(device_t dev)
 	callout_reset(&xc_callout, XC_POLLTIME, xc_timeout, xccons);
     
 	if (xen_start_info->flags & SIF_INITDOMAIN) {
-			error = bind_virq_to_irqhandler(
-				 VIRQ_CONSOLE,
-				 0,
-				 "console",
-				 NULL,
-				 xencons_priv_interrupt, NULL,
-				 INTR_TYPE_TTY, NULL);
-		
-				KASSERT(error >= 0, ("can't register console interrupt"));
+		error = xen_intr_bind_virq(dev, VIRQ_CONSOLE, 0, NULL,
+		                           xencons_priv_interrupt, NULL,
+		                           INTR_TYPE_TTY, &xen_intr_handle);
+		KASSERT(error >= 0, ("can't register console interrupt"));
 	}
 
 	/* register handler to flush console on shutdown */

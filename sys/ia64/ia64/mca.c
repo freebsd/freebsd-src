@@ -284,8 +284,8 @@ ia64_mca_init(void)
 	}
 	max_size = round_page(max_size);
 
-	p = (max_size) ? contigmalloc(max_size, M_TEMP, 0, 0ul,
-	    256*1024*1024 - 1, PAGE_SIZE, 256*1024*1024) : NULL;
+	p = (max_size) ? contigmalloc(max_size, M_TEMP, M_NOWAIT, 0ul, ~0ul,
+	    PAGE_SIZE, 256*1024*1024) : NULL;
 	if (p != NULL) {
 		mca_info_block = IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t)p));
 

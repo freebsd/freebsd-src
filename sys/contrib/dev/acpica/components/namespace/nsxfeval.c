@@ -574,9 +574,9 @@ AcpiNsResolveReferences (
  * PARAMETERS:  Type                - ACPI_OBJECT_TYPE to search for
  *              StartObject         - Handle in namespace where search begins
  *              MaxDepth            - Depth to which search is to reach
- *              PreOrderVisit       - Called during tree pre-order visit
+ *              DescendingCallback  - Called during tree descent
  *                                    when an object of "Type" is found
- *              PostOrderVisit      - Called during tree post-order visit
+ *              AscendingCallback   - Called during tree ascent
  *                                    when an object of "Type" is found
  *              Context             - Passed to user function(s) above
  *              ReturnValue         - Location where return value of
@@ -605,8 +605,8 @@ AcpiWalkNamespace (
     ACPI_OBJECT_TYPE        Type,
     ACPI_HANDLE             StartObject,
     UINT32                  MaxDepth,
-    ACPI_WALK_CALLBACK      PreOrderVisit,
-    ACPI_WALK_CALLBACK      PostOrderVisit,
+    ACPI_WALK_CALLBACK      DescendingCallback,
+    ACPI_WALK_CALLBACK      AscendingCallback,
     void                    *Context,
     void                    **ReturnValue)
 {
@@ -620,7 +620,7 @@ AcpiWalkNamespace (
 
     if ((Type > ACPI_TYPE_LOCAL_MAX) ||
         (!MaxDepth)                  ||
-        (!PreOrderVisit && !PostOrderVisit))
+        (!DescendingCallback && !AscendingCallback))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
@@ -654,10 +654,19 @@ AcpiWalkNamespace (
         goto UnlockAndExit;
     }
 
-    Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
-                ACPI_NS_WALK_UNLOCK, PreOrderVisit,
-                PostOrderVisit, Context, ReturnValue);
+    /* Now we can validate the starting node */
 
+    if (!AcpiNsValidateHandle (StartObject))
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit2;
+    }
+
+    Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
+                ACPI_NS_WALK_UNLOCK, DescendingCallback,
+                AscendingCallback, Context, ReturnValue);
+
+UnlockAndExit2:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
 UnlockAndExit:

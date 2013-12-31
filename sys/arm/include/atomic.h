@@ -52,8 +52,8 @@
 #define dsb()  __asm __volatile("dsb" : : : "memory")
 #define dmb()  __asm __volatile("dmb" : : : "memory")
 #elif defined (__ARM_ARCH_6__) || defined (__ARM_ARCH_6J__) || \
-  defined (__ARM_ARCH_6K__) || defined (__ARM_ARCH_6Z__) || \
-  defined (__ARM_ARCH_6ZK__)
+  defined (__ARM_ARCH_6K__) || defined (__ARM_ARCH_6T2__) || \
+  defined (__ARM_ARCH_6Z__) || defined (__ARM_ARCH_6ZK__)
 #define isb()  __asm __volatile("mcr p15, 0, %0, c7, c5, 4" : : "r" (0) : "memory")
 #define dsb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 4" : : "r" (0) : "memory")
 #define dmb()  __asm __volatile("mcr p15, 0, %0, c7, c10, 5" : : "r" (0) : "memory")
@@ -81,11 +81,12 @@
  * out of asm.h so it can be used in both asm and C code. - kientzle@
  */
 #if defined (__ARM_ARCH_7__) || \
-	defined (__ARM_ARCH_7A__) || \
-	defined (__ARM_ARCH_6__) || \
-	defined (__ARM_ARCH_6J__) || \
-	defined (__ARM_ARCH_6K__) || \
-	defined (__ARM_ARCH_6Z__) || \
+	defined (__ARM_ARCH_7A__)  || \
+	defined (__ARM_ARCH_6__)   || \
+	defined (__ARM_ARCH_6J__)  || \
+	defined (__ARM_ARCH_6K__)  || \
+	defined (__ARM_ARCH_6T2__) || \
+	defined (__ARM_ARCH_6Z__)  || \
 	defined (__ARM_ARCH_6ZK__)
 static __inline void
 __do_dmb(void)
@@ -137,6 +138,7 @@ atomic_set_32(volatile uint32_t *address, uint32_t setmask)
 	    		    "orr %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
 			   , "+r" (address), "+r" (setmask) : : "cc", "memory");
@@ -152,6 +154,7 @@ atomic_set_long(volatile u_long *address, u_long setmask)
 	    		    "orr %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
 			   , "+r" (address), "+r" (setmask) : : "cc", "memory");
@@ -167,6 +170,7 @@ atomic_clear_32(volatile uint32_t *address, uint32_t setmask)
 	    		    "bic %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
 			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
@@ -181,6 +185,7 @@ atomic_clear_long(volatile u_long *address, u_long setmask)
 	    		    "bic %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "=&r" (tmp), "+r" (tmp2)
 			   ,"+r" (address), "+r" (setmask) : : "cc", "memory");
@@ -193,12 +198,14 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	
 	__asm __volatile("1: ldrex %0, [%1]\n"
 	                 "cmp %0, %2\n"
+	                 "itt ne\n"
 			 "movne %0, #0\n"
 			 "bne 2f\n"
 			 "strex %0, %3, [%1]\n"
 			 "cmp %0, #0\n"
-			 "bne	1b\n"
+	                 "ite eq\n"
 			 "moveq %0, #1\n"
+			 "bne	1b\n"
 			 "2:"
 			 : "=&r" (ret)
 			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc",
@@ -213,12 +220,14 @@ atomic_cmpset_long(volatile u_long *p, volatile u_long cmpval, volatile u_long n
 	
 	__asm __volatile("1: ldrex %0, [%1]\n"
 	                 "cmp %0, %2\n"
+	                 "itt ne\n"
 			 "movne %0, #0\n"
 			 "bne 2f\n"
 			 "strex %0, %3, [%1]\n"
 			 "cmp %0, #0\n"
-			 "bne	1b\n"
+	                 "ite eq\n"
 			 "moveq %0, #1\n"
+			 "bne	1b\n"
 			 "2:"
 			 : "=&r" (ret)
 			 ,"+r" (p), "+r" (cmpval), "+r" (newval) : : "cc",
@@ -270,6 +279,7 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t val)
 	    		    "add %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
 			    ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -284,6 +294,7 @@ atomic_add_long(volatile u_long *p, u_long val)
 	    		    "add %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
 			    ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -298,6 +309,7 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t val)
 	    		    "sub %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
 			    ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -312,6 +324,7 @@ atomic_subtract_long(volatile u_long *p, u_long val)
 	    		    "sub %0, %0, %3\n"
 			    "strex %1, %0, [%2]\n"
 			    "cmp %1, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			    : "=&r" (tmp), "+r" (tmp2)
 			    ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -338,6 +351,7 @@ atomic_fetchadd_32(volatile uint32_t *p, uint32_t val)
 	    		    "add %1, %0, %4\n"
 			    "strex %2, %1, [%3]\n"
 			    "cmp %2, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
 			   ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -353,6 +367,7 @@ atomic_readandclear_32(volatile u_int32_t *p)
 	    		 "mov %1, #0\n"
 			 "strex %2, %1, [%3]\n"
 			 "cmp %2, #0\n"
+	                 "it ne\n"
 			 "bne 1b\n"
 			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
 			 ,"+r" (p) : : "cc", "memory");
@@ -386,6 +401,7 @@ atomic_fetchadd_long(volatile u_long *p, u_long val)
 	    		    "add %1, %0, %4\n"
 			    "strex %2, %1, [%3]\n"
 			    "cmp %2, #0\n"
+	                    "it ne\n"
 			    "bne	1b\n"
 			   : "+r" (ret), "=&r" (tmp), "+r" (tmp2)
 			   ,"+r" (p), "+r" (val) : : "cc", "memory");
@@ -401,6 +417,7 @@ atomic_readandclear_long(volatile u_long *p)
 	    		 "mov %1, #0\n"
 			 "strex %2, %1, [%3]\n"
 			 "cmp %2, #0\n"
+	                 "it ne\n"
 			 "bne 1b\n"
 			 : "=r" (ret), "=&r" (tmp), "+r" (tmp2)
 			 ,"+r" (p) : : "cc", "memory");

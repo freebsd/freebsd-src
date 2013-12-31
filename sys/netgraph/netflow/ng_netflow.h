@@ -416,7 +416,7 @@ struct netflow {
 	 * indexed by hash hash. Each hash element consist of tailqueue
 	 * head and mutex to protect this element.
 	 */
-#define	CACHESIZE			(65536*4)
+#define	CACHESIZE			(65536*16)
 #define	CACHELOWAT			(CACHESIZE * 3/4)
 #define	CACHEHIGHWAT			(CACHESIZE * 9/10)
 	uma_zone_t		zone;

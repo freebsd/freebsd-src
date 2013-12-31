@@ -44,12 +44,24 @@
  * allocate IDT vectors.
  *
  * The first 255 IRQs (0 - 254) are reserved for ISA IRQs and PCI intline IRQs.
- * IRQ values beyond 256 are used by MSI.  We leave 255 unused to avoid
- * confusion since 255 is used in PCI to indicate an invalid IRQ.
+ * IRQ values from 256 to 767 are used by MSI.  When running under the Xen
+ * Hypervisor, IRQ values from 768 to 4863 are available for binding to
+ * event channel events.  We leave 255 unused to avoid confusion since 255 is
+ * used in PCI to indicate an invalid IRQ.
  */
 #define	NUM_MSI_INTS	512
 #define	FIRST_MSI_INT	256
-#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS)
+#ifdef XENHVM
+#include <xen/xen-os.h>
+#define	NUM_EVTCHN_INTS	NR_EVENT_CHANNELS
+#define	FIRST_EVTCHN_INT \
+    (FIRST_MSI_INT + NUM_MSI_INTS)
+#define	LAST_EVTCHN_INT \
+    (FIRST_EVTCHN_INT + NUM_EVTCHN_INTS - 1)
+#else
+#define	NUM_EVTCHN_INTS	0
+#endif
+#define	NUM_IO_INTS	(FIRST_MSI_INT + NUM_MSI_INTS + NUM_EVTCHN_INTS)
 
 /*
  * Default base address for MSI messages on x86 platforms.
@@ -90,7 +102,7 @@ struct pic {
 	int (*pic_vector)(struct intsrc *);
 	int (*pic_source_pending)(struct intsrc *);
 	void (*pic_suspend)(struct pic *);
-	void (*pic_resume)(struct pic *);
+	void (*pic_resume)(struct pic *, bool suspend_cancelled);
 	int (*pic_config_intr)(struct intsrc *, enum intr_trigger,
 	    enum intr_polarity);
 	int (*pic_assign_cpu)(struct intsrc *, u_int apic_id);
@@ -158,7 +170,7 @@ struct intsrc *intr_lookup_source(int vector);
 int	intr_register_pic(struct pic *pic);
 int	intr_register_source(struct intsrc *isrc);
 int	intr_remove_handler(void *cookie);
-void	intr_resume(void);
+void	intr_resume(bool suspend_cancelled);
 void	intr_suspend(void);
 void	intrcnt_add(const char *name, u_long **countp);
 void	nexus_add_irq(u_long irq);

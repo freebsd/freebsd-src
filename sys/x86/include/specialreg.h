@@ -201,9 +201,15 @@
 #define	AMDID2_WDT	0x00002000
 #define	AMDID2_LWP	0x00008000
 #define	AMDID2_FMA4	0x00010000
+#define	AMDID2_TCE	0x00020000
 #define	AMDID2_NODE_ID	0x00080000
 #define	AMDID2_TBM	0x00200000
 #define	AMDID2_TOPOLOGY	0x00400000
+#define	AMDID2_PCXC	0x00800000
+#define	AMDID2_PNXC	0x01000000
+#define	AMDID2_DBE	0x04000000
+#define	AMDID2_PTSC	0x08000000
+#define	AMDID2_PTSCEL2I	0x10000000
 
 /*
  * CPUID instruction 1 eax info
@@ -238,6 +244,29 @@
 #define	CPUID_CLFUSH_SIZE	0x0000ff00
 #define	CPUID_HTT_CORES		0x00ff0000
 #define	CPUID_LOCAL_APIC_ID	0xff000000
+
+/*
+ * CPUID instruction 5 info
+ */
+#define	CPUID5_MON_MIN_SIZE	0x0000ffff	/* eax */
+#define	CPUID5_MON_MAX_SIZE	0x0000ffff	/* ebx */
+#define	CPUID5_MON_MWAIT_EXT	0x00000001	/* ecx */
+#define	CPUID5_MWAIT_INTRBREAK	0x00000002	/* ecx */
+
+/*
+ * MWAIT cpu power states.  Lower 4 bits are sub-states.
+ */
+#define	MWAIT_C0	0xf0
+#define	MWAIT_C1	0x00
+#define	MWAIT_C2	0x10
+#define	MWAIT_C3	0x20
+#define	MWAIT_C4	0x30
+
+/*
+ * MWAIT extensions.
+ */
+/* Interrupt breaks MWAIT even when masked. */
+#define	MWAIT_INTRBREAK		0x00000001
 
 /*
  * CPUID instruction 6 ecx info

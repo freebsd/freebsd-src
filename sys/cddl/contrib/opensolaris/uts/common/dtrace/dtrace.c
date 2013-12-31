@@ -116,6 +116,7 @@
 #if !defined(sun)
 #include <sys/callout.h>
 #include <sys/ctype.h>
+#include <sys/eventhandler.h>
 #include <sys/limits.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -184,6 +185,9 @@ hrtime_t	dtrace_deadman_interval = NANOSEC;
 hrtime_t	dtrace_deadman_timeout = (hrtime_t)10 * NANOSEC;
 hrtime_t	dtrace_deadman_user = (hrtime_t)30 * NANOSEC;
 hrtime_t	dtrace_unregister_defunct_reap = (hrtime_t)60 * NANOSEC;
+#if !defined(sun)
+int		dtrace_memstr_max = 4096;
+#endif
 
 /*
  * DTrace External Variables
@@ -202,12 +206,11 @@ const char	dtrace_zero[256] = { 0 };	/* zero-filled memory */
 #if defined(sun)
 static dev_info_t	*dtrace_devi;		/* device info */
 #endif
-#if defined(sun)
 static vmem_t		*dtrace_arena;		/* probe ID arena */
+#if defined(sun)
 static vmem_t		*dtrace_minor;		/* minor number arena */
 #else
 static taskq_t		*dtrace_taskq;		/* task queue */
-static struct unrhdr	*dtrace_arena;		/* Probe ID number.     */
 #endif
 static dtrace_probe_t	**dtrace_probes;	/* array of all probes */
 static int		dtrace_nprobes;		/* number of probes */
@@ -240,6 +243,8 @@ int		dtrace_in_probe;	/* non-zero if executing a probe */
 #if defined(__i386__) || defined(__amd64__) || defined(__mips__) || defined(__powerpc__)
 uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
 #endif
+static eventhandler_tag	dtrace_kld_load_tag;
+static eventhandler_tag	dtrace_kld_unload_try_tag;
 #endif
 
 /*
@@ -4917,6 +4922,45 @@ inetout:	regs[rd] = (uintptr_t)end + 1;
 		break;
 	}
 
+#if !defined(sun)
+	case DIF_SUBR_MEMSTR: {
+		char *str = (char *)mstate->dtms_scratch_ptr;
+		uintptr_t mem = tupregs[0].dttk_value;
+		char c = tupregs[1].dttk_value;
+		size_t size = tupregs[2].dttk_value;
+		uint8_t n;
+		int i;
+
+		regs[rd] = 0;
+
+		if (size == 0)
+			break;
+
+		if (!dtrace_canload(mem, size - 1, mstate, vstate))
+			break;
+
+		if (!DTRACE_INSCRATCH(mstate, size)) {
+			DTRACE_CPUFLAG_SET(CPU_DTRACE_NOSCRATCH);
+			break;
+		}
+
+		if (dtrace_memstr_max != 0 && size > dtrace_memstr_max) {
+			*flags |= CPU_DTRACE_ILLOP;
+			break;
+		}
+
+		for (i = 0; i < size - 1; i++) {
+			n = dtrace_load8(mem++);
+			str[i] = (n == 0) ? c : n;
+		}
+		str[size - 1] = 0;
+
+		regs[rd] = (uintptr_t)str;
+		mstate->dtms_scratch_ptr += size;
+		break;
+	}
+#endif
+
 	case DIF_SUBR_TYPEREF: {
 		uintptr_t size = 4 * sizeof(uintptr_t);
 		uintptr_t *typeref = (uintptr_t *) P2ROUNDUP(mstate->dtms_scratch_ptr, sizeof(uintptr_t));
@@ -7787,7 +7831,7 @@ dtrace_unregister(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)(probe->dtpr_id), 1);
 #else
-		free_unr(dtrace_arena, probe->dtpr_id);
+		vmem_free(dtrace_arena, (vmem_addr_t)(probe->dtpr_id), 1);
 #endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
@@ -7908,7 +7952,7 @@ dtrace_condense(dtrace_provider_id_t id)
 #if defined(sun)
 		vmem_free(dtrace_arena, (void *)((uintptr_t)i + 1), 1);
 #else
-		free_unr(dtrace_arena, i + 1);
+		vmem_free(dtrace_arena, (vmem_addr_t)i + 1, 1);
 #endif
 	}
 
@@ -7938,6 +7982,9 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 	dtrace_probe_t *probe, **probes;
 	dtrace_provider_t *provider = (dtrace_provider_t *)prov;
 	dtrace_id_t id;
+#if !defined(sun)
+	vmem_addr_t addr;
+#endif
 
 	if (provider == dtrace_provider) {
 		ASSERT(MUTEX_HELD(&dtrace_lock));
@@ -7947,9 +7994,10 @@ dtrace_probe_create(dtrace_provider_id_t prov, const char *mod,
 
 #if defined(sun)
 	id = (dtrace_id_t)(uintptr_t)vmem_alloc(dtrace_arena, 1,
-	    VM_BESTFIT | VM_SLEEP);
+	    VM_BESTFIT | VM_WAITOK);
 #else
-	id = alloc_unr(dtrace_arena);
+	vmem_alloc(dtrace_arena, 1, M_BESTFIT | M_WAITOK, &addr);
+	id = (dtrace_id_t)addr;
 #endif
 	probe = kmem_zalloc(sizeof (dtrace_probe_t), KM_SLEEP);
 
@@ -8098,19 +8146,6 @@ dtrace_probe_description(const dtrace_probe_t *prp, dtrace_probedesc_t *pdp)
 	(void) strncpy(pdp->dtpd_name, prp->dtpr_name, DTRACE_NAMELEN - 1);
 }
 
-#if !defined(sun)
-static int
-dtrace_probe_provide_cb(linker_file_t lf, void *arg)
-{
-	dtrace_provider_t *prv = (dtrace_provider_t *) arg;
-
-	prv->dtpv_pops.dtps_provide_module(prv->dtpv_arg, lf);
-
-	return(0);
-}
-#endif
-
-
 /*
  * Called to indicate that a probe -- or probes -- should be provided by a
  * specfied provider.  If the specified description is NULL, the provider will
@@ -8166,8 +8201,6 @@ dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *prv)
 		} while ((ctl = ctl->mod_next) != &modules);
 
 		mutex_exit(&mod_lock);
-#else
-		(void) linker_file_foreach(dtrace_probe_provide_cb, prv);
 #endif
 	} while (all && (prv = prv->dtpv_next) != NULL);
 }
@@ -9114,6 +9147,9 @@ dtrace_difo_validate_helper(dtrace_difo_t *dp)
 			    subr == DIF_SUBR_NTOHL ||
 			    subr == DIF_SUBR_NTOHLL ||
 			    subr == DIF_SUBR_MEMREF ||
+#if !defined(sun)
+			    subr == DIF_SUBR_MEMSTR ||
+#endif
 			    subr == DIF_SUBR_TYPEREF)
 				break;
 
@@ -10012,6 +10048,9 @@ dtrace_ecb_aggregation_create(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 	dtrace_recdesc_t *frec;
 	dtrace_aggid_t aggid;
 	dtrace_state_t *state = ecb->dte_state;
+#if !defined(sun)
+	vmem_addr_t addr;
+#endif
 
 	agg = kmem_zalloc(sizeof (dtrace_aggregation_t), KM_SLEEP);
 	agg->dtag_ecb = ecb;
@@ -10151,7 +10190,8 @@ success:
 	aggid = (dtrace_aggid_t)(uintptr_t)vmem_alloc(state->dts_aggid_arena, 1,
 	    VM_BESTFIT | VM_SLEEP);
 #else
-	aggid = alloc_unr(state->dts_aggid_arena);
+	vmem_alloc(state->dts_aggid_arena, 1, M_BESTFIT | M_WAITOK, &addr);
+	aggid = (dtrace_aggid_t)addr;
 #endif
 
 	if (aggid - 1 >= state->dts_naggregations) {
@@ -10204,7 +10244,7 @@ dtrace_ecb_aggregation_destroy(dtrace_ecb_t *ecb, dtrace_action_t *act)
 #if defined(sun)
 	vmem_free(state->dts_aggid_arena, (void *)(uintptr_t)aggid, 1);
 #else
-	free_unr(state->dts_aggid_arena, aggid);
+	vmem_free(state->dts_aggid_arena, (vmem_addr_t)aggid, 1);
 #endif
 
 	ASSERT(state->dts_aggregations[aggid - 1] == agg);
@@ -13172,7 +13212,7 @@ dtrace_state_create(struct cdev *dev)
 	if (dev != NULL) {
 		cr = dev->si_cred;
 		m = dev2unit(dev);
-		}
+	}
 
 	/* Allocate memory for the state. */
 	state = kmem_zalloc(sizeof(dtrace_state_t), KM_SLEEP);
@@ -13184,7 +13224,12 @@ dtrace_state_create(struct cdev *dev)
 #if defined(sun)
 	state->dts_aggid_arena = vmem_create(c, (void *)1, UINT32_MAX, 1,
 	    NULL, NULL, NULL, 0, VM_SLEEP | VMC_IDENTIFIER);
+#else
+	state->dts_aggid_arena = vmem_create(c, (vmem_addr_t)1, UINT32_MAX, 1,
+	    0, M_WAITOK);
+#endif
 
+#if defined(sun)
 	if (devp != NULL) {
 		major = getemajor(*devp);
 	} else {
@@ -13196,7 +13241,6 @@ dtrace_state_create(struct cdev *dev)
 	if (devp != NULL)
 		*devp = state->dts_dev;
 #else
-	state->dts_aggid_arena = new_unrhdr(1, INT_MAX, &dtrace_unr_mtx);
 	state->dts_dev = dev;
 #endif
 
@@ -14003,11 +14047,7 @@ dtrace_state_destroy(dtrace_state_t *state)
 	dtrace_format_destroy(state);
 
 	if (state->dts_aggid_arena != NULL) {
-#if defined(sun)
 		vmem_destroy(state->dts_aggid_arena);
-#else
-		delete_unrhdr(state->dts_aggid_arena);
-#endif
 		state->dts_aggid_arena = NULL;
 	}
 #if defined(sun)
@@ -15152,7 +15192,6 @@ dtrace_helpers_duplicate(proc_t *from, proc_t *to)
 		dtrace_helper_provider_register(to, newhelp, NULL);
 }
 
-#if defined(sun)
 /*
  * DTrace Hook Functions
  */
@@ -15166,7 +15205,9 @@ dtrace_module_loaded(modctl_t *ctl)
 	mutex_enter(&mod_lock);
 #endif
 
+#if defined(sun)
 	ASSERT(ctl->mod_busy);
+#endif
 
 	/*
 	 * We're going to call each providers per-module provide operation
@@ -15214,18 +15255,47 @@ dtrace_module_loaded(modctl_t *ctl)
 }
 
 static void
+#if defined(sun)
 dtrace_module_unloaded(modctl_t *ctl)
+#else
+dtrace_module_unloaded(modctl_t *ctl, int *error)
+#endif
 {
 	dtrace_probe_t template, *probe, *first, *next;
 	dtrace_provider_t *prov;
+#if !defined(sun)
+	char modname[DTRACE_MODNAMELEN];
+	size_t len;
+#endif
 
+#if defined(sun)
 	template.dtpr_mod = ctl->mod_modname;
+#else
+	/* Handle the fact that ctl->filename may end in ".ko". */
+	strlcpy(modname, ctl->filename, sizeof(modname));
+	len = strlen(ctl->filename);
+	if (len > 3 && strcmp(modname + len - 3, ".ko") == 0)
+		modname[len - 3] = '\0';
+	template.dtpr_mod = modname;
+#endif
 
 	mutex_enter(&dtrace_provider_lock);
 #if defined(sun)
 	mutex_enter(&mod_lock);
 #endif
 	mutex_enter(&dtrace_lock);
+
+#if !defined(sun)
+	if (ctl->nenabled > 0) {
+		/* Don't allow unloads if a probe is enabled. */
+		mutex_exit(&dtrace_provider_lock);
+		mutex_exit(&dtrace_lock);
+		*error = -1;
+		printf(
+	"kldunload: attempt to unload module that has DTrace probes enabled\n");
+		return;
+	}
+#endif
 
 	if (dtrace_bymod == NULL) {
 		/*
@@ -15260,8 +15330,13 @@ dtrace_module_unloaded(modctl_t *ctl)
 			 * probe, either.
 			 */
 			if (dtrace_err_verbose) {
+#if defined(sun)
 				cmn_err(CE_WARN, "unloaded module '%s' had "
 				    "enabled probes", ctl->mod_modname);
+#else
+				cmn_err(CE_WARN, "unloaded module '%s' had "
+				    "enabled probes", modname);
+#endif
 			}
 
 			return;
@@ -15304,7 +15379,11 @@ dtrace_module_unloaded(modctl_t *ctl)
 		kmem_free(probe->dtpr_mod, strlen(probe->dtpr_mod) + 1);
 		kmem_free(probe->dtpr_func, strlen(probe->dtpr_func) + 1);
 		kmem_free(probe->dtpr_name, strlen(probe->dtpr_name) + 1);
+#if defined(sun)
 		vmem_free(dtrace_arena, (void *)(uintptr_t)probe->dtpr_id, 1);
+#else
+		vmem_free(dtrace_arena, (vmem_addr_t)probe->dtpr_id, 1);
+#endif
 		kmem_free(probe, sizeof (dtrace_probe_t));
 	}
 
@@ -15315,6 +15394,26 @@ dtrace_module_unloaded(modctl_t *ctl)
 	mutex_exit(&dtrace_provider_lock);
 }
 
+#if !defined(sun)
+static void
+dtrace_kld_load(void *arg __unused, linker_file_t lf)
+{
+
+	dtrace_module_loaded(lf);
+}
+
+static void
+dtrace_kld_unload_try(void *arg __unused, linker_file_t lf, int *error)
+{
+
+	if (*error != 0)
+		/* We already have an error, so don't do anything. */
+		return;
+	dtrace_module_unloaded(lf, error);
+}
+#endif
+
+#if defined(sun)
 static void
 dtrace_suspend(void)
 {
@@ -15704,10 +15803,6 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 #else
 	devfs_set_cdevpriv(state, dtrace_dtr);
 #endif
-	/* This code actually belongs in dtrace_attach() */
-	if (dtrace_opens == 1)
-		dtrace_taskq = taskq_create("dtrace_taskq", 1, maxclsyspri,
-		    1, INT_MAX, 0);
 #endif
 
 	mutex_exit(&cpu_lock);
@@ -15795,11 +15890,6 @@ dtrace_dtr(void *data)
 		(void) kdi_dtrace_set(KDI_DTSET_DTRACE_DEACTIVATE);
 #else
 	--dtrace_opens;
-	/* This code actually belongs in dtrace_detach() */
-	if ((dtrace_opens == 0) && (dtrace_taskq != NULL)) {
-		taskq_destroy(dtrace_taskq);
-		dtrace_taskq = NULL;
-	}
 #endif
 
 	mutex_exit(&dtrace_lock);

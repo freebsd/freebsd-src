@@ -62,7 +62,7 @@ SYSCTL_DECL(_hw_aac);
  * The firmware interface allows for a 16-bit s/g list length.  We limit
  * ourselves to a reasonable maximum and ensure alignment.
  */
-#define AAC_MAXSGENTRIES	64	/* max S/G entries, limit 65535 */		
+#define AAC_MAXSGENTRIES	64	/* max S/G entries, limit 65535 */
 
 /*
  * We allocate a small set of FIBs for the adapter to use to send us messages.
@@ -224,7 +224,7 @@ struct aac_common {
 
 	/* buffer for text messages from the controller */
 	char			ac_printf[AAC_PRINTF_BUFSIZE];
-	
+
 	/* fib for synchronous commands */
 	struct aac_fib		ac_sync_fib;
 };
@@ -406,12 +406,13 @@ struct aac_softc
 #define	AAC_FLAGS_NO4GB		(1 << 6)	/* Can't access host mem >2GB */
 #define	AAC_FLAGS_256FIBS	(1 << 7)	/* Can only do 256 commands */
 #define	AAC_FLAGS_BROKEN_MEMMAP (1 << 8)	/* Broken HostPhysMemPages */
-#define AAC_FLAGS_SLAVE	(1 << 9)
+#define	AAC_FLAGS_SLAVE		(1 << 9)
 #define AAC_FLAGS_MASTER	(1 << 10)
 #define AAC_FLAGS_NEW_COMM	(1 << 11)	/* New comm. interface supported */
 #define AAC_FLAGS_RAW_IO	(1 << 12)	/* Raw I/O interface */
 #define AAC_FLAGS_ARRAY_64BIT	(1 << 13)	/* 64-bit array size */
 #define	AAC_FLAGS_LBA_64BIT	(1 << 14)	/* 64-bit LBA support */
+#define	AAC_FLAGS_NOMSI		(1U << 31)	/* Broken MSI */
 
 	u_int32_t		supported_options;
 	u_int32_t		scsi_method_id;
@@ -526,7 +527,6 @@ struct aac_code_lookup {
 		sc->aac_qstat[qname].q_length = 0;	\
 		sc->aac_qstat[qname].q_max = 0;		\
 	} while (0)
-
 
 #define AACQ_COMMAND_QUEUE(name, index)					\
 static __inline void							\

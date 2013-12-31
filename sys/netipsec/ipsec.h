@@ -217,43 +217,17 @@ struct secspacq {
 
 /* statistics for ipsec processing */
 struct ipsecstat {
-	uint64_t in_success;  /* succeeded inbound process */
-	uint64_t in_polvio;
-			/* security policy violation for inbound process */
-	uint64_t in_nosa;     /* inbound SA is unavailable */
-	uint64_t in_inval;    /* inbound processing failed due to EINVAL */
-	uint64_t in_nomem;    /* inbound processing failed due to ENOBUFS */
-	uint64_t in_badspi;   /* failed getting a SPI */
-	uint64_t in_ahreplay; /* AH replay check failed */
-	uint64_t in_espreplay; /* ESP replay check failed */
-	uint64_t in_ahauthsucc; /* AH authentication success */
-	uint64_t in_ahauthfail; /* AH authentication failure */
-	uint64_t in_espauthsucc; /* ESP authentication success */
-	uint64_t in_espauthfail; /* ESP authentication failure */
-	uint64_t in_esphist[256];
-	uint64_t in_ahhist[256];
-	uint64_t in_comphist[256];
-	uint64_t out_success; /* succeeded outbound process */
-	uint64_t out_polvio;
-			/* security policy violation for outbound process */
-	uint64_t out_nosa;    /* outbound SA is unavailable */
-	uint64_t out_inval;   /* outbound process failed due to EINVAL */
-	uint64_t out_nomem;    /* inbound processing failed due to ENOBUFS */
-	uint64_t out_noroute; /* there is no route */
-	uint64_t out_esphist[256];
-	uint64_t out_ahhist[256];
-	uint64_t out_comphist[256];
-
-	uint64_t spdcachelookup;
-	uint64_t spdcachemiss;
-
 	uint64_t ips_in_polvio;		/* input: sec policy violation */
+	uint64_t ips_in_nomem;		/* input: no memory available */
+	uint64_t ips_in_inval;		/* input: generic error */
+
 	uint64_t ips_out_polvio;	/* output: sec policy violation */
 	uint64_t ips_out_nosa;		/* output: SA unavailable  */
 	uint64_t ips_out_nomem;		/* output: no memory available */
 	uint64_t ips_out_noroute;	/* output: no route available */
 	uint64_t ips_out_inval;		/* output: generic error */
 	uint64_t ips_out_bundlesa;	/* output: bundled SA processed */
+
 	uint64_t ips_mbcoalesced;	/* mbufs coalesced during clone */
 	uint64_t ips_clcoalesced;	/* clusters coalesced during clone */
 	uint64_t ips_clcopied;		/* clusters copied during clone */
@@ -289,40 +263,6 @@ struct ipsecstat {
 #define	IPSECCTL_DEBUG			12
 #define	IPSECCTL_ESP_RANDPAD		13
 #define IPSECCTL_MAXID			14
-
-#define IPSECCTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "ah_cleartos", CTLTYPE_INT }, \
-	{ "ah_offsetmask", CTLTYPE_INT }, \
-	{ "dfbit", CTLTYPE_INT }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
-
-#define IPSEC6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "def_policy", CTLTYPE_INT }, \
-	{ "esp_trans_deflev", CTLTYPE_INT }, \
-	{ "esp_net_deflev", CTLTYPE_INT }, \
-	{ "ah_trans_deflev", CTLTYPE_INT }, \
-	{ "ah_net_deflev", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "ecn", CTLTYPE_INT }, \
-	{ "debug", CTLTYPE_INT }, \
-	{ "esp_randpad", CTLTYPE_INT }, \
-}
 
 #ifdef _KERNEL
 #include <sys/counter.h>

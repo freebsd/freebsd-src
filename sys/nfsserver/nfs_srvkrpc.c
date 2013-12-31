@@ -68,7 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/tcp.h>
 #ifdef INET6
 #include <net/if.h>
-#include <netinet6/in6_var.h>
+#include <net/if_var.h>			/* XXX: for in6_var.h */
+#include <netinet6/in6_var.h>		/* XXX: for ip6_sprintf */
 #endif
 
 #include <rpc/rpc.h>
@@ -168,6 +169,7 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfsd_addsock_args addsockarg;
 	struct nfsd_nfsd_args nfsdarg;
+	cap_rights_t rights;
 	int error;
 
 	if (uap->flag & NFSSVC_ADDSOCK) {
@@ -175,7 +177,8 @@ nfssvc_nfsserver(struct thread *td, struct nfssvc_args *uap)
 		    sizeof(addsockarg));
 		if (error)
 			return (error);
-		error = fget(td, addsockarg.sock, CAP_SOCK_SERVER, &fp);
+		error = fget(td, addsockarg.sock,
+		    cap_rights_init(&rights, CAP_SOCK_SERVER), &fp);
 		if (error)
 			return (error);
 		if (fp->f_type != DTYPE_SOCKET) {

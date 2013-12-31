@@ -33,24 +33,6 @@
 #error "sys/cdefs.h is a prerequisite for this file"
 #endif
 
-#if defined(XEN) || defined(XENHVM)
-#ifndef NR_VIRQS
-#define	NR_VIRQS	24
-#endif
-#ifndef NR_IPIS
-#define	NR_IPIS		2
-#endif
-#endif
-
-#ifdef XENHVM
-#define PCPU_XEN_FIELDS							\
-	;								\
-	unsigned int pc_last_processed_l1i;				\
-	unsigned int pc_last_processed_l2i
-#else
-#define PCPU_XEN_FIELDS
-#endif
-
 /*
  * The SMP parts are setup in pmap.c and locore.s for the BSP, and
  * mp_machdep.c sets up the data for the AP's to "see" when they awake.
@@ -76,11 +58,12 @@
 	struct system_segment_descriptor *pc_ldt;			\
 	/* Pointer to the CPU TSS descriptor */				\
 	struct system_segment_descriptor *pc_tss;			\
-	u_int	pc_cmci_mask		/* MCx banks for CMCI */	\
-	PCPU_XEN_FIELDS;						\
+	uint64_t	pc_pm_save_cnt;					\
+	u_int	pc_cmci_mask;		/* MCx banks for CMCI */	\
 	uint64_t pc_dbreg[16];		/* ddb debugging regs */	\
 	int pc_dbreg_cmd;		/* ddb debugging reg cmd */	\
-	char	__pad[161]		/* be divisor of PAGE_SIZE	\
+	u_int	pc_vcpu_id;		/* Xen vCPU ID */		\
+	char	__pad[157]		/* be divisor of PAGE_SIZE	\
 					   after cache alignment */
 
 #define	PC_DBREG_CMD_NONE	0

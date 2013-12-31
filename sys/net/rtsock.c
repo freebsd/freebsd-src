@@ -53,6 +53,7 @@
 #include <sys/systm.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_llatbl.h>
 #include <net/if_types.h>
@@ -86,7 +87,7 @@ struct if_data32 {
 	uint8_t	ifi_hdrlen;
 	uint8_t	ifi_link_state;
 	uint8_t	ifi_vhid;
-	uint8_t	ifi_spare_char2;
+	uint8_t	ifi_baudrate_pf;
 	uint8_t	ifi_datalen;
 	uint32_t ifi_mtu;
 	uint32_t ifi_metric;
@@ -968,8 +969,8 @@ flush:
 #ifdef INET6
 		if (rti_need_deembed) {
 			/* sin6_scope_id is recovered before sending rtm. */
+			sin6 = (struct sockaddr_in6 *)&ss;
 			for (i = 0; i < RTAX_MAX; i++) {
-				sin6 = (struct sockaddr_in6 *)&ss;
 				if (info.rti_info[i] == NULL)
 					continue;
 				if (info.rti_info[i]->sa_family != AF_INET6)
@@ -1629,6 +1630,7 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 	CP(*src, *dst, ifi_hdrlen);
 	CP(*src, *dst, ifi_link_state);
 	CP(*src, *dst, ifi_vhid);
+	CP(*src, *dst, ifi_baudrate_pf);
 	dst->ifi_datalen = sizeof(struct if_data32);
 	CP(*src, *dst, ifi_mtu);
 	CP(*src, *dst, ifi_metric);
@@ -1750,7 +1752,17 @@ sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
 		    offsetof(struct ifa_msghdrl32, ifam_data);
 		ifam32->ifam_metric = ifa->ifa_metric;
 
-		copy_ifdata32(&ifa->ifa_ifp->if_data, &ifam32->ifam_data);
+		bzero(&ifam32->ifam_data, sizeof(ifam32->ifam_data));
+		ifam32->ifam_data.ifi_datalen = sizeof(struct if_data32);
+		ifam32->ifam_data.ifi_ipackets =
+		    counter_u64_fetch(ifa->ifa_ipackets);
+		ifam32->ifam_data.ifi_opackets =
+		    counter_u64_fetch(ifa->ifa_opackets);
+		ifam32->ifam_data.ifi_ibytes =
+		    counter_u64_fetch(ifa->ifa_ibytes);
+		ifam32->ifam_data.ifi_obytes =
+		    counter_u64_fetch(ifa->ifa_obytes);
+
 		/* Fixup if_data carp(4) vhid. */
 		if (carp_get_vhid_p != NULL)
 			ifam32->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);
@@ -1768,7 +1780,13 @@ sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
 	ifam->ifam_data_off = offsetof(struct ifa_msghdrl, ifam_data);
 	ifam->ifam_metric = ifa->ifa_metric;
 
-	ifam->ifam_data = ifa->if_data;
+	bzero(&ifam->ifam_data, sizeof(ifam->ifam_data));
+	ifam->ifam_data.ifi_datalen = sizeof(struct if_data);
+	ifam->ifam_data.ifi_ipackets = counter_u64_fetch(ifa->ifa_ipackets);
+	ifam->ifam_data.ifi_opackets = counter_u64_fetch(ifa->ifa_opackets);
+	ifam->ifam_data.ifi_ibytes = counter_u64_fetch(ifa->ifa_ibytes);
+	ifam->ifam_data.ifi_obytes = counter_u64_fetch(ifa->ifa_obytes);
+
 	/* Fixup if_data carp(4) vhid. */
 	if (carp_get_vhid_p != NULL)
 		ifam->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);

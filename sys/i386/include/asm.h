@@ -49,11 +49,12 @@
 	popl	%ebx
 #define	PIC_PLT(x)	x@PLT
 #define	PIC_GOT(x)	x@GOT(%ebx)
+#define	PIC_GOTOFF(x)	x@GOTOFF(%ebx)
 #else
 #define	PIC_PROLOGUE
 #define	PIC_EPILOGUE
 #define	PIC_PLT(x)	x
-#define	PIC_GOT(x)	x
+#define	PIC_GOTOFF(x)	x
 #endif
 
 /*
@@ -90,11 +91,15 @@
 #endif
 
 /*
- * WEAK_ALIAS: create a weak alias.
+ * WEAK_REFERENCE(): create a weak reference alias from sym.
+ * The macro is not a general asm macro that takes arbitrary names,
+ * but one that takes only C names. It does the non-null name
+ * translation inside the macro.
  */
-#define	WEAK_ALIAS(alias,sym)						\
-	.weak alias;							\
-	alias = sym
+
+#define	WEAK_REFERENCE(sym, alias)					\
+	.weak CNAME(alias);						\
+	.equ CNAME(alias),CNAME(sym)
 
 /*
  * STRONG_ALIAS: create a strong alias.

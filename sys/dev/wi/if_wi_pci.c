@@ -55,6 +55,7 @@
 #include <dev/pci/pcivar.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -137,22 +138,12 @@ static int
 wi_pci_attach(device_t dev)
 {
 	struct wi_softc		*sc;
-	u_int32_t		command, wanted;
+	u_int32_t		command;
 	u_int16_t		reg;
 	int			error;
 	int			timeout;
 
 	sc = device_get_softc(dev);
-
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	wanted = PCIM_CMD_PORTEN|PCIM_CMD_MEMEN;
-	command |= wanted;
-	pci_write_config(dev, PCIR_COMMAND, command, 4);
-	command = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((command & wanted) != wanted) {
-		device_printf(dev, "wi_pci_attach() failed to enable pci!\n");
-		return (ENXIO);
-	}
 
 	if (sc->wi_bus_type != WI_BUS_PCI_NATIVE) {
 		error = wi_alloc(dev, WI_PCI_IORES);

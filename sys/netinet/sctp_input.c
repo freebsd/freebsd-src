@@ -5705,7 +5705,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 #ifdef INET
 		case AF_INET:
 			if (ipsec4_in_reject(m, &inp->ip_inp.inp)) {
-				IPSECSTAT_INC(in_polvio);
+				IPSECSTAT_INC(ips_in_polvio);
 				SCTP_STAT_INCR(sctps_hdrops);
 				goto out;
 			}
@@ -5714,7 +5714,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 #ifdef INET6
 		case AF_INET6:
 			if (ipsec6_in_reject(m, &inp->ip_inp.inp)) {
-				IPSEC6STAT_INC(in_polvio);
+				IPSEC6STAT_INC(ips_in_polvio);
 				SCTP_STAT_INCR(sctps_hdrops);
 				goto out;
 			}
@@ -6023,10 +6023,10 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	}
 #endif
 	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
-	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%b.\n",
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
-	    m->m_pkthdr.csum_flags);
+	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
 	if (m->m_flags & M_FLOWID) {
 		mflowid = m->m_pkthdr.flowid;
 		use_mflowid = 1;

@@ -81,10 +81,15 @@ typedef enum {
 	USBP2_HSIC_CLK,
 
 	/* UART modules */
-	UART1_CLK = 400,
+	UART0_CLK = 400,
+	UART1_CLK,
 	UART2_CLK,
 	UART3_CLK,
 	UART4_CLK,
+	UART5_CLK,
+	UART6_CLK,
+	UART7_CLK,
+	UART8_CLK,
 
 	/* General purpose timer modules */
 	GPTIMER1_CLK = 500,
@@ -148,6 +153,14 @@ typedef enum {
 	PWMSS0_CLK = 1400,
 	PWMSS1_CLK,
 	PWMSS2_CLK,
+
+	/* Mailbox modules */
+	MAILBOX0_CLK = 1500,
+
+	/* Spinlock modules */
+	SPINLOCK0_CLK = 1600,
+
+	PRUSS_CLK = 1700,
 
 	INVALID_CLK_IDENT
 

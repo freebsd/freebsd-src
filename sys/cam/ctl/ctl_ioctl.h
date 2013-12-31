@@ -40,6 +40,12 @@
 #ifndef	_CTL_IOCTL_H_
 #define	_CTL_IOCTL_H_
 
+#ifdef ICL_KERNEL_PROXY
+#include <sys/socket.h>
+#endif
+
+#include <sys/ioccom.h>
+
 #define	CTL_DEFAULT_DEV		"/dev/cam/ctl"
 /*
  * Maximum number of targets we support.
@@ -588,6 +594,177 @@ struct ctl_lun_list {
 						/* passed to userland */
 };
 
+/*
+ * iSCSI status
+ *
+ * OK:			Request completed successfully.
+ *
+ * ERROR:		An error occured, look at the error string for a
+ *			description of the error.
+ *
+ * CTL_ISCSI_LIST_NEED_MORE_SPACE:
+ * 			User has to pass larger buffer for CTL_ISCSI_LIST ioctl.
+ */
+typedef enum {
+	CTL_ISCSI_OK,
+	CTL_ISCSI_ERROR,
+	CTL_ISCSI_LIST_NEED_MORE_SPACE,
+	CTL_ISCSI_SESSION_NOT_FOUND
+} ctl_iscsi_status;
+
+typedef enum {
+	CTL_ISCSI_HANDOFF,
+	CTL_ISCSI_LIST,
+	CTL_ISCSI_LOGOUT,
+	CTL_ISCSI_TERMINATE,
+#ifdef ICL_KERNEL_PROXY
+	CTL_ISCSI_LISTEN,
+	CTL_ISCSI_ACCEPT,
+	CTL_ISCSI_SEND,
+	CTL_ISCSI_RECEIVE,
+	CTL_ISCSI_CLOSE,
+#endif
+} ctl_iscsi_type;
+
+typedef enum {
+	CTL_ISCSI_DIGEST_NONE,
+	CTL_ISCSI_DIGEST_CRC32C
+} ctl_iscsi_digest;
+
+#define	CTL_ISCSI_NAME_LEN	224	/* 223 bytes, by RFC 3720, + '\0' */
+#define	CTL_ISCSI_ADDR_LEN	47	/* INET6_ADDRSTRLEN + '\0' */
+#define	CTL_ISCSI_ALIAS_LEN	128	/* Arbitrary. */
+
+struct ctl_iscsi_handoff_params {
+	char			initiator_name[CTL_ISCSI_NAME_LEN];
+	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
+	char			initiator_alias[CTL_ISCSI_ALIAS_LEN];
+	char			target_name[CTL_ISCSI_NAME_LEN];
+#ifdef ICL_KERNEL_PROXY
+	int			connection_id;
+	/*
+	 * XXX
+	 */
+	int			socket;
+#else
+	int			socket;
+#endif
+	int			portal_group_tag;
+	
+	/*
+	 * Connection parameters negotiated by ctld(8).
+	 */
+	ctl_iscsi_digest	header_digest;
+	ctl_iscsi_digest	data_digest;
+	uint32_t		cmdsn;
+	uint32_t		statsn;
+	uint32_t		max_recv_data_segment_length;
+	uint32_t		max_burst_length;
+	uint32_t		first_burst_length;
+	uint32_t		immediate_data;
+	int			spare[4];
+};
+
+struct ctl_iscsi_list_params {
+	uint32_t		alloc_len;	/* passed to kernel */
+	char                   *conn_xml;	/* filled in kernel */
+	uint32_t		fill_len;	/* passed to userland */
+	int			spare[4];
+};
+
+struct ctl_iscsi_logout_params {
+	int			connection_id;	/* passed to kernel */
+	char			initiator_name[CTL_ISCSI_NAME_LEN];
+						/* passed to kernel */
+	char			initiator_addr[CTL_ISCSI_ADDR_LEN];
+						/* passed to kernel */
+	int			all;		/* passed to kernel */
+	int			spare[4];
+};
+
+struct ctl_iscsi_terminate_params {
+	int			connection_id;	/* passed to kernel */
+	char			initiator_name[CTL_ISCSI_NAME_LEN];
+						/* passed to kernel */
+	char			initiator_addr[CTL_ISCSI_NAME_LEN];
+						/* passed to kernel */
+	int			all;		/* passed to kernel */
+	int			spare[4];
+};
+
+#ifdef ICL_KERNEL_PROXY
+struct ctl_iscsi_listen_params {
+	int				iser;
+	int				domain;
+	int				socktype;
+	int				protocol;
+	struct sockaddr			*addr;
+	socklen_t			addrlen;
+	int				spare[4];
+};
+
+struct ctl_iscsi_accept_params {
+	int				connection_id;
+	int				spare[4];
+};
+
+struct ctl_iscsi_send_params {
+	int				connection_id;
+	void				*bhs;
+	size_t				spare;
+	void				*spare2;
+	size_t				data_segment_len;
+	void				*data_segment;
+	int				spare[4];
+};
+
+struct ctl_iscsi_receive_params {
+	int				connection_id;
+	void				*bhs;
+	size_t				spare;
+	void				*spare2;
+	size_t				data_segment_len;
+	void				*data_segment;
+	int				spare[4];
+};
+
+struct ctl_iscsi_close_params {
+	int				connection_id;
+	int				spare[4];
+};
+#endif /* ICL_KERNEL_PROXY */
+
+union ctl_iscsi_data {
+	struct ctl_iscsi_handoff_params		handoff;
+	struct ctl_iscsi_list_params		list;
+	struct ctl_iscsi_logout_params		logout;
+	struct ctl_iscsi_terminate_params	terminate;
+#ifdef ICL_KERNEL_PROXY
+	struct ctl_iscsi_listen_params		listen;
+	struct ctl_iscsi_accept_params		accept;
+	struct ctl_iscsi_send_params		send;
+	struct ctl_iscsi_receive_params		receive;
+	struct ctl_iscsi_close_params		close;
+#endif
+};
+
+/*
+ * iSCSI interface
+ *
+ * status:		The status of the request.  See above for the 
+ *			description of the values of this field.
+ *
+ * error_str:		If the status indicates an error, this string will
+ *			be filled in to describe the error.
+ */
+struct ctl_iscsi {
+	ctl_iscsi_type		type;		/* passed to kernel */
+	union ctl_iscsi_data	data;		/* passed to kernel */
+	ctl_iscsi_status	status;		/* passed to userland */
+	char			error_str[CTL_ERROR_STR_LEN];
+						/* passed to userland */
+};
+
 #define	CTL_IO			_IOWR(CTL_MINOR, 0x00, union ctl_io)
 #define	CTL_ENABLE_PORT		_IOW(CTL_MINOR, 0x04, struct ctl_port_entry)
 #define	CTL_DISABLE_PORT	_IOW(CTL_MINOR, 0x05, struct ctl_port_entry)
@@ -612,6 +789,7 @@ struct ctl_lun_list {
 #define	CTL_LUN_LIST		_IOWR(CTL_MINOR, 0x22, struct ctl_lun_list)
 #define	CTL_ERROR_INJECT_DELETE	_IOW(CTL_MINOR, 0x23, struct ctl_error_desc)
 #define	CTL_SET_PORT_WWNS	_IOW(CTL_MINOR, 0x24, struct ctl_port_entry)
+#define	CTL_ISCSI		_IOWR(CTL_MINOR, 0x25, struct ctl_iscsi)
 
 #endif /* _CTL_IOCTL_H_ */
 

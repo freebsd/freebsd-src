@@ -81,21 +81,20 @@ static ACPI_INTERFACE_INFO    AcpiDefaultSupportedInterfaces[] =
 
     /* Feature Group Strings */
 
-    {"Extended Address Space Descriptor", NULL, 0, 0}
+    {"Extended Address Space Descriptor", NULL, ACPI_OSI_FEATURE, 0},
 
     /*
      * All "optional" feature group strings (features that are implemented
-     * by the host) should be dynamically added by the host via
-     * AcpiInstallInterface and should not be manually added here.
-     *
-     * Examples of optional feature group strings:
-     *
-     * "Module Device"
-     * "Processor Device"
-     * "3.0 Thermal Model"
-     * "3.0 _SCP Extensions"
-     * "Processor Aggregator Device"
+     * by the host) should be dynamically modified to VALID by the host via
+     * AcpiInstallInterface or AcpiUpdateInterfaces. Such optional feature
+     * group strings are set as INVALID by default here.
      */
+
+    {"Module Device",               NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+    {"Processor Device",            NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+    {"3.0 Thermal Model",           NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+    {"3.0 _SCP Extensions",         NULL, ACPI_OSI_OPTIONAL_FEATURE, 0},
+    {"Processor Aggregator Device", NULL, ACPI_OSI_OPTIONAL_FEATURE, 0}
 };
 
 
@@ -172,12 +171,25 @@ AcpiUtInterfaceTerminate (
     {
         AcpiGbl_SupportedInterfaces = NextInterface->Next;
 
-        /* Only interfaces added at runtime can be freed */
-
         if (NextInterface->Flags & ACPI_OSI_DYNAMIC)
         {
+            /* Only interfaces added at runtime can be freed */
+
             ACPI_FREE (NextInterface->Name);
             ACPI_FREE (NextInterface);
+        }
+        else
+        {
+            /* Interface is in static list. Reset it to invalid or valid. */
+
+            if (NextInterface->Flags & ACPI_OSI_DEFAULT_INVALID)
+            {
+                NextInterface->Flags |= ACPI_OSI_INVALID;
+            }
+            else
+            {
+                NextInterface->Flags &= ~ACPI_OSI_INVALID;
+            }
         }
 
         NextInterface = AcpiGbl_SupportedInterfaces;
@@ -302,6 +314,57 @@ AcpiUtRemoveInterface (
     /* Interface was not found */
 
     return (AE_NOT_EXIST);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiUtUpdateInterfaces
+ *
+ * PARAMETERS:  Action              - Actions to be performed during the
+ *                                    update
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Update _OSI interface strings, disabling or enabling OS vendor
+ *              strings or/and feature group strings.
+ *              Caller MUST hold AcpiGbl_OsiMutex
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiUtUpdateInterfaces (
+    UINT8                   Action)
+{
+    ACPI_INTERFACE_INFO     *NextInterface;
+
+
+    NextInterface = AcpiGbl_SupportedInterfaces;
+    while (NextInterface)
+    {
+        if (((NextInterface->Flags & ACPI_OSI_FEATURE) &&
+             (Action & ACPI_FEATURE_STRINGS)) ||
+            (!(NextInterface->Flags & ACPI_OSI_FEATURE) &&
+             (Action & ACPI_VENDOR_STRINGS)))
+        {
+            if (Action & ACPI_DISABLE_INTERFACES)
+            {
+                /* Mark the interfaces as invalid */
+
+                NextInterface->Flags |= ACPI_OSI_INVALID;
+            }
+            else
+            {
+                /* Mark the interfaces as valid */
+
+                NextInterface->Flags &= ~ACPI_OSI_INVALID;
+            }
+        }
+
+        NextInterface = NextInterface->Next;
+    }
+
+    return (AE_OK);
 }
 
 

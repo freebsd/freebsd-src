@@ -88,8 +88,6 @@ typedef	__blkcnt_t	blkcnt_t;
 #define	_BLKCNT_T_DECLARED
 #endif
 
-typedef	__cap_rights_t	cap_rights_t;
-
 #ifndef _CLOCK_T_DECLARED
 typedef	__clock_t	clock_t;
 #define	_CLOCK_T_DECLARED
@@ -232,6 +230,13 @@ typedef	__uid_t		uid_t;		/* user id */
 #ifndef _USECONDS_T_DECLARED
 typedef	__useconds_t	useconds_t;	/* microseconds (unsigned) */
 #define	_USECONDS_T_DECLARED
+#endif
+
+#ifndef _CAP_RIGHTS_T_DECLARED
+#define	_CAP_RIGHTS_T_DECLARED
+struct cap_rights;
+
+typedef	struct cap_rights	cap_rights_t;
 #endif
 
 typedef	__vm_offset_t	vm_offset_t;

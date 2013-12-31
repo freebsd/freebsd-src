@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <machine/vmparam.h>
 #include <machine/armreg.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/cpu.h>
 #include <machine/proc.h>
@@ -113,7 +114,7 @@ ASSYM(ARM_RAS_START, ARM_RAS_START);
 ASSYM(ARM_RAS_END, ARM_RAS_END);
 #endif
 
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 ASSYM(PCB_VFPSTATE, offsetof(struct pcb, pcb_vfpstate));
 ASSYM(PCB_VFPCPU, offsetof(struct pcb, pcb_vfpcpu));
 

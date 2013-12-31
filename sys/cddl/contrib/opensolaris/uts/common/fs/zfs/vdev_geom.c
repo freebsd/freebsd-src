@@ -42,9 +42,11 @@
  * Virtual device vector for GEOM.
  */
 
+static g_attrchanged_t vdev_geom_attrchanged;
 struct g_class zfs_vdev_class = {
 	.name = "ZFS::VDEV",
 	.version = G_VERSION,
+	.attrchanged = vdev_geom_attrchanged,
 };
 
 DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
@@ -62,6 +64,34 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RW,
     &vdev_geom_bio_delete_disable, 0, "Disable BIO_DELETE");
 
 static void
+vdev_geom_set_rotation_rate(vdev_t *vd, struct g_consumer *cp)
+{ 
+	int error;
+	uint16_t rate;
+
+	error = g_getattr("GEOM::rotation_rate", cp, &rate);
+	if (error == 0)
+		vd->vdev_rotation_rate = rate;
+	else
+		vd->vdev_rotation_rate = VDEV_RATE_UNKNOWN;
+}
+
+static void
+vdev_geom_attrchanged(struct g_consumer *cp, const char *attr)
+{
+	vdev_t *vd;
+
+	vd = cp->private;
+	if (vd == NULL)
+		return;
+
+	if (strcmp(attr, "GEOM::rotation_rate") == 0) {
+		vdev_geom_set_rotation_rate(vd, cp);
+		return;
+	}
+}
+
+static void
 vdev_geom_orphan(struct g_consumer *cp)
 {
 	vdev_t *vd;
@@ -69,6 +99,8 @@ vdev_geom_orphan(struct g_consumer *cp)
 	g_topology_assert();
 
 	vd = cp->private;
+	if (vd == NULL)
+		return;
 
 	/*
 	 * Orphan callbacks occur from the GEOM event thread.
@@ -145,6 +177,7 @@ vdev_geom_attach(struct g_provider *pp)
 			ZFS_LOG(1, "Used existing consumer for %s.", pp->name);
 		}
 	}
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	return (cp);
 }
 
@@ -368,10 +401,16 @@ vdev_geom_attach_taster(struct g_consumer *cp, struct g_provider *pp)
 
 	if (pp->flags & G_PF_WITHER)
 		return (EINVAL);
-	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
-		return (EINVAL);
 	g_attach(cp, pp);
 	error = g_access(cp, 1, 0, 0);
+	if (error == 0) {
+		if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
+			error = EINVAL;
+		else if (pp->mediasize < SPA_MINDEVSIZE)
+			error = EINVAL;
+		if (error != 0)
+			g_access(cp, -1, 0, 0);
+	}
 	if (error != 0)
 		g_detach(cp);
 	return (error);
@@ -574,7 +613,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 
 static int
 vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
-    uint64_t *ashift)
+    uint64_t *logical_ashift, uint64_t *physical_ashift)
 {
 	struct g_provider *pp;
 	struct g_consumer *cp;
@@ -660,9 +699,13 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*max_psize = *psize = pp->mediasize;
 
 	/*
-	 * Determine the device's minimum transfer size.
+	 * Determine the device's minimum transfer size and preferred
+	 * transfer size.
 	 */
-	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*logical_ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
+	*physical_ashift = 0;
+	if (pp->stripesize)
+		*physical_ashift = highbit(pp->stripesize) - 1;
 
 	/*
 	 * Clear the nowritecache settings, so that on a vdev_reopen()
@@ -675,6 +718,11 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	bufsize = sizeof("/dev/") + strlen(pp->name);
 	vd->vdev_physpath = kmem_alloc(bufsize, KM_SLEEP);
 	snprintf(vd->vdev_physpath, bufsize, "/dev/%s", pp->name);
+
+	/*
+	 * Determine the device's rotation rate.
+	 */
+	vdev_geom_set_rotation_rate(vd, cp);
 
 	return (0);
 }
@@ -689,6 +737,7 @@ vdev_geom_close(vdev_t *vd)
 		return;
 	vd->vdev_tsd = NULL;
 	vd->vdev_delayed_close = B_FALSE;
+	cp->private = NULL;	/* XXX locking */
 	g_post_event(vdev_geom_detach, cp, M_WAITOK, NULL);
 }
 
@@ -721,20 +770,12 @@ vdev_geom_io_intr(struct bio *bp)
 		 */
 		vd->vdev_notrim = B_TRUE;
 	}
-	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
+	if (zio->io_error == ENXIO && !vd->vdev_remove_wanted) {
 		/*
 		 * If provider's error is set we assume it is being
 		 * removed.
 		 */
 		if (bp->bio_to->error != 0) {
-			/*
-			 * We post the resource as soon as possible, instead of
-			 * when the async removal actually happens, because the
-			 * DE is using this information to discard previous I/O
-			 * errors.
-			 */
-			/* XXX: zfs_post_remove() can sleep. */
-			zfs_post_remove(zio->io_spa, vd);
 			vd->vdev_remove_wanted = B_TRUE;
 			spa_async_request(zio->io_spa, SPA_ASYNC_REMOVE);
 		} else if (!vd->vdev_delayed_close) {

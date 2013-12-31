@@ -145,18 +145,19 @@
  * 0x0000000000000000 - 0x00007fffffffffff   user map
  * 0x0000800000000000 - 0xffff7fffffffffff   does not exist (hole)
  * 0xffff800000000000 - 0xffff804020100fff   recursive page table (512GB slot)
- * 0xffff804020101000 - 0xfffffdffffffffff   unused
- * 0xfffffe0000000000 - 0xfffffeffffffffff   1TB direct map
- * 0xffffff0000000000 - 0xffffff7fffffffff   unused
- * 0xffffff8000000000 - 0xffffffffffffffff   512GB kernel map
+ * 0xffff804020101000 - 0xfffff7ffffffffff   unused
+ * 0xfffff80000000000 - 0xfffffbffffffffff   4TB direct map
+ * 0xfffffc0000000000 - 0xfffffdffffffffff   unused
+ * 0xfffffe0000000000 - 0xffffffffffffffff   2TB kernel map
  *
  * Within the kernel map:
  *
  * 0xffffffff80000000                        KERNBASE
  */
 
-#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-1, NPDEPG-1, NPTEPG-1)
-#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4I, NPDPEPG-512, 0, 0)
+#define	VM_MIN_KERNEL_ADDRESS	KVADDR(KPML4BASE, 0, 0, 0)
+#define	VM_MAX_KERNEL_ADDRESS	KVADDR(KPML4BASE + NKPML4E - 1, \
+					NPDPEPG-1, NPDEPG-1, NPTEPG-1)
 
 #define	DMAP_MIN_ADDRESS	KVADDR(DMPML4I, 0, 0, 0)
 #define	DMAP_MAX_ADDRESS	KVADDR(DMPML4I + NDMPML4E, 0, 0, 0)
@@ -177,23 +178,16 @@
 #define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
 #define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(1)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \

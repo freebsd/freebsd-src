@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -65,9 +66,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_pcb.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
@@ -282,7 +285,7 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		IPSECSTAT_INC(in_polvio);
+		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T
@@ -616,6 +619,8 @@ udp_input(struct mbuf *m, int off)
 		m_freem(m);
 		return;
 	}
+
+	UDP_PROBE(receive, NULL, inp, ip, inp, uh);
 	udp_append(inp, ip, m, iphlen, &udp_in);
 	INP_RUNLOCK(inp);
 	return;
@@ -1193,6 +1198,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 */
 	ui = mtod(m, struct udpiphdr *);
 	bzero(ui->ui_x1, sizeof(ui->ui_x1));	/* XXX still needed? */
+	ui->ui_v = IPVERSION << 4;
 	ui->ui_pr = IPPROTO_UDP;
 	ui->ui_src = laddr;
 	ui->ui_dst = faddr;
@@ -1243,6 +1249,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		INP_HASH_WUNLOCK(&V_udbinfo);
 	else if (unlock_udbinfo == UH_RLOCKED)
 		INP_HASH_RUNLOCK(&V_udbinfo);
+	UDP_PROBE(send, NULL, inp, &ui->ui_i, inp, &ui->ui_u);
 	error = ip_output(m, inp->inp_options, NULL, ipflags,
 	    inp->inp_moptions, inp);
 	if (unlock_udbinfo == UH_WLOCKED)
@@ -1294,7 +1301,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	if (minlen > m->m_pkthdr.len)
 		minlen = m->m_pkthdr.len;
 	if ((m = m_pullup(m, minlen)) == NULL) {
-		IPSECSTAT_INC(in_inval);
+		IPSECSTAT_INC(ips_in_inval);
 		return (NULL);		/* Bypass caller processing. */
 	}
 	data = mtod(m, caddr_t);	/* Points to ip header. */
@@ -1334,7 +1341,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 		uint32_t spi;
 
 		if (payload <= sizeof(struct esp)) {
-			IPSECSTAT_INC(in_inval);
+			IPSECSTAT_INC(ips_in_inval);
 			m_freem(m);
 			return (NULL);	/* Discard. */
 		}
@@ -1355,7 +1362,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	tag = m_tag_get(PACKET_TAG_IPSEC_NAT_T_PORTS,
 		2 * sizeof(uint16_t), M_NOWAIT);
 	if (tag == NULL) {
-		IPSECSTAT_INC(in_nomem);
+		IPSECSTAT_INC(ips_in_nomem);
 		m_freem(m);
 		return (NULL);		/* Discard. */
 	}

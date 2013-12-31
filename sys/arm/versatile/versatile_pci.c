@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/pci/pcivar.h>
@@ -359,6 +358,9 @@ versatile_pci_activate_resource(device_t bus, device_t child, int type, int rid,
 	case SYS_RES_IRQ:
 		res = (BUS_ACTIVATE_RESOURCE(device_get_parent(bus),
 		    child, type, rid, r));
+		break;
+	default:
+		res = ENXIO;
 		break;
 	}
 

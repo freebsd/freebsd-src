@@ -26,6 +26,8 @@ struct etherswitch_phyreg {
 typedef struct etherswitch_phyreg etherswitch_phyreg_t;
 
 #define	ETHERSWITCH_NAMEMAX		64
+#define	ETHERSWITCH_VID_MASK		0xfff
+#define	ETHERSWITCH_VID_VALID		(1 << 12)
 #define	ETHERSWITCH_VLAN_ISL		(1 << 0)	/* ISL */
 #define	ETHERSWITCH_VLAN_PORT		(1 << 1)	/* Port based vlan */
 #define	ETHERSWITCH_VLAN_DOT1Q		(1 << 2)	/* 802.1q */

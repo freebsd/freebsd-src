@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
+#include <dev/drm2/drm_core.h>
+#include <dev/drm2/drm_global.h>
 #include <dev/drm2/drm_sarea.h>
 #include <dev/drm2/drm_mode.h>
 
@@ -53,6 +55,12 @@ int drm_notyet_flag = 0;
 
 unsigned int drm_vblank_offdelay = 5000;    /* Default to 5000 msecs. */
 unsigned int drm_timestamp_precision = 20;  /* Default to 20 usecs. */
+
+/*
+ * Default to use monotonic timestamps for wait-for-vblank and page-flip
+ * complete events.
+ */
+unsigned int drm_timestamp_monotonic = 1;
 
 static int drm_load(struct drm_device *dev);
 static void drm_unload(struct drm_device *dev);
@@ -78,7 +86,7 @@ static moduledata_t drm_mod = {
 	"drmn",
 	drm_modevent,
 	0
-}; 
+};
 DECLARE_MODULE(drmn, drm_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(drmn, 1);
 MODULE_DEPEND(drmn, agp, 1, 1, 1);
@@ -207,13 +215,22 @@ static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
 	{0, 0}
 };
 
-static int drm_msi_is_blacklisted(int vendor, int device)
+static int drm_msi_is_blacklisted(struct drm_device *dev, unsigned long flags)
 {
 	int i = 0;
-	
+
+	if (dev->driver->use_msi != NULL) {
+		int use_msi;
+
+		use_msi = dev->driver->use_msi(dev, flags);
+
+		return (!use_msi);
+	}
+
+	/* TODO: Maybe move this to a callback in i915? */
 	for (i = 0; drm_msi_blacklist[i].vendor != 0; i++) {
-		if ((drm_msi_blacklist[i].vendor == vendor) &&
-		    (drm_msi_blacklist[i].device == device)) {
+		if ((drm_msi_blacklist[i].vendor == dev->pci_vendor) &&
+		    (drm_msi_blacklist[i].device == dev->pci_device)) {
 			return 1;
 		}
 	}
@@ -262,10 +279,16 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 
 	dev->pci_vendor = pci_get_vendor(dev->device);
 	dev->pci_device = pci_get_device(dev->device);
+	dev->pci_subvendor = pci_get_subvendor(dev->device);
+	dev->pci_subdevice = pci_get_subdevice(dev->device);
+
+	id_entry = drm_find_description(dev->pci_vendor,
+	    dev->pci_device, idlist);
+	dev->id_entry = id_entry;
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_IRQ)) {
 		if (drm_msi &&
-		    !drm_msi_is_blacklisted(dev->pci_vendor, dev->pci_device)) {
+		    !drm_msi_is_blacklisted(dev, dev->id_entry->driver_private)) {
 			msicount = pci_msi_count(dev->device);
 			DRM_DEBUG("MSI count = %d\n", msicount);
 			if (msicount > 1)
@@ -295,13 +318,23 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	mtx_init(&dev->event_lock, "drmev", NULL, MTX_DEF);
 	sx_init(&dev->dev_struct_lock, "drmslk");
 
-	id_entry = drm_find_description(dev->pci_vendor,
-	    dev->pci_device, idlist);
-	dev->id_entry = id_entry;
-
 	error = drm_load(dev);
-	if (error == 0)
-		error = drm_create_cdevs(kdev);
+	if (error)
+		goto error;
+
+	error = drm_create_cdevs(kdev);
+	if (error)
+		goto error;
+
+	return (error);
+error:
+	if (dev->irqr) {
+		bus_release_resource(dev->device, SYS_RES_IRQ,
+		    dev->irqrid, dev->irqr);
+	}
+	if (dev->msi_enabled) {
+		pci_release_msi(dev->device);
+	}
 	return (error);
 }
 
@@ -349,7 +382,7 @@ drm_pci_id_list_t *drm_find_description(int vendor, int device,
     drm_pci_id_list_t *idlist)
 {
 	int i = 0;
-	
+
 	for (i = 0; idlist[i].vendor != 0; i++) {
 		if ((idlist[i].vendor == vendor) &&
 		    ((idlist[i].device == device) ||
@@ -559,7 +592,7 @@ static int drm_load(struct drm_device *dev)
 			DRM_ERROR("Request to enable bus-master failed.\n");
 		DRM_UNLOCK(dev);
 		if (retcode != 0)
-			goto error;
+			goto error1;
 	}
 
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
@@ -573,7 +606,9 @@ static int drm_load(struct drm_device *dev)
 
 error1:
 	delete_unrhdr(dev->drw_unrhdr);
+	drm_gem_destroy(dev);
 error:
+	drm_ctxbitmap_cleanup(dev);
 	drm_sysctl_cleanup(dev);
 	DRM_LOCK(dev);
 	drm_lastclose(dev);
@@ -746,7 +781,7 @@ void drm_close(void *data)
 
 		drm_lock_free(&dev->lock,
 		    _DRM_LOCKING_CONTEXT(dev->lock.hw_lock->lock));
-		
+
 				/* FIXME: may require heavy-handed reset of
                                    hardware at this point, possibly
                                    processed via a callback to the X
@@ -809,7 +844,7 @@ extern drm_ioctl_desc_t drm_compat_ioctls[];
 
 /* drm_ioctl is called whenever a process performs an ioctl on /dev/drm.
  */
-int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags, 
+int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
     DRM_STRUCTPROC *p)
 {
 	struct drm_device *dev = drm_get_device_from_kdev(kdev);
@@ -964,11 +999,11 @@ drm_mmap_single(struct cdev *kdev, vm_ooffset_t *offset, vm_size_t size,
 	struct drm_device *dev;
 
 	dev = drm_get_device_from_kdev(kdev);
-	if ((dev->driver->driver_features & DRIVER_GEM) != 0) {
-		return (drm_gem_mmap_single(dev, offset, size, obj_res, nprot));
-	} else if (dev->drm_ttm_bo != NULL) {
-		return (ttm_bo_mmap_single(dev->drm_ttm_bo, offset, size,
+	if (dev->drm_ttm_bdev != NULL) {
+		return (ttm_bo_mmap_single(dev->drm_ttm_bdev, offset, size,
 		    obj_res, nprot));
+	} else if ((dev->driver->driver_features & DRIVER_GEM) != 0) {
+		return (drm_gem_mmap_single(dev, offset, size, obj_res, nprot));
 	} else {
 		return (ENODEV);
 	}
@@ -984,13 +1019,8 @@ MODULE_DEPEND(DRIVER_NAME, linux, 1, 1, 1);
 #define LINUX_IOCTL_DRM_MAX		0x64ff
 
 static linux_ioctl_function_t drm_linux_ioctl;
-static struct linux_ioctl_handler drm_handler = {drm_linux_ioctl, 
+static struct linux_ioctl_handler drm_handler = {drm_linux_ioctl,
     LINUX_IOCTL_DRM_MIN, LINUX_IOCTL_DRM_MAX};
-
-SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE, 
-    linux_ioctl_register_handler, &drm_handler);
-SYSUNINIT(drm_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE, 
-    linux_ioctl_unregister_handler, &drm_handler);
 
 /* The bits for in/out are switched on Linux */
 #define LINUX_IOC_IN	IOC_OUT
@@ -1007,12 +1037,44 @@ drm_linux_ioctl(DRM_STRUCTPROC *p, struct linux_ioctl_args* args)
 		args->cmd |= IOC_IN;
 	if (cmd & LINUX_IOC_OUT)
 		args->cmd |= IOC_OUT;
-	
+
 	error = ioctl(p, (struct ioctl_args *)args);
 
 	return error;
 }
 #endif /* DRM_LINUX */
+
+
+static int
+drm_core_init(void *arg)
+{
+
+	drm_global_init();
+
+#if DRM_LINUX
+	linux_ioctl_register_handler(&drm_handler);
+#endif /* DRM_LINUX */
+
+	DRM_INFO("Initialized %s %d.%d.%d %s\n",
+		 CORE_NAME, CORE_MAJOR, CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
+	return 0;
+}
+
+static void
+drm_core_exit(void *arg)
+{
+
+#if DRM_LINUX
+	linux_ioctl_unregister_handler(&drm_handler);
+#endif /* DRM_LINUX */
+
+	drm_global_release();
+}
+
+SYSINIT(drm_register, SI_SUB_KLD, SI_ORDER_MIDDLE,
+    drm_core_init, NULL);
+SYSUNINIT(drm_unregister, SI_SUB_KLD, SI_ORDER_MIDDLE,
+    drm_core_exit, NULL);
 
 bool
 dmi_check_system(const struct dmi_system_id *sysid)
@@ -1021,4 +1083,3 @@ dmi_check_system(const struct dmi_system_id *sysid)
 	/* XXXKIB */
 	return (false);
 }
-

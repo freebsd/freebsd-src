@@ -593,10 +593,15 @@ CmDoCompile (
     AslCompilerparse();
     UtEndEvent (Event);
 
-    /* Flush out any remaining source after parse tree is complete */
+    /* Check for parse errors */
 
-    Event = UtBeginEvent ("Flush source input");
-    CmFlushSourceCode ();
+    Status = AslCheckForErrorExit ();
+    if (ACPI_FAILURE (Status))
+    {
+        fprintf (stderr, "Compiler aborting due to parser-detected syntax error(s)\n");
+        LsDumpParseTree ();
+        goto ErrorExit;
+    }
 
     /* Did the parse tree get successfully constructed? */
 
@@ -606,15 +611,17 @@ CmDoCompile (
          * If there are no errors, then we have some sort of
          * internal problem.
          */
-        Status = AslCheckForErrorExit ();
-        if (Status == AE_OK)
-        {
-            AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
-                NULL, "- Could not resolve parse tree root node");
-        }
+        AslError (ASL_ERROR, ASL_MSG_COMPILER_INTERNAL,
+            NULL, "- Could not resolve parse tree root node");
 
         goto ErrorExit;
     }
+
+
+    /* Flush out any remaining source after parse tree is complete */
+
+    Event = UtBeginEvent ("Flush source input");
+    CmFlushSourceCode ();
 
     /* Optional parse tree dump, compiler debug output only */
 

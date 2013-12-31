@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/kdb.h>
@@ -100,6 +101,8 @@ struct 	fileops vnops = {
 	.fo_close = vn_closefile,
 	.fo_chmod = vn_chmod,
 	.fo_chown = vn_chown,
+	.fo_sendfile = vn_sendfile,
+	.fo_seek = vn_seek,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -264,6 +267,8 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 				return (error);
 		}
 	}
+	if (vp->v_type == VFIFO && VOP_ISLOCKED(vp) != LK_EXCLUSIVE)
+		vn_lock(vp, LK_UPGRADE | LK_RETRY);
 	if ((error = VOP_OPEN(vp, fmode, cred, td, fp)) != 0)
 		return (error);
 
@@ -308,6 +313,9 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			vn_lock(vp, lock_flags | LK_RETRY);
 			(void)VOP_CLOSE(vp, fmode, cred, td);
 			vn_finished_write(mp);
+			/* Prevent second close from fdrop()->vn_close(). */
+			if (fp != NULL)
+				fp->f_ops= &badfileops;
 			return (error);
 		}
 		fp->f_flag |= FHASLOCK;
@@ -355,8 +363,8 @@ vn_close(vp, flags, file_cred, td)
 	struct mount *mp;
 	int error, lock_flags;
 
-	if (!(flags & FWRITE) && vp->v_mount != NULL &&
-	    vp->v_mount->mnt_kern_flag & MNTK_EXTENDED_SHARED)
+	if (vp->v_type != VFIFO && (flags & FWRITE) == 0 &&
+	    MNT_EXTENDED_SHARED(vp->v_mount))
 		lock_flags = LK_SHARED;
 	else
 		lock_flags = LK_EXCLUSIVE;
@@ -928,7 +936,7 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	void *rl_cookie;
 	struct mount *mp;
 	vm_page_t *prev_td_ma;
-	int cnt, error, save, saveheld, prev_td_ma_cnt;
+	int error, cnt, save, saveheld, prev_td_ma_cnt;
 	vm_offset_t addr, end;
 	vm_prot_t prot;
 	size_t len, resid;
@@ -1002,21 +1010,20 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			uio_clone->uio_iovcnt--;
 			continue;
 		}
-
-		addr = (vm_offset_t)uio_clone->uio_iov->iov_base;
+		if (len > io_hold_cnt * PAGE_SIZE)
+			len = io_hold_cnt * PAGE_SIZE;
+		addr = (uintptr_t)uio_clone->uio_iov->iov_base;
 		end = round_page(addr + len);
-		cnt = howmany(end - trunc_page(addr), PAGE_SIZE);
+		if (end < addr) {
+			error = EFAULT;
+			break;
+		}
+		cnt = atop(end - trunc_page(addr));
 		/*
 		 * A perfectly misaligned address and length could cause
 		 * both the start and the end of the chunk to use partial
 		 * page.  +2 accounts for such a situation.
 		 */
-		if (cnt > io_hold_cnt + 2) {
-			len = io_hold_cnt * PAGE_SIZE;
-			KASSERT(howmany(round_page(addr + len) -
-			    trunc_page(addr), PAGE_SIZE) <= io_hold_cnt + 2,
-			    ("cnt overflow"));
-		}
 		cnt = vm_fault_quick_hold_pages(&td->td_proc->p_vmspace->vm_map,
 		    addr, len, prot, ma, io_hold_cnt + 2);
 		if (cnt == -1) {
@@ -2007,5 +2014,74 @@ unlock:
 	VOP_UNLOCK(vp, 0);
 	if (error == 0)
 		*off = noff;
+	return (error);
+}
+
+int
+vn_seek(struct file *fp, off_t offset, int whence, struct thread *td)
+{
+	struct ucred *cred;
+	struct vnode *vp;
+	struct vattr vattr;
+	off_t foffset, size;
+	int error, noneg;
+
+	cred = td->td_ucred;
+	vp = fp->f_vnode;
+	foffset = foffset_lock(fp, 0);
+	noneg = (vp->v_type != VCHR);
+	error = 0;
+	switch (whence) {
+	case L_INCR:
+		if (noneg &&
+		    (foffset < 0 ||
+		    (offset > 0 && foffset > OFF_MAX - offset))) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += foffset;
+		break;
+	case L_XTND:
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		error = VOP_GETATTR(vp, &vattr, cred);
+		VOP_UNLOCK(vp, 0);
+		if (error)
+			break;
+
+		/*
+		 * If the file references a disk device, then fetch
+		 * the media size and use that to determine the ending
+		 * offset.
+		 */
+		if (vattr.va_size == 0 && vp->v_type == VCHR &&
+		    fo_ioctl(fp, DIOCGMEDIASIZE, &size, cred, td) == 0)
+			vattr.va_size = size;
+		if (noneg &&
+		    (vattr.va_size > OFF_MAX ||
+		    (offset > 0 && vattr.va_size > OFF_MAX - offset))) {
+			error = EOVERFLOW;
+			break;
+		}
+		offset += vattr.va_size;
+		break;
+	case L_SET:
+		break;
+	case SEEK_DATA:
+		error = fo_ioctl(fp, FIOSEEKDATA, &offset, cred, td);
+		break;
+	case SEEK_HOLE:
+		error = fo_ioctl(fp, FIOSEEKHOLE, &offset, cred, td);
+		break;
+	default:
+		error = EINVAL;
+	}
+	if (error == 0 && noneg && offset < 0)
+		error = EINVAL;
+	if (error != 0)
+		goto drop;
+	VFS_KNOTE_UNLOCKED(vp, 0);
+	*(off_t *)(td->td_retval) = offset;
+drop:
+	foffset_unlock(fp, offset, error != 0 ? FOF_NOUPDATE : 0);
 	return (error);
 }

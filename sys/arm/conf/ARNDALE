@@ -50,6 +50,7 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options		KBD_INSTALL_CDEV
 options		PREEMPTION
 options		FREEBSD_BOOT_LOADER
+options 	VFP		# vfp/neon
 
 # Debugging
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols

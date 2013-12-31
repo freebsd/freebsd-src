@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pci_private.h>
 
+#include "ofw_pcibus.h"
 #include "pcib_if.h"
 #include "pci_if.h"
 
@@ -85,12 +86,7 @@ static device_method_t ofw_pcibus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
-};
-
-struct ofw_pcibus_devinfo {
-	struct pci_devinfo	opd_dinfo;
-	struct ofw_bus_devinfo	opd_obdinfo;
+	DEVMETHOD_END
 };
 
 static devclass_t pci_devclass;
@@ -101,6 +97,9 @@ DRIVER_MODULE(ofw_pcibus, pcib, ofw_pcibus_driver, pci_devclass, 0, 0);
 MODULE_VERSION(ofw_pcibus, 1);
 MODULE_DEPEND(ofw_pcibus, pci, 1, 1, 1);
 
+static int ofw_devices_only = 0;
+TUNABLE_INT("hw.pci.ofw_devices_only", &ofw_devices_only);
+
 static int
 ofw_pcibus_probe(device_t dev)
 {
@@ -109,7 +108,7 @@ ofw_pcibus_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "OFW PCI bus");
 
-	return (0);
+	return (BUS_PROBE_DEFAULT);
 }
 
 static int
@@ -137,7 +136,8 @@ ofw_pcibus_attach(device_t dev)
 	 * functions on multi-function cards.
 	 */
 
-	ofw_pcibus_enum_bus(dev, domain, busno);
+	if (!ofw_devices_only)
+		ofw_pcibus_enum_bus(dev, domain, busno);
 
 	return (bus_generic_attach(dev));
 }
@@ -191,6 +191,7 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 			pci_freecfg((struct pci_devinfo *)dinfo);
 			continue;
 		}
+		dinfo->opd_dma_tag = NULL;
 		pci_add_child(dev, (struct pci_devinfo *)dinfo);
 
 		/*
@@ -210,18 +211,17 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 				icells = 1;
 				OF_getprop(child, "interrupt-parent", &iparent,
 				    sizeof(iparent));
-				OF_getprop(iparent, "#interrupt-cells", &icells,
-				    sizeof(icells));
-
-				if (iparent != 0)
-					intr[0] = MAP_IRQ(iparent, intr[0]);
-
-				if (iparent != 0 && icells > 1) {
-					powerpc_config_intr(intr[0],
-					    (intr[1] & 1) ? INTR_TRIGGER_LEVEL :
-					    INTR_TRIGGER_EDGE,
-					    INTR_POLARITY_LOW);
+				if (iparent != 0) {
+					OF_getprop(OF_xref_phandle(iparent),
+					    "#interrupt-cells", &icells,
+					    sizeof(icells));
+					intr[0] = ofw_bus_map_intr(dev, iparent,
+					    intr[0]);
 				}
+
+				if (iparent != 0 && icells > 1)
+					ofw_bus_config_intr(dev, intr[0],
+					    intr[1]);
 
 				resource_list_add(&dinfo->opd_dinfo.resources,
 				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
@@ -269,6 +269,7 @@ ofw_pcibus_enum_bus(device_t dev, u_int domain, u_int busno)
 			if (dinfo == NULL)
 				continue;
 
+			dinfo->opd_dma_tag = NULL;
 			dinfo->opd_obdinfo.obd_node = -1;
 
 			dinfo->opd_obdinfo.obd_name = NULL;
@@ -317,20 +318,9 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
 	
-		/*
-		 * XXX: Right now we don't have anything sensible to do here,
-		 * since the ofw_imap stuff relies on nodes having a reg
-		 * property. There exist ways around this, so the ePAPR
-		 * spec will need to be studied.
-		 */
-
-		return (PCI_INVALID_IRQ);
-
-#ifdef NOTYET
 		intr = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
 		    intr));
-#endif
 	}
 	
 	/*
@@ -349,12 +339,13 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 
 	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
 	if (isz == sizeof(intr))
-		return ((iparent == -1) ? intr : MAP_IRQ(iparent, intr));
+		return ((iparent == -1) ? intr : ofw_bus_map_intr(dev, iparent,
+		    intr));
 
 	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
 	if (isz == sizeof(intr)) {
 		if (iparent != -1)
-			intr = MAP_IRQ(iparent, intr);
+			intr = ofw_bus_map_intr(dev, iparent, intr);
 	} else {
 		/* No property: our best guess is the intpin. */
 		intr = pci_get_intpin(child);

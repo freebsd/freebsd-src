@@ -35,7 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
@@ -62,28 +61,28 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 SDT_PROVIDER_DECLARE(vfs);
-SDT_PROBE_DEFINE3(vfs, namecache, enter, done, done, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namecache, enter, done, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, done, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, enter_negative, done, "struct vnode *",
     "char *");
-SDT_PROBE_DEFINE1(vfs, namecache, fullpath, entry, entry, "struct vnode *");
-SDT_PROBE_DEFINE3(vfs, namecache, fullpath, hit, hit, "struct vnode *",
+SDT_PROBE_DEFINE1(vfs, namecache, fullpath, entry, "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, fullpath, hit, "struct vnode *",
     "char *", "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, fullpath, miss, miss, "struct vnode *");
-SDT_PROBE_DEFINE3(vfs, namecache, fullpath, return, return, "int",
+SDT_PROBE_DEFINE1(vfs, namecache, fullpath, miss, "struct vnode *");
+SDT_PROBE_DEFINE3(vfs, namecache, fullpath, return, "int",
     "struct vnode *", "char *");
-SDT_PROBE_DEFINE3(vfs, namecache, lookup, hit, hit, "struct vnode *", "char *",
+SDT_PROBE_DEFINE3(vfs, namecache, lookup, hit, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, lookup, hit_negative, hit-negative,
+SDT_PROBE_DEFINE2(vfs, namecache, lookup, hit__negative,
     "struct vnode *", "char *");
-SDT_PROBE_DEFINE2(vfs, namecache, lookup, miss, miss, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, lookup, miss, "struct vnode *",
     "char *");
-SDT_PROBE_DEFINE1(vfs, namecache, purge, done, done, "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, done, "struct vnode *");
-SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, done, "struct mount *");
-SDT_PROBE_DEFINE3(vfs, namecache, zap, done, done, "struct vnode *", "char *",
+SDT_PROBE_DEFINE1(vfs, namecache, purge, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purge_negative, done, "struct vnode *");
+SDT_PROBE_DEFINE1(vfs, namecache, purgevfs, done, "struct mount *");
+SDT_PROBE_DEFINE3(vfs, namecache, zap, done, "struct vnode *", "char *",
     "struct vnode *");
-SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, done, "struct vnode *",
+SDT_PROBE_DEFINE2(vfs, namecache, zap_negative, done, "struct vnode *",
     "char *");
 
 /*
@@ -614,7 +613,7 @@ negative_success:
 	nchstats.ncs_neghits++;
 	if (ncp->nc_flag & NCF_WHITE)
 		cnp->cn_flags |= ISWHITEOUT;
-	SDT_PROBE(vfs, namecache, lookup, hit_negative, dvp, nc_get_name(ncp),
+	SDT_PROBE(vfs, namecache, lookup, hit__negative, dvp, nc_get_name(ncp),
 	    0, 0, 0);
 	cache_out_ts(ncp, tsp, ticksp);
 	CACHE_WUNLOCK();
@@ -749,16 +748,20 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 			    ncp->nc_flag & NCF_ISDOTDOT) {
 				KASSERT(ncp->nc_dvp == dvp,
 				    ("wrong isdotdot parent"));
-				if (ncp->nc_vp != NULL)
+				if (ncp->nc_vp != NULL) {
 					TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst,
 					    ncp, nc_dst);
-				else
+				} else {
 					TAILQ_REMOVE(&ncneg, ncp, nc_dst);
-				if (vp != NULL)
+					numneg--;
+				}
+				if (vp != NULL) {
 					TAILQ_INSERT_HEAD(&vp->v_cache_dst,
 					    ncp, nc_dst);
-				else
+				} else {
 					TAILQ_INSERT_TAIL(&ncneg, ncp, nc_dst);
+					numneg++;
+				}
 				ncp->nc_vp = vp;
 				CACHE_WUNLOCK();
 				return;
@@ -894,6 +897,8 @@ cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 	}
 	if (numneg * ncnegfactor > numcache) {
 		ncp = TAILQ_FIRST(&ncneg);
+		KASSERT(ncp->nc_vp == NULL, ("ncp %p vp %p on ncneg",
+		    ncp, ncp->nc_vp));
 		zap = 1;
 	}
 	if (hold)

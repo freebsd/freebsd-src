@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -42,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -193,18 +196,6 @@ SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &lacp_debug, 0, "Enable LACP debug logging (1=debug, 2=trace)");
 TUNABLE_INT("net.link.lagg.lacp.debug", &lacp_debug);
 
-/* bitmap of ports */
-static int lacp_rx_test = 0;
-static int lacp_tx_test = 0;
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, rxtest, CTLFLAG_RW, &lacp_rx_test, 0,
-    "RXTest");
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, txtest, CTLFLAG_RW, &lacp_tx_test, 0,
-    "TXTest");
-
-static int lacp_strict = 1;
-SYSCTL_INT(_net_link_lagg_lacp, OID_AUTO, strict, CTLFLAG_RW, &lacp_strict,
-    0, "Strict spec compliance");
-
 #define LACP_DPRINTF(a) if (lacp_debug & 0x01) { lacp_dprintf a ; }
 #define LACP_TRACE(a) if (lacp_debug & 0x02) { lacp_dprintf(a,"%s\n",__func__); }
 #define LACP_TPRINTF(a) if (lacp_debug & 0x04) { lacp_dprintf a ; }
@@ -315,7 +306,7 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 		lacp_dump_lacpdu(du);
 	}
 
-	if ((1 << lp->lp_ifp->if_dunit) & lacp_rx_test) {
+	if ((1 << lp->lp_ifp->if_dunit) & lp->lp_lsc->lsc_debug.lsc_rx_test) {
 		LACP_TPRINTF((lp, "Dropping RX PDU\n"));
 		goto bad;
 	}
@@ -750,10 +741,48 @@ lacp_transit_expire(void *vp)
 	lsc->lsc_suppress_distributing = FALSE;
 }
 
+static void
+lacp_attach_sysctl(struct lacp_softc *lsc, struct sysctl_oid *p_oid)
+{
+	struct lagg_softc *sc = lsc->lsc_softc;
+
+	SYSCTL_ADD_UINT(&sc->ctx, SYSCTL_CHILDREN(p_oid), OID_AUTO,
+	    "lacp_strict_mode",
+	    CTLFLAG_RW,
+	    &lsc->lsc_strict_mode,
+	    lsc->lsc_strict_mode,
+	    "Enable LACP strict mode");
+}
+
+static void
+lacp_attach_sysctl_debug(struct lacp_softc *lsc, struct sysctl_oid *p_oid)
+{
+	struct lagg_softc *sc = lsc->lsc_softc;
+	struct sysctl_oid *oid;
+
+	/* Create a child of the parent lagg interface */
+	oid = SYSCTL_ADD_NODE(&sc->ctx, SYSCTL_CHILDREN(p_oid),
+	    OID_AUTO, "debug", CTLFLAG_RD, NULL, "DEBUG");
+
+	SYSCTL_ADD_UINT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "rx_test",
+	    CTLFLAG_RW,
+	    &lsc->lsc_debug.lsc_rx_test,
+	    lsc->lsc_debug.lsc_rx_test,
+	    "Bitmap of if_dunit entries to drop RX frames for");
+	SYSCTL_ADD_UINT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+	    "tx_test",
+	    CTLFLAG_RW,
+	    &lsc->lsc_debug.lsc_tx_test,
+	    lsc->lsc_debug.lsc_tx_test,
+	    "Bitmap of if_dunit entries to drop TX frames for");
+}
+
 int
 lacp_attach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc;
+	struct sysctl_oid *oid;
 
 	lsc = malloc(sizeof(struct lacp_softc),
 	    M_DEVBUF, M_NOWAIT|M_ZERO);
@@ -765,9 +794,18 @@ lacp_attach(struct lagg_softc *sc)
 
 	lsc->lsc_hashkey = arc4random();
 	lsc->lsc_active_aggregator = NULL;
+	lsc->lsc_strict_mode = 1;
 	LACP_LOCK_INIT(lsc);
 	TAILQ_INIT(&lsc->lsc_aggregators);
 	LIST_INIT(&lsc->lsc_ports);
+
+	/* Create a child of the parent lagg interface */
+	oid = SYSCTL_ADD_NODE(&sc->ctx, SYSCTL_CHILDREN(sc->sc_oid),
+	    OID_AUTO, "lacp", CTLFLAG_RD, NULL, "LACP");
+
+	/* Attach sysctl nodes */
+	lacp_attach_sysctl(lsc, oid);
+	lacp_attach_sysctl_debug(lsc, oid);
 
 	callout_init_mtx(&lsc->lsc_transit_callout, &lsc->lsc_mtx, 0);
 	callout_init_mtx(&lsc->lsc_callout, &lsc->lsc_mtx, 0);
@@ -839,7 +877,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	}
 
 	if (sc->use_flowid && (m->m_flags & M_FLOWID))
-		hash = m->m_pkthdr.flowid;
+		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);
 	hash %= pm->pm_count;
@@ -1054,8 +1092,45 @@ lacp_compose_key(struct lacp_port *lp)
 		KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid media type"));
 		KASSERT((media & IFM_FDX) != 0, ("aggregating HDX interface"));
 
-		/* bit 0..4:	IFM_SUBTYPE */
-		key = subtype;
+		/* bit 0..4:	IFM_SUBTYPE modulo speed */
+		switch (subtype) {
+		case IFM_10_T:
+		case IFM_10_2:
+		case IFM_10_5:
+		case IFM_10_STP:
+		case IFM_10_FL:
+			key = IFM_10_T;
+			break;
+		case IFM_100_TX:
+		case IFM_100_FX:
+		case IFM_100_T4:
+		case IFM_100_VG:
+		case IFM_100_T2:
+			key = IFM_100_TX;
+			break;
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+		case IFM_1000_T:
+			key = IFM_1000_SX;
+			break;
+		case IFM_10G_LR:
+		case IFM_10G_SR:
+		case IFM_10G_CX4:
+		case IFM_10G_TWINAX:
+		case IFM_10G_TWINAX_LONG:
+		case IFM_10G_LRM:
+		case IFM_10G_T:
+			key = IFM_10G_LR;
+			break;
+		case IFM_40G_CR4:
+		case IFM_40G_SR4:
+		case IFM_40G_LR4:
+			key = IFM_40G_CR4;
+			break;
+		default:
+			key = subtype;
+		}
 		/* bit 5..14:	(some bits of) if_index of lagg device */
 		key |= 0x7fe0 & ((sc->sc_ifp->if_index) << 5);
 		/* bit 15:	0 */
@@ -1343,7 +1418,7 @@ re_eval:
 	case LACP_MUX_DISTRIBUTING:
 		if (selected != LACP_SELECTED || !p_sync || !p_collecting) {
 			new_state = LACP_MUX_COLLECTING;
-			lacp_dprintf(lp, "Interface stopped DISTRIBUTING, possible flaping\n");
+			lacp_dprintf(lp, "Interface stopped DISTRIBUTING, possible flapping\n");
 			sc->sc_flapping++;
 		}
 		break;
@@ -1594,7 +1669,7 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 	}
 
 	/* XXX Hack, still need to implement 5.4.9 para 2,3,4 */
-	if (lacp_strict)
+	if (lp->lp_lsc->lsc_strict_mode)
 		lp->lp_partner.lip_state |= LACP_STATE_SYNC;
 
 	lacp_sm_ptx_update_timeout(lp, oldpstate);
@@ -1622,7 +1697,7 @@ lacp_sm_rx_record_default(struct lacp_port *lp)
 	LACP_TRACE(lp);
 
 	oldpstate = lp->lp_partner.lip_state;
-	if (lacp_strict)
+	if (lp->lp_lsc->lsc_strict_mode)
 		lp->lp_partner = lacp_partner_admin_strict;
 	else
 		lp->lp_partner = lacp_partner_admin_optimistic;;
@@ -1660,7 +1735,7 @@ lacp_sm_rx_update_default_selected(struct lacp_port *lp)
 
 	LACP_TRACE(lp);
 
-	if (lacp_strict)
+	if (lp->lp_lsc->lsc_strict_mode)
 		lacp_sm_rx_update_selected_from_peerinfo(lp,
 		    &lacp_partner_admin_strict);
 	else
@@ -1695,10 +1770,11 @@ lacp_sm_tx(struct lacp_port *lp)
 		return;
 	}
 
-	if (((1 << lp->lp_ifp->if_dunit) & lacp_tx_test) == 0)
+	if (((1 << lp->lp_ifp->if_dunit) & lp->lp_lsc->lsc_debug.lsc_tx_test) == 0) {
 		error = lacp_xmit_lacpdu(lp);
-	else
+	} else {
 		LACP_TPRINTF((lp, "Dropping TX PDU\n"));
+	}
 
 	if (error == 0) {
 		lp->lp_flags &= ~LACP_PORT_NTT;

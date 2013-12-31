@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -275,7 +276,7 @@ mld_save_context(struct mbuf *m, struct ifnet *ifp)
 {
 
 #ifdef VIMAGE
-	m->m_pkthdr.header = ifp->if_vnet;
+	m->m_pkthdr.PH_loc.ptr = ifp->if_vnet;
 #endif /* VIMAGE */
 	m->m_pkthdr.flowid = ifp->if_index;
 }
@@ -284,7 +285,7 @@ static __inline void
 mld_scrub_context(struct mbuf *m)
 {
 
-	m->m_pkthdr.header = NULL;
+	m->m_pkthdr.PH_loc.ptr = NULL;
 	m->m_pkthdr.flowid = 0;
 }
 
@@ -300,7 +301,7 @@ mld_restore_context(struct mbuf *m)
 {
 
 #if defined(VIMAGE) && defined(INVARIANTS)
-	KASSERT(curvnet == m->m_pkthdr.header,
+	KASSERT(curvnet == m->m_pkthdr.PH_loc.ptr,
 	    ("%s: called when curvnet was not restored", __func__));
 #endif
 	return (m->m_pkthdr.flowid);
@@ -3098,7 +3099,7 @@ mld_dispatch_packet(struct mbuf *m)
 	}
 
 	mld_scrub_context(m0);
-	m->m_flags &= ~(M_PROTOFLAGS);
+	m_clrprotoflags(m);
 	m0->m_pkthdr.rcvif = V_loif;
 
 	ip6 = mtod(m0, struct ip6_hdr *);

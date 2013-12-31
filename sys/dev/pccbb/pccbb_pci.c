@@ -471,10 +471,7 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->subbus, 1);
 
 	/* Enable memory access */
-	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND,
-	    | PCIM_CMD_MEMEN
-	    | PCIM_CMD_PORTEN
-	    | PCIM_CMD_BUSMASTEREN, 2);
+	pci_enable_busmaster(sc->dev);
 
 	/* disable Legacy IO */
 	switch (sc->chipset) {

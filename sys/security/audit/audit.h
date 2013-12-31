@@ -114,7 +114,7 @@ void	 audit_arg_auditon(union auditon_udata *udata);
 void	 audit_arg_file(struct proc *p, struct file *fp);
 void	 audit_arg_argv(char *argv, int argc, int length);
 void	 audit_arg_envv(char *envv, int envc, int length);
-void	 audit_arg_rights(cap_rights_t rights);
+void	 audit_arg_rights(cap_rights_t *rightsp);
 void	 audit_arg_fcntl_rights(uint32_t fcntlrights);
 void	 audit_sysclose(struct thread *td, int fd);
 void	 audit_cred_copy(struct ucred *src, struct ucred *dest);

@@ -79,7 +79,7 @@ extern volatile int ticks;
  * enumeration values are explicit rather than implicit to provide
  * for binary compatibility with inserted elements.
  *
- * The SI_SUB_RUN_SCHEDULER value must have the highest lexical value.
+ * The SI_SUB_LAST value must have the highest lexical value.
  *
  * The SI_SUB_SWAP values represent a value used by
  * the BSD 4.4Lite but not by FreeBSD; it is maintained in dependent
@@ -96,6 +96,11 @@ enum sysinit_sub_id {
 	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
 	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
 	SI_SUB_KVM_RSRC		= 0x1A00000,	/* kvm operational limits*/
+	SI_SUB_HYPERVISOR	= 0x1A40000,	/*
+						 * Hypervisor detection and
+						 * virtualization support 
+						 * setup.
+						 */
 	SI_SUB_WITNESS		= 0x1A80000,	/* witness initialization */
 	SI_SUB_MTX_POOL_DYNAMIC	= 0x1AC0000,	/* dynamic mutex pool */
 	SI_SUB_LOCK		= 0x1B00000,	/* various locks */
@@ -165,7 +170,7 @@ enum sysinit_sub_id {
 	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
 	SI_SUB_SMP		= 0xf000000,	/* start the APs*/
 	SI_SUB_RACCTD		= 0xf100000,	/* start raccd*/
-	SI_SUB_RUN_SCHEDULER	= 0xfffffff	/* scheduler*/
+	SI_SUB_LAST		= 0xfffffff	/* final initialization */
 };
 
 

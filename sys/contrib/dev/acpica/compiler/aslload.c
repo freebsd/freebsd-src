@@ -487,6 +487,10 @@ LdNamespace1Begin (
                             ACPI_TYPE_LOCAL_SCOPE,
                             ACPI_IMODE_LOAD_PASS1, Flags,
                             WalkState, &(Node));
+                if (ACPI_FAILURE (Status))
+                {
+                    return_ACPI_STATUS (Status);
+                }
 
                 /*
                  * However, this is an error -- primarily because the MS

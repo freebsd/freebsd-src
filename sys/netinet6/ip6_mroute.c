@@ -93,6 +93,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -104,6 +105,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/raw_cb.h>
 #include <net/vnet.h>
@@ -114,6 +116,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_encap.h>
 
 #include <netinet/ip6.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
@@ -573,7 +576,7 @@ int
 X_ip6_mrouter_done(void)
 {
 	mifi_t mifi;
-	int i;
+	u_long i;
 	struct mf6c *rt;
 	struct rtdetq *rte;
 
@@ -613,7 +616,7 @@ X_ip6_mrouter_done(void)
 			for (rte = rt->mf6c_stall; rte != NULL; ) {
 				struct rtdetq *n = rte->next;
 
-				m_free(rte->m);
+				m_freem(rte->m);
 				free(rte, M_MRTABLE6);
 				rte = n;
 			}
@@ -1103,8 +1106,8 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (IN6_IS_ADDR_UNSPECIFIED(&ip6->ip6_src)) {
 		IP6STAT_INC(ip6s_cantforward);
-		if (V_ip6_log_time + V_ip6_log_interval < time_second) {
-			V_ip6_log_time = time_second;
+		if (V_ip6_log_time + V_ip6_log_interval < time_uptime) {
+			V_ip6_log_time = time_uptime;
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
@@ -1338,7 +1341,7 @@ expire_upcalls(void *unused)
 {
 	struct rtdetq *rte;
 	struct mf6c *mfc, **nptr;
-	int i;
+	u_long i;
 
 	MFC6_LOCK();
 	for (i = 0; i < MF6CTBLSIZ; i++) {
@@ -1644,10 +1647,13 @@ phyint_send(struct ip6_hdr *ip6, struct mif6 *mifp, struct mbuf *m)
 		dst6.sin6_len = sizeof(struct sockaddr_in6);
 		dst6.sin6_family = AF_INET6;
 		dst6.sin6_addr = ip6->ip6_dst;
+
+		IP_PROBE(send, NULL, NULL, ip6, ifp, NULL, ip6);
 		/*
 		 * We just call if_output instead of nd6_output here, since
 		 * we need no ND for a multicast forwarded packet...right?
 		 */
+		m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 		error = (*ifp->if_output)(ifp, mb_copy,
 		    (struct sockaddr *)&dst6, NULL);
 #ifdef MRT6DEBUG

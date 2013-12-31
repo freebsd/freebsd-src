@@ -43,8 +43,8 @@
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
-#include <machine/xen/xen-os.h>
 
+#include <xen/xen-os.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
@@ -193,39 +193,6 @@ int xenbus_watch_path2(device_t dev, const char *path,
  *        for \a dev in the XenStore.
  */
 int xenbus_grant_ring(device_t dev, unsigned long ring_mfn, grant_ref_t *refp);
-
-/**
- * Allocate an event channel for the given XenBus device.
- *
- * \param dev        The device for which to allocate the event channel.
- * \param port[out]  The port identifier for the allocated event channel.
- *
- * \return  On success, 0. Otherwise an errno value indicating the
- *          type of failure.
- *
- * A successfully allocated event channel should be free'd using
- * xenbus_free_evtchn().
- *
- * \note  On error, \a dev will be switched to the XenbusStateClosing
- *        state and the returned error is saved in the per-device error node
- *        for \a dev in the XenStore.
- */
-int xenbus_alloc_evtchn(device_t dev, evtchn_port_t *port);
-
-/**
- * Free an existing event channel.
- *
- * \param dev   The device which allocated this event channel.
- * \param port  The port identifier for the event channel to free.
- *
- * \return  On success, 0. Otherwise an errno value indicating the
- *          type of failure.
- *
- * \note  On error, \a dev will be switched to the XenbusStateClosing
- *        state and the returned error is saved in the per-device error node
- *        for \a dev in the XenStore.
- */
-int xenbus_free_evtchn(device_t dev, evtchn_port_t port);
 
 /**
  * Record the given errno, along with the given, printf-style, formatted

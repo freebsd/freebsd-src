@@ -52,7 +52,7 @@ static kobj_method_t sab82532_methods[] = {
 	KOBJMETHOD(scc_iclear,	sab82532_bfe_iclear),
 	KOBJMETHOD(scc_ipend,	sab82532_bfe_ipend),
 	KOBJMETHOD(scc_probe,	sab82532_bfe_probe),
-	{ 0, 0 }
+	KOBJMETHOD_END
 };
 
 struct scc_class scc_sab82532_class = {
@@ -66,18 +66,37 @@ struct scc_class scc_sab82532_class = {
 };
 
 static int
-sab82532_bfe_attach(struct scc_softc *sc, int reset)
+sab82532_bfe_attach(struct scc_softc *sc __unused, int reset __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }
 
 static int
 sab82532_bfe_iclear(struct scc_softc *sc, struct scc_chan *ch)
 {
+	struct scc_bas *bas;
+	int i, ofs, rbcl;
 
+	bas = &sc->sc_bas;
+	ofs = (ch->ch_nr - 1) * SAB_CHANLEN;
+	mtx_lock_spin(&sc->sc_hwmtx);
+	if (ch->ch_ipend & SER_INT_RXREADY) {
+		if (scc_getreg(bas, ofs + SAB_STAR) & SAB_STAR_RFNE) {
+			rbcl = scc_getreg(bas, ofs + SAB_RBCL) & 31;
+			if (rbcl == 0)
+				rbcl = 32;
+			for (i = 0; i < rbcl; i += 2) {
+				(void)scc_getreg(bas, ofs + SAB_RFIFO);
+				(void)scc_getreg(bas, ofs + SAB_RFIFO + 1);
+			}
+		}
+		while (scc_getreg(bas, ofs + SAB_STAR) & SAB_STAR_CEC)
+			;
+		scc_setreg(bas, ofs + SAB_CMDR, SAB_CMDR_RMC);
+		scc_barrier(bas);
+	}
+	mtx_unlock_spin(&sc->sc_hwmtx);
 	return (0);
 }
 
@@ -124,10 +143,8 @@ sab82532_bfe_ipend(struct scc_softc *sc)
 }
 
 static int
-sab82532_bfe_probe(struct scc_softc *sc)
+sab82532_bfe_probe(struct scc_softc *sc __unused)
 {
-	struct scc_bas *bas;
 
-	bas = &sc->sc_bas;
 	return (0);
 }

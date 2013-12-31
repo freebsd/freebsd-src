@@ -9,13 +9,14 @@ arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
 arm/arm/irq_dispatch.S			standard
 
+arm/allwinner/a20/a20_cpu_cfg.c 	standard
 arm/allwinner/a10_clk.c			standard
 arm/allwinner/a10_gpio.c		optional	gpio
 arm/allwinner/a10_ehci.c		optional	ehci
 arm/allwinner/a10_wdog.c		standard
 arm/allwinner/timer.c			standard
 arm/allwinner/aintc.c			standard
-arm/allwinner/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 arm/allwinner/common.c			standard
 #arm/allwinner/console.c			standard
 arm/allwinner/a10_machdep.c		standard

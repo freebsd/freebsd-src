@@ -90,11 +90,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/devmap.h>
+#include <machine/frame.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
-#include <machine/pmap.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
 #include <machine/undefined.h>
@@ -158,7 +159,6 @@ struct pv_addr undstack;
 struct pv_addr abtstack;
 static struct pv_addr kernelstack;
 
-const struct pmap_devmap *pmap_devmap_bootstrap_table;
 #endif
 
 #if defined(LINUX_BOOT_ABI)
@@ -361,7 +361,6 @@ cpu_startup(void *dummy)
 #endif
 #endif
 
-	cpu_setup("");
 	identify_arm_cpu();
 
 	printf("real memory  = %ju (%ju MB)\n", (uintmax_t)ptoa(physmem),
@@ -875,7 +874,7 @@ pcpu0_init(void)
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
-#ifdef ARM_VFP_SUPPORT
+#ifdef VFP
 	PCPU_SET(cpu, 0);
 #endif
 }
@@ -1169,11 +1168,15 @@ physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 		 */
 		if (availmem_regions[i].mr_start > 0 ||
 		    availmem_regions[i].mr_size > PAGE_SIZE) {
+			vm_size_t size;
 			phys_avail[j] = availmem_regions[i].mr_start;
-			if (phys_avail[j] == 0)
+
+			size = availmem_regions[i].mr_size;
+			if (phys_avail[j] == 0) {
 				phys_avail[j] += PAGE_SIZE;
-			phys_avail[j + 1] = availmem_regions[i].mr_start +
-			    availmem_regions[i].mr_size;
+				size -= PAGE_SIZE;
+			}
+			phys_avail[j + 1] = availmem_regions[i].mr_start + size;
 		} else
 			j -= 2;
 	}
@@ -1263,7 +1266,7 @@ initarm(struct arm_boot_params *abp)
 				break;
 			/*
 			 * Restricted region includes memory region
-			 * skip availble region
+			 * skip available region
 			 */
 			if ((start >= rstart) && (rend >= end)) {
 				start = rend;
@@ -1299,7 +1302,7 @@ initarm(struct arm_boot_params *abp)
 	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
-	vm_max_kernel_address = initarm_lastaddr();
+	initarm_early_init();
 
 	pcpu0_init();
 
@@ -1415,15 +1418,22 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
-	/* Map pmap_devmap[] entries */
-	err_devmap = platform_devmap_init();
-	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
+	/* Establish static device mappings. */
+	err_devmap = initarm_devmap_init();
+	arm_devmap_bootstrap(l1pagetable, NULL);
+	vm_max_kernel_address = initarm_lastaddr();
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
+
+	/*
+	 * Now that proper page tables are installed, call cpu_setup() to enable
+	 * instruction and data caches and other chip-specific features.
+	 */
+	cpu_setup("");
 
 	/*
 	 * Only after the SOC registers block is mapped we can perform device

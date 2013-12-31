@@ -46,7 +46,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
-#include "opt_kdtrace.h"
 #include "opt_vm.h"
 
 #include <sys/param.h>
@@ -55,16 +54,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
+#include <sys/vmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -113,14 +113,7 @@ MALLOC_DEFINE(M_TEMP, "temp", "misc temporary data buffers");
 MALLOC_DEFINE(M_IP6OPT, "ip6opt", "IPv6 options");
 MALLOC_DEFINE(M_IP6NDP, "ip6ndp", "IPv6 Neighbor Discovery");
 
-static void kmeminit(void *);
-SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL);
-
-static MALLOC_DEFINE(M_FREE, "free", "should be on free list");
-
 static struct malloc_type *kmemstatistics;
-static vm_offset_t kmembase;
-static vm_offset_t kmemlimit;
 static int kmemcount;
 
 #define KMEM_ZSHIFT	4
@@ -205,12 +198,12 @@ SYSCTL_UINT(_vm, OID_AUTO, kmem_size_scale, CTLFLAG_RDTUN, &vm_kmem_size_scale, 
 static int sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, kmem_map_size,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kmem_map_size, "LU", "Current kmem_map allocation size");
+    sysctl_kmem_map_size, "LU", "Current kmem allocation size");
 
 static int sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_vm, OID_AUTO, kmem_map_free,
     CTLFLAG_RD | CTLTYPE_ULONG | CTLFLAG_MPSAFE, NULL, 0,
-    sysctl_kmem_map_free, "LU", "Largest contiguous free range in kmem_map");
+    sysctl_kmem_map_free, "LU", "Free space in kmem");
 
 /*
  * The malloc_mtx protects the kmemstatistics linked list.
@@ -255,7 +248,7 @@ sysctl_kmem_map_size(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	size = kmem_map->size;
+	size = vmem_size(kmem_arena, VMEM_ALLOC);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -264,10 +257,7 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 {
 	u_long size;
 
-	vm_map_lock_read(kmem_map);
-	size = kmem_map->root != NULL ? kmem_map->root->max_free :
-	    kmem_map->max_offset - kmem_map->min_offset;
-	vm_map_unlock_read(kmem_map);
+	size = vmem_size(kmem_arena, VMEM_FREE);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
 
@@ -422,7 +412,7 @@ contigmalloc(unsigned long size, struct malloc_type *type, int flags,
 {
 	void *ret;
 
-	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	ret = (void *)kmem_alloc_contig(kernel_arena, size, flags, low, high,
 	    alignment, boundary, VM_MEMATTR_DEFAULT);
 	if (ret != NULL)
 		malloc_type_allocated(type, round_page(size));
@@ -440,7 +430,7 @@ void
 contigfree(void *addr, unsigned long size, struct malloc_type *type)
 {
 
-	kmem_free(kernel_map, (vm_offset_t)addr, size);
+	kmem_free(kernel_arena, (vm_offset_t)addr, size);
 	malloc_type_freed(type, round_page(size));
 }
 
@@ -683,45 +673,57 @@ reallocf(void *addr, unsigned long size, struct malloc_type *mtp, int flags)
 }
 
 /*
- * Initialize the kernel memory allocator
+ * Wake the page daemon when we exhaust KVA.  It will call the lowmem handler
+ * and uma_reclaim() callbacks in a context that is safe.
  */
-/* ARGSUSED*/
 static void
-kmeminit(void *dummy)
+kmem_reclaim(vmem_t *vm, int flags)
 {
-	uint8_t indx;
+
+	pagedaemon_wakeup();
+}
+
+CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
+
+/*
+ * Initialize the kernel memory (kmem) arena.
+ */
+void
+kmeminit(void)
+{
 	u_long mem_size, tmp;
-	int i;
- 
-	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
 
 	/*
-	 * Try to auto-tune the kernel memory size, so that it is
-	 * more applicable for a wider range of machine sizes.  The
-	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
-	 * available.
+	 * Calculate the amount of kernel virtual address (KVA) space that is
+	 * preallocated to the kmem arena.  In order to support a wide range
+	 * of machines, it is a function of the physical memory size,
+	 * specifically,
 	 *
-	 * Note that the kmem_map is also used by the zone allocator,
-	 * so make sure that there is enough space.
+	 *	min(max(physical memory size / VM_KMEM_SIZE_SCALE,
+	 *	    VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
+	 *
+	 * Every architecture must define an integral value for
+	 * VM_KMEM_SIZE_SCALE.  However, the definitions of VM_KMEM_SIZE_MIN
+	 * and VM_KMEM_SIZE_MAX, which represent respectively the floor and
+	 * ceiling on this preallocation, are optional.  Typically,
+	 * VM_KMEM_SIZE_MAX is itself a function of the available KVA space on
+	 * a given architecture.
 	 */
-	vm_kmem_size = VM_KMEM_SIZE + nmbclusters * PAGE_SIZE;
 	mem_size = cnt.v_page_count;
 
-#if defined(VM_KMEM_SIZE_SCALE)
 	vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
-#endif
 	TUNABLE_INT_FETCH("vm.kmem_size_scale", &vm_kmem_size_scale);
-	if (vm_kmem_size_scale > 0 &&
-	    (mem_size / vm_kmem_size_scale) > (vm_kmem_size / PAGE_SIZE))
-		vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
+	if (vm_kmem_size_scale < 1)
+		vm_kmem_size_scale = VM_KMEM_SIZE_SCALE;
+
+	vm_kmem_size = (mem_size / vm_kmem_size_scale) * PAGE_SIZE;
 
 #if defined(VM_KMEM_SIZE_MIN)
 	vm_kmem_size_min = VM_KMEM_SIZE_MIN;
 #endif
 	TUNABLE_ULONG_FETCH("vm.kmem_size_min", &vm_kmem_size_min);
-	if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min) {
+	if (vm_kmem_size_min > 0 && vm_kmem_size < vm_kmem_size_min)
 		vm_kmem_size = vm_kmem_size_min;
-	}
 
 #if defined(VM_KMEM_SIZE_MAX)
 	vm_kmem_size_max = VM_KMEM_SIZE_MAX;
@@ -730,26 +732,29 @@ kmeminit(void *dummy)
 	if (vm_kmem_size_max > 0 && vm_kmem_size >= vm_kmem_size_max)
 		vm_kmem_size = vm_kmem_size_max;
 
-	/* Allow final override from the kernel environment */
-	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
-
 	/*
-	 * Limit kmem virtual size to twice the physical memory.
-	 * This allows for kmem map sparseness, but limits the size
-	 * to something sane.  Be careful to not overflow the 32bit
-	 * ints while doing the check or the adjustment.
+	 * Alternatively, the amount of KVA space that is preallocated to the
+	 * kmem arena can be set statically at compile-time or manually
+	 * through the kernel environment.  However, it is still limited to
+	 * twice the physical memory size, which has been sufficient to handle
+	 * the most severe cases of external fragmentation in the kmem arena. 
 	 */
+#if defined(VM_KMEM_SIZE)
+	vm_kmem_size = VM_KMEM_SIZE;
+#endif
+	TUNABLE_ULONG_FETCH("vm.kmem_size", &vm_kmem_size);
 	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
+	vm_kmem_size = round_page(vm_kmem_size);
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
 	tmp = vm_kmem_size;
 #endif
-	kmem_map = kmem_suballoc(kernel_map, &kmembase, &kmemlimit,
-	    tmp, TRUE);
-	kmem_map->system_map = 1;
+	vmem_init(kmem_arena, "kmem arena", kva_alloc(tmp), tmp, PAGE_SIZE,
+	    0, 0);
+	vmem_set_reclaim(kmem_arena, kmem_reclaim);
 
 #ifdef DEBUG_MEMGUARD
 	/*
@@ -757,8 +762,23 @@ kmeminit(void *dummy)
 	 * replacement allocator used for detecting tamper-after-free
 	 * scenarios as they occur.  It is only used for debugging.
 	 */
-	memguard_init(kmem_map);
+	memguard_init(kmem_arena);
 #endif
+}
+
+/*
+ * Initialize the kernel memory allocator
+ */
+/* ARGSUSED*/
+static void
+mallocinit(void *dummy)
+{
+	int i;
+	uint8_t indx;
+
+	mtx_init(&malloc_mtx, "malloc", NULL, MTX_DEF);
+
+	kmeminit();
 
 	uma_startup2();
 
@@ -789,6 +809,7 @@ kmeminit(void *dummy)
 		
 	}
 }
+SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, mallocinit, NULL);
 
 void
 malloc_init(void *data)

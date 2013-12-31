@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/sdt.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
 
@@ -63,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/flowtable.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -360,6 +362,11 @@ ip_init(void)
 void
 ip_destroy(void)
 {
+	int i;
+
+	if ((i = pfil_head_unregister(&V_inet_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to unregister pfil hook, "
+		    "error %d\n", __func__, i);
 
 	/* Cleanup in_ifaddr hash table; should be empty. */
 	hashdestroy(V_in_ifaddrhashtbl, M_IFADDR, V_in_ifaddrhmask);
@@ -428,6 +435,8 @@ ip_input(struct mbuf *m)
 		}
 		ip = mtod(m, struct ip *);
 	}
+
+	IP_PROBE(receive, NULL, NULL, ip, m->m_pkthdr.rcvif, ip, NULL);
 
 	/* 127/8 must not appear on wire - RFC1122 */
 	ifp = m->m_pkthdr.rcvif;
@@ -593,7 +602,9 @@ passin:
 		 */
 		if (IA_SIN(ia)->sin_addr.s_addr == ip->ip_dst.s_addr && 
 		    (!checkif || ia->ia_ifp == ifp)) {
-			ifa_ref(&ia->ia_ifa);
+			counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+			counter_u64_add(ia->ia_ifa.ifa_ibytes,
+			    m->m_pkthdr.len);
 			/* IN_IFADDR_RUNLOCK(); */
 			goto ours;
 		}
@@ -616,13 +627,17 @@ passin:
 			ia = ifatoia(ifa);
 			if (satosin(&ia->ia_broadaddr)->sin_addr.s_addr ==
 			    ip->ip_dst.s_addr) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
 #ifdef BOOTP_COMPAT
 			if (IA_SIN(ia)->sin_addr.s_addr == INADDR_ANY) {
-				ifa_ref(ifa);
+				counter_u64_add(ia->ia_ifa.ifa_ipackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_ibytes,
+				    m->m_pkthdr.len);
 				IF_ADDR_RUNLOCK(ifp);
 				goto ours;
 			}
@@ -707,19 +722,9 @@ ours:
 	 * IPSTEALTH: Process non-routing options only
 	 * if the packet is destined for us.
 	 */
-	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1)) {
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
+	if (V_ipstealth && hlen > sizeof (struct ip) && ip_dooptions(m, 1))
 		return;
-	}
 #endif /* IPSTEALTH */
-
-	/* Count the packet in the ip address stats */
-	if (ia != NULL) {
-		ia->ia_ifa.if_ipackets++;
-		ia->ia_ifa.if_ibytes += m->m_pkthdr.len;
-		ifa_free(&ia->ia_ifa);
-	}
 
 	/*
 	 * Attempt reassembly; if it succeeds, proceed.
@@ -911,9 +916,9 @@ found:
 			IPSTAT_INC(ips_toosmall); /* XXX */
 			goto dropfrag;
 		}
-		m->m_flags |= M_FRAG;
+		m->m_flags |= M_IP_FRAG;
 	} else
-		m->m_flags &= ~M_FRAG;
+		m->m_flags &= ~M_IP_FRAG;
 	ip->ip_off = htons(ntohs(ip->ip_off) << 3);
 
 	/*
@@ -921,7 +926,7 @@ found:
 	 * ip_reass() will return a different mbuf.
 	 */
 	IPSTAT_INC(ips_fragments);
-	m->m_pkthdr.header = ip;
+	m->m_pkthdr.PH_loc.ptr = ip;
 
 	/* Previous ip_reass() started here. */
 	/*
@@ -964,7 +969,7 @@ found:
 #endif
 	}
 
-#define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
+#define GETIP(m)	((struct ip*)((m)->m_pkthdr.PH_loc.ptr))
 
 	/*
 	 * Handle ECN by comparing this segment with the first one;
@@ -1060,7 +1065,7 @@ found:
 		next += ntohs(GETIP(q)->ip_len);
 	}
 	/* Make sure the last packet didn't have the IP_MF flag */
-	if (p->m_flags & M_FRAG) {
+	if (p->m_flags & M_IP_FRAG) {
 		if (fp->ipq_nfrags > V_maxfragsperpacket) {
 			IPSTAT_ADD(ips_fragdropped, fp->ipq_nfrags);
 			ip_freef(head, fp);

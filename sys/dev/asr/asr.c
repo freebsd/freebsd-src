@@ -385,6 +385,21 @@ typedef struct Asr_softc {
 static STAILQ_HEAD(, Asr_softc) Asr_softc_list =
 	STAILQ_HEAD_INITIALIZER(Asr_softc_list);
 
+static __inline void
+set_ccb_timeout_ch(union asr_ccb *ccb, struct callout_handle ch)
+{
+	ccb->ccb_h.sim_priv.entries[0].ptr = ch.callout;
+}
+
+static __inline struct callout_handle
+get_ccb_timeout_ch(union asr_ccb *ccb)
+{
+	struct callout_handle ch;
+
+	ch.callout = ccb->ccb_h.sim_priv.entries[0].ptr;
+	return ch;
+}
+
 /*
  *	Prototypes of the routines we have in this object.
  */
@@ -797,8 +812,8 @@ ASR_ccbAdd(Asr_softc_t *sc, union asr_ccb *ccb)
 			 */
 			ccb->ccb_h.timeout = 6 * 60 * 1000;
 		}
-		ccb->ccb_h.timeout_ch = timeout(asr_timeout, (caddr_t)ccb,
-		  (ccb->ccb_h.timeout * hz) / 1000);
+		set_ccb_timeout_ch(ccb, timeout(asr_timeout, (caddr_t)ccb,
+		  (ccb->ccb_h.timeout * hz) / 1000));
 	}
 	splx(s);
 } /* ASR_ccbAdd */
@@ -812,7 +827,7 @@ ASR_ccbRemove(Asr_softc_t *sc, union asr_ccb *ccb)
 	int s;
 
 	s = splcam();
-	untimeout(asr_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
+	untimeout(asr_timeout, (caddr_t)ccb, get_ccb_timeout_ch(ccb));
 	LIST_REMOVE(&(ccb->ccb_h), sim_links.le);
 	splx(s);
 } /* ASR_ccbRemove */
@@ -1322,9 +1337,9 @@ asr_timeout(void *arg)
 		  cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)), s);
 		if (ASR_reset (sc) == ENXIO) {
 			/* Try again later */
-			ccb->ccb_h.timeout_ch = timeout(asr_timeout,
+			set_ccb_timeout_ch(ccb, timeout(asr_timeout,
 			  (caddr_t)ccb,
-			  (ccb->ccb_h.timeout * hz) / 1000);
+			  (ccb->ccb_h.timeout * hz) / 1000));
 		}
 		return;
 	}
@@ -1338,9 +1353,9 @@ asr_timeout(void *arg)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_CMD_TIMEOUT) {
 		debug_asr_printf (" AGAIN\nreinitializing adapter\n");
 		if (ASR_reset (sc) == ENXIO) {
-			ccb->ccb_h.timeout_ch = timeout(asr_timeout,
+			set_ccb_timeout_ch(ccb, timeout(asr_timeout,
 			  (caddr_t)ccb,
-			  (ccb->ccb_h.timeout * hz) / 1000);
+			  (ccb->ccb_h.timeout * hz) / 1000));
 		}
 		splx(s);
 		return;
@@ -1349,8 +1364,8 @@ asr_timeout(void *arg)
 	/* If the BUS reset does not take, then an adapter reset is next! */
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
-	ccb->ccb_h.timeout_ch = timeout(asr_timeout, (caddr_t)ccb,
-	  (ccb->ccb_h.timeout * hz) / 1000);
+	set_ccb_timeout_ch(ccb, timeout(asr_timeout, (caddr_t)ccb,
+	  (ccb->ccb_h.timeout * hz) / 1000));
 	ASR_resetBus (sc, cam_sim_bus(xpt_path_sim(ccb->ccb_h.path)));
 	xpt_async (AC_BUS_RESET, ccb->ccb_h.path, NULL);
 	splx(s);
@@ -2428,9 +2443,7 @@ asr_attach(device_t dev)
 		return(ENXIO);
 	}
 	/* Enable if not formerly enabled */
-	pci_write_config(dev, PCIR_COMMAND,
-	    pci_read_config(dev, PCIR_COMMAND, sizeof(char)) |
-	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
+	pci_enable_busmaster(dev);
 
 	sc->ha_pciBusNum = pci_get_bus(dev);
 	sc->ha_pciDeviceNum = (pci_get_slot(dev) << 3) | pci_get_function(dev);
@@ -2727,12 +2740,13 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 		}
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 			printf(
-			  "asr%d WARNING: scsi_cmd(%x) already done on b%dt%du%d\n",
+			  "asr%d WARNING: scsi_cmd(%x) already done on b%dt%d "
+			  "LUN %jx\n",
 			  cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)),
 			  ccb->csio.cdb_io.cdb_bytes[0],
 			  cam_sim_bus(sim),
 			  ccb->ccb_h.target_id,
-			  ccb->ccb_h.target_lun);
+			  (uintmax_t)ccb->ccb_h.target_lun);
 		}
 		debug_asr_cmd_printf("(%d,%d,%d,%d)", cam_sim_unit(sim),
 				     cam_sim_bus(sim), ccb->ccb_h.target_id,

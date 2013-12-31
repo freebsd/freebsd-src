@@ -257,17 +257,16 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 		panic("kthread_add called too soon");
 
 	/* If no process supplied, put it on proc0 */
-	if (p == NULL) {
+	if (p == NULL)
 		p = &proc0;
-		oldtd = &thread0;
-	} else {
-		oldtd = FIRST_THREAD_IN_PROC(p);
-	}
 
 	/* Initialize our new td  */
 	newtd = thread_alloc(pages);
 	if (newtd == NULL)
 		return (ENOMEM);
+
+	PROC_LOCK(p);
+	oldtd = FIRST_THREAD_IN_PROC(p);
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
@@ -292,7 +291,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	newtd->td_ucred = crhold(p->p_ucred);
 
 	/* this code almost the same as create_thread() in kern_thr.c */
-	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
 	thread_link(newtd, p);
 	thread_lock(oldtd);

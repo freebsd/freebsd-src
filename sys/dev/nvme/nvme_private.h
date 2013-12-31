@@ -238,6 +238,7 @@ struct nvme_namespace {
 	uint16_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+	uint32_t			stripesize;
 	struct mtx			lock;
 };
 
@@ -320,6 +321,9 @@ struct nvme_controller {
 	struct nvme_namespace		ns[NVME_MAX_NAMESPACES];
 
 	struct cdev			*cdev;
+
+	/** bit mask of warning types currently enabled for async events */
+	union nvme_critical_warning_state	async_event_config;
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];
@@ -433,6 +437,7 @@ void	nvme_completion_poll_cb(void *arg, const struct nvme_completion *cpl);
 
 int	nvme_ctrlr_construct(struct nvme_controller *ctrlr, device_t dev);
 void	nvme_ctrlr_destruct(struct nvme_controller *ctrlr, device_t dev);
+void	nvme_ctrlr_shutdown(struct nvme_controller *ctrlr);
 int	nvme_ctrlr_hw_reset(struct nvme_controller *ctrlr);
 void	nvme_ctrlr_reset(struct nvme_controller *ctrlr);
 /* ctrlr defined as void * to allow use with config_intrhook. */

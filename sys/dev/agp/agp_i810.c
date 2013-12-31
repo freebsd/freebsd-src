@@ -1970,7 +1970,7 @@ agp_i810_alloc_memory(device_t dev, int type, vm_size_t size)
 			 */
 			VM_OBJECT_WLOCK(mem->am_obj);
 			m = vm_page_grab(mem->am_obj, 0, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+			    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 			VM_OBJECT_WUNLOCK(mem->am_obj);
 			mem->am_physical = VM_PAGE_TO_PHYS(m);
 		} else {
@@ -2226,10 +2226,10 @@ agp_i830_chipset_flush(device_t dev)
 	sc = device_get_softc(dev);
 	pmap_invalidate_cache();
 	hic = bus_read_4(sc->sc_res[0], AGP_I830_HIC);
-	bus_write_4(sc->sc_res[0], AGP_I830_HIC, hic | (1 << 31));
+	bus_write_4(sc->sc_res[0], AGP_I830_HIC, hic | (1U << 31));
 	for (i = 0; i < 20000 /* 1 sec */; i++) {
 		hic = bus_read_4(sc->sc_res[0], AGP_I830_HIC);
-		if ((hic & (1 << 31)) == 0)
+		if ((hic & (1U << 31)) == 0)
 			break;
 		DELAY(50);
 	}

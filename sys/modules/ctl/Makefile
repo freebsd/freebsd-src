@@ -12,6 +12,7 @@ SRCS+=	ctl_cmd_table.c
 SRCS+=	ctl_frontend.c
 SRCS+=	ctl_frontend_cam_sim.c
 SRCS+=	ctl_frontend_internal.c
+SRCS+=	ctl_frontend_iscsi.c
 SRCS+=	ctl_mem_pool.c
 SRCS+=	ctl_scsi_all.c
 SRCS+=	ctl_error.c
@@ -21,6 +22,7 @@ SRCS+=	bus_if.h
 SRCS+=	device_if.h
 SRCS+=	vnode_if.h
 SRCS+=	opt_cam.h
-SRCS+=	opt_kdtrace.h
+
+#CFLAGS+=-DICL_KERNEL_PROXY
 
 .include <bsd.kmod.mk>

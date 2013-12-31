@@ -109,10 +109,10 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 	}
 #endif
 	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
-	    "sctp6_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	    "sctp6_input(): Packet of length %d received on %s with csum_flags 0x%b.\n",
 	    m->m_pkthdr.len,
 	    if_name(m->m_pkthdr.rcvif),
-	    m->m_pkthdr.csum_flags);
+	    (int)m->m_pkthdr.csum_flags, CSUM_BITS);
 	if (m->m_flags & M_FLOWID) {
 		mflowid = m->m_pkthdr.flowid;
 		use_mflowid = 1;
@@ -839,16 +839,18 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	uint32_t vrf_id;
 	int error = 0;
 	struct sctp_inpcb *inp;
-	struct in6pcb *inp6;
 	struct sctp_tcb *stcb;
 
 #ifdef INET
+	struct in6pcb *inp6;
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_storage ss;
 
 #endif
 
+#ifdef INET
 	inp6 = (struct in6pcb *)so->so_pcb;
+#endif
 	inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP6_USRREQ, ECONNRESET);

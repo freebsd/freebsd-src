@@ -18,20 +18,8 @@
 # $FreeBSD$
 
 ident		RPI-B
-machine		arm	armv6
-cpu 		CPU_ARM1176
 
-files		"../broadcom/bcm2835/files.bcm2835"
-makeoptions	MODULES_OVERRIDE=""
-
-options 	KERNVIRTADDR=0xc0100000
-makeoptions	KERNVIRTADDR=0xc0100000
-options 	KERNPHYSADDR=0x00100000
-makeoptions	KERNPHYSADDR=0x00100000
-options 	PHYSADDR=0x00000000
-options 	STARTUP_PAGETABLE_ADDR=0x01000000
-options		FREEBSD_BOOT_LOADER
-options		LINUX_BOOT_ABI
+include		"../broadcom/bcm2835/std.rpi"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 options 	HZ=100
@@ -78,7 +66,7 @@ device		pl011
 device		pty
 
 # Comment following lines for boot console on serial port
-device		sc
+device		vt
 device		kbdmux
 options         SC_DFLT_FONT    # compile font in
 makeoptions     SC_DFLT_FONT=cp437
@@ -90,6 +78,11 @@ device		mmcsd
 
 device		gpio
 device		gpioled
+
+# I2C
+device		iic
+device		iicbus
+device		bcm2835_bsc
 
 options 	KDB
 options 	DDB			#Enable the kernel debugger
@@ -114,6 +107,10 @@ device		smcphy
 device		mii
 device		smsc
 
+# SPI
+device		spibus
+device		bcm2835_spi
+
 # Flattened Device Tree
 options         FDT
 # Note:  DTB is normally loaded and modified by RPi boot loader, then
@@ -121,5 +118,4 @@ options         FDT
 #options         FDT_DTB_STATIC
 makeoptions     FDT_DTS_FILE=rpi.dts
 
-device		vfp			# vfp/neon
-options 	ARM_VFP_SUPPORT		# vfp/neon
+options 	VFP		# vfp/neon

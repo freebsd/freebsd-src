@@ -41,8 +41,8 @@
 #include <sys/sbuf.h>
 
 #include <machine/stdarg.h>
-#include <machine/xen/xen-os.h>
 
+#include <xen/xen-os.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>

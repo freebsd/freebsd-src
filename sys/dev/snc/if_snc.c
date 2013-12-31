@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
+#include <net/if_var.h>
 
 #include <dev/snc/dp83932reg.h>
 #include <dev/snc/dp83932var.h>

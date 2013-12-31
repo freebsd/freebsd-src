@@ -543,9 +543,9 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 
 	/* Read the value on the pin */
 	if (val & mask)
-		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT) & mask) ? 1 : 0;
-	else
 		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAIN) & mask) ? 1 : 0;
+	else
+		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT) & mask) ? 1 : 0;
 
 	TI_GPIO_UNLOCK(sc);
 

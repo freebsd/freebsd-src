@@ -45,6 +45,7 @@
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_clone.h>
 #include <net/bpf.h>
@@ -182,7 +183,6 @@ usbpf_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 
 	error = ifc_alloc_unit(ifc, &unit);
 	if (error) {
-		ifc_free_unit(ifc, unit);
 		device_printf(ubus->parent, "usbpf: Could not allocate "
 		    "instance\n");
 		return (error);

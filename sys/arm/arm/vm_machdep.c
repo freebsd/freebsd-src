@@ -52,9 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sf_buf.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/sysarch.h>
 #include <sys/lock.h>
@@ -74,21 +76,33 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 
 /*
- * struct switchframe must be a multiple of 8 for correct stack alignment
+ * struct switchframe and trapframe must both be a multiple of 8
+ * for correct stack alignment.
  */
 CTASSERT(sizeof(struct switchframe) == 24);
-CTASSERT(sizeof(struct trapframe) == 76);
+CTASSERT(sizeof(struct trapframe) == 80);
+
+#ifndef ARM_USE_SMALL_ALLOC
 
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
 
-#ifndef ARM_USE_SMALL_ALLOC
+static int nsfbufs;
+static int nsfbufspeak;
+static int nsfbufsused;
+
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
+    "Maximum number of sendfile(2) sf_bufs available");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
+    "Number of sendfile(2) sf_bufs at peak usage");
+SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
+    "Number of sendfile(2) sf_bufs in use");
+
 static void     sf_buf_init(void *arg);
 SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
 
 LIST_HEAD(sf_head, sf_buf);
-	
 
 /*
  * A hash table of active sendfile(2) buffers
@@ -105,7 +119,7 @@ static u_int    sf_buf_alloc_want;
  * A lock used to synchronize access to the hash table and free list
  */
 static struct mtx sf_buf_lock;
-#endif
+#endif /* !ARM_USE_SMALL_ALLOC */
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -209,7 +223,7 @@ sf_buf_init(void *arg)
 		
 	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
 	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kmem_alloc_nofault(kernel_map, nsfbufs * PAGE_SIZE);
+	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
 	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
 	    M_NOWAIT | M_ZERO);
 	for (i = 0; i < nsfbufs; i++) {
@@ -251,7 +265,7 @@ sf_buf_alloc(struct vm_page *m, int flags)
 		if (flags & SFB_NOWAIT)
 			goto done;
 		sf_buf_alloc_want++;
-		mbstat.sf_allocwait++;
+		SFSTAT_INC(sf_allocwait);
 		error = msleep(&sf_buf_freelist, &sf_buf_lock,
 		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
 		sf_buf_alloc_want--;
@@ -281,7 +295,7 @@ done:
 void
 cpu_set_syscall_retval(struct thread *td, int error)
 {
-	trapframe_t *frame;
+	struct trapframe *frame;
 	int fixup;
 #ifdef __ARMEB__
 	uint32_t insn;
@@ -468,80 +482,6 @@ cpu_exit(struct thread *td)
 {
 }
 
-#define BITS_PER_INT	(8 * sizeof(int))
-vm_offset_t arm_nocache_startaddr;
-static int arm_nocache_allocated[ARM_NOCACHE_KVA_SIZE / (PAGE_SIZE *
-    BITS_PER_INT)];
-
-/*
- * Functions to map and unmap memory non-cached into KVA the kernel won't try
- * to allocate. The goal is to provide uncached memory to busdma, to honor
- * BUS_DMA_COHERENT.
- * We can allocate at most ARM_NOCACHE_KVA_SIZE bytes.
- * The allocator is rather dummy, each page is represented by a bit in
- * a bitfield, 0 meaning the page is not allocated, 1 meaning it is.
- * As soon as it finds enough contiguous pages to satisfy the request,
- * it returns the address.
- */
-void *
-arm_remap_nocache(void *addr, vm_size_t size)
-{
-	int i, j;
-
-	size = round_page(size);
-	for (i = 0; i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE; i++) {
-		if (!(arm_nocache_allocated[i / BITS_PER_INT] & (1 << (i %
-		    BITS_PER_INT)))) {
-			for (j = i; j < i + (size / (PAGE_SIZE)); j++)
-				if (arm_nocache_allocated[j / BITS_PER_INT] &
-				    (1 << (j % BITS_PER_INT)))
-					break;
-			if (j == i + (size / (PAGE_SIZE)))
-				break;
-		}
-	}
-	if (i < ARM_NOCACHE_KVA_SIZE / PAGE_SIZE) {
-		vm_offset_t tomap = arm_nocache_startaddr + i * PAGE_SIZE;
-		void *ret = (void *)tomap;
-		vm_paddr_t physaddr = vtophys((vm_offset_t)addr);
-		vm_offset_t vaddr = (vm_offset_t) addr;
-		
-		vaddr = vaddr & ~PAGE_MASK;
-		for (; tomap < (vm_offset_t)ret + size; tomap += PAGE_SIZE,
-		    vaddr += PAGE_SIZE, physaddr += PAGE_SIZE, i++) {
-			cpu_idcache_wbinv_range(vaddr, PAGE_SIZE);
-#ifdef ARM_L2_PIPT
-			cpu_l2cache_wbinv_range(physaddr, PAGE_SIZE);
-#else
-			cpu_l2cache_wbinv_range(vaddr, PAGE_SIZE);
-#endif
-			pmap_kenter_nocache(tomap, physaddr);
-			cpu_tlb_flushID_SE(vaddr);
-			arm_nocache_allocated[i / BITS_PER_INT] |= 1 << (i %
-			    BITS_PER_INT);
-		}
-		return (ret);
-	}
-
-	return (NULL);
-}
-
-void
-arm_unmap_nocache(void *addr, vm_size_t size)
-{
-	vm_offset_t raddr = (vm_offset_t)addr;
-	int i;
-
-	size = round_page(size);
-	i = (raddr - arm_nocache_startaddr) / (PAGE_SIZE);
-	for (; size > 0; size -= PAGE_SIZE, i++) {
-		arm_nocache_allocated[i / BITS_PER_INT] &= ~(1 << (i %
-		    BITS_PER_INT));
-		pmap_kremove(raddr);
-		raddr += PAGE_SIZE;
-	}
-}
-
 #ifdef ARM_USE_SMALL_ALLOC
 
 static TAILQ_HEAD(,arm_small_page) pages_normal =
@@ -666,7 +606,8 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if (zone == l2zone &&
 		    pte_l1_s_cache_mode != pte_l1_s_cache_mode_pt) {
 			*flags = UMA_SLAB_KMEM;
-			ret = ((void *)kmem_malloc(kmem_map, bytes, M_NOWAIT));
+			ret = ((void *)kmem_malloc(kmem_arena, bytes,
+			    M_NOWAIT));
 			return (ret);
 		}
 		pflags = malloc2vm_flags(wait) | VM_ALLOC_WIRED;
@@ -700,7 +641,7 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pt_entry_t *pt;
 
 	if (flags & UMA_SLAB_KMEM)
-		kmem_free(kmem_map, (vm_offset_t)mem, size);
+		kmem_free(kmem_arena, (vm_offset_t)mem, size);
 	else {
 		struct arm_small_page *sp;
 

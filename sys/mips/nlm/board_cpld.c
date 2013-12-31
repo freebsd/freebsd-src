@@ -55,13 +55,13 @@ int nlm_cpld_read(uint64_t base, int reg)
 	uint16_t val;
 
 	val = *(volatile uint16_t *)(long)(base + reg * 2);
-	return bswap16(val);
+	return le16toh(val);
 }
 
 static __inline void
 nlm_cpld_write(uint64_t base, int reg, uint16_t data)
 {
-	bswap16(data);
+	data = htole16(data);
 	*(volatile uint16_t *)(long)(base + reg * 2) = data;
 }
 

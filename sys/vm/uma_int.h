@@ -49,14 +49,6 @@
  * 10% memory waste we potentially allocate a separate uma_slab_t if this will
  * improve the number of items per slab that will fit.  
  *
- * Other potential space optimizations are storing the 8bit of linkage in space
- * wasted between items due to alignment problems.  This may yield a much better
- * memory footprint for certain sizes of objects.  Another alternative is to
- * increase the UMA_SLAB_SIZE, or allow for dynamic slab sizes.  I prefer
- * dynamic slab sizes because we could stick with 8 bit indices and only use
- * large slab sizes for zones with a lot of waste per slab.  This may create
- * inefficiencies in the vm subsystem due to fragmentation in the address space.
- *
  * The only really gross cases, with regards to memory waste, are for those
  * items that are just over half the page size.   You can get nearly 50% waste,
  * so you fall back to the memory footprint of the power of two allocator. I
@@ -308,7 +300,8 @@ struct uma_zone {
 	volatile u_long	uz_fails;	/* Total number of alloc failures */
 	volatile u_long	uz_frees;	/* Total number of frees */
 	uint64_t	uz_sleeps;	/* Total number of alloc sleeps */
-	uint16_t	uz_count;	/* Highest amount of items in bucket */
+	uint16_t	uz_count;	/* Amount of items in full bucket */
+	uint16_t	uz_count_min;	/* Minimal amount of items there */
 
 	/* The next three fields are used to print a rate-limited warnings. */
 	const char	*uz_warning;	/* Warning to print on failure */
@@ -412,15 +405,9 @@ static __inline uma_slab_t
 vtoslab(vm_offset_t va)
 {
 	vm_page_t p;
-	uma_slab_t slab;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	slab = (uma_slab_t )p->object;
-
-	if (p->flags & PG_SLAB)
-		return (slab);
-	else
-		return (NULL);
+	return ((uma_slab_t)p->plinks.s.pv);
 }
 
 static __inline void
@@ -429,18 +416,7 @@ vsetslab(vm_offset_t va, uma_slab_t slab)
 	vm_page_t p;
 
 	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = (vm_object_t)slab;
-	p->flags |= PG_SLAB;
-}
-
-static __inline void
-vsetobj(vm_offset_t va, vm_object_t obj)
-{
-	vm_page_t p;
-
-	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
-	p->object = obj;
-	p->flags &= ~PG_SLAB;
+	p->plinks.s.pv = slab;
 }
 
 /*

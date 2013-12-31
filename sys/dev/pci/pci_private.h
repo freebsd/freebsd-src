@@ -95,6 +95,8 @@ int		pci_msix_count_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);
+int		pci_release_resource(device_t dev, device_t child, int type,
+		    int rid, struct resource *r);
 int		pci_activate_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 int		pci_deactivate_resource(device_t dev, device_t child, int type,
@@ -114,6 +116,7 @@ int		pci_child_pnpinfo_str_method(device_t cbdev, device_t child,
 int		pci_assign_interrupt_method(device_t dev, device_t child);
 int		pci_resume(device_t dev);
 int		pci_suspend(device_t dev);
+bus_dma_tag_t pci_get_dma_tag(device_t bus, device_t dev);
 
 /** Restore the config register state.  The state must be previously
  * saved with pci_cfg_save.  However, the pci bus driver takes care of

@@ -65,8 +65,7 @@ typedef enum {
 } targbh_flags;
 
 typedef enum {
-	TARGBH_CCB_WORKQ,
-	TARGBH_CCB_WAITING
+	TARGBH_CCB_WORKQ
 } targbh_ccb_types;
 
 #define MAX_ACCEPT	8
@@ -283,16 +282,13 @@ targbhenlun(struct cam_periph *periph)
 		xpt_setup_ccb(&atio->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
 		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		atio->ccb_h.cbfcnp = targbhdone;
-		xpt_action((union ccb *)atio);
-		status = atio->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			targbhfreedescr(atio->ccb_h.ccb_descr);
-			free(atio, M_SCSIBH);
-			break;
-		}
 		((struct targbh_cmd_desc*)atio->ccb_h.ccb_descr)->atio_link =
 		    softc->accept_tio_list;
 		softc->accept_tio_list = atio;
+		xpt_action((union ccb *)atio);
+		status = atio->ccb_h.status;
+		if (status != CAM_REQ_INPROG)
+			break;
 	}
 
 	if (i == 0) {
@@ -308,10 +304,10 @@ targbhenlun(struct cam_periph *periph)
 	 * so the SIM can tell us of asynchronous target mode events.
 	 */
 	for (i = 0; i < MAX_ACCEPT; i++) {
-		struct ccb_immed_notify *inot;
+		struct ccb_immediate_notify *inot;
 
-		inot = (struct ccb_immed_notify*)malloc(sizeof(*inot), M_SCSIBH,
-						        M_NOWAIT);
+		inot = (struct ccb_immediate_notify*)malloc(sizeof(*inot),
+			    M_SCSIBH, M_NOWAIT);
 
 		if (inot == NULL) {
 			status = CAM_RESRC_UNAVAIL;
@@ -319,16 +315,14 @@ targbhenlun(struct cam_periph *periph)
 		}
 
 		xpt_setup_ccb(&inot->ccb_h, periph->path, CAM_PRIORITY_NORMAL);
-		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
+		inot->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
 		inot->ccb_h.cbfcnp = targbhdone;
-		xpt_action((union ccb *)inot);
-		status = inot->ccb_h.status;
-		if (status != CAM_REQ_INPROG) {
-			free(inot, M_SCSIBH);
-			break;
-		}
 		SLIST_INSERT_HEAD(&softc->immed_notify_slist, &inot->ccb_h,
 				  periph_links.sle);
+		xpt_action((union ccb *)inot);
+		status = inot->ccb_h.status;
+		if (status != CAM_REQ_INPROG)
+			break;
 	}
 
 	if (i == 0) {
@@ -413,7 +407,9 @@ targbhctor(struct cam_periph *periph, void *arg)
 	periph->softc = softc;
 	softc->init_level++;
 
-	return (targbhenlun(periph));
+	if (targbhenlun(periph) != CAM_REQ_CMP)
+		cam_periph_invalidate(periph);
+	return (CAM_REQ_CMP);
 }
 
 static void
@@ -434,7 +430,7 @@ targbhdtor(struct cam_periph *periph)
 		/* FALLTHROUGH */
 	default:
 		/* XXX Wait for callback of targbhdislun() */
-		msleep(softc, periph->sim->mtx, PRIBIO, "targbh", hz/2);
+		cam_periph_sleep(periph, softc, PRIBIO, "targbh", hz/2);
 		free(softc, M_SCSIBH);
 		break;
 	}
@@ -453,13 +449,7 @@ targbhstart(struct cam_periph *periph, union ccb *start_ccb)
 	softc = (struct targbh_softc *)periph->softc;
 	
 	ccbh = TAILQ_FIRST(&softc->work_queue);
-	if (periph->immediate_priority <= periph->pinfo.priority) {
-		start_ccb->ccb_h.ccb_type = TARGBH_CCB_WAITING;			
-		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-				  periph_links.sle);
-		periph->immediate_priority = CAM_PRIORITY_NONE;
-		wakeup(&periph->ccb_list);
-	} else if (ccbh == NULL) {
+	if (ccbh == NULL) {
 		xpt_release_ccb(start_ccb);	
 	} else {
 		TAILQ_REMOVE(&softc->work_queue, ccbh, periph_links.tqe);
@@ -537,12 +527,6 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct targbh_softc *softc;
 
 	softc = (struct targbh_softc *)periph->softc;
-
-	if (done_ccb->ccb_h.ccb_type == TARGBH_CCB_WAITING) {
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
 
 	switch (done_ccb->ccb_h.func_code) {
 	case XPT_ACCEPT_TARGET_IO:
@@ -715,7 +699,7 @@ targbhdone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		break;
 	}
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		int frozen;
 

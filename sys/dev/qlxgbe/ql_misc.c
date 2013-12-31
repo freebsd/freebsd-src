@@ -321,7 +321,7 @@ qla_get_fdt(qla_host_t *ha)
 
 	} while ((count < 10000) && (data32 != 0x6));
 
-	if (count == 0 && data32 != 0x6) {
+	if (data32 != 0x6) {
 		qla_sem_unlock(ha, Q8_FLASH_UNLOCK);
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
@@ -401,7 +401,7 @@ qla_flash_write_enable(qla_host_t *ha, int enable)
 
 	} while ((count < 10000) && (data32 != 0x6));
 			
-	if (count == 0 && data32 != 0x6) {
+	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
 			__func__);
@@ -432,7 +432,7 @@ qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
 
 	} while (((count++) < 1000) && (data32 != 0x6));
 
-	if (count == 0 && data32 != 0x6) {
+	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
 			__func__);
@@ -479,7 +479,7 @@ qla_erase_flash_sector(qla_host_t *ha, uint32_t start)
 
 	} while (((count++) < 1000) && (data32 != 0x6));
 
-	if (count == 0 && data32 != 0x6) {
+	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
 			__func__);
@@ -575,7 +575,7 @@ qla_wr_flash32(qla_host_t *ha, uint32_t off, uint32_t *data)
 
 	} while ((count < 10000) && (data32 != 0x6)); 
 
-	if (count == 0 && data32 != 0x6) {
+	if (data32 != 0x6) {
 		device_printf(ha->pci_dev,
 			"%s: Poll Q8_FLASH_STATUS failed\n",
 			__func__);

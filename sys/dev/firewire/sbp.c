@@ -177,6 +177,7 @@ struct sbp_ocb {
 	struct sbp_dev	*sdev;
 	int		flags; /* XXX should be removed */
 	bus_dmamap_t	dmamap;
+	struct callout_handle timeout_ch;
 };
 
 #define OCB_ACT_MGM 0
@@ -591,6 +592,7 @@ END_DEBUG
 				/* XXX */
 				goto next;
 			}
+			callout_handle_init(&ocb->timeout_ch);
 			sbp_free_ocb(sdev, ocb);
 		}
 next:
@@ -1491,12 +1493,13 @@ sbp_print_scsi_cmd(struct sbp_ocb *ocb)
 	struct ccb_scsiio *csio;
 
 	csio = &ocb->ccb->csio;
-	printf("%s:%d:%d XPT_SCSI_IO: "
+	printf("%s:%d:%jx XPT_SCSI_IO: "
 		"cmd: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
 		", flags: 0x%02x, "
 		"%db cmd/%db data/%db sense\n",
 		device_get_nameunit(ocb->sdev->target->sbp->fd.dev),
-		ocb->ccb->ccb_h.target_id, ocb->ccb->ccb_h.target_lun,
+		ocb->ccb->ccb_h.target_id,
+		(uintmax_t)ocb->ccb->ccb_h.target_lun,
 		csio->cdb_io.cdb_bytes[0],
 		csio->cdb_io.cdb_bytes[1],
 		csio->cdb_io.cdb_bytes[2],
@@ -2352,8 +2355,8 @@ sbp_action1(struct cam_sim *sim, union ccb *ccb)
 
 SBP_DEBUG(1)
 	if (sdev == NULL)
-		printf("invalid target %d lun %d\n",
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+		printf("invalid target %d lun %jx\n",
+			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun);
 END_DEBUG
 
 	switch (ccb->ccb_h.func_code) {
@@ -2364,10 +2367,11 @@ END_DEBUG
 	case XPT_CALC_GEOMETRY:
 		if (sdev == NULL) {
 SBP_DEBUG(1)
-			printf("%s:%d:%d:func_code 0x%04x: "
+			printf("%s:%d:%jx:func_code 0x%04x: "
 				"Invalid target (target needed)\n",
 				device_get_nameunit(sbp->fd.dev),
-				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+				ccb->ccb_h.target_id,
+				(uintmax_t)ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code);
 END_DEBUG
 
@@ -2385,10 +2389,11 @@ END_DEBUG
 		if (sbp == NULL && 
 			ccb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
 SBP_DEBUG(0)
-			printf("%s:%d:%d func_code 0x%04x: "
+			printf("%s:%d:%jx func_code 0x%04x: "
 				"Invalid target (no wildcard)\n",
 				device_get_nameunit(sbp->fd.dev),
-				ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+				ccb->ccb_h.target_id,
+				(uintmax_t)ccb->ccb_h.target_lun,
 				ccb->ccb_h.func_code);
 END_DEBUG
 			ccb->ccb_h.status = CAM_DEV_NOT_THERE;
@@ -2413,12 +2418,12 @@ END_DEBUG
 		mtx_assert(sim->mtx, MA_OWNED);
 
 SBP_DEBUG(2)
-		printf("%s:%d:%d XPT_SCSI_IO: "
+		printf("%s:%d:%jx XPT_SCSI_IO: "
 			"cmd: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x"
 			", flags: 0x%02x, "
 			"%db cmd/%db data/%db sense\n",
 			device_get_nameunit(sbp->fd.dev),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun,
 			csio->cdb_io.cdb_bytes[0],
 			csio->cdb_io.cdb_bytes[1],
 			csio->cdb_io.cdb_bytes[2],
@@ -2467,7 +2472,7 @@ END_DEBUG
 		ocb->sdev = sdev;
 		ocb->ccb = ccb;
 		ccb->ccb_h.ccb_sdev_ptr = sdev;
-		ocb->orb[0] = htonl(1 << 31);
+		ocb->orb[0] = htonl(1U << 31);
 		ocb->orb[1] = 0;
 		ocb->orb[2] = htonl(((sbp->fd.fc->nodeid | FWLOCALBUS )<< 16) );
 		ocb->orb[3] = htonl(ocb->bus_addr + IND_PTR_OFFSET);
@@ -2519,7 +2524,7 @@ printf("ORB %08x %08x %08x %08x\n", ntohl(ocb->orb[4]), ntohl(ocb->orb[5]), ntoh
 			break;
 		}
 SBP_DEBUG(1)
-		printf("%s:%d:%d:%d:XPT_CALC_GEOMETRY: "
+		printf("%s:%d:%d:%jx:XPT_CALC_GEOMETRY: "
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 			"Volume size = %d\n",
 #else
@@ -2527,7 +2532,7 @@ SBP_DEBUG(1)
 #endif
 			device_get_nameunit(sbp->fd.dev),
 			cam_sim_path(sbp->sim),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
+			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun,
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 			(uintmax_t)
 #endif
@@ -2571,9 +2576,9 @@ END_DEBUG
 		struct ccb_pathinq *cpi = &ccb->cpi;
 		
 SBP_DEBUG(1)
-		printf("%s:%d:%d XPT_PATH_INQ:.\n",
+		printf("%s:%d:%jx XPT_PATH_INQ:.\n",
 			device_get_nameunit(sbp->fd.dev),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun);
 END_DEBUG
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_TAG_ABLE;
@@ -2615,9 +2620,9 @@ END_DEBUG
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 SBP_DEBUG(1)
-		printf("%s:%d:%d XPT_GET_TRAN_SETTINGS:.\n",
+		printf("%s:%d:%jx XPT_GET_TRAN_SETTINGS:.\n",
 			device_get_nameunit(sbp->fd.dev),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
+			ccb->ccb_h.target_id, (uintmax_t)ccb->ccb_h.target_lun);
 END_DEBUG
 		cts->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -2763,7 +2768,7 @@ END_DEBUG
 			STAILQ_REMOVE(&sdev->ocbs, ocb, sbp_ocb, ocb);
 			if (ocb->ccb != NULL)
 				untimeout(sbp_timeout, (caddr_t)ocb,
-						ocb->ccb->ccb_h.timeout_ch);
+						ocb->timeout_ch);
 			if (ntohl(ocb->orb[4]) & 0xffff) {
 				bus_dmamap_sync(sdev->target->sbp->dmat,
 					ocb->dmamap,
@@ -2836,7 +2841,7 @@ END_DEBUG
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
 
 	if (ocb->ccb != NULL)
-		ocb->ccb->ccb_h.timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
+		ocb->timeout_ch = timeout(sbp_timeout, (caddr_t)ocb,
 					(ocb->ccb->ccb_h.timeout * hz) / 1000);
 
 	if (use_doorbell && prev == NULL)
@@ -2930,7 +2935,7 @@ END_DEBUG
 	}
 	if (ocb->ccb != NULL) {
 		untimeout(sbp_timeout, (caddr_t)ocb,
-					ocb->ccb->ccb_h.timeout_ch);
+					ocb->timeout_ch);
 		ocb->ccb->ccb_h.status = status;
 		SBP_LOCK(sdev->target->sbp);
 		xpt_done(ocb->ccb);

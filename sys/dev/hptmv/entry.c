@@ -1438,6 +1438,7 @@ unregister:
 			free(pAdapter->pbus_dmamap, M_DEVBUF);
 			goto unregister;
 		}
+		callout_handle_init(&pmap->timeout_ch);
 	}
 	/* setup PRD Tables */
 	KdPrint(("Allocate PRD Tables\n"));
@@ -2758,7 +2759,7 @@ hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		}
 	}
 
-	ccb->ccb_h.timeout_ch = timeout(hpt_timeout, (caddr_t)ccb, 20*hz);
+	pmap->timeout_ch = timeout(hpt_timeout, (caddr_t)ccb, 20*hz);
 	pVDev->pfnSendCommand(_VBUS_P pCmd);
 	CheckPendingCall(_VBUS_P0);
 }
@@ -2980,7 +2981,7 @@ fOsCommandDone(_VBUS_ARG PCommand pCmd)
 
 	KdPrint(("fOsCommandDone(pcmd=%p, result=%d)\n", pCmd, pCmd->Result));
 	
-	untimeout(hpt_timeout, (caddr_t)ccb, ccb->ccb_h.timeout_ch);
+	untimeout(hpt_timeout, (caddr_t)ccb, pmap->timeout_ch);
 	
 	switch(pCmd->Result) {
 	case RETURN_SUCCESS:

@@ -201,10 +201,6 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 		return;
 	}
 
-	if (OF_searchprop(devnode, "#interrupt-cells", &icells, sizeof(icells))
-	    <= 0)
-		icells = 1;
-
 	nintr = OF_getprop_alloc(devnode, "interrupts", sizeof(*intr), 
 		(void **)&intr);
 	if (nintr == -1) {
@@ -220,6 +216,10 @@ macio_add_intr(phandle_t devnode, struct macio_devinfo *dinfo)
 	if (OF_getprop(devnode, "interrupt-parent", &iparent, sizeof(iparent))
 	    <= 0)
 		panic("Interrupt but no interrupt parent!\n");
+
+	if (OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells", &icells,
+	    sizeof(icells)) <= 0)
+		icells = 1;
 
 	for (i = 0; i < nintr; i+=icells) {
 		u_int irq = MAP_IRQ(iparent, intr[i]);
@@ -604,4 +604,48 @@ macio_get_devinfo(device_t dev, device_t child)
 
 	dinfo = device_get_ivars(child);
 	return (&dinfo->mdi_obdinfo);
+}
+
+int
+macio_enable_wireless(device_t dev, bool enable)
+{
+	struct macio_softc *sc = device_get_softc(dev);
+	uint32_t x;
+
+	if (enable) {
+		x = bus_read_4(sc->sc_memr, KEYLARGO_FCR2);
+		x |= 0x4;
+		bus_write_4(sc->sc_memr, KEYLARGO_FCR2, x);
+
+		/* Enable card slot. */
+		bus_write_1(sc->sc_memr, KEYLARGO_GPIO_BASE + 0x0f, 5);
+		DELAY(1000);
+		bus_write_1(sc->sc_memr, KEYLARGO_GPIO_BASE + 0x0f, 4);
+		DELAY(1000);
+		x = bus_read_4(sc->sc_memr, KEYLARGO_FCR2);
+		x &= ~0x80000000;
+
+		bus_write_4(sc->sc_memr, KEYLARGO_FCR2, x);
+		/* out8(gpio + 0x10, 4); */
+
+		bus_write_1(sc->sc_memr, KEYLARGO_EXTINT_GPIO_REG_BASE + 0x0b, 0);
+		bus_write_1(sc->sc_memr, KEYLARGO_EXTINT_GPIO_REG_BASE + 0x0a, 0x28);
+		bus_write_1(sc->sc_memr, KEYLARGO_EXTINT_GPIO_REG_BASE + 0x0d, 0x28);
+		bus_write_1(sc->sc_memr, KEYLARGO_GPIO_BASE + 0x0d, 0x28);
+		bus_write_1(sc->sc_memr, KEYLARGO_GPIO_BASE + 0x0e, 0x28);
+		bus_write_4(sc->sc_memr, 0x1c000, 0);
+
+		/* Initialize the card. */
+		bus_write_4(sc->sc_memr, 0x1a3e0, 0x41);
+		x = bus_read_4(sc->sc_memr, KEYLARGO_FCR2);
+		x |= 0x80000000;
+		bus_write_4(sc->sc_memr, KEYLARGO_FCR2, x);
+	} else {
+		x = bus_read_4(sc->sc_memr, KEYLARGO_FCR2);
+		x &= ~0x4;
+		bus_write_4(sc->sc_memr, KEYLARGO_FCR2, x);
+		/* out8(gpio + 0x10, 0); */
+	}
+
+	return (0);
 }

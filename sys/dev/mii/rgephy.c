@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
 
@@ -90,6 +91,7 @@ static void	rgephy_load_dspcode(struct mii_softc *);
 
 static const struct mii_phydesc rgephys[] = {
 	MII_PHY_DESC(REALTEK, RTL8169S),
+	MII_PHY_DESC(REALTEK, RTL8251),
 	MII_PHY_END
 };
 
@@ -153,12 +155,6 @@ rgephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		PHY_RESET(sc);	/* XXX hardware bug work-around */
 
 		anar = PHY_READ(sc, RGEPHY_MII_ANAR);
@@ -230,12 +226,6 @@ setit:
 		break;
 
 	case MII_TICK:
-		/*
-		 * Is the interface even up?
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			return (0);
-
 		/*
 		 * Only used for autonegotiation.
 		 */
@@ -406,7 +396,8 @@ rgephy_loop(struct mii_softc *sc)
 {
 	int i;
 
-	if (sc->mii_mpd_rev < 2) {
+	if (sc->mii_mpd_model != MII_MODEL_REALTEK_RTL8251 &&
+	    sc->mii_mpd_rev < 2) {
 		PHY_WRITE(sc, RGEPHY_MII_BMCR, RGEPHY_BMCR_PDOWN);
 		DELAY(1000);
 	}
@@ -439,7 +430,8 @@ rgephy_load_dspcode(struct mii_softc *sc)
 {
 	int val;
 
-	if (sc->mii_mpd_rev >= 2)
+	if (sc->mii_mpd_model == MII_MODEL_REALTEK_RTL8251 ||
+	    sc->mii_mpd_rev >= 2)
 		return;
 
 	PHY_WRITE(sc, 31, 0x0001);

@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
+#include "opt_random.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -44,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/queue.h>
 #include <machine/bus.h>
+#include <sys/random.h>
 #include <sys/rman.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
@@ -53,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 
+#include <net/vnet.h>
+
+#include <machine/cpu.h>
 #include <machine/stdarg.h>
 
 #include <vm/uma.h>
@@ -2075,11 +2080,11 @@ device_probe_child(device_t dev, device_t child)
 			if (best == NULL || result > pri) {
 				/*
 				 * Probes that return BUS_PROBE_NOWILDCARD
-				 * or lower only match when they are set
-				 * in stone by the parent bus.
+				 * or lower only match on devices whose
+				 * driver was explicitly specified.
 				 */
 				if (result <= BUS_PROBE_NOWILDCARD &&
-				    child->flags & DF_WILDCARD)
+				    !(child->flags & DF_FIXEDCLASS))
 					continue;
 				best = dl;
 				pri = result;
@@ -2735,7 +2740,11 @@ device_probe_and_attach(device_t dev)
 		return (0);
 	else if (error != 0)
 		return (error);
-	return (device_attach(dev));
+
+	CURVNET_SET_QUIET(vnet0);
+	error = device_attach(dev);
+	CURVNET_RESTORE();
+	return error;
 }
 
 /**
@@ -2760,6 +2769,7 @@ device_probe_and_attach(device_t dev)
 int
 device_attach(device_t dev)
 {
+	uint64_t attachtime;
 	int error;
 
 	if (resource_disabled(dev->driver->name, dev->unit)) {
@@ -2772,6 +2782,7 @@ device_attach(device_t dev)
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);
+	attachtime = get_cyclecount();
 	dev->state = DS_ATTACHING;
 	if ((error = DEVICE_ATTACH(dev)) != 0) {
 		printf("device_attach: %s%d attach returned %d\n",
@@ -2784,6 +2795,17 @@ device_attach(device_t dev)
 		dev->state = DS_NOTPRESENT;
 		return (error);
 	}
+	attachtime = get_cyclecount() - attachtime;
+	/*
+	 * 4 bits per device is a reasonable value for desktop and server
+	 * hardware with good get_cyclecount() implementations, but may
+	 * need to be adjusted on other platforms.
+	 */
+#ifdef RANDOM_DEBUG
+	printf("%s(): feeding %d bit(s) of entropy from %s%d\n",
+	    __func__, 4, dev->driver->name, dev->unit);
+#endif
+	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);
 	device_sysctl_update(dev);
 	if (dev->busy)
 		dev->state = DS_BUSY;

@@ -92,13 +92,13 @@ fixwsc_natoma(device_t dev)
     pmccfg = pci_read_config(dev, 0x50, 2);
 #if defined(SMP)
     if (pmccfg & 0x8000) {
-	printf("Correcting Natoma config for SMP\n");
+	device_printf(dev, "correcting Natoma config for SMP\n");
 	pmccfg &= ~0x8000;
 	pci_write_config(dev, 0x50, pmccfg, 2);
     }
 #else
     if ((pmccfg & 0x8000) == 0) {
-	printf("Correcting Natoma config for non-SMP\n");
+	device_printf(dev, "correcting Natoma config for non-SMP\n");
 	pmccfg |= 0x8000;
 	pci_write_config(dev, 0x50, pmccfg, 2);
     }
@@ -132,7 +132,8 @@ fixc1_nforce2(device_t dev)
 	    pci_get_function(dev) == 0) {
 		val = pci_read_config(dev, 0x6c, 4);
 		if (val & 0x000e0000) {
-			printf("Correcting nForce2 C1 CPU disconnect hangs\n");
+			device_printf(dev, 
+			    "correcting nForce2 C1 CPU disconnect hangs\n");
 			val &= ~0x000e0000;
 			pci_write_config(dev, 0x6c, val, 4);
 		}

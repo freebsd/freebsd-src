@@ -209,7 +209,7 @@ sysarch(td, uap)
 		default:
 #ifdef KTRACE
 			if (KTRPOINT(td, KTR_CAPFAIL))
-				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+				ktrcapfail(CAPFAIL_SYSCALL, NULL, NULL);
 #endif
 			return (ECAPMODE);
 		}
@@ -356,8 +356,8 @@ amd64_set_ioperm(td, uap)
 	 */
 	pcb = td->td_pcb;
 	if (pcb->pcb_tssp == NULL) {
-		tssp = (struct amd64tss *)kmem_alloc(kernel_map,
-		    ctob(IOPAGES+1));
+		tssp = (struct amd64tss *)kmem_malloc(kernel_arena,
+		    ctob(IOPAGES+1), M_WAITOK);
 		if (tssp == NULL)
 			return (ENOMEM);
 		iomap = (char *)&tssp[1];
@@ -463,8 +463,9 @@ user_ldt_alloc(struct proc *p, int force)
 		return (mdp->md_ldt);
 	mtx_unlock(&dt_lock);
 	new_ldt = malloc(sizeof(struct proc_ldt), M_SUBPROC, M_WAITOK);
-	new_ldt->ldt_base = (caddr_t)kmem_alloc(kernel_map,
-	     max_ldt_segment * sizeof(struct user_segment_descriptor));
+	new_ldt->ldt_base = (caddr_t)kmem_malloc(kernel_arena,
+	     max_ldt_segment * sizeof(struct user_segment_descriptor),
+	     M_WAITOK);
 	if (new_ldt->ldt_base == NULL) {
 		FREE(new_ldt, M_SUBPROC);
 		mtx_lock(&dt_lock);
@@ -483,7 +484,7 @@ user_ldt_alloc(struct proc *p, int force)
 	mtx_lock(&dt_lock);
 	pldt = mdp->md_ldt;
 	if (pldt != NULL && !force) {
-		kmem_free(kernel_map, (vm_offset_t)new_ldt->ldt_base,
+		kmem_free(kernel_arena, (vm_offset_t)new_ldt->ldt_base,
 		    max_ldt_segment * sizeof(struct user_segment_descriptor));
 		free(new_ldt, M_SUBPROC);
 		return (pldt);
@@ -528,7 +529,7 @@ user_ldt_derefl(struct proc_ldt *pldt)
 {
 
 	if (--pldt->ldt_refcnt == 0) {
-		kmem_free(kernel_map, (vm_offset_t)pldt->ldt_base,
+		kmem_free(kernel_arena, (vm_offset_t)pldt->ldt_base,
 		    max_ldt_segment * sizeof(struct user_segment_descriptor));
 		free(pldt, M_SUBPROC);
 	}

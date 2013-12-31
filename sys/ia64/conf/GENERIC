@@ -26,8 +26,8 @@ ident		GENERIC
 makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	AUDIT		# Security event auditing
-options 	CAPABILITY_MODE		# Capsicum capability mode
-options 	CAPABILITIES		# Capsicum capabilities
+options 	CAPABILITY_MODE	# Capsicum capability mode
+options 	CAPABILITIES	# Capsicum capabilities
 options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	FFS		# Berkeley Fast Filesystem
@@ -65,9 +65,8 @@ options 	_KPOSIX_PRIORITY_SCHEDULING	# Posix P1003_1B RT extensions
 
 # Debugging support.  Always need this:
 options 	KDB		# Enable kernel debugger support.
-# For minimum debugger support (stable branch) use:
-#options 	KDB_TRACE	# Print a stack trace for a panic.
-# For full debugger support use this instead:
+options 	KDB_TRACE	# Print a stack trace for a panic.
+# For full debugger support use (turn off in stable branch):
 options 	DDB		# Support DDB
 options 	GDB		# Support remote GDB
 options 	DEADLKRES	# Enable the deadlock resolver

@@ -154,16 +154,6 @@ typedef struct sym_quehead {
 	(ptr)->flink = (ptr); (ptr)->blink = (ptr); \
 } while (0)
 
-static __inline struct sym_quehead *sym_que_first(struct sym_quehead *head)
-{
-	return (head->flink == head) ? NULL : head->flink;
-}
-
-static __inline struct sym_quehead *sym_que_last(struct sym_quehead *head)
-{
-	return (head->blink == head) ? NULL : head->blink;
-}
-
 static __inline void __sym_que_add(struct sym_quehead * new,
 	struct sym_quehead * blink,
 	struct sym_quehead * flink)
@@ -224,17 +214,6 @@ static __inline struct sym_quehead *sym_remque_head(struct sym_quehead *head)
 }
 
 #define sym_insque_tail(new, head)	__sym_que_add(new, (head)->blink, head)
-
-static __inline struct sym_quehead *sym_remque_tail(struct sym_quehead *head)
-{
-	struct sym_quehead *elem = head->blink;
-
-	if (elem != head)
-		__sym_que_del(elem->blink, head);
-	else
-		elem = NULL;
-	return elem;
-}
 
 /*
  *  This one may be useful.
@@ -8528,11 +8507,9 @@ sym_pci_attach(device_t dev)
 	/*
 	 *  Alloc/get/map/retrieve everything that deals with MMIO.
 	 */
-	if ((command & PCIM_CMD_MEMEN) != 0) {
-		int regs_id = SYM_PCI_MMIO;
-		np->mmio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-						      &regs_id, RF_ACTIVE);
-	}
+	i = SYM_PCI_MMIO;
+	np->mmio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i,
+	    RF_ACTIVE);
 	if (!np->mmio_res) {
 		device_printf(dev, "failed to allocate MMIO resources\n");
 		goto attach_failed;
@@ -8555,11 +8532,8 @@ sym_pci_attach(device_t dev)
 	 *  User want us to use normal IO with PCI.
 	 *  Alloc/get/map/retrieve everything that deals with IO.
 	 */
-	if ((command & PCI_COMMAND_IO_ENABLE) != 0) {
-		int regs_id = SYM_PCI_IO;
-		np->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-						    &regs_id, RF_ACTIVE);
-	}
+	i = SYM_PCI_IO;
+	np->io_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, &i, RF_ACTIVE);
 	if (!np->io_res) {
 		device_printf(dev, "failed to allocate IO resources\n");
 		goto attach_failed;
@@ -8571,8 +8545,7 @@ sym_pci_attach(device_t dev)
 	 *  If the chip has RAM.
 	 *  Alloc/get/map/retrieve the corresponding resources.
 	 */
-	if ((np->features & (FE_RAM|FE_RAM8K)) &&
-	    (command & PCIM_CMD_MEMEN) != 0) {
+	if (np->features & (FE_RAM|FE_RAM8K)) {
 		int regs_id = SYM_PCI_RAM;
 		if (np->features & FE_64BIT)
 			regs_id = SYM_PCI_RAM64;

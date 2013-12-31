@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 
 extern uint64_t bdata[];
 
+extern int smp_disabled;
+
 MALLOC_DEFINE(M_SMP, "SMP", "SMP related allocations");
 
 void ia64_ap_startup(void);
@@ -206,8 +208,8 @@ ia64_ap_startup(void)
 	ia64_ap_state.as_trace = 0x100;
 
 	ia64_set_rr(IA64_RR_BASE(5), (5 << 8) | (PAGE_SHIFT << 2) | 1);
-	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
-	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (LOG2_ID_PAGE_SIZE << 2));
+	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (LOG2_ID_PAGE_SIZE << 2));
 	ia64_srlz_d();
 
 	pcpup = ia64_ap_state.as_pcpu;
@@ -238,6 +240,8 @@ ia64_ap_startup(void)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	PCPU_SET(curthread, PCPU_GET(idlethread));
 
+	pmap_invalidate_all();
+
 	atomic_add_int(&ia64_ap_state.as_awake, 1);
 	while (!smp_started)
 		cpu_spinwait();
@@ -248,8 +252,6 @@ ia64_ap_startup(void)
 
 	ia64_set_tpr(0);
 	ia64_srlz_d();
-
-	ia64_enable_intr();
 
 	sched_throw(NULL);
 	/* NOTREACHED */
@@ -294,6 +296,9 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	void *dpcpu;
 	u_int cpuid, sapic_id;
 
+	if (smp_disabled)
+		return;
+
 	sapic_id = SAPIC_ID_SET(id, eid);
 	cpuid = (IA64_LID_GET_SAPIC_ID(ia64_get_lid()) == sapic_id)
 	    ? 0 : smp_cpus++;
@@ -304,7 +309,8 @@ cpu_mp_add(u_int acpi_id, u_int id, u_int eid)
 	if (cpuid != 0) {
 		pc = (struct pcpu *)malloc(sizeof(*pc), M_SMP, M_WAITOK);
 		pcpu_init(pc, cpuid, sizeof(*pc));
-		dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+		dpcpu = (void *)kmem_malloc(kernel_arena, DPCPU_SIZE,
+		    M_WAITOK | M_ZERO);
 		dpcpu_init(dpcpu, cpuid);
 	} else
 		pc = pcpup;

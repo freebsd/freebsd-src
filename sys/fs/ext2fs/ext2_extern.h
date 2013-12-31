@@ -49,24 +49,24 @@ struct vfsconf;
 struct vnode;
 
 int	ext2_add_entry(struct vnode *, struct ext2fs_direct_2 *);
-int	ext2_alloc(struct inode *,
-	    int32_t, int32_t, int, struct ucred *, int32_t *);
+int	ext2_alloc(struct inode *, daddr_t, e4fs_daddr_t, int,
+	    struct ucred *, e4fs_daddr_t *);
 int	ext2_balloc(struct inode *,
 	    e2fs_lbn_t, int, struct ucred *, struct buf **, int);
 int	ext2_blkatoff(struct vnode *, off_t, char **, struct buf **);
-void	ext2_blkfree(struct inode *, int32_t, long);
-int32_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, int32_t *, int32_t);
+void	ext2_blkfree(struct inode *,  e4fs_daddr_t, long);
+e4fs_daddr_t	ext2_blkpref(struct inode *, e2fs_lbn_t, int, e2fs_daddr_t *,
+	    e2fs_daddr_t);
 int	ext2_bmap(struct vop_bmap_args *);
-int	ext2_bmaparray(struct vnode *, int32_t, int32_t *, int *, int *);
+int	ext2_bmaparray(struct vnode *, daddr_t, daddr_t *, int *, int *);
 void	ext2_clusteracct(struct m_ext2fs *, char *, int, daddr_t, int);
 void	ext2_dirbad(struct inode *ip, doff_t offset, char *how);
 void	ext2_ei2i(struct ext2fs_dinode *, struct inode *);
-int	ext2_getlbns(struct vnode *, int32_t, struct indir *, int *);
+int	ext2_getlbns(struct vnode *, daddr_t, struct indir *, int *);
 void	ext2_i2ei(struct inode *, struct ext2fs_dinode *);
 void	ext2_itimes(struct vnode *vp);
 int	ext2_reallocblks(struct vop_reallocblks_args *);
 int	ext2_reclaim(struct vop_reclaim_args *);
-void	ext2_setblock(struct m_ext2fs *, u_char *, int32_t);
 int	ext2_truncate(struct vnode *, off_t, int, struct ucred *, struct thread *);
 int	ext2_update(struct vnode *, int);
 int	ext2_valloc(struct vnode *, int, struct ucred *, struct vnode **);

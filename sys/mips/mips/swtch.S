@@ -68,31 +68,6 @@
 
 	.set	noreorder			# Noreorder is default style!
 
-#define	SAVE_U_PCB_REG(reg, offs, base) \
-	REG_S	reg, U_PCB_REGS + (SZREG * offs) (base)
-
-#define	RESTORE_U_PCB_REG(reg, offs, base) \
-	REG_L	reg, U_PCB_REGS + (SZREG * offs) (base)
-
-#define	SAVE_U_PCB_FPREG(reg, offs, base) \
-	FP_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	RESTORE_U_PCB_FPREG(reg, offs, base) \
-	FP_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	SAVE_U_PCB_FPSR(reg, offs, base) \
-	REG_S	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	RESTORE_U_PCB_FPSR(reg, offs, base) \
-	REG_L	reg, U_PCB_FPREGS + (SZFPREG * offs) (base)
-
-#define	SAVE_U_PCB_CONTEXT(reg, offs, base) \
-	REG_S	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
-
-#define	RESTORE_U_PCB_CONTEXT(reg, offs, base) \
-	REG_L	reg, U_PCB_CONTEXT + (SZREG * offs) (base)
-
-
 /*
  * Setup for and return to user.
  */
@@ -200,7 +175,7 @@ LEAF(savectx)
 	move	v0, zero
 END(savectx)
 
-NON_LEAF(cpu_throw, CALLFRAME_SIZ, ra)
+NESTED(cpu_throw, CALLFRAME_SIZ, ra)
 	mfc0	t0, MIPS_COP_0_STATUS		# t0 = saved status register
 	nop
 	nop
@@ -220,7 +195,7 @@ END(cpu_throw)
  *	a2 - mtx
  * Find the highest priority process and resume it.
  */
-NON_LEAF(cpu_switch, CALLFRAME_SIZ, ra)
+NESTED(cpu_switch, CALLFRAME_SIZ, ra)
 	mfc0	t0, MIPS_COP_0_STATUS		# t0 = saved status register
 	nop
 	nop

@@ -106,6 +106,8 @@ struct mmc_ivars {
 
 #define CMD_RETRIES	3
 
+#define	CARD_ID_FREQUENCY 400000 /* Spec requires 400kHz max during ID phase. */
+
 static SYSCTL_NODE(_hw, OID_AUTO, mmc, CTLFLAG_RD, NULL, "mmc driver");
 
 static int mmc_debug;
@@ -391,8 +393,9 @@ mmc_wait_for_req(struct mmc_softc *sc, struct mmc_request *req)
 	while ((req->flags & MMC_REQ_DONE) == 0)
 		msleep(req, &sc->sc_mtx, 0, "mmcreq", 0);
 	MMC_UNLOCK(sc);
-	if (mmc_debug > 2 || (mmc_debug > 1 && req->cmd->error))
-		device_printf(sc->dev, "RESULT: %d\n", req->cmd->error);
+	if (mmc_debug > 2 || (mmc_debug > 0 && req->cmd->error != MMC_ERR_NONE))
+		device_printf(sc->dev, "CMD%d RESULT: %d\n", 
+		    req->cmd->opcode, req->cmd->error);
 	return (0);
 }
 
@@ -408,14 +411,21 @@ static int
 mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 {
 	struct mmc_request mreq;
+	int err;
 
-	memset(&mreq, 0, sizeof(mreq));
-	memset(cmd->resp, 0, sizeof(cmd->resp));
-	cmd->retries = retries;
-	cmd->mrq = &mreq;
-	mreq.cmd = cmd;
-	mmc_wait_for_req(sc, &mreq);
-	return (cmd->error);
+	do {
+		memset(&mreq, 0, sizeof(mreq));
+		memset(cmd->resp, 0, sizeof(cmd->resp));
+		cmd->retries = 0; /* Retries done here, not in hardware. */
+		cmd->mrq = &mreq;
+		mreq.cmd = cmd;
+		if (mmc_wait_for_req(sc, &mreq) != 0)
+			err = MMC_ERR_FAILED;
+		else
+			err = cmd->error;
+	} while (err != MMC_ERR_NONE && retries-- > 0);
+
+	return (err);
 }
 
 static int
@@ -423,24 +433,28 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
     struct mmc_command *cmd, int retries)
 {
 	struct mmc_command appcmd;
-	int err = MMC_ERR_NONE, i;
+	int err;
 
-	for (i = 0; i <= retries; i++) {
+	do {
+		memset(&appcmd, 0, sizeof(appcmd));
 		appcmd.opcode = MMC_APP_CMD;
 		appcmd.arg = rca << 16;
 		appcmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		appcmd.data = NULL;
-		mmc_wait_for_cmd(sc, &appcmd, 0);
-		err = appcmd.error;
-		if (err != MMC_ERR_NONE)
-			continue;
-		if (!(appcmd.resp[0] & R1_APP_CMD))
-			return MMC_ERR_FAILED;
-		mmc_wait_for_cmd(sc, cmd, 0);
-		err = cmd->error;
-		if (err == MMC_ERR_NONE)
-			break;
-	}
+		if (mmc_wait_for_cmd(sc, &appcmd, 0) != 0)
+			err = MMC_ERR_FAILED;
+		else
+			err = appcmd.error;
+		if (err == MMC_ERR_NONE) {
+			if (!(appcmd.resp[0] & R1_APP_CMD))
+				err = MMC_ERR_FAILED;
+			else if (mmc_wait_for_cmd(sc, cmd, 0) != 0)
+				err = MMC_ERR_FAILED;
+			else
+				err = cmd->error;
+		}
+	} while (err != MMC_ERR_NONE && retries-- > 0);
+
 	return (err);
 }
 
@@ -459,8 +473,6 @@ mmc_wait_for_command(struct mmc_softc *sc, uint32_t opcode,
 	err = mmc_wait_for_cmd(sc, &cmd, retries);
 	if (err)
 		return (err);
-	if (cmd.error)
-		return (cmd.error);
 	if (resp) {
 		if (flags & MMC_RSP_136)
 			memcpy(resp, cmd.resp, 4 * sizeof(uint32_t));
@@ -486,7 +498,7 @@ mmc_idle_cards(struct mmc_softc *sc)
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_NONE | MMC_CMD_BC;
 	cmd.data = NULL;
-	mmc_wait_for_cmd(sc, &cmd, 0);
+	mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	mmc_ms_delay(1);
 
 	mmcbr_set_chip_select(dev, cs_dontcare);
@@ -579,7 +591,7 @@ mmc_power_up(struct mmc_softc *sc)
 	mmcbr_update_ios(dev);
 	mmc_ms_delay(1);
 
-	mmcbr_set_clock(dev, mmcbr_get_f_min(sc->dev));
+	mmcbr_set_clock(dev, CARD_ID_FREQUENCY);
 	mmcbr_set_timing(dev, bus_timing_normal);
 	mmcbr_set_power_mode(dev, power_on);
 	mmcbr_update_ios(dev);
@@ -616,6 +628,7 @@ mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index, uint8_t value)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SWITCH_FUNC;
 	cmd.arg = (MMC_SWITCH_FUNC_WR << 24) |
 	    (index << 16) |
@@ -623,7 +636,7 @@ mmc_switch(struct mmc_softc *sc, uint8_t set, uint8_t index, uint8_t value)
 	    set;
 	cmd.flags = MMC_RSP_R1B | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
@@ -635,8 +648,8 @@ mmc_sd_switch(struct mmc_softc *sc, uint8_t mode, uint8_t grp, uint8_t value,
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 	memset(res, 0, 64);
 
 	cmd.opcode = SD_SWITCH_FUNC;
@@ -663,14 +676,14 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 	uint8_t	value;
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
-		memset(&cmd, 0, sizeof(struct mmc_command));
+		memset(&cmd, 0, sizeof(cmd));
 		cmd.opcode = ACMD_SET_CLR_CARD_DETECT;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		cmd.arg = SD_CLR_CARD_DETECT;
 		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
 		if (err != 0)
 			return (err);
-		memset(&cmd, 0, sizeof(struct mmc_command));
+		memset(&cmd, 0, sizeof(cmd));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		switch (width) {
@@ -746,6 +759,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_8);
 		mmcbr_update_ios(sc->dev);
 
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -756,6 +771,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
 		
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -777,6 +794,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_4);
 		mmcbr_update_ios(sc->dev);
 
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -787,6 +806,8 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.flags = MMC_DATA_WRITE;
 		mmc_wait_for_cmd(sc, &cmd, 0);
 		
+		memset(&cmd, 0, sizeof(cmd));
+		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_R;
 		cmd.arg = 0;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_ADTC;
@@ -1048,11 +1069,12 @@ mmc_all_send_cid(struct mmc_softc *sc, uint32_t *rawcid)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_ALL_SEND_CID;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	memcpy(rawcid, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
 }
@@ -1063,11 +1085,12 @@ mmc_send_csd(struct mmc_softc *sc, uint16_t rca, uint32_t *rawcsd)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SEND_CSD;
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R2 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	memcpy(rawcsd, cmd.resp, 4 * sizeof(uint32_t));
 	return (err);
 }
@@ -1079,8 +1102,8 @@ mmc_app_send_scr(struct mmc_softc *sc, uint16_t rca, uint32_t *rawscr)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawscr, 0, 8);
 	cmd.opcode = ACMD_SEND_SCR;
@@ -1105,8 +1128,8 @@ mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawextcsd, 0, 512);
 	cmd.opcode = MMC_SEND_EXT_CSD;
@@ -1129,8 +1152,8 @@ mmc_app_sd_status(struct mmc_softc *sc, uint16_t rca, uint32_t *rawsdstatus)
 	struct mmc_command cmd;
 	struct mmc_data data;
 
-	memset(&cmd, 0, sizeof(struct mmc_command));
-	memset(&data, 0, sizeof(struct mmc_data));
+	memset(&cmd, 0, sizeof(cmd));
+	memset(&data, 0, sizeof(data));
 
 	memset(rawsdstatus, 0, 64);
 	cmd.opcode = ACMD_SD_STATUS;
@@ -1154,11 +1177,12 @@ mmc_set_relative_addr(struct mmc_softc *sc, uint16_t resp)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SET_RELATIVE_ADDR;
 	cmd.arg = resp << 16;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
@@ -1168,11 +1192,12 @@ mmc_send_relative_addr(struct mmc_softc *sc, uint32_t *resp)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = SD_SEND_RELATIVE_ADDR;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_R6 | MMC_CMD_BCR;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	*resp = cmd.resp[0];
 	return (err);
 }
@@ -1183,11 +1208,12 @@ mmc_send_status(struct mmc_softc *sc, uint16_t rca, uint32_t *status)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SEND_STATUS;
 	cmd.arg = rca << 16;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	*status = cmd.resp[0];
 	return (err);
 }
@@ -1198,18 +1224,19 @@ mmc_set_blocklen(struct mmc_softc *sc, uint32_t len)
 	struct mmc_command cmd;
 	int err;
 
+	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = MMC_SET_BLOCKLEN;
 	cmd.arg = len;
 	cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 	cmd.data = NULL;
-	err = mmc_wait_for_cmd(sc, &cmd, 0);
+	err = mmc_wait_for_cmd(sc, &cmd, CMD_RETRIES);
 	return (err);
 }
 
 static void
 mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 {
-	device_printf(dev, "Card at relative address %d%s:\n",
+	device_printf(dev, "Card at relative address 0x%04x%s:\n",
 	    ivar->rca, newcard ? " added" : "");
 	device_printf(dev, " card: %s\n", ivar->card_id_string);
 	device_printf(dev, " bus: %ubit, %uMHz%s\n",
@@ -1534,7 +1561,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 			mmc_idle_cards(sc);
 	} else {
 		mmcbr_set_bus_mode(dev, opendrain);
-		mmcbr_set_clock(dev, mmcbr_get_f_min(dev));
+		mmcbr_set_clock(dev, CARD_ID_FREQUENCY);
 		mmcbr_update_ios(dev);
 		/* XXX recompute vdd based on new cards? */
 	}
@@ -1572,11 +1599,10 @@ static int
 mmc_calculate_clock(struct mmc_softc *sc)
 {
 	int max_dtr, max_hs_dtr, max_timing;
-	int nkid, i, f_min, f_max;
+	int nkid, i, f_max;
 	device_t *kids;
 	struct mmc_ivars *ivar;
 	
-	f_min = mmcbr_get_f_min(sc->dev);
 	f_max = mmcbr_get_f_max(sc->dev);
 	max_dtr = max_hs_dtr = f_max;
 	if ((mmcbr_get_caps(sc->dev) & MMC_CAP_HSPEED))
@@ -1735,3 +1761,4 @@ DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci_fdt, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_ti, mmc_driver, mmc_devclass, NULL, NULL);

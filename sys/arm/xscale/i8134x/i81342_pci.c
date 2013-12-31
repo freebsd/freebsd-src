@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
-#include <machine/pmap.h>
 
 #include <arm/xscale/i8134x/i81342reg.h>
 #include <arm/xscale/i8134x/i81342var.h>

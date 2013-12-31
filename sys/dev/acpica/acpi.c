@@ -431,7 +431,7 @@ acpi_probe(device_t dev)
 
     device_set_desc(dev, acpi_desc);
 
-    return_VALUE (0);
+    return_VALUE (BUS_PROBE_NOWILDCARD);
 }
 
 static int

@@ -56,7 +56,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	uint64_t freq;
 
-	freq = ar71xx_ahb_freq();
+	freq = ar71xx_uart_freq();
 
 	di->ops = uart_getops(&uart_ns8250_class);
 	di->bas.chan = 0;

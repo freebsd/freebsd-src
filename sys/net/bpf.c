@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #define	BPF_INTERNAL
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
@@ -576,7 +577,7 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 				goto bad;
 			}
 		}
-		bcopy(m->m_data, sockp->sa_data, hlen);
+		bcopy(mtod(m, const void *), sockp->sa_data, hlen);
 	}
 	*hdrlen = hlen;
 

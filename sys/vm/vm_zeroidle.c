@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_phys.h>
 

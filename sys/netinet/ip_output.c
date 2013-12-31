@@ -34,9 +34,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
-#include "opt_route.h"
 #include "opt_mbuf_stress_test.h"
 #include "opt_mpath.h"
+#include "opt_route.h"
 #include "opt_sctp.h"
 
 #include <sys/param.h>
@@ -47,12 +47,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_llatbl.h>
 #include <net/netisr.h>
 #include <net/pfil.h>
@@ -64,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
@@ -120,7 +123,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
+#if 0
 	int n;	/* scratchpad */
+#endif
 	int error = 0;
 	struct sockaddr_in *dst;
 	const struct sockaddr_in *gw;
@@ -428,6 +433,25 @@ again:
 	}
 
 	/*
+	 * Both in the SMP world, pre-emption world if_transmit() world,
+	 * the following code doesn't really function as intended any further.
+	 *
+	 * + There can and will be multiple CPUs running this code path
+	 *   in parallel, and we do no lock holding when checking the
+	 *   queue depth;
+	 * + And since other threads can be running concurrently, even if
+	 *   we do pass this check, another thread may queue some frames
+	 *   before this thread does and it will end up partially or fully
+	 *   failing to send anyway;
+	 * + if_transmit() based drivers don't necessarily set ifq_len
+	 *   at all.
+	 *
+	 * This should be replaced with a method of pushing an entire list
+	 * of fragment frames to the driver and have the driver decide
+	 * whether it can queue or not queue the entire set.
+	 */
+#if 0
+	/*
 	 * Verify that we have any chance at all of being able to queue the
 	 * packet or packet fragments, unless ALTQ is enabled on the given
 	 * interface in which case packetdrop should be done by queueing.
@@ -443,6 +467,7 @@ again:
 		ifp->if_snd.ifq_drops += n;
 		goto bad;
 	}
+#endif
 
 	/*
 	 * Look for broadcast address and
@@ -607,11 +632,12 @@ passout:
 		 */
 		if (!(flags & IP_FORWARDING) && ia) {
 			if (m->m_pkthdr.csum_flags & CSUM_TSO)
-				ia->ia_ifa.if_opackets +=
-				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz;
+				counter_u64_add(ia->ia_ifa.ifa_opackets,
+				    m->m_pkthdr.len / m->m_pkthdr.tso_segsz);
 			else
-				ia->ia_ifa.if_opackets++;
-			ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+
+			counter_u64_add(ia->ia_ifa.ifa_obytes, m->m_pkthdr.len);
 		}
 #ifdef MBUF_STRESS_TEST
 		if (mbuf_frag_size && m->m_pkthdr.len > mbuf_frag_size)
@@ -621,7 +647,8 @@ passout:
 		 * Reset layer specific mbuf flags
 		 * to avoid confusing lower layers.
 		 */
-		m->m_flags &= ~(M_PROTOFLAGS);
+		m_clrprotoflags(m);
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
 		    (const struct sockaddr *)gw, ro);
 		goto done;
@@ -647,15 +674,17 @@ passout:
 		if (error == 0) {
 			/* Record statistics for this interface address. */
 			if (ia != NULL) {
-				ia->ia_ifa.if_opackets++;
-				ia->ia_ifa.if_obytes += m->m_pkthdr.len;
+				counter_u64_add(ia->ia_ifa.ifa_opackets, 1);
+				counter_u64_add(ia->ia_ifa.ifa_obytes,
+				    m->m_pkthdr.len);
 			}
 			/*
 			 * Reset layer specific mbuf flags
 			 * to avoid confusing upper layers.
 			 */
-			m->m_flags &= ~(M_PROTOFLAGS);
+			m_clrprotoflags(m);
 
+			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 			error = (*ifp->if_output)(ifp, m,
 			    (const struct sockaddr *)gw, ro);
 		} else
@@ -784,7 +813,7 @@ smart_frag_failure:
 			IPSTAT_INC(ips_odropped);
 			goto done;
 		}
-		m->m_flags |= (m0->m_flags & M_MCAST) | M_FRAG;
+		m->m_flags |= (m0->m_flags & M_MCAST);
 		/*
 		 * In the first mbuf, leave room for the link header, then
 		 * copy the original IP header including options. The payload
@@ -801,10 +830,9 @@ smart_frag_failure:
 		m->m_len = mhlen;
 		/* XXX do we need to add ip_off below ? */
 		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
-		if (off + len >= ip_len) {	/* last fragment */
+		if (off + len >= ip_len)
 			len = ip_len - off;
-			m->m_flags |= M_LASTFRAG;
-		} else
+		else
 			mhip->ip_off |= IP_MF;
 		mhip->ip_len = htons((u_short)(len + mhlen));
 		m->m_next = m_copym(m0, off, len, M_NOWAIT);
@@ -830,10 +858,6 @@ smart_frag_failure:
 		mnext = &m->m_nextpkt;
 	}
 	IPSTAT_ADD(ips_ofragments, nfrags);
-
-	/* set first marker for fragment chain */
-	m0->m_flags |= M_FIRSTFRAG | M_FRAG;
-	m0->m_pkthdr.csum_data = nfrags;
 
 	/*
 	 * Update first fragment by trimming what's been copied out

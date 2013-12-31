@@ -117,6 +117,7 @@ dnode_cons(void *arg, void *unused, int kmflag)
 	dn->dn_id_flags = 0;
 
 	dn->dn_dbufs_count = 0;
+	dn->dn_unlisted_l0_blkid = 0;
 	list_create(&dn->dn_dbufs, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 
@@ -170,6 +171,7 @@ dnode_dest(void *arg, void *unused)
 	ASSERT0(dn->dn_id_flags);
 
 	ASSERT0(dn->dn_dbufs_count);
+	ASSERT0(dn->dn_unlisted_l0_blkid);
 	list_destroy(&dn->dn_dbufs);
 }
 
@@ -475,6 +477,7 @@ dnode_destroy(dnode_t *dn)
 	dn->dn_newuid = 0;
 	dn->dn_newgid = 0;
 	dn->dn_id_flags = 0;
+	dn->dn_unlisted_l0_blkid = 0;
 
 	dmu_zfetch_rele(&dn->dn_zfetch);
 	kmem_cache_free(dnode_cache, dn);
@@ -705,6 +708,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	ASSERT(list_is_empty(&ndn->dn_dbufs));
 	list_move_tail(&ndn->dn_dbufs, &odn->dn_dbufs);
 	ndn->dn_dbufs_count = odn->dn_dbufs_count;
+	ndn->dn_unlisted_l0_blkid = odn->dn_unlisted_l0_blkid;
 	ndn->dn_bonus = odn->dn_bonus;
 	ndn->dn_have_spill = odn->dn_have_spill;
 	ndn->dn_zio = odn->dn_zio;
@@ -739,6 +743,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	list_create(&odn->dn_dbufs, sizeof (dmu_buf_impl_t),
 	    offsetof(dmu_buf_impl_t, db_link));
 	odn->dn_dbufs_count = 0;
+	odn->dn_unlisted_l0_blkid = 0;
 	odn->dn_bonus = NULL;
 	odn->dn_zfetch.zf_dnode = NULL;
 
@@ -1334,7 +1339,7 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 	rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 
 	/* Check for any allocated blocks beyond the first */
-	if (dn->dn_phys->dn_maxblkid != 0)
+	if (dn->dn_maxblkid != 0)
 		goto fail;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
@@ -1528,7 +1533,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	blkshift = dn->dn_datablkshift;
 	epbs = dn->dn_indblkshift - SPA_BLKPTRSHIFT;
 
-	if (len == -1ULL) {
+	if (len == DMU_OBJECT_END) {
 		len = UINT64_MAX - off;
 		trunc = TRUE;
 	}
@@ -1788,23 +1793,22 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 }
 
 /*
- * Call when we think we're going to write/free space in open context.
- * Be conservative (ie. OK to write less than this or free more than
- * this, but don't write more or free less).
+ * Call when we think we're going to write/free space in open context to track
+ * the amount of memory in use by the currently open txg.
  */
 void
 dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx)
 {
 	objset_t *os = dn->dn_objset;
 	dsl_dataset_t *ds = os->os_dsl_dataset;
+	int64_t aspace = spa_get_asize(os->os_spa, space);
 
-	if (space > 0)
-		space = spa_get_asize(os->os_spa, space);
+	if (ds != NULL) {
+		dsl_dir_willuse_space(ds->ds_dir, aspace, tx);
+		dsl_pool_dirty_space(dmu_tx_pool(tx), space, tx);
+	}
 
-	if (ds)
-		dsl_dir_willuse_space(ds->ds_dir, space, tx);
-
-	dmu_tx_willuse_space(tx, space);
+	dmu_tx_willuse_space(tx, aspace);
 }
 
 /*

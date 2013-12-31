@@ -58,9 +58,6 @@ PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 DEV_ATPIC		opt_atpic.h
 
-# Debugging
-KDTRACE_FRAME		opt_kdtrace.h
-
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
 
@@ -68,7 +65,3 @@ XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h
-
-# hw random number generators for random(4)
-PADLOCK_RNG		opt_cpu.h
-RDRAND_RNG		opt_cpu.h

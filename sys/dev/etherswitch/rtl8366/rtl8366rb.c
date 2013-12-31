@@ -30,16 +30,18 @@
 #include <sys/bus.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
 
@@ -619,7 +621,7 @@ rtl_getvgroup(device_t dev, etherswitch_vlangroup_t *vg)
 	for (i=0; i<3; i++)
 		vmcr[i] = rtl_readreg(dev, RTL8366RB_VMCR(i, vg->es_vlangroup));
 		
-	vg->es_vid = RTL8366RB_VMCR_VID(vmcr);
+	vg->es_vid = RTL8366RB_VMCR_VID(vmcr) | ETHERSWITCH_VID_VALID;
 	vg->es_member_ports = RTL8366RB_VMCR_MEMBER(vmcr);
 	vg->es_untagged_ports = RTL8366RB_VMCR_UNTAG(vmcr);
 	vg->es_fid = RTL8366RB_VMCR_FID(vmcr);

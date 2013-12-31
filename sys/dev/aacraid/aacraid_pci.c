@@ -169,16 +169,10 @@ aacraid_pci_attach(device_t dev)
 	/* 
 	 * Verify that the adapter is correctly set up in PCI space.
 	 */
-	command = pci_read_config(sc->aac_dev, PCIR_COMMAND, 2);
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
+	pci_enable_busmaster(dev);
 	command = pci_read_config(sc->aac_dev, PCIR_COMMAND, 2);
 	if (!(command & PCIM_CMD_BUSMASTEREN)) {
 		device_printf(sc->aac_dev, "can't enable bus-master feature\n");
-		goto out;
-	}
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-		device_printf(sc->aac_dev, "memory window not available\n");
 		goto out;
 	}
 

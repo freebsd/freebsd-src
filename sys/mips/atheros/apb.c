@@ -103,7 +103,7 @@ static int
 apb_probe(device_t dev)
 {
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -359,6 +359,9 @@ apb_filter(void *arg)
 			case AR71XX_SOC_AR7242:
 			case AR71XX_SOC_AR9330:
 			case AR71XX_SOC_AR9331:
+			case AR71XX_SOC_AR9341:
+			case AR71XX_SOC_AR9342:
+			case AR71XX_SOC_AR9344:
 				/* Ack/clear the irq on status register for AR724x */
 				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
 				    reg & ~(1 << irq));

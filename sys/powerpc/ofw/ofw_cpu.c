@@ -158,7 +158,7 @@ static device_method_t ofw_cpu_methods[] = {
 static driver_t ofw_cpu_driver = {
 	"cpu",
 	ofw_cpu_methods,
-	0
+	sizeof(struct ofw_cpu_softc)
 };
 
 static devclass_t ofw_cpu_devclass;

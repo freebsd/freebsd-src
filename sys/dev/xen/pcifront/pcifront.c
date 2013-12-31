@@ -441,7 +441,7 @@ xpcife_probe(device_t dev)
 	struct pcifront_device *pdev = (struct pcifront_device *)device_get_ivars(dev);
 	DPRINTF("xpcife probe (unit=%d)\n", pdev->unit);
 #endif
-	return 0;
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /* Newbus xpcife device driver attach */

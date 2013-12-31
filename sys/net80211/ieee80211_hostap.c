@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
 #include <net/ethernet.h>
@@ -355,7 +356,12 @@ hostap_deliver_data(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	/* clear driver/net80211 flags before passing up */
+#if __FreeBSD_version >= 1000046
+	m->m_flags &= ~(M_MCAST | M_BCAST);
+	m_clrprotoflags(m);
+#else
 	m->m_flags &= ~(M_80211_RX | M_MCAST | M_BCAST);
+#endif
 
 	KASSERT(vap->iv_opmode == IEEE80211_M_HOSTAP,
 	    ("gack, opmode %d", vap->iv_opmode));
@@ -412,7 +418,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		if (mcopy != NULL) {
 			int len, err;
 			len = mcopy->m_pkthdr.len;
-			err = ieee80211_vap_transmit(vap, mcopy);
+			err = ieee80211_vap_xmitpkt(vap, mcopy);
 			if (err) {
 				/* NB: IFQ_HANDOFF reclaims mcopy */
 			} else {
@@ -2322,13 +2328,13 @@ ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 
 	/*
 	 * Do the right thing; if it's an encap'ed frame then
-	 * call ieee80211_parent_transmit() (and free the ref) else
-	 * call ieee80211_vap_transmit().
+	 * call ieee80211_parent_xmitpkt() (and free the ref) else
+	 * call ieee80211_vap_xmitpkt().
 	 */
 	if (m->m_flags & M_ENCAP) {
-		if (ieee80211_parent_transmit(ic, m) != 0)
+		if (ieee80211_parent_xmitpkt(ic, m) != 0)
 			ieee80211_free_node(ni);
 	} else {
-		(void) ieee80211_vap_transmit(vap, m);
+		(void) ieee80211_vap_xmitpkt(vap, m);
 	}
 }

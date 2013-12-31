@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -134,7 +135,7 @@ static void prison_racct_modify(struct prison *pr);
 static void prison_racct_detach(struct prison *pr);
 #endif
 #ifdef INET
-static int _prison_check_ip4(struct prison *pr, struct in_addr *ia);
+static int _prison_check_ip4(const struct prison *, const struct in_addr *);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
 #endif
 #ifdef INET6
@@ -206,6 +207,7 @@ static char *pr_allow_names[] = {
 	"allow.mount.nullfs",
 	"allow.mount.zfs",
 	"allow.mount.procfs",
+	"allow.mount.tmpfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -221,6 +223,7 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nonullfs",
 	"allow.mount.nozfs",
 	"allow.mount.noprocfs",
+	"allow.mount.notmpfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -311,7 +314,7 @@ sys_jail(struct thread *td, struct jail_args *uap)
 		j.version = j0.version;
 		j.path = j0.path;
 		j.hostname = j0.hostname;
-		j.ip4s = j0.ip_number;
+		j.ip4s = htonl(j0.ip_number);	/* jail_v0 is host order */
 		break;
 	}
 
@@ -2927,7 +2930,7 @@ prison_remote_ip4(struct ucred *cred, struct in_addr *ia)
  * doesn't allow IPv4.  Address passed in in NBO.
  */
 static int
-_prison_check_ip4(struct prison *pr, struct in_addr *ia)
+_prison_check_ip4(const struct prison *pr, const struct in_addr *ia)
 {
 	int i, a, z, d;
 
@@ -2957,7 +2960,7 @@ _prison_check_ip4(struct prison *pr, struct in_addr *ia)
 }
 
 int
-prison_check_ip4(struct ucred *cred, struct in_addr *ia)
+prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 {
 	struct prison *pr;
 	int error;
@@ -3044,7 +3047,7 @@ prison_restrict_ip6(struct prison *pr, struct in6_addr *newip6)
 				ii++;
 				continue;
 			}
-			switch (ij >= ppr->pr_ip4s ? -1 :
+			switch (ij >= ppr->pr_ip6s ? -1 :
 				qcmp_v6(&pr->pr_ip6[ii], &ppr->pr_ip6[ij])) {
 			case -1:
 				bcopy(pr->pr_ip6 + ii + 1, pr->pr_ip6 + ii,
@@ -3883,6 +3886,13 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_SETGID:
 	case PRIV_VFS_STAT:
 	case PRIV_VFS_STICKYFILE:
+
+		/*
+		 * As in the non-jail case, non-root users are expected to be
+		 * able to read kernel/phyiscal memory (provided /dev/[k]mem
+		 * exists in the jail and they have permission to access it).
+		 */
+	case PRIV_KMEM_READ:
 		return (0);
 
 		/*
@@ -4228,6 +4238,10 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
     "Processes in jail can mount the procfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_tmpfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_TMPFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the tmpfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
@@ -4380,6 +4394,8 @@ SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the nullfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the procfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, tmpfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the tmpfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount the zfs file system");
 

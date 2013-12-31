@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -51,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 
 #include <sys/kdb.h>
+
+#include "a20/a20_cpu_cfg.h"
 
 /**
  * Timer registers addr
@@ -84,6 +85,7 @@ struct a10_timer_softc {
 	uint32_t 	sc_period;
 	uint32_t 	timer0_freq;
 	struct eventtimer et;
+	uint8_t 	sc_timer_type;	/* 0 for A10, 1 for A20 */
 };
 
 int a10_timer_get_timerfreq(struct a10_timer_softc *);
@@ -126,6 +128,10 @@ timer_read_counter64(void)
 {
 	uint32_t lo, hi;
 
+	/* In case of A20 get appropriate counter info */
+	if (a10_timer_sc->sc_timer_type)
+		return (a20_read_counter64());
+
 	/* Latch counter, wait for it to be ready to read. */
 	timer_write_4(a10_timer_sc, CNT64_CTRL_REG, CNT64_RL_EN);
 	while (timer_read_4(a10_timer_sc, CNT64_CTRL_REG) & CNT64_RL_EN)
@@ -140,11 +146,18 @@ timer_read_counter64(void)
 static int
 a10_timer_probe(device_t dev)
 {
+	struct a10_timer_softc *sc;
 
-	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-timer"))
+	sc = device_get_softc(dev);
+
+	if (ofw_bus_is_compatible(dev, "allwinner,sun4i-timer"))
+		sc->sc_timer_type = 0;
+	else if (ofw_bus_is_compatible(dev, "allwinner,sun7i-timer"))
+		sc->sc_timer_type = 1;
+	else
 		return (ENXIO);
 
-	device_set_desc(dev, "Allwinner A10 timer");
+	device_set_desc(dev, "Allwinner A10/A20 timer");
 	return (BUS_PROBE_DEFAULT);
 }
 

@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -125,7 +126,7 @@ struct pv_addr kernelstack;
 struct pv_addr minidataclean;
 
 /* Static device mappings. */
-static const struct pmap_devmap ixp425_devmap[] = {
+static const struct arm_devmap_entry ixp425_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
@@ -158,7 +159,7 @@ static const struct pmap_devmap ixp425_devmap[] = {
 };
 
 /* Static device mappings. */
-static const struct pmap_devmap ixp435_devmap[] = {
+static const struct arm_devmap_entry ixp435_devmap[] = {
 	/* Physical/Virtual address for I/O space */
     { IXP425_IO_VBASE, IXP425_IO_HWBASE, IXP425_IO_SIZE,
       VM_PROT_READ|VM_PROT_WRITE, PTE_NOCACHE, },
@@ -368,9 +369,9 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	if (cpu_is_ixp43x())
-		pmap_devmap_bootstrap(l1pagetable, ixp435_devmap);
+		arm_devmap_bootstrap(l1pagetable, ixp435_devmap);
 	else
-		pmap_devmap_bootstrap(l1pagetable, ixp425_devmap);
+		arm_devmap_bootstrap(l1pagetable, ixp425_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -404,6 +405,8 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
+
 	/* ready to setup the console (XXX move earlier if possible) */
 	cninit();
 	/*
@@ -429,7 +432,7 @@ initarm(struct arm_boot_params *abp)
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
 	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
-	vm_max_kernel_address = 0xd0000000;
+	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

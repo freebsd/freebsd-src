@@ -44,6 +44,8 @@
 #define	EXT2_UNDELDIRINO	((ino_t)6)
 #define	EXT2_RESIZEINO		((ino_t)7)
 #define	EXT2_JOURNALINO		((ino_t)8)
+#define	EXT2_EXCLUDEINO		((ino_t)9)
+#define	EXT2_REPLICAINO		((ino_t)10)
 #define	EXT2_FIRSTINO		((ino_t)11)
 
 /*
@@ -79,6 +81,8 @@
 
 #define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
 				    EXT2F_ROCOMPAT_EXTRA_ISIZE))
+#define E2DI_HAS_HUGE_FILE(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs,	\
+				    EXT2F_ROCOMPAT_HUGE_FILE))
 
 /*
  * Constants relative to the data blocks

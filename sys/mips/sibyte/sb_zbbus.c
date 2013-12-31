@@ -207,7 +207,7 @@ zbbus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Broadcom/Sibyte ZBbus");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

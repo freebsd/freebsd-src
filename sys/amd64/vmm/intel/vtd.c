@@ -39,9 +39,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
-#include <machine/pci_cfgreg.h>
+#include <contrib/dev/acpica/include/acpi.h>
 
 #include "io/iommu.h"
 
@@ -74,11 +73,11 @@ struct vtdmap {
 
 #define	VTD_GCR_WBF		(1 << 27)
 #define	VTD_GCR_SRTP		(1 << 30)
-#define	VTD_GCR_TE		(1 << 31)
+#define	VTD_GCR_TE		(1U << 31)
 
 #define	VTD_GSR_WBFS		(1 << 27)
 #define	VTD_GSR_RTPS		(1 << 30)
-#define	VTD_GSR_TES		(1 << 31)
+#define	VTD_GSR_TES		(1U << 31)
 
 #define	VTD_CCR_ICC		(1UL << 63)	/* invalidate context cache */
 #define	VTD_CCR_CIRG_GLOBAL	(1UL << 61)	/* global invalidation */
@@ -122,60 +121,6 @@ static uint64_t root_table[PAGE_SIZE / sizeof(uint64_t)] __aligned(4096);
 static uint64_t ctx_tables[256][PAGE_SIZE / sizeof(uint64_t)] __aligned(4096);
 
 static MALLOC_DEFINE(M_VTD, "vtd", "vtd");
-
-/*
- * Config space register definitions from the "Intel 5520 and 5500" datasheet.
- */
-static int
-tylersburg_vtd_ident(void)
-{
-	int units, nlbus;
-	uint16_t did, vid;
-	uint32_t miscsts, vtbar;
-
-	const int bus = 0;
-	const int slot = 20;
-	const int func = 0;
-
-	units = 0;
-
-	vid = pci_cfgregread(bus, slot, func, PCIR_VENDOR, 2);
-	did = pci_cfgregread(bus, slot, func, PCIR_DEVICE, 2);
-	if (vid != 0x8086 || did != 0x342E)
-		goto done;
-
-	/*
-	 * Check if this is a dual IOH configuration.
-	 */
-	miscsts = pci_cfgregread(bus, slot, func, 0x9C, 4);
-	if (miscsts & (1 << 25))
-		nlbus = pci_cfgregread(bus, slot, func, 0x160, 1);
-	else	
-		nlbus = -1;
-
-	vtbar = pci_cfgregread(bus, slot, func, 0x180, 4);
-	if (vtbar & 0x1) {
-		vtdmaps[units++] = (struct vtdmap *)
-					PHYS_TO_DMAP(vtbar & 0xffffe000);
-	} else if (bootverbose)
-		printf("VT-d unit in legacy IOH is disabled!\n");
-
-	if (nlbus != -1) {
-		vtbar = pci_cfgregread(nlbus, slot, func, 0x180, 4);
-		if (vtbar & 0x1) {
-			vtdmaps[units++] = (struct vtdmap *)
-					   PHYS_TO_DMAP(vtbar & 0xffffe000);
-		} else if (bootverbose)
-			printf("VT-d unit in non-legacy IOH is disabled!\n");
-	}
-done:
-	return (units);
-}
-
-static drhd_ident_func_t drhd_ident_funcs[] = {
-	tylersburg_vtd_ident,
-	NULL
-};
 
 static int
 vtd_max_domains(struct vtdmap *vtdmap)
@@ -291,19 +236,67 @@ vtd_translation_disable(struct vtdmap *vtdmap)
 static int
 vtd_init(void)
 {
-	int i, units;
+	int i, units, remaining;
 	struct vtdmap *vtdmap;
 	vm_paddr_t ctx_paddr;
-	
-	for (i = 0; drhd_ident_funcs[i] != NULL; i++) {
-		units = (*drhd_ident_funcs[i])();
-		if (units > 0)
+	char *end, envname[32];
+	unsigned long mapaddr;
+	ACPI_STATUS status;
+	ACPI_TABLE_DMAR *dmar;
+	ACPI_DMAR_HEADER *hdr;
+	ACPI_DMAR_HARDWARE_UNIT *drhd;
+
+	/*
+	 * Allow the user to override the ACPI DMAR table by specifying the
+	 * physical address of each remapping unit.
+	 *
+	 * The following example specifies two remapping units at
+	 * physical addresses 0xfed90000 and 0xfeda0000 respectively.
+	 * set vtd.regmap.0.addr=0xfed90000
+	 * set vtd.regmap.1.addr=0xfeda0000
+	 */
+	for (units = 0; units < DRHD_MAX_UNITS; units++) {
+		snprintf(envname, sizeof(envname), "vtd.regmap.%d.addr", units);
+		if (getenv_ulong(envname, &mapaddr) == 0)
 			break;
+		vtdmaps[units] = (struct vtdmap *)PHYS_TO_DMAP(mapaddr);
+	}
+
+	if (units > 0)
+		goto skip_dmar;
+
+	/* Search for DMAR table. */
+	status = AcpiGetTable(ACPI_SIG_DMAR, 0, (ACPI_TABLE_HEADER **)&dmar);
+	if (ACPI_FAILURE(status))
+		return (ENXIO);
+
+	end = (char *)dmar + dmar->Header.Length;
+	remaining = dmar->Header.Length - sizeof(ACPI_TABLE_DMAR);
+	while (remaining > sizeof(ACPI_DMAR_HEADER)) {
+		hdr = (ACPI_DMAR_HEADER *)(end - remaining);
+		if (hdr->Length > remaining)
+			break;
+		/*
+		 * From Intel VT-d arch spec, version 1.3:
+		 * BIOS implementations must report mapping structures
+		 * in numerical order, i.e. All remapping structures of
+		 * type 0 (DRHD) enumerated before remapping structures of
+		 * type 1 (RMRR) and so forth.
+		 */
+		if (hdr->Type != ACPI_DMAR_TYPE_HARDWARE_UNIT)
+			break;
+
+		drhd = (ACPI_DMAR_HARDWARE_UNIT *)hdr;
+		vtdmaps[units++] = (struct vtdmap *)PHYS_TO_DMAP(drhd->Address);
+		if (units >= DRHD_MAX_UNITS)
+			break;
+		remaining -= hdr->Length;
 	}
 
 	if (units <= 0)
 		return (ENXIO);
 
+skip_dmar:
 	drhd_num = units;
 	vtdmap = vtdmaps[0];
 
@@ -617,12 +610,29 @@ vtd_create_domain(vm_paddr_t maxaddr)
 	dom = malloc(sizeof(struct domain), M_VTD, M_ZERO | M_WAITOK);
 	dom->pt_levels = pt_levels;
 	dom->addrwidth = addrwidth;
-	dom->spsmask = VTD_CAP_SPS(vtdmap->cap);
 	dom->id = domain_id();
 	dom->maxaddr = maxaddr;
 	dom->ptp = malloc(PAGE_SIZE, M_VTD, M_ZERO | M_WAITOK);
 	if ((uintptr_t)dom->ptp & PAGE_MASK)
 		panic("vtd_create_domain: ptp (%p) not page aligned", dom->ptp);
+
+#ifdef notyet
+	/*
+	 * XXX superpage mappings for the iommu do not work correctly.
+	 *
+	 * By default all physical memory is mapped into the host_domain.
+	 * When a VM is allocated wired memory the pages belonging to it
+	 * are removed from the host_domain and added to the vm's domain.
+	 *
+	 * If the page being removed was mapped using a superpage mapping
+	 * in the host_domain then we need to demote the mapping before
+	 * removing the page.
+	 *
+	 * There is not any code to deal with the demotion at the moment
+	 * so we disable superpage mappings altogether.
+	 */
+	dom->spsmask = VTD_CAP_SPS(vtdmap->cap);
+#endif
 
 	SLIST_INSERT_HEAD(&domhead, dom, next);
 

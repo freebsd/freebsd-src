@@ -3040,7 +3040,6 @@ emu_pci_attach(device_t dev)
 #if 0
 	struct emu_midiinfo *midiinfo;
 #endif
-	uint32_t data;
 	int i;
 	int device_flags;
 	char status[255];
@@ -3181,11 +3180,6 @@ emu_pci_attach(device_t dev)
 	}
 	if (sc->opcode_shift == 0)
 		goto bad;
-
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
-	data |= (PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN);
-	pci_write_config(dev, PCIR_COMMAND, data, 2);
-	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	pci_enable_busmaster(dev);
 

@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
-#include "opt_kdtrace.h"
 #if defined(__arm__)
 #include "opt_timer.h"
 #endif
@@ -69,11 +68,9 @@ DPCPU_DECLARE(sbintime_t, hardclocktime);
 #endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_start, callout-start);
-SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_start, 0,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__start,
     "struct callout *");
-SDT_PROBE_DEFINE(callout_execute, kernel, , callout_end, callout-end); 
-SDT_PROBE_ARGTYPE(callout_execute, kernel, , callout_end, 0,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__end,
     "struct callout *");
 
 #ifdef CALLOUT_PROFILING
@@ -574,6 +571,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
+	if (INT64_MAX - c->c_time < c->c_precision)
+		c->c_precision = INT64_MAX - c->c_time;
 	sbt = c->c_time + c->c_precision;
 	if (sbt < cc->cc_firstevent) {
 		cc->cc_firstevent = sbt;
@@ -599,11 +598,13 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 #endif
     int direct)
 {
+	struct rm_priotracker tracker;
 	void (*c_func)(void *);
 	void *c_arg;
 	struct lock_class *class;
 	struct lock_object *c_lock;
-	int c_flags, sharedlock;
+	uintptr_t lock_status;
+	int c_flags;
 #ifdef SMP
 	struct callout_cpu *new_cc;
 	void (*new_func)(void *);
@@ -622,7 +623,13 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	    (CALLOUT_PENDING | CALLOUT_ACTIVE),
 	    ("softclock_call_cc: pend|act %p %x", c, c->c_flags));
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
-	sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ? 0 : 1;
+	lock_status = 0;
+	if (c->c_flags & CALLOUT_SHAREDLOCK) {
+		if (class == &lock_class_rm)
+			lock_status = (uintptr_t)&tracker;
+		else
+			lock_status = 1;
+	}
 	c_lock = c->c_lock;
 	c_func = c->c_func;
 	c_arg = c->c_arg;
@@ -635,7 +642,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	cc->cc_exec_entity[direct].cc_cancel = false;
 	CC_UNLOCK(cc);
 	if (c_lock != NULL) {
-		class->lc_lock(c_lock, sharedlock);
+		class->lc_lock(c_lock, lock_status);
 		/*
 		 * The callout may have been cancelled
 		 * while we switched locks.
@@ -670,9 +677,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout_start, c, 0, 0, 0, 0);
+	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout_end, c, 0, 0, 0, 0);
+	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();
@@ -943,7 +950,10 @@ callout_reset_sbt_on(struct callout *c, sbintime_t sbt, sbintime_t precision,
 				to_sbt += tick_sbt;
 		} else
 			to_sbt = sbinuptime();
-		to_sbt += sbt;
+		if (INT64_MAX - to_sbt < sbt)
+			to_sbt = INT64_MAX;
+		else
+			to_sbt += sbt;
 		pr = ((C_PRELGET(flags) < 0) ? sbt >> tc_precexp :
 		    sbt >> C_PRELGET(flags));
 		if (pr > precision)

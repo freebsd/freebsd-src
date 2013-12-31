@@ -52,7 +52,9 @@
 
 #include <sys/queue.h>
 
-typedef int (*undef_handler_t) (unsigned int, unsigned int, trapframe_t *, int);
+struct trapframe;
+
+typedef int (*undef_handler_t) (unsigned int, unsigned int, struct trapframe *, int);
 
 #define FP_COPROC	1
 #define FP_COPROC2	2

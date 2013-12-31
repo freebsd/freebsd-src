@@ -184,7 +184,6 @@ amr_pci_attach(device_t dev)
     struct amr_softc	*sc;
     struct amr_ident	*id;
     int			rid, rtype, error;
-    u_int32_t		command;
 
     debug_called(1);
 
@@ -204,24 +203,8 @@ amr_pci_attach(device_t dev)
     if ((id = amr_find_ident(dev)) == NULL)
 	return (ENXIO);
 
-    command = pci_read_config(dev, PCIR_COMMAND, 1);
     if (id->flags & AMR_ID_QUARTZ) {
-	/*
-	 * Make sure we are going to be able to talk to this board.
-	 */
-	if ((command & PCIM_CMD_MEMEN) == 0) {
-	    device_printf(dev, "memory window not available\n");
-	    return (ENXIO);
-	}
 	sc->amr_type |= AMR_TYPE_QUARTZ;
-    } else {
-	/*
-	 * Make sure we are going to be able to talk to this board.
-	 */
-	if ((command & PCIM_CMD_PORTEN) == 0) {
-	    device_printf(dev, "I/O window not available\n");
-	    return (ENXIO);
-	}
     }
 
     if ((amr_force_sg32 == 0) && (id->flags & AMR_ID_DO_SG64) &&
@@ -231,11 +214,7 @@ amr_pci_attach(device_t dev)
     }
 
     /* force the busmaster enable bit on */
-    if (!(command & PCIM_CMD_BUSMASTEREN)) {
-	device_printf(dev, "busmaster bit not set, enabling\n");
-	command |= PCIM_CMD_BUSMASTEREN;
-	pci_write_config(dev, PCIR_COMMAND, command, 2);
-    }
+    pci_enable_busmaster(dev);
 
     /*
      * Allocate the PCI register window.

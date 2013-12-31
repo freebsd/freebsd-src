@@ -1514,19 +1514,22 @@ static struct iap_event_descr iap_events[] = {
     IAPDESCR(CEH_00H, 0xCE, 0x00, IAP_F_FM | IAP_F_ALLCPUSCORE2),
     IAPDESCR(CFH_00H, 0xCF, 0x00, IAP_F_FM | IAP_F_CA | IAP_F_CC2),
 
+    /* Sandy Bridge / Sandy Bridge Xeon - 11, 12, 21, 41, 42, 81, 82 */
     IAPDESCR(D0H_00H, 0xD0, 0x00, IAP_F_FM | IAP_F_CC),
-    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM |
-	IAP_F_SB | IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
-    IAPDESCR(D0H_80H, 0xD0, 0X80, IAP_F_FM | IAP_F_SB | IAP_F_IB |
-	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_01H, 0xD0, 0x01, IAP_F_FM | IAP_F_I7 | IAP_F_WM | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_02H, 0xD0, 0x02, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_10H, 0xD0, 0x10, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_11H, 0xD0, 0x11, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_12H, 0xD0, 0x12, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_20H, 0xD0, 0x20, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_21H, 0xD0, 0x21, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_40H, 0xD0, 0x40, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_41H, 0xD0, 0x41, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_42H, 0xD0, 0x42, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_80H, 0xD0, 0x80, IAP_F_FM | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+    IAPDESCR(D0H_81H, 0xD0, 0x81, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
+    IAPDESCR(D0H_82H, 0xD0, 0x82, IAP_F_FM | IAP_F_SB | IAP_F_SBX),
 
     IAPDESCR(D1H_01H, 0xD1, 0x01, IAP_F_FM | IAP_F_WM | IAP_F_SB |
 	IAP_F_IB | IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
@@ -1541,15 +1544,21 @@ static struct iap_event_descr iap_events[] = {
 	IAP_F_SBX | IAP_F_IBX | IAP_F_HW),
 
     IAPDESCR(D2H_01H, 0xD2, 0x01, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_02H, 0xD2, 0x02, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_04H, 0xD2, 0x04, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_08H, 0xD2, 0x08, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_IB | IAP_F_IBX | IAP_F_HW),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
     IAPDESCR(D2H_0FH, 0xD2, 0x0F, IAP_F_FM | IAP_F_CA | IAP_F_CC2 |
-	IAP_F_I7 | IAP_F_WM),
+	IAP_F_I7 | IAP_F_WM | IAP_F_SB | IAP_F_SBX | IAP_F_IB |
+	IAP_F_IBX | IAP_F_HW),
+
     IAPDESCR(D2H_10H, 0xD2, 0x10, IAP_F_FM | IAP_F_CC2E),
 
     IAPDESCR(D3H_01H, 0xD3, 0x01, IAP_F_FM | IAP_F_IB | IAP_F_SBX |
@@ -2618,35 +2627,33 @@ core2_intr(int cpu, struct trapframe *tf)
 }
 
 int
-pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
+pmc_core_initialize(struct pmc_mdep *md, int maxcpu, int version_override)
 {
 	int cpuid[CORE_CPUID_REQUEST_SIZE];
 	int ipa_version, flags, nflags;
 
 	do_cpuid(CORE_CPUID_REQUEST, cpuid);
 
-	ipa_version = cpuid[CORE_CPUID_EAX] & 0xFF;
+	ipa_version = (version_override > 0) ? version_override :
+	    cpuid[CORE_CPUID_EAX] & 0xFF;
+	core_cputype = md->pmd_cputype;
 
 	PMCDBG(MDP,INI,1,"core-init cputype=%d ncpu=%d ipa-version=%d",
-	    md->pmd_cputype, maxcpu, ipa_version);
+	    core_cputype, maxcpu, ipa_version);
 
-	if (ipa_version < 1 || ipa_version > 3) {
+	if (ipa_version < 1 || ipa_version > 3 ||
+	    (core_cputype != PMC_CPU_INTEL_CORE && ipa_version == 1)) {
 		/* Unknown PMC architecture. */
 		printf("hwpc_core: unknown PMC architecture: %d\n",
 		    ipa_version);
 		return (EPROGMISMATCH);
 	}
 
-	core_cputype = md->pmd_cputype;
-
 	core_pmcmask = 0;
 
 	/*
 	 * Initialize programmable counters.
 	 */
-	KASSERT(ipa_version >= 1,
-	    ("[core,%d] ipa_version %d too small", __LINE__, ipa_version));
-
 	core_iap_npmc = (cpuid[CORE_CPUID_EAX] >> 8) & 0xFF;
 	core_iap_width = (cpuid[CORE_CPUID_EAX] >> 16) & 0xFF;
 
@@ -2661,10 +2668,6 @@ pmc_core_initialize(struct pmc_mdep *md, int maxcpu)
 	 * Initialize fixed function counters, if present.
 	 */
 	if (core_cputype != PMC_CPU_INTEL_CORE) {
-		KASSERT(ipa_version >= 2,
-		    ("[core,%d] ipa_version %d too small", __LINE__,
-			ipa_version));
-
 		core_iaf_ri = core_iap_npmc;
 		core_iaf_npmc = cpuid[CORE_CPUID_EDX] & 0x1F;
 		core_iaf_width = (cpuid[CORE_CPUID_EDX] >> 5) & 0xFF;

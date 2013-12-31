@@ -32,7 +32,7 @@
 /* Registers definition for Freescale i.MX515 Generic Periodic Timer */
 
 #define	IMX_GPT_CR	0x0000 /* Control Register          R/W */
-#define		GPT_CR_FO3		(1 << 31)
+#define		GPT_CR_FO3		(1U << 31)
 #define		GPT_CR_FO2		(1 << 30)
 #define		GPT_CR_FO1		(1 << 29)
 #define		GPT_CR_OM3_SHIFT	26
@@ -55,13 +55,16 @@
 #define		GPT_CR_IMX_FEDGE	2
 #define		GPT_CR_IMX_BOTH		3
 #define		GPT_CR_SWR		(1 << 15)
+#define		GPT_CR_24MEN		(1 << 10)
 #define		GPT_CR_FRR		(1 << 9)
-#define		GPT_CR_CLKSRC_NONE	0x00000000
-#define		GPT_CR_CLKSRC_IPG	0x00000040
-#define		GPT_CR_CLKSRC_IPG_HIGH	0x00000080
-#define		GPT_CR_CLKSRC_EXT	0x000000c0
-#define		GPT_CR_CLKSRC_32K	0x00000100
+#define		GPT_CR_CLKSRC_NONE	(0 << 6)
+#define		GPT_CR_CLKSRC_IPG	(1 << 6)
+#define		GPT_CR_CLKSRC_IPG_HIGH	(2 << 6)
+#define		GPT_CR_CLKSRC_EXT	(3 << 6)
+#define		GPT_CR_CLKSRC_32K	(4 << 6)
+#define		GPT_CR_CLKSRC_24M	(5 << 6)
 #define		GPT_CR_STOPEN		(1 << 5)
+#define		GPT_CR_DOZEEN		(1 << 4)
 #define		GPT_CR_WAITEN		(1 << 3)
 #define		GPT_CR_DBGEN		(1 << 2)
 #define		GPT_CR_ENMOD		(1 << 1)
@@ -70,6 +73,8 @@
 #define	IMX_GPT_PR	0x0004 /* Prescaler Register        R/W */
 #define		GPT_PR_VALUE_SHIFT	0
 #define		GPT_PR_VALUE_MASK	0x00000fff
+#define		GPT_PR_VALUE_SHIFT_24M	12
+#define		GPT_PR_VALUE_MASK_24M	0x0000f000
 
 /* Same map for SR and IR */
 #define	IMX_GPT_SR	0x0008 /* Status Register           R/W */

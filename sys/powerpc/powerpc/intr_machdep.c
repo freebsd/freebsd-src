@@ -102,6 +102,7 @@ struct powerpc_intr {
 	cpuset_t cpu;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
+	int	fwcode;
 };
 
 struct pic {
@@ -176,7 +177,7 @@ intrcnt_add(const char *name, u_long **countp)
 static struct powerpc_intr *
 intr_lookup(u_int irq)
 {
-	char intrname[8];
+	char intrname[16];
 	struct powerpc_intr *i, *iscan;
 	int vector;
 
@@ -427,6 +428,9 @@ powerpc_enable_intr(void)
 		if (error)
 			continue;
 
+		if (i->trig == -1)
+			PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode,
+			    &i->trig, &i->pol);
 		if (i->trig != INTR_TRIGGER_CONFORM ||
 		    i->pol != INTR_POLARITY_CONFORM)
 			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
@@ -469,15 +473,21 @@ powerpc_setup_intr(const char *name, u_int irq, driver_filter_t filter,
 	if (!cold) {
 		error = powerpc_map_irq(i);
 
-		if (!error && (i->trig != INTR_TRIGGER_CONFORM ||
-		    i->pol != INTR_POLARITY_CONFORM))
-			PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
+		if (!error) {
+			if (i->trig == -1)
+				PIC_TRANSLATE_CODE(i->pic, i->intline,
+				    i->fwcode, &i->trig, &i->pol);
+	
+			if (i->trig != INTR_TRIGGER_CONFORM ||
+			    i->pol != INTR_POLARITY_CONFORM)
+				PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
 
-		if (!error && i->pic == root_pic)
-			PIC_BIND(i->pic, i->intline, i->cpu);
+			if (i->pic == root_pic)
+				PIC_BIND(i->pic, i->intline, i->cpu);
 
-		if (!error && enable)
-			PIC_ENABLE(i->pic, i->intline, i->vector);
+			if (enable)
+				PIC_ENABLE(i->pic, i->intline, i->vector);
+		}
 	}
 	return (error);
 }
@@ -502,6 +512,28 @@ powerpc_bind_intr(u_int irq, u_char cpu)
 	return (intr_event_bind(i->event, cpu));
 }
 #endif
+
+int
+powerpc_fw_config_intr(int irq, int sense_code)
+{
+	struct powerpc_intr *i;
+
+	i = intr_lookup(irq);
+	if (i == NULL)
+		return (ENOMEM);
+
+	i->trig = -1;
+	i->pol = INTR_POLARITY_CONFORM;
+	i->fwcode = sense_code;
+
+	if (!cold && i->pic != NULL) {
+		PIC_TRANSLATE_CODE(i->pic, i->intline, i->fwcode, &i->trig,
+		    &i->pol);
+		PIC_CONFIG(i->pic, i->intline, i->trig, i->pol);
+	}
+
+	return (0);
+}
 
 int
 powerpc_config_intr(int irq, enum intr_trigger trig, enum intr_polarity pol)

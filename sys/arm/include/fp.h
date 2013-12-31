@@ -66,19 +66,10 @@ typedef struct fp_extended_precision fp_reg_t;
  * This needs to move and be hidden from userland.
  */
 
-#ifdef ARM_VFP_SUPPORT
 struct vfp_state {
 	u_int64_t reg[32];
 	u_int32_t fpscr;
 };
-#else
-struct fpe_sp_state {
-	unsigned int fp_flags;
-	unsigned int fp_sr;
-	unsigned int fp_cr;
-	fp_reg_t fp_registers[16];
-};
-#endif
 
 /*
  * Type for a saved FP context, if we want to translate the context to a

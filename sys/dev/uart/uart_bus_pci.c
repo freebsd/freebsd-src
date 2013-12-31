@@ -82,6 +82,7 @@ static const struct pci_id pci_ns8250_ids[] = {
 	0x10 },
 { 0x103c, 0x1048, 0x103c, 0x1301, "HP Diva RMP3", 0x14 },
 { 0x103c, 0x1290, 0xffff, 0, "HP Auxiliary Diva Serial Port", 0x18 },
+{ 0x103c, 0x3301, 0xffff, 0, "HP iLO serial port", 0x10 },
 { 0x11c1, 0x0480, 0xffff, 0, "Agere Systems Venus Modem (V90, 56KFlex)", 0x14 },
 { 0x115d, 0x0103, 0xffff, 0, "Xircom Cardbus Ethernet + 56k Modem", 0x10 },
 { 0x1282, 0x6585, 0xffff, 0, "Davicom 56PDV PCI Modem", 0x10 },
@@ -122,6 +123,7 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x8086, 0x8812, 0xffff, 0, "Intel EG20T Serial Port 1", 0x10 },
 { 0x8086, 0x8813, 0xffff, 0, "Intel EG20T Serial Port 2", 0x10 },
 { 0x8086, 0x8814, 0xffff, 0, "Intel EG20T Serial Port 3", 0x10 },
+{ 0x8086, 0x8c3d, 0xffff, 0, "Intel Lynx Point KT Controller", 0x10 },
 { 0x9710, 0x9820, 0x1000, 1, "NetMos NM9820 Serial Port", 0x10 },
 { 0x9710, 0x9835, 0x1000, 1, "NetMos NM9835 Serial Port", 0x10 },
 { 0x9710, 0x9865, 0xa000, 0x1000, "NetMos NM9865 Serial Port", 0x10 },
@@ -162,6 +164,7 @@ uart_pci_probe(device_t dev)
 {
 	struct uart_softc *sc;
 	const struct pci_id *id;
+	int result;
 
 	sc = device_get_softc(dev);
 
@@ -174,9 +177,14 @@ uart_pci_probe(device_t dev)
 	return (ENXIO);
 
  match:
+	result = uart_bus_probe(dev, 0, id->rclk, id->rid, 0);
+	/* Bail out on error. */
+	if (result > 0)
+		return (result);
+	/* Set/override the device description. */
 	if (id->desc)
 		device_set_desc(dev, id->desc);
-	return (uart_bus_probe(dev, 0, id->rclk, id->rid, 0));
+	return (result);
 }
 
 DRIVER_MODULE(uart, pci, uart_pci_driver, uart_devclass, NULL, NULL);

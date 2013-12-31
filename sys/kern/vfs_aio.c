@@ -1375,7 +1375,7 @@ aio_qphysio(struct proc *p, struct aiocblist *aiocbe)
 	/*
 	 * Bring buffer into kernel space.
 	 */
-	if (vmapbuf(bp, (csw->d_flags & D_UNMAPPED_IO) == 0) < 0) {
+	if (vmapbuf(bp, (dev->si_flags & SI_UNMAPPED) == 0) < 0) {
 		error = EFAULT;
 		goto doerror;
 	}
@@ -1567,6 +1567,7 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int type, struct aiocb_ops *ops)
 {
 	struct proc *p = td->td_proc;
+	cap_rights_t rights;
 	struct file *fp;
 	struct socket *so;
 	struct aiocblist *aiocbe, *cb;
@@ -1595,8 +1596,6 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	}
 
 	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK | M_ZERO);
-	aiocbe->inputcharge = 0;
-	aiocbe->outputcharge = 0;
 	knlist_init_mtx(&aiocbe->klist, AIO_MTX(ki));
 
 	error = ops->copyin(job, &aiocbe->uaiocb);
@@ -1649,19 +1648,21 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	fd = aiocbe->uaiocb.aio_fildes;
 	switch (opcode) {
 	case LIO_WRITE:
-		error = fget_write(td, fd, CAP_PWRITE, &fp);
+		error = fget_write(td, fd,
+		    cap_rights_init(&rights, CAP_PWRITE), &fp);
 		break;
 	case LIO_READ:
-		error = fget_read(td, fd, CAP_PREAD, &fp);
+		error = fget_read(td, fd,
+		    cap_rights_init(&rights, CAP_PREAD), &fp);
 		break;
 	case LIO_SYNC:
-		error = fget(td, fd, CAP_FSYNC, &fp);
+		error = fget(td, fd, cap_rights_init(&rights, CAP_FSYNC), &fp);
 		break;
 	case LIO_MLOCK:
 		fp = NULL;
 		break;
 	case LIO_NOP:
-		error = fget(td, fd, CAP_NONE, &fp);
+		error = fget(td, fd, cap_rights_init(&rights), &fp);
 		break;
 	default:
 		error = EINVAL;
@@ -2049,7 +2050,7 @@ sys_aio_cancel(struct thread *td, struct aio_cancel_args *uap)
 	struct vnode *vp;
 
 	/* Lookup file object. */
-	error = fget(td, uap->fd, 0, &fp);
+	error = fget(td, uap->fd, NULL, &fp);
 	if (error)
 		return (error);
 
@@ -2752,31 +2753,6 @@ aiocb32_copyin_old_sigevent(struct aiocb *ujob, struct aiocb *kjob)
 	PTRIN_CP(job32, *kjob, _aiocb_private.kernelinfo);
 	return (convert_old_sigevent32(&job32.aio_sigevent,
 	    &kjob->aio_sigevent));
-}
-
-static int
-convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
-{
-
-	CP(*sig32, *sig, sigev_notify);
-	switch (sig->sigev_notify) {
-	case SIGEV_NONE:
-		break;
-	case SIGEV_THREAD_ID:
-		CP(*sig32, *sig, sigev_notify_thread_id);
-		/* FALLTHROUGH */
-	case SIGEV_SIGNAL:
-		CP(*sig32, *sig, sigev_signo);
-		break;
-	case SIGEV_KEVENT:
-		CP(*sig32, *sig, sigev_notify_kqueue);
-		CP(*sig32, *sig, sigev_notify_kevent_flags);
-		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
-		break;
-	default:
-		return (EINVAL);
-	}
-	return (0);
 }
 
 static int

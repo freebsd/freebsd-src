@@ -2046,7 +2046,7 @@ sys_kmq_open(struct thread *td, struct kmq_open_args *uap)
 	struct mq_attr attr;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
@@ -2086,19 +2086,19 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 	return (error);
 }
 
-typedef int (*_fgetf)(struct thread *, int, cap_rights_t, struct file **);
+typedef int (*_fgetf)(struct thread *, int, cap_rights_t *, struct file **);
 
 /*
  * Get message queue by giving file slot
  */
 static int
-_getmq(struct thread *td, int fd, cap_rights_t rights, _fgetf func,
+_getmq(struct thread *td, int fd, cap_rights_t *rightsp, _fgetf func,
        struct file **fpp, struct mqfs_node **ppn, struct mqueue **pmq)
 {
 	struct mqfs_node *pn;
 	int error;
 
-	error = func(td, fd, rights, fpp);
+	error = func(td, fd, rightsp, fpp);
 	if (error)
 		return (error);
 	if (&mqueueops != (*fpp)->f_ops) {
@@ -2117,21 +2117,30 @@ static __inline int
 getmq(struct thread *td, int fd, struct file **fpp, struct mqfs_node **ppn,
 	struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_POLL_EVENT, fget, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_EVENT), fget,
+	    fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_read(struct thread *td, int fd, struct file **fpp,
 	 struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_READ, fget_read, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_READ), fget_read,
+	    fpp, ppn, pmq);
 }
 
 static __inline int
 getmq_write(struct thread *td, int fd, struct file **fpp,
 	struct mqfs_node **ppn, struct mqueue **pmq)
 {
-	return _getmq(td, fd, CAP_WRITE, fget_write, fpp, ppn, pmq);
+	cap_rights_t rights;
+
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_WRITE), fget_write,
+	    fpp, ppn, pmq);
 }
 
 static int
@@ -2235,10 +2244,12 @@ sys_kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 	return (error);
 }
 
-int
-sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
+static int
+kern_kmq_notify(struct thread *td, int mqd, struct sigevent *sigev)
 {
-	struct sigevent ev;
+#ifdef CAPABILITIES
+	cap_rights_t rights;
+#endif
 	struct filedesc *fdp;
 	struct proc *p;
 	struct mqueue *mq;
@@ -2246,34 +2257,32 @@ sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 	struct mqueue_notifier *nt, *newnt = NULL;
 	int error;
 
-	p = td->td_proc;
-	fdp = td->td_proc->p_fd;
-	if (uap->sigev) {
-		error = copyin(uap->sigev, &ev, sizeof(ev));
-		if (error)
-			return (error);
-		if (ev.sigev_notify != SIGEV_SIGNAL &&
-		    ev.sigev_notify != SIGEV_THREAD_ID &&
-		    ev.sigev_notify != SIGEV_NONE)
+	if (sigev != NULL) {
+		if (sigev->sigev_notify != SIGEV_SIGNAL &&
+		    sigev->sigev_notify != SIGEV_THREAD_ID &&
+		    sigev->sigev_notify != SIGEV_NONE)
 			return (EINVAL);
-		if ((ev.sigev_notify == SIGEV_SIGNAL ||
-		     ev.sigev_notify == SIGEV_THREAD_ID) &&
-			!_SIG_VALID(ev.sigev_signo))
+		if ((sigev->sigev_notify == SIGEV_SIGNAL ||
+		    sigev->sigev_notify == SIGEV_THREAD_ID) &&
+		    !_SIG_VALID(sigev->sigev_signo))
 			return (EINVAL);
 	}
-	error = getmq(td, uap->mqd, &fp, NULL, &mq);
+	p = td->td_proc;
+	fdp = td->td_proc->p_fd;
+	error = getmq(td, mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
 again:
 	FILEDESC_SLOCK(fdp);
-	fp2 = fget_locked(fdp, uap->mqd);
+	fp2 = fget_locked(fdp, mqd);
 	if (fp2 == NULL) {
 		FILEDESC_SUNLOCK(fdp);
 		error = EBADF;
 		goto out;
 	}
 #ifdef CAPABILITIES
-	error = cap_check(cap_rights(fdp, uap->mqd), CAP_POLL_EVENT);
+	error = cap_check(cap_rights(fdp, mqd),
+	    cap_rights_init(&rights, CAP_EVENT));
 	if (error) {
 		FILEDESC_SUNLOCK(fdp);
 		goto out;
@@ -2286,12 +2295,12 @@ again:
 	}
 	mtx_lock(&mq->mq_mutex);
 	FILEDESC_SUNLOCK(fdp);
-	if (uap->sigev != NULL) {
+	if (sigev != NULL) {
 		if (mq->mq_notifier != NULL) {
 			error = EBUSY;
 		} else {
 			PROC_LOCK(p);
-			nt = notifier_search(p, uap->mqd);
+			nt = notifier_search(p, mqd);
 			if (nt == NULL) {
 				if (newnt == NULL) {
 					PROC_UNLOCK(p);
@@ -2314,10 +2323,10 @@ again:
 				nt->nt_ksi.ksi_flags |= KSI_INS | KSI_EXT;
 				nt->nt_ksi.ksi_code = SI_MESGQ;
 				nt->nt_proc = p;
-				nt->nt_ksi.ksi_mqd = uap->mqd;
+				nt->nt_ksi.ksi_mqd = mqd;
 				notifier_insert(p, nt);
 			}
-			nt->nt_sigev = ev;
+			nt->nt_sigev = *sigev;
 			mq->mq_notifier = nt;
 			PROC_UNLOCK(p);
 			/*
@@ -2330,7 +2339,7 @@ again:
 				mqueue_send_notification(mq);
 		}
 	} else {
-		notifier_remove(p, mq, uap->mqd);
+		notifier_remove(p, mq, mqd);
 	}
 	mtx_unlock(&mq->mq_mutex);
 
@@ -2339,6 +2348,23 @@ out:
 	if (newnt != NULL)
 		notifier_free(newnt);
 	return (error);
+}
+
+int
+sys_kmq_notify(struct thread *td, struct kmq_notify_args *uap)
+{
+	struct sigevent ev, *evp;
+	int error;
+
+	if (uap->sigev == NULL) {
+		evp = NULL;
+	} else {
+		error = copyin(uap->sigev, &ev, sizeof(ev));
+		if (error != 0)
+			return (error);
+		evp = &ev;
+	}
+	return (kern_kmq_notify(td, uap->mqd, evp));
 }
 
 static void
@@ -2584,7 +2610,8 @@ static struct fileops mqueueops = {
 	.fo_stat		= mqf_stat,
 	.fo_chmod		= mqf_chmod,
 	.fo_chown		= mqf_chown,
-	.fo_close		= mqf_close
+	.fo_close		= mqf_close,
+	.fo_sendfile		= invfo_sendfile,
 };
 
 static struct vop_vector mqfs_vnodeops = {
@@ -2637,6 +2664,7 @@ static struct syscall_helper_data mq_syscalls[] = {
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32.h>
 #include <compat/freebsd32/freebsd32_proto.h>
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_syscall.h>
 #include <compat/freebsd32/freebsd32_util.h>
 
@@ -2667,7 +2695,7 @@ freebsd32_kmq_open(struct thread *td, struct freebsd32_kmq_open_args *uap)
 	struct mq_attr32 attr32;
 	int flags, error;
 
-	if ((uap->flags & O_ACCMODE) == O_ACCMODE)
+	if ((uap->flags & O_ACCMODE) == O_ACCMODE || uap->flags & O_EXEC)
 		return (EINVAL);
 	flags = FFLAGS(uap->flags);
 	if ((flags & O_CREAT) != 0 && uap->attr != NULL) {
@@ -2763,12 +2791,33 @@ freebsd32_kmq_timedreceive(struct thread *td,
 	return (error);
 }
 
+int
+freebsd32_kmq_notify(struct thread *td, struct freebsd32_kmq_notify_args *uap)
+{
+	struct sigevent ev, *evp;
+	struct sigevent32 ev32;
+	int error;
+
+	if (uap->sigev == NULL) {
+		evp = NULL;
+	} else {
+		error = copyin(uap->sigev, &ev32, sizeof(ev32));
+		if (error != 0)
+			return (error);
+		error = convert_sigevent32(&ev32, &ev);
+		if (error != 0)
+			return (error);
+		evp = &ev;
+	}
+	return (kern_kmq_notify(td, uap->mqd, evp));
+}
+
 static struct syscall_helper_data mq32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_open),
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_setattr),
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedsend),
 	SYSCALL32_INIT_HELPER(freebsd32_kmq_timedreceive),
-	SYSCALL32_INIT_HELPER_COMPAT(kmq_notify),
+	SYSCALL32_INIT_HELPER(freebsd32_kmq_notify),
 	SYSCALL32_INIT_HELPER_COMPAT(kmq_unlink),
 	SYSCALL_INIT_LAST
 };

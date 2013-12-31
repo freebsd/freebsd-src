@@ -109,7 +109,7 @@ ciu_probe(device_t dev)
 		return (ENXIO);
 
 	device_set_desc(dev, "Cavium Octeon Central Interrupt Unit");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

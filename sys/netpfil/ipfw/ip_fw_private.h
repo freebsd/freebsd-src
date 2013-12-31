@@ -327,9 +327,11 @@ extern struct cfg_nat *(*lookup_nat_ptr)(struct nat_list *, int);
 typedef int ipfw_nat_t(struct ip_fw_args *, struct cfg_nat *, struct mbuf *);
 typedef int ipfw_nat_cfg_t(struct sockopt *);
 
-extern ipfw_nat_t *ipfw_nat_ptr;
-#define IPFW_NAT_LOADED (ipfw_nat_ptr != NULL)
+VNET_DECLARE(int, ipfw_nat_ready);
+#define	V_ipfw_nat_ready	VNET(ipfw_nat_ready)
+#define	IPFW_NAT_LOADED	(V_ipfw_nat_ready)
 
+extern ipfw_nat_t *ipfw_nat_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_cfg_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_del_ptr;
 extern ipfw_nat_cfg_t *ipfw_nat_get_cfg_ptr;

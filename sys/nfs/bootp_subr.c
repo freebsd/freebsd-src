@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_bootp.h"
 #include "opt_nfs.h"
+#include "opt_rootdevname.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -55,12 +56,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
+#include <sys/reboot.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -167,6 +170,7 @@ struct bootpc_tagcontext {
 struct bootpc_globalcontext {
 	STAILQ_HEAD(, bootpc_ifcontext) interfaces;
 	u_int32_t xid;
+	int any_root_overrides;
 	int gotrootpath;
 	int gotgw;
 	int ifnum;
@@ -865,13 +869,14 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 							BOOTP_SETTLE_DELAY;
 				} else
 					printf(" (ignored)");
-				if (ifctx->gotrootpath) {
+				if (ifctx->gotrootpath || 
+				    gctx->any_root_overrides) {
 					gotrootpath = 1;
 					rtimo = time_second +
 						BOOTP_SETTLE_DELAY;
-					printf(" (got root path)");
-				} else
-					printf(" (no root path)");
+					if (ifctx->gotrootpath)
+						printf(" (got root path)");
+				}
 				printf("\n");
 			}
 		} /* while secs */
@@ -1371,7 +1376,7 @@ static void
 bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
     struct bootpc_globalcontext *gctx)
 {
-	char *p;
+	char *p, *s;
 	unsigned int ip;
 
 	ifctx->gotgw = 0;
@@ -1438,8 +1443,30 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 		}
 	}
 
-	p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
+	/*
+	 * Choose a root filesystem.  If a value is forced in the environment
+	 * and it contains "nfs:", use it unconditionally.  Otherwise, if the
+	 * kernel is compiled with the ROOTDEVNAME option, then use it if:
+	 *  - The server doesn't provide a pathname.
+	 *  - The boothowto flags include RB_DFLTROOT (user said to override
+	 *    the server value).
+	 */
+	p = NULL;
+	if ((s = getenv("vfs.root.mountfrom")) != NULL) {
+		if ((p = strstr(s, "nfs:")) != NULL)
+			p = strdup(p + 4, M_TEMP);
+		freeenv(s);
+	}
+	if (p == NULL) {
+		p = bootpc_tag(&gctx->tag, &ifctx->reply, ifctx->replylen,
 		       TAG_ROOT);
+	}
+#ifdef ROOTDEVNAME
+	if ((p == NULL || (boothowto & RB_DFLTROOT) != 0) && 
+	    (p = strstr(ROOTDEVNAME, "nfs:")) != NULL) {
+		p += 4;
+	}
+#endif
 	if (p != NULL) {
 		if (gctx->setrootfs != NULL) {
 			printf("rootfs %s (ignored) ", p);
@@ -1542,6 +1569,17 @@ bootpc_init(void)
 	STAILQ_INIT(&gctx->interfaces);
 	gctx->xid = ~0xFFFF;
 	gctx->starttime = time_second;
+
+	/*
+	 * If ROOTDEVNAME is defined or vfs.root.mountfrom is set then we have
+	 * root-path overrides that can potentially let us boot even if we don't
+	 * get a root path from the server, so we can treat that as a non-error.
+	 */
+#ifdef ROOTDEVNAME
+	gctx->any_root_overrides = 1;
+#else
+	gctx->any_root_overrides = testenv("vfs.root.mountfrom");
+#endif
 
 	/*
 	 * Find a network interface.
@@ -1652,19 +1690,10 @@ retry:
 		bootpc_compose_query(ifctx, td);
 
 	error = bootpc_call(gctx, td);
-
 	if (error != 0) {
-#ifdef BOOTP_NFSROOT
-		panic("BOOTP call failed");
-#else
 		printf("BOOTP call failed\n");
-#endif
 	}
 
-	rootdevnames[0] = "nfs:";
-#ifdef NFSCLIENT
-	rootdevnames[1] = "oldnfs:";
-#endif
 	mountopts(&nd->root_args, NULL);
 
 	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
@@ -1672,7 +1701,7 @@ retry:
 			bootpc_decode_reply(nd, ifctx, gctx);
 
 #ifdef BOOTP_NFSROOT
-	if (gctx->gotrootpath == 0)
+	if (gctx->gotrootpath == 0 && gctx->any_root_overrides == 0)
 		panic("bootpc: No root path offered");
 #endif
 
@@ -1699,9 +1728,16 @@ retry:
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,
 				 &nd->root_args, td);
-		if (error != 0)
-			panic("nfs_boot: mountd root, error=%d", error);
-
+		if (error != 0) {
+			if (gctx->any_root_overrides == 0)
+				panic("nfs_boot: mount root, error=%d", error);
+			else
+				goto out;
+		}
+		rootdevnames[0] = "nfs:";
+#ifdef NFSCLIENT
+		rootdevnames[1] = "oldnfs:";
+#endif
 		nfs_diskless_valid = 3;
 	}
 

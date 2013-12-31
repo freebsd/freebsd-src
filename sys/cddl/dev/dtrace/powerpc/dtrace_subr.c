@@ -51,6 +51,8 @@ extern int		dtrace_in_probe;
 extern dtrace_id_t	dtrace_probeid_error;
 extern int (*dtrace_invop_jump_addr)(struct trapframe *);
 
+extern void dtrace_getnanotime(struct timespec *tsp);
+
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
 void dtrace_invop_init(void);
 void dtrace_invop_uninit(void);
@@ -63,13 +65,13 @@ typedef struct dtrace_invop_hdlr {
 dtrace_invop_hdlr_t *dtrace_invop_hdlr;
 
 int
-dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t eax)
+dtrace_invop(uintptr_t addr, uintptr_t *stack, uintptr_t arg0)
 {
 	dtrace_invop_hdlr_t *hdlr;
 	int rval;
 
 	for (hdlr = dtrace_invop_hdlr; hdlr != NULL; hdlr = hdlr->dtih_next)
-		if ((rval = hdlr->dtih_func(addr, stack, eax)) != 0)
+		if ((rval = hdlr->dtih_func(addr, stack, arg0)) != 0)
 			return (rval);
 
 	return (0);
@@ -134,7 +136,7 @@ dtrace_xcall(processorid_t cpu, dtrace_xcall_t func, void *arg)
 		CPU_SETOF(cpu, &cpus);
 
 	smp_rendezvous_cpus(cpus, smp_no_rendevous_barrier, func,
-	    smp_no_rendevous_barrier, arg);
+			smp_no_rendevous_barrier, arg);
 }
 
 static void
@@ -145,8 +147,81 @@ dtrace_sync_func(void)
 void
 dtrace_sync(void)
 {
-        dtrace_xcall(DTRACE_CPUALL, (dtrace_xcall_t)dtrace_sync_func, NULL);
+	dtrace_xcall(DTRACE_CPUALL, (dtrace_xcall_t)dtrace_sync_func, NULL);
 }
+
+static int64_t	tgt_cpu_tsc;
+static int64_t	hst_cpu_tsc;
+static int64_t	timebase_skew[MAXCPU];
+static uint64_t	nsec_scale;
+
+/* See below for the explanation of this macro. */
+/* This is taken from the amd64 dtrace_subr, to provide a synchronized timer
+ * between multiple processors in dtrace.  Since PowerPC Timebases can be much
+ * lower than x86, the scale shift is 26 instead of 28, allowing for a 15.63MHz
+ * timebase.
+ */
+#define SCALE_SHIFT	26
+
+static void
+dtrace_gethrtime_init_cpu(void *arg)
+{
+	uintptr_t cpu = (uintptr_t) arg;
+
+	if (cpu == curcpu)
+		tgt_cpu_tsc = mftb();
+	else
+		hst_cpu_tsc = mftb();
+}
+
+static void
+dtrace_gethrtime_init(void *arg)
+{
+	struct pcpu *pc;
+	uint64_t tb_f;
+	cpuset_t map;
+	int i;
+
+	tb_f = cpu_tickrate();
+
+	/*
+	 * The following line checks that nsec_scale calculated below
+	 * doesn't overflow 32-bit unsigned integer, so that it can multiply
+	 * another 32-bit integer without overflowing 64-bit.
+	 * Thus minimum supported Timebase frequency is 15.63MHz.
+	 */
+	KASSERT(tb_f > (NANOSEC >> (32 - SCALE_SHIFT)), ("Timebase frequency is too low"));
+
+	/*
+	 * We scale up NANOSEC/tb_f ratio to preserve as much precision
+	 * as possible.
+	 * 2^26 factor was chosen quite arbitrarily from practical
+	 * considerations:
+	 * - it supports TSC frequencies as low as 15.63MHz (see above);
+	 */
+	nsec_scale = ((uint64_t)NANOSEC << SCALE_SHIFT) / tb_f;
+
+	/* The current CPU is the reference one. */
+	sched_pin();
+	timebase_skew[curcpu] = 0;
+	CPU_FOREACH(i) {
+		if (i == curcpu)
+			continue;
+
+		pc = pcpu_find(i);
+		CPU_SETOF(PCPU_GET(cpuid), &map);
+		CPU_SET(pc->pc_cpuid, &map);
+
+		smp_rendezvous_cpus(map, NULL,
+		    dtrace_gethrtime_init_cpu,
+		    smp_no_rendevous_barrier, (void *)(uintptr_t) i);
+
+		timebase_skew[i] = tgt_cpu_tsc - hst_cpu_tsc;
+	}
+	sched_unpin();
+}
+
+SYSINIT(dtrace_gethrtime_init, SI_SUB_SMP, SI_ORDER_ANY, dtrace_gethrtime_init, NULL);
 
 /*
  * DTrace needs a high resolution time function which can
@@ -158,12 +233,21 @@ dtrace_sync(void)
 uint64_t
 dtrace_gethrtime()
 {
-	struct      timespec curtime;
+	uint64_t timebase;
+	uint32_t lo;
+	uint32_t hi;
 
-	nanouptime(&curtime);
-
-	return (curtime.tv_sec * 1000000000UL + curtime.tv_nsec);
-
+	/*
+	 * We split timebase value into lower and higher 32-bit halves and separately
+	 * scale them with nsec_scale, then we scale them down by 2^28
+	 * (see nsec_scale calculations) taking into account 32-bit shift of
+	 * the higher half and finally add.
+	 */
+	timebase = mftb() - timebase_skew[curcpu];
+	lo = timebase;
+	hi = timebase >> 32;
+	return (((lo * nsec_scale) >> SCALE_SHIFT) +
+	    ((hi * nsec_scale) << (32 - SCALE_SHIFT)));
 }
 
 uint64_t
@@ -171,12 +255,12 @@ dtrace_gethrestime(void)
 {
 	struct      timespec curtime;
 
-	getnanotime(&curtime);
+	dtrace_getnanotime(&curtime);
 
 	return (curtime.tv_sec * 1000000000UL + curtime.tv_nsec);
 }
 
-/* Function to handle DTrace traps during probes. See amd64/amd64/trap.c */
+/* Function to handle DTrace traps during probes. See powerpc/powerpc/trap.c */
 int
 dtrace_trap(struct trapframe *frame, u_int type)
 {
@@ -254,7 +338,8 @@ dtrace_invop_start(struct trapframe *frame)
 		frame->srr0 = frame->lr;
 		break;
 	case DTRACE_INVOP_MFLR_R0:
-		frame->fixreg[0] = frame->lr ;
+		frame->fixreg[0] = frame->lr;
+		frame->srr0 = frame->srr0 + 4;
 		break;
 	default:
 		return (-1);

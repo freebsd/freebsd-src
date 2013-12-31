@@ -48,9 +48,13 @@ struct rl_q_entry;
  * Access to the structure itself is synchronized with the externally
  * supplied mutex.
  *
- * rl_waiters is the queue of lock requests in the order of arrival.
+ * rl_waiters is the queue containing in order (a) granted write lock
+ * requests, (b) granted read lock requests, and (c) in order of arrival,
+ * lock requests which cannot be granted yet.
+ *
  * rl_currdep is the first lock request that cannot be granted now due
- * to the preceding requests conflicting with it.
+ * to the preceding requests conflicting with it (i.e., it points to
+ * position (c) in the list above).
  */
 struct rangelock {
 	TAILQ_HEAD(, rl_q_entry) rl_waiters;

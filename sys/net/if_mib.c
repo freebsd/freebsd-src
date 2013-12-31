@@ -36,6 +36,7 @@
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_mib.h>
 #include <net/vnet.h>
 

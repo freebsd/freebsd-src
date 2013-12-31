@@ -153,11 +153,16 @@ isci_io_request_complete(SCI_CONTROLLER_HANDLE_T scif_controller,
 
 	case SCI_IO_FAILURE_REMOTE_DEVICE_RESET_REQUIRED:
 		isci_remote_device_reset(isci_remote_device, NULL);
+		ccb->ccb_h.status |= CAM_REQ_TERMIO;
+		isci_log_message(0, "ISCI",
+		    "isci: bus=%x target=%x lun=%x cdb[0]=%x remote device reset required\n",
+		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
+		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);
+		break;
 
-		/* drop through */
 	case SCI_IO_FAILURE_TERMINATED:
 		ccb->ccb_h.status |= CAM_REQ_TERMIO;
-		isci_log_message(1, "ISCI",
+		isci_log_message(0, "ISCI",
 		    "isci: bus=%x target=%x lun=%x cdb[0]=%x terminated\n",
 		    ccb->ccb_h.path_id, ccb->ccb_h.target_id,
 		    ccb->ccb_h.target_lun, ccb->csio.cdb_io.cdb_bytes[0]);

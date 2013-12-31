@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -1703,9 +1704,7 @@ mge_offload_setup_descriptor(struct mge_softc *sc, struct mge_desc_wrapper *dw)
 
 		ip = (struct ip *)(m0->m_data + ehlen);
 		cmd_status |= MGE_TX_IP_HDR_SIZE(ip->ip_hl);
-
-		if ((m0->m_flags & M_FRAG) == 0)
-			cmd_status |= MGE_TX_NOT_FRAGMENT;
+		cmd_status |= MGE_TX_NOT_FRAGMENT;
 	}
 
 	if (csum_flags & CSUM_IP)

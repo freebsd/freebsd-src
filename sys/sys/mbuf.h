@@ -53,6 +53,10 @@
  * externally and attach it to the mbuf in a way similar to that of mbuf
  * clusters.
  *
+ * NB: These calculation do not take actual compiler-induced alignment and
+ * padding inside the complete struct mbuf into account.  Appropriate
+ * attention is required when changing members of struct mbuf.
+ *
  * MLEN is data length in a normal mbuf.
  * MHLEN is data length in an mbuf with pktheader.
  * MINCLSIZE is a smallest amount of data that should be put into cluster.
@@ -67,8 +71,10 @@
  * type:
  *
  * mtod(m, t)	-- Convert mbuf pointer to data pointer of correct type.
+ * mtodo(m, o) -- Same as above but with offset 'o' into data.
  */
 #define	mtod(m, t)	((t)((m)->m_data))
+#define	mtodo(m, o)	((void *)(((m)->m_data) + (o)))
 
 /*
  * Argument structure passed to UMA routines during mbuf and packet
@@ -80,23 +86,21 @@ struct mb_args {
 };
 #endif /* _KERNEL */
 
-#if defined(__LP64__)
-#define M_HDR_PAD    6
-#else
-#define M_HDR_PAD    2
-#endif
-
 /*
  * Header present at the beginning of every mbuf.
+ * Size ILP32: 24
+ *	 LP64: 32
  */
 struct m_hdr {
 	struct mbuf	*mh_next;	/* next buffer in chain */
 	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
 	caddr_t		 mh_data;	/* location of data */
-	int		 mh_len;	/* amount of data in this mbuf */
-	int		 mh_flags;	/* flags; see below */
-	short		 mh_type;	/* type of data in this mbuf */
-	uint8_t          pad[M_HDR_PAD];/* word align                  */
+	int32_t		 mh_len;	/* amount of data in this mbuf */
+	uint32_t	 mh_type:8,	/* type of data in this mbuf */
+			 mh_flags:24;	/* flags; see below */
+#if !defined(__LP64__)
+	uint32_t	 mh_pad;	/* pad for 64bit alignment */
+#endif
 };
 
 /*
@@ -112,42 +116,66 @@ struct m_tag {
 
 /*
  * Record/packet header in first mbuf of chain; valid only if M_PKTHDR is set.
+ * Size ILP32: 48
+ *	 LP64: 56
  */
 struct pkthdr {
 	struct ifnet	*rcvif;		/* rcv interface */
-	/* variables for ip and tcp reassembly */
-	void		*header;	/* pointer to packet header */
-	int		 len;		/* total packet length */
-	uint32_t	 flowid;	/* packet's 4-tuple system
-					 * flow identifier
-					 */
-	/* variables for hardware checksum */
-	int		 csum_flags;	/* flags regarding checksum */
-	int		 csum_data;	/* data field used by csum routines */
-	u_int16_t	 tso_segsz;	/* TSO segment size */
-	union {
-		u_int16_t vt_vtag;	/* Ethernet 802.1p+q vlan tag */
-		u_int16_t vt_nrecs;	/* # of IGMPv3 records in this chain */
-	} PH_vt;
-	u_int16_t	 fibnum;	/* this packet should use this fib */
-	u_int16_t	 pad2;		/* align to 32 bits */
 	SLIST_HEAD(packet_tags, m_tag) tags; /* list of packet tags */
+	int32_t		 len;		/* total packet length */
+
+	/* Layer crossing persistent information. */
+	uint32_t	 flowid;	/* packet's 4-tuple system */
+	uint64_t	 csum_flags;	/* checksum and offload features */
+	uint16_t	 fibnum;	/* this packet should use this fib */
+	uint8_t		 cosqos;	/* class/quality of service */
+	uint8_t		 rsstype;	/* hash type */
+	uint8_t		 l2hlen;	/* layer 2 header length */
+	uint8_t		 l3hlen;	/* layer 3 header length */
+	uint8_t		 l4hlen;	/* layer 4 header length */
+	uint8_t		 l5hlen;	/* layer 5 header length */
+	union {
+		uint8_t  eigth[8];
+		uint16_t sixteen[4];
+		uint32_t thirtytwo[2];
+		uint64_t sixtyfour[1];
+		uintptr_t unintptr[1];
+		void	*ptr;
+	} PH_per;
+
+	/* Layer specific non-persistent local storage for reassembly, etc. */
+	union {
+		uint8_t  eigth[8];
+		uint16_t sixteen[4];
+		uint32_t thirtytwo[2];
+		uint64_t sixtyfour[1];
+		uintptr_t unintptr[1];
+		void 	*ptr;
+	} PH_loc;
 };
-#define ether_vtag	PH_vt.vt_vtag
+#define	ether_vtag	PH_per.sixteen[0]
+#define	PH_vt		PH_per
+#define	vt_nrecs	sixteen[0]
+#define	tso_segsz	PH_per.sixteen[1]
+#define	csum_phsum	PH_per.sixteen[2]
+#define	csum_data	PH_per.thirtytwo[1]
 
 /*
  * Description of external storage mapped into mbuf; valid only if M_EXT is
  * set.
+ * Size ILP32: 28
+ *	 LP64: 48
  */
 struct m_ext {
+	volatile u_int	*ref_cnt;	/* pointer to ref count info */
 	caddr_t		 ext_buf;	/* start of buffer */
-	void		(*ext_free)	/* free routine if not the usual */
-			    (void *, void *);
+	uint32_t	 ext_size;	/* size of buffer, for ext_free */
+	uint32_t	 ext_type:8,	/* type of external storage */
+			 ext_flags:24;	/* external storage mbuf flags */
+	int		(*ext_free)	/* free routine if not the usual */
+			    (struct mbuf *, void *, void *);
 	void		*ext_arg1;	/* optional argument pointer */
 	void		*ext_arg2;	/* optional argument pointer */
-	u_int		 ext_size;	/* size of buffer, for ext_free */
-	volatile u_int	*ref_cnt;	/* pointer to ref count info */
-	int		 ext_type;	/* type of external storage */
 };
 
 /*
@@ -180,40 +208,60 @@ struct mbuf {
 #define	m_dat		M_dat.M_databuf
 
 /*
- * mbuf flags.
+ * mbuf flags of global significance and layer crossing.
+ * Those of only protocol/layer specific significance are to be mapped
+ * to M_PROTO[1-12] and cleared at layer handoff boundaries.
+ * NB: Limited to the lower 24 bits.
  */
 #define	M_EXT		0x00000001 /* has associated external storage */
 #define	M_PKTHDR	0x00000002 /* start of record */
 #define	M_EOR		0x00000004 /* end of record */
 #define	M_RDONLY	0x00000008 /* associated data is marked read-only */
-#define	M_PROTO1	0x00000010 /* protocol-specific */
-#define	M_PROTO2	0x00000020 /* protocol-specific */
-#define	M_PROTO3	0x00000040 /* protocol-specific */
-#define	M_PROTO4	0x00000080 /* protocol-specific */
-#define	M_PROTO5	0x00000100 /* protocol-specific */
-#define	M_BCAST		0x00000200 /* send/received as link-level broadcast */
-#define	M_MCAST		0x00000400 /* send/received as link-level multicast */
-#define	M_FRAG		0x00000800 /* packet is a fragment of a larger packet */
-#define	M_FIRSTFRAG	0x00001000 /* packet is first fragment */
-#define	M_LASTFRAG	0x00002000 /* packet is last fragment */
-#define	M_SKIP_FIREWALL	0x00004000 /* skip firewall processing */
-		     /*	0x00008000    free */
-#define	M_VLANTAG	0x00010000 /* ether_vtag is valid */
-#define	M_PROMISC	0x00020000 /* packet was not for us */
-#define	M_NOFREE	0x00040000 /* do not free mbuf, embedded in cluster */
-#define	M_PROTO6	0x00080000 /* protocol-specific */
-#define	M_PROTO7	0x00100000 /* protocol-specific */
-#define	M_PROTO8	0x00200000 /* protocol-specific */
-#define	M_FLOWID	0x00400000 /* deprecated: flowid is valid */
-#define	M_HASHTYPEBITS	0x0F000000 /* mask of bits holding flowid hash type */
+#define	M_BCAST		0x00000010 /* send/received as link-level broadcast */
+#define	M_MCAST		0x00000020 /* send/received as link-level multicast */
+#define	M_PROMISC	0x00000040 /* packet was not for us */
+#define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
+#define	M_FLOWID	0x00000100 /* deprecated: flowid is valid */
+#define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 
-#define	M_NOTIFICATION	M_PROTO5    /* SCTP notification */
+#define	M_PROTO1	0x00001000 /* protocol-specific */
+#define	M_PROTO2	0x00002000 /* protocol-specific */
+#define	M_PROTO3	0x00004000 /* protocol-specific */
+#define	M_PROTO4	0x00008000 /* protocol-specific */
+#define	M_PROTO5	0x00010000 /* protocol-specific */
+#define	M_PROTO6	0x00020000 /* protocol-specific */
+#define	M_PROTO7	0x00040000 /* protocol-specific */
+#define	M_PROTO8	0x00080000 /* protocol-specific */
+#define	M_PROTO9	0x00100000 /* protocol-specific */
+#define	M_PROTO10	0x00200000 /* protocol-specific */
+#define	M_PROTO11	0x00400000 /* protocol-specific */
+#define	M_PROTO12	0x00800000 /* protocol-specific */
 
 /*
  * Flags to purge when crossing layers.
  */
 #define	M_PROTOFLAGS \
-    (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8)
+    (M_PROTO1|M_PROTO2|M_PROTO3|M_PROTO4|M_PROTO5|M_PROTO6|M_PROTO7|M_PROTO8|\
+     M_PROTO9|M_PROTO10|M_PROTO11|M_PROTO12)
+
+/*
+ * Flags preserved when copying m_pkthdr.
+ */
+#define M_COPYFLAGS \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_VLANTAG|M_PROMISC| \
+     M_PROTOFLAGS)
+
+/*
+ * Mbuf flag description for use with printf(9) %b identifier.
+ */
+#define	M_FLAG_BITS \
+    "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
+    "\7M_PROMISC\10M_VLANTAG\11M_FLOWID"
+#define	M_FLAG_PROTOBITS \
+    "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
+    "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
+    "\27M_PROTO11\30M_PROTO12"
+#define	M_FLAG_PRINTF (M_FLAG_BITS M_FLAG_PROTOBITS)
 
 /*
  * Network interface cards are able to hash protocol fields (such as IPv4
@@ -230,34 +278,49 @@ struct mbuf {
  * that provide an opaque flow identifier, allowing for ordering and
  * distribution without explicit affinity.
  */
-#define	M_HASHTYPE_SHIFT		24
-#define	M_HASHTYPE_NONE			0x0
-#define	M_HASHTYPE_RSS_IPV4		0x1	/* IPv4 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV4		0x2	/* TCPv4 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6		0x3	/* IPv6 2-tuple */
-#define	M_HASHTYPE_RSS_TCP_IPV6		0x4	/* TCPv6 4-tuple */
-#define	M_HASHTYPE_RSS_IPV6_EX		0x5	/* IPv6 2-tuple + ext hdrs */
-#define	M_HASHTYPE_RSS_TCP_IPV6_EX	0x6	/* TCPv6 4-tiple + ext hdrs */
-#define	M_HASHTYPE_OPAQUE		0xf	/* ordering, not affinity */
+#define	M_HASHTYPE_NONE			0
+#define	M_HASHTYPE_RSS_IPV4		1	/* IPv4 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV4		2	/* TCPv4 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6		3	/* IPv6 2-tuple */
+#define	M_HASHTYPE_RSS_TCP_IPV6		4	/* TCPv6 4-tuple */
+#define	M_HASHTYPE_RSS_IPV6_EX		5	/* IPv6 2-tuple + ext hdrs */
+#define	M_HASHTYPE_RSS_TCP_IPV6_EX	6	/* TCPv6 4-tiple + ext hdrs */
+#define	M_HASHTYPE_OPAQUE		255	/* ordering, not affinity */
 
-#define	M_HASHTYPE_CLEAR(m)	(m)->m_flags &= ~(M_HASHTYPEBITS)
-#define	M_HASHTYPE_GET(m)	(((m)->m_flags & M_HASHTYPEBITS) >> \
-				    M_HASHTYPE_SHIFT)
-#define	M_HASHTYPE_SET(m, v)	do {					\
-	(m)->m_flags &= ~M_HASHTYPEBITS;				\
-	(m)->m_flags |= ((v) << M_HASHTYPE_SHIFT);			\
-} while (0)
+#define	M_HASHTYPE_CLEAR(m)	((m)->m_pkthdr.rsstype = 0)
+#define	M_HASHTYPE_GET(m)	((m)->m_pkthdr.rsstype)
+#define	M_HASHTYPE_SET(m, v)	((m)->m_pkthdr.rsstype = (v))
 #define	M_HASHTYPE_TEST(m, v)	(M_HASHTYPE_GET(m) == (v))
 
 /*
- * Flags preserved when copying m_pkthdr.
+ * COS/QOS class and quality of service tags.
+ * It uses DSCP code points as base.
  */
-#define	M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_PROTOFLAGS|M_SKIP_FIREWALL|M_BCAST|M_MCAST|\
-     M_FRAG|M_FIRSTFRAG|M_LASTFRAG|M_VLANTAG|M_PROMISC|M_HASHTYPEBITS)
+#define	QOS_DSCP_CS0		0x00
+#define	QOS_DSCP_DEF		QOS_DSCP_CS0
+#define	QOS_DSCP_CS1		0x20
+#define	QOS_DSCP_AF11		0x28
+#define	QOS_DSCP_AF12		0x30
+#define	QOS_DSCP_AF13		0x38
+#define	QOS_DSCP_CS2		0x40
+#define	QOS_DSCP_AF21		0x48
+#define	QOS_DSCP_AF22		0x50
+#define	QOS_DSCP_AF23		0x58
+#define	QOS_DSCP_CS3		0x60
+#define	QOS_DSCP_AF31		0x68
+#define	QOS_DSCP_AF32		0x70
+#define	QOS_DSCP_AF33		0x78
+#define	QOS_DSCP_CS4		0x80
+#define	QOS_DSCP_AF41		0x88
+#define	QOS_DSCP_AF42		0x90
+#define	QOS_DSCP_AF43		0x98
+#define	QOS_DSCP_CS5		0xa0
+#define	QOS_DSCP_EF		0xb8
+#define	QOS_DSCP_CS6		0xc0
+#define	QOS_DSCP_CS7		0xe0
 
 /*
- * External buffer types: identify ext_buf type.
+ * External mbuf storage buffer types.
  */
 #define	EXT_CLUSTER	1	/* mbuf cluster */
 #define	EXT_SFBUF	2	/* sendfile(2)'s sf_bufs */
@@ -266,83 +329,141 @@ struct mbuf {
 #define	EXT_JUMBO16	5	/* jumbo cluster 16184 bytes */
 #define	EXT_PACKET	6	/* mbuf+cluster from packet zone */
 #define	EXT_MBUF	7	/* external mbuf reference (M_IOVEC) */
-#define	EXT_NET_DRV	100	/* custom ext_buf provided by net driver(s) */
-#define	EXT_MOD_TYPE	200	/* custom module's ext_buf type */
-#define	EXT_DISPOSABLE	300	/* can throw this buffer away w/page flipping */
-#define	EXT_EXTREF	400	/* has externally maintained ref_cnt ptr */
+
+#define	EXT_VENDOR1	224	/* for vendor-internal use */
+#define	EXT_VENDOR2	225	/* for vendor-internal use */
+#define	EXT_VENDOR3	226	/* for vendor-internal use */
+#define	EXT_VENDOR4	227	/* for vendor-internal use */
+
+#define	EXT_EXP1	244	/* for experimental use */
+#define	EXT_EXP2	245	/* for experimental use */
+#define	EXT_EXP3	246	/* for experimental use */
+#define	EXT_EXP4	247	/* for experimental use */
+
+#define	EXT_NET_DRV	252	/* custom ext_buf provided by net driver(s) */
+#define	EXT_MOD_TYPE	253	/* custom module's ext_buf type */
+#define	EXT_DISPOSABLE	254	/* can throw this buffer away w/page flipping */
+#define	EXT_EXTREF	255	/* has externally maintained ref_cnt ptr */
 
 /*
- * Flags indicating hw checksum support and sw checksum requirements.  This
- * field can be directly tested against if_data.ifi_hwassist.
+ * Flags for external mbuf buffer types.
+ * NB: limited to the lower 24 bits.
  */
-#define	CSUM_IP			0x0001		/* will csum IP */
-#define	CSUM_TCP		0x0002		/* will csum TCP */
-#define	CSUM_UDP		0x0004		/* will csum UDP */
-#define	CSUM_FRAGMENT		0x0010		/* will do IP fragmentation */
-#define	CSUM_TSO		0x0020		/* will do TSO */
-#define	CSUM_SCTP		0x0040		/* will csum SCTP */
-#define CSUM_SCTP_IPV6		0x0080		/* will csum IPv6/SCTP */
+#define	EXT_FLAG_EMBREF		0x000001	/* embedded ref_cnt, notyet */
+#define	EXT_FLAG_EXTREF		0x000002	/* external ref_cnt, notyet */
+#define	EXT_FLAG_NOFREE		0x000010	/* don't free mbuf to pool, notyet */
 
-#define	CSUM_IP_CHECKED		0x0100		/* did csum IP */
-#define	CSUM_IP_VALID		0x0200		/*   ... the csum is valid */
-#define	CSUM_DATA_VALID		0x0400		/* csum_data field is valid */
-#define	CSUM_PSEUDO_HDR		0x0800		/* csum_data has pseudo hdr */
-#define	CSUM_SCTP_VALID		0x1000		/* SCTP checksum is valid */
-#define	CSUM_UDP_IPV6		0x2000		/* will csum IPv6/UDP */
-#define	CSUM_TCP_IPV6		0x4000		/* will csum IPv6/TCP */
-/*	CSUM_TSO_IPV6		0x8000		will do IPv6/TSO */
+#define	EXT_FLAG_VENDOR1	0x010000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR2	0x020000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR3	0x040000	/* for vendor-internal use */
+#define	EXT_FLAG_VENDOR4	0x080000	/* for vendor-internal use */
 
-/*	CSUM_FRAGMENT_IPV6	0x10000		will do IPv6 fragementation */
-
-#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6 | CSUM_UDP_IPV6)
-#define	CSUM_DATA_VALID_IPV6	CSUM_DATA_VALID
-
-#define	CSUM_DELAY_DATA		(CSUM_TCP | CSUM_UDP)
-#define	CSUM_DELAY_IP		(CSUM_IP)	/* Only v4, no v6 IP hdr csum */
+#define	EXT_FLAG_EXP1		0x100000	/* for experimental use */
+#define	EXT_FLAG_EXP2		0x200000	/* for experimental use */
+#define	EXT_FLAG_EXP3		0x400000	/* for experimental use */
+#define	EXT_FLAG_EXP4		0x800000	/* for experimental use */
 
 /*
- * mbuf types.
+ * EXT flag description for use with printf(9) %b identifier.
+ */
+#define	EXT_FLAG_BITS \
+    "\20\1EXT_FLAG_EMBREF\2EXT_FLAG_EXTREF\5EXT_FLAG_NOFREE" \
+    "\21EXT_FLAG_VENDOR1\22EXT_FLAG_VENDOR2\23EXT_FLAG_VENDOR3" \
+    "\24EXT_FLAG_VENDOR4\25EXT_FLAG_EXP1\26EXT_FLAG_EXP2\27EXT_FLAG_EXP3" \
+    "\30EXT_FLAG_EXP4"
+
+/*
+ * Return values for (*ext_free).
+ */
+#define	EXT_FREE_OK	0	/* Normal return */
+
+/*
+ * Flags indicating checksum, segmentation and other offload work to be
+ * done, or already done, by hardware or lower layers.  It is split into
+ * separate inbound and outbound flags.
+ *
+ * Outbound flags that are set by upper protocol layers requesting lower
+ * layers, or ideally the hardware, to perform these offloading tasks.
+ * For outbound packets this field and its flags can be directly tested
+ * against if_data.ifi_hwassist.
+ */
+#define	CSUM_IP			0x00000001	/* IP header checksum offload */
+#define	CSUM_IP_UDP		0x00000002	/* UDP checksum offload */
+#define	CSUM_IP_TCP		0x00000004	/* TCP checksum offload */
+#define	CSUM_IP_SCTP		0x00000008	/* SCTP checksum offload */
+#define	CSUM_IP_TSO		0x00000010	/* TCP segmentation offload */
+#define	CSUM_IP_ISCSI		0x00000020	/* iSCSI checksum offload */
+
+#define	CSUM_IP6_UDP		0x00000200	/* UDP checksum offload */
+#define	CSUM_IP6_TCP		0x00000400	/* TCP checksum offload */
+#define	CSUM_IP6_SCTP		0x00000800	/* SCTP checksum offload */
+#define	CSUM_IP6_TSO		0x00001000	/* TCP segmentation offload */
+#define	CSUM_IP6_ISCSI		0x00002000	/* iSCSI checksum offload */
+
+/* Inbound checksum support where the checksum was verified by hardware. */
+#define	CSUM_L3_CALC		0x01000000	/* calculated layer 3 csum */
+#define	CSUM_L3_VALID		0x02000000	/* checksum is correct */
+#define	CSUM_L4_CALC		0x04000000	/* calculated layer 4 csum */
+#define	CSUM_L4_VALID		0x08000000	/* checksum is correct */
+#define	CSUM_L5_CALC		0x10000000	/* calculated layer 5 csum */
+#define	CSUM_L5_VALID		0x20000000	/* checksum is correct */
+#define	CSUM_COALESED		0x40000000	/* contains merged segments */
+
+/*
+ * CSUM flag description for use with printf(9) %b identifier.
+ */
+#define	CSUM_BITS \
+    "\20\1CSUM_IP\2CSUM_IP_UDP\3CSUM_IP_TCP\4CSUM_IP_SCTP\5CSUM_IP_TSO" \
+    "\6CSUM_IP_ISCSI" \
+    "\12CSUM_IP6_UDP\13CSUM_IP6_TCP\14CSUM_IP6_SCTP\15CSUM_IP6_TSO" \
+    "\16CSUM_IP6_ISCSI" \
+    "\31CSUM_L3_CALC\32CSUM_L3_VALID\33CSUM_L4_CALC\34CSUM_L4_VALID" \
+    "\35CSUM_L5_CALC\36CSUM_L5_VALID\37CSUM_COALESED"
+
+/* CSUM flags compatibility mappings. */
+#define	CSUM_IP_CHECKED		CSUM_L3_CALC
+#define	CSUM_IP_VALID		CSUM_L3_VALID
+#define	CSUM_DATA_VALID		CSUM_L4_VALID
+#define	CSUM_PSEUDO_HDR		CSUM_L4_CALC
+#define	CSUM_SCTP_VALID		CSUM_L4_VALID
+#define	CSUM_DELAY_DATA		(CSUM_TCP|CSUM_UDP)
+#define	CSUM_DELAY_IP		CSUM_IP		/* Only v4, no v6 IP hdr csum */
+#define	CSUM_DELAY_DATA_IPV6	(CSUM_TCP_IPV6|CSUM_UDP_IPV6)
+#define	CSUM_DATA_VALID_IPV6	CSUM_DATA_VALID
+#define	CSUM_TCP		CSUM_IP_TCP
+#define	CSUM_UDP		CSUM_IP_UDP
+#define	CSUM_SCTP		CSUM_IP_SCTP
+#define	CSUM_TSO		(CSUM_IP_TSO|CSUM_IP6_TSO)
+#define	CSUM_UDP_IPV6		CSUM_IP6_UDP
+#define	CSUM_TCP_IPV6		CSUM_IP6_TCP
+#define	CSUM_SCTP_IPV6		CSUM_IP6_SCTP
+#define	CSUM_FRAGMENT		0x0		/* Unused */
+
+/*
+ * mbuf types describing the content of the mbuf (including external storage).
  */
 #define	MT_NOTMBUF	0	/* USED INTERNALLY ONLY! Object is not mbuf */
 #define	MT_DATA		1	/* dynamic (data) allocation */
 #define	MT_HEADER	MT_DATA	/* packet header, use M_PKTHDR instead */
+
+#define	MT_VENDOR1	4	/* for vendor-internal use */
+#define	MT_VENDOR2	5	/* for vendor-internal use */
+#define	MT_VENDOR3	6	/* for vendor-internal use */
+#define	MT_VENDOR4	7	/* for vendor-internal use */
+
 #define	MT_SONAME	8	/* socket name */
+
+#define	MT_EXP1		9	/* for experimental use */
+#define	MT_EXP2		10	/* for experimental use */
+#define	MT_EXP3		11	/* for experimental use */
+#define	MT_EXP4		12	/* for experimental use */
+
 #define	MT_CONTROL	14	/* extra-data protocol message */
 #define	MT_OOBDATA	15	/* expedited data  */
 #define	MT_NTYPES	16	/* number of mbuf types for mbtypes[] */
 
 #define	MT_NOINIT	255	/* Not a type but a flag to allocate
 				   a non-initialized mbuf */
-
-#define MB_NOTAGS	0x1UL	/* no tags attached to mbuf */
-
-/*
- * General mbuf allocator statistics structure.
- *
- * Many of these statistics are no longer used; we instead track many
- * allocator statistics through UMA's built in statistics mechanism.
- */
-struct mbstat {
-	u_long	m_mbufs;	/* XXX */
-	u_long	m_mclusts;	/* XXX */
-
-	u_long	m_drain;	/* times drained protocols for space */
-	u_long	m_mcfail;	/* XXX: times m_copym failed */
-	u_long	m_mpfail;	/* XXX: times m_pullup failed */
-	u_long	m_msize;	/* length of an mbuf */
-	u_long	m_mclbytes;	/* length of an mbuf cluster */
-	u_long	m_minclsize;	/* min length of data to allocate a cluster */
-	u_long	m_mlen;		/* length of data in an mbuf */
-	u_long	m_mhlen;	/* length of data in a header mbuf */
-
-	/* Number of mbtypes (gives # elems in mbtypes[] array) */
-	short	m_numtypes;
-
-	/* XXX: Sendfile stats should eventually move to their own struct */
-	u_long	sf_iocnt;	/* times sendfile had to do disk I/O */
-	u_long	sf_allocfail;	/* times sfbuf allocation failed */
-	u_long	sf_allocwait;	/* times sfbuf allocation had to wait */
-};
 
 /*
  * Compatibility with historic mbuf allocator.
@@ -422,6 +543,28 @@ m_gettype(int size)
 	}
 
 	return (type);
+}
+
+/*
+ * Associated an external reference counted buffer with an mbuf.
+ */
+static __inline void
+m_extaddref(struct mbuf *m, caddr_t buf, u_int size, u_int *ref_cnt,
+    int (*freef)(struct mbuf *, void *, void *), void *arg1, void *arg2)
+{
+
+	KASSERT(ref_cnt != NULL, ("%s: ref_cnt not provided", __func__));
+
+	atomic_add_int(ref_cnt, 1);
+	m->m_flags |= M_EXT;
+	m->m_ext.ext_buf = buf;
+	m->m_ext.ref_cnt = ref_cnt;
+	m->m_data = m->m_ext.ext_buf;
+	m->m_ext.ext_size = size;
+	m->m_ext.ext_free = freef;
+	m->m_ext.ext_arg1 = arg1;
+	m->m_ext.ext_arg2 = arg2;
+	m->m_ext.ext_type = EXT_EXTREF;
 }
 
 static __inline uma_zone_t
@@ -526,29 +669,6 @@ m_getcl(int how, short type, int flags)
 }
 
 static __inline void
-m_free_fast(struct mbuf *m)
-{
-#ifdef INVARIANTS
-	if (m->m_flags & M_PKTHDR)
-		KASSERT(SLIST_EMPTY(&m->m_pkthdr.tags), ("doing fast free of mbuf with tags"));
-#endif
-
-	uma_zfree_arg(zone_mbuf, m, (void *)MB_NOTAGS);
-}
-
-static __inline struct mbuf *
-m_free(struct mbuf *m)
-{
-	struct mbuf *n = m->m_next;
-
-	if (m->m_flags & M_EXT)
-		mb_free_ext(m);
-	else if ((m->m_flags & M_NOFREE) == 0)
-		uma_zfree(zone_mbuf, m);
-	return (n);
-}
-
-static __inline void
 m_clget(struct mbuf *m, int how)
 {
 
@@ -621,6 +741,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 	m->m_ext.ext_free = m->m_ext.ext_arg1 = m->m_ext.ext_arg2 = NULL;
 	m->m_ext.ext_size = size;
 	m->m_ext.ext_type = type;
+	m->m_ext.ext_flags = 0;
 	m->m_ext.ref_cnt = uma_find_refcnt(zone, cl);
 	m->m_flags |= M_EXT;
 
@@ -631,6 +752,13 @@ m_chtype(struct mbuf *m, short new_type)
 {
 
 	m->m_type = new_type;
+}
+
+static __inline void
+m_clrprotoflags(struct mbuf *m)
+{
+
+	m->m_flags &= ~M_PROTOFLAGS;
 }
 
 static __inline struct mbuf *
@@ -778,7 +906,6 @@ extern int		max_datalen;	/* MHLEN - max_hdr */
 extern int		max_hdr;	/* Largest link + protocol header */
 extern int		max_linkhdr;	/* Largest link-level header */
 extern int		max_protohdr;	/* Largest protocol header */
-extern struct mbstat	mbstat;		/* General mbuf stats/infos */
 extern int		nmbclusters;	/* Maximum number of clusters */
 
 struct uio;
@@ -790,7 +917,8 @@ int		 m_apply(struct mbuf *, int, int,
 int		 m_append(struct mbuf *, int, c_caddr_t);
 void		 m_cat(struct mbuf *, struct mbuf *);
 int		 m_extadd(struct mbuf *, caddr_t, u_int,
-		    void (*)(void *, void *), void *, void *, int, int, int);
+		    int (*)(struct mbuf *, void *, void *), void *, void *,
+		    int, int, int);
 struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
@@ -1004,6 +1132,20 @@ m_tag_find(struct mbuf *m, int type, struct m_tag *start)
 {
 	return (SLIST_EMPTY(&m->m_pkthdr.tags) ? (struct m_tag *)NULL :
 	    m_tag_locate(m, MTAG_ABI_COMPAT, type, start));
+}
+
+static __inline struct mbuf *
+m_free(struct mbuf *m)
+{
+	struct mbuf *n = m->m_next;
+
+	if ((m->m_flags & (M_PKTHDR|M_NOFREE)) == (M_PKTHDR|M_NOFREE))
+		m_tag_delete_chain(m, NULL);
+	if (m->m_flags & M_EXT)
+		mb_free_ext(m);
+	else if ((m->m_flags & M_NOFREE) == 0)
+		uma_zfree(zone_mbuf, m);
+	return (n);
 }
 
 static int inline

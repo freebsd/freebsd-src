@@ -29,8 +29,6 @@
 #ifndef _SYS_SF_BUF_H_
 #define _SYS_SF_BUF_H_
 
-#include <machine/sf_buf.h>
-
 /*
  * Options to sf_buf_alloc() are specified through its flags argument.  This
  * argument's value should be the result of a bitwise or'ing of one or more
@@ -44,13 +42,25 @@
 
 struct vm_page;
 
-extern  int nsfbufs;                    /* Number of sendfile(2) bufs alloced */
-extern  int nsfbufspeak;                /* Peak of nsfbufsused */
-extern  int nsfbufsused;                /* Number of sendfile(2) bufs in use */
+struct sfstat {				/* sendfile statistics */
+	uint64_t	sf_iocnt;	/* times sendfile had to do disk I/O */
+	uint64_t	sf_allocfail;	/* times sfbuf allocation failed */
+	uint64_t	sf_allocwait;	/* times sfbuf allocation had to wait */
+};
 
-struct sf_buf *
-	sf_buf_alloc(struct vm_page *m, int flags);
-void	sf_buf_free(struct sf_buf *sf);
-void	sf_buf_mext(void *addr, void *args);
+#ifdef _KERNEL
+#include <machine/sf_buf.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
+struct mbuf;	/* for sf_buf_mext() */
+
+extern counter_u64_t sfstat[sizeof(struct sfstat) / sizeof(uint64_t)];
+#define	SFSTAT_ADD(name, val)	\
+    counter_u64_add(sfstat[offsetof(struct sfstat, name) / sizeof(uint64_t)],\
+	(val))
+#define	SFSTAT_INC(name)	SFSTAT_ADD(name, 1)
+#endif /* _KERNEL */
+
+int	sf_buf_mext(struct mbuf *mb, void *addr, void *args);
 
 #endif /* !_SYS_SF_BUF_H_ */

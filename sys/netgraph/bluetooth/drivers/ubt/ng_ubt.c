@@ -109,9 +109,7 @@
 #include <sys/unistd.h>
 #include <sys/callout.h>
 #include <sys/malloc.h>
-#include <sys/jail.h>
 #include <sys/priv.h>
-#include <sys/proc.h>
 
 #include "usbdevs.h"
 #include <dev/usb/usb.h>
@@ -125,7 +123,6 @@
 #include <sys/mbuf.h>
 #include <sys/taskqueue.h>
 
-#include <net/vnet.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
@@ -440,6 +437,67 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 	  USB_IFACE_CLASS(UICLASS_VENDOR),
 	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
 	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Apple-specific (Broadcom) devices */
+	{ USB_VENDOR(USB_VENDOR_APPLE),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* Foxconn - Hon Hai */
+	{ USB_VENDOR(USB_VENDOR_FOXCONN),
+	  USB_IFACE_CLASS(UICLASS_VENDOR),
+	  USB_IFACE_SUBCLASS(UDSUBCLASS_RF),
+	  USB_IFACE_PROTOCOL(UDPROTO_BLUETOOTH) },
+
+	/* MediaTek MT76x0E */
+	{ USB_VPI(USB_VENDOR_MEDIATEK, 0x763f, 0) },
+
+	/* Broadcom SoftSailing reporting vendor specific */
+	{ USB_VPI(USB_VENDOR_BROADCOM, 0x21e1, 0) },
+
+	/* Apple MacBookPro 7,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8213, 0) },
+
+	/* Apple iMac11,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8215, 0) },
+
+	/* Apple MacBookPro6,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8218, 0) },
+
+	/* Apple MacBookAir3,1, MacBookAir3,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821b, 0) },
+
+	/* Apple MacBookAir4,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821f, 0) },
+
+	/* MacBookAir6,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x828f, 0) },
+
+	/* Apple MacBookPro8,2 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x821a, 0) },
+
+	/* Apple MacMini5,1 */
+	{ USB_VPI(USB_VENDOR_APPLE, 0x8281, 0) },
+
+	/* Bluetooth Ultraport Module from IBM */
+	{ USB_VPI(USB_VENDOR_TDK, 0x030a, 0) },
+
+	/* ALPS Modules with non-standard ID */
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3001, 0) },
+	{ USB_VPI(USB_VENDOR_ALPS, 0x3002, 0) },
+
+	{ USB_VPI(USB_VENDOR_ERICSSON2, 0x1002, 0) },
+
+	/* Canyon CN-BTU1 with HID interfaces */
+	{ USB_VPI(USB_VENDOR_CANYON, 0x0000, 0) },
+
+	/* Broadcom BCM20702A0 */
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17b5, 0) },
+	{ USB_VPI(USB_VENDOR_ASUS, 0x17cb, 0) },
+	{ USB_VPI(USB_VENDOR_LITEON, 0x2003, 0) },
+	{ USB_VPI(USB_VENDOR_FOXCONN, 0xe042, 0) },
+	{ USB_VPI(USB_VENDOR_DELL, 0x8197, 0) },
 };
 
 /*
@@ -490,14 +548,13 @@ ubt_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_debug = NG_UBT_WARN_LEVEL;
-	CURVNET_SET(TD_TO_VNET(curthread));
+
 	/* 
 	 * Create Netgraph node
 	 */
 
 	if (ng_make_node_common(&typestruct, &sc->sc_node) != 0) {
 		UBT_ALERT(sc, "could not create Netgraph node\n");
-		CURVNET_RESTORE();
 		return (ENXIO);
 	}
 
@@ -505,12 +562,10 @@ ubt_attach(device_t dev)
 	if (ng_name_node(sc->sc_node, device_get_nameunit(dev)) != 0) {
 		UBT_ALERT(sc, "could not name Netgraph node\n");
 		NG_NODE_UNREF(sc->sc_node);
-		CURVNET_RESTORE();
 		return (ENXIO);
 	}
 	NG_NODE_SET_PRIVATE(sc->sc_node, sc);
 	NG_NODE_FORCE_WRITER(sc->sc_node);
-	CURVNET_RESTORE();
 
 	/*
 	 * Initialize device softc structure
@@ -637,10 +692,8 @@ ubt_detach(device_t dev)
 	/* Destroy Netgraph node */
 	if (node != NULL) {
 		sc->sc_node = NULL;
-		CURVNET_SET(node->nd_vnet);
 		NG_NODE_REALLY_DIE(node);
 		ng_rmnode_self(node);
-		CURVNET_RESTORE();
 	}
 
 	/* Make sure ubt_task in gone */

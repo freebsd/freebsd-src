@@ -749,4 +749,8 @@ generic_bs_barrier(void *t __unused,
 	if (flags & BUS_SPACE_BARRIER_WRITE)
 		mips_dcache_wbinv_all();
 #endif
+	if (flags & BUS_SPACE_BARRIER_READ)
+		rmb();
+	if (flags & BUS_SPACE_BARRIER_WRITE)
+		wmb();
 }

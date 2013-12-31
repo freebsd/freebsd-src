@@ -61,6 +61,7 @@
 #ifndef _SYS_SOCKET_VAR_H_
 #include <sys/socket.h>
 #endif
+#include <sys/caprights.h>
 
 /*
  * KERN_PROC subtype ops return arrays of selected proc structure entries:
@@ -83,7 +84,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	9
+#define	KI_NSPARE_INT	7
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	6
 
@@ -186,6 +187,8 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	int	ki_flag2;		/* P2_* flags */
+	int	ki_fibnum;		/* Default FIB number */
 	u_int	ki_cr_flags;		/* Credential flags */
 	int	ki_jid;			/* Process jail ID */
 	int	ki_numthreads;		/* XXXKSE number of threads in total */
@@ -317,7 +320,7 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1392
+#define	KINFO_FILE_SIZE	1424
 #endif
 
 struct kinfo_file {
@@ -388,6 +391,7 @@ struct kinfo_file {
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
 	cap_rights_t	kf_cap_rights;		/* Capability rights. */
+	uint64_t	_kf_cap_spare[3];	/* Space for future cap_rights_t. */
 	int		_kf_ispare[4];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
@@ -492,6 +496,12 @@ struct kinfo_kstack {
 	int	 kkst_state;			/* Validity of stack. */
 	char	 kkst_trace[KKST_MAXLEN];	/* String representing stack. */
 	int	 _kkst_ispare[16];		/* Space for more stuff. */
+};
+
+struct kinfo_sigtramp {
+	void	*ksigtramp_start;
+	void	*ksigtramp_end;
+	void	*ksigtramp_spare[4];
 };
 
 #ifdef _KERNEL

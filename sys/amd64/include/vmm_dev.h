@@ -36,7 +36,8 @@ int	vmmdev_cleanup(void);
 
 struct vm_memory_segment {
 	vm_paddr_t	gpa;	/* in */
-	size_t		len;	/* in */
+	size_t		len;
+	int		wired;
 };
 
 struct vm_register {
@@ -65,9 +66,18 @@ struct vm_event {
 	int		error_code_valid;
 };
 
+struct vm_lapic_msi {
+	uint64_t	msg;
+	uint64_t	addr;
+};
+
 struct vm_lapic_irq {
 	int		cpuid;
 	int		vector;
+};
+
+struct vm_ioapic_irq {
+	int		irq;
 };
 
 struct vm_capability {
@@ -98,8 +108,8 @@ struct vm_pptdev_msi {
 	int		slot;
 	int		func;
 	int		numvec;		/* 0 means disabled */
-	int		vector;
-	int		destcpu;
+	uint64_t	msg;
+	uint64_t	addr;
 };
 
 struct vm_pptdev_msix {
@@ -108,7 +118,7 @@ struct vm_pptdev_msix {
 	int		slot;
 	int		func;
 	int		idx;
-	uint32_t	msg;
+	uint64_t	msg;
 	uint32_t	vector_control;
 	uint64_t	addr;
 };
@@ -135,28 +145,59 @@ struct vm_x2apic {
 	enum x2apic_state	state;
 };
 
+struct vm_gpa_pte {
+	uint64_t	gpa;				/* in */
+	uint64_t	pte[4];				/* out */
+	int		ptenum;
+};
+
+struct vm_hpet_cap {
+	uint32_t	capabilities;	/* lower 32 bits of HPET capabilities */
+};
+
 enum {
-	IOCNUM_RUN,
-	IOCNUM_MAP_MEMORY,
-	IOCNUM_GET_MEMORY_SEG,
-	IOCNUM_SET_REGISTER,
-	IOCNUM_GET_REGISTER,
-	IOCNUM_SET_SEGMENT_DESCRIPTOR,
-	IOCNUM_GET_SEGMENT_DESCRIPTOR,
-	IOCNUM_INJECT_EVENT,
-	IOCNUM_LAPIC_IRQ,
-	IOCNUM_SET_CAPABILITY,
-	IOCNUM_GET_CAPABILITY,
-	IOCNUM_BIND_PPTDEV,
-	IOCNUM_UNBIND_PPTDEV,
-	IOCNUM_MAP_PPTDEV_MMIO,
-	IOCNUM_PPTDEV_MSI,
-	IOCNUM_PPTDEV_MSIX,
-	IOCNUM_INJECT_NMI,
-	IOCNUM_VM_STATS,
-	IOCNUM_VM_STAT_DESC,
-	IOCNUM_SET_X2APIC_STATE,
-	IOCNUM_GET_X2APIC_STATE,
+	/* general routines */
+	IOCNUM_ABIVERS = 0,
+	IOCNUM_RUN = 1,
+	IOCNUM_SET_CAPABILITY = 2,
+	IOCNUM_GET_CAPABILITY = 3,
+
+	/* memory apis */
+	IOCNUM_MAP_MEMORY = 10,
+	IOCNUM_GET_MEMORY_SEG = 11,
+	IOCNUM_GET_GPA_PMAP = 12,
+
+	/* register/state accessors */
+	IOCNUM_SET_REGISTER = 20,
+	IOCNUM_GET_REGISTER = 21,
+	IOCNUM_SET_SEGMENT_DESCRIPTOR = 22,
+	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
+
+	/* interrupt injection */
+	IOCNUM_INJECT_EVENT = 30,
+	IOCNUM_LAPIC_IRQ = 31,
+	IOCNUM_INJECT_NMI = 32,
+	IOCNUM_IOAPIC_ASSERT_IRQ = 33,
+	IOCNUM_IOAPIC_DEASSERT_IRQ = 34,
+	IOCNUM_IOAPIC_PULSE_IRQ = 35,
+	IOCNUM_LAPIC_MSI = 36,
+	IOCNUM_LAPIC_LOCAL_IRQ = 37, 
+
+	/* PCI pass-thru */
+	IOCNUM_BIND_PPTDEV = 40,
+	IOCNUM_UNBIND_PPTDEV = 41,
+	IOCNUM_MAP_PPTDEV_MMIO = 42,
+	IOCNUM_PPTDEV_MSI = 43,
+	IOCNUM_PPTDEV_MSIX = 44,
+
+	/* statistics */
+	IOCNUM_VM_STATS = 50, 
+	IOCNUM_VM_STAT_DESC = 51,
+
+	/* kernel device state */
+	IOCNUM_SET_X2APIC_STATE = 60,
+	IOCNUM_GET_X2APIC_STATE = 61,
+	IOCNUM_GET_HPET_CAPABILITIES = 62,
 };
 
 #define	VM_RUN		\
@@ -177,6 +218,16 @@ enum {
 	_IOW('v', IOCNUM_INJECT_EVENT, struct vm_event)
 #define	VM_LAPIC_IRQ 		\
 	_IOW('v', IOCNUM_LAPIC_IRQ, struct vm_lapic_irq)
+#define	VM_LAPIC_LOCAL_IRQ 	\
+	_IOW('v', IOCNUM_LAPIC_LOCAL_IRQ, struct vm_lapic_irq)
+#define	VM_LAPIC_MSI		\
+	_IOW('v', IOCNUM_LAPIC_MSI, struct vm_lapic_msi)
+#define	VM_IOAPIC_ASSERT_IRQ	\
+	_IOW('v', IOCNUM_IOAPIC_ASSERT_IRQ, struct vm_ioapic_irq)
+#define	VM_IOAPIC_DEASSERT_IRQ	\
+	_IOW('v', IOCNUM_IOAPIC_DEASSERT_IRQ, struct vm_ioapic_irq)
+#define	VM_IOAPIC_PULSE_IRQ	\
+	_IOW('v', IOCNUM_IOAPIC_PULSE_IRQ, struct vm_ioapic_irq)
 #define	VM_SET_CAPABILITY \
 	_IOW('v', IOCNUM_SET_CAPABILITY, struct vm_capability)
 #define	VM_GET_CAPABILITY \
@@ -201,4 +252,8 @@ enum {
 	_IOW('v', IOCNUM_SET_X2APIC_STATE, struct vm_x2apic)
 #define	VM_GET_X2APIC_STATE \
 	_IOWR('v', IOCNUM_GET_X2APIC_STATE, struct vm_x2apic)
+#define	VM_GET_HPET_CAPABILITIES \
+	_IOR('v', IOCNUM_GET_HPET_CAPABILITIES, struct vm_hpet_cap)
+#define	VM_GET_GPA_PMAP \
+	_IOWR('v', IOCNUM_GET_GPA_PMAP, struct vm_gpa_pte)
 #endif

@@ -158,7 +158,8 @@
 #define	PRIV_PROC_SETRLIMIT	162	/* Can raise resources limits. */
 #define	PRIV_PROC_SETLOGINCLASS	163	/* Can call setloginclass(2). */
 
-/* System V IPC privileges.
+/*
+ * System V IPC privileges.
  */
 #define	PRIV_IPC_READ		170	/* Can override IPC read perm. */
 #define	PRIV_IPC_WRITE		171	/* Can override IPC write perm. */

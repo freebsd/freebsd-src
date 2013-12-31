@@ -71,11 +71,6 @@ struct pimstat {
 #define PIMCTL_STATS		1	/* statistics (read-only) */
 #define PIMCTL_MAXID		2
 
-#define PIMCTL_NAMES {			\
-	{ 0, 0 },			\
-	{ "stats", CTLTYPE_STRUCT },	\
-}
-
 #ifdef _KERNEL
 
 void pim_input(struct mbuf *, int);

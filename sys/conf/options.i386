@@ -123,7 +123,3 @@ XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)
 ISCI_LOGGING	opt_isci.h
-
-# hw random number generators for random(4)
-PADLOCK_RNG		opt_cpu.h
-RDRAND_RNG		opt_cpu.h

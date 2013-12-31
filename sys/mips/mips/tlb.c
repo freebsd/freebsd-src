@@ -54,6 +54,7 @@ struct tlb_state {
 		register_t entryhi;
 		register_t entrylo0;
 		register_t entrylo1;
+		register_t pagemask;
 	} entry[MIPS_MAX_TLB_ENTRIES];
 };
 
@@ -285,6 +286,7 @@ tlb_save(void)
 		tlb_read();
 
 		tlb_state[cpu].entry[i].entryhi = mips_rd_entryhi();
+		tlb_state[cpu].entry[i].pagemask = mips_rd_pagemask();
 		tlb_state[cpu].entry[i].entrylo0 = mips_rd_entrylo0();
 		tlb_state[cpu].entry[i].entrylo1 = mips_rd_entrylo1();
 	}
@@ -339,7 +341,7 @@ tlb_invalidate_one(unsigned i)
 
 DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 {
-	register_t ehi, elo0, elo1;
+	register_t ehi, elo0, elo1, epagemask;
 	unsigned i, cpu, ntlb;
 
 	/*
@@ -378,11 +380,12 @@ DB_SHOW_COMMAND(tlb, ddb_dump_tlb)
 		ehi = tlb_state[cpu].entry[i].entryhi;
 		elo0 = tlb_state[cpu].entry[i].entrylo0;
 		elo1 = tlb_state[cpu].entry[i].entrylo1;
+		epagemask = tlb_state[cpu].entry[i].pagemask;
 
 		if (elo0 == 0 && elo1 == 0)
 			continue;
 
-		db_printf("#%u\t=> %jx\n", i, (intmax_t)ehi);
+		db_printf("#%u\t=> %jx (pagemask %jx)\n", i, (intmax_t)ehi, (intmax_t) epagemask);
 		db_printf(" Lo0\t%jx\t(%#jx)\n", (intmax_t)elo0, (intmax_t)TLBLO_PTE_TO_PA(elo0));
 		db_printf(" Lo1\t%jx\t(%#jx)\n", (intmax_t)elo1, (intmax_t)TLBLO_PTE_TO_PA(elo1));
 	}

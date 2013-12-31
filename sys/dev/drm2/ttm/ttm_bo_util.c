@@ -321,8 +321,12 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 
 	if (ttm->state == tt_unpopulated) {
 		ret = ttm->bdev->driver->ttm_tt_populate(ttm);
-		if (ret)
+		if (ret) {
+			/* if we fail here don't nuke the mm node
+			 * as the bo still owns it */
+			old_copy.mm_node = NULL;
 			goto out1;
+		}
 	}
 
 	add = 0;
@@ -346,8 +350,11 @@ int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
 						   prot);
 		} else
 			ret = ttm_copy_io_page(new_iomap, old_iomap, page);
-		if (ret)
+		if (ret) {
+			/* failing here, means keep old copy as-is */
+			old_copy.mm_node = NULL;
 			goto out1;
+		}
 	}
 	mb();
 out2:
@@ -393,11 +400,13 @@ static void ttm_transfered_destroy(struct ttm_buffer_object *bo)
 
 static int
 ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
-    void *sync_obj, struct ttm_buffer_object **new_obj)
+    struct ttm_buffer_object **new_obj)
 {
 	struct ttm_buffer_object *fbo;
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_bo_driver *driver = bdev->driver;
 
-	fbo = malloc(sizeof(*fbo), M_TTM_TRANSF_OBJ, M_ZERO | M_WAITOK);
+	fbo = malloc(sizeof(*fbo), M_TTM_TRANSF_OBJ, M_WAITOK);
 	*fbo = *bo;
 
 	/**
@@ -412,7 +421,12 @@ ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	fbo->vm_node = NULL;
 	atomic_set(&fbo->cpu_writers, 0);
 
-	fbo->sync_obj = sync_obj;
+	mtx_lock(&bdev->fence_lock);
+	if (bo->sync_obj)
+		fbo->sync_obj = driver->sync_obj_ref(bo->sync_obj);
+	else
+		fbo->sync_obj = NULL;
+	mtx_unlock(&bdev->fence_lock);
 	refcount_init(&fbo->list_kref, 1);
 	refcount_init(&fbo->kref, 1);
 	fbo->destroy = &ttm_transfered_destroy;
@@ -498,8 +512,7 @@ static int ttm_bo_kmap_ttm(struct ttm_buffer_object *bo,
 			ttm_io_prot(mem->placement);
 		map->bo_kmap_type = ttm_bo_map_vmap;
 		map->num_pages = num_pages;
-		map->virtual = (void *)kmem_alloc_nofault(kernel_map,
-		    num_pages * PAGE_SIZE);
+		map->virtual = (void *)kva_alloc(num_pages * PAGE_SIZE);
 		if (map->virtual != NULL) {
 			for (i = 0; i < num_pages; i++) {
 				/* XXXKIB hack */
@@ -561,7 +574,7 @@ void ttm_bo_kunmap(struct ttm_bo_kmap_obj *map)
 		break;
 	case ttm_bo_map_vmap:
 		pmap_qremove((vm_offset_t)(map->virtual), map->num_pages);
-		kmem_free(kernel_map, (vm_offset_t)map->virtual,
+		kva_free((vm_offset_t)map->virtual,
 		    map->num_pages * PAGE_SIZE);
 		break;
 	case ttm_bo_map_kmap:
@@ -593,7 +606,6 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 	int ret;
 	struct ttm_buffer_object *ghost_obj;
 	void *tmp_obj = NULL;
-	void *sync_obj_ref;
 
 	mtx_lock(&bdev->fence_lock);
 	if (bo->sync_obj) {
@@ -626,14 +638,11 @@ int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 		 */
 
 		set_bit(TTM_BO_PRIV_FLAG_MOVING, &bo->priv_flags);
-
-		sync_obj_ref = bo->bdev->driver->sync_obj_ref(bo->sync_obj);
 		mtx_unlock(&bdev->fence_lock);
-		/* ttm_buffer_object_transfer accesses bo->sync_obj */
-		ret = ttm_buffer_object_transfer(bo, sync_obj_ref, &ghost_obj);
 		if (tmp_obj)
 			driver->sync_obj_unref(&tmp_obj);
 
+		ret = ttm_buffer_object_transfer(bo, &ghost_obj);
 		if (ret)
 			return ret;
 

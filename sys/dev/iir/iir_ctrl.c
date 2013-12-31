@@ -273,7 +273,7 @@ iir_ioctl(struct cdev *dev, u_long cmd, caddr_t cmdarg, int flags, struct thread
                 return (ENXIO);
             /* only RP controllers */
             p->ext_type = 0x6000 | gdt->sc_device;
-            if (gdt->sc_vendor == INTEL_VENDOR_ID) {
+            if (gdt->sc_vendor == INTEL_VENDOR_ID_IIR) {
                 p->oem_id = OEM_ID_INTEL;
                 p->type = 0xfd;
                 /* new -> subdevice into ext_type */

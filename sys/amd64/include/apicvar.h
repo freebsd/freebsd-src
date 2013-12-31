@@ -136,15 +136,6 @@
  */
 #define	APIC_SPURIOUS_INT 255
 
-#define	LVT_LINT0	0
-#define	LVT_LINT1	1
-#define	LVT_TIMER	2
-#define	LVT_ERROR	3
-#define	LVT_PMC		4
-#define	LVT_THERMAL	5
-#define	LVT_CMCI	6
-#define	LVT_MAX		LVT_CMCI
-
 #ifndef LOCORE
 
 #define	APIC_IPI_DEST_SELF	-1
@@ -227,6 +218,7 @@ int	lapic_set_lvt_triggermode(u_int apic_id, u_int lvt,
 	    enum intr_trigger trigger);
 void	lapic_set_tpr(u_int vector);
 void	lapic_setup(int boot);
+void	xen_intr_handle_upcall(struct trapframe *frame);
 
 #endif /* !LOCORE */
 #endif /* _MACHINE_APICVAR_H_ */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 Mark R. V. Murray
+ * Copyright (c) 2000-2013 Mark R. V. Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,15 +39,26 @@ int read_random(void *, int);
  */
 enum esource {
 	RANDOM_START = 0,
-	RANDOM_WRITE = 0,
+	RANDOM_CACHED = 0,
+	RANDOM_ATTACH,
 	RANDOM_KEYBOARD,
 	RANDOM_MOUSE,
-	RANDOM_NET,
+	RANDOM_NET_TUN,
+	RANDOM_NET_ETHER,
+	RANDOM_NET_NG,
 	RANDOM_INTERRUPT,
-	RANDOM_PURE,
+	RANDOM_SWI,
+	RANDOM_PURE_OCTEON,
+	RANDOM_PURE_SAFE,
+	RANDOM_PURE_GLXSB,
+	RANDOM_PURE_UBSEC,
+	RANDOM_PURE_HIFN,
+	RANDOM_PURE_RDRAND,
+	RANDOM_PURE_NEHEMIAH,
+	RANDOM_PURE_RNDTEST,
 	ENTROPYSOURCE
 };
-void random_harvest(void *, u_int, u_int, u_int, enum esource);
+void random_harvest(const void *, u_int, u_int, enum esource);
 
 /* Allow the sysadmin to select the broad category of
  * entropy types to harvest
@@ -57,6 +68,7 @@ struct harvest_select {
 	int point_to_point;
 	int interrupt;
 	int swi;
+	int namei;
 };
 
 extern struct harvest_select harvest;

@@ -88,9 +88,7 @@ iop_pci_attach(device_t dev)
 				       RF_SHAREABLE | RF_ACTIVE);
 
     /* now setup the infrastructure to talk to the device */
-    pci_write_config(dev, PCIR_COMMAND,
-		     pci_read_config(dev, PCIR_COMMAND, 1) |
-		     PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, 1);
+    pci_enable_busmaster(dev);
 
     sc->ibase = rman_get_virtual(sc->r_mem);
     sc->reg = (struct i2o_registers *)sc->ibase;

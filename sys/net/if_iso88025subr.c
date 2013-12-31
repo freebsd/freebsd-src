@@ -54,6 +54,7 @@
 #include <sys/sockio.h> 
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_llc.h>
@@ -476,7 +477,6 @@ iso88025_input(ifp, m)
 		goto dropanyway;
 	}
 	th = mtod(m, struct iso88025_header *);
-	m->m_pkthdr.header = (void *)th;
 
 	/*
 	 * Discard packet if interface is not up.

@@ -31,18 +31,16 @@
 #include <sys/bus.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_types.h>
 
 #include <machine/bus.h>
 #include <dev/iicbus/iic.h>
@@ -127,16 +125,13 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 		return (ENXIO);
 
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg_lsb(dev, AR8X16_REG_MDIO_CTRL,
-	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
-	if (err != 0)
-		goto out;
-	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg(dev, AR8X16_REG_MDIO_CTRL,
 	    AR8X16_MDIO_CTRL_BUSY |
 	    AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_WRITE |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
-	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT));
+	    (reg << AR8X16_MDIO_CTRL_REG_ADDR_SHIFT) |
+	    (data & AR8X16_MDIO_CTRL_DATA_MASK));
 	if (err != 0)
 		goto out;
 	for (timeout = 100; timeout--; ) {

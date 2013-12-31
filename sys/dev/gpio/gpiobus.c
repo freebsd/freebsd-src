@@ -131,7 +131,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 	}
 
 	if (npins == 0) {
-		device_printf(child, "empty pin mask");
+		device_printf(child, "empty pin mask\n");
 		return (EINVAL);
 	}
 
@@ -151,6 +151,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (i >= sc->sc_npins) {
 			device_printf(child, 
 			    "invalid pin %d, max: %d\n", i, sc->sc_npins - 1);
+			free(devi->pins, M_DEVBUF);
 			return (EINVAL);
 		}
 
@@ -161,6 +162,7 @@ gpiobus_parse_pins(struct gpiobus_softc *sc, device_t child, int mask)
 		if (sc->sc_pins_mapped[i]) {
 			device_printf(child, 
 			    "warning: pin %d is already mapped\n", i);
+			free(devi->pins, M_DEVBUF);
 			return (EINVAL);
 		}
 		sc->sc_pins_mapped[i] = 1;
@@ -173,7 +175,8 @@ static int
 gpiobus_probe(device_t dev)
 {
 	device_set_desc(dev, "GPIO bus");
-	return (0);
+
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -188,12 +191,12 @@ gpiobus_attach(device_t dev)
 	if (res)
 		return (ENXIO);
 
+	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
+
 	/*
 	 * Increase to get number of pins
 	 */
 	sc->sc_npins++;
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
 
 	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
 	    M_NOWAIT | M_ZERO);
@@ -207,7 +210,9 @@ gpiobus_attach(device_t dev)
 	/*
 	 * Get parent's pins and mark them as unmapped
 	 */
+	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
+
 	return (bus_generic_attach(dev));
 }
 
@@ -218,9 +223,12 @@ gpiobus_attach(device_t dev)
 static int
 gpiobus_detach(device_t dev)
 {
-	struct gpiobus_softc *sc = GPIOBUS_SOFTC(dev);
-	int err;
+	struct gpiobus_softc *sc;
+	struct gpiobus_ivar *devi;
+	device_t *devlist;
+	int i, err, ndevs;
 
+	sc = GPIOBUS_SOFTC(dev);
 	KASSERT(mtx_initialized(&sc->sc_mtx),
 	    ("gpiobus mutex not initialized"));
 	GPIOBUS_LOCK_DESTROY(sc);
@@ -228,8 +236,17 @@ gpiobus_detach(device_t dev)
 	if ((err = bus_generic_detach(dev)) != 0)
 		return (err);
 
-	/* detach and delete all children */
-	device_delete_children(dev);
+	if ((err = device_get_children(dev, &devlist, &ndevs)) != 0)
+		return (err);
+	for (i = 0; i < ndevs; i++) {
+		device_delete_child(dev, devlist[i]);
+		devi = GPIOBUS_IVAR(devlist[i]);
+		if (devi->pins) {
+			free(devi->pins, M_DEVBUF);
+			devi->pins = NULL;
+		}
+	}
+	free(devlist, M_TEMP);
 
 	if (sc->sc_pins_mapped) {
 		free(sc->sc_pins_mapped, M_DEVBUF);

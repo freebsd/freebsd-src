@@ -127,7 +127,7 @@ options 	BLKDEV_IOSIZE=8192
 # devices and DFLTPHYS for the rest. Some applications have better
 # performance with larger raw I/O access sizes. Note that certain VM
 # parameters are derived from these values and making them too large
-# can make an an unbootable kernel.
+# can make an unbootable kernel.
 #
 # The defaults are 64K and 128K respectively.
 options 	DFLTPHYS=(64*1024)
@@ -728,7 +728,6 @@ options 	NETGRAPH_DEVICE
 options 	NETGRAPH_ECHO
 options 	NETGRAPH_EIFACE
 options 	NETGRAPH_ETHER
-options 	NETGRAPH_FEC
 options 	NETGRAPH_FRAME_RELAY
 options 	NETGRAPH_GIF
 options 	NETGRAPH_GIF_DEMUX
@@ -996,21 +995,6 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 # a smooth scheduling of the traffic.
 options 	DUMMYNET
 
-# "Zero copy" sockets support is split into the send and receive path
-# which operate very differently.
-# For the send path the VM page with the data is wired into the kernel
-# and marked as COW (copy-on-write).  If the application touches the
-# data while it is still in the send socket buffer the page is copied
-# and divorced from its kernel wiring (no longer zero copy).
-# The receive side requires explicit NIC driver support to create
-# disposable pages which are flipped from kernel to user-space VM.
-# See zero_copy(9) for more details.
-# XXX: The COW based send mechanism is not safe and may result in
-# kernel crashes.
-# XXX: None of the current NIC drivers support disposable pages.
-options		SOCKET_SEND_COW
-options		SOCKET_RECV_PFLIP
-
 #####################################################################
 # FILESYSTEM OPTIONS
 
@@ -1183,9 +1167,6 @@ options 	MAC_TEST
 options 	CAPABILITIES	# fine-grained rights on file descriptors
 options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 
-# Support for process descriptors
-options		PROCDESC
-
 
 #####################################################################
 # CLOCK OPTIONS
@@ -1296,8 +1277,7 @@ hint.sa.1.target="6"
 # to incoming commands that do not otherwise have a logical unit assigned
 # to them.
 #
-# The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
-# configuration as the "pass" driver.
+# The pass driver provides a passthrough API to access the CAM subsystem.
 
 device		scbus		#base SCSI code
 device		ch		#SCSI media changers
@@ -1801,6 +1781,8 @@ device		uart
 # Options for uart(4)
 options 	UART_PPS_ON_CTS		# Do time pulse capturing using CTS
 					# instead of DCD.
+options 	UART_POLL_FREQ		# Set polling rate, used when hw has
+					# no interrupt support (50 Hz default).
 
 # The following hint should only be used for pure ISA devices.  It is not
 # needed otherwise.  Use of hints is strongly discouraged.
@@ -1908,7 +1890,7 @@ device		xmphy		# XaQti XMAC II
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
-# bxe:	Broadcom NetXtreme II (BCM57710/57711/57711E) PCIe 10b Ethernet
+# bxe:	Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
 # bwn:	Broadcom BCM43xx family of wireless adapters.
@@ -2093,7 +2075,6 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		bxe		# Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet
 device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
@@ -2736,6 +2717,8 @@ device		mos
 # HSxPA devices from Option N.V
 device		uhso
 
+# Realtek RTL8188SU/RTL8191SU/RTL8192SU wireless driver
+device		rsu
 #
 # Ralink Technology RT2501USB/RT2601USB wireless driver
 device		rum
@@ -2974,3 +2957,8 @@ options 	RCTL
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
+# Random number generator
+options 	RANDOM_YARROW	# Yarrow RNG
+##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+options 	RANDOM_DEBUG	# Debugging messages
+options 	RANDOM_RWFILE	# Read and write entropy cache

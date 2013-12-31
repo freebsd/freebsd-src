@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <arm/ti/tivar.h>
@@ -62,9 +61,14 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_LCDC_CLKCTRL		(CM_PER + 0x018)
 #define CM_PER_USB0_CLKCTRL		(CM_PER + 0x01C)
 #define CM_PER_TPTC0_CLKCTRL		(CM_PER + 0x024)
+#define CM_PER_UART5_CLKCTRL		(CM_PER + 0x038)
 #define CM_PER_MMC0_CLKCTRL		(CM_PER + 0x03C)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
+#define CM_PER_UART1_CLKCTRL		(CM_PER + 0x06C)
+#define CM_PER_UART2_CLKCTRL		(CM_PER + 0x070)
+#define CM_PER_UART3_CLKCTRL		(CM_PER + 0x074)
+#define CM_PER_UART4_CLKCTRL		(CM_PER + 0x078)
 #define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x07C)
 #define CM_PER_TIMER2_CLKCTRL		(CM_PER + 0x080)
 #define CM_PER_TIMER3_CLKCTRL		(CM_PER + 0x084)
@@ -78,15 +82,19 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_EPWMSS2_CLKCTRL		(CM_PER + 0x0D8)
 #define CM_PER_L3_INSTR_CLKCTRL		(CM_PER + 0x0DC)
 #define CM_PER_L3_CLKCTRL		(CM_PER + 0x0E0)
+#define	CM_PER_PRUSS_CLKCTRL		(CM_PER + 0x0E8)
 #define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0x0EC)
 #define CM_PER_TIMER6_CLKCTRL		(CM_PER + 0x0F0)
 #define CM_PER_MMC1_CLKCTRL		(CM_PER + 0x0F4)
 #define CM_PER_MMC2_CLKCTRL		(CM_PER + 0x0F8)
 #define CM_PER_TPTC1_CLKCTRL		(CM_PER + 0x0FC)
 #define CM_PER_TPTC2_CLKCTRL		(CM_PER + 0x100)
+#define	CM_PER_SPINLOCK0_CLKCTRL	(CM_PER + 0x10C)
+#define	CM_PER_MAILBOX0_CLKCTRL		(CM_PER + 0x110)
 #define CM_PER_OCPWP_L3_CLKSTCTRL	(CM_PER + 0x12C)
 #define CM_PER_OCPWP_CLKCTRL		(CM_PER + 0x130)
 #define CM_PER_CPSW_CLKSTCTRL		(CM_PER + 0x144)
+#define	CM_PER_PRUSS_CLKSTCTRL		(CM_PER + 0x140)
 
 #define CM_WKUP				0x400
 #define CM_WKUP_CLKSTCTRL		(CM_WKUP + 0x000)
@@ -107,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #define CLKSEL_TIMER4_CLK		(CM_DPLL + 0x010)
 #define CLKSEL_TIMER5_CLK		(CM_DPLL + 0x018)
 #define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
+#define	CLKSEL_PRUSS_OCP_CLK		(CM_DPLL + 0x030)
+
+#define	PRM_PER				0xC00
+#define	PRM_PER_RSTCTRL			(PRM_PER + 0x00)
 
 #define PRM_DEVICE_OFFSET		0xF00
 #define PRM_RSTCTRL			(PRM_DEVICE_OFFSET + 0x00)
@@ -124,9 +136,12 @@ static struct resource_spec am335x_prcm_spec[] = {
 
 static struct am335x_prcm_softc *am335x_prcm_sc = NULL;
 
+static int am335x_clk_noop_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_gpio_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_noop_deactivate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
+static int am335x_clk_noop_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,  unsigned int *freq);
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
@@ -136,6 +151,16 @@ static void am335x_prcm_reset(void);
 static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_musb0_activate(struct ti_clock_dev *clkdev);
 static int am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_pruss_activate(struct ti_clock_dev *clkdev);
+
+#define AM335X_NOOP_CLOCK_DEV(i) \
+	{	.id = (i), \
+		.clk_activate = am335x_clk_noop_activate, \
+		.clk_deactivate = am335x_clk_noop_deactivate, \
+		.clk_set_source = am335x_clk_noop_set_source, \
+		.clk_accessible = NULL, \
+		.clk_get_source_freq = NULL \
+	}
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
 	{	.id = (i), \
@@ -208,6 +233,14 @@ struct ti_clock_dev ti_clk_devmap[] = {
 		.clk_get_source_freq = am335x_clk_get_arm_disp_freq,
 	},
 
+        /* UART.  Uart0 clock cannot be controlled. */
+	AM335X_NOOP_CLOCK_DEV(UART0_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART1_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART2_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART3_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART4_CLK),
+	AM335X_GENERIC_CLOCK_DEV(UART5_CLK),
+
 	/* DMTimer */
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER2_CLK),
 	AM335X_GENERIC_CLOCK_DEV(DMTIMER3_CLK),
@@ -243,6 +276,23 @@ struct ti_clock_dev ti_clk_devmap[] = {
 	AM335X_GENERIC_CLOCK_DEV(PWMSS1_CLK),
 	AM335X_GENERIC_CLOCK_DEV(PWMSS2_CLK),
 
+	/* System Mailbox clock */
+	AM335X_GENERIC_CLOCK_DEV(MAILBOX0_CLK),
+
+	/* SPINLOCK */
+	AM335X_GENERIC_CLOCK_DEV(SPINLOCK0_CLK),
+
+	/* PRU-ICSS */
+	{	.id		     = PRUSS_CLK,
+		.clk_activate	     = am335x_clk_pruss_activate,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = NULL,
+	},
+
+
+
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
 
@@ -259,6 +309,14 @@ struct am335x_clk_details {
 	}
 
 static struct am335x_clk_details g_am335x_clk_details[] = {
+
+        /* UART. UART0 clock not controllable. */
+	_CLK_DETAIL(UART0_CLK, 0, 0),
+	_CLK_DETAIL(UART1_CLK, CM_PER_UART1_CLKCTRL, 0),
+	_CLK_DETAIL(UART2_CLK, CM_PER_UART2_CLKCTRL, 0),
+	_CLK_DETAIL(UART3_CLK, CM_PER_UART3_CLKCTRL, 0),
+	_CLK_DETAIL(UART4_CLK, CM_PER_UART4_CLKCTRL, 0),
+	_CLK_DETAIL(UART5_CLK, CM_PER_UART5_CLKCTRL, 0),
 
 	/* DMTimer modules */
 	_CLK_DETAIL(DMTIMER2_CLK, CM_PER_TIMER2_CLKCTRL, CLKSEL_TIMER2_CLK),
@@ -294,6 +352,9 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 	_CLK_DETAIL(PWMSS0_CLK, CM_PER_EPWMSS0_CLKCTRL, 0),
 	_CLK_DETAIL(PWMSS1_CLK, CM_PER_EPWMSS1_CLKCTRL, 0),
 	_CLK_DETAIL(PWMSS2_CLK, CM_PER_EPWMSS2_CLKCTRL, 0),
+
+	_CLK_DETAIL(MAILBOX0_CLK, CM_PER_MAILBOX0_CLKCTRL, 0),
+	_CLK_DETAIL(SPINLOCK0_CLK, CM_PER_SPINLOCK0_CLKCTRL, 0),
 
 	{ INVALID_CLK_IDENT, 0},
 };
@@ -377,6 +438,13 @@ am335x_clk_details(clk_ident_t id)
 }
 
 static int
+am335x_clk_noop_activate(struct ti_clock_dev *clkdev)
+{
+
+	return (0);
+}
+
+static int
 am335x_clk_generic_activate(struct ti_clock_dev *clkdev)
 {
 	struct am335x_prcm_softc *sc = am335x_prcm_sc;
@@ -423,6 +491,13 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 }
 
 static int
+am335x_clk_noop_deactivate(struct ti_clock_dev *clkdev)
+{
+
+	return(0);
+}
+
+static int
 am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct am335x_prcm_softc *sc = am335x_prcm_sc;
@@ -440,6 +515,13 @@ am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 	prcm_write_4(clk_details->clkctrl_reg, 0);
 	while ((prcm_read_4(clk_details->clkctrl_reg) & 0x3) != 0)
 		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_noop_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
+{
 
 	return (0);
 }
@@ -628,7 +710,7 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 		DELAY(10);
 
 	/* 
-	 * For now set frequenct to  5xSYSFREQ 
+	 * For now set frequency to  5xSYSFREQ 
 	 * More flexible control might be required
 	 */
 	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (5 << 8) | 0);
@@ -651,6 +733,47 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	/* wait for IDLEST to become Func(0) */
 	while(prcm_read_4(CM_PER_LCDC_CLKCTRL) & (3<<16))
 		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_pruss_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+
+	if (sc == NULL)
+		return (ENXIO);
+
+	/* Set MODULEMODE to ENABLE(2) */
+	prcm_write_4(CM_PER_PRUSS_CLKCTRL, 2);
+
+	/* Wait for MODULEMODE to become ENABLE(2) */
+	while ((prcm_read_4(CM_PER_PRUSS_CLKCTRL) & 0x3) != 2)
+		DELAY(10);
+
+	/* Set CLKTRCTRL to SW_WKUP(2) */
+	prcm_write_4(CM_PER_PRUSS_CLKSTCTRL, 2);
+
+	/* Wait for the 200 MHz OCP clock to become active */
+	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<4)) == 0)
+		DELAY(10);
+
+	/* Wait for the 200 MHz IEP clock to become active */
+	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<5)) == 0)
+		DELAY(10);
+
+	/* Wait for the 192 MHz UART clock to become active */
+	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<6)) == 0)
+		DELAY(10);
+
+	/* Select DISP DPLL as OCP clock */
+	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 1);
+	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 1)
+		DELAY(10);
+
+	/* Clear the RESET bit */
+	prcm_write_4(PRM_PER_RSTCTRL, prcm_read_4(PRM_PER_RSTCTRL) & ~2);
 
 	return (0);
 }

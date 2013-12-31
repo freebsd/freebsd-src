@@ -150,6 +150,14 @@ extern	int (*vlan_tag_p)(struct ifnet *, uint16_t *);
 extern	int (*vlan_setcookie_p)(struct ifnet *, void *);
 extern	void *(*vlan_cookie_p)(struct ifnet *);
 
+#ifdef _SYS_EVENTHANDLER_H_
+/* VLAN state change events */
+typedef void (*vlan_config_fn)(void *, struct ifnet *, uint16_t);
+typedef void (*vlan_unconfig_fn)(void *, struct ifnet *, uint16_t);
+EVENTHANDLER_DECLARE(vlan_config, vlan_config_fn);
+EVENTHANDLER_DECLARE(vlan_unconfig, vlan_unconfig_fn);
+#endif /* _SYS_EVENTHANDLER_H_ */
+
 #endif /* _KERNEL */
 
 #endif /* _NET_IF_VLAN_VAR_H_ */

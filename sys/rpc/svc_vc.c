@@ -1,32 +1,31 @@
 /*	$NetBSD: svc_vc.c,v 1.7 2000/08/03 00:01:53 fvdl Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
  * 
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- * 
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- * 
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- * 
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -382,15 +381,11 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * We must re-test for new connections after taking
 		 * the lock to protect us in the case where a new
 		 * connection arrives after our call to accept fails
-		 * with EWOULDBLOCK. The pool lock protects us from
-		 * racing the upcall after our TAILQ_EMPTY() call
-		 * returns false.
+		 * with EWOULDBLOCK.
 		 */
 		ACCEPT_LOCK();
-		mtx_lock(&xprt->xp_pool->sp_lock);
 		if (TAILQ_EMPTY(&xprt->xp_socket->so_comp))
-			xprt_inactive_locked(xprt);
-		mtx_unlock(&xprt->xp_pool->sp_lock);
+			xprt_inactive_self(xprt);
 		ACCEPT_UNLOCK();
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -403,7 +398,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			soupcall_clear(xprt->xp_socket, SO_RCV);
 		}
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
@@ -527,35 +522,14 @@ static enum xprt_stat
 svc_vc_stat(SVCXPRT *xprt)
 {
 	struct cf_conn *cd;
-	struct mbuf *m;
-	size_t n;
 
 	cd = (struct cf_conn *)(xprt->xp_p1);
 
 	if (cd->strm_stat == XPRT_DIED)
 		return (XPRT_DIED);
 
-	/*
-	 * Return XPRT_MOREREQS if we have buffered data and we are
-	 * mid-record or if we have enough data for a record
-	 * marker. Since this is only a hint, we read mpending and
-	 * resid outside the lock. We do need to take the lock if we
-	 * have to traverse the mbuf chain.
-	 */
-	if (cd->mpending) {
-		if (cd->resid)
-			return (XPRT_MOREREQS);
-		n = 0;
-		sx_xlock(&xprt->xp_lock);
-		m = cd->mpending;
-		while (m && n < sizeof(uint32_t)) {
-			n += m->m_len;
-			m = m->m_next;
-		}
-		sx_xunlock(&xprt->xp_lock);
-		if (n >= sizeof(uint32_t))
-			return (XPRT_MOREREQS);
-	}
+	if (cd->mreq != NULL && cd->resid == 0 && cd->eor)
+		return (XPRT_MOREREQS);
 
 	if (soreadable(xprt->xp_socket))
 		return (XPRT_MOREREQS);
@@ -576,6 +550,87 @@ svc_vc_backchannel_stat(SVCXPRT *xprt)
 	return (XPRT_IDLE);
 }
 
+/*
+ * If we have an mbuf chain in cd->mpending, try to parse a record from it,
+ * leaving the result in cd->mreq. If we don't have a complete record, leave
+ * the partial result in cd->mreq and try to read more from the socket.
+ */
+static int
+svc_vc_process_pending(SVCXPRT *xprt)
+{
+	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
+	struct socket *so = xprt->xp_socket;
+	struct mbuf *m;
+
+	/*
+	 * If cd->resid is non-zero, we have part of the
+	 * record already, otherwise we are expecting a record
+	 * marker.
+	 */
+	if (!cd->resid && cd->mpending) {
+		/*
+		 * See if there is enough data buffered to
+		 * make up a record marker. Make sure we can
+		 * handle the case where the record marker is
+		 * split across more than one mbuf.
+		 */
+		size_t n = 0;
+		uint32_t header;
+
+		m = cd->mpending;
+		while (n < sizeof(uint32_t) && m) {
+			n += m->m_len;
+			m = m->m_next;
+		}
+		if (n < sizeof(uint32_t)) {
+			so->so_rcv.sb_lowat = sizeof(uint32_t) - n;
+			return (FALSE);
+		}
+		m_copydata(cd->mpending, 0, sizeof(header),
+		    (char *)&header);
+		header = ntohl(header);
+		cd->eor = (header & 0x80000000) != 0;
+		cd->resid = header & 0x7fffffff;
+		m_adj(cd->mpending, sizeof(uint32_t));
+	}
+
+	/*
+	 * Start pulling off mbufs from cd->mpending
+	 * until we either have a complete record or
+	 * we run out of data. We use m_split to pull
+	 * data - it will pull as much as possible and
+	 * split the last mbuf if necessary.
+	 */
+	while (cd->mpending && cd->resid) {
+		m = cd->mpending;
+		if (cd->mpending->m_next
+		    || cd->mpending->m_len > cd->resid)
+			cd->mpending = m_split(cd->mpending,
+			    cd->resid, M_WAITOK);
+		else
+			cd->mpending = NULL;
+		if (cd->mreq)
+			m_last(cd->mreq)->m_next = m;
+		else
+			cd->mreq = m;
+		while (m) {
+			cd->resid -= m->m_len;
+			m = m->m_next;
+		}
+	}
+
+	/*
+	 * Block receive upcalls if we have more data pending,
+	 * otherwise report our need.
+	 */
+	if (cd->mpending)
+		so->so_rcv.sb_lowat = INT_MAX;
+	else
+		so->so_rcv.sb_lowat =
+		    imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	return (TRUE);
+}
+
 static bool_t
 svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr **addrp, struct mbuf **mp)
@@ -583,6 +638,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
 	struct uio uio;
 	struct mbuf *m;
+	struct socket* so = xprt->xp_socket;
 	XDR xdrs;
 	int error, rcvflag;
 
@@ -593,99 +649,42 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	sx_xlock(&xprt->xp_lock);
 
 	for (;;) {
-		/*
-		 * If we have an mbuf chain in cd->mpending, try to parse a
-		 * record from it, leaving the result in cd->mreq. If we don't
-		 * have a complete record, leave the partial result in
-		 * cd->mreq and try to read more from the socket.
-		 */
-		if (cd->mpending) {
-			/*
-			 * If cd->resid is non-zero, we have part of the
-			 * record already, otherwise we are expecting a record
-			 * marker.
-			 */
-			if (!cd->resid) {
-				/*
-				 * See if there is enough data buffered to
-				 * make up a record marker. Make sure we can
-				 * handle the case where the record marker is
-				 * split across more than one mbuf.
-				 */
-				size_t n = 0;
-				uint32_t header;
-
-				m = cd->mpending;
-				while (n < sizeof(uint32_t) && m) {
-					n += m->m_len;
-					m = m->m_next;
-				}
-				if (n < sizeof(uint32_t))
-					goto readmore;
-				m_copydata(cd->mpending, 0, sizeof(header),
-				    (char *)&header);
-				header = ntohl(header);
-				cd->eor = (header & 0x80000000) != 0;
-				cd->resid = header & 0x7fffffff;
-				m_adj(cd->mpending, sizeof(uint32_t));
-			}
-
-			/*
-			 * Start pulling off mbufs from cd->mpending
-			 * until we either have a complete record or
-			 * we run out of data. We use m_split to pull
-			 * data - it will pull as much as possible and
-			 * split the last mbuf if necessary.
-			 */
-			while (cd->mpending && cd->resid) {
-				m = cd->mpending;
-				if (cd->mpending->m_next
-				    || cd->mpending->m_len > cd->resid)
-					cd->mpending = m_split(cd->mpending,
-					    cd->resid, M_WAITOK);
-				else
-					cd->mpending = NULL;
-				if (cd->mreq)
-					m_last(cd->mreq)->m_next = m;
-				else
-					cd->mreq = m;
-				while (m) {
-					cd->resid -= m->m_len;
-					m = m->m_next;
-				}
-			}
-
-			/*
-			 * If cd->resid is zero now, we have managed to
-			 * receive a record fragment from the stream. Check
-			 * for the end-of-record mark to see if we need more.
-			 */
-			if (cd->resid == 0) {
-				if (!cd->eor)
-					continue;
-
-				/*
-				 * Success - we have a complete record in
-				 * cd->mreq.
-				 */
-				xdrmbuf_create(&xdrs, cd->mreq, XDR_DECODE);
-				cd->mreq = NULL;
-				sx_xunlock(&xprt->xp_lock);
-
-				if (! xdr_callmsg(&xdrs, msg)) {
-					XDR_DESTROY(&xdrs);
-					return (FALSE);
-				}
-
-				*addrp = NULL;
-				*mp = xdrmbuf_getall(&xdrs);
-				XDR_DESTROY(&xdrs);
-
-				return (TRUE);
-			}
+		/* If we have no request ready, check pending queue. */
+		while (cd->mpending &&
+		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor)) {
+			if (!svc_vc_process_pending(xprt))
+				break;
 		}
 
-	readmore:
+		/* Process and return complete request in cd->mreq. */
+		if (cd->mreq != NULL && cd->resid == 0 && cd->eor) {
+
+			xdrmbuf_create(&xdrs, cd->mreq, XDR_DECODE);
+			cd->mreq = NULL;
+
+			/* Check for next request in a pending queue. */
+			svc_vc_process_pending(xprt);
+			if (cd->mreq == NULL || cd->resid != 0) {
+				SOCKBUF_LOCK(&so->so_rcv);
+				if (!soreadable(so))
+					xprt_inactive_self(xprt);
+				SOCKBUF_UNLOCK(&so->so_rcv);
+			}
+
+			sx_xunlock(&xprt->xp_lock);
+
+			if (! xdr_callmsg(&xdrs, msg)) {
+				XDR_DESTROY(&xdrs);
+				return (FALSE);
+			}
+
+			*addrp = NULL;
+			*mp = xdrmbuf_getall(&xdrs);
+			XDR_DESTROY(&xdrs);
+
+			return (TRUE);
+		}
+
 		/*
 		 * The socket upcall calls xprt_active() which will eventually
 		 * cause the server to call us here. We attempt to
@@ -698,8 +697,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		uio.uio_td = curthread;
 		m = NULL;
 		rcvflag = MSG_DONTWAIT;
-		error = soreceive(xprt->xp_socket, NULL, &uio, &m, NULL,
-		    &rcvflag);
+		error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
 
 		if (error == EWOULDBLOCK) {
 			/*
@@ -707,26 +705,24 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			 * taking the lock to protect us in the case
 			 * where a new packet arrives on the socket
 			 * after our call to soreceive fails with
-			 * EWOULDBLOCK. The pool lock protects us from
-			 * racing the upcall after our soreadable()
-			 * call returns false.
+			 * EWOULDBLOCK.
 			 */
-			mtx_lock(&xprt->xp_pool->sp_lock);
-			if (!soreadable(xprt->xp_socket))
-				xprt_inactive_locked(xprt);
-			mtx_unlock(&xprt->xp_pool->sp_lock);
+			SOCKBUF_LOCK(&so->so_rcv);
+			if (!soreadable(so))
+				xprt_inactive_self(xprt);
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
 
 		if (error) {
-			SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
+			SOCKBUF_LOCK(&so->so_rcv);
 			if (xprt->xp_upcallset) {
 				xprt->xp_upcallset = 0;
-				soupcall_clear(xprt->xp_socket, SO_RCV);
+				soupcall_clear(so, SO_RCV);
 			}
-			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-			xprt_inactive(xprt);
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -736,7 +732,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
-			xprt_inactive(xprt);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -767,7 +763,7 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	mtx_lock(&ct->ct_lock);
 	m = cd->mreq;
 	if (m == NULL) {
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		mtx_unlock(&ct->ct_lock);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -909,7 +905,8 @@ svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
-	xprt_active(xprt);
+	if (soreadable(xprt->xp_socket))
+		xprt_active(xprt);
 	return (SU_OK);
 }
 

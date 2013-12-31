@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -42,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/libalias/alias_local.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
@@ -53,8 +55,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
 
-static VNET_DEFINE(eventhandler_tag, ifaddr_event_tag);
-#define	V_ifaddr_event_tag	VNET(ifaddr_event_tag)
+static eventhandler_tag ifaddr_event_tag;
 
 static void
 ifaddr_change(void *arg __unused, struct ifnet *ifp)
@@ -63,6 +64,8 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	struct ifaddr *ifa;
 	struct ip_fw_chain *chain;
 
+	KASSERT(curvnet == ifp->if_vnet,
+	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
 	chain = &V_layer3_chain;
 	IPFW_WLOCK(chain);
 	/* Check every nat entry... */
@@ -589,26 +592,16 @@ ipfw_nat_get_log(struct sockopt *sopt)
 	return(0);
 }
 
-static void
-ipfw_nat_init(void)
+static int
+vnet_ipfw_nat_init(const void *arg __unused)
 {
 
-	IPFW_WLOCK(&V_layer3_chain);
-	/* init ipfw hooks */
-	ipfw_nat_ptr = ipfw_nat;
-	lookup_nat_ptr = lookup_nat;
-	ipfw_nat_cfg_ptr = ipfw_nat_cfg;
-	ipfw_nat_del_ptr = ipfw_nat_del;
-	ipfw_nat_get_cfg_ptr = ipfw_nat_get_cfg;
-	ipfw_nat_get_log_ptr = ipfw_nat_get_log;
-	IPFW_WUNLOCK(&V_layer3_chain);
-	V_ifaddr_event_tag = EVENTHANDLER_REGISTER(
-	    ifaddr_event, ifaddr_change,
-	    NULL, EVENTHANDLER_PRI_ANY);
+	V_ipfw_nat_ready = 1;
+	return (0);
 }
 
-static void
-ipfw_nat_destroy(void)
+static int
+vnet_ipfw_nat_uninit(const void *arg __unused)
 {
 	struct cfg_nat *ptr, *ptr_temp;
 	struct ip_fw_chain *chain;
@@ -621,8 +614,33 @@ ipfw_nat_destroy(void)
 		LibAliasUninit(ptr->lib);
 		free(ptr, M_IPFW);
 	}
-	EVENTHANDLER_DEREGISTER(ifaddr_event, V_ifaddr_event_tag);
 	flush_nat_ptrs(chain, -1 /* flush all */);
+	V_ipfw_nat_ready = 0;
+	IPFW_WUNLOCK(chain);
+	return (0);
+}
+
+static void
+ipfw_nat_init(void)
+{
+
+	/* init ipfw hooks */
+	ipfw_nat_ptr = ipfw_nat;
+	lookup_nat_ptr = lookup_nat;
+	ipfw_nat_cfg_ptr = ipfw_nat_cfg;
+	ipfw_nat_del_ptr = ipfw_nat_del;
+	ipfw_nat_get_cfg_ptr = ipfw_nat_get_cfg;
+	ipfw_nat_get_log_ptr = ipfw_nat_get_log;
+
+	ifaddr_event_tag = EVENTHANDLER_REGISTER(ifaddr_event, ifaddr_change,
+	    NULL, EVENTHANDLER_PRI_ANY);
+}
+
+static void
+ipfw_nat_destroy(void)
+{
+
+	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_event_tag);
 	/* deregister ipfw_nat */
 	ipfw_nat_ptr = NULL;
 	lookup_nat_ptr = NULL;
@@ -630,7 +648,6 @@ ipfw_nat_destroy(void)
 	ipfw_nat_del_ptr = NULL;
 	ipfw_nat_get_cfg_ptr = NULL;
 	ipfw_nat_get_log_ptr = NULL;
-	IPFW_WUNLOCK(chain);
 }
 
 static int
@@ -640,11 +657,9 @@ ipfw_nat_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD:
-		ipfw_nat_init();
 		break;
 
 	case MOD_UNLOAD:
-		ipfw_nat_destroy();
 		break;
 
 	default:
@@ -660,8 +675,25 @@ static moduledata_t ipfw_nat_mod = {
 	0
 };
 
-DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY);
+/* Define startup order. */
+#define	IPFW_NAT_SI_SUB_FIREWALL	(SI_SUB_PROTO_IFATTACHDOMAIN + 1)
+#define	IPFW_NAT_MODEVENT_ORDER		(SI_ORDER_ANY - 255)
+#define	IPFW_NAT_MODULE_ORDER		(IPFW_NAT_MODEVENT_ORDER + 1)
+#define	IPFW_NAT_VNET_ORDER		(IPFW_NAT_MODEVENT_ORDER + 2)
+
+DECLARE_MODULE(ipfw_nat, ipfw_nat_mod, IPFW_NAT_SI_SUB_FIREWALL, SI_ORDER_ANY);
 MODULE_DEPEND(ipfw_nat, libalias, 1, 1, 1);
 MODULE_DEPEND(ipfw_nat, ipfw, 2, 2, 2);
 MODULE_VERSION(ipfw_nat, 1);
+
+SYSINIT(ipfw_nat_init, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_MODULE_ORDER,
+    ipfw_nat_init, NULL);
+VNET_SYSINIT(vnet_ipfw_nat_init, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_VNET_ORDER,
+    vnet_ipfw_nat_init, NULL);
+
+SYSUNINIT(ipfw_nat_destroy, IPFW_NAT_SI_SUB_FIREWALL, IPFW_NAT_MODULE_ORDER,
+    ipfw_nat_destroy, NULL);
+VNET_SYSUNINIT(vnet_ipfw_nat_uninit, IPFW_NAT_SI_SUB_FIREWALL,
+    IPFW_NAT_VNET_ORDER, vnet_ipfw_nat_uninit, NULL);
+
 /* end of file */

@@ -532,7 +532,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 *     multi-seg allocations yet though.
 		 * XXX Certain AGP hardware does.
 		 */
-		*vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
+		*vaddr = (void *)kmem_alloc_contig(kmem_arena, dmat->maxsize,
 		    mflags, 0ul, dmat->lowaddr, dmat->alignment ?
 		    dmat->alignment : 1ul, dmat->boundary, attr);
 		(*mapp)->contigalloc = 1;
@@ -560,7 +560,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	if (!map->contigalloc)
 		free(vaddr, M_DEVBUF);
 	else
-		kmem_free(kernel_map, (vm_offset_t)vaddr, dmat->maxsize);
+		kmem_free(kmem_arena, (vm_offset_t)vaddr, dmat->maxsize);
 	bus_dmamap_destroy(dmat, map);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
@@ -754,6 +754,16 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
 
+int
+_bus_dmamap_load_ma(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+
+	return (bus_dmamap_load_ma_triv(dmat, map, ma, tlen, ma_offs, flags,
+	    segs, segp));
+}
+
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
@@ -844,15 +854,18 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 		     bus_dma_segment_t *segs, int nsegs, int error)
 {
 
+	map->nsegs = nsegs;
 	if (segs != NULL)
 		memcpy(map->segments, segs, map->nsegs*sizeof(segs[0]));
-	else
-		segs = map->segments;
-	map->nsegs = nsegs;
 	if (dmat->iommu != NULL)
 		IOMMU_MAP(dmat->iommu, map->segments, &map->nsegs,
 		    dmat->lowaddr, dmat->highaddr, dmat->alignment,
 		    dmat->boundary, dmat->iommu_cookie);
+
+	if (segs != NULL)
+		memcpy(segs, map->segments, map->nsegs*sizeof(segs[0]));
+	else
+		segs = map->segments;
 
 	return (segs);
 }

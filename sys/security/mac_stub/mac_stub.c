@@ -757,6 +757,14 @@ stub_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 }
 
 static int
+stub_posixshm_check_read(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static int
 stub_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel, mode_t mode)
 {
@@ -791,6 +799,14 @@ stub_posixshm_check_truncate(struct ucred *active_cred,
 static int
 stub_posixshm_check_unlink(struct ucred *cred, struct shmfd *shmfd,
     struct label *shmlabel)
+{
+
+	return (0);
+}
+
+static int
+stub_posixshm_check_write(struct ucred *active_cred, struct ucred *file_cred,
+    struct shmfd *shm, struct label *shmlabel)
 {
 
 	return (0);
@@ -1782,11 +1798,13 @@ static struct mac_policy_ops stub_ops =
 	.mpo_posixshm_check_create = stub_posixshm_check_create,
 	.mpo_posixshm_check_mmap = stub_posixshm_check_mmap,
 	.mpo_posixshm_check_open = stub_posixshm_check_open,
+	.mpo_posixshm_check_read = stub_posixshm_check_read,
 	.mpo_posixshm_check_setmode = stub_posixshm_check_setmode,
 	.mpo_posixshm_check_setowner = stub_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = stub_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = stub_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = stub_posixshm_check_unlink,
+	.mpo_posixshm_check_write = stub_posixshm_check_write,
 	.mpo_posixshm_create = stub_posixshm_create,
 	.mpo_posixshm_destroy_label = stub_destroy_label,
 	.mpo_posixshm_init_label = stub_init_label,

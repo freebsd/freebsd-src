@@ -65,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 
+static int	g_io_transient_map_bio(struct bio *bp);
+
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
 static struct g_bioq g_bio_run_task;
@@ -310,6 +312,8 @@ g_io_check(struct bio *bp)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
+	off_t excess;
+	int error;
 
 	cp = bp->bio_from;
 	pp = bp->bio_to;
@@ -354,11 +358,44 @@ g_io_check(struct bio *bp)
 			return (EIO);
 		if (bp->bio_offset > pp->mediasize)
 			return (EIO);
+
+		/* Truncate requests to the end of providers media. */
+		excess = bp->bio_offset + bp->bio_length;
+		if (excess > bp->bio_to->mediasize) {
+			KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
+			    round_page(bp->bio_ma_offset +
+			    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
+			    ("excess bio %p too short", bp));
+			excess -= bp->bio_to->mediasize;
+			bp->bio_length -= excess;
+			if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
+				bp->bio_ma_n = round_page(bp->bio_ma_offset +
+				    bp->bio_length) / PAGE_SIZE;
+			}
+			if (excess > 0)
+				CTR3(KTR_GEOM, "g_down truncated bio "
+				    "%p provider %s by %d", bp,
+				    bp->bio_to->name, excess);
+		}
+
+		/* Deliver zero length transfers right here. */
+		if (bp->bio_length == 0) {
+			CTR2(KTR_GEOM, "g_down terminated 0-length "
+			    "bp %p provider %s", bp, bp->bio_to->name);
+			return (0);
+		}
+
+		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
+		    (bp->bio_to->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
+		    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
+			if ((error = g_io_transient_map_bio(bp)) >= 0)
+				return (error);
+		}
 		break;
 	default:
 		break;
 	}
-	return (0);
+	return (EJUSTRETURN);
 }
 
 /*
@@ -422,7 +459,8 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	int first;
+	struct mtx *mtxp;
+	int direct, error, first;
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
@@ -472,48 +510,81 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
 	    ("Bio already on queue bp=%p", bp));
-	bp->bio_flags |= BIO_ONQUEUE;
-
-	if (g_collectstats)
+	if ((g_collectstats & G_STATS_CONSUMERS) != 0 ||
+	    ((g_collectstats & G_STATS_PROVIDERS) != 0 && pp->stat != NULL))
 		binuptime(&bp->bio_t0);
 	else
 		getbinuptime(&bp->bio_t0);
+
+#ifdef GET_STACK_USAGE
+	direct = (cp->flags & G_CF_DIRECT_SEND) &&
+		 (pp->flags & G_PF_DIRECT_RECEIVE) &&
+		 !g_is_geom_thread(curthread) &&
+		 (((pp->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
+		   (bp->bio_flags & BIO_UNMAPPED) != 0) || THREAD_CAN_SLEEP());
+	if (direct) {
+		/* Block direct execution if less then half of stack left. */
+		size_t	st, su;
+		GET_STACK_USAGE(st, su);
+		if (su * 2 > st)
+			direct = 0;
+	}
+#else
+	direct = 0;
+#endif
+
+	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1) {
+		g_bioq_lock(&g_bio_run_down);
+		g_run_classifiers(bp);
+		g_bioq_unlock(&g_bio_run_down);
+	}
 
 	/*
 	 * The statistics collection is lockless, as such, but we
 	 * can not update one instance of the statistics from more
 	 * than one thread at a time, so grab the lock first.
-	 *
-	 * We also use the lock to protect the list of classifiers.
 	 */
-	g_bioq_lock(&g_bio_run_down);
-
-	if (!TAILQ_EMPTY(&g_classifier_tailq) && !bp->bio_classifier1)
-		g_run_classifiers(bp);
-
-	if (g_collectstats & 1)
+	mtxp = mtx_pool_find(mtxpool_sleep, pp);
+	mtx_lock(mtxp);
+	if (g_collectstats & G_STATS_PROVIDERS)
 		devstat_start_transaction(pp->stat, &bp->bio_t0);
-	if (g_collectstats & 2)
+	if (g_collectstats & G_STATS_CONSUMERS)
 		devstat_start_transaction(cp->stat, &bp->bio_t0);
-
 	pp->nstart++;
 	cp->nstart++;
-	first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
-	TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
-	g_bio_run_down.bio_queue_length++;
-	g_bioq_unlock(&g_bio_run_down);
+	mtx_unlock(mtxp);
 
-	/* Pass it on down. */
-	if (first)
-		wakeup(&g_wait_down);
+	if (direct) {
+		error = g_io_check(bp);
+		if (error >= 0) {
+			CTR3(KTR_GEOM, "g_io_request g_io_check on bp %p "
+			    "provider %s returned %d", bp, bp->bio_to->name,
+			    error);
+			g_io_deliver(bp, error);
+			return;
+		}
+		bp->bio_to->geom->start(bp);
+	} else {
+		g_bioq_lock(&g_bio_run_down);
+		first = TAILQ_EMPTY(&g_bio_run_down.bio_queue);
+		TAILQ_INSERT_TAIL(&g_bio_run_down.bio_queue, bp, bio_queue);
+		bp->bio_flags |= BIO_ONQUEUE;
+		g_bio_run_down.bio_queue_length++;
+		g_bioq_unlock(&g_bio_run_down);
+		/* Pass it on down. */
+		if (first)
+			wakeup(&g_wait_down);
+	}
 }
 
 void
 g_io_deliver(struct bio *bp, int error)
 {
+	struct bintime now;
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	int first;
+	struct mtx *mtxp;
+	int direct, first;
 
 	KASSERT(bp != NULL, ("NULL bp in g_io_deliver"));
 	pp = bp->bio_to;
@@ -559,31 +630,55 @@ g_io_deliver(struct bio *bp, int error)
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 
+#ifdef GET_STACK_USAGE
+	direct = (pp->flags & G_PF_DIRECT_SEND) &&
+		 (cp->flags & G_CF_DIRECT_RECEIVE) &&
+		 !g_is_geom_thread(curthread);
+	if (direct) {
+		/* Block direct execution if less then half of stack left. */
+		size_t	st, su;
+		GET_STACK_USAGE(st, su);
+		if (su * 2 > st)
+			direct = 0;
+	}
+#else
+	direct = 0;
+#endif
+
 	/*
 	 * The statistics collection is lockless, as such, but we
 	 * can not update one instance of the statistics from more
 	 * than one thread at a time, so grab the lock first.
 	 */
-	g_bioq_lock(&g_bio_run_up);
-	if (g_collectstats & 1)
-		devstat_end_transaction_bio(pp->stat, bp);
-	if (g_collectstats & 2)
-		devstat_end_transaction_bio(cp->stat, bp);
-
+	if ((g_collectstats & G_STATS_CONSUMERS) != 0 ||
+	    ((g_collectstats & G_STATS_PROVIDERS) != 0 && pp->stat != NULL))
+		binuptime(&now);
+	mtxp = mtx_pool_find(mtxpool_sleep, cp);
+	mtx_lock(mtxp);
+	if (g_collectstats & G_STATS_PROVIDERS)
+		devstat_end_transaction_bio_bt(pp->stat, bp, &now);
+	if (g_collectstats & G_STATS_CONSUMERS)
+		devstat_end_transaction_bio_bt(cp->stat, bp, &now);
 	cp->nend++;
 	pp->nend++;
+	mtx_unlock(mtxp);
+
 	if (error != ENOMEM) {
 		bp->bio_error = error;
-		first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
-		TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
-		bp->bio_flags |= BIO_ONQUEUE;
-		g_bio_run_up.bio_queue_length++;
-		g_bioq_unlock(&g_bio_run_up);
-		if (first)
-			wakeup(&g_wait_up);
+		if (direct) {
+			biodone(bp);
+		} else {
+			g_bioq_lock(&g_bio_run_up);
+			first = TAILQ_EMPTY(&g_bio_run_up.bio_queue);
+			TAILQ_INSERT_TAIL(&g_bio_run_up.bio_queue, bp, bio_queue);
+			bp->bio_flags |= BIO_ONQUEUE;
+			g_bio_run_up.bio_queue_length++;
+			g_bioq_unlock(&g_bio_run_up);
+			if (first)
+				wakeup(&g_wait_up);
+		}
 		return;
 	}
-	g_bioq_unlock(&g_bio_run_up);
 
 	if (bootverbose)
 		printf("ENOMEM %p on %p(%s)\n", bp, pp, pp->name);
@@ -639,11 +734,10 @@ retry:
 	if (vmem_alloc(transient_arena, size, M_BESTFIT | M_NOWAIT, &addr)) {
 		if (transient_map_retries != 0 &&
 		    retried >= transient_map_retries) {
-			g_io_deliver(bp, EDEADLK/* XXXKIB */);
 			CTR2(KTR_GEOM, "g_down cannot map bp %p provider %s",
 			    bp, bp->bio_to->name);
 			atomic_add_int(&transient_map_hard_failures, 1);
-			return (1);
+			return (EDEADLK/* XXXKIB */);
 		} else {
 			/*
 			 * Naive attempt to quisce the I/O to get more
@@ -663,14 +757,13 @@ retry:
 	bp->bio_data = (caddr_t)addr + bp->bio_ma_offset;
 	bp->bio_flags |= BIO_TRANSIENT_MAPPING;
 	bp->bio_flags &= ~BIO_UNMAPPED;
-	return (0);
+	return (EJUSTRETURN);
 }
 
 void
 g_io_schedule_down(struct thread *tp __unused)
 {
 	struct bio *bp;
-	off_t excess;
 	int error;
 
 	for(;;) {
@@ -689,58 +782,14 @@ g_io_schedule_down(struct thread *tp __unused)
 			pause("g_down", hz/10);
 			pace--;
 		}
+		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
+		    bp->bio_to->name);
 		error = g_io_check(bp);
-		if (error) {
+		if (error >= 0) {
 			CTR3(KTR_GEOM, "g_down g_io_check on bp %p provider "
 			    "%s returned %d", bp, bp->bio_to->name, error);
 			g_io_deliver(bp, error);
 			continue;
-		}
-		CTR2(KTR_GEOM, "g_down processing bp %p provider %s", bp,
-		    bp->bio_to->name);
-		switch (bp->bio_cmd) {
-		case BIO_READ:
-		case BIO_WRITE:
-		case BIO_DELETE:
-			/* Truncate requests to the end of providers media. */
-			/*
-			 * XXX: What if we truncate because of offset being
-			 * bad, not length?
-			 */
-			excess = bp->bio_offset + bp->bio_length;
-			if (excess > bp->bio_to->mediasize) {
-				KASSERT((bp->bio_flags & BIO_UNMAPPED) == 0 ||
-				    round_page(bp->bio_ma_offset +
-				    bp->bio_length) / PAGE_SIZE == bp->bio_ma_n,
-				    ("excess bio %p too short", bp));
-				excess -= bp->bio_to->mediasize;
-				bp->bio_length -= excess;
-				if ((bp->bio_flags & BIO_UNMAPPED) != 0) {
-					bp->bio_ma_n = round_page(
-					    bp->bio_ma_offset +
-					    bp->bio_length) / PAGE_SIZE;
-				}
-				if (excess > 0)
-					CTR3(KTR_GEOM, "g_down truncated bio "
-					    "%p provider %s by %d", bp,
-					    bp->bio_to->name, excess);
-			}
-			/* Deliver zero length transfers right here. */
-			if (bp->bio_length == 0) {
-				g_io_deliver(bp, 0);
-				CTR2(KTR_GEOM, "g_down terminated 0-length "
-				    "bp %p provider %s", bp, bp->bio_to->name);
-				continue;
-			}
-			break;
-		default:
-			break;
-		}
-		if ((bp->bio_flags & BIO_UNMAPPED) != 0 &&
-		    (bp->bio_to->flags & G_PF_ACCEPT_UNMAPPED) == 0 &&
-		    (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE)) {
-			if (g_io_transient_map_bio(bp))
-				continue;
 		}
 		THREAD_NO_SLEEPING();
 		CTR4(KTR_GEOM, "g_down starting bp %p provider %s off %ld "

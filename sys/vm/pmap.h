@@ -98,14 +98,12 @@ struct thread;
 extern vm_offset_t kernel_vm_end;
 
 void		 pmap_activate(struct thread *td);
+void		 pmap_advise(pmap_t pmap, vm_offset_t sva, vm_offset_t eva,
+		    int advice);
 void		 pmap_align_superpage(vm_object_t, vm_ooffset_t, vm_offset_t *,
 		    vm_size_t);
-#if defined(__mips__)
-void		 pmap_align_tlb(vm_offset_t *);
-#endif
 void		 pmap_change_wiring(pmap_t, vm_offset_t, boolean_t);
 void		 pmap_clear_modify(vm_page_t m);
-void		 pmap_clear_reference(vm_page_t m);
 void		 pmap_copy(pmap_t, pmap_t, vm_offset_t, vm_size_t, vm_offset_t);
 void		 pmap_copy_page(vm_page_t, vm_page_t);
 void		 pmap_copy_pages(vm_page_t ma[], vm_offset_t a_offset,

@@ -106,7 +106,8 @@ g_raid_tr_taste_raid5(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 	trs = (struct g_raid_tr_raid5_object *)tr;
 	qual = tr->tro_volume->v_raid_level_qualifier;
 	if (tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID4 &&
-	    qual >= 0 && qual <= 1) {
+	    (qual == G_RAID_VOLUME_RLQ_R4P0 ||
+	     qual == G_RAID_VOLUME_RLQ_R4PN)) {
 		/* RAID4 */
 	} else if ((tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5 ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5E ||
@@ -114,7 +115,10 @@ g_raid_tr_taste_raid5(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5R ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID6 ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAIDMDF) &&
-	    qual >= 0 && qual <= 3) {
+	    (qual == G_RAID_VOLUME_RLQ_R5RA ||
+	     qual == G_RAID_VOLUME_RLQ_R5RS ||
+	     qual == G_RAID_VOLUME_RLQ_R5LA ||
+	     qual == G_RAID_VOLUME_RLQ_R5LS)) {
 		/* RAID5/5E/5EE/5R/6/MDF */
 	} else
 		return (G_RAID_TR_TASTE_FAIL);
@@ -181,8 +185,9 @@ g_raid_tr_start_raid5(struct g_raid_tr_object *tr)
 	struct g_raid_volume *vol;
 
 	trs = (struct g_raid_tr_raid5_object *)tr;
-	vol = tr->tro_volume;
 	trs->trso_starting = 0;
+	vol = tr->tro_volume;
+	vol->v_read_only = 1;
 	g_raid_tr_update_state_raid5(vol, NULL);
 	return (0);
 }
@@ -319,20 +324,15 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 		addr += length;
 		start = 0;
 	} while (remain > 0);
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL) {
 		sd = cbp->bio_caller1;
 		cbp->bio_caller1 = NULL;
 		g_raid_subdisk_iostart(sd, cbp);
 	}
 	return;
 failure:
-	for (cbp = bioq_first(&queue); cbp != NULL;
-	    cbp = bioq_first(&queue)) {
-		bioq_remove(&queue, cbp);
+	while ((cbp = bioq_takefirst(&queue)) != NULL)
 		g_destroy_bio(cbp);
-	}
 	if (bp->bio_error == 0)
 		bp->bio_error = ENOMEM;
 	g_raid_iodone(bp, bp->bio_error);
