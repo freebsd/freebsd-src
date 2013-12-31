@@ -3279,7 +3279,7 @@ nfscl_docb(struct nfsrv_descript *nd, NFSPROC_T *p)
 				FREE((caddr_t)nfhp, M_NFSFH);
 			if (!error)
 				(void) nfsv4_fillattr(nd, NULL, NULL, NULL, &va,
-				    NULL, 0, &rattrbits, NULL, NULL, 0, 0, 0, 0,
+				    NULL, 0, &rattrbits, NULL, p, 0, 0, 0, 0,
 				    (uint64_t)0);
 			break;
 		case NFSV4OP_CBRECALL:
