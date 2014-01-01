@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/assym.h>
 
@@ -42,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "vmx_cpufunc.h"
 #include "vmx.h"
 
-ASSYM(VMXCTX_TMPSTKTOP, offsetof(struct vmxctx, tmpstktop));
 ASSYM(VMXCTX_GUEST_RDI, offsetof(struct vmxctx, guest_rdi));
 ASSYM(VMXCTX_GUEST_RSI, offsetof(struct vmxctx, guest_rsi));
 ASSYM(VMXCTX_GUEST_RDX, offsetof(struct vmxctx, guest_rdx));
@@ -69,27 +67,19 @@ ASSYM(VMXCTX_HOST_RSP, offsetof(struct vmxctx, host_rsp));
 ASSYM(VMXCTX_HOST_RBX, offsetof(struct vmxctx, host_rbx));
 ASSYM(VMXCTX_HOST_RIP, offsetof(struct vmxctx, host_rip));
 
-ASSYM(VMXCTX_LAUNCH_ERROR, offsetof(struct vmxctx, launch_error));
+ASSYM(VMXCTX_INST_FAIL_STATUS, offsetof(struct vmxctx, inst_fail_status));
 ASSYM(VMXCTX_EPTGEN, offsetof(struct vmxctx, eptgen));
 
 ASSYM(VMXCTX_PMAP, offsetof(struct vmxctx, pmap));
 ASSYM(VMXCTX_EPTP, offsetof(struct vmxctx, eptp));
 
-ASSYM(VM_SUCCESS,	VM_SUCCESS);
 ASSYM(VM_FAIL_INVALID,	VM_FAIL_INVALID);
 ASSYM(VM_FAIL_VALID,	VM_FAIL_VALID);
+ASSYM(VMX_GUEST_VMEXIT, VMX_GUEST_VMEXIT);
+ASSYM(VMX_VMRESUME_ERROR, VMX_VMRESUME_ERROR);
+ASSYM(VMX_VMLAUNCH_ERROR, VMX_VMLAUNCH_ERROR);
+ASSYM(VMX_INVEPT_ERROR, VMX_INVEPT_ERROR);
 
-ASSYM(VMX_RETURN_DIRECT,	VMX_RETURN_DIRECT);
-ASSYM(VMX_RETURN_LONGJMP,	VMX_RETURN_LONGJMP);
-ASSYM(VMX_RETURN_VMRESUME,	VMX_RETURN_VMRESUME);
-ASSYM(VMX_RETURN_VMLAUNCH,	VMX_RETURN_VMLAUNCH);
-ASSYM(VMX_RETURN_AST,		VMX_RETURN_AST);
-ASSYM(VMX_RETURN_INVEPT,	VMX_RETURN_INVEPT);
-
-ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
-ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
-ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
