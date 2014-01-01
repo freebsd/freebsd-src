@@ -47,6 +47,7 @@ extern "C" {
 #endif
 
 extern int zfs_flags;
+extern int zfs_recover;
 
 #define	ZFS_DEBUG_DPRINTF	(1<<0)
 #define	ZFS_DEBUG_DBUF_VERIFY	(1<<1)
