@@ -282,7 +282,8 @@ zvol_map_block(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	zvol_extent_t *ze;
 	int bs = ma->ma_zv->zv_volblocksize;
 
-	if (bp == NULL || zb->zb_object != ZVOL_OBJ || zb->zb_level != 0)
+	if (BP_IS_HOLE(bp) ||
+	    zb->zb_object != ZVOL_OBJ || zb->zb_level != 0)
 		return (0);
 
 	VERIFY3U(ma->ma_blks, ==, zb->zb_blkid);

@@ -262,8 +262,6 @@ vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
 	    FKIOCTL, kcred, NULL) == 0) {
 		uint64_t efi_altern_lba = LE_64(efi->efi_gpt_AlternateLBA);
 
-		zfs_dbgmsg("vdev %s, capacity %llu, altern lba %llu",
-		    vd->vdev_path, capacity, efi_altern_lba);
 		if (capacity > efi_altern_lba)
 			avail_space = (capacity - efi_altern_lba) * blksz;
 	}
