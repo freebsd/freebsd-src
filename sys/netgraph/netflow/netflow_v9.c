@@ -32,16 +32,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_route.h"
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/counter.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/socket.h>
-#include <sys/endian.h>
-
-#include <machine/atomic.h>
-#include <machine/stdarg.h>
 
 #include <net/if.h>
 #include <net/route.h>
