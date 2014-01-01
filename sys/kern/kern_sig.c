@@ -2959,7 +2959,7 @@ sigparent(struct proc *p, int reason, int status)
 }
 
 static void
-childproc_jobstate(struct proc *p, int reason, int status)
+childproc_jobstate(struct proc *p, int reason, int sig)
 {
 	struct sigacts *ps;
 
@@ -2979,7 +2979,7 @@ childproc_jobstate(struct proc *p, int reason, int status)
 	mtx_lock(&ps->ps_mtx);
 	if ((ps->ps_flag & PS_NOCLDSTOP) == 0) {
 		mtx_unlock(&ps->ps_mtx);
-		sigparent(p, reason, status);
+		sigparent(p, reason, sig);
 	} else
 		mtx_unlock(&ps->ps_mtx);
 }
@@ -2987,6 +2987,7 @@ childproc_jobstate(struct proc *p, int reason, int status)
 void
 childproc_stopped(struct proc *p, int reason)
 {
+	/* p_xstat is a plain signal number, not a full wait() status here. */
 	childproc_jobstate(p, reason, p->p_xstat);
 }
 
@@ -3000,13 +3001,15 @@ void
 childproc_exited(struct proc *p)
 {
 	int reason;
-	int status = p->p_xstat; /* convert to int */
+	int xstat = p->p_xstat; /* convert to int */
+	int status;
 
-	reason = CLD_EXITED;
-	if (WCOREDUMP(status))
-		reason = CLD_DUMPED;
-	else if (WIFSIGNALED(status))
-		reason = CLD_KILLED;
+	if (WCOREDUMP(xstat))
+		reason = CLD_DUMPED, status = WTERMSIG(xstat);
+	else if (WIFSIGNALED(xstat))
+		reason = CLD_KILLED, status = WTERMSIG(xstat);
+	else
+		reason = CLD_EXITED, status = WEXITSTATUS(xstat);
 	/*
 	 * XXX avoid calling wakeup(p->p_pptr), the work is
 	 * done in exit1().
