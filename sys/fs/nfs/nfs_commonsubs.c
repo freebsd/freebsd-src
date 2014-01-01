@@ -3744,51 +3744,13 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
     struct nfsclsession *sep, int dont_replycache)
 {
 	uint32_t *tl, slotseq = 0;
-	int i, maxslot, slotpos;
-	uint64_t bitval;
+	int error, maxslot, slotpos;
 	uint8_t sessionid[NFSX_V4SESSIONID];
 
-	/* Find an unused slot. */
-	slotpos = -1;
-	maxslot = -1;
-	mtx_lock(&sep->nfsess_mtx);
-	do {
-		bitval = 1;
-		for (i = 0; i < sep->nfsess_foreslots; i++) {
-			if ((bitval & sep->nfsess_slots) == 0) {
-				slotpos = i;
-				sep->nfsess_slots |= bitval;
-				sep->nfsess_slotseq[i]++;
-				slotseq = sep->nfsess_slotseq[i];
-				break;
-			}
-			bitval <<= 1;
-		}
-		if (slotpos == -1) {
-			/*
-			 * If a forced dismount is in progress, just return.
-			 * This RPC attempt will fail when it calls
-			 * newnfs_request().
-			 */
-			if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
-			    != 0) {
-				mtx_unlock(&sep->nfsess_mtx);
-				return;
-			}
-			/* Wake up once/sec, to check for a forced dismount. */
-			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
-			    PZERO, "nfsclseq", hz);
-		}
-	} while (slotpos == -1);
-	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
-	bitval = 1;
-	for (i = 0; i < 64; i++) {
-		if ((bitval & sep->nfsess_slots) != 0)
-			maxslot = i;
-		bitval <<= 1;
-	}
-	bcopy(sep->nfsess_sessionid, sessionid, NFSX_V4SESSIONID);
-	mtx_unlock(&sep->nfsess_mtx);
+	error = nfsv4_sequencelookup(nmp, sep, &slotpos, &maxslot, &slotseq,
+	    sessionid);
+	if (error != 0)
+		return;
 	KASSERT(maxslot >= 0, ("nfscl_setsequence neg maxslot"));
 
 	/* Build the Sequence arguments. */
@@ -3804,6 +3766,60 @@ nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
 	else
 		*tl = newnfs_false;
 	nd->nd_flag |= ND_HASSEQUENCE;
+}
+
+int
+nfsv4_sequencelookup(struct nfsmount *nmp, struct nfsclsession *sep,
+    int *slotposp, int *maxslotp, uint32_t *slotseqp, uint8_t *sessionid)
+{
+	int i, maxslot, slotpos;
+	uint64_t bitval;
+
+	/* Find an unused slot. */
+	slotpos = -1;
+	maxslot = -1;
+	mtx_lock(&sep->nfsess_mtx);
+	do {
+		bitval = 1;
+		for (i = 0; i < sep->nfsess_foreslots; i++) {
+			if ((bitval & sep->nfsess_slots) == 0) {
+				slotpos = i;
+				sep->nfsess_slots |= bitval;
+				sep->nfsess_slotseq[i]++;
+				*slotseqp = sep->nfsess_slotseq[i];
+				break;
+			}
+			bitval <<= 1;
+		}
+		if (slotpos == -1) {
+			/*
+			 * If a forced dismount is in progress, just return.
+			 * This RPC attempt will fail when it calls
+			 * newnfs_request().
+			 */
+			if (nmp != NULL &&
+			    (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
+			    != 0) {
+				mtx_unlock(&sep->nfsess_mtx);
+				return (ESTALE);
+			}
+			/* Wake up once/sec, to check for a forced dismount. */
+			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
+			    PZERO, "nfsclseq", hz);
+		}
+	} while (slotpos == -1);
+	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
+	bitval = 1;
+	for (i = 0; i < 64; i++) {
+		if ((bitval & sep->nfsess_slots) != 0)
+			maxslot = i;
+		bitval <<= 1;
+	}
+	bcopy(sep->nfsess_sessionid, sessionid, NFSX_V4SESSIONID);
+	mtx_unlock(&sep->nfsess_mtx);
+	*slotposp = slotpos;
+	*maxslotp = maxslot;
+	return (0);
 }
 
 /*

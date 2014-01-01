@@ -292,6 +292,8 @@ int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, int, struct mbuf **);
 void nfsv4_setsequence(struct nfsmount *, struct nfsrv_descript *,
     struct nfsclsession *, int);
+int nfsv4_sequencelookup(struct nfsmount *, struct nfsclsession *, int *,
+    int *, uint32_t *, uint8_t *);
 void nfsv4_freeslot(struct nfsclsession *, int);
 
 /* nfs_clcomsubs.c */

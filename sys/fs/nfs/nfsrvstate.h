@@ -112,8 +112,22 @@ struct nfsclient {
 
 /*
  * Structure for an NFSv4.1 session.
+ * Locking rules for this structure.
+ * To add/delete one of these structures from the lists, you must lock
+ * both: NFSLOCKSESSION(session hashhead) and NFSLOCKSTATE() in that order.
+ * To traverse the lists looking for one of these, you must hold one
+ * of these two locks.
+ * The exception is if the thread holds the exclusive root sleep lock.
+ * In this case, all other nfsd threads are blocked, so locking the
+ * mutexes isn't required.
+ * When manipulating sess_refcnt, NFSLOCKSTATE() must be locked.
+ * When manipulating the fields withinsess_cbsess except nfsess_xprt,
+ * sess_cbsess.nfsess_mtx must be locked.
+ * When manipulating sess_slots and sess_cbsess.nfsess_xprt,
+ * NFSLOCKSESSION(session hashhead) must be locked.
  */
 struct nfsdsession {
+	uint64_t		sess_refcnt;	/* Reference count. */
 	LIST_ENTRY(nfsdsession)	sess_hash;	/* Hash list of sessions. */
 	LIST_ENTRY(nfsdsession)	sess_list;	/* List of client sessions. */
 	struct nfsslot		sess_slots[NFSV4_SLOTS];
@@ -129,8 +143,8 @@ struct nfsdsession {
 	uint32_t		sess_cbmaxresp;
 	uint32_t		sess_cbmaxrespcached;
 	uint32_t		sess_cbmaxops;
-	uint32_t		sess_cbmaxslots;
 	uint8_t			sess_sessionid[NFSX_V4SESSIONID];
+	struct nfsclsession	sess_cbsess;	/* Callback session. */
 };
 
 /*

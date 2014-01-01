@@ -98,7 +98,7 @@ SYSCTL_INT(_vfs_nfsd, OID_AUTO, server_max_nfsvers, CTLFLAG_RW,
     &nfs_maxvers, 0, "The highest version of NFS handled by the server");
 
 static int nfs_proc(struct nfsrv_descript *, u_int32_t, struct socket *,
-    u_int64_t, struct nfsrvcache **);
+    u_int64_t, SVCXPRT *, struct nfsrvcache **);
 
 extern u_long sb_max_adj;
 extern int newnfs_numnfsd;
@@ -252,7 +252,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		}
 
 		cacherep = nfs_proc(&nd, rqst->rq_xid, xprt->xp_socket,
-		    xprt->xp_sockref, &rp);
+		    xprt->xp_sockref, xprt, &rp);
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsd_suspend_lock);
 		NFSUNLOCKV4ROOTMUTEX();
@@ -301,7 +301,7 @@ out:
  */
 static int
 nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
-    u_int64_t sockref, struct nfsrvcache **rpp)
+    u_int64_t sockref, SVCXPRT *xprt, struct nfsrvcache **rpp)
 {
 	struct thread *td = curthread;
 	int cacherep = RC_DOIT, isdgram, taglen = -1;
@@ -357,6 +357,8 @@ nfs_proc(struct nfsrv_descript *nd, u_int32_t xid, struct socket *so,
 	 * RC_DROPIT - just throw the request away
 	 */
 	if (cacherep == RC_DOIT) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			nd->nd_xprt = xprt;
 		nfsrvd_dorpc(nd, isdgram, tagstr, taglen, minorvers, td);
 		if ((nd->nd_flag & ND_NFSV41) != 0) {
 			if (nd->nd_repstat != NFSERR_REPLYFROMCACHE &&

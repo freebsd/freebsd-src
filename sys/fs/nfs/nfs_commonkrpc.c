@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <rpc/rpc.h>
+#include <rpc/krpc.h>
 
 #include <kgssapi/krb5/kcrypto.h>
 
@@ -738,8 +739,12 @@ tryagain:
 	}
 
 	nd->nd_mrep = NULL;
-	stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum, nd->nd_mreq,
-	    &nd->nd_mrep, timo);
+	if (clp != NULL && sep != NULL)
+		stat = clnt_bck_call(nrp->nr_client, &ext, procnum,
+		    nd->nd_mreq, &nd->nd_mrep, timo, sep->nfsess_xprt);
+	else
+		stat = CLNT_CALL_MBUF(nrp->nr_client, &ext, procnum,
+		    nd->nd_mreq, &nd->nd_mrep, timo);
 
 	if (rep != NULL) {
 		/*
@@ -794,7 +799,8 @@ tryagain:
 	nd->nd_md = nd->nd_mrep;
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
-	if (nd->nd_procnum != NFSPROC_NULL) {
+	if (nd->nd_procnum != NFSPROC_NULL &&
+	    nd->nd_procnum != NFSV4PROC_CBNULL) {
 		/* If sep == NULL, set it to the default in nmp. */
 		if (sep == NULL && nmp != NULL)
 			sep = NFSMNT_MDSSESSION(nmp);
@@ -826,11 +832,20 @@ tryagain:
 			/*
 			 * If the first op is Sequence, free up the slot.
 			 */
-			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0)
+			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) ||
+			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j != 0))
 				NFSCL_DEBUG(1, "failed seq=%d\n", j);
-			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
-				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
-				    5 * NFSX_UNSIGNED);
+			if ((nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) ||
+			    (clp != NULL && i == NFSV4OP_CBSEQUENCE && j == 0)
+			    ) {
+				if (i == NFSV4OP_SEQUENCE)
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_V4SESSIONID +
+					    5 * NFSX_UNSIGNED);
+				else
+					NFSM_DISSECT(tl, uint32_t *,
+					    NFSX_V4SESSIONID +
+					    4 * NFSX_UNSIGNED);
 				mtx_lock(&sep->nfsess_mtx);
 				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 				retseq = fxdr_unsigned(uint32_t, *tl++);

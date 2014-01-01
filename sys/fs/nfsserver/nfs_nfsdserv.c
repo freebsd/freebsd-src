@@ -666,10 +666,14 @@ nfsrvd_read(struct nfsrv_descript *nd, __unused int isdgram,
 		stp->ls_stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
 		clientid.lval[0] = stp->ls_stateid.other[0] = *tl++;
 		clientid.lval[1] = stp->ls_stateid.other[1] = *tl++;
-		if (nd->nd_flag & ND_IMPLIEDCLID) {
-			if (nd->nd_clientid.qval != clientid.qval)
-				printf("EEK! multiple clids\n");
+		if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				clientid.qval = nd->nd_clientid.qval;
+			else if (nd->nd_clientid.qval != clientid.qval)
+				printf("EEK1 multiple clids\n");
 		} else {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				printf("EEK! no clientid from session\n");
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
@@ -818,10 +822,14 @@ nfsrvd_write(struct nfsrv_descript *nd, __unused int isdgram,
 		stp->ls_stateid.seqid = fxdr_unsigned(u_int32_t, *tl++);
 		clientid.lval[0] = stp->ls_stateid.other[0] = *tl++;
 		clientid.lval[1] = stp->ls_stateid.other[1] = *tl++;
-		if (nd->nd_flag & ND_IMPLIEDCLID) {
-			if (nd->nd_clientid.qval != clientid.qval)
-				printf("EEK! multiple clids\n");
+		if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				clientid.qval = nd->nd_clientid.qval;
+			else if (nd->nd_clientid.qval != clientid.qval)
+				printf("EEK2 multiple clids\n");
 		} else {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				printf("EEK! no clientid from session\n");
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
@@ -2196,10 +2204,14 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 		stp->ls_opentolockseq = fxdr_unsigned(int, *tl++);
 		clientid.lval[0] = *tl++;
 		clientid.lval[1] = *tl++;
-		if (nd->nd_flag & ND_IMPLIEDCLID) {
-			if (nd->nd_clientid.qval != clientid.qval)
-				printf("EEK! multiple clids\n");
+		if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				clientid.qval = nd->nd_clientid.qval;
+			else if (nd->nd_clientid.qval != clientid.qval)
+				printf("EEK3 multiple clids\n");
 		} else {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				printf("EEK! no clientid from session\n");
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
@@ -2219,10 +2231,14 @@ nfsrvd_lock(struct nfsrv_descript *nd, __unused int isdgram,
 		stp->ls_seq = fxdr_unsigned(int, *tl);
 		clientid.lval[0] = stp->ls_stateid.other[0];
 		clientid.lval[1] = stp->ls_stateid.other[1];
-		if (nd->nd_flag & ND_IMPLIEDCLID) {
-			if (nd->nd_clientid.qval != clientid.qval)
-				printf("EEK! multiple clids\n");
+		if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				clientid.qval = nd->nd_clientid.qval;
+			else if (nd->nd_clientid.qval != clientid.qval)
+				printf("EEK4 multiple clids\n");
 		} else {
+			if ((nd->nd_flag & ND_NFSV41) != 0)
+				printf("EEK! no clientid from session\n");
 			nd->nd_flag |= ND_IMPLIEDCLID;
 			nd->nd_clientid.qval = clientid.qval;
 		}
@@ -2368,10 +2384,14 @@ nfsrvd_lockt(struct nfsrv_descript *nd, __unused int isdgram,
 	tl += 2;
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK5 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -2479,10 +2499,14 @@ nfsrvd_locku(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK6 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -2601,10 +2625,14 @@ nfsrvd_open(struct nfsrv_descript *nd, __unused int isdgram,
 	};
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK7 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -2954,10 +2982,14 @@ nfsrvd_close(struct nfsrv_descript *nd, __unused int isdgram,
 	stp->ls_flags = NFSLCK_CLOSE;
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK8 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -2994,10 +3026,14 @@ nfsrvd_delegpurge(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSM_DISSECT(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK9 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3025,10 +3061,14 @@ nfsrvd_delegreturn(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSBCOPY((caddr_t)tl, (caddr_t)stateid.other, NFSX_STATEIDOTHER);
 	clientid.lval[0] = stateid.other[0];
 	clientid.lval[1] = stateid.other[1];
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK10 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3086,10 +3126,14 @@ nfsrvd_openconfirm(struct nfsrv_descript *nd, __unused int isdgram,
 	stp->ls_flags = NFSLCK_CONFIRM;
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK11 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3162,10 +3206,14 @@ nfsrvd_opendowngrade(struct nfsrv_descript *nd, __unused int isdgram,
 
 	clientid.lval[0] = stp->ls_stateid.other[0];
 	clientid.lval[1] = stp->ls_stateid.other[1];
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK12 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3205,10 +3253,14 @@ nfsrvd_renew(struct nfsrv_descript *nd, __unused int isdgram,
 	NFSM_DISSECT(tl, u_int32_t *, NFSX_HYPER);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK13 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3569,10 +3621,14 @@ nfsrvd_releaselckown(struct nfsrv_descript *nd, __unused int isdgram,
 	stp->ls_uid = nd->nd_cred->cr_uid;
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl;
-	if (nd->nd_flag & ND_IMPLIEDCLID) {
-		if (nd->nd_clientid.qval != clientid.qval)
-			printf("EEK! multiple clids\n");
+	if ((nd->nd_flag & ND_IMPLIEDCLID) != 0) {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			clientid.qval = nd->nd_clientid.qval;
+		else if (nd->nd_clientid.qval != clientid.qval)
+			printf("EEK14 multiple clids\n");
 	} else {
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			printf("EEK! no clientid from session\n");
 		nd->nd_flag |= ND_IMPLIEDCLID;
 		nd->nd_clientid.qval = clientid.qval;
 	}
@@ -3634,13 +3690,13 @@ nfsrvd_exchangeid(struct nfsrv_descript *nd, __unused int isdgram,
 	if (error != 0)
 		goto nfsmout;
 	if ((nd->nd_flag & ND_GSS) != 0) {
-		clp->lc_flags = LCL_GSS;
+		clp->lc_flags = LCL_GSS | LCL_NFSV41;
 		if ((nd->nd_flag & ND_GSSINTEGRITY) != 0)
 			clp->lc_flags |= LCL_GSSINTEGRITY;
 		else if ((nd->nd_flag & ND_GSSPRIVACY) != 0)
 			clp->lc_flags |= LCL_GSSPRIVACY;
 	} else
-		clp->lc_flags = 0;
+		clp->lc_flags = LCL_NFSV41;
 	if ((nd->nd_flag & ND_GSS) != 0 && nd->nd_princlen > 0) {
 		clp->lc_flags |= LCL_NAME;
 		clp->lc_namelen = nd->nd_princlen;
@@ -3737,6 +3793,8 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 	}
 	sep = (struct nfsdsession *)malloc(sizeof(struct nfsdsession),
 	    M_NFSDSESSION, M_WAITOK | M_ZERO);
+	sep->sess_refcnt = 1;
+	mtx_init(&sep->sess_cbsess.nfsess_mtx, "nfscbsession", NULL, MTX_DEF);
 	NFSM_DISSECT(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
 	clientid.lval[0] = *tl++;
 	clientid.lval[1] = *tl++;
@@ -3769,7 +3827,7 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 	sep->sess_cbmaxresp = fxdr_unsigned(uint32_t, *tl++);
 	sep->sess_cbmaxrespcached = fxdr_unsigned(uint32_t, *tl++);
 	sep->sess_cbmaxops = fxdr_unsigned(uint32_t, *tl++);
-	sep->sess_cbmaxslots = fxdr_unsigned(uint32_t, *tl++);
+	sep->sess_cbsess.nfsess_foreslots = fxdr_unsigned(uint32_t, *tl++);
 	rdmacnt = fxdr_unsigned(uint32_t, *tl);
 	if (rdmacnt > 1) {
 		nd->nd_repstat = NFSERR_BADXDR;
@@ -3809,7 +3867,7 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 		*tl++ = txdr_unsigned(sep->sess_cbmaxresp);
 		*tl++ = txdr_unsigned(sep->sess_cbmaxrespcached);
 		*tl++ = txdr_unsigned(sep->sess_cbmaxops);
-		*tl++ = txdr_unsigned(sep->sess_cbmaxslots);
+		*tl++ = txdr_unsigned(sep->sess_cbsess.nfsess_foreslots);
 		*tl++ = txdr_unsigned(1);
 		*tl = txdr_unsigned(0);			/* No RDMA. */
 	}
