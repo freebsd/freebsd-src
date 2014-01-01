@@ -1469,8 +1469,9 @@ nfsvno_open(struct nfsrv_descript *nd, struct nameidata *ndp,
  * Updates the file rev and sets the mtime and ctime
  * to the current clock time, returning the va_filerev and va_Xtime
  * values.
+ * Return ESTALE to indicate the vnode is VI_DOOMED.
  */
-void
+int
 nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
     struct ucred *cred, struct thread *p)
 {
@@ -1478,8 +1479,14 @@ nfsvno_updfilerev(struct vnode *vp, struct nfsvattr *nvap,
 
 	VATTR_NULL(&va);
 	vfs_timestamp(&va.va_mtime);
+	if (NFSVOPISLOCKED(vp) != LK_EXCLUSIVE) {
+		NFSVOPLOCK(vp, LK_UPGRADE | LK_RETRY);
+		if ((vp->v_iflag & VI_DOOMED) != 0)
+			return (ESTALE);
+	}
 	(void) VOP_SETATTR(vp, &va, cred);
 	(void) nfsvno_getattr(vp, nvap, cred, p, 1);
+	return (0);
 }
 
 /*
