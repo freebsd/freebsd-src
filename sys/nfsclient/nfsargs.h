@@ -98,5 +98,6 @@ struct nfs_args {
 #define	NFSMNT_ALLGSSNAME	0x08000000 /* Use principal for all accesses */
 #define	NFSMNT_STRICT3530	0x10000000 /* Adhere strictly to RFC3530 */
 #define	NFSMNT_NOCTO		0x20000000 /* Don't flush attrcache on open */
+#define	NFSMNT_NONCONTIGWR	0x80000000 /* Enable non-contiguous writes */
 
 #endif
