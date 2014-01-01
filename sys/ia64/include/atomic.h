@@ -386,4 +386,32 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	return (value);
 }
 
+/*
+ * <type> atomic_swap_<type>(volatile <type> *p, <type> v);
+ */
+
+static __inline uint32_t
+atomic_swap_32(volatile uint32_t *p, uint32_t v)
+{
+	uint32_t r;
+
+	__asm __volatile ("xchg4 %0 = %3, %2;;" : "=r"(r), "=m"(*p) :
+	    "r"(v), "m"(*p) : "memory");
+	return (r);
+}
+
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
+	uint64_t r;
+
+	__asm __volatile ("xchg8 %0 = %3, %2;;" : "=r"(r), "=m"(*p) :
+	    "r"(v), "m"(*p) : "memory");
+	return (r);
+}
+
+#define	atomic_swap_int		atomic_swap_32
+#define	atomic_swap_long	atomic_swap_64
+#define	atomic_swap_ptr		atomic_swap_64
+
 #endif /* ! _MACHINE_ATOMIC_H_ */
