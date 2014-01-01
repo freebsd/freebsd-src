@@ -3066,7 +3066,15 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
+#ifdef __arm__
+		/*
+		 * Do not use unmapped buffers on ARM. Doing so will cause
+		 * failure inside bus_dmamap_sync due to lack of VA.
+		 */
+		cpi->hba_misc = PIM_SEQSCAN;
+#else
 		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+#endif
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;
