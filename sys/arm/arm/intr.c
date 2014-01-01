@@ -59,6 +59,8 @@ static struct intr_event *intr_events[NIRQ];
 void	arm_handler_execute(struct trapframe *, int);
 
 void (*arm_post_filter)(void *) = NULL;
+int (*arm_config_irq)(int irq, enum intr_trigger trig,
+    enum intr_polarity pol) = NULL;
 
 /*
  * Pre-format intrnames into an array of fixed-size strings containing spaces.

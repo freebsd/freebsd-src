@@ -196,10 +196,10 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * from racing the upcall after our soreadable() call
 		 * returns false.
 		 */
-		mtx_lock(&xprt->xp_pool->sp_lock);
+		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
 		if (!soreadable(xprt->xp_socket))
-			xprt_inactive_locked(xprt);
-		mtx_unlock(&xprt->xp_pool->sp_lock);
+			xprt_inactive_self(xprt);
+		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
@@ -208,7 +208,7 @@ svc_dg_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
 		soupcall_clear(xprt->xp_socket, SO_RCV);
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}

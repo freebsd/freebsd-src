@@ -375,6 +375,13 @@ ahci_probe(device_t dev)
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
 
+	/*
+	 * Ensure it is not a PCI bridge (some vendors use
+	 * the same PID and VID in PCI bridge and AHCI cards).
+	 */
+	if (pci_get_class(dev) == PCIC_BRIDGE)
+		return (ENXIO);
+
 	/* Is this a possible AHCI candidate? */
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&
@@ -3059,7 +3066,15 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
+#ifdef __arm__
+		/*
+		 * Do not use unmapped buffers on ARM. Doing so will cause
+		 * failure inside bus_dmamap_sync due to lack of VA.
+		 */
+		cpi->hba_misc = PIM_SEQSCAN;
+#else
 		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
+#endif
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;

@@ -225,34 +225,6 @@ struct mpt_map_info {
 	uint32_t	  phys;
 };
 
-/* **************************** NewBUS interrupt Crock ************************/
-#if __FreeBSD_version < 700031
-#define	mpt_setup_intr(d, i, f, U, if, ifa, hp)	\
-	bus_setup_intr(d, i, f, if, ifa, hp)
-#else
-#define	mpt_setup_intr	bus_setup_intr
-#endif
-
-/* **************************** NewBUS CAM Support ****************************/
-#if __FreeBSD_version < 700049
-#define mpt_xpt_bus_register(sim, parent, bus)	\
-	xpt_bus_register(sim, bus)
-#else
-#define mpt_xpt_bus_register	xpt_bus_register
-#endif
-
-/**************************** Kernel Thread Support ***************************/
-#if __FreeBSD_version > 800001
-#define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kproc_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define	mpt_kthread_exit(status)	\
-	kproc_exit(status)
-#else
-#define mpt_kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg) \
-	kthread_create(func, farg, proc_ptr, flags, stackpgs, fmtstr, arg)
-#define	mpt_kthread_exit(status)	\
-	kthread_exit(status)
-#endif
 
 /********************************** Endianess *********************************/
 #define	MPT_2_HOST64(ptr, tag)	ptr->tag = le64toh(ptr->tag)
@@ -657,7 +629,6 @@ struct mpt_softc {
 	/*
 	 * PCI Hardware info
 	 */
-	int			pci_msi_count;
 	struct resource *	pci_irq;	/* Interrupt map for chip */
 	void *			ih;		/* Interrupt handle */
 #if 0
@@ -740,9 +711,10 @@ struct mpt_softc {
 	uint16_t		sequence;	/* Sequence Number */
 	uint16_t		pad3;
 
-
+#if 0
 	/* Paired port in some dual adapters configurations */
 	struct mpt_softc *	mpt2;
+#endif
 
 	/* FW Image management */
 	uint32_t		fw_image_size;

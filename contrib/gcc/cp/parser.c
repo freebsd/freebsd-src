@@ -6787,6 +6787,16 @@ cp_parser_condition (cp_parser* parser)
      for ( for-init-statement condition [opt] ; expression [opt] )
        statement
 
+   APPLE LOCAL begin for-fsf-4_4 3274130 5295549
+   GNU extension:
+
+     while attributes [opt] ( condition ) statement
+     do attributes [opt] statement while ( expression ) ;
+     for attributes [opt] 
+       ( for-init-statement condition [opt] ; expression [opt] )
+       statement
+
+   APPLE LOCAL end for-fsf-4_4 3274130 5295549
    Returns the new WHILE_STMT, DO_STMT, or FOR_STMT.  */
 
 static tree
@@ -6794,10 +6804,14 @@ cp_parser_iteration_statement (cp_parser* parser)
 {
   cp_token *token;
   enum rid keyword;
-  tree statement;
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  tree statement, attributes;
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   unsigned char in_statement;
 
-  /* Peek at the next token.  */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  /* Get the keyword at the start of the loop.  */
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   token = cp_parser_require (parser, CPP_KEYWORD, "iteration-statement");
   if (!token)
     return error_mark_node;
@@ -6806,6 +6820,11 @@ cp_parser_iteration_statement (cp_parser* parser)
      statement.  */
   in_statement = parser->in_statement;
 
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+  /* Parse the attributes, if any.  */
+  attributes = cp_parser_attributes_opt (parser);
+
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   /* See what kind of keyword it is.  */
   keyword = token->keyword;
   switch (keyword)
@@ -6815,7 +6834,9 @@ cp_parser_iteration_statement (cp_parser* parser)
 	tree condition;
 
 	/* Begin the while-statement.  */
-	statement = begin_while_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	statement = begin_while_stmt (attributes);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	/* Look for the `('.  */
 	cp_parser_require (parser, CPP_OPEN_PAREN, "`('");
 	/* Parse the condition.  */
@@ -6837,7 +6858,9 @@ cp_parser_iteration_statement (cp_parser* parser)
 	tree expression;
 
 	/* Begin the do-statement.  */
-	statement = begin_do_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	statement = begin_do_stmt (attributes);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	/* Parse the body of the do-statement.  */
 	parser->in_statement = IN_ITERATION_STMT;
 	cp_parser_implicitly_scoped_statement (parser, NULL);
@@ -6864,7 +6887,9 @@ cp_parser_iteration_statement (cp_parser* parser)
 	tree expression = NULL_TREE;
 
 	/* Begin the for-statement.  */
-	statement = begin_for_stmt ();
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	statement = begin_for_stmt (attributes);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 	/* Look for the `('.  */
 	cp_parser_require (parser, CPP_OPEN_PAREN, "`('");
 	/* Parse the initialization.  */

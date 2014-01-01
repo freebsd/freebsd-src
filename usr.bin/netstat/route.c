@@ -426,7 +426,7 @@ p_rtable_kvm(int fibnum, int af)
 
 	if (kread((u_long)(rtree), (char *)(rt_tables) + fibnum * af_size,
 	    af_size) != 0)
-		return;
+		err(EX_OSERR, "error retrieving radix pointers");
 	for (fam = 0; fam <= AF_MAX; fam++) {
 		int tmpfib;
 
@@ -462,6 +462,8 @@ p_rtable_kvm(int fibnum, int af)
 			p_rtree_kvm(head.rnh_treetop);
 		}
 	}
+
+	free(rt_tables);
 }
 
 /*
