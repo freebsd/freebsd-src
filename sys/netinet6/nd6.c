@@ -1891,9 +1891,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	flags = ((m != NULL) || (lle != NULL)) ? LLE_EXCLUSIVE : 0;
 	if (ln == NULL) {
 	retry:
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_RLOCK(ifp);
 		ln = lla_lookup(LLTABLE6(ifp), flags, (struct sockaddr *)dst);
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_RUNLOCK(ifp);
 		if ((ln == NULL) && nd6_is_addr_neighbor(dst, ifp))  {
 			/*
 			 * Since nd6_is_addr_neighbor() internally calls nd6_lookup(),
