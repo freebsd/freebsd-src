@@ -53,6 +53,9 @@ static vdev_list_t zfs_vdevs;
  * List of ZFS features supported for read
  */
 static const char *features_for_read[] = {
+	"org.illumos:lz4_compress",
+	"com.delphix:hole_birth",
+	"com.delphix:extensible_dataset",
 	NULL
 };
 
