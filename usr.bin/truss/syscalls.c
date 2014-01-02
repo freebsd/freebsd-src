@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -270,6 +271,8 @@ struct syscall syscalls[] = {
 	{ .name = "wait6", .ret_type = 1, .nargs = 6,
 	  .args = { { Idtype, 0 }, { Int, 1 }, { ExitStatus | OUT, 2 },
 		    { Waitoptions, 3 }, { Rusage | OUT, 4 }, { Ptr, 5 } } },
+	{ .name = "procctl", .ret_type = 1, .nargs = 4,
+	  .args = { { Idtype, 0 }, { Int, 1 }, { Procctl, 2 }, { Ptr, 3 } } },
 	{ .name = 0 },
 };
 
@@ -393,6 +396,10 @@ static struct xlat idtype_arg[] = {
 	X(P_PID) X(P_PPID) X(P_PGID) X(P_SID) X(P_CID) X(P_UID) X(P_GID)
 	X(P_ALL) X(P_LWPID) X(P_TASKID) X(P_PROJID) X(P_POOLID) X(P_JAILID)
 	X(P_CTID) X(P_CPUID) X(P_PSETID) XEND
+};
+
+static struct xlat procctl_arg[] = {
+	X(PROC_SPROTECT) XEND
 };
 
 #undef X
@@ -1193,6 +1200,9 @@ print_arg(struct syscall_args *sc, unsigned long *args, long retval,
 		break;
 	case Idtype:
 		tmp = strdup(xlookup(idtype_arg, args[sc->offset]));
+		break;
+	case Procctl:
+		tmp = strdup(xlookup(procctl_arg, args[sc->offset]));
 		break;
 	default:
 		errx(1, "Invalid argument type %d\n", sc->type & ARG_MASK);

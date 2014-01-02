@@ -169,6 +169,7 @@ cat <<_EOF_
 #include <netinet/in.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/procctl.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/reboot.h>
@@ -438,6 +439,7 @@ auto_or_type     "mountflagsname"      "MNT_[A-Z]+[[:space:]]+0x[0-9]+"         
 auto_switch_type "msyncflagsname"      "MS_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/mman.h"
 auto_or_type     "nfssvcname"          "NFSSVC_[A-Z0-9]+[[:space:]]+0x[0-9]+"         "nfs/nfssvc.h"
 auto_switch_type "prioname"            "PRIO_[A-Z]+[[:space:]]+[0-9]"                 "sys/resource.h"
+auto_switch_type "procctlcmdname"      "PROC_[A-Z]+[[:space:]]+[0-9]"                 "sys/procctl.h"
 auto_switch_type "ptraceopname"        "PT_[[:alnum:]_]+[[:space:]]+[0-9]+"           "sys/ptrace.h"
 auto_switch_type "quotactlname"        "Q_[A-Z]+[[:space:]]+0x[0-9]+"                 "ufs/ufs/quota.h"
 auto_or_type     "rebootoptname"       "RB_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/reboot.h"

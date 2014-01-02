@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/procctl.h>
 #include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -2989,4 +2990,24 @@ convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
 		return (EINVAL);
 	}
 	return (0);
+}
+
+int
+freebsd32_procctl(struct thread *td, struct freebsd32_procctl_args *uap)
+{
+	void *data;
+	int error, flags;
+
+	switch (uap->com) {
+	case PROC_SPROTECT:
+		error = copyin(PTRIN(uap->data), &flags, sizeof(flags));
+		if (error)
+			return (error);
+		data = &flags;
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (kern_procctl(td, uap->idtype, PAIR32TO64(id_t, uap->id),
+	    uap->com, data));
 }
