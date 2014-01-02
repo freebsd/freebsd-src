@@ -797,8 +797,6 @@ char *
 emulname(KINFO *k, VARENT *ve __unused)
 {
 
-	if (k->ki_p->ki_emul == NULL)
-		return (NULL);
 	return (strdup(k->ki_p->ki_emul));
 }
 
@@ -827,7 +825,6 @@ out:
 char *
 loginclass(KINFO *k, VARENT *ve __unused)
 {
-	char *s;
 
 	/*
 	 * Don't display login class for system processes;
@@ -837,8 +834,5 @@ loginclass(KINFO *k, VARENT *ve __unused)
 	if (k->ki_p->ki_flag & P_SYSTEM) {
 		return (strdup("-"));
 	}
-	s = k->ki_p->ki_loginclass;
-	if (s == NULL)
-		return (NULL);
-	return (strdup(s));
+	return (strdup(k->ki_p->ki_loginclass));
 }
