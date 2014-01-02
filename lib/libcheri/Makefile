@@ -1,12 +1,11 @@
 # $FreeBSD$
 
 LIB=	cheri
-SRCS=	sandbox.c			\
-	sandbox_stat.c			\
+SRCS=	libcheri_stat.c			\
+	sandbox.c			\
 	sandboxasm.S
 
 INCS=	sandbox.h			\
-	sandbox_stat.h			\
 	sandboxasm.h
 INCSDIR=	${INCLUDEDIR}
 

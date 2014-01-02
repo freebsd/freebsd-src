@@ -47,14 +47,15 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <libgen.h>
+#include <sandbox_stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandboxasm.h"
-#include "sandbox_stat.h"
 #include "sandbox_internal.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */

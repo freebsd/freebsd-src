@@ -39,13 +39,14 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <sandbox_stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandbox_internal.h"
-#include "sandbox_stat.h"
 
 /*
  * The sandbox statistic mechanism tracks active sandbox classes, methods, and
@@ -107,7 +108,7 @@
  *
  * XXXRW: Statistics are updated without the lock -- currently with no
  * synchronisation, but atomic operations could easily be used.  See the
- * macros in sandbox_stat.h.
+ * macros in libprocstat/sandbox_stat.h.
  *
  * XXXRW: Should we do the thing where we put a generation counter at both the
  * beginning and end of the structure so that a consumer can detect an
