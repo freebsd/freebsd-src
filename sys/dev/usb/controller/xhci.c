@@ -386,8 +386,8 @@ xhci_start_controller(struct xhci_softc *sc)
 
 	for (i = 0; i != 100; i++) {
 		usb_pause_mtx(NULL, hz / 100);
-		temp = XREAD4(sc, oper, XHCI_USBCMD) &
-		    (XHCI_CMD_HCRST | XHCI_STS_CNR);
+		temp = (XREAD4(sc, oper, XHCI_USBCMD) & XHCI_CMD_HCRST) |
+		    (XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_CNR);
 		if (!temp)
 			break;
 	}
