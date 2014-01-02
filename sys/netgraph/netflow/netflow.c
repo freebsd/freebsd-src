@@ -278,7 +278,9 @@ ng_netflow_copyinfo(priv_p priv, struct ng_netflow_info *i)
 	i->nfinfo_inact_exp = counter_u64_fetch(priv->nfinfo_inact_exp);
 
 	i->nfinfo_used = uma_zone_get_cur(priv->zone);
+#ifdef INET6
 	i->nfinfo_used6 = uma_zone_get_cur(priv->zone6);
+#endif
 
 	i->nfinfo_alloc_failed = priv->nfinfo_alloc_failed;
 	i->nfinfo_export_failed = priv->nfinfo_export_failed;
