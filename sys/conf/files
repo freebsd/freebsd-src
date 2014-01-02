@@ -191,6 +191,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/dmu_zfetch.c			optional zfs compile-w
 cddl/contrib/opensolaris/uts/common/fs/zfs/dnode.c			optional zfs compile-with "${ZFS_C}" \
 	warning "kernel contains CDDL licensed ZFS filesystem"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dnode_sync.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_bookmark.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_dataset.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deadlist.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/dsl_deleg.c			optional zfs compile-with "${ZFS_C}"
