@@ -43,5 +43,11 @@
 struct vmctx;
 
 int	acpi_build(struct vmctx *ctx, int ncpu);
+void	dsdt_line(const char *fmt, ...);
+void	dsdt_fixed_ioport(uint16_t iobase, uint16_t length);
+void	dsdt_fixed_irq(uint8_t irq);
+void	dsdt_fixed_mem32(uint32_t base, uint32_t length);
+void	dsdt_indent(int levels);
+void	dsdt_unindent(int levels);
 
 #endif /* _ACPI_H_ */
