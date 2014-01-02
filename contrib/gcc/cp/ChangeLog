@@ -314,12 +314,6 @@
 	PR c++/30895
 	* tree.c (cp_tree_equal): Properly handle COMPLEX_CST trees.
 
-2007-03-02  Geoffrey Keating  <geoffk@apple.com> (r122488)
-
-	* g++spec.c (lang_specific_driver): Add -lstdc++ when compiling
-	Objective-C++.  Don't exit early if -shared-libgcc needs to be
-	added.
-
 2007-02-22  Simon Martin  <simartin@users.sourceforge.net>
 
 	PR c++/29475
