@@ -608,6 +608,9 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(pmap->pm_stats.resident_count >= count,
+	    ("pmap %p resident count underflow %ld %d", pmap,
+	    pmap->pm_stats.resident_count, count));
 	pmap->pm_stats.resident_count -= count;
 }
 
