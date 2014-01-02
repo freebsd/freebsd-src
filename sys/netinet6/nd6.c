@@ -1146,9 +1146,9 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 		return;
 
 	ifp = rt->rt_ifp;
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(dst6, ND6_EXCLUSIVE, NULL);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL)
 		return;
 
@@ -1574,16 +1574,16 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
 	flags = lladdr ? ND6_EXCLUSIVE : 0;
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
-
+	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL) {
 		flags |= ND6_EXCLUSIVE;
+		IF_AFDATA_LOCK(ifp);
 		ln = nd6_lookup(from, flags | ND6_CREATE, ifp);
 		IF_AFDATA_UNLOCK(ifp);
 		is_newentry = 1;
 	} else {
-		IF_AFDATA_UNLOCK(ifp);		
 		/* do nothing if static ndp is set */
 		if (ln->la_flags & LLE_STATIC) {
 			static_route = 1;
