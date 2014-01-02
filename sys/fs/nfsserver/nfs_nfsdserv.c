@@ -3872,7 +3872,7 @@ nfsrvd_createsession(struct nfsrv_descript *nd, __unused int isdgram,
 		*tl = txdr_unsigned(0);			/* No RDMA. */
 	}
 nfsmout:
-	if (nd->nd_repstat != 0)
+	if (nd->nd_repstat != 0 && sep != NULL)
 		free(sep, M_NFSDSESSION);
 	NFSEXITCODE2(error, nd);
 	return (error);
