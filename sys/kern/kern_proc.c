@@ -803,6 +803,7 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_fd = p->p_fd;
 	kp->ki_vmspace = p->p_vmspace;
 	kp->ki_flag = p->p_flag;
+	kp->ki_flag2 = p->p_flag2;
 	cred = p->p_ucred;
 	if (cred) {
 		kp->ki_uid = cred->cr_uid;
@@ -1161,6 +1162,8 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	bcopy(ki->ki_comm, ki32->ki_comm, COMMLEN + 1);
 	bcopy(ki->ki_emul, ki32->ki_emul, KI_EMULNAMELEN + 1);
 	bcopy(ki->ki_loginclass, ki32->ki_loginclass, LOGINCLASSLEN + 1);
+	CP(*ki, *ki32, ki_flag2);
+	CP(*ki, *ki32, ki_fibnum);
 	CP(*ki, *ki32, ki_cr_flags);
 	CP(*ki, *ki32, ki_jid);
 	CP(*ki, *ki32, ki_numthreads);

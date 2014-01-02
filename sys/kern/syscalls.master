@@ -953,5 +953,18 @@
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
+533	AUE_NULL	UNIMPL	cap_rights_limit
+534	AUE_NULL	UNIMPL	cap_ioctls_limit
+535	AUE_NULL	UNIMPL	cap_ioctls_get
+536	AUE_NULL	UNIMPL	cap_fcntls_limit
+537	AUE_NULL	UNIMPL	cap_fcntls_get
+538	AUE_NULL	UNIMPL	bindat
+539	AUE_NULL	UNIMPL	connectat
+540	AUE_NULL	UNIMPL	chflagsat
+541	AUE_NULL	UNIMPL	accept4
+542	AUE_NULL	UNIMPL	pipe2
+543	AUE_NULL	UNIMPL	aio_mlock
+544	AUE_NULL	STD	{ int procctl(idtype_t idtype, id_t id, \
+				    int com, void *data); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

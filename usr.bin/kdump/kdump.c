@@ -1031,6 +1031,18 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				ip++;
 				narg--;
 				break;
+			case SYS_procctl:
+				putchar('(');
+				idtypename(*ip, decimal);
+				c = ',';
+				ip++;
+				narg--;
+				print_number(ip, narg, c);
+				putchar(',');
+				procctlcmdname(*ip);
+				ip++;
+				narg--;
+				break;
 			}
 		}
 		while (narg > 0) {
