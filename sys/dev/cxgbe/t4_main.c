@@ -4239,6 +4239,10 @@ t4_sysctls(struct adapter *sc)
 	oid = device_get_sysctl_tree(sc->dev);
 	c0 = children = SYSCTL_CHILDREN(oid);
 
+	sc->sc_do_rxcopy = 1;
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "do_rx_copy", CTLFLAG_RW,
+	    &sc->sc_do_rxcopy, 1, "Do RX copy of small frames");
+
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "nports", CTLFLAG_RD, NULL,
 	    sc->params.nports, "# of ports");
 
