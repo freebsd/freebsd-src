@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2013
+.Dd January 3, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -235,10 +235,16 @@ or
 .Dq Li ||
 operator; or if the command is a pipeline preceded by the
 .Ic !\&
-operator.
+keyword.
 If a shell function is executed and its exit status is explicitly
 tested, all commands of the function are considered to be tested as
 well.
+.Pp
+It is recommended to check for failures explicitly
+instead of relying on
+.Fl e
+because it tends to behave in unexpected ways,
+particularly in larger scripts.
 .It Fl f Li noglob
 Disable pathname expansion.
 .It Fl h Li trackall
