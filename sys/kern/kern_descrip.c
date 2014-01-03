@@ -878,6 +878,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	/*
 	 * Duplicate the source descriptor.
 	 */
+	filecaps_free(&newfde->fde_caps);
 	*newfde = *oldfde;
 	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
 	if ((flags & DUP_CLOEXEC) != 0)
