@@ -136,8 +136,9 @@ a pathname to the class's memory image and
 an address-space size in bytes.
 If successful, a pointer to the class will be stored in
 .Fa sbcpp .
-Classes may be destroyed, once all sandbox objects have been freed, using
-.Fn sandbox_class_destroy .
+Classes implement a single invocation entry point, which can then fan out to
+multiple methods courtesy a method argument.
+.Pp
 Optionally,
 .Fn sandbox_class_method_declare
 may be used to associate descriptive strings with method numbers, which will
@@ -147,6 +148,9 @@ The method number is passed via
 .Fa methodnum
 and string via
 .Fa methodname .
+.Pp
+Classes may be destroyed, once all its sandbox objects have been freed, using
+.Fn sandbox_class_destroy .
 .Pp
 .Ss Sandbox objects
 Sandbox instances may be created using
@@ -199,7 +203,7 @@ As a method returning -1 cannot be distinguished from a fault in the caller,
 use of negative return values for method return values is discouraged.
 .Sh SEE ALSO
 .Xr libprocstat 3 ,
-.Xr procstat 1 ,
+.Xr procstat 1
 .Sh AUTHORS
 This software and this manual page were written by
 .An Robert N. M. Watson ,
@@ -225,3 +229,6 @@ It is not clear how programmers should select a suitable
 .Fa sandboxlen
 value to pass to
 .Fn sandbox_class_new .
+.Pp
+This man page should include information on how to structure and link code
+intended to run within sandboxes.
