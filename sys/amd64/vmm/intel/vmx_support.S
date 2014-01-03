@@ -187,7 +187,7 @@ inst_error:
 
 	VMX_HOST_RESTORE(%r10)
 	ret
-END(vmx_execute_guest)
+END(vmx_enter_guest)
 
 /*
  * void vmx_exit_guest(void)
