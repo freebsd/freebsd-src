@@ -32,11 +32,11 @@
 #define	_LIBCHERI_SANDBOX_INTERNAL_H_
 
 #ifndef USE_C_CAPS
-register_t	_chsbrt_invoke(register_t a0, register_t a1, register_t a2,
+register_t	cheri_invoke(register_t a0, register_t a1, register_t a2,
 		    register_t a3, register_t a4, register_t a5,
 		    register_t a6, register_t a7);
 #else
-register_t	_chsbrt_invoke(__capability void *c1, __capability void *c2,
+register_t	cheri_invoke(__capability void *c1, __capability void *c2,
 		    register_t a0, register_t a1, register_t a2,
 		    register_t a3, register_t a4, register_t a5,
 		    register_t a6, register_t a7, __capability void *c3,

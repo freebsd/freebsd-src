@@ -538,7 +538,7 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	else
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_unregisteredp);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
-	v0 = _chsbrt_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
+	v0 = cheri_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
 	    a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
@@ -613,7 +613,7 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	CHERI_CLOADORCLEAR(8, c8p);
 	CHERI_CLOADORCLEAR(9, c9p);
 	CHERI_CLOADORCLEAR(10, c10p);
-	v0 = _chsbrt_invoke(methodnum, a1, a2, a3, 0, 0, 0, 0);
+	v0 = cheri_invoke(methodnum, a1, a2, a3, 0, 0, 0, 0);
 #endif
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)

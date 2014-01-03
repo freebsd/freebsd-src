@@ -40,7 +40,7 @@
 # caller must have set up $c1, $c2, and general-purpose/capability argument
 # registers before calling this function.
 #
-# Calling conventions into _chsbrt_invoke:
+# Calling conventions into cheri_invoke:
 #
 # Registers	Description			Before, After
 # $c0		MIPS address space		Save/Clear, Restore
@@ -73,9 +73,9 @@
 #
 
 	.text
-	.global _chsbrt_invoke
-	.ent	_chsbrt_invoke
-_chsbrt_invoke:
+	.global cheri_invoke
+	.ent	cheri_invoke
+cheri_invoke:
 
 	#
 	# Save caller-save general-purpose registers.
@@ -271,4 +271,4 @@ _chsbrt_invoke:
 	jr	$ra
 	nop				# Branch-delay slot
 
-	.end	_chsbrt_invoke
+	.end	cheri_invoke
