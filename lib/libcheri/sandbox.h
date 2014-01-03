@@ -89,7 +89,7 @@ void	sandbox_class_destroy(struct sandbox_class *sbcp);
 
 struct sandbox_object;
 int	sandbox_object_new(struct sandbox_class *sbcp,
-	    struct sandbox_object **sbipp);
+	    struct sandbox_object **sbopp);
 #if defined(__CHERI__) && defined(__capability)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 		    u_int methodnum, register_t a1, register_t a2,
@@ -102,10 +102,12 @@ register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 #endif
 register_t	sandbox_object_invoke(struct sandbox_object *sbop,
 		    register_t methodnum, register_t a1, register_t a2,
-		    register_t a3, struct chericap *c3p, struct chericap *c4p,
-		    struct chericap *c5p, struct chericap *c6p,
-		    struct chericap *c7p, struct chericap *c8p,
-		    struct chericap *c9p, struct chericap *c10p);
-void	sandbox_object_destroy(struct sandbox_object *sbip);
+		    register_t a3, register_t a4, register_t a5,
+		    register_t a6, register_t a7, struct chericap *c3p,
+		    struct chericap *c4p, struct chericap *c5p,
+		    struct chericap *c6p, struct chericap *c7p,
+		    struct chericap *c8p, struct chericap *c9p,
+		    struct chericap *c10p);
+void	sandbox_object_destroy(struct sandbox_object *sbop);
 
 #endif /* !_SANDBOX_H_ */

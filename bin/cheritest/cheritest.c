@@ -332,8 +332,8 @@ cheritest_invoke_simple_op(int op)
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #else
-	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, NULL, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
+	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 }
@@ -376,8 +376,8 @@ cheritest_invoke_md5(void)
 	CHERI_CSC(10, 0, &c4, 0);
 
 	v = sandbox_object_invoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(md5string), 0, 0, &c3, &c4, NULL, NULL, NULL, NULL, NULL,
-	    NULL);
+	    strlen(md5string), 0, 0, 0, 0, 0, 0, &c3, &c4, NULL, NULL, NULL,
+	    NULL, NULL, NULL);
 #endif
 
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
