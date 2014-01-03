@@ -1728,7 +1728,9 @@ aac_check_firmware(struct aac_softc *sc)
 		device_printf(sc->aac_dev, "Enable 64-bit array\n");
 	}
 
+#ifdef AACRAID_DEBUG
 	aacraid_get_fw_debug_buffer(sc);
+#endif
 	return (0);
 }
 
