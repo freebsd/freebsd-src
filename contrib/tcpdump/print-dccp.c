@@ -139,6 +139,7 @@ trunc:
 	return;
 }
 
+#if 0
 static inline unsigned int dccp_packet_hdr_len(const u_int8_t type)
 {
 	if (type == DCCP_PKT_DATA)
@@ -156,6 +157,7 @@ static inline unsigned int dccp_packet_hdr_len(const u_int8_t type)
 		return sizeof(struct dccp_hdr_response);
 	return sizeof(struct dccp_hdr_reset);
 }
+#endif
 
 static int dccp_print_option(const u_char *option);
 
