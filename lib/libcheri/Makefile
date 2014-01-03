@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	cheri
-SRCS=	libcheri_stat.c			\
-	sandbox.c			\
-	sandboxasm.S
+SRCS=	cheri_invoke.S			\
+	libcheri_stat.c			\
+	sandbox.c
 
 INCS=	cheri_invoke.h			\
 	sandbox.h			\
@@ -16,8 +16,8 @@ MAN=	cheri_invoke.3			\
 	libcheri.3
 USE_CHERI=	yes
 
-FILES=	sandboxasm.o
-CLEANFILES=	sandboxasm.o
+FILES=	cheri_invoke.o
+CLEANFILES=	cheri_invoke.o
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
