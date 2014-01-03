@@ -218,14 +218,14 @@ void nfsrvd_dorpc(struct nfsrv_descript *, int, NFSPROC_T *);
 
 /* nfs_nfsdcache.c */
 void nfsrvd_initcache(void);
-int nfsrvd_getcache(struct nfsrv_descript *, struct socket *);
-struct nfsrvcache *nfsrvd_updatecache(struct nfsrv_descript *,
-    struct socket *);
-void nfsrvd_sentcache(struct nfsrvcache *, struct socket *, int);
+int nfsrvd_getcache(struct nfsrv_descript *);
+struct nfsrvcache *nfsrvd_updatecache(struct nfsrv_descript *);
+void nfsrvd_sentcache(struct nfsrvcache *, uint32_t);
 void nfsrvd_cleancache(void);
 void nfsrvd_refcache(struct nfsrvcache *);
 void nfsrvd_derefcache(struct nfsrvcache *);
 void nfsrvd_delcache(struct nfsrvcache *);
+void nfsrc_trimcache(uint64_t, uint32_t, int);
 
 /* nfs_commonsubs.c */
 void newnfs_init(void);
@@ -327,9 +327,6 @@ int nfsd_checkrootexp(struct nfsrv_descript *);
 void nfscl_retopts(struct nfsmount *, char *, size_t);
 
 /* nfs_commonport.c */
-int nfsrv_checksockseqnum(struct socket *, tcp_seq);
-int nfsrv_getsockseqnum(struct socket *, tcp_seq *);
-int nfsrv_getsocksndseq(struct socket *, tcp_seq *, tcp_seq *);
 int nfsrv_lookupfilename(struct nameidata *, char *, NFSPROC_T *);
 void nfsrv_object_create(vnode_t, NFSPROC_T *);
 int nfsrv_mallocmget_limit(void);

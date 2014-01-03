@@ -103,9 +103,11 @@ struct xp_ops {
 	    struct sockaddr **, struct mbuf **);
 	/* get transport status */
 	enum xprt_stat (*xp_stat)(struct __rpc_svcxprt *);
+	/* get transport acknowledge sequence */
+	bool_t (*xp_ack)(struct __rpc_svcxprt *, uint32_t *);
 	/* send reply */
 	bool_t	(*xp_reply)(struct __rpc_svcxprt *, struct rpc_msg *,
-	    struct sockaddr *, struct mbuf *);
+	    struct sockaddr *, struct mbuf *, uint32_t *);
 	/* destroy this struct */
 	void	(*xp_destroy)(struct __rpc_svcxprt *);
 	/* catch-all function */
@@ -166,6 +168,8 @@ typedef struct __rpc_svcxprt {
 	time_t		xp_lastactive;	/* time of last RPC */
 	u_int64_t	xp_sockref;	/* set by nfsv4 to identify socket */
 	int		xp_upcallset;	/* socket upcall is set up */
+	uint32_t	xp_snd_cnt;	/* # of bytes sent to socket */
+	struct sx	xp_snd_lock;	/* protects xp_snd_cnt & sb_cc */
 #else
 	int		xp_fd;
 	u_short		xp_port;	 /* associated port number */
@@ -230,6 +234,17 @@ struct svc_callout {
 };
 TAILQ_HEAD(svc_callout_list, svc_callout);
 
+/*
+ * The services connection loss list
+ * The dispatch routine takes request structs and runs the
+ * apropriate procedure.
+ */
+struct svc_loss_callout {
+	TAILQ_ENTRY(svc_loss_callout) slc_link;
+	void		    (*slc_dispatch)(SVCXPRT *);
+};
+TAILQ_HEAD(svc_loss_callout_list, svc_loss_callout);
+
 struct __rpc_svcthread;
 
 /*
@@ -253,6 +268,7 @@ struct svc_req {
 	void		*rq_p1;		/* application workspace */
 	int		rq_p2;		/* application workspace */
 	uint64_t	rq_p3;		/* application workspace */
+	uint32_t	rq_reply_seq;	/* reply socket sequence # */
 	char		rq_credarea[3*MAX_AUTH_BYTES];
 };
 STAILQ_HEAD(svc_reqlist, svc_req);
@@ -318,6 +334,7 @@ typedef struct __rpc_svcpool {
 	struct svcxprt_list sp_xlist;	/* all transports in the pool */
 	struct svcxprt_list sp_active;	/* transports needing service */
 	struct svc_callout_list sp_callouts; /* (prog,vers)->dispatch list */
+	struct svc_loss_callout_list sp_lcallouts; /* loss->dispatch list */
 	struct svcthread_list sp_threads; /* service threads */
 	struct svcthread_list sp_idlethreads; /* idle service threads */
 	int		sp_minthreads;	/* minimum service thread count */
@@ -393,8 +410,12 @@ struct svc_req {
 #define SVC_STAT(xprt)					\
 	(*(xprt)->xp_ops->xp_stat)(xprt)
 
-#define SVC_REPLY(xprt, msg, addr, m)			\
-	(*(xprt)->xp_ops->xp_reply) ((xprt), (msg), (addr), (m))
+#define SVC_ACK(xprt, ack)				\
+	((xprt)->xp_ops->xp_stat == NULL ? FALSE :	\
+	    ((ack) == NULL ? TRUE : (*(xprt)->xp_ops->xp_ack)((xprt), (ack))))
+
+#define SVC_REPLY(xprt, msg, addr, m, seq)			\
+	(*(xprt)->xp_ops->xp_reply) ((xprt), (msg), (addr), (m), (seq))
 
 #define SVC_DESTROY(xprt)				\
 	(*(xprt)->xp_ops->xp_destroy)(xprt)
@@ -493,6 +514,30 @@ extern void	svc_unreg(SVCPOOL *, const rpcprog_t, const rpcvers_t);
 #else
 extern void	svc_unreg(const rpcprog_t, const rpcvers_t);
 #endif
+__END_DECLS
+
+/*
+ * Service connection loss registration
+ *
+ * svc_loss_reg(xprt, dispatch)
+ *	const SVCXPRT *xprt;
+ *	const void (*dispatch)();
+ */
+
+__BEGIN_DECLS
+extern bool_t	svc_loss_reg(SVCXPRT *, void (*)(SVCXPRT *));
+__END_DECLS
+
+/*
+ * Service connection loss un-registration
+ *
+ * svc_loss_unreg(xprt, dispatch)
+ *	const SVCXPRT *xprt;
+ *	const void (*dispatch)();
+ */
+
+__BEGIN_DECLS
+extern void	svc_loss_unreg(SVCPOOL *, void (*)(SVCXPRT *));
 __END_DECLS
 
 /*
