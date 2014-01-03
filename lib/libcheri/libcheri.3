@@ -1,0 +1,227 @@
+.\"-
+.\" Copyright (c) 2014 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd "January 3, 2014"
+.Dt LIBCHERI 3
+.Os
+.Sh NAME
+.Nm libcheri ,
+.Nm sandbox_class_new ,
+.Nm sandbox_class_method_declare ,
+.Nm sandbox_class_destroy ,
+.Nm sandbox_object_new ,
+.Nm sandbox_object_cinvoke ,
+.Nm sandbox_object_invoke ,
+.Nm sandbox_object_destroy
+.Nd Library interface for CHERI sandboxing
+.Sh LIBRARY
+.Lb libcheri
+.Sh SYNOPSIS
+.In machine/cheri.h
+.In machine/cheric.h
+.In sandbox.h
+.Ft int
+.Fo sandbox_class_new
+.Fa "const char *path"
+.Fa "size_t sandboxlen"
+.Fa "struct sandbox_class **sbcpp"
+.Fc
+.Ft int
+.Fo sandbox_class_method_declare
+.Fa "struct sandbox_class *sbcp"
+.Fa "u_int methodnum"
+.Fa "const char *methodname"
+.Fc
+.Ft void
+.Fo sandbox_class_destroy
+.Fa "struct sandbox_class *sbcp"
+.Fc
+.Ft int
+.Fo sandbox_object_new
+.Fa "struct sandbox_class *sbcp"
+.Fa "struct sandbox_object **sbopp"
+.Fc
+.Ft register_t
+.Fo sandbox_object_cinvoke
+.Fa "struct sandbox_object *sbop"
+.Fa "u_int methodnum"
+.Fa "register_t a1"
+.Fa "register_t a2"
+.Fa "register_t a3"
+.Fa "register_t a4"
+.Fa "register_t a5"
+.Fa "register_t a6"
+.Fa "register_t a7"
+.Fa "__capability void *c3"
+.Fa "__capability void *c4"
+.Fa "__capability void *c5"
+.Fa "__capability void *c6"
+.Fa "__capability void *c7"
+.Fa "__capability void *c8"
+.Fa "__capability void *c9"
+.Fa "__capability void *c10"
+.Fc
+.Ft register_t
+.Fo sandbox_object_invoke
+.Fa "struct sandbox_object *sbop"
+.Fa "u_int methodnum"
+.Fa "register_t a1"
+.Fa "register_t a2"
+.Fa "register_t a3"
+.Fa "register_t a4"
+.Fa "register_t a5"
+.Fa "register_t a6"
+.Fa "register_t a7"
+.Fa "struct chericap *c3p"
+.Fa "struct chericap *c4p"
+.Fa "struct chericap *c5p"
+.Fa "struct chericap *c6p"
+.Fa "struct chericap *c7p"
+.Fa "struct chericap *c8p"
+.Fa "struct chericap *c9p"
+.Fa "struct chericap *c10p"
+.Fc
+.Ft void
+.Fo sandbox_object_destroy
+.Fa "struct sandbox_object *sbop"
+.Fc
+.Sh DESCRIPTION
+.Nm
+provides a programmer-friendly interface to CHERI in-process sandboxing
+using the object-capability security model.
+The programming interface requires programmers to define sandboxes in terms
+of
+.Em classes
+(particular pieces of code that will run in sandboxes) and
+.Em objects
+(in-execution instances of sandboxed code).
+In
+.Nm ,
+classes are statically linked memory images (in the future to be ELF
+binaries).
+.Pp
+.Ss Sandbox classes
+A new class may be created using
+.Fn sandbox_class_new ,
+which accepts
+.Fa path ,
+a pathname to the class's memory image and
+.Fa sandboxlen ,
+an address-space size in bytes.
+If successful, a pointer to the class will be stored in
+.Fa sbcpp .
+Classes may be destroyed, once all sandbox objects have been freed, using
+.Fn sandbox_class_destroy .
+Optionally,
+.Fn sandbox_class_method_declare
+may be used to associate descriptive strings with method numbers, which will
+then be visible via
+.Xr procstat 1 .
+The method number is passed via
+.Fa methodnum
+and string via
+.Fa methodname .
+.Pp
+.Ss Sandbox objects
+Sandbox instances may be created using
+.Fn sandbox_object_new ,
+which accepts a previously created class passed via
+.Fa sbcp ,
+and on success returns a sandbox object via
+.Fa sbopp .
+When a sandbox object is no longer required, it can be destroyed by passing it
+to
+.Fn sandbox_object_destroy .
+.Ss Object invocation
+Sandbox methods may be invoked using
+.Fn sandbox_object_cinvoke
+if CHERI compiler support is present (allowing use of
+.Em __capability ) ,
+or
+.Fn sandbox_object_invoke
+(which can be used without compiler support).
+Both interfaces accept a sandbox object pointer,
+.Fa sbop ,
+method number via
+.Fa methodnum ,
+and general-purpose and capability register arguments.
+.Ss Sandbox monitoring
+.Pp
+Sandboxes within a
+.Nm
+process may be monitored using
+.Xr procstat 1 ,
+or programmatically using
+.Xr libprocstat 3
+APIs.
+Various stastics are maintained, including object counts, method invocation
+counts, and sandbox fault information.
+.Sh RETURN VALUES
+.Rv -std sandbox_class_new sandbox_class_method_declare sandbox_object_new
+.Pp
+.Fn sandbox_class_destroy
+and
+.Fn sandbox_object_destroy
+do not have return values as they cannot fail.
+.Pp
+.Fn sandbox_object_cinvoke
+and
+.Fn sandbox_object_invoke
+return the value returned by the invoked object method unless a sandbox fault
+occurs, in which case -1 will be returned.
+As a method returning -1 cannot be distinguished from a fault in the caller,
+use of negative return values for method return values is discouraged.
+.Sh SEE ALSO
+.Xr libprocstat 3 ,
+.Xr procstat 1 ,
+.Sh AUTHORS
+This software and this manual page were written by
+.An Robert N. M. Watson ,
+and developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.
+.Sh BUGS
+.Nm
+relies on classes being statically linked memory images rather than ELF
+binaries; this should be corrected by adding a small run-time ELF loader to
+the library.
+.Pp
+The
+.Fn sandbox_object_cinvoke
+and
+.Fn sandbox_object_invoke
+APIs cannot distinguish the invoked object returning a negative value and a
+sandbox fault causing a negative value to be returned.
+.Pp
+It is not clear how programmers should select a suitable
+.Fa sandboxlen
+value to pass to
+.Fn sandbox_class_new .
