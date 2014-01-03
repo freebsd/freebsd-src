@@ -41,6 +41,8 @@ struct nand_params nand_ids[] = {
 	    0x200, 0x800, 0x40, 0x40, 0 },
 	{ { NAND_MAN_SAMSUNG, 0xda }, "Samsung NAND 256MiB 3,3V 8-bit",
 	    0x100, 0x800, 0x40, 0x40, 0 },
+	{ { NAND_MAN_SAMSUNG, 0xf1 }, "Samsung NAND 128MiB 3,3V 8-bit",
+	    0x80, 0x800, 0x40, 0x40, 0 },
 	{ { NAND_MAN_HYNIX, 0x76 }, "Hynix NAND 64MiB 3,3V 8-bit",
 	    0x40, 0x200, 0x10, 0x20, 0 },
 	{ { NAND_MAN_HYNIX, 0xdc }, "Hynix NAND 512MiB 3,3V 8-bit",
