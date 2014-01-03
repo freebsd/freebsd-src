@@ -67,6 +67,7 @@
 .Fa "struct sandbox_class *sbcp"
 .Fa "struct sandbox_object **sbopp"
 .Fc
+#if __has_feature(capabilities)
 .Ft register_t
 .Fo sandbox_object_cinvoke
 .Fa "struct sandbox_object *sbop"
@@ -87,6 +88,7 @@
 .Fa "__capability void *c9"
 .Fa "__capability void *c10"
 .Fc
+#else
 .Ft register_t
 .Fo sandbox_object_invoke
 .Fa "struct sandbox_object *sbop"
@@ -107,6 +109,7 @@
 .Fa "struct chericap *c9p"
 .Fa "struct chericap *c10p"
 .Fc
+#endif
 .Ft void
 .Fo sandbox_object_destroy
 .Fa "struct sandbox_object *sbop"
@@ -175,6 +178,8 @@ Both interfaces accept a sandbox object pointer,
 method number via
 .Fa methodnum ,
 and general-purpose and capability register arguments.
+These functions are implemented as wrappers around
+.Xr cheri_invoke 3 .
 .Ss Sandbox monitoring
 .Pp
 Sandboxes within a
