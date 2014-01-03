@@ -66,9 +66,9 @@
 #     must change before we can run Clang-compiled CHERI code.
 #
 	.text
-	.global __start
-	.ent __start
-__start:
+	.global __ccall_enter
+	.ent __ccall_enter
+__ccall_enter:
 
 	#
 	# Set up in-sandbox stack; assume that suitable space for a stack has
@@ -131,7 +131,7 @@ abort_target:
 	# Return to caller.
 	#
 	creturn
-	.end __start
+	.end __ccall_enter
 
 	.global abort
 	.ent abort
