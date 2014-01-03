@@ -2332,6 +2332,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 	if (lle == NULL) {
 		if (!(flags & LLE_CREATE))
 			return (NULL);
+		IF_AFDATA_WLOCK_ASSERT(ifp);
 		/*
 		 * A route that covers the given address must have
 		 * been installed 1st because we are doing a resolution,
