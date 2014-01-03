@@ -348,7 +348,6 @@ service_message(struct service *service, struct service_connection *sconn)
 			error = 0;
 		}
 	} else {
-		nvlout = nvlist_create(0);
 		error = service->s_command(cmd,
 		    service_connection_get_limits(sconn), nvlin, nvlout);
 	}
@@ -362,8 +361,9 @@ service_message(struct service *service, struct service_connection *sconn)
 	if (cap_send_nvlist(service_connection_get_chan(sconn), nvlout) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send message to client");
 		service_connection_remove(service, sconn);
-		return;
 	}
+
+	nvlist_destroy(nvlout);
 }
 
 static int
