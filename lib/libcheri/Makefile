@@ -5,7 +5,8 @@ SRCS=	libcheri_stat.c			\
 	sandbox.c			\
 	sandboxasm.S
 
-INCS=	sandbox.h			\
+INCS=	cheri_invoke.h			\
+	sandbox.h			\
 	sandboxasm.h
 INCSDIR=	${INCLUDEDIR}
 

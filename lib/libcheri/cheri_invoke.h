@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _LIBCHERI_SANDBOX_INTERNAL_H_
-#define	_LIBCHERI_SANDBOX_INTERNAL_H_
+#ifndef _CHERI_INVOKE_H_
+#define	_CHERI_INVOKE_H_
 
 #ifndef USE_C_CAPS
 register_t	cheri_invoke(register_t a0, register_t a1, register_t a2,
@@ -46,4 +46,4 @@ register_t	cheri_invoke(__capability void *c1, __capability void *c2,
 		    __capability void *c10) __attribute__((cheri_ccall));
 #endif
 
-#endif /* !_LIBCHERI_SANDBOX_INTERNAL_H_ */
+#endif /* !_CHERI_INVOKE_H_ */

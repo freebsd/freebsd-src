@@ -53,10 +53,10 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "cheri_invoke.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
 #include "sandboxasm.h"
-#include "sandbox_internal.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
