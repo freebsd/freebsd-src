@@ -125,8 +125,10 @@ nvlist_destroy(nvlist_t *nvl)
 
 	NVLIST_ASSERT(nvl);
 
-	while ((nvp = nvlist_first_nvpair(nvl)) != NULL)
+	while ((nvp = nvlist_first_nvpair(nvl)) != NULL) {
 		nvlist_remove_nvpair(nvl, nvp);
+		nvpair_free(nvp);
+	}
 	nvl->nvl_magic = 0;
 	free(nvl);
 
