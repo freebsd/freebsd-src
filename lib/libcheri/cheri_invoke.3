@@ -39,7 +39,7 @@
 .In machine/cheri.h
 .In machine/cheric.h
 .In cheri_invoke.h
-#ifdef __has_feature(capabilities)
+#if __has_feature(capabilities)
 .Ft register_t
 .Fo cheri_invoke
 .Fa "__capability void *c1"
