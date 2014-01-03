@@ -3993,10 +3993,12 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 		(void)nfsm_fhtom(nd, (u_int8_t *)fhp, NFSX_MYFH, 0);
 	} else if (procnum == NFSV4PROC_CBNULL) {
 		nd->nd_procnum = NFSV4PROC_CBNULL;
-		error = nfsv4_getcbsession(clp, &sep);
-		if (error != 0) {
-			mbuf_freem(nd->nd_mreq);
-			goto errout;
+		if ((clp->lc_flags & LCL_NFSV41) != 0) {
+			error = nfsv4_getcbsession(clp, &sep);
+			if (error != 0) {
+				mbuf_freem(nd->nd_mreq);
+				goto errout;
+			}
 		}
 	} else {
 		error = NFSERR_SERVERFAULT;
