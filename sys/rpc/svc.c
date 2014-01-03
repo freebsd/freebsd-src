@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
+#include <sys/sx.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
@@ -93,6 +94,7 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	TAILQ_INIT(&pool->sp_xlist);
 	TAILQ_INIT(&pool->sp_active);
 	TAILQ_INIT(&pool->sp_callouts);
+	TAILQ_INIT(&pool->sp_lcallouts);
 	LIST_INIT(&pool->sp_threads);
 	LIST_INIT(&pool->sp_idlethreads);
 	pool->sp_minthreads = 1;
@@ -158,6 +160,7 @@ svcpool_destroy(SVCPOOL *pool)
 {
 	SVCXPRT *xprt, *nxprt;
 	struct svc_callout *s;
+	struct svc_loss_callout *sl;
 	struct svcxprt_list cleanup;
 
 	TAILQ_INIT(&cleanup);
@@ -169,10 +172,14 @@ svcpool_destroy(SVCPOOL *pool)
 		TAILQ_INSERT_TAIL(&cleanup, xprt, xp_link);
 	}
 
-	while (TAILQ_FIRST(&pool->sp_callouts)) {
-		s = TAILQ_FIRST(&pool->sp_callouts);
+	while ((s = TAILQ_FIRST(&pool->sp_callouts)) != NULL) {
 		mtx_unlock(&pool->sp_lock);
 		svc_unreg(pool, s->sc_prog, s->sc_vers);
+		mtx_lock(&pool->sp_lock);
+	}
+	while ((sl = TAILQ_FIRST(&pool->sp_lcallouts)) != NULL) {
+		mtx_unlock(&pool->sp_lock);
+		svc_loss_unreg(pool, sl->slc_dispatch);
 		mtx_lock(&pool->sp_lock);
 	}
 	mtx_unlock(&pool->sp_lock);
@@ -511,6 +518,55 @@ svc_unreg(SVCPOOL *pool, const rpcprog_t prog, const rpcvers_t vers)
 	mtx_unlock(&pool->sp_lock);
 }
 
+/*
+ * Add a service connection loss program to the callout list.
+ * The dispatch routine will be called when some port in ths pool die.
+ */
+bool_t
+svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
+{
+	SVCPOOL *pool = xprt->xp_pool;
+	struct svc_loss_callout *s;
+
+	mtx_lock(&pool->sp_lock);
+	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+		if (s->slc_dispatch == dispatch)
+			break;
+	}
+	if (s != NULL) {
+		mtx_unlock(&pool->sp_lock);
+		return (TRUE);
+	}
+	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	if (s == NULL) {
+		mtx_unlock(&pool->sp_lock);
+		return (FALSE);
+	}
+	s->slc_dispatch = dispatch;
+	TAILQ_INSERT_TAIL(&pool->sp_lcallouts, s, slc_link);
+	mtx_unlock(&pool->sp_lock);
+	return (TRUE);
+}
+
+/*
+ * Remove a service connection loss program from the callout list.
+ */
+void
+svc_loss_unreg(SVCPOOL *pool, void (*dispatch)(SVCXPRT *))
+{
+	struct svc_loss_callout *s;
+
+	mtx_lock(&pool->sp_lock);
+	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+		if (s->slc_dispatch == dispatch) {
+			TAILQ_REMOVE(&pool->sp_lcallouts, s, slc_link);
+			free(s, M_RPC);
+			break;
+		}
+	}
+	mtx_unlock(&pool->sp_lock);
+}
+
 /* ********************** CALLOUT list related stuff ************* */
 
 /*
@@ -554,7 +610,7 @@ svc_sendreply_common(struct svc_req *rqstp, struct rpc_msg *rply,
 	if (!SVCAUTH_WRAP(&rqstp->rq_auth, &body))
 		return (FALSE);
 
-	ok = SVC_REPLY(xprt, rply, rqstp->rq_addr, body); 
+	ok = SVC_REPLY(xprt, rply, rqstp->rq_addr, body, &rqstp->rq_reply_seq);
 	if (rqstp->rq_addr) {
 		free(rqstp->rq_addr, M_SONAME);
 		rqstp->rq_addr = NULL;
@@ -803,6 +859,7 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 	struct svc_req *r;
 	struct rpc_msg msg;
 	struct mbuf *args;
+	struct svc_loss_callout *s;
 	enum xprt_stat stat;
 
 	/* now receive msgs from xprtprt (support batch calls) */
@@ -831,7 +888,7 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 				break;
 			case RS_DONE:
 				SVC_REPLY(xprt, &repmsg, r->rq_addr,
-				    repbody);
+				    repbody, &r->rq_reply_seq);
 				if (r->rq_addr) {
 					free(r->rq_addr, M_SONAME);
 					r->rq_addr = NULL;
@@ -881,6 +938,8 @@ call_done:
 		r = NULL;
 	}
 	if ((stat = SVC_STAT(xprt)) == XPRT_DIED) {
+		TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link)
+			(*s->slc_dispatch)(xprt);
 		xprt_unregister(xprt);
 	}
 
