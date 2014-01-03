@@ -1,0 +1,114 @@
+.\"-
+.\" Copyright (c) 2014 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" This software was developed by SRI International and the University of
+.\" Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+.\" ("CTSRD"), as part of the DARPA CRASH research programme.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd "January 3, 2014"
+.Dt CHERI_INVOKE 3
+.Os
+.Sh NAME
+.Nm cheri_invoke
+.Nd Library interface CHERI capability invocation
+.Sh LIBRARY
+.Lb libcheri
+.Sh SYNOPSIS
+.In machine/cheri.h
+.In machine/cheric.h
+.In cheri_invoke.h
+#ifdef __has_feature(capabilities)
+.Ft register_t
+.Fo cheri_invoke
+.Fa "__capability void *c1"
+.Fa "__capability void *c2"
+.Fa "register_t a0"
+.Fa "register_t a1"
+.Fa "register_t a2"
+.Fa "register_t a3"
+.Fa "register_t a4"
+.Fa "register_t a5"
+.Fa "register_t a6"
+.Fa "register_t a7"
+.Fa "__capability void *c3"
+.Fa "__capability void *c4"
+.Fa "__capability void *c5"
+.Fa "__capability void *c6"
+.Fa "__capability void *c7"
+.Fa "__capability void *c8"
+.Fa "__capability void *c9"
+.Fa "__capability void *c10"
+.Fc
+#else
+.Ft register_t
+.Fo cheri_invoke
+.Fa "register_t a0"
+.Fa "register_t a1"
+.Fa "register_t a2"
+.Fa "register_t a3"
+.Fa "register_t a4"
+.Fa "register_t a5"
+.Fa "register_t a6"
+.Fa "register_t a7"
+.Fc
+#endif
+.Sh DESCRIPTION
+.Fn cheri_invoke
+is a C-language wrapper for the CHERI
+.Li CCall
+instruction, taking as its arguments code and data capabilities
+.Li ($c1 , $c2 ) ,
+a set of general-purpose argument registers, and a set of capability argument
+registers.
+If compiling with a capability-aware compiler, then capability arguments are
+explicit and the compiler will arrange for the arguments to be placed in the
+appropriate hardware registers.
+Without compiler support, explicit assembly instructions must be used to
+implement the CHERI ABI.
+By convention,
+.Li $a0
+will contain a method number.
+.Pp
+Most programmers will prefer to employ the
+.Xr libcheri 3
+sandbox API rather than use
+.Fn cheri_invoke
+directly.
+.Sh RETURN VALUES
+.Fn cheri_invoke
+returns the value returned by the invoked capabilities unless a sandbox fault
+occurs, in which case -1 will be returned.
+As a method returning -1 cannot be distinguished from a fault in the caller,
+use of negative return values for method return values is discouraged.
+.Sh SEE ALSO
+.Xr libcheri 3
+.Sh AUTHORS
+This software and this manual page were written by
+.An Robert N. M. Watson ,
+and developed by SRI International and the University of Cambridge Computer
+Laboratory under DARPA/AFRL contract
+.Pq FA8750-10-C-0237
+.Pq Do CTSRD Dc ,
+as part of the DARPA CRASH research programme.

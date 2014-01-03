@@ -12,7 +12,8 @@ INCSDIR=	${INCLUDEDIR}
 
 SHLIB_MAJOR=	1
 
-MAN=	libcheri.3
+MAN=	cheri_invoke.3			\
+	libcheri.3
 USE_CHERI=	yes
 
 FILES=	sandboxasm.o
