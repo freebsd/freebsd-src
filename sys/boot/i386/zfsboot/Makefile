@@ -38,7 +38,7 @@ CFLAGS=	-Os -g \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
 
-LDFLAGS=-static -N --gc-sections
+LD_FLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -54,7 +54,7 @@ zfsboot1: zfsldr.out
 	objcopy -S -O binary zfsldr.out ${.TARGET}
 
 zfsldr.out: zfsldr.o
-	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
+	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} zfsldr.o
 
 CLEANFILES+=	zfsboot2 zfsboot.ld zfsboot.ldr zfsboot.bin zfsboot.out \
 		zfsboot.o zfsboot.s zfsboot.s.tmp zfsboot.h sio.o
@@ -80,7 +80,7 @@ zfsboot.bin: zfsboot.out
 	objcopy -S -O binary zfsboot.out ${.TARGET}
 
 zfsboot.out: ${BTXCRT} zfsboot.o sio.o
-	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
 zfsboot.o: zfsboot.s
 

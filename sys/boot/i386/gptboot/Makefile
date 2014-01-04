@@ -38,7 +38,7 @@ CFLAGS=	-Os \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
 	-Winline --param max-inline-insns-single=100
 
-LDFLAGS=-static -N --gc-sections
+LD_FLAGS=-static -N --gc-sections
 
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
@@ -55,7 +55,7 @@ gptldr.bin: gptldr.out
 	objcopy -S -O binary gptldr.out ${.TARGET}
 
 gptldr.out: gptldr.o
-	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
+	${LD} ${LD_FLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} gptldr.o
 
 CLEANFILES+=	gptboot.bin gptboot.out gptboot.o sio.o
 
@@ -63,7 +63,7 @@ gptboot.bin: gptboot.out
 	objcopy -S -O binary gptboot.out ${.TARGET}
 
 gptboot.out: ${BTXCRT} gptboot.o sio.o
-	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
+	${LD} ${LD_FLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC}
 
 gptboot.o: ${.CURDIR}/../../common/ufsread.c
 
