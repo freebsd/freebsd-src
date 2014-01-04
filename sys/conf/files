@@ -884,8 +884,6 @@ dev/bwi/if_bwi_pci.c		optional bwi pci
 # XXX Work around clang warning, until maintainer approves fix.
 dev/bwn/if_bwn.c		optional bwn siba_bwn \
 	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED}"
-dev/bxe/if_bxe.c		optional bxe
-dev/bxe/bxe_link.c		optional bxe
 dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus

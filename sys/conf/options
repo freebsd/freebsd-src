@@ -713,10 +713,6 @@ ED_SIC			opt_ed.h
 BCE_DEBUG		opt_bce.h
 BCE_NVRAM_WRITE_SUPPORT	opt_bce.h
 
-# bxe driver
-BXE_DEBUG		opt_bxe.h
-BXE_NVRAM_WRITE_SUPPORT	opt_bxe.h
-
 SOCKBUF_DEBUG		opt_global.h
 
 
