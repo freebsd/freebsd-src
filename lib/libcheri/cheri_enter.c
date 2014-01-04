@@ -29,14 +29,48 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
+#include <sys/mman.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
-register_t	cheri_enter(register_t methodnum __unused);
+#include <assert.h>
+#include <stdlib.h>
+
+/*
+ * This file implements the "landing pad" for CHERI method invocations on
+ * system capabilities.  For now, several pretty critical limitations, which
+ * we will work on relaxing over time:
+ *
+ * 1. one global invocation stack, so no concurrency.
+ * 2. one global data object, so no support for multiple data capabilities.
+ */
+register_t	cheri_enter(register_t methodnum, register_t a0,
+		    register_t a1, register_t a2, register_t a3,
+		    register_t a4, register_t a5, register_t a6,
+		    register_t a7);
+
+/*
+ * Stack for use on entering from sandbox.
+ */
+#define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
+void *__cheri_enter_stack;
+
+__attribute__ ((constructor)) static void
+cheri_enter_init(void)
+{
+
+	__cheri_enter_stack = mmap(NULL, CHERI_ENTER_STACK_SIZE,
+	    PROT_READ | PROT_WRITE, MAP_STACK, -1, 0);
+	assert(__cheri_enter_stack != MAP_FAILED);
+}
 
 register_t
-cheri_enter(register_t methodnum __unused)
+cheri_enter(register_t methodnum __unused, register_t a0 __unused,
+    register_t a1 __unused, register_t a2 __unused, register_t a3 __unused,
+    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
+    register_t a7 __unused)
 {
 
 	return (123456);

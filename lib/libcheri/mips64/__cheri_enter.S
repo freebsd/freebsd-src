@@ -71,10 +71,10 @@
 __cheri_enter:
 
 	#
-	# Set up in-sandbox stack; assume that suitable space for a stack has
-	# been made at the top of the sandbox address space described by IDC.
+	# Install global invocation stack.  NB: this means we can't support
+	# recursion or concurrency.
 	#
-	cgetlen	$sp, $c26
+	dla	$sp, __cheri_enter_stack
 	move	$fp, $sp
 
 	#
@@ -101,7 +101,6 @@ __cheri_enter:
 	jalr	$t9
 	nop			# Branch-delay slot
 
-abort_target:
 	#
 	# Clear our $c0 so that it is not leaked back to caller.
 	#
@@ -115,13 +114,5 @@ abort_target:
 	#
 	creturn
 	.end __cheri_enter
-
-	.global abort
-	.ent abort
-abort:
-	dli	$v0, -2
-	b	abort_target
-	nop
-	.end abort
 
 	.data
