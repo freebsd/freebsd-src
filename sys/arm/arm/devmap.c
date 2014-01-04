@@ -207,13 +207,23 @@ arm_devmap_vtop(void * vpva, vm_size_t size)
 
 /*
  * Map a set of physical memory pages into the kernel virtual address space.
- * Return a pointer to where it is mapped. This routine is intended to be used
- * for mapping device memory, NOT real memory.
+ * Return a pointer to where it is mapped.
+ *
+ * This uses a pre-established static mapping if one exists for the requested
+ * range, otherwise it allocates kva space and maps the physical pages into it.
+ *
+ * This routine is intended to be used for mapping device memory, NOT real
+ * memory; the mapping type is inherently PTE_DEVICE in pmap_kenter_device().
  */
 void *
 pmap_mapdev(vm_offset_t pa, vm_size_t size)
 {
 	vm_offset_t va, tmpva, offset;
+	void * rva;
+
+	/* First look in the static mapping table. */
+	if ((rva = arm_devmap_ptov(pa, size)) != NULL)
+		return (rva);
 	
 	offset = pa & PAGE_MASK;
 	pa = trunc_page(pa);
@@ -240,8 +250,13 @@ void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
 	vm_offset_t tmpva, offset;
-	vm_size_t origsize = size;
-	
+	vm_size_t origsize;
+
+	/* Nothing to do if we find the mapping in the static table. */
+	if (arm_devmap_vtop((void*)va, size) != DEVMAP_PADDR_NOTFOUND)
+		return;
+
+	origsize = size;
 	offset = va & PAGE_MASK;
 	va = trunc_page(va);
 	size = round_page(size + offset);
