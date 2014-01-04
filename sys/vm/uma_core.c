@@ -2510,7 +2510,7 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int flags)
 	/* Don't wait for buckets, preserve caller's NOVM setting. */
 	bucket = bucket_alloc(zone, udata, M_NOWAIT | (flags & M_NOVM));
 	if (bucket == NULL)
-		goto out;
+		return (NULL);
 
 	max = MIN(bucket->ub_entries, zone->uz_count);
 	bucket->ub_cnt = zone->uz_import(zone->uz_arg, bucket->ub_bucket,
@@ -2541,10 +2541,8 @@ zone_alloc_bucket(uma_zone_t zone, void *udata, int flags)
 		}
 	}
 
-out:
-	if (bucket == NULL || bucket->ub_cnt == 0) {
-		if (bucket != NULL)
-			bucket_free(zone, bucket, udata);
+	if (bucket->ub_cnt == 0) {
+		bucket_free(zone, bucket, udata);
 		atomic_add_long(&zone->uz_fails, 1);
 		return (NULL);
 	}
