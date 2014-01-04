@@ -75,6 +75,7 @@ _citrus_UES_init_state(_UESEncodingInfo * __restrict ei __unused,
 	psenc->chlen = 0;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_UES_pack_state(_UESEncodingInfo * __restrict ei __unused,
@@ -92,6 +93,7 @@ _citrus_UES_unpack_state(_UESEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)psenc, pspriv, sizeof(*psenc));
 }
+#endif
 
 static __inline int
 to_int(int ch)
