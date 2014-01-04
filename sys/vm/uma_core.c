@@ -702,6 +702,13 @@ bucket_cache_drain(uma_zone_t zone)
 		bucket_free(zone, bucket, NULL);
 		ZONE_LOCK(zone);
 	}
+
+	/*
+	 * Shrink further bucket sizes.  Price of single zone lock collision
+	 * is probably lower then price of global cache drain.
+	 */
+	if (zone->uz_count > zone->uz_count_min)
+		zone->uz_count--;
 }
 
 static void
@@ -1462,6 +1469,7 @@ zone_ctor(void *mem, int size, void *udata, int flags)
 	zone->uz_fails = 0;
 	zone->uz_sleeps = 0;
 	zone->uz_count = 0;
+	zone->uz_count_min = 0;
 	zone->uz_flags = 0;
 	zone->uz_warning = NULL;
 	timevalclear(&zone->uz_ratecheck);
@@ -1553,6 +1561,7 @@ out:
 		zone->uz_count = bucket_select(zone->uz_size);
 	else
 		zone->uz_count = BUCKET_MAX;
+	zone->uz_count_min = zone->uz_count;
 
 	return (0);
 }
