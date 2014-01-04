@@ -27,8 +27,8 @@
  * $SourceForge: netflow.c,v 1.41 2004/09/05 11:41:10 glebius Exp $
  */
 
-static const char rcs_id[] =
-    "@(#) $FreeBSD$";
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
