@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -48,8 +48,8 @@ procstat_sandbox_classes(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %3s %5s %7s\n", "PID", "COMM", "CLASS",
-		    "CID", "COUNT", "RESET");
+		printf("%5s %-10s %-20s %5s %7s\n", "PID", "COMM", "CLASS",
+		    "COUNT", "RESET");
 	}
 	scsp_free = scsp = procstat_getsbclasses(procstat, kipp, &len);
 	if (scsp == NULL)
@@ -58,9 +58,8 @@ procstat_sandbox_classes(struct procstat *procstat, struct kinfo_proc *kipp)
 		if (scsp->scs_classid == SANDBOX_CLASSID_FREE)
 			continue;
 		printf("%5d ", kipp->ki_pid);
-		printf("%-12s ", kipp->ki_comm);
+		printf("%-10s ", kipp->ki_comm);
 		printf("%-20s ", scsp->scs_class_name);
-		printf("%3jd ", (uintmax_t)scsp->scs_classid);
 		printf("%5jd ", (uintmax_t)(scsp->scs_stat_alloc -
 		    scsp->scs_stat_free));
 		printf("%7jd\n", (uintmax_t)scsp->scs_stat_reset);
@@ -76,9 +75,9 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %3s %-12s %3s %7s %7s\n", "PID",
-		    "COMM", "CLASS", "CID", "METHOD", "MID", "INVOKE",
-		    "FAULT");
+		printf("%5s %-10s %-20s %-10s %6s %5s %7s %8s\n", "PID",
+		    "COMM", "CLASS", "METHOD", "INVOKE", "FAULT", "MIN-CYC",
+		    "MAX-CYC");
 	}
 	smsp_free = smsp = procstat_getsbmethods(procstat, kipp, &len);
 	if (smsp == NULL)
@@ -87,13 +86,13 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 		if (smsp->sms_methodid == SANDBOX_METHODID_FREE)
 			continue;
 		printf("%5d ", kipp->ki_pid);
-		printf("%-12s ", kipp->ki_comm);
+		printf("%-10s ", kipp->ki_comm);
 		printf("%-20s ", smsp->sms_class_name);
-		printf("%3jd ", (uintmax_t)smsp->sms_classid);
-		printf("%-12s ", smsp->sms_method_name);
-		printf("%3jd ", (uintmax_t)smsp->sms_methodid);
-		printf("%7jd ", (uintmax_t)smsp->sms_stat_invoke);
-		printf("%7jd\n", (uintmax_t)smsp->sms_stat_fault);
+		printf("%-10s ", smsp->sms_method_name);
+		printf("%6jd ", (uintmax_t)smsp->sms_stat_invoke);
+		printf("%5jd ", (uintmax_t)smsp->sms_stat_fault);
+		printf("%7jd ", (uintmax_t)smsp->sms_stat_minrun);
+		printf("%8jd\n", (uintmax_t)smsp->sms_stat_maxrun);
 	}
 	procstat_freesbmethods(procstat, smsp_free);
 }
@@ -125,15 +124,15 @@ print_sbobject_name(uint64_t type, uint64_t name)
 
 	switch (type) {
 	case SANDBOX_OBJECT_TYPE_PID:
-		printf("%18jd ", (uint64_t)name);
+		printf("%12jd ", (uint64_t)name);
 		break;
 
 	case SANDBOX_OBJECT_TYPE_POINTER:
-		printf("0x%016jx ", (uint64_t)name);
+		printf("0x%010jx ", (uint64_t)name);
 		break;
 
 	default:
-		printf("%-18s ", "-");
+		printf("%-12s ", "-");
 		break;
 	}
 }
@@ -146,8 +145,9 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-12s %-20s %3s %4s %-18s %7s\n", "PID", "COMM",
-		    "CLASS", "CID", "TYPE", "NAME", "INVOKE");
+		printf("%5s %-10s %-20s %4s %-12s %6s %7s %8s\n", "PID",
+		    "COMM", "CLASS", "TYPE", "NAME", "INVOKE", "MIN-CYC",
+		    "MAX-CYC");
 	}
 	sosp_free = sosp = procstat_getsbobjects(procstat, kipp, &len);
 	if (sosp == NULL)
@@ -156,13 +156,14 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 		if (sosp->sos_objectid == SANDBOX_OBJECTID_FREE)
 			continue;
 		printf("%5d ", kipp->ki_pid);
-		printf("%-12s ", kipp->ki_comm);
+		printf("%-10s ", kipp->ki_comm);
 		printf("%-20s ", sosp->sos_class_name);
-		printf("%3jd ", (uintmax_t)sosp->sos_classid);
 		print_sbobject_type(sosp->sos_object_type);
 		print_sbobject_name(sosp->sos_object_type,
 		    sosp->sos_object_name);
-		printf("%7jd", (uintmax_t)sosp->sos_stat_invoke);
+		printf("%6jd ", (uintmax_t)sosp->sos_stat_invoke);
+		printf("%7jd ", (uintmax_t)sosp->sos_stat_minrun);
+		printf("%8jd\n", (uintmax_t)sosp->sos_stat_maxrun);
 		printf("\n");
 	}
 	procstat_freesbobjects(procstat, sosp_free);

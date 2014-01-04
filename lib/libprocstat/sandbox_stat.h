@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -47,6 +47,9 @@
 #define	SANDBOX_CLASS_MAXNAMELEN	32
 #define	SANDBOX_METHOD_MAXNAMELEN	32
 #define	SANDBOX_OBJECT_MAXNAMELEN	32
+
+#define	SANDBOX_METHOD_MAXSAMPVEC	8
+#define	SANDBOX_OBJECT_MAXSAMPVEC	8
 
 /*
  * Per-sandbox class description.
@@ -105,9 +108,10 @@ struct sandbox_method_stat {
 	uint64_t	sms_stat_timeout;	/* Number of timeouts. */
 	uint64_t	sms_stat_minrun;	/* Minimum invoke time. */
 	uint64_t	sms_stat_maxrun;	/* Maximum invoke time. */
-	uint64_t	sms_stat_sampmed;	/* Sampled median inv. time. */
-	uint64_t	sms_stat_sampmean;	/* Sampled mean inv. time. */
-	uint64_t	sms_pad1[8];		/* Future growth. */
+	uint64_t	sms_stat_nextidx;	/* Next index into vector. */
+	uint64_t	sms_stat_sampvec[SANDBOX_METHOD_MAXSAMPVEC];
+						/* Time sample window. */
+	uint64_t	sms_pad1[1];		/* Future growth. */
 };
 
 /*
@@ -132,17 +136,15 @@ struct sandbox_method_stat {
 		(smsp)->sms_stat_timeout++;				\
 } while (0)
 
-#define	SANDBOX_METHOD_MINRUN(smsp, min)	do {			\
+#define	SANDBOX_METHOD_TIME_SAMPLE(smsp, sample)	do {		\
 	if ((smsp) != NULL) {						\
-		if ((min) < (smsp)->sms_stat_minrun)			\
-			(smsp)->sms_stat_minrun = (min);		\
-	}								\
-} while (0)
-
-#define	SANDBOX_METHOD_MAXRUN(smsp, max)	do {			\
-	if ((smsp) != NULL) {						\
-		if ((map) > (smsp)->sms_stat_maxrun)			\
-			(smsp)->sms_stat_maxrun = (max);		\
+		(smsp)->sms_stat_sampvec[(smsp)->sms_stat_nextidx++ %	\
+		    SANDBOX_METHOD_MAXSAMPVEC];				\
+		if ((sample) < (smsp)->sms_stat_minrun ||		\
+		    (smsp)->sms_stat_minrun == 0)			\
+			(smsp)->sms_stat_minrun = (sample);		\
+		if ((sample) > (smsp)->sms_stat_maxrun)			\
+			(smsp)->sms_stat_maxrun = (sample);		\
 	}								\
 } while (0)
 
@@ -167,9 +169,10 @@ struct sandbox_object_stat {
 	uint64_t	sos_stat_timeout;	/* Number of timeouts. */
 	uint64_t	sos_stat_minrun;	/* Minimum invoke time. */
 	uint64_t	sos_stat_maxrun;	/* Maximum invoke time. */
-	uint64_t	sos_stat_sampmed;	/* Sampled median inv. time. */
-	uint64_t	sos_stat_sampmean;	/* Sampled mean inv. time. */
-	uint64_t	sos_pad1[8];		/* Future growth. */
+	uint64_t	sos_stat_nextidx;	/* Next index into vector. */
+	uint64_t	sos_stat_sampvec[SANDBOX_OBJECT_MAXSAMPVEC];
+						/* Time sample window. */
+	uint64_t	sos_pad1[1];		/* Future growth. */
 };
 
 /*
@@ -187,6 +190,18 @@ struct sandbox_object_stat {
 #define	SANDBOX_OBJECT_FAULT(sosp)	do {				\
 	if ((sosp) != NULL)						\
 		(sosp)->sos_stat_fault++;				\
+} while (0)
+
+#define	SANDBOX_OBJECT_TIME_SAMPLE(sosp, sample)	do {		\
+	if ((sosp) != NULL) {						\
+		(sosp)->sos_stat_sampvec[(sosp)->sos_stat_nextidx++ %	\
+		    SANDBOX_OBJECT_MAXSAMPVEC];				\
+		if ((sample) < (sosp)->sos_stat_minrun ||		\
+		    (sosp)->sos_stat_minrun == 0)			\
+			(sosp)->sos_stat_minrun = (sample);		\
+		if ((sample) > (sosp)->sos_stat_maxrun)			\
+			(sosp)->sos_stat_maxrun = (sample);		\
+	}								\
 } while (0)
 
 /*

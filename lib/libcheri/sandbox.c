@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -88,7 +88,7 @@ struct sandbox_class {
 	struct stat		 sbc_stat;
 	size_t			 sbc_sandboxlen;
 	struct sandbox_class_stat	*sbc_sandbox_class_statp;
-	struct sandbox_method_stat	*sbc_sandbox_method_unregisteredp;
+	struct sandbox_method_stat	*sbc_sandbox_method_nonamep;
 	struct sandbox_method_stat	*sbc_sandbox_methods[
 					    SANDBOX_CLASS_METHOD_COUNT];
 };
@@ -131,6 +131,19 @@ struct sandbox {
 	struct sandbox_class	*sb_sandbox_classp;
 	struct sandbox_object	*sb_sandbox_objectp;
 };
+
+/*
+ * Routines for measuring time -- depends on a later MIPS userspace cycle
+ * counter.
+ */
+static __inline uint64_t
+get_cyclecount(void)
+{
+	uint64_t _time;
+
+	__asm __volatile("rdhwr %0, $2" : "=r" (_time));
+	return (_time);
+}
 
 __attribute__ ((constructor)) static void
 sandbox_init(void)
@@ -188,7 +201,7 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 
 	/*
 	 * Register the class/object for statistics; also register a single
-	 * "unregistered" method to catch statistics for unnamed or overflow
+	 * "noname" method to catch statistics for unnamed or overflow
 	 * methods.
 	 *
 	 * NB: We use the base address of the sandbox's $c0 as the 'name' of
@@ -198,9 +211,8 @@ sandbox_class_new(const char *path, size_t sandboxlen,
 	 */
 	(void)sandbox_stat_class_register(&sbcp->sbc_sandbox_class_statp,
 	    basename_r(path, sandbox_basename));
-	(void)sandbox_stat_method_register(
-	    &sbcp->sbc_sandbox_method_unregisteredp,
-	    sbcp->sbc_sandbox_class_statp, "unregistered");
+	(void)sandbox_stat_method_register(&sbcp->sbc_sandbox_method_nonamep,
+	    sbcp->sbc_sandbox_class_statp, "<noname>");
 	*sbcpp = sbcp;
 	return (0);
 
@@ -241,9 +253,9 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 			(void)sandbox_stat_method_deregister(
 			    sbcp->sbc_sandbox_methods[i]);
 	}
-	if (sbcp->sbc_sandbox_method_unregisteredp != NULL)
+	if (sbcp->sbc_sandbox_method_nonamep != NULL)
 		(void)sandbox_stat_method_deregister(
-		    sbcp->sbc_sandbox_method_unregisteredp);
+		    sbcp->sbc_sandbox_method_nonamep);
 	if (sbcp->sbc_sandbox_class_statp != NULL)
 		(void)sandbox_stat_class_deregister(
 		    sbcp->sbc_sandbox_class_statp);
@@ -524,6 +536,7 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
     __capability void *c10)
 {
 	struct sandbox_class *sbcp;
+	uint64_t sample, start;
 	register_t v0;
 
 	/*
@@ -536,17 +549,22 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
 	else
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_unregisteredp);
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
+	start = get_cyclecount();
 	v0 = cheri_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
 	    a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
+	sample = get_cyclecount() - start;
+	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
+	    sample);
+	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
 			SANDBOX_METHOD_FAULT(
 			    sbcp->sbc_sandbox_methods[methodnum]);
 		else
 			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_method_unregisteredp);
+			    sbcp->sbc_sandbox_method_nonamep);
 		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
 	}
 	return (v0);
@@ -580,6 +598,8 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 #ifdef USE_C_CAPS
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
 	__capability void *cclear;
+#else
+	uint64_t sample, start;
 #endif
 	register_t v0;
 
@@ -587,7 +607,7 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_methods[methodnum]);
 	else
-		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_unregisteredp);
+		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 #ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
@@ -613,7 +633,12 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	CHERI_CLOADORCLEAR(8, c8p);
 	CHERI_CLOADORCLEAR(9, c9p);
 	CHERI_CLOADORCLEAR(10, c10p);
+	start = get_cyclecount();
 	v0 = cheri_invoke(methodnum, a1, a2, a3, a4, a5, a6, a7);
+	sample = get_cyclecount() - start;
+	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
+	    sample);
+	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);
 #endif
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
@@ -621,7 +646,7 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 			    sbcp->sbc_sandbox_methods[methodnum]);
 		else
 			SANDBOX_METHOD_FAULT(
-			    sbcp->sbc_sandbox_method_unregisteredp);
+			    sbcp->sbc_sandbox_method_nonamep);
 		SANDBOX_OBJECT_FAULT(sbop->sbo_sandbox_object_statp);
 	}
 	return (v0);
