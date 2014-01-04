@@ -135,7 +135,7 @@ fi
 
 # Connect to any open networks policy
 echo "network={
-	priority=5
+	priority=0
 	key_mgmt=NONE
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 
