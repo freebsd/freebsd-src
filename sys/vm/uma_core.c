@@ -207,7 +207,9 @@ struct uma_bucket_zone {
 
 struct uma_bucket_zone bucket_zones[] = {
 	{ NULL, "4 Bucket", BUCKET_SIZE(4), 4096 },
+	{ NULL, "6 Bucket", BUCKET_SIZE(6), 3072 },
 	{ NULL, "8 Bucket", BUCKET_SIZE(8), 2048 },
+	{ NULL, "12 Bucket", BUCKET_SIZE(12), 1536 },
 	{ NULL, "16 Bucket", BUCKET_SIZE(16), 1024 },
 	{ NULL, "32 Bucket", BUCKET_SIZE(32), 512 },
 	{ NULL, "64 Bucket", BUCKET_SIZE(64), 256 },
