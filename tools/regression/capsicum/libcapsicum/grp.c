@@ -61,6 +61,7 @@ static int ntest = 1;
 		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
 		exit(1);						\
 	}								\
+	ntest++;							\
 } while (0)
 
 #define	GID_WHEEL	0
@@ -1522,7 +1523,7 @@ main(void)
 {
 	cap_channel_t *capcas, *capgrp;
 
-	printf("1..197\n");
+	printf("1..199\n");
 
 	capcas = cap_init();
 	CHECKX(capcas != NULL);
