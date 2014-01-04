@@ -208,24 +208,50 @@ rn_refines(void *m_arg, void *n_arg)
 	return (!masks_are_equal);
 }
 
+/*
+ * Search for exact match in given @head.
+ * Assume host bits are cleared in @v_arg if @m_arg is not NULL
+ * Note that prefixes with /32 or /128 masks are treated differently
+ * from host routes.
+ */
 struct radix_node *
 rn_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 {
 	struct radix_node *x;
-	caddr_t netmask = 0;
+	caddr_t netmask;
 
-	if (m_arg) {
+	if (m_arg != NULL) {
+		/*
+		 * Most common case: search exact prefix/mask
+		 */
 		x = rn_addmask(m_arg, head->rnh_masks, 1,
 		    head->rnh_treetop->rn_offset);
-		if (x == 0)
-			return (0);
+		if (x == NULL)
+			return (NULL);
 		netmask = x->rn_key;
-	}
-	x = rn_match(v_arg, head);
-	if (x && netmask) {
-		while (x && x->rn_mask != netmask)
+
+		x = rn_match(v_arg, head);
+
+		while (x != NULL && x->rn_mask != netmask)
 			x = x->rn_dupedkey;
+
+		return (x);
 	}
+
+	/*
+	 * Search for host address.
+	 */
+	if ((x = rn_match(v_arg, head)) == NULL)
+		return (NULL);
+
+	/* Check if found key is the same */
+	if (LEN(x->rn_key) != LEN(v_arg) || bcmp(x->rn_key, v_arg, LEN(v_arg)))
+		return (NULL);
+
+	/* Check if this is not host route */
+	if (x->rn_mask != NULL)
+		return (NULL);
+
 	return (x);
 }
 
@@ -247,6 +273,9 @@ rn_satisfies_leaf(char *trial, struct radix_node *leaf, int skip)
 	return (1);
 }
 
+/*
+ * Search for longest-prefix match in given @head
+ */
 struct radix_node *
 rn_match(void *v_arg, struct radix_node_head *head)
 {
