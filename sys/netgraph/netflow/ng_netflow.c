@@ -28,8 +28,8 @@
  * $SourceForge: ng_netflow.c,v 1.30 2004/09/05 11:37:43 glebius Exp $
  */
 
-static const char rcs_id[] =
-    "@(#) $FreeBSD$";
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_inet6.h"
 #include "opt_route.h"
