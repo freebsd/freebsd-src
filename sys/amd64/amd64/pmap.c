@@ -1049,16 +1049,6 @@ pmap_invalidate_cache_range(vm_offset_t sva, vm_offset_t eva)
 }
 
 /*
- * Are we current address space or kernel?
- */
-static __inline int
-pmap_is_current(pmap_t pmap)
-{
-	return (pmap == kernel_pmap ||
-	    (pmap->pm_pml4[PML4PML4I] & PG_FRAME) == (PML4pml4e[0] & PG_FRAME));
-}
-
-/*
  *	Routine:	pmap_extract
  *	Function:
  *		Extract the physical page address associated
