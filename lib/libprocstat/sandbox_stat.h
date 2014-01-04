@@ -139,7 +139,7 @@ struct sandbox_method_stat {
 #define	SANDBOX_METHOD_TIME_SAMPLE(smsp, sample)	do {		\
 	if ((smsp) != NULL) {						\
 		(smsp)->sms_stat_sampvec[(smsp)->sms_stat_nextidx++ %	\
-		    SANDBOX_METHOD_MAXSAMPVEC];				\
+		    SANDBOX_METHOD_MAXSAMPVEC] = sample;		\
 		if ((sample) < (smsp)->sms_stat_minrun ||		\
 		    (smsp)->sms_stat_minrun == 0)			\
 			(smsp)->sms_stat_minrun = (sample);		\
@@ -195,7 +195,7 @@ struct sandbox_object_stat {
 #define	SANDBOX_OBJECT_TIME_SAMPLE(sosp, sample)	do {		\
 	if ((sosp) != NULL) {						\
 		(sosp)->sos_stat_sampvec[(sosp)->sos_stat_nextidx++ %	\
-		    SANDBOX_OBJECT_MAXSAMPVEC];				\
+		    SANDBOX_OBJECT_MAXSAMPVEC] = sample;		\
 		if ((sample) < (sosp)->sos_stat_minrun ||		\
 		    (sosp)->sos_stat_minrun == 0)			\
 			(sosp)->sos_stat_minrun = (sample);		\
