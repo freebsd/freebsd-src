@@ -111,7 +111,6 @@ echo "network={
 	priority=5
 }" >> $BSDINSTALL_TMPETC/wpa_supplicant.conf
 elif echo $ENCRYPTION | grep -q WEP; then
-	echo FOO
 	exec 3>&1
 	WEPKEY=`dialog --insecure --backtitle "FreeBSD Installer" \
 	    --title "WEP Setup" --mixedform "" 0 0 0 \
