@@ -930,6 +930,57 @@ bad:
 	return (error);
 }
 
+#if 0
+int p_sockaddr(char *buf, int buflen, struct sockaddr *s);
+int rt_print(char *buf, int buflen, struct rtentry *rt);
+
+int
+p_sockaddr(char *buf, int buflen, struct sockaddr *s)
+{
+	void *paddr = NULL;
+
+	switch (s->sa_family) {
+	case AF_INET:
+		paddr = &((struct sockaddr_in *)s)->sin_addr;
+		break;
+	case AF_INET6:
+		paddr = &((struct sockaddr_in6 *)s)->sin6_addr;
+		break;
+	}
+
+	if (paddr == NULL)
+		return (0);
+
+	if (inet_ntop(s->sa_family, paddr, buf, buflen) == NULL)
+		return (0);
+	
+	return (strlen(buf));
+}
+
+int
+rt_print(char *buf, int buflen, struct rtentry *rt)
+{
+	struct sockaddr *addr, *mask;
+	int i = 0;
+
+	addr = rt_key(rt);
+	mask = rt_mask(rt);
+
+	i = p_sockaddr(buf, buflen, addr);
+	if (!(rt->rt_flags & RTF_HOST)) {
+		buf[i++] = '/';
+		i += p_sockaddr(buf + i, buflen - i, mask);
+	}
+
+	if (rt->rt_flags & RTF_GATEWAY) {
+		buf[i++] = '>';
+		i += p_sockaddr(buf + i, buflen - i, rt->rt_gateway);
+	}
+
+	return (i);
+}
+#endif
+
 #ifdef RADIX_MPATH
 static int
 rn_mpath_update(int req, struct rt_addrinfo *info,
@@ -943,10 +994,11 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	register struct radix_node *rn;
 	int error = 0;
 
-	rn = rnh->rnh_matchaddr(dst, rnh);
+	rn = rnh->rnh_lookup(dst, netmask, rnh);
 	if (rn == NULL)
 		return (ESRCH);
 	rto = rt = RNTORT(rn);
+
 	rt = rt_mpath_matchgate(rt, gateway);
 	if (rt == NULL)
 		return (ESRCH);
@@ -1521,8 +1573,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			rn = rnh->rnh_lookup(dst, netmask, rnh);
 			error = (rn == NULL ||
 			    (rn->rn_flags & RNF_ROOT) ||
-			    RNTORT(rn)->rt_ifa != ifa ||
-			    !sa_equal((struct sockaddr *)rn->rn_key, dst));
+			    RNTORT(rn)->rt_ifa != ifa);
 			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			if (error) {
 				/* this is only an error if bad on ALL tables */

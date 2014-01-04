@@ -112,9 +112,9 @@ struct radix_node_head {
 		     struct radix_node_head *head, struct radix_node nodes[]);
 	struct	radix_node *(*rnh_deladdr)	/* remove based on sockaddr */
 		(void *v, void *mask, struct radix_node_head *head);
-	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
+	struct	radix_node *(*rnh_matchaddr)	/* longest match for sockaddr */
 		(void *v, struct radix_node_head *head);
-	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
+	struct	radix_node *(*rnh_lookup)	/*exact match for sockaddr*/
 		(void *v, void *mask, struct radix_node_head *head);
 	int	(*rnh_walktree)			/* traverse tree */
 		(struct radix_node_head *head, walktree_f_t *f, void *w);
