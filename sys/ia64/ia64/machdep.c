@@ -539,6 +539,7 @@ cpu_pcpu_setup(struct pcpu *pc, u_int acpi_id, u_int sapic_id)
 	if (r.sal_status != 0)
 		return;
 	pc->pc_md.sgisn_nasid = r.sal_result[0];
+	pc->pc_md.sgisn_slice = r.sal_result[2];
 
 	r = ia64_sal_entry(SAL_SGISN_SN_INFO, 0, 0, 0, 0, 0, 0, 0);
 	if (r.sal_status != 0)
