@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/vmmeter.h>
 
@@ -683,6 +684,90 @@ cache_drain(uma_zone_t zone)
 	ZONE_LOCK(zone);
 	bucket_cache_drain(zone);
 	ZONE_UNLOCK(zone);
+}
+
+static void
+cache_shrink(uma_zone_t zone)
+{
+
+	if (zone->uz_flags & UMA_ZFLAG_INTERNAL)
+		return;
+
+	ZONE_LOCK(zone);
+	zone->uz_count = (zone->uz_count_min + zone->uz_count) / 2;
+	ZONE_UNLOCK(zone);
+}
+
+static void
+cache_drain_safe_cpu(uma_zone_t zone)
+{
+	uma_cache_t cache;
+	uma_bucket_t b1, b2;
+
+	if (zone->uz_flags & UMA_ZFLAG_INTERNAL)
+		return;
+
+	b1 = b2 = NULL;
+	ZONE_LOCK(zone);
+	critical_enter();
+	cache = &zone->uz_cpu[curcpu];
+	if (cache->uc_allocbucket) {
+		if (cache->uc_allocbucket->ub_cnt != 0)
+			LIST_INSERT_HEAD(&zone->uz_buckets,
+			    cache->uc_allocbucket, ub_link);
+		else
+			b1 = cache->uc_allocbucket;
+		cache->uc_allocbucket = NULL;
+	}
+	if (cache->uc_freebucket) {
+		if (cache->uc_freebucket->ub_cnt != 0)
+			LIST_INSERT_HEAD(&zone->uz_buckets,
+			    cache->uc_freebucket, ub_link);
+		else
+			b2 = cache->uc_freebucket;
+		cache->uc_freebucket = NULL;
+	}
+	critical_exit();
+	ZONE_UNLOCK(zone);
+	if (b1)
+		bucket_free(zone, b1, NULL);
+	if (b2)
+		bucket_free(zone, b2, NULL);
+}
+
+/*
+ * Safely drain per-CPU caches of a zone(s) to alloc bucket.
+ * This is an expensive call because it needs to bind to all CPUs
+ * one by one and enter a critical section on each of them in order
+ * to safely access their cache buckets.
+ * Zone lock must not be held on call this function.
+ */
+static void
+cache_drain_safe(uma_zone_t zone)
+{
+	int cpu;
+
+	/*
+	 * Polite bucket sizes shrinking was not enouth, shrink aggressively.
+	 */
+	if (zone)
+		cache_shrink(zone);
+	else
+		zone_foreach(cache_shrink);
+
+	CPU_FOREACH(cpu) {
+		thread_lock(curthread);
+		sched_bind(curthread, cpu);
+		thread_unlock(curthread);
+
+		if (zone)
+			cache_drain_safe_cpu(zone);
+		else
+			zone_foreach(cache_drain_safe_cpu);
+	}
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
 }
 
 /*
@@ -3070,6 +3155,10 @@ uma_reclaim(void)
 #endif
 	bucket_enable();
 	zone_foreach(zone_drain);
+	if (vm_page_count_min()) {
+		cache_drain_safe(NULL);
+		zone_foreach(zone_drain);
+	}
 	/*
 	 * Some slabs may have been freed but this zone will be visited early
 	 * we visit again so that we can free pages that are empty once other
