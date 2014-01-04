@@ -230,6 +230,7 @@ _citrus_VIQR_init_state(_VIQREncodingInfo * __restrict ei __unused,
 	psenc->chlen = 0;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_VIQR_pack_state(_VIQREncodingInfo * __restrict ei __unused,
@@ -247,6 +248,7 @@ _citrus_VIQR_unpack_state(_VIQREncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)psenc, pspriv, sizeof(*psenc));
 }
+#endif
 
 static int
 _citrus_VIQR_mbrtowc_priv(_VIQREncodingInfo * __restrict ei,
