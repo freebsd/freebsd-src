@@ -168,8 +168,8 @@ typedef struct __rpc_svcxprt {
 	time_t		xp_lastactive;	/* time of last RPC */
 	u_int64_t	xp_sockref;	/* set by nfsv4 to identify socket */
 	int		xp_upcallset;	/* socket upcall is set up */
-	uint32_t	xp_snd_cnt;	/* # of bytes sent to socket */
-	struct sx	xp_snd_lock;	/* protects xp_snd_cnt & sb_cc */
+	uint32_t	xp_snd_cnt;	/* # of bytes to send to socket */
+	uint32_t	xp_snt_cnt;	/* # of bytes sent to socket */
 #else
 	int		xp_fd;
 	u_short		xp_port;	 /* associated port number */
@@ -327,7 +327,7 @@ enum svcpool_state {
 typedef SVCTHREAD *pool_assign_fn(SVCTHREAD *, struct svc_req *);
 typedef void pool_done_fn(SVCTHREAD *, struct svc_req *);
 typedef struct __rpc_svcpool {
-	struct mtx	sp_lock;	/* protect the transport lists */
+	struct mtx_padalign sp_lock;	/* protect the transport lists */
 	const char	*sp_name;	/* pool name (e.g. "nfsd", "NLM" */
 	enum svcpool_state sp_state;	/* current pool state */
 	struct proc	*sp_proc;	/* process which is in svc_run */
