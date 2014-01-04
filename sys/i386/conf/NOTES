@@ -542,6 +542,8 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
@@ -576,6 +578,7 @@ hint.mse.0.irq="5"
 
 # Order for ISA/EISA devices is important here
 
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ath		# Atheros pci/cardbus NIC's
 device		ath_hal		# pci/cardbus chip support
 #device		ath_ar5210	# AR5210 chips

@@ -275,6 +275,8 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # Network interfaces:
 #
 
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
@@ -292,6 +294,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ed
 options 	ED_3C503
 options 	ED_HPP
