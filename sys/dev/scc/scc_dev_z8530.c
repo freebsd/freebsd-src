@@ -66,15 +66,6 @@ struct scc_class scc_z8530_class = {
 };
 
 /* Multiplexed I/O. */
-static __inline void
-scc_setmreg(struct scc_bas *bas, int ch, int reg, int val)
-{
-
-	scc_setreg(bas, ch + REG_CTRL, reg);
-	scc_barrier(bas);
-	scc_setreg(bas, ch + REG_CTRL, val);
-}
-
 static __inline uint8_t
 scc_getmreg(struct scc_bas *bas, int ch, int reg)
 {
@@ -148,9 +139,7 @@ z8530_bfe_ipend(struct scc_softc *sc)
 	if (ip & IP_TIB)
 		ch[1]->ch_ipend |= SER_INT_TXIDLE;
 	if (ip & IP_SIA) {
-		scc_setreg(bas, CHAN_A + REG_CTRL, CR_RSTXSI);
-		scc_barrier(bas);
-		bes = scc_getreg(bas, CHAN_A + REG_CTRL);
+		bes = scc_getmreg(bas, CHAN_A, CR_RSTXSI);
 		if (bes & BES_BRK)
 			ch[0]->ch_ipend |= SER_INT_BREAK;
 		sig = ch[0]->ch_hwsig;
@@ -166,9 +155,7 @@ z8530_bfe_ipend(struct scc_softc *sc)
 			ch[0]->ch_ipend |= SER_INT_OVERRUN;
 	}
 	if (ip & IP_SIB) {
-		scc_setreg(bas, CHAN_B + REG_CTRL, CR_RSTXSI);
-		scc_barrier(bas);
-		bes = scc_getreg(bas, CHAN_B + REG_CTRL);
+		bes = scc_getmreg(bas, CHAN_B, CR_RSTXSI);
 		if (bes & BES_BRK)
 			ch[1]->ch_ipend |= SER_INT_BREAK;
 		sig = ch[1]->ch_hwsig;
