@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 30, 2013
+.Dd January 4, 2014
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -88,8 +88,12 @@ and the temporary discovery sesion will be removed.
 The "nickname" of session defined in the configuration file.
 .It Fl p
 Target portal - host name or address - for statically defined targets.
+.It Fl s
+CHAP secret.
 .It Fl t
 Target name.
+.It Fl u
+CHAP login.
 .It Fl v
 Verbose mode.
 .El
