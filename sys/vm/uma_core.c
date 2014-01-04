@@ -1318,6 +1318,7 @@ keg_small_init(uma_keg_t keg)
 static void
 keg_large_init(uma_keg_t keg)
 {
+	u_int shsize;
 
 	KASSERT(keg != NULL, ("Keg is null in keg_large_init"));
 	KASSERT((keg->uk_flags & UMA_ZFLAG_CACHEONLY) == 0,
@@ -1334,8 +1335,21 @@ keg_large_init(uma_keg_t keg)
 	if (keg->uk_flags & UMA_ZFLAG_INTERNAL)
 		return;
 
-	keg->uk_flags |= UMA_ZONE_OFFPAGE;
-	if ((keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
+	/* Check whether we have enough space to not do OFFPAGE. */
+	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) == 0) {
+		shsize = sizeof(struct uma_slab);
+		if (keg->uk_flags & UMA_ZONE_REFCNT)
+			shsize += keg->uk_ipers * sizeof(uint32_t);
+		if (shsize & UMA_ALIGN_PTR)
+			shsize = (shsize & ~UMA_ALIGN_PTR) +
+			    (UMA_ALIGN_PTR + 1);
+
+		if ((PAGE_SIZE * keg->uk_ppera) - keg->uk_rsize < shsize)
+			keg->uk_flags |= UMA_ZONE_OFFPAGE;
+	}
+
+	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
+	    (keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
 		keg->uk_flags |= UMA_ZONE_HASH;
 }
 
