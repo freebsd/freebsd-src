@@ -38,9 +38,9 @@
 #endif
 #ifdef BYFOUR
    local unsigned long crc32_little OF((unsigned long,
-                        const unsigned char FAR *, unsigned));
+                        __capability const unsigned char FAR *, unsigned));
    local unsigned long crc32_big OF((unsigned long,
-                        const unsigned char FAR *, unsigned));
+                        __capability const unsigned char FAR *, unsigned));
 #  define TBLS 8
 #else
 #  define TBLS 1
@@ -206,6 +206,14 @@ unsigned long ZEXPORT crc32(crc, buf, len)
     const unsigned char FAR *buf;
     uInt len;
 {
+	return (c_crc32(crc, cheri_setlen((__capability void *)buf, len), len));
+}
+
+unsigned long ZEXPORT c_crc32(crc, buf, len)
+    unsigned long crc;
+    __capability const unsigned char FAR *buf;
+    uInt len;
+{
     if (buf == Z_NULL) return 0UL;
 
 #ifdef DYNAMIC_CRC_TABLE
@@ -246,11 +254,11 @@ unsigned long ZEXPORT crc32(crc, buf, len)
 /* ========================================================================= */
 local unsigned long crc32_little(crc, buf, len)
     unsigned long crc;
-    const unsigned char FAR *buf;
+    __capability const unsigned char FAR *buf;
     unsigned len;
 {
     register z_crc_t c;
-    register const z_crc_t FAR *buf4;
+    __capability register const z_crc_t FAR *buf4;
 
     c = (z_crc_t)crc;
     c = ~c;
@@ -259,7 +267,7 @@ local unsigned long crc32_little(crc, buf, len)
         len--;
     }
 
-    buf4 = (const z_crc_t FAR *)(const void FAR *)buf;
+    buf4 = (__capability const z_crc_t FAR *)(__capability const void FAR *)buf;
     while (len >= 32) {
         DOLIT32;
         len -= 32;
@@ -268,7 +276,7 @@ local unsigned long crc32_little(crc, buf, len)
         DOLIT4;
         len -= 4;
     }
-    buf = (const unsigned char FAR *)buf4;
+    buf = (__capability const unsigned char FAR *)buf4;
 
     if (len) do {
         c = crc_table[0][(c ^ *buf++) & 0xff] ^ (c >> 8);
@@ -286,11 +294,11 @@ local unsigned long crc32_little(crc, buf, len)
 /* ========================================================================= */
 local unsigned long crc32_big(crc, buf, len)
     unsigned long crc;
-    const unsigned char FAR *buf;
+    __capability const unsigned char FAR *buf;
     unsigned len;
 {
     register z_crc_t c;
-    register const z_crc_t FAR *buf4;
+    __capability register const z_crc_t FAR *buf4;
 
     c = ZSWAP32((z_crc_t)crc);
     c = ~c;
@@ -299,7 +307,7 @@ local unsigned long crc32_big(crc, buf, len)
         len--;
     }
 
-    buf4 = (const z_crc_t FAR *)(const void FAR *)buf;
+    buf4 = (__capability const z_crc_t FAR *)(__capability const void FAR *)buf;
     buf4--;
     while (len >= 32) {
         DOBIG32;
@@ -310,7 +318,7 @@ local unsigned long crc32_big(crc, buf, len)
         len -= 4;
     }
     buf4++;
-    buf = (const unsigned char FAR *)buf4;
+    buf = (__capability const unsigned char FAR *)buf4;
 
     if (len) do {
         c = crc_table[4][(c >> 24) ^ *buf++] ^ (c << 8);

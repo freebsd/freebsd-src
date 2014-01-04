@@ -6,7 +6,7 @@
 /* @(#) $Id$ */
 
 #define ZLIB_INTERNAL
-#include "zlib.h"
+#include "zlib-cheri.h"
 
 /* ===========================================================================
      Compresses the source buffer into the destination buffer. The level
@@ -29,13 +29,13 @@ int ZEXPORT compress2 (dest, destLen, source, sourceLen, level)
     z_stream stream;
     int err;
 
-    stream.next_in = (z_const Bytef *)source;
+    stream.next_in = cheri_setlen((__capability Bytef *)source, sourceLen);
     stream.avail_in = (uInt)sourceLen;
 #ifdef MAXSEG_64K
     /* Check for source > 64K on 16-bit machine: */
     if ((uLong)stream.avail_in != sourceLen) return Z_BUF_ERROR;
 #endif
-    stream.next_out = dest;
+    stream.next_out = cheri_ptr(dest, *destLen);
     stream.avail_out = (uInt)*destLen;
     if ((uLong)stream.avail_out != *destLen) return Z_BUF_ERROR;
 
@@ -43,17 +43,17 @@ int ZEXPORT compress2 (dest, destLen, source, sourceLen, level)
     stream.zfree = (free_func)0;
     stream.opaque = (voidpf)0;
 
-    err = deflateInit(&stream, level);
+    err = deflateInit((z_streamp)&stream, level); /* XXX CHERI cast */
     if (err != Z_OK) return err;
 
-    err = deflate(&stream, Z_FINISH);
+    err = deflate((z_streamp)&stream, Z_FINISH); /* XXX CHERI cast */
     if (err != Z_STREAM_END) {
-        deflateEnd(&stream);
+        deflateEnd((z_streamp)&stream); /* XXX CHERI cast */
         return err == Z_OK ? Z_BUF_ERROR : err;
     }
     *destLen = stream.total_out;
 
-    err = deflateEnd(&stream);
+    err = deflateEnd((z_streamp)&stream); /* XXX CHERI case */
     return err;
 }
 

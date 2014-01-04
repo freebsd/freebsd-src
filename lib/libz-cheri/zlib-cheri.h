@@ -1,4 +1,4 @@
-/* zlib.h -- interface of the 'zlib' general purpose compression library
+/* zlib-cheri.h -- interface of the 'zlib' general purpose compression library
   version 1.2.8, April 28th, 2013
 
   Copyright (C) 1995-2013 Jean-loup Gailly and Mark Adler
@@ -31,7 +31,7 @@
 #ifndef ZLIB_H
 #define ZLIB_H
 
-#include "zconf.h"
+#include "zconf-cheri.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,11 +83,11 @@ typedef void   (*free_func)  OF((voidpf opaque, voidpf address));
 struct internal_state;
 
 typedef struct z_stream_s {
-    z_const Bytef *next_in;     /* next input byte */
+    __capability z_const Bytef *next_in;     /* next input byte */
     uInt     avail_in;  /* number of bytes available at next_in */
     uLong    total_in;  /* total number of input bytes read so far */
 
-    Bytef    *next_out; /* next output byte should be put there */
+    __capability Bytef    *next_out; /* next output byte should be put there */
     uInt     avail_out; /* remaining free space at next_out */
     uLong    total_out; /* total number of bytes output so far */
 
@@ -103,7 +103,7 @@ typedef struct z_stream_s {
     uLong   reserved;   /* reserved for future use */
 } z_stream;
 
-typedef z_stream FAR *z_streamp;
+typedef __capability z_stream FAR *z_streamp;
 
 /*
      gzip header information passed to and from zlib routines.  See RFC 1952
@@ -146,12 +146,12 @@ typedef gz_header FAR *gz_headerp;
 
      On 16-bit systems, the functions zalloc and zfree must be able to allocate
    exactly 65536 bytes, but will not be required to allocate more than this if
-   the symbol MAXSEG_64K is defined (see zconf.h).  WARNING: On MSDOS, pointers
+   the symbol MAXSEG_64K is defined (see zconf-cheri.h).  WARNING: On MSDOS, pointers
    returned by zalloc for objects of exactly 65536 bytes *must* have their
    offset normalized to zero.  The default allocation function provided by this
    library ensures this (see zutil.c).  To reduce memory requirements and avoid
    any allocation of 64K objects, at the expense of compression ratio, compile
-   the library with -DMAX_WBITS=14 (see zconf.h).
+   the library with -DMAX_WBITS=14 (see zconf-cheri.h).
 
      The fields total_in and total_out can be used for statistics or progress
    reports.  After compression, total_in holds the total size of the
@@ -216,7 +216,7 @@ typedef gz_header FAR *gz_headerp;
 ZEXTERN const char * ZEXPORT zlibVersion OF((void));
 /* The application can compare zlibVersion and ZLIB_VERSION for consistency.
    If the first character differs, the library code actually used is not
-   compatible with the zlib.h header file used by the application.  This check
+   compatible with the zlib-cheri.h header file used by the application.  This check
    is automatically made by deflateInit and inflateInit.
  */
 
@@ -558,7 +558,7 @@ ZEXTERN int ZEXPORT deflateInit2 OF((z_streamp strm,
      The memLevel parameter specifies how much memory should be allocated
    for the internal compression state.  memLevel=1 uses minimum memory but is
    slow and reduces compression ratio; memLevel=9 uses maximum memory for
-   optimal speed.  The default value is 8.  See zconf.h for total memory usage
+   optimal speed.  The default value is 8.  See zconf-cheri.h for total memory usage
    as a function of windowBits and memLevel.
 
      The strategy parameter is used to tune the compression algorithm.  Use the
@@ -1023,8 +1023,9 @@ ZEXTERN int ZEXPORT inflateBackInit OF((z_streamp strm, int windowBits,
 */
 
 typedef unsigned (*in_func) OF((void FAR *,
-                                z_const unsigned char FAR * FAR *));
-typedef int (*out_func) OF((void FAR *, unsigned char FAR *, unsigned));
+                                __capability z_const unsigned char FAR * FAR *));
+typedef int (*out_func) OF((void FAR *, __capability unsigned char FAR *,
+                            unsigned));
 
 ZEXTERN int ZEXPORT inflateBack OF((z_streamp strm,
                                     in_func in, void FAR *in_desc,
@@ -1567,6 +1568,8 @@ ZEXTERN void ZEXPORT gzclearerr OF((gzFile file));
 */
 
 ZEXTERN uLong ZEXPORT adler32 OF((uLong adler, const Bytef *buf, uInt len));
+ZEXTERN uLong ZEXPORT c_adler32 OF((uLong adler, __capability const Bytef *buf,
+                                    uInt len));
 /*
      Update a running Adler-32 checksum with the bytes buf[0..len-1] and
    return the updated checksum.  If buf is Z_NULL, this function returns the
@@ -1597,7 +1600,10 @@ ZEXTERN uLong ZEXPORT adler32_combine OF((uLong adler1, uLong adler2,
    negative, the result has no meaning or utility.
 */
 
-ZEXTERN uLong ZEXPORT crc32   OF((uLong crc, const Bytef *buf, uInt len));
+ZEXTERN uLong ZEXPORT crc32   OF((uLong crc, const Bytef *buf,
+                                  uInt len));
+ZEXTERN uLong ZEXPORT c_crc32   OF((uLong crc, __capability const Bytef *buf,
+                                  uInt len));
 /*
      Update a running CRC-32 with the bytes buf[0..len-1] and return the
    updated CRC-32.  If buf is Z_NULL, this function returns the required
@@ -1669,7 +1675,7 @@ ZEXTERN int ZEXPORT inflateBackInit_ OF((z_streamp strm, int windowBits,
  */
 struct gzFile_s {
     unsigned have;
-    unsigned char *next;
+    __capability unsigned char *next;
     z_off64_t pos;
 };
 ZEXTERN int ZEXPORT gzgetc_ OF((gzFile file));  /* backward compatibility */

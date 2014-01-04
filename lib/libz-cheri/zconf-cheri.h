@@ -1,6 +1,6 @@
-/* zconf.h -- configuration of the zlib compression library
+/* zconf-cheri.h -- configuration of the zlib compression library
  * Copyright (C) 1995-2013 Jean-loup Gailly.
- * For conditions of distribution and use, see copyright notice in zlib.h
+ * For conditions of distribution and use, see copyright notice in zlib-cheri.h
  */
 
 /* @(#) $FreeBSD$ */
@@ -12,7 +12,7 @@
  * If you *really* need a unique prefix for all types and library functions,
  * compile with -DZ_PREFIX. The "standard" zlib should be compiled without it.
  * Even better than compiling with -DZ_PREFIX would be to use configure to set
- * this permanently in zconf.h using "./configure --zprefix".
+ * this permanently in zconf-cheri.h using "./configure --zprefix".
  */
 #ifdef Z_PREFIX     /* may be set to #if 1 by ./configure */
 #  define Z_PREFIX_SET
@@ -124,7 +124,7 @@
 #  define zlibCompileFlags      z_zlibCompileFlags
 #  define zlibVersion           z_zlibVersion
 
-/* all zlib typedefs in zlib.h and zconf.h */
+/* all zlib typedefs in zlib-cheri.h and zconf-cheri.h */
 #  define Byte                  z_Byte
 #  define Bytef                 z_Bytef
 #  define alloc_func            z_alloc_func
@@ -146,7 +146,7 @@
 #  define voidpc                z_voidpc
 #  define voidpf                z_voidpf
 
-/* all zlib structs in zlib.h and zconf.h */
+/* all zlib structs in zlib-cheri.h and zconf-cheri.h */
 #  define gz_header_s           z_gz_header_s
 #  define internal_state        z_internal_state
 
@@ -514,6 +514,18 @@ typedef uLong FAR uLongf;
   #pragma map(inflate_table,"INTABL")
   #pragma map(inflate_fast,"INFA")
   #pragma map(inflate_copyright,"INCOPY")
+#endif
+
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+#if __has_feature(capabilities)
+#include <machine/cheric.h>
+#else
+#define __capability
+#define cheri_ptr(a, b) (a)
+#define cheri_setlen(a, b) (a)
+#define cheri_getbase(a) (a)
+#endif
 #endif
 
 #endif /* ZCONF_H */

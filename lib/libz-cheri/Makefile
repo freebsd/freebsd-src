@@ -6,6 +6,7 @@ LIB=		z-cheri
 SHLIBDIR?=	/lib
 SHLIB_MAJOR=	6
 MAN=		zlib.3
+USE_CHERI=	yes
 
 #CFLAGS=-O -DMAX_WBITS=14 -DMAX_MEM_LEVEL=7
 #CFLAGS=-g -DDEBUG
@@ -53,7 +54,7 @@ VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 CFLAGS+=	-DSYMBOL_VERSIONING
 
-INCS=		zconf.h zlib.h
+INCS=		zconf-cheri.h zlib-cheri.h
 
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz

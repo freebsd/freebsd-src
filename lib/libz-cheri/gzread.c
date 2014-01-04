@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 /* Local functions */
-local int gz_load OF((gz_statep, unsigned char *, unsigned, unsigned *));
+local int gz_load OF((gz_statep, __capability unsigned char *, unsigned, unsigned *));
 local int gz_avail OF((gz_statep));
 local int gz_look OF((gz_statep));
 local int gz_decomp OF((gz_statep));
@@ -22,7 +22,7 @@ local int gz_skip OF((gz_statep, z_off64_t));
    read the number of bytes requested, depending on the type of descriptor. */
 local int gz_load(state, buf, len, have)
     gz_statep state;
-    unsigned char *buf;
+    __capability unsigned char *buf;
     unsigned len;
     unsigned *have;
 {
@@ -30,7 +30,8 @@ local int gz_load(state, buf, len, have)
 
     *have = 0;
     do {
-        ret = read(state->fd, buf + *have, len - *have);
+        /* XXX CHERI: Need cread() callgate in sandbox */
+        ret = read(state->fd, (unsigned char *)buf + *have, len - *have);
         if (ret <= 0)
             break;
         *have += ret;
@@ -55,14 +56,14 @@ local int gz_avail(state)
     gz_statep state;
 {
     unsigned got;
-    z_streamp strm = &(state->strm);
+    z_streamp strm = (z_streamp)&(state->strm);
 
     if (state->err != Z_OK && state->err != Z_BUF_ERROR)
         return -1;
     if (state->eof == 0) {
         if (strm->avail_in) {       /* copy what's there to the start */
-            unsigned char *p = state->in;
-            unsigned const char *q = strm->next_in;
+            __capability unsigned char *p = state->in;
+            __capability unsigned const char *q = strm->next_in;
             unsigned n = strm->avail_in;
             do {
                 *p++ = *q++;
@@ -89,18 +90,18 @@ local int gz_avail(state)
 local int gz_look(state)
     gz_statep state;
 {
-    z_streamp strm = &(state->strm);
+    z_streamp strm = (z_streamp)&(state->strm);
 
     /* allocate read buffers and inflate memory */
     if (state->size == 0) {
         /* allocate buffers */
-        state->in = (unsigned char *)malloc(state->want);
-        state->out = (unsigned char *)malloc(state->want << 1);
+        state->in = (__capability unsigned char *)malloc(state->want);
+        state->out = (__capability unsigned char *)malloc(state->want << 1);
         if (state->in == NULL || state->out == NULL) {
             if (state->out != NULL)
-                free(state->out);
+                free(cheri_getbase(state->out));
             if (state->in != NULL)
-                free(state->in);
+                free(cheri_getbase(state->in));
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -112,9 +113,9 @@ local int gz_look(state)
         state->strm.opaque = Z_NULL;
         state->strm.avail_in = 0;
         state->strm.next_in = Z_NULL;
-        if (inflateInit2(&(state->strm), 15 + 16) != Z_OK) {    /* gunzip */
-            free(state->out);
-            free(state->in);
+        if (inflateInit2((z_streamp)&(state->strm), 15 + 16) != Z_OK) {    /* gunzip */
+            free(cheri_getbase(state->out));
+            free(cheri_getbase(state->in));
             state->size = 0;
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
@@ -158,7 +159,8 @@ local int gz_look(state)
        space for gzungetc() */
     state->x.next = state->out;
     if (strm->avail_in) {
-        memcpy(state->x.next, strm->next_in, strm->avail_in);
+        memcpy(cheri_getbase(state->x.next), cheri_getbase(strm->next_in),
+               strm->avail_in);
         state->x.have = strm->avail_in;
         strm->avail_in = 0;
     }
@@ -177,7 +179,7 @@ local int gz_decomp(state)
 {
     int ret = Z_OK;
     unsigned had;
-    z_streamp strm = &(state->strm);
+    z_streamp strm = (z_streamp)&(state->strm);
 
     /* fill output buffer up to end of deflate stream */
     had = strm->avail_out;
@@ -229,7 +231,7 @@ local int gz_decomp(state)
 local int gz_fetch(state)
     gz_statep state;
 {
-    z_streamp strm = &(state->strm);
+    z_streamp strm = (z_streamp)&(state->strm);
 
     do {
         switch(state->how) {
@@ -301,7 +303,7 @@ int ZEXPORT gzread(file, buf, len)
     if (file == NULL)
         return -1;
     state = (gz_statep)file;
-    strm = &(state->strm);
+    strm = (z_streamp)&(state->strm);
 
     /* check that we're reading and that there's no (serious) error */
     if (state->mode != GZ_READ ||
@@ -332,7 +334,7 @@ int ZEXPORT gzread(file, buf, len)
         /* first just try copying data from the output buffer */
         if (state->x.have) {
             n = state->x.have > len ? len : state->x.have;
-            memcpy(buf, state->x.next, n);
+            memcpy(buf, cheri_getbase(state->x.next), n);
             state->x.next += n;
             state->x.have -= n;
         }
@@ -356,14 +358,14 @@ int ZEXPORT gzread(file, buf, len)
 
         /* large len -- read directly into user buffer */
         else if (state->how == COPY) {      /* read directly */
-            if (gz_load(state, (unsigned char *)buf, len, &n) == -1)
+            if (gz_load(state, cheri_ptr(buf, len), len, &n) == -1)
                 return -1;
         }
 
         /* large len -- decompress directly into user buffer */
         else {  /* state->how == GZIP */
             strm->avail_out = len;
-            strm->next_out = (unsigned char *)buf;
+            strm->next_out = cheri_ptr(buf, len);
             if (gz_decomp(state) == -1)
                 return -1;
             n = state->x.have;
@@ -468,8 +470,8 @@ int ZEXPORT gzungetc(c, file)
 
     /* slide output data if needed and insert byte before existing data */
     if (state->x.next == state->out) {
-        unsigned char *src = state->out + state->x.have;
-        unsigned char *dest = state->out + (state->size << 1);
+        __capability unsigned char *src = state->out + state->x.have;
+        __capability unsigned char *dest = state->out + (state->size << 1);
         while (src > state->out)
             *--dest = *--src;
         state->x.next = dest;
@@ -526,12 +528,12 @@ char * ZEXPORT gzgets(file, buf, len)
 
         /* look for end-of-line in current output buffer */
         n = state->x.have > left ? left : state->x.have;
-        eol = (unsigned char *)memchr(state->x.next, '\n', n);
+        eol = (unsigned char *)memchr(cheri_getbase(state->x.next), '\n', n);
         if (eol != NULL)
             n = (unsigned)(eol - state->x.next) + 1;
 
         /* copy through end-of-line, or remainder if not found */
-        memcpy(buf, state->x.next, n);
+        memcpy(buf, cheri_getbase(state->x.next), n);
         state->x.have -= n;
         state->x.next += n;
         state->x.pos += n;
@@ -584,9 +586,9 @@ int ZEXPORT gzclose_r(file)
 
     /* free memory and close file */
     if (state->size) {
-        inflateEnd(&(state->strm));
-        free(state->out);
-        free(state->in);
+        inflateEnd((z_streamp)&(state->strm));
+        free(cheri_getbase(state->out));
+        free(cheri_getbase(state->in));
     }
     err = state->err == Z_BUF_ERROR ? Z_BUF_ERROR : Z_OK;
     gz_error(state, Z_OK, NULL);

@@ -67,6 +67,15 @@ uLong ZEXPORT adler32(adler, buf, len)
     const Bytef *buf;
     uInt len;
 {
+	return (c_adler32(adler, cheri_setlen((__capability void *)buf, len),
+			  len));
+}
+
+uLong ZEXPORT c_adler32(adler, buf, len)
+    uLong adler;
+    __capability const Bytef *buf;
+    uInt len;
+{
     unsigned long sum2;
     unsigned n;
 
