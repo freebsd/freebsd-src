@@ -366,12 +366,13 @@ bucket_alloc(uma_zone_t zone, void *udata, int flags)
 	 * buckets via the allocation path or bucket allocations in the
 	 * free path.
 	 */
-	if ((uintptr_t)udata & UMA_ZFLAG_BUCKET)
-		return (NULL);
 	if ((zone->uz_flags & UMA_ZFLAG_BUCKET) == 0)
 		udata = (void *)(uintptr_t)zone->uz_flags;
-	else
+	else {
+		if ((uintptr_t)udata & UMA_ZFLAG_BUCKET)
+			return (NULL);
 		udata = (void *)((uintptr_t)udata | UMA_ZFLAG_BUCKET);
+	}
 	if ((uintptr_t)udata & UMA_ZFLAG_CACHEONLY)
 		flags |= M_NOVM;
 	ubz = bucket_zone_lookup(zone->uz_count);
