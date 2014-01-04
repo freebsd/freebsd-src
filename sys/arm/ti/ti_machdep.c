@@ -86,16 +86,16 @@ int
 initarm_devmap_init(void)
 {
 #if defined(SOC_OMAP4)
-	arm_devmap_add_entry(0x48000000, 0x01000000); // 16mb L4_PER devices
-	arm_devmap_add_entry(0x4A000000, 0x01000000); // 16mb L4_CFG devices
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
 #elif defined(SOC_TI_AM335X)
-	arm_devmap_add_entry(0x44C00000, 0x00400000); //  4mb L4_WKUP devices
-	arm_devmap_add_entry(0x47400000, 0x00100000); //  1mb USB
-	arm_devmap_add_entry(0x47800000, 0x00100000); //  1mb mmchs2
-	arm_devmap_add_entry(0x48000000, 0x01000000); // 16mb L4_PER devices
-	arm_devmap_add_entry(0x49000000, 0x00100000); //  1mb edma3
-	arm_devmap_add_entry(0x49800000, 0x00300000); //  3mb edma3
-	arm_devmap_add_entry(0x4A000000, 0x01000000); // 16mb L4_FAST devices
+	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
+	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
+	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
+	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
 #else
 #error "Unknown SoC"
 #endif
