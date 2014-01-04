@@ -161,7 +161,6 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	xprt = svc_xprt_alloc();
 	sx_init(&xprt->xp_lock, "xprt->xp_lock");
-	sx_init(&xprt->xp_snd_lock, "xprt->xp_snd_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = so;
 	xprt->xp_p1 = NULL;
@@ -188,7 +187,6 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 	return (xprt);
 cleanup_svc_vc_create:
 	if (xprt) {
-		sx_destroy(&xprt->xp_snd_lock);
 		sx_destroy(&xprt->xp_lock);
 		svc_xprt_free(xprt);
 	}
@@ -237,7 +235,6 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 
 	xprt = svc_xprt_alloc();
 	sx_init(&xprt->xp_lock, "xprt->xp_lock");
-	sx_init(&xprt->xp_snd_lock, "xprt->xp_snd_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = so;
 	xprt->xp_p1 = cd;
@@ -277,7 +274,6 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	return (xprt);
 cleanup_svc_vc_create:
 	if (xprt) {
-		sx_destroy(&xprt->xp_snd_lock);
 		sx_destroy(&xprt->xp_lock);
 		svc_xprt_free(xprt);
 	}
@@ -300,7 +296,6 @@ svc_vc_create_backchannel(SVCPOOL *pool)
 
 	xprt = svc_xprt_alloc();
 	sx_init(&xprt->xp_lock, "xprt->xp_lock");
-	sx_init(&xprt->xp_snd_lock, "xprt->xp_snd_lock");
 	xprt->xp_pool = pool;
 	xprt->xp_socket = NULL;
 	xprt->xp_p1 = cd;
@@ -550,9 +545,8 @@ static bool_t
 svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
 {
 
-	sx_slock(&xprt->xp_snd_lock);
-	*ack = xprt->xp_snd_cnt - xprt->xp_socket->so_snd.sb_cc;
-	sx_sunlock(&xprt->xp_snd_lock);
+	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
+	*ack -= xprt->xp_socket->so_snd.sb_cc;
 	return (TRUE);
 }
 
@@ -839,16 +833,16 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		len = mrep->m_pkthdr.len;
 		*mtod(mrep, uint32_t *) =
 			htonl(0x80000000 | (len - sizeof(uint32_t)));
-		sx_xlock(&xprt->xp_snd_lock);
+		atomic_add_acq_32(&xprt->xp_snd_cnt, len);
 		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
 		    0, curthread);
 		if (!error) {
-			xprt->xp_snd_cnt += len;
+			atomic_add_rel_32(&xprt->xp_snt_cnt, len);
 			if (seq)
 				*seq = xprt->xp_snd_cnt;
 			stat = TRUE;
-		}
-		sx_xunlock(&xprt->xp_snd_lock);
+		} else
+			atomic_subtract_32(&xprt->xp_snd_cnt, len);
 	} else {
 		m_freem(mrep);
 	}
