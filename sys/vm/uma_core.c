@@ -2531,6 +2531,7 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 {
 	uma_cache_t cache;
 	uma_bucket_t bucket;
+	int lockfail;
 	int cpu;
 
 #ifdef UMA_DEBUG_ALLOC_1
@@ -2615,7 +2616,12 @@ zfree_start:
 	if (zone->uz_count == 0 || bucketdisable)
 		goto zfree_item;
 
-	ZONE_LOCK(zone);
+	lockfail = 0;
+	if (ZONE_TRYLOCK(zone) == 0) {
+		/* Record contention to size the buckets. */
+		ZONE_LOCK(zone);
+		lockfail = 1;
+	}
 	critical_enter();
 	cpu = curcpu;
 	cache = &zone->uz_cpu[cpu];
@@ -2649,7 +2655,12 @@ zfree_start:
 	/* We are no longer associated with this CPU. */
 	critical_exit();
 
-	/* And the zone.. */
+	/*
+	 * We bump the uz count when the cache size is insufficient to
+	 * handle the working set.
+	 */
+	if (lockfail && zone->uz_count < BUCKET_MAX)
+		zone->uz_count++;
 	ZONE_UNLOCK(zone);
 
 #ifdef UMA_DEBUG_ALLOC
