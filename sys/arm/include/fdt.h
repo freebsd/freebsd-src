@@ -51,11 +51,6 @@
  */
 extern bus_space_tag_t fdtbus_bs_tag;
 
-struct mem_region {
-	vm_offset_t	mr_start;
-	vm_size_t	mr_size;
-};
-
 struct arm_devmap_entry;
 
 int fdt_localbus_devmap(phandle_t, struct arm_devmap_entry *, int, int *);

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <vm/vm.h>
