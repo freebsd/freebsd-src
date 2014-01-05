@@ -57,21 +57,17 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/lpcvar.h>
 
 #include <dev/fdt/fdt_common.h>
-#include <dev/ic/ns16550.h>
 
 vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (fdt_immr_va);
+	return (arm_devmap_lastaddr());
 }
 
 void
 initarm_early_init(void)
 {
-
-	if (fdt_immr_addr(LPC_DEV_BASE) != 0)
-		while (1);
 }
 
 void
@@ -89,28 +85,16 @@ initarm_late_init(void)
 {
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Add a single static device mapping.
+ * The values used were taken from the ranges property of the SoC node in the
+ * dts file when this code was converted to arm_devmap_add_entry().
  */
 int
 initarm_devmap_init(void)
 {
 
-	/*
-	 * IMMR range.
-	 */
-	fdt_devmap[0].pd_va = fdt_immr_va;
-	fdt_devmap[0].pd_pa = fdt_immr_pa;
-	fdt_devmap[0].pd_size = fdt_immr_size;
-	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[0].pd_cache = PTE_NOCACHE;
-	
-	arm_devmap_register_table(&fdt_devmap[0]);
+	arm_devmap_add_entry(LPC_DEV_PHYS_BASE, LPC_DEV_SIZE);
 	return (0);
 }
 
@@ -131,15 +115,24 @@ bus_dma_get_range_nb(void)
 void
 cpu_reset(void)
 {
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+
+	bst = fdtbus_bs_tag;
+
 	/* Enable WDT */
-	bus_space_write_4(fdtbus_bs_tag, 
-	    LPC_CLKPWR_BASE, LPC_CLKPWR_TIMCLK_CTRL,
+	bus_space_map(bst, LPC_CLKPWR_PHYS_BASE, LPC_CLKPWR_SIZE, 0, &bsh);
+	bus_space_write_4(bst, bsh, LPC_CLKPWR_TIMCLK_CTRL,
 	    LPC_CLKPWR_TIMCLK_CTRL_WATCHDOG);
+	bus_space_unmap(bst, bsh, LPC_CLKPWR_SIZE);
 
 	/* Instant assert of RESETOUT_N with pulse length 1ms */
-	bus_space_write_4(fdtbus_bs_tag, LPC_WDTIM_BASE, LPC_WDTIM_PULSE, 13000);
-	bus_space_write_4(fdtbus_bs_tag, LPC_WDTIM_BASE, LPC_WDTIM_MCTRL, 0x70);
+	bus_space_map(bst, LPC_WDTIM_PHYS_BASE, LPC_WDTIM_SIZE, 0, &bsh);
+	bus_space_write_4(bst, bsh, LPC_WDTIM_PULSE, 13000);
+	bus_space_write_4(bst, bsh, LPC_WDTIM_MCTRL, 0x70);
+	bus_space_unmap(bst, bsh, LPC_WDTIM_SIZE);
 
-	for (;;);
+	for (;;)
+		continue;
 }
 
