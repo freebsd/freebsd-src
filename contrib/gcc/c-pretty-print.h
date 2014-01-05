@@ -167,6 +167,8 @@ void pp_c_right_bracket (c_pretty_printer *);
 void pp_c_dot (c_pretty_printer *);
 void pp_c_ampersand (c_pretty_printer *);
 void pp_c_star (c_pretty_printer *);
+/* APPLE LOCAL blocks */
+void pp_c_caret (c_pretty_printer *);
 void pp_c_arrow (c_pretty_printer *);
 void pp_c_semicolon (c_pretty_printer *);
 void pp_c_complement (c_pretty_printer *);

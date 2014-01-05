@@ -364,6 +364,8 @@ push_binding (tree id, tree decl, cxx_scope* level)
     {
       binding = cxx_binding_make (decl, NULL_TREE);
       binding->scope = level;
+      /* APPLE LOCAL blocks 6040305 (ch) */
+      binding->declared_in_block = cur_block != 0;
     }
   else
     binding = new_class_binding (id, decl, /*type=*/NULL_TREE, level);
@@ -1822,6 +1824,8 @@ binding_for_name (cxx_scope *scope, tree name)
   result->scope = scope;
   result->is_local = false;
   result->value_is_inherited = false;
+  /* APPLE LOCAL blocks 6040305 (ch) */
+  result->declared_in_block = 0;
   IDENTIFIER_NAMESPACE_BINDINGS (name) = result;
   return result;
 }
@@ -4581,6 +4585,8 @@ arg_assoc_type (struct arg_lookup *k, tree type)
 	return arg_assoc_type (k, TYPE_PTRMEMFUNC_FN_TYPE (type));
       return arg_assoc_class (k, type);
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case ARRAY_TYPE:
       return arg_assoc_type (k, TREE_TYPE (type));

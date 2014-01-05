@@ -2051,7 +2051,8 @@ expand_call (tree exp, rtx target, int ignore)
 
   /* Operand 0 is a pointer-to-function; get the type of the function.  */
   funtype = TREE_TYPE (addr);
-  gcc_assert (POINTER_TYPE_P (funtype));
+  /* APPLE LOCAL blocks */
+  gcc_assert (POINTER_TYPE_P (funtype) || TREE_CODE (funtype) == BLOCK_POINTER_TYPE);
   funtype = TREE_TYPE (funtype);
 
   /* Munge the tree to split complex arguments into their imaginary
