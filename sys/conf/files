@@ -1402,7 +1402,6 @@ dev/fb/fb_if.m			standard
 dev/fb/splash.c			optional sc splash
 dev/fdt/fdt_common.c		optional fdt
 dev/fdt/fdt_ic_if.m		optional fdt
-dev/fdt/fdt_pci.c		optional fdt pci
 dev/fdt/fdt_slicer.c		optional fdt cfi | fdt nand
 dev/fdt/fdt_static_dtb.S	optional fdt fdt_dtb_static \
 	dependency	"$S/boot/fdt/dts/${FDT_DTS_FILE}"
