@@ -46,6 +46,6 @@
 #define	SHUB_MMR_PTC_CFG1	0x101a0080
 #define	SHUB_MMR_RTC		0x101c0000
 #define	SHUB_MMR_PIO_WSTAT(x)	(0x20070200 + (x) * 0x80)	/* 0<=x<4 */
-#define	SHUB_MMR_PTC		0x70000000
+#define	SHUB_MMR_PTC(rid)	(0x70000000 + ((rid) << 4))
 
 #endif /* _IA64_SGISN_SHUB_H_ */
