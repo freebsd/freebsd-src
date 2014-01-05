@@ -5894,7 +5894,7 @@ iwn_check_rx_recovery(struct iwn_softc *sc, struct iwn_stats *rs)
 	 * if ((delta * 100 / msecs) > threshold)
 	 */
 	if (thresh > 0 && (delta_cck + delta_ofdm + delta_ht) * 100 > thresh) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, IWN_DEBUG_ANY,
 		    "%s: PLCP error threshold raw (%d) comparison (%d) "
 		    "over limit (%d); retune!\n",
 		    __func__,
