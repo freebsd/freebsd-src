@@ -1125,7 +1125,17 @@ f_name(PLAN *plan, FTSENT *entry)
 	ssize_t len;
 
 	if (plan->flags & F_LINK) {
-		len = readlink(entry->fts_path, fn, sizeof(fn) - 1);
+		/*
+		 * The below test both avoids obviously useless readlink()
+		 * calls and ensures that symlinks with existent target do
+		 * not match if symlinks are being followed.
+		 * Assumption: fts will stat all symlinks that are to be
+		 * followed and will return the stat information.
+		 */
+		if (entry->fts_info != FTS_NSOK && entry->fts_info != FTS_SL &&
+		    entry->fts_info != FTS_SLNONE)
+			return 0;
+		len = readlink(entry->fts_accpath, fn, sizeof(fn) - 1);
 		if (len == -1)
 			return 0;
 		fn[len] = '\0';
