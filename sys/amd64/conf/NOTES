@@ -306,6 +306,8 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #
 
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
@@ -317,6 +319,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 # ural:	Ralink Technology RT2500USB IEEE 802.11 wireless adapter
 # wpi:	Intel 3945ABG Wireless LAN controller
 
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ed
 options 	ED_3C503
 options 	ED_HPP

@@ -669,6 +669,7 @@ dev/buslogic/bt_isa.c		optional bt isa
 dev/buslogic/bt_mca.c		optional bt mca
 dev/buslogic/bt_pci.c		optional bt pci
 dev/cardbus/cardbus.c		optional cardbus
+dev/cardbus/cardbus.c		optional cardbus
 dev/cardbus/cardbus_cis.c	optional cardbus
 dev/cardbus/cardbus_device.c	optional cardbus
 dev/cas/if_cas.c		optional cas

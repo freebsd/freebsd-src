@@ -573,6 +573,8 @@ hint.mse.0.irq="5"
 #       (requires sppp)
 # arl:	Aironet Arlan 655 wireless adapters.
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
+# bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
+#       adapters.
 # ce:   Cronyx Tau-PCI/32 sync single/dual port G.703/E1 serial adaptor
 #       with 32 HDLC subchannels (requires sppp (default), or NETGRAPH if
 #       NETGRAPH_CRONYX is configured)
@@ -616,6 +618,7 @@ device		arl
 hint.arl.0.at="isa"
 hint.arl.0.irq="9"
 hint.arl.0.maddr="0xd0000"
+device          bxe             # Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		ce
 device		cp
 device		cs

@@ -184,6 +184,7 @@ device		ppi		# Parallel port interface device
 #device		puc
 
 # PCI Ethernet NICs.
+device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel PRO/1000 Gigabit Ethernet Family
 device		igb		# Intel PRO/1000 PCIE Server Gigabit Family

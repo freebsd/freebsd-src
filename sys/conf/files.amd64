@@ -144,6 +144,14 @@ dev/atkbdc/atkbdc.c		optional	atkbdc
 dev/atkbdc/atkbdc_isa.c		optional	atkbdc isa
 dev/atkbdc/atkbdc_subr.c	optional	atkbdc
 dev/atkbdc/psm.c		optional	psm atkbdc
+dev/bxe/bxe.c			optional	bxe pci
+dev/bxe/bxe_stats.c		optional	bxe pci
+dev/bxe/bxe_debug.c		optional	bxe pci
+dev/bxe/ecore_sp.c		optional	bxe pci
+dev/bxe/bxe_elink.c		optional	bxe pci
+dev/bxe/57710_init_values.c	optional	bxe pci
+dev/bxe/57711_init_values.c	optional	bxe pci
+dev/bxe/57712_init_values.c	optional	bxe pci
 dev/coretemp/coretemp.c		optional	coretemp
 dev/cpuctl/cpuctl.c		optional	cpuctl
 # There are no systems with isa slots, so all ed isa entries should go..
