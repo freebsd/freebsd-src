@@ -804,6 +804,7 @@ static ISP_INLINE tstate_t *get_lun_statep_from_tag(ispsoftc_t *, int, uint32_t)
 static ISP_INLINE void rls_lun_statep(ispsoftc_t *, tstate_t *);
 static ISP_INLINE inot_private_data_t *get_ntp_from_tagdata(ispsoftc_t *, uint32_t, uint32_t, tstate_t **);
 static ISP_INLINE atio_private_data_t *isp_get_atpd(ispsoftc_t *, tstate_t *, uint32_t);
+static ISP_INLINE atio_private_data_t *isp_find_atpd(ispsoftc_t *, tstate_t *, uint32_t);
 static ISP_INLINE void isp_put_atpd(ispsoftc_t *, tstate_t *, atio_private_data_t *);
 static ISP_INLINE inot_private_data_t *isp_get_ntpd(ispsoftc_t *, tstate_t *);
 static ISP_INLINE inot_private_data_t *isp_find_ntpd(ispsoftc_t *, tstate_t *, uint32_t, uint32_t);
@@ -937,8 +938,8 @@ get_lun_statep_from_tag(ispsoftc_t *isp, int bus, uint32_t tagval)
 		for (i = 0; i < LUN_HASH_SIZE; i++) {
 			ISP_GET_PC_ADDR(isp, bus, lun_hash[i], lhp);
 			SLIST_FOREACH(tptr, lhp, next) {
-				atp = isp_get_atpd(isp, tptr, tagval);
-				if (atp && atp->tag == tagval) {
+				atp = isp_find_atpd(isp, tptr, tagval);
+				if (atp) {
 					tptr->hold++;
 					return (tptr);
 				}
@@ -1034,17 +1035,23 @@ isp_get_atpd(ispsoftc_t *isp, tstate_t *tptr, uint32_t tag)
 {
 	atio_private_data_t *atp;
 
-	if (tag == 0) {
-		atp = tptr->atfree;
-		if (atp) {
-			tptr->atfree = atp->next;
-		}
-		return (atp);
+	atp = LIST_FIRST(&tptr->atfree);
+	if (atp) {
+		LIST_REMOVE(atp, next);
+		atp->tag = tag;
+		LIST_INSERT_HEAD(&tptr->atused[ATPDPHASH(tag)], atp, next);
 	}
-	for (atp = tptr->atpool; atp < &tptr->atpool[ATPDPSIZE]; atp++) {
-		if (atp->tag == tag) {
+	return (atp);
+}
+
+static ISP_INLINE atio_private_data_t *
+isp_find_atpd(ispsoftc_t *isp, tstate_t *tptr, uint32_t tag)
+{
+	atio_private_data_t *atp;
+
+	LIST_FOREACH(atp, &tptr->atused[ATPDPHASH(tag)], next) {
+		if (atp->tag == tag)
 			return (atp);
-		}
 	}
 	return (NULL);
 }
@@ -1055,9 +1062,9 @@ isp_put_atpd(ispsoftc_t *isp, tstate_t *tptr, atio_private_data_t *atp)
 	if (atp->ests) {
 		isp_put_ecmd(isp, atp->ests);
 	}
+	LIST_REMOVE(atp, next);
 	memset(atp, 0, sizeof (*atp));
-	atp->next = tptr->atfree;
-	tptr->atfree = atp;
+	LIST_INSERT_HEAD(&tptr->atfree, atp, next);
 }
 
 static void
@@ -1067,11 +1074,8 @@ isp_dump_atpd(ispsoftc_t *isp, tstate_t *tptr)
 	const char *states[8] = { "Free", "ATIO", "CAM", "CTIO", "LAST_CTIO", "PDON", "?6", "7" };
 
 	for (atp = tptr->atpool; atp < &tptr->atpool[ATPDPSIZE]; atp++) {
-		if (atp->tag == 0) {
-			continue;
-		}
 		xpt_print(tptr->owner, "ATP: [0x%x] origdlen %u bytes_xfrd %u lun %u nphdl 0x%04x s_id 0x%06x d_id 0x%06x oxid 0x%04x state %s\n",
-                    atp->tag, atp->orig_datalen, atp->bytes_xfered, atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
+		    atp->tag, atp->orig_datalen, atp->bytes_xfered, atp->lun, atp->nphdl, atp->sid, atp->portid, atp->oxid, states[atp->state & 0x7]);
 	}
 }
 
@@ -1137,11 +1141,13 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	SLIST_INIT(&tptr->atios);
 	SLIST_INIT(&tptr->inots);
 	TAILQ_INIT(&tptr->waitq);
-	for (i = 0; i < ATPDPSIZE-1; i++) {
-		tptr->atpool[i].next = &tptr->atpool[i+1];
+	LIST_INIT(&tptr->atfree);
+	for (i = ATPDPSIZE-1; i >= 0; i--)
+		LIST_INSERT_HEAD(&tptr->atfree, &tptr->atpool[i], next);
+	for (i = 0; i < ATPDPHASHSIZE; i++)
+		LIST_INIT(&tptr->atused[i]);
+	for (i = 0; i < ATPDPSIZE-1; i++)
 		tptr->ntpool[i].next = &tptr->ntpool[i+1];
-	}
-	tptr->atfree = tptr->atpool;
 	tptr->ntfree = tptr->ntpool;
 	tptr->hold = 1;
 	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
@@ -1620,7 +1626,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb, enum Start_Ctio_How how)
 			}
 		}
 
-		atp = isp_get_atpd(isp, tptr, cso->tag_id);
+		atp = isp_find_atpd(isp, tptr, cso->tag_id);
 		if (atp == NULL) {
 			isp_prt(isp, ISP_LOGERR, "%s: [0x%x] cannot find private data adjunct in %s", __func__, cso->tag_id, __func__);
 			isp_dump_atpd(isp, tptr);
@@ -2252,7 +2258,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 		}
 	}
 
-	atp = isp_get_atpd(isp, tptr, 0);
+	atp = isp_get_atpd(isp, tptr, aep->at_handle);
 	atiop = (struct ccb_accept_tio *) SLIST_FIRST(&tptr->atios);
 	if (atiop == NULL || atp == NULL) {
 		/*
@@ -2272,7 +2278,6 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 		rls_lun_statep(isp, tptr);
 		return;
 	}
-	atp->tag = aep->at_handle;
 	atp->rxid = aep->at_tag_val;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
@@ -2401,12 +2406,11 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		goto noresrc;
 	}
 
-	atp = isp_get_atpd(isp, tptr, 0);
+	atp = isp_get_atpd(isp, tptr, aep->at_rxid);
 	if (atp == NULL) {
 		goto noresrc;
 	}
 
-	atp->tag = aep->at_rxid;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	tptr->atio_count--;
@@ -2638,12 +2642,7 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		goto noresrc;
 	}
 
-	atp = isp_get_atpd(isp, tptr, 0);
-	if (atp == NULL) {
-		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
-		goto noresrc;
-	}
-	oatp = isp_get_atpd(isp, tptr, aep->at_rxid);
+	oatp = isp_find_atpd(isp, tptr, aep->at_rxid);
 	if (oatp) {
 		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] tag wraparound in isp_handle_platforms_atio7 (N-Port Handle 0x%04x S_ID 0x%04x OX_ID 0x%04x) oatp state %d",
 		    aep->at_rxid, nphdl, sid, aep->at_hdr.ox_id, oatp->state);
@@ -2652,8 +2651,12 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 		 */
 		goto noresrc;
 	}
+	atp = isp_get_atpd(isp, tptr, aep->at_rxid);
+	if (atp == NULL) {
+		isp_prt(isp, ISP_LOGTDEBUG0, "[0x%x] out of atps", aep->at_rxid);
+		goto noresrc;
+	}
 	atp->word3 = lp->prli_word3;
-	atp->tag = aep->at_rxid;
 	atp->state = ATPD_STATE_ATIO;
 	SLIST_REMOVE_HEAD(&tptr->atios, sim_links.sle);
 	tptr->atio_count--;
@@ -2846,7 +2849,7 @@ isp_handle_srr_notify(ispsoftc_t *isp, void *inot_raw)
 		isp_async(isp, ISPASYNC_TARGET_NOTIFY_ACK, inot);
 		return;
 	}
-	atp = isp_get_atpd(isp, tptr, tag);
+	atp = isp_find_atpd(isp, tptr, tag);
 	if (atp == NULL) {
 		rls_lun_statep(isp, tptr);
 		isp_prt(isp, ISP_LOGERR, "%s: cannot find adjunct for %x in SRR Notify", __func__, tag);
@@ -2905,11 +2908,11 @@ isp_handle_platform_ctio(ispsoftc_t *isp, void *arg)
 	}
 
 	if (IS_24XX(isp)) {
-		atp = isp_get_atpd(isp, tptr, ((ct7_entry_t *)arg)->ct_rxid);
+		atp = isp_find_atpd(isp, tptr, ((ct7_entry_t *)arg)->ct_rxid);
 	} else if (IS_FC(isp)) {
-		atp = isp_get_atpd(isp, tptr, ((ct2_entry_t *)arg)->ct_rxid);
+		atp = isp_find_atpd(isp, tptr, ((ct2_entry_t *)arg)->ct_rxid);
 	} else {
-		atp = isp_get_atpd(isp, tptr, ((ct_entry_t *)arg)->ct_fwhandle);
+		atp = isp_find_atpd(isp, tptr, ((ct_entry_t *)arg)->ct_fwhandle);
 	}
 	if (atp == NULL) {
 		rls_lun_statep(isp, tptr);
@@ -3093,7 +3096,7 @@ isp_handle_platform_notify_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 				return;
 			}
 		}
-		atp = isp_get_atpd(isp, tptr, inp->in_seqid);
+		atp = isp_find_atpd(isp, tptr, inp->in_seqid);
 
 		if (atp) {
 			inot = (struct ccb_immediate_notify *) SLIST_FIRST(&tptr->inots);
@@ -3516,7 +3519,7 @@ isp_target_mark_aborted(ispsoftc_t *isp, union ccb *ccb)
 		}
 	}
 
-	atp = isp_get_atpd(isp, tptr, accb->atio.tag_id);
+	atp = isp_find_atpd(isp, tptr, accb->atio.tag_id);
 	if (atp == NULL) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
 	} else {
@@ -5005,7 +5008,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			if (ccb->atio.tag_id) {
-				atio_private_data_t *atp = isp_get_atpd(isp, tptr, ccb->atio.tag_id);
+				atio_private_data_t *atp = isp_find_atpd(isp, tptr, ccb->atio.tag_id);
 				if (atp) {
 					isp_put_atpd(isp, tptr, atp);
 				}
