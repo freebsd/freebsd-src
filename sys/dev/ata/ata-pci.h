@@ -257,6 +257,11 @@ struct ata_pci_controller {
 #define ATA_PPT_R5		0x1e0e8086
 #define ATA_PPT_R6		0x1e0f8086
 
+#define ATA_AVOTON_S1		0x1f208086
+#define ATA_AVOTON_S2		0x1f218086
+#define ATA_AVOTON_S3		0x1f308086
+#define ATA_AVOTON_S4		0x1f318086
+
 #define ATA_LPT_S1		0x8c008086
 #define ATA_LPT_S2		0x8c018086
 #define ATA_LPT_AH1		0x8c028086
@@ -269,6 +274,16 @@ struct ata_pci_controller {
 #define ATA_LPT_S4		0x8c098086
 #define ATA_LPT_R5		0x8c0e8086
 #define ATA_LPT_R6		0x8c0f8086
+
+#define ATA_WELLS_S1		0x8d008086
+#define ATA_WELLS_S2		0x8d088086
+#define ATA_WELLS_S3		0x8d608086
+#define ATA_WELLS_S4		0x8d688086
+
+#define ATA_LPTLP_S1		0x9c008086
+#define ATA_LPTLP_S2		0x9c018086
+#define ATA_LPTLP_S3		0x9c088086
+#define ATA_LPTLP_S4		0x9c098086
 
 #define ATA_I31244              0x32008086
 #define ATA_ISCH                0x811a8086
