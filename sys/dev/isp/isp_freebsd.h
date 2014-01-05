@@ -95,11 +95,13 @@ void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
+#define	ATPDPHASHSIZE	16
+#define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
+			    ((ATPDPHASHSIZE) - 1))
 
 #include <dev/isp/isp_target.h>
-
-typedef struct {
-	void *		next;
+typedef struct atio_private_data {
+	LIST_ENTRY(atio_private_data)	next;
 	uint32_t	orig_datalen;
 	uint32_t	bytes_xfered;
 	uint32_t	bytes_in_transit;
@@ -173,7 +175,8 @@ typedef struct tstate {
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
-	atio_private_data_t *	atfree;
+	LIST_HEAD(, atio_private_data)	atfree;
+	LIST_HEAD(, atio_private_data)	atused[ATPDPHASHSIZE];
 	atio_private_data_t	atpool[ATPDPSIZE];
 } tstate_t;
 
