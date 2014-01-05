@@ -21,6 +21,10 @@ USE_CHERI=	yes
 FILES=	__cheri_enter.o cheri_invoke.o
 CLEANFILES=	__cheri_enter.o cheri_invoke.o
 
+.if !defined(CHERI_CC)
+CFLAGS+=	-march=mips64r2
+.endif
+
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .include <bsd.lib.mk>
