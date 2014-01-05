@@ -1483,7 +1483,7 @@ sbp_targ_cmd_handler(struct fw_xfer *xfer)
 	atio->tag_id = orbi->orb_lo;
 	atio->init_id = orbi->login->id;
 
-	atio->ccb_h.flags = CAM_TAG_ACTION_VALID;
+	atio->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 	bytes = (u_char *)&orb[5];
 	if (debug)
 		printf("%s: %p %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
