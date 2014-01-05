@@ -1122,11 +1122,14 @@ f_name(PLAN *plan, FTSENT *entry)
 {
 	char fn[PATH_MAX];
 	const char *name;
+	ssize_t len;
 
 	if (plan->flags & F_LINK) {
-		name = fn;
-		if (readlink(entry->fts_path, fn, sizeof(fn)) == -1)
+		len = readlink(entry->fts_path, fn, sizeof(fn) - 1);
+		if (len == -1)
 			return 0;
+		fn[len] = '\0';
+		name = fn;
 	} else
 		name = entry->fts_name;
 	return !fnmatch(plan->c_data, name,
