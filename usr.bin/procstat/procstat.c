@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, 2011-2013 Robert N. M. Watson
+ * Copyright (c) 2007, 2011-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,13 +42,13 @@
 static int Lflag, Rflag, Sflag;
 static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, sflag;
 static int tflag, vflag, xflag;
-int	hflag, nflag, Cflag;
+int	hflag, nflag, Cflag, Xflag;
 
 static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
+	fprintf(stderr, "usage: procstat [-h] [-C] [-X] [-M core] [-N system] "
 	    "[-w interval] \n");
 	fprintf(stderr, "                [-L | -R | -S | -b | -c | -e | -f | -i | -j | -k | "
 	    "-l | -s | -t | -v | -x]\n");
@@ -133,7 +133,7 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CLN:M:RSabcefijklhstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CLN:M:RSXabcefijklhstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -156,6 +156,10 @@ main(int argc, char *argv[])
 
 		case 'S':
 			Sflag++;
+			break;
+
+		case 'X':
+			Xflag++;
 			break;
 
 		case 'a':
@@ -252,6 +256,10 @@ main(int argc, char *argv[])
 
 	/* Only allow -C with -f. */
 	if (Cflag && !fflag)
+		usage();
+
+	/* Only allow -X with -S and -R. */
+	if (Xflag && !(Sflag || Rflag))
 		usage();
 
 	if (memf != NULL)

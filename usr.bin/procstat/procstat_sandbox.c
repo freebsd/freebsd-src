@@ -37,9 +37,108 @@
 #include <sandbox_stat.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "procstat.h"
 
+/*
+ * Various utility functions for processing sampled invocation times.  These
+ * are complicated by the fact that zero entries should be disregarded.
+ */
+static void
+sample_trim(u_int *arraylenp, uint64_t **arrayp)
+{
+
+	/* Trim leading zeros. */
+	while (*arraylenp > 0 && (*arrayp)[0] == 0) {
+		(*arrayp)++;
+		(*arraylenp)--;
+	}
+
+	/* Trim trailing zeros. */
+	while (*arraylenp > 0 && (*arrayp)[*arraylenp - 1] == 0)
+		(*arraylenp)--;
+}
+
+static uint64_t
+sample_min(u_int arraylen, uint64_t *array)
+{
+	u_int i, v;
+
+	sample_trim(&arraylen, &array);
+	if (arraylen == 0)
+		return (0);
+	v = array[0];
+	for (i = 1; i < arraylen; i++) {
+		if (array[i] < v)
+			v = array[i];
+	}
+	return (v);
+}
+
+static uint64_t
+sample_max(u_int arraylen, uint64_t *array)
+{
+	u_int i, v;
+
+	sample_trim(&arraylen, &array);
+	if (arraylen == 0)
+		return (0);
+	v = array[0];
+	for (i = 1; i < arraylen; i++) {
+		if (array[i] > v)
+			v = array[i];
+	}
+	return (v);
+}
+
+static uint64_t
+sample_mean(u_int arraylen, uint64_t *array)
+{
+	uint64_t sum;
+	u_int i;
+
+	sample_trim(&arraylen, &array);
+	if (arraylen == 0)
+		return (0);
+	sum = 0;
+	for (i = 0; i < arraylen; i++)
+		sum += array[i];
+	return (sum / arraylen);
+}
+
+static int
+sample_compare(const void *p1, const void *p2)
+{
+	uint64_t left = *(const uintptr_t *)p1;
+	uint64_t right = *(const uintptr_t *)p2;
+
+	return ((left > right) - (left < right));
+}
+
+static uint64_t
+sample_median(u_int arraylen, uint64_t *array)
+{
+	uint64_t copy[arraylen], *arrayp;
+
+	/* Copy into our own array, trim, and sort. */
+	memcpy(copy, array, arraylen * sizeof(copy[0]));
+	arrayp = copy;
+	sample_trim(&arraylen, &arrayp);
+	if (arraylen == 0)
+		return (0);
+	qsort(copy, arraylen, sizeof(copy[0]), sample_compare);
+
+	/* Otherwise, find the middle value. */
+	if (arraylen % 2 == 0)		/* Even -- close to the median. */
+		return ((arrayp[arraylen/2-1] + arrayp[arraylen/2]) / 2);
+	else				/* Odd -- actually the median. */
+		return (arrayp[arraylen/2]);
+}
+
+/*
+ * The actual procstat(1) modes.
+ */
 void
 procstat_sandbox_classes(struct procstat *procstat, struct kinfo_proc *kipp)
 {
@@ -75,9 +174,12 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-10s %-20s %-10s %6s %5s %7s %8s\n", "PID",
-		    "COMM", "CLASS", "METHOD", "INVOKE", "FAULT", "MIN-CYC",
-		    "MAX-CYC");
+		printf("%5s %-10s %-20s %-10s %6s %5s %8s %8s", "PID", "COMM",
+		    "CLASS", "METHOD", "INVOKE", "FAULT", "LMIN", "LMAX");
+		if (Xflag)
+			printf(" %8s %8s %8s %8s", "SMIN", "SMAX", "SMEAN",
+			    "SMEDIAN");
+		printf("\n");
 	}
 	smsp_free = smsp = procstat_getsbmethods(procstat, kipp, &len);
 	if (smsp == NULL)
@@ -91,8 +193,20 @@ procstat_sandbox_methods(struct procstat *procstat, struct kinfo_proc *kipp)
 		printf("%-10s ", smsp->sms_method_name);
 		printf("%6jd ", (uintmax_t)smsp->sms_stat_invoke);
 		printf("%5jd ", (uintmax_t)smsp->sms_stat_fault);
-		printf("%7jd ", (uintmax_t)smsp->sms_stat_minrun);
-		printf("%8jd\n", (uintmax_t)smsp->sms_stat_maxrun);
+		printf("%8jd ", (uintmax_t)smsp->sms_stat_minrun);
+		printf("%8jd", (uintmax_t)smsp->sms_stat_maxrun);
+		if (Xflag) {
+			printf(" %8jd", sample_min(SANDBOX_METHOD_MAXSAMPVEC,
+			    smsp->sms_stat_sampvec));
+			printf(" %8jd", sample_max(SANDBOX_METHOD_MAXSAMPVEC,
+			    smsp->sms_stat_sampvec));
+			printf(" %8jd", sample_mean(SANDBOX_METHOD_MAXSAMPVEC,
+			    smsp->sms_stat_sampvec));
+			printf(" %8jd", sample_median(
+			    SANDBOX_METHOD_MAXSAMPVEC,
+			    smsp->sms_stat_sampvec));
+		}
+		printf("\n");
 	}
 	procstat_freesbmethods(procstat, smsp_free);
 }
@@ -124,15 +238,15 @@ print_sbobject_name(uint64_t type, uint64_t name)
 
 	switch (type) {
 	case SANDBOX_OBJECT_TYPE_PID:
-		printf("%12jd ", (uint64_t)name);
+		printf("%11jd ", (uint64_t)name);
 		break;
 
 	case SANDBOX_OBJECT_TYPE_POINTER:
-		printf("0x%010jx ", (uint64_t)name);
+		printf("0x%09jx ", (uint64_t)name);
 		break;
 
 	default:
-		printf("%-12s ", "-");
+		printf("%-11s ", "-");
 		break;
 	}
 }
@@ -145,9 +259,12 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 	u_int i;
 
 	if (!hflag) {
-		printf("%5s %-10s %-20s %4s %-12s %6s %7s %8s\n", "PID",
-		    "COMM", "CLASS", "TYPE", "NAME", "INVOKE", "MIN-CYC",
-		    "MAX-CYC");
+		printf("%5s %-10s %-20s %4s %-11s %6s %8s %8s", "PID", "COMM",
+		    "CLASS", "TYPE", "NAME", "INVOKE", "LMIN", "LMAX");
+		if (Xflag)
+			printf(" %8s %8s %8s %8s", "SMIN", "SMAX", "SMEAN",
+			    "SMEDIAN");
+		printf("\n");
 	}
 	sosp_free = sosp = procstat_getsbobjects(procstat, kipp, &len);
 	if (sosp == NULL)
@@ -162,8 +279,19 @@ procstat_sandbox_objects(struct procstat *procstat, struct kinfo_proc *kipp)
 		print_sbobject_name(sosp->sos_object_type,
 		    sosp->sos_object_name);
 		printf("%6jd ", (uintmax_t)sosp->sos_stat_invoke);
-		printf("%7jd ", (uintmax_t)sosp->sos_stat_minrun);
-		printf("%8jd\n", (uintmax_t)sosp->sos_stat_maxrun);
+		printf("%8jd ", (uintmax_t)sosp->sos_stat_minrun);
+		printf("%8jd", (uintmax_t)sosp->sos_stat_maxrun);
+		if (Xflag) {
+			printf(" %8jd", sample_min(SANDBOX_METHOD_MAXSAMPVEC,
+			    sosp->sos_stat_sampvec));
+			printf(" %8jd", sample_max(SANDBOX_METHOD_MAXSAMPVEC,
+			    sosp->sos_stat_sampvec));
+			printf(" %8jd", sample_mean(SANDBOX_METHOD_MAXSAMPVEC,
+			    sosp->sos_stat_sampvec));
+			printf(" %8jd", sample_median(
+			    SANDBOX_OBJECT_MAXSAMPVEC,
+			    sosp->sos_stat_sampvec));
+		}
 		printf("\n");
 	}
 	procstat_freesbobjects(procstat, sosp_free);

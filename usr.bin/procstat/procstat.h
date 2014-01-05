@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007, 2013 Robert N. M. Watson
+ * Copyright (c) 2007, 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
 #ifndef PROCSTAT_H
 #define	PROCSTAT_H
 
-extern int	hflag, nflag, Cflag;
+extern int	hflag, nflag, Cflag, Xflag;
 
 struct kinfo_proc;
 void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
