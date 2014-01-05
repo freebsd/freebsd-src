@@ -336,29 +336,50 @@ libusb_wait_for_event(libusb_context *ctx, struct timeval *tv)
 }
 
 int
-libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv)
+libusb_handle_events_timeout_completed(libusb_context *ctx,
+    struct timeval *tv, int *completed)
 {
-	int err;
+	int err = 0;
 
 	ctx = GET_CONTEXT(ctx);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout enter");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout_completed enter");
 
 	libusb_lock_events(ctx);
 
-	err = libusb_handle_events_locked(ctx, tv);
+	while (1) {
+		if (completed != NULL) {
+			if (*completed != 0 || err != 0)
+				break;
+		}
+		err = libusb_handle_events_locked(ctx, tv);
+		if (completed == NULL)
+			break;
+	}
 
 	libusb_unlock_events(ctx);
 
-	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout leave");
+	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_handle_events_timeout_completed exit");
 
 	return (err);
 }
 
 int
+libusb_handle_events_completed(libusb_context *ctx, int *completed)
+{
+	return (libusb_handle_events_timeout_completed(ctx, NULL, completed));
+}
+
+int
+libusb_handle_events_timeout(libusb_context *ctx, struct timeval *tv)
+{
+	return (libusb_handle_events_timeout_completed(ctx, tv, NULL));
+}
+
+int
 libusb_handle_events(libusb_context *ctx)
 {
-	return (libusb_handle_events_timeout(ctx, NULL));
+	return (libusb_handle_events_timeout_completed(ctx, NULL, NULL));
 }
 
 int
@@ -371,8 +392,9 @@ libusb_handle_events_locked(libusb_context *ctx, struct timeval *tv)
 	if (libusb_event_handling_ok(ctx)) {
 		err = libusb10_handle_events_sub(ctx, tv);
 	} else {
-		libusb_wait_for_event(ctx, tv);
-		err = 0;
+		err = libusb_wait_for_event(ctx, tv);
+		if (err != 0)
+			err = LIBUSB_ERROR_TIMEOUT;
 	}
 	return (err);
 }
