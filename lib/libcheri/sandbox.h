@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -63,7 +63,7 @@ int	sandbox_setup(const char *path, register_t sandboxlen,
 	    struct sandbox **sbp);
 void	sandbox_destroy(struct sandbox *sb);
 
-#if defined(__CHERI__) && defined(__capability)
+#if __has_feature(capabilities)
 register_t
 sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
     register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
@@ -90,7 +90,7 @@ void	sandbox_class_destroy(struct sandbox_class *sbcp);
 struct sandbox_object;
 int	sandbox_object_new(struct sandbox_class *sbcp,
 	    struct sandbox_object **sbopp);
-#if defined(__CHERI__) && defined(__capability)
+#if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
 		    u_int methodnum, register_t a1, register_t a2,
 		    register_t a3, register_t a4, register_t a5,
@@ -109,5 +109,10 @@ register_t	sandbox_object_invoke(struct sandbox_object *sbop,
 		    struct chericap *c8p, struct chericap *c9p,
 		    struct chericap *c10p);
 void	sandbox_object_destroy(struct sandbox_object *sbop);
+
+/*
+ * API to query system capabilities for use by sandboxes.
+ */
+void	cheri_systemcap_get(struct cheri_object *cop);
 
 #endif /* !_SANDBOX_H_ */

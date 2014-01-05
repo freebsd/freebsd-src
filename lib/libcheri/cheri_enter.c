@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -37,6 +38,8 @@
 
 #include <assert.h>
 #include <stdlib.h>
+
+#include "sandbox.h"
 
 /*
  * This file implements the "landing pad" for CHERI method invocations on
@@ -66,6 +69,47 @@ cheri_enter_init(void)
 	assert(__cheri_enter_stack != MAP_FAILED);
 }
 
+
+/*
+ * Return code and data capabilities that can be delegated to sandboxes in
+ * order to let them invoke cheri_enter().
+ *
+ * XXXRW: Currently, CSealData requires removing executable permission from
+ * the data capability.  This is undesirable as it will be used as $c0 when we
+ * return from the sandbox.  Once ISA and hardware are fixed, we can remove
+ * the permission trimming below.
+ */
+extern void __cheri_enter;
+void
+cheri_systemcap_get(struct cheri_object *cop)
+{
+#if __has_feature(capabilities)
+	__capability void *basecap;
+
+	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
+	cop->co_codecap = cheri_sealcode(basecap);
+	cop->co_datacap = cheri_andperm(basecap, CHERI_PERM_LOAD |
+	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
+	cop->co_datacap = cheri_sealdata(cop->co_datacap, basecap);
+#else
+	CHERI_CSETTYPE(3, 0, &__cheri_enter);
+	CHERI_CSEALCODE(1, 3);
+	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
+	CHERI_CSEALDATA(2, 2, 3);
+	CHERI_CSC(1, 0, &cop->co_codecap, 0);
+	CHERI_CSC(2, 0, &cop->co_datacap, 0);
+	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(2);
+	CHERI_CCLEARTAG(3);
+#endif
+}
+
+/*
+ * cheri_enter() itself: sandbox invocations turn up here.
+ */
 register_t
 cheri_enter(register_t methodnum __unused, register_t a0 __unused,
     register_t a1 __unused, register_t a2 __unused, register_t a3 __unused,
