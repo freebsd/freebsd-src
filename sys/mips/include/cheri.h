@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2013 Robert N. M. Watson
+ * Copyright (c) 2011-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -41,8 +41,8 @@
 #include <sys/types.h>
 
 /*
- * Canonical C-language representation of a capability -- for compilers that
- * don't support capabilities; for them, we'll provide __capability void *.
+ * Canonical C-language representation of a capability for compilers that
+ * don't support capabilities directly.
  */
 #define	CHERICAP_SIZE	32
 struct chericap {
@@ -62,6 +62,20 @@ struct chericap {
 #ifdef _KERNEL
 CTASSERT(sizeof(struct chericap) == CHERICAP_SIZE);
 #endif
+
+/*
+ * Canonical C-language representation of a CHERI object capability -- code
+ * and data capabilities in registers or memory.
+ */
+struct cheri_object {
+#if !defined(_KERNEL) && __has_feature(capabilities)
+	__capability void	*co_codecap;
+	__capability void	*co_datacap;
+#else
+	struct chericap		 co_codecap;
+	struct chericap		 co_datacap;
+#endif
+};
 
 /*
  * Register frame to be preserved on context switching -- very similar to
