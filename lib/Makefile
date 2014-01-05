@@ -35,6 +35,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libbsm \
 	libauditd \
 	libcompiler_rt \
+	${_libc_cheri} \
 	${_libcheri} \
 	libcrypt \
 	libelf \
@@ -161,6 +162,7 @@ _libbsnmp=	libbsnmp
 .endif
 
 .if ${MK_CHERI} != "no"
+_libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libz_cheri=	libz-cheri
 .endif
