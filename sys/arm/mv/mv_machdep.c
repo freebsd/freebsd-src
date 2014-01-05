@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/devmap.h>
+#include <machine/fdt.h>
 #include <machine/machdep.h>
 
 #include <arm/mv/mvreg.h>	/* XXX */
