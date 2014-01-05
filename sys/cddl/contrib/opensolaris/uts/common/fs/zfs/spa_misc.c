@@ -1739,6 +1739,7 @@ spa_init(int mode)
 	unique_init();
 	space_map_init();
 	zio_init();
+	lz4_init();
 	dmu_init();
 	zil_init();
 	vdev_cache_stat_init();
@@ -1764,6 +1765,7 @@ spa_fini(void)
 	vdev_cache_stat_fini();
 	zil_fini();
 	dmu_fini();
+	lz4_fini();
 	zio_fini();
 	space_map_fini();
 	unique_fini();
