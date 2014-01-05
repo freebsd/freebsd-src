@@ -78,11 +78,13 @@ __cheri_enter:
 	move	$fp, $sp
 
 	#
-	# Install $idc as $c0.  From here on out, we can do MIPS feteches and
-	# stores to memory inside the sandbox, and $c0-relative capability
-	# fetches and stores.
+	# Normally in a CHERI sandbox, we would install $c26 ($idc) into $c0
+	# for MIPS load/store instructions.  For the system class, we instead
+	# use $pcc so that we can have an executable version of $c0.
 	#
-	cmove	$c0, $c26
+	# XXXRW: Not 100% sure this is needed -- could we use $idc fine?
+	#
+	cgetpcc	$zero($c0)
 
 	#
 	# XXXRW: Defensively clear all general-purpose and capability
