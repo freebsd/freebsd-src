@@ -85,6 +85,8 @@ extensions, accepted by GCC in C89 mode and in C++.
 * Unnamed Fields::      Unnamed struct/union fields within structs/unions.
 * Thread-Local::        Per-thread variables.
 * Binary constants::    Binary constants using the @samp{0b} prefix.
+@c APPLE LOCAL blocks 7205047 5811887
+* Blocks::              Anonymous functions (closures).
 @end menu
 
 @node Statement Exprs
@@ -378,9 +380,14 @@ allows the data to be read-only.
 @cindex thunks
 
 A @dfn{nested function} is a function defined inside another function.
-(Nested functions are not supported for GNU C++.)  The nested function's
-name is local to the block where it is defined.  For example, here we
-define a nested function named @code{square}, and call it twice:
+@c APPLE LOCAL begin nested functions 4357979
+Nested functions are not supported for GNU C++ and are disable by
+default on FreeBSD.  The @option{-fnested-functions} and
+@option{-fno-nested-functions} options can be used to enable and
+disable nested function suppport.  The nested function's name is local
+to the block where it is defined.  For example, here we define a
+nested function named @code{square}, and call it twice:
+@c APPLE LOCAL end nested functions 4357979
 
 @smallexample
 @group
@@ -3785,6 +3792,22 @@ particular, if a class is thrown as an exception in one shared object
 and caught in another, the class must have default visibility.
 Otherwise the two shared objects will be unable to use the same
 typeinfo node and exception handling will break.
+
+@c APPLE LOCAL begin weak types 5954418
+@item weak
+In C++, attribute weak can be applied to a class to ensure that all
+non-hidden instances of the type are treated as the same type across
+shared library boundaries on platforms (such as darwin and arm aapcs)
+that can emit vtables and the type info meta data as non-comdat
+symbols.  This is useful when the class has a key method and the
+translation unit that contains the key method is used in more than one
+shared library or in a shared library and the application.  Doing this
+results in more expensive startup times.  This attribute is inherited
+by subclasses, so it is only necessary to mark a base type.  The
+typical use would be to mark any types used for throwing across shared
+library boundaries or those used in dynamic_cast operations across a
+shared library boundary.
+@c APPLE LOCAL end weak types 5954418
 
 @subsection ARM Type Attributes
 
@@ -10533,6 +10556,18 @@ Add after paragraph 6
 Non-@code{static} members shall not be @code{__thread}.
 @end quotation
 @end itemize
+
+@c APPLE LOCAL begin blocks 7205047 5811887
+@node Blocks
+@section Blocks
+@cindex Blocks
+@cindex __block
+
+Blocks is a language feature that allows one to create anonymous
+functions.  The feature is also known as lambdas or closures in other
+languages.  The feature is controlled by @option{-fblocks}.
+See @uref{http://developer.apple.com/mac/library/documentation/Cocoa/Conceptual/Blocks/Articles/00_Introduction.html} for additional details.
+@c APPLE LOCAL end blocks 7205047 5811887
 
 @node Binary constants
 @section Binary constants using the @samp{0b} prefix
