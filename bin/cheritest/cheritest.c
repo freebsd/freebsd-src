@@ -336,7 +336,7 @@ cheritest_invoke_simple_op(int op)
 #else
 	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	    NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 }
@@ -347,7 +347,7 @@ cheritest_invoke_simple_op(int op)
  */
 static char md5string[] = "hello world";
 #ifndef USE_C_CAPS
-static struct chericap c5, c6
+static struct chericap c5, c6;
 #endif
 
 static void
