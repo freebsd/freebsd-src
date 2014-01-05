@@ -128,8 +128,6 @@ static device_method_t sgisn_shub_methods[] = {
 static devclass_t sgisn_shub_devclass;
 static char sgisn_shub_name[] = "shub";
 
-static device_t shub_dev;
-
 static driver_t sgisn_shub_driver = {
 	sgisn_shub_name,
 	sgisn_shub_methods,
@@ -385,9 +383,6 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_dev = dev;
 	sc->sc_domain = device_get_unit(dev);
 
-	if (sc->sc_domain == 0)
-		shub_dev = dev;
-
 	/*
 	 * Get the physical memory region that is connected to the MD I/F
 	 * of this SHub. It allows us to allocate memory that's close to
@@ -416,6 +411,10 @@ sgisn_shub_attach(device_t dev)
 	sc->sc_nasid_shft = (r.sal_result[1] >> 16) & 0xff;
 	sc->sc_nasid = (sc->sc_membase >> sc->sc_nasid_shft) &
 	    sc->sc_nasid_mask;
+
+	KASSERT(sc->sc_nasid == (sc->sc_domain << 1),
+	    ("%s: NASID (=%x) doesn't match device unit (=%x)",
+	    __func__, sc->sc_nasid, sc->sc_domain));
 
 	sc->sc_mmraddr = ((vm_paddr_t)sc->sc_nasid << sc->sc_nasid_shft) |
 	    (((sc->sc_hubtype == 0) ? 9UL : 3UL) << 32);
@@ -596,9 +595,10 @@ sgisn_shub_iommu_map(device_t bus, device_t dev, busdma_md_t md, u_int idx,
 void
 shub_iack(const char *f, u_int xiv)
 {
-	struct sgisn_shub_softc *sc = device_get_softc(shub_dev);
+	struct sgisn_shub_softc *sc;
 	uint64_t ev;
 
+	sc = devclass_get_softc(sgisn_shub_devclass, PCPU_GET(md.sgisn_nasid));
 	ev = bus_space_read_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT);
 	ev &= (xiv == 0xe9) ? SHUB_EVENT_CONSOLE : (0x3UL << 33);
 	if (!ev)
