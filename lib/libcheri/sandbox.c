@@ -30,7 +30,7 @@
 
 #include <sys/cdefs.h>
 
-#if defined(__capability)
+#if __has_feature(capabilities)
 #define	USE_C_CAPS
 #endif
 
