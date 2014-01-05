@@ -399,6 +399,7 @@ int	libusb_get_active_config_descriptor(libusb_device * dev, struct libusb_confi
 int	libusb_get_config_descriptor(libusb_device * dev, uint8_t config_index, struct libusb_config_descriptor **config);
 int	libusb_get_config_descriptor_by_value(libusb_device * dev, uint8_t bConfigurationValue, struct libusb_config_descriptor **config);
 void	libusb_free_config_descriptor(struct libusb_config_descriptor *config);
+int	libusb_get_string_descriptor(libusb_device_handle * devh, uint8_t desc_index, uint16_t langid, unsigned char *data, int length);
 int	libusb_get_string_descriptor_ascii(libusb_device_handle * devh, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_parse_ss_endpoint_comp(const void *buf, int len, struct libusb_ss_endpoint_companion_descriptor **ep_comp);
