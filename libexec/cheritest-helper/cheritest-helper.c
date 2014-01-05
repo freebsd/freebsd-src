@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -46,7 +46,8 @@
 #include "cheritest-helper.h"
 
 #ifdef USE_C_CAPS
-int	invoke(register_t op, size_t len, __capability char *data_input,
+int	invoke(register_t op, size_t len, __capability void *system_codecap,
+	    __capability void *system_datacap, __capability char *data_input,
 	    __capability char *data_output);
 #else
 int	invoke(register_t op, size_t len);
@@ -70,7 +71,7 @@ invoke_md5(size_t len)
 		/* XXXRW: Want a CMD5Update() to avoid copying byte by byte. */
 		ch = data_input[count];
 #else
-		memcpy_fromcap(&ch, 3, count, sizeof(ch));
+		memcpy_fromcap(&ch, 5, count, sizeof(ch));
 #endif
 		MD5Update(&md5context, &ch, sizeof(ch));
 	}
@@ -79,7 +80,7 @@ invoke_md5(size_t len)
 	for (count = 0; count < sizeof(buf); count++)
 		data_output[count] = buf[count];
 #else
-	memcpy_tocap(4, buf, 0, sizeof(buf));
+	memcpy_tocap(6, buf, 0, sizeof(buf));
 #endif
 
 	return (123456);
@@ -95,9 +96,9 @@ invoke_cap_fault(register_t op)
 
 	cap = cheri_ptrperm(buffer, sizeof(buffer), CHERI_PERM_LOAD);
 #else
-	CHERI_CINCBASE(3, 0, (uintptr_t)buffer);
-	CHERI_CSETLEN(3, 3, sizeof(buffer));
-	CHERI_CANDPERM(3, 3, CHERI_PERM_LOAD);
+	CHERI_CINCBASE(11, 0, (uintptr_t)buffer);
+	CHERI_CSETLEN(11, 11, sizeof(buffer));
+	CHERI_CANDPERM(11, 11, CHERI_PERM_LOAD);
 #endif
 
 	switch (op) {
@@ -105,7 +106,7 @@ invoke_cap_fault(register_t op)
 #ifdef USE_C_CAPS
 		ch = cap[N];
 #else
-		CHERI_CLB(ch, N, 0, 3);
+		CHERI_CLB(ch, N, 0, 11);
 #endif
 		return (ch);
 
@@ -113,7 +114,7 @@ invoke_cap_fault(register_t op)
 #ifdef USE_C_CAPS
 		cap[0] = 0;
 #else
-		CHERI_CSB(0, 0, 0, 3);
+		CHERI_CSB(0, 0, 0, 11);
 #endif
 		break;
 
@@ -122,8 +123,8 @@ invoke_cap_fault(register_t op)
 		cap = cheri_zerocap();
 		ch = cap[0];
 #else
-		CHERI_CCLEARTAG(3);
-		CHERI_CLB(ch, 0, 0, 3);
+		CHERI_CCLEARTAG(11);
+		CHERI_CLB(ch, 0, 0, 11);
 #endif
 		return (ch);
 
@@ -132,8 +133,8 @@ invoke_cap_fault(register_t op)
 		cap = cheri_sealcode(cap);
 		ch = cap[0];
 #else
-		CHERI_CSEALCODE(3, 3);
-		CHERI_CLB(ch, 0, 0, 3);
+		CHERI_CSEALCODE(11, 11);
+		CHERI_CLB(ch, 0, 0, 11);
 #endif
 		return (ch);
 	}
@@ -185,7 +186,8 @@ invoke_syscall(void)
  */
 int
 #ifdef USE_C_CAPS
-invoke(register_t op, size_t len, __capability char *data_input,
+invoke(register_t op, size_t len, __capability void *system_codecap,
+    __capability void *system_datacap, __capability char *data_input,
     __capability char *data_output)
 #else
 invoke(register_t op, size_t len)

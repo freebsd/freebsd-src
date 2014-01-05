@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012-2013 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -87,6 +87,7 @@
 
 static struct sandbox_class	*cheritest_classp;
 static struct sandbox_object	*cheritest_objectp;
+static struct cheri_object	 cheritest_systemcap;
 
 static void
 usage(void)
@@ -330,9 +331,11 @@ cheritest_invoke_simple_op(int op)
 
 #ifdef USE_C_CAPS
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+	    cheritest_systemcap.co_codecap, cheritest_systemcap.co_datacap,
+	    NULL, NULL, NULL, NULL, NULL, NULL);
 #else
 	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
@@ -344,7 +347,7 @@ cheritest_invoke_simple_op(int op)
  */
 static char md5string[] = "hello world";
 #ifndef USE_C_CAPS
-static struct chericap c3, c4;
+static struct chericap c5, c6
 #endif
 
 static void
@@ -362,22 +365,24 @@ cheritest_invoke_md5(void)
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
 
 	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(md5string), 0, 0, 0, 0, 0, 0, md5cap, bufcap, cclear,
-	    cclear, cclear, cclear, cclear, cclear);
+	    strlen(md5string), 0, 0, 0, 0, 0, 0,
+	    cheritest_systemcap.co_codecap, cheritest_systemcap.co_datacap,
+	    md5cap, bufcap, cclear, cclear, cclear, cclear);
 #else
 	CHERI_CINCBASE(10, 0, &md5string);
 	CHERI_CSETLEN(10, 10, strlen(md5string));
 	CHERI_CANDPERM(10, 10, CHERI_PERM_LOAD);
-	CHERI_CSC(10, 0, &c3, 0);
+	CHERI_CSC(10, 0, &c5, 0);
 
 	CHERI_CINCBASE(10, 0, &buf);
 	CHERI_CSETLEN(10, 10, sizeof(buf));
 	CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
-	CHERI_CSC(10, 0, &c4, 0);
+	CHERI_CSC(10, 0, &c6, 0);
 
 	v = sandbox_object_invoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(md5string), 0, 0, 0, 0, 0, 0, &c3, &c4, NULL, NULL, NULL,
-	    NULL, NULL, NULL);
+	    strlen(md5string), 0, 0, 0, 0, 0, 0,
+	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
+	    &c5, &c6, NULL, NULL, NULL, NULL);
 #endif
 
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
@@ -418,6 +423,7 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_SYSCALL, "syscall");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
+	cheri_systemcap_get(&cheritest_systemcap);
 	return (0);
 }
 
