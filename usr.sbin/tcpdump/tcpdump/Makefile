@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+USE_CHERI=
+NO_SHARED=
+
 .include <bsd.own.mk>
 
 TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump

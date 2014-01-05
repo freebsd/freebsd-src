@@ -75,7 +75,7 @@ KEYDIR=
 KEYUSERS=
 PASSWD=
 
-while getopts "Bde:f:g:K:k:p:s:" opt; do
+while getopts "B:de:f:g:K:k:p:s:" opt; do
 	case "$opt" in
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;

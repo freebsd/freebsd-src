@@ -650,7 +650,7 @@ MK_${var}:=	no
 .if ${MK_CHERI} != "no"
 .if defined(USE_CHERI)
 .if defined(CHERI_CC)
-CC=	${CHERI_CC} -integrated-as
+CC:=	${CHERI_CC} -integrated-as
 .if defined(SYSROOT)
 CC+=	--sysroot=${SYSROOT}
 .endif
