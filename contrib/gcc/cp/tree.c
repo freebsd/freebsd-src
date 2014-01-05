@@ -1717,6 +1717,15 @@ maybe_dummy_object (tree type, tree* binfop)
       && same_type_p (TYPE_MAIN_VARIANT (TREE_TYPE (current_class_ref)),
 		      current_class_type))
     decl = current_class_ref;
+  /* APPLE LOCAL begin radar 6154598 */
+    else if (cur_block)
+    {
+      tree this_copiedin_var = lookup_name (this_identifier);
+      gcc_assert (!current_class_ref);
+      gcc_assert (this_copiedin_var);
+      decl = build_x_arrow (this_copiedin_var);
+    }  
+  /* APPLE LOCAL end radar 6154598 */
   else
     decl = build_dummy_object (context);
 
