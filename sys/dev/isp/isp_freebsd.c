@@ -2286,9 +2286,9 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	atiop->ccb_h.target_id = aep->at_tgt;
 	atiop->ccb_h.target_lun = aep->at_lun;
 	if (aep->at_flags & AT_NODISC) {
-		atiop->ccb_h.flags = CAM_DIS_DISCONNECT;
+		atiop->ccb_h.flags |= CAM_DIS_DISCONNECT;
 	} else {
-		atiop->ccb_h.flags = 0;
+		atiop->ccb_h.flags &= ~CAM_DIS_DISCONNECT;
 	}
 
 	if (status & QLTM_SVALID) {
@@ -2456,15 +2456,15 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atiop->tag_id = atp->tag;
 	switch (aep->at_taskflags & ATIO2_TC_ATTR_MASK) {
 	case ATIO2_TC_ATTR_SIMPLEQ:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_SIMPLE_Q_TAG;
 		break;
 	case ATIO2_TC_ATTR_HEADOFQ:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_HEAD_OF_Q_TAG;
 		break;
 	case ATIO2_TC_ATTR_ORDERED:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_ORDERED_Q_TAG;
 		break;
 	case ATIO2_TC_ATTR_ACAQ:		/* ?? */
@@ -2676,15 +2676,15 @@ isp_handle_platform_atio7(ispsoftc_t *isp, at7_entry_t *aep)
 	atiop->tag_id = atp->tag;
 	switch (aep->at_cmnd.fcp_cmnd_task_attribute & FCP_CMND_TASK_ATTR_MASK) {
 	case FCP_CMND_TASK_ATTR_SIMPLE:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_SIMPLE_Q_TAG;
 		break;
 	case FCP_CMND_TASK_ATTR_HEAD:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_HEAD_OF_Q_TAG;
 		break;
 	case FCP_CMND_TASK_ATTR_ORDERED:
-		atiop->ccb_h.flags = CAM_TAG_ACTION_VALID;
+		atiop->ccb_h.flags |= CAM_TAG_ACTION_VALID;
 		atiop->tag_action = MSG_ORDERED_Q_TAG;
 		break;
 	default:
@@ -5004,7 +5004,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		ccb->ccb_h.spriv_field0 = 0;
 		ccb->ccb_h.spriv_ptr1 = isp;
-		ccb->ccb_h.flags = 0;
 
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			if (ccb->atio.tag_id) {
