@@ -35,7 +35,6 @@
 #include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
-#include <machine/fdt.h>
 
 #define FDT_MEM_REGIONS	8
 

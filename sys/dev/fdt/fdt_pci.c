@@ -41,9 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 #include <dev/pci/pcireg.h>
 
-#include <machine/fdt.h>
 #if defined(__arm__)
+#include <vm/vm.h>
+#include <vm/pmap.h>
 #include <machine/devmap.h>
+#include <machine/fdt.h>
 #endif
 
 #include "ofw_bus_if.h"
