@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2013 Robert N. M. Watson
+ * Copyright (c) 2011-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -237,6 +237,51 @@ cheri_exec_setregs(struct thread *td)
 	/* XXXRW: Trusted stack initialisation here? */
 }
 
+static const char *cheri_exccode_array[] = {
+	"none",					/* CHERI_EXCCODE_NONE */
+	"length violation",			/* CHERI_EXCCODE_LENGTH */
+	"tag violation",			/* CHERI_EXCCODE_TAG */
+	"seal violation",			/* CHERI_EXCCODE_SEAL */
+	"type violation",			/* CHERI_EXCCODE_TYPE */
+	"call trap",				/* CHERI_EXCCODE_CALL */
+	"return trap",				/* CHERI_EXCCODE_RETURN */
+	"underflow of trusted system stack",	/* CHERI_EXCCODE_UNDERFLOW */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"reserved",				/* TBD */
+	"non-ephemeral violation",		/* CHERI_EXCCODE_NON_EPHEM */
+	"permit execute violation",		/* CHERI_EXCCODE_PERM_EXECUTE */
+	"permit load violation",		/* CHERI_EXCCODE_PERM_LOAD */
+	"permit store violation",		/* CHERI_EXCCODE_PERM_STORE */
+	"permit load capability violation",	/* CHERI_EXCCODE_PERM_LOADCAP */
+	"permit store capability violation",   /* CHERI_EXCCODE_PERM_STORECAP */
+ "permit store ephemeral capability violation", /* CHERI_EXCCODE_STORE_EPHEM */
+	"permit seal violation",		/* CHERI_EXCCODE_PERM_SEAL */
+	"permit set type violation",		/* CHERI_EXCCODE_PERM_SETTYPE */
+	"reserved",				/* TBD */
+	"access EPCC violation",		/* CHERI_EXCCODE_ACCESS_EPCC */
+	"access KDC violation",			/* CHERI_EXCCODE_ACCESS_KDC */
+	"access KCC violation",			/* CHERI_EXCCODE_ACCESS_KCC */
+	"access KR1C violation",		/* CHERI_EXCCODE_ACCESS_KR1C */
+	"access KR2C violation",		/* CHERI_EXCCODE_ACCESS_KR2C */
+};
+static const int cheri_exccode_array_length = sizeof(cheri_exccode_array) /
+    sizeof(cheri_exccode_array[0]);
+
+static const char *
+cheri_exccode_string(uint8_t exccode)
+{
+
+	if (exccode >= cheri_exccode_array_length)
+		return ("unknown exception");
+	return (cheri_exccode_array[exccode]);
+}
+
 #define	CHERI_REG_PRINT(c, ctag, num) do {				\
 	printf("C%u t: %u u: %u perms 0x%04jx otype 0x%016jx\n", num,	\
 	    ctag, c.c_unsealed, (uintmax_t)c.c_perms,			\
@@ -261,8 +306,8 @@ cheri_log_exception(struct trapframe *frame, int trap_type)
 	CHERI_CGETCAUSE(cause);
 	exccode = (cause >> 8) & 0xff;
 	regnum = cause & 0x1f;
-	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x\n", exccode,
-	    regnum);
+	printf("CHERI cause: ExcCode: 0x%02x RegNum: 0x%02x (%s)\n", exccode,
+	    regnum, cheri_exccode_string(exccode));
 
 	/* XXXRW: awkward and unmaintainable pointer construction. */
 	cheriframe = &(((struct pcb *)frame)->pcb_cheriframe);
