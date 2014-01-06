@@ -128,7 +128,8 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	if (pcb->pcb_cheristack.cs_tsp == CHERI_STACK_SIZE)
 		return (0);
 
-	printf("%s: processing sandbox exception pid %d\n", __func__, signum);
+	printf("%s: processing sandbox exception signal %d, pid %d\n",
+	    __func__, signum, td->td_proc->p_pid);
 
 	/*
 	 * XXXRW: It is my belief that the trap frame in a thread is always a
