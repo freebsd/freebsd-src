@@ -29,6 +29,7 @@ LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
 LIBCPLUSPLUS?=	${DESTDIR}${LIBDIR}/libc++.a
 .endif
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
+LIBC_CHERI?=	${DESTDIR}${LIBDIR}/libc_cheri.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
 LIBCAM?=	${DESTDIR}${LIBDIR}/libcam.a
