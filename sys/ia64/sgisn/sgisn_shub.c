@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#include <machine/cpu.h>
 #include <machine/md_var.h>
 #include <machine/resource.h>
 #include <machine/sal.h>
@@ -56,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <ia64/sgisn/sgisn_shub.h>
 
 void shub_iack(const char *f, u_int xiv);
+void shub_ptc(vm_offset_t va, u_int rid);
 
 struct sgisn_shub_softc {
 	struct sgisn_fwhub *sc_fwhub;
@@ -605,4 +607,69 @@ shub_iack(const char *f, u_int xiv)
 		return;
 
 	bus_space_write_8(sc->sc_tag, sc->sc_hndl, SHUB_MMR_EVENT_WR, ev);
+}
+
+void
+shub_ptc(vm_offset_t va, u_int rid)
+{
+	device_t dev;
+	struct sgisn_shub_softc *sc;
+	uint64_t cfg0, cfg1, ptc, ws, wsreg;
+	u_int mynas, nasid, shub1;
+
+	mynas = PCPU_GET(md.sgisn_nasid);
+	dev = devclass_get_device(sgisn_shub_devclass, mynas >> 1);
+	sc = (dev != NULL) ? device_get_softc(dev) : NULL;
+	if (sc == NULL)
+		return;
+	shub1 = (sc->sc_hubtype == 0) ? 1 : 0;
+
+	if (shub1) {
+		cfg0 = (1UL << 63) | ((uint64_t)rid << 8) |
+		    (PAGE_SHIFT << 2) | 1UL;
+		cfg1 = (1UL << 63) | IA64_RR_MASK(va);
+		ptc = 0;
+	} else {
+		cfg0 = cfg1 = 0;
+		ptc = (1UL << 63) | (va & 0x1ffffffffffff000UL) |
+		    (PAGE_SHIFT << 2) | 1UL;
+	}
+
+	nasid = 0;
+	while (1) {
+		if (nasid == mynas)
+			goto next;
+		dev = devclass_get_device(sgisn_shub_devclass, nasid >> 1);
+		sc = (dev != NULL) ? device_get_softc(dev) : NULL;
+		if (sc == NULL)
+			goto next;
+		if (shub1) {
+			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			    SHUB_MMR_PTC_CFG0, cfg0);
+			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			    SHUB_MMR_PTC_CFG1, cfg1);
+		} else
+			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			    SHUB_MMR_PTC(rid), ptc);
+	 next:
+		nasid += 2;
+	}
+
+	/*
+	 * Wait for the writes to be complete.
+	 */
+	switch (PCPU_GET(md.sgisn_slice)) {
+	case 0:	wsreg = SHUB_MMR_PIO_WSTAT(0); break;
+	case 1:	wsreg = SHUB_MMR_PIO_WSTAT(2); break;
+	case 2:	wsreg = SHUB_MMR_PIO_WSTAT(1); break;
+	case 3:	wsreg = SHUB_MMR_PIO_WSTAT(3); break;
+	default:	return;
+	}
+	while (1) {
+		ws = bus_space_read_8(sc->sc_tag, sc->sc_hndl, wsreg);
+		KASSERT((ws & 2) == 0, ("%s: deadlock detected", __func__));
+		if ((ws >> 56) == ((shub1) ? 0x3f : 0))
+			return;
+		cpu_spinwait();
+	}
 }

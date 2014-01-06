@@ -108,6 +108,8 @@ __FBSDID("$FreeBSD$");
  * Region 7:	Direct-mapped cacheable
  */
 
+extern void shub_ptc(vm_offset_t, u_int);
+
 /* XXX move to a header. */
 extern uint64_t ia64_gateway_page[];
 
@@ -512,7 +514,7 @@ pmap_invalidate_page(vm_offset_t va)
 	struct ia64_lpte *pte;
 	struct pcpu *pc;
 	uint64_t tag;
-	u_int vhpt_ofs;
+	u_int rr, vhpt_ofs;
 
 	critical_enter();
 
@@ -528,6 +530,11 @@ pmap_invalidate_page(vm_offset_t va)
 	ia64_ptc_ga(va, PAGE_SHIFT << 2);
 	ia64_mf();
 	ia64_srlz_i();
+
+	rr = va >> 61;
+	if (rr < IA64_VM_MINKERN_REGION && PCPU_GET(md.current_pmap) != NULL)
+		rr = PCPU_GET(md.current_pmap)->pm_rid[rr];
+	shub_ptc(va, rr);
 
 	mtx_unlock_spin(&pmap_ptc_mutex);
 
