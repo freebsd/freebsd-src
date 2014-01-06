@@ -613,7 +613,7 @@ void
 shub_ptc(vm_offset_t va, u_int rid)
 {
 	device_t dev;
-	struct sgisn_shub_softc *sc;
+	struct sgisn_shub_softc *sc, *scx;
 	uint64_t cfg0, cfg1, ptc, ws, wsreg;
 	u_int mynas, nasid, shub1;
 
@@ -640,16 +640,18 @@ shub_ptc(vm_offset_t va, u_int rid)
 		if (nasid == mynas)
 			goto next;
 		dev = devclass_get_device(sgisn_shub_devclass, nasid >> 1);
-		sc = (dev != NULL) ? device_get_softc(dev) : NULL;
-		if (sc == NULL)
+		if (dev == NULL)
+			break;
+		scx = device_get_softc(dev);
+		if (scx == NULL)
 			goto next;
 		if (shub1) {
-			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			bus_space_write_8(scx->sc_tag, scx->sc_hndl,
 			    SHUB_MMR_PTC_CFG0, cfg0);
-			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			bus_space_write_8(scx->sc_tag, scx->sc_hndl,
 			    SHUB_MMR_PTC_CFG1, cfg1);
 		} else
-			bus_space_write_8(sc->sc_tag, sc->sc_hndl,
+			bus_space_write_8(scx->sc_tag, scx->sc_hndl,
 			    SHUB_MMR_PTC(rid), ptc);
 	 next:
 		nasid += 2;
@@ -668,7 +670,7 @@ shub_ptc(vm_offset_t va, u_int rid)
 	while (1) {
 		ws = bus_space_read_8(sc->sc_tag, sc->sc_hndl, wsreg);
 		KASSERT((ws & 2) == 0, ("%s: deadlock detected", __func__));
-		if ((ws >> 56) == ((shub1) ? 0x3f : 0))
+		if (((ws >> 56) & 0x3f) == ((shub1) ? 0x3f : 0))
 			return;
 		cpu_spinwait();
 	}
