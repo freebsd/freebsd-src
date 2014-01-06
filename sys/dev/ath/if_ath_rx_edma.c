@@ -450,18 +450,20 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 static void
 ath_edma_flush_deferred_queue(struct ath_softc *sc)
 {
-	struct ath_buf *bf, *next;
+	struct ath_buf *bf;
 
 	ATH_RX_LOCK_ASSERT(sc);
 
 	/* Free in one set, inside the lock */
-	TAILQ_FOREACH_SAFE(bf,
-	    &sc->sc_rx_rxlist[HAL_RX_QUEUE_LP], bf_list, next) {
+	while (! TAILQ_EMPTY(&sc->sc_rx_rxlist[HAL_RX_QUEUE_LP])) {
+		bf = TAILQ_FIRST(&sc->sc_rx_rxlist[HAL_RX_QUEUE_LP]);
+		TAILQ_REMOVE(&sc->sc_rx_rxlist[HAL_RX_QUEUE_LP], bf, bf_list);
 		/* Free the buffer/mbuf */
 		ath_edma_rxbuf_free(sc, bf);
 	}
-	TAILQ_FOREACH_SAFE(bf,
-	    &sc->sc_rx_rxlist[HAL_RX_QUEUE_HP], bf_list, next) {
+	while (! TAILQ_EMPTY(&sc->sc_rx_rxlist[HAL_RX_QUEUE_HP])) {
+		bf = TAILQ_FIRST(&sc->sc_rx_rxlist[HAL_RX_QUEUE_HP]);
+		TAILQ_REMOVE(&sc->sc_rx_rxlist[HAL_RX_QUEUE_HP], bf, bf_list);
 		/* Free the buffer/mbuf */
 		ath_edma_rxbuf_free(sc, bf);
 	}
@@ -495,6 +497,10 @@ ath_edma_recv_proc_deferred_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	ATH_RX_UNLOCK(sc);
 
 	/* Handle the completed descriptors */
+	/*
+	 * XXX is this SAFE call needed? The ath_buf entries
+	 * aren't modified by ath_rx_pkt, right?
+	 */
 	TAILQ_FOREACH_SAFE(bf, &rxlist, bf_list, next) {
 		/*
 		 * Skip the RX descriptor status - start at the data offset
@@ -520,7 +526,9 @@ ath_edma_recv_proc_deferred_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 
 	/* Free in one set, inside the lock */
 	ATH_RX_LOCK(sc);
-	TAILQ_FOREACH_SAFE(bf, &rxlist, bf_list, next) {
+	while (! TAILQ_EMPTY(&rxlist)) {
+		bf = TAILQ_FIRST(&rxlist);
+		TAILQ_REMOVE(&rxlist, bf, bf_list);
 		/* Free the buffer/mbuf */
 		ath_edma_rxbuf_free(sc, bf);
 	}
