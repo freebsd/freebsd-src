@@ -119,6 +119,7 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
+CFLAGS+=	 -Qunused-arguments
 CFLAGS+=	 ${CFLAGS.clang}
 CXXFLAGS+=	 ${CXXFLAGS.clang}
 .else # !CLANG
