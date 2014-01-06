@@ -315,11 +315,7 @@ done:
 }
 
 int
-vmcs_set_defaults(struct vmcs *vmcs,
-		  u_long host_rip, u_long host_rsp, uint64_t eptp,
-		  uint32_t pinbased_ctls, uint32_t procbased_ctls,
-		  uint32_t procbased_ctls2, uint32_t exit_ctls,
-		  uint32_t entry_ctls, u_long msr_bitmap, uint16_t vpid)
+vmcs_init(struct vmcs *vmcs)
 {
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
@@ -334,22 +330,6 @@ vmcs_set_defaults(struct vmcs *vmcs,
 	 * Make sure we have a "current" VMCS to work with.
 	 */
 	VMPTRLD(vmcs);
-
-	/*
-	 * Load the VMX controls
-	 */
-	if ((error = vmwrite(VMCS_PIN_BASED_CTLS, pinbased_ctls)) != 0)
-		goto done;
-	if ((error = vmwrite(VMCS_PRI_PROC_BASED_CTLS, procbased_ctls)) != 0)
-		goto done;
-	if ((error = vmwrite(VMCS_SEC_PROC_BASED_CTLS, procbased_ctls2)) != 0)
-		goto done;
-	if ((error = vmwrite(VMCS_EXIT_CTLS, exit_ctls)) != 0)
-		goto done;
-	if ((error = vmwrite(VMCS_ENTRY_CTLS, entry_ctls)) != 0)
-		goto done;
-
-	/* Guest state */
 
 	/* Initialize guest IA32_PAT MSR with the default value */
 	pat = PAT_VALUE(0, PAT_WRITE_BACK)	|
@@ -422,23 +402,7 @@ vmcs_set_defaults(struct vmcs *vmcs,
 		goto done;
 
 	/* instruction pointer */
-	if ((error = vmwrite(VMCS_HOST_RIP, host_rip)) != 0)
-		goto done;
-
-	/* stack pointer */
-	if ((error = vmwrite(VMCS_HOST_RSP, host_rsp)) != 0)
-		goto done;
-
-	/* eptp */
-	if ((error = vmwrite(VMCS_EPTP, eptp)) != 0)
-		goto done;
-
-	/* vpid */
-	if ((error = vmwrite(VMCS_VPID, vpid)) != 0)
-		goto done;
-
-	/* msr bitmap */
-	if ((error = vmwrite(VMCS_MSR_BITMAP, msr_bitmap)) != 0)
+	if ((error = vmwrite(VMCS_HOST_RIP, (u_long)vmx_exit_guest)) != 0)
 		goto done;
 
 	/* exception bitmap */
