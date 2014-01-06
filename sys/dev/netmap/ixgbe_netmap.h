@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2014 Matteo Landi, Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -141,13 +141,12 @@ ixgbe_netmap_reg(struct netmap_adapter *na, int onoff)
 /*
  * Reconcile kernel and user view of the transmit ring.
  *
- * Userspace wants to send packets up to the one before ring->cur,
+ * All information is in the kring.
+ * Userspace wants to send packets up to the one before kring->rhead,
  * kernel knows kring->nr_hwcur is the first unsent packet.
  *
  * Here we push packets out (as many as possible), and possibly
  * reclaim buffers from previously completed transmission.
- *
- * ring->avail is not used on input, but it is updated on return.
  *
  * The caller (netmap) guarantees that there is only one instance
  * running at any time. Any interference with other driver
@@ -161,9 +160,9 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
-	u_int n, new_slots;
+	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const cur = nm_txsync_prologue(kring, &new_slots);
+	u_int const head = kring->rhead;
 	/*
 	 * interrupts on every tx packet are expensive so request
 	 * them every half ring, or where NS_REPORT is set
@@ -174,9 +173,6 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
 	int reclaim_tx;
-
-	if (cur > lim)	/* error checking in nm_txsync_prologue() */
-		return netmap_ring_reinit(kring);
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 			BUS_DMASYNC_POSTREAD);
@@ -199,7 +195,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 */
 
 	/*
-	 * If we have packets to send (kring->nr_hwcur != ring->cur)
+	 * If we have packets to send (kring->nr_hwcur != kring->rhead)
 	 * iterate over the netmap ring, fetch length and update
 	 * the corresponding slot in the NIC ring. Some drivers also
 	 * need to update the buffer's physical address in the NIC slot
@@ -217,13 +213,13 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 */
 
 	nm_i = kring->nr_hwcur;
-	if (nm_i != cur) {	/* we have new packets to send */
+	if (nm_i != head) {	/* we have new packets to send */
 		nic_i = netmap_idx_k2n(kring, nm_i);
 
 		__builtin_prefetch(&ring->slot[nm_i]);
 		__builtin_prefetch(&txr->tx_buffers[nic_i]);
 
-		for (n = 0; nm_i != cur; n++) {
+		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			u_int len = slot->len;
 			uint64_t paddr;
@@ -262,9 +258,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
-		kring->nr_hwcur = cur; /* the saved ring->cur */
-		/* decrease avail by # of packets sent minus previous ones */
-		kring->nr_hwavail -= new_slots;
+		kring->nr_hwcur = head;
 
 		/* synchronize the NIC ring */
 		bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
@@ -281,7 +275,7 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 */
 	if (flags & NAF_FORCE_RECLAIM) {
 		reclaim_tx = 1; /* forced reclaim */
-	} else if (kring->nr_hwavail > 0) {
+	} else if (!nm_kr_txempty(kring)) {
 		reclaim_tx = 0; /* have buffers, no reclaim */
 	} else {
 		/*
@@ -321,21 +315,13 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nic_i -= kring->nkr_num_slots;
 		}
 		if (nic_i != txr->next_to_clean) {
-			n = (nic_i + lim + 1) - txr->next_to_clean;
-			if (n > lim)
-				n -= lim + 1;
 			/* some tx completed, increment avail */
 			txr->next_to_clean = nic_i;
-			kring->nr_hwavail += n;
-			if (kring->nr_hwavail > lim) {
-				RD(5, "bad hwavail %d",
-					kring->nr_hwavail);
-				return netmap_ring_reinit(kring);
-			}
+			kring->nr_hwtail = nm_prev(netmap_idx_n2k(kring, nic_i), lim);
 		}
 	}
 
-	nm_txsync_finalize(kring, cur);
+	nm_txsync_finalize(kring);
 
 	return 0;
 }
@@ -347,14 +333,9 @@ ixgbe_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
  * The caller guarantees a single invocations, but races against
  * the rest of the driver should be handled here.
  *
- * When called, userspace has released buffers up to
- * ring->cur - ring->reserved (last one excluded).
- *
- * The last interrupt reported kring->nr_hwavail slots available
- * after kring->nr_hwcur.
- * We must subtract the newly consumed slots (cur - nr_hwcur)
- * from nr_hwavail, make the descriptors available for the next reads,
- * and set kring->nr_hwcur = ring->cur and ring->avail = kring->nr_hwavail.
+ * On call, kring->rhead is the first packet that userspace wants
+ * to keep, and kring->rcur is the wakeup point.
+ * The kernel has previously reported packets up to kring->rtail.
  *
  * If (flags & NAF_FORCE_READ) also check for incoming packets irrespective
  * of whether or not we received an interrupt.
@@ -367,16 +348,16 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	struct netmap_ring *ring = kring->ring;
 	u_int nm_i;	/* index into the netmap ring */
 	u_int nic_i;	/* index into the NIC ring */
-	u_int n, resvd;
+	u_int n;
 	u_int const lim = kring->nkr_num_slots - 1;
-	u_int const cur = nm_rxsync_prologue(kring, &resvd); /* cur + res */
+	u_int const head = nm_rxsync_prologue(kring);
 	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 
 	/* device-specific */
 	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
 
-	if (cur > lim)
+	if (head > lim)
 		return netmap_ring_reinit(kring);
 
 	/* XXX check sync modes */
@@ -391,8 +372,8 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 	 * and they may differ in case if_init() has been called while
 	 * in netmap mode. For the receive ring we have
 	 *
-	 *	nm_i = (kring->nr_hwcur + kring->nr_hwavail) % ring_size
 	 *	nic_i = rxr->next_to_check;
+	 *	nm_i = kring->nr_hwtail (previous)
 	 * and
 	 *	nm_i == (nic_i + kring->nkr_hwofs) % ring_size
 	 *
@@ -402,7 +383,7 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		int crclen = ix_crcstrip ? 0 : 4;
 		uint16_t slot_flags = kring->nkr_slot_flags;
 
-		nic_i = rxr->next_to_check;
+		nic_i = rxr->next_to_check; // or also k2n(kring->nr_hwtail)
 		nm_i = netmap_idx_n2k(kring, nic_i);
 
 		for (n = 0; ; n++) {
@@ -425,23 +406,23 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 				ix_rx_miss_bufs += n;
 			}
 			rxr->next_to_check = nic_i;
-			kring->nr_hwavail += n;
+			kring->nr_hwtail = nm_i;
 		}
 		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
 
 	/*
 	 * Second part: skip past packets that userspace has released.
-	 * (kring->nr_hwcur to ring->cur - ring->reserved excluded),
+	 * (kring->nr_hwcur to kring->rhead excluded),
 	 * and make the buffers available for reception.
 	 * As usual nm_i is the index in the netmap ring,
 	 * nic_i is the index in the NIC ring, and
 	 * nm_i == (nic_i + kring->nkr_hwofs) % ring_size
 	 */
 	nm_i = kring->nr_hwcur;
-	if (nm_i != cur) {
+	if (nm_i != head) {
 		nic_i = netmap_idx_k2n(kring, nm_i);
-		for (n = 0; nm_i != cur; n++) {
+		for (n = 0; nm_i != head; n++) {
 			struct netmap_slot *slot = &ring->slot[nm_i];
 			uint64_t paddr;
 			void *addr = PNMB(slot, &paddr);
@@ -464,8 +445,7 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			nm_i = nm_next(nm_i, lim);
 			nic_i = nm_next(nic_i, lim);
 		}
-		kring->nr_hwavail -= n;
-		kring->nr_hwcur = cur;
+		kring->nr_hwcur = head;
 
 		bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -473,12 +453,12 @@ ixgbe_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 		 * IMPORTANT: we must leave one free slot in the ring,
 		 * so move nic_i back by one unit
 		 */
-		nic_i = (nic_i == 0) ? lim : nic_i - 1;
+		nic_i = nm_prev(nic_i, lim);
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_RDT(rxr->me), nic_i);
 	}
 
 	/* tell userspace that there might be new packets */
-	ring->avail = kring->nr_hwavail - resvd;
+	nm_rxsync_finalize(kring);
 
 	return 0;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Universita` di Pisa. All rights reserved.
+ * Copyright (C) 2013-2014 Universita` di Pisa. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -86,20 +86,30 @@ netmap_catch_rx(struct netmap_adapter *na, int intercept)
 	return 0;
 }
 
+
 /*
  * Intercept the packet steering routine in the tx path,
  * so that we can decide which queue is used for an mbuf.
  * Second argument is non-zero to intercept, 0 to restore.
  *
+ * actually we also need to redirect the if_transmit ?
+ *
  * XXX see if FreeBSD has such a mechanism
  */
 void
-netmap_catch_packet_steering(struct netmap_generic_adapter *na, int enable)
+netmap_catch_tx(struct netmap_generic_adapter *gna, int enable)
 {
+	struct netmap_adapter *na = &gna->up.up;
+	struct ifnet *ifp = na->ifp;
+
 	if (enable) {
+		na->if_transmit = ifp->if_transmit;
+		ifp->if_transmit = netmap_transmit;
 	} else {
+		ifp->if_transmit = na->if_transmit;
 	}
 }
+
 
 /* Transmit routine used by generic_netmap_txsync(). Returns 0 on success
  * and non-zero on error (which may be packet drops or other errors).
@@ -126,15 +136,15 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 
 	// copy data to the mbuf
 	m_copyback(m, 0, len, addr);
-
 	// inc refcount. We are alone, so we can skip the atomic
 	atomic_fetchadd_int(m->m_ext.ref_cnt, 1);
 	m->m_flags |= M_FLOWID;
 	m->m_pkthdr.flowid = ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
-	ret = ifp->if_transmit(ifp, m);
+	ret = NA(ifp)->if_transmit(ifp, m);
 	return ret;
 }
+
 
 /*
  * The following two functions are empty until we have a generic
@@ -147,6 +157,7 @@ generic_find_num_desc(struct ifnet *ifp, unsigned int *tx, unsigned int *rx)
 	return 0;
 }
 
+
 void
 generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
 {
@@ -154,6 +165,7 @@ generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq)
 	*txq = 1;
 	*rxq = 1;
 }
+
 
 void netmap_mitigation_init(struct netmap_generic_adapter *na)
 {
@@ -167,10 +179,12 @@ void netmap_mitigation_start(struct netmap_generic_adapter *na)
 	ND("called");
 }
 
+
 void netmap_mitigation_restart(struct netmap_generic_adapter *na)
 {
 	ND("called");
 }
+
 
 int netmap_mitigation_active(struct netmap_generic_adapter *na)
 {
@@ -178,10 +192,12 @@ int netmap_mitigation_active(struct netmap_generic_adapter *na)
 	return 0;
 }
 
+
 void netmap_mitigation_cleanup(struct netmap_generic_adapter *na)
 {
 	ND("called");
 }
+
 
 /*
  * In order to track whether pages are still mapped, we hook into
@@ -193,6 +209,7 @@ struct netmap_vm_handle_t {
 	struct cdev 		*dev;
 	struct netmap_priv_d	*priv;
 };
+
 
 static int
 netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
@@ -217,6 +234,7 @@ netmap_dev_pager_dtor(void *handle)
 	free(vmh, M_DEVBUF);
 	dev_rel(dev);
 }
+
 
 static int
 netmap_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
