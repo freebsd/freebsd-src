@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -43,5 +43,6 @@
 #define	CHERITEST_HELPER_OP_VM_XFAULT	10
 #define	CHERITEST_HELPER_OP_SYSCALL	11
 #define	CHERITEST_HELPER_OP_DIVZERO	12
+#define	CHERITEST_HELPER_OP_SYSCAP	13
 
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */

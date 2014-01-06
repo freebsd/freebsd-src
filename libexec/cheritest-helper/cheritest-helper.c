@@ -39,6 +39,7 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri_invoke.h>
 #include <md5.h>
 #include <stdlib.h>
 
@@ -178,6 +179,25 @@ invoke_syscall(void)
 	return (123456);
 }
 
+static int
+#ifdef USE_C_CAPS
+invoke_syscap(__capability void *system_codecap,
+    __capability void *system_datacap)
+{
+
+	return (cheri_invoke(system_codecap, system_datacap, 0, 0, 0, 0, 0, 0,
+	    0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+}
+#else
+invoke_syscap(void)
+{
+
+	CHERI_CMOVE(1, 3);
+	CHERI_CMOVE(2, 4);
+	return (cheri_invoke(0, 0, 0, 0, 0, 0, 0, 0));
+}
+#endif
+
 /*
  * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
  * c3, and place the checksum in c4.  a0 will hold input data length.  a1
@@ -225,6 +245,13 @@ invoke(register_t op, size_t len)
 
 	case CHERITEST_HELPER_OP_DIVZERO:
 		return (1/0);
+
+	case CHERITEST_HELPER_OP_SYSCAP:
+#ifdef USE_C_CAPS
+		return (invoke_syscap(system_codecap, system_datacap));
+#else
+		return (invoke_syscap());
+#endif
 	}
 	return (ret);
 }
