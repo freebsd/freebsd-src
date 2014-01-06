@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2012-2014 Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -32,6 +32,9 @@
 
 #ifndef _NM_UTIL_H
 #define _NM_UTIL_H
+
+#define _GNU_SOURCE	/* for CPU_SET() */
+
 #include <errno.h>
 #include <signal.h>	/* signal */
 #include <stdlib.h>
@@ -79,6 +82,9 @@ struct pcap_pkthdr;
 #include <pthread.h>	/* pthread_* */
 
 #ifdef linux
+
+#define cpuset_t	cpu_set_t
+
 #define ifr_flagshigh  ifr_flags
 #define ifr_curcap     ifr_flags
 #define ifr_reqcap     ifr_flags

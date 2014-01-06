@@ -1,5 +1,5 @@
 /*
- * (C) 2011-2012 Luigi Rizzo
+ * (C) 2011-2014 Luigi Rizzo
  *
  * BSD license
  *
@@ -499,15 +499,14 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 	/* scan all rings */
 	for (si = me->begin; si < me->end; si++) {
 		struct netmap_ring *ring = NETMAP_RXRING(me->nifp, si);
-		ND("ring has %d pkts", ring->avail);
-		if (ring->avail == 0)
+		if (nm_ring_empty(ring))
 			continue;
 		pme->hdr.ts = ring->ts;
 		/*
 		 * XXX a proper prefetch should be done as
 		 *	prefetch(i); callback(i-1); ...
 		 */
-		while ((cnt == -1 || cnt != got) && ring->avail > 0) {
+		while ((cnt == -1 || cnt != got) && !nm_ring_empty(ring)) {
 			u_int i = ring->cur;
 			u_int idx = ring->slot[i].buf_idx;
 			if (idx < 2) {
@@ -520,8 +519,7 @@ pcap_dispatch(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 			pme->hdr.len = pme->hdr.caplen = ring->slot[i].len;
 			// D("call %p len %d", p, me->hdr.len);
 			callback(user, &pme->hdr, buf);
-			ring->cur = NETMAP_RING_NEXT(ring, i);
-			ring->avail--;
+			ring->head = ring->cur = nm_ring_next(ring, i);
 			got++;
 		}
 	}
@@ -540,8 +538,7 @@ pcap_inject(pcap_t *p, const void *buf, size_t size)
         for (si = me->begin; si < me->end; si++) {
                 struct netmap_ring *ring = NETMAP_TXRING(me->nifp, si);
  
-                ND("ring has %d pkts", ring->avail);
-                if (ring->avail == 0)
+                if (nm_ring_empty(ring))
                         continue;
 		u_int i = ring->cur;
 		u_int idx = ring->slot[i].buf_idx;
@@ -553,9 +550,8 @@ pcap_inject(pcap_t *p, const void *buf, size_t size)
 		u_char *dst = (u_char *)NETMAP_BUF(ring, idx);
 		ring->slot[i].len = size;
 		pkt_copy(buf, dst, size);
-		ring->cur = NETMAP_RING_NEXT(ring, i);
-		ring->avail--;
-		// if (ring->avail == 0) ioctl(me->fd, NIOCTXSYNC, NULL);
+		ring->head = ring->cur = nm_ring_next(ring, i);
+		// if (ring->cur == ring->tail) ioctl(me->fd, NIOCTXSYNC, NULL);
 		return size;
         }
 	errno = ENOBUFS;

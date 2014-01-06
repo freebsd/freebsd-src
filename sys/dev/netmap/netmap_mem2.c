@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
+ * Copyright (C) 2012-2014 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -506,7 +506,7 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 	p->r_objsize = objsize;
 
 #define MAX_CLUSTSIZE	(1<<17)
-#define LINE_ROUND	64
+#define LINE_ROUND	NM_CACHE_ALIGN	// 64
 	if (objsize >= MAX_CLUSTSIZE) {
 		/* we could do it but there is no point */
 		D("unsupported allocation for %d bytes", objsize);
@@ -960,13 +960,15 @@ netmap_mem_rings_create(struct netmap_adapter *na)
 		ND("txring[%d] at %p ofs %d", i, ring);
 		kring->ring = ring;
 		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
+		*(int64_t *)(uintptr_t)&ring->buf_ofs =
 		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
 			na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
 			netmap_ring_offset(na->nm_mem, ring);
 
-		ring->avail = kring->nr_hwavail;
-		ring->cur = kring->nr_hwcur;
+		/* copy values from kring */
+		ring->head = kring->rhead;
+		ring->cur = kring->rcur;
+		ring->tail = kring->rtail;
 		*(uint16_t *)(uintptr_t)&ring->nr_buf_size =
 			NETMAP_BDG_BUF_SIZE(na->nm_mem);
 		ND("initializing slots for txring");
@@ -989,13 +991,15 @@ netmap_mem_rings_create(struct netmap_adapter *na)
 
 		kring->ring = ring;
 		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
+		*(int64_t *)(uintptr_t)&ring->buf_ofs =
 		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
 		        na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
 			netmap_ring_offset(na->nm_mem, ring);
 
-		ring->cur = kring->nr_hwcur;
-		ring->avail = kring->nr_hwavail;
+		/* copy values from kring */
+		ring->head = kring->rhead;
+		ring->cur = kring->rcur;
+		ring->tail = kring->rtail;
 		*(int *)(uintptr_t)&ring->nr_buf_size =
 			NETMAP_BDG_BUF_SIZE(na->nm_mem);
 		ND("initializing slots for rxring[%d]", i);
