@@ -14,8 +14,8 @@ INCS=	cheritest-helper.h
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 NO_MAN=
 #STRIP=
-DPADD=	${LIBMD}
-LDADD=	-lmd
+DPADD=	${LIBMD} ${LIBC_CHERI}
+LDADD=	-lmd -lc_cheri
 
 USE_CHERI=	yes
 
