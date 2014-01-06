@@ -112,11 +112,16 @@ rt_mpath_matchgate(struct rtentry *rt, struct sockaddr *gate)
 		if (rt->rt_gateway->sa_family == AF_LINK) {
 			if (!memcmp(rt->rt_ifa->ifa_addr, gate, gate->sa_len))
 				break;
-		} else {
-			if (rt->rt_gateway->sa_len == gate->sa_len &&
-			    !memcmp(rt->rt_gateway, gate, gate->sa_len))
-				break;
 		}
+
+		/*
+		 * Check for other options:
+		 * 1) Routes with 'real' IPv4/IPv6 gateway
+		 * 2) Loopback host routes (another AF_LINK/sockadd_dl check)
+		 * */
+		if (rt->rt_gateway->sa_len == gate->sa_len &&
+		    !memcmp(rt->rt_gateway, gate, gate->sa_len))
+			break;
 	} while ((rn = rn_mpath_next(rn)) != NULL);
 
 	return (struct rtentry *)rn;
