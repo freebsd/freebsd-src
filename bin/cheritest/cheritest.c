@@ -106,6 +106,7 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_md5\n");
 	fprintf(stderr, "cheritest invoke_spin\n");
 	fprintf(stderr, "cheritest invoke_syscall\n");
+	fprintf(stderr, "cheritest invoke_syscap\n");
 	fprintf(stderr, "cheritest invoke_vm_rfault\n");
 	fprintf(stderr, "cheritest invoke_vm_wfault\n");
 	fprintf(stderr, "cheritest invoke_vm_xfault\n");
@@ -423,6 +424,8 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_SYSCALL, "syscall");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_SYSCAP, "syscap");
 	cheri_systemcap_get(&cheritest_systemcap);
 	return (0);
 }
@@ -492,6 +495,9 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_syscall") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_SYSCALL);
+		else if (strcmp(argv[i], "invoke_syscap") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_SYSCAP);
 		else if (strcmp(argv[i], "invoke_vm_rfault") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_VM_RFAULT);
