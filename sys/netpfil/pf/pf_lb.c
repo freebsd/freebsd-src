@@ -686,6 +686,7 @@ notrans:
 	uma_zfree(V_pf_state_key_z, *nkp);
 	uma_zfree(V_pf_state_key_z, *skp);
 	*skp = *nkp = NULL;
+	*sn = NULL;
 
 	return (NULL);
 }
