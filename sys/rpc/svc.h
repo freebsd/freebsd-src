@@ -411,7 +411,7 @@ struct svc_req {
 	(*(xprt)->xp_ops->xp_stat)(xprt)
 
 #define SVC_ACK(xprt, ack)				\
-	((xprt)->xp_ops->xp_stat == NULL ? FALSE :	\
+	((xprt)->xp_ops->xp_ack == NULL ? FALSE :	\
 	    ((ack) == NULL ? TRUE : (*(xprt)->xp_ops->xp_ack)((xprt), (ack))))
 
 #define SVC_REPLY(xprt, msg, addr, m, seq)			\
