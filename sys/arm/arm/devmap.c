@@ -67,11 +67,8 @@ arm_devmap_lastaddr()
 	if (akva_devmap_idx > 0)
 		return (akva_devmap_vaddr);
 
-	if (devmap_table == NULL)
-		panic("arm_devmap_lastaddr(): No devmap table registered.");
-
 	lowaddr = ARM_VECTORS_HIGH;
-	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
+	for (pd = devmap_table; pd != NULL && pd->pd_size != 0; ++pd) {
 		if (lowaddr > pd->pd_va)
 			lowaddr = pd->pd_va;
 	}
@@ -145,22 +142,21 @@ arm_devmap_bootstrap(vm_offset_t l1pt, const struct arm_devmap_entry *table)
 {
 	const struct arm_devmap_entry *pd;
 
+	devmap_bootstrap_done = true;
+
 	/*
-	 * If given a table pointer, use it, else ensure a table was previously
-	 * registered.  This happens early in boot, and there's a good chance
-	 * the panic message won't be seen, but there's not much we can do.
+	 * If given a table pointer, use it.  Otherwise, if a table was
+	 * previously registered, use it.  Otherwise, no work to do.
 	 */
 	if (table != NULL)
 		devmap_table = table;
 	else if (devmap_table == NULL)
-		panic("arm_devmap_bootstrap(): No devmap table registered");
+		return;
 
 	for (pd = devmap_table; pd->pd_size != 0; ++pd) {
 		pmap_map_chunk(l1pt, pd->pd_va, pd->pd_pa, pd->pd_size,
 		    pd->pd_prot,pd->pd_cache);
 	}
-
-	devmap_bootstrap_done = true;
 }
 
 /*
