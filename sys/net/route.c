@@ -1547,10 +1547,10 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 				/* this table doesn't exist but others might */
 				continue;
 			RADIX_NODE_HEAD_RLOCK(rnh);
+			rn = rnh->rnh_lookup(dst, netmask, rnh);
 #ifdef RADIX_MPATH
 			if (rn_mpath_capable(rnh)) {
 
-				rn = rnh->rnh_matchaddr(dst, rnh);
 				if (rn == NULL) 
 					error = ESRCH;
 				else {
@@ -1564,13 +1564,11 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 					 */
 					rt = rt_mpath_matchgate(rt,
 					    ifa->ifa_addr);
-					if (!rt) 
+					if (rt == NULL) 
 						error = ESRCH;
 				}
 			}
-			else
 #endif
-			rn = rnh->rnh_lookup(dst, netmask, rnh);
 			error = (rn == NULL ||
 			    (rn->rn_flags & RNF_ROOT) ||
 			    RNTORT(rn)->rt_ifa != ifa);
