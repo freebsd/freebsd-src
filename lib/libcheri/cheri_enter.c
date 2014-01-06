@@ -37,6 +37,7 @@
 #include <machine/cheric.h>
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "sandbox.h"
@@ -58,7 +59,8 @@ register_t	cheri_enter(register_t methodnum, register_t a0,
  * Stack for use on entering from sandbox.
  */
 #define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
-void *__cheri_enter_stack;
+static void *__cheri_enter_stack;
+void *__cheri_enter_stack_top;
 
 __attribute__ ((constructor)) static void
 cheri_enter_init(void)
@@ -67,6 +69,8 @@ cheri_enter_init(void)
 	__cheri_enter_stack = mmap(NULL, CHERI_ENTER_STACK_SIZE,
 	    PROT_READ | PROT_WRITE, MAP_STACK, -1, 0);
 	assert(__cheri_enter_stack != MAP_FAILED);
+	__cheri_enter_stack_top = (char *)__cheri_enter_stack +
+	    CHERI_ENTER_STACK_SIZE;
 }
 
 
@@ -117,5 +121,6 @@ cheri_enter(register_t methodnum __unused, register_t a0 __unused,
     register_t a7 __unused)
 {
 
+	printf("%s: entered\n", __func__);
 	return (123456);
 }

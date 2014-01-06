@@ -69,22 +69,20 @@
 	.global __cheri_enter
 	.ent __cheri_enter
 __cheri_enter:
-
-	#
-	# Install global invocation stack.  NB: this means we can't support
-	# recursion or concurrency.
-	#
-	dla	$sp, __cheri_enter_stack
-	move	$fp, $sp
-
 	#
 	# Normally in a CHERI sandbox, we would install $c26 ($idc) into $c0
 	# for MIPS load/store instructions.  For the system class, we instead
 	# use $pcc so that we can have an executable version of $c0.
 	#
-	# XXXRW: Not 100% sure this is needed -- could we use $idc fine?
+	cgetpcc $zero($c0)
+
 	#
-	cgetpcc	$zero($c0)
+	# Install global invocation stack.  NB: this means we can't support
+	# recursion or concurrency.
+	#
+	dla	$sp, __cheri_enter_stack_top
+	ld	$sp, 0($sp)
+	move	$fp, $sp
 
 	#
 	# XXXRW: Defensively clear all general-purpose and capability
