@@ -339,7 +339,7 @@ cheritest_invoke_simple_op(int op)
 	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
 	    NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
-	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
+	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
 }
 
 /*
