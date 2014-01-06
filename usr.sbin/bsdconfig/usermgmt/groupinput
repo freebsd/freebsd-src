@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/usermgmt/group_input.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -56,16 +56,12 @@ ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 #
 save_changes()
 {
-	local err retval=$SUCCESS
+	local funcname=save_changes
 
 	case "$mode" in
 	Delete)
-		err=$( pw groupdel "$group_name" 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+		f_eval_catch $funcname pw 'pw groupdel "%s"' "$group_name" ||
+			return $?
 		f_show_msg "$msg_group_deleted"
 		;;
 	Add)
@@ -74,17 +70,13 @@ save_changes()
 		[ "$group_members" != "$cur_group_members" ] &&
 			cmd="$cmd -M '$group_members'"
 		if [ "$pw_group_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			cmd="echo \"\$group_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$group_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_group_added"
 		;;
 	Edit/View)
@@ -93,17 +85,13 @@ save_changes()
 		[ "$group_members" != "$cur_group_members" ] &&
 			cmd="$cmd -M '$group_members'"
 		if [ "$pw_group_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$group_password" ]; then
-			cmd="echo \"\$group_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$group_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_group_updated"
 		;;
 	esac

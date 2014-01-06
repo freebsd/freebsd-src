@@ -38,7 +38,9 @@ AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR W
 #ifndef CAVIUM_ETHERNET_H
 #define CAVIUM_ETHERNET_H
 
+#include <sys/taskqueue.h>
 #include <net/if_media.h>
+#include <net/ifq.h>
 
 /**
  * This is the definition of the Ethernet driver's private

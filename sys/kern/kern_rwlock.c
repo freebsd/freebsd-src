@@ -440,6 +440,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					break;
 				cpu_spinwait();
 			}
+#ifdef KDTRACE_HOOKS
+			spin_cnt += rowner_loops - i;
+#endif
 			if (i != rowner_loops)
 				continue;
 		}

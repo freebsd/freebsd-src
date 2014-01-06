@@ -12,6 +12,7 @@ CPU_ARM9E		opt_global.h
 CPU_ARM1136		opt_global.h
 CPU_ARM1176		opt_global.h
 CPU_CORTEXA		opt_global.h
+CPU_KRAIT		opt_global.h
 CPU_FA526		opt_global.h
 CPU_FA626TE		opt_global.h
 CPU_MV_PJ4B		opt_global.h
@@ -53,6 +54,7 @@ XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h
 VM_MAXUSER_ADDRESS	opt_global.h
 AT91_ATE_USE_RMII	opt_at91.h
+AT91_MCI_ALLOW_OVERCLOCK opt_at91.h
 AT91_MCI_HAS_4WIRE	opt_at91.h
 AT91_MCI_SLOT_B		opt_at91.h
 GFB_DEBUG		opt_gfb.h

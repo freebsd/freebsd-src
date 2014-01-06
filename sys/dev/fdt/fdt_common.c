@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/limits.h>
 
-#include <machine/fdt.h>
 #include <machine/resource.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -474,104 +473,32 @@ out:
 }
 
 int
-fdt_intr_decode(phandle_t intr_parent, pcell_t *intr, int *interrupt,
-    int *trig, int *pol)
-{
-	fdt_pic_decode_t intr_decode;
-	phandle_t intr_offset;
-	int i, rv;
-
-	intr_offset = OF_xref_phandle(intr_parent);
-
-	for (i = 0; fdt_pic_table[i] != NULL; i++) {
-
-		/* XXX check if pic_handle has interrupt-controller prop? */
-
-		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_offset, intr, interrupt, trig, pol);
-
-		if (rv == 0) {
-			/* This was recognized as our PIC and decoded. */
-			*interrupt = FDT_MAP_IRQ(intr_parent, *interrupt);
-			return (0);
-		}
-	}
-
-	/* Not in table, so guess */
-	*interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(*intr));
-	*trig = INTR_TRIGGER_CONFORM;
-	*pol = INTR_POLARITY_CONFORM;
-
-	return (0);
-}
-
-int
-fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
+fdt_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl,
     struct fdt_sense_level *intr_sl)
 {
-	phandle_t intr_par;
-	phandle_t iph;
-	pcell_t *intr;
-	pcell_t intr_cells;
-	int interrupt, trig, pol;
-	int i, intr_num, rv;
+	phandle_t iparent;
+	uint32_t *intr, icells;
+	int nintr, i, k;
 
-	if (OF_getproplen(node, "interrupts") <= 0)
-		/* Node does not have 'interrupts' property. */
-		return (0);
-
-	/*
-	 * Find #interrupt-cells of the interrupt domain.
-	 */
-	if (OF_getencprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
-		debugf("no intr-parent phandle\n");
-		intr_par = OF_parent(node);
-	} else {
-		intr_par = OF_xref_phandle(iph);
-	}
-
-	if (OF_getprop(intr_par, "#interrupt-cells", &intr_cells,
-	    sizeof(intr_cells)) <= 0) {
-		debugf("no intr-cells defined, defaulting to 1\n");
-		intr_cells = 1;
-	}
-	else 
-		intr_cells = fdt32_to_cpu(intr_cells);
-
-	intr_num = OF_getprop_alloc(node, "interrupts",
-	    intr_cells * sizeof(pcell_t), (void **)&intr);
-	if (intr_num <= 0 || intr_num > DI_MAX_INTR_NUM)
-		return (ERANGE);
-
-	rv = 0;
-	for (i = 0; i < intr_num; i++) {
-
-		interrupt = -1;
-		trig = pol = 0;
-
-		if (fdt_intr_decode(iph, &intr[i * intr_cells],
-		    &interrupt, &trig, &pol) != 0) {
-			rv = ENXIO;
-			goto out;
+	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
+	    (void **)&intr);
+	if (nintr > 0) {
+		iparent = 0;
+		OF_searchencprop(node, "interrupt-parent", &iparent,
+		    sizeof(iparent));
+		OF_searchencprop(OF_xref_phandle(iparent), "#interrupt-cells",
+		    &icells, sizeof(icells));
+		for (i = 0, k = 0; i < nintr; i += icells, k++) {
+			intr[i] = ofw_bus_map_intr(dev, iparent, intr[i]);
+			resource_list_add(rl, SYS_RES_IRQ, k, intr[i], intr[i],
+			    1);
+			if (icells > 1)
+				ofw_bus_config_intr(dev, intr[i], intr[i+1]);
 		}
-
-		if (interrupt < 0) {
-			rv = ERANGE;
-			goto out;
-		}
-
-		debugf("decoded intr = %d, trig = %d, pol = %d\n", interrupt,
-		    trig, pol);
-
-		intr_sl[i].trig = trig;
-		intr_sl[i].pol = pol;
-
-		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
+		free(intr, M_OFWPROP);
 	}
 
-out:
-	free(intr, M_OFWPROP);
-	return (rv);
+	return (0);
 }
 
 int

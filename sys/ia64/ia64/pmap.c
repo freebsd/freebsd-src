@@ -2103,19 +2103,16 @@ pmap_remove_pages(pmap_t pmap)
 {
 	struct pv_chunk *pc, *npc;
 	struct ia64_lpte *pte;
+	pmap_t oldpmap;
 	pv_entry_t pv;
 	vm_offset_t va;
 	vm_page_t m;
 	u_long inuse, bitmask;
 	int allfree, bit, field, idx;
 
-	if (pmap != vmspace_pmap(curthread->td_proc->p_vmspace)) {
-		printf("warning: %s called with non-current pmap\n",
-		    __func__);
-		return;
-	}
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
+	oldpmap = pmap_switch(pmap);
 	TAILQ_FOREACH_SAFE(pc, &pmap->pm_pvchunk, pc_list, npc) {
 		allfree = 1;
 		for (field = 0; field < _NPCM; field++) {
@@ -2155,8 +2152,9 @@ pmap_remove_pages(pmap_t pmap)
 			free_pv_chunk(pc);
 		}
 	}
-	rw_wunlock(&pvh_global_lock);
+	pmap_switch(oldpmap);
 	PMAP_UNLOCK(pmap);
+	rw_wunlock(&pvh_global_lock);
 }
 
 /*

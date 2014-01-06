@@ -188,7 +188,7 @@ extern u_int cputype;
 #else
 void tlb_broadcast(int);
 
-#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 #define TLB_BROADCAST	/* No need to explicitely send an IPI */
 #else
 #define TLB_BROADCAST	tlb_broadcast(7)
@@ -463,7 +463,7 @@ void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176) || \
-	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 void	arm11_setttb		(u_int);
 void	arm11_sleep		(int);
 

@@ -1340,7 +1340,7 @@ write_real_cst (const tree value)
 
       for (; i != limit; i += dir)
 	{
-	  sprintf (buffer, "%08lx", target_real[i]);
+	  sprintf (buffer, "%08lx", (unsigned long) target_real[i]);
 	  write_chars (buffer, 8);
 	}
     }
@@ -1633,6 +1633,13 @@ write_type (tree type)
 	  write_char ('P');
 	  write_type (TREE_TYPE (type));
 	  break;
+
+	   /* APPLE LOCAL begin blocks 6040305 */
+	 case BLOCK_POINTER_TYPE:
+	   write_string ("U13block_pointer");
+	   write_type (TREE_TYPE (type));
+	   break;
+	    /* APPLE LOCAL end blocks 6040305 */
 
 	case REFERENCE_TYPE:
 	  write_char ('R');

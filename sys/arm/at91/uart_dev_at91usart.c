@@ -219,6 +219,20 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	return (0);
 }
 
+static void
+at91_usart_grab(struct uart_bas *bas)
+{
+
+	WR4(bas, USART_IDR, USART_CSR_RXRDY);
+}
+
+static void
+at91_usart_ungrab(struct uart_bas *bas)
+{
+
+	WR4(bas, USART_IER, USART_CSR_RXRDY);
+}
+
 static struct uart_ops at91_usart_ops = {
 	.probe = at91_usart_probe,
 	.init = at91_usart_init,
@@ -226,6 +240,8 @@ static struct uart_ops at91_usart_ops = {
 	.putc = at91_usart_putc,
 	.rxready = at91_usart_rxready,
 	.getc = at91_usart_getc,
+	.grab = at91_usart_grab,
+	.ungrab = at91_usart_ungrab,
 };
 
 static int

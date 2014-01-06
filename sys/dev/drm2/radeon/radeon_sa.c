@@ -363,6 +363,8 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 			while (!radeon_sa_event(sa_manager, size, align)) {
 				r = -cv_wait_sig(&sa_manager->wq,
 				    &sa_manager->wq_lock);
+				if (r == -EINTR)
+					r = -ERESTARTSYS;
 				if (r != 0)
 					break;
 			}

@@ -20,6 +20,32 @@
         ..
     ..
     tests
+        bin
+            date
+            ..
+            mv
+            ..
+            pax
+            ..
+            sh
+                builtins
+                ..
+                errors
+                ..
+                execution
+                ..
+                expansion
+                ..
+                parameters
+                ..
+                parser
+                ..
+                set-e
+                ..
+            ..
+            test
+            ..
+        ..
         lib
             atf
                 libatf-c

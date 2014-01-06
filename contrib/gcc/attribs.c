@@ -216,7 +216,8 @@ decl_attributes (tree *node, tree attributes, int flags)
       if (spec->function_type_required && TREE_CODE (*anode) != FUNCTION_TYPE
 	  && TREE_CODE (*anode) != METHOD_TYPE)
 	{
-	  if (TREE_CODE (*anode) == POINTER_TYPE
+	  /* APPLE LOCAL radar 6246527 */
+	  if ((TREE_CODE (*anode) == POINTER_TYPE || TREE_CODE (*anode) == BLOCK_POINTER_TYPE)
 	      && (TREE_CODE (TREE_TYPE (*anode)) == FUNCTION_TYPE
 		  || TREE_CODE (TREE_TYPE (*anode)) == METHOD_TYPE))
 	    {
@@ -323,6 +324,14 @@ decl_attributes (tree *node, tree attributes, int flags)
 
       if (fn_ptr_tmp)
 	{
+	   /* APPLE LOCAL begin radar 6246527 */
+	   if (DECL_P (*node) && TREE_TYPE (*node) && 
+	       TREE_CODE (TREE_TYPE (*node)) == BLOCK_POINTER_TYPE)
+	     /* Rebuild the block pointer type and put it in the
+	        appropriate place.  */
+	     fn_ptr_tmp = build_block_pointer_type (fn_ptr_tmp);
+	   else
+	   /* APPLE LOCAL end radar 6246527 */
 	  /* Rebuild the function pointer type and put it in the
 	     appropriate place.  */
 	  fn_ptr_tmp = build_pointer_type (fn_ptr_tmp);

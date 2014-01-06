@@ -658,7 +658,12 @@ lex_string (cpp_reader *pfile, cpp_token *token, const uchar *base)
     cpp_error (pfile, CPP_DL_WARNING,
 	       "null character(s) preserved in literal");
 
-  if (type == CPP_OTHER && CPP_OPTION (pfile, lang) != CLK_ASM)
+  /* APPLE LOCAL begin #error with unmatched quotes 5607574 */
+  if (type == CPP_OTHER
+      && CPP_OPTION (pfile, lang) != CLK_ASM
+      && !pfile->state.in_diagnostic
+      && !pfile->state.skipping)
+  /* APPLE LOCAL end #error with unmatched quotes 5607574 */
     cpp_error (pfile, CPP_DL_PEDWARN, "missing terminating %c character",
 	       (int) terminator);
 
@@ -854,6 +859,14 @@ _cpp_get_fresh_line (cpp_reader *pfile)
 	{
 	  /* Clip to buffer size.  */
 	  buffer->next_line = buffer->rlimit;
+	  /* APPLE LOCAL begin suppress no newline warning.  */
+	  if ( CPP_OPTION (pfile, warn_newline_at_eof))
+	    {
+	      cpp_error_with_line (pfile, CPP_DL_PEDWARN, pfile->line_table->highest_line,
+				   CPP_BUF_COLUMN (buffer, buffer->cur),
+				   "no newline at end of file");
+	    }
+	  /* APPLE LOCAL end suppress no newline warning.  */
 	}
 
       return_at_eof = buffer->return_at_eof;

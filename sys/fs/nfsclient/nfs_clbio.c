@@ -872,7 +872,7 @@ ncl_write(struct vop_write_args *ap)
 	struct vattr vattr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
-	int bcount;
+	int bcount, noncontig_write, obcount;
 	int bp_cached, n, on, error = 0, error1;
 	size_t orig_resid, local_resid;
 	off_t orig_size, tmp_off;
@@ -1035,7 +1035,15 @@ again:
 		 * unaligned buffer size.
 		 */
 		mtx_lock(&np->n_mtx);
-		if (uio->uio_offset == np->n_size && n) {
+		if ((np->n_flag & NHASBEENLOCKED) == 0 &&
+		    (nmp->nm_flag & NFSMNT_NONCONTIGWR) != 0)
+			noncontig_write = 1;
+		else
+			noncontig_write = 0;
+		if ((uio->uio_offset == np->n_size ||
+		    (noncontig_write != 0 &&
+		    lbn == (np->n_size / biosize) &&
+		    uio->uio_offset + n > np->n_size)) && n) {
 			mtx_unlock(&np->n_mtx);
 			/*
 			 * Get the buffer (in its pre-append state to maintain
@@ -1043,8 +1051,8 @@ again:
 			 * nfsnode after we have locked the buffer to prevent
 			 * readers from reading garbage.
 			 */
-			bcount = on;
-			bp = nfs_getcacheblk(vp, lbn, bcount, td);
+			obcount = np->n_size - (lbn * biosize);
+			bp = nfs_getcacheblk(vp, lbn, obcount, td);
 
 			if (bp != NULL) {
 				long save;
@@ -1056,9 +1064,12 @@ again:
 				mtx_unlock(&np->n_mtx);
 
 				save = bp->b_flags & B_CACHE;
-				bcount += n;
+				bcount = on + n;
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
+				if (noncontig_write != 0 && on > obcount)
+					vfs_bio_bzero_buf(bp, obcount, on -
+					    obcount);
 			}
 		} else {
 			/*
@@ -1157,19 +1168,23 @@ again:
 		 * area, just update the b_dirtyoff and b_dirtyend,
 		 * otherwise force a write rpc of the old dirty area.
 		 *
+		 * If there has been a file lock applied to this file
+		 * or vfs.nfs.old_noncontig_writing is set, do the following:
 		 * While it is possible to merge discontiguous writes due to
 		 * our having a B_CACHE buffer ( and thus valid read data
 		 * for the hole), we don't because it could lead to
 		 * significant cache coherency problems with multiple clients,
 		 * especially if locking is implemented later on.
 		 *
-		 * As an optimization we could theoretically maintain
-		 * a linked list of discontinuous areas, but we would still
-		 * have to commit them separately so there isn't much
-		 * advantage to it except perhaps a bit of asynchronization.
+		 * If vfs.nfs.old_noncontig_writing is not set and there has
+		 * not been file locking done on this file:
+		 * Relax coherency a bit for the sake of performance and
+		 * expand the current dirty region to contain the new
+		 * write even if it means we mark some non-dirty data as
+		 * dirty.
 		 */
 
-		if (bp->b_dirtyend > 0 &&
+		if (noncontig_write == 0 && bp->b_dirtyend > 0 &&
 		    (on > bp->b_dirtyend || (on + n) < bp->b_dirtyoff)) {
 			if (bwrite(bp) == EINTR) {
 				error = EINTR;

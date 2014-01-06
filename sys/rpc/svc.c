@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
+#include <sys/sx.h>
 #include <sys/ucred.h>
 
 #include <rpc/rpc.h>
@@ -71,6 +72,8 @@ static struct svc_callout *svc_find(SVCPOOL *pool, rpcprog_t, rpcvers_t,
     char *);
 static void svc_new_thread(SVCPOOL *pool);
 static void xprt_unregister_locked(SVCXPRT *xprt);
+static void svc_change_space_used(SVCPOOL *pool, int delta);
+static bool_t svc_request_space_available(SVCPOOL *pool);
 
 /* ***************  SVCXPRT related stuff **************** */
 
@@ -91,6 +94,7 @@ svcpool_create(const char *name, struct sysctl_oid_list *sysctl_base)
 	TAILQ_INIT(&pool->sp_xlist);
 	TAILQ_INIT(&pool->sp_active);
 	TAILQ_INIT(&pool->sp_callouts);
+	TAILQ_INIT(&pool->sp_lcallouts);
 	LIST_INIT(&pool->sp_threads);
 	LIST_INIT(&pool->sp_idlethreads);
 	pool->sp_minthreads = 1;
@@ -156,6 +160,7 @@ svcpool_destroy(SVCPOOL *pool)
 {
 	SVCXPRT *xprt, *nxprt;
 	struct svc_callout *s;
+	struct svc_loss_callout *sl;
 	struct svcxprt_list cleanup;
 
 	TAILQ_INIT(&cleanup);
@@ -167,10 +172,14 @@ svcpool_destroy(SVCPOOL *pool)
 		TAILQ_INSERT_TAIL(&cleanup, xprt, xp_link);
 	}
 
-	while (TAILQ_FIRST(&pool->sp_callouts)) {
-		s = TAILQ_FIRST(&pool->sp_callouts);
+	while ((s = TAILQ_FIRST(&pool->sp_callouts)) != NULL) {
 		mtx_unlock(&pool->sp_lock);
 		svc_unreg(pool, s->sc_prog, s->sc_vers);
+		mtx_lock(&pool->sp_lock);
+	}
+	while ((sl = TAILQ_FIRST(&pool->sp_lcallouts)) != NULL) {
+		mtx_unlock(&pool->sp_lock);
+		svc_loss_unreg(pool, sl->slc_dispatch);
 		mtx_lock(&pool->sp_lock);
 	}
 	mtx_unlock(&pool->sp_lock);
@@ -293,12 +302,10 @@ xprt_unregister_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
+	mtx_assert(&pool->sp_lock, MA_OWNED);
 	KASSERT(xprt->xp_registered == TRUE,
 	    ("xprt_unregister_locked: not registered"));
-	if (xprt->xp_active) {
-		TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
-		xprt->xp_active = FALSE;
-	}
+	xprt_inactive_locked(xprt);
 	TAILQ_REMOVE(&pool->sp_xlist, xprt, xp_link);
 	xprt->xp_registered = FALSE;
 }
@@ -320,25 +327,25 @@ xprt_unregister(SVCXPRT *xprt)
 	SVC_RELEASE(xprt);
 }
 
-static void
+/*
+ * Attempt to assign a service thread to this transport.
+ */
+static int
 xprt_assignthread(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 	SVCTHREAD *st;
 
-	/*
-	 * Attempt to assign a service thread to this
-	 * transport.
-	 */
-	LIST_FOREACH(st, &pool->sp_idlethreads, st_ilink) {
-		if (st->st_xprt == NULL && STAILQ_EMPTY(&st->st_reqs))
-			break;
-	}
+	mtx_assert(&pool->sp_lock, MA_OWNED);
+	st = LIST_FIRST(&pool->sp_idlethreads);
 	if (st) {
+		LIST_REMOVE(st, st_ilink);
+		st->st_idle = FALSE;
 		SVC_ACQUIRE(xprt);
 		xprt->xp_thread = st;
 		st->st_xprt = xprt;
 		cv_signal(&st->st_cond);
+		return (TRUE);
 	} else {
 		/*
 		 * See if we can create a new thread. The
@@ -354,6 +361,7 @@ xprt_assignthread(SVCXPRT *xprt)
 			pool->sp_state = SVCPOOL_THREADWANTED;
 		}
 	}
+	return (FALSE);
 }
 
 void
@@ -372,9 +380,13 @@ xprt_active(SVCXPRT *xprt)
 	}
 
 	if (!xprt->xp_active) {
-		TAILQ_INSERT_TAIL(&pool->sp_active, xprt, xp_alink);
 		xprt->xp_active = TRUE;
-		xprt_assignthread(xprt);
+		if (xprt->xp_thread == NULL) {
+			if (!svc_request_space_available(pool) ||
+			    !xprt_assignthread(xprt))
+				TAILQ_INSERT_TAIL(&pool->sp_active, xprt,
+				    xp_alink);
+		}
 	}
 
 	mtx_unlock(&pool->sp_lock);
@@ -385,8 +397,10 @@ xprt_inactive_locked(SVCXPRT *xprt)
 {
 	SVCPOOL *pool = xprt->xp_pool;
 
+	mtx_assert(&pool->sp_lock, MA_OWNED);
 	if (xprt->xp_active) {
-		TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
+		if (xprt->xp_thread == NULL)
+			TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
 		xprt->xp_active = FALSE;
 	}
 }
@@ -399,6 +413,19 @@ xprt_inactive(SVCXPRT *xprt)
 	mtx_lock(&pool->sp_lock);
 	xprt_inactive_locked(xprt);
 	mtx_unlock(&pool->sp_lock);
+}
+
+/*
+ * Variant of xprt_inactive() for use only when sure that port is
+ * assigned to thread. For example, withing receive handlers.
+ */
+void
+xprt_inactive_self(SVCXPRT *xprt)
+{
+
+	KASSERT(xprt->xp_thread != NULL,
+	    ("xprt_inactive_self(%p) with NULL xp_thread", xprt));
+	xprt->xp_active = FALSE;
 }
 
 /*
@@ -491,6 +518,55 @@ svc_unreg(SVCPOOL *pool, const rpcprog_t prog, const rpcvers_t vers)
 	mtx_unlock(&pool->sp_lock);
 }
 
+/*
+ * Add a service connection loss program to the callout list.
+ * The dispatch routine will be called when some port in ths pool die.
+ */
+bool_t
+svc_loss_reg(SVCXPRT *xprt, void (*dispatch)(SVCXPRT *))
+{
+	SVCPOOL *pool = xprt->xp_pool;
+	struct svc_loss_callout *s;
+
+	mtx_lock(&pool->sp_lock);
+	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+		if (s->slc_dispatch == dispatch)
+			break;
+	}
+	if (s != NULL) {
+		mtx_unlock(&pool->sp_lock);
+		return (TRUE);
+	}
+	s = malloc(sizeof (struct svc_callout), M_RPC, M_NOWAIT);
+	if (s == NULL) {
+		mtx_unlock(&pool->sp_lock);
+		return (FALSE);
+	}
+	s->slc_dispatch = dispatch;
+	TAILQ_INSERT_TAIL(&pool->sp_lcallouts, s, slc_link);
+	mtx_unlock(&pool->sp_lock);
+	return (TRUE);
+}
+
+/*
+ * Remove a service connection loss program from the callout list.
+ */
+void
+svc_loss_unreg(SVCPOOL *pool, void (*dispatch)(SVCXPRT *))
+{
+	struct svc_loss_callout *s;
+
+	mtx_lock(&pool->sp_lock);
+	TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link) {
+		if (s->slc_dispatch == dispatch) {
+			TAILQ_REMOVE(&pool->sp_lcallouts, s, slc_link);
+			free(s, M_RPC);
+			break;
+		}
+	}
+	mtx_unlock(&pool->sp_lock);
+}
+
 /* ********************** CALLOUT list related stuff ************* */
 
 /*
@@ -534,7 +610,7 @@ svc_sendreply_common(struct svc_req *rqstp, struct rpc_msg *rply,
 	if (!SVCAUTH_WRAP(&rqstp->rq_auth, &body))
 		return (FALSE);
 
-	ok = SVC_REPLY(xprt, rply, rqstp->rq_addr, body); 
+	ok = SVC_REPLY(xprt, rply, rqstp->rq_addr, body, &rqstp->rq_reply_seq);
 	if (rqstp->rq_addr) {
 		free(rqstp->rq_addr, M_SONAME);
 		rqstp->rq_addr = NULL;
@@ -783,6 +859,7 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 	struct svc_req *r;
 	struct rpc_msg msg;
 	struct mbuf *args;
+	struct svc_loss_callout *s;
 	enum xprt_stat stat;
 
 	/* now receive msgs from xprtprt (support batch calls) */
@@ -811,7 +888,7 @@ svc_getreq(SVCXPRT *xprt, struct svc_req **rqstp_ret)
 				break;
 			case RS_DONE:
 				SVC_REPLY(xprt, &repmsg, r->rq_addr,
-				    repbody);
+				    repbody, &r->rq_reply_seq);
 				if (r->rq_addr) {
 					free(r->rq_addr, M_SONAME);
 					r->rq_addr = NULL;
@@ -861,6 +938,8 @@ call_done:
 		r = NULL;
 	}
 	if ((stat = SVC_STAT(xprt)) == XPRT_DIED) {
+		TAILQ_FOREACH(s, &pool->sp_lcallouts, slc_link)
+			(*s->slc_dispatch)(xprt);
 		xprt_unregister(xprt);
 	}
 
@@ -948,9 +1027,33 @@ svc_assign_waiting_sockets(SVCPOOL *pool)
 {
 	SVCXPRT *xprt;
 
-	TAILQ_FOREACH(xprt, &pool->sp_active, xp_alink) {
-		if (!xprt->xp_thread) {
-			xprt_assignthread(xprt);
+	mtx_lock(&pool->sp_lock);
+	while ((xprt = TAILQ_FIRST(&pool->sp_active)) != NULL) {
+		if (xprt_assignthread(xprt))
+			TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
+		else
+			break;
+	}
+	mtx_unlock(&pool->sp_lock);
+}
+
+static void
+svc_change_space_used(SVCPOOL *pool, int delta)
+{
+	unsigned int value;
+
+	value = atomic_fetchadd_int(&pool->sp_space_used, delta) + delta;
+	if (delta > 0) {
+		if (value >= pool->sp_space_high && !pool->sp_space_throttled) {
+			pool->sp_space_throttled = TRUE;
+			pool->sp_space_throttle_count++;
+		}
+		if (value > pool->sp_space_used_highest)
+			pool->sp_space_used_highest = value;
+	} else {
+		if (value < pool->sp_space_low && pool->sp_space_throttled) {
+			pool->sp_space_throttled = FALSE;
+			svc_assign_waiting_sockets(pool);
 		}
 	}
 }
@@ -959,44 +1062,28 @@ static bool_t
 svc_request_space_available(SVCPOOL *pool)
 {
 
-	mtx_assert(&pool->sp_lock, MA_OWNED);
-
-	if (pool->sp_space_throttled) {
-		/*
-		 * Below the low-water yet? If so, assign any waiting sockets.
-		 */
-		if (pool->sp_space_used < pool->sp_space_low) {
-			pool->sp_space_throttled = FALSE;
-			svc_assign_waiting_sockets(pool);
-			return TRUE;
-		}
-		
-		return FALSE;
-	} else {
-		if (pool->sp_space_used
-		    >= pool->sp_space_high) {
-			pool->sp_space_throttled = TRUE;
-			pool->sp_space_throttle_count++;
-			return FALSE;
-		}
-
-		return TRUE;
-	}
+	if (pool->sp_space_throttled)
+		return (FALSE);
+	return (TRUE);
 }
 
 static void
 svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 {
+	struct svc_reqlist reqs;
 	SVCTHREAD *st, *stpref;
 	SVCXPRT *xprt;
 	enum xprt_stat stat;
 	struct svc_req *rqstp;
+	size_t sz;
 	int error;
 
 	st = mem_alloc(sizeof(*st));
+	st->st_pool = pool;
 	st->st_xprt = NULL;
 	STAILQ_INIT(&st->st_reqs);
 	cv_init(&st->st_cond, "rpcsvc");
+	STAILQ_INIT(&reqs);
 
 	mtx_lock(&pool->sp_lock);
 	LIST_INSERT_HEAD(&pool->sp_threads, st, st_link);
@@ -1042,21 +1129,17 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			 * active transport which isn't being serviced
 			 * by a thread.
 			 */
-			if (svc_request_space_available(pool)) {
-				TAILQ_FOREACH(xprt, &pool->sp_active,
-				    xp_alink) {
-					if (!xprt->xp_thread) {
-						SVC_ACQUIRE(xprt);
-						xprt->xp_thread = st;
-						st->st_xprt = xprt;
-						break;
-					}
-				}
-			}
-			if (st->st_xprt)
+			if (svc_request_space_available(pool) &&
+			    (xprt = TAILQ_FIRST(&pool->sp_active)) != NULL) {
+				TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
+				SVC_ACQUIRE(xprt);
+				xprt->xp_thread = st;
+				st->st_xprt = xprt;
 				continue;
+			}
 
 			LIST_INSERT_HEAD(&pool->sp_idlethreads, st, st_ilink);
+			st->st_idle = TRUE;
 			if (ismaster || (!ismaster &&
 			    pool->sp_threadcount > pool->sp_minthreads))
 				error = cv_timedwait_sig(&st->st_cond,
@@ -1064,7 +1147,10 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			else
 				error = cv_wait_sig(&st->st_cond,
 				    &pool->sp_lock);
-			LIST_REMOVE(st, st_ilink);
+			if (st->st_idle) {
+				LIST_REMOVE(st, st_ilink);
+				st->st_idle = FALSE;
+			}
 
 			/*
 			 * Reduce worker thread count when idle.
@@ -1091,15 +1177,14 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			 * RPCs.
 			 */
 			xprt->xp_lastactive = time_uptime;
-			stat = XPRT_IDLE;
 			do {
+				mtx_unlock(&pool->sp_lock);
 				if (!svc_request_space_available(pool))
 					break;
 				rqstp = NULL;
-				mtx_unlock(&pool->sp_lock);
 				stat = svc_getreq(xprt, &rqstp);
-				mtx_lock(&pool->sp_lock);
 				if (rqstp) {
+					svc_change_space_used(pool, rqstp->rq_size);
 					/*
 					 * See if the application has
 					 * a preference for some other
@@ -1109,17 +1194,12 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 					if (pool->sp_assign)
 						stpref = pool->sp_assign(st,
 						    rqstp);
+					else
+						mtx_lock(&pool->sp_lock);
 					
-					pool->sp_space_used +=
-						rqstp->rq_size;
-					if (pool->sp_space_used
-					    > pool->sp_space_used_highest)
-						pool->sp_space_used_highest =
-							pool->sp_space_used;
 					rqstp->rq_thread = stpref;
 					STAILQ_INSERT_TAIL(&stpref->st_reqs,
 					    rqstp, rq_link);
-					stpref->st_reqcount++;
 
 					/*
 					 * If we assigned the request
@@ -1132,13 +1212,15 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 					 * execute the request
 					 * immediately.
 					 */
-					if (stpref != st) {
-						cv_signal(&stpref->st_cond);
-						continue;
-					} else {
+					if (stpref == st)
 						break;
+					if (stpref->st_idle) {
+						LIST_REMOVE(stpref, st_ilink);
+						stpref->st_idle = FALSE;
+						cv_signal(&stpref->st_cond);
 					}
-				}
+				} else
+					mtx_lock(&pool->sp_lock);
 			} while (stat == XPRT_MOREREQS
 			    && pool->sp_state != SVCPOOL_CLOSING);
 		       
@@ -1153,26 +1235,30 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			xprt->xp_thread = NULL;
 			st->st_xprt = NULL;
 			if (xprt->xp_active) {
-				xprt_assignthread(xprt);
-				TAILQ_REMOVE(&pool->sp_active, xprt, xp_alink);
-				TAILQ_INSERT_TAIL(&pool->sp_active, xprt,
-				    xp_alink);
+				if (!svc_request_space_available(pool) ||
+				    !xprt_assignthread(xprt))
+					TAILQ_INSERT_TAIL(&pool->sp_active,
+					    xprt, xp_alink);
 			}
+			STAILQ_CONCAT(&reqs, &st->st_reqs);
 			mtx_unlock(&pool->sp_lock);
 			SVC_RELEASE(xprt);
-			mtx_lock(&pool->sp_lock);
+		} else {
+			STAILQ_CONCAT(&reqs, &st->st_reqs);
+			mtx_unlock(&pool->sp_lock);
 		}
 
 		/*
 		 * Execute what we have queued.
 		 */
-		while ((rqstp = STAILQ_FIRST(&st->st_reqs)) != NULL) {
-			size_t sz = rqstp->rq_size;
-			mtx_unlock(&pool->sp_lock);
+		sz = 0;
+		while ((rqstp = STAILQ_FIRST(&reqs)) != NULL) {
+			STAILQ_REMOVE_HEAD(&reqs, rq_link);
+			sz += rqstp->rq_size;
 			svc_executereq(rqstp);
-			mtx_lock(&pool->sp_lock);
-			pool->sp_space_used -= sz;
 		}
+		svc_change_space_used(pool, -sz);
+		mtx_lock(&pool->sp_lock);
 	}
 
 	if (st->st_xprt) {
@@ -1292,24 +1378,13 @@ void
 svc_freereq(struct svc_req *rqstp)
 {
 	SVCTHREAD *st;
-	SVCXPRT *xprt;
 	SVCPOOL *pool;
 
 	st = rqstp->rq_thread;
-	xprt = rqstp->rq_xprt;
-	if (xprt)
-		pool = xprt->xp_pool;
-	else
-		pool = NULL;
 	if (st) {
-		mtx_lock(&pool->sp_lock);
-		KASSERT(rqstp == STAILQ_FIRST(&st->st_reqs),
-		    ("Freeing request out of order"));
-		STAILQ_REMOVE_HEAD(&st->st_reqs, rq_link);
-		st->st_reqcount--;
+		pool = st->st_pool;
 		if (pool->sp_done)
 			pool->sp_done(st, rqstp);
-		mtx_unlock(&pool->sp_lock);
 	}
 
 	if (rqstp->rq_auth.svc_ah_ops)

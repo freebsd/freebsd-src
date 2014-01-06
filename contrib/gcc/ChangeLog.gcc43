@@ -45,6 +45,32 @@
 	* flags.h (force_align_functions_log): Delete.
 	* toplev.c (force_align_functions_log): Delete.
 
+2007-07-06  Josh Conner  <jconner@apple.com> (r126422)
+
+	PR middle-end/32602
+	PR middle-end/32603
+	* calls.c (store_one_arg): Handle arguments which are partially
+	on the stack when detecting argument overlap.
+
+2007-07-03  Eric Christopher  <echristo@apple.com> (r126278)
+
+	* doc/cppopts.texi: Add conflicting option note to -dM.
+	* doc/invoke.texi: Add note about possible conflicts with
+	-E for -dCHARS and note that -dM will not produce
+	any results if there is no machine dependent reorg.
+	
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* doc/invoke.texi (C++ Dialect Options): Document
+	fvisibility-ms-compat.
+	* c.opt (fvisibility-ms-compat): New.
+
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
+
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
+
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
@@ -56,6 +82,14 @@
 	* expr.c (convert_move): Assert that we don't have a BLKmode
 	operand.
 	(store_expr): Handle BLKmode moves by calling emit_block_move.
+
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
 
 2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
 
@@ -79,6 +113,14 @@
 	* rtlanal.c (reg_set_p): Check whether REG overlaps
 	regs_invalidated_by_call, rather than just checking the
 	membership of REGNO (REG).
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
 
 2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
 
@@ -108,6 +150,11 @@
 	* config/i386/i386.c (override_options): Tuning 32-byte loop
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
+
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
 
 2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
 
@@ -385,9 +432,53 @@
 	(override_options): Add PTA_CX16 flag.  Set x86_cmpxchg16b
 	for CPUs that have PTA_CX16 set.
 
+2007-01-18  Josh Conner  <jconner@apple.com> (r120902)
+
+	PR target/30485
+	* config/rs6000/rs6000.c (rs6000_emit_vector_compare): Add
+	support for UNLE, UNLT, UNGE, and UNGT.
+
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
 	* config.gcc: Support core2 processor.
+
+2007-01-11  Joseph Myers  <joseph@codesourcery.com> (r120688)
+
+	* c-common.c (vector_types_convertible_p): Treat opaque types as
+	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
+
+2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
+
+	* c.opt: Add -flax-vector-conversions.
+	* c-typeck.c (convert_for_assignment): Pass flag to
+	vector_types_convertible_p to allow emission of note.
+	(digest_init): Likewise.
+	* c-opts.c: Handle -flax-vector-conversions.
+	* c-common.c (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Unless -flax-vector conversions
+	has been passed, disallow conversions between vectors with
+	differing numbers of subparts and/or element types.  If such
+	a conversion is disallowed, possibly emit a note on the first
+	occasion only to inform the user of -flax-vector-conversions.
+	The new last argument specifies this.
+	* c-common.h (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Add extra argument.
+	* config/i386/i386.c (ix86_init_mmx_sse_builtins): Use
+	char_type_node for V*QI type vectors.
+	* config/rs6000/rs6000-c.c (altivec_overloaded_builtins):
+	Update to satisfy new typechecking rules.
+	* config/rs6000/altivec.h (vec_cmple): Use vec_cmpge, for both
+	C and C++ variants.
+	* doc/invoke.texi (C Dialect Options): Document
+	-flax-vector-conversions.
 
 2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
 
@@ -470,6 +561,37 @@
 	(override_options): Add entries for Core2.
 	(ix86_issue_rate): Add case for Core2.
 	
+2006-11-14  Caroline Tice  <ctice@apple.com> (r118826)
+		
+	* dwarf2out.c (debug_pubtypes_section): New static global variable.
+	(pubname_entry):  Add DEF_VEC_O and DEF_VEC_ALLOC_O statements for
+	this type.
+	(pubname_table):  Redefine as a vector.
+	(pubtype_table):  New static global variable, defined as a vector.
+	(pubname_table_allocated): Remove static global variable.
+	(pubname_table_in_use): Remove static global variable.
+	(PUBNAME_TABLE_INCREMENT): Remove constant.
+	(size_of_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(add_pubname):  Change to deal with table being a vector.
+	(add_pubtype):  New function.
+	(output_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(gen_array_type_die):  Add call to add_pubtype.
+	(gen_enumeration_type_die): Add call to add_pubtype.
+	(gen_struct_or_union_type_die): Add call to add_pubtype.
+	(gen_subroutine_type_die): Add call to add_pubtype.
+	(gen_typedef_die):  Add call to add_pubtype.
+	(dwarf2out_init): Add code to initialize pubname_table and 
+	pubtype_table vectors; also initialize debug_pubtypes_section.
+	(prune_unused_types):  Change to deal with pubnames being a vector.
+	(dwarf2out_finish): Change to deal with pubnames being a vector; add 
+	pubnames table to call to output_pubnames;  Add code to output pubtypes 
+	table if DEBUG_PUBTYPES_SECTION is defined.
+	* config/darwin.c (darwin_file_start):  Add DEBUG_PUBTYPES_SECTION to 
+	debugnames.
+	* config/darwin.h (DEBUG_PUBTYPES_SECTION): Define new global variable.
+
 2006-11-07  Eric Christopher  <echristo@apple.com> (r118576)
 
 	* libgcc2.c (__bswapdi2): Rename from bswapDI2.
@@ -477,6 +599,14 @@
 	* libgcc2.h: Remove transformation of bswap routines.
 	* config/i386/i386.md (bswapsi2): New.
 	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
 
 2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
  

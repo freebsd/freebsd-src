@@ -228,7 +228,6 @@ preadbuffer(void)
 {
 	char *p, *q;
 	int more;
-	int something;
 	char savec;
 
 	if (parsefile->strpush) {
@@ -252,16 +251,11 @@ again:
 	q = p = parsefile->buf + (parsenextc - parsefile->buf);
 
 	/* delete nul characters */
-	something = 0;
 	for (more = 1; more;) {
 		switch (*p) {
 		case '\0':
 			p++;	/* Skip nul */
 			goto check;
-
-		case '\t':
-		case ' ':
-			break;
 
 		case '\n':
 			parsenleft = q - parsenextc;
@@ -269,7 +263,6 @@ again:
 			break;
 
 		default:
-			something = 1;
 			break;
 		}
 
@@ -288,7 +281,8 @@ check:
 	*q = '\0';
 
 #ifndef NO_HISTORY
-	if (parsefile->fd == 0 && hist && something) {
+	if (parsefile->fd == 0 && hist &&
+	    parsenextc[strspn(parsenextc, " \t\n")] != '\0') {
 		HistEvent he;
 		INTOFF;
 		history(hist, &he, whichprompt == 1 ? H_ENTER : H_ADD,

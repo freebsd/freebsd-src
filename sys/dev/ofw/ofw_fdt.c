@@ -267,8 +267,10 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 }
 
 /*
- * Get the next property of a package. Return the actual len of retrieved
- * prop name.
+ * Get the next property of a package. Return values:
+ *  -1: package or previous property does not exist
+ *   0: no more properties
+ *   1: success
  */
 static int
 ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
@@ -310,7 +312,7 @@ ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
 
 	strncpy(buf, fdt_string(fdtp, fdt32_to_cpu(prop->nameoff)), size);
 
-	return (strlen(buf));
+	return (1);
 }
 
 /* Set the value of a property of a package. */

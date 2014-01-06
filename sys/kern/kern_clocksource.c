@@ -233,7 +233,8 @@ handleevents(sbintime_t now, int fake)
 	if (!busy) {
 		state->idle = 0;
 		state->nextevent = t;
-		loadtimer(now, 0);
+		loadtimer(now, (fake == 2) &&
+		    (timer->et_flags & ET_FLAGS_PERCPU));
 	}
 	ET_HW_UNLOCK(state);
 	return (done);

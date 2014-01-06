@@ -633,7 +633,8 @@ initarm(struct arm_boot_params *abp)
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
 	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
-	vm_max_kernel_address = KERNVIRTADDR + 3 * memsize;
+	/* Always use the 256MB of KVA we have available between the kernel and devices */
+	vm_max_kernel_address = KERNVIRTADDR + (256 << 20);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

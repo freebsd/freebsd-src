@@ -40,8 +40,8 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 USERMGMT_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/usermgmt.hlp
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 

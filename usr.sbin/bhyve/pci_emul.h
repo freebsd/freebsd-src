@@ -51,6 +51,9 @@ struct pci_devemu {
 	int       (*pe_init)(struct vmctx *, struct pci_devinst *,
 			     char *opts);
 
+	/* ACPI DSDT enumeration */
+	void	(*pe_write_dsdt)(struct pci_devinst *);
+
 	/* config space read/write callbacks */
 	int	(*pe_cfgwrite)(struct vmctx *ctx, int vcpu,
 			       struct pci_devinst *pi, int offset,
@@ -109,10 +112,10 @@ struct pci_devinst {
 	int	  pi_bar_getsize;
 
 	struct {
-		int	enabled;
-		int	cpu;
-		int	vector;
-		int	msgnum;
+		int		enabled;
+		uint64_t	addr;
+		uint64_t	msg_data;
+		int		maxmsgnum;
 	} pi_msi;
 
 	struct {
@@ -213,6 +216,7 @@ int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
 			     uint64_t value);
 uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
+void	pci_write_dsdt(void);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)

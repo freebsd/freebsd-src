@@ -1,33 +1,27 @@
 /*
  * Copyright (C) 2011-2013 Matteo Landi, Luigi Rizzo. All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are
- * met:
- * 
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
  *   1. Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
- * 
  *   2. Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
- *      documentation and/or other materials provided with the
- *      distribution.
- * 
- *   3. Neither the name of the authors nor the names of their contributors
- *      may be used to endorse or promote products derived from this
- *      software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY MATTEO LANDI AND CONTRIBUTORS "AS IS" AND
+ *      documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``S IS''AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL MATTEO LANDI OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
- * THE POSSIBILITY OF SUCH DAMAGE.
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 /*
@@ -36,7 +30,7 @@
  * Definitions of constants and the structures used by the netmap
  * framework, for the part visible to both kernel and userspace.
  * Detailed info on netmap is available with "man netmap" or at
- * 
+ *
  *	http://info.iet.unipi.it/~luigi/netmap/
  *
  * This API is also used to communicate with the VALE software switch
@@ -271,7 +265,7 @@ struct netmap_if {
 	const ssize_t	ring_ofs[0];
 };
 
-#ifndef NIOCREGIF	
+#ifndef NIOCREGIF
 /*
  * ioctl names and related fields
  *
@@ -306,10 +300,10 @@ struct netmap_if {
  *	NETMAP_PRIV_MEM is a return value used to indicate that
  *	this ring is in a private memory region hence buffer
  *	swapping cannot be used
- *	
+ *
  *   nr_cmd	is used to configure NICs attached to a VALE switch,
  *	or to dump the configuration of a VALE switch.
- *	
+ *
  *	nr_cmd = NETMAP_BDG_ATTACH and nr_name = vale*:ifname
  *	attaches the NIC to the switch, with nr_ringid specifying
  *	which rings to use
@@ -350,8 +344,10 @@ struct nmreq {
 #define NETMAP_BDG_DETACH	2	/* detach the NIC */
 #define NETMAP_BDG_LOOKUP_REG	3	/* register lookup function */
 #define NETMAP_BDG_LIST		4	/* get bridge's info */
+#define NETMAP_BDG_OFFSET       5       /* set the port offset */
 	uint16_t	nr_arg1;
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
+#define NETMAP_BDG_MAX_OFFSET	12
 	uint16_t	nr_arg2;
 	uint32_t	spare2[3];
 };

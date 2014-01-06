@@ -225,6 +225,9 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
+	cd ${.CURDIR}/../sys/teken; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 teken.h \
+	    ${DESTDIR}${INCLUDEDIR}/teken
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."

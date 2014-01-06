@@ -123,7 +123,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
+#if 0
 	int n;	/* scratchpad */
+#endif
 	int error = 0;
 	struct sockaddr_in *dst;
 	const struct sockaddr_in *gw;
@@ -331,6 +333,12 @@ again:
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*
+		 * IP destination address is multicast.  Make sure "gw"
+		 * still points to the address in "ro".  (It may have been
+		 * changed to point to a gateway address, above.)
+		 */
+		gw = dst;
+		/*
 		 * See if the caller provided any multicast options
 		 */
 		if (imo != NULL) {
@@ -431,6 +439,25 @@ again:
 	}
 
 	/*
+	 * Both in the SMP world, pre-emption world if_transmit() world,
+	 * the following code doesn't really function as intended any further.
+	 *
+	 * + There can and will be multiple CPUs running this code path
+	 *   in parallel, and we do no lock holding when checking the
+	 *   queue depth;
+	 * + And since other threads can be running concurrently, even if
+	 *   we do pass this check, another thread may queue some frames
+	 *   before this thread does and it will end up partially or fully
+	 *   failing to send anyway;
+	 * + if_transmit() based drivers don't necessarily set ifq_len
+	 *   at all.
+	 *
+	 * This should be replaced with a method of pushing an entire list
+	 * of fragment frames to the driver and have the driver decide
+	 * whether it can queue or not queue the entire set.
+	 */
+#if 0
+	/*
 	 * Verify that we have any chance at all of being able to queue the
 	 * packet or packet fragments, unless ALTQ is enabled on the given
 	 * interface in which case packetdrop should be done by queueing.
@@ -446,6 +473,7 @@ again:
 		ifp->if_snd.ifq_drops += n;
 		goto bad;
 	}
+#endif
 
 	/*
 	 * Look for broadcast address and

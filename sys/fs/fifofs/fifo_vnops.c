@@ -143,7 +143,7 @@ fifo_open(ap)
 	fp = ap->a_fp;
 	td = ap->a_td;
 	ASSERT_VOP_ELOCKED(vp, "fifo_open");
-	if (fp == NULL)
+	if (fp == NULL || (ap->a_mode & FEXEC) != 0)
 		return (EINVAL);
 	if ((fip = vp->v_fifoinfo) == NULL) {
 		error = pipe_named_ctor(&fpipe, td);

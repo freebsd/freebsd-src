@@ -163,6 +163,7 @@ struct iwn_calib_state {
 	uint32_t	bad_plcp_cck;
 	uint32_t	fa_cck;
 	uint32_t	low_fa;
+	uint32_t	bad_plcp_ht;
 	uint8_t		cck_state;
 #define IWN_CCK_STATE_INIT	0
 #define IWN_CCK_STATE_LOFA	1
@@ -295,11 +296,9 @@ struct iwn_softc {
 	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
-	int			mem_rid;
 	struct resource		*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
-	int			irq_rid;
 	struct resource		*irq;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;
@@ -310,9 +309,11 @@ struct iwn_softc {
 	struct task		sc_radioon_task;
 	struct task		sc_radiooff_task;
 
+	/* Calibration information */
 	struct callout		calib_to;
 	int			calib_cnt;
 	struct iwn_calib_state	calib;
+	int			last_calib_ticks;
 	struct callout		watchdog_to;
 	struct callout		ct_kill_exit_to;
 	struct iwn_fw_info	fw;
