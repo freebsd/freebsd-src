@@ -678,6 +678,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	uint16_t vpid[VM_MAXCPU];
 	int i, error, guest_msr_count;
 	struct vmx *vmx;
+	struct vmcs *vmcs;
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	if ((uintptr_t)vmx & PAGE_MASK) {
@@ -743,26 +744,30 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	vpid_alloc(vpid, VM_MAXCPU);
 
 	for (i = 0; i < VM_MAXCPU; i++) {
-		vmx->vmcs[i].identifier = vmx_revision();
-		error = vmclear(&vmx->vmcs[i]);
+		vmcs = &vmx->vmcs[i];
+		vmcs->identifier = vmx_revision();
+		error = vmclear(vmcs);
 		if (error != 0) {
 			panic("vmx_vminit: vmclear error %d on vcpu %d\n",
 			      error, i);
 		}
 
-		error = vmcs_set_defaults(&vmx->vmcs[i],
-					  (u_long)vmx_exit_guest,
-					  (u_long)&vmx->ctx[i],
-					  vmx->eptp,
-					  pinbased_ctls,
-					  procbased_ctls,
-					  procbased_ctls2,
-					  exit_ctls, entry_ctls,
-					  vtophys(vmx->msr_bitmap),
-					  vpid[i]);
+		error = vmcs_init(vmcs);
+		KASSERT(error == 0, ("vmcs_init error %d", error));
 
-		if (error != 0)
-			panic("vmx_vminit: vmcs_set_defaults error %d", error);
+		VMPTRLD(vmcs);
+		error = 0;
+		error += vmwrite(VMCS_HOST_RSP, (u_long)&vmx->ctx[i]);
+		error += vmwrite(VMCS_EPTP, vmx->eptp);
+		error += vmwrite(VMCS_PIN_BASED_CTLS, pinbased_ctls);
+		error += vmwrite(VMCS_PRI_PROC_BASED_CTLS, procbased_ctls);
+		error += vmwrite(VMCS_SEC_PROC_BASED_CTLS, procbased_ctls2);
+		error += vmwrite(VMCS_EXIT_CTLS, exit_ctls);
+		error += vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
+		error += vmwrite(VMCS_MSR_BITMAP, vtophys(vmx->msr_bitmap));
+		error += vmwrite(VMCS_VPID, vpid[i]);
+		VMCLEAR(vmcs);
+		KASSERT(error == 0, ("vmx_vminit: error customizing the vmcs"));
 
 		vmx->cap[i].set = 0;
 		vmx->cap[i].proc_ctls = procbased_ctls;
@@ -773,9 +778,8 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
 
-		error = vmcs_set_msr_save(&vmx->vmcs[i],
-					  vtophys(vmx->guest_msrs[i]),
-					  guest_msr_count);
+		error = vmcs_set_msr_save(vmcs, vtophys(vmx->guest_msrs[i]),
+		    guest_msr_count);
 		if (error != 0)
 			panic("vmcs_set_msr_save error %d", error);
 
@@ -785,11 +789,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		 *  CR0 - 0x60000010
 		 *  CR4 - 0
 		 */
-		error = vmx_setup_cr0_shadow(&vmx->vmcs[i], 0x60000010);
+		error = vmx_setup_cr0_shadow(vmcs, 0x60000010);
 		if (error != 0)
 			panic("vmx_setup_cr0_shadow %d", error);
 
-		error = vmx_setup_cr4_shadow(&vmx->vmcs[i], 0);
+		error = vmx_setup_cr4_shadow(vmcs, 0);
 		if (error != 0)
 			panic("vmx_setup_cr4_shadow %d", error);
 
@@ -1455,7 +1459,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	 * from a different process than the one that actually runs it.
 	 *
 	 * If the life of a virtual machine was spent entirely in the context
-	 * of a single process we could do this once in vmcs_set_defaults().
+	 * of a single process we could do this once in vmx_vminit().
 	 */
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
