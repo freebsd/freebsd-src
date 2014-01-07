@@ -1959,7 +1959,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	const char *p;
 	struct da_softc *softc;
-	int i, error, value;
+	int i, error, methods, value;
 
 	softc = (struct da_softc *)arg1;
 
@@ -1972,8 +1972,9 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
+	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
-		if (!(softc->delete_available & (1 << i)) ||
+		if (!(methods & (1 << i)) ||
 		    strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
 		dadeletemethodset(softc, i);
