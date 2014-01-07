@@ -1582,8 +1582,6 @@ xhci_interrupt(struct xhci_softc *sc)
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
-	if (status == 0)
-		goto done;
 
 	/* acknowledge interrupts */
 
@@ -1591,10 +1589,8 @@ xhci_interrupt(struct xhci_softc *sc)
 
 	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
  
-	if (status & XHCI_STS_EINT) {
-		/* check for event(s) */
-		xhci_interrupt_poll(sc);
-	}
+	/* check for event(s) */
+	xhci_interrupt_poll(sc);
 
 	if (status & (XHCI_STS_PCD | XHCI_STS_HCH |
 	    XHCI_STS_HSE | XHCI_STS_HCE)) {
@@ -1618,7 +1614,6 @@ xhci_interrupt(struct xhci_softc *sc)
 			   __FUNCTION__);
 		}
 	}
-done:
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
