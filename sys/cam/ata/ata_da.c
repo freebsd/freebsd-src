@@ -1254,7 +1254,7 @@ adaregister(struct cam_periph *periph, void *arg)
 		maxio = min(maxio, 256 * softc->params.secsize);
 	softc->disk->d_maxsize = maxio;
 	softc->disk->d_unit = periph->unit_number;
-	softc->disk->d_flags = 0;
+	softc->disk->d_flags = DISKFLAG_DIRECT_COMPLETION;
 	if (softc->flags & ADA_FLAG_CAN_FLUSHCACHE)
 		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	if (softc->flags & ADA_FLAG_CAN_TRIM) {
