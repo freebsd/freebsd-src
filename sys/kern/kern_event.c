@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
+#include "opt_kqueue.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -250,7 +251,10 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 #define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
 #endif /* INVARIANTS */
 
+#ifndef	KN_HASHSIZE
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
+#endif
+
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
 
 static int
