@@ -38,11 +38,12 @@
 #include <machine/cpuregs.h>
 #include <machine/sysarch.h>
 
+#include <cheri/sandbox.h>
+
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <magic.h>
-#include <sandbox.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

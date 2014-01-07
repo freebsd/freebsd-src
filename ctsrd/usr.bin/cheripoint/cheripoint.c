@@ -35,7 +35,8 @@
 #include <sys/wait.h>
 
 #include <machine/cheri.h>
-#include <sandbox.h>
+
+#include <cheri/sandbox.h>
 
 #include <terasic_mtl.h>
 #include <dirent.h>

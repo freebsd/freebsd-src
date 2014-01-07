@@ -39,6 +39,8 @@
 #include <machine/cpuregs.h>
 #include <machine/sysarch.h>
 
+#include <cheri/sandbox.h>
+
 #include <errno.h>
 #include <fcntl.h>
 #include <png.h>
@@ -50,7 +52,6 @@
 
 #include "imagebox.h"
 #include "iboxpriv.h"
-#include "sandbox.h"
 
 int ibox_verbose;
 
