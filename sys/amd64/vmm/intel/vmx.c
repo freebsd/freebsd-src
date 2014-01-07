@@ -1192,12 +1192,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	handled = 0;
 	vmxctx = &vmx->ctx[vcpu];
 
-	/* Collect some information for VM exit processing */
-	vmexit->rip = vmcs_guest_rip();
-	vmexit->inst_length = vmexit_instruction_length();
-	vmexit->u.vmx.exit_reason = vmcs_exit_reason();
-	vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
-
 	qual = vmexit->u.vmx.exit_qualification;
 	reason = vmexit->u.vmx.exit_reason;
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
@@ -1406,9 +1400,7 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 	    ("vmx_exit_inst_error: invalid inst_fail_status %d",
 	    vmxctx->inst_fail_status));
 
-	vmexit->rip = vmcs_guest_rip();
 	vmexit->inst_length = 0;
-
 	vmexit->exitcode = VM_EXITCODE_VMX;
 	vmexit->u.vmx.status = vmxctx->inst_fail_status;
 	vmexit->u.vmx.inst_error = vmcs_instruction_error();
@@ -1437,6 +1429,8 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
 	struct vlapic *vlapic;
+	uint64_t rip;
+	uint32_t exit_reason;
 
 	vmx = arg;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1493,7 +1487,15 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_enter_guest(vmxctx, launched);
+
 		enable_intr();
+
+		/* Collect some information for VM exit processing */
+		vmexit->rip = rip = vmcs_guest_rip();
+		vmexit->inst_length = vmexit_instruction_length();
+		vmexit->u.vmx.exit_reason = exit_reason = vmcs_exit_reason();
+		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
+
 		if (rc == VMX_GUEST_VMEXIT) {
 			launched = 1;
 			handled = vmx_exit_process(vmx, vcpu, vmexit);
@@ -1501,8 +1503,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 			handled = vmx_exit_inst_error(vmxctx, rc, vmexit);
 		}
 
-		vmx_exit_trace(vmx, vcpu, vmexit->rip,
-		    vmexit->u.vmx.exit_reason, handled);
+		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
 	} while (handled);
 
 	/*
