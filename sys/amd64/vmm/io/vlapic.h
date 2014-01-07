@@ -38,16 +38,16 @@ int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data,
     bool *retu);
 
 /*
- * Returns a vector between 32 and 255 if an interrupt is pending in the
- * IRR that can be delivered based on the current state of ISR and TPR.
+ * Returns 0 if there is no eligible vector that can be delivered to the
+ * guest at this time and non-zero otherwise.
+ *
+ * If an eligible vector number is found and 'vecptr' is not NULL then it will
+ * be stored in the location pointed to by 'vecptr'.
  *
  * Note that the vector does not automatically transition to the ISR as a
  * result of calling this function.
- *
- * Returns -1 if there is no eligible vector that can be delivered to the
- * guest at this time.
  */
-int vlapic_pending_intr(struct vlapic *vlapic);
+int vlapic_pending_intr(struct vlapic *vlapic, int *vecptr);
 
 /*
  * Transition 'vector' from IRR to ISR. This function is called with the
@@ -57,7 +57,18 @@ int vlapic_pending_intr(struct vlapic *vlapic);
  */
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 
-void vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
+/*
+ * Returns 1 if the vcpu needs to be notified of the interrupt and 0 otherwise.
+ */
+int vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
+
+/*
+ * Post an interrupt to the vcpu running on 'hostcpu'. This will use a
+ * hardware assist if available (e.g. Posted Interrupt) or fall back to
+ * sending an IPI to interrupt the 'hostcpu'.
+ */
+void vlapic_post_intr(struct vlapic *vlapic, int hostcpu);
+
 void vlapic_set_error(struct vlapic *vlapic, uint32_t mask);
 void vlapic_fire_cmci(struct vlapic *vlapic);
 int vlapic_trigger_lvt(struct vlapic *vlapic, int vector);
@@ -69,7 +80,6 @@ bool vlapic_enabled(struct vlapic *vlapic);
 
 void vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
     int delmode, int vec);
-void vlapic_post_intr(struct vlapic *vlapic, int hostcpu);
 
 /* APIC write handlers */
 void vlapic_id_write_handler(struct vlapic *vlapic);

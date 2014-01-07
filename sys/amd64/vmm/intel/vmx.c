@@ -989,8 +989,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		return;
 
 	/* Ask the local apic for a vector to inject */
-	vector = vlapic_pending_intr(vlapic);
-	if (vector < 0)
+	if (!vlapic_pending_intr(vlapic, &vector))
 		return;
 
 	if (vector < 32 || vector > 255)
