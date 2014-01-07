@@ -910,7 +910,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 	 * returned from VMRUN() and before we grabbed the vcpu lock.
 	 */
 	if (!vm_nmi_pending(vm, vcpuid) &&
-	    (intr_disabled || vlapic_pending_intr(vcpu->vlapic) < 0)) {
+	    (intr_disabled || !vlapic_pending_intr(vcpu->vlapic, NULL))) {
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
 		if (vlapic_enabled(vcpu->vlapic)) {

@@ -289,27 +289,29 @@ vlapic_esr_write_handler(struct vlapic *vlapic)
 	vlapic->esr_pending = 0;
 }
 
-void
+int
 vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 {
-	struct LAPIC	*lapic = vlapic->apic_page;
-	uint32_t	*irrptr, *tmrptr, mask;
-	int		idx;
+	struct LAPIC *lapic;
+	uint32_t *irrptr, *tmrptr, mask;
+	int idx;
 
-	if (vector < 0 || vector >= 256)
-		panic("vlapic_set_intr_ready: invalid vector %d\n", vector);
+	KASSERT(vector >= 0 && vector < 256, ("invalid vector %d", vector));
 
+	lapic = vlapic->apic_page;
 	if (!(lapic->svr & APIC_SVR_ENABLE)) {
 		VLAPIC_CTR1(vlapic, "vlapic is software disabled, ignoring "
 		    "interrupt %d", vector);
-		return;
+		return (0);
 	}
 
 	if (vector < 16) {
 		vlapic_set_error(vlapic, APIC_ESR_RECEIVE_ILLEGAL_VECTOR);
-		return;
+		VLAPIC_CTR1(vlapic, "vlapic ignoring interrupt to vector %d",
+		    vector);
+		return (1);
 	}
-		
+
 	idx = (vector / 32) * 4;
 	mask = 1 << (vector % 32);
 
@@ -328,6 +330,7 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 		atomic_clear_int(&tmrptr[idx], mask);
 
 	VLAPIC_CTR_IRR(vlapic, "vlapic_set_intr_ready");
+	return (1);
 }
 
 static __inline uint32_t *
@@ -473,8 +476,8 @@ vlapic_fire_lvt(struct vlapic *vlapic, uint32_t lvt)
 			vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR);
 			return (0);
 		}
-		vlapic_set_intr_ready(vlapic, vec, false);
-		vcpu_notify_event(vlapic->vm, vlapic->vcpuid, true);
+		if (vlapic_set_intr_ready(vlapic, vec, false))
+			vcpu_notify_event(vlapic->vm, vlapic->vcpuid, true);
 		break;
 	case APIC_LVT_DM_NMI:
 		vm_inject_nmi(vlapic->vm, vlapic->vcpuid);
@@ -935,9 +938,12 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 
 	if (mode == APIC_DELMODE_FIXED && vec < 16) {
 		vlapic_set_error(vlapic, APIC_ESR_SEND_ILLEGAL_VECTOR);
+		VLAPIC_CTR1(vlapic, "Ignoring invalid IPI %d", vec);
 		return (0);
 	}
-	
+
+	VLAPIC_CTR2(vlapic, "icrlo 0x%016lx triggered ipi %d", icrval, vec);
+
 	if (mode == APIC_DELMODE_FIXED || mode == APIC_DELMODE_NMI) {
 		switch (icrval & APIC_DEST_MASK) {
 		case APIC_DEST_DESTFLD:
@@ -967,8 +973,13 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 				lapic_intr_edge(vlapic->vm, i, vec);
 				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
 						    IPIS_SENT, i, 1);
-			} else
+				VLAPIC_CTR2(vlapic, "vlapic sending ipi %d "
+				    "to vcpuid %d", vec, i);
+			} else {
 				vm_inject_nmi(vlapic->vm, i);
+				VLAPIC_CTR1(vlapic, "vlapic sending ipi nmi "
+				    "to vcpuid %d", i);
+			}
 		}
 
 		return (0);	/* handled completely in the kernel */
@@ -1023,7 +1034,7 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 }
 
 int
-vlapic_pending_intr(struct vlapic *vlapic)
+vlapic_pending_intr(struct vlapic *vlapic, int *vecptr)
 {
 	struct LAPIC	*lapic = vlapic->apic_page;
 	int	  	 idx, i, bitpos, vector;
@@ -1043,12 +1054,14 @@ vlapic_pending_intr(struct vlapic *vlapic)
 			vector = i * 32 + (bitpos - 1);
 			if (PRIO(vector) > PRIO(lapic->ppr)) {
 				VLAPIC_CTR1(vlapic, "pending intr %d", vector);
-				return (vector);
+				if (vecptr != NULL)
+					*vecptr = vector;
+				return (1);
 			} else 
 				break;
 		}
 	}
-	return (-1);
+	return (0);
 }
 
 void
