@@ -93,6 +93,8 @@
         scsi
         ..
     ..
+    cheri
+    ..
     clang
         3.3
         ..
