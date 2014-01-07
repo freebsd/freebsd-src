@@ -442,6 +442,7 @@ g_multipath_create(struct g_class *mp, struct g_multipath_metadata *md)
 	gp->dumpconf = g_multipath_dumpconf;
 
 	pp = g_new_providerf(gp, "multipath/%s", md->md_name);
+	pp->flags |= G_PF_DIRECT_SEND | G_PF_DIRECT_RECEIVE;
 	if (md->md_size != 0) {
 		pp->mediasize = md->md_size -
 		    ((md->md_uuid[0] != 0) ? md->md_sectorsize : 0);
@@ -479,6 +480,7 @@ g_multipath_add_disk(struct g_geom *gp, struct g_provider *pp)
 	}
 	nxtcp = LIST_FIRST(&gp->consumer);
 	cp = g_new_consumer(gp);
+	cp->flags |= G_CF_DIRECT_SEND | G_CF_DIRECT_RECEIVE;
 	cp->private = NULL;
 	cp->index = MP_NEW;
 	error = g_attach(cp, pp);
