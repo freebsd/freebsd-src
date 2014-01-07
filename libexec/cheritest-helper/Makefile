@@ -5,9 +5,7 @@ PROG=	cheritest-helper
 SRCS=	cheritest-helper.c			\
 	malloc.c				\
 	stub.c					\
-	chsbrt.S				\
-	memcpy.S				\
-	memset.c
+	chsbrt.S
 
 INCS=	cheritest-helper.h
 
