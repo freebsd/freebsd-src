@@ -884,7 +884,7 @@ nfsrc_trimcache(u_int64_t sockref, uint32_t snd_una, int final)
 			for (i = 0; i < HISTSIZE; i++)
 				time_histo[i] = 0;
 			i = 0;
-			lastslot = NFSRVCACHE_HASHSIZE;
+			lastslot = NFSRVCACHE_HASHSIZE - 1;
 		} else {
 			force = 0;
 			if (NFSD_MONOSEC != tcp_lasttrim) {
