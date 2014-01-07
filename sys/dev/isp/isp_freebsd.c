@@ -106,7 +106,7 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		return (EIO);
 	}
 	ISP_UNLOCK(isp);
-	if (xpt_create_path_unlocked(&path, NULL, cam_sim_path(sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+	if (xpt_create_path(&path, NULL, cam_sim_path(sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
 		ISP_UNLOCK(isp);
@@ -4131,12 +4131,12 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 	periphdriver_register(&isptargdriver);
 	ISP_GET_PC(isp, chan, sim, sim);
 	ISP_GET_PC(isp, chan, path,  path);
-	status = xpt_create_path_unlocked(&wpath, NULL, cam_sim_path(sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
+	status = xpt_create_path(&wpath, NULL, cam_sim_path(sim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD);
 	if (status != CAM_REQ_CMP) {
 		isp_prt(isp, ISP_LOGERR, "%s: could not allocate wildcard path", __func__);
 		return;
 	}
-	status = xpt_create_path_unlocked(&path, NULL, cam_sim_path(sim), 0, 0);
+	status = xpt_create_path(&path, NULL, cam_sim_path(sim), 0, 0);
 	if (status != CAM_REQ_CMP) {
 		xpt_free_path(wpath);
 		isp_prt(isp, ISP_LOGERR, "%s: could not allocate path", __func__);

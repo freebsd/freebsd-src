@@ -84,7 +84,7 @@ typedef enum {
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
 	DA_FLAG_NEED_OTAG	= 0x020,
-	DA_FLAG_WENT_IDLE	= 0x040,
+	DA_FLAG_WAS_OTAG	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
 	DA_FLAG_OPEN		= 0x100,
 	DA_FLAG_SCTX_INIT	= 0x200,
@@ -118,7 +118,6 @@ typedef enum {
 	DA_CCB_PROBE_BDC	= 0x05,
 	DA_CCB_PROBE_ATA	= 0x06,
 	DA_CCB_BUFFER_IO	= 0x07,
-	DA_CCB_WAITING		= 0x08,
 	DA_CCB_DUMP		= 0x0A,
 	DA_CCB_DELETE		= 0x0B,
  	DA_CCB_TUR		= 0x0C,
@@ -199,19 +198,17 @@ struct da_softc {
 	struct	 bio_queue_head bio_queue;
 	struct	 bio_queue_head delete_queue;
 	struct	 bio_queue_head delete_run_queue;
-	SLIST_ENTRY(da_softc) links;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
+	int	 tur;			/* TEST UNIT READY should be sent */
+	int	 refcount;		/* Active xpt_action() calls */
 	da_state state;
 	da_flags flags;	
 	da_quirks quirks;
 	int	 sort_io_queue;
 	int	 minimum_cmd_size;
 	int	 error_inject;
-	int	 ordered_tag_count;
-	int	 outstanding_cmds;
 	int	 trim_max_ranges;
 	int	 delete_running;
-	int	 tur;
 	int	 delete_available;	/* Delete methods possibly available */
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba;
@@ -1269,86 +1266,72 @@ daclose(struct disk *dp)
 {
 	struct	cam_periph *periph;
 	struct	da_softc *softc;
+	union	ccb *ccb;
 	int error;
 
 	periph = (struct cam_periph *)dp->d_drv1;
-	cam_periph_lock(periph);
-	if (cam_periph_hold(periph, PRIBIO) != 0) {
-		cam_periph_unlock(periph);
-		cam_periph_release(periph);
-		return (0);
-	}
-
 	softc = (struct da_softc *)periph->softc;
-
+	cam_periph_lock(periph);
 	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE | CAM_DEBUG_PERIPH,
 	    ("daclose\n"));
 
-	if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
-	    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
-	    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
-		union	ccb *ccb;
+	if (cam_periph_hold(periph, PRIBIO) == 0) {
 
-		ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+		/* Flush disk cache. */
+		if ((softc->flags & DA_FLAG_DIRTY) != 0 &&
+		    (softc->quirks & DA_Q_NO_SYNC_CACHE) == 0 &&
+		    (softc->flags & DA_FLAG_PACK_INVALID) == 0) {
+			ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+			scsi_synchronize_cache(&ccb->csio, /*retries*/1,
+			    /*cbfcnp*/dadone, MSG_SIMPLE_Q_TAG,
+			    /*begin_lba*/0, /*lb_count*/0, SSD_FULL_SIZE,
+			    5 * 60 * 1000);
+			error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
+			    /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
+			    softc->disk->d_devstat);
+			if (error == 0)
+				softc->flags &= ~DA_FLAG_DIRTY;
+			xpt_release_ccb(ccb);
+		}
 
-		scsi_synchronize_cache(&ccb->csio,
-				       /*retries*/1,
-				       /*cbfcnp*/dadone,
-				       MSG_SIMPLE_Q_TAG,
-				       /*begin_lba*/0,/* Cover the whole disk */
-				       /*lb_count*/0,
-				       SSD_FULL_SIZE,
-				       5 * 60 * 1000);
-
-		error = cam_periph_runccb(ccb, daerror, /*cam_flags*/0,
-				  /*sense_flags*/SF_RETRY_UA | SF_QUIET_IR,
-				  softc->disk->d_devstat);
-		if (error == 0)
-			softc->flags &= ~DA_FLAG_DIRTY;
-		xpt_release_ccb(ccb);
-
-	}
-
-	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0) {
-		if ((softc->quirks & DA_Q_NO_PREVENT) == 0)
+		/* Allow medium removal. */
+		if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0 &&
+		    (softc->quirks & DA_Q_NO_PREVENT) == 0)
 			daprevent(periph, PR_ALLOW);
-		/*
-		 * If we've got removeable media, mark the blocksize as
-		 * unavailable, since it could change when new media is
-		 * inserted.
-		 */
-		softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
+
+		cam_periph_unhold(periph);
 	}
+
+	/*
+	 * If we've got removeable media, mark the blocksize as
+	 * unavailable, since it could change when new media is
+	 * inserted.
+	 */
+	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) != 0)
+		softc->disk->d_devstat->flags |= DEVSTAT_BS_UNAVAILABLE;
 
 	softc->flags &= ~DA_FLAG_OPEN;
-	cam_periph_unhold(periph);
+	while (softc->refcount != 0)
+		cam_periph_sleep(periph, &softc->refcount, PRIBIO, "daclose", 1);
 	cam_periph_unlock(periph);
 	cam_periph_release(periph);
-	return (0);	
+	return (0);
 }
 
 static void
 daschedule(struct cam_periph *periph)
 {
 	struct da_softc *softc = (struct da_softc *)periph->softc;
-	uint32_t prio;
 
 	if (softc->state != DA_STATE_NORMAL)
 		return;
-
-	/* Check if cam_periph_getccb() was called. */
-	prio = periph->immediate_priority;
 
 	/* Check if we have more work to do. */
 	if (bioq_first(&softc->bio_queue) ||
 	    (!softc->delete_running && bioq_first(&softc->delete_queue)) ||
 	    softc->tur) {
-		prio = CAM_PRIORITY_NORMAL;
+		xpt_schedule(periph, CAM_PRIORITY_NORMAL);
 	}
-
-	/* Schedule CCB if any of above is true. */
-	if (prio != CAM_PRIORITY_NONE)
-		xpt_schedule(periph, prio);
 }
 
 /*
@@ -1382,9 +1365,7 @@ dastrategy(struct bio *bp)
 	 * Place it in the queue of disk activities for this disk
 	 */
 	if (bp->bio_cmd == BIO_DELETE) {
-		if (bp->bio_bcount == 0)
-			biodone(bp);
-		else if (DA_SIO)
+		if (DA_SIO)
 			bioq_disksort(&softc->delete_queue, bp);
 		else
 			bioq_insert_tail(&softc->delete_queue, bp);
@@ -1621,7 +1602,7 @@ daasync(void *callback_arg, u_int32_t code,
 		status = cam_periph_alloc(daregister, daoninvalidate,
 					  dacleanup, dastart,
 					  "da", CAM_PERIPH_BIO,
-					  cgd->ccb_h.path, daasync,
+					  path, daasync,
 					  AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -2066,7 +2047,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 * Schedule a periodic event to occasionally send an
 	 * ordered tag to a device.
 	 */
-	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->sendordered_c, cam_periph_mtx(periph), 0);
 	callout_reset(&softc->sendordered_c,
 	    (da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
@@ -2186,7 +2167,7 @@ daregister(struct cam_periph *periph, void *arg)
 	/*
 	 * Schedule a periodic media polling events.
 	 */
-	callout_init_mtx(&softc->mediapoll_c, periph->sim->mtx, 0);
+	callout_init_mtx(&softc->mediapoll_c, cam_periph_mtx(periph), 0);
 	if ((softc->flags & DA_FLAG_PACK_REMOVABLE) &&
 	    (cgd->inq_flags & SID_AEN) == 0 &&
 	    da_poll_period != 0)
@@ -2213,20 +2194,6 @@ skipstate:
 	{
 		struct bio *bp;
 		uint8_t tag_code;
-
-		/* Execute immediate CCB if waiting. */
-		if (periph->immediate_priority <= periph->pinfo.priority) {
-			CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
-					("queuing for immediate ccb\n"));
-			start_ccb->ccb_h.ccb_state = DA_CCB_WAITING;
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-			/* May have more work to do, so ensure we stay scheduled */
-			daschedule(periph);
-			break;
-		}
 
 		/* Run BIO_DELETE if not running yet. */
 		if (!softc->delete_running &&
@@ -2266,7 +2233,7 @@ skipstate:
 		if ((bp->bio_flags & BIO_ORDERED) != 0 ||
 		    (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 			softc->flags &= ~DA_FLAG_NEED_OTAG;
-			softc->ordered_tag_count++;
+			softc->flags |= DA_FLAG_WAS_OTAG;
 			tag_code = MSG_ORDERED_Q_TAG;
 		} else {
 			tag_code = MSG_SIMPLE_Q_TAG;
@@ -2316,15 +2283,11 @@ skipstate:
 			break;
 		}
 		start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
+		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
 
 out:
-		/*
-		 * Block out any asynchronous callbacks
-		 * while we touch the pending ccb list.
-		 */
 		LIST_INSERT_HEAD(&softc->pending_ccbs,
 				 &start_ccb->ccb_h, periph_links.le);
-		softc->outstanding_cmds++;
 
 		/* We expect a unit attention from this device */
 		if ((softc->flags & DA_FLAG_RETRY_UA) != 0) {
@@ -2333,7 +2296,11 @@ out:
 		}
 
 		start_ccb->ccb_h.ccb_bp = bp;
+		softc->refcount++;
+		cam_periph_unlock(periph);
 		xpt_action(start_ccb);
+		cam_periph_lock(periph);
+		softc->refcount--;
 
 		/* May have more work to do, so ensure we stay scheduled */
 		daschedule(periph);
@@ -2628,6 +2595,7 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		   /*sense_len*/SSD_FULL_SIZE,
 		   da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 static void
@@ -2708,6 +2676,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 		      /*sense_len*/SSD_FULL_SIZE,
 		      da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 /*
@@ -2764,6 +2733,7 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			/*sense_len*/SSD_FULL_SIZE,
 			da_default_timeout * 1000);
 	ccb->ccb_h.ccb_state = DA_CCB_DELETE;
+	ccb->ccb_h.flags |= CAM_UNLOCKED;
 }
 
 static int
@@ -2898,6 +2868,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 	{
 		struct bio *bp, *bp1;
 
+		cam_periph_lock(periph);
 		bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
 		if ((done_ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			int error;
@@ -2914,6 +2885,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				 * A retry was scheduled, so
 				 * just return.
 				 */
+				cam_periph_unlock(periph);
 				return;
 			}
 			bp = (struct bio *)done_ccb->ccb_h.ccb_bp;
@@ -2981,18 +2953,22 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
-		/*
-		 * Block out any asynchronous callbacks
-		 * while we touch the pending ccb list.
-		 */
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
-		softc->outstanding_cmds--;
-		if (softc->outstanding_cmds == 0)
-			softc->flags |= DA_FLAG_WENT_IDLE;
+		if (LIST_EMPTY(&softc->pending_ccbs))
+			softc->flags |= DA_FLAG_WAS_OTAG;
 
+		xpt_release_ccb(done_ccb);
 		if (state == DA_CCB_DELETE) {
-			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
-			    != NULL) {
+			TAILQ_HEAD(, bio) queue;
+
+			TAILQ_INIT(&queue);
+			TAILQ_CONCAT(&queue, &softc->delete_run_queue.queue, bio_queue);
+			softc->delete_run_queue.insert_point = NULL;
+			softc->delete_running = 0;
+			daschedule(periph);
+			cam_periph_unlock(periph);
+			while ((bp1 = TAILQ_FIRST(&queue)) != NULL) {
+				TAILQ_REMOVE(&queue, bp1, bio_queue);
 				bp1->bio_error = bp->bio_error;
 				if (bp->bio_flags & BIO_ERROR) {
 					bp1->bio_flags |= BIO_ERROR;
@@ -3001,13 +2977,11 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					bp1->bio_resid = 0;
 				biodone(bp1);
 			}
-			softc->delete_running = 0;
-			if (bp != NULL)
-				biodone(bp);
-			daschedule(periph);
-		} else if (bp != NULL)
+		} else
+			cam_periph_unlock(periph);
+		if (bp != NULL)
 			biodone(bp);
-		break;
+		return;
 	}
 	case DA_CCB_PROBE_RC:
 	case DA_CCB_PROBE_RC16:
@@ -3457,12 +3431,6 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		daprobedone(periph, done_ccb);
 		return;
 	}
-	case DA_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
-		return;
-	}
 	case DA_CCB_DUMP:
 		/* No-op.  We're polling */
 		return;
@@ -3573,7 +3541,7 @@ damediapoll(void *arg)
 	struct cam_periph *periph = arg;
 	struct da_softc *softc = periph->softc;
 
-	if (!softc->tur && softc->outstanding_cmds == 0) {
+	if (!softc->tur && LIST_EMPTY(&softc->pending_ccbs)) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
 			daschedule(periph);
@@ -3745,14 +3713,11 @@ dasendorderedtag(void *arg)
 	struct da_softc *softc = arg;
 
 	if (da_send_ordered) {
-		if ((softc->ordered_tag_count == 0) 
-		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
-			softc->flags |= DA_FLAG_NEED_OTAG;
+		if (!LIST_EMPTY(&softc->pending_ccbs)) {
+			if ((softc->flags & DA_FLAG_WAS_OTAG) == 0)
+				softc->flags |= DA_FLAG_NEED_OTAG;
+			softc->flags &= ~DA_FLAG_WAS_OTAG;
 		}
-		if (softc->outstanding_cmds > 0)
-			softc->flags &= ~DA_FLAG_WENT_IDLE;
-
-		softc->ordered_tag_count = 0;
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
