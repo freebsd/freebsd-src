@@ -899,11 +899,11 @@ void __netmap_adapter_get(struct netmap_adapter *na);
 int __netmap_adapter_put(struct netmap_adapter *na);
 
 #define netmap_adapter_put(na)				\
-	do {						\
+	({						\
 		struct netmap_adapter *__na = na;	\
 		D("putting %p:%s (%d)", __na, NM_IFPNAME(__na->ifp), __na->na_refcount);	\
 		__netmap_adapter_put(__na);		\
-	} while (0)
+	})
 
 #else /* !NM_DEBUG_PUTGET */
 

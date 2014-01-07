@@ -2208,9 +2208,14 @@ netmap_detach(struct ifnet *ifp)
 
 	NMG_LOCK();
 	netmap_disable_all_rings(ifp);
-	netmap_adapter_put(na);
-	na->ifp = NULL;
-	netmap_enable_all_rings(ifp);
+	if (!netmap_adapter_put(na)) {
+		/* someone is still using the adapter,
+		 * tell them that the interface is gone
+		 */
+		na->ifp = NULL;
+		/* give them a chance to notice */
+		netmap_enable_all_rings(ifp);
+	}
 	NMG_UNLOCK();
 }
 
