@@ -9,42 +9,6 @@ acpi_quirks.h			optional acpi				   \
 	compile-with	"${AWK} -f $S/tools/acpi_quirks2h.awk $S/dev/acpica/acpi_quirks" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"acpi_quirks.h"
-aic7xxx_seq.h			optional ahc				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic7xxx_seq.h"					   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic7xxx_reg.h			optional ahc				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic7xxx_reg.h"					   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic7xxx_reg_print.c		optional ahc				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h -p aic7xxx_reg_print.c -i $S/dev/aic7xxx/aic7xxx_osm.h $S/dev/aic7xxx/aic7xxx.seq"   \
-	no-obj no-implicit-rule local					   \
-	clean		"aic7xxx_reg_print.c"				   \
-	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic7xxx_reg_print.o		optional ahc ahc_reg_pretty_print	   \
-	compile-with	"${NORMAL_C}"					   \
-	no-implicit-rule local
-aic79xx_seq.h		optional ahd pci				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic79xx_seq.h"					   \
-	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic79xx_reg.h		optional ahd pci				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule before-depend local			   \
-	clean		"aic79xx_reg.h"					   \
-	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic79xx_reg_print.c	optional ahd pci				   \
-	compile-with	"aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic79xx_seq.h -r aic79xx_reg.h -p aic79xx_reg_print.c -i $S/dev/aic7xxx/aic79xx_osm.h $S/dev/aic7xxx/aic79xx.seq"   \
-	no-obj no-implicit-rule local					   \
-	clean		"aic79xx_reg_print.c"				   \
-	dependency	"$S/dev/aic7xxx/aic79xx.{reg,seq} $S/cam/scsi/scsi_message.h"
-aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
-	compile-with	"${NORMAL_C}"					   \
-	no-implicit-rule local
 #
 # The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
@@ -667,10 +631,12 @@ dev/aic7xxx/aic7770.c		optional ahc
 dev/aic7xxx/aic79xx.c		optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
 dev/aic7xxx/aic79xx_pci.c	optional ahd pci
+dev/aic7xxx/aic79xx_reg_print.c	optional ahd pci ahd_reg_pretty_print
 dev/aic7xxx/aic7xxx.c		optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
 dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
+dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
