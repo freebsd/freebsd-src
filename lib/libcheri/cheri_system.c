@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,22 +28,42 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _CHERI_INVOKE_H_
-#define	_CHERI_INVOKE_H_
+#include <sys/types.h>
 
-#if __has_feature(capabilities)
-register_t	cheri_invoke(__capability void *c1, __capability void *c2,
-		    register_t a0, register_t a1, register_t a2,
-		    register_t a3, register_t a4, register_t a5,
-		    register_t a6, register_t a7, __capability void *c3,
-		    __capability void *c4, __capability void *c5,
-		    __capability void *c6, __capability void *c7,
-		    __capability void *c8, __capability void *c9,
-		    __capability void *c10) __attribute__((cheri_ccall));
-#else
-register_t	cheri_invoke(register_t a0, register_t a1, register_t a2,
-		    register_t a3, register_t a4, register_t a5,
-		    register_t a6, register_t a7);
-#endif
+#include <stdio.h>
 
-#endif /* !_CHERI_INVOKE_H_ */
+#include <stdio.h>
+
+#include "cheri_system.h"
+
+/*
+ * This C file implements the CHERI system class.  Currently, pretty
+ * minimalist.
+ */
+
+/*
+ * Just a test function.
+ */
+int
+cheri_system_helloworld(void)
+{
+
+	printf("%s: hello world\n", __func__);
+	return (123456);
+}
+
+/*
+ * Implementation of puts(), but with a capability argument.  No persistent
+ * state, so no recovery required if an exception is thrown due to a bad
+ * capability being passed in.
+ */
+int
+cheri_system_puts(__capability const char *str)
+{
+
+	for (; *str != '\0'; str++) {
+		if (putchar(*str) == EOF)
+			return (EOF);
+	}
+	return (1);
+}

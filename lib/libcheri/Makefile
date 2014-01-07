@@ -4,13 +4,15 @@ LIB=	cheri
 SRCS=	__cheri_enter.S			\
 	cheri_invoke.S			\
 	cheri_enter.c			\
+	cheri_system.c			\
 	libcheri_stat.c			\
 	sandbox.c
 
 INCS=	cheri_invoke.h			\
+	cheri_system.h			\
 	sandbox.h			\
 	sandboxasm.h
-INCSDIR=	${INCLUDEDIR}
+INCSDIR=	${INCLUDEDIR}/cheri
 
 SHLIB_MAJOR=	1
 

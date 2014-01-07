@@ -40,6 +40,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cheri_system.h"
 #include "sandbox.h"
 
 /*
@@ -53,7 +54,7 @@
 register_t	cheri_enter(register_t methodnum, register_t a0,
 		    register_t a1, register_t a2, register_t a3,
 		    register_t a4, register_t a5, register_t a6,
-		    register_t a7);
+		    register_t a7, __capability void *c1);
 
 /*
  * Stack for use on entering from sandbox.
@@ -115,12 +116,20 @@ cheri_systemcap_get(struct cheri_object *cop)
  * cheri_enter() itself: sandbox invocations turn up here.
  */
 register_t
-cheri_enter(register_t methodnum __unused, register_t a0 __unused,
+cheri_enter(register_t methodnum, register_t a0 __unused,
     register_t a1 __unused, register_t a2 __unused, register_t a3 __unused,
     register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
-    register_t a7 __unused)
+    register_t a7 __unused, __capability void *c1)
 {
 
-	printf("%s: entered\n", __func__);
-	return (123456);
+	switch (methodnum) {
+	case CHERI_SYSTEM_METHOD_HELLOWORLD:
+		return (cheri_system_helloworld());
+
+	case CHERI_SYSTEM_METHOD_PUTS:
+		return (cheri_system_puts(c1));
+
+	default:
+		return (-1);
+	}
 }

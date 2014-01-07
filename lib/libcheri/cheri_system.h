@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013-2014 Robert N. M. Watson
+ * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -28,22 +28,32 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _CHERI_INVOKE_H_
-#define	_CHERI_INVOKE_H_
+#ifndef _CHERI_SYSTEM_H_
+#define	_CHERI_SYSTEM_H_
 
-#if __has_feature(capabilities)
-register_t	cheri_invoke(__capability void *c1, __capability void *c2,
-		    register_t a0, register_t a1, register_t a2,
-		    register_t a3, register_t a4, register_t a5,
-		    register_t a6, register_t a7, __capability void *c3,
-		    __capability void *c4, __capability void *c5,
-		    __capability void *c6, __capability void *c7,
-		    __capability void *c8, __capability void *c9,
-		    __capability void *c10) __attribute__((cheri_ccall));
-#else
-register_t	cheri_invoke(register_t a0, register_t a1, register_t a2,
-		    register_t a3, register_t a4, register_t a5,
-		    register_t a6, register_t a7);
-#endif
+/*
+ * This header defines the interface for the CHERI system class.  Currently,
+ * it is a bit catch-all, and provides a few key service that make it easy to
+ * implement (and debug) sandboxed code.  In the future, we anticipate the
+ * system class being an entry point to a number of other classes -- e.g.,
+ * providing an open() method that returns file-descriptor objects.  We are
+ * definitely not yet at that point.
+ */
 
-#endif /* !_CHERI_INVOKE_H_ */
+#define	CHERI_SYSTEM_METHOD_HELLOWORLD	1	/* printf("hello world\n"); */
+#define	CHERI_SYSTEM_METHOD_PUTS	2	/* puts(). */
+
+/*
+ * In the sandbox: notify the stub implementation of the object capability to
+ * invoke.
+ */
+void	cheri_system_setup(__capability void *system_codecap,
+	    __capability void *system_datacap);
+
+/*
+ * Methods themselves.
+ */
+int	cheri_system_helloworld(void);
+int	cheri_system_puts(__capability const char *str);
+
+#endif /* !_CHERI_SYSTEM_H_ */
