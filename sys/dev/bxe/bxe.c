@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.76"
+#define BXE_DRIVER_VERSION "1.78.77"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -5509,10 +5509,31 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
             fp->eth_q_stats.tx_window_violation_std++;
         }
 
-        /* XXX I don't like this, change to double copy packet */
+        /* lets try to defragment this mbuf */
+        fp->eth_q_stats.mbuf_defrag_attempts++;
 
-        /* no sense trying to defrag again, just drop the frame */
-        rc = ENODEV;
+        m0 = m_defrag(*m_head, M_DONTWAIT);
+        if (m0 == NULL) {
+            fp->eth_q_stats.mbuf_defrag_failures++;
+            /* Ugh, just drop the frame... :( */
+            rc = ENOBUFS;
+        } else {
+            /* defrag successful, try mapping again */
+            *m_head = m0;
+            error = bus_dmamap_load_mbuf_sg(fp->tx_mbuf_tag,
+                                            tx_buf->m_map, m0,
+                                            segs, &nsegs, BUS_DMA_NOWAIT);
+            if (error) {
+                fp->eth_q_stats.tx_dma_mapping_failure++;
+                /* No sense in trying to defrag/copy chain, drop it. :( */
+                rc = error;
+            }
+
+            /* if the chain is still too long then drop it */
+            if (__predict_false(nsegs > 12)) {
+                rc = ENODEV;
+            }
+        }
     }
 
 bxe_tx_encap_continue:
