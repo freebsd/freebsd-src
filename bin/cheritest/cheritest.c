@@ -41,10 +41,11 @@
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheri/sandbox.h>
+
 #include <cheritest-helper.h>
 #include <err.h>
 #include <inttypes.h>
-#include <sandbox.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -103,7 +104,9 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_cp2_seal\n");
 	fprintf(stderr, "cheritest invoke_cp2_tag\n");
 	fprintf(stderr, "cheritest invoke_divzero\n");
+	fprintf(stderr, "cheritest invoke_helloworld\n");
 	fprintf(stderr, "cheritest invoke_md5\n");
+	fprintf(stderr, "cheritest invoke_puts\n");
 	fprintf(stderr, "cheritest invoke_spin\n");
 	fprintf(stderr, "cheritest invoke_syscall\n");
 	fprintf(stderr, "cheritest invoke_syscap\n");
@@ -333,7 +336,8 @@ cheritest_invoke_simple_op(int op)
 #ifdef USE_C_CAPS
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    cheritest_systemcap.co_codecap, cheritest_systemcap.co_datacap,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 #else
 	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
@@ -415,6 +419,10 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CP2_SEAL, "cp2_seal");
 	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_HELLOWORLD, "helloworld");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_PUTS, "puts");
+	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_VM_RFAULT, "vm_rfault");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_VM_WFAULT, "vm_wfault");
@@ -487,8 +495,14 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_divzero") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_DIVZERO);
+		else if (strcmp(argv[i], "invoke_helloworld") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_HELLOWORLD);
 		else if (strcmp(argv[i], "invoke_md5") == 0)
 			cheritest_invoke_md5();
+		else if (strcmp(argv[i], "invoke_puts") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_PUTS);
 		else if (strcmp(argv[i], "invoke_spin") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_SPIN);
