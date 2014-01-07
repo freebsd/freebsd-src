@@ -321,6 +321,7 @@ vm_create(const char *name, struct vm **retvm)
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
+	vm->vmspace = vmspace;
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
@@ -331,7 +332,6 @@ vm_create(const char *name, struct vm **retvm)
 	}
 
 	vm_activate_cpu(vm, BSP);
-	vm->vmspace = vmspace;
 
 	*retvm = vm;
 	return (0);
