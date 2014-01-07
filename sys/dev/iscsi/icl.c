@@ -324,7 +324,7 @@ icl_pdu_check_header_digest(struct icl_pdu *request, size_t *availablep)
 	}
 
 	CTASSERT(sizeof(received_digest) == ISCSI_HEADER_DIGEST_SIZE);
-	memcpy(&received_digest, mtod(m, void *), ISCSI_HEADER_DIGEST_SIZE);
+	m_copydata(m, 0, ISCSI_HEADER_DIGEST_SIZE, (void *)&received_digest);
 	m_freem(m);
 
 	*availablep -= ISCSI_HEADER_DIGEST_SIZE;
@@ -482,7 +482,7 @@ icl_pdu_check_data_digest(struct icl_pdu *request, size_t *availablep)
 	}
 
 	CTASSERT(sizeof(received_digest) == ISCSI_DATA_DIGEST_SIZE);
-	memcpy(&received_digest, mtod(m, void *), ISCSI_DATA_DIGEST_SIZE);
+	m_copydata(m, 0, ISCSI_DATA_DIGEST_SIZE, (void *)&received_digest);
 	m_freem(m);
 
 	*availablep -= ISCSI_DATA_DIGEST_SIZE;
