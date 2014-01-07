@@ -2429,13 +2429,15 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		hhook_run_tcp_est_in(tp, th, &to);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			if (tlen == 0 && tiwin == tp->snd_wnd) {
+			if (tlen == 0 && tiwin == tp->snd_wnd &&
+			    !(thflags & TH_FIN)) {
 				TCPSTAT_INC(tcps_rcvdupack);
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
 				 * duplicate ack (ie, window info didn't
-				 * change), the ack is the biggest we've
+				 * change and FIN isn't set),
+				 * the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
 				 * threshhold of them, assume a packet
 				 * has been dropped and retransmit it.
