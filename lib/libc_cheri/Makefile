@@ -7,6 +7,9 @@ SRCS=		cheri_invoke.S
 SRCS+=		memcpy.S		\
 		memset.c
 
+# CHERI system class
+SRCS+=		cheri_system_stub.c
+
 INCS=
 SHLIB_MAJOR=	1
 NO_MAN=		yes
