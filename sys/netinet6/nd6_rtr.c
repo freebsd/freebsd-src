@@ -858,7 +858,6 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 {
 	struct nd_prefix *new = NULL;
 	int error = 0;
-	int i;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	new = (struct nd_prefix *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
@@ -883,9 +882,7 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 	LIST_INIT(&new->ndpr_advrtrs);
 	in6_prefixlen2mask(&new->ndpr_mask, new->ndpr_plen);
 	/* make prefix in the canonical form */
-	for (i = 0; i < 4; i++)
-		new->ndpr_prefix.sin6_addr.s6_addr32[i] &=
-		    new->ndpr_mask.s6_addr32[i];
+	IN6_MASK_ADDR(&new->ndpr_prefix.sin6_addr, &new->ndpr_mask);
 
 	/* link ndpr_entry to nd_prefix list */
 	LIST_INSERT_HEAD(&V_nd_prefix, new, ndpr_entry);
@@ -1843,10 +1840,7 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
 	/* prefix */
 	ifra.ifra_addr.sin6_addr = pr->ndpr_prefix.sin6_addr;
-	ifra.ifra_addr.sin6_addr.s6_addr32[0] &= mask.s6_addr32[0];
-	ifra.ifra_addr.sin6_addr.s6_addr32[1] &= mask.s6_addr32[1];
-	ifra.ifra_addr.sin6_addr.s6_addr32[2] &= mask.s6_addr32[2];
-	ifra.ifra_addr.sin6_addr.s6_addr32[3] &= mask.s6_addr32[3];
+	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);
 
 	/* interface ID */
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] |=
@@ -1923,7 +1917,7 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
 	struct in6_ifaddr *newia, *ia;
 	struct in6_aliasreq ifra;
-	int i, error;
+	int error;
 	int trylimit = 3;	/* XXX: adhoc value */
 	int updateflags;
 	u_int32_t randid[2];
@@ -1935,10 +1929,8 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	/* copy prefix mask */
 	ifra.ifra_prefixmask = ia0->ia_prefixmask;
 	/* clear the old IFID */
-	for (i = 0; i < 4; i++) {
-		ifra.ifra_addr.sin6_addr.s6_addr32[i] &=
-		    ifra.ifra_prefixmask.sin6_addr.s6_addr32[i];
-	}
+	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr,
+	    &ifra.ifra_prefixmask.sin6_addr);
 
   again:
 	if (in6_get_tmpifid(ifp, (u_int8_t *)randid,

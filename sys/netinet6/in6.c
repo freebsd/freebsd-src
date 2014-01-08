@@ -635,7 +635,6 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 
 	case SIOCAIFADDR_IN6:
 	{
-		int i;
 		struct nd_prefixctl pr0;
 		struct nd_prefix *pr;
 
@@ -688,10 +687,9 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 		}
 		pr0.ndpr_prefix = ifra->ifra_addr;
 		/* apply the mask for safety. */
-		for (i = 0; i < 4; i++) {
-			pr0.ndpr_prefix.sin6_addr.s6_addr32[i] &=
-			    ifra->ifra_prefixmask.sin6_addr.s6_addr32[i];
-		}
+		IN6_MASK_ADDR(&pr0.ndpr_prefix.sin6_addr,
+		    &ifra->ifra_prefixmask.sin6_addr);
+
 		/*
 		 * XXX: since we don't have an API to set prefix (not address)
 		 * lifetimes, we just use the same lifetimes as addresses.
