@@ -160,7 +160,6 @@ int	(*carp_get_vhid_p)(struct ifaddr *);
  * notification to a socket bound to a particular FIB.
  */
 #define	RTS_FILTER_FIB	M_PROTO8
-#define	RTS_ALLFIBS	-1
 
 static struct {
 	int	ip_count;	/* attached w/ AF_INET */
@@ -1288,7 +1287,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	if (m == NULL)
 		return;
 
-	if (fibnum != RTS_ALLFIBS) {
+	if (fibnum != RT_ALL_FIBS) {
 		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: fibnum out "
 		    "of range 0 <= %d < %d", __func__, fibnum, rt_numfibs));
 		M_SETFIB(m, fibnum);
@@ -1306,7 +1305,7 @@ void
 rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
 {
 
-	rt_missmsg_fib(type, rtinfo, flags, error, RTS_ALLFIBS);
+	rt_missmsg_fib(type, rtinfo, flags, error, RT_ALL_FIBS);
 }
 
 /*
@@ -1402,7 +1401,7 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 			rtm->rtm_errno = error;
 			rtm->rtm_addrs = info.rti_addrs;
 		}
-		if (fibnum != RTS_ALLFIBS) {
+		if (fibnum != RT_ALL_FIBS) {
 			KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
 			    "fibnum out of range 0 <= %d < %d", __func__,
 			     fibnum, rt_numfibs));
@@ -1417,7 +1416,7 @@ void
 rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 {
 
-	rt_newaddrmsg_fib(cmd, ifa, error, rt, RTS_ALLFIBS);
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RT_ALL_FIBS);
 }
 
 /*
@@ -1930,7 +1929,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		if (namelen == 3)
 			fib = req->td->td_proc->p_fibnum;
 		else if (namelen == 4)
-			fib = (name[3] == -1) ?
+			fib = (name[3] == RT_ALL_FIBS) ?
 			    req->td->td_proc->p_fibnum : name[3];
 		else
 			return ((namelen < 3) ? EISDIR : ENOTDIR);
