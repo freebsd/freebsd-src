@@ -2,7 +2,7 @@
  * Copyright (c) 1986, 1988, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
- * Copyright (c) 2011 Robert N. M. Watson
+ * Copyright (c) 2011, 2014 Robert N. M. Watson
  *
  * All or some portions of this file are derived from material licensed
  * to the University of California by American Telephone and Telegraph
@@ -38,9 +38,20 @@
 
 /* __FBSDID("$FreeBSD: stable/8/sys/kern/subr_prf.c 210305 2010-07-20 18:55:13Z jkim $"); */
 
-#include "include/mips.h"
-#include "include/lib.h"
-#include "include/stdarg.h"
+#include <sys/param.h>
+
+#include <cheri/cheri_system.h>
+
+#include <inttypes.h>
+#include <stdarg.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
+/*
+ * This implementation of printf() was lifted from the FreeBSD kernel due to
+ * its simplicity.
+ */
 
 /*
  * Definitions snarfed from various parts of the FreeBSD headers:
@@ -57,10 +68,17 @@ struct snprintf_arg {
 	size_t	remain;
 };
 
-extern	int log_open;
-
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
+static int   kvprintf(char const *fmt, void (*func)(int, void*), void *arg,
+		int radix, va_list ap);
 static void  snprintf_func(int ch, void *arg);
+
+static inline int
+imax(int a, int b)
+{
+
+        return (a > b ? a : b);
+}
 
 /*
  * Scaled down version of sprintf(3).
@@ -182,7 +200,7 @@ ksprintn(char *nbuf, uintmax_t num, int base, int *lenp, int upper)
  *		("%6D", ptr, ":")   -> XX:XX:XX:XX:XX:XX
  *		("%*D", len, ptr, " " -> XX XX XX XX ...
  */
-int
+static int
 kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_list ap)
 {
 #define PCHAR(c) {int cc=(c); if (func) (*func)(cc,arg); else *d++ = cc; retval++; }
@@ -498,31 +516,32 @@ number:
 }
 
 /*
- * Provide a kernel-compatible version of printf, which invokes the UART
- * driver.
+ * Invoke the CHERI system class's putchar() method -- ideally, we might pass
+ * multi-byte strings to an output routine to avoid lots of domain switches,
+ * but this is the smallest diff against the lifted printf() code.
  */
 static void
-uart_putchar(int c, void *arg)
+cheri_printf_putchar(int c, void *arg)
 {
 
-	uart_putc(c);
+	(void)cheri_system_putchar(c);
 }
 
 int
-kernel_vprintf(const char *fmt, va_list ap)
+vprintf(const char *fmt, va_list ap)
 {
 
-	return (kvprintf(fmt, uart_putchar, NULL, 10, ap));
+	return (kvprintf(fmt, cheri_printf_putchar, NULL, 10, ap));
 }
 
 int
-kernel_printf(const char *fmt, ...)
+printf(const char *fmt, ...)
 {
 	va_list ap;
 	int retval;
 
 	va_start(ap, fmt);
-	retval = kernel_vprintf(fmt, ap);
+	retval = vprintf(fmt, ap);
 	va_end(ap);
 
 	return (retval);
