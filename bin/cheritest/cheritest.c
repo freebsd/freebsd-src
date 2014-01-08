@@ -419,9 +419,9 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CP2_SEAL, "cp2_seal");
 	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_HELLOWORLD, "helloworld");
+	    CHERITEST_HELPER_OP_CS_HELLOWORLD, "helloworld");
 	(void)sandbox_class_method_declare(cheritest_classp,
-	    CHERITEST_HELPER_OP_PUTS, "puts");
+	    CHERITEST_HELPER_OP_CS_PUTS, "puts");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_VM_RFAULT, "vm_rfault");
 	(void)sandbox_class_method_declare(cheritest_classp,
@@ -497,12 +497,12 @@ main(__unused int argc, __unused char *argv[])
 			    CHERITEST_HELPER_OP_DIVZERO);
 		else if (strcmp(argv[i], "invoke_helloworld") == 0)
 			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_HELLOWORLD);
+			    CHERITEST_HELPER_OP_CS_HELLOWORLD);
 		else if (strcmp(argv[i], "invoke_md5") == 0)
 			cheritest_invoke_md5();
 		else if (strcmp(argv[i], "invoke_puts") == 0)
 			cheritest_invoke_simple_op(
-			    CHERITEST_HELPER_OP_PUTS);
+			    CHERITEST_HELPER_OP_CS_PUTS);
 		else if (strcmp(argv[i], "invoke_spin") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_SPIN);

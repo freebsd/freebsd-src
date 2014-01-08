@@ -188,12 +188,12 @@ invoke(register_t op, size_t len, __capability void *system_codecap,
 	case CHERITEST_HELPER_OP_SYSCAP:
 		return (invoke_syscap(system_codecap, system_datacap));
 
-	case CHERITEST_HELPER_OP_HELLOWORLD:
+	case CHERITEST_HELPER_OP_CS_HELLOWORLD:
 		return (cheri_system_helloworld());
 
-	case CHERITEST_HELPER_OP_PUTS:
+	case CHERITEST_HELPER_OP_CS_PUTS:
 		return (cheri_system_puts(
-		    (__capability char *)"sandbox puts\n"));
+		    (__capability char *)"sandbox cs_puts\n"));
 	}
 	return (ret);
 }
