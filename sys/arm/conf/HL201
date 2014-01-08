@@ -96,6 +96,7 @@ device		icee
 
 device		bpf
 # USB support
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 #device		ohci		# OHCI localbus->USB interface
 device		usb		# USB Bus (required)
 #device		udbp		# USB Double Bulk Pipe devices
