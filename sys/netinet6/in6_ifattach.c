@@ -455,7 +455,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	struct in6_ifaddr *ia;
 	struct in6_aliasreq ifra;
 	struct nd_prefixctl pr0;
-	int i, error;
+	int error;
 
 	/*
 	 * configure link-local address.
@@ -532,10 +532,7 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	pr0.ndpr_plen = in6_mask2len(&ifra.ifra_prefixmask.sin6_addr, NULL);
 	pr0.ndpr_prefix = ifra.ifra_addr;
 	/* apply the mask for safety. (nd6_prelist_add will apply it again) */
-	for (i = 0; i < 4; i++) {
-		pr0.ndpr_prefix.sin6_addr.s6_addr32[i] &=
-		    in6mask64.s6_addr32[i];
-	}
+	IN6_MASK_ADDR(&pr0.ndpr_prefix.sin6_addr, &in6mask64);
 	/*
 	 * Initialize parameters.  The link-local prefix must always be
 	 * on-link, and its lifetimes never expire.
