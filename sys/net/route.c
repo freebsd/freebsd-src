@@ -1498,7 +1498,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		fibnum = RT_DEFAULT_FIB;
 		break;
 	}
-	if (fibnum == -1) {
+	if (fibnum == RT_ALL_FIBS) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
 			startfib = endfib = curthread->td_proc->p_fibnum;
 		} else {
@@ -1702,7 +1702,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 int
 rtinit_fib(struct ifaddr *ifa, int cmd, int flags)
 {
-	return (rtinit1(ifa, cmd, flags, -1));
+	return (rtinit1(ifa, cmd, flags, RT_ALL_FIBS));
 }
 #endif
 
@@ -1726,7 +1726,7 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 	case AF_INET6:
 	case AF_INET:
 		/* We do support multiple FIBs. */
-		fib = -1;
+		fib = RT_ALL_FIBS;
 		break;
 	}
 	return (rtinit1(ifa, cmd, flags, fib));
