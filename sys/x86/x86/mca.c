@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
@@ -84,7 +85,7 @@ struct mca_internal {
 
 static MALLOC_DEFINE(M_MCA, "MCA", "Machine Check Architecture");
 
-static int mca_count;		/* Number of records stored. */
+static volatile int mca_count;	/* Number of records stored. */
 static int mca_banks;		/* Number of per-CPU register banks. */
 
 static SYSCTL_NODE(_hw, OID_AUTO, mca, CTLFLAG_RD, NULL,
@@ -733,7 +734,8 @@ mca_setup(uint64_t mcg_cap)
 	TASK_INIT(&mca_refill_task, 0, mca_refill, NULL);
 	mca_fill_freelist();
 	SYSCTL_ADD_INT(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
-	    "count", CTLFLAG_RD, &mca_count, 0, "Record count");
+	    "count", CTLFLAG_RD, (int *)(uintptr_t)&mca_count, 0,
+	    "Record count");
 	SYSCTL_ADD_PROC(NULL, SYSCTL_STATIC_CHILDREN(_hw_mca), OID_AUTO,
 	    "interval", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, &mca_ticks,
 	    0, sysctl_positive_int, "I",
@@ -939,7 +941,7 @@ void
 mca_intr(void)
 {
 	uint64_t mcg_status;
-	int recoverable;
+	int old_count, recoverable;
 
 	if (!(cpu_feature & CPUID_MCA)) {
 		/*
@@ -953,15 +955,27 @@ mca_intr(void)
 	}
 
 	/* Scan the banks and check for any non-recoverable errors. */
+	old_count = mca_count;
 	recoverable = mca_scan(MCE);
 	mcg_status = rdmsr(MSR_MCG_STATUS);
 	if (!(mcg_status & MCG_STATUS_RIPV))
 		recoverable = 0;
 
+	if (!recoverable) {
+		/*
+		 * Wait for at least one error to be logged before
+		 * panic'ing.  Some errors will assert a machine check
+		 * on all CPUs, but only certain CPUs will find a valid
+		 * bank to log.
+		 */
+		while (mca_count == old_count)
+			cpu_spinwait();
+
+		panic("Unrecoverable machine check exception");
+	}
+
 	/* Clear MCIP. */
 	wrmsr(MSR_MCG_STATUS, mcg_status & ~MCG_STATUS_MCIP);
-	if (!recoverable)
-		panic("Unrecoverable machine check exception");
 }
 
 #ifdef DEV_APIC
