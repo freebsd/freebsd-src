@@ -76,3 +76,14 @@ cheri_system_puts(__capability const char *str)
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
 }
+
+int
+cheri_system_putchar(int c)
+{
+
+	return (cheri_invoke(cheri_system_object.co_codecap,
+	    cheri_system_object.co_datacap, CHERI_SYSTEM_METHOD_PUTCHAR, c, 0,
+	    0, 0, 0, 0, 0, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap()));
+}

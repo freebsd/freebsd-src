@@ -67,3 +67,10 @@ cheri_system_puts(__capability const char *str)
 	}
 	return (1);
 }
+
+int
+cheri_system_putchar(int c)
+{
+
+	return (putchar(c));
+}

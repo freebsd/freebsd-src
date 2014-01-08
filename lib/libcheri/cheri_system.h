@@ -42,6 +42,7 @@
 
 #define	CHERI_SYSTEM_METHOD_HELLOWORLD	1	/* printf("hello world\n"); */
 #define	CHERI_SYSTEM_METHOD_PUTS	2	/* puts(). */
+#define	CHERI_SYSTEM_METHOD_PUTCHAR	3	/* putchar(). */
 
 /*
  * In the sandbox: notify the stub implementation of the object capability to
@@ -55,5 +56,6 @@ void	cheri_system_setup(__capability void *system_codecap,
  */
 int	cheri_system_helloworld(void);
 int	cheri_system_puts(__capability const char *str);
+int	cheri_system_putchar(int c);
 
 #endif /* !_CHERI_SYSTEM_H_ */

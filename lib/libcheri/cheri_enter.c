@@ -51,10 +51,10 @@
  * 1. one global invocation stack, so no concurrency.
  * 2. one global data object, so no support for multiple data capabilities.
  */
-register_t	cheri_enter(register_t methodnum, register_t a0,
-		    register_t a1, register_t a2, register_t a3,
-		    register_t a4, register_t a5, register_t a6,
-		    register_t a7, __capability void *c1);
+register_t	cheri_enter(register_t methodnum, register_t a1,
+		    register_t a2, register_t a3, register_t a4,
+		    register_t a5, register_t a6, register_t a7,
+		    __capability void *c1);
 
 /*
  * Stack for use on entering from sandbox.
@@ -116,10 +116,9 @@ cheri_systemcap_get(struct cheri_object *cop)
  * cheri_enter() itself: sandbox invocations turn up here.
  */
 register_t
-cheri_enter(register_t methodnum, register_t a0 __unused,
-    register_t a1 __unused, register_t a2 __unused, register_t a3 __unused,
-    register_t a4 __unused, register_t a5 __unused, register_t a6 __unused,
-    register_t a7 __unused, __capability void *c1)
+cheri_enter(register_t methodnum, register_t a1, register_t a2 __unused,
+    register_t a3 __unused, register_t a4 __unused, register_t a5 __unused,
+    register_t a6 __unused, register_t a7 __unused, __capability void *c1)
 {
 
 	switch (methodnum) {
@@ -128,6 +127,9 @@ cheri_enter(register_t methodnum, register_t a0 __unused,
 
 	case CHERI_SYSTEM_METHOD_PUTS:
 		return (cheri_system_puts(c1));
+
+	case CHERI_SYSTEM_METHOD_PUTCHAR:
+		return (cheri_system_putchar(a1));
 
 	default:
 		return (-1);
