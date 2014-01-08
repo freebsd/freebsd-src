@@ -2807,8 +2807,8 @@ run_rx_frame(struct run_softc *sc, struct mbuf *m, uint32_t dmalen)
 
 	wh = mtod(m, struct ieee80211_frame *);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
-		wh->i_fc[1] &= ~IEEE80211_FC1_WEP;
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
+		wh->i_fc[1] &= ~IEEE80211_FC1_PROTECTED;
 		m->m_flags |= M_WEP;
 	}
 
