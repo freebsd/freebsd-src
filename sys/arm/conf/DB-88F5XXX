@@ -73,6 +73,7 @@ device		iicbus
 device		ds133x
 
 # USB
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG	# enable debug msgs
 device		usb
 device		ehci
