@@ -1705,15 +1705,13 @@ trimthenstep6:
 	case TCPS_TIME_WAIT:
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			if (tlen == 0 && tiwin == tp->snd_wnd &&
-			    !(thflags & TH_FIN)) {
+			if (tlen == 0 && tiwin == tp->snd_wnd) {
 				tcpstat.tcps_rcvdupack++;
 				/*
 				 * If we have outstanding data (other than
 				 * a window probe), this is a completely
 				 * duplicate ack (ie, window info didn't
-				 * change and FIN isn't set),
-				 * the ack is the biggest we've
+				 * change), the ack is the biggest we've
 				 * seen and we've seen exactly our rexmt
 				 * threshhold of them, assume a packet
 				 * has been dropped and retransmit it.
