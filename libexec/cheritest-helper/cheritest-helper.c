@@ -37,6 +37,7 @@
 #include <cheri/cheri_system.h>
 
 #include <md5.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "cmemcpy.h"
@@ -154,7 +155,6 @@ invoke(register_t op, size_t len, __capability void *system_codecap,
     __capability void *system_datacap, __capability char *data_input,
     __capability char *data_output)
 {
-	int ret;
 
 	cheri_system_setup(system_codecap, system_datacap);
 
@@ -194,6 +194,12 @@ invoke(register_t op, size_t len, __capability void *system_codecap,
 	case CHERITEST_HELPER_OP_CS_PUTS:
 		return (cheri_system_puts(
 		    (__capability char *)"sandbox cs_puts\n"));
+
+	case CHERITEST_HELPER_OP_CS_PUTCHAR:
+		return (cheri_system_putchar('C'));	/* Is for cookie. */
+
+	case CHERITEST_HELPER_OP_PRINTF:
+		return (printf("%s: printf in sandbox test\n", __func__));
 	}
-	return (ret);
+	return (-1);
 }

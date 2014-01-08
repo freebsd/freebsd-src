@@ -106,6 +106,8 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_divzero\n");
 	fprintf(stderr, "cheritest invoke_helloworld\n");
 	fprintf(stderr, "cheritest invoke_md5\n");
+	fprintf(stderr, "cheritest invoke_printf\n");
+	fprintf(stderr, "cheritest invoke_putchar\n");
 	fprintf(stderr, "cheritest invoke_puts\n");
 	fprintf(stderr, "cheritest invoke_spin\n");
 	fprintf(stderr, "cheritest invoke_syscall\n");
@@ -423,6 +425,8 @@ cheritest_libcheri_setup(void)
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_CS_PUTS, "puts");
 	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_PRINTF, "printf");
+	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_VM_RFAULT, "vm_rfault");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_VM_WFAULT, "vm_wfault");
@@ -500,6 +504,12 @@ main(__unused int argc, __unused char *argv[])
 			    CHERITEST_HELPER_OP_CS_HELLOWORLD);
 		else if (strcmp(argv[i], "invoke_md5") == 0)
 			cheritest_invoke_md5();
+		else if (strcmp(argv[i], "invoke_printf") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_PRINTF);
+		else if (strcmp(argv[i], "invoke_putchar") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_CS_PUTCHAR);
 		else if (strcmp(argv[i], "invoke_puts") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_CS_PUTS);
