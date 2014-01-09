@@ -14,6 +14,8 @@
 LIB=		c_cheri
 SRCS=		cheri_invoke.S		\
 		cheri_printf.c		\
+		cheri_put.c		\
+		cheri_stdio.c		\
 		cmemcpy.s
 
 # libc/gen
