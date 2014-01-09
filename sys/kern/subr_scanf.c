@@ -34,6 +34,7 @@
  * From: static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
  */
 
+#ifdef _KERNEL
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -41,6 +42,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/limits.h>
+#else
+#include <sys/types.h>
+
+#include <ctype.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both
