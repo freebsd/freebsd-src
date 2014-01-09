@@ -550,6 +550,7 @@ copy_argv(register char **argv)
 #define O_BINARY	0
 #endif
 
+#ifndef TCPDUMP_PRINT_ONLY
 char *
 read_infile(char *fname)
 {
@@ -584,6 +585,7 @@ read_infile(char *fname)
 	cp[cc] = '\0';
 	return (cp);
 }
+#endif
 
 void
 safeputs(const char *s, int maxlen)
