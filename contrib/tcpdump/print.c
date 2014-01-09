@@ -52,6 +52,7 @@ static const char rcsid[] _U_ =
 #include <stdlib.h>
 #include <string.h>
 
+#include "addrtoname.h"
 #include "netdissect.h"
 #include "interface.h"
 #include "print.h"
@@ -244,6 +245,14 @@ static struct ndo_printer ndo_printers[] = {
 #endif
 	{ NULL,			0 },
 };
+
+void
+init_print(u_int32_t localnet, u_int32_t mask)
+{
+
+	init_addrtoname(localnet, mask);
+	init_checksum();
+}
 
 if_printer
 lookup_printer(int type)

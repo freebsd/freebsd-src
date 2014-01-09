@@ -1150,8 +1150,7 @@ main(int argc, char **argv)
 		free(cmdbuf);
 		exit(0);
 	}
-	init_addrtoname(localnet, netmask);
-        init_checksum();
+	init_print(localnet, netmask);
 
 #ifndef WIN32	
 	(void)setsignal(SIGPIPE, cleanup);

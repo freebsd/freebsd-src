@@ -59,3 +59,5 @@ void	ndo_error(netdissect_options *ndo _U_, const char *fmt, ...)
 	    __attribute__ ((noreturn, format (printf, 2, 3)));
 void	ndo_warning(netdissect_options *ndo _U_, const char *fmt, ...)
 	    __attribute__ ((format (printf, 2, 3)));
+
+void	init_print(u_int32_t localnet, u_int32_t mask);
