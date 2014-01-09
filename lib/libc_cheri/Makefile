@@ -13,7 +13,8 @@
 # libcheri
 LIB=		c_cheri
 SRCS=		cheri_invoke.S		\
-		cheri_printf.c
+		cheri_printf.c		\
+		cmemcpy.s
 
 # libc/gen
 #SRCS+=		_spinlock_stub.c
