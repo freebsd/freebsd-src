@@ -106,6 +106,7 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_divzero\n");
 	fprintf(stderr, "cheritest invoke_helloworld\n");
 	fprintf(stderr, "cheritest invoke_md5\n");
+	fprintf(stderr, "cheritest invoke_malloc\n");
 	fprintf(stderr, "cheritest invoke_printf\n");
 	fprintf(stderr, "cheritest invoke_putchar\n");
 	fprintf(stderr, "cheritest invoke_puts\n");
@@ -438,6 +439,8 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_DIVZERO, "divzero");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_SYSCAP, "syscap");
+	(void)sandbox_class_method_declare(cheritest_classp,
+	    CHERITEST_HELPER_OP_MALLOC, "malloc");
 	cheri_systemcap_get(&cheritest_systemcap);
 	return (0);
 }
@@ -504,6 +507,9 @@ main(__unused int argc, __unused char *argv[])
 			    CHERITEST_HELPER_OP_CS_HELLOWORLD);
 		else if (strcmp(argv[i], "invoke_md5") == 0)
 			cheritest_invoke_md5();
+		else if (strcmp(argv[i], "invoke_malloc") == 0)
+			cheritest_invoke_simple_op(
+			    CHERITEST_HELPER_OP_MALLOC);
 		else if (strcmp(argv[i], "invoke_printf") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_PRINTF);

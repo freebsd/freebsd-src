@@ -144,6 +144,26 @@ invoke_syscap(__capability void *system_codecap,
 	    0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
+static int
+invoke_malloc(void)
+{
+	size_t i;
+	void *tmp;
+	const size_t sizes[] = {1, 2, 4, 8, 16, 32, 64, 128, 1024, 4096, 10000};
+
+	for (i = 0; i < sizeof(sizes) / sizeof(*sizes); i++) {
+		tmp = malloc(sizes[i]);
+		if (tmp == NULL) {
+			printf("Failed to allocate %zd bytes\n", sizes[i]);
+			return (-1);
+		}
+		printf("allocated %zd bytes at %p\n", sizes[i], tmp);
+		free(tmp);
+	}
+
+	return (0);
+}
+
 /*
  * Sample sandboxed code.  Calculate an MD5 checksum of the data arriving via
  * c3, and place the checksum in c4.  a0 will hold input data length.  a1
@@ -200,6 +220,9 @@ invoke(register_t op, size_t len, __capability void *system_codecap,
 
 	case CHERITEST_HELPER_OP_PRINTF:
 		return (printf("%s: printf in sandbox test\n", __func__));
+
+	case CHERITEST_HELPER_OP_MALLOC:
+		return (invoke_malloc());
 	}
 	return (-1);
 }
