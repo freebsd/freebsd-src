@@ -1,0 +1,4 @@
+ - Add function to init service, proto, etc tables
+ - Trigger sandbox reinit from get_print_info.  (multi file support)
+ - multiple sandboxes
+ ...

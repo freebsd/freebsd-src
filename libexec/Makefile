@@ -28,6 +28,7 @@ SUBDIR=	${_atf} \
 	${_smrsh} \
 	talkd \
 	tcpd \
+	${_tcpdump_helper} \
 	${_telnetd} \
 	tftpd \
 	${_tftp-proxy} \
@@ -44,6 +45,7 @@ _atrun=		atrun
 
 .if ${MK_CHERI} != "no"
 _cheritest_helper=	cheritest-helper
+_tcpdump_helper=	tcpdump-helper
 .endif
 
 .if ${MK_MAIL} != "no"
