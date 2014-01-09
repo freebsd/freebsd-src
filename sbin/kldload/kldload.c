@@ -181,14 +181,13 @@ main(int argc, char** argv)
 						printf("%s is already "
 						    "loaded\n", argv[0]);
 				} else {
-					if (errno == EEXIST) {
+					if (errno == EEXIST)
 						warnx("can't load %s: module "
 						    "already loaded or "
 						    "in kernel", argv[0]);
-					} else {
+					else
 						warn("can't load %s", argv[0]);
-						errors++;
-					}
+					errors++;
 				}
 			} else {
 				if (verbose)
