@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Vincenzo Maffione. All rights reserved.
+ * Copyright (C) 2013-2014 Vincenzo Maffione. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -47,16 +47,19 @@ static inline void __mbq_init(struct mbq *q)
     q->count = 0;
 }
 
+
 void mbq_safe_init(struct mbq *q)
 {
     mtx_init(&q->lock, "mbq", NULL, MTX_SPIN);
     __mbq_init(q);
 }
 
+
 void mbq_init(struct mbq *q)
 {
     __mbq_init(q);
 }
+
 
 static inline void __mbq_enqueue(struct mbq *q, struct mbuf *m)
 {
@@ -70,6 +73,7 @@ static inline void __mbq_enqueue(struct mbq *q, struct mbuf *m)
     q->count++;
 }
 
+
 void mbq_safe_enqueue(struct mbq *q, struct mbuf *m)
 {
     mtx_lock(&q->lock);
@@ -77,10 +81,12 @@ void mbq_safe_enqueue(struct mbq *q, struct mbuf *m)
     mtx_unlock(&q->lock);
 }
 
+
 void mbq_enqueue(struct mbq *q, struct mbuf *m)
 {
     __mbq_enqueue(q, m);
 }
+
 
 static inline struct mbuf *__mbq_dequeue(struct mbq *q)
 {
@@ -99,6 +105,7 @@ static inline struct mbuf *__mbq_dequeue(struct mbq *q)
     return ret;
 }
 
+
 struct mbuf *mbq_safe_dequeue(struct mbq *q)
 {
     struct mbuf *ret;
@@ -110,10 +117,12 @@ struct mbuf *mbq_safe_dequeue(struct mbq *q)
     return ret;
 }
 
+
 struct mbuf *mbq_dequeue(struct mbq *q)
 {
     return __mbq_dequeue(q);
 }
+
 
 /* XXX seems pointless to have a generic purge */
 static void __mbq_purge(struct mbq *q, int safe)
@@ -130,15 +139,18 @@ static void __mbq_purge(struct mbq *q, int safe)
     }
 }
 
+
 void mbq_purge(struct mbq *q)
 {
     __mbq_purge(q, 0);
 }
 
+
 void mbq_safe_purge(struct mbq *q)
 {
     __mbq_purge(q, 1);
 }
+
 
 void mbq_safe_destroy(struct mbq *q)
 {
@@ -149,4 +161,3 @@ void mbq_safe_destroy(struct mbq *q)
 void mbq_destroy(struct mbq *q)
 {
 }
-

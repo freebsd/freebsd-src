@@ -64,6 +64,7 @@ static int ntest = 1;
 		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
 		exit(1);						\
 	}								\
+	ntest++;							\
 } while (0)
 
 #define	GETHOSTBYNAME			0x01
@@ -223,7 +224,7 @@ main(void)
 	const char *types[2];
 	int families[2];
 
-	printf("1..89\n");
+	printf("1..91\n");
 
 	capcas = cap_init();
 	CHECKX(capcas != NULL);

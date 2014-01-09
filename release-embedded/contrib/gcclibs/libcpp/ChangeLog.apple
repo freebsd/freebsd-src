@@ -3,6 +3,11 @@
         Radar 6121572
         * charset.c (_cpp_convert_input): Don't read to.text[-1].
 
+2008-05-01  Mike Stump  <mrs@apple.com>
+
+	Radar 5774975
+	* charset.c (_cpp_convert_input): Eat UTF-8 BOM.
+
 2005-02-17  Devang Patel  <dpatel@apple.com>
 
 	Radar 3958387

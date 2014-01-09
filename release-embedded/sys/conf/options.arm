@@ -54,6 +54,7 @@ XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h
 VM_MAXUSER_ADDRESS	opt_global.h
 AT91_ATE_USE_RMII	opt_at91.h
+AT91_MCI_ALLOW_OVERCLOCK opt_at91.h
 AT91_MCI_HAS_4WIRE	opt_at91.h
 AT91_MCI_SLOT_B		opt_at91.h
 GFB_DEBUG		opt_gfb.h

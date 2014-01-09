@@ -47,7 +47,7 @@ struct pmap;
 
 enum x2apic_state;
 
-typedef int	(*vmm_init_func_t)(void);
+typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
@@ -303,9 +303,19 @@ struct vm_exit {
 		 * exitcode to represent the VM-exit.
 		 */
 		struct {
-			int		error;		/* vmx inst error */
+			int		status;		/* vmx inst status */
+			/*
+			 * 'exit_reason' and 'exit_qualification' are valid
+			 * only if 'status' is zero.
+			 */
 			uint32_t	exit_reason;
 			uint64_t	exit_qualification;
+			/*
+			 * 'inst_error' and 'inst_type' are valid
+			 * only if 'status' is non-zero.
+			 */
+			int		inst_type;
+			int		inst_error;
 		} vmx;
 		struct {
 			uint32_t	code;		/* ecx value */

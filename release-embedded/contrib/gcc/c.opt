@@ -610,6 +610,12 @@ C++ ObjC++ Joined
 fnew-abi
 C++ ObjC++
 
+; APPLE LOCAL begin nested functions 4258406 4357979
+fnested-functions
+C ObjC Var(flag_nested_functions)
+Allow nested functions.
+; APPLE LOCAL end nested functions 4258406 4357979
+
 fnext-runtime
 ObjC ObjC++
 Generate code for NeXT (Apple Mac OS X) runtime environment
@@ -643,6 +649,12 @@ Enable Objective-C exception and synchronization syntax
 fobjc-gc
 ObjC ObjC++ Var(flag_objc_gc)
 Enable garbage collection (GC) in Objective-C/Objective-C++ programs
+
+; APPLE LOCAL begin radar 5811887 - blocks
+fblocks
+C ObjC C++ ObjC++ Var(flag_blocks) Init(-1)
+Program supports c/objc extension blocks
+; APPLE LOCAL end radar 5811887 - blocks
 
 ; Nonzero means that we generate NeXT setjmp based exceptions.
 fobjc-sjlj-exceptions

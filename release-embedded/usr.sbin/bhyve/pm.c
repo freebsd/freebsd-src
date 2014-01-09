@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "mevent.h"
+#include "pci_lpc.h"
 
 static pthread_mutex_t pm_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct mevent *power_button;
@@ -248,6 +249,7 @@ pm1_control_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	return (0);
 }
 INOUT_PORT(pm1_control, PM1A_CNT_ADDR, IOPORT_F_INOUT, pm1_control_handler);
+SYSRES_IO(PM1A_EVT_ADDR, 8);
 
 /*
  * ACPI SMI Command Register
@@ -286,3 +288,4 @@ smi_cmd_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	return (0);
 }
 INOUT_PORT(smi_cmd, SMI_CMD, IOPORT_F_OUT, smi_cmd_handler);
+SYSRES_IO(SMI_CMD, 1);

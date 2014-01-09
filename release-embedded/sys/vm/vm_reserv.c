@@ -241,6 +241,9 @@ vm_reserv_depopulate(vm_reserv_t rv, int index)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_depopulate: reserv %p is free", rv));
+	KASSERT(isset(rv->popmap, index),
+	    ("vm_reserv_depopulate: reserv %p's popmap[%d] is clear", rv,
+	    index));
 	KASSERT(rv->popcnt > 0,
 	    ("vm_reserv_depopulate: reserv %p's popcnt is corrupted", rv));
 	if (rv->inpartpopq) {
@@ -294,6 +297,9 @@ vm_reserv_populate(vm_reserv_t rv, int index)
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	KASSERT(rv->object != NULL,
 	    ("vm_reserv_populate: reserv %p is free", rv));
+	KASSERT(isclr(rv->popmap, index),
+	    ("vm_reserv_populate: reserv %p's popmap[%d] is set", rv,
+	    index));
 	KASSERT(rv->popcnt < VM_LEVEL_0_NPAGES,
 	    ("vm_reserv_populate: reserv %p is already full", rv));
 	if (rv->inpartpopq) {

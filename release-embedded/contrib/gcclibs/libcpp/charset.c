@@ -1597,6 +1597,17 @@ _cpp_convert_input (cpp_reader *pfile, const char *input_charset,
   input_cset = init_iconv_desc (pfile, SOURCE_CHARSET, input_charset);
   if (input_cset.func == convert_no_conversion)
     {
+      /* APPLE LOCAL begin UTF-8 BOM 5774975 */
+      /* Eat the UTF-8 BOM.  */
+      if (len >= 3
+	  && input[0] == 0xef
+	  && input[1] == 0xbb
+	  && input[2] == 0xbf)
+	{
+	  memmove (&input[0], &input[3], size-3);
+	  len -= 3;
+	}
+      /* APPLE LOCAL end UTF-8 BOM 5774975 */
       to.text = input;
       to.asize = size;
       to.len = len;

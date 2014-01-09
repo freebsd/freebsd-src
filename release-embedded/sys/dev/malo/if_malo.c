@@ -1102,7 +1102,7 @@ malo_tx_start(struct malo_softc *sc, struct ieee80211_node *ni,
 	uint16_t qos;
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	iswep = wh->i_fc[1] & IEEE80211_FC1_WEP;
+	iswep = wh->i_fc[1] & IEEE80211_FC1_PROTECTED;
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	copyhdrlen = hdrlen = ieee80211_anyhdrsize(wh);
 	pktlen = m0->m_pkthdr.len;

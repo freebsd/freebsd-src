@@ -462,7 +462,7 @@ options 	SAFE_RNDTEST	# enable rndtest support
 #
 # The virtio entry provides a generic bus for use by the device drivers.
 # It must be combined with an interface that communicates with the host.
-# Multiple such interfaces defined by the VirtIO specification. FreeBSD
+# Multiple such interfaces are defined by the VirtIO specification. FreeBSD
 # only has support for PCI. Therefore, virtio_pci must be statically
 # compiled in or loaded as a module for the device drivers to function.
 #
@@ -476,7 +476,7 @@ device		virtio_balloon	# VirtIO Memory Balloon device
 device 		hyperv		# HyperV drivers
 
 # Xen HVM Guest Optimizations
-options 	XENHVM		# Xen HVM kernel infrastructure 
+options 	XENHVM		# Xen HVM kernel infrastructure
 device 		xenpci		# Xen HVM Hypervisor services driver
 
 #####################################################################

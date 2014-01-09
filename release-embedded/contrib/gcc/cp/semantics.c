@@ -1943,6 +1943,18 @@ finish_this_expr (void)
       error ("%<this%> is unavailable for static member functions");
       result = error_mark_node;
     }
+  /* APPLE LOCAL begin radar 6275956 */
+  else if (cur_block && current_function_decl 
+	    && BLOCK_SYNTHESIZED_FUNC (current_function_decl))
+    {
+      result = lookup_name (this_identifier);
+      if (!result)
+	{
+	  error ("invalid use of %<this%> in a block");
+	  result = error_mark_node;
+	}
+    }
+  /* APPLE LOCAL end radar 6275956 */
   else
     {
       if (current_function_decl)
@@ -2470,6 +2482,82 @@ baselink_for_fns (tree fns)
   return build_baselink (cl, cl, fns, /*optype=*/NULL_TREE);
 }
 
+/* APPLE LOCAL begin blocks 6040305 */
+static bool
+block_var_ok_for_context (tree context)
+{
+  /* FIXME - local classes inside blocks, templates, etc */
+  struct block_sema_info *b = cur_block;
+  tree decl = current_function_decl;
+
+  /* If in a block helper, only variables from the context of the helper
+     are ok.  */
+  while (b && b->helper_func_decl == decl)
+    {
+	if (context == DECL_CONTEXT (decl))
+	  return true;
+	decl = DECL_CONTEXT (decl);
+	b = b->prev_block_info;
+    }
+
+  return false;
+}
+
+/* APPLE LOCAL begin radar 6545782 */
+/** This routine does all the work on use of variables in a block. */
+static tree get_final_block_variable (tree name, tree var) {
+  tree decl = var;
+  
+  if (cur_block
+      && (TREE_CODE (decl) == VAR_DECL
+	   || TREE_CODE (decl) == PARM_DECL)
+      && !lookup_name_in_block (name, &decl))
+  { 
+    bool gdecl;
+    /* We are referencing a variable inside a block whose
+     declaration is outside.  */
+    gcc_assert (decl && 
+	         (TREE_CODE (decl) == VAR_DECL
+	          || TREE_CODE (decl) == PARM_DECL));
+    gdecl = (TREE_CODE (decl) == VAR_DECL && 
+	      (DECL_EXTERNAL (decl) || TREE_STATIC (decl)));
+    /* Treat all 'global' variables as 'byref' by default. */
+    if (gdecl
+	 || (TREE_CODE (decl) == VAR_DECL && COPYABLE_BYREF_LOCAL_VAR (decl)))
+    {
+      /* byref globals are directly accessed. */
+      /* APPLE LOCAL begin radar 7760213 */
+      if (!gdecl) {
+	 if (HasByrefArray(TREE_TYPE (decl)))
+	   error ("cannot access __block variable of array type inside block");
+      /* build a decl for the byref variable. */
+	 decl = build_block_byref_decl (name, decl, decl);
+      }
+      /* APPLE LOCAL end radar 7760213 */
+      else
+	 add_block_global_byref_list (decl);
+    }
+    else
+    {
+      /* 'byref' globals are never copied-in. So, do not add
+	them to the copied-in list. */
+      if (!in_block_global_byref_list (decl)) {
+	/* APPLE LOCAL begin radar 7721728 */
+	 if (TREE_CODE (TREE_TYPE (decl)) == ARRAY_TYPE)
+	   error ("cannot access copied-in variable of array type inside block");
+	/* APPLE LOCAL end radar 7721728 */
+      /* build a new decl node. set its type to 'const' type
+	 of the old decl. */
+	 decl = build_block_ref_decl (name, decl);
+      }
+    }
+  }
+  return decl;
+}
+/* APPLE LOCAL end radar 6545782 */
+
+/* APPLE LOCAL end blocks 6040305 */
+
 /* ID_EXPRESSION is a representation of parsed, but unprocessed,
    id-expression.  (See cp_parser_id_expression for details.)  SCOPE,
    if non-NULL, is the type or namespace used to explicitly qualify
@@ -2536,6 +2624,7 @@ finish_id_expression (tree id_expression,
       if (decl == error_mark_node)
 	{
 	  /* Name lookup failed.  */
+
 	  if (scope
 	      && (!TYPE_P (scope)
 		  || (!dependent_type_p (scope)
@@ -2576,7 +2665,10 @@ finish_id_expression (tree id_expression,
 	{
 	  tree context = decl_function_context (decl);
 	  if (context != NULL_TREE && context != current_function_decl
-	      && ! TREE_STATIC (decl))
+	      /* APPLE LOCAL begin blocks 6040305 */
+	      && ! TREE_STATIC (decl)
+	      && !block_var_ok_for_context (context))
+	      /* APPLE LOCAL end blocks 6040305 */
 	    {
 	      error (TREE_CODE (decl) == VAR_DECL
 		     ? "use of %<auto%> variable from containing function"
@@ -2852,8 +2944,21 @@ finish_id_expression (tree id_expression,
 	     Access checking has been performed during name lookup
 	     already.  Turn off checking to avoid duplicate errors.  */
 	  push_deferring_access_checks (dk_no_check);
-	  decl = finish_non_static_data_member (decl, current_class_ref,
-						/*qualifying_scope=*/NULL_TREE);
+	   /* APPLE LOCAL begin radar 6169580 */
+	   if (cur_block)
+	   {
+	     tree exp;
+	     tree this_copiedin_var = lookup_name (this_identifier);
+	     gcc_assert (!current_class_ref);
+	     gcc_assert (this_copiedin_var);
+	     exp = build_x_arrow (this_copiedin_var);
+	     decl = build_class_member_access_expr (exp, decl, TREE_TYPE (exp), 
+						    /*preserve_reference=*/false);
+	   }
+	   else
+	    decl = finish_non_static_data_member (decl, current_class_ref,
+						  /*qualifying_scope=*/NULL_TREE);
+	   /* APPLE LOCAL end radar 6169580 */
 	  pop_deferring_access_checks ();
 	}
       else if (is_overloaded_fn (decl))
@@ -2894,13 +2999,38 @@ finish_id_expression (tree id_expression,
 	      path = currently_open_derived_class (DECL_CONTEXT (decl));
 	      perform_or_defer_access_check (TYPE_BINFO (path), decl, decl);
 	    }
-
+	  /* APPLE LOCAL radar 6545782 */
+	  decl = get_final_block_variable (id_expression, decl);
 	  decl = convert_from_reference (decl);
 	}
     }
 
   if (TREE_DEPRECATED (decl))
     warn_deprecated_use (decl);
+
+  /* APPLE LOCAL begin blocks 6040305 (cd) */
+  if (TREE_CODE (decl) == VAR_DECL)
+    {
+      if (BLOCK_DECL_BYREF (decl))
+	{
+	  tree orig_decl = decl;
+	  decl = build_indirect_ref (decl, "unary *");
+	  if (COPYABLE_BYREF_LOCAL_VAR (orig_decl))
+	    {
+	      /* What we have is an expression which is of type
+		 struct __Block_byref_X. Must get to the value of the variable
+		 embedded in this structure. It is at:
+		 __Block_byref_X.__forwarding->x */
+	      decl = build_byref_local_var_access (decl,
+						   DECL_NAME (orig_decl));
+	    }
+	}
+      else
+	if (COPYABLE_BYREF_LOCAL_VAR (decl))
+	  decl = build_byref_local_var_access (decl,
+					       DECL_NAME (decl));
+    }
+  /* APPLE LOCAL end blocks 6040305 (cd) */
 
   return decl;
 }
@@ -3173,6 +3303,11 @@ expand_or_defer_fn (tree fn)
      it.  */
   if (maybe_clone_body (fn))
     {
+      /* APPLE LOCAL begin radar 6305545 */
+	/* Must lower the nested functions which could be, among other
+	    things, block helper functions. */
+	 lower_if_nested_functions (fn);
+      /* APPLE LOCAL end radar 6305545 */
       /* We don't want to process FN again, so pretend we've written
 	 it out, even though we haven't.  */
       TREE_ASM_WRITTEN (fn) = 1;
@@ -3965,6 +4100,42 @@ cxx_omp_predetermined_sharing (tree decl)
 
   return OMP_CLAUSE_DEFAULT_UNSPECIFIED;
 }
+
+/* APPLE LOCAL begin blocks 6040305 (ch) */
+tree
+begin_block (void)
+{
+  struct block_sema_info *csi;
+  tree block;
+  /* push_scope (); */
+  current_stmt_tree ()->stmts_are_full_exprs_p = 1;
+#if 0
+  block = do_pushlevel (sk_block);
+#else
+  block = NULL_TREE;
+#endif
+  csi = (struct block_sema_info*)xcalloc (1, sizeof (struct block_sema_info));
+  csi->prev_block_info = cur_block;
+  cur_block = csi;
+  return block;
+}
+
+struct block_sema_info *
+finish_block (tree block)
+{
+  struct block_sema_info *csi = cur_block;
+  cur_block = cur_block->prev_block_info;
+  /* pop_scope (); */
+#if 0
+  if (block)
+    do_poplevel (block);
+#else
+  block = 0;
+#endif
+  return csi;
+}
+/* APPLE LOCAL end blocks 6040305 (ch) */
+
 
 void
 init_cp_semantics (void)

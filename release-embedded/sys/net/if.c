@@ -283,8 +283,6 @@ retry:
 	}
 
 	/* Catch if_index overflow. */
-	if (idx < 1)
-		return (ENOSPC);
 	if (idx >= V_if_indexlim) {
 		if_grow();
 		goto retry;
@@ -2088,7 +2086,6 @@ static int
 ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 {
 	struct ifreq *ifr;
-	struct ifstat *ifs;
 	int error = 0;
 	int new_flags, temp_flags;
 	size_t namelen, onamelen;
@@ -2425,9 +2422,6 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFSTATUS:
-		ifs = (struct ifstat *)data;
-		ifs->ascii[0] = '\0';
-
 	case SIOCGIFPSRCADDR:
 	case SIOCGIFPDSTADDR:
 	case SIOCGIFMEDIA:

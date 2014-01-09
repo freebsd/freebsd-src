@@ -95,6 +95,13 @@ struct gimplify_omp_ctx;
 extern void lhd_omp_firstprivatize_type_sizes (struct gimplify_omp_ctx *,
 					       tree);
 
+/* APPLE LOCAL begin 6353006  */
+extern tree lhd_build_generic_block_struct_type (void);
+/* APPLE LOCAL end 6353006  */
+
+/* APPLE LOCAL radar 6386976  */
+extern bool lhd_is_runtime_specific_type (tree);
+
 #define LANG_HOOKS_NAME			"GNU unknown"
 #define LANG_HOOKS_IDENTIFIER_SIZE	sizeof (struct lang_identifier)
 #define LANG_HOOKS_INIT			hook_bool_void_false
@@ -140,6 +147,11 @@ extern void lhd_omp_firstprivatize_type_sizes (struct gimplify_omp_ctx *,
 #define LANG_HOOKS_FUNCTION_ENTER_NESTED lhd_do_nothing_f
 #define LANG_HOOKS_FUNCTION_LEAVE_NESTED lhd_do_nothing_f
 #define LANG_HOOKS_FUNCTION_MISSING_NORETURN_OK_P hook_bool_tree_true
+
+/* APPLE LOCAL begin radar 6353006  */
+#define LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE \
+lhd_build_generic_block_struct_type
+/* APPLE LOCAL end radar 6353006  */
 
 /* Attribute hooks.  */
 #define LANG_HOOKS_ATTRIBUTE_TABLE		NULL
@@ -223,6 +235,8 @@ extern tree lhd_make_node (enum tree_code);
 #define LANG_HOOKS_TYPE_MAX_SIZE	lhd_return_null_tree
 #define LANG_HOOKS_OMP_FIRSTPRIVATIZE_TYPE_SIZES \
   lhd_omp_firstprivatize_type_sizes
+/* APPLE LOCAL radar 6386976  */
+#define LANG_HOOKS_IS_RUNTIME_SPECIFIC_TYPE lhd_is_runtime_specific_type
 #define LANG_HOOKS_HASH_TYPES		true
 
 #define LANG_HOOKS_FOR_TYPES_INITIALIZER { \
@@ -238,6 +252,8 @@ extern tree lhd_make_node (enum tree_code);
   LANG_HOOKS_INCOMPLETE_TYPE_ERROR, \
   LANG_HOOKS_TYPE_MAX_SIZE, \
   LANG_HOOKS_OMP_FIRSTPRIVATIZE_TYPE_SIZES, \
+  /* APPLE LOCAL radar 6386976  */ \
+  LANG_HOOKS_IS_RUNTIME_SPECIFIC_TYPE, \
   LANG_HOOKS_HASH_TYPES \
 }
 
@@ -333,6 +349,8 @@ extern tree lhd_make_node (enum tree_code);
   LANG_HOOKS_BUILTIN_FUNCTION, \
   LANG_HOOKS_INIT_TS,          \
   LANG_HOOKS_EXPR_TO_DECL, \
+/* APPLE LOCAL radar 6353006  */ \
+  LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE, \
 }
 
 #endif /* GCC_LANG_HOOKS_DEF_H */

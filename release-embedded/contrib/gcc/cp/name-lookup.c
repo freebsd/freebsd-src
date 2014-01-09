@@ -42,7 +42,6 @@ struct scope_binding {
 #define EMPTY_SCOPE_BINDING { NULL_TREE, NULL_TREE }
 
 static cxx_scope *innermost_nonclass_level (void);
-static tree select_decl (const struct scope_binding *, int);
 static cxx_binding *binding_for_name (cxx_scope *, tree);
 static tree lookup_name_innermost_nonclass_level (tree);
 static tree push_overloaded_decl (tree, int, bool);
@@ -364,6 +363,8 @@ push_binding (tree id, tree decl, cxx_scope* level)
     {
       binding = cxx_binding_make (decl, NULL_TREE);
       binding->scope = level;
+      /* APPLE LOCAL blocks 6040305 (ch) */
+      binding->declared_in_block = cur_block != 0;
     }
   else
     binding = new_class_binding (id, decl, /*type=*/NULL_TREE, level);
@@ -1822,6 +1823,8 @@ binding_for_name (cxx_scope *scope, tree name)
   result->scope = scope;
   result->is_local = false;
   result->value_is_inherited = false;
+  /* APPLE LOCAL blocks 6040305 (ch) */
+  result->declared_in_block = 0;
   IDENTIFIER_NAMESPACE_BINDINGS (name) = result;
   return result;
 }
@@ -2100,6 +2103,22 @@ do_nonmember_using_decl (tree scope, tree name, tree oldval, tree oldtype,
       return;
     }
 
+  /* LLVM LOCAL begin mainline */
+  /* Shift the old and new bindings around so we're comparing class and
+     enumeration names to each other.  */
+  if (oldval && DECL_IMPLICIT_TYPEDEF_P (oldval))
+    {
+      oldtype = oldval;
+      oldval = NULL_TREE;
+    }
+
+  if (decls.value && DECL_IMPLICIT_TYPEDEF_P (decls.value))
+    {
+      decls.type = decls.value;
+      decls.value = NULL_TREE;
+    }
+  /* LLVM LOCAL end mainline */
+
   /* It is impossible to overload a built-in function; any explicit
      declaration eliminates the built-in declaration.  So, if OLDVAL
      is a built-in, then we can just pretend it isn't there.  */
@@ -2109,95 +2128,112 @@ do_nonmember_using_decl (tree scope, tree name, tree oldval, tree oldtype,
       && !DECL_HIDDEN_FRIEND_P (oldval))
     oldval = NULL_TREE;
 
-  /* Check for using functions.  */
-  if (decls.value && is_overloaded_fn (decls.value))
+  /* LLVM LOCAL begin mainline */
+  if (decls.value)
     {
-      tree tmp, tmp1;
-
-      if (oldval && !is_overloaded_fn (oldval))
+      /* Check for using functions.  */
+      if (is_overloaded_fn (decls.value))
 	{
-	  if (!DECL_IMPLICIT_TYPEDEF_P (oldval))
-	    error ("%qD is already declared in this scope", name);
-	  oldval = NULL_TREE;
-	}
+	  tree tmp, tmp1;
 
-      *newval = oldval;
-      for (tmp = decls.value; tmp; tmp = OVL_NEXT (tmp))
-	{
-	  tree new_fn = OVL_CURRENT (tmp);
-
-	  /* [namespace.udecl]
-
-	     If a function declaration in namespace scope or block
-	     scope has the same name and the same parameter types as a
-	     function introduced by a using declaration the program is
-	     ill-formed.  */
-	  for (tmp1 = oldval; tmp1; tmp1 = OVL_NEXT (tmp1))
+	  if (oldval && !is_overloaded_fn (oldval))
 	    {
-	      tree old_fn = OVL_CURRENT (tmp1);
+	      error ("%qD is already declared in this scope", name);
+	      oldval = NULL_TREE;
+	    }
 
-	      if (new_fn == old_fn)
-		/* The function already exists in the current namespace.  */
-		break;
-	      else if (OVL_USED (tmp1))
-		continue; /* this is a using decl */
-	      else if (compparms (TYPE_ARG_TYPES (TREE_TYPE (new_fn)),
-				  TYPE_ARG_TYPES (TREE_TYPE (old_fn))))
+	  *newval = oldval;
+	  for (tmp = decls.value; tmp; tmp = OVL_NEXT (tmp))
+	    {
+	      tree new_fn = OVL_CURRENT (tmp);
+
+	      /* [namespace.udecl]
+
+		 If a function declaration in namespace scope or block
+		 scope has the same name and the same parameter types as a
+		 function introduced by a using declaration the program is
+		 ill-formed.  */
+	      for (tmp1 = oldval; tmp1; tmp1 = OVL_NEXT (tmp1))
 		{
-		  gcc_assert (!DECL_ANTICIPATED (old_fn)
-			      || DECL_HIDDEN_FRIEND_P (old_fn));
+		  tree old_fn = OVL_CURRENT (tmp1);
 
-		  /* There was already a non-using declaration in
-		     this scope with the same parameter types. If both
-		     are the same extern "C" functions, that's ok.  */
-		  if (decls_match (new_fn, old_fn))
+		  if (new_fn == old_fn)
+		    /* The function already exists in the current namespace.  */
 		    break;
-		  else
+		  else if (OVL_USED (tmp1))
+		    continue; /* this is a using decl */
+		  else if (compparms (TYPE_ARG_TYPES (TREE_TYPE (new_fn)),
+				      TYPE_ARG_TYPES (TREE_TYPE (old_fn))))
 		    {
-		      error ("%qD is already declared in this scope", name);
-		      break;
+		      gcc_assert (!DECL_ANTICIPATED (old_fn)
+				  || DECL_HIDDEN_FRIEND_P (old_fn));
+
+		      /* There was already a non-using declaration in
+			 this scope with the same parameter types. If both
+			 are the same extern "C" functions, that's ok.  */
+		      if (decls_match (new_fn, old_fn))
+			break;
+		      else
+			{
+			  error ("%qD is already declared in this scope", name);
+			  break;
+			}
 		    }
 		}
-	    }
 
-	  /* If we broke out of the loop, there's no reason to add
-	     this function to the using declarations for this
-	     scope.  */
-	  if (tmp1)
-	    continue;
+	      /* If we broke out of the loop, there's no reason to add
+		 this function to the using declarations for this
+		 scope.  */
+	      if (tmp1)
+		continue;
 
-	  /* If we are adding to an existing OVERLOAD, then we no
-	     longer know the type of the set of functions.  */
-	  if (*newval && TREE_CODE (*newval) == OVERLOAD)
-	    TREE_TYPE (*newval) = unknown_type_node;
-	  /* Add this new function to the set.  */
-	  *newval = build_overload (OVL_CURRENT (tmp), *newval);
-	  /* If there is only one function, then we use its type.  (A
-	     using-declaration naming a single function can be used in
-	     contexts where overload resolution cannot be
-	     performed.)  */
-	  if (TREE_CODE (*newval) != OVERLOAD)
-	    {
-	      *newval = ovl_cons (*newval, NULL_TREE);
-	      TREE_TYPE (*newval) = TREE_TYPE (OVL_CURRENT (tmp));
+	      /* If we are adding to an existing OVERLOAD, then we no
+		 longer know the type of the set of functions.  */
+	      if (*newval && TREE_CODE (*newval) == OVERLOAD)
+		TREE_TYPE (*newval) = unknown_type_node;
+	      /* Add this new function to the set.  */
+	      *newval = build_overload (OVL_CURRENT (tmp), *newval);
+	      /* If there is only one function, then we use its type.  (A
+		 using-declaration naming a single function can be used in
+		 contexts where overload resolution cannot be
+		 performed.)  */
+	      if (TREE_CODE (*newval) != OVERLOAD)
+		{
+		  *newval = ovl_cons (*newval, NULL_TREE);
+		  TREE_TYPE (*newval) = TREE_TYPE (OVL_CURRENT (tmp));
+		}
+	      OVL_USED (*newval) = 1;
 	    }
-	  OVL_USED (*newval) = 1;
+	}
+      else
+	{
+	  *newval = decls.value;
+	  if (oldval && !decls_match (*newval, oldval))
+	    error ("%qD is already declared in this scope", name);
 	}
     }
   else
+    *newval = oldval;
+
+  if (decls.type && TREE_CODE (decls.type) == TREE_LIST)
     {
-      *newval = decls.value;
-      if (oldval && !decls_match (*newval, oldval))
+      error ("reference to %qD is ambiguous", name);
+      print_candidates (decls.type);
+    }
+  else
+    {
+      *newtype = decls.type;
+      if (oldtype && *newtype && !decls_match (oldtype, *newtype))
 	error ("%qD is already declared in this scope", name);
     }
 
-  *newtype = decls.type;
-  if (oldtype && *newtype && !same_type_p (oldtype, *newtype))
-    {
-      error ("using declaration %qD introduced ambiguous type %qT",
-	     name, oldtype);
-      return;
-    }
+    /* If *newval is empty, shift any class or enumeration name down.  */
+    if (!*newval)
+      {
+	*newval = *newtype;
+	*newtype = NULL_TREE;
+      }
+  /* LLVM LOCAL end mainline */
 }
 
 /* Process a using-declaration at function scope.  */
@@ -3491,43 +3527,63 @@ merge_functions (tree s1, tree s2)
    XXX In what way should I treat extern declarations?
    XXX I don't want to repeat the entire duplicate_decls here */
 
+/* LLVM LOCAL begin mainline */
 static void
-ambiguous_decl (tree name, struct scope_binding *old, cxx_binding *new,
-		int flags)
+ambiguous_decl (struct scope_binding *old, cxx_binding *new, int flags)
 {
   tree val, type;
   gcc_assert (old != NULL);
+
+  /* Copy the type.  */
+  type = new->type;
+  if (LOOKUP_NAMESPACES_ONLY (flags)
+      || (type && hidden_name_p (type) && !(flags & LOOKUP_HIDDEN)))
+    type = NULL_TREE;
+
   /* Copy the value.  */
   val = new->value;
   if (val)
-    switch (TREE_CODE (val))
-      {
-      case TEMPLATE_DECL:
-	/* If we expect types or namespaces, and not templates,
-	   or this is not a template class.  */
-	if ((LOOKUP_QUALIFIERS_ONLY (flags)
-	     && !DECL_CLASS_TEMPLATE_P (val))
-	    || hidden_name_p (val))
-	  val = NULL_TREE;
-	break;
-      case TYPE_DECL:
-	if (LOOKUP_NAMESPACES_ONLY (flags) || hidden_name_p (val))
-	  val = NULL_TREE;
-	break;
-      case NAMESPACE_DECL:
-	if (LOOKUP_TYPES_ONLY (flags))
-	  val = NULL_TREE;
-	break;
-      case FUNCTION_DECL:
-	/* Ignore built-in functions that are still anticipated.  */
-	if (LOOKUP_QUALIFIERS_ONLY (flags) || hidden_name_p (val))
-	  val = NULL_TREE;
-	break;
-      default:
-	if (LOOKUP_QUALIFIERS_ONLY (flags))
-	  val = NULL_TREE;
-      }
+    {
+      if (hidden_name_p (val) && !(flags & LOOKUP_HIDDEN))
+	val = NULL_TREE;
+      else
+	switch (TREE_CODE (val))
+	  {
+	  case TEMPLATE_DECL:
+	    /* If we expect types or namespaces, and not templates,
+	       or this is not a template class.  */
+	    if ((LOOKUP_QUALIFIERS_ONLY (flags)
+		 && !DECL_CLASS_TEMPLATE_P (val)))
+	      val = NULL_TREE;
+	    break;
+	  case TYPE_DECL:
+	    if (LOOKUP_NAMESPACES_ONLY (flags)
+		|| (type && (flags & LOOKUP_PREFER_TYPES)))
+	      val = NULL_TREE;
+	    break;
+	  case NAMESPACE_DECL:
+	    if (LOOKUP_TYPES_ONLY (flags))
+	      val = NULL_TREE;
+	    break;
+	  case FUNCTION_DECL:
+	    /* Ignore built-in functions that are still anticipated.  */
+	    if (LOOKUP_QUALIFIERS_ONLY (flags))
+	      val = NULL_TREE;
+	    break;
+	  default:
+	    if (LOOKUP_QUALIFIERS_ONLY (flags))
+	      val = NULL_TREE;
+	  }
+    }
 
+  /* If val is hidden, shift down any class or enumeration name.  */
+  if (!val)
+    {
+      val = type;
+      type = NULL_TREE;
+    }
+
+/* LLVM LOCAL end mainline */
   if (!old->value)
     old->value = val;
   else if (val && val != old->value)
@@ -3537,25 +3593,21 @@ ambiguous_decl (tree name, struct scope_binding *old, cxx_binding *new,
       else
 	{
 	  old->value = tree_cons (NULL_TREE, old->value,
-				  build_tree_list (NULL_TREE, new->value));
+				  build_tree_list (NULL_TREE, val));
 	  TREE_TYPE (old->value) = error_mark_node;
 	}
     }
-  /* ... and copy the type.  */
-  type = new->type;
-  if (LOOKUP_NAMESPACES_ONLY (flags))
-    type = NULL_TREE;
+
+  /* LLVM LOCAL begin mainline */
   if (!old->type)
     old->type = type;
   else if (type && old->type != type)
     {
-      if (flags & LOOKUP_COMPLAIN)
-	{
-	  error ("%qD denotes an ambiguous type",name);
-	  error ("%J  first type here", TYPE_MAIN_DECL (old->type));
-	  error ("%J  other type here", TYPE_MAIN_DECL (type));
-	}
+      old->type = tree_cons (NULL_TREE, old->type,
+			     build_tree_list (NULL_TREE, type));
+      TREE_TYPE (old->type) = error_mark_node;
     }
+  /* LLVM LOCAL end mainline */
 }
 
 /* Return the declarations that are members of the namespace NS.  */
@@ -3644,36 +3696,6 @@ remove_hidden_names (tree fns)
   return fns;
 }
 
-/* Select the right _DECL from multiple choices.  */
-
-static tree
-select_decl (const struct scope_binding *binding, int flags)
-{
-  tree val;
-  val = binding->value;
-
-  timevar_push (TV_NAME_LOOKUP);
-  if (LOOKUP_NAMESPACES_ONLY (flags))
-    {
-      /* We are not interested in types.  */
-      if (val && (TREE_CODE (val) == NAMESPACE_DECL
-		  || TREE_CODE (val) == TREE_LIST))
-	POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, val);
-      POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, NULL_TREE);
-    }
-
-  /* If looking for a type, or if there is no non-type binding, select
-     the value binding.  */
-  if (binding->type && (!val || (flags & LOOKUP_PREFER_TYPES)))
-    val = binding->type;
-  /* Don't return non-types if we really prefer types.  */
-  else if (val && LOOKUP_TYPES_ONLY (flags)
-	   && ! DECL_DECLARES_TYPE_P (val))
-    val = NULL_TREE;
-
-  POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, val);
-}
-
 /* Unscoped lookup of a global: iterate over current namespaces,
    considering using-directives.  */
 
@@ -3685,22 +3707,18 @@ unqualified_namespace_lookup (tree name, int flags)
   tree siter;
   struct cp_binding_level *level;
   tree val = NULL_TREE;
-  struct scope_binding binding = EMPTY_SCOPE_BINDING;
 
   timevar_push (TV_NAME_LOOKUP);
 
   for (; !val; scope = CP_DECL_CONTEXT (scope))
     {
+      struct scope_binding binding = EMPTY_SCOPE_BINDING;
       cxx_binding *b =
 	 cxx_scope_find_binding_for_name (NAMESPACE_LEVEL (scope), name);
 
       if (b)
-	{
-	  if (b->value
-	      && ((flags & LOOKUP_HIDDEN) || !hidden_name_p (b->value)))
-	    binding.value = b->value;
-	  binding.type = b->type;
-	}
+	/* LLVM LOCAL mainline */
+	ambiguous_decl (&binding, b, flags);
 
       /* Add all _DECLs seen through local using-directives.  */
       for (level = current_binding_level;
@@ -3725,7 +3743,7 @@ unqualified_namespace_lookup (tree name, int flags)
 	  siter = CP_DECL_CONTEXT (siter);
 	}
 
-      val = select_decl (&binding, flags);
+      val = binding.value;
       if (scope == global_namespace)
 	break;
     }
@@ -3755,7 +3773,7 @@ lookup_qualified_name (tree scope, tree name, bool is_type_p, bool complain)
       if (is_type_p)
 	flags |= LOOKUP_PREFER_TYPES;
       if (qualified_lookup_using_namespace (name, scope, &binding, flags))
-	t = select_decl (&binding, flags);
+	t = binding.value;
     }
   else if (is_aggr_type (scope, complain))
     t = lookup_member (scope, name, 2, is_type_p);
@@ -3788,7 +3806,8 @@ lookup_using_namespace (tree name, struct scope_binding *val,
 	  cxx_scope_find_binding_for_name (NAMESPACE_LEVEL (used), name);
 	/* Resolve ambiguities.  */
 	if (val1)
-	  ambiguous_decl (name, val, val1, flags);
+	  /* LLVM LOCAL mainline */
+	  ambiguous_decl (val, val1, flags);
       }
   POP_TIMEVAR_AND_RETURN (TV_NAME_LOOKUP, val->value != error_mark_node);
 }
@@ -3817,7 +3836,8 @@ qualified_lookup_using_namespace (tree name, tree scope,
 	cxx_scope_find_binding_for_name (NAMESPACE_LEVEL (scope), name);
       seen = tree_cons (scope, NULL_TREE, seen);
       if (binding)
-	ambiguous_decl (name, result, binding, flags);
+	/* LLVM LOCAL mainline */
+	ambiguous_decl (result, binding, flags);
 
       /* Consider strong using directives always, and non-strong ones
 	 if we haven't found a binding yet.  ??? Shouldn't we consider
@@ -4581,6 +4601,8 @@ arg_assoc_type (struct arg_lookup *k, tree type)
 	return arg_assoc_type (k, TYPE_PTRMEMFUNC_FN_TYPE (type));
       return arg_assoc_class (k, type);
     case POINTER_TYPE:
+      /* APPLE LOCAL blocks 6040305 */
+    case BLOCK_POINTER_TYPE:
     case REFERENCE_TYPE:
     case ARRAY_TYPE:
       return arg_assoc_type (k, TREE_TYPE (type));

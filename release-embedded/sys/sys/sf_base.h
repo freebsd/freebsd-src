@@ -1,9 +1,6 @@
 /*-
- * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2013 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
- *
- * This software was developed by Semihalf under sponsorship from
- * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -17,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -29,13 +26,11 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_FDT_H_
-#define _MACHINE_FDT_H_
+#ifndef	_SYS_SF_BASE_H_
+#define	_SYS_SF_BASE_H_
 
-#include <machine/bus.h>
-#include <machine/intr_machdep.h>
+extern	int _do_sendfile(struct thread *, int src_fd, int sock_fd, int flags,
+	    int compat, off_t offset, size_t nbytes, off_t *sbytes,
+	    struct uio *hdr_uio, struct uio *trl_uio);
 
-/* Map phandle/intpin pair to global IRQ number */
-#define	FDT_MAP_IRQ(node, pin)	powerpc_get_irq(node, pin)
-
-#endif /* _MACHINE_FDT_H_ */
+#endif	/* _SYS_SF_BASE_H_ */

@@ -164,10 +164,13 @@ in the following sections.
 @xref{C Dialect Options,,Options Controlling C Dialect}.
 @gccoptlist{-ansi  -std=@var{standard}  -fgnu89-inline @gol
 -aux-info @var{filename} @gol
--fno-asm  -fno-builtin  -fno-builtin-@var{function} @gol
+@c APPLE LOCAL blocks 7205047 5811887
+-fno-asm  -fno-blocks -fno-builtin  -fno-builtin-@var{function} @gol
 -fhosted  -ffreestanding -fopenmp -fms-extensions @gol
 -trigraphs  -no-integrated-cpp  -traditional  -traditional-cpp @gol
 -fallow-single-precision  -fcond-mismatch -flax-vector-conversions @gol
+@c APPLE LOCAL nested functions 4357979 */
+-fno-nested-functions @gol
 -fsigned-bitfields  -fsigned-char @gol
 @c APPLE LOCAL -Wnewline-eof 2001-08-23 --sts **
 -Wnewline-eof (Apple compatible) @gol
@@ -1230,6 +1233,16 @@ effect.  In C99 mode (@option{-std=c99} or @option{-std=gnu99}), this
 switch only affects the @code{asm} and @code{typeof} keywords, since
 @code{inline} is a standard keyword in ISO C99.
 
+@c APPLE LOCAL begin blocks 7205047 5811887
+@item -fno-blocks
+@opindex fno-blocks
+Disable the use of blocks.  In @option{-std=c99} mode, blocks are
+turned off by default.  @option{-fblocks} can be used to re-enable the
+feature, if off.  Runtime support for blocks first appeared in Mac OS
+X 10.6.  When targeting 10.6 (see @option{-mmacosx-version-min}) and
+later, the extension is on by default.
+@c APPLE LOCAL end blocks 7205047 5811887
+
 @item -fno-builtin
 @itemx -fno-builtin-@var{function}
 @opindex fno-builtin
@@ -1335,6 +1348,13 @@ Formerly, these options caused GCC to attempt to emulate a pre-standard
 C compiler.  They are now only supported with the @option{-E} switch.
 The preprocessor continues to support a pre-standard mode.  See the GNU
 CPP manual for details.
+
+@c APPLE LOCAL begin nested functions 4357979
+@item -fno-nested-functions
+@opindex fno-nested-functions
+Disable nested functions.  This option is not supported for C++ or
+Objective-C++.  On FreeBSD, nested functions are disabled by default.
+@c APPLE LOCAL end nested functions 4357979
 
 @item -fcond-mismatch
 @opindex fcond-mismatch

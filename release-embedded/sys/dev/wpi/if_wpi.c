@@ -253,7 +253,6 @@ static int wpi_shutdown(device_t);
 static int wpi_suspend(device_t);
 static int wpi_resume(device_t);
 
-
 static device_method_t wpi_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		wpi_probe),
@@ -263,7 +262,7 @@ static device_method_t wpi_methods[] = {
 	DEVMETHOD(device_suspend,	wpi_suspend),
 	DEVMETHOD(device_resume,	wpi_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t wpi_driver = {
@@ -274,7 +273,7 @@ static driver_t wpi_driver = {
 
 static devclass_t wpi_devclass;
 
-DRIVER_MODULE(wpi, pci, wpi_driver, wpi_devclass, 0, 0);
+DRIVER_MODULE(wpi, pci, wpi_driver, wpi_devclass, NULL, NULL);
 
 MODULE_VERSION(wpi, 1);
 
@@ -285,11 +284,11 @@ static const uint8_t wpi_ridx_to_plcp[] = {
 	/* CCK: device-dependent */
 	10, 20, 55, 110
 };
+
 static const uint8_t wpi_ridx_to_rate[] = {
 	12, 18, 24, 36, 48, 72, 96, 108, /* OFDM */
 	2, 4, 11, 22 /*CCK */
 };
-
 
 static int
 wpi_probe(device_t dev)
@@ -300,7 +299,7 @@ wpi_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
@@ -493,7 +492,7 @@ wpi_attach(device_t dev)
 	struct wpi_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	struct ieee80211com *ic;
-	int ac, error, supportsa = 1;
+	int ac, error, rid, supportsa = 1;
 	uint32_t tmp;
 	const struct wpi_ident *ident;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
@@ -525,20 +524,14 @@ wpi_attach(device_t dev)
 	callout_init_mtx(&sc->calib_to, &sc->sc_mtx, 0);
 	callout_init_mtx(&sc->watchdog_to, &sc->sc_mtx, 0);
 
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
-
 	/* disable the retry timeout register */
 	pci_write_config(dev, 0x41, 0, 1);
 
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = PCIR_BAR(0);
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	rid = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
@@ -549,8 +542,8 @@ wpi_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+	rid = 0;
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
@@ -717,6 +710,9 @@ wpi_detach(device_t dev)
 	struct ieee80211com *ic;
 	int ac;
 
+	if (sc->irq != NULL)
+		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
+
 	if (ifp != NULL) {
 		ic = ifp->if_l2com;
 
@@ -746,13 +742,12 @@ wpi_detach(device_t dev)
 		wpi_free_fwmem(sc);
 	WPI_UNLOCK(sc);
 
-	if (sc->irq != NULL) {
-		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
-	}
-
+	if (sc->irq != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq),
+		    sc->irq);
 	if (sc->mem != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->mem), sc->mem);
 
 	if (ifp != NULL)
 		if_free(ifp);
@@ -1887,7 +1882,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	hdrlen = ieee80211_hdrsize(wh);
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1956,7 +1951,7 @@ wpi_tx_data(struct wpi_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 		tap->wt_flags = 0;
 		tap->wt_rate = rate;
 		tap->wt_hwqueue = ac;
-		if (wh->i_fc[1] & IEEE80211_FC1_WEP)
+		if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED)
 			tap->wt_flags |= IEEE80211_RADIOTAP_F_WEP;
 
 		ieee80211_radiotap_tx(vap, m0);
@@ -3191,7 +3186,6 @@ wpi_stop_locked(struct wpi_softc *sc)
 	sc->flags &= ~WPI_FLAG_HW_RADIO_OFF;
 	callout_stop(&sc->watchdog_to);
 	callout_stop(&sc->calib_to);
-
 
 	/* disable interrupts */
 	WPI_WRITE(sc, WPI_MASK, 0);

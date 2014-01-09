@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 27, 2013
+.Dd January 3, 2014
 .Dt RUN 4
 .Os
 .Sh NAME
@@ -64,8 +64,17 @@ The RT3000U is a single-chip solution based on an RT3070 MAC/BBP and
 an RT3020 (1T1R), RT3021 (1T2R) or RT3022 (2T2R) single-band radio
 transceiver.
 .Pp
-The RT3900E is a single-chip solution based on an RT5390 MAC/BBP and
-an RT5370 (1T1R) or RT5372 (2T2R) single-band radio transceiver.
+The RT3900E is a single-chip USB 2.0 802.11n solution.
+The MAC/Baseband Processor can be an RT3593, RT5390, RT5392 or an RT5592.
+The radio can be an RT3053, RT5370, RT5372 or an RT5572.
+The RT3053 chip operates in the 2GHz and 5GHz spectra and supports up to
+3 transmit paths and 3 receiver paths (3T3R).
+The RT5370 chip operates in the 2GHz spectrum and supports 1 transmit path
+and 1 receiver path (1T1R).
+The RT5372 chip operates in the 2GHz spectrum and supports up to 2 transmit
+paths and 2 receiver paths (2T2R).
+The RT5572 chip operates in the 2GHz and 5GHz spectra and supports up to
+2 transmit paths and 2 receiver paths (2T2R).
 .Pp
 These are the modes the
 .Nm
@@ -116,11 +125,13 @@ driver supports the following wireless adapters:
 .It Airlink101 AWLL6090
 .It ASUS USB-N11
 .It ASUS USB-N13 ver. A1
+.It ASUS USB-N66
 .It ASUS WL-160N
 .It Belkin F5D8051 ver 3000
 .It Belkin F5D8053
 .It Belkin F5D8055
 .It Belkin F6D4050 ver 1
+.It Belkin F9L1103
 .It Buffalo WLI-UC-AG300N
 .It Buffalo WLI-UC-G300N
 .It Buffalo WLI-UC-G301N
@@ -134,11 +145,13 @@ driver supports the following wireless adapters:
 .It D-Link DWA-130 rev B1
 .It D-Link DWA-140 rev B1, B2, B3, D1
 .It D-Link DWA-160 rev B2
+.It D-Link DWA-162
 .It DrayTek Vigor N61
 .It Edimax EW-7711UAn
 .It Edimax EW-7711UTn
 .It Edimax EW-7717Un
 .It Edimax EW-7718Un
+.It Edimax EW-7733UnD
 .It Gigabyte GN-WB30N
 .It Gigabyte GN-WB31N
 .It Gigabyte GN-WB32L
@@ -164,6 +177,7 @@ driver supports the following wireless adapters:
 .It TP-LINK TL-WN727N v3
 .It Unex DNUR-81
 .It Unex DNUR-82
+.It ZyXEL NWD2705
 .It ZyXEL NWD210N
 .It ZyXEL NWD270N
 .El
@@ -235,4 +249,4 @@ driver was written by
 The
 .Nm
 driver does not support any of the 802.11n capabilities offered by the
-RT2800 and RT3000 chipsets.
+RT2800, RT3000 and RT3900 chipsets.

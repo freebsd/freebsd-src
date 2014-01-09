@@ -3367,7 +3367,7 @@ lem_initialize_receive_unit(struct adapter *adapter)
 #ifdef DEV_NETMAP
 	/* preserve buffers already made available to clients */
 	if (ifp->if_capenable & IFCAP_NETMAP)
-		rctl -= NA(adapter->ifp)->rx_rings[0].nr_hwavail;
+		rctl -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[0]);
 #endif /* DEV_NETMAP */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), rctl);
 

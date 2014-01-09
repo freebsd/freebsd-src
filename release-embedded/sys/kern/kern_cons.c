@@ -432,10 +432,8 @@ cngets(char *cp, size_t size, int visible)
 		case '\b':
 		case '\177':
 			if (lp > cp) {
-				if (visible) {
-					cnputc(c);
-					cnputs(" \b");
-				}
+				if (visible)
+					cnputs("\b \b");
 				lp--;
 			}
 			continue;
