@@ -1904,6 +1904,27 @@ constrain_class_visibility (tree type)
     }
 }
 
+/* APPLE LOCAL begin weak types 5954418 */
+static bool
+typeinfo_comdat (tree type)
+{
+  tree binfo, base_binfo;
+  int j;
+
+  if (lookup_attribute ("weak", TYPE_ATTRIBUTES (type)))
+    return true;
+  
+  for (binfo = TYPE_BINFO (type), j = 0;
+	BINFO_BASE_ITERATE (binfo, j, base_binfo); ++j)
+    {
+      if (typeinfo_comdat (BINFO_TYPE (base_binfo)))
+	return true;
+    }
+
+  return false;
+}
+/* APPLE LOCAL end weak types 5954418 */
+
 /* DECL is a FUNCTION_DECL or VAR_DECL.  If the object file linkage
    for DECL has not already been determined, do so now by setting
    DECL_EXTERNAL, DECL_COMDAT and other related flags.  Until this
@@ -2100,7 +2121,10 @@ import_export_decl (tree decl)
 		{
 		  comdat_p = (targetm.cxx.class_data_always_comdat ()
 			      || (CLASSTYPE_KEY_METHOD (type)
-				  && DECL_DECLARED_INLINE_P (CLASSTYPE_KEY_METHOD (type))));
+				  /* APPLE LOCAL begin weak types 5954418 */
+				  && DECL_DECLARED_INLINE_P (CLASSTYPE_KEY_METHOD (type)))
+			      || typeinfo_comdat (type));
+		  /* APPLE LOCAL end weak types 5954418 */
 		  mark_needed (decl);
 		  if (!flag_weak)
 		    {
@@ -3043,6 +3067,10 @@ build_java_method_aliases (void)
     }
 }
 
+/* APPLE LOCAL begin radar 4721858 */
+static void emit_deferred (location_t *);
+/* APPLE LOCAL end radar 4721858 */
+
 /* This routine is called from the last rule in yyparse ().
    Its job is to create all the code needed to initialize and
    destroy the global aggregates.  We do the destruction
@@ -3051,14 +3079,10 @@ build_java_method_aliases (void)
 void
 cp_finish_file (void)
 {
-  tree vars;
-  bool reconsider;
-  size_t i;
+  /* APPLE LOCAL begin radar 4721858 */
   location_t locus;
-  unsigned ssdf_count = 0;
-  int retries = 0;
-  tree decl;
-
+  /* APPLE LOCAL end radar 4721858 */
+  
   locus = input_location;
   at_eof = 1;
 
@@ -3066,8 +3090,8 @@ cp_finish_file (void)
   if (! global_bindings_p () || current_class_type || decl_namespace_list)
     return;
 
-  if (pch_file)
-    c_common_write_pch ();
+  /* APPLE LOCAL radar 4874613 */
+  /* dump of pch file moved to c_parse_file (). */
 
 #ifdef USE_MAPPED_LOCATION
   /* FIXME - huh? */
@@ -3096,6 +3120,29 @@ cp_finish_file (void)
   timevar_push (TV_VARCONST);
 
   emit_support_tinfos ();
+
+  /* APPLE LOCAL begin radar 4721858 */
+  emit_instantiate_pending_templates (&locus);
+
+  emit_deferred (&locus);
+}
+
+/* This routine emits pending functions and instatiates pending templates
+   as more opportunities arises. */
+
+void
+emit_instantiate_pending_templates (location_t *locusp)
+{
+  tree vars;
+  bool reconsider;
+  size_t i;
+  unsigned ssdf_count = 0;
+  int retries = 0;
+
+  /* APPLE LOCAL radar 4874626 */
+  /* initialization removed. */
+  at_eof = 1;
+/* APPLE LOCAL end radar 4721858 */
 
   do
     {
@@ -3174,7 +3221,8 @@ cp_finish_file (void)
 
 	  /* Set the line and file, so that it is obviously not from
 	     the source file.  */
-	  input_location = locus;
+	  /* APPLE LOCAL radar 4721858 */
+	  input_location = *locusp;
 	  ssdf_body = start_static_storage_duration_function (ssdf_count);
 
 	  /* Make sure the back end knows about all the variables.  */
@@ -3200,7 +3248,8 @@ cp_finish_file (void)
 
 	  /* Finish up the static storage duration function for this
 	     round.  */
-	  input_location = locus;
+	  /* APPLE LOCAL radar 4721858 */
+	  input_location = *locusp;
 	  finish_static_storage_duration_function (ssdf_body);
 
 	  /* All those initializations and finalizations might cause
@@ -3211,7 +3260,8 @@ cp_finish_file (void)
 #ifdef USE_MAPPED_LOCATION
 	  /* ??? */
 #else
-	  locus.line++;
+	  /* APPLE LOCAL radar 4721858 */
+	  locusp->line++;
 #endif
 	}
 
@@ -3309,27 +3359,36 @@ cp_finish_file (void)
       retries++;
     }
   while (reconsider);
+/* APPLE LOCAL begin radar 4721858 */
+}
 
+static void
+emit_deferred (location_t *locusp)
+{
+  size_t i;
+  tree decl;
+  bool reconsider = false;
+  /* APPLE LOCAL end radar 4721858 */
   /* All used inline functions must have a definition at this point.  */
   for (i = 0; VEC_iterate (tree, deferred_fns, i, decl); ++i)
     {
       if (/* Check online inline functions that were actually used.  */
-	  TREE_USED (decl) && DECL_DECLARED_INLINE_P (decl)
-	  /* If the definition actually was available here, then the
-	     fact that the function was not defined merely represents
-	     that for some reason (use of a template repository,
-	     #pragma interface, etc.) we decided not to emit the
-	     definition here.  */
-	  && !DECL_INITIAL (decl)
-	  /* An explicit instantiation can be used to specify
-	     that the body is in another unit. It will have
-	     already verified there was a definition.  */
-	  && !DECL_EXPLICIT_INSTANTIATION (decl))
-	{
-	  warning (0, "inline function %q+D used but never defined", decl);
-	  /* Avoid a duplicate warning from check_global_declaration_1.  */
-	  TREE_NO_WARNING (decl) = 1;
-	}
+	TREE_USED (decl) && DECL_DECLARED_INLINE_P (decl)
+	/* If the definition actually was available here, then the
+	 fact that the function was not defined merely represents
+	 that for some reason (use of a template repository,
+	 #pragma interface, etc.) we decided not to emit the
+	 definition here.  */
+	&& !DECL_INITIAL (decl)
+	/* An explicit instantiation can be used to specify
+	 that the body is in another unit. It will have
+	 already verified there was a definition.  */
+	&& !DECL_EXPLICIT_INSTANTIATION (decl))
+		{
+	warning (0, "inline function %q+D used but never defined", decl);
+	/* Avoid a duplicate warning from check_global_declaration_1.  */
+	TREE_NO_WARNING (decl) = 1;
+		}
     }
 
   /* We give C linkage to static constructors and destructors.  */
@@ -3340,17 +3399,20 @@ cp_finish_file (void)
   if (priority_info_map)
     splay_tree_foreach (priority_info_map,
 			generate_ctor_and_dtor_functions_for_priority,
-			/*data=*/&locus);
+			/* APPLE LOCAL radar 4721858 */
+			/*data=*/locusp);
   else
     {
       /* If we have a ctor or this is obj-c++ and we need a static init,
 	 call generate_ctor_or_dtor_function.  */
       if (static_ctors || (c_dialect_objc () && objc_static_init_needed_p ()))
 	generate_ctor_or_dtor_function (/*constructor_p=*/true,
-					DEFAULT_INIT_PRIORITY, &locus);
+					/* APPLE LOCAL radar 4721858 */
+					DEFAULT_INIT_PRIORITY, locusp);
       if (static_dtors)
 	generate_ctor_or_dtor_function (/*constructor_p=*/false,
-					DEFAULT_INIT_PRIORITY, &locus);
+					/* APPLE LOCAL radar 4721858 */
+					DEFAULT_INIT_PRIORITY, locusp);
     }
 
   /* We're done with the splay-tree now.  */
@@ -3403,7 +3465,8 @@ cp_finish_file (void)
       dump_tree_statistics ();
       dump_time_statistics ();
     }
-  input_location = locus;
+  /* APPLE LOCAL radar 4721858 */
+  input_location = *locusp;
 
 #ifdef ENABLE_CHECKING
   validate_conversion_obstack ();

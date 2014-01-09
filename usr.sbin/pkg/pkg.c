@@ -821,6 +821,11 @@ static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
 "Do you want to fetch and install it now? [y/N]: ";
 
+static const char non_interactive_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to bootstrap "
+"in non-interactive (stdin not being a tty)\n";
+
 static int
 pkg_query_yes_no(void)
 {
@@ -939,10 +944,12 @@ main(int argc, char *argv[])
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
-			printf("%s", confirmation_message);
-			if (!isatty(fileno(stdin)))
+			if (!isatty(fileno(stdin))) {
+				fprintf(stderr, non_interactive_message);
 				exit(EXIT_FAILURE);
+			}
 
+			printf("%s", confirmation_message);
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}

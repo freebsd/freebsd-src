@@ -51,26 +51,6 @@ __FBSDID("$FreeBSD$");
 #define	MSI_X86_ADDR_LOG	0x00000004	/* Destination Mode */
 
 int
-lapic_pending_intr(struct vm *vm, int cpu)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	return (vlapic_pending_intr(vlapic));
-}
-
-void
-lapic_intr_accepted(struct vm *vm, int cpu, int vector)
-{
-	struct vlapic *vlapic;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	vlapic_intr_accepted(vlapic, vector);
-}
-
-int
 lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 {
 	struct vlapic *vlapic;
@@ -82,11 +62,36 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	vlapic_set_intr_ready(vlapic, vector, level);
-
-	vcpu_notify_event(vm, cpu);
-
+	if (vlapic_set_intr_ready(vlapic, vector, level))
+		vcpu_notify_event(vm, cpu, true);
 	return (0);
+}
+
+int
+lapic_set_local_intr(struct vm *vm, int cpu, int vector)
+{
+	struct vlapic *vlapic;
+	cpuset_t dmask;
+	int error;
+
+	if (cpu < -1 || cpu >= VM_MAXCPU)
+		return (EINVAL);
+
+	if (cpu == -1)
+		dmask = vm_active_cpus(vm);
+	else
+		CPU_SETOF(cpu, &dmask);
+	error = 0;
+	while ((cpu = CPU_FFS(&dmask)) != 0) {
+		cpu--;
+		CPU_CLR(cpu, &dmask);
+		vlapic = vm_lapic(vm, cpu);
+		error = vlapic_trigger_lvt(vlapic, vector);
+		if (error)
+			break;
+	}
+
+	return (error);
 }
 
 int

@@ -588,3 +588,19 @@ lhd_omp_firstprivatize_type_sizes (struct gimplify_omp_ctx *c ATTRIBUTE_UNUSED,
 				   tree t ATTRIBUTE_UNUSED)
 {
 }
+
+/* APPLE LOCAL begin radar 6353006  */
+tree 
+lhd_build_generic_block_struct_type (void)
+{
+  return NULL_TREE;
+}
+/* APPLE LOCAL end radar 6353006  */
+
+/* APPLE LOCAL begin radar 6386976  */
+bool
+lhd_is_runtime_specific_type (tree type ATTRIBUTE_UNUSED)
+{
+  return false;
+}
+/* APPLE LOCAL end radar 6386976  */

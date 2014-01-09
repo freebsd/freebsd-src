@@ -120,17 +120,12 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="239922">Raspberry PI support has been added.
-      Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
-      and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
-      guide</link>.</para>
-
     <para revision="248508">The use of unmapped VMIO buffers eliminates the need to perform
       TLB shootdown for mapping on buffer creation and reuse, greatly reducing the
       amount of IPIs for shootdown on big-SMP machines and eliminating up to 25-30%
       of the system time on i/o intensive workloads.</para>
 
-    <para arch="amd64">The maximum amount of memory the &os; kernel
+    <para arch="amd64" revision="254466">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
     <para>A new &man.cpuset.2; API has been added
@@ -182,6 +177,11 @@
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
+    <para arch="amd64,i386" revision="240135">Support was added for
+      the new Intel on-CPU Bull Mountain random number
+      generator, found on IvyBridge and supposedly later CPUs,
+      accessible with RDRAND instruction.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
       <para arch="amd64" revision="245652">The BSD Hypervisor, &man.bhyve.8; is included
@@ -197,15 +197,52 @@
         memory ballooning (&man.virtio_balloon.4;), and PCI.
         Tested with on Qemu/KVM, VirtualBox, and &man.bhyve.4;.</para>
   
-      <para arch="amd64,i386" revision="255524">A paravirtualized driver named "hyperv" which
-        which supports Microsoft Hyper-V has been imported and made
-        part of the amd64 GENERIC kernel.  For i386, this driver is not part of
-        GENERIC, so <literal>hyperv_load="YES"</literal> must be added to
-        <filename>/boot/loader.conf</filename> to load the driver.</para>
+      <para arch="amd64,i386" revision="255524">Paravirtualized drivers which
+        support Microsoft Hyper-V have been imported and made
+        part of the amd64 GENERIC kernel.  For i386, these drivers are not part of
+        GENERIC, so the following lines must be added to
+        <filename>/boot/loader.conf</filename> to load these drivers:
+        <programlisting>hv_ata_pci_disengage_load="YES"
+hv_netsvc_load="YES"
+hv_utils_load="YES"
+hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be added to the i386
+        kernel by adding <literal>device hyperv</literal> to the kernel config, and then
+        recompiling the kernel.  Please refer to:
+        <link xlink:href="http://wiki.freebsd.org/HyperV">FreeBSD and Microsoft Windows Server Hyper-V support</link>
+        for full instructions on how to set up Hyper-V support under FreeBSD.</para>
 
       <para revision="254738">The &man.vmx.4; driver has been added.
         &man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
         OpenBSD.</para>
+
+      <para revision="255744" arch="amd64,i386">Xen PVHVM virtualization is now
+        part of the GENERIC kernel.</para>
+
+    </sect3>
+
+    <sect3 xml:id="kernel-arm">
+      <title>ARM support</title>
+
+      <para revision="239922">Raspberry PI support has been added.
+        Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
+        and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
+        guide</link>.</para>
+  
+      <para revision="253396">The default ABI on ARM is now the ARM EABI. This brings a number of
+        improvements and allows future support for VFP and Thumb-2.</para> 
+  
+      <para revision="239268">ARM support has been greatly improved, including support
+        for ARMv6 and ARMv7, SMP and thread-local storage (TLS).
+        Additionally support for some newer SoC like the MV78x60 and OMAP4 was added.
+        See <link xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">this announcement</link>
+        for further details.</para>
+  
+      <para revision="254918">Superpages support on ARM has been added.  Superpages support
+        provides improved performance and scalability by allowing TLB
+        translations to dynamically cover large physical memory regions.
+        All ARMv6 and ARMv7-based platforms can take advantage of this feature.
+        See <link xlink:href="https://wiki.freebsd.org/ARMSuperpages">this page</link>
+        for further details.</para>
 
     </sect3>
 
@@ -380,6 +417,13 @@
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
+        <para revision="">&man.bsdinstall.8; now supports installing
+          ZFS on the root file system.  It includes a single configuration menu
+          that allows you to select all of the required details, including
+          which drives to use, what ZFS RAID level to use (taking into consideration
+          the selected number of drives), GPT or MBR, GELI encryption, forcing 4K sectors,
+          pool name, etc.</para>
+
         <para revision="240868">TRIM support has been added for
           ZFS.</para>
 
@@ -433,6 +477,31 @@
       instead use &man.host.1; and &man.drill.1; Alternatively,
       nslookup and dig can be obtained by installing the
       dns/bind-tools port.</para>
+
+    <para revision="225937">sysinstall has been removed from the base system.
+      Auxiliary libraries and tools used by sysinstall such as libdisk, libftpio,
+      and sade have also been removed.  sysinstall has been replaced by
+      &man.bsdinstall.8; and &man.bsdconfig.8;.</para>
+
+    <para revision="256106">&man.freebsd-version.1; has been added.  This tool
+      makes a best effort to determine the version and patch level of
+      the installed kernel and userland.</para>
+
+    <para revision="255191">GNU patch has been removed from the base system, and replaced
+      by a BSD-licensed &man.patch.1; program.</para>
+
+    <para revision="241511">GNU sort has been removed from the base system, and replaced
+      by a BSD-licensed &man.sort.1; program.</para>
+
+    <para revision="235723">Berkely yacc (byacc) has been imported
+      from <link xlink:href="http://invisible-island.net/byacc/">invisible island</link>.
+      This brings bison compatibilities to &man.yacc.1; while preserving full
+      backwards compatibility with previous version of &man.yacc.1;.</para>
+
+    <para revision="250881">&man.lex.1; has been replaced by flex 2.5.37</para>
+
+    <para revision="250699">&man.make.1; has been replaced with the 
+      "Portable" BSD make tool (bmake) from NetBSD.</para>
 
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
@@ -557,6 +626,10 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
+    <para revision="251300">&man.jemalloc.3; has been updated to 3.4.0.
+      See <link xlink:href="http://www.facebook.com/jemalloc/">this link</link>.
+      for more details.</para>
+
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
       to 6.1.5.</para>
 
@@ -566,29 +639,32 @@
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
-    <para><application>CVS</application> has been removed from the
+    <para revision="251794"><application>CVS</application> has been removed from the
     base system, but is still available from ports</para>
 
-    <para><application>FILE</application> has been updated from 4.23
-      to 5.03.</para>
+    <para revision="251886">Subversion has been imported into the base system and
+      is installed as <application>svnlite</application>.  <application>svnlite</application>
+      should only be used for checking out &os; source and committing, and does not
+      replace the full Subversion port.</para>
 
-    <para><application>hostapd</application> has been
+    <para revision="234449"><application>file</application> has been updated to 5.11.</para>
+
+    <para revision="252726"><application>hostapd</application> has been
       updated from 0.5.8 to 0.5.10.</para>
 
-    <para><application>IPFilter</application> has been updated from
-      4.1.23 to 4.1.28.</para>
+    <para><application>IPFilter</application> has been updated to 5.1.2.</para>
 
-    <para><application>less</application> has been updated from
-      v408 to v429.</para>
+    <para revision="250592"><application>less</application> has been updated to
+      v458.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.6-20061217 to 5.6-20080503.</para>
+      to 5.7-20081102.</para>
 
     <para role="merged"><application>OpenSSH</application> has been updated
-      from 4.5p1 to 5.1p1.</para>
+      to 6.4.</para>
 
-    <para role="merged"><application>OpenPAM</application> has been updated from the
-      Figwort release to the Hydrangea release.</para>
+    <para revision="236109"><application>OpenPAM</application> has been updated to
+      the Micrampelis release.</para>
 
     <para role="merged"><application>sendmail</application> has been updated from
       8.14.1 to 8.14.7.</para>
@@ -604,11 +680,15 @@
       then please run &man.tzsetup.8; to install a new /etc/localtime.
       </para>
 
-    <para><application>WPA Supplicant</application> has been
-      updated from 0.5.8 to 0.5.10.</para>
+    <para revision="252726"><application>WPA Supplicant</application> has been
+      updated to 2.0.</para>
 
     <para role="merged"><application>xz</application> has been updated
       from snapshot as of 12 April 2010 to 5.0.0.</para>
+
+    <para revision="258231" role="merged">&man.nvi.1; has been updated to 2.1.2.</para>
+
+    <para revision="254225">&man.nvi.1; supports wide character locales.</para>
 
   </sect2>
 

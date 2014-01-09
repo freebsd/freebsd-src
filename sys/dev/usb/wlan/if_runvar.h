@@ -183,6 +183,7 @@ struct run_softc {
 	uint8_t				txmixgain_5ghz;
 	int8_t				txpow1[54];
 	int8_t				txpow2[54];
+	int8_t				txpow3[54];
 	int8_t				rssi_2ghz[3];
 	int8_t				rssi_5ghz[3];
 	uint8_t				lna[4];

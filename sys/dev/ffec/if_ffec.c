@@ -96,6 +96,7 @@ enum {
 	FECTYPE_GENERIC,
 	FECTYPE_IMX53,
 	FECTYPE_IMX6,
+	FECTYPE_MVF,
 };
 
 /*
@@ -112,8 +113,8 @@ static struct ofw_compat_data compat_data[] = {
 	{"fsl,imx51-fec",	FECTYPE_GENERIC},
 	{"fsl,imx53-fec",	FECTYPE_IMX53},
 	{"fsl,imx6q-fec",	FECTYPE_IMX6 | FECFLAG_GBE},
-	{"fsl,mvf600-fec",	FECTYPE_GENERIC},
-	{"fsl,vf-fec",		FECTYPE_GENERIC},
+	{"fsl,mvf600-fec",	FECTYPE_MVF},
+	{"fsl,mvf-fec",		FECTYPE_MVF},
 	{NULL,		 	FECTYPE_NONE},
 };
 
@@ -1686,7 +1687,8 @@ ffec_attach(device_t dev)
 
 	/* Attach the mii driver. */
 	error = mii_attach(dev, &sc->miibus, ifp, ffec_media_change,
-	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	    ffec_media_status, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    (sc->fectype & FECTYPE_MVF) ? MIIF_FORCEANEG : 0);
 	if (error != 0) {
 		device_printf(dev, "PHY attach failed\n");
 		goto out;

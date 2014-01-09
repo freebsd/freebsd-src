@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 08, 2013
+.Dd January 2, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -222,12 +222,16 @@ command. Please note that doing so will
 immediately activate the
 .Sy lz4_compress
 feature on the underlying
-pool (even before any data is written). Since this feature is not
-read-only compatible, this operation will render the pool unimportable
-on systems without support for the
+pool
+.Pq even before any data is written ,
+and the feature will not be
+deactivated.
+Since this feature is not read-only compatible, this
+operation will render the pool unimportable on systems without support
+for the
 .Sy lz4_compress
-feature. At the
-moment, this operation cannot be reversed. Booting off of
+feature.
+Booting off of
 .Sy lz4
 -compressed root pools is supported.
 .It Sy multi_vdev_crash_dump
@@ -269,6 +273,112 @@ an existing space map is upgraded to the new format.
 Once the feature is
 .Sy active ,
 it will remain in that state until the pool is destroyed.
+.It Sy extensible_dataset
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:extensible_dataset"
+.It GUID Ta com.delphix:extensible_dataset
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta none
+.El
+.Pp
+This feature allows more flexible use of internal ZFS data structures,
+and exists for other features to depend on.
+.Pp
+This feature will be
+.Sy active
+when the first dependent feature uses it,
+and will be returned to the
+.Sy enabled
+state when all datasets that use
+this feature are destroyed.
+.It Sy bookmarks
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:bookmarks"
+.It GUID Ta com.delphix:bookmarks
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+This feature enables use of the
+.Nm zfs
+.Cm bookmark
+subcommand.
+.Pp
+This feature is
+.Sy active
+while any bookmarks exist in the pool.
+All bookmarks in the pool can be listed by running
+.Nm zfs
+.Cm list
+.Fl t No bookmark Fl r Ar poolname .
+.It Sy enabled_txg
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:enabled_txg"
+.It GUID Ta com.delphix:enabled_txg
+.It READ\-ONLY COMPATIBLE Ta yes
+.It DEPENDENCIES Ta none
+.El
+.Pp
+Once this feature is enabled ZFS records the transaction group number
+in which new features are enabled. This has no user-visible impact,
+but other features may depend on this feature.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
+.It Sy hole_birth
+.Bl -column "READ\-ONLY COMPATIBLE" "com.delphix:hole_birth"
+.It GUID Ta com.delphix:hole_birth
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta enabled_txg
+.El
+.Pp
+This feature improves performance of incremental sends
+.Pq Dq zfs send -i
+and receives for objects with many holes.
+The most common case of
+hole-filled objects is zvols.
+.Pp
+An incremental send stream from snapshot
+.Sy A
+to snapshot
+.Sy B
+contains information about every block that changed between
+.Sy A
+and
+.Sy B .
+Blocks which did not change between those snapshots can be
+identified and omitted from the stream using a piece of metadata called
+the 'block birth time', but birth times are not recorded for holes
+.Pq blocks filled only with zeroes .
+Since holes created after
+.Sy A
+cannot be
+distinguished from holes created before
+.Sy A ,
+information about every
+hole in the entire filesystem or zvol is included in the send stream.
+.Pp
+For workloads where holes are rare this is not a problem.
+However, when
+incrementally replicating filesystems or zvols with many holes
+.Pq for example a zvol formatted with another filesystem
+a lot of time will
+be spent sending and receiving unnecessary information about holes that
+already exist on the receiving side.
+.Pp
+Once the
+.Sy hole_birth
+feature has been enabled the block birth times
+of all new holes will be recorded.
+Incremental sends between snapshots
+created after this feature is enabled will use this new metadata to avoid
+sending information about holes that already exist on the receiving side.
+.Pp
+This feature becomes
+.Sy active
+as soon as it is enabled and will
+never return to being
+.Sy enabled .
 .El
 .Sh SEE ALSO
 .Xr zpool 8

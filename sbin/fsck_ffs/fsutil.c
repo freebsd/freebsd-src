@@ -74,6 +74,25 @@ static struct bufarea cgblk;	/* backup buffer for cylinder group blocks */
 static TAILQ_HEAD(buflist, bufarea) bufhead;	/* head of buffer cache list */
 static int numbufs;				/* size of buffer cache */
 static char *buftype[BT_NUMBUFTYPES] = BT_NAMES;
+static struct bufarea *cgbufs;	/* header for cylinder group cache */
+static int flushtries;		/* number of tries to reclaim memory */
+
+void
+fsutilinit(void)
+{
+	diskreads = totaldiskreads = totalreads = 0;
+	bzero(&startpass, sizeof(struct timespec));
+	bzero(&finishpass, sizeof(struct timespec));
+	bzero(&slowio_starttime, sizeof(struct timeval));
+	slowio_delay_usec = 10000;
+	slowio_pollcnt = 0;
+	bzero(&cgblk, sizeof(struct bufarea));
+	TAILQ_INIT(&bufhead);
+	numbufs = 0;
+	/* buftype ? */
+	cgbufs = NULL;
+	flushtries = 0;
+}
 
 int
 ftypeok(union dinode *dp)

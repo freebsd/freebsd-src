@@ -215,6 +215,8 @@ struct mem_range_softc mem_range_softc;
 
 struct mtx dt_lock;	/* lock for GDT and LDT */
 
+void (*vmm_resume_p)(void);
+
 static void
 cpu_startup(dummy)
 	void *dummy;

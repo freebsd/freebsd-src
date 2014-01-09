@@ -296,11 +296,9 @@ struct iwn_softc {
 	struct iwn_tx_ring	txq[IWN5000_NTXQUEUES];
 	struct iwn_rx_ring	rxq;
 
-	int			mem_rid;
 	struct resource		*mem;
 	bus_space_tag_t		sc_st;
 	bus_space_handle_t	sc_sh;
-	int			irq_rid;
 	struct resource		*irq;
 	void 			*sc_ih;
 	bus_size_t		sc_sz;

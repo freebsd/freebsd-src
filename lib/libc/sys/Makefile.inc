@@ -85,6 +85,7 @@ MAN+=	abort2.2 \
 	adjtime.2 \
 	aio_cancel.2 \
 	aio_error.2 \
+	aio_fsync.2 \
 	aio_mlock.2 \
 	aio_read.2 \
 	aio_return.2 \

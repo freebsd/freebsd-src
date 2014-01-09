@@ -5,14 +5,16 @@
 BINDIR?=	/boot
 
 LOADER_ADDRESS?=0x200000
-CFLAGS+=	-march=i386 -ffreestanding -mpreferred-stack-boundary=2 \
-		-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
+CFLAGS+=	-march=i386 -ffreestanding
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 LDFLAGS+=	-nostdlib
 
 .if ${MACHINE_CPUARCH} == "amd64"
 CFLAGS+=	-m32
 ACFLAGS+=	-m32
-LDFLAGS+=	-m elf_i386_fbsd
+# LD_FLAGS is passed directly to ${LD}, not via ${CC}:
+LD_FLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
 .endif
 

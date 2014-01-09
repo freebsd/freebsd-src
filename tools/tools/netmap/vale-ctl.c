@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 Michio Honda. All rights reserved.
+ * Copyright (C) 2013-2014 Michio Honda. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -118,7 +118,7 @@ main(int argc, char *argv[])
 	const char *command = basename(argv[0]);
 	char *name = NULL;
 
-	if (argc != 3 && argc != 1 /* list all */ ) {
+	if (argc > 3) {
 usage:
 		fprintf(stderr,
 			"Usage:\n"
@@ -127,12 +127,13 @@ usage:
 			"\t-d interface	interface name to be detached\n"
 			"\t-a interface	interface name to be attached\n"
 			"\t-h interface	interface name to be attached with the host stack\n"
-			"\t-l list all or specified bridge's interfaces\n"
+			"\t-l list all or specified bridge's interfaces (default)\n"
 			"", command);
 		return 0;
 	}
 
-	while ((ch = getopt(argc, argv, "d:a:h:g:l:")) != -1) {
+	while ((ch = getopt(argc, argv, "d:a:h:g:l")) != -1) {
+		name = optarg; /* default */
 		switch (ch) {
 		default:
 			fprintf(stderr, "bad option %c %s", ch, optarg);
@@ -152,9 +153,14 @@ usage:
 			break;
 		case 'l':
 			nr_cmd = NETMAP_BDG_LIST;
+			if (optind < argc && argv[optind][0] == '-')
+				name = NULL;
 			break;
 		}
-		name = optarg;
+		if (optind != argc) {
+			// fprintf(stderr, "optind %d argc %d\n", optind, argc);
+			goto usage;
+		}
 	}
 	if (argc == 1)
 		nr_cmd = NETMAP_BDG_LIST;

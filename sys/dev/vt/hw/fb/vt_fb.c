@@ -41,13 +41,46 @@ __FBSDID("$FreeBSD$");
 #include <dev/vt/hw/fb/vt_fb.h>
 #include <dev/vt/colors/vt_termcolors.h>
 
+static int vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data,
+    struct thread *td);
+static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
+    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr);
+
 static struct vt_driver vt_fb_driver = {
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
 	.vd_postswitch = vt_fb_postswitch,
 	.vd_priority = VD_PRIORITY_GENERIC+10,
+	.vd_fb_ioctl = vt_fb_ioctl,
+	.vd_fb_mmap = vt_fb_mmap,
 };
+
+static int
+vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
+{
+	struct fb_info *info;
+
+	info = vd->vd_softc;
+
+	if (info->fb_ioctl == NULL)
+		return (-1);
+
+	return (info->fb_ioctl(info->fb_cdev, cmd, data, 0, td));
+}
+
+static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
+    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr)
+{
+	struct fb_info *info;
+
+	info = vd->vd_softc;
+
+	if (info->fb_ioctl == NULL)
+		return (ENXIO);
+
+	return (info->fb_mmap(info->fb_cdev, offset, paddr, prot, memattr));
+}
 
 void
 vt_fb_blank(struct vt_device *vd, term_color_t color)

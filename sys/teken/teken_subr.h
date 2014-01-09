@@ -840,13 +840,18 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 			}
 			t->t_cursor.tp_col = 0;
 		}
-	} else if (t->t_cursor.tp_col == t->t_winsize.tp_col - 1 &&
-	    (t->t_stateflags & (TS_WRAPPED|TS_AUTOWRAP)) ==
-	    (TS_WRAPPED|TS_AUTOWRAP)) {
+	} else if (t->t_stateflags & TS_AUTOWRAP &&
+	    ((t->t_stateflags & TS_WRAPPED &&
+	    t->t_cursor.tp_col + 1 == t->t_winsize.tp_col) ||
+	    t->t_cursor.tp_col + width > t->t_winsize.tp_col)) {
 		teken_pos_t tp;
 
-		/* Perform line wrapping. */
-
+		/*
+		 * Perform line wrapping, if:
+		 * - Autowrapping is enabled, and
+		 *   - We're in the wrapped state at the last column, or
+		 *   - The character to be printed does not fit anymore.
+		 */
 		if (t->t_cursor.tp_row == t->t_scrollreg.ts_end - 1) {
 			/* Perform scrolling. */
 			teken_subr_do_scroll(t, 1);

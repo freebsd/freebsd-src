@@ -154,6 +154,7 @@ int
 main(int argc __unused, char *argv[] __unused)
 {
 	struct file_header fh;
+	unsigned int i;
 
 	if (fread(&fh, sizeof fh, 1, stdin) != 1) {
 		perror("file_header");
@@ -169,10 +170,9 @@ main(int argc __unused, char *argv[] __unused)
 
 	if (print_glyphs(&fh) != 0)
 		return (1);
-	if (print_mappings(&fh, 0) != 0)
-		return (1);
-	if (print_mappings(&fh, 1) != 0)
-		return (1);
+	for (i = 0; i < 4; i++)
+		if (print_mappings(&fh, i) != 0)
+			return (1);
 	if (print_info(&fh) != 0)
 		return (1);
 

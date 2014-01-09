@@ -48,19 +48,13 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-const char	*lfname = "lost+found";
-int	lfmode = 0700;
-struct	dirtemplate emptydir = {
+static struct	dirtemplate emptydir = {
 	0, DIRBLKSIZ, DT_UNKNOWN, 0, "",
 	0, 0, DT_UNKNOWN, 0, ""
 };
-struct	dirtemplate dirhead = {
+static struct	dirtemplate dirhead = {
 	0, 12, DT_DIR, 1, ".",
 	0, DIRBLKSIZ - 12, DT_DIR, 2, ".."
-};
-struct	odirtemplate odirhead = {
-	0, 12, 1, ".",
-	0, DIRBLKSIZ - 12, 2, ".."
 };
 
 static int chgino(struct inodesc *);
@@ -133,6 +127,7 @@ dirscan(struct inodesc *idesc)
 			    (size_t)dsize);
 			dirty(bp);
 			sbdirty();
+			rerun = 1;
 		}
 		if (n & STOP)
 			return (n);

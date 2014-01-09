@@ -72,6 +72,7 @@ static tc_cngetc_t	vtterm_cngetc;
 
 static tc_opened_t	vtterm_opened;
 static tc_ioctl_t	vtterm_ioctl;
+static tc_mmap_t	vtterm_mmap;
 
 const struct terminal_class vt_termclass = {
 	.tc_bell	= vtterm_bell,
@@ -87,6 +88,7 @@ const struct terminal_class vt_termclass = {
 
 	.tc_opened	= vtterm_opened,
 	.tc_ioctl	= vtterm_ioctl,
+	.tc_mmap	= vtterm_mmap,
 };
 
 /*
@@ -415,6 +417,8 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 	} else {
 		switch (c & ~RELKEY) {
 		case (SPCLKEY | RALT):
+			if (vt_enable_altgr != 0)
+				break;
 		case (SPCLKEY | LALT):
 			vd->vd_kbstate |= ALKED;
 		}
@@ -587,6 +591,11 @@ vt_allocate_keyboard(struct vt_device *vd)
 static void
 vtterm_bell(struct terminal *tm)
 {
+	struct vt_window *vw = tm->tm_softc;
+	struct vt_device *vd = vw->vw_device;
+
+	if (vd->vd_flags & VDF_QUIET_BELL)
+		return;
 
 	sysbeep(1193182 / VT_BELLPITCH, VT_BELLDURATION);
 }
@@ -1348,6 +1357,20 @@ vt_mouse_state(int show)
 #endif
 
 static int
+vtterm_mmap(struct terminal *tm, vm_ooffset_t offset, vm_paddr_t * paddr,
+    int nprot, vm_memattr_t *memattr)
+{
+	struct vt_window *vw = tm->tm_softc;
+	struct vt_device *vd = vw->vw_device;
+
+	if (vd->vd_driver->vd_fb_mmap)
+		return (vd->vd_driver->vd_fb_mmap(vd, offset, paddr, nprot,
+		    memattr));
+
+	return (ENXIO);
+}
+
+static int
 vtterm_ioctl(struct terminal *tm, u_long cmd, caddr_t data,
     struct thread *td)
 {
@@ -1474,12 +1497,26 @@ skip_thunk:
 			return (EINVAL);
 		}
 	}
+	case FBIOGTYPE:
+	case FBIO_GETWINORG:	/* get frame buffer window origin */
+	case FBIO_GETDISPSTART:	/* get display start address */
+	case FBIO_GETLINEWIDTH:	/* get scan line width in bytes */
+	case FBIO_BLANK:	/* blank display */
+		if (vd->vd_driver->vd_fb_ioctl)
+			return (vd->vd_driver->vd_fb_ioctl(vd, cmd, data, td));
+		break;
 	case CONS_BLANKTIME:
 		/* XXX */
 		return (0);
 	case CONS_GET:
 		/* XXX */
 		*(int *)data = M_CG640x480;
+		return (0);
+	case CONS_BELLTYPE: 	/* set bell type sound */
+		if ((*(int *)data) & CONS_QUIET_BELL)
+			vd->vd_flags |= VDF_QUIET_BELL;
+		else
+			vd->vd_flags &= ~VDF_QUIET_BELL;
 		return (0);
 	case CONS_GETINFO: {
 		vid_info_t *vi = (vid_info_t *)data;

@@ -211,7 +211,7 @@ struct da_softc {
 	int	 delete_running;
 	int	 delete_available;	/* Delete methods possibly available */
 	uint32_t		unmap_max_ranges;
-	uint32_t		unmap_max_lba;
+	uint32_t		unmap_max_lba; /* Max LBAs in a single range */
 	uint64_t		ws_max_blks;
 	da_delete_methods	delete_method;
 	da_delete_func_t	*delete_func;
@@ -1246,7 +1246,7 @@ daopen(struct disk *dp)
 	error = cam_periph_sleep(periph, &softc->disk->d_mediasize, PRIBIO,
 	    "dareprobe", 0);
 	if (error != 0)
-		xpt_print(periph->path, "unable to retrieve capacity data");
+		xpt_print(periph->path, "unable to retrieve capacity data\n");
 
 	if (periph->flags & CAM_PERIPH_INVALID)
 		error = ENXIO;
@@ -1959,7 +1959,7 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	char buf[16];
 	const char *p;
 	struct da_softc *softc;
-	int i, error, value;
+	int i, error, methods, value;
 
 	softc = (struct da_softc *)arg1;
 
@@ -1972,8 +1972,9 @@ dadeletemethodsysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
+	methods = softc->delete_available | (1 << DA_DELETE_DISABLE);
 	for (i = 0; i <= DA_DELETE_MAX; i++) {
-		if (!(softc->delete_available & (1 << i)) ||
+		if (!(methods & (1 << i)) ||
 		    strcmp(buf, da_delete_method_names[i]) != 0)
 			continue;
 		dadeletemethodset(softc, i);
@@ -2525,7 +2526,6 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 	struct bio *bp1;
 	uint8_t *buf = softc->unmap_buf;
 	uint64_t lba, lastlba = (uint64_t)-1;
-	uint64_t totalcount = 0;
 	uint64_t count;
 	uint32_t lastcount = 0, c;
 	uint32_t off, ranges = 0;
@@ -2559,35 +2559,34 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			scsi_ulto4b(lastcount, &buf[off + 8]);
 			count -= c;
 			lba +=c;
-			totalcount += c;
 		}
 
 		while (count > 0) {
-			c = min(count, softc->unmap_max_lba);
-			if (totalcount + c > softc->unmap_max_lba ||
-			    ranges >= softc->unmap_max_ranges) {
+			if (ranges > softc->unmap_max_ranges) {
 				xpt_print(periph->path,
-				    "%s issuing short delete %ld > %ld"
-				    "|| %d >= %d",
+				    "%s issuing short delete %d > %d\n",
 				    da_delete_method_desc[softc->delete_method],
-				    totalcount + c, softc->unmap_max_lba,
 				    ranges, softc->unmap_max_ranges);
 				break;
 			}
+			c = min(count, softc->unmap_max_lba);
 			off = (ranges * UNMAP_RANGE_SIZE) + UNMAP_HEAD_SIZE;
 			scsi_u64to8b(lba, &buf[off + 0]);
 			scsi_ulto4b(c, &buf[off + 8]);
 			lba += c;
-			totalcount += c;
 			ranges++;
 			count -= c;
 			lastcount = c;
 		}
 		lastlba = lba;
 		bp1 = bioq_first(&softc->delete_queue);
+		/*
+		 * Assume no range extension on the next loop iteration to
+		 * avoid issuing a short delete.
+		 */
 		if (bp1 == NULL || ranges >= softc->unmap_max_ranges ||
-		    totalcount + bp1->bio_bcount /
-		    softc->params.secsize > softc->unmap_max_lba)
+		    bp1->bio_bcount / softc->params.secsize >
+		    softc->unmap_max_lba * (softc->unmap_max_ranges - ranges))
 			break;
 	} while (1);
 	scsi_ulto2b(ranges * 16 + 6, &buf[0]);
@@ -2658,7 +2657,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			lastcount = c;
 			if (count != 0 && ranges == softc->trim_max_ranges) {
 				xpt_print(periph->path,
-				    "%s issuing short delete %ld > %ld",
+				    "%s issuing short delete %ld > %ld\n",
 				    da_delete_method_desc[softc->delete_method],
 				    requestcount,
 				    (softc->trim_max_ranges - ranges) *
@@ -2690,7 +2689,7 @@ da_delete_trim(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 /*
  * We calculate ws_max_blks here based off d_delmaxsize instead
  * of using softc->ws_max_blks as it is absolute max for the
- * device not the protocol max which may well be lower
+ * device not the protocol max which may well be lower.
  */
 static void
 da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
@@ -2713,11 +2712,11 @@ da_delete_ws(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 			bioq_insert_tail(&softc->delete_run_queue, bp1);
 		count += bp1->bio_bcount / softc->params.secsize;
 		if (count > ws_max_blks) {
-			count = min(count, ws_max_blks);
 			xpt_print(periph->path,
-			    "%s issuing short delete %ld > %ld",
+			    "%s issuing short delete %ld > %ld\n",
 			    da_delete_method_desc[softc->delete_method],
 			    count, ws_max_blks);
+			count = min(count, ws_max_blks);
 			break;
 		}
 		bp1 = bioq_first(&softc->delete_queue);

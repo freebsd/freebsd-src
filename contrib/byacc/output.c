@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.45 2013/03/05 00:29:17 tom Exp $ */
+/* $Id: output.c,v 1.47 2014/01/01 17:22:38 tom Exp $ */
 
 #include "defs.h"
 
@@ -921,23 +921,42 @@ output_debug(void)
 
     ++outline;
     fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
+    fprintf(code_file, "#define YYTRANSLATE(a) ((a) > YYMAXTOKEN ? "
+	    "(YYMAXTOKEN + 1) : (a))\n");
 
-    symnam = TMALLOC(const char *, max + 1);
+    symnam = TMALLOC(const char *, max + 2);
     NO_SPACE(symnam);
 
     /* Note that it is  not necessary to initialize the element         */
     /* symnam[max].                                                     */
-    for (i = 0; i < max; ++i)
+    for (i = 0; i <= max; ++i)
 	symnam[i] = 0;
     for (i = ntokens - 1; i >= 2; --i)
 	symnam[symbol_value[i]] = symbol_name[i];
     symnam[0] = "end-of-file";
+    symnam[max + 1] = "illegal-symbol";
 
-    output_line("#if YYDEBUG");
+    /*
+     * bison's yytname[] array is roughly the same as byacc's yyname[] array.
+     * The difference is that byacc does not predefine "$end", "$error" or
+     * "$undefined". 
+     *
+     * If the grammar declares "%token-table", define symbol "yytname" so
+     * an application such as ntpd can build.
+     */
+    if (token_table)
+    {
+	output_line("#undef yytname");
+	output_line("#define yytname yyname");
+    }
+    else
+    {
+	output_line("#if YYDEBUG");
+    }
 
     start_str_table("name");
     j = 80;
-    for (i = 0; i <= max; ++i)
+    for (i = 0; i <= max + 1; ++i)
     {
 	if ((s = symnam[i]) != 0)
 	{
@@ -1058,6 +1077,8 @@ output_debug(void)
     end_table();
     FREE(symnam);
 
+    if (token_table)
+	output_line("#if YYDEBUG");
     start_str_table("rule");
     for (i = 2; i < nrules; ++i)
     {

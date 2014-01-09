@@ -391,7 +391,6 @@ vm_phys_add_page(vm_paddr_t pa)
 	vmd = vm_phys_domain(m);
 	vmd->vmd_page_count++;
 	vmd->vmd_segs |= 1UL << m->segind;
-	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,
 	    ("vm_phys_add_page: page %p has unexpected order %d",
 	    m, m->order));

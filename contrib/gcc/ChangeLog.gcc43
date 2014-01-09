@@ -65,6 +65,12 @@
 	fvisibility-ms-compat.
 	* c.opt (fvisibility-ms-compat): New.
 
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
+
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
+
 2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
@@ -144,6 +150,11 @@
 	* config/i386/i386.c (override_options): Tuning 32-byte loop
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
+
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
 
 2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
 
@@ -550,6 +561,37 @@
 	(override_options): Add entries for Core2.
 	(ix86_issue_rate): Add case for Core2.
 	
+2006-11-14  Caroline Tice  <ctice@apple.com> (r118826)
+		
+	* dwarf2out.c (debug_pubtypes_section): New static global variable.
+	(pubname_entry):  Add DEF_VEC_O and DEF_VEC_ALLOC_O statements for
+	this type.
+	(pubname_table):  Redefine as a vector.
+	(pubtype_table):  New static global variable, defined as a vector.
+	(pubname_table_allocated): Remove static global variable.
+	(pubname_table_in_use): Remove static global variable.
+	(PUBNAME_TABLE_INCREMENT): Remove constant.
+	(size_of_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(add_pubname):  Change to deal with table being a vector.
+	(add_pubtype):  New function.
+	(output_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(gen_array_type_die):  Add call to add_pubtype.
+	(gen_enumeration_type_die): Add call to add_pubtype.
+	(gen_struct_or_union_type_die): Add call to add_pubtype.
+	(gen_subroutine_type_die): Add call to add_pubtype.
+	(gen_typedef_die):  Add call to add_pubtype.
+	(dwarf2out_init): Add code to initialize pubname_table and 
+	pubtype_table vectors; also initialize debug_pubtypes_section.
+	(prune_unused_types):  Change to deal with pubnames being a vector.
+	(dwarf2out_finish): Change to deal with pubnames being a vector; add 
+	pubnames table to call to output_pubnames;  Add code to output pubtypes 
+	table if DEBUG_PUBTYPES_SECTION is defined.
+	* config/darwin.c (darwin_file_start):  Add DEBUG_PUBTYPES_SECTION to 
+	debugnames.
+	* config/darwin.h (DEBUG_PUBTYPES_SECTION): Define new global variable.
+
 2006-11-07  Eric Christopher  <echristo@apple.com> (r118576)
 
 	* libgcc2.c (__bswapdi2): Rename from bswapDI2.
@@ -557,6 +599,14 @@
 	* libgcc2.h: Remove transformation of bswap routines.
 	* config/i386/i386.md (bswapsi2): New.
 	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
 
 2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
  

@@ -646,6 +646,8 @@ struct adapter {
 	const char *last_op;
 	const void *last_op_thr;
 #endif
+
+	int sc_do_rxcopy;
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)

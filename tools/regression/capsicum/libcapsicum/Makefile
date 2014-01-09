@@ -15,12 +15,14 @@ CFLAGS+=	-Wold-style-definition -Wno-pointer-sign
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libcapsicum
 CFLAGS+=	-ggdb
 
-all:	${SERVICES}
+SERVTEST=	${SERVICES:=.t}
+
+all:	${SERVTEST}
 
 .for SERVICE in ${SERVICES}
 
-${SERVICE}:	${SERVICE}.c
-	${CC} ${CFLAGS} ${@}.c -o $@ -lcapsicum -lnv
+${SERVICE}.t:	${SERVICE}.c
+	${CC} ${CFLAGS} ${@:.t=.c} -o $@ -lcapsicum -lnv
 
 .endfor
 
@@ -28,4 +30,4 @@ test:	all
 	@prove -r ${.CURDIR}
 
 clean:
-	rm -f ${SERVICES}
+	rm -f ${SERVTEST}

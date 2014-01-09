@@ -10,6 +10,7 @@ FILES+=		exitstatus1.0
 FILES+=		mail1.0
 FILES+=		mail2.0
 FILES+=		optind1.0
+FILES+=		optind2.0
 FILES+=		positional1.0
 FILES+=		positional2.0
 FILES+=		pwd1.0
