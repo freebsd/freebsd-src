@@ -474,7 +474,7 @@ vmx_restore(void)
 }
 
 static int
-vmx_init(void)
+vmx_init(int ipinum)
 {
 	int error, use_tpr_shadow;
 	uint64_t fixed0, fixed1, feature_control;
@@ -639,7 +639,7 @@ vmx_init(void)
 	}
 
 	/* Initialize EPT */
-	error = ept_init();
+	error = ept_init(ipinum);
 	if (error) {
 		printf("vmx_init: ept initialization failed (%d)\n", error);
 		return (error);

@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "io/iommu.h"
 
 static int
-amdv_init(void)
+amdv_init(int ipinum)
 {
 
 	printf("amdv_init: not implemented\n");
