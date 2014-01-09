@@ -360,7 +360,6 @@ static union ctl_io *ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port,
 				   int can_wait);
 static void ctl_kfree_io(union ctl_io *io);
 #endif /* unused */
-static void ctl_free_io_internal(union ctl_io *io, int have_lock);
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
 static int ctl_free_lun(struct ctl_lun *lun);
@@ -998,6 +997,7 @@ ctl_init(void)
 		       "Report no lun possible for invalid LUNs");
 
 	mtx_init(&softc->ctl_lock, "CTL mutex", NULL, MTX_DEF);
+	mtx_init(&softc->pool_lock, "CTL pool mutex", NULL, MTX_DEF);
 	softc->open_count = 0;
 
 	/*
@@ -1057,7 +1057,7 @@ ctl_init(void)
 			    CTL_POOL_ENTRIES_EMERGENCY, &emergency_pool) != 0) {
 		printf("ctl: can't allocate %d entry emergency pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_EMERGENCY);
-		ctl_pool_free(softc, internal_pool);
+		ctl_pool_free(internal_pool);
 		return (ENOMEM);
 	}
 
@@ -1066,20 +1066,14 @@ ctl_init(void)
 	{
 		printf("ctl: can't allocate %d entry other SC pool, "
 		       "exiting\n", CTL_POOL_ENTRIES_OTHER_SC);
-		ctl_pool_free(softc, internal_pool);
-		ctl_pool_free(softc, emergency_pool);
+		ctl_pool_free(internal_pool);
+		ctl_pool_free(emergency_pool);
 		return (ENOMEM);
 	}
 
 	softc->internal_pool = internal_pool;
 	softc->emergency_pool = emergency_pool;
 	softc->othersc_pool = other_pool;
-
-	mtx_lock(&softc->ctl_lock);
-	ctl_pool_acquire(internal_pool);
-	ctl_pool_acquire(emergency_pool);
-	ctl_pool_acquire(other_pool);
-	mtx_unlock(&softc->ctl_lock);
 
 	/*
 	 * We used to allocate a processor LUN here.  The new scheme is to
@@ -1097,10 +1091,10 @@ ctl_init(void)
 		printf("error creating CTL work thread!\n");
 		mtx_lock(&softc->ctl_lock);
 		ctl_free_lun(lun);
-		ctl_pool_free(softc, internal_pool);
-		ctl_pool_free(softc, emergency_pool);
-		ctl_pool_free(softc, other_pool);
 		mtx_unlock(&softc->ctl_lock);
+		ctl_pool_free(internal_pool);
+		ctl_pool_free(emergency_pool);
+		ctl_pool_free(other_pool);
 		return (error);
 	}
 	if (bootverbose)
@@ -1154,7 +1148,7 @@ ctl_shutdown(void)
 {
 	struct ctl_softc *softc;
 	struct ctl_lun *lun, *next_lun;
-	struct ctl_io_pool *pool, *next_pool;
+	struct ctl_io_pool *pool;
 
 	softc = (struct ctl_softc *)control_softc;
 
@@ -1171,6 +1165,8 @@ ctl_shutdown(void)
 		ctl_free_lun(lun);
 	}
 
+	mtx_unlock(&softc->ctl_lock);
+
 	/*
 	 * This will rip the rug out from under any FETDs or anyone else
 	 * that has a pool allocated.  Since we increment our module
@@ -1179,18 +1175,14 @@ ctl_shutdown(void)
 	 * able to unload the CTL module until client modules have
 	 * successfully unloaded.
 	 */
-	for (pool = STAILQ_FIRST(&softc->io_pools); pool != NULL;
-	     pool = next_pool) {
-		next_pool = STAILQ_NEXT(pool, links);
-		ctl_pool_free(softc, pool);
-	}
-
-	mtx_unlock(&softc->ctl_lock);
+	while ((pool = STAILQ_FIRST(&softc->io_pools)) != NULL)
+		ctl_pool_free(pool);
 
 #if 0
 	ctl_shutdown_thread(softc->work_thread);
 #endif
 
+	mtx_destroy(&softc->pool_lock);
 	mtx_destroy(&softc->ctl_lock);
 
 	destroy_dev(softc->dev);
@@ -3367,11 +3359,12 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 	pool->type = pool_type;
 	pool->ctl_softc = ctl_softc;
 
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	pool->id = ctl_softc->cur_pool_id++;
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	pool->flags = CTL_POOL_FLAG_NONE;
+	pool->refcount = 1;		/* Reference for validity. */
 	STAILQ_INIT(&pool->free_queue);
 
 	/*
@@ -3407,7 +3400,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		free(pool, M_CTL);
 		goto bailout;
 	}
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	ctl_softc->num_pools++;
 	STAILQ_INSERT_TAIL(&ctl_softc->io_pools, pool, links);
 	/*
@@ -3426,7 +3419,7 @@ ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		MOD_INC_USE_COUNT;
 #endif
 
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	*npool = pool;
 
@@ -3435,14 +3428,11 @@ bailout:
 	return (retval);
 }
 
-int
+static int
 ctl_pool_acquire(struct ctl_io_pool *pool)
 {
 
-	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
-
-	if (pool == NULL)
-		return (-EINVAL);
+	mtx_assert(&pool->ctl_softc->pool_lock, MA_OWNED);
 
 	if (pool->flags & CTL_POOL_FLAG_INVALID)
 		return (-EINVAL);
@@ -3452,51 +3442,21 @@ ctl_pool_acquire(struct ctl_io_pool *pool)
 	return (0);
 }
 
-int
-ctl_pool_invalidate(struct ctl_io_pool *pool)
-{
-
-	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
-
-	if (pool == NULL)
-		return (-EINVAL);
-
-	pool->flags |= CTL_POOL_FLAG_INVALID;
-
-	return (0);
-}
-
-int
+static void
 ctl_pool_release(struct ctl_io_pool *pool)
 {
+	struct ctl_softc *ctl_softc = pool->ctl_softc;
+	union ctl_io *io;
 
-	mtx_assert(&control_softc->ctl_lock, MA_OWNED);
+	mtx_assert(&ctl_softc->pool_lock, MA_OWNED);
 
-	if (pool == NULL)
-		return (-EINVAL);
+	if (--pool->refcount != 0)
+		return;
 
-	if ((--pool->refcount == 0)
-	 && (pool->flags & CTL_POOL_FLAG_INVALID)) {
-		ctl_pool_free(pool->ctl_softc, pool);
-	}
-
-	return (0);
-}
-
-void
-ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool)
-{
-	union ctl_io *cur_io, *next_io;
-
-	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
-
-	for (cur_io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue);
-	     cur_io != NULL; cur_io = next_io) {
-		next_io = (union ctl_io *)STAILQ_NEXT(&cur_io->io_hdr,
-						      links);
-		STAILQ_REMOVE(&pool->free_queue, &cur_io->io_hdr, ctl_io_hdr,
+	while ((io = (union ctl_io *)STAILQ_FIRST(&pool->free_queue)) != NULL) {
+		STAILQ_REMOVE(&pool->free_queue, &io->io_hdr, ctl_io_hdr,
 			      links);
-		free(cur_io, M_CTL);
+		free(io, M_CTL);
 	}
 
 	STAILQ_REMOVE(&ctl_softc->io_pools, pool, ctl_io_pool, links);
@@ -3513,6 +3473,21 @@ ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool)
 #endif
 
 	free(pool, M_CTL);
+}
+
+void
+ctl_pool_free(struct ctl_io_pool *pool)
+{
+	struct ctl_softc *ctl_softc;
+
+	if (pool == NULL)
+		return;
+
+	ctl_softc = pool->ctl_softc;
+	mtx_lock(&ctl_softc->pool_lock);
+	pool->flags |= CTL_POOL_FLAG_INVALID;
+	ctl_pool_release(pool);
+	mtx_unlock(&ctl_softc->pool_lock);
 }
 
 /*
@@ -3539,7 +3514,7 @@ ctl_alloc_io(void *pool_ref)
 
 	ctl_softc = pool->ctl_softc;
 
-	mtx_lock(&ctl_softc->ctl_lock);
+	mtx_lock(&ctl_softc->pool_lock);
 	/*
 	 * First, try to get the io structure from the user's pool.
 	 */
@@ -3549,7 +3524,7 @@ ctl_alloc_io(void *pool_ref)
 			STAILQ_REMOVE_HEAD(&pool->free_queue, links);
 			pool->total_allocated++;
 			pool->free_ctl_io--;
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 			return (io);
 		} else
 			ctl_pool_release(pool);
@@ -3572,14 +3547,14 @@ ctl_alloc_io(void *pool_ref)
 			STAILQ_REMOVE_HEAD(&npool->free_queue, links);
 			npool->total_allocated++;
 			npool->free_ctl_io--;
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 			return (io);
 		} else
 			ctl_pool_release(npool);
 	}
 
 	/* Drop the spinlock before we malloc */
-	mtx_unlock(&ctl_softc->ctl_lock);
+	mtx_unlock(&ctl_softc->pool_lock);
 
 	/*
 	 * The emergency pool (if it exists) didn't have one, so try an
@@ -3592,7 +3567,7 @@ ctl_alloc_io(void *pool_ref)
 		 * ctl_io to its list when it gets freed.
 		 */
 		if (emergency_pool != NULL) {
-			mtx_lock(&ctl_softc->ctl_lock);
+			mtx_lock(&ctl_softc->pool_lock);
 			if (ctl_pool_acquire(emergency_pool) == 0) {
 				io->io_hdr.pool = emergency_pool;
 				emergency_pool->total_ctl_io++;
@@ -3604,7 +3579,7 @@ ctl_alloc_io(void *pool_ref)
 				 */
 				emergency_pool->total_allocated++;
 			}
-			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_unlock(&ctl_softc->pool_lock);
 		} else
 			io->io_hdr.pool = NULL;
 	}
@@ -3612,8 +3587,8 @@ ctl_alloc_io(void *pool_ref)
 	return (io);
 }
 
-static void
-ctl_free_io_internal(union ctl_io *io, int have_lock)
+void
+ctl_free_io(union ctl_io *io)
 {
 	if (io == NULL)
 		return;
@@ -3634,8 +3609,7 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 
 		pool = (struct ctl_io_pool *)io->io_hdr.pool;
 
-		if (have_lock == 0)
-			mtx_lock(&pool->ctl_softc->ctl_lock);
+		mtx_lock(&pool->ctl_softc->pool_lock);
 #if 0
 		save_flags(xflags);
 
@@ -3672,8 +3646,7 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 		pool->total_freed++;
 		pool->free_ctl_io++;
 		ctl_pool_release(pool);
-		if (have_lock == 0)
-			mtx_unlock(&pool->ctl_softc->ctl_lock);
+		mtx_unlock(&pool->ctl_softc->pool_lock);
 	} else {
 		/*
 		 * Otherwise, just free it.  We probably malloced it and
@@ -3682,12 +3655,6 @@ ctl_free_io_internal(union ctl_io *io, int have_lock)
 		free(io, M_CTL);
 	}
 
-}
-
-void
-ctl_free_io(union ctl_io *io)
-{
-	ctl_free_io_internal(io, /*have_lock*/ 0);
 }
 
 void
@@ -4496,7 +4463,7 @@ ctl_free_lun(struct ctl_lun *lun)
 	     io = next_io) {
 		next_io = (union ctl_io *)TAILQ_NEXT(&io->io_hdr, ooa_links);
 		TAILQ_REMOVE(&lun->ooa_queue, &io->io_hdr, ooa_links);
-		ctl_free_io_internal(io, /*have_lock*/ 1);
+		ctl_free_io(io);
 	}
 
 	softc->num_luns--;
@@ -10211,7 +10178,7 @@ ctl_failover(void)
 					TAILQ_REMOVE(&lun->ooa_queue,
 						     &io->io_hdr, ooa_links);
 
-					ctl_free_io_internal(io, 1);
+					ctl_free_io(io);
 				}
 			}
 
@@ -10227,7 +10194,7 @@ ctl_failover(void)
 						&io->io_hdr,
 					     	ooa_links);
 
-					ctl_free_io_internal(io, 1);
+					ctl_free_io(io);
 				}
 			}
 			ctl_check_blocked(lun);
@@ -11118,7 +11085,7 @@ ctl_run_task_queue(struct ctl_softc *ctl_softc)
 			       io->taskio.tag_num : io->scsiio.tag_num);
 			STAILQ_REMOVE(&ctl_softc->task_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-			ctl_free_io_internal(io, 1);
+			ctl_free_io(io);
 			break;
 		}
 		}
@@ -11215,7 +11182,7 @@ ctl_handle_isc(union ctl_io *io)
 		break;
 	}
 	if (free_io)
-		ctl_free_io_internal(io, 0);
+		ctl_free_io(io);
 
 }
 
@@ -12363,7 +12330,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 	case CTL_IO_TASK:
 		ctl_io_error_print(io, NULL);
 		if (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC)
-			ctl_free_io_internal(io, /*have_lock*/ 0);
+			ctl_free_io(io);
 		else
 			fe_done(io);
 		return (CTL_RETVAL_COMPLETE);
@@ -12682,7 +12649,7 @@ ctl_process_done(union ctl_io *io, int have_lock)
 			/* XXX do something here */
 		}
 
-		ctl_free_io_internal(io, /*have_lock*/ 0);
+		ctl_free_io(io);
 	} else 
 		fe_done(io);
 
