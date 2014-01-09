@@ -379,10 +379,10 @@ cpu_startup(void *dummy)
 			vm_paddr_t size;
 
 			size = phys_avail[indx + 1] - phys_avail[indx];
-			printf("%#08jx - %#08jx, %ju bytes (%ju pages)\n",
+			printf("  0x%08jx - 0x%08jx, %ju KBytes (%ju pages)\n",
 			    (uintmax_t)phys_avail[indx],
 			    (uintmax_t)phys_avail[indx + 1] - 1,
-			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
+			    (uintmax_t)size / 1024, (uintmax_t)size / PAGE_SIZE);
 		}
 	}
 
@@ -391,6 +391,9 @@ cpu_startup(void *dummy)
 	printf("avail memory = %ju (%ju MB)\n",
 	    (uintmax_t)ptoa(cnt.v_free_count),
 	    (uintmax_t)ptoa(cnt.v_free_count) / 1048576);
+
+	if (bootverbose)
+		arm_devmap_print_table();
 
 	bufinit();
 	vm_pager_bufferinit();
