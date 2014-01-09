@@ -19,6 +19,7 @@ SRCS=	citrus_bcs.c citrus_bcs_strtol.c citrus_bcs_strtoul.c \
 	citrus_module.c citrus_none.c citrus_pivot_factory.c \
 	citrus_prop.c citrus_stdenc.c iconv.c
 
-CFLAGS+= --param max-inline-insns-single=128 -I ${.CURDIR}/../../include -I${.CURDIR}/../libc/include
+CFLAGS.gcc+= --param max-inline-insns-single=128
+CFLAGS+= -I ${.CURDIR}/../../include -I${.CURDIR}/../libc/include
 
 .include <bsd.lib.mk>
