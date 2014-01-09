@@ -130,7 +130,7 @@ struct vm {
 static int vmm_initialized;
 
 static struct vmm_ops *ops;
-#define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
+#define	VMM_INIT(num)	(ops != NULL ? (*ops->init)(num) : 0)
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
 #define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
 
@@ -169,6 +169,12 @@ CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
+
+SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
+
+static int vmm_ipinum;
+SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
+    "IPI vector used for vcpu notifications");
 
 static void
 vcpu_cleanup(struct vm *vm, int i)
@@ -222,7 +228,10 @@ vmm_init(void)
 	int error;
 
 	vmm_host_state_init();
-	vmm_ipi_init();
+
+	vmm_ipinum = vmm_ipi_alloc();
+	if (vmm_ipinum == 0)
+		vmm_ipinum = IPI_AST;
 
 	error = vmm_mem_init();
 	if (error)
@@ -238,7 +247,7 @@ vmm_init(void)
 	vmm_msr_init();
 	vmm_resume_p = vmm_resume;
 
-	return (VMM_INIT());
+	return (VMM_INIT(vmm_ipinum));
 }
 
 static int
@@ -259,7 +268,8 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (error == 0) {
 			vmm_resume_p = NULL;
 			iommu_cleanup();
-			vmm_ipi_cleanup();
+			if (vmm_ipinum != IPI_AST)
+				vmm_ipi_free(vmm_ipinum);
 			error = VMM_CLEANUP();
 			/*
 			 * Something bad happened - prevent new
@@ -293,8 +303,6 @@ static moduledata_t vmm_kmod = {
  */
 DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
-
-SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
 
 int
 vm_create(const char *name, struct vm **retvm)
@@ -1379,7 +1387,8 @@ vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr)
 			panic("invalid vcpu state %d", vcpu->state);
 		if (hostcpu != curcpu) {
 			if (lapic_intr)
-				vlapic_post_intr(vcpu->vlapic, hostcpu);
+				vlapic_post_intr(vcpu->vlapic, hostcpu,
+				    vmm_ipinum);
 			else
 				ipi_cpu(hostcpu, vmm_ipinum);
 		}
