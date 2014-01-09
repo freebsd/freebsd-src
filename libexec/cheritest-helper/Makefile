@@ -3,7 +3,6 @@
 #
 PROG=	cheritest-helper
 SRCS=	cheritest-helper.c			\
-	malloc.c				\
 	stub.c					\
 	chsbrt.S
 
