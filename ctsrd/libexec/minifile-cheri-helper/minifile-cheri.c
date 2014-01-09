@@ -35,10 +35,11 @@
 #include <machine/cheri.h>
 #include <machine/sysarch.h>
 
+#include <cheri/cheri_memcpy.h>
+
 #include <magic.h>
 #include <stdlib.h>
 
-#include "cmemcpy.h"
 #include "minifile.h"
 
 int	invoke(register_t a0, register_t a1, register_t a2, register_t a3);

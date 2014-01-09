@@ -61,10 +61,11 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri/cheri_memcpy.h>
+
 #include <md5.h>
 #include <stdlib.h>
 
-#include "cmemcpy.h"
 #include "tcpdump-helper.h"
 
 #include "netdissect.h"

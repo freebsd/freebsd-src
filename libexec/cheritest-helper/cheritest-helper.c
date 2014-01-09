@@ -34,13 +34,13 @@
 #include <machine/cheric.h>
 
 #include <cheri/cheri_invoke.h>
+#include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
 
 #include <md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "cmemcpy.h"
 #include "cheritest-helper.h"
 
 int	invoke(register_t op, size_t len, __capability void *system_codecap,

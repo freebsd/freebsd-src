@@ -9,8 +9,8 @@ SRCS=	__cheri_enter.S			\
 	sandbox.c
 
 INCS=	cheri_invoke.h			\
+	cheri_memcpy.h			\
 	cheri_system.h			\
-	cmemcpy.h			\
 	sandbox.h			\
 	sandboxasm.h
 INCSDIR=	${INCLUDEDIR}/cheri

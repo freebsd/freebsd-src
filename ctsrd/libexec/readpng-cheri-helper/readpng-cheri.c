@@ -36,10 +36,11 @@
 #include <machine/cheri.h>
 #include <machine/sysarch.h>
 
+#include <cheri/cheri_memcpy.h>
+
 #include <png.h>
 #include <stdlib.h>
 
-#include "cmemcpy.h"
 #include "imagebox.h"
 #include "iboxpriv.h"
 
