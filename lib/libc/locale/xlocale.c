@@ -145,9 +145,12 @@ get_thread_locale(void)
 locale_t
 __get_locale(void)
 {
+#ifndef FORCE_C_LOCALE
 	locale_t l = get_thread_locale();
 	return (l ? l : &__xlocale_global_locale);
-
+#else
+	return (&__xlocale_global_locale);
+#endif
 }
 #endif
 
@@ -248,6 +251,7 @@ static int dupcomponent(int type, locale_t base, locale_t new)
 
 locale_t newlocale(int mask, const char *locale, locale_t base)
 {
+#ifndef FORCE_C_LOCALE
 	int type;
 	const char *realLocale = locale;
 	int useenv = 0;
@@ -297,10 +301,14 @@ locale_t newlocale(int mask, const char *locale, locale_t base)
 	}
 
 	return (new);
+#else
+	return (NULL);
+#endif
 }
 
 locale_t duplocale(locale_t base)
 {
+#ifndef FORCE_C_LOCALE
 	locale_t new = alloc_locale();
 	int type;
 
@@ -318,6 +326,9 @@ locale_t duplocale(locale_t base)
 	}
 
 	return (new);
+#else
+	return (NULL);
+#endif
 }
 
 /*
@@ -327,6 +338,7 @@ locale_t duplocale(locale_t base)
 int
 freelocale(locale_t loc)
 {
+#ifndef FORCE_C_LOCALE
 	/* Fail if we're passed something that isn't a locale. */
 	if ((NULL == loc) || (LC_GLOBAL_LOCALE == loc)) {
 		return (-1);
@@ -338,6 +350,9 @@ freelocale(locale_t loc)
 	}
 	xlocale_release(loc);
 	return (0);
+#else
+	return (-1);
+#endif
 }
 
 /*
@@ -359,6 +374,7 @@ const char *querylocale(int mask, locale_t loc)
  */
 locale_t uselocale(locale_t loc)
 {
+#ifndef FORCE_C_LOCALE
 	locale_t old = get_thread_locale();
 	if (NULL != loc) {
 		if (LC_GLOBAL_LOCALE == loc) {
@@ -367,5 +383,8 @@ locale_t uselocale(locale_t loc)
 		set_thread_locale(loc);
 	}
 	return (old ? old : LC_GLOBAL_LOCALE);
+#else
+	return (LC_GLOBAL_LOCALE);
+#endif
 }
 

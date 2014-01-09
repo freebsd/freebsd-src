@@ -102,6 +102,7 @@ setlocale(category, locale)
 	int category;
 	const char *locale;
 {
+#ifndef FORCE_C_LOCALE
 	int i, j, len, saverr;
         const char *env, *r;
 
@@ -205,6 +206,7 @@ setlocale(category, locale)
 			return (NULL);
 		}
 	}
+#endif
 	return (currentlocale());
 }
 

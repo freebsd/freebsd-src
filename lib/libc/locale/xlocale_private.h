@@ -202,10 +202,14 @@ extern _Thread_local locale_t __thread_locale;
 static inline locale_t __get_locale(void)
 {
 
+#ifdef FORCE_C_LOCALE
+	return (__xlocale_C_locale);
+#else
 	if (!__has_thread_locale) {
 		return (&__xlocale_global_locale);
 	}
 	return (__thread_locale ? __thread_locale : &__xlocale_global_locale);
+#endif
 }
 #else
 locale_t __get_locale(void);
