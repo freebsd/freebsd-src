@@ -145,6 +145,8 @@ ports attached to the switch)
 #include <sys/socket.h> /* sockaddrs */
 #include <sys/selinfo.h>
 #include <sys/sysctl.h>
+#include <sys/jail.h>
+#include <net/vnet.h>
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/bpf.h>		/* BIOCIMMEDIATE */
