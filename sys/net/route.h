@@ -369,9 +369,14 @@ void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_missmsg_fib(int, struct rt_addrinfo *, int, int, int);
 void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
 void	 rt_newaddrmsg_fib(int, struct ifaddr *, int, struct rtentry *, int);
+int	 rt_addrmsg(int, struct ifaddr *, int);
+int	 rt_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
+
+int	rtsock_addrmsg(int, struct ifaddr *, int);
+int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 
 /*
  * Note the following locking behavior:
