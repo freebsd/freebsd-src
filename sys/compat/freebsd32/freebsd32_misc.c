@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/condvar.h>
 #include <sys/sf_buf.h>
 #include <sys/sf_sync.h>
+#include <sys/sf_base.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -1651,8 +1652,6 @@ freebsd32_do_sendfile(struct thread *td,
 	struct sf_hdtr hdtr;
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
-	struct file *fp;
-	cap_rights_t rights;
 	off_t offset;
 	int error;
 	off_t sbytes;
@@ -1690,29 +1689,9 @@ freebsd32_do_sendfile(struct thread *td,
 		}
 	}
 
-	AUDIT_ARG_FD(uap->fd);
+	error = _do_sendfile(td, uap->fd, uap->s, uap->flags, compat,
+	    offset, uap->nbytes, &sbytes, hdr_uio, trl_uio);
 
-	if ((error = fget_read(td, uap->fd,
-	    cap_rights_init(&rights, CAP_PREAD), &fp)) != 0) {
-		goto out;
-	}
-
-	/*
-	 * If we need to wait for completion, initialise the sfsync
-	 * state here.
-	 */
-	if (uap->flags & SF_SYNC)
-		sfs = sf_sync_alloc(uap->flags & SF_SYNC);
-
-	error = fo_sendfile(fp, uap->s, hdr_uio, trl_uio, offset,
-	    uap->nbytes, &sbytes, uap->flags, compat ? SFK_COMPAT : 0,
-	    sfs, td);
-	if (sfs != NULL) {
-		sf_sync_syscall_wait(sfs);
-		sf_sync_free(sfs);
-	}
-
-	fdrop(fp, td);
 	if (uap->sbytes != NULL)
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 
