@@ -97,7 +97,7 @@ extern char *strsep(char **, const char *);
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #endif
 
-extern char *program_name;	/* used to generate self-identifying messages */
+extern const char *program_name;/* used to generate self-identifying messages */
 
 extern int32_t thiszone;	/* seconds offset from gmt to local time */
 

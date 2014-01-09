@@ -122,7 +122,7 @@ static char *zflag = NULL;		/* compress each savefile using a specified command 
 static int infodelay;
 static int infoprint;
 
-char *program_name;
+const char *program_name;
 
 /* Forwards */
 static RETSIGTYPE cleanup(int);
