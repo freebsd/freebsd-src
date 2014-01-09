@@ -375,6 +375,7 @@ const char *		name;
 struct state * const	sp;
 register const int	doextend;
 {
+#ifndef TZ_NO_FILES
 	const char *	p;
 	int		i;
 	int		fid;
@@ -648,6 +649,9 @@ register const int	doextend;
 out:
 	free(u);
 	return (res);
+#else
+	return (-1);
+#endif
 }
 
 static int
