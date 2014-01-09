@@ -46,12 +46,7 @@ struct msr_entry {
 };
 
 int vmcs_set_msr_save(struct vmcs *vmcs, u_long g_area, u_int g_count);
-int	vmcs_set_defaults(struct vmcs *vmcs, u_long host_rip, u_long host_rsp,
-			  uint64_t eptp,
-			  uint32_t pinbased_ctls, uint32_t procbased_ctls,
-			  uint32_t procbased_ctls2, uint32_t exit_ctls,
-			  uint32_t entry_ctls, u_long msr_bitmap,
-			  uint16_t vpid);
+int	vmcs_init(struct vmcs *vmcs);
 int	vmcs_getreg(struct vmcs *vmcs, int running, int ident, uint64_t *rv);
 int	vmcs_setreg(struct vmcs *vmcs, int running, int ident, uint64_t val);
 int	vmcs_getdesc(struct vmcs *vmcs, int ident,
@@ -112,6 +107,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_GUEST_GS_SELECTOR		0x0000080A
 #define	VMCS_GUEST_LDTR_SELECTOR	0x0000080C
 #define	VMCS_GUEST_TR_SELECTOR		0x0000080E
+#define	VMCS_GUEST_INTR_STATUS		0x00000810
 
 /* 16-bit host-state fields */
 #define	VMCS_HOST_ES_SELECTOR		0x00000C00
@@ -134,6 +130,10 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_VIRTUAL_APIC		0x00002012
 #define	VMCS_APIC_ACCESS		0x00002014
 #define	VMCS_EPTP			0x0000201A
+#define	VMCS_EOI_EXIT0			0x0000201C
+#define	VMCS_EOI_EXIT1			0x0000201E
+#define	VMCS_EOI_EXIT2			0x00002020
+#define	VMCS_EOI_EXIT3			0x00002022
 
 /* 64-bit read-only fields */
 #define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
@@ -315,7 +315,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define EXIT_REASON_PAUSE		40
 #define EXIT_REASON_MCE			41
 #define EXIT_REASON_TPR			43
-#define EXIT_REASON_APIC		44
+#define EXIT_REASON_APIC_ACCESS		44
 #define EXIT_REASON_GDTR_IDTR		46
 #define EXIT_REASON_LDTR_TR		47
 #define EXIT_REASON_EPT_FAULT		48
@@ -326,6 +326,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define EXIT_REASON_INVVPID		53
 #define EXIT_REASON_WBINVD		54
 #define EXIT_REASON_XSETBV		55
+#define	EXIT_REASON_APIC_WRITE		56
 
 /*
  * VMCS interrupt information fields
@@ -364,5 +365,16 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	EPT_VIOLATION_GPA_EXECUTABLE	(1UL << 5)
 #define	EPT_VIOLATION_GLA_VALID		(1UL << 7)
 #define	EPT_VIOLATION_XLAT_VALID	(1UL << 8)
+
+/*
+ * Exit qualification for APIC-access VM exit
+ */
+#define	APIC_ACCESS_OFFSET(qual)	((qual) & 0xFFF)
+#define	APIC_ACCESS_TYPE(qual)		(((qual) >> 12) & 0xF)
+
+/*
+ * Exit qualification for APIC-write VM exit
+ */
+#define	APIC_WRITE_OFFSET(qual)		((qual) & 0xFFF)
 
 #endif

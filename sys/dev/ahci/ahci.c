@@ -375,6 +375,13 @@ ahci_probe(device_t dev)
 	uint32_t devid = pci_get_devid(dev);
 	uint8_t revid = pci_get_revid(dev);
 
+	/*
+	 * Ensure it is not a PCI bridge (some vendors use
+	 * the same PID and VID in PCI bridge and AHCI cards).
+	 */
+	if (pci_get_class(dev) == PCIC_BRIDGE)
+		return (ENXIO);
+
 	/* Is this a possible AHCI candidate? */
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    pci_get_subclass(dev) == PCIS_STORAGE_SATA &&

@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <paths.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -67,6 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include "bhyverun.h"
 #include "acpi.h"
+#include "pci_emul.h"
 
 /*
  * Define the base address of the ACPI tables, and the offsets to
@@ -97,6 +99,13 @@ static uint32_t hpet_capabilities;
  */
 static char basl_template[MAXPATHLEN];
 static char basl_stemplate[MAXPATHLEN];
+
+/*
+ * State for dsdt_line(), dsdt_indent(), and dsdt_unindent().
+ */
+static FILE *dsdt_fp;
+static int dsdt_indent_level;
+static int dsdt_error;
 
 struct basl_fio {
 	int	fd;
@@ -606,119 +615,122 @@ err_exit:
 	return (errno);
 }
 
+/*
+ * Helper routines for writing to the DSDT from other modules.
+ */
+void
+dsdt_line(const char *fmt, ...)
+{
+	va_list ap;
+	int err;
+
+	if (dsdt_error != 0)
+		return;
+
+	if (strcmp(fmt, "") != 0) {
+		if (dsdt_indent_level != 0)
+			EFPRINTF(dsdt_fp, "%*c", dsdt_indent_level * 2, ' ');
+		va_start(ap, fmt);
+		if (vfprintf(dsdt_fp, fmt, ap) < 0)
+			goto err_exit;
+		va_end(ap);
+	}
+	EFPRINTF(dsdt_fp, "\n");
+	return;
+
+err_exit:
+	dsdt_error = errno;
+}
+
+void
+dsdt_indent(int levels)
+{
+
+	dsdt_indent_level += levels;
+	assert(dsdt_indent_level >= 0);
+}
+
+void
+dsdt_unindent(int levels)
+{
+
+	assert(dsdt_indent_level >= levels);
+	dsdt_indent_level -= levels;
+}
+
+void
+dsdt_fixed_ioport(uint16_t iobase, uint16_t length)
+{
+
+	dsdt_line("IO (Decode16,");
+	dsdt_line("  0x%04X,             // Range Minimum", iobase);
+	dsdt_line("  0x%04X,             // Range Maximum", iobase);
+	dsdt_line("  0x01,               // Alignment");
+	dsdt_line("  0x%02X,               // Length", length);
+	dsdt_line("  )");
+}
+
+void
+dsdt_fixed_irq(uint8_t irq)
+{
+
+	dsdt_line("IRQNoFlags ()");
+	dsdt_line("  {%d}", irq);
+}
+
+void
+dsdt_fixed_mem32(uint32_t base, uint32_t length)
+{
+
+	dsdt_line("Memory32Fixed (ReadWrite,");
+	dsdt_line("  0x%08X,         // Address Base", base);
+	dsdt_line("  0x%08X,         // Address Length", length);
+	dsdt_line("  )");
+}
+
 static int
 basl_fwrite_dsdt(FILE *fp)
 {
 	int err;
 
 	err = 0;
+	dsdt_fp = fp;
+	dsdt_error = 0;
+	dsdt_indent_level = 0;
 
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve DSDT template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
-		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)\n");
-	EFPRINTF(fp, "{\n");
-	EFPRINTF(fp, "  Name (_S5, Package (0x02)\n");
-	EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "      0x05,\n");
-	EFPRINTF(fp, "      Zero,\n");
-	EFPRINTF(fp, "  })\n");
-	EFPRINTF(fp, "  Scope (_SB)\n");
-	EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (PCI0)\n");
-	EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_HID, EisaId (\"PNP0A03\"))\n");
-	EFPRINTF(fp, "      Name (_ADR, Zero)\n");
-	EFPRINTF(fp, "      Name (_UID, One)\n");
-	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
-	EFPRINTF(fp, "      {\n");
-	EFPRINTF(fp, "        WordBusNumber (ResourceProducer, MinFixed,"
-		 "MaxFixed, PosDecode,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0000,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x00FF,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0x0100,             // Length\n");
-	EFPRINTF(fp, "            ,, )\n");
-	EFPRINTF(fp, "         IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0CF8,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0CF8,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x01,               // Alignment\n");
-	EFPRINTF(fp, "            0x08,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "         WordIO (ResourceProducer, MinFixed, MaxFixed,"
-		 "PosDecode, EntireRange,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0000,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0CF7,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0x0CF8,             // Length\n");
-	EFPRINTF(fp, "            ,, , TypeStatic)\n");
-	EFPRINTF(fp, "         WordIO (ResourceProducer, MinFixed, MaxFixed,"
-		 "PosDecode, EntireRange,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0D00,             // Range Minimum\n");
-	EFPRINTF(fp, "            0xFFFF,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0xF300,             // Length\n");
-	EFPRINTF(fp, "             ,, , TypeStatic)\n");
-	EFPRINTF(fp, "          })\n");
-	EFPRINTF(fp, "     }\n");
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "\n");
-	EFPRINTF(fp, "  Scope (_SB.PCI0)\n");
-	EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (ISA)\n");
-	EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_ADR, 0x00010000)\n");
-	EFPRINTF(fp, "      OperationRegion (P40C, PCI_Config, 0x60, 0x04)\n");
-	EFPRINTF(fp, "    }\n");
+	dsdt_line("/*");
+	dsdt_line(" * bhyve DSDT template");
+	dsdt_line(" */");
+	dsdt_line("DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
+		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)");
+	dsdt_line("{");
+	dsdt_line("  Name (_S5, Package (0x02)");
+	dsdt_line("  {");
+	dsdt_line("      0x05,");
+	dsdt_line("      Zero,");
+	dsdt_line("  })");
 
-	EFPRINTF(fp, "    Device (HPET)\n");
-	EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_HID, EISAID(\"PNP0103\"))\n");
-	EFPRINTF(fp, "      Name (_UID, 0)\n");
-	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
-	EFPRINTF(fp, "      {\n");
-	EFPRINTF(fp, "        DWordMemory (ResourceConsumer, PosDecode, "
-		 "MinFixed, MaxFixed, NonCacheable, ReadWrite,\n");
-	EFPRINTF(fp, "            0x00000000,\n");
-	EFPRINTF(fp, "            0xFED00000,\n");
-	EFPRINTF(fp, "            0xFED003FF,\n");
-	EFPRINTF(fp, "            0x00000000,\n");
-	EFPRINTF(fp, "            0x00000400\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "      })\n");
-	EFPRINTF(fp, "    }\n");
+	pci_write_dsdt();
 
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "\n");
-	EFPRINTF(fp, "  Scope (_SB.PCI0.ISA)\n");
-        EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (RTC)\n");
-        EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_HID, EisaId (\"PNP0B00\"))\n");
-	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
-	EFPRINTF(fp, "      {\n");
-	EFPRINTF(fp, "        IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0070,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0070,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x10,               // Alignment\n");
-	EFPRINTF(fp, "            0x02,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "        IRQNoFlags ()\n");
-	EFPRINTF(fp, "            {8}\n");
-	EFPRINTF(fp, "        IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0072,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0072,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x02,               // Alignment\n");
-	EFPRINTF(fp, "            0x06,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "      })\n");
-        EFPRINTF(fp, "    }\n");
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "}\n");
+	dsdt_line("");
+	dsdt_line("  Scope (_SB.PCI0)");
+	dsdt_line("  {");
+	dsdt_line("    Device (HPET)");
+	dsdt_line("    {");
+	dsdt_line("      Name (_HID, EISAID(\"PNP0103\"))");
+	dsdt_line("      Name (_UID, 0)");
+	dsdt_line("      Name (_CRS, ResourceTemplate ()");
+	dsdt_line("      {");
+	dsdt_indent(4);
+	dsdt_fixed_mem32(0xFED00000, 0x400);
+	dsdt_unindent(4);
+	dsdt_line("      })");
+	dsdt_line("    }");
+	dsdt_line("  }");
+	dsdt_line("}");
+
+	if (dsdt_error != 0)
+		return (dsdt_error);
 
 	EFFLUSH(fp);
 

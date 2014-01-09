@@ -187,7 +187,7 @@ xbox_init(struct vt_device *vd)
 	if (!arch_i386_is_xbox)
 		return (CN_DEAD);
 
-	sc->xbox_fb_tag = I386_BUS_SPACE_MEM;
+	sc->xbox_fb_tag = X86_BUS_SPACE_MEM;
 	sc->xbox_fb_handle = PAGE_SIZE;
 
 	vd->vd_width = VT_XBOX_WIDTH;

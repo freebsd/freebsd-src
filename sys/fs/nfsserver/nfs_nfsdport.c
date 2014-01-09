@@ -61,6 +61,7 @@ extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct nfsrchash_bucket nfsrchash_table[NFSRVCACHE_HASHSIZE];
+struct nfsrchash_bucket nfsrcahash_table[NFSRVCACHE_HASHSIZE];
 struct mtx nfsrc_udpmtx;
 struct mtx nfs_v4root_mutex;
 struct nfsrvfh nfs_rootfh, nfs_pubfh;
@@ -2881,40 +2882,6 @@ out:
 }
 
 /*
- * Get the tcp socket sequence numbers we need.
- * (Maybe this should be moved to the tcp sources?)
- */
-int
-nfsrv_getsocksndseq(struct socket *so, tcp_seq *maxp, tcp_seq *unap)
-{
-	struct inpcb *inp;
-	struct tcpcb *tp;
-	int error = 0;
-
-	inp = sotoinpcb(so);
-	KASSERT(inp != NULL, ("nfsrv_getsocksndseq: inp == NULL"));
-	INP_RLOCK(inp);
-	if (inp->inp_flags & (INP_TIMEWAIT | INP_DROPPED)) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	tp = intotcpcb(inp);
-	if (tp->t_state != TCPS_ESTABLISHED) {
-		INP_RUNLOCK(inp);
-		error = EPIPE;
-		goto out;
-	}
-	*maxp = tp->snd_max;
-	*unap = tp->snd_una;
-	INP_RUNLOCK(inp);
-
-out:
-	NFSEXITCODE(error);
-	return (error);
-}
-
-/*
  * This function needs to test to see if the system is near its limit
  * for memory allocation via malloc() or mget() and return True iff
  * either of these resources are near their limit.
@@ -3340,6 +3307,11 @@ nfsd_modevent(module_t mod, int type, void *data)
 			    i);
 			mtx_init(&nfsrchash_table[i].mtx,
 			    nfsrchash_table[i].lock_name, NULL, MTX_DEF);
+			snprintf(nfsrcahash_table[i].lock_name,
+			    sizeof(nfsrcahash_table[i].lock_name), "nfsrc_tcpa%d",
+			    i);
+			mtx_init(&nfsrcahash_table[i].mtx,
+			    nfsrcahash_table[i].lock_name, NULL, MTX_DEF);
 		}
 		mtx_init(&nfsrc_udpmtx, "nfs_udpcache_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_v4root_mutex, "nfs_v4root_mutex", NULL, MTX_DEF);
@@ -3385,8 +3357,10 @@ nfsd_modevent(module_t mod, int type, void *data)
 			svcpool_destroy(nfsrvd_pool);
 
 		/* and get rid of the locks */
-		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++)
+		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 			mtx_destroy(&nfsrchash_table[i].mtx);
+			mtx_destroy(&nfsrcahash_table[i].mtx);
+		}
 		mtx_destroy(&nfsrc_udpmtx);
 		mtx_destroy(&nfs_v4root_mutex);
 		mtx_destroy(&nfsv4root_mnt.mnt_mtx);

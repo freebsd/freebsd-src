@@ -92,7 +92,8 @@ struct rt_metrics {
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
-extern u_int rt_numfibs;	/* number fo usable routing tables */
+#define	RT_ALL_FIBS	-1	/* Announce event for every fib */
+extern u_int rt_numfibs;	/* number of usable routing tables */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
  */

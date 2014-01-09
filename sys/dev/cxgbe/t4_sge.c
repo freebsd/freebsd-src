@@ -1447,7 +1447,7 @@ get_fl_payload1(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 		    BUS_DMASYNC_POSTREAD);
-		if (len < RX_COPY_THRESHOLD) {
+		if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 			/* Leave room for a timestamp */
 			m0->m_data += 8;
@@ -1598,7 +1598,7 @@ get_fl_payload2(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
 
-	if (len < RX_COPY_THRESHOLD) {
+	if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 		/* Leave room for a timestamp */
 		m0->m_data += 8;

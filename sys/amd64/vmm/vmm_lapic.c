@@ -62,8 +62,8 @@ lapic_set_intr(struct vm *vm, int cpu, int vector, bool level)
 		return (EINVAL);
 
 	vlapic = vm_lapic(vm, cpu);
-	vlapic_set_intr_ready(vlapic, vector, level);
-	vcpu_notify_event(vm, cpu, true);
+	if (vlapic_set_intr_ready(vlapic, vector, level))
+		vcpu_notify_event(vm, cpu, true);
 	return (0);
 }
 

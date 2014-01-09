@@ -110,7 +110,7 @@ struct pmckern_soft {
 #ifdef PMC_FAKE_TRAPFRAME
 #define PMC_SOFT_CALL(pr, mo, fu, na)						\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\
@@ -135,7 +135,7 @@ do {										\
  */
 #define PMC_SOFT_CALL_TF(pr, mo, fu, na, tf)					\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\

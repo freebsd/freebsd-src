@@ -160,7 +160,6 @@ int	(*carp_get_vhid_p)(struct ifaddr *);
  * notification to a socket bound to a particular FIB.
  */
 #define	RTS_FILTER_FIB	M_PROTO8
-#define	RTS_ALLFIBS	-1
 
 static struct {
 	int	ip_count;	/* attached w/ AF_INET */
@@ -727,10 +726,24 @@ route_output(struct mbuf *m, struct socket *so)
 		    info.rti_info[RTAX_DST]->sa_family);
 		if (rnh == NULL)
 			senderr(EAFNOSUPPORT);
+
 		RADIX_NODE_HEAD_RLOCK(rnh);
-		rt = (struct rtentry *) rnh->rnh_lookup(info.rti_info[RTAX_DST],
-			info.rti_info[RTAX_NETMASK], rnh);
-		if (rt == NULL) {	/* XXX looks bogus */
+
+		if (info.rti_info[RTAX_NETMASK] == NULL &&
+		    rtm->rtm_type == RTM_GET) {
+			/*
+			 * Provide logest prefix match for
+			 * address lookup (no mask).
+			 * 'route -n get addr'
+			 */
+			rt = (struct rtentry *) rnh->rnh_matchaddr(
+			    info.rti_info[RTAX_DST], rnh);
+		} else
+			rt = (struct rtentry *) rnh->rnh_lookup(
+			    info.rti_info[RTAX_DST],
+			    info.rti_info[RTAX_NETMASK], rnh);
+
+		if (rt == NULL) {
 			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			senderr(ESRCH);
 		}
@@ -786,25 +799,6 @@ route_output(struct mbuf *m, struct socket *so)
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
 		RADIX_NODE_HEAD_RUNLOCK(rnh);
-
-		/* 
-		 * Fix for PR: 82974
-		 *
-		 * RTM_CHANGE/LOCK need a perfect match, rn_lookup()
-		 * returns a perfect match in case a netmask is
-		 * specified.  For host routes only a longest prefix
-		 * match is returned so it is necessary to compare the
-		 * existence of the netmask.  If both have a netmask
-		 * rnh_lookup() did a perfect match and if none of them
-		 * have a netmask both are host routes which is also a
-		 * perfect match.
-		 */
-
-		if (rtm->rtm_type != RTM_GET && 
-		    (!rt_mask(rt) != !info.rti_info[RTAX_NETMASK])) {
-			RT_UNLOCK(rt);
-			senderr(ESRCH);
-		}
 
 		switch(rtm->rtm_type) {
 
@@ -1293,7 +1287,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	if (m == NULL)
 		return;
 
-	if (fibnum != RTS_ALLFIBS) {
+	if (fibnum != RT_ALL_FIBS) {
 		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: fibnum out "
 		    "of range 0 <= %d < %d", __func__, fibnum, rt_numfibs));
 		M_SETFIB(m, fibnum);
@@ -1311,7 +1305,7 @@ void
 rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
 {
 
-	rt_missmsg_fib(type, rtinfo, flags, error, RTS_ALLFIBS);
+	rt_missmsg_fib(type, rtinfo, flags, error, RT_ALL_FIBS);
 }
 
 /*
@@ -1407,7 +1401,7 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 			rtm->rtm_errno = error;
 			rtm->rtm_addrs = info.rti_addrs;
 		}
-		if (fibnum != RTS_ALLFIBS) {
+		if (fibnum != RT_ALL_FIBS) {
 			KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
 			    "fibnum out of range 0 <= %d < %d", __func__,
 			     fibnum, rt_numfibs));
@@ -1422,7 +1416,7 @@ void
 rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 {
 
-	rt_newaddrmsg_fib(cmd, ifa, error, rt, RTS_ALLFIBS);
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RT_ALL_FIBS);
 }
 
 /*
@@ -1935,7 +1929,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		if (namelen == 3)
 			fib = req->td->td_proc->p_fibnum;
 		else if (namelen == 4)
-			fib = (name[3] == -1) ?
+			fib = (name[3] == RT_ALL_FIBS) ?
 			    req->td->td_proc->p_fibnum : name[3];
 		else
 			return ((namelen < 3) ? EISDIR : ENOTDIR);

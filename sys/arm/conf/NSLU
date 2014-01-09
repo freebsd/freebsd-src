@@ -109,6 +109,7 @@ device		random		# Entropy device
 #options 	ARM_USE_SMALL_ALLOC
 
 device		usb
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG
 device		ohci
 device		ehci
