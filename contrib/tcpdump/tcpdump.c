@@ -124,8 +124,6 @@ static int infoprint;
 
 char *program_name;
 
-int32_t thiszone;		/* seconds offset from gmt to local time */
-
 /* Forwards */
 static RETSIGTYPE cleanup(int);
 static RETSIGTYPE child_cleanup(int);
