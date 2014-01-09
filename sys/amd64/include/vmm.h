@@ -47,7 +47,7 @@ struct pmap;
 
 enum x2apic_state;
 
-typedef int	(*vmm_init_func_t)(void);
+typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);

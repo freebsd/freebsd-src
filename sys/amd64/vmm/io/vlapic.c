@@ -1430,7 +1430,7 @@ vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
 }
 
 void
-vlapic_post_intr(struct vlapic *vlapic, int hostcpu)
+vlapic_post_intr(struct vlapic *vlapic, int hostcpu, int ipinum)
 {
 	/*
 	 * Post an interrupt to the vcpu currently running on 'hostcpu'.
@@ -1444,7 +1444,7 @@ vlapic_post_intr(struct vlapic *vlapic, int hostcpu)
 	if (vlapic->ops.post_intr)
 		(*vlapic->ops.post_intr)(vlapic, hostcpu);
 	else
-		ipi_cpu(hostcpu, vmm_ipinum);
+		ipi_cpu(hostcpu, ipinum);
 }
 
 bool
