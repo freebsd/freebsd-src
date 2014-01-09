@@ -240,8 +240,7 @@ show_dlts_and_exit(const char *device, pcap_t *pd)
 			/*
 			 * OK, does tcpdump handle that type?
 			 */
-			if (lookup_printer(dlts[n_dlts]) == NULL
-                            && lookup_ndo_printer(dlts[n_dlts]) == NULL)
+			if (!has_printer(dlts[n_dlts]))
 				(void) fprintf(stderr, " (printing not supported)");
 			fprintf(stderr, "\n");
 		} else {

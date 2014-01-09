@@ -280,6 +280,14 @@ lookup_ndo_printer(int type)
 	/* NOTREACHED */
 }
 
+int
+has_printer(int type)
+{
+
+	return (lookup_ndo_printer(type) != NULL ||
+	    lookup_printer(type) != NULL);
+}
+
 int tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 {
   va_list args;

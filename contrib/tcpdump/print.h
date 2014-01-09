@@ -27,9 +27,6 @@
 
 /* $FreeBSD$ */
 
-if_printer	lookup_printer(int type);
-if_ndo_printer	lookup_ndo_printer(int type);
-
 /* XXX: Could be opaque to tcpdump.c */
 struct print_info {
         netdissect_options *ndo;
@@ -40,6 +37,8 @@ struct print_info {
         int ndo_type;
 };
 
+
+int	has_printer(int type);
 
 /* XXX: should be hidden */
 int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
