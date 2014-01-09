@@ -56,8 +56,6 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 #include "print.h"
 
-int32_t thiszone;		/* seconds offset from gmt to local time */
-
 struct printer {
         if_printer f;
 	int type;

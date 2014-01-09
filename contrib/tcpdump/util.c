@@ -44,6 +44,8 @@ static const char rcsid[] _U_ =
 
 #include "interface.h"
 
+int32_t thiszone;		/* seconds offset from gmt to local time */
+
 char * ts_format(register int, register int);
 
 /*
