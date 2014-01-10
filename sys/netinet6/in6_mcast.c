@@ -1184,7 +1184,7 @@ in6_mc_join_locked(struct ifnet *ifp, const struct in6_addr *mcaddr,
 	IN6_MULTI_LOCK_ASSERT();
 
 	CTR4(KTR_MLD, "%s: join %s on %p(%s))", __func__,
-	    ip6_sprintf(ip6tbuf, mcaddr), ifp, ifp->if_xname);
+	    ip6_sprintf(ip6tbuf, mcaddr), ifp, if_name(ifp));
 
 	error = 0;
 	inm = NULL;
@@ -1275,7 +1275,7 @@ in6_mc_leave_locked(struct in6_multi *inm, /*const*/ struct in6_mfilter *imf)
 
 	CTR5(KTR_MLD, "%s: leave inm %p, %s/%s, imf %p", __func__,
 	    inm, ip6_sprintf(ip6tbuf, &inm->in6m_addr),
-	    (in6m_is_ifp_detached(inm) ? "null" : inm->in6m_ifp->if_xname),
+	    (in6m_is_ifp_detached(inm) ? "null" : if_name(inm->in6m_ifp)),
 	    imf);
 
 	/*
@@ -2808,7 +2808,7 @@ in6m_print(const struct in6_multi *inm)
 	printf("addr %s ifp %p(%s) ifma %p\n",
 	    ip6_sprintf(ip6tbuf, &inm->in6m_addr),
 	    inm->in6m_ifp,
-	    inm->in6m_ifp->if_xname,
+	    if_name(inm->in6m_ifp),
 	    inm->in6m_ifma);
 	printf("timer %u state %s refcount %u scq.len %u\n",
 	    inm->in6m_timer,
