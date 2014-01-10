@@ -62,6 +62,7 @@
 #include <machine/cheric.h>
 
 #include <cheri/cheri_memcpy.h>
+#include <cheri/cheri_system.h>
 
 #include <md5.h>
 #include <stdlib.h>
@@ -153,8 +154,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
  */
 int
 invoke(register_t op, register_t arg1, register_t arg2,
-    __capability void *system_codecap __unused,
-    __capability void *system_datacap __unused,
+    __capability void *system_codecap, __capability void *system_datacap,
     __capability const netdissect_options *ndo,
     __capability const char *ndo_espsecret,
     __capability const struct pcap_pkthdr *h, __capability const u_char *sp)
@@ -162,6 +162,8 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	int ret;
 	u_char *data;
 	struct pcap_pkthdr hdr;
+
+	cheri_system_setup(system_codecap, system_datacap);
 
 	ret = 0;
 
