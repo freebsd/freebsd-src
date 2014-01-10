@@ -138,7 +138,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 		}
 	}
 
-	return (1);
+	return (0);
 }
 
 /*
