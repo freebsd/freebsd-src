@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <machine/atomic.h>
 #include <geom/geom.h>
+#include <geom/geom_int.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
 #include <geom/mirror/g_mirror.h>
@@ -617,6 +619,75 @@ g_mirror_ctl_remove(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
+g_mirror_ctl_resize(struct gctl_req *req, struct g_class *mp)
+{
+	struct g_mirror_softc *sc;
+	struct g_mirror_disk *disk;
+	uint64_t mediasize;
+	const char *name, *s;
+	char *x;
+	int *nargs;
+
+	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
+	if (nargs == NULL) {
+		gctl_error(req, "No '%s' argument.", "nargs");
+		return;
+	}
+	if (*nargs != 1) {
+		gctl_error(req, "Missing device.");
+		return;
+	}
+	name = gctl_get_asciiparam(req, "arg0");
+	if (name == NULL) {
+		gctl_error(req, "No 'arg%u' argument.", 0);
+		return;
+	}
+	s = gctl_get_asciiparam(req, "size");
+	if (s == NULL) {
+		gctl_error(req, "No '%s' argument.", "size");
+		return;
+	}
+	mediasize = strtouq(s, &x, 0);
+	if (*x != '\0' || mediasize == 0) {
+		gctl_error(req, "Invalid '%s' argument.", "size");
+		return;
+	}
+	sc = g_mirror_find_device(mp, name);
+	if (sc == NULL) {
+		gctl_error(req, "No such device: %s.", name);
+		return;
+	}
+	/* Deny shrinking of an opened provider */
+	if ((g_debugflags & 16) == 0 && (sc->sc_provider->acr > 0 ||
+	    sc->sc_provider->acw > 0 || sc->sc_provider->ace > 0)) {
+		if (sc->sc_mediasize > mediasize) {
+			gctl_error(req, "Device %s is busy.",
+			    sc->sc_provider->name);
+			sx_xunlock(&sc->sc_lock);
+			return;
+		}
+	}
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		if (mediasize > disk->d_consumer->provider->mediasize -
+		    disk->d_consumer->provider->sectorsize) {
+			gctl_error(req, "Provider %s is too small.",
+			    disk->d_name);
+			sx_xunlock(&sc->sc_lock);
+			return;
+		}
+	}
+	/* Update the size. */
+	sc->sc_mediasize = mediasize;
+	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
+		g_mirror_update_metadata(disk);
+	}
+	g_topology_lock();
+	g_resize_provider(sc->sc_provider, mediasize);
+	g_topology_unlock();
+	sx_xunlock(&sc->sc_lock);
+}
+
+static void
 g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 {
 	struct g_mirror_softc *sc;
@@ -793,6 +864,8 @@ g_mirror_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		g_mirror_ctl_insert(req, mp);
 	else if (strcmp(verb, "remove") == 0)
 		g_mirror_ctl_remove(req, mp);
+	else if (strcmp(verb, "resize") == 0)
+		g_mirror_ctl_resize(req, mp);
 	else if (strcmp(verb, "deactivate") == 0)
 		g_mirror_ctl_deactivate(req, mp);
 	else if (strcmp(verb, "forget") == 0)
