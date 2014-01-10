@@ -37,6 +37,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
+#include "opt_sctp.h"
 #include "opt_mrouting.h"
 #include "opt_mpath.h"
 
@@ -52,6 +53,7 @@
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -86,6 +88,13 @@
 #define	RT_NUMFIBS	1
 #endif
 
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
+#endif /* SCTP */
+#endif
+
+
 /* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
@@ -118,7 +127,8 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 
 
 /* compare two sockaddr structures */
-#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
+#define	sa_equal(a1, a2) (((a1)->sa_len == (a2)->sa_len) && \
+    (bcmp((a1), (a2), (a1)->sa_len) == 0))
 
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
@@ -1731,3 +1741,99 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 	}
 	return (rtinit1(ifa, cmd, flags, fib));
 }
+
+/*
+ * Announce interface address arrival/withdraw
+ * Returns 0 on success.
+ */
+int
+rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+		("unexpected cmd %u", cmd));
+	
+	if (fibnum != RT_ALL_FIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
+		    "fibnum out of range 0 <= %d < %d", __func__,
+		     fibnum, rt_numfibs));
+	}
+
+	return (rtsock_addrmsg(cmd, ifa, fibnum));
+}
+
+
+/*
+ * Announce route addition/removal
+ * Users of this function MUST validate input data BEFORE calling.
+ * However we have to be able to handle invalid data:
+ * if some userland app sends us "invalid" route message (invalid mask,
+ * no dst, wrokg address families, etc...) we need to pass it back
+ * to app (and any other rtsock consumers) with rtm_errno field set to
+ * non-zero value.
+ * Returns 0 on success.
+ */
+int
+rt_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
+    int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+		("unexpected cmd %u", cmd));
+	
+	if (fibnum != RT_ALL_FIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
+		    "fibnum out of range 0 <= %d < %d", __func__,
+		     fibnum, rt_numfibs));
+	}
+
+	KASSERT(rt_key(rt) != NULL, (":%s: rt_key must be supplied", __func__));
+
+	return (rtsock_routemsg(cmd, ifp, error, rt, fibnum));
+}
+
+void
+rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+{
+
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RT_ALL_FIBS);
+}
+
+/*
+ * This is called to generate messages from the routing socket
+ * indicating a network interface has had addresses associated with it.
+ */
+void
+rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
+    int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+		("unexpected cmd %u", cmd));
+	if (fibnum != RT_ALL_FIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
+		    "fibnum out of range 0 <= %d < %d", __func__,
+		     fibnum, rt_numfibs));
+	}
+
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+	/*
+	 * notify the SCTP stack
+	 * this will only get called when an address is added/deleted
+	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
+	 */
+	sctp_addr_change(ifa, cmd);
+#endif /* SCTP */
+#endif
+	if (cmd == RTM_ADD) {
+		rt_addrmsg(cmd, ifa, fibnum);
+		if (rt != NULL)
+			rt_routemsg(cmd, ifa->ifa_ifp, error, rt, fibnum);
+	} else {
+		if (rt != NULL)
+			rt_routemsg(cmd, ifa->ifa_ifp, error, rt, fibnum);
+		rt_addrmsg(cmd, ifa, fibnum);
+	}
+}
+
