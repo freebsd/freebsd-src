@@ -1912,6 +1912,7 @@ parse_comp_unit (struct dwarf2_debug *stash,
   bfd_vma low_pc = 0;
   bfd_vma high_pc = 0;
   bfd *abfd = stash->bfd;
+  static int complained_about_dwarf4 = 0;
 
   version = read_2_bytes (abfd, info_ptr);
   info_ptr += 2;
@@ -1926,7 +1927,10 @@ parse_comp_unit (struct dwarf2_debug *stash,
 
   if (version != 2)
     {
-      (*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%u', this reader only handles version 2 information."), version);
+      if (version == 4 && !complained_about_dwarf4) {
+	complained_about_dwarf4 = 1;
+	(*_bfd_error_handler) (_("Dwarf Error: found dwarf version '%u', this reader only handles version 2 information."), version);
+      }
       bfd_set_error (bfd_error_bad_value);
       return 0;
     }
