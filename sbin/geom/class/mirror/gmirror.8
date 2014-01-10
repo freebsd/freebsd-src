@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 8, 2009
+.Dd November 20, 2013
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -59,6 +59,11 @@
 .Op Fl v
 .Ar name
 .Ar prov ...
+.Nm
+.Cm resize
+.Op Fl v
+.Op Fl s Ar size
+.Ar name
 .Nm
 .Cm insert
 .Op Fl hiv
@@ -193,6 +198,16 @@ balance algorithm.
 Rebuild the given mirror components forcibly.
 If autosynchronization was not turned off for the given device, this command
 should be unnecessary.
+.It Cm resize
+Change the size of the given mirror.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar size"
+.It Fl s Ar size
+New size of the mirror is expressed in logical block numbers.
+This option can be omitted, then it will be automatically calculated to
+maximum available size.
+.El
 .It Cm insert
 Add the given component(s) to the existing mirror.
 .Pp
