@@ -30,7 +30,6 @@
  * $FreeBSD$
  */
 #include "opt_compat.h"
-#include "opt_sctp.h"
 #include "opt_mpath.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -68,12 +67,6 @@
 #ifdef INET6
 #include <netinet6/ip6_var.h>
 #include <netinet6/scope6_var.h>
-#endif
-
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
-#endif /* SCTP */
 #endif
 
 #ifdef COMPAT_FREEBSD32
@@ -1334,90 +1327,94 @@ rt_ifmsg(struct ifnet *ifp)
 }
 
 /*
- * This is called to generate messages from the routing socket
- * indicating a network interface has had addresses associated with it.
- * if we ever reverse the logic and replace messages TO the routing
- * socket indicate a request to configure interfaces, then it will
- * be unnecessary as the routing socket will automatically generate
- * copies of it.
+ * Announce interface address arrival/withdraw.
+ * Please do not call directly, use rt_addrmsg().
+ * Assume input data to be valid.
+ * Returns 0 on success.
  */
-void
-rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
+int
+rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
+{
+	struct rt_addrinfo info;
+	struct sockaddr *sa;
+	int ncmd;
+	struct mbuf *m;
+	struct ifa_msghdr *ifam;
+	struct ifnet *ifp = ifa->ifa_ifp;
+
+	if (route_cb.any_count == 0)
+		return (0);
+
+	ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
+
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
+	info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
+	info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
+	info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
+	if ((m = rt_msg1(ncmd, &info)) == NULL)
+		return (ENOBUFS);
+	ifam = mtod(m, struct ifa_msghdr *);
+	ifam->ifam_index = ifp->if_index;
+	ifam->ifam_metric = ifa->ifa_metric;
+	ifam->ifam_flags = ifa->ifa_flags;
+	ifam->ifam_addrs = info.rti_addrs;
+
+	if (fibnum != RT_ALL_FIBS) {
+		M_SETFIB(m, fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
+	}
+
+	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
+
+	return (0);
+}
+
+/*
+ * Announce route addition/removal.
+ * Please do not call directly, use rt_routemsg().
+ * Note that @rt data MAY be inconsistent/invalid:
+ * if some userland app sends us "invalid" route message (invalid mask,
+ * no dst, wrong address families, etc...) we need to pass it back
+ * to app (and any other rtsock consumers) with rtm_errno field set to
+ * non-zero value.
+ *
+ * Returns 0 on success.
+ */
+int
+rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
     int fibnum)
 {
 	struct rt_addrinfo info;
-	struct sockaddr *sa = NULL;
-	int pass;
-	struct mbuf *m = NULL;
-	struct ifnet *ifp = ifa->ifa_ifp;
+	struct sockaddr *sa;
+	struct mbuf *m;
+	struct rt_msghdr *rtm;
 
-	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-		("unexpected cmd %u", cmd));
-#if defined(INET) || defined(INET6)
-#ifdef SCTP
-	/*
-	 * notify the SCTP stack
-	 * this will only get called when an address is added/deleted
-	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
-	 */
-	sctp_addr_change(ifa, cmd);
-#endif /* SCTP */
-#endif
 	if (route_cb.any_count == 0)
-		return;
-	for (pass = 1; pass < 3; pass++) {
-		bzero((caddr_t)&info, sizeof(info));
-		if ((cmd == RTM_ADD && pass == 1) ||
-		    (cmd == RTM_DELETE && pass == 2)) {
-			struct ifa_msghdr *ifam;
-			int ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
+		return (0);
 
-			info.rti_info[RTAX_IFA] = sa = ifa->ifa_addr;
-			info.rti_info[RTAX_IFP] = ifp->if_addr->ifa_addr;
-			info.rti_info[RTAX_NETMASK] = ifa->ifa_netmask;
-			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
-			if ((m = rt_msg1(ncmd, &info)) == NULL)
-				continue;
-			ifam = mtod(m, struct ifa_msghdr *);
-			ifam->ifam_index = ifp->if_index;
-			ifam->ifam_metric = ifa->ifa_metric;
-			ifam->ifam_flags = ifa->ifa_flags;
-			ifam->ifam_addrs = info.rti_addrs;
-		}
-		if ((cmd == RTM_ADD && pass == 2) ||
-		    (cmd == RTM_DELETE && pass == 1)) {
-			struct rt_msghdr *rtm;
+	bzero((caddr_t)&info, sizeof(info));
+	info.rti_info[RTAX_NETMASK] = rt_mask(rt);
+	info.rti_info[RTAX_DST] = sa = rt_key(rt);
+	info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+	if ((m = rt_msg1(cmd, &info)) == NULL)
+		return (ENOBUFS);
+	rtm = mtod(m, struct rt_msghdr *);
+	rtm->rtm_index = ifp->if_index;
+	rtm->rtm_flags |= rt->rt_flags;
+	rtm->rtm_errno = error;
+	rtm->rtm_addrs = info.rti_addrs;
 
-			if (rt == NULL)
-				continue;
-			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
-			info.rti_info[RTAX_DST] = sa = rt_key(rt);
-			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
-			if ((m = rt_msg1(cmd, &info)) == NULL)
-				continue;
-			rtm = mtod(m, struct rt_msghdr *);
-			rtm->rtm_index = ifp->if_index;
-			rtm->rtm_flags |= rt->rt_flags;
-			rtm->rtm_errno = error;
-			rtm->rtm_addrs = info.rti_addrs;
-		}
-		if (fibnum != RT_ALL_FIBS) {
-			KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
-			    "fibnum out of range 0 <= %d < %d", __func__,
-			     fibnum, rt_numfibs));
-			M_SETFIB(m, fibnum);
-			m->m_flags |= RTS_FILTER_FIB;
-		}
-		rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
+	if (fibnum != RT_ALL_FIBS) {
+		M_SETFIB(m, fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
 	}
+
+	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
+
+	return (0);
 }
 
-void
-rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
-{
-
-	rt_newaddrmsg_fib(cmd, ifa, error, rt, RT_ALL_FIBS);
-}
 
 /*
  * This is the analogue to the rt_newaddrmsg which performs the same
