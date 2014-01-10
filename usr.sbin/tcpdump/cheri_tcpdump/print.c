@@ -60,7 +60,9 @@ static struct sandbox_class	*tcpdump_classp;
 static struct sandbox_object	*tcpdump_objectp;
 static struct cheri_object	 tcpdump_systemcap;
 
-static int
+/* XXX: should be static, but that's confusing in the debugger */
+int sb_init(netdissect_options *ndo);
+int
 sb_init(netdissect_options *ndo)
 {
 
