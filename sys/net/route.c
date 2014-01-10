@@ -53,7 +53,6 @@
 #include <sys/proc.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/kdb.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -1751,24 +1750,20 @@ rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 {
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-		("unexpected cmd %u", cmd));
+	    ("unexpected cmd %d", cmd));
 	
-	if (fibnum != RT_ALL_FIBS) {
-		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
-		    "fibnum out of range 0 <= %d < %d", __func__,
-		     fibnum, rt_numfibs));
-	}
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 	return (rtsock_addrmsg(cmd, ifa, fibnum));
 }
 
-
 /*
- * Announce route addition/removal
+ * Announce route addition/removal.
  * Users of this function MUST validate input data BEFORE calling.
  * However we have to be able to handle invalid data:
  * if some userland app sends us "invalid" route message (invalid mask,
- * no dst, wrokg address families, etc...) we need to pass it back
+ * no dst, wrong address families, etc...) we need to pass it back
  * to app (and any other rtsock consumers) with rtm_errno field set to
  * non-zero value.
  * Returns 0 on success.
@@ -1779,13 +1774,10 @@ rt_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 {
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
-		("unexpected cmd %u", cmd));
+	    ("unexpected cmd %d", cmd));
 	
-	if (fibnum != RT_ALL_FIBS) {
-		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
-		    "fibnum out of range 0 <= %d < %d", __func__,
-		     fibnum, rt_numfibs));
-	}
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 	KASSERT(rt_key(rt) != NULL, (":%s: rt_key must be supplied", __func__));
 
@@ -1810,11 +1802,8 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 
 	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
 		("unexpected cmd %u", cmd));
-	if (fibnum != RT_ALL_FIBS) {
-		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
-		    "fibnum out of range 0 <= %d < %d", __func__,
-		     fibnum, rt_numfibs));
-	}
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
 
 #if defined(INET) || defined(INET6)
 #ifdef SCTP

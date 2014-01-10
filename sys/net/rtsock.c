@@ -1415,7 +1415,6 @@ rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 	return (0);
 }
 
-
 /*
  * This is the analogue to the rt_newaddrmsg which performs the same
  * function but for multicast group memberhips.  This is easier since

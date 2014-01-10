@@ -94,6 +94,7 @@ struct rt_metrics {
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 #define	RT_ALL_FIBS	-1	/* Announce event for every fib */
 extern u_int rt_numfibs;	/* number of usable routing tables */
+extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
  */
