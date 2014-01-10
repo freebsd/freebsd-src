@@ -695,7 +695,7 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 	const char *name;
 	char param[16];
 	int *nargs;
-	u_int i;
+	u_int i, active;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -716,6 +716,7 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No such device: %s.", name);
 		return;
 	}
+	active = g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_ACTIVE);
 	for (i = 1; i < (u_int)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
@@ -727,6 +728,16 @@ g_mirror_ctl_deactivate(struct gctl_req *req, struct g_class *mp)
 		if (disk == NULL) {
 			gctl_error(req, "No such provider: %s.", name);
 			continue;
+		}
+		if (disk->d_state == G_MIRROR_DISK_STATE_ACTIVE) {
+			if (active > 1)
+				active--;
+			else {
+				gctl_error(req, "%s: Can't deactivate the "
+				    "last ACTIVE component %s.",
+				    sc->sc_geom->name, name);
+				continue;
+			}
 		}
 		disk->d_flags |= G_MIRROR_DISK_FLAG_INACTIVE;
 		disk->d_flags &= ~G_MIRROR_DISK_FLAG_FORCE_SYNC;
@@ -786,7 +797,7 @@ g_mirror_ctl_forget(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
-g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
+g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp, int wipe)
 {
 	struct g_mirror_softc *sc;
 	int *force, *nargs, error;
@@ -827,10 +838,14 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		g_cancel_event(sc);
+		if (wipe)
+			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WIPE;
 		error = g_mirror_destroy(sc, how);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
 			    sc->sc_geom->name, error);
+			if (wipe)
+				sc->sc_flags &= ~G_MIRROR_DEVICE_FLAG_WIPE;
 			sx_xunlock(&sc->sc_lock);
 			return;
 		}
@@ -871,7 +886,9 @@ g_mirror_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	else if (strcmp(verb, "forget") == 0)
 		g_mirror_ctl_forget(req, mp);
 	else if (strcmp(verb, "stop") == 0)
-		g_mirror_ctl_stop(req, mp);
+		g_mirror_ctl_stop(req, mp, 0);
+	else if (strcmp(verb, "destroy") == 0)
+		g_mirror_ctl_stop(req, mp, 1);
 	else
 		gctl_error(req, "Unknown verb.");
 	g_topology_lock();

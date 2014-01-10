@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 20, 2013
+.Dd December 27, 2013
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -85,6 +85,10 @@
 .Op Fl v
 .Ar name
 .Ar prov ...
+.Nm
+.Cm destroy
+.Op Fl fv
+.Ar name ...
 .Nm
 .Cm forget
 .Op Fl v
@@ -227,6 +231,14 @@ Activate the given component(s), which were marked as inactive before.
 .It Cm deactivate
 Mark the given component(s) as inactive, so it will not be automatically
 connected to the mirror.
+.It Cm destroy
+Stop the given mirror and clear metadata on all its components.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given mirror even if it is opened.
+.El
 .It Cm forget
 Forget about components which are not connected.
 This command is useful when a disk has failed and cannot be reconnected, preventing the
