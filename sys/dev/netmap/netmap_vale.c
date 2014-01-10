@@ -1835,12 +1835,15 @@ netmap_bwrap_register(struct netmap_adapter *na, int onoff)
 			hostna->up.na_lut_objtotal = na->na_lut_objtotal;
 		}
 
-		/* cross-link the netmap rings */
-		for (i = 0; i <= na->num_tx_rings; i++) {
+		/* cross-link the netmap rings
+		 * The original number of rings comes from hwna,
+		 * rx rings on one side equals tx rings on the other.
+		 */
+		for (i = 0; i <= na->num_rx_rings; i++) {
 			hwna->tx_rings[i].nkr_num_slots = na->rx_rings[i].nkr_num_slots;
 			hwna->tx_rings[i].ring = na->rx_rings[i].ring;
 		}
-		for (i = 0; i <= na->num_rx_rings; i++) {
+		for (i = 0; i <= na->num_tx_rings; i++) {
 			hwna->rx_rings[i].nkr_num_slots = na->tx_rings[i].nkr_num_slots;
 			hwna->rx_rings[i].ring = na->tx_rings[i].ring;
 		}
