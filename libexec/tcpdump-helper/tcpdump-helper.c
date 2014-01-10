@@ -161,6 +161,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
 {
 	int ret;
 	u_char *data;
+	struct pcap_pkthdr hdr;
 
 	ret = 0;
 
@@ -180,6 +181,8 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		if ((data = malloc(h->caplen)) == NULL)
 			abort();
 		cmemcpy(cheri_ptr(data, h->caplen), sp, h->caplen);
+		cmemcpy((__capability struct pcap_pkthdr *)&hdr, h,
+		    sizeof(struct pcap_pkthdr));
 
 		gndo->ndo_packetp = data;
 		gndo->ndo_snapend = data + h->caplen;
