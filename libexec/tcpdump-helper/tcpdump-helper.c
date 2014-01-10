@@ -61,7 +61,6 @@
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
-#include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
 
 #include <md5.h>
