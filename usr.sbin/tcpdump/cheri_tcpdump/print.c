@@ -162,7 +162,7 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	int ret;
 
 	if (sb_state != SB_RUNNING)
-		if (sb_init(print_info->ndo) < 1)
+		if (sb_init(gndo) != 0)
 			exit(1);
 
 	ret = sandbox_object_cinvoke(tcpdump_objectp,
