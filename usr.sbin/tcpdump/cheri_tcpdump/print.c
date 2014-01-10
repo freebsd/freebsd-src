@@ -105,7 +105,8 @@ sb_init(netdissect_options *ndo)
 	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
 	    cheri_ptrperm((void *)ndo, sizeof(netdissect_options),
 	        CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    cheri_ptrperm((void *)ndo->ndo_espsecret,
+	    ndo->ndo_espsecret == NULL ? cheri_zerocap() :
+		cheri_ptrperm((void *)ndo->ndo_espsecret,
 		strlen(ndo->ndo_espsecret) + 1,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
