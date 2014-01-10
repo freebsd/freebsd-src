@@ -10,7 +10,6 @@ PROG=	tcpdump-helper
 SRCS=	tcpdump-helper.c			\
 	pcap_datalink_val_to_name.c		\
 	pcap-eproto_db.c			\
-	malloc.c				\
 	stub.c					\
 	chsbrt.S
 
