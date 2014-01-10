@@ -103,10 +103,11 @@ sb_init(netdissect_options *ndo)
 	ret = sandbox_object_cinvoke(tcpdump_objectp,
 	    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
 	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
-	    cheri_ptrperm((void *)ndo, sizeof(*ndo), CHERI_PERM_LOAD),
-	    ndo->ndo_espsecret == NULL ? cheri_zerocap() :
-	    cheri_ptrperm((void *)ndo->ndo_espsecret, strlen(ndo->ndo_espsecret),
-		CHERI_PERM_LOAD),
+	    cheri_ptrperm((void *)ndo, sizeof(netdissect_options),
+	        CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+	    cheri_ptrperm((void *)ndo->ndo_espsecret,
+		strlen(ndo->ndo_espsecret) + 1,
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap());
 	if (ret != 0)
@@ -158,20 +159,22 @@ int
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
     const u_char *sp)
 {
+	int ret;
 
 	if (sb_state != SB_RUNNING)
 		if (sb_init(print_info->ndo) < 1)
 			exit(1);
 
-	return (sandbox_object_cinvoke(tcpdump_objectp,
+	ret = sandbox_object_cinvoke(tcpdump_objectp,
 	    TCPDUMP_HELPER_OP_PRINT_PACKET, 0, 0, 0, 0, 0, 0, 0,
 	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
 	    cheri_zerocap(), cheri_zerocap(),
-	    cheri_ptrperm((void *)h, sizeof(*h), CHERI_PERM_LOAD),
-	    cheri_ptrperm((void *)sp, h->caplen, CHERI_PERM_LOAD),
-	    cheri_zerocap(), cheri_zerocap()));
-
-	return (0);
+	    cheri_ptrperm((void *)h, sizeof(*h),
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+	    cheri_ptrperm((void *)sp, h->caplen,
+		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+	    cheri_zerocap(), cheri_zerocap());
+	return (ret);
 }
 
 /*
