@@ -207,7 +207,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		return (has_printer(arg1));
 
 	default:
-		/* sb_panic("unknown op %d", op); */
+		printf("unknown op %ld\n", op);
 		abort();
 	}
 
