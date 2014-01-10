@@ -47,6 +47,7 @@ chsbrt.o:
 
 tcpdump-helper.bin: tcpdump-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
+	@echo created ${.TARGET}
 
 tcpdump-helper.dump: tcpdump-helper
 	objdump -xsSD ${.ALLSRC} > ${.TARGET}
