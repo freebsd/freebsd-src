@@ -56,7 +56,10 @@ CTASSERT(sizeof(struct kerneldumpheader) == 512);
 #define	MD_ALIGN(x)	(((off_t)(x) + EFI_PAGE_MASK) & ~EFI_PAGE_MASK)
 #define	DEV_ALIGN(x)	(((off_t)(x) + (DEV_BSIZE-1)) & ~(DEV_BSIZE-1))
 
-typedef int callback_t(struct efi_md*, int, void*);
+static int minidump = 0;
+TUNABLE_INT("debug.minidump", &minidump);
+SYSCTL_INT(_debug, OID_AUTO, minidump, CTLFLAG_RW, &minidump, 0,
+    "Enable mini crash dumps");
 
 static struct kerneldumpheader kdh;
 static off_t dumplo, fileofs;
@@ -83,7 +86,7 @@ buf_write(struct dumperinfo *di, char *ptr, size_t sz)
 			error = dump_write(di, buffer, 0, dumplo,
 			    DEV_BSIZE);
 			if (error)
-				return error;
+				return (error);
 			dumplo += DEV_BSIZE;
 			fragsz = 0;
 		}
@@ -106,8 +109,14 @@ buf_flush(struct dumperinfo *di)
 	return (error);
 }
 
+/*
+ * Physical dump support
+ */
+
+typedef int phys_callback_t(struct efi_md*, int, void*);
+
 static int
-cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
+phys_cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	vm_offset_t pa;
@@ -153,7 +162,7 @@ cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
 }
 
 static int
-cb_dumphdr(struct efi_md *mdp, int seqnr, void *arg)
+phys_cb_dumphdr(struct efi_md *mdp, int seqnr, void *arg)
 {
 	struct dumperinfo *di = (struct dumperinfo*)arg;
 	Elf64_Phdr phdr;
@@ -175,7 +184,7 @@ cb_dumphdr(struct efi_md *mdp, int seqnr, void *arg)
 }
 
 static int
-cb_size(struct efi_md *mdp, int seqnr, void *arg)
+phys_cb_size(struct efi_md *mdp, int seqnr, void *arg)
 {
 	uint64_t *sz = (uint64_t*)arg;
 
@@ -184,7 +193,7 @@ cb_size(struct efi_md *mdp, int seqnr, void *arg)
 }
 
 static int
-foreach_chunk(callback_t cb, void *arg)
+phys_foreach(phys_callback_t cb, void *arg)
 {
 	struct efi_md *mdp;
 	int error, seqnr;
@@ -206,6 +215,117 @@ foreach_chunk(callback_t cb, void *arg)
 	return (seqnr);
 }
 
+/*
+ * Virtual dump (aka minidump) support
+ */
+
+typedef int virt_callback_t(vm_offset_t, vm_size_t, int, void*);
+
+static int
+virt_cb_size(vm_offset_t va, vm_size_t sz, int seqnr, void *arg)
+{
+	uint64_t *dumpsize = (uint64_t *)arg;
+
+	*dumpsize += sz;
+	return (0);
+}
+
+static int
+virt_cb_dumphdr(vm_offset_t va, vm_size_t sz, int seqnr, void *arg)
+{
+	struct dumperinfo *di = (struct dumperinfo *)arg;
+	Elf64_Phdr phdr;
+	int error;
+ 
+	bzero(&phdr, sizeof(phdr));
+	phdr.p_type = PT_LOAD;
+	phdr.p_flags = PF_R;			/* XXX */
+	phdr.p_offset = fileofs;
+	phdr.p_vaddr = va;
+	phdr.p_paddr = ~0UL;
+	phdr.p_filesz = sz;
+	phdr.p_memsz = sz;
+	phdr.p_align = PAGE_SIZE;
+
+	error = buf_write(di, (char*)&phdr, sizeof(phdr));
+	fileofs += phdr.p_filesz;
+	return (error);
+}
+
+static int
+virt_cb_dumpdata(vm_offset_t va, vm_size_t sz, int seqnr, void *arg) 
+{
+	struct dumperinfo *di = (struct dumperinfo *)arg;
+	size_t counter, iosz;
+	int c, error, twiddle;
+ 
+	error = 0;	/* catch case in which pgs is 0 */
+	counter = 0;	/* Update twiddle every 16MB */
+	twiddle = 0;
+
+	printf("  chunk %d: %ld pages ", seqnr, atop(sz));
+
+	while (sz) {
+		iosz = (sz > DFLTPHYS) ? DFLTPHYS : sz;
+		counter += iosz;
+		if (counter >> 24) {
+			printf("%c\b", "|/-\\"[twiddle++ & 3]);
+			counter &= (1<<24) - 1;
+		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
+		error = dump_write(di, (void*)va, 0, dumplo, iosz);
+		if (error)
+			break;
+		dumplo += iosz;
+		sz -= iosz;
+		va += iosz;
+
+		/* Check for user abort. */
+		c = cncheckc();
+		if (c == 0x03)
+			return (ECANCELED);
+		if (c != -1)
+			printf("(CTRL-C to abort)  ");
+	}
+	printf("... %s\n", (error) ? "fail" : "ok");
+	return (error);
+}
+
+static int
+virt_foreach(virt_callback_t cb, void *arg)
+{
+	vm_offset_t va;
+	vm_size_t sz;
+	int error, seqnr;
+
+	seqnr = 0;
+	while (1) {
+		switch (seqnr) {
+		case 0:
+			va = IA64_PBVM_BASE;
+			sz = round_page(bootinfo->bi_kernend) - va;
+			break;
+		default:
+			va = 0;
+			sz = 0;
+			break;
+		}
+		if (va == 0 && sz == 0)
+			break;
+		error = (*cb)(va, sz, seqnr, arg);
+		if (error)
+			return (-error);
+		seqnr++;
+	}
+	return (seqnr);
+}
+
+/*
+ * main entry point.
+ */
+
 void
 dumpsys(struct dumperinfo *di)
 {
@@ -213,7 +333,7 @@ dumpsys(struct dumperinfo *di)
 	uint64_t dumpsize;
 	off_t hdrgap;
 	size_t hdrsz;
-	int error;
+	int error, status;
 
 	bzero(&ehdr, sizeof(ehdr));
 	ehdr.e_ident[EI_MAG0] = ELFMAG0;
@@ -230,18 +350,25 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
 	ehdr.e_machine = EM_IA_64;
-	ehdr.e_entry = ia64_tpa((uintptr_t)bootinfo);
+	ehdr.e_entry = (minidump) ? (uintptr_t)bootinfo :
+	    ia64_tpa((uintptr_t)bootinfo);
 	ehdr.e_phoff = sizeof(ehdr);
-	ehdr.e_flags = EF_IA_64_ABSOLUTE;		/* XXX misuse? */
+	ehdr.e_flags = (minidump) ? 0 : EF_IA_64_ABSOLUTE; /* XXX misuse? */
 	ehdr.e_ehsize = sizeof(ehdr);
 	ehdr.e_phentsize = sizeof(Elf64_Phdr);
 	ehdr.e_shentsize = sizeof(Elf64_Shdr);
 
 	/* Calculate dump size. */
 	dumpsize = 0L;
-	ehdr.e_phnum = foreach_chunk(cb_size, &dumpsize);
+	status = (minidump) ? virt_foreach(virt_cb_size, &dumpsize) :
+	    phys_foreach(phys_cb_size, &dumpsize);
+	if (status < 0) {
+		error = -status;
+		goto fail;
+	}
+	ehdr.e_phnum = status;
 	hdrsz = ehdr.e_phoff + ehdr.e_phnum * ehdr.e_phentsize;
-	fileofs = MD_ALIGN(hdrsz);
+	fileofs = (minidump) ? round_page(hdrsz) : MD_ALIGN(hdrsz);
 	dumpsize += fileofs;
 	hdrgap = fileofs - DEV_ALIGN(hdrsz);
 
@@ -270,24 +397,30 @@ dumpsys(struct dumperinfo *di)
 		goto fail;
 
 	/* Dump program headers */
-	error = foreach_chunk(cb_dumphdr, di);
-	if (error < 0)
+	status = (minidump) ? virt_foreach(virt_cb_dumphdr, di) :
+	    phys_foreach(phys_cb_dumphdr, di);
+	if (status < 0) {
+		error = -status;
 		goto fail;
+	}
 	buf_flush(di);
 
 	/*
 	 * All headers are written using blocked I/O, so we know the
-	 * current offset is (still) block aligned. Skip the alignement
+	 * current offset is (still) block aligned. Skip the alignment
 	 * in the file to have the segment contents aligned at page
-	 * boundary. We cannot use MD_ALIGN on dumplo, because we don't
-	 * care and may very well be unaligned within the dump device.
+	 * boundary. For physical dumps, it's the EFI page size (= 4K).
+	 * For minidumps it's the kernel's page size (= 8K).
 	 */
 	dumplo += hdrgap;
 
 	/* Dump memory chunks (updates dumplo) */
-	error = foreach_chunk(cb_dumpdata, di);
-	if (error < 0)
+	status = (minidump) ? virt_foreach(virt_cb_dumpdata, di) :
+	    phys_foreach(phys_cb_dumpdata, di);
+	if (status < 0) {
+		error = -status;
 		goto fail;
+	}
 
 	/* Dump trailer */
 	error = dump_write(di, &kdh, 0, dumplo, sizeof(kdh));
@@ -300,9 +433,6 @@ dumpsys(struct dumperinfo *di)
 	return;
 
  fail:
-	if (error < 0)
-		error = -error;
-
 	if (error == ECANCELED)
 		printf("\nDump aborted\n");
 	else

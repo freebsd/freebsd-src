@@ -95,6 +95,18 @@ default_return_in_memory (tree type,
 #endif
 }
 
+/* APPLE LOCAL begin radar 4781080 */
+bool
+default_objc_fpreturn_msgcall (tree type, bool no_long_double)
+{
+#ifndef OBJC_FPRETURN_MSGCALL
+  return type == NULL_TREE && no_long_double;
+#else
+  return OBJC_FPRETURN_MSGCALL (type, no_long_double);
+#endif
+}
+/* APPLE LOCAL end radar 4781080 */
+
 rtx
 default_expand_builtin_saveregs (void)
 {

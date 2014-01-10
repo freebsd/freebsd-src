@@ -144,6 +144,8 @@ process_old_cb(void *arg, const blkptr_t *bp, dmu_tx_t *tx)
 	struct process_old_arg *poa = arg;
 	dsl_pool_t *dp = poa->ds->ds_dir->dd_pool;
 
+	ASSERT(!BP_IS_HOLE(bp));
+
 	if (bp->blk_birth <= poa->ds->ds_phys->ds_prev_snap_txg) {
 		dsl_deadlist_insert(&poa->ds->ds_deadlist, bp, tx);
 		if (poa->ds_prev && !poa->after_branch_point &&
@@ -536,7 +538,7 @@ kill_blkptr(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
 	struct killarg *ka = arg;
 	dmu_tx_t *tx = ka->tx;
 
-	if (bp == NULL)
+	if (BP_IS_HOLE(bp))
 		return (0);
 
 	if (zb->zb_level == ZB_ZIL_LEVEL) {
@@ -805,6 +807,12 @@ dsl_destroy_head_sync_impl(dsl_dataset_t *ds, dmu_tx_t *tx)
 	ddobj = ds->ds_dir->dd_object;
 	ASSERT(ds->ds_phys->ds_snapnames_zapobj != 0);
 	VERIFY0(zap_destroy(mos, ds->ds_phys->ds_snapnames_zapobj, tx));
+
+	if (ds->ds_bookmarks != 0) {
+		VERIFY0(zap_destroy(mos,
+		    ds->ds_bookmarks, tx));
+		spa_feature_decr(dp->dp_spa, SPA_FEATURE_BOOKMARKS, tx);
+	}
 
 	spa_prop_clear_bootfs(dp->dp_spa, ds->ds_object, tx);
 

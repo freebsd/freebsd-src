@@ -32,7 +32,6 @@
 #define	LPC_DEV_PHYS_BASE		0x40000000
 #define	LPC_DEV_P5_PHYS_BASE		0x20000000
 #define	LPC_DEV_P6_PHYS_BASE		0x30000000
-#define	LPC_DEV_BASE			0xd0000000
 #define	LPC_DEV_SIZE			0x10000000
 
 /*
@@ -88,7 +87,7 @@
 /*
  * Watchdog timer. (from UM10326: LPC32x0 User manual, page 572)
  */
-#define	LPC_WDTIM_BASE			(LPC_DEV_BASE + 0x3c000)
+#define	LPC_WDTIM_PHYS_BASE		(LPC_DEV_PHYS_BASE + 0x3c000)
 #define	LPC_WDTIM_INT			0x00
 #define	LPC_WDTIM_CTRL			0x04
 #define	LPC_WDTIM_COUNTER		0x08
@@ -97,11 +96,12 @@
 #define	LPC_WDTIM_EMR			0x14
 #define	LPC_WDTIM_PULSE			0x18
 #define	LPC_WDTIM_RES			0x1c
+#define	LPC_WDTIM_SIZE			0x20
 
 /*
  * Clocking and power control. (from UM10326: LPC32x0 User manual, page 58)
  */
-#define	LPC_CLKPWR_BASE			(LPC_DEV_BASE + 0x4000)
+#define	LPC_CLKPWR_PHYS_BASE		(LPC_DEV_PHYS_BASE + 0x4000)
 #define	LPC_CLKPWR_PWR_CTRL		0x44
 #define	LPC_CLKPWR_OSC_CTRL		0x4c
 #define	LPC_CLKPWR_SYSCLK_CTRL		0x50
@@ -189,6 +189,7 @@
 #define	LPC_CLKPWR_UARTCLK_CTRL		0xe4
 #define	LPC_CLKPWR_POS0_IRAM_CTRL	0x110
 #define	LPC_CLKPWR_POS1_IRAM_CTRL	0x114
+#define	LPC_CLKPWR_SIZE			0x118
 
 /* Additional UART registers in CLKPWR address space. */
 #define	LPC_CLKPWR_UART_U3CLK		0xd0
@@ -201,9 +202,9 @@
 #define	LPC_CLKPWR_UART_IRDACLK		0xe0
 
 /* Additional UART registers */
-#define	LPC_UART_BASE			(LPC_DEV_BASE + 0x80000)
-#define	LPC_UART_CONTROL_BASE		(LPC_DEV_BASE + 0x54000)
-#define	LPC_UART5_BASE			(LPC_DEV_BASE + 0x90000)
+#define	LPC_UART_BASE			0x80000
+#define	LPC_UART_CONTROL_BASE		0x54000
+#define	LPC_UART5_BASE			0x90000
 #define	LPC_UART_CTRL			0x00
 #define	LPC_UART_CLKMODE		0x04
 #define	LPC_UART_CLKMODE_UART3(_n)	(((_n) & 0x3) << 4)
@@ -211,6 +212,7 @@
 #define	LPC_UART_CLKMODE_UART5(_n)	(((_n) & 0x3) << 8)
 #define	LPC_UART_CLKMODE_UART6(_n)	(((_n) & 0x3) << 10)
 #define	LPC_UART_LOOP			0x08
+#define	LPC_UART_CONTROL_SIZE		0x0c
 #define	LPC_UART_FIFOSIZE		64
 
 /*
@@ -236,7 +238,7 @@
 /*
  * MMC/SD controller. (from UM10326: LPC32x0 User manual, page 436)
  */
-#define	LPC_SD_BASE			(LPC_DEV_P5_PHYS_BASE + 0x98000)
+#define	LPC_SD_PHYS_BASE		(LPC_DEV_P5_PHYS_BASE + 0x98000)
 #define	LPC_SD_CLK			(13 * 1000 * 1000)	// 13Mhz
 #define	LPC_SD_POWER			0x00
 #define	LPC_SD_POWER_OPENDRAIN		(1 << 6)
@@ -535,7 +537,7 @@
 /*
  * GPIO (from UM10326: LPC32x0 User manual, page 606)
  */
-#define	LPC_GPIO_BASE			(LPC_DEV_BASE + 0x28000)
+#define	LPC_GPIO_PHYS_BASE		(LPC_DEV_PHYS_BASE + 0x28000)
 #define	LPC_GPIO_P0_COUNT		8
 #define	LPC_GPIO_P1_COUNT		24
 #define	LPC_GPIO_P2_COUNT		13
@@ -564,6 +566,8 @@
 #define	LPC_GPIO_P3_OUTP_SET		0x04
 #define	LPC_GPIO_P3_OUTP_CLR		0x08
 #define	LPC_GPIO_P3_OUTP_STATE		0x0c
+#define	LPC_GPIO_SIZE			0x80
+
 /* Aliases for logical pin numbers: */
 #define	LPC_GPIO_GPI_00(_n)		(0 + _n)
 #define	LPC_GPIO_GPI_15(_n)		(10 + _n)

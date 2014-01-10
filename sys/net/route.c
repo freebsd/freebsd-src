@@ -37,6 +37,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_route.h"
+#include "opt_sctp.h"
 #include "opt_mrouting.h"
 #include "opt_mpath.h"
 
@@ -86,6 +87,13 @@
 #define	RT_NUMFIBS	1
 #endif
 
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
+#endif /* SCTP */
+#endif
+
+
 /* This is read-only.. */
 u_int rt_numfibs = RT_NUMFIBS;
 SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
@@ -118,7 +126,8 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 
 
 /* compare two sockaddr structures */
-#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
+#define	sa_equal(a1, a2) (((a1)->sa_len == (a2)->sa_len) && \
+    (bcmp((a1), (a2), (a1)->sa_len) == 0))
 
 /*
  * Convert a 'struct radix_node *' to a 'struct rtentry *'.
@@ -930,6 +939,57 @@ bad:
 	return (error);
 }
 
+#if 0
+int p_sockaddr(char *buf, int buflen, struct sockaddr *s);
+int rt_print(char *buf, int buflen, struct rtentry *rt);
+
+int
+p_sockaddr(char *buf, int buflen, struct sockaddr *s)
+{
+	void *paddr = NULL;
+
+	switch (s->sa_family) {
+	case AF_INET:
+		paddr = &((struct sockaddr_in *)s)->sin_addr;
+		break;
+	case AF_INET6:
+		paddr = &((struct sockaddr_in6 *)s)->sin6_addr;
+		break;
+	}
+
+	if (paddr == NULL)
+		return (0);
+
+	if (inet_ntop(s->sa_family, paddr, buf, buflen) == NULL)
+		return (0);
+	
+	return (strlen(buf));
+}
+
+int
+rt_print(char *buf, int buflen, struct rtentry *rt)
+{
+	struct sockaddr *addr, *mask;
+	int i = 0;
+
+	addr = rt_key(rt);
+	mask = rt_mask(rt);
+
+	i = p_sockaddr(buf, buflen, addr);
+	if (!(rt->rt_flags & RTF_HOST)) {
+		buf[i++] = '/';
+		i += p_sockaddr(buf + i, buflen - i, mask);
+	}
+
+	if (rt->rt_flags & RTF_GATEWAY) {
+		buf[i++] = '>';
+		i += p_sockaddr(buf + i, buflen - i, rt->rt_gateway);
+	}
+
+	return (i);
+}
+#endif
+
 #ifdef RADIX_MPATH
 static int
 rn_mpath_update(int req, struct rt_addrinfo *info,
@@ -943,10 +1003,11 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	register struct radix_node *rn;
 	int error = 0;
 
-	rn = rnh->rnh_matchaddr(dst, rnh);
+	rn = rnh->rnh_lookup(dst, netmask, rnh);
 	if (rn == NULL)
 		return (ESRCH);
 	rto = rt = RNTORT(rn);
+
 	rt = rt_mpath_matchgate(rt, gateway);
 	if (rt == NULL)
 		return (ESRCH);
@@ -1446,7 +1507,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		fibnum = RT_DEFAULT_FIB;
 		break;
 	}
-	if (fibnum == -1) {
+	if (fibnum == RT_ALL_FIBS) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
 			startfib = endfib = curthread->td_proc->p_fibnum;
 		} else {
@@ -1495,10 +1556,10 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 				/* this table doesn't exist but others might */
 				continue;
 			RADIX_NODE_HEAD_RLOCK(rnh);
+			rn = rnh->rnh_lookup(dst, netmask, rnh);
 #ifdef RADIX_MPATH
 			if (rn_mpath_capable(rnh)) {
 
-				rn = rnh->rnh_matchaddr(dst, rnh);
 				if (rn == NULL) 
 					error = ESRCH;
 				else {
@@ -1512,17 +1573,14 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 					 */
 					rt = rt_mpath_matchgate(rt,
 					    ifa->ifa_addr);
-					if (!rt) 
+					if (rt == NULL) 
 						error = ESRCH;
 				}
 			}
-			else
 #endif
-			rn = rnh->rnh_lookup(dst, netmask, rnh);
 			error = (rn == NULL ||
 			    (rn->rn_flags & RNF_ROOT) ||
-			    RNTORT(rn)->rt_ifa != ifa ||
-			    !sa_equal((struct sockaddr *)rn->rn_key, dst));
+			    RNTORT(rn)->rt_ifa != ifa);
 			RADIX_NODE_HEAD_RUNLOCK(rnh);
 			if (error) {
 				/* this is only an error if bad on ALL tables */
@@ -1653,7 +1711,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 int
 rtinit_fib(struct ifaddr *ifa, int cmd, int flags)
 {
-	return (rtinit1(ifa, cmd, flags, -1));
+	return (rtinit1(ifa, cmd, flags, RT_ALL_FIBS));
 }
 #endif
 
@@ -1677,8 +1735,94 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 	case AF_INET6:
 	case AF_INET:
 		/* We do support multiple FIBs. */
-		fib = -1;
+		fib = RT_ALL_FIBS;
 		break;
 	}
 	return (rtinit1(ifa, cmd, flags, fib));
 }
+
+/*
+ * Announce interface address arrival/withdraw
+ * Returns 0 on success.
+ */
+int
+rt_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+	    ("unexpected cmd %d", cmd));
+	
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
+
+	return (rtsock_addrmsg(cmd, ifa, fibnum));
+}
+
+/*
+ * Announce route addition/removal.
+ * Users of this function MUST validate input data BEFORE calling.
+ * However we have to be able to handle invalid data:
+ * if some userland app sends us "invalid" route message (invalid mask,
+ * no dst, wrong address families, etc...) we need to pass it back
+ * to app (and any other rtsock consumers) with rtm_errno field set to
+ * non-zero value.
+ * Returns 0 on success.
+ */
+int
+rt_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
+    int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+	    ("unexpected cmd %d", cmd));
+	
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
+
+	KASSERT(rt_key(rt) != NULL, (":%s: rt_key must be supplied", __func__));
+
+	return (rtsock_routemsg(cmd, ifp, error, rt, fibnum));
+}
+
+void
+rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+{
+
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RT_ALL_FIBS);
+}
+
+/*
+ * This is called to generate messages from the routing socket
+ * indicating a network interface has had addresses associated with it.
+ */
+void
+rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
+    int fibnum)
+{
+
+	KASSERT(cmd == RTM_ADD || cmd == RTM_DELETE,
+		("unexpected cmd %u", cmd));
+	KASSERT(fibnum == RT_ALL_FIBS || (fibnum >= 0 && fibnum < rt_numfibs),
+	    ("%s: fib out of range 0 <=%d<%d", __func__, fibnum, rt_numfibs));
+
+#if defined(INET) || defined(INET6)
+#ifdef SCTP
+	/*
+	 * notify the SCTP stack
+	 * this will only get called when an address is added/deleted
+	 * XXX pass the ifaddr struct instead if ifa->ifa_addr...
+	 */
+	sctp_addr_change(ifa, cmd);
+#endif /* SCTP */
+#endif
+	if (cmd == RTM_ADD) {
+		rt_addrmsg(cmd, ifa, fibnum);
+		if (rt != NULL)
+			rt_routemsg(cmd, ifa->ifa_ifp, error, rt, fibnum);
+	} else {
+		if (rt != NULL)
+			rt_routemsg(cmd, ifa->ifa_ifp, error, rt, fibnum);
+		rt_addrmsg(cmd, ifa, fibnum);
+	}
+}
+

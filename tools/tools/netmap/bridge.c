@@ -1,5 +1,5 @@
 /*
- * (C) 2011 Luigi Rizzo, Matteo Landi
+ * (C) 2011-2014 Luigi Rizzo, Matteo Landi
  *
  * BSD license
  *
@@ -42,10 +42,12 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 			msg, rxring->flags, txring->flags);
 	j = rxring->cur; /* RX */
 	k = txring->cur; /* TX */
-	if (rxring->avail < limit)
-		limit = rxring->avail;
-	if (txring->avail < limit)
-		limit = txring->avail;
+	m = nm_ring_space(rxring);
+	if (m < limit)
+		limit = m;
+	m = nm_ring_space(txring);
+	if (m < limit)
+		limit = m;
 	m = limit;
 	while (limit-- > 0) {
 		struct netmap_slot *rs = &rxring->slot[j];
@@ -81,13 +83,11 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 		ts->flags |= NS_BUF_CHANGED;
 		rs->flags |= NS_BUF_CHANGED;
 #endif /* NO_SWAP */
-		j = NETMAP_RING_NEXT(rxring, j);
-		k = NETMAP_RING_NEXT(txring, k);
+		j = nm_ring_next(rxring, j);
+		k = nm_ring_next(txring, k);
 	}
-	rxring->avail -= m;
-	txring->avail -= m;
-	rxring->cur = j;
-	txring->cur = k;
+	rxring->head = rxring->cur = j;
+	txring->head = txring->cur = k;
 	if (verbose && m > 0)
 		D("%s sent %d packets to %p", msg, m, txring);
 
@@ -107,11 +107,11 @@ move(struct my_ring *src, struct my_ring *dst, u_int limit)
 		rxring = NETMAP_RXRING(src->nifp, si);
 		txring = NETMAP_TXRING(dst->nifp, di);
 		ND("txring %p rxring %p", txring, rxring);
-		if (rxring->avail == 0) {
+		if (nm_ring_empty(rxring)) {
 			si++;
 			continue;
 		}
-		if (txring->avail == 0) {
+		if (nm_ring_empty(txring)) {
 			di++;
 			continue;
 		}
@@ -133,7 +133,7 @@ pkt_queued(struct my_ring *me, int tx)
 	for (i = me->begin; i < me->end; i++) {
 		struct netmap_ring *ring = tx ?
 			NETMAP_TXRING(me->nifp, i) : NETMAP_RXRING(me->nifp, i);
-		tot += ring->avail;
+		tot += nm_ring_space(ring);
 	}
 	if (0 && verbose && tot && !tx)
 		D("ring %s %s %s has %d avail at %d",
@@ -288,12 +288,12 @@ main(int argc, char **argv)
 		if (ret < 0)
 			continue;
 		if (pollfd[0].revents & POLLERR) {
-			D("error on fd0, rxcur %d@%d",
-				me[0].rx->avail, me[0].rx->cur);
+			D("error on fd0, rx [%d,%d)",
+				me[0].rx->cur, me[0].rx->tail);
 		}
 		if (pollfd[1].revents & POLLERR) {
-			D("error on fd1, rxcur %d@%d",
-				me[1].rx->avail, me[1].rx->cur);
+			D("error on fd1, rx [%d,%d)",
+				me[1].rx->cur, me[1].rx->tail);
 		}
 		if (pollfd[0].revents & POLLOUT) {
 			move(me + 1, me, burst);

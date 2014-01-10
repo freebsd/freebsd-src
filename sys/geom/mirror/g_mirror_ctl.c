@@ -797,7 +797,7 @@ g_mirror_ctl_forget(struct gctl_req *req, struct g_class *mp)
 }
 
 static void
-g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
+g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp, int wipe)
 {
 	struct g_mirror_softc *sc;
 	int *force, *nargs, error;
@@ -838,10 +838,14 @@ g_mirror_ctl_stop(struct gctl_req *req, struct g_class *mp)
 			return;
 		}
 		g_cancel_event(sc);
+		if (wipe)
+			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_WIPE;
 		error = g_mirror_destroy(sc, how);
 		if (error != 0) {
 			gctl_error(req, "Cannot destroy device %s (error=%d).",
 			    sc->sc_geom->name, error);
+			if (wipe)
+				sc->sc_flags &= ~G_MIRROR_DEVICE_FLAG_WIPE;
 			sx_xunlock(&sc->sc_lock);
 			return;
 		}
@@ -882,7 +886,9 @@ g_mirror_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	else if (strcmp(verb, "forget") == 0)
 		g_mirror_ctl_forget(req, mp);
 	else if (strcmp(verb, "stop") == 0)
-		g_mirror_ctl_stop(req, mp);
+		g_mirror_ctl_stop(req, mp, 0);
+	else if (strcmp(verb, "destroy") == 0)
+		g_mirror_ctl_stop(req, mp, 1);
 	else
 		gctl_error(req, "Unknown verb.");
 	g_topology_lock();

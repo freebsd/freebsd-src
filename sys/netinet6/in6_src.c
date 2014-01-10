@@ -380,18 +380,18 @@ handle_nexthop(struct ip6po_nhinfo *nh, u_int fibnum, struct ifnet **ifpp)
 		 * Next hop is LLA, thus it should be neighbor.
 		 * Determine outgoing interface by zone index.
 		 */
-			ifp = in6_getlinkifnet(sa->sin6_scope_id);
-		else {
-			if (cached_rtlookup(sa, ro, fibnum) != 0)
-				return (EHOSTUNREACH);
-			/*
-			 * The node identified by that address must be a
-			 * neighbor of the sending host.
-			 */
-			if (ro->ro_rt->rt_flags & RTF_GATEWAY)
-				return (EHOSTUNREACH);
-			ifp = ro->ro_rt->rt_ifp;
-		}
+		ifp = in6_getlinkifnet(sa->sin6_scope_id);
+	else {
+		if (cached_rtlookup(sa, ro, fibnum) != 0)
+			return (EHOSTUNREACH);
+		/*
+		 * The node identified by that address must be a
+		 * neighbor of the sending host.
+		 */
+		if (ro->ro_rt->rt_flags & RTF_GATEWAY)
+			return (EHOSTUNREACH);
+		ifp = ro->ro_rt->rt_ifp;
+	}
 	/*
 	 * When the outgoing interface is specified by IPV6_PKTINFO
 	 * as well, the next hop specified by this option must be
@@ -814,7 +814,6 @@ in6_src_sysctl(SYSCTL_HANDLER_ARGS)
 int
 in6_src_ioctl(u_long cmd, caddr_t data)
 {
-	int i;
 	struct in6_addrpolicy ent0;
 
 	if (cmd != SIOCAADDRCTL_POLICY && cmd != SIOCDADDRCTL_POLICY)
@@ -828,10 +827,7 @@ in6_src_ioctl(u_long cmd, caddr_t data)
 	if (in6_mask2len(&ent0.addrmask.sin6_addr, NULL) < 0)
 		return (EINVAL);
 	/* clear trailing garbages (if any) of the prefix address. */
-	for (i = 0; i < 4; i++) {
-		ent0.addr.sin6_addr.s6_addr32[i] &=
-			ent0.addrmask.sin6_addr.s6_addr32[i];
-	}
+	IN6_MASK_ADDR(&ent0.addr.sin6_addr, &ent0.addrmask.sin6_addr);
 	ent0.use = 0;
 
 	switch (cmd) {

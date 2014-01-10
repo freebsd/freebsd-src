@@ -958,8 +958,15 @@ newroute(int argc, char **argv)
 		}
 	}
 
+	/* Do some sanity checks on resulting request */
 	if (so[RTAX_DST].ss_len == 0) {
 		warnx("destination parameter required");
+		usage(NULL);
+	}
+
+	if (so[RTAX_NETMASK].ss_len != 0 &&
+	    so[RTAX_DST].ss_family != so[RTAX_NETMASK].ss_family) {
+		warnx("destination and netmask family need to be the same");
 		usage(NULL);
 	}
 

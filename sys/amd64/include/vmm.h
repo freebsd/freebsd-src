@@ -47,7 +47,7 @@ struct pmap;
 
 enum x2apic_state;
 
-typedef int	(*vmm_init_func_t)(void);
+typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
 typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
@@ -69,6 +69,8 @@ typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
 typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
+typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
+typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
@@ -87,6 +89,8 @@ struct vmm_ops {
 	vmi_set_cap_t		vmsetcap;
 	vmi_vmspace_alloc	vmspace_alloc;
 	vmi_vmspace_free	vmspace_free;
+	vmi_vlapic_init		vlapic_init;
+	vmi_vlapic_cleanup	vlapic_cleanup;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -159,7 +163,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vcpu_notify_event(struct vm *vm, int vcpuid);
+void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -299,9 +303,19 @@ struct vm_exit {
 		 * exitcode to represent the VM-exit.
 		 */
 		struct {
-			int		error;		/* vmx inst error */
+			int		status;		/* vmx inst status */
+			/*
+			 * 'exit_reason' and 'exit_qualification' are valid
+			 * only if 'status' is zero.
+			 */
 			uint32_t	exit_reason;
 			uint64_t	exit_qualification;
+			/*
+			 * 'inst_error' and 'inst_type' are valid
+			 * only if 'status' is non-zero.
+			 */
+			int		inst_type;
+			int		inst_error;
 		} vmx;
 		struct {
 			uint32_t	code;		/* ecx value */

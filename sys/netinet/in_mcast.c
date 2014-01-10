@@ -140,7 +140,9 @@ static int	in_getmulti(struct ifnet *, const struct in_addr *,
 		    struct in_multi **);
 static int	inm_get_source(struct in_multi *inm, const in_addr_t haddr,
 		    const int noalloc, struct ip_msource **pims);
+#ifdef KTR
 static int	inm_is_ifp_detached(const struct in_multi *);
+#endif
 static int	inm_merge(struct in_multi *, /*const*/ struct in_mfilter *);
 static void	inm_purge(struct in_multi *);
 static void	inm_reap(struct in_multi *);
@@ -187,6 +189,7 @@ static STAILQ_HEAD(, ip_moptions) imo_gc_list =
     STAILQ_HEAD_INITIALIZER(imo_gc_list);
 static struct task imo_gc_task = TASK_INITIALIZER(0, inp_gcmoptions, NULL);
 
+#ifdef KTR
 /*
  * Inline function which wraps assertions for a valid ifp.
  * The ifnet layer will set the ifma's ifp pointer to NULL if the ifp
@@ -209,6 +212,7 @@ inm_is_ifp_detached(const struct in_multi *inm)
 
 	return (ifp == NULL);
 }
+#endif
 
 /*
  * Initialize an in_mfilter structure to a known state at t0, t1

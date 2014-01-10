@@ -160,7 +160,7 @@ vi_vq_init(struct virtio_softc *vs, uint32_t pfn)
 
 	vq = &vs->vs_queues[vs->vs_curq];
 	vq->vq_pfn = pfn;
-	phys = pfn << VRING_PFN;
+	phys = (uint64_t)pfn << VRING_PFN;
 	size = vring_size(vq->vq_qsize);
 	base = paddr_guest2host(vs->vs_pi->pi_vmctx, phys, size);
 

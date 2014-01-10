@@ -333,6 +333,12 @@ again:
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		m->m_flags |= M_MCAST;
 		/*
+		 * IP destination address is multicast.  Make sure "gw"
+		 * still points to the address in "ro".  (It may have been
+		 * changed to point to a gateway address, above.)
+		 */
+		gw = dst;
+		/*
 		 * See if the caller provided any multicast options
 		 */
 		if (imo != NULL) {

@@ -249,7 +249,13 @@ terminal_input_char(struct terminal *tm, term_char_t c)
 	if (tp == NULL)
 		return;
 
-	/* Strip off any attributes. */
+	/*
+	 * Strip off any attributes. Also ignore input of second part of
+	 * CJK fullwidth characters, as we don't want to return these
+	 * characters twice.
+	 */
+	if (TCHAR_FORMAT(c) & TF_CJK_RIGHT)
+		return;
 	c = TCHAR_CHARACTER(c);
 
 	tty_lock(tp);

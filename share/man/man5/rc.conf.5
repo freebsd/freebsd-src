@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2013
+.Dd December 25, 2013
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -2061,85 +2061,6 @@ If set to
 run the
 .Xr unbound 8
 daemon as a local caching resolver.
-.It Va named_enable
-.Pq Vt bool
-If set to
-.Dq Li YES ,
-run the
-.Xr named 8
-daemon.
-.It Va named_program
-.Pq Vt str
-Path to
-.Xr named 8
-(default
-.Pa /usr/sbin/named ) .
-.It Va named_conf
-.Pq Vt str
-Path to
-.Xr named 8
-configuration file, (default
-.Pa /etc/namedb/named.conf ) .
-.It Va named_flags
-.Pq Vt str
-If
-.Va named_enable
-is set to
-.Dq Li YES ,
-these are the flags to pass to
-.Xr named 8 .
-.It Va named_uid
-.Pq Vt str
-The user that the
-.Xr named 8
-process should be run as.
-.It Va named_chrootdir
-.Pq Vt str
-The root directory for a name server run in a
-.Xr chroot 8
-environment (default
-.Pa /var/named ) .
-If left empty
-.Xr named 8
-will not be run in a
-.Xr chroot 8
-environment.
-.It Va named_chroot_autoupdate
-.Pq Vt bool
-Set to
-.Dq Li NO
-to disable automatic update of the
-.Xr chroot 8
-environment.
-.It Va named_symlink_enable
-.Pq Vt bool
-Set to
-.Dq Li NO
-to disable symlinking of
-daemon's PID file
-into the
-.Xr chroot 8
-environment.
-.It Va named_wait
-.Pq Vt bool
-Set to have
-.Pa /etc/rc.d/named
-loop until working name service is established.
-.It Va named_wait_host
-.Pq Vt str
-Name of host to lookup for the named_wait option.
-(Default localhost)
-.It Va named_auto_forward
-.Pq Vt bool
-Set to enable automatic creation of a forwarder
-configuration file derived from
-.Pa /etc/resolv.conf .
-.It Va named_auto_forward_only
-.Pq Vt bool
-Set to change the default forwarder configuration from
-.Dq forward first
-to
-.Dq forward only .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
@@ -4572,7 +4493,6 @@ The default is 30.
 .Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
-.Xr named 8 ,
 .Xr newfs 8 ,
 .Xr newsyslog 8 ,
 .Xr nfsd 8 ,
