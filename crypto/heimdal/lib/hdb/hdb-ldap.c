@@ -44,6 +44,9 @@
 static krb5_error_code LDAP__connect(krb5_context context, HDB *);
 static krb5_error_code LDAP_close(krb5_context context, HDB *);
 
+static krb5_error_code hdb_ldap_create(krb5_context context, HDB **, const char *);
+static krb5_error_code hdb_ldapi_create(krb5_context context, HDB **, const char *);
+
 static krb5_error_code
 LDAP_message2entry(krb5_context context, HDB * db, LDAPMessage * msg,
 		   int flags, hdb_entry_ex * ent);
@@ -797,10 +800,10 @@ need_quote(unsigned char c)
 	(c == 0x7f);
 }
 
-const static char hexchar[] = "0123456789ABCDEF";
+static const char hexchar[] = "0123456789ABCDEF";
 
 static krb5_error_code
-escape_value(krb5_context context, const unsigned char *unquoted, char **quoted)
+escape_value(krb5_context context, const char *unquoted, char **quoted)
 {
     size_t i, len;
 
@@ -816,7 +819,7 @@ escape_value(krb5_context context, const unsigned char *unquoted, char **quoted)
     }
 
     for (i = 0; unquoted[0] ; unquoted++) {
-	if (need_quote((unsigned char *)unquoted[0])) {
+	if (need_quote((unsigned char)unquoted[0])) {
 	    (*quoted)[i++] = '\\';
 	    (*quoted)[i++] = hexchar[(unquoted[0] >> 4) & 0xf];
 	    (*quoted)[i++] = hexchar[(unquoted[0]     ) & 0xf];
