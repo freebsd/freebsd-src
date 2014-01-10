@@ -1145,16 +1145,9 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	pktlen = sizeof(*wh) + le32toh(bss->ieslen);
 	if (__predict_false(pktlen > MCLBYTES))
 		return;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL))
 		return;
-	if (pktlen > MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if (!(m->m_flags & M_EXT)) {
-			m_free(m);
-			return;
-		}
-	}
 	wh = mtod(m, struct ieee80211_frame *);
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT |
 	    IEEE80211_FC0_SUBTYPE_BEACON;
@@ -1358,18 +1351,10 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	DPRINTFN(5, "Rx frame len=%d rate=%d infosz=%d rssi=%d\n",
 	    pktlen, rate, infosz, *rssi);
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
 		ifp->if_ierrors++;
 		return NULL;
-	}
-	if (pktlen > MHLEN) {
-		MCLGET(m, M_NOWAIT);
-		if (__predict_false(!(m->m_flags & M_EXT))) {
-			ifp->if_ierrors++;
-			m_freem(m);
-			return NULL;
-		}
 	}
 	/* Finalize mbuf. */
 	m->m_pkthdr.rcvif = ifp;
