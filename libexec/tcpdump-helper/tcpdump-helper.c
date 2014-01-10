@@ -94,6 +94,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
     __capability const netdissect_options *ndo,
     __capability const char *ndo_espsecret)
 {
+	size_t espsec_len;
 
 	program_name = "tcpdump-helper"; /* XXX: copy from parent? */
 
@@ -106,14 +107,16 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	 */
 	cmemcpy(cheri_ptr(gndo, sizeof(netdissect_options)), ndo,
 	    sizeof(netdissect_options));
-	if (ndo_espsecret != NULL) {
+	if (ndo->ndo_espsecret != NULL) { /* XXX: check the real thing */
 		if (gndo->ndo_espsecret != NULL)
 			free(gndo->ndo_espsecret);
 		
-		gndo->ndo_espsecret =
-		    malloc(cheri_getlen((__capability void *)ndo_espsecret));
+		espsec_len = cheri_getlen((__capability void *)ndo_espsecret);
+		gndo->ndo_espsecret = malloc(espsec_len);
 		if (gndo->ndo_espsecret == NULL)
 			abort();
+		cmemcpy(cheri_ptr(gndo->ndo_espsecret, espsec_len),
+		    ndo_espsecret, espsec_len);
 	}
 	gndo->ndo_printf = tcpdump_printf;
 	gndo->ndo_default_print = ndo_default_print;
