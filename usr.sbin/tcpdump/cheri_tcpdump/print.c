@@ -67,7 +67,7 @@ sb_init(netdissect_options *ndo)
 {
 
 	if (sandbox_class_new("/usr/libexec/tcpdump-helper.bin",
-	    4*1024*1024, &tcpdump_classp) < 0) {
+	    8*1024*1024, &tcpdump_classp) < 0) {
 		fprintf(stderr, "failed to create sandbox class: %s",
 		    strerror(errno));
 		sb_state = SB_ERROR;
