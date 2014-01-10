@@ -191,7 +191,11 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		gndo->ndo_packetp = data;
 		gndo->ndo_snapend = data + h->caplen;
 
-		/* XXX: invoke the current printer */
+		if (printinfo.ndo_type)
+			ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
+			     &hdr, data);
+		else
+			ret = (*printinfo.p.printer)(&hdr, data);
 
 		/* XXX: what else to reset? */
 		free(data);
