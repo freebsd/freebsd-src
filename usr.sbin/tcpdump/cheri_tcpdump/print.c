@@ -60,10 +60,8 @@ static struct sandbox_class	*tcpdump_classp;
 static struct sandbox_object	*tcpdump_objectp;
 static struct cheri_object	 tcpdump_systemcap;
 
-/* XXX: should be static, but that's confusing in the debugger */
-int sb_init(netdissect_options *ndo);
-int
-sb_init(netdissect_options *ndo)
+static int
+sb_create()
 {
 
 	if (sandbox_class_new("/usr/libexec/tcpdump-helper.bin",
@@ -87,7 +85,21 @@ sb_init(netdissect_options *ndo)
 	    TCPDUMP_HELPER_OP_HAS_PRINTER, "has_printer");
 	cheri_systemcap_get(&tcpdump_systemcap);
 
-	return(sandbox_object_cinvoke(tcpdump_objectp,
+	return (0);
+}
+
+static int
+sb_init(netdissect_options *ndo)
+{
+	int ret;
+
+	if (tcpdump_classp == NULL &&
+	    sb_create() != 0)
+		return (-1);
+
+	ndo->ndo_dlt = g_type;
+
+	ret = sandbox_object_cinvoke(tcpdump_objectp,
 	    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
 	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
 	    cheri_ptrperm((void *)ndo, sizeof(*ndo), CHERI_PERM_LOAD),
@@ -95,9 +107,13 @@ sb_init(netdissect_options *ndo)
 	    cheri_ptrperm((void *)ndo->ndo_espsecret, strlen(ndo->ndo_espsecret),
 		CHERI_PERM_LOAD),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap()));
+	    cheri_zerocap());
+	if (ret != 0)
+		fprintf(stderr, "failed to initalizse sandbox: %d \n", ret);
 
-	return (0);
+	sb_state = SB_RUNNING;
+
+	return (ret);
 }
 
 void
@@ -111,6 +127,10 @@ init_print(u_int32_t localnet, u_int32_t mask)
 int
 has_printer(int type)
 {
+
+	if (tcpdump_classp == NULL &&
+	    sb_create() != 0)
+		return (0);	/* XXX: should error? */
 
 	return (sandbox_object_cinvoke(tcpdump_objectp,
 	    TCPDUMP_HELPER_OP_HAS_PRINTER, type, 0, 0, 0, 0, 0, 0,
