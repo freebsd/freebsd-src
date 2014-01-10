@@ -55,6 +55,7 @@ int	sb_state = SB_SHUTDOWN;
 
 u_int32_t g_localnet;
 u_int32_t g_mask;
+int g_type = -1;
 
 static struct sandbox_class	*tcpdump_classp;
 static struct sandbox_object	*tcpdump_objectp;
@@ -145,6 +146,7 @@ get_print_info(int type)
         struct print_info printinfo;
 
 	/* XXX: do or retrigger sandbox init if running */
+	g_type = type;
 
 	/* Not used, contents don't matter */
 	memset(&printinfo, 0, sizeof(printinfo));
