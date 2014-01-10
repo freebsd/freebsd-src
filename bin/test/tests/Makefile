@@ -3,6 +3,7 @@
 .include <bsd.own.mk>
 
 TESTSDIR=	${TESTSBASE}/bin/test
+KYUAFILE=	yes
 
 TAP_TESTS_SH=	legacy_test
 
