@@ -179,6 +179,7 @@ philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
 rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
+riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
@@ -370,6 +371,7 @@ itetcu -> sylvio
 
 jadawin -> bapt
 jadawin -> flo
+jadawin -> riggs
 jadawin -> sbz
 jadawin -> wen
 
@@ -532,6 +534,7 @@ tabthorpe -> zi
 tabthorpe -> gblach
 
 thierry -> jadawin
+thierry -> riggs
 
 tmclaugh -> itetcu
 tmclaugh -> xride
