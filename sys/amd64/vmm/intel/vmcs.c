@@ -473,7 +473,7 @@ DB_SHOW_COMMAND(vmcs, db_show_vmcs)
 	switch (exit & 0x8000ffff) {
 	case EXIT_REASON_EXCEPTION:
 	case EXIT_REASON_EXT_INTR:
-		val = vmcs_read(VMCS_EXIT_INTERRUPTION_INFO);
+		val = vmcs_read(VMCS_EXIT_INTR_INFO);
 		db_printf("Interrupt Type: ");
 		switch (val >> 8 & 0x7) {
 		case 0:
@@ -495,7 +495,7 @@ DB_SHOW_COMMAND(vmcs, db_show_vmcs)
 		db_printf("  Vector: %lu", val & 0xff);
 		if (val & 0x800)
 			db_printf("  Error Code: %lx",
-			    vmcs_read(VMCS_EXIT_INTERRUPTION_ERROR));
+			    vmcs_read(VMCS_EXIT_INTR_ERRCODE));
 		db_printf("\n");
 		break;
 	case EXIT_REASON_EPT_FAULT:
