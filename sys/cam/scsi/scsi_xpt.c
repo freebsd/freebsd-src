@@ -888,12 +888,14 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
+done:
 		/*
 		 * We'll have to do without, let our probedone
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
 		cam_freeze_devq(periph->path);
+		cam_periph_doacquire(periph);
 		probedone(periph, start_ccb);
 		return;
 	}
@@ -919,14 +921,7 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
-		/*
-		 * We'll have to do without, let our probedone
-		 * routine finish up for us.
-		 */
-		start_ccb->csio.data_ptr = NULL;
-		cam_freeze_devq(periph->path);
-		probedone(periph, start_ccb);
-		return;
+		goto done;
 	}
 	case PROBE_SERIAL_NUM:
 	{
@@ -959,19 +954,13 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
-		/*
-		 * We'll have to do without, let our probedone
-		 * routine finish up for us.
-		 */
-		start_ccb->csio.data_ptr = NULL;
-		cam_freeze_devq(periph->path);
-		probedone(periph, start_ccb);
-		return;
+		goto done;
 	}
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
 	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+	cam_periph_doacquire(periph);
 	xpt_action(start_ccb);
 }
 
@@ -1122,6 +1111,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 out:
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
 				cam_release_devq(path, 0, 0, 0, FALSE);
+				cam_periph_release_locked(periph);
 				return;
 			}
 			else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1697,6 +1687,7 @@ probe_device_check:
 		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
 		/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
 		cam_release_devq(path, 0, 0, 0, FALSE);
+		cam_periph_release_locked(periph);
 		cam_periph_invalidate(periph);
 		cam_periph_release_locked(periph);
 	} else {
