@@ -5188,8 +5188,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
 	 && (ccb_h->status & CAM_DEV_QFRZN)) {
-		xpt_release_devq(ccb_h->path, /*count*/1,
-				 /*run_queue*/FALSE);
+		xpt_release_devq(ccb_h->path, /*count*/1, /*run_queue*/TRUE);
 		ccb_h->status &= ~CAM_DEV_QFRZN;
 	}
 
@@ -5218,6 +5217,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 		if (!device_is_queued(dev))
 			(void)xpt_schedule_devq(devq, dev);
+		xpt_run_devq(devq);
 		mtx_unlock(&devq->send_mtx);
 
 		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0) {
@@ -5247,10 +5247,6 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	if (mtx != NULL)
 		mtx_unlock(mtx);
-
-	mtx_lock(&devq->send_mtx);
-	xpt_run_devq(devq);
-	mtx_unlock(&devq->send_mtx);
 }
 
 void
