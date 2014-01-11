@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2013
+.Dd January 11, 2014
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -146,12 +146,11 @@ When the address family may is specified by any of the
 .Fl xns ,
 .Fl atalk ,
 .Fl inet6 ,
-.Fl 6,
-.Fl inet,
 or
-.Fl 4
+.Fl inet
 modifiers, only routes having destinations with addresses in the
-delineated family will be deleted. Additionally,
+delineated family will be deleted.
+Additionally,
 .Fl 4
 or
 .Fl 6
