@@ -67,11 +67,11 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
 	chain = &V_layer3_chain;
-	IPFW_WLOCK(chain);
+	IPFW_RLOCK(chain);
 	/* Check every nat entry... */
 	LIST_FOREACH(ptr, &chain->nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
-		if (strncmp(ptr->if_name, ifp->if_xname, IF_NAMESIZE) != 0)
+		if (strncmp(ptr->if_name, if_name(ifp), IF_NAMESIZE) != 0)
 			continue;
 		if_addr_rlock(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -85,7 +85,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 		}
 		if_addr_runlock(ifp);
 	}
-	IPFW_WUNLOCK(chain);
+	IPFW_RUNLOCK(chain);
 }
 
 /*
