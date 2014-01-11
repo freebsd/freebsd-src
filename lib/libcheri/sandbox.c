@@ -426,7 +426,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 
 	/* Construct sealed code capability. */
 	sbop->sbo_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
-	    CHERI_PERM_SEAL);
+	    CHERI_PERM_LOAD | CHERI_PERM_SEAL);
 	sbop->sbo_codecap = cheri_sealcode(sbop->sbo_codecap);
 
 	/* Construct sealed data capability. */
@@ -453,7 +453,8 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	 * Construct a code capability in $c1, derived from $c3, suitable for
 	 * use with CCall.
 	 */
-	CHERI_CANDPERM(1, 3, CHERI_PERM_EXECUTE | CHERI_PERM_SEAL);
+	CHERI_CANDPERM(1, 3, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
+	    CHERI_PERM_SEAL);
 	CHERI_CSEALCODE(1, 1);
 
 	/*
