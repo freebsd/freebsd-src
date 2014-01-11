@@ -23,6 +23,11 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../contrib/tcpdump \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+
+.if ${MACHINE_CPUARCH} != "i386"
+CFLAGS+=	-DLBL_ALIGN
+.endif
+
 MAN=
 #STRIP=
 DPADD=	${LIBC_CHERI}
