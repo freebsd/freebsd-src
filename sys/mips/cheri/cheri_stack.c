@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -130,6 +130,11 @@ cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 
 	printf("%s: processing sandbox exception signal %d, pid %d\n",
 	    __func__, signum, td->td_proc->p_pid);
+
+#if DDB
+	if (security_cheri_debugger_on_sandbox_exception)
+		kdb_enter(KDB_WHY_CHERI, "CHERI sandbox exception");
+#endif
 
 	/*
 	 * XXXRW: It is my belief that the trap frame in a thread is always a

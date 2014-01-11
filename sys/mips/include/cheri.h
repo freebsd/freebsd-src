@@ -441,6 +441,11 @@ void	cheri_stack_copy(struct pcb *dst, struct pcb *src);
 void	cheri_stack_init(struct pcb *pcb);
 int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	    int signum);
+
+/*
+ * Global sysctls required outside of cheri.c.
+ */
+extern u_int	security_cheri_debugger_on_sandbox_exception;
 #endif
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
