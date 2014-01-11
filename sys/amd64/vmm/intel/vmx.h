@@ -115,6 +115,7 @@ CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
 #define	VMX_INVEPT_ERROR	3
 int	vmx_enter_guest(struct vmxctx *ctx, int launched);
 void	vmx_exit_guest(void);
+void	vmx_call_isr(uintptr_t entry);
 
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);
