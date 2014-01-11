@@ -97,6 +97,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 
 /* 16-bit control fields */
 #define	VMCS_VPID			0x00000000
+#define	VMCS_PIR_VECTOR			0x00000002
 
 /* 16-bit guest-state fields */
 #define	VMCS_GUEST_ES_SELECTOR		0x00000800
@@ -129,6 +130,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_TSC_OFFSET			0x00002010
 #define	VMCS_VIRTUAL_APIC		0x00002012
 #define	VMCS_APIC_ACCESS		0x00002014
+#define	VMCS_PIR_DESC			0x00002016
 #define	VMCS_EPTP			0x0000201A
 #define	VMCS_EOI_EXIT0			0x0000201C
 #define	VMCS_EOI_EXIT1			0x0000201E

@@ -45,11 +45,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
 #include "vmm_host.h"
+#include "vmm_ipi.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
@@ -171,6 +173,14 @@ static int cap_invpcid;
 static int virtual_interrupt_delivery;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, virtual_interrupt_delivery, CTLFLAG_RD,
     &virtual_interrupt_delivery, 0, "APICv virtual interrupt delivery support");
+
+static int posted_interrupts;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupts, CTLFLAG_RD,
+    &posted_interrupts, 0, "APICv posted interrupt support");
+
+static int pirvec;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupt_vector, CTLFLAG_RD,
+    &pirvec, 0, "APICv posted interrupt vector");
 
 static struct unrhdr *vpid_unr;
 static u_int vpid_alloc_failed;
@@ -442,6 +452,9 @@ vmx_disable(void *arg __unused)
 static int
 vmx_cleanup(void)
 {
+	
+	if (pirvec != 0)
+		vmm_ipi_free(pirvec);
 
 	if (vpid_unr != NULL) {
 		delete_unrhdr(vpid_unr);
@@ -637,7 +650,31 @@ vmx_init(int ipinum)
 		procbased_ctls |= PROCBASED_USE_TPR_SHADOW;
 		procbased_ctls2 |= procbased2_vid_bits;
 		procbased_ctls2 &= ~PROCBASED2_VIRTUALIZE_X2APIC_MODE;
+
+		/*
+		 * Check for Posted Interrupts only if Virtual Interrupt
+		 * Delivery is enabled.
+		 */
+		error = vmx_set_ctlreg(MSR_VMX_PINBASED_CTLS,
+		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
+		    &tmp);
+		if (error == 0) {
+			pirvec = vmm_ipi_alloc();
+			if (pirvec == 0) {
+				if (bootverbose) {
+					printf("vmx_init: unable to allocate "
+					    "posted interrupt vector\n");
+				}
+			} else {
+				posted_interrupts = 1;
+				TUNABLE_INT_FETCH("hw.vmm.vmx.use_apic_pir",
+				    &posted_interrupts);
+			}
+		}
 	}
+
+	if (posted_interrupts)
+		    pinbased_ctls |= PINBASED_POSTED_INTERRUPT;
 
 	/* Initialize EPT */
 	error = ept_init(ipinum);
@@ -847,6 +884,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 			error += vmwrite(VMCS_EOI_EXIT1, 0);
 			error += vmwrite(VMCS_EOI_EXIT2, 0);
 			error += vmwrite(VMCS_EOI_EXIT3, 0);
+		}
+		if (posted_interrupts) {
+			error += vmwrite(VMCS_PIR_VECTOR, pirvec);
+			error += vmwrite(VMCS_PIR_DESC,
+			    vtophys(&vmx->pir_desc[i]));
 		}
 		VMCLEAR(vmcs);
 		KASSERT(error == 0, ("vmx_vminit: error customizing the vmcs"));
@@ -2132,19 +2174,9 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
         return (retval);
 }
 
-/*
- * Posted Interrupt Descriptor (described in section 29.6 of the Intel SDM).
- */
-struct pir_desc {
-	uint64_t	pir[4];
-	uint64_t	pending;
-	uint64_t	unused[3];
-} __aligned(64);
-CTASSERT(sizeof(struct pir_desc) == 64);
-
 struct vlapic_vtx {
 	struct vlapic	vlapic;
-	struct pir_desc	pir_desc;
+	struct pir_desc	*pir_desc;
 };
 
 #define	VMX_CTR_PIR(vm, vcpuid, pir_desc, notify, vector, level, msg)	\
@@ -2174,7 +2206,7 @@ vmx_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	 * XXX need to deal with level triggered interrupts
 	 */
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 
 	/*
 	 * Keep track of interrupt requests in the PIR descriptor. This is
@@ -2208,7 +2240,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	KASSERT(vecptr == NULL, ("vmx_pending_intr: vecptr must be NULL"));
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
 	if (!pending)
@@ -2246,6 +2278,13 @@ vmx_intr_accepted(struct vlapic *vlapic, int vector)
 	panic("vmx_intr_accepted: not expected to be called");
 }
 
+static void
+vmx_post_intr(struct vlapic *vlapic, int hostcpu)
+{
+
+	ipi_cpu(hostcpu, pirvec);
+}
+
 /*
  * Transfer the pending interrupts in the PIR descriptor to the IRR
  * in the virtual APIC page.
@@ -2261,7 +2300,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	uint16_t intr_status_old, intr_status_new;
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 	if (atomic_cmpset_long(&pir_desc->pending, 1, 0) == 0) {
 		VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
 		    "no posted interrupt pending");
@@ -2326,6 +2365,7 @@ vmx_vlapic_init(void *arg, int vcpuid)
 {
 	struct vmx *vmx;
 	struct vlapic *vlapic;
+	struct vlapic_vtx *vlapic_vtx;
 	
 	vmx = arg;
 
@@ -2334,11 +2374,17 @@ vmx_vlapic_init(void *arg, int vcpuid)
 	vlapic->vcpuid = vcpuid;
 	vlapic->apic_page = (struct LAPIC *)&vmx->apic_page[vcpuid];
 
+	vlapic_vtx = (struct vlapic_vtx *)vlapic;
+	vlapic_vtx->pir_desc = &vmx->pir_desc[vcpuid];
+
 	if (virtual_interrupt_delivery) {
 		vlapic->ops.set_intr_ready = vmx_set_intr_ready;
 		vlapic->ops.pending_intr = vmx_pending_intr;
 		vlapic->ops.intr_accepted = vmx_intr_accepted;
 	}
+
+	if (posted_interrupts)
+		vlapic->ops.post_intr = vmx_post_intr;
 
 	vlapic_init(vlapic);
 
