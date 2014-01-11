@@ -1584,11 +1584,11 @@ xhci_interrupt(struct xhci_softc *sc)
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
 
-	/* acknowledge interrupts */
-
-	XWRITE4(sc, oper, XHCI_USBSTS, status);
-
-	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+	/* acknowledge interrupts, if any */
+	if (status != 0) {
+		XWRITE4(sc, oper, XHCI_USBSTS, status);
+		DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+	}
 
 	temp = XREAD4(sc, runt, XHCI_IMAN(0));
 
