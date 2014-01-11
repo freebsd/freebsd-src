@@ -943,6 +943,10 @@ dofault:
 			 * we may have taken a further exception if interrupts
 			 * are enabled.  However, this helps with debugging in
 			 * the mean time.
+			 *
+			 * XXXRW: Especially, we need to be prepared for the
+			 * possibility that $pcc ($epcc) is not readable or
+			 * unaligned.
 			 */
 			CHERI_CLW(inst.word, trapframe->pc, 0, CHERI_CR_EPCC);
 #else
@@ -1263,6 +1267,7 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 	(InstPtr + 4 + ((short)inst.IType.imm << 2))
 
 
+	/* XXXRW: calls to fuword32() here need perform a $pcc conversion. */
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
 			inst.word = fuword32((void *)instptr);
@@ -1669,9 +1674,21 @@ static int
 mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, register_t pc)
 {
 	register_t *reg = (register_t *) frame;
-	u_int32_t inst = *((u_int32_t *)(intptr_t)pc);
+	u_int32_t inst;
 	register_t value_msb, value;
 	unsigned size;
+
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: This code isn't really post-CHERI read.
+	 *
+	 * XXXRW: Especially, we need to be prepared for the possibility that
+	 * $pcc ($epcc) is not readable or unaligned.
+	 */
+	CHERI_CLW(inst, pc, 0, CHERI_CR_EPCC);
+#else
+	inst = *((u_int32_t *)(intptr_t)pc);;
+#endif
 
 	/*
 	 * ADDR_ERR faults have higher priority than TLB
