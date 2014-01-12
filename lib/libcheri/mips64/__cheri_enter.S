@@ -34,9 +34,10 @@
 .set noat
 
 #
-# CHERI sandbox runtime startup code -- begins execution inside a sandbox and
-# is responsible for bootstrapping MIPS-compiled C code (without CHERI
-# extensions).
+# CHERI system class CCall landing pad code: catches CCalls inbound from
+# sandboxes seeking system services, and bootstraps C code.  A number of
+# differences from sandboxed code, including how $c0 is handled, and not
+# setting up the C heap.
 #
 # Temporary ABI conventions:
 #    $sp contains a pointer to the top of the stack; 32-byte aligned
@@ -50,9 +51,9 @@
 #    $c1, $c2 contain the invoked object capability
 #    $c3-$c10 contain user capability arguments
 #
-#    $c26 contains the invoked data capability installed by CCall; the
-#      complete segment, which we will install into $c0 to allow MIPS code to
-#      access it.
+#    $c26 contains the invoked data capability installed by CCall; unlike
+#      sandboxed versions of this code, this points at actual data rather than
+#      being the value to install in $c0.  $c0 is copied from $pcc.
 #
 # Sandbox heap information is extracted from the sandbox metadata structure.
 # $c26 is assumed to have room for a stack at the top, although its length is
@@ -61,9 +62,8 @@
 # For now, assume:
 # (1) The caller has not set up the general-purpose register context, that's
 #     our job.
-# (2) The goal is not to set up the CHERI calling convention .. yet; we will
-#     run only native MIPS64 code, or hand-crafted CHERI assembler.  Thus
-#     must change before we can run Clang-compiled CHERI code.
+# (2) That there is no concurrent sandbox use -- we have a single stack on the
+#     inbound path, which can't be the long-term solution.
 #
 	.text
 	.global __cheri_enter
