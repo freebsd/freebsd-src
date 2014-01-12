@@ -63,6 +63,13 @@ register_t	cheri_enter(register_t methodnum, register_t a1,
 static void *__cheri_enter_stack;
 void *__cheri_enter_stack_top;
 
+__capability struct sandbox *
+cheri_enter_getsandbox(void)
+{
+
+	return (cheri_getidc());
+}
+
 __attribute__ ((constructor)) static void
 cheri_enter_init(void)
 {

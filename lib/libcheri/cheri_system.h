@@ -58,4 +58,9 @@ int	cheri_system_helloworld(void);
 int	cheri_system_puts(__capability const char *str);
 int	cheri_system_putchar(int c);
 
+/*
+ * XXXRW: This API probably doesn't belong here.  But where does it belong?
+ */
+__capability struct sandbox	*cheri_enter_getsandbox(void);
+
 #endif /* !_CHERI_SYSTEM_H_ */
