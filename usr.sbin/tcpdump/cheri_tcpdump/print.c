@@ -53,9 +53,9 @@
 
 int	sb_state = SB_SHUTDOWN;
 
-u_int32_t g_localnet;
-u_int32_t g_mask;
-int g_type = -1;
+u_int32_t	g_localnet;
+u_int32_t	g_mask;
+int		g_type = -1;
 
 static struct sandbox_class	*tcpdump_classp;
 static struct sandbox_object	*tcpdump_objectp;
@@ -185,14 +185,14 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 int
 tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 {
-	
+
 	abort();
 }
 
 void
 ndo_default_print(netdissect_options *ndo _U_, const u_char *bp, u_int length)
 {
-	
+
 	abort();
 }
 
