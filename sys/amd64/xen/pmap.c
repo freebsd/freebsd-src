@@ -1231,6 +1231,117 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	PMAP_UNLOCK(pmap);
 }
 
+static void
+pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
+{
+
+	pt_entry_t *pte;
+	pt_entry_t newpte, origpte;
+	vm_paddr_t pa;
+
+	va = trunc_page(va);
+
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
+	    va));
+
+	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
+		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
+	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+
+	pa = VM_PAGE_TO_PHYS(m);
+	newpte = (pt_entry_t)(xpmap_ptom(pa) | PG_V | PG_U);
+
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		newpte |= pg_nx;
+
+	/*
+	 * In the case that a page table page is not
+	 * resident, we are creating it here.
+	 */
+
+	KASSERT(tsz != 0, ("tsz != 0"));
+
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	mmu_map_t tptr = tbuf;
+
+	pte = pmap_vtopte_hold(pmap, va, &tptr);
+
+	/* XXX: if (pte == NULL) bail; */
+
+	origpte = *pte;
+
+	/*
+	 * Is the specified virtual address already mapped? We're done.
+	 */
+	if ((origpte & PG_V) != 0) {
+		goto done;
+				       
+	}	
+
+	/*
+	 * Enter on the PV list if part of our managed memory.
+	 */
+
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
+		bool pvunmanaged = false;
+		newpte |= PG_MANAGED;
+		pvunmanaged = pmap_put_pv_entry(pmap, va, m);
+
+		if (pvunmanaged != true) {
+			/* already managed entry - we're done */
+			goto done;
+		}
+	}
+
+	/*
+	 * Increment the counters.
+	 */
+	pmap_resident_count_inc(pmap, 1);
+
+	/*
+	 * Update the PTE.
+	 */
+	PT_SET_VA_MA(pte, newpte, true);
+
+	/* Sync the kernel's view of the pmap */
+	if (pmap != kernel_pmap && 
+	    PCPU_GET(curpmap) == pmap) {
+	  /* XXX: this can be optimised to a single entry update */
+	  pmap_xen_userload(pmap);
+	}
+
+done:
+	pmap_vtopte_release(pmap, va, &tptr);
+}
+
+void
+pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
+{
+	/* RO and unwired */
+	prot = (prot & ~VM_PROT_WRITE) | VM_PROT_READ;
+
+	va = trunc_page(va);
+
+	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("%s: toobig", __func__));
+	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
+		("%s: invalid to pmap_enter page table pages (va: 0x%lx)", __func__, va));
+
+	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
+		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
+	PMAP_LOCK(pmap);
+
+	pmap_enter_quick_locked(pmap, va, m, prot);
+
+	PMAP_UNLOCK(pmap);
+}
+
 /*
  * Maps a sequence of resident pages belonging to the same object.
  * The sequence begins with the given page m_start.  This page is
@@ -1261,33 +1372,9 @@ pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
 
 	while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
 		va = start + ptoa(diff);
-		pmap_enter_locked(pmap, va, prot, m, prot, false);
+		pmap_enter_quick_locked(pmap, va, m, prot);
 		m = TAILQ_NEXT(m, listq);
 	}
-
-	PMAP_UNLOCK(pmap);
-}
-
-void
-pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
-{
-	/* RO and unwired */
-	prot = (prot & ~VM_PROT_WRITE) | VM_PROT_READ;
-
-	va = trunc_page(va);
-
-	KASSERT(va <= VM_MAX_KERNEL_ADDRESS, ("pmap_enter: toobig"));
-	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
-	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%lx)",
-	    va));
-
-	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
-		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
-
-	PMAP_LOCK(pmap);
-
-	/* XXX: do we care about "speed" ? */
-	pmap_enter_locked(pmap, va, prot, m, prot, false);
 
 	PMAP_UNLOCK(pmap);
 }
@@ -1320,6 +1407,7 @@ pmap_remove_pte(pmap_t pmap, vm_offset_t va, pt_entry_t *ptq)
 
 	{ /* XXX: there's no way to make this atomic ? */
 		oldpte = *ptq;
+		KASSERT(oldpte & PG_V, ("Invalid pte\n"));
 		if (oldpte & PG_FRAME) { /* Optimise */
 			PT_CLEAR_VA(ptq, TRUE);
 		}
@@ -1420,6 +1508,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		pte = mmu_map_pt(tptr) + pt_index(sva);
 
 		pmap_remove_page(pmap, sva, pte);
+		mmu_map_release_va(pmap, tptr, sva);
 		goto out;
 	}
 
@@ -1462,13 +1551,14 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 
 		for (pte = (mmu_map_pt(tptr) + pt_index(sva)); 
 		     sva != va_next;pte++, sva += PAGE_SIZE) {
-			if (*pte == 0) {
+			if ((*pte & PG_V) == 0) {
 				if (va != va_next) {
 					pmap_invalidate_range(pmap, sva, va);
 					va = va_next;
 				}
 				continue;
 			}
+			
 			/*
 			 * XXX: PG_G is set on *user* entries unlike
 			 * native, where it is set on kernel entries 
@@ -1479,6 +1569,7 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 				va = sva;
 
 			pmap_remove_pte(pmap, sva, pte);
+			mmu_map_release_va(pmap, tptr, sva);
 		}
 		if (va != va_next) {
 			pmap_invalidate_range(pmap, sva, va);
@@ -1523,6 +1614,8 @@ pv_remove(pmap_t pmap, vm_offset_t va, vm_page_t m)
 
 	/* XXX: Tell mmu_xxx about backing page */
 	pmap_vtopte_release(pmap, va, &tptr);
+
+	pmap_resident_count_dec(pmap, 1);
 
 	pmap_invalidate_page(pmap, va);
 	PMAP_UNLOCK(pmap);
@@ -2031,7 +2124,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 				}
 
 				dst_pte = mmu_map_pt(dtptr) + pt_index(addr);
-				if (*dst_pte == 0 &&
+				if ((*dst_pte & PG_V) == 0 &&
  				    pmap_put_pv_entry(dst_pmap, addr,
 					MACH_TO_VM_PAGE(ptetemp & PG_FRAME))) {
 					/*
