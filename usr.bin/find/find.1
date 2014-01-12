@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2012
+.Dd January 5, 2014
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -520,6 +520,8 @@ Like
 .Ic -name ,
 but the contents of the symbolic link are matched instead of the file
 name.
+Note that this only matches broken symbolic links
+if symbolic links are being followed.
 This is a GNU find extension.
 .It Ic -ls
 This primary always evaluates to true.
