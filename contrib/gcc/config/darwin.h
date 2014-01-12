@@ -873,7 +873,9 @@ enum machopic_addr_class {
 
 #define DARWIN_REGISTER_TARGET_PRAGMAS()			\
   do {								\
-    c_register_pragma (0, "mark", darwin_pragma_ignore);	\
+    /* APPLE LOCAL begin pragma mark 5614511 */			\
+    /* Removed mark.  */					\
+    /* APPLE LOCAL end pragma mark 5614511 */			\
     c_register_pragma (0, "options", darwin_pragma_options);	\
     c_register_pragma (0, "segment", darwin_pragma_ignore);	\
     c_register_pragma (0, "unused", darwin_pragma_unused);	\
