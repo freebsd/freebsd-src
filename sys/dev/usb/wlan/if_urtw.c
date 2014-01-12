@@ -4179,6 +4179,7 @@ urtw_bulk_tx_status_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_SETUP:
 setup:
 		memcpy(dma_buf, &sc->sc_txstatus, sizeof(uint64_t));
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(uint64_t));
 		usbd_transfer_submit(xfer);
 		break;
 	default:
