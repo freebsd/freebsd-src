@@ -420,7 +420,11 @@ static int	rx_cache_find(const struct rx_header *, const struct ip *,
 
 static void fs_print(const u_char *, int);
 static void fs_reply_print(const u_char *, int, int32_t);
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+static void acl_print(u_char *, u_char *);
+#else
 static void acl_print(u_char *, int, u_char *);
+#endif
 static void cb_print(const u_char *, int);
 static void cb_reply_print(const u_char *, int, int32_t);
 static void prot_print(const u_char *, int);
@@ -665,6 +669,19 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
  * These extrememly grody macros handle the printing of various AFS stuff.
  */
 
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+#define	TRUNC(n) if (snapend - bp + 1 <= (long)n) goto trunc;
+#define FIDOUT() { unsigned long n1, n2, n3; \
+			TRUNC(sizeof(int32_t) *3); \
+			n1 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			n2 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			n3 = EXTRACT_32BITS(bp); \
+			bp += sizeof(int32_t); \
+			printf(" fid %d/%d/%d", (int) n1, (int) n2, (int) n3); \
+		}
+#else
 #define FIDOUT() { unsigned long n1, n2, n3; \
 			TCHECK2(bp[0], sizeof(int32_t) * 3); \
 			n1 = EXTRACT_32BITS(bp); \
@@ -675,6 +692,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			bp += sizeof(int32_t); \
 			printf(" fid %d/%d/%d", (int) n1, (int) n2, (int) n3); \
 		}
+#endif
 
 #define STROUT(MAX) { unsigned int i; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
@@ -876,7 +894,11 @@ fs_print(register const u_char *bp, int length)
 			i = min(AFSOPAQUEMAX, i);
 			strncpy(a, (char *) bp, i);
 			a[i] = '\0';
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+			acl_print((u_char *) a, (u_char *) a + i);
+#else
 			acl_print((u_char *) a, sizeof(a), (u_char *) a + i);
+#endif
 			break;
 		}
 		case 137:	/* Create file */
@@ -1008,7 +1030,11 @@ fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 			i = min(AFSOPAQUEMAX, i);
 			strncpy(a, (char *) bp, i);
 			a[i] = '\0';
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+			acl_print((u_char *) a, (u_char *) a + i);
+#else
 			acl_print((u_char *) a, sizeof(a), (u_char *) a + i);
+#endif
 			break;
 		}
 		case 137:	/* Create file */
@@ -1062,10 +1088,20 @@ trunc:
  */
 
 static void
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+acl_print(u_char *s, u_char *end)
+#else
 acl_print(u_char *s, int maxsize, u_char *end)
+#endif
 {
 	int pos, neg, acl;
 	int n, i;
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+	char user[128];
+
+	if (sscanf((char *) s, "%d %d\n%n", &pos, &neg, &n) != 2)
+		return;
+#else
 	char *user;
 	char fmt[1024];
 
@@ -1074,11 +1110,16 @@ acl_print(u_char *s, int maxsize, u_char *end)
 
 	if (sscanf((char *) s, "%d %d\n%n", &pos, &neg, &n) != 2)
 		goto finish;
+#endif
 
 	s += n;
 
 	if (s > end)
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+		return;
+#else
 		goto finish;
+#endif
 
 	/*
 	 * This wacky order preserves the order used by the "fs" command
@@ -1101,20 +1142,55 @@ acl_print(u_char *s, int maxsize, u_char *end)
 		printf("a");
 
 	for (i = 0; i < pos; i++) {
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+		if (sscanf((char *) s, "%s %d\n%n", user, &acl, &n) != 2)
+			return;
+#else
 		snprintf(fmt, sizeof(fmt), "%%%ds %%d\n%%n", maxsize - 1);
 		if (sscanf((char *) s, fmt, user, &acl, &n) != 2)
 			goto finish;
+#endif
 		s += n;
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+		printf(" +{%s ", user);
+#else
 		printf(" +{");
 		fn_print((u_char *)user, NULL);
 		printf(" ");
+#endif
 		ACLOUT(acl);
 		printf("}");
 		if (s > end)
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+			return;
+#else
 			goto finish;
+#endif
 	}
 
 	for (i = 0; i < neg; i++) {
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+		if (sscanf((char *) s, "%s %d\n%n", user, &acl, &n) != 2) {
+#if defined(__mips__) && defined(__LP64__)
+			/*
+			 * We cheat for the MIPS64 arch.  NULLs are encoded as
+			 * '\xff' and spaces as '\x00' in the attack string.
+			 * So here we decode them into what they should be.
+			 */
+			char *p = user;
+			while (*p != '\x00') {
+				if (*p == '\xff')
+					*p = '\x00';
+				if (*p == '\xfe')
+					*p = '\x20';
+				p++;
+			}
+#endif /* __mips__ && __LP64__ */
+			return;
+		}
+		s += n;
+		printf(" -{%s ", user);
+#else
 		snprintf(fmt, sizeof(fmt), "%%%ds %%d\n%%n", maxsize - 1);
 		if (sscanf((char *) s, fmt, user, &acl, &n) != 2)
 			goto finish;
@@ -1122,15 +1198,22 @@ acl_print(u_char *s, int maxsize, u_char *end)
 		printf(" -{");
 		fn_print((u_char *)user, NULL);
 		printf(" ");
+#endif /* CHERI_TCPDUMP_VULNERABILITY */
 		ACLOUT(acl);
 		printf("}");
 		if (s > end)
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+			return;
+#else
 			goto finish;
+#endif
 	}
 
+#ifndef CHERI_TCPDUMP_VULNERABILITY
 finish:
 	free(user);
 	return;
+#endif
 }
 
 #undef ACLOUT
