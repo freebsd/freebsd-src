@@ -220,7 +220,7 @@
 	movq	PCPU(CURTHREAD),%rdi ;\
 	movq	%rsp, TD_FRAME(%rdi) ;\
 	movl	TF_RFLAGS(%rsp),%esi ;\
-	andq	$PSL_T, %rsi	     ;\
+	andl	$PSL_T,%esi	     ;\
 	call	amd64_syscall
 
 #define SYSRET \
