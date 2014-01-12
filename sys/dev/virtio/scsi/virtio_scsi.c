@@ -1539,7 +1539,7 @@ vtscsi_set_request_lun(struct ccb_hdr *ccbh, uint8_t lun[])
 	lun[0] = 1;
 	lun[1] = ccbh->target_id;
 	lun[2] = 0x40 | ((ccbh->target_lun >> 8) & 0x3F);
-	lun[3] = (ccbh->target_lun >> 8) & 0xFF;
+	lun[3] = ccbh->target_lun & 0xFF;
 }
 
 static void
