@@ -67,14 +67,14 @@ build_check_cxx_o(const atf::tests::tc& tc, const char* sfile,
 void
 header_check(const char *hdrname)
 {
-    std::ofstream srcfile("test.c");
+    std::ofstream srcfile("test.cpp");
     ATF_REQUIRE(srcfile);
     srcfile << "#include <" << hdrname << ">\n";
     srcfile.close();
 
     const std::string failmsg = std::string("Header check failed; ") +
         hdrname + " is not self-contained";
-    build_check_cxx_o_aux(atf::fs::path("test.c"), failmsg.c_str(), true);
+    build_check_cxx_o_aux(atf::fs::path("test.cpp"), failmsg.c_str(), true);
 }
 
 atf::fs::path
