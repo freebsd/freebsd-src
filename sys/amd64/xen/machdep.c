@@ -586,10 +586,10 @@ initxen(struct start_info *si)
 	/* Enable write permissions for code patching */
 	static vm_offset_t xsave_cpage;
 	xsave_cpage = (vm_offset_t) ctx_switch_xsave & ~PAGE_MASK;
-	PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U | PG_RW);
+	if (use_xsave)
+		PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U | PG_RW);
 	fpuinit();
-	PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U);
-
+	if (use_xsave) PT_SET_MA(xsave_cpage, phystomach(VTOP(xsave_cpage)) | PG_V | PG_U);
 
 	/*
 	 * Set up thread0 pcb after fpuinit calculated pcb + fpu save

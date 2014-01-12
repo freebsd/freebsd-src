@@ -172,10 +172,12 @@ fpuinit_bsp1(void)
 	u_int cp[4];
 	uint64_t xsave_mask_user;
 
+#ifndef XEN /* XEN pv doesn't support xsave yet */
 	if ((cpu_feature2 & CPUID2_XSAVE) != 0) {
 		use_xsave = 1;
 		TUNABLE_INT_FETCH("hw.use_xsave", &use_xsave);
 	}
+#endif
 	if (!use_xsave)
 		return;
 
