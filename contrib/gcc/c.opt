@@ -284,6 +284,12 @@ Wmissing-prototypes
 C ObjC Var(warn_missing_prototypes)
 Warn about global functions without prototypes
 
+; APPLE LOCAL begin -Wmost
+Wmost
+C ObjC C++ ObjC++ 
+Like -Wall but without -Wparentheses
+; APPLE LOCAL end -Wmost
+
 Wmultichar
 C ObjC C++ ObjC++
 Warn about use of multi-character character constants
