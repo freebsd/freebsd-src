@@ -30,8 +30,8 @@
 
 #include <sys/cdefs.h>
 
-#if __has_feature(capabilities)
-#define	USE_C_CAPS
+#if !__has_feature(capabilities)
+#error "This code requires a CHERI-aware compiler"
 #endif
 
 #include <sys/types.h>
@@ -112,13 +112,8 @@ struct sandbox_object {
 	register_t		 sbo_sandboxlen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
-#ifdef USE_C_CAPS
 	__capability void	*sbo_codecap;	/* Sealed code capability. */
 	__capability void	*sbo_datacap;	/* Sealed data capability. */
-#else
-	struct chericap		 sbo_codecap;	/* Sealed code cap for CCall. */
-	struct chericap		 sbo_datacap;	/* Sealed data cap for CCall. */
-#endif
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
@@ -267,9 +262,7 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 int
 sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 {
-#ifdef USE_C_CAPS
 	__capability void *sbcap;
-#endif
 	struct sandbox_object *sbop;
 	struct sandbox_metadata *sbm;
 	size_t length;
@@ -416,7 +409,6 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
 	}
 
-#ifdef USE_C_CAPS
 	/*
 	 * Construct a generic capability that describes the combined
 	 * data/code segment that we will seal.
@@ -434,41 +426,6 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_EPHEM_CAP);
 	sbop->sbo_datacap = cheri_sealdata(sbop->sbo_datacap, sbcap);
-#else
-	/*
-	 * Construct a generic capability in $c10 that describes the combined
-	 * code/data segment that we will seal.
-	 *
-	 * Derive from $c3 a code capability in $c1, and data capability in
-	 * $c2, suitable for use with CCall.  Store in the persistent sandbox
-	 * description for later use.
-	 *
-	 * XXXRW: $c3 is probably not the right thing.
-	 */
-	CHERI_CINCBASE(3, 0, sbop->sbo_mem);
-	CHERI_CSETTYPE(3, 3, SANDBOX_ENTRY);
-	CHERI_CSETLEN(3, 3, sbcp->sbc_sandboxlen);
-
-	/*
-	 * Construct a code capability in $c1, derived from $c3, suitable for
-	 * use with CCall.
-	 */
-	CHERI_CANDPERM(1, 3, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
-	    CHERI_PERM_SEAL);
-	CHERI_CSEALCODE(1, 1);
-
-	/*
-	 * Construct a data capability in $c2, derived from $c1 and $c3,
-	 * suitable for use with CCall.
-	 */
-	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	CHERI_CSEALDATA(2, 2, 3);
-
-	CHERI_CSC(1, 0, &sbop->sbo_codecap, 0);
-	CHERI_CSC(2, 0, &sbop->sbo_datacap, 0);
-#endif
 
 	/* XXXRW: This is not right for USE_C_CAPS. */
 	if (sb_verbose) {
@@ -505,15 +462,6 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 		printf(" length %p\n", (void *)v);
 	}
 
-#ifndef USE_C_CAPS
-	/*
-	 * Clear $c1, $c2, and $c3, which we no longer require.
-	 */
-	CHERI_CCLEARTAG(1);
-	CHERI_CCLEARTAG(2);
-	CHERI_CCLEARTAG(3);
-#endif
-
 	*sbopp = sbop;
 	return (0);
 
@@ -527,7 +475,6 @@ error:
 	return (-1);
 }
 
-#ifdef USE_C_CAPS
 register_t
 sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
     register_t a1, register_t a2, register_t a3, register_t a4, register_t a5,
@@ -570,7 +517,6 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	}
 	return (v0);
 }
-#endif
 
 #define	CHERI_CLOADORCLEAR(cnum, cptr) do {				\
 	if (cptr != NULL)						\
@@ -596,12 +542,8 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
     struct chericap *c8p, struct chericap *c9p, struct chericap *c10p)
 {
 	struct sandbox_class *sbcp;
-#ifdef USE_C_CAPS
 	__capability void *c3, *c4, *c5, *c6, *c7, *c8, *c9, *c10;
 	__capability void *cclear;
-#else
-	uint64_t sample, start;
-#endif
 	register_t v0;
 
 	sbcp = sbop->sbo_sandbox_classp;
@@ -610,7 +552,6 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 	else
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
-#ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
 	c3 = (c3p != NULL ? *(__capability void **)c3p : cclear);
 	c4 = (c4p != NULL ? *(__capability void **)c4p : cclear);
@@ -623,24 +564,6 @@ sandbox_object_invoke(struct sandbox_object *sbop, register_t methodnum,
 
 	v0 = sandbox_object_cinvoke(sbop, methodnum, a1, a2, a3, a4, a5, a6,
 	    a7, c3, c4, c5, c6, c7, c8, c9, c10);
-#else
-	CHERI_CLC(1, 0, &sbop->sbo_codecap, 0);
-	CHERI_CLC(2, 0, &sbop->sbo_datacap, 0);
-	CHERI_CLOADORCLEAR(3, c3p);
-	CHERI_CLOADORCLEAR(4, c4p);
-	CHERI_CLOADORCLEAR(5, c5p);
-	CHERI_CLOADORCLEAR(6, c6p);
-	CHERI_CLOADORCLEAR(7, c7p);
-	CHERI_CLOADORCLEAR(8, c8p);
-	CHERI_CLOADORCLEAR(9, c9p);
-	CHERI_CLOADORCLEAR(10, c10p);
-	start = get_cyclecount();
-	v0 = cheri_invoke(methodnum, a1, a2, a3, a4, a5, a6, a7);
-	sample = get_cyclecount() - start;
-	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
-	    sample);
-	SANDBOX_OBJECT_TIME_SAMPLE(sbop->sbo_sandbox_object_statp, sample);
-#endif
 	if (v0 < 0) {
 		if (methodnum < SANDBOX_CLASS_METHOD_COUNT)
 			SANDBOX_METHOD_FAULT(
@@ -700,7 +623,6 @@ sandbox_destroy(struct sandbox *sb)
 	free(sb);
 }
 
-#ifdef USE_C_CAPS
 register_t
 sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
     register_t a2, register_t a3, register_t a4, register_t a5, register_t a6,
@@ -712,7 +634,6 @@ sandbox_cinvoke(struct sandbox *sb, register_t a0, register_t a1,
 	return (sandbox_object_cinvoke(sb->sb_sandbox_objectp, a0, a1, a2, a3,
 	    a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10));
 }
-#endif
 
 /*
  * This version of invoke() is intended for callers not implementing CHERI
