@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -56,6 +56,15 @@
 
 #define	cheri_getcause()	__builtin_cheri_get_cause()
 #define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
+
+
+#define	cheri_getc0()		__builtin_cheri_get_global_data_cap()
+#define	cheri_getidc()		__builtin_cheri_get_invoke_data_cap()
+#define	cheri_getkr0c()		__builtin_cheri_get_kernel_cap1()
+#define	cheri_getkr1c()		__builtin_cheri_get_kernel_cap2()
+#define	cheri_getkcc()		__builtin_cheri_get_kernel_code_cap()
+#define	cheri_getkdc()		__builtin_cheri_get_kernel_data_cap()
+#define	cheri_getepcc()		__builtin_cheri_get_exception_program_counter_cap()
 
 static __inline __capability void *
 cheri_setlentype(__capability void *cap, size_t len, register_t type)
