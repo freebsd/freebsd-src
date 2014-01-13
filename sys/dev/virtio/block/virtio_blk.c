@@ -726,7 +726,7 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_name = VTBLK_DISK_NAME;
 	dp->d_unit = device_get_unit(dev);
 	dp->d_drv1 = sc;
-	dp->d_flags = DISKFLAG_CANFLUSHCACHE;
+	dp->d_flags = DISKFLAG_CANFLUSHCACHE | DISKFLAG_UNMAPPED_BIO;
 	dp->d_hba_vendor = virtio_get_vendor(dev);
 	dp->d_hba_device = virtio_get_device(dev);
 	dp->d_hba_subvendor = virtio_get_subvendor(dev);
@@ -931,10 +931,11 @@ vtblk_execute_request(struct vtblk_softc *sc, struct vtblk_request *req)
 	sglist_append(sg, &req->vbr_hdr, sizeof(struct virtio_blk_outhdr));
 
 	if (bp->bio_cmd == BIO_READ || bp->bio_cmd == BIO_WRITE) {
-		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
-		if (error || sg->sg_nseg == sg->sg_maxseg)
+		error = sglist_append_bio(sg, bp);
+		if (error || sg->sg_nseg == sg->sg_maxseg) {
 			panic("%s: data buffer too big bio:%p error:%d",
 			    __func__, bp, error);
+		}
 
 		/* BIO_READ means the host writes into our buffer. */
 		if (bp->bio_cmd == BIO_READ)
