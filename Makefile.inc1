@@ -283,7 +283,7 @@ WMAKEENV=	${CROSSENV} \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH}
 .if defined(CHERI_CC)
-WMAKEENV+=	CHERI_CC=${CHERI_CC}
+WMAKEENV+=	CHERI_CC=${CHERI_CC:Q}
 .endif
 
 # make hierarchy
