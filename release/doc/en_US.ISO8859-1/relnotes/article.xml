@@ -425,7 +425,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <title>File Systems</title>
 
       <para revision="255570">A new kernel-based iSCSI target and initiator has been
-        added</para>
+        added.</para>
 
       <para revision="243246">UFS filesystems can now be enlarged with &man.growfs.8; while
         mounted read-write. This is especially useful for virtual
@@ -434,7 +434,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
       <para revision="241519">A state of the art FUSE implementation is now part of the
         base system. It allows the use of nearly all fusefs file
-        systems</para>
+        systems.</para>
 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
@@ -452,7 +452,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
         <para revision="246586">Support for the high performance LZ4 compression algorithm
           has been added to ZFS. LZ4 is usually faster and can achieve a
           higher compression ratio than LZJB, the default compression
-          algorithm</para>
+          algorithm.</para>
 
         <para revision="252140">Support for L2ARC compression has been added to ZFS.</para>
 
@@ -741,7 +741,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <title>Contributed Software</title>
 
     <para revision="251300">&man.jemalloc.3; has been updated to 3.4.0.
-      See <link xlink:href="http://www.facebook.com/jemalloc/">this link</link>.
+      See <link xlink:href="http://www.facebook.com/jemalloc/">this link</link>
       for more details.</para>
 
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
@@ -754,7 +754,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       to 1.0.5.</para>
 
     <para revision="251794"><application>CVS</application> has been removed from the
-    base system, but is still available from ports</para>
+    base system, but is still available from ports.</para>
 
     <para revision="251886">Subversion has been imported into the base system and
       is installed as <application>svnlite</application>.  <application>svnlite</application>
