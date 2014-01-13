@@ -66,6 +66,7 @@ struct tcpdump_sandbox {
 
 	struct sandbox_object	*tds_sandbox_object;
 	const char		*tds_name;
+	const char		*tds_text_color_str;
 	sandbox_selector	 tds_selector;
 
 	/* Lifetime stats for sandboxs matching selector */
@@ -88,6 +89,14 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 #define	TDS_MODE_ONE_SANDBOX	CTDC_MODE_ONE_SANDBOX
 #define	TDS_MODE_SEPARATE_LOCAL	CTDC_MODE_SEPARATE_LOCAL
 
+#define	DEFAULT_COLOR		"\x1b[1;37;40m"
+#define	SB_FAIL_COLOR		"\x1b[1;31;40m"
+#define	SB_GREEN		"\x1b[1;32;40m"
+#define	SB_YELLOW		"\x1b[1;33;40m"
+#define	SB_BLUE			"\x1b[1;34;40m"
+#define	SB_MAGENTA		"\x1b[1;35;40m"
+#define	SB_CYAN			"\x1b[1;36;40m"
+
 u_int32_t	g_localnet;
 u_int32_t	g_mask;
 int		g_type = -1;
@@ -103,8 +112,15 @@ static struct tcpdump_sandbox *default_sandbox;
 static struct sandbox_class	*tcpdump_classp;
 static struct cheri_object	 tcpdump_systemcap;
 
+static void
+set_color_default(void)
+{
+	printf(DEFAULT_COLOR);
+}
+
 static struct tcpdump_sandbox *
-tcpdump_sandbox_new(const char * name, sandbox_selector selector)
+tcpdump_sandbox_new(const char * name, const char * color,
+    sandbox_selector selector)
 {
 	struct tcpdump_sandbox *sb;
 
@@ -118,6 +134,7 @@ tcpdump_sandbox_new(const char * name, sandbox_selector selector)
 	}
 
 	sb->tds_name = name;
+	sb->tds_text_color_str = color;
 	sb->tds_selector = selector;
 
 	return (sb);
@@ -204,17 +221,17 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	g_mode = mode;
 	switch(mode) {
 	case TDS_MODE_ONE_SANDBOX:
-		sb = tcpdump_sandbox_new("sandbox", tds_select_all);
+		sb = tcpdump_sandbox_new("sandbox", SB_GREEN, tds_select_all);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_SEPARATE_LOCAL:
-		sb = tcpdump_sandbox_new("ipv4_local",
+		sb = tcpdump_sandbox_new("ipv4_local", SB_YELLOW,
 		    tds_select_ipv4_fromlocal);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
-		sb = tcpdump_sandbox_new("ipv4", tds_select_ipv4);
+		sb = tcpdump_sandbox_new("ipv4", SB_BLUE, tds_select_ipv4);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
-		sb = tcpdump_sandbox_new("catchall", tds_select_all);
+		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
@@ -341,6 +358,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 
 	ctdc = &_ctdc;	/* XXX: get from shared page */
 	ctdc->ctdc_sb_mode = TDS_MODE_ONE_SANDBOX;
+	ctdc->ctdc_colorize = 1;
 
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)
@@ -388,6 +406,9 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	int ret;
 	struct tcpdump_sandbox *sb;
 
+	if (ctdc->ctdc_colorize)
+		set_color_default();
+
 	ts_print(&h->ts);
 
 	sb = tcpdump_sandbox_find(&sandboxes, g_type, h->caplen, sp);
@@ -396,11 +417,16 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 		sb = default_sandbox;
 	}
 	printf("[%s] ", sb->tds_name);
+	if (ctdc->ctdc_colorize)
+		printf("%s", sb->tds_text_color_str);
 	ret = tcpdump_sandbox_invoke(sb, h, sp);
 	if (ret < 0) {
-		printf("SANDBOX FAILED. RESETTING. ");
-		return (ret);
+		printf("%s\nSANDBOX FAULTED. RESETTING.\n",
+		    ctdc->ctdc_colorize ? SB_FAIL_COLOR : "");
+		tcpdump_sandbox_reset(sb);
 	}
+	if (ctdc->ctdc_colorize)
+		set_color_default();
 	return (ret);
 }
 
