@@ -19,6 +19,7 @@ INCS=	tcpdump-helper.h
 
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-DTCPDUMP_PRINT_ONLY \
+		-DCHERI_TCPDUMP_VULNERABILITY \
 		-D_U_="__attribute__((unused))" \
 		-I${.CURDIR}/../../contrib/tcpdump \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump
