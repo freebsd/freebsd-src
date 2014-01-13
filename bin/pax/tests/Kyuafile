@@ -1,0 +1,7 @@
+-- $FreeBSD$
+
+syntax(2)
+
+test_suite("FreeBSD")
+
+tap_test_program{name="legacy_test", required_programs="/usr/bin/perl"}
