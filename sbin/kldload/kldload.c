@@ -181,12 +181,22 @@ main(int argc, char** argv)
 						printf("%s is already "
 						    "loaded\n", argv[0]);
 				} else {
-					if (errno == EEXIST)
+					switch (errno) {
+					case EEXIST:
 						warnx("can't load %s: module "
 						    "already loaded or "
 						    "in kernel", argv[0]);
-					else
+						break;
+					case ENOEXEC:
+						warnx("an error occured while "
+						    "loading the module. "
+						    "Please check dmesg(1) for "
+						    "more details.");
+						break;
+					default:
 						warn("can't load %s", argv[0]);
+						break;
+					}
 					errors++;
 				}
 			} else {
