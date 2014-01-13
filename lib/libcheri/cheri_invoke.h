@@ -32,7 +32,7 @@
 #define	_CHERI_INVOKE_H_
 
 #if __has_feature(capabilities)
-register_t	cheri_invoke(__capability void *c1, __capability void *c2,
+register_t	cheri_invoke(struct cheri_object co,
 		    register_t a0, register_t a1, register_t a2,
 		    register_t a3, register_t a4, register_t a5,
 		    register_t a6, register_t a7, __capability void *c3,

@@ -30,6 +30,7 @@
 
 #include <sys/types.h>
 
+#include <machine/cheri.h>
 #include <machine/cheric.h>
 
 #include <cheri/cheri_system.h>

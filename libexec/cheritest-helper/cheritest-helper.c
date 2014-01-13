@@ -43,9 +43,8 @@
 
 #include "cheritest-helper.h"
 
-int	invoke(register_t op, size_t len, __capability void *system_codecap,
-	    __capability void *system_datacap, __capability char *data_input,
-	    __capability char *data_output);
+int	invoke(register_t op, size_t len, struct cheri_object system_object,
+	    __capability char *data_input, __capability char *data_output);
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -136,12 +135,11 @@ invoke_syscall(void)
 }
 
 static int
-invoke_syscap(__capability void *system_codecap,
-    __capability void *system_datacap)
+invoke_syscap(struct cheri_object system_object)
 {
 
-	return (cheri_invoke(system_codecap, system_datacap, 0, 0, 0, 0, 0, 0,
-	    0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	return (cheri_invoke(system_object, 0, 0, 0, 0, 0, 0, 0, 0, NULL,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
 static int
@@ -171,12 +169,11 @@ invoke_malloc(void)
  * least) 33 bytes.
  */
 int
-invoke(register_t op, size_t len, __capability void *system_codecap,
-    __capability void *system_datacap, __capability char *data_input,
-    __capability char *data_output)
+invoke(register_t op, size_t len, struct cheri_object system_object,
+    __capability char *data_input, __capability char *data_output)
 {
 
-	cheri_system_setup(system_codecap, system_datacap);
+	cheri_system_setup(system_object);
 
 	switch (op) {
 	case CHERITEST_HELPER_OP_MD5:
@@ -206,7 +203,7 @@ invoke(register_t op, size_t len, __capability void *system_codecap,
 		return (1/0);
 
 	case CHERITEST_HELPER_OP_SYSCAP:
-		return (invoke_syscap(system_codecap, system_datacap));
+		return (invoke_syscap(system_object));
 
 	case CHERITEST_HELPER_OP_CS_HELLOWORLD:
 		return (cheri_system_helloworld());

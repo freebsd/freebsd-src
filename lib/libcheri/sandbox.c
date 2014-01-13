@@ -112,8 +112,7 @@ struct sandbox_object {
 	register_t		 sbo_sandboxlen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
-	__capability void	*sbo_codecap;	/* Sealed code capability. */
-	__capability void	*sbo_datacap;	/* Sealed data capability. */
+	struct cheri_object	 sbo_cheri_object;
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
@@ -417,15 +416,17 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	    SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
-	sbop->sbo_codecap = cheri_andperm(sbcap, CHERI_PERM_EXECUTE |
-	    CHERI_PERM_LOAD | CHERI_PERM_SEAL);
-	sbop->sbo_codecap = cheri_sealcode(sbop->sbo_codecap);
+	sbop->sbo_cheri_object.co_codecap = cheri_andperm(sbcap,
+	    CHERI_PERM_EXECUTE | CHERI_PERM_LOAD | CHERI_PERM_SEAL);
+	sbop->sbo_cheri_object.co_codecap =
+	    cheri_sealcode(sbop->sbo_cheri_object.co_codecap);
 
 	/* Construct sealed data capability. */
-	sbop->sbo_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
-	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_datacap = cheri_sealdata(sbop->sbo_datacap, sbcap);
+	sbop->sbo_cheri_object.co_datacap = cheri_andperm(sbcap,
+	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
+	sbop->sbo_cheri_object.co_datacap =
+	    cheri_sealdata(sbop->sbo_cheri_object.co_datacap, sbcap);
 
 	/* XXXRW: This is not right for USE_C_CAPS. */
 	if (sb_verbose) {
@@ -500,8 +501,8 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	start = get_cyclecount();
-	v0 = cheri_invoke(sbop->sbo_codecap, sbop->sbo_datacap, methodnum,
-	    a1, a2, a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
+	v0 = cheri_invoke(sbop->sbo_cheri_object, methodnum, a1, a2, a3, a4,
+	    a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
 	sample = get_cyclecount() - start;
 	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
 	    sample);

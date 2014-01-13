@@ -60,7 +60,7 @@
 register_t	cheri_enter(register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
-		    __capability void *c1, __capability void *c2,
+		    struct cheri_object system_object,
 		    __capability void *c3, __capability void *c4,
 		    __capability void *c5, __capability void *c6,
 		    __capability void *c7) __attribute__((cheri_ccall));
@@ -103,16 +103,17 @@ cheri_enter_init(void)
  */
 extern void __cheri_enter;
 void
-cheri_systemcap_get(struct cheri_object *cop)
+cheri_systemcap_get(struct cheri_object *system_objectp)
 {
 	__capability void *basecap;
 
 	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
-	cop->co_codecap = cheri_sealcode(basecap);
-	cop->co_datacap = cheri_andperm(basecap, CHERI_PERM_LOAD |
+	system_objectp->co_codecap = cheri_sealcode(basecap);
+	system_objectp->co_datacap = cheri_andperm(basecap, CHERI_PERM_LOAD |
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_EPHEM_CAP);
-	cop->co_datacap = cheri_sealdata(cop->co_datacap, basecap);
+	system_objectp->co_datacap =
+	    cheri_sealdata(system_objectp->co_datacap, basecap);
 }
 
 /*
@@ -131,7 +132,7 @@ cheri_enter_register_fn(cheri_enter_fn_t *fn_ptr)
 register_t
 cheri_enter(register_t methodnum, register_t a1, register_t a2, register_t a3,
     register_t a4, register_t a5, register_t a6, register_t a7,
-    __capability void *c1, __capability void *c2, __capability void *c3,
+    struct cheri_object system_object __unused, __capability void *c3,
     __capability void *c4, __capability void *c5, __capability void *c6,
     __capability void *c7)
 {
@@ -151,7 +152,8 @@ cheri_enter(register_t methodnum, register_t a1, register_t a2, register_t a3,
 		    methodnum < CHERI_ENTER_USER_CEILING &&
 		    cheri_user_fn_ptr != NULL)
 			return ((*cheri_user_fn_ptr)(methodnum, a1, a2, a3,
-			    a4, a5, a6, a7, c1, c2, c3, c4, c5, c6, c7));
+			    a4, a5, a6, a7, system_object, c3, c4, c5, c6,
+			    c7));
 		return (-1);
 	}
 }

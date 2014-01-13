@@ -40,6 +40,9 @@
 
 #include <sys/param.h>
 
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+
 #include <cheri/cheri_system.h>
 
 #include <inttypes.h>

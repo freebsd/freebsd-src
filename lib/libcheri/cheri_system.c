@@ -30,7 +30,7 @@
 
 #include <sys/types.h>
 
-#include <stdio.h>
+#include <machine/cheri.h>
 
 #include <stdio.h>
 

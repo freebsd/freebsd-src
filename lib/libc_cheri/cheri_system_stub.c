@@ -45,23 +45,21 @@
 static struct cheri_object cheri_system_object;
 
 void
-cheri_system_setup(__capability void *system_codecap,
-    __capability void *system_datacap)
+cheri_system_setup(struct cheri_object system_object)
 {
 
-	cheri_system_object.co_codecap = system_codecap;
-	cheri_system_object.co_datacap = system_datacap;
+	cheri_system_object = system_object;
 }
 
 int
 cheri_system_helloworld(void)
 {
 
-	return (cheri_invoke(cheri_system_object.co_codecap,
-	    cheri_system_object.co_datacap, CHERI_SYSTEM_METHOD_HELLOWORLD, 0,
-	    0, 0, 0, 0, 0, 0, cheri_zerocap(), cheri_zerocap(),
+	return (cheri_invoke(cheri_system_object,
+	    CHERI_SYSTEM_METHOD_HELLOWORLD, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()));
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap()));
 }
 
 int
@@ -70,9 +68,8 @@ cheri_system_puts(__capability const char *str)
 	__capability char *str_noconst;
 
 	str_noconst = (__capability char *)str;
-	return (cheri_invoke(cheri_system_object.co_codecap,
-	    cheri_system_object.co_datacap, CHERI_SYSTEM_METHOD_PUTS, 0, 0, 0,
-	    0, 0, 0, 0, str_noconst, cheri_zerocap(), cheri_zerocap(),
+	return (cheri_invoke(cheri_system_object, CHERI_SYSTEM_METHOD_PUTS, 0,
+	    0, 0, 0, 0, 0, 0, str_noconst, cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap()));
 }
@@ -81,9 +78,8 @@ int
 cheri_system_putchar(int c)
 {
 
-	return (cheri_invoke(cheri_system_object.co_codecap,
-	    cheri_system_object.co_datacap, CHERI_SYSTEM_METHOD_PUTCHAR, c, 0,
-	    0, 0, 0, 0, 0, cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	return (cheri_invoke(cheri_system_object, CHERI_SYSTEM_METHOD_PUTCHAR,
+	    c, 0, 0, 0, 0, 0, 0, cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap()));
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()));
 }

@@ -48,8 +48,7 @@
  * In the sandbox: notify the stub implementation of the object capability to
  * invoke.
  */
-void	cheri_system_setup(__capability void *system_codecap,
-	    __capability void *system_datacap);
+void	cheri_system_setup(struct cheri_object system_object);
 
 /*
  * Methods themselves.
