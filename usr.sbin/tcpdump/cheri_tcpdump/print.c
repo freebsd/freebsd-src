@@ -394,6 +394,8 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	int ret;
 	struct tcpdump_sandbox *sb;
 
+	ts_print(&h->ts);
+
 	sb = tcpdump_sandbox_find(&sandboxes, g_type, h->caplen, sp);
 	if (sb == NULL) {
 		fprintf(stderr, "No sandbox matched\n");

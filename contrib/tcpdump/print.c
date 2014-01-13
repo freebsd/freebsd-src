@@ -329,6 +329,8 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 {
 	u_int hdrlen;
 
+	ts_print(&h->ts);
+
 	/* XXX: Enter sandbox */
         if(print_info->ndo_type) {
                 hdrlen = (*print_info->p.ndo_printer)(print_info->ndo, h, sp);

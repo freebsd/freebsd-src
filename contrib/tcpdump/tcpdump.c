@@ -1780,7 +1780,6 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	++packets_captured;
 
 	++infodelay;
-	ts_print(&h->ts);
 
 	print_info = (struct print_info *)user;
 
