@@ -5922,11 +5922,11 @@ c_parse_error (const char *gmsgid, enum cpp_ttype token, tree value)
       message = NULL;
     }
   else
-    error (gmsgid);
+    error (gmsgid, "");
 
   if (message)
     {
-      error (message);
+      error (message, "");
       free (message);
     }
 #undef catenate_messages

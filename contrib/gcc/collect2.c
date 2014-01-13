@@ -1562,10 +1562,10 @@ collect_execute (const char *prog, char **argv, const char *outname,
       if (err != 0)
 	{
 	  errno = err;
-	  fatal_perror (errmsg);
+	  fatal_perror ("%s", errmsg);
 	}
       else
-	fatal (errmsg);
+	fatal ("%s", errmsg);
     }
 
   return pex;
@@ -2050,10 +2050,10 @@ scan_prog_file (const char *prog_name, enum pass which_pass)
       if (err != 0)
 	{
 	  errno = err;
-	  fatal_perror (errmsg);
+	  fatal_perror ("%s", errmsg);
 	}
       else
-	fatal (errmsg);
+	fatal ("%s", errmsg);
     }
 
   int_handler  = (void (*) (int)) signal (SIGINT,  SIG_IGN);
