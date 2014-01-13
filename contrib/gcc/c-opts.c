@@ -385,12 +385,17 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       break;
 
     case OPT_Wall:
+      /* APPLE LOCAL -Wmost */
+    case OPT_Wmost:
       set_Wunused (value);
       set_Wformat (value);
       set_Wimplicit (value);
       warn_char_subscripts = value;
       warn_missing_braces = value;
-      warn_parentheses = value;
+      /* APPLE LOCAL begin -Wmost --dpatel */
+      if (code != OPT_Wmost) 
+	warn_parentheses = value;
+      /* APPLE LOCAL end -Wmost --dpatel */
       warn_return_type = value;
       warn_sequence_point = value;	/* Was C only.  */
       if (c_dialect_cxx ())
