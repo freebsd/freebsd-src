@@ -9,6 +9,7 @@
 <!ENTITY man.freebsd-version.1 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>freebsd-version</refentrytitle><manvolnum>1</manvolnum></citerefentry>">
 <!ENTITY man.jemalloc.3 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>jemalloc</refentrytitle><manvolnum>3</manvolnum></citerefentry>">
 <!ENTITY man.bhyve.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bhyve</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
+<!ENTITY man.if_cxgbe.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>if_cxgbe</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 <!ENTITY man.nvme.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>nvme</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 <!ENTITY man.virtio.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 <!ENTITY man.virtio_balloon.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>virtio_balloon</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
@@ -346,7 +347,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 	<para revision="248925">The &man.cxgbe.4; driver has been updated to support
 	  40G/10G Ethernet NICs based on Chelsio's Terminator 5 (T5) ASIC.</para>
 
-	<para revision="256694">The iw_cxgbe driver has been added.  This is an
+	<para revision="256694">The &man.if_cxgbe.4; driver has been added.  This is an
 	  experimental iWARP/RDMA driver
 	  (kernel verbs only) for Chelsio's T4 and T5 based cards.</para>
 
