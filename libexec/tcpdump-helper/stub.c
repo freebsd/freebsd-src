@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2014 SRI International
  * Copyright (c) 2012 Robert N. M. Watson
  * All rights reserved.
  *
