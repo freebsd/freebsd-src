@@ -190,7 +190,7 @@ main(int argc, char** argv)
 					case ENOEXEC:
 						warnx("an error occurred while "
 						    "loading the module. "
-						    "Please check dmesg(1) for "
+						    "Please check dmesg(8) for "
 						    "more details.");
 						break;
 					default:
