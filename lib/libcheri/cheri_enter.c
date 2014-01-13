@@ -59,7 +59,8 @@
 register_t	cheri_enter(register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
-		    __capability void *c1);
+		    __capability void *c1, __capability void *c2,
+		    __capability void *c3) __attribute__((cheri_ccall));
 
 /*
  * Stack for use on entering from sandbox.
@@ -116,7 +117,9 @@ cheri_systemcap_get(struct cheri_object *cop)
 register_t
 cheri_enter(register_t methodnum, register_t a1, register_t a2 __unused,
     register_t a3 __unused, register_t a4 __unused, register_t a5 __unused,
-    register_t a6 __unused, register_t a7 __unused, __capability void *c1)
+    register_t a6 __unused, register_t a7 __unused,
+    __capability void *c1 __unused, __capability void *c2 __unused,
+    __capability void *c3)
 {
 
 	switch (methodnum) {
@@ -124,7 +127,7 @@ cheri_enter(register_t methodnum, register_t a1, register_t a2 __unused,
 		return (cheri_system_helloworld());
 
 	case CHERI_SYSTEM_METHOD_PUTS:
-		return (cheri_system_puts(c1));
+		return (cheri_system_puts(c3));
 
 	case CHERI_SYSTEM_METHOD_PUTCHAR:
 		return (cheri_system_putchar(a1));
