@@ -188,7 +188,7 @@ main(int argc, char** argv)
 						    "in kernel", argv[0]);
 						break;
 					case ENOEXEC:
-						warnx("an error occured while "
+						warnx("an error occurred while "
 						    "loading the module. "
 						    "Please check dmesg(1) for "
 						    "more details.");
