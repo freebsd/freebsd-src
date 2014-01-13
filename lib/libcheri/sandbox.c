@@ -411,7 +411,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 
 	/*
 	 * Construct a generic capability that describes the combined
-	 * code segment, and provide the type for the data capability.
+	 * data/code segment that we will seal.
 	 */
 	sbcap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    SANDBOX_ENTRY);
@@ -422,8 +422,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	sbop->sbo_codecap = cheri_sealcode(sbop->sbo_codecap);
 
 	/* Construct sealed data capability. */
-	sbop->sbo_datacap = cheri_ptr(sbop, sizeof(*sbop));
-	sbop->sbo_datacap = cheri_andperm(sbop->sbo_datacap, CHERI_PERM_LOAD |
+	sbop->sbo_datacap = cheri_andperm(sbcap, CHERI_PERM_LOAD |
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_EPHEM_CAP);
 	sbop->sbo_datacap = cheri_sealdata(sbop->sbo_datacap, sbcap);
