@@ -36,6 +36,7 @@
 .Nm sandbox_class_method_declare ,
 .Nm sandbox_class_destroy ,
 .Nm sandbox_object_new ,
+.Nm sandbox_object_getsystemobject ,
 .Nm sandbox_object_cinvoke ,
 .Nm sandbox_object_invoke ,
 .Nm sandbox_object_destroy
@@ -66,6 +67,10 @@
 .Fo sandbox_object_new
 .Fa "struct sandbox_class *sbcp"
 .Fa "struct sandbox_object **sbopp"
+.Fc
+.Ft struct cheri_object
+.Fo sandbox_object_getsystemobject
+.Fa "struct sandbox_object *sbop"
 .Fc
 #if __has_feature(capabilities)
 .Ft register_t
@@ -165,6 +170,10 @@ and on success returns a sandbox object via
 When a sandbox object is no longer required, it can be destroyed by passing it
 to
 .Fn sandbox_object_destroy .
+.Pp
+.Fn sandbox_object_getsystemobject
+may be used to query a reference to a CHERI system class reference suitable
+for passing into the sandbox.
 .Ss Object invocation
 Sandbox methods may be invoked using
 .Fn sandbox_object_cinvoke
@@ -238,3 +247,5 @@ value to pass to
 .Pp
 This man page should include information on how to structure and link code
 intended to run within sandboxes.
+.Pp
+This man page does not document the CHERI system class.

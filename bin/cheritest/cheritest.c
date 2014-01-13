@@ -88,7 +88,6 @@
 
 static struct sandbox_class	*cheritest_classp;
 static struct sandbox_object	*cheritest_objectp;
-static struct cheri_object	 cheritest_systemcap;
 
 static void
 usage(void)
@@ -338,12 +337,17 @@ cheritest_invoke_simple_op(int op)
 
 #ifdef USE_C_CAPS
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    cheritest_systemcap.co_codecap, cheritest_systemcap.co_datacap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
 #else
+	struct chericap cheri_system_object;
+
+	cheri_system_object =
+	    sandbox_object_getsystemobject(cheritest_objectp);
 	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
+	    &cheri_system_object.co_codecap, &cheri_system_object.co_datacap,
 	    NULL, NULL, NULL, NULL, NULL, NULL);
 #endif
 	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
@@ -363,6 +367,8 @@ cheritest_invoke_md5(void)
 {
 #ifdef USE_C_CAPS
 	__capability void *md5cap, *bufcap, *cclear;
+#else
+	struct chericap cheri_system_object;
 #endif
 	char buf[33];
 	register_t v;
@@ -374,7 +380,8 @@ cheritest_invoke_md5(void)
 
 	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
 	    strlen(md5string), 0, 0, 0, 0, 0, 0,
-	    cheritest_systemcap.co_codecap, cheritest_systemcap.co_datacap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear);
 #else
 	CHERI_CINCBASE(10, 0, &md5string);
@@ -387,9 +394,11 @@ cheritest_invoke_md5(void)
 	CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
 	CHERI_CSC(10, 0, &c6, 0);
 
+	cheri_system_object =
+	    sandbox_object_getsystemobject(cheritest_objectp);
 	v = sandbox_object_invoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
 	    strlen(md5string), 0, 0, 0, 0, 0, 0,
-	    &cheritest_systemcap.co_codecap, &cheritest_systemcap.co_datacap,
+	    &cheri_system_object.co_codecap, &cheri_system_object.co_datacap,
 	    &c5, &c6, NULL, NULL, NULL, NULL);
 #endif
 
@@ -441,7 +450,6 @@ cheritest_libcheri_setup(void)
 	    CHERITEST_HELPER_OP_SYSCAP, "syscap");
 	(void)sandbox_class_method_declare(cheritest_classp,
 	    CHERITEST_HELPER_OP_MALLOC, "malloc");
-	cheri_systemcap_get(&cheritest_systemcap);
 	return (0);
 }
 

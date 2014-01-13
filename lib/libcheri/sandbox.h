@@ -113,6 +113,7 @@ void	sandbox_object_destroy(struct sandbox_object *sbop);
 /*
  * API to query system capabilities for use by sandboxes.
  */
-void	cheri_systemcap_get(struct cheri_object *cop);
+struct cheri_object	sandbox_object_getsystemobject(
+			    struct sandbox_object *sbop);
 
 #endif /* !_SANDBOX_H_ */

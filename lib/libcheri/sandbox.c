@@ -113,6 +113,7 @@ struct sandbox_object {
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
 	struct cheri_object	 sbo_cheri_object;
+	struct cheri_object	 sbo_cheri_system_object;
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 
@@ -258,10 +259,12 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 	free(sbcp);
 }
 
+extern void __cheri_enter;
+
 int
 sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 {
-	__capability void *sbcap;
+	__capability void *basecap, *sbcap;
 	struct sandbox_object *sbop;
 	struct sandbox_metadata *sbm;
 	size_t length;
@@ -412,21 +415,40 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	 * Construct a generic capability that describes the combined
 	 * data/code segment that we will seal.
 	 */
-	sbcap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	basecap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    SANDBOX_ENTRY);
 
 	/* Construct sealed code capability. */
-	sbop->sbo_cheri_object.co_codecap = cheri_andperm(sbcap,
-	    CHERI_PERM_EXECUTE | CHERI_PERM_LOAD | CHERI_PERM_SEAL);
+	sbcap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
+	    CHERI_PERM_SEAL);
 	sbop->sbo_cheri_object.co_codecap =
-	    cheri_sealcode(sbop->sbo_cheri_object.co_codecap);
+	    cheri_sealcode(sbcap);
 
 	/* Construct sealed data capability. */
-	sbop->sbo_cheri_object.co_datacap = cheri_andperm(sbcap,
+	sbcap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
+	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_EPHEM_CAP);
+	sbop->sbo_cheri_object.co_datacap = cheri_sealdata(sbcap, basecap);
+
+	/*
+	 * Construct an object capability for the system class instance that
+	 * will be passed into the sandbox.  Its code capability is just our
+	 * $c0; the data capability is to the sandbox structure itself, which
+	 * allows the system class to identify which sandbox a request is
+	 * being issued from.
+	 *
+	 * Note that $c0 in the 'sandbox' will be set from $pcc, so leave a
+	 * full set of write/etc permissions on the code capability.
+	 */
+	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
+	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
+
+	sbcap = cheri_ptr(sbop, sizeof(*sbop));
+	sbcap = cheri_andperm(sbcap,
 	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_cheri_object.co_datacap =
-	    cheri_sealdata(sbop->sbo_cheri_object.co_datacap, sbcap);
+	sbop->sbo_cheri_system_object.co_datacap = cheri_sealdata(sbcap,
+	    basecap);
 
 	/* XXXRW: This is not right for USE_C_CAPS. */
 	if (sb_verbose) {
@@ -590,6 +612,13 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 	munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
 	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
 	free(sbop);
+}
+
+struct cheri_object
+sandbox_object_getsystemobject(struct sandbox_object *sbop)
+{
+
+	return (sbop->sbo_cheri_system_object);
 }
 
 int

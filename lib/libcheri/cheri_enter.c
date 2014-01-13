@@ -93,30 +93,6 @@ cheri_enter_init(void)
 }
 
 /*
- * Return code and data capabilities that can be delegated to sandboxes in
- * order to let them invoke cheri_enter().
- *
- * XXXRW: Currently, CSealData requires removing executable permission from
- * the data capability.  This is undesirable as it will be used as $c0 when we
- * return from the sandbox.  Once ISA and hardware are fixed, we can remove
- * the permission trimming below.
- */
-extern void __cheri_enter;
-void
-cheri_systemcap_get(struct cheri_object *system_objectp)
-{
-	__capability void *basecap;
-
-	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
-	system_objectp->co_codecap = cheri_sealcode(basecap);
-	system_objectp->co_datacap = cheri_andperm(basecap, CHERI_PERM_LOAD |
-	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	system_objectp->co_datacap =
-	    cheri_sealdata(system_objectp->co_datacap, basecap);
-}
-
-/*
  * Allow the user application to register its own methods.
  */
 void

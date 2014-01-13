@@ -113,7 +113,6 @@ static struct tcpdump_sandbox_list sandboxes =
 static struct tcpdump_sandbox *default_sandbox;
 
 static struct sandbox_class	*tcpdump_classp;
-static struct cheri_object	 tcpdump_systemcap;
 
 static void
 set_color_default(void)
@@ -330,7 +329,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
-		    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
+		    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_codecap,
+		    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_datacap,
 		    cheri_ptrperm((void *)gndo, sizeof(netdissect_options),
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 		    gndo->ndo_espsecret == NULL ? cheri_zerocap() :
@@ -349,7 +349,8 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 	sb->tds_current_invokes++;
 	ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
 	    TCPDUMP_HELPER_OP_PRINT_PACKET, 0, 0, 0, 0, 0, 0, 0,
-	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
+	    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_codecap,
+	    sandbox_object_getsystemobject(sb->tds_sandbox_object).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(),
 	    cheri_ptrperm((void *)hdr, sizeof(*hdr),
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
@@ -384,8 +385,6 @@ tcpdump_sandbox_object_setup()
 	(void)sandbox_class_method_declare(tcpdump_classp,
 	    TCPDUMP_HELPER_OP_HAS_PRINTER, "has_printer");
 
-	cheri_systemcap_get(&tcpdump_systemcap);
-
 	return (tcpdump_sandboxes_init(&sandboxes,
 	    ctdc->ctdc_sb_mode == 0 ?
 	    TDS_MODE_ONE_SANDBOX : ctdc->ctdc_sb_mode));
@@ -417,7 +416,8 @@ has_printer(int type)
 
 	return (sandbox_object_cinvoke(default_sandbox->tds_sandbox_object,
 	    TCPDUMP_HELPER_OP_HAS_PRINTER, type, 0, 0, 0, 0, 0, 0,
-	    tcpdump_systemcap.co_codecap, tcpdump_systemcap.co_datacap,
+	    sandbox_object_getsystemobject(default_sandbox->tds_sandbox_object).co_codecap,
+	    sandbox_object_getsystemobject(default_sandbox->tds_sandbox_object).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()));
 }
