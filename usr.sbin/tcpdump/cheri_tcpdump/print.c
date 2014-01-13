@@ -112,17 +112,12 @@ tcpdump_sandbox_new(const char * name, sandbox_selector selector)
 		return (NULL);
 	memset(sb, 0, sizeof(*sb));
 
-	if ((sb->tds_name = strdup(name)) == NULL) {
-		free(sb);
-		return (NULL);
-	}
-
 	if (sandbox_object_new(tcpdump_classp, &sb->tds_sandbox_object) < 0) {
-		free((void *)sb->tds_name);
 		free(sb);
 		return (NULL);
 	}
 
+	sb->tds_name = name;
 	sb->tds_selector = selector;
 
 	return (sb);
@@ -132,7 +127,6 @@ static void
 tcpdump_sandbox_destroy(struct tcpdump_sandbox *sb)
 {
 
-	sandbox_object_destroy(sb->tds_sandbox_object);
 	free((void *)sb->tds_name);
 	free(sb);
 }
