@@ -141,4 +141,12 @@ abort:
 	nop
 	.end abort
 
+	.global _exit
+	.ent _exit
+_exit:
+	move	$v0, $a0
+	b	abort_target
+	nop
+	.end _exit
+
 	.data
