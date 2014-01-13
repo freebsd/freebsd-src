@@ -45,6 +45,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "cheri_enter.h"
 #include "cheri_system.h"
 #include "sandbox.h"
 
@@ -60,7 +61,9 @@ register_t	cheri_enter(register_t methodnum, register_t a1,
 		    register_t a2, register_t a3, register_t a4,
 		    register_t a5, register_t a6, register_t a7,
 		    __capability void *c1, __capability void *c2,
-		    __capability void *c3) __attribute__((cheri_ccall));
+		    __capability void *c3, __capability void *c4,
+		    __capability void *c5, __capability void *c6,
+		    __capability void *c7) __attribute__((cheri_ccall));
 
 /*
  * Stack for use on entering from sandbox.
@@ -68,6 +71,8 @@ register_t	cheri_enter(register_t methodnum, register_t a1,
 #define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
 static void *__cheri_enter_stack;
 void *__cheri_enter_stack_top;
+
+static cheri_enter_fn_t	*cheri_user_fn_ptr;
 
 __capability struct sandbox *
 cheri_enter_getsandbox(void)
@@ -86,7 +91,6 @@ cheri_enter_init(void)
 	__cheri_enter_stack_top = (char *)__cheri_enter_stack +
 	    CHERI_ENTER_STACK_SIZE;
 }
-
 
 /*
  * Return code and data capabilities that can be delegated to sandboxes in
@@ -112,14 +116,24 @@ cheri_systemcap_get(struct cheri_object *cop)
 }
 
 /*
+ * Allow the user application to register its own methods.
+ */
+void
+cheri_enter_register_fn(cheri_enter_fn_t *fn_ptr)
+{
+
+	cheri_user_fn_ptr = fn_ptr;
+}
+
+/*
  * cheri_enter() itself: sandbox invocations turn up here.
  */
 register_t
-cheri_enter(register_t methodnum, register_t a1, register_t a2 __unused,
-    register_t a3 __unused, register_t a4 __unused, register_t a5 __unused,
-    register_t a6 __unused, register_t a7 __unused,
-    __capability void *c1 __unused, __capability void *c2 __unused,
-    __capability void *c3)
+cheri_enter(register_t methodnum, register_t a1, register_t a2, register_t a3,
+    register_t a4, register_t a5, register_t a6, register_t a7,
+    __capability void *c1, __capability void *c2, __capability void *c3,
+    __capability void *c4, __capability void *c5, __capability void *c6,
+    __capability void *c7)
 {
 
 	switch (methodnum) {
@@ -133,6 +147,11 @@ cheri_enter(register_t methodnum, register_t a1, register_t a2 __unused,
 		return (cheri_system_putchar(a1));
 
 	default:
+		if (methodnum >= CHERI_ENTER_USER_BASE &&
+		    methodnum < CHERI_ENTER_USER_CEILING &&
+		    cheri_user_fn_ptr != NULL)
+			return ((*cheri_user_fn_ptr)(methodnum, a1, a2, a3,
+			    a4, a5, a6, a7, c1, c2, c3, c4, c5, c6, c7));
 		return (-1);
 	}
 }
