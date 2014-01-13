@@ -29,6 +29,11 @@
  */
 
 #include <sys/cdefs.h>
+
+#if !__has_feature(capabilities)
+#error "This code requires a CHERI-aware compiler"
+#endif
+
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/mman.h>
@@ -95,7 +100,6 @@ extern void __cheri_enter;
 void
 cheri_systemcap_get(struct cheri_object *cop)
 {
-#if __has_feature(capabilities)
 	__capability void *basecap;
 
 	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
@@ -104,19 +108,6 @@ cheri_systemcap_get(struct cheri_object *cop)
 	    CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_EPHEM_CAP);
 	cop->co_datacap = cheri_sealdata(cop->co_datacap, basecap);
-#else
-	CHERI_CSETTYPE(3, 0, &__cheri_enter);
-	CHERI_CSEALCODE(1, 3);
-	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	CHERI_CSEALDATA(2, 2, 3);
-	CHERI_CSC(1, 0, &cop->co_codecap, 0);
-	CHERI_CSC(2, 0, &cop->co_datacap, 0);
-	CHERI_CCLEARTAG(1);
-	CHERI_CCLEARTAG(2);
-	CHERI_CCLEARTAG(3);
-#endif
 }
 
 /*
