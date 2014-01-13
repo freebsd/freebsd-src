@@ -250,7 +250,8 @@ Objective-C and Objective-C++ Dialects}.
 -Wsystem-headers  -Wtrigraphs  -Wundef  -Wuninitialized @gol
 -Wunknown-pragmas  -Wno-pragmas -Wunreachable-code @gol
 -Wunused  -Wunused-function  -Wunused-label  -Wunused-parameter @gol
--Wunused-value  -Wunused-variable  -Wvariadic-macros @gol
+-Wunused-value  -Wunused-variable @gol
+-Wvariadic-macros -Wvla @gol
 -Wvolatile-register-var  -Wwrite-strings}
 
 @item C-only Warning Options
@@ -294,6 +295,8 @@ Objective-C and Objective-C++ Dialects}.
 -ftest-coverage  -ftime-report -fvar-tracking @gol
 -g  -g@var{level}  -gcoff -gdwarf-2 @gol
 -ggdb  -gstabs  -gstabs+  -gvms  -gxcoff  -gxcoff+ @gol
+-femit-struct-debug-baseonly -femit-struct-debug-reduced @gol
+-femit-struct-debug-detailed@r{[}=@var{spec-list}@r{]} @gol
 -p  -pg  -print-file-name=@var{library}  -print-libgcc-file-name @gol
 -print-multi-directory  -print-multi-lib @gol
 -print-prog-name=@var{program}  -print-search-dirs  -Q @gol
@@ -2534,9 +2537,7 @@ Warn if a user-supplied include directory does not exist.
 Warn if parentheses are omitted in certain contexts, such
 as when there is an assignment in a context where a truth value
 is expected, or when operators are nested whose precedence people
-often get confused about.  Only the warning for an assignment used as
-a truth value is supported when compiling C++; the other warnings are
-only supported when compiling C@.
+often get confused about.
 
 Also warn if a comparison like @samp{x<=y<=z} appears; this is
 equivalent to @samp{(x<=y ? 1 : 0) <= z}, which is a different
@@ -2558,14 +2559,15 @@ such a case:
 @end group
 @end smallexample
 
-In C, every @code{else} branch belongs to the innermost possible @code{if}
-statement, which in this example is @code{if (b)}.  This is often not
-what the programmer expected, as illustrated in the above example by
-indentation the programmer chose.  When there is the potential for this
-confusion, GCC will issue a warning when this flag is specified.
-To eliminate the warning, add explicit braces around the innermost
-@code{if} statement so there is no way the @code{else} could belong to
-the enclosing @code{if}.  The resulting code would look like this:
+In C/C++, every @code{else} branch belongs to the innermost possible
+@code{if} statement, which in this example is @code{if (b)}.  This is
+often not what the programmer expected, as illustrated in the above
+example by indentation the programmer chose.  When there is the
+potential for this confusion, GCC will issue a warning when this flag
+is specified.  To eliminate the warning, add explicit braces around
+the innermost @code{if} statement so there is no way the @code{else}
+could belong to the enclosing @code{if}.  The resulting code would
+look like this:
 
 @smallexample
 @group
@@ -3525,6 +3527,13 @@ Warn if variadic macros are used in pedantic ISO C90 mode, or the GNU
 alternate syntax when in pedantic ISO C99 mode.  This is default.
 To inhibit the warning messages, use @option{-Wno-variadic-macros}.
 
+@item -Wvla
+@opindex Wvla
+@opindex Wno-vla
+Warn if variable length array is used in the code.
+@option{-Wno-vla} will prevent the @option{-pedantic} warning of
+the variable length array.
+
 @item -Wvolatile-register-var
 @opindex Wvolatile-register-var
 @opindex Wno-volatile-register-var
@@ -3726,6 +3735,78 @@ debug level for DWARF2.
 Compress DWARF2 debugging information by eliminating duplicated
 information about each symbol.  This option only makes sense when
 generating DWARF2 debugging information with @option{-gdwarf-2}.
+
+@item -femit-struct-debug-baseonly
+Emit debug information for struct-like types
+only when the base name of the compilation source file
+matches the base name of file in which the struct was defined.
+
+This option substantially reduces the size of debugging information,
+but at significant potential loss in type information to the debugger.
+See @option{-femit-struct-debug-reduced} for a less aggressive option.
+See @option{-femit-struct-debug-detailed} for more detailed control.
+
+This option works only with DWARF 2.
+
+@item -femit-struct-debug-reduced
+Emit debug information for struct-like types
+only when the base name of the compilation source file
+matches the base name of file in which the type was defined,
+unless the struct is a template or defined in a system header.
+
+This option significantly reduces the size of debugging information,
+with some potential loss in type information to the debugger.
+See @option{-femit-struct-debug-baseonly} for a more aggressive option.
+See @option{-femit-struct-debug-detailed} for more detailed control.
+
+This option works only with DWARF 2.
+
+@item -femit-struct-debug-detailed@r{[}=@var{spec-list}@r{]}
+Specify the struct-like types
+for which the compiler will generate debug information.
+The intent is to reduce duplicate struct debug information
+between different object files within the same program.
+
+This option is a detailed version of
+@option{-femit-struct-debug-reduced} and @option{-femit-struct-debug-baseonly},
+which will serve for most needs.
+
+A specification has the syntax
+[@samp{dir:}|@samp{ind:}][@samp{ord:}|@samp{gen:}](@samp{any}|@samp{sys}|@samp{base}|@samp{none})
+
+The optional first word limits the specification to
+structs that are used directly (@samp{dir:}) or used indirectly (@samp{ind:}).
+A struct type is used directly when it is the type of a variable, member.
+Indirect uses arise through pointers to structs.
+That is, when use of an incomplete struct would be legal, the use is indirect.
+An example is
+@samp{struct one direct; struct two * indirect;}.
+
+The optional second word limits the specification to
+ordinary structs (@samp{ord:}) or generic structs (@samp{gen:}).
+Generic structs are a bit complicated to explain.
+For C++, these are non-explicit specializations of template classes,
+or non-template classes within the above.
+Other programming languages have generics,
+but @samp{-femit-struct-debug-detailed} does not yet implement them.
+
+The third word specifies the source files for those
+structs for which the compiler will emit debug information.
+The values @samp{none} and @samp{any} have the normal meaning.
+The value @samp{base} means that
+the base of name of the file in which the type declaration appears
+must match the base of the name of the main compilation file.
+In practice, this means that
+types declared in @file{foo.c} and @file{foo.h} will have debug information,
+but types declared in other header will not.
+The value @samp{sys} means those types satisfying @samp{base}
+or declared in system or compiler headers.
+
+You may need to experiment to determine the best settings for your application.
+
+The default is @samp{-femit-struct-debug-detailed=all}.
+
+This option works only with DWARF 2.
 
 @cindex @command{prof}
 @item -p

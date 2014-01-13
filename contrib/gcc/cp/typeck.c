@@ -1690,17 +1690,20 @@ rationalize_conditional_expr (enum tree_code code, tree t)
      are equal, so we know what conditional expression this used to be.  */
   if (TREE_CODE (t) == MIN_EXPR || TREE_CODE (t) == MAX_EXPR)
     {
+      tree op0 = TREE_OPERAND (t, 0);
+      tree op1 = TREE_OPERAND (t, 1);
+
       /* The following code is incorrect if either operand side-effects.  */
-      gcc_assert (!TREE_SIDE_EFFECTS (TREE_OPERAND (t, 0))
-		  && !TREE_SIDE_EFFECTS (TREE_OPERAND (t, 1)));
+      gcc_assert (!TREE_SIDE_EFFECTS (op0)
+		  && !TREE_SIDE_EFFECTS (op1));
       return
 	build_conditional_expr (build_x_binary_op ((TREE_CODE (t) == MIN_EXPR
 						    ? LE_EXPR : GE_EXPR),
-						   TREE_OPERAND (t, 0),
-						   TREE_OPERAND (t, 1),
+						   op0, TREE_CODE (op0),
+						   op1, TREE_CODE (op1),
 						   /*overloaded_p=*/NULL),
-			    build_unary_op (code, TREE_OPERAND (t, 0), 0),
-			    build_unary_op (code, TREE_OPERAND (t, 1), 0));
+			    build_unary_op (code, op0, 0),
+			    build_unary_op (code, op1, 0));
     }
 
   return
@@ -2908,8 +2911,8 @@ convert_arguments (tree typelist, tree values, tree fndecl, int flags)
    conversions on the operands.  CODE is the kind of expression to build.  */
 
 tree
-build_x_binary_op (enum tree_code code, tree arg1, tree arg2,
-		   bool *overloaded_p)
+build_x_binary_op (enum tree_code code, tree arg1, enum tree_code arg1_code,
+		   tree arg2, enum tree_code arg2_code, bool *overloaded_p)
 {
   tree orig_arg1;
   tree orig_arg2;
@@ -2932,6 +2935,17 @@ build_x_binary_op (enum tree_code code, tree arg1, tree arg2,
   else
     expr = build_new_op (code, LOOKUP_NORMAL, arg1, arg2, NULL_TREE,
 			 overloaded_p);
+
+  /* Check for cases such as x+y<<z which users are likely to
+     misinterpret.  But don't warn about obj << x + y, since that is a
+     common idiom for I/O.  */
+  if (warn_parentheses
+      && !processing_template_decl
+      && !error_operand_p (arg1)
+      && !error_operand_p (arg2)
+      && (code != LSHIFT_EXPR
+	  || !IS_AGGR_TYPE (TREE_TYPE (arg1))))
+    warn_about_parentheses (code, arg1_code, arg2_code);
 
   if (processing_template_decl && expr != error_mark_node)
     return build_min_non_dep (code, expr, orig_arg1, orig_arg2);
@@ -3759,6 +3773,12 @@ build_binary_op (enum tree_code code, tree orig_op0, tree orig_op1,
   result = fold_if_not_in_template (result);
   if (final_type != 0)
     result = cp_convert (final_type, result);
+
+  if (TREE_OVERFLOW_P (result) 
+      && !TREE_OVERFLOW_P (op0) 
+      && !TREE_OVERFLOW_P (op1))
+    overflow_warning (result);
+
   return result;
 }
 
@@ -6278,6 +6298,19 @@ convert_for_assignment (tree type, tree rhs,
 	warning (OPT_Wmissing_format_attribute,
 		 "%s might be a candidate for a format attribute",
 		 errtype);
+    }
+
+  /* If -Wparentheses, warn about a = b = c when a has type bool and b
+     does not.  */
+  if (warn_parentheses
+      && type == boolean_type_node
+      && TREE_CODE (rhs) == MODIFY_EXPR
+      && !TREE_NO_WARNING (rhs)
+      && TREE_TYPE (rhs) != boolean_type_node)
+    {
+      warning (OPT_Wparentheses,
+	       "suggest parentheses around assignment used as truth value");
+      TREE_NO_WARNING (rhs) = 1;
     }
 
   return perform_implicit_conversion (strip_top_quals (type), rhs);
