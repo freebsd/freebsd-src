@@ -721,6 +721,17 @@ done:
 	if ((mtx != NULL) && (mtx != &Giant))
 		mtx_lock(mtx);
 
+	switch (err) {
+	case USB_ERR_NORMAL_COMPLETION:
+	case USB_ERR_SHORT_XFER:
+	case USB_ERR_STALLED:
+	case USB_ERR_CANCELLED:
+		break;
+	default:
+		DPRINTF("I/O error - waiting a bit for TT cleanup\n");
+		usb_pause_mtx(mtx, hz / 16);
+		break;
+	}
 	return ((usb_error_t)err);
 }
 
@@ -2010,6 +2021,7 @@ usbd_req_re_enumerate(struct usb_device *udev, struct mtx *mtx)
 		return (USB_ERR_INVAL);
 	}
 retry:
+#if USB_HAVE_TT_SUPPORT
 	/*
 	 * Try to reset the High Speed parent HUB of a LOW- or FULL-
 	 * speed device, if any.
@@ -2017,15 +2029,24 @@ retry:
 	if (udev->parent_hs_hub != NULL &&
 	    udev->speed != USB_SPEED_HIGH) {
 		DPRINTF("Trying to reset parent High Speed TT.\n");
-		err = usbd_req_reset_tt(udev->parent_hs_hub, NULL,
-		    udev->hs_port_no);
+		if (udev->parent_hs_hub == parent_hub &&
+		    (uhub_count_active_host_ports(parent_hub, USB_SPEED_LOW) +
+		     uhub_count_active_host_ports(parent_hub, USB_SPEED_FULL)) == 1) {
+			/* we can reset the whole TT */
+			err = usbd_req_reset_tt(parent_hub, NULL,
+			    udev->hs_port_no);
+		} else {
+			/* only reset a particular device and endpoint */
+			err = usbd_req_clear_tt_buffer(udev->parent_hs_hub, NULL,
+			    udev->hs_port_no, old_addr, UE_CONTROL, 0);
+		}
 		if (err) {
 			DPRINTF("Resetting parent High "
 			    "Speed TT failed (%s).\n",
 			    usbd_errstr(err));
 		}
 	}
-
+#endif
 	/* Try to warm reset first */
 	if (parent_hub->speed == USB_SPEED_SUPER)
 		usbd_req_warm_reset_port(parent_hub, mtx, udev->port_no);
