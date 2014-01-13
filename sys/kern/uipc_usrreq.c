@@ -320,6 +320,7 @@ static struct protosw localsw[] = {
 	 */
 	.pr_flags =		PR_ADDR|PR_ATOMIC|PR_CONNREQUIRED|PR_WANTRCVD|
 				    PR_RIGHTS,
+	.pr_ctloutput =		&uipc_ctloutput,
 	.pr_usrreqs =		&uipc_usrreqs_seqpacket,
 },
 };
@@ -936,7 +937,8 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (unp2->unp_flags & UNP_WANTCRED) {
 			/*
-			 * Credentials are passed only once on SOCK_STREAM.
+			 * Credentials are passed only once on SOCK_STREAM
+			 * and SOCK_SEQPACKET.
 			 */
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
