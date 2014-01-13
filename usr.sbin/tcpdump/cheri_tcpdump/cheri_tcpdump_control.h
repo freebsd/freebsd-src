@@ -33,6 +33,7 @@
 
 struct cheri_tcpdump_control {
 	int	ctdc_sb_mode;		/* Sandbox mode */
+	int	ctdc_sandboxes;		/* Number of sandboxes (mode dep.)*/
 	int	ctdc_sb_max_lifetime;	/* Maximum sandbox life (sec) */
 	int	ctdc_sb_max_packets;	/* Max packets to process */
 	int	ctdc_colorize;		/* Enable colorized output */
@@ -43,5 +44,6 @@ struct cheri_tcpdump_control {
 #define	CTDC_MODE_NONE			0
 #define	CTDC_MODE_ONE_SANDBOX		1
 #define	CTDC_MODE_SEPARATE_LOCAL	2
+#define	CTDC_MODE_HASH_TCP		3
 
 #endif /* __CHERI_TCPDUMP_CONTROL_H__ */

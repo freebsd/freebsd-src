@@ -59,7 +59,8 @@
 #include "interface.h"
 #include "print.h"
 
-typedef int(*sandbox_selector)(int dlt, size_t len, const u_char *data);
+typedef int(*sandbox_selector)(int dlt, size_t len, const u_char *data,
+	    void *selector_dta);
 
 struct tcpdump_sandbox {
 	STAILQ_ENTRY(tcpdump_sandbox)	 tds_entry;
@@ -68,6 +69,7 @@ struct tcpdump_sandbox {
 	const char		*tds_name;
 	const char		*tds_text_color_str;
 	sandbox_selector	 tds_selector;
+	void			*tds_selector_data;	/* free()'d */
 
 	/* Lifetime stats for sandboxs matching selector */
 	int		 tds_faults;	/* Number of times the sandbox has
@@ -88,6 +90,7 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 
 #define	TDS_MODE_ONE_SANDBOX	CTDC_MODE_ONE_SANDBOX
 #define	TDS_MODE_SEPARATE_LOCAL	CTDC_MODE_SEPARATE_LOCAL
+#define	TDS_MODE_HASH_TCP	CTDC_MODE_HASH_TCP
 
 #define	DEFAULT_COLOR		"\x1b[1;37;40m"
 #define	SB_FAIL_COLOR		"\x1b[1;31;40m"
@@ -120,7 +123,7 @@ set_color_default(void)
 
 static struct tcpdump_sandbox *
 tcpdump_sandbox_new(const char * name, const char * color,
-    sandbox_selector selector)
+    sandbox_selector selector, void * selector_data)
 {
 	struct tcpdump_sandbox *sb;
 
@@ -136,6 +139,7 @@ tcpdump_sandbox_new(const char * name, const char * color,
 	sb->tds_name = name;
 	sb->tds_text_color_str = color;
 	sb->tds_selector = selector;
+	sb->tds_selector_data = selector_data;
 
 	return (sb);
 }
@@ -167,7 +171,7 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 
 static int
 tds_select_all(int dlt __unused, size_t len __unused,
-    const u_char *data __unused)
+    const u_char *data __unused, void *sd __unused)
 {
 
 	/* Accept all packets */
@@ -175,7 +179,7 @@ tds_select_all(int dlt __unused, size_t len __unused,
 }
 
 static int
-tds_select_ipv4(int dlt, size_t len, const u_char *data)
+tds_select_ipv4(int dlt, size_t len, const u_char *data, void *sd __unused)
 {
 	struct ether_header *eh;
 
@@ -192,11 +196,12 @@ tds_select_ipv4(int dlt, size_t len, const u_char *data)
 }
 
 static int
-tds_select_ipv4_fromlocal(int dlt, size_t len, const u_char *data)
+tds_select_ipv4_fromlocal(int dlt, size_t len, const u_char *data,
+    void *sd __unused)
 {
 	struct ip *iphdr;
 
-	if (!tds_select_ipv4(dlt, len, data))
+	if (!tds_select_ipv4(dlt, len, data, sd))
 		return (0);
 
 	iphdr = (struct ip *)(data + sizeof(struct ether_header));
@@ -207,8 +212,29 @@ tds_select_ipv4_fromlocal(int dlt, size_t len, const u_char *data)
 }
 
 static int
+tds_select_ipv4_hash(int dlt, size_t len, const u_char *data, void *sd)
+{
+	int mod;
+	u_int32_t ipaddr;
+	struct ip *iphdr;
+
+	if (!tds_select_ipv4(dlt, len, data, sd))
+		return (0);
+
+	mod = (int)sd;
+
+	iphdr = (struct ip *)(data + sizeof(struct ether_header));
+	ipaddr = EXTRACT_32BITS(&iphdr->ip_src);
+	if (mod % ipaddr == 0)
+		return (1);
+
+	return (0);
+}
+
+static int
 tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 {
+	int i;
 	struct tcpdump_sandbox *sb;
 
 	while (!STAILQ_EMPTY(list)) {
@@ -221,20 +247,33 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	g_mode = mode;
 	switch(mode) {
 	case TDS_MODE_ONE_SANDBOX:
-		sb = tcpdump_sandbox_new("sandbox", SB_GREEN, tds_select_all);
+		sb = tcpdump_sandbox_new("sandbox", SB_GREEN, tds_select_all,
+		    NULL);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_SEPARATE_LOCAL:
 		sb = tcpdump_sandbox_new("ipv4_local", SB_YELLOW,
-		    tds_select_ipv4_fromlocal);
+		    tds_select_ipv4_fromlocal, NULL);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
-		sb = tcpdump_sandbox_new("ipv4", SB_BLUE, tds_select_ipv4);
+		sb = tcpdump_sandbox_new("ipv4", SB_BLUE, tds_select_ipv4,
+		    NULL);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
-		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all);
+		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all,
+		    NULL);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
+	case TDS_MODE_HASH_TCP:
+		for (i = 0; i < ctdc->ctdc_sandboxes; i++) {
+			sb = tcpdump_sandbox_new("hash", SB_YELLOW,
+			    tds_select_ipv4_hash, (void *)(long)i);
+			STAILQ_INSERT_TAIL(list, sb, tds_entry);
+		}
+		sb = tcpdump_sandbox_new("catchall", SB_GREEN, tds_select_all,
+		    NULL);
+		STAILQ_INSERT_TAIL(list, sb, tds_entry);
+		default_sandbox = sb;
 	default:
 		error("unknown sandbox mode %d", mode);
 	}
@@ -258,7 +297,7 @@ tcpdump_sandbox_find(struct tcpdump_sandbox_list *list, int dlt, size_t len,
 	struct tcpdump_sandbox *sb;
 
 	STAILQ_FOREACH(sb, list, tds_entry)
-		if (sb->tds_selector(dlt, len, data))
+		if (sb->tds_selector(dlt, len, data, sb->tds_selector_data))
 			return (sb);
 
 	/* properly set up lists won't get here so make them fail */
