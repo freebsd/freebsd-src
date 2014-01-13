@@ -33,6 +33,7 @@
 #endif
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/queue.h>
 
 #include <machine/cheri.h>
@@ -49,8 +50,10 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "cheri_tcpdump_control.h"
 
@@ -393,10 +396,19 @@ tcpdump_sandbox_object_setup()
 void
 init_print(u_int32_t localnet, u_int32_t mask)
 {
+	char *control_file;
+	int control_fd = -1;
 
-	ctdc = &_ctdc;	/* XXX: get from shared page */
-	ctdc->ctdc_sb_mode = TDS_MODE_ONE_SANDBOX;
-	ctdc->ctdc_colorize = 1;
+	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
+	    (control_fd = open(control_file, O_RDONLY)) == -1 ||
+	    (ctdc = mmap(0, sizeof(*ctdc), PROT_READ, MAP_FILE,
+	     control_fd, 0)) == NULL) {
+		ctdc = &_ctdc;
+		ctdc->ctdc_sb_mode = TDS_MODE_ONE_SANDBOX;
+		ctdc->ctdc_colorize = 1;
+	} else
+		if (control_fd != -1)
+			close(control_fd);
 
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)
