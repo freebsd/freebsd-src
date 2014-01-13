@@ -245,7 +245,7 @@ static size_t
 virt_kvatop(kvm_t *kd, uint64_t va, off_t *ofs)
 {
 
-	return (virt_addr2off(kd, va, ofs, kd->vmst->pagesize));
+	return (virt_addr2off(kd, va, ofs, 0));
 }
 
 /*
