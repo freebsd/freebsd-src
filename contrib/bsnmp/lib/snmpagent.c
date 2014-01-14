@@ -488,6 +488,11 @@ snmp_getbulk(struct snmp_pdu *pdu, struct asn_buf *resp_b,
 	for (cnt = 0; cnt < pdu->error_index; cnt++) {
 		eomib = 1;
 		for (i = non_rep; i < pdu->nbindings; i++) {
+
+			if (resp->nbindings == SNMP_MAX_BINDINGS)
+				/* PDU is full */
+				goto done;
+
 			if (cnt == 0) 
 				result = do_getnext(&context, &pdu->bindings[i],
 				    &resp->bindings[resp->nbindings], pdu);
