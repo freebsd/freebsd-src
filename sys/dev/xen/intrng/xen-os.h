@@ -37,6 +37,12 @@
 
 #ifndef __ASSEMBLY__
 
+/* Right now the device-tree is the only implemented detection method */
+#define xen_domain_early() xen_dt_probe()
+
+/* Early initializer, returns success/failure identical to xen_domain() */
+extern int xen_dt_probe(void);
+
 #define	XEN_CPUID_TO_VCPUID(cpu)	(cpu)
 
 #define	XEN_VCPUID()			PCPU_GET(cpuid)
