@@ -114,6 +114,16 @@ int		g_max_lifetime;
 int		g_max_packets;
 int		g_reset;
 
+static const char *hash_colors[] = {
+	SB_GREEN,
+	SB_BLUE,
+	SB_CYAN
+};
+#define	N_HASH_COLORS	3
+
+#define	MAX_HASHES	64
+static char *hash_names[MAX_HASHES];
+
 static struct cheri_tcpdump_control _ctdc;
 static struct cheri_tcpdump_control *ctdc;
 
@@ -223,7 +233,7 @@ static int
 tds_select_ipv4_hash(int dlt, size_t len, const u_char *data, void *sd)
 {
 	int mod;
-	u_int32_t ipaddr;
+	u_char *ipaddr;
 	struct ip *iphdr;
 
 	if (!tds_select_ipv4(dlt, len, data, sd))
@@ -232,8 +242,8 @@ tds_select_ipv4_hash(int dlt, size_t len, const u_char *data, void *sd)
 	mod = (int)sd;
 
 	iphdr = (struct ip *)(data + sizeof(struct ether_header));
-	ipaddr = EXTRACT_32BITS(&iphdr->ip_src);
-	if (mod % ipaddr == 0)
+	ipaddr = (u_char *)&(iphdr->ip_src);
+	if ((ipaddr[0] + ipaddr[1] + ipaddr[2] + ipaddr[3]) % g_sandboxes == mod)
 		return (1);
 
 	return (0);
@@ -275,7 +285,9 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	case TDS_MODE_HASH_TCP:
 		g_sandboxes = ctdc->ctdc_sandboxes;
 		for (i = 0; i < ctdc->ctdc_sandboxes; i++) {
-			sb = tcpdump_sandbox_new("hash", SB_YELLOW,
+			printf("%s", hash_names[i]);
+			sb = tcpdump_sandbox_new(hash_names[i],
+			    hash_colors[i % N_HASH_COLORS],
 			    tds_select_ipv4_hash, (void *)(long)i);
 			STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		}
@@ -283,6 +295,7 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		    NULL);
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
+		break;
 	default:
 		error("unknown sandbox mode %d", mode);
 	}
@@ -435,7 +448,7 @@ poll_ctdc_config(void)
 		g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
 	}
 	if (ctdc->ctdc_sb_max_packets >= 0 &&
-	    g_max_packets == ctdc->ctdc_sb_max_packets) {
+	    g_max_packets != ctdc->ctdc_sb_max_packets) {
 		fprintf(stderr, "%s max packets from %d to %d\n",
 		    g_max_packets < ctdc->ctdc_sb_max_packets ?
 		    "increasing" : "decreasing",
@@ -448,30 +461,36 @@ void
 init_print(u_int32_t localnet, u_int32_t mask)
 {
 	char *control_file;
-	int control_fd = -1;
+	int control_fd = -1, i;
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
 	    (control_fd = open(control_file, O_RDONLY)) == -1 ||
 	    (ctdc = mmap(0, sizeof(*ctdc), PROT_READ, MAP_FILE,
 	     control_fd, 0)) == NULL) {
 		ctdc = &_ctdc;
-		ctdc->ctdc_sb_mode = TDS_MODE_ONE_SANDBOX;
+		ctdc->ctdc_sb_mode = TDS_MODE_HASH_TCP;
 		ctdc->ctdc_colorize = 1;
-		ctdc->ctdc_sandboxes = 1;
+		ctdc->ctdc_sandboxes = 3;
 	} else
 		if (control_fd != -1)
 			close(control_fd);
-
-	cheri_enter_register_fn(&cheri_tcpdump_enter);
-	if (tcpdump_classp == NULL &&
-	    tcpdump_sandbox_object_setup() != 0)
-		error("failure setting up sandbox object");
 
 	g_localnet = localnet;
 	g_mask = mask;
 	g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
 	g_max_packets = ctdc->ctdc_sb_max_packets;
 	g_reset = ctdc->ctdc_reset;
+
+	/* XXX: check returns */
+	for (i = 0; i < MAX_HASHES; i++)
+		asprintf(&hash_names[i], "hash%02d", i);
+
+	cheri_enter_register_fn(&cheri_tcpdump_enter);
+
+	if (tcpdump_classp == NULL &&
+	    tcpdump_sandbox_object_setup() != 0)
+		error("failure setting up sandbox object");
+
 }
 
 int
