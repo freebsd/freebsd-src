@@ -73,7 +73,7 @@ random_ident_hardware(struct random_systat *systat)
 	if (via_feature_rng & VIA_HAS_RNG) {
 		int enable;
 
-		enable = 1;
+		enable = 0;
 		TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
 		if (enable)
 			*systat = random_nehemiah;
@@ -83,7 +83,7 @@ random_ident_hardware(struct random_systat *systat)
 	if (cpu_feature2 & CPUID2_RDRAND) {
 		int enable;
 
-		enable = 1;
+		enable = 0;
 		TUNABLE_INT_FETCH("hw.ivy_rng_enable", &enable);
 		if (enable)
 			*systat = random_ivy;
