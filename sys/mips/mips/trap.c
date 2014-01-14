@@ -1253,6 +1253,8 @@ trapDump(char *msg)
 
 /*
  * Return the resulting PC as if the branch was executed.
+ *
+ * XXXRW: What about CHERI branch instructions?
  */
 uintptr_t
 MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
@@ -1266,8 +1268,24 @@ MipsEmulateBranch(struct trapframe *framePtr, uintptr_t instPC, int fpcCSR,
 #define	GetBranchDest(InstPtr, inst) \
 	(InstPtr + 4 + ((short)inst.IType.imm << 2))
 
-
-	/* XXXRW: calls to fuword32() here need perform a $pcc conversion. */
+#ifdef CPU_CHERI
+	/*
+	 * XXXRW: This isn't really right, as it doesn't properly implement
+	 * CHERI bounds checking for $epcc.  On the other hand, unlike some
+	 * other pc loads in trap.c, it actually uses fuword()!
+	 */
+	/*
+	 * XXXRW: TODO: Implement offsetting instptr or instPC by the thread's
+	 * $pcc.  Unfortuntely, we don't have a pointer to that here, only
+	 * having been passed 'trapframe', not 'cheriframe'.  We use the saved
+	 * $epcc, but it's not clear if that's safe.
+	 */
+	register_t pcc_base;
+	CHERI_CGETBASE(pcc_base, CHERI_CR_EPCC);
+	if (instptr)
+		instptr += pcc_base;
+	instPC += pcc_base;
+#endif
 	if (instptr) {
 		if (instptr < MIPS_KSEG0_START)
 			inst.word = fuword32((void *)instptr);
