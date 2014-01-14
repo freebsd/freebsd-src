@@ -224,6 +224,6 @@ void
 pawned(void)
 {
 
-       cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS_PAWNED;
-       cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR_PAWNED;
+	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS_PAWNED;
+	cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR_PAWNED;
 }
