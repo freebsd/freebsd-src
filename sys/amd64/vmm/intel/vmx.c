@@ -1669,6 +1669,18 @@ vmx_exit_astpending(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static __inline int
+vmx_exit_rendezvous(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
+{
+
+	vmexit->rip = vmcs_guest_rip();
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
+	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RENDEZVOUS, 1);
+
+	return (UNHANDLED);
+}
+
+static __inline int
 vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 {
 
@@ -1697,10 +1709,12 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
+vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
+    void *rendezvous_cookie)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
+	struct vm *vm;
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
@@ -1709,10 +1723,11 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	uint32_t exit_reason;
 
 	vmx = arg;
+	vm = vmx->vm;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
-	vlapic = vm_lapic(vmx->vm, vcpu);
-	vmexit = vm_exitinfo(vmx->vm, vcpu);
+	vlapic = vm_lapic(vm, vcpu);
+	vmexit = vm_exitinfo(vm, vcpu);
 	launched = 0;
 
 	KASSERT(vmxctx->pmap == pmap,
@@ -1760,6 +1775,12 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 			break;
 		}
 
+		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
+			enable_intr();
+			handled = vmx_exit_rendezvous(vmx, vcpu, vmexit);
+			break;
+		}
+
 		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_enter_guest(vmxctx, launched);
@@ -1793,9 +1814,9 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	}
 
 	if (!handled)
-		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_USERSPACE, 1);
+		vmm_stat_incr(vm, vcpu, VMEXIT_USERSPACE, 1);
 
-	VCPU_CTR1(vmx->vm, vcpu, "returning from vmx_run: exitcode %d",
+	VCPU_CTR1(vm, vcpu, "returning from vmx_run: exitcode %d",
 	    vmexit->exitcode);
 
 	VMCLEAR(vmcs);

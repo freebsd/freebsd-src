@@ -285,15 +285,13 @@ vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	atomic_set_int(&irrptr[idx], mask);
 
 	/*
-	 * Upon acceptance of an interrupt into the IRR the corresponding
-	 * TMR bit is cleared for edge-triggered interrupts and set for
-	 * level-triggered interrupts.
+	 * Verify that the trigger-mode of the interrupt matches with
+	 * the vlapic TMR registers.
 	 */
 	tmrptr = &lapic->tmr0;
-	if (level)
-		atomic_set_int(&tmrptr[idx], mask);
-	else
-		atomic_clear_int(&tmrptr[idx], mask);
+	KASSERT((tmrptr[idx] & mask) == (level ? mask : 0),
+	    ("vlapic TMR[%d] is 0x%08x but interrupt is %s-triggered",
+	    idx / 4, tmrptr[idx], level ? "level" : "edge"));
 
 	VLAPIC_CTR_IRR(vlapic, "vlapic_set_intr_ready");
 	return (1);
@@ -1457,4 +1455,58 @@ vlapic_enabled(struct vlapic *vlapic)
 		return (true);
 	else
 		return (false);
+}
+
+void
+vlapic_reset_tmr(struct vlapic *vlapic)
+{
+	struct LAPIC *lapic;
+
+	VLAPIC_CTR0(vlapic, "vlapic resetting all vectors to edge-triggered");
+
+	lapic = vlapic->apic_page;
+	lapic->tmr0 = 0;
+	lapic->tmr1 = 0;
+	lapic->tmr2 = 0;
+	lapic->tmr3 = 0;
+	lapic->tmr4 = 0;
+	lapic->tmr5 = 0;
+	lapic->tmr6 = 0;
+	lapic->tmr7 = 0;
+}
+
+void
+vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
+    int delmode, int vector)
+{
+	struct LAPIC *lapic;
+	uint32_t *tmrptr, mask;
+	cpuset_t dmask;
+	int idx;
+	bool lowprio;
+
+	KASSERT(vector >= 0 && vector <= 255, ("invalid vector %d", vector));
+
+	/*
+	 * A level trigger is valid only for fixed and lowprio delivery modes.
+	 */
+	if (delmode != APIC_DELMODE_FIXED && delmode != APIC_DELMODE_LOWPRIO) {
+		VLAPIC_CTR1(vlapic, "Ignoring level trigger-mode for "
+		    "delivery-mode %d", delmode);
+		return;
+	}
+
+	lowprio = (delmode == APIC_DELMODE_LOWPRIO);
+	vlapic_calcdest(vlapic->vm, &dmask, dest, phys, lowprio, false);
+
+	if (!CPU_ISSET(vlapic->vcpuid, &dmask))
+		return;
+
+	lapic = vlapic->apic_page;
+	tmrptr = &lapic->tmr0;
+	idx = (vector / 32) * 4;
+	mask = 1 << (vector % 32);
+	tmrptr[idx] |= mask;
+
+	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
 }
