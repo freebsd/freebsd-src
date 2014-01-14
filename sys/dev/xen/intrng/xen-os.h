@@ -1,6 +1,7 @@
 /*
  * SPDX-License-Identifier: BSD-2-Clause
  *
+ * Copyright © 2014 Julien Grall
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,3 +25,62 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __MACHINE_ARM64_XEN_XEN_OS_H__
+#define __MACHINE_ARM64_XEN_XEN_OS_H__
+
+#ifndef _XEN_XEN_OS_H_
+#error "do not #include machine/xen/xen-os.h, #include xen/xen-os.h instead"
+#endif
+
+/* Xen/ARM *requires* write-back/cached, so this is the correct setting */
+#define VM_MEMATTR_XEN VM_MEMATTR_WRITE_BACK
+
+#ifndef __ASSEMBLY__
+
+#define	XEN_CPUID_TO_VCPUID(cpu)	(cpu)
+
+#define	XEN_VCPUID()			PCPU_GET(cpuid)
+
+static inline bool
+xen_pv_shutdown_handler(void)
+{
+
+	/* PV shutdown handler are always supported on ARM */
+	return (true);
+}
+
+static inline bool
+xen_has_percpu_evtchn(void)
+{
+
+	/* It's always possible to rebind event channel on ARM */
+	return (true);
+}
+
+static inline bool
+xen_pv_disks_disabled(void)
+{
+
+	/* It's not possible to disable PV disks on ARM */
+	return (false);
+}
+
+static inline bool
+xen_pv_nics_disabled(void)
+{
+
+	/* It's not possible to disable PV nics on ARM */
+	return (false);
+}
+
+static inline bool
+xen_has_iommu_maps(void)
+{
+
+	/* the Xen bug predates ARM support */
+	return (true);
+}
+
+#endif
+
+#endif /* __MACHINE_ARM64_XEN_XEN_OS__ */
