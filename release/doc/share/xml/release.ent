@@ -6,17 +6,17 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "10.0-RELEASE">
+<!ENTITY release.current "10.0-STABLE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
      branchpoint. -->
-<!ENTITY release.prev "10.0-CURRENT">
+<!ENTITY release.prev "10.0-RELEASE">
 
 <!-- The previous stable release, useful for pointing user's at the
      release they SHOULD be running if they don't want the bleeding
      edge. -->
-<!ENTITY release.prev.stable "9.2-RELEASE">
+<!ENTITY release.prev.stable "10.0-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "10.1-RELEASE">
@@ -52,7 +52,7 @@
 <!ENTITY release.manpath.xorg          "7.5.1">
 <!ENTITY release.manpath.netbsd        "5.1">
 <!ENTITY release.manpath.freebsd-ports "Ports">
-<!ENTITY release.manpath.freebsd       "10-current">
+<!ENTITY release.manpath.freebsd       "10-stable">
 
 <!-- Text constants which probably don't need to be changed.-->
 
@@ -70,6 +70,3 @@
 <!ENTITY arch.pc98 "pc98">
 <!ENTITY arch.powerpc "powerpc">
 <!ENTITY arch.sparc64 "sparc64">
-
-<!-- The marker for MFCs. -->
-<!ENTITY merged "MERGED">
