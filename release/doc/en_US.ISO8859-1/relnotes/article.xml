@@ -18,6 +18,7 @@
 <!ENTITY man.vmx.4 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>vmx</refentrytitle><manvolnum>4</manvolnum></citerefentry>">
 <!ENTITY man.pkg.7 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>pkg</refentrytitle><manvolnum>7</manvolnum></citerefentry>">
 <!ENTITY man.bhyve.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bhyve</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
+<!ENTITY man.gptboot.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>gptboot</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
 <!ENTITY man.bsdconfig.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>bsdconfig</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
 <!ENTITY man.unbound.8 "<citerefentry xmlns='http://docbook.org/ns/docbook'><refentrytitle>unbound</refentrytitle><manvolnum>8</manvolnum></citerefentry>">
 ]>
@@ -202,7 +203,7 @@
     <para arch="amd64,i386" revision="240135">Support was added for
       the new Intel on-CPU Bull Mountain random number
       generator, found on IvyBridge and supposedly later CPUs,
-      accessible with RDRAND instruction.</para>
+      accessible with the RDRAND instruction.</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
@@ -229,7 +230,7 @@ hv_netsvc_load="YES"
 hv_utils_load="YES"
 hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be added to the i386
         kernel by adding <literal>device hyperv</literal> to the kernel config, and then
-        recompiling the kernel.  Please refer to:
+        recompiling the kernel.  Please refer to
         <link xlink:href="http://wiki.freebsd.org/HyperV">FreeBSD and Microsoft Windows Server Hyper-V support</link>
         for full instructions on how to set up Hyper-V support under FreeBSD.</para>
 
@@ -247,7 +248,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
       <para revision="239922">Raspberry PI support has been added.
         Refer to these <link xlink:href="http://kernelnomicon.org/?p=164">setup instructions</link>
-        and <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
+        and this <link xlink:href="http://www.raspberrypi.org/quick-start-guide">quick start
         guide</link>.</para>
   
       <para revision="253396">The default ABI on ARM is now the ARM EABI. This brings a number of
@@ -256,15 +257,15 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <para revision="239268">ARM support has been greatly improved, including support
         for ARMv6 and ARMv7, SMP and thread-local storage (TLS).
         Additionally support for some newer SoC like the MV78x60 and OMAP4 was added.
-        See <link xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">this announcement</link>
+        See the <link xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">announcement</link>
         for further details.</para>
   
       <para revision="254918">Superpages support on ARM has been added.  Superpages support
         provides improved performance and scalability by allowing TLB
         translations to dynamically cover large physical memory regions.
         All ARMv6 and ARMv7-based platforms can take advantage of this feature.
-        See <link xlink:href="https://wiki.freebsd.org/ARMSuperpages">this page</link>
-        for further details.</para>
+        See the <link xlink:href="https://wiki.freebsd.org/ARMSuperpages">ARM Superpages status</link>
+        page for further details.</para>
 
     </sect3>
 
@@ -276,10 +277,10 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 	mode.  This change makes it possible to boot &os; from USB
 	devices.</para>
 
-      <para arch="amd64,i386" role="merged">A new gptboot boot loader has
+      <para arch="amd64,i386" role="merged">A new &man.gptboot.8; boot loader has
         been added to support booting from a GPT labeled disk.  A
         new <command>boot</command> command has been added to
-        &man.gpt.8;, which makes a GPT disk bootable by writing the
+        &man.gpart.8;, which makes a GPT disk bootable by writing the
         required bits of the boot loader, creating a new boot
         partition if required.</para>
 
@@ -291,7 +292,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
         PCMCIA smartcard readers, has been added.</para>
 
-      <para>The &man.syscons.4; driver now supports Colemak keyboard layout.</para>
+      <para>The &man.syscons.4; driver now supports the Colemak keyboard layout.</para>
 
       <para role="merged">The &man.uslcom.4; driver, a driver for Silicon
         Laboratories CP2101/CP2102-based USB serial adapters, has been
@@ -380,13 +381,13 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
         address on the subnet (carpdev), switching state with
         &man.ifconfig.8;, better locking and using modern kernel
         interfaces to allocate multicast memberships.
-        Configuration of the CARP protocol via &man.ifconfig.8; has changed, as well as format
-	of CARP events submitted to &man.devd.8; has changed. See &man.carp.4;
+        Configuration of the CARP protocol via &man.ifconfig.8; has changed, as well as the format
+	of CARP events submitted to &man.devd.8;.  See &man.carp.4;
 	for more information. The arpbalance feature of &man.carp.4; is currently
 	not supported anymore.</para>
 
       <para revision="240233">The &man.pf.4; firewall now supports fine-grain locking
-        and better utilization on multi-cpu machines resulting in
+        and better utilization on multi-CPU machines, resulting in
         significant improvements in performance.</para>
 
       <para revision="250700">Support for up to 65536 routing tables has been
@@ -417,7 +418,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <para revision="240616">&man.nvme.4; has been added and provides NVM Express support.
         NVM Express is an optimized register interface, command set and feature set of
         PCI Express (PCIe)-based Solid-State Drives (SSDs).  For more information,
-        see <link xlink:href="http://http://www.nvmexpress.org/">nvmexpress.org</link>.</para>
+        see <link xlink:href="http://www.nvmexpress.org/">nvmexpress.org</link>.</para>
 
     </sect3>
 
@@ -449,7 +450,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
         <para revision="240868">TRIM support has been added for
           ZFS.</para>
 
-        <para revision="246586">Support for the high performance LZ4 compression algorithm
+        <para revision="246586">Support for the high-performance LZ4 compression algorithm
           has been added to ZFS. LZ4 is usually faster and can achieve a
           higher compression ratio than LZJB, the default compression
           algorithm.</para>
@@ -458,13 +459,11 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
         <para revision="243524">The zio nop-write improvement from Illumos
           was imported into &os;. To reduce I/O, nop-write skips overwriting
-          data if the checksum (cryptographically secure) of new data
+          data if the (cryptographically secure) checksum of new data
           matches the checksum of existing data. It also saves space if
-          snapshots are in use.  This improvement only works only on
+          snapshots are in use.  This improvement only works on
           datasets with enabled compression, disabled deduplication and
-          sha256 checksums.</para>
-
-        <para>ZFS will now compare the checksums of incoming writes to
+          sha256 checksums.  ZFS will now compare the checksums of incoming writes to
           the checksum of the existing on-disk data and avoid issuing any
           write I/O for data that has not changed. This will reduce I/O
           as well as space usage because if the old block is referenced
@@ -481,7 +480,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <title>Userland Changes</title>
 
    <para revision="255321">On platforms where &man.clang.1; is the default
-      system compiler, (such as i386, amd64, arm) GCC and GNU libstdc++ are no
+      system compiler (such as i386, amd64, arm), GCC and GNU libstdc++ are no
       longer built by default.  &man.clang.1; and libc++ from LLVM are used on
       these platforms by instead.  GCC 4.2.1 and libstdc++ are still built
       and used by default on pc98 and all other platforms where &man.clang.1;
@@ -491,10 +490,10 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
    <para revision="251662">&man.clang.1; and llvm have been updated to
      version 3.3 release.  Please refer to
      <link xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
-     Clang 3.3 Release Notes.</link></para>
+     Clang 3.3 Release Notes</link>.</para>
 
     <para role="merged" revision="255949">BIND has been replaced by &man.unbound.8; for
-      local dns resolution in the base system.  With this change, nslookup
+      local DNS resolution in the base system.  With this change, nslookup
       and dig are no longer a part of the base system.  Users should
       instead use &man.host.1; and &man.drill.1; Alternatively,
       nslookup and dig can be obtained by installing the
@@ -520,17 +519,17 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       This brings bison compatibilities to &man.yacc.1; while preserving full
       backwards compatibility with previous version of &man.yacc.1;.</para>
 
-    <para revision="250881">&man.lex.1; has been replaced by flex 2.5.37</para>
+    <para revision="250881">&man.lex.1; has been replaced by flex 2.5.37.</para>
 
     <para revision="250699">&man.make.1; has been replaced with the 
-      "Portable" BSD make tool (bmake) from NetBSD.</para>
+      <quote>Portable</quote> BSD make tool (bmake) from NetBSD.</para>
 
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
       home directory.</para>
 
     <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
-      based on <filename>libarchive</filename>, have replaced the GNU
+      based on &man.libarchive.3;, have replaced the GNU
       Binutils versions of these utilities.</para>
 
     <para>BSD-licensed versions of &man.bc.1; and &man.dc.1; have
@@ -546,7 +545,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       specifying the <option>-RrP</option> flags.</para>
 
     <para>BSD-licensed version of &man.cpio.1; based on
-      <filename>libarchive</filename>, has replaced the GNU cpio.
+      &man.libarchive.3;, has replaced the GNU cpio.
       Note that the GNU cpio is still installed as
       <filename>gcpio</filename>.</para>
 
@@ -558,7 +557,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
     <para>The &man.fdopendir.3; library function has been added.</para>
 
-    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
+    <para role="merged">The &man.fetch.3; library now supports HTTP 1.1
       If-Modified-Since behavior.  The &man.fetch.1; program now
       supports <option>-i <replaceable>filename</replaceable></option>
       which will only download the specified HTTP URL if the content
@@ -596,7 +595,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
     <para>&man.sh.1; has many bug fixes, some new features, and will now
       refuse to parse some invalid scripts.  Additionally, it now
-      has filename completion and defaults to the &quot;emacs&quot; editing
+      has filename completion and defaults to the <quote>emacs</quote> editing
       mode.</para>
 
     <para>The &man.split.1; utility now supports a <option>-n</option>
@@ -610,7 +609,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <option>--numeric-owner</option> flag to ignore user/group names
       on create and extract.</para>
 
-    <para>The &man.tar.1; utility now supports an
+    <para>The &man.tar.1; utility now supports the
       <option>-S</option> flag to sparsify files on extraction.</para>
 
     <para>The &man.tar.1; utility now supports a <option>-s</option>
@@ -625,7 +624,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para>&man.top.1; now supports a <option>-P</option> flag to
       provide per-CPU usage statistics.</para>
 
-    <para>&man.zdump.8; is now working properly on 64 bit architectures.
+    <para>&man.zdump.8; is now working properly on 64-bit architectures.
       </para>
 
     <para>&man.traceroute.8; now has the ability to print the AS
@@ -747,18 +746,18 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
       to 6.1.5.</para>
 
-    <para role="merged"><application>awk</application> has been updated from 1 May
+    <para role="merged"><application>awk</application> has been updated from the 1 May
       2007 release to the 23 October 2007 release.</para>
 
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
     <para revision="251794"><application>CVS</application> has been removed from the
-    base system, but is still available from ports.</para>
+    base system, but is still available from Ports Collection.</para>
 
     <para revision="251886">Subversion has been imported into the base system and
       is installed as <application>svnlite</application>.  <application>svnlite</application>
-      should only be used for checking out &os; source and committing, and does not
+      should only be used for checking out the &os; source trees and committing, and does not
       replace the full Subversion port.</para>
 
     <para revision="234449"><application>file</application> has been updated to 5.11.</para>
@@ -771,7 +770,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para revision="250592"><application>less</application> has been updated to
       v458.</para>
 
-    <para><application>ncurses</application> has been updated from
+    <para><application>ncurses</application> has been updated
       to 5.7-20081102.</para>
 
     <para role="merged"><application>OpenSSH</application> has been updated
@@ -791,7 +790,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       have been updated from the <application>tzcode2004a</application>
       release to the <application>tzcode2009h</application> release.
       If you have upgraded from source or via the &man.freebsd-update.8;,
-      then please run &man.tzsetup.8; to install a new /etc/localtime.
+      then please run &man.tzsetup.8; to install a new <filename>/etc/localtime</filename>.
       </para>
 
     <para revision="252726"><application>WPA Supplicant</application> has been
@@ -802,7 +801,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
     <para revision="258231" role="merged">&man.nvi.1; has been updated to 2.1.2.</para>
 
-    <para revision="254225">&man.nvi.1; supports wide character locales.</para>
+    <para revision="254225">&man.nvi.1; supports wide-character locales.</para>
 
   </sect2>
 
@@ -812,7 +811,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para revision="257444">The pkg_add, pkg_create, pkg_delete, pkg_info,
       pkg_updating, and pkg_version utilities have been removed.
       &man.pkg.7; must now be used to install binary packages.  &man.pkg.7;
-      is the next generation &os; package manager, also referred to as "pkgng".</para>
+      is the next generation &os; package manager, also referred to as <quote>pkgng</quote>.</para>
 
   </sect2>
 
