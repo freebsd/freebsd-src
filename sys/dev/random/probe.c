@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
@@ -57,7 +59,12 @@ random_ident_hardware(struct random_systat *systat)
 	/* Then go looking for hardware */
 #if defined(__i386__) && !defined(PC98)
 	if (via_feature_rng & VIA_HAS_RNG) {
-		*systat = random_nehemiah;
+		int enable;
+
+		enable = 0;
+		TUNABLE_INT_FETCH("hw.nehemiah_rng_enable", &enable);
+		if (enable)
+			*systat = random_nehemiah;
 	}
 #endif
 }

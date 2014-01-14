@@ -1215,6 +1215,7 @@ charged:
 	}
 	else if ((prev_entry != &map->header) &&
 		 (prev_entry->eflags == protoeflags) &&
+		 (cow & (MAP_ENTRY_GROWS_DOWN | MAP_ENTRY_GROWS_UP)) == 0 &&
 		 (prev_entry->end == start) &&
 		 (prev_entry->wired_count == 0) &&
 		 (prev_entry->uip == uip ||
@@ -3186,7 +3187,6 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	 * NOTE: We explicitly allow bi-directional stacks.
 	 */
 	orient = cow & (MAP_STACK_GROWS_DOWN|MAP_STACK_GROWS_UP);
-	cow &= ~orient;
 	KASSERT(orient != 0, ("No stack grow direction"));
 
 	if (addrbos < vm_map_min(map) ||
