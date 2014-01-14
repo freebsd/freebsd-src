@@ -66,6 +66,7 @@
 #include <md5.h>
 #include <stdlib.h>
 
+#include "cheri_tcpdump_system.h"
 #include "tcpdump-helper.h"
 
 #include "netdissect.h"
@@ -77,6 +78,8 @@ netdissect_options Gndo;
 netdissect_options *gndo = &Gndo;
 
 const char *program_name;
+
+void	pawned(void);
 
 int	invoke(register_t op, register_t localnet, register_t netmask,
 	    struct cheri_object system_object,
@@ -94,6 +97,9 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
     __capability const char *ndo_espsecret)
 {
 	size_t espsec_len;
+
+	cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS;
+	cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR;
 
 	program_name = "tcpdump-helper"; /* XXX: copy from parent? */
 
@@ -212,4 +218,12 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	}
 
 	return (ret);
+}
+
+void
+pawned(void)
+{
+
+       cheri_system_methodnum_puts = CHERI_TCPDUMP_PUTS_PAWNED;
+       cheri_system_methodnum_putchar = CHERI_TCPDUMP_PUTCHAR_PAWNED;
 }

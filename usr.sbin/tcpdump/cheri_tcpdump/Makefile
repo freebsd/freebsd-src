@@ -11,7 +11,8 @@ TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
 PROG=	cheri_tcpdump
 MAN=
 
-SRCS=	gmt2local.c \
+SRCS=	cheri_tcpdump_system.c \
+	gmt2local.c \
 	machdep.c \
 	setsignal.c \
 	tcpdump.c \
@@ -24,6 +25,7 @@ CLEANFILES+=	version.c
 #.include "Makefile.print"
 
 CFLAGS+= -I${.CURDIR} -I${TCPDUMP_DISTDIR}
+CFLAGS+= -I${.CURDIR}/../../../lib/libcheri
 CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -D_U_="__attribute__((unused))"
 

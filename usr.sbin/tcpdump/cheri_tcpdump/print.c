@@ -44,6 +44,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
+#include <cheri/cheri_enter.h>
 #include <cheri/sandbox.h>
 
 #include <tcpdump-helper.h>
@@ -56,6 +57,7 @@
 #include <unistd.h>
 
 #include "cheri_tcpdump_control.h"
+#include "cheri_tcpdump_system.h"
 
 #include "extract.h"
 #include "netdissect.h"
@@ -410,6 +412,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 		if (control_fd != -1)
 			close(control_fd);
 
+	cheri_enter_register_fn(&cheri_tcpdump_enter);
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)
 		error("failure setting up sandbox object");

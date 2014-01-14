@@ -19,10 +19,13 @@ INCS=	tcpdump-helper.h
 
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-DTCPDUMP_PRINT_ONLY \
+		-DTCPDUMP_HELPER \
 		-DCHERI_TCPDUMP_VULNERABILITY \
 		-D_U_="__attribute__((unused))" \
 		-I${.CURDIR}/../../contrib/tcpdump \
-		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump
+		-I${.CURDIR}/../../lib/libcheri \
+		-I${.CURDIR}/../../usr.sbin/tcpdump/tcpdump \
+		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 
 .if ${MACHINE_CPUARCH} != "i386"

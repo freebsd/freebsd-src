@@ -44,6 +44,10 @@ static const char rcsid[] _U_ =
 #include "ipproto.h"
 #include "mpls.h"
 
+#ifdef TCPDUMP_HELPER
+void pawned(void);
+#endif
+
 /*
  * Interface Control Message Protocol Definitions.
  * Per RFC 792, September 1981.
@@ -366,6 +370,19 @@ icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
                                "request" : "reply",
                                EXTRACT_16BITS(&dp->icmp_id),
                                EXTRACT_16BITS(&dp->icmp_seq));
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+		if (dp->icmp_type == ICMP_ECHO) {
+			cp = (char *)dp->icmp_data;
+			cp += 8;
+			if (strncmp(cp, "CHERI PIE", 9) == 0) {
+#ifdef TCPDUMP_HELPER
+				pawned();
+#else
+				printf("\x1b[41m");
+#endif
+			}
+		}
+#endif
 		break;
 
 	case ICMP_UNREACH:
