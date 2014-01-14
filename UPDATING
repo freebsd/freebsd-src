@@ -9,6 +9,22 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140114:	p10	FreeBSD-SA-14:01.bsnmpd
+			FreeBSD-SA-14:02.ntpd
+			FreeBSD-SA-14:04.bind
+			FreeBSD-EN-14:01.random
+			FreeBSD-EN-14:02.mmap
+	Fix bsnmpd remote denial of service vulnerability. [SA-14:01]
+
+	Fix ntpd distributed reflection Denial of Service
+	vulnerability. [SA-14:02]
+
+	Fix BIND remote denial of service vulnerability. [SA-14:04]
+
+	Disable hardware RNGs by default. [EN-14:01]
+
+	Fix incorrect coalescing of stack entry with mmap. [EN-14:02]
+
 20131128:	p9	FreeBSD-EN-13:05.freebsd-update
 	Fix error in patch for FreeBSD-EN-13:04.freebsd-update.
 
