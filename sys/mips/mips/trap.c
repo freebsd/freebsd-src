@@ -1697,6 +1697,8 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	unsigned size;
 
 #ifdef CPU_CHERI
+	register_t c0_base;
+
 	/*
 	 * XXXRW: This code isn't really post-CHERI read.
 	 *
@@ -1704,6 +1706,8 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 * $pcc ($epcc) is not readable or unaligned.
 	 */
 	CHERI_CLW(inst, pc, 0, CHERI_CR_EPCC);
+	CHERI_CGETBASE(c0_base, CHERI_CR_C0);
+	addr += c0_base;
 #else
 	inst = *((u_int32_t *)(intptr_t)pc);;
 #endif
