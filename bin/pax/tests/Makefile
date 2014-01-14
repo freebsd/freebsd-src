@@ -3,8 +3,7 @@
 .include <bsd.own.mk>
 
 TESTSDIR=	${TESTSBASE}/bin/pax
-KYUAFILE=	yes
 
-TAP_TESTS_SH=	legacy_test
+TAP_TESTS_PERL=	legacy_test
 
 .include <tap.test.mk>
