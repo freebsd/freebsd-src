@@ -109,6 +109,10 @@ u_int32_t	g_localnet;
 u_int32_t	g_mask;
 int		g_type = -1;
 int		g_mode;
+int		g_sandboxes = 1;
+int		g_max_lifetime;
+int		g_max_packets;
+int		g_reset;
 
 static struct cheri_tcpdump_control _ctdc;
 static struct cheri_tcpdump_control *ctdc;
@@ -269,6 +273,7 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_HASH_TCP:
+		g_sandboxes = ctdc->ctdc_sandboxes;
 		for (i = 0; i < ctdc->ctdc_sandboxes; i++) {
 			sb = tcpdump_sandbox_new("hash", SB_YELLOW,
 			    tds_select_ipv4_hash, (void *)(long)i);
@@ -395,6 +400,50 @@ tcpdump_sandbox_object_setup()
 	    TDS_MODE_ONE_SANDBOX : ctdc->ctdc_sb_mode));
 }
 
+static void
+poll_ctdc_config(void)
+{
+	int reinit;
+
+	reinit = 0;
+	if (ctdc->ctdc_sb_mode != g_mode) {
+		reinit = 1;
+		fprintf(stderr, "changing sandbox mode from %d to %d\n",
+		    g_mode, ctdc->ctdc_sb_mode);
+	}
+	if (ctdc->ctdc_sb_mode == CTDC_MODE_HASH_TCP &&
+	    ctdc->ctdc_sandboxes != g_sandboxes) {
+		reinit = 1;
+		fprintf(stderr, "%s sandboxes from %d to %d\n",
+		    g_sandboxes < ctdc->ctdc_sandboxes ? "increasing" :
+		    "decreasing", g_sandboxes, ctdc->ctdc_sandboxes);
+	}
+	if (g_reset != ctdc->ctdc_reset) {
+		reinit = 1;
+		g_reset = ctdc->ctdc_reset;
+		fprintf(stderr, "resetting all sandboxs\n");
+	}
+	if (reinit)
+		tcpdump_sandboxes_init(&sandboxes, ctdc->ctdc_sb_mode);
+
+	if (ctdc->ctdc_sb_max_lifetime >= 0 &&
+	    g_max_lifetime != ctdc->ctdc_sb_max_lifetime) {
+		fprintf(stderr, "%s max sandbox lifetime from %d to %d\n",
+		    g_max_lifetime < ctdc->ctdc_sb_max_lifetime ?
+		    "increasing" : "decreasing",
+		    g_max_lifetime, ctdc->ctdc_sb_max_lifetime);
+		g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
+	}
+	if (ctdc->ctdc_sb_max_packets >= 0 &&
+	    g_max_packets == ctdc->ctdc_sb_max_packets) {
+		fprintf(stderr, "%s max packets from %d to %d\n",
+		    g_max_packets < ctdc->ctdc_sb_max_packets ?
+		    "increasing" : "decreasing",
+		    g_max_packets, ctdc->ctdc_sb_max_packets);
+		g_max_packets = ctdc->ctdc_sb_max_packets;
+	}
+}
+
 void
 init_print(u_int32_t localnet, u_int32_t mask)
 {
@@ -408,6 +457,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 		ctdc = &_ctdc;
 		ctdc->ctdc_sb_mode = TDS_MODE_ONE_SANDBOX;
 		ctdc->ctdc_colorize = 1;
+		ctdc->ctdc_sandboxes = 1;
 	} else
 		if (control_fd != -1)
 			close(control_fd);
@@ -419,6 +469,9 @@ init_print(u_int32_t localnet, u_int32_t mask)
 
 	g_localnet = localnet;
 	g_mask = mask;
+	g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
+	g_max_packets = ctdc->ctdc_sb_max_packets;
+	g_reset = ctdc->ctdc_reset;
 }
 
 int
@@ -459,6 +512,8 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 {
 	int ret;
 	struct tcpdump_sandbox *sb;
+
+	poll_ctdc_config();
 
 	if (ctdc->ctdc_colorize)
 		set_color_default();
