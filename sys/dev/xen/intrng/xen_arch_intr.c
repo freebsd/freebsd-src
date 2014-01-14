@@ -60,6 +60,9 @@
 #include <machine/intr.h>
 #include <machine/xen/arch-intr.h>
 
+#include <contrib/xen/event_channel.h>
+#include <contrib/xen/hvm/params.h>
+
 DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
@@ -96,6 +99,30 @@ xen_dt_probe(void)
 /* in case of console being disabled, probe again as a fallback */
 C_SYSINIT(xen_probe_fdt, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, (sysinit_cfunc_t)xen_dt_probe, NULL);
 
+static void xen_init(void *arg __unused)
+{
+	int rc;
+	struct xen_add_to_physmap xatp;
+	vm_page_t shared_info;
+	vm_paddr_t shared_paddr;
+
+	if (!xen_domain())
+		return;
+
+	shared_info = vm_page_alloc(NULL, 0, VM_ALLOC_NOOBJ | VM_ALLOC_ZERO);
+	KASSERT(shared_info != NULL, ("Unable to allocate shared page\n"));
+	shared_paddr = VM_PAGE_TO_PHYS(shared_info);
+	HYPERVISOR_shared_info = xen_pmap(shared_paddr, PAGE_SIZE);
+
+	xatp.domid = DOMID_SELF;
+	xatp.idx = 0;
+	xatp.space = XENMAPSPACE_shared_info;
+	xatp.gpfn = shared_paddr >> PAGE_SHIFT;
+	rc = HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp);
+	KASSERT(rc == 0, ("Unable to map shared info\n"));
+}
+
+SYSINIT(xen_init, SI_SUB_HYPERVISOR, SI_ORDER_SECOND, xen_init, NULL);
 
 struct xen_softc {
 	struct resource		*intr;
