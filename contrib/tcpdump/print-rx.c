@@ -2925,6 +2925,7 @@ rop_gadget(void)
 	 * stack has been smashed and most likely isn't in the best of shape.
 	 */
 #endif /* ! __mips__ && __LP64__ */
+}
 
 void pwn(void)
 {
