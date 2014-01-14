@@ -65,7 +65,7 @@ ${SPSEUDO}:
 	    >> ${.TARGET}
 
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
-	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
+	aio_cancel.2 aio_error.2 aio_fsync.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
 	bind.2 brk.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
