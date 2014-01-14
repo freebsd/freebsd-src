@@ -999,10 +999,24 @@ dofault:
 #endif
 	case T_COP_UNUSABLE:
 		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
-#if defined(CPU_CHERI) && defined(DDB)
+#if defined(CPU_CHERI)
 		/* XXXRW: CP2 state management here. */
+#if 0 && defined(DDB)
 		if (cop == 2)
 			kdb_enter(KDB_WHY_CHERI, "T_COP_UNUSABLE exception");
+#endif
+		/*
+		 * XXXRW: For reasons not fully understood, the COP_2 enable
+		 * is getting cleared.  A hardware bug?  Software bug?
+		 * Unclear, but turn it back on again and restart the
+		 * instruction.
+		 */
+		if (cop == 2) {
+			printf("%s: reenabling COP_2 for kernel\n", __func__);
+			mips_wr_status(mips_rd_status() | MIPS_SR_COP_2_BIT);
+			td->td_frame->sr |= MIPS_SR_COP_2_BIT;
+			return (trapframe->pc);
+		}
 #endif
 #ifdef	CPU_CNMIPS
 		/* Handle only COP2 exception */
