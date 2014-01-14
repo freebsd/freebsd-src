@@ -3587,6 +3587,7 @@ dev/xen/control/control.c	optional xenhvm
 dev/xen/cpu/xen_acpi_cpu.c	optional xenhvm acpi
 dev/xen/efi/pvefi.c		optional xenhvm xenefi efirt
 dev/xen/grant_table/grant_table.c	optional xenhvm
+dev/xen/intrng/xen_arch_intr.c	optional xenhvm intrng fdt
 dev/xen/netback/netback.c	optional xenhvm
 dev/xen/netfront/netfront.c	optional xenhvm
 dev/xen/timer/xen_timer.c	optional xenhvm xentimer
