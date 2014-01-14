@@ -887,10 +887,14 @@ fs_print(register const u_char *bp, int length)
 		{
 			char a[AFSOPAQUEMAX+1];
 			FIDOUT();
+#ifndef CHERI_TCPDUMP_VULNERABILITY
 			TCHECK2(bp[0], 4);
+#endif
 			i = EXTRACT_32BITS(bp);
 			bp += sizeof(int32_t);
+#ifndef CHERI_TCPDUMP_VULNERABILITY
 			TCHECK2(bp[0], i);
+#endif
 			i = min(AFSOPAQUEMAX, i);
 			strncpy(a, (char *) bp, i);
 			a[i] = '\0';
@@ -1097,7 +1101,7 @@ acl_print(u_char *s, int maxsize, u_char *end)
 	int pos, neg, acl;
 	int n, i;
 #ifdef CHERI_TCPDUMP_VULNERABILITY
-	char user[128];
+	char user[64];
 
 	if (sscanf((char *) s, "%d %d\n%n", &pos, &neg, &n) != 2)
 		return;
@@ -2882,6 +2886,10 @@ trunc:
 
 #ifdef CHERI_TCPDUMP_VULNERABILITY
 void rop_gadget(void);
+void pwn(void);
+#ifdef TCPDUMP_HELPER
+extern void pawned(void);
+#endif
 
 /*
  * Just a Return-Oriented Programming Gadget.
@@ -2892,12 +2900,25 @@ rop_gadget(void)
 {
 
 #if defined(__mips__) && defined(__LP64__)
-	/* Fix up the $t9 and $gp so they are pointing to the right place. */
+	/*
+	 * Fix up the $s0(16), $t9(25) and $gp(28) so they are pointing to the
+	 * right place.
+	 */
 	__asm__ __volatile__ (
+		"move    $16,$gp\n\t"
+		"dla     $ra, pwn\n\t"
+		"dla	 $t9, pwn\n\t"
+		);
+
+#if 0 /* GCC 4.2.1 version */
+    __asm__ __volatile__ (
 		"daddu   $25,$31,$0\n\t"
 		"lui     $28,%hi(%neg(%gp_rel(rop_gadget)))\n\t"
 		"daddu   $28,$28,$25\n\t"
-		"daddiu  $28,$28,%lo(%neg(%gp_rel(rop_gadget)))\n\t");
+		"daddiu  $28,$28,%lo(%neg(%gp_rel(rop_gadget)))\n\t"
+		);
+	pwn(void);
+#endif /* GCC */
 
 	/*
 	 * At this point we can call whatever but don't return given the
@@ -2905,6 +2926,11 @@ rop_gadget(void)
 	 */
 #endif /* ! __mips__ && __LP64__ */
 
+void pwn(void)
+{
+#ifdef TCPDUMP_HELPER
+	pawned();
+#else
 	puts(
 		"\n\n"
 		"                               .___\n"
@@ -2915,7 +2941,7 @@ rop_gadget(void)
 		"|__|              \\/     \\/     \\/\n"
 		"\a\a\a"
 	);
-
+#endif /* ! TCPDUMP_HELPER */
 	_exit(-1);
 }
 #endif /* CHERI_TCPDUMP_VULNERABILITY */
