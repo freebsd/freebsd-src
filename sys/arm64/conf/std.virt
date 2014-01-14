@@ -2,6 +2,9 @@
 # Virt SoC support
 #
 
+# Xen HVM Guest support
+options		XENHVM			# Xen HVM kernel infrastructure
+
 # Block devices
 device		pvscsi			# VMware PVSCSI
 
