@@ -380,9 +380,11 @@ device		virtio_balloon		# VirtIO Memory Balloon device
 device		hyperv			# HyperV drivers 
 
 # Xen HVM Guest Optimizations
-# NOTE: XENHVM depends on xenpci.  They must be added or removed together.
+# NOTE: XENHVM and xenpci interdepend.  They must be added or removed
+# together.  xentimer depends on XENHVM and isn't required.
 options 	XENHVM			# Xen HVM kernel infrastructure
 device		xenpci			# Xen HVM Hypervisor services driver
+device		xentimer		# Xen x86 PV timer device
 
 # Netmap provides direct access to TX/RX rings on supported NICs
 device		netmap			# netmap(4) support
