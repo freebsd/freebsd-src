@@ -890,12 +890,14 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
+done:
 		/*
 		 * We'll have to do without, let our probedone
 		 * routine finish up for us.
 		 */
 		start_ccb->csio.data_ptr = NULL;
 		cam_freeze_devq(periph->path);
+		cam_periph_doacquire(periph);
 		probedone(periph, start_ccb);
 		return;
 	}
@@ -921,14 +923,7 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
-		/*
-		 * We'll have to do without, let our probedone
-		 * routine finish up for us.
-		 */
-		start_ccb->csio.data_ptr = NULL;
-		cam_freeze_devq(periph->path);
-		probedone(periph, start_ccb);
-		return;
+		goto done;
 	}
 	case PROBE_SERIAL_NUM:
 	{
@@ -961,19 +956,13 @@ again:
 				     /*timeout*/60 * 1000);
 			break;
 		}
-		/*
-		 * We'll have to do without, let our probedone
-		 * routine finish up for us.
-		 */
-		start_ccb->csio.data_ptr = NULL;
-		cam_freeze_devq(periph->path);
-		probedone(periph, start_ccb);
-		return;
+		goto done;
 	}
 	default:
 		panic("probestart: invalid action state 0x%x\n", softc->action);
 	}
 	start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
+	cam_periph_doacquire(periph);
 	xpt_action(start_ccb);
 }
 
@@ -1121,7 +1110,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 
 			if (cam_periph_error(done_ccb, 0,
 					     SF_NO_PRINT, NULL) == ERESTART) {
-out:
+outr:
 				/* Drop freeze taken due to CAM_DEV_QFREEZE */
 				cam_release_devq(path, 0, 0, 0, FALSE);
 				return;
@@ -1135,7 +1124,11 @@ out:
 		PROBE_SET_ACTION(softc, PROBE_INQUIRY);
 		xpt_release_ccb(done_ccb);
 		xpt_schedule(periph, priority);
-		goto out;
+out:
+		/* Drop freeze taken due to CAM_DEV_QFREEZE and release. */
+		cam_release_devq(path, 0, 0, 0, FALSE);
+		cam_periph_release_locked(periph);
+		return;
 	}
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
@@ -1222,7 +1215,7 @@ out:
 					    ? SF_RETRY_UA|SF_QUIET_IR
 					    : SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
-			goto out;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1263,7 +1256,7 @@ out:
 			    done_ccb->ccb_h.target_lun > 0 ?
 			    SF_RETRY_UA|SF_QUIET_IR : SF_RETRY_UA,
 			    &softc->saved_ccb) == ERESTART) {
-				goto out;
+				goto outr;
 			}
 			if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 				xpt_release_devq(done_ccb->ccb_h.path, 1,
@@ -1373,7 +1366,7 @@ out:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			goto out;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path,
@@ -1416,7 +1409,7 @@ out:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			goto out;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1461,7 +1454,7 @@ out:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA,
 					    &softc->saved_ccb) == ERESTART) {
-			goto out;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1516,7 +1509,7 @@ probe_device_check:
 		} else if (cam_periph_error(done_ccb, 0,
 					    SF_RETRY_UA|SF_NO_PRINT,
 					    &softc->saved_ccb) == ERESTART) {
-			goto out;
+			goto outr;
 		} else if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
@@ -1699,6 +1692,7 @@ probe_device_check:
 		CAM_DEBUG(periph->path, CAM_DEBUG_PROBE, ("Probe completed\n"));
 		/* Drop freeze taken due to CAM_DEV_QFREEZE flag set. */
 		cam_release_devq(path, 0, 0, 0, FALSE);
+		cam_periph_release_locked(periph);
 		cam_periph_invalidate(periph);
 		cam_periph_release_locked(periph);
 	} else {
