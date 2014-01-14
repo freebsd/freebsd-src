@@ -72,7 +72,7 @@ register_t	cheri_enter(register_t methodnum, register_t a1,
 static void *__cheri_enter_stack;
 void *__cheri_enter_stack_top;
 
-static cheri_enter_fn_t	*cheri_user_fn_ptr;
+static cheri_enter_fn_t	cheri_user_fn_ptr;
 
 __capability struct sandbox *
 cheri_enter_getsandbox(void)
@@ -96,7 +96,7 @@ cheri_enter_init(void)
  * Allow the user application to register its own methods.
  */
 void
-cheri_enter_register_fn(cheri_enter_fn_t *fn_ptr)
+cheri_enter_register_fn(cheri_enter_fn_t fn_ptr)
 {
 
 	cheri_user_fn_ptr = fn_ptr;
@@ -127,7 +127,7 @@ cheri_enter(register_t methodnum, register_t a1, register_t a2, register_t a3,
 		if (methodnum >= CHERI_ENTER_USER_BASE &&
 		    methodnum < CHERI_ENTER_USER_CEILING &&
 		    cheri_user_fn_ptr != NULL)
-			return ((*cheri_user_fn_ptr)(methodnum, a1, a2, a3,
+			return (cheri_user_fn_ptr(methodnum, a1, a2, a3,
 			    a4, a5, a6, a7, system_object, c3, c4, c5, c6,
 			    c7));
 		return (-1);

@@ -38,7 +38,7 @@ typedef register_t (*cheri_enter_fn_t)(register_t methodnum, register_t a1,
 	    __capability void *c5, __capability void *c6,
 	    __capability void *c7) __attribute__((cheri_ccall));
 
-void	cheri_enter_register_fn(cheri_enter_fn_t *fn_ptr);
+void	cheri_enter_register_fn(cheri_enter_fn_t fn_ptr);
 
 #define	CHERI_ENTER_USER_BASE		1000
 #define	CHERI_ENTER_USER_CEILING	2000
