@@ -24,6 +24,7 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
