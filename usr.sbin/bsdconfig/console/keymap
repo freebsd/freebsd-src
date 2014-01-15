@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -246,10 +246,8 @@ while :; do
 	keymap_name=
 	mtag="${mtag# }" # remove single leading-space if-present
 	for name in $KEYMAP_NAMES; do
-		if [ "$( eval echo \"\$msg_$name\" )" = "$mtag" ]; then
-			keymap_name="$name"
-			break
-		fi
+		debug= f_getvar msg_$name msg
+		[ "$msg" = "$mtag" ] && keymap_name="$name" break
 	done
 
 	[ "$keymap_name" ] || continue
@@ -319,7 +317,8 @@ while :; do
 	esac
 
 	if [ "$keymap_to_set" ]; then
-		f_sysrc_set keymap "$keymap_to_set" || f_die
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set keymap "%s"' "$keymap_to_set" || f_die
 		break
 	else
 		f_die 1 "$msg_unknown_keymap"

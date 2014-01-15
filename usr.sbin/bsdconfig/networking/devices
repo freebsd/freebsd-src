@@ -49,8 +49,8 @@ f_include $BSDCFG_SHARE/networking/netmask.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ MAIN
 
@@ -143,8 +143,8 @@ while :; do
 	# Fill in IP address/netmask from active settings if no
 	# configuration could be extrapolated from rc.conf(5)
 	#
-	[ "$_ipaddr"  ] || _ipaddr=$( f_ifconfig_inet $interface )
-	[ "$_netmask" ] || _netmask=$( f_ifconfig_netmask $interface )
+	[ "$_ipaddr"  ] || f_ifconfig_inet $interface _ipaddr
+	[ "$_netmask" ] || f_ifconfig_netmask $interface _netmask
 
 	# Get the extra options (this always comes from rc.conf(5))
 	_options=$( f_ifconfig_options $interface )
