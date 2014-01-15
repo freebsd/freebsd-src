@@ -175,6 +175,9 @@ trap(struct trapframe *frame)
 {
 	struct thread	*td;
 	struct proc	*p;
+#ifdef KDTRACE_HOOKS
+	uint32_t inst;
+#endif
 	int		sig, type, user;
 	u_int		ucode;
 	ksiginfo_t	ksi;
@@ -279,9 +282,18 @@ trap(struct trapframe *frame)
 
 		case EXC_PGM:
 			/* Identify the trap reason */
-			if (frame->srr1 & EXC_PGM_TRAP)
+			if (frame->srr1 & EXC_PGM_TRAP) {
+#ifdef KDTRACE_HOOKS
+				inst = fuword32((const void *)frame->srr0);
+				if (inst == 0x0FFFDDDD && dtrace_pid_probe_ptr != NULL) {
+					struct reg regs;
+					fill_regs(td, &regs);
+					(*dtrace_pid_probe_ptr)(&regs);
+					break;
+				}
+#endif
  				sig = SIGTRAP;
-			else if (ppc_instr_emulate(frame) == 0)
+			} else if (ppc_instr_emulate(frame) == 0)
 				frame->srr0 += 4;
 			else
 				sig = SIGILL;
@@ -299,7 +311,7 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case EXC_PGM:
 			if (frame->srr1 & EXC_PGM_TRAP) {
-				if (*(uintptr_t *)frame->srr0 == 0x7c810808) {
+				if (*(uint32_t *)frame->srr0 == 0x7c810808) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
 						return;
