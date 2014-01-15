@@ -1082,6 +1082,14 @@ tlb_insert_random:
 	.set pop
 END(MipsTLBInvalidException)
 
+/* XXXRW: workaround for mysteriously disappearing CP2 enable flag. */
+LEAF_NOPROFILE(Breakpoint_Trigger)
+loop:
+	/* This is intended to catch breakpoints; if one isn't set, loop. */
+	b	loop
+	nop
+END(Breakpoint_Trigger)
+
 /*----------------------------------------------------------------------------
  *
  * MipsTLBMissException --
@@ -1134,6 +1142,16 @@ LEAF_NOPROFILE(MipsTLBMissException)
 	COP0_SYNC
 	tlbwr					# write to tlb
 	HAZARD_DELAY
+
+	/* XXXRW: workaround for mysteriously disappearing CP2 enable flag. */
+	dmfc0	k0,	MIPS_COP_0_STATUS
+	dsrl	k0, k0, 30			# shift CU2 down to bit 0
+	andi	k0, 1				# clear other remaining bits
+	beqz	k0, Breakpoint_Trigger
+	nop
+
+	/* XXXRW: workaround for mysteriously disappearing CP2 enable flag. */
+
 #ifdef CPU_CHERI
 	CHERI_EXCEPTION_RETURN(k0)
 #endif
