@@ -285,7 +285,6 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 	case TDS_MODE_HASH_TCP:
 		g_sandboxes = ctdc->ctdc_sandboxes;
 		for (i = 0; i < ctdc->ctdc_sandboxes; i++) {
-			printf("%s", hash_names[i]);
 			sb = tcpdump_sandbox_new(hash_names[i],
 			    hash_colors[i % N_HASH_COLORS],
 			    tds_select_ipv4_hash, (void *)(long)i);
