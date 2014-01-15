@@ -125,7 +125,7 @@ static const char *hash_colors[] = {
 static char *hash_names[MAX_HASHES];
 
 static struct cheri_tcpdump_control _ctdc;
-static struct cheri_tcpdump_control *ctdc;
+static volatile struct cheri_tcpdump_control *ctdc;
 
 static struct tcpdump_sandbox_list sandboxes =
     STAILQ_HEAD_INITIALIZER(sandboxes);
@@ -465,7 +465,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 
 	if ((control_file = getenv("DEMO_CONTROL")) == NULL ||
 	    (control_fd = open(control_file, O_RDONLY)) == -1 ||
-	    (ctdc = mmap(0, sizeof(*ctdc), PROT_READ, MAP_FILE,
+	    (ctdc = mmap(0, sizeof(*ctdc), PROT_READ, MAP_FILE|MAP_SHARED,
 	     control_fd, 0)) == NULL) {
 		ctdc = &_ctdc;
 		ctdc->ctdc_sb_mode = TDS_MODE_HASH_TCP;
