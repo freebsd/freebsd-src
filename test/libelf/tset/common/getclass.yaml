@@ -1,0 +1,16 @@
+%YAML 1.1
+# $Id: getclass.yaml 2053 2011-10-26 11:50:18Z jkoshy $
+---
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_data: ELFDATANONE
+    ei_osabi: ELFOSABI_FREEBSD
+    ei_abiversion: 1
+    ei_class: ELFCLASSNONE
+  e_type: ET_REL
+  e_machine: EM_NONE
+  e_version: EV_CURRENT
+  e_flags: [2, 1]
+  e_entry: 0xdeadbeef
+  e_phoff: 0
+  e_shoff: 0

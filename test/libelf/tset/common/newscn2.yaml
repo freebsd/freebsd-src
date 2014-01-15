@@ -1,0 +1,28 @@
+%YAML 1.1
+# $Id: newscn2.yaml 2077 2011-10-27 03:59:40Z jkoshy $
+#
+# This is the library-defined layout of the 'newscn' ELF object.
+---
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data:  ELFDATANONE
+  e_type: ET_REL
+
+sections:
+ - !Section # index 0
+   sh_type: SHT_NULL
+
+ - !Section
+   sh_name: .shstrtab
+   sh_type: SHT_STRTAB
+   sh_data:
+   - .shstrtab
+   - .foobar
+
+ - !Section
+   sh_name: .foobar
+   sh_type: SHT_PROGBITS
+   sh_data:
+   - 0x01234567
+   - 0x89ABCDEF

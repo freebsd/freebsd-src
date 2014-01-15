@@ -1,0 +1,16 @@
+
+liba.a(a1.o):
+
+elf checksum: 0x85c
+
+liba.a(a2.o):
+
+elf checksum: 0x1294
+
+liba.a(a3.o):
+
+elf checksum: 0xdc3
+
+liba.a(a4.o):
+
+elf checksum: 0x186c

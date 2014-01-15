@@ -1,0 +1,6 @@
+
+Global Offset Table Section:  .got  (3 entries)
+ ndx     addr              value             reloc              addend       symbol
+[00000]  0000000000200de8  0000000000000000  R_X86_64_GLOB_DAT  000000000000 __gmon_start__
+[00001]  0000000000200df0  0000000000000000  R_X86_64_GLOB_DAT  000000000000 _Jv_RegisterClasses
+[00002]  0000000000200df8  0000000000000000  R_X86_64_GLOB_DAT  000000000000 __cxa_finalize

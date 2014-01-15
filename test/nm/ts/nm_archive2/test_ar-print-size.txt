@@ -1,0 +1,89 @@
+
+memstat_all.o:
+0000000000000000 0000000000000071 T memstat_kvm_all
+                 U memstat_kvm_malloc
+                 U memstat_kvm_uma
+0000000000000080 0000000000000071 T memstat_sysctl_all
+                 U memstat_sysctl_malloc
+                 U memstat_sysctl_uma
+
+memstat_uma.o:
+                 U __error
+                 U _memstat_mt_allocate
+                 U _memstat_mt_reset_stats
+                 U _memstat_mtl_empty
+                 U free
+0000000000000064 0000000000000039 t kread
+0000000000000000 0000000000000063 t kread_symbol
+                 U kvm_nlist
+                 U kvm_read
+                 U malloc
+0000000000000112 0000000000001294 T memstat_kvm_uma
+                 U memstat_mtl_find
+0000000000001408 0000000000000972 T memstat_sysctl_uma
+0000000000000000 0000000000000096 d namelist
+                 U sysctlbyname
+
+memstat_malloc.o:
+                 U __error
+                 U _memstat_mt_allocate
+                 U _memstat_mt_reset_stats
+                 U _memstat_mtl_empty
+                 U free
+0000000000000064 0000000000000039 t kread
+0000000000000000 0000000000000063 t kread_symbol
+                 U kvm_nlist
+                 U kvm_read
+                 U malloc
+0000000000000112 0000000000000765 T memstat_kvm_malloc
+                 U memstat_mtl_find
+0000000000000880 0000000000000894 T memstat_sysctl_malloc
+0000000000000000 0000000000000072 d namelist
+                 U sysctlbyname
+
+memstat.o:
+0000000000001024 0000000000000157 T _memstat_mt_allocate
+0000000000000128 0000000000000212 T _memstat_mt_reset_stats
+0000000000001280 0000000000000067 T _memstat_mtl_empty
+                 U free
+                 U malloc
+                 U memset
+0000000000000368 0000000000000003 T memstat_get_allocator
+0000000000000512 0000000000000005 T memstat_get_bytes
+0000000000000400 0000000000000005 T memstat_get_byteslimit
+0000000000000576 0000000000000012 T memstat_get_caller_pointer
+0000000000000608 0000000000000012 T memstat_get_caller_uint64
+0000000000000528 0000000000000005 T memstat_get_count
+0000000000000384 0000000000000005 T memstat_get_countlimit
+0000000000000560 0000000000000008 T memstat_get_failures
+0000000000000544 0000000000000005 T memstat_get_free
+0000000000000656 0000000000000008 T memstat_get_kegfree
+0000000000000448 0000000000000005 T memstat_get_memalloced
+0000000000000464 0000000000000005 T memstat_get_memfreed
+0000000000000352 0000000000000005 T memstat_get_name
+0000000000000480 0000000000000005 T memstat_get_numallocs
+0000000000000496 0000000000000005 T memstat_get_numfrees
+0000000000000832 0000000000000032 T memstat_get_percpu_caller_pointer
+0000000000000896 0000000000000032 T memstat_get_percpu_caller_uint64
+0000000000000960 0000000000000012 T memstat_get_percpu_free
+0000000000000672 0000000000000019 T memstat_get_percpu_memalloced
+0000000000000704 0000000000000019 T memstat_get_percpu_memfreed
+0000000000000736 0000000000000019 T memstat_get_percpu_numallocs
+0000000000000768 0000000000000019 T memstat_get_percpu_numfrees
+0000000000000800 0000000000000019 T memstat_get_percpu_sizemask
+0000000000000432 0000000000000005 T memstat_get_size
+0000000000000416 0000000000000005 T memstat_get_sizemask
+0000000000000640 0000000000000008 T memstat_get_zonefree
+0000000000000976 0000000000000046 T memstat_mtl_alloc
+0000000000001184 0000000000000089 T memstat_mtl_find
+0000000000000080 0000000000000004 T memstat_mtl_first
+0000000000001360 0000000000000018 T memstat_mtl_free
+0000000000000112 0000000000000004 T memstat_mtl_geterror
+0000000000000096 0000000000000008 T memstat_mtl_next
+0000000000000592 0000000000000012 T memstat_set_caller_pointer
+0000000000000624 0000000000000012 T memstat_set_caller_uint64
+0000000000000864 0000000000000032 T memstat_set_percpu_caller_pointer
+0000000000000928 0000000000000032 T memstat_set_percpu_caller_uint64
+0000000000000000 0000000000000073 T memstat_strerror
+                 U strcmp
+                 U strlcpy

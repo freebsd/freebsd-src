@@ -1,0 +1,74 @@
+
+relocation with addend (.rela.dyn):
+
+entry: 0
+	r_offset: 0x200e60
+	r_info: 0x8
+	r_addend: 2100832
+
+entry: 1
+	r_offset: 0x200e68
+	r_info: 0x8
+	r_addend: 2100296
+
+entry: 2
+	r_offset: 0x200de8
+	r_info: 0x300000006
+	r_addend: 0
+
+entry: 3
+	r_offset: 0x200df0
+	r_info: 0x400000006
+	r_addend: 0
+
+entry: 4
+	r_offset: 0x200df8
+	r_info: 0x900000006
+	r_addend: 0
+
+relocation with addend (.rela.plt):
+
+entry: 0
+	r_offset: 0x200e18
+	r_info: 0x200000007
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x200e20
+	r_info: 0x500000007
+	r_addend: 0
+
+entry: 2
+	r_offset: 0x200e28
+	r_info: 0x600000007
+	r_addend: 0
+
+entry: 3
+	r_offset: 0x200e30
+	r_info: 0x700000007
+	r_addend: 0
+
+entry: 4
+	r_offset: 0x200e38
+	r_info: 0x800000007
+	r_addend: 0
+
+entry: 5
+	r_offset: 0x200e40
+	r_info: 0x900000007
+	r_addend: 0
+
+entry: 6
+	r_offset: 0x200e48
+	r_info: 0xa00000007
+	r_addend: 0
+
+entry: 7
+	r_offset: 0x200e50
+	r_info: 0xb00000007
+	r_addend: 0
+
+entry: 8
+	r_offset: 0x200e58
+	r_info: 0xc00000007
+	r_addend: 0

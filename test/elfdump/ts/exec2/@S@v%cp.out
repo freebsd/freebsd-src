@@ -1,0 +1,4 @@
+
+Version Needed Section:  .gnu.version_r
+            file                        version
+            libc.so.7                   FBSD_1.0

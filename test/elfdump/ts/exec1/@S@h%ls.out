@@ -1,0 +1,99 @@
+
+Hash Section:  .hash
+    bucket    symndx    name
+         0  [64]        getbsize
+         1  [85]        _Jv_RegisterClasses
+            [46]        pathconf
+         2  [23]        group_from_gid
+         4  [61]        fwrite
+            [34]        strchr
+         5  [84]        strcpy
+         7  [60]        __stdoutp
+            [48]        printf
+            [36]        __isthreaded
+         8  [58]        nl_langinfo
+         9  [82]        getpid
+            [63]        fts_open
+        10  [70]        _edata
+        11  [22]        ioctl
+        13  [65]        __swbuf
+            [35]        strcoll
+        14  [55]        signal
+        15  [68]        mac_get_file
+            [59]        setenv
+            [37]        getopt
+            [32]        acl_get_entry
+            [18]        ___runetype
+        16  [78]        getuid
+            [75]        __stderrp
+        18  [44]        memset
+            [19]        mac_prepare_file_label
+            [14]        putc
+        19  [21]        __stack_chk_guard
+        20  [24]        strftime
+            [6]         mbrtowc
+        21  [5]         time
+        22  [77]        optind
+            [4]         atoi
+        23  [86]        readlink
+        24  [72]        _GLOBAL_OFFSET_TABLE_
+            [29]        localtime
+        26  [28]        _init
+        27  [45]        __error
+        28  [38]        __progname
+        29  [73]        _end
+            [40]        warnx
+            [25]        strerror
+        32  [52]        warn
+            [7]         write
+        33  [8]         fputc
+        34  [87]        tgetstr
+            [43]        sscanf
+            [2]         puts
+        35  [39]        strmode
+            [27]        realloc
+        37  [10]        _DYNAMIC
+        38  [9]         getenv
+            [1]         fflagstostr
+        42  [13]        tgoto
+        43  [62]        _CurrentRuneLocale
+        44  [54]        tgetent
+            [20]        mac_to_text
+        45  [83]        strlen
+            [71]        isatty
+        46  [12]        humanize_number
+        47  [30]        environ
+        48  [88]        acl_get_file
+        49  [50]        __bss_start
+            [17]        fputs
+        50  [31]        mac_free
+        51  [42]        optarg
+        53  [81]        acl_free
+        54  [47]        fts_children
+        55  [74]        setlocale
+            [41]        tputs
+        56  [80]        atexit
+            [69]        err
+            [51]        snprintf
+            [16]        mac_get_link
+            [3]         fprintf
+        59  [66]        exit
+            [56]        fts_read
+        61  [76]        free
+            [57]        _fini
+        62  [67]        malloc
+        64  [79]        __stack_chk_fail
+            [49]        user_from_uid
+            [15]        strdup
+        65  [53]        __mb_sb_limit
+            [33]        fts_set
+            [26]        _init_tls
+            [11]        kill
+
+        17  buckets contain        0 symbols
+        25  buckets contain        1 symbols
+        17  buckets contain        2 symbols
+         5  buckets contain        3 symbols
+         1  buckets contain        4 symbols
+         2  buckets contain        5 symbols
+        67  buckets               88 symbols (globals)

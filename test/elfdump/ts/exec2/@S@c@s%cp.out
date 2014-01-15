@@ -1,0 +1,238 @@
+
+Section Header[1]:  sh_name: .interp
+    sh_addr:      0x80480f4       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x15            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xf4            sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[2]:  sh_name: .note.ABI-tag
+    sh_addr:      0x804810c       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x18            sh_type:    [ SHT_NOTE ]
+    sh_offset:    0x10c           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[3]:  sh_name: .hash
+    sh_addr:      0x8048124       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x220           sh_type:    [ SHT_HASH ]
+    sh_offset:    0x124           sh_entsize: 0x4
+    sh_link:      4               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[4]:  sh_name: .dynsym
+    sh_addr:      0x8048344       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x430           sh_type:    [ SHT_DYNSYM ]
+    sh_offset:    0x344           sh_entsize: 0x10
+    sh_link:      5               sh_info:    1
+    sh_addralign: 0x4
+
+Section Header[5]:  sh_name: .dynstr
+    sh_addr:      0x8048774       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x1d3           sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x774           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[6]:  sh_name: .gnu.version
+    sh_addr:      0x8048948       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x86            sh_type:    [ SHT_SUNW(GNU)_versym ]
+    sh_offset:    0x948           sh_entsize: 0x2
+    sh_link:      4               sh_info:    0
+    sh_addralign: 0x2
+
+Section Header[7]:  sh_name: .gnu.version_r
+    sh_addr:      0x80489d0       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x20            sh_type:    [ SHT_SUNW(GNU)_verneed ]
+    sh_offset:    0x9d0           sh_entsize: 0
+    sh_link:      5               sh_info:    1
+    sh_addralign: 0x4
+
+Section Header[8]:  sh_name: .rel.dyn
+    sh_addr:      0x80489f0       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x20            sh_type:    [ SHT_REL ]
+    sh_offset:    0x9f0           sh_entsize: 0x8
+    sh_link:      4               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[9]:  sh_name: .rel.plt
+    sh_addr:      0x8048a10       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x1d0           sh_type:    [ SHT_REL ]
+    sh_offset:    0xa10           sh_entsize: 0x8
+    sh_link:      4               sh_info:    11
+    sh_addralign: 0x4
+
+Section Header[10]:  sh_name: .init
+    sh_addr:      0x8048be0       sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x11            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xbe0           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[11]:  sh_name: .plt
+    sh_addr:      0x8048bf4       sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x3b0           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xbf4           sh_entsize: 0x4
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[12]:  sh_name: .text
+    sh_addr:      0x8048fb0       sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x1bdc          sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xfb0           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x10
+
+Section Header[13]:  sh_name: .fini
+    sh_addr:      0x804ab8c       sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0xc             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x2b8c          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[14]:  sh_name: .rodata
+    sh_addr:      0x804ab98       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x512           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x2b98          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[15]:  sh_name: .data
+    sh_addr:      0x804c0c0       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x42c           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x30c0          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x20
+
+Section Header[16]:  sh_name: .eh_frame
+    sh_addr:      0x804c4ec       sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x4             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x34ec          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[17]:  sh_name: .dynamic
+    sh_addr:      0x804c4f0       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0xc8            sh_type:    [ SHT_DYNAMIC ]
+    sh_offset:    0x34f0          sh_entsize: 0x8
+    sh_link:      5               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[18]:  sh_name: .ctors
+    sh_addr:      0x804c5b8       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x35b8          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[19]:  sh_name: .dtors
+    sh_addr:      0x804c5c0       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x35c0          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[20]:  sh_name: .jcr
+    sh_addr:      0x804c5c8       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x4             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x35c8          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[21]:  sh_name: .got
+    sh_addr:      0x804c5cc       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0xf4            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x35cc          sh_entsize: 0x4
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[22]:  sh_name: .bss
+    sh_addr:      0x804c6c0       sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10060         sh_type:    [ SHT_NOBITS ]
+    sh_offset:    0x36c0          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x20
+
+Section Header[23]:  sh_name: .comment
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x1e5           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x36c0          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[24]:  sh_name: .shstrtab
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0xbe            sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x38a5          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Symbol Table Section:  .dynsym
+     index    value       size     type bind oth ver shndx       name
+       [0]  0x00000000 0x00000000  NOTY LOCL  D    0 UNDEF       
+       [1]  0x00000000 0x00000034  FUNC GLOB  D    2 UNDEF       fprintf
+       [2]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       write
+       [3]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       utimes
+       [4]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       lstat
+       [5]  0x00000000 0x0000005d  FUNC GLOB  D    2 UNDEF       acl_get_fd
+       [6]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       lutimes
+       [7]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       lchmod
+       [8]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       link
+       [9]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       mkfifo
+      [10]  0x00000000 0x00000042  FUNC GLOB  D    2 UNDEF       fts_set
+      [11]  0x00000000 0x000000da  FUNC GLOB  D    2 UNDEF       fts_close
+      [12]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       chflags
+      [13]  0x00000000 0x000004f2  FUNC GLOB  D    2 UNDEF       fts_read
+      [14]  0x00000000 0x0000004a  FUNC GLOB  D    2 UNDEF       strerror
+      [15]  0x00000000 0x00000005  FUNC GLOB  D    2 UNDEF       _init_tls
+      [16]  0x00000000 0x0000027e  FUNC GLOB  D    2 UNDEF       fts_open
+      [17]  0x00000000 0x0000002e  FUNC GLOB  D    2 UNDEF       errx
+      [18]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       munmap
+      [19]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       symlink
+      [20]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       fpathconf
+      [21]  0x0805c700 0x00000004  OBJT GLOB  D    1 .bss        environ
+      [22]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       unlink
+      [23]  0x0804c6c0 0x00000004  OBJT GLOB  D    2 .bss        __isthreaded
+      [24]  0x00000000 0x00000294  FUNC GLOB  D    2 UNDEF       getopt
+      [25]  0x00000000 0x0000001b  FUNC GLOB  D    2 UNDEF       strrchr
+      [26]  0x0804c0c0 0x00000004  OBJT GLOB  D    1 .data       __progname
+      [27]  0x00000000 0x0000002d  FUNC GLOB  D    2 UNDEF       warnx
+      [28]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       stat
+      [29]  0x00000000 0x000000a4  FUNC GLOB  D    2 UNDEF       mmap
+      [30]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       mknod
+      [31]  0x00000000 0x00000016  FUNC GLOB  D    2 UNDEF       __error
+      [32]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       pathconf
+      [33]  0x00000000 0x00000039  FUNC GLOB  D    2 UNDEF       printf
+      [34]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       close
+      [35]  0x00000000 0x00000041  FUNC GLOB  D    2 UNDEF       warn
+      [36]  0x08048e04 0x0000009d  FUNC GLOB  D    2 UNDEF       acl_set_link_np
+      [37]  0x0804c6c4 0x00000004  OBJT GLOB  D    2 .bss        __stdinp
+      [38]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       umask
+      [39]  0x00000000 0x0000006b  FUNC GLOB  D    2 UNDEF       signal
+      [40]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       fchmod
+      [41]  0x00000000 0x000000af  FUNC GLOB  D    2 UNDEF       fwrite
+      [42]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       open
+      [43]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       fchown
+      [44]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       lchown
+      [45]  0x00000000 0x0000006e  FUNC GLOB  D    2 UNDEF       acl_set_fd
+      [46]  0x00000000 0x00000043  FUNC GLOB  D    2 UNDEF       exit
+      [47]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       mkdir
+      [48]  0x00000000 0x0000003e  FUNC GLOB  D    2 UNDEF       err
+      [49]  0x0805c720 0x00000000  NOTY GLOB  D    1 ABS         _end
+      [50]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       chmod
+      [51]  0x0804c6c8 0x00000004  OBJT GLOB  D    2 .bss        __stderrp
+      [52]  0x0804c6cc 0x00000004  OBJT GLOB  D    2 .bss        optind
+      [53]  0x08048ed4 0x0000009d  FUNC GLOB  D    2 UNDEF       acl_set_file
+      [54]  0x00000000 0x00000045  FUNC GLOB  D    2 UNDEF       __srget
+      [55]  0x00000000 0x0000002b  FUNC GLOB  D    2 UNDEF       atexit
+      [56]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       chown
+      [57]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       read
+      [58]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       fchflags
+      [59]  0x00000000 0x00000040  FUNC GLOB  D    2 UNDEF       strncat
+      [60]  0x00000000 0x00000000  NOTY WEAK  D    0 UNDEF       _Jv_RegisterClasses
+      [61]  0x08048f44 0x0000005c  FUNC GLOB  D    2 UNDEF       acl_get_link_np
+      [62]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       readlink
+      [63]  0x00000000 0x0000007c  FUNC GLOB  D    2 UNDEF       getc
+      [64]  0x08048f74 0x0000005c  FUNC GLOB  D    2 UNDEF       acl_get_file
+      [65]  0x00000000 0x00000000  FUNC GLOB  D    2 UNDEF       fstat
+      [66]  0x00000000 0x00000055  FUNC GLOB  D    2 UNDEF       strlcpy

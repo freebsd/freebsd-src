@@ -1,0 +1,831 @@
+
+hash table (.hash):
+
+nbucket: 131
+nchain: 144
+
+bucket[0]:
+	0
+
+bucket[1]:
+	138
+
+bucket[2]:
+	0
+
+bucket[3]:
+	93
+
+bucket[4]:
+	77
+
+bucket[5]:
+	96
+
+bucket[6]:
+	89
+
+bucket[7]:
+	0
+
+bucket[8]:
+	80
+
+bucket[9]:
+	40
+
+bucket[10]:
+	120
+
+bucket[11]:
+	0
+
+bucket[12]:
+	133
+
+bucket[13]:
+	116
+
+bucket[14]:
+	0
+
+bucket[15]:
+	0
+
+bucket[16]:
+	123
+
+bucket[17]:
+	0
+
+bucket[18]:
+	124
+
+bucket[19]:
+	119
+
+bucket[20]:
+	57
+
+bucket[21]:
+	128
+
+bucket[22]:
+	108
+
+bucket[23]:
+	142
+
+bucket[24]:
+	105
+
+bucket[25]:
+	36
+
+bucket[26]:
+	134
+
+bucket[27]:
+	0
+
+bucket[28]:
+	122
+
+bucket[29]:
+	0
+
+bucket[30]:
+	83
+
+bucket[31]:
+	0
+
+bucket[32]:
+	102
+
+bucket[33]:
+	0
+
+bucket[34]:
+	0
+
+bucket[35]:
+	112
+
+bucket[36]:
+	55
+
+bucket[37]:
+	126
+
+bucket[38]:
+	78
+
+bucket[39]:
+	0
+
+bucket[40]:
+	0
+
+bucket[41]:
+	75
+
+bucket[42]:
+	69
+
+bucket[43]:
+	0
+
+bucket[44]:
+	43
+
+bucket[45]:
+	0
+
+bucket[46]:
+	52
+
+bucket[47]:
+	0
+
+bucket[48]:
+	114
+
+bucket[49]:
+	0
+
+bucket[50]:
+	67
+
+bucket[51]:
+	81
+
+bucket[52]:
+	38
+
+bucket[53]:
+	0
+
+bucket[54]:
+	0
+
+bucket[55]:
+	0
+
+bucket[56]:
+	0
+
+bucket[57]:
+	0
+
+bucket[58]:
+	0
+
+bucket[59]:
+	0
+
+bucket[60]:
+	0
+
+bucket[61]:
+	0
+
+bucket[62]:
+	37
+
+bucket[63]:
+	0
+
+bucket[64]:
+	64
+
+bucket[65]:
+	143
+
+bucket[66]:
+	0
+
+bucket[67]:
+	101
+
+bucket[68]:
+	73
+
+bucket[69]:
+	0
+
+bucket[70]:
+	0
+
+bucket[71]:
+	0
+
+bucket[72]:
+	0
+
+bucket[73]:
+	0
+
+bucket[74]:
+	0
+
+bucket[75]:
+	0
+
+bucket[76]:
+	0
+
+bucket[77]:
+	0
+
+bucket[78]:
+	60
+
+bucket[79]:
+	0
+
+bucket[80]:
+	59
+
+bucket[81]:
+	0
+
+bucket[82]:
+	34
+
+bucket[83]:
+	121
+
+bucket[84]:
+	0
+
+bucket[85]:
+	71
+
+bucket[86]:
+	0
+
+bucket[87]:
+	63
+
+bucket[88]:
+	0
+
+bucket[89]:
+	84
+
+bucket[90]:
+	0
+
+bucket[91]:
+	0
+
+bucket[92]:
+	0
+
+bucket[93]:
+	99
+
+bucket[94]:
+	42
+
+bucket[95]:
+	50
+
+bucket[96]:
+	0
+
+bucket[97]:
+	0
+
+bucket[98]:
+	129
+
+bucket[99]:
+	117
+
+bucket[100]:
+	45
+
+bucket[101]:
+	47
+
+bucket[102]:
+	0
+
+bucket[103]:
+	141
+
+bucket[104]:
+	139
+
+bucket[105]:
+	0
+
+bucket[106]:
+	130
+
+bucket[107]:
+	56
+
+bucket[108]:
+	113
+
+bucket[109]:
+	88
+
+bucket[110]:
+	70
+
+bucket[111]:
+	0
+
+bucket[112]:
+	0
+
+bucket[113]:
+	140
+
+bucket[114]:
+	54
+
+bucket[115]:
+	0
+
+bucket[116]:
+	111
+
+bucket[117]:
+	0
+
+bucket[118]:
+	0
+
+bucket[119]:
+	0
+
+bucket[120]:
+	135
+
+bucket[121]:
+	65
+
+bucket[122]:
+	136
+
+bucket[123]:
+	0
+
+bucket[124]:
+	118
+
+bucket[125]:
+	132
+
+bucket[126]:
+	100
+
+bucket[127]:
+	74
+
+bucket[128]:
+	86
+
+bucket[129]:
+	127
+
+bucket[130]:
+	0
+
+chain[0]:
+	0
+
+chain[1]:
+	0
+
+chain[2]:
+	0
+
+chain[3]:
+	0
+
+chain[4]:
+	0
+
+chain[5]:
+	0
+
+chain[6]:
+	0
+
+chain[7]:
+	0
+
+chain[8]:
+	0
+
+chain[9]:
+	0
+
+chain[10]:
+	0
+
+chain[11]:
+	0
+
+chain[12]:
+	0
+
+chain[13]:
+	0
+
+chain[14]:
+	0
+
+chain[15]:
+	0
+
+chain[16]:
+	0
+
+chain[17]:
+	0
+
+chain[18]:
+	0
+
+chain[19]:
+	0
+
+chain[20]:
+	0
+
+chain[21]:
+	0
+
+chain[22]:
+	0
+
+chain[23]:
+	0
+
+chain[24]:
+	0
+
+chain[25]:
+	0
+
+chain[26]:
+	0
+
+chain[27]:
+	0
+
+chain[28]:
+	0
+
+chain[29]:
+	0
+
+chain[30]:
+	0
+
+chain[31]:
+	0
+
+chain[32]:
+	0
+
+chain[33]:
+	0
+
+chain[34]:
+	0
+
+chain[35]:
+	0
+
+chain[36]:
+	0
+
+chain[37]:
+	0
+
+chain[38]:
+	0
+
+chain[39]:
+	0
+
+chain[40]:
+	0
+
+chain[41]:
+	39
+
+chain[42]:
+	0
+
+chain[43]:
+	0
+
+chain[44]:
+	0
+
+chain[45]:
+	0
+
+chain[46]:
+	0
+
+chain[47]:
+	0
+
+chain[48]:
+	0
+
+chain[49]:
+	0
+
+chain[50]:
+	41
+
+chain[51]:
+	0
+
+chain[52]:
+	0
+
+chain[53]:
+	0
+
+chain[54]:
+	0
+
+chain[55]:
+	0
+
+chain[56]:
+	0
+
+chain[57]:
+	0
+
+chain[58]:
+	0
+
+chain[59]:
+	33
+
+chain[60]:
+	0
+
+chain[61]:
+	0
+
+chain[62]:
+	0
+
+chain[63]:
+	0
+
+chain[64]:
+	0
+
+chain[65]:
+	0
+
+chain[66]:
+	0
+
+chain[67]:
+	0
+
+chain[68]:
+	0
+
+chain[69]:
+	0
+
+chain[70]:
+	0
+
+chain[71]:
+	0
+
+chain[72]:
+	0
+
+chain[73]:
+	51
+
+chain[74]:
+	0
+
+chain[75]:
+	0
+
+chain[76]:
+	0
+
+chain[77]:
+	0
+
+chain[78]:
+	35
+
+chain[79]:
+	0
+
+chain[80]:
+	0
+
+chain[81]:
+	44
+
+chain[82]:
+	0
+
+chain[83]:
+	0
+
+chain[84]:
+	0
+
+chain[85]:
+	46
+
+chain[86]:
+	0
+
+chain[87]:
+	85
+
+chain[88]:
+	0
+
+chain[89]:
+	0
+
+chain[90]:
+	0
+
+chain[91]:
+	0
+
+chain[92]:
+	0
+
+chain[93]:
+	61
+
+chain[94]:
+	0
+
+chain[95]:
+	0
+
+chain[96]:
+	0
+
+chain[97]:
+	0
+
+chain[98]:
+	0
+
+chain[99]:
+	0
+
+chain[100]:
+	76
+
+chain[101]:
+	58
+
+chain[102]:
+	66
+
+chain[103]:
+	0
+
+chain[104]:
+	0
+
+chain[105]:
+	0
+
+chain[106]:
+	72
+
+chain[107]:
+	0
+
+chain[108]:
+	68
+
+chain[109]:
+	90
+
+chain[110]:
+	0
+
+chain[111]:
+	0
+
+chain[112]:
+	0
+
+chain[113]:
+	0
+
+chain[114]:
+	106
+
+chain[115]:
+	97
+
+chain[116]:
+	87
+
+chain[117]:
+	110
+
+chain[118]:
+	48
+
+chain[119]:
+	0
+
+chain[120]:
+	95
+
+chain[121]:
+	0
+
+chain[122]:
+	82
+
+chain[123]:
+	109
+
+chain[124]:
+	0
+
+chain[125]:
+	103
+
+chain[126]:
+	104
+
+chain[127]:
+	62
+
+chain[128]:
+	0
+
+chain[129]:
+	79
+
+chain[130]:
+	0
+
+chain[131]:
+	125
+
+chain[132]:
+	0
+
+chain[133]:
+	115
+
+chain[134]:
+	0
+
+chain[135]:
+	98
+
+chain[136]:
+	92
+
+chain[137]:
+	131
+
+chain[138]:
+	49
+
+chain[139]:
+	107
+
+chain[140]:
+	94
+
+chain[141]:
+	91
+
+chain[142]:
+	137
+
+chain[143]:
+	53
+

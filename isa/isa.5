@@ -1,0 +1,366 @@
+.\" Copyright (c) 2013 Joseph Koshy.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR AND CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+.\" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+.\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: isa.5 2900 2013-01-16 12:27:01Z jkoshy $
+.\"
+.Dd January 16, 2013
+.Os
+.Dt ISA 1
+.Sh NAME
+.Nm isa
+.Nd input file format for the isa utility
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to generate instruction stream encoders and decoders
+from a textual description of a machine instruction set.
+This manual page documents the form of the textual description
+accepted by the
+.Nm
+utility.
+.Ss Basic Concepts
+A machine instruction is composed of one
+.Em tokens ,
+each kind of token having a defined width.
+Simple RISC-like instruction sets have instructions that use 1 or 2
+tokens, typically an instruction word and an optional immediate field.
+More complex CISC instruction sets may use many more kinds of tokens.
+.Pp
+Each token is made up of
+.Em fields ,
+for example, an instruction token could be made up of an opcode field,
+additional fields naming registers, fields containing flags, immediate
+values and so on.
+Fields may be named using the
+.Cm let
+directive, or can be unnamed.
+The bitslice operator
+.Pq Li \&[]
+can be used to denote specific portions of a token.
+.Pp
+Non-overlapping fields are grouped together into
+.Em fragments .
+Fragments may be composed using the
+.Dq "&"
+operator.
+The textual form of a fragment may be specified using
+the
+.Li names
+directive.
+.Pp
+A set of fragments that fully specifies each bit in a token is
+said to be
+.Sq complete .
+Only complete fragment sets can be emitted.
+.Pp
+.Ss Input Syntax
+The semicolon
+.Dq "\&;"
+introduces a comment.
+All text from the semicolon to the end of the line is ignored.
+.Pp
+The language uses indentation to specify scope (i.e., it uses the
+offside rule), as in the
+.Ic Python
+and
+.Ic Haskell
+programming languages.
+.Ss Operators
+.Bl -tag
+.It "Composing Fragments"
+The
+.Dq Li \&&
+operator is used to join fragments, forming a larger fragment.
+For example, to specify a fragment that is comprised of two
+previously named fragments
+.Ar Rtop
+and
+.Ar Rbottom ,
+use:
+.Bd -literal -offset indent
+Rtop & Rbottom
+.Ed
+.It "Generators"
+A generator expression has the form
+.Li [ Ar expr1 Ns Li \&| Ns Ar expr2 Ns \&... Ns Li ]
+and denotes a sequence of values
+.Va expr1 ,
+where the additional expressions
+.Va expr2
+serve to define the range of values generated.
+Any
+.Dq Li \&% Ns
+-escapes in
+.Va expr1
+are expanded.
+For example,
+.Dl [ R%n | n = 0..31 ]
+generates the sequence
+.Li R0 ,
+.Li R1 ,
+\&... ,
+.Li R31 .
+.It "Numeric Ranges"
+The notation
+.Dq \&..
+denotes a numeric range.
+For example,
+.Dl 0..(2^16-1)
+represents the numbers 0 to 65535, inclusive.
+.It Sequences
+Sequences of items are bracketed by square brackets
+.Dq "\&["
+and
+.Dq "\&]" .
+For example,
+.Dl "let n = [ a b c d ]"
+Sequences can be given a local name using the
+.Va name
+.Li @
+.Va sequence
+syntax, for example:
+.Dl bar@[ 1 2 3 ]
+defines
+.Va bar
+as a local name for the expression [ 1 2 3 ].
+.Pp
+The
+.Dq Li \&++
+operator is used to concatenate sequences.
+These sequences must be of the same type.
+.It "Sequencing Tokens"
+The
+.Dq Li \&<+>
+operator separates tokens in sequence.
+For example, to specify an instruction that has two tokens T1 and T2
+in sequence, use:
+.Bd -literal -offset indent
+\&..the definition of T1..
+<+>
+\&..the definition of T2..
+.Ed
+.It Slices
+Slices may be specified using the slice notation, namely
+.Ar name Ns
+.Li \&[ Ns
+.Ar highbit Ns
+.Li \&: Ns
+.Ar lowbit Ns
+.Li \&] ,
+where
+.Ar highbit
+and
+.Ar lowbit
+are inclusive zero-based indices and
+.Ar name
+is the name of a token.
+.Bd -literal -offset indent
+let Rsrc = instruction[3:0]
+.Ed
+.Pp
+Sparse slices may be specified by separating slice expressions using
+commas, for example bit 7 and 5 of the
+.Va ifield
+token may be specified using:
+.Dl ifield[7,5]
+.It "Specifying Assembly Formats"
+The
+.Dq Li \&<=>
+infix operator is used to specify assembly language syntax and its
+mapping to sequences of fragments defined earlier, see the section
+.Sx "Defining Assembly Syntax" .
+.Pp
+The
+.Dq Li \&&*
+operator indicates that all the named fragments in the LHS (the
+assembly syntax side) of the
+.Dq Li \&<=>
+operator should be treated as being present on the RHS.
+This operator allows instructions that have a simple one-to-one
+mapping between their assembly language definition and instruction
+encoding to be described succinctly.
+For example:
+.Bd -literal -offset indent
+muls %Rd, %Rs <=> i[15:8] = 0b00000010 &*
+.Ed
+.El
+.Ss Language Constructs
+The input language has the following constructs:
+.Bl -tag -width indent
+.It Li arch Ar string
+Specifies the name of the instruction set architecture being
+processed.
+.Bd -literal -offset indent
+arch myarch
+.Ed
+.It Li cpus
+Starts a block naming CPU identifiers.
+Specific instructions or groups of instructions may be flagged
+as being supported on sets of the CPUs so declared.
+.Bd -literal -offset indent
+cpus
+  basic = [ CPU1 CPU2 ]
+  advanced = basic ++ [ CPU3 ]
+.Ed
+.It Li token Ar name "(" Ar width ")"
+Defines a token with name
+.Ar name
+and width
+.Ar width .
+For example, to define a 16 bit named
+.Ar i
+(short for
+.Dq instruction ) ,
+and a 8 bit offset token named
+.Ar o ,
+use:
+.Bd -literal -offset indent
+token i(16)   ; a comment here
+      o(8)
+.Ed
+.It Li let Ar name [ Ar params ] "=" Ar expression
+Declare
+.Ar name
+as being the equivalent of
+.Ar expression .
+.It Li names Ar generator-expression
+Defines the textual representation for a fragment.
+For example,
+.Bd -literal -offset indent -compact
+let Rsrc = i[3:0]
+      names [ R%n | n = 0..7 ]
+.Ed
+specifies that a value of 0 for fragment
+.Va Rsrc
+should be shown as
+.Li R0 ,
+and so on.
+Conversely, when assembing text, the string
+.Dq R15
+would be translated to a fragment value of 15.
+.It Li where Ar name [ Ar params ] = Ar expression
+Like the
+.Li let
+statement, a
+.Li where
+statement introduces local definitions, except that the scope of these
+definitions is the statement preceding the
+.Li where
+keyword.
+Example:
+.Bd -literal -offset indent
+let Kimm6     = Kimm6high & Kimm6low
+    where Kimm6[5:4] = Kimm6high
+          Kimm6[3:0] = Kimm6low
+.Ed
+.It Li with Ar fragment-definition
+Defines fragment assignments that hold for statements in the scope of
+the
+.Li with
+statement.
+For example,
+.Bd -literal -offset indent
+with i[15:8] = 0b00000011
+  fmulsu %Rd, %Rs  <=> i[7,3] = [1,1] &*
+.Ed
+.El
+.Ss Defining Assembly Syntax
+Assembly syntax is described using the
+.Li \&<=>
+operator.
+The form of the operator is
+.Bd -ragged -offset indent
+assembler-text
+.Li \&<=>
+.Va fragment
+.Li \&&
+.Va fragment
+.Li & \&...
+.Ed
+.Pp
+The RHS of the
+.Li \&<=>
+operator must specify a
+.Sq complete
+fragment set, i.e., no bits should be unspecified in any of the tokens
+used in the RHS.
+The LHS of the
+.Li \&<=>
+operator consists of literal text interspersed by fragment names.
+Fragment names are prefixed by the
+.Sq \&%
+character.
+These fragment names in the LHS may refer to fragment names defined
+earlier, or may be new names that are local to the current definition.
+.Pp
+For example, the following definition defines an instruction with
+mnemonic
+.Dq Li rjmp .
+.Bd -literal -offset indent
+let reloffset  = i[11:0]
+    reljmpcall = i[12]
+in
+    with i[15:13] = 0b110
+       rjmp %label <=> reljmpcall = 0 & reloffset = (label - . - 1)
+.Ed
+.Pp
+In this definition, the field
+.Va label
+is a local fragment, one that is used to compute the value of the
+.Va reloffset
+field in the instruction.
+In the RHS, the
+.Va reljmpcall
+bit is defined as being 0.
+The rest of the bits in the token
+.Va i
+are specified by the enclosing
+.Li with
+statement.
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf 5 ,
+.Xr isa 1
+.Sh HISTORY
+The
+.Nm
+utility is scheduled to appear in a future release from the
+Elftoolchain project.
+.\" TODO Reword the above when the target release is finalized.
+.Sh AUTHORS
+The
+.Xr isa 1
+utility was written by
+.An Joseph Koshy
+.Aq jkoshy@users.sourceforge.net .
+.Sh BUGS
+The
+.Nm
+utility is
+.Ud
+The input format documented in this manual is likely to change
+in the future.
+If you intend to use this utility, please get in touch with the
+project's developers at
+.Aq elftoolchain-developers@lists.sourceforge.net .

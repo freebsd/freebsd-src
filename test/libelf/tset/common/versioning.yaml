@@ -1,0 +1,55 @@
+%YAML 1.1
+---
+# $Id: versioning.yaml 2077 2011-10-27 03:59:40Z jkoshy $
+#
+# This file is used to test handling of sections with symbol
+# versioning information.
+#
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data:  ELFDATANONE
+  e_type: ET_REL
+
+sections:
+ - !Section
+   sh_type: SHT_NULL
+ - !Section
+   sh_type: SHT_GNU_verdef
+   sh_name: .gnu.version_d
+   sh_data:
+   - !Verdef
+     vd_version: 1
+     vd_flags: 0
+     vd_ndx: 1
+     vd_cnt: 1
+     vd_hash: 0x1234
+     vd_aux: 42
+     vd_next: 0
+   - !Verdaux
+     vda_name: 1
+     vda_next: 0
+ - !Section
+   sh_type: SHT_GNU_verneed
+   sh_name: .gnu.version_r
+   sh_data:
+   - !Verneed
+     vn_version: 1
+     vn_cnt: 1
+     vn_file: 0x1234
+     vn_aux: 42
+     vn_next: 0
+   - !Vernaux
+     vna_hash: 0x4321
+     vna_flags: 0x1
+     vna_other: 0
+     vna_name: 1
+     vna_next: 0
+ - !Section
+   sh_type: SHT_STRTAB
+   sh_name: .shstrtab
+   sh_data:
+   - .shstrtab
+   - .gnu.version_d
+   - .gnu.version_r
+

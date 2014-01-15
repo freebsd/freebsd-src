@@ -1,0 +1,252 @@
+
+relocation (.rel.dyn):
+
+entry: 0
+	r_offset: 0x804c6c0
+	r_info: 0x1705
+
+entry: 1
+	r_offset: 0x804c6c4
+	r_info: 0x2505
+
+entry: 2
+	r_offset: 0x804c6c8
+	r_info: 0x3305
+
+entry: 3
+	r_offset: 0x804c6cc
+	r_info: 0x3405
+
+relocation (.rel.plt):
+
+entry: 0
+	r_offset: 0x804c5d8
+	r_info: 0x107
+
+entry: 1
+	r_offset: 0x804c5dc
+	r_info: 0x207
+
+entry: 2
+	r_offset: 0x804c5e0
+	r_info: 0x307
+
+entry: 3
+	r_offset: 0x804c5e4
+	r_info: 0x407
+
+entry: 4
+	r_offset: 0x804c5e8
+	r_info: 0x507
+
+entry: 5
+	r_offset: 0x804c5ec
+	r_info: 0x607
+
+entry: 6
+	r_offset: 0x804c5f0
+	r_info: 0x707
+
+entry: 7
+	r_offset: 0x804c5f4
+	r_info: 0x807
+
+entry: 8
+	r_offset: 0x804c5f8
+	r_info: 0x907
+
+entry: 9
+	r_offset: 0x804c5fc
+	r_info: 0xa07
+
+entry: 10
+	r_offset: 0x804c600
+	r_info: 0xb07
+
+entry: 11
+	r_offset: 0x804c604
+	r_info: 0xc07
+
+entry: 12
+	r_offset: 0x804c608
+	r_info: 0xd07
+
+entry: 13
+	r_offset: 0x804c60c
+	r_info: 0xe07
+
+entry: 14
+	r_offset: 0x804c610
+	r_info: 0xf07
+
+entry: 15
+	r_offset: 0x804c614
+	r_info: 0x1007
+
+entry: 16
+	r_offset: 0x804c618
+	r_info: 0x1107
+
+entry: 17
+	r_offset: 0x804c61c
+	r_info: 0x1207
+
+entry: 18
+	r_offset: 0x804c620
+	r_info: 0x1307
+
+entry: 19
+	r_offset: 0x804c624
+	r_info: 0x1407
+
+entry: 20
+	r_offset: 0x804c628
+	r_info: 0x1607
+
+entry: 21
+	r_offset: 0x804c62c
+	r_info: 0x1807
+
+entry: 22
+	r_offset: 0x804c630
+	r_info: 0x1907
+
+entry: 23
+	r_offset: 0x804c634
+	r_info: 0x1b07
+
+entry: 24
+	r_offset: 0x804c638
+	r_info: 0x1c07
+
+entry: 25
+	r_offset: 0x804c63c
+	r_info: 0x1d07
+
+entry: 26
+	r_offset: 0x804c640
+	r_info: 0x1e07
+
+entry: 27
+	r_offset: 0x804c644
+	r_info: 0x1f07
+
+entry: 28
+	r_offset: 0x804c648
+	r_info: 0x2007
+
+entry: 29
+	r_offset: 0x804c64c
+	r_info: 0x2107
+
+entry: 30
+	r_offset: 0x804c650
+	r_info: 0x2207
+
+entry: 31
+	r_offset: 0x804c654
+	r_info: 0x2307
+
+entry: 32
+	r_offset: 0x804c658
+	r_info: 0x2407
+
+entry: 33
+	r_offset: 0x804c65c
+	r_info: 0x2607
+
+entry: 34
+	r_offset: 0x804c660
+	r_info: 0x2707
+
+entry: 35
+	r_offset: 0x804c664
+	r_info: 0x2807
+
+entry: 36
+	r_offset: 0x804c668
+	r_info: 0x2907
+
+entry: 37
+	r_offset: 0x804c66c
+	r_info: 0x2a07
+
+entry: 38
+	r_offset: 0x804c670
+	r_info: 0x2b07
+
+entry: 39
+	r_offset: 0x804c674
+	r_info: 0x2c07
+
+entry: 40
+	r_offset: 0x804c678
+	r_info: 0x2d07
+
+entry: 41
+	r_offset: 0x804c67c
+	r_info: 0x2e07
+
+entry: 42
+	r_offset: 0x804c680
+	r_info: 0x2f07
+
+entry: 43
+	r_offset: 0x804c684
+	r_info: 0x3007
+
+entry: 44
+	r_offset: 0x804c688
+	r_info: 0x3207
+
+entry: 45
+	r_offset: 0x804c68c
+	r_info: 0x3507
+
+entry: 46
+	r_offset: 0x804c690
+	r_info: 0x3607
+
+entry: 47
+	r_offset: 0x804c694
+	r_info: 0x3707
+
+entry: 48
+	r_offset: 0x804c698
+	r_info: 0x3807
+
+entry: 49
+	r_offset: 0x804c69c
+	r_info: 0x3907
+
+entry: 50
+	r_offset: 0x804c6a0
+	r_info: 0x3a07
+
+entry: 51
+	r_offset: 0x804c6a4
+	r_info: 0x3b07
+
+entry: 52
+	r_offset: 0x804c6a8
+	r_info: 0x3d07
+
+entry: 53
+	r_offset: 0x804c6ac
+	r_info: 0x3e07
+
+entry: 54
+	r_offset: 0x804c6b0
+	r_info: 0x3f07
+
+entry: 55
+	r_offset: 0x804c6b4
+	r_info: 0x4007
+
+entry: 56
+	r_offset: 0x804c6b8
+	r_info: 0x4107
+
+entry: 57
+	r_offset: 0x804c6bc
+	r_info: 0x4207

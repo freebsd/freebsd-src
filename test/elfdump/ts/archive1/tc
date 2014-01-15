@@ -1,0 +1,168 @@
+#!/bin/sh
+#
+# $Id: tc 2083 2011-10-27 04:41:39Z jkoshy $
+
+tp1()
+{
+    run "@e%liba.a"
+}
+
+tp2()
+{
+    run "@p%liba.a"
+}
+
+tp3()
+{
+    run "@G%liba.a"
+}
+
+tp4()
+{
+    run "@n%liba.a"
+}
+
+tp5()
+{
+    run "@p@s%liba.a"
+}
+
+tp6()
+{
+    run "@c%liba.a"
+}
+
+tp7()
+{
+    run "@c@s%liba.a"
+}
+
+tp8()
+{
+    run "@c@p@n%liba.a"
+}
+
+tp9()
+{
+    run "@d%liba.a"
+}
+
+tp10()
+{
+    run "@e@i%liba.a"
+}
+
+tp11()
+{
+    run "@r%liba.a"
+}
+
+tp12()
+{
+    run "@h%liba.a"
+}
+
+tp13()
+{
+    run "@e@p@c%liba.a"
+}
+
+tp14()
+{
+    run "@S@e%liba.a"
+}
+
+tp15()
+{
+    run "@S@p%liba.a"
+}
+
+tp16()
+{
+    run "@S@G%liba.a"
+}
+
+tp17()
+{
+    run "@S@r%liba.a"
+}
+
+tp18()
+{
+    run "@S@d%liba.a"
+}
+
+tp19()
+{
+    run "@S@n%liba.a"
+}
+
+tp20()
+{
+    run "@S@c%liba.a"
+}
+
+tp21()
+{
+    run "@S@s%liba.a"
+}
+
+tp22()
+{
+    run "@S@k%liba.a"
+}
+
+tp23()
+{
+    run "@S@v%liba.a"
+}
+
+tp24()
+{
+    run "@S@h%liba.a"
+}
+
+tp25()
+{
+    run "@S@s@N%ARSYM%liba.a"
+}
+
+tp26()
+{
+    run "@S@s@N%.symtab%liba.a"
+}
+
+tet_startup=""
+tet_cleanup="cleanup"
+
+iclist="ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25 ic26"
+
+ic1="tp1"
+ic2="tp2"
+ic3="tp3"
+ic4="tp4"
+ic5="tp5"
+ic6="tp6"
+ic7="tp7"
+ic8="tp8"
+ic9="tp9"
+ic10="tp10"
+ic11="tp11"
+ic12="tp12"
+ic13="tp13"
+ic14="tp14"
+ic15="tp15"
+ic16="tp16"
+ic17="tp17"
+ic18="tp18"
+ic19="tp19"
+ic20="tp20"
+ic21="tp21"
+ic22="tp22"
+ic23="tp23"
+ic24="tp24"
+ic25="tp25"
+ic26="tp26"
+
+. $TET_SUITE_ROOT/ts/common/func.sh
+. $TET_ROOT/lib/xpg3sh/tcm.sh

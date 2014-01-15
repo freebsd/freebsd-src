@@ -1,0 +1,280 @@
+;
+; $Id: avr.isa 2899 2013-01-16 05:17:02Z jkoshy $
+;
+; An instruction set description for Atmel AVR(TM) 8 bit CPUs.
+;
+; * Most instructions are 16 bit wide, except a few that use an
+;   additional 16-bit offset field.
+; * There are 32 general purpose registers which are 8-bit wide.
+;   Three pairs of registers are used for 16bit memory addressing:
+;   X (r27:r26), Y (r29:r28), and Z (r31:r30).
+; * Some instructions operate on limited subsets of these registers:
+;   - The 'movw' instruction operates on register pairs.
+;   - Some instructions only operate on subsets of the register file.
+
+arch avr
+cpus
+    core = [ AT90S1200 ATtiny11 ATtiny12 ATtiny15 ATtiny28 ]
+    core8k = core ++ [ AT90S2313 AT90S2323 ATtiny22 AT90S2333
+           AT90S2343 AT90S4414 AT90S4433 AT90S4434 AT90S8515
+           AT90C8534 AT90S8535 ATtiny26 ATmega8515 ]
+    core128k = core8k ++ [ ATmega103 ATmega603 AT43USB320 AT76C711 ]
+    enhancedcore = core ++ [ ATmega8 ATmega83 ATmega85 ]
+    ; TODO fill in the rest.
+
+; The instruction stream has two types of tokens:
+token i(16)                     ; a 16 bit instruction.
+      offset(16)                ; a 16 bit offset
+
+; The 32 source registers are encoded using a combination of a 4-bit
+; and a 1-bit field.
+let Rsrclow      = i[3:0]
+    Rsrchighbit  = i[9]
+    Rsrc         = Rsrchighbit & Rsrclow
+      where Rsrc[4]   = Rsrchighbit
+            Rsrc[3:0] = Rsrclow
+      names [ R%n | n = 0..31 ]
+    Rsrcpair  = i[3:0]  ; Source register pairs.
+      names [ R%n | n = 0..31, n % 2 == 0 ]
+
+    Rdst      = i[8:4]  ; The 32 dst registers use 5 contiguous bits.
+      names [ R%n | n = 0..31 ]
+    Rdstpair  = i[7:4]  ; destination register pairs
+      names [ R%n | n = 0..31, n %2 == 0 ]
+
+    ; Some instructions work on the 16 higher numbered registers.
+    Rsrchigh     = i[7:4]
+      names [ R%n | n = 16..31 ]
+    Rdsthigh     = i[7:4]
+      names [ R%n | n = 16..31 ]
+
+    ; Registers used for the MUL instructions (R16-23).
+    Rmulsrc   = i[2:0]
+      names [ R%n | n = 16..23 ]
+    Rmuldst   = i[6:4]
+      names [ R%n | n = 16..23 ]
+
+; 8 bit immediate value.
+let Khigh     = i[11:8]
+    Klow      = i[ 3:0]
+    K = Khigh & Klow
+    where K[8:4]    = Khigh
+          K[3:0]    = Klow
+
+; call or jmp to an absolute location
+let jmpcallbit = i[1]
+    Jmpcall loc = i[15:9] = 0b1001010 & i[3:2] = 0b11 &
+                  i[8:4] = loc[21:17] & i[0] = loc[16]
+                  <+>   ; next location
+                  offset[15:0] = loc[15:0]
+  in
+    call %loc <=> Jmpcall loc & jmpcallbit = 1
+    jmp  %loc <=> Jmpcall loc & jmpcallbit = 0
+
+; Immediate operations on the high registers.
+let immediateops@[ sbci subi sbr cbr ] = [ i[13:12] = n | n = 0..3 ]
+    with i[15:14] = 0b01
+      @immediateops %Rdsthigh, %K <=> &*
+
+; The CPI (Compare Immediate) instruction has a different encoding.
+cpi  %Rdsthigh, %K <=> i[15:12] = 0b0011 &*
+
+; Move register pair.
+movw %Rdstpair, %Rsrcpair <=> i[15:8] = 0b00000001 &*
+
+; 8x8 -> 16 bit signed multiply.
+muls %Rdsthigh, %Rsrchigh <=> i[15:8] = 0b00000010 &*
+
+; Unsigned multiply.
+mul %Rdst, %Rsrc <=> i[15:10] = 0b100111 &*
+
+; Fractional multiply instructions.
+with i[15:8] = 0b00000011
+  fmulsu %Rmuldst, %Rmulsrc  <=> i[7,3] = [1,1] &*
+  fmuls  %Rmuldst, %Rmulsrc  <=> i[7,3] = [1,0] &*
+  fmul   %Rmuldst, %Rmulsrc  <=> i[7,3] = [0,1] &*
+  mulsu  %Rmuldst, %Rmulsrc  <=> i[7,3] = [0,0] &*
+
+; 2-operand instructions operating on all 32 registers.
+let OpTwo@[ cpc sbc add cpse cp sub adc and eor or mov ] in
+  cpc = i[15:10] = 0b000001
+  with i[15:12] = 0b0010
+    [ and eor or mov ] = [ i[11:10] = n | n = 0..3 ]
+  with i[15:12] = 0b0001
+    [ cpse cp sub adc ] = [ i[11:10] = n | n = 0..3 ]
+  with i[15:11] = 0b00001
+    [ sbc add ] = [ i[10] = n | n = 0..1 ]
+  in
+      @OpTwo %Rdst, %Rsrc <=> &*
+
+let OpOne = [ com neg swap inc asr lsr ror ]
+  with i[15:9] = 0b1001010 & i[3] = 0
+    [ com neg swap inc _ asr lsr ror ] = [ i[2:0] = n | n = 0..7 ]
+  in
+      @OpOne %Rdst <=> &*
+
+let bitno = i[2:0]
+
+let clear = i[7] in
+  with i[15:8] = 0b10010100 & i[3:0] = 0b1000
+      bclr %bitno <=> clear = 1 &*
+      bset %bitno <=> clear = 0 &*
+
+; Additional aliases.
+let statusbit = i[6:4]
+      names [ "C" "Z" "N" "V" "S" "H" "T" "I" ]
+  cl%statusbit <=> bclr & bitno = statusbit
+  se%statusbit <=> bset & bitno = statusbit
+
+
+; NOP
+nop  <=>  i[15:0] = 0
+
+let loadstore = i[9]
+
+; Index load/store with offset
+let lddlow    = i[2:0]
+    lddmid    = i[11:10]
+    lddhigh   = i[13]
+    Lddoffset = lddlow & lddmid & lddhigh
+      where Lddoffset[5]   = lddhigh
+            Lddoffset[4:3] = lddmid
+            Lddoffset[2:0] = lddlow
+    yz = i[3] ; Y/Z bit for LDD with offset
+      names [ "Z" "Y" ]
+    with i[15:14] = 0b10 & i[12] = 0b0
+      ldd %Rdst, %yz "+" %Lddoffset <=> loadstore = 0 &*
+      std %Rdst, %yz "+" %Lddoffset <=> loadstore = 1 &*
+
+; Indexed load/store with increment & decrement
+let xyz = i[3:2] ; X/Y/Z for LD ops
+      names [ "Z" _ "Y" "X" ]
+    auto = i[0:1]
+  with i[15:10] = 0b100100      ; prefix for indexed loads
+    ld %Rdst, %xyz <=> loadstore = 0 & auto = 0 &*
+    ld %Rdst, %xyz+ <=> loadstore = 0 & auto = 1 &*
+    ld %Rdst, -%xyz <=> loadstore = 0 & auto = 2 &*
+    st %xyz, %Rdst <=> loadstore = 1 & auto = 0 &*
+    st %xyz+, %Rdst <=> loadstore = 1 & auto = 1 &*
+    st -%xyz, %Rdst <=> loadstore = 1 & auto = 2 &*
+
+; The 'andi' instruction is 'cbi' with a negated constant.
+andi %Rdsthigh, %Kcomp  <=> cbr & Rdsthigh & K = ~Kcomp
+; The 'ori' instruction is an alias for 'sbr'.
+ori %Rdsthigh, %K  <=> sbr &*
+
+; Single operand instructions implemented using two operand ones.
+clr %Rdst <=> eor & Rsrc = Rdst & Rdst
+lsl %Rdst <=> add & Rsrc = Rdst & Rdst
+rol %Rdst <=> adc & Rsrc = Rdst & Rdst
+tst %Rdst <=> and & Rsrc = Rdst & Rdst
+
+with i[15:9] = 0b1001010 & i[7:0] = 0b0001001
+    ijmp   <=> indircallbit = 0 & eibit = 0
+    icall  <=> indircallbit = 1 & eibit = 0
+    eijmp  <=> indircallbit = 0 & eibit = 1
+    eicall <=> indircallbit = 1 & eibit = 1
+  where indircallbit = i[7]
+        eibit = i[4]
+
+with i[15:8] = 0b10010101 & i[3:0] = 0b1000
+  let splops = i[7:4]
+      miscops@[ ret reti sleep break wdr lpm elpm spm ] =
+        [ splops = [ 0 1 8 9 10 12 13 14 ] ]
+  in
+      @miscops <=> &*
+
+; Load program memory has two variants.
+lpm <=> i[15:0] = 0b1001010111001000 ; load to R0
+lpm %Rdst,Z%zincr <=> i[15:9] = 0b1001000 & i[3:1] = 0b010 &*
+  where zincr = i[0] names [ "" "+" ]
+
+; Store program memory.
+spm <=> i[15:0] = 0b1001010111101000
+
+; Decrement register.
+dec %Rdst <=> i[15:9] = 0b1001010 & i[3:0] = 0b1010 &*
+
+; DES round %des, operates on R0..R15
+let des = i[7:4] in
+  des %des <=> i[15:8] = 0b10010100 & i[3:0] = 0b1011 &*
+
+; Add/Sub register pairs with an immediate
+let addsub  = i[8]
+    Rdstimm = i[5:4]
+      names [ R24 R26 R28 R30 ]
+    Kimm6high = i[7:6]
+    Kimm6low  = i[3:0]
+    Kimm6     = Kimm6high & Kimm6low
+      where Kimm6[5:4] = Kimm6high
+            Kimm6[3:0] = Kimm6low
+    with i[15:9] = 0b1001011
+      adiw %Rdstimm, %Kimm6 <=> addsub = 0 &*
+      sbiw %Rdstimm, %Kimm6 <=> addsub = 1 &*
+
+; Operations on bits in I/O registers.
+let bitops@[ cbi sbic sbi sbis ] = [ instr[9:8] = n | n = 0..3 ]
+    ioaddr = i[7:3]
+    with i[15:10] = 0b100110
+      @bitops %ioaddr, %bit <=> &*
+
+; IN/OUT operations
+let inout = i[11]
+    Alow = i[3:0]
+    Ahigh = i[10:9]
+    A = Ahigh & Alow
+    with i[15..12] = 0b1011
+      in %Rdst, %A <=> inout = 0 & *
+      out %Rst, %A <=> inout = 1 & *
+
+; Relative jmp/call
+let reljmpcall = i[12]
+    reloffset  = i[11:0]
+    with i[15:13] = 0b110
+      rjmp %label <=> reljmpcall = 0 & reloffset = (label - . - 1)
+      rcall %label <=> reljmpcall = 1 & reloffset = (label - . - 1)
+
+; Load Immediate
+ldi %Rdsthigh, %K <=> i[15:12] = 0b1110 &*
+
+; Conditional branches
+let clearedorset = i[10]
+    condoffset = i[9:3]
+    with i[15:11] = 0b11110
+      brbs %bitno, %label <=> clearedorset = 0 & bitno &
+         condoffset = (label - . - 1)
+      brbc %bitno, %label <=> clearedorset = 1 & bitno &
+         condoffset = (label - . - 1)
+
+; Aliases
+brcs %l => brbs & bitno = 0 & label = l
+brlo %l => brbs & bitno = 0 & label = l
+breq %l => brbs & bitno = 1 & label = l
+brmi %l => brbs & bitno = 2 & label = l
+brvs %l => brbs & bitno = 3 & label = l
+brlt %l => brbs & bitno = 4 & label = l
+brhs %l => brbs & bitno = 5 & label = l
+brts %l => brbs & bitno = 6 & label = l
+brie %l => brbs & bitno = 7 & label = l
+
+brcc %l => brbc & bitno = 0 & label = l
+brsh %l => brbc & bitno = 0 & label = l
+brne %l => brbc & bitno = 1 & label = l
+brpl %l => brbc & bitno = 2 & label = l
+brvc %l => brbc & bitno = 3 & label = l
+brge %l => brbc & bitno = 4 & label = l
+brhc %l => brbc & bitno = 5 & label = l
+brtc %l => brbc & bitno = 6 & label = l
+brid %l => brbc & bitno = 7 & label = l
+
+; BLD/BST
+let bldst = i[9]
+  with i[15:10] = 0b111110 & i[3] = 0
+    bld %Rdst, %bitno <=> bldst = 0 &*
+    bst %Rdst, %bitno <=> bldst = 1 &*
+
+; SBRC/SBRS
+let setclr = i[9]
+  with i[15:10] = 0b111111 & i[3] = 0
+    sbrc %Rdst, %bit <=> setclr = 0 &*
+    sbrc %Rdst, %bit <=> setclr = 1 &*

@@ -1,0 +1,211 @@
+.\" Copyright (c) 2012 Joseph Koshy <jkoshy@users.sourceforge.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: as.1 2798 2012-12-22 09:02:50Z jkoshy $
+.\"
+.Dd December 22, 2012
+.Os
+.Dt AS 1
+.Sh NAME
+.Nm as
+.Nd an assembler
+.Sh SYNOPSIS
+.Nm
+.Op Fl D
+.Op Fl I Ar dir
+.Op Fl J
+.Op Fl K
+.Op Fl L | Fl -keep-locals
+.Op Fl R
+.Op Fl V
+.Op Fl W | Fl -no-warn
+.Op Fl Z
+.Op Fl a Ns Oo Ar cdghlns Oc Ns Oo Ar =filename Oc
+.Op Fl g | Fl -gen-debug
+.Op Fl h | Fl -help
+.Op Fl march= Ns Ar cpu Ns Oo ,+ Ns Oo Ar extensions Oc Ns "..." Oc
+.Op Fl mtune= Ns Ar cpu
+.Op Fl n
+.Op Fl o Ar obj
+.Op Fl q
+.Op Fl -MD Ar file
+.Op Fl -defsym Ar symbol Ns = Ns Ar value
+.Op Fl -fatal-warnings
+.Op Fl -listing-lhs-width
+.Op Fl -listing-lhs-width2
+.Op Fl -listing-rhs-width
+.Op Fl -listing-cont-lines
+.Op Fl -statistics
+.Op Fl -strip-local-absolute
+.Op Fl -target-help
+.Op Fl -version
+.Op Fl -warn
+.Op Ar target-options
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility creates an ELF relocatable object from assembly language
+sources.
+.Pp
+If multiple source files are specified,
+.Nm
+will read each of them in the order specified.
+If no files are specified,
+.Nm
+will read from standard input.
+.Pp
+The
+.Nm
+utility understands the following options:
+.Bl -tag -width indent
+.It Fl D
+Display internal debugging messages.
+.It Fl I Ar dir
+Add the directory named by argument
+.Ar dir
+to the search path used by the
+.Ic ".include"
+directive.
+.It Fl J
+Suppress warnings about overflows in signed arithmetic.
+.It Fl K
+Warn about alterations to difference tables if any.
+.It Fl L | Fl -keep-locals
+Keep local symbols in the output file.
+The default is to discard local symbols.
+.It Fl R
+Merge the
+.Li .data
+and
+.Li .text
+sections when creating an object.
+.It Fl V
+Print the assembler version on standard output before assembling
+the inputs.
+.It Fl W | Fl -no-warn
+Suppress assembler warnings.
+.It Fl Z
+Generate an output object even if there were errors in the input.
+.It Fl a Ns Oo Ar cdghlns Oc Ns Oo Ar =filename Oc
+Control generated listings.
+The supported flags are:
+.Bl -tag -width indent -compact
+.It c
+Omit listing code in false conditional paths.
+.It d
+Omit debugging directives.
+.It g
+Include the version of the assembler and other general information
+in the generated listing.
+.It h
+Include high-level source in the listing.
+.It l
+Include assembly source in the listing.
+.It m
+Include macro expansions in the listing.
+.It n
+Suppress generation of the header and footer in the listing.
+.It s
+Include symbol information in the listing.
+.It = Ns Ar filename
+Set the name of the listing file to that specified by argument
+.Ar filename .
+If specified, this flag must be the last in the list.
+.El
+If option
+.Fl a
+is specified without additional arguments, a flag set of
+.Sq Ar hls
+is assumed.
+.It Fl g | Fl -gen-debug
+Generate debug information in DWARF format.
+.It Fl h | Fl -help
+Show a help message and exit.
+.It Fl march Ns = Ns Ar cpu Ns Oo ,+ Ns Oo Ar extensions Oc Ns "..." Oc
+Generated code for the CPU named by argument
+.Ar cpu
+with additional instruction set extensions named by the argument
+.Ar extensions .
+.It Fl mtune Ns = Ns Ar cpu
+Optimize the assembled object for the CPU named by the argument
+.Ar cpu .
+.It Fl n
+Do not optimize code alignment.
+.It Fl o Ar filename
+Write the assembled output to the file named by argument
+.Ar filename .
+.It Fl q
+Suppress warnings.
+.It Fl -MD Ar filename
+Write dependency information in a form usable by
+.Xr make 1
+to the file name by argument
+.Ar filename .
+.It Fl -defsym Ar symbol Ns = Ns Ar value
+Define symbol named by the argument
+.Ar symbol
+as having the value named by
+.Ar value .
+The argument value is an integer in one of the forms accepted
+by
+.Xr atoi 3 .
+.It Fl -fatal-warnings
+Treat all warnings as fatal.
+.It Fl -listing-lhs-width Ns = Ns Ar nwords
+Set the width of the output data column in a listing to the number
+of machine words specified in argument
+.Ar nwords .
+.It Fl -listing-lhs-width2 Ns = Ns Ar nwords
+Set the width of continuation lines for the data column to the number
+of machine words specified in argument
+.Ar nwords .
+.It Fl -listing-rhs-width Ns = Ns Ar nchars
+Set the maximum displayed width of an input source line to the number
+of characters specified by argument
+.Ar nchars .
+.It Fl -listing-cont-lines Ns = Ns Ar nlines
+Set the maximum number of listing lines generated by one input source
+line to
+.Ar nlines Ns No + Ns 1 .
+.It Fl -statistics
+Print statistics for the run at exit.
+.It Fl -strip-local-absolute
+Remove local absolute symbols from the generated output.
+.It Fl -target-help
+Display help for the target CPU.
+.It Fl -version
+Print a version identifier and exit.
+.It Fl -warn
+Print warnings.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr elfcopy 1 ,
+.Xr ld 1 ,
+.Xr nm 1 ,
+.Xr strings 1 ,
+.Xr strip 1 ,
+.Xr elf 5

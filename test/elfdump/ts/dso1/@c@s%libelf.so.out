@@ -1,0 +1,1312 @@
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .hash
+	sh_type: SHT_HASH
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x120
+	sh_offset: 288
+	sh_size: 1108
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 4
+
+entry: 2
+	sh_name: .dynsym
+	sh_type: SHT_DYNSYM
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x578
+	sh_offset: 1400
+	sh_size: 3456
+	sh_link: 3
+	sh_info: 33
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 3
+	sh_name: .dynstr
+	sh_type: SHT_STRTAB
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x12f8
+	sh_offset: 4856
+	sh_size: 1457
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .gnu.version
+	sh_type: SHT_SUNW(GNU)_versym
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x18aa
+	sh_offset: 6314
+	sh_size: 288
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 2
+	sh_entsize: 2
+
+entry: 5
+	sh_name: .gnu.version_d
+	sh_type: SHT_SUNW(GNU)_verdef
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x19d0
+	sh_offset: 6608
+	sh_size: 84
+	sh_link: 3
+	sh_info: 3
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .gnu.version_r
+	sh_type: SHT_SUNW(GNU)_verneed
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x1a28
+	sh_offset: 6696
+	sh_size: 32
+	sh_link: 3
+	sh_info: 1
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 7
+	sh_name: .rela.dyn
+	sh_type: SHT_RELA
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x1a48
+	sh_offset: 6728
+	sh_size: 2664
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 8
+	sh_name: .rela.plt
+	sh_type: SHT_RELA
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x24b0
+	sh_offset: 9392
+	sh_size: 888
+	sh_link: 2
+	sh_info: 10
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 9
+	sh_name: .init
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x2828
+	sh_offset: 10280
+	sh_size: 19
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 10
+	sh_name: .plt
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x283c
+	sh_offset: 10300
+	sh_size: 608
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 11
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x2aa0
+	sh_offset: 10912
+	sh_size: 74792
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 12
+	sh_name: .fini
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x14ec8
+	sh_offset: 85704
+	sh_size: 14
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 13
+	sh_name: .rodata
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x14ee0
+	sh_offset: 85728
+	sh_size: 4650
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 32
+	sh_entsize: 0
+
+entry: 14
+	sh_name: .eh_frame_hdr
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x1610c
+	sh_offset: 90380
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 15
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x116120
+	sh_offset: 90400
+	sh_size: 1208
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 32
+	sh_entsize: 0
+
+entry: 16
+	sh_name: .eh_frame
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x1165d8
+	sh_offset: 91608
+	sh_size: 7216
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 17
+	sh_name: .dynamic
+	sh_type: SHT_DYNAMIC
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x118208
+	sh_offset: 98824
+	sh_size: 432
+	sh_link: 3
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 16
+
+entry: 18
+	sh_name: .ctors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x1183b8
+	sh_offset: 99256
+	sh_size: 16
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 19
+	sh_name: .dtors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x1183c8
+	sh_offset: 99272
+	sh_size: 16
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 20
+	sh_name: .jcr
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x1183d8
+	sh_offset: 99288
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 21
+	sh_name: .got
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x1183e0
+	sh_offset: 99296
+	sh_size: 376
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 8
+
+entry: 22
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x118558
+	sh_offset: 99672
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 23
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 99672
+	sh_size: 4945
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 24
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 104617
+	sh_size: 199
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.dynsym):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: 
+	st_value: 0x120
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 2
+	st_name: 
+	st_value: 0x578
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 2
+
+entry: 3
+	st_name: 
+	st_value: 0x12f8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0x18aa
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0x19d0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0x1a28
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: 
+	st_value: 0x1a48
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 8
+	st_name: 
+	st_value: 0x24b0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: 
+	st_value: 0x2828
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 9
+
+entry: 10
+	st_name: 
+	st_value: 0x283c
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 10
+
+entry: 11
+	st_name: 
+	st_value: 0x2aa0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 11
+
+entry: 12
+	st_name: 
+	st_value: 0x14ec8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 12
+
+entry: 13
+	st_name: 
+	st_value: 0x14ee0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 13
+
+entry: 14
+	st_name: 
+	st_value: 0x1610c
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 14
+
+entry: 15
+	st_name: 
+	st_value: 0x116120
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 15
+
+entry: 16
+	st_name: 
+	st_value: 0x1165d8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 16
+
+entry: 17
+	st_name: 
+	st_value: 0x118208
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 17
+
+entry: 18
+	st_name: 
+	st_value: 0x1183b8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 18
+
+entry: 19
+	st_name: 
+	st_value: 0x1183c8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 19
+
+entry: 20
+	st_name: 
+	st_value: 0x1183d8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 20
+
+entry: 21
+	st_name: 
+	st_value: 0x1183e0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 21
+
+entry: 22
+	st_name: 
+	st_value: 0x118558
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 22
+
+entry: 23
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 23
+
+entry: 24
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 24
+
+entry: 25
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 25
+
+entry: 26
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 26
+
+entry: 27
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 27
+
+entry: 28
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 28
+
+entry: 29
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 29
+
+entry: 30
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 30
+
+entry: 31
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 31
+
+entry: 32
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 32
+
+entry: 33
+	st_name: gelf_getsyminfo
+	st_value: 0x2fb0
+	st_size: 346
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 34
+	st_name: elf_strptr
+	st_value: 0x5dd0
+	st_size: 361
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 35
+	st_name: write
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: elf_newscn
+	st_value: 0x7c60
+	st_size: 330
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 37
+	st_name: elf32_checksum
+	st_value: 0x44e0
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 38
+	st_name: gelf_getmove
+	st_value: 0x4010
+	st_size: 404
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 39
+	st_name: elf_flagscn
+	st_value: 0x8d10
+	st_size: 68
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 40
+	st_name: elf_rawdata
+	st_value: 0x7e90
+	st_size: 360
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 41
+	st_name: elf_rawfile
+	st_value: 0x6120
+	st_size: 74
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 42
+	st_name: elf_flagelf
+	st_value: 0x8bd0
+	st_size: 116
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 43
+	st_name: strlcat
+	st_value: 0
+	st_size: 123
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 44
+	st_name: elf_getident
+	st_value: 0x6310
+	st_size: 202
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 45
+	st_name: elf_flagdata
+	st_value: 0x8b70
+	st_size: 92
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 46
+	st_name: elf64_xlatetof
+	st_value: 0x2bb0
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 47
+	st_name: gelf_checksum
+	st_value: 0x44a0
+	st_size: 40
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 48
+	st_name: gelf_getehdr
+	st_value: 0x7870
+	st_size: 279
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 49
+	st_name: _libelf_get_no_error_message
+	st_value: 0x6520
+	st_size: 11
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 50
+	st_name: __cxa_finalize
+	st_value: 0
+	st_size: 305
+	st_info: STT_FUNC STB_WEAK
+	st_shndx: 0
+
+entry: 51
+	st_name: elf_begin
+	st_value: 0x6690
+	st_size: 483
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 52
+	st_name: gelf_getrela
+	st_value: 0x3600
+	st_size: 388
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 53
+	st_name: FBSD_1.0
+	st_value: 0
+	st_size: 0
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65521
+
+entry: 54
+	st_name: gelf_update_shdr
+	st_value: 0x7390
+	st_size: 371
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 55
+	st_name: elf64_getphdr
+	st_value: 0x3e40
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 56
+	st_name: elf64_checksum
+	st_value: 0x44d0
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 57
+	st_name: elf64_xlatetom
+	st_value: 0x2b90
+	st_size: 16
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 58
+	st_name: elf32_newehdr
+	st_value: 0x7690
+	st_size: 15
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 59
+	st_name: elf_hash
+	st_value: 0x14950
+	st_size: 70
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 60
+	st_name: __stack_chk_guard
+	st_value: 0
+	st_size: 64
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 0
+
+entry: 61
+	st_name: elf_getphnum
+	st_value: 0x60b0
+	st_size: 106
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 62
+	st_name: gelf_getcap
+	st_value: 0x4660
+	st_size: 345
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 63
+	st_name: elf64_newehdr
+	st_value: 0x7680
+	st_size: 15
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 64
+	st_name: strerror
+	st_value: 0
+	st_size: 48
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 65
+	st_name: elf32_getehdr
+	st_value: 0x76b0
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 66
+	st_name: gelf_fsize
+	st_value: 0x13d00
+	st_size: 53
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 67
+	st_name: elf_getshstrndx
+	st_value: 0x5f40
+	st_size: 106
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 68
+	st_name: gelf_update_syminfo
+	st_value: 0x2e60
+	st_size: 329
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 69
+	st_name: gelf_getclass
+	st_value: 0x41b0
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 70
+	st_name: gelf_update_move
+	st_value: 0x3e60
+	st_size: 419
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 71
+	st_name: elf_flagshdr
+	st_value: 0x8d60
+	st_size: 5
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 72
+	st_name: gelf_getsym
+	st_value: 0x32b0
+	st_size: 396
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 73
+	st_name: munmap
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 74
+	st_name: gelf_xlatetof
+	st_value: 0x2b20
+	st_size: 46
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 75
+	st_name: elf_nextscn
+	st_value: 0x7e50
+	st_size: 59
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 76
+	st_name: elf64_newphdr
+	st_value: 0x3c90
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 77
+	st_name: strncpy
+	st_value: 0
+	st_size: 76
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 78
+	st_name: gelf_newehdr
+	st_value: 0x7650
+	st_size: 40
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 79
+	st_name: elf_getscn
+	st_value: 0x7db0
+	st_size: 157
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 80
+	st_name: gelf_getdyn
+	st_value: 0x4340
+	st_size: 346
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 81
+	st_name: elf_fill
+	st_value: 0x64c0
+	st_size: 11
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 82
+	st_name: gelf_update_rel
+	st_value: 0x3790
+	st_size: 396
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 83
+	st_name: gelf_newphdr
+	st_value: 0x3c60
+	st_size: 36
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 84
+	st_name: gelf_update_dyn
+	st_value: 0x41c0
+	st_size: 370
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 85
+	st_name: memset
+	st_value: 0
+	st_size: 84
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 86
+	st_name: elf_getdata
+	st_value: 0x8000
+	st_size: 766
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 87
+	st_name: elf_flagarhdr
+	st_value: 0x8b20
+	st_size: 68
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 88
+	st_name: mmap
+	st_value: 0
+	st_size: 190
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 89
+	st_name: __error
+	st_value: 0
+	st_size: 8
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 90
+	st_name: __assert
+	st_value: 0
+	st_size: 88
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 91
+	st_name: elf_version
+	st_value: 0x47c0
+	st_size: 54
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 92
+	st_name: lseek
+	st_value: 0
+	st_size: 103
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 93
+	st_name: gelf_xlatetom
+	st_value: 0x2b50
+	st_size: 49
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 94
+	st_name: elf64_fsize
+	st_value: 0x13d40
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 95
+	st_name: elf_newdata
+	st_value: 0x8300
+	st_size: 229
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 96
+	st_name: elf32_xlatetof
+	st_value: 0x2bc0
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 97
+	st_name: elf_setshstrndx
+	st_value: 0x5fb0
+	st_size: 135
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 98
+	st_name: gelf_getsymshndx
+	st_value: 0x2d10
+	st_size: 328
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 99
+	st_name: gelf_update_rela
+	st_value: 0x3440
+	st_size: 441
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 100
+	st_name: ftruncate
+	st_value: 0
+	st_size: 81
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 101
+	st_name: _libelf_get_max_error
+	st_value: 0x64f0
+	st_size: 6
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 102
+	st_name: _libelf_get_unknown_error_message
+	st_value: 0x6510
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 103
+	st_name: calloc
+	st_value: 0
+	st_size: 330
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 104
+	st_name: FBSDprivate_1.0
+	st_value: 0
+	st_size: 0
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65521
+
+entry: 105
+	st_name: elf32_getshdr
+	st_value: 0x7520
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 106
+	st_name: elf_end
+	st_value: 0x83f0
+	st_size: 298
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 107
+	st_name: elf32_fsize
+	st_value: 0x13d50
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 108
+	st_name: elf_rand
+	st_value: 0x6170
+	st_size: 97
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 109
+	st_name: elf_next
+	st_value: 0x61e0
+	st_size: 267
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 110
+	st_name: gelf_getshdr
+	st_value: 0x7530
+	st_size: 281
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 111
+	st_name: gelf_getphdr
+	st_value: 0x3cb0
+	st_size: 397
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 112
+	st_name: elf64_getshdr
+	st_value: 0x7510
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 113
+	st_name: gelf_update_sym
+	st_value: 0x3110
+	st_size: 416
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 114
+	st_name: elf_errmsg
+	st_value: 0x6530
+	st_size: 226
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 115
+	st_name: elf32_xlatetom
+	st_value: 0x2ba0
+	st_size: 16
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 116
+	st_name: _libelf_set_error
+	st_value: 0x6500
+	st_size: 11
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 117
+	st_name: gelf_getrel
+	st_value: 0x3920
+	st_size: 360
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 118
+	st_name: elf_getshnum
+	st_value: 0x6040
+	st_size: 106
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 119
+	st_name: malloc
+	st_value: 0
+	st_size: 175
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 120
+	st_name: elf64_getehdr
+	st_value: 0x76a0
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 121
+	st_name: elf_getarsym
+	st_value: 0x6410
+	st_size: 127
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 122
+	st_name: memcpy
+	st_value: 0
+	st_size: 74
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 123
+	st_name: elf_errno
+	st_value: 0x64d0
+	st_size: 23
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 124
+	st_name: free
+	st_value: 0
+	st_size: 118
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 125
+	st_name: gelf_update_symshndx
+	st_value: 0x2bd0
+	st_size: 316
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 126
+	st_name: elf_ndxscn
+	st_value: 0x7990
+	st_size: 33
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 127
+	st_name: elf_flagphdr
+	st_value: 0x8cb0
+	st_size: 89
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 128
+	st_name: gelf_update_ehdr
+	st_value: 0x76c0
+	st_size: 428
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 129
+	st_name: __stack_chk_fail
+	st_value: 0
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 130
+	st_name: gelf_update_phdr
+	st_value: 0x3a90
+	st_size: 449
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 131
+	st_name: elf_getbase
+	st_value: 0x63e0
+	st_size: 45
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 132
+	st_name: elf_getarhdr
+	st_value: 0x6490
+	st_size: 38
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 133
+	st_name: gelf_update_cap
+	st_value: 0x44f0
+	st_size: 364
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 134
+	st_name: elf_cntl
+	st_value: 0x6620
+	st_size: 104
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 135
+	st_name: elf_memory
+	st_value: 0x147c0
+	st_size: 390
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 136
+	st_name: elf_kind
+	st_value: 0x62f0
+	st_size: 22
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 137
+	st_name: elf32_getphdr
+	st_value: 0x3e50
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 138
+	st_name: elf_flagehdr
+	st_value: 0x8c50
+	st_size: 89
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 139
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 140
+	st_name: elf32_newphdr
+	st_value: 0x3ca0
+	st_size: 13
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 141
+	st_name: elf_update
+	st_value: 0x4800
+	st_size: 5584
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 142
+	st_name: fstat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 143
+	st_name: strlcpy
+	st_value: 0
+	st_size: 74
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0

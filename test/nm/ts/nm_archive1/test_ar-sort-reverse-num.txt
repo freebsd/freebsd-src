@@ -1,0 +1,54 @@
+
+data.o:
+0000000000000128 T hid_set_data
+0000000000000000 T hid_get_data
+
+usage.o:
+0000000000000704 T hid_init
+0000000000000576 T hid_usage_page
+0000000000000368 T hid_usage_in_page
+0000000000000240 T hid_parse_usage_page
+0000000000000124 b npagesmax
+0000000000000120 b npages
+0000000000000112 b pages
+0000000000000100 b b.3186
+0000000000000000 T hid_parse_usage_in_page
+0000000000000000 b b.3204
+                 U strncmp
+                 U strdup
+                 U strcmp
+                 U strchr
+                 U sscanf
+                 U sprintf
+                 U realloc
+                 U malloc
+                 U fopen
+                 U fmtcheck
+                 U fgets
+                 U fclose
+                 U errx
+                 U err
+                 U __mb_sb_limit
+                 U _CurrentRuneLocale
+
+parse.o:
+0000000000001952 T hid_report_size
+0000000000001808 T hid_locate
+0000000000001744 T hid_end_parse
+0000000000000224 T hid_get_item
+0000000000000080 T hid_start_parse
+0000000000000000 t hid_clear_local
+                 U memset
+                 U memcpy
+                 U malloc
+                 U free
+
+descr.o:
+0000000000000128 T hid_get_report_desc
+0000000000000016 T hid_use_report_desc
+0000000000000000 T hid_dispose_report_desc
+                 U memcpy
+                 U malloc
+                 U ioctl
+                 U free
+                 U __error

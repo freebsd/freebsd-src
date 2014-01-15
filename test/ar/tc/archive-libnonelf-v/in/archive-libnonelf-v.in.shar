@@ -1,0 +1,36 @@
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	a1_ne.o.uu
+#	a2_ne.o.uu
+#	a3_non_elf_has_a_long_name.o.uu
+#
+echo x - a1_ne.o.uu
+sed 's/^X//' >a1_ne.o.uu << 'END-of-a1_ne.o.uu'
+Xbegin 644 a1_ne.o
+X/,3(S-#4V-V%B8V1E9F<*
+X`
+Xend
+END-of-a1_ne.o.uu
+echo x - a2_ne.o.uu
+sed 's/^X//' >a2_ne.o.uu << 'END-of-a2_ne.o.uu'
+Xbegin 644 a2_ne.o
+XM9F9F9F9F9F9F9F9F9F9F:&AH:&AH:&AH:&AH:&AH:&AH:VMK:VMK:VMK:VMK
+X7:VMK:VMK;&QL;&QL;&QL;&QL;&QL;`H`
+X`
+Xend
+END-of-a2_ne.o.uu
+echo x - a3_non_elf_has_a_long_name.o.uu
+sed 's/^X//' >a3_non_elf_has_a_long_name.o.uu << 'END-of-a3_non_elf_has_a_long_name.o.uu'
+Xbegin 644 a3_non_elf_has_a_long_name.o
+XM9F9F9F9F9F9O;V]O;V]O;V]O;V]O;V]O;V]O;V]O;V]E965E965E965E965E
+X&965E964*
+X`
+Xend
+END-of-a3_non_elf_has_a_long_name.o.uu
+exit
+

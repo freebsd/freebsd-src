@@ -1,0 +1,60 @@
+
+memstat_all.o:
+0000000000000071 T memstat_kvm_all
+0000000000000071 T memstat_sysctl_all
+
+memstat_uma.o:
+0000000000000039 t kread
+0000000000000063 t kread_symbol
+0000000000000096 d namelist
+0000000000000972 T memstat_sysctl_uma
+0000000000001294 T memstat_kvm_uma
+
+memstat_malloc.o:
+0000000000000039 t kread
+0000000000000063 t kread_symbol
+0000000000000072 d namelist
+0000000000000765 T memstat_kvm_malloc
+0000000000000894 T memstat_sysctl_malloc
+
+memstat.o:
+0000000000000003 T memstat_get_allocator
+0000000000000004 T memstat_mtl_first
+0000000000000004 T memstat_mtl_geterror
+0000000000000005 T memstat_get_bytes
+0000000000000005 T memstat_get_byteslimit
+0000000000000005 T memstat_get_count
+0000000000000005 T memstat_get_countlimit
+0000000000000005 T memstat_get_free
+0000000000000005 T memstat_get_memalloced
+0000000000000005 T memstat_get_memfreed
+0000000000000005 T memstat_get_name
+0000000000000005 T memstat_get_numallocs
+0000000000000005 T memstat_get_numfrees
+0000000000000005 T memstat_get_size
+0000000000000005 T memstat_get_sizemask
+0000000000000008 T memstat_get_failures
+0000000000000008 T memstat_get_kegfree
+0000000000000008 T memstat_get_zonefree
+0000000000000008 T memstat_mtl_next
+0000000000000012 T memstat_get_caller_pointer
+0000000000000012 T memstat_get_caller_uint64
+0000000000000012 T memstat_get_percpu_free
+0000000000000012 T memstat_set_caller_pointer
+0000000000000012 T memstat_set_caller_uint64
+0000000000000018 T memstat_mtl_free
+0000000000000019 T memstat_get_percpu_memalloced
+0000000000000019 T memstat_get_percpu_memfreed
+0000000000000019 T memstat_get_percpu_numallocs
+0000000000000019 T memstat_get_percpu_numfrees
+0000000000000019 T memstat_get_percpu_sizemask
+0000000000000032 T memstat_get_percpu_caller_pointer
+0000000000000032 T memstat_get_percpu_caller_uint64
+0000000000000032 T memstat_set_percpu_caller_pointer
+0000000000000032 T memstat_set_percpu_caller_uint64
+0000000000000046 T memstat_mtl_alloc
+0000000000000067 T _memstat_mtl_empty
+0000000000000073 T memstat_strerror
+0000000000000089 T memstat_mtl_find
+0000000000000157 T _memstat_mt_allocate
+0000000000000212 T _memstat_mt_reset_stats

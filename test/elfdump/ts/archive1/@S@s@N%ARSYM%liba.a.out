@@ -1,0 +1,13 @@
+
+Symbol Table: (archive)
+     index    offset    member name and symbol
+       [0]  0x000000a8  (a1.o):summul
+       [1]  0x000000a8  (a1.o):a
+       [2]  0x000003ac  (a2.o):msg
+       [3]  0x000003ac  (a2.o):printmsg
+       [4]  0x00000728  (a3.o):substract
+       [5]  0x00000728  (a3.o):x
+       [6]  0x00000728  (a3.o):y
+       [7]  0x00000a64  (a4.o):msg1
+       [8]  0x00000a64  (a4.o):msg2
+       [9]  0x00000a64  (a4.o):outputmsg

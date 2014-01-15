@@ -1,0 +1,20 @@
+
+Relocation Section:  .rela.dyn
+        type                          offset     addend  section        with respect to
+        R_X86_64_RELATIVE           0x200e60    2100832  .rela.dyn      
+        R_X86_64_RELATIVE           0x200e68    2100296  .rela.dyn      
+        R_X86_64_GLOB_DAT           0x200de8          0  .rela.dyn      __gmon_start__
+        R_X86_64_GLOB_DAT           0x200df0          0  .rela.dyn      _Jv_RegisterClasses
+        R_X86_64_GLOB_DAT           0x200df8          0  .rela.dyn      __cxa_finalize
+
+Relocation Section:  .rela.plt
+        type                          offset     addend  section        with respect to
+        R_X86_64_JMP_SLOT           0x200e18          0  .rela.plt      printf
+        R_X86_64_JMP_SLOT           0x200e20          0  .rela.plt      puts
+        R_X86_64_JMP_SLOT           0x200e28          0  .rela.plt      toupper
+        R_X86_64_JMP_SLOT           0x200e30          0  .rela.plt      cos
+        R_X86_64_JMP_SLOT           0x200e38          0  .rela.plt      cosh
+        R_X86_64_JMP_SLOT           0x200e40          0  .rela.plt      __cxa_finalize
+        R_X86_64_JMP_SLOT           0x200e48          0  .rela.plt      gets
+        R_X86_64_JMP_SLOT           0x200e50          0  .rela.plt      tolower
+        R_X86_64_JMP_SLOT           0x200e58          0  .rela.plt      acos

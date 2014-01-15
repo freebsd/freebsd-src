@@ -1,0 +1,283 @@
+Installation Instructions
+=========================
+
+This file contains instructions on building and installing the
+libraries and utilities in the elftoolchain project's sources.
+
+Supported Operating Systems
+---------------------------
+
+The source tree is currently built and tested on the following
+operating systems.
+
+  =================   ========   =======================
+  Operating System    Version    Supported Architectures
+  -----------------   --------   -----------------------
+  `DragonFly BSD`_    2.10.1     i386
+  FreeBSD_            v8.2       amd64 & i386
+  Minix_              3.0.2      i386
+  NetBSD_             v5.0.2     i386
+  OpenBSD_            v5.0       i386
+  Ubuntu_ GNU/Linux   10.04LTS   i386 & x86_64
+  =================   ========   =======================
+
+.. _DragonFly BSD: http://www.dragonflybsd.org/
+.. _FreeBSD: http://www.freebsd.org/
+.. _Minix:   http://www.minix3.org/
+.. _NetBSD:  http://www.netbsd.org/
+.. _OpenBSD: http://www.openbsd.org/
+.. _Ubuntu:  http://www.ubuntu.com/
+
+Building the Source Tree
+========================
+
+The core libraries and utilities that make up the software release are
+always built by default.  Builds of the project's test suites (in the
+``test/`` subdirectory), and of additional documentation (in the
+directory ``documentation/``) are optional and will only be attempted
+if these directories are present.
+
+Prerequisites
+-------------
+
+:DragonFly BSD 2.10.1:
+    - The core libraries and utilities should build out of the box on
+      a stock install of DragonFly BSD.
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_ needs to
+         be downloaded and unpacked into the ``test/tet/`` directory.
+
+      #. The ``py26-yaml`` package needs to be installed::
+
+            % sudo pkgin install py26-yaml
+
+    - Building additional documentation is not currently supported
+      under DragonFly BSD.
+
+:FreeBSD 8.2:
+    - The core libraries and utilities should build out of the box on
+      a stock install of FreeBSD.
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_ needs to
+         be downloaded and unpacked into the ``test/tet/`` directory.
+
+      #. The ``py-yaml`` package needs to be installed::
+
+            % sudo pkg_add -r py-yaml
+
+    - To build additional documentation, the ``latex-pgf`` package is
+      needed::
+
+            % sudo pkg_add -r latex-pgf
+
+:Minix 3.2.0:
+    - The following packages are pre-requisites for building the
+      sources on Minix 3.2.0:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``gcc44``               The GNU C compiler.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+          # pkgin install gcc44
+
+    - The test suites cannot currently be built under Minix.
+
+    - Building additional documentation is not currently supported
+      under Minix.
+
+:OpenBSD 5.0:
+    - The following packages are pre-requisites for building the
+      sources on OpenBSD 5.0:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``libarchive``          An archive access library.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+          # pkg_add libarchive-2.8.4p0
+
+    - The test suites cannot currently be built under OpenBSD.
+
+    - Building additional documentation is not currently supported
+      under OpenBSD.
+
+:NetBSD 5.0.2:
+    - The core libraries and utilities should build out of the box
+      on a stock install of NetBSD.
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_, needs
+         to be downloaded and unpacked into the ``test/tet/``
+         directory.
+
+      #. The following additional package needs to be installed, as
+         listed in the example command line below ::
+
+            % sudo pkg_add py26-yaml
+
+    - Building additional documentation is not currently supported
+      under NetBSD.
+
+:Ubuntu GNU/Linux 10.04:
+    - The following packages are pre-requisites for building the
+      sources on Ubuntu GNU/Linux 10.04:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``binutils``            Needed for the build.
+      ``bison``               Parser generator.
+      ``flex``                Lexical analyser.
+      ``gcc``                 C compiler.
+      ``libarchive-dev``      Archive access library.
+      ``libc6-dev``           Files for C language development.
+      ``libexpat1-dev``       An XML processing library.
+      ``m4``                  Macro processor.
+      ``pmake``               A ``make`` that uses BSD-make syntax.
+      ``python-yaml``         A YAML library for Python.
+      ``sharutils``           For ``uudecode``.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+	  % sudo apt-get install binutils bison flex gcc libarchive-dev \
+	    libc6-dev m4 pmake
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_, needs
+         to be downloaded and unpacked into the ``test/tet/``
+         directory.
+
+      #. The following additional packages need to be installed, as
+         listed in the example command line below::
+
+            % sudo apt-get install libexpat1-dev python-yaml sharutils
+
+    - To build additional documentation, the ``pgf`` package is
+      needed::
+
+          % sudo apt-get install pgf
+
+:Ubuntu GNU/Linux 11.10:
+    - The following packages are pre-requisites for building the
+      sources on Ubuntu GNU/Linux 11.10:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``bison``               Parser generator.
+      ``flex``                Lexical analyser.
+      ``gcc``                 C compiler.
+      ``libarchive-dev``      Archive access library.
+      ``libexpat1-dev``       An XML processing library.
+      ``m4``                  Macro processor.
+      ``pmake``               A ``make`` that uses BSD-make syntax.
+      ``python-yaml``         A YAML library for Python.
+      ``sharutils``           For ``uudecode``.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+          % sudo apt-get install bison flex gcc libarchive-dev \
+            m4 pmake
+
+    - To build and run the test suite:
+
+      #. The current release of the `Test Execution Toolkit`_, needs
+         to be downloaded and unpacked into the ``test/tet/``
+         directory.
+
+      #. The following additional packages need to be installed, as
+         listed in the example command line below::
+
+            % sudo apt-get install libexpat1-dev python-yaml sharutils
+
+    - Builds of additional documentation are not currently supported
+      under Ubuntu GNU/Linux 11.10.
+
+.. _Test Execution Toolkit: http://tetworks.opengroup.org/
+.. _OpenGroup: http://www.opengroup.org/
+
+
+Building the software
+---------------------
+
+The software may be built by running **make**.
+
+On `DragonFly BSD`_,  FreeBSD_, Minix_, NetBSD_ and OpenBSD_, use::
+
+  % make
+
+On Ubuntu GNU/Linux with the **pmake** package installed, use::
+
+  % pmake
+
+
+Testing the software
+---------------------
+
+The ``run-tests`` target in the top-level Makefile will build and
+execute the test suites that are part of this software.
+
+On `DragonFly BSD`_, FreeBSD_ and NetBSD_, use::
+
+    % make run-tests
+
+On Ubuntu GNU/Linux with the **pmake** package installed, use::
+
+    % pmake run-tests
+
+Installing the Software
+=======================
+
+The software may be installed using the ``install`` target.
+
+On `DragonFly BSD`_, FreeBSD_, Minix_, NetBSD_ and OpenBSD_ use::
+
+    % make install
+
+On Ubuntu GNU/Linux with the **pmake** package installed, use::
+
+    % pmake install
+
+
+By default the ``install`` target will install utilities into
+``/usr/bin/``, libraries into ``/usr/lib/`` and manual pages into
+``/usr/share/man/man[0-9]/``.
+
+The installation directory may be changed using the ``DESTDIR``
+variable.  For example::
+
+    % pmake DESTDIR=$HOME/local install
+
+
+Additional Information
+======================
+
+Additional information about the project may be found on the `project
+website`_.
+
+.. _project website:  http://elftoolchain.sourceforge.net/
+
+.. $Id: INSTALL 2777 2012-12-12 17:21:36Z jkoshy $
+
+.. Local Variables:
+.. mode: rst
+.. End:

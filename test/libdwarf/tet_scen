@@ -1,0 +1,119 @@
+# $Id: tet_scen 2084 2011-10-27 04:48:12Z jkoshy $
+
+all
+	"Starting Test Suite"
+	^dwarf_init
+	^dwarf_next_cu_header
+	^dwarf_get_address_size
+	^dwarf_siblingof
+	^dwarf_child
+	^dwarf_die_query
+	^dwarf_die_offset
+	^dwarf_die_convenience
+	^dwarf_attr
+	^dwarf_attrlist
+	^dwarf_form
+	^dwarf_loclist
+	^dwarf_lineno
+	^dwarf_frame
+	^dwarf_arange
+	^dwarf_abbrev
+	^dwarf_pubnames
+	^dwarf_macinfo
+	^dwarf_ranges
+	"Complete Test Suite"
+
+dwarf_init
+	"Starting dwarf_init Test Case"
+	/ts/dwarf_init/tc_dwarf_init
+	"Complete dwarf_init Test Case"
+
+dwarf_next_cu_header
+	"Starting dwarf_next_cu_header Test Case"
+	/ts/dwarf_next_cu_header/tc_dwarf_next_cu_header
+	"Complete dwarf_next_cu_header Test Case"
+
+dwarf_get_address_size
+	"Starting dwarf_get_address_size Test Case"
+	/ts/dwarf_get_address_size/tc_dwarf_get_address_size
+	"Complete dwarf_get_address_size Test Case"
+
+dwarf_siblingof
+	"Starting dwarf_siblingof Test Case"
+	/ts/dwarf_siblingof/tc_dwarf_siblingof
+	"Complete dwarf_siblingof Test Case"
+
+dwarf_child
+	"Starting dwarf_child Test Case"
+	/ts/dwarf_child/tc_dwarf_child
+	"Complete dwarf_child Test Case"
+
+dwarf_die_query
+	"Starting dwarf_die_query Test Case"
+	/ts/dwarf_die_query/tc_dwarf_die_query
+	"Complete dwarf_die_query Test Case"
+
+dwarf_die_offset
+	"Starting dwarf_die_offset Test Case"
+	/ts/dwarf_die_offset/tc_dwarf_die_offset
+	"Complete dwarf_die_offset Test Case"
+
+dwarf_die_convenience
+	"Starting dwarf_die_convenience Test Case"
+	/ts/dwarf_die_convenience/tc_dwarf_die_convenience
+	"Complete dwarf_die_convenience Test Case"
+
+dwarf_attr
+	"Starting dwarf_attr Test Case"
+	/ts/dwarf_attr/tc_dwarf_attr
+	"Complete dwarf_attr Test Case"
+
+dwarf_attrlist
+	"Starting dwarf_attrlist Test Case"
+	/ts/dwarf_attrlist/tc_dwarf_attrlist
+	"Complete dwarf_attrlist Test Case"
+
+dwarf_form
+	"Starting dwarf_form Test Case"
+	/ts/dwarf_form/tc_dwarf_form
+	"Complete dwarf_form Test Case"
+
+dwarf_loclist
+	"Starting dwarf_loclist Test Case"
+	/ts/dwarf_loclist/tc_dwarf_loclist
+	"Complete dwarf_loclist Test Case"
+
+dwarf_lineno
+	"Starting dwarf_lineno Test Case"
+	/ts/dwarf_lineno/tc_dwarf_lineno
+	"Complete dwarf_lineno Test Case"
+
+dwarf_frame
+	"Starting dwarf_frame Test Case"
+	/ts/dwarf_frame/tc_dwarf_frame
+	"Complete dwarf_frame Test Case"
+
+dwarf_arange
+	"Starting dwarf_arange Test Case"
+	/ts/dwarf_arange/tc_dwarf_arange
+	"Complete dwarf_arange Test Case"
+
+dwarf_abbrev
+	"Starting dwarf_abbrev Test Case"
+	/ts/dwarf_abbrev/tc_dwarf_abbrev
+	"Complete dwarf_abbrev Test Case"
+
+dwarf_pubnames
+	"Starting dwarf_pubnames Test Case"
+	/ts/dwarf_pubnames/tc_dwarf_pubnames
+	"Complete dwarf_pubnames Test Case"
+
+dwarf_macinfo
+	"Starting dwarf_macinfo Test Case"
+	/ts/dwarf_macinfo/tc_dwarf_macinfo
+	"Complete dwarf_macinfo Test Case"
+
+dwarf_ranges
+	"Starting dwarf_ranges Test Case"
+	/ts/dwarf_ranges/tc_dwarf_ranges
+	"Complete dwarf_ranges Test Case"

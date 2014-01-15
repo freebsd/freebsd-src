@@ -1,0 +1,10 @@
+# $Id: Makefile.tset 2845 2012-12-31 04:19:35Z jkoshy $
+
+# All the test cases in this test suite need -lelftc.
+DPADD+=		${LIBELFTC}
+LDADD+=		-lelftc
+
+GENERATE_TEST_SCAFFOLDING=	yes
+
+# Test cases do not supply manual pages.
+NOMAN=	noman

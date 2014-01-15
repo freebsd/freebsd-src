@@ -1,0 +1,83 @@
+
+
+Symbols from test_obj:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+_CurrentRuneLocale@@FBSD_1.0|0000000005252136|   B  |            OBJECT|0000000000000008|     |.bss
+_DYNAMIC            |0000000005251392|   D  |            OBJECT|                |     |.dynamic
+_GLOBAL_OFFSET_TABLE_|0000000005251832|   D  |            OBJECT|                |     |.got
+_Jv_RegisterClasses |                |   w  |            NOTYPE|                |     |*UND*
+__CTOR_END__        |0000000005251800|   d  |            OBJECT|                |     |.ctors
+__CTOR_LIST__       |0000000005251792|   d  |            OBJECT|                |     |.ctors
+__DTOR_END__        |0000000005251816|   d  |            OBJECT|                |     |.dtors
+__DTOR_LIST__       |0000000005251808|   d  |            OBJECT|                |     |.dtors
+__FRAME_END__       |0000000005251336|   r  |            OBJECT|                |     |.eh_frame
+__JCR_END__         |0000000005251824|   d  |            OBJECT|                |     |.jcr
+__JCR_LIST__        |0000000005251824|   d  |            OBJECT|                |     |.jcr
+__bss_start         |0000000005252112|   A  |            NOTYPE|                |     |*ABS*
+__do_global_ctors_aux|0000000004201408|   t  |              FUNC|                |     |.text
+__do_global_dtors_aux|0000000004198320|   t  |              FUNC|                |     |.text
+__dso_handle        |0000000005251080|   D  |            OBJECT|                |     |.data
+__error@@FBSD_1.0   |                |   U  |              FUNC|0000000000000008|     |*UND*
+__isthreaded@@FBSD_1.0|0000000005252112|   B  |            OBJECT|0000000000000004|     |.bss
+__mb_sb_limit@@FBSD_1.0|0000000005252116|   B  |            OBJECT|0000000000000004|     |.bss
+__progname          |0000000005251072|   D  |            OBJECT|0000000000000008|     |.data
+__srget@@FBSD_1.0   |                |   U  |              FUNC|0000000000000037|     |*UND*
+__stderrp@@FBSD_1.0 |0000000005252144|   B  |            OBJECT|0000000000000008|     |.bss
+__stdinp@@FBSD_1.0  |0000000005252120|   B  |            OBJECT|0000000000000008|     |.bss
+__stdoutp@@FBSD_1.0 |0000000005252128|   B  |            OBJECT|0000000000000008|     |.bss
+__swbuf@@FBSD_1.0   |                |   U  |              FUNC|0000000000000195|     |*UND*
+_edata              |0000000005252112|   A  |            NOTYPE|                |     |*ABS*
+_end                |0000000005252224|   A  |            NOTYPE|                |     |*ABS*
+_fini               |0000000004201448|   T  |              FUNC|                |     |.fini
+_init               |0000000004197600|   T  |              FUNC|                |     |.init
+_init_tls@@FBSD_1.0 |                |   U  |              FUNC|0000000000000002|     |*UND*
+_start              |0000000004198160|   T  |              FUNC|0000000000000146|     |.text
+abitag              |0000000004194784|   r  |            OBJECT|0000000000000024|     |.note.ABI-tag
+atexit@@FBSD_1.0    |                |   U  |              FUNC|0000000000000047|     |*UND*
+bflag               |0000000005252212|   B  |            OBJECT|0000000000000004|     |.bss
+bsize.4467          |0000000005252168|   b  |            OBJECT|0000000000000008|     |.bss
+buf.4468            |0000000005252160|   b  |            OBJECT|0000000000000008|     |.bss
+clearerr@@FBSD_1.0  |                |   U  |              FUNC|0000000000000090|     |*UND*
+close@@FBSD_1.0     |                |   U  |              FUNC|                |     |*UND*
+completed.5107      |0000000005252156|   b  |            OBJECT|0000000000000001|     |.bss
+connect@@FBSD_1.0   |                |   U  |              FUNC|                |     |*UND*
+cook_cat            |0000000004198432|   t  |              FUNC|0000000000001806|     |.text
+eflag               |0000000005252208|   B  |            OBJECT|0000000000000004|     |.bss
+environ             |0000000005252176|   B  |            OBJECT|0000000000000008|     |.bss
+err@@FBSD_1.0       |                |   U  |              FUNC|0000000000000170|     |*UND*
+exit@@FBSD_1.0      |                |   U  |              FUNC|0000000000000047|     |*UND*
+fclose@@FBSD_1.0    |                |   U  |              FUNC|0000000000000242|     |*UND*
+fdopen@@FBSD_1.0    |                |   U  |              FUNC|0000000000000274|     |*UND*
+feof@@FBSD_1.0      |                |   U  |              FUNC|0000000000000101|     |*UND*
+ferror@@FBSD_1.0    |                |   U  |              FUNC|0000000000000101|     |*UND*
+filename            |0000000005252200|   B  |            OBJECT|0000000000000008|     |.bss
+fileno@@FBSD_1.0    |                |   U  |              FUNC|0000000000000091|     |*UND*
+fprintf@@FBSD_1.0   |                |   U  |              FUNC|0000000000000144|     |*UND*
+frame_dummy         |0000000004198384|   t  |              FUNC|                |     |.text
+fstat@@FBSD_1.0     |                |   U  |              FUNC|                |     |*UND*
+fwrite@@FBSD_1.0    |                |   U  |              FUNC|0000000000000202|     |*UND*
+getc@@FBSD_1.0      |                |   U  |              FUNC|0000000000000127|     |*UND*
+getopt@@FBSD_1.0    |                |   U  |              FUNC|0000000000000682|     |*UND*
+main                |0000000004201024|   T  |              FUNC|0000000000000376|     |.text
+malloc@@FBSD_1.0    |                |   U  |              FUNC|0000000000001280|     |*UND*
+memset@@FBSD_1.0    |                |   U  |              FUNC|                |     |*UND*
+nflag               |0000000005252216|   B  |            OBJECT|0000000000000004|     |.bss
+open@@FBSD_1.0      |                |   U  |              FUNC|                |     |*UND*
+optind@@FBSD_1.0    |0000000005252152|   B  |            OBJECT|0000000000000004|     |.bss
+p.5105              |0000000005251088|   d  |            OBJECT|                |     |.data
+putc@@FBSD_1.0      |                |   U  |              FUNC|0000000000000153|     |*UND*
+read@@FBSD_1.0      |                |   U  |              FUNC|                |     |*UND*
+rval                |0000000005252192|   B  |            OBJECT|0000000000000004|     |.bss
+scanfiles           |0000000004200240|   t  |              FUNC|0000000000000778|     |.text
+setbuf@@FBSD_1.0    |                |   U  |              FUNC|0000000000000019|     |*UND*
+setlocale@@FBSD_1.0 |                |   U  |              FUNC|0000000000000874|     |*UND*
+sflag               |0000000005252220|   B  |            OBJECT|0000000000000004|     |.bss
+shutdown@@FBSD_1.0  |                |   U  |              FUNC|                |     |*UND*
+socket@@FBSD_1.0    |                |   U  |              FUNC|                |     |*UND*
+strlcpy@@FBSD_1.0   |                |   U  |              FUNC|0000000000000054|     |*UND*
+tflag               |0000000005252188|   B  |            OBJECT|0000000000000004|     |.bss
+vflag               |0000000005252184|   B  |            OBJECT|0000000000000004|     |.bss
+warn@@FBSD_1.0      |                |   U  |              FUNC|0000000000000168|     |*UND*
+write@@FBSD_1.0     |                |   U  |              FUNC|                |     |*UND*

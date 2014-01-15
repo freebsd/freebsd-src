@@ -1,0 +1,238 @@
+
+elf header:
+
+	e_ident: ELFCLASS64 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_EXEC
+	e_machine: EM_X86_64
+	e_version: EV_CURRENT
+	e_entry: 0x401cc0
+	e_phoff: 64
+	e_shoff: 28336
+	e_flags: 0
+	e_ehsize: 64
+	e_phentsize: 56
+	e_phnum: 7
+	e_shentsize: 64
+	e_shnum: 26
+	e_shstrndx: 25
+
+global offset table:
+
+entry: 0
+	0x506708
+
+entry: 1
+	0
+
+entry: 2
+	0
+
+entry: 3
+	0x401862
+
+entry: 4
+	0x401872
+
+entry: 5
+	0x401882
+
+entry: 6
+	0x401892
+
+entry: 7
+	0x4018a2
+
+entry: 8
+	0x4018b2
+
+entry: 9
+	0x4018c2
+
+entry: 10
+	0x4018d2
+
+entry: 11
+	0x4018e2
+
+entry: 12
+	0x4018f2
+
+entry: 13
+	0x401902
+
+entry: 14
+	0x401912
+
+entry: 15
+	0x401922
+
+entry: 16
+	0x401932
+
+entry: 17
+	0x401942
+
+entry: 18
+	0x401952
+
+entry: 19
+	0x401962
+
+entry: 20
+	0x401972
+
+entry: 21
+	0x401982
+
+entry: 22
+	0x401992
+
+entry: 23
+	0x4019a2
+
+entry: 24
+	0x4019b2
+
+entry: 25
+	0x4019c2
+
+entry: 26
+	0x4019d2
+
+entry: 27
+	0x4019e2
+
+entry: 28
+	0x4019f2
+
+entry: 29
+	0x401a02
+
+entry: 30
+	0x401a12
+
+entry: 31
+	0x401a22
+
+entry: 32
+	0x401a32
+
+entry: 33
+	0x401a42
+
+entry: 34
+	0x401a52
+
+entry: 35
+	0x401a62
+
+entry: 36
+	0x401a72
+
+entry: 37
+	0x401a82
+
+entry: 38
+	0x401a92
+
+entry: 39
+	0x401aa2
+
+entry: 40
+	0x401ab2
+
+entry: 41
+	0x401ac2
+
+entry: 42
+	0x401ad2
+
+entry: 43
+	0x401ae2
+
+entry: 44
+	0x401af2
+
+entry: 45
+	0x401b02
+
+entry: 46
+	0x401b12
+
+entry: 47
+	0x401b22
+
+entry: 48
+	0x401b32
+
+entry: 49
+	0x401b42
+
+entry: 50
+	0x401b52
+
+entry: 51
+	0x401b62
+
+entry: 52
+	0x401b72
+
+entry: 53
+	0x401b82
+
+entry: 54
+	0x401b92
+
+entry: 55
+	0x401ba2
+
+entry: 56
+	0x401bb2
+
+entry: 57
+	0x401bc2
+
+entry: 58
+	0x401bd2
+
+entry: 59
+	0x401be2
+
+entry: 60
+	0x401bf2
+
+entry: 61
+	0x401c02
+
+entry: 62
+	0x401c12
+
+entry: 63
+	0x401c22
+
+entry: 64
+	0x401c32
+
+entry: 65
+	0x401c42
+
+entry: 66
+	0x401c52
+
+entry: 67
+	0x401c62
+
+entry: 68
+	0x401c72
+
+entry: 69
+	0x401c82
+
+entry: 70
+	0x401c92
+
+entry: 71
+	0x401ca2
+
+entry: 72
+	0x401cb2

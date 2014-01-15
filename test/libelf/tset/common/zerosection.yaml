@@ -1,0 +1,27 @@
+%YAML 1.1
+---
+# $Id: zerosection.yaml 2077 2011-10-27 03:59:40Z jkoshy $
+#
+# An ELF file containing a zero-sized section.
+
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data:  ELFDATANONE
+  e_type: ET_REL
+
+sections:
+ - !Section # index 0
+   sh_type: SHT_NULL
+
+ - !Section
+   sh_name: .shstrtab
+   sh_type: SHT_STRTAB
+   sh_data:
+   - .shstrtab
+   - .zerosection
+
+ - !Section
+   sh_name: .zerosection
+   sh_offset: 2048
+   sh_type: SHT_NOBITS

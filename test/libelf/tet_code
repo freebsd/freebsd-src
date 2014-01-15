@@ -1,0 +1,17 @@
+# LibELF test suite.
+#
+# $Id: tet_code 2055 2011-10-26 12:15:06Z jkoshy $
+
+# TET reserved codes
+0 "PASS"
+1 "FAIL"
+2 "UNRESOLVED"
+3 "NOTINUSE"
+4 "UNSUPPORTED"
+5 "UNTESTED"
+6 "UNINITIATED"
+7 "NORESULT"
+
+# Test suite additional codes
+101 "INSPECT"
+

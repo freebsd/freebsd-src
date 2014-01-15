@@ -1,0 +1,52 @@
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_EXEC
+  e_flags:                     0
+  e_entry:              0x401cc0  e_ehsize:     64  e_shstrndx:   25
+  e_shoff:                0x6eb0  e_shentsize:  64  e_shnum:      26
+  e_phoff:                  0x40  e_phentsize:  56  e_phnum:       7
+
+Program Header[0]:
+    p_vaddr:      0x400040        p_flags:    [ PF_X|PF_R ]
+    p_paddr:      0x400040        p_type:     [ PT_PHDR ]
+    p_filesz:     0x188           p_memsz:    0x188
+    p_offset:     0x40            p_align:    0x8
+
+Program Header[1]:
+    p_vaddr:      0x4001c8        p_flags:    [ PF_R ]
+    p_paddr:      0x4001c8        p_type:     [ PT_INTERP ]
+    p_filesz:     0x15            p_memsz:    0x15
+    p_offset:     0x1c8           p_align:    0x1
+
+Program Header[2]:
+    p_vaddr:      0x400000        p_flags:    [ PF_X|PF_R ]
+    p_paddr:      0x400000        p_type:     [ PT_LOAD ]
+    p_filesz:     0x6144          p_memsz:    0x6144
+    p_offset:     0               p_align:    0x100000
+
+Program Header[3]:
+    p_vaddr:      0x506150        p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x506150        p_type:     [ PT_LOAD ]
+    p_filesz:     0x9d8           p_memsz:    0xc08
+    p_offset:     0x6150          p_align:    0x100000
+
+Program Header[4]:
+    p_vaddr:      0x506708        p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x506708        p_type:     [ PT_DYNAMIC ]
+    p_filesz:     0x1b0           p_memsz:    0x1b0
+    p_offset:     0x6708          p_align:    0x8
+
+Program Header[5]:
+    p_vaddr:      0x4001e0        p_flags:    [ PF_R ]
+    p_paddr:      0x4001e0        p_type:     [ PT_NOTE ]
+    p_filesz:     0x18            p_memsz:    0x18
+    p_offset:     0x1e0           p_align:    0x4
+
+Program Header[6]:
+    p_vaddr:      0x40613c        p_flags:    [ PF_R ]
+    p_paddr:      0x40613c        p_type:     [ PT_NULL ]
+    p_filesz:     0x8             p_memsz:    0x8
+    p_offset:     0x613c          p_align:    0x4

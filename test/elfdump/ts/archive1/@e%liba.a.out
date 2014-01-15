@@ -1,0 +1,76 @@
+
+liba.a(a1.o):
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_REL
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0
+	e_phoff: 0
+	e_shoff: 192
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 0
+	e_phnum: 0
+	e_shentsize: 40
+	e_shnum: 9
+	e_shstrndx: 6
+
+liba.a(a2.o):
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_REL
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0
+	e_phoff: 0
+	e_shoff: 220
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 0
+	e_phnum: 0
+	e_shentsize: 40
+	e_shnum: 10
+	e_shstrndx: 7
+
+liba.a(a3.o):
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_REL
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0
+	e_phoff: 0
+	e_shoff: 212
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 0
+	e_phnum: 0
+	e_shentsize: 40
+	e_shnum: 9
+	e_shstrndx: 6
+
+liba.a(a4.o):
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_REL
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0
+	e_phoff: 0
+	e_shoff: 244
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 0
+	e_phnum: 0
+	e_shentsize: 40
+	e_shnum: 10
+	e_shstrndx: 7

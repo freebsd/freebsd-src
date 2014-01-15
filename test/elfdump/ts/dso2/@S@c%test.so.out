@@ -1,0 +1,210 @@
+
+Section Header[1]:  sh_name: .gnu.hash
+    sh_addr:      0x158           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x50            sh_type:    [ SHT_GNU_HASH ]
+    sh_offset:    0x158           sh_entsize: 0
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[2]:  sh_name: .dynsym
+    sh_addr:      0x1a8           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x240           sh_type:    [ SHT_DYNSYM ]
+    sh_offset:    0x1a8           sh_entsize: 0x18
+    sh_link:      3               sh_info:    2
+    sh_addralign: 0x8
+
+Section Header[3]:  sh_name: .dynstr
+    sh_addr:      0x3e8           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0xc4            sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x3e8           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[4]:  sh_name: .gnu.version
+    sh_addr:      0x4ac           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x30            sh_type:    [ SHT_SUNW(GNU)_versym ]
+    sh_offset:    0x4ac           sh_entsize: 0x2
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x2
+
+Section Header[5]:  sh_name: .gnu.version_r
+    sh_addr:      0x4e0           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x40            sh_type:    [ SHT_SUNW(GNU)_verneed ]
+    sh_offset:    0x4e0           sh_entsize: 0
+    sh_link:      3               sh_info:    2
+    sh_addralign: 0x8
+
+Section Header[6]:  sh_name: .rela.dyn
+    sh_addr:      0x520           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x78            sh_type:    [ SHT_RELA ]
+    sh_offset:    0x520           sh_entsize: 0x18
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[7]:  sh_name: .rela.plt
+    sh_addr:      0x598           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0xd8            sh_type:    [ SHT_RELA ]
+    sh_offset:    0x598           sh_entsize: 0x18
+    sh_link:      2               sh_info:    9
+    sh_addralign: 0x8
+
+Section Header[8]:  sh_name: .init
+    sh_addr:      0x670           sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x18            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x670           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[9]:  sh_name: .plt
+    sh_addr:      0x688           sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0xa0            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x688           sh_entsize: 0x10
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[10]:  sh_name: .text
+    sh_addr:      0x730           sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x358           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x730           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x10
+
+Section Header[11]:  sh_name: .fini
+    sh_addr:      0xa88           sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0xe             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xa88           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[12]:  sh_name: .rodata
+    sh_addr:      0xa98           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x78            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xa98           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[13]:  sh_name: .eh_frame_hdr
+    sh_addr:      0xb10           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x3c            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xb10           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[14]:  sh_name: .eh_frame
+    sh_addr:      0xb50           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0xdc            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xb50           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[15]:  sh_name: .ctors
+    sh_addr:      0x200c30        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xc30           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[16]:  sh_name: .dtors
+    sh_addr:      0x200c40        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xc40           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[17]:  sh_name: .jcr
+    sh_addr:      0x200c50        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xc50           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[18]:  sh_name: .dynamic
+    sh_addr:      0x200c58        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x190           sh_type:    [ SHT_DYNAMIC ]
+    sh_offset:    0xc58           sh_entsize: 0x10
+    sh_link:      3               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[19]:  sh_name: .got
+    sh_addr:      0x200de8        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x18            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xde8           sh_entsize: 0x8
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[20]:  sh_name: .got.plt
+    sh_addr:      0x200e00        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x60            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xe00           sh_entsize: 0x8
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[21]:  sh_name: .data
+    sh_addr:      0x200e60        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xe60           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[22]:  sh_name: .bss
+    sh_addr:      0x200e70        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_NOBITS ]
+    sh_offset:    0xe70           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[23]:  sh_name: .comment
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x122           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xe70           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[24]:  sh_name: .debug_aranges
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x90            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0xfa0           sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x10
+
+Section Header[25]:  sh_name: .debug_info
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x1a4           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x1030          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[26]:  sh_name: .debug_abbrev
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x20            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x11d4          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[27]:  sh_name: .debug_line
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x160           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x11f4          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[28]:  sh_name: .shstrtab
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x10a           sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x1354          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[29]:  sh_name: .symtab
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x6d8           sh_type:    [ SHT_SYMTAB ]
+    sh_offset:    0x1c20          sh_entsize: 0x18
+    sh_link:      30              sh_info:    51
+    sh_addralign: 0x8
+
+Section Header[30]:  sh_name: .strtab
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x2dc           sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x22f8          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1

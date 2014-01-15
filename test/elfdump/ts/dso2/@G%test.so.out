@@ -1,0 +1,11 @@
+
+global offset table:
+
+entry: 0
+	0
+
+entry: 1
+	0
+
+entry: 2
+	0

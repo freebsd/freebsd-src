@@ -1,0 +1,18 @@
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	liba.a.uu
+#
+echo x - liba.a.uu
+sed 's/^X//' >liba.a.uu << 'END-of-liba.a.uu'
+Xbegin 644 liba.a
+X((3QA<F-H/@H`
+X`
+Xend
+END-of-liba.a.uu
+exit
+

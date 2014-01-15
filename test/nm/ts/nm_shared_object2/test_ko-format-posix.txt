@@ -1,0 +1,81 @@
+M_MEMDESC d 0000000000000180 0000000000000080
+M_MEMDESC_init_sys_init d 0000000000000220 0000000000000018
+M_MEMDESC_uninit_sys_uninit d 0000000000000200 0000000000000018
+__Tunable_init_67_sys_init d 00000000000002d0 0000000000000018
+__set_modmetadata_set_sym__mod_metadata_md_mem r 0000000000000008 0000000000000008
+__set_modmetadata_set_sym__mod_metadata_md_mem_on_kernel r 0000000000000010 0000000000000008
+__set_modmetadata_set_sym__mod_metadata_mem_version r 0000000000000000 0000000000000008
+__set_sysctl_set_sym_sysctl___machdep_disable_mtrrs r 0000000000000000 0000000000000008
+__set_sysinit_set_sym_M_MEMDESC_init_sys_init r 0000000000000008 0000000000000008
+__set_sysinit_set_sym___Tunable_init_67_sys_init r 0000000000000018 0000000000000008
+__set_sysinit_set_sym_amd64memdev_sys_init r 0000000000000010 0000000000000008
+__set_sysinit_set_sym_memmodule_sys_init r 0000000000000000 0000000000000008
+__set_sysuninit_set_sym_M_MEMDESC_uninit_sys_uninit r 0000000000000000 0000000000000008
+__tunable_int_67 d 00000000000002f0 0000000000000010
+_mem_depend_on_kernel d 0000000000000158 000000000000000c
+_mem_version d 0000000000000138 0000000000000004
+_mod_metadata_md_mem d 0000000000000100 0000000000000018
+_mod_metadata_md_mem_on_kernel d 0000000000000120 0000000000000018
+_mod_metadata_mem_version d 00000000000000c0 0000000000000018
+amd64_mem_drvinit t 00000000000008e0 0000000000000073
+amd64_mrAPinit t 00000000000008c0 0000000000000020
+amd64_mrfetch t 0000000000000960 0000000000000335
+amd64_mrinit t 0000000000001020 0000000000000214
+amd64_mrops d 0000000000000240 0000000000000018
+amd64_mrset t 0000000000000ca0 000000000000037b
+amd64_mrstoreone t 0000000000000550 000000000000032e
+amd64_mrt2mtrr t 0000000000000530 000000000000001c
+amd64_mtrr2mrt t 00000000000004d0 000000000000001a
+amd64_mtrrfixsearch t 0000000000000880 0000000000000032
+amd64_mtrrtomrt r 0000000000000000 000000000000001c
+amd64_mtrrtype t 00000000000004f0 0000000000000032
+amd64memdev_sys_init d 0000000000000260 0000000000000018
+bcopy U         
+bootverbose U         
+copyin U         
+copyout U         
+cpu_exthigh U         
+cpu_feature U         
+cpu_id U         
+cpu_vendor U         
+destroy_dev U         
+dev_mem_md_init t 00000000000000e0 0000000000000022
+free U         
+kernacc U         
+kernel_pmap_store U         
+kmemdev b 0000000000000008 0000000000000008
+make_dev U         
+malloc U         
+malloc_init U         
+malloc_uninit U         
+mem_cdevsw d 0000000000000000 00000000000000b8
+mem_mod d 0000000000000140 0000000000000018
+mem_modevent t 0000000000000000 00000000000000b3
+mem_owner_bios r 0000000000000020 0000000000000008
+mem_range_attr_get t 0000000000000490 000000000000003f
+mem_range_attr_set t 0000000000000460 000000000000002c
+mem_range_softc U         
+memdev b 0000000000000000 0000000000000008
+memioctl t 0000000000000110 0000000000000143
+memmmap t 0000000000000260 000000000000005a
+memmodule_sys_init d 00000000000000e0 0000000000000018
+memopen t 00000000000000c0 000000000000001f
+memrw t 00000000000002c0 000000000000019d
+minor U         
+module_register_init U         
+mtrr_physmask b 0000000000000028 0000000000000008
+mtrrcap b 0000000000000018 0000000000000008
+mtrrdef b 0000000000000020 0000000000000008
+mtrrs_disabled b 0000000000000010 0000000000000004
+panic U         
+pmap_extract U         
+pmap_kextract U         
+printf U         
+securelevel_gt U         
+strcmp U         
+strcpy U         
+sysctl___machdep_disable_mtrrs d 0000000000000280 0000000000000050
+sysctl__machdep_children U         
+sysctl_handle_int U         
+tunable_int_init U         
+uiomove U         

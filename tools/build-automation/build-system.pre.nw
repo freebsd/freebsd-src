@@ -1,0 +1,189 @@
+% Copyright (c) 2006-2010 Joseph Koshy.  All rights reserved.
+%
+% Redistribution and use in source and binary forms, with or without
+% modification, are permitted provided that the following conditions
+% are met:
+% 1. Redistributions of source code must retain the above copyright
+%    notice, this list of conditions and the following disclaimer.
+% 2. Redistributions in binary form must reproduce the above copyright
+%    notice, this list of conditions and the following disclaimer in the
+%    documentation and/or other materials provided with the distribution.
+%
+% This software is provided by Joseph Koshy ``as is'' and
+% any express or implied warranties, including, but not limited to, the
+% implied warranties of merchantability and fitness for a particular purpose
+% are disclaimed.  in no event shall Joseph Koshy be liable
+% for any direct, indirect, incidental, special, exemplary, or consequential
+% damages (including, but not limited to, procurement of substitute goods
+% or services; loss of use, data, or profits; or business interruption)
+% however caused and on any theory of liability, whether in contract, strict
+% liability, or tort (including negligence or otherwise) arising in any way
+% out of the use of this software, even if advised of the possibility of
+% such damage.
+%
+% $Id: build-system.pre.nw 2561 2012-08-31 02:46:33Z jkoshy $
+
+%
+% A Build Automation system.
+%
+
+\documentclass[a4paper,pdftex]{book}
+\usepackage{amsthm}
+\usepackage{bookmark}
+\usepackage{hyperref}
+\usepackage{makeidx}
+\usepackage{noweb}
+\usepackage{tikz}
+\usepackage{varioref}
+\usepackage{xspace}
+
+% Typesetting requirements.
+\theoremstyle{remark}
+\newtheorem{goal}{Design Goal}
+
+% Add meta-data to the PDF file.
+\hypersetup{
+  pdftitle={A Build Automation System},
+  pdfauthor={Joseph Koshy},
+  pdfsubject={A build automation system},
+  pdfkeywords={%
+    automation,%
+    build,%
+    literate program
+  }
+}
+
+% Fix a bug in the PDF TOC.
+\bookmarksetup{startatroot}
+
+% Document-specific LaTeX macros.
+\makeatletter
+\newcommand{\definition}[1]{\textit{#1}\index{#1!definition~of}\xspace}
+\newcommand{\elftoolchain}{\href{http://elftoolchain.sourceforge.net/}%
+    {ElfToolChain}\xspace}
+\newcommand{\file}[1]{\texttt{#1}\xspace}
+\newcommand{\func}[1]{\texttt{#1()}\xspace}
+\newcommand{\foreignphrase}[1]{\textit{#1}\xspace}
+\newcommand{\protoarg}[1]{\textit{#1}\xspace}
+\newcommand{\protocmd}[1]{\texttt{#1}\xspace}
+\newcommand{\protodef}[2]{\protocmd{#1} #2%
+    \index{#1@\texttt{#1}!protocol~definition}\\}
+\newcommand{\reg}{\textregistered\xspace}
+\newcommand{\term}[1]{\textit{#1}\xspace}
+\newcommand{\tool}[1]{\textbf{#1}\xspace}
+\newcommand{\trade}{\texttrademark\xspace}
+\newcommand{\var}[1]{\texttt{#1}\xspace}
+\makeatother
+
+% Noweb related
+\noweboptions{shift,hideunuseddefs,noidentxref}
+
+% Index related.
+\makeindex
+
+% The main document.
+
+\begin{document}
+
+\frontmatter                    % 
+
+% The title page.
+\title{Yet Another Build System}
+\author{Joseph~Koshy}
+\maketitle
+
+% Typeset a table of contents.
+\tableofcontents
+
+\chapter*{Preface}
+
+This document describes a build automation system being developed at
+the \elftoolchain project on
+\href{http://sourceforge.net/}{SourceForge.Net}.  The original
+motivation for this system was to automate the process of building and
+testing the \elftoolchain project's source tree on a variety of
+operating systems and machine architectures.  However, the design of
+the system is general enough that it can be used in other contexts
+too.
+
+The system has been designed to be easy to use and to frugal in its
+use of computing resources.  For handling non-native platforms, the
+system uses emulators such as \href{http://www.qemu.org}{QEMU},
+\href{http://gxemul.sourceforge.net/}{GXemul} and
+\href{http://www.virtualbox.org}{VirtualBox}.  The system is not tied
+to these specific emulators---it can as well manage physical machines,
+given the appropriate control specifications.
+
+This document itself is a
+\href{http://en.wikipedia.org/wiki/Literate_programming}%
+{literate program}---it is both a human-readable description of the
+system, as well as the source code of the system itself.
+
+\section*{Target Audience}
+
+This document would be useful to two audiences:
+\begin{itemize}
+\item Users of the system would find part~\ref{part.intro}, which
+  contains an overview and a user guide, to be of interest.
+\item For the maintainers of the system,
+  part~\ref{part.implementation} contains the implementation itself.
+\end{itemize}
+
+\section*{Document Overview}
+
+\begin{itemize}
+\item Chapter~\vref{chap.introduction} describes the rationale and the
+  requirements for the system.
+\item Chapter~\vref{chap.userguide} contains a brief user guide
+  showing how the system may be used.
+\item Chapter~\vref{chap.overview} presents an overview of the
+  implementation.
+\item Chapter~\vref{chap.slave} describes the implementation of the
+  build slave.
+\item Chapter~\vref{chap.master} describes the implementation of the
+  build master.
+\end{itemize}
+
+\section*{Legal Notice}
+Copyright \copyright{} 2012 Joseph Koshy.  All rights reserved.
+
+\vskip.8\baselineskip
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions
+are met:
+\begin{itemize}
+\item Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+\item Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the following
+  disclaimer in the documentation and/or other materials provided with
+  the distribution.
+\end{itemize}
+
+\subsubsection*{Disclaimer}
+
+THIS DOCUMENTATION IS PROVIDED BY THE AUTHOR AND CON\-TRIBUTORS
+``\hskip-0.5ex{}AS~IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES,
+INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MER\-CHANT\-ABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR AND CON\-TRIBUTORS BE LIABLE
+FOR ANY DIRECT, IN\-DIRECT, INCIDENT\-AL, SPECIAL, EX\-EMPLARY, OR
+CON\-SEQUENT\-IAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PRO\-CURE\-MENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+LIABILITY, WHE\-THER IN CONTRACT, STRICT LIA\-BILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHER\-WISE) ARISING IN ANY WAY OUT OF THE
+USE OF THIS DOCUMENTATION, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+DAMAGE.
+
+\vskip.8\baselineskip
+
+Many of the designations used by manufacturers and sellers to
+distinguish their products are claimed as trademarks. Where those
+designations appear in this document, and the author and contributors
+were aware of the trademark claim, the designations have been followed
+by the ``\raisebox{-.5ex}{\texttrademark}'' or the ``\textregistered'' symbol.
+
+% The rest of the text proper.
+\mainmatter

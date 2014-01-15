@@ -1,0 +1,75 @@
+
+program header:
+
+entry: 0
+	p_type: PT_PHDR
+	p_offset: 64
+	p_vaddr: 0x400040
+	p_paddr: 0x400040
+	p_filesz: 392
+	p_memsz: 392
+	p_flags: PF_X|PF_R
+	p_align: 8
+
+entry: 1
+	p_type: PT_INTERP
+	p_offset: 456
+	p_vaddr: 0x4001c8
+	p_paddr: 0x4001c8
+	p_filesz: 21
+	p_memsz: 21
+	p_flags: PF_R
+	p_align: 1
+
+entry: 2
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0x400000
+	p_paddr: 0x400000
+	p_filesz: 24900
+	p_memsz: 24900
+	p_flags: PF_X|PF_R
+	p_align: 1048576
+
+entry: 3
+	p_type: PT_LOAD
+	p_offset: 24912
+	p_vaddr: 0x506150
+	p_paddr: 0x506150
+	p_filesz: 2520
+	p_memsz: 3080
+	p_flags: PF_W|PF_R
+	p_align: 1048576
+
+entry: 4
+	p_type: PT_DYNAMIC
+	p_offset: 26376
+	p_vaddr: 0x506708
+	p_paddr: 0x506708
+	p_filesz: 432
+	p_memsz: 432
+	p_flags: PF_W|PF_R
+	p_align: 8
+
+entry: 5
+	p_type: PT_NOTE
+	p_offset: 480
+	p_vaddr: 0x4001e0
+	p_paddr: 0x4001e0
+	p_filesz: 24
+	p_memsz: 24
+	p_flags: PF_R
+	p_align: 4
+
+entry: 6
+	p_type: PT_NULL
+	p_offset: 24892
+	p_vaddr: 0x40613c
+	p_paddr: 0x40613c
+	p_filesz: 8
+	p_memsz: 8
+	p_flags: PF_R
+	p_align: 4
+
+note (.note.ABI-tag):
+	FreeBSD 800074

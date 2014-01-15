@@ -1,0 +1,80 @@
+% $Id: userguide.nw 2556 2012-08-29 13:17:07Z jkoshy $
+%
+% A user guide on how to use the system--configuring and running a
+% build.
+
+\chapter{Using The Build System}\label{chap.userguide}
+
+This chapter describes how to use the system.
+
+\section{Terminology}
+
+First, some definitions:
+
+\begin{itemize}
+
+\item A \definition{machine} is hardware that could be invoked during
+  the execution of a job.
+
+  A ``machine'' could be a physical machines that is to be powered up
+  for the job, or a virtual machine that is to be started up.
+
+  The \tool{yabs} utility uses user-provided shell script fragments to
+  control machines.  Hence a ``machine'' could also be an invocation
+  of a remote host via the \tool{ssh} program.
+
+  A machine is expected to execute the ``slave'' program (see below)
+  once it is has booted.
+
+\item A \definition{job definition} specifies the information needed
+  to run a job.   A job definition will specify:
+
+  \begin{itemize}
+
+  \item The list of machines to be invoked.
+  \item The specific commands be run inside each machine.
+  \item The results to retrieved from each machine, after the
+    commands are run.
+  \item The name of a ``job scheduler'' (see below).
+  \end{itemize}
+
+\item A \definition{job} is a particular invocation of a \term{job
+    definition}.
+
+\item A \definition{job scheduler} is a program that implements the
+  logic for starting and stopping individual steps that are part of a
+  job.  The system provides a default scheduler which would suffice
+  for most cases.  Users can override the default scheduler if their
+  jobs have special needs.
+
+\item The \tool{yabs} \definition{slave} is a program that runs
+  inside a booted machine, running the tasks defined in the
+  job definition.
+
+\item A \definition{slave script} is a shell script that lists the
+  actions to be executed inside a particular virtual machine.  Slave
+  scripts are usually written in the shell (\tool{sh}) programming
+  language.
+\end{itemize}
+
+\section{Configuration}
+
+TODO: describe how to configure the tool.
+
+% File locations for $ROOT:
+%     /etc/yabs/default/
+%     /etc/yabs/<job-name>/
+%     $HOME/.yabs/default/
+%     $HOME/.yabs/<job-name>/
+
+
+% $ROOT/build-name/config           -- configuration
+% $ROOT/build-name/scheduler        -- which order to run stuff
+
+% $ROOT/build-name/<machine>.startup -- how to (externally) start the machine
+% $ROOT/build-name/<machine>.shutdown -- how to (externally) stop the machine
+% $ROOT/build-name/<machine>.commands -- the build commands to be issued
+
+% Logs:
+
+% /var/logs/yabs/build-name.NNN

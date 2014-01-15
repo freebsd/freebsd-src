@@ -1,0 +1,50 @@
+test_ar[data.o]:
+hid_get_data T 0000000000000000 000000000000007f
+hid_set_data T 0000000000000080 0000000000000076
+test_ar[usage.o]:
+_CurrentRuneLocale U         
+__mb_sb_limit U         
+b.3186 b 0000000000000064 000000000000000a
+b.3204 b 0000000000000000 0000000000000064
+err U         
+errx U         
+fclose U         
+fgets U         
+fmtcheck U         
+fopen U         
+hid_init T 00000000000002c0 0000000000000368
+hid_parse_usage_in_page T 0000000000000000 00000000000000e3
+hid_parse_usage_page T 00000000000000f0 0000000000000079
+hid_usage_in_page T 0000000000000170 00000000000000c5
+hid_usage_page T 0000000000000240 000000000000007b
+malloc U         
+npages b 0000000000000078 0000000000000004
+npagesmax b 000000000000007c 0000000000000004
+pages b 0000000000000070 0000000000000008
+realloc U         
+sprintf U         
+sscanf U         
+strchr U         
+strcmp U         
+strdup U         
+strncmp U         
+test_ar[parse.o]:
+free U         
+hid_clear_local t 0000000000000000 0000000000000047
+hid_end_parse T 00000000000006d0 000000000000003d
+hid_get_item T 00000000000000e0 00000000000005e6
+hid_locate T 0000000000000710 0000000000000081
+hid_report_size T 00000000000007a0 000000000000008f
+hid_start_parse T 0000000000000050 0000000000000085
+malloc U         
+memcpy U         
+memset U         
+test_ar[descr.o]:
+__error U         
+free U         
+hid_dispose_report_desc T 0000000000000000 0000000000000005
+hid_get_report_desc T 0000000000000080 0000000000000040
+hid_use_report_desc T 0000000000000010 000000000000006e
+ioctl U         
+malloc U         
+memcpy U         

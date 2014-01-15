@@ -1,0 +1,533 @@
+
+program header:
+
+entry: 0
+	p_type: PT_PHDR
+	p_offset: 52
+	p_vaddr: 0x8048034
+	p_paddr: 0x8048034
+	p_filesz: 192
+	p_memsz: 192
+	p_flags: PF_X|PF_R
+	p_align: 4
+
+entry: 1
+	p_type: PT_INTERP
+	p_offset: 244
+	p_vaddr: 0x80480f4
+	p_paddr: 0x80480f4
+	p_filesz: 21
+	p_memsz: 21
+	p_flags: PF_R
+	p_align: 1
+
+entry: 2
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0x8048000
+	p_paddr: 0x8048000
+	p_filesz: 12458
+	p_memsz: 12458
+	p_flags: PF_X|PF_R
+	p_align: 4096
+
+entry: 3
+	p_type: PT_LOAD
+	p_offset: 12480
+	p_vaddr: 0x804c0c0
+	p_paddr: 0x804c0c0
+	p_filesz: 1536
+	p_memsz: 67168
+	p_flags: PF_W|PF_R
+	p_align: 4096
+
+entry: 4
+	p_type: PT_DYNAMIC
+	p_offset: 13552
+	p_vaddr: 0x804c4f0
+	p_paddr: 0x804c4f0
+	p_filesz: 200
+	p_memsz: 200
+	p_flags: PF_W|PF_R
+	p_align: 4
+
+entry: 5
+	p_type: PT_NOTE
+	p_offset: 268
+	p_vaddr: 0x804810c
+	p_paddr: 0x804810c
+	p_filesz: 24
+	p_memsz: 24
+	p_flags: PF_R
+	p_align: 4
+
+symbol table (.dynsym):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: fprintf
+	st_value: 0
+	st_size: 52
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 2
+	st_name: write
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 3
+	st_name: utimes
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 4
+	st_name: lstat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 5
+	st_name: acl_get_fd
+	st_value: 0
+	st_size: 93
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 6
+	st_name: lutimes
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 7
+	st_name: lchmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 8
+	st_name: link
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 9
+	st_name: mkfifo
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 10
+	st_name: fts_set
+	st_value: 0
+	st_size: 66
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 11
+	st_name: fts_close
+	st_value: 0
+	st_size: 218
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 12
+	st_name: chflags
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 13
+	st_name: fts_read
+	st_value: 0
+	st_size: 1266
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 14
+	st_name: strerror
+	st_value: 0
+	st_size: 74
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 15
+	st_name: _init_tls
+	st_value: 0
+	st_size: 5
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 16
+	st_name: fts_open
+	st_value: 0
+	st_size: 638
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 17
+	st_name: errx
+	st_value: 0
+	st_size: 46
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: munmap
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 19
+	st_name: symlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 20
+	st_name: fpathconf
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 21
+	st_name: environ
+	st_value: 0x805c700
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 22
+	st_name: unlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 23
+	st_name: __isthreaded
+	st_value: 0x804c6c0
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 24
+	st_name: getopt
+	st_value: 0
+	st_size: 660
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 25
+	st_name: strrchr
+	st_value: 0
+	st_size: 27
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 26
+	st_name: __progname
+	st_value: 0x804c0c0
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 15
+
+entry: 27
+	st_name: warnx
+	st_value: 0
+	st_size: 45
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 28
+	st_name: stat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 29
+	st_name: mmap
+	st_value: 0
+	st_size: 164
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 30
+	st_name: mknod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 31
+	st_name: __error
+	st_value: 0
+	st_size: 22
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 32
+	st_name: pathconf
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 33
+	st_name: printf
+	st_value: 0
+	st_size: 57
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 34
+	st_name: close
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 35
+	st_name: warn
+	st_value: 0
+	st_size: 65
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: acl_set_link_np
+	st_value: 0x8048e04
+	st_size: 157
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 37
+	st_name: __stdinp
+	st_value: 0x804c6c4
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 38
+	st_name: umask
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 39
+	st_name: signal
+	st_value: 0
+	st_size: 107
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 40
+	st_name: fchmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 41
+	st_name: fwrite
+	st_value: 0
+	st_size: 175
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 42
+	st_name: open
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 43
+	st_name: fchown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 44
+	st_name: lchown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 45
+	st_name: acl_set_fd
+	st_value: 0
+	st_size: 110
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 46
+	st_name: exit
+	st_value: 0
+	st_size: 67
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 47
+	st_name: mkdir
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 48
+	st_name: err
+	st_value: 0
+	st_size: 62
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 49
+	st_name: _end
+	st_value: 0x805c720
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 50
+	st_name: chmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 51
+	st_name: __stderrp
+	st_value: 0x804c6c8
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 52
+	st_name: optind
+	st_value: 0x804c6cc
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 53
+	st_name: acl_set_file
+	st_value: 0x8048ed4
+	st_size: 157
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 54
+	st_name: __srget
+	st_value: 0
+	st_size: 69
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 55
+	st_name: atexit
+	st_value: 0
+	st_size: 43
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 56
+	st_name: chown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 57
+	st_name: read
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 58
+	st_name: fchflags
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 59
+	st_name: strncat
+	st_value: 0
+	st_size: 64
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 60
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 61
+	st_name: acl_get_link_np
+	st_value: 0x8048f44
+	st_size: 92
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 62
+	st_name: readlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 63
+	st_name: getc
+	st_value: 0
+	st_size: 124
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 64
+	st_name: acl_get_file
+	st_value: 0x8048f74
+	st_size: 92
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 65
+	st_name: fstat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 66
+	st_name: strlcpy
+	st_value: 0
+	st_size: 85
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0

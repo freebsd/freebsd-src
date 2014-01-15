@@ -1,0 +1,96 @@
+: README
+: $Id: README 2055 2011-10-26 12:15:06Z jkoshy $
+
+This directory contains a test suite for libelf.
+
+: Pre-requisites
+
+1) TET (Test Execution Toolkit) from The Open Group.
+   http://tetworks.opengroup.org/tet/
+
+2) YAML tools for Python.
+   http://pyyaml.org
+
+On FreeBSD, you may install the following ports:
+   - misc/tet, version 3.7 or later
+   - devel/py-yaml, version 3.04 or later
+
+: Using make(1) to build the test suite
+
+For developers who prefer using make(1) as their build tool, a
+top-level 'Makefile' that builds the test suite is provided.
+
+This Makefile also supports the following targets:
+
+  'tccbuild'	Build the test suite using tcc.
+  'tccclean'	Clean the test suite using tcc.
+  'execute'	Execute the test suite using tcc.
+
+: Notes on TET Configuration
+
+Debugging TET executables is much easier if you've built
+the 'lite' version of TET.  The LibElf test suite does not
+use TET's distributed testing features, so the 'lite' version
+of TET is sufficient.
+
+The 'lite' version of TET does not need further configuration.
+
+If you chosen to install the 'inet' (distributed) version of TET,
+you'll need a minimal ${TET_ROOT}/systems file.  The following
+content in the file is enough for this test suite.
+
+   000 localhost
+
+For the 'inet' version of TET, you'll need `tccd` running, and a
+`systems.equiv` file in the directory of the user running `tccd`.
+The following contents will do for this file:
+
+   localhost
+
+We use regular 'make' as our build tool.  Since make doesn't use
+the TETware API when printing messages we must tell tcc to execute
+make with output capture mode enabled.
+
+TET_BUILD_TOOL=make
+TET_OUTPUT_CAPTURE=True
+
+We'll assume that each test case is in a directory of its
+own and the Makefile in that directory builds that executable
+We don't need the name of the test case to be passed in to 'make'
+
+TET_PASS_TC_NAME=False
+
+Similarly, for cleaning the test suite, we use 'make'.
+
+TET_CLEAN_TOOL=make
+TET_CLEAN_FILE=clean
+
+Since the test cases themselves are API compliant, we'll
+set TET_OUTPUT_CAPTURE=False for test case execution.
+
+: Notes on TET execution
+
+Edit the top-level 'Makefile' and set the TET_ROOT variable to
+the path where the TET test suite is installed.  Once this is
+done:
+
+ * A `make all` at the top level will build the test suite.
+ * A `make execute` will run `tcc`, leaving a log in a `results/`
+   directory.
+
+Here is how to run `tcc` by hand:
+
+ % TET_ROOT=/where/ever TET_EXECUTE=/usr/obj/`pwd` TET_SUITE_ROOT=`pwd` \
+   $TET_ROOT/bin/tcc [-e | -b | -c] .
+
+The TET_ROOT setting points points `tcc` to its configuration files.
+
+TET_EXECUTE points `tcc` to the location of the binaries created by the
+'build' phase.  Since we are using FreeBSD `make`, this path would be
+under ${MAKEOBJDIRPREFIX}.
+
+TET_SUITE_ROOT informs `tcc` that the test suite is NOT located under
+${TET_ROOT}.
+
+If all goes well, `tcc` will create a journal file in the
+'results/NNNN[bec]/' directory under ${PWD}.

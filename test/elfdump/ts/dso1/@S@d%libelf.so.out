@@ -1,0 +1,29 @@
+Dynamic Section:  .dynamic
+     index  tag               value
+       [0]  DT_NEEDED        0x582            libc.so.7
+       [1]  DT_SONAME        0x58c            libelf.so.1
+       [2]  DT_INIT          0x2828
+       [3]  DT_FINI          0x14ec8
+       [4]  DT_HASH          0x120
+       [5]  DT_STRTAB        0x12f8
+       [6]  DT_SYMTAB        0x578
+       [7]  DT_STRSZ         0x5b1
+       [8]  DT_SYMENT        0x18
+       [9]  DT_PLTGOT        0x1183e0
+      [10]  DT_PLTRELSZ      0x378
+      [11]  DT_PLTREL        0x7
+      [12]  DT_JMPREL        0x24b0
+      [13]  DT_RELA          0x1a48
+      [14]  DT_RELASZ        0xa68
+      [15]  DT_RELAENT       0x18
+      [16]  DT_VERDEF        0x19d0
+      [17]  DT_VERDEFNUM     0x3
+      [18]  DT_VERNEED       0x1a28
+      [19]  DT_VERNEEDNUM    0x1
+      [20]  DT_GNU_VERSYM    0x18aa
+      [21]  DT_RELACOUNT     0x6a
+      [22]  DT_NULL          
+      [23]  DT_NULL          
+      [24]  DT_NULL          
+      [25]  DT_NULL          
+      [26]  DT_NULL          

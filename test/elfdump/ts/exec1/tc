@@ -1,0 +1,174 @@
+#!/bin/sh
+#
+# $Id: tc 2083 2011-10-27 04:41:39Z jkoshy $
+
+tp1()
+{
+    run "@e%ls"
+}
+
+tp2()
+{
+    run "@e@p%ls"
+}
+
+tp3()
+{
+    run "@p@e%ls"
+}
+
+tp4()
+{
+    run "@G%ls"
+}
+
+tp5()
+{
+    run "@G@e%ls"
+}
+
+tp6()
+{
+    run "@n%ls"
+}
+
+tp7()
+{
+    run "@p@n%ls"
+}
+
+tp8()
+{
+    run "@p@s%ls"
+}
+
+tp9()
+{
+    run "@c%ls"
+}
+
+tp10()
+{
+    run "@c@s%ls"
+}
+
+tp11()
+{
+    run "@c@p@n%ls"
+}
+
+tp12()
+{
+    run "@e@d%ls"
+}
+
+tp13()
+{
+    run "@c@d%ls"
+}
+
+tp14()
+{
+    run "@e@p@c@d%ls"
+}
+
+tp15()
+{
+    run "@S@e%ls"
+}
+
+tp16()
+{
+    run "@S@e@p%ls"
+}
+
+tp17()
+{
+    run "@S@G%ls"
+}
+
+tp18()
+{
+    run "@S@s@N%.dynsym%ls"
+}
+
+tp19()
+{
+    run "@S@r%ls"
+}
+
+tp20()
+{
+    run "@S@d%ls"
+}
+
+tp21()
+{
+    run "@S@n%ls"
+}
+
+tp22()
+{
+    run "@S@c@s%ls"
+}
+
+tp23()
+{
+    run "@S@e@k%ls"
+}
+
+tp24()
+{
+    run "@S@v%ls"
+}
+
+tp25()
+{
+    run "@S@h%ls"
+}
+
+tp26()
+{
+    run "@S@r@N%.rela.dyn%ls"
+}
+
+tp27()
+{
+    run "@S@r@N%.rela.dyn@N%.rela.plt%ls"
+}
+
+tet_startup=""
+tet_cleanup="cleanup"
+
+iclist="ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25 ic26 ic27"
+
+ic1="tp1"
+ic2="tp2"
+ic3="tp3"
+ic4="tp4"
+ic5="tp5"
+ic6="tp6"
+ic7="tp7"
+ic8="tp8"
+ic9="tp9"
+ic10="tp10"
+ic11="tp11"
+ic12="tp12"
+ic13="tp13"
+ic14="tp14"
+ic15="tp15"
+ic16="tp16"
+ic17="tp17"
+ic18="tp18"
+ic19="tp19"
+ic20="tp20"
+ic21="tp21"
+ic22="tp22"
+ic23="tp23"
+ic24="tp24"
+ic25="tp25"
+ic26="tp26"
+ic27="tp27"
+
+. $TET_SUITE_ROOT/ts/common/func.sh
+. $TET_ROOT/lib/xpg3sh/tcm.sh

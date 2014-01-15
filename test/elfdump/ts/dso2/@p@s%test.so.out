@@ -1,0 +1,735 @@
+
+program header:
+
+entry: 0
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0
+	p_paddr: 0
+	p_filesz: 3116
+	p_memsz: 3116
+	p_flags: PF_X|PF_R
+	p_align: 2097152
+
+entry: 1
+	p_type: PT_LOAD
+	p_offset: 3120
+	p_vaddr: 0x200c30
+	p_paddr: 0x200c30
+	p_filesz: 576
+	p_memsz: 584
+	p_flags: PF_W|PF_R
+	p_align: 2097152
+
+entry: 2
+	p_type: PT_DYNAMIC
+	p_offset: 3160
+	p_vaddr: 0x200c58
+	p_paddr: 0x200c58
+	p_filesz: 400
+	p_memsz: 400
+	p_flags: PF_W|PF_R
+	p_align: 8
+
+entry: 3
+	p_type: PT_NULL
+	p_offset: 2832
+	p_vaddr: 0xb10
+	p_paddr: 0xb10
+	p_filesz: 60
+	p_memsz: 60
+	p_flags: PF_R
+	p_align: 4
+
+entry: 4
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0
+	p_paddr: 0
+	p_filesz: 0
+	p_memsz: 0
+	p_flags: PF_W|PF_R
+	p_align: 8
+
+symbol table (.dynsym):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: 
+	st_value: 0x670
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 2
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 3
+	st_name: __gmon_start__
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 4
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 5
+	st_name: puts
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 6
+	st_name: toupper
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 7
+	st_name: cos
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 8
+	st_name: cosh
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 9
+	st_name: __cxa_finalize
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_WEAK
+	st_shndx: 0
+
+entry: 10
+	st_name: gets
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 11
+	st_name: tolower
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 12
+	st_name: acos
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 13
+	st_name: _end
+	st_value: 0x200e78
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 14
+	st_name: _edata
+	st_value: 0x200e70
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 15
+	st_name: add4
+	st_value: 0x802
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 16
+	st_name: mathstring
+	st_value: 0x828
+	st_size: 538
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 17
+	st_name: add2
+	st_value: 0x7de
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 18
+	st_name: add
+	st_value: 0x7cc
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 19
+	st_name: __bss_start
+	st_value: 0x200e70
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 20
+	st_name: _init
+	st_value: 0x670
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 8
+
+entry: 21
+	st_name: _fini
+	st_value: 0xa88
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 22
+	st_name: add3
+	st_value: 0x7f0
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 23
+	st_name: sub
+	st_value: 0x814
+	st_size: 20
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: 
+	st_value: 0x158
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 2
+	st_name: 
+	st_value: 0x1a8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 2
+
+entry: 3
+	st_name: 
+	st_value: 0x3e8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0x4ac
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0x4e0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0x520
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: 
+	st_value: 0x598
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 8
+	st_name: 
+	st_value: 0x670
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: 
+	st_value: 0x688
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 9
+
+entry: 10
+	st_name: 
+	st_value: 0x730
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 10
+
+entry: 11
+	st_name: 
+	st_value: 0xa88
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 11
+
+entry: 12
+	st_name: 
+	st_value: 0xa98
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 12
+
+entry: 13
+	st_name: 
+	st_value: 0xb10
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 13
+
+entry: 14
+	st_name: 
+	st_value: 0xb50
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 14
+
+entry: 15
+	st_name: 
+	st_value: 0x200c30
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 15
+
+entry: 16
+	st_name: 
+	st_value: 0x200c40
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 16
+
+entry: 17
+	st_name: 
+	st_value: 0x200c50
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 17
+
+entry: 18
+	st_name: 
+	st_value: 0x200c58
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 18
+
+entry: 19
+	st_name: 
+	st_value: 0x200de8
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 19
+
+entry: 20
+	st_name: 
+	st_value: 0x200e00
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 20
+
+entry: 21
+	st_name: 
+	st_value: 0x200e60
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 21
+
+entry: 22
+	st_name: 
+	st_value: 0x200e70
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 22
+
+entry: 23
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 23
+
+entry: 24
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 24
+
+entry: 25
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 25
+
+entry: 26
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 26
+
+entry: 27
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 27
+
+entry: 28
+	st_name: initfini.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 29
+	st_name: /home/aurel32/debian/co-packages/glibc/etch/glibc-2.3.6.ds1/build-tree/amd64-libc/csu/crti.S
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 30
+	st_name: call_gmon_start
+	st_value: 0x730
+	st_size: 0
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 10
+
+entry: 31
+	st_name: crtstuff.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 32
+	st_name: __CTOR_LIST__
+	st_value: 0x200c30
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 15
+
+entry: 33
+	st_name: __DTOR_LIST__
+	st_value: 0x200c40
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 16
+
+entry: 34
+	st_name: __JCR_LIST__
+	st_value: 0x200c50
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 17
+
+entry: 35
+	st_name: completed.5959
+	st_value: 0x200e70
+	st_size: 1
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 22
+
+entry: 36
+	st_name: p.5957
+	st_value: 0x200e68
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 21
+
+entry: 37
+	st_name: __do_global_dtors_aux
+	st_value: 0x750
+	st_size: 0
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 10
+
+entry: 38
+	st_name: frame_dummy
+	st_value: 0x7a0
+	st_size: 0
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 10
+
+entry: 39
+	st_name: crtstuff.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 40
+	st_name: __CTOR_END__
+	st_value: 0x200c38
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 15
+
+entry: 41
+	st_name: __DTOR_END__
+	st_value: 0x200c48
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 16
+
+entry: 42
+	st_name: __FRAME_END__
+	st_value: 0xc28
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 14
+
+entry: 43
+	st_name: __JCR_END__
+	st_value: 0x200c50
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 17
+
+entry: 44
+	st_name: __do_global_ctors_aux
+	st_value: 0xa50
+	st_size: 0
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 10
+
+entry: 45
+	st_name: initfini.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 46
+	st_name: /home/aurel32/debian/co-packages/glibc/etch/glibc-2.3.6.ds1/build-tree/amd64-libc/csu/crtn.S
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 47
+	st_name: test2.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 48
+	st_name: _GLOBAL_OFFSET_TABLE_
+	st_value: 0x200e00
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 65521
+
+entry: 49
+	st_name: __dso_handle
+	st_value: 0x200e60
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 21
+
+entry: 50
+	st_name: _DYNAMIC
+	st_value: 0x200c58
+	st_size: 0
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 65521
+
+entry: 51
+	st_name: printf@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 52
+	st_name: mathstring
+	st_value: 0x828
+	st_size: 538
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 53
+	st_name: __gmon_start__
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 54
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 55
+	st_name: puts@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 56
+	st_name: toupper@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 57
+	st_name: _fini
+	st_value: 0xa88
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 11
+
+entry: 58
+	st_name: add3
+	st_value: 0x7f0
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 59
+	st_name: cos@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 60
+	st_name: cosh@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 61
+	st_name: __cxa_finalize@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_WEAK
+	st_shndx: 0
+
+entry: 62
+	st_name: add2
+	st_value: 0x7de
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 63
+	st_name: gets@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 64
+	st_name: add
+	st_value: 0x7cc
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 65
+	st_name: __bss_start
+	st_value: 0x200e70
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 66
+	st_name: tolower@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 67
+	st_name: acos@@GLIBC_2.2.5
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 68
+	st_name: _end
+	st_value: 0x200e78
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 69
+	st_name: _edata
+	st_value: 0x200e70
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 70
+	st_name: sub
+	st_value: 0x814
+	st_size: 20
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 71
+	st_name: _init
+	st_value: 0x670
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 8
+
+entry: 72
+	st_name: add4
+	st_value: 0x802
+	st_size: 18
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10

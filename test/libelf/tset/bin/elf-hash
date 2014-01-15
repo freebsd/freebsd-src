@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+#
+# $Id: elf-hash 2054 2011-10-26 12:12:06Z jkoshy $
+
+import sys, os
+
+def elf_hash(s):
+	"""A python implementation of elf_hash(3)."""
+	h = 0L
+	for c in s:
+		h = (h << 4) + ord(c)
+		t = (h & 0xF0000000L)
+		if t != 0:
+			h = h ^ (t >> 24)
+		h = h & ~t
+	return h
+
+
+if __name__ == '__main__':
+	from optparse import OptionParser
+
+	usage = "usage: %prog [options] files...\n" + \
+		"       print ELF hash values for strings or file contents"
+
+	p = OptionParser(usage=usage)
+	p.add_option("-s", "--string", dest="hash_strings",
+		action="append", metavar="STRING",
+		help="compute hash for STRING")
+
+	options, args = p.parse_args()
+	if not options.hash_strings and not args:
+		p.print_help()
+		sys.exit(1)
+
+	if options.hash_strings:
+		for s in options.hash_strings:
+	 		print "\"%s\" 0x%x" % (s, elf_hash(s))
+	for f in args:
+		print "[%s] 0x%x" % (f, elf_hash(open(f,'r').read()))

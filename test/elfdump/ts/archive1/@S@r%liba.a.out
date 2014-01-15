@@ -1,0 +1,33 @@
+
+liba.a(a1.o):
+
+Relocation Section:  .rel.text
+        type                          offset     section        with respect to
+        R_386_32                         0x5     .rel.text      a
+        R_386_32                        0x16     .rel.text      a
+
+liba.a(a2.o):
+
+Relocation Section:  .rel.text
+        type                          offset     section        with respect to
+        R_386_32                         0xa     .rel.text      msg
+        R_386_32                        0x11     .rel.text      .rodata (section)
+        R_386_PC32                      0x16     .rel.text      printf
+
+liba.a(a3.o):
+
+Relocation Section:  .rel.text
+        type                          offset     section        with respect to
+        R_386_32                         0x5     .rel.text      x
+        R_386_32                         0xf     .rel.text      y
+        R_386_32                        0x19     .rel.text      x
+        R_386_32                        0x27     .rel.text      y
+
+liba.a(a4.o):
+
+Relocation Section:  .rel.text
+        type                          offset     section        with respect to
+        R_386_32                         0xa     .rel.text      msg2
+        R_386_32                        0x12     .rel.text      msg1
+        R_386_32                        0x19     .rel.text      .rodata (section)
+        R_386_PC32                      0x1e     .rel.text      printf

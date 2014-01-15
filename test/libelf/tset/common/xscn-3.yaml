@@ -1,0 +1,26 @@
+%YAML 1.1
+# $Id: xscn-3.yaml 2053 2011-10-26 11:50:18Z jkoshy $
+---
+#
+# This file is used for tests requiring malformed extended section
+# numbering for elf_getshstrndx().  'e_shnum' is set to zero, but
+# the section at index SHN_UNDEF is not of type SHT_NULL. `e_shstrndx'
+# corresponds to a section > SHN_LORESERVE.
+
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data:  ELFDATANONE
+  e_type: ET_REL
+  e_shnum: 0
+  e_shstrndx: 65537
+
+sections:
+ - !Section # index 0
+   sh_type: SHT_PROGBITS
+ - !Section
+   sh_type: SHT_STRTAB
+   sh_index: 65537
+   sh_name: .shstrtab
+   sh_data:
+   - .shstrtab

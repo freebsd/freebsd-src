@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $Id: count-ic 2084 2011-10-27 04:48:12Z jkoshy $
+#
+# This shell script generates ic_count.c which contains a single
+# variable definition `ic_count'. Variable `ic_count' is assigned
+# the number of IC (invocable components) in the directory `dir'.
+# The script count IC number by simply counting the number
+# of .xml.gz files contained in the `dir', based on the fact that
+# one .xml.gz file defines exactly one IC.
+
+usage()
+{
+    echo "usage:" `basename $0` "dir"
+}
+
+
+if [ $# -ne 1 ]; then
+    usage
+    exit 1
+fi
+
+dir=$1
+
+if [ ! -d ${dir} ]; then
+    echo "${dir} does not exist or is not a directory"
+    exit 1
+fi
+
+count=`ls ${dir}/*.xml.gz | wc -l | awk '{print $1}'`
+output="${dir}/ic_count.c"
+
+exec > ${output}
+echo "
+/* WARNING GENERATED FILE */
+
+int ic_count = ${count};
+"

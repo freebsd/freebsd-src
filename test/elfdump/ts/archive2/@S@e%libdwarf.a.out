@@ -1,0 +1,156 @@
+
+libdwarf.a(dwarf_loc.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   11
+  e_shoff:                0x1008  e_shentsize:  64  e_shnum:      14
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_init.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   12
+  e_shoff:                0x16e8  e_shentsize:  64  e_shnum:      15
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_form.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    9
+  e_shoff:                 0x140  e_shentsize:  64  e_shnum:      12
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_finish.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    9
+  e_shoff:                 0x470  e_shentsize:  64  e_shnum:      12
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_errno.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    7
+  e_shoff:                  0xf0  e_shentsize:  64  e_shnum:      10
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_dealloc.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    7
+  e_shoff:                  0xe8  e_shentsize:  64  e_shnum:      10
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_attrval.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   10
+  e_shoff:                 0x940  e_shentsize:  64  e_shnum:      13
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_attr.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    9
+  e_shoff:                 0x2a8  e_shentsize:  64  e_shnum:      12
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_abbrev.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    9
+  e_shoff:                 0x228  e_shentsize:  64  e_shnum:      12
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_dump.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   12
+  e_shoff:                0x2490  e_shentsize:  64  e_shnum:      15
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_die.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   11
+  e_shoff:                 0x580  e_shentsize:  64  e_shnum:      14
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_cu.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:    9
+  e_shoff:                 0x210  e_shentsize:  64  e_shnum:      12
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0
+
+libdwarf.a(dwarf_errmsg.o):
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS64          ei_data:      ELFDATA2LSB
+  e_machine:  EM_X86_64           e_version:    EV_CURRENT
+  e_type:     ET_REL
+  e_flags:                     0
+  e_entry:                     0  e_ehsize:     64  e_shstrndx:   11
+  e_shoff:                 0x3d8  e_shentsize:  64  e_shnum:      14
+  e_phoff:                     0  e_phentsize:   0  e_phnum:       0

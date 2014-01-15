@@ -1,0 +1,33 @@
+
+data.o:
+
+usage.o:
+                 U _CurrentRuneLocale
+                 U __mb_sb_limit
+                 U err
+                 U errx
+                 U fclose
+                 U fgets
+                 U fmtcheck
+                 U fopen
+                 U malloc
+                 U realloc
+                 U sprintf
+                 U sscanf
+                 U strchr
+                 U strcmp
+                 U strdup
+                 U strncmp
+
+parse.o:
+                 U free
+                 U malloc
+                 U memcpy
+                 U memset
+
+descr.o:
+                 U __error
+                 U free
+                 U ioctl
+                 U malloc
+                 U memcpy

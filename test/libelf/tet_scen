@@ -1,0 +1,116 @@
+# LibElf Test Suite
+
+# Scenario file
+
+# $Id: tet_scen 1638 2011-07-10 15:43:19Z jkoshy $
+
+all
+	^abi
+	^elf32_getehdr
+	^elf32_getphdr
+	^elf32_getshdr
+	^elf32_newehdr
+	^elf32_xlatetof
+	^elf32_xlatetom
+	^elf64_getehdr
+	^elf64_getphdr
+	^elf64_getshdr
+	^elf64_newehdr
+	^elf64_xlatetof
+	^elf64_xlatetom
+	^elf_begin
+	^elf_cntl
+	^elf_end
+	^elf_errmsg
+	^elf_errno
+	^elf_fill
+	^elf_flagarhdr
+	^elf_flagdata
+	^elf_flagehdr
+	^elf_flagelf
+	^elf_flagphdr
+	^elf_flagscn
+	^elf_flagshdr
+	^elf_fsize
+	^elf_getarhdr
+	^elf_getarsym
+	^elf_getbase
+	^elf_getdata
+	^elf_getident
+	^elf_getscn
+	^elf_getshnum
+	^elf_getshstrndx
+	^elf_hash
+	^elf_kind
+	^elf_memory
+	^elf_ndxscn
+	^elf_newscn
+	^elf_next
+	^elf_nextscn
+	^elf_rawfile
+	^elf_strptr
+	^elf_update
+	^elf_version
+	^gelf_getclass
+	^gelf_getehdr
+	^gelf_newehdr
+	^gelf_xlate
+
+abi		:include:/tset/abi/tet_scen
+elf32_getehdr	:include:/tset/elf32_getehdr/tet_scen
+elf32_getphdr	:include:/tset/elf32_getphdr/tet_scen
+elf32_getshdr	:include:/tset/elf32_getshdr/tet_scen
+elf32_newehdr	:include:/tset/elf32_newehdr/tet_scen
+elf32_xlatetof	:include:/tset/elf32_xlatetof/tet_scen
+elf32_xlatetom	:include:/tset/elf32_xlatetom/tet_scen
+elf64_getehdr	:include:/tset/elf64_getehdr/tet_scen
+elf64_getphdr	:include:/tset/elf64_getphdr/tet_scen
+elf64_getshdr	:include:/tset/elf64_getshdr/tet_scen
+elf64_newehdr	:include:/tset/elf64_newehdr/tet_scen
+elf64_xlatetof	:include:/tset/elf64_xlatetof/tet_scen
+elf64_xlatetom	:include:/tset/elf64_xlatetom/tet_scen
+elf_begin	:include:/tset/elf_begin/tet_scen
+elf_cntl	:include:/tset/elf_cntl/tet_scen
+elf_end		:include:/tset/elf_end/tet_scen
+elf_errmsg	:include:/tset/elf_errmsg/tet_scen
+elf_errno	:include:/tset/elf_errno/tet_scen
+elf_fill	:include:/tset/elf_fill/tet_scen
+elf_flagarhdr	:include:/tset/elf_flagarhdr/tet_scen
+elf_flagdata	:include:/tset/elf_flagdata/tet_scen
+elf_flagehdr	:include:/tset/elf_flagehdr/tet_scen
+elf_flagelf	:include:/tset/elf_flagelf/tet_scen
+elf_flagphdr	:include:/tset/elf_flagphdr/tet_scen
+elf_flagscn	:include:/tset/elf_flagscn/tet_scen
+elf_flagshdr	:include:/tset/elf_flagshdr/tet_scen
+elf_fsize	:include:/tset/elf_fsize/tet_scen
+elf_getarhdr	:include:/tset/elf_getarhdr/tet_scen
+elf_getarsym	:include:/tset/elf_getarsym/tet_scen
+elf_getbase	:include:/tset/elf_getbase/tet_scen
+elf_getdata	:include:/tset/elf_getdata/tet_scen
+elf_getident	:include:/tset/elf_getident/tet_scen
+elf_getscn	:include:/tset/elf_getscn/tet_scen
+elf_getshnum	:include:/tset/elf_getshnum/tet_scen
+elf_getshstrndx	:include:/tset/elf_getshstrndx/tet_scen
+elf_hash	:include:/tset/elf_hash/tet_scen
+elf_kind	:include:/tset/elf_kind/tet_scen
+elf_memory	:include:/tset/elf_memory/tet_scen
+elf_ndxscn	:include:/tset/elf_ndxscn/tet_scen
+elf_newscn	:include:/tset/elf_newscn/tet_scen
+elf_next	:include:/tset/elf_next/tet_scen
+elf_nextscn	:include:/tset/elf_nextscn/tet_scen
+elf_rawfile	:include:/tset/elf_rawfile/tet_scen
+elf_strptr	:include:/tset/elf_strptr/tet_scen
+elf_update	:include:/tset/elf_update/tet_scen
+elf_version	:include:/tset/elf_version/tet_scen
+gelf_getclass	:include:/tset/gelf_getclass/tet_scen
+gelf_getehdr	:include:/tset/gelf_getehdr/tet_scen
+gelf_newehdr	:include:/tset/gelf_newehdr/tet_scen
+gelf_xlate	:include:/tset/gelf_xlate/tet_scen
+
+#
+# Other aliases
+#
+getehdr
+	^elf32_getehdr
+	^elf64_getehdr
+	^gelf_getehdr

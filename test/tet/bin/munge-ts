@@ -1,0 +1,168 @@
+#!/bin/sh
+#
+# $Id: munge-ts 2834 2012-12-30 16:34:47Z jkoshy $
+#
+# This shell script generates scaffolding for a TET C API test case
+# given a list of objects that use the TET C API.
+#
+# - If the TET extended API function "tet_isdefic" is present, then
+#   no scaffolding is generated.  In such cases, the test case
+#   is assumed to be self-sufficient.
+#
+# - If the symbol "tet_testlist[]' is defined, then no scaffolding is
+#   generated.
+#
+# - Otherwise, a "struct tet_testlist []" array is generated from the
+#   names of public functions in the objects.
+#
+#   Functions with names matching "^tp\(.*\)" are treated as test
+#   purposes belonging to a test case named "Default".
+#
+#   Functions with names matching '^tc\([a-zA-Z0-9_]+\)' are treated
+#   as test case names.
+#
+#   Functions with names matching '^tc\([a-zA-Z0-9_]*\)_tp.*'
+#   are treated as test purposes belonging to the test case named
+#   by the first regular expression.  Test purposes in a given test
+#   case are invoked in lexicographic sort order.
+#
+# - If variables "tet_startup" or "tet_cleanup" are not defined in the
+#   objects given to the script, a suitable NULL pointer definition
+#   is generated.
+#
+# - A scenario file that invokes each test case independently of the
+#   others is generated.  This scenario file is intended to be
+#   included, using TET's ":include:" syntax, from a higher-level
+#   scenario file.
+
+usage()
+{
+	echo Usage: `basename $0`: "[options] objects..."
+	echo
+	/bin/echo -e "    Generate TET scaffolding from objects.   " \
+	    "Options include:"
+	/bin/echo -e "\t-o out\t\tcreate output file \"out\" " \
+	    "[default \"tc.c\"]."
+	/bin/echo -e "\t-s scen\t\tcreate scenario file \"scen\" " \
+	    "[default \"tet_scen\"]."
+	/bin/echo -e "\t-p prefix\t\tprefix for naming test cases"
+}
+
+output="tc.c"
+scen="tet_scen"
+
+args=`getopt o:p:s: $*`
+if [ ${?} -ne 0 ]; then
+	usage
+	exit 2
+fi
+
+set -- ${args}
+
+for i
+do
+	case "${i}" in
+	-o )
+		output="${2}";
+		shift; shift;;
+	-p )
+		prefix="${2}";
+		shift; shift;;
+	-s )
+		scen="${2}";
+		shift; shift;;
+	-- )
+		shift; break;;
+	esac
+done
+
+if [ ${#} -eq 0 ]; then
+	usage
+	exit 2
+fi
+
+exec > ${output}
+echo "\
+/*
+ * WARNING! WARNING! WARNING! WARNING! WARNING! WARNING!
+ *
+ * THIS FILE IS GENERATED FROM: ${@}
+ */
+#include <tet_api.h>"
+
+if ! nm ${*} | sort -k 3 | \
+	awk -v scen=${scen} -v prefix=${prefix} '
+	BEGIN {	do_scaffolding = 1; tcseq[ntc++] = "Default"; }
+	$2 == "T" && $3 ~ "^tc" {
+		fnname = substr($3,3);
+
+		if (match(fnname, "^.*_tp"))
+			tcname = substr(fnname,RSTART,RLENGTH-3);
+		else
+			tcname = fnname;
+
+		if (ptc != tcname) {
+			tcseq[ntc++] = tcname;
+			ptc = tcname;
+		}
+
+		c = tc[tcname]++;
+		tp[tcname,c] = $3
+	}
+	$2 == "T" && $3 ~ "^tp" {
+		tcname = "Default";
+
+		c = tc[tcname]++;
+		tp[tcname,c++] = $3;
+	}
+	$2 == "T" && $3 == "tet_isdefic" { do_scaffolding = 0 }
+	$2 == "D" && $3 == "tet_testlist" { do_scaffolding = 0 }
+	$2 == "D" && $3 == "tet_cleanup" { has_tc_cleanup = 1 }
+	$2 == "D" && $3 == "tet_startup" { has_tc_startup = 1 }
+	$1 == "U" && $2 == "elfts_compare_files" {
+		printf("#include \"elfts-compare-files.c\"\n");
+	}
+	$1 == "U" && $2 == "elfts_copy_file" {
+		printf("#include \"elfts-copy-file.c\"\n");
+	}
+	$1 == "U" && $2 == "elfts_init_version" {
+		printf("#include \"elfts-initversion.c\"\n");
+	}
+	$1 == "U" && $2 == "elfts_open_file" {
+		printf("#include \"elfts-openfile.c\"\n");
+	}
+	END {
+		if (do_scaffolding == 0)
+			exit(1);
+
+		if (has_tc_startup == 0) {
+			printf("void (*tet_startup)(void) = NULL;\n");
+		}
+
+		if (has_tc_cleanup == 0) {
+			printf("void (*tet_cleanup)(void) = NULL;\n");
+		}
+
+		for (tcname in tc) {
+			nc = tc[tcname];
+			for (c = 0; c < nc; c++)
+				printf("void %s();\n", tp[tcname,c]);
+		}
+
+		printf("struct tet_testlist tet_testlist[] = {\n");
+
+		n = 0;
+		for (n = 0; n < ntc; n++) {
+			tcname = tcseq[n];
+			nc = tc[tcname];
+			for (c = 0; c < nc; c++) {
+				printf("\t{%s,%d},\n", tp[tcname,c], n);
+			}
+			if (nc > 0)
+				printf("/%s{%d}\n", prefix, n) > scen;
+		}
+		printf("\t{NULL,0} };\n");
+	}'; then
+	rm ${output} ${scen}
+	exit 1
+fi
