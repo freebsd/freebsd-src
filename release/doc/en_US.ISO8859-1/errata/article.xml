@@ -143,7 +143,32 @@
   <sect1 xml:id="open-issues">
     <title>Open Issues</title>
 
-    <para>No open issues.</para>
+    <itemizedlist>
+      <listitem>
+	<para>&os;/&arch.i386; &release.prev; running as a guest
+	  operating system on <application>VirtualBox</application>
+	  can have a problem with disk I/O access.  It depends on some
+	  specific hardware configuration and does not depend on a
+	  specific version of <application>VitrualBox</application> or
+	  host operating system.</para>
+
+	<para>It causes various errors and makes &os; quite unstable.
+	  Although the cause is still unclear, disabling unmapped I/O
+	  works as a workaround.  To disable it, choose <literal>Escape to
+	    loader prompt</literal> in the boot menu and enter the following
+	  lines from &man.loader.8; prompt, after
+	  an <literal>OK</literal>:</para>
+
+	<screen>set vfs.unmapped_buf_allowed=0
+boot</screen>
+
+	<para>Note that the following line has to be added to
+	  <filename>/boot/loader.conf</filename> after a boot.
+          It disables unmapped I/O at every boot:</para>
+
+	<programlisting>vfs.unmapped_buf_allowed=0</programlisting>
+      </listitem>
+    </itemizedlist>
   </sect1>
 
   <sect1 xml:id="late-news">
