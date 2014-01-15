@@ -166,7 +166,7 @@ static void
 tcpdump_sandbox_destroy(struct tcpdump_sandbox *sb)
 {
 
-	free((void *)sb->tds_name);
+	sandbox_object_destroy(sb->tds_sandbox_object);
 	free(sb);
 }
 
