@@ -38,7 +38,7 @@
     </legalnotice>
 
   <abstract>
-    <para>This document lists errata items for &os; &release;,
+    <para>This document lists errata items for &os; &release.prev;,
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
       release documentation.
@@ -48,7 +48,7 @@
       should always be consulted before installing this version of
       &os;.</para>
 
-    <para>This errata document for &os; &release;
+    <para>This errata document for &os; &release.prev;
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
   </info>
@@ -57,7 +57,7 @@
     <title>Introduction</title>
 
     <para>This errata document contains <quote>late-breaking news</quote>
-      about &os; &release;
+      about &os; &release.prev;
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
