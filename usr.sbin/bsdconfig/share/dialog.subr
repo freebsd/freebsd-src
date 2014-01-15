@@ -296,6 +296,7 @@ f_dialog_backtitle_restore()
 #
 f_dialog_max_size()
 {
+	local funcname=f_dialog_max_size
 	local __var_height="$1" __var_width="$2" __max_size
 	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 	if [ "$USE_XDIALOG" ]; then
@@ -304,11 +305,14 @@ f_dialog_max_size()
 		if __max_size=$( $DIALOG --print-maxsize \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
 		then
+			f_dprintf "$funcname: %s --print-maxsize = [%s]" \
+			          "$DIALOG" "$__max_size"
 			# usually "MaxSize: 24, 80"
 			__max_size="${__max_size#*: }"
 			f_replaceall "$__max_size" "," "" __max_size
 		else
-			__max_size=$( stty size 2> /dev/null )
+			f_eval_catch -dk __max_size $funcname stty \
+				'stty size' || __max_size=
 			# usually "24 80"
 		fi
 		: ${__max_size:=$DEFAULT_TERMINAL_SIZE}
@@ -2052,6 +2056,8 @@ f_dialog_menutag2index_with_help()
 #
 f_dialog_init()
 {
+	local funcname=f_dialog_init
+
 	DIALOG_SELF_INITIALIZE=
 	USE_DIALOG=1
 
@@ -2140,7 +2146,7 @@ f_dialog_init()
 			DIALOG=dialog
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
-		HOSTNAME=$(hostname)
+		HOSTNAME=$( hostname )
 		local displaynum="${DISPLAY#*:}"
 		eval xauth -if \~$SUDO_USER/.Xauthority extract - \
 			\"\$HOSTNAME/unix:\$displaynum\" \
@@ -2154,7 +2160,8 @@ f_dialog_init()
 	#
 	if [ "$USE_XDIALOG" ]; then
 		local maxsize
-		if ! maxsize=$( LANG= LC_ALL= $DIALOG --print-maxsize 2>&1 )
+		if ! f_eval_catch -dk maxsize $funcname "$DIALOG" \
+			'LANG= LC_ALL= %s --print-maxsize' "$DIALOG"
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG

@@ -428,6 +428,7 @@ END { exit retval }
 '
 f_sysrc_set()
 {
+	local funcname=f_sysrc_set
 	local varname="$1" new_value="$2"
 
 	# Check arguments
@@ -478,8 +479,12 @@ f_sysrc_set()
 	#
 	# Create a new temporary file to write to.
 	#
-	local tmpfile="$( mktemp -t "$pgm" )"
-	[ "$tmpfile" ] || return $FAILURE
+	local tmpfile
+	if ! f_eval_catch -dk tmpfile $funcname mktemp 'mktemp -t "%s"' "$pgm"
+	then
+		echo "$tmpfile" >&2
+		return $FAILURE
+	fi
 
 	#
 	# Fixup permissions (else we're in for a surprise, as mktemp(1) creates
@@ -488,8 +493,9 @@ f_sysrc_set()
 	# permissions from the temporary file).
 	#
 	local mode
-	mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
-	f_quietly chmod "${mode:-0644}" "$tmpfile"
+	f_eval_catch -dk mode $funcname stat 'stat -f "%%#Lp" "%s"' "$file" ||
+		mode=0644
+	f_eval_catch -d $funcname chmod 'chmod "%s" "%s"' "$mode" "$tmpfile"
 
 	#
 	# Fixup ownership. The destination file _is_ writable (we tested
@@ -497,8 +503,9 @@ f_sysrc_set()
 	# permissions (so we throw stderr into the bit-bucket).
 	#
 	local owner
-	owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
-	f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+	f_eval_catch -dk owner $funcname stat \
+		'stat -f "%%u:%%g" "%s"' "$file" || owner="root:wheel"
+	f_eval_catch -d $funcname chown 'chown "%s" "%s"' "$owner" "$tmpfile"
 
 	#
 	# Operate on the matching file, replacing only the last occurrence.
@@ -520,7 +527,7 @@ f_sysrc_set()
 	#
 	# Taint-check our results.
 	#
-	if ! /bin/sh -n "$tmpfile"; then
+	if ! f_eval_catch -d $funcname sh '/bin/sh -n "%s"' "$tmpfile"; then
 		f_err "$msg_previous_syntax_errors\n" "$pgm" "$file"
 		rm -f "$tmpfile"
 		return $FAILURE
@@ -529,7 +536,7 @@ f_sysrc_set()
 	#
 	# Finally, move the temporary file into place.
 	#
-	mv "$tmpfile" "$file"
+	f_eval_catch -de $funcname mv 'mv "%s" "%s"' "$tmpfile" "$file"
 }
 
 # f_sysrc_delete $varname
@@ -560,6 +567,7 @@ END { exit ! found }
 '
 f_sysrc_delete()
 {
+	local funcname=f_sysrc_delete
 	local varname="$1"
 	local file
 
@@ -569,24 +577,33 @@ f_sysrc_delete()
 	#
 	# Operate on each of the specified files
 	#
+	local tmpfile
 	for file in ${RC_CONFS-$( f_sysrc_get rc_conf_files )}; do
 		[ -e "$file" ] || continue
 
 		#
 		# Create a new temporary file to write to.
 		#
-		local tmpfile="$( mktemp -t "$pgm" )"
-		[ "$tmpfile" ] || return $FAILURE
+		if ! f_eval_catch -dk tmpfile $funcname mktemp \
+			'mktemp -t "%s"' "$pgm"
+		then
+			echo "$tmpfile" >&2
+			return $FAILURE
+		fi
 
 		#
 		# Fixup permissions and ownership (mktemp(1) defaults to 0600
 		# permissions) to instead match the destination file.
 		#
 		local mode owner
-		mode=$( stat -f '%#Lp' "$file" 2> /dev/null )
-		owner=$( stat -f '%u:%g' "$file" 2> /dev/null )
-		f_quietly chmod "${mode:-0644}" "$tmpfile"
-		f_quietly chown "${owner:-root:wheel}" "$tmpfile"
+		f_eval_catch -dk mode $funcname stat \
+			'stat -f "%%#Lp" "%s"' "$file" || mode=0644
+		f_eval_catch -dk owner $funcname stat \
+			'stat -f "%%u:%%g" "%s"' "$file" || owner="root:wheel"
+		f_eval_catch -d $funcname chmod \
+			'chmod "%s" "%s"' "$mode" "$tmpfile"
+		f_eval_catch -d $funcname chown \
+			'chown "%s" "%s"' "$owner" "$tmpfile"
 
 		#
 		# Operate on the file, removing all occurrences, saving the
@@ -603,7 +620,8 @@ f_sysrc_delete()
 		#
 		# Taint-check our results.
 		#
-		if ! /bin/sh -n "$tmpfile"; then
+		if ! f_eval_catch -d $funcname sh '/bin/sh -n "%s"' "$tmpfile"
+		then
 			f_err "$msg_previous_syntax_errors\n" \
 			      "$pgm" "$file"
 			rm -f "$tmpfile"
@@ -622,7 +640,8 @@ f_sysrc_delete()
 		#
 		# Finally, move the temporary file into place.
 		#
-		mv "$tmpfile" "$file"
+		f_eval_catch -de $funcname mv \
+			'mv "%s" "%s"' "$tmpfile" "$file" || return $FAILURE
 	done
 }
 

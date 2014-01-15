@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -144,7 +144,8 @@ case "$mtag" in
 	f_dialog_title "$msg_value_required"
 	f_dialog_input blanktime "$msg_enter_timeout_period" \
 	               "$( f_sysrc_get blanktime )" &&
-		f_sysrc_set blanktime "$blanktime" || f_die
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set blanktime "%s"' "$blanktime" || f_die
 	f_dialog_title_restore
 	exit $SUCCESS
 esac
@@ -180,7 +181,8 @@ case "$mtag" in
 esac
 
 if [ "$saver_to_set" ]; then
-	f_sysrc_set saver "$saver_to_set" || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set saver "%s"' "$saver_to_set" || f_die
 	break
 else
 	f_die 1 "$msg_unknown_saver"

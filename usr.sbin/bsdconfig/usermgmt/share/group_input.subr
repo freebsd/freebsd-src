@@ -371,15 +371,12 @@ f_dialog_input_group_members()
 				# pressed ESC or chose Cancel/No
 			f_dialog_data_sanitize _group_members
 
+			#
 			# Convert the newline separated list into a comma-
 			# separated one so that if the user switches over to
 			# manual editing, list reflects checklist selections
-			_group_members=$( echo "$_group_members" |
-				tr '\n' ' ' |
-				sed -e 's/[[:space:]]\{1,\}/,/g;s/^,//;s/,$//'
-			)
-
-			_input="$_group_members"
+			#
+			f_replaceall "$_group_members" "[$IFS]" "," _input
 			;;
 		2) # Enter Group Members manually
 			local p="$msg_group_members ($msg_separated_by_commas)"
