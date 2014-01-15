@@ -17,8 +17,8 @@
       <a href="http://www.FreeBSD.org/docs.html">documentation</a> before
       contacting &lt;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&gt;.</small></p>
 
-    <p align="center"><small>All users of FreeBSD <xsl:value-of select="$release.branch"/> should
-      subscribe to the &lt;<a href="mailto:current@FreeBSD.org">current@FreeBSD.org</a>&gt;
+    <p align="center"><small>All users of FreeBSD stable should
+      subscribe to the &lt;<a href="mailto:stable@FreeBSD.org">stable@FreeBSD.org</a>&gt;
       mailing list.</small></p>
   
     <p align="center"><small>For questions about this documentation,
