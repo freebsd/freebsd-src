@@ -334,10 +334,9 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 
 	/* Reset the sandbox if time or packet count exceeded */
 	if (ctdc->ctdc_sb_max_packets > 0 &&
-	    sb->tds_current_invokes >= ctdc->ctdc_sb_max_packets) {
-		assert(sb->tds_current_invokes == ctdc->ctdc_sb_max_packets);
+	    sb->tds_current_invokes >= ctdc->ctdc_sb_max_packets)
 		tcpdump_sandbox_reset(sb);
-	} else if (ctdc->ctdc_sb_max_lifetime > 0) {
+	else if (ctdc->ctdc_sb_max_lifetime > 0) {
 		gettimeofday(&now, NULL);
 		if (now.tv_sec - sb->tds_current_start.tv_sec >
 		    ctdc->ctdc_sb_max_lifetime)
