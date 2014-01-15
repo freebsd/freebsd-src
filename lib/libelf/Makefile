@@ -4,10 +4,6 @@
 TOP=	${.CURDIR}/../../contrib/elftoolchain
 SRCDIR=	${TOP}/libelf
 
-CFLAGS+=	-I.			# OBJDIR
-CFLAGS+=	-I${SRCDIR}		# Sources
-CFLAGS+=	-I${TOP}/common		# common code
-
 .PATH:	${SRCDIR}
 
 LIB=	elf
@@ -72,6 +68,7 @@ INCSDIR=	/usr/include
 
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
+CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common
 
 SHLIB_MAJOR=	1
 
