@@ -1,0 +1,17 @@
+
+elf header:
+
+	e_ident: ELFCLASS64 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_DYN
+	e_machine: EM_X86_64
+	e_version: EV_CURRENT
+	e_entry: 0x2aa0
+	e_phoff: 64
+	e_shoff: 104816
+	e_flags: 0
+	e_ehsize: 64
+	e_phentsize: 56
+	e_phnum: 4
+	e_shentsize: 64
+	e_shnum: 25
+	e_shstrndx: 24

@@ -1,0 +1,23 @@
+%YAML 1.1
+# $Id: ehdr.yaml 2053 2011-10-26 11:50:18Z jkoshy $
+---
+ehdr: !Ehdr
+  e_ident: !Ident # e_ident[] members
+    ei_class:      ELFCLASSNONE
+    ei_data:       ELFDATANONE
+    ei_osabi:      ELFOSABI_FREEBSD
+    ei_abiversion: 1
+  # other members
+  e_type:       ET_REL
+  e_machine:    0x42
+  e_version:    EV_CURRENT
+  e_entry:      0xF0F0F0F0
+  e_phoff:      0x0E0E0E0E
+  e_shoff:      0xD0D0D0D0
+  e_flags:      [ 64, 8, 2, 1]
+  e_ehsize:     0x0A0A
+  e_phentsize:  0xB0B0
+  e_phnum:      0x0C0C
+  e_shentsize:  0xD0D0
+  e_shnum:      0x0E0E
+  e_shstrndx:   0xF0F0

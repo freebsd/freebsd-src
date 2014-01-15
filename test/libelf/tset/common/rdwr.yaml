@@ -1,0 +1,27 @@
+%YAML 1.1
+---
+# $Id: rdwr.yaml 2077 2011-10-27 03:59:40Z jkoshy $
+#
+# This file is used for tests requiring a well-formed ELF file
+# opened in ELF_C_RDWR mode.
+#
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data:  ELFDATANONE
+  e_type: ET_REL
+
+sections:
+ - !Section
+   sh_type: SHT_NULL
+ - !Section
+   sh_type: SHT_PROGBITS
+   sh_name: .progbits
+   sh_data:
+   - hello world
+ - !Section
+   sh_type: SHT_STRTAB
+   sh_name: .shstrtab
+   sh_data:
+   - .shstrtab
+   - .progbits

@@ -1,0 +1,27 @@
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	libnonelf.a.uu
+#
+echo x - libnonelf.a.uu
+sed 's/^X//' >libnonelf.a.uu << 'END-of-libnonelf.a.uu'
+Xbegin 644 libnonelf.a
+XM(3QA<F-H/@HO+R`@("`@("`@("`@("`@("`@("`@("`@("`@("`@("`@("`@
+XM("`@("`@("`@("`S,"`@("`@("`@8`IA,U]N;VY?96QF7VAA<U]A7VQO;F=?
+XM;F%M92YO+PIA,5]N92YO+R`@("`@("`@,3$Y-3`S.#,R.2`@,3`P,2`@,"`@
+XM("`@,3`P-C0T("`Q-2`@("`@("`@8`HQ,C,T-38W86)C9&5F9PH*83)?;F4N
+XM;R\@("`@("`@(#$Q.34P,S@S,CD@(#$P,#$@(#`@("`@(#$P,#8T-"`@-C@@
+XM("`@("`@(&`*9F9F9F9F9F9F9F9F9F9F:&AH:&AH:&AH:&AH:&AH:&AH:VMK
+XM:VMK:VMK:VMK:VMK:VMK;&QL;&QL;&QL;&QL;&QL;`HO,"`@("`@("`@("`@
+XM("`@,3$Y-3`S.#,R.2`@,3`P,2`@,"`@("`@,3`P-C0T("`U,2`@("`@("`@
+XM8`IF9F9F9F9F9F]O;V]O;V]O;V]O;V]O;V]O;V]O;V]O;V5E965E965E965E
+X)965E965E90H*
+X`
+Xend
+END-of-libnonelf.a.uu
+exit
+

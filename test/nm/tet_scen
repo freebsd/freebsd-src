@@ -1,0 +1,55 @@
+# $Id: tet_scen 2085 2011-10-27 05:06:47Z jkoshy $
+
+#	cpp_demangle test suite.
+
+all
+        "Starting Test Suite"
+        ^nm_object1
+        ^nm_object2
+        ^nm_archive1
+        ^nm_archive2
+        ^nm_shared_object1
+        ^nm_shared_object2
+        ^nm_option
+        ^nm_debug
+        "Complete Test Suite"
+
+nm_object1
+        "Starting nm Object Test 1"
+        /ts/nm_object1/tc.sh
+        "Complete nm Object Test 1"
+
+nm_object2
+        "Starting nm Object Test 2"
+        /ts/nm_object2/tc.sh
+        "Complete nm Object Test 2"
+
+nm_archive1
+        "Starting nm Archive Test 1"
+        /ts/nm_archive1/tc.sh
+        "Complete nm Archive Test 1"
+
+nm_archive2
+        "Starting nm Archive Test 2"
+        /ts/nm_archive2/tc.sh
+        "Complete nm Archive Test 2"
+
+nm_shared_object1
+        "Starting nm Shared Object Test 1"
+        /ts/nm_shared_object1/tc.sh
+        "Complete nm Shared Object Test 1"
+
+nm_shared_object2
+        "Starting nm Shared Object Test 2"
+        /ts/nm_shared_object2/tc.sh
+        "Complete nm Shared Object Test 2"
+
+nm_option
+        "Starting nm Option Test"
+        /ts/nm_option/tc.sh
+        "Complete nm Option Test"
+
+nm_debug
+        "Starting nm Debug Option Test"
+        /ts/nm_debug/tc.sh
+        "Complete nm Debug Option Test"

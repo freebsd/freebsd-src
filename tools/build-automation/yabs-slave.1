@@ -1,0 +1,102 @@
+.\" Copyright (c) 2012 Joseph Koshy.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" This software is provided by Joseph Koshy ``as is'' and
+.\" any express or implied warranties, including, but not limited to, the
+.\" implied warranties of merchantability and fitness for a particular purpose
+.\" are disclaimed.  in no event shall Joseph Koshy be liable
+.\" for any direct, indirect, incidental, special, exemplary, or consequential
+.\" damages (including, but not limited to, procurement of substitute goods
+.\" or services; loss of use, data, or profits; or business interruption)
+.\" however caused and on any theory of liability, whether in contract, strict
+.\" liability, or tort (including negligence or otherwise) arising in any way
+.\" out of the use of this software, even if advised of the possibility of
+.\" such damage.
+.\"
+.\" $Id$
+.\"
+.Dd August 31, 2012
+.Os
+.Dt YABS-SLAVE 1
+.Sh NAME
+.Nm yabs-slave
+.Nd the slave program for the Elftoolchain system
+.Sh SYNOPSIS
+.Nm
+.Op Fl h
+.Op Fl i Ar identifier
+.Op Fl p Ar port
+.Op Fl v
+.Op Fl V
+.Op Ar server
+.Sh DESCRIPTION
+The
+.Nm
+utility is part of the
+.Nm yabs
+build automation system.
+It is intended to be executed inside a machine participating in a
+build job.
+The
+.Nm
+utility connects back to a
+.Nm yabs
+job despatcher, receives commands to execute and sends back the
+results of executing these commands.
+.Pp
+The optional argument
+.Ar server
+specifies the
+.Nm yabs
+server to connect to.
+This argument specifies a hostname, an IPv4 or IPv6 address, or a path to
+a local socket.
+If the
+.Ar server
+argument is not specified, then
+.Nm
+will read from standard input and write to standard output.
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width indent
+.It Fl h
+Print a help message and exit.
+.It Fl i Ar identifier
+Use the argument
+.Ar identifier
+when connecting to the despatcher.
+The default is to use the hostname of the system.
+.It Fl p Ar port
+Connect to the port specified by the argument
+.Ar port.
+The argument must be a decimal number.
+This option is ignored if the argument
+.Ar server
+is not specified, or if it specifies a local socket.
+.It Fl v
+Increase verbosity.
+This flag may be specified multiple times.
+.It Fl V
+Print a version number and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr sh 1 ,
+.Xr yabs 1
+.Sh HISTORY
+The
+.Nm
+utility was created by
+.An "Joseph Koshy" Aq jkoshy@users.sourceforge.net
+under the aegis of the Elftoolchain project.

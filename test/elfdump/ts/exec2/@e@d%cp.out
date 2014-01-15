@@ -1,0 +1,113 @@
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_EXEC
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0x8048fb0
+	e_phoff: 52
+	e_shoff: 14692
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 32
+	e_phnum: 6
+	e_shentsize: 40
+	e_shnum: 25
+	e_shstrndx: 24
+
+dynamic:
+
+entry: 0
+	d_tag: DT_NEEDED
+	d_val: libc.so.7
+
+entry: 1
+	d_tag: DT_INIT
+	d_ptr: 0x8048be0
+
+entry: 2
+	d_tag: DT_FINI
+	d_ptr: 0x804ab8c
+
+entry: 3
+	d_tag: DT_HASH
+	d_ptr: 0x8048124
+
+entry: 4
+	d_tag: DT_STRTAB
+	d_ptr: 0x8048774
+
+entry: 5
+	d_tag: DT_SYMTAB
+	d_ptr: 0x8048344
+
+entry: 6
+	d_tag: DT_STRSZ
+	d_val: 467
+
+entry: 7
+	d_tag: DT_SYMENT
+	d_val: 16
+
+entry: 8
+	d_tag: DT_DEBUG
+	d_ptr: 0
+
+entry: 9
+	d_tag: DT_PLTGOT
+	d_ptr: 0x804c5cc
+
+entry: 10
+	d_tag: DT_PLTRELSZ
+	d_val: 464
+
+entry: 11
+	d_tag: DT_PLTREL
+	d_val: 17
+
+entry: 12
+	d_tag: DT_JMPREL
+	d_ptr: 0x8048a10
+
+entry: 13
+	d_tag: DT_REL
+	d_ptr: 0x80489f0
+
+entry: 14
+	d_tag: DT_RELSZ
+	d_val: 32
+
+entry: 15
+	d_tag: DT_RELENT
+	d_val: 8
+
+entry: 16
+	d_tag: DT_VERNEED
+	d_val: 134515152
+
+entry: 17
+	d_tag: DT_VERNEEDNUM
+	d_val: 1
+
+entry: 18
+	d_tag: DT_GNU_VERSYM
+	d_val: 134515016
+
+entry: 19
+	d_tag: DT_NULL
+
+entry: 20
+	d_tag: DT_NULL
+
+entry: 21
+	d_tag: DT_NULL
+
+entry: 22
+	d_tag: DT_NULL
+
+entry: 23
+	d_tag: DT_NULL
+
+entry: 24
+	d_tag: DT_NULL

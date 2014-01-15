@@ -1,0 +1,62 @@
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	.
+#	./ne4_very_very_very_long.uu
+#	./ne3_long_name_16.uu
+#	./ne2_long_name15.uu
+#	./ne1.uu
+#	./liblong.a.uu
+#
+echo c - .
+mkdir -p . > /dev/null 2>&1
+echo x - ./ne4_very_very_very_long.uu
+sed 's/^X//' >./ne4_very_very_very_long.uu << '38e9cb51d72527a87fe0e0e66470b9e5'
+Xbegin 644 ./ne4_very_very_very_long
+XM1T='1T='1T='1T='2$A(2$A(2$A(2$A(2$A(2$A("DI*2DI*2DI*2DI*2DI*
+X12DI*2DI*2DI*2DI*2DI*2@H`
+X`
+Xend
+38e9cb51d72527a87fe0e0e66470b9e5
+echo x - ./ne3_long_name_16.uu
+sed 's/^X//' >./ne3_long_name_16.uu << 'b1fdd644021ba83d965d875119c22965'
+Xbegin 644 ./ne3_long_name_16
+X)145%149&1D8*
+X`
+Xend
+b1fdd644021ba83d965d875119c22965
+echo x - ./ne2_long_name15.uu
+sed 's/^X//' >./ne2_long_name15.uu << '6b25863a7f0f9097fe6d88ce7adbcd9b'
+Xbegin 644 ./ne2_long_name15
+X)0T-#0T1$1$0*
+X`
+Xend
+6b25863a7f0f9097fe6d88ce7adbcd9b
+echo x - ./ne1.uu
+sed 's/^X//' >./ne1.uu << '27d76f04a0fca7543fae879698386b4c'
+Xbegin 644 ./ne1
+X-04%!04%!0D)"0D)""@``
+X`
+Xend
+27d76f04a0fca7543fae879698386b4c
+echo x - ./liblong.a.uu
+sed 's/^X//' >./liblong.a.uu << '1413ebc840040523373ed6a077bf0d85'
+Xbegin 644 ./liblong.a
+XM(3QA<F-H/@IN93$@("`@("`@("`@("`@,3(Y,S$Y-S4Y,R`@,3`P,2`@,"`@
+XM("`@,3`P-C0T("`Q,R`@("`@("`@8`I!04%!04%"0D)"0D(*"FYE,E]L;VYG
+XM7VYA;64Q-2`Q,CDS,3DW-3DS("`Q,#`Q("`P("`@("`Q,#`V-#0@(#D@("`@
+XM("`@("!@"D-#0T-$1$1$"@IN93-?;&]N9U]N86UE7S$V,3(Y,S$Y-S4Y,R`@
+XM,3`P,2`@,"`@("`@,3`P-C0T("`Y("`@("`@("`@8`I%145%1D9&1@H*(S$O
+XM,C,@("`@("`@("`@(#$R.3,Q.3<U.3,@(#$P,#$@(#`@("`@(#$P,#8T-"`@
+XM.#4@("`@("`@(&`*;F4T7W9E<GE?=F5R>5]V97)Y7VQO;F='1T='1T='1T='
+XM1T=(2$A(2$A(2$A(2$A(2$A(2$@*2DI*2DI*2DI*2DI*2DI*2DI*2DI*2DI*
+X(2DI*2DI*"@H`
+X`
+Xend
+1413ebc840040523373ed6a077bf0d85
+exit
+

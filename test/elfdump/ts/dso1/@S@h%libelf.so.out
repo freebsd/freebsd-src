@@ -1,0 +1,122 @@
+
+Hash Section:  .hash
+    bucket    symndx    name
+         1  [138]       elf_flagehdr
+            [49]        _libelf_get_no_error_message
+         3  [93]        gelf_xlatetom
+            [61]        elf_getphnum
+         4  [77]        strncpy
+         5  [96]        elf32_xlatetof
+         6  [89]        __error
+         8  [80]        gelf_getdyn
+         9  [40]        elf_rawdata
+        10  [120]       elf64_getehdr
+            [95]        elf_newdata
+        12  [133]       gelf_update_cap
+            [115]       elf32_xlatetom
+            [97]        elf_setshstrndx
+        13  [116]       _libelf_set_error
+            [87]        elf_flagarhdr
+            [85]        memset
+            [46]        elf64_xlatetof
+        16  [123]       elf_errno
+            [109]       elf_next
+            [90]        __assert
+        18  [124]       free
+        19  [119]       malloc
+        20  [57]        elf64_xlatetom
+        21  [128]       gelf_update_ehdr
+        22  [108]       elf_rand
+            [68]        gelf_update_syminfo
+        23  [142]       fstat
+            [137]       elf32_getphdr
+            [131]       elf_getbase
+            [125]       gelf_update_symshndx
+            [103]       calloc
+        24  [105]       elf32_getshdr
+        25  [36]        elf_newscn
+        26  [134]       elf_cntl
+        28  [122]       memcpy
+            [82]        gelf_update_rel
+        30  [83]        gelf_newphdr
+        32  [102]       _libelf_get_unknown_error_message
+            [66]        gelf_fsize
+        35  [112]       elf64_getshdr
+        36  [55]        elf64_getphdr
+        37  [126]       elf_ndxscn
+            [104]       FBSDprivate_1.0
+        38  [78]        gelf_newehdr
+            [35]        write
+        41  [75]        elf_nextscn
+        42  [69]        gelf_getclass
+        44  [43]        strlcat
+        46  [52]        gelf_getrela
+        48  [114]       elf_errmsg
+            [106]       elf_end
+            [72]        gelf_getsym
+        50  [67]        elf_getshstrndx
+        51  [81]        elf_fill
+            [44]        elf_getident
+        52  [38]        gelf_getmove
+        62  [37]        elf32_checksum
+        64  [64]        strerror
+        65  [143]       strlcpy
+            [53]        FBSD_1.0
+        67  [101]       _libelf_get_max_error
+            [58]        elf32_newehdr
+        68  [73]        munmap
+            [51]        elf_begin
+        78  [60]        __stack_chk_guard
+        80  [59]        elf_hash
+            [33]        gelf_getsyminfo
+        82  [34]        elf_strptr
+        83  [121]       elf_getarsym
+        85  [71]        elf_flagshdr
+        87  [63]        elf64_newehdr
+        89  [84]        gelf_update_dyn
+        93  [99]        gelf_update_rela
+        94  [42]        elf_flagelf
+        95  [50]        __cxa_finalize
+            [41]        elf_rawfile
+            [39]        elf_flagscn
+        98  [129]       __stack_chk_fail
+            [79]        elf_getscn
+        99  [117]       gelf_getrel
+            [110]       gelf_getshdr
+       100  [45]        elf_flagdata
+       101  [47]        gelf_checksum
+       103  [141]       elf_update
+            [91]        elf_version
+       104  [139]       _Jv_RegisterClasses
+            [107]       elf32_fsize
+       106  [130]       gelf_update_phdr
+       107  [56]        elf64_checksum
+       108  [113]       gelf_update_sym
+       109  [88]        mmap
+       110  [70]        gelf_update_move
+       113  [140]       elf32_newphdr
+            [94]        elf64_fsize
+       114  [54]        gelf_update_shdr
+       116  [111]       gelf_getphdr
+       120  [135]       elf_memory
+            [98]        gelf_getsymshndx
+       121  [65]        elf32_getehdr
+       122  [136]       elf_kind
+            [92]        lseek
+       124  [118]       elf_getshnum
+            [48]        gelf_getehdr
+       125  [132]       elf_getarhdr
+       126  [100]       ftruncate
+            [76]        elf64_newphdr
+       127  [74]        gelf_xlatetof
+       128  [86]        elf_getdata
+       129  [127]       elf_flagphdr
+            [62]        gelf_getcap
+
+        58  buckets contain        0 symbols
+        44  buckets contain        1 symbols
+        23  buckets contain        2 symbols
+         4  buckets contain        3 symbols
+         1  buckets contain        4 symbols
+         1  buckets contain        5 symbols
+       131  buckets              111 symbols (globals)

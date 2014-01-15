@@ -1,0 +1,798 @@
+
+symbol table (archive):
+
+entry: 0
+	offset: 0xa8
+	member: a1.o
+	symbol: summul
+
+entry: 1
+	offset: 0xa8
+	member: a1.o
+	symbol: a
+
+entry: 2
+	offset: 0x3ac
+	member: a2.o
+	symbol: msg
+
+entry: 3
+	offset: 0x3ac
+	member: a2.o
+	symbol: printmsg
+
+entry: 4
+	offset: 0x728
+	member: a3.o
+	symbol: substract
+
+entry: 5
+	offset: 0x728
+	member: a3.o
+	symbol: x
+
+entry: 6
+	offset: 0x728
+	member: a3.o
+	symbol: y
+
+entry: 7
+	offset: 0xa64
+	member: a4.o
+	symbol: msg1
+
+entry: 8
+	offset: 0xa64
+	member: a4.o
+	symbol: msg2
+
+entry: 9
+	offset: 0xa64
+	member: a4.o
+	symbol: outputmsg
+
+liba.a(a1.o):
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0
+	sh_offset: 64
+	sh_size: 31
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .rel.text
+	sh_type: SHT_REL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 696
+	sh_size: 16
+	sh_link: 7
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 3
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 96
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 96
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 5
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 96
+	sh_size: 38
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 134
+	sh_size: 57
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 7
+	sh_name: .symtab
+	sh_type: SHT_SYMTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 552
+	sh_size: 128
+	sh_link: 8
+	sh_info: 6
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 8
+	sh_name: .strtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 680
+	sh_size: 15
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: a1.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: summul
+	st_value: 0
+	st_size: 31
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 7
+	st_name: a
+	st_value: 0x4
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65522
+
+liba.a(a2.o):
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0
+	sh_offset: 64
+	sh_size: 28
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .rel.text
+	sh_type: SHT_REL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 808
+	sh_size: 24
+	sh_link: 8
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 3
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 92
+	sh_size: 13
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 108
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 5
+	sh_name: .rodata
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 108
+	sh_size: 9
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 117
+	sh_size: 38
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 7
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 155
+	sh_size: 65
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 8
+	sh_name: .symtab
+	sh_type: SHT_SYMTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 620
+	sh_size: 160
+	sh_link: 9
+	sh_info: 7
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 9
+	sh_name: .strtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 780
+	sh_size: 26
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: a2.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: msg
+	st_value: 0
+	st_size: 13
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 3
+
+entry: 8
+	st_name: printmsg
+	st_value: 0
+	st_size: 28
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 9
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+liba.a(a3.o):
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0
+	sh_offset: 64
+	sh_size: 51
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .rel.text
+	sh_type: SHT_REL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 736
+	sh_size: 32
+	sh_link: 7
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 3
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 116
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 116
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 5
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 116
+	sh_size: 38
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 154
+	sh_size: 57
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 7
+	sh_name: .symtab
+	sh_type: SHT_SYMTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 572
+	sh_size: 144
+	sh_link: 8
+	sh_info: 6
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 8
+	sh_name: .strtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 716
+	sh_size: 20
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: a3.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: substract
+	st_value: 0
+	st_size: 51
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 7
+	st_name: x
+	st_value: 0x4
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65522
+
+entry: 8
+	st_name: y
+	st_value: 0x4
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65522
+
+liba.a(a4.o):
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0
+	sh_offset: 64
+	sh_size: 36
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .rel.text
+	sh_type: SHT_REL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 856
+	sh_size: 32
+	sh_link: 8
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 3
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 100
+	sh_size: 18
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 120
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 5
+	sh_name: .rodata
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0
+	sh_offset: 120
+	sh_size: 21
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 141
+	sh_size: 38
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 7
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 179
+	sh_size: 65
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 8
+	sh_name: .symtab
+	sh_type: SHT_SYMTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 644
+	sh_size: 176
+	sh_link: 9
+	sh_info: 7
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 9
+	sh_name: .strtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 820
+	sh_size: 33
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: a4.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: msg1
+	st_value: 0
+	st_size: 9
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 3
+
+entry: 8
+	st_name: msg2
+	st_value: 0x9
+	st_size: 9
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 3
+
+entry: 9
+	st_name: outputmsg
+	st_value: 0
+	st_size: 36
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 10
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0

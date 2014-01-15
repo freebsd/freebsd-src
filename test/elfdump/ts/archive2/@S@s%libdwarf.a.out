@@ -1,0 +1,356 @@
+
+Symbol Table: (archive)
+     index    offset    member name and symbol
+       [0]  0x000003b4  (dwarf_loc.o):dwarf_op_num
+       [1]  0x000003b4  (dwarf_loc.o):dwarf_locdesc_free
+       [2]  0x000003b4  (dwarf_loc.o):dwarf_locdesc
+       [3]  0x00003828  (dwarf_init.o):dwarf_elf_init
+       [4]  0x00003828  (dwarf_init.o):dwarf_init
+       [5]  0x0000670c  (dwarf_form.o):dwarf_whatform
+       [6]  0x00006cd8  (dwarf_finish.o):dwarf_finish
+       [7]  0x00007714  (dwarf_errno.o):dwarf_errno
+       [8]  0x00007bb8  (dwarf_dealloc.o):dwarf_dealloc
+       [9]  0x00008054  (dwarf_attrval.o):dwarf_attrval_find
+      [10]  0x00008054  (dwarf_attrval.o):dwarf_attrval_unsigned
+      [11]  0x00008054  (dwarf_attrval.o):dwarf_attrval_signed
+      [12]  0x00008054  (dwarf_attrval.o):dwarf_attrval_string
+      [13]  0x00008054  (dwarf_attrval.o):dwarf_attrval_flag
+      [14]  0x00008054  (dwarf_attrval.o):dwarf_attrval_add
+      [15]  0x000094e8  (dwarf_attr.o):dwarf_attr
+      [16]  0x000094e8  (dwarf_attr.o):dwarf_attr_add
+      [17]  0x00009cfc  (dwarf_abbrev.o):dwarf_abbrev_find
+      [18]  0x00009cfc  (dwarf_abbrev.o):dwarf_abbrev_add
+      [19]  0x0000a428  (dwarf_dump.o):get_sht_desc
+      [20]  0x0000a428  (dwarf_dump.o):get_attr_desc
+      [21]  0x0000a428  (dwarf_dump.o):get_form_desc
+      [22]  0x0000a428  (dwarf_dump.o):get_tag_desc
+      [23]  0x0000a428  (dwarf_dump.o):dwarf_dump_abbrev
+      [24]  0x0000a428  (dwarf_dump.o):dwarf_dump_symtab
+      [25]  0x0000a428  (dwarf_dump.o):dwarf_dump_dbgstr
+      [26]  0x0000a428  (dwarf_dump.o):dwarf_dump_strtab
+      [27]  0x0000a428  (dwarf_dump.o):dwarf_dump_shstrtab
+      [28]  0x0000a428  (dwarf_dump.o):dwarf_dump_raw
+      [29]  0x0000a428  (dwarf_dump.o):dwarf_dump_av
+      [30]  0x0000a428  (dwarf_dump.o):dwarf_dump_die
+      [31]  0x0000a428  (dwarf_dump.o):dwarf_dump_info
+      [32]  0x0000a428  (dwarf_dump.o):dwarf_dump
+      [33]  0x0000a428  (dwarf_dump.o):dwarf_dump_tree
+      [34]  0x0000a428  (dwarf_dump.o):dwarf_dump_die_at_offset
+      [35]  0x0000ffec  (dwarf_die.o):dwarf_dieoffset
+      [36]  0x0000ffec  (dwarf_die.o):dwarf_child
+      [37]  0x0000ffec  (dwarf_die.o):dwarf_tag
+      [38]  0x0000ffec  (dwarf_die.o):dwarf_siblingof
+      [39]  0x0000ffec  (dwarf_die.o):dwarf_die_find
+      [40]  0x0000ffec  (dwarf_die.o):dwarf_die_add
+      [41]  0x00010d80  (dwarf_cu.o):dwarf_next_cu_header
+      [42]  0x0001144c  (dwarf_errmsg.o):dwarf_errmsg
+      [43]  0x0001144c  (dwarf_errmsg.o):_libdwarf_errors
+
+libdwarf.a(dwarf_loc.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_loc.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000053  FUNC LOCL  D    0 .text       dwarf_decode_sleb128
+       [6]      0x00000060 0x00000000002c  FUNC LOCL  D    0 .text       dwarf_decode_uleb128
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [8]      0x00000940 0x000000000013  OBJT LOCL  D    0 .rodata     __func__.4319
+       [9]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+      [10]      0x00000953 0x00000000000e  OBJT LOCL  D    0 .rodata     __func__.4283
+      [11]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [12]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [13]      0x00000090 0x0000000000b7  FUNC GLOB  D    0 .text       dwarf_op_num
+      [14]      0x00000150 0x000000000051  FUNC GLOB  D    0 .text       dwarf_locdesc_free
+      [15]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       free
+      [16]      0x000001b0 0x00000000034c  FUNC GLOB  D    0 .text       dwarf_locdesc
+      [17]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_attrval_find
+      [18]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       calloc
+      [19]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       get_form_desc
+      [20]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       printf
+
+libdwarf.a(dwarf_init.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_init.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000099  FUNC LOCL  D    0 .text       dwarf_read_lsb
+       [6]      0x000000a0 0x0000000000c9  FUNC LOCL  D    0 .text       dwarf_read_msb
+       [7]      0x00000170 0x000000000079  FUNC LOCL  D    0 .text       dwarf_write_lsb
+       [8]      0x000001f0 0x000000000067  FUNC LOCL  D    0 .text       dwarf_write_msb
+       [9]      0x00000260 0x00000000003a  FUNC LOCL  D    0 .text       dwarf_read_uleb128
+      [10]      0x000002a0 0x000000000017  FUNC LOCL  D    0 .text       dwarf_read_block
+      [11]      0x000002c0 0x000000000326  FUNC LOCL  D    0 .text       dwarf_init_attr
+      [12]      0x000001a0 0x000000000010  OBJT LOCL  D    0 .rodata     __func__.4419
+      [13]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+      [14]      0x00000000 0x000000000008  OBJT LOCL  D    0 .bss        dwarf_read
+      [15]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+      [16]      0x00000008 0x000000000008  OBJT LOCL  D    0 .bss        dwarf_write
+      [17]      0x000000e0 0x000000000090  OBJT LOCL  D    0 .rodata     debug_snames
+      [18]      0x00000170 0x00000000000f  OBJT LOCL  D    0 .rodata     __func__.4570
+      [19]      0x000000c3 0x00000000000f  OBJT LOCL  D    0 .rodata     __func__.4622
+      [20]      0x00000190 0x00000000000f  OBJT LOCL  D    0 .rodata     __func__.4362
+      [21]      0x00000180 0x000000000010  OBJT LOCL  D    0 .rodata     __func__.4504
+      [22]      0x000000b8 0x00000000000b  OBJT LOCL  D    0 .rodata     __func__.4640
+      [23]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+      [24]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [25]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [26]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_attrval_add
+      [27]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_strptr
+      [28]      0x000005f0 0x000000000a51  FUNC GLOB  D    0 .text       dwarf_elf_init
+      [29]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       calloc
+      [30]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       gelf_getehdr
+      [31]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_getshstrndx
+      [32]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_nextscn
+      [33]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       gelf_getshdr
+      [34]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       strcmp
+      [35]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_ndxscn
+      [36]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_getdata
+      [37]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_errno
+      [38]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_abbrev_add
+      [39]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_attr_add
+      [40]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       gelf_getrela
+      [41]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       gelf_getsym
+      [42]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       printf
+      [43]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_abbrev_find
+      [44]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_die_add
+      [45]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       free
+      [46]      0x00001050 0x0000000001a5  FUNC GLOB  D    0 .text       dwarf_init
+      [47]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       __stack_chk_guard
+      [48]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_version
+      [49]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_begin
+      [50]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_finish
+      [51]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       __stack_chk_fail
+      [52]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_end
+
+libdwarf.a(dwarf_form.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_form.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x00000000000f  OBJT LOCL  D    0 .rodata     __func__.3546
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [9]      0x00000000 0x000000000048  FUNC GLOB  D    0 .text       dwarf_whatform
+
+libdwarf.a(dwarf_finish.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_finish.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x00000000000d  OBJT LOCL  D    0 .rodata     __func__.3889
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [9]      0x00000000 0x000000000353  FUNC GLOB  D    0 .text       dwarf_finish
+      [10]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       free
+      [11]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_end
+
+libdwarf.a(dwarf_errno.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_errno.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [7]      0x00000000 0x00000000000e  FUNC GLOB  D    0 .text       dwarf_errno
+
+libdwarf.a(dwarf_dealloc.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_dealloc.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [7]      0x00000000 0x000000000002  FUNC GLOB  D    0 .text       dwarf_dealloc
+
+libdwarf.a(dwarf_attrval.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_attrval.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+       [6]      0x00000000 0x000000000017  OBJT LOCL  D    0 .rodata     __func__.4602
+       [7]      0x00000020 0x000000000015  OBJT LOCL  D    0 .rodata     __func__.4578
+       [8]      0x00000040 0x000000000015  OBJT LOCL  D    0 .rodata     __func__.4552
+       [9]      0x00000060 0x000000000013  OBJT LOCL  D    0 .rodata     __func__.4528
+      [10]      0x00000080 0x000000000012  OBJT LOCL  D    0 .rodata     __func__.4507
+      [11]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+      [12]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [13]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [14]      0x00000000 0x000000000026  FUNC GLOB  D    0 .text       dwarf_attrval_find
+      [15]      0x00000030 0x00000000022d  FUNC GLOB  D    0 .text       dwarf_attrval_unsigned
+      [16]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       get_form_desc
+      [17]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       printf
+      [18]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_die_find
+      [19]      0x00000260 0x00000000011c  FUNC GLOB  D    0 .text       dwarf_attrval_signed
+      [20]      0x00000380 0x000000000144  FUNC GLOB  D    0 .text       dwarf_attrval_string
+      [21]      0x000004d0 0x000000000116  FUNC GLOB  D    0 .text       dwarf_attrval_flag
+      [22]      0x000005f0 0x0000000000e8  FUNC GLOB  D    0 .text       dwarf_attrval_add
+      [23]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       malloc
+
+libdwarf.a(dwarf_attr.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_attr.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x0000000f 0x00000000000b  OBJT LOCL  D    0 .rodata     __func__.4056
+       [6]      0x00000000 0x00000000000f  OBJT LOCL  D    0 .rodata     __func__.4077
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [9]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [10]      0x00000000 0x00000000009e  FUNC GLOB  D    0 .text       dwarf_attr
+      [11]      0x000000a0 0x0000000000e1  FUNC GLOB  D    0 .text       dwarf_attr_add
+      [12]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       malloc
+
+libdwarf.a(dwarf_abbrev.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_abbrev.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000011  OBJT LOCL  D    0 .rodata     __func__.3884
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [9]      0x00000000 0x000000000026  FUNC GLOB  D    0 .text       dwarf_abbrev_find
+      [10]      0x00000030 0x0000000000ce  FUNC GLOB  D    0 .text       dwarf_abbrev_add
+      [11]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       malloc
+
+libdwarf.a(dwarf_dump.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_dump.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [8]      0x00000a80 0x00000000007b  FUNC LOCL  D    0 .text       dwarf_dump_tree_dies
+       [9]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [10]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [11]      0x00000000 0x00000000011e  FUNC GLOB  D    0 .text       get_sht_desc
+      [12]      0x00000120 0x00000000018d  FUNC GLOB  D    0 .text       get_attr_desc
+      [13]      0x000002b0 0x000000000097  FUNC GLOB  D    0 .text       get_form_desc
+      [14]      0x00000350 0x000000000169  FUNC GLOB  D    0 .text       get_tag_desc
+      [15]      0x000004c0 0x0000000000c5  FUNC GLOB  D    0 .text       dwarf_dump_abbrev
+      [16]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       puts
+      [17]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       printf
+      [18]      0x00000590 0x000000000080  FUNC GLOB  D    0 .text       dwarf_dump_symtab
+      [19]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       gelf_getsym
+      [20]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_strptr
+      [21]      0x00000610 0x000000000053  FUNC GLOB  D    0 .text       dwarf_dump_dbgstr
+      [22]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       strlen
+      [23]      0x00000670 0x000000000053  FUNC GLOB  D    0 .text       dwarf_dump_strtab
+      [24]      0x000006d0 0x000000000050  FUNC GLOB  D    0 .text       dwarf_dump_shstrtab
+      [25]      0x00000720 0x0000000000f7  FUNC GLOB  D    0 .text       dwarf_dump_raw
+      [26]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       putchar
+      [27]      0x00000820 0x000000000126  FUNC GLOB  D    0 .text       dwarf_dump_av
+      [28]      0x00000950 0x00000000005b  FUNC GLOB  D    0 .text       dwarf_dump_die
+      [29]      0x000009b0 0x00000000009b  FUNC GLOB  D    0 .text       dwarf_dump_info
+      [30]      0x00000a50 0x00000000002a  FUNC GLOB  D    0 .text       dwarf_dump
+      [31]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_siblingof
+      [32]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_child
+      [33]      0x00000b00 0x00000000013e  FUNC GLOB  D    0 .text       dwarf_dump_tree
+      [34]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       __stack_chk_guard
+      [35]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_next_cu_header
+      [36]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       dwarf_errmsg
+      [37]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       __stack_chk_fail
+      [38]      0x00000c40 0x000000000045  FUNC GLOB  D    0 .text       dwarf_dump_die_at_offset
+
+libdwarf.a(dwarf_die.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_die.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x0000001a 0x00000000000c  OBJT LOCL  D    0 .rodata     __func__.3918
+       [6]      0x00000010 0x00000000000a  OBJT LOCL  D    0 .rodata     __func__.3935
+       [7]      0x00000000 0x000000000010  OBJT LOCL  D    0 .rodata     __func__.3953
+       [8]      0x00000030 0x00000000000e  OBJT LOCL  D    0 .rodata     __func__.3887
+       [9]      0x00000028 0x000000000008  OBJT LOCL  D    0 .rodata     anon_name
+      [10]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+      [11]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+      [12]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [13]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [14]      0x00000000 0x00000000000a  FUNC GLOB  D    0 .text       dwarf_dieoffset
+      [15]      0x00000010 0x000000000086  FUNC GLOB  D    0 .text       dwarf_child
+      [16]      0x000000a0 0x00000000004e  FUNC GLOB  D    0 .text       dwarf_tag
+      [17]      0x000000f0 0x000000000109  FUNC GLOB  D    0 .text       dwarf_siblingof
+      [18]      0x00000200 0x00000000002f  FUNC GLOB  D    0 .text       dwarf_die_find
+      [19]      0x00000230 0x00000000017e  FUNC GLOB  D    0 .text       dwarf_die_add
+      [20]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       malloc
+
+libdwarf.a(dwarf_cu.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_cu.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000015  OBJT LOCL  D    0 .rodata     __func__.3550
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata     
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [9]      0x00000000 0x00000000010b  FUNC GLOB  D    0 .text       dwarf_next_cu_header
+
+libdwarf.a(dwarf_errmsg.o):
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         dwarf_errmsg.c
+       [2]      0x00000000 0x000000000000  SECT LOCL  D    0 .text       
+       [3]      0x00000000 0x000000000000  SECT LOCL  D    0 .data       
+       [4]      0x00000000 0x000000000000  SECT LOCL  D    0 .bss        
+       [5]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+       [6]      0x00000000 0x000000000000  SECT LOCL  D    0 .rodata.str 
+       [7]      0x00000000 0x000000000000  SECT LOCL  D    0 .eh_frame   
+       [8]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+       [9]      0x00000000 0x0000000000c7  FUNC GLOB  D    0 .text       dwarf_errmsg
+      [10]      0x00000000 0x000000000078  OBJT GLOB  D    0 .data       _libdwarf_errors
+      [11]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       snprintf
+      [12]      0x00000000 0x000000000000  NOTY GLOB  D    0 UNDEF       elf_errmsg

@@ -1,0 +1,39 @@
+_DYNAMIC A 0000000000102230 
+_GLOBAL_OFFSET_TABLE_ A 00000000001023e8 
+_Jv_RegisterClasses w         
+__bss_start A 00000000001024c8 
+__cxa_finalize@@FBSD_1.0 w         
+__dso_handle d 0000000000102000 
+__error@@FBSD_1.0 U         
+_edata A 00000000001024c8 
+_end A 00000000001024d0 
+_fini T 0000000000001bc8 
+_init T 0000000000000cf8 
+berase T 0000000000001810 0000000000000082
+bread T 0000000000001a30 0000000000000161
+bwrite T 00000000000018a0 0000000000000184
+cgread T 0000000000001270 0000000000000014
+cgread1 T 00000000000011c0 00000000000000b0
+cgwrite1 T 0000000000001130 0000000000000090
+close@@FBSD_1.0 U         
+free@@FBSD_1.0 U         
+getfsfile@@FBSD_1.0 U         
+getino T 0000000000000f10 0000000000000219
+ioctl@@FBSD_1.0 U         
+malloc@@FBSD_1.0 U         
+memcpy@@FBSD_1.0 U         
+memset@@FBSD_1.0 U         
+open@@FBSD_1.0 U         
+pread@@FBSD_1.0 U         
+pwrite@@FBSD_1.0 U         
+sbread T 00000000000016e0 0000000000000129
+sbwrite T 00000000000015d0 0000000000000107
+snprintf@@FBSD_1.0 U         
+stat@@FBSD_1.0 U         
+statfs@@FBSD_1.0 U         
+strdup@@FBSD_1.0 U         
+strlcpy@@FBSD_1.0 U         
+ufs_disk_close T 0000000000001580 000000000000004e
+ufs_disk_fillout T 0000000000001530 0000000000000044
+ufs_disk_fillout_blank T 0000000000001300 0000000000000227
+ufs_disk_write T 0000000000001290 0000000000000069

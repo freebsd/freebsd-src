@@ -1,0 +1,248 @@
+.\" Copyright (c) 2012,2013 Joseph Koshy.
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR AND CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ \" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ \" OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ \" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: isa.1 2889 2013-01-13 15:36:04Z jkoshy $
+.\"
+.Dd January 13, 2013
+.Os
+.Dt ISA 1
+.Sh NAME
+.Nm isa
+.Nd instruction set analyser
+.Sh SYNOPSIS
+.Nm
+.Op Fl a Ar architecture | Fl -arch Ns = Ns Ar architecture
+.Op Fl c Ar cpu | Fl -cpu Ns = Ns Ar cpu
+.Op Fl h | Fl -help
+.Op Fl i Ar filename | Fl -input Ns = Ns Ar filename
+.Op Fl n | Fl -dry-run
+.Op Fl o Ar filename | Fl -output Ns = Ns Ar filename
+.Op Fl p Ar string | Fl -prefix Ns = Ns Ar string
+.Op Fl s Ar filename | Fl -spec Ns = Ns Ar filename
+.Op Fl q | Fl -quiet
+.Op Fl v | Fl -verbose
+.Op Fl D | Fl -decode
+.Op Fl E | Fl -encode
+.Op Fl L | Fl -list-instructions
+.Op Fl N Ar number | Fl -ntests Ns = Ns Ar number
+.Op Fl Q | Fl -query
+.Op Fl R Ar number | Fl -random-seed Ns = Ns Ar number
+.Op Fl T | Fl -test
+.Op Fl V | Fl -version
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility is used to generate instruction stream encoders and decoders
+from a textual description of a CPU instruction set.
+.Pp
+The
+.Nm
+utility supports three operational modes, as specified by the use of
+the
+.Fl D ,
+.Fl E
+or
+.Fl Q
+options:
+.Bl -tag -width indent
+.It Cm Decode
+.Pq Fl D | Fl -decode
+In this mode, the
+.Nm
+utility transforms source code, expanding match pattern between the
+tokens
+.Dq Li "[ISA["
+and
+.Dq Li "]ISA]"
+into the appropriate code for matching instruction streams.
+The section
+.Sx "Matching Instructions"
+describes the decode functionality in greater depth.
+.It Cm Encode
+.Pq Fl E | Fl -encode
+In this mode, the
+.Nm
+utility generates C code to emit binary instruction streams.
+.It Cm Query
+.Pq Fl Q | Fl -query
+In this mode, the
+.Nm
+utility is used to retrieve information from instruction set
+specifications.
+.El
+.Pp
+If no operational mode is specified, a default of
+.Cm Query
+will be used.
+.Pp
+Instruction set specifications may be specified using the
+.Fa a
+option, or by using the command line arguments
+.Ar .
+.Pp
+The
+.Nm
+utility accepts the following options:
+.Bl -tag -width indent
+.It Fl a Ar architecture | Fl -arch Ns = N Ar architecture
+Use instruction set specifications specified by the argument
+.Ar architecture .
+The
+.Nm
+utility will look for these specifications in the locations
+specified by the environment variable
+.Ev ISAPATH ,
+in addition to a built-in search location.
+The default architecture is that for the host the
+.Nm
+utility is being executed on.s
+.It Fl c Ar cpu | Fl -cpu Ns = Ns Ar cpu
+Generate encoders and decoders for the specific instruction set
+variant supported by CPU
+.Ar cpu .
+This option may be specified multiple times.
+If the argument
+.Ar cpu
+starts with a minus, the CPU specified will be removed from list of
+CPUs to be supported.
+.It Fl h | Fl -help
+Print a help message and exit.
+.It Fl i Ar filename | Fl -input Ns = Ns Ar filename
+When generating a decoder, read the source to be expanded from the
+file named in the argument
+.Ar filename .
+If an input file is not specified, the
+.Nm
+utility will read from its standard input.
+.It Fl n | Fl -dry-run
+Exit without creating any output after checking inputs for errors.
+.It Fl o Ar filename | Fl -output Ns = Ns Ar filename
+When generating encoders and decoders, send the output to the file
+specified by the argument
+.Ar filename .
+If an output file is not specified, the
+.Nm
+utility will write to its standard output.
+.It Fl p Ar string | Fl -prefix Ns = Ns Ar string
+When in encode mode, use the string in argument
+.Ar string
+as a prefix for generated symbols.
+.It Fl q | Fl -quiet
+Suppress warning messages.
+.It Fl s Ar filename | Fl -spec Ns = Ns Ar filename
+Read an instruction set specification from the file named by argument
+.Ar filename .
+This option may be specified multiple times, in which case the
+.Nm
+utilitiy behaves as if the specifications had been concatenated in the
+sequence specified.
+.It Fl v | Fl -verbose
+Increase the verbosity level.
+This option may be specified multiple times.
+.It Fl D | Fl -decode
+Transform sources expanding match patterns in source code to
+lower-level instruction stream decoding code.
+By default, the
+.Nm
+utility will read from standard input and write to standard output,
+unless otherwise specified by the
+.Fl i
+and
+.Fl o
+options.
+.It Fl E | Fl -encode
+Build an instruction stream encoder.
+.It Fl L | Fl -list-instructions
+When in query mode, generate a list of all known instructions.
+.It Fl N Ar number | Fl -ntests Ns = Ns Ar number
+When in query mode, specify the number of test sequences to be
+generated if the
+.Fl -T | Fl -test
+option was specified.
+.It Fl Q | Fl -query
+Retrieve information about an instruction set.
+.It Fl R Ar number | Fl -random-seed Ns = Ns Ar number
+Use the argument
+.Ar number
+as the seed for pseudorandom number generation.
+If this option is not specified, the
+.Nm
+utility will initialize the pseudorandom number generator in an
+implementation-defined manner.
+.It Fl T | Fl -test
+Generate instruction sequences for use in testing tools such as
+assemblers.
+.It Fl V | Fl -version
+Print a version identifier and exit.
+.El
+.Sh ENVIRONMENT
+The behavior of the
+.Nm
+utility is affected by the following environemnt variables:
+.Bl -tag
+.It Ev ISAPATH
+Specifies a colon-separated set of directories tp be used when
+searching for instruction specifications.
+.El
+.Sh FILES
+.Bl -tag -width indent
+.It Pa /usr/share/isa/
+The default location for instruction set specifications.
+.El
+.Sh EXAMPLES
+To check the instruction specifications in file
+.Pa spec.isa ,
+use:
+.D1 isa -n "spec.isa"
+.Pp
+To expand instruction decoding templates in the file
+.Pa a.m ,
+assuming a generic
+.Tn AVR
+CPU, and generating a C source file, use:
+.D1 isa -a avr -D < a.m > a.c
+.Sh SEE ALSO
+.Xr elf 3 ,
+.Xr elf 5 ,
+.Xr isa 5
+.Sh HISTORY
+The
+.Nm
+utility is scheduled to appear in a future release from the
+Elftoolchain project.
+.\" TODO Reword the above when the target release is finalized.
+.Sh AUTHORS
+The
+.Xr isa 1
+utility was written by
+.An Joseph Koshy
+.Aq jkoshy@users.sourceforge.net .
+.Sh BUGS
+The
+.Nm
+utility is wildly unstable at this point of time.
+If you intend to use this utility, please get in touch with the
+project's developers at
+.Aq elftoolchain-developers@lists.sourceforge.net .

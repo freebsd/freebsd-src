@@ -1,0 +1,58 @@
+
+liba.a(a1.o):
+
+Symbol Table Section:  .symtab
+     index    value       size     type bind oth ver shndx       name
+       [0]  0x00000000 0x00000000  NOTY LOCL  D    0 UNDEF       
+       [1]  0x00000000 0x00000000  FILE LOCL  D    0 ABS         a1.c
+       [2]  0x00000000 0x00000000  SECT LOCL  D    0 .text       
+       [3]  0x00000000 0x00000000  SECT LOCL  D    0 .data       
+       [4]  0x00000000 0x00000000  SECT LOCL  D    0 .bss        
+       [5]  0x00000000 0x00000000  SECT LOCL  D    0 .comment    
+       [6]  0x00000000 0x0000001f  FUNC GLOB  D    0 .text       summul
+       [7]  0x00000004 0x00000004  OBJT GLOB  D    0 COMMON      a
+
+liba.a(a2.o):
+
+Symbol Table Section:  .symtab
+     index    value       size     type bind oth ver shndx       name
+       [0]  0x00000000 0x00000000  NOTY LOCL  D    0 UNDEF       
+       [1]  0x00000000 0x00000000  FILE LOCL  D    0 ABS         a2.c
+       [2]  0x00000000 0x00000000  SECT LOCL  D    0 .text       
+       [3]  0x00000000 0x00000000  SECT LOCL  D    0 .data       
+       [4]  0x00000000 0x00000000  SECT LOCL  D    0 .bss        
+       [5]  0x00000000 0x00000000  SECT LOCL  D    0 .rodata     
+       [6]  0x00000000 0x00000000  SECT LOCL  D    0 .comment    
+       [7]  0x00000000 0x0000000d  OBJT GLOB  D    0 .data       msg
+       [8]  0x00000000 0x0000001c  FUNC GLOB  D    0 .text       printmsg
+       [9]  0x00000000 0x00000000  NOTY GLOB  D    0 UNDEF       printf
+
+liba.a(a3.o):
+
+Symbol Table Section:  .symtab
+     index    value       size     type bind oth ver shndx       name
+       [0]  0x00000000 0x00000000  NOTY LOCL  D    0 UNDEF       
+       [1]  0x00000000 0x00000000  FILE LOCL  D    0 ABS         a3.c
+       [2]  0x00000000 0x00000000  SECT LOCL  D    0 .text       
+       [3]  0x00000000 0x00000000  SECT LOCL  D    0 .data       
+       [4]  0x00000000 0x00000000  SECT LOCL  D    0 .bss        
+       [5]  0x00000000 0x00000000  SECT LOCL  D    0 .comment    
+       [6]  0x00000000 0x00000033  FUNC GLOB  D    0 .text       substract
+       [7]  0x00000004 0x00000004  OBJT GLOB  D    0 COMMON      x
+       [8]  0x00000004 0x00000004  OBJT GLOB  D    0 COMMON      y
+
+liba.a(a4.o):
+
+Symbol Table Section:  .symtab
+     index    value       size     type bind oth ver shndx       name
+       [0]  0x00000000 0x00000000  NOTY LOCL  D    0 UNDEF       
+       [1]  0x00000000 0x00000000  FILE LOCL  D    0 ABS         a4.c
+       [2]  0x00000000 0x00000000  SECT LOCL  D    0 .text       
+       [3]  0x00000000 0x00000000  SECT LOCL  D    0 .data       
+       [4]  0x00000000 0x00000000  SECT LOCL  D    0 .bss        
+       [5]  0x00000000 0x00000000  SECT LOCL  D    0 .rodata     
+       [6]  0x00000000 0x00000000  SECT LOCL  D    0 .comment    
+       [7]  0x00000000 0x00000009  OBJT GLOB  D    0 .data       msg1
+       [8]  0x00000009 0x00000009  OBJT GLOB  D    0 .data       msg2
+       [9]  0x00000000 0x00000024  FUNC GLOB  D    0 .text       outputmsg
+      [10]  0x00000000 0x00000000  NOTY GLOB  D    0 UNDEF       printf

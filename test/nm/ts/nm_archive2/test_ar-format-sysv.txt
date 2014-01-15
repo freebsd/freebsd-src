@@ -1,0 +1,105 @@
+
+
+Symbols from test_ar[memstat_all.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+memstat_kvm_all     |0000000000000000|   T  |              FUNC|0000000000000071|     |.text
+memstat_kvm_malloc  |                |   U  |            NOTYPE|                |     |*UND*
+memstat_kvm_uma     |                |   U  |            NOTYPE|                |     |*UND*
+memstat_sysctl_all  |0000000000000080|   T  |              FUNC|0000000000000071|     |.text
+memstat_sysctl_malloc|                |   U  |            NOTYPE|                |     |*UND*
+memstat_sysctl_uma  |                |   U  |            NOTYPE|                |     |*UND*
+
+
+Symbols from test_ar[memstat_uma.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+__error             |                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mt_allocate|                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mt_reset_stats|                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mtl_empty  |                |   U  |            NOTYPE|                |     |*UND*
+free                |                |   U  |            NOTYPE|                |     |*UND*
+kread               |0000000000000064|   t  |              FUNC|0000000000000039|     |.text
+kread_symbol        |0000000000000000|   t  |              FUNC|0000000000000063|     |.text
+kvm_nlist           |                |   U  |            NOTYPE|                |     |*UND*
+kvm_read            |                |   U  |            NOTYPE|                |     |*UND*
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+memstat_kvm_uma     |0000000000000112|   T  |              FUNC|0000000000001294|     |.text
+memstat_mtl_find    |                |   U  |            NOTYPE|                |     |*UND*
+memstat_sysctl_uma  |0000000000001408|   T  |              FUNC|0000000000000972|     |.text
+namelist            |0000000000000000|   d  |            OBJECT|0000000000000096|     |.data
+sysctlbyname        |                |   U  |            NOTYPE|                |     |*UND*
+
+
+Symbols from test_ar[memstat_malloc.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+__error             |                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mt_allocate|                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mt_reset_stats|                |   U  |            NOTYPE|                |     |*UND*
+_memstat_mtl_empty  |                |   U  |            NOTYPE|                |     |*UND*
+free                |                |   U  |            NOTYPE|                |     |*UND*
+kread               |0000000000000064|   t  |              FUNC|0000000000000039|     |.text
+kread_symbol        |0000000000000000|   t  |              FUNC|0000000000000063|     |.text
+kvm_nlist           |                |   U  |            NOTYPE|                |     |*UND*
+kvm_read            |                |   U  |            NOTYPE|                |     |*UND*
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+memstat_kvm_malloc  |0000000000000112|   T  |              FUNC|0000000000000765|     |.text
+memstat_mtl_find    |                |   U  |            NOTYPE|                |     |*UND*
+memstat_sysctl_malloc|0000000000000880|   T  |              FUNC|0000000000000894|     |.text
+namelist            |0000000000000000|   d  |            OBJECT|0000000000000072|     |.data
+sysctlbyname        |                |   U  |            NOTYPE|                |     |*UND*
+
+
+Symbols from test_ar[memstat.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+_memstat_mt_allocate|0000000000001024|   T  |              FUNC|0000000000000157|     |.text
+_memstat_mt_reset_stats|0000000000000128|   T  |              FUNC|0000000000000212|     |.text
+_memstat_mtl_empty  |0000000000001280|   T  |              FUNC|0000000000000067|     |.text
+free                |                |   U  |            NOTYPE|                |     |*UND*
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+memset              |                |   U  |            NOTYPE|                |     |*UND*
+memstat_get_allocator|0000000000000368|   T  |              FUNC|0000000000000003|     |.text
+memstat_get_bytes   |0000000000000512|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_byteslimit|0000000000000400|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_caller_pointer|0000000000000576|   T  |              FUNC|0000000000000012|     |.text
+memstat_get_caller_uint64|0000000000000608|   T  |              FUNC|0000000000000012|     |.text
+memstat_get_count   |0000000000000528|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_countlimit|0000000000000384|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_failures|0000000000000560|   T  |              FUNC|0000000000000008|     |.text
+memstat_get_free    |0000000000000544|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_kegfree |0000000000000656|   T  |              FUNC|0000000000000008|     |.text
+memstat_get_memalloced|0000000000000448|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_memfreed|0000000000000464|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_name    |0000000000000352|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_numallocs|0000000000000480|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_numfrees|0000000000000496|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_percpu_caller_pointer|0000000000000832|   T  |              FUNC|0000000000000032|     |.text
+memstat_get_percpu_caller_uint64|0000000000000896|   T  |              FUNC|0000000000000032|     |.text
+memstat_get_percpu_free|0000000000000960|   T  |              FUNC|0000000000000012|     |.text
+memstat_get_percpu_memalloced|0000000000000672|   T  |              FUNC|0000000000000019|     |.text
+memstat_get_percpu_memfreed|0000000000000704|   T  |              FUNC|0000000000000019|     |.text
+memstat_get_percpu_numallocs|0000000000000736|   T  |              FUNC|0000000000000019|     |.text
+memstat_get_percpu_numfrees|0000000000000768|   T  |              FUNC|0000000000000019|     |.text
+memstat_get_percpu_sizemask|0000000000000800|   T  |              FUNC|0000000000000019|     |.text
+memstat_get_size    |0000000000000432|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_sizemask|0000000000000416|   T  |              FUNC|0000000000000005|     |.text
+memstat_get_zonefree|0000000000000640|   T  |              FUNC|0000000000000008|     |.text
+memstat_mtl_alloc   |0000000000000976|   T  |              FUNC|0000000000000046|     |.text
+memstat_mtl_find    |0000000000001184|   T  |              FUNC|0000000000000089|     |.text
+memstat_mtl_first   |0000000000000080|   T  |              FUNC|0000000000000004|     |.text
+memstat_mtl_free    |0000000000001360|   T  |              FUNC|0000000000000018|     |.text
+memstat_mtl_geterror|0000000000000112|   T  |              FUNC|0000000000000004|     |.text
+memstat_mtl_next    |0000000000000096|   T  |              FUNC|0000000000000008|     |.text
+memstat_set_caller_pointer|0000000000000592|   T  |              FUNC|0000000000000012|     |.text
+memstat_set_caller_uint64|0000000000000624|   T  |              FUNC|0000000000000012|     |.text
+memstat_set_percpu_caller_pointer|0000000000000864|   T  |              FUNC|0000000000000032|     |.text
+memstat_set_percpu_caller_uint64|0000000000000928|   T  |              FUNC|0000000000000032|     |.text
+memstat_strerror    |0000000000000000|   T  |              FUNC|0000000000000073|     |.text
+strcmp              |                |   U  |            NOTYPE|                |     |*UND*
+strlcpy             |                |   U  |            NOTYPE|                |     |*UND*

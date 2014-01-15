@@ -1,0 +1,20 @@
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_EXEC
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0x8048fb0
+	e_phoff: 52
+	e_shoff: 14692
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 32
+	e_phnum: 6
+	e_shentsize: 40
+	e_shnum: 25
+	e_shstrndx: 24
+
+interp:
+	/libexec/ld-elf.so.1

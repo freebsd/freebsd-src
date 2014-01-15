@@ -1,0 +1,154 @@
+
+Relocation Section:  .rela.dyn
+        type                          offset     addend  section        with respect to
+        R_X86_64_RELATIVE           0x116120    1138976  .rela.dyn      
+        R_X86_64_RELATIVE           0x116128    1147856  .rela.dyn      
+        R_X86_64_RELATIVE           0x116140      87071  .rela.dyn      
+        R_X86_64_RELATIVE           0x116148      87080  .rela.dyn      
+        R_X86_64_RELATIVE           0x116150      87104  .rela.dyn      
+        R_X86_64_RELATIVE           0x116158      87121  .rela.dyn      
+        R_X86_64_RELATIVE           0x116160      87376  .rela.dyn      
+        R_X86_64_RELATIVE           0x116168      87408  .rela.dyn      
+        R_X86_64_RELATIVE           0x116170      87140  .rela.dyn      
+        R_X86_64_RELATIVE           0x116178      87150  .rela.dyn      
+        R_X86_64_RELATIVE           0x116180      87178  .rela.dyn      
+        R_X86_64_RELATIVE           0x116188      87208  .rela.dyn      
+        R_X86_64_RELATIVE           0x116190      87237  .rela.dyn      
+        R_X86_64_RELATIVE           0x116198      87257  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161a0      87284  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161a8      87310  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161b0      87332  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161b8      87356  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161c0      60640  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161c8      60464  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161d0      60160  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161d8      59824  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161e0      53536  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161e8      53536  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161f0      53536  .rela.dyn      
+        R_X86_64_RELATIVE           0x1161f8      53536  .rela.dyn      
+        R_X86_64_RELATIVE           0x116200      36208  .rela.dyn      
+        R_X86_64_RELATIVE           0x116208      80576  .rela.dyn      
+        R_X86_64_RELATIVE           0x116210      36464  .rela.dyn      
+        R_X86_64_RELATIVE           0x116218      72240  .rela.dyn      
+        R_X86_64_RELATIVE           0x116220      36976  .rela.dyn      
+        R_X86_64_RELATIVE           0x116228      80224  .rela.dyn      
+        R_X86_64_RELATIVE           0x116230      37216  .rela.dyn      
+        R_X86_64_RELATIVE           0x116238      71664  .rela.dyn      
+        R_X86_64_RELATIVE           0x116240      58592  .rela.dyn      
+        R_X86_64_RELATIVE           0x116248      78976  .rela.dyn      
+        R_X86_64_RELATIVE           0x116250      56816  .rela.dyn      
+        R_X86_64_RELATIVE           0x116258      69808  .rela.dyn      
+        R_X86_64_RELATIVE           0x116260      56704  .rela.dyn      
+        R_X86_64_RELATIVE           0x116268      56592  .rela.dyn      
+        R_X86_64_RELATIVE           0x116270      56704  .rela.dyn      
+        R_X86_64_RELATIVE           0x116278      56592  .rela.dyn      
+        R_X86_64_RELATIVE           0x116280      56288  .rela.dyn      
+        R_X86_64_RELATIVE           0x116288      55952  .rela.dyn      
+        R_X86_64_RELATIVE           0x116290      56288  .rela.dyn      
+        R_X86_64_RELATIVE           0x116298      55952  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162a0      37696  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162a8      78192  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162b0      38352  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162b8      68848  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162e0      52608  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162e8      53040  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162f0      52608  .rela.dyn      
+        R_X86_64_RELATIVE           0x1162f8      53040  .rela.dyn      
+        R_X86_64_RELATIVE           0x116300      55776  .rela.dyn      
+        R_X86_64_RELATIVE           0x116308      55600  .rela.dyn      
+        R_X86_64_RELATIVE           0x116310      55296  .rela.dyn      
+        R_X86_64_RELATIVE           0x116318      54960  .rela.dyn      
+        R_X86_64_RELATIVE           0x116320      39200  .rela.dyn      
+        R_X86_64_RELATIVE           0x116328      76992  .rela.dyn      
+        R_X86_64_RELATIVE           0x116330      40192  .rela.dyn      
+        R_X86_64_RELATIVE           0x116338      66816  .rela.dyn      
+        R_X86_64_RELATIVE           0x116340      41952  .rela.dyn      
+        R_X86_64_RELATIVE           0x116348      76672  .rela.dyn      
+        R_X86_64_RELATIVE           0x116350      42192  .rela.dyn      
+        R_X86_64_RELATIVE           0x116358      66240  .rela.dyn      
+        R_X86_64_RELATIVE           0x116360      42688  .rela.dyn      
+        R_X86_64_RELATIVE           0x116368      76240  .rela.dyn      
+        R_X86_64_RELATIVE           0x116370      43024  .rela.dyn      
+        R_X86_64_RELATIVE           0x116378      65408  .rela.dyn      
+        R_X86_64_RELATIVE           0x116380      43744  .rela.dyn      
+        R_X86_64_RELATIVE           0x116388      74784  .rela.dyn      
+        R_X86_64_RELATIVE           0x116390      44912  .rela.dyn      
+        R_X86_64_RELATIVE           0x116398      63104  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163a0      54784  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163a8      54608  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163b0      54784  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163b8      54608  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163e0      46848  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163e8      74576  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163f0      46960  .rela.dyn      
+        R_X86_64_RELATIVE           0x1163f8      62896  .rela.dyn      
+        R_X86_64_RELATIVE           0x116400      47072  .rela.dyn      
+        R_X86_64_RELATIVE           0x116408      74048  .rela.dyn      
+        R_X86_64_RELATIVE           0x116410      47504  .rela.dyn      
+        R_X86_64_RELATIVE           0x116418      62016  .rela.dyn      
+        R_X86_64_RELATIVE           0x116420      48272  .rela.dyn      
+        R_X86_64_RELATIVE           0x116428      73392  .rela.dyn      
+        R_X86_64_RELATIVE           0x116430      48816  .rela.dyn      
+        R_X86_64_RELATIVE           0x116438      61360  .rela.dyn      
+        R_X86_64_RELATIVE           0x116440      49360  .rela.dyn      
+        R_X86_64_RELATIVE           0x116448      72848  .rela.dyn      
+        R_X86_64_RELATIVE           0x116450      49808  .rela.dyn      
+        R_X86_64_RELATIVE           0x116458      60816  .rela.dyn      
+        R_X86_64_RELATIVE           0x116460      54416  .rela.dyn      
+        R_X86_64_RELATIVE           0x116468      54224  .rela.dyn      
+        R_X86_64_RELATIVE           0x116470      54416  .rela.dyn      
+        R_X86_64_RELATIVE           0x116478      54224  .rela.dyn      
+        R_X86_64_RELATIVE           0x116490      53920  .rela.dyn      
+        R_X86_64_RELATIVE           0x116498      53584  .rela.dyn      
+        R_X86_64_RELATIVE           0x1164a0      54592  .rela.dyn      
+        R_X86_64_RELATIVE           0x1164a8      54400  .rela.dyn      
+        R_X86_64_RELATIVE           0x1164b0      51264  .rela.dyn      
+        R_X86_64_RELATIVE           0x1164b8      50256  .rela.dyn      
+        R_X86_64_RELATIVE           0x118538    1139904  .rela.dyn      
+        R_X86_64_RELATIVE           0x118548    1139008  .rela.dyn      
+        R_X86_64_GLOB_DAT           0x118520          0  .rela.dyn      __cxa_finalize
+        R_X86_64_GLOB_DAT           0x118528          0  .rela.dyn      __stack_chk_guard
+        R_X86_64_GLOB_DAT           0x118530          0  .rela.dyn      elf64_fsize
+        R_X86_64_GLOB_DAT           0x118540          0  .rela.dyn      elf32_fsize
+        R_X86_64_GLOB_DAT           0x118550          0  .rela.dyn      _Jv_RegisterClasses
+
+Relocation Section:  .rela.plt
+        type                          offset     addend  section        with respect to
+        R_X86_64_JMP_SLOT           0x1183f8          0  .rela.plt      write
+        R_X86_64_JMP_SLOT           0x118400          0  .rela.plt      elf_flagscn
+        R_X86_64_JMP_SLOT           0x118408          0  .rela.plt      elf_rawdata
+        R_X86_64_JMP_SLOT           0x118410          0  .rela.plt      elf_flagelf
+        R_X86_64_JMP_SLOT           0x118418          0  .rela.plt      strlcat
+        R_X86_64_JMP_SLOT           0x118420          0  .rela.plt      gelf_getehdr
+        R_X86_64_JMP_SLOT           0x118428          0  .rela.plt      __cxa_finalize
+        R_X86_64_JMP_SLOT           0x118430          0  .rela.plt      elf_hash
+        R_X86_64_JMP_SLOT           0x118438          0  .rela.plt      strerror
+        R_X86_64_JMP_SLOT           0x118440          0  .rela.plt      gelf_fsize
+        R_X86_64_JMP_SLOT           0x118448          0  .rela.plt      elf_flagshdr
+        R_X86_64_JMP_SLOT           0x118450          0  .rela.plt      gelf_getsym
+        R_X86_64_JMP_SLOT           0x118458          0  .rela.plt      munmap
+        R_X86_64_JMP_SLOT           0x118460          0  .rela.plt      strncpy
+        R_X86_64_JMP_SLOT           0x118468          0  .rela.plt      elf_getscn
+        R_X86_64_JMP_SLOT           0x118470          0  .rela.plt      memset
+        R_X86_64_JMP_SLOT           0x118478          0  .rela.plt      elf_getdata
+        R_X86_64_JMP_SLOT           0x118480          0  .rela.plt      mmap
+        R_X86_64_JMP_SLOT           0x118488          0  .rela.plt      __error
+        R_X86_64_JMP_SLOT           0x118490          0  .rela.plt      __assert
+        R_X86_64_JMP_SLOT           0x118498          0  .rela.plt      lseek
+        R_X86_64_JMP_SLOT           0x1184a0          0  .rela.plt      elf64_fsize
+        R_X86_64_JMP_SLOT           0x1184a8          0  .rela.plt      ftruncate
+        R_X86_64_JMP_SLOT           0x1184b0          0  .rela.plt      calloc
+        R_X86_64_JMP_SLOT           0x1184b8          0  .rela.plt      elf_end
+        R_X86_64_JMP_SLOT           0x1184c0          0  .rela.plt      elf32_fsize
+        R_X86_64_JMP_SLOT           0x1184c8          0  .rela.plt      gelf_getshdr
+        R_X86_64_JMP_SLOT           0x1184d0          0  .rela.plt      gelf_update_sym
+        R_X86_64_JMP_SLOT           0x1184d8          0  .rela.plt      malloc
+        R_X86_64_JMP_SLOT           0x1184e0          0  .rela.plt      memcpy
+        R_X86_64_JMP_SLOT           0x1184e8          0  .rela.plt      free
+        R_X86_64_JMP_SLOT           0x1184f0          0  .rela.plt      elf_flagphdr
+        R_X86_64_JMP_SLOT           0x1184f8          0  .rela.plt      __stack_chk_fail
+        R_X86_64_JMP_SLOT           0x118500          0  .rela.plt      elf_memory
+        R_X86_64_JMP_SLOT           0x118508          0  .rela.plt      elf_flagehdr
+        R_X86_64_JMP_SLOT           0x118510          0  .rela.plt      fstat
+        R_X86_64_JMP_SLOT           0x118518          0  .rela.plt      strlcpy

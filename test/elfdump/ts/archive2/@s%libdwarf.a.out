@@ -1,0 +1,1982 @@
+
+symbol table (archive):
+
+entry: 0
+	offset: 0x3b4
+	member: dwarf_loc.o
+	symbol: dwarf_op_num
+
+entry: 1
+	offset: 0x3b4
+	member: dwarf_loc.o
+	symbol: dwarf_locdesc_free
+
+entry: 2
+	offset: 0x3b4
+	member: dwarf_loc.o
+	symbol: dwarf_locdesc
+
+entry: 3
+	offset: 0x3828
+	member: dwarf_init.o
+	symbol: dwarf_elf_init
+
+entry: 4
+	offset: 0x3828
+	member: dwarf_init.o
+	symbol: dwarf_init
+
+entry: 5
+	offset: 0x670c
+	member: dwarf_form.o
+	symbol: dwarf_whatform
+
+entry: 6
+	offset: 0x6cd8
+	member: dwarf_finish.o
+	symbol: dwarf_finish
+
+entry: 7
+	offset: 0x7714
+	member: dwarf_errno.o
+	symbol: dwarf_errno
+
+entry: 8
+	offset: 0x7bb8
+	member: dwarf_dealloc.o
+	symbol: dwarf_dealloc
+
+entry: 9
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_find
+
+entry: 10
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_unsigned
+
+entry: 11
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_signed
+
+entry: 12
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_string
+
+entry: 13
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_flag
+
+entry: 14
+	offset: 0x8054
+	member: dwarf_attrval.o
+	symbol: dwarf_attrval_add
+
+entry: 15
+	offset: 0x94e8
+	member: dwarf_attr.o
+	symbol: dwarf_attr
+
+entry: 16
+	offset: 0x94e8
+	member: dwarf_attr.o
+	symbol: dwarf_attr_add
+
+entry: 17
+	offset: 0x9cfc
+	member: dwarf_abbrev.o
+	symbol: dwarf_abbrev_find
+
+entry: 18
+	offset: 0x9cfc
+	member: dwarf_abbrev.o
+	symbol: dwarf_abbrev_add
+
+entry: 19
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: get_sht_desc
+
+entry: 20
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: get_attr_desc
+
+entry: 21
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: get_form_desc
+
+entry: 22
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: get_tag_desc
+
+entry: 23
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_abbrev
+
+entry: 24
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_symtab
+
+entry: 25
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_dbgstr
+
+entry: 26
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_strtab
+
+entry: 27
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_shstrtab
+
+entry: 28
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_raw
+
+entry: 29
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_av
+
+entry: 30
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_die
+
+entry: 31
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_info
+
+entry: 32
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump
+
+entry: 33
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_tree
+
+entry: 34
+	offset: 0xa428
+	member: dwarf_dump.o
+	symbol: dwarf_dump_die_at_offset
+
+entry: 35
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_dieoffset
+
+entry: 36
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_child
+
+entry: 37
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_tag
+
+entry: 38
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_siblingof
+
+entry: 39
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_die_find
+
+entry: 40
+	offset: 0xffec
+	member: dwarf_die.o
+	symbol: dwarf_die_add
+
+entry: 41
+	offset: 0x10d80
+	member: dwarf_cu.o
+	symbol: dwarf_next_cu_header
+
+entry: 42
+	offset: 0x1144c
+	member: dwarf_errmsg.o
+	symbol: dwarf_errmsg
+
+entry: 43
+	offset: 0x1144c
+	member: dwarf_errmsg.o
+	symbol: _libdwarf_errors
+
+libdwarf.a(dwarf_loc.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_loc.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: dwarf_decode_sleb128
+	st_value: 0
+	st_size: 83
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 6
+	st_name: dwarf_decode_uleb128
+	st_value: 0x60
+	st_size: 44
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 8
+	st_name: __func__.4319
+	st_value: 0x940
+	st_size: 19
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 9
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 10
+	st_name: __func__.4283
+	st_value: 0x953
+	st_size: 14
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 11
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 12
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 10
+
+entry: 13
+	st_name: dwarf_op_num
+	st_value: 0x90
+	st_size: 183
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 14
+	st_name: dwarf_locdesc_free
+	st_value: 0x150
+	st_size: 81
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 15
+	st_name: free
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 16
+	st_name: dwarf_locdesc
+	st_value: 0x1b0
+	st_size: 844
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 17
+	st_name: dwarf_attrval_find
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: calloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 19
+	st_name: get_form_desc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 20
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_init.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_init.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: dwarf_read_lsb
+	st_value: 0
+	st_size: 153
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 6
+	st_name: dwarf_read_msb
+	st_value: 0xa0
+	st_size: 201
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 7
+	st_name: dwarf_write_lsb
+	st_value: 0x170
+	st_size: 121
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 8
+	st_name: dwarf_write_msb
+	st_value: 0x1f0
+	st_size: 103
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 9
+	st_name: dwarf_read_uleb128
+	st_value: 0x260
+	st_size: 58
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 10
+	st_name: dwarf_read_block
+	st_value: 0x2a0
+	st_size: 23
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 11
+	st_name: dwarf_init_attr
+	st_value: 0x2c0
+	st_size: 806
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 12
+	st_name: __func__.4419
+	st_value: 0x1a0
+	st_size: 16
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 13
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 14
+	st_name: dwarf_read
+	st_value: 0
+	st_size: 8
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 4
+
+entry: 15
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 16
+	st_name: dwarf_write
+	st_value: 0x8
+	st_size: 8
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 4
+
+entry: 17
+	st_name: debug_snames
+	st_value: 0xe0
+	st_size: 144
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 18
+	st_name: __func__.4570
+	st_value: 0x170
+	st_size: 15
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 19
+	st_name: __func__.4622
+	st_value: 0xc3
+	st_size: 15
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 20
+	st_name: __func__.4362
+	st_value: 0x190
+	st_size: 15
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 21
+	st_name: __func__.4504
+	st_value: 0x180
+	st_size: 16
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 22
+	st_name: __func__.4640
+	st_value: 0xb8
+	st_size: 11
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 23
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 24
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 9
+
+entry: 25
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 11
+
+entry: 26
+	st_name: dwarf_attrval_add
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 27
+	st_name: elf_strptr
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 28
+	st_name: dwarf_elf_init
+	st_value: 0x5f0
+	st_size: 2641
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 29
+	st_name: calloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 30
+	st_name: gelf_getehdr
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 31
+	st_name: elf_getshstrndx
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 32
+	st_name: elf_nextscn
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 33
+	st_name: gelf_getshdr
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 34
+	st_name: strcmp
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 35
+	st_name: elf_ndxscn
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: elf_getdata
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 37
+	st_name: elf_errno
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 38
+	st_name: dwarf_abbrev_add
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 39
+	st_name: dwarf_attr_add
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 40
+	st_name: gelf_getrela
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 41
+	st_name: gelf_getsym
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 42
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 43
+	st_name: dwarf_abbrev_find
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 44
+	st_name: dwarf_die_add
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 45
+	st_name: free
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 46
+	st_name: dwarf_init
+	st_value: 0x1050
+	st_size: 421
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 47
+	st_name: __stack_chk_guard
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 48
+	st_name: elf_version
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 49
+	st_name: elf_begin
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 50
+	st_name: dwarf_finish
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 51
+	st_name: __stack_chk_fail
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 52
+	st_name: elf_end
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_form.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_form.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.3546
+	st_value: 0
+	st_size: 15
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: dwarf_whatform
+	st_value: 0
+	st_size: 72
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+libdwarf.a(dwarf_finish.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_finish.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.3889
+	st_value: 0
+	st_size: 13
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: dwarf_finish
+	st_value: 0
+	st_size: 851
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 10
+	st_name: free
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 11
+	st_name: elf_end
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_errno.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_errno.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 2
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: dwarf_errno
+	st_value: 0
+	st_size: 14
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+libdwarf.a(dwarf_dealloc.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_dealloc.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 2
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: dwarf_dealloc
+	st_value: 0
+	st_size: 2
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+libdwarf.a(dwarf_attrval.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_attrval.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: __func__.4602
+	st_value: 0
+	st_size: 23
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: __func__.4578
+	st_value: 0x20
+	st_size: 21
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 6
+
+entry: 8
+	st_name: __func__.4552
+	st_value: 0x40
+	st_size: 21
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 6
+
+entry: 9
+	st_name: __func__.4528
+	st_value: 0x60
+	st_size: 19
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 6
+
+entry: 10
+	st_name: __func__.4507
+	st_value: 0x80
+	st_size: 18
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 6
+
+entry: 11
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 12
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 13
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 9
+
+entry: 14
+	st_name: dwarf_attrval_find
+	st_value: 0
+	st_size: 38
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 15
+	st_name: dwarf_attrval_unsigned
+	st_value: 0x30
+	st_size: 557
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 16
+	st_name: get_form_desc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 17
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: dwarf_die_find
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 19
+	st_name: dwarf_attrval_signed
+	st_value: 0x260
+	st_size: 284
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 20
+	st_name: dwarf_attrval_string
+	st_value: 0x380
+	st_size: 324
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 21
+	st_name: dwarf_attrval_flag
+	st_value: 0x4d0
+	st_size: 278
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 22
+	st_name: dwarf_attrval_add
+	st_value: 0x5f0
+	st_size: 232
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 23
+	st_name: malloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_attr.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_attr.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.4056
+	st_value: 0xf
+	st_size: 11
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: __func__.4077
+	st_value: 0
+	st_size: 15
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 9
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 10
+	st_name: dwarf_attr
+	st_value: 0
+	st_size: 158
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 11
+	st_name: dwarf_attr_add
+	st_value: 0xa0
+	st_size: 225
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 12
+	st_name: malloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_abbrev.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_abbrev.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.3884
+	st_value: 0
+	st_size: 17
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: dwarf_abbrev_find
+	st_value: 0
+	st_size: 38
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 10
+	st_name: dwarf_abbrev_add
+	st_value: 0x30
+	st_size: 206
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 11
+	st_name: malloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_dump.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_dump.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 8
+	st_name: dwarf_dump_tree_dies
+	st_value: 0xa80
+	st_size: 123
+	st_info: STT_FUNC STB_LOCAL
+	st_shndx: 1
+
+entry: 9
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 9
+
+entry: 10
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 11
+
+entry: 11
+	st_name: get_sht_desc
+	st_value: 0
+	st_size: 286
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 12
+	st_name: get_attr_desc
+	st_value: 0x120
+	st_size: 397
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 13
+	st_name: get_form_desc
+	st_value: 0x2b0
+	st_size: 151
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 14
+	st_name: get_tag_desc
+	st_value: 0x350
+	st_size: 361
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 15
+	st_name: dwarf_dump_abbrev
+	st_value: 0x4c0
+	st_size: 197
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 16
+	st_name: puts
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 17
+	st_name: printf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: dwarf_dump_symtab
+	st_value: 0x590
+	st_size: 128
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 19
+	st_name: gelf_getsym
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 20
+	st_name: elf_strptr
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 21
+	st_name: dwarf_dump_dbgstr
+	st_value: 0x610
+	st_size: 83
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 22
+	st_name: strlen
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 23
+	st_name: dwarf_dump_strtab
+	st_value: 0x670
+	st_size: 83
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 24
+	st_name: dwarf_dump_shstrtab
+	st_value: 0x6d0
+	st_size: 80
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 25
+	st_name: dwarf_dump_raw
+	st_value: 0x720
+	st_size: 247
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 26
+	st_name: putchar
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 27
+	st_name: dwarf_dump_av
+	st_value: 0x820
+	st_size: 294
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 28
+	st_name: dwarf_dump_die
+	st_value: 0x950
+	st_size: 91
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 29
+	st_name: dwarf_dump_info
+	st_value: 0x9b0
+	st_size: 155
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 30
+	st_name: dwarf_dump
+	st_value: 0xa50
+	st_size: 42
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 31
+	st_name: dwarf_siblingof
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 32
+	st_name: dwarf_child
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 33
+	st_name: dwarf_dump_tree
+	st_value: 0xb00
+	st_size: 318
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 34
+	st_name: __stack_chk_guard
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 35
+	st_name: dwarf_next_cu_header
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: dwarf_errmsg
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 37
+	st_name: __stack_chk_fail
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 38
+	st_name: dwarf_dump_die_at_offset
+	st_value: 0xc40
+	st_size: 69
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+libdwarf.a(dwarf_die.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_die.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.3918
+	st_value: 0x1a
+	st_size: 12
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: __func__.3935
+	st_value: 0x10
+	st_size: 10
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: __func__.3953
+	st_value: 0
+	st_size: 16
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 8
+	st_name: __func__.3887
+	st_value: 0x30
+	st_size: 14
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 9
+	st_name: anon_name
+	st_value: 0x28
+	st_size: 8
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 10
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 11
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 12
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 13
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 10
+
+entry: 14
+	st_name: dwarf_dieoffset
+	st_value: 0
+	st_size: 10
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 15
+	st_name: dwarf_child
+	st_value: 0x10
+	st_size: 134
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 16
+	st_name: dwarf_tag
+	st_value: 0xa0
+	st_size: 78
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 17
+	st_name: dwarf_siblingof
+	st_value: 0xf0
+	st_size: 265
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 18
+	st_name: dwarf_die_find
+	st_value: 0x200
+	st_size: 47
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 19
+	st_name: dwarf_die_add
+	st_value: 0x230
+	st_size: 382
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 20
+	st_name: malloc
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+libdwarf.a(dwarf_cu.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_cu.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 4
+
+entry: 5
+	st_name: __func__.3550
+	st_value: 0
+	st_size: 21
+	st_info: STT_OBJECT STB_LOCAL
+	st_shndx: 5
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 9
+	st_name: dwarf_next_cu_header
+	st_value: 0
+	st_size: 267
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+libdwarf.a(dwarf_errmsg.o):
+
+symbol table (.symtab):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: dwarf_errmsg.c
+	st_value: 0
+	st_size: 0
+	st_info: STT_FILE STB_LOCAL
+	st_shndx: 65521
+
+entry: 2
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 1
+
+entry: 3
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 3
+
+entry: 4
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 5
+
+entry: 5
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 6
+
+entry: 6
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 7
+
+entry: 7
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 8
+
+entry: 8
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_SECTION STB_LOCAL
+	st_shndx: 10
+
+entry: 9
+	st_name: dwarf_errmsg
+	st_value: 0
+	st_size: 199
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 1
+
+entry: 10
+	st_name: _libdwarf_errors
+	st_value: 0
+	st_size: 120
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 3
+
+entry: 11
+	st_name: snprintf
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0
+
+entry: 12
+	st_name: elf_errmsg
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 0

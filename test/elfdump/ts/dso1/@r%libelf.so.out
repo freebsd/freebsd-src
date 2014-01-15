@@ -1,0 +1,744 @@
+
+relocation with addend (.rela.dyn):
+
+entry: 0
+	r_offset: 0x116120
+	r_info: 0x8
+	r_addend: 1138976
+
+entry: 1
+	r_offset: 0x116128
+	r_info: 0x8
+	r_addend: 1147856
+
+entry: 2
+	r_offset: 0x116140
+	r_info: 0x8
+	r_addend: 87071
+
+entry: 3
+	r_offset: 0x116148
+	r_info: 0x8
+	r_addend: 87080
+
+entry: 4
+	r_offset: 0x116150
+	r_info: 0x8
+	r_addend: 87104
+
+entry: 5
+	r_offset: 0x116158
+	r_info: 0x8
+	r_addend: 87121
+
+entry: 6
+	r_offset: 0x116160
+	r_info: 0x8
+	r_addend: 87376
+
+entry: 7
+	r_offset: 0x116168
+	r_info: 0x8
+	r_addend: 87408
+
+entry: 8
+	r_offset: 0x116170
+	r_info: 0x8
+	r_addend: 87140
+
+entry: 9
+	r_offset: 0x116178
+	r_info: 0x8
+	r_addend: 87150
+
+entry: 10
+	r_offset: 0x116180
+	r_info: 0x8
+	r_addend: 87178
+
+entry: 11
+	r_offset: 0x116188
+	r_info: 0x8
+	r_addend: 87208
+
+entry: 12
+	r_offset: 0x116190
+	r_info: 0x8
+	r_addend: 87237
+
+entry: 13
+	r_offset: 0x116198
+	r_info: 0x8
+	r_addend: 87257
+
+entry: 14
+	r_offset: 0x1161a0
+	r_info: 0x8
+	r_addend: 87284
+
+entry: 15
+	r_offset: 0x1161a8
+	r_info: 0x8
+	r_addend: 87310
+
+entry: 16
+	r_offset: 0x1161b0
+	r_info: 0x8
+	r_addend: 87332
+
+entry: 17
+	r_offset: 0x1161b8
+	r_info: 0x8
+	r_addend: 87356
+
+entry: 18
+	r_offset: 0x1161c0
+	r_info: 0x8
+	r_addend: 60640
+
+entry: 19
+	r_offset: 0x1161c8
+	r_info: 0x8
+	r_addend: 60464
+
+entry: 20
+	r_offset: 0x1161d0
+	r_info: 0x8
+	r_addend: 60160
+
+entry: 21
+	r_offset: 0x1161d8
+	r_info: 0x8
+	r_addend: 59824
+
+entry: 22
+	r_offset: 0x1161e0
+	r_info: 0x8
+	r_addend: 53536
+
+entry: 23
+	r_offset: 0x1161e8
+	r_info: 0x8
+	r_addend: 53536
+
+entry: 24
+	r_offset: 0x1161f0
+	r_info: 0x8
+	r_addend: 53536
+
+entry: 25
+	r_offset: 0x1161f8
+	r_info: 0x8
+	r_addend: 53536
+
+entry: 26
+	r_offset: 0x116200
+	r_info: 0x8
+	r_addend: 36208
+
+entry: 27
+	r_offset: 0x116208
+	r_info: 0x8
+	r_addend: 80576
+
+entry: 28
+	r_offset: 0x116210
+	r_info: 0x8
+	r_addend: 36464
+
+entry: 29
+	r_offset: 0x116218
+	r_info: 0x8
+	r_addend: 72240
+
+entry: 30
+	r_offset: 0x116220
+	r_info: 0x8
+	r_addend: 36976
+
+entry: 31
+	r_offset: 0x116228
+	r_info: 0x8
+	r_addend: 80224
+
+entry: 32
+	r_offset: 0x116230
+	r_info: 0x8
+	r_addend: 37216
+
+entry: 33
+	r_offset: 0x116238
+	r_info: 0x8
+	r_addend: 71664
+
+entry: 34
+	r_offset: 0x116240
+	r_info: 0x8
+	r_addend: 58592
+
+entry: 35
+	r_offset: 0x116248
+	r_info: 0x8
+	r_addend: 78976
+
+entry: 36
+	r_offset: 0x116250
+	r_info: 0x8
+	r_addend: 56816
+
+entry: 37
+	r_offset: 0x116258
+	r_info: 0x8
+	r_addend: 69808
+
+entry: 38
+	r_offset: 0x116260
+	r_info: 0x8
+	r_addend: 56704
+
+entry: 39
+	r_offset: 0x116268
+	r_info: 0x8
+	r_addend: 56592
+
+entry: 40
+	r_offset: 0x116270
+	r_info: 0x8
+	r_addend: 56704
+
+entry: 41
+	r_offset: 0x116278
+	r_info: 0x8
+	r_addend: 56592
+
+entry: 42
+	r_offset: 0x116280
+	r_info: 0x8
+	r_addend: 56288
+
+entry: 43
+	r_offset: 0x116288
+	r_info: 0x8
+	r_addend: 55952
+
+entry: 44
+	r_offset: 0x116290
+	r_info: 0x8
+	r_addend: 56288
+
+entry: 45
+	r_offset: 0x116298
+	r_info: 0x8
+	r_addend: 55952
+
+entry: 46
+	r_offset: 0x1162a0
+	r_info: 0x8
+	r_addend: 37696
+
+entry: 47
+	r_offset: 0x1162a8
+	r_info: 0x8
+	r_addend: 78192
+
+entry: 48
+	r_offset: 0x1162b0
+	r_info: 0x8
+	r_addend: 38352
+
+entry: 49
+	r_offset: 0x1162b8
+	r_info: 0x8
+	r_addend: 68848
+
+entry: 50
+	r_offset: 0x1162e0
+	r_info: 0x8
+	r_addend: 52608
+
+entry: 51
+	r_offset: 0x1162e8
+	r_info: 0x8
+	r_addend: 53040
+
+entry: 52
+	r_offset: 0x1162f0
+	r_info: 0x8
+	r_addend: 52608
+
+entry: 53
+	r_offset: 0x1162f8
+	r_info: 0x8
+	r_addend: 53040
+
+entry: 54
+	r_offset: 0x116300
+	r_info: 0x8
+	r_addend: 55776
+
+entry: 55
+	r_offset: 0x116308
+	r_info: 0x8
+	r_addend: 55600
+
+entry: 56
+	r_offset: 0x116310
+	r_info: 0x8
+	r_addend: 55296
+
+entry: 57
+	r_offset: 0x116318
+	r_info: 0x8
+	r_addend: 54960
+
+entry: 58
+	r_offset: 0x116320
+	r_info: 0x8
+	r_addend: 39200
+
+entry: 59
+	r_offset: 0x116328
+	r_info: 0x8
+	r_addend: 76992
+
+entry: 60
+	r_offset: 0x116330
+	r_info: 0x8
+	r_addend: 40192
+
+entry: 61
+	r_offset: 0x116338
+	r_info: 0x8
+	r_addend: 66816
+
+entry: 62
+	r_offset: 0x116340
+	r_info: 0x8
+	r_addend: 41952
+
+entry: 63
+	r_offset: 0x116348
+	r_info: 0x8
+	r_addend: 76672
+
+entry: 64
+	r_offset: 0x116350
+	r_info: 0x8
+	r_addend: 42192
+
+entry: 65
+	r_offset: 0x116358
+	r_info: 0x8
+	r_addend: 66240
+
+entry: 66
+	r_offset: 0x116360
+	r_info: 0x8
+	r_addend: 42688
+
+entry: 67
+	r_offset: 0x116368
+	r_info: 0x8
+	r_addend: 76240
+
+entry: 68
+	r_offset: 0x116370
+	r_info: 0x8
+	r_addend: 43024
+
+entry: 69
+	r_offset: 0x116378
+	r_info: 0x8
+	r_addend: 65408
+
+entry: 70
+	r_offset: 0x116380
+	r_info: 0x8
+	r_addend: 43744
+
+entry: 71
+	r_offset: 0x116388
+	r_info: 0x8
+	r_addend: 74784
+
+entry: 72
+	r_offset: 0x116390
+	r_info: 0x8
+	r_addend: 44912
+
+entry: 73
+	r_offset: 0x116398
+	r_info: 0x8
+	r_addend: 63104
+
+entry: 74
+	r_offset: 0x1163a0
+	r_info: 0x8
+	r_addend: 54784
+
+entry: 75
+	r_offset: 0x1163a8
+	r_info: 0x8
+	r_addend: 54608
+
+entry: 76
+	r_offset: 0x1163b0
+	r_info: 0x8
+	r_addend: 54784
+
+entry: 77
+	r_offset: 0x1163b8
+	r_info: 0x8
+	r_addend: 54608
+
+entry: 78
+	r_offset: 0x1163e0
+	r_info: 0x8
+	r_addend: 46848
+
+entry: 79
+	r_offset: 0x1163e8
+	r_info: 0x8
+	r_addend: 74576
+
+entry: 80
+	r_offset: 0x1163f0
+	r_info: 0x8
+	r_addend: 46960
+
+entry: 81
+	r_offset: 0x1163f8
+	r_info: 0x8
+	r_addend: 62896
+
+entry: 82
+	r_offset: 0x116400
+	r_info: 0x8
+	r_addend: 47072
+
+entry: 83
+	r_offset: 0x116408
+	r_info: 0x8
+	r_addend: 74048
+
+entry: 84
+	r_offset: 0x116410
+	r_info: 0x8
+	r_addend: 47504
+
+entry: 85
+	r_offset: 0x116418
+	r_info: 0x8
+	r_addend: 62016
+
+entry: 86
+	r_offset: 0x116420
+	r_info: 0x8
+	r_addend: 48272
+
+entry: 87
+	r_offset: 0x116428
+	r_info: 0x8
+	r_addend: 73392
+
+entry: 88
+	r_offset: 0x116430
+	r_info: 0x8
+	r_addend: 48816
+
+entry: 89
+	r_offset: 0x116438
+	r_info: 0x8
+	r_addend: 61360
+
+entry: 90
+	r_offset: 0x116440
+	r_info: 0x8
+	r_addend: 49360
+
+entry: 91
+	r_offset: 0x116448
+	r_info: 0x8
+	r_addend: 72848
+
+entry: 92
+	r_offset: 0x116450
+	r_info: 0x8
+	r_addend: 49808
+
+entry: 93
+	r_offset: 0x116458
+	r_info: 0x8
+	r_addend: 60816
+
+entry: 94
+	r_offset: 0x116460
+	r_info: 0x8
+	r_addend: 54416
+
+entry: 95
+	r_offset: 0x116468
+	r_info: 0x8
+	r_addend: 54224
+
+entry: 96
+	r_offset: 0x116470
+	r_info: 0x8
+	r_addend: 54416
+
+entry: 97
+	r_offset: 0x116478
+	r_info: 0x8
+	r_addend: 54224
+
+entry: 98
+	r_offset: 0x116490
+	r_info: 0x8
+	r_addend: 53920
+
+entry: 99
+	r_offset: 0x116498
+	r_info: 0x8
+	r_addend: 53584
+
+entry: 100
+	r_offset: 0x1164a0
+	r_info: 0x8
+	r_addend: 54592
+
+entry: 101
+	r_offset: 0x1164a8
+	r_info: 0x8
+	r_addend: 54400
+
+entry: 102
+	r_offset: 0x1164b0
+	r_info: 0x8
+	r_addend: 51264
+
+entry: 103
+	r_offset: 0x1164b8
+	r_info: 0x8
+	r_addend: 50256
+
+entry: 104
+	r_offset: 0x118538
+	r_info: 0x8
+	r_addend: 1139904
+
+entry: 105
+	r_offset: 0x118548
+	r_info: 0x8
+	r_addend: 1139008
+
+entry: 106
+	r_offset: 0x118520
+	r_info: 0x3200000006
+	r_addend: 0
+
+entry: 107
+	r_offset: 0x118528
+	r_info: 0x3c00000006
+	r_addend: 0
+
+entry: 108
+	r_offset: 0x118530
+	r_info: 0x5e00000006
+	r_addend: 0
+
+entry: 109
+	r_offset: 0x118540
+	r_info: 0x6b00000006
+	r_addend: 0
+
+entry: 110
+	r_offset: 0x118550
+	r_info: 0x8b00000006
+	r_addend: 0
+
+relocation with addend (.rela.plt):
+
+entry: 0
+	r_offset: 0x1183f8
+	r_info: 0x2300000007
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x118400
+	r_info: 0x2700000007
+	r_addend: 0
+
+entry: 2
+	r_offset: 0x118408
+	r_info: 0x2800000007
+	r_addend: 0
+
+entry: 3
+	r_offset: 0x118410
+	r_info: 0x2a00000007
+	r_addend: 0
+
+entry: 4
+	r_offset: 0x118418
+	r_info: 0x2b00000007
+	r_addend: 0
+
+entry: 5
+	r_offset: 0x118420
+	r_info: 0x3000000007
+	r_addend: 0
+
+entry: 6
+	r_offset: 0x118428
+	r_info: 0x3200000007
+	r_addend: 0
+
+entry: 7
+	r_offset: 0x118430
+	r_info: 0x3b00000007
+	r_addend: 0
+
+entry: 8
+	r_offset: 0x118438
+	r_info: 0x4000000007
+	r_addend: 0
+
+entry: 9
+	r_offset: 0x118440
+	r_info: 0x4200000007
+	r_addend: 0
+
+entry: 10
+	r_offset: 0x118448
+	r_info: 0x4700000007
+	r_addend: 0
+
+entry: 11
+	r_offset: 0x118450
+	r_info: 0x4800000007
+	r_addend: 0
+
+entry: 12
+	r_offset: 0x118458
+	r_info: 0x4900000007
+	r_addend: 0
+
+entry: 13
+	r_offset: 0x118460
+	r_info: 0x4d00000007
+	r_addend: 0
+
+entry: 14
+	r_offset: 0x118468
+	r_info: 0x4f00000007
+	r_addend: 0
+
+entry: 15
+	r_offset: 0x118470
+	r_info: 0x5500000007
+	r_addend: 0
+
+entry: 16
+	r_offset: 0x118478
+	r_info: 0x5600000007
+	r_addend: 0
+
+entry: 17
+	r_offset: 0x118480
+	r_info: 0x5800000007
+	r_addend: 0
+
+entry: 18
+	r_offset: 0x118488
+	r_info: 0x5900000007
+	r_addend: 0
+
+entry: 19
+	r_offset: 0x118490
+	r_info: 0x5a00000007
+	r_addend: 0
+
+entry: 20
+	r_offset: 0x118498
+	r_info: 0x5c00000007
+	r_addend: 0
+
+entry: 21
+	r_offset: 0x1184a0
+	r_info: 0x5e00000007
+	r_addend: 0
+
+entry: 22
+	r_offset: 0x1184a8
+	r_info: 0x6400000007
+	r_addend: 0
+
+entry: 23
+	r_offset: 0x1184b0
+	r_info: 0x6700000007
+	r_addend: 0
+
+entry: 24
+	r_offset: 0x1184b8
+	r_info: 0x6a00000007
+	r_addend: 0
+
+entry: 25
+	r_offset: 0x1184c0
+	r_info: 0x6b00000007
+	r_addend: 0
+
+entry: 26
+	r_offset: 0x1184c8
+	r_info: 0x6e00000007
+	r_addend: 0
+
+entry: 27
+	r_offset: 0x1184d0
+	r_info: 0x7100000007
+	r_addend: 0
+
+entry: 28
+	r_offset: 0x1184d8
+	r_info: 0x7700000007
+	r_addend: 0
+
+entry: 29
+	r_offset: 0x1184e0
+	r_info: 0x7a00000007
+	r_addend: 0
+
+entry: 30
+	r_offset: 0x1184e8
+	r_info: 0x7c00000007
+	r_addend: 0
+
+entry: 31
+	r_offset: 0x1184f0
+	r_info: 0x7f00000007
+	r_addend: 0
+
+entry: 32
+	r_offset: 0x1184f8
+	r_info: 0x8100000007
+	r_addend: 0
+
+entry: 33
+	r_offset: 0x118500
+	r_info: 0x8700000007
+	r_addend: 0
+
+entry: 34
+	r_offset: 0x118508
+	r_info: 0x8a00000007
+	r_addend: 0
+
+entry: 35
+	r_offset: 0x118510
+	r_info: 0x8e00000007
+	r_addend: 0
+
+entry: 36
+	r_offset: 0x118518
+	r_info: 0x8f00000007
+	r_addend: 0

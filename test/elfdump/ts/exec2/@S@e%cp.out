@@ -1,0 +1,10 @@
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS32          ei_data:      ELFDATA2LSB
+  e_machine:  EM_386              e_version:    EV_CURRENT
+  e_type:     ET_EXEC
+  e_flags:                     0
+  e_entry:             0x8048fb0  e_ehsize:     52  e_shstrndx:   24
+  e_shoff:                0x3964  e_shentsize:  40  e_shnum:      25
+  e_phoff:                  0x34  e_phentsize:  32  e_phnum:       6

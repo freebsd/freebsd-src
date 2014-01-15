@@ -1,0 +1,105 @@
+
+dynamic:
+
+entry: 0
+	d_tag: DT_NEEDED
+	d_val: libc.so.7
+
+entry: 1
+	d_tag: DT_SONAME
+	d_val: libelf.so.1
+
+entry: 2
+	d_tag: DT_INIT
+	d_ptr: 0x2828
+
+entry: 3
+	d_tag: DT_FINI
+	d_ptr: 0x14ec8
+
+entry: 4
+	d_tag: DT_HASH
+	d_ptr: 0x120
+
+entry: 5
+	d_tag: DT_STRTAB
+	d_ptr: 0x12f8
+
+entry: 6
+	d_tag: DT_SYMTAB
+	d_ptr: 0x578
+
+entry: 7
+	d_tag: DT_STRSZ
+	d_val: 1457
+
+entry: 8
+	d_tag: DT_SYMENT
+	d_val: 24
+
+entry: 9
+	d_tag: DT_PLTGOT
+	d_ptr: 0x1183e0
+
+entry: 10
+	d_tag: DT_PLTRELSZ
+	d_val: 888
+
+entry: 11
+	d_tag: DT_PLTREL
+	d_val: 7
+
+entry: 12
+	d_tag: DT_JMPREL
+	d_ptr: 0x24b0
+
+entry: 13
+	d_tag: DT_RELA
+	d_val: 6728
+
+entry: 14
+	d_tag: DT_RELASZ
+	d_val: 2664
+
+entry: 15
+	d_tag: DT_RELAENT
+	d_val: 24
+
+entry: 16
+	d_tag: DT_VERDEF
+	d_val: 6608
+
+entry: 17
+	d_tag: DT_VERDEFNUM
+	d_val: 3
+
+entry: 18
+	d_tag: DT_VERNEED
+	d_val: 6696
+
+entry: 19
+	d_tag: DT_VERNEEDNUM
+	d_val: 1
+
+entry: 20
+	d_tag: DT_GNU_VERSYM
+	d_val: 6314
+
+entry: 21
+	d_tag: DT_RELACOUNT
+	d_val: 106
+
+entry: 22
+	d_tag: DT_NULL
+
+entry: 23
+	d_tag: DT_NULL
+
+entry: 24
+	d_tag: DT_NULL
+
+entry: 25
+	d_tag: DT_NULL
+
+entry: 26
+	d_tag: DT_NULL

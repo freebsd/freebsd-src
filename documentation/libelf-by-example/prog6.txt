@@ -1,0 +1,57 @@
+/*
+ * Iterate through an ar(1) archive.
+ *
+ * $Id: prog6.txt 2135 2011-11-10 08:59:47Z jkoshy $
+ */
+
+#include <err.h>
+#include <fcntl.h>
+#include <libelf.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+int
+main(int argc, char **argv)
+{
+    int fd;
+    Elf *ar, *e;
+    Elf_Arhdr *arh;
+
+    if (argc != 2)
+        errx(EXIT_FAILURE, "usage: %s file-name", argv[0]);
+
+    if (elf_version(EV_CURRENT) == EV_NONE)
+        errx(EXIT_FAILURE, "ELF library initialization "
+            "failed: %s", elf_errmsg(-1));
+
+    if ((fd = open(argv[1], O_RDONLY, 0)) < 0)
+        err(EXIT_FAILURE, "open \%s\" failed", argv[1]);
+
+    if ((fd = open(argv[1], O_RDONLY, 0)) < 0) @\co{1}@
+        err(EXIT_FAILURE, "open \%s\" failed", argv[1]);
+
+    if ((ar = elf_begin(fd, ELF_C_READ, NULL)) == NULL) @\co{2}@
+        errx(EXIT_FAILURE, "elf_begin() failed: %s.",
+            elf_errmsg(-1));
+
+    if (elf_kind(ar) != ELF_K_AR)
+        errx(EXIT_FAILURE, "%s is not an ar(1) archive.",
+            argv[1]);
+
+    while ((e = elf_begin(fd, ELF_C_READ, ar)) != NULL) { @\co{3}@
+        if ((arh = elf_getarhdr(e)) == NULL) @\co{4}@
+            errx(EXIT_FAILURE, "elf_getarhdr() failed: %s.",
+                elf_errmsg(-1));
+
+        (void) printf("%20s %zd\n", arh->ar_name,
+            arh->ar_size);
+
+        (void) elf_next(e); @\co{5}@
+        (void) elf_end(e); @\co{6}@
+    }
+
+    (void) elf_end(ar);
+    (void) close(fd);
+    exit(EXIT_SUCCESS);
+}

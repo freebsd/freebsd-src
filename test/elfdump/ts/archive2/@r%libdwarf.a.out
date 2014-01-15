@@ -1,0 +1,5424 @@
+
+libdwarf.a(dwarf_loc.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0xf6
+	r_info: 0x70000000b
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x176
+	r_info: 0x70000000b
+	r_addend: 2368
+
+entry: 2
+	r_offset: 0x191
+	r_info: 0xf00000002
+	r_addend: -4
+
+entry: 3
+	r_offset: 0x199
+	r_info: 0xf00000002
+	r_addend: -4
+
+entry: 4
+	r_offset: 0x20b
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 5
+	r_offset: 0x226
+	r_info: 0x1200000002
+	r_addend: -4
+
+entry: 6
+	r_offset: 0x271
+	r_info: 0xd00000002
+	r_addend: -4
+
+entry: 7
+	r_offset: 0x286
+	r_info: 0x1200000002
+	r_addend: -4
+
+entry: 8
+	r_offset: 0x312
+	r_info: 0x70000000b
+	r_addend: 1184
+
+entry: 9
+	r_offset: 0x32c
+	r_info: 0x70000000b
+	r_addend: 2387
+
+entry: 10
+	r_offset: 0x409
+	r_info: 0x70000000b
+	r_addend: 2387
+
+entry: 11
+	r_offset: 0x425
+	r_info: 0x1300000002
+	r_addend: -4
+
+entry: 12
+	r_offset: 0x432
+	r_info: 0x70000000a
+	r_addend: 2387
+
+entry: 13
+	r_offset: 0x437
+	r_info: 0x90000000a
+	r_addend: 0
+
+entry: 14
+	r_offset: 0x43e
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 15
+	r_offset: 0x453
+	r_info: 0x70000000b
+	r_addend: 2387
+
+entry: 16
+	r_offset: 0x466
+	r_info: 0xf00000002
+	r_addend: -4
+
+entry: 17
+	r_offset: 0x497
+	r_info: 0x70000000b
+	r_addend: 2387
+
+entry: 18
+	r_offset: 0x4c1
+	r_info: 0x70000000b
+	r_addend: 2387
+
+entry: 19
+	r_offset: 0x4e8
+	r_info: 0x70000000b
+	r_addend: 2387
+
+relocation with addend (.rela.rodata):
+
+entry: 0
+	r_offset: 0
+	r_info: 0x200000001
+	r_addend: 314
+
+entry: 1
+	r_offset: 0x8
+	r_info: 0x200000001
+	r_addend: 233
+
+entry: 2
+	r_offset: 0x10
+	r_info: 0x200000001
+	r_addend: 233
+
+entry: 3
+	r_offset: 0x18
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 4
+	r_offset: 0x20
+	r_info: 0x200000001
+	r_addend: 233
+
+entry: 5
+	r_offset: 0x28
+	r_info: 0x200000001
+	r_addend: 301
+
+entry: 6
+	r_offset: 0x30
+	r_info: 0x200000001
+	r_addend: 301
+
+entry: 7
+	r_offset: 0x38
+	r_info: 0x200000001
+	r_addend: 291
+
+entry: 8
+	r_offset: 0x40
+	r_info: 0x200000001
+	r_addend: 291
+
+entry: 9
+	r_offset: 0x48
+	r_info: 0x200000001
+	r_addend: 281
+
+entry: 10
+	r_offset: 0x50
+	r_info: 0x200000001
+	r_addend: 281
+
+entry: 11
+	r_offset: 0x58
+	r_info: 0x200000001
+	r_addend: 271
+
+entry: 12
+	r_offset: 0x60
+	r_info: 0x200000001
+	r_addend: 271
+
+entry: 13
+	r_offset: 0x68
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 14
+	r_offset: 0x70
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 15
+	r_offset: 0x78
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 16
+	r_offset: 0x80
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 17
+	r_offset: 0x88
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 18
+	r_offset: 0x90
+	r_info: 0x200000001
+	r_addend: 301
+
+entry: 19
+	r_offset: 0x98
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 20
+	r_offset: 0xa0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 21
+	r_offset: 0xa8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 22
+	r_offset: 0xb0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 23
+	r_offset: 0xb8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 24
+	r_offset: 0xc0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 25
+	r_offset: 0xc8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 26
+	r_offset: 0xd0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 27
+	r_offset: 0xd8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 28
+	r_offset: 0xe0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 29
+	r_offset: 0xe8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 30
+	r_offset: 0xf0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 31
+	r_offset: 0xf8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 32
+	r_offset: 0x100
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 33
+	r_offset: 0x108
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 34
+	r_offset: 0x110
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 35
+	r_offset: 0x118
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 36
+	r_offset: 0x120
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 37
+	r_offset: 0x128
+	r_info: 0x200000001
+	r_addend: 291
+
+entry: 38
+	r_offset: 0x130
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 39
+	r_offset: 0x138
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 40
+	r_offset: 0x140
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 41
+	r_offset: 0x148
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 42
+	r_offset: 0x150
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 43
+	r_offset: 0x158
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 44
+	r_offset: 0x160
+	r_info: 0x200000001
+	r_addend: 291
+
+entry: 45
+	r_offset: 0x168
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 46
+	r_offset: 0x170
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 47
+	r_offset: 0x178
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 48
+	r_offset: 0x180
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 49
+	r_offset: 0x188
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 50
+	r_offset: 0x190
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 51
+	r_offset: 0x198
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 52
+	r_offset: 0x1a0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 53
+	r_offset: 0x1a8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 54
+	r_offset: 0x1b0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 55
+	r_offset: 0x1b8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 56
+	r_offset: 0x1c0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 57
+	r_offset: 0x1c8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 58
+	r_offset: 0x1d0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 59
+	r_offset: 0x1d8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 60
+	r_offset: 0x1e0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 61
+	r_offset: 0x1e8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 62
+	r_offset: 0x1f0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 63
+	r_offset: 0x1f8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 64
+	r_offset: 0x200
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 65
+	r_offset: 0x208
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 66
+	r_offset: 0x210
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 67
+	r_offset: 0x218
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 68
+	r_offset: 0x220
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 69
+	r_offset: 0x228
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 70
+	r_offset: 0x230
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 71
+	r_offset: 0x238
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 72
+	r_offset: 0x240
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 73
+	r_offset: 0x248
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 74
+	r_offset: 0x250
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 75
+	r_offset: 0x258
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 76
+	r_offset: 0x260
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 77
+	r_offset: 0x268
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 78
+	r_offset: 0x270
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 79
+	r_offset: 0x278
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 80
+	r_offset: 0x280
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 81
+	r_offset: 0x288
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 82
+	r_offset: 0x290
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 83
+	r_offset: 0x298
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 84
+	r_offset: 0x2a0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 85
+	r_offset: 0x2a8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 86
+	r_offset: 0x2b0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 87
+	r_offset: 0x2b8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 88
+	r_offset: 0x2c0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 89
+	r_offset: 0x2c8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 90
+	r_offset: 0x2d0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 91
+	r_offset: 0x2d8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 92
+	r_offset: 0x2e0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 93
+	r_offset: 0x2e8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 94
+	r_offset: 0x2f0
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 95
+	r_offset: 0x2f8
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 96
+	r_offset: 0x300
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 97
+	r_offset: 0x308
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 98
+	r_offset: 0x310
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 99
+	r_offset: 0x318
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 100
+	r_offset: 0x320
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 101
+	r_offset: 0x328
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 102
+	r_offset: 0x330
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 103
+	r_offset: 0x338
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 104
+	r_offset: 0x340
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 105
+	r_offset: 0x348
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 106
+	r_offset: 0x350
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 107
+	r_offset: 0x358
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 108
+	r_offset: 0x360
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 109
+	r_offset: 0x368
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 110
+	r_offset: 0x370
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 111
+	r_offset: 0x378
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 112
+	r_offset: 0x380
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 113
+	r_offset: 0x388
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 114
+	r_offset: 0x390
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 115
+	r_offset: 0x398
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 116
+	r_offset: 0x3a0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 117
+	r_offset: 0x3a8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 118
+	r_offset: 0x3b0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 119
+	r_offset: 0x3b8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 120
+	r_offset: 0x3c0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 121
+	r_offset: 0x3c8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 122
+	r_offset: 0x3d0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 123
+	r_offset: 0x3d8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 124
+	r_offset: 0x3e0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 125
+	r_offset: 0x3e8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 126
+	r_offset: 0x3f0
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 127
+	r_offset: 0x3f8
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 128
+	r_offset: 0x400
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 129
+	r_offset: 0x408
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 130
+	r_offset: 0x410
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 131
+	r_offset: 0x418
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 132
+	r_offset: 0x420
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 133
+	r_offset: 0x428
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 134
+	r_offset: 0x430
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 135
+	r_offset: 0x438
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 136
+	r_offset: 0x440
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 137
+	r_offset: 0x448
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 138
+	r_offset: 0x450
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 139
+	r_offset: 0x458
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 140
+	r_offset: 0x460
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 141
+	r_offset: 0x468
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 142
+	r_offset: 0x470
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 143
+	r_offset: 0x478
+	r_info: 0x200000001
+	r_addend: 250
+
+entry: 144
+	r_offset: 0x480
+	r_info: 0x200000001
+	r_addend: 261
+
+entry: 145
+	r_offset: 0x488
+	r_info: 0x200000001
+	r_addend: 301
+
+entry: 146
+	r_offset: 0x490
+	r_info: 0x200000001
+	r_addend: 301
+
+entry: 147
+	r_offset: 0x498
+	r_info: 0x200000001
+	r_addend: 178
+
+entry: 148
+	r_offset: 0x4a0
+	r_info: 0x200000001
+	r_addend: 995
+
+entry: 149
+	r_offset: 0x4a8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 150
+	r_offset: 0x4b0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 151
+	r_offset: 0x4b8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 152
+	r_offset: 0x4c0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 153
+	r_offset: 0x4c8
+	r_info: 0x200000001
+	r_addend: 976
+
+entry: 154
+	r_offset: 0x4d0
+	r_info: 0x200000001
+	r_addend: 976
+
+entry: 155
+	r_offset: 0x4d8
+	r_info: 0x200000001
+	r_addend: 958
+
+entry: 156
+	r_offset: 0x4e0
+	r_info: 0x200000001
+	r_addend: 958
+
+entry: 157
+	r_offset: 0x4e8
+	r_info: 0x200000001
+	r_addend: 940
+
+entry: 158
+	r_offset: 0x4f0
+	r_info: 0x200000001
+	r_addend: 940
+
+entry: 159
+	r_offset: 0x4f8
+	r_info: 0x200000001
+	r_addend: 922
+
+entry: 160
+	r_offset: 0x500
+	r_info: 0x200000001
+	r_addend: 922
+
+entry: 161
+	r_offset: 0x508
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 162
+	r_offset: 0x510
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 163
+	r_offset: 0x518
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 164
+	r_offset: 0x520
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 165
+	r_offset: 0x528
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 166
+	r_offset: 0x530
+	r_info: 0x200000001
+	r_addend: 976
+
+entry: 167
+	r_offset: 0x538
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 168
+	r_offset: 0x540
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 169
+	r_offset: 0x548
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 170
+	r_offset: 0x550
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 171
+	r_offset: 0x558
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 172
+	r_offset: 0x560
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 173
+	r_offset: 0x568
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 174
+	r_offset: 0x570
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 175
+	r_offset: 0x578
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 176
+	r_offset: 0x580
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 177
+	r_offset: 0x588
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 178
+	r_offset: 0x590
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 179
+	r_offset: 0x598
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 180
+	r_offset: 0x5a0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 181
+	r_offset: 0x5a8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 182
+	r_offset: 0x5b0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 183
+	r_offset: 0x5b8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 184
+	r_offset: 0x5c0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 185
+	r_offset: 0x5c8
+	r_info: 0x200000001
+	r_addend: 958
+
+entry: 186
+	r_offset: 0x5d0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 187
+	r_offset: 0x5d8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 188
+	r_offset: 0x5e0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 189
+	r_offset: 0x5e8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 190
+	r_offset: 0x5f0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 191
+	r_offset: 0x5f8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 192
+	r_offset: 0x600
+	r_info: 0x200000001
+	r_addend: 958
+
+entry: 193
+	r_offset: 0x608
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 194
+	r_offset: 0x610
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 195
+	r_offset: 0x618
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 196
+	r_offset: 0x620
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 197
+	r_offset: 0x628
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 198
+	r_offset: 0x630
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 199
+	r_offset: 0x638
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 200
+	r_offset: 0x640
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 201
+	r_offset: 0x648
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 202
+	r_offset: 0x650
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 203
+	r_offset: 0x658
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 204
+	r_offset: 0x660
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 205
+	r_offset: 0x668
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 206
+	r_offset: 0x670
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 207
+	r_offset: 0x678
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 208
+	r_offset: 0x680
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 209
+	r_offset: 0x688
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 210
+	r_offset: 0x690
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 211
+	r_offset: 0x698
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 212
+	r_offset: 0x6a0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 213
+	r_offset: 0x6a8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 214
+	r_offset: 0x6b0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 215
+	r_offset: 0x6b8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 216
+	r_offset: 0x6c0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 217
+	r_offset: 0x6c8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 218
+	r_offset: 0x6d0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 219
+	r_offset: 0x6d8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 220
+	r_offset: 0x6e0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 221
+	r_offset: 0x6e8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 222
+	r_offset: 0x6f0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 223
+	r_offset: 0x6f8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 224
+	r_offset: 0x700
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 225
+	r_offset: 0x708
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 226
+	r_offset: 0x710
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 227
+	r_offset: 0x718
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 228
+	r_offset: 0x720
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 229
+	r_offset: 0x728
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 230
+	r_offset: 0x730
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 231
+	r_offset: 0x738
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 232
+	r_offset: 0x740
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 233
+	r_offset: 0x748
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 234
+	r_offset: 0x750
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 235
+	r_offset: 0x758
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 236
+	r_offset: 0x760
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 237
+	r_offset: 0x768
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 238
+	r_offset: 0x770
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 239
+	r_offset: 0x778
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 240
+	r_offset: 0x780
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 241
+	r_offset: 0x788
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 242
+	r_offset: 0x790
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 243
+	r_offset: 0x798
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 244
+	r_offset: 0x7a0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 245
+	r_offset: 0x7a8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 246
+	r_offset: 0x7b0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 247
+	r_offset: 0x7b8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 248
+	r_offset: 0x7c0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 249
+	r_offset: 0x7c8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 250
+	r_offset: 0x7d0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 251
+	r_offset: 0x7d8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 252
+	r_offset: 0x7e0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 253
+	r_offset: 0x7e8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 254
+	r_offset: 0x7f0
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 255
+	r_offset: 0x7f8
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 256
+	r_offset: 0x800
+	r_info: 0x200000001
+	r_addend: 712
+
+entry: 257
+	r_offset: 0x808
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 258
+	r_offset: 0x810
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 259
+	r_offset: 0x818
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 260
+	r_offset: 0x820
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 261
+	r_offset: 0x828
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 262
+	r_offset: 0x830
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 263
+	r_offset: 0x838
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 264
+	r_offset: 0x840
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 265
+	r_offset: 0x848
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 266
+	r_offset: 0x850
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 267
+	r_offset: 0x858
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 268
+	r_offset: 0x860
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 269
+	r_offset: 0x868
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 270
+	r_offset: 0x870
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 271
+	r_offset: 0x878
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 272
+	r_offset: 0x880
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 273
+	r_offset: 0x888
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 274
+	r_offset: 0x890
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 275
+	r_offset: 0x898
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 276
+	r_offset: 0x8a0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 277
+	r_offset: 0x8a8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 278
+	r_offset: 0x8b0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 279
+	r_offset: 0x8b8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 280
+	r_offset: 0x8c0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 281
+	r_offset: 0x8c8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 282
+	r_offset: 0x8d0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 283
+	r_offset: 0x8d8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 284
+	r_offset: 0x8e0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 285
+	r_offset: 0x8e8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 286
+	r_offset: 0x8f0
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 287
+	r_offset: 0x8f8
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 288
+	r_offset: 0x900
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 289
+	r_offset: 0x908
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 290
+	r_offset: 0x910
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 291
+	r_offset: 0x918
+	r_info: 0x200000001
+	r_addend: 889
+
+entry: 292
+	r_offset: 0x920
+	r_info: 0x200000001
+	r_addend: 864
+
+entry: 293
+	r_offset: 0x928
+	r_info: 0x200000001
+	r_addend: 976
+
+entry: 294
+	r_offset: 0x930
+	r_info: 0x200000001
+	r_addend: 976
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 96
+
+entry: 2
+	r_offset: 0x50
+	r_info: 0x20000000a
+	r_addend: 144
+
+entry: 3
+	r_offset: 0x80
+	r_info: 0x20000000a
+	r_addend: 336
+
+entry: 4
+	r_offset: 0x98
+	r_info: 0x20000000a
+	r_addend: 432
+
+libdwarf.a(dwarf_init.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x353
+	r_info: 0xd0000000b
+	r_addend: 416
+
+entry: 1
+	r_offset: 0x393
+	r_info: 0xd0000000b
+	r_addend: 0
+
+entry: 2
+	r_offset: 0x3a4
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 3
+	r_offset: 0x3c0
+	r_info: 0x1a00000002
+	r_addend: -4
+
+entry: 4
+	r_offset: 0x3d3
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 5
+	r_offset: 0x3fe
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 6
+	r_offset: 0x411
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 7
+	r_offset: 0x429
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 8
+	r_offset: 0x444
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 9
+	r_offset: 0x4bb
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 10
+	r_offset: 0x4d2
+	r_info: 0x1b00000002
+	r_addend: -4
+
+entry: 11
+	r_offset: 0x518
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 12
+	r_offset: 0x565
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 13
+	r_offset: 0x5dd
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 14
+	r_offset: 0x639
+	r_info: 0x1d00000002
+	r_addend: -4
+
+entry: 15
+	r_offset: 0x67c
+	r_info: 0x1e00000002
+	r_addend: -4
+
+entry: 16
+	r_offset: 0x697
+	r_info: 0x400000002
+	r_addend: -8
+
+entry: 17
+	r_offset: 0x69b
+	r_info: 0x20000000b
+	r_addend: 0
+
+entry: 18
+	r_offset: 0x6a2
+	r_info: 0x400000002
+	r_addend: 0
+
+entry: 19
+	r_offset: 0x6a6
+	r_info: 0x20000000b
+	r_addend: 368
+
+entry: 20
+	r_offset: 0x6b2
+	r_info: 0x1f00000002
+	r_addend: -4
+
+entry: 21
+	r_offset: 0x6c8
+	r_info: 0x2000000002
+	r_addend: -4
+
+entry: 22
+	r_offset: 0x6e4
+	r_info: 0x2100000002
+	r_addend: -4
+
+entry: 23
+	r_offset: 0x700
+	r_info: 0x1b00000002
+	r_addend: -4
+
+entry: 24
+	r_offset: 0x723
+	r_info: 0xd0000000b
+	r_addend: 224
+
+entry: 25
+	r_offset: 0x72b
+	r_info: 0x2200000002
+	r_addend: -4
+
+entry: 26
+	r_offset: 0x756
+	r_info: 0x2300000002
+	r_addend: -4
+
+entry: 27
+	r_offset: 0x7d4
+	r_info: 0x2400000002
+	r_addend: -4
+
+entry: 28
+	r_offset: 0x7f7
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 29
+	r_offset: 0x7ff
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 30
+	r_offset: 0x842
+	r_info: 0xd0000000b
+	r_addend: 195
+
+entry: 31
+	r_offset: 0x86e
+	r_info: 0xd0000000b
+	r_addend: 195
+
+entry: 32
+	r_offset: 0x88f
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 33
+	r_offset: 0x897
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 34
+	r_offset: 0x8b4
+	r_info: 0x400000002
+	r_addend: -8
+
+entry: 35
+	r_offset: 0x8b8
+	r_info: 0x20000000b
+	r_addend: 160
+
+entry: 36
+	r_offset: 0x8bf
+	r_info: 0x400000002
+	r_addend: 0
+
+entry: 37
+	r_offset: 0x8c3
+	r_info: 0x20000000b
+	r_addend: 496
+
+entry: 38
+	r_offset: 0x921
+	r_info: 0x1d00000002
+	r_addend: -4
+
+entry: 39
+	r_offset: 0x954
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 40
+	r_offset: 0x9e5
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 41
+	r_offset: 0xa03
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 42
+	r_offset: 0xa22
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 43
+	r_offset: 0xb3c
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 44
+	r_offset: 0xb58
+	r_info: 0x2600000002
+	r_addend: -4
+
+entry: 45
+	r_offset: 0xbb1
+	r_info: 0x2700000002
+	r_addend: -4
+
+entry: 46
+	r_offset: 0xbc8
+	r_info: 0x2000000002
+	r_addend: -4
+
+entry: 47
+	r_offset: 0xbe1
+	r_info: 0x2100000002
+	r_addend: -4
+
+entry: 48
+	r_offset: 0xc33
+	r_info: 0x2400000002
+	r_addend: -4
+
+entry: 49
+	r_offset: 0xc92
+	r_info: 0x400000002
+	r_addend: 4
+
+entry: 50
+	r_offset: 0xcab
+	r_info: 0x2800000002
+	r_addend: -4
+
+entry: 51
+	r_offset: 0xcd1
+	r_info: 0x2900000002
+	r_addend: -4
+
+entry: 52
+	r_offset: 0xcde
+	r_info: 0xf0000000a
+	r_addend: 0
+
+entry: 53
+	r_offset: 0xce3
+	r_info: 0x2a00000002
+	r_addend: -4
+
+entry: 54
+	r_offset: 0xcf7
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 55
+	r_offset: 0xcff
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 56
+	r_offset: 0xd27
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 57
+	r_offset: 0xd2f
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 58
+	r_offset: 0xd57
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 59
+	r_offset: 0xd5f
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 60
+	r_offset: 0xd92
+	r_info: 0xd0000000b
+	r_addend: 368
+
+entry: 61
+	r_offset: 0xe09
+	r_info: 0x2b00000002
+	r_addend: -4
+
+entry: 62
+	r_offset: 0xe3a
+	r_info: 0x2c00000002
+	r_addend: -4
+
+entry: 63
+	r_offset: 0xef1
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 64
+	r_offset: 0xef9
+	r_info: 0xd0000000b
+	r_addend: 400
+
+entry: 65
+	r_offset: 0xf37
+	r_info: 0x400000002
+	r_addend: -4
+
+entry: 66
+	r_offset: 0xf5b
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 67
+	r_offset: 0xf63
+	r_info: 0xd0000000b
+	r_addend: 400
+
+entry: 68
+	r_offset: 0xf96
+	r_info: 0xd0000000b
+	r_addend: 384
+
+entry: 69
+	r_offset: 0xfb6
+	r_info: 0x2d00000002
+	r_addend: -4
+
+entry: 70
+	r_offset: 0xfcd
+	r_info: 0xd0000000b
+	r_addend: 384
+
+entry: 71
+	r_offset: 0xffc
+	r_info: 0xd0000000b
+	r_addend: 384
+
+entry: 72
+	r_offset: 0x102b
+	r_info: 0xd0000000b
+	r_addend: 384
+
+entry: 73
+	r_offset: 0x107c
+	r_info: 0x2f00000002
+	r_addend: -4
+
+entry: 74
+	r_offset: 0x10b1
+	r_info: 0x3000000002
+	r_addend: -4
+
+entry: 75
+	r_offset: 0x10c8
+	r_info: 0x3100000002
+	r_addend: -4
+
+entry: 76
+	r_offset: 0x10e5
+	r_info: 0x1c00000002
+	r_addend: -4
+
+entry: 77
+	r_offset: 0x1113
+	r_info: 0x3200000002
+	r_addend: -4
+
+entry: 78
+	r_offset: 0x1122
+	r_info: 0x2f00000002
+	r_addend: -4
+
+entry: 79
+	r_offset: 0x1177
+	r_info: 0xd0000000b
+	r_addend: 184
+
+entry: 80
+	r_offset: 0x1195
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 81
+	r_offset: 0x119d
+	r_info: 0xd0000000b
+	r_addend: 184
+
+entry: 82
+	r_offset: 0x11c1
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 83
+	r_offset: 0x11c9
+	r_info: 0xd0000000b
+	r_addend: 184
+
+entry: 84
+	r_offset: 0x11e1
+	r_info: 0x3300000002
+	r_addend: -4
+
+entry: 85
+	r_offset: 0x11e9
+	r_info: 0x3400000002
+	r_addend: -4
+
+relocation with addend (.rela.rodata):
+
+entry: 0
+	r_offset: 0
+	r_info: 0x200000001
+	r_addend: 827
+
+entry: 1
+	r_offset: 0x8
+	r_info: 0x200000001
+	r_addend: 919
+
+entry: 2
+	r_offset: 0x10
+	r_info: 0x200000001
+	r_addend: 827
+
+entry: 3
+	r_offset: 0x18
+	r_info: 0x200000001
+	r_addend: 966
+
+entry: 4
+	r_offset: 0x20
+	r_info: 0x200000001
+	r_addend: 1009
+
+entry: 5
+	r_offset: 0x28
+	r_info: 0x200000001
+	r_addend: 1028
+
+entry: 6
+	r_offset: 0x30
+	r_info: 0x200000001
+	r_addend: 1052
+
+entry: 7
+	r_offset: 0x38
+	r_info: 0x200000001
+	r_addend: 1079
+
+entry: 8
+	r_offset: 0x40
+	r_info: 0x200000001
+	r_addend: 1106
+
+entry: 9
+	r_offset: 0x48
+	r_info: 0x200000001
+	r_addend: 1184
+
+entry: 10
+	r_offset: 0x50
+	r_info: 0x200000001
+	r_addend: 1488
+
+entry: 11
+	r_offset: 0x58
+	r_info: 0x200000001
+	r_addend: 1368
+
+entry: 12
+	r_offset: 0x60
+	r_info: 0x200000001
+	r_addend: 1368
+
+entry: 13
+	r_offset: 0x68
+	r_info: 0x200000001
+	r_addend: 1395
+
+entry: 14
+	r_offset: 0x70
+	r_info: 0x200000001
+	r_addend: 1200
+
+entry: 15
+	r_offset: 0x78
+	r_info: 0x200000001
+	r_addend: 1248
+
+entry: 16
+	r_offset: 0x80
+	r_info: 0x200000001
+	r_addend: 1269
+
+entry: 17
+	r_offset: 0x88
+	r_info: 0x200000001
+	r_addend: 1368
+
+entry: 18
+	r_offset: 0x90
+	r_info: 0x200000001
+	r_addend: 1028
+
+entry: 19
+	r_offset: 0x98
+	r_info: 0x200000001
+	r_addend: 1052
+
+entry: 20
+	r_offset: 0xa0
+	r_info: 0x200000001
+	r_addend: 1079
+
+entry: 21
+	r_offset: 0xa8
+	r_info: 0x200000001
+	r_addend: 1248
+
+entry: 22
+	r_offset: 0xb0
+	r_info: 0x200000001
+	r_addend: 1318
+
+entry: 23
+	r_offset: 0xe0
+	r_info: 0x1700000001
+	r_addend: 0
+
+entry: 24
+	r_offset: 0xe8
+	r_info: 0x1700000001
+	r_addend: 14
+
+entry: 25
+	r_offset: 0xf0
+	r_info: 0x1700000001
+	r_addend: 29
+
+entry: 26
+	r_offset: 0xf8
+	r_info: 0x1700000001
+	r_addend: 42
+
+entry: 27
+	r_offset: 0x100
+	r_info: 0x1700000001
+	r_addend: 54
+
+entry: 28
+	r_offset: 0x108
+	r_info: 0x1700000001
+	r_addend: 66
+
+entry: 29
+	r_offset: 0x110
+	r_info: 0x1700000001
+	r_addend: 82
+
+entry: 30
+	r_offset: 0x118
+	r_info: 0x1700000001
+	r_addend: 92
+
+entry: 31
+	r_offset: 0x120
+	r_info: 0x1700000001
+	r_addend: 107
+
+entry: 32
+	r_offset: 0x128
+	r_info: 0x1700000001
+	r_addend: 118
+
+entry: 33
+	r_offset: 0x130
+	r_info: 0x1700000001
+	r_addend: 129
+
+entry: 34
+	r_offset: 0x138
+	r_info: 0x1700000001
+	r_addend: 145
+
+entry: 35
+	r_offset: 0x140
+	r_info: 0x1700000001
+	r_addend: 159
+
+entry: 36
+	r_offset: 0x148
+	r_info: 0x1700000001
+	r_addend: 178
+
+entry: 37
+	r_offset: 0x150
+	r_info: 0x1700000001
+	r_addend: 197
+
+entry: 38
+	r_offset: 0x158
+	r_info: 0x1700000001
+	r_addend: 210
+
+entry: 39
+	r_offset: 0x160
+	r_info: 0x1700000001
+	r_addend: 227
+
+entry: 40
+	r_offset: 0x168
+	r_info: 0x1700000001
+	r_addend: 235
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 160
+
+entry: 2
+	r_offset: 0x50
+	r_info: 0x20000000a
+	r_addend: 368
+
+entry: 3
+	r_offset: 0x68
+	r_info: 0x20000000a
+	r_addend: 496
+
+entry: 4
+	r_offset: 0x80
+	r_info: 0x20000000a
+	r_addend: 608
+
+entry: 5
+	r_offset: 0x98
+	r_info: 0x20000000a
+	r_addend: 672
+
+entry: 6
+	r_offset: 0xb0
+	r_info: 0x20000000a
+	r_addend: 704
+
+entry: 7
+	r_offset: 0xd8
+	r_info: 0x20000000a
+	r_addend: 1520
+
+entry: 8
+	r_offset: 0x110
+	r_info: 0x20000000a
+	r_addend: 4176
+
+libdwarf.a(dwarf_form.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x38
+	r_info: 0x60000000b
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+libdwarf.a(dwarf_finish.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0xb1
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 1
+	r_offset: 0xd7
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 2
+	r_offset: 0x110
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 3
+	r_offset: 0x16d
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 4
+	r_offset: 0x193
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 5
+	r_offset: 0x1d0
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 6
+	r_offset: 0x21c
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 7
+	r_offset: 0x235
+	r_info: 0xb00000002
+	r_addend: -4
+
+entry: 8
+	r_offset: 0x23d
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 9
+	r_offset: 0x267
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 10
+	r_offset: 0x2a3
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 11
+	r_offset: 0x33f
+	r_info: 0x60000000b
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+libdwarf.a(dwarf_errno.o):
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+libdwarf.a(dwarf_dealloc.o):
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+libdwarf.a(dwarf_attrval.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x88
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 1
+	r_offset: 0xa9
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 2
+	r_offset: 0xb9
+	r_info: 0xb0000000a
+	r_addend: 0
+
+entry: 3
+	r_offset: 0xbe
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 4
+	r_offset: 0xc5
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 5
+	r_offset: 0xdf
+	r_info: 0xb0000000b
+	r_addend: 0
+
+entry: 6
+	r_offset: 0x126
+	r_info: 0xb0000000b
+	r_addend: 0
+
+entry: 7
+	r_offset: 0x153
+	r_info: 0xb0000000b
+	r_addend: 0
+
+entry: 8
+	r_offset: 0x191
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 9
+	r_offset: 0x1c5
+	r_info: 0x1200000002
+	r_addend: -4
+
+entry: 10
+	r_offset: 0x1d5
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 11
+	r_offset: 0x1fb
+	r_info: 0xb0000000b
+	r_addend: 0
+
+entry: 12
+	r_offset: 0x213
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 13
+	r_offset: 0x223
+	r_info: 0xb0000000a
+	r_addend: 0
+
+entry: 14
+	r_offset: 0x228
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 15
+	r_offset: 0x22f
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 16
+	r_offset: 0x249
+	r_info: 0xb0000000b
+	r_addend: 0
+
+entry: 17
+	r_offset: 0x2a4
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 18
+	r_offset: 0x2cd
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 19
+	r_offset: 0x2dd
+	r_info: 0xb0000000a
+	r_addend: 32
+
+entry: 20
+	r_offset: 0x2e2
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 21
+	r_offset: 0x2e9
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 22
+	r_offset: 0x303
+	r_info: 0xb0000000b
+	r_addend: 32
+
+entry: 23
+	r_offset: 0x33b
+	r_info: 0xb0000000b
+	r_addend: 32
+
+entry: 24
+	r_offset: 0x35f
+	r_info: 0xb0000000b
+	r_addend: 32
+
+entry: 25
+	r_offset: 0x3ce
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 26
+	r_offset: 0x3fa
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 27
+	r_offset: 0x40a
+	r_info: 0xb0000000a
+	r_addend: 64
+
+entry: 28
+	r_offset: 0x40f
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 29
+	r_offset: 0x416
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 30
+	r_offset: 0x430
+	r_info: 0xb0000000b
+	r_addend: 64
+
+entry: 31
+	r_offset: 0x469
+	r_info: 0xb0000000b
+	r_addend: 64
+
+entry: 32
+	r_offset: 0x4b0
+	r_info: 0xb0000000b
+	r_addend: 64
+
+entry: 33
+	r_offset: 0x513
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 34
+	r_offset: 0x532
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 35
+	r_offset: 0x542
+	r_info: 0xb0000000a
+	r_addend: 96
+
+entry: 36
+	r_offset: 0x547
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 37
+	r_offset: 0x54e
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 38
+	r_offset: 0x568
+	r_info: 0xb0000000b
+	r_addend: 96
+
+entry: 39
+	r_offset: 0x5a6
+	r_info: 0xb0000000b
+	r_addend: 96
+
+entry: 40
+	r_offset: 0x5ca
+	r_info: 0xb0000000b
+	r_addend: 96
+
+entry: 41
+	r_offset: 0x61a
+	r_info: 0x1700000002
+	r_addend: -4
+
+entry: 42
+	r_offset: 0x63c
+	r_info: 0xb0000000b
+	r_addend: 128
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 48
+
+entry: 2
+	r_offset: 0x58
+	r_info: 0x20000000a
+	r_addend: 608
+
+entry: 3
+	r_offset: 0x78
+	r_info: 0x20000000a
+	r_addend: 896
+
+entry: 4
+	r_offset: 0x98
+	r_info: 0x20000000a
+	r_addend: 1232
+
+entry: 5
+	r_offset: 0xb8
+	r_info: 0x20000000a
+	r_addend: 1520
+
+libdwarf.a(dwarf_attr.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x5b
+	r_info: 0x70000000b
+	r_addend: 15
+
+entry: 1
+	r_offset: 0x88
+	r_info: 0x70000000b
+	r_addend: 15
+
+entry: 2
+	r_offset: 0xf0
+	r_info: 0x70000000b
+	r_addend: 0
+
+entry: 3
+	r_offset: 0x124
+	r_info: 0xc00000002
+	r_addend: -4
+
+entry: 4
+	r_offset: 0x146
+	r_info: 0x70000000b
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 160
+
+libdwarf.a(dwarf_abbrev.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x6a
+	r_info: 0xb00000002
+	r_addend: -4
+
+entry: 1
+	r_offset: 0x8c
+	r_info: 0x60000000b
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 48
+
+libdwarf.a(dwarf_dump.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x4
+	r_info: 0x50000000a
+	r_addend: 172
+
+entry: 1
+	r_offset: 0x10
+	r_info: 0x50000000a
+	r_addend: 228
+
+entry: 2
+	r_offset: 0x1f
+	r_info: 0x50000000a
+	r_addend: 268
+
+entry: 3
+	r_offset: 0x2f
+	r_info: 0x60000000a
+	r_addend: 176
+
+entry: 4
+	r_offset: 0x41
+	r_info: 0x50000000a
+	r_addend: 13
+
+entry: 5
+	r_offset: 0x47
+	r_info: 0x50000000a
+	r_addend: 243
+
+entry: 6
+	r_offset: 0x56
+	r_info: 0x60000000a
+	r_addend: 0
+
+entry: 7
+	r_offset: 0x62
+	r_info: 0x50000000a
+	r_addend: 142
+
+entry: 8
+	r_offset: 0x72
+	r_info: 0x50000000a
+	r_addend: 155
+
+entry: 9
+	r_offset: 0x7e
+	r_info: 0x60000000a
+	r_addend: 32
+
+entry: 10
+	r_offset: 0x87
+	r_info: 0x60000000a
+	r_addend: 64
+
+entry: 11
+	r_offset: 0x93
+	r_info: 0x60000000a
+	r_addend: 104
+
+entry: 12
+	r_offset: 0x9f
+	r_info: 0x60000000a
+	r_addend: 136
+
+entry: 13
+	r_offset: 0xa8
+	r_info: 0x50000000a
+	r_addend: 30
+
+entry: 14
+	r_offset: 0xb4
+	r_info: 0x50000000a
+	r_addend: 58
+
+entry: 15
+	r_offset: 0xc0
+	r_info: 0x50000000a
+	r_addend: 79
+
+entry: 16
+	r_offset: 0xc6
+	r_info: 0x50000000a
+	r_addend: 21
+
+entry: 17
+	r_offset: 0xd2
+	r_info: 0x50000000a
+	r_addend: 293
+
+entry: 18
+	r_offset: 0xe3
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 19
+	r_offset: 0xfc
+	r_info: 0x50000000a
+	r_addend: 199
+
+entry: 20
+	r_offset: 0x105
+	r_info: 0x50000000a
+	r_addend: 100
+
+entry: 21
+	r_offset: 0x119
+	r_info: 0x50000000a
+	r_addend: 126
+
+entry: 22
+	r_offset: 0x126
+	r_info: 0x50000000a
+	r_addend: 341
+
+entry: 23
+	r_offset: 0x135
+	r_info: 0x70000000b
+	r_addend: 0
+
+entry: 24
+	r_offset: 0x13a
+	r_info: 0x50000000a
+	r_addend: 314
+
+entry: 25
+	r_offset: 0x140
+	r_info: 0x50000000a
+	r_addend: 1370
+
+entry: 26
+	r_offset: 0x146
+	r_info: 0x50000000a
+	r_addend: 1345
+
+entry: 27
+	r_offset: 0x14c
+	r_info: 0x50000000a
+	r_addend: 1326
+
+entry: 28
+	r_offset: 0x152
+	r_info: 0x50000000a
+	r_addend: 1297
+
+entry: 29
+	r_offset: 0x158
+	r_info: 0x50000000a
+	r_addend: 1207
+
+entry: 30
+	r_offset: 0x15e
+	r_info: 0x50000000a
+	r_addend: 1169
+
+entry: 31
+	r_offset: 0x164
+	r_info: 0x50000000a
+	r_addend: 1141
+
+entry: 32
+	r_offset: 0x16a
+	r_info: 0x50000000a
+	r_addend: 1076
+
+entry: 33
+	r_offset: 0x170
+	r_info: 0x50000000a
+	r_addend: 1041
+
+entry: 34
+	r_offset: 0x176
+	r_info: 0x50000000a
+	r_addend: 1000
+
+entry: 35
+	r_offset: 0x17c
+	r_info: 0x50000000a
+	r_addend: 873
+
+entry: 36
+	r_offset: 0x182
+	r_info: 0x50000000a
+	r_addend: 846
+
+entry: 37
+	r_offset: 0x188
+	r_info: 0x50000000a
+	r_addend: 829
+
+entry: 38
+	r_offset: 0x18e
+	r_info: 0x50000000a
+	r_addend: 814
+
+entry: 39
+	r_offset: 0x194
+	r_info: 0x50000000a
+	r_addend: 799
+
+entry: 40
+	r_offset: 0x19a
+	r_info: 0x50000000a
+	r_addend: 745
+
+entry: 41
+	r_offset: 0x1a0
+	r_info: 0x50000000a
+	r_addend: 695
+
+entry: 42
+	r_offset: 0x1a6
+	r_info: 0x50000000a
+	r_addend: 679
+
+entry: 43
+	r_offset: 0x1ac
+	r_info: 0x50000000a
+	r_addend: 663
+
+entry: 44
+	r_offset: 0x1b2
+	r_info: 0x50000000a
+	r_addend: 645
+
+entry: 45
+	r_offset: 0x1b8
+	r_info: 0x50000000a
+	r_addend: 618
+
+entry: 46
+	r_offset: 0x1be
+	r_info: 0x50000000a
+	r_addend: 606
+
+entry: 47
+	r_offset: 0x1c4
+	r_info: 0x50000000a
+	r_addend: 503
+
+entry: 48
+	r_offset: 0x1ca
+	r_info: 0x50000000a
+	r_addend: 438
+
+entry: 49
+	r_offset: 0x1d0
+	r_info: 0x50000000a
+	r_addend: 421
+
+entry: 50
+	r_offset: 0x1d6
+	r_info: 0x50000000a
+	r_addend: 401
+
+entry: 51
+	r_offset: 0x1dc
+	r_info: 0x50000000a
+	r_addend: 381
+
+entry: 52
+	r_offset: 0x1e2
+	r_info: 0x50000000a
+	r_addend: 359
+
+entry: 53
+	r_offset: 0x1e8
+	r_info: 0x50000000a
+	r_addend: 1308
+
+entry: 54
+	r_offset: 0x1ee
+	r_info: 0x50000000a
+	r_addend: 1241
+
+entry: 55
+	r_offset: 0x1f4
+	r_info: 0x50000000a
+	r_addend: 1189
+
+entry: 56
+	r_offset: 0x1fa
+	r_info: 0x50000000a
+	r_addend: 1123
+
+entry: 57
+	r_offset: 0x200
+	r_info: 0x50000000a
+	r_addend: 1106
+
+entry: 58
+	r_offset: 0x206
+	r_info: 0x50000000a
+	r_addend: 1091
+
+entry: 59
+	r_offset: 0x20c
+	r_info: 0x50000000a
+	r_addend: 982
+
+entry: 60
+	r_offset: 0x212
+	r_info: 0x50000000a
+	r_addend: 921
+
+entry: 61
+	r_offset: 0x218
+	r_info: 0x50000000a
+	r_addend: 908
+
+entry: 62
+	r_offset: 0x21e
+	r_info: 0x50000000a
+	r_addend: 713
+
+entry: 63
+	r_offset: 0x224
+	r_info: 0x50000000a
+	r_addend: 584
+
+entry: 64
+	r_offset: 0x22a
+	r_info: 0x50000000a
+	r_addend: 566
+
+entry: 65
+	r_offset: 0x230
+	r_info: 0x50000000a
+	r_addend: 551
+
+entry: 66
+	r_offset: 0x236
+	r_info: 0x50000000a
+	r_addend: 528
+
+entry: 67
+	r_offset: 0x23c
+	r_info: 0x50000000a
+	r_addend: 1259
+
+entry: 68
+	r_offset: 0x242
+	r_info: 0x50000000a
+	r_addend: 895
+
+entry: 69
+	r_offset: 0x248
+	r_info: 0x50000000a
+	r_addend: 1387
+
+entry: 70
+	r_offset: 0x24e
+	r_info: 0x50000000a
+	r_addend: 762
+
+entry: 71
+	r_offset: 0x254
+	r_info: 0x50000000a
+	r_addend: 733
+
+entry: 72
+	r_offset: 0x25a
+	r_info: 0x50000000a
+	r_addend: 1017
+
+entry: 73
+	r_offset: 0x260
+	r_info: 0x50000000a
+	r_addend: 939
+
+entry: 74
+	r_offset: 0x266
+	r_info: 0x50000000a
+	r_addend: 859
+
+entry: 75
+	r_offset: 0x26c
+	r_info: 0x50000000a
+	r_addend: 969
+
+entry: 76
+	r_offset: 0x272
+	r_info: 0x50000000a
+	r_addend: 1225
+
+entry: 77
+	r_offset: 0x278
+	r_info: 0x50000000a
+	r_addend: 780
+
+entry: 78
+	r_offset: 0x27e
+	r_info: 0x50000000a
+	r_addend: 472
+
+entry: 79
+	r_offset: 0x284
+	r_info: 0x50000000a
+	r_addend: 455
+
+entry: 80
+	r_offset: 0x28a
+	r_info: 0x50000000a
+	r_addend: 487
+
+entry: 81
+	r_offset: 0x290
+	r_info: 0x50000000a
+	r_addend: 1279
+
+entry: 82
+	r_offset: 0x296
+	r_info: 0x50000000a
+	r_addend: 1061
+
+entry: 83
+	r_offset: 0x29c
+	r_info: 0x50000000a
+	r_addend: 1030
+
+entry: 84
+	r_offset: 0x2a2
+	r_info: 0x50000000a
+	r_addend: 954
+
+entry: 85
+	r_offset: 0x2a8
+	r_info: 0x50000000a
+	r_addend: 1155
+
+entry: 86
+	r_offset: 0x2b6
+	r_info: 0x50000000a
+	r_addend: 341
+
+entry: 87
+	r_offset: 0x2c5
+	r_info: 0x70000000b
+	r_addend: 624
+
+entry: 88
+	r_offset: 0x2ca
+	r_info: 0x50000000a
+	r_addend: 1559
+
+entry: 89
+	r_offset: 0x2d0
+	r_info: 0x50000000a
+	r_addend: 1645
+
+entry: 90
+	r_offset: 0x2d6
+	r_info: 0x50000000a
+	r_addend: 1615
+
+entry: 91
+	r_offset: 0x2dc
+	r_info: 0x50000000a
+	r_addend: 1602
+
+entry: 92
+	r_offset: 0x2e2
+	r_info: 0x50000000a
+	r_addend: 1589
+
+entry: 93
+	r_offset: 0x2e8
+	r_info: 0x50000000a
+	r_addend: 1576
+
+entry: 94
+	r_offset: 0x2ee
+	r_info: 0x50000000a
+	r_addend: 1628
+
+entry: 95
+	r_offset: 0x2f4
+	r_info: 0x50000000a
+	r_addend: 1404
+
+entry: 96
+	r_offset: 0x2fa
+	r_info: 0x50000000a
+	r_addend: 1692
+
+entry: 97
+	r_offset: 0x300
+	r_info: 0x50000000a
+	r_addend: 1663
+
+entry: 98
+	r_offset: 0x306
+	r_info: 0x50000000a
+	r_addend: 1546
+
+entry: 99
+	r_offset: 0x30c
+	r_info: 0x50000000a
+	r_addend: 1490
+
+entry: 100
+	r_offset: 0x312
+	r_info: 0x50000000a
+	r_addend: 1445
+
+entry: 101
+	r_offset: 0x318
+	r_info: 0x50000000a
+	r_addend: 1431
+
+entry: 102
+	r_offset: 0x31e
+	r_info: 0x50000000a
+	r_addend: 1677
+
+entry: 103
+	r_offset: 0x324
+	r_info: 0x50000000a
+	r_addend: 1532
+
+entry: 104
+	r_offset: 0x32a
+	r_info: 0x50000000a
+	r_addend: 1518
+
+entry: 105
+	r_offset: 0x330
+	r_info: 0x50000000a
+	r_addend: 1504
+
+entry: 106
+	r_offset: 0x336
+	r_info: 0x50000000a
+	r_addend: 1475
+
+entry: 107
+	r_offset: 0x33c
+	r_info: 0x50000000a
+	r_addend: 1460
+
+entry: 108
+	r_offset: 0x342
+	r_info: 0x50000000a
+	r_addend: 1418
+
+entry: 109
+	r_offset: 0x356
+	r_info: 0x50000000a
+	r_addend: 1722
+
+entry: 110
+	r_offset: 0x365
+	r_info: 0x70000000b
+	r_addend: 808
+
+entry: 111
+	r_offset: 0x36a
+	r_info: 0x50000000a
+	r_addend: 2468
+
+entry: 112
+	r_offset: 0x370
+	r_info: 0x50000000a
+	r_addend: 1896
+
+entry: 113
+	r_offset: 0x376
+	r_info: 0x50000000a
+	r_addend: 2120
+
+entry: 114
+	r_offset: 0x37c
+	r_info: 0x50000000a
+	r_addend: 2343
+
+entry: 115
+	r_offset: 0x382
+	r_info: 0x50000000a
+	r_addend: 2689
+
+entry: 116
+	r_offset: 0x388
+	r_info: 0x50000000a
+	r_addend: 2097
+
+entry: 117
+	r_offset: 0x38e
+	r_info: 0x50000000a
+	r_addend: 2307
+
+entry: 118
+	r_offset: 0x394
+	r_info: 0x50000000a
+	r_addend: 2186
+
+entry: 119
+	r_offset: 0x39a
+	r_info: 0x50000000a
+	r_addend: 2431
+
+entry: 120
+	r_offset: 0x3a0
+	r_info: 0x50000000a
+	r_addend: 1947
+
+entry: 121
+	r_offset: 0x3a6
+	r_info: 0x50000000a
+	r_addend: 2764
+
+entry: 122
+	r_offset: 0x3ac
+	r_info: 0x50000000a
+	r_addend: 2713
+
+entry: 123
+	r_offset: 0x3b2
+	r_info: 0x50000000a
+	r_addend: 2744
+
+entry: 124
+	r_offset: 0x3b8
+	r_info: 0x50000000a
+	r_addend: 2609
+
+entry: 125
+	r_offset: 0x3be
+	r_info: 0x50000000a
+	r_addend: 2590
+
+entry: 126
+	r_offset: 0x3c4
+	r_info: 0x60000000a
+	r_addend: 248
+
+entry: 127
+	r_offset: 0x3ca
+	r_info: 0x60000000a
+	r_addend: 216
+
+entry: 128
+	r_offset: 0x3d0
+	r_info: 0x50000000a
+	r_addend: 2528
+
+entry: 129
+	r_offset: 0x3d6
+	r_info: 0x50000000a
+	r_addend: 2324
+
+entry: 130
+	r_offset: 0x3dc
+	r_info: 0x50000000a
+	r_addend: 2286
+
+entry: 131
+	r_offset: 0x3e2
+	r_info: 0x50000000a
+	r_addend: 2270
+
+entry: 132
+	r_offset: 0x3e8
+	r_info: 0x50000000a
+	r_addend: 2055
+
+entry: 133
+	r_offset: 0x3ee
+	r_info: 0x50000000a
+	r_addend: 2013
+
+entry: 134
+	r_offset: 0x3f4
+	r_info: 0x50000000a
+	r_addend: 1931
+
+entry: 135
+	r_offset: 0x3fa
+	r_info: 0x50000000a
+	r_addend: 1913
+
+entry: 136
+	r_offset: 0x400
+	r_info: 0x50000000a
+	r_addend: 1795
+
+entry: 137
+	r_offset: 0x406
+	r_info: 0x50000000a
+	r_addend: 1778
+
+entry: 138
+	r_offset: 0x40c
+	r_info: 0x50000000a
+	r_addend: 1734
+
+entry: 139
+	r_offset: 0x412
+	r_info: 0x50000000a
+	r_addend: 1705
+
+entry: 140
+	r_offset: 0x418
+	r_info: 0x50000000a
+	r_addend: 2546
+
+entry: 141
+	r_offset: 0x41e
+	r_info: 0x50000000a
+	r_addend: 2452
+
+entry: 142
+	r_offset: 0x424
+	r_info: 0x50000000a
+	r_addend: 2383
+
+entry: 143
+	r_offset: 0x42a
+	r_info: 0x50000000a
+	r_addend: 2256
+
+entry: 144
+	r_offset: 0x430
+	r_info: 0x50000000a
+	r_addend: 2160
+
+entry: 145
+	r_offset: 0x436
+	r_info: 0x50000000a
+	r_addend: 2141
+
+entry: 146
+	r_offset: 0x43c
+	r_info: 0x50000000a
+	r_addend: 1852
+
+entry: 147
+	r_offset: 0x442
+	r_info: 0x50000000a
+	r_addend: 1832
+
+entry: 148
+	r_offset: 0x448
+	r_info: 0x50000000a
+	r_addend: 2729
+
+entry: 149
+	r_offset: 0x44e
+	r_info: 0x50000000a
+	r_addend: 2659
+
+entry: 150
+	r_offset: 0x454
+	r_info: 0x50000000a
+	r_addend: 2641
+
+entry: 151
+	r_offset: 0x45a
+	r_info: 0x50000000a
+	r_addend: 2626
+
+entry: 152
+	r_offset: 0x460
+	r_info: 0x50000000a
+	r_addend: 2567
+
+entry: 153
+	r_offset: 0x466
+	r_info: 0x50000000a
+	r_addend: 2506
+
+entry: 154
+	r_offset: 0x46c
+	r_info: 0x50000000a
+	r_addend: 2487
+
+entry: 155
+	r_offset: 0x472
+	r_info: 0x50000000a
+	r_addend: 1876
+
+entry: 156
+	r_offset: 0x478
+	r_info: 0x50000000a
+	r_addend: 2409
+
+entry: 157
+	r_offset: 0x47e
+	r_info: 0x50000000a
+	r_addend: 2363
+
+entry: 158
+	r_offset: 0x484
+	r_info: 0x50000000a
+	r_addend: 2242
+
+entry: 159
+	r_offset: 0x48a
+	r_info: 0x50000000a
+	r_addend: 2221
+
+entry: 160
+	r_offset: 0x490
+	r_info: 0x50000000a
+	r_addend: 2208
+
+entry: 161
+	r_offset: 0x496
+	r_info: 0x50000000a
+	r_addend: 2069
+
+entry: 162
+	r_offset: 0x49c
+	r_info: 0x50000000a
+	r_addend: 2031
+
+entry: 163
+	r_offset: 0x4a2
+	r_info: 0x50000000a
+	r_addend: 1989
+
+entry: 164
+	r_offset: 0x4a8
+	r_info: 0x50000000a
+	r_addend: 1970
+
+entry: 165
+	r_offset: 0x4ae
+	r_info: 0x50000000a
+	r_addend: 1814
+
+entry: 166
+	r_offset: 0x4b4
+	r_info: 0x50000000a
+	r_addend: 1760
+
+entry: 167
+	r_offset: 0x4ca
+	r_info: 0x60000000a
+	r_addend: 280
+
+entry: 168
+	r_offset: 0x4d3
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 169
+	r_offset: 0x4fc
+	r_info: 0x50000000a
+	r_addend: 2789
+
+entry: 170
+	r_offset: 0x501
+	r_info: 0x50000000a
+	r_addend: 2785
+
+entry: 171
+	r_offset: 0x50a
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 172
+	r_offset: 0x51b
+	r_info: 0x50000000a
+	r_addend: 2792
+
+entry: 173
+	r_offset: 0x520
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 174
+	r_offset: 0x535
+	r_info: 0xd00000002
+	r_addend: -4
+
+entry: 175
+	r_offset: 0x541
+	r_info: 0xc00000002
+	r_addend: -4
+
+entry: 176
+	r_offset: 0x54c
+	r_info: 0x50000000a
+	r_addend: 2818
+
+entry: 177
+	r_offset: 0x553
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 178
+	r_offset: 0x59a
+	r_info: 0x60000000a
+	r_addend: 336
+
+entry: 179
+	r_offset: 0x5a3
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 180
+	r_offset: 0x5b4
+	r_info: 0x1300000002
+	r_addend: -4
+
+entry: 181
+	r_offset: 0x5cd
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 182
+	r_offset: 0x5e4
+	r_info: 0x60000000a
+	r_addend: 424
+
+entry: 183
+	r_offset: 0x5eb
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 184
+	r_offset: 0x5fc
+	r_info: 0x60000000a
+	r_addend: 384
+
+entry: 185
+	r_offset: 0x601
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 186
+	r_offset: 0x616
+	r_info: 0x60000000a
+	r_addend: 472
+
+entry: 187
+	r_offset: 0x61f
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 188
+	r_offset: 0x62b
+	r_info: 0x50000000a
+	r_addend: 2834
+
+entry: 189
+	r_offset: 0x632
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 190
+	r_offset: 0x63a
+	r_info: 0x1600000002
+	r_addend: -4
+
+entry: 191
+	r_offset: 0x652
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 192
+	r_offset: 0x676
+	r_info: 0x60000000a
+	r_addend: 528
+
+entry: 193
+	r_offset: 0x67f
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 194
+	r_offset: 0x68b
+	r_info: 0x50000000a
+	r_addend: 2834
+
+entry: 195
+	r_offset: 0x692
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 196
+	r_offset: 0x69a
+	r_info: 0x1600000002
+	r_addend: -4
+
+entry: 197
+	r_offset: 0x6b2
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 198
+	r_offset: 0x6d6
+	r_info: 0x60000000a
+	r_addend: 576
+
+entry: 199
+	r_offset: 0x6df
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 200
+	r_offset: 0x6eb
+	r_info: 0x50000000a
+	r_addend: 2834
+
+entry: 201
+	r_offset: 0x6f2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 202
+	r_offset: 0x6fa
+	r_info: 0x1600000002
+	r_addend: -4
+
+entry: 203
+	r_offset: 0x70f
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 204
+	r_offset: 0x72b
+	r_info: 0x50000000a
+	r_addend: 2844
+
+entry: 205
+	r_offset: 0x732
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 206
+	r_offset: 0x754
+	r_info: 0x50000000a
+	r_addend: 2852
+
+entry: 207
+	r_offset: 0x75d
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 208
+	r_offset: 0x777
+	r_info: 0x50000000a
+	r_addend: 2856
+
+entry: 209
+	r_offset: 0x780
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 210
+	r_offset: 0x78f
+	r_info: 0x1a00000002
+	r_addend: -4
+
+entry: 211
+	r_offset: 0x7b1
+	r_info: 0x50000000a
+	r_addend: 2862
+
+entry: 212
+	r_offset: 0x7b8
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 213
+	r_offset: 0x7c6
+	r_info: 0x50000000a
+	r_addend: 2852
+
+entry: 214
+	r_offset: 0x7cf
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 215
+	r_offset: 0x7e9
+	r_info: 0x50000000a
+	r_addend: 2856
+
+entry: 216
+	r_offset: 0x7f2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 217
+	r_offset: 0x801
+	r_info: 0x1a00000002
+	r_addend: -4
+
+entry: 218
+	r_offset: 0x83e
+	r_info: 0xd00000002
+	r_addend: -4
+
+entry: 219
+	r_offset: 0x84a
+	r_info: 0xc00000002
+	r_addend: -4
+
+entry: 220
+	r_offset: 0x855
+	r_info: 0x50000000a
+	r_addend: 2869
+
+entry: 221
+	r_offset: 0x85c
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 222
+	r_offset: 0x868
+	r_info: 0x50000000a
+	r_addend: 2928
+
+entry: 223
+	r_offset: 0x86f
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 224
+	r_offset: 0x897
+	r_info: 0x70000000b
+	r_addend: 1328
+
+entry: 225
+	r_offset: 0x8a5
+	r_info: 0x50000000a
+	r_addend: 2918
+
+entry: 226
+	r_offset: 0x8af
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 227
+	r_offset: 0x8ba
+	r_info: 0x50000000a
+	r_addend: 2890
+
+entry: 228
+	r_offset: 0x8c1
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 229
+	r_offset: 0x8ce
+	r_info: 0x50000000a
+	r_addend: 2897
+
+entry: 230
+	r_offset: 0x8d3
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 231
+	r_offset: 0x8e5
+	r_info: 0x50000000a
+	r_addend: 2856
+
+entry: 232
+	r_offset: 0x8f4
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 233
+	r_offset: 0x908
+	r_info: 0x50000000a
+	r_addend: 2913
+
+entry: 234
+	r_offset: 0x90f
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 235
+	r_offset: 0x91d
+	r_info: 0x50000000a
+	r_addend: 2925
+
+entry: 236
+	r_offset: 0x924
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 237
+	r_offset: 0x936
+	r_info: 0x60000000a
+	r_addend: 640
+
+entry: 238
+	r_offset: 0x93d
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 239
+	r_offset: 0x962
+	r_info: 0xe00000002
+	r_addend: -4
+
+entry: 240
+	r_offset: 0x977
+	r_info: 0x60000000a
+	r_addend: 680
+
+entry: 241
+	r_offset: 0x97c
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 242
+	r_offset: 0x997
+	r_info: 0x1b00000002
+	r_addend: -4
+
+entry: 243
+	r_offset: 0x9b6
+	r_info: 0x60000000a
+	r_addend: 720
+
+entry: 244
+	r_offset: 0x9bf
+	r_info: 0x1000000002
+	r_addend: -4
+
+entry: 245
+	r_offset: 0x9d4
+	r_info: 0x60000000a
+	r_addend: 760
+
+entry: 246
+	r_offset: 0x9db
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 247
+	r_offset: 0x9e3
+	r_info: 0x50000000a
+	r_addend: 2941
+
+entry: 248
+	r_offset: 0x9ea
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 249
+	r_offset: 0x9f3
+	r_info: 0x50000000a
+	r_addend: 2967
+
+entry: 250
+	r_offset: 0x9fa
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 251
+	r_offset: 0xa03
+	r_info: 0x50000000a
+	r_addend: 2993
+
+entry: 252
+	r_offset: 0xa0a
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 253
+	r_offset: 0xa15
+	r_info: 0x50000000a
+	r_addend: 3019
+
+entry: 254
+	r_offset: 0xa1a
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 255
+	r_offset: 0xa2b
+	r_info: 0x1c00000002
+	r_addend: -4
+
+entry: 256
+	r_offset: 0xa55
+	r_info: 0x1700000002
+	r_addend: -4
+
+entry: 257
+	r_offset: 0xa5d
+	r_info: 0x1800000002
+	r_addend: -4
+
+entry: 258
+	r_offset: 0xa65
+	r_info: 0x1500000002
+	r_addend: -4
+
+entry: 259
+	r_offset: 0xa6d
+	r_info: 0x1200000002
+	r_addend: -4
+
+entry: 260
+	r_offset: 0xaae
+	r_info: 0x1f00000002
+	r_addend: -4
+
+entry: 261
+	r_offset: 0xac2
+	r_info: 0x1c00000002
+	r_addend: -4
+
+entry: 262
+	r_offset: 0xad1
+	r_info: 0x2000000002
+	r_addend: -4
+
+entry: 263
+	r_offset: 0xb1e
+	r_info: 0x2200000002
+	r_addend: -4
+
+entry: 264
+	r_offset: 0xb5c
+	r_info: 0x1f00000002
+	r_addend: -4
+
+entry: 265
+	r_offset: 0xb8c
+	r_info: 0x60000000a
+	r_addend: 760
+
+entry: 266
+	r_offset: 0xb93
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 267
+	r_offset: 0xb9b
+	r_info: 0x50000000a
+	r_addend: 2941
+
+entry: 268
+	r_offset: 0xba2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 269
+	r_offset: 0xbab
+	r_info: 0x50000000a
+	r_addend: 2967
+
+entry: 270
+	r_offset: 0xbb2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 271
+	r_offset: 0xbbb
+	r_info: 0x50000000a
+	r_addend: 2993
+
+entry: 272
+	r_offset: 0xbc2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 273
+	r_offset: 0xbcb
+	r_info: 0x50000000a
+	r_addend: 3019
+
+entry: 274
+	r_offset: 0xbd2
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 275
+	r_offset: 0xbf3
+	r_info: 0x2300000002
+	r_addend: -4
+
+entry: 276
+	r_offset: 0xc03
+	r_info: 0x2400000002
+	r_addend: -4
+
+entry: 277
+	r_offset: 0xc08
+	r_info: 0x50000000a
+	r_addend: 3044
+
+entry: 278
+	r_offset: 0xc12
+	r_info: 0x1100000002
+	r_addend: -4
+
+entry: 279
+	r_offset: 0xc21
+	r_info: 0x2200000002
+	r_addend: -4
+
+entry: 280
+	r_offset: 0xc3a
+	r_info: 0x2500000002
+	r_addend: -4
+
+entry: 281
+	r_offset: 0x88b
+	r_info: 0x1a00000002
+	r_addend: -4
+
+entry: 282
+	r_offset: 0xa76
+	r_info: 0x1d00000002
+	r_addend: -4
+
+entry: 283
+	r_offset: 0xc73
+	r_info: 0x1c00000002
+	r_addend: -4
+
+relocation with addend (.rela.rodata):
+
+entry: 0
+	r_offset: 0
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 1
+	r_offset: 0x8
+	r_info: 0x200000001
+	r_addend: 679
+
+entry: 2
+	r_offset: 0x10
+	r_info: 0x200000001
+	r_addend: 673
+
+entry: 3
+	r_offset: 0x18
+	r_info: 0x200000001
+	r_addend: 667
+
+entry: 4
+	r_offset: 0x20
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 5
+	r_offset: 0x28
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 6
+	r_offset: 0x30
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 7
+	r_offset: 0x38
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 8
+	r_offset: 0x40
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 9
+	r_offset: 0x48
+	r_info: 0x200000001
+	r_addend: 661
+
+entry: 10
+	r_offset: 0x50
+	r_info: 0x200000001
+	r_addend: 655
+
+entry: 11
+	r_offset: 0x58
+	r_info: 0x200000001
+	r_addend: 649
+
+entry: 12
+	r_offset: 0x60
+	r_info: 0x200000001
+	r_addend: 643
+
+entry: 13
+	r_offset: 0x68
+	r_info: 0x200000001
+	r_addend: 637
+
+entry: 14
+	r_offset: 0x70
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 15
+	r_offset: 0x78
+	r_info: 0x200000001
+	r_addend: 631
+
+entry: 16
+	r_offset: 0x80
+	r_info: 0x200000001
+	r_addend: 625
+
+entry: 17
+	r_offset: 0x88
+	r_info: 0x200000001
+	r_addend: 619
+
+entry: 18
+	r_offset: 0x90
+	r_info: 0x200000001
+	r_addend: 613
+
+entry: 19
+	r_offset: 0x98
+	r_info: 0x200000001
+	r_addend: 607
+
+entry: 20
+	r_offset: 0xa0
+	r_info: 0x200000001
+	r_addend: 601
+
+entry: 21
+	r_offset: 0xa8
+	r_info: 0x200000001
+	r_addend: 595
+
+entry: 22
+	r_offset: 0xb0
+	r_info: 0x200000001
+	r_addend: 589
+
+entry: 23
+	r_offset: 0xb8
+	r_info: 0x200000001
+	r_addend: 583
+
+entry: 24
+	r_offset: 0xc0
+	r_info: 0x200000001
+	r_addend: 577
+
+entry: 25
+	r_offset: 0xc8
+	r_info: 0x200000001
+	r_addend: 571
+
+entry: 26
+	r_offset: 0xd0
+	r_info: 0x200000001
+	r_addend: 565
+
+entry: 27
+	r_offset: 0xd8
+	r_info: 0x200000001
+	r_addend: 559
+
+entry: 28
+	r_offset: 0xe0
+	r_info: 0x200000001
+	r_addend: 553
+
+entry: 29
+	r_offset: 0xe8
+	r_info: 0x200000001
+	r_addend: 547
+
+entry: 30
+	r_offset: 0xf0
+	r_info: 0x200000001
+	r_addend: 541
+
+entry: 31
+	r_offset: 0xf8
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 32
+	r_offset: 0x100
+	r_info: 0x200000001
+	r_addend: 535
+
+entry: 33
+	r_offset: 0x108
+	r_info: 0x200000001
+	r_addend: 529
+
+entry: 34
+	r_offset: 0x110
+	r_info: 0x200000001
+	r_addend: 523
+
+entry: 35
+	r_offset: 0x118
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 36
+	r_offset: 0x120
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 37
+	r_offset: 0x128
+	r_info: 0x200000001
+	r_addend: 517
+
+entry: 38
+	r_offset: 0x130
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 39
+	r_offset: 0x138
+	r_info: 0x200000001
+	r_addend: 511
+
+entry: 40
+	r_offset: 0x140
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 41
+	r_offset: 0x148
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 42
+	r_offset: 0x150
+	r_info: 0x200000001
+	r_addend: 505
+
+entry: 43
+	r_offset: 0x158
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 44
+	r_offset: 0x160
+	r_info: 0x200000001
+	r_addend: 499
+
+entry: 45
+	r_offset: 0x168
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 46
+	r_offset: 0x170
+	r_info: 0x200000001
+	r_addend: 493
+
+entry: 47
+	r_offset: 0x178
+	r_info: 0x200000001
+	r_addend: 487
+
+entry: 48
+	r_offset: 0x180
+	r_info: 0x200000001
+	r_addend: 293
+
+entry: 49
+	r_offset: 0x188
+	r_info: 0x200000001
+	r_addend: 481
+
+entry: 50
+	r_offset: 0x190
+	r_info: 0x200000001
+	r_addend: 475
+
+entry: 51
+	r_offset: 0x198
+	r_info: 0x200000001
+	r_addend: 469
+
+entry: 52
+	r_offset: 0x1a0
+	r_info: 0x200000001
+	r_addend: 463
+
+entry: 53
+	r_offset: 0x1a8
+	r_info: 0x200000001
+	r_addend: 457
+
+entry: 54
+	r_offset: 0x1b0
+	r_info: 0x200000001
+	r_addend: 451
+
+entry: 55
+	r_offset: 0x1b8
+	r_info: 0x200000001
+	r_addend: 445
+
+entry: 56
+	r_offset: 0x1c0
+	r_info: 0x200000001
+	r_addend: 439
+
+entry: 57
+	r_offset: 0x1c8
+	r_info: 0x200000001
+	r_addend: 433
+
+entry: 58
+	r_offset: 0x1d0
+	r_info: 0x200000001
+	r_addend: 427
+
+entry: 59
+	r_offset: 0x1d8
+	r_info: 0x200000001
+	r_addend: 421
+
+entry: 60
+	r_offset: 0x1e0
+	r_info: 0x200000001
+	r_addend: 415
+
+entry: 61
+	r_offset: 0x1e8
+	r_info: 0x200000001
+	r_addend: 409
+
+entry: 62
+	r_offset: 0x1f0
+	r_info: 0x200000001
+	r_addend: 403
+
+entry: 63
+	r_offset: 0x1f8
+	r_info: 0x200000001
+	r_addend: 397
+
+entry: 64
+	r_offset: 0x200
+	r_info: 0x200000001
+	r_addend: 391
+
+entry: 65
+	r_offset: 0x208
+	r_info: 0x200000001
+	r_addend: 385
+
+entry: 66
+	r_offset: 0x210
+	r_info: 0x200000001
+	r_addend: 379
+
+entry: 67
+	r_offset: 0x218
+	r_info: 0x200000001
+	r_addend: 373
+
+entry: 68
+	r_offset: 0x220
+	r_info: 0x200000001
+	r_addend: 367
+
+entry: 69
+	r_offset: 0x228
+	r_info: 0x200000001
+	r_addend: 361
+
+entry: 70
+	r_offset: 0x230
+	r_info: 0x200000001
+	r_addend: 355
+
+entry: 71
+	r_offset: 0x238
+	r_info: 0x200000001
+	r_addend: 349
+
+entry: 72
+	r_offset: 0x240
+	r_info: 0x200000001
+	r_addend: 343
+
+entry: 73
+	r_offset: 0x248
+	r_info: 0x200000001
+	r_addend: 337
+
+entry: 74
+	r_offset: 0x250
+	r_info: 0x200000001
+	r_addend: 331
+
+entry: 75
+	r_offset: 0x258
+	r_info: 0x200000001
+	r_addend: 325
+
+entry: 76
+	r_offset: 0x260
+	r_info: 0x200000001
+	r_addend: 319
+
+entry: 77
+	r_offset: 0x268
+	r_info: 0x200000001
+	r_addend: 313
+
+entry: 78
+	r_offset: 0x270
+	r_info: 0x200000001
+	r_addend: 693
+
+entry: 79
+	r_offset: 0x278
+	r_info: 0x200000001
+	r_addend: 833
+
+entry: 80
+	r_offset: 0x280
+	r_info: 0x200000001
+	r_addend: 693
+
+entry: 81
+	r_offset: 0x288
+	r_info: 0x200000001
+	r_addend: 827
+
+entry: 82
+	r_offset: 0x290
+	r_info: 0x200000001
+	r_addend: 821
+
+entry: 83
+	r_offset: 0x298
+	r_info: 0x200000001
+	r_addend: 815
+
+entry: 84
+	r_offset: 0x2a0
+	r_info: 0x200000001
+	r_addend: 809
+
+entry: 85
+	r_offset: 0x2a8
+	r_info: 0x200000001
+	r_addend: 803
+
+entry: 86
+	r_offset: 0x2b0
+	r_info: 0x200000001
+	r_addend: 797
+
+entry: 87
+	r_offset: 0x2b8
+	r_info: 0x200000001
+	r_addend: 791
+
+entry: 88
+	r_offset: 0x2c0
+	r_info: 0x200000001
+	r_addend: 785
+
+entry: 89
+	r_offset: 0x2c8
+	r_info: 0x200000001
+	r_addend: 779
+
+entry: 90
+	r_offset: 0x2d0
+	r_info: 0x200000001
+	r_addend: 773
+
+entry: 91
+	r_offset: 0x2d8
+	r_info: 0x200000001
+	r_addend: 767
+
+entry: 92
+	r_offset: 0x2e0
+	r_info: 0x200000001
+	r_addend: 761
+
+entry: 93
+	r_offset: 0x2e8
+	r_info: 0x200000001
+	r_addend: 755
+
+entry: 94
+	r_offset: 0x2f0
+	r_info: 0x200000001
+	r_addend: 749
+
+entry: 95
+	r_offset: 0x2f8
+	r_info: 0x200000001
+	r_addend: 743
+
+entry: 96
+	r_offset: 0x300
+	r_info: 0x200000001
+	r_addend: 737
+
+entry: 97
+	r_offset: 0x308
+	r_info: 0x200000001
+	r_addend: 731
+
+entry: 98
+	r_offset: 0x310
+	r_info: 0x200000001
+	r_addend: 725
+
+entry: 99
+	r_offset: 0x318
+	r_info: 0x200000001
+	r_addend: 719
+
+entry: 100
+	r_offset: 0x320
+	r_info: 0x200000001
+	r_addend: 713
+
+entry: 101
+	r_offset: 0x328
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 102
+	r_offset: 0x330
+	r_info: 0x200000001
+	r_addend: 1203
+
+entry: 103
+	r_offset: 0x338
+	r_info: 0x200000001
+	r_addend: 1197
+
+entry: 104
+	r_offset: 0x340
+	r_info: 0x200000001
+	r_addend: 1191
+
+entry: 105
+	r_offset: 0x348
+	r_info: 0x200000001
+	r_addend: 1185
+
+entry: 106
+	r_offset: 0x350
+	r_info: 0x200000001
+	r_addend: 1179
+
+entry: 107
+	r_offset: 0x358
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 108
+	r_offset: 0x360
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 109
+	r_offset: 0x368
+	r_info: 0x200000001
+	r_addend: 1173
+
+entry: 110
+	r_offset: 0x370
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 111
+	r_offset: 0x378
+	r_info: 0x200000001
+	r_addend: 1167
+
+entry: 112
+	r_offset: 0x380
+	r_info: 0x200000001
+	r_addend: 1161
+
+entry: 113
+	r_offset: 0x388
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 114
+	r_offset: 0x390
+	r_info: 0x200000001
+	r_addend: 1155
+
+entry: 115
+	r_offset: 0x398
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 116
+	r_offset: 0x3a0
+	r_info: 0x200000001
+	r_addend: 1149
+
+entry: 117
+	r_offset: 0x3a8
+	r_info: 0x200000001
+	r_addend: 1143
+
+entry: 118
+	r_offset: 0x3b0
+	r_info: 0x200000001
+	r_addend: 1137
+
+entry: 119
+	r_offset: 0x3b8
+	r_info: 0x200000001
+	r_addend: 1131
+
+entry: 120
+	r_offset: 0x3c0
+	r_info: 0x200000001
+	r_addend: 1125
+
+entry: 121
+	r_offset: 0x3c8
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 122
+	r_offset: 0x3d0
+	r_info: 0x200000001
+	r_addend: 1119
+
+entry: 123
+	r_offset: 0x3d8
+	r_info: 0x200000001
+	r_addend: 1113
+
+entry: 124
+	r_offset: 0x3e0
+	r_info: 0x200000001
+	r_addend: 1107
+
+entry: 125
+	r_offset: 0x3e8
+	r_info: 0x200000001
+	r_addend: 1101
+
+entry: 126
+	r_offset: 0x3f0
+	r_info: 0x200000001
+	r_addend: 1095
+
+entry: 127
+	r_offset: 0x3f8
+	r_info: 0x200000001
+	r_addend: 1089
+
+entry: 128
+	r_offset: 0x400
+	r_info: 0x200000001
+	r_addend: 1083
+
+entry: 129
+	r_offset: 0x408
+	r_info: 0x200000001
+	r_addend: 1077
+
+entry: 130
+	r_offset: 0x410
+	r_info: 0x200000001
+	r_addend: 1071
+
+entry: 131
+	r_offset: 0x418
+	r_info: 0x200000001
+	r_addend: 1065
+
+entry: 132
+	r_offset: 0x420
+	r_info: 0x200000001
+	r_addend: 1059
+
+entry: 133
+	r_offset: 0x428
+	r_info: 0x200000001
+	r_addend: 1053
+
+entry: 134
+	r_offset: 0x430
+	r_info: 0x200000001
+	r_addend: 1047
+
+entry: 135
+	r_offset: 0x438
+	r_info: 0x200000001
+	r_addend: 1041
+
+entry: 136
+	r_offset: 0x440
+	r_info: 0x200000001
+	r_addend: 1035
+
+entry: 137
+	r_offset: 0x448
+	r_info: 0x200000001
+	r_addend: 1029
+
+entry: 138
+	r_offset: 0x450
+	r_info: 0x200000001
+	r_addend: 1023
+
+entry: 139
+	r_offset: 0x458
+	r_info: 0x200000001
+	r_addend: 1017
+
+entry: 140
+	r_offset: 0x460
+	r_info: 0x200000001
+	r_addend: 1011
+
+entry: 141
+	r_offset: 0x468
+	r_info: 0x200000001
+	r_addend: 1005
+
+entry: 142
+	r_offset: 0x470
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 143
+	r_offset: 0x478
+	r_info: 0x200000001
+	r_addend: 999
+
+entry: 144
+	r_offset: 0x480
+	r_info: 0x200000001
+	r_addend: 993
+
+entry: 145
+	r_offset: 0x488
+	r_info: 0x200000001
+	r_addend: 987
+
+entry: 146
+	r_offset: 0x490
+	r_info: 0x200000001
+	r_addend: 981
+
+entry: 147
+	r_offset: 0x498
+	r_info: 0x200000001
+	r_addend: 975
+
+entry: 148
+	r_offset: 0x4a0
+	r_info: 0x200000001
+	r_addend: 969
+
+entry: 149
+	r_offset: 0x4a8
+	r_info: 0x200000001
+	r_addend: 963
+
+entry: 150
+	r_offset: 0x4b0
+	r_info: 0x200000001
+	r_addend: 957
+
+entry: 151
+	r_offset: 0x4b8
+	r_info: 0x200000001
+	r_addend: 951
+
+entry: 152
+	r_offset: 0x4c0
+	r_info: 0x200000001
+	r_addend: 945
+
+entry: 153
+	r_offset: 0x4c8
+	r_info: 0x200000001
+	r_addend: 939
+
+entry: 154
+	r_offset: 0x4d0
+	r_info: 0x200000001
+	r_addend: 933
+
+entry: 155
+	r_offset: 0x4d8
+	r_info: 0x200000001
+	r_addend: 927
+
+entry: 156
+	r_offset: 0x4e0
+	r_info: 0x200000001
+	r_addend: 921
+
+entry: 157
+	r_offset: 0x4e8
+	r_info: 0x200000001
+	r_addend: 915
+
+entry: 158
+	r_offset: 0x4f0
+	r_info: 0x200000001
+	r_addend: 909
+
+entry: 159
+	r_offset: 0x4f8
+	r_info: 0x200000001
+	r_addend: 903
+
+entry: 160
+	r_offset: 0x500
+	r_info: 0x200000001
+	r_addend: 897
+
+entry: 161
+	r_offset: 0x508
+	r_info: 0x200000001
+	r_addend: 891
+
+entry: 162
+	r_offset: 0x510
+	r_info: 0x200000001
+	r_addend: 885
+
+entry: 163
+	r_offset: 0x518
+	r_info: 0x200000001
+	r_addend: 853
+
+entry: 164
+	r_offset: 0x520
+	r_info: 0x200000001
+	r_addend: 879
+
+entry: 165
+	r_offset: 0x528
+	r_info: 0x200000001
+	r_addend: 873
+
+entry: 166
+	r_offset: 0x530
+	r_info: 0x200000001
+	r_addend: 2151
+
+entry: 167
+	r_offset: 0x538
+	r_info: 0x200000001
+	r_addend: 2229
+
+entry: 168
+	r_offset: 0x540
+	r_info: 0x200000001
+	r_addend: 2151
+
+entry: 169
+	r_offset: 0x548
+	r_info: 0x200000001
+	r_addend: 2247
+
+entry: 170
+	r_offset: 0x550
+	r_info: 0x200000001
+	r_addend: 2247
+
+entry: 171
+	r_offset: 0x558
+	r_info: 0x200000001
+	r_addend: 2307
+
+entry: 172
+	r_offset: 0x560
+	r_info: 0x200000001
+	r_addend: 2307
+
+entry: 173
+	r_offset: 0x568
+	r_info: 0x200000001
+	r_addend: 2307
+
+entry: 174
+	r_offset: 0x570
+	r_info: 0x200000001
+	r_addend: 2328
+
+entry: 175
+	r_offset: 0x578
+	r_info: 0x200000001
+	r_addend: 2247
+
+entry: 176
+	r_offset: 0x580
+	r_info: 0x200000001
+	r_addend: 2247
+
+entry: 177
+	r_offset: 0x588
+	r_info: 0x200000001
+	r_addend: 2307
+
+entry: 178
+	r_offset: 0x590
+	r_info: 0x200000001
+	r_addend: 2307
+
+entry: 179
+	r_offset: 0x598
+	r_info: 0x200000001
+	r_addend: 2151
+
+entry: 180
+	r_offset: 0x5a0
+	r_info: 0x200000001
+	r_addend: 2349
+
+entry: 181
+	r_offset: 0x5a8
+	r_info: 0x200000001
+	r_addend: 2151
+
+entry: 182
+	r_offset: 0x5b0
+	r_info: 0x200000001
+	r_addend: 2151
+
+entry: 183
+	r_offset: 0x5b8
+	r_info: 0x200000001
+	r_addend: 2203
+
+entry: 184
+	r_offset: 0x5c0
+	r_info: 0x200000001
+	r_addend: 2203
+
+entry: 185
+	r_offset: 0x5c8
+	r_info: 0x200000001
+	r_addend: 2203
+
+entry: 186
+	r_offset: 0x5d0
+	r_info: 0x200000001
+	r_addend: 2203
+
+entry: 187
+	r_offset: 0x5d8
+	r_info: 0x200000001
+	r_addend: 2203
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 288
+
+entry: 2
+	r_offset: 0x50
+	r_info: 0x20000000a
+	r_addend: 688
+
+entry: 3
+	r_offset: 0x68
+	r_info: 0x20000000a
+	r_addend: 848
+
+entry: 4
+	r_offset: 0x80
+	r_info: 0x20000000a
+	r_addend: 1216
+
+entry: 5
+	r_offset: 0xa8
+	r_info: 0x20000000a
+	r_addend: 1424
+
+entry: 6
+	r_offset: 0xd0
+	r_info: 0x20000000a
+	r_addend: 1552
+
+entry: 7
+	r_offset: 0xf0
+	r_info: 0x20000000a
+	r_addend: 1648
+
+entry: 8
+	r_offset: 0x110
+	r_info: 0x20000000a
+	r_addend: 1744
+
+entry: 9
+	r_offset: 0x130
+	r_info: 0x20000000a
+	r_addend: 1824
+
+entry: 10
+	r_offset: 0x150
+	r_info: 0x20000000a
+	r_addend: 2080
+
+entry: 11
+	r_offset: 0x170
+	r_info: 0x20000000a
+	r_addend: 2384
+
+entry: 12
+	r_offset: 0x190
+	r_info: 0x20000000a
+	r_addend: 2480
+
+entry: 13
+	r_offset: 0x1b0
+	r_info: 0x20000000a
+	r_addend: 2640
+
+entry: 14
+	r_offset: 0x1c8
+	r_info: 0x20000000a
+	r_addend: 2688
+
+entry: 15
+	r_offset: 0x1f0
+	r_info: 0x20000000a
+	r_addend: 2816
+
+entry: 16
+	r_offset: 0x228
+	r_info: 0x20000000a
+	r_addend: 3136
+
+libdwarf.a(dwarf_die.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x53
+	r_info: 0xa0000000b
+	r_addend: 26
+
+entry: 1
+	r_offset: 0x86
+	r_info: 0xa0000000b
+	r_addend: 26
+
+entry: 2
+	r_offset: 0xde
+	r_info: 0xa0000000b
+	r_addend: 16
+
+entry: 3
+	r_offset: 0x128
+	r_info: 0xa0000000b
+	r_addend: 0
+
+entry: 4
+	r_offset: 0x15a
+	r_info: 0xa0000000b
+	r_addend: 0
+
+entry: 5
+	r_offset: 0x1aa
+	r_info: 0xa0000000b
+	r_addend: 0
+
+entry: 6
+	r_offset: 0x1e5
+	r_info: 0xa0000000b
+	r_addend: 0
+
+entry: 7
+	r_offset: 0x284
+	r_info: 0x1400000002
+	r_addend: -4
+
+entry: 8
+	r_offset: 0x2a6
+	r_info: 0xa0000000b
+	r_addend: 48
+
+entry: 9
+	r_offset: 0x2ee
+	r_info: 0xa0000000b
+	r_addend: 48
+
+entry: 10
+	r_offset: 0x31f
+	r_info: 0xa00000002
+	r_addend: 36
+
+relocation with addend (.rela.rodata):
+
+entry: 0
+	r_offset: 0x28
+	r_info: 0xb00000001
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x38
+	r_info: 0x20000000a
+	r_addend: 16
+
+entry: 2
+	r_offset: 0x50
+	r_info: 0x20000000a
+	r_addend: 160
+
+entry: 3
+	r_offset: 0x68
+	r_info: 0x20000000a
+	r_addend: 240
+
+entry: 4
+	r_offset: 0x80
+	r_info: 0x20000000a
+	r_addend: 512
+
+entry: 5
+	r_offset: 0x98
+	r_info: 0x20000000a
+	r_addend: 560
+
+libdwarf.a(dwarf_cu.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x66
+	r_info: 0x60000000b
+	r_addend: 0
+
+entry: 1
+	r_offset: 0x8c
+	r_info: 0x60000000b
+	r_addend: 0
+
+entry: 2
+	r_offset: 0xfb
+	r_info: 0x60000000b
+	r_addend: 0
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0
+
+libdwarf.a(dwarf_errmsg.o):
+
+relocation with addend (.rela.text):
+
+entry: 0
+	r_offset: 0x30
+	r_info: 0xa00000002
+	r_addend: -4
+
+entry: 1
+	r_offset: 0x53
+	r_info: 0xa00000002
+	r_addend: 108
+
+entry: 2
+	r_offset: 0x6a
+	r_info: 0xa0000000b
+	r_addend: 0
+
+entry: 3
+	r_offset: 0x7d
+	r_info: 0x50000000a
+	r_addend: 24
+
+entry: 4
+	r_offset: 0x8c
+	r_info: 0xb00000002
+	r_addend: -4
+
+entry: 5
+	r_offset: 0xa4
+	r_info: 0xc00000002
+	r_addend: -4
+
+entry: 6
+	r_offset: 0xb2
+	r_info: 0x50000000a
+	r_addend: 0
+
+entry: 7
+	r_offset: 0xc1
+	r_info: 0xb00000002
+	r_addend: -4
+
+relocation with addend (.rela.data):
+
+entry: 0
+	r_offset: 0
+	r_info: 0x500000001
+	r_addend: 36
+
+entry: 1
+	r_offset: 0x8
+	r_info: 0x500000001
+	r_addend: 45
+
+entry: 2
+	r_offset: 0x10
+	r_info: 0x500000001
+	r_addend: 54
+
+entry: 3
+	r_offset: 0x18
+	r_info: 0x500000001
+	r_addend: 69
+
+entry: 4
+	r_offset: 0x20
+	r_info: 0x500000001
+	r_addend: 86
+
+entry: 5
+	r_offset: 0x28
+	r_info: 0x500000001
+	r_addend: 102
+
+entry: 6
+	r_offset: 0x30
+	r_info: 0x500000001
+	r_addend: 122
+
+entry: 7
+	r_offset: 0x38
+	r_info: 0x500000001
+	r_addend: 132
+
+entry: 8
+	r_offset: 0x40
+	r_info: 0x600000001
+	r_addend: 0
+
+entry: 9
+	r_offset: 0x48
+	r_info: 0x500000001
+	r_addend: 162
+
+entry: 10
+	r_offset: 0x50
+	r_info: 0x500000001
+	r_addend: 179
+
+entry: 11
+	r_offset: 0x58
+	r_info: 0x500000001
+	r_addend: 201
+
+entry: 12
+	r_offset: 0x60
+	r_info: 0x600000001
+	r_addend: 48
+
+entry: 13
+	r_offset: 0x68
+	r_info: 0x500000001
+	r_addend: 229
+
+entry: 14
+	r_offset: 0x70
+	r_info: 0x500000001
+	r_addend: 254
+
+relocation with addend (.rela.eh_frame):
+
+entry: 0
+	r_offset: 0x20
+	r_info: 0x20000000a
+	r_addend: 0

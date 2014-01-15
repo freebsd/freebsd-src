@@ -1,0 +1,11 @@
+
+Relocation Section:  .rela.dyn
+        type                          offset     addend  section        with respect to
+        R_X86_64_COPY               0x506b40          0  .rela.dyn      __stack_chk_guard
+        R_X86_64_COPY               0x506b80          0  .rela.dyn      __isthreaded
+        R_X86_64_COPY               0x506b88          0  .rela.dyn      optarg
+        R_X86_64_COPY               0x506b90          0  .rela.dyn      __mb_sb_limit
+        R_X86_64_COPY               0x506b98          0  .rela.dyn      __stdoutp
+        R_X86_64_COPY               0x506ba0          0  .rela.dyn      _CurrentRuneLocale
+        R_X86_64_COPY               0x506ba8          0  .rela.dyn      __stderrp
+        R_X86_64_COPY               0x506bb0          0  .rela.dyn      optind

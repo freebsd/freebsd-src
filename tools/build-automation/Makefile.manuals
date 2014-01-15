@@ -1,0 +1,7 @@
+# -*- mode: makefile; -*-
+# $Id: Makefile.manuals 2581 2012-09-14 07:09:42Z jkoshy $
+
+MAN= 		yabs-slave.1    \
+		yabs.1
+
+.include <bsd.man.mk>

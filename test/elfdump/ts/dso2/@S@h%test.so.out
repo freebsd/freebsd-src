@@ -1,0 +1,22 @@
+
+GNU Hash Section:  .gnu.hash
+    bucket    symndx    name
+         0  [13]        _end
+            [14]        _edata
+            [15]        add4
+         1  [16]        mathstring
+            [17]        add2
+            [18]        add
+            [19]        __bss_start
+            [20]        _init
+         2  [21]        _fini
+            [22]        add3
+            [23]        sub
+
+         0  buckets contain        0 symbols
+         0  buckets contain        1 symbols
+         0  buckets contain        2 symbols
+         2  buckets contain        3 symbols
+         0  buckets contain        4 symbols
+         1  buckets contain        5 symbols
+         3  buckets               11 symbols (globals)

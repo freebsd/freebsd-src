@@ -1,0 +1,56 @@
+# $Id: Makefile.tset 2198 2011-11-23 16:13:45Z jkoshy $
+
+.include "${TOP}/mk/elftoolchain.os.mk"
+
+# libdwarf test suite uses libdwarf in /usr/local (i.e. SGI libdwarf),
+# if TCGEN is defined.
+.if defined(TCGEN)
+DWARF_INC?=	/usr/local/include
+DWARF_LIBS?=	/usr/local/lib
+CFLAGS+=	-DTCGEN -I${DWARF_INC}
+LDADD+=		-L${DWARF_LIBS}
+.endif
+LDADD+=		-ldwarf
+
+DPADD+=		${LIBELF}
+LDADD+=		-lelf
+
+# Determine the location of the XML handling library.
+.if ${OS_HOST} == FreeBSD
+LDADD+=		-lbsdxml
+.else
+.if ${OS_HOST} == DragonFly || ${OS_HOST} == NetBSD
+CFLAGS+=	-I/usr/pkg/include
+LDADD+=		-L/usr/pkg/lib
+.endif
+LDADD+=		-lexpat
+.endif
+
+.if !defined(TCGEN)
+TS_SRCS+=	${.OBJDIR}/ic_count.c
+${.OBJDIR}/ic_count.c:
+	${TS_ROOT}/bin/count-ic ${.OBJDIR}
+CLEANFILES+=	 ${.OBJDIR}/ic_count.c
+.endif
+
+.for f in ${TS_DATA}
+CLEANFILES+=	${f}.xml
+.endfor
+
+# Copy test objects(binaries) to the build directory.
+.for f in ${TS_DATA}
+.if !exists(${f:R})
+${f}:	${TS_OBJROOT}/common/object/${f}.gz
+	cp ${.ALLSRC} ${.TARGET}.gz
+	gunzip ${.TARGET}.gz
+.endif
+.endfor
+
+# NetBSD turns on -Wstrict-prototypes for WARNS>0; however
+# TET 3.8's headers do not compile with -Wstrict-prototypes.
+.if ${OS_HOST} != NetBSD
+WARNS?=		2
+.endif
+
+# Test cases do not have manual pages.
+NOMAN=		noman

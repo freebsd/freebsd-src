@@ -1,0 +1,11 @@
+# $Id: Makefile.teraser 2080 2011-10-27 04:23:24Z jkoshy $
+
+TOP=	../../..
+
+PROG=	teraser
+
+NOMAN=	noman
+
+WARNS?=	6
+
+.include "${TOP}/mk/elftoolchain.prog.mk"

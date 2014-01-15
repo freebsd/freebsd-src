@@ -1,0 +1,70 @@
+
+
+Symbols from test_ar[data.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+hid_get_data        |0000000000000000|   T  |              FUNC|0000000000000127|     |.text
+hid_set_data        |0000000000000128|   T  |              FUNC|0000000000000118|     |.text
+
+
+Symbols from test_ar[usage.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+_CurrentRuneLocale  |                |   U  |            NOTYPE|                |     |*UND*
+__mb_sb_limit       |                |   U  |            NOTYPE|                |     |*UND*
+b.3186              |0000000000000100|   b  |            OBJECT|0000000000000010|     |.bss
+b.3204              |0000000000000000|   b  |            OBJECT|0000000000000100|     |.bss
+err                 |                |   U  |            NOTYPE|                |     |*UND*
+errx                |                |   U  |            NOTYPE|                |     |*UND*
+fclose              |                |   U  |            NOTYPE|                |     |*UND*
+fgets               |                |   U  |            NOTYPE|                |     |*UND*
+fmtcheck            |                |   U  |            NOTYPE|                |     |*UND*
+fopen               |                |   U  |            NOTYPE|                |     |*UND*
+hid_init            |0000000000000704|   T  |              FUNC|0000000000000872|     |.text
+hid_parse_usage_in_page|0000000000000000|   T  |              FUNC|0000000000000227|     |.text
+hid_parse_usage_page|0000000000000240|   T  |              FUNC|0000000000000121|     |.text
+hid_usage_in_page   |0000000000000368|   T  |              FUNC|0000000000000197|     |.text
+hid_usage_page      |0000000000000576|   T  |              FUNC|0000000000000123|     |.text
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+npages              |0000000000000120|   b  |            OBJECT|0000000000000004|     |.bss
+npagesmax           |0000000000000124|   b  |            OBJECT|0000000000000004|     |.bss
+pages               |0000000000000112|   b  |            OBJECT|0000000000000008|     |.bss
+realloc             |                |   U  |            NOTYPE|                |     |*UND*
+sprintf             |                |   U  |            NOTYPE|                |     |*UND*
+sscanf              |                |   U  |            NOTYPE|                |     |*UND*
+strchr              |                |   U  |            NOTYPE|                |     |*UND*
+strcmp              |                |   U  |            NOTYPE|                |     |*UND*
+strdup              |                |   U  |            NOTYPE|                |     |*UND*
+strncmp             |                |   U  |            NOTYPE|                |     |*UND*
+
+
+Symbols from test_ar[parse.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+free                |                |   U  |            NOTYPE|                |     |*UND*
+hid_clear_local     |0000000000000000|   t  |              FUNC|0000000000000071|     |.text
+hid_end_parse       |0000000000001744|   T  |              FUNC|0000000000000061|     |.text
+hid_get_item        |0000000000000224|   T  |              FUNC|0000000000001510|     |.text
+hid_locate          |0000000000001808|   T  |              FUNC|0000000000000129|     |.text
+hid_report_size     |0000000000001952|   T  |              FUNC|0000000000000143|     |.text
+hid_start_parse     |0000000000000080|   T  |              FUNC|0000000000000133|     |.text
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+memcpy              |                |   U  |            NOTYPE|                |     |*UND*
+memset              |                |   U  |            NOTYPE|                |     |*UND*
+
+
+Symbols from test_ar[descr.o]:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+__error             |                |   U  |            NOTYPE|                |     |*UND*
+free                |                |   U  |            NOTYPE|                |     |*UND*
+hid_dispose_report_desc|0000000000000000|   T  |              FUNC|0000000000000005|     |.text
+hid_get_report_desc |0000000000000128|   T  |              FUNC|0000000000000064|     |.text
+hid_use_report_desc |0000000000000016|   T  |              FUNC|0000000000000110|     |.text
+ioctl               |                |   U  |            NOTYPE|                |     |*UND*
+malloc              |                |   U  |            NOTYPE|                |     |*UND*
+memcpy              |                |   U  |            NOTYPE|                |     |*UND*

@@ -1,0 +1,408 @@
+
+hash table (.hash):
+
+nbucket: 67
+nchain: 67
+
+bucket[0]:
+	0
+
+bucket[1]:
+	60
+
+bucket[2]:
+	0
+
+bucket[3]:
+	0
+
+bucket[4]:
+	54
+
+bucket[5]:
+	0
+
+bucket[6]:
+	0
+
+bucket[7]:
+	33
+
+bucket[8]:
+	0
+
+bucket[9]:
+	16
+
+bucket[10]:
+	0
+
+bucket[11]:
+	17
+
+bucket[12]:
+	37
+
+bucket[13]:
+	0
+
+bucket[14]:
+	39
+
+bucket[15]:
+	50
+
+bucket[16]:
+	51
+
+bucket[17]:
+	0
+
+bucket[18]:
+	59
+
+bucket[19]:
+	0
+
+bucket[20]:
+	0
+
+bucket[21]:
+	66
+
+bucket[22]:
+	52
+
+bucket[23]:
+	62
+
+bucket[24]:
+	0
+
+bucket[25]:
+	34
+
+bucket[26]:
+	22
+
+bucket[27]:
+	31
+
+bucket[28]:
+	26
+
+bucket[29]:
+	49
+
+bucket[30]:
+	0
+
+bucket[31]:
+	0
+
+bucket[32]:
+	35
+
+bucket[33]:
+	61
+
+bucket[34]:
+	47
+
+bucket[35]:
+	0
+
+bucket[36]:
+	0
+
+bucket[37]:
+	0
+
+bucket[38]:
+	28
+
+bucket[39]:
+	0
+
+bucket[40]:
+	0
+
+bucket[41]:
+	42
+
+bucket[42]:
+	0
+
+bucket[43]:
+	0
+
+bucket[44]:
+	0
+
+bucket[45]:
+	0
+
+bucket[46]:
+	4
+
+bucket[47]:
+	36
+
+bucket[48]:
+	64
+
+bucket[49]:
+	0
+
+bucket[50]:
+	20
+
+bucket[51]:
+	0
+
+bucket[52]:
+	0
+
+bucket[53]:
+	65
+
+bucket[54]:
+	40
+
+bucket[55]:
+	0
+
+bucket[56]:
+	55
+
+bucket[57]:
+	18
+
+bucket[58]:
+	58
+
+bucket[59]:
+	57
+
+bucket[60]:
+	0
+
+bucket[61]:
+	0
+
+bucket[62]:
+	63
+
+bucket[63]:
+	53
+
+bucket[64]:
+	29
+
+bucket[65]:
+	45
+
+bucket[66]:
+	0
+
+chain[0]:
+	0
+
+chain[1]:
+	0
+
+chain[2]:
+	0
+
+chain[3]:
+	0
+
+chain[4]:
+	0
+
+chain[5]:
+	0
+
+chain[6]:
+	0
+
+chain[7]:
+	3
+
+chain[8]:
+	0
+
+chain[9]:
+	0
+
+chain[10]:
+	0
+
+chain[11]:
+	8
+
+chain[12]:
+	0
+
+chain[13]:
+	0
+
+chain[14]:
+	0
+
+chain[15]:
+	10
+
+chain[16]:
+	7
+
+chain[17]:
+	0
+
+chain[18]:
+	0
+
+chain[19]:
+	9
+
+chain[20]:
+	0
+
+chain[21]:
+	0
+
+chain[22]:
+	0
+
+chain[23]:
+	0
+
+chain[24]:
+	12
+
+chain[25]:
+	23
+
+chain[26]:
+	0
+
+chain[27]:
+	14
+
+chain[28]:
+	11
+
+chain[29]:
+	0
+
+chain[30]:
+	0
+
+chain[31]:
+	0
+
+chain[32]:
+	0
+
+chain[33]:
+	25
+
+chain[34]:
+	0
+
+chain[35]:
+	2
+
+chain[36]:
+	21
+
+chain[37]:
+	19
+
+chain[38]:
+	0
+
+chain[39]:
+	0
+
+chain[40]:
+	0
+
+chain[41]:
+	6
+
+chain[42]:
+	0
+
+chain[43]:
+	0
+
+chain[44]:
+	1
+
+chain[45]:
+	15
+
+chain[46]:
+	13
+
+chain[47]:
+	43
+
+chain[48]:
+	44
+
+chain[49]:
+	27
+
+chain[50]:
+	24
+
+chain[51]:
+	0
+
+chain[52]:
+	0
+
+chain[53]:
+	30
+
+chain[54]:
+	41
+
+chain[55]:
+	48
+
+chain[56]:
+	0
+
+chain[57]:
+	46
+
+chain[58]:
+	0
+
+chain[59]:
+	0
+
+chain[60]:
+	32
+
+chain[61]:
+	0
+
+chain[62]:
+	0
+
+chain[63]:
+	56
+
+chain[64]:
+	0
+
+chain[65]:
+	38
+
+chain[66]:
+	5
+

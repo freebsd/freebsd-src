@@ -1,0 +1,36 @@
+# $Id: Makefile.tset 2077 2011-10-27 03:59:40Z jkoshy $
+
+# All the test cases in this test suite need -lelf.
+DPADD+=		${LIBELF}
+LDADD+=		-lelf
+
+GENERATE_TEST_SCAFFOLDING=	yes
+
+# Add a file name to TS_YAML if all four variants of the generated ELF
+# object are needed.
+.if defined(TS_YAML)
+.for yaml in ${TS_YAML}
+.for sufx in lsb32 lsb64 msb32 msb64
+TS_DATA+=		${yaml}.${sufx}
+.endfor
+.endfor
+.endif
+
+# Copy ELF binaries used by test cases to the build directory so that
+# the test binaries have access to them.
+_TS_YAMLOBJ?=	${TS_DATA:M*.msb32} ${TS_DATA:M*.lsb32} ${TS_DATA:M*.msb64} \
+		${TS_DATA:M*.lsb64}
+.for f in ${_TS_YAMLOBJ}
+.if exists(${TS_OBJROOT}/common/${f})
+_YO=	${TS_OBJROOT}/common/${f}
+.elif exists(${TS_ROOT}/common/obj/${f})
+_YO=	${TS_ROOT}/common/obj/${f}
+.else
+_YO=	/nonexistent
+.endif
+${f}:	${_YO}
+	@cp ${.ALLSRC} ${.TARGET}
+.endfor
+
+# Test cases do not supply manual pages.
+NOMAN=	noman

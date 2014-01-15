@@ -1,0 +1,103 @@
+
+Symbol Table Section:  .dynsym
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000670 0x000000000000  SECT LOCL  D    0 .init       
+       [2]      0x00000000 0x000000000000  FUNC GLOB  D    2 UNDEF       printf
+       [3]      0x00000000 0x000000000000  NOTY WEAK  D    0 UNDEF       __gmon_start__
+       [4]      0x00000000 0x000000000000  NOTY WEAK  D    0 UNDEF       _Jv_RegisterClasses
+       [5]      0x00000000 0x000000000000  FUNC GLOB  D    2 UNDEF       puts
+       [6]      0x00000000 0x000000000000  FUNC GLOB  D    2 UNDEF       toupper
+       [7]      0x00000000 0x000000000000  FUNC GLOB  D    3 UNDEF       cos
+       [8]      0x00000000 0x000000000000  FUNC GLOB  D    3 UNDEF       cosh
+       [9]      0x00000000 0x000000000000  FUNC WEAK  D    2 UNDEF       __cxa_finalize
+      [10]      0x00000000 0x000000000000  FUNC GLOB  D    2 UNDEF       gets
+      [11]      0x00000000 0x000000000000  FUNC GLOB  D    2 UNDEF       tolower
+      [12]      0x00000000 0x000000000000  FUNC GLOB  D    3 UNDEF       acos
+      [13]      0x00200e78 0x000000000000  NOTY GLOB  D    1 ABS         _end
+      [14]      0x00200e70 0x000000000000  NOTY GLOB  D    1 ABS         _edata
+      [15]      0x00000802 0x000000000012  FUNC GLOB  D    1 .text       add4
+      [16]      0x00000828 0x00000000021a  FUNC GLOB  D    1 .text       mathstring
+      [17]      0x000007de 0x000000000012  FUNC GLOB  D    1 .text       add2
+      [18]      0x000007cc 0x000000000012  FUNC GLOB  D    1 .text       add
+      [19]      0x00200e70 0x000000000000  NOTY GLOB  D    1 ABS         __bss_start
+      [20]      0x00000670 0x000000000000  FUNC GLOB  D    1 .init       _init
+      [21]      0x00000a88 0x000000000000  FUNC GLOB  D    1 .fini       _fini
+      [22]      0x000007f0 0x000000000012  FUNC GLOB  D    1 .text       add3
+      [23]      0x00000814 0x000000000014  FUNC GLOB  D    1 .text       sub
+
+Symbol Table Section:  .symtab
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000158 0x000000000000  SECT LOCL  D    0 .gnu.hash   
+       [2]      0x000001a8 0x000000000000  SECT LOCL  D    0 .dynsym     
+       [3]      0x000003e8 0x000000000000  SECT LOCL  D    0 .dynstr     
+       [4]      0x000004ac 0x000000000000  SECT LOCL  D    0 .gnu.versio 
+       [5]      0x000004e0 0x000000000000  SECT LOCL  D    0 .gnu.versio 
+       [6]      0x00000520 0x000000000000  SECT LOCL  D    0 .rela.dyn   
+       [7]      0x00000598 0x000000000000  SECT LOCL  D    0 .rela.plt   
+       [8]      0x00000670 0x000000000000  SECT LOCL  D    0 .init       
+       [9]      0x00000688 0x000000000000  SECT LOCL  D    0 .plt        
+      [10]      0x00000730 0x000000000000  SECT LOCL  D    0 .text       
+      [11]      0x00000a88 0x000000000000  SECT LOCL  D    0 .fini       
+      [12]      0x00000a98 0x000000000000  SECT LOCL  D    0 .rodata     
+      [13]      0x00000b10 0x000000000000  SECT LOCL  D    0 .eh_frame_h 
+      [14]      0x00000b50 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [15]      0x00200c30 0x000000000000  SECT LOCL  D    0 .ctors      
+      [16]      0x00200c40 0x000000000000  SECT LOCL  D    0 .dtors      
+      [17]      0x00200c50 0x000000000000  SECT LOCL  D    0 .jcr        
+      [18]      0x00200c58 0x000000000000  SECT LOCL  D    0 .dynamic    
+      [19]      0x00200de8 0x000000000000  SECT LOCL  D    0 .got        
+      [20]      0x00200e00 0x000000000000  SECT LOCL  D    0 .got.plt    
+      [21]      0x00200e60 0x000000000000  SECT LOCL  D    0 .data       
+      [22]      0x00200e70 0x000000000000  SECT LOCL  D    0 .bss        
+      [23]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [24]      0x00000000 0x000000000000  SECT LOCL  D    0 .debug_aran 
+      [25]      0x00000000 0x000000000000  SECT LOCL  D    0 .debug_info 
+      [26]      0x00000000 0x000000000000  SECT LOCL  D    0 .debug_abbr 
+      [27]      0x00000000 0x000000000000  SECT LOCL  D    0 .debug_line 
+      [28]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         initfini.c
+      [29]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         /home/aurel32/debian/co-packages/glibc/etch/glibc-2.3.6.ds1/build-tree/amd64-libc/csu/crti.S
+      [30]      0x00000730 0x000000000000  FUNC LOCL  D    0 .text       call_gmon_start
+      [31]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         crtstuff.c
+      [32]      0x00200c30 0x000000000000  OBJT LOCL  D    0 .ctors      __CTOR_LIST__
+      [33]      0x00200c40 0x000000000000  OBJT LOCL  D    0 .dtors      __DTOR_LIST__
+      [34]      0x00200c50 0x000000000000  OBJT LOCL  D    0 .jcr        __JCR_LIST__
+      [35]      0x00200e70 0x000000000001  OBJT LOCL  D    0 .bss        completed.5959
+      [36]      0x00200e68 0x000000000000  OBJT LOCL  D    0 .data       p.5957
+      [37]      0x00000750 0x000000000000  FUNC LOCL  D    0 .text       __do_global_dtors_aux
+      [38]      0x000007a0 0x000000000000  FUNC LOCL  D    0 .text       frame_dummy
+      [39]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         crtstuff.c
+      [40]      0x00200c38 0x000000000000  OBJT LOCL  D    0 .ctors      __CTOR_END__
+      [41]      0x00200c48 0x000000000000  OBJT LOCL  D    0 .dtors      __DTOR_END__
+      [42]      0x00000c28 0x000000000000  OBJT LOCL  D    0 .eh_frame   __FRAME_END__
+      [43]      0x00200c50 0x000000000000  OBJT LOCL  D    0 .jcr        __JCR_END__
+      [44]      0x00000a50 0x000000000000  FUNC LOCL  D    0 .text       __do_global_ctors_aux
+      [45]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         initfini.c
+      [46]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         /home/aurel32/debian/co-packages/glibc/etch/glibc-2.3.6.ds1/build-tree/amd64-libc/csu/crtn.S
+      [47]      0x00000000 0x000000000000  FILE LOCL  D    0 ABS         test2.c
+      [48]      0x00200e00 0x000000000000  OBJT LOCL  H    0 ABS         _GLOBAL_OFFSET_TABLE_
+      [49]      0x00200e60 0x000000000000  OBJT LOCL  H    0 .data       __dso_handle
+      [50]      0x00200c58 0x000000000000  OBJT LOCL  H    0 ABS         _DYNAMIC
+      [51]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       printf@@GLIBC_2.2.5
+      [52]      0x00000828 0x00000000021a  FUNC GLOB  D    0 .text       mathstring
+      [53]      0x00000000 0x000000000000  NOTY WEAK  D    0 UNDEF       __gmon_start__
+      [54]      0x00000000 0x000000000000  NOTY WEAK  D    0 UNDEF       _Jv_RegisterClasses
+      [55]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       puts@@GLIBC_2.2.5
+      [56]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       toupper@@GLIBC_2.2.5
+      [57]      0x00000a88 0x000000000000  FUNC GLOB  D    0 .fini       _fini
+      [58]      0x000007f0 0x000000000012  FUNC GLOB  D    0 .text       add3
+      [59]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       cos@@GLIBC_2.2.5
+      [60]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       cosh@@GLIBC_2.2.5
+      [61]      0x00000000 0x000000000000  FUNC WEAK  D    0 UNDEF       __cxa_finalize@@GLIBC_2.2.5
+      [62]      0x000007de 0x000000000012  FUNC GLOB  D    0 .text       add2
+      [63]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       gets@@GLIBC_2.2.5
+      [64]      0x000007cc 0x000000000012  FUNC GLOB  D    0 .text       add
+      [65]      0x00200e70 0x000000000000  NOTY GLOB  D    0 ABS         __bss_start
+      [66]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       tolower@@GLIBC_2.2.5
+      [67]      0x00000000 0x000000000000  FUNC GLOB  D    0 UNDEF       acos@@GLIBC_2.2.5
+      [68]      0x00200e78 0x000000000000  NOTY GLOB  D    0 ABS         _end
+      [69]      0x00200e70 0x000000000000  NOTY GLOB  D    0 ABS         _edata
+      [70]      0x00000814 0x000000000014  FUNC GLOB  D    0 .text       sub
+      [71]      0x00000670 0x000000000000  FUNC GLOB  D    0 .init       _init
+      [72]      0x00000802 0x000000000012  FUNC GLOB  D    0 .text       add4

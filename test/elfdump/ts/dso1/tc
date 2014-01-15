@@ -1,0 +1,157 @@
+#!/bin/sh
+#
+# $Id: tc 2083 2011-10-27 04:41:39Z jkoshy $
+
+tp1()
+{
+    run "@e%libelf.so"
+}
+
+tp2()
+{
+    run "@p%libelf.so"
+}
+
+tp3()
+{
+    run "@G%libelf.so"
+}
+
+tp4()
+{
+    run "@n%libelf.so"
+}
+
+tp5()
+{
+    run "@p@s%libelf.so"
+}
+
+tp6()
+{
+    run "@c%libelf.so"
+}
+
+tp7()
+{
+    run "@c@s%libelf.so"
+}
+
+tp8()
+{
+    run "@c@p@n%libelf.so"
+}
+
+tp9()
+{
+    run "@d%libelf.so"
+}
+
+tp10()
+{
+    run "@e@i%libelf.so"
+}
+
+tp11()
+{
+    run "@r%libelf.so"
+}
+
+tp12()
+{
+    run "@h%libelf.so"
+}
+
+tp13()
+{
+    run "@e@p@c%libelf.so"
+}
+
+tp14()
+{
+    run "@S@e%libelf.so"
+}
+
+tp15()
+{
+    run "@S@p%libelf.so"
+}
+
+tp16()
+{
+    run "@S@G%libelf.so"
+}
+
+tp17()
+{
+    run "@S@s@N%.dynsym%libelf.so"
+}
+
+tp18()
+{
+    run "@S@r%libelf.so"
+}
+
+tp19()
+{
+    run "@S@d%libelf.so"
+}
+
+tp20()
+{
+    run "@S@n%libelf.so"
+}
+
+tp21()
+{
+    run "@S@c@s%libelf.so"
+}
+
+tp22()
+{
+    run "@S@k%libelf.so"
+}
+
+tp23()
+{
+    run "@S@v%libelf.so"
+}
+
+tp24()
+{
+    run "@S@h%libelf.so"
+}
+
+tet_startup=""
+tet_cleanup="cleanup"
+
+iclist="ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24"
+
+ic1="tp1"
+ic2="tp2"
+ic3="tp3"
+ic4="tp4"
+ic5="tp5"
+ic6="tp6"
+ic7="tp7"
+ic8="tp8"
+ic9="tp9"
+ic10="tp10"
+ic11="tp11"
+ic12="tp12"
+ic13="tp13"
+ic14="tp14"
+ic15="tp15"
+ic16="tp16"
+ic17="tp17"
+ic18="tp18"
+ic19="tp19"
+ic20="tp20"
+ic21="tp21"
+ic22="tp22"
+ic23="tp23"
+ic24="tp24"
+
+
+. $TET_SUITE_ROOT/ts/common/func.sh
+. $TET_ROOT/lib/xpg3sh/tcm.sh

@@ -1,0 +1,34 @@
+: $Id: README 2084 2011-10-27 04:48:12Z jkoshy $
+
+Libdwarf test suite use XML files to describe test case, invocable
+component and test purpose.
+
+Each test case can have several XML files, and each XML file
+corresponds to exact one invocable component.
+
+For example, test case dwarf_get_address_size contains following
+XML file:
+
+<ic file='dt32-g1'>
+  <tp func='tp_dwarf_get_address_size'>
+    <vc var='addr_size' type='uint'>4</vc>
+  </tp>
+</ic>
+
+Element 'ic' defines invocable component, in libdwarf test suite, one
+invocable component can be invoked on only one test object (dt32-g1 in
+this case). Element 'tp' defines a test purpose. A 'ic' can have
+multiple 'tp' (only one in this case). Element 'vc' defines a
+"variable check", which means verify varible's value against constant.
+In this example, test purpose tp_dwarf_get_address_size will verify
+that variable addr_size has value 4.
+
+When a test case is compiled nomarlly, during test case startup, the
+test driver will parse the XML files and report to TET how many IC and
+TP this test case have. When each TP is executed, test driver will
+verify variable values according to the list of VC defined in that TP.
+
+When a test case is compiled with 'make TCGEN=yes', it will instead
+link with SGI libdwarf and genearte XML files during TP execution.
+These generated XML files can then be used directly to test this
+libdwarf implementation.

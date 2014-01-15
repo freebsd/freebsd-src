@@ -1,0 +1,18 @@
+# -*- mode: makefile -*-
+#
+# Build the programs previously extracted from the literate program
+# input.
+#
+# $Id: Makefile.program 2546 2012-08-17 15:43:44Z jkoshy $
+
+SUBDIR=
+
+.if exists(master)
+SUBDIR+=	master
+.endif
+
+.if exists(slave)
+SUBDIR+=	slave
+.endif
+
+.include <bsd.subdir.mk>

@@ -1,0 +1,773 @@
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .interp
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x80480f4
+	sh_offset: 244
+	sh_size: 21
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .note.ABI-tag
+	sh_type: SHT_NOTE
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x804810c
+	sh_offset: 268
+	sh_size: 24
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 3
+	sh_name: .hash
+	sh_type: SHT_HASH
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x8048124
+	sh_offset: 292
+	sh_size: 544
+	sh_link: 4
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 4
+
+entry: 4
+	sh_name: .dynsym
+	sh_type: SHT_DYNSYM
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x8048344
+	sh_offset: 836
+	sh_size: 1072
+	sh_link: 5
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 5
+	sh_name: .dynstr
+	sh_type: SHT_STRTAB
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x8048774
+	sh_offset: 1908
+	sh_size: 467
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .gnu.version
+	sh_type: SHT_SUNW(GNU)_versym
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x8048948
+	sh_offset: 2376
+	sh_size: 134
+	sh_link: 4
+	sh_info: 0
+	sh_addralign: 2
+	sh_entsize: 2
+
+entry: 7
+	sh_name: .gnu.version_r
+	sh_type: SHT_SUNW(GNU)_verneed
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x80489d0
+	sh_offset: 2512
+	sh_size: 32
+	sh_link: 5
+	sh_info: 1
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 8
+	sh_name: .rel.dyn
+	sh_type: SHT_REL
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x80489f0
+	sh_offset: 2544
+	sh_size: 32
+	sh_link: 4
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 9
+	sh_name: .rel.plt
+	sh_type: SHT_REL
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x8048a10
+	sh_offset: 2576
+	sh_size: 464
+	sh_link: 4
+	sh_info: 11
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 10
+	sh_name: .init
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x8048be0
+	sh_offset: 3040
+	sh_size: 17
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 11
+	sh_name: .plt
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x8048bf4
+	sh_offset: 3060
+	sh_size: 944
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 4
+
+entry: 12
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x8048fb0
+	sh_offset: 4016
+	sh_size: 7132
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 13
+	sh_name: .fini
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x804ab8c
+	sh_offset: 11148
+	sh_size: 12
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 14
+	sh_name: .rodata
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x804ab98
+	sh_offset: 11160
+	sh_size: 1298
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 15
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c0c0
+	sh_offset: 12480
+	sh_size: 1068
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 32
+	sh_entsize: 0
+
+entry: 16
+	sh_name: .eh_frame
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x804c4ec
+	sh_offset: 13548
+	sh_size: 4
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 17
+	sh_name: .dynamic
+	sh_type: SHT_DYNAMIC
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c4f0
+	sh_offset: 13552
+	sh_size: 200
+	sh_link: 5
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 8
+
+entry: 18
+	sh_name: .ctors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c5b8
+	sh_offset: 13752
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 19
+	sh_name: .dtors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c5c0
+	sh_offset: 13760
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 20
+	sh_name: .jcr
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c5c8
+	sh_offset: 13768
+	sh_size: 4
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 21
+	sh_name: .got
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c5cc
+	sh_offset: 13772
+	sh_size: 244
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 4
+
+entry: 22
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x804c6c0
+	sh_offset: 14016
+	sh_size: 65632
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 32
+	sh_entsize: 0
+
+entry: 23
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 14016
+	sh_size: 485
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 24
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 14501
+	sh_size: 190
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+symbol table (.dynsym):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: fprintf
+	st_value: 0
+	st_size: 52
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 2
+	st_name: write
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 3
+	st_name: utimes
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 4
+	st_name: lstat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 5
+	st_name: acl_get_fd
+	st_value: 0
+	st_size: 93
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 6
+	st_name: lutimes
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 7
+	st_name: lchmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 8
+	st_name: link
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 9
+	st_name: mkfifo
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 10
+	st_name: fts_set
+	st_value: 0
+	st_size: 66
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 11
+	st_name: fts_close
+	st_value: 0
+	st_size: 218
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 12
+	st_name: chflags
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 13
+	st_name: fts_read
+	st_value: 0
+	st_size: 1266
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 14
+	st_name: strerror
+	st_value: 0
+	st_size: 74
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 15
+	st_name: _init_tls
+	st_value: 0
+	st_size: 5
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 16
+	st_name: fts_open
+	st_value: 0
+	st_size: 638
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 17
+	st_name: errx
+	st_value: 0
+	st_size: 46
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: munmap
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 19
+	st_name: symlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 20
+	st_name: fpathconf
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 21
+	st_name: environ
+	st_value: 0x805c700
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 22
+	st_name: unlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 23
+	st_name: __isthreaded
+	st_value: 0x804c6c0
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 24
+	st_name: getopt
+	st_value: 0
+	st_size: 660
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 25
+	st_name: strrchr
+	st_value: 0
+	st_size: 27
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 26
+	st_name: __progname
+	st_value: 0x804c0c0
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 15
+
+entry: 27
+	st_name: warnx
+	st_value: 0
+	st_size: 45
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 28
+	st_name: stat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 29
+	st_name: mmap
+	st_value: 0
+	st_size: 164
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 30
+	st_name: mknod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 31
+	st_name: __error
+	st_value: 0
+	st_size: 22
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 32
+	st_name: pathconf
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 33
+	st_name: printf
+	st_value: 0
+	st_size: 57
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 34
+	st_name: close
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 35
+	st_name: warn
+	st_value: 0
+	st_size: 65
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: acl_set_link_np
+	st_value: 0x8048e04
+	st_size: 157
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 37
+	st_name: __stdinp
+	st_value: 0x804c6c4
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 38
+	st_name: umask
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 39
+	st_name: signal
+	st_value: 0
+	st_size: 107
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 40
+	st_name: fchmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 41
+	st_name: fwrite
+	st_value: 0
+	st_size: 175
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 42
+	st_name: open
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 43
+	st_name: fchown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 44
+	st_name: lchown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 45
+	st_name: acl_set_fd
+	st_value: 0
+	st_size: 110
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 46
+	st_name: exit
+	st_value: 0
+	st_size: 67
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 47
+	st_name: mkdir
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 48
+	st_name: err
+	st_value: 0
+	st_size: 62
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 49
+	st_name: _end
+	st_value: 0x805c720
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 50
+	st_name: chmod
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 51
+	st_name: __stderrp
+	st_value: 0x804c6c8
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 52
+	st_name: optind
+	st_value: 0x804c6cc
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 22
+
+entry: 53
+	st_name: acl_set_file
+	st_value: 0x8048ed4
+	st_size: 157
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 54
+	st_name: __srget
+	st_value: 0
+	st_size: 69
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 55
+	st_name: atexit
+	st_value: 0
+	st_size: 43
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 56
+	st_name: chown
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 57
+	st_name: read
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 58
+	st_name: fchflags
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 59
+	st_name: strncat
+	st_value: 0
+	st_size: 64
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 60
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 61
+	st_name: acl_get_link_np
+	st_value: 0x8048f44
+	st_size: 92
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 62
+	st_name: readlink
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 63
+	st_name: getc
+	st_value: 0
+	st_size: 124
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 64
+	st_name: acl_get_file
+	st_value: 0x8048f74
+	st_size: 92
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 65
+	st_name: fstat
+	st_value: 0
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 66
+	st_name: strlcpy
+	st_value: 0
+	st_size: 85
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0

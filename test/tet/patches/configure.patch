@@ -1,0 +1,13 @@
+: $Id: configure.patch 2204 2011-11-24 05:23:42Z jkoshy $
+
+--- tet3.8/configure--	2005-12-09 16:29:17 +0530
++++ tet3.8/configure	2011-11-24 01:42:02 +0530
+@@ -317,7 +317,7 @@
+ *-sgi-irix*)
+ 	fname=irix.mk
+ 	;;
+-*-freebsd)
++*-freebsd | *-netbsd | *-dragonfly)	# Use FreeBSD's configuration.
+ 	fname=freebsd.mk
+ 	;;
+ *-bsdi)

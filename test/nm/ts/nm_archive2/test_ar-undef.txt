@@ -1,0 +1,37 @@
+
+memstat_all.o:
+                 U memstat_kvm_malloc
+                 U memstat_kvm_uma
+                 U memstat_sysctl_malloc
+                 U memstat_sysctl_uma
+
+memstat_uma.o:
+                 U __error
+                 U _memstat_mt_allocate
+                 U _memstat_mt_reset_stats
+                 U _memstat_mtl_empty
+                 U free
+                 U kvm_nlist
+                 U kvm_read
+                 U malloc
+                 U memstat_mtl_find
+                 U sysctlbyname
+
+memstat_malloc.o:
+                 U __error
+                 U _memstat_mt_allocate
+                 U _memstat_mt_reset_stats
+                 U _memstat_mtl_empty
+                 U free
+                 U kvm_nlist
+                 U kvm_read
+                 U malloc
+                 U memstat_mtl_find
+                 U sysctlbyname
+
+memstat.o:
+                 U free
+                 U malloc
+                 U memset
+                 U strcmp
+                 U strlcpy

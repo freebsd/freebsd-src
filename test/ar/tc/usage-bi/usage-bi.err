@@ -1,0 +1,32 @@
+Usage: ar <command> [options] archive file...
+  Manage archives.
+
+  Where <command> is one of:
+  -d            Delete members from the archive.
+  -m            Move archive members within the archive.
+  -p            Write the contents of members to standard output.
+  -q            Append files to an archive.
+  -r            Replace (add) files to an archive.
+  -s            Add an archive symbol to an archive.
+  -t            List files in an archive.
+  -x            Extract members from an archive.
+  -M            Execute MRI librarian commands.
+  -V            Print a version identifier and exit.
+
+  Options:
+  -a MEMBER     Add members after the specified member.
+  -b MEMBER | -i MEMBER
+                Add members before the specified member.
+  -c            Do not print a message when creating a new archive.
+  -f | -T       Only use the first fifteen characters of the member name.
+  -j            (This option is accepted, but is ignored).
+  -l            (This option is accepted, but is ignored).
+  -o            Preserve modification times when extracting members.
+  -u            Conditionally update or extract members.
+  -v            Be verbose.
+  -z            (This option is accepted, but is ignored).
+  -C            Do not overwrite existing files in the file system.
+  -D            Use fixed metadata, for consistent archive checksums.
+  -F FORMAT | --flavor=FORMAT
+                Create archives with the specified format.
+  -S            Do not generate an archive symbol table.

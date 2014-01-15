@@ -1,0 +1,79 @@
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_EXEC
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0x8048fb0
+	e_phoff: 52
+	e_shoff: 14692
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 32
+	e_phnum: 6
+	e_shentsize: 40
+	e_shnum: 25
+	e_shstrndx: 24
+
+program header:
+
+entry: 0
+	p_type: PT_PHDR
+	p_offset: 52
+	p_vaddr: 0x8048034
+	p_paddr: 0x8048034
+	p_filesz: 192
+	p_memsz: 192
+	p_flags: PF_X|PF_R
+	p_align: 4
+
+entry: 1
+	p_type: PT_INTERP
+	p_offset: 244
+	p_vaddr: 0x80480f4
+	p_paddr: 0x80480f4
+	p_filesz: 21
+	p_memsz: 21
+	p_flags: PF_R
+	p_align: 1
+
+entry: 2
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0x8048000
+	p_paddr: 0x8048000
+	p_filesz: 12458
+	p_memsz: 12458
+	p_flags: PF_X|PF_R
+	p_align: 4096
+
+entry: 3
+	p_type: PT_LOAD
+	p_offset: 12480
+	p_vaddr: 0x804c0c0
+	p_paddr: 0x804c0c0
+	p_filesz: 1536
+	p_memsz: 67168
+	p_flags: PF_W|PF_R
+	p_align: 4096
+
+entry: 4
+	p_type: PT_DYNAMIC
+	p_offset: 13552
+	p_vaddr: 0x804c4f0
+	p_paddr: 0x804c4f0
+	p_filesz: 200
+	p_memsz: 200
+	p_flags: PF_W|PF_R
+	p_align: 4
+
+entry: 5
+	p_type: PT_NOTE
+	p_offset: 268
+	p_vaddr: 0x804810c
+	p_paddr: 0x804810c
+	p_filesz: 24
+	p_memsz: 24
+	p_flags: PF_R
+	p_align: 4

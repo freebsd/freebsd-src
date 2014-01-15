@@ -1,0 +1,162 @@
+#!/bin/sh
+#
+# $Id: tc 2083 2011-10-27 04:41:39Z jkoshy $
+
+tp1()
+{
+    run "@e%libdwarf.a"
+}
+
+tp2()
+{
+    run "@p%libdwarf.a"
+}
+
+tp3()
+{
+    run "@G%libdwarf.a"
+}
+
+tp4()
+{
+    run "@n%libdwarf.a"
+}
+
+tp5()
+{
+    run "@c%libdwarf.a"
+}
+
+tp6()
+{
+    run "@s%libdwarf.a"
+}
+
+tp7()
+{
+    run "@d%libdwarf.a"
+}
+
+tp8()
+{
+    run "@i%libdwarf.a"
+}
+
+tp9()
+{
+    run "@r%libdwarf.a"
+}
+
+tp10()
+{
+    run "@h%libdwarf.a"
+}
+
+tp11()
+{
+    run "@v%libdwarf.a"
+}
+
+tp12()
+{
+    run "@k%libdwarf.a"
+}
+
+tp13()
+{
+    run "@S@e%libdwarf.a"
+}
+
+tp14()
+{
+    run "@S@p%libdwarf.a"
+}
+
+tp15()
+{
+    run "@S@G%libdwarf.a"
+}
+
+tp16()
+{
+    run "@S@r%libdwarf.a"
+}
+
+tp17()
+{
+    run "@S@d%libdwarf.a"
+}
+
+tp18()
+{
+    run "@S@n%libdwarf.a"
+}
+
+tp19()
+{
+    run "@S@c%libdwarf.a"
+}
+
+tp20()
+{
+    run "@S@s%libdwarf.a"
+}
+
+tp21()
+{
+    run "@S@k%libdwarf.a"
+}
+
+tp22()
+{
+    run "@S@v%libdwarf.a"
+}
+
+tp23()
+{
+    run "@S@h%libdwarf.a"
+}
+
+tp24()
+{
+    run "@S@s@N%ARSYM%libdwarf.a"
+}
+
+tp25()
+{
+    run "@S@s@N%.symtab%libdwarf.a"
+}
+
+tet_startup=""
+tet_cleanup="cleanup"
+
+iclist="ic1 ic2 ic3 ic4 ic5 ic6 ic7 ic8 ic9 ic10 ic11 ic12 ic13 ic14 ic15 ic16 ic17 ic18 ic19 ic20 ic21 ic22 ic23 ic24 ic25"
+
+ic1="tp1"
+ic2="tp2"
+ic3="tp3"
+ic4="tp4"
+ic5="tp5"
+ic6="tp6"
+ic7="tp7"
+ic8="tp8"
+ic9="tp9"
+ic10="tp10"
+ic11="tp11"
+ic12="tp12"
+ic13="tp13"
+ic14="tp14"
+ic15="tp15"
+ic16="tp16"
+ic17="tp17"
+ic18="tp18"
+ic19="tp19"
+ic20="tp20"
+ic21="tp21"
+ic22="tp22"
+ic23="tp23"
+ic24="tp24"
+ic25="tp25"
+
+. $TET_SUITE_ROOT/ts/common/func.sh
+. $TET_ROOT/lib/xpg3sh/tcm.sh

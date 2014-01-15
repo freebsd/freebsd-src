@@ -1,0 +1,1181 @@
+
+libdwarf.a(dwarf_loc.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                    0xf6          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x176       2368  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x191         -4  .rela.text     free
+        R_X86_64_PC32                  0x199         -4  .rela.text     free
+        R_X86_64_PC32                  0x20b         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                  0x226         -4  .rela.text     calloc
+        R_X86_64_PC32                  0x271         -4  .rela.text     dwarf_op_num
+        R_X86_64_PC32                  0x286         -4  .rela.text     calloc
+        R_X86_64_32S                   0x312       1184  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x32c       2387  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x409       2387  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x425         -4  .rela.text     get_form_desc
+        R_X86_64_32                    0x432       2387  .rela.text     .rodata (section)
+        R_X86_64_32                    0x437          0  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x43e         -4  .rela.text     printf
+        R_X86_64_32S                   0x453       2387  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x466         -4  .rela.text     free
+        R_X86_64_32S                   0x497       2387  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x4c1       2387  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x4e8       2387  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.rodata
+        type                          offset     addend  section        with respect to
+        R_X86_64_64                        0        314  .rela.rodata   .text (section)
+        R_X86_64_64                      0x8        233  .rela.rodata   .text (section)
+        R_X86_64_64                     0x10        233  .rela.rodata   .text (section)
+        R_X86_64_64                     0x18        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0x20        233  .rela.rodata   .text (section)
+        R_X86_64_64                     0x28        301  .rela.rodata   .text (section)
+        R_X86_64_64                     0x30        301  .rela.rodata   .text (section)
+        R_X86_64_64                     0x38        291  .rela.rodata   .text (section)
+        R_X86_64_64                     0x40        291  .rela.rodata   .text (section)
+        R_X86_64_64                     0x48        281  .rela.rodata   .text (section)
+        R_X86_64_64                     0x50        281  .rela.rodata   .text (section)
+        R_X86_64_64                     0x58        271  .rela.rodata   .text (section)
+        R_X86_64_64                     0x60        271  .rela.rodata   .text (section)
+        R_X86_64_64                     0x68        261  .rela.rodata   .text (section)
+        R_X86_64_64                     0x70        261  .rela.rodata   .text (section)
+        R_X86_64_64                     0x78        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0x80        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0x88        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0x90        301  .rela.rodata   .text (section)
+        R_X86_64_64                     0x98        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa8        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xb0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xb8        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xc0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xc8        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xd0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xd8        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xe0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xe8        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xf0        178  .rela.rodata   .text (section)
+        R_X86_64_64                     0xf8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x100        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x108        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x110        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x118        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x120        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x128        291  .rela.rodata   .text (section)
+        R_X86_64_64                    0x130        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x138        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x140        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x148        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x150        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x158        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x160        291  .rela.rodata   .text (section)
+        R_X86_64_64                    0x168        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x170        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x178        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x180        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x188        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x190        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x198        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1a0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1a8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1b0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1b8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1c0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1c8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1d0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1d8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1e0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1e8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1f0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1f8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x200        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x208        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x210        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x218        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x220        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x228        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x230        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x238        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x240        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x248        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x250        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x258        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x260        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x268        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x270        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x278        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x280        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x288        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x290        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x298        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2a0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2a8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2b0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2b8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2c0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2c8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2d0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2d8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2e0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2e8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2f0        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2f8        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x300        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x308        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x310        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x318        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x320        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x328        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x330        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x338        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x340        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x348        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x350        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x358        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x360        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x368        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x370        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x378        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x380        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x388        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x390        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x398        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3a0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3a8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3b0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3b8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3c0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3c8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3d0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3d8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3e0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3e8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3f0        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3f8        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x400        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x408        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x410        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x418        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x420        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x428        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x430        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x438        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x440        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x448        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x450        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x458        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x460        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x468        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x470        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x478        250  .rela.rodata   .text (section)
+        R_X86_64_64                    0x480        261  .rela.rodata   .text (section)
+        R_X86_64_64                    0x488        301  .rela.rodata   .text (section)
+        R_X86_64_64                    0x490        301  .rela.rodata   .text (section)
+        R_X86_64_64                    0x498        178  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4a0        995  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4a8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4b0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4b8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4c0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4c8        976  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4d0        976  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4d8        958  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4e0        958  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4e8        940  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4f0        940  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4f8        922  .rela.rodata   .text (section)
+        R_X86_64_64                    0x500        922  .rela.rodata   .text (section)
+        R_X86_64_64                    0x508        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x510        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x518        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x520        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x528        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x530        976  .rela.rodata   .text (section)
+        R_X86_64_64                    0x538        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x540        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x548        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x550        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x558        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x560        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x568        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x570        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x578        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x580        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x588        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x590        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x598        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5a0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5a8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5b0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5b8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5c0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5c8        958  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5d0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5d8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5e0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5e8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5f0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5f8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x600        958  .rela.rodata   .text (section)
+        R_X86_64_64                    0x608        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x610        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x618        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x620        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x628        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x630        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x638        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x640        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x648        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x650        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x658        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x660        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x668        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x670        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x678        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x680        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x688        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x690        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x698        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6a0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6a8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6b0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6b8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6c0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6c8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6d0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6d8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6e0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6e8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6f0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x6f8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x700        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x708        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x710        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x718        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x720        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x728        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x730        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x738        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x740        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x748        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x750        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x758        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x760        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x768        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x770        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x778        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x780        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x788        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x790        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x798        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7a0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7a8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7b0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7b8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7c0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7c8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7d0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7d8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7e0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7e8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7f0        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x7f8        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x800        712  .rela.rodata   .text (section)
+        R_X86_64_64                    0x808        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x810        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x818        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x820        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x828        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x830        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x838        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x840        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x848        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x850        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x858        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x860        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x868        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x870        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x878        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x880        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x888        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x890        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x898        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8a0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8a8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8b0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8b8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8c0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8c8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8d0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8d8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8e0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8e8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8f0        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x8f8        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x900        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x908        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x910        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x918        889  .rela.rodata   .text (section)
+        R_X86_64_64                    0x920        864  .rela.rodata   .text (section)
+        R_X86_64_64                    0x928        976  .rela.rodata   .text (section)
+        R_X86_64_64                    0x930        976  .rela.rodata   .text (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38         96  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x50        144  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x80        336  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x98        432  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_init.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                   0x353        416  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x393          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x3a4         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x3c0         -4  .rela.text     dwarf_attrval_add
+        R_X86_64_PC32                  0x3d3         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x3fe         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x411         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x429         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x444         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x4bb         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x4d2         -4  .rela.text     elf_strptr
+        R_X86_64_PC32                  0x518         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x565         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x5dd         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x639         -4  .rela.text     calloc
+        R_X86_64_PC32                  0x67c         -4  .rela.text     gelf_getehdr
+        R_X86_64_PC32                  0x697         -8  .rela.text     .bss (section)
+        R_X86_64_32S                   0x69b          0  .rela.text     .text (section)
+        R_X86_64_PC32                  0x6a2          0  .rela.text     .bss (section)
+        R_X86_64_32S                   0x6a6        368  .rela.text     .text (section)
+        R_X86_64_PC32                  0x6b2         -4  .rela.text     elf_getshstrndx
+        R_X86_64_PC32                  0x6c8         -4  .rela.text     elf_nextscn
+        R_X86_64_PC32                  0x6e4         -4  .rela.text     gelf_getshdr
+        R_X86_64_PC32                  0x700         -4  .rela.text     elf_strptr
+        R_X86_64_32S                   0x723        224  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x72b         -4  .rela.text     strcmp
+        R_X86_64_PC32                  0x756         -4  .rela.text     elf_ndxscn
+        R_X86_64_PC32                  0x7d4         -4  .rela.text     elf_getdata
+        R_X86_64_PC32                  0x7f7         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0x7ff        368  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x842        195  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x86e        195  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x88f         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0x897        368  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x8b4         -8  .rela.text     .bss (section)
+        R_X86_64_32S                   0x8b8        160  .rela.text     .text (section)
+        R_X86_64_PC32                  0x8bf          0  .rela.text     .bss (section)
+        R_X86_64_32S                   0x8c3        496  .rela.text     .text (section)
+        R_X86_64_PC32                  0x921         -4  .rela.text     calloc
+        R_X86_64_PC32                  0x954         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0x9e5         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xa03         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xa22         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xb3c         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xb58         -4  .rela.text     dwarf_abbrev_add
+        R_X86_64_PC32                  0xbb1         -4  .rela.text     dwarf_attr_add
+        R_X86_64_PC32                  0xbc8         -4  .rela.text     elf_nextscn
+        R_X86_64_PC32                  0xbe1         -4  .rela.text     gelf_getshdr
+        R_X86_64_PC32                  0xc33         -4  .rela.text     elf_getdata
+        R_X86_64_PC32                  0xc92          4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xcab         -4  .rela.text     gelf_getrela
+        R_X86_64_PC32                  0xcd1         -4  .rela.text     gelf_getsym
+        R_X86_64_32                    0xcde          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0xce3         -4  .rela.text     printf
+        R_X86_64_PC32                  0xcf7         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0xcff        368  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0xd27         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0xd2f        368  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0xd57         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0xd5f        368  .rela.text     .rodata (section)
+        R_X86_64_32S                   0xd92        368  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0xe09         -4  .rela.text     dwarf_abbrev_find
+        R_X86_64_PC32                  0xe3a         -4  .rela.text     dwarf_die_add
+        R_X86_64_PC32                  0xef1         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0xef9        400  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0xf37         -4  .rela.text     .bss (section)
+        R_X86_64_PC32                  0xf5b         -4  .rela.text     elf_errno
+        R_X86_64_32S                   0xf63        400  .rela.text     .rodata (section)
+        R_X86_64_32S                   0xf96        384  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0xfb6         -4  .rela.text     free
+        R_X86_64_32S                   0xfcd        384  .rela.text     .rodata (section)
+        R_X86_64_32S                   0xffc        384  .rela.text     .rodata (section)
+        R_X86_64_32S                  0x102b        384  .rela.text     .rodata (section)
+        R_X86_64_PC32                 0x107c         -4  .rela.text     __stack_chk_guard
+        R_X86_64_PC32                 0x10b1         -4  .rela.text     elf_version
+        R_X86_64_PC32                 0x10c8         -4  .rela.text     elf_begin
+        R_X86_64_PC32                 0x10e5         -4  .rela.text     dwarf_elf_init
+        R_X86_64_PC32                 0x1113         -4  .rela.text     dwarf_finish
+        R_X86_64_PC32                 0x1122         -4  .rela.text     __stack_chk_guard
+        R_X86_64_32S                  0x1177        184  .rela.text     .rodata (section)
+        R_X86_64_PC32                 0x1195         -4  .rela.text     elf_errno
+        R_X86_64_32S                  0x119d        184  .rela.text     .rodata (section)
+        R_X86_64_PC32                 0x11c1         -4  .rela.text     elf_errno
+        R_X86_64_32S                  0x11c9        184  .rela.text     .rodata (section)
+        R_X86_64_PC32                 0x11e1         -4  .rela.text     __stack_chk_fail
+        R_X86_64_PC32                 0x11e9         -4  .rela.text     elf_end
+
+Relocation Section:  .rela.rodata
+        type                          offset     addend  section        with respect to
+        R_X86_64_64                        0        827  .rela.rodata   .text (section)
+        R_X86_64_64                      0x8        919  .rela.rodata   .text (section)
+        R_X86_64_64                     0x10        827  .rela.rodata   .text (section)
+        R_X86_64_64                     0x18        966  .rela.rodata   .text (section)
+        R_X86_64_64                     0x20       1009  .rela.rodata   .text (section)
+        R_X86_64_64                     0x28       1028  .rela.rodata   .text (section)
+        R_X86_64_64                     0x30       1052  .rela.rodata   .text (section)
+        R_X86_64_64                     0x38       1079  .rela.rodata   .text (section)
+        R_X86_64_64                     0x40       1106  .rela.rodata   .text (section)
+        R_X86_64_64                     0x48       1184  .rela.rodata   .text (section)
+        R_X86_64_64                     0x50       1488  .rela.rodata   .text (section)
+        R_X86_64_64                     0x58       1368  .rela.rodata   .text (section)
+        R_X86_64_64                     0x60       1368  .rela.rodata   .text (section)
+        R_X86_64_64                     0x68       1395  .rela.rodata   .text (section)
+        R_X86_64_64                     0x70       1200  .rela.rodata   .text (section)
+        R_X86_64_64                     0x78       1248  .rela.rodata   .text (section)
+        R_X86_64_64                     0x80       1269  .rela.rodata   .text (section)
+        R_X86_64_64                     0x88       1368  .rela.rodata   .text (section)
+        R_X86_64_64                     0x90       1028  .rela.rodata   .text (section)
+        R_X86_64_64                     0x98       1052  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa0       1079  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa8       1248  .rela.rodata   .text (section)
+        R_X86_64_64                     0xb0       1318  .rela.rodata   .text (section)
+        R_X86_64_64                     0xe0          0  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                     0xe8         14  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                     0xf0         29  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                     0xf8         42  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x100         54  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x108         66  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x110         82  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x118         92  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x120        107  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x128        118  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x130        129  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x138        145  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x140        159  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x148        178  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x150        197  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x158        210  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x160        227  .rela.rodata   .rodata.str1.1 (section)
+        R_X86_64_64                    0x168        235  .rela.rodata   .rodata.str1.1 (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38        160  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x50        368  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x68        496  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x80        608  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x98        672  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xb0        704  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xd8       1520  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x110       4176  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_form.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                    0x38          0  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_finish.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_PC32                   0xb1         -4  .rela.text     free
+        R_X86_64_PC32                   0xd7         -4  .rela.text     free
+        R_X86_64_PC32                  0x110         -4  .rela.text     free
+        R_X86_64_PC32                  0x16d         -4  .rela.text     free
+        R_X86_64_PC32                  0x193         -4  .rela.text     free
+        R_X86_64_PC32                  0x1d0         -4  .rela.text     free
+        R_X86_64_PC32                  0x21c         -4  .rela.text     free
+        R_X86_64_PC32                  0x235         -4  .rela.text     elf_end
+        R_X86_64_PC32                  0x23d         -4  .rela.text     free
+        R_X86_64_PC32                  0x267         -4  .rela.text     free
+        R_X86_64_PC32                  0x2a3         -4  .rela.text     free
+        R_X86_64_32S                   0x33f          0  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_errno.o):
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_dealloc.o):
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_attrval.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_PC32                   0x88         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                   0xa9         -4  .rela.text     get_form_desc
+        R_X86_64_32                     0xb9          0  .rela.text     .rodata (section)
+        R_X86_64_32                     0xbe          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                   0xc5         -4  .rela.text     printf
+        R_X86_64_32S                    0xdf          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x126          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x153          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x191         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                  0x1c5         -4  .rela.text     dwarf_die_find
+        R_X86_64_PC32                  0x1d5         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_32S                   0x1fb          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x213         -4  .rela.text     get_form_desc
+        R_X86_64_32                    0x223          0  .rela.text     .rodata (section)
+        R_X86_64_32                    0x228          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x22f         -4  .rela.text     printf
+        R_X86_64_32S                   0x249          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x2a4         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                  0x2cd         -4  .rela.text     get_form_desc
+        R_X86_64_32                    0x2dd         32  .rela.text     .rodata (section)
+        R_X86_64_32                    0x2e2          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x2e9         -4  .rela.text     printf
+        R_X86_64_32S                   0x303         32  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x33b         32  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x35f         32  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x3ce         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                  0x3fa         -4  .rela.text     get_form_desc
+        R_X86_64_32                    0x40a         64  .rela.text     .rodata (section)
+        R_X86_64_32                    0x40f          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x416         -4  .rela.text     printf
+        R_X86_64_32S                   0x430         64  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x469         64  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x4b0         64  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x513         -4  .rela.text     dwarf_attrval_find
+        R_X86_64_PC32                  0x532         -4  .rela.text     get_form_desc
+        R_X86_64_32                    0x542         96  .rela.text     .rodata (section)
+        R_X86_64_32                    0x547          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x54e         -4  .rela.text     printf
+        R_X86_64_32S                   0x568         96  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x5a6         96  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x5ca         96  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x61a         -4  .rela.text     malloc
+        R_X86_64_32S                   0x63c        128  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38         48  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x58        608  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x78        896  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x98       1232  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xb8       1520  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_attr.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                    0x5b         15  .rela.text     .rodata (section)
+        R_X86_64_32S                    0x88         15  .rela.text     .rodata (section)
+        R_X86_64_32S                    0xf0          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x124         -4  .rela.text     malloc
+        R_X86_64_32S                   0x146          0  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38        160  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_abbrev.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_PC32                   0x6a         -4  .rela.text     malloc
+        R_X86_64_32S                    0x8c          0  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38         48  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_dump.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                      0x4        172  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x10        228  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x1f        268  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x2f        176  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0x41         13  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x47        243  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x56          0  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0x62        142  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x72        155  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0x7e         32  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0x87         64  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0x93        104  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0x9f        136  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                     0xa8         30  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xb4         58  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xc0         79  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xc6         21  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xd2        293  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xe3          0  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                     0xfc        199  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x105        100  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x119        126  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x126        341  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32S                   0x135          0  .rela.text     .rodata (section)
+        R_X86_64_32                    0x13a        314  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x140       1370  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x146       1345  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x14c       1326  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x152       1297  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x158       1207  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x15e       1169  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x164       1141  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x16a       1076  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x170       1041  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x176       1000  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x17c        873  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x182        846  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x188        829  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x18e        814  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x194        799  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x19a        745  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1a0        695  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1a6        679  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1ac        663  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1b2        645  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1b8        618  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1be        606  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1c4        503  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1ca        438  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1d0        421  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1d6        401  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1dc        381  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1e2        359  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1e8       1308  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1ee       1241  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1f4       1189  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x1fa       1123  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x200       1106  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x206       1091  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x20c        982  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x212        921  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x218        908  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x21e        713  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x224        584  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x22a        566  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x230        551  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x236        528  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x23c       1259  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x242        895  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x248       1387  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x24e        762  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x254        733  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x25a       1017  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x260        939  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x266        859  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x26c        969  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x272       1225  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x278        780  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x27e        472  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x284        455  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x28a        487  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x290       1279  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x296       1061  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x29c       1030  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2a2        954  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2a8       1155  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2b6        341  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32S                   0x2c5        624  .rela.text     .rodata (section)
+        R_X86_64_32                    0x2ca       1559  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2d0       1645  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2d6       1615  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2dc       1602  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2e2       1589  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2e8       1576  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2ee       1628  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2f4       1404  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x2fa       1692  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x300       1663  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x306       1546  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x30c       1490  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x312       1445  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x318       1431  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x31e       1677  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x324       1532  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x32a       1518  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x330       1504  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x336       1475  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x33c       1460  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x342       1418  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x356       1722  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32S                   0x365        808  .rela.text     .rodata (section)
+        R_X86_64_32                    0x36a       2468  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x370       1896  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x376       2120  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x37c       2343  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x382       2689  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x388       2097  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x38e       2307  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x394       2186  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x39a       2431  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3a0       1947  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3a6       2764  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3ac       2713  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3b2       2744  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3b8       2609  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3be       2590  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3c4        248  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                    0x3ca        216  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_32                    0x3d0       2528  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3d6       2324  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3dc       2286  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3e2       2270  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3e8       2055  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3ee       2013  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3f4       1931  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x3fa       1913  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x400       1795  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x406       1778  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x40c       1734  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x412       1705  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x418       2546  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x41e       2452  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x424       2383  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x42a       2256  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x430       2160  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x436       2141  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x43c       1852  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x442       1832  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x448       2729  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x44e       2659  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x454       2641  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x45a       2626  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x460       2567  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x466       2506  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x46c       2487  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x472       1876  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x478       2409  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x47e       2363  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x484       2242  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x48a       2221  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x490       2208  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x496       2069  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x49c       2031  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x4a2       1989  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x4a8       1970  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x4ae       1814  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x4b4       1760  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x4ca        280  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x4d3         -4  .rela.text     puts
+        R_X86_64_32                    0x4fc       2789  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_32                    0x501       2785  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x50a         -4  .rela.text     get_tag_desc
+        R_X86_64_32                    0x51b       2792  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x520         -4  .rela.text     printf
+        R_X86_64_PC32                  0x535         -4  .rela.text     get_form_desc
+        R_X86_64_PC32                  0x541         -4  .rela.text     get_attr_desc
+        R_X86_64_32                    0x54c       2818  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x553         -4  .rela.text     printf
+        R_X86_64_32                    0x59a        336  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x5a3         -4  .rela.text     puts
+        R_X86_64_PC32                  0x5b4         -4  .rela.text     gelf_getsym
+        R_X86_64_PC32                  0x5cd         -4  .rela.text     elf_strptr
+        R_X86_64_32                    0x5e4        424  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x5eb         -4  .rela.text     printf
+        R_X86_64_32                    0x5fc        384  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x601         -4  .rela.text     printf
+        R_X86_64_32                    0x616        472  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x61f         -4  .rela.text     puts
+        R_X86_64_32                    0x62b       2834  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x632         -4  .rela.text     printf
+        R_X86_64_PC32                  0x63a         -4  .rela.text     strlen
+        R_X86_64_PC32                  0x652         -4  .rela.text     elf_strptr
+        R_X86_64_32                    0x676        528  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x67f         -4  .rela.text     puts
+        R_X86_64_32                    0x68b       2834  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x692         -4  .rela.text     printf
+        R_X86_64_PC32                  0x69a         -4  .rela.text     strlen
+        R_X86_64_PC32                  0x6b2         -4  .rela.text     elf_strptr
+        R_X86_64_32                    0x6d6        576  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x6df         -4  .rela.text     puts
+        R_X86_64_32                    0x6eb       2834  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x6f2         -4  .rela.text     printf
+        R_X86_64_PC32                  0x6fa         -4  .rela.text     strlen
+        R_X86_64_PC32                  0x70f         -4  .rela.text     elf_strptr
+        R_X86_64_32                    0x72b       2844  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x732         -4  .rela.text     printf
+        R_X86_64_32                    0x754       2852  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x75d         -4  .rela.text     printf
+        R_X86_64_32                    0x777       2856  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x780         -4  .rela.text     printf
+        R_X86_64_PC32                  0x78f         -4  .rela.text     putchar
+        R_X86_64_32                    0x7b1       2862  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x7b8         -4  .rela.text     printf
+        R_X86_64_32                    0x7c6       2852  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x7cf         -4  .rela.text     printf
+        R_X86_64_32                    0x7e9       2856  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x7f2         -4  .rela.text     printf
+        R_X86_64_PC32                  0x801         -4  .rela.text     putchar
+        R_X86_64_PC32                  0x83e         -4  .rela.text     get_form_desc
+        R_X86_64_PC32                  0x84a         -4  .rela.text     get_attr_desc
+        R_X86_64_32                    0x855       2869  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x85c         -4  .rela.text     printf
+        R_X86_64_32                    0x868       2928  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x86f         -4  .rela.text     printf
+        R_X86_64_32S                   0x897       1328  .rela.text     .rodata (section)
+        R_X86_64_32                    0x8a5       2918  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x8af         -4  .rela.text     printf
+        R_X86_64_32                    0x8ba       2890  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x8c1         -4  .rela.text     printf
+        R_X86_64_32                    0x8ce       2897  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x8d3         -4  .rela.text     printf
+        R_X86_64_32                    0x8e5       2856  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x8f4         -4  .rela.text     printf
+        R_X86_64_32                    0x908       2913  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x90f         -4  .rela.text     printf
+        R_X86_64_32                    0x91d       2925  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x924         -4  .rela.text     printf
+        R_X86_64_32                    0x936        640  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x93d         -4  .rela.text     printf
+        R_X86_64_PC32                  0x962         -4  .rela.text     get_tag_desc
+        R_X86_64_32                    0x977        680  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x97c         -4  .rela.text     printf
+        R_X86_64_PC32                  0x997         -4  .rela.text     dwarf_dump_av
+        R_X86_64_32                    0x9b6        720  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x9bf         -4  .rela.text     puts
+        R_X86_64_32                    0x9d4        760  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0x9db         -4  .rela.text     printf
+        R_X86_64_32                    0x9e3       2941  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x9ea         -4  .rela.text     printf
+        R_X86_64_32                    0x9f3       2967  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0x9fa         -4  .rela.text     printf
+        R_X86_64_32                    0xa03       2993  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xa0a         -4  .rela.text     printf
+        R_X86_64_32                    0xa15       3019  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xa1a         -4  .rela.text     printf
+        R_X86_64_PC32                  0xa2b         -4  .rela.text     dwarf_dump_die
+        R_X86_64_PC32                  0xa55         -4  .rela.text     dwarf_dump_strtab
+        R_X86_64_PC32                  0xa5d         -4  .rela.text     dwarf_dump_shstrtab
+        R_X86_64_PC32                  0xa65         -4  .rela.text     dwarf_dump_dbgstr
+        R_X86_64_PC32                  0xa6d         -4  .rela.text     dwarf_dump_symtab
+        R_X86_64_PC32                  0xaae         -4  .rela.text     dwarf_siblingof
+        R_X86_64_PC32                  0xac2         -4  .rela.text     dwarf_dump_die
+        R_X86_64_PC32                  0xad1         -4  .rela.text     dwarf_child
+        R_X86_64_PC32                  0xb1e         -4  .rela.text     __stack_chk_guard
+        R_X86_64_PC32                  0xb5c         -4  .rela.text     dwarf_siblingof
+        R_X86_64_32                    0xb8c        760  .rela.text     .rodata.str1.8 (section)
+        R_X86_64_PC32                  0xb93         -4  .rela.text     printf
+        R_X86_64_32                    0xb9b       2941  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xba2         -4  .rela.text     printf
+        R_X86_64_32                    0xbab       2967  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xbb2         -4  .rela.text     printf
+        R_X86_64_32                    0xbbb       2993  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xbc2         -4  .rela.text     printf
+        R_X86_64_32                    0xbcb       3019  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xbd2         -4  .rela.text     printf
+        R_X86_64_PC32                  0xbf3         -4  .rela.text     dwarf_next_cu_header
+        R_X86_64_PC32                  0xc03         -4  .rela.text     dwarf_errmsg
+        R_X86_64_32                    0xc08       3044  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                  0xc12         -4  .rela.text     printf
+        R_X86_64_PC32                  0xc21         -4  .rela.text     __stack_chk_guard
+        R_X86_64_PC32                  0xc3a         -4  .rela.text     __stack_chk_fail
+        R_X86_64_PC32                  0x88b         -4  .rela.text     putchar
+        R_X86_64_PC32                  0xa76         -4  .rela.text     dwarf_dump_info
+        R_X86_64_PC32                  0xc73         -4  .rela.text     dwarf_dump_die
+
+Relocation Section:  .rela.rodata
+        type                          offset     addend  section        with respect to
+        R_X86_64_64                        0        293  .rela.rodata   .text (section)
+        R_X86_64_64                      0x8        679  .rela.rodata   .text (section)
+        R_X86_64_64                     0x10        673  .rela.rodata   .text (section)
+        R_X86_64_64                     0x18        667  .rela.rodata   .text (section)
+        R_X86_64_64                     0x20        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x28        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x30        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x38        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x40        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x48        661  .rela.rodata   .text (section)
+        R_X86_64_64                     0x50        655  .rela.rodata   .text (section)
+        R_X86_64_64                     0x58        649  .rela.rodata   .text (section)
+        R_X86_64_64                     0x60        643  .rela.rodata   .text (section)
+        R_X86_64_64                     0x68        637  .rela.rodata   .text (section)
+        R_X86_64_64                     0x70        293  .rela.rodata   .text (section)
+        R_X86_64_64                     0x78        631  .rela.rodata   .text (section)
+        R_X86_64_64                     0x80        625  .rela.rodata   .text (section)
+        R_X86_64_64                     0x88        619  .rela.rodata   .text (section)
+        R_X86_64_64                     0x90        613  .rela.rodata   .text (section)
+        R_X86_64_64                     0x98        607  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa0        601  .rela.rodata   .text (section)
+        R_X86_64_64                     0xa8        595  .rela.rodata   .text (section)
+        R_X86_64_64                     0xb0        589  .rela.rodata   .text (section)
+        R_X86_64_64                     0xb8        583  .rela.rodata   .text (section)
+        R_X86_64_64                     0xc0        577  .rela.rodata   .text (section)
+        R_X86_64_64                     0xc8        571  .rela.rodata   .text (section)
+        R_X86_64_64                     0xd0        565  .rela.rodata   .text (section)
+        R_X86_64_64                     0xd8        559  .rela.rodata   .text (section)
+        R_X86_64_64                     0xe0        553  .rela.rodata   .text (section)
+        R_X86_64_64                     0xe8        547  .rela.rodata   .text (section)
+        R_X86_64_64                     0xf0        541  .rela.rodata   .text (section)
+        R_X86_64_64                     0xf8        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x100        535  .rela.rodata   .text (section)
+        R_X86_64_64                    0x108        529  .rela.rodata   .text (section)
+        R_X86_64_64                    0x110        523  .rela.rodata   .text (section)
+        R_X86_64_64                    0x118        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x120        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x128        517  .rela.rodata   .text (section)
+        R_X86_64_64                    0x130        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x138        511  .rela.rodata   .text (section)
+        R_X86_64_64                    0x140        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x148        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x150        505  .rela.rodata   .text (section)
+        R_X86_64_64                    0x158        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x160        499  .rela.rodata   .text (section)
+        R_X86_64_64                    0x168        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x170        493  .rela.rodata   .text (section)
+        R_X86_64_64                    0x178        487  .rela.rodata   .text (section)
+        R_X86_64_64                    0x180        293  .rela.rodata   .text (section)
+        R_X86_64_64                    0x188        481  .rela.rodata   .text (section)
+        R_X86_64_64                    0x190        475  .rela.rodata   .text (section)
+        R_X86_64_64                    0x198        469  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1a0        463  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1a8        457  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1b0        451  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1b8        445  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1c0        439  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1c8        433  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1d0        427  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1d8        421  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1e0        415  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1e8        409  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1f0        403  .rela.rodata   .text (section)
+        R_X86_64_64                    0x1f8        397  .rela.rodata   .text (section)
+        R_X86_64_64                    0x200        391  .rela.rodata   .text (section)
+        R_X86_64_64                    0x208        385  .rela.rodata   .text (section)
+        R_X86_64_64                    0x210        379  .rela.rodata   .text (section)
+        R_X86_64_64                    0x218        373  .rela.rodata   .text (section)
+        R_X86_64_64                    0x220        367  .rela.rodata   .text (section)
+        R_X86_64_64                    0x228        361  .rela.rodata   .text (section)
+        R_X86_64_64                    0x230        355  .rela.rodata   .text (section)
+        R_X86_64_64                    0x238        349  .rela.rodata   .text (section)
+        R_X86_64_64                    0x240        343  .rela.rodata   .text (section)
+        R_X86_64_64                    0x248        337  .rela.rodata   .text (section)
+        R_X86_64_64                    0x250        331  .rela.rodata   .text (section)
+        R_X86_64_64                    0x258        325  .rela.rodata   .text (section)
+        R_X86_64_64                    0x260        319  .rela.rodata   .text (section)
+        R_X86_64_64                    0x268        313  .rela.rodata   .text (section)
+        R_X86_64_64                    0x270        693  .rela.rodata   .text (section)
+        R_X86_64_64                    0x278        833  .rela.rodata   .text (section)
+        R_X86_64_64                    0x280        693  .rela.rodata   .text (section)
+        R_X86_64_64                    0x288        827  .rela.rodata   .text (section)
+        R_X86_64_64                    0x290        821  .rela.rodata   .text (section)
+        R_X86_64_64                    0x298        815  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2a0        809  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2a8        803  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2b0        797  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2b8        791  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2c0        785  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2c8        779  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2d0        773  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2d8        767  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2e0        761  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2e8        755  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2f0        749  .rela.rodata   .text (section)
+        R_X86_64_64                    0x2f8        743  .rela.rodata   .text (section)
+        R_X86_64_64                    0x300        737  .rela.rodata   .text (section)
+        R_X86_64_64                    0x308        731  .rela.rodata   .text (section)
+        R_X86_64_64                    0x310        725  .rela.rodata   .text (section)
+        R_X86_64_64                    0x318        719  .rela.rodata   .text (section)
+        R_X86_64_64                    0x320        713  .rela.rodata   .text (section)
+        R_X86_64_64                    0x328        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x330       1203  .rela.rodata   .text (section)
+        R_X86_64_64                    0x338       1197  .rela.rodata   .text (section)
+        R_X86_64_64                    0x340       1191  .rela.rodata   .text (section)
+        R_X86_64_64                    0x348       1185  .rela.rodata   .text (section)
+        R_X86_64_64                    0x350       1179  .rela.rodata   .text (section)
+        R_X86_64_64                    0x358        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x360        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x368       1173  .rela.rodata   .text (section)
+        R_X86_64_64                    0x370        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x378       1167  .rela.rodata   .text (section)
+        R_X86_64_64                    0x380       1161  .rela.rodata   .text (section)
+        R_X86_64_64                    0x388        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x390       1155  .rela.rodata   .text (section)
+        R_X86_64_64                    0x398        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3a0       1149  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3a8       1143  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3b0       1137  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3b8       1131  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3c0       1125  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3c8        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3d0       1119  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3d8       1113  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3e0       1107  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3e8       1101  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3f0       1095  .rela.rodata   .text (section)
+        R_X86_64_64                    0x3f8       1089  .rela.rodata   .text (section)
+        R_X86_64_64                    0x400       1083  .rela.rodata   .text (section)
+        R_X86_64_64                    0x408       1077  .rela.rodata   .text (section)
+        R_X86_64_64                    0x410       1071  .rela.rodata   .text (section)
+        R_X86_64_64                    0x418       1065  .rela.rodata   .text (section)
+        R_X86_64_64                    0x420       1059  .rela.rodata   .text (section)
+        R_X86_64_64                    0x428       1053  .rela.rodata   .text (section)
+        R_X86_64_64                    0x430       1047  .rela.rodata   .text (section)
+        R_X86_64_64                    0x438       1041  .rela.rodata   .text (section)
+        R_X86_64_64                    0x440       1035  .rela.rodata   .text (section)
+        R_X86_64_64                    0x448       1029  .rela.rodata   .text (section)
+        R_X86_64_64                    0x450       1023  .rela.rodata   .text (section)
+        R_X86_64_64                    0x458       1017  .rela.rodata   .text (section)
+        R_X86_64_64                    0x460       1011  .rela.rodata   .text (section)
+        R_X86_64_64                    0x468       1005  .rela.rodata   .text (section)
+        R_X86_64_64                    0x470        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x478        999  .rela.rodata   .text (section)
+        R_X86_64_64                    0x480        993  .rela.rodata   .text (section)
+        R_X86_64_64                    0x488        987  .rela.rodata   .text (section)
+        R_X86_64_64                    0x490        981  .rela.rodata   .text (section)
+        R_X86_64_64                    0x498        975  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4a0        969  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4a8        963  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4b0        957  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4b8        951  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4c0        945  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4c8        939  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4d0        933  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4d8        927  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4e0        921  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4e8        915  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4f0        909  .rela.rodata   .text (section)
+        R_X86_64_64                    0x4f8        903  .rela.rodata   .text (section)
+        R_X86_64_64                    0x500        897  .rela.rodata   .text (section)
+        R_X86_64_64                    0x508        891  .rela.rodata   .text (section)
+        R_X86_64_64                    0x510        885  .rela.rodata   .text (section)
+        R_X86_64_64                    0x518        853  .rela.rodata   .text (section)
+        R_X86_64_64                    0x520        879  .rela.rodata   .text (section)
+        R_X86_64_64                    0x528        873  .rela.rodata   .text (section)
+        R_X86_64_64                    0x530       2151  .rela.rodata   .text (section)
+        R_X86_64_64                    0x538       2229  .rela.rodata   .text (section)
+        R_X86_64_64                    0x540       2151  .rela.rodata   .text (section)
+        R_X86_64_64                    0x548       2247  .rela.rodata   .text (section)
+        R_X86_64_64                    0x550       2247  .rela.rodata   .text (section)
+        R_X86_64_64                    0x558       2307  .rela.rodata   .text (section)
+        R_X86_64_64                    0x560       2307  .rela.rodata   .text (section)
+        R_X86_64_64                    0x568       2307  .rela.rodata   .text (section)
+        R_X86_64_64                    0x570       2328  .rela.rodata   .text (section)
+        R_X86_64_64                    0x578       2247  .rela.rodata   .text (section)
+        R_X86_64_64                    0x580       2247  .rela.rodata   .text (section)
+        R_X86_64_64                    0x588       2307  .rela.rodata   .text (section)
+        R_X86_64_64                    0x590       2307  .rela.rodata   .text (section)
+        R_X86_64_64                    0x598       2151  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5a0       2349  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5a8       2151  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5b0       2151  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5b8       2203  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5c0       2203  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5c8       2203  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5d0       2203  .rela.rodata   .text (section)
+        R_X86_64_64                    0x5d8       2203  .rela.rodata   .text (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38        288  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x50        688  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x68        848  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x80       1216  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xa8       1424  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xd0       1552  .rela.eh_frame .text (section)
+        R_X86_64_32                     0xf0       1648  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x110       1744  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x130       1824  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x150       2080  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x170       2384  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x190       2480  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x1b0       2640  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x1c8       2688  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x1f0       2816  .rela.eh_frame .text (section)
+        R_X86_64_32                    0x228       3136  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_die.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                    0x53         26  .rela.text     .rodata (section)
+        R_X86_64_32S                    0x86         26  .rela.text     .rodata (section)
+        R_X86_64_32S                    0xde         16  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x128          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x15a          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x1aa          0  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x1e5          0  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x284         -4  .rela.text     malloc
+        R_X86_64_32S                   0x2a6         48  .rela.text     .rodata (section)
+        R_X86_64_32S                   0x2ee         48  .rela.text     .rodata (section)
+        R_X86_64_PC32                  0x31f         36  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.rodata
+        type                          offset     addend  section        with respect to
+        R_X86_64_64                     0x28          0  .rela.rodata   .rodata.str1.1 (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x38         16  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x50        160  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x68        240  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x80        512  .rela.eh_frame .text (section)
+        R_X86_64_32                     0x98        560  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_cu.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_32S                    0x66          0  .rela.text     .rodata (section)
+        R_X86_64_32S                    0x8c          0  .rela.text     .rodata (section)
+        R_X86_64_32S                    0xfb          0  .rela.text     .rodata (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)
+
+libdwarf.a(dwarf_errmsg.o):
+
+Relocation Section:  .rela.text
+        type                          offset     addend  section        with respect to
+        R_X86_64_PC32                   0x30         -4  .rela.text     _libdwarf_errors
+        R_X86_64_PC32                   0x53        108  .rela.text     _libdwarf_errors
+        R_X86_64_32S                    0x6a          0  .rela.text     _libdwarf_errors
+        R_X86_64_32                     0x7d         24  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                   0x8c         -4  .rela.text     snprintf
+        R_X86_64_PC32                   0xa4         -4  .rela.text     elf_errmsg
+        R_X86_64_32                     0xb2          0  .rela.text     .rodata.str1.1 (section)
+        R_X86_64_PC32                   0xc1         -4  .rela.text     snprintf
+
+Relocation Section:  .rela.data
+        type                          offset     addend  section        with respect to
+        R_X86_64_64                        0         36  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                      0x8         45  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x10         54  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x18         69  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x20         86  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x28        102  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x30        122  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x38        132  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x40          0  .rela.data     .rodata.str1.8 (section)
+        R_X86_64_64                     0x48        162  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x50        179  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x58        201  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x60         48  .rela.data     .rodata.str1.8 (section)
+        R_X86_64_64                     0x68        229  .rela.data     .rodata.str1.1 (section)
+        R_X86_64_64                     0x70        254  .rela.data     .rodata.str1.1 (section)
+
+Relocation Section:  .rela.eh_frame
+        type                          offset     addend  section        with respect to
+        R_X86_64_32                     0x20          0  .rela.eh_frame .text (section)

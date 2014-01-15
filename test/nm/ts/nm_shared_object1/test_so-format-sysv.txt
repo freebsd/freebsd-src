@@ -1,0 +1,45 @@
+
+
+Symbols from test_so:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+_DYNAMIC            |0000000001057328|   A  |            OBJECT|                |     |*ABS*
+_GLOBAL_OFFSET_TABLE_|0000000001057768|   A  |            OBJECT|                |     |*ABS*
+_Jv_RegisterClasses |                |   w  |            NOTYPE|                |     |*UND*
+__bss_start         |0000000001057992|   A  |            NOTYPE|                |     |*ABS*
+__cxa_finalize@@FBSD_1.0|                |   w  |              FUNC|0000000000000301|     |*UND*
+__dso_handle        |0000000001056768|   d  |            OBJECT|                |     |.data
+__error@@FBSD_1.0   |                |   U  |              FUNC|0000000000000008|     |*UND*
+_edata              |0000000001057992|   A  |            NOTYPE|                |     |*ABS*
+_end                |0000000001058000|   A  |            NOTYPE|                |     |*ABS*
+_fini               |0000000000007112|   T  |              FUNC|                |     |.fini
+_init               |0000000000003320|   T  |              FUNC|                |     |.init
+berase              |0000000000006160|   T  |              FUNC|0000000000000130|     |.text
+bread               |0000000000006704|   T  |              FUNC|0000000000000353|     |.text
+bwrite              |0000000000006304|   T  |              FUNC|0000000000000388|     |.text
+cgread              |0000000000004720|   T  |              FUNC|0000000000000020|     |.text
+cgread1             |0000000000004544|   T  |              FUNC|0000000000000176|     |.text
+cgwrite1            |0000000000004400|   T  |              FUNC|0000000000000144|     |.text
+close@@FBSD_1.0     |                |   U  |              FUNC|                |     |*UND*
+free@@FBSD_1.0      |                |   U  |              FUNC|0000000000000750|     |*UND*
+getfsfile@@FBSD_1.0 |                |   U  |              FUNC|0000000000000054|     |*UND*
+getino              |0000000000003856|   T  |              FUNC|0000000000000537|     |.text
+ioctl@@FBSD_1.0     |                |   U  |              FUNC|                |     |*UND*
+malloc@@FBSD_1.0    |                |   U  |              FUNC|0000000000001280|     |*UND*
+memcpy@@FBSD_1.0    |                |   U  |              FUNC|                |     |*UND*
+memset@@FBSD_1.0    |                |   U  |              FUNC|                |     |*UND*
+open@@FBSD_1.0      |                |   U  |              FUNC|                |     |*UND*
+pread@@FBSD_1.0     |                |   U  |              FUNC|0000000000000139|     |*UND*
+pwrite@@FBSD_1.0    |                |   U  |              FUNC|0000000000000139|     |*UND*
+sbread              |0000000000005856|   T  |              FUNC|0000000000000297|     |.text
+sbwrite             |0000000000005584|   T  |              FUNC|0000000000000263|     |.text
+snprintf@@FBSD_1.0  |                |   U  |              FUNC|0000000000000453|     |*UND*
+stat@@FBSD_1.0      |                |   U  |              FUNC|                |     |*UND*
+statfs@@FBSD_1.0    |                |   U  |              FUNC|                |     |*UND*
+strdup@@FBSD_1.0    |                |   U  |              FUNC|0000000000000085|     |*UND*
+strlcpy@@FBSD_1.0   |                |   U  |              FUNC|0000000000000054|     |*UND*
+ufs_disk_close      |0000000000005504|   T  |              FUNC|0000000000000078|     |.text
+ufs_disk_fillout    |0000000000005424|   T  |              FUNC|0000000000000068|     |.text
+ufs_disk_fillout_blank|0000000000004864|   T  |              FUNC|0000000000000551|     |.text
+ufs_disk_write      |0000000000004752|   T  |              FUNC|0000000000000105|     |.text

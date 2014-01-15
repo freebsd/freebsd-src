@@ -1,0 +1,15 @@
+: $Id: guessos.patch 2204 2011-11-24 05:23:42Z jkoshy $
+
+--- tet3.8/src/helpers/GuessOS--	2005-12-09 16:29:25 +0530
++++ tet3.8/src/helpers/GuessOS	2011-11-24 01:42:21 +0530
+@@ -175,6 +175,10 @@
+ 	echo "${MACHINE}-whatever-bsdi"; exit 0
+ 	;;
+ 
++    DragonFly:*)
++	echo "${MACHINE}-whatever-dragonfly"; exit 0
++	;;
++
+     FreeBSD:*:*:*486*)
+ 	echo "i486-whatever-freebsd"; exit 0
+ 	;;

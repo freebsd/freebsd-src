@@ -1,0 +1,8 @@
+
+memstat_all.o:
+
+memstat_uma.o:
+
+memstat_malloc.o:
+
+memstat.o:

@@ -1,0 +1,68 @@
+
+Relocation Section:  .rel.dyn
+        type                          offset     section        with respect to
+        R_386_COPY                 0x804c6c0     .rel.dyn       __isthreaded
+        R_386_COPY                 0x804c6c4     .rel.dyn       __stdinp
+        R_386_COPY                 0x804c6c8     .rel.dyn       __stderrp
+        R_386_COPY                 0x804c6cc     .rel.dyn       optind
+
+Relocation Section:  .rel.plt
+        type                          offset     section        with respect to
+        R_386_JMP_SLOT             0x804c5d8     .rel.plt       fprintf
+        R_386_JMP_SLOT             0x804c5dc     .rel.plt       write
+        R_386_JMP_SLOT             0x804c5e0     .rel.plt       utimes
+        R_386_JMP_SLOT             0x804c5e4     .rel.plt       lstat
+        R_386_JMP_SLOT             0x804c5e8     .rel.plt       acl_get_fd
+        R_386_JMP_SLOT             0x804c5ec     .rel.plt       lutimes
+        R_386_JMP_SLOT             0x804c5f0     .rel.plt       lchmod
+        R_386_JMP_SLOT             0x804c5f4     .rel.plt       link
+        R_386_JMP_SLOT             0x804c5f8     .rel.plt       mkfifo
+        R_386_JMP_SLOT             0x804c5fc     .rel.plt       fts_set
+        R_386_JMP_SLOT             0x804c600     .rel.plt       fts_close
+        R_386_JMP_SLOT             0x804c604     .rel.plt       chflags
+        R_386_JMP_SLOT             0x804c608     .rel.plt       fts_read
+        R_386_JMP_SLOT             0x804c60c     .rel.plt       strerror
+        R_386_JMP_SLOT             0x804c610     .rel.plt       _init_tls
+        R_386_JMP_SLOT             0x804c614     .rel.plt       fts_open
+        R_386_JMP_SLOT             0x804c618     .rel.plt       errx
+        R_386_JMP_SLOT             0x804c61c     .rel.plt       munmap
+        R_386_JMP_SLOT             0x804c620     .rel.plt       symlink
+        R_386_JMP_SLOT             0x804c624     .rel.plt       fpathconf
+        R_386_JMP_SLOT             0x804c628     .rel.plt       unlink
+        R_386_JMP_SLOT             0x804c62c     .rel.plt       getopt
+        R_386_JMP_SLOT             0x804c630     .rel.plt       strrchr
+        R_386_JMP_SLOT             0x804c634     .rel.plt       warnx
+        R_386_JMP_SLOT             0x804c638     .rel.plt       stat
+        R_386_JMP_SLOT             0x804c63c     .rel.plt       mmap
+        R_386_JMP_SLOT             0x804c640     .rel.plt       mknod
+        R_386_JMP_SLOT             0x804c644     .rel.plt       __error
+        R_386_JMP_SLOT             0x804c648     .rel.plt       pathconf
+        R_386_JMP_SLOT             0x804c64c     .rel.plt       printf
+        R_386_JMP_SLOT             0x804c650     .rel.plt       close
+        R_386_JMP_SLOT             0x804c654     .rel.plt       warn
+        R_386_JMP_SLOT             0x804c658     .rel.plt       acl_set_link_np
+        R_386_JMP_SLOT             0x804c65c     .rel.plt       umask
+        R_386_JMP_SLOT             0x804c660     .rel.plt       signal
+        R_386_JMP_SLOT             0x804c664     .rel.plt       fchmod
+        R_386_JMP_SLOT             0x804c668     .rel.plt       fwrite
+        R_386_JMP_SLOT             0x804c66c     .rel.plt       open
+        R_386_JMP_SLOT             0x804c670     .rel.plt       fchown
+        R_386_JMP_SLOT             0x804c674     .rel.plt       lchown
+        R_386_JMP_SLOT             0x804c678     .rel.plt       acl_set_fd
+        R_386_JMP_SLOT             0x804c67c     .rel.plt       exit
+        R_386_JMP_SLOT             0x804c680     .rel.plt       mkdir
+        R_386_JMP_SLOT             0x804c684     .rel.plt       err
+        R_386_JMP_SLOT             0x804c688     .rel.plt       chmod
+        R_386_JMP_SLOT             0x804c68c     .rel.plt       acl_set_file
+        R_386_JMP_SLOT             0x804c690     .rel.plt       __srget
+        R_386_JMP_SLOT             0x804c694     .rel.plt       atexit
+        R_386_JMP_SLOT             0x804c698     .rel.plt       chown
+        R_386_JMP_SLOT             0x804c69c     .rel.plt       read
+        R_386_JMP_SLOT             0x804c6a0     .rel.plt       fchflags
+        R_386_JMP_SLOT             0x804c6a4     .rel.plt       strncat
+        R_386_JMP_SLOT             0x804c6a8     .rel.plt       acl_get_link_np
+        R_386_JMP_SLOT             0x804c6ac     .rel.plt       readlink
+        R_386_JMP_SLOT             0x804c6b0     .rel.plt       getc
+        R_386_JMP_SLOT             0x804c6b4     .rel.plt       acl_get_file
+        R_386_JMP_SLOT             0x804c6b8     .rel.plt       fstat
+        R_386_JMP_SLOT             0x804c6bc     .rel.plt       strlcpy

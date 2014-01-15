@@ -1,0 +1,340 @@
+% -*- mode: Noweb; -*-
+%
+% $Id: slave.nw 2561 2012-08-31 02:46:33Z jkoshy $
+%
+% The build slave.
+
+\chapter{The Build Slave}\label{chap.slave}
+
+\section{Overview}
+
+\paragraph{File structure}
+
+The implementation of the \tool{yabs} slave is structured along
+conventional lines.
+
+<<slave/slave.c>>=
+<<generated file warning>>
+<<slave: include headers>>
+<<slave: declare types and constants>>
+<<slave: define helper functions>>
+<<slave: define main()>>
+@
+
+\section{Data Types}
+
+The data structures used in the \tool{yabs} slave are:
+
+\begin{itemize}
+\item A data structure to record command-line options
+  ([[struct slave_options]]).
+\item Others...(TBD).
+\end{itemize}
+
+<<slave: declare types and constants>>=
+<<define common constants>>
+<<slave: declare slave options>>
+@
+
+\paragraph{Slave Options}\label{para:slave-options}
+
+The [[slave_options]] structure is used to track the options
+controlling the slave's behavior.
+
+This structure is populated in the \func{main} function.
+
+<<slave: declare slave options>>=
+struct slave_options {
+	char 		*sl_id;
+	unsigned long	sl_port;
+	const char 	*sl_server;
+	enum yabs_server_type sl_servertype;
+	int   		sl_verbose;
+};
+@ %def slave_options
+
+\begin{itemize}
+\item The \var{sl\_id} member specifies the identifier that the slave
+  sends to the \tool{yabs} despatcher at connect time.
+
+  The default identifier is the system's hostname (see chunk
+  [[<<slave: set the slave identifier if not set>>]]).  The ``-i''
+  option is used to change the identifier (see [[<<slave: handle -i>>]]).
+\item The \var{sl\_port} field specifies the TCP port on the server
+  running the \tool{yabs} despatcher that the slave should connect to.
+  This is overrideable by the ``-p'' command-line option (see
+  [[<<slave: handle -p>>]]).
+\item The \var{sl\_server} field specifies the server to connect to.
+  The \var{sc\_servertype} field specifies whether to use a TCP
+  connection, a local socket, or to use standard input and output
+  (see [[enum yabs_server_type]]).
+\item The \var{sl\_verbose} field specifies the verbosity level for
+  the slave.
+\end{itemize}
+
+<<slave: initialize option structure>>=
+options.sl_id = NULL;
+options.sl_port = YABS_DEFAULT_DESPATCHER_PORT;
+options.sl_server = NULL;
+options.sl_servertype = YABS_SERVER_STDIN;
+options.sl_verbose = 0;
+@
+
+\section{The Program Entry Point}
+
+<<slave: define main()>>=
+int
+main(int argc, char **argv)
+{
+	<<slave: main: local variables>>
+	<<slave: initialize option structure>>
+	<<slave: parse options>>
+	<<slave: invoke libevent main loop>>
+	return (0);
+}
+@ %def main
+
+The [[<<slave: main: local variables>>]] chunk declares the local
+variables needed by the function.
+
+\paragraph{Option Parsing}
+
+Option parsing uses the POSIX \func{getopt} API.  The end result of
+the option parsing is an appropriately configured [[slave_options]]
+structure.
+
+<<slave: main: local variables>>=
+struct slave_options options;
+int option;
+@
+
+<<slave: parse options>>=
+while ((option = getopt(argc, argv, "hi:p:vV")) != -1) {
+	switch (option) {
+	case 'h':
+		display_usage_message(); exit(0);
+		break;
+	case 'i':
+                <<slave: handle -i>>
+		break;
+	case 'p':
+		<<slave: handle -p>>
+		break;
+	case 'v':
+		<<slave: handle -v>>
+		break;
+	case 'V':
+		<<slave: handle -V>>
+		break;
+	case '?':
+		display_usage_message(); exit(1);
+		break;
+	default:
+		errx(1, "FATAL: Unrecognized option value %c (%d)",
+		    option, option);
+		break;
+	}
+}
+
+<<slave: set the slave identifier if not set>>
+@
+
+\paragraph{Handling ``-i''}
+The identifier by which the slave identifies itself to the despatcher
+can be set using the ``-i'' option.  If this option is specified
+multiple times, the last one takes precedence.
+
+<<slave: handle -i>>=
+if (options.sl_id)
+    free(options.sl_id);
+options.sl_id = strdup(optarg);
+@
+
+\paragraph{Handling ``-p''}
+The ``-p'' option is used to specify the port the slave should connect
+to.  It is required to be a decimal number: we use the \func{strtoul}
+function to convert the option argument to a number.
+
+<<slave: main: local variables>>=
+char    *end;
+@
+
+<<slave: handle -p>>=
+options.sl_port = strtoul(optarg, &end, 10);
+if (options.sl_port == 0 || *end != '\0')
+	errx(1, "Invalid port number \"%s\"", optarg);
+@
+
+\paragraph{Handling ``-v'''}
+The ``-v'' option increases verbosity.  The current verbosity level is
+recorded in the \var{sc\_verbose} field.
+
+<<slave: handle -v>>=
+options.sl_verbose++;
+@
+
+\paragraph{Handling ``-V''}
+The ``-V'' option prints a version number, and exits.
+
+<<slave: declare types and constants>>=
+#define	YABS_SLAVE_NAME		"yabs-slave"
+@ %def YABS_SLAVE_NAME
+
+<<slave: handle -V>>=
+(void) printf(YABS_SLAVE_NAME " " YABS_SLAVE_VERSION " (Protocol: "
+    YABS_PROTOCOL_VERSION ")\n");
+exit(0);
+@
+
+\paragraph{Setting a default identifier}
+
+If an identifier was not specified by a '-i' command line option, we
+use the name of the host the slave is running on.
+
+<<slave: set the slave identifier if not set>>=
+if (options.sl_id == NULL) {
+	<<slave: allocate space for the slave identifier>>
+        <<slave: retrieve the host name>>
+}
+@
+
+<<slave: allocate space for the slave identifier>>=
+if ((options.sl_id = malloc(HOST_NAME_MAX)) == NULL)
+	err(1, "malloc failed: [%s,%d]", __FILE__, __LINE__);
+@
+
+The system's host name is retrieved using the \func{gethostname} library
+function.   We explicitly NUL-terminate the array after calling \func{gethostname},
+since portable programs cannot assume that function does so for host names
+that are exactly HOST\_NAME\_MAX bytes long.
+
+<<slave: retrieve the host name>>=
+if (gethostname(options.sl_id, HOST_NAME_MAX) < 0)
+	err(1, "gethostname failed: [%s,%d]", __FILE__, __LINE__);
+options.sl_id[HOST_NAME_MAX - 1] = '\0';
+@
+
+\paragraph{Invoking libevent}
+
+<<slave: invoke libevent main loop>>=
+event_base_loop((void *) 0, 0);
+@
+\section{Helper Functions}
+
+<<slave: define helper functions>>=
+void
+display_usage_message(void)
+{
+	(void) printf("usage: " YABS_SLAVE_NAME " [options] [server]\n\n" \
+    	    "Supported options:\n" \
+	    "    -h\t\tPrint a help message and exit.\n" \
+	    "    -i ID\tUse ID as an identifier [host name]\n" \
+	    "    -p PORT\tConnect to port PORT on the server [0x4242].\n" \
+	    "    -v\t\tBe more verbose.\n" \
+	    "    -V\t\tPrint a version identifier and exit.\n");
+}
+@ %def display_usage_message
+
+\section{Header Inclusions}
+
+The use of the \func{errx} family of functions requires the standard
+header \file{err.h}.
+
+<<slave: include headers>>=
+#include <err.h>
+@
+
+The \var{HOST\_NAME\_MAX} constant used in the chunk
+[[<<slave: set the slave identifier if not set>>]] is
+defined by the \file{limits.h} header.
+
+<<slave: include headers>>=
+#include <limits.h>
+@
+
+
+The use of the \func{printf} function requires the use of the system
+header \file{stdio.h}.
+
+<<slave: include headers>>=
+#include <stdio.h>
+@
+
+The header file \file{stdlib.h} is needed for the prototypes for the
+\func{exit}, \func{free} and \func{malloc} functions.
+
+<<slave: include headers>>=
+#include <stdlib.h>
+@
+
+The header file \file{string.h} provides the prototype for
+\func{strdup} used in chunk [[<<Handling ``-i''>>]].
+
+<<slave: include headers>>=
+#include <string.h>
+@
+
+The header file \file{unistd.h} is needed for the prototype for the
+\func{getopt} function used in chunk [[<<slave: parse options>>]].
+
+<<slave: include headers>>=
+#include <unistd.h>
+@
+
+\tool{Libevent} specific headers are needed for the libevent APIs:
+<<slave: include headers>>=
+#include <event2/event.h>
+@
+
+
+\section{Build Rules}
+
+Using the facilities provided by the standard rules in
+\verb|<bsd.prog.mk>|, a simple \file{Makefile} suffices to build the
+slave.
+
+The \file{Makefile} indicates that the generated progam is to be
+called \tool{yabs-slave} and that the file \file{slave.c} is the
+source file to be compiled.  The contents of this source file is
+defined by the chunk [[<<slave/slave.c>>]].
+
+<<slave/Makefile>>=
+PROG=		yabs-slave
+SRCS=		slave.c
+
+CFLAGS+=	-Wall -Wextra -Werror -pedantic
+<<make: libevent related definitions>>
+
+.include <bsd.prog.mk>
+
+<<make: override debug flags during development>>
+@
+
+We look in a set of standard locations to determine where the headers
+and library files for \tool{libevent} are located.
+
+<<make: libevent related definitions>>=
+.if exists(${HOME}/local/include/event2)
+LIBEVENT_INCLUDE= -I ${HOME}/local/include
+LIBEVENT_LIB=     -L ${HOME}/local/lib
+.elif exists(/usr/local/include/event2)
+LIBEVENT_INCLUDE= -I /usr/local/include
+LIBEVENT_LIB=     -L /usr/local/lib
+.endif
+
+CFLAGS+=        ${LIBEVENT_INCLUDE}
+LDADD+=         ${LIBEVENT_LIB} -levent
+@
+
+Debugging is simpler if compiler optimizations are turned off.  We
+thus remove the \term{-O2} flag during development.
+
+<<make: override debug flags during development>>=
+CFLAGS:=    ${CFLAGS:N-O2} -g
+LDFLAGS+=   -g
+@
+
+% Local Variables:
+% noweb-code-mode: c-mode
+% c-electric-flag: nil
+% End:

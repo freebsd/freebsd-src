@@ -1,0 +1,13 @@
+                 w _Jv_RegisterClasses
+                 U _ZNKSs4sizeEv@@GLIBCXX_3.4
+                 U _ZNKSsixEm@@GLIBCXX_3.4
+                 U _ZNSolsEd@@GLIBCXX_3.4
+                 U _ZNSt8ios_base4InitC1Ev@@GLIBCXX_3.4
+                 U _ZNSt8ios_base4InitD1Ev@@GLIBCXX_3.4
+                 U _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c@@GLIBCXX_3.4
+                 U __cxa_atexit@@FBSD_1.0
+                 U __gxx_personality_v0@@CXXABI_1.3
+                 U _init_tls@@FBSD_1.0
+                 U atexit@@FBSD_1.0
+                 U exit@@FBSD_1.0
+                 U sin@@FBSD_1.0

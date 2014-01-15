@@ -1,0 +1,13 @@
+: $Id: defines.linux.patch 2204 2011-11-24 05:23:42Z jkoshy $
+
+--- tet3.8/src/defines/linux.mk--	2011-11-18 10:04:28.374703560 +0530
++++ tet3.8/src/defines/linux.mk	2011-11-18 10:04:32.318703781 +0530
+@@ -71,7 +71,7 @@
+ # ************************************************************************
+ 
+ # make utilities - these don't usually change
+-MAKE = make
++MAKE ?= make
+ SHELL = /bin/sh
+ 
+ 

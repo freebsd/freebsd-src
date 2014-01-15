@@ -1,0 +1,51 @@
+
+gnu hash table (.gnu.hash):
+
+nbucket: 3
+symndx: 13
+maskwords: 1
+shift2: 6
+nchain: 11
+
+bucket[0]:
+	13
+
+bucket[1]:
+	16
+
+bucket[2]:
+	21
+
+chain[0]:
+	2090001338
+
+chain[1]:
+	3973399874
+
+chain[2]:
+	2090071747
+
+chain[3]:
+	2038844230
+
+chain[4]:
+	2090071744
+
+chain[5]:
+	193486030
+
+chain[6]:
+	475558360
+
+chain[7]:
+	250711481
+
+chain[8]:
+	250598378
+
+chain[9]:
+	2090071744
+
+chain[10]:
+	193506191
+

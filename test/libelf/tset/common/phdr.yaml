@@ -1,0 +1,38 @@
+%YAML 1.1
+# $Id: phdr.yaml 2053 2011-10-26 11:50:18Z jkoshy $
+---
+ehdr: !Ehdr
+  e_ident: !Ident
+    ei_class: ELFCLASSNONE
+    ei_data: ELFDATANONE
+#
+# These values should match those in "common/phdr_template.c"
+#
+phdrtab:
+ - !Phdr
+   p_type: PT_NULL
+   p_offset: 1
+   p_vaddr: 2
+   p_paddr: 3
+   p_filesz: 4
+   p_memsz: 5
+   p_flags: [ PF_X ]
+   p_align: 1
+ - !Phdr
+   p_type: PT_LOPROC
+   p_offset: 6
+   p_vaddr: 7
+   p_paddr: 8
+   p_filesz: 9
+   p_memsz: 10
+   p_flags: [ PF_R ]
+   p_align: 4
+ - !Phdr
+   p_type: PT_INTERP
+   p_offset: 11
+   p_vaddr: 12
+   p_paddr: 13
+   p_filesz: 14
+   p_memsz: 15
+   p_flags: [ PF_W ]
+   p_align: 8

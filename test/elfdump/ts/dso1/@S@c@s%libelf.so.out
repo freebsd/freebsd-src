@@ -1,0 +1,315 @@
+
+Section Header[1]:  sh_name: .hash
+    sh_addr:      0x120           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x454           sh_type:    [ SHT_HASH ]
+    sh_offset:    0x120           sh_entsize: 0x4
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[2]:  sh_name: .dynsym
+    sh_addr:      0x578           sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0xd80           sh_type:    [ SHT_DYNSYM ]
+    sh_offset:    0x578           sh_entsize: 0x18
+    sh_link:      3               sh_info:    33
+    sh_addralign: 0x8
+
+Section Header[3]:  sh_name: .dynstr
+    sh_addr:      0x12f8          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x5b1           sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x12f8          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[4]:  sh_name: .gnu.version
+    sh_addr:      0x18aa          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x120           sh_type:    [ SHT_SUNW(GNU)_versym ]
+    sh_offset:    0x18aa          sh_entsize: 0x2
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x2
+
+Section Header[5]:  sh_name: .gnu.version_d
+    sh_addr:      0x19d0          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x54            sh_type:    [ SHT_SUNW(GNU)_verdef ]
+    sh_offset:    0x19d0          sh_entsize: 0
+    sh_link:      3               sh_info:    3
+    sh_addralign: 0x8
+
+Section Header[6]:  sh_name: .gnu.version_r
+    sh_addr:      0x1a28          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x20            sh_type:    [ SHT_SUNW(GNU)_verneed ]
+    sh_offset:    0x1a28          sh_entsize: 0
+    sh_link:      3               sh_info:    1
+    sh_addralign: 0x8
+
+Section Header[7]:  sh_name: .rela.dyn
+    sh_addr:      0x1a48          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0xa68           sh_type:    [ SHT_RELA ]
+    sh_offset:    0x1a48          sh_entsize: 0x18
+    sh_link:      2               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[8]:  sh_name: .rela.plt
+    sh_addr:      0x24b0          sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x378           sh_type:    [ SHT_RELA ]
+    sh_offset:    0x24b0          sh_entsize: 0x18
+    sh_link:      2               sh_info:    10
+    sh_addralign: 0x8
+
+Section Header[9]:  sh_name: .init
+    sh_addr:      0x2828          sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x13            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x2828          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[10]:  sh_name: .plt
+    sh_addr:      0x283c          sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x260           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x283c          sh_entsize: 0x10
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[11]:  sh_name: .text
+    sh_addr:      0x2aa0          sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0x12428         sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x2aa0          sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x10
+
+Section Header[12]:  sh_name: .fini
+    sh_addr:      0x14ec8         sh_flags:   [ SHF_ALLOC|SHF_EXECINSTR ]
+    sh_size:      0xe             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x14ec8         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[13]:  sh_name: .rodata
+    sh_addr:      0x14ee0         sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x122a          sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x14ee0         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x20
+
+Section Header[14]:  sh_name: .eh_frame_hdr
+    sh_addr:      0x1610c         sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x1610c         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[15]:  sh_name: .data
+    sh_addr:      0x116120        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x4b8           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x16120         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x20
+
+Section Header[16]:  sh_name: .eh_frame
+    sh_addr:      0x1165d8        sh_flags:   [ SHF_ALLOC ]
+    sh_size:      0x1c30          sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x165d8         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[17]:  sh_name: .dynamic
+    sh_addr:      0x118208        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x1b0           sh_type:    [ SHT_DYNAMIC ]
+    sh_offset:    0x18208         sh_entsize: 0x10
+    sh_link:      3               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[18]:  sh_name: .ctors
+    sh_addr:      0x1183b8        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x183b8         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[19]:  sh_name: .dtors
+    sh_addr:      0x1183c8        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x10            sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x183c8         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[20]:  sh_name: .jcr
+    sh_addr:      0x1183d8        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x183d8         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[21]:  sh_name: .got
+    sh_addr:      0x1183e0        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x178           sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x183e0         sh_entsize: 0x8
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x8
+
+Section Header[22]:  sh_name: .bss
+    sh_addr:      0x118558        sh_flags:   [ SHF_WRITE|SHF_ALLOC ]
+    sh_size:      0x8             sh_type:    [ SHT_NOBITS ]
+    sh_offset:    0x18558         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x4
+
+Section Header[23]:  sh_name: .comment
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0x1351          sh_type:    [ SHT_PROGBITS ]
+    sh_offset:    0x18558         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Section Header[24]:  sh_name: .shstrtab
+    sh_addr:      0               sh_flags:   0
+    sh_size:      0xc7            sh_type:    [ SHT_STRTAB ]
+    sh_offset:    0x198a9         sh_entsize: 0
+    sh_link:      0               sh_info:    0
+    sh_addralign: 0x1
+
+Symbol Table Section:  .dynsym
+     index        value           size     type bind oth ver shndx       name
+       [0]      0x00000000 0x000000000000  NOTY LOCL  D    0 UNDEF       
+       [1]      0x00000120 0x000000000000  SECT LOCL  D    0 .hash       
+       [2]      0x00000578 0x000000000000  SECT LOCL  D    0 .dynsym     
+       [3]      0x000012f8 0x000000000000  SECT LOCL  D    0 .dynstr     
+       [4]      0x000018aa 0x000000000000  SECT LOCL  D    0 .gnu.versio 
+       [5]      0x000019d0 0x000000000000  SECT LOCL  D    0 .gnu.versio 
+       [6]      0x00001a28 0x000000000000  SECT LOCL  D    0 .gnu.versio 
+       [7]      0x00001a48 0x000000000000  SECT LOCL  D    0 .rela.dyn   
+       [8]      0x000024b0 0x000000000000  SECT LOCL  D    0 .rela.plt   
+       [9]      0x00002828 0x000000000000  SECT LOCL  D    0 .init       
+      [10]      0x0000283c 0x000000000000  SECT LOCL  D    0 .plt        
+      [11]      0x00002aa0 0x000000000000  SECT LOCL  D    0 .text       
+      [12]      0x00014ec8 0x000000000000  SECT LOCL  D    0 .fini       
+      [13]      0x00014ee0 0x000000000000  SECT LOCL  D    0 .rodata     
+      [14]      0x0001610c 0x000000000000  SECT LOCL  D    0 .eh_frame_h 
+      [15]      0x00116120 0x000000000000  SECT LOCL  D    0 .data       
+      [16]      0x001165d8 0x000000000000  SECT LOCL  D    0 .eh_frame   
+      [17]      0x00118208 0x000000000000  SECT LOCL  D    0 .dynamic    
+      [18]      0x001183b8 0x000000000000  SECT LOCL  D    0 .ctors      
+      [19]      0x001183c8 0x000000000000  SECT LOCL  D    0 .dtors      
+      [20]      0x001183d8 0x000000000000  SECT LOCL  D    0 .jcr        
+      [21]      0x001183e0 0x000000000000  SECT LOCL  D    0 .got        
+      [22]      0x00118558 0x000000000000  SECT LOCL  D    0 .bss        
+      [23]      0x00000000 0x000000000000  SECT LOCL  D    0 .comment    
+      [24]      0x00000000 0x000000000000  SECT LOCL  D    0 .shstrtab   
+      [25]      0x00000000 0x000000000000  SECT LOCL  D    0 25          
+      [26]      0x00000000 0x000000000000  SECT LOCL  D    0 26          
+      [27]      0x00000000 0x000000000000  SECT LOCL  D    0 27          
+      [28]      0x00000000 0x000000000000  SECT LOCL  D    0 28          
+      [29]      0x00000000 0x000000000000  SECT LOCL  D    0 29          
+      [30]      0x00000000 0x000000000000  SECT LOCL  D    0 30          
+      [31]      0x00000000 0x000000000000  SECT LOCL  D    0 31          
+      [32]      0x00000000 0x000000000000  SECT LOCL  D    0 32          
+      [33]      0x00002fb0 0x00000000015a  FUNC GLOB  D    2 .text       gelf_getsyminfo
+      [34]      0x00005dd0 0x000000000169  FUNC GLOB  D    2 .text       elf_strptr
+      [35]      0x00000000 0x000000000000  FUNC GLOB  D    4 UNDEF       write
+      [36]      0x00007c60 0x00000000014a  FUNC GLOB  D    2 .text       elf_newscn
+      [37]      0x000044e0 0x00000000000a  FUNC GLOB  D    2 .text       elf32_checksum
+      [38]      0x00004010 0x000000000194  FUNC GLOB  D    2 .text       gelf_getmove
+      [39]      0x00008d10 0x000000000044  FUNC GLOB  D    2 .text       elf_flagscn
+      [40]      0x00007e90 0x000000000168  FUNC GLOB  D    2 .text       elf_rawdata
+      [41]      0x00006120 0x00000000004a  FUNC GLOB  D    2 .text       elf_rawfile
+      [42]      0x00008bd0 0x000000000074  FUNC GLOB  D    2 .text       elf_flagelf
+      [43]      0x00000000 0x00000000007b  FUNC GLOB  D    4 UNDEF       strlcat
+      [44]      0x00006310 0x0000000000ca  FUNC GLOB  D    2 .text       elf_getident
+      [45]      0x00008b70 0x00000000005c  FUNC GLOB  D    2 .text       elf_flagdata
+      [46]      0x00002bb0 0x00000000000d  FUNC GLOB  D    2 .text       elf64_xlatetof
+      [47]      0x000044a0 0x000000000028  FUNC GLOB  D    2 .text       gelf_checksum
+      [48]      0x00007870 0x000000000117  FUNC GLOB  D    2 .text       gelf_getehdr
+      [49]      0x00006520 0x00000000000b  FUNC GLOB  D    3 .text       _libelf_get_no_error_message
+      [50]      0x00000000 0x000000000131  FUNC WEAK  D    4 UNDEF       __cxa_finalize
+      [51]      0x00006690 0x0000000001e3  FUNC GLOB  D    2 .text       elf_begin
+      [52]      0x00003600 0x000000000184  FUNC GLOB  D    2 .text       gelf_getrela
+      [53]      0x00000000 0x000000000000  OBJT GLOB  D    2 ABS         FBSD_1.0
+      [54]      0x00007390 0x000000000173  FUNC GLOB  D    2 .text       gelf_update_shdr
+      [55]      0x00003e40 0x00000000000a  FUNC GLOB  D    2 .text       elf64_getphdr
+      [56]      0x000044d0 0x00000000000a  FUNC GLOB  D    2 .text       elf64_checksum
+      [57]      0x00002b90 0x000000000010  FUNC GLOB  D    2 .text       elf64_xlatetom
+      [58]      0x00007690 0x00000000000f  FUNC GLOB  D    2 .text       elf32_newehdr
+      [59]      0x00014950 0x000000000046  FUNC GLOB  D    2 .text       elf_hash
+      [60]      0x00000000 0x000000000040  OBJT GLOB  D    4 UNDEF       __stack_chk_guard
+      [61]      0x000060b0 0x00000000006a  FUNC GLOB  D    2 .text       elf_getphnum
+      [62]      0x00004660 0x000000000159  FUNC GLOB  D    2 .text       gelf_getcap
+      [63]      0x00007680 0x00000000000f  FUNC GLOB  D    2 .text       elf64_newehdr
+      [64]      0x00000000 0x000000000030  FUNC GLOB  D    4 UNDEF       strerror
+      [65]      0x000076b0 0x00000000000c  FUNC GLOB  D    2 .text       elf32_getehdr
+      [66]      0x00013d00 0x000000000035  FUNC GLOB  D    2 .text       gelf_fsize
+      [67]      0x00005f40 0x00000000006a  FUNC GLOB  D    2 .text       elf_getshstrndx
+      [68]      0x00002e60 0x000000000149  FUNC GLOB  D    2 .text       gelf_update_syminfo
+      [69]      0x000041b0 0x00000000000c  FUNC GLOB  D    2 .text       gelf_getclass
+      [70]      0x00003e60 0x0000000001a3  FUNC GLOB  D    2 .text       gelf_update_move
+      [71]      0x00008d60 0x000000000005  FUNC GLOB  D    2 .text       elf_flagshdr
+      [72]      0x000032b0 0x00000000018c  FUNC GLOB  D    2 .text       gelf_getsym
+      [73]      0x00000000 0x000000000000  FUNC GLOB  D    4 UNDEF       munmap
+      [74]      0x00002b20 0x00000000002e  FUNC GLOB  D    2 .text       gelf_xlatetof
+      [75]      0x00007e50 0x00000000003b  FUNC GLOB  D    2 .text       elf_nextscn
+      [76]      0x00003c90 0x00000000000d  FUNC GLOB  D    2 .text       elf64_newphdr
+      [77]      0x00000000 0x00000000004c  FUNC GLOB  D    4 UNDEF       strncpy
+      [78]      0x00007650 0x000000000028  FUNC GLOB  D    2 .text       gelf_newehdr
+      [79]      0x00007db0 0x00000000009d  FUNC GLOB  D    2 .text       elf_getscn
+      [80]      0x00004340 0x00000000015a  FUNC GLOB  D    2 .text       gelf_getdyn
+      [81]      0x000064c0 0x00000000000b  FUNC GLOB  D    2 .text       elf_fill
+      [82]      0x00003790 0x00000000018c  FUNC GLOB  D    2 .text       gelf_update_rel
+      [83]      0x00003c60 0x000000000024  FUNC GLOB  D    2 .text       gelf_newphdr
+      [84]      0x000041c0 0x000000000172  FUNC GLOB  D    2 .text       gelf_update_dyn
+      [85]      0x00000000 0x000000000054  FUNC GLOB  D    4 UNDEF       memset
+      [86]      0x00008000 0x0000000002fe  FUNC GLOB  D    2 .text       elf_getdata
+      [87]      0x00008b20 0x000000000044  FUNC GLOB  D    2 .text       elf_flagarhdr
+      [88]      0x00000000 0x0000000000be  FUNC GLOB  D    4 UNDEF       mmap
+      [89]      0x00000000 0x000000000008  FUNC GLOB  D    4 UNDEF       __error
+      [90]      0x00000000 0x000000000058  FUNC GLOB  D    4 UNDEF       __assert
+      [91]      0x000047c0 0x000000000036  FUNC GLOB  D    2 .text       elf_version
+      [92]      0x00000000 0x000000000067  FUNC GLOB  D    4 UNDEF       lseek
+      [93]      0x00002b50 0x000000000031  FUNC GLOB  D    2 .text       gelf_xlatetom
+      [94]      0x00013d40 0x00000000000d  FUNC GLOB  D    2 .text       elf64_fsize
+      [95]      0x00008300 0x0000000000e5  FUNC GLOB  D    2 .text       elf_newdata
+      [96]      0x00002bc0 0x00000000000d  FUNC GLOB  D    2 .text       elf32_xlatetof
+      [97]      0x00005fb0 0x000000000087  FUNC GLOB  D    2 .text       elf_setshstrndx
+      [98]      0x00002d10 0x000000000148  FUNC GLOB  D    2 .text       gelf_getsymshndx
+      [99]      0x00003440 0x0000000001b9  FUNC GLOB  D    2 .text       gelf_update_rela
+     [100]      0x00000000 0x000000000051  FUNC GLOB  D    4 UNDEF       ftruncate
+     [101]      0x000064f0 0x000000000006  FUNC GLOB  D    3 .text       _libelf_get_max_error
+     [102]      0x00006510 0x00000000000c  FUNC GLOB  D    3 .text       _libelf_get_unknown_error_message
+     [103]      0x00000000 0x00000000014a  FUNC GLOB  D    4 UNDEF       calloc
+     [104]      0x00000000 0x000000000000  OBJT GLOB  D    3 ABS         FBSDprivate_1.0
+     [105]      0x00007520 0x00000000000a  FUNC GLOB  D    2 .text       elf32_getshdr
+     [106]      0x000083f0 0x00000000012a  FUNC GLOB  D    2 .text       elf_end
+     [107]      0x00013d50 0x00000000000d  FUNC GLOB  D    2 .text       elf32_fsize
+     [108]      0x00006170 0x000000000061  FUNC GLOB  D    2 .text       elf_rand
+     [109]      0x000061e0 0x00000000010b  FUNC GLOB  D    2 .text       elf_next
+     [110]      0x00007530 0x000000000119  FUNC GLOB  D    2 .text       gelf_getshdr
+     [111]      0x00003cb0 0x00000000018d  FUNC GLOB  D    2 .text       gelf_getphdr
+     [112]      0x00007510 0x00000000000a  FUNC GLOB  D    2 .text       elf64_getshdr
+     [113]      0x00003110 0x0000000001a0  FUNC GLOB  D    2 .text       gelf_update_sym
+     [114]      0x00006530 0x0000000000e2  FUNC GLOB  D    2 .text       elf_errmsg
+     [115]      0x00002ba0 0x000000000010  FUNC GLOB  D    2 .text       elf32_xlatetom
+     [116]      0x00006500 0x00000000000b  FUNC GLOB  D    3 .text       _libelf_set_error
+     [117]      0x00003920 0x000000000168  FUNC GLOB  D    2 .text       gelf_getrel
+     [118]      0x00006040 0x00000000006a  FUNC GLOB  D    2 .text       elf_getshnum
+     [119]      0x00000000 0x0000000000af  FUNC GLOB  D    4 UNDEF       malloc
+     [120]      0x000076a0 0x00000000000c  FUNC GLOB  D    2 .text       elf64_getehdr
+     [121]      0x00006410 0x00000000007f  FUNC GLOB  D    2 .text       elf_getarsym
+     [122]      0x00000000 0x00000000004a  FUNC GLOB  D    4 UNDEF       memcpy
+     [123]      0x000064d0 0x000000000017  FUNC GLOB  D    2 .text       elf_errno
+     [124]      0x00000000 0x000000000076  FUNC GLOB  D    4 UNDEF       free
+     [125]      0x00002bd0 0x00000000013c  FUNC GLOB  D    2 .text       gelf_update_symshndx
+     [126]      0x00007990 0x000000000021  FUNC GLOB  D    2 .text       elf_ndxscn
+     [127]      0x00008cb0 0x000000000059  FUNC GLOB  D    2 .text       elf_flagphdr
+     [128]      0x000076c0 0x0000000001ac  FUNC GLOB  D    2 .text       gelf_update_ehdr
+     [129]      0x00000000 0x00000000000c  FUNC GLOB  D    4 UNDEF       __stack_chk_fail
+     [130]      0x00003a90 0x0000000001c1  FUNC GLOB  D    2 .text       gelf_update_phdr
+     [131]      0x000063e0 0x00000000002d  FUNC GLOB  D    2 .text       elf_getbase
+     [132]      0x00006490 0x000000000026  FUNC GLOB  D    2 .text       elf_getarhdr
+     [133]      0x000044f0 0x00000000016c  FUNC GLOB  D    2 .text       gelf_update_cap
+     [134]      0x00006620 0x000000000068  FUNC GLOB  D    2 .text       elf_cntl
+     [135]      0x000147c0 0x000000000186  FUNC GLOB  D    2 .text       elf_memory
+     [136]      0x000062f0 0x000000000016  FUNC GLOB  D    2 .text       elf_kind
+     [137]      0x00003e50 0x00000000000a  FUNC GLOB  D    2 .text       elf32_getphdr
+     [138]      0x00008c50 0x000000000059  FUNC GLOB  D    2 .text       elf_flagehdr
+     [139]      0x00000000 0x000000000000  NOTY WEAK  D    0 UNDEF       _Jv_RegisterClasses
+     [140]      0x00003ca0 0x00000000000d  FUNC GLOB  D    2 .text       elf32_newphdr
+     [141]      0x00004800 0x0000000015d0  FUNC GLOB  D    2 .text       elf_update
+     [142]      0x00000000 0x000000000000  FUNC GLOB  D    4 UNDEF       fstat
+     [143]      0x00000000 0x00000000004a  FUNC GLOB  D    4 UNDEF       strlcpy

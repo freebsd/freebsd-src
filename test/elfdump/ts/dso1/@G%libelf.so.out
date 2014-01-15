@@ -1,0 +1,143 @@
+
+global offset table:
+
+entry: 0
+	0x118208
+
+entry: 1
+	0
+
+entry: 2
+	0
+
+entry: 3
+	0x2852
+
+entry: 4
+	0x2862
+
+entry: 5
+	0x2872
+
+entry: 6
+	0x2882
+
+entry: 7
+	0x2892
+
+entry: 8
+	0x28a2
+
+entry: 9
+	0x28b2
+
+entry: 10
+	0x28c2
+
+entry: 11
+	0x28d2
+
+entry: 12
+	0x28e2
+
+entry: 13
+	0x28f2
+
+entry: 14
+	0x2902
+
+entry: 15
+	0x2912
+
+entry: 16
+	0x2922
+
+entry: 17
+	0x2932
+
+entry: 18
+	0x2942
+
+entry: 19
+	0x2952
+
+entry: 20
+	0x2962
+
+entry: 21
+	0x2972
+
+entry: 22
+	0x2982
+
+entry: 23
+	0x2992
+
+entry: 24
+	0x29a2
+
+entry: 25
+	0x29b2
+
+entry: 26
+	0x29c2
+
+entry: 27
+	0x29d2
+
+entry: 28
+	0x29e2
+
+entry: 29
+	0x29f2
+
+entry: 30
+	0x2a02
+
+entry: 31
+	0x2a12
+
+entry: 32
+	0x2a22
+
+entry: 33
+	0x2a32
+
+entry: 34
+	0x2a42
+
+entry: 35
+	0x2a52
+
+entry: 36
+	0x2a62
+
+entry: 37
+	0x2a72
+
+entry: 38
+	0x2a82
+
+entry: 39
+	0x2a92
+
+entry: 40
+	0
+
+entry: 41
+	0
+
+entry: 42
+	0
+
+entry: 43
+	0x1164c0
+
+entry: 44
+	0
+
+entry: 45
+	0x116140
+
+entry: 46
+	0

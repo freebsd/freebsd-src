@@ -1,0 +1,97 @@
+
+dynamic:
+
+entry: 0
+	d_tag: DT_NEEDED
+	d_val: libm.so.6
+
+entry: 1
+	d_tag: DT_NEEDED
+	d_val: libc.so.6
+
+entry: 2
+	d_tag: DT_INIT
+	d_ptr: 0x670
+
+entry: 3
+	d_tag: DT_FINI
+	d_ptr: 0xa88
+
+entry: 4
+	d_tag: DT_GNU_HASH
+	d_ptr: 0x158
+
+entry: 5
+	d_tag: DT_STRTAB
+	d_ptr: 0x3e8
+
+entry: 6
+	d_tag: DT_SYMTAB
+	d_ptr: 0x1a8
+
+entry: 7
+	d_tag: DT_STRSZ
+	d_val: 196
+
+entry: 8
+	d_tag: DT_SYMENT
+	d_val: 24
+
+entry: 9
+	d_tag: DT_PLTGOT
+	d_ptr: 0x200e00
+
+entry: 10
+	d_tag: DT_PLTRELSZ
+	d_val: 216
+
+entry: 11
+	d_tag: DT_PLTREL
+	d_val: 7
+
+entry: 12
+	d_tag: DT_JMPREL
+	d_ptr: 0x598
+
+entry: 13
+	d_tag: DT_RELA
+	d_val: 1312
+
+entry: 14
+	d_tag: DT_RELASZ
+	d_val: 120
+
+entry: 15
+	d_tag: DT_RELAENT
+	d_val: 24
+
+entry: 16
+	d_tag: DT_VERNEED
+	d_val: 1248
+
+entry: 17
+	d_tag: DT_VERNEEDNUM
+	d_val: 2
+
+entry: 18
+	d_tag: DT_GNU_VERSYM
+	d_val: 1196
+
+entry: 19
+	d_tag: DT_RELACOUNT
+	d_val: 2
+
+entry: 20
+	d_tag: DT_NULL
+
+entry: 21
+	d_tag: DT_NULL
+
+entry: 22
+	d_tag: DT_NULL
+
+entry: 23
+	d_tag: DT_NULL
+
+entry: 24
+	d_tag: DT_NULL

@@ -1,0 +1,9 @@
+Version Definition Section:  .gnu.version_d
+     index  version                     dependency
+       [1]  libelf.so.1                                   [ BASE ]
+       [2]  FBSD_1.0                  
+       [3]  FBSDprivate_1.0           
+
+Version Needed Section:  .gnu.version_r
+            file                        version
+            libc.so.7                   FBSD_1.0

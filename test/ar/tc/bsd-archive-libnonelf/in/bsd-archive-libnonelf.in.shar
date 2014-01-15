@@ -1,0 +1,46 @@
+# This is a shell archive.  Save it in a file, remove anything before
+# this line, and then unpack it by entering "sh file".  Note, it may
+# create directories; files and directories will be owned by you and
+# have default permissions.
+#
+# This archive contains:
+#
+#	.
+#	./ne4.uu
+#	./ne3.uu
+#	./ne2.uu
+#	./ne1.uu
+#
+echo c - .
+mkdir -p . > /dev/null 2>&1
+echo x - ./ne4.uu
+sed 's/^X//' >./ne4.uu << '44ca5310aca07067daa8d5304194531f'
+Xbegin 644 ./ne4
+XM1T='1T='1T='1T='2$A(2$A(2$A(2$A(2$A(2$A("DI*2DI*2DI*2DI*2DI*
+X12DI*2DI*2DI*2DI*2DI*2@H`
+X`
+Xend
+44ca5310aca07067daa8d5304194531f
+echo x - ./ne3.uu
+sed 's/^X//' >./ne3.uu << 'b840d8f043d79804f9edcd5a741a9f42'
+Xbegin 644 ./ne3
+X)145%149&1D8*
+X`
+Xend
+b840d8f043d79804f9edcd5a741a9f42
+echo x - ./ne2.uu
+sed 's/^X//' >./ne2.uu << 'c343785f5b3ea9d2019b9db76eafd76c'
+Xbegin 644 ./ne2
+X)0T-#0T1$1$0*
+X`
+Xend
+c343785f5b3ea9d2019b9db76eafd76c
+echo x - ./ne1.uu
+sed 's/^X//' >./ne1.uu << '27d76f04a0fca7543fae879698386b4c'
+Xbegin 644 ./ne1
+X-04%!04%!0D)"0D)""@``
+X`
+Xend
+27d76f04a0fca7543fae879698386b4c
+exit
+

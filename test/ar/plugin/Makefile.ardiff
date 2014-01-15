@@ -1,0 +1,16 @@
+# $Id: Makefile.ardiff 2096 2011-11-01 04:42:04Z jkoshy $
+
+TOP=	../../..
+
+.include "${TOP}/mk/elftoolchain.os.mk"
+
+PROG=	ardiff
+
+NOMAN=	noman
+
+WARNS?=	6
+
+DPADD=	${LIBARCHIVE}
+LDADD=	-larchive
+
+.include "${TOP}/mk/elftoolchain.prog.mk"

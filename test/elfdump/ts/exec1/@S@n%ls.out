@@ -1,0 +1,8 @@
+
+Note Section:  .note.ABI-tag
+
+    type   0x1
+    namesz 0x8:
+FreeBSD
+    descsz 0x4:
+      desc[0]   4a 35 0c 00

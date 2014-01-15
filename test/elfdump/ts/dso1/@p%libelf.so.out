@@ -1,0 +1,42 @@
+
+program header:
+
+entry: 0
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0
+	p_paddr: 0
+	p_filesz: 90388
+	p_memsz: 90388
+	p_flags: PF_X|PF_R
+	p_align: 1048576
+
+entry: 1
+	p_type: PT_LOAD
+	p_offset: 90400
+	p_vaddr: 0x116120
+	p_paddr: 0x116120
+	p_filesz: 9272
+	p_memsz: 9280
+	p_flags: PF_W|PF_R
+	p_align: 1048576
+
+entry: 2
+	p_type: PT_DYNAMIC
+	p_offset: 98824
+	p_vaddr: 0x118208
+	p_paddr: 0x118208
+	p_filesz: 432
+	p_memsz: 432
+	p_flags: PF_W|PF_R
+	p_align: 8
+
+entry: 3
+	p_type: PT_NULL
+	p_offset: 90380
+	p_vaddr: 0x1610c
+	p_paddr: 0x1610c
+	p_filesz: 8
+	p_memsz: 8
+	p_flags: PF_R
+	p_align: 4

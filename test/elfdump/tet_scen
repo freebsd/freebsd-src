@@ -1,0 +1,41 @@
+# $Id: tet_scen 2083 2011-10-27 04:41:39Z jkoshy $
+
+all
+        "Starting Test Suite"
+	^exec1
+	^exec2
+	^dso1
+	^dso2
+	^archive1
+	^archive2
+        "Complete Test Suite"
+
+exec1
+	"Starting exec1 Test"
+	/ts/exec1/tc
+	"Complete exec1 Test"
+
+exec2
+	"Starting exec2 Test"
+	/ts/exec2/tc
+	"Complete exec2 Test"
+
+dso1
+	"Starting dso1 Test"
+	/ts/dso1/tc
+	"Complete dso1 Test"
+
+dso2
+	"Starting dso2 Test"
+	/ts/dso2/tc
+	"Complete dso2 Test"
+
+archive1
+	"Starting archive1 Test"
+	/ts/archive1/tc
+	"Complete archive1 Test"
+
+archive2
+	"Starting archive2 Test"
+	/ts/archive2/tc
+	"Complete archive2 Test"

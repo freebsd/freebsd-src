@@ -1,0 +1,46 @@
+
+ELF Header
+  ei_magic:   { 0x7f, E, L, F }
+  ei_class:   ELFCLASS32          ei_data:      ELFDATA2LSB
+  e_machine:  EM_386              e_version:    EV_CURRENT
+  e_type:     ET_EXEC
+  e_flags:                     0
+  e_entry:             0x8048fb0  e_ehsize:     52  e_shstrndx:   24
+  e_shoff:                0x3964  e_shentsize:  40  e_shnum:      25
+  e_phoff:                  0x34  e_phentsize:  32  e_phnum:       6
+
+Program Header[0]:
+    p_vaddr:      0x8048034       p_flags:    [ PF_X|PF_R ]
+    p_paddr:      0x8048034       p_type:     [ PT_PHDR ]
+    p_filesz:     0xc0            p_memsz:    0xc0
+    p_offset:     0x34            p_align:    0x4
+
+Program Header[1]:
+    p_vaddr:      0x80480f4       p_flags:    [ PF_R ]
+    p_paddr:      0x80480f4       p_type:     [ PT_INTERP ]
+    p_filesz:     0x15            p_memsz:    0x15
+    p_offset:     0xf4            p_align:    0x1
+
+Program Header[2]:
+    p_vaddr:      0x8048000       p_flags:    [ PF_X|PF_R ]
+    p_paddr:      0x8048000       p_type:     [ PT_LOAD ]
+    p_filesz:     0x30aa          p_memsz:    0x30aa
+    p_offset:     0               p_align:    0x1000
+
+Program Header[3]:
+    p_vaddr:      0x804c0c0       p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x804c0c0       p_type:     [ PT_LOAD ]
+    p_filesz:     0x600           p_memsz:    0x10660
+    p_offset:     0x30c0          p_align:    0x1000
+
+Program Header[4]:
+    p_vaddr:      0x804c4f0       p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x804c4f0       p_type:     [ PT_DYNAMIC ]
+    p_filesz:     0xc8            p_memsz:    0xc8
+    p_offset:     0x34f0          p_align:    0x4
+
+Program Header[5]:
+    p_vaddr:      0x804810c       p_flags:    [ PF_R ]
+    p_paddr:      0x804810c       p_type:     [ PT_NOTE ]
+    p_filesz:     0x18            p_memsz:    0x18
+    p_offset:     0x10c           p_align:    0x4

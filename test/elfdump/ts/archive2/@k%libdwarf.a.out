@@ -1,0 +1,52 @@
+
+libdwarf.a(dwarf_loc.o):
+
+elf checksum: 0xfe55
+
+libdwarf.a(dwarf_init.o):
+
+elf checksum: 0xceb1
+
+libdwarf.a(dwarf_form.o):
+
+elf checksum: 0x1d0e
+
+libdwarf.a(dwarf_finish.o):
+
+elf checksum: 0x4e0b
+
+libdwarf.a(dwarf_errno.o):
+
+elf checksum: 0xb96
+
+libdwarf.a(dwarf_dealloc.o):
+
+elf checksum: 0x402
+
+libdwarf.a(dwarf_attrval.o):
+
+elf checksum: 0x70d6
+
+libdwarf.a(dwarf_attr.o):
+
+elf checksum: 0x8a25
+
+libdwarf.a(dwarf_abbrev.o):
+
+elf checksum: 0x696f
+
+libdwarf.a(dwarf_dump.o):
+
+elf checksum: 0x697e
+
+libdwarf.a(dwarf_die.o):
+
+elf checksum: 0x4e47
+
+libdwarf.a(dwarf_cu.o):
+
+elf checksum: 0x5458
+
+libdwarf.a(dwarf_errmsg.o):
+
+elf checksum: 0xc68e

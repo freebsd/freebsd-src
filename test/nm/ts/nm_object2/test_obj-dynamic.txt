@@ -1,0 +1,17 @@
+                 w _Jv_RegisterClasses
+                 U _ZNKSs4sizeEv
+                 U _ZNKSsixEm
+                 U _ZNSolsEd
+                 U _ZNSt8ios_base4InitC1Ev
+                 U _ZNSt8ios_base4InitD1Ev
+0000000005248000 B _ZSt4cout
+                 U _ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c
+                 U __cxa_atexit
+                 U __gxx_personality_v0
+0000000005246976 D __progname
+0000000005248288 A _end
+                 U _init_tls
+                 U atexit
+0000000005248280 B environ
+                 U exit
+                 U sin

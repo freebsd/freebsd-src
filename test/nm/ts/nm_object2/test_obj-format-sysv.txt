@@ -1,0 +1,51 @@
+
+
+Symbols from test_obj:
+
+Name                  Value           Class        Type         Size             Line  Section
+
+_DYNAMIC            |0000000005247384|   D  |            OBJECT|                |     |.dynamic
+_GLOBAL_OFFSET_TABLE_|0000000005247880|   D  |            OBJECT|                |     |.got
+_GLOBAL__I_main     |0000000004197040|   t  |              FUNC|0000000000000021|     |.text
+_Jv_RegisterClasses |                |   w  |            NOTYPE|                |     |*UND*
+_Z41__static_initialization_and_destruction_0ii|0000000004196976|   t  |              FUNC|0000000000000061|     |.text
+_ZNKSs4sizeEv@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000000008|     |*UND*
+_ZNKSsixEm@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000000007|     |*UND*
+_ZNSolsEd@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000000005|     |*UND*
+_ZNSt8ios_base4InitC1Ev@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000002148|     |*UND*
+_ZNSt8ios_base4InitD1Ev@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000000156|     |*UND*
+_ZSt17__verify_groupingPKcmRKSs|0000000004196688|   t  |              FUNC|0000000000000284|     |.text
+_ZSt3minImERKT_S2_S2_|0000000004197344|   W  |              FUNC|0000000000000055|     |.text
+_ZSt4cout@@GLIBCXX_3.4|0000000005248000|   B  |            OBJECT|0000000000000272|     |.bss
+_ZSt8__ioinit       |0000000005248276|   b  |            OBJECT|0000000000000001|     |.bss
+_ZStlsISt11char_traitsIcEERSt13basic_ostreamIcT_ES5_c@@GLIBCXX_3.4|                |   U  |              FUNC|0000000000000029|     |*UND*
+__CTOR_END__        |0000000005247848|   d  |            OBJECT|                |     |.ctors
+__CTOR_LIST__       |0000000005247832|   d  |            OBJECT|                |     |.ctors
+__DTOR_END__        |0000000005247864|   d  |            OBJECT|                |     |.dtors
+__DTOR_LIST__       |0000000005247856|   d  |            OBJECT|                |     |.dtors
+__FRAME_END__       |0000000005247328|   r  |            OBJECT|                |     |.eh_frame
+__JCR_END__         |0000000005247872|   d  |            OBJECT|                |     |.jcr
+__JCR_LIST__        |0000000005247872|   d  |            OBJECT|                |     |.jcr
+__bss_start         |0000000005248000|   A  |            NOTYPE|                |     |*ABS*
+__cxa_atexit@@FBSD_1.0|                |   U  |              FUNC|0000000000000039|     |*UND*
+__do_global_ctors_aux|0000000004197408|   t  |              FUNC|                |     |.text
+__do_global_dtors_aux|0000000004196576|   t  |              FUNC|                |     |.text
+__dso_handle        |0000000005246984|   D  |            OBJECT|                |     |.data
+__gxx_personality_v0@@CXXABI_1.3|                |   U  |              FUNC|0000000000001282|     |*UND*
+__progname          |0000000005246976|   D  |            OBJECT|0000000000000008|     |.data
+__tcf_0             |0000000004197072|   t  |              FUNC|0000000000000024|     |.text
+_edata              |0000000005248000|   A  |            NOTYPE|                |     |*ABS*
+_end                |0000000005248288|   A  |            NOTYPE|                |     |*ABS*
+_fini               |0000000004197448|   T  |              FUNC|                |     |.fini
+_init               |0000000004196176|   T  |              FUNC|                |     |.init
+_init_tls@@FBSD_1.0 |                |   U  |              FUNC|0000000000000002|     |*UND*
+_start              |0000000004196416|   T  |              FUNC|0000000000000146|     |.text
+abitag              |0000000004194784|   r  |            OBJECT|0000000000000024|     |.note.ABI-tag
+atexit@@FBSD_1.0    |                |   U  |              FUNC|0000000000000047|     |*UND*
+completed.5055      |0000000005248272|   b  |            OBJECT|0000000000000001|     |.bss
+environ             |0000000005248280|   B  |            OBJECT|0000000000000008|     |.bss
+exit@@FBSD_1.0      |                |   U  |              FUNC|0000000000000047|     |*UND*
+frame_dummy         |0000000004196640|   t  |              FUNC|                |     |.text
+main                |0000000004197104|   T  |              FUNC|0000000000000231|     |.text
+p.5053              |0000000005246992|   d  |            OBJECT|                |     |.data
+sin@@FBSD_1.0       |                |   U  |              FUNC|0000000000001277|     |*UND*

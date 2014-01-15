@@ -1,0 +1,36 @@
+# $Id: Makefile 2826 2012-12-29 16:39:18Z jkoshy $
+
+TOP = ../..
+
+.include "${TOP}/mk/elftoolchain.tetvars.mk"
+
+.if !defined(TET_EXECUTE)
+TET_EXECUTE=	${.OBJDIR}
+.endif
+
+.if make(tccbuild)
+TET_OPTIONS+=	-b
+.endif
+
+.if make(tccclean)
+TET_OPTIONS+=	-c
+.endif
+
+.if make(execute) || make(test)
+TET_OPTIONS+=	-e
+.endif
+
+.MAIN: all
+
+.PHONY:	clobber execute tccbuild tccclean test
+
+execute tccbuild tccclean test:
+	TET_ROOT=${TET_ROOT} TET_EXECUTE=${TET_EXECUTE} \
+		TET_SUITE_ROOT=${.CURDIR} ${TET_ROOT}/bin/tcc ${TET_OPTIONS} .
+
+clobber:	clean
+	rm -rf ${TET_RESULTS_DIR} ${TET_TMP_DIR}
+
+SUBDIR=		tset
+
+.include <bsd.subdir.mk>

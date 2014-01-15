@@ -1,0 +1,30 @@
+
+Program Header[0]:
+    p_vaddr:      0               p_flags:    [ PF_X|PF_R ]
+    p_paddr:      0               p_type:     [ PT_LOAD ]
+    p_filesz:     0xc2c           p_memsz:    0xc2c
+    p_offset:     0               p_align:    0x200000
+
+Program Header[1]:
+    p_vaddr:      0x200c30        p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x200c30        p_type:     [ PT_LOAD ]
+    p_filesz:     0x240           p_memsz:    0x248
+    p_offset:     0xc30           p_align:    0x200000
+
+Program Header[2]:
+    p_vaddr:      0x200c58        p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0x200c58        p_type:     [ PT_DYNAMIC ]
+    p_filesz:     0x190           p_memsz:    0x190
+    p_offset:     0xc58           p_align:    0x8
+
+Program Header[3]:
+    p_vaddr:      0xb10           p_flags:    [ PF_R ]
+    p_paddr:      0xb10           p_type:     [ PT_NULL ]
+    p_filesz:     0x3c            p_memsz:    0x3c
+    p_offset:     0xb10           p_align:    0x4
+
+Program Header[4]:
+    p_vaddr:      0               p_flags:    [ PF_W|PF_R ]
+    p_paddr:      0               p_type:     [ PT_LOAD ]
+    p_filesz:     0               p_memsz:    0
+    p_offset:     0               p_align:    0x8

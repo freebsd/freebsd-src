@@ -1,0 +1,104 @@
+.\" Copyright (c) 2010,2011 Joseph Koshy <jkoshy@users.sourceforge.net>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer
+.\"    in this position and unchanged.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: findtextrel.1 2069 2011-10-26 15:53:48Z jkoshy $
+.\"
+.Dd August 25, 2011
+.Os
+.Dt FINDTEXTREL 1
+.Sh NAME
+.Nm findtextrel
+.Nd locate text relocation entries in position independent ELF executables
+.Sh SYNOPSIS
+.Nm
+.Op Fl V
+.Op Fl H
+.Op Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility displays information about text relocations in ELF objects
+containing position independent code.
+.Pp
+Text relocations are usually undesirable because they require that the
+text sections of objects be modified at load time, preventing the
+sharing of text sections across multiple processes using a dynamic
+shared object.
+.Pp
+Arguments
+.Ar
+name ELF executables to be examined.
+If no files are specified, the
+.Nm
+utility will examine the file
+.Pa a.out
+in the current directory.
+.Pp
+The
+.Nm
+utility recognizes the following options:
+.Bl -tag -width indent
+.It Fl H
+Print a brief help message.
+.It Fl V
+Print a version identifier and exit.
+.El
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To list text relocations in an object, use:
+.Bd -literal -offset indent
+% findtextrel a.out
+a.out: ELF object contains text relocation records:
+a.out:   off: 0x530, func: main, file: a.c, line: 5
+.Ed
+.Sh DIAGNOSTICS
+The
+.Nm
+may issue the following diagnostics:
+.Bl -diag
+.It "ELF object is not a DSO/PIE"
+The ELF executable specified by argument
+.Ar object
+was not a position independent executable.
+.It "ELF object does not contain a text relocation"
+The ELF executable specified by argument
+.Ar object
+contained no text relocations.
+.El
+.Sh SEE ALSO
+.Xr addr2line 1 ,
+.Xr nm 1 ,
+.Xr readelf 1
+.Sh HISTORY
+A
+.Nm
+utility first appeared in the
+.Nm elfutils
+toolset from Red Hat, Inc.
+.Sh AUTHORS
+This implementation of the
+.Nm
+utility was created by
+.An "Kai Wang" Aq kaiwang27@users.sourceforge.net .

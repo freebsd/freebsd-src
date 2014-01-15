@@ -1,0 +1,68 @@
+
+liba.a(a1.o):
+
+relocation (.rel.text):
+
+entry: 0
+	r_offset: 0x5
+	r_info: 0x701
+
+entry: 1
+	r_offset: 0x16
+	r_info: 0x701
+
+liba.a(a2.o):
+
+relocation (.rel.text):
+
+entry: 0
+	r_offset: 0xa
+	r_info: 0x701
+
+entry: 1
+	r_offset: 0x11
+	r_info: 0x501
+
+entry: 2
+	r_offset: 0x16
+	r_info: 0x902
+
+liba.a(a3.o):
+
+relocation (.rel.text):
+
+entry: 0
+	r_offset: 0x5
+	r_info: 0x701
+
+entry: 1
+	r_offset: 0xf
+	r_info: 0x801
+
+entry: 2
+	r_offset: 0x19
+	r_info: 0x701
+
+entry: 3
+	r_offset: 0x27
+	r_info: 0x801
+
+liba.a(a4.o):
+
+relocation (.rel.text):
+
+entry: 0
+	r_offset: 0xa
+	r_info: 0x801
+
+entry: 1
+	r_offset: 0x12
+	r_info: 0x701
+
+entry: 2
+	r_offset: 0x19
+	r_info: 0x501
+
+entry: 3
+	r_offset: 0x1e
+	r_info: 0xa02

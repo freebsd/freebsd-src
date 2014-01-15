@@ -1,0 +1,697 @@
+
+program header:
+
+entry: 0
+	p_type: PT_PHDR
+	p_offset: 64
+	p_vaddr: 0x400040
+	p_paddr: 0x400040
+	p_filesz: 392
+	p_memsz: 392
+	p_flags: PF_X|PF_R
+	p_align: 8
+
+entry: 1
+	p_type: PT_INTERP
+	p_offset: 456
+	p_vaddr: 0x4001c8
+	p_paddr: 0x4001c8
+	p_filesz: 21
+	p_memsz: 21
+	p_flags: PF_R
+	p_align: 1
+
+entry: 2
+	p_type: PT_LOAD
+	p_offset: 0
+	p_vaddr: 0x400000
+	p_paddr: 0x400000
+	p_filesz: 24900
+	p_memsz: 24900
+	p_flags: PF_X|PF_R
+	p_align: 1048576
+
+entry: 3
+	p_type: PT_LOAD
+	p_offset: 24912
+	p_vaddr: 0x506150
+	p_paddr: 0x506150
+	p_filesz: 2520
+	p_memsz: 3080
+	p_flags: PF_W|PF_R
+	p_align: 1048576
+
+entry: 4
+	p_type: PT_DYNAMIC
+	p_offset: 26376
+	p_vaddr: 0x506708
+	p_paddr: 0x506708
+	p_filesz: 432
+	p_memsz: 432
+	p_flags: PF_W|PF_R
+	p_align: 8
+
+entry: 5
+	p_type: PT_NOTE
+	p_offset: 480
+	p_vaddr: 0x4001e0
+	p_paddr: 0x4001e0
+	p_filesz: 24
+	p_memsz: 24
+	p_flags: PF_R
+	p_align: 4
+
+entry: 6
+	p_type: PT_NULL
+	p_offset: 24892
+	p_vaddr: 0x40613c
+	p_paddr: 0x40613c
+	p_filesz: 8
+	p_memsz: 8
+	p_flags: PF_R
+	p_align: 4
+
+symbol table (.dynsym):
+
+entry: 0
+	st_name: 
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_LOCAL
+	st_shndx: 0
+
+entry: 1
+	st_name: fflagstostr
+	st_value: 0x40185c
+	st_size: 138
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 2
+	st_name: puts
+	st_value: 0x40186c
+	st_size: 210
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 3
+	st_name: fprintf
+	st_value: 0x40187c
+	st_size: 144
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 4
+	st_name: atoi
+	st_value: 0x40188c
+	st_size: 21
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 5
+	st_name: time
+	st_value: 0x40189c
+	st_size: 50
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 6
+	st_name: mbrtowc
+	st_value: 0x4018ac
+	st_size: 27
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 7
+	st_name: write
+	st_value: 0x4018bc
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 8
+	st_name: fputc
+	st_value: 0x4018cc
+	st_size: 158
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 9
+	st_name: getenv
+	st_value: 0x4018dc
+	st_size: 389
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 10
+	st_name: _DYNAMIC
+	st_value: 0x506708
+	st_size: 0
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65521
+
+entry: 11
+	st_name: kill
+	st_value: 0x4018ec
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 12
+	st_name: humanize_number
+	st_value: 0x4018fc
+	st_size: 959
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 13
+	st_name: tgoto
+	st_value: 0x40190c
+	st_size: 993
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 14
+	st_name: putc
+	st_value: 0x40191c
+	st_size: 158
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 15
+	st_name: strdup
+	st_value: 0x40192c
+	st_size: 85
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 16
+	st_name: mac_get_link
+	st_value: 0x40193c
+	st_size: 5
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 17
+	st_name: fputs
+	st_value: 0x40194c
+	st_size: 154
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 18
+	st_name: ___runetype
+	st_value: 0x40195c
+	st_size: 117
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 19
+	st_name: mac_prepare_file_label
+	st_value: 0x40196c
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 20
+	st_name: mac_to_text
+	st_value: 0x40197c
+	st_size: 27
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 21
+	st_name: __stack_chk_guard
+	st_value: 0x506b40
+	st_size: 64
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 22
+	st_name: ioctl
+	st_value: 0x40198c
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 23
+	st_name: group_from_gid
+	st_value: 0x40199c
+	st_size: 271
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 24
+	st_name: strftime
+	st_value: 0x4019ac
+	st_size: 391
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 25
+	st_name: strerror
+	st_value: 0x4019bc
+	st_size: 48
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 26
+	st_name: _init_tls
+	st_value: 0x4019cc
+	st_size: 2
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 27
+	st_name: realloc
+	st_value: 0x4019dc
+	st_size: 1276
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 28
+	st_name: _init
+	st_value: 0x401838
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 10
+
+entry: 29
+	st_name: localtime
+	st_value: 0x4019ec
+	st_size: 321
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 30
+	st_name: environ
+	st_value: 0x506cc8
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 31
+	st_name: mac_free
+	st_value: 0x4019fc
+	st_size: 30
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 32
+	st_name: acl_get_entry
+	st_value: 0x401a0c
+	st_size: 95
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 33
+	st_name: fts_set
+	st_value: 0x401a1c
+	st_size: 40
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 34
+	st_name: strchr
+	st_value: 0x401a2c
+	st_size: 41
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 35
+	st_name: strcoll
+	st_value: 0x401a3c
+	st_size: 488
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 36
+	st_name: __isthreaded
+	st_value: 0x506b80
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 37
+	st_name: getopt
+	st_value: 0x401a4c
+	st_size: 685
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 38
+	st_name: __progname
+	st_value: 0x506150
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 16
+
+entry: 39
+	st_name: strmode
+	st_value: 0x401a5c
+	st_size: 760
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 40
+	st_name: warnx
+	st_value: 0x401a6c
+	st_size: 149
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 41
+	st_name: tputs
+	st_value: 0x401a7c
+	st_size: 982
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 42
+	st_name: optarg
+	st_value: 0x506b88
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 43
+	st_name: sscanf
+	st_value: 0x401a8c
+	st_size: 323
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 44
+	st_name: memset
+	st_value: 0x401a9c
+	st_size: 84
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 45
+	st_name: __error
+	st_value: 0x401aac
+	st_size: 8
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 46
+	st_name: pathconf
+	st_value: 0x401abc
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 47
+	st_name: fts_children
+	st_value: 0x401acc
+	st_size: 299
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 48
+	st_name: printf
+	st_value: 0x401adc
+	st_size: 162
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 49
+	st_name: user_from_uid
+	st_value: 0x401aec
+	st_size: 271
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 50
+	st_name: __bss_start
+	st_value: 0x506b28
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 51
+	st_name: snprintf
+	st_value: 0x401afc
+	st_size: 501
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 52
+	st_name: warn
+	st_value: 0x401b0c
+	st_size: 168
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 53
+	st_name: __mb_sb_limit
+	st_value: 0x506b90
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 54
+	st_name: tgetent
+	st_value: 0x401b1c
+	st_size: 1598
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 55
+	st_name: signal
+	st_value: 0x401b2c
+	st_size: 95
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 56
+	st_name: fts_read
+	st_value: 0x401b3c
+	st_size: 1240
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 57
+	st_name: _fini
+	st_value: 0x405b48
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 13
+
+entry: 58
+	st_name: nl_langinfo
+	st_value: 0x401b4c
+	st_size: 677
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 59
+	st_name: setenv
+	st_value: 0x401b5c
+	st_size: 147
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 60
+	st_name: __stdoutp
+	st_value: 0x506b98
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 61
+	st_name: fwrite
+	st_value: 0x401b6c
+	st_size: 202
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 62
+	st_name: _CurrentRuneLocale
+	st_value: 0x506ba0
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 63
+	st_name: fts_open
+	st_value: 0x401b7c
+	st_size: 645
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 64
+	st_name: getbsize
+	st_value: 0x401b8c
+	st_size: 545
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 65
+	st_name: __swbuf
+	st_value: 0x401b9c
+	st_size: 230
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 66
+	st_name: exit
+	st_value: 0x401bac
+	st_size: 47
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 67
+	st_name: malloc
+	st_value: 0x401bbc
+	st_size: 175
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 68
+	st_name: mac_get_file
+	st_value: 0x401bcc
+	st_size: 5
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 69
+	st_name: err
+	st_value: 0x401bdc
+	st_size: 170
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 70
+	st_name: _edata
+	st_value: 0x506b28
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 71
+	st_name: isatty
+	st_value: 0x401bec
+	st_size: 60
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 72
+	st_name: _GLOBAL_OFFSET_TABLE_
+	st_value: 0x5068e0
+	st_size: 0
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 65521
+
+entry: 73
+	st_name: _end
+	st_value: 0x506d58
+	st_size: 0
+	st_info: STT_NOTYPE STB_GLOBAL
+	st_shndx: 65521
+
+entry: 74
+	st_name: setlocale
+	st_value: 0x401bfc
+	st_size: 904
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 75
+	st_name: __stderrp
+	st_value: 0x506ba8
+	st_size: 8
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 76
+	st_name: free
+	st_value: 0x401c0c
+	st_size: 118
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 77
+	st_name: optind
+	st_value: 0x506bb0
+	st_size: 4
+	st_info: STT_OBJECT STB_GLOBAL
+	st_shndx: 23
+
+entry: 78
+	st_name: getuid
+	st_value: 0x401c1c
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 79
+	st_name: __stack_chk_fail
+	st_value: 0x401c2c
+	st_size: 12
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 80
+	st_name: atexit
+	st_value: 0x401c3c
+	st_size: 47
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 81
+	st_name: acl_free
+	st_value: 0x401c4c
+	st_size: 21
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 82
+	st_name: getpid
+	st_value: 0x401c5c
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 83
+	st_name: strlen
+	st_value: 0x401c6c
+	st_size: 199
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 84
+	st_name: strcpy
+	st_value: 0x401c7c
+	st_size: 174
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 85
+	st_name: _Jv_RegisterClasses
+	st_value: 0
+	st_size: 0
+	st_info: STT_NOTYPE STB_WEAK
+	st_shndx: 0
+
+entry: 86
+	st_name: readlink
+	st_value: 0x401c8c
+	st_size: 0
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 87
+	st_name: tgetstr
+	st_value: 0x401c9c
+	st_size: 355
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0
+
+entry: 88
+	st_name: acl_get_file
+	st_value: 0x401cac
+	st_size: 93
+	st_info: STT_FUNC STB_GLOBAL
+	st_shndx: 0

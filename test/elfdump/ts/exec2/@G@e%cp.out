@@ -1,0 +1,202 @@
+
+elf header:
+
+	e_ident: ELFCLASS32 ELFDATA2LSB ELFOSABI_FREEBSD
+	e_type: ET_EXEC
+	e_machine: EM_386
+	e_version: EV_CURRENT
+	e_entry: 0x8048fb0
+	e_phoff: 52
+	e_shoff: 14692
+	e_flags: 0
+	e_ehsize: 52
+	e_phentsize: 32
+	e_phnum: 6
+	e_shentsize: 40
+	e_shnum: 25
+	e_shstrndx: 24
+
+global offset table:
+
+entry: 0
+	0x804c4f0
+
+entry: 1
+	0
+
+entry: 2
+	0
+
+entry: 3
+	0x8048c0a
+
+entry: 4
+	0x8048c1a
+
+entry: 5
+	0x8048c2a
+
+entry: 6
+	0x8048c3a
+
+entry: 7
+	0x8048c4a
+
+entry: 8
+	0x8048c5a
+
+entry: 9
+	0x8048c6a
+
+entry: 10
+	0x8048c7a
+
+entry: 11
+	0x8048c8a
+
+entry: 12
+	0x8048c9a
+
+entry: 13
+	0x8048caa
+
+entry: 14
+	0x8048cba
+
+entry: 15
+	0x8048cca
+
+entry: 16
+	0x8048cda
+
+entry: 17
+	0x8048cea
+
+entry: 18
+	0x8048cfa
+
+entry: 19
+	0x8048d0a
+
+entry: 20
+	0x8048d1a
+
+entry: 21
+	0x8048d2a
+
+entry: 22
+	0x8048d3a
+
+entry: 23
+	0x8048d4a
+
+entry: 24
+	0x8048d5a
+
+entry: 25
+	0x8048d6a
+
+entry: 26
+	0x8048d7a
+
+entry: 27
+	0x8048d8a
+
+entry: 28
+	0x8048d9a
+
+entry: 29
+	0x8048daa
+
+entry: 30
+	0x8048dba
+
+entry: 31
+	0x8048dca
+
+entry: 32
+	0x8048dda
+
+entry: 33
+	0x8048dea
+
+entry: 34
+	0x8048dfa
+
+entry: 35
+	0x8048e0a
+
+entry: 36
+	0x8048e1a
+
+entry: 37
+	0x8048e2a
+
+entry: 38
+	0x8048e3a
+
+entry: 39
+	0x8048e4a
+
+entry: 40
+	0x8048e5a
+
+entry: 41
+	0x8048e6a
+
+entry: 42
+	0x8048e7a
+
+entry: 43
+	0x8048e8a
+
+entry: 44
+	0x8048e9a
+
+entry: 45
+	0x8048eaa
+
+entry: 46
+	0x8048eba
+
+entry: 47
+	0x8048eca
+
+entry: 48
+	0x8048eda
+
+entry: 49
+	0x8048eea
+
+entry: 50
+	0x8048efa
+
+entry: 51
+	0x8048f0a
+
+entry: 52
+	0x8048f1a
+
+entry: 53
+	0x8048f2a
+
+entry: 54
+	0x8048f3a
+
+entry: 55
+	0x8048f4a
+
+entry: 56
+	0x8048f5a
+
+entry: 57
+	0x8048f6a
+
+entry: 58
+	0x8048f7a
+
+entry: 59
+	0x8048f8a
+
+entry: 60
+	0x8048f9a

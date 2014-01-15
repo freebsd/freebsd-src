@@ -1,0 +1,24 @@
+# $Id: Makefile.tset 2085 2011-10-27 05:06:47Z jkoshy $
+
+NM_EXEC?=	${.CURDIR}/../../../../nm/nm
+CSTD?=		iso9899:1999
+
+CFLAGS+=	-DNM=\"${NM_EXEC}\" -DTC_DIR=\"$(.CURDIR)\" \
+		-DTESTFILE=\"$(TS_DATA)\"
+
+CLEANFILES+=	test.out
+
+.for f in ${TS_SRCS}
+.if exists(${.CURDIR}/../common/${f})
+${f}:	${.CURDIR}/../common/${f}
+	cp ${.ALLSRC} ${.TARGET}
+CLEANFILES+=	test_nm.c
+.endif
+.endfor
+
+.if !exists(${TS_DATA:R})
+${TS_DATA}:
+	uudecode ${TS_DATA}.uu
+.endif
+
+CLEANFILES+=	${TS_DATA}

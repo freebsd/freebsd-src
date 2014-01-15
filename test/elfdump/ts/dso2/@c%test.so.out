@@ -1,0 +1,374 @@
+
+section header:
+
+entry: 0
+	sh_name: 
+	sh_type: SHT_NULL
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 0
+	sh_size: 0
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 0
+	sh_entsize: 0
+
+entry: 1
+	sh_name: .gnu.hash
+	sh_type: SHT_GNU_HASH
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x158
+	sh_offset: 344
+	sh_size: 80
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 2
+	sh_name: .dynsym
+	sh_type: SHT_DYNSYM
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x1a8
+	sh_offset: 424
+	sh_size: 576
+	sh_link: 3
+	sh_info: 2
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 3
+	sh_name: .dynstr
+	sh_type: SHT_STRTAB
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x3e8
+	sh_offset: 1000
+	sh_size: 196
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 4
+	sh_name: .gnu.version
+	sh_type: SHT_SUNW(GNU)_versym
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x4ac
+	sh_offset: 1196
+	sh_size: 48
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 2
+	sh_entsize: 2
+
+entry: 5
+	sh_name: .gnu.version_r
+	sh_type: SHT_SUNW(GNU)_verneed
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x4e0
+	sh_offset: 1248
+	sh_size: 64
+	sh_link: 3
+	sh_info: 2
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 6
+	sh_name: .rela.dyn
+	sh_type: SHT_RELA
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x520
+	sh_offset: 1312
+	sh_size: 120
+	sh_link: 2
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 7
+	sh_name: .rela.plt
+	sh_type: SHT_RELA
+	sh_flags: SHF_ALLOC
+	sh_addr: 0x598
+	sh_offset: 1432
+	sh_size: 216
+	sh_link: 2
+	sh_info: 9
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 8
+	sh_name: .init
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x670
+	sh_offset: 1648
+	sh_size: 24
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 9
+	sh_name: .plt
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x688
+	sh_offset: 1672
+	sh_size: 160
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 16
+
+entry: 10
+	sh_name: .text
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0x730
+	sh_offset: 1840
+	sh_size: 856
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 11
+	sh_name: .fini
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC|SHF_EXECINSTR
+	sh_addr: 0xa88
+	sh_offset: 2696
+	sh_size: 14
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 12
+	sh_name: .rodata
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0xa98
+	sh_offset: 2712
+	sh_size: 120
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 13
+	sh_name: .eh_frame_hdr
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0xb10
+	sh_offset: 2832
+	sh_size: 60
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 14
+	sh_name: .eh_frame
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_ALLOC
+	sh_addr: 0xb50
+	sh_offset: 2896
+	sh_size: 220
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 15
+	sh_name: .ctors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200c30
+	sh_offset: 3120
+	sh_size: 16
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 16
+	sh_name: .dtors
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200c40
+	sh_offset: 3136
+	sh_size: 16
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 17
+	sh_name: .jcr
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200c50
+	sh_offset: 3152
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 18
+	sh_name: .dynamic
+	sh_type: SHT_DYNAMIC
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200c58
+	sh_offset: 3160
+	sh_size: 400
+	sh_link: 3
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 16
+
+entry: 19
+	sh_name: .got
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200de8
+	sh_offset: 3560
+	sh_size: 24
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 8
+
+entry: 20
+	sh_name: .got.plt
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200e00
+	sh_offset: 3584
+	sh_size: 96
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 8
+
+entry: 21
+	sh_name: .data
+	sh_type: SHT_PROGBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200e60
+	sh_offset: 3680
+	sh_size: 16
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 8
+	sh_entsize: 0
+
+entry: 22
+	sh_name: .bss
+	sh_type: SHT_NOBITS
+	sh_flags: SHF_WRITE|SHF_ALLOC
+	sh_addr: 0x200e70
+	sh_offset: 3696
+	sh_size: 8
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 4
+	sh_entsize: 0
+
+entry: 23
+	sh_name: .comment
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 3696
+	sh_size: 290
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 24
+	sh_name: .debug_aranges
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 4000
+	sh_size: 144
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 16
+	sh_entsize: 0
+
+entry: 25
+	sh_name: .debug_info
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 4144
+	sh_size: 420
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 26
+	sh_name: .debug_abbrev
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 4564
+	sh_size: 32
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 27
+	sh_name: .debug_line
+	sh_type: SHT_PROGBITS
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 4596
+	sh_size: 352
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 28
+	sh_name: .shstrtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 4948
+	sh_size: 266
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0
+
+entry: 29
+	sh_name: .symtab
+	sh_type: SHT_SYMTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 7200
+	sh_size: 1752
+	sh_link: 30
+	sh_info: 51
+	sh_addralign: 8
+	sh_entsize: 24
+
+entry: 30
+	sh_name: .strtab
+	sh_type: SHT_STRTAB
+	sh_flags: 
+	sh_addr: 0
+	sh_offset: 8952
+	sh_size: 732
+	sh_link: 0
+	sh_info: 0
+	sh_addralign: 1
+	sh_entsize: 0

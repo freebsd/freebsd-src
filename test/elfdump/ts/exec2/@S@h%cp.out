@@ -1,0 +1,76 @@
+
+Hash Section:  .hash
+    bucket    symndx    name
+         1  [60]        _Jv_RegisterClasses
+            [32]        pathconf
+         4  [54]        __srget
+            [41]        fwrite
+            [6]         lutimes
+         7  [33]        printf
+            [25]        strrchr
+            [23]        __isthreaded
+         9  [16]        fts_open
+            [7]         lchmod
+            [3]         utimes
+        11  [17]        errx
+        12  [37]        __stdinp
+            [19]        symlink
+            [9]         mkfifo
+        14  [39]        signal
+        15  [50]        chmod
+            [24]        getopt
+            [12]        chflags
+        16  [51]        __stderrp
+        18  [59]        strncat
+        21  [66]        strlcpy
+            [5]         acl_get_fd
+        22  [52]        optind
+        23  [62]        readlink
+        25  [34]        close
+        26  [22]        unlink
+        27  [31]        __error
+        28  [26]        __progname
+        29  [49]        _end
+            [27]        warnx
+            [14]        strerror
+        32  [35]        warn
+            [2]         write
+        33  [61]        acl_get_link_np
+        34  [47]        mkdir
+            [43]        fchown
+        38  [28]        stat
+            [11]        fts_close
+            [8]         link
+        41  [42]        open
+        46  [4]         lstat
+        47  [36]        acl_set_link_np
+            [21]        environ
+        48  [64]        acl_get_file
+        50  [20]        fpathconf
+        53  [65]        fstat
+            [38]        umask
+        54  [40]        fchmod
+        56  [55]        atexit
+            [48]        err
+            [44]        lchown
+            [1]         fprintf
+        57  [18]        munmap
+        58  [58]        fchflags
+        59  [57]        read
+            [46]        exit
+            [13]        fts_read
+        62  [63]        getc
+            [56]        chown
+        63  [53]        acl_set_file
+            [30]        mknod
+        64  [29]        mmap
+        65  [45]        acl_set_fd
+            [15]        _init_tls
+            [10]        fts_set
+
+        30  buckets contain        0 symbols
+        19  buckets contain        1 symbols
+         8  buckets contain        2 symbols
+         9  buckets contain        3 symbols
+         1  buckets contain        4 symbols
+        67  buckets               66 symbols (globals)
