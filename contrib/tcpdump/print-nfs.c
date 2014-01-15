@@ -469,16 +469,22 @@ parsefn(register const u_int32_t *dp)
 	len = *dp++;
 	NTOHL(len);
 
+#ifndef CHERI_TCPDUMP_VULNERABILITY
 	TCHECK2(*dp, ((len + 3) & ~3));
+#endif
 
 	cp = (u_char *)dp;
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
 	putchar('"');
+#ifdef CHERI_TCPDUMP_VULNERABILITY
+	(void) fn_printn(cp, len, NULL);
+#else
 	if (fn_printn(cp, len, snapend)) {
 		putchar('"');
 		goto trunc;
 	}
+#endif
 	putchar('"');
 
 	return (dp);
