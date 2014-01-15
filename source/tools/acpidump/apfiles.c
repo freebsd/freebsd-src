@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,7 @@ ApWriteToBinaryFile (
 
     if (ACPI_VALIDATE_RSDP_SIG (Table->Signature))
     {
-        ACPI_MOVE_NAME (Filename, AP_DUMP_SIG_RSDP);
+        ACPI_MOVE_NAME (Filename, ACPI_RSDP_NAME);
     }
     else
     {

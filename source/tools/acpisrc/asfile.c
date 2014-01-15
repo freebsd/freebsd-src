@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -332,6 +332,17 @@ AsConvertFile (
         MacroTable          = ConversionTable->HeaderMacroTable;
         StructTable         = ConversionTable->HeaderStructTable;
         SpecialMacroTable   = ConversionTable->HeaderSpecialMacroTable;
+        break;
+
+    case FILE_TYPE_PATCH:
+
+        Functions           = ConversionTable->PatchFunctions;
+        StringTable         = ConversionTable->PatchStringTable;
+        LineTable           = ConversionTable->PatchLineTable;
+        ConditionalTable    = ConversionTable->PatchConditionalTable;
+        MacroTable          = ConversionTable->PatchMacroTable;
+        StructTable         = ConversionTable->PatchStructTable;
+        SpecialMacroTable   = ConversionTable->PatchSpecialMacroTable;
         break;
 
     default:

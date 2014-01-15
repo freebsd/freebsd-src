@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -256,11 +256,6 @@ void
 EarlyAcpiOsUnmapMemory (
     void __iomem            *Virt,
     ACPI_SIZE               Size);
-
-ACPI_STATUS
-AcpiOsHotplugExecute (
-    ACPI_OSD_EXEC_CALLBACK  Function,
-    void                    *Context);
 
 #endif /* __KERNEL__ */
 

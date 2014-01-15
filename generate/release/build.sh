@@ -214,6 +214,7 @@ generate_source_package ()
 	mkdir $TEMP_DIR/generate/unix
 	mkdir $TEMP_DIR/generate/unix/acpibin
 	mkdir $TEMP_DIR/generate/unix/acpidump
+	mkdir $TEMP_DIR/generate/unix/acpiexamples
 	mkdir $TEMP_DIR/generate/unix/acpiexec
 	mkdir $TEMP_DIR/generate/unix/acpihelp
 	mkdir $TEMP_DIR/generate/unix/acpinames
@@ -260,6 +261,7 @@ generate_source_package ()
 	cp generate/unix/Makefile*              $TEMP_DIR/generate/unix
 	cp generate/unix/acpibin/Makefile       $TEMP_DIR/generate/unix/acpibin
 	cp generate/unix/acpidump/Makefile      $TEMP_DIR/generate/unix/acpidump
+	cp generate/unix/acpiexamples/Makefile  $TEMP_DIR/generate/unix/acpiexamples
 	cp generate/unix/acpiexec/Makefile      $TEMP_DIR/generate/unix/acpiexec
 	cp generate/unix/acpihelp/Makefile      $TEMP_DIR/generate/unix/acpihelp
 	cp generate/unix/acpinames/Makefile     $TEMP_DIR/generate/unix/acpinames

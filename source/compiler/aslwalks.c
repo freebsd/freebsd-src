@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -605,6 +605,10 @@ AnOtherSemanticAnalysisWalkBegin (
         ArgNode = Op->Asl.Parent;       /* Field definition */
         ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
         Node = ArgNode->Asl.Node;       /* OpRegion namespace node */
+        if (!Node)
+        {
+            break;
+        }
 
         ArgNode = Node->Op;             /* OpRegion definition */
         ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */

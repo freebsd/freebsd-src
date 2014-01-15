@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,7 +58,6 @@
  * Windows: The setargv.obj module must be linked in to automatically
  * expand wildcards.
  */
-
 extern BOOLEAN              AcpiGbl_DebugTimeout;
 
 /* Local prototypes */
@@ -90,6 +89,7 @@ BOOLEAN                     AcpiGbl_IgnoreErrors = FALSE;
 BOOLEAN                     AcpiGbl_DbOpt_NoRegionSupport = FALSE;
 UINT8                       AcpiGbl_UseHwReducedFadt = FALSE;
 BOOLEAN                     AcpiGbl_DoInterfaceTests = FALSE;
+BOOLEAN                     AcpiGbl_LoadTestTables = FALSE;
 static UINT8                AcpiGbl_ExecutionMode = AE_MODE_COMMAND_LOOP;
 static char                 BatchBuffer[AE_BUFFER_SIZE];    /* Batch command buffer */
 static AE_TABLE_DESC        *AeTableListHead = NULL;
@@ -131,6 +131,7 @@ usage (
 
     ACPI_OPTION ("-ef",                 "Enable display of final memory statistics");
     ACPI_OPTION ("-ei",                 "Enable additional tests for ACPICA interfaces");
+    ACPI_OPTION ("-el",                 "Enable loading of additional test tables");
     ACPI_OPTION ("-em",                 "Enable Interpreter Serialized Mode");
     ACPI_OPTION ("-es",                 "Enable Interpreter Slack Mode");
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
@@ -231,6 +232,11 @@ AeDoOptions (
         case 'i':
 
             AcpiGbl_DoInterfaceTests = TRUE;
+            break;
+
+        case 'l':
+
+            AcpiGbl_LoadTestTables = TRUE;
             break;
 
         case 'm':
@@ -449,6 +455,8 @@ main (
 
         AcpiGbl_Optind++;
     }
+
+    printf ("\n");
 
     /* Build a local RSDT with all tables and let ACPICA process the RSDT */
 
