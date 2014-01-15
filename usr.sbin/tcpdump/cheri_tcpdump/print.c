@@ -121,8 +121,8 @@ static const char *hash_colors[] = {
 };
 #define	N_HASH_COLORS	3
 
-#define	MAX_HASHES	64
-static char *hash_names[MAX_HASHES];
+#define	MAX_SANDBOXES	64
+static char *hash_names[MAX_SANDBOXES];
 
 static struct cheri_tcpdump_control _ctdc;
 static volatile struct cheri_tcpdump_control *ctdc;
@@ -283,8 +283,7 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		default_sandbox = sb;
 		break;
 	case TDS_MODE_HASH_TCP:
-		g_sandboxes = ctdc->ctdc_sandboxes;
-		for (i = 0; i < ctdc->ctdc_sandboxes; i++) {
+		for (i = 0; i < g_sandboxes; i++) {
 			sb = tcpdump_sandbox_new(hash_names[i],
 			    hash_colors[i % N_HASH_COLORS],
 			    tds_select_ipv4_hash, (void *)(long)i);
@@ -421,17 +420,19 @@ poll_ctdc_config(void)
 	}
 
 	reinit = 0;
-	if (ctdc->ctdc_sb_mode != g_mode) {
+	if (ctdc->ctdc_sb_mode > 0 && ctdc->ctdc_sb_mode <= CTDC_MODE_HASH_TCP && ctdc->ctdc_sb_mode != g_mode) {
 		reinit = 1;
 		fprintf(stderr, "changing sandbox mode from %d to %d\n",
 		    g_mode, ctdc->ctdc_sb_mode);
 	}
-	if (ctdc->ctdc_sb_mode == CTDC_MODE_HASH_TCP &&
-	    ctdc->ctdc_sandboxes != g_sandboxes) {
-		reinit = 1;
+	if (CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES) != g_sandboxes) {
 		fprintf(stderr, "%s sandboxes from %d to %d\n",
-		    g_sandboxes < ctdc->ctdc_sandboxes ? "increasing" :
-		    "decreasing", g_sandboxes, ctdc->ctdc_sandboxes);
+		    g_sandboxes < CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES) ?
+		    "increasing" : "decreasing", g_sandboxes,
+		    CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES));
+		g_sandboxes = CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES);
+		if (ctdc->ctdc_sb_mode == CTDC_MODE_HASH_TCP)
+			reinit = 1;
 	}
 	if (g_reset != ctdc->ctdc_reset) {
 		reinit = 1;
@@ -482,9 +483,10 @@ init_print(u_int32_t localnet, u_int32_t mask)
 	g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
 	g_max_packets = ctdc->ctdc_sb_max_packets;
 	g_reset = ctdc->ctdc_reset;
+	g_sandboxes = CTDC_SANDBOXES(ctdc, 1, MAX_SANDBOXES);
 
 	/* XXX: check returns */
-	for (i = 0; i < MAX_HASHES; i++)
+	for (i = 0; i < MAX_SANDBOXES; i++)
 		asprintf(&hash_names[i], "hash%02d", i);
 
 	cheri_enter_register_fn(&cheri_tcpdump_enter);

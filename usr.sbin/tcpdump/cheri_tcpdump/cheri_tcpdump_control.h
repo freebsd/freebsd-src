@@ -47,4 +47,8 @@ struct cheri_tcpdump_control {
 #define	CTDC_MODE_SEPARATE_LOCAL	2
 #define	CTDC_MODE_HASH_TCP		3
 
+#define	CTDC_SANDBOXES(ctdc, min, max) \
+    ((ctdc)->ctdc_sandboxes < (min) ? (min) : \
+     ((ctdc)->ctdc_sandboxes > (max) ? (max) : (ctdc)->ctdc_sandboxes))
+
 #endif /* __CHERI_TCPDUMP_CONTROL_H__ */
