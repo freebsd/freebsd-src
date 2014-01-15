@@ -416,6 +416,10 @@ poll_ctdc_config(void)
 {
 	int reinit;
 
+	while (ctdc->ctdc_pause) {
+		sleep(1);
+	}
+
 	reinit = 0;
 	if (ctdc->ctdc_sb_mode != g_mode) {
 		reinit = 1;
