@@ -322,17 +322,13 @@ cpudep_ap_setup()
 		mtspr(SPR_CELL_TSRL, bsp_state[5]);
 
 		break;
-	case MPC7450:
-	case MPC7455:
-	case MPC7457:
-		/* Only MPC745x CPUs have an L3 cache. */
-		reg = mpc745x_l3_enable(bsp_state[3]);
-		
-		/* Fallthrough */
 	case MPC7400:
 	case MPC7410:
 	case MPC7447A:
 	case MPC7448:
+	case MPC7450:
+	case MPC7455:
+	case MPC7457:
 		/* XXX: Program the CPU ID into PIR */
 		__asm __volatile("mtspr 1023,%0" :: "r"(PCPU_GET(cpuid)));
 
@@ -342,6 +338,17 @@ cpudep_ap_setup()
 		mtspr(SPR_HID0, bsp_state[0]); isync();
 		mtspr(SPR_HID1, bsp_state[1]); isync();
 
+		/* Now enable the L3 cache. */
+		switch (vers) {
+		case MPC7450:
+		case MPC7455:
+		case MPC7457:
+			/* Only MPC745x CPUs have an L3 cache. */
+			reg = mpc745x_l3_enable(bsp_state[3]);
+		default:
+			break;
+		}
+		
 		reg = mpc74xx_l2_enable(bsp_state[2]);
 		reg = mpc74xx_l1d_enable();
 		reg = mpc74xx_l1i_enable();
