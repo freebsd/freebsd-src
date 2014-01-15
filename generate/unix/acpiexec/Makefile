@@ -54,6 +54,7 @@ OBJECTS = \
 	$(OBJDIR)/dbmethod.o\
 	$(OBJDIR)/dbnames.o\
 	$(OBJDIR)/dbstats.o\
+	$(OBJDIR)/dbtest.o\
 	$(OBJDIR)/dbutils.o\
 	$(OBJDIR)/dbxface.o\
 	$(OBJDIR)/dmbuffer.o\

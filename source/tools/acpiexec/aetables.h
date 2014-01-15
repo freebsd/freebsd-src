@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,16 +49,7 @@
  * Miscellaneous pre-compiled AML ACPI tables to be installed
  */
 
-/* Default DSDT. This will be replaced with the input DSDT */
-
-static unsigned char DsdtCode[] =
-{
-    0x44,0x53,0x44,0x54,0x24,0x00,0x00,0x00,  /* 00000000    "DSDT$..." */
-    0x02,0x6F,0x49,0x6E,0x74,0x65,0x6C,0x00,  /* 00000008    ".oIntel." */
-    0x4E,0x75,0x6C,0x6C,0x44,0x53,0x44,0x54,  /* 00000010    "NullDSDT" */
-    0x01,0x00,0x00,0x00,0x49,0x4E,0x54,0x4C,  /* 00000018    "....INTL" */
-    0x04,0x12,0x08,0x20,
-};
+/* Local DSDT used only if not present in the input */
 
 static unsigned char LocalDsdtCode[] =
 {

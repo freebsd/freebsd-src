@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -682,7 +682,7 @@ OslTableInitialize (
     {
         /* Add mandatory tables to global table list first */
 
-        Status = OslAddTableToList (AP_DUMP_SIG_RSDP, 0);
+        Status = OslAddTableToList (ACPI_RSDP_NAME, 0);
         if (ACPI_FAILURE (Status))
         {
             return (Status);
@@ -866,7 +866,7 @@ OslGetBiosTable (
 
     /* Handle special tables whose addresses are not in RSDT/XSDT */
 
-    if (ACPI_COMPARE_NAME (Signature, AP_DUMP_SIG_RSDP) ||
+    if (ACPI_COMPARE_NAME (Signature, ACPI_RSDP_NAME) ||
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDT) ||
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_XSDT) ||
         ACPI_COMPARE_NAME (Signature, ACPI_SIG_DSDT) ||

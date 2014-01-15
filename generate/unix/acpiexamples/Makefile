@@ -1,0 +1,148 @@
+#
+# acpiexamples - Example ACPICA initialization code and control
+# method execution.
+#
+
+#
+# Note: This makefile is intended to be used from within the native
+# ACPICA directory structure, from under generate/unix. It specifically
+# places all object files in a generate/unix subdirectory, not within
+# the various ACPICA source directories. This prevents collisions
+# between different compilations of the same source file with different
+# compile options, and prevents pollution of the source code.
+#
+include ../Makefile.config
+FINAL_PROG = ../$(BINDIR)/acpiexamples
+PROG = $(OBJDIR)/acpiexamples
+
+#
+# Search paths for source files
+#
+vpath %.c \
+    $(ACPIEXAMPLES)\
+    $(ACPICA_DEBUGGER)\
+    $(ACPICA_DISPATCHER)\
+    $(ACPICA_EXECUTER)\
+    $(ACPICA_NAMESPACE)\
+    $(ACPICA_PARSER)\
+    $(ACPICA_TABLES)\
+    $(ACPICA_UTILITIES)\
+    $(ACPICA_COMMON)\
+    $(ACPICA_OSL)
+
+HEADERS = \
+    $(wildcard $(ACPIEXAMPLES)/*.h)
+
+OBJECTS = \
+	$(OBJDIR)/examples.o\
+	$(OBJDIR)/exstubs.o\
+	$(OBJDIR)/extables.o\
+	$(OBJDIR)/dsargs.o\
+	$(OBJDIR)/dscontrol.o\
+	$(OBJDIR)/dsfield.o\
+	$(OBJDIR)/dsinit.o\
+	$(OBJDIR)/dsmethod.o\
+	$(OBJDIR)/dsmthdat.o\
+	$(OBJDIR)/dsobject.o\
+	$(OBJDIR)/dsopcode.o\
+	$(OBJDIR)/dsutils.o\
+	$(OBJDIR)/dswexec.o\
+	$(OBJDIR)/dswload.o\
+	$(OBJDIR)/dswload2.o\
+	$(OBJDIR)/dswscope.o\
+	$(OBJDIR)/dswstate.o\
+	$(OBJDIR)/exconfig.o\
+	$(OBJDIR)/exconvrt.o\
+	$(OBJDIR)/excreate.o\
+	$(OBJDIR)/exdebug.o\
+	$(OBJDIR)/exdump.o\
+	$(OBJDIR)/exfield.o\
+	$(OBJDIR)/exfldio.o\
+	$(OBJDIR)/exmisc.o\
+	$(OBJDIR)/exmutex.o\
+	$(OBJDIR)/exnames.o\
+	$(OBJDIR)/exoparg1.o\
+	$(OBJDIR)/exoparg2.o\
+	$(OBJDIR)/exoparg3.o\
+	$(OBJDIR)/exoparg6.o\
+	$(OBJDIR)/exprep.o\
+	$(OBJDIR)/exregion.o\
+	$(OBJDIR)/exresnte.o\
+	$(OBJDIR)/exresolv.o\
+	$(OBJDIR)/exresop.o\
+	$(OBJDIR)/exstore.o\
+	$(OBJDIR)/exstoren.o\
+	$(OBJDIR)/exstorob.o\
+	$(OBJDIR)/exsystem.o\
+	$(OBJDIR)/exutils.o\
+	$(OBJDIR)/nsaccess.o\
+	$(OBJDIR)/nsalloc.o\
+	$(OBJDIR)/nsconvert.o\
+	$(OBJDIR)/nsdump.o\
+	$(OBJDIR)/nseval.o\
+	$(OBJDIR)/nsinit.o\
+	$(OBJDIR)/nsload.o\
+	$(OBJDIR)/nsnames.o\
+	$(OBJDIR)/nsobject.o\
+	$(OBJDIR)/nsparse.o\
+	$(OBJDIR)/nssearch.o\
+	$(OBJDIR)/nsutils.o\
+	$(OBJDIR)/nswalk.o\
+	$(OBJDIR)/nsxfeval.o\
+	$(OBJDIR)/nsxfname.o\
+	$(OBJDIR)/nsxfobj.o\
+	$(OBJDIR)/osunixxf.o\
+	$(OBJDIR)/psargs.o\
+	$(OBJDIR)/psloop.o\
+	$(OBJDIR)/psobject.o\
+	$(OBJDIR)/psopcode.o\
+	$(OBJDIR)/psopinfo.o\
+	$(OBJDIR)/psparse.o\
+	$(OBJDIR)/psscope.o\
+	$(OBJDIR)/pstree.o\
+	$(OBJDIR)/psutils.o\
+	$(OBJDIR)/pswalk.o\
+	$(OBJDIR)/psxface.o\
+	$(OBJDIR)/tbfadt.o\
+	$(OBJDIR)/tbfind.o\
+	$(OBJDIR)/tbinstal.o\
+	$(OBJDIR)/tbprint.o\
+	$(OBJDIR)/tbutils.o\
+	$(OBJDIR)/tbxface.o\
+	$(OBJDIR)/tbxfload.o\
+	$(OBJDIR)/tbxfroot.o\
+	$(OBJDIR)/utaddress.o\
+	$(OBJDIR)/utalloc.o\
+	$(OBJDIR)/utbuffer.o\
+	$(OBJDIR)/utcache.o\
+	$(OBJDIR)/utcopy.o\
+	$(OBJDIR)/utdebug.o\
+	$(OBJDIR)/utdecode.o\
+	$(OBJDIR)/utdelete.o\
+	$(OBJDIR)/uterror.o\
+	$(OBJDIR)/utexcep.o\
+	$(OBJDIR)/utglobal.o\
+	$(OBJDIR)/utlock.o\
+	$(OBJDIR)/utmath.o\
+	$(OBJDIR)/utmisc.o\
+	$(OBJDIR)/utmutex.o\
+	$(OBJDIR)/utobject.o\
+	$(OBJDIR)/utosi.o\
+	$(OBJDIR)/utownerid.o\
+	$(OBJDIR)/utstate.o\
+	$(OBJDIR)/utstring.o\
+	$(OBJDIR)/utxface.o\
+	$(OBJDIR)/utxferror.o\
+	$(OBJDIR)/utxfinit.o
+
+#
+# Flags specific to acpinames utility
+#
+CFLAGS += \
+    -DACPI_EXAMPLE_APP\
+    -I$(EXAMPLES)
+
+#
+# Common Rules
+#
+include ../Makefile.rules

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -68,6 +68,7 @@ extern UINT8                AcpiGbl_RegionFillValue;
 extern UINT8                AcpiGbl_UseHwReducedFadt;
 extern BOOLEAN              AcpiGbl_DisplayRegionAccess;
 extern BOOLEAN              AcpiGbl_DoInterfaceTests;
+extern BOOLEAN              AcpiGbl_LoadTestTables;
 
 /* Check for unexpected exceptions */
 
