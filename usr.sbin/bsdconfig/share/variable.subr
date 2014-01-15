@@ -179,7 +179,7 @@ f_debugging()
 	f_getvar $VAR_DEBUG value && [ "$value" ]
 }
 
-# f_interactive()
+# f_interactive
 #
 # Are we running interactively? Return error if $nonInteractive is set and non-
 # NULL, otherwise return success.
@@ -190,7 +190,7 @@ f_interactive()
 	! f_getvar $VAR_NONINTERACTIVE value || [ ! "$value" ]
 }
 
-# f_netinteractive()
+# f_netinteractive
 #
 # Has the user specifically requested the network-portion of configuration and
 # setup to be performed interactively? Returns success if the user has asked
@@ -205,7 +205,7 @@ f_netinteractive()
 	f_getvar $VAR_NETINTERACTIVE value && [ "$value" ]
 }
 
-# f_zfsinteractive()
+# f_zfsinteractive
 #
 # Has the user specifically requested the ZFS-portion of configuration and
 # setup to be performed interactively? Returns success if the user has asked

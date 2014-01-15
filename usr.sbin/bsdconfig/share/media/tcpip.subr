@@ -110,10 +110,11 @@ f_struct_define DHCP_LEASE \
 # 	   	begin or end with a hyphen).
 # 	  3	One or more individual labels within the hostname are null.
 #
-# f_dialog_validate_hostname $hostname
+# To call this function and display an appropriate error message to the user
+# based on the above error codes, use the following function defined in
+# dialog.subr:
 #
-# If the hostname is determined to be invalid, the appropriate error will be
-# displayed using the f_show_msg function.
+# 	f_dialog_validate_hostname $hostname
 #
 f_validate_hostname()
 {
