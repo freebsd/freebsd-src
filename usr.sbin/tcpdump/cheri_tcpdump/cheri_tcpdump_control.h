@@ -39,6 +39,7 @@ struct cheri_tcpdump_control {
 	int	ctdc_colorize;		/* Enable colorized output */
 	int	ctdc_pause;		/* Pause packet processing */
 	int	ctdc_reset;		/* Reset the sandboxes */
+	int	ctdc_die;		/* Self-destruct */
 };
 
 #define	CTDC_MODE_NONE			0
