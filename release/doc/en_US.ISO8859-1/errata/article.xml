@@ -168,6 +168,21 @@ boot</screen>
 
 	<programlisting>vfs.unmapped_buf_allowed=0</programlisting>
       </listitem>
+
+      <listitem>
+	<para>A bug in <application>Heimdal</application> (an
+	  implementation of <application>Kerberos</application>
+	  authentication in &os; base system) has been fixed.  It
+	  could cause an interoperability issue between
+	  <application>Heimdal</application> and the other
+	  implementations including <application>MIT
+	  Kerberos</application>.  However, due to this fix,
+	  <application>Heimdal</application> and some applications
+	  which depend on it in the previous &os; releases do not work
+	  with one in &release.prev; in certain cases.  Errata Notice
+	  for the supported releases to fix it will be
+	  released.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
