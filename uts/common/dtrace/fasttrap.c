@@ -25,7 +25,7 @@
  */
 
 /*
- * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
 #include <sys/atomic.h>
@@ -1936,8 +1936,7 @@ fasttrap_ioctl(dev_t dev, int cmd, intptr_t arg, int md, cred_t *cr, int *rv)
 		fasttrap_probe_spec_t *probe;
 		uint64_t noffs;
 		size_t size;
-		int ret;
-		char *c;
+		int ret, err;
 
 		if (copyin(&uprobe->ftps_noffs, &noffs,
 		    sizeof (uprobe->ftps_noffs)))
@@ -1967,18 +1966,16 @@ fasttrap_ioctl(dev_t dev, int cmd, intptr_t arg, int md, cred_t *cr, int *rv)
 		 * Verify that the function and module strings contain no
 		 * funny characters.
 		 */
-		for (c = &probe->ftps_func[0]; *c != '\0'; c++) {
-			if (*c < 0x20 || 0x7f <= *c) {
-				ret = EINVAL;
-				goto err;
-			}
+		if (u8_validate(probe->ftps_func, strlen(probe->ftps_func),
+		    NULL, U8_VALIDATE_ENTIRE, &err) < 0) {
+			ret = EINVAL;
+			goto err;
 		}
 
-		for (c = &probe->ftps_mod[0]; *c != '\0'; c++) {
-			if (*c < 0x20 || 0x7f <= *c) {
-				ret = EINVAL;
-				goto err;
-			}
+		if (u8_validate(probe->ftps_mod, strlen(probe->ftps_mod),
+		    NULL, U8_VALIDATE_ENTIRE, &err) < 0) {
+			ret = EINVAL;
+			goto err;
 		}
 
 		if (!PRIV_POLICY_CHOICE(cr, PRIV_ALL, B_FALSE)) {
