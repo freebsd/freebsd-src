@@ -431,6 +431,8 @@ die_name(dwarf_t *dw, Dwarf_Die die)
 	char *str = NULL;
 
 	(void) die_string(dw, die, DW_AT_name, &str, 0);
+	if (str == NULL)
+		str = xstrdup("__anon__");
 
 	return (str);
 }
