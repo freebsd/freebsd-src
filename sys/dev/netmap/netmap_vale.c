@@ -515,7 +515,7 @@ netmap_get_bdg_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 	b = nm_find_bridge(name, create);
 	if (b == NULL) {
 		D("no bridges available for '%s'", name);
-		return (ENXIO);
+		return (create ? ENOMEM : ENXIO);
 	}
 
 	/* Now we are sure that name starts with the bridge's name,
@@ -547,7 +547,7 @@ netmap_get_bdg_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 	needed = 2; /* in some cases we only need 1 */
 	if (b->bdg_active_ports + needed >= NM_BDG_MAXPORTS) {
 		D("bridge full %d, cannot create new port", b->bdg_active_ports);
-		return EINVAL;
+		return ENOMEM;
 	}
 	/* record the next two ports available, but do not allocate yet */
 	cand = b->bdg_port_index[b->bdg_active_ports];
@@ -594,7 +594,7 @@ netmap_get_bdg_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 		if (NETMAP_OWNED_BY_ANY(ret)) {
 			D("NIC %s busy, cannot attach to bridge",
 				NM_IFPNAME(ifp));
-			error = EINVAL;
+			error = EBUSY;
 			goto out;
 		}
 		/* create a fake interface */
@@ -658,11 +658,13 @@ nm_bdg_attach(struct nmreq *nmr)
 	npriv = malloc(sizeof(*npriv), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (npriv == NULL)
 		return ENOMEM;
+
 	NMG_LOCK();
-	/* XXX probably netmap_get_bdg_na() */
+
 	error = netmap_get_bdg_na(nmr, &na, 1 /* create if not exists */);
 	if (error) /* no device, or another bridge or user owns the device */
 		goto unlock_exit;
+
 	if (na == NULL) { /* VALE prefix missing */
 		error = EINVAL;
 		goto unlock_exit;
@@ -707,6 +709,7 @@ nm_bdg_detach(struct nmreq *nmr)
 	if (error) { /* no device, or another bridge or user owns the device */
 		goto unlock_exit;
 	}
+
 	if (na == NULL) { /* VALE prefix missing */
 		error = EINVAL;
 		goto unlock_exit;
@@ -1945,7 +1948,7 @@ netmap_bwrap_notify(struct netmap_adapter *na, u_int ring_n, enum txrx tx, int f
 	int error = 0;
 
 	if (tx == NR_TX)
-	        return ENXIO;
+	        return EINVAL;
 
 	kring = &na->rx_rings[ring_n];
 	hw_kring = &hwna->tx_rings[ring_n];
@@ -1999,7 +2002,7 @@ netmap_bwrap_host_notify(struct netmap_adapter *na, u_int ring_n, enum txrx tx, 
 	struct netmap_bwrap_adapter *bna = na->na_private;
 	struct netmap_adapter *port_na = &bna->up.up;
 	if (tx == NR_TX || ring_n != 0)
-		return ENXIO;
+		return EINVAL;
 	return netmap_bwrap_notify(port_na, port_na->num_rx_rings, NR_RX, flags);
 }
 

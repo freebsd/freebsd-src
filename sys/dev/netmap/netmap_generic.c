@@ -261,7 +261,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 		/* Prepare to intercept incoming traffic. */
 		error = netmap_catch_rx(na, 1);
 		if (error) {
-			D("netdev_rx_handler_register() failed");
+			D("netdev_rx_handler_register() failed (%d)", error);
 			goto register_handler;
 		}
 		ifp->if_capenable |= IFCAP_NETMAP;
@@ -283,7 +283,11 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 		rate_ctx.refcount++;
 #endif /* RATE */
 
-	} else { /* Disable netmap mode. */
+	} else if (na->tx_rings[0].tx_pool) {
+		/* Disable netmap mode. We enter here only if the previous
+		   generic_netmap_register(na, 1) was successfull.
+		   If it was not, na->tx_rings[0].tx_pool was set to NULL by the
+		   error handling code below. */
 		rtnl_lock();
 
 		ifp->if_capenable &= ~IFCAP_NETMAP;
@@ -322,7 +326,7 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 #ifdef REG_RESET
 	error = ifp->netdev_ops->ndo_open(ifp);
 	if (error) {
-		goto alloc_tx_pool;
+		goto free_tx_pools;
 	}
 #endif
 
@@ -338,6 +342,11 @@ free_tx_pools:
 			if (na->tx_rings[r].tx_pool[i])
 				m_freem(na->tx_rings[r].tx_pool[i]);
 		free(na->tx_rings[r].tx_pool, M_DEVBUF);
+		na->tx_rings[r].tx_pool = NULL;
+	}
+	netmap_mitigation_cleanup(gna);
+	for (r=0; r<na->num_rx_rings; r++) {
+		mbq_safe_destroy(&na->rx_rings[r].rx_queue);
 	}
 
 	return error;
