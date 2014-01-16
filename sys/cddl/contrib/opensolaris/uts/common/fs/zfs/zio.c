@@ -21,6 +21,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2013 by Delphix. All rights reserved.
+ * Copyright (c) 2011 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -1224,7 +1225,7 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 {
 	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
-	int flags = TQ_SLEEP | (cutinline ? TQ_FRONT : 0);
+	int flags = (cutinline ? TQ_FRONT : 0);
 
 	ASSERT(q == ZIO_TASKQ_ISSUE || q == ZIO_TASKQ_INTERRUPT);
 
@@ -1250,13 +1251,19 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 		q++;
 
 	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
-#ifdef _KERNEL
-	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, flags, &zio->io_task);
+
+	/*
+	 * NB: We are assuming that the zio can only be dispatched
+	 * to a single taskq at a time.  It would be a grievous error
+	 * to dispatch the zio to another taskq at the same time.
+	 */
+#if defined(illumos) || !defined(_KERNEL)
+	ASSERT(zio->io_tqent.tqent_next == NULL);
 #else
-	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, flags);
+	ASSERT(zio->io_tqent.tqent_task.ta_pending == 0);
 #endif
+	taskq_dispatch_ent(spa->spa_zio_taskq[t][q],
+	    (task_func_t *)zio_execute, zio, flags, &zio->io_tqent);
 }
 
 static boolean_t
@@ -3174,16 +3181,15 @@ zio_done(zio_t *zio)
 			 * Reexecution is potentially a huge amount of work.
 			 * Hand it off to the otherwise-unused claim taskq.
 			 */
-#ifdef _KERNEL
-			(void) taskq_dispatch_safe(
-			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP,
-			    &zio->io_task);
+#if defined(illumos) || !defined(_KERNEL)
+			ASSERT(zio->io_tqent.tqent_next == NULL);
 #else
-			(void) taskq_dispatch(
-			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
-			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP);
+			ASSERT(zio->io_tqent.tqent_task.ta_pending == 0);
 #endif
+			(void) taskq_dispatch_ent(
+			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
+			    (task_func_t *)zio_reexecute, zio, 0,
+			    &zio->io_tqent);
 		}
 		return (ZIO_PIPELINE_STOP);
 	}

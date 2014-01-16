@@ -825,7 +825,7 @@ static taskq_t *
 spa_taskq_create(spa_t *spa, const char *name, enum zti_modes mode,
     uint_t value)
 {
-	uint_t flags = TASKQ_PREPOPULATE;
+	uint_t flags = 0;
 	boolean_t batch = B_FALSE;
 
 	switch (mode) {
