@@ -371,5 +371,5 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *ofs)
 	size_t sz;
 
 	sz = kd->vmst->kvatop(kd, va, ofs);
-	return (sz);
+	return ((sz > INT_MAX) ? INT_MAX : sz);
 }
