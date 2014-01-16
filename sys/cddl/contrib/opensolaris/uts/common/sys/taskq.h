@@ -45,6 +45,12 @@ typedef struct taskq taskq_t;
 typedef uintptr_t taskqid_t;
 typedef void (task_func_t)(void *);
 
+typedef struct taskq_ent {
+	struct task	 tqent_task;
+	task_func_t	*tqent_func;
+	void		*tqent_arg;
+} taskq_ent_t;
+
 struct proc;
 
 /*
@@ -80,6 +86,8 @@ taskq_t	*taskq_create_proc(const char *, int, pri_t, int, int,
 taskq_t	*taskq_create_sysdc(const char *, int, int, int,
     struct proc *, uint_t, uint_t);
 taskqid_t taskq_dispatch(taskq_t *, task_func_t, void *, uint_t);
+void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
+    taskq_ent_t *);
 void	nulltask(void *);
 void	taskq_destroy(taskq_t *);
 void	taskq_wait(taskq_t *);
