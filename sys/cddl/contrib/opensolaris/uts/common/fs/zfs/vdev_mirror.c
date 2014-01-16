@@ -317,9 +317,13 @@ vdev_mirror_dva_select(zio_t *zio, int preferred)
 {
 	dva_t *dva = zio->io_bp->blk_dva;
 	mirror_map_t *mm = zio->io_vsd;
+	mirror_child_t *mc;
 	int c;
 
 	for (c = preferred - 1; c >= 0; c--) {
+		mc = &mm->mm_child[c];
+		if (mc->mc_tried || mc->mc_skipped)
+			continue;
 		if (DVA_GET_VDEV(&dva[c]) == DVA_GET_VDEV(&dva[preferred]))
 			preferred = c;
 	}
