@@ -572,6 +572,8 @@ mappedread_sf(vnode_t *vp, int nbytes, uio_t *uio)
 				vm_page_activate(pp);
 			}
 			vm_page_unlock(pp);
+		} else {
+			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 		}
 		if (error)
 			break;
