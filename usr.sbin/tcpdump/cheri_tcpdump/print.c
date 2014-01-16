@@ -415,6 +415,9 @@ poll_ctdc_config(void)
 {
 	int reinit;
 
+	if (ctdc->ctdc_die)
+		exit(1);
+
 	while (ctdc->ctdc_pause) {
 		sleep(1);
 	}
