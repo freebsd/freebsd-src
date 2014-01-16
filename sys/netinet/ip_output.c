@@ -202,6 +202,13 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
+	/*
+	 * dst/gw handling:
+	 *
+	 * dst can be rewritten but always point to &ro->ro_dst
+	 * gw is readonly but can be pointed either to dst OR rt_gatewy
+	 * therefore we need restore GW if we're re-doing lookup
+	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
@@ -221,6 +228,7 @@ again:
 		RO_RTFREE(ro);
 		ro->ro_lle = NULL;
 		rte = NULL;
+		gw = dst;
 	}
 	if (rte == NULL && fwd_tag == NULL) {
 		bzero(dst, sizeof(*dst));
