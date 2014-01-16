@@ -186,6 +186,7 @@ static const ztest_shared_opts_t ztest_opts_defaults = {
 
 extern uint64_t metaslab_gang_bang;
 extern uint64_t metaslab_df_alloc_threshold;
+extern uint64_t zfs_deadman_synctime;
 
 static ztest_shared_opts_t *ztest_shared_opts;
 static ztest_shared_opts_t ztest_opts;
@@ -365,7 +366,7 @@ ztest_info_t ztest_info[] = {
 	{ ztest_fault_inject,			1,	&zopt_sometimes	},
 	{ ztest_ddt_repair,			1,	&zopt_sometimes	},
 	{ ztest_dmu_snapshot_hold,		1,	&zopt_sometimes	},
-	{ ztest_reguid,				1,	&zopt_sometimes },
+	{ ztest_reguid,				1,	&zopt_rarely	},
 	{ ztest_spa_rename,			1,	&zopt_rarely	},
 	{ ztest_scrub,				1,	&zopt_rarely	},
 	{ ztest_spa_upgrade,			1,	&zopt_rarely	},
@@ -4756,6 +4757,14 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	ASSERT(leaves >= 1);
 
 	/*
+	 * Grab the name lock as reader. There are some operations
+	 * which don't like to have their vdevs changed while
+	 * they are in progress (i.e. spa_change_guid). Those
+	 * operations will have grabbed the name lock as writer.
+	 */
+	(void) rw_rdlock(&ztest_name_lock);
+
+	/*
 	 * We need SCL_STATE here because we're going to look at vd0->vdev_tsd.
 	 */
 	spa_config_enter(spa, SCL_STATE, FTAG, RW_READER);
@@ -4784,7 +4793,14 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 		if (vd0 != NULL && vd0->vdev_top->vdev_islog)
 			islog = B_TRUE;
 
-		if (vd0 != NULL && maxfaults != 1) {
+		/*
+		 * If the top-level vdev needs to be resilvered
+		 * then we only allow faults on the device that is
+		 * resilvering.
+		 */
+		if (vd0 != NULL && maxfaults != 1 &&
+		    (!vdev_resilver_needed(vd0->vdev_top, NULL, NULL) ||
+		    vd0->vdev_resilvering)) {
 			/*
 			 * Make vd0 explicitly claim to be unreadable,
 			 * or unwriteable, or reach behind its back
@@ -4815,6 +4831,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 
 		if (sav->sav_count == 0) {
 			spa_config_exit(spa, SCL_STATE, FTAG);
+			(void) rw_unlock(&ztest_name_lock);
 			return;
 		}
 		vd0 = sav->sav_vdevs[ztest_random(sav->sav_count)];
@@ -4828,6 +4845,7 @@ ztest_fault_inject(ztest_ds_t *zd, uint64_t id)
 	}
 
 	spa_config_exit(spa, SCL_STATE, FTAG);
+	(void) rw_unlock(&ztest_name_lock);
 
 	/*
 	 * If we can tolerate two or more faults, or we're dealing
@@ -5293,16 +5311,33 @@ static void *
 ztest_deadman_thread(void *arg)
 {
 	ztest_shared_t *zs = arg;
-	int grace = 300;
-	hrtime_t delta;
+	spa_t *spa = ztest_spa;
+	hrtime_t delta, total = 0;
 
-	delta = (zs->zs_thread_stop - zs->zs_thread_start) / NANOSEC + grace;
+	for (;;) {
+		delta = (zs->zs_thread_stop - zs->zs_thread_start) /
+		    NANOSEC + zfs_deadman_synctime;
 
-	(void) poll(NULL, 0, (int)(1000 * delta));
+		(void) poll(NULL, 0, (int)(1000 * delta));
 
-	fatal(0, "failed to complete within %d seconds of deadline", grace);
+		/*
+		 * If the pool is suspended then fail immediately. Otherwise,
+		 * check to see if the pool is making any progress. If
+		 * vdev_deadman() discovers that there hasn't been any recent
+		 * I/Os then it will end up aborting the tests.
+		 */
+		if (spa_suspended(spa)) {
+			fatal(0, "aborting test after %llu seconds because "
+			    "pool has transitioned to a suspended state.",
+			    zfs_deadman_synctime);
+			return (NULL);
+		}
+		vdev_deadman(spa->spa_root_vdev);
 
-	return (NULL);
+		total += zfs_deadman_synctime;
+		(void) printf("ztest has been running for %lld seconds\n",
+		    total);
+	}
 }
 
 static void
@@ -6031,6 +6066,7 @@ main(int argc, char **argv)
 	(void) setvbuf(stdout, NULL, _IOLBF, 0);
 
 	dprintf_setup(&argc, argv);
+	zfs_deadman_synctime = 300;
 
 	ztest_fd_rand = open("/dev/urandom", O_RDONLY);
 	ASSERT3S(ztest_fd_rand, >=, 0);
