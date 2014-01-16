@@ -5737,30 +5737,6 @@ zfs_freebsd_getpages(ap)
 }
 
 static int
-zfs_freebsd_bmap(ap)
-	struct vop_bmap_args /* {
-		struct vnode *a_vp;
-		daddr_t  a_bn;
-		struct bufobj **a_bop;
-		daddr_t *a_bnp;
-		int *a_runp;
-		int *a_runb;
-	} */ *ap;
-{
-
-	if (ap->a_bop != NULL)
-		*ap->a_bop = &ap->a_vp->v_bufobj;
-	if (ap->a_bnp != NULL)
-		*ap->a_bnp = ap->a_bn;
-	if (ap->a_runp != NULL)
-		*ap->a_runp = 0;
-	if (ap->a_runb != NULL)
-		*ap->a_runb = 0;
-
-	return (0);
-}
-
-static int
 zfs_freebsd_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -6810,7 +6786,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_remove =		zfs_freebsd_remove,
 	.vop_rename =		zfs_freebsd_rename,
 	.vop_pathconf =		zfs_freebsd_pathconf,
-	.vop_bmap =		zfs_freebsd_bmap,
+	.vop_bmap =		VOP_EOPNOTSUPP,
 	.vop_fid =		zfs_freebsd_fid,
 	.vop_getextattr =	zfs_getextattr,
 	.vop_deleteextattr =	zfs_deleteextattr,
