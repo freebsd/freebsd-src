@@ -1158,7 +1158,7 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 		QL_DPRINT8((ha->pci_dev, "%s: EFBIG [%d]\n", __func__,
 			m_head->m_pkthdr.len));
 
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(m_head, M_NOWAIT);
 		if (m == NULL) {
 			ha->err_tx_defrag++;
 			m_freem(m_head);
@@ -1413,7 +1413,7 @@ qls_get_mbuf(qla_host_t *ha, qla_rx_buf_t *rxb, struct mbuf *nmp)
 
 	if (mp == NULL) {
 
-		mp = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, ha->msize);
+		mp = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, ha->msize);
 
 		if (mp == NULL) {
 
