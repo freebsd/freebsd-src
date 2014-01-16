@@ -275,7 +275,7 @@ uint64_t zfs_deadman_synctime = 1000ULL;
 TUNABLE_QUAD("vfs.zfs.deadman_synctime", &zfs_deadman_synctime);
 SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, deadman_synctime, CTLFLAG_RDTUN,
     &zfs_deadman_synctime, 0,
-    "Stalled ZFS I/O expiration time in units of vfs.zfs.txg_synctime_ms");
+    "Stalled ZFS I/O expiration time in units of vfs.zfs.txg.synctime_ms");
 
 /*
  * Default value of -1 for zfs_deadman_enabled is resolved in
