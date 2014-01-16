@@ -574,6 +574,7 @@ again:
 				pp->valid = VM_PAGE_BITS_ALL;
 				vm_page_activate(pp);
 			}
+			vm_page_unlock_queues();
 		} else {
 			ASSERT3U(pp->valid, ==, VM_PAGE_BITS_ALL);
 		}
