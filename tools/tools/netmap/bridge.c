@@ -96,16 +96,16 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 
 /* move packts from src to destination */
 static int
-move(struct my_ring *src, struct my_ring *dst, u_int limit)
+move(struct nm_desc_t *src, struct nm_desc_t *dst, u_int limit)
 {
 	struct netmap_ring *txring, *rxring;
-	u_int m = 0, si = src->begin, di = dst->begin;
-	const char *msg = (src->queueid & NETMAP_SW_RING) ?
+	u_int m = 0, si = src->first_rx_ring, di = dst->first_tx_ring;
+	const char *msg = (src->req.nr_ringid & NETMAP_SW_RING) ?
 		"host->net" : "net->host";
 
-	while (si < src->end && di < dst->end) {
-		rxring = NETMAP_RXRING(src->nifp, si);
-		txring = NETMAP_TXRING(dst->nifp, di);
+	while (si <= src->last_rx_ring && di <= dst->last_tx_ring) {
+		rxring = src->tx + si;
+		txring = dst->tx + di;
 		ND("txring %p rxring %p", txring, rxring);
 		if (nm_ring_empty(rxring)) {
 			si++;
@@ -121,28 +121,6 @@ move(struct my_ring *src, struct my_ring *dst, u_int limit)
 	return (m);
 }
 
-/*
- * how many packets on this set of queues ?
- */
-static int
-pkt_queued(struct my_ring *me, int tx)
-{
-	u_int i, tot = 0;
-
-	ND("me %p begin %d end %d", me, me->begin, me->end);
-	for (i = me->begin; i < me->end; i++) {
-		struct netmap_ring *ring = tx ?
-			NETMAP_TXRING(me->nifp, i) : NETMAP_RXRING(me->nifp, i);
-		tot += nm_ring_space(ring);
-	}
-	if (0 && verbose && tot && !tx)
-		D("ring %s %s %s has %d avail at %d",
-			me->ifname, tx ? "tx": "rx",
-			me->end >= me->nifp->ni_tx_rings ? // XXX who comes first ?
-				"host":"net",
-			tot, NETMAP_TXRING(me->nifp, me->begin)->cur);
-	return tot;
-}
 
 static void
 usage(void)
@@ -165,13 +143,11 @@ main(int argc, char **argv)
 	struct pollfd pollfd[2];
 	int i, ch;
 	u_int burst = 1024, wait_link = 4;
-	struct my_ring me[2];
+	struct nm_desc_t *pa = NULL, *pb = NULL;
 	char *ifa = NULL, *ifb = NULL;
 
 	fprintf(stderr, "%s %s built %s %s\n",
 		argv[0], version, __DATE__, __TIME__);
-
-	bzero(me, sizeof(me));
 
 	while ( (ch = getopt(argc, argv, "b:i:vw:")) != -1) {
 		switch (ch) {
@@ -224,9 +200,6 @@ main(int argc, char **argv)
 		D("invalid wait_link %d, set to 4", wait_link);
 		wait_link = 4;
 	}
-	/* setup netmap interface #1. */
-	me[0].ifname = ifa;
-	me[1].ifname = ifb;
 	if (!strcmp(ifa, ifb)) {
 		D("same interface, endpoint 0 goes to host");
 		i = NETMAP_SW_RING;
@@ -234,24 +207,26 @@ main(int argc, char **argv)
 		/* two different interfaces. Take all rings on if1 */
 		i = 0;	// all hw rings
 	}
-	if (netmap_open(me, i, 1))
+	pa = netmap_open(ifa, i, 1);
+	if (pa == NULL)
 		return (1);
-	me[1].mem = me[0].mem; /* copy the pointer, so only one mmap */
-	if (netmap_open(me+1, 0, 1))
+	// XXX use a single mmap ?
+	pb = netmap_open(ifb, 0, 1);
+	if (pb == NULL) {
+		nm_close(pa);
 		return (1);
+	}
 
 	/* setup poll(2) variables. */
 	memset(pollfd, 0, sizeof(pollfd));
-	for (i = 0; i < 2; i++) {
-		pollfd[i].fd = me[i].fd;
-		pollfd[i].events = (POLLIN);
-	}
+	pollfd[0].fd = pa->fd;
+	pollfd[1].fd = pb->fd;
 
 	D("Wait %d secs for link to come up...", wait_link);
 	sleep(wait_link);
 	D("Ready to go, %s 0x%x/%d <-> %s 0x%x/%d.",
-		me[0].ifname, me[0].queueid, me[0].nifp->ni_rx_rings,
-		me[1].ifname, me[1].queueid, me[1].nifp->ni_rx_rings);
+		pa->req.nr_name, pa->first_rx_ring, pa->req.nr_rx_rings,
+		pb->req.nr_name, pb->first_rx_ring, pb->req.nr_rx_rings);
 
 	/* main loop */
 	signal(SIGINT, sigint_h);
@@ -259,8 +234,8 @@ main(int argc, char **argv)
 		int n0, n1, ret;
 		pollfd[0].events = pollfd[1].events = 0;
 		pollfd[0].revents = pollfd[1].revents = 0;
-		n0 = pkt_queued(me, 0);
-		n1 = pkt_queued(me + 1, 0);
+		n0 = pkt_queued(pa, 0);
+		n1 = pkt_queued(pb, 0);
 		if (n0)
 			pollfd[1].events |= POLLOUT;
 		else
@@ -276,39 +251,39 @@ main(int argc, char **argv)
 				ret <= 0 ? "timeout" : "ok",
 				pollfd[0].events,
 				pollfd[0].revents,
-				pkt_queued(me, 0),
-				me[0].rx->cur,
-				pkt_queued(me, 1),
+				pkt_queued(pa, 0),
+				pa->rx->cur,
+				pkt_queued(pa, 1),
 				pollfd[1].events,
 				pollfd[1].revents,
-				pkt_queued(me+1, 0),
-				me[1].rx->cur,
-				pkt_queued(me+1, 1)
+				pkt_queued(pb, 0),
+				pb->rx->cur,
+				pkt_queued(pb, 1)
 			);
 		if (ret < 0)
 			continue;
 		if (pollfd[0].revents & POLLERR) {
 			D("error on fd0, rx [%d,%d)",
-				me[0].rx->cur, me[0].rx->tail);
+				pa->rx->cur, pa->rx->tail);
 		}
 		if (pollfd[1].revents & POLLERR) {
 			D("error on fd1, rx [%d,%d)",
-				me[1].rx->cur, me[1].rx->tail);
+				pb->rx->cur, pb->rx->tail);
 		}
 		if (pollfd[0].revents & POLLOUT) {
-			move(me + 1, me, burst);
+			move(pb, pa, burst);
 			// XXX we don't need the ioctl */
 			// ioctl(me[0].fd, NIOCTXSYNC, NULL);
 		}
 		if (pollfd[1].revents & POLLOUT) {
-			move(me, me + 1, burst);
+			move(pa, pb, burst);
 			// XXX we don't need the ioctl */
 			// ioctl(me[1].fd, NIOCTXSYNC, NULL);
 		}
 	}
 	D("exiting");
-	netmap_close(me + 1);
-	netmap_close(me + 0);
+	nm_close(pb);
+	nm_close(pa);
 
 	return (0);
 }
