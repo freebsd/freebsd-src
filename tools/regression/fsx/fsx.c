@@ -126,6 +126,7 @@ int	randomoplen = 1;		/* -O flag disables it */
 int	seed = 1;			/* -S flag */
 int     mapped_writes = 1;	      /* -W flag disables */
 int 	mapped_reads = 1;		/* -R flag disables it */
+int     mapped_msync = 1;	      /* -U flag disables */
 int	fsxgoodfd = 0;
 FILE *	fsxlogf = NULL;
 int badoff = -1;
@@ -679,12 +680,12 @@ domapwrite(unsigned offset, unsigned size)
 
 	if ((p = (char *)mmap(0, map_size, PROT_READ | PROT_WRITE,
 			      MAP_FILE | MAP_SHARED, fd,
-			      (off_t)(offset - pg_offset))) == (char *)-1) {
+			      (off_t)(offset - pg_offset))) == MAP_FAILED) {
 		prterr("domapwrite: mmap");
 		report_failure(202);
 	}
 	memcpy(p + pg_offset, good_buf + offset, size);
-	if (msync(p, map_size, 0) != 0) {
+	if (mapped_msync && msync(p, map_size, MS_SYNC) != 0) {
 		prterr("domapwrite: msync");
 		report_failure(203);
 	}
@@ -886,6 +887,7 @@ usage(void)
 	-S seed: for random # generator (default 1) 0 gets timestamp\n\
 	-W: mapped write operations DISabled\n\
 	-R: mapped read operations DISabled)\n\
+	-U: msync after mapped write operations DISabled\n\
 	fname: this filename is REQUIRED (no default)\n");
 	exit(90);
 }
@@ -941,8 +943,8 @@ main(int argc, char **argv)
 
 	setvbuf(stdout, (char *)0, _IOLBF, 0); /* line buffered stdout */
 
-	while ((ch = getopt(argc, argv, "b:c:dl:m:no:p:qr:s:t:w:D:LN:OP:RS:W"))
-	       != -1)
+	while ((ch = getopt(argc, argv,
+	    "b:c:dl:m:no:p:qr:s:t:w:D:LN:OP:RS:UW")) != -1)
 		switch (ch) {
 		case 'b':
 			simulatedopcount = getnum(optarg, &endp);
@@ -1056,6 +1058,11 @@ main(int argc, char **argv)
 			mapped_writes = 0;
 			if (!quiet)
 				fprintf(stdout, "mapped writes DISABLED\n");
+			break;
+		case 'U':
+			mapped_msync = 0;
+			if (!quiet)
+				fprintf(stdout, "mapped msync DISABLED\n");
 			break;
 
 		default:
