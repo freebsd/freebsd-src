@@ -271,7 +271,7 @@ die_off(dwarf_t *dw, Dwarf_Die die)
 		return (off);
 
 	terminate("failed to get offset for die: %s\n",
-	    dwarf_errmsg(&dw->dw_err));
+	    dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (0);
 }
@@ -289,7 +289,7 @@ die_sibling(dwarf_t *dw, Dwarf_Die die)
 		return (NULL);
 
 	terminate("die %llu: failed to find type sibling: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
 }
@@ -306,7 +306,7 @@ die_child(dwarf_t *dw, Dwarf_Die die)
 		return (NULL);
 
 	terminate("die %llu: failed to find type child: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
 }
@@ -320,7 +320,7 @@ die_tag(dwarf_t *dw, Dwarf_Die die)
 		return (tag);
 
 	terminate("die %llu: failed to get tag for type: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (0);
 }
@@ -343,7 +343,7 @@ die_attr(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, int req)
 	}
 
 	terminate("die %llu: failed to get attribute for type: %s\n",
-	    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	/*NOTREACHED*/
 	return (NULL);
 }
@@ -353,10 +353,10 @@ die_signed(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Signed *valp,
     int req)
 {
 	*valp = 0;
-	if (dwarf_attrval_signed(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
+	if (dwarf_attrval_signed(die, name, valp, &dw->dw_err) != DW_DLV_OK) {
 		if (req) 
 			terminate("die %llu: failed to get signed: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+			    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 		return (0);
 	}
 
@@ -368,10 +368,10 @@ die_unsigned(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Unsigned *valp,
     int req)
 {
 	*valp = 0;
-	if (dwarf_attrval_unsigned(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
+	if (dwarf_attrval_unsigned(die, name, valp, &dw->dw_err) != DW_DLV_OK) {
 		if (req) 
 			terminate("die %llu: failed to get unsigned: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+			    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 		return (0);
 	}
 
@@ -383,10 +383,10 @@ die_bool(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, Dwarf_Bool *valp, int req)
 {
 	*valp = 0;
 
-	if (dwarf_attrval_flag(die, name, valp, &dw->dw_err) != DWARF_E_NONE) {
+	if (dwarf_attrval_flag(die, name, valp, &dw->dw_err) != DW_DLV_OK) {
 		if (req) 
 			terminate("die %llu: failed to get flag: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+			    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 		return (0);
 	}
 
@@ -398,11 +398,11 @@ die_string(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name, char **strp, int req)
 {
 	const char *str = NULL;
 
-	if (dwarf_attrval_string(die, name, &str, &dw->dw_err) != DWARF_E_NONE ||
+	if (dwarf_attrval_string(die, name, &str, &dw->dw_err) != DW_DLV_OK ||
 	    str == NULL) {
 		if (req) 
 			terminate("die %llu: failed to get string: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+			    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 		else
 			*strp = NULL;
 		return (0);
@@ -417,9 +417,9 @@ die_attr_ref(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name)
 {
 	Dwarf_Off off;
 
-	if (dwarf_attrval_unsigned(die, name, &off, &dw->dw_err) != DWARF_E_NONE) {
+	if (dwarf_attrval_unsigned(die, name, &off, &dw->dw_err) != DW_DLV_OK) {
 		terminate("die %llu: failed to get ref: %s\n",
-		    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+		    die_off(dw, die), dwarf_errmsg(dw->dw_err));
 	}
 
 	return (off);
@@ -489,8 +489,12 @@ die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
 {
 	Dwarf_Locdesc *loc = NULL;
 	Dwarf_Signed locnum = 0;
+	Dwarf_Attribute at;
 
-	if (dwarf_locdesc(die, name, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
+	if ((at = die_attr(dw, die, name, 0)) == NULL)
+		return (0);
+
+	if (dwarf_loclist(at, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
 		return (0);
 
 	if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
@@ -500,10 +504,10 @@ die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
 
 	*valp = loc->ld_s->lr_number;
 
-	if (loc != NULL)
-		if (dwarf_locdesc_free(loc, &dw->dw_err) != DW_DLV_OK)
-			terminate("die %llu: cannot free location descriptor: %s\n",
-			    die_off(dw, die), dwarf_errmsg(&dw->dw_err));
+	if (loc != NULL) {
+		dwarf_dealloc(dw->dw_dw, loc->ld_s, DW_DLA_LOC_BLOCK);
+		dwarf_dealloc(dw->dw_dw, loc, DW_DLA_LOCDESC);
+	}
 
 	return (1);
 }
@@ -1852,7 +1856,7 @@ int
 dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 {
 	Dwarf_Unsigned abboff, hdrlen, nxthdr;
-	Dwarf_Half vers, addrsz;
+	Dwarf_Half vers, addrsz, offsz;
 	Dwarf_Die cu = 0;
 	Dwarf_Die child = 0;
 	dwarf_t dw;
@@ -1869,7 +1873,7 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	dw.dw_enumhash = hash_new(TDESC_HASH_BUCKETS, tdesc_namehash,
 	    tdesc_namecmp);
 
-	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, &dw.dw_dw,
+	if ((rc = dwarf_elf_init(elf, DW_DLC_READ, NULL, NULL, &dw.dw_dw,
 	    &dw.dw_err)) == DW_DLV_NO_ENTRY) {
 		if (should_have_dwarf(elf)) {
 			errno = ENOENT;
@@ -1878,7 +1882,7 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 			return (0);
 		}
 	} else if (rc != DW_DLV_OK) {
-		if (dwarf_errno(&dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
+		if (dwarf_errno(dw.dw_err) == DW_DLE_DEBUG_INFO_NULL) {
 			/*
 			 * There's no type data in the DWARF section, but
 			 * libdwarf is too clever to handle that properly.
@@ -1887,12 +1891,12 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		}
 
 		terminate("failed to initialize DWARF: %s\n",
-		    dwarf_errmsg(&dw.dw_err));
+		    dwarf_errmsg(dw.dw_err));
 	}
 
-	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
-		terminate("rc = %d %s\n", rc, dwarf_errmsg(&dw.dw_err));
+	if ((rc = dwarf_next_cu_header_b(dw.dw_dw, &hdrlen, &vers, &abboff,
+	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_OK)
+		terminate("rc = %d %s\n", rc, dwarf_errmsg(dw.dw_err));
 
 	if ((cu = die_sibling(&dw, NULL)) == NULL ||
 	    (((child = die_child(&dw, cu)) == NULL) &&
@@ -1930,11 +1934,11 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 	if ((child = die_child(&dw, cu)) != NULL)
 		die_create(&dw, child);
 
-	if ((rc = dwarf_next_cu_header(dw.dw_dw, &hdrlen, &vers, &abboff,
-	    &addrsz, &nxthdr, &dw.dw_err)) != DW_DLV_NO_ENTRY)
+	if ((rc = dwarf_next_cu_header_b(dw.dw_dw, &hdrlen, &vers, &abboff,
+	    &addrsz, &offsz, NULL, &nxthdr, &dw.dw_err)) != DW_DLV_NO_ENTRY)
 		terminate("multiple compilation units not supported\n");
 
-	(void) dwarf_finish(&dw.dw_dw, &dw.dw_err);
+	(void) dwarf_finish(dw.dw_dw, &dw.dw_err);
 
 	die_resolve(&dw);
 
