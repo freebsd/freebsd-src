@@ -6774,14 +6774,16 @@ vop_deleteextattr {
 	    UIO_SYSSPACE, attrname, xvp, td);
 	error = namei(&nd);
 	vp = nd.ni_vp;
-	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (error != 0) {
 		ZFS_EXIT(zfsvfs);
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (error == ENOENT)
 			error = ENOATTR;
 		return (error);
 	}
+
 	error = VOP_REMOVE(nd.ni_dvp, vp, &nd.ni_cnd);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	vput(nd.ni_dvp);
 	if (vp == nd.ni_dvp)
