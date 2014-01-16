@@ -33,6 +33,7 @@
 #include <sys/sysmacros.h>
 #include <sys/resource.h>
 #include <sys/vfs.h>
+#include <sys/vm.h>
 #include <sys/vnode.h>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -69,7 +70,6 @@
 #include <sys/kidmap.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
 #include <vm/vm_pageout.h>
@@ -443,21 +443,6 @@ page_unhold(vm_page_t pp)
 	vm_page_unlock(pp);
 }
 
-static caddr_t
-zfs_map_page(vm_page_t pp, struct sf_buf **sfp)
-{
-
-	*sfp = sf_buf_alloc(pp, 0);
-	return ((caddr_t)sf_buf_kva(*sfp));
-}
-
-static void
-zfs_unmap_page(struct sf_buf *sf)
-{
-
-	sf_buf_free(sf);
-}
-
 /*
  * When a file is memory mapped, we must keep the IO data synchronized
  * between the DMU cache and the memory mapped pages.  What this means:
@@ -474,6 +459,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 	caddr_t va;
 	int off;
 
+	ASSERT(segflg != UIO_NOCOPY);
 	ASSERT(vp->v_mount != NULL);
 	obj = vp->v_object;
 	ASSERT(obj != NULL);
@@ -484,27 +470,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 		vm_page_t pp;
 		int nbytes = imin(PAGESIZE - off, len);
 
-		if (segflg == UIO_NOCOPY) {
-			pp = vm_page_lookup(obj, OFF_TO_IDX(start));
-			KASSERT(pp != NULL,
-			    ("zfs update_pages: NULL page in putpages case"));
-			KASSERT(off == 0,
-			    ("zfs update_pages: unaligned data in putpages case"));
-			KASSERT(pp->valid == VM_PAGE_BITS_ALL,
-			    ("zfs update_pages: invalid page in putpages case"));
-			KASSERT(pp->busy > 0,
-			    ("zfs update_pages: unbusy page in putpages case"));
-			KASSERT(!pmap_page_is_write_mapped(pp),
-			    ("zfs update_pages: writable page in putpages case"));
-			VM_OBJECT_UNLOCK(obj);
-
-			va = zfs_map_page(pp, &sf);
-			(void) dmu_write(os, oid, start, nbytes, va, tx);
-			zfs_unmap_page(sf);
-
-			VM_OBJECT_LOCK(obj);
-			vm_page_undirty(pp);
-		} else if ((pp = page_busy(vp, start, off, nbytes)) != NULL) {
+		if ((pp = page_busy(vp, start, off, nbytes)) != NULL) {
 			VM_OBJECT_UNLOCK(obj);
 
 			va = zfs_map_page(pp, &sf);
@@ -518,8 +484,7 @@ update_pages(vnode_t *vp, int64_t start, int len, objset_t *os, uint64_t oid,
 		len -= nbytes;
 		off = 0;
 	}
-	if (segflg != UIO_NOCOPY)
-		vm_object_pip_wakeupn(obj, 0);
+	vm_object_pip_wakeupn(obj, 0);
 	VM_OBJECT_UNLOCK(obj);
 }
 
@@ -5797,6 +5762,169 @@ zfs_freebsd_getpages(ap)
 }
 
 static int
+zfs_putpages(struct vnode *vp, vm_page_t *ma, size_t len, int flags,
+    int *rtvals)
+{
+	znode_t		*zp = VTOZ(vp);
+	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
+	rl_t		*rl;
+	dmu_tx_t	*tx;
+	struct sf_buf	*sf;
+	vm_object_t	object;
+	vm_page_t	m;
+	caddr_t		va;
+	size_t		tocopy;
+	size_t		lo_len;
+	vm_ooffset_t	lo_off;
+	vm_ooffset_t	off;
+	uint_t		blksz;
+	int		ncount;
+	int		pcount;
+	int		err;
+	int		i;
+
+	ZFS_ENTER(zfsvfs);
+	ZFS_VERIFY_ZP(zp);
+
+	object = vp->v_object;
+	pcount = btoc(len);
+	ncount = pcount;
+
+	KASSERT(ma[0]->object == object, ("mismatching object"));
+	KASSERT(len > 0 && (len & PAGE_MASK) == 0, ("unexpected length"));
+
+	for (i = 0; i < pcount; i++)
+		rtvals[i] = VM_PAGER_ERROR;
+
+	off = IDX_TO_OFF(ma[0]->pindex);
+	blksz = zp->z_blksz;
+	lo_off = rounddown(off, blksz);
+	lo_len = roundup(len + (off - lo_off), blksz);
+	rl = zfs_range_lock(zp, lo_off, lo_len, RL_WRITER);
+
+	VM_OBJECT_LOCK(object);
+	if (len + off > object->un_pager.vnp.vnp_size) {
+		if (object->un_pager.vnp.vnp_size > off) {
+			int pgoff;
+
+			len = object->un_pager.vnp.vnp_size - off;
+			ncount = btoc(len);
+			if ((pgoff = (int)len & PAGE_MASK) != 0) {
+				/*
+				 * If the object is locked and the following
+				 * conditions hold, then the page's dirty
+				 * field cannot be concurrently changed by a
+				 * pmap operation.
+				 */
+				m = ma[ncount - 1];
+				KASSERT(m->busy > 0,
+				    ("zfs_putpages: page %p is not busy", m));
+				KASSERT(!pmap_page_is_write_mapped(m),
+				    ("zfs_putpages: page %p is not read-only", m));
+				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
+				    pgoff);
+			}
+		} else {
+			len = 0;
+			ncount = 0;
+		}
+		if (ncount < pcount) {
+			for (i = ncount; i < pcount; i++) {
+				rtvals[i] = VM_PAGER_BAD;
+			}
+		}
+	}
+	VM_OBJECT_UNLOCK(object);
+
+	if (ncount == 0)
+		goto out;
+
+	if (zfs_owner_overquota(zfsvfs, zp, B_FALSE) ||
+	    zfs_owner_overquota(zfsvfs, zp, B_TRUE)) {
+		goto out;
+	}
+
+top:
+	tx = dmu_tx_create(zfsvfs->z_os);
+	dmu_tx_hold_write(tx, zp->z_id, off, len);
+
+	dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
+	zfs_sa_upgrade_txholds(tx, zp);
+	err = dmu_tx_assign(tx, TXG_NOWAIT);
+	if (err != 0) {
+		if (err == ERESTART) {
+			dmu_tx_wait(tx);
+			dmu_tx_abort(tx);
+			goto top;
+		}
+		dmu_tx_abort(tx);
+		goto out;
+	}
+
+	if (zp->z_blksz < PAGE_SIZE) {
+		i = 0;
+		for (i = 0; len > 0; off += tocopy, len -= tocopy, i++) {
+			tocopy = len > PAGE_SIZE ? PAGE_SIZE : len;
+			va = zfs_map_page(ma[i], &sf);
+			dmu_write(zfsvfs->z_os, zp->z_id, off, tocopy, va, tx);
+			zfs_unmap_page(sf);
+		}
+	} else {
+		err = dmu_write_pages(zfsvfs->z_os, zp->z_id, off, len, ma, tx);
+	}
+
+	if (err == 0) {
+		uint64_t mtime[2], ctime[2];
+		sa_bulk_attr_t bulk[3];
+		int count = 0;
+
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL,
+		    &mtime, 16);
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL,
+		    &ctime, 16);
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs), NULL,
+		    &zp->z_pflags, 8);
+		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime,
+		    B_TRUE);
+		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off, len, 0);
+
+		VM_OBJECT_LOCK(object);
+		for (i = 0; i < ncount; i++) {
+			rtvals[i] = VM_PAGER_OK;
+			vm_page_undirty(ma[i]);
+		}
+		VM_OBJECT_UNLOCK(object);
+		PCPU_INC(cnt.v_vnodeout);
+		PCPU_ADD(cnt.v_vnodepgsout, ncount);
+	}
+	dmu_tx_commit(tx);
+
+out:
+	zfs_range_unlock(rl);
+	if ((flags & (VM_PAGER_PUT_SYNC | VM_PAGER_PUT_INVAL)) != 0 ||
+	    zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+		zil_commit(zfsvfs->z_log, zp->z_id);
+	ZFS_EXIT(zfsvfs);
+	return (rtvals[0]);
+}
+
+int
+zfs_freebsd_putpages(ap)
+	struct vop_putpages_args /* {
+		struct vnode *a_vp;
+		vm_page_t *a_m;
+		int a_count;
+		int a_sync;
+		int *a_rtvals;
+		vm_ooffset_t a_offset;
+	} */ *ap;
+{
+
+	return (zfs_putpages(ap->a_vp, ap->a_m, ap->a_count, ap->a_sync,
+	    ap->a_rtvals));
+}
+
+static int
 zfs_freebsd_bmap(ap)
 	struct vop_bmap_args /* {
 		struct vnode *a_vp;
@@ -6885,6 +7013,7 @@ struct vop_vector zfs_vnodeops = {
 	.vop_setacl =		zfs_freebsd_setacl,
 	.vop_aclcheck =		zfs_freebsd_aclcheck,
 	.vop_getpages =		zfs_freebsd_getpages,
+	.vop_putpages =		zfs_freebsd_putpages,
 };
 
 struct vop_vector zfs_fifoops = {
