@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2013 iXsystems, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,6 +37,8 @@
 
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/kernel.h>
+#include <sys/time.h>
 
 typedef struct cv	kcondvar_t;
 
@@ -56,6 +59,18 @@ typedef enum {
 	cv_init((cv), _name);						\
 } while (0)
 #define	cv_init(cv, name, type, arg)	zfs_cv_init((cv), (name), (type), (arg))
+
+static clock_t
+cv_timedwait_hires(kcondvar_t *cvp, kmutex_t *mp, hrtime_t tim, hrtime_t res,
+    int flag)
+{
+	/* XXX real hires is not available. */
+
+	/* We do not attempt to support any flags yet. */
+	ASSERT(flag == 0);
+
+	return (cv_timedwait(cvp, mp, NSEC_TO_TICK(tim)));
+}
 
 #endif	/* _KERNEL */
 
