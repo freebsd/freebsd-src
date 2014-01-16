@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "port_before.h"
-#ifndef USE_KQUEUE
+#if !defined(USE_KQUEUE) && !defined(USE_POLL)
 #include "fd_setsize.h"
 #endif
 
@@ -963,7 +963,7 @@ send_dg(res_state statp,
 		timeout.tv_nsec/1000000;
 	pollfd.fd = s;
 	pollfd.events = POLLRDNORM;
-	n = poll(&pollfd, 1, polltimeout);
+	n = _poll(&pollfd, 1, polltimeout);
 #endif /* USE_POLL */
 
 	if (n == 0) {

@@ -26,13 +26,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2009
+.Dd January 12, 2014
 .Dt SGLIST 9
 .Os
 .Sh NAME
 .Nm sglist ,
 .Nm sglist_alloc ,
 .Nm sglist_append ,
+.Nm sglist_append_bio ,
 .Nm sglist_append_mbuf ,
 .Nm sglist_append_phys ,
 .Nm sglist_append_uio ,
@@ -57,6 +58,8 @@
 .Fn sglist_alloc "int nsegs" "int mflags"
 .Ft int
 .Fn sglist_append "struct sglist *sg" "void *buf" "size_t len"
+.Ft int
+.Fn sglist_append_bio "struct sglist *sg" "struct bio *bp"
 .Ft int
 .Fn sglist_append_mbuf "struct sglist *sg" "struct mbuf *m"
 .Ft int
@@ -204,6 +207,13 @@ The kernel virtual address range starts at
 and is
 .Fa len
 bytes long.
+.Pp
+The
+.Nm sglist_append_bio
+function appends the physical address ranges described by a single bio
+.Fa bp
+to the scatter/gather list
+.Fa sg .
 .Pp
 The
 .Nm sglist_append_mbuf
@@ -499,6 +509,7 @@ list in
 to describe the requested physical address ranges.
 .El
 .Sh SEE ALSO
+.Xr g_bio 9 ,
 .Xr malloc 9 ,
 .Xr mbuf 9 ,
 .Xr uio 9

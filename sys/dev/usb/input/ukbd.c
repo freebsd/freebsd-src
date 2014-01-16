@@ -197,6 +197,7 @@ struct ukbd_softc {
 #define	UKBD_FLAG_NUMLOCK	0x00080000
 #define	UKBD_FLAG_CAPSLOCK	0x00100000
 #define	UKBD_FLAG_SCROLLLOCK 	0x00200000
+#define	UKBD_FLAG_VALID_KEYS	0x00400000
 
 	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int	sc_state;		/* shift/lock key state */
@@ -512,6 +513,41 @@ ukbd_interrupt(struct ukbd_softc *sc)
 
 	n_mod = sc->sc_ndata.modifiers;
 	o_mod = sc->sc_odata.modifiers;
+
+	/*
+	 * Don't output any modifier keys before we see a valid
+	 * non-modifier key press. This prevents so-called "ghost
+	 * keyboards" keeping modifier keys pressed while not actually
+	 * seen as a real keyboard.
+	 */
+	if (sc->sc_flags & UKBD_FLAG_VALID_KEYS)
+		goto kfound;
+
+	for (i = 0; i != UKBD_NKEYCODE; i++) {
+		key = sc->sc_ndata.keycode[i];
+		switch (key) {
+		case 0xe0:
+		case 0xe4:
+		case 0xe1:
+		case 0xe5:
+		case 0xe2:
+		case 0xe6:
+		case 0xe3:
+		case 0xe7:
+		case 0x00:
+		case KEY_ERROR:
+			break;
+		default:
+			sc->sc_flags |= UKBD_FLAG_VALID_KEYS;
+			goto kfound;
+		}
+	}
+	DPRINTF("Keeping modifiers buffered\n");
+
+	/* keep modifiers in buffer */
+	sc->sc_ndata.modifiers = n_mod = 0;
+
+kfound:
 	if (n_mod != o_mod) {
 		for (i = 0; i < UKBD_NMOD; i++) {
 			if ((n_mod & ukbd_mods[i].mask) !=

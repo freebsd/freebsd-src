@@ -5443,7 +5443,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
         } else if (error == EFBIG) {
             /* possibly recoverable with defragmentation */
             fp->eth_q_stats.mbuf_defrag_attempts++;
-            m0 = m_defrag(*m_head, M_DONTWAIT);
+            m0 = m_defrag(*m_head, M_NOWAIT);
             if (m0 == NULL) {
                 fp->eth_q_stats.mbuf_defrag_failures++;
                 rc = ENOBUFS;
@@ -5504,7 +5504,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
         /* lets try to defragment this mbuf */
         fp->eth_q_stats.mbuf_defrag_attempts++;
 
-        m0 = m_defrag(*m_head, M_DONTWAIT);
+        m0 = m_defrag(*m_head, M_NOWAIT);
         if (m0 == NULL) {
             fp->eth_q_stats.mbuf_defrag_failures++;
             /* Ugh, just drop the frame... :( */
@@ -6564,7 +6564,7 @@ bxe_alloc_rx_bd_mbuf(struct bxe_fastpath *fp,
     rc = 0;
 
     /* allocate the new RX BD mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_bd_alloc_failed++;
         return (ENOBUFS);
@@ -6645,7 +6645,7 @@ bxe_alloc_rx_tpa_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate the new TPA mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_tpa_alloc_failed++;
         return (ENOBUFS);
@@ -6707,7 +6707,7 @@ bxe_alloc_rx_sge_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate a new SGE mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_sge_alloc_failed++;
         return (ENOMEM);
@@ -6769,7 +6769,7 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
 
 #if __FreeBSD_version >= 800000
         fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
-                                   M_DONTWAIT, &fp->tx_mtx);
+                                   M_NOWAIT, &fp->tx_mtx);
         if (fp->tx_br == NULL) {
             BLOGE(sc, "buf_ring alloc fail for fp[%02d]\n", i);
             goto bxe_alloc_fp_buffers_error;

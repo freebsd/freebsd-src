@@ -164,6 +164,7 @@ struct nm_desc_t {
 
 /*
  * when the descriptor is open correctly, d->self == d
+ * Eventually we should also use some magic number.
  */
 #define P2NMD(p)		((struct nm_desc_t *)(p))
 #define IS_NETMAP_DESC(d)	(P2NMD(d)->self == P2NMD(d))
@@ -181,8 +182,9 @@ struct nm_desc_t {
 static inline void
 pkt_copy(const void *_src, void *_dst, int l)
 {
-	const uint64_t *src = _src;
-	uint64_t *dst = _dst;
+	const uint64_t *src = (const uint64_t *)_src;
+	uint64_t *dst = (uint64_t *)_dst;
+
 	if (unlikely(l >= 1024)) {
 		memcpy(dst, src, l);
 		return;
@@ -317,7 +319,8 @@ nm_close(struct nm_desc_t *d)
 	 * ugly trick to avoid unused warnings
 	 */
 	static void *__xxzt[] __attribute__ ((unused))  =
-		{ nm_open, nm_inject, nm_dispatch, nm_nextpkt } ;
+		{ (void *)nm_open, (void *)nm_inject,
+		  (void *)nm_dispatch, (void *)nm_nextpkt } ;
 
 	if (d == NULL || d->self != d)
 		return EINVAL;

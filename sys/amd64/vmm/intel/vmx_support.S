@@ -234,3 +234,21 @@ ENTRY(vmx_exit_guest)
 	movl	$VMX_GUEST_VMEXIT, %eax
 	ret
 END(vmx_exit_guest)
+
+/*
+ * %rdi = interrupt handler entry point
+ *
+ * Calling sequence described in the "Instruction Set Reference" for the "INT"
+ * instruction in Intel SDM, Vol 2.
+ */
+ENTRY(vmx_call_isr)
+	mov	%rsp, %r11			/* save %rsp */
+	and	$~0xf, %rsp			/* align on 16-byte boundary */
+	pushq	$KERNEL_SS			/* %ss */
+	pushq	%r11				/* %rsp */
+	pushfq					/* %rflags */
+	pushq	$KERNEL_CS			/* %cs */
+	cli					/* disable interrupts */
+	callq	*%rdi				/* push %rip and call isr */
+	ret
+END(vmx_call_isr)

@@ -97,6 +97,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 
 /* 16-bit control fields */
 #define	VMCS_VPID			0x00000000
+#define	VMCS_PIR_VECTOR			0x00000002
 
 /* 16-bit guest-state fields */
 #define	VMCS_GUEST_ES_SELECTOR		0x00000800
@@ -129,6 +130,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_TSC_OFFSET			0x00002010
 #define	VMCS_VIRTUAL_APIC		0x00002012
 #define	VMCS_APIC_ACCESS		0x00002014
+#define	VMCS_PIR_DESC			0x00002016
 #define	VMCS_EPTP			0x0000201A
 #define	VMCS_EOI_EXIT0			0x0000201C
 #define	VMCS_EOI_EXIT1			0x0000201E
@@ -177,8 +179,8 @@ vmcs_write(uint32_t encoding, uint64_t val)
 /* 32-bit read-only data fields */
 #define	VMCS_INSTRUCTION_ERROR		0x00004400
 #define	VMCS_EXIT_REASON		0x00004402
-#define	VMCS_EXIT_INTERRUPTION_INFO	0x00004404
-#define	VMCS_EXIT_INTERRUPTION_ERROR	0x00004406
+#define	VMCS_EXIT_INTR_INFO		0x00004404
+#define	VMCS_EXIT_INTR_ERRCODE		0x00004406
 #define	VMCS_IDT_VECTORING_INFO		0x00004408
 #define	VMCS_IDT_VECTORING_ERROR	0x0000440A
 #define	VMCS_EXIT_INSTRUCTION_LENGTH	0x0000440C
@@ -331,9 +333,10 @@ vmcs_write(uint32_t encoding, uint64_t val)
 /*
  * VMCS interrupt information fields
  */
-#define	VMCS_INTERRUPTION_INFO_VALID	(1U << 31)
-#define	VMCS_INTERRUPTION_INFO_HW_INTR	(0 << 8)
-#define	VMCS_INTERRUPTION_INFO_NMI	(2 << 8)
+#define	VMCS_INTR_INFO_VALID		(1U << 31)
+#define	VMCS_INTR_INFO_TYPE(info)	(((info) >> 8) & 0x7)
+#define	VMCS_INTR_INFO_HW_INTR		(0 << 8)
+#define	VMCS_INTR_INFO_NMI		(2 << 8)
 
 /*
  * VMCS IDT-Vectoring information fields

@@ -350,9 +350,23 @@ main(int argc, char *argv[])
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
+	while ((ch = getopt(argc, argv, "46AaBbdF:f:ghI:iLlM:mN:np:Qq:rSTsuWw:xz"))
 	    != -1)
 		switch(ch) {
+		case '4':
+#ifdef INET
+			af = AF_INET;
+#else
+			errx(1, "IPv4 support is not compiled in");
+#endif
+			break;
+		case '6':
+#ifdef INET6
+			af = AF_INET6;
+#else
+			errx(1, "IPv6 support is not compiled in");
+#endif
+			break;
 		case 'A':
 			Aflag = 1;
 			break;
@@ -836,21 +850,21 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
-"usage: netstat [-AaLnSTWx] [-f protocol_family | -p protocol]\n"
+"usage: netstat [-46AaLnSTWx] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface [-abdhnW] [-f address_family]\n"
+"       netstat -i | -I interface [-46abdhnW] [-f address_family]\n"
 "               [-M core] [-N system]",
-"       netstat -w wait [-I interface] [-d] [-M core] [-N system] [-q howmany]",
-"       netstat -s [-s] [-z] [-f protocol_family | -p protocol]\n"
+"       netstat -w wait [-I interface] [-46d] [-M core] [-N system] [-q howmany]",
+"       netstat -s [-s] [-46z] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
-"       netstat -i | -I interface -s [-f protocol_family | -p protocol]\n"
+"       netstat -i | -I interface [-46s] [-f protocol_family | -p protocol]\n"
 "               [-M core] [-N system]",
 "       netstat -m [-M core] [-N system]",
 "       netstat -B [-I interface]",
-"       netstat -r [-AanW] [-f address_family] [-M core] [-N system]",
+"       netstat -r [-46AanW] [-f address_family] [-M core] [-N system]",
 "       netstat -rs [-s] [-M core] [-N system]",
-"       netstat -g [-W] [-f address_family] [-M core] [-N system]",
-"       netstat -gs [-s] [-f address_family] [-M core] [-N system]",
+"       netstat -g [-46W] [-f address_family] [-M core] [-N system]",
+"       netstat -gs [-46s] [-f address_family] [-M core] [-N system]",
 "       netstat -Q");
 	exit(1);
 }

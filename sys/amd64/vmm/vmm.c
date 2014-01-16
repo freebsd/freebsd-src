@@ -125,6 +125,12 @@ struct vm {
 	 * explicitly (AP) by sending it a startup ipi.
 	 */
 	cpuset_t	active_cpus;
+
+	struct mtx	rendezvous_mtx;
+	cpuset_t	rendezvous_req_cpus;
+	cpuset_t	rendezvous_done_cpus;
+	void		*rendezvous_arg;
+	vm_rendezvous_func_t rendezvous_func;
 };
 
 static int vmm_initialized;
@@ -135,8 +141,8 @@ static struct vmm_ops *ops;
 #define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
 
 #define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
-#define	VMRUN(vmi, vcpu, rip, pmap) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap) : ENXIO)
+#define	VMRUN(vmi, vcpu, rip, pmap, rptr) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, rptr) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
@@ -175,6 +181,8 @@ SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
 static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
+
+static void vm_deactivate_cpu(struct vm *vm, int vcpuid);
 
 static void
 vcpu_cleanup(struct vm *vm, int i)
@@ -330,6 +338,7 @@ vm_create(const char *name, struct vm **retvm)
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
 	vm->vmspace = vmspace;
+	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
@@ -896,6 +905,59 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
 		panic("Error %d setting state to %d", error, newstate);
 }
 
+static void
+vm_set_rendezvous_func(struct vm *vm, vm_rendezvous_func_t func)
+{
+
+	KASSERT(mtx_owned(&vm->rendezvous_mtx), ("rendezvous_mtx not locked"));
+
+	/*
+	 * Update 'rendezvous_func' and execute a write memory barrier to
+	 * ensure that it is visible across all host cpus. This is not needed
+	 * for correctness but it does ensure that all the vcpus will notice
+	 * that the rendezvous is requested immediately.
+	 */
+	vm->rendezvous_func = func;
+	wmb();
+}
+
+#define	RENDEZVOUS_CTR0(vm, vcpuid, fmt)				\
+	do {								\
+		if (vcpuid >= 0)					\
+			VCPU_CTR0(vm, vcpuid, fmt);			\
+		else							\
+			VM_CTR0(vm, fmt);				\
+	} while (0)
+
+static void
+vm_handle_rendezvous(struct vm *vm, int vcpuid)
+{
+
+	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < VM_MAXCPU),
+	    ("vm_handle_rendezvous: invalid vcpuid %d", vcpuid));
+
+	mtx_lock(&vm->rendezvous_mtx);
+	while (vm->rendezvous_func != NULL) {
+		if (vcpuid != -1 &&
+		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus)) {
+			VCPU_CTR0(vm, vcpuid, "Calling rendezvous func");
+			(*vm->rendezvous_func)(vm, vcpuid, vm->rendezvous_arg);
+			CPU_SET(vcpuid, &vm->rendezvous_done_cpus);
+		}
+		if (CPU_CMP(&vm->rendezvous_req_cpus,
+		    &vm->rendezvous_done_cpus) == 0) {
+			VCPU_CTR0(vm, vcpuid, "Rendezvous completed");
+			vm_set_rendezvous_func(vm, NULL);
+			wakeup(&vm->rendezvous_func);
+			break;
+		}
+		RENDEZVOUS_CTR0(vm, vcpuid, "Wait for rendezvous completion");
+		mtx_sleep(&vm->rendezvous_func, &vm->rendezvous_mtx, 0,
+		    "vmrndv", 0);
+	}
+	mtx_unlock(&vm->rendezvous_mtx);
+}
+
 /*
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
@@ -936,6 +998,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			*retu = true;
 			vmexit = vm_exitinfo(vm, vcpuid);
 			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+			vm_deactivate_cpu(vm, vcpuid);
 			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
 		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
@@ -1072,7 +1135,7 @@ restart:
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
 	vcpu->hostcpu = curcpu;
-	error = VMRUN(vm->cookie, vcpuid, rip, pmap);
+	error = VMRUN(vm->cookie, vcpuid, rip, pmap, &vm->rendezvous_func);
 	vcpu->hostcpu = NOCPU;
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
@@ -1086,6 +1149,10 @@ restart:
 	if (error == 0) {
 		retu = false;
 		switch (vme->exitcode) {
+		case VM_EXITCODE_RENDEZVOUS:
+			vm_handle_rendezvous(vm, vcpuid);
+			error = 0;
+			break;
 		case VM_EXITCODE_HLT:
 			intr_disabled = ((vme->u.hlt.rflags & PSL_I) == 0);
 			error = vm_handle_hlt(vm, vcpuid, intr_disabled, &retu);
@@ -1321,6 +1388,14 @@ vm_activate_cpu(struct vm *vm, int vcpuid)
 		CPU_SET(vcpuid, &vm->active_cpus);
 }
 
+static void
+vm_deactivate_cpu(struct vm *vm, int vcpuid)
+{
+
+	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
+		CPU_CLR(vcpuid, &vm->active_cpus);
+}
+
 cpuset_t
 vm_active_cpus(struct vm *vm)
 {
@@ -1410,4 +1485,41 @@ vm_apicid2vcpuid(struct vm *vm, int apicid)
 	 * XXX apic id is assumed to be numerically identical to vcpu id
 	 */
 	return (apicid);
+}
+
+void
+vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
+    vm_rendezvous_func_t func, void *arg)
+{
+	/*
+	 * Enforce that this function is called without any locks
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "vm_smp_rendezvous");
+	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < VM_MAXCPU),
+	    ("vm_smp_rendezvous: invalid vcpuid %d", vcpuid));
+
+restart:
+	mtx_lock(&vm->rendezvous_mtx);
+	if (vm->rendezvous_func != NULL) {
+		/*
+		 * If a rendezvous is already in progress then we need to
+		 * call the rendezvous handler in case this 'vcpuid' is one
+		 * of the targets of the rendezvous.
+		 */
+		RENDEZVOUS_CTR0(vm, vcpuid, "Rendezvous already in progress");
+		mtx_unlock(&vm->rendezvous_mtx);
+		vm_handle_rendezvous(vm, vcpuid);
+		goto restart;
+	}
+	KASSERT(vm->rendezvous_func == NULL, ("vm_smp_rendezvous: previous "
+	    "rendezvous is still in progress"));
+
+	RENDEZVOUS_CTR0(vm, vcpuid, "Initiating rendezvous");
+	vm->rendezvous_req_cpus = dest;
+	CPU_ZERO(&vm->rendezvous_done_cpus);
+	vm->rendezvous_arg = arg;
+	vm_set_rendezvous_func(vm, func);
+	mtx_unlock(&vm->rendezvous_mtx);
+
+	vm_handle_rendezvous(vm, vcpuid);
 }

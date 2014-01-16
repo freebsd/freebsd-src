@@ -35,49 +35,22 @@
 
 #define _GNU_SOURCE	/* for CPU_SET() */
 
-#include <errno.h>
-#include <signal.h>	/* signal */
-#include <stdlib.h>
-#include <stdio.h>
+#include <stdio.h>	/* fprintf */
+#include <sys/poll.h>	/* POLLIN */
 #include <inttypes.h>	/* PRI* macros */
-#include <string.h>	/* strcmp */
-#include <fcntl.h>	/* open */
-#include <unistd.h>	/* close */
-#include <ifaddrs.h>	/* getifaddrs */
+#include <sys/types.h>	/* u_char */
 
-#include <sys/mman.h>	/* PROT_* */
-#include <sys/ioctl.h>	/* ioctl */
-#include <sys/poll.h>
-#include <sys/socket.h>	/* sockaddr.. */
 #include <arpa/inet.h>	/* ntohs */
-#include <sys/param.h>
 #include <sys/sysctl.h>	/* sysctl */
-#include <sys/time.h>	/* timersub */
+#include <ifaddrs.h>	/* getifaddrs */
+#include <net/ethernet.h>	/* ETHERTYPE_IP */
+#include <netinet/in.h>	/* IPPROTO_* */
+#include <netinet/ip.h>	/* struct ip */
+#include <netinet/udp.h>	/* struct udp */
 
-#include <net/ethernet.h>
-#include <net/if.h>	/* ifreq */
 
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/udp.h>
-
-#include <net/netmap.h>
+#define NETMAP_WITH_LIBS
 #include <net/netmap_user.h>
-
-#ifndef MY_PCAP		/* use the system's pcap if available */
-
-#ifdef NO_PCAP
-#define	PCAP_ERRBUF_SIZE	512
-typedef void pcap_t;
-struct pcap_pkthdr;
-#define	pcap_inject(a,b,c)	((void)a, (void)b, (void)c, -1)
-#define	pcap_dispatch(a, b, c, d)	(void)c
-#define	pcap_open_live(a, b, c, d, e)	((void)e, NULL)
-#else /* !NO_PCAP */
-#include <pcap/pcap.h> // XXX do we need it ?
-#endif /* !NO_PCAP */
-
-#endif // XXX hack
 
 #include <pthread.h>	/* pthread_* */
 
@@ -85,10 +58,8 @@ struct pcap_pkthdr;
 
 #define cpuset_t	cpu_set_t
 
-#define ifr_flagshigh  ifr_flags
-#define ifr_curcap     ifr_flags
-#define ifr_reqcap     ifr_flags
-#define IFF_PPROMISC   IFF_PROMISC
+#define ifr_flagshigh  ifr_flags	/* only the low 16 bits here */
+#define IFF_PPROMISC   IFF_PROMISC	/* IFF_PPROMISC does not exist */
 #include <linux/ethtool.h>
 #include <linux/sockios.h>
 
@@ -107,6 +78,20 @@ struct pcap_pkthdr;
 #endif	/* __FreeBSD__ */
 
 #ifdef __APPLE__
+
+#define cpuset_t	uint64_t	// XXX
+static inline void CPU_ZERO(cpuset_t *p)
+{
+	*p = 0;
+}
+
+static inline void CPU_SET(uint32_t i, cpuset_t *p)
+{
+	*p |= 1<< (i & 0x3f);
+}
+
+#define pthread_setaffinity_np(a, b, c)	((void)a, 0)
+
 #define ifr_flagshigh  ifr_flags	// XXX
 #define IFF_PPROMISC   IFF_PROMISC
 #include <net/if_dl.h>  /* LLADDR */
@@ -136,54 +121,7 @@ extern int time_second;
 
 
 
-// XXX does it work on 32-bit machines ?
-static inline void prefetch (const void *x)
-{
-	__asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
-}
-
-// XXX only for multiples of 64 bytes, non overlapped.
-static inline void
-pkt_copy(const void *_src, void *_dst, int l)
-{
-	const uint64_t *src = _src;
-	uint64_t *dst = _dst;
-#define likely(x)       __builtin_expect(!!(x), 1)
-#define unlikely(x)       __builtin_expect(!!(x), 0)
-	if (unlikely(l >= 1024)) {
-		bcopy(src, dst, l);
-		return;
-	}
-	for (; l > 0; l-=64) {
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-		*dst++ = *src++;
-	}
-}
-
-/*
- * info on a ring we handle
- */
-struct my_ring {
-	const char *ifname;
-	int fd;
-	char *mem;                      /* userspace mmap address */
-	u_int memsize;
-	u_int queueid;
-	u_int begin, end;               /* first..last+1 rings to check */
-	struct netmap_if *nifp;
-	struct netmap_ring *tx, *rx;    /* shortcuts */
-
-	uint32_t if_flags;
-	uint32_t if_reqcap;
-	uint32_t if_curcap;
-};
-int netmap_open(struct my_ring *me, int ringid, int promisc);
-int netmap_close(struct my_ring *me);
-int nm_do_ioctl(struct my_ring *me, u_long what, int subcmd);
+struct nm_desc_t * netmap_open(const char *name, int ringid, int promisc);
+int nm_do_ioctl(struct nm_desc_t *me, u_long what, int subcmd);
+int pkt_queued(struct nm_desc_t *d, int tx);
 #endif /* _NM_UTIL_H */

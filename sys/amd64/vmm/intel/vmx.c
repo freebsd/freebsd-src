@@ -45,11 +45,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#include <machine/smp.h>
 #include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
 #include "vmm_host.h"
+#include "vmm_ipi.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
 #include "vmm_stat.h"
@@ -93,6 +95,7 @@ __FBSDID("$FreeBSD$");
 
 #define	VM_EXIT_CTLS_ONE_SETTING					\
 	(VM_EXIT_CTLS_ONE_SETTING_NO_PAT       	|			\
+	VM_EXIT_ACKNOWLEDGE_INTERRUPT		|			\
 	VM_EXIT_SAVE_PAT			|			\
 	VM_EXIT_LOAD_PAT)
 #define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
@@ -170,6 +173,14 @@ static int cap_invpcid;
 static int virtual_interrupt_delivery;
 SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, virtual_interrupt_delivery, CTLFLAG_RD,
     &virtual_interrupt_delivery, 0, "APICv virtual interrupt delivery support");
+
+static int posted_interrupts;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupts, CTLFLAG_RD,
+    &posted_interrupts, 0, "APICv posted interrupt support");
+
+static int pirvec;
+SYSCTL_INT(_hw_vmm_vmx, OID_AUTO, posted_interrupt_vector, CTLFLAG_RD,
+    &pirvec, 0, "APICv posted interrupt vector");
 
 static struct unrhdr *vpid_unr;
 static u_int vpid_alloc_failed;
@@ -441,6 +452,9 @@ vmx_disable(void *arg __unused)
 static int
 vmx_cleanup(void)
 {
+	
+	if (pirvec != 0)
+		vmm_ipi_free(pirvec);
 
 	if (vpid_unr != NULL) {
 		delete_unrhdr(vpid_unr);
@@ -636,7 +650,31 @@ vmx_init(int ipinum)
 		procbased_ctls |= PROCBASED_USE_TPR_SHADOW;
 		procbased_ctls2 |= procbased2_vid_bits;
 		procbased_ctls2 &= ~PROCBASED2_VIRTUALIZE_X2APIC_MODE;
+
+		/*
+		 * Check for Posted Interrupts only if Virtual Interrupt
+		 * Delivery is enabled.
+		 */
+		error = vmx_set_ctlreg(MSR_VMX_PINBASED_CTLS,
+		    MSR_VMX_TRUE_PINBASED_CTLS, PINBASED_POSTED_INTERRUPT, 0,
+		    &tmp);
+		if (error == 0) {
+			pirvec = vmm_ipi_alloc();
+			if (pirvec == 0) {
+				if (bootverbose) {
+					printf("vmx_init: unable to allocate "
+					    "posted interrupt vector\n");
+				}
+			} else {
+				posted_interrupts = 1;
+				TUNABLE_INT_FETCH("hw.vmm.vmx.use_apic_pir",
+				    &posted_interrupts);
+			}
+		}
 	}
+
+	if (posted_interrupts)
+		    pinbased_ctls |= PINBASED_POSTED_INTERRUPT;
 
 	/* Initialize EPT */
 	error = ept_init(ipinum);
@@ -678,6 +716,31 @@ vmx_init(int ipinum)
 	vmx_initialized = 1;
 
 	return (0);
+}
+
+static void
+vmx_trigger_hostintr(int vector)
+{
+	uintptr_t func;
+	struct gate_descriptor *gd;
+
+	gd = &idt[vector];
+
+	KASSERT(vector >= 32 && vector <= 255, ("vmx_trigger_hostintr: "
+	    "invalid vector %d", vector));
+	KASSERT(gd->gd_p == 1, ("gate descriptor for vector %d not present",
+	    vector));
+	KASSERT(gd->gd_type == SDT_SYSIGT, ("gate descriptor for vector %d "
+	    "has invalid type %d", vector, gd->gd_type));
+	KASSERT(gd->gd_dpl == SEL_KPL, ("gate descriptor for vector %d "
+	    "has invalid dpl %d", vector, gd->gd_dpl));
+	KASSERT(gd->gd_selector == GSEL(GCODE_SEL, SEL_KPL), ("gate descriptor "
+	    "for vector %d has invalid selector %d", vector, gd->gd_selector));
+	KASSERT(gd->gd_ist == 0, ("gate descriptor for vector %d has invalid "
+	    "IST %d", vector, gd->gd_ist));
+
+	func = ((long)gd->gd_hioffset << 16 | gd->gd_looffset);
+	vmx_call_isr(func);
 }
 
 static int
@@ -821,6 +884,11 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 			error += vmwrite(VMCS_EOI_EXIT1, 0);
 			error += vmwrite(VMCS_EOI_EXIT2, 0);
 			error += vmwrite(VMCS_EOI_EXIT3, 0);
+		}
+		if (posted_interrupts) {
+			error += vmwrite(VMCS_PIR_VECTOR, pirvec);
+			error += vmwrite(VMCS_PIR_DESC,
+			    vtophys(&vmx->pir_desc[i]));
 		}
 		VMCLEAR(vmcs);
 		KASSERT(error == 0, ("vmx_vminit: error customizing the vmcs"));
@@ -997,7 +1065,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	 * Inject the virtual NMI. The vector must be the NMI IDT entry
 	 * or the VMCS entry check will fail.
 	 */
-	info = VMCS_INTERRUPTION_INFO_NMI | VMCS_INTERRUPTION_INFO_VALID;
+	info = VMCS_INTR_INFO_NMI | VMCS_INTR_INFO_VALID;
 	info |= IDT_NMI;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
@@ -1035,7 +1103,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	 * because of a pending AST.
 	 */
 	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	if (info & VMCS_INTERRUPTION_INFO_VALID)
+	if (info & VMCS_INTR_INFO_VALID)
 		return;
 
 	/*
@@ -1066,7 +1134,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		goto cantinject;
 
 	/* Inject the interrupt */
-	info = VMCS_INTERRUPTION_INFO_HW_INTR | VMCS_INTERRUPTION_INFO_VALID;
+	info = VMCS_INTR_INFO_HW_INTR | VMCS_INTR_INFO_VALID;
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
@@ -1376,7 +1444,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	int error, handled;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
-	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
+	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, reason;
 	uint64_t qual, gpa;
 	bool retu;
 
@@ -1487,6 +1555,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * host interrupt handler in the VM's softc. We will inject
 		 * this virtual interrupt during the subsequent VM enter.
 		 */
+		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+		KASSERT((intr_info & VMCS_INTR_INFO_VALID) != 0 &&
+		    VMCS_INTR_INFO_TYPE(intr_info) == 0,
+		    ("VM exit interruption info invalid: %#x", intr_info));
+		vmx_trigger_hostintr(intr_info & 0xff);
 
 		/*
 		 * This is special. We want to treat this as an 'handled'
@@ -1596,6 +1669,18 @@ vmx_exit_astpending(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 }
 
 static __inline int
+vmx_exit_rendezvous(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
+{
+
+	vmexit->rip = vmcs_guest_rip();
+	vmexit->inst_length = 0;
+	vmexit->exitcode = VM_EXITCODE_RENDEZVOUS;
+	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RENDEZVOUS, 1);
+
+	return (UNHANDLED);
+}
+
+static __inline int
 vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 {
 
@@ -1624,10 +1709,12 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
+vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
+    void *rendezvous_cookie)
 {
 	int rc, handled, launched;
 	struct vmx *vmx;
+	struct vm *vm;
 	struct vmxctx *vmxctx;
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
@@ -1636,10 +1723,11 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	uint32_t exit_reason;
 
 	vmx = arg;
+	vm = vmx->vm;
 	vmcs = &vmx->vmcs[vcpu];
 	vmxctx = &vmx->ctx[vcpu];
-	vlapic = vm_lapic(vmx->vm, vcpu);
-	vmexit = vm_exitinfo(vmx->vm, vcpu);
+	vlapic = vm_lapic(vm, vcpu);
+	vmexit = vm_exitinfo(vm, vcpu);
 	launched = 0;
 
 	KASSERT(vmxctx->pmap == pmap,
@@ -1687,6 +1775,12 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 			break;
 		}
 
+		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
+			enable_intr();
+			handled = vmx_exit_rendezvous(vmx, vcpu, vmexit);
+			break;
+		}
+
 		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_enter_guest(vmxctx, launched);
@@ -1720,9 +1814,9 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap)
 	}
 
 	if (!handled)
-		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_USERSPACE, 1);
+		vmm_stat_incr(vm, vcpu, VMEXIT_USERSPACE, 1);
 
-	VCPU_CTR1(vmx->vm, vcpu, "returning from vmx_run: exitcode %d",
+	VCPU_CTR1(vm, vcpu, "returning from vmx_run: exitcode %d",
 	    vmexit->exitcode);
 
 	VMCLEAR(vmcs);
@@ -1945,11 +2039,11 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	if (error)
 		return (error);
 
-	if (info & VMCS_INTERRUPTION_INFO_VALID)
+	if (info & VMCS_INTR_INFO_VALID)
 		return (EAGAIN);
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
-	info |= VMCS_INTERRUPTION_INFO_VALID;
+	info |= VMCS_INTR_INFO_VALID;
 	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
@@ -2101,19 +2195,9 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
         return (retval);
 }
 
-/*
- * Posted Interrupt Descriptor (described in section 29.6 of the Intel SDM).
- */
-struct pir_desc {
-	uint64_t	pir[4];
-	uint64_t	pending;
-	uint64_t	unused[3];
-} __aligned(64);
-CTASSERT(sizeof(struct pir_desc) == 64);
-
 struct vlapic_vtx {
 	struct vlapic	vlapic;
-	struct pir_desc	pir_desc;
+	struct pir_desc	*pir_desc;
 };
 
 #define	VMX_CTR_PIR(vm, vcpuid, pir_desc, notify, vector, level, msg)	\
@@ -2143,7 +2227,7 @@ vmx_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	 * XXX need to deal with level triggered interrupts
 	 */
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 
 	/*
 	 * Keep track of interrupt requests in the PIR descriptor. This is
@@ -2177,7 +2261,7 @@ vmx_pending_intr(struct vlapic *vlapic, int *vecptr)
 	KASSERT(vecptr == NULL, ("vmx_pending_intr: vecptr must be NULL"));
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 
 	pending = atomic_load_acq_long(&pir_desc->pending);
 	if (!pending)
@@ -2215,6 +2299,13 @@ vmx_intr_accepted(struct vlapic *vlapic, int vector)
 	panic("vmx_intr_accepted: not expected to be called");
 }
 
+static void
+vmx_post_intr(struct vlapic *vlapic, int hostcpu)
+{
+
+	ipi_cpu(hostcpu, pirvec);
+}
+
 /*
  * Transfer the pending interrupts in the PIR descriptor to the IRR
  * in the virtual APIC page.
@@ -2230,7 +2321,7 @@ vmx_inject_pir(struct vlapic *vlapic)
 	uint16_t intr_status_old, intr_status_new;
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
-	pir_desc = &vlapic_vtx->pir_desc;
+	pir_desc = vlapic_vtx->pir_desc;
 	if (atomic_cmpset_long(&pir_desc->pending, 1, 0) == 0) {
 		VCPU_CTR0(vlapic->vm, vlapic->vcpuid, "vmx_inject_pir: "
 		    "no posted interrupt pending");
@@ -2295,6 +2386,7 @@ vmx_vlapic_init(void *arg, int vcpuid)
 {
 	struct vmx *vmx;
 	struct vlapic *vlapic;
+	struct vlapic_vtx *vlapic_vtx;
 	
 	vmx = arg;
 
@@ -2303,11 +2395,17 @@ vmx_vlapic_init(void *arg, int vcpuid)
 	vlapic->vcpuid = vcpuid;
 	vlapic->apic_page = (struct LAPIC *)&vmx->apic_page[vcpuid];
 
+	vlapic_vtx = (struct vlapic_vtx *)vlapic;
+	vlapic_vtx->pir_desc = &vmx->pir_desc[vcpuid];
+
 	if (virtual_interrupt_delivery) {
 		vlapic->ops.set_intr_ready = vmx_set_intr_ready;
 		vlapic->ops.pending_intr = vmx_pending_intr;
 		vlapic->ops.intr_accepted = vmx_intr_accepted;
 	}
+
+	if (posted_interrupts)
+		vlapic->ops.post_intr = vmx_post_intr;
 
 	vlapic_init(vlapic);
 

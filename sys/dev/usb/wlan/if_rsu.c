@@ -1145,7 +1145,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	pktlen = sizeof(*wh) + le32toh(bss->ieslen);
 	if (__predict_false(pktlen > MCLBYTES))
 		return;
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL))
 		return;
 	wh = mtod(m, struct ieee80211_frame *);
@@ -1351,7 +1351,7 @@ rsu_rx_frame(struct rsu_softc *sc, uint8_t *buf, int pktlen, int *rssi)
 	DPRINTFN(5, "Rx frame len=%d rate=%d infosz=%d rssi=%d\n",
 	    pktlen, rate, infosz, *rssi);
 
-	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+	m = m_get2(pktlen, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (__predict_false(m == NULL)) {
 		ifp->if_ierrors++;
 		return NULL;

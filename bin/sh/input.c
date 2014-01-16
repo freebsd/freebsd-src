@@ -162,20 +162,16 @@ preadfd(void)
 	int nr;
 	parsenextc = parsefile->buf;
 
-#ifndef NO_HISTORY
-	if (el != NULL && gotwinch) {
-		gotwinch = 0;
-		el_resize(el);
-	}
-#endif
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
 		static const char *rl_cp;
 		static int el_len;
 
-		if (rl_cp == NULL)
+		if (rl_cp == NULL) {
+			el_resize(el);
 			rl_cp = el_gets(el, &el_len);
+		}
 		if (rl_cp == NULL)
 			nr = el_len == 0 ? 0 : -1;
 		else {

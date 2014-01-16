@@ -84,3 +84,6 @@ ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 
 ASSYM(PM_ACTIVE, offsetof(struct pmap, pm_active));
 ASSYM(PM_EPTGEN, offsetof(struct pmap, pm_eptgen));
+
+ASSYM(KERNEL_SS, GSEL(GDATA_SEL, SEL_KPL));
+ASSYM(KERNEL_CS, GSEL(GCODE_SEL, SEL_KPL));
