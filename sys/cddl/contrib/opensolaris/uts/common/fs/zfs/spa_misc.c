@@ -243,6 +243,10 @@ int zfs_flags = ~(ZFS_DEBUG_DPRINTF | ZFS_DEBUG_SPA);
 #else
 int zfs_flags = 0;
 #endif
+SYSCTL_DECL(_debug);
+TUNABLE_INT("debug.zfs_flags", &zfs_flags);
+SYSCTL_INT(_debug, OID_AUTO, zfs_flags, CTLFLAG_RWTUN, &zfs_flags, 0,
+    "ZFS debug flags.");
 
 /*
  * zfs_recover can be set to nonzero to attempt to recover from
