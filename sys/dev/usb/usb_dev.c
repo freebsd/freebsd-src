@@ -597,6 +597,13 @@ usb_fifo_free(struct usb_fifo *f)
 		mtx_unlock(f->priv_mtx);
 		mtx_lock(&usb_ref_lock);
 
+		/*
+		 * Check if the "f->refcount" variable reached zero
+		 * during the unlocked time before entering wait:
+		 */
+		if (f->refcount == 0)
+			break;
+
 		/* wait for sync */
 		cv_wait(&f->cv_drain, &usb_ref_lock);
 	}
