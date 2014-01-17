@@ -11,7 +11,6 @@ SUBDIR=		dtmalloc	\
 		dtrace_test	\
 		lockstat	\
 		profile		\
-		dtio		\
 		prototype	\
 		sdt		\
 		systrace
