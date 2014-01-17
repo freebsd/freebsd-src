@@ -84,6 +84,44 @@ sb_shift_nrdy(struct sockbuf *sb, struct mbuf *m)
 	sb->sb_fnrdy = m;
 }
 
+int
+sbready(struct sockbuf *sb, struct mbuf *m, int count)
+{
+	u_int blocker;
+
+	SOCKBUF_LOCK(sb);
+
+	KASSERT(sb->sb_fnrdy != NULL, ("%s: sb %p NULL fnrdy", __func__, sb));
+
+	blocker = (sb->sb_fnrdy == m) ? M_BLOCKED : 0;
+
+	for (int i = 0; i < count; i++, m = m->m_next) {
+		KASSERT(m->m_flags & M_NOTREADY,
+		    ("%s: m %p !M_NOTREADY", __func__, m));
+		m->m_flags &= ~(M_NOTREADY | blocker);
+		sb->sb_acc += m->m_len;
+	}
+
+	if (!blocker) {
+		SOCKBUF_UNLOCK(sb);
+		return (EWOULDBLOCK);
+	}
+
+	/* This one was blocking all the queue. */
+	for (; m && (m->m_flags & M_NOTREADY) == 0; m = m->m_next) {
+		KASSERT(m->m_flags & M_BLOCKED,
+		    ("%s: m %p !M_BLOCKED", __func__, m));
+		m->m_flags &= ~M_BLOCKED;
+		sb->sb_acc += m->m_len;
+	}
+
+	sb->sb_fnrdy = m;
+
+	SOCKBUF_UNLOCK(sb);
+
+	return (0);
+}
+
 /*
  * Adjust sockbuf state reflecting allocation of m.
  */

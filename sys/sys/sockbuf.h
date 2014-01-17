@@ -173,6 +173,7 @@ void	sbunlock(struct sockbuf *sb);
 void	sballoc(struct sockbuf *, struct mbuf *);
 void	sbfree(struct sockbuf *, struct mbuf *);
 void	sbmtrim(struct sockbuf *, struct mbuf *, int);
+int	sbready(struct sockbuf *, struct mbuf *, int);
 
 static inline u_int
 sbavail(struct sockbuf *sb)
