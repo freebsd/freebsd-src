@@ -706,9 +706,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 	if (flags & TH_RST)
-		TCP_PROBE5(accept_refused, NULL, NULL, m->m_data, tp, nth);
+		TCP_PROBE5(accept_refused, NULL, NULL, mtod(m, const char *),
+		    tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, m->m_data, tp, nth);
+	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
