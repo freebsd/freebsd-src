@@ -319,7 +319,9 @@ blocked_loop:
 	PTR_S	a2, PC_CURPCB(a3)
 	PTR_L	v0, TD_KSTACK(a1)				# va of 1st half of kstack
 #if defined(__mips_n64)
+#ifdef LARGE_KSTACK
 	PTR_L	v1, TD_KSTACK + PAGE_SIZE*2(a1)	# XXXSS va of 2nd half of kstack
+#endif
 	PTR_LI	s0, MIPS_XKSEG_START
 #else
 	PTR_LI	s0, MIPS_KSEG2_START		# If Uarea addr is below kseg2,
@@ -365,7 +367,7 @@ entry0set:
 	tlbwi					# set TLB entry #0
 	HAZARD_DELAY
 
-#if defined(__mips_n64)
+#ifdef LARGE_KSTACK
 /*
  * XXXSS
  * A Workaround for the small kernel thread stack.  We use two wired
@@ -402,7 +404,7 @@ entry1set:
 	HAZARD_DELAY
 	tlbwi						# set TLB entry #1
 	HAZARD_DELAY
-#endif /* __mips_n64 */
+#endif /* LARGE_KSTACK */
 /*
  * Now running on new u struct.
  */

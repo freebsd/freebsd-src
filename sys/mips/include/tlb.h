@@ -40,7 +40,7 @@
  * TLB entry 0 and 1 maps the kernel stack of the currently running thread
  * TLB entry 2 maps the pcpu area of processor (only for SMP builds)
  */
-#ifdef __mips_n64
+#ifdef LARGE_KSTACK
 #define	KSTACK_TLB_ENTRY0	0
 #define	KSTACK_TLB_ENTRY1	1
 #ifdef SMP
