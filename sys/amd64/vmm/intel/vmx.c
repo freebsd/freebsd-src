@@ -1065,7 +1065,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	 * Inject the virtual NMI. The vector must be the NMI IDT entry
 	 * or the VMCS entry check will fail.
 	 */
-	info = VMCS_INTR_INFO_NMI | VMCS_INTR_INFO_VALID;
+	info = VMCS_INTR_T_NMI | VMCS_INTR_VALID;
 	info |= IDT_NMI;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
@@ -1103,7 +1103,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	 * because of a pending AST.
 	 */
 	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	if (info & VMCS_INTR_INFO_VALID)
+	if (info & VMCS_INTR_VALID)
 		return;
 
 	/*
@@ -1134,7 +1134,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		goto cantinject;
 
 	/* Inject the interrupt */
-	info = VMCS_INTR_INFO_HW_INTR | VMCS_INTR_INFO_VALID;
+	info = VMCS_INTR_T_HWINTR | VMCS_INTR_VALID;
 	info |= vector;
 	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
@@ -1444,9 +1444,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	int error, handled;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
-	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, reason;
+	uint32_t eax, ecx, edx, gi, idtvec_info, idtvec_err, intr_info, reason;
 	uint64_t qual, gpa;
 	bool retu;
+
+	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
 
 	handled = 0;
 	vmxctx = &vmx->ctx[vcpu];
@@ -1479,6 +1481,18 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 				idtvec_err = vmcs_idt_vectoring_err();
 				vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR,
 				    idtvec_err);
+			}
+			/*
+			 * If 'virtual NMIs' are being used and the VM-exit
+			 * happened while injecting an NMI during the previous
+			 * VM-entry, then clear "blocking by NMI" in the Guest
+			 * Interruptibility-state.
+			 */
+			if ((idtvec_info & VMCS_INTR_T_MASK) ==
+			    VMCS_INTR_T_NMI) {
+				 gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+				 gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
+				 vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
 			}
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
@@ -1556,8 +1570,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * this virtual interrupt during the subsequent VM enter.
 		 */
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
-		KASSERT((intr_info & VMCS_INTR_INFO_VALID) != 0 &&
-		    VMCS_INTR_INFO_TYPE(intr_info) == 0,
+		KASSERT((intr_info & VMCS_INTR_VALID) != 0 &&
+		    (intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_HWINTR,
 		    ("VM exit interruption info invalid: %#x", intr_info));
 		vmx_trigger_hostintr(intr_info & 0xff);
 
@@ -2039,11 +2053,11 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	if (error)
 		return (error);
 
-	if (info & VMCS_INTR_INFO_VALID)
+	if (info & VMCS_INTR_VALID)
 		return (EAGAIN);
 
 	info = vector | (type_map[type] << 8) | (code_valid ? 1 << 11 : 0);
-	info |= VMCS_INTR_INFO_VALID;
+	info |= VMCS_INTR_VALID;
 	error = vmcs_setreg(vmcs, 0, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), info);
 	if (error != 0)
 		return (error);
