@@ -938,7 +938,7 @@ sbflush_internal(struct sockbuf *sb)
 		 * Don't call sbdrop(sb, 0) if the leading mbuf is non-empty:
 		 * we would loop forever. Panic instead.
 		 */
-		if (sb->sb_ccc > 0 && (sb->sb_mb == NULL || sb->sb_mb->m_len))
+		if (sb->sb_ccc == 0 && (sb->sb_mb == NULL || sb->sb_mb->m_len))
 			break;
 		m_freem(sbcut_internal(sb, (int)sb->sb_ccc));
 	}
