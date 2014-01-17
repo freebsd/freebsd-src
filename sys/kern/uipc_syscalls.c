@@ -2113,7 +2113,7 @@ xfsize(int i, int n, off_t off, off_t len)
 	if (i == 0)
 		return (omin(PAGE_SIZE - (off & PAGE_MASK), len));
 
-	if (i == n - 1)
+	if (i == n - 1 && ((off + len) & PAGE_MASK) > 0)
 		return ((off + len) & PAGE_MASK);
 
 	return (PAGE_SIZE);
