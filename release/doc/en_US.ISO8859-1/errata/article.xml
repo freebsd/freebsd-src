@@ -149,7 +149,7 @@
 	  operating system on <application>VirtualBox</application>
 	  can have a problem with disk I/O access.  It depends on some
 	  specific hardware configuration and does not depend on a
-	  specific version of <application>VitrualBox</application> or
+	  specific version of <application>VirtualBox</application> or
 	  host operating system.</para>
 
 	<para>It causes various errors and makes &os; quite unstable.
@@ -182,6 +182,18 @@ boot</screen>
 	  with one in &release.prev; in certain cases.  Errata Notice
 	  for the supported releases to fix it will be
 	  released.</para>
+      </listitem>
+
+      <listitem>
+	<para>A bug in &man.killall.1; has been discovered.  It
+	  makes <userinput>killall -INT</userinput> to deliver
+	  <literal>SIGTERM</literal> rather than the desired
+	  <literal>SIGINT</literal>, and may cause blocking
+	  behavior for scripts that uses it, as <literal>-I</literal>
+	  means <quote>interactive</quote>.  A workaround of this
+	  would be to use <literal>-SIGINT</literal> instead.
+	  This bug has been fixed on &os;-CURRENT and will be fixed
+	  in &os;-STABLE.</para>
       </listitem>
     </itemizedlist>
   </sect1>
