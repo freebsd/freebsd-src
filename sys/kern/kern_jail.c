@@ -139,6 +139,7 @@ static int _prison_check_ip4(const struct prison *, const struct in_addr *);
 static int prison_restrict_ip4(struct prison *pr, struct in_addr *newip4);
 #endif
 #ifdef INET6
+static int copyin_inet6(struct jail *j, void *kaddr);
 static int _prison_check_ip6(struct prison *, const struct sockaddr_in6 *);
 static int prison_restrict_ip6(struct prison *, struct sockaddr_in6 *);
 #define	SA6_ARE_ADDR_EQUAL(a, b)	\
@@ -415,13 +416,6 @@ kern_jail(struct thread *td, struct jail *j)
 		return (EINVAL);
 #endif
 #ifdef INET6
-	/*
-	 * We don't support the old way, when the list of IPv6 addresses
-	 * is specified via struct in6_addr.
-	 * XXX: in some case we can (i.e. until LLA isn't used).
-	 */
-	if (j->version < 3)
-		return (EINVAL);
 	if (j->ip6s > jail_max_af_ips)
 		return (EINVAL);
 	tmplen += j->ip6s * sizeof(struct sockaddr_in6);
@@ -500,7 +494,7 @@ kern_jail(struct thread *td, struct jail *j)
 	opt.uio_iovcnt++;
 	optiov[opt.uio_iovcnt].iov_base = u_ip6;
 	optiov[opt.uio_iovcnt].iov_len = j->ip6s * sizeof(struct sockaddr_in6);
-	error = copyin(j->ip6, u_ip6, optiov[opt.uio_iovcnt].iov_len);
+	error = copyin_inet6(j, u_ip6);
 	if (error) {
 		free(u_path, M_TEMP);
 		return (error);
@@ -3014,6 +3008,39 @@ prison_check_ip4(const struct ucred *cred, const struct in_addr *ia)
 #endif
 
 #ifdef INET6
+static int
+copyin_inet6(struct jail *j, void *kaddr)
+{
+	struct sockaddr_in6 *ip6;
+	struct in6_addr *in6;
+	size_t len;
+	int error, i;
+	char *buf;
+
+	if (j->version == 3)
+		return (copyin(j->ip6, kaddr,
+		    j->ip6s * sizeof(struct sockaddr_in6)));
+	if (j->version != 2)
+		return (EINVAL);
+	len = j->ip6s * sizeof(struct in6_addr);
+	buf = malloc(len, M_TEMP, M_WAITOK);
+	error = copyin(j->ip6, buf, len);
+	if (error != 0) {
+		free(buf, M_TEMP);
+		return (error);
+	}
+	bzero(kaddr, j->ip6s * sizeof(struct sockaddr_in6));
+	ip6 = (struct sockaddr_in6 *)kaddr;
+	in6 = (struct in6_addr *)buf;
+	for (i = 0; i < j->ip6s; i++) {
+		ip6[i].sin6_family = AF_INET6;
+		ip6[i].sin6_len = sizeof(*ip6);
+		ip6[i].sin6_addr = in6[i];
+	}
+	free(buf, M_TEMP);
+	return (0);
+}
+
 static int
 prison_restrict_ip6(struct prison *pr, struct sockaddr_in6 *newip6)
 {
