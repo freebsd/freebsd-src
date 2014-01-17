@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE(proc, , , lwp_exit, lwp-exit);
+SDT_PROBE_DEFINE(proc, , , lwp__exit);
 
 
 /*
