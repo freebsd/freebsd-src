@@ -144,9 +144,6 @@ main(int ac, char **av)
 		if (**av == '-') {
 			++*av;
 			switch (**av) {
-			case 'I':
-				Iflag = 1;
-				break;
 			case 'j':
 				++*av;
 				if (**av == '\0') {
@@ -213,6 +210,15 @@ main(int ac, char **av)
 			case 'z':
 				zflag++;
 				break;
+			case 'I':
+				/*
+				 * NB: do not confuse -INT with -I
+				 */
+				if (strncmp(*av, "INT", 3) != 0) {
+					Iflag = 1;
+					break;
+				}
+				/* FALLTHROUGH */
 			default:
 				if (isalpha((unsigned char)**av)) {
 					if (strncasecmp(*av, "SIG", 3) == 0)
