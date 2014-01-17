@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,6 +35,6 @@
  * Older BERI boot loaders pass in physical memory size as $a3; newer ones
  * pass in FDT DTB data.  This constant helps us tell the difference.
  */
-#define	BERI_MEMVSDTB	(1*1024*1024*1024*1024)
+#define	BERI_MEMVSDTB	(256*1024*1024*1024ULL)
 
 #endif

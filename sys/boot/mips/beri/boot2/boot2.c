@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -394,7 +394,7 @@ load(void)
 	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 #endif
-    bootinfo.bi_kernelname = kname;
+    bootinfo.bi_kernelname = (bi_ptr_t)kname;
     bootinfo.bi_boot2opts = opts & RBX_MASK;
     if (beri_memsize <= BERI_MEMVSDTB)
 	bootinfo.bi_memsize = beri_memsize;
@@ -411,9 +411,7 @@ parse()
     char *ep, *p, *q;
 #if 0
     const char *cp;
-#endif
     unsigned int drv;
-#if 0
     int c, i, j;
 #else
     int c, i;
