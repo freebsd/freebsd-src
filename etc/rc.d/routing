@@ -186,19 +186,10 @@ static_inet6()
 
 	# Add pre-defined static routes first.
 	ipv6_static_routes="_v4mapped _v4compat ${ipv6_static_routes}"
-	ipv6_static_routes="_lla _llma ${ipv6_static_routes}"
 
 	# disallow "internal" addresses to appear on the wire
 	ipv6_route__v4mapped="::ffff:0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
 	ipv6_route__v4compat="::0.0.0.0 -prefixlen 96 ::1 -reject ${fibmod}"
-
-	# Disallow link-local unicast packets without outgoing scope
-	# identifiers.  However, if you set "ipv6_default_interface",
-	# for the host case, you will allow to omit the identifiers.
-	# Under this configuration, the packets will go to the default
-	# interface.
-	ipv6_route__lla="fe80:: -prefixlen 10 ::1 -reject ${fibmod}"
-	ipv6_route__llma="ff02:: -prefixlen 16 ::1 -reject ${fibmod}"
 
 	# Add default route.
 	case ${ipv6_defaultrouter} in
