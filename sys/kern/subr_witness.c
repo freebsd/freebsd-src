@@ -132,9 +132,19 @@ __FBSDID("$FreeBSD$");
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
-#define	WITNESS_COUNT 		1024
+/*
+ * Each cpu requires early locks so scale WITNESS_COUNT & WITNESS_PENDLIST
+ * based on MAXCPU
+ */
+#ifndef	WITNESS_COUNT
+#define	WITNESS_COUNT		(MAXCPU <= 64 ? 1024 : MAXCPU * 16)
+#endif
+
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
-#define	WITNESS_PENDLIST	1024
+
+#ifndef	WITNESS_PENDLIST
+#define	WITNESS_PENDLIST	(MAXCPU <= 64 ? 1024 : MAXCPU * 16)
+#endif
 
 /* Allocate 256 KB of stack data space */
 #define	WITNESS_LO_DATA_COUNT	2048
