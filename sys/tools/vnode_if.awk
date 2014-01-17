@@ -254,16 +254,26 @@ while ((getline < srcfile) > 0) {
 		if (sub(/;$/, "") < 1)
 			die("Missing end-of-line ; in \"%s\".", $0);
 
-		# pick off variable name
-		if ((argp = match($0, /[A-Za-z0-9_]+$/)) < 1)
-			die("Missing var name \"a_foo\" in \"%s\".", $0);
-		args[numargs] = substr($0, argp);
-		$0 = substr($0, 1, argp - 1);
-
-		# what is left must be type
-		# remove trailing space (if any)
-		sub(/ $/, "");
-		types[numargs] = $0;
+		# pick off argument name
+		if ((argp = match($0, /[A-Za-z0-9_]+$/)) > 0) {
+			args[numargs] = substr($0, argp);
+			$0 = substr($0, 1, argp - 1);
+			sub(/ $/, "");
+			delete fargs[numargs];
+			types[numargs] = $0;
+		} else {	# try to parse a function pointer argument
+			if ((argp = match($0,
+			    /\(\*[A-Za-z0-9_]+\)\([A-Za-z0-9_*, ]+\)$/)) < 1)
+				die("Missing var name \"a_foo\" in \"%s\".",
+				    $0);
+			args[numargs] = substr($0, argp + 2);
+			sub(/\).+/, "", args[numargs]);
+			fargs[numargs] = substr($0, argp);
+			sub(/^\([^)]+\)/, "", fargs[numargs]);
+			$0 = substr($0, 1, argp - 1);
+			sub(/ $/, "");
+			types[numargs] = $0;
+		}
 	}
 	if (numargs > 4)
 		ctrargs = 4;
@@ -286,8 +296,13 @@ while ((getline < srcfile) > 0) {
 	if (hfile) {
 		# Print out the vop_F_args structure.
 		printh("struct "name"_args {\n\tstruct vop_generic_args a_gen;");
-		for (i = 0; i < numargs; ++i)
-			printh("\t" t_spc(types[i]) "a_" args[i] ";");
+		for (i = 0; i < numargs; ++i) {
+			if (fargs[i]) {
+				printh("\t" t_spc(types[i]) "(*a_" args[i] \
+				    ")" fargs[i] ";");
+			} else
+				printh("\t" t_spc(types[i]) "a_" args[i] ";");
+		}
 		printh("};");
 		printh("");
 
@@ -301,8 +316,14 @@ while ((getline < srcfile) > 0) {
 		printh("");
 		printh("static __inline int " uname "(");
 		for (i = 0; i < numargs; ++i) {
-			printh("\t" t_spc(types[i]) args[i] \
-			    (i < numargs - 1 ? "," : ")"));
+			if (fargs[i]) {
+				printh("\t" t_spc(types[i]) "(*" args[i] \
+				    ")" fargs[i] \
+				    (i < numargs - 1 ? "," : ")"));
+			} else {
+				printh("\t" t_spc(types[i]) args[i] \
+				    (i < numargs - 1 ? "," : ")"));
+			}
 		}
 		printh("{");
 		printh("\tstruct " name "_args a;");
