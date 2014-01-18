@@ -44,7 +44,7 @@ dwarf_child(Dwarf_Die die, Dwarf_Die *ret_die, Dwarf_Error *error)
 	}
 
 	if (die->die_ab->ab_children == DW_CHILDREN_no)
-		return (DW_DLE_NO_ENTRY);
+		return (DW_DLV_NO_ENTRY);
 
 	dbg = die->die_dbg;
 	cu = die->die_cu;
