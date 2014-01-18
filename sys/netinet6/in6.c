@@ -139,6 +139,15 @@ static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 int	(*faithprefix_p)(struct in6_addr *);
 
+static int in6_validate_ifra(struct ifnet *, struct in6_aliasreq *,
+    struct in6_ifaddr *, int);
+static struct in6_ifaddr *in6_alloc_ifa(struct ifnet *,
+    struct in6_aliasreq *, int flags);
+static int in6_update_ifa_internal(struct ifnet *, struct in6_aliasreq *,
+    struct in6_ifaddr *, int, int);
+static int in6_setup_ifa(struct ifnet *, struct in6_aliasreq *,
+    struct in6_ifaddr *, int);
+
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
@@ -1001,11 +1010,39 @@ int
 in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
 {
-	int error = 0, hostIsNew = 0, plen = -1;
+	int error, hostIsNew = 0;
+
+	if ((error = in6_validate_ifra(ifp, ifra, ia, flags)) != 0)
+		return (error);
+
+	if (ia == NULL) {
+		hostIsNew = 1;
+		if ((ia = in6_alloc_ifa(ifp, ifra, flags)) == NULL)
+			return (ENOBUFS);
+	}
+
+	error = in6_update_ifa_internal(ifp, ifra, ia, hostIsNew, flags);
+	if (error != 0) {
+		if (hostIsNew != 0) {
+			in6_unlink_ifa(ia, ifp);
+			ifa_free(&ia->ia_ifa);
+		}
+		return (error);
+	}
+
+	if (hostIsNew)
+		error = in6_setup_ifa(ifp, ifra, ia, flags);
+
+	return (error);
+}
+
+static int
+in6_validate_ifra(struct ifnet *ifp, struct in6_aliasreq *ifra,
+    struct in6_ifaddr *ia, int flags)
+{
+	int plen = -1;
 	struct sockaddr_in6 dst6;
 	struct in6_addrlifetime *lt;
-	struct in6_multi *in6m_sol;
-	int delay;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* Validate parameters */
@@ -1072,6 +1109,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		if (sa6_embedscope(&dst6, 0))
 			return (EINVAL); /* XXX: should be impossible */
 	}
+	/* Modify original ifra_dstaddr to reflect changes */
+	ifra->ifra_dstaddr = dst6;
+
 	/*
 	 * The destination address can be specified only for a p2p or a
 	 * loopback interface.  If specified, the corresponding prefix length
@@ -1107,12 +1147,36 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 			return (0); /* there's nothing to do */
 	}
 
+	/* Check prefix mask */
+	if (ia != NULL && ifra->ifra_prefixmask.sin6_len != 0) {
+		/*
+		 * We prohibit changing the prefix length of an existing
+		 * address, because
+		 * + such an operation should be rare in IPv6, and
+		 * + the operation would confuse prefix management.
+		 */
+		if (ia->ia_prefixmask.sin6_len != 0 &&
+		    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL) != plen) {
+			nd6log((LOG_INFO, "in6_validate_ifa: the prefix length "
+			    "of an existing %s address should not be changed\n",
+			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
+
+			return (EINVAL);
+		}
+	}
+
+	return (0);
+}
+
 	/*
 	 * If this is a new address, allocate a new ifaddr and link it
 	 * into chains.
 	 */
-	if (ia == NULL) {
-		hostIsNew = 1;
+static struct in6_ifaddr *
+in6_alloc_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra, int flags)
+{
+	struct in6_ifaddr *ia;
+
 		/*
 		 * When in6_update_ifa() is called in a process of a received
 		 * RA, it is called under an interrupt context.  So, we should
@@ -1120,7 +1184,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		 */
 		ia = (struct in6_ifaddr *)ifa_alloc(sizeof(*ia), M_NOWAIT);
 		if (ia == NULL)
-			return (ENOBUFS);
+			return (NULL);
 		LIST_INIT(&ia->ia6_memberships);
 		/* Initialize the address and masks, and put time stamp */
 		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
@@ -1150,49 +1214,25 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		LIST_INSERT_HEAD(IN6ADDR_HASH(&ifra->ifra_addr.sin6_addr),
 		    ia, ia6_hash);
 		IN6_IFADDR_WUNLOCK();
-	}
+	
+	return (ia);
+}
+
+static int
+in6_update_ifa_internal(struct ifnet *ifp, struct in6_aliasreq *ifra,
+    struct in6_ifaddr *ia, int hostIsNew, int flags)
+{
+	struct sockaddr_in6 *pdst;
+	int error;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* update timestamp */
 	ia->ia6_updatetime = time_uptime;
 
 	/* set prefix mask */
-	if (ifra->ifra_prefixmask.sin6_len) {
-		/*
-		 * We prohibit changing the prefix length of an existing
-		 * address, because
-		 * + such an operation should be rare in IPv6, and
-		 * + the operation would confuse prefix management.
-		 */
-		if (ia->ia_prefixmask.sin6_len &&
-		    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL) != plen) {
-			nd6log((LOG_INFO, "in6_update_ifa: the prefix length of an"
-			    " existing (%s) address should not be changed\n",
-			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
-			error = EINVAL;
-			goto unlink;
-		}
+	if (ifra->ifra_prefixmask.sin6_len != 0) {
 		ia->ia_prefixmask = ifra->ifra_prefixmask;
 		ia->ia_prefixmask.sin6_family = AF_INET6;
-	}
-
-	/*
-	 * If a new destination address is specified, scrub the old one and
-	 * install the new destination.  Note that the interface must be
-	 * p2p or loopback (see the check above.)
-	 */
-	if (dst6.sin6_family == AF_INET6 &&
-	    !IN6_ARE_ADDR_EQUAL(&dst6.sin6_addr, &ia->ia_dstaddr.sin6_addr)) {
-		int e;
-
-		if ((ia->ia_flags & IFA_ROUTE) != 0 &&
-		    (e = rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST)) != 0) {
-			nd6log((LOG_ERR, "in6_update_ifa: failed to remove "
-			    "a route to the old destination: %s\n",
-			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
-			/* proceed anyway... */
-		} else
-			ia->ia_flags &= ~IFA_ROUTE;
-		ia->ia_dstaddr = dst6;
 	}
 
 	/*
@@ -1212,14 +1252,6 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	} else
 		ia->ia6_lifetime.ia6t_preferred = 0;
 
-	/* reset the interface and routing table appropriately. */
-	if ((error = in6_ifinit(ifp, ia, &ifra->ifra_addr, hostIsNew)) != 0)
-		goto unlink;
-
-	/*
-	 * configure address flags.
-	 */
-	ia->ia6_flags = ifra->ifra_flags;
 	/*
 	 * backward compatibility - if IN6_IFF_DEPRECATED is set from the
 	 * userland, make it deprecated.
@@ -1228,6 +1260,12 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia6_lifetime.ia6t_pltime = 0;
 		ia->ia6_lifetime.ia6t_preferred = time_uptime;
 	}
+
+	/*
+	 * configure address flags.
+	 */
+	ia->ia6_flags = ifra->ifra_flags;
+
 	/*
 	 * Make the address tentative before joining multicast addresses,
 	 * so that corresponding MLD responses would not have a tentative
@@ -1242,10 +1280,44 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia6_flags |= IN6_IFF_TENTATIVE;
 
 	/*
-	 * We are done if we have simply modified an existing address.
+	 * If a new destination address is specified, scrub the old one and
+	 * install the new destination.  Note that the interface must be
+	 * p2p or loopback (see the check above.)
 	 */
-	if (!hostIsNew)
-		return (error);
+	pdst = &ifra->ifra_dstaddr;
+	if (pdst->sin6_family == AF_INET6 &&
+	    !IN6_ARE_ADDR_EQUAL(&pdst->sin6_addr, &ia->ia_dstaddr.sin6_addr)) {
+		if ((ia->ia_flags & IFA_ROUTE) != 0 &&
+		    (rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST) != 0)) {
+			nd6log((LOG_ERR, "in6_update_ifa_internal: failed to "
+			    "remove a route to the old destination: %s\n",
+			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
+			/* proceed anyway... */
+		} else
+			ia->ia_flags &= ~IFA_ROUTE;
+		ia->ia_dstaddr = *pdst;
+	}
+
+	/* reset the interface and routing table appropriately. */
+	if ((error = in6_ifinit(ifp, ia, &ifra->ifra_addr, hostIsNew)) != 0) {
+	/*
+	 * XXX: if a change of an existing address failed, keep the entry
+	 * anyway.
+	 */
+	}
+
+	return (error);
+}
+
+static int
+in6_setup_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
+    struct in6_ifaddr *ia, int flags)
+{
+	struct in6_multi *in6m_sol;
+	int error = 0;
+
+	/* Add local address to lltable, if necessary (ex. on p2p link). */
+	in6_ifaddloop(&(ia->ia_ifa));
 
 	/*
 	 * Beyond this point, we should call in6_purgeaddr upon an error,
@@ -1256,8 +1328,11 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	in6m_sol = NULL;
 	if ((ifp->if_flags & IFF_MULTICAST) != 0) {
 		error = in6_update_ifa_join_mc(ifp, ifra, ia, flags, &in6m_sol);
-		if (error)
-			goto cleanup;
+		if (error != 0) {
+			ifa_free(&ia->ia_ifa);
+			in6_purgeaddr(&ia->ia_ifa);
+			return (error);
+		}
 	}
 
 	/*
@@ -1267,7 +1342,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	if (in6if_do_dad(ifp) && ((ifra->ifra_flags & IN6_IFF_NODAD) == 0) &&
 	    (ia->ia6_flags & IN6_IFF_TENTATIVE))
 	{
-		int mindelay, maxdelay;
+		int delay, mindelay, maxdelay;
 
 		delay = 0;
 		if ((flags & IN6_IFAUPDATE_DADDELAY)) {
@@ -1298,26 +1373,8 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		nd6_dad_start((struct ifaddr *)ia, delay);
 	}
 
-	KASSERT(hostIsNew, ("in6_update_ifa: !hostIsNew"));
 	ifa_free(&ia->ia_ifa);
 	return (error);
-
-  unlink:
-	/*
-	 * XXX: if a change of an existing address failed, keep the entry
-	 * anyway.
-	 */
-	if (hostIsNew) {
-		in6_unlink_ifa(ia, ifp);
-		ifa_free(&ia->ia_ifa);
-	}
-	return (error);
-
-  cleanup:
-	KASSERT(hostIsNew, ("in6_update_ifa: cleanup: !hostIsNew"));
-	ifa_free(&ia->ia_ifa);
-	in6_purgeaddr(&ia->ia_ifa);
-	return error;
 }
 
 /*
@@ -1643,10 +1700,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		if (error == 0)
 			ia->ia_flags |= IFA_RTSELF;
 	}
-
-	/* Add local address to lltable, if necessary (ex. on p2p link). */
-	if (newhost)
-		in6_ifaddloop(&(ia->ia_ifa));
 
 	return (error);
 }
