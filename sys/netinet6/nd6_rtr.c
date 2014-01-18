@@ -1829,19 +1829,9 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	}
 
 	/* make ifaddr */
+	in6_prepare_ifra(&ifra, &pr->ndpr_prefix.sin6_addr, &mask);
 
-	bzero(&ifra, sizeof(ifra));
-	/*
-	 * in6_update_ifa() does not use ifra_name, but we accurately set it
-	 * for safety.
-	 */
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr.sin6_family = AF_INET6;
-	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
-	/* prefix */
-	ifra.ifra_addr.sin6_addr = pr->ndpr_prefix.sin6_addr;
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);
-
 	/* interface ID */
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[0] & ~mask.s6_addr32[0]);
@@ -1852,12 +1842,6 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
 	ifa_free(ifa);
-
-	/* new prefix mask. */
-	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-	ifra.ifra_prefixmask.sin6_family = AF_INET6;
-	bcopy(&mask, &ifra.ifra_prefixmask.sin6_addr,
-	    sizeof(ifra.ifra_prefixmask.sin6_addr));
 
 	/* lifetimes. */
 	ifra.ifra_lifetime.ia6t_vltime = pr->ndpr_vltime;
@@ -1923,11 +1907,10 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	u_int32_t randid[2];
 	time_t vltime0, pltime0;
 
-	bzero(&ifra, sizeof(ifra));
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr = ia0->ia_addr;
-	/* copy prefix mask */
-	ifra.ifra_prefixmask = ia0->ia_prefixmask;
+	in6_prepare_ifra(&ifra, &ia0->ia_addr.sin6_addr,
+	    &ia0->ia_prefixmask.sin6_addr);
+
+	ifra.ifra_addr = ia0->ia_addr;	/* XXX: do we need this ? */
 	/* clear the old IFID */
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr,
 	    &ifra.ifra_prefixmask.sin6_addr);
