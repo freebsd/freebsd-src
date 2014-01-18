@@ -205,6 +205,18 @@ boot</screen>
 	  <literal>-tso</literal> flag.</para>
       </listitem>
 
+      <listitem>
+	<para>Due to a minor incompatibility with &man.pkg.7; version
+	  <literal>1.2.x</literal>, &man.bsdconfig.8; will duplicate
+	  the list of available packages for installation.  This is
+	  due to the <literal>PACKAGESITE</literal> environment
+	  variable being set for backwards compatibility with older
+	  versions of &man.pkg.7;.  This affects generation of the
+	  generation of the available package list only, and does not
+	  affect the behavior when processing packages for
+	  installation.</para>
+      </listitem>
+
     </itemizedlist>
   </sect1>
 
