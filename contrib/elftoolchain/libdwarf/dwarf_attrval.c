@@ -50,6 +50,7 @@ dwarf_attrval_flag(Dwarf_Die die, Dwarf_Half attr, Dwarf_Bool *valp, Dwarf_Error
 
 	switch (at->at_form) {
 	case DW_FORM_flag:
+	case DW_FORM_flag_present:
 		*valp = (Dwarf_Bool) (!!at->u[0].u64);
 		break;
 	default:
