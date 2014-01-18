@@ -28,7 +28,7 @@
 
 ELFTC_VCSID("$Id: dwarf_errmsg.c 2576 2012-09-13 09:16:11Z jkoshy $");
 
-const char *_libdwarf_errors[] = {
+static const char *_libdwarf_errors[] = {
 #define	DEFINE_ERROR(N,S)		[DW_DLE_##N] = S
 	DEFINE_ERROR(NONE, "No Error"),
 	DEFINE_ERROR(ERROR, "An error"),
