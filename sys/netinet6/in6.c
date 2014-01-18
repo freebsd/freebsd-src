@@ -1168,53 +1168,53 @@ in6_validate_ifra(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	return (0);
 }
 
-	/*
-	 * If this is a new address, allocate a new ifaddr and link it
-	 * into chains.
-	 */
+
+/*
+ * Allocate a new ifaddr and link it into chains.
+ */
 static struct in6_ifaddr *
 in6_alloc_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra, int flags)
 {
 	struct in6_ifaddr *ia;
 
+	/*
+	 * When in6_alloc_ifa() is called in a process of a received
+	 * RA, it is called under an interrupt context.  So, we should
+	 * call malloc with M_NOWAIT.
+	 */
+	ia = (struct in6_ifaddr *)ifa_alloc(sizeof(*ia), M_NOWAIT);
+	if (ia == NULL)
+		return (NULL);
+	LIST_INIT(&ia->ia6_memberships);
+	/* Initialize the address and masks, and put time stamp */
+	ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
+	ia->ia_addr.sin6_family = AF_INET6;
+	ia->ia_addr.sin6_len = sizeof(ia->ia_addr);
+	ia->ia6_createtime = time_uptime;
+	if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) != 0) {
 		/*
-		 * When in6_update_ifa() is called in a process of a received
-		 * RA, it is called under an interrupt context.  So, we should
-		 * call malloc with M_NOWAIT.
+		 * XXX: some functions expect that ifa_dstaddr is not
+		 * NULL for p2p interfaces.
 		 */
-		ia = (struct in6_ifaddr *)ifa_alloc(sizeof(*ia), M_NOWAIT);
-		if (ia == NULL)
-			return (NULL);
-		LIST_INIT(&ia->ia6_memberships);
-		/* Initialize the address and masks, and put time stamp */
-		ia->ia_ifa.ifa_addr = (struct sockaddr *)&ia->ia_addr;
-		ia->ia_addr.sin6_family = AF_INET6;
-		ia->ia_addr.sin6_len = sizeof(ia->ia_addr);
-		ia->ia6_createtime = time_uptime;
-		if ((ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) != 0) {
-			/*
-			 * XXX: some functions expect that ifa_dstaddr is not
-			 * NULL for p2p interfaces.
-			 */
-			ia->ia_ifa.ifa_dstaddr =
-			    (struct sockaddr *)&ia->ia_dstaddr;
-		} else {
-			ia->ia_ifa.ifa_dstaddr = NULL;
-		}
-		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
-		ia->ia_ifp = ifp;
-		ifa_ref(&ia->ia_ifa);			/* if_addrhead */
-		IF_ADDR_WLOCK(ifp);
-		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
-		IF_ADDR_WUNLOCK(ifp);
+		ia->ia_ifa.ifa_dstaddr =
+		    (struct sockaddr *)&ia->ia_dstaddr;
+	} else {
+		ia->ia_ifa.ifa_dstaddr = NULL;
+	}
+	ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
+	ia->ia_ifp = ifp;
+	ifa_ref(&ia->ia_ifa);			/* if_addrhead */
+	IF_ADDR_WLOCK(ifp);
+	TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
+	IF_ADDR_WUNLOCK(ifp);
 
-		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
-		IN6_IFADDR_WLOCK();
-		TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
-		LIST_INSERT_HEAD(IN6ADDR_HASH(&ifra->ifra_addr.sin6_addr),
-		    ia, ia6_hash);
-		IN6_IFADDR_WUNLOCK();
-	
+	ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
+	IN6_IFADDR_WLOCK();
+	TAILQ_INSERT_TAIL(&V_in6_ifaddrhead, ia, ia_link);
+	LIST_INSERT_HEAD(IN6ADDR_HASH(&ifra->ifra_addr.sin6_addr),
+	    ia, ia6_hash);
+	IN6_IFADDR_WUNLOCK();
+
 	return (ia);
 }
 
@@ -1318,11 +1318,6 @@ in6_setup_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 
 	/* Add local address to lltable, if necessary (ex. on p2p link). */
 	in6_ifaddloop(&(ia->ia_ifa));
-
-	/*
-	 * Beyond this point, we should call in6_purgeaddr upon an error,
-	 * not just go to unlink.
-	 */
 
 	/* Join necessary multicast groups. */
 	in6m_sol = NULL;
