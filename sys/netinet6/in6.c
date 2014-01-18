@@ -1036,6 +1036,27 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	return (error);
 }
 
+/*
+ * Fill in basic IPv6 address request info
+ */
+void
+in6_prepare_ifra(struct in6_aliasreq *ifra, const struct in6_addr *addr,
+    const struct in6_addr *mask)
+{
+
+	memset(ifra, 0, sizeof(struct in6_aliasreq));
+
+	ifra->ifra_addr.sin6_family = AF_INET6;
+	ifra->ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
+	if (addr != NULL)
+		ifra->ifra_addr.sin6_addr = *addr;
+
+	ifra->ifra_prefixmask.sin6_family = AF_INET6;
+	ifra->ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
+	if (mask != NULL)
+		ifra->ifra_prefixmask.sin6_addr = *mask;
+}
+
 static int
 in6_validate_ifra(struct ifnet *ifp, struct in6_aliasreq *ifra,
     struct in6_ifaddr *ia, int flags)
