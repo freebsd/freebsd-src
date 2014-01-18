@@ -218,9 +218,9 @@ boot</screen>
 
       <listitem>
 	<para>A regression in &man.pw.8; does not remove a user from
-	  the specified group list when the <literal>-G</literal> flag
-	  is used.  This is expected to be corrected in &os;-CURRENT
-	  and &os;-STABLE.</para>
+	  groups not specified in the provided group list when the
+	  <literal>-G</literal> flag is used.  This is expected to be
+	  corrected in &os;-CURRENT and &os;-STABLE.</para>
       </listitem>
     </itemizedlist>
   </sect1>
