@@ -195,6 +195,16 @@ boot</screen>
 	  This bug has been fixed on &os;-CURRENT and will be fixed
 	  in &os;-STABLE.</para>
       </listitem>
+
+      <listitem>
+	<para>In some NFSv4 environments, &man.bxe.4; with
+	  <literal>tso</literal> enabled may experience issues with
+	  packet corruption, resulting in poor performance.  In some
+	  cases, turning off <literal>tso</literal> will resolve the
+	  issue.  See &man.ifconfig.8; for more information about the
+	  <literal>-tso</literal> flag.</para>
+      </listitem>
+
     </itemizedlist>
   </sect1>
 
