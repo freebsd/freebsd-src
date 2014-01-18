@@ -1155,6 +1155,37 @@ cantinject:
 	VCPU_CTR0(vmx->vm, vcpu, "Enabling interrupt window exiting");
 }
 
+/*
+ * If the Virtual NMIs execution control is '1' then the logical processor
+ * tracks virtual-NMI blocking in the Guest Interruptibility-state field of
+ * the VMCS. An IRET instruction in VMX non-root operation will remove any
+ * virtual-NMI blocking.
+ *
+ * This unblocking occurs even if the IRET causes a fault. In this case the
+ * hypervisor needs to restore virtual-NMI blocking before resuming the guest.
+ */
+static void
+vmx_restore_nmi_blocking(struct vmx *vmx, int vcpuid)
+{
+	uint32_t gi;
+
+	VCPU_CTR0(vmx->vm, vcpuid, "Restore Virtual-NMI blocking");
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	gi |= VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
+	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+}
+
+static void
+vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
+{
+	uint32_t gi;
+
+	VCPU_CTR0(vmx->vm, vcpuid, "Clear Virtual-NMI blocking");
+	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+	gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
+	vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+}
+
 static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
@@ -1444,7 +1475,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	int error, handled;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
-	uint32_t eax, ecx, edx, gi, idtvec_info, idtvec_err, intr_info, reason;
+	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, reason;
 	uint64_t qual, gpa;
 	bool retu;
 
@@ -1490,13 +1521,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			 */
 			if ((idtvec_info & VMCS_INTR_T_MASK) ==
 			    VMCS_INTR_T_NMI) {
-				 gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
-				 gi &= ~VMCS_INTERRUPTIBILITY_NMI_BLOCKING;
-				 vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+				 vmx_clear_nmi_blocking(vmx, vcpu);
 			}
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
 	default:
+		idtvec_info = 0;
 		break;
 	}
 
@@ -1601,6 +1631,23 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_CPUID, 1);
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
+	case EXIT_REASON_EXCEPTION:
+		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
+		    ("VM exit interruption info invalid: %#x", intr_info));
+		/*
+		 * If Virtual NMIs control is 1 and the VM-exit is due to a
+		 * fault encountered during the execution of IRET then we must
+		 * restore the state of "virtual-NMI blocking" before resuming
+		 * the guest.
+		 *
+		 * See "Resuming Guest Software after Handling an Exception".
+		 */
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
+		    (intr_info & 0xff) != IDT_DF &&
+		    (intr_info & EXIT_QUAL_NMIUDTI) != 0)
+			vmx_restore_nmi_blocking(vmx, vcpu);
+		break;
 	case EXIT_REASON_EPT_FAULT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 		/*
@@ -1619,6 +1666,17 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.inst_emul.gla = vmcs_gla();
 			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
 		}
+		/*
+		 * If Virtual NMIs control is 1 and the VM-exit is due to an
+		 * EPT fault during the execution of IRET then we must restore
+		 * the state of "virtual-NMI blocking" before resuming.
+		 *
+		 * See description of "NMI unblocking due to IRET" in
+		 * "Exit Qualification for EPT Violations".
+		 */
+		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
+		    (qual & EXIT_QUAL_NMIUDTI) != 0)
+			vmx_restore_nmi_blocking(vmx, vcpu);
 		break;
 	case EXIT_REASON_APIC_ACCESS:
 		handled = vmx_handle_apic_access(vmx, vcpu, vmexit);
