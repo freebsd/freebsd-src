@@ -212,9 +212,8 @@ boot</screen>
 	  due to the <literal>PACKAGESITE</literal> environment
 	  variable being set for backwards compatibility with older
 	  versions of &man.pkg.7;.  This affects generation of the
-	  generation of the available package list only, and does not
-	  affect the behavior when processing packages for
-	  installation.</para>
+	  available package list only, and does not affect the
+	  behavior when processing packages for installation.</para>
       </listitem>
 
     </itemizedlist>
