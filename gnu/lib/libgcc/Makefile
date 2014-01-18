@@ -119,8 +119,8 @@ LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
 .if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
+DPADD+=		${LIBCOMPILER_RT}
+LDADD+=		-lcompiler_rt
 .else
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .endif
