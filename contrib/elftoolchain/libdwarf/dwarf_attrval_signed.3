@@ -24,7 +24,7 @@
 .\"
 .\" $Id: dwarf_attrval_signed.3 2072 2011-10-27 03:26:49Z jkoshy $
 .\"
-.Dd January 29, 2011
+.Dd January 18, 2014
 .Os
 .Dt DWARF_ATTRVAL_SIGNED 3
 .Sh NAME
@@ -84,13 +84,28 @@ Function
 .Fn dwarf_attrval_flag
 sets the location pointed to by argument
 .Ar ret
-to 1 if the attribute named by argument
+to either 0 or 1. If the form of the attribute named by argument
 .Ar attr
-has a non-zero value, or to 0 otherwise.
-The form of the attribute named by argument
+is
+.Dv DW_FORM_flag ,
+function
+.Fn dwarf_attrval_flag
+sets the location pointed to by argument
+.Ar ret
+to 1 if the attribute has a non-zero value, or to 0 otherwise.
+If the form of the attribute named by argument
 .Ar attr
-must be
-.Dv DW_FORM_flag .
+is
+.Dv DW_FORM_flag_present , 
+function
+.Fn dwarf_attrval_flag
+unconditionally sets the location pointed to by argument
+.Ar ret
+to 1.
+The form of the attribute must be one of
+.Dv DW_FORM_flag
+or
+.Dv DW_FORM_flag_present .
 .Pp
 Function
 .Fn dwarf_attrval_signed
@@ -122,7 +137,7 @@ attribute named by argument
 The form of the attribute must be one of
 .Dv DW_FORM_string
 or
-.Dv  DW_FORM_strp .
+.Dv DW_FORM_strp .
 .Pp
 Function
 .Fn dwarf_attrval_unsigned
