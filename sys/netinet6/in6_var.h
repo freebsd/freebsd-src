@@ -822,12 +822,11 @@ int	in6_prefix_ioctl(struct socket *, u_long, caddr_t,
 int	in6_prefix_add_ifid(int, struct in6_ifaddr *);
 void	in6_prefix_remove_ifid(int, struct in6_ifaddr *);
 void	in6_purgeprefix(struct ifnet *);
-void	in6_ifremloop(struct ifaddr *);
-void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated(struct sockaddr_in6 *);
 int	in6_src_ioctl(u_long, caddr_t);
 
+void	in6_newaddrmsg(struct in6_ifaddr *, int);
 /*
  * Extended API for IPv6 FIB support.
  */
