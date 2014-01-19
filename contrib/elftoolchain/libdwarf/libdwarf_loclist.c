@@ -127,6 +127,11 @@ _dwarf_loclist_add(Dwarf_Debug dbg, Dwarf_CU cu, uint64_t lloff,
 		return (DW_DLE_NO_ENTRY);
 	}
 
+	if (lloff >= ds->ds_size) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+		return (DW_DLE_NO_ENTRY);
+	}
+
 	if ((ll = malloc(sizeof(struct _Dwarf_Loclist))) == NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_MEMORY);
 		return (DW_DLE_MEMORY);
