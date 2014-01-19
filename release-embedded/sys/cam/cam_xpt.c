@@ -1992,13 +1992,15 @@ xptplistperiphfunc(struct cam_periph *periph, void *arg)
 			cdm->matches[j].result.periph_result.target_id =
 				periph->path->target->target_id;
 		else
-			cdm->matches[j].result.periph_result.target_id = -1;
+			cdm->matches[j].result.periph_result.target_id =
+				CAM_TARGET_WILDCARD;
 
 		if (periph->path->device)
 			cdm->matches[j].result.periph_result.target_lun =
 				periph->path->device->lun_id;
 		else
-			cdm->matches[j].result.periph_result.target_lun = -1;
+			cdm->matches[j].result.periph_result.target_lun =
+				CAM_LUN_WILDCARD;
 
 		cdm->matches[j].result.periph_result.unit_number =
 			periph->unit_number;
@@ -3154,9 +3156,7 @@ restart:
 			}
 			if (periph->flags & CAM_PERIPH_RUN_TASK)
 				break;
-			xpt_lock_buses();
-			periph->refcount++;	/* Unconditionally acquire */
-			xpt_unlock_buses();
+			cam_periph_doacquire(periph);
 			periph->flags |= CAM_PERIPH_RUN_TASK;
 			taskqueue_enqueue(xsoftc.xpt_taskq,
 			    &periph->periph_run_task);
@@ -5188,8 +5188,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
 	 && (ccb_h->status & CAM_DEV_QFRZN)) {
-		xpt_release_devq(ccb_h->path, /*count*/1,
-				 /*run_queue*/FALSE);
+		xpt_release_devq(ccb_h->path, /*count*/1, /*run_queue*/TRUE);
 		ccb_h->status &= ~CAM_DEV_QFRZN;
 	}
 
@@ -5218,6 +5217,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 		if (!device_is_queued(dev))
 			(void)xpt_schedule_devq(devq, dev);
+		xpt_run_devq(devq);
 		mtx_unlock(&devq->send_mtx);
 
 		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0) {
@@ -5247,10 +5247,6 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	if (mtx != NULL)
 		mtx_unlock(mtx);
-
-	mtx_lock(&devq->send_mtx);
-	xpt_run_devq(devq);
-	mtx_unlock(&devq->send_mtx);
 }
 
 void

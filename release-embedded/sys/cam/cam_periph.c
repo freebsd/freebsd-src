@@ -376,6 +376,17 @@ cam_periph_acquire(struct cam_periph *periph)
 }
 
 void
+cam_periph_doacquire(struct cam_periph *periph)
+{
+
+	xpt_lock_buses();
+	KASSERT(periph->refcount >= 1,
+	    ("cam_periph_doacquire() with refcount == %d", periph->refcount));
+	periph->refcount++;
+	xpt_unlock_buses();
+}
+
+void
 cam_periph_release_locked_buses(struct cam_periph *periph)
 {
 

@@ -69,20 +69,22 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg)
 			nr_arg = 0;
 		nmr.nr_arg1 = nr_arg;
 		error = ioctl(fd, NIOCREGIF, &nmr);
-		if (error == -1)
-			D("Unable to %s %s to the bridge", nr_cmd ==
+		if (error == -1) {
+			ND("Unable to %s %s to the bridge", nr_cmd ==
 			    NETMAP_BDG_DETACH?"detach":"attach", name);
-		else
-			D("Success to %s %s to the bridge\n", nr_cmd ==
+			perror(name);
+		} else
+			ND("Success to %s %s to the bridge", nr_cmd ==
 			    NETMAP_BDG_DETACH?"detach":"attach", name);
 		break;
 
 	case NETMAP_BDG_LIST:
 		if (strlen(nmr.nr_name)) { /* name to bridge/port info */
 			error = ioctl(fd, NIOCGINFO, &nmr);
-			if (error)
-				D("Unable to obtain info for %s", name);
-			else
+			if (error) {
+				ND("Unable to obtain info for %s", name);
+				perror(name);
+			} else
 				D("%s at bridge:%d port:%d", name, nmr.nr_arg1,
 				    nmr.nr_arg2);
 			break;
@@ -101,9 +103,10 @@ bdg_ctl(const char *name, int nr_cmd, int nr_arg)
 	default: /* GINFO */
 		nmr.nr_cmd = nmr.nr_arg1 = nmr.nr_arg2 = 0;
 		error = ioctl(fd, NIOCGINFO, &nmr);
-		if (error)
-			D("Unable to get if info for %s", name);
-		else
+		if (error) {
+			ND("Unable to get if info for %s", name);
+			perror(name);
+		} else
 			D("%s: %d queues.", name, nmr.nr_rx_rings);
 		break;
 	}
@@ -164,6 +167,5 @@ usage:
 	}
 	if (argc == 1)
 		nr_cmd = NETMAP_BDG_LIST;
-	bdg_ctl(name, nr_cmd, nr_arg);
-	return 0;
+	return bdg_ctl(name, nr_cmd, nr_arg) ? 1 : 0;
 }

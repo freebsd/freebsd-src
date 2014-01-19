@@ -1,12 +1,9 @@
 /*-
- * Copyright (c) 2005 Rink Springer
+ * Copyright (c) 2013 The FreeBSD Foundation
  * All rights reserved.
  *
- * Copyright (c) 2009 The FreeBSD Foundation
- * All rights reserved.
- *
- * Portions of this software were developed by Ed Schouten
- * under sponsorship from the FreeBSD Foundation.
+ * This software was developed by Aleksandr Rybalko under sponsorship from the
+ * FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -28,16 +25,23 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/fbio.h>
+
+#include "opt_platform.h"
 
 #include <dev/vt/vt.h>
+#include <dev/vt/hw/fb/vt_fb.h>
+#include <dev/vt/colors/vt_termcolors.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -47,110 +51,32 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <machine/xbox.h>
 
-struct xbox_softc {
-	bus_space_tag_t		xbox_fb_tag;
-	bus_space_handle_t	xbox_fb_handle;
-};
-
-/* Convenience macros. */
-#define	MEM_WRITE4(sc, ofs, val) \
-	bus_space_write_4(sc->xbox_fb_tag, sc->xbox_fb_handle, ofs, val)
-
 #define	VT_XBOX_WIDTH	640
 #define	VT_XBOX_HEIGHT	480
 
-static vd_init_t	xbox_init;
-static vd_blank_t	xbox_blank;
-static vd_bitbltchr_t	xbox_bitbltchr;
+static vd_init_t xboxfb_init;
 
-static const struct vt_driver vt_xbox_driver = {
-	.vd_init	= xbox_init,
-	.vd_blank	= xbox_blank,
-	.vd_bitbltchr	= xbox_bitbltchr,
-	.vd_priority	= VD_PRIORITY_GENERIC+1,
+static struct vt_driver xboxfb_driver = {
+	.vd_init = xboxfb_init,
+	.vd_blank = vt_fb_blank,
+	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_priority = VD_PRIORITY_GENERIC,
 };
 
-static struct xbox_softc xbox_conssoftc;
-VT_CONSDEV_DECLARE(vt_xbox_driver, PIXEL_WIDTH(VT_XBOX_WIDTH),
-    PIXEL_HEIGHT(VT_XBOX_HEIGHT), &xbox_conssoftc);
+static struct fb_info xboxfb_info;
+VT_CONSDEV_DECLARE(xboxfb_driver, PIXEL_WIDTH(VT_XBOX_WIDTH),
+    PIXEL_HEIGHT(VT_XBOX_HEIGHT), &xboxfb_info);
 
-static const uint32_t colormap[] = {
-	0x00000000,	/* Black */
-	0x00ff0000,	/* Red */
-	0x0000ff00,	/* Green */
-	0x00c0c000,	/* Brown */
-	0x000000ff,	/* Blue */
-	0x00c000c0,	/* Magenta */
-	0x0000c0c0,	/* Cyan */
-	0x00c0c0c0,	/* Light grey */
-	0x00808080,	/* Dark grey */
-	0x00ff8080,	/* Light red */
-	0x0080ff80,	/* Light green */
-	0x00ffff80,	/* Yellow */
-	0x008080ff,	/* Light blue */
-	0x00ff80ff,	/* Light magenta */
-	0x0080ffff,	/* Light cyan */
-	0x00ffffff, 	/* White */
-};
-
-static void
-xbox_blank(struct vt_device *vd, term_color_t color)
+static int
+xboxfb_init(struct vt_device *vd)
 {
-	struct xbox_softc *sc = vd->vd_softc;
-	u_int ofs;
-	uint32_t c;
-
-	c = colormap[color];
-	for (ofs = 0; ofs < (VT_XBOX_WIDTH * VT_XBOX_HEIGHT) * 4; ofs += 4)
-		MEM_WRITE4(sc, ofs, c);
-}
-
-static void
-xbox_bitbltchr(struct vt_device *vd, const uint8_t *src, const uint8_t *mask,
-    int bpl, vt_axis_t top, vt_axis_t left, unsigned int width,
-    unsigned int height, term_color_t fg, term_color_t bg)
-{
-	struct xbox_softc *sc = vd->vd_softc;
-	u_long line;
-	uint32_t fgc, bgc;
-	int c;
-	uint8_t b, m;
-
-	fgc = colormap[fg];
-	bgc = colormap[bg];
-
-	/* Don't try to put off screen pixels */
-	if (((left + width) > info->fb_width) || ((top + height) >
-	    info->fb_height))
-		return;
-
-	line = (VT_XBOX_WIDTH * top + left) * 4;
-	for (; height > 0; height--) {
-		for (c = 0; c < width; c++) {
-			if (c % 8 == 0)
-				b = *src++;
-			else
-				b <<= 1;
-			if (mask != NULL) {
-				if (c % 8 == 0)
-					m = *mask++;
-				else
-					m <<= 1;
-				/* Skip pixel write, if mask has no bit set. */
-				if ((m & 0x80) == 0)
-					continue;
-			}
-			MEM_WRITE4(sc, line + c * 4, b & 0x80 ? fgc : bgc);
-		}
-		line += VT_XBOX_WIDTH * 4;
-	}
-}
-
-static void
-xbox_initialize(struct vt_device *vd)
-{
+	struct fb_info *info;
 	int i;
 
+	if (!arch_i386_is_xbox)
+		return (CN_DEAD);
+
+	info = &xboxfb_info;
 	/*
 	 * We must make a mapping from video framebuffer memory
 	 * to real. This is very crude:  we map the entire
@@ -175,25 +101,27 @@ xbox_initialize(struct vt_device *vd)
 	*(uint32_t *)((i + 1) * PAGE_SIZE + XBOX_FB_START_PTR % PAGE_SIZE) =
 	    XBOX_FB_START;
 
-	/* Clear the screen. */
-	xbox_blank(vd, TC_BLACK);
-}
+	/* Initialize fb_info. */
+	info = vd->vd_softc;
 
-static int
-xbox_init(struct vt_device *vd)
-{
-	struct xbox_softc *sc = vd->vd_softc;
+	info->fb_width = VT_XBOX_WIDTH;
+	info->fb_height = VT_XBOX_HEIGHT;
 
-	if (!arch_i386_is_xbox)
-		return (CN_DEAD);
+	info->fb_size = XBOX_FB_SIZE;
+	info->fb_stride = VT_XBOX_WIDTH * 4; /* 32bits per pixel. */
 
-	sc->xbox_fb_tag = X86_BUS_SPACE_MEM;
-	sc->xbox_fb_handle = PAGE_SIZE;
+	info->fb_vbase = PAGE_SIZE;
+	info->fb_pbase = XBOX_FB_START_PTR;
 
-	vd->vd_width = VT_XBOX_WIDTH;
-	vd->vd_height = VT_XBOX_HEIGHT;
+	/* Get pixel storage size. */
+	info->fb_bpp = 32;
+	/* Get color depth. */
+	info->fb_depth = 24;
 
-	xbox_initialize(vd);
+	vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB, 255, 0, 255,
+	    8, 255, 16);
+	fb_probe(info);
+	vt_fb_init(vd);
 
 	return (CN_INTERNAL);
 }
@@ -201,12 +129,13 @@ xbox_init(struct vt_device *vd)
 static void
 xbox_remap(void *unused)
 {
+	struct fb_info *info;
 
 	if (!arch_i386_is_xbox)
 		return;
 
-	xbox_conssoftc.xbox_fb_handle =
-	    (bus_space_handle_t)pmap_mapdev(XBOX_FB_START, XBOX_FB_SIZE);
+	info = &xboxfb_info;
+	info->fb_vbase = (intptr_t)pmap_mapdev(info->fb_pbase, info->fb_size);
 }
 
 SYSINIT(xboxfb, SI_SUB_DRIVERS, SI_ORDER_ANY, xbox_remap, NULL);

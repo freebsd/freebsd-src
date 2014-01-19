@@ -909,10 +909,8 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 {
 	vm_page_t m, next;
 	struct vm_pagequeue *pq;
-	int page_shortage, maxscan, pcount;
-	int addl_page_shortage;
 	vm_object_t object;
-	int act_delta;
+	int act_delta, addl_page_shortage, deficit, maxscan, page_shortage;
 	int vnodes_skipped = 0;
 	int maxlaunder;
 	int lockmode;
@@ -942,13 +940,15 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 	 * number of pages from the inactive count that should be
 	 * discounted in setting the target for the active queue scan.
 	 */
-	addl_page_shortage = atomic_readandclear_int(&vm_pageout_deficit);
+	addl_page_shortage = 0;
+
+	deficit = atomic_readandclear_int(&vm_pageout_deficit);
 
 	/*
 	 * Calculate the number of pages we want to either free or move
 	 * to the cache.
 	 */
-	page_shortage = vm_paging_target() + addl_page_shortage;
+	page_shortage = vm_paging_target() + deficit;
 
 	/*
 	 * maxlaunder limits the number of dirty pages we flush per scan.
@@ -1047,11 +1047,11 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * level VM system not knowing anything about existing 
 		 * references.
 		 */
-		act_delta = 0;
 		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta = 1;
-		}
+		} else
+			act_delta = 0;
 		if (object->ref_count != 0) {
 			act_delta += pmap_ts_referenced(m);
 		} else {
@@ -1064,7 +1064,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * references, we reactivate the page or requeue it.
 		 */
 		if (act_delta != 0) {
-			if (object->ref_count) {
+			if (object->ref_count != 0) {
 				vm_page_activate(m);
 				m->act_count += act_delta + ACT_ADVANCE;
 			} else {
@@ -1245,6 +1245,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				 */
 				if (vm_page_busied(m)) {
 					vm_page_unlock(m);
+					addl_page_shortage++;
 					goto unlock_and_continue;
 				}
 
@@ -1252,9 +1253,9 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 				 * If the page has become held it might
 				 * be undergoing I/O, so skip it
 				 */
-				if (m->hold_count) {
+				if (m->hold_count != 0) {
 					vm_page_unlock(m);
-					vm_page_requeue_locked(m);
+					addl_page_shortage++;
 					if (object->flags & OBJ_MIGHTBEDIRTY)
 						vnodes_skipped++;
 					goto unlock_and_continue;
@@ -1309,19 +1310,20 @@ relock_queues:
 	 * Compute the number of pages we want to try to move from the
 	 * active queue to the inactive queue.
 	 */
+	page_shortage = cnt.v_inactive_target - cnt.v_inactive_count +
+	    vm_paging_target() + deficit + addl_page_shortage;
+
 	pq = &vmd->vmd_pagequeues[PQ_ACTIVE];
 	vm_pagequeue_lock(pq);
-	pcount = pq->pq_cnt;
-	page_shortage = vm_paging_target() +
-	    cnt.v_inactive_target - cnt.v_inactive_count;
-	page_shortage += addl_page_shortage;
+	maxscan = pq->pq_cnt;
+
 	/*
 	 * If we're just idle polling attempt to visit every
 	 * active page within 'update_period' seconds.
 	 */
-	 if (pass == 0 && vm_pageout_update_period != 0) {
-		pcount /= vm_pageout_update_period;
-		page_shortage = pcount;
+	if (pass == 0 && vm_pageout_update_period != 0) {
+		maxscan /= vm_pageout_update_period;
+		page_shortage = maxscan;
 	}
 
 	/*
@@ -1330,7 +1332,7 @@ relock_queues:
 	 * deactivation candidates.
 	 */
 	m = TAILQ_FIRST(&pq->pq_pl);
-	while ((m != NULL) && (pcount-- > 0) && (page_shortage > 0)) {
+	while (m != NULL && maxscan-- > 0 && page_shortage > 0) {
 
 		KASSERT(m->queue == PQ_ACTIVE,
 		    ("vm_pageout_scan: page %p isn't active", m));
@@ -1359,11 +1361,12 @@ relock_queues:
 		/*
 		 * Check to see "how much" the page has been used.
 		 */
-		act_delta = 0;
-		if (m->aflags & PGA_REFERENCED) {
+		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta += 1;
-		}
+			act_delta = 1;
+		} else
+			act_delta = 0;
+
 		/*
 		 * Unlocked object ref count check.  Two races are possible.
 		 * 1) The ref was transitioning to zero and we saw non-zero,
@@ -1378,20 +1381,18 @@ relock_queues:
 		/*
 		 * Advance or decay the act_count based on recent usage.
 		 */
-		if (act_delta) {
+		if (act_delta != 0) {
 			m->act_count += ACT_ADVANCE + act_delta;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
-		} else {
+		} else
 			m->act_count -= min(m->act_count, ACT_DECLINE);
-			act_delta = m->act_count;
-		}
 
 		/*
 		 * Move this page to the tail of the active or inactive
 		 * queue depending on usage.
 		 */
-		if (act_delta == 0) {
+		if (m->act_count == 0) {
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);

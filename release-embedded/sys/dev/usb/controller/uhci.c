@@ -1179,8 +1179,13 @@ uhci_non_isoc_done_sub(struct usb_xfer *xfer)
 		    (status & UHCI_TD_SPD) ? "[SPD]" : "");
 	}
 #endif
-	return (status & UHCI_TD_STALLED) ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION;
+	if (status & UHCI_TD_STALLED) {
+		/* try to separate I/O errors from STALL */
+		if (UHCI_TD_GET_ERRCNT(status) == 0)
+			return (USB_ERR_IOERROR);
+		return (USB_ERR_STALLED);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void

@@ -133,6 +133,7 @@ static int regen_tmpaddr(struct in6_ifaddr *);
 static struct llentry *nd6_free(struct llentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
+static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 
 static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
@@ -2174,6 +2175,62 @@ nd6_need_cache(struct ifnet *ifp)
 	default:
 		return (0);
 	}
+}
+
+/*
+ * Add pernament ND6 link-layer record for given
+ * interface address.
+ *
+ * Very similar to IPv4 arp_ifinit(), but:
+ * 1) IPv6 DAD is performed in different place
+ * 2) It is called by IPv6 protocol stack in contrast to
+ * arp_ifinit() which is typically called in SIOCSIFADDR
+ * driver ioctl handler.
+ *
+ */
+int
+nd6_add_ifa_lle(struct in6_ifaddr *ia)
+{
+	struct ifnet *ifp;
+	struct llentry *ln;
+
+	ifp = ia->ia_ifa.ifa_ifp;
+	IF_AFDATA_LOCK(ifp);
+	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
+	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
+	IF_AFDATA_UNLOCK(ifp);
+	if (ln != NULL) {
+		ln->la_expire = 0;  /* for IPv6 this means permanent */
+		ln->ln_state = ND6_LLINFO_REACHABLE;
+		LLE_WUNLOCK(ln);
+		in6_newaddrmsg(ia, RTM_ADD);
+		return (0);
+	}
+
+	return (ENOBUFS);
+}
+
+/*
+ * Removes ALL lle records for interface address prefix.
+ * XXXME: That's probably not we really want to do, we need
+ * to remove address record only and keep other records
+ * until we determine if given prefix is really going 
+ * to be removed.
+ */
+void
+nd6_rem_ifa_lle(struct in6_ifaddr *ia)
+{
+	struct sockaddr_in6 mask, addr;
+	struct ifnet *ifp;
+
+	in6_newaddrmsg(ia, RTM_DELETE);
+
+	ifp = ia->ia_ifa.ifa_ifp;
+	memcpy(&addr, &ia->ia_addr, sizeof(ia->ia_addr));
+	memcpy(&mask, &ia->ia_prefixmask, sizeof(ia->ia_prefixmask));
+	lltable_prefix_free(AF_INET6, (struct sockaddr *)&addr,
+	            (struct sockaddr *)&mask, LLE_STATIC);
 }
 
 /*
