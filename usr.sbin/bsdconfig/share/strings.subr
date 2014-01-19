@@ -372,14 +372,13 @@ f_expand_number()
 	local __cp __num __bshift __maxinput
 
 	# Remove any leading non-digits
-	while :; do
-		__cp="$__string"
-		__string="${__cp#[!0-9]}"
-		[ "$__string" = "$__cp" ] && break
-	done
+	__string="${__string#${__string%%[0-9]*}}"
+
+	# Store the numbers (no trailing suffix)
+	__num="${__string%%[!0-9]*}"
 
 	# Produce `-1' if string didn't contain any digits
-	if [ ! "$__string" ]; then
+	if [ ! "$__num" ]; then
 		if [ "$__var_to_set" ]; then
 			setvar "$__var_to_set" -1
 		else
@@ -388,25 +387,8 @@ f_expand_number()
 		return 1 # 1 = "Given $string contains no digits"
 	fi
 
-	# Store the numbers
-	__num="${__string%%[!0-9]*}"
-
-	# Shortcut
-	if [ $__num -eq 0 ]; then
-		if [ "$__var_to_set" ]; then
-			setvar "$__var_to_set" 0
-		else
-			echo 0
-		fi
-		return $SUCCESS
-	fi
-
 	# Remove all the leading numbers from the string to get at the prefix
-	while :; do
-		__cp="$__string"
-		__string="${__cp#[0-9]}"
-		[ "$__string" = "$__cp" ] && break
-	done
+	__string="${__string#"$__num"}"
 
 	#
 	# Test for invalid prefix (and determine bitshift length)
