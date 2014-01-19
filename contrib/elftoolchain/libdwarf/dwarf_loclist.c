@@ -56,8 +56,20 @@ dwarf_loclist_n(Dwarf_Attribute at, Dwarf_Locdesc ***llbuf,
 		switch (at->at_form) {
 		case DW_FORM_data4:
 		case DW_FORM_data8:
-			ret = _dwarf_loclist_find(at->at_die->die_dbg,
-			    at->at_die->die_cu, at->u[0].u64, &ll, error);
+			/*
+			 * DW_FORM_data[48] can not be used as section offset
+			 * since DWARF4. For DWARF[23], the application needs
+			 * to determine if DW_FORM_data[48] is representing
+			 * a constant or a section offset.
+			 */
+			if (at->at_die->die_cu->cu_version >= 4) {
+				DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+				return (DW_DLV_NO_ENTRY);
+			}
+			/* FALLTHROUGH */
+		case DW_FORM_sec_offset:
+			ret = _dwarf_loclist_find(dbg, at->at_die->die_cu,
+			    at->u[0].u64, &ll, error);
 			if (ret == DW_DLE_NO_ENTRY) {
 				DWARF_SET_ERROR(dbg, error, ret);
 				return (DW_DLV_NO_ENTRY);
@@ -119,6 +131,19 @@ dwarf_loclist(Dwarf_Attribute at, Dwarf_Locdesc **llbuf,
 		switch (at->at_form) {
 		case DW_FORM_data4:
 		case DW_FORM_data8:
+			/*
+			 * DW_FORM_data[48] can not be used as section offset
+			 * since DWARF4. For DWARF[23], the application needs
+			 * to determine if DW_FORM_data[48] is representing
+			 * a constant or a section offset.
+			 */
+			if (at->at_die->die_cu->cu_version >= 4) {
+				printf("called cu_version >= 4\n");
+				DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+				return (DW_DLV_NO_ENTRY);
+			}
+			/* FALLTHROUGH */
+		case DW_FORM_sec_offset:
 			ret = _dwarf_loclist_find(at->at_die->die_dbg,
 			    at->at_die->die_cu, at->u[0].u64, &ll, error);
 			if (ret == DW_DLE_NO_ENTRY) {
