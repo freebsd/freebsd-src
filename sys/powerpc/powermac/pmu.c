@@ -378,7 +378,7 @@ pmu_attach(device_t dev)
 	pmu_write_reg(sc, vIER, 0x94); /* make sure VIA interrupts are on */
 
 	pmu_send(sc, PMU_SYSTEM_READY, 1, cmd, 16, resp);
-	pmu_send(sc, PMU_GET_VERSION, 1, cmd, 16, resp);
+	pmu_send(sc, PMU_GET_VERSION, 0, cmd, 16, resp);
 
 	/* Initialize child buses (ADB) */
 	node = ofw_bus_get_node(dev);
