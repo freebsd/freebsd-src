@@ -50,7 +50,7 @@ main() {
 	install_uboot
 	mkdir -p ${CHROOTDIR}/tmp/crochet/work
 	eval chroot ${CHROOTDIR} /bin/sh /tmp/crochet/crochet.sh \
-		-c /usr/src/tools/release/${XDEV}/crochet-${KERNEL}.conf
+		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
 }
 
 main "$@"
