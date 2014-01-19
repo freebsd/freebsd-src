@@ -576,18 +576,20 @@ nfsrvd_delcache(struct nfsrvcache *rp)
  * the pointer returned by nfsrvd_updatecache().
  */
 APPLESTATIC void
-nfsrvd_sentcache(struct nfsrvcache *rp, uint32_t seq)
+nfsrvd_sentcache(struct nfsrvcache *rp, int have_seq, uint32_t seq)
 {
 	struct nfsrchash_bucket *hbp;
 
 	KASSERT(rp->rc_flag & RC_LOCKED, ("nfsrvd_sentcache not locked"));
-	hbp = NFSRCAHASH(rp->rc_sockref);
-	mtx_lock(&hbp->mtx);
-	rp->rc_tcpseq = seq;
-	if (rp->rc_acked != RC_NO_ACK)
-		LIST_INSERT_HEAD(&hbp->tbl, rp, rc_ahash);
-	rp->rc_acked = RC_NO_ACK;
-	mtx_unlock(&hbp->mtx);
+	if (have_seq) {
+		hbp = NFSRCAHASH(rp->rc_sockref);
+		mtx_lock(&hbp->mtx);
+		rp->rc_tcpseq = seq;
+		if (rp->rc_acked != RC_NO_ACK)
+			LIST_INSERT_HEAD(&hbp->tbl, rp, rc_ahash);
+		rp->rc_acked = RC_NO_ACK;
+		mtx_unlock(&hbp->mtx);
+	}
 	nfsrc_unlock(rp);
 }
 

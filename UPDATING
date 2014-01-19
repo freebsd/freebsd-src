@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140110:
+	If a Makefile in a tests/ directory was auto-generating a Kyuafile
+	instead of providing an explicit one, this would prevent such
+	Makefile from providing its own Kyuafile in the future during
+	NO_CLEAN builds.  This has been fixed in the Makefiles but manual
+	intervention is needed to clean an objdir if you use NO_CLEAN:
+	  # find /usr/obj -name Kyuafile | xargs rm -f
+
 20131213:
 	The behavior of gss_pseudo_random() for the krb5 mechanism
 	has changed, for applications requesting a longer random string

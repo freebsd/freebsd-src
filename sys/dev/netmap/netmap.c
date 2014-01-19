@@ -1052,7 +1052,7 @@ netmap_get_hw_na(struct ifnet *ifp, struct netmap_adapter **na)
 	 * to use generic adapters, we cannot satisfy the request.
 	 */
 	if (!NETMAP_CAPABLE(ifp) && i == NETMAP_ADMODE_NATIVE)
-		return EINVAL;
+		return EOPNOTSUPP;
 
 	/* Otherwise, create a generic adapter and return it,
 	 * saving the previously used netmap adapter, if any.
@@ -1090,22 +1090,19 @@ netmap_get_hw_na(struct ifnet *ifp, struct netmap_adapter **na)
 /*
  * MUST BE CALLED UNDER NMG_LOCK()
  *
- * get a refcounted reference to an interface.
+ * Get a refcounted reference to a netmap adapter attached
+ * to the interface specified by nmr.
  * This is always called in the execution of an ioctl().
  *
- * Return ENXIO if the interface does not exist, EINVAL if netmap
- * is not supported by the interface.
- * If successful, hold a reference.
+ * Return ENXIO if the interface specified by the request does
+ * not exist, ENOTSUP if netmap is not supported by the interface,
+ * EBUSY if the interface is already attached to a bridge,
+ * EINVAL if parameters are invalid, ENOMEM if needed resources
+ * could not be allocated.
+ * If successful, hold a reference to the netmap adapter.
  *
- * When the NIC is attached to a bridge, reference is managed
- * at na->na_bdg_refcount using ADD/DROP_BDG_REF() as well as
- * virtual ports.  Hence, on the final DROP_BDG_REF(), the NIC
- * is detached from the bridge, then ifp's refcount is dropped (this
- * is equivalent to that ifp is destroyed in case of virtual ports.
- *
- * This function uses if_rele() when we want to prevent the NIC from
- * being detached from the bridge in error handling.  But once refcount
- * is acquired by this function, it must be released using nm_if_rele().
+ * No reference is kept on the real interface, which may then
+ * disappear at any time.
  */
 int
 netmap_get_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
@@ -1135,7 +1132,7 @@ netmap_get_na(struct nmreq *nmr, struct netmap_adapter **na, int create)
 	if (ret != NULL) {
 		/* Users cannot use the NIC attached to a bridge directly */
 		if (NETMAP_OWNED_BY_KERN(ret)) {
-			error = EINVAL;
+			error = EBUSY;
 			goto out;
 		}
 		error = 0;

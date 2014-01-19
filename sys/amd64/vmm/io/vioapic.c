@@ -222,8 +222,52 @@ vioapic_pulse_irq(struct vm *vm, int irq)
 	return (vioapic_set_irqstate(vm, irq, IRQSTATE_PULSE));
 }
 
+/*
+ * Reset the vlapic's trigger-mode register to reflect the ioapic pin
+ * configuration.
+ */
+static void
+vioapic_update_tmr(struct vm *vm, int vcpuid, void *arg)
+{
+	struct vioapic *vioapic;
+	struct vlapic *vlapic;
+	uint32_t low, high, dest;
+	int delmode, pin, vector;
+	bool level, phys;
+
+	vlapic = vm_lapic(vm, vcpuid);
+	vioapic = vm_ioapic(vm);
+
+	VIOAPIC_LOCK(vioapic);
+	/*
+	 * Reset all vectors to be edge-triggered.
+	 */
+	vlapic_reset_tmr(vlapic);
+	for (pin = 0; pin < REDIR_ENTRIES; pin++) {
+		low = vioapic->rtbl[pin].reg;
+		high = vioapic->rtbl[pin].reg >> 32;
+
+		level = low & IOART_TRGRLVL ? true : false;
+		if (!level)
+			continue;
+
+		/*
+		 * For a level-triggered 'pin' let the vlapic figure out if
+		 * an assertion on this 'pin' would result in an interrupt
+		 * being delivered to it. If yes, then it will modify the
+		 * TMR bit associated with this vector to level-triggered.
+		 */
+		phys = ((low & IOART_DESTMOD) == IOART_DESTPHY);
+		delmode = low & IOART_DELMOD;
+		vector = low & IOART_INTVEC;
+		dest = high >> APIC_ID_SHIFT;
+		vlapic_set_tmr_level(vlapic, dest, phys, delmode, vector);
+	}
+	VIOAPIC_UNLOCK(vioapic);
+}
+
 static uint32_t
-vioapic_read(struct vioapic *vioapic, uint32_t addr)
+vioapic_read(struct vioapic *vioapic, int vcpuid, uint32_t addr)
 {
 	int regnum, pin, rshift;
 
@@ -258,10 +302,12 @@ vioapic_read(struct vioapic *vioapic, uint32_t addr)
 }
 
 static void
-vioapic_write(struct vioapic *vioapic, uint32_t addr, uint32_t data)
+vioapic_write(struct vioapic *vioapic, int vcpuid, uint32_t addr, uint32_t data)
 {
 	uint64_t data64, mask64;
+	uint64_t last, changed;
 	int regnum, pin, lshift;
+	cpuset_t allvcpus;
 
 	regnum = addr & 0xff;
 	switch (regnum) {
@@ -285,6 +331,8 @@ vioapic_write(struct vioapic *vioapic, uint32_t addr, uint32_t data)
 		else
 			lshift = 0;
 
+		last = vioapic->rtbl[pin].reg;
+
 		data64 = (uint64_t)data << lshift;
 		mask64 = (uint64_t)0xffffffff << lshift;
 		vioapic->rtbl[pin].reg &= ~mask64 | RTBL_RO_BITS;
@@ -292,6 +340,22 @@ vioapic_write(struct vioapic *vioapic, uint32_t addr, uint32_t data)
 
 		VIOAPIC_CTR2(vioapic, "ioapic pin%d: redir table entry %#lx",
 		    pin, vioapic->rtbl[pin].reg);
+
+		/*
+		 * If any fields in the redirection table entry (except mask
+		 * or polarity) have changed then rendezvous all the vcpus
+		 * to update their vlapic trigger-mode registers.
+		 */
+		changed = last ^ vioapic->rtbl[pin].reg;
+		if (changed & ~(IOART_INTMASK | IOART_INTPOL)) {
+			VIOAPIC_CTR1(vioapic, "ioapic pin%d: recalculate "
+			    "vlapic trigger-mode register", pin);
+			VIOAPIC_UNLOCK(vioapic);
+			allvcpus = vm_active_cpus(vioapic->vm);
+			vm_smp_rendezvous(vioapic->vm, vcpuid, allvcpus,
+			    vioapic_update_tmr, NULL);
+			VIOAPIC_LOCK(vioapic);
+		}
 
 		/*
 		 * Generate an interrupt if the following conditions are met:
@@ -310,8 +374,8 @@ vioapic_write(struct vioapic *vioapic, uint32_t addr, uint32_t data)
 }
 
 static int
-vioapic_mmio_rw(struct vioapic *vioapic, uint64_t gpa, uint64_t *data,
-    int size, bool doread)
+vioapic_mmio_rw(struct vioapic *vioapic, int vcpuid, uint64_t gpa,
+    uint64_t *data, int size, bool doread)
 {
 	uint64_t offset;
 
@@ -334,10 +398,13 @@ vioapic_mmio_rw(struct vioapic *vioapic, uint64_t gpa, uint64_t *data,
 		else
 			vioapic->ioregsel = *data;
 	} else {
-		if (doread)
-			*data = vioapic_read(vioapic, vioapic->ioregsel);
-		else
-			vioapic_write(vioapic, vioapic->ioregsel, *data);
+		if (doread) {
+			*data = vioapic_read(vioapic, vcpuid,
+			    vioapic->ioregsel);
+		} else {
+			vioapic_write(vioapic, vcpuid, vioapic->ioregsel,
+			    *data);
+		}
 	}
 	VIOAPIC_UNLOCK(vioapic);
 
@@ -352,7 +419,7 @@ vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *rval,
 	struct vioapic *vioapic;
 
 	vioapic = vm_ioapic(vm);
-	error = vioapic_mmio_rw(vioapic, gpa, rval, size, true);
+	error = vioapic_mmio_rw(vioapic, vcpuid, gpa, rval, size, true);
 	return (error);
 }
 
@@ -364,7 +431,7 @@ vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t wval,
 	struct vioapic *vioapic;
 
 	vioapic = vm_ioapic(vm);
-	error = vioapic_mmio_rw(vioapic, gpa, &wval, size, false);
+	error = vioapic_mmio_rw(vioapic, vcpuid, gpa, &wval, size, false);
 	return (error);
 }
 

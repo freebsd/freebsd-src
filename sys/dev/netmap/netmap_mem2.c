@@ -957,7 +957,7 @@ netmap_mem_rings_create(struct netmap_adapter *na)
 			D("Cannot allocate tx_ring");
 			goto cleanup;
 		}
-		ND("txring[%d] at %p ofs %d", i, ring);
+		ND("txring at %p", ring);
 		kring->ring = ring;
 		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
 		*(int64_t *)(uintptr_t)&ring->buf_ofs =
@@ -987,8 +987,7 @@ netmap_mem_rings_create(struct netmap_adapter *na)
 			D("Cannot allocate rx_ring");
 			goto cleanup;
 		}
-		ND("rxring at %p ofs %d", ring);
-
+		ND("rxring at %p", ring);
 		kring->ring = ring;
 		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
 		*(int64_t *)(uintptr_t)&ring->buf_ofs =
@@ -1002,7 +1001,7 @@ netmap_mem_rings_create(struct netmap_adapter *na)
 		ring->tail = kring->rtail;
 		*(int *)(uintptr_t)&ring->nr_buf_size =
 			NETMAP_BDG_BUF_SIZE(na->nm_mem);
-		ND("initializing slots for rxring[%d]", i);
+		ND("initializing slots for rxring %p", ring);
 		if (netmap_new_bufs(na->nm_mem, ring->slot, ndesc)) {
 			D("Cannot allocate buffers for rx_ring");
 			goto cleanup;

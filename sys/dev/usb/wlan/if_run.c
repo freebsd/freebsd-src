@@ -1650,12 +1650,12 @@ run_rt3593_get_txpower(struct run_softc *sc)
 	}
 	/* Fix broken Tx power entries. */
 	for (i = 0; i < 14; i++) {
-		if ((sc->txpow1[i] & 0x1f) > 31)
+		if (sc->txpow1[i] > 31)
 			sc->txpow1[i] = 5;
-		if ((sc->txpow2[i] & 0x1f) > 31)
+		if (sc->txpow2[i] > 31)
 			sc->txpow2[i] = 5;
 		if (sc->ntxchains == 3) {
-			if ((sc->txpow3[i] & 0x1f) > 31)
+			if (sc->txpow3[i] > 31)
 				sc->txpow3[i] = 5;
 		}
 	}

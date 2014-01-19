@@ -1089,7 +1089,6 @@ g_multipath_ctl_create(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "Device %s already exist", mpname);
 		return;
 	}
-	sc = gp->softc;
 
 	memset(&md, 0, sizeof(md));
 	strlcpy(md.md_magic, G_MULTIPATH_MAGIC, sizeof(md.md_magic));

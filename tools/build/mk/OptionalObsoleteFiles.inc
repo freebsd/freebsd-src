@@ -4066,6 +4066,26 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .if ${MK_TESTS} == yes
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/list_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/map_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_helpers
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/user_test
 .else
 # ATF libraries.
 OLD_FILES+=usr/bin/atf-sh
