@@ -365,6 +365,8 @@ static kobj_method_t ns8250_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
+	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -921,4 +923,35 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	if (broken_txfifo)
 		uart_sched_softih(sc, SER_INT_TXIDLE);
 	return (0);
+}
+
+void
+ns8250_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * turn off all interrupts to enter polling mode. Leave the
+	 * saved mask alone. We'll restore whatever it was in ungrab.
+	 * All pending interupt signals are reset when IER is set to 0.
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, 0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+void
+ns8250_bus_ungrab(struct uart_softc *sc)
+{
+	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * Restore previous interrupt mask
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, ns8250->ier);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }
