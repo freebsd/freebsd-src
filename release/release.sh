@@ -37,6 +37,7 @@ export PATH
 
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
+RELENGDIR="$(realpath $(dirname $(basename ${0})))"
 
 # The default svn checkout server, and svn branches for src/, doc/,
 # and ports/.
@@ -47,6 +48,7 @@ PORTBRANCH="ports/head@rHEAD"
 
 # Set for embedded device builds.
 EMBEDDEDBUILD=
+EMBEDDED_WORLD_FLAGS=
 
 # Sometimes one needs to checkout src with --force svn option.
 # If custom kernel configs copied to src tree before checkout, e.g.
@@ -135,9 +137,9 @@ else
 	ARCH_FLAGS=
 fi
 CHROOT_MAKEENV="MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
-CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
-CHROOT_IMAKEFLAGS="${CONF_FILES}"
-CHROOT_DMAKEFLAGS="${CONF_FILES}"
+CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES} ${EMBEDDED_WORLD_FLAGS}"
+CHROOT_IMAKEFLAGS="${CONF_FILES} ${EMBEDDED_WORLD_FLAGS}"
+CHROOT_DMAKEFLAGS="${CONF_FILES} ${EMBEDDED_WORLD_FLAGS}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
@@ -194,8 +196,16 @@ fi
 
 # Embedded builds do not use the 'make release' target.
 if [ "X${EMBEDDEDBUILD}" != "X" ]; then
-	if [ -e ${CHROOTDIR}/usr/src/release/${XDEV}/release.sh ]; then
-		/bin/sh ${CHROOTDIR}/usr/src/release/${XDEV}/release.sh
+	# If a crochet configuration file exists in *this* checkout of
+	# release/, copy it to the /tmp/external directory within the chroot.
+	# This allows building embedded releases without relying on updated
+	# scripts and/or configurations to exist in the branch being built.
+	if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
+		[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
+			mkdir -p ${CHROOTDIR}/tmp/external/${XDEV}/
+			cp ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf \
+				${CHROOTDIR}/tmp/external/${XDEV}/crochet-${KERNEL}.conf
+			/bin/sh ${RELENGDIR}/${XDEV}/release.sh
 	fi
 	# If the script does not exist for this architecture, exit.
 	# This probably should be checked earlier, but allowing the rest
