@@ -492,23 +492,71 @@ die_mem_offset(dwarf_t *dw, Dwarf_Die die, Dwarf_Half name,
 	Dwarf_Locdesc *loc = NULL;
 	Dwarf_Signed locnum = 0;
 	Dwarf_Attribute at;
+	Dwarf_Half form;
+
+	if (name != DW_AT_data_member_location)
+		terminate("die %llu: can only process attribute "
+		    "DW_AT_data_member_location\n", die_off(dw, die));
 
 	if ((at = die_attr(dw, die, name, 0)) == NULL)
 		return (0);
 
-	if (dwarf_loclist(at, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
+	if (dwarf_whatform(at, &form, &dw->dw_err) != DW_DLV_OK)
 		return (0);
 
-	if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
-		terminate("die %llu: cannot parse member offset\n",
-		    die_off(dw, die));
-	}
+	switch (form) {
+	case DW_FORM_sec_offset:
+	case DW_FORM_block:
+	case DW_FORM_block1:
+	case DW_FORM_block2:
+	case DW_FORM_block4:
+		/*
+		 * GCC in base and Clang (3.3 or below) generates
+		 * DW_AT_data_member_location attribute with DW_FORM_block*
+		 * form. The attribute contains one DW_OP_plus_uconst
+		 * operator. The member offset stores in the operand.
+		 */
+		if (dwarf_loclist(at, &loc, &locnum, &dw->dw_err) != DW_DLV_OK)
+			return (0);
+		if (locnum != 1 || loc->ld_s->lr_atom != DW_OP_plus_uconst) {
+			terminate("die %llu: cannot parse member offset with "
+			    "operator other than DW_OP_plus_uconst\n",
+			    die_off(dw, die));
+		}
+		*valp = loc->ld_s->lr_number;
+		if (loc != NULL) {
+			dwarf_dealloc(dw->dw_dw, loc->ld_s, DW_DLA_LOC_BLOCK);
+			dwarf_dealloc(dw->dw_dw, loc, DW_DLA_LOCDESC);
+		}
+		break;
 
-	*valp = loc->ld_s->lr_number;
+	case DW_FORM_data1:
+	case DW_FORM_data2:
+	case DW_FORM_data4:
+	case DW_FORM_data8:
+	case DW_FORM_udata:
+		/*
+		 * Clang 3.4 generates DW_AT_data_member_location attribute
+		 * with DW_FORM_data* form (constant class). The attribute
+		 * stores a contant value which is the member offset.
+		 *
+		 * However, note that DW_FORM_data[48] in DWARF version 2 or 3
+		 * could be used as a section offset (offset into .debug_loc in
+		 * this case). Here we assume the attribute always stores a
+		 * constant because we know Clang 3.4 does this and GCC in
+		 * base won't emit DW_FORM_data[48] for this attribute. This
+		 * code will remain correct if future vesrions of Clang and
+		 * GCC conform to DWARF4 standard and only use the form
+		 * DW_FORM_sec_offset for section offset.
+		 */
+		if (dwarf_attrval_unsigned(die, name, valp, &dw->dw_err) !=
+		    DW_DLV_OK)
+			return (0);
+		break;
 
-	if (loc != NULL) {
-		dwarf_dealloc(dw->dw_dw, loc->ld_s, DW_DLA_LOC_BLOCK);
-		dwarf_dealloc(dw->dw_dw, loc, DW_DLA_LOCDESC);
+	default:
+		terminate("die %llu: cannot parse member offset with form "
+		    "%u\n", die_off(dw, die), form);
 	}
 
 	return (1);
