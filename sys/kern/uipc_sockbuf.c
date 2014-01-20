@@ -160,7 +160,9 @@ void
 sbfree(struct sockbuf *sb, struct mbuf *m)
 {
 
+#if 0	/* XXX: not yet: soclose() call path comes here w/o lock. */
 	SOCKBUF_LOCK_ASSERT(sb);
+#endif
 
 	sb->sb_ccc -= m->m_len;
 
