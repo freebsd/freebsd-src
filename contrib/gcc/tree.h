@@ -386,6 +386,8 @@ struct tree_common GTY(())
   unsigned lang_flag_5 : 1;
   unsigned lang_flag_6 : 1;
   unsigned visited : 1;
+  /* APPLE LOCAL "unavailable" attribute (Radar 2809697) --ilr */
+  unsigned unavailable_flag : 1;
 };
 
 /* The following table lists the uses of each of the above flags and
@@ -532,6 +534,13 @@ struct tree_common GTY(())
 
 	IDENTIFIER_TRANSPARENT_ALIAS in
 	   IDENTIFIER_NODE
+
+   APPLE LOCAL begin "unavailable" attribute (Radar 2809697)
+   unavailable_flag:
+
+	TREE_UNAVAILABLE in
+	   ..._DECL
+   APPLE LOCAL end "unavailable" attribute (Radar 2809697)
 
    visited:
 
@@ -1225,6 +1234,12 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
    deprecated feature by __attribute__((deprecated)).  */
 #define TREE_DEPRECATED(NODE) \
   ((NODE)->common.deprecated_flag)
+
+/* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) */
+/* Nonzero in a IDENTIFIER_NODE if the use of the name is defined as a
+   unavailable feature by __attribute__((unavailable)).  */
+#define TREE_UNAVAILABLE(NODE) ((NODE)->common.unavailable_flag)
+/* APPLE LOCAL end "unavailable" attribute (Radar 2809697) */
 
 /* Nonzero in an IDENTIFIER_NODE if the name is a local alias, whose
    uses are to be substituted for uses of the TREE_CHAINed identifier.  */
