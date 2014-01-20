@@ -178,6 +178,13 @@
       device is an active kernel console, otherwise it is equivalent
       to <literal>off</literal>.</para>
 
+    <para revision="260910">Allow &man.pciconf.8; to identify PCI
+      devices that are attached to a driver to be identified by their
+      device name instead of just the selector.  Additionally, an
+      optional device argument to the <literal>-l</literal> flag
+      to restrict the output to only listing details about a single
+      device.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
