@@ -369,16 +369,14 @@ f_shell_unescape()
 f_expand_number()
 {
 	local __string="$1" __var_to_set="$2"
-	local __cp __num __bshift __maxinput
+	local __cp __number __bshift __maxinput
 
-	# Remove any leading non-digits
+	# Remove any leading non-digits and store numbers (sans suffix)
 	__string="${__string#${__string%%[0-9]*}}"
-
-	# Store the numbers (no trailing suffix)
-	__num="${__string%%[!0-9]*}"
+	__number="${__string%%[!0-9]*}"
 
 	# Produce `-1' if string didn't contain any digits
-	if [ ! "$__num" ]; then
+	if [ ! "$__number" ]; then
 		if [ "$__var_to_set" ]; then
 			setvar "$__var_to_set" -1
 		else
@@ -388,7 +386,7 @@ f_expand_number()
 	fi
 
 	# Remove all the leading numbers from the string to get at the prefix
-	__string="${__string#"$__num"}"
+	__string="${__string#"$__number"}"
 
 	#
 	# Test for invalid prefix (and determine bitshift length)
@@ -396,9 +394,9 @@ f_expand_number()
 	case "$__string" in
 	""|[[:space:]]*) # Shortcut
 		if [ "$__var_to_set" ]; then
-			setvar "$__var_to_set" $__num
+			setvar "$__var_to_set" $__number
 		else
-			echo $__num
+			echo $__number
 		fi
 		return $SUCCESS ;;
 	[Kk]*) __bshift=10 ;;
@@ -419,7 +417,7 @@ f_expand_number()
 
 	# Determine if the wheels fall off
 	__maxinput=$(( 0x7fffffffffffffff >> $__bshift ))
-	if [ $__num -gt $__maxinput ]; then
+	if [ $__number -gt $__maxinput ]; then
 		# Input (before expanding) would exceed 64-bit signed int
 		if [ "$__var_to_set" ]; then
 			setvar "$__var_to_set" -1
@@ -430,11 +428,11 @@ f_expand_number()
 	fi
 
 	# Shift the number out and produce it
-	__num=$(( $__num << $__bshift ))
+	__number=$(( $__number << $__bshift ))
 	if [ "$__var_to_set" ]; then
-		setvar "$__var_to_set" $__num
+		setvar "$__var_to_set" $__number
 	else
-		echo $__num
+		echo $__number
 	fi
 }
 
