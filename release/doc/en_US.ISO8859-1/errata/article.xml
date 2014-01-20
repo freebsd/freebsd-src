@@ -193,16 +193,19 @@ boot</screen>
 	  means <quote>interactive</quote>.  A workaround of this
 	  would be to use <literal>-SIGINT</literal> instead.
 	  This bug has been fixed on &os;-CURRENT and will be fixed
-	  in &os;-STABLE.</para>
+	  in &os; &release.current;.</para>
       </listitem>
 
       <listitem>
-	<para>In some NFSv4 environments, &man.bxe.4; with
-	  <literal>tso</literal> enabled may experience issues with
-	  packet corruption, resulting in poor performance.  In some
-	  cases, turning off <literal>tso</literal> will resolve the
-	  issue.  See &man.ifconfig.8; for more information about the
-	  <literal>-tso</literal> flag.</para>
+	<para>The &man.bxe.4; driver can cause packet corruption when
+	  TSO (TCP Segmentation Offload) feature is enabled.  This
+	  feature is enabled by default and can be disabled by using a
+	  <option>-tso</option> parameter of &man.ifconfig.8;.  It can
+	  be specified in &man.rc.conf.5; like the following:</para>
+
+	<programlisting>ifconfig_bxe0="DHCP -tso"</programlisting>
+
+	<para>This bug has been fixed on &os; &release.current;.</para>
       </listitem>
 
       <listitem>
@@ -220,7 +223,7 @@ boot</screen>
 	<para>A regression in &man.pw.8; does not remove a user from
 	  groups not specified in the provided group list when the
 	  <literal>-G</literal> flag is used.  This is expected to be
-	  corrected in &os;-CURRENT and &os;-STABLE.</para>
+	  corrected in &os;-CURRENT and &os; &release.current;.</para>
       </listitem>
     </itemizedlist>
   </sect1>
