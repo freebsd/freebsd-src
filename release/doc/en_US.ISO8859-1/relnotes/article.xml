@@ -104,132 +104,28 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="248508">The use of unmapped VMIO buffers
-      eliminates the need to perform TLB shootdown for mapping on
-      buffer creation and reuse, greatly reducing the amount of IPIs
-      for shootdown on big-SMP machines and eliminating up to 25-30%
-      of the system time on i/o intensive workloads.</para>
-
-    <para arch="amd64" revision="254466">The maximum amount of memory
-      the &os; kernel can address has been increased from 1TB to
-      4TB.</para>
-
-    <para role="merged">The &man.ddb.4; kernel debugger now has an
-      output capture facility.  Input and output from &man.ddb.4; can
-      now be captured to a memory buffer for later inspection using
-      &man.sysctl.8; or a textdump.  The new
-      <command>capture</command> command controls this feature.</para>
-
-    <para role="merged">The &man.ddb.4; debugger now supports a simple
-      scripting facility, which supports a set of named scripts
-      consisting of a set of &man.ddb.4; commands.  These commands can
-      be managed from within &man.ddb.4; or with the use of the new
-      &man.ddb.8; utility.  More details can be found in the
-      &man.ddb.4; manual page.</para>
-
-    <para arch="amd64,i386" revision="240135">Support was added for
-      the new Intel on-CPU Bull Mountain random number generator,
-      found on IvyBridge and supposedly later CPUs, accessible with
-      RDRAND instruction.</para>
+    <para>&nbsp;</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
-      <para arch="amd64" revision="245652">The BSD Hypervisor,
-	&man.bhyve.8; is included with &os;.  &man.bhyve.8; requires
-	Intel CPUs with VT-x and Extended Page Table (EPT) support.
-	These features are on all Nehalem models and beyond (e.g.
-	Nehalem and newer), but not on the lower-end Atom CPUs.</para>
-
-      <para revision="227652">&man.virtio.4; support has been added.
-	&man.virtio.4; is the name for the paravirtualization
-	interface developed for the Linux KVM, but since adopted to
-	other virtual machine hypervisors (with the notable exception
-	of Xen).  This work brings in a BSD-licensed clean-room
-	implementation of the virtio kernel drivers for disk IO
-	(&man.virtio_blk.4; and &man.virtio_scsi.4;), network IO
-	(&man.vtnet.4;), memory ballooning (&man.virtio_balloon.4;),
-	and PCI.  Tested with on Qemu/KVM, VirtualBox, and
-	&man.bhyve.4;.</para>
-
-      <para arch="amd64,i386" revision="255524">Paravirtualized
-	drivers which support Microsoft Hyper-V have been imported and
-	made part of the amd64 GENERIC kernel.  For i386, these
-	drivers are not part of GENERIC, so the following lines must
-	be added to <filename>/boot/loader.conf</filename> to load
-	these drivers:</para>
-
-      <programlisting>hv_ata_pci_disengage_load="YES"
-hv_netsvc_load="YES"
-hv_utils_load="YES"
-hv_vmbus_load="YES"</programlisting>
-
-      <para>Alternatively, the Hyper-V drivers can be added to the
-	i386 kernel by adding <literal>device hyperv</literal> to the
-	kernel config, and then recompiling the kernel.  Please refer
-	to: <link xlink:href="http://wiki.freebsd.org/HyperV">FreeBSD
-	  and Microsoft Windows Server Hyper-V support</link> for full
-	instructions on how to set up Hyper-V support under
-	FreeBSD.</para>
-
-      <para revision="254738">The &man.vmx.4; driver has been added.
-	&man.vmx.4; is a VMware VMXNET3 ethernet driver ported from
-	OpenBSD.</para>
-
-      <para revision="255744" arch="amd64,i386">Xen PVHVM
-	virtualization is now part of the GENERIC kernel.</para>
+      <para>&nbsp;</para>
 
     </sect3>
 
     <sect3 xml:id="kernel-arm">
       <title>ARM support</title>
 
-      <para revision="239922">Raspberry PI support has been added.
-	Refer to these <link
-	  xlink:href="http://kernelnomicon.org/?p=164">setup
-	  instructions</link> and <link
-	  xlink:href="http://www.raspberrypi.org/quick-start-guide">quick
-	  start guide</link>.</para>
-
-      <para revision="253396">The default ABI on ARM is now the ARM
-	EABI. This brings a number of improvements and allows future
-	support for VFP and Thumb-2.</para>
-
-      <para revision="239268">ARM support has been greatly improved,
-	including support for ARMv6 and ARMv7, SMP and thread-local
-	storage (TLS).  Additionally support for some newer SoC like
-	the MV78x60 and OMAP4 was added.  See <link
-	  xlink:href="http://lists.freebsd.org/pipermail/freebsd-arm/2012-August/003757.html">this
-	  announcement</link> for further details.</para>
-
-      <para revision="254918">Superpages support on ARM has been
-	added.  Superpages support provides improved performance and
-	scalability by allowing TLB translations to dynamically cover
-	large physical memory regions.  All ARMv6 and ARMv7-based
-	platforms can take advantage of this feature.  See <link
-	  xlink:href="https://wiki.freebsd.org/ARMSuperpages">this
-	  page</link> for further details.</para>
+      <para>&nbsp;</para>
 
     </sect3>
 
-    <!--
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
-      <para arch="amd64,i386" role="merged">The BTX kernel used by the
-	boot loader has been changed to invoke BIOS routines from real
-	mode.  This change makes it possible to boot &os; from USB
-	devices.</para>
-
-      <para arch="amd64,i386" role="merged">A new gptboot boot loader
-	has been added to support booting from a GPT labeled disk.
-	A new <command>boot</command> command has been added to
-	&man.gpt.8;, which makes a GPT disk bootable by writing the
-	required bits of the boot loader, creating a new boot
-	partition if required.</para>
+      <para>&nbsp;</para>
 
     </sect3>
-    -->
 
     <sect3 xml:id="proc">
       <title>Hardware Support</title>
@@ -237,168 +133,42 @@ hv_vmbus_load="YES"</programlisting>
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-	<para revision="240609">Support for version 2.0 of the USB
-	  Audio reference design has been added. New devices should
-	  support higher bandwidth, increased sampling frequency and
-	  wider dynamic range.</para>
+	<para>&nbsp;</para>
+
       </sect4>
 
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The firmware for the &man.mxge.4; driver has been
-	  1.4.55.</para>
+	<para>&nbsp;</para>
 
-	<para>The &man.re.4; driver has been overhauled to fix a
-	  number of issues.  This driver now has Wake On LAN (WOL)
-	  support.</para>
-
-	<para>The &man.vr.4; driver has been overhauled to fix a
-	  number of outstanding issues.  It also now works on all
-	  architectures.</para>
-
-	<para arch="amd64,i386" role="merged">The &man.wpi.4; driver
-	  has been updated to include a number of stability
-	  fixes.</para>
-
-	<para revision="248925">The &man.cxgbe.4; driver has been
-	  updated to support 40G/10G Ethernet NICs based on Chelsio's
-	  Terminator 5 (T5) ASIC.</para>
-
-	<para revision="256694">The iw_cxgbe driver has been added.
-	  This is an experimental iWARP/RDMA driver (kernel verbs
-	  only) for Chelsio's T4 and T5 based cards.</para>
-
-	<para revision="255932">The Open Fabrics Enterprise
-	  Distribution (OFED) and OFED Infiniband core has been
-	  updated to the same version as supplied by Linux version
-	  3.7</para>
-
-	<para revision="255932">The Mellanox Infiniband driver has
-	  been updated to firmware version 2.30.3200 for ConnectX3
-	  NICs.  Support has been added for ConnectX3 VPI NICs, where
-	  each port can be used as Infiniband 56 GB/s or Ethernet 40
-	  GB/s.  Support has been added for dynamically loading kernel
-	  modules for Infiniband core (ibcore) and IP over Infiniband
-	  (ipoib).</para>
-
-	<para revision="227614">&man.netmap.4; has been added.
-	  &man.netmap.4; is a framework for high-performance
-	  direct-to-hardware packet IO, offering low latency and high
-	  PPS rates to userland applications while bypassing any
-	  kernel-side packet processing.  With &man.netmap.4; it is
-	  trivially possible to fully saturate a 10 Gbps network
-	  interface with minimal packet sizes.  For more information,
-	  see: <link
-	    xlink:href="http://info.iet.unipi.it/~luigi/netmap/">Netmap
-	    Project</link>.</para>
       </sect4>
     </sect3>
 
     <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para revision="228571">&man.carp.4; has been rewritten to make
-	addresses more sane from the viewpoint of routing daemons such
-	as quagga/zebra. It also brings support for a single redundant
-	address on the subnet (carpdev), switching state with
-	&man.ifconfig.8;, better locking and using modern kernel
-	interfaces to allocate multicast memberships.  Configuration
-	of the CARP protocol via &man.ifconfig.8; has changed, as well
-	as format of CARP events submitted to &man.devd.8; has
-	changed. See &man.carp.4; for more information. The arpbalance
-	feature of &man.carp.4; is currently not supported
-	anymore.</para>
+      <para>&nbsp;</para>
 
-      <para revision="240233">The &man.pf.4; firewall now supports
-	fine-grain locking and better utilization on multi-cpu
-	machines resulting in significant improvements in
-	performance.</para>
-
-      <para revision="250700">Support for up to 65536 routing tables
-	has been introduced.</para>
-
-      <para revision="248552">Support for setting/matching
-	differentiated services codepoints (DSCP) in IP header has
-	been added to &man.ipfw.8;.</para>
     </sect3>
 
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
-      <para role="merged">The &man.aac.4; driver now supports volumes
-	larger than 2TB in size.</para>
+      <para>&nbsp;</para>
 
-      <para>The &man.ata.4; driver now supports a spindown command for
-	disks; after a configurable amount of time, if no requests
-	have been received for a disk, the disk will be spun down
-	until the next request.  The &man.atacontrol.8; utility now
-	supports a <command>spindown</command> command to configure
-	this feature.</para>
-
-      <para role="merged">The &man.hptrr.4; driver has been updated to
-	version 1.2 from Highpoint.</para>
-
-      <para revision="240616">&man.nvme.4; has been added and provides
-	NVM Express support.  NVM Express is an optimized register
-	interface, command set and feature set of PCI Express
-	(PCIe)-based Solid-State Drives (SSDs).  For more information,
-	see <link
-	  xlink:href="http://http://www.nvmexpress.org/">nvmexpress.org</link>.</para>
     </sect3>
 
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para revision="255570">A new kernel-based iSCSI target and
-	initiator has been added.</para>
-
-      <para revision="243246">UFS filesystems can now be enlarged with
-	&man.growfs.8; while mounted read-write. This is especially
-	useful for virtual machines, allowing the addition of more
-	harddrive space without interruption of service.</para>
-
-      <para revision="241519">A state of the art FUSE implementation
-	is now part of the base system. It allows the use of nearly
-	all fusefs file systems.</para>
+      <para>&nbsp;</para>
 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
-	<para revision="256361">&man.bsdinstall.8; now supports
-	  installing ZFS on the root file system.  It includes
-	  a single configuration menu that allows you to select all of
-	  the required details, including which drives to use, what
-	  ZFS RAID level to use (taking into consideration the
-	  selected number of drives), GPT or MBR, GELI encryption,
-	  forcing 4K sectors, pool name, etc.</para>
+	<para>&nbsp;</para>
 
-	<para revision="240868">TRIM support has been added for
-	  ZFS.</para>
-
-	<para revision="246586">Support for the high performance LZ4
-	  compression algorithm has been added to ZFS. LZ4 is usually
-	  faster and can achieve a higher compression ratio than LZJB,
-	  the default compression algorithm.</para>
-
-	<para revision="252140">Support for L2ARC compression has been
-	  added to ZFS.</para>
-
-	<para revision="243524">The zio nop-write improvement from
-	  Illumos was imported into &os;. To reduce I/O, nop-write
-	  skips overwriting data if the checksum (cryptographically
-	  secure) of new data matches the checksum of existing data.
-	  It also saves space if snapshots are in use.  This
-	  improvement only works only on datasets with enabled
-	  compression, disabled deduplication and sha256
-	  checksums.</para>
-
-	<para>ZFS will now compare the checksums of incoming writes to
-	  the checksum of the existing on-disk data and avoid issuing
-	  any write I/O for data that has not changed. This will
-	  reduce I/O as well as space usage because if the old block
-	  is referenced by a snapshot, both copies of the block are
-	  kept even though both contain the same data.</para>
       </sect4>
     </sect3>
   </sect2>
