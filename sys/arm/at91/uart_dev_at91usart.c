@@ -219,20 +219,6 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	return (0);
 }
 
-static void
-at91_usart_grab(struct uart_bas *bas)
-{
-
-	WR4(bas, USART_IDR, USART_CSR_RXRDY);
-}
-
-static void
-at91_usart_ungrab(struct uart_bas *bas)
-{
-
-	WR4(bas, USART_IER, USART_CSR_RXRDY);
-}
-
 static struct uart_ops at91_usart_ops = {
 	.probe = at91_usart_probe,
 	.init = at91_usart_init,
@@ -240,8 +226,6 @@ static struct uart_ops at91_usart_ops = {
 	.putc = at91_usart_putc,
 	.rxready = at91_usart_rxready,
 	.getc = at91_usart_getc,
-	.grab = at91_usart_grab,
-	.ungrab = at91_usart_ungrab,
 };
 
 static int
@@ -331,6 +315,8 @@ static int at91_usart_bus_param(struct uart_softc *, int, int, int, int);
 static int at91_usart_bus_receive(struct uart_softc *);
 static int at91_usart_bus_setsig(struct uart_softc *, int);
 static int at91_usart_bus_transmit(struct uart_softc *);
+static void at91_usart_bus_grab(struct uart_softc *);
+static void at91_usart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_probe,		at91_usart_bus_probe),
@@ -343,6 +329,8 @@ static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_receive,	at91_usart_bus_receive),
 	KOBJMETHOD(uart_setsig,		at91_usart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	at91_usart_bus_transmit),
+	KOBJMETHOD(uart_grab,		at91_usart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		at91_usart_bus_ungrab),
 
 	KOBJMETHOD_END
 };
@@ -813,6 +801,25 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+
+static void
+at91_usart_bus_grab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IDR, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+at91_usart_bus_ungrab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
 }
 
 struct uart_class at91_usart_class = {

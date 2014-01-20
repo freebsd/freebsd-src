@@ -37,10 +37,15 @@
  *
  */
 
+#define MY_PCAP
 #include "nm_util.h"
+// #include <net/netmap_user.h>
 
 #include <ctype.h>	// isprint()
 
+#ifndef NO_PCAP
+#include <pcap/pcap.h>
+#endif
 const char *default_payload="netmap pkt-gen DIRECT payload\n"
 	"http://info.iet.unipi.it/~luigi/netmap/ ";
 
@@ -105,14 +110,16 @@ struct glob_arg {
 #define OPT_INDIRECT	32	/* use indirect buffers, tx only */
 #define OPT_DUMP	64	/* dump rx/tx traffic */
 	int dev_type;
+#ifndef NO_PCAP
 	pcap_t *p;
+#endif
 
 	int tx_rate;
 	struct timespec tx_period;
 
 	int affinity;
 	int main_fd;
-	int report_interval;
+	int report_interval;		/* milliseconds between prints */
 	void *(*td_body)(void *);
 	void *mmap_addr;
 	int mmap_size;
@@ -486,17 +493,18 @@ update_addresses(struct pkt *pkt, struct glob_arg *g)
 	struct ip *ip = &pkt->ip;
 	struct udphdr *udp = &pkt->udp;
 
+    do {
 	p = ntohs(udp->uh_sport);
 	if (p < g->src_ip.port1) { /* just inc, no wrap */
 		udp->uh_sport = htons(p + 1);
-		return;
+		break;
 	}
 	udp->uh_sport = htons(g->src_ip.port0);
 
 	a = ntohl(ip->ip_src.s_addr);
 	if (a < g->src_ip.end) { /* just inc, no wrap */
 		ip->ip_src.s_addr = htonl(a + 1);
-		return;
+		break;
 	}
 	ip->ip_src.s_addr = htonl(g->src_ip.start);
 
@@ -504,17 +512,18 @@ update_addresses(struct pkt *pkt, struct glob_arg *g)
 	p = ntohs(udp->uh_dport);
 	if (p < g->dst_ip.port1) { /* just inc, no wrap */
 		udp->uh_dport = htons(p + 1);
-		return;
+		break;
 	}
 	udp->uh_dport = htons(g->dst_ip.port0);
 
 	a = ntohl(ip->ip_dst.s_addr);
 	if (a < g->dst_ip.end) { /* just inc, no wrap */
 		ip->ip_dst.s_addr = htonl(a + 1);
-		return;
+		break;
 	}
 	ip->ip_dst.s_addr = htonl(g->dst_ip.start);
-
+    } while (0);
+    // update checksum
 }
 
 /*
@@ -531,13 +540,13 @@ initialize_packet(struct targ *targ)
 	uint16_t paylen = targ->g->pkt_size - sizeof(*eh) - sizeof(struct ip);
 	const char *payload = targ->g->options & OPT_INDIRECT ?
 		indirect_payload : default_payload;
-	int i, l, l0 = strlen(payload);
+	int i, l0 = strlen(payload);
 
 	/* create a nice NUL-terminated string */
-	for (i = 0; i < paylen;) {
-		l = min(l0, paylen - i);
-		bcopy(payload, pkt->body + i, l);
-		i += l;
+	for (i = 0; i < paylen; i += l0) {
+		if (l0 > paylen - i)
+			l0 = paylen - i; // last round
+		bcopy(payload, pkt->body + i, l0);
 	}
 	pkt->body[i-1] = '\0';
 	ip = &pkt->ip;
@@ -593,7 +602,7 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt, void *frame,
 		u_int nfrags)
 {
 	u_int n, sent, cur = ring->cur;
-	int fcnt;
+	u_int fcnt;
 
 	n = nm_ring_space(ring);
 	if (n < count)
@@ -608,7 +617,7 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt, void *frame,
 			struct netmap_slot *slot = &ring->slot[cur];
 			char *p = NETMAP_BUF(ring, slot->buf_idx);
 
-			prefetch(p);
+			__builtin_prefetch(p);
 			cur = nm_ring_next(ring, cur);
 		}
 		cur = ring->cur;
@@ -624,14 +633,14 @@ send_packets(struct netmap_ring *ring, struct pkt *pkt, void *frame,
 			slot->ptr = (uint64_t)frame;
 		} else if (options & OPT_COPY) {
 			pkt_copy(frame, p, size);
-			if (fcnt == 1)
+			if (fcnt == nfrags)
 				update_addresses(pkt, g);
 		} else if (options & OPT_MEMCPY) {
 			memcpy(p, frame, size);
-			if (fcnt == 1)
+			if (fcnt == nfrags)
 				update_addresses(pkt, g);
 		} else if (options & OPT_PREFETCH) {
-			prefetch(p);
+			__builtin_prefetch(p);
 		}
 		if (options & OPT_DUMP)
 			dump_payload(p, size, ring, cur);
@@ -947,19 +956,7 @@ sender_body(void *data)
 		wait_time(targ->tic);
 		nexttime = targ->tic;
 	}
-    if (targ->g->dev_type == DEV_PCAP) {
-	    pcap_t *p = targ->g->p;
-
-	    for (i = 0; !targ->cancel && (n == 0 || sent < n); i++) {
-		if (pcap_inject(p, frame, size) != -1)
-			sent++;
-		update_addresses(pkt, targ->g);
-		if (i > 10000) {
-			targ->count = sent;
-			i = 0;
-		}
-	    }
-    } else if (targ->g->dev_type == DEV_TAP) { /* tap */
+    if (targ->g->dev_type == DEV_TAP) {
 	    D("writing to file desc %d", targ->g->main_fd);
 
 	    for (i = 0; !targ->cancel && (n == 0 || sent < n); i++) {
@@ -971,6 +968,20 @@ sender_body(void *data)
 			i = 0;
 		}
 	    }
+#ifndef NO_PCAP
+    } else if (targ->g->dev_type == DEV_PCAP) {
+	    pcap_t *p = targ->g->p;
+
+	    for (i = 0; !targ->cancel && (n == 0 || sent < n); i++) {
+		if (pcap_inject(p, frame, size) != -1)
+			sent++;
+		update_addresses(pkt, targ->g);
+		if (i > 10000) {
+			targ->count = sent;
+			i = 0;
+		}
+	    }
+#endif /* NO_PCAP */
     } else {
 	int tosend = 0;
 	int frags = targ->g->frags;
@@ -1016,8 +1027,8 @@ sender_body(void *data)
 				
 			m = send_packets(txring, pkt, frame, size, targ->g,
 					 limit, options, frags);
-			ND("limit %d avail %d frags %d m %d", 
-				limit, txring->avail, frags, m);
+			ND("limit %d tail %d frags %d m %d", 
+				limit, txring->tail, frags, m);
 			sent += m;
 			targ->count = sent;
 			if (rate_limit) {
@@ -1038,7 +1049,7 @@ sender_body(void *data)
 			usleep(1); /* wait 1 tick */
 		}
 	}
-    }
+    } /* end DEV_NETMAP */
 
 	clock_gettime(CLOCK_REALTIME_PRECISE, &targ->toc);
 	targ->completed = 1;
@@ -1052,6 +1063,7 @@ quit:
 }
 
 
+#ifndef NO_PCAP
 static void
 receive_pcap(u_char *user, const struct pcap_pkthdr * h,
 	const u_char * bytes)
@@ -1061,6 +1073,7 @@ receive_pcap(u_char *user, const struct pcap_pkthdr * h,
 	(void)bytes;	/* UNUSED */
 	(*count)++;
 }
+#endif /* !NO_PCAP */
 
 static int
 receive_packets(struct netmap_ring *ring, u_int limit, int dump)
@@ -1113,12 +1126,7 @@ receiver_body(void *data)
 
 	/* main loop, exit after 1s silence */
 	clock_gettime(CLOCK_REALTIME_PRECISE, &targ->tic);
-    if (targ->g->dev_type == DEV_PCAP) {
-	while (!targ->cancel) {
-		/* XXX should we poll ? */
-		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap, NULL);
-	}
-    } else if (targ->g->dev_type == DEV_TAP) {
+    if (targ->g->dev_type == DEV_TAP) {
 	D("reading from %s fd %d", targ->g->ifname, targ->g->main_fd);
 	while (!targ->cancel) {
 		char buf[2048];
@@ -1126,6 +1134,13 @@ receiver_body(void *data)
 		if (read(targ->g->main_fd, buf, sizeof(buf)) > 0)
 			targ->count++;
 	}
+#ifndef NO_PCAP
+    } else if (targ->g->dev_type == DEV_PCAP) {
+	while (!targ->cancel) {
+		/* XXX should we poll ? */
+		pcap_dispatch(targ->g->p, targ->g->burst, receive_pcap, NULL);
+	}
+#endif /* !NO_PCAP */
     } else {
 	int dump = targ->g->options & OPT_DUMP;
 	while (!targ->cancel) {
@@ -1533,7 +1548,7 @@ main(int arc, char **argv)
 	g.virt_header = 0;
 
 	while ( (ch = getopt(arc, argv,
-			"a:f:F:n:i:It:r:l:d:s:D:S:b:c:o:p:PT:w:WvR:XC:H:h")) != -1) {
+			"a:f:F:n:i:It:r:l:d:s:D:S:b:c:o:p:T:w:WvR:XC:H:h")) != -1) {
 		struct sf *fn;
 
 		switch(ch) {
@@ -1575,13 +1590,28 @@ main(int arc, char **argv)
 			break;
 
 		case 'i':	/* interface */
+			/* a prefix of tap: netmap: or pcap: forces the mode.
+			 * otherwise we guess
+			 */
+			D("interface is %s", optarg);
 			g.ifname = optarg;
-			if (!strncmp(optarg, "tap", 3))
-				g.dev_type = DEV_TAP;
-			else
+			if (!strcmp(optarg, "null")) {
 				g.dev_type = DEV_NETMAP;
-			if (!strcmp(g.ifname, "null"))
 				g.dummy_send = 1;
+			} else if (!strncmp(optarg, "tap:", 4)) {
+				g.dev_type = DEV_TAP;
+				g.ifname = optarg + 4;
+			} else if (!strncmp(optarg, "pcap:", 5)) {
+				g.dev_type = DEV_PCAP;
+				g.ifname = optarg + 5;
+			} else if (!strncmp(optarg, "netmap:", 7)) {
+				g.dev_type = DEV_NETMAP;
+				g.ifname = optarg + 7;
+			} else if (!strncmp(optarg, "tap", 3)) {
+				g.dev_type = DEV_TAP;
+			} else {
+				g.dev_type = DEV_NETMAP;
+			}
 			break;
 
 		case 'I':
@@ -1634,10 +1664,6 @@ main(int arc, char **argv)
 			g.nthreads = atoi(optarg);
 			break;
 
-		case 'P':
-			g.dev_type = DEV_PCAP;
-			break;
-
 		case 'D': /* destination mac */
 			g.dst_mac.name = optarg;
 			break;
@@ -1659,8 +1685,10 @@ main(int arc, char **argv)
 			break;
 		case 'H':
 			g.virt_header = atoi(optarg);
+			break;
 		case 'h':
 			g.host_ring = 1;
+			break;
 		}
 	}
 
@@ -1697,6 +1725,12 @@ main(int arc, char **argv)
 	extract_mac_range(&g.src_mac);
 	extract_mac_range(&g.dst_mac);
 
+	if (g.src_ip.start != g.src_ip.end ||
+	    g.src_ip.port0 != g.src_ip.port1 ||
+	    g.dst_ip.start != g.dst_ip.end ||
+	    g.dst_ip.port0 != g.dst_ip.port1)
+		g.options |= OPT_COPY;
+
 	if (g.virt_header != 0 && g.virt_header != VIRT_HDR_1
 			&& g.virt_header != VIRT_HDR_2) {
 		D("bad virtio-net-header length");
@@ -1710,7 +1744,8 @@ main(int arc, char **argv)
 		D("cannot open tap %s", g.ifname);
 		usage();
 	}
-    } else if (g.dev_type > DEV_NETMAP) {
+#ifndef NO_PCAP
+    } else if (g.dev_type == DEV_PCAP) {
 	char pcap_errbuf[PCAP_ERRBUF_SIZE];
 
 	D("using pcap on %s", g.ifname);
@@ -1720,7 +1755,8 @@ main(int arc, char **argv)
 		D("cannot open pcap on %s", g.ifname);
 		usage();
 	}
-    } else if (g.dummy_send) {
+#endif /* !NO_PCAP */
+    } else if (g.dummy_send) { /* but DEV_NETMAP */
 	D("using a dummy send routine");
     } else {
 	bzero(&nmr, sizeof(nmr));
@@ -1758,9 +1794,6 @@ main(int arc, char **argv)
 	ND("%s: txr %d txd %d rxr %d rxd %d", g.ifname,
 			nmr.nr_tx_rings, nmr.nr_tx_slots,
 			nmr.nr_rx_rings, nmr.nr_rx_slots);
-	if ((ioctl(g.main_fd, NIOCGINFO, &nmr)) == -1) {
-		D("Unable to get if info for %s: %s", g.ifname, strerror(errno));
-	}
 	devqueues = nmr.nr_rx_rings;
 
 	/* validate provided nthreads. */
@@ -1784,7 +1817,21 @@ main(int arc, char **argv)
 		// continue, fail later
 	}
 
+	if (verbose) {
+		struct netmap_if *nifp = NETMAP_IF(g.mmap_addr, nmr.nr_offset);
 
+		D("nifp at offset %d, %d tx %d rx rings %s",
+		    nmr.nr_offset, nmr.nr_tx_rings, nmr.nr_rx_rings,
+		    nmr.nr_ringid & NETMAP_PRIV_MEM ? "PRIVATE" : "common" );
+		for (i = 0; i <= nmr.nr_tx_rings; i++) {
+			D("   TX%d at 0x%lx", i,
+			    (char *)NETMAP_TXRING(nifp, i) - (char *)nifp);
+		}
+		for (i = 0; i <= nmr.nr_rx_rings; i++) {
+			D("   RX%d at 0x%lx", i,
+			    (char *)NETMAP_RXRING(nifp, i) - (char *)nifp);
+		}
+	}
 
 	/* Print some debug information. */
 	fprintf(stdout,
@@ -1846,16 +1893,6 @@ main(int arc, char **argv)
 	global_nthreads = g.nthreads;
 	signal(SIGINT, sigint_h);
 
-#if 0 // XXX this is not needed, i believe
-	if (g.dev_type > DEV_NETMAP) {
-		g.p = pcap_open_live(g.ifname, 0, 1, 100, NULL);
-		if (g.p == NULL) {
-			D("cannot open pcap on %s", g.ifname);
-			usage();
-		} else
-			D("using pcap %p on %s", g.p, g.ifname);
-	}
-#endif // XXX
 	start_threads(&g);
 	main_thread(&g);
 	return 0;

@@ -140,6 +140,8 @@ static int imx_uart_bus_probe(struct uart_softc *);
 static int imx_uart_bus_receive(struct uart_softc *);
 static int imx_uart_bus_setsig(struct uart_softc *, int);
 static int imx_uart_bus_transmit(struct uart_softc *);
+static void imx_uart_bus_grab(struct uart_softc *);
+static void imx_uart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t imx_uart_methods[] = {
 	KOBJMETHOD(uart_attach,		imx_uart_bus_attach),
@@ -153,6 +155,8 @@ static kobj_method_t imx_uart_methods[] = {
 	KOBJMETHOD(uart_receive,	imx_uart_bus_receive),
 	KOBJMETHOD(uart_setsig,		imx_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	imx_uart_bus_transmit),
+	KOBJMETHOD(uart_grab,		imx_uart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		imx_uart_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -189,12 +193,7 @@ imx_uart_bus_attach(struct uart_softc *sc)
 
 	(void)imx_uart_bus_getsig(sc);
 
-	/* XXX workaround to have working console on mount prompt */
-	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE){
-		DIS(bas, UCR4, DREN);
-	} else {
-		ENA(bas, UCR4, DREN);
-	}
+	ENA(bas, UCR4, DREN);
 	DIS(bas, UCR1, RRDYEN);
 	DIS(bas, UCR1, IDEN);
 	DIS(bas, UCR3, RXDSEN);
@@ -402,13 +401,6 @@ static int
 imx_uart_bus_setsig(struct uart_softc *sc, int sig)
 {
 
-	/* TODO: implement (?) */
-
-	/* XXX workaround to have working console on mount prompt */
-	/* Enable RX interrupt */
-	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE)
-		if (!IS(&sc->sc_bas, UCR4, DREN))
-			ENA(&sc->sc_bas, UCR4, DREN);
 	return (0);
 }
 
@@ -433,4 +425,26 @@ imx_uart_bus_transmit(struct uart_softc *sc)
 	uart_unlock(sc->sc_hwmtx);
 
 	return (0);
+}
+
+static void
+imx_uart_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	DIS(bas, UCR4, DREN);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+imx_uart_bus_ungrab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	ENA(bas, UCR4, DREN);
+	uart_unlock(sc->sc_hwmtx);
 }
