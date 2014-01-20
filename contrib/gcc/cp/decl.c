@@ -232,10 +232,17 @@ int function_depth;
    with __attribute__((deprecated)).  An object declared as
    __attribute__((deprecated)) suppresses warnings of uses of other
    deprecated items.  */
+/* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+/* An object declared as __attribute__((unavailable)) suppresses
+   any reports of being declared with unavailable or deprecated
+   items.  */
+/* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
 
 enum deprecated_states {
   DEPRECATED_NORMAL,
   DEPRECATED_SUPPRESS
+  /* APPLE LOCAL "unavailable" attribute (radar 2809697) */
+  , DEPRECATED_UNAVAILABLE_SUPPRESS
 };
 
 static enum deprecated_states deprecated_state = DEPRECATED_NORMAL;
@@ -3836,14 +3843,40 @@ start_decl (const cp_declarator *declarator,
   tree decl;
   tree type, tem;
   tree context;
+  /* APPLE LOCAL "unavailable" attribute (radar 2809697) */
+  tree a;
   bool was_public;
 
   *pushed_scope_p = NULL_TREE;
 
-  /* An object declared as __attribute__((deprecated)) suppresses
-     warnings of uses of other deprecated items.  */
+  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+  /* An object declared as __attribute__((unavailable)) suppresses
+     any reports of being declared with unavailable or deprecated
+     items.  An object declared as __attribute__((deprecated))
+     suppresses warnings of uses of other deprecated items.  */
+#ifdef A_LESS_INEFFICENT_WAY /* which I really don't want to do!  */
   if (lookup_attribute ("deprecated", attributes))
     deprecated_state = DEPRECATED_SUPPRESS;
+  else if (lookup_attribute ("unavailable", attributes))
+    deprecated_state = DEPRECATED_UNAVAILABLE_SUPPRESS;
+#else /* a more efficient way doing what lookup_attribute would do */
+  for (a = attributes; a; a = TREE_CHAIN (a))
+    {
+      tree name = TREE_PURPOSE (a);
+      if (TREE_CODE (name) == IDENTIFIER_NODE)
+        if (is_attribute_p ("deprecated", name))
+	  {
+	    deprecated_state = DEPRECATED_SUPPRESS;
+	    break;
+	  }
+        if (is_attribute_p ("unavailable", name))
+	  {
+	    deprecated_state = DEPRECATED_UNAVAILABLE_SUPPRESS;
+	    break;
+	  }
+    }
+#endif
+  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
 
   attributes = chainon (attributes, prefix_attributes);
 
@@ -7274,6 +7307,19 @@ grokdeclarator (const cp_declarator *declarator,
       type = NULL_TREE;
       type_was_error_mark_node = true;
     }
+
+  /* APPLE LOCAL begin unavailable attribute (radar 2809697) --bowdidge */
+  /* If the entire declaration is itself tagged as unavailable then
+     suppress reports of unavailable/deprecated items.  If the
+     entire declaration is tagged as only deprecated we still
+     report unavailable uses.  */
+  if (type && TREE_DEPRECATED (type) && TREE_UNAVAILABLE (type))
+    {
+      if (deprecated_state != DEPRECATED_UNAVAILABLE_SUPPRESS)
+	warn_deprecated_use (type);
+    }
+  else
+  /* APPLE LOCAL end unavailable attribute (radar 2809697) --bowdidge */
   /* If the entire declaration is itself tagged as deprecated then
      suppress reports of deprecated items.  */
   if (type && TREE_DEPRECATED (type)

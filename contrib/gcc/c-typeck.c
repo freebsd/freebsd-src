@@ -1849,6 +1849,11 @@ build_component_ref (tree datum, tree component)
 	  if (TREE_DEPRECATED (subdatum))
 	    warn_deprecated_use (subdatum);
 
+	  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+	  if (TREE_UNAVAILABLE (subdatum))
+	    error_unavailable_use (subdatum);
+	  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
+
 	  datum = ref;
 
 	  field = TREE_CHAIN (field);
@@ -2089,6 +2094,11 @@ build_external_ref (tree id, int fun, location_t loc)
 
   if (TREE_DEPRECATED (ref))
     warn_deprecated_use (ref);
+
+  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+  if (TREE_UNAVAILABLE (ref))
+    error_unavailable_use (ref);
+  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
 
   if (!skip_evaluation)
     assemble_external (ref);
@@ -7247,15 +7257,22 @@ c_finish_if_stmt (location_t if_locus, tree cond, tree then_block,
   add_stmt (stmt);
 }
 
-/* Emit a general-purpose loop construct.  START_LOCUS is the location of
-   the beginning of the loop.  COND is the loop condition.  COND_IS_FIRST
-   is false for DO loops.  INCR is the FOR increment expression.  BODY is
-   the statement controlled by the loop.  BLAB is the break label.  CLAB is
-   the continue label.  Everything is allowed to be NULL.  */
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+/* Emit a general-purpose loop construct.  START_LOCUS is the location
+   of the beginning of the loop.  COND is the loop condition.
+   COND_IS_FIRST is false for DO loops.  INCR is the FOR increment
+   expression.  BODY is the statement controlled by the loop.  BLAB is
+   the break label.  CLAB is the continue label.  ATTRS is the
+   attributes associated with the loop, which at present are
+   associated with the topmost label.  Everything is allowed to be
+   NULL.  */
 
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 void
 c_finish_loop (location_t start_locus, tree cond, tree incr, tree body,
-	       tree blab, tree clab, bool cond_is_first)
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+	       tree blab, tree clab, tree attrs, bool cond_is_first)
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 {
   tree entry = NULL, exit = NULL, t;
 

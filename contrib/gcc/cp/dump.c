@@ -433,6 +433,9 @@ cp_dump_tree (void* dump_info, tree t)
       dump_stmt (di, t);
       dump_child ("body", DO_BODY (t));
       dump_child ("cond", DO_COND (t));
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      dump_child ("attrs", DO_ATTRIBUTES (t));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       break;
 
     case FOR_STMT:
@@ -441,6 +444,9 @@ cp_dump_tree (void* dump_info, tree t)
       dump_child ("cond", FOR_COND (t));
       dump_child ("expr", FOR_EXPR (t));
       dump_child ("body", FOR_BODY (t));
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      dump_child ("attrs", FOR_ATTRIBUTES (t));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       break;
 
     case SWITCH_STMT:
@@ -453,6 +459,9 @@ cp_dump_tree (void* dump_info, tree t)
       dump_stmt (di, t);
       dump_child ("cond", WHILE_COND (t));
       dump_child ("body", WHILE_BODY (t));
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+      dump_child ("attrs", WHILE_ATTRIBUTES (t));
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
       break;
 
     case STMT_EXPR:
