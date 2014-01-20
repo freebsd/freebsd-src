@@ -108,16 +108,6 @@
       configuration file has been added, which enables the new
       <literal>vt</literal> console driver.</para>
 
-    <para revision="260532">Support for <quote>Posted Interrupt
-	Processing</quote> is enabled if supported by the CPU.
-      This feature can be disabled with:</para>
-
-    <screen><userinput>&prompt.root; sysctl hw.vmm.vmx.use_apic_pir=0</userinput></screen>
-
-    <para>Additionally, to persist this setting across reboots, add
-      <literal>hw.vmm.vmx.use_apic_pir=0</literal> to
-      <filename>/etc/sysctl.conf</filename>.</para>
-
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
@@ -129,6 +119,16 @@
 
       <para revision="260582">Unmapped IO support has been added to
 	&man.virtio_blk.4;.</para>
+
+      <para revision="260532">Support for <quote>Posted Interrupt
+	  Processing</quote> is enabled if supported by the CPU.
+	This feature can be disabled with:</para>
+
+      <screen><userinput>&prompt.root; sysctl hw.vmm.vmx.use_apic_pir=0</userinput></screen>
+
+      <para>Additionally, to persist this setting across reboots, add
+	<literal>hw.vmm.vmx.use_apic_pir=0</literal> to
+	<filename>/etc/sysctl.conf</filename>.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
