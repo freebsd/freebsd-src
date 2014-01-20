@@ -113,6 +113,9 @@
 
       <para revision="260847">The &man.virtio_random.4; driver has
 	been added to harvest entropy from the host system.</para>
+
+      <para revision="260583">Unmapped IO support has been added to
+	&man.virtio_scsi.4;.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
