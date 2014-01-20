@@ -104,9 +104,12 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para revision="260888">Add a <filename>VT</filename> kernel
-      configuration file, which enables the new <literal>vt</literal>
-      console driver.</para>
+    <para revision="260888">The <filename>VT</filename> kernel
+      configuration file has been added, which enables the new
+      <literal>vt</literal> console driver.</para>
+
+    <para revision="260847">The &man.virtio_random.4; driver has been
+      added to harvest entropy from the host system.</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
