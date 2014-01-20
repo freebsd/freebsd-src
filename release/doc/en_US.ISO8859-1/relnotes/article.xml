@@ -129,6 +129,17 @@
       <para>Additionally, to persist this setting across reboots, add
 	<literal>hw.vmm.vmx.use_apic_pir=0</literal> to
 	<filename>/etc/sysctl.conf</filename>.</para>
+
+      <para revision="260410">Support for the <quote>Virtual Interrupt
+	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
+	supported by the CPU.  This feature can be disabled
+	with:</para>
+
+      <screen><userinput>&prompt.root; sysctl hw.vmm.vmx.use_apic_vid=0</userinput></screen>
+
+      <para>Additionally, to persist this setting across reboots, add
+	<literal>hw.vmm.vmx.use_apic_vid=0</literal> to
+	<filename>/etc/sysctl.conf</filename>.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
