@@ -12,20 +12,6 @@
   <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
-    <year>2000</year>
-    <year>2001</year>
-    <year>2002</year>
-    <year>2003</year>
-    <year>2004</year>
-    <year>2005</year>
-    <year>2006</year>
-    <year>2007</year>
-    <year>2008</year>
-    <year>2009</year>
-    <year>2010</year>
-    <year>2011</year>
-    <year>2012</year>
-    <year>2013</year>
     <year>2014</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
       Project</holder>
@@ -365,7 +351,7 @@ hv_vmbus_load="YES"</programlisting>
       <title>File Systems</title>
 
       <para revision="255570">A new kernel-based iSCSI target and
-	initiator has been added</para>
+	initiator has been added.</para>
 
       <para revision="243246">UFS filesystems can now be enlarged with
 	&man.growfs.8; while mounted read-write. This is especially
@@ -374,7 +360,7 @@ hv_vmbus_load="YES"</programlisting>
 
       <para revision="241519">A state of the art FUSE implementation
 	is now part of the base system. It allows the use of nearly
-	all fusefs file systems</para>
+	all fusefs file systems.</para>
 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
@@ -393,7 +379,7 @@ hv_vmbus_load="YES"</programlisting>
 	<para revision="246586">Support for the high performance LZ4
 	  compression algorithm has been added to ZFS. LZ4 is usually
 	  faster and can achieve a higher compression ratio than LZJB,
-	  the default compression algorithm</para>
+	  the default compression algorithm.</para>
 
 	<para revision="252140">Support for L2ARC compression has been
 	  added to ZFS.</para>
@@ -469,7 +455,7 @@ hv_vmbus_load="YES"</programlisting>
       2.5.37</para>
 
     <para revision="250699">&man.make.1; has been replaced with the
-      "Portable" BSD make tool (bmake) from NetBSD.</para>
+      <quote>Portable</quote> BSD make tool (bmake) from NetBSD.</para>
 
     <para revision="243023">Support for usernames up to 32
       characters.</para>
@@ -608,7 +594,7 @@ hv_vmbus_load="YES"</programlisting>
 
     <para revision="251794"><application>CVS</application> has been
       removed from the base system, but is still available from
-      ports</para>
+      ports.</para>
 
     <para revision="251886">Subversion has been imported into the base
       system and is installed as <application>svnlite</application>.
@@ -671,7 +657,7 @@ hv_vmbus_load="YES"</programlisting>
       pkg_info, pkg_updating, and pkg_version utilities have been
       removed.  &man.pkg.7; must now be used to install binary
       packages.  &man.pkg.7; is the next generation &os; package
-      manager, also referred to as "pkgng".</para>
+      manager, also referred to as <quote>pkgng</quote>.</para>
   </sect2>
 
   <sect2 xml:id="releng">
