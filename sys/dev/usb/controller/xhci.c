@@ -1578,16 +1578,23 @@ void
 xhci_interrupt(struct xhci_softc *sc)
 {
 	uint32_t status;
+	uint32_t temp;
 
 	USB_BUS_LOCK(&sc->sc_bus);
 
 	status = XREAD4(sc, oper, XHCI_USBSTS);
 
-	/* acknowledge interrupts */
+	/* acknowledge interrupts, if any */
+	if (status != 0) {
+		XWRITE4(sc, oper, XHCI_USBSTS, status);
+		DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+	}
 
-	XWRITE4(sc, oper, XHCI_USBSTS, status);
+	temp = XREAD4(sc, runt, XHCI_IMAN(0));
 
-	DPRINTFN(16, "real interrupt (status=0x%08x)\n", status);
+	/* force clearing of pending interrupts */
+	if (temp & XHCI_IMAN_INTR_PEND)
+		XWRITE4(sc, runt, XHCI_IMAN(0), temp);
  
 	/* check for event(s) */
 	xhci_interrupt_poll(sc);

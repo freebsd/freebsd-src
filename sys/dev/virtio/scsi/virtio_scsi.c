@@ -878,7 +878,7 @@ vtscsi_cam_path_inquiry(struct vtscsi_softc *sc, struct cam_sim *sim,
 	cpi->version_num = 1;
 	cpi->hba_inquiry = PI_TAG_ABLE;
 	cpi->target_sprt = 0;
-	cpi->hba_misc = PIM_SEQSCAN;
+	cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
 	if (vtscsi_bus_reset_disable != 0)
 		cpi->hba_misc |= PIM_NOBUSRESET;
 	cpi->hba_eng_cnt = 0;
@@ -945,6 +945,9 @@ vtscsi_sg_append_scsi_buf(struct vtscsi_softc *sc, struct sglist *sg,
 			error = sglist_append_phys(sg,
 			    (vm_paddr_t) dseg->ds_addr, dseg->ds_len);
 		}
+		break;
+	case CAM_DATA_BIO:
+		error = sglist_append_bio(sg, (struct bio *) csio->data_ptr);
 		break;
 	default:
 		error = EINVAL;
@@ -1539,7 +1542,7 @@ vtscsi_set_request_lun(struct ccb_hdr *ccbh, uint8_t lun[])
 	lun[0] = 1;
 	lun[1] = ccbh->target_id;
 	lun[2] = 0x40 | ((ccbh->target_lun >> 8) & 0x3F);
-	lun[3] = (ccbh->target_lun >> 8) & 0xFF;
+	lun[3] = ccbh->target_lun & 0xFF;
 }
 
 static void

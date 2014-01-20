@@ -76,8 +76,21 @@ INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
 MAN=		atf-c++-api.3
 
+all: atf-c++.pc
+atf-c++.pc: atf-c++.pc.in atf-version
+	sed -e 's,__CXX__,${CXX},g' \
+	    -e 's,__INCLUDEDIR__,${INCLUDEDIR},g' \
+	    -e 's,__LIBDIR__,${LIBDIR},g' \
+	    -e "s,__ATF_VERSION__,$$(cat atf-version),g" \
+	    <${ATF}/atf-c++/atf-c++.pc.in >atf-c++.pc
+
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		atf-c++.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+
 .if ${MK_TESTS} != "no"
 SUBDIR=		tests
 .endif
 
+.include "../common.mk"
 .include <bsd.lib.mk>

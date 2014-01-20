@@ -4232,7 +4232,7 @@ scsi_low_print(slp, ti)
 	if (ti != NULL)
 	{
 		u_int flags = 0, maxnqio = 0, nqio = 0;
-		int lun = -1;
+		int lun = CAM_LUN_WILDCARD;
 
 		if (li != NULL)
 		{

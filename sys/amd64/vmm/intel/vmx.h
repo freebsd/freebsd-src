@@ -93,11 +93,20 @@ struct apic_page {
 };
 CTASSERT(sizeof(struct apic_page) == PAGE_SIZE);
 
+/* Posted Interrupt Descriptor (described in section 29.6 of the Intel SDM) */
+struct pir_desc {
+	uint64_t	pir[4];
+	uint64_t	pending;
+	uint64_t	unused[3];
+} __aligned(64);
+CTASSERT(sizeof(struct pir_desc) == 64);
+
 /* virtual machine softc */
 struct vmx {
 	struct vmcs	vmcs[VM_MAXCPU];	/* one vmcs per virtual cpu */
 	struct apic_page apic_page[VM_MAXCPU];	/* one apic page per vcpu */
 	char		msr_bitmap[PAGE_SIZE];
+	struct pir_desc	pir_desc[VM_MAXCPU];
 	struct msr_entry guest_msrs[VM_MAXCPU][GUEST_MSR_MAX_ENTRIES];
 	struct vmxctx	ctx[VM_MAXCPU];
 	struct vmxcap	cap[VM_MAXCPU];
@@ -108,6 +117,7 @@ struct vmx {
 CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
+CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 
 #define	VMX_GUEST_VMEXIT	0
 #define	VMX_VMRESUME_ERROR	1
@@ -115,6 +125,7 @@ CTASSERT((offsetof(struct vmx, guest_msrs) & 15) == 0);
 #define	VMX_INVEPT_ERROR	3
 int	vmx_enter_guest(struct vmxctx *ctx, int launched);
 void	vmx_exit_guest(void);
+void	vmx_call_isr(uintptr_t entry);
 
 u_long	vmx_fix_cr0(u_long cr0);
 u_long	vmx_fix_cr4(u_long cr4);

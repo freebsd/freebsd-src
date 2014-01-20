@@ -80,7 +80,6 @@ static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
 				/* indicates specified signal received */
 static int ignore_sigchld;	/* Used while handling SIGCHLD traps. */
-volatile sig_atomic_t gotwinch;
 static int last_trapsig;
 
 static int exiting;		/* exitshell() has been called */
@@ -293,12 +292,6 @@ setsignal(int signo)
 				action = S_IGN;
 			break;
 #endif
-#ifndef NO_HISTORY
-		case SIGWINCH:
-			if (rootshell && iflag)
-				action = S_CATCH;
-			break;
-#endif
 		}
 	}
 
@@ -400,11 +393,6 @@ onsig(int signo)
 		gotsig[signo] = 1;
 		pendingsig = signo;
 	}
-
-#ifndef NO_HISTORY
-	if (signo == SIGWINCH)
-		gotwinch = 1;
-#endif
 }
 
 
@@ -490,9 +478,6 @@ setinteractive(int on)
 	setsignal(SIGINT);
 	setsignal(SIGQUIT);
 	setsignal(SIGTERM);
-#ifndef NO_HISTORY
-	setsignal(SIGWINCH);
-#endif
 	is_interactive = on;
 }
 

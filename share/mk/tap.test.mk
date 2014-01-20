@@ -18,7 +18,11 @@
 # manpage.
 TAP_TESTS_C?=
 TAP_TESTS_CXX?=
+TAP_TESTS_PERL?=
 TAP_TESTS_SH?=
+
+# Perl interpreter to use for test programs written in this language.
+TAP_PERL_INTERPRETER?= /usr/local/bin/perl
 
 .if !empty(TAP_TESTS_C)
 PROGS+= ${TAP_TESTS_C}
@@ -39,6 +43,29 @@ BINDIR.${_T}= ${TESTSDIR}
 MAN.${_T}?= # empty
 SRCS.${_T}?= ${_T}.cc
 TEST_INTERFACE.${_T}= tap
+.endfor
+.endif
+
+.if !empty(TAP_TESTS_PERL)
+SCRIPTS+= ${TAP_TESTS_PERL}
+_TESTS+= ${TAP_TESTS_PERL}
+.for _T in ${TAP_TESTS_PERL}
+SCRIPTSDIR_${_T}= ${TESTSDIR}
+TEST_INTERFACE.${_T}= tap
+TEST_METADATA.${_T}+= required_programs="${TAP_PERL_INTERPRETER}"
+CLEANFILES+= ${_T} ${_T}.tmp
+# TODO(jmmv): It seems to me that this SED and SRC functionality should
+# exist in bsd.prog.mk along the support for SCRIPTS.  Move it there if
+# this proves to be useful within the tests.
+TAP_TESTS_PERL_SED_${_T}?= # empty
+TAP_TESTS_PERL_SRC_${_T}?= ${_T}.pl
+${_T}: ${TAP_TESTS_PERL_SRC_${_T}}
+	{ \
+	    echo '#! ${TAP_PERL_INTERPRETER}'; \
+	    cat ${.ALLSRC} | sed ${TAP_TESTS_PERL_SED_${_T}}; \
+	} >${.TARGET}.tmp
+	chmod +x ${.TARGET}.tmp
+	mv ${.TARGET}.tmp ${.TARGET}
 .endfor
 .endif
 
