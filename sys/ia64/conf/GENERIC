@@ -192,7 +192,9 @@ options		AH_SUPPORT_AR5416
 # Various (pseudo) devices
 device		ether		# Ethernet support
 device		faith		# IPv6-to-IPv4 relaying (translation)
+device		firmware	# firmware assist module
 device		gif		# IPv6 and IPv4 tunneling
+device		kbdmux		# keyboard multiplexer
 device		loop		# Network loopback
 device		md		# Memory "disks"
 device		puc		# Multi I/O cards and multi-channel UARTs
@@ -200,7 +202,8 @@ device		random		# Entropy device
 device		tun		# Packet tunnel.
 device		uart		# Serial port (UART)
 device		vlan		# 802.1Q VLAN support
-device		firmware	# firmware assist module
+device		vt		# Virtual terminals
+device		vt_vga		# VGA terminal device
 
 # The `bpf' device enables the Berkeley Packet Filter.
 # Be aware of the administrative consequences of enabling this!

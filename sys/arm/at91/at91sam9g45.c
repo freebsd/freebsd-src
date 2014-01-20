@@ -88,6 +88,14 @@ static const int at91_irq_prio[32] =
 	0,	/* Advanced Interrupt Controller IRQ0 */
 };
 
+static const uint32_t at91_pio_base[] = {
+	AT91SAM9G45_PIOA_BASE,
+	AT91SAM9G45_PIOB_BASE,
+	AT91SAM9G45_PIOC_BASE,
+	AT91SAM9G45_PIOD_BASE,
+	AT91SAM9G45_PIOE_BASE,
+};
+
 #define DEVICE(_name, _id, _unit)		\
 	{					\
 		_name, _unit,			\
@@ -155,6 +163,8 @@ static struct at91_soc_data soc_data = {
 	.soc_clock_init = at91_clock_init,
 	.soc_irq_prio = at91_irq_prio,
 	.soc_children = at91_devs,
+	.soc_pio_base = at91_pio_base,
+	.soc_pio_count = nitems(at91_pio_base),
 };
 
 AT91_SOC(AT91_T_SAM9G45, &soc_data);

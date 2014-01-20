@@ -139,11 +139,8 @@ nm_ring_space(struct netmap_ring *ring)
 #include <sys/errno.h>	/* EINVAL */
 #include <fcntl.h>	/* O_RDWR */
 #include <unistd.h>	/* close() */
-#ifdef __FreeBSD__
+#include <signal.h>
 #include <stdlib.h>
-#else
-#include <malloc.h>	/* on FreeBSD it is stdlib.h */
-#endif
 
 struct nm_hdr_t {	/* same as pcap_pkthdr */
 	struct timeval	ts;
@@ -151,15 +148,43 @@ struct nm_hdr_t {	/* same as pcap_pkthdr */
 	uint32_t	len;
 };
 
+struct nm_stat_t { // pcap_stat
+	u_int	ps_recv;
+	u_int	ps_drop;
+	u_int	ps_ifdrop;
+#ifdef WIN32
+	u_int	bs_capt;
+#endif /* WIN32 */
+};
+
+#define NM_ERRBUF_SIZE	512
+
 struct nm_desc_t {
 	struct nm_desc_t *self;
 	int fd;
 	void *mem;
 	int memsize;
 	struct netmap_if *nifp;
-	uint16_t first_ring, last_ring, cur_ring;
-	struct nmreq req;
+	uint16_t first_tx_ring, last_tx_ring, cur_tx_ring;
+	uint16_t first_rx_ring, last_rx_ring, cur_rx_ring;
+	struct nmreq req;	/* also contains the nr_name = ifname */
 	struct nm_hdr_t hdr;
+
+	struct netmap_ring *tx, *rx;	/* shortcuts to base hw/sw rings */
+
+	/* parameters from pcap_open_live */
+	int snaplen;
+	int promisc;
+	int to_ms;
+	char *errbuf;
+
+	/* save flags so we can restore them on close */
+	uint32_t if_flags;
+        uint32_t if_reqcap;
+        uint32_t if_curcap;
+
+	struct nm_stat_t st;
+	char msg[NM_ERRBUF_SIZE];
 };
 
 /*
@@ -248,7 +273,8 @@ static struct nm_desc_t *
 nm_open(const char *ifname, const char *ring_name, int flags, int ring_flags)
 {
 	struct nm_desc_t *d;
-	u_int n;
+	u_int n, namelen;
+	char *port = NULL;
 
 	if (strncmp(ifname, "netmap:", 7) && strncmp(ifname, "vale", 4)) {
 		errno = 0; /* name not recognised */
@@ -256,6 +282,20 @@ nm_open(const char *ifname, const char *ring_name, int flags, int ring_flags)
 	}
 	if (ifname[0] == 'n')
 		ifname += 7;
+	port = strchr(ifname, '-');
+	if (!port) {
+		namelen = strlen(ifname);
+	} else {
+		namelen = port - ifname;
+		flags &= ~(NETMAP_SW_RING | NETMAP_HW_RING  | NETMAP_RING_MASK);
+		if (port[1] == 's')
+			flags |= NETMAP_SW_RING;
+		else
+			ring_name = port;
+	}
+	if (namelen >= sizeof(d->req.nr_name))
+		namelen = sizeof(d->req.nr_name) - 1;
+
 	d = (struct nm_desc_t *)calloc(1, sizeof(*d));
 	if (d == NULL) {
 		errno = ENOMEM;
@@ -279,9 +319,11 @@ nm_open(const char *ifname, const char *ring_name, int flags, int ring_flags)
 	}
 	d->req.nr_ringid |= (flags & ~NETMAP_RING_MASK);
 	d->req.nr_version = NETMAP_API;
-	strncpy(d->req.nr_name, ifname, sizeof(d->req.nr_name));
-	if (ioctl(d->fd, NIOCREGIF, &d->req))
+	memcpy(d->req.nr_name, ifname, namelen);
+	d->req.nr_name[namelen] = '\0';
+	if (ioctl(d->fd, NIOCREGIF, &d->req)) {
 		goto fail;
+	}
 
 	d->memsize = d->req.nr_memsize;
 	d->mem = mmap(0, d->memsize, PROT_WRITE | PROT_READ, MAP_SHARED,
@@ -290,18 +332,27 @@ nm_open(const char *ifname, const char *ring_name, int flags, int ring_flags)
 		goto fail;
 	d->nifp = NETMAP_IF(d->mem, d->req.nr_offset);
 	if (d->req.nr_ringid & NETMAP_SW_RING) {
-		d->first_ring = d->last_ring = d->req.nr_rx_rings;
+		d->first_tx_ring = d->last_tx_ring = d->req.nr_tx_rings;
+		d->first_rx_ring = d->last_rx_ring = d->req.nr_rx_rings;
 	} else if (d->req.nr_ringid & NETMAP_HW_RING) {
-		d->first_ring = d->last_ring =
+		/* XXX check validity */
+		d->first_tx_ring = d->last_tx_ring =
+		d->first_rx_ring = d->last_rx_ring =
 			d->req.nr_ringid & NETMAP_RING_MASK;
 	} else {
-		d->first_ring = 0;
-		d->last_ring = d->req.nr_rx_rings - 1;
+		d->first_tx_ring = d->last_rx_ring = 0;
+		d->last_tx_ring = d->req.nr_tx_rings - 1;
+		d->last_rx_ring = d->req.nr_rx_rings - 1;
 	}
-	d->cur_ring = d->first_ring;
-	for (n = d->first_ring; n <= d->last_ring; n++) {
-		struct netmap_ring *ring = NETMAP_RXRING(d->nifp, n);
-		ring->flags |= ring_flags;
+	d->tx = NETMAP_TXRING(d->nifp, 0);
+	d->rx = NETMAP_RXRING(d->nifp, 0);
+	d->cur_tx_ring = d->first_tx_ring;
+	d->cur_rx_ring = d->first_rx_ring;
+	for (n = d->first_tx_ring; n <= d->last_tx_ring; n++) {
+		d->tx[n].flags |= ring_flags;
+	}
+	for (n = d->first_rx_ring; n <= d->last_rx_ring; n++) {
+		d->rx[n].flags |= ring_flags;
 	}
 	return d;
 
@@ -340,30 +391,25 @@ nm_close(struct nm_desc_t *d)
 static int
 nm_inject(struct nm_desc_t *d, const void *buf, size_t size)
 {
-	u_int c, n = d->last_ring - d->first_ring + 1;
+	u_int c, n = d->last_tx_ring - d->first_tx_ring + 1;
 
-	if (0) fprintf(stderr, "%s rings %d %d %d\n", __FUNCTION__,
-		d->first_ring, d->cur_ring, d->last_ring);
 	for (c = 0; c < n ; c++) {
 		/* compute current ring to use */
 		struct netmap_ring *ring;
 		uint32_t i, idx;
-		uint32_t ri = d->cur_ring + c;
+		uint32_t ri = d->cur_tx_ring + c;
 
-		if (ri > d->last_ring)
-			ri = d->first_ring;
+		if (ri > d->last_tx_ring)
+			ri = d->first_tx_ring;
 		ring = NETMAP_TXRING(d->nifp, ri);
 		if (nm_ring_empty(ring)) {
-			if (0) fprintf(stderr, "%s ring %d cur %d tail %d\n",
-				__FUNCTION__,
-				ri, ring->cur, ring->tail);
 			continue;
 		}
 		i = ring->cur;
 		idx = ring->slot[i].buf_idx;
 		ring->slot[i].len = size;
 		pkt_copy(buf, NETMAP_BUF(ring, idx), size);
-		d->cur_ring = ri;
+		d->cur_tx_ring = ri;
 		ring->head = ring->cur = nm_ring_next(ring, i);
 		return size;
 	}
@@ -377,8 +423,8 @@ nm_inject(struct nm_desc_t *d, const void *buf, size_t size)
 static int
 nm_dispatch(struct nm_desc_t *d, int cnt, nm_cb_t cb, u_char *arg)
 {
-	int n = d->last_ring - d->first_ring + 1;
-	int c, got = 0, ri = d->cur_ring;
+	int n = d->last_rx_ring - d->first_rx_ring + 1;
+	int c, got = 0, ri = d->cur_rx_ring;
 
 	if (cnt == 0)
 		cnt = -1;
@@ -390,30 +436,30 @@ nm_dispatch(struct nm_desc_t *d, int cnt, nm_cb_t cb, u_char *arg)
 		/* compute current ring to use */
 		struct netmap_ring *ring;
 
-		ri = d->cur_ring + c;
-		if (ri > d->last_ring)
-			ri = d->first_ring;
+		ri = d->cur_rx_ring + c;
+		if (ri > d->last_rx_ring)
+			ri = d->first_rx_ring;
 		ring = NETMAP_RXRING(d->nifp, ri);
 		for ( ; !nm_ring_empty(ring) && cnt != got; got++) {
 			u_int i = ring->cur;
 			u_int idx = ring->slot[i].buf_idx;
 			u_char *buf = (u_char *)NETMAP_BUF(ring, idx);
-			// XXX should check valid buf
-			// prefetch(buf);
+
+			// __builtin_prefetch(buf);
 			d->hdr.len = d->hdr.caplen = ring->slot[i].len;
 			d->hdr.ts = ring->ts;
 			cb(arg, &d->hdr, buf);
 			ring->head = ring->cur = nm_ring_next(ring, i);
 		}
 	}
-	d->cur_ring = ri;
+	d->cur_rx_ring = ri;
 	return got;
 }
 
 static u_char *
 nm_nextpkt(struct nm_desc_t *d, struct nm_hdr_t *hdr)
 {
-	int ri = d->cur_ring;
+	int ri = d->cur_rx_ring;
 
 	do {
 		/* compute current ring to use */
@@ -422,8 +468,8 @@ nm_nextpkt(struct nm_desc_t *d, struct nm_hdr_t *hdr)
 			u_int i = ring->cur;
 			u_int idx = ring->slot[i].buf_idx;
 			u_char *buf = (u_char *)NETMAP_BUF(ring, idx);
-			// XXX should check valid buf
-			// prefetch(buf);
+
+			// __builtin_prefetch(buf);
 			hdr->ts = ring->ts;
 			hdr->len = hdr->caplen = ring->slot[i].len;
 			ring->cur = nm_ring_next(ring, i);
@@ -432,13 +478,13 @@ nm_nextpkt(struct nm_desc_t *d, struct nm_hdr_t *hdr)
 			 * the future.
 			 */
 			ring->head = ring->cur;
-			d->cur_ring = ri;
+			d->cur_rx_ring = ri;
 			return buf;
 		}
 		ri++;
-		if (ri > d->last_ring)
-			ri = d->first_ring;
-	} while (ri != d->cur_ring);
+		if (ri > d->last_rx_ring)
+			ri = d->first_rx_ring;
+	} while (ri != d->cur_rx_ring);
 	return NULL; /* nothing found */
 }
 

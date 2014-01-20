@@ -408,7 +408,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	if (ifp->if_flags & IFF_LOOPBACK)
                 ia->ia_dstaddr = ia->ia_addr;
 
-	ifa_ref(ifa);			/* if_addrhead */
+	/* if_addrhead is already referenced by ifa_alloc() */
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
@@ -495,13 +495,13 @@ fail1:
 	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
-	ifa_free(&ia->ia_ifa);
+	ifa_free(&ia->ia_ifa);		/* if_addrhead */
 
 	IN_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	LIST_REMOVE(ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
-	ifa_free(&ia->ia_ifa);
+	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	return (error);
 }
@@ -565,7 +565,6 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);
 	LIST_REMOVE(ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
-	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	/*
 	 * in_scrubprefix() kills the interface route.
@@ -601,6 +600,7 @@ in_difaddr_ioctl(caddr_t data, struct ifnet *ifp, struct thread *td)
 	}
 
 	EVENTHANDLER_INVOKE(ifaddr_event, ifp);
+	ifa_free(&ia->ia_ifa);		/* in_ifaddrhead */
 
 	return (0);
 }

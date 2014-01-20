@@ -964,7 +964,7 @@ carp_ifa_addroute(struct ifaddr *ifa)
 	case AF_INET6:
 		ifa_add_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-		in6_ifaddloop(ifa);
+		nd6_add_ifa_lle(ifatoia6(ifa));
 		break;
 #endif
 	}
@@ -995,7 +995,7 @@ carp_ifa_delroute(struct ifaddr *ifa)
 	case AF_INET6:
 		ifa_del_loopback_route(ifa,
 		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-		in6_ifremloop(ifa);
+		nd6_rem_ifa_lle(ifatoia6(ifa));
 		break;
 #endif
 	}

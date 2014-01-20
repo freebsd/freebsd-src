@@ -1829,19 +1829,9 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	}
 
 	/* make ifaddr */
+	in6_prepare_ifra(&ifra, &pr->ndpr_prefix.sin6_addr, &mask);
 
-	bzero(&ifra, sizeof(ifra));
-	/*
-	 * in6_update_ifa() does not use ifra_name, but we accurately set it
-	 * for safety.
-	 */
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr.sin6_family = AF_INET6;
-	ifra.ifra_addr.sin6_len = sizeof(struct sockaddr_in6);
-	/* prefix */
-	ifra.ifra_addr.sin6_addr = pr->ndpr_prefix.sin6_addr;
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr, &mask);
-
 	/* interface ID */
 	ifra.ifra_addr.sin6_addr.s6_addr32[0] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[0] & ~mask.s6_addr32[0]);
@@ -1852,12 +1842,6 @@ in6_ifadd(struct nd_prefixctl *pr, int mcast)
 	ifra.ifra_addr.sin6_addr.s6_addr32[3] |=
 	    (ib->ia_addr.sin6_addr.s6_addr32[3] & ~mask.s6_addr32[3]);
 	ifa_free(ifa);
-
-	/* new prefix mask. */
-	ifra.ifra_prefixmask.sin6_len = sizeof(struct sockaddr_in6);
-	ifra.ifra_prefixmask.sin6_family = AF_INET6;
-	bcopy(&mask, &ifra.ifra_prefixmask.sin6_addr,
-	    sizeof(ifra.ifra_prefixmask.sin6_addr));
 
 	/* lifetimes. */
 	ifra.ifra_lifetime.ia6t_vltime = pr->ndpr_vltime;
@@ -1915,7 +1899,7 @@ int
 in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 {
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
-	struct in6_ifaddr *newia, *ia;
+	struct in6_ifaddr *newia;
 	struct in6_aliasreq ifra;
 	int error;
 	int trylimit = 3;	/* XXX: adhoc value */
@@ -1923,11 +1907,10 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	u_int32_t randid[2];
 	time_t vltime0, pltime0;
 
-	bzero(&ifra, sizeof(ifra));
-	strncpy(ifra.ifra_name, if_name(ifp), sizeof(ifra.ifra_name));
-	ifra.ifra_addr = ia0->ia_addr;
-	/* copy prefix mask */
-	ifra.ifra_prefixmask = ia0->ia_prefixmask;
+	in6_prepare_ifra(&ifra, &ia0->ia_addr.sin6_addr,
+	    &ia0->ia_prefixmask.sin6_addr);
+
+	ifra.ifra_addr = ia0->ia_addr;	/* XXX: do we need this ? */
 	/* clear the old IFID */
 	IN6_MASK_ADDR(&ifra.ifra_addr.sin6_addr,
 	    &ifra.ifra_prefixmask.sin6_addr);
@@ -1950,26 +1933,18 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	 * there may be a time lag between generation of the ID and generation
 	 * of the address.  So, we'll do one more sanity check.
 	 */
-	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
-		    &ifra.ifra_addr.sin6_addr)) {
-			if (trylimit-- == 0) {
-				IN6_IFADDR_RUNLOCK();
-				/*
-				 * Give up.  Something strange should have
-				 * happened.
-				 */
-				nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
-				    "find a unique random IFID\n"));
-				return (EEXIST);
-			}
-			IN6_IFADDR_RUNLOCK();
+
+	if (in6_localip(&ifra.ifra_addr.sin6_addr) != 0) {
+		if (trylimit-- > 0) {
 			forcegen = 1;
 			goto again;
 		}
+
+		/* Give up.  Something strange should have happened.  */
+		nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
+		    "find a unique random IFID\n"));
+		return (EEXIST);
 	}
-	IN6_IFADDR_RUNLOCK();
 
 	/*
 	 * The Valid Lifetime is the lower of the Valid Lifetime of the

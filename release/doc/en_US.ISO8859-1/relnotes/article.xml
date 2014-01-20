@@ -723,14 +723,13 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 <sect1 xml:id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
-  <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE,
-    binary upgrades between RELEASE versions (and snapshots of the
-    various security branches) are supported using the
-    &man.freebsd-update.8; utility.  The binary upgrade procedure will
-    update unmodified userland utilities, as well as unmodified GENERIC or
-    SMP kernels distributed as a part of an official &os; release.
-    The &man.freebsd-update.8; utility requires that the host being
-    upgraded have Internet connectivity.</para>
+  <para arch="amd64,i386">Binary upgrades between RELEASE versions
+    (and snapshots of the various security branches) are supported
+    using the &man.freebsd-update.8; utility.  The binary upgrade
+    procedure will update unmodified userland utilities, as well as
+    unmodified GENERIC kernels distributed as a part of an official
+    &os; release.  The &man.freebsd-update.8; utility requires that
+    the host being upgraded have Internet connectivity.</para>
 
   <para>Source-based upgrades (those based on recompiling the &os;
     base system from source code) from previous versions are
@@ -738,7 +737,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <filename>/usr/src/UPDATING</filename>.</para>
 
   <important>
-    <para>Upgrading &os; should, of course, only be attempted after
+    <para>Upgrading &os; should only be attempted after
       backing up <emphasis>all</emphasis> data and configuration
       files.</para>
   </important>
