@@ -172,6 +172,12 @@
     <para revision="260926">Support for displaying VPD for PCI devices
       via &man.pciconf.8; has been added.</para>
 
+    <para revision="260913">A new flag, <quote>onifconsole</quote> has
+      been added to <filename>/etc/ttys</filename>.  This allows the
+      system to provide a login prompt via serial console if the
+      device is an active kernel console, otherwise it is equivalent
+      to <literal>off</literal>.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
