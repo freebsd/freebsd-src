@@ -108,13 +108,11 @@
       configuration file has been added, which enables the new
       <literal>vt</literal> console driver.</para>
 
-    <para revision="260847">The &man.virtio_random.4; driver has been
-      added to harvest entropy from the host system.</para>
-
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
-      <para>&nbsp;</para>
+      <para revision="260847">The &man.virtio_random.4; driver has
+	been added to harvest entropy from the host system.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
