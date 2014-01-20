@@ -162,6 +162,10 @@
 	<para revision="260552">Firmware for &intel;
 	  Centrino&trade; Wireless-N 105 devices has been added
 	  to the base system.</para>
+
+	<para revision="260448">Support for the &intel;
+	  Centrino&trade; Wireless-N 135 chipset has been
+	  added.</para>
       </sect4>
     </sect3>
 
