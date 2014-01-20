@@ -193,6 +193,11 @@
       to restrict the output to only listing details about a single
       device.</para>
 
+    <para revision="260594">When unable to load a kernel module with
+      &man.kldload.8;, a message informing to view output of
+      &man.dmesg.8; is now printed, opposed to the previous output
+      <quote>Exec format error.</quote>.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
