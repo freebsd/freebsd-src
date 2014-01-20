@@ -225,6 +225,14 @@ boot</screen>
 	  <literal>-G</literal> flag is used.  This is expected to be
 	  corrected in &os;-CURRENT and &os; &release.current;.</para>
       </listitem>
+
+      <listitem>
+	<para>&man.ipfw.8; <literal>fwd</literal> action can send
+	  packets to the correct interface with a wrong link-layer
+	  address when the route is updated.  This bug has been fixed
+	  on &os;-CURRENT and will be fixed in &os;
+	  &release.current;.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
