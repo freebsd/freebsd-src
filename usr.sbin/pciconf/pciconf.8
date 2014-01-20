@@ -33,7 +33,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Oo Fl bcev Oc Op Ar device
+.Fl l Oo Fl bcevV Oc Op Ar device
 .Nm
 .Fl a Ar device
 .Nm
@@ -181,6 +181,28 @@ option is supplied,
 .Nm
 will attempt to load the vendor/device information database, and print
 vendor, device, class and subclass identification strings for each device.
+.Pp
+If the
+.Fl V
+option is supplied,
+.Nm
+will list any vital product data
+.Pq VPD
+provided by each device.
+Each VPD keyword is enumerated via a line in the following format:
+.Bd -literal
+    VPD ro PN  = '110114640C0     '
+.Ed
+.Pp
+The first string after the
+.Dq Li VPD
+prefix indicates if the keyword is read-only
+.Dq ro
+or read-write
+.Dq rw .
+The second string provides the keyword name.
+The text after the the equals sign lists the value of the keyword which is
+usually an ASCII string.
 .Pp
 If the optional
 .Ar device
