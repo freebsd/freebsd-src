@@ -430,12 +430,11 @@ initxen(struct start_info *si)
 	 * Setup kernel PCPU base. pcpu needs them, and other
 	 * parts of the early startup path use pcpu variables before
 	 * we have loaded the new Global Descriptor Table.
+	 * XXX: revisit
 	 */
 
 	pc = &__pcpu[0];
-	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
 	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
-	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, 0);
 
 	/* Setup paging */
 	/* 
@@ -488,6 +487,7 @@ initxen(struct start_info *si)
 	        kern_envp = xen_setbootenv((caddr_t)xen_start_info->cmd_line);
 
 	boothowto |= xen_boothowto(kern_envp);
+	boothowto |= RB_SINGLE;
 
 #ifdef DDB /* XXX: */
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
@@ -515,17 +515,19 @@ initxen(struct start_info *si)
 		/* NOTREACHED */
 	}
 
-	lgdt(NULL); /* See: support.S */
+	lgdt(NULL); /* Load all segment registers - See: support.S */
 
 	/* 
 	 * Refresh kernel tls registers since we've blown them away
-	 * via new GDT load. pcpu needs them.
+	 * via new GDT load and segment reloads. pcpu needs them.
 	 */
+
+	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
 	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, (uint64_t) pc);
+	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
 
 	/* per cpu structures for cpu0 */
 	pcpu_init(pc, 0, sizeof(struct pcpu));
-
 	dpcpu_init((void *)(PTOV(physfree)), 0);
 	physfree += DPCPU_SIZE;
 
@@ -543,6 +545,7 @@ initxen(struct start_info *si)
 	PCPU_SET(curthread, &thread0);
 	PCPU_SET(tssp, &common_tss[0]); /* Dummy - see definition */
 	PCPU_SET(commontssp, &common_tss[0]); /* Dummy - see definition */
+	/* XXX: ldt */
 	PCPU_SET(fs32p, (void *)xpmap_ptom(VTOP(&gdt[GUFS32_SEL]))); /* Note: On Xen PV, we set the machine address. */
 	PCPU_SET(gs32p, (void *)xpmap_ptom(VTOP(&gdt[GUGS32_SEL]))); /* Note: On Xen PV, we set the machine address. */
 
@@ -608,21 +611,29 @@ initxen(struct start_info *si)
 	/* setup user mode selector glue */
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
+	/* XXX: _ucode32sel & compat_32 */
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
-	/* Load thread0 context */
-	load_ds(_udatasel);
-	load_es(_udatasel);
-	load_fs(0); /* reset %fs to 0 before 64bit base load */
-	HYPERVISOR_set_segment_base (SEGBASE_FS, 0);
-	HYPERVISOR_set_segment_base (SEGBASE_GS_USER_SEL, (uint64_t) 0);
-	HYPERVISOR_set_segment_base (SEGBASE_GS_USER, (uint64_t) 0);
+	/* 
+	 * Native does a "transfer to user mode" - which seems rather
+	 * suspect^wunfinished to me (cherry@).
+	 *
+	 * We don't do this on xen, since this thread eventually
+	 * becomes vm/vm_glue.c:swapper() , which assumes that it is
+	 * running in kernel mode.
+	 *
+	 * Note, cherry@: I don't think it's worth the trouble setting
+	 * up a separate "swapper" user context for this thread,
+	 * unless a strong case for performance savings (TLB hits ?)
+	 * can be made.
+	 */
 
 	/* setup proc 0's pcb */
 	thread0.td_pcb->pcb_flags = 0;
 	thread0.td_pcb->pcb_cr3 = xpmap_ptom(VTOP(KPML4phys));
 	thread0.td_frame = &proc0_tf;
+	thread0.td_pcb->pcb_gsbase = (uint64_t) pc;
 
         env = getenv("kernelname");
 	if (env != NULL)
@@ -1437,6 +1448,42 @@ xen_rcr2(void)
 	return (HYPERVISOR_shared_info->vcpu_info[curcpu].arch.cr2);
 }
 
+/* 
+ * Set kernel %gs base
+ * This is required after a %gs reload from kernel context
+ */
+void
+xen_load_kgsbase(uint64_t gsbase)
+{
+	HYPERVISOR_set_segment_base (SEGBASE_GS_KERNEL, gsbase);
+}
+
+/* Set Usermode TLS registers from pcb context */
+void
+xen_load_tls(struct pcb *pcb)
+{
+	/* XXX: compat32 */
+	if (pcb->pcb_flags & PCB_32BIT) {
+		struct user_segment_descriptor gsd;
+		gsd = gdt[GUGS32_SEL];
+		USD_SETBASE(&gsd, pcb->pcb_gsbase);
+		xen_set_descriptor((vm_paddr_t)PCPU_GET(gs32p), (void *)&gsd);
+
+		if (pcb->pcb_flags & PCB_32BIT) {
+			gsd = gdt[GUFS32_SEL];
+			USD_SETBASE(&gsd, pcb->pcb_fsbase);
+			xen_set_descriptor((vm_paddr_t)PCPU_GET(fs32p), (void *)&gsd);
+		}
+	} else {
+		HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, 
+					    _ugssel);
+		HYPERVISOR_set_segment_base(SEGBASE_GS_USER, 
+					    pcb->pcb_gsbase);
+		HYPERVISOR_set_segment_base(SEGBASE_FS,
+					    pcb->pcb_fsbase);
+	}
+}
+
 void
 xen_set_proc(struct pcb *newpcb)
 {
@@ -1444,26 +1491,7 @@ xen_set_proc(struct pcb *newpcb)
 		(unsigned long) newpcb & ~0xFul);
 
 	if (!(curthread->td_pflags & TDP_KTHREAD)) { /* Only for user proc */
-		/* XXX: compat32 */
-		if (newpcb->pcb_flags & PCB_32BIT) {
-			struct user_segment_descriptor gsd;
-			gsd = gdt[GUGS32_SEL];
-			USD_SETBASE(&gsd, newpcb->pcb_gsbase);
-			xen_set_descriptor((vm_paddr_t)PCPU_GET(gs32p), (void *)&gsd);
-
-			if (newpcb->pcb_flags & PCB_32BIT) {
-				gsd = gdt[GUFS32_SEL];
-				USD_SETBASE(&gsd, newpcb->pcb_fsbase);
-				xen_set_descriptor((vm_paddr_t)PCPU_GET(fs32p), (void *)&gsd);
-			}
-		} else {
-			HYPERVISOR_set_segment_base(SEGBASE_GS_USER_SEL, 
-						    0);
-			HYPERVISOR_set_segment_base(SEGBASE_GS_USER, 
-						    newpcb->pcb_gsbase);
-			HYPERVISOR_set_segment_base(SEGBASE_FS,
-						    newpcb->pcb_fsbase);
-		}
+		xen_load_tls(newpcb);
 	}
 }
 

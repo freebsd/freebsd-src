@@ -101,9 +101,11 @@
 #define SAVE_SEGMENT_REGS \
 	movw	%es, TF_ES(%rsp) ; \
 	movw	%ds, TF_DS(%rsp) ; \
-	movw	%fs, TF_FS(%rsp)
+	movw	%fs, TF_FS(%rsp) ; \
+	movw	%gs, TF_FS(%rsp) ; \
 
 /* Restore generic data segment registers from the stack */
+/* This macro overwrites some general registers */
 #define RESTORE_SEGMENT_REGS \
 	call	restore_segment_regs
 
@@ -234,20 +236,79 @@
 	jmp hypercall_page + (__HYPERVISOR_iret * 32)
 	
 NON_GPROF_ENTRY(restore_segment_regs)
+	.globl	doreti_iret
 	.globl  ld_es
 	.globl	ld_ds
 	.globl	ld_fs
 	.globl	ld_gs
+doreti_iret:
+	/* Note: The trapframe is on the *caller* stackframe */
+	movq	PCPU(CURPCB),%r8
+
+	/*
+	 * Do not reload segment registers for kernel.
+	 * Since we do not reload segments registers with sane
+	 * values on kernel entry, descriptors referenced by
+	 * segments registers might be not valid.  This is fatal
+	 * for user mode, but is not a problem for the kernel.
+	 */
+	testb	$SEL_RPL_MASK,(TF_CS + 8)(%rsp)
+	jz	segs_done
+	testl	$PCB_FULL_IRET,PCB_FLAGS(%r8)
+	jz	segs_done
+	testl	$TF_HASSEGS,(TF_FLAGS + 8)(%rsp)
+	jne	1f
+
+	/* reload with sane values */
+	movw	$KUDSEL,%ax
+	movw	%ax,(TF_DS + 8)(%rsp)
+	movw	%ax,(TF_ES + 8)(%rsp)
+	movw	$KUF32SEL,(TF_FS + 8)(%rsp)
+	movw	$KUG32SEL,(TF_GS + 8)(%rsp)
+	
+1:
+ld_fs:
+	xorq	%rbx, %rbx
+	movw	(TF_FS + 8)(%rsp), %ax
+	movw	%ax, %fs	/* blew away fsbase here */
+	cmpw	$KUF32SEL, %ax
+	jne	2f
+	movq	$0x666, %rbx	/* Kernel doesn't use %fs */
+
+2:	
+ld_gs:
+	movl	PCPU(CPUID), %edi
+	callq	pcpu_find
+	movq	%rax, %rdi	/* kgsbase == pcpu_find(PCPU_GET(cpuid)) */
+	
+	movw	(TF_GS + 8)(%rsp), %ax
+	movw	%ax, %gs	/* blew away (k)gsbase here */
+
+	/* Kernel gsbase reload */
+	callq	xen_load_kgsbase /* reload kgsbase from %rdi */
+
+	movw	%gs, %ax
+	cmpw	$KUG32SEL, %ax
+	jne	3f
+	movq	$0x666, %rbx
+3:	
+	cmpq	$0x666, %rbx	/* reload user %fs/%gs ? */
+	jne	4f
+
+	movq	PCPU(CURPCB), %rdi
+	callq	xen_load_tls 	/* Update user %fs/%gs to pcb_fsbase and pcb_gsbase */
+	
+4:	/* done with %fs/%gs */
+
 ld_es:
-	movw	(TF_ES + 8)(%rsp,1), %es ; /* Save on previous frame */
+	movw	(TF_ES + 8)(%rsp), %es ;
 ld_ds:
-	movw	(TF_DS + 8)(%rsp,1), %ds ; /* Save on previous frame */
-ld_fs:  /* %fs == 0 and the per-proc base is updated via xen_set_proc() */
-ld_gs: 	/* XEN manages %gs (swapgs) */
+	movw	(TF_DS + 8)(%rsp), %ds ;
+
+segs_done:	
 	ret
 	
 	/* The path below should not have been reached. */
-	.globl	doreti_iret
 	.globl	doreti_iret_fault
 	.globl	ld_gsbase
 	.globl	ld_fsbase
@@ -256,7 +317,6 @@ ld_gs: 	/* XEN manages %gs (swapgs) */
 	.globl	mca_intr
 	.globl	fs_load_fault /* XXX: revisit */
 	.globl	gs_load_fault /* XXX: revisit */
-doreti_iret:
 doreti_iret_fault:
 ld_gsbase:
 ld_fsbase:
@@ -279,161 +339,161 @@ es_load_fault:
 	call	trap
 	movw	$KUDSEL,TF_ES(%rsp)
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 	
 IDTVEC(de)			/* Divide-By-Zero-Error */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_DIVIDE)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 	
 IDTVEC(db)			/* Debug */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_TRCTRAP);
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(nmi)			/* Non-Maskable-Interrupt */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_NMI)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(bp)			/* Breakpoint */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_BPTFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(of)			/* Overflow */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_OFLOW)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(br)			/* Bound-Range */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_BOUND)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(ud)			/* Invalid-Opcode */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_PRIVINFLT) ;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(nm)			/* Device-Not-Available */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_DNA)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(df)			/* Double-Fault */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_DOUBLEFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(ts)			/* Invalid-TSS */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_TSSFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
-	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
+	RESTORE_GENERAL_REGS	; /* overwrites some general registers */
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(np)			/* Segment-Not-Present */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_SEGNPFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
-	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
+	RESTORE_GENERAL_REGS	; /* overwrites some general registers */
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(ss)			/* Stack */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_STKFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
@@ -446,86 +506,86 @@ IDTVEC(gp)			/* General-Protection */
 	CALLTRAP		;
 	DO_AST_MAYBE		;
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(pf)			/* Page-Fault */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_PAGEFLT);
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	SETUP_TF_ADDR		; /* Fault Address - clobbers %rsi %rdi */
 	CALLTRAP		; /* %rsi is ignored */
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(mf)			/* x87 Floating-Point Exception Pending */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_ARITHTRAP)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(ac)			/* Alignment-Check */
 	TRAP_FRAME_ENTER_ERR	;
 	TRAP_PROLOGUE(T_ALIGNFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_ERR   	;
 	INTR_EXIT		;
 
 IDTVEC(mc)			/* Machine-Check */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_MCHK)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(xf)			/* SIMD Floating-Point */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_XMMFLT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(rs)			/* Reserved */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_RESERVED) ;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	DO_STI_MAYBE		;
 	CALLTRAP		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
@@ -535,21 +595,21 @@ ENTRY(fork_trampoline)
 	movq	%rsp,%rdx		/* trapframe pointer */
 	call	fork_exit
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
 IDTVEC(hypervisor_callback)	/* Xen only */
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_EVENT)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	EVENT_UPCALL		;
 	DO_STI_MAYBE		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	;
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		;
 
@@ -561,15 +621,15 @@ msgfailsafe:	.asciz	"Failsafe upcall triggered\n"
 IDTVEC(syscall_callback)
 	TRAP_FRAME_ENTER_NOERR	;
 	TRAP_PROLOGUE(T_USER)	;
-	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
+	SAVE_SEGMENT_REGS	;
 	movq	%r11, TF_RFLAGS(%rsp) ; /* Tweak for INTR_EXIT */
 	movq	%r10, TF_RCX(%rsp) ; /* Translate to C abi. see trap.c:cpu_fetch_syscall_args() */
 	DO_STI_MAYBE		; /* Clobbers %rdi */
 	movq	TF_RDI(%rsp), %rdi ;
 	CALLSYSCALL		;
 	DO_AST_MAYBE		;
+	RESTORE_SEGMENT_REGS	; /* overwrites some general registers */
 	RESTORE_GENERAL_REGS	; /* XXX: optimise for SYSRET */
-	RESTORE_SEGMENT_REGS	;
 	TRAP_FRAME_EXIT_NOERR   ;
 	INTR_EXIT		; /* XXX: SYSRET is more optimal */
