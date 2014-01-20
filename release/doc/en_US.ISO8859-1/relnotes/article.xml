@@ -104,6 +104,9 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
+    <para revision="260903">Support for GPS ports has been added to
+      &man.uhso.4;.</para>
+
     <para revision="260888">The <filename>VT</filename> kernel
       configuration file has been added, which enables the new
       <literal>vt</literal> console driver.</para>
@@ -147,9 +150,6 @@
 
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
-
-      <para revision="260903">Support for GPS ports has been added to
-	&man.uhso.4;.</para>
     </sect3>
 
     <sect3 xml:id="boot">
