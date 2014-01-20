@@ -115,7 +115,8 @@
     <sect3 xml:id="kernel-arm">
       <title>ARM support</title>
 
-      <para>&nbsp;</para>
+      <para revision="260921">The &man.nand.4; device is enabled for
+	ARM devices by default.</para>
     </sect3>
 
     <sect3 xml:id="boot">
