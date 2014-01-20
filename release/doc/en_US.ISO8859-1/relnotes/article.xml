@@ -27,6 +27,7 @@
     <year>2011</year>
     <year>2012</year>
     <year>2013</year>
+    <year>2014</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -128,11 +129,6 @@
     <para arch="amd64" revision="254466">The maximum amount of memory the &os; kernel
       can address has been increased from 1TB to 4TB.</para>
 
-    <para>A new &man.cpuset.2; API has been added
-      for thread to CPU binding and CPU resource grouping and
-      assignment.  The &man.cpuset.1; userland utility has been added
-      to allow manipulation of processor sets.</para>
-
     <para role="merged">The &man.ddb.4; kernel debugger now has an output capture
       facility.  Input and output from &man.ddb.4; can now be captured
       to a memory buffer for later inspection using &man.sysctl.8; or
@@ -145,37 +141,6 @@
       within &man.ddb.4; or with the use of the new &man.ddb.8;
       utility.  More details can be found in the &man.ddb.4; manual
       page.</para>
-
-    <para role="merged">The kernel now supports a new textdump format of kernel
-      dumps.  A textdump provides higher-level information via
-      mechanically generated/extracted debugging output, rather than a
-      simple memory dump.  This facility can be used to generate brief
-      kernel bug reports that are rich in debugging information, but
-      are not dependent on kernel symbol tables or precisely
-      synchronized source code.  More information can be found in the
-      &man.textdump.4; manual page.</para>
-
-    <para>Kernel support for M:N threading has been removed.  While
-      the KSE (Kernel Scheduled Entities) project was quite successful
-      in bringing threading to FreeBSD, the M:N approach taken by the
-      KSE library was never developed to its full potential.
-      Backwards compatibility for applications using KSE threading
-      will be provided via &man.libmap.conf.5; for dynamically linked
-      binaries.  The &os; Project greatly appreciates the work of
-      &a.julian;, &a.deischen;, and &a.davidxu; on KSE support.</para>
-
-    <para>The &os; kernel now exports information about certain kernel
-      features via the <varname>kern.features</varname> sysctl tree.
-      The &man.feature.present.3; library call provides a convenient
-      interface for user applications to test the presence of
-      features.</para>
-
-    <para arch="amd64">The &os; kernel now has support for large
-      memory page mappings (<quote>superpages</quote>).</para>
-
-    <para arch="amd64,i386,ia64,powerpc" role="merged">The ULE
-      scheduler is now the default process scheduler
-      in <filename>GENERIC</filename> kernels.</para>
 
     <para arch="amd64,i386" revision="240135">Support was added for
       the new Intel on-CPU Bull Mountain random number
@@ -246,6 +211,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
     </sect3>
 
+    <!--
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
@@ -262,18 +228,10 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
         partition if required.</para>
 
     </sect3>
+    -->
 
     <sect3 xml:id="proc">
       <title>Hardware Support</title>
-
-      <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
-        PCMCIA smartcard readers, has been added.</para>
-
-      <para>The &man.syscons.4; driver now supports Colemak keyboard layout.</para>
-
-      <para role="merged">The &man.uslcom.4; driver, a driver for Silicon
-        Laboratories CP2101/CP2102-based USB serial adapters, has been
-        imported from OpenBSD.</para>
 
       <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
@@ -287,29 +245,8 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.ale.4; driver has been added to provide support
-	  for Atheros AR8121/AR8113/AR8114 Gigabit/Fast Ethernet controllers.</para>
-
-	<para>The &man.em.4; driver has been split into two drivers
-	  with some common parts.  The &man.em.4; driver will continue
-	  to support adapters up to the 82575, as well as new
-	  client/desktop adapters.  A new &man.igb.4; driver
-	  will support new server adapters.</para>
-
-	<para>The &man.jme.4; driver has been added to provide support
-	  for PCIe network adapters based on JMicron JMC250 Gigabit
-	  Ethernet and JMC260 Fast Ethernet controllers.</para>
-
-	<para>The &man.malo.4; driver has been added to provide
-	  support for Marvell Libertas 88W8335 based PCI network
-	  adapters.</para>
-
 	<para>The firmware for the &man.mxge.4; driver has been
-	  updated from 1.4.25 to 1.4.29.</para>
-
-	<para>The &man.sf.4; driver has been overhauled to improve its
-	  performance and to add support for checksum offloading.  It
-	  should also work on all architectures.</para>
+	  1.4.55.</para>
 
 	<para>The &man.re.4; driver has been overhauled to fix a
 	  number of issues.  This driver now has Wake On LAN (WOL)
@@ -417,7 +354,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
-        <para revision="">&man.bsdinstall.8; now supports installing
+        <para revision="256361">&man.bsdinstall.8; now supports installing
           ZFS on the root file system.  It includes a single configuration menu
           that allows you to select all of the required details, including
           which drives to use, what ZFS RAID level to use (taking into consideration
@@ -503,6 +440,9 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
     <para revision="250699">&man.make.1; has been replaced with the 
       "Portable" BSD make tool (bmake) from NetBSD.</para>
 
+    <para revision="243023">Support for usernames up to 32
+      characters.</para>
+
     <para role="merged">The &man.adduser.8; utility now supports
       a <option>-M</option> option to set the mode of a new user's
       home directory.</para>
@@ -564,9 +504,6 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       when the packet transmission was successful but no responses
       were received (this is the same behavior as &man.ping.8;).
       It returned a non-zero value before this change.</para>
-
-    <para>The &man.procstat.1; utility has been added to display
-      detailed information about processes.</para>
 
     <para role="merged">The &man.realpath.1; utility now supports
       a <option>-q</option> flag to suppress warnings; it now also
@@ -634,10 +571,7 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
       to 6.1.5.</para>
 
     <para role="merged"><application>awk</application> has been updated from 1 May
-      2007 release to the 23 October 2007 release.</para>
-
-    <para role="merged"><application>bzip2</application> has been updated from 1.0.4
-      to 1.0.5.</para>
+      2007 release to the 20121220 release.</para>
 
     <para revision="251794"><application>CVS</application> has been removed from the
     base system, but is still available from ports</para>
