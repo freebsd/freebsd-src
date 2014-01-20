@@ -104,7 +104,9 @@
   <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
 
-    <para>&nbsp;</para>
+    <para revision="260888">Add a <filename>VT</filename> kernel
+      configuration file, which enables the new <literal>vt</literal>
+      console driver.</para>
 
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
