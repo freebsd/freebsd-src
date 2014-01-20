@@ -938,7 +938,7 @@ static void
 die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
     int type, const char *typename)
 {
-	Dwarf_Unsigned sz, bitsz, bitoff, maxsz=0;
+	Dwarf_Unsigned sz, bysz, bitsz, bitoff, maxsz=0;
 	Dwarf_Die mem;
 	mlist_t *ml, **mlastp;
 	iidesc_t *ii;
@@ -1013,8 +1013,26 @@ die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
 #if BYTE_ORDER == _BIG_ENDIAN
 			ml->ml_offset += bitoff;
 #else
-			ml->ml_offset += tdesc_bitsize(ml->ml_type) - bitoff -
-			    ml->ml_size;
+			/*
+			 * Note that Clang 3.4 will sometimes generate
+			 * member DIE before generating the DIE for the
+			 * member's type. The code can not handle this
+			 * properly so that tdesc_bitsize(ml->ml_type) will
+			 * return 0 because ml->ml_type is unknown. As a
+			 * result, a wrong member offset will be calculated.
+			 * To workaround this, we can instead try to
+			 * retrieve the value of DW_AT_byte_size attribute
+			 * which stores the byte size of the space occupied
+			 * by the type. If this attribute exists, its value
+			 * should equal to tdesc_bitsize(ml->ml_type)/NBBY.
+			 */
+			if (die_unsigned(dw, mem, DW_AT_byte_size, &bysz, 0) &&
+			    bysz > 0)
+				ml->ml_offset += bysz * NBBY - bitoff -
+				    ml->ml_size;
+			else
+				ml->ml_offset += tdesc_bitsize(ml->ml_type) -
+				    bitoff - ml->ml_size;
 #endif
 		}
 
