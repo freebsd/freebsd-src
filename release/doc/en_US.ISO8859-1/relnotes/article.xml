@@ -110,21 +110,18 @@
       <title>Virtualization support</title>
 
       <para>&nbsp;</para>
-
     </sect3>
 
     <sect3 xml:id="kernel-arm">
       <title>ARM support</title>
 
       <para>&nbsp;</para>
-
     </sect3>
 
     <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
       <para>&nbsp;</para>
-
     </sect3>
 
     <sect3 xml:id="proc">
@@ -134,14 +131,12 @@
 	<title>Multimedia Support</title>
 
 	<para>&nbsp;</para>
-
       </sect4>
 
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
 	<para>&nbsp;</para>
-
       </sect4>
     </sect3>
 
@@ -149,14 +144,12 @@
       <title>Network Protocols</title>
 
       <para>&nbsp;</para>
-
     </sect3>
 
     <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
       <para>&nbsp;</para>
-
     </sect3>
 
     <sect3 xml:id="fs">
@@ -168,7 +161,6 @@
 	<title>ZFS</title>
 
 	<para>&nbsp;</para>
-
       </sect4>
     </sect3>
   </sect2>
@@ -176,169 +168,7 @@
   <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
-    <para revision="255321">On platforms where &man.clang.1; is the
-      default system compiler, (such as i386, amd64, arm) GCC and GNU
-      libstdc++ are no longer built by default.  &man.clang.1; and
-      libc++ from LLVM are used on these platforms by instead.  GCC
-      4.2.1 and libstdc++ are still built and used by default on pc98
-	and all other platforms where &man.clang.1; is not the default
-	system compiler.</para>
-
-    <para revision="251662">&man.clang.1; and llvm have been updated
-     to version 3.3 release.  Please refer to <link
-       xlink:href="http://llvm.org/releases/3.3/tools/clang/docs/ReleaseNotes.html">
-       Clang 3.3 Release Notes.</link></para>
-
-    <para role="merged" revision="255949">BIND has been replaced by
-      &man.unbound.8; for local dns resolution in the base system.
-      With this change, nslookup and dig are no longer a part of the
-      base system.  Users should instead use &man.host.1; and
-      &man.drill.1; Alternatively, nslookup and dig can be obtained by
-      installing the dns/bind-tools port.</para>
-
-    <para revision="225937">sysinstall has been removed from the base
-      system.  Auxiliary libraries and tools used by sysinstall such
-      as libdisk, libftpio, and sade have also been removed.
-      sysinstall has been replaced by &man.bsdinstall.8; and
-      &man.bsdconfig.8;.</para>
-
-    <para revision="256106">&man.freebsd-version.1; has been added.
-      This tool makes a best effort to determine the version and patch
-      level of the installed kernel and userland.</para>
-
-    <para revision="255191">GNU patch has been removed from the base
-      system, and replaced by a BSD-licensed &man.patch.1;
-      program.</para>
-
-    <para revision="241511">GNU sort has been removed from the base
-      system, and replaced by a BSD-licensed &man.sort.1;
-      program.</para>
-
-    <para revision="235723">Berkely yacc (byacc) has been imported
-      from <link
-	xlink:href="http://invisible-island.net/byacc/">invisible
-	island</link>.  This brings bison compatibilities to
-      &man.yacc.1; while preserving full backwards compatibility with
-      previous version of &man.yacc.1;.</para>
-
-    <para revision="250881">&man.lex.1; has been replaced by flex
-      2.5.37</para>
-
-    <para revision="250699">&man.make.1; has been replaced with the
-      <quote>Portable</quote> BSD make tool (bmake) from NetBSD.</para>
-
-    <para revision="243023">Support for usernames up to 32
-      characters.</para>
-
-    <para role="merged">The &man.adduser.8; utility now supports
-      a <option>-M</option> option to set the mode of a new user's
-      home directory.</para>
-
-    <para>BSD-licensed versions of &man.ar.1; and &man.ranlib.1;,
-      based on <filename>libarchive</filename>, have replaced the GNU
-      Binutils versions of these utilities.</para>
-
-    <para>BSD-licensed versions of &man.bc.1; and &man.dc.1; have
-      replaced their GNU counterparts.</para>
-
-    <para role="merged">&man.chflags.1; now supports
-      a <option>-v</option> flag for verbose output and
-      a <option>-f</option> flag to ignore errors with the same
-      semantics as (for example) &man.chmod.1;.</para>
-
-    <para>For compatibility with other implementations, &man.cp.1; now
-      supports a <option>-a</option> flag, which is equivalent to
-      specifying the <option>-RrP</option> flags.</para>
-
-    <para>BSD-licensed version of &man.cpio.1; based on
-      <filename>libarchive</filename>, has replaced the GNU cpio.
-      Note that the GNU cpio is still installed as
-      <filename>gcpio</filename>.</para>
-
-    <para>The &man.env.1; program now supports <option>-u
-	<replaceable>name</replaceable></option> which will completely
-      unset the given variable <replaceable>name</replaceable> by
-      removing it from the environment, instead of just setting it to
-      a null value.</para>
-
-    <para>The &man.fdopendir.3; library function has been
-      added.</para>
-
-    <para role="merged">The &man.fetch.3; library now support HTTP 1.1
-      If-Modified-Since behavior.  The &man.fetch.1; program now
-      supports <option>-i <replaceable>filename</replaceable></option>
-      which will only download the specified HTTP URL if the content
-      is newer than <replaceable>filename</replaceable>.</para>
-
-    <para>&man.find.1; has been enhanced by the addition of a number
-      of primaries that were present in GNU find but not &os;
-      &man.find.1;.</para>
-
-    <para>&man.kgdb.1; now supports a new <command>add-kld</command>
-      command to make it easier to debug crash dumps with kernel
-      modules.</para>
-
-    <para>The &man.ls.1; program now supports a <option>-D</option>
-      option to specify a date format string to be used with the long
-      format (<option>-l</option>) output.</para>
-
-    <para>&man.nc.1; now supports a <option>-O</option> switch to
-      disable the use of TCP options.</para>
-
-    <para>&man.nc.1;'s <option>-o</option> switch has been deprecated.
-      It will be removed in a future release.</para>
-
-    <para>The &man.ping6.8; utility now returns <literal>2</literal>
-      when the packet transmission was successful but no responses
-      were received (this is the same behavior as &man.ping.8;).
-      It returned a non-zero value before this change.</para>
-
-    <para role="merged">The &man.realpath.1; utility now supports
-      a <option>-q</option> flag to suppress warnings; it now also
-      accepts multiple paths on its command line.</para>
-
-    <para>&man.sh.1; has many bug fixes, some new features, and will
-      now refuse to parse some invalid scripts.  Additionally, it now
-      has filename completion and defaults to the &quot;emacs&quot;
-      editing mode.</para>
-
-    <para>The &man.split.1; utility now supports a <option>-n</option>
-      flag to split a file into a certain number of chunks.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-Z</option>
-      flag to enable &man.compress.1;-style
-      compression/decompression.</para>
-
-    <para>The &man.tar.1; utility now supports a
-      <option>--numeric-owner</option> flag to ignore user/group names
-      on create and extract.</para>
-
-    <para>The &man.tar.1; utility now supports an
-      <option>-S</option> flag to sparsify files on extraction.</para>
-
-    <para>The &man.tar.1; utility now supports a <option>-s</option>
-      flag to substitute filenames based on the specified regular
-      expression.</para>
-
-    <para>The &man.tcgetsid.3; library function has been added to
-      return the process group ID for the session leader for the
-      controlling terminal.  It is defined in IEEE Std 1003.1-2001
-      (POSIX).</para>
-
-    <para>&man.top.1; now supports a <option>-P</option> flag to
-      provide per-CPU usage statistics.</para>
-
-    <para>&man.zdump.8; is now working properly on 64 bit
-      architectures.</para>
-
-    <para>&man.traceroute.8; now has the ability to print the AS
-      number for each hop with the new <option>-a</option> switch; a
-      new <option>-A</option> option allows selecting a particular
-      WHOIS server.</para>
-
-    <para>&man.traceroute6.8; now supports a <option>-U</option> flag
-      to send probe packets with no upper-layer protocol, rather than
-      the usual UDP probe packets.</para>
+    <para>&nbsp;</para>
 
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -350,93 +180,19 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para revision="251300">&man.jemalloc.3; has been updated to
-      3.4.0.  See <link
-	xlink:href="http://www.facebook.com/jemalloc/">this
-	link</link> for more details.</para>
-
-    <para role="merged"><application>AMD</application> has been
-      updated from 6.0.10 to 6.1.5.</para>
-
-    <para role="merged"><application>awk</application> has been
-      updated from 1 May
-      2007 release to the 20121220 release.</para>
-
-    <para revision="251794"><application>CVS</application> has been
-      removed from the base system, but is still available from
-      ports.</para>
-
-    <para revision="251886">Subversion has been imported into the base
-      system and is installed as <application>svnlite</application>.
-      <application>svnlite</application> should only be used for
-      checking out &os; source and committing, and does not replace
-      the full Subversion port.</para>
-
-    <para revision="234449"><application>file</application> has been
-      updated to 5.11.</para>
-
-    <para revision="252726"><application>hostapd</application> has
-      been updated from 0.5.8 to 0.5.10.</para>
-
-    <para><application>IPFilter</application> has been updated to
-      5.1.2.</para>
-
-    <para revision="250592"><application>less</application> has been
-      updated to v458.</para>
-
-    <para><application>ncurses</application> has been updated from to
-      5.7-20081102.</para>
-
-    <para role="merged"><application>OpenSSH</application> has been
-      updated to 6.4.</para>
-
-    <para revision="236109"><application>OpenPAM</application> has
-      been updated to the Micrampelis release.</para>
-
-    <para role="merged"><application>sendmail</application> has been
-      updated from 8.14.1 to 8.14.7.</para>
-
-    <para role="merged">The timezone database has been updated from
-      the <application>tzdata2008h</application> release to
-      the <application>tzdata2009m</application> release.</para>
-
-    <para>The stdtime part of libc, &man.zdump.8; and &man.zic.8; have
-      been updated from the <application>tzcode2004a</application>
-      release to the <application>tzcode2009h</application> release.
-      If you have upgraded from source or via the
-      &man.freebsd-update.8;, then please run &man.tzsetup.8; to
-      install a new /etc/localtime.</para>
-
-    <para revision="252726"><application>WPA Supplicant</application>
-      has been updated to 2.0.</para>
-
-    <para role="merged"><application>xz</application> has been updated
-      from snapshot as of 12 April 2010 to 5.0.0.</para>
-
-    <para revision="258231" role="merged">&man.nvi.1; has been updated
-      to 2.1.2.</para>
-
-    <para revision="254225">&man.nvi.1; supports wide character
-      locales.</para>
+    <para>&nbsp;</para>
   </sect2>
 
   <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para revision="257444">The pkg_add, pkg_create, pkg_delete,
-      pkg_info, pkg_updating, and pkg_version utilities have been
-      removed.  &man.pkg.7; must now be used to install binary
-      packages.  &man.pkg.7; is the next generation &os; package
-      manager, also referred to as <quote>pkgng</quote>.</para>
+    <para>&nbsp;</para>
   </sect2>
 
   <sect2 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para role="merged">The supported version of the
-      <application>GNOME</application> desktop environment
-      (<package>x11/gnome2</package>) has been updated from 2.20.1
-      to 2.22.</para>
+    <para>&nbsp;</para>
   </sect2>
 
   <sect2 xml:id="doc">
