@@ -679,7 +679,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 	if (getenv("SSL_NO_TLS1") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1;
 	if (verbose)
-		fetch_info("SSL options: %x", ssl_ctx_options);
+		fetch_info("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
 }
 

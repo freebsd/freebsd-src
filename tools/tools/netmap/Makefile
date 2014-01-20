@@ -10,7 +10,12 @@ NO_MAN=
 CFLAGS += -Werror -Wall -nostdinc -I/usr/include -I../../../sys
 CFLAGS += -Wextra
 
-LDFLAGS += -lpthread -lpcap
+LDFLAGS += -lpthread
+.ifdef WITHOUT_PCAP
+CFLAGS += -DNO_PCAP
+.else
+LDFLAGS += -lpcap
+.endif
 
 .include <bsd.prog.mk>
 .include <bsd.lib.mk>

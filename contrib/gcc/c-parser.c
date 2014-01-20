@@ -78,6 +78,17 @@ static int objc_need_raw_identifier = 0;
       objc_need_raw_identifier = VAL;		\
   } while (0)
 
+/* APPLE LOCAL begin C* property (Radar 4436866) (in 4.2 d) */
+/* For checking property attribute keywords */
+static int objc_property_attr_context;
+/* APPLE LOCAL end C* property (Radar 4436866) (in 4.2 d) */
+/* APPLE LOCAL radar 3803157 - objc attribute (in 4.2 e) */
+static tree objc_method_attributes;
+/* APPLE LOCAL begin C* language (in 4.2 f) */
+/* For checking for 'foreach' context. */
+static int objc_foreach_context;
+/* APPLE LOCAL end C* language (in 4.2 f) */
+
 /* The reserved keyword table.  */
 struct resword
 {
@@ -179,6 +190,14 @@ static const struct resword reswords[] =
   { "end",		RID_AT_END,		D_OBJC },
   { "implementation",	RID_AT_IMPLEMENTATION,	D_OBJC },
   { "interface",	RID_AT_INTERFACE,	D_OBJC },
+  /* APPLE LOCAL begin C* language (in 4.2 j) */
+  { "optional",		RID_AT_OPTIONAL,	D_OBJC },
+  { "required",		RID_AT_REQUIRED,	D_OBJC },
+  /* APPLE LOCAL end C* language (in 4.2 j) */
+  /* APPLE LOCAL C* property (Radar 4436866) (in 4.2 k) */
+  { "property",		RID_AT_PROPERTY,	D_OBJC },
+  /* APPLE LOCAL radar 4564694 */
+  { "package",          RID_AT_PACKAGE,         D_OBJC },
   { "private",		RID_AT_PRIVATE,		D_OBJC },
   { "protected",	RID_AT_PROTECTED,	D_OBJC },
   { "protocol",		RID_AT_PROTOCOL,	D_OBJC },
@@ -197,6 +216,14 @@ static const struct resword reswords[] =
   { "inout",		RID_INOUT,		D_OBJC },
   { "oneway",		RID_ONEWAY,		D_OBJC },
   { "out",		RID_OUT,		D_OBJC },
+  /* APPLE LOCAL begin C* property (Radar 4436866) (in 4.2 l) */
+  /* These are recognized inside a property attribute list */
+  { "readonly",		RID_READONLY,		D_OBJC }, 
+  { "getter",		RID_GETTER,		D_OBJC }, 
+  { "setter",		RID_SETTER,		D_OBJC }, 
+  /* APPLE LOCAL end C* property (Radar 4436866) (in 4.2 l) */
+  /* APPLE LOCAL radar 4947014 - objc atomic property */
+  { "nonatomic",        RID_NONATOMIC,          D_OBJC },
 };
 #define N_reswords (sizeof reswords / sizeof (struct resword))
 
@@ -325,11 +352,13 @@ typedef struct c_parser GTY(())
 
 static GTY (()) c_parser *the_parser;
 
+/* APPLE LOCAL C* language (in 4.2 ae) */
+static c_token * c_parser_peek_2nd_token (c_parser *);
 
 /* Read in and lex a single token, storing it in *TOKEN.  */
 
 static void
-c_lex_one_token (c_token *token)
+c_lex_one_token (c_token *token, c_parser *parser)
 {
   timevar_push (TV_LEX);
 
@@ -363,6 +392,27 @@ c_lex_one_token (c_token *token)
 		    token->keyword = rid_code;
 		    break;
 		  }
+		/* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+		else if (objc_foreach_context && rid_code == RID_IN)
+		  {
+		    /* This is dangerous, we assume we don't need 3 input tokens look ahead.  */
+		    c_token *tk = c_parser_peek_2nd_token (parser);
+		    if (tk->type == CPP_NAME
+			|| tk->type == CPP_OPEN_PAREN
+			|| tk->type == CPP_MULT
+			|| tk->type == CPP_PLUS
+			|| tk->type == CPP_PLUS_PLUS
+			|| tk->type == CPP_MINUS
+			|| tk->type == CPP_MINUS_MINUS
+			/* APPLE LOCAL radar 4529200 (in 4.2 af) */
+			|| tk->type == CPP_OPEN_SQUARE)
+		      {
+			token->type = CPP_KEYWORD;
+			token->keyword = rid_code;
+			break;
+		      }
+		  }
+		/* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
 	      }
 	    else
 	      {
@@ -433,8 +483,11 @@ c_parser_peek_token (c_parser *parser)
 {
   if (parser->tokens_avail == 0)
     {
-      c_lex_one_token (&parser->tokens[0]);
+      /* APPLE LOCAL begin switch these two */
       parser->tokens_avail = 1;
+      /* APPLE LOCAL C* language (in 4.2 ae) */
+      c_lex_one_token (&parser->tokens[0], parser);
+      /* APPLE LOCAL end switch these two */
     }
   return &parser->tokens[0];
 }
@@ -609,7 +662,13 @@ static inline bool
 c_parser_next_token_starts_declspecs (c_parser *parser)
 {
   c_token *token = c_parser_peek_token (parser);
-  return c_token_starts_declspecs (token);
+  /* APPLE LOCAL begin radar 5277239 */
+  /* Yes, we can have CLASS.method to mean property-style dot-syntax 
+     notation to call a class method (equiv to [CLASS meth]). */
+  return c_token_starts_declspecs (token) 
+	 && (token->id_kind != C_ID_CLASSNAME 
+	     || c_parser_peek_2nd_token (parser)->type != CPP_DOT);
+  /* APPLE LOCAL end radar 5277239 */
 }
 
 /* Return a pointer to the next-but-one token from PARSER, reading it
@@ -623,8 +682,11 @@ c_parser_peek_2nd_token (c_parser *parser)
   gcc_assert (parser->tokens_avail == 1);
   gcc_assert (parser->tokens[0].type != CPP_EOF);
   gcc_assert (parser->tokens[0].type != CPP_PRAGMA_EOL);
-  c_lex_one_token (&parser->tokens[1]);
+  /* APPLE LOCAL begin switch these two */
   parser->tokens_avail = 2;
+  /* APPLE LOCAL C* language (in 4.2 ae) */
+  c_lex_one_token (&parser->tokens[1], parser);
+  /* APPLE LOCAL end switch these two */
   return &parser->tokens[1];
 }
 
@@ -965,6 +1027,10 @@ typedef enum c_dtr_syn {
   C_DTR_NORMAL,
   /* An abstract declarator (maybe empty).  */
   C_DTR_ABSTRACT,
+  /* APPLE LOCAL begin blocks 6339747 */
+  /* A block declarator (maybe empty).  */
+  C_DTR_BLOCK,
+  /* APPLE LOCAL end blocks 6339747 */
   /* A parameter declarator: may be either, but after a type name does
      not redeclare a typedef name as an identifier if it can
      alternatively be interpreted as a typedef name; see DR#009,
@@ -980,7 +1046,8 @@ typedef enum c_dtr_syn {
 
 static void c_parser_external_declaration (c_parser *);
 static void c_parser_asm_definition (c_parser *);
-static void c_parser_declaration_or_fndef (c_parser *, bool, bool, bool, bool);
+/* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+static void c_parser_declaration_or_fndef (c_parser *, bool, bool, bool, bool, tree*);
 static void c_parser_declspecs (c_parser *, struct c_declspecs *, bool, bool,
 				bool);
 static struct c_typespec c_parser_enum_specifier (c_parser *);
@@ -1015,6 +1082,9 @@ static void c_parser_while_statement (c_parser *);
 static void c_parser_do_statement (c_parser *);
 static void c_parser_for_statement (c_parser *);
 static tree c_parser_asm_statement (c_parser *);
+/* APPLE LOCAL begin radar 5732232 - blocks (C++ ca) */
+static tree c_parser_block_literal_expr (c_parser *);
+/* APPLE LOCAL end radar 5732232 - blocks (C++ ca) */
 static tree c_parser_asm_operands (c_parser *, bool);
 static tree c_parser_asm_clobbers (c_parser *);
 static struct c_expr c_parser_expr_no_commas (c_parser *, struct c_expr *);
@@ -1043,14 +1113,19 @@ static bool c_parser_pragma (c_parser *, enum pragma_context);
 
 /* These Objective-C parser functions are only ever called when
    compiling Objective-C.  */
-static void c_parser_objc_class_definition (c_parser *);
+/* APPLE LOCAL radar 4548636 - class attributes. */
+static void c_parser_objc_class_definition (c_parser *, tree);
 static void c_parser_objc_class_instance_variables (c_parser *);
 static void c_parser_objc_class_declaration (c_parser *);
 static void c_parser_objc_alias_declaration (c_parser *);
-static void c_parser_objc_protocol_definition (c_parser *);
+/* APPLE LOCAL radar 4947311 - protocol attributes */
+static void c_parser_objc_protocol_definition (c_parser *, tree);
 static enum tree_code c_parser_objc_method_type (c_parser *);
 static void c_parser_objc_method_definition (c_parser *);
-static void c_parser_objc_methodprotolist (c_parser *);
+/* APPLE LOCAL C* property (Radar 4436866) (in 4.2 b) */
+static void c_parser_objc_interfacedecllist (c_parser *);
+/* APPLE LOCAL C* property (Radar 4436866) (in 4.2 x) */
+static void c_parser_objc_property_declaration (c_parser *);
 static void c_parser_objc_methodproto (c_parser *);
 static tree c_parser_objc_method_decl (c_parser *);
 static tree c_parser_objc_type_name (c_parser *);
@@ -1144,7 +1219,8 @@ c_parser_external_declaration (c_parser *parser)
 	case RID_AT_INTERFACE:
 	case RID_AT_IMPLEMENTATION:
 	  gcc_assert (c_dialect_objc ());
-	  c_parser_objc_class_definition (parser);
+	  /* APPLE LOCAL radar 4548636 - class attributes. */
+	  c_parser_objc_class_definition (parser, NULL_TREE);
 	  break;
 	case RID_AT_CLASS:
 	  gcc_assert (c_dialect_objc ());
@@ -1156,8 +1232,15 @@ c_parser_external_declaration (c_parser *parser)
 	  break;
 	case RID_AT_PROTOCOL:
 	  gcc_assert (c_dialect_objc ());
-	  c_parser_objc_protocol_definition (parser);
+	  /* APPLE LOCAL begin radar 4947311 - protocol attributes */
+	  c_parser_objc_protocol_definition (parser, NULL_TREE);
 	  break;
+	  /* APPLE LOCAL end radar 4947311 - protocol attributes */
+	  /* APPLE LOCAL begin C* property (Radar 4436866) (in 4.2 x) */
+	case RID_AT_PROPERTY:
+	  c_parser_objc_property_declaration (parser);
+	  break;
+	  /* APPLE LOCAL end C* property (Radar 4436866) (in 4.2 x) */
 	case RID_AT_END:
 	  gcc_assert (c_dialect_objc ());
 	  c_parser_consume_token (parser);
@@ -1189,7 +1272,8 @@ c_parser_external_declaration (c_parser *parser)
       /* A declaration or a function definition.  We can only tell
 	 which after parsing the declaration specifiers, if any, and
 	 the first declarator.  */
-      c_parser_declaration_or_fndef (parser, true, true, false, true);
+      /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+      c_parser_declaration_or_fndef (parser, true, true, false, true, NULL);
       break;
     }
 }
@@ -1254,7 +1338,8 @@ c_parser_external_declaration (c_parser *parser)
 
 static void
 c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
-			       bool nested, bool start_attr_ok)
+			       /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+			       bool nested, bool start_attr_ok, tree *foreach_elem)
 {
   struct c_declspecs *specs;
   tree prefix_attrs;
@@ -1287,6 +1372,29 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
       c_parser_consume_token (parser);
       return;
     }
+  /* APPLE LOCAL begin radar 4548636 - class attributes. */
+  else if (c_parser_next_token_is_keyword (parser, RID_AT_INTERFACE) 
+	   || c_parser_next_token_is_keyword (parser, RID_AT_IMPLEMENTATION))
+    {
+      gcc_assert (c_dialect_objc ());
+      if (!specs->declspecs_seen_p || specs->attrs == NULL_TREE
+	  || specs->type_seen_p || specs->non_sc_seen_p)
+	c_parser_error (parser, "no type or storage class may be specified here");
+      c_parser_objc_class_definition (parser, specs->attrs);
+      return;
+    }
+  /* APPLE LOCAL end radar 4548636 - class attributes. */
+  /* APPLE LOCAL begin radar 4947311 - protocol attributes */
+  else if (c_parser_next_token_is_keyword (parser, RID_AT_PROTOCOL))
+    {
+      gcc_assert (c_dialect_objc ());
+      if (!specs->declspecs_seen_p || specs->attrs == NULL_TREE
+	  || specs->type_seen_p || specs->non_sc_seen_p)
+	c_parser_error (parser, "no type or storage class may be specified here");
+      c_parser_objc_protocol_definition (parser, specs->attrs);
+      return;
+    }
+  /* APPLE LOCAL end radar 4947311 - protocol attributes */
   pending_xref_error ();
   prefix_attrs = specs->attrs;
   all_prefix_attrs = prefix_attrs;
@@ -1311,6 +1419,8 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
 	  || c_parser_next_token_is (parser, CPP_COMMA)
 	  || c_parser_next_token_is (parser, CPP_SEMICOLON)
 	  || c_parser_next_token_is_keyword (parser, RID_ASM)
+	  /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+	  || c_parser_next_token_is_keyword (parser, RID_IN)
 	  || c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
 	{
 	  tree asm_name = NULL_TREE;
@@ -1327,6 +1437,18 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
 	    asm_name = c_parser_simple_asm_expr (parser);
 	  if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
 	    postfix_attrs = c_parser_attributes (parser);
+	  /* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+	  if (c_parser_next_token_is_keyword (parser, RID_IN))
+	    {
+	      gcc_assert (foreach_elem);
+	      *foreach_elem = start_decl (declarator, specs, true,
+					  chainon (postfix_attrs, all_prefix_attrs));
+	      if (!*foreach_elem)
+		*foreach_elem = error_mark_node;
+	      start_init (*foreach_elem, asm_name, global_bindings_p ());	
+	      return;
+	    }
+	  /* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
 	  if (c_parser_next_token_is (parser, CPP_EQ))
 	    {
 	      tree d;
@@ -1387,8 +1509,17 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
       /* Function definition (nested or otherwise).  */
       if (nested)
 	{
-	  if (pedantic)
+	   /* APPLE LOCAL begin radar 5985368 */
+	   if (declarator->declarator && declarator->declarator->kind == cdk_block_pointer)
+	     error ("bad definition of a block");
+	  else if (pedantic)
+	   /* APPLE LOCAL end radar 5985368 */
 	    pedwarn ("ISO C forbids nested functions");
+	  /* APPLE LOCAL begin nested functions 4258406 4357979 (in 4.2 m) */
+	  else if (flag_nested_functions == 0)
+	    error ("nested functions are disabled, use -fnested-functions to re-enable");
+	  /* APPLE LOCAL end nested functions 4258406 4357979 (in 4.2 m) */
+
 	  push_function_context ();
 	}
       if (!start_function (specs, declarator, all_prefix_attrs))
@@ -1416,7 +1547,8 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
 	 function definitions either.  */
       while (c_parser_next_token_is_not (parser, CPP_EOF)
 	     && c_parser_next_token_is_not (parser, CPP_OPEN_BRACE))
-	c_parser_declaration_or_fndef (parser, false, false, true, false);
+	/* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+	c_parser_declaration_or_fndef (parser, false, false, true, false, NULL);
       DECL_SOURCE_LOCATION (current_function_decl)
 	= c_parser_peek_token (parser)->location;
       store_parm_decls ();
@@ -1437,6 +1569,23 @@ c_parser_declaration_or_fndef (c_parser *parser, bool fndef_ok, bool empty_ok,
       break;
     }
 }
+
+static tree
+finish_parse_foreach_header (c_parser *parser, tree foreach_elem_selector)
+{
+  tree res;
+  int save_flag_isoc99 = flag_isoc99;
+  gcc_assert (foreach_elem_selector);
+  /* Consume 'in' keyword */
+  c_parser_consume_token (parser); 
+  res = build_tree_list (foreach_elem_selector, c_parser_initializer (parser).value); 
+  finish_init ();
+  flag_isoc99 = 1;
+  check_for_loop_decls ();
+  flag_isoc99 = save_flag_isoc99;
+  return res;
+}
+/* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
 
 /* Parse an asm-definition (asm() outside a function body).  This is a
    GNU extension.
@@ -2251,6 +2400,18 @@ c_parser_typeof_specifier (c_parser *parser)
      parameter-list ;
      parameter-forward-declarations parameter-list ;
 
+     APPLE LOCAL begin blocks 6339747
+   block-declarator:
+     pointer
+     pointer[opt] direct-block-declarator
+
+   direct-block-declarator:
+     ( attributes[opt] block-declarator )
+     direct-block-declarator[opt] array-declarator
+     direct-block-declarator[opt]
+	( parameter-type-list[opt] ) [opt]
+     APPLE LOCAL end blocks 6339747
+
    The uses of attributes shown above are GNU extensions.
 
    Some forms of array declarator are not included in C99 in the
@@ -2277,6 +2438,20 @@ c_parser_declarator (c_parser *parser, bool type_seen_p, c_dtr_syn kind,
       else
 	return make_pointer_declarator (quals_attrs, inner);
     }
+  /* APPLE LOCAL begin radar 5732232 - blocks (C++ cc) */
+  else if (flag_blocks && c_parser_next_token_is (parser, CPP_XOR)) {
+    struct c_declspecs *quals_attrs = build_null_declspecs ();
+    struct c_declarator *inner;
+    c_parser_consume_token (parser);
+    c_parser_declspecs (parser, quals_attrs, false, false, true);
+    inner = c_parser_declarator (parser, type_seen_p, kind, seen_id);
+    if (inner == NULL)
+      return NULL;
+    else
+      /* APPLE LOCAL radar 5814025 (C++ cc) */
+      return make_block_pointer_declarator (quals_attrs, inner);    
+  }
+  /* APPLE LOCAL end radar 5732232 - blocks (C++ cc) */
   /* Now we have a direct declarator, direct abstract declarator or
      nothing (which counts as a direct abstract declarator here).  */
   return c_parser_direct_declarator (parser, type_seen_p, kind, seen_id);
@@ -2323,10 +2498,14 @@ c_parser_direct_declarator (c_parser *parser, bool type_seen_p, c_dtr_syn kind,
      ??? Also following the old parser, typedef names may be
      redeclared in declarators, but not Objective-C class names.  */
 
-  if (kind != C_DTR_ABSTRACT
+  /* APPLE LOCAL blocks 6339747 */
+  if ((kind != C_DTR_ABSTRACT && kind != C_DTR_BLOCK)
       && c_parser_next_token_is (parser, CPP_NAME)
       && ((type_seen_p
-	   && c_parser_peek_token (parser)->id_kind == C_ID_TYPENAME)
+	   /* APPLE LOCAL begin radar 4281748 */
+	   && (c_parser_peek_token (parser)->id_kind == C_ID_TYPENAME
+	       || c_parser_peek_token (parser)->id_kind == C_ID_CLASSNAME))
+	   /* APPLE LOCAL end radar 4281748 */
 	  || c_parser_peek_token (parser)->id_kind == C_ID_ID))
     {
       struct c_declarator *inner
@@ -3379,6 +3558,8 @@ c_parser_compound_statement_nostart (c_parser *parser)
 {
   bool last_stmt = false;
   bool last_label = false;
+  /* APPLE LOCAL radar 5732232 - blocks (not in C++) */
+  bool first_stmt = true;
   if (c_parser_next_token_is (parser, CPP_CLOSE_BRACE))
     {
       c_parser_consume_token (parser);
@@ -3389,30 +3570,30 @@ c_parser_compound_statement_nostart (c_parser *parser)
       /* Read zero or more forward-declarations for labels that nested
 	 functions can jump to.  */
       while (c_parser_next_token_is_keyword (parser, RID_LABEL))
-	{
-	  c_parser_consume_token (parser);
-	  /* Any identifiers, including those declared as type names,
-	     are OK here.  */
-	  while (true)
-	    {
-	      tree label;
-	      if (c_parser_next_token_is_not (parser, CPP_NAME))
 		{
-		  c_parser_error (parser, "expected identifier");
-		  break;
+	c_parser_consume_token (parser);
+	/* Any identifiers, including those declared as type names,
+	 are OK here.  */
+	while (true)
+	{
+		tree label;
+		if (c_parser_next_token_is_not (parser, CPP_NAME))
+		{
+			c_parser_error (parser, "expected identifier");
+			break;
 		}
-	      label
+		label
 		= declare_label (c_parser_peek_token (parser)->value);
-	      C_DECLARED_LABEL_FLAG (label) = 1;
-	      add_stmt (build_stmt (DECL_EXPR, label));
-	      c_parser_consume_token (parser);
-	      if (c_parser_next_token_is (parser, CPP_COMMA))
+		C_DECLARED_LABEL_FLAG (label) = 1;
+		add_stmt (build_stmt (DECL_EXPR, label));
 		c_parser_consume_token (parser);
-	      else
-		break;
-	    }
-	  c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
+		if (c_parser_next_token_is (parser, CPP_COMMA))
+			c_parser_consume_token (parser);
+		else
+			break;
 	}
+	c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
+		}
       /* ??? Locating this diagnostic on the token after the
 	 declarations end follows the old parser, but it might be
 	 better to locate it where the declarations start instead.  */
@@ -3430,81 +3611,85 @@ c_parser_compound_statement_nostart (c_parser *parser)
     {
       location_t loc = c_parser_peek_token (parser)->location;
       if (c_parser_next_token_is_keyword (parser, RID_CASE)
-	  || c_parser_next_token_is_keyword (parser, RID_DEFAULT)
-	  || (c_parser_next_token_is (parser, CPP_NAME)
-	      && c_parser_peek_2nd_token (parser)->type == CPP_COLON))
-	{
-	  last_label = true;
-	  last_stmt = false;
-	  c_parser_label (parser);
-	}
+	|| c_parser_next_token_is_keyword (parser, RID_DEFAULT)
+	|| (c_parser_next_token_is (parser, CPP_NAME)
+		&& c_parser_peek_2nd_token (parser)->type == CPP_COLON))
+      {
+	last_label = true;
+	last_stmt = false;
+	c_parser_label (parser);
+      }
       else if (!last_label
-	       && c_parser_next_token_starts_declspecs (parser))
-	{
-	  last_label = false;
-	  c_parser_declaration_or_fndef (parser, true, true, true, true);
-	  if (last_stmt
-	      && ((pedantic && !flag_isoc99)
-		  || warn_declaration_after_statement))
-	    pedwarn_c90 ("%HISO C90 forbids mixed declarations and code",
-			 &loc);
-	  last_stmt = false;
-	}
-      else if (!last_label
-	       && c_parser_next_token_is_keyword (parser, RID_EXTENSION))
-	{
-	  /* __extension__ can start a declaration, but is also an
-	     unary operator that can start an expression.  Consume all
-	     but the last of a possible series of __extension__ to
-	     determine which.  */
-	  while (c_parser_peek_2nd_token (parser)->type == CPP_KEYWORD
-		 && (c_parser_peek_2nd_token (parser)->keyword
-		     == RID_EXTENSION))
-	    c_parser_consume_token (parser);
-	  if (c_token_starts_declspecs (c_parser_peek_2nd_token (parser)))
-	    {
-	      int ext;
-	      ext = disable_extension_diagnostics ();
-	      c_parser_consume_token (parser);
-	      last_label = false;
-	      c_parser_declaration_or_fndef (parser, true, true, true, true);
-	      /* Following the old parser, __extension__ does not
-		 disable this diagnostic.  */
-	      restore_extension_diagnostics (ext);
-	      if (last_stmt
-		  && ((pedantic && !flag_isoc99)
-		      || warn_declaration_after_statement))
+		 && c_parser_next_token_starts_declspecs (parser))
+      {
+	last_label = false;
+	/* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+	c_parser_declaration_or_fndef (parser, true, true, true, true, NULL);
+	if (last_stmt
+		&& ((pedantic && !flag_isoc99)
+			|| warn_declaration_after_statement))
 		pedwarn_c90 ("%HISO C90 forbids mixed declarations and code",
-			     &loc);
-	      last_stmt = false;
-	    }
-	  else
-	    goto statement;
+					 &loc);
+	last_stmt = false;
+      }
+      else if (!last_label
+		 && c_parser_next_token_is_keyword (parser, RID_EXTENSION))
+      {
+	/* __extension__ can start a declaration, but is also an
+	 unary operator that can start an expression.  Consume all
+	 but the last of a possible series of __extension__ to
+	 determine which.  */
+	while (c_parser_peek_2nd_token (parser)->type == CPP_KEYWORD
+		   && (c_parser_peek_2nd_token (parser)->keyword
+			   == RID_EXTENSION))
+		c_parser_consume_token (parser);
+	if (c_token_starts_declspecs (c_parser_peek_2nd_token (parser)))
+	{
+		int ext;
+		ext = disable_extension_diagnostics ();
+		c_parser_consume_token (parser);
+		last_label = false;
+		/* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+		c_parser_declaration_or_fndef (parser, true, true, true, true, NULL);
+		/* Following the old parser, __extension__ does not
+		 disable this diagnostic.  */
+		restore_extension_diagnostics (ext);
+		if (last_stmt
+			&& ((pedantic && !flag_isoc99)
+				|| warn_declaration_after_statement))
+			pedwarn_c90 ("%HISO C90 forbids mixed declarations and code",
+						 &loc);
+		last_stmt = false;
 	}
+	else
+		goto statement;
+      }
       else if (c_parser_next_token_is (parser, CPP_PRAGMA))
-	{
-	  /* External pragmas, and some omp pragmas, are not associated
-	     with regular c code, and so are not to be considered statements
-	     syntactically.  This ensures that the user doesn't put them
-	     places that would turn into syntax errors if the directive
-	     were ignored.  */
-	  if (c_parser_pragma (parser, pragma_compound))
-	    last_label = false, last_stmt = true;
-	}
+      {
+	/* External pragmas, and some omp pragmas, are not associated
+	 with regular c code, and so are not to be considered statements
+	 syntactically.  This ensures that the user doesn't put them
+	 places that would turn into syntax errors if the directive
+	 were ignored.  */
+	if (c_parser_pragma (parser, pragma_compound))
+		last_label = false, last_stmt = true;
+      }
       else if (c_parser_next_token_is (parser, CPP_EOF))
-	{
-	  c_parser_error (parser, "expected declaration or statement");
-	  return;
-	}
+      {
+	c_parser_error (parser, "expected declaration or statement");
+	return;
+      }
       else
-	{
-	statement:
-	  last_label = false;
-	  last_stmt = true;
-	  c_parser_statement_after_labels (parser);
-	}
-
+      {
+      statement:
+	last_label = false;
+	last_stmt = true;
+	c_parser_statement_after_labels (parser);
+      }
+      
       parser->error = false;
+      /* APPLE LOCAL radar 5732232 - blocks (not in C++) */
+      first_stmt = false;
     }
   if (last_label)
     error ("label at end of compound statement");
@@ -3720,6 +3905,10 @@ c_parser_statement_after_labels (c_parser *parser)
 	  c_parser_for_statement (parser);
 	  break;
 	case RID_GOTO:
+	   /* APPLE LOCAL begin radar 5732232 - blocks (C++ cb) */
+	   if (cur_block)
+	     error ("goto not allowed in block literal");
+	   /* APPLE LOCAL end radar 5732232 - blocks (C++ cb) */
 	  c_parser_consume_token (parser);
 	  if (c_parser_next_token_is (parser, CPP_NAME))
 	    {
@@ -3817,8 +4006,20 @@ c_parser_statement_after_labels (c_parser *parser)
      (recursively) all of the component statements should already have
      line numbers assigned.  ??? Can we discard no-op statements
      earlier?  */
+  /* APPLE LOCAL begin Radar 6144634  */
+  /* Normal expr stmts, including modify exprs, get the location where
+     the statement began, i.e. 'loc'.  Assignments of Blocks to Block
+     pointer variables get the location of the end of the Block definition,
+     i.e. 'input_location', which should already be set by this point.  */
   if (stmt && EXPR_P (stmt))
-    SET_EXPR_LOCATION (stmt, loc);
+    {
+      if (TREE_CODE (stmt) == MODIFY_EXPR
+	  && TREE_CODE (TREE_TYPE (TREE_OPERAND (stmt, 0))) == BLOCK_POINTER_TYPE)
+	SET_EXPR_LOCATION (stmt, input_location);
+      else
+	SET_EXPR_LOCATION (stmt, loc);
+    }
+  /* APPLE LOCAL end Radar 6144634  */
 }
 
 /* Parse a parenthesized condition from an if, do or while statement.
@@ -4048,6 +4249,8 @@ c_parser_for_statement (c_parser *parser)
   tree block, cond, incr, save_break, save_cont, body, attrs;
 /* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
   location_t loc;
+  /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+  bool foreach_p = false;
   gcc_assert (c_parser_next_token_is_keyword (parser, RID_FOR));
   loc = c_parser_peek_token (parser)->location;
   c_parser_consume_token (parser);
@@ -4065,8 +4268,18 @@ c_parser_for_statement (c_parser *parser)
 	}
       else if (c_parser_next_token_starts_declspecs (parser))
 	{
-	  c_parser_declaration_or_fndef (parser, true, true, true, true);
-	  check_for_loop_decls ();
+	  /* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+	  cond = NULL_TREE;
+	  c_parser_declaration_or_fndef (parser, true, true, true, true, &cond);
+	  /* APPLE LOCAL radar 5925639 */
+	  if (c_parser_next_token_is_keyword (parser, RID_IN) && cond)
+	    {
+	      cond = finish_parse_foreach_header (parser, cond);
+	      foreach_p = true;
+	    }
+	  else
+	    check_for_loop_decls ();
+	  /* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
 	}
       else if (c_parser_next_token_is_keyword (parser, RID_EXTENSION))
 	{
@@ -4083,9 +4296,19 @@ c_parser_for_statement (c_parser *parser)
 	      int ext;
 	      ext = disable_extension_diagnostics ();
 	      c_parser_consume_token (parser);
-	      c_parser_declaration_or_fndef (parser, true, true, true, true);
+	      /* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+	      cond = NULL_TREE;
+	      c_parser_declaration_or_fndef (parser, true, true, true, true, &cond);
 	      restore_extension_diagnostics (ext);
-	      check_for_loop_decls ();
+	      /* APPLE LOCAL radar 5925639 */
+	      if (c_parser_next_token_is_keyword (parser, RID_IN) && cond)
+	        {
+		  cond = finish_parse_foreach_header (parser, cond);
+	          foreach_p = true;
+	        }
+	      else
+		check_for_loop_decls ();
+	      /* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
 	    }
 	  else
 	    goto init_expr;
@@ -4093,9 +4316,22 @@ c_parser_for_statement (c_parser *parser)
       else
 	{
 	init_expr:
-	  c_finish_expr_stmt (c_parser_expression (parser).value);
-	  c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
+	  /* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+	  cond = c_parser_expression (parser).value;
+	  if (c_parser_next_token_is_keyword (parser, RID_IN))
+	    {
+	      c_parser_consume_token (parser); /* IN */
+	      cond = build_tree_list (cond, c_parser_initializer (parser).value); 
+	      foreach_p = true;
+	    }
+	  else
+	    {
+	      c_finish_expr_stmt (cond);
+	      c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
+	    }
 	}
+	objc_foreach_context = 0;
+	/* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
       /* Parse the loop condition.  */
       loc = c_parser_peek_token (parser)->location;
       if (c_parser_next_token_is (parser, CPP_SEMICOLON))
@@ -4103,6 +4339,10 @@ c_parser_for_statement (c_parser *parser)
 	  c_parser_consume_token (parser);
 	  cond = NULL_TREE;
 	}
+      /* APPLE LOCAL begin radar 4708210 (for_objc_collection in 4.2) */
+      else if (foreach_p)
+	;
+      /* APPLE LOCAL end radar 4708210 (for_objc_collection in 4.2) */
       else
 	{
 	  tree ocond = c_parser_expression_conv (parser).value;
@@ -4607,6 +4847,11 @@ c_parser_binary_expression (c_parser *parser, struct c_expr *after)
   } while (0)
   gcc_assert (!after || c_dialect_objc ());
   stack[0].expr = c_parser_cast_expression (parser, after);
+  /* APPLE LOCAL begin radar 4426814 */
+  if (c_dialect_objc() && flag_objc_gc)
+    /* APPLE LOCAL radar 5276085 */
+    stack[0].expr.value = objc_build_weak_reference_tree (stack[0].expr.value);
+  /* APPLE LOCAL end radar 4426814 */
   stack[0].prec = PREC_NONE;
   sp = 0;
   while (true)
@@ -4718,6 +4963,11 @@ c_parser_binary_expression (c_parser *parser, struct c_expr *after)
 	}
       sp++;
       stack[sp].expr = c_parser_cast_expression (parser, NULL);
+      /* APPLE LOCAL begin radar 4426814 */
+      if (c_dialect_objc() && flag_objc_gc)
+	 /* APPLE LOCAL radar 5276085 */
+	 stack[sp].expr.value = objc_build_weak_reference_tree (stack[sp].expr.value);
+      /* APPLE LOCAL end radar 4426814 */
       stack[sp].prec = oprec;
       stack[sp].op = ocode;
     }
@@ -5054,6 +5304,8 @@ c_parser_alignof_expression (c_parser *parser)
 			     assignment-expression ,
 			     assignment-expression )
      __builtin_types_compatible_p ( type-name , type-name )
+     APPLE LOCAL blocks (C++ cf)
+     block-literal-expr
 
    offsetof-member-designator:
      identifier
@@ -5098,6 +5350,21 @@ c_parser_postfix_expression (c_parser *parser)
       c_parser_consume_token (parser);
       break;
     case CPP_NAME:
+      /* APPLE LOCAL begin radar 5277239 */
+      if (c_parser_peek_token (parser)->id_kind == C_ID_CLASSNAME
+	  && c_parser_peek_2nd_token (parser)->type == CPP_DOT)
+	{
+	  /* CLASS.class_method expression. */
+	  tree receiver, component;
+	  receiver = c_parser_objc_receiver (parser);
+	   /* consume '.' operator */
+	  c_parser_consume_token (parser); 
+	  component = c_parser_objc_message_args (parser);
+	  expr.value = objc_build_property_reference_expr (receiver, component);
+	  expr.original_code = ERROR_MARK;
+	  break;
+	}
+      /* APPLE LOCAL end radar 5277239 */
       if (c_parser_peek_token (parser)->id_kind != C_ID_ID)
 	{
 	  c_parser_error (parser, "expected expression");
@@ -5112,6 +5379,34 @@ c_parser_postfix_expression (c_parser *parser)
 	expr.value = build_external_ref (id,
 					 (c_parser_peek_token (parser)->type
 					  == CPP_OPEN_PAREN), loc);
+	 /* APPLE LOCAL begin radar 5732232 - blocks (C++ cd) */
+	 /* If a variabled declared as referenced variable, using |...| syntax,
+	    is used in the block, it has to be derefrenced because this
+	    variable holds address of the outside variable referenced in. */
+	 
+	 /* APPLE LOCAL begin radar 5932809 - copyable byref blocks (C++ cd) */
+	 if (TREE_CODE (expr.value) == VAR_DECL)
+	  {
+	    if (BLOCK_DECL_BYREF (expr.value))
+	      {
+		tree orig_decl = expr.value;
+		expr.value = build_indirect_ref (expr.value, "unary *");
+		if (COPYABLE_BYREF_LOCAL_VAR (orig_decl)) {
+		  /* What we have is an expression which is of type 
+		     struct __Block_byref_X. Must get to the value of the variable
+		     embedded in this structure. It is at:
+		     __Block_byref_X.__forwarding->x */
+		  expr.value = build_byref_local_var_access (expr.value,
+							     DECL_NAME (orig_decl));
+		}
+	      }
+	    else if (COPYABLE_BYREF_LOCAL_VAR (expr.value))
+	       expr.value = build_byref_local_var_access (expr.value,
+			                                  DECL_NAME (expr.value));
+	 }
+	 /* APPLE LOCAL end radar 5932809 - copyable byref blocks */
+	 
+	 /* APPLE LOCAL end radar 5732232 - blocks (C++ cd) */
 	expr.original_code = ERROR_MARK;
       }
       break;
@@ -5447,6 +5742,18 @@ c_parser_postfix_expression (c_parser *parser)
 	  break;
 	}
       break;
+    /* APPLE LOCAL begin radar 5732232 - blocks (C++ cf) */
+    case CPP_XOR:
+	 if (flag_blocks) {
+	   expr.value = c_parser_block_literal_expr (parser);
+	   expr.original_code = ERROR_MARK;
+	   break;
+	 }
+	 c_parser_error (parser, "expected expression");
+	 expr.value = error_mark_node;
+	 expr.original_code = ERROR_MARK;
+	 break;
+    /* APPLE LOCAL end radar 5732232 - blocks (C++ cf) */
     case CPP_OPEN_SQUARE:
       if (c_dialect_objc ())
 	{
@@ -5680,7 +5987,8 @@ c_parser_expr_list (c_parser *parser, bool convert_p)
    objc-protocol-refs and objc-class-instance-variables are omitted.  */
 
 static void
-c_parser_objc_class_definition (c_parser *parser)
+/* APPLE LOCAL radar 4548636 - class attributes. */
+c_parser_objc_class_definition (c_parser *parser, tree prefix_attrs)
 {
   bool iface_p;
   tree id1;
@@ -5688,40 +5996,60 @@ c_parser_objc_class_definition (c_parser *parser)
   if (c_parser_next_token_is_keyword (parser, RID_AT_INTERFACE))
     iface_p = true;
   else if (c_parser_next_token_is_keyword (parser, RID_AT_IMPLEMENTATION))
-    iface_p = false;
+    /* APPLE LOCAL begin radar 4548636 - class attributes. */
+    {
+      if (prefix_attrs)
+	{
+	  error ("attributes may not be specified on an implementation");
+	  prefix_attrs = NULL_TREE;
+	}
+      iface_p = false;
+    }
+    /* APPLE LOCAL end radar 4548636 - class attributes. */
   else
     gcc_unreachable ();
   c_parser_consume_token (parser);
   if (c_parser_next_token_is_not (parser, CPP_NAME))
     {
-      c_parser_error (parser, "expected identifier");
-      return;
-    }
-  id1 = c_parser_peek_token (parser)->value;
-  c_parser_consume_token (parser);
-  if (c_parser_next_token_is (parser, CPP_OPEN_PAREN))
-    {
-      tree id2;
+      /* APPLE LOCAL radar 4965989 */
+      tree id2 = NULL_TREE;
       tree proto = NULL_TREE;
       c_parser_consume_token (parser);
-      if (c_parser_next_token_is_not (parser, CPP_NAME))
+      /* APPLE LOCAL begin radar 4965989 */
+      if (c_parser_next_token_is_not (parser, CPP_CLOSE_PAREN))
 	{
-	  c_parser_error (parser, "expected identifier");
-	  c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, NULL);
-	  return;
+	   if (c_parser_next_token_is_not (parser, CPP_NAME))
+	    {
+	      c_parser_error (parser, "expected identifier");
+	      c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, NULL);
+	      return;
+	    }
+	   id2 = c_parser_peek_token (parser)->value;
+	   c_parser_consume_token (parser);
 	}
-      id2 = c_parser_peek_token (parser)->value;
-      c_parser_consume_token (parser);
+      /* APPLE LOCAL end radar 4965989 */
       c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, "expected %<)%>");
       if (!iface_p)
 	{
+	   /* APPLE LOCAL begin radar 4965989 */
+	  if (id2 == NULL_TREE)
+	    {
+	      error ("cannot implement anonymous category");
+	      return;
+	    }
+	   /* APPLE LOCAL end radar 4965989 */
 	  objc_start_category_implementation (id1, id2);
 	  return;
 	}
       if (c_parser_next_token_is (parser, CPP_LESS))
 	proto = c_parser_objc_protocol_refs (parser);
+      /* APPLE LOCAL begin radar 4548636 - class attributes. */
+      if (prefix_attrs)
+	error ("attributes may not be specified on a category");
+      /* APPLE LOCAL end radar 4548636 - class attributes. */
       objc_start_category_interface (id1, id2, proto);
-      c_parser_objc_methodprotolist (parser);
+      /* APPLE LOCAL C* property (Radar 4436866) (in 4.2 q) */
+      c_parser_objc_interfacedecllist (parser);
       c_parser_require_keyword (parser, RID_AT_END, "expected %<@end%>");
       objc_finish_interface ();
       return;
@@ -5744,7 +6072,8 @@ c_parser_objc_class_definition (c_parser *parser)
       tree proto = NULL_TREE;
       if (c_parser_next_token_is (parser, CPP_LESS))
 	proto = c_parser_objc_protocol_refs (parser);
-      objc_start_class_interface (id1, superclass, proto);
+      /* APPLE LOCAL radar 4548636 - class attributes. */
+      objc_start_class_interface (id1, superclass, proto, prefix_attrs);
     }
   else
     objc_start_class_implementation (id1, superclass);
@@ -5753,7 +6082,8 @@ c_parser_objc_class_definition (c_parser *parser)
   if (iface_p)
     {
       objc_continue_interface ();
-      c_parser_objc_methodprotolist (parser);
+      /* APPLE LOCAL C* property (Radar 4436866) (in 4.2 q) */
+      c_parser_objc_interfacedecllist (parser);
       c_parser_require_keyword (parser, RID_AT_END, "expected %<@end%>");
       objc_finish_interface ();
     }
@@ -5763,6 +6093,129 @@ c_parser_objc_class_definition (c_parser *parser)
       return;
     }
 }
+
+/* APPLE LOCAL begin C* property (Radar 4436866) (in 4.2 s) */
+static tree
+c_parser_objc_eq_identifier (c_parser *parser)
+{
+  tree id;
+  if (c_parser_next_token_is_not (parser, CPP_EQ))
+    {
+      c_parser_error (parser, "expected %<=%>");
+      return NULL_TREE;
+    }
+  /* Consume '=' */
+  c_parser_consume_token (parser);
+  if (c_parser_next_token_is_not (parser, CPP_NAME))
+    {
+      c_parser_error (parser, "expected identifier");
+      return NULL_TREE;
+    }
+  id = c_parser_peek_token (parser)->value;
+  c_parser_consume_token (parser);
+  return id;
+}
+
+/* Parse obj-property-attribute.
+*/
+static void
+c_parser_objc_property_attribute (c_parser *parser)
+{
+  tree id;
+  if (c_parser_peek_token (parser)->type != CPP_KEYWORD)
+    {
+      c_parser_error (parser, "expected a property attribute");
+      c_parser_consume_token (parser);
+      return;
+    }
+  switch (c_parser_peek_token (parser)->keyword)
+    {
+    case RID_READONLY:
+      c_parser_consume_token (parser);
+      objc_set_property_attr (1, NULL_TREE);
+      break;
+    case RID_GETTER:
+      c_parser_consume_token (parser);
+      id = c_parser_objc_eq_identifier (parser);
+      if (id)
+	objc_set_property_attr (2, id);
+      break;
+    case RID_SETTER:
+      c_parser_consume_token (parser);
+      id = c_parser_objc_eq_identifier (parser);
+      if (id)
+	objc_set_property_attr (3, id);
+      /* Consume the ':' which must always follow the setter name. */
+      if (c_parser_next_token_is (parser, CPP_COLON))
+	c_parser_consume_token (parser);
+      break;
+   /* APPLE LOCAL begin radar 4947014 - objc atomic property */
+    case RID_NONATOMIC:
+      c_parser_consume_token (parser);
+      objc_set_property_attr (13, NULL_TREE);
+      break;
+    /* APPLE LOCAL end radar 4947014 - objc atomic property */
+    default:
+      c_parser_error (parser, "expected a property attribute");
+      c_parser_consume_token (parser);
+    }
+}
+
+static void
+c_parser_objc_property_attrlist (c_parser *parser)
+{
+  while (c_parser_next_token_is_not (parser, CPP_CLOSE_PAREN)
+	 && c_parser_next_token_is_not (parser, CPP_EOF))
+    {
+      c_parser_objc_property_attribute (parser);
+      /* APPLE LOCAL begin radar 6302949 */
+      if (c_parser_next_token_is_not (parser, CPP_COMMA)
+	  && c_parser_next_token_is_not (parser, CPP_CLOSE_PAREN)
+	  && c_parser_next_token_is_not (parser, CPP_EOF))
+	warning (0, "property attributes must be separated by a comma");
+      /* APPLE LOCAL end radar 6302949 */
+      if (c_parser_next_token_is (parser, CPP_COMMA)
+	  || c_parser_next_token_is (parser, CPP_NAME) /* error */)
+	c_parser_consume_token (parser);
+    }
+}
+
+static void
+c_parser_objc_property_attr_decl (c_parser *parser)
+{
+  if (!c_parser_next_token_is (parser, CPP_OPEN_PAREN))
+    return;
+  c_parser_consume_token (parser);
+  c_parser_objc_property_attrlist (parser);
+  c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, "expected %<)%>");
+}
+
+static tree
+c_parser_component_decl (c_parser *parser)
+{
+  tree decl = c_parser_struct_declaration (parser);
+  return decl;
+}
+
+static void
+c_parser_objc_property_declaration (c_parser *parser)
+{
+  tree prop;
+  c_parser_require_keyword (parser, RID_AT_PROPERTY, "expected %<@property%>");
+  objc_property_attr_context = 1;
+  objc_set_property_attr (0, NULL_TREE);
+  c_parser_objc_property_attr_decl (parser);
+  objc_property_attr_context = 0;
+  prop = c_parser_component_decl (parser);
+  /* Comma-separated properties are chained together in
+     reverse order; add them one by one.  */
+  prop = nreverse (prop);
+
+  for (; prop; prop = TREE_CHAIN (prop))
+    objc_add_property_variable (copy_node (prop));
+  c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
+}
+/* APPLE LOCAL end C* property (Radar 4436866) (in 4.2 s) */
 
 /* Parse objc-class-instance-variables.
 
@@ -5827,6 +6280,14 @@ c_parser_objc_class_instance_variables (c_parser *parser)
 	  objc_set_visibility (1);
 	  continue;
 	}
+      /* APPLE LOCAL begin radar 4564694 */
+      else if (c_parser_next_token_is_keyword (parser, RID_AT_PACKAGE))
+	{
+	  c_parser_consume_token (parser);
+	  objc_set_visibility (3);
+	  continue;
+	}
+      /* APPLE LOCAL end radar 4564694 */
       else if (c_parser_next_token_is (parser, CPP_PRAGMA))
 	{
 	  c_parser_pragma (parser, pragma_external);
@@ -5924,7 +6385,8 @@ c_parser_objc_alias_declaration (c_parser *parser)
    omitted.  */
 
 static void
-c_parser_objc_protocol_definition (c_parser *parser)
+/* APPLE LOCAL radar 4947311 - protocol attributes */
+c_parser_objc_protocol_definition (c_parser *parser, tree attributes)
 {
   gcc_assert (c_parser_next_token_is_keyword (parser, RID_AT_PROTOCOL));
   c_parser_consume_token (parser);
@@ -5956,7 +6418,8 @@ c_parser_objc_protocol_definition (c_parser *parser)
 	    break;
 	}
       c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
-      objc_declare_protocols (list);
+      /* APPLE LOCAL radar 4947311 - protocol attributes */
+      objc_declare_protocols (list, attributes);
     }
   else
     {
@@ -5966,8 +6429,10 @@ c_parser_objc_protocol_definition (c_parser *parser)
       if (c_parser_next_token_is (parser, CPP_LESS))
 	proto = c_parser_objc_protocol_refs (parser);
       objc_pq_context = 1;
-      objc_start_protocol (id, proto);
-      c_parser_objc_methodprotolist (parser);
+      /* APPLE LOCAL radar 4947311 - protocol attributes */
+      objc_start_protocol (id, proto, attributes);
+      /* APPLE LOCAL C* property (Radar 4436866) (in 4.2 r) */
+      c_parser_objc_interfacedecllist (parser);
       c_parser_require_keyword (parser, RID_AT_END, "expected %<@end%>");
       objc_pq_context = 0;
       objc_finish_interface ();
@@ -6023,10 +6488,27 @@ c_parser_objc_method_definition (c_parser *parser)
       return;
     }
   objc_pq_context = 0;
-  objc_start_method_definition (decl);
+  /* APPLE LOCAL begin radar 3803157 - objc attribute (in 4.2 a) */
+  objc_start_method_definition (decl, objc_method_attributes);
+  objc_method_attributes = NULL_TREE;
+  /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 a) */
   add_stmt (c_parser_compound_statement (parser));
   objc_finish_method_definition (current_function_decl);
 }
+
+/* APPLE LOCAL begin C* language (in 4.2 w) */
+/* True iff the gioven TOKEN starts a methodproto.  */
+
+static bool
+c_token_starts_methodproto (c_token *token)
+{
+  return token->type == CPP_PLUS
+    || token->type == CPP_MINUS
+    || (token->type == CPP_KEYWORD
+	&& (token->keyword == RID_AT_REQUIRED
+	    || token->keyword == RID_AT_OPTIONAL));
+}
+/* APPLE LOCAL end C* language (in 4.2 w) */
 
 /* Parse an objc-methodprotolist.
 
@@ -6043,10 +6525,29 @@ c_parser_objc_method_definition (c_parser *parser)
    function.  */
 
 static void
-c_parser_objc_methodprotolist (c_parser *parser)
+/* APPLE LOCAL C* property (Radar 4436866) (in 4.2 b) */
+c_parser_objc_interfacedecllist (c_parser *parser)
 {
   while (true)
     {
+      /* APPLE LOCAL begin C* property (Radar 4436866) (in 4.2 b) */
+      c_token *token;
+      token = c_parser_peek_token (parser);
+      if (token->type == CPP_KEYWORD
+	  && token->keyword == RID_AT_PROPERTY)
+	{
+	  c_parser_objc_property_declaration (parser);
+	  continue;
+	}
+      /* APPLE LOCAL end C* property (Radar 4436866) (in 4.2 b) */
+      /* APPLE LOCAL begin C* language (in 4.2 w) */
+      if (c_token_starts_methodproto (token))
+	{
+	  c_parser_objc_methodproto (parser);
+	  continue;
+	}
+      /* APPLE LOCAL end C* language (in 4.2 w) */
+
       /* The list is terminated by @end.  */
       switch (c_parser_peek_token (parser)->type)
 	{
@@ -6055,10 +6556,9 @@ c_parser_objc_methodprotolist (c_parser *parser)
 	    pedwarn ("ISO C does not allow extra %<;%> outside of a function");
 	  c_parser_consume_token (parser);
 	  break;
-	case CPP_PLUS:
-	case CPP_MINUS:
-	  c_parser_objc_methodproto (parser);
-	  break;
+      /* APPLE LOCAL begin C* language (in 4.2 w) */
+	  /* CPP_PLUS and CPP_MINUS deleted */
+      /* APPLE LOCAL end C* language (in 4.2 w) */
 	case CPP_PRAGMA:
 	  c_parser_pragma (parser, pragma_external);
 	  break;
@@ -6067,7 +6567,8 @@ c_parser_objc_methodprotolist (c_parser *parser)
 	default:
 	  if (c_parser_next_token_is_keyword (parser, RID_AT_END))
 	    return;
-	  c_parser_declaration_or_fndef (parser, false, true, false, true);
+	  /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+	  c_parser_declaration_or_fndef (parser, false, true, false, true, NULL);
 	  break;
 	}
     }
@@ -6082,15 +6583,35 @@ c_parser_objc_methodprotolist (c_parser *parser)
 static void
 c_parser_objc_methodproto (c_parser *parser)
 {
-  enum tree_code type = c_parser_objc_method_type (parser);
+  /* APPLE LOCAL C* language */
+  enum tree_code type;
   tree decl;
+  /* APPLE LOCAL begin C* language */
+  if (c_parser_next_token_is_keyword (parser, RID_AT_REQUIRED))
+    {
+      objc_set_method_opt (0);
+      c_parser_consume_token (parser);
+      return;
+    }
+  if (c_parser_next_token_is_keyword (parser, RID_AT_OPTIONAL))
+    {
+      objc_set_method_opt (1);
+      c_parser_consume_token (parser);
+      return;
+    }
+  /* APPLE LOCAL begin C* language */
+  /* APPLE LOCAL C* language */
+  type = c_parser_objc_method_type (parser);
   objc_set_method_type (type);
   /* Remember protocol qualifiers in prototypes.  */
   objc_pq_context = 1;
   decl = c_parser_objc_method_decl (parser);
   /* Forget protocol qualifiers here.  */
   objc_pq_context = 0;
-  objc_add_method_declaration (decl);
+  /* APPLE LOCAL begin radar 3803157 - objc attribute (in 4.2 c) */
+  objc_add_method_declaration (decl, objc_method_attributes);
+  objc_method_attributes = NULL_TREE;
+  /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 c) */
   c_parser_skip_until_found (parser, CPP_SEMICOLON, "expected %<;%>");
 }
 
@@ -6148,6 +6669,8 @@ c_parser_objc_method_decl (c_parser *parser)
       tree list = NULL_TREE;
       while (true)
 	{
+	  /* APPLE LOCAL radar 4157812 */
+	  tree attr = NULL_TREE;
 	  tree atype = NULL_TREE, id, keyworddecl;
 	  if (!c_parser_require (parser, CPP_COLON, "expected %<:%>"))
 	    break;
@@ -6158,6 +6681,10 @@ c_parser_objc_method_decl (c_parser *parser)
 	      c_parser_skip_until_found (parser, CPP_CLOSE_PAREN,
 					 "expected %<)%>");
 	    }
+	  /* APPLE LOCAL begin radar 4157812 */
+	  if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+	    attr = c_parser_attributes (parser);
+	  /* APPLE LOCAL end radar 4157812 */
 	  if (c_parser_next_token_is_not (parser, CPP_NAME))
 	    {
 	      c_parser_error (parser, "expected identifier");
@@ -6165,12 +6692,17 @@ c_parser_objc_method_decl (c_parser *parser)
 	    }
 	  id = c_parser_peek_token (parser)->value;
 	  c_parser_consume_token (parser);
-	  keyworddecl = objc_build_keyword_decl (tsel, atype, id);
+	  /* APPLE LOCAL radar 4157812 */
+	  keyworddecl = objc_build_keyword_decl (tsel, atype, id, attr);
 	  list = chainon (list, keyworddecl);
 	  tsel = c_parser_objc_selector (parser);
 	  if (!tsel && c_parser_next_token_is_not (parser, CPP_COLON))
 	    break;
 	}
+      /* APPLE LOCAL begin radar 3803157 - objc attribute (in 4.2 y) */
+      if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+	objc_method_attributes = c_parser_attributes (parser);
+      /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 y) */
       /* Parse the optional parameter list.  Optional Objective-C
 	 method parameters follow the C syntax, and may include '...'
 	 to denote a variable number of arguments.  */
@@ -6183,6 +6715,12 @@ c_parser_objc_method_decl (c_parser *parser)
 	    {
 	      ellipsis = true;
 	      c_parser_consume_token (parser);
+	      /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 y) */
+	      if (objc_method_attributes)
+		error ("method attributes must be specified at the end only");
+	      if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+		objc_method_attributes = c_parser_attributes (parser);
+	      /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 y) */
 	      break;
 	    }
 	  parm = c_parser_parameter_declaration (parser, NULL_TREE);
@@ -6193,6 +6731,21 @@ c_parser_objc_method_decl (c_parser *parser)
 	}
       sel = list;
     }
+  /* APPLE LOCAL begin radar 3803157 - objc attribute (in 4.2 y) */
+  else
+    {
+      gcc_assert (objc_method_attributes == NULL_TREE);
+      if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+	objc_method_attributes = c_parser_attributes (parser);
+    }
+  /* APPLE LOCAL end radar 3803157 - objc attribute (in 4.2 y) */
+  /* APPLE LOCAL begin radar 4157812 */
+  if (sel == NULL)
+    {
+      c_parser_error (parser, "objective-c method declaration is expected");
+      return error_mark_node;
+    }
+  /* APPLE LOCAL end radar 4157812 */
   return objc_build_method_signature (type, sel, parms, ellipsis);
 }
 
@@ -6227,7 +6780,8 @@ c_parser_objc_type_name (c_parser *parser)
 	      || token->keyword == RID_BYREF
 	      || token->keyword == RID_ONEWAY))
 	{
-	  quals = chainon (quals, build_tree_list (NULL_TREE, token->value));
+	  /* APPLE LOCAL radar 4301047 (in 4.2 z) */
+	  quals = chainon (build_tree_list (NULL_TREE, token->value), quals);
 	  c_parser_consume_token (parser);
 	}
       else
@@ -6301,14 +6855,26 @@ c_parser_objc_try_catch_statement (c_parser *parser)
       c_parser_consume_token (parser);
       if (!c_parser_require (parser, CPP_OPEN_PAREN, "expected %<(%>"))
 	break;
-      parm = c_parser_parameter_declaration (parser, NULL_TREE);
-      if (parm == NULL)
+      /* APPLE LOCAL begin radar 2848255 */
+      if (c_parser_next_token_is (parser, CPP_ELLIPSIS))
 	{
-	  c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, NULL);
-	  break;
+	  /* @catch (...) */
+	  c_parser_consume_token (parser);
+	   c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, "expected %<)%>");
+	   objc_begin_catch_clause (NULL_TREE);
 	}
-      c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, "expected %<)%>");
-      objc_begin_catch_clause (grokparm (parm));
+      else
+	{
+	   parm = c_parser_parameter_declaration (parser, NULL_TREE);
+	   if (parm == NULL)
+	    {
+	      c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, NULL);
+	      break;
+	    }
+	   c_parser_skip_until_found (parser, CPP_CLOSE_PAREN, "expected %<)%>");
+	   objc_begin_catch_clause (grokparm (parm));
+	}
+      /* APPLE LOCAL end radar 2848255 */
       if (c_parser_require (parser, CPP_OPEN_BRACE, "expected %<{%>"))
 	c_parser_compound_statement_nostart (parser);
       objc_finish_catch_clause ();
@@ -6324,6 +6890,26 @@ c_parser_objc_try_catch_statement (c_parser *parser)
     }
   objc_finish_try_stmt ();
 }
+
+/* APPLE LOCAL begin radar 5982990 */
+/* This routine is called from c_parser_objc_synchronized_statement
+   and is identical to c_parser_compound_statement with
+   the addition of volatizing local variables seen in the scope
+   of @synchroniz block.
+*/
+static tree
+c_parser_objc_synch_compound_statement (c_parser *parser)
+{
+  tree stmt;
+  if (!c_parser_require (parser, CPP_OPEN_BRACE, "expected %<{%>"))
+    return error_mark_node;
+  stmt = c_begin_compound_stmt (true);
+  c_parser_compound_statement_nostart (parser);
+  if (flag_objc_sjlj_exceptions)
+    objc_mark_locals_volatile (NULL);
+  return c_end_compound_stmt (stmt, true);
+}
+/* APPLE LOCAL end radar 5982990 */
 
 /* Parse an objc-synchronized-statement.
 
@@ -6346,7 +6932,8 @@ c_parser_objc_synchronized_statement (c_parser *parser)
     }
   else
     expr = error_mark_node;
-  stmt = c_parser_compound_statement (parser);
+  /* APPLE LOCAL radar 5982990 */
+  stmt = c_parser_objc_synch_compound_statement (parser);
   objc_build_synchronized (loc, expr, stmt);
 }
 
@@ -7433,7 +8020,8 @@ c_parser_omp_for_loop (c_parser *parser)
   /* Parse the initialization declaration or expression.  */
   if (c_parser_next_token_starts_declspecs (parser))
     {
-      c_parser_declaration_or_fndef (parser, true, true, true, true);
+      /* APPLE LOCAL radar 4708210 (for_objc_collection in 4.2) */
+      c_parser_declaration_or_fndef (parser, true, true, true, true, NULL);
       decl = check_for_loop_decls ();
       if (decl == NULL)
 	goto error_init;
@@ -7901,5 +8489,981 @@ c_parse_file (void)
   c_parser_translation_unit (the_parser);
   the_parser = NULL;
 }
+
+/* APPLE LOCAL begin radar 5732232 - blocks (C++ ce) */
+
+/* APPLE LOCAL begin radar 6300081  */
+
+/* This function builds a "generic" block struct type, to be passed 
+   into the debug information for blocks pointers, to allow gdb to
+   find the actual function pointer for the block.  Any time the Blocks
+   structure layout changes, this may also need to change.
+
+   Currently a block pointer is a pointer to a __block_literal_n struct,
+   the third field of which is a pointer to a __block_descriptor struct,
+   whose third field is the function pointer.  There are other fields as
+   well, but these are the ones gdb needs to know about to find the
+   function pointer.  Therefore a generic block struct currently looks
+   like this:
+
+   struct __block_literal_generic 
+   {
+      void * __isa;
+      int __flags;
+      int __reserved;
+      void (*__FuncPtr)(void *);
+      struct __block_descriptor 
+	 {
+	   unsigned long int reserved;
+	  unsigned long int Size;
+	} *__descriptor;
+   };
+
+   IF AT ANY TIME THE STRUCTURE OF A __BLOCK_LITERAL_N CHANGES, THIS
+   MUST BE CHANGED ALSO!!
+
+*/
+
+tree
+/* APPLE LOCAL radar 6353006  */
+c_build_generic_block_struct_type (void)
+{
+  tree field_decl_chain;
+  tree field_decl;
+  tree block_struct_type;
+
+  push_to_top_level ();
+  block_struct_type = start_struct (RECORD_TYPE, 
+				   get_identifier ("__block_literal_generic"));
+  
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__isa"), ptr_type_node);
+  field_decl_chain = field_decl;
+
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__flags"),
+			   integer_type_node);
+  chainon (field_decl_chain, field_decl);
+
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__reserved"),
+			   integer_type_node);
+  chainon (field_decl_chain, field_decl);
+  
+  /* void *__FuncPtr; */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__FuncPtr"), ptr_type_node);
+  chainon (field_decl_chain, field_decl);
+
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__descriptor"),
+			   build_block_descriptor_type (false));
+  chainon (field_decl_chain, field_decl);
+
+  TYPE_BLOCK_IMPL_STRUCT (block_struct_type) = 1;
+  finish_struct (block_struct_type, field_decl_chain, NULL_TREE);
+  pop_from_top_level ();
+  return block_struct_type;
+}
+/* APPLE LOCAL end radar 6300081  */
+
+/* APPLE LOCAL begin radar 5847213 - radar 6329245 */
+/** build_block_struct_type -
+ struct __block_literal_n {
+  void *__isa; // initialized to &_NSConcreteStackBlock or &_NSConcreteGlobalBlock
+  int __flags;
+  int __reserved;
+  void *__FuncPtr;
+  struct __block_descriptor {
+    unsigned long int reserved;     // NULL
+    unsigned long int Size;  // sizeof(struct __block_literal_n)
+ 
+    // optional helper functions
+    void *CopyFuncPtr; // When BLOCK_HAS_COPY_DISPOSE
+    void *DestroyFuncPtr; // When BLOCK_HAS_COPY_DISPOSE 
+ } *__descriptor;
+ 
+ // imported variables
+ int x; // ref variable list ...
+ int *y; // byref variable list
+ };
+*/
+static tree
+build_block_struct_type (struct block_sema_info * block_impl)
+{
+  tree field_decl_chain, field_decl, chain;
+  char buffer[32];
+  static int unique_count;
+  tree block_struct_type;
+
+  /* Check and see if this block is required to have a Copy/Dispose
+     helper function. If yes, set BlockHasCopyDispose to TRUE. */
+  for (chain = block_impl->block_ref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    if (block_requires_copying (TREE_VALUE (chain)))
+    {
+      block_impl->BlockHasCopyDispose = TRUE;
+      break;
+    }
+
+  /* Further check to see that we have __block variables which require
+     Copy/Dispose helpers. */
+  for (chain = block_impl->block_byref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    if (COPYABLE_BYREF_LOCAL_VAR (TREE_VALUE (chain)))
+      {
+	block_impl->BlockHasCopyDispose = TRUE;
+	break;
+      }
+
+  sprintf(buffer, "__block_literal_%d", ++unique_count);
+  push_to_top_level ();
+  block_struct_type = start_struct (RECORD_TYPE, get_identifier (buffer));
+  
+  /* void *__isa; */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__isa"), ptr_type_node);
+  field_decl_chain = field_decl;
+  
+  /* int __flags */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__flags"),
+			   integer_type_node);
+  chainon (field_decl_chain, field_decl);
+
+  /* int __reserved */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__reserved"),
+			   integer_type_node);
+  chainon (field_decl_chain, field_decl);
+  
+  /* void *__FuncPtr; */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__FuncPtr"), ptr_type_node);
+  chainon (field_decl_chain, field_decl);
+
+  /* struct __block_descriptor *__descriptor */
+  field_decl = build_decl (FIELD_DECL, get_identifier ("__descriptor"),
+			    build_block_descriptor_type (block_impl->BlockHasCopyDispose));
+  chainon (field_decl_chain, field_decl);
+  
+  if (block_impl->BlockHasCopyDispose)
+  {
+    /* If inner block of a nested block has BlockHasCopyDispose, so
+	does its outer block. */
+    if (block_impl->prev_block_info)
+      block_impl->prev_block_info->BlockHasCopyDispose = TRUE;
+  }
+
+  /* int x; // ref variable list ... */
+  for (chain = block_impl->block_ref_decl_list; chain; chain = TREE_CHAIN (chain))
+  {
+    tree p = TREE_VALUE (chain);
+    /* Note! const-ness of copied in variable must not be carried over to the
+	type of the synthesized struct field. It prevents to assign to this
+	field when copy constructor is synthesized. */
+    field_decl = build_decl (FIELD_DECL, DECL_NAME (p),
+			     c_build_qualified_type (TREE_TYPE (p),
+			                             TYPE_UNQUALIFIED));
+    chainon (field_decl_chain, field_decl);
+  }
+
+  /* int *y; // byref variable list */
+  for (chain = block_impl->block_byref_decl_list; chain; chain = TREE_CHAIN (chain))
+  {
+    tree p = TREE_VALUE (chain);
+    field_decl = build_decl (FIELD_DECL, DECL_NAME (p),
+			     TREE_TYPE (p));
+    chainon (field_decl_chain, field_decl);
+  }
+  pop_from_top_level ();
+  finish_struct (block_struct_type, field_decl_chain, NULL_TREE);
+  return block_struct_type;
+}
+
+/** build_descriptor_block_decl -
+  This routine builds a static block_descriptior variable of type:
+  struct __block_descriptor; and initializes it to:
+  {0, sizeof(struct literal_block_n), 
+   copy_helper_block_1, // only if block BLOCK_HAS_COPY_DISPOSE
+   destroy_helper_block_1, // only if block BLOCK_HAS_COPY_DISPOSE
+  }
+*/
+static tree
+build_descriptor_block_decl (tree block_struct_type, struct block_sema_info *block_impl)
+{
+  extern tree create_tmp_var_raw (tree, const char *);
+  static int desc_unique_count;
+  int size;
+  tree helper_addr, fields;
+  tree decl, constructor, initlist;
+  tree exp, bind;
+  char name [32];
+  tree descriptor_type =  
+    TREE_TYPE (build_block_descriptor_type (block_impl->BlockHasCopyDispose));
+
+  sprintf (name, "__block_descriptor_tmp_%d", ++desc_unique_count);
+  decl = create_tmp_var_raw (descriptor_type, name);
+  DECL_CONTEXT (decl) = NULL_TREE;
+  DECL_ARTIFICIAL (decl) = 1;
+
+  /* Initialize "reserved" field to 0 for now. */
+  fields = TYPE_FIELDS (descriptor_type);
+  initlist = build_tree_list (fields, build_int_cst (long_unsigned_type_node, 0));
+  fields = TREE_CHAIN (fields);
+  
+  /* Initialize "Size" field. */
+  size = TREE_INT_CST_LOW (TYPE_SIZE_UNIT (block_struct_type));
+  initlist = tree_cons (fields,
+			build_int_cst (long_unsigned_type_node, size),
+			initlist);
+
+  if (block_impl->BlockHasCopyDispose)
+    {
+      /* Initialize "CopyFuncPtr" and "DestroyFuncPtr" fields. */
+      /* Helpers were previously generated completeley as a nested
+	 function (and context was required for code gen.) But they are not, 
+	 so context must be set to NULL so initialization logic does not complain. */
+      DECL_CONTEXT (block_impl->copy_helper_func_decl) = NULL_TREE;
+      fields = TREE_CHAIN (fields);
+      helper_addr = build_fold_addr_expr (block_impl->copy_helper_func_decl);
+      helper_addr = convert (ptr_type_node, helper_addr);
+      initlist = tree_cons (fields, helper_addr, initlist);
+      DECL_CONTEXT (block_impl->destroy_helper_func_decl) = NULL_TREE;
+      fields = TREE_CHAIN (fields);
+      helper_addr = build_fold_addr_expr (block_impl->destroy_helper_func_decl);
+      helper_addr = convert (ptr_type_node, helper_addr);
+      initlist = tree_cons (fields, helper_addr, initlist);
+    }
+  constructor = build_constructor_from_list (descriptor_type,
+			                     nreverse (initlist));
+  TREE_CONSTANT (constructor) = 1;
+  TREE_STATIC (constructor) = 1;
+  TREE_READONLY (constructor) = 1;
+  DECL_INITIAL (decl) = constructor;
+  exp = build_stmt (DECL_EXPR, decl);
+  bind = build3 (BIND_EXPR, void_type_node, decl, exp, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+  TREE_PUBLIC (decl) = 0;
+  TREE_STATIC (decl) = 1;
+  finish_decl (decl, constructor, NULL_TREE);
+  return decl;
+}
+
+/**
+ build_block_struct_initlist - builds the initializer list:
+ { &_NSConcreteStackBlock or &_NSConcreteGlobalBlock // __isa,
+   BLOCK_USE_STRET | BLOCK_HAS_COPY_DISPOSE | BLOCK_IS_GLOBAL // __flags,
+   0, // __reserved
+   &helper_1, // __FuncPtr,
+   &static_descriptor_variable // __descriptor,
+   x, // user variables.
+   &y
+   ...
+ }
+*/
+static tree
+build_block_struct_initlist (tree block_struct_type,
+			     struct block_sema_info *block_impl)
+{
+  tree initlist, helper_addr;
+  tree chain, fields;
+  /* APPLE LOCAL radar 7735196 */
+  unsigned int flags = 0;
+  static tree NSConcreteStackBlock_decl = NULL_TREE;
+  static tree NSConcreteGlobalBlock_decl = NULL_TREE;
+  tree descriptor_block_decl = build_descriptor_block_decl (block_struct_type, block_impl);
+
+  if (block_impl->BlockHasCopyDispose)
+    /* Note! setting of this flag merely indicates to the runtime that
+	we have destroy_helper_block/copy_helper_block helper
+	routines. */
+    flags |= BLOCK_HAS_COPY_DISPOSE;
+  /* APPLE LOCAL begin radar 7735196 */
+  if (block_impl->return_type && aggregate_value_p(block_impl->return_type, 0))
+    flags |= BLOCK_USE_STRET;
+  /* APPLE LOCAL end 7735196 */
+
+  fields = TYPE_FIELDS (block_struct_type);
+  /* APPLE LOCAL begin radar 6230297 */
+  if (!current_function_decl || 
+      (block_impl->block_ref_decl_list == NULL_TREE &&
+	block_impl->block_byref_decl_list == NULL_TREE))
+  /* APPLE LOCAL end radar 6230297 */
+    {
+      /* This is a global block. */
+      /* Find an existing declaration for _NSConcreteGlobalBlock or declare
+	 extern void *_NSConcreteGlobalBlock; */
+      if (NSConcreteGlobalBlock_decl == NULL_TREE)
+	{
+	  tree name_id = get_identifier("_NSConcreteGlobalBlock");
+	  NSConcreteGlobalBlock_decl = lookup_name (name_id);
+	  if (!NSConcreteGlobalBlock_decl)
+	    {
+	      NSConcreteGlobalBlock_decl = build_decl (VAR_DECL, name_id, ptr_type_node);
+	      DECL_EXTERNAL (NSConcreteGlobalBlock_decl) = 1;
+	      TREE_PUBLIC (NSConcreteGlobalBlock_decl) = 1;
+	      pushdecl_top_level (NSConcreteGlobalBlock_decl);
+	      rest_of_decl_compilation (NSConcreteGlobalBlock_decl, 0, 0);
+	    }
+	}
+      /* APPLE LOCAL begin radar 6457359 */
+      initlist = build_tree_list (fields,
+			          convert (ptr_type_node,
+			                   build_fold_addr_expr (NSConcreteGlobalBlock_decl)));
+      /* APPLE LOCAL end radar 6457359 */
+      flags |= BLOCK_IS_GLOBAL;
+    }
+  else
+    {
+      /* Find an existing declaration for _NSConcreteStackBlock or declare
+	 extern void *_NSConcreteStackBlock; */
+      if (NSConcreteStackBlock_decl == NULL_TREE)
+	{
+	  tree name_id = get_identifier("_NSConcreteStackBlock");
+	  NSConcreteStackBlock_decl = lookup_name (name_id);
+	  if (!NSConcreteStackBlock_decl)
+	    {
+	      NSConcreteStackBlock_decl = build_decl (VAR_DECL, name_id, ptr_type_node);
+	      DECL_EXTERNAL (NSConcreteStackBlock_decl) = 1;
+	      TREE_PUBLIC (NSConcreteStackBlock_decl) = 1;
+	      pushdecl_top_level (NSConcreteStackBlock_decl);
+	      rest_of_decl_compilation (NSConcreteStackBlock_decl, 0, 0);
+	    }
+	}
+      /* APPLE LOCAL begin radar 6457359 */
+      initlist = build_tree_list (fields,
+			          convert (ptr_type_node,
+			                   build_fold_addr_expr (NSConcreteStackBlock_decl)));
+      /* APPLE LOCAL end radar 6457359 */
+    }
+  fields = TREE_CHAIN (fields);
+
+  /* __flags */
+  initlist = tree_cons (fields,
+			build_int_cst (integer_type_node, flags),
+			initlist);
+  fields = TREE_CHAIN (fields);
+
+  /* __reserved */
+  initlist = tree_cons (fields,
+			build_int_cst (integer_type_node, 0),
+			initlist);
+  fields = TREE_CHAIN (fields);
+
+  /* __FuncPtr */
+  helper_addr = build_fold_addr_expr (block_impl->helper_func_decl);
+  helper_addr = convert (ptr_type_node, helper_addr);
+  initlist = tree_cons (fields, helper_addr, initlist);
+  fields = TREE_CHAIN (fields);
+
+  /* __descriptor */
+  /* APPLE LOCAL begin radar 6457359 */
+  initlist = tree_cons (fields,
+			build_fold_addr_expr (descriptor_block_decl),
+			initlist);
+  /* APPLE LOCAL end radar 6457359 */
+  for (chain = block_impl->block_original_ref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    {
+      tree y = TREE_VALUE (chain);
+      TREE_USED (y) = 1;
+      fields = TREE_CHAIN (fields);
+      initlist = tree_cons (fields, y, initlist);
+    }
+  for (chain = block_impl->block_byref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    {
+      tree y = lookup_name (DECL_NAME (TREE_VALUE (chain)));
+      tree forwarding_expr;
+      gcc_assert (y);
+      TREE_USED (y) = 1;
+      if (COPYABLE_BYREF_LOCAL_VAR (y))
+	 {
+	  /* For variables declared __block, either the original one
+	     at the point of declaration or the imported version (which is
+	     initialized in the helper function's prologue) is used to 
+	     initilize the byref variable field in the temporary. */
+	   if (TREE_CODE (TREE_TYPE (y)) != RECORD_TYPE)
+	     y = build_indirect_ref (y, "unary *");
+	  /* We will be using the __block_struct_variable.__forwarding as the 
+	     initializer. */
+	   forwarding_expr = build_component_ref (y, get_identifier ("__forwarding"));
+	 }
+      else
+	/* Global variable is always assumed passed by its address. */
+	forwarding_expr = build_fold_addr_expr (y);
+      fields = TREE_CHAIN (fields);
+      initlist = tree_cons (fields, forwarding_expr, initlist);
+    }
+  return initlist;
+}
+
+/**
+ build_block_literal_tmp - This routine:
+
+ 1) builds block type:
+ struct __block_literal_n {
+  void *__isa; // initialized to &_NSConcreteStackBlock or &_NSConcreteGlobalBlock
+  int __flags;
+  int __reserved;
+  void *__FuncPtr
+  struct __block_descriptor {
+    unsigned long int reserved;     // NULL
+    unsigned long int Size;  // sizeof(struct Block_literal_1)
+
+    // optional helper functions
+    void *CopyFuncPtr; // When BLOCK_HAS_COPY_DISPOSE
+    void *DestroyFuncPtr; // When BLOCK_HAS_COPY_DISPOSE
+ } *__descriptor;
+
+ // imported variables
+ int x; // ref variable list ...
+ int *y; // byref variable list
+ };
+
+ 2) build function prototype:
+ double helper_1(struct __block_literal_n *ii, int z);
+
+ 3) build the temporary initialization:
+ struct __block_literal_n I = {
+   &_NSConcreteStackBlock or &_NSConcreteGlobalBlock // __isa,
+   BLOCK_USE_STRET | BLOCK_HAS_COPY_DISPOSE | BLOCK_IS_GLOBAL // __flags,
+   0, // __reserved
+   &helper_1, // __FuncPtr 
+   &static_descriptor_variable // __descriptor,
+   x, // user variables.
+   &y
+   ...
+ };
+It return the temporary.
+*/
+
+static tree
+build_block_literal_tmp (const char *name,
+			 struct block_sema_info * block_impl)
+{
+  extern tree create_tmp_var_raw (tree, const char *);
+  tree block_holder_tmp_decl;
+  tree constructor, initlist;
+  tree exp, bind;
+  tree block_struct_type = TREE_TYPE (block_impl->block_arg_ptr_type);
+  /* APPLE LOCAL begin radar 6230297 */
+  bool staticBlockTmp = (block_impl->block_ref_decl_list == NULL_TREE &&
+			  block_impl->block_byref_decl_list == NULL_TREE);
+
+
+  block_holder_tmp_decl = create_tmp_var_raw (block_struct_type, name);
+  /* Context will not be known until when the literal is synthesized.
+     This is more so in the case of nested block literal blocks.  */
+  DECL_CONTEXT (block_holder_tmp_decl) = staticBlockTmp ? NULL_TREE 
+			                                 : current_function_decl;
+  /* In the new ABI, helper function decl. is the initializer for the
+     descriptor variable which is always declared static. So, it must
+     have no context; otherwise, gcc thinks that it requires trampoline! when
+     address of this function is used as initializer. */
+  DECL_CONTEXT (block_impl->helper_func_decl) = NULL_TREE;
+  /* APPLE LOCAL end radar 6230297 */
+  DECL_ARTIFICIAL (block_holder_tmp_decl) = 1;
+
+  initlist = build_block_struct_initlist (block_struct_type,
+					  block_impl);
+  initlist = nreverse (initlist);
+  constructor = build_constructor_from_list (block_struct_type,
+			                      initlist);
+  TREE_CONSTANT (constructor) = 1;
+  TREE_STATIC (constructor) = 1;
+  TREE_READONLY (constructor) = 1;
+  DECL_INITIAL (block_holder_tmp_decl) = constructor;
+  exp = build_stmt (DECL_EXPR, block_holder_tmp_decl);
+  bind = build3 (BIND_EXPR, void_type_node, block_holder_tmp_decl, exp, NULL);
+  TREE_SIDE_EFFECTS (bind) = 1;
+  add_stmt (bind);
+  /* Temporary representing a global block is made global static.  */
+  /* APPLE LOCAL radar 6230297 */
+  if (staticBlockTmp || global_bindings_p ()) {
+    TREE_PUBLIC (block_holder_tmp_decl) = 0;
+    TREE_STATIC (block_holder_tmp_decl) = 1;
+    finish_decl (block_holder_tmp_decl, constructor, NULL_TREE);
+  }
+  return block_holder_tmp_decl;
+}
+/* APPLE LOCAL end radar 5847213 - radar 6329245 */
+
+static tree
+clean_and_exit (tree block)
+{
+  pop_function_context ();
+  free (finish_block (block));
+  return error_mark_node;
+}
+
+/** synth_copy_helper_block_func - This function synthesizes
+  void copy_helper_block (struct block* _dest, struct block *_src) function.
+*/
+
+static void
+synth_copy_helper_block_func (struct block_sema_info * block_impl)
+{
+  tree stmt, chain, fnbody;
+  tree dst_arg, src_arg;
+  struct c_arg_info * arg_info;
+  /* Set up: (struct block* _dest, struct block *_src) parameters. */
+  dst_arg = build_decl (PARM_DECL, get_identifier ("_dst"),
+			 block_impl->block_arg_ptr_type);
+  DECL_CONTEXT (dst_arg) = cur_block->copy_helper_func_decl;
+  TREE_USED (dst_arg) = 1;
+  DECL_ARG_TYPE (dst_arg) = block_impl->block_arg_ptr_type;
+  src_arg = build_decl (PARM_DECL, get_identifier ("_src"),
+			 block_impl->block_arg_ptr_type);
+  /* APPLE LOCAL radar 5847213 */
+  DECL_CONTEXT (src_arg) = cur_block->copy_helper_func_decl;
+  TREE_USED (src_arg) = 1;
+  DECL_ARG_TYPE (src_arg) = block_impl->block_arg_ptr_type;
+  arg_info = xcalloc (1, sizeof (struct c_arg_info));
+  TREE_CHAIN (dst_arg) = src_arg;
+  arg_info->parms = dst_arg;
+  arg_info->types = tree_cons (NULL_TREE, block_impl->block_arg_ptr_type,
+			        tree_cons (NULL_TREE,
+			                   block_impl->block_arg_ptr_type,
+			                   NULL_TREE));
+  /* function header synthesis. */
+  push_function_context ();
+  start_block_helper_function (cur_block->copy_helper_func_decl);
+  store_parm_decls_from (arg_info);
+
+  /* Body of the function. */
+  stmt = c_begin_compound_stmt (true);
+  for (chain = block_impl->block_ref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    if (block_requires_copying (TREE_VALUE (chain)))
+    {
+      /* APPLE LOCAL begin radar 6175959 */
+      int flag;
+      tree call_exp;
+      tree p = TREE_VALUE (chain);
+      tree dst_block_component, src_block_component;
+      dst_block_component = build_component_ref (build_indirect_ref (dst_arg, "->"),
+						 DECL_NAME (p));
+      src_block_component = build_component_ref (build_indirect_ref (src_arg, "->"),
+						 DECL_NAME (p));
+
+      if (TREE_CODE (TREE_TYPE (p)) == BLOCK_POINTER_TYPE)
+	 /* _Block_object_assign(&_dest->myImportedBlock, _src->myImportedClosure, BLOCK_FIELD_IS_BLOCK) */
+	 flag = BLOCK_FIELD_IS_BLOCK;
+      else
+	 /* _Block_object_assign(&_dest->myImportedBlock, _src->myImportedClosure, BLOCK_FIELD_IS_OBJECT) */
+	 flag = BLOCK_FIELD_IS_OBJECT;
+      dst_block_component = build_fold_addr_expr (dst_block_component);
+      call_exp = build_block_object_assign_call_exp (dst_block_component, src_block_component, flag);
+      add_stmt (call_exp);
+      /* APPLE LOCAL end radar 6175959 */
+    }
+
+  /* For each __block declared variable must generate call to:
+     _Block_object_assign(&_dest->myImportedBlock, _src->myImportedBlock, BLOCK_FIELD_IS_BYREF [|BLOCK_FIELD_IS_WEAK])
+  */
+  for (chain = block_impl->block_byref_decl_list; chain;
+	  chain = TREE_CHAIN (chain))
+    if (COPYABLE_BYREF_LOCAL_VAR (TREE_VALUE (chain)))
+      {
+	 int flag = BLOCK_FIELD_IS_BYREF;
+	tree call_exp;
+	tree p = TREE_VALUE (chain);
+	tree dst_block_component, src_block_component;
+	dst_block_component = build_component_ref (build_indirect_ref (dst_arg, "->"),
+						   DECL_NAME (p));
+	src_block_component = build_component_ref (build_indirect_ref (src_arg, "->"),
+						   DECL_NAME (p));
+
+	/* _Block_object_assign(&_dest->myImportedClosure, _src->myImportedClosure, BLOCK_FIELD_IS_BYREF [|BLOCK_FIELD_IS_WEAK]) */
+	 if (COPYABLE_WEAK_BLOCK (p))
+	  flag |= BLOCK_FIELD_IS_WEAK;
+	 
+	dst_block_component = build_fold_addr_expr (dst_block_component);
+	call_exp = build_block_object_assign_call_exp (dst_block_component, src_block_component, flag);
+	add_stmt (call_exp);
+      }
+
+  fnbody = c_end_compound_stmt (stmt, true);
+  add_stmt (fnbody);
+  finish_function ();
+  pop_function_context ();
+  free (arg_info);
+}
+
+static void
+synth_destroy_helper_block_func (struct block_sema_info * block_impl)
+{
+  tree stmt, chain, fnbody;
+  tree src_arg;
+  struct c_arg_info * arg_info;
+  /* Set up: (struct block *_src) parameter. */
+  src_arg = build_decl (PARM_DECL, get_identifier ("_src"),
+			 block_impl->block_arg_ptr_type);
+  TREE_USED (src_arg) = 1;
+  DECL_ARG_TYPE (src_arg) = block_impl->block_arg_ptr_type;
+  arg_info = xcalloc (1, sizeof (struct c_arg_info));
+  arg_info->parms = src_arg;
+  arg_info->types = tree_cons (NULL_TREE, block_impl->block_arg_ptr_type,
+			        NULL_TREE);
+
+  /* function header synthesis. */
+  push_function_context ();
+  start_block_helper_function (cur_block->destroy_helper_func_decl);
+  store_parm_decls_from (arg_info);
+
+  /* Body of the function. */
+  stmt = c_begin_compound_stmt (true);
+  for (chain = block_impl->block_ref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    if (block_requires_copying (TREE_VALUE (chain)))
+    {
+      int flag;
+      tree rel_exp;
+      tree p = TREE_VALUE (chain);
+      tree src_block_component;
+      src_block_component = build_component_ref (build_indirect_ref (src_arg, "->"),
+						 DECL_NAME (p));
+
+      if (TREE_CODE (TREE_TYPE (p)) == BLOCK_POINTER_TYPE)
+	/* _Block_object_dispose(_src->imported_object_0, BLOCK_FIELD_IS_BLOCK); */
+	 flag = BLOCK_FIELD_IS_BLOCK;
+      else
+	/* _Block_object_dispose(_src->imported_object_0, BLOCK_FIELD_IS_OBJECT); */
+	flag = BLOCK_FIELD_IS_OBJECT;
+      rel_exp = build_block_object_dispose_call_exp (src_block_component, flag);
+      add_stmt (rel_exp);
+    }
+
+  /* For each __block declared variable must generate call to:
+   _Block_object_dispose(_src->myImportedClosure, BLOCK_FIELD_IS_BYREF[|BLOCK_FIELD_IS_WEAK])
+   */
+  for (chain = block_impl->block_byref_decl_list; chain;
+	chain = TREE_CHAIN (chain))
+    if (COPYABLE_BYREF_LOCAL_VAR (TREE_VALUE (chain)))
+      {
+	tree call_exp;
+	 int flag = BLOCK_FIELD_IS_BYREF;
+	tree p = TREE_VALUE (chain);
+	tree src_block_component;
+
+	src_block_component = build_component_ref (build_indirect_ref (src_arg, "->"),
+						   DECL_NAME (p));
+	 if (COPYABLE_WEAK_BLOCK (p))
+	   flag |= BLOCK_FIELD_IS_WEAK;
+      /* _Block_object_dispose(_src->myImportedClosure, BLOCK_FIELD_IS_BYREF[|BLOCK_FIELD_IS_WEAK]) */
+      call_exp = build_block_object_dispose_call_exp (src_block_component, flag);
+      add_stmt (call_exp);
+    }
+
+  fnbody = c_end_compound_stmt (stmt, true);
+  add_stmt (fnbody);
+  finish_function ();
+  pop_function_context ();
+  free (arg_info);
+}
+
+/* Parse a block-id.
+
+   GNU Extension:
+
+   block-id:
+     specifier-qualifier-list block-declarator
+
+   Returns the DECL specified or implied.  */
+
+static tree
+c_parser_block_id (c_parser* parser)
+{
+  struct c_declspecs *specs = build_null_declspecs ();
+  struct c_declarator *declarator;
+  bool dummy = false;
+
+  c_parser_declspecs (parser, specs, false, true, true);
+  if (!specs->declspecs_seen_p)
+    {
+      c_parser_error (parser, "expected specifier-qualifier-list");
+      return NULL;
+    }
+  pending_xref_error ();
+  finish_declspecs (specs);
+  declarator = c_parser_declarator (parser, specs->type_seen_p,
+				    C_DTR_BLOCK, &dummy);
+  if (declarator == NULL)
+    return NULL;
+
+  return grokblockdecl (specs, declarator);
+}
+
+/* Parse a block-literal-expr.
+
+   GNU Extension:
+
+  block-literal-expr:
+    ^ parameter-declation-clause exception-specification [opt] compound-statement
+    ^ block-id compound-statement
+
+    It synthesizes the helper function for later generation and builds
+    the necessary data to represent the block literal where it is
+    declared.  */
+static tree
+c_parser_block_literal_expr (c_parser* parser)
+{
+  char name [32];
+  static int global_unique_count;
+  int unique_count = ++global_unique_count;
+  tree block_helper_function_decl;
+  tree expr, body, type, arglist = void_list_node, ftype;
+  tree self_arg, stmt;
+  struct c_arg_info *args = NULL;
+  tree arg_type = void_list_node;
+  struct block_sema_info *block_impl;
+  tree tmp;
+  bool open_paren_seen = false;
+  tree restype;
+  tree fnbody, typelist;
+  tree helper_function_type;
+  tree block;
+  /* APPLE LOCAL radar 6185344 */
+  tree declared_block_return_type = NULL_TREE;
+  /* APPLE LOCAL radar 6237713 */
+  tree attributes = NULL_TREE;
+
+  c_parser_consume_token (parser); /* eat '^' */
+
+  /* APPLE LOCAL begin radar 6237713 */
+  if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+    attributes = c_parser_attributes (parser);
+  /* APPLE LOCAL end radar 6237713 */
+  
+  if (c_parser_next_token_is (parser, CPP_OPEN_PAREN))
+    {
+      /* Parse the optional argument list */
+      c_parser_consume_token (parser);
+      /* Open the scope to collect parameter decls */
+      push_scope ();
+      args = c_parser_parms_declarator (parser, true, NULL_TREE);
+      /* Check for args as it might be NULL due to error. */
+      if (args)
+	{
+	  arglist = args->parms;
+	  arg_type = args->types;
+	}
+      else
+	{
+	  pop_scope ();
+	  return error_mark_node;
+	}
+      open_paren_seen = true;
+      pop_scope ();
+    }
+  else if (c_parser_next_token_is_not (parser, CPP_OPEN_BRACE))
+    {
+      /* Parse user declared return type. */
+      tree decl;
+    
+      /* APPLE LOCAL begin radar 6237713 */
+      if (attributes)
+	{
+	  warning (0, "attributes before block type are ignored");
+	  attributes = NULL_TREE;
+	}
+      /* APPLE LOCAL end radar 6237713 */    
+
+      decl = c_parser_block_id (parser);
+
+      if (decl && decl != error_mark_node)
+	{
+	  arg_type = TYPE_ARG_TYPES (TREE_TYPE (decl));
+	  arglist = DECL_ARGUMENTS (decl);
+	  declared_block_return_type = TREE_TYPE (TREE_TYPE (decl));
+	}
+    }
+
+  block = begin_block ();
+
+  cur_block->arg_info = NULL;
+  if (declared_block_return_type)
+    {
+      cur_block->return_type = TYPE_MAIN_VARIANT (declared_block_return_type);
+      cur_block->block_has_return_type = true;
+  }
+  else
+    cur_block->return_type = NULL_TREE;
+
+  if (args)
+    cur_block->arg_info = args;
+  else
+    cur_block->arg_info = xcalloc (1, sizeof (struct c_arg_info));
+
+  if (declared_block_return_type)
+    {
+      cur_block->arg_info->parms = arglist;
+      cur_block->arg_info->types = arg_type;
+    }
+
+  /* Must also build hidden parameter .block_descriptor added to the helper
+   function, even though we do not know its type yet. */
+  /* APPLE LOCAL radar 6404979 */
+  self_arg = build_decl (PARM_DECL, get_identifier (".block_descriptor"),
+			  ptr_type_node);
+  TREE_USED (self_arg) = 1;  /* Prevent unused parameter '.block_descriptor' warning. */
+  TREE_CHAIN (self_arg) = cur_block->arg_info->parms;
+  cur_block->arg_info->types = tree_cons (NULL_TREE, ptr_type_node, arg_type);
+  cur_block->arg_info->parms = self_arg;
+
+  /* APPLE LOCAL begin radar 6185344 */
+  /* Build the declaration of the helper function (if we do not know its result
+     type yet, assume it is 'void'. If user provided it, use it).
+     Treat this as a nested function and use nested function infrastructure for
+     its generation. */
+
+  ftype = build_function_type ((!cur_block->block_has_return_type
+			         ? void_type_node : cur_block->return_type),
+			        cur_block->arg_info->types);
+  /* APPLE LOCAL end radar 6185344 */
+  /* APPLE LOCAL radar 6160536 - radar 6411649 */
+  block_helper_function_decl = build_helper_func_decl (build_block_helper_name (0),
+			                                  ftype);
+  DECL_CONTEXT (block_helper_function_decl) = current_function_decl;
+  cur_block->helper_func_decl = block_helper_function_decl;
+
+  push_function_context ();
+  start_block_helper_function (cur_block->helper_func_decl);
+  /* Set block's scope to the scope of the helper function's main body.
+     This is primarily used when nested blocks are declared. */
+  /* FIXME: Name of objc_get_current_scope needs to get changed. */
+  cur_block->the_scope = (struct c_scope*)objc_get_current_scope ();
+
+  /* Enter parameter list to the scope of the helper function. */
+  store_parm_decls_from (cur_block->arg_info);
+
+  /* APPLE LOCAL begin radar 6237713 */
+  if (c_parser_next_token_is_keyword (parser, RID_ATTRIBUTE))
+    attributes = c_parser_attributes (parser);
+  /* APPLE LOCAL radar 6246527 */
+  any_recognized_block_attribute (attributes);
+  decl_attributes (&cur_block->helper_func_decl, attributes, 0);
+  /* APPLE LOCAL end radar 6237713 */
+  
+  /* Start parsing body or expression part of the block literal. */
+  if (c_parser_next_token_is (parser, CPP_OPEN_BRACE)) {
+    tree save_c_break_label = c_break_label;
+    tree save_c_cont_label = c_cont_label;
+    /* Indicate no valid break/continue context by setting these variables
+     to some non-null, non-label value.  We'll notice and emit the proper
+     error message in c_finish_bc_stmt.  */
+    c_break_label = c_cont_label = size_zero_node;
+    c_parser_consume_token (parser); /* Consure '{'. */
+    stmt = c_begin_compound_stmt (true);
+    c_parser_compound_statement_nostart (parser);
+    c_cont_label = save_c_cont_label;
+    c_break_label = save_c_break_label;
+  }
+  else
+    {
+      struct c_expr expr;
+      stmt = c_begin_compound_stmt (true);
+      error ("blocks require { }");
+      expr = c_parser_cast_expression (parser, NULL);
+      body = expr.value;
+      if (body == error_mark_node)
+	return clean_and_exit (block);
+
+      if (cur_block->return_type)
+	{
+	  error ("return not allowed in block expression literal");
+	  return clean_and_exit (block);
+	}
+      else if (!open_paren_seen)
+	{
+	  error ("argument list is required for block expression literals");
+	  return clean_and_exit (block);
+	}
+      else
+	{
+	  tree restype = TYPE_MAIN_VARIANT (TREE_TYPE (body));
+
+	  add_stmt (body);
+	  TREE_TYPE (current_function_decl)
+	    = build_function_type (restype,
+				   TYPE_ARG_TYPES (TREE_TYPE (current_function_decl)));
+	  TREE_TYPE (DECL_RESULT (current_function_decl)) = restype;
+	  relayout_decl (DECL_RESULT (current_function_decl));
+	  cur_block->return_type = restype;
+	}
+    }
+
+  cur_block->block_arg_ptr_type =
+    build_pointer_type (build_block_struct_type (cur_block));
+
+  restype = !cur_block->return_type ? void_type_node
+				    : cur_block->return_type;
+  if (restype == error_mark_node)
+    return clean_and_exit (block);
+
+  /* Now that we know type of the hidden .block_descriptor argument, fix its type. */
+  TREE_TYPE (self_arg) = cur_block->block_arg_ptr_type;
+  DECL_ARG_TYPE (self_arg) = cur_block->block_arg_ptr_type;
+
+  /* The DECL_RESULT should already have the correct type by now.  */
+  gcc_assert (TREE_TYPE (DECL_RESULT (current_function_decl))
+	      == restype);
+
+  cur_block->block_body = stmt;
+  block_build_prologue (cur_block);
+
+  fnbody = c_end_compound_stmt (stmt, true);
+  add_stmt (fnbody);
+
+  /* We are done parsing of the block body. Return type of block is now known.
+     We also know all we need to know about the helper function. So, fix its
+    type here. */
+  /* We moved this here because for global blocks, helper function body is
+     not nested and is gimplified in call to finish_function() and return type 
+     of the function must be correct. */
+  ftype = build_function_type (restype, arg_type);
+  /* Declare helper function; as in:
+     double helper_1(struct block_1 *ii, int z); */
+  typelist = TYPE_ARG_TYPES (ftype);
+  /* (struct block_1 *ii, int z, ...) */
+  typelist = tree_cons (NULL_TREE, cur_block->block_arg_ptr_type,
+			 typelist);
+  helper_function_type = build_function_type (TREE_TYPE (ftype), typelist);
+  TREE_TYPE (cur_block->helper_func_decl) = helper_function_type;
+  finish_function ();
+  pop_function_context ();
+
+  /* Build the declaration for copy_helper_block and destroy_helper_block
+   helper functions for later use. */
+
+  if (cur_block->BlockHasCopyDispose)
+  {
+    /* void copy_helper_block (struct block*, struct block *); */
+    tree s_ftype = build_function_type (void_type_node,
+			                 tree_cons (NULL_TREE, cur_block->block_arg_ptr_type,
+			                            tree_cons (NULL_TREE,
+			                                       cur_block->block_arg_ptr_type,
+			                                       void_list_node)));
+    sprintf (name, "__copy_helper_block_%d", unique_count);
+    cur_block->copy_helper_func_decl =
+    build_helper_func_decl (get_identifier (name), s_ftype);
+    synth_copy_helper_block_func (cur_block);
+
+    /* void destroy_helper_block (struct block*); */
+    s_ftype = build_function_type (void_type_node,
+			            tree_cons (NULL_TREE,
+			                       cur_block->block_arg_ptr_type, void_list_node));
+    sprintf (name, "__destroy_helper_block_%d", unique_count);
+    cur_block->destroy_helper_func_decl =
+    build_helper_func_decl (get_identifier (name), s_ftype);
+    synth_destroy_helper_block_func (cur_block);
+  }
+
+  block_impl = finish_block (block);
+
+  /* Build unqiue name of the temporary used in code gen. */
+  sprintf (name, "__block_holder_tmp_%d", unique_count);
+  tmp = build_block_literal_tmp (name, block_impl);
+  tmp = build_fold_addr_expr (tmp);
+  type = build_block_pointer_type (ftype);
+  expr = convert (type, convert (ptr_type_node, tmp));
+  free (block_impl);
+  return expr;
+}
+/* APPLE LOCAL end radar 5732232 - blocks (C++ ce) */
 
 #include "gt-c-parser.h"

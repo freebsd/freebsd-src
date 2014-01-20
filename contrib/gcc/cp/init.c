@@ -2905,7 +2905,13 @@ push_base_cleanups (void)
   for (binfo = TYPE_BINFO (current_class_type), i = 0;
        BINFO_BASE_ITERATE (binfo, i, base_binfo); i++)
     {
-      if (TYPE_HAS_TRIVIAL_DESTRUCTOR (BINFO_TYPE (base_binfo))
+      /* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+      tree dtor = CLASSTYPE_DESTRUCTORS (BINFO_TYPE (base_binfo));
+
+      if ((!CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (BINFO_TYPE (base_binfo))
+	   && !CLASSTYPE_HAS_NONTRIVIAL_DESTRUCTOR_BODY (BINFO_TYPE (base_binfo))
+	   && !(dtor && (TREE_PRIVATE (dtor))))
+      /* APPLE LOCAL end omit calls to empty destructors 5559195 */
 	  || BINFO_VIRTUAL_P (base_binfo))
 	continue;
 
@@ -2935,6 +2941,12 @@ push_base_cleanups (void)
 			       LOOKUP_NONVIRTUAL|LOOKUP_DESTRUCTOR|LOOKUP_NORMAL,
 			       0);
 	  finish_decl_cleanup (NULL_TREE, expr);
+
+	  /* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+	  /* Even if body of current class's destructor was found to be empty,
+	     it must now be called because it must delete its members. */
+	  CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (current_class_type) = 1;
+	  /* APPLE LOCAL end omit calls to empty destructors 5559195 */
 	}
     }
 }

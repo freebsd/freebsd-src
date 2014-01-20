@@ -1040,6 +1040,13 @@ c_common_post_options (const char **pfilename)
   if (flag_inline_functions)
     flag_inline_trees = 2;
 
+  /* APPLE LOCAL begin radar 5811887  - radar 6084601 */
+  /* In all flavors of c99, except for ObjC/ObjC++, blocks are off by default 
+     unless requested via -fblocks. */
+  if (flag_blocks == -1 && flag_iso && !c_dialect_objc())
+    flag_blocks = 0;
+  /* APPLE LOCAL end radar 5811887 - radar 6084601 */
+
   /* By default we use C99 inline semantics in GNU99 or C99 mode.  C99
      inline semantics are not supported in GNU89 or C89 mode.  */
   if (flag_gnu89_inline == -1)

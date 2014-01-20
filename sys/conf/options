@@ -128,6 +128,7 @@ GEOM_VOL	opt_geom.h
 GEOM_ZERO	opt_geom.h
 KDTRACE_HOOKS	opt_global.h
 KDTRACE_FRAME	opt_kdtrace.h
+KN_HASHSIZE	opt_kqueue.h
 KSTACK_MAX_PAGES
 KSTACK_PAGES
 KTRACE

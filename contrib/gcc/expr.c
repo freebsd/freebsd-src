@@ -4770,6 +4770,8 @@ count_type_elements (tree type, bool allow_flexarr)
     case ENUMERAL_TYPE:
     case BOOLEAN_TYPE:
     case POINTER_TYPE:
+    /* APPLE LOCAL radar 5732232 - blocks */
+    case BLOCK_POINTER_TYPE:
     case OFFSET_TYPE:
     case REFERENCE_TYPE:
       return 1;

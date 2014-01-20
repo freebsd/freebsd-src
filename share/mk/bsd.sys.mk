@@ -123,6 +123,7 @@ CFLAGS+=	 -Qunused-arguments
 CFLAGS+=	 ${CFLAGS.clang}
 CXXFLAGS+=	 ${CXXFLAGS.clang}
 .else # !CLANG
+GCC_MS_EXTENSIONS= -fms-extensions
 CFLAGS+=	 ${CFLAGS.gcc}
 CXXFLAGS+=	 ${CXXFLAGS.gcc}
 .endif # CLANG

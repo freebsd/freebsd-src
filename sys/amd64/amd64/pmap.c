@@ -608,6 +608,9 @@ pmap_resident_count_dec(pmap_t pmap, int count)
 {
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
+	KASSERT(pmap->pm_stats.resident_count >= count,
+	    ("pmap %p resident count underflow %ld %d", pmap,
+	    pmap->pm_stats.resident_count, count));
 	pmap->pm_stats.resident_count -= count;
 }
 
@@ -5120,12 +5123,20 @@ pmap_page_is_mapped(vm_page_t m)
 }
 
 /*
- * Remove all pages from specified address space
- * this aids process exit speeds.  Also, this code
- * is special cased for current process only, but
- * can have the more generic (and slightly slower)
- * mode enabled.  This is much faster than pmap_remove
- * in the case of running down an entire address space.
+ * Destroy all managed, non-wired mappings in the given user-space
+ * pmap.  This pmap cannot be active on any processor besides the
+ * caller.
+ *                                                                                
+ * This function cannot be applied to the kernel pmap.  Moreover, it
+ * is not intended for general use.  It is only to be used during
+ * process termination.  Consequently, it can be implemented in ways
+ * that make it faster than pmap_remove().  First, it can more quickly
+ * destroy mappings by iterating over the pmap's collection of PV
+ * entries, rather than searching the page table.  Second, it doesn't
+ * have to test and clear the page table entries atomically, because
+ * no processor is currently accessing the user address space.  In
+ * particular, a page table entry's dirty bit won't change state once
+ * this function starts.
  */
 void
 pmap_remove_pages(pmap_t pmap)
@@ -5145,10 +5156,24 @@ pmap_remove_pages(pmap_t pmap)
 	boolean_t superpage;
 	vm_paddr_t pa;
 
-	if (pmap != PCPU_GET(curpmap)) {
-		printf("warning: pmap_remove_pages called with non-current pmap\n");
-		return;
+	/*
+	 * Assert that the given pmap is only active on the current
+	 * CPU.  Unfortunately, we cannot block another CPU from
+	 * activating the pmap while this function is executing.
+	 */
+	KASSERT(pmap == PCPU_GET(curpmap), ("non-current pmap %p", pmap));
+#ifdef INVARIANTS
+	{
+		cpuset_t other_cpus;
+
+		other_cpus = all_cpus;
+		critical_enter();
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		critical_exit();
+		KASSERT(CPU_EMPTY(&other_cpus), ("pmap active %p", pmap));
 	}
+#endif
 
 	lock = NULL;
 	PG_M = pmap_modified_bit(pmap);

@@ -153,6 +153,7 @@ MAN=	aac.4 \
 	geom_fox.4 \
 	geom_linux_lvm.4 \
 	geom_map.4 \
+	geom_uncompress.4 \
 	geom_uzip.4 \
 	gif.4 \
 	gpib.4 \
@@ -542,6 +543,7 @@ MAN=	aac.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
+	${_virtio_random.4} \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
@@ -786,6 +788,7 @@ _nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
+_virtio_random.4= virtio_random.4
 _virtio_scsi.4= virtio_scsi.4
 _vmx.4=		vmx.4
 _vtnet.4=	vtnet.4

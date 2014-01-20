@@ -42,7 +42,9 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100
+	-Winline
+
+CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE

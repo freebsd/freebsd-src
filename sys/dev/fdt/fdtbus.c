@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#include <machine/fdt.h>
-
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_nexus.h>
 
@@ -52,11 +50,6 @@ __FBSDID("$FreeBSD$");
 static void fdtbus_identify(driver_t *, device_t);
 static int fdtbus_probe(device_t);
 
-static int fdtbus_activate_resource(device_t, device_t, int, int,
-    struct resource *);
-static int fdtbus_deactivate_resource(device_t, device_t, int, int,
-    struct resource *);
-
 /*
  * Bus interface definition.
  */
@@ -66,8 +59,8 @@ static device_method_t fdtbus_methods[] = {
 	DEVMETHOD(device_probe,		fdtbus_probe),
 
 	/* Bus interface */
-	DEVMETHOD(bus_activate_resource, fdtbus_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, fdtbus_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_config_intr,	bus_generic_config_intr),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -94,35 +87,5 @@ fdtbus_probe(device_t dev)
 
 	device_set_desc(dev, "Flattened Device Tree");
 	return (BUS_PROBE_NOWILDCARD);
-}
-
-static int
-fdtbus_activate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
-{
-	bus_space_handle_t p;
-	int error;
-
-	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		/* XXX endianess should be set based on SOC node */
-		rman_set_bustag(res, fdtbus_bs_tag);
-		rman_set_bushandle(res, rman_get_start(res));
-
-		error = bus_space_map(rman_get_bustag(res),
-		    rman_get_bushandle(res), rman_get_size(res), 0, &p);
-		if (error)
-			return (error);
-		rman_set_bushandle(res, p);
-	}
-
-	return (rman_activate_resource(res));
-}
-
-static int
-fdtbus_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *res)
-{
-
-	return (rman_deactivate_resource(res));
 }
 

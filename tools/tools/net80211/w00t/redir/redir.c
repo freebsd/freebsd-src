@@ -140,7 +140,7 @@ int wanted(struct params *p, struct ieee80211_frame *wh, int len)
 	if (memcmp(bssid, p->ap, 6) != 0)
 		return 0;
 
-	if (!(wh->i_fc[1] & IEEE80211_FC1_WEP)) {
+	if (!(wh->i_fc[1] & IEEE80211_FC1_PROTECTED)) {
 		printf("Got non WEP packet...\n");
 		return 0;
 	}
@@ -268,7 +268,7 @@ void send_header(struct params *p, struct queue *q)
 	wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
 	wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_DATA;
 	wh->i_fc[1] |= IEEE80211_FC1_DIR_TODS;
-	wh->i_fc[1] |= IEEE80211_FC1_WEP;
+	wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	wh->i_fc[1] |= IEEE80211_FC1_MORE_FRAG;
 
 	wh->i_dur[0] = 0x69;
@@ -345,7 +345,7 @@ void send_data(struct params *p)
 	wh->i_fc[0] |= IEEE80211_FC0_TYPE_DATA;
 	wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_DATA;
 	wh->i_fc[1] |= IEEE80211_FC1_DIR_TODS;
-	wh->i_fc[1] |= IEEE80211_FC1_WEP;
+	wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	
 	wh->i_dur[0] = 0x69;
 	

@@ -351,9 +351,9 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 		prefetch_dnode_metadata(td, dnp, zb->zb_objset,
 		    DMU_META_DNODE_OBJECT);
 		if (arc_buf_size(buf) >= sizeof (objset_phys_t)) {
-			prefetch_dnode_metadata(td, &osp->os_userused_dnode,
-			    zb->zb_objset, DMU_USERUSED_OBJECT);
 			prefetch_dnode_metadata(td, &osp->os_groupused_dnode,
+			    zb->zb_objset, DMU_GROUPUSED_OBJECT);
+			prefetch_dnode_metadata(td, &osp->os_userused_dnode,
 			    zb->zb_objset, DMU_USERUSED_OBJECT);
 		}
 
@@ -364,18 +364,18 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 			err = 0;
 		}
 		if (err == 0 && arc_buf_size(buf) >= sizeof (objset_phys_t)) {
-			dnp = &osp->os_userused_dnode;
+			dnp = &osp->os_groupused_dnode;
 			err = traverse_dnode(td, dnp, zb->zb_objset,
-			    DMU_USERUSED_OBJECT);
+			    DMU_GROUPUSED_OBJECT);
 		}
 		if (err && hard) {
 			lasterr = err;
 			err = 0;
 		}
 		if (err == 0 && arc_buf_size(buf) >= sizeof (objset_phys_t)) {
-			dnp = &osp->os_groupused_dnode;
+			dnp = &osp->os_userused_dnode;
 			err = traverse_dnode(td, dnp, zb->zb_objset,
-			    DMU_GROUPUSED_OBJECT);
+			    DMU_USERUSED_OBJECT);
 		}
 	}
 
@@ -383,7 +383,7 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 		(void) arc_buf_remove_ref(buf, &buf);
 
 post:
-	if (err == 0 && lasterr == 0 && (td->td_flags & TRAVERSE_POST)) {
+	if (err == 0 && (td->td_flags & TRAVERSE_POST)) {
 		err = td->td_func(td->td_spa, NULL, bp, zb, dnp, td->td_arg);
 		if (err == ERESTART)
 			pause = B_TRUE;

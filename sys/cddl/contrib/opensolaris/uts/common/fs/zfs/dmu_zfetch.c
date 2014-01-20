@@ -604,14 +604,16 @@ static zstream_t *
 dmu_zfetch_stream_reclaim(zfetch_t *zf)
 {
 	zstream_t	*zs;
+	clock_t		ticks;
 
+	ticks = zfetch_min_sec_reap * hz;
 	if (! rw_tryenter(&zf->zf_rwlock, RW_WRITER))
 		return (0);
 
 	for (zs = list_head(&zf->zf_stream); zs;
 	    zs = list_next(&zf->zf_stream, zs)) {
 
-		if (((ddi_get_lbolt() - zs->zst_last)/hz) > zfetch_min_sec_reap)
+		if (ddi_get_lbolt() - zs->zst_last > ticks)
 			break;
 	}
 

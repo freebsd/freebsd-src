@@ -716,10 +716,12 @@ ggc_min_expand_heuristic (void)
   min_expand = ggc_rlimit_bound (min_expand);
 
   /* The heuristic is a percentage equal to 30% + 70%*(RAM/1GB), yielding
-     a lower bound of 30% and an upper bound of 100% (when RAM >= 1GB).  */
+  APPLE LOCAL retune gc params 6124839
+     a lower bound of 30% and an upper bound of 150% (when RAM >= 1.7GB).  */
   min_expand /= 1024*1024*1024;
   min_expand *= 70;
-  min_expand = MIN (min_expand, 70);
+  /* APPLE LOCAL retune gc params 6124839 */
+  min_expand = MIN (min_expand, 120);
   min_expand += 30;
 
   return min_expand;
@@ -727,7 +729,8 @@ ggc_min_expand_heuristic (void)
 
 /* Heuristic to set a default for GGC_MIN_HEAPSIZE.  */
 int
-ggc_min_heapsize_heuristic (void)
+/* APPLE LOCAL retune gc params 6124839 */
+ggc_min_heapsize_heuristic (bool optimize)
 {
   double phys_kbytes = physmem_total();
   double limit_kbytes = ggc_rlimit_bound (phys_kbytes * 2);
@@ -738,6 +741,13 @@ ggc_min_heapsize_heuristic (void)
   /* The heuristic is RAM/8, with a lower bound of 4M and an upper
      bound of 128M (when RAM >= 1GB).  */
   phys_kbytes /= 8;
+
+  /* APPLE LOCAL begin retune gc params 6124839 */
+
+  /* Additionally, on a multicore machine, we assume that we share the
+     memory with others reasonably equally.  */
+  phys_kbytes /= (double)ncpu_available() / (2 - optimize);
+  /* APPLE LOCAL end retune gc params 6124839 */
 
 #if defined(HAVE_GETRLIMIT) && defined (RLIMIT_RSS)
   /* Try not to overrun the RSS limit while doing garbage collection.  
@@ -765,11 +775,13 @@ ggc_min_heapsize_heuristic (void)
 }
 
 void
-init_ggc_heuristics (void)
+/* APPLE LOCAL retune gc params 6124839 */
+init_ggc_heuristics (bool optimize ATTRIBUTE_UNUSED)
 {
 #if !defined ENABLE_GC_CHECKING && !defined ENABLE_GC_ALWAYS_COLLECT
   set_param_value ("ggc-min-expand", ggc_min_expand_heuristic());
-  set_param_value ("ggc-min-heapsize", ggc_min_heapsize_heuristic());
+  /* APPLE LOCAL retune gc params 6124839 */
+  set_param_value ("ggc-min-heapsize", ggc_min_heapsize_heuristic(optimize));
 #endif
 }
 

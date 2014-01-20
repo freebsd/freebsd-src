@@ -45,8 +45,19 @@ FILESGROUPS=	SUBR
 SUBRDIR=	${SHAREDIR}/atf
 SUBR=		libatf-sh.subr
 
+all: atf-sh.pc
+atf-sh.pc: atf-sh.pc.in atf-version
+	sed -e 's,__EXEC_PREFIX__,/usr,g' \
+	    -e "s,__ATF_VERSION__,$$(cat atf-version),g" \
+	    <${ATF}/atf-sh/atf-sh.pc.in >atf-sh.pc
+
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		atf-sh.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
 .endif
 
+.include "../../../lib/atf/common.mk"
 .include <bsd.prog.mk>

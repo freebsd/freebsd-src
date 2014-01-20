@@ -33,7 +33,7 @@
 
 typedef struct SHA256Context {
 	uint32_t state[8];
-	uint32_t count[2];
+	uint64_t count;
 	unsigned char buf[64];
 } SHA256_CTX;
 

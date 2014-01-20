@@ -200,8 +200,20 @@ gimplify_cp_loop (tree cond, tree body, tree incr, tree attrs,
   stmt_list = NULL_TREE;
   entry = NULL_TREE;
 
-  break_block = begin_bc_block (bc_break);
-  cont_block = begin_bc_block (bc_continue);
+  /* APPLE LOCAL begin C* language */
+  /* Order of label addition to stack is important for objc's foreach-stmt. */
+  /* APPLE LOCAL radar 4667060 */
+  if (inner_foreach == integer_zero_node)
+    {
+      cont_block = begin_bc_block (bc_continue);
+      break_block = begin_bc_block (bc_break);
+    }
+  else
+    {
+      break_block = begin_bc_block (bc_break);
+      cont_block = begin_bc_block (bc_continue);
+    }
+  /* APPLE LOCAL end C* language */
 
   /* If condition is zero don't generate a loop construct.  */
   if (cond && integer_zerop (cond))
@@ -252,10 +264,19 @@ gimplify_cp_loop (tree cond, tree body, tree incr, tree attrs,
 	}
     }
 
+  /* APPLE LOCAL begin radar 4547045 */
+  /* Pop foreach's inner loop break label so outer loop's
+     break label becomes target of inner loop body's break statements.
+  */
+  t = NULL_TREE;
   gimplify_stmt (&body);
   gimplify_stmt (&incr);
 
   body = finish_bc_block (bc_continue, cont_block, body);
+  /* APPLE LOCAL begin radar 4547045 */
+  /* Push back inner loop's own 'break' label so rest
+     of code works seemlessly. */
+  /* APPLE LOCAL radar 4667060 */
 
   append_to_statement_list (top, &stmt_list);
   append_to_statement_list (body, &stmt_list);

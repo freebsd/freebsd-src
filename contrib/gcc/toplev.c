@@ -1566,8 +1566,19 @@ general_init (const char *argv0)
   /* Register the language-independent parameters.  */
   add_params (lang_independent_params, LAST_PARAM);
 
-  /* This must be done after add_params but before argument processing.  */
-  init_ggc_heuristics();
+  /* APPLE LOCAL begin retune gc params 6124839 */
+  { int i = 0;
+    bool opt = false;
+    while (save_argv[++i])
+      {
+	if (strncmp (save_argv[i], "-O", 2) == 0
+	    && strcmp (save_argv[i], "-O0") != 0)
+	  opt = true;
+      }
+    /* This must be done after add_params but before argument processing.  */
+    init_ggc_heuristics(opt);
+  }
+  /* APPLE LOCAL end retune gc params 6124839 */
   init_optimization_passes ();
 }
 
@@ -1948,11 +1959,6 @@ lang_dependent_init (const char *name)
      provide a dummy function context for them.  */
   init_dummy_function_start ();
   init_expr_once ();
-
-  /* Although the actions of init_set_costs are language-independent,
-     it uses optabs, so we cannot call it from backend_init.  */
-  init_set_costs ();
-
   expand_dummy_function_end ();
 
   /* If dbx symbol table desired, initialize writing it and output the

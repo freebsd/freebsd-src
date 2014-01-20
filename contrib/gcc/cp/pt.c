@@ -7835,6 +7835,11 @@ tsubst (tree t, tree args, tsubst_flags_t complain, tree in_decl)
 					     complain);
       }
 
+      /* APPLE LOCAL begin blocks 6204446 */
+    case BLOCK_POINTER_TYPE:
+      return t;
+      /* APPLE LOCAL end blocks 6204446 */
+
     default:
       sorry ("use of %qs in template",
 	     tree_code_name [(int) TREE_CODE (t)]);

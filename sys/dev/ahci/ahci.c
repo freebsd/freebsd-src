@@ -146,6 +146,7 @@ static struct {
 	{0x78021022, 0x00, "AMD Hudson-2",	0},
 	{0x78031022, 0x00, "AMD Hudson-2",	0},
 	{0x78041022, 0x00, "AMD Hudson-2",	0},
+	{0x06111b21, 0x00, "ASMedia ASM2106",	0},
 	{0x06121b21, 0x00, "ASMedia ASM1061",	0},
 	{0x26528086, 0x00, "Intel ICH6",	AHCI_Q_NOFORCE},
 	{0x26538086, 0x00, "Intel ICH6M",	AHCI_Q_NOFORCE},
@@ -3066,15 +3067,7 @@ ahciaction(struct cam_sim *sim, union ccb *ccb)
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->hba_inquiry |= PI_SATAPM;
 		cpi->target_sprt = 0;
-#ifdef __arm__
-		/*
-		 * Do not use unmapped buffers on ARM. Doing so will cause
-		 * failure inside bus_dmamap_sync due to lack of VA.
-		 */
-		cpi->hba_misc = PIM_SEQSCAN;
-#else
 		cpi->hba_misc = PIM_SEQSCAN | PIM_UNMAPPED;
-#endif
 		cpi->hba_eng_cnt = 0;
 		if (ch->caps & AHCI_CAP_SPM)
 			cpi->max_target = 15;

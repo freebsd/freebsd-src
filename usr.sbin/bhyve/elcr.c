@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 
 #include "inout.h"
+#include "pci_lpc.h"
 
 /*
  * EISA interrupt Level Control Register.
@@ -63,3 +64,4 @@ elcr_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 INOUT_PORT(elcr, ELCR_PORT + 0, IOPORT_F_INOUT, elcr_handler);
 INOUT_PORT(elcr, ELCR_PORT + 1, IOPORT_F_INOUT, elcr_handler);
+SYSRES_IO(ELCR_PORT, 2);

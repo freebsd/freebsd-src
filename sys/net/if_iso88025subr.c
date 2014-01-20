@@ -721,14 +721,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -751,14 +744,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 			return (EADDRNOTAVAIL);
 		}
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ISO88025;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ISO88025);
 		sdl->sdl_alen = ISO88025_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);
