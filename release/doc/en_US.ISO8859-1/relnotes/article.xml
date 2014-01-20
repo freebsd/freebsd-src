@@ -116,6 +116,9 @@
 
       <para revision="260583">Unmapped IO support has been added to
 	&man.virtio_scsi.4;.</para>
+
+      <para revision="260582">Unmapped IO support has been added to
+	&man.virtio_blk.4;.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
