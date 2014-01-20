@@ -149,7 +149,9 @@
       <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>&nbsp;</para>
+	<para revision="260552">Firmware for &intel;
+	  Centrino&trade; Wireless-N 105 devices has been added
+	  to the base system.</para>
       </sect4>
     </sect3>
 
