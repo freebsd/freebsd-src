@@ -289,12 +289,15 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
  |                    |      |                 |                       |
-FreeBSD 10 -current   |  NetBSD -current  OpenBSD -current             |
+ |                    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
  |                    v      v                 v                       v
  |
  *--FreeBSD
  |   10.0
+ |
+ |
+FreeBSD 11 -current
  v
 
 Time
