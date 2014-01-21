@@ -46,7 +46,7 @@ static const char rcsid[] _U_ =
 
 int32_t thiszone;		/* seconds offset from gmt to local time */
 
-char * ts_format(register int, register int);
+static char * ts_format(register int, register int);
 
 /*
  * Print out a null-terminated filename (or other ascii string).
@@ -145,7 +145,7 @@ fn_printzp(register const u_char *s, register u_int n,
 /*
  * Format the timestamp
  */
-char *
+static char *
 ts_format(register int sec, register int usec)
 {
         static char buf[sizeof("00:00:00.000000")];
