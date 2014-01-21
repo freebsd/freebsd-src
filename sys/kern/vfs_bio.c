@@ -715,7 +715,7 @@ kern_vfs_bio_buffer_alloc(caddr_t v, long physmem_est)
 	}
 
 	/*
-	 * Ideal allocation size for the transient bio submap if 10%
+	 * Ideal allocation size for the transient bio submap is 10%
 	 * of the maximal space buffer map.  This roughly corresponds
 	 * to the amount of the buffer mapped for typical UFS load.
 	 *

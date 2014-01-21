@@ -116,10 +116,31 @@ struct pci_bar_io {
 	uint64_t	pbi_length;	/* length of BAR */
 };
 
+struct pci_vpd_element {
+	char		pve_keyword[2];
+	uint8_t		pve_flags;
+	uint8_t		pve_datalen;
+	uint8_t		pve_data[0];
+};
+
+#define	PVE_FLAG_IDENT		0x01	/* Element is the string identifier */
+#define	PVE_FLAG_RW		0x02	/* Element is read/write */
+
+#define	PVE_NEXT(pve)							\
+	((struct pci_vpd_element *)((char *)(pve) +			\
+	    sizeof(struct pci_vpd_element) + (pve)->pve_datalen))
+
+struct pci_list_vpd_io {
+	struct pcisel	plvi_sel;	/* device to operate on */
+	size_t		plvi_len;	/* size of the data area */
+	struct pci_vpd_element *plvi_data;
+};
+
 #define	PCIOCGETCONF	_IOWR('p', 5, struct pci_conf_io)
 #define	PCIOCREAD	_IOWR('p', 2, struct pci_io)
 #define	PCIOCWRITE	_IOWR('p', 3, struct pci_io)
 #define	PCIOCATTACHED	_IOWR('p', 4, struct pci_io)
 #define	PCIOCGETBAR	_IOWR('p', 6, struct pci_bar_io)
+#define	PCIOCLISTVPD	_IOWR('p', 7, struct pci_list_vpd_io)
 
 #endif /* !_SYS_PCIIO_H_ */
