@@ -172,6 +172,10 @@
 	<para revision="260448">Support for the &intel;
 	  Centrino&trade; Wireless-N 135 chipset has been
 	  added.</para>
+
+	<para revision="258830">Support for Broadcom chipsets
+	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
+	  been added to &man.bge.4;.</para>
       </sect4>
     </sect3>
 
