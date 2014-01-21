@@ -234,7 +234,8 @@
   <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
-    <para>&nbsp;</para>
+    <para revision="260445">&man.byacc.1; has been updated to version
+      20140101.</para>
   </sect2>
 
   <sect2 xml:id="ports">
