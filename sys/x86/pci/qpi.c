@@ -45,8 +45,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
-#include <machine/pci_cfgreg.h>
-#include <machine/specialreg.h>
+#include <x86/legacyvar.h>
+#include <x86/pci_cfgreg.h>
+#include <x86/specialreg.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -237,42 +238,6 @@ qpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 }
 
-static uint32_t
-qpi_pcib_read_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, int bytes)
-{
-
-	return (pci_cfgregread(bus, slot, func, reg, bytes));
-}
-
-static void
-qpi_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
-    u_int reg, uint32_t data, int bytes)
-{
-
-	pci_cfgregwrite(bus, slot, func, reg, data, bytes);
-}
-
-static int
-qpi_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
-    int *irqs)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
-	    irqs));
-}
-
-static int
-qpi_pcib_alloc_msix(device_t pcib, device_t dev, int *irq)
-{
-	device_t bus;
-
-	bus = device_get_parent(pcib);
-	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, irq));
-}
-
 static int
 qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
     uint32_t *data)
@@ -302,11 +267,11 @@ static device_method_t qpi_pcib_methods[] = {
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	pcib_maxslots),
-	DEVMETHOD(pcib_read_config,	qpi_pcib_read_config),
-	DEVMETHOD(pcib_write_config,	qpi_pcib_write_config),
-	DEVMETHOD(pcib_alloc_msi,	qpi_pcib_alloc_msi),
+	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
+	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
+	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	qpi_pcib_alloc_msix),
+	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		qpi_pcib_map_msi),
 
