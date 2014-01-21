@@ -50,22 +50,24 @@
 
 /*
  * Inode flags
- * The current implementation uses only EXT2_IMMUTABLE and EXT2_APPEND flags
+ * The system supports EXT2_IMMUTABLE, EXT2_APPEND and EXT2_NODUMP flags.
+ * The current implementation also uses EXT4_INDEX, EXT4_EXTENTS and
+ * EXT4_HUGE_FILE with some restrictions, imposed the lack of write
+ * support.
  */
 #define EXT2_SECRM		0x00000001	/* Secure deletion */
 #define EXT2_UNRM		0x00000002	/* Undelete */
 #define EXT2_COMPR		0x00000004	/* Compress file */
 #define EXT2_SYNC		0x00000008	/* Synchronous updates */
 #define EXT2_IMMUTABLE		0x00000010	/* Immutable file */
-#define EXT2_APPEND		0x00000020 /* writes to file may only append */
-#define EXT2_NODUMP		0x00000040	/* do not dump file */
-#define EXT2_NOATIME		0x00000080	/* do not update atime */
-
-#define EXT4_INDEX		0x00001000 	/* hash-indexed directory */
+#define EXT2_APPEND		0x00000020 /* Writes to file may only append */
+#define EXT2_NODUMP		0x00000040	/* Do not dump file */
+#define EXT2_NOATIME		0x00000080	/* Do not update atime */
+#define EXT4_INDEX		0x00001000 	/* Hash-indexed directory */
 #define EXT4_IMAGIC		0x00002000 	/* AFS directory */
-#define EXT4_JOURNAL_DATA	0x00004000 /* file data should be journaled */
-#define EXT4_NOTAIL		0x00008000 /* file tail should not be merged */
-#define EXT4_DIRSYNC		0x00010000	/* dirsync behaviour */
+#define EXT4_JOURNAL_DATA	0x00004000 /* File data should be journaled */
+#define EXT4_NOTAIL		0x00008000 /* File tail should not be merged */
+#define EXT4_DIRSYNC		0x00010000	/* Dirsync behaviour */
 #define EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
 #define EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
 #define EXT4_EXTENTS		0x00080000	/* Inode uses extents */
