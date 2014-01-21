@@ -82,7 +82,7 @@ sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
 	mkdir -p ${.OBJDIR}/sys
 	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 MAN=	elf.3							\
 	elf_begin.3						\
