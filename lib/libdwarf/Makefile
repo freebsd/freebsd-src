@@ -99,7 +99,7 @@ sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
 LDADD+=		-lelf
 DPADD+=		${LIBELF}
 
-SHLIB_MAJOR=	3
+SHLIB_MAJOR=	4
 
 MAN=	dwarf.3                                         \
 	dwarf_add_arange.3				\
