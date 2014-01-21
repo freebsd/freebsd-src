@@ -75,13 +75,26 @@ SRCS=	\
 
 INCS=		dwarf.h libdwarf.h
 
+#
+# We need to link against the correct version of these files. One
+# solution is to include ../../sys in the include path. This causes
+# problems when a header file in sys depends on a file in another
+# part of the tree, e.g. a machine dependent header.
+#
+SRCS+=	sys/elf32.h sys/elf64.h sys/elf_common.h
+
 GENSRCS=	dwarf_pubnames.c dwarf_pubtypes.c dwarf_weaks.c \
 		dwarf_funcs.c dwarf_vars.c dwarf_types.c	\
 		dwarf_pro_pubnames.c dwarf_pro_weaks.c		\
 		dwarf_pro_funcs.c dwarf_pro_types.c		\
 		dwarf_pro_vars.c
 CLEANFILES=	${GENSRCS}
+CLEANDIRS=	sys
 CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common -I${TOP}/libelf
+
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
+	mkdir -p ${.OBJDIR}/sys
+	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
 LDADD+=		-lelf
 DPADD+=		${LIBELF}

@@ -65,9 +65,22 @@ SRCS=	elf.c							\
 
 INCS=		libelf.h gelf.h
 
+#
+# We need to link against the correct version of these files. One
+# solution is to include ../../sys in the include path. This causes
+# problems when a header file in sys depends on a file in another
+# part of the tree, e.g. a machine dependent header.
+#
+SRCS+=	sys/elf32.h sys/elf64.h sys/elf_common.h
+
 GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
 CLEANFILES=	${GENSRCS}
+CLEANDIRS=	sys
 CFLAGS+=	-I. -I${SRCDIR} -I${TOP}/common
+
+sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
+	mkdir -p ${.OBJDIR}/sys
+	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
 SHLIB_MAJOR=	1
 
