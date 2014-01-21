@@ -239,6 +239,9 @@
 
     <para revision="259626">Timezone data files have been updated to
       version 2013i.</para>
+
+    <para revision="258884">&man.lldb.1; has been updated to upstream
+      snapshot version r196259.</para>
   </sect2>
 
   <sect2 xml:id="ports">
