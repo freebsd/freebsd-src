@@ -224,6 +224,10 @@
       &man.dmesg.8; is now printed, opposed to the previous output
       <quote>Exec format error.</quote>.</para>
 
+    <para revision="258838">The &man.casperd.8; daemon has been added,
+      which provides access to functionality that is not available in
+      the <quote>capability mode</quote> sandbox.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
