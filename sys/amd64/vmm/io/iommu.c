@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/sysctl.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -43,7 +44,13 @@ __FBSDID("$FreeBSD$");
 #include "vmm_mem.h"
 #include "iommu.h"
 
-static boolean_t iommu_avail;
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, iommu, CTLFLAG_RW, 0, "bhyve iommu parameters");
+
+static int iommu_avail;
+SYSCTL_INT(_hw_vmm_iommu, OID_AUTO, initialized, CTLFLAG_RD, &iommu_avail,
+    0, "bhyve iommu initialized?");
+
 static struct iommu_ops *ops;
 static void *host_domain;
 
@@ -160,7 +167,7 @@ iommu_init(void)
 	if (error)
 		return;
 
-	iommu_avail = TRUE;
+	iommu_avail = 1;
 
 	/*
 	 * Create a domain for the devices owned by the host
