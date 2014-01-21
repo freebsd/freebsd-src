@@ -291,7 +291,11 @@ FreeBSD 5.2           |      |                 |                       |
  |                    |      |                 |                       |
 FreeBSD 10 -current   |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
- v                    v      v                 v                       v
+ |                    v      v                 v                       v
+ |
+ *--FreeBSD
+ |   10.0
+ v
 
 Time
 ----------------
@@ -605,6 +609,7 @@ NetBSD 6.1.2		2013-09-30 [NBD]
 Mac OS X 10.9		2013-10-22 [APL]
 OpenBSD 5.4		2013-11-01 [OBD]
 DragonFly 3.6.0 	2013-11-25 [DFB]
+FreeBSD 10.0		2014-01-20 [FBD]
 
 Bibliography
 ------------------------
