@@ -3919,9 +3919,11 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 				scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
 				scan_ccb->crcn.flags = 0;
 				xpt_rescan(scan_ccb);
-			} else
+			} else {
 				xpt_print(path,
 					  "Can't allocate CCB to scan bus\n");
+				xpt_free_path(path);
+			}
 		} else
 			xpt_free_path(path);
 	} else
