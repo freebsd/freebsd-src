@@ -84,7 +84,7 @@ typedef enum {
 	DA_FLAG_PACK_LOCKED	= 0x004,
 	DA_FLAG_PACK_REMOVABLE	= 0x008,
 	DA_FLAG_NEED_OTAG	= 0x020,
-	DA_FLAG_WENT_IDLE	= 0x040,
+	DA_FLAG_WAS_OTAG	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
 	DA_FLAG_OPEN		= 0x100,
 	DA_FLAG_SCTX_INIT	= 0x200,
@@ -199,19 +199,17 @@ struct da_softc {
 	struct	 bio_queue_head bio_queue;
 	struct	 bio_queue_head delete_queue;
 	struct	 bio_queue_head delete_run_queue;
-	SLIST_ENTRY(da_softc) links;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
+	int	 tur;			/* TEST UNIT READY should be sent */
+	int	 refcount;		/* Active xpt_action() calls */
 	da_state state;
 	da_flags flags;	
 	da_quirks quirks;
 	int	 sort_io_queue;
 	int	 minimum_cmd_size;
 	int	 error_inject;
-	int	 ordered_tag_count;
-	int	 outstanding_cmds;
 	int	 trim_max_ranges;
 	int	 delete_running;
-	int	 tur;
 	int	 delete_available;	/* Delete methods possibly available */
 	uint32_t		unmap_max_ranges;
 	uint32_t		unmap_max_lba;
@@ -2266,7 +2264,7 @@ skipstate:
 		if ((bp->bio_flags & BIO_ORDERED) != 0 ||
 		    (softc->flags & DA_FLAG_NEED_OTAG) != 0) {
 			softc->flags &= ~DA_FLAG_NEED_OTAG;
-			softc->ordered_tag_count++;
+			softc->flags |= DA_FLAG_WAS_OTAG;
 			tag_code = MSG_ORDERED_Q_TAG;
 		} else {
 			tag_code = MSG_SIMPLE_Q_TAG;
@@ -2318,13 +2316,8 @@ skipstate:
 		start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
 
 out:
-		/*
-		 * Block out any asynchronous callbacks
-		 * while we touch the pending ccb list.
-		 */
 		LIST_INSERT_HEAD(&softc->pending_ccbs,
 				 &start_ccb->ccb_h, periph_links.le);
-		softc->outstanding_cmds++;
 
 		/* We expect a unit attention from this device */
 		if ((softc->flags & DA_FLAG_RETRY_UA) != 0) {
@@ -2980,14 +2973,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			}
 		}
 
-		/*
-		 * Block out any asynchronous callbacks
-		 * while we touch the pending ccb list.
-		 */
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
-		softc->outstanding_cmds--;
-		if (softc->outstanding_cmds == 0)
-			softc->flags |= DA_FLAG_WENT_IDLE;
+		if (LIST_EMPTY(&softc->pending_ccbs))
+			softc->flags |= DA_FLAG_WAS_OTAG;
 
 		if (state == DA_CCB_DELETE) {
 			while ((bp1 = bioq_takefirst(&softc->delete_run_queue))
@@ -3572,7 +3560,7 @@ damediapoll(void *arg)
 	struct cam_periph *periph = arg;
 	struct da_softc *softc = periph->softc;
 
-	if (!softc->tur && softc->outstanding_cmds == 0) {
+	if (!softc->tur && LIST_EMPTY(&softc->pending_ccbs)) {
 		if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
 			softc->tur = 1;
 			daschedule(periph);
@@ -3739,14 +3727,11 @@ dasendorderedtag(void *arg)
 	struct da_softc *softc = arg;
 
 	if (da_send_ordered) {
-		if ((softc->ordered_tag_count == 0) 
-		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
-			softc->flags |= DA_FLAG_NEED_OTAG;
+		if (!LIST_EMPTY(&softc->pending_ccbs)) {
+			if ((softc->flags & DA_FLAG_WAS_OTAG) == 0)
+				softc->flags |= DA_FLAG_NEED_OTAG;
+			softc->flags &= ~DA_FLAG_WAS_OTAG;
 		}
-		if (softc->outstanding_cmds > 0)
-			softc->flags &= ~DA_FLAG_WENT_IDLE;
-
-		softc->ordered_tag_count = 0;
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
