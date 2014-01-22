@@ -406,6 +406,19 @@ xprt_inactive(SVCXPRT *xprt)
 }
 
 /*
+ * Variant of xprt_inactive() for use only when sure that port is
+ * assigned to thread. For example, withing receive handlers.
+ */
+void
+xprt_inactive_self(SVCXPRT *xprt)
+{
+
+	KASSERT(xprt->xp_thread != NULL,
+	    ("xprt_inactive_self(%p) with NULL xp_thread", xprt));
+	xprt->xp_active = FALSE;
+}
+
+/*
  * Add a service program to the callout list.
  * The dispatch routine will be called when a rpc request for this
  * program number comes in.

@@ -523,6 +523,7 @@ __BEGIN_DECLS
 extern void	xprt_active(SVCXPRT *);
 extern void	xprt_inactive(SVCXPRT *);
 extern void	xprt_inactive_locked(SVCXPRT *);
+extern void	xprt_inactive_self(SVCXPRT *);
 __END_DECLS
 
 #endif
