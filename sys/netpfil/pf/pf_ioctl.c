@@ -151,6 +151,7 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
+static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 
 /*
@@ -3139,45 +3140,9 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 
-	case DIOCKILLSRCNODES: {
-		struct pfioc_src_node_kill *psnk =
-		    (struct pfioc_src_node_kill *)addr;
-		struct pf_srchash	*sh;
-		struct pf_src_node	*sn;
-		u_int			i, killed = 0;
-
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
-		    i++, sh++) {
-		    /*
-		     * XXXGL: we don't ever acquire sources hash lock
-		     * but if we ever do, the below call to pf_clear_srcnodes()
-		     * would lead to a LOR.
-		     */
-		    PF_HASHROW_LOCK(sh);
-		    LIST_FOREACH(sn, &sh->nodes, entry)
-			if (PF_MATCHA(psnk->psnk_src.neg,
-				&psnk->psnk_src.addr.v.a.addr,
-				&psnk->psnk_src.addr.v.a.mask,
-				&sn->addr, sn->af) &&
-			    PF_MATCHA(psnk->psnk_dst.neg,
-				&psnk->psnk_dst.addr.v.a.addr,
-				&psnk->psnk_dst.addr.v.a.mask,
-				&sn->raddr, sn->af)) {
-				/* Handle state to src_node linkage */
-				if (sn->states != 0)
-					pf_clear_srcnodes(sn);
-				sn->expire = 1;
-				killed++;
-			}
-		    PF_HASHROW_UNLOCK(sh);
-		}
-
-		if (killed > 0)
-			pf_purge_expired_src_nodes();
-
-		psnk->psnk_killed = killed;
+	case DIOCKILLSRCNODES:
+		pf_kill_srcnodes((struct pfioc_src_node_kill *)addr);
 		break;
-	}
 
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
@@ -3396,6 +3361,59 @@ pf_clear_srcnodes(struct pf_src_node *n)
 		n->states = 0;
 	}
 }
+
+static void
+pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
+{
+	struct pf_src_node_list	 kill;
+
+	LIST_INIT(&kill);
+	for (int i = 0; i <= V_pf_srchashmask; i++) {
+		struct pf_srchash *sh = &V_pf_srchash[i];
+		struct pf_src_node *sn, *tmp;
+
+		PF_HASHROW_LOCK(sh);
+		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
+			if (PF_MATCHA(psnk->psnk_src.neg,
+			      &psnk->psnk_src.addr.v.a.addr,
+			      &psnk->psnk_src.addr.v.a.mask,
+			      &sn->addr, sn->af) &&
+			    PF_MATCHA(psnk->psnk_dst.neg,
+			      &psnk->psnk_dst.addr.v.a.addr,
+			      &psnk->psnk_dst.addr.v.a.mask,
+			      &sn->raddr, sn->af)) {
+				pf_unlink_src_node_locked(sn);
+				LIST_INSERT_HEAD(&kill, sn, entry);
+				sn->expire = 1;
+			}
+		PF_HASHROW_UNLOCK(sh);
+	}
+
+	for (int i = 0; i <= V_pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+		struct pf_state *s;
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (s->src_node && s->src_node->expire == 1) {
+#ifdef INVARIANTS
+				s->src_node->states--;
+#endif
+				s->src_node = NULL;
+			}
+			if (s->nat_src_node && s->nat_src_node->expire == 1) {
+#ifdef INVARIANTS
+				s->nat_src_node->states--;
+#endif
+				s->nat_src_node = NULL;
+			}
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	psnk->psnk_killed = pf_free_src_nodes(&kill);
+}
+
 /*
  * XXX - Check for version missmatch!!!
  */
