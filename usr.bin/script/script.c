@@ -98,24 +98,27 @@ main(int argc, char *argv[])
 	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
 	fd_set rfd;
-	int aflg, kflg, pflg, ch, k, n;
+	int aflg, Fflg, kflg, pflg, ch, k, n;
 	int flushtime, readstdin;
 	int fm_fd, fm_log;
 
-	aflg = kflg = pflg = 0;
+	aflg = Fflg = kflg = pflg = 0;
 	usesleep = 1;
 	rawout = 0;
 	flushtime = 30;
 	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
 			   warning. (not needed w/clang) */
 
-	while ((ch = getopt(argc, argv, "adfkpqrt:")) != -1)
+	while ((ch = getopt(argc, argv, "adFfkpqrt:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
+			break;
+		case 'F':
+			Fflg = 1;
 			break;
 		case 'f':
 			fflg = 1;
@@ -235,12 +238,15 @@ main(int argc, char *argv[])
 		FD_SET(master, &rfd);
 		if (readstdin)
 			FD_SET(STDIN_FILENO, &rfd);
-		if ((!readstdin && ttyflg) || flushtime > 0) {
-			tv.tv_sec = !readstdin && ttyflg ? 1 :
-			    flushtime - (tvec - start);
+		if (!readstdin && ttyflg) {
+			tv.tv_sec = 1;
 			tv.tv_usec = 0;
 			tvp = &tv;
 			readstdin = 1;
+		} else if (flushtime > 0) {
+			tv.tv_sec = flushtime - (tvec - start);
+			tv.tv_usec = 0;
+			tvp = &tv;
 		} else {
 			tvp = NULL;
 		}
@@ -283,6 +289,8 @@ main(int argc, char *argv[])
 			fflush(fscript);
 			start = tvec;
 		}
+		if (Fflg)
+			fflush(fscript);
 	}
 	finish();
 	done(0);

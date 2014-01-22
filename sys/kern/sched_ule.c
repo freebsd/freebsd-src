@@ -39,7 +39,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
-#include "opt_kdtrace.h"
 #include "opt_sched.h"
 
 #include <sys/param.h>
@@ -344,20 +343,20 @@ SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
 
 SDT_PROVIDER_DEFINE(sched);
 
-SDT_PROBE_DEFINE3(sched, , , change_pri, change-pri, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
     "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, dequeue, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
     "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, enqueue, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
     "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend_pri, lend-pri, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
     "struct proc *", "uint8_t", "struct thread *");
-SDT_PROBE_DEFINE2(sched, , , load_change, load-change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off_cpu, off-cpu, "struct thread *", 
+SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
+SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *", 
     "struct proc *");
-SDT_PROBE_DEFINE(sched, , , on_cpu, on-cpu);
-SDT_PROBE_DEFINE(sched, , , remain_cpu, remain-cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, surrender, "struct thread *", 
+SDT_PROBE_DEFINE(sched, , , on__cpu);
+SDT_PROBE_DEFINE(sched, , , remain__cpu);
+SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *", 
     "struct proc *");
 
 /*
@@ -542,7 +541,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
-	SDT_PROBE2(sched, , , load_change, (int)TDQ_ID(tdq), tdq->tdq_load);
+	SDT_PROBE2(sched, , , load__change, (int)TDQ_ID(tdq), tdq->tdq_load);
 }
 
 /*
@@ -562,7 +561,7 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
-	SDT_PROBE2(sched, , , load_change, (int)TDQ_ID(tdq), tdq->tdq_load);
+	SDT_PROBE2(sched, , , load__change, (int)TDQ_ID(tdq), tdq->tdq_load);
 }
 
 /*
@@ -812,30 +811,6 @@ sched_highest(const struct cpu_group *cg, cpuset_t mask, int minload)
 	high.cs_limit = minload;
 	cpu_search_highest(cg, &high);
 	return high.cs_cpu;
-}
-
-/*
- * Simultaneously find the highest and lowest loaded cpu reachable via
- * cg.
- */
-static inline void
-sched_both(const struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
-{
-	struct cpu_search high;
-	struct cpu_search low;
-
-	low.cs_cpu = -1;
-	low.cs_prefer = -1;
-	low.cs_pri = -1;
-	low.cs_limit = INT_MAX;
-	low.cs_mask = mask;
-	high.cs_cpu = -1;
-	high.cs_limit = -1;
-	high.cs_mask = mask;
-	cpu_search_both(cg, &low, &high);
-	*lowcpu = low.cs_cpu;
-	*highcpu = high.cs_cpu;
-	return;
 }
 
 static void
@@ -1533,7 +1508,7 @@ sched_priority(struct thread *td)
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
 			pri += min(SCHED_PRI_TICKS(td->td_sched),
-			    SCHED_PRI_RANGE);
+			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
@@ -1680,12 +1655,12 @@ sched_thread_priority(struct thread *td, u_char prio)
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "prio",
 	    "prio:%d", td->td_priority, "new prio:%d", prio,
 	    KTR_ATTR_LINKED, sched_tdname(curthread));
-	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
+	SDT_PROBE3(sched, , , change__pri, td, td->td_proc, prio);
 	if (td != curthread && prio < td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
-		SDT_PROBE4(sched, , , lend_pri, td, td->td_proc, prio, 
+		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio, 
 		    curthread);
 	} 
 	ts = td->td_sched;
@@ -1938,7 +1913,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
-		SDT_PROBE2(sched, , , off_cpu, newtd, newtd->td_proc);
+		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
 		sched_pctcpu_update(newtd->td_sched, 0);
@@ -1964,14 +1939,14 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		lock_profile_obtain_lock_success(
 		    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
 
-		SDT_PROBE0(sched, , , on_cpu);
+		SDT_PROBE0(sched, , , on__cpu);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
 	} else {
 		thread_unblock_switch(td, mtx);
-		SDT_PROBE0(sched, , , remain_cpu);
+		SDT_PROBE0(sched, , , remain__cpu);
 	}
 	/*
 	 * Assert that all went well and return.

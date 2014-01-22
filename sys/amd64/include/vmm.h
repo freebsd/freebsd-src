@@ -38,6 +38,8 @@ struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
+struct vhpet;
+struct vioapic;
 struct vlapic;
 struct vmspace;
 struct vm_object;
@@ -45,11 +47,12 @@ struct pmap;
 
 enum x2apic_state;
 
-typedef int	(*vmm_init_func_t)(void);
+typedef int	(*vmm_init_func_t)(int ipinum);
 typedef int	(*vmm_cleanup_func_t)(void);
+typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
-				  struct pmap *pmap);
+				  struct pmap *pmap, void *rendezvous_cookie);
 typedef void	(*vmi_cleanup_func_t)(void *vmi);
 typedef int	(*vmi_get_register_t)(void *vmi, int vcpu, int num,
 				      uint64_t *retval);
@@ -66,10 +69,13 @@ typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
 typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
 typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
+typedef struct vlapic * (*vmi_vlapic_init)(void *vmi, int vcpu);
+typedef void	(*vmi_vlapic_cleanup)(void *vmi, struct vlapic *vlapic);
 
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
 	vmm_cleanup_func_t	cleanup;
+	vmm_resume_func_t	resume;
 
 	vmi_init_func_t		vminit;		/* vm-specific initialization */
 	vmi_run_func_t		vmrun;
@@ -83,6 +89,8 @@ struct vmm_ops {
 	vmi_set_cap_t		vmsetcap;
 	vmi_vmspace_alloc	vmspace_alloc;
 	vmi_vmspace_free	vmspace_free;
+	vmi_vlapic_init		vlapic_init;
+	vmi_vlapic_cleanup	vlapic_cleanup;
 };
 
 extern struct vmm_ops vmm_ops_intel;
@@ -116,13 +124,41 @@ int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
+struct vioapic *vm_ioapic(struct vm *vm);
+struct vhpet *vm_hpet(struct vm *vm);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
+int vm_apicid2vcpuid(struct vm *vm, int apicid);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
+
+/*
+ * Rendezvous all vcpus specified in 'dest' and execute 'func(arg)'.
+ * The rendezvous 'func(arg)' is not allowed to do anything that will
+ * cause the thread to be put to sleep.
+ *
+ * If the rendezvous is being initiated from a vcpu context then the
+ * 'vcpuid' must refer to that vcpu, otherwise it should be set to -1.
+ *
+ * The caller cannot hold any locks when initiating the rendezvous.
+ *
+ * The implementation of this API may cause vcpus other than those specified
+ * by 'dest' to be stalled. The caller should not rely on any vcpus making
+ * forward progress when the rendezvous is in progress.
+ */
+typedef void (*vm_rendezvous_func_t)(struct vm *vm, int vcpuid, void *arg);
+void vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
+    vm_rendezvous_func_t func, void *arg);
+
+static __inline int
+vcpu_rendezvous_pending(void *rendezvous_cookie)
+{
+
+	return (*(uintptr_t *)rendezvous_cookie != 0);
+}
 
 /*
  * Return 1 if device indicated by bus/slot/func is supposed to be a
@@ -141,7 +177,8 @@ enum vcpu_state {
 	VCPU_SLEEPING,
 };
 
-int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state);
+int vcpu_set_state(struct vm *vm, int vcpu, enum vcpu_state state,
+    bool from_idle);
 enum vcpu_state vcpu_get_state(struct vm *vm, int vcpu, int *hostcpu);
 
 static int __inline
@@ -151,7 +188,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
+void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -259,6 +296,8 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
+	VM_EXITCODE_SPINDOWN_CPU,
+	VM_EXITCODE_RENDEZVOUS,
 	VM_EXITCODE_MAX
 };
 
@@ -278,7 +317,6 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
-			int		protection;
 		} paging;
 		struct {
 			uint64_t	gpa;
@@ -291,9 +329,19 @@ struct vm_exit {
 		 * exitcode to represent the VM-exit.
 		 */
 		struct {
-			int		error;		/* vmx inst error */
+			int		status;		/* vmx inst status */
+			/*
+			 * 'exit_reason' and 'exit_qualification' are valid
+			 * only if 'status' is zero.
+			 */
 			uint32_t	exit_reason;
 			uint64_t	exit_qualification;
+			/*
+			 * 'inst_error' and 'inst_type' are valid
+			 * only if 'status' is non-zero.
+			 */
+			int		inst_type;
+			int		inst_error;
 		} vmx;
 		struct {
 			uint32_t	code;		/* ecx value */
@@ -303,6 +351,9 @@ struct vm_exit {
 			int		vcpu;
 			uint64_t	rip;
 		} spinup_ap;
+		struct {
+			uint64_t	rflags;
+		} hlt;
 	} u;
 };
 

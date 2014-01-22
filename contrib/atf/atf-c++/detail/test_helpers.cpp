@@ -27,10 +27,6 @@
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-extern "C" {
-#include <regex.h>
-}
-
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -43,6 +39,18 @@ extern "C" {
 #include "fs.hpp"
 #include "process.hpp"
 #include "test_helpers.hpp"
+
+// Path to the directory containing the libatf-c tests, used to locate the
+// process_helpers program.  If NULL (the default), the code will use a
+// relative path.  Otherwise, the provided path will be used; this is so
+// that we can locate the helpers binary if the installation uses a
+// different layout than the one we provide (as is the case in FreeBSD).
+#if defined(ATF_C_TESTS_BASE)
+static const char* atf_c_tests_base = ATF_C_TESTS_BASE;
+#else
+static const char* atf_c_tests_base = NULL;
+#endif
+#undef ATF_C_TESTS_BASE
 
 void
 build_check_cxx_o_aux(const atf::fs::path& sfile, const char* failmsg,
@@ -71,62 +79,30 @@ build_check_cxx_o(const atf::tests::tc& tc, const char* sfile,
 void
 header_check(const char *hdrname)
 {
-    std::ofstream srcfile("test.c");
+    std::ofstream srcfile("test.cpp");
     ATF_REQUIRE(srcfile);
     srcfile << "#include <" << hdrname << ">\n";
     srcfile.close();
 
     const std::string failmsg = std::string("Header check failed; ") +
         hdrname + " is not self-contained";
-    build_check_cxx_o_aux(atf::fs::path("test.c"), failmsg.c_str(), true);
+    build_check_cxx_o_aux(atf::fs::path("test.cpp"), failmsg.c_str(), true);
 }
 
 atf::fs::path
 get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
 {
-    if (is_detail)
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / ".." / "atf-c" / "detail" / "process_helpers";
-    else
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / "atf-c" / "detail" / "process_helpers";
-}
-
-bool
-grep_file(const char* name, const char* regex)
-{
-    std::ifstream is(name);
-    ATF_REQUIRE(is);
-
-    bool found = false;
-
-    std::string line;
-    std::getline(is, line);
-    while (!found && is.good()) {
-        if (grep_string(line, regex))
-            found = true;
+    const char* helper = "detail/process_helpers";
+    if (atf_c_tests_base == NULL) {
+        if (is_detail)
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / ".." / "atf-c" / helper;
         else
-            std::getline(is, line);
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / "atf-c" / helper;
+    } else {
+        return atf::fs::path(atf_c_tests_base) / helper;
     }
-
-    return found;
-}
-
-bool
-grep_string(const std::string& str, const char* regex)
-{
-    int res;
-    regex_t preg;
-
-    std::cout << "Looking for '" << regex << "' in '" << str << "'\n";
-    ATF_REQUIRE(::regcomp(&preg, regex, REG_EXTENDED) == 0);
-
-    res = ::regexec(&preg, str.c_str(), 0, NULL, 0);
-    ATF_REQUIRE(res == 0 || res == REG_NOMATCH);
-
-    ::regfree(&preg);
-
-    return res == 0;
 }
 
 void

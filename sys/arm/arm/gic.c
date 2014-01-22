@@ -83,6 +83,15 @@ __FBSDID("$FreeBSD$");
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
 
+/* First bit is a polarity bit (0 - low, 1 - high) */
+#define GICD_ICFGR_POL_LOW	(0 << 0)
+#define GICD_ICFGR_POL_HIGH	(1 << 0)
+#define GICD_ICFGR_POL_MASK	0x1
+/* Second bit is a trigger bit (0 - level, 1 - edge) */
+#define GICD_ICFGR_TRIG_LVL	(0 << 1)
+#define GICD_ICFGR_TRIG_EDGE	(1 << 1)
+#define GICD_ICFGR_TRIG_MASK	0x2
+
 struct arm_gic_softc {
 	struct resource *	gic_res[3];
 	bus_space_tag_t		gic_c_bst;
@@ -90,6 +99,9 @@ struct arm_gic_softc {
 	bus_space_handle_t	gic_c_bsh;
 	bus_space_handle_t	gic_d_bsh;
 	uint8_t			ver;
+	device_t		dev;
+	struct mtx		mutex;
+	uint32_t		nirqs;
 };
 
 static struct resource_spec arm_gic_spec[] = {
@@ -109,6 +121,8 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 #define	gic_d_write_4(reg, val)		\
     bus_space_write_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg, val)
 
+static int gic_config_irq(int irq, enum intr_trigger trig,
+    enum intr_polarity pol);
 static void gic_post_filter(void *);
 
 static int
@@ -157,19 +171,20 @@ arm_gic_attach(device_t dev)
 	struct		arm_gic_softc *sc;
 	int		i;
 	uint32_t	icciidr;
-	uint32_t	nirqs;
 
 	if (arm_gic_sc)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
+	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, arm_gic_spec, sc->gic_res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
 
-	arm_post_filter = gic_post_filter;
+	/* Initialize mutex */
+	mtx_init(&sc->mutex, "GIC lock", "", MTX_SPIN);
 
 	/* Distributor Interface */
 	sc->gic_d_bst = rman_get_bustag(sc->gic_res[0]);
@@ -185,31 +200,35 @@ arm_gic_attach(device_t dev)
 	gic_d_write_4(GICD_CTLR, 0x00);
 
 	/* Get the number of interrupts */
-	nirqs = gic_d_read_4(GICD_TYPER);
-	nirqs = 32 * ((nirqs & 0x1f) + 1);
+	sc->nirqs = gic_d_read_4(GICD_TYPER);
+	sc->nirqs = 32 * ((sc->nirqs & 0x1f) + 1);
+
+	/* Set up function pointers */
+	arm_post_filter = gic_post_filter;
+	arm_config_irq = gic_config_irq;
 
 	icciidr = gic_c_read_4(GICC_IIDR);
-	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x nirqs %u\n",
+	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x sc->nirqs %u\n",
 			icciidr>>20, (icciidr>>16) & 0xF, (icciidr>>12) & 0xf,
-			(icciidr & 0xfff), nirqs);
+			(icciidr & 0xfff), sc->nirqs);
 
 	/* Set all global interrupts to be level triggered, active low. */
-	for (i = 32; i < nirqs; i += 32) {
-		gic_d_write_4(GICD_ICFGR(i >> 5), 0x00000000);
+	for (i = 32; i < sc->nirqs; i += 16) {
+		gic_d_write_4(GICD_ICFGR(i >> 4), 0x00000000);
 	}
 
 	/* Disable all interrupts. */
-	for (i = 32; i < nirqs; i += 32) {
+	for (i = 32; i < sc->nirqs; i += 32) {
 		gic_d_write_4(GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
-	for (i = 0; i < nirqs; i += 4) {
+	for (i = 0; i < sc->nirqs; i += 4) {
 		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0);
 		gic_d_write_4(GICD_ITARGETSR(i >> 2), 1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (i = 0; i < nirqs; i += 32) {
+	for (i = 0; i < sc->nirqs; i += 32) {
 		gic_d_write_4(GICD_IGROUPR(i >> 5), 0);
 	}
 
@@ -271,7 +290,6 @@ arm_get_next_irq(int last_irq)
 			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
 		return -1;
 	}
-	gic_c_write_4(GICC_EOIR, active_irq);
 
 	return active_irq;
 }
@@ -279,15 +297,68 @@ arm_get_next_irq(int last_irq)
 void
 arm_mask_irq(uintptr_t nb)
 {
+
 	gic_d_write_4(GICD_ICENABLER(nb >> 5), (1UL << (nb & 0x1F)));
+	gic_c_write_4(GICC_EOIR, nb);
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
 
-	gic_c_write_4(GICC_EOIR, nb);
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
+}
+
+static int
+gic_config_irq(int irq, enum intr_trigger trig,
+    enum intr_polarity pol)
+{
+	uint32_t reg;
+	uint32_t mask;
+
+	/* Function is public-accessible, so validate input arguments */
+	if ((irq < 0) || (irq >= arm_gic_sc->nirqs))
+		goto invalid_args;
+	if ((trig != INTR_TRIGGER_EDGE) && (trig != INTR_TRIGGER_LEVEL) &&
+	    (trig != INTR_TRIGGER_CONFORM))
+		goto invalid_args;
+	if ((pol != INTR_POLARITY_HIGH) && (pol != INTR_POLARITY_LOW) &&
+	    (pol != INTR_POLARITY_CONFORM))
+		goto invalid_args;
+
+	mtx_lock_spin(&arm_gic_sc->mutex);
+
+	reg = gic_d_read_4(GICD_ICFGR(irq >> 4));
+	mask = (reg >> 2*(irq % 16)) & 0x3;
+
+	if (pol == INTR_POLARITY_LOW) {
+		mask &= ~GICD_ICFGR_POL_MASK;
+		mask |= GICD_ICFGR_POL_LOW;
+	} else if (pol == INTR_POLARITY_HIGH) {
+		mask &= ~GICD_ICFGR_POL_MASK;
+		mask |= GICD_ICFGR_POL_HIGH;
+	}
+
+	if (trig == INTR_TRIGGER_LEVEL) {
+		mask &= ~GICD_ICFGR_TRIG_MASK;
+		mask |= GICD_ICFGR_TRIG_LVL;
+	} else if (trig == INTR_TRIGGER_EDGE) {
+		mask &= ~GICD_ICFGR_TRIG_MASK;
+		mask |= GICD_ICFGR_TRIG_EDGE;
+	}
+
+	/* Set mask */
+	reg = reg & ~(0x3 << 2*(irq % 16));
+	reg = reg | (mask << 2*(irq % 16));
+	gic_d_write_4(GICD_ICFGR(irq >> 4), reg);
+
+	mtx_unlock_spin(&arm_gic_sc->mutex);
+
+	return (0);
+
+invalid_args:
+	device_printf(arm_gic_sc->dev, "gic_config_irg, invalid parameters\n");
+	return (EINVAL);
 }
 
 #ifdef SMP

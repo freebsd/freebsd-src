@@ -85,8 +85,10 @@ ahci_em_attach(device_t dev)
 	mtx_init(&enc->mtx, "AHCI enclosure lock", NULL, MTX_DEF);
 	rid = 0;
 	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-	    &rid, RF_ACTIVE)))
+	    &rid, RF_ACTIVE))) {
+		mtx_destroy(&enc->mtx);
 		return (ENXIO);
+	}
 	enc->capsem = ATA_INL(enc->r_memc, 0);
 	rid = 1;
 	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,

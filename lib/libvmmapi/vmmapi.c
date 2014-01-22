@@ -397,6 +397,63 @@ vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector)
 }
 
 int
+vm_lapic_local_irq(struct vmctx *ctx, int vcpu, int vector)
+{
+	struct vm_lapic_irq vmirq;
+
+	bzero(&vmirq, sizeof(vmirq));
+	vmirq.cpuid = vcpu;
+	vmirq.vector = vector;
+
+	return (ioctl(ctx->fd, VM_LAPIC_LOCAL_IRQ, &vmirq));
+}
+
+int
+vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg)
+{
+	struct vm_lapic_msi vmmsi;
+
+	bzero(&vmmsi, sizeof(vmmsi));
+	vmmsi.addr = addr;
+	vmmsi.msg = msg;
+
+	return (ioctl(ctx->fd, VM_LAPIC_MSI, &vmmsi));
+}
+
+int
+vm_ioapic_assert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_ASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_deassert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_DEASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_pulse_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PULSE_IRQ, &ioapic_irq));
+}
+
+int
 vm_inject_nmi(struct vmctx *ctx, int vcpu)
 {
 	struct vm_nmi vmnmi;
@@ -518,8 +575,8 @@ vm_map_pptdev_mmio(struct vmctx *ctx, int bus, int slot, int func,
 }
 
 int
-vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	     int destcpu, int vector, int numvec)
+vm_setup_pptdev_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+    uint64_t addr, uint64_t msg, int numvec)
 {
 	struct vm_pptdev_msi pptmsi;
 
@@ -528,16 +585,16 @@ vm_setup_msi(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
 	pptmsi.bus = bus;
 	pptmsi.slot = slot;
 	pptmsi.func = func;
-	pptmsi.destcpu = destcpu;
-	pptmsi.vector = vector;
+	pptmsi.msg = msg;
+	pptmsi.addr = addr;
 	pptmsi.numvec = numvec;
 
 	return (ioctl(ctx->fd, VM_PPTDEV_MSI, &pptmsi));
 }
 
 int	
-vm_setup_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
-	      int idx, uint32_t msg, uint32_t vector_control, uint64_t addr)
+vm_setup_pptdev_msix(struct vmctx *ctx, int vcpu, int bus, int slot, int func,
+    int idx, uint64_t addr, uint64_t msg, uint32_t vector_control)
 {
 	struct vm_pptdev_msix pptmsix;
 
@@ -790,5 +847,18 @@ vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 			pte[i] = gpapte.pte[i];
 	}
 
+	return (error);
+}
+
+int
+vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
+{
+	int error;
+	struct vm_hpet_cap cap;
+
+	bzero(&cap, sizeof(struct vm_hpet_cap));
+	error = ioctl(ctx->fd, VM_GET_HPET_CAPABILITIES, &cap);
+	if (capabilities != NULL)
+		*capabilities = cap.capabilities;
 	return (error);
 }

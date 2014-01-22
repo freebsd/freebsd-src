@@ -59,7 +59,6 @@ IGNORE=		\
 	${TESTSRCDIR}/tst/common/proc/tst.discard.ksh			\
 	${TESTSRCDIR}/tst/common/proc/tst.signal.ksh			\
 	${TESTSRCDIR}/tst/common/proc/tst.startexit.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufuncsort.c		\
 	${TESTSRCDIR}/tst/common/scalars/tst.misc.d			\
 	${TESTSRCDIR}/tst/common/scalars/tst.selfarray2.d		\
 	${TESTSRCDIR}/tst/common/sysevent/tst.post.c			\
@@ -115,10 +114,6 @@ NOTWORK+= \
 	${TESTSRCDIR}/tst/common/profile-n/tst.func.ksh			\
 	${TESTSRCDIR}/tst/common/profile-n/tst.mod.ksh			\
 	${TESTSRCDIR}/tst/common/profile-n/tst.sym.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufunc.ksh		\
-	${TESTSRCDIR}/tst/common/profile-n/tst.ufuncsort.ksh		\
-	${TESTSRCDIR}/tst/common/profile-n/tst.umod.ksh			\
-	${TESTSRCDIR}/tst/common/profile-n/tst.usym.ksh			\
 	${TESTSRCDIR}/tst/common/safety/tst.basename.d			\
 	${TESTSRCDIR}/tst/common/safety/tst.caller.d			\
 	${TESTSRCDIR}/tst/common/safety/tst.cleanpath.d			\
@@ -302,6 +297,8 @@ ${_d}_TSTD!=	find ${TESTSRCDIR}/tst/common/${_d} -name "tst.*.d"
 ${_d}_TSTC!=	find ${TESTSRCDIR}/tst/common/${_d} -name "tst.*.c"
 ${_d}_SHERR!=	find ${TESTSRCDIR}/tst/common/${_d} -name "err.*.ksh"
 ${_d}_SHTST!=	find ${TESTSRCDIR}/tst/common/${_d} -name "tst.*.ksh"
+${_d}_EXE!=	find ${TESTSRCDIR}/tst/common/${_d} -name "tst.*.exe" -o \
+						    -name "err.*.exe"
 ${_d}_TF=	${${_d}_ERR} ${${_d}_TSTD} ${${_d}_SHERR} ${${_d}_SHTST}
 
 # Go through the list of test files and prepare another list that contains
@@ -322,15 +319,16 @@ ${_d}_TFCS+= ${_f}
 .endfor
 
 ALL_TESTCFILES+= ${${_d}_TFCS}
+ALL_TESTEXEFILES+= ${${_d}_EXE}
 
-${_d}	: ${${_d}_TFCS:T:S/c$/exe/}
+${_d}	: ${${_d}_TFCS:T:S/c$/exe/} ${${_d}_EXE:T}
 	@${DTEST} ${${_d}_TFS}
 .endfor
 
 # --------------------------------------------------------------------------------
 # 
 
-PRGS=	${ALL_TESTCFILES:T:S/c$/exe/}
+PRGS=	${ALL_TESTCFILES:T:S/c$/exe/} ${ALL_TESTEXEFILES:T}
 
 listprgs	:
 	@echo ${PRGS}
@@ -341,6 +339,12 @@ listprgs	:
 .for _f in ${ALL_TESTCFILES}
 ${_f:T:S/c$/exe/} : ${_f}
 	gcc -o ${.TARGET} ${_f} -lrt
+.endfor
+
+.for _f in ${ALL_TESTEXEFILES}
+${_f:T} : ${_f}
+	cp -f ${_f} ${.TARGET}
+	chmod a+x ${.TARGET}
 .endfor
 
 listcfiles	:

@@ -61,11 +61,18 @@ ra_serf_version(void)
 #define RA_SERF_DESCRIPTION \
     N_("Module for accessing a repository via WebDAV protocol using serf.")
 
+#define RA_SERF_DESCRIPTION_VER \
+    N_("Module for accessing a repository via WebDAV protocol using serf.\n" \
+       "  - using serf %d.%d.%d")
+
 /* Implements svn_ra__vtable_t.get_description(). */
 static const char *
-ra_serf_get_description(void)
+ra_serf_get_description(apr_pool_t *pool)
 {
-  return _(RA_SERF_DESCRIPTION);
+  int major, minor, patch;
+
+  serf_lib_version(&major, &minor, &patch);
+  return apr_psprintf(pool, _(RA_SERF_DESCRIPTION_VER), major, minor, patch);
 }
 
 /* Implements svn_ra__vtable_t.get_schemes(). */
@@ -413,6 +420,18 @@ svn_ra_serf__progress(void *progress_baton, apr_off_t read, apr_off_t written)
     }
 }
 
+/** Our User-Agent string. */
+static const char *
+get_user_agent_string(apr_pool_t *pool)
+{
+  int major, minor, patch;
+  serf_lib_version(&major, &minor, &patch);
+
+  return apr_psprintf(pool, "SVN/%s (%s) serf/%d.%d.%d",
+                      SVN_VER_NUMBER, SVN_BUILD_TARGET,
+                      major, minor, patch);
+}
+
 /* Implements svn_ra__vtable_t.open_session(). */
 static svn_error_t *
 svn_ra_serf__open(svn_ra_session_t *session,
@@ -495,10 +514,10 @@ svn_ra_serf__open(svn_ra_session_t *session,
     SVN_ERR(callbacks->get_client_string(callback_baton, &client_string, pool));
 
   if (client_string)
-    serf_sess->useragent = apr_pstrcat(pool, USER_AGENT, " ",
+    serf_sess->useragent = apr_pstrcat(pool, get_user_agent_string(pool), " ",
                                        client_string, (char *)NULL);
   else
-    serf_sess->useragent = USER_AGENT;
+    serf_sess->useragent = get_user_agent_string(pool);
 
   /* go ahead and tell serf about the connection. */
   status =
@@ -1260,7 +1279,7 @@ svn_ra_serf__init(const svn_version_t *loader_version,
   int serf_minor;
   int serf_patch;
 
-  SVN_ERR(svn_ver_check_list(ra_serf_version(), checklist));
+  SVN_ERR(svn_ver_check_list2(ra_serf_version(), checklist, svn_ver_equal));
 
   /* Simplified version check to make sure we can safely use the
      VTABLE parameter. The RA loader does a more exhaustive check. */

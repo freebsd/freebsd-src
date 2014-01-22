@@ -11,6 +11,8 @@ SRCS=	Condition.cpp \
 	FileSpec.cpp \
 	Host.cpp \
 	Mutex.cpp \
+	OptionParser.cpp \
+	ProcessRunLock.cpp \
 	SocketAddress.cpp \
 	Symbols.cpp \
 	Terminal.cpp \

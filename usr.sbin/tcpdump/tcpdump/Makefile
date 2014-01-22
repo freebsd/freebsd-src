@@ -26,6 +26,11 @@ CFLAGS+=	-DLBL_ALIGN
 
 DPADD=	${LIBL} ${LIBPCAP}
 LDADD=	-ll -lpcap
+.if ${MK_CASPER} != "no"
+DPADD+=	${LIBCAPSICUM} ${LIBNV}
+LDADD+=	-lcapsicum -lnv
+CFLAGS+=-DHAVE_LIBCAPSICUM
+.endif
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto

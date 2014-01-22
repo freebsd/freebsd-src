@@ -32,8 +32,13 @@
 
 SUBDIR_ORDERED=	${_csu} \
 	libc \
+	libc_nonshared \
 	libbsm \
 	libauditd \
+	libutil \
+	libpjdlog \
+	libnv \
+	${_libcapsicum} \
 	libcompiler_rt \
 	${_libc_cheri} \
 	${_libcheri} \
@@ -50,7 +55,6 @@ SUBDIR_ORDERED=	${_csu} \
 	librpcsvc \
 	libsbuf \
 	libtacplus \
-	libutil \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
@@ -70,6 +74,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libbz2 \
 	libcalendar \
 	libcam \
+	${_libcasper} \
 	libcompat \
 	libdevinfo \
 	libdevstat \
@@ -83,7 +88,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libgpib} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
-	${_libiconv_compat} \
 	libipsec \
 	${_libipx} \
 	libjail \
@@ -97,6 +101,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnandfs} \
 	libnetbsd \
 	${_libngatm} \
+	libnv \
 	libopie \
 	libpam \
 	libpcap \
@@ -130,7 +135,8 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libz \
 	${_libz_cheri} \
 	${_atf} \
-	${_clang}
+	${_clang} \
+	${_tests}
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
 _csu=csu/${MACHINE_ARCH}-elf
@@ -144,10 +150,6 @@ _csu=csu
 
 # NB: keep these sorted by MK_* knobs
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 _libngatm=	libngatm
 .endif
@@ -159,6 +161,11 @@ _libsdp=	libsdp
 
 .if ${MK_BSNMP} != "no"
 _libbsnmp=	libbsnmp
+.endif
+
+.if ${MK_CASPER} != "no"
+_libcapsicum=	libcapsicum
+_libcasper=	libcasper
 .endif
 
 .if ${MK_CHERI} != "no"
@@ -195,10 +202,6 @@ _libldns=	libldns
 .if ${MK_LIBCPLUSPLUS} != "no"
 _libcxxrt=	libcxxrt
 _libcplusplus=	libc++
-.endif
-
-.if ${MK_LIBICONV_COMPAT} != "no"
-_libiconv_compat=	libiconv_compat
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -265,6 +268,11 @@ _libsmutil=	libsmutil
 
 .if ${MK_TELNET} != "no"
 _libtelnet=	libtelnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_UNBOUND} != "no"

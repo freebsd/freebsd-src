@@ -284,6 +284,12 @@ Wmissing-prototypes
 C ObjC Var(warn_missing_prototypes)
 Warn about global functions without prototypes
 
+; APPLE LOCAL begin -Wmost
+Wmost
+C ObjC C++ ObjC++ 
+Like -Wall but without -Wparentheses
+; APPLE LOCAL end -Wmost
+
 Wmultichar
 C ObjC C++ ObjC++
 Warn about use of multi-character character constants
@@ -291,6 +297,12 @@ Warn about use of multi-character character constants
 Wnested-externs
 C ObjC Var(warn_nested_externs)
 Warn about \"extern\" declarations not at file scope
+
+; APPLE LOCAL begin -Wnewline-eof
+Wnewline-eof
+C ObjC C++ ObjC++
+Warn about files missing a newline at the end of the file
+; APPLE LOCAL end -Wnewline-eof
 
 Wnon-template-friend
 C++ ObjC++ Var(warn_nontemplate_friend) Init(1)
@@ -432,6 +444,10 @@ Wvariadic-macros
 C ObjC C++ ObjC++
 Do not warn about using variadic macros when -pedantic
 
+Wvla
+C ObjC C++ ObjC++ Var(warn_vla) Init(-1) Warning
+Warn if a variable length array is used
+
 Wwrite-strings
 C ObjC C++ ObjC++ Var(warn_write_strings)
 In C++, nonzero means warn about deprecated conversion from string literals to `char *'.  In C, similar warning, except that the conversion is of course not deprecated by the ISO C standard.
@@ -489,6 +505,10 @@ ObjC ObjC++ Joined
 fdefault-inline
 C++ ObjC++
 Inline member functions by default
+
+fdirectives-only
+C ObjC C++ ObjC++
+Preprocess directives only.
 
 fdollars-in-identifiers
 C ObjC C++ ObjC++
@@ -576,6 +596,10 @@ Inject friend functions into enclosing namespace
 flabels-ok
 C++ ObjC++
 
+flax-vector-conversions
+C ObjC C++ ObjC++
+Allow implicit conversions between vectors with differing numbers of subparts and/or differing element types.
+
 fms-extensions
 C ObjC C++ ObjC++
 Don't warn about uses of Microsoft extensions
@@ -585,6 +609,12 @@ C++ ObjC++ Joined
 
 fnew-abi
 C++ ObjC++
+
+; APPLE LOCAL begin nested functions 4258406 4357979
+fnested-functions
+C ObjC Var(flag_nested_functions)
+Allow nested functions.
+; APPLE LOCAL end nested functions 4258406 4357979
 
 fnext-runtime
 ObjC ObjC++
@@ -619,6 +649,12 @@ Enable Objective-C exception and synchronization syntax
 fobjc-gc
 ObjC ObjC++ Var(flag_objc_gc)
 Enable garbage collection (GC) in Objective-C/Objective-C++ programs
+
+; APPLE LOCAL begin radar 5811887 - blocks
+fblocks
+C ObjC C++ ObjC++ Var(flag_blocks) Init(-1)
+Program supports c/objc extension blocks
+; APPLE LOCAL end radar 5811887 - blocks
 
 ; Nonzero means that we generate NeXT setjmp based exceptions.
 fobjc-sjlj-exceptions
@@ -729,6 +765,10 @@ fvisibility-inlines-hidden
 C++ ObjC++
 Marks all inlined methods as having hidden visibility
 
+fvisibility-ms-compat
+C++ ObjC++ Var(flag_visibility_ms_compat)
+Changes visibility to match Microsoft Visual Studio by default
+
 fvtable-gc
 C++ ObjC++
 Discard unused virtual functions
@@ -760,6 +800,18 @@ Generate lazy class lookup (via objc_getClass()) for use in Zero-Link mode
 gen-decls
 ObjC ObjC++
 Dump declarations to a .decl file
+
+femit-struct-debug-baseonly
+C ObjC C++ ObjC++
+-femit-struct-debug-baseonly	Aggressive reduced debug info for structs
+
+femit-struct-debug-reduced
+C ObjC C++ ObjC++
+-femit-struct-debug-reduced	Conservative reduced debug info for structs
+
+femit-struct-debug-detailed=
+C ObjC C++ ObjC++ Joined
+-femit-struct-debug-detailed=<spec-list>	Detailed reduced debug info for structs
 
 idirafter
 C ObjC C++ ObjC++ Joined Separate

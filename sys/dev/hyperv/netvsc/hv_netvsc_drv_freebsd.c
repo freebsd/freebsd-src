@@ -190,6 +190,7 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
+		printf("done!\n");
 	} else {
 		printf("Already initialized!\n");
 	}
@@ -484,7 +485,7 @@ hn_start_locked(struct ifnet *ifp)
 		 * bpf_mtap code has a chance to run.
 		 */
 		if (ifp->if_bpf) {
-			mc_head = m_copypacket(m_head, M_DONTWAIT);
+			mc_head = m_copypacket(m_head, M_NOWAIT);
 		}
 retry_send:
 		/* Set the completion routine */
@@ -593,7 +594,7 @@ hv_m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		 * Allocate a new mbuf; could check space
 		 * and allocate a cluster instead.
 		 */
-		n = m_getjcl(M_DONTWAIT, m->m_type, 0, MJUMPAGESIZE);
+		n = m_getjcl(M_NOWAIT, m->m_type, 0, MJUMPAGESIZE);
 		if (n == NULL)
 			break;
 		n->m_len = min(MJUMPAGESIZE, remainder);
@@ -621,13 +622,15 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 {
 	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
 	struct mbuf *m_new;
-	struct ifnet *ifp = sc->hn_ifp;
+	struct ifnet *ifp;
 	int size;
 	int i;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
 	}
+
+	ifp = sc->hn_ifp;
 	
 	ifp = sc->arpcom.ac_ifp;
 
@@ -655,7 +658,7 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 		size = MJUMPAGESIZE;
 	}
 
-	m_new = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, size);
+	m_new = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, size);
 
 	if (m_new == NULL)
 		return (0);

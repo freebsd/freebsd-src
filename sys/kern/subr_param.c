@@ -153,8 +153,10 @@ static const char *const vm_guest_sysctl_names[] = {
 	"none",
 	"generic",
 	"xen",
+	"hv",
 	NULL
 };
+CTASSERT(nitems(vm_guest_sysctl_names) - 1 == VM_LAST);
 
 #ifndef XEN
 static const char *const vm_bnames[] = {

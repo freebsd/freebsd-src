@@ -333,10 +333,6 @@ sctp_generate_random_key(uint32_t keylen)
 {
 	sctp_key_t *new_key;
 
-	/* validate keylen */
-	if (keylen > SCTP_AUTH_RANDOM_SIZE_MAX)
-		keylen = SCTP_AUTH_RANDOM_SIZE_MAX;
-
 	new_key = sctp_alloc_key(keylen);
 	if (new_key == NULL) {
 		/* out of memory */
@@ -374,7 +370,7 @@ sctp_compare_key(sctp_key_t * key1, sctp_key_t * key2)
 	uint32_t i;
 	uint32_t key1len, key2len;
 	uint8_t *key_1, *key_2;
-	uint8_t temp[SCTP_AUTH_RANDOM_SIZE_MAX];
+	uint8_t val1, val2;
 
 	/* sanity/length check */
 	key1len = sctp_get_keylen(key1);
@@ -386,38 +382,24 @@ sctp_compare_key(sctp_key_t * key1, sctp_key_t * key2)
 	else if (key2len == 0)
 		return (1);
 
-	if (key1len != key2len) {
-		if (key1len >= key2len)
-			maxlen = key1len;
-		else
-			maxlen = key2len;
-		bzero(temp, maxlen);
-		if (key1len < maxlen) {
-			/* prepend zeroes to key1 */
-			bcopy(key1->key, temp + (maxlen - key1len), key1len);
-			key_1 = temp;
-			key_2 = key2->key;
-		} else {
-			/* prepend zeroes to key2 */
-			bcopy(key2->key, temp + (maxlen - key2len), key2len);
-			key_1 = key1->key;
-			key_2 = temp;
-		}
+	if (key1len < key2len) {
+		maxlen = key2len;
 	} else {
 		maxlen = key1len;
-		key_1 = key1->key;
-		key_2 = key2->key;
 	}
-
+	key_1 = key1->key;
+	key_2 = key2->key;
+	/* check for numeric equality */
 	for (i = 0; i < maxlen; i++) {
-		if (*key_1 > *key_2)
+		/* left-pad with zeros */
+		val1 = (i < (maxlen - key1len)) ? 0 : *(key_1++);
+		val2 = (i < (maxlen - key2len)) ? 0 : *(key_2++);
+		if (val1 > val2) {
 			return (1);
-		else if (*key_1 < *key_2)
+		} else if (val1 < val2) {
 			return (-1);
-		key_1++;
-		key_2++;
+		}
 	}
-
 	/* keys are equal value, so check lengths */
 	if (key1len == key2len)
 		return (0);

@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/user.h>
 #include <sys/param.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -125,7 +126,7 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
@@ -160,7 +161,7 @@ static struct {
 	  { "limit%s sbsize %s",          ";\n",  1    },
 	  { "limit%s vmemoryuse %s",      ";\n",  1024 },
 	  { "limit%s pseudoterminals %s", ";\n",  1    },
-	  { "limit%s swapuse %s",         ";\n",  1024 },
+	  { "limit%s swapsize %s",        ";\n",  1024 },
 	  { "limit%s kqueues %s",         ";\n",  1    },
       }
     },
@@ -248,7 +249,7 @@ static struct {
  * to be modified accordingly!
  */
 
-#define RCS_STRING  "tfdscmlunbvpw"
+#define RCS_STRING  "tfdscmlunbvpwk"
 
 static rlim_t resource_num(int which, int ch, const char *str);
 static void usage(void);
@@ -287,7 +288,8 @@ main(int argc, char *argv[])
 
     pid = -1;
     optarg = NULL;
-    while ((ch = getopt(argc, argv, ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:")) != -1) {
+    while ((ch = getopt(argc, argv,
+      ":EeC:U:BSHP:ab:c:d:f:l:m:n:s:t:u:v:p:w:k:")) != -1) {
 	switch(ch) {
 	case 'a':
 	    doall = 1;
@@ -544,7 +546,7 @@ usage(void)
 {
     (void)fprintf(stderr,
 	"usage: limits [-C class|-P pid|-U user] [-eaSHBE] "
-	"[-bcdflmnstuvpw [val]] [[name=val ...] cmd]\n");
+	"[-bcdflmnstuvpwk [val]] [[name=val ...] cmd]\n");
     exit(EXIT_FAILURE);
 }
 
@@ -704,27 +706,32 @@ getshelltype(void)
     pid_t ppid = getppid();
 
     if (ppid != 1) {
-	FILE * fp;
+	struct kinfo_proc kp;
 	struct stat st;
-	char procdir[MAXPATHLEN], buf[128];
-	int l = sprintf(procdir, "/proc/%ld/", (long)ppid);
+	char path[MAXPATHLEN];
 	char * shell = getenv("SHELL");
+	int mib[4];
+	size_t len;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[3] = ppid;
 
 	if (shell != NULL && stat(shell, &st) != -1) {
 	    struct stat st1;
 
-	    strcpy(procdir+l, "file");
-	    /* $SHELL is actual shell? */
-	    if (stat(procdir, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
-		return getshellbyname(shell);
+	    mib[2] = KERN_PROC_PATHNAME;
+	    len = sizeof(path);
+	    if (sysctl(mib, 4, path, &len, NULL, 0) != -1) {
+		/* $SHELL is actual shell? */
+		if (stat(path, &st1) != -1 && memcmp(&st, &st1, sizeof st) == 0)
+		    return getshellbyname(shell);
+	    }
 	}
-	strcpy(procdir+l, "status");
-	if (stat(procdir, &st) == 0 && (fp = fopen(procdir, "r")) != NULL) {
-	    char * p = fgets(buf, sizeof buf, fp)==NULL ? NULL : strtok(buf, " \t");
-	    fclose(fp);
-	    if (p != NULL)
-		return getshellbyname(p);
-	}
+	mib[2] = KERN_PROC_PID;
+	len = sizeof(kp);
+	if (sysctl(mib, 4, &kp, &len, NULL, 0) != -1)
+	    return getshellbyname(kp.ki_comm);
     }
     return SH_SH;
 }

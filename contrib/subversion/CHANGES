@@ -1,3 +1,128 @@
+Version 1.8.5
+(25 November 2013, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.5
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * fix externals that point at redirected locations (issues #4428, #4429)
+    * diff: fix assertion with move inside a copy (issue #4444)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: Prevent crashes with some 3rd party modules (r1537360 et al)
+    * mod_dav_svn: canonicalize paths properly (r1542071)
+    * mod_authz_svn: fix crash of mod_authz_svn with invalid config (r1541432)
+    * hotcopy: fix hotcopy losing revprop files in packed repos (issue #4448)
+ 
+  - Other tool improvements and bugfixes:
+    * mod_dontdothat: Fix the uri parser (r1542069 et al)
+
+ Developer-visible changes:
+  - General:
+    * fix compilation with '--enable-optimize' with clang (r1534860)
+    * fix copmpilation with debug build of BDB on Windows (r1501656, r1501702)
+    * fix '--with-openssl' option when building on Windows (r1535139) 
+    * add test to fail when built against broken ZLib (r1537193 et al)
+
+  - Bindings:
+    * swig-rb: fix tests to run without installing on OS X (r1535161)
+    * ctypes-python: build with compiler selected via configure (r1536537)
+
+
+Version 1.8.4
+(29 October 2013, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.4
+
+ User-visible changes:
+  - Client- and server-side bugfixes:
+    * fix assertion on urls of the form 'file://./' (r1516806)
+    * stop linking against psapi.dll on Windows (r1534102)
+    * translation updates for Swedish
+
+  - Client-side bugfixes:
+    * revert: fix problems reverting moves (issue #4436)
+    * update: fix assertion when file external access is denied (issue #4422)
+    * merge: reduce network connections for automatic merge (r1468980 et al)
+    * merge: fix path corruption during reintegration (r1523666)
+    * mergeinfo: fix crash (r1519955)
+    * ra_serf: verify the result of xml parsing (r1501199 et al)
+    * ra_serf: improve error messages during commit (r1526439)
+    * ra_local: fix error with repository in Windows drive root (r1518184)
+    * fix crash on windows when piped command is interrupted (r1522892)
+    * fix crash in the crash handler on windows (r1532023)
+    * fix assertion when upgrading old working copies (r1520529)
+
+  - Server-side bugfixes:
+    * hotcopy: cleanup unpacked revprops with '--incremental' (r1512300 et al)
+    * fix OOM on concurrent requests at threaded server start (r1527103 et al)
+    * fsfs: improve error message when unsupported fsfs format found (r1534158)
+    * fix memory problem in 3rd party FS module loader (r1519615 et al)
+
+ Developer-visible changes:
+  - General:
+    * allow compiling against serf 1.3 and later on Windows (r1517123)
+
+  - Bindings:
+    * javahl: canonicalize path for streamFileContent method (r1524869)
+
+
+Version 1.8.3
+(29 August 2013, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.3
+
+ User-visible changes:
+  - Client- and server-side bugfixes:
+    * translation updates for Swedish
+    * enforce strict version equality between tools and libraries (r1502267)
+    * consistently output revisions as "r%ld" in error messags (r1499044 et al)
+
+  - Client-side bugfixes:
+    * status: always use absolute paths in XML output (issue #4398)
+    * ra_serf: 'svn log -v' fails with a 1.2.x server (issue #4044)
+    * ra_serf: fix crash when committing cp with deep deletion (issue #4400)
+    * diff: issue an error for files that can't fit in memory (r1513119 et al)
+    * svnmucc: generate proper error for mismatched URLs (r1511353)
+    * update: fix a crash when a temp file doesn't exist (r1513156)
+    * commit & update: improve sleep for timestamps performance (r1508438)
+    * diff: continue on missing or obstructing files (issue #4396)
+    * ra_serf: use runtime serf version for User-Agent (r1514315, r1514628)
+    * ra_serf: ignore case when checking certificate common names (r1514763)
+    * ra_serf: format distinguished names properly (r1514804)
+    * ra_serf: do not retry HTTP requests if we started to parse them (r1503318)
+    * ra_serf: output ssl cert verification failure reason (r1514785 et al)
+    * ra_serf: allow session reuse after SVN_ERR_CEASE_INVOCATION (r1502901)
+    * ra_serf: include library version in '--version' output (r1514295 et al)
+    * info: fix spurious error on wc root with child in conflict (r1515366)
+
+  - Server-side bugfixes:
+    * svnserve: fix creation of pid files (r1516556)
+    * svnadmin: fix output encoding in non-UTF8 environments (r1506966)
+    * svnsync: fix high memory usage when running over ra_serf (r1515249 et al)
+    * mod_dav_svn: do not map requests to filesystem (r1512432 et al)
+    * svnauthz: improve help strings (r1511272) 
+    * fsfs: fixed manifest file growth with revprop changes (r1513874)
+    * fsfs: fix packed revprops causing loss of revprops (r1513879 et al)
+  
+  - Other tool improvements and bugfixes:
+    * svnwcsub/irkerbridge: fix symlink attack via pid file (r175 from upstream)
+
+ Developer-visible changes:
+  - General:
+    * describe APR unimplemented errors as coming from APR (r1503010 et al)
+    * mod_dav_svn: update INSTALL to reflect configure defaults (r1515141)
+    * davautocheck: use the correct apxs binary by default (r1507889, r1507891)
+
+  - API changes:
+    * svn_config_walk_auth_data() config_dir arg: permit NULL (r1507382 et al)
+
+  - Bindings:
+    * swig-pl: fix SVN::Client not honoring config file settings (r150744)
+    * swig-pl & swig-py: disable unusable svn_fs_set_warning_func (r1515119)
+
+
+Version 1.8.2
+(Not released, see changes for 1.8.3.)
+ 
+ 
 Version 1.8.1
 (23 July 2013, from /branches/1.8.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.8.1
@@ -54,6 +179,8 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.1
     * svnadmin create: deny '--fs-type=fsfs --compatible-version=1.0' (r1494223)
     * svnadmin upgrade: fix data loss when cancelling in last stage (r1494298)
     * mod_dav_svn: fix incorrect path canonicalization (r1503528)
+            See CVE-2013-4131, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-4131-advisory.txt
 
   - Other tool improvements and bugfixes:
     * fsfs-stats (tool): resolve segfault when passing invalid path (r1492164)
@@ -361,7 +488,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.0
     * support for Serf 2 (r1147538)
     * introduction of editor v2 (via private APIs only) (r1166332 et al)
     * improve SQLite setup for compatibility with OS X 10.7. (r1181666)
-    * rework switch statement to accomodate OWC compiler limitations (r1204407)
+    * rework switch statement to accommodate OWC compiler limitations (r1204407)
     * new --enable-sqlite-compatibility-version configure option (r1201421)
     * make test suite LD_LIBRARY_PATH include just-built auth plugins (r1200474)
     * packages/ directory removed, contents were outdated and unused (r1442167)
@@ -426,6 +553,65 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.0
     * fix some reference counting bugs in swig-py bindings (r1464899, r1466524)
 
 
+Version 1.7.14
+(25 Nov 2013, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.14
+
+ User-visible changes:
+  - Client- and server-side bugfixes:
+    * fix assertion on urls of the form 'file://./' (r1516806)
+
+  - Client-side bugfixes:
+    * upgrade: fix an assertion when used with pre-1.3 wcs (r1530849)
+    * ra_local: fix error with repository in Windows drive root (r1518184)
+    * fix crash on windows when piped command is interrupted (r1522892)
+    * fix externals that point at redirected locations (issues #4428, #4429)
+    * diff: fix incorrect calculation of changes in some cases (issue #4283)
+    * diff: fix errors with added/deleted targets (issues #4153, #4421)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: Prevent crashes with some 3rd party modules (r1537360 et al)
+    * fix OOM on concurrent requests at threaded server start (r1527103 et al)
+    * fsfs: limit commit time of files with deep change histories (r1536790)
+    * mod_dav_svn: canonicalize paths properly (r1542071)
+
+  - Other tool improvements and bugfixes:
+    * mod_dontdothat: Fix the uri parser (r1542069 et al)
+
+ Developer-visible changes:
+  - Bindings:
+    * javahl: canonicalize path for streamFileContent method (r1524869)
+
+
+Version 1.7.13
+(29 Aug 2013, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.13
+
+ User-visible changes:
+  - General
+    * merge: fix bogus mergeinfo with conflicting file merges (issue #4306)
+    * diff: fix duplicated path component in '--summarize' output (issue #4408)
+    * ra_serf: ignore case when checking certificate common names (r1514763)
+
+  - Server-side bugfixes:
+    * svnserve: fix creation of pid files (r1516556)
+    * mod_dav_svn: better status codes for commit failures (r1490684)
+    * mod_dav_svn: do not map requests to filesystem (r1512432 et al)
+
+ Developer-visible changes:
+  - General:
+    * support linking against gssapi on Solaris 10 (r1515068)
+    * don't use uninitialized variable to produce an error code (r1482282)
+
+  - Bindings:
+    * swig-pl: fix SVN::Client not honoring config file settings (r150744)
+    * swig-pl & swig-py: disable unusable svn_fs_set_warning_func (r1515119)
+
+
+Version 1.7.12
+(Not released, see changes for 1.7.13.)
+ 
+ 
 Version 1.7.11
 (23 Jul 2013, from /branches/1.7.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.7.11
@@ -436,9 +622,13 @@ http://svn.apache.org/repos/asf/subversion/tags/1.7.11
 
   - Server-side bugfixes:
     * mod_dav_svn: fix incorrect path canonicalization (r1503528)
+            See CVE-2013-4131, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-4131-advisory.txt
 
   - Other tool improvements and bugfixes:
     * fix argument processing in contrib hook scripts (r1485350)
+            See CVE-2013-2088, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-2088-advisory.txt
 
  Developer-visible changes:
   - Bindings:
@@ -464,7 +654,11 @@ http://svn.apache.org/repos/asf/subversion/tags/1.7.10
 
   - Server-side bugfixes:
     * fix FSFS repository corruption due to newline in filename (issue #4340)
+            See CVE-2013-1968, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-1968-advisory.txt
     * fix svnserve exiting when a client connection is aborted (r1482759)
+            See CVE-2013-2112, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-2112-advisory.txt
     * fix svnserve memory use after clear (issue #4365)
     * fix repository corruption on power/disk failure on Windows (r1483781)
 
@@ -490,6 +684,9 @@ http://svn.apache.org/repos/asf/subversion/tags/1.7.9
     * fix segfault when using kwallet (r1421103)
     
   - Server-side bugfixes:
+      See CVE-2013-1845, CVE-2013-1846, CVE-2013-1847, CVE-2013-1849,
+      and CVE-2013-1884, and descriptive advisories at
+            http://subversion.apache.org/security/
     * svnserve will log the replayed rev not the low-water rev. (r1461278)
     * mod_dav_svn will omit some property values for activity urls (r1453780)
     * fix an assertion in mod_dav_svn when acting as a proxy on / (issue #4272)
@@ -1027,6 +1224,8 @@ http://svn.apache.org/repos/asf/subversion/tags/1.6.23
   - Server-side bugfixes:
     * fix FSFS repository corruption due to newline in filename (issue #4340)
     * fix svnserve exiting when a client connection is aborted (r1482759)
+            See CVE-2013-2112, and descriptive advisory at
+            http://subversion.apache.org/security/CVE-2013-2112-advisory.txt
 
   - Other tool improvements and bugfixes:
     * fix argument processing in contrib hook scripts (r1485350)

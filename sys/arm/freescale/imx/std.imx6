@@ -1,0 +1,15 @@
+# $FreeBSD$
+machine		arm	armv6
+cpu 		CPU_CORTEXA
+makeoptions	ARM_LITTLE_ENDIAN
+options		ARM_L2_PIPT
+
+options		KERNVIRTADDR		= 0xc2000000
+makeoptions	KERNVIRTADDR		= 0xc2000000
+options		KERNPHYSADDR		= 0x12000000
+makeoptions	KERNPHYSADDR		= 0x12000000
+options		PHYSADDR		= 0x10000000
+options		STARTUP_PAGETABLE_ADDR	= 0x11f00000
+
+files "../freescale/imx/files.imx6"
+

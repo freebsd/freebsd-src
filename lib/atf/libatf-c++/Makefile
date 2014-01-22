@@ -36,6 +36,7 @@ LDADD=		-latf-c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
+ATF=		${.CURDIR:H:H:H}/contrib/atf
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
 .PATH:		${ATF}/atf-c++/detail
@@ -58,12 +59,14 @@ SRCS=		application.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp
+		ui.cpp \
+		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
 		config.hpp \
 		macros.hpp \
+		noncopyable.hpp \
 		tests.hpp \
 		utils.hpp
 INCSDIR=	${INCLUDEDIR}/atf-c++
@@ -73,4 +76,21 @@ INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
 MAN=		atf-c++-api.3
 
+all: atf-c++.pc
+atf-c++.pc: atf-c++.pc.in atf-version
+	sed -e 's,__CXX__,${CXX},g' \
+	    -e 's,__INCLUDEDIR__,${INCLUDEDIR},g' \
+	    -e 's,__LIBDIR__,${LIBDIR},g' \
+	    -e "s,__ATF_VERSION__,$$(cat atf-version),g" \
+	    <${ATF}/atf-c++/atf-c++.pc.in >atf-c++.pc
+
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		atf-c++.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+
+.if ${MK_TESTS} != "no"
+SUBDIR=		tests
+.endif
+
+.include "../common.mk"
 .include <bsd.lib.mk>

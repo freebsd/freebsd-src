@@ -38,10 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include "SYS.h"
 
-	.weak	_reboot
-	.set	_reboot,__sys_reboot
-	.weak	reboot
-	.set	reboot,__sys_reboot
+	WEAK_REFERENCE(__sys_reboot, _reboot)
+	WEAK_REFERENCE(__sys_reboot, reboot)
 ENTRY(__sys_reboot)
 	mov	$SYS_reboot,%rax
 	KERNCALL

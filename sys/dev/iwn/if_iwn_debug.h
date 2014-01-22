@@ -42,6 +42,7 @@ enum {
 	IWN_DEBUG_CMD		= 0x00001000,	/* cmd submission */
 	IWN_DEBUG_TXRATE	= 0x00002000,	/* TX rate debugging */
 	IWN_DEBUG_PWRSAVE	= 0x00004000,	/* Power save operations */
+	IWN_DEBUG_SCAN		= 0x00008000,	/* Scan related operations */
 	IWN_DEBUG_REGISTER	= 0x20000000,	/* print chipset register */
 	IWN_DEBUG_TRACE		= 0x40000000,	/* Print begin and start driver function */
 	IWN_DEBUG_FATAL		= 0x80000000,	/* fatal errors */
@@ -92,6 +93,25 @@ iwn_intr_str(uint8_t cmd)
 	case IWN_CMD_SET_CRITICAL_TEMP:	return "IWN_CMD_SET_CRITICAL_TEMP";
 	case IWN_CMD_SET_SENSITIVITY:	return "IWN_CMD_SET_SENSITIVITY";
 	case IWN_CMD_PHY_CALIB:		return "IWN_CMD_PHY_CALIB";
+
+	/* Bluetooth commands */
+	case IWN_CMD_BT_COEX_PRIOTABLE:	return "IWN_CMD_BT_COEX_PRIOTABLE";
+	case IWN_CMD_BT_COEX_PROT:	return "IWN_CMD_BT_COEX_PROT";
+	case IWN_CMD_BT_COEX_NOTIF:	return "IWN_CMD_BT_COEX_NOTIF";
+
+	/* PAN commands */
+	case IWN_CMD_WIPAN_PARAMS:	return "IWN_CMD_WIPAN_PARAMS";
+	case IWN_CMD_WIPAN_RXON:	return "IWN_CMD_WIPAN_RXON";
+	case IWN_CMD_WIPAN_RXON_TIMING:	return "IWN_CMD_WIPAN_RXON_TIMING";
+	case IWN_CMD_WIPAN_RXON_ASSOC:	return "IWN_CMD_WIPAN_RXON_ASSOC";
+	case IWN_CMD_WIPAN_QOS_PARAM:	return "IWN_CMD_WIPAN_QOS_PARAM";
+	case IWN_CMD_WIPAN_WEPKEY:	return "IWN_CMD_WIPAN_WEPKEY";
+	case IWN_CMD_WIPAN_P2P_CHANNEL_SWITCH:
+		return "IWN_CMD_WIPAN_P2P_CHANNEL_SWITCH";
+	case IWN_CMD_WIPAN_NOA_NOTIFICATION:
+		return "IWN_CMD_WIPAN_NOA_NOTIFICATION";
+	case IWN_CMD_WIPAN_DEACTIVATION_COMPLETE:
+		return "IWN_CMD_WIPAN_DEACTIVATION_COMPLETE";
 	}
 	return "UNKNOWN INTR NOTIF/CMD";
 }

@@ -25,8 +25,6 @@
 #
 # $FreeBSD$
 
-ATF = ${.CURDIR}/../../../contrib/atf
-
 CFLAGS+=	-DHAVE_CONFIG_H
 
 WARNS?=		3

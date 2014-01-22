@@ -99,6 +99,7 @@ struct _citrus_iconv_shared {
 	char						*ci_convname;
 	bool						 ci_discard_ilseq;
 	struct iconv_hooks				*ci_hooks;
+	bool						 ci_ilseq_invalid;
 };
 
 struct _citrus_iconv {

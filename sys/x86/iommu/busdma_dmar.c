@@ -341,6 +341,7 @@ dmar_bus_dmamap_load_something1(struct bus_dma_tag_dmar *tag,
 		segs = tag->segments;
 	ctx = tag->ctx;
 	seg = *segp;
+	error = 0;
 	idx = 0;
 	while (buflen > 0) {
 		seg++;

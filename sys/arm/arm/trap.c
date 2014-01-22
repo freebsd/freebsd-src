@@ -85,6 +85,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/bus.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
@@ -528,7 +529,8 @@ dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)
-		kdb_trap(fsr, 0, tf);
+		if (kdb_trap(fsr, 0, tf))
+			return (0);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/

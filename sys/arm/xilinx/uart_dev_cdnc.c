@@ -398,6 +398,8 @@ static int cdnc_uart_bus_param(struct uart_softc *, int, int, int, int);
 static int cdnc_uart_bus_receive(struct uart_softc *);
 static int cdnc_uart_bus_setsig(struct uart_softc *, int);
 static int cdnc_uart_bus_transmit(struct uart_softc *);
+static void cdnc_uart_bus_grab(struct uart_softc *);
+static void cdnc_uart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t cdnc_uart_bus_methods[] = {
 	KOBJMETHOD(uart_probe,		cdnc_uart_bus_probe),
@@ -410,6 +412,8 @@ static kobj_method_t cdnc_uart_bus_methods[] = {
 	KOBJMETHOD(uart_receive,	cdnc_uart_bus_receive),
 	KOBJMETHOD(uart_setsig,		cdnc_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	cdnc_uart_bus_transmit),
+	KOBJMETHOD(uart_grab,		cdnc_uart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		cdnc_uart_bus_ungrab),
 	
 	KOBJMETHOD_END
 };
@@ -673,6 +677,27 @@ cdnc_uart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 	uart_unlock(sc->sc_hwmtx);
 
 	return (error);
+}
+
+static void
+cdnc_uart_bus_grab(struct uart_softc *sc)
+{
+
+	/* Enable interrupts. */
+	WR4(&sc->sc_bas, CDNC_UART_IEN_REG,
+	    CDNC_UART_INT_TXOVR | CDNC_UART_INT_RXOVR |
+	    CDNC_UART_INT_DMSI);
+}
+
+static void
+cdnc_uart_bus_ungrab(struct uart_softc *sc)
+{
+
+	/* Enable interrupts. */
+	WR4(&sc->sc_bas, CDNC_UART_IEN_REG,
+	    CDNC_UART_INT_RXTRIG | CDNC_UART_INT_RXTMOUT |
+	    CDNC_UART_INT_TXOVR | CDNC_UART_INT_RXOVR |
+	    CDNC_UART_INT_DMSI);
 }
 
 struct uart_class uart_cdnc_class = {

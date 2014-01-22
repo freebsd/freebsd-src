@@ -478,6 +478,7 @@ static struct urtw_pair urtw_ratetable[] = {
 	{ 96, 10 }, { 108, 11 }
 };
 
+#if 0
 static const uint8_t urtw_8187b_reg_table[][3] = {
 	{ 0xf0, 0x32, 0 }, { 0xf1, 0x32, 0 }, { 0xf2, 0x00, 0 },
 	{ 0xf3, 0x00, 0 }, { 0xf4, 0x32, 0 }, { 0xf5, 0x43, 0 },
@@ -511,6 +512,7 @@ static const uint8_t urtw_8187b_reg_table[][3] = {
 	{ 0x4c, 0x00, 2 }, { 0x9f, 0x00, 3 }, { 0x8c, 0x01, 0 },
 	{ 0x8d, 0x10, 0 }, { 0x8e, 0x08, 0 }, { 0x8f, 0x00, 0 }
 };
+#endif
 
 static usb_callback_t urtw_bulk_rx_callback;
 static usb_callback_t urtw_bulk_tx_callback;
@@ -1036,8 +1038,13 @@ urtw_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1690,7 +1697,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	/*
 	 * Software crypto.
 	 */
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			device_printf(sc->sc_dev,
@@ -1762,7 +1769,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 		else
 			dur = URTW_ASIFS_TIME + acktime;
 	}
-	*(uint16_t *)wh->i_dur = htole16(dur);
+	USETW(wh->i_dur, dur);
 
 	xferlen = m0->m_pkthdr.len;
 	xferlen += (sc->sc_flags & URTW_RTL8187B) ? (4 * 8) : (4 * 3);

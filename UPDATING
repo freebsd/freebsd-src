@@ -31,6 +31,31 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140110:
+	If a Makefile in a tests/ directory was auto-generating a Kyuafile
+	instead of providing an explicit one, this would prevent such
+	Makefile from providing its own Kyuafile in the future during
+	NO_CLEAN builds.  This has been fixed in the Makefiles but manual
+	intervention is needed to clean an objdir if you use NO_CLEAN:
+	  # find /usr/obj -name Kyuafile | xargs rm -f
+
+20131213:
+	The behavior of gss_pseudo_random() for the krb5 mechanism
+	has changed, for applications requesting a longer random string
+	than produced by the underlying enctype's pseudo-random() function.
+	In particular, the random string produced from a session key of
+	enctype aes256-cts-hmac-sha1-96 or aes256-cts-hmac-sha1-96 will
+	be different at the 17th octet and later, after this change.
+	The counter used in the PRF+ construction is now encoded as a
+	big-endian integer in accordance with RFC 4402.
+	__FreeBSD_version is bumped to 1100004.
+
+20131108:
+	The WITHOUT_ATF build knob has been removed and its functionality
+	has been subsumed into the more generic WITHOUT_TESTS.  If you were
+	using the former to disable the build of the ATF libraries, you
+	should change your settings to use the latter.
+
 20131025:
 	The default version of mtree is nmtree which is obtained from
 	NetBSD.  The output is generally the same, but may vary
@@ -70,7 +95,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
 	service instead.  Otherwise, several versions of BIND are
-	available in the ports tree.
+	available in the ports tree.   The dns/bind99 port is one example.
+
+	With this change, nslookup(1) and dig(1) are no longer in the base
+	system.  Users should instead use host(1) and drill(1) which are
+	in the base system.  Alternatively, nslookup and dig can
+	be obtained by installing the dns/bind-tools port.
 
 20130916:
 	With the addition of unbound(8), a new unbound user is now
@@ -1921,7 +1951,7 @@ COMMON ITEMS:
 	make buildkernel KERNCONF=YOUR_KERNEL_HERE
 	<maybe newfs current's root partition>
 	<mount current's root partition on directory ${CURRENT_ROOT}>
-	make installworld DESTDIR=${CURRENT_ROOT}
+	make installworld DESTDIR=${CURRENT_ROOT} -DDB_FROM_SRC
 	make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
 	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
 	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd

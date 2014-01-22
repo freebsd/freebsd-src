@@ -347,6 +347,14 @@ teken_set_winsize(teken_t *t, const teken_pos_t *p)
 }
 
 void
+teken_set_winsize_noreset(teken_t *t, const teken_pos_t *p)
+{
+
+	t->t_winsize = *p;
+	teken_subr_do_resize(t);
+}
+
+void
 teken_set_8bit(teken_t *t)
 {
 

@@ -3836,8 +3836,7 @@ em_txeof(struct tx_ring *txr)
 
 	EM_TX_LOCK_ASSERT(txr);
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, txr->me |
-	    (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, txr->me))
 		return;
 #endif /* DEV_NETMAP */
 
@@ -4060,8 +4059,7 @@ em_allocate_receive_buffers(struct rx_ring *rxr)
 	rxbuf = rxr->rx_buffers;
 	for (int i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->rxtag, BUS_DMA_NOWAIT,
-		    &rxbuf->map);
+		error = bus_dmamap_create(rxr->rxtag, 0, &rxbuf->map);
 		if (error) {
 			device_printf(dev, "%s: bus_dmamap_create failed: %d\n",
 			    __func__, error);
@@ -4101,7 +4099,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	    sizeof(struct e1000_rx_desc), EM_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
 #ifdef DEV_NETMAP
-	slot = netmap_reset(na, NR_RX, 0, 0);
+	slot = netmap_reset(na, NR_RX, rxr->me, 0);
 #endif
 
 	/*
@@ -4354,7 +4352,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 		 * preserve the rx buffers passed to userspace.
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP)
-			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
+			rdt -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[i]);
 #endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
@@ -4433,8 +4431,10 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	EM_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		EM_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
@@ -4466,6 +4466,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 			em_rx_discard(rxr, i);
 			goto next_desc;
 		}
+		bus_dmamap_unload(rxr->rxtag, rxr->rx_buffers[i].map);
 
 		/* Assign correct length to the current fragment */
 		mp = rxr->rx_buffers[i].m_head;
@@ -4552,6 +4553,8 @@ em_rx_discard(struct rx_ring *rxr, int i)
 	struct em_buffer	*rbuf;
 
 	rbuf = &rxr->rx_buffers[i];
+	bus_dmamap_unload(rxr->rxtag, rbuf->map);
+
 	/* Free any previous pieces */
 	if (rxr->fmp != NULL) {
 		rxr->fmp->m_flags |= M_PKTHDR;

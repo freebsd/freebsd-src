@@ -234,30 +234,12 @@ static int
 bcm_bsc_attach(device_t dev)
 {
 	struct bcm_bsc_softc *sc;
+	unsigned long start;
 	device_t gpio;
-	int rid;
-
-	if (device_get_unit(dev) > 1) {
-		device_printf(dev, "only bsc0 and bsc1 are supported\n");
-		return (ENXIO);
-	}
+	int i, rid;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-
-	/*
-	 * Configure the GPIO pins to ALT0 function to enable BSC control
-	 * over the pins.
-	 */
-	gpio = devclass_get_device(devclass_find("gpio"), 0);
-	if (!gpio) {
-		device_printf(dev, "cannot find gpio0\n");
-		return (ENXIO);
-	}
-	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[device_get_unit(dev)].sda,
-	    BCM_GPIO_ALT0);
-	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[device_get_unit(dev)].scl,
-	    BCM_GPIO_ALT0);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -269,6 +251,29 @@ bcm_bsc_attach(device_t dev)
 
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
+
+	/* Check the unit we are attaching by its base address. */
+	start = rman_get_start(sc->sc_mem_res);
+	for (i = 0; i < nitems(bcm_bsc_pins); i++) {
+		if (bcm_bsc_pins[i].start == start)
+			break;
+	}
+	if (i == nitems(bcm_bsc_pins)) {
+		device_printf(dev, "only bsc0 and bsc1 are supported\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Configure the GPIO pins to ALT0 function to enable BSC control
+	 * over the pins.
+	 */
+	gpio = devclass_get_device(devclass_find("gpio"), 0);
+	if (!gpio) {
+		device_printf(dev, "cannot find gpio0\n");
+		return (ENXIO);
+	}
+	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].sda, BCM_GPIO_ALT0);
+	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].scl, BCM_GPIO_ALT0);
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -399,7 +404,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 	for (i = 0; i < nmsgs; i++) {
 
 		/* Write the slave address. */
-		BCM_BSC_WRITE(sc, BCM_BSC_SLAVE, (msgs[i].slave >> 1) & 0x7f);
+		BCM_BSC_WRITE(sc, BCM_BSC_SLAVE, msgs[i].slave);
 
 		/* Write the data length. */
 		BCM_BSC_WRITE(sc, BCM_BSC_DLEN, msgs[i].len);

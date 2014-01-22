@@ -281,7 +281,8 @@ build_call (tree function, tree parms)
 
   function = build_addr_func (function);
 
-  gcc_assert (TYPE_PTR_P (TREE_TYPE (function)));
+  /* APPLE LOCAL blocks 6040305 */
+  gcc_assert (TYPE_PTR_P (TREE_TYPE (function)) || TREE_CODE (TREE_TYPE (function)) == BLOCK_POINTER_TYPE);
   fntype = TREE_TYPE (TREE_TYPE (function));
   gcc_assert (TREE_CODE (fntype) == FUNCTION_TYPE
 	      || TREE_CODE (fntype) == METHOD_TYPE);
@@ -657,7 +658,8 @@ standard_conversion (tree to, tree from, tree expr, bool c_cast_p,
   if (same_type_p (from, to))
     return conv;
 
-  if ((tcode == POINTER_TYPE || TYPE_PTR_TO_MEMBER_P (to))
+  /* APPLE LOCAL blocks 6040305 (ck) */
+  if ((tcode == POINTER_TYPE || tcode == BLOCK_POINTER_TYPE || TYPE_PTR_TO_MEMBER_P (to))
       && expr && null_ptr_cst_p (expr))
     conv = build_conv (ck_std, to, conv);
   else if ((tcode == INTEGER_TYPE && fcode == POINTER_TYPE)
@@ -810,6 +812,8 @@ standard_conversion (tree to, tree from, tree expr, bool c_cast_p,
       if (ARITHMETIC_TYPE_P (from)
 	  || fcode == ENUMERAL_TYPE
 	  || fcode == POINTER_TYPE
+	  /* APPLE LOCAL blocks 6040305 (cl) */
+	  || fcode == BLOCK_POINTER_TYPE
 	  || TYPE_PTR_TO_MEMBER_P (from))
 	{
 	  conv = build_conv (ck_std, to, conv);
@@ -838,7 +842,7 @@ standard_conversion (tree to, tree from, tree expr, bool c_cast_p,
 	conv->rank = cr_promotion;
     }
   else if (fcode == VECTOR_TYPE && tcode == VECTOR_TYPE
-	   && vector_types_convertible_p (from, to))
+	   && vector_types_convertible_p (from, to, false))
     return build_conv (ck_std, to, conv);
   else if (!(flags & LOOKUP_CONSTRUCTOR_CALLABLE)
 	   && IS_AGGR_TYPE (to) && IS_AGGR_TYPE (from)
@@ -876,6 +880,15 @@ reference_related_p (tree t1, tree t2)
 	  || (CLASS_TYPE_P (t1) && CLASS_TYPE_P (t2)
 	      && DERIVED_FROM_P (t1, t2)));
 }
+
+/* APPLE LOCAL begin radar 6029624 */
+/* Used in objective-c++, same as reference_related_p */
+bool
+objcp_reference_related_p (tree t1, tree t2)
+{
+  return reference_related_p (t1, t2);
+}
+/* APPLE LOCAL end radar 6029624 */
 
 /* Returns nonzero if T1 is reference-compatible with T2.  */
 
@@ -3520,10 +3533,19 @@ build_conditional_expr (tree arg1, tree arg2, tree arg3)
        cv-qualification of either the second or the third operand.
        The result is of the common type.  */
   else if ((null_ptr_cst_p (arg2)
-	    && (TYPE_PTR_P (arg3_type) || TYPE_PTR_TO_MEMBER_P (arg3_type)))
+	   /* APPLE LOCAL begin blocks 6040305 (co) */
+	    && (TYPE_PTR_P (arg3_type) || TYPE_PTR_TO_MEMBER_P (arg3_type)
+		|| TREE_CODE (arg3_type) == BLOCK_POINTER_TYPE))
+	   /* APPLE LOCAL end blocks 6040305 (co) */
 	   || (null_ptr_cst_p (arg3)
-	       && (TYPE_PTR_P (arg2_type) || TYPE_PTR_TO_MEMBER_P (arg2_type)))
-	   || (TYPE_PTR_P (arg2_type) && TYPE_PTR_P (arg3_type))
+	   /* APPLE LOCAL begin blocks 6040305 (co) */
+	       && (TYPE_PTR_P (arg2_type) || TYPE_PTR_TO_MEMBER_P (arg2_type)
+		   || TREE_CODE (arg2_type) == BLOCK_POINTER_TYPE))
+	   || ((TYPE_PTR_P (arg2_type)
+		||  TREE_CODE (arg2_type) == BLOCK_POINTER_TYPE)
+	       && (TYPE_PTR_P (arg3_type)
+		   || TREE_CODE (arg3_type) == BLOCK_POINTER_TYPE))
+	   /* APPLE LOCAL end blocks 6040305 (co) */
 	   || (TYPE_PTRMEM_P (arg2_type) && TYPE_PTRMEM_P (arg3_type))
 	   || (TYPE_PTRMEMFUNC_P (arg2_type) && TYPE_PTRMEMFUNC_P (arg3_type)))
     {

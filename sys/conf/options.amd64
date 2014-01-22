@@ -58,9 +58,6 @@ PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 DEV_ATPIC		opt_atpic.h
 
-# Debugging
-KDTRACE_FRAME		opt_kdtrace.h
-
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
 

@@ -7118,7 +7118,7 @@ process_symbol_table (FILE *file)
 
 	      n = print_vma (si, DEC_5);
 	      if (n < 5)
-		fputs ("     " + n, stdout);
+		fputs (&"     "[n], stdout);
 	      printf (" %3lu: ", hn);
 	      print_vma (psym->st_value, LONG_HEX);
 	      putchar (' ');

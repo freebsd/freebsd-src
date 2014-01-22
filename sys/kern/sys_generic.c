@@ -1195,8 +1195,9 @@ getselfd_cap(struct filedesc *fdp, int fd, struct file **fpp)
 {
 	cap_rights_t rights;
 
-	return (fget_unlocked(fdp, fd, cap_rights_init(&rights, CAP_POLL_EVENT),
-	    0, fpp, NULL));
+	cap_rights_init(&rights, CAP_EVENT);
+
+	return (fget_unlocked(fdp, fd, &rights, 0, fpp, NULL));
 }
 
 /*
@@ -1392,7 +1393,7 @@ pollrescan(struct thread *td)
 #ifdef CAPABILITIES
 		if (fp == NULL ||
 		    cap_check(cap_rights(fdp, fd->fd),
-		    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+		    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 		if (fp == NULL)
 #endif
@@ -1467,7 +1468,7 @@ pollscan(td, fds, nfd)
 #ifdef CAPABILITIES
 			if (fp == NULL ||
 			    cap_check(cap_rights(fdp, fds->fd),
-			    cap_rights_init(&rights, CAP_POLL_EVENT)) != 0)
+			    cap_rights_init(&rights, CAP_EVENT)) != 0)
 #else
 			if (fp == NULL)
 #endif

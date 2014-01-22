@@ -9,7 +9,6 @@ SRCS=	ARM_DWARF_Registers.cpp \
 	KQueue.cpp \
 	PseudoTerminal.cpp \
 	Range.cpp \
-	RefCounter.cpp \
 	SharingPtr.cpp \
 	StringExtractor.cpp \
 	StringExtractorGDBRemote.cpp \

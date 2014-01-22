@@ -23,6 +23,9 @@
  * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
+/*
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ */
 
 #ifndef _SYS_ZFS_CONTEXT_H
 #define	_SYS_ZFS_CONTEXT_H
@@ -62,6 +65,7 @@ extern "C" {
 #include <inttypes.h>
 #include <fsshare.h>
 #include <pthread.h>
+#include <sched.h>
 #include <sys/debug.h>
 #include <sys/note.h>
 #include <sys/types.h>
@@ -200,6 +204,8 @@ extern int aok;
  * Threads
  */
 #define	curthread	((void *)(uintptr_t)thr_self())
+
+#define	kpreempt(x)	sched_yield()
 
 typedef struct kthread kthread_t;
 
@@ -367,6 +373,16 @@ typedef struct taskq taskq_t;
 typedef uintptr_t taskqid_t;
 typedef void (task_func_t)(void *);
 
+typedef struct taskq_ent {
+	struct taskq_ent	*tqent_next;
+	struct taskq_ent	*tqent_prev;
+	task_func_t		*tqent_func;
+	void			*tqent_arg;
+	uintptr_t		tqent_flags;
+} taskq_ent_t;
+
+#define	TQENT_FLAG_PREALLOC	0x1	/* taskq_dispatch_ent used */
+
 #define	TASKQ_PREPOPULATE	0x0001
 #define	TASKQ_CPR_SAFE		0x0002	/* Use CPR safe protocol */
 #define	TASKQ_DYNAMIC		0x0004	/* Use dynamic thread scheduling */
@@ -378,6 +394,7 @@ typedef void (task_func_t)(void *);
 #define	TQ_NOQUEUE	0x02		/* Do not enqueue if can't dispatch */
 #define	TQ_FRONT	0x08		/* Queue in front */
 
+
 extern taskq_t *system_taskq;
 
 extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
@@ -386,6 +403,8 @@ extern taskq_t	*taskq_create(const char *, int, pri_t, int, int, uint_t);
 #define	taskq_create_sysdc(a, b, d, e, p, dc, f) \
 	    (taskq_create(a, b, maxclsyspri, d, e, f))
 extern taskqid_t taskq_dispatch(taskq_t *, task_func_t, void *, uint_t);
+extern void	taskq_dispatch_ent(taskq_t *, task_func_t, void *, uint_t,
+    taskq_ent_t *);
 extern void	taskq_destroy(taskq_t *);
 extern void	taskq_wait(taskq_t *);
 extern int	taskq_member(taskq_t *, void *);
@@ -758,6 +777,38 @@ extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
 extern void cyclic_remove(cyclic_id_t);
 extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
 #endif	/* illumos */
+
+#ifdef illumos
+/*
+ * Buf structure
+ */
+#define	B_BUSY		0x0001
+#define	B_DONE		0x0002
+#define	B_ERROR		0x0004
+#define	B_READ		0x0040	/* read when I/O occurs */
+#define	B_WRITE		0x0100	/* non-read pseudo-flag */
+
+typedef struct buf {
+	int	b_flags;
+	size_t b_bcount;
+	union {
+		caddr_t b_addr;
+	} b_un;
+
+	lldaddr_t	_b_blkno;
+#define	b_lblkno	_b_blkno._f
+	size_t	b_resid;
+	size_t	b_bufsize;
+	int	(*b_iodone)(struct buf *);
+	int	b_error;
+	void	*b_private;
+} buf_t;
+
+extern void bioinit(buf_t *);
+extern void biodone(buf_t *);
+extern void bioerror(buf_t *, int);
+extern int geterror(buf_t *);
+#endif
 
 #ifdef	__cplusplus
 }

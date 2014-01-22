@@ -33,13 +33,17 @@ WORKDIR=work
 
 usage()
 {
-	echo "Usage: tests.sh [-w workdir]"
+	echo "Usage: conflicts.sh [-s script] [-w workdir]"
 	exit 1
 }
 
-# Allow the user to specify an alternate work directory.
-while getopts "w:" option; do
+# Allow the user to specify an alternate work directory or script.
+COMMAND=etcupdate
+while getopts "s:w:" option; do
 	case $option in
+		s)
+			COMMAND="sh $OPTARG"
+			;;
 		w)
 			WORKDIR=$OPTARG
 			;;
@@ -84,7 +88,7 @@ default:\\
         :welcome=/etc/motd:
 EOF
 
-	etcupdate -r -d $WORKDIR -D $TEST >/dev/null
+	$COMMAND -r -d $WORKDIR -D $TEST >/dev/null
 }
 
 # This is used to verify special handling for /etc/mail/aliases and
@@ -122,7 +126,7 @@ MAILER-DAEMON: postmaster
 postmaster: foo
 EOF
 
-	etcupdate -r -d $WORKDIR -D $TEST >/dev/null
+	$COMMAND -r -d $WORKDIR -D $TEST >/dev/null
 }
 
 # $1 - relative path to file that should be missing from TEST
@@ -201,7 +205,7 @@ build_login_conflict
 
 # Verify that 'p' doesn't do anything.
 echo "Checking 'p':"
-echo 'p' | etcupdate resolve -d $WORKDIR -D $TEST >/dev/null
+echo 'p' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
 file /etc/login.conf "" 95de92ea3f1bb1bf4f612a8b5908cddd
 missing /etc/login.conf.db
@@ -209,7 +213,7 @@ conflict /etc/login.conf
 
 # Verify that 'mf' removes the conflict, but does nothing else.
 echo "Checking 'mf':"
-echo 'mf' | etcupdate resolve -d $WORKDIR -D $TEST >/dev/null
+echo 'mf' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
 file /etc/login.conf "" 95de92ea3f1bb1bf4f612a8b5908cddd
 missing /etc/login.conf.db
@@ -219,7 +223,7 @@ build_login_conflict
 
 # Verify that 'tf' installs the new version of the file.
 echo "Checking 'tf':"
-echo 'tf' | etcupdate resolve -d $WORKDIR -D $TEST >/dev/null
+echo 'tf' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
 file /etc/login.conf "" 7774a0f9a3a372c7c109c32fd31c4b6b
 file /etc/login.conf.db
@@ -238,7 +242,7 @@ default:\\
         :welcome=/etc/motd:
 EOF
 
-echo 'r' | etcupdate resolve -d $WORKDIR -D $TEST >/dev/null
+echo 'r' | $COMMAND resolve -d $WORKDIR -D $TEST >/dev/null
 
 file /etc/login.conf "" 966e25984b9b63da8eaac8479dcb0d4d
 file /etc/login.conf.db
@@ -248,12 +252,12 @@ build_aliases_conflict
 
 # Verify that 'p' and 'mf' do not generate the newaliases warning.
 echo "Checking newalias warning for 'p'":
-echo 'p' | etcupdate resolve -d $WORKDIR -D $TEST | grep -q newalias
+echo 'p' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -eq 0 ]; then
 	echo "+ Extra warning"
 fi
 echo "Checking newalias warning for 'mf'":
-echo 'mf' | etcupdate resolve -d $WORKDIR -D $TEST | grep -q newalias
+echo 'mf' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -eq 0 ]; then
 	echo "+ Extra warning"
 fi
@@ -261,14 +265,14 @@ fi
 # Verify that 'tf' and 'r' do generate the newaliases warning.
 build_aliases_conflict
 echo "Checking newalias warning for 'tf'":
-echo 'tf' | etcupdate resolve -d $WORKDIR -D $TEST | grep -q newalias
+echo 'tf' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -ne 0 ]; then
 	echo "- Missing warning"
 fi
 
 build_aliases_conflict
 cp $TEST/etc/mail/aliases $CONFLICTS/etc/mail/aliases
-echo 'r' | etcupdate resolve -d $WORKDIR -D $TEST | grep -q newalias
+echo 'r' | $COMMAND resolve -d $WORKDIR -D $TEST | grep -q newalias
 if [ $? -ne 0 ]; then
 	echo "- Missing warning"
 fi

@@ -123,7 +123,7 @@ DynamicLoaderPOSIXDYLD::DidAttach()
     {
         ModuleList module_list;
         module_list.Append(executable);
-        UpdateLoadedSections(executable, load_offset);
+        UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset);
         LoadAllCurrentModules();
         m_process->GetTarget().ModulesDidLoad(module_list);
     }
@@ -144,7 +144,7 @@ DynamicLoaderPOSIXDYLD::DidLaunch()
     {
         ModuleList module_list;
         module_list.Append(executable);
-        UpdateLoadedSections(executable, load_offset);
+        UpdateLoadedSections(executable, LLDB_INVALID_ADDRESS, load_offset);
         ProbeEntry();
         m_process->GetTarget().ModulesDidLoad(module_list);
     }
@@ -209,11 +209,15 @@ DynamicLoaderPOSIXDYLD::CanLoadImage()
 }
 
 void
-DynamicLoaderPOSIXDYLD::UpdateLoadedSections(ModuleSP module, addr_t base_addr)
+DynamicLoaderPOSIXDYLD::UpdateLoadedSections(ModuleSP module, addr_t link_map_addr, addr_t base_addr)
 {
-    ObjectFile *obj_file = module->GetObjectFile();
-    SectionList *sections = obj_file->GetSectionList();
     SectionLoadList &load_list = m_process->GetTarget().GetSectionLoadList();
+    const SectionList *sections = GetSectionListFromModule(module);
+
+    assert(sections && "SectionList missing from loaded module.");
+
+    m_loaded_modules[module] = link_map_addr;
+
     const size_t num_sections = sections->GetSize();
 
     for (unsigned i = 0; i < num_sections; ++i)
@@ -234,6 +238,24 @@ DynamicLoaderPOSIXDYLD::UpdateLoadedSections(ModuleSP module, addr_t base_addr)
 }
 
 void
+DynamicLoaderPOSIXDYLD::UnloadSections(const ModuleSP module)
+{
+    SectionLoadList &load_list = m_process->GetTarget().GetSectionLoadList();
+    const SectionList *sections = GetSectionListFromModule(module);
+
+    assert(sections && "SectionList missing from unloaded module.");
+
+    m_loaded_modules.erase(module);
+
+    const size_t num_sections = sections->GetSize();
+    for (size_t i = 0; i < num_sections; ++i)
+    {
+        SectionSP section_sp (sections->GetSectionAtIndex(i));
+        load_list.SetSectionUnloaded(section_sp);
+    }
+}
+
+void
 DynamicLoaderPOSIXDYLD::ProbeEntry()
 {
     Breakpoint *entry_break;
@@ -242,7 +264,7 @@ DynamicLoaderPOSIXDYLD::ProbeEntry()
     if ((entry = GetEntryPoint()) == LLDB_INVALID_ADDRESS)
         return;
     
-    entry_break = m_process->GetTarget().CreateBreakpoint(entry, true).get();
+    entry_break = m_process->GetTarget().CreateBreakpoint(entry, true, false).get();
     entry_break->SetCallback(EntryBreakpointHit, this, true);
     entry_break->SetBreakpointKind("shared-library-event");
 }
@@ -275,7 +297,7 @@ DynamicLoaderPOSIXDYLD::SetRendezvousBreakpoint()
 
     if (m_dyld_bid == LLDB_INVALID_BREAK_ID)
     {
-        Breakpoint *dyld_break = target.CreateBreakpoint (break_addr, true).get();
+        Breakpoint *dyld_break = target.CreateBreakpoint (break_addr, true, false).get();
         dyld_break->SetCallback(RendezvousBreakpointHit, this, true);
         dyld_break->SetBreakpointKind ("shared-library-event");
         m_dyld_bid = dyld_break->GetID();
@@ -319,10 +341,14 @@ DynamicLoaderPOSIXDYLD::RefreshModules()
         for (I = m_rendezvous.loaded_begin(); I != E; ++I)
         {
             FileSpec file(I->path.c_str(), true);
-            ModuleSP module_sp = LoadModuleAtAddress(file, I->base_addr);
+            ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr);
             if (module_sp.get())
+            {
                 loaded_modules.AppendIfNeeded(module_sp);
+                new_modules.Append(module_sp);
+            }
         }
+        m_process->GetTarget().ModulesDidLoad(new_modules);
     }
     
     if (m_rendezvous.ModulesDidUnload())
@@ -336,10 +362,15 @@ DynamicLoaderPOSIXDYLD::RefreshModules()
             ModuleSpec module_spec (file);
             ModuleSP module_sp = 
                 loaded_modules.FindFirstModule (module_spec);
+
             if (module_sp.get())
+            {
                 old_modules.Append(module_sp);
+                UnloadSections(module_sp);
+            }
         }
         loaded_modules.Remove(old_modules);
+        m_process->GetTarget().ModulesDidUnload(old_modules, false);
     }
 }
 
@@ -404,21 +435,54 @@ DynamicLoaderPOSIXDYLD::LoadAllCurrentModules()
     ModuleList module_list;
     
     if (!m_rendezvous.Resolve())
+    {
+        Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+        if (log)
+            log->Printf("DynamicLoaderPOSIXDYLD::%s unable to resolve POSIX DYLD rendezvous address",
+                        __FUNCTION__);
         return;
+    }
+
+    // The rendezvous class doesn't enumerate the main module, so track
+    // that ourselves here.
+    ModuleSP executable = GetTargetExecutable();
+    m_loaded_modules[executable] = m_rendezvous.GetLinkMapAddress();
+
 
     for (I = m_rendezvous.begin(), E = m_rendezvous.end(); I != E; ++I)
     {
-        FileSpec file(I->path.c_str(), false);
-        ModuleSP module_sp = LoadModuleAtAddress(file, I->base_addr);
+        const char *module_path = I->path.c_str();
+        FileSpec file(module_path, false);
+        ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, I->base_addr);
+#ifdef __FreeBSD__ // llvm.org/pr17880
+        if (module_sp == executable)
+        {
+            Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+            if (log)
+                log->Printf("DynamicLoaderPOSIXDYLD::%s reloading main module, ignoring rendezvous base addr %" PRIx64,
+                            __FUNCTION__, I->base_addr);
+            ModuleSP module_sp = LoadModuleAtAddress(file, I->link_addr, 0);
+        }
+#endif
+ 
         if (module_sp.get())
+        {
             module_list.Append(module_sp);
+        }
+        else
+        {
+            Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+            if (log)
+                log->Printf("DynamicLoaderPOSIXDYLD::%s failed loading module %s at 0x%" PRIx64,
+                            __FUNCTION__, module_path, I->base_addr);
+        }
     }
 
     m_process->GetTarget().ModulesDidLoad(module_list);
 }
 
 ModuleSP
-DynamicLoaderPOSIXDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t base_addr)
+DynamicLoaderPOSIXDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t link_map_addr, addr_t base_addr)
 {
     Target &target = m_process->GetTarget();
     ModuleList &modules = target.GetImages();
@@ -427,11 +491,11 @@ DynamicLoaderPOSIXDYLD::LoadModuleAtAddress(const FileSpec &file, addr_t base_ad
     ModuleSpec module_spec (file, target.GetArchitecture());
     if ((module_sp = modules.FindFirstModule (module_spec))) 
     {
-        UpdateLoadedSections(module_sp, base_addr);
+        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
     }
     else if ((module_sp = target.GetSharedModule(module_spec))) 
     {
-        UpdateLoadedSections(module_sp, base_addr);
+        UpdateLoadedSections(module_sp, link_map_addr, base_addr);
     }
 
     return module_sp;
@@ -478,4 +542,84 @@ DynamicLoaderPOSIXDYLD::GetEntryPoint()
 
     m_entry_point = static_cast<addr_t>(I->value);
     return m_entry_point;
+}
+
+const SectionList *
+DynamicLoaderPOSIXDYLD::GetSectionListFromModule(const ModuleSP module) const
+{
+    SectionList *sections = nullptr;
+    if (module.get())
+    {
+        ObjectFile *obj_file = module->GetObjectFile();
+        if (obj_file)
+        {
+            sections = obj_file->GetSectionList();
+        }
+    }
+    return sections;
+}
+
+static int ReadInt(Process *process, addr_t addr)
+{
+    Error error;
+    int value = (int)process->ReadUnsignedIntegerFromMemory(addr, sizeof(uint32_t), 0, error);
+    if (error.Fail())
+        return -1;
+    else
+        return value;
+}
+
+static addr_t ReadPointer(Process *process, addr_t addr)
+{
+    Error error;
+    addr_t value = process->ReadPointerFromMemory(addr, error);
+    if (error.Fail())
+        return LLDB_INVALID_ADDRESS;
+    else
+        return value;
+}
+
+lldb::addr_t
+DynamicLoaderPOSIXDYLD::GetThreadLocalData (const lldb::ModuleSP module, const lldb::ThreadSP thread)
+{
+    auto it = m_loaded_modules.find (module);
+    if (it == m_loaded_modules.end())
+        return LLDB_INVALID_ADDRESS;
+
+    addr_t link_map = it->second;
+    if (link_map == LLDB_INVALID_ADDRESS)
+        return LLDB_INVALID_ADDRESS;
+
+    const DYLDRendezvous::ThreadInfo &metadata = m_rendezvous.GetThreadInfo();
+    if (!metadata.valid)
+        return LLDB_INVALID_ADDRESS;
+
+    // Get the thread pointer.
+    addr_t tp = thread->GetThreadPointer ();
+    if (tp == LLDB_INVALID_ADDRESS)
+        return LLDB_INVALID_ADDRESS;
+
+    // Find the module's modid.
+    int modid = ReadInt (m_process, link_map + metadata.modid_offset);
+    if (modid == -1)
+        return LLDB_INVALID_ADDRESS;
+
+    // Lookup the DTV stucture for this thread.
+    addr_t dtv_ptr = tp + metadata.dtv_offset;
+    addr_t dtv = ReadPointer (m_process, dtv_ptr);
+    if (dtv == LLDB_INVALID_ADDRESS)
+        return LLDB_INVALID_ADDRESS;
+
+    // Find the TLS block for this module.
+    addr_t dtv_slot = dtv + metadata.dtv_slot_size*modid;
+    addr_t tls_block = ReadPointer (m_process, dtv_slot + metadata.tls_offset);
+
+    Module *mod = module.get();
+    Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_DYNAMIC_LOADER));
+    if (log)
+        log->Printf("DynamicLoaderPOSIXDYLD::Performed TLS lookup: "
+                    "module=%s, link_map=0x%" PRIx64 ", tp=0x%" PRIx64 ", modid=%i, tls_block=0x%" PRIx64 "\n",
+                    mod->GetObjectName().AsCString(""), link_map, tp, modid, tls_block);
+
+    return tls_block;
 }

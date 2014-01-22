@@ -1,32 +1,31 @@
 /*	$NetBSD: svc.h,v 1.17 2000/06/02 22:57:56 fvdl Exp $	*/
 
-/*
- * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
- * unrestricted use provided that this legend is included on all tape
- * media and as a part of the software program in whole or part.  Users
- * may copy or modify Sun RPC without charge, but are not authorized
- * to license or distribute it to anyone else except as part of a product or
- * program developed by the user.
+/*-
+ * Copyright (c) 2009, Sun Microsystems, Inc.
+ * All rights reserved.
  *
- * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- *
- * Sun RPC is provided with no support and without any obligation on the
- * part of Sun Microsystems, Inc. to assist in its use, correction,
- * modification or enhancement.
- *
- * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
- * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
- * OR ANY PART THEREOF.
- *
- * In no event will Sun Microsystems, Inc. be liable for any lost revenue
- * or profits or other special, indirect and consequential damages, even if
- * Sun has been advised of the possibility of such damages.
- *
- * Sun Microsystems, Inc.
- * 2550 Garcia Avenue
- * Mountain View, California  94043
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ * - Redistributions of source code must retain the above copyright notice, 
+ *   this list of conditions and the following disclaimer.
+ * - Redistributions in binary form must reproduce the above copyright notice, 
+ *   this list of conditions and the following disclaimer in the documentation 
+ *   and/or other materials provided with the distribution.
+ * - Neither the name of Sun Microsystems, Inc. nor the names of its 
+ *   contributors may be used to endorse or promote products derived 
+ *   from this software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" 
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE 
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF 
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS 
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+ * POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: @(#)svc.h 1.35 88/12/17 SMI
  *	from: @(#)svc.h      1.27    94/04/25 SMI
@@ -104,9 +103,11 @@ struct xp_ops {
 	    struct sockaddr **, struct mbuf **);
 	/* get transport status */
 	enum xprt_stat (*xp_stat)(struct __rpc_svcxprt *);
+	/* get transport acknowledge sequence */
+	bool_t (*xp_ack)(struct __rpc_svcxprt *, uint32_t *);
 	/* send reply */
 	bool_t	(*xp_reply)(struct __rpc_svcxprt *, struct rpc_msg *,
-	    struct sockaddr *, struct mbuf *);
+	    struct sockaddr *, struct mbuf *, uint32_t *);
 	/* destroy this struct */
 	void	(*xp_destroy)(struct __rpc_svcxprt *);
 	/* catch-all function */
@@ -167,6 +168,8 @@ typedef struct __rpc_svcxprt {
 	time_t		xp_lastactive;	/* time of last RPC */
 	u_int64_t	xp_sockref;	/* set by nfsv4 to identify socket */
 	int		xp_upcallset;	/* socket upcall is set up */
+	uint32_t	xp_snd_cnt;	/* # of bytes to send to socket */
+	uint32_t	xp_snt_cnt;	/* # of bytes sent to socket */
 #else
 	int		xp_fd;
 	u_short		xp_port;	 /* associated port number */
@@ -231,6 +234,17 @@ struct svc_callout {
 };
 TAILQ_HEAD(svc_callout_list, svc_callout);
 
+/*
+ * The services connection loss list
+ * The dispatch routine takes request structs and runs the
+ * apropriate procedure.
+ */
+struct svc_loss_callout {
+	TAILQ_ENTRY(svc_loss_callout) slc_link;
+	void		    (*slc_dispatch)(SVCXPRT *);
+};
+TAILQ_HEAD(svc_loss_callout_list, svc_loss_callout);
+
 struct __rpc_svcthread;
 
 /*
@@ -254,6 +268,7 @@ struct svc_req {
 	void		*rq_p1;		/* application workspace */
 	int		rq_p2;		/* application workspace */
 	uint64_t	rq_p3;		/* application workspace */
+	uint32_t	rq_reply_seq;	/* reply socket sequence # */
 	char		rq_credarea[3*MAX_AUTH_BYTES];
 };
 STAILQ_HEAD(svc_reqlist, svc_req);
@@ -276,13 +291,16 @@ STAILQ_HEAD(svc_reqlist, svc_req);
  * thread to read and execute pending RPCs.
  */
 typedef struct __rpc_svcthread {
+	struct __rpc_svcpool	*st_pool;
 	SVCXPRT			*st_xprt; /* transport we are processing */
 	struct svc_reqlist	st_reqs;  /* RPC requests to execute */
-	int			st_reqcount; /* number of queued reqs */
+	int			st_idle; /* thread is on idle list */
 	struct cv		st_cond; /* sleeping for work */
 	LIST_ENTRY(__rpc_svcthread) st_link; /* all threads list */
 	LIST_ENTRY(__rpc_svcthread) st_ilink; /* idle threads list */
 	LIST_ENTRY(__rpc_svcthread) st_alink; /* application thread list */
+	int		st_p2;		/* application workspace */
+	uint64_t	st_p3;		/* application workspace */
 } SVCTHREAD;
 LIST_HEAD(svcthread_list, __rpc_svcthread);
 
@@ -309,13 +327,14 @@ enum svcpool_state {
 typedef SVCTHREAD *pool_assign_fn(SVCTHREAD *, struct svc_req *);
 typedef void pool_done_fn(SVCTHREAD *, struct svc_req *);
 typedef struct __rpc_svcpool {
-	struct mtx	sp_lock;	/* protect the transport lists */
+	struct mtx_padalign sp_lock;	/* protect the transport lists */
 	const char	*sp_name;	/* pool name (e.g. "nfsd", "NLM" */
 	enum svcpool_state sp_state;	/* current pool state */
 	struct proc	*sp_proc;	/* process which is in svc_run */
 	struct svcxprt_list sp_xlist;	/* all transports in the pool */
 	struct svcxprt_list sp_active;	/* transports needing service */
 	struct svc_callout_list sp_callouts; /* (prog,vers)->dispatch list */
+	struct svc_loss_callout_list sp_lcallouts; /* loss->dispatch list */
 	struct svcthread_list sp_threads; /* service threads */
 	struct svcthread_list sp_idlethreads; /* idle service threads */
 	int		sp_minthreads;	/* minimum service thread count */
@@ -391,8 +410,12 @@ struct svc_req {
 #define SVC_STAT(xprt)					\
 	(*(xprt)->xp_ops->xp_stat)(xprt)
 
-#define SVC_REPLY(xprt, msg, addr, m)			\
-	(*(xprt)->xp_ops->xp_reply) ((xprt), (msg), (addr), (m))
+#define SVC_ACK(xprt, ack)				\
+	((xprt)->xp_ops->xp_ack == NULL ? FALSE :	\
+	    ((ack) == NULL ? TRUE : (*(xprt)->xp_ops->xp_ack)((xprt), (ack))))
+
+#define SVC_REPLY(xprt, msg, addr, m, seq)			\
+	(*(xprt)->xp_ops->xp_reply) ((xprt), (msg), (addr), (m), (seq))
 
 #define SVC_DESTROY(xprt)				\
 	(*(xprt)->xp_ops->xp_destroy)(xprt)
@@ -493,6 +516,32 @@ extern void	svc_unreg(const rpcprog_t, const rpcvers_t);
 #endif
 __END_DECLS
 
+#ifdef _KERNEL
+/*
+ * Service connection loss registration
+ *
+ * svc_loss_reg(xprt, dispatch)
+ *	const SVCXPRT *xprt;
+ *	const void (*dispatch)();
+ */
+
+__BEGIN_DECLS
+extern bool_t	svc_loss_reg(SVCXPRT *, void (*)(SVCXPRT *));
+__END_DECLS
+
+/*
+ * Service connection loss un-registration
+ *
+ * svc_loss_unreg(xprt, dispatch)
+ *	const SVCXPRT *xprt;
+ *	const void (*dispatch)();
+ */
+
+__BEGIN_DECLS
+extern void	svc_loss_unreg(SVCPOOL *, void (*)(SVCXPRT *));
+__END_DECLS
+#endif
+
 /*
  * Transport registration.
  *
@@ -523,6 +572,7 @@ __BEGIN_DECLS
 extern void	xprt_active(SVCXPRT *);
 extern void	xprt_inactive(SVCXPRT *);
 extern void	xprt_inactive_locked(SVCXPRT *);
+extern void	xprt_inactive_self(SVCXPRT *);
 __END_DECLS
 
 #endif

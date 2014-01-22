@@ -385,17 +385,29 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, bool id_mapped, bool rmrr_ini
 	 * negative TLB entries.
 	 */
 	if ((dmar->hw_cap & DMAR_CAP_CM) != 0 || enable) {
-		error = dmar_inv_ctx_glob(dmar);
-		if (error == 0 &&
-		    (dmar->hw_ecap & DMAR_ECAP_DI) != 0)
-			error = dmar_inv_iotlb_glob(dmar);
-		if (error != 0) {
-			dmar_free_ctx_locked(dmar, ctx);
-			TD_PINNED_ASSERT;
-			return (NULL);
+		if (dmar->qi_enabled) {
+			dmar_qi_invalidate_ctx_glob_locked(dmar);
+			if ((dmar->hw_ecap & DMAR_ECAP_DI) != 0)
+				dmar_qi_invalidate_iotlb_glob_locked(dmar);
+		} else {
+			error = dmar_inv_ctx_glob(dmar);
+			if (error == 0 &&
+			    (dmar->hw_ecap & DMAR_ECAP_DI) != 0)
+				error = dmar_inv_iotlb_glob(dmar);
+			if (error != 0) {
+				dmar_free_ctx_locked(dmar, ctx);
+				TD_PINNED_ASSERT;
+				return (NULL);
+			}
 		}
 	}
-	if (enable && !rmrr_init) {
+
+	/*
+	 * The dmar lock was potentially dropped between check for the
+	 * empty context list and now.  Recheck the state of GCMD_TE
+	 * to avoid unneeded command.
+	 */
+	if (enable && !rmrr_init && (dmar->hw_gcmd & DMAR_GCMD_TE) == 0) {
 		error = dmar_enable_translation(dmar);
 		if (error != 0) {
 			dmar_free_ctx_locked(dmar, ctx);
@@ -469,8 +481,12 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	dmar_pte_clear(&ctxp->ctx1);
 	ctxp->ctx2 = 0;
 	dmar_inv_ctx_glob(dmar);
-	if ((dmar->hw_ecap & DMAR_ECAP_DI) != 0)
-		dmar_inv_iotlb_glob(dmar);
+	if ((dmar->hw_ecap & DMAR_ECAP_DI) != 0) {
+		if (dmar->qi_enabled)
+			dmar_qi_invalidate_iotlb_glob_locked(dmar);
+		else
+			dmar_inv_iotlb_glob(dmar);
+	}
 	LIST_REMOVE(ctx, link);
 	DMAR_UNLOCK(dmar);
 
@@ -512,24 +528,86 @@ dmar_find_ctx_locked(struct dmar_unit *dmar, int bus, int slot, int func)
 }
 
 void
+dmar_ctx_free_entry(struct dmar_map_entry *entry, bool free)
+{
+	struct dmar_ctx *ctx;
+
+	ctx = entry->ctx;
+	DMAR_CTX_LOCK(ctx);
+	if ((entry->flags & DMAR_MAP_ENTRY_RMRR) != 0)
+		dmar_gas_free_region(ctx, entry);
+	else
+		dmar_gas_free_space(ctx, entry);
+	DMAR_CTX_UNLOCK(ctx);
+	if (free)
+		dmar_gas_free_entry(ctx, entry);
+	else
+		entry->flags = 0;
+}
+
+void
+dmar_ctx_unload_entry(struct dmar_map_entry *entry, bool free)
+{
+	struct dmar_unit *unit;
+
+	unit = entry->ctx->dmar;
+	if (unit->qi_enabled) {
+		DMAR_LOCK(unit);
+		dmar_qi_invalidate_locked(entry->ctx, entry->start,
+		    entry->end - entry->start, &entry->gseq);
+		if (!free)
+			entry->flags |= DMAR_MAP_ENTRY_QI_NF;
+		TAILQ_INSERT_TAIL(&unit->tlb_flush_entries, entry, dmamap_link);
+		DMAR_UNLOCK(unit);
+	} else {
+		ctx_flush_iotlb_sync(entry->ctx, entry->start, entry->end -
+		    entry->start);
+		dmar_ctx_free_entry(entry, free);
+	}
+}
+
+void
 dmar_ctx_unload(struct dmar_ctx *ctx, struct dmar_map_entries_tailq *entries,
     bool cansleep)
 {
-	struct dmar_map_entry *entry;
+	struct dmar_unit *unit;
+	struct dmar_map_entry *entry, *entry1;
+	struct dmar_qi_genseq gseq;
 	int error;
 
-	while ((entry = TAILQ_FIRST(entries)) != NULL) {
+	unit = ctx->dmar;
+
+	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
 		KASSERT((entry->flags & DMAR_MAP_ENTRY_MAP) != 0,
 		    ("not mapped entry %p %p", ctx, entry));
-		TAILQ_REMOVE(entries, entry, dmamap_link);
 		error = ctx_unmap_buf(ctx, entry->start, entry->end -
 		    entry->start, cansleep ? DMAR_PGF_WAITOK : 0);
 		KASSERT(error == 0, ("unmap %p error %d", ctx, error));
-		DMAR_CTX_LOCK(ctx);
-		dmar_gas_free_space(ctx, entry);
-		DMAR_CTX_UNLOCK(ctx);
-		dmar_gas_free_entry(ctx, entry);
+		if (!unit->qi_enabled) {
+			ctx_flush_iotlb_sync(ctx, entry->start,
+			    entry->end - entry->start);
+			TAILQ_REMOVE(entries, entry, dmamap_link);
+			dmar_ctx_free_entry(entry, true);
+		}
 	}
+	if (TAILQ_EMPTY(entries))
+		return;
+
+	KASSERT(unit->qi_enabled, ("loaded entry left"));
+	DMAR_LOCK(unit);
+	TAILQ_FOREACH(entry, entries, dmamap_link) {
+		entry->gseq.gen = 0;
+		entry->gseq.seq = 0;
+		dmar_qi_invalidate_locked(ctx, entry->start, entry->end -
+		    entry->start, TAILQ_NEXT(entry, dmamap_link) == NULL ?
+		    &gseq : NULL);
+	}
+	TAILQ_FOREACH_SAFE(entry, entries, dmamap_link, entry1) {
+		entry->gseq = gseq;
+		TAILQ_REMOVE(entries, entry, dmamap_link);
+		TAILQ_INSERT_TAIL(&unit->tlb_flush_entries, entry, dmamap_link);
+	}
+	DMAR_UNLOCK(unit);
 }	
 
 static void

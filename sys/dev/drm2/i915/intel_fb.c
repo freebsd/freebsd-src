@@ -41,8 +41,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	struct drm_device *dev = ifbdev->helper.dev;
 #if 0
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct fb_info *info;
 #endif
+	struct fb_info *info;
 	struct drm_framebuffer *fb;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_i915_gem_object *obj;
@@ -86,6 +86,16 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	}
 
 	info->par = ifbdev;
+#else
+	info = malloc(sizeof(struct fb_info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
+	info->fb_size = size;
+	info->fb_bpp = sizes->surface_bpp;
+	info->fb_width = sizes->fb_width;
+	info->fb_height = sizes->fb_height;
+	info->fb_pbase = dev->agp->base + obj->gtt_offset;
+	info->fb_vbase = (vm_offset_t)pmap_mapdev_attr(info->fb_pbase, size,
+	    PAT_WRITE_COMBINING);
+
 #endif
 
 	ret = intel_framebuffer_init(dev, &ifbdev->ifb, &mode_cmd, obj);
@@ -95,8 +105,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	fb = &ifbdev->ifb.base;
 
 	ifbdev->helper.fb = fb;
-#if 0
 	ifbdev->helper.fbdev = info;
+#if 0
 
 	strcpy(info->fix.id, "inteldrmfb");
 
@@ -135,9 +145,8 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 #endif
-
-	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
-		      fb->width, fb->height,
+	DRM_DEBUG_KMS("allocated %dx%d (s %dbits) fb: 0x%08x, bo %p\n",
+		      fb->width, fb->height, fb->depth,
 		      obj->gtt_offset, obj);
 
 	DRM_UNLOCK(dev);

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/endian.h>
 
+#include <machine/fdt.h>
 #include <machine/intr.h>
 
 #include <vm/vm.h>
@@ -60,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -68,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include "ofw_bus_if.h"
 #include "pcib_if.h"
 
+#include <machine/devmap.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
 
@@ -81,7 +84,173 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-#define PCI_CFG_ENA		(1 << 31)
+/*
+ * Code and data related to fdt-based PCI configuration.
+ *
+ * This stuff used to be in dev/fdt/fdt_pci.c and fdt_common.h, but it was
+ * always Marvell-specific so that was deleted and the code now lives here.
+ */
+
+struct mv_pci_range {
+	u_long	base_pci;
+	u_long	base_parent;
+	u_long	len;
+};
+
+#define FDT_RANGES_CELLS	((3 + 3 + 2) * 2)
+
+static void
+mv_pci_range_dump(struct mv_pci_range *range)
+{
+#ifdef DEBUG
+	printf("\n");
+	printf("  base_pci = 0x%08lx\n", range->base_pci);
+	printf("  base_par = 0x%08lx\n", range->base_parent);
+	printf("  len      = 0x%08lx\n", range->len);
+#endif
+}
+
+static int
+mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
+    struct mv_pci_range *mem_space)
+{
+	pcell_t ranges[FDT_RANGES_CELLS];
+	struct mv_pci_range *pci_space;
+	pcell_t addr_cells, size_cells, par_addr_cells;
+	pcell_t *rangesptr;
+	pcell_t cell0, cell1, cell2;
+	int tuple_size, tuples, i, rv, offset_cells, len;
+
+	/*
+	 * Retrieve 'ranges' property.
+	 */
+	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
+		return (EINVAL);
+	if (addr_cells != 3 || size_cells != 2)
+		return (ERANGE);
+
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells > 3)
+		return (ERANGE);
+
+	len = OF_getproplen(node, "ranges");
+	if (len > sizeof(ranges))
+		return (ENOMEM);
+
+	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
+		return (EINVAL);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
+	    size_cells);
+	tuples = len / tuple_size;
+
+	/*
+	 * Initialize the ranges so that we don't have to worry about
+	 * having them all defined in the FDT. In particular, it is
+	 * perfectly fine not to want I/O space on PCI busses.
+	 */
+	bzero(io_space, sizeof(*io_space));
+	bzero(mem_space, sizeof(*mem_space));
+
+	rangesptr = &ranges[0];
+	offset_cells = 0;
+	for (i = 0; i < tuples; i++) {
+		cell0 = fdt_data_get((void *)rangesptr, 1);
+		rangesptr++;
+		cell1 = fdt_data_get((void *)rangesptr, 1);
+		rangesptr++;
+		cell2 = fdt_data_get((void *)rangesptr, 1);
+		rangesptr++;
+
+		if (cell0 & 0x02000000) {
+			pci_space = mem_space;
+		} else if (cell0 & 0x01000000) {
+			pci_space = io_space;
+		} else {
+			rv = ERANGE;
+			goto out;
+		}
+
+		if (par_addr_cells == 3) {
+			/*
+			 * This is a PCI subnode 'ranges'. Skip cell0 and
+			 * cell1 of this entry and only use cell2.
+			 */
+			offset_cells = 2;
+			rangesptr += offset_cells;
+		}
+
+		if (fdt_data_verify((void *)rangesptr, par_addr_cells -
+		    offset_cells)) {
+			rv = ERANGE;
+			goto out;
+		}
+		pci_space->base_parent = fdt_data_get((void *)rangesptr,
+		    par_addr_cells - offset_cells);
+		rangesptr += par_addr_cells - offset_cells;
+
+		if (fdt_data_verify((void *)rangesptr, size_cells)) {
+			rv = ERANGE;
+			goto out;
+		}
+		pci_space->len = fdt_data_get((void *)rangesptr, size_cells);
+		rangesptr += size_cells;
+
+		pci_space->base_pci = cell2;
+	}
+	rv = 0;
+out:
+	return (rv);
+}
+
+static int
+mv_pci_ranges(phandle_t node, struct mv_pci_range *io_space,
+    struct mv_pci_range *mem_space)
+{
+	int err;
+
+	debugf("Processing PCI node: %x\n", node);
+	if ((err = mv_pci_ranges_decode(node, io_space, mem_space)) != 0) {
+		debugf("could not decode parent PCI node 'ranges'\n");
+		return (err);
+	}
+
+	debugf("Post fixup dump:\n");
+	mv_pci_range_dump(io_space);
+	mv_pci_range_dump(mem_space);
+	return (0);
+}
+
+int
+mv_pci_devmap(phandle_t node, struct arm_devmap_entry *devmap, vm_offset_t io_va,
+    vm_offset_t mem_va)
+{
+	struct mv_pci_range io_space, mem_space;
+	int error;
+
+	if ((error = mv_pci_ranges_decode(node, &io_space, &mem_space)) != 0)
+		return (error);
+
+	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
+	devmap->pd_pa = io_space.base_parent;
+	devmap->pd_size = io_space.len;
+	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	devmap->pd_cache = PTE_NOCACHE;
+	devmap++;
+
+	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
+	devmap->pd_pa = mem_space.base_parent;
+	devmap->pd_size = mem_space.len;
+	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	devmap->pd_cache = PTE_NOCACHE;
+	return (0);
+}
+
+/*
+ * Code and data related to the Marvell pcib driver.
+ */
+
+#define PCI_CFG_ENA		(1U << 31)
 #define PCI_CFG_BUS(bus)	(((bus) & 0xff) << 16)
 #define PCI_CFG_DEV(dev)	(((dev) & 0x1f) << 11)
 #define PCI_CFG_FUN(fun)	(((fun) & 0x7) << 8)
@@ -142,7 +311,7 @@ struct mv_pcib_softc {
 	int		sc_type;
 	int		sc_mode;		/* Endpoint / Root Complex */
 
-	struct fdt_pci_intr	sc_intr_info;
+	struct ofw_bus_iinfo	sc_pci_iinfo;
 };
 
 /* Local forward prototypes */
@@ -155,7 +324,6 @@ static void mv_pcib_hw_cfgwrite(struct mv_pcib_softc *, u_int, u_int,
 static int mv_pcib_init(struct mv_pcib_softc *, int, int);
 static int mv_pcib_init_all_bars(struct mv_pcib_softc *, int, int, int, int);
 static void mv_pcib_init_bridge(struct mv_pcib_softc *, int, int, int);
-static int mv_pcib_intr_info(phandle_t, struct mv_pcib_softc *);
 static inline void pcib_write_irq_mask(struct mv_pcib_softc *, uint32_t);
 static void mv_pcib_enable(struct mv_pcib_softc *, uint32_t);
 static int mv_pcib_mem_init(struct mv_pcib_softc *);
@@ -230,7 +398,7 @@ static driver_t mv_pcib_driver = {
 
 devclass_t pcib_devclass;
 
-DRIVER_MODULE(pcib, fdtbus, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, nexus, mv_pcib_driver, pcib_devclass, 0, 0);
 
 static struct mtx pcicfg_mtx;
 
@@ -243,8 +411,8 @@ mv_pcib_probe(device_t self)
 	if (!fdt_is_type(node, "pci"))
 		return (ENXIO);
 
-	if (!(fdt_is_compatible(node, "mrvl,pcie") ||
-	    fdt_is_compatible(node, "mrvl,pci")))
+	if (!(ofw_bus_is_compatible(self, "mrvl,pcie") ||
+	    ofw_bus_is_compatible(self, "mrvl,pci")))
 		return (ENXIO);
 
 	device_set_desc(self, "Marvell Integrated PCI/PCI-E Controller");
@@ -299,11 +467,8 @@ mv_pcib_attach(device_t self)
 	/*
 	 * Get PCI interrupt info.
 	 */
-	if ((sc->sc_mode == MV_MODE_ROOT) &&
-	    (mv_pcib_intr_info(node, sc) != 0)) {
-		device_printf(self, "could not retrieve interrupt info\n");
-		return (ENXIO);
-	}
+	if (sc->sc_mode == MV_MODE_ROOT)
+		ofw_bus_setup_iinfo(node, &sc->sc_pci_iinfo, sizeof(pcell_t));
 
 	/*
 	 * Configure decode windows for PCI(E) access.
@@ -881,19 +1046,32 @@ mv_pcib_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static int
-mv_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct mv_pcib_softc *sc;
-	int err, interrupt;
+	struct ofw_pci_register reg;
+	uint32_t pintr, mintr;
+	phandle_t iparent;
 
-	sc = device_get_softc(pcib);
+	sc = device_get_softc(bus);
+	pintr = pin;
 
-	err = fdt_pci_route_intr(pci_get_bus(dev), pci_get_slot(dev),
-	    pci_get_function(dev), pin, &sc->sc_intr_info, &interrupt);
-	if (err == 0)
-		return (interrupt);
+	/* Fabricate imap information in case this isn't an OFW device */
+	bzero(&reg, sizeof(reg));
+	reg.phys_hi = (pci_get_bus(dev) << OFW_PCI_PHYS_HI_BUSSHIFT) |
+	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
+	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
 
-	device_printf(pcib, "could not route pin %d for device %d.%d\n",
+	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
+	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
+	    &iparent))
+		return (ofw_bus_map_intr(dev, iparent, mintr));
+
+	/* Maybe it's a real interrupt, not an intpin */
+	if (pin > 4)
+		return (pin);
+
+	device_printf(bus, "could not route pin %d for device %d.%d\n",
 	    pin, pci_get_slot(dev), pci_get_function(dev));
 	return (PCI_INVALID_IRQ);
 }
@@ -901,13 +1079,13 @@ mv_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 static int
 mv_pcib_decode_win(phandle_t node, struct mv_pcib_softc *sc)
 {
-	struct fdt_pci_range io_space, mem_space;
+	struct mv_pci_range io_space, mem_space;
 	device_t dev;
 	int error;
 
 	dev = sc->sc_dev;
 
-	if ((error = fdt_pci_ranges(node, &io_space, &mem_space)) != 0) {
+	if ((error = mv_pci_ranges(node, &io_space, &mem_space)) != 0) {
 		device_printf(dev, "could not retrieve 'ranges' data\n");
 		return (error);
 	}
@@ -934,17 +1112,6 @@ mv_pcib_decode_win(phandle_t node, struct mv_pcib_softc *sc)
 
 	sc->sc_mem_base = mem_space.base_parent;
 	sc->sc_mem_size = mem_space.len;
-
-	return (0);
-}
-
-static int
-mv_pcib_intr_info(phandle_t node, struct mv_pcib_softc *sc)
-{
-	int error;
-
-	if ((error = fdt_pci_intr_info(node, &sc->sc_intr_info)) != 0)
-		return (error);
 
 	return (0);
 }
@@ -1026,3 +1193,4 @@ mv_pcib_release_msi(device_t dev, device_t child, int count, int *irqs)
 	return (0);
 }
 #endif
+

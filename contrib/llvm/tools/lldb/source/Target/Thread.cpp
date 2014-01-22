@@ -282,10 +282,16 @@ Thread::~Thread()
 void 
 Thread::DestroyThread ()
 {
-    // Tell any plans on the plan stack that the thread is being destroyed since
-    // any active plans that have a thread go away in the middle of might need
-    // to do cleanup.
+    // Tell any plans on the plan stacks that the thread is being destroyed since
+    // any plans that have a thread go away in the middle of might need
+    // to do cleanup, or in some cases NOT do cleanup...
     for (auto plan : m_plan_stack)
+        plan->ThreadDestroyed();
+
+    for (auto plan : m_discarded_plan_stack)
+        plan->ThreadDestroyed();
+
+    for (auto plan : m_completed_plan_stack)
         plan->ThreadDestroyed();
 
     m_destroy_called = true;
@@ -490,7 +496,19 @@ Thread::ThreadStoppedForAReason (void)
 bool
 Thread::CheckpointThreadState (ThreadStateCheckpoint &saved_state)
 {
-    if (!SaveFrameZeroState(saved_state.register_backup))
+    saved_state.register_backup_sp.reset();
+    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
+    if (frame_sp)
+    {
+        lldb::RegisterCheckpointSP reg_checkpoint_sp(new RegisterCheckpoint(RegisterCheckpoint::Reason::eExpression));
+        if (reg_checkpoint_sp)
+        {
+            lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
+            if (reg_ctx_sp && reg_ctx_sp->ReadAllRegisterValues (*reg_checkpoint_sp))
+                saved_state.register_backup_sp = reg_checkpoint_sp;
+        }
+    }
+    if (!saved_state.register_backup_sp)
         return false;
 
     saved_state.stop_info_sp = GetStopInfo();
@@ -505,8 +523,26 @@ Thread::CheckpointThreadState (ThreadStateCheckpoint &saved_state)
 bool
 Thread::RestoreRegisterStateFromCheckpoint (ThreadStateCheckpoint &saved_state)
 {
-    RestoreSaveFrameZero(saved_state.register_backup);
-    return true;
+    if (saved_state.register_backup_sp)
+    {
+        lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
+        if (frame_sp)
+        {
+            lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
+            if (reg_ctx_sp)
+            {
+                bool ret = reg_ctx_sp->WriteAllRegisterValues (*saved_state.register_backup_sp);
+                
+                // Clear out all stack frames as our world just changed.
+                ClearStackFrames();
+                reg_ctx_sp->InvalidateIfNeeded(true);
+                if (m_unwinder_ap.get())
+                    m_unwinder_ap->Clear();
+                return ret;
+            }
+        }
+    }
+    return false;
 }
 
 bool
@@ -1414,14 +1450,6 @@ Thread::QueueThreadPlanForStepInRange
 
 
 ThreadPlanSP
-Thread::QueueThreadPlanForStepOverBreakpointPlan (bool abort_other_plans)
-{
-    ThreadPlanSP thread_plan_sp (new ThreadPlanStepOverBreakpoint (*this));
-    QueueThreadPlan (thread_plan_sp, abort_other_plans);
-    return thread_plan_sp;
-}
-
-ThreadPlanSP
 Thread::QueueThreadPlanForStepOut 
 (
     bool abort_other_plans, 
@@ -1459,25 +1487,6 @@ Thread::QueueThreadPlanForStepThrough (StackID &return_stack_id, bool abort_othe
     if (!thread_plan_sp || !thread_plan_sp->ValidatePlan (NULL))
         return ThreadPlanSP();
 
-    QueueThreadPlan (thread_plan_sp, abort_other_plans);
-    return thread_plan_sp;
-}
-
-ThreadPlanSP
-Thread::QueueThreadPlanForCallFunction (bool abort_other_plans,
-                                        Address& function,
-                                        lldb::addr_t arg,
-                                        bool stop_other_threads,
-                                        bool unwind_on_error,
-                                        bool ignore_breakpoints)
-{
-    ThreadPlanSP thread_plan_sp (new ThreadPlanCallFunction (*this,
-                                                             function,
-                                                             ClangASTType(),
-                                                             arg,
-                                                             stop_other_threads,
-                                                             unwind_on_error,
-                                                             ignore_breakpoints));
     QueueThreadPlan (thread_plan_sp, abort_other_plans);
     return thread_plan_sp;
 }
@@ -1745,6 +1754,79 @@ Thread::ReturnFromFrame (lldb::StackFrameSP frame_sp, lldb::ValueObjectSP return
     return return_error;
 }
 
+static void DumpAddressList (Stream &s, const std::vector<Address> &list, ExecutionContextScope *exe_scope)
+{
+    for (size_t n=0;n<list.size();n++)
+    {
+        s << "\t";
+        list[n].Dump (&s, exe_scope, Address::DumpStyleResolvedDescription, Address::DumpStyleSectionNameOffset);
+        s << "\n";
+    }
+}
+
+Error
+Thread::JumpToLine (const FileSpec &file, uint32_t line, bool can_leave_function, std::string *warnings)
+{
+    ExecutionContext exe_ctx (GetStackFrameAtIndex(0));
+    Target *target = exe_ctx.GetTargetPtr();
+    TargetSP target_sp = exe_ctx.GetTargetSP();
+    RegisterContext *reg_ctx = exe_ctx.GetRegisterContext();
+    StackFrame *frame = exe_ctx.GetFramePtr();
+    const SymbolContext &sc = frame->GetSymbolContext(eSymbolContextFunction);
+
+    // Find candidate locations.
+    std::vector<Address> candidates, within_function, outside_function;
+    target->GetImages().FindAddressesForLine (target_sp, file, line, sc.function, within_function, outside_function);
+
+    // If possible, we try and stay within the current function.
+    // Within a function, we accept multiple locations (optimized code may do this,
+    // there's no solution here so we do the best we can).
+    // However if we're trying to leave the function, we don't know how to pick the
+    // right location, so if there's more than one then we bail.
+    if (!within_function.empty())
+        candidates = within_function;
+    else if (outside_function.size() == 1 && can_leave_function)
+        candidates = outside_function;
+
+    // Check if we got anything.
+    if (candidates.empty())
+    {
+        if (outside_function.empty())
+        {
+            return Error("Cannot locate an address for %s:%i.",
+                         file.GetFilename().AsCString(), line);
+        }
+        else if (outside_function.size() == 1)
+        {
+            return Error("%s:%i is outside the current function.",
+                         file.GetFilename().AsCString(), line);
+        }
+        else
+        {
+            StreamString sstr;
+            DumpAddressList(sstr, outside_function, target);
+            return Error("%s:%i has multiple candidate locations:\n%s",
+                         file.GetFilename().AsCString(), line, sstr.GetString().c_str());
+        }
+    }
+
+    // Accept the first location, warn about any others.
+    Address dest = candidates[0];
+    if (warnings && candidates.size() > 1)
+    {
+        StreamString sstr;
+        sstr.Printf("%s:%i appears multiple times in this function, selecting the first location:\n",
+                     file.GetFilename().AsCString(), line);
+        DumpAddressList(sstr, candidates, target);
+        *warnings = sstr.GetString();
+    }
+
+    if (!reg_ctx->SetPC (dest))
+        return Error("Cannot change PC to target address.");
+
+    return Error();
+}
+
 void
 Thread::DumpUsingSettingsFormat (Stream &strm, uint32_t frame_idx)
 {
@@ -1782,6 +1864,24 @@ Thread::SettingsInitialize ()
 void
 Thread::SettingsTerminate ()
 {
+}
+
+lldb::addr_t
+Thread::GetThreadPointer ()
+{
+    return LLDB_INVALID_ADDRESS;
+}
+
+addr_t
+Thread::GetThreadLocalData (const ModuleSP module)
+{
+    // The default implementation is to ask the dynamic loader for it.
+    // This can be overridden for specific platforms.
+    DynamicLoader *loader = GetProcess()->GetDynamicLoader();
+    if (loader)
+        return loader->GetThreadLocalData (module, shared_from_this());
+    else
+        return LLDB_INVALID_ADDRESS;
 }
 
 lldb::StackFrameSP
@@ -1863,13 +1963,21 @@ Thread::GetStatus (Stream &strm, uint32_t start_frame, uint32_t num_frames, uint
         strm.IndentMore();
         
         const bool show_frame_info = true;
-        strm.IndentMore ();
+        
+        const char *selected_frame_marker = NULL;
+        if (num_frames == 1 || (GetID() != GetProcess()->GetThreadList().GetSelectedThread()->GetID()))
+            strm.IndentMore ();
+        else
+            selected_frame_marker = "* ";
+
         num_frames_shown = GetStackFrameList ()->GetStatus (strm,
                                                             start_frame, 
                                                             num_frames, 
                                                             show_frame_info, 
-                                                            num_frames_with_source);
-        strm.IndentLess();
+                                                            num_frames_with_source,
+                                                            selected_frame_marker);
+        if (num_frames == 1)
+            strm.IndentLess();
         strm.IndentLess();
     }
     return num_frames_shown;
@@ -1889,48 +1997,6 @@ Thread::GetStackFrameStatus (Stream& strm,
                                            num_frames_with_source);
 }
 
-bool
-Thread::SaveFrameZeroState (RegisterCheckpoint &checkpoint)
-{
-    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
-    if (frame_sp)
-    {
-        checkpoint.SetStackID(frame_sp->GetStackID());
-        lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
-        if (reg_ctx_sp)
-            return reg_ctx_sp->ReadAllRegisterValues (checkpoint.GetData());
-    }
-    return false;
-}
-
-bool
-Thread::RestoreSaveFrameZero (const RegisterCheckpoint &checkpoint)
-{
-    return ResetFrameZeroRegisters (checkpoint.GetData());
-}
-
-bool
-Thread::ResetFrameZeroRegisters (lldb::DataBufferSP register_data_sp)
-{
-    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
-    if (frame_sp)
-    {
-        lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
-        if (reg_ctx_sp)
-        {
-            bool ret = reg_ctx_sp->WriteAllRegisterValues (register_data_sp);
-
-            // Clear out all stack frames as our world just changed.
-            ClearStackFrames();
-            reg_ctx_sp->InvalidateIfNeeded(true);
-            if (m_unwinder_ap.get())
-                m_unwinder_ap->Clear();
-            return ret;
-        }
-    }
-    return false;
-}
-
 Unwind *
 Thread::GetUnwinder ()
 {
@@ -1944,6 +2010,7 @@ Thread::GetUnwinder ()
             case llvm::Triple::x86:
             case llvm::Triple::arm:
             case llvm::Triple::thumb:
+            case llvm::Triple::mips64:
                 m_unwinder_ap.reset (new UnwindLLDB (*this));
                 break;
                 

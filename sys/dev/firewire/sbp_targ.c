@@ -1716,7 +1716,7 @@ sbp_targ_pointer_handler(struct fw_xfer *xfer)
 
 	orb0 = ntohl(orbi->orb[0]);
 	orb1 = ntohl(orbi->orb[1]);
-	if ((orb0 & (1 << 31)) != 0) {
+	if ((orb0 & (1U << 31)) != 0) {
 		printf("%s: invalid pointer\n", __func__);
 		goto done;
 	}

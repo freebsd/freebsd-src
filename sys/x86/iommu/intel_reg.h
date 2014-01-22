@@ -134,7 +134,7 @@ typedef struct dmar_pte {
 
 /* Global Command register */
 #define	DMAR_GCMD_REG	0x18
-#define	DMAR_GCMD_TE	(1 << 31)	/* Translation Enable */
+#define	DMAR_GCMD_TE	(1U << 31)	/* Translation Enable */
 #define	DMAR_GCMD_SRTP	(1 << 30)	/* Set Root Table Pointer */
 #define	DMAR_GCMD_SFL	(1 << 29)	/* Set Fault Log */
 #define	DMAR_GCMD_EAFL	(1 << 28)	/* Enable Advanced Fault Logging */
@@ -146,7 +146,7 @@ typedef struct dmar_pte {
 
 /* Global Status register */
 #define	DMAR_GSTS_REG	0x1c
-#define	DMAR_GSTS_TES	(1 << 31)	/* Translation Enable Status */
+#define	DMAR_GSTS_TES	(1U << 31)	/* Translation Enable Status */
 #define	DMAR_GSTS_RTPS	(1 << 30)	/* Root Table Pointer Status */
 #define	DMAR_GSTS_FLS	(1 << 29)	/* Fault Log Status */
 #define	DMAR_GSTS_AFLS	(1 << 28)	/* Advanced Fault Logging Status */
@@ -164,7 +164,7 @@ typedef struct dmar_pte {
 /* Context Command register */
 #define	DMAR_CCMD_REG	0x28
 #define	DMAR_CCMD_ICC	(1ULL << 63)	/* Invalidate Context-Cache */
-#define	DMAR_CCMD_ICC32	(1 << 31)
+#define	DMAR_CCMD_ICC32	(1U << 31)
 #define	DMAR_CCMD_CIRG_MASK	(0x3ULL << 61)	/* Context Invalidation
 						   Request Granularity */
 #define	DMAR_CCMD_CIRG_GLOB	(0x1ULL << 61)	/* Global */
@@ -188,7 +188,7 @@ typedef struct dmar_pte {
 /* IOTLB Invalidate register */
 #define	DMAR_IOTLB_REG_OFF	0x8
 #define	DMAR_IOTLB_IVT		(1ULL << 63)	/* Invalidate IOTLB */
-#define	DMAR_IOTLB_IVT32	(1 << 31)
+#define	DMAR_IOTLB_IVT32	(1U << 31)
 #define	DMAR_IOTLB_IIRG_MASK	(0x3ULL << 60)	/* Invalidation Request
 						   Granularity */
 #define	DMAR_IOTLB_IIRG_GLB	(0x1ULL << 60)	/* Global */
@@ -217,7 +217,7 @@ typedef struct dmar_pte {
 
 /* Fault Event Control register */
 #define	DMAR_FECTL_REG		0x38
-#define	DMAR_FECTL_IM		(1 << 31)	/* Interrupt Mask */
+#define	DMAR_FECTL_IM		(1U << 31)	/* Interrupt Mask */
 #define	DMAR_FECTL_IP		(1 << 30)	/* Interrupt Pending */
 
 /* Fault Event Data register */
@@ -234,7 +234,7 @@ typedef struct dmar_pte {
 
 /* Fault Recording Register, also usable for Advanced Fault Log records */
 #define	DMAR_FRCD2_F		(1ULL << 63)	/* Fault */
-#define	DMAR_FRCD2_F32		(1 << 31)
+#define	DMAR_FRCD2_F32		(1U << 31)
 #define	DMAR_FRCD2_T(x)		((int)((x >> 62) & 1))	/* Type */
 #define	DMAR_FRCD2_T_W		0		/* Write request */
 #define	DMAR_FRCD2_T_R		1		/* Read or AtomicOp */
@@ -245,7 +245,7 @@ typedef struct dmar_pte {
 
 /* Protected Memory Enable register */
 #define	DMAR_PMEN_REG		0x64
-#define	DMAR_PMEN_EPM		(1 << 31)	/* Enable Protected Memory */
+#define	DMAR_PMEN_EPM		(1U << 31)	/* Enable Protected Memory */
 #define	DMAR_PMEN_PRS		1		/* Protected Region Status */
 
 /* Protected Low-Memory Base register */
@@ -260,14 +260,50 @@ typedef struct dmar_pte {
 /* Protected High-Memory Limit register */
 #define	DMAR_PHMLIMIT_REG	0x78
 
+/* Queued Invalidation Descriptors */
+#define	DMAR_IQ_DESCR_SZ_SHIFT	4	/* Shift for descriptor count
+					   to ring offset */
+#define	DMAR_IQ_DESCR_SZ	(1 << DMAR_IQ_DESCR_SZ_SHIFT)
+					/* Descriptor size */
+
+#define	DMAR_IQ_DESCR_CTX_INV	0x1	/* Context-cache Invalidate
+					   Descriptor */
+#define	DMAR_IQ_DESCR_CTX_GLOB	(0x1 << 4)	/* Granularity: Global */
+#define	DMAR_IQ_DESCR_CTX_DOM	(0x2 << 4)	/* Granularity: Domain */
+#define	DMAR_IQ_DESCR_CTX_DEV	(0x3 << 4)	/* Granularity: Device */
+#define	DMAR_IQ_DESCR_CTX_DID(x) (((uint32_t)(x)) << 16) /* Domain Id */
+#define	DMAR_IQ_DESCR_CTX_SRC(x) (((uint64_t)(x)) << 32) /* Source Id */
+#define	DMAR_IQ_DESCR_CTX_FM(x)  (((uint64_t)(x)) << 48) /* Function Mask */
+
+#define	DMAR_IQ_DESCR_IOTLB_INV	0x2	/* IOTLB Invalidate Descriptor */
+#define	DMAR_IQ_DESCR_IOTLB_GLOB (0x1 << 4)	/* Granularity: Global */
+#define	DMAR_IQ_DESCR_IOTLB_DOM	 (0x2 << 4)	/* Granularity: Domain */
+#define	DMAR_IQ_DESCR_IOTLB_PAGE (0x3 << 4)	/* Granularity: Page */
+#define	DMAR_IQ_DESCR_IOTLB_DW	(1 << 6)	/* Drain Writes */
+#define	DMAR_IQ_DESCR_IOTLB_DR	(1 << 7)	/* Drain Reads */
+#define	DMAR_IQ_DESCR_IOTLB_DID(x) (((uint32_t)(x)) << 16) /* Domain Id */
+
+#define	DMAR_IQ_DESCR_WAIT_ID	0x5	/* Invalidation Wait Descriptor */
+#define	DMAR_IQ_DESCR_WAIT_IF	(1 << 4)	/* Interrupt Flag */
+#define	DMAR_IQ_DESCR_WAIT_SW	(1 << 5)	/* Status Write */
+#define	DMAR_IQ_DESCR_WAIT_FN	(1 << 6)	/* Fence */
+#define	DMAR_IQ_DESCR_WAIT_SD(x) (((uint64_t)(x)) << 32) /* Status Data */
+
 /* Invalidation Queue Head register */
 #define	DMAR_IQH_REG		0x80
+#define	DMAR_IQH_MASK		0x7fff0		/* Next cmd index mask */
 
 /* Invalidation Queue Tail register */
 #define	DMAR_IQT_REG		0x88
+#define	DMAR_IQT_MASK		0x7fff0
 
 /* Invalidation Queue Address register */
 #define	DMAR_IQA_REG		0x90
+#define	DMAR_IQA_IQA_MASK	0xfffffffffffff000 /* Invalidation Queue
+						      Base Address mask */
+#define	DMAR_IQA_QS_MASK	0x7		/* Queue Size in pages */
+#define	DMAR_IQA_QS_MAX		0x7		/* Max Queue size */
+#define	DMAR_IQA_QS_DEF		3
 
  /* Invalidation Completion Status register */
 #define	DMAR_ICS_REG		0x9c
@@ -276,7 +312,7 @@ typedef struct dmar_pte {
 
 /* Invalidation Event Control register */
 #define	DMAR_IECTL_REG		0xa0
-#define	DMAR_IECTL_IM		(1 << 31)	/* Interrupt Mask */
+#define	DMAR_IECTL_IM		(1U << 31)	/* Interrupt Mask */
 #define	DMAR_IECTL_IP		(1 << 30)	/* Interrupt Pending */
 
 /* Invalidation Event Data register */

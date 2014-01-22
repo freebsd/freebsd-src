@@ -342,7 +342,7 @@ while getopts f:h$GETOPTS_STDARGS flag; do
 	h|\?) usage ;;
 	esac
 done
-shift $(( $OPTIND -1 ))
+shift $(( $OPTIND - 1 ))
 
 # If we've loaded any scripts, do not continue any further
 [ $scripts_loaded -gt 0 ] && exit

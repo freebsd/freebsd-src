@@ -270,7 +270,7 @@ typedef struct __efsys_identifier_s	efsys_identifier_t;
 
 /* PROBE */
 
-#ifndef KDTRACE_HOOKS
+#ifndef DTRACE_PROBE
 
 #define EFSYS_PROBE(_name)
 
@@ -295,7 +295,7 @@ typedef struct __efsys_identifier_s	efsys_identifier_t;
 	    _type3, _arg3, _type4, _arg4, _type5, _arg5,		\
 	    _type6, _arg6, _type7, _arg7)
 
-#else /* KDTRACE_HOOKS */
+#else /* DTRACE_PROBE */
 
 #define	EFSYS_PROBE(_name)						\
 	DTRACE_PROBE(_name)
@@ -359,7 +359,7 @@ typedef struct __efsys_identifier_s	efsys_identifier_t;
 	    _type6, _arg6)
 #endif
 
-#endif /* KDTRACE_HOOKS */
+#endif /* DTRACE_PROBE */
 
 /* DMA */
 

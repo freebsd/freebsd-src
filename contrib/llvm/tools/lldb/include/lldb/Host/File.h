@@ -11,7 +11,9 @@
 #define liblldb_File_h_
 #if defined(__cplusplus)
 
+#include <stdarg.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 #include "lldb/lldb-private.h"
 
@@ -38,43 +40,13 @@ public:
         eOpenOptionTruncate             = (1u << 3),    // Truncate file when opening
         eOpenOptionNonBlocking          = (1u << 4),    // File reads
         eOpenOptionCanCreate            = (1u << 5),    // Create file if doesn't already exist
-        eOpenOptionCanCreateNewOnly     = (1u << 6)     // Can create file only if it doesn't already exist
+        eOpenOptionCanCreateNewOnly     = (1u << 6),    // Can create file only if it doesn't already exist
+        eOpenoptionDontFollowSymlinks   = (1u << 7)
     };
     
-    enum Permissions
-    {
-        ePermissionsUserRead        = (1u << 0),
-        ePermissionsUserWrite       = (1u << 1),
-        ePermissionsUserExecute     = (1u << 2),
-        ePermissionsGroupRead       = (1u << 3),
-        ePermissionsGroupWrite      = (1u << 4),
-        ePermissionsGroupExecute    = (1u << 5),
-        ePermissionsWorldRead       = (1u << 6),
-        ePermissionsWorldWrite      = (1u << 7),
-        ePermissionsWorldExecute    = (1u << 8),
-
-        ePermissionsUserRW      = (ePermissionsUserRead    | ePermissionsUserWrite    | 0                        ),
-        ePermissionsUserRX      = (ePermissionsUserRead    | 0                        | ePermissionsUserExecute  ),
-        ePermissionsUserRWX     = (ePermissionsUserRead    | ePermissionsUserWrite    | ePermissionsUserExecute  ),
-
-        ePermissionsGroupRW     = (ePermissionsGroupRead   | ePermissionsGroupWrite   | 0                        ),
-        ePermissionsGroupRX     = (ePermissionsGroupRead   | 0                        | ePermissionsGroupExecute ),
-        ePermissionsGroupRWX    = (ePermissionsGroupRead   | ePermissionsGroupWrite   | ePermissionsGroupExecute ),
-
-        ePermissionsWorldRW     = (ePermissionsWorldRead   | ePermissionsWorldWrite   | 0                        ),
-        ePermissionsWorldRX     = (ePermissionsWorldRead   | 0                        | ePermissionsWorldExecute ),
-        ePermissionsWorldRWX    = (ePermissionsWorldRead   | ePermissionsWorldWrite   | ePermissionsWorldExecute ),
-
-        ePermissionsEveryoneR   = (ePermissionsUserRead    | ePermissionsGroupRead    | ePermissionsWorldRead    ),
-        ePermissionsEveryoneW   = (ePermissionsUserWrite   | ePermissionsGroupWrite   | ePermissionsWorldWrite   ),
-        ePermissionsEveryoneX   = (ePermissionsUserExecute | ePermissionsGroupExecute | ePermissionsWorldExecute ),
-
-        ePermissionsEveryoneRW  = (ePermissionsEveryoneR   | ePermissionsEveryoneW    | 0                        ),
-        ePermissionsEveryoneRX  = (ePermissionsEveryoneR   | 0                        | ePermissionsEveryoneX    ),
-        ePermissionsEveryoneRWX = (ePermissionsEveryoneR   | ePermissionsEveryoneW    | ePermissionsEveryoneX    ),
-        ePermissionsDefault     = (ePermissionsUserRW      | ePermissionsGroupRead)
-    };
-
+    static mode_t
+    ConvertOpenOptionsForPOSIXOpen (uint32_t open_options);
+    
     File() : 
         m_descriptor (kInvalidDescriptor),
         m_stream (kInvalidStream),
@@ -115,8 +87,29 @@ public:
     //------------------------------------------------------------------
     File (const char *path,
           uint32_t options,
-          uint32_t permissions = ePermissionsDefault);
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
 
+    //------------------------------------------------------------------
+    /// Constructor with FileSpec.
+    ///
+    /// Takes a FileSpec pointing to a file which can be just a filename, or a full
+    /// path. If \a path is not NULL or empty, this function will call
+    /// File::Open (const char *path, uint32_t options, uint32_t permissions).
+    ///
+    /// @param[in] path
+    ///     The FileSpec for this file.
+    ///
+    /// @param[in] options
+    ///     Options to use when opening (see File::OpenOptions)
+    ///
+    /// @param[in] permissions
+    ///     Options to use when opening (see File::Permissions)
+    ///
+    /// @see File::Open (const char *path, uint32_t options, uint32_t permissions)
+    //------------------------------------------------------------------
+    File (const FileSpec& filespec,
+          uint32_t options,
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
     
     File (int fd, bool tranfer_ownership) : 
         m_descriptor (fd),
@@ -210,7 +203,7 @@ public:
     Error
     Open (const char *path,
           uint32_t options,
-          uint32_t permissions = ePermissionsDefault);
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
 
     Error
     Close ();
@@ -451,6 +444,19 @@ public:
     //------------------------------------------------------------------
     Error
     Sync ();
+    
+    //------------------------------------------------------------------
+    /// Get the permissions for a this file.
+    ///
+    /// @return
+    ///     Bits logical OR'ed together from the permission bits defined
+    ///     in lldb_private::File::Permissions.
+    //------------------------------------------------------------------
+    uint32_t
+    GetPermissions(Error &error) const;
+    
+    static uint32_t
+    GetPermissions (const char *path, Error &error);
 
     //------------------------------------------------------------------
     /// Output printf formatted output to the stream.

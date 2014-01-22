@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: casperd
+# REQUIRE: NETWORKING syslogd
+# BEFORE:  DAEMON
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="casperd"
+rcvar="casperd_enable"
+pidfile="/var/run/${name}.pid"
+command="/sbin/${name}"
+
+load_rc_config $name
+run_rc_command "$1"

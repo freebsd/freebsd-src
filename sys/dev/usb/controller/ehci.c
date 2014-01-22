@@ -119,12 +119,12 @@ static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
 
 #define	EHCI_INTR_ENDPT 1
 
-extern struct usb_bus_methods ehci_bus_methods;
-extern struct usb_pipe_methods ehci_device_bulk_methods;
-extern struct usb_pipe_methods ehci_device_ctrl_methods;
-extern struct usb_pipe_methods ehci_device_intr_methods;
-extern struct usb_pipe_methods ehci_device_isoc_fs_methods;
-extern struct usb_pipe_methods ehci_device_isoc_hs_methods;
+static const struct usb_bus_methods ehci_bus_methods;
+static const struct usb_pipe_methods ehci_device_bulk_methods;
+static const struct usb_pipe_methods ehci_device_ctrl_methods;
+static const struct usb_pipe_methods ehci_device_intr_methods;
+static const struct usb_pipe_methods ehci_device_isoc_fs_methods;
+static const struct usb_pipe_methods ehci_device_isoc_hs_methods;
 
 static void ehci_do_poll(struct usb_bus *);
 static void ehci_device_done(struct usb_xfer *, usb_error_t);
@@ -1198,9 +1198,16 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 		    (status & EHCI_QTD_PINGSTATE) ? "[PING]" : "");
 	}
 #endif
-
-	return ((status & EHCI_QTD_HALTED) ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION);
+	if (status & EHCI_QTD_HALTED) {
+		if ((xfer->xroot->udev->parent_hs_hub != NULL) ||
+		    (xfer->xroot->udev->address != 0)) {
+			/* try to separate I/O errors from STALL */
+			if (EHCI_QTD_GET_CERR(status) == 0)
+				return (USB_ERR_IOERROR);
+		}
+		return (USB_ERR_STALLED);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
@@ -1275,7 +1282,7 @@ done:
 static uint8_t
 ehci_check_transfer(struct usb_xfer *xfer)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
 	uint32_t status;
@@ -1654,12 +1661,17 @@ restart:
 			}
 			td->len = 0;
 
+			/* properly reset reserved fields */
 			td->qtd_buffer[0] = 0;
-			td->qtd_buffer_hi[0] = 0;
-
 			td->qtd_buffer[1] = 0;
+			td->qtd_buffer[2] = 0;
+			td->qtd_buffer[3] = 0;
+			td->qtd_buffer[4] = 0;
+			td->qtd_buffer_hi[0] = 0;
 			td->qtd_buffer_hi[1] = 0;
-
+			td->qtd_buffer_hi[2] = 0;
+			td->qtd_buffer_hi[3] = 0;
+			td->qtd_buffer_hi[4] = 0;
 		} else {
 
 			uint8_t x;
@@ -1714,6 +1726,12 @@ restart:
 			    htohc32(temp->sc,
 			    buf_res.physaddr & (~0xFFF));
 			td->qtd_buffer_hi[x] = 0;
+
+			/* properly reset reserved fields */
+			while (++x < EHCI_QTD_NBUFFERS) {
+				td->qtd_buffer[x] = 0;
+				td->qtd_buffer_hi[x] = 0;
+			}
 		}
 
 		if (td_next) {
@@ -1756,7 +1774,7 @@ static void
 ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 {
 	struct ehci_std_temp temp;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 	ehci_qh_t *qh;
 	ehci_qtd_t *td;
 	uint32_t qh_endp;
@@ -2001,6 +2019,18 @@ ehci_setup_standard_chain(struct usb_xfer *xfer, ehci_qh_t **qh_last)
 	qh->qh_qtd.qtd_altnext =
 	    htohc32(temp.sc, EHCI_LINK_TERMINATE);
 
+	/* properly reset reserved fields */
+	qh->qh_qtd.qtd_buffer[0] = 0;
+	qh->qh_qtd.qtd_buffer[1] = 0;
+	qh->qh_qtd.qtd_buffer[2] = 0;
+	qh->qh_qtd.qtd_buffer[3] = 0;
+	qh->qh_qtd.qtd_buffer[4] = 0;
+	qh->qh_qtd.qtd_buffer_hi[0] = 0;
+	qh->qh_qtd.qtd_buffer_hi[1] = 0;
+	qh->qh_qtd.qtd_buffer_hi[2] = 0;
+	qh->qh_qtd.qtd_buffer_hi[3] = 0;
+	qh->qh_qtd.qtd_buffer_hi[4] = 0;
+
 	usb_pc_cpu_flush(qh->page_cache);
 
 	if (xfer->xroot->udev->flags.self_suspended == 0) {
@@ -2164,7 +2194,7 @@ ehci_isoc_hs_done(ehci_softc_t *sc, struct usb_xfer *xfer)
 static void
 ehci_device_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	struct usb_pipe_methods *methods = xfer->endpoint->methods;
+	const struct usb_pipe_methods *methods = xfer->endpoint->methods;
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
 
 	USB_BUS_LOCK_ASSERT(&sc->sc_bus, MA_OWNED);
@@ -2258,7 +2288,7 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
 }
 
-struct usb_pipe_methods ehci_device_bulk_methods =
+static const struct usb_pipe_methods ehci_device_bulk_methods =
 {
 	.open = ehci_device_bulk_open,
 	.close = ehci_device_bulk_close,
@@ -2299,7 +2329,7 @@ ehci_device_ctrl_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_ctrl_methods =
+static const struct usb_pipe_methods ehci_device_ctrl_methods =
 {
 	.open = ehci_device_ctrl_open,
 	.close = ehci_device_ctrl_close,
@@ -2380,7 +2410,7 @@ ehci_device_intr_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_intr_methods =
+static const struct usb_pipe_methods ehci_device_intr_methods =
 {
 	.open = ehci_device_intr_open,
 	.close = ehci_device_intr_close,
@@ -2672,7 +2702,7 @@ ehci_device_isoc_fs_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_isoc_fs_methods =
+static const struct usb_pipe_methods ehci_device_isoc_fs_methods =
 {
 	.open = ehci_device_isoc_fs_open,
 	.close = ehci_device_isoc_fs_close,
@@ -2952,7 +2982,7 @@ ehci_device_isoc_hs_start(struct usb_xfer *xfer)
 	ehci_transfer_intr_enqueue(xfer);
 }
 
-struct usb_pipe_methods ehci_device_isoc_hs_methods =
+static const struct usb_pipe_methods ehci_device_isoc_hs_methods =
 {
 	.open = ehci_device_isoc_hs_open,
 	.close = ehci_device_isoc_hs_close,
@@ -3759,7 +3789,7 @@ ehci_device_resume(struct usb_device *udev)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 
 	DPRINTF("\n");
 
@@ -3793,7 +3823,7 @@ ehci_device_suspend(struct usb_device *udev)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(udev->bus);
 	struct usb_xfer *xfer;
-	struct usb_pipe_methods *methods;
+	const struct usb_pipe_methods *methods;
 
 	DPRINTF("\n");
 
@@ -3872,7 +3902,7 @@ ehci_set_hw_power(struct usb_bus *bus)
 	return;
 }
 
-struct usb_bus_methods ehci_bus_methods =
+static const struct usb_bus_methods ehci_bus_methods =
 {
 	.endpoint_init = ehci_ep_init,
 	.xfer_setup = ehci_xfer_setup,

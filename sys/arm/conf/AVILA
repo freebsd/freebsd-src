@@ -143,6 +143,7 @@ device		ath_ar9160
 device		ath_ar9280
 
 device		usb
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 #options 	USB_DEBUG
 device		ohci
 device		ehci

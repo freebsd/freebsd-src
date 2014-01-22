@@ -18,6 +18,7 @@
 #include <map>
 
 // Other libraries and framework includes
+#include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Module.h"
 
 // Project includes
@@ -412,6 +413,10 @@ private:
         //------------------------------------------------------------------
         virtual unsigned GetNumStubSlabs() {
             return m_default_mm_ap->GetNumStubSlabs();
+        }
+        
+        virtual void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr, size_t Size) {
+            return m_default_mm_ap->registerEHFrames(llvm::StringRef((const char *)Addr, Size));
         }
         
         //------------------------------------------------------------------

@@ -60,6 +60,11 @@ begemotHast MODULE-IDENTITY
     REVISION     "201307010000Z"
     DESCRIPTION
 	    "Added hastResourceWorkerPid."
+    REVISION     "201312290000Z"
+    DESCRIPTION
+	    "Added hastResourceLocalQueue, hastResourceSendQueue,
+	    hastResourceRecvQueue, hastResourceDoneQueue,
+	    hastResourceIdleQueue."
     ::= { begemot 220 }
 
 begemotHastObjects	OBJECT IDENTIFIER ::= { begemotHast 1 }
@@ -120,7 +125,12 @@ HastResourceEntry ::= SEQUENCE {
     hastResourceWriteErrors		Counter64,
     hastResourceDeleteErrors		Counter64,
     hastResourceFlushErrors		Counter64,
-    hastResourceWorkerPid		INTEGER
+    hastResourceWorkerPid		INTEGER,
+    hastResourceLocalQueue		UNSIGNED32,
+    hastResourceSendQueue		UNSIGNED32,
+    hastResourceRecvQueue		UNSIGNED32,
+    hastResourceDoneQueue		UNSIGNED32,
+    hastResourceIdleQueue		UNSIGNED32
 }
 
 hastResourceIndex OBJECT-TYPE
@@ -306,5 +316,47 @@ hastResourceWorkerPid OBJECT-TYPE
     DESCRIPTION
 	"Worker process ID."
     ::= { hastResourceEntry 22 }
+
+hastResourceLocalQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests to the local component."
+    ::= { hastResourceEntry 23 }
+
+hastResourceSendQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests to send to the remote
+	component."
+    ::= { hastResourceEntry 24 }
+
+hastResourceRecvQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of outstanding I/O requests waiting for response
+	from the remote component."
+    ::= { hastResourceEntry 25 }
+
+hastResourceDoneQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of processed I/O requests to return to the kernel."
+    ::= { hastResourceEntry 26 }
+
+hastResourceIdleQueue OBJECT-TYPE
+    SYNTAX	UNSIGNED32
+    MAX-ACCESS	read-only
+    STATUS	current
+    DESCRIPTION
+	"Number of request objects in the free bucket."
+    ::= { hastResourceEntry 27 }
 
 END

@@ -935,11 +935,30 @@ DataExtractor::ExtractBytes (offset_t offset, offset_t length, ByteOrder dst_byt
     {
         if (dst_byte_order != GetByteOrder())
         {
+            // Validate that only a word- or register-sized dst is byte swapped
+            assert (length == 1 || length == 2 || length == 4 || length == 8 ||
+                    length == 10 || length == 16 || length == 32);
+
             for (uint32_t i=0; i<length; ++i)
                 ((uint8_t*)dst)[i] = src[length - i - 1];
         }
         else
             ::memcpy (dst, src, length);
+        return length;
+    }
+    return 0;
+}
+
+// Extract data as it exists in target memory
+lldb::offset_t
+DataExtractor::CopyData (offset_t offset,
+                         offset_t length,
+                         void *dst) const
+{
+    const uint8_t *src = PeekData (offset, length);
+    if (src)
+    {
+        ::memcpy (dst, src, length);
         return length;
     }
     return 0;
@@ -963,7 +982,12 @@ DataExtractor::CopyByteOrderedData (offset_t src_offset,
     assert (dst_void_ptr != NULL);
     assert (dst_len > 0);
     assert (dst_byte_order == eByteOrderBig || dst_byte_order == eByteOrderLittle);
-    
+
+    // Validate that only a word- or register-sized dst is byte swapped
+    assert (dst_byte_order == m_byte_order || dst_len == 1 || dst_len == 2 ||
+            dst_len == 4 || dst_len == 8 || dst_len == 10 || dst_len == 16 ||
+            dst_len == 32);
+
     // Must have valid byte orders set in this object and for destination
     if (!(dst_byte_order == eByteOrderBig || dst_byte_order == eByteOrderLittle) ||
         !(m_byte_order == eByteOrderBig || m_byte_order == eByteOrderLittle))
@@ -1330,18 +1354,22 @@ DumpAPInt (Stream *s, const DataExtractor &data, lldb::offset_t offset, lldb::of
 
 static float half2float (uint16_t half)
 {
+#ifdef _MSC_VER
+    llvm_unreachable("half2float not implemented for MSVC");
+#else
     union{ float       f; uint32_t    u;}u;
     int32_t v = (int16_t) half;
     
     if( 0 == (v & 0x7c00))
     {
         u.u = v & 0x80007FFFU;
-        return u.f * 0x1.0p125f;
+        return u.f * ldexpf(1, 125);
     }
     
     v <<= 13;
     u.u = v | 0x70000000U;
-    return u.f * 0x1.0p-112f;
+    return u.f * ldexpf(1, -112);
+#endif
 }
 
 lldb::offset_t
@@ -1703,29 +1731,35 @@ DataExtractor::Dump (Stream *s,
         case eFormatHexUppercase:
             {
                 bool wantsuppercase  = (item_format == eFormatHexUppercase);
-                if (item_byte_size <= 8)
+                switch (item_byte_size)
                 {
+                case 1:
+                case 2:
+                case 4:
+                case 8:
                     s->Printf(wantsuppercase ? "0x%*.*" PRIX64 : "0x%*.*" PRIx64, (int)(2 * item_byte_size), (int)(2 * item_byte_size), GetMaxU64Bitfield(&offset, item_byte_size, item_bit_size, item_bit_offset));
-                }
-                else
-                {
-                    assert (item_bit_size == 0 && item_bit_offset == 0);
-                    s->PutCString("0x");
-                    const uint8_t *bytes = (const uint8_t* )GetData(&offset, item_byte_size);
-                    if (bytes)
+                    break;
+                default:
                     {
-                        uint32_t idx;
-                        if (m_byte_order == eByteOrderBig)
+                        assert (item_bit_size == 0 && item_bit_offset == 0);
+                        const uint8_t *bytes = (const uint8_t* )GetData(&offset, item_byte_size);
+                        if (bytes)
                         {
-                            for (idx = 0; idx < item_byte_size; ++idx)
-                                s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[idx]);
-                        }
-                        else
-                        {
-                            for (idx = 0; idx < item_byte_size; ++idx)
-                                s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[item_byte_size - 1 - idx]);
+                            s->PutCString("0x");
+                            uint32_t idx;
+                                if (m_byte_order == eByteOrderBig)
+                            {
+                                for (idx = 0; idx < item_byte_size; ++idx)
+                                    s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[idx]);
+                            }
+                            else
+                            {
+                                for (idx = 0; idx < item_byte_size; ++idx)
+                                    s->Printf(wantsuppercase ? "%2.2X" : "%2.2x", bytes[item_byte_size - 1 - idx]);
+                            }
                         }
                     }
+                    break;
                 }
             }
             break;

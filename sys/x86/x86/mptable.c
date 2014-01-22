@@ -78,6 +78,13 @@ __FBSDID("$FreeBSD$");
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
 typedef	void mptable_extended_entry_handler(ext_entry_ptr entry, void *arg);
 
+/* descriptions of MP table entries */
+typedef struct BASETABLE_ENTRY {
+	uint8_t	type;
+	uint8_t	length;
+	uint8_t	name[16];
+}       basetable_entry;
+
 static basetable_entry basetable_entry_types[] =
 {
 	{0, 20, "Processor"},
@@ -786,9 +793,9 @@ mptable_parse_local_int(int_entry_ptr intr)
 	else
 		apic_id = intr->dst_apic_id;
 	if (intr->dst_apic_int == 0)
-		pin = LVT_LINT0;
+		pin = APIC_LVT_LINT0;
 	else
-		pin = LVT_LINT1;
+		pin = APIC_LVT_LINT1;
 	switch (intr->int_type) {
 	case INTENTRY_TYPE_INT:
 #if 1
@@ -902,8 +909,9 @@ mptable_parse_ints(void)
 	/* Is this a pre-defined config? */
 	if (mpfps->config_type != 0) {
 		/* Configure LINT pins. */
-		lapic_set_lvt_mode(APIC_ID_ALL, LVT_LINT0, APIC_LVT_DM_EXTINT);
-		lapic_set_lvt_mode(APIC_ID_ALL, LVT_LINT1, APIC_LVT_DM_NMI);
+		lapic_set_lvt_mode(APIC_ID_ALL, APIC_LVT_LINT0,
+		    APIC_LVT_DM_EXTINT);
+		lapic_set_lvt_mode(APIC_ID_ALL, APIC_LVT_LINT1, APIC_LVT_DM_NMI);
 
 		/* Configure I/O APIC pins. */
 		mptable_parse_default_config_ints();

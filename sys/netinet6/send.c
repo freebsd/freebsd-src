@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
@@ -165,6 +163,7 @@ send_output(struct mbuf *m, struct ifnet *ifp, int direction)
 			nd6_ra_input(m, sizeof(struct ip6_hdr), icmp6len);
 			break;
 		default:
+			m_freem(m);
 			return (ENOSYS);
 		}
 		return (0);

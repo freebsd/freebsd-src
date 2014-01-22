@@ -829,6 +829,10 @@ oce_media_status(struct ifnet *ifp, struct ifmediareq *req)
 		req->ifm_active |= IFM_10G_SR | IFM_FDX;
 		sc->speed = 10000;
 		break;
+	case 7: /* 40 Gbps */
+		req->ifm_active |= IFM_40G_SR4 | IFM_FDX;
+		sc->speed = 40000;
+		break;
 	}
 	
 	return;
@@ -1228,18 +1232,6 @@ oce_wq_handler(void *arg)
 	return 0;
 }
 
-
-#if __FreeBSD_version >= 1000000
-static __inline void
-drbr_stats_update(struct ifnet *ifp, int len, int mflags)
-{
-#ifndef NO_SLOW_STATS
-	ifp->if_obytes += len;
-	if (mflags & M_MCAST)
-		ifp->if_omcasts++;
-#endif
-}
-#endif
 
 static int 
 oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
@@ -1953,7 +1945,6 @@ done:
 	/* Is there atleast one eq that needs to be modified? */
 	if(num)
 		oce_mbox_eqd_modify_periodic(sc, set_eqd, num);
-
 }
 
 static void oce_detect_hw_error(POCE_SOFTC sc)
@@ -2153,11 +2144,6 @@ process_link_state(POCE_SOFTC sc, struct oce_async_cqe_link_state *acqe)
 		sc->link_status = ASYNC_EVENT_LINK_DOWN;
 		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}
-
-	/* Update speed */
-	sc->link_speed = acqe->u0.s.speed;
-	sc->qos_link_speed = (uint32_t) acqe->u0.s.qos_link_speed * 10;
-
 }
 
 
@@ -2342,18 +2328,17 @@ oce_get_config(POCE_SOFTC sc)
 		max_rss = OCE_MAX_RSS;
 
 	if (!IS_BE(sc)) {
-		rc = oce_get_func_config(sc);
+		rc = oce_get_profile_config(sc, max_rss);
 		if (rc) {
 			sc->nwqs = OCE_MAX_WQ;
 			sc->nrssqs = max_rss;
 			sc->nrqs = sc->nrssqs + 1;
 		}
 	}
-	else {
-		rc = oce_get_profile_config(sc);
+	else { /* For BE3 don't rely on fw for determining the resources */
 		sc->nrssqs = max_rss;
 		sc->nrqs = sc->nrssqs + 1;
-		if (rc)
-			sc->nwqs = OCE_MAX_WQ;
+		sc->nwqs = OCE_MAX_WQ;
+		sc->max_vlans = MAX_VLANFILTER_SIZE; 
 	}
 }

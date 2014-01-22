@@ -26,6 +26,7 @@ FILES=	DAEMON \
 	bridge \
 	bsnmpd \
 	${_bthidd} \
+	${_casperd} \
 	ccd \
 	cleanvar \
 	cleartmp \
@@ -90,7 +91,6 @@ FILES=	DAEMON \
 	mroute6d \
 	mrouted \
 	msgs \
-	named \
 	natd \
 	netif \
 	netoptions \
@@ -186,6 +186,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_CASPER} != "no"
+_casperd=	casperd
 .endif
 
 .if ${MK_UNBOUND} != "no"

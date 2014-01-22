@@ -81,6 +81,7 @@ struct usb_bus {
 	struct usb_bus_msg attach_msg[2];
 	struct usb_bus_msg suspend_msg[2];
 	struct usb_bus_msg resume_msg[2];
+	struct usb_bus_msg reset_msg[2];
 	struct usb_bus_msg shutdown_msg[2];
 	/*
 	 * This mutex protects the USB hardware:
@@ -96,7 +97,7 @@ struct usb_bus {
 	struct usb_dma_parent_tag dma_parent_tag[1];
 	struct usb_dma_tag dma_tags[USB_BUS_DMA_TAG_MAX];
 #endif
-	struct usb_bus_methods *methods;	/* filled by HC driver */
+	const struct usb_bus_methods *methods;	/* filled by HC driver */
 	struct usb_device **devices;
 
 	struct ifnet *ifp;	/* only for USB Packet Filter */

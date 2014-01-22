@@ -25,6 +25,7 @@ static char sccsid[] = "@(#) rfc931.c 1.10 95/01/02 16:11:34";
 #include <setjmp.h>
 #include <signal.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifndef SEEK_SET
 #define SEEK_SET 0

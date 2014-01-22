@@ -31,5 +31,6 @@
 #define _ATF_CXX_HPP_
 
 #include <atf-c++/macros.hpp>
+#include <atf-c++/utils.hpp>
 
 #endif // !defined(_ATF_CXX_HPP_)

@@ -40,8 +40,8 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 SECURELEVEL_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/securelevel.hlp
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -143,19 +143,26 @@ done
 
 case "$mtag" in
 "$msg_disabled")
-	f_sysrc_set kern_securelevel_enable "NO"
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel_enable NO' || f_die
 	;;
 "$msg_secure")
-	f_sysrc_set kern_securelevel_enable "YES"
-	f_sysrc_set kern_securelevel "1" 
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel_enable YES' || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel 1' || f_die
 	;;
 "$msg_highly_secure")
-	f_sysrc_set kern_securelevel_enable "YES"
-	f_sysrc_set kern_securelevel "2" 
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel_enable YES' || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel 2' || f_die
 	;;
 "$msg_network_secure")
-	f_sysrc_set kern_securelevel_enable "YES"
-	f_sysrc_set kern_securelevel "3" 
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel_enable YES' || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set kern_securelevel 3' || f_die
 	;;
 *)
 	f_die 1 "$msg_unknown_kern_securelevel_selection"

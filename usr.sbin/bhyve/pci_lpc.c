@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
+ * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,15 +31,23 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+#include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <vmmapi.h>
+
+#include "acpi.h"
 #include "inout.h"
-#include "ioapic.h"
 #include "pci_emul.h"
+#include "pci_lpc.h"
 #include "uart_emul.h"
+
+SET_DECLARE(lpc_dsdt_set, struct lpc_dsdt);
+SET_DECLARE(lpc_sysres_set, struct lpc_sysres);
 
 static struct pci_devinst *lpc_bridge;
 
@@ -48,6 +57,7 @@ static struct lpc_uart_softc {
 	const char *opts;
 	int	iobase;
 	int	irq;
+	int	enabled;
 } lpc_uart_softc[LPC_UART_NUM];
 
 static const char *lpc_uart_names[LPC_UART_NUM] = { "COM1", "COM2" };
@@ -90,17 +100,16 @@ lpc_uart_intr_assert(void *arg)
 
 	assert(sc->irq >= 0);
 
-	ioapic_assert_pin(lpc_bridge->pi_vmctx, sc->irq);
+	vm_ioapic_pulse_irq(lpc_bridge->pi_vmctx, sc->irq);
 }
 
 static void
 lpc_uart_intr_deassert(void *arg)
 {
-	struct lpc_uart_softc *sc = arg;
-
-	assert(sc->irq >= 0);
-
-	ioapic_deassert_pin(lpc_bridge->pi_vmctx, sc->irq);
+	/* 
+	 * The COM devices on the LPC bus generate edge triggered interrupts,
+	 * so nothing more to do here.
+	 */
 }
 
 static int
@@ -161,10 +170,90 @@ lpc_init(void)
 
 		error = register_inout(&iop);
 		assert(error == 0);
+		sc->enabled = 1;
 	}
 
 	return (0);
 }
+
+static void
+pci_lpc_write_dsdt(struct pci_devinst *pi)
+{
+	struct lpc_dsdt **ldpp, *ldp;
+
+	dsdt_line("");
+	dsdt_line("Device (ISA)");
+	dsdt_line("{");
+	dsdt_line("  Name (_ADR, 0x%04X%04X)", pi->pi_slot, pi->pi_func);
+	dsdt_line("  OperationRegion (P40C, PCI_Config, 0x60, 0x04)");
+
+	dsdt_indent(1);
+	SET_FOREACH(ldpp, lpc_dsdt_set) {
+		ldp = *ldpp;
+		ldp->handler();
+	}
+	dsdt_unindent(1);
+
+	dsdt_line("}");
+}
+
+static void
+pci_lpc_sysres_dsdt(void)
+{
+	struct lpc_sysres **lspp, *lsp;
+
+	dsdt_line("");
+	dsdt_line("Device (SIO)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0C02\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+
+	dsdt_indent(2);
+	SET_FOREACH(lspp, lpc_sysres_set) {
+		lsp = *lspp;
+		switch (lsp->type) {
+		case LPC_SYSRES_IO:
+			dsdt_fixed_ioport(lsp->base, lsp->length);
+			break;
+		case LPC_SYSRES_MEM:
+			dsdt_fixed_mem32(lsp->base, lsp->length);
+			break;
+		}
+	}
+	dsdt_unindent(2);
+
+	dsdt_line("  })");
+	dsdt_line("}");
+}
+LPC_DSDT(pci_lpc_sysres_dsdt);
+
+static void
+pci_lpc_uart_dsdt(void)
+{
+	struct lpc_uart_softc *sc;
+	int unit;
+
+	for (unit = 0; unit < LPC_UART_NUM; unit++) {
+		sc = &lpc_uart_softc[unit];
+		if (!sc->enabled)
+			continue;
+		dsdt_line("");
+		dsdt_line("Device (%s)", lpc_uart_names[unit]);
+		dsdt_line("{");
+		dsdt_line("  Name (_HID, EisaId (\"PNP0501\"))");
+		dsdt_line("  Name (_UID, %d)", unit + 1);
+		dsdt_line("  Name (_CRS, ResourceTemplate ()");
+		dsdt_line("  {");
+		dsdt_indent(2);
+		dsdt_fixed_ioport(sc->iobase, UART_IO_BAR_SIZE);
+		dsdt_fixed_irq(sc->irq);
+		dsdt_unindent(2);
+		dsdt_line("  })");
+		dsdt_line("}");
+	}
+}
+LPC_DSDT(pci_lpc_uart_dsdt);
 
 static void
 pci_lpc_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi,
@@ -208,6 +297,7 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 struct pci_devemu pci_de_lpc = {
 	.pe_emu =	"lpc",
 	.pe_init =	pci_lpc_init,
+	.pe_write_dsdt = pci_lpc_write_dsdt,
 	.pe_barwrite =	pci_lpc_write,
 	.pe_barread =	pci_lpc_read
 };

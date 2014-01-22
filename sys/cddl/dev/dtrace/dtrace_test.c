@@ -25,8 +25,6 @@
  * $FreeBSD$
  *
  */
-#include "opt_kdtrace.h"
-
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <sys/param.h>
@@ -41,7 +39,7 @@
 
 SDT_PROVIDER_DEFINE(test);
 
-SDT_PROBE_DEFINE7(test, , , sdttest, sdttest, "int", "int", "int", "int", "int",
+SDT_PROBE_DEFINE7(test, , , sdttest, "int", "int", "int", "int", "int",
     "int", "int");
 
 /*

@@ -28,6 +28,7 @@
  * SUCH DAMAGE.
  *
  * Freescale i.MX53 Quick Start Board
+ * In u-boot, this board is known as "MX53LOCO" for some reason.
  *
  * $FreeBSD$
  */
@@ -88,6 +89,12 @@
 				status = "okay";
 			};
 			gpio@53f90000 {
+				status = "okay";
+			};
+			usb@53f80000 /* OTG */ {
+				status = "okay";
+			};
+			usb@53f80200 /* Host 1 */ {
 				status = "okay";
 			};
 			wdog@53f98000 {

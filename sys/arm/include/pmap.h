@@ -67,6 +67,7 @@
 #else
 #define PTE_NOCACHE	1
 #define PTE_CACHE	2
+#define PTE_DEVICE	PTE_NOCACHE
 #define PTE_PAGETABLE	3
 #endif
 
@@ -254,6 +255,7 @@ void	pmap_bootstrap(vm_offset_t firstaddr, struct pv_addr *l1pt);
 int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
+void	pmap_kenter_device(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
@@ -694,24 +696,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
-
-/*
- * This structure is used by machine-dependent code to describe
- * static mappings of devices, created at bootstrap time.
- */
-struct pmap_devmap {
-	vm_offset_t	pd_va;		/* virtual address */
-	vm_paddr_t	pd_pa;		/* physical address */
-	vm_size_t	pd_size;	/* size of region */
-	vm_prot_t	pd_prot;	/* protection code */
-	int		pd_cache;	/* cache attributes */
-};
-
-const struct pmap_devmap *pmap_devmap_find_pa(vm_paddr_t, vm_size_t);
-const struct pmap_devmap *pmap_devmap_find_va(vm_offset_t, vm_size_t);
-
-void	pmap_devmap_bootstrap(vm_offset_t, const struct pmap_devmap *);
-void	pmap_devmap_register(const struct pmap_devmap *);
 
 #define SECTION_CACHE	0x1
 #define SECTION_PT	0x2

@@ -36,11 +36,6 @@ FILES+=	130.clean-msgs
 FILES+=	480.status-ntpd
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-FILES+=	220.backup-pkgdb \
-	490.status-pkg-changes
-.endif
-
 .if ${MK_RCMDS} != "no"
 FILES+=	140.clean-rwho \
 	430.status-rwho

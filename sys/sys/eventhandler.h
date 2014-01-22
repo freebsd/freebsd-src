@@ -262,4 +262,12 @@ EVENTHANDLER_DECLARE(kld_load, kld_load_fn);
 EVENTHANDLER_DECLARE(kld_unload, kld_unload_fn);
 EVENTHANDLER_DECLARE(kld_unload_try, kld_unload_try_fn);
 
+/* Generic graphics framebuffer interface */
+struct fb_info;
+typedef void (*register_framebuffer_fn)(void *, struct fb_info *);
+typedef void (*unregister_framebuffer_fn)(void *, struct fb_info *);
+EVENTHANDLER_DECLARE(register_framebuffer, register_framebuffer_fn);
+EVENTHANDLER_DECLARE(unregister_framebuffer, unregister_framebuffer_fn);
+
 #endif /* _SYS_EVENTHANDLER_H_ */
+

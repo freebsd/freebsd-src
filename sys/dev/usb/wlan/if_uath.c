@@ -1073,8 +1073,13 @@ uath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return (NULL);
 	vap = &uvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1621,7 +1626,7 @@ uath_tx_start(struct uath_softc *sc, struct mbuf *m0, struct ieee80211_node *ni,
 	}
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);

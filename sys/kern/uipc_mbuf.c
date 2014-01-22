@@ -554,7 +554,7 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
 	SLIST_INIT(&to->m_pkthdr.tags);
-	return (m_tag_copy_chain(to, from, MBTOM(how)));
+	return (m_tag_copy_chain(to, from, how));
 }
 
 /*
@@ -1196,6 +1196,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 	remain = m->m_len - len;
 	if (m0->m_flags & M_PKTHDR && remain == 0) {
 		n = m_gethdr(wait, m0->m_type);
+		if (n == NULL)
 			return (NULL);
 		n->m_next = m->m_next;
 		m->m_next = NULL;

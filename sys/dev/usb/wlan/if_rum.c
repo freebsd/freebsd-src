@@ -605,8 +605,13 @@ rum_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 		return NULL;
 	vap = &rvp->vap;
 	/* enable s/w bmiss handling for sta mode */
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac) != 0) {
+		/* out of memory */
+		free(rvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	rvp->newstate = vap->iv_newstate;
@@ -1116,7 +1121,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	sc->tx_nfree--;
 
 	wh = mtod(m0, struct ieee80211_frame *);
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1132,7 +1137,7 @@ rum_tx_mgt(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, tp->mgmtrate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 
 		/* tell hardware to add timestamp for probe responses */
 		if ((wh->i_fc[0] &
@@ -1234,7 +1239,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 	else
 		rate = ni->ni_txrate;
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1276,7 +1281,7 @@ rum_tx_data(struct rum_softc *sc, struct mbuf *m0, struct ieee80211_node *ni)
 
 		dur = ieee80211_ack_duration(ic->ic_rt, rate, 
 		    ic->ic_flags & IEEE80211_F_SHPREAMBLE);
-		*(uint16_t *)wh->i_dur = htole16(dur);
+		USETW(wh->i_dur, dur);
 	}
 
 	rum_setup_tx_desc(sc, &data->desc, flags, 0, m0->m_pkthdr.len, rate);

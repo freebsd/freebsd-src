@@ -42,7 +42,8 @@
 #define EVFILT_FS		(-9)	/* filesystem events */
 #define EVFILT_LIO		(-10)	/* attached to lio requests */
 #define EVFILT_USER		(-11)	/* User events */
-#define EVFILT_SYSCOUNT		11
+#define EVFILT_SENDFILE		(-12)	/* attached to sendfile requests */
+#define EVFILT_SYSCOUNT		12
 
 #define EV_SET(kevp_, a, b, c, d, e, f) do {	\
 	struct kevent *kevp = (kevp_);		\
@@ -212,7 +213,8 @@ struct knote {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
 		struct		aiocblist *p_aio;	/* AIO job pointer */
-		struct		aioliojob *p_lio;	/* LIO job pointer */ 
+		struct		aioliojob *p_lio;	/* LIO job pointer */
+		void		*p_v;		/* generic other pointer */
 	} kn_ptr;
 	struct			filterops *kn_fop;
 	void			*kn_hook;

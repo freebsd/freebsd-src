@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2012 by Frederik Wessels. All rights reserved.
  * Copyright (c) 2012 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  * Copyright (c) 2013 by Prasad Joshi (sTec). All rights reserved.
@@ -248,7 +248,7 @@ get_usage(zpool_help_t idx) {
 	case HELP_REMOVE:
 		return (gettext("\tremove <pool> <device> ...\n"));
 	case HELP_REOPEN:
-		return (""); /* Undocumented command */
+		return (gettext("\treopen <pool>\n"));
 	case HELP_SCRUB:
 		return (gettext("\tscrub [-s] <pool> ...\n"));
 	case HELP_STATUS:
@@ -1004,7 +1004,7 @@ zpool_do_create(int argc, char **argv)
 		 * Hand off to libzfs.
 		 */
 		if (enable_all_pool_feat) {
-			int i;
+			spa_feature_t i;
 			for (i = 0; i < SPA_FEATURES; i++) {
 				char propname[MAXPATHLEN];
 				zfeature_info_t *feat = &spa_feature_table[i];
@@ -1700,6 +1700,12 @@ show_import(nvlist_t *config)
 	case ZPOOL_STATUS_RESILVERING:
 		(void) printf(gettext(" status: One or more devices were being "
 		    "resilvered.\n"));
+		break;
+
+	case ZPOOL_STATUS_NON_NATIVE_ASHIFT:
+		(void) printf(gettext("status: One or more devices were "
+		    "configured to use a non-native block size.\n"
+		    "\tExpect reduced performance.\n"));
 		break;
 
 	default:
@@ -3714,22 +3720,37 @@ zpool_do_reguid(int argc, char **argv)
  * zpool reopen <pool>
  *
  * Reopen the pool so that the kernel can update the sizes of all vdevs.
- *
- * NOTE: This command is currently undocumented.  If the command is ever
- * exposed then the appropriate usage() messages will need to be made.
  */
 int
 zpool_do_reopen(int argc, char **argv)
 {
+	int c;
 	int ret = 0;
 	zpool_handle_t *zhp;
 	char *pool;
 
+	/* check options */
+	while ((c = getopt(argc, argv, "")) != -1) {
+		switch (c) {
+		case '?':
+			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
+			    optopt);
+			usage(B_FALSE);
+		}
+	}
+
 	argc--;
 	argv++;
 
-	if (argc != 1)
-		return (2);
+	if (argc < 1) {
+		(void) fprintf(stderr, gettext("missing pool name\n"));
+		usage(B_FALSE);
+	}
+
+	if (argc > 1) {
+		(void) fprintf(stderr, gettext("too many arguments\n"));
+		usage(B_FALSE);
+	}
 
 	pool = argv[0];
 	if ((zhp = zpool_open_canfail(g_zfs, pool)) == NULL)

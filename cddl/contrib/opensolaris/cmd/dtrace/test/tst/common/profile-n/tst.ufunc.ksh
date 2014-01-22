@@ -64,7 +64,7 @@ child=$!
 # ksh doing work.  (This actually goes one step further and assumes that we
 # catch some non-static function in ksh.)
 #
-script | tee /dev/fd/2 | grep 'ksh`[a-zA-Z_]' > /dev/null
+script | tee /dev/fd/2 | egrep 'ksh(93)?`[a-zA-Z_]' > /dev/null
 status=$? 
 
 kill $child

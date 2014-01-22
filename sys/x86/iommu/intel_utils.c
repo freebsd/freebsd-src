@@ -230,6 +230,24 @@ ctx_page_size(struct dmar_ctx *ctx, int lvl)
 	return (pglvl_page_size(ctx->pglvl, lvl));
 }
 
+int
+calc_am(struct dmar_unit *unit, dmar_gaddr_t base, dmar_gaddr_t size,
+    dmar_gaddr_t *isizep)
+{
+	dmar_gaddr_t isize;
+	int am;
+
+	for (am = DMAR_CAP_MAMV(unit->hw_cap);; am--) {
+		isize = 1ULL << (am + DMAR_PAGE_SHIFT);
+		if ((base & (isize - 1)) == 0 && size >= isize)
+			break;
+		if (am == 0)
+			break;
+	}
+	*isizep = isize;
+	return (am);
+}
+
 dmar_haddr_t dmar_high;
 int haw;
 int dmar_tbl_pagecnt;
@@ -390,6 +408,7 @@ dmar_inv_ctx_glob(struct dmar_unit *unit)
 	 * command is submitted.
 	 */
 	DMAR_ASSERT_LOCKED(unit);
+	KASSERT(!unit->qi_enabled, ("QI enabled"));
 
 	/*
 	 * The DMAR_CCMD_ICC bit in the upper dword should be written
@@ -413,6 +432,7 @@ dmar_inv_iotlb_glob(struct dmar_unit *unit)
 	int reg;
 
 	DMAR_ASSERT_LOCKED(unit);
+	KASSERT(!unit->qi_enabled, ("QI enabled"));
 
 	reg = 16 * DMAR_ECAP_IRO(unit->hw_ecap);
 	/* See a comment about DMAR_CCMD_ICC in dmar_inv_ctx_glob. */
@@ -472,25 +492,6 @@ dmar_disable_translation(struct dmar_unit *unit)
 	while ((dmar_read4(unit, DMAR_GSTS_REG) & DMAR_GSTS_TES) != 0)
 		cpu_spinwait();
 	return (0);
-}
-
-void
-dmar_enable_intr(struct dmar_unit *unit)
-{
-	uint32_t fectl;
-
-	fectl = dmar_read4(unit, DMAR_FECTL_REG);
-	fectl &= ~DMAR_FECTL_IM;
-	dmar_write4(unit, DMAR_FECTL_REG, fectl);
-}
-
-void
-dmar_disable_intr(struct dmar_unit *unit)
-{
-	uint32_t fectl;
-
-	fectl = dmar_read4(unit, DMAR_FECTL_REG);
-	dmar_write4(unit, DMAR_FECTL_REG, fectl | DMAR_FECTL_IM);
 }
 
 #define BARRIER_F				\

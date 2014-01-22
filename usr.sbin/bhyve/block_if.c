@@ -293,7 +293,7 @@ blockif_open(const char *optstr, const char *ident)
 
 	pthread_create(&bc->bc_btid, NULL, blockif_thr, bc);
 
-	snprintf(tname, sizeof(tname), "%s blk-%s", vmname, ident);
+	snprintf(tname, sizeof(tname), "blk-%s", ident);
 	pthread_set_name_np(bc->bc_btid, tname);
 
 	return (bc);

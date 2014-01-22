@@ -49,6 +49,7 @@ static const char sccsid[] = "@(#)split.c	8.2 (Berkeley) 4/16/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <libutil.h>
 #include <limits.h>
 #include <locale.h>
 #include <stdbool.h>
@@ -83,9 +84,8 @@ static void usage(void);
 int
 main(int argc, char **argv)
 {
-	intmax_t bytecnti;
-	long scale;
 	int ch;
+	int error;
 	char *ep, *p;
 
 	setlocale(LC_ALL, "");
@@ -118,21 +118,9 @@ main(int argc, char **argv)
 			break;
 		case 'b':		/* Byte count. */
 			errno = 0;
-			if ((bytecnti = strtoimax(optarg, &ep, 10)) <= 0 ||
-			    strchr("kKmMgG", *ep) == NULL || errno != 0)
-				errx(EX_USAGE,
-				    "%s: illegal byte count", optarg);
-			if (*ep == 'k' || *ep == 'K')
-				scale = 1024;
-			else if (*ep == 'm' || *ep == 'M')
-				scale = 1024 * 1024;
-			else if (*ep == 'g' || *ep == 'G')
-				scale = 1024 * 1024 * 1024;
-			else
-				scale = 1;
-			if (bytecnti > OFF_MAX / scale)
+			error = expand_number(optarg, &bytecnt);
+			if (error == -1)
 				errx(EX_USAGE, "%s: offset too large", optarg);
-			bytecnt = (off_t)(bytecnti * scale);
 			break;
 		case 'd':		/* Decimal suffix */
 			dflag = true;

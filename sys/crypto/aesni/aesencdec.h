@@ -30,11 +30,10 @@
 #include <wmmintrin.h>
 
 static inline void
-aesni_enc8(int rounds, const uint8_t *key_schedule, __m128i a,
+aesni_enc8(int rounds, const __m128i *keysched, __m128i a,
     __m128i b, __m128i c, __m128i d, __m128i e, __m128i f, __m128i g,
     __m128i h, __m128i out[8])
 {
-	const __m128i *keysched = (const __m128i *)key_schedule;
 	int i;
 
 	a ^= keysched[0];
@@ -68,11 +67,10 @@ aesni_enc8(int rounds, const uint8_t *key_schedule, __m128i a,
 }
 
 static inline void
-aesni_dec8(int rounds, const uint8_t *key_schedule, __m128i a,
+aesni_dec8(int rounds, const __m128i *keysched, __m128i a,
     __m128i b, __m128i c, __m128i d, __m128i e, __m128i f, __m128i g,
     __m128i h, __m128i out[8])
 {
-	const __m128i *keysched = (const __m128i *)key_schedule;
 	int i;
 
 	a ^= keysched[0];
@@ -106,10 +104,9 @@ aesni_dec8(int rounds, const uint8_t *key_schedule, __m128i a,
 }
 
 static inline __m128i
-aesni_enc(int rounds, const uint8_t *key_schedule, const __m128i from)
+aesni_enc(int rounds, const __m128i *keysched, const __m128i from)
 {
 	__m128i tmp;
-	const __m128i *keysched = (const __m128i *)key_schedule;
 	int i;
 
 	tmp = from ^ keysched[0];
@@ -121,10 +118,9 @@ aesni_enc(int rounds, const uint8_t *key_schedule, const __m128i from)
 }
 
 static inline __m128i
-aesni_dec(int rounds, const uint8_t *key_schedule, const __m128i from)
+aesni_dec(int rounds, const __m128i *keysched, const __m128i from)
 {
 	__m128i tmp;
-	const __m128i *keysched = (const __m128i *)key_schedule;
 	int i;
 
 	tmp = from ^ keysched[0];

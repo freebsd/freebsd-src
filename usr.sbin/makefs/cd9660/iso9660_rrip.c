@@ -634,7 +634,7 @@ cd9660_createSL(cd9660node *node)
 int
 cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
 {
-	v->attr.rr_entry.PX.h.length[0] = 36;
+	v->attr.rr_entry.PX.h.length[0] = 44;
 	v->attr.rr_entry.PX.h.version[0] = 1;
 	cd9660_bothendian_dword(pxinfo->inode->st.st_mode,
 	    v->attr.rr_entry.PX.mode);
@@ -644,8 +644,9 @@ cd9660node_rrip_px(struct ISO_SUSP_ATTRIBUTES *v, fsnode *pxinfo)
 	    v->attr.rr_entry.PX.uid);
 	cd9660_bothendian_dword(pxinfo->inode->st.st_gid,
 	    v->attr.rr_entry.PX.gid);
+	cd9660_bothendian_dword(pxinfo->inode->st.st_ino,
+	    v->attr.rr_entry.PX.serial);
 
-	/* Ignoring the serial number for now */
 	return 1;
 }
 
