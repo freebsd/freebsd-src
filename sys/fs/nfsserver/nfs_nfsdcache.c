@@ -832,6 +832,7 @@ nfsrvd_cleancache(void)
 	nfsrc_tcpsavedreplies = 0;
 }
 
+#define HISTSIZE	16
 /*
  * The basic rule is to get rid of entries that are expired.
  */
@@ -839,7 +840,7 @@ static void
 nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 {
 	struct nfsrvcache *rp, *nextrp;
-	int i, j, k, time_histo[10];
+	int i, j, k, tto, time_histo[HISTSIZE];
 	time_t thisstamp;
 	static time_t udp_lasttrim = 0, tcp_lasttrim = 0;
 	static int onethread = 0;
@@ -863,8 +864,9 @@ nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 	}
 	if (NFSD_MONOSEC != tcp_lasttrim ||
 	    nfsrc_tcpsavedreplies >= nfsrc_tcphighwater) {
-		for (i = 0; i < 10; i++)
+		for (i = 0; i < HISTSIZE; i++)
 			time_histo[i] = 0;
+		tto = nfsrc_tcptimeout;
 		for (i = 0; i < NFSRVCACHE_HASHSIZE; i++) {
 			mtx_lock(&nfsrchash_table[i].mtx);
 			if (i == 0)
@@ -874,6 +876,15 @@ nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 				if (!(rp->rc_flag &
 				     (RC_INPROG|RC_LOCKED|RC_WANTED))
 				     && rp->rc_refcnt == 0) {
+					if ((rp->rc_flag & RC_REFCNT) ||
+					    tcp_lasttrim > rp->rc_timestamp ||
+					    nfsrc_activesocket(rp, sockref, so)) {
+						nfsrc_freecache(rp);
+						continue;
+					}
+
+					if (nfsrc_tcphighwater == 0)
+						continue;
 					/*
 					 * The timestamps range from roughly the
 					 * present (tcp_lasttrim) to the present
@@ -881,16 +892,13 @@ nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 					 * histogram of where the timeouts fall.
 					 */
 					j = rp->rc_timestamp - tcp_lasttrim;
-					if (j >= nfsrc_tcptimeout)
-						j = nfsrc_tcptimeout - 1;
-					if (j < 0)
+					if (j >= tto)
+						j = HISTSIZE - 1;
+					else if (j < 0)
 						j = 0;
-					j = (j * 10 / nfsrc_tcptimeout) % 10;
+					else
+						j = j * HISTSIZE / tto;
 					time_histo[j]++;
-					if ((rp->rc_flag & RC_REFCNT) ||
-					    tcp_lasttrim > rp->rc_timestamp ||
-					    nfsrc_activesocket(rp, sockref, so))
-						nfsrc_freecache(rp);
 				}
 			}
 			mtx_unlock(&nfsrchash_table[i].mtx);
@@ -903,12 +911,12 @@ nfsrc_trimcache(u_int64_t sockref, struct socket *so)
 			 * 80% of the nfsrc_tcphighwater.
 			 */
 			k = 0;
-			for (i = 0; i < 8; i++) {
+			for (i = 0; i < (HISTSIZE - 2); i++) {
 				k += time_histo[i];
 				if (k > j)
 					break;
 			}
-			k = nfsrc_tcptimeout * (i + 1) / 10;
+			k = tto * (i + 1) / HISTSIZE;
 			if (k < 1)
 				k = 1;
 			thisstamp = tcp_lasttrim + k;
