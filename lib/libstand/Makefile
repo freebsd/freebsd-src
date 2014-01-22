@@ -21,7 +21,7 @@ CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= -I${.CURDIR}
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-mpreferred-stack-boundary=2
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
 .if ${MACHINE} == "pc98"

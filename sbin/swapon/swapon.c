@@ -266,7 +266,8 @@ static const char *
 swap_on_off_gbde(const char *name, int doingall)
 {
 	const char *ret;
-	char pass[64 * 2 + 1], bpass[64];
+	char pass[64 * 2 + 1];
+	unsigned char bpass[64];
 	char *dname;
 	int i, error;
 

@@ -315,6 +315,14 @@ S22:64:1:52:M*,N,N,S,N,W0:	Linux:2.2:ts:Linux 2.2 w/o timestamps
 16384:64:1:64:M*,N,N,S,N,W3,N,N,T:	OpenBSD:4.9::OpenBSD 4.9
 16384:64:0:64:M*,N,N,S,N,W3,N,N,T:	OpenBSD:4.9:no-df:OpenBSD 4.9 (scrub no-df)
 
+# ----------------- DragonFly BSD -----------------
+
+57344:64:1:60:M*,N,W0,N,N,T:		DragonFly:1.0:A:DragonFly 1.0A
+57344:64:0:64:M*,N,W0,N,N,S,N,N,T:	DragonFly:1.2-1.12::DragonFly 1.2-1.12
+5840:64:1:60:M*,S,T,N,W4:			DragonFly:2.0-2.1::DragonFly 2.0-2.1
+57344:64:0:64:M*,N,W0,N,N,S,N,N,T:	DragonFly:2.2-2.3::DragonFly 2.2-2.3
+57344:64:0:64:M*,N,W5,N,N,S,N,N,T:	DragonFly:2.4-2.7::DragonFly 2.4-2.7
+
 # ----------------- Solaris -----------------
 
 S17:64:1:64:N,W3,N,N,T0,N,N,S,M*:	Solaris:8:RFC1323:Solaris 8 RFC1323

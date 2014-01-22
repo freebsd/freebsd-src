@@ -3306,7 +3306,7 @@ do_io_file_wrapper_cleanup(apr_file_t *file, apr_status_t status,
 
   /* ### Issue #3014: Return a specific error for broken pipes,
    * ### with a single element in the error chain. */
-  if (APR_STATUS_IS_EPIPE(status))
+  if (SVN__APR_STATUS_IS_EPIPE(status))
     return svn_error_create(SVN_ERR_IO_PIPE_WRITE_ERROR, NULL, NULL);
 
   if (name)

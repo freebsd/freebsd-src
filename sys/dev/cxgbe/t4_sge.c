@@ -1392,7 +1392,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	uma_zone_t zone = arg1;
 	caddr_t cl = arg2;
-#ifdef INVARIANTS
+#ifdef notyet
 	u_int refcount;
 
 	refcount = *find_buf_refcnt(cl);
@@ -1447,7 +1447,7 @@ get_fl_payload1(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 		    BUS_DMASYNC_POSTREAD);
-		if (len < RX_COPY_THRESHOLD) {
+		if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 			/* Leave room for a timestamp */
 			m0->m_data += 8;
@@ -1598,7 +1598,7 @@ get_fl_payload2(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
 
-	if (len < RX_COPY_THRESHOLD) {
+	if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 		/* Leave room for a timestamp */
 		m0->m_data += 8;
@@ -1678,7 +1678,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
-	m0->m_pkthdr.flowid = rss->hash_val;
+	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&
@@ -2900,7 +2900,6 @@ alloc_wrq(struct adapter *sc, struct port_info *pi, struct sge_wrq *wrq,
 	    "# of times queue ran out of hardware descriptors");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "unstalled", CTLFLAG_RD,
 	    &wrq->eq.unstalled, 0, "# of times queue recovered after stall");
-
 
 	return (rc);
 }

@@ -2011,7 +2011,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 * First, set the bits that can be filled and get fsinfo.
 	 */
 	NFSSET_ATTRBIT(retbitp, attrbitp);
-	/* If p and cred are NULL, it is a client side call */
+	/*
+	 * If both p and cred are NULL, it is a client side setattr call.
+	 * If both p and cred are not NULL, it is a server side reply call.
+	 * If p is not NULL and cred is NULL, it is a client side callback
+	 * reply call.
+	 */
 	if (p == NULL && cred == NULL) {
 		NFSCLRNOTSETABLE_ATTRBIT(retbitp);
 		aclp = saclp;
@@ -3693,8 +3698,8 @@ nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
  * Generate the xdr for an NFSv4.1 Sequence Operation.
  */
 APPLESTATIC void
-nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
-    int dont_replycache)
+nfsv4_setsequence(struct nfsmount *nmp, struct nfsrv_descript *nd,
+    struct nfsclsession *sep, int dont_replycache)
 {
 	uint32_t *tl, slotseq = 0;
 	int i, maxslot, slotpos;
@@ -3717,9 +3722,21 @@ nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
 			}
 			bitval <<= 1;
 		}
-		if (slotpos == -1)
+		if (slotpos == -1) {
+			/*
+			 * If a forced dismount is in progress, just return.
+			 * This RPC attempt will fail when it calls
+			 * newnfs_request().
+			 */
+			if ((nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF)
+			    != 0) {
+				mtx_unlock(&sep->nfsess_mtx);
+				return;
+			}
+			/* Wake up once/sec, to check for a forced dismount. */
 			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
-			    PZERO, "nfsclseq", 0);
+			    PZERO, "nfsclseq", hz);
+		}
 	} while (slotpos == -1);
 	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
 	bitval = 1;

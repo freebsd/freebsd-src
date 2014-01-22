@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2013 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 1983, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -48,13 +49,15 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/ethernet.h>
-#include <net/pfvar.h>
-#include <net/if_pfsync.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #include <arpa/inet.h>
+#ifdef PF
+#include <net/pfvar.h>
+#include <net/if_pfsync.h>
+#endif
 
 #include <err.h>
 #include <errno.h>
@@ -80,6 +83,7 @@ static void sidewaysintpr(int);
 static char addr_buf[NI_MAXHOST];		/* for getnameinfo() */
 #endif
 
+#ifdef PF
 static const char* pfsyncacts[] = {
 	/* PFSYNC_ACT_CLR */		"clear all request",
 	/* PFSYNC_ACT_INS */		"state insert",
@@ -154,6 +158,7 @@ pfsync_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	p(pfsyncs_oerrors, "\t\t%ju send error%s\n");
 #undef p
 }
+#endif /* PF */
 
 /*
  * Display a formatted value, or a '-' in the same space.
@@ -219,7 +224,7 @@ next_ifma(struct ifmaddrs *ifma, const char *name, const sa_family_t family)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, void (*pfunc)(char *))
+intpr(int interval, void (*pfunc)(char *), int af)
 {
 	struct ifaddrs *ifap, *ifa;
 	struct ifmaddrs *ifmap, *ifma;

@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_hwpmc_hooks.h"
 #include "opt_sched.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -255,20 +254,20 @@ SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
 
 SDT_PROVIDER_DEFINE(sched);
 
-SDT_PROBE_DEFINE3(sched, , , change_pri, change-pri, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , change__pri, "struct thread *", 
     "struct proc *", "uint8_t");
-SDT_PROBE_DEFINE3(sched, , , dequeue, dequeue, "struct thread *", 
+SDT_PROBE_DEFINE3(sched, , , dequeue, "struct thread *", 
     "struct proc *", "void *");
-SDT_PROBE_DEFINE4(sched, , , enqueue, enqueue, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , enqueue, "struct thread *", 
     "struct proc *", "void *", "int");
-SDT_PROBE_DEFINE4(sched, , , lend_pri, lend-pri, "struct thread *", 
+SDT_PROBE_DEFINE4(sched, , , lend__pri, "struct thread *", 
     "struct proc *", "uint8_t", "struct thread *");
-SDT_PROBE_DEFINE2(sched, , , load_change, load-change, "int", "int");
-SDT_PROBE_DEFINE2(sched, , , off_cpu, off-cpu, "struct thread *",
+SDT_PROBE_DEFINE2(sched, , , load__change, "int", "int");
+SDT_PROBE_DEFINE2(sched, , , off__cpu, "struct thread *",
     "struct proc *");
-SDT_PROBE_DEFINE(sched, , , on_cpu, on-cpu);
-SDT_PROBE_DEFINE(sched, , , remain_cpu, remain-cpu);
-SDT_PROBE_DEFINE2(sched, , , surrender, surrender, "struct thread *",
+SDT_PROBE_DEFINE(sched, , , on__cpu);
+SDT_PROBE_DEFINE(sched, , , remain__cpu);
+SDT_PROBE_DEFINE2(sched, , , surrender, "struct thread *",
     "struct proc *");
 
 static __inline void
@@ -277,7 +276,7 @@ sched_load_add(void)
 
 	sched_tdcnt++;
 	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
-	SDT_PROBE2(sched, , , load_change, NOCPU, sched_tdcnt);
+	SDT_PROBE2(sched, , , load__change, NOCPU, sched_tdcnt);
 }
 
 static __inline void
@@ -286,7 +285,7 @@ sched_load_rem(void)
 
 	sched_tdcnt--;
 	KTR_COUNTER0(KTR_SCHED, "load", "global load", sched_tdcnt);
-	SDT_PROBE2(sched, , , load_change, NOCPU, sched_tdcnt);
+	SDT_PROBE2(sched, , , load__change, NOCPU, sched_tdcnt);
 }
 /*
  * Arrange to reschedule if necessary, taking the priorities and
@@ -836,12 +835,12 @@ sched_priority(struct thread *td, u_char prio)
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "priority change",
 	    "prio:%d", td->td_priority, "new prio:%d", prio, KTR_ATTR_LINKED,
 	    sched_tdname(curthread));
-	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
+	SDT_PROBE3(sched, , , change__pri, td, td->td_proc, prio);
 	if (td != curthread && prio > td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
-		SDT_PROBE4(sched, , , lend_pri, td, td->td_proc, prio, 
+		SDT_PROBE4(sched, , , lend__pri, td, td->td_proc, prio, 
 		    curthread);
 	}
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1033,7 +1032,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
-		SDT_PROBE2(sched, , , off_cpu, td, td->td_proc);
+		SDT_PROBE2(sched, , , off__cpu, newtd, newtd->td_proc);
 
                 /* I feel sleepy */
 		lock_profile_release_lock(&sched_lock.lock_object);
@@ -1067,13 +1066,13 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * need to reap it.
 		 */
 
-		SDT_PROBE0(sched, , , on_cpu);
+		SDT_PROBE0(sched, , , on__cpu);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
 	} else
-		SDT_PROBE0(sched, , , remain_cpu);
+		SDT_PROBE0(sched, , , remain__cpu);
 
 #ifdef SMP
 	if (td->td_flags & TDF_IDLETD)

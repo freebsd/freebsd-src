@@ -40,15 +40,18 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 .endif
 
 #
-# Only link with static libgcc.a (no libgcc_eh.a).
+# Link with static libcompiler_rt.a.
 #
-DPADD+=	${LIBGCC}
+DPADD+=	${LIBCOMPILER_RT}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc
+LDADD+= -lcompiler_rt
 
 .if ${MK_SSP} != "no"
 LDADD+= -lssp_nonshared
 .endif
+
+# Extras that live in either libc.a or libc_nonshared.a
+LIBC_NONSHARED_SRCS=
 
 # Define (empty) variables so that make doesn't give substitution
 # errors if the included makefiles don't change these:
@@ -113,6 +116,8 @@ CFLAGS+= -DNS_CACHING
 .if defined(_FREEFALL_CONFIG)
 CFLAGS+=-D_FREEFALL_CONFIG
 .endif
+
+STATICOBJS+=${LIBC_NONSHARED_SRCS:S/.c$/.o/}
 
 VERSION_DEF=${.CURDIR}/Versions.def
 SYMBOL_MAPS=${SYM_MAPS}

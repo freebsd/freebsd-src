@@ -44,7 +44,7 @@ typedef struct apr_reslist_t apr_reslist_t;
 /* Generic constructor called by resource list when it needs to create a
  * resource.
  * @param resource opaque resource
- * @param param flags
+ * @param params flags
  * @param pool  Pool
  */
 typedef apr_status_t (*apr_reslist_constructor)(void **resource, void *params,
@@ -53,7 +53,7 @@ typedef apr_status_t (*apr_reslist_constructor)(void **resource, void *params,
 /* Generic destructor called by resource list when it needs to destroy a
  * resource.
  * @param resource opaque resource
- * @param param flags
+ * @param params flags
  * @param pool  Pool
  */
 typedef apr_status_t (*apr_reslist_destructor)(void *resource, void *params,
@@ -111,12 +111,17 @@ APU_DECLARE(apr_status_t) apr_reslist_destroy(apr_reslist_t *reslist);
  * Retrieve a resource from the list, creating a new one if necessary.
  * If we have met our maximum number of resources, we will block
  * until one becomes available.
+ * @param reslist The resource list.
+ * @param resource An address where the pointer to the resource
+ *                will be stored.
  */
 APU_DECLARE(apr_status_t) apr_reslist_acquire(apr_reslist_t *reslist,
                                               void **resource);
 
 /**
  * Return a resource back to the list of available resources.
+ * @param reslist The resource list.
+ * @param resource The resource to return to the list.
  */
 APU_DECLARE(apr_status_t) apr_reslist_release(apr_reslist_t *reslist,
                                               void *resource);
@@ -140,6 +145,8 @@ APU_DECLARE(apr_uint32_t) apr_reslist_acquired_count(apr_reslist_t *reslist);
  * Invalidate a resource in the pool - e.g. a database connection
  * that returns a "lost connection" error and can't be restored.
  * Use this instead of apr_reslist_release if the resource is bad.
+ * @param reslist The resource list.
+ * @param resource The resource to invalidate.
  */
 APU_DECLARE(apr_status_t) apr_reslist_invalidate(apr_reslist_t *reslist,
                                                  void *resource);

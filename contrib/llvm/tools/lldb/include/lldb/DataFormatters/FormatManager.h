@@ -19,9 +19,12 @@
 #include "lldb/lldb-enumerations.h"
 
 #include "lldb/DataFormatters/FormatCache.h"
+#include "lldb/DataFormatters/FormatClasses.h"
 #include "lldb/DataFormatters/FormatNavigator.h"
 #include "lldb/DataFormatters/TypeCategory.h"
 #include "lldb/DataFormatters/TypeCategoryMap.h"
+
+#include <atomic>
 
 namespace lldb_private {
     
@@ -32,8 +35,6 @@ namespace lldb_private {
 
 class FormatManager : public IFormatChangeListener
 {
-    typedef FormatNavigator<ConstString, TypeFormatImpl> ValueNavigator;
-    typedef ValueNavigator::MapType ValueMap;
     typedef FormatMap<ConstString, TypeSummaryImpl> NamedSummariesMap;
     typedef TypeCategoryMap::MapType::iterator CategoryMapIterator;
 public:
@@ -41,12 +42,6 @@ public:
     typedef TypeCategoryMap::CallbackType CategoryCallback;
     
     FormatManager ();
-    
-    ValueNavigator&
-    GetValueNavigator ()
-    {
-        return m_value_nav;
-    }
     
     NamedSummariesMap&
     GetNamedSummaryNavigator ()
@@ -124,6 +119,9 @@ public:
     lldb::TypeCategoryImplSP
     GetCategory (const ConstString& category_name,
                  bool can_create = true);
+
+    lldb::TypeFormatImplSP
+    GetFormatForType (lldb::TypeNameSpecifierImplSP type_sp);
     
     lldb::TypeSummaryImplSP
     GetSummaryForType (lldb::TypeNameSpecifierImplSP type_sp);
@@ -140,6 +138,10 @@ public:
     lldb::SyntheticChildrenSP
     GetSyntheticChildrenForType (lldb::TypeNameSpecifierImplSP type_sp);
 #endif
+    
+    lldb::TypeFormatImplSP
+    GetFormat (ValueObject& valobj,
+               lldb::DynamicValueType use_dynamic);
     
     lldb::TypeSummaryImplSP
     GetSummaryFormat (ValueObject& valobj,
@@ -188,10 +190,17 @@ public:
     static lldb::Format
     GetSingleItemFormat (lldb::Format vector_format);
     
+    // this returns true if the ValueObjectPrinter is *highly encouraged*
+    // to actually represent this ValueObject in one-liner format
+    // If this object has a summary formatter, however, we should not
+    // try and do one-lining, just let the summary do the right thing
+    bool
+    ShouldPrintAsOneLiner (ValueObject& valobj);
+    
     void
     Changed ()
     {
-        __sync_add_and_fetch(&m_last_revision, +1);
+        ++m_last_revision;
         m_format_cache.Clear ();
     }
     
@@ -205,11 +214,39 @@ public:
     {
     }
     
+    static FormattersMatchVector
+    GetPossibleMatches (ValueObject& valobj,
+                        lldb::DynamicValueType use_dynamic)
+    {
+        FormattersMatchVector matches;
+        GetPossibleMatches (valobj,
+                            valobj.GetClangType(),
+                            lldb_private::eFormatterChoiceCriterionDirectChoice,
+                            use_dynamic,
+                            matches,
+                            false,
+                            false,
+                            false,
+                            true);
+        return matches;
+    }
+
 private:
+    
+    static void
+    GetPossibleMatches (ValueObject& valobj,
+                        ClangASTType clang_type,
+                        uint32_t reason,
+                        lldb::DynamicValueType use_dynamic,
+                        FormattersMatchVector& entries,
+                        bool did_strip_ptr,
+                        bool did_strip_ref,
+                        bool did_strip_typedef,
+                        bool root_level = false);
+    
     FormatCache m_format_cache;
-    ValueNavigator m_value_nav;
     NamedSummariesMap m_named_summaries_map;
-    uint32_t m_last_revision;
+    std::atomic<uint32_t> m_last_revision;
     TypeCategoryMap m_categories_map;
     
     ConstString m_default_category_name;

@@ -26,6 +26,7 @@
 
 #include "svn_types.h"
 #include "svn_io.h"
+#include "svn_version.h"
 
 
 #ifdef __cplusplus
@@ -330,6 +331,18 @@ svn_version__at_least(svn_version_t *version,
                       int major,
                       int minor,
                       int patch);
+
+/** Like svn_ver_check_list(), but with a @a comparator parameter.
+ * Private backport of svn_ver_check_list2() from trunk.
+ */
+svn_error_t *
+svn_ver__check_list2(const svn_version_t *my_version,
+                     const svn_version_checklist_t *checklist,
+                     svn_boolean_t (*comparator)(const svn_version_t *,
+                                                 const svn_version_t *));
+
+/** To minimize merge churn in callers, alias the trunk name privately. */
+#define svn_ver_check_list2 svn_ver__check_list2
 
 /** @} */
 

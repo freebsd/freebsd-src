@@ -158,7 +158,7 @@ static int
 obio_probe(device_t dev)
 {
 
-	return (BUS_PROBE_NO_WILDCARD);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

@@ -92,14 +92,9 @@ struct xpt_task {
 	uintptr_t	data2;
 };
 
-typedef enum {
-	XPT_FLAG_OPEN		= 0x01
-} xpt_flags;
-
 struct xpt_softc {
-	xpt_flags		flags;
-
 	/* number of high powered commands that can go through right now */
+	struct mtx		xpt_highpower_lock;
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
 	int			num_highpower;
 
@@ -240,6 +235,7 @@ static timeout_t xpt_release_devq_timeout;
 static void	 xpt_release_simq_timeout(void *arg) __unused;
 static void	 xpt_acquire_bus(struct cam_eb *bus);
 static void	 xpt_release_bus(struct cam_eb *bus);
+static uint32_t	 xpt_freeze_devq_device(struct cam_ed *dev, u_int count);
 static int	 xpt_release_devq_device(struct cam_ed *dev, u_int count,
 		    int run_queue);
 static struct cam_et*
@@ -367,22 +363,12 @@ xptopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return(ENODEV);
 	}
 
-	/* Mark ourselves open */
-	mtx_lock(&xsoftc.xpt_lock);
-	xsoftc.flags |= XPT_FLAG_OPEN;
-	mtx_unlock(&xsoftc.xpt_lock);
-
 	return(0);
 }
 
 static int
 xptclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-
-	/* Mark ourselves closed */
-	mtx_lock(&xsoftc.xpt_lock);
-	xsoftc.flags &= ~XPT_FLAG_OPEN;
-	mtx_unlock(&xsoftc.xpt_lock);
 
 	return(0);
 }
@@ -863,6 +849,7 @@ xpt_init(void *dummy)
 	xsoftc.num_highpower = CAM_MAX_HIGHPOWER;
 
 	mtx_init(&xsoftc.xpt_lock, "XPT lock", NULL, MTX_DEF);
+	mtx_init(&xsoftc.xpt_highpower_lock, "XPT highpower lock", NULL, MTX_DEF);
 	mtx_init(&xsoftc.xpt_topo_lock, "XPT topology lock", NULL, MTX_DEF);
 	xsoftc.xpt_taskq = taskqueue_create("CAM XPT task", M_WAITOK,
 	    taskqueue_thread_enqueue, /*context*/&xsoftc.xpt_taskq);
@@ -900,6 +887,7 @@ xpt_init(void *dummy)
 		       " failing attach\n", status);
 		return (EINVAL);
 	}
+	mtx_unlock(&xsoftc.xpt_lock);
 
 	/*
 	 * Looking at the XPT from the SIM layer, the XPT is
@@ -914,11 +902,12 @@ xpt_init(void *dummy)
 		       " failing attach\n", status);
 		return (EINVAL);
 	}
-
+	xpt_path_lock(path);
 	cam_periph_alloc(xptregister, NULL, NULL, NULL, "xpt", CAM_PERIPH_BIO,
 			 path, NULL, 0, xpt_sim);
+	xpt_path_unlock(path);
 	xpt_free_path(path);
-	mtx_unlock(&xsoftc.xpt_lock);
+
 	if (cam_num_doneqs < 1)
 		cam_num_doneqs = 1 + mp_ncpus / 6;
 	else if (cam_num_doneqs > MAXCPU)
@@ -1020,14 +1009,14 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	cam_periph_assert(periph, MA_OWNED);
 	periph->flags |= CAM_PERIPH_ANNOUNCED;
 
-	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
 	       path->bus->path_id,
 	       path->target->target_id,
-	       path->device->lun_id);
+	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
 	if (path->device->protocol == PROTO_SCSI)
 		scsi_print_inquiry(&path->device->inq_data);
@@ -1073,14 +1062,14 @@ xpt_denounce_periph(struct cam_periph *periph)
 	struct	cam_path *path = periph->path;
 
 	cam_periph_assert(periph, MA_OWNED);
-	printf("%s%d at %s%d bus %d scbus%d target %d lun %d\n",
+	printf("%s%d at %s%d bus %d scbus%d target %d lun %jx\n",
 	       periph->periph_name, periph->unit_number,
 	       path->bus->sim->sim_name,
 	       path->bus->sim->unit_number,
 	       path->bus->sim->bus_id,
 	       path->bus->path_id,
 	       path->target->target_id,
-	       path->device->lun_id);
+	       (uintmax_t)path->device->lun_id);
 	printf("%s%d: ", periph->periph_name, periph->unit_number);
 	if (path->device->protocol == PROTO_SCSI)
 		scsi_print_inquiry_short(&path->device->inq_data);
@@ -2003,13 +1992,15 @@ xptplistperiphfunc(struct cam_periph *periph, void *arg)
 			cdm->matches[j].result.periph_result.target_id =
 				periph->path->target->target_id;
 		else
-			cdm->matches[j].result.periph_result.target_id = -1;
+			cdm->matches[j].result.periph_result.target_id =
+				CAM_TARGET_WILDCARD;
 
 		if (periph->path->device)
 			cdm->matches[j].result.periph_result.target_lun =
 				periph->path->device->lun_id;
 		else
-			cdm->matches[j].result.periph_result.target_lun = -1;
+			cdm->matches[j].result.periph_result.target_lun =
+				CAM_LUN_WILDCARD;
 
 		cdm->matches[j].result.periph_result.unit_number =
 			periph->unit_number;
@@ -2200,7 +2191,7 @@ xptperiphtraverse(struct cam_ed *device, struct cam_periph *start_periph,
 	for (; periph != NULL; periph = next_periph) {
 		retval = tr_func(periph, arg);
 		if (retval == 0) {
-			cam_periph_release(periph);
+			cam_periph_release_locked(periph);
 			break;
 		}
 		xpt_lock_buses();
@@ -3165,9 +3156,7 @@ restart:
 			}
 			if (periph->flags & CAM_PERIPH_RUN_TASK)
 				break;
-			xpt_lock_buses();
-			periph->refcount++;	/* Unconditionally acquire */
-			xpt_unlock_buses();
+			cam_periph_doacquire(periph);
 			periph->flags |= CAM_PERIPH_RUN_TASK;
 			taskqueue_enqueue(xsoftc.xpt_taskq,
 			    &periph->periph_run_task);
@@ -3223,7 +3212,7 @@ xpt_run_devq(struct cam_devq *devq)
 
 		if ((work_ccb->ccb_h.flags & CAM_HIGH_POWER) != 0) {
 
-			mtx_lock(&xsoftc.xpt_lock);
+			mtx_lock(&xsoftc.xpt_highpower_lock);
 		 	if (xsoftc.num_highpower <= 0) {
 				/*
 				 * We got a high power command, but we
@@ -3231,11 +3220,11 @@ xpt_run_devq(struct cam_devq *devq)
 				 * the device queue until we have a slot
 				 * available.
 				 */
-				xpt_freeze_devq(work_ccb->ccb_h.path, 1);
+				xpt_freeze_devq_device(device, 1);
 				STAILQ_INSERT_TAIL(&xsoftc.highpowerq, device,
 						   highpowerq_entry);
 
-				mtx_unlock(&xsoftc.xpt_lock);
+				mtx_unlock(&xsoftc.xpt_highpower_lock);
 				continue;
 			} else {
 				/*
@@ -3244,7 +3233,7 @@ xpt_run_devq(struct cam_devq *devq)
 				 */
 				xsoftc.num_highpower--;
 			}
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 		}
 		cam_ccbq_remove_ccb(&device->ccbq, work_ccb);
 		cam_ccbq_send_ccb(&device->ccbq, work_ccb);
@@ -3647,7 +3636,7 @@ xpt_print_path(struct cam_path *path)
 			printf("X:");
 
 		if (path->device != NULL)
-			printf("%d): ", path->device->lun_id);
+			printf("%jx): ", (uintmax_t)path->device->lun_id);
 		else
 			printf("X): ");
 	}
@@ -3660,11 +3649,11 @@ xpt_print_device(struct cam_ed *device)
 	if (device == NULL)
 		printf("(nopath): ");
 	else {
-		printf("(noperiph:%s%d:%d:%d:%d): ", device->sim->sim_name,
+		printf("(noperiph:%s%d:%d:%d:%jx): ", device->sim->sim_name,
 		       device->sim->unit_number,
 		       device->sim->bus_id,
 		       device->target->target_id,
-		       device->lun_id);
+		       (uintmax_t)device->lun_id);
 	}
 }
 
@@ -3707,7 +3696,8 @@ xpt_path_string(struct cam_path *path, char *str, size_t str_len)
 			sbuf_printf(&sb, "X:");
 
 		if (path->device != NULL)
-			sbuf_printf(&sb, "%d): ", path->device->lun_id);
+			sbuf_printf(&sb, "%jx): ",
+			    (uintmax_t)path->device->lun_id);
 		else
 			sbuf_printf(&sb, "X): ");
 	}
@@ -3929,9 +3919,11 @@ xpt_bus_register(struct cam_sim *sim, device_t parent, u_int32_t bus)
 				scan_ccb->ccb_h.func_code = XPT_SCAN_BUS;
 				scan_ccb->crcn.flags = 0;
 				xpt_rescan(scan_ccb);
-			} else
+			} else {
 				xpt_print(path,
 					  "Can't allocate CCB to scan bus\n");
+				xpt_free_path(path);
+			}
 		} else
 			xpt_free_path(path);
 	} else
@@ -4285,6 +4277,24 @@ xpt_dev_async_default(u_int32_t async_code, struct cam_eb *bus,
 	printf("%s called\n", __func__);
 }
 
+static uint32_t
+xpt_freeze_devq_device(struct cam_ed *dev, u_int count)
+{
+	struct cam_devq	*devq;
+	uint32_t freeze;
+
+	devq = dev->sim->devq;
+	mtx_assert(&devq->send_mtx, MA_OWNED);
+	CAM_DEBUG_DEV(dev, CAM_DEBUG_TRACE,
+	    ("xpt_freeze_devq_device(%d) %u->%u\n", count,
+	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
+	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
+	/* Remove frozen device from sendq. */
+	if (device_is_queued(dev))
+		camq_remove(&devq->send_queue, dev->devq_entry.index);
+	return (freeze);
+}
+
 u_int32_t
 xpt_freeze_devq(struct cam_path *path, u_int count)
 {
@@ -4294,12 +4304,8 @@ xpt_freeze_devq(struct cam_path *path, u_int count)
 
 	devq = dev->sim->devq;
 	mtx_lock(&devq->send_mtx);
-	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq() %u->%u\n",
-	    dev->ccbq.queue.qfrozen_cnt, dev->ccbq.queue.qfrozen_cnt + count));
-	freeze = (dev->ccbq.queue.qfrozen_cnt += count);
-	/* Remove frozen device from sendq. */
-	if (device_is_queued(dev))
-		camq_remove(&devq->send_queue, dev->devq_entry.index);
+	CAM_DEBUG(path, CAM_DEBUG_TRACE, ("xpt_freeze_devq(%d)\n", count));
+	freeze = xpt_freeze_devq_device(dev, count);
 	mtx_unlock(&devq->send_mtx);
 	return (freeze);
 }
@@ -5149,7 +5155,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		struct highpowerlist	*hphead;
 		struct cam_ed		*device;
 
-		mtx_lock(&xsoftc.xpt_lock);
+		mtx_lock(&xsoftc.xpt_highpower_lock);
 		hphead = &xsoftc.highpowerq;
 
 		device = STAILQ_FIRST(hphead);
@@ -5165,14 +5171,14 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 		if (device != NULL) {
 
 			STAILQ_REMOVE_HEAD(hphead, highpowerq_entry);
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 
 			mtx_lock(&device->sim->devq->send_mtx);
 			xpt_release_devq_device(device,
 					 /*count*/1, /*runqueue*/TRUE);
 			mtx_unlock(&device->sim->devq->send_mtx);
 		} else
-			mtx_unlock(&xsoftc.xpt_lock);
+			mtx_unlock(&xsoftc.xpt_highpower_lock);
 	}
 
 	sim = ccb_h->path->bus->sim;
@@ -5184,8 +5190,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 	if ((ccb_h->flags & CAM_DEV_QFRZDIS)
 	 && (ccb_h->status & CAM_DEV_QFRZN)) {
-		xpt_release_devq(ccb_h->path, /*count*/1,
-				 /*run_queue*/FALSE);
+		xpt_release_devq(ccb_h->path, /*count*/1, /*run_queue*/TRUE);
 		ccb_h->status &= ~CAM_DEV_QFRZN;
 	}
 
@@ -5214,6 +5219,7 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 
 		if (!device_is_queued(dev))
 			(void)xpt_schedule_devq(devq, dev);
+		xpt_run_devq(devq);
 		mtx_unlock(&devq->send_mtx);
 
 		if ((dev->flags & CAM_DEV_TAG_AFTER_COUNT) != 0) {
@@ -5243,10 +5249,6 @@ xpt_done_process(struct ccb_hdr *ccb_h)
 	(*ccb_h->cbfcnp)(ccb_h->path->periph, (union ccb *)ccb_h);
 	if (mtx != NULL)
 		mtx_unlock(mtx);
-
-	mtx_lock(&devq->send_mtx);
-	xpt_run_devq(devq);
-	mtx_unlock(&devq->send_mtx);
 }
 
 void

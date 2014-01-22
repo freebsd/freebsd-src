@@ -1,0 +1,301 @@
+.\" Copyright (c) 2013 Peter Grehan
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 12, 2013
+.Dt BHYVE 8
+.Os
+.Sh NAME
+.Nm bhyve
+.Nd "run a guest operating system inside a virtual machine"
+.Sh SYNOPSIS
+.Nm
+.Op Fl aehwAHPW
+.Op Fl c Ar numcpus
+.Op Fl g Ar gdbport
+.Op Fl p Ar pinnedcpu
+.Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl S Ar slot,emulation Ns Op , Ns Ar conf
+.Op Fl l Ar lpcdev Ns Op , Ns Ar conf
+.Ar vmname
+.Sh DESCRIPTION
+.Nm
+is an experimental hypervisor that runs guest operating systems inside a
+virtual machine.
+.Pp
+Parameters such as the number of virtual CPUs, amount of guest memory, and
+I/O connectivity can be specified with command-line parameters.
+.Pp
+The guest operating system must be loaded with
+.Xr bhyveload 4
+or a similar boot loader before running
+.Nm .
+.Pp
+.Nm
+runs until the guest operating system reboots or an unhandled hypervisor
+exit is detected.
+.Sh OPTIONS
+.Bl -tag -width 10n
+.It Fl a
+Disallow use of the local APIC in X2APIC mode.
+.It Fl A
+Generate ACPI tables.
+Required for
+.Fx Ns /amd64
+guests.
+.It Fl c Ar numcpus
+Number of guest virtual CPUs.
+The default is 1 and the maximum is 16.
+.It Fl H
+Yield the virtual CPU thread when a HLT instruction is detected.
+If this option is not specified, virtual CPUs will use 100% of a host CPU.
+.It Fl g Ar gdbport
+For
+.Fx Ns /amd64 kernels compiled with
+.Cd "option bvmdebug" ,
+allow a remote kernel kgdb to be relayed to the guest kernel gdb stub
+via a local IPv4 address and this port.
+This option will be deprecated in a future version.
+.It Fl p Ar pinnedcpu
+Force guest virtual CPUs to be pinned to host CPUs.
+Virtual CPU
+.Em n
+is pinned to host CPU
+.Em pinnedcpu+n .
+.It Fl P
+Force the guest virtual CPU to exit when a PAUSE instruction is detected.
+.It Fl W
+Force virtio PCI device emulations to use MSI interrupts instead of MSI-X
+interrupts.
+.It Fl s Ar slot,emulation Ns Op , Ns Ar conf
+Configure a virtual PCI slot and function.
+.Pp
+.Nm bhyve
+provides PCI bus emulation and virtual devices that can be attached to
+slots on the bus.
+There are 32 available slots, with the option of providing up to 8 functions
+per slot.
+.Bl -tag -width 10n
+.It Ar slot
+.Ar pcislot Ns Op Ar :function
+.Pp
+The
+.Ar pcislot
+value is 0 to 31 and the optional function value is 0 to 7.
+If not specified, the function value defaults to 0.
+.It Ar emulation
+.Bl -tag -width 10n
+.It Li hostbridge | Li amd_hostbridge
+.Pp
+Provide a simple host bridge.
+This is usually configured at slot 0, and is required by most guest
+operating systems.
+The
+.Li amd_hostbridge
+emulation is identical but uses a PCI vendor ID of
+.Li AMD .
+.It Li passthru
+PCI pass-through device.
+.It Li virtio-net
+Virtio network interface.
+.It Li virtio-blk
+Virtio block storage interface.
+.It Li ahci-cd
+AHCI controller attached to an ATAPI CD/DVD.
+.It Li ahci-hd
+AHCI controller attached to a SATA hard-drive.
+.It Li uart
+PCI 16550 serial device.
+.It Li lpc
+LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports.
+.El
+.It Op Ar conf
+This optional parameter describes the backend for device emulations.
+If
+.Ar conf
+is not specified, the device emulation has no backend and can be
+considered unconnected.
+.Pp
+Network devices:
+.Bl -tag -width 10n
+.It Ar tapN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
+.It Ar vmnetN Ns Op , Ns Ar mac=xx:xx:xx:xx:xx:xx
+.Pp
+If
+.Ar mac
+is not specified, the MAC address is derived from a fixed OUI and the
+remaining bytes from an MD5 hash of the slot and function numbers and
+the device name.
+.Pp
+The MAC address is an ASCII string in
+.Xr ethers 5
+format.
+.El
+.Pp
+Block storage devices:
+.Bl -tag -width 10n
+.It Pa /filename Ns Oo , Ns Li nocache Oc Ns Oo , Ns Li direct Oc Ns Oo , Ns Li ro Oc
+.It Pa /dev/xxx Ns Oo , Ns Ar nocache Oc Ns Oo , Ns Ar direct Oc Ns Oo , Ns Ar ro Oc
+.Bl -tag -width 8n
+.It Li nocache
+Open the file with
+.Dv O_DIRECT .
+.It Li direct
+Open the file using
+.Dv O_SYNC .
+.It Li ro
+Force the file to be opened read-only.
+.El
+.Pp
+The
+.Li nocache ,
+.Li direct ,
+and
+.Li ro
+options are not available for virtio block devices.
+.El
+.Pp
+TTY devices:
+.Bl -tag -width 10n
+.It Li stdio
+Connect the serial port to the standard input and output of
+the bhyve process.
+.It Pa /dev/xxx
+Use the host TTY device for serial port I/O.
+.El
+.Pp
+Pass-through devices:
+.Bl -tag -width 10n
+.It Ns Ar slot Ns / Ns Ar bus Ns / Ns Ar function
+Connect to a PCI device on the host at the selector described by
+.Ar slot ,
+.Ar bus ,
+and
+.Ar function
+numbers.
+.El
+.Pp
+The host device must have been reserved at boot-time using the
+.Va pptdev
+loader variable as described in
+.Xr vmm 4 .
+.El
+.It Fl S Ar slot , Ns Ar emulation Ns Op , Ns Ar conf
+Identical to the -s option except the device is instructed to use legacy
+ISA addresses if possible.
+Currently this only has an effect with the
+.Li uart
+device emulation.
+This option will be deprecated in a future version.
+.It Fl l Ar lpcdev Ns Op , Ns Ar conf
+Allow devices behind the LPC PCI-ISA bridge to be configured.
+The only supported devices are the TTY-class devices,
+.Li com1
+and
+.Li com2 .
+.It Fl m Ar size Ns Op Ar K|k|M|m|G|g|T|t
+Guest physical memory size in bytes.
+This must be the same size that was given to
+.Xr bhyveload 8 .
+.Pp
+The size argument may be suffixed with one of K, M, G or T (either upper
+or lower case) to indicate a multiple of kilobytes, megabytes, gigabytes,
+or terabytes.
+If no suffix is given, the value is assumed to be in megabytes.
+.It Fl e
+Force
+.Nm
+to exit when a guest issues an access to an I/O port that is not emulated.
+This is intended for debug purposes.
+.It Fl w
+Ignore accesses to unimplemented Model Specific Registers (MSRs). This is intended for debug purposes.
+.It Fl h
+Print help message and exit.
+.It Ar vmname
+Alphanumeric name of the guest.
+This should be the same as that created by
+.Xr bhyveload 8 .
+.El
+.Sh EXAMPLES
+The guest operating system must have been loaded with
+.Xr bhyveload 4
+or a similar boot loader before
+.Xr bhyve 4
+can be run.
+.Pp
+To run a virtual machine with 1GB of memory, two virtual CPUs, a virtio
+block device backed by the
+.Pa /my/image
+filesystem image, and a serial port for the console:
+.Bd -literal -offset indent
+bhyve -c 2 -s 0,hostbridge -s 1,lpc -s 2,virtio-blk,/my/image \\
+  -l com1,stdio -A -H -P -m 1G vm1
+.Ed
+.Pp
+Run a 24GB single-CPU virtual machine with three network ports, one of which
+has a MAC address specified:
+.Bd -literal -offset indent
+bhyve -s 0,hostbridge -s 1,lpc -s 2:0,virtio-net,tap0 \\
+  -s 2:1,virtio-net,tap1 \\
+  -s 2:2,virtio-net,tap2,mac=00:be:fa:76:45:00 \\
+  -s 3,virtio-blk,/my/image -l com1,stdio \\
+  -A -H -P -m 24G bigvm
+.Ed
+.Pp
+Run an 8GB quad-CPU virtual machine with 8 AHCI SATA disks, an AHCI ATAPI
+CD-ROM, a single virtio network port, an AMD hostbridge, and the console
+port connected to an
+.Xr nmdm 4
+null-model device.
+.Bd -literal -offset indent
+bhyve -c 4 \e\
+  -s 0,amd_hostbridge -s 1,lpc \\
+  -s 1:0,ahci-hd,/images/disk.1 \\
+  -s 1:1,ahci-hd,/images/disk.2 \\
+  -s 1:2,ahci-hd,/images/disk.3 \\
+  -s 1:3,ahci-hd,/images/disk.4 \\
+  -s 1:4,ahci-hd,/images/disk.5 \\
+  -s 1:5,ahci-hd,/images/disk.6 \\
+  -s 1:6,ahci-hd,/images/disk.7 \\
+  -s 1:7,ahci-hd,/images/disk.8 \\
+  -s 2,ahci-cd,/images.install.iso \\
+  -s 3,virtio-net,tap0 \\
+  -l com1,/dev/nmdm0A \\
+  -A -H -P -m 8G
+.Ed
+.Sh SEE ALSO
+.Xr bhyve 4 ,
+.Xr nmdm 4 ,
+.Xr vmm 4 ,
+.Xr ethers 5 ,
+.Xr bhyvectl 8 ,
+.Xr bhyveload 8
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+.An Neel Natu Aq neel@freebsd.org
+.An Peter Grehan Aq grehan@freebsd.org

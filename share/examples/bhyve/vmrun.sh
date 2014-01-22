@@ -173,7 +173,7 @@ while [ 1 ]; do
 		break
 	fi
 
-	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -AI -H -P	\
+	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
 		-s 1:0,lpc						\

@@ -2,10 +2,9 @@
 
 .include <bsd.own.mk>
 
-TESTS_SUBDIRS= lib
+SUBDIR= # still empty
 
 TESTSDIR= ${TESTSBASE}
-
 KYUAFILE= yes
 
 .include <bsd.test.mk>

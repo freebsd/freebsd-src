@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
  */
 #define	FEC_IER_REG			0x0004
 #define	FEC_IEM_REG			0x0008
-#define	  FEC_IER_HBERR			  (1 << 31)
+#define	  FEC_IER_HBERR			  (1U << 31)
 #define	  FEC_IER_BABR			  (1 << 30)
 #define	  FEC_IER_BABT			  (1 << 29)
 #define	  FEC_IER_GRA			  (1 << 28)
@@ -98,12 +98,12 @@ __FBSDID("$FreeBSD$");
 #define	  FEC_MSCR_MII_SPEED_MASk	  (0x3f << FEC_MSCR_MII_SPEED_SHIFT)
 
 #define	FEC_MIBC_REG			0x0064
-#define	  FEC_MIBC_DIS			  (1 << 31)
+#define	  FEC_MIBC_DIS			  (1U << 31)
 #define	  FEC_MIBC_IDLE			  (1 << 30)
 #define	  FEC_MIBC_CLEAR		  (1 << 29) /* imx6 only */
 
 #define	FEC_RCR_REG			0x0084
-#define	  FEC_RCR_GRS			  (1 << 31)
+#define	  FEC_RCR_GRS			  (1U << 31)
 #define	  FEC_RCR_NLC			  (1 << 30)
 #define	  FEC_RCR_MAX_FL_SHIFT		  16
 #define	  FEC_RCR_MAX_FL_MASK		  (0x3fff << FEC_RCR_MAX_FL_SHIFT)
@@ -265,7 +265,7 @@ struct ffec_hwdesc
 	uint32_t	buf_paddr;
 };
 
-#define	FEC_TXDESC_READY		(1 << 31)
+#define	FEC_TXDESC_READY		(1U << 31)
 #define	FEC_TXDESC_T01			(1 << 30)
 #define	FEC_TXDESC_WRAP			(1 << 29)
 #define	FEC_TXDESC_T02			(1 << 28)
@@ -274,7 +274,7 @@ struct ffec_hwdesc
 #define	FEC_TXDESC_ABC			(1 << 25)
 #define	FEC_TXDESC_LEN_MASK		(0xffff)
 
-#define	FEC_RXDESC_EMPTY		(1 << 31)
+#define	FEC_RXDESC_EMPTY		(1U << 31)
 #define	FEC_RXDESC_R01			(1 << 30)
 #define	FEC_RXDESC_WRAP			(1 << 29)
 #define	FEC_RXDESC_R02			(1 << 28)

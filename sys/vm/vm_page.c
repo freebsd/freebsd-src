@@ -922,8 +922,6 @@ vm_page_dirty_KBI(vm_page_t m)
 	/* These assertions refer to this operation by its public name. */
 	KASSERT((m->flags & PG_CACHED) == 0,
 	    ("vm_page_dirty: page in cache!"));
-	KASSERT(!VM_PAGE_IS_FREE(m),
-	    ("vm_page_dirty: page is free!"));
 	KASSERT(m->valid == VM_PAGE_BITS_ALL,
 	    ("vm_page_dirty: page is invalid!"));
 	m->dirty = VM_PAGE_BITS_ALL;
@@ -1200,7 +1198,7 @@ vm_page_replace(vm_page_t mnew, vm_object_t object, vm_pindex_t pindex)
 
 	mnew->object = object;
 	mnew->pindex = pindex;
-	mold = vm_radix_replace(&object->rtree, mnew, pindex);
+	mold = vm_radix_replace(&object->rtree, mnew);
 	KASSERT(mold->queue == PQ_NONE,
 	    ("vm_page_replace: mold is on a paging queue"));
 
@@ -1568,27 +1566,24 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    vm_object_cache_is_empty(m_object))
 			vp = m_object->handle;
 	} else {
-		KASSERT(VM_PAGE_IS_FREE(m),
-		    ("vm_page_alloc: page %p is not free", m));
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc: free page %p is valid", m));
 		vm_phys_freecnt_adj(m, -1);
+		if ((m->flags & PG_ZERO) != 0)
+			vm_page_zero_count--;
 	}
+	mtx_unlock(&vm_page_queue_free_mtx);
 
 	/*
-	 * Only the PG_ZERO flag is inherited.  The PG_CACHED or PG_FREE flag
-	 * must be cleared before the free page queues lock is released.
+	 * Initialize the page.  Only the PG_ZERO flag is inherited.
 	 */
 	flags = 0;
-	if (m->flags & PG_ZERO) {
-		vm_page_zero_count--;
-		if (req & VM_ALLOC_ZERO)
-			flags = PG_ZERO;
-	}
-	if (req & VM_ALLOC_NODUMP)
+	if ((req & VM_ALLOC_ZERO) != 0)
+		flags = PG_ZERO;
+	flags &= m->flags;
+	if ((req & VM_ALLOC_NODUMP) != 0)
 		flags |= PG_NODUMP;
 	m->flags = flags;
-	mtx_unlock(&vm_page_queue_free_mtx);
 	m->aflags = 0;
 	m->oflags = object == NULL || (object->flags & OBJ_UNMANAGED) != 0 ?
 	    VPO_UNMANAGED : 0;
@@ -1704,7 +1699,7 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	struct vnode *drop;
 	struct spglist deferred_vdrop_list;
 	vm_page_t m, m_tmp, m_ret;
-	u_int flags, oflags;
+	u_int flags;
 	int req_class;
 
 	KASSERT((object != NULL) == ((req & VM_ALLOC_NOOBJ) == 0) &&
@@ -1782,7 +1777,6 @@ retry:
 		flags |= PG_NODUMP;
 	if ((req & VM_ALLOC_WIRED) != 0)
 		atomic_add_int(&cnt.v_wire_count, npages);
-	oflags = VPO_UNMANAGED;
 	if (object != NULL) {
 		if (object->memattr != VM_MEMATTR_DEFAULT &&
 		    memattr == VM_MEMATTR_DEFAULT)
@@ -1801,7 +1795,7 @@ retry:
 		if ((req & VM_ALLOC_WIRED) != 0)
 			m->wire_count = 1;
 		/* Unmanaged pages don't use "act_count". */
-		m->oflags = oflags;
+		m->oflags = VPO_UNMANAGED;
 		if (object != NULL) {
 			if (vm_page_insert(m, object, pindex)) {
 				vm_page_alloc_contig_vdrop(
@@ -1873,16 +1867,12 @@ vm_page_alloc_init(vm_page_t m)
 		    vm_object_cache_is_empty(m_object))
 			drop = m_object->handle;
 	} else {
-		KASSERT(VM_PAGE_IS_FREE(m),
-		    ("vm_page_alloc_init: page %p is not free", m));
 		KASSERT(m->valid == 0,
 		    ("vm_page_alloc_init: free page %p is valid", m));
 		vm_phys_freecnt_adj(m, -1);
 		if ((m->flags & PG_ZERO) != 0)
 			vm_page_zero_count--;
 	}
-	/* Don't clear the PG_ZERO flag; we'll need it later. */
-	m->flags &= PG_ZERO;
 	return (drop);
 }
 
@@ -2211,10 +2201,9 @@ vm_page_cache_turn_free(vm_page_t m)
 
 	m->object = NULL;
 	m->valid = 0;
-	/* Clear PG_CACHED and set PG_FREE. */
-	m->flags ^= PG_CACHED | PG_FREE;
-	KASSERT((m->flags & (PG_CACHED | PG_FREE)) == PG_FREE,
-	    ("vm_page_cache_free: page %p has inconsistent flags", m));
+	KASSERT((m->flags & PG_CACHED) != 0,
+	    ("vm_page_cache_turn_free: page %p is not cached", m));
+	m->flags &= ~PG_CACHED;
 	cnt.v_cache_count--;
 	vm_phys_freecnt_adj(m, 1);
 }
@@ -2240,9 +2229,7 @@ vm_page_free_toq(vm_page_t m)
 		    ("vm_page_free_toq: unmanaged page %p is queued", m));
 	PCPU_INC(cnt.v_tfree);
 
-	if (VM_PAGE_IS_FREE(m))
-		panic("vm_page_free: freeing free page %p", m);
-	else if (vm_page_sbusied(m))
+	if (vm_page_sbusied(m))
 		panic("vm_page_free: freeing busy page %p", m);
 
 	/*
@@ -2284,7 +2271,6 @@ vm_page_free_toq(vm_page_t m)
 		 * cache/free page queues.
 		 */
 		mtx_lock(&vm_page_queue_free_mtx);
-		m->flags |= PG_FREE;
 		vm_phys_freecnt_adj(m, 1);
 #if VM_NRESERVLEVEL > 0
 		if (!vm_reserv_free_page(m))

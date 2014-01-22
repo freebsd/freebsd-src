@@ -158,15 +158,15 @@ typedef struct fasttrap_hash {
  */
 #define	fasttrap_copyout	copyout
 #define	fasttrap_fuword32	fuword32
-#define	fasttrap_suword32(_k, _u)	copyout((_k), (_u), sizeof(uint32_t))
-#define	fasttrap_suword64(_k, _u)	copyout((_k), (_u), sizeof(uint64_t))
+#define	fasttrap_suword32	suword32
+#define	fasttrap_suword64	suword64
 
 #ifdef __amd64__
 #define	fasttrap_fulword	fuword64
-#define	fasttrap_sulword	fasttrap_suword64
+#define	fasttrap_sulword	suword64
 #else
 #define	fasttrap_fulword	fuword32
-#define	fasttrap_sulword	fasttrap_suword32
+#define	fasttrap_sulword	suword32
 #endif
 
 extern void fasttrap_sigtrap(proc_t *, kthread_t *, uintptr_t);

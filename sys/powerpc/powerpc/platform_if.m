@@ -120,9 +120,9 @@ METHOD int attach {
 
 METHOD void mem_regions {
 	platform_t	    _plat;
-	struct mem_region **_memp;
+	struct mem_region  *_memp;
 	int		   *_memsz;
-	struct mem_region **_availp;
+	struct mem_region  *_availp;
 	int		   *_availsz;
 };
 

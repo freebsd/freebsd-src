@@ -479,13 +479,17 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
  * connections, sonewconn is called.  If the connection is possible (subject
  * to space constraints, etc.) then we allocate a new structure, propoerly
  * linked into the data structure of the original socket, and return this.
- * Connstatus may be 0, or SO_ISCONFIRMING, or SO_ISCONNECTED.
+ * Connstatus may be 0, or SS_ISCONFIRMING, or SS_ISCONNECTED.
  *
  * Note: the ref count on the socket is 0 on return.
  */
 struct socket *
 sonewconn(struct socket *head, int connstatus)
 {
+	static struct timeval lastover;
+	static struct timeval overinterval = { 60, 0 };
+	static int overcount;
+
 	struct socket *so;
 	int over;
 
@@ -497,9 +501,17 @@ sonewconn(struct socket *head, int connstatus)
 #else
 	if (over) {
 #endif
-		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
-		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, head->so_qlen);
+		overcount++;
+
+		if (ratecheck(&lastover, &overinterval)) {
+			log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
+			    "%i already in queue awaiting acceptance "
+			    "(%d occurrences)\n",
+			    __func__, head->so_pcb, head->so_qlen, overcount);
+
+			overcount = 0;
+		}
+
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
@@ -1711,28 +1723,27 @@ dontblock:
 				moff += len;
 			else {
 				if (mp != NULL) {
-					int copy_flag;
-
-					if (flags & MSG_DONTWAIT)
-						copy_flag = M_NOWAIT;
-					else
-						copy_flag = M_WAIT;
-					if (copy_flag == M_WAITOK)
+					if (flags & MSG_DONTWAIT) {
+						*mp = m_copym(m, 0, len,
+						    M_NOWAIT);
+						if (*mp == NULL) {
+							/*
+							 * m_copym() couldn't
+							 * allocate an mbuf.
+							 * Adjust uio_resid back
+							 * (it was adjusted
+							 * down by len bytes,
+							 * which we didn't end
+							 * up "copying" over).
+							 */
+							uio->uio_resid += len;
+							break;
+						}
+					} else {
 						SOCKBUF_UNLOCK(&so->so_rcv);
-					*mp = m_copym(m, 0, len, copy_flag);
-					if (copy_flag == M_WAITOK)
+						*mp = m_copym(m, 0, len,
+						    M_WAITOK);
 						SOCKBUF_LOCK(&so->so_rcv);
-					if (*mp == NULL) {
-						/*
-						 * m_copym() couldn't
-						 * allocate an mbuf.  Adjust
-						 * uio_resid back (it was
-						 * adjusted down by len
-						 * bytes, which we didn't end
-						 * up "copying" over).
-						 */
-						uio->uio_resid += len;
-						break;
 					}
 				}
 				m->m_data += len;

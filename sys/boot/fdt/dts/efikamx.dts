@@ -89,6 +89,12 @@
 			gpio@73f90000 {
 				status = "okay";
 			};
+			usb@73f80000 /* OTG */ {
+				status = "okay";
+			};
+			usb@73f80200 /* Host 1 */ {
+				status = "okay";
+			};
 			wdog@73f98000 {
 				status = "okay";
 			};

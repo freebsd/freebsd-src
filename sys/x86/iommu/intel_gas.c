@@ -92,8 +92,10 @@ dmar_gas_alloc_entry(struct dmar_ctx *ctx, u_int flags)
 
 	res = uma_zalloc(dmar_map_entry_zone, ((flags & DMAR_PGF_WAITOK) !=
 	    0 ? M_WAITOK : M_NOWAIT) | M_ZERO);
-	if (res != NULL)
+	if (res != NULL) {
+		res->ctx = ctx;
 		atomic_add_int(&ctx->entries_cnt, 1);
+	}
 	return (res);
 }
 
@@ -101,6 +103,9 @@ void
 dmar_gas_free_entry(struct dmar_ctx *ctx, struct dmar_map_entry *entry)
 {
 
+	KASSERT(ctx == entry->ctx,
+	    ("mismatched free ctx %p entry %p entry->ctx %p", ctx,
+	    entry, entry->ctx));
 	atomic_subtract_int(&ctx->entries_cnt, 1);
 	uma_zfree(dmar_map_entry_zone, entry);
 }
@@ -170,6 +175,9 @@ dmar_gas_check_free(struct dmar_ctx *ctx)
 	dmar_gaddr_t v;
 
 	RB_FOREACH(entry, dmar_gas_entries_tree, &ctx->rb_root) {
+		KASSERT(ctx == entry->ctx,
+		    ("mismatched free ctx %p entry %p entry->ctx %p", ctx,
+		    entry, entry->ctx));
 		next = RB_NEXT(dmar_gas_entries_tree, &ctx->rb_root, entry);
 		if (next == NULL) {
 			MPASS(entry->free_after == ctx->end - entry->end);
@@ -583,7 +591,7 @@ dmar_gas_free_space(struct dmar_ctx *ctx, struct dmar_map_entry *entry)
 #endif
 }
 
-static void
+void
 dmar_gas_free_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry)
 {
 	struct dmar_map_entry *next, *prev;
@@ -644,10 +652,7 @@ dmar_gas_map(struct dmar_ctx *ctx, const struct bus_dma_tag_common *common,
 	    ((eflags & DMAR_MAP_ENTRY_TM) != 0 ? DMAR_PTE_TM : 0),
 	    (flags & DMAR_GM_CANWAIT) != 0 ? DMAR_PGF_WAITOK : 0);
 	if (error == ENOMEM) {
-		DMAR_CTX_LOCK(ctx);
-		dmar_gas_free_space(ctx, entry);
-		DMAR_CTX_UNLOCK(ctx);
-		dmar_gas_free_entry(ctx, entry);
+		dmar_ctx_unload_entry(entry, true);
 		return (error);
 	}
 	KASSERT(error == 0,
@@ -689,10 +694,7 @@ dmar_gas_map_region(struct dmar_ctx *ctx, struct dmar_map_entry *entry,
 	    ((eflags & DMAR_MAP_ENTRY_TM) != 0 ? DMAR_PTE_TM : 0),
 	    (flags & DMAR_GM_CANWAIT) != 0 ? DMAR_PGF_WAITOK : 0);
 	if (error == ENOMEM) {
-		DMAR_CTX_LOCK(ctx);
-		dmar_gas_free_region(ctx, entry);
-		DMAR_CTX_UNLOCK(ctx);
-		entry->flags = 0;
+		dmar_ctx_unload_entry(entry, false);
 		return (error);
 	}
 	KASSERT(error == 0,

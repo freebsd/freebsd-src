@@ -201,7 +201,7 @@ parse(const char *string, int lineno)
 
 	cp = buf;
 	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ) {
-		warn("oid too long: '%s'%s", string, line);
+		warnx("oid too long: '%s'%s", string, line);
 		return (1);
 	}
 	bufp = strsep(&cp, "=:");
@@ -260,7 +260,7 @@ parse(const char *string, int lineno)
 		}
 	} else {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
-			warn("oid '%s' isn't a leaf node%s", bufp, line);
+			warnx("oid '%s' isn't a leaf node%s", bufp, line);
 			return (1);
 		}
 

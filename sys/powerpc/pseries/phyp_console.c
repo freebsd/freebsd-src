@@ -192,11 +192,9 @@ uart_phyp_cnprobe(struct consdev *cp)
 {
 	char buf[64];
 	ihandle_t stdout;
-	phandle_t input, opts, chosen;
+	phandle_t input, chosen;
 	static struct uart_phyp_softc sc;
 
-	if ((opts = OF_finddevice("/options")) == -1)
-		goto fail;
 	if ((chosen = OF_finddevice("/chosen")) == -1)
 		goto fail;
 
@@ -286,6 +284,7 @@ static int
 uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 {
 	int err;
+	int hdr = 0;
 
 	uart_lock(&sc->sc_mtx);
 	if (sc->inbuflen == 0) {
@@ -296,6 +295,7 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 			uart_unlock(&sc->sc_mtx);
 			return (-1);
 		}
+		hdr = 1; 
 	}
 
 	if (sc->inbuflen == 0) {
@@ -305,6 +305,14 @@ uart_phyp_get(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 
 	if (bufsize > sc->inbuflen)
 		bufsize = sc->inbuflen;
+
+	if ((sc->protocol == HVTERMPROT) && (hdr == 1)) {
+		sc->inbuflen = sc->inbuflen - 4;
+		/* The VTERM protocol has a 4 byte header, skip it here. */
+		memmove(&sc->phyp_inbuf.str[0], &sc->phyp_inbuf.str[4],
+		    sc->inbuflen);
+	}
+
 	memcpy(buffer, sc->phyp_inbuf.str, bufsize);
 	sc->inbuflen -= bufsize;
 	if (sc->inbuflen > 0)
@@ -320,32 +328,40 @@ uart_phyp_put(struct uart_phyp_softc *sc, void *buffer, size_t bufsize)
 {
 	uint16_t seqno;
 	uint64_t len = 0;
+	int	err;
+
 	union {
-		uint64_t u64;
-		char bytes[8];
+		uint64_t u64[2];
+		char bytes[16];
 	} cbuf;
 
 	uart_lock(&sc->sc_mtx);
 	switch (sc->protocol) {
 	case HVTERM1:
-		if (bufsize > 8)
-			bufsize = 8;
+		if (bufsize > 16)
+			bufsize = 16;
 		memcpy(&cbuf, buffer, bufsize);
 		len = bufsize;
 		break;
 	case HVTERMPROT:
-		if (bufsize > 4)
-			bufsize = 4;
+		if (bufsize > 12)
+			bufsize = 12;
 		seqno = sc->outseqno++;
 		cbuf.bytes[0] = VS_DATA_PACKET_HEADER;
-		cbuf.bytes[1] = 4 + bufsize; /* total length */
+		cbuf.bytes[1] = 4 + bufsize; /* total length, max 16 bytes */
 		cbuf.bytes[2] = (seqno >> 8) & 0xff;
 		cbuf.bytes[3] = seqno & 0xff;
 		memcpy(&cbuf.bytes[4], buffer, bufsize);
 		len = 4 + bufsize;
 		break;
 	}
-	phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len, cbuf.u64, 0);
+
+	do {
+	    err = phyp_hcall(H_PUT_TERM_CHAR, sc->vtermid, len, cbuf.u64[0],
+			    cbuf.u64[1]);
+		DELAY(100);
+	} while (err == H_BUSY);
+
 	uart_unlock(&sc->sc_mtx);
 
 	return (bufsize);

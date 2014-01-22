@@ -184,6 +184,9 @@ Set to not build
 .It Va WITHOUT_CAPSICUM
 .\" from FreeBSD: head/tools/build/options/WITHOUT_CAPSICUM 229319 2012-01-02 21:57:58Z rwatson
 Set to not build Capsicum support into system programs.
+.It Va WITHOUT_CASPER
+.\" from FreeBSD: head/tools/build/options/WITHOUT_CASPER 258838 2013-12-02 08:21:28Z pjd
+Set to not build Casper program and related libraries.
 .It Va WITHOUT_CDDL
 .\" from FreeBSD: head/tools/build/options/WITHOUT_CDDL 163861 2006-11-01 09:02:11Z jb
 Set to not build code licensed under Sun's CDDL.
@@ -484,12 +487,6 @@ Set to not build HTML docs.
 .It Va WITHOUT_ICONV
 .\" from FreeBSD: head/tools/build/options/WITHOUT_ICONV 254919 2013-08-26 17:15:56Z antoine
 Set to not build iconv as part of libc.
-When set, it also enforces the following options:
-.Pp
-.Bl -item -compact
-.It
-.Va WITHOUT_LIBICONV_COMPAT
-.El
 .It Va WITHOUT_INET
 .\" from FreeBSD: head/tools/build/options/WITHOUT_INET 221266 2011-04-30 17:58:28Z bz
 Set to not build programs and libraries related to IPv4 networking.
@@ -646,9 +643,6 @@ runtime linker.
 .It Va WITHOUT_LIBCPLUSPLUS
 .\" from FreeBSD: head/tools/build/options/WITHOUT_LIBCPLUSPLUS 246262 2013-02-02 22:42:46Z dim
 Set to avoid building libcxxrt and libc++.
-.It Va WITH_LIBICONV_COMPAT
-.\" from FreeBSD: head/tools/build/options/WITH_LIBICONV_COMPAT 254919 2013-08-26 17:15:56Z antoine
-Set to build libiconv API and link time compatibility.
 .It Va WITHOUT_LIBPTHREAD
 .\" from FreeBSD: head/tools/build/options/WITHOUT_LIBPTHREAD 188848 2009-02-20 11:09:55Z mtm
 Set to not build the
@@ -873,15 +867,10 @@ When set, it also enforces the following options:
 .Va WITHOUT_AUTHPF
 .El
 .It Va WITHOUT_PKGBOOTSTRAP
-.\" from FreeBSD: head/tools/build/options/WITHOUT_PKGBOOTSTRAP 238023 2012-07-02 20:26:11Z marcel
+.\" from FreeBSD: head/tools/build/options/WITHOUT_PKGBOOTSTRAP 258924 2013-12-04 15:58:42Z bdrewery
 Set to not build
-.Xr pkg 1
-bootstrap tool
-.It Va WITH_PKGTOOLS
-.\" from FreeBSD: head/tools/build/options/WITH_PKGTOOLS 253305 2013-07-12 23:11:17Z bapt
-Set to build
-.Xr pkg_add 8
-and related programs.
+.Xr pkg 7
+bootstrap tool.
 .It Va WITHOUT_PMC
 .\" from FreeBSD: head/tools/build/options/WITHOUT_PMC 183242 2008-09-21 22:02:26Z sam
 Set to not build
@@ -1005,6 +994,9 @@ Set to not build and install
 Set to not build
 .Xr telnet 8
 and related programs.
+.It Va WITH_TESTS
+.\" from FreeBSD: head/tools/build/options/WITH_TESTS 258014 2013-11-11 21:13:14Z gjb
+Set to install the Kyua test suite.
 .It Va WITHOUT_TEXTPROC
 .\" from FreeBSD: head/tools/build/options/WITHOUT_TEXTPROC 183242 2008-09-21 22:02:26Z sam
 Set to not build

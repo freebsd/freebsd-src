@@ -387,14 +387,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	/* Reset TLB1 to get rid of temporary mappings */
 	tlb1_init();
 
-	/* Set up IMMR */
-	if (fdt_immr_addr(0) == 0) {
-		fdt_immr_va = pmap_early_io_map(fdt_immr_pa, fdt_immr_size);
-	} else {
-		printf("Warning: SOC base registers could not be found!\n");
-		fdt_immr_va = 0;
-	}
-
 	/* Reset Time Base */
 	mttb(0);
 
@@ -409,6 +401,11 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/* Initialize system mutexes. */

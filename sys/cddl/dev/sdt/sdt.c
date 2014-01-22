@@ -39,8 +39,6 @@
  * unloaded; in particular, probes may not span multiple kernel modules.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/cdefs.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -138,6 +136,8 @@ sdt_create_probe(struct sdt_probe *probe)
 	char mod[DTRACE_MODNAMELEN];
 	char func[DTRACE_FUNCNAMELEN];
 	char name[DTRACE_NAMELEN];
+	const char *from;
+	char *to;
 	size_t len;
 
 	TAILQ_FOREACH(prov, &sdt_prov_list, prov_entry)
@@ -161,7 +161,18 @@ sdt_create_probe(struct sdt_probe *probe)
 	 * in the C compiler, so we have to respect const vs non-const.
 	 */
 	strlcpy(func, probe->func, sizeof(func));
-	strlcpy(name, probe->name, sizeof(name));
+
+	from = probe->name;
+	to = name;
+	for (len = 0; len < (sizeof(name) - 1) && *from != '\0';
+	    len++, from++, to++) {
+		if (from[0] == '_' && from[1] == '_') {
+			*to = '-';
+			from++;
+		} else
+			*to = *from;
+	}
+	*to = '\0';
 
 	if (dtrace_probe_lookup(prov->id, mod, func, name) != DTRACE_IDNONE)
 		return;

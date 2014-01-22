@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
  *        a FreeBSD domain to other domains.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -2032,10 +2030,10 @@ xbb_filter(void *arg)
 }
 
 SDT_PROVIDER_DEFINE(xbb);
-SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_dev, flush, flush, "int");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, read, read, "int", "uint64_t",
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_dev, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, read, "int", "uint64_t",
 		  "uint64_t");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, write, write, "int",
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_dev, write, "int",
 		  "uint64_t", "uint64_t");
 
 /*----------------------------- Backend Handlers -----------------------------*/
@@ -2211,10 +2209,10 @@ fail_free_bios:
 	return (error);
 }
 
-SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_file, flush, flush, "int");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, read, read, "int", "uint64_t",
+SDT_PROBE_DEFINE1(xbb, kernel, xbb_dispatch_file, flush, "int");
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, read, "int", "uint64_t",
 		  "uint64_t");
-SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, write, write, "int",
+SDT_PROBE_DEFINE3(xbb, kernel, xbb_dispatch_file, write, "int",
 		  "uint64_t", "uint64_t");
 
 /**

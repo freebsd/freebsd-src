@@ -1787,7 +1787,6 @@ failed_express_del:
 				asoc->highest_tsn_inside_nr_map = tsn;
 			}
 			SCTP_STAT_INCR(sctps_recvexpressm);
-			control->sinfo_tsn = tsn;
 			asoc->tsn_last_delivered = tsn;
 			asoc->fragment_flags = chunk_flags;
 			asoc->tsn_of_pdapi_last_delivered = tsn;

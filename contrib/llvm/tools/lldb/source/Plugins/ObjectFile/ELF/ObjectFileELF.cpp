@@ -16,12 +16,15 @@
 #include "lldb/Core/DataBuffer.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/FileSpecList.h"
+#include "lldb/Core/Log.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Symbol/DWARFCallFrameInfo.h"
 #include "lldb/Symbol/SymbolContext.h"
+#include "lldb/Target/Target.h"
 #include "lldb/Host/Host.h"
 
 #include "llvm/ADT/PointerUnion.h"
@@ -140,6 +143,44 @@ ELFRelocation::RelocSymbol64(const ELFRelocation &rel)
 }
 
 } // end anonymous namespace
+
+bool
+ELFNote::Parse(const DataExtractor &data, lldb::offset_t *offset)
+{
+    // Read all fields.
+    if (data.GetU32(offset, &n_namesz, 3) == NULL)
+        return false;
+
+    // The name field is required to be nul-terminated, and n_namesz
+    // includes the terminating nul in observed implementations (contrary
+    // to the ELF-64 spec).  A special case is needed for cores generated
+    // by some older Linux versions, which write a note named "CORE"
+    // without a nul terminator and n_namesz = 4.
+    if (n_namesz == 4)
+    {
+        char buf[4];
+        if (data.ExtractBytes (*offset, 4, data.GetByteOrder(), buf) != 4)
+            return false;
+        if (strncmp (buf, "CORE", 4) == 0)
+        {
+            n_name = "CORE";
+            *offset += 4;
+            return true;
+        }
+    }
+
+    const char *cstr = data.GetCStr(offset, llvm::RoundUpToAlignment (n_namesz, 4));
+    if (cstr == NULL)
+    {
+        Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_SYMBOLS));
+        if (log)
+            log->Printf("Failed to parse note name lacking nul terminator");
+
+        return false;
+    }
+    n_name = cstr;
+    return true;
+}
 
 //------------------------------------------------------------------
 // Static methods.
@@ -514,7 +555,7 @@ ObjectFileELF::GetDependentModules(FileSpecList &files)
 }
 
 Address
-ObjectFileELF::GetImageInfoAddress()
+ObjectFileELF::GetImageInfoAddress(Target *target)
 {
     if (!ParseDynamicSymbols())
         return Address();
@@ -544,6 +585,17 @@ ObjectFileELF::GetImageInfoAddress()
             // size of d_tag.
             addr_t offset = i * dynsym_hdr->sh_entsize + GetAddressByteSize();
             return Address(dynsym_section_sp, offset);
+        }
+        else if (symbol.d_tag == DT_MIPS_RLD_MAP && target)
+        {
+            addr_t offset = i * dynsym_hdr->sh_entsize + GetAddressByteSize();
+            addr_t dyn_base = dynsym_section_sp->GetLoadBaseAddress(target);
+            if (dyn_base == LLDB_INVALID_ADDRESS)
+                return Address();
+            Address addr;
+            Error error;
+            if (target->ReadPointerFromMemory(dyn_base + offset, false, error, addr))
+                return addr;
         }
     }
 
@@ -672,42 +724,26 @@ ParseNoteGNUBuildID(DataExtractor &data, lldb_private::UUID &uuid)
 {
     // Try to parse the note section (ie .note.gnu.build-id|.notes|.note|...) and get the build id.
     // BuildID documentation: https://fedoraproject.org/wiki/Releases/FeatureBuildId
-    struct
-    {
-        uint32_t name_len;  // Length of note name
-        uint32_t desc_len;  // Length of note descriptor
-        uint32_t type;      // Type of note (1 is ABI_TAG, 3 is BUILD_ID)
-    } notehdr;
     lldb::offset_t offset = 0;
     static const uint32_t g_gnu_build_id = 3; // NT_GNU_BUILD_ID from elf.h
 
     while (true)
     {
-        if (data.GetU32 (&offset, &notehdr, 3) == NULL)
+        ELFNote note = ELFNote();
+        if (!note.Parse(data, &offset))
             return false;
 
-        notehdr.name_len = llvm::RoundUpToAlignment (notehdr.name_len, 4);
-        notehdr.desc_len = llvm::RoundUpToAlignment (notehdr.desc_len, 4);
-
-        lldb::offset_t offset_next_note = offset + notehdr.name_len + notehdr.desc_len;
-
         // 16 bytes is UUID|MD5, 20 bytes is SHA1
-        if ((notehdr.type == g_gnu_build_id) && (notehdr.name_len == 4) &&
-            (notehdr.desc_len == 16 || notehdr.desc_len == 20))
+        if (note.n_name == "GNU" && (note.n_type == g_gnu_build_id) &&
+            (note.n_descsz == 16 || note.n_descsz == 20))
         {
-            char name[4];
-            if (data.GetU8 (&offset, name, 4) == NULL)
+            uint8_t uuidbuf[20]; 
+            if (data.GetU8 (&offset, &uuidbuf, note.n_descsz) == NULL)
                 return false;
-            if (!strcmp(name, "GNU"))
-            {
-                uint8_t uuidbuf[20]; 
-                if (data.GetU8 (&offset, &uuidbuf, notehdr.desc_len) == NULL)
-                    return false;
-                uuid.SetBytes (uuidbuf, notehdr.desc_len);
-                return true;
-            }
+            uuid.SetBytes (uuidbuf, note.n_descsz);
+            return true;
         }
-        offset = offset_next_note;
+        offset += llvm::RoundUpToAlignment(note.n_descsz, 4);
     }
     return false;
 }
@@ -1280,6 +1316,11 @@ ObjectFileELF::FindDynamicSymbol(unsigned tag)
 unsigned
 ObjectFileELF::PLTRelocationType()
 {
+    // DT_PLTREL
+    //  This member specifies the type of relocation entry to which the
+    //  procedure linkage table refers. The d_val member holds DT_REL or
+    //  DT_RELA, as appropriate. All relocations in a procedure linkage table
+    //  must use the same relocation.
     const ELFDynamic *symbol = FindDynamicSymbol(DT_PLTREL);
 
     if (symbol)
@@ -1304,7 +1345,10 @@ ParsePLTRelocations(Symtab *symbol_table,
     ELFRelocation rel(rel_type);
     ELFSymbol symbol;
     lldb::offset_t offset = 0;
-    const elf_xword plt_entsize = plt_hdr->sh_entsize;
+    // Clang 3.3 sets entsize to 4 for 32-bit binaries, but the plt entries are 16 bytes.
+    // So round the entsize up by the alignment if addralign is set.
+    const elf_xword plt_entsize = plt_hdr->sh_addralign ?
+        llvm::RoundUpToAlignment (plt_hdr->sh_entsize, plt_hdr->sh_addralign) : plt_hdr->sh_entsize;
     const elf_xword num_relocations = rel_hdr->sh_size / rel_hdr->sh_entsize;
 
     typedef unsigned (*reloc_info_fn)(const ELFRelocation &rel);
@@ -1479,10 +1523,17 @@ ObjectFileELF::GetSymtab()
         if (symtab)
             symbol_id += ParseSymbolTable (m_symtab_ap.get(), symbol_id, symtab);
 
-        // Synthesize trampoline symbols to help navigate the PLT.
+        // DT_JMPREL
+        //      If present, this entry's d_ptr member holds the address of relocation
+        //      entries associated solely with the procedure linkage table. Separating
+        //      these relocation entries lets the dynamic linker ignore them during
+        //      process initialization, if lazy binding is enabled. If this entry is
+        //      present, the related entries of types DT_PLTRELSZ and DT_PLTREL must
+        //      also be present.
         const ELFDynamic *symbol = FindDynamicSymbol(DT_JMPREL);
         if (symbol)
         {
+            // Synthesize trampoline symbols to help navigate the PLT.
             addr_t addr = symbol->d_ptr;
             Section *reloc_section = section_list->FindSectionContainingFileAddress(addr).get();
             if (reloc_section) 
@@ -1497,6 +1548,57 @@ ObjectFileELF::GetSymtab()
     }
     return m_symtab_ap.get();
 }
+
+Symbol *
+ObjectFileELF::ResolveSymbolForAddress(const Address& so_addr, bool verify_unique)
+{
+    if (!m_symtab_ap.get())
+        return nullptr; // GetSymtab() should be called first.
+
+    const SectionList *section_list = GetSectionList();
+    if (!section_list)
+        return nullptr;
+
+    if (DWARFCallFrameInfo *eh_frame = GetUnwindTable().GetEHFrameInfo())
+    {
+        AddressRange range;
+        if (eh_frame->GetAddressRange (so_addr, range))
+        {
+            const addr_t file_addr = range.GetBaseAddress().GetFileAddress();
+            Symbol * symbol = verify_unique ? m_symtab_ap->FindSymbolContainingFileAddress(file_addr) : nullptr;
+            if (symbol)
+                return symbol;
+
+            // Note that a (stripped) symbol won't be found by GetSymtab()...
+            lldb::SectionSP eh_sym_section_sp = section_list->FindSectionContainingFileAddress(file_addr);
+            if (eh_sym_section_sp.get())
+            {
+                addr_t section_base = eh_sym_section_sp->GetFileAddress();
+                addr_t offset = file_addr - section_base;
+                uint64_t symbol_id = m_symtab_ap->GetNumSymbols();
+
+                Symbol eh_symbol(
+                        symbol_id,            // Symbol table index.
+                        "???",                // Symbol name.
+                        false,                // Is the symbol name mangled?
+                        eSymbolTypeCode,      // Type of this symbol.
+                        true,                 // Is this globally visible?
+                        false,                // Is this symbol debug info?
+                        false,                // Is this symbol a trampoline?
+                        true,                 // Is this symbol artificial?
+                        eh_sym_section_sp,    // Section in which this symbol is defined or null.
+                        offset,               // Offset in section or symbol value.
+                        range.GetByteSize(),  // Size in bytes of this symbol.
+                        true,                 // Size is valid.
+                        0);                   // Symbol flags.
+                if (symbol_id == m_symtab_ap->AddSymbol(eh_symbol))
+                    return m_symtab_ap->SymbolAtIndex(symbol_id);
+            }
+        }
+    }
+    return nullptr;
+}
+
 
 bool
 ObjectFileELF::IsStripped ()

@@ -144,8 +144,12 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		 */
 		(void) ieee80211_pwrsave(ni, m);
 		ieee80211_free_node(ni);
-		/* XXX better status? */
-		return (ENOBUFS);
+
+		/*
+		 * We queued it fine, so tell the upper layer
+		 * that we consumed it.
+		 */
+		return (0);
 	}
 	/* calculate priority so drivers can find the tx queue */
 	if (ieee80211_classify(ni, m)) {
@@ -156,8 +160,9 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 		ifp->if_oerrors++;
 		m_freem(m);
 		ieee80211_free_node(ni);
+
 		/* XXX better status? */
-		return (ENOBUFS);
+		return (0);
 	}
 	/*
 	 * Stash the node pointer.  Note that we do this after
@@ -168,7 +173,6 @@ ieee80211_vap_pkt_send_dest(struct ieee80211vap *vap, struct mbuf *m,
 	m->m_pkthdr.rcvif = (void *)ni;
 
 	BPF_MTAP(ifp, m);		/* 802.3 tx */
-
 
 	/*
 	 * Check if A-MPDU tx aggregation is setup or if we
@@ -768,7 +772,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_AUTH, wh->i_addr1,
 		    "encrypting frame (%s)", __func__);
-		wh->i_fc[1] |= IEEE80211_FC1_WEP;
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	}
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
@@ -1493,7 +1497,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		     (vap->iv_opmode == IEEE80211_M_STA ?
 		      !IEEE80211_KEY_UNDEFINED(key) :
 		      !IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)))) {
-			wh->i_fc[1] |= IEEE80211_FC1_WEP;
+			wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 			if (!ieee80211_crypto_enmic(vap, key, m, txfrag)) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_OUTPUT,
 				    eh.ether_dhost,

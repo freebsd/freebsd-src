@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
@@ -236,6 +238,44 @@ sglist_append(struct sglist *sg, void *buf, size_t len)
 	if (error)
 		SGLIST_RESTORE(sg, save);
 	return (error);
+}
+
+/*
+ * Append the segments to describe a bio's data to a scatter/gather list.
+ * If there are insufficient segments, then this fails with EFBIG.
+ *
+ * NOTE: This function expects bio_bcount to be initialized.
+ */
+int
+sglist_append_bio(struct sglist *sg, struct bio *bp)
+{
+	struct sgsave save;
+	vm_paddr_t paddr;
+	size_t len, tlen;
+	int error, i, ma_offs;
+
+	if ((bp->bio_flags & BIO_UNMAPPED) == 0) {
+		error = sglist_append(sg, bp->bio_data, bp->bio_bcount);
+		return (error);
+	}
+
+	if (sg->sg_maxseg == 0)
+		return (EINVAL);
+
+	SGLIST_SAVE(sg, save);
+	tlen = bp->bio_bcount;
+	ma_offs = bp->bio_ma_offset;
+	for (i = 0; tlen > 0; i++, tlen -= len) {
+		len = min(PAGE_SIZE - ma_offs, tlen);
+		paddr = VM_PAGE_TO_PHYS(bp->bio_ma[i]) + ma_offs;
+		error = sglist_append_phys(sg, paddr, len);
+		if (error) {
+			SGLIST_RESTORE(sg, save);
+			return (error);
+		}
+		ma_offs = 0;
+	}
+	return (0);
 }
 
 /*

@@ -178,23 +178,16 @@
 #define	PHYS_TO_DMAP(x)		((x) | DMAP_MIN_ADDRESS)
 #define	DMAP_TO_PHYS(x)		((x) & ~DMAP_MIN_ADDRESS)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define	VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
 #define	VM_KMEM_SIZE_SCALE	(1)
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Optional ceiling (in bytes) on the size of the kmem arena: 60% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((VM_MAX_KERNEL_ADDRESS - \

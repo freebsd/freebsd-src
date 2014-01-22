@@ -2884,8 +2884,8 @@ again to finish installing updates.
 	install_delete INDEX-OLD INDEX-NEW || return 1
 
 	# Remove old directories
-	grep -vE '^/boot/' $1/INDEX-OLD |
-	    grep -E '^[^|]+\|d\|' > INDEX-OLD
+	grep -vE '^/boot/' $1/INDEX-NEW |
+	    grep -E '^[^|]+\|d\|' > INDEX-NEW
 	grep -vE '^/boot/' $1/INDEX-OLD |
 	    grep -E '^[^|]+\|d\|' > INDEX-OLD
 	install_delete INDEX-OLD INDEX-NEW || return 1

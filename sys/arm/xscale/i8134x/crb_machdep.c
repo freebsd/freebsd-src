@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -123,7 +124,7 @@ struct pv_addr abtstack;
 struct pv_addr kernelstack;
 
 /* Static device mappings. */
-static const struct pmap_devmap iq81342_devmap[] = {
+static const struct arm_devmap_entry iq81342_devmap[] = {
 	    {
 		    IOP34X_VADDR,
 		    IOP34X_HWADDR,
@@ -285,7 +286,7 @@ initarm(struct arm_boot_params *abp)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, iq81342_devmap);
+	arm_devmap_bootstrap(l1pagetable, iq81342_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -319,6 +320,8 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
+
 	i80321_calibrate_delay();
 	i81342_sdram_bounds(&obio_bs_tag, IOP34X_VADDR, &memstart, &memsize);
 	physmem = memsize / PAGE_SIZE;

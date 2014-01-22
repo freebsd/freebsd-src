@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2013
+.Dd December 31, 2013
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -140,6 +140,9 @@
 .Nm
 .Cm remove
 .Ar pool device ...
+.Nm
+.Cm reopen
+.Ar pool
 .Nm
 .Cm replace
 .Op Fl f
@@ -1429,6 +1432,13 @@ are part of a mirrored configuration can be removed using the
 command. Non-redundant and
 .No raidz
 devices cannot be removed from a pool.
+.It Xo
+.Nm
+.Cm reopen
+.Ar pool
+.Xc
+.Pp
+Reopen all the vdevs associated with the pool.
 .It Xo
 .Nm
 .Cm replace

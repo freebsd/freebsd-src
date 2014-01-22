@@ -733,7 +733,7 @@ sta_cancel(struct ieee80211_scan_state *ss, struct ieee80211vap *vap)
 	return 0;
 }
 
-/* unalligned little endian access */     
+/* unaligned little endian access */     
 #define LE_READ_2(p)					\
 	((uint16_t)					\
 	 ((((const uint8_t *)(p))[0]      ) |		\

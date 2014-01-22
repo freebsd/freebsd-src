@@ -56,6 +56,8 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 # include <syslog.h>
 #endif
 
+#include <stdlib.h>
+
 void *__stack_chk_guard = 0;
 
 static void __attribute__ ((constructor))

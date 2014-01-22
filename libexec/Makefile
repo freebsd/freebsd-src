@@ -6,6 +6,7 @@
 SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
+	${_casper} \
 	${_cheritest_helper} \
 	${_comsat} \
 	fingerd \
@@ -30,17 +31,18 @@ SUBDIR=	${_atf} \
 	tcpd \
 	${_tcpdump_helper} \
 	${_telnetd} \
+	${_tests} \
 	tftpd \
 	${_tftp-proxy} \
 	ulog-helper \
 	${_ypxfr}
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_AT} != "no"
 _atrun=		atrun
+.endif
+
+.if ${MK_CASPER} != "no"
+_casper=	casper
 .endif
 
 .if ${MK_CHERI} != "no"
@@ -81,6 +83,11 @@ _smrsh=		smrsh
 
 .if ${MK_TELNET} != "no"
 _telnetd=	telnetd
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .include <bsd.subdir.mk>

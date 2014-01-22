@@ -122,7 +122,9 @@
 
 #ifndef LOCORE
 struct	trapframe;
+struct	pcb;
 void    trap(struct trapframe *);
+int	ppc_instr_emulate(struct trapframe *, struct pcb *);
 #endif
 
 #endif	/* _POWERPC_TRAP_H_ */

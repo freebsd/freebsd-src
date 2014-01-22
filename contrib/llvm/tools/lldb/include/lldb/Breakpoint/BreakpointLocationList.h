@@ -250,6 +250,9 @@ protected:
 
     bool
     RemoveLocation (const lldb::BreakpointLocationSP &bp_loc_sp);
+    
+    void
+    RemoveInvalidLocations (const ArchSpec &arch);
 
     typedef std::vector<lldb::BreakpointLocationSP> collection;
     typedef std::map<lldb_private::Address,
@@ -257,7 +260,7 @@ protected:
                      Address::ModulePointerAndOffsetLessThanFunctionObject> addr_map;
 
     Breakpoint &m_owner;
-    collection m_locations;
+    collection m_locations;         // Vector of locations, sorted by ID 
     addr_map m_address_to_location;
     mutable Mutex m_mutex;
     lldb::break_id_t m_next_id;

@@ -290,16 +290,50 @@
 				/* 5003C000 0x4000 SPBA */
 			};
 
-			/* 73F80000 0x4000 USBOH3 */
-			/* irq14 USBOH3 USB Host 1 */
-			/* irq16 USBOH3 USB Host 2 */
-			/* irq17 USBOH3 USB Host 3 */
-			/* irq18 USBOH3 USB OTG */
-			usb1: usb@53F80000 {
-				compatible = "fsl,usb-4core";
-				reg = <0x53f80000 0x4000>;
-				interrupt-parent = <&tzic>;
-				interrupts = <18 14 16 17>;
+			usbphy0: usbphy@0 {
+				compatible = "usb-nop-xceiv";
+				status = "okay";
+			};
+
+			usbphy1: usbphy@1 {
+				compatible = "usb-nop-xceiv";
+				status = "okay";
+			};
+
+			usbotg: usb@53f80000 {
+				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
+				reg = <0x53f80000 0x0200>;
+				interrupts = <18>;
+				fsl,usbphy = <&usbphy0>;
+				status = "disabled";
+			};
+
+			usbh1: usb@53f80200 {
+				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
+				reg = <0x53f80200 0x0200>;
+				interrupts = <14>;
+				fsl,usbphy = <&usbphy1>;
+				status = "disabled";
+			};
+
+			usbh2: usb@53f80400 {
+				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
+				reg = <0x53f80400 0x0200>;
+				interrupts = <16>;
+				status = "disabled";
+			};
+
+			usbh3: usb@53f80600 {
+				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
+				reg = <0x53f80600 0x0200>;
+				interrupts = <17>;
+				status = "disabled";
+			};
+
+			usbmisc: usbmisc@53f80800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx53-usbmisc";
+				reg = <0x53f80800 0x200>;
 			};
 
 			/* 53F98000 0x4000 WDOG1 */
@@ -419,18 +453,6 @@
 				status = "disabled";
 			};
 
-
-
-			/* 53FC4000 0x4000 USBOH3 */
-			/* NOTYET
-			usb@53fc4000 {
-				compatible = "fsl,imx53-otg";
-				reg = <0x53fc4000 0x4000>;
-				interrupt-parent = <&tzic>;
-				interrupts = <>;
-				status = "disabled";
-			};
-			*/
 			/* 53FD0000 0x4000 SRC */
 			reset@53fd0000 {
 				compatible = "fsl,imx53-src";

@@ -600,7 +600,7 @@ int main(int argc, char *argv[])
 			break;
 
 		case 'w':
-			wh->i_fc[1] |= IEEE80211_FC1_WEP;
+			wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 			break;
 
 		case 'o':

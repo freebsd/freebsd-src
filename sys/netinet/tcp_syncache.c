@@ -722,6 +722,16 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif
 
 	/*
+	 * If there's an mbuf and it has a flowid, then let's initialise the
+	 * inp with that particular flowid.
+	 */
+	if (m != NULL && m->m_flags & M_FLOWID) {
+		inp->inp_flags |= INP_HW_FLOWID;
+		inp->inp_flags &= ~INP_SW_FLOWID;
+		inp->inp_flowid = m->m_pkthdr.flowid;
+	}
+
+	/*
 	 * Install in the reservation hash table for now, but don't yet
 	 * install a connection group since the full 4-tuple isn't yet
 	 * configured.

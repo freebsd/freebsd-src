@@ -137,7 +137,9 @@
 /*
  * Special compilation symbols
  * PMAP_DEBUG           - Build in pmap_debug_level code
- */
+ *
+ * Note that pmap_mapdev() and pmap_unmapdev() are implemented in arm/devmap.c
+*/
 /* Include header files */
 
 #include "opt_vm.h"
@@ -1517,10 +1519,10 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		vm_page_dirty(m);
 
 		/* Re-enable write permissions for the page */
-		pmap_set_prot(ptep, VM_PROT_WRITE, *ptep & L2_S_PROT_U);
-		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", pte);
+		*ptep = (pte & ~L2_APX);
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	} else if (!L2_S_REFERENCED(pte)) {
 		/*
 		 * This looks like a good candidate for "page referenced"
@@ -1543,6 +1545,7 @@ pmap_fault_fixup(pmap_t pmap, vm_offset_t va, vm_prot_t ftype, int user)
 		*ptep = pte | L2_S_REF;
 		PTE_SYNC(ptep);
 		rv = 1;
+		CTR1(KTR_PMAP, "pmap_fault_fix: new pte:0x%x", *ptep);
 	}
 
 	/*
@@ -2424,6 +2427,17 @@ pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa)
 }
 
 void
+pmap_kenter_device(vm_offset_t va, vm_paddr_t pa)
+{
+
+	/*
+	 * XXX - Need a way for kenter_internal to handle PTE_DEVICE mapping as
+	 * a potentially different thing than PTE_NOCACHE.
+	 */
+	pmap_kenter_internal(va, pa, 0);
+}
+
+void
 pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 {
 
@@ -3065,36 +3079,33 @@ validate:
 	 * then continue setting mapping parameters
 	 */
 	if (m != NULL) {
-		if (prot & (VM_PROT_ALL)) {
-			if ((m->oflags & VPO_UNMANAGED) == 0)
+		if ((m->oflags & VPO_UNMANAGED) == 0) {
+			if (prot & (VM_PROT_ALL)) {
 				vm_page_aflag_set(m, PGA_REFERENCED);
-		} else {
-			/*
-			 * Need to do page referenced emulation.
-			 */
-			npte &= ~L2_S_REF;
+			} else {
+				/*
+				 * Need to do page referenced emulation.
+				 */
+				npte &= ~L2_S_REF;
+			}
 		}
 
 		if (prot & VM_PROT_WRITE) {
-			/*
-			 * Enable write permission if the access type
-			 * indicates write intention. Emulate modified
-			 * bit otherwise.
-			 */
-			if ((access & VM_PROT_WRITE) != 0)
-				npte &= ~(L2_APX);
-
 			if ((m->oflags & VPO_UNMANAGED) == 0) {
 				vm_page_aflag_set(m, PGA_WRITEABLE);
 				/*
-				 * The access type and permissions indicate 
-				 * that the page will be written as soon as
-				 * returned from fault service.
-				 * Mark it dirty from the outset.
+				 * XXX: Skip modified bit emulation for now.
+				 *	The emulation reveals problems
+				 *	that result in random failures
+				 *	during memory allocation on some
+				 *	platforms.
+				 *	Therefore, the page is marked RW
+				 *	immediately.
 				 */
-				if ((access & VM_PROT_WRITE) != 0)
-					vm_page_dirty(m);
-			}
+				npte &= ~(L2_APX);
+				vm_page_dirty(m);
+			} else
+				npte &= ~(L2_APX);
 		}
 		if (!(prot & VM_PROT_EXECUTE))
 			npte |= L2_XN;
@@ -5008,36 +5019,20 @@ void
 pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
     vm_offset_t *addr, vm_size_t size)
 {
-}
+	vm_offset_t superpage_offset;
 
-
-/*
- * Map a set of physical memory pages into the kernel virtual
- * address space. Return a pointer to where it is mapped. This
- * routine is intended to be used for mapping device memory,
- * NOT real memory.
- */
-void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
-{
-	vm_offset_t va, tmpva, offset;
-
-	offset = pa & PAGE_MASK;
-	size = roundup(size, PAGE_SIZE);
-
-	GIANT_REQUIRED;
-
-	va = kva_alloc(size);
-	if (!va)
-		panic("pmap_mapdev: Couldn't alloc kernel virtual memory");
-	for (tmpva = va; size > 0;) {
-		pmap_kenter_internal(tmpva, pa, 0);
-		size -= PAGE_SIZE;
-		tmpva += PAGE_SIZE;
-		pa += PAGE_SIZE;
-	}
-
-	return ((void *)(va + offset));
+	if (size < NBPDR)
+		return;
+	if (object != NULL && (object->flags & OBJ_COLORED) != 0)
+		offset += ptoa(object->pg_color);
+	superpage_offset = offset & PDRMASK;
+	if (size - ((NBPDR - superpage_offset) & PDRMASK) < NBPDR ||
+	    (*addr & PDRMASK) == superpage_offset)
+		return;
+	if ((*addr & PDRMASK) < superpage_offset)
+		*addr = (*addr & ~PDRMASK) + superpage_offset;
+	else
+		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
 
 /*
@@ -5220,86 +5215,6 @@ pmap_map_chunk(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 #endif
 	return (size);
 
-}
-
-/********************** Static device map routines ***************************/
-
-static const struct pmap_devmap *pmap_devmap_table;
-
-/*
- * Register the devmap table.  This is provided in case early console
- * initialization needs to register mappings created by bootstrap code
- * before pmap_devmap_bootstrap() is called.
- */
-void
-pmap_devmap_register(const struct pmap_devmap *table)
-{
-
-	pmap_devmap_table = table;
-}
-
-/*
- * Map all of the static regions in the devmap table, and remember
- * the devmap table so other parts of the kernel can look up entries
- * later.
- */
-void
-pmap_devmap_bootstrap(vm_offset_t l1pt, const struct pmap_devmap *table)
-{
-	int i;
-
-	pmap_devmap_table = table;
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-#ifdef VERBOSE_INIT_ARM
-		printf("devmap: %08x -> %08x @ %08x\n",
-		    pmap_devmap_table[i].pd_pa,
-		    pmap_devmap_table[i].pd_pa +
-			pmap_devmap_table[i].pd_size - 1,
-		    pmap_devmap_table[i].pd_va);
-#endif
-		pmap_map_chunk(l1pt, pmap_devmap_table[i].pd_va,
-		    pmap_devmap_table[i].pd_pa,
-		    pmap_devmap_table[i].pd_size,
-		    pmap_devmap_table[i].pd_prot,
-		    pmap_devmap_table[i].pd_cache);
-	}
-}
-
-const struct pmap_devmap *
-pmap_devmap_find_pa(vm_paddr_t pa, vm_size_t size)
-{
-	int i;
-
-	if (pmap_devmap_table == NULL)
-		return (NULL);
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-		if (pa >= pmap_devmap_table[i].pd_pa &&
-		    pa + size <= pmap_devmap_table[i].pd_pa +
-				 pmap_devmap_table[i].pd_size)
-			return (&pmap_devmap_table[i]);
-	}
-
-	return (NULL);
-}
-
-const struct pmap_devmap *
-pmap_devmap_find_va(vm_offset_t va, vm_size_t size)
-{
-	int i;
-
-	if (pmap_devmap_table == NULL)
-		return (NULL);
-
-	for (i = 0; pmap_devmap_table[i].pd_size != 0; i++) {
-		if (va >= pmap_devmap_table[i].pd_va &&
-		    va + size <= pmap_devmap_table[i].pd_va +
-				 pmap_devmap_table[i].pd_size)
-			return (&pmap_devmap_table[i]);
-	}
-
-	return (NULL);
 }
 
 int

@@ -35,25 +35,10 @@
 #include <sys/slicer.h>
 #include <contrib/libfdt/libfdt_env.h>
 #include <dev/ofw/ofw_bus.h>
-#include <machine/fdt.h>
 
 #define FDT_MEM_REGIONS	8
 
 #define DI_MAX_INTR_NUM	32
-
-struct fdt_pci_range {
-	u_long	base_pci;
-	u_long	base_parent;
-	u_long	len;
-};
-
-struct fdt_pci_intr {
-	int	addr_cells;
-	int	intr_cells;
-	int	map_len;
-	pcell_t	*map;
-	pcell_t	*mask;
-};
 
 struct fdt_sense_level {
 	enum intr_trigger	trig;
@@ -102,19 +87,13 @@ int fdt_get_phyaddr(phandle_t, device_t, int *, void **);
 int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);
 int fdt_regsize(phandle_t, u_long *, u_long *);
-int fdt_intr_decode(phandle_t, pcell_t *, int *, int *, int *);
-int fdt_intr_to_rl(phandle_t, struct resource_list *, struct fdt_sense_level *);
+int fdt_intr_to_rl(device_t, phandle_t, struct resource_list *, struct fdt_sense_level *);
 int fdt_is_compatible(phandle_t, const char *);
 int fdt_is_compatible_strict(phandle_t, const char *);
 int fdt_is_enabled(phandle_t);
 int fdt_pm_is_enabled(phandle_t);
 int fdt_is_type(phandle_t, const char *);
 int fdt_parent_addr_cells(phandle_t);
-int fdt_pci_intr_info(phandle_t, struct fdt_pci_intr *);
-int fdt_pci_ranges(phandle_t, struct fdt_pci_range *, struct fdt_pci_range *);
-int fdt_pci_ranges_decode(phandle_t, struct fdt_pci_range *,
-    struct fdt_pci_range *);
-int fdt_pci_route_intr(int, int, int, int, struct fdt_pci_intr *, int *);
 int fdt_ranges_verify(pcell_t *, int, int, int, int);
 int fdt_reg_to_rl(phandle_t, struct resource_list *);
 int fdt_pm(phandle_t);

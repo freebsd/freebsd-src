@@ -347,6 +347,32 @@ public:
                    SymbolContextList& sc_list);
 
     //------------------------------------------------------------------
+    /// Find addresses by file/line
+    ///
+    /// @param[in] target_sp
+    ///     The target the addresses are desired for.
+    ///
+    /// @param[in] file
+    ///     Source file to locate.
+    ///
+    /// @param[in] line
+    ///     Source line to locate.
+    ///
+    /// @param[in] function
+    ///	    Optional filter function. Addresses within this function will be
+    ///     added to the 'local' list. All others will be added to the 'extern' list.
+    ///
+    /// @param[out] output_local
+    ///     All matching addresses within 'function'
+    ///
+    /// @param[out] output_extern
+    ///     All matching addresses not within 'function'
+    void FindAddressesForLine (const lldb::TargetSP target_sp,
+                               const FileSpec &file, uint32_t line,
+                               Function *function,
+                               std::vector<Address> &output_local, std::vector<Address> &output_extern);
+
+    //------------------------------------------------------------------
     /// Find global and static variables by name.
     ///
     /// @param[in] name
@@ -544,6 +570,18 @@ public:
     }
 
     const FileSpec &
+    GetRemoteInstallFileSpec () const
+    {
+        return m_remote_install_file;
+    }
+    
+    void
+    SetRemoteInstallFileSpec (const FileSpec &file)
+    {
+        m_remote_install_file = file;
+    }
+    
+    const FileSpec &
     GetSymbolFileFileSpec () const
     {
         return m_symfile_spec;
@@ -723,8 +761,49 @@ public:
     bool
     ResolveFileAddress (lldb::addr_t vm_addr, Address& so_addr);
 
+    //------------------------------------------------------------------
+    /// Resolve the symbol context for the given address.
+    ///
+    /// Tries to resolve the matching symbol context based on a lookup
+    /// from the current symbol vendor.  If the lazy lookup fails,
+    /// an attempt is made to parse the eh_frame section to handle 
+    /// stripped symbols.  If this fails, an attempt is made to resolve
+    /// the symbol to the previous address to handle the case of a 
+    /// function with a tail call.
+    ///
+    /// Use properties of the modified SymbolContext to inspect any
+    /// resolved target, module, compilation unit, symbol, function,
+    /// function block or line entry.  Use the return value to determine
+    /// which of these properties have been modified.
+    ///
+    /// @param[in] so_addr
+    ///     A load address to resolve.
+    ///
+    /// @param[in] resolve_scope
+    ///     The scope that should be resolved (see SymbolContext::Scope).
+    ///     A combination of flags from the enumeration SymbolContextItem
+    ///     requesting a resolution depth.  Note that the flags that are
+    ///     actually resolved may be a superset of the requested flags.
+    ///     For instance, eSymbolContextSymbol requires resolution of
+    ///     eSymbolContextModule, and eSymbolContextFunction requires
+    ///     eSymbolContextSymbol.
+    ///
+    /// @param[out] sc
+    ///     The SymbolContext that is modified based on symbol resolution.
+    ///
+    /// @param[in] resolve_tail_call_address
+    ///     Determines if so_addr should resolve to a symbol in the case
+    ///     of a function whose last instruction is a call.  In this case,
+    ///     the PC can be one past the address range of the function.
+    ///
+    /// @return
+    ///     The scope that has been resolved (see SymbolContext::Scope).
+    ///
+    /// @see SymbolContext::Scope
+    //------------------------------------------------------------------
     uint32_t
-    ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve_scope, SymbolContext& sc);
+    ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve_scope,
+                                    SymbolContext& sc, bool resolve_tail_call_address = false);
 
     //------------------------------------------------------------------
     /// Resolve items in the symbol context for a given file and line.
@@ -992,6 +1071,7 @@ protected:
     lldb_private::UUID          m_uuid;         ///< Each module is assumed to have a unique identifier to help match it up to debug symbols.
     FileSpec                    m_file;         ///< The file representation on disk for this module (if there is one).
     FileSpec                    m_platform_file;///< The path to the module on the platform on which it is being debugged
+    FileSpec                    m_remote_install_file;  ///< If set when debugging on remote platforms, this module will be installed at this location
     FileSpec                    m_symfile_spec; ///< If this path is valid, then this is the file that _will_ be used as the symbol file for this module
     ConstString                 m_object_name;  ///< The name an object within this module that is selected, or empty of the module is represented by \a m_file.
     uint64_t                    m_object_offset;

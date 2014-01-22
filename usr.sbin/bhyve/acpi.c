@@ -44,6 +44,7 @@
  *     XSDT  ->   0xf0480    (36 bytes + 8*N table addrs, 2 used)
  *       MADT  ->   0xf0500  (depends on #CPUs)
  *       FADT  ->   0xf0600  (268 bytes)
+ *       HPET  ->   0xf0740  (56 bytes)
  *         FACS  ->   0xf0780 (64 bytes)
  *         DSDT  ->   0xf0800 (variable - can go up to 0x100000)
  */
@@ -56,13 +57,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <paths.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <machine/vmm.h>
+#include <vmmapi.h>
+
 #include "bhyverun.h"
 #include "acpi.h"
+#include "pci_emul.h"
 
 /*
  * Define the base address of the ACPI tables, and the offsets to
@@ -73,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #define XSDT_OFFSET		0x080
 #define MADT_OFFSET		0x100
 #define FADT_OFFSET		0x200
+#define	HPET_OFFSET		0x340
 #define FACS_OFFSET		0x380
 #define DSDT_OFFSET		0x400
 
@@ -80,12 +87,11 @@ __FBSDID("$FreeBSD$");
 #define BHYVE_ASL_SUFFIX	".aml"
 #define BHYVE_ASL_COMPILER	"/usr/sbin/iasl"
 
-#define BHYVE_PM_TIMER_ADDR	0x408
-
 static int basl_keep_temps;
 static int basl_verbose_iasl;
 static int basl_ncpu;
 static uint32_t basl_acpi_base = BHYVE_ACPI_BASE;
+static uint32_t hpet_capabilities;
 
 /*
  * Contains the full pathname of the template to be passed
@@ -93,6 +99,13 @@ static uint32_t basl_acpi_base = BHYVE_ACPI_BASE;
  */
 static char basl_template[MAXPATHLEN];
 static char basl_stemplate[MAXPATHLEN];
+
+/*
+ * State for dsdt_line(), dsdt_indent(), and dsdt_unindent().
+ */
+static FILE *dsdt_fp;
+static int dsdt_indent_level;
+static int dsdt_error;
 
 struct basl_fio {
 	int	fd;
@@ -158,11 +171,13 @@ basl_fwrite_rsdt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Add in pointers to the MADT and FADT */
+	/* Add in pointers to the MADT, FADT and HPET */
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : %08X\n",
 	    basl_acpi_base + MADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : %08X\n",
 	    basl_acpi_base + FADT_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : %08X\n",
+	    basl_acpi_base + HPET_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -194,11 +209,13 @@ basl_fwrite_xsdt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Add in pointers to the MADT and FADT */
+	/* Add in pointers to the MADT, FADT and HPET */
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : 00000000%08X\n",
 	    basl_acpi_base + MADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : 00000000%08X\n",
 	    basl_acpi_base + FADT_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 2 : 00000000%08X\n",
+	    basl_acpi_base + HPET_OFFSET);
 
 	EFFLUSH(fp);
 
@@ -249,25 +266,45 @@ basl_fwrite_madt(FILE *fp)
 		EFPRINTF(fp, "\n");
 	}
 
-	/* Always a single IOAPIC entry, with ID ncpu+1 */
+	/* Always a single IOAPIC entry, with ID 0 */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 01\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0C\n");
 	/* iasl expects a hex value for the i/o apic id */
-	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", basl_ncpu);
+	EFPRINTF(fp, "[0001]\t\tI/O Apic ID : %02x\n", 0);
 	EFPRINTF(fp, "[0001]\t\tReserved : 00\n");
 	EFPRINTF(fp, "[0004]\t\tAddress : fec00000\n");
 	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000000\n");
 	EFPRINTF(fp, "\n");
 
-	/* Override the 8259 chained vector. XXX maybe not needed */
+	/* Legacy IRQ0 is connected to pin 2 of the IOAPIC */
 	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
 	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
 	EFPRINTF(fp, "[0001]\t\tBus : 00\n");
-	EFPRINTF(fp, "[0001]\t\tSource : 09\n");
-	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000009\n");
+	EFPRINTF(fp, "[0001]\t\tSource : 00\n");
+	EFPRINTF(fp, "[0004]\t\tInterrupt : 00000002\n");
+	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0001]\t\tSubtable Type : 02\n");
+	EFPRINTF(fp, "[0001]\t\tLength : 0A\n");
+	EFPRINTF(fp, "[0001]\t\tBus : 00\n");
+	EFPRINTF(fp, "[0001]\t\tSource : %02X\n", SCI_INT);
+	EFPRINTF(fp, "[0004]\t\tInterrupt : %08X\n", SCI_INT);
 	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0000\n");
-	EFPRINTF(fp, "\t\t\tPolarity : 0\n");
-	EFPRINTF(fp, "\t\t\tTrigger Mode : 0\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 3\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 3\n");
+	EFPRINTF(fp, "\n");
+
+	/* Local APIC NMI is connected to LINT 1 on all CPUs */
+	EFPRINTF(fp, "[0001]\t\tSubtable Type : 04\n");
+	EFPRINTF(fp, "[0001]\t\tLength : 06\n");
+	EFPRINTF(fp, "[0001]\t\tProcessorId : FF\n");
+	EFPRINTF(fp, "[0002]\t\tFlags (decoded below) : 0005\n");
+	EFPRINTF(fp, "\t\t\tPolarity : 1\n");
+	EFPRINTF(fp, "\t\t\tTrigger Mode : 1\n");
+	EFPRINTF(fp, "[0001]\t\tInterrupt : 01\n");
 	EFPRINTF(fp, "\n");
 
 	EFFLUSH(fp);
@@ -304,21 +341,27 @@ basl_fwrite_fadt(FILE *fp)
 	    basl_acpi_base + FACS_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tDSDT Address : %08X\n",
 	    basl_acpi_base + DSDT_OFFSET);
-	EFPRINTF(fp, "[0001]\t\tModel : 00\n");
+	EFPRINTF(fp, "[0001]\t\tModel : 01\n");
 	EFPRINTF(fp, "[0001]\t\tPM Profile : 00 [Unspecified]\n");
-	EFPRINTF(fp, "[0002]\t\tSCI Interrupt : 0009\n");
-	EFPRINTF(fp, "[0004]\t\tSMI Command Port : 00000000\n");
-	EFPRINTF(fp, "[0001]\t\tACPI Enable Value : 00\n");
-	EFPRINTF(fp, "[0001]\t\tACPI Disable Value : 00\n");
+	EFPRINTF(fp, "[0002]\t\tSCI Interrupt : %04X\n",
+	    SCI_INT);
+	EFPRINTF(fp, "[0004]\t\tSMI Command Port : %08X\n",
+	    SMI_CMD);
+	EFPRINTF(fp, "[0001]\t\tACPI Enable Value : %02X\n",
+	    BHYVE_ACPI_ENABLE);
+	EFPRINTF(fp, "[0001]\t\tACPI Disable Value : %02X\n",
+	    BHYVE_ACPI_DISABLE);
 	EFPRINTF(fp, "[0001]\t\tS4BIOS Command : 00\n");
 	EFPRINTF(fp, "[0001]\t\tP-State Control : 00\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Event Block Address : 00000000\n");
+	EFPRINTF(fp, "[0004]\t\tPM1A Event Block Address : %08X\n",
+	    PM1A_EVT_ADDR);
 	EFPRINTF(fp, "[0004]\t\tPM1B Event Block Address : 00000000\n");
-	EFPRINTF(fp, "[0004]\t\tPM1A Control Block Address : 00000000\n");
+	EFPRINTF(fp, "[0004]\t\tPM1A Control Block Address : %08X\n",
+	    PM1A_CNT_ADDR);
 	EFPRINTF(fp, "[0004]\t\tPM1B Control Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tPM2 Control Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tPM Timer Block Address : %08X\n",
-		 BHYVE_PM_TIMER_ADDR);
+	    IO_PMTMR);
 	EFPRINTF(fp, "[0004]\t\tGPE0 Block Address : 00000000\n");
 	EFPRINTF(fp, "[0004]\t\tGPE1 Block Address : 00000000\n");
 	EFPRINTF(fp, "[0001]\t\tPM1 Event Block Length : 04\n");
@@ -349,15 +392,15 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000000\n");
 	EFPRINTF(fp, "\t\t\tWBINVD instruction is operational (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tWBINVD flushes all caches (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tAll CPUs support C1 (V1) : 0\n");
+	EFPRINTF(fp, "\t\t\tAll CPUs support C1 (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tC2 works on MP system (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tControl Method Power Button (V1) : 1\n");
+	EFPRINTF(fp, "\t\t\tControl Method Power Button (V1) : 0\n");
 	EFPRINTF(fp, "\t\t\tControl Method Sleep Button (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tRTC wake not in fixed reg space (V1) : 0\n");
 	EFPRINTF(fp, "\t\t\tRTC can wake system from S4 (V1) : 0\n");
 	EFPRINTF(fp, "\t\t\t32-bit PM Timer (V1) : 1\n");
 	EFPRINTF(fp, "\t\t\tDocking Supported (V1) : 0\n");
-	EFPRINTF(fp, "\t\t\tReset Register Supported (V2) : 0\n");
+	EFPRINTF(fp, "\t\t\tReset Register Supported (V2) : 1\n");
 	EFPRINTF(fp, "\t\t\tSealed Case (V3) : 0\n");
 	EFPRINTF(fp, "\t\t\tHeadless - No Video (V3) : 1\n");
 	EFPRINTF(fp, "\t\t\tUse native instr after SLP_TYPx (V3) : 0\n");
@@ -377,10 +420,10 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 08\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 01 [Byte Access:8]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000CF9\n");
 	EFPRINTF(fp, "\n");
 
-	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 00\n");
+	EFPRINTF(fp, "[0001]\t\tValue to cause reset : 06\n");
 	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
 	EFPRINTF(fp, "[0008]\t\tFACS Address : 00000000%08X\n",
 	    basl_acpi_base + FACS_OFFSET);
@@ -392,7 +435,8 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 20\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
+	    PM1A_EVT_ADDR);
 	EFPRINTF(fp, "\n");
 	
 	EFPRINTF(fp,
@@ -411,7 +455,8 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp, "[0001]\t\tBit Width : 10\n");
 	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
 	EFPRINTF(fp, "[0001]\t\tEncoded Access Width : 02 [Word Access:16]\n");
-	EFPRINTF(fp, "[0008]\t\tAddress : 0000000000000001\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
+	    PM1A_CNT_ADDR);
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp,
@@ -443,7 +488,7 @@ basl_fwrite_fadt(FILE *fp)
 	EFPRINTF(fp,
 	    "[0001]\t\tEncoded Access Width : 03 [DWord Access:32]\n");
 	EFPRINTF(fp, "[0008]\t\tAddress : 00000000%08X\n",
-	    BHYVE_PM_TIMER_ADDR);
+	    IO_PMTMR);
 	EFPRINTF(fp, "\n");
 
 	EFPRINTF(fp, "[0012]\t\tGPE0 Block : [Generic Address Structure]\n");
@@ -489,6 +534,55 @@ err_exit:
 }
 
 static int
+basl_fwrite_hpet(FILE *fp)
+{
+	int err;
+
+	err = 0;
+
+	EFPRINTF(fp, "/*\n");
+	EFPRINTF(fp, " * bhyve HPET template\n");
+	EFPRINTF(fp, " */\n");
+	EFPRINTF(fp, "[0004]\t\tSignature : \"HPET\"\n");
+	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
+	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
+	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
+	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
+	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVHPET  \"\n");
+	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
+
+	/* iasl will fill in the compiler ID/revision fields */
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0004]\t\tTimer Block ID : %08X\n", hpet_capabilities);
+	EFPRINTF(fp,
+	    "[0012]\t\tTimer Block Register : [Generic Address Structure]\n");
+	EFPRINTF(fp, "[0001]\t\tSpace ID : 00 [SystemMemory]\n");
+	EFPRINTF(fp, "[0001]\t\tBit Width : 00\n");
+	EFPRINTF(fp, "[0001]\t\tBit Offset : 00\n");
+	EFPRINTF(fp,
+		 "[0001]\t\tEncoded Access Width : 00 [Undefined/Legacy]\n");
+	EFPRINTF(fp, "[0008]\t\tAddress : 00000000FED00000\n");
+	EFPRINTF(fp, "\n");
+
+	EFPRINTF(fp, "[0001]\t\tHPET Number : 00\n");
+	EFPRINTF(fp, "[0002]\t\tMinimum Clock Ticks : 0000\n");
+	EFPRINTF(fp, "[0004]\t\tFlags (decoded below) : 00000001\n");
+	EFPRINTF(fp, "\t\t\t4K Page Protect : 1\n");
+	EFPRINTF(fp, "\t\t\t64K Page Protect : 0\n");
+	EFPRINTF(fp, "\n");
+
+	EFFLUSH(fp);
+
+	return (0);
+
+err_exit:
+	return (errno);
+}
+
+static int
 basl_fwrite_facs(FILE *fp)
 {
 	int err;
@@ -521,96 +615,122 @@ err_exit:
 	return (errno);
 }
 
+/*
+ * Helper routines for writing to the DSDT from other modules.
+ */
+void
+dsdt_line(const char *fmt, ...)
+{
+	va_list ap;
+	int err;
+
+	if (dsdt_error != 0)
+		return;
+
+	if (strcmp(fmt, "") != 0) {
+		if (dsdt_indent_level != 0)
+			EFPRINTF(dsdt_fp, "%*c", dsdt_indent_level * 2, ' ');
+		va_start(ap, fmt);
+		if (vfprintf(dsdt_fp, fmt, ap) < 0)
+			goto err_exit;
+		va_end(ap);
+	}
+	EFPRINTF(dsdt_fp, "\n");
+	return;
+
+err_exit:
+	dsdt_error = errno;
+}
+
+void
+dsdt_indent(int levels)
+{
+
+	dsdt_indent_level += levels;
+	assert(dsdt_indent_level >= 0);
+}
+
+void
+dsdt_unindent(int levels)
+{
+
+	assert(dsdt_indent_level >= levels);
+	dsdt_indent_level -= levels;
+}
+
+void
+dsdt_fixed_ioport(uint16_t iobase, uint16_t length)
+{
+
+	dsdt_line("IO (Decode16,");
+	dsdt_line("  0x%04X,             // Range Minimum", iobase);
+	dsdt_line("  0x%04X,             // Range Maximum", iobase);
+	dsdt_line("  0x01,               // Alignment");
+	dsdt_line("  0x%02X,               // Length", length);
+	dsdt_line("  )");
+}
+
+void
+dsdt_fixed_irq(uint8_t irq)
+{
+
+	dsdt_line("IRQNoFlags ()");
+	dsdt_line("  {%d}", irq);
+}
+
+void
+dsdt_fixed_mem32(uint32_t base, uint32_t length)
+{
+
+	dsdt_line("Memory32Fixed (ReadWrite,");
+	dsdt_line("  0x%08X,         // Address Base", base);
+	dsdt_line("  0x%08X,         // Address Length", length);
+	dsdt_line("  )");
+}
+
 static int
 basl_fwrite_dsdt(FILE *fp)
 {
 	int err;
 
 	err = 0;
+	dsdt_fp = fp;
+	dsdt_error = 0;
+	dsdt_indent_level = 0;
 
-	EFPRINTF(fp, "/*\n");
-	EFPRINTF(fp, " * bhyve DSDT template\n");
-	EFPRINTF(fp, " */\n");
-	EFPRINTF(fp, "DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
-		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)\n");
-	EFPRINTF(fp, "{\n");
-	EFPRINTF(fp, "  Scope (_SB)\n");
-	EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (PCI0)\n");
-	EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_HID, EisaId (\"PNP0A03\"))\n");
-	EFPRINTF(fp, "      Name (_ADR, Zero)\n");
-	EFPRINTF(fp, "      Name (_UID, One)\n");
-	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
-	EFPRINTF(fp, "      {\n");
-	EFPRINTF(fp, "        WordBusNumber (ResourceProducer, MinFixed,"
-		 "MaxFixed, PosDecode,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0000,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x00FF,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0x0100,             // Length\n");
-	EFPRINTF(fp, "            ,, )\n");
-	EFPRINTF(fp, "         IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0CF8,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0CF8,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x01,               // Alignment\n");
-	EFPRINTF(fp, "            0x08,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "         WordIO (ResourceProducer, MinFixed, MaxFixed,"
-		 "PosDecode, EntireRange,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0000,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0CF7,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0x0CF8,             // Length\n");
-	EFPRINTF(fp, "            ,, , TypeStatic)\n");
-	EFPRINTF(fp, "         WordIO (ResourceProducer, MinFixed, MaxFixed,"
-		 "PosDecode, EntireRange,\n");
-	EFPRINTF(fp, "            0x0000,             // Granularity\n");
-	EFPRINTF(fp, "            0x0D00,             // Range Minimum\n");
-	EFPRINTF(fp, "            0xFFFF,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x0000,             // Transl Offset\n");
-	EFPRINTF(fp, "            0xF300,             // Length\n");
-	EFPRINTF(fp, "             ,, , TypeStatic)\n");
-	EFPRINTF(fp, "          })\n");
-	EFPRINTF(fp, "     }\n");
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "\n");
-	EFPRINTF(fp, "  Scope (_SB.PCI0)\n");
-	EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (ISA)\n");
-	EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_ADR, 0x00010000)\n");
-	EFPRINTF(fp, "      OperationRegion (P40C, PCI_Config, 0x60, 0x04)\n");
-	EFPRINTF(fp, "    }\n");
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "\n");
-	EFPRINTF(fp, "  Scope (_SB.PCI0.ISA)\n");
-        EFPRINTF(fp, "  {\n");
-	EFPRINTF(fp, "    Device (RTC)\n");
-        EFPRINTF(fp, "    {\n");
-	EFPRINTF(fp, "      Name (_HID, EisaId (\"PNP0B00\"))\n");
-	EFPRINTF(fp, "      Name (_CRS, ResourceTemplate ()\n");
-	EFPRINTF(fp, "      {\n");
-	EFPRINTF(fp, "        IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0070,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0070,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x10,               // Alignment\n");
-	EFPRINTF(fp, "            0x02,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "        IRQNoFlags ()\n");
-	EFPRINTF(fp, "            {8}\n");
-	EFPRINTF(fp, "        IO (Decode16,\n");
-	EFPRINTF(fp, "            0x0072,             // Range Minimum\n");
-	EFPRINTF(fp, "            0x0072,             // Range Maximum\n");
-	EFPRINTF(fp, "            0x02,               // Alignment\n");
-	EFPRINTF(fp, "            0x06,               // Length\n");
-	EFPRINTF(fp, "            )\n");
-	EFPRINTF(fp, "      })\n");
-        EFPRINTF(fp, "    }\n");
-	EFPRINTF(fp, "  }\n");
-	EFPRINTF(fp, "}\n");
+	dsdt_line("/*");
+	dsdt_line(" * bhyve DSDT template");
+	dsdt_line(" */");
+	dsdt_line("DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
+		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)");
+	dsdt_line("{");
+	dsdt_line("  Name (_S5, Package (0x02)");
+	dsdt_line("  {");
+	dsdt_line("      0x05,");
+	dsdt_line("      Zero,");
+	dsdt_line("  })");
+
+	pci_write_dsdt();
+
+	dsdt_line("");
+	dsdt_line("  Scope (_SB.PCI0)");
+	dsdt_line("  {");
+	dsdt_line("    Device (HPET)");
+	dsdt_line("    {");
+	dsdt_line("      Name (_HID, EISAID(\"PNP0103\"))");
+	dsdt_line("      Name (_UID, 0)");
+	dsdt_line("      Name (_CRS, ResourceTemplate ()");
+	dsdt_line("      {");
+	dsdt_indent(4);
+	dsdt_fixed_mem32(0xFED00000, 0x400);
+	dsdt_unindent(4);
+	dsdt_line("      })");
+	dsdt_line("    }");
+	dsdt_line("  }");
+	dsdt_line("}");
+
+	if (dsdt_error != 0)
+		return (dsdt_error);
 
 	EFFLUSH(fp);
 
@@ -800,24 +920,23 @@ static struct {
 	{ basl_fwrite_xsdt, XSDT_OFFSET },
 	{ basl_fwrite_madt, MADT_OFFSET },
 	{ basl_fwrite_fadt, FADT_OFFSET },
+	{ basl_fwrite_hpet, HPET_OFFSET },
 	{ basl_fwrite_facs, FACS_OFFSET },
 	{ basl_fwrite_dsdt, DSDT_OFFSET },
 	{ NULL }
 };
 
 int
-acpi_build(struct vmctx *ctx, int ncpu, int ioapic)
+acpi_build(struct vmctx *ctx, int ncpu)
 {
 	int err;
 	int i;
 
-	err = 0;
 	basl_ncpu = ncpu;
 
-	if (!ioapic) {
-		fprintf(stderr, "ACPI tables require an ioapic\n");
-		return (EINVAL);
-	}
+	err = vm_get_hpet_capabilities(ctx, &hpet_capabilities);
+	if (err != 0)
+		return (err);
 
 	/*
 	 * For debug, allow the user to have iasl compiler output sent

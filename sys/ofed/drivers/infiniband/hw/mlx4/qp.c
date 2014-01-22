@@ -275,7 +275,7 @@ static void post_nop_wqe(struct mlx4_ib_qp *qp, int n, int size)
 	wmb();
 
 	ctrl->owner_opcode = cpu_to_be32(MLX4_OPCODE_NOP | MLX4_WQE_CTRL_NEC) |
-		(n & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0);
+		(n & qp->sq.wqe_cnt ? cpu_to_be32(1U << 31) : 0);
 
 	stamp_send_wqe(qp, n + qp->sq_spare_wqes, size);
 }
@@ -2073,7 +2073,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 
 		for (i = 0; i < qp->sq.wqe_cnt; ++i) {
 			ctrl = get_send_wqe(qp, i);
-			ctrl->owner_opcode = cpu_to_be32(1 << 31);
+			ctrl->owner_opcode = cpu_to_be32(1U << 31);
 			if (qp->sq_max_wqes_per_wr == 1)
 				ctrl->fence_size = 1 << (qp->sq.wqe_shift - 4);
 
@@ -2832,7 +2832,7 @@ static void set_mlx_icrc_seg(void *dseg)
 	 */
 	wmb();
 
-	iseg->byte_count = cpu_to_be32((1 << 31) | 4);
+	iseg->byte_count = cpu_to_be32((1U << 31) | 4);
 }
 
 static void set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ib_sge *sg)
@@ -2900,7 +2900,7 @@ static void add_zero_len_inline(void *wqe)
 {
 	struct mlx4_wqe_inline_seg *inl = wqe;
 	memset(wqe, 0, 16);
-	inl->byte_count = cpu_to_be32(1 << 31);
+	inl->byte_count = cpu_to_be32(1U << 31);
 }
 
 static int lay_inline_data(struct mlx4_ib_qp *qp, struct ib_send_wr *wr,
@@ -3252,7 +3252,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		}
 
 		ctrl->owner_opcode = mlx4_ib_opcode[wr->opcode] |
-			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1 << 31) : 0) | blh;
+			(ind & qp->sq.wqe_cnt ? cpu_to_be32(1U << 31) : 0) | blh;
 
 		stamp = ind + qp->sq_spare_wqes;
 		ind += DIV_ROUND_UP(size * 16, 1U << qp->sq.wqe_shift);

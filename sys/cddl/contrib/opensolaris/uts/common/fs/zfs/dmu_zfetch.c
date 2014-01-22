@@ -23,6 +23,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2013 by Delphix. All rights reserved.
+ */
+
 #include <sys/zfs_context.h>
 #include <sys/dnode.h>
 #include <sys/dmu_objset.h>
@@ -305,7 +309,7 @@ dmu_zfetch_fetch(dnode_t *dn, uint64_t blkid, uint64_t nblks)
 	fetchsz = dmu_zfetch_fetchsz(dn, blkid, nblks);
 
 	for (i = 0; i < fetchsz; i++) {
-		dbuf_prefetch(dn, blkid + i);
+		dbuf_prefetch(dn, blkid + i, ZIO_PRIORITY_ASYNC_READ);
 	}
 
 	return (fetchsz);
@@ -600,14 +604,16 @@ static zstream_t *
 dmu_zfetch_stream_reclaim(zfetch_t *zf)
 {
 	zstream_t	*zs;
+	clock_t		ticks;
 
+	ticks = zfetch_min_sec_reap * hz;
 	if (! rw_tryenter(&zf->zf_rwlock, RW_WRITER))
 		return (0);
 
 	for (zs = list_head(&zf->zf_stream); zs;
 	    zs = list_next(&zf->zf_stream, zs)) {
 
-		if (((ddi_get_lbolt() - zs->zst_last)/hz) > zfetch_min_sec_reap)
+		if (ddi_get_lbolt() - zs->zst_last > ticks)
 			break;
 	}
 

@@ -154,7 +154,7 @@ _rl_unget_char (key)
     {
       pop_index--;
       if (pop_index < 0)
-	pop_index = ibuffer_len - 1;
+	pop_index = ibuffer_len;
       ibuffer[pop_index] = key;
       return (1);
     }
@@ -428,7 +428,7 @@ rl_read_key ()
   else
     {
       /* If input is coming from a macro, then use that. */
-      if (c = _rl_next_macro_key ())
+      if ((c = _rl_next_macro_key ()))
 	return (c);
 
       /* If the user has an event function, then call it periodically. */

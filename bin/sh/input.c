@@ -162,20 +162,16 @@ preadfd(void)
 	int nr;
 	parsenextc = parsefile->buf;
 
-#ifndef NO_HISTORY
-	if (el != NULL && gotwinch) {
-		gotwinch = 0;
-		el_resize(el);
-	}
-#endif
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
 		static const char *rl_cp;
 		static int el_len;
 
-		if (rl_cp == NULL)
+		if (rl_cp == NULL) {
+			el_resize(el);
 			rl_cp = el_gets(el, &el_len);
+		}
 		if (rl_cp == NULL)
 			nr = el_len == 0 ? 0 : -1;
 		else {
@@ -228,7 +224,6 @@ preadbuffer(void)
 {
 	char *p, *q;
 	int more;
-	int something;
 	char savec;
 
 	if (parsefile->strpush) {
@@ -252,16 +247,11 @@ again:
 	q = p = parsefile->buf + (parsenextc - parsefile->buf);
 
 	/* delete nul characters */
-	something = 0;
 	for (more = 1; more;) {
 		switch (*p) {
 		case '\0':
 			p++;	/* Skip nul */
 			goto check;
-
-		case '\t':
-		case ' ':
-			break;
 
 		case '\n':
 			parsenleft = q - parsenextc;
@@ -269,7 +259,6 @@ again:
 			break;
 
 		default:
-			something = 1;
 			break;
 		}
 
@@ -288,7 +277,8 @@ check:
 	*q = '\0';
 
 #ifndef NO_HISTORY
-	if (parsefile->fd == 0 && hist && something) {
+	if (parsefile->fd == 0 && hist &&
+	    parsenextc[strspn(parsenextc, " \t\n")] != '\0') {
 		HistEvent he;
 		INTOFF;
 		history(hist, &he, whichprompt == 1 ? H_ENTER : H_ADD,

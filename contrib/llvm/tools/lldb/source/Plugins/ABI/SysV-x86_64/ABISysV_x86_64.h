@@ -34,12 +34,7 @@ public:
                         lldb::addr_t sp,
                         lldb::addr_t functionAddress,
                         lldb::addr_t returnAddress, 
-                        lldb::addr_t *arg1_ptr = NULL,
-                        lldb::addr_t *arg2_ptr = NULL,
-                        lldb::addr_t *arg3_ptr = NULL,
-                        lldb::addr_t *arg4_ptr = NULL,
-                        lldb::addr_t *arg5_ptr = NULL,
-                        lldb::addr_t *arg6_ptr = NULL) const;
+                        llvm::ArrayRef<lldb::addr_t> args) const;
     
     virtual bool
     GetArgumentValues (lldb_private::Thread &thread,
@@ -76,9 +71,9 @@ public:
     virtual bool
     CallFrameAddressIsValid (lldb::addr_t cfa)
     {
-        // Make sure the stack call frame addresses are are 8 byte aligned
-        if (cfa & (8ull - 1ull))
-            return false;   // Not 8 byte aligned
+        // Make sure the stack call frame addresses are 16 byte aligned
+        if (cfa & (16ull - 1ull))
+            return false;   // Not 16 byte aligned
         if (cfa == 0)
             return false;   // Zero is not a valid stack address
         return true;

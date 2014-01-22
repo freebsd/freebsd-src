@@ -30,6 +30,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ktrace.h"
+#include "opt_kqueue.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -250,7 +251,10 @@ SYSCTL_UINT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
 #define	KNL_ASSERT_UNLOCKED(knl) do {} while (0)
 #endif /* INVARIANTS */
 
+#ifndef	KN_HASHSIZE
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
+#endif
+
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
 
 static int
@@ -290,6 +294,7 @@ static struct {
 	{ &fs_filtops },			/* EVFILT_FS */
 	{ &null_filtops },			/* EVFILT_LIO */
 	{ &user_filtops },			/* EVFILT_USER */
+	{ &null_filtops },			/* EVFILT_SENDFILE */
 };
 
 /*
@@ -523,10 +528,14 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static __inline sbintime_t 
+static __inline sbintime_t
 timer2sbintime(intptr_t data)
 {
 
+#ifdef __LP64__
+	if (data > INT64_MAX / SBT_1MS)
+		return INT64_MAX;
+#endif
 	return (SBT_1MS * data);
 }
 
@@ -712,7 +721,7 @@ sys_kqueue(struct thread *td, struct kqueue_args *uap)
 	    RLIMIT_KQUEUES))) {
 		PROC_UNLOCK(p);
 		crfree(cred);
-		return (EMFILE);
+		return (ENOMEM);
 	}
 	PROC_UNLOCK(p);
 
@@ -855,10 +864,17 @@ kern_kevent(struct thread *td, int fd, int nchanges, int nevents,
 	cap_rights_t rights;
 	int i, n, nerrors, error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	cap_rights_init(&rights);
+	if (nchanges > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_CHANGE);
+	if (nevents > 0)
+		cap_rights_set(&rights, CAP_KQUEUE_EVENT);
+	error = fget(td, fd, &rights, &fp);
 	if (error != 0)
 		return (error);
-	if ((error = kqueue_acquire(fp, &kq)) != 0)
+
+	error = kqueue_acquire(fp, &kq);
+	if (error != 0)
 		goto done_norel;
 
 	nerrors = 0;
@@ -1015,7 +1031,7 @@ findkn:
 	if (fops->f_isfd) {
 		KASSERT(td != NULL, ("td is NULL"));
 		error = fget(td, kev->ident,
-		    cap_rights_init(&rights, CAP_POLL_EVENT), &fp);
+		    cap_rights_init(&rights, CAP_EVENT), &fp);
 		if (error)
 			goto done;
 
@@ -2301,7 +2317,7 @@ kqfd_register(int fd, struct kevent *kev, struct thread *td, int waitok)
 	cap_rights_t rights;
 	int error;
 
-	error = fget(td, fd, cap_rights_init(&rights, CAP_POST_EVENT), &fp);
+	error = fget(td, fd, cap_rights_init(&rights, CAP_KQUEUE_CHANGE), &fp);
 	if (error != 0)
 		return (error);
 	if ((error = kqueue_acquire(fp, &kq)) != 0)

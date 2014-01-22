@@ -56,7 +56,6 @@ int isp_quickboot_time = 7;	/* don't wait more than N secs for loop up */
 int isp_gone_device_time = 30;	/* grace time before reporting device lost */
 int isp_autoconfig = 1;		/* automatically attach/detach devices */
 static const char prom3[] = "Chan %d PortID 0x%06x Departed from Target %u because of %s";
-static const char rqo[] = "%s: Request Queue Overflow\n";
 
 static void isp_freeze_loopdown(ispsoftc_t *, int, char *);
 static d_ioctl_t ispioctl;
@@ -1382,7 +1381,7 @@ isp_enable_deferred(ispsoftc_t *isp, int bus, lun_id_t lun)
 	int luns_already_enabled;
 
 	ISP_GET_PC(isp, bus, tm_luns_enabled, luns_already_enabled);
-	isp_prt(isp, ISP_LOGTINFO, "%s: bus %d lun %u luns_enabled %d", __func__, bus, lun, luns_already_enabled);
+	isp_prt(isp, ISP_LOGTINFO, "%s: bus %d lun %jx luns_enabled %d", __func__, bus, (uintmax_t)lun, luns_already_enabled);
 	if (IS_24XX(isp) || (IS_FC(isp) && luns_already_enabled)) {
 		status = CAM_REQ_CMP;
 	} else {
@@ -1406,7 +1405,7 @@ isp_enable_deferred(ispsoftc_t *isp, int bus, lun_id_t lun)
 	}
 	if (status == CAM_REQ_CMP) {
 		ISP_SET_PC(isp, bus, tm_luns_enabled, 1);
-		isp_prt(isp, ISP_LOGCONFIG|ISP_LOGTINFO, "bus %d lun %u now enabled for target mode", bus, lun);
+		isp_prt(isp, ISP_LOGCONFIG|ISP_LOGTINFO, "bus %d lun %jx now enabled for target mode", bus, (uintmax_t)lun);
 	}
 	return (status);
 }
@@ -2152,7 +2151,8 @@ isp_target_putback_atio(union ccb *ccb)
 
 	qe = isp_getrqentry(isp);
 	if (qe == NULL) {
-		xpt_print(ccb->ccb_h.path, rqo, __func__);
+		xpt_print(ccb->ccb_h.path,
+		    "%s: Request Queue Overflow\n", __func__);
 		(void) timeout(isp_refire_putback_atio, ccb, 10);
 		return;
 	}
@@ -2362,7 +2362,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	if (tptr == NULL) {
 		tptr = get_lun_statep(isp, 0, CAM_LUN_WILDCARD);
 		if (tptr == NULL) {
-			isp_prt(isp, ISP_LOGWARN, "%s: [0x%x] no state pointer for lun %d or wildcard", __func__, aep->at_rxid, lun);
+			isp_prt(isp, ISP_LOGWARN, "%s: [0x%x] no state pointer for lun %jx or wildcard", __func__, aep->at_rxid, (uintmax_t)lun);
 			if (lun == 0) {
 				isp_endcmd(isp, aep, SCSI_STATUS_BUSY, 0);
 			} else {
@@ -2484,7 +2484,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	atp->tattr = aep->at_taskflags & ATIO2_TC_ATTR_MASK;
 	atp->state = ATPD_STATE_CAM;
 	xpt_done((union ccb *)atiop);
-	isp_prt(isp, ISP_LOGTDEBUG0, "ATIO2[0x%x] CDB=0x%x lun %d datalen %u", aep->at_rxid, atp->cdb0, lun, atp->orig_datalen);
+	isp_prt(isp, ISP_LOGTDEBUG0, "ATIO2[0x%x] CDB=0x%x lun %jx datalen %u", aep->at_rxid, atp->cdb0, (uintmax_t)lun, atp->orig_datalen);
 	rls_lun_statep(isp, tptr);
 	return;
 noresrc:
@@ -3420,13 +3420,13 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 	if (tptr == NULL) {
 		tptr = get_lun_statep(isp, notify->nt_channel, CAM_LUN_WILDCARD);
 		if (tptr == NULL) {
-			isp_prt(isp, ISP_LOGWARN, "%s: no state pointer found for chan %d lun 0x%x", __func__, notify->nt_channel, lun);
+			isp_prt(isp, ISP_LOGWARN, "%s: no state pointer found for chan %d lun %#jx", __func__, notify->nt_channel, (uintmax_t)lun);
 			goto bad;
 		}
 	}
 	inot = (struct ccb_immediate_notify *) SLIST_FIRST(&tptr->inots);
 	if (inot == NULL) {
-		isp_prt(isp, ISP_LOGWARN, "%s: out of immediate notify structures for chan %d lun 0x%x", __func__, notify->nt_channel, lun);
+		isp_prt(isp, ISP_LOGWARN, "%s: out of immediate notify structures for chan %d lun %#jx", __func__, notify->nt_channel, (uintmax_t)lun);
 		goto bad;
 	}
 
@@ -3460,7 +3460,7 @@ isp_handle_platform_target_tmf(ispsoftc_t *isp, isp_notify_t *notify)
 		inot->arg = MSG_TARGET_RESET;
 		break;
 	default:
-		isp_prt(isp, ISP_LOGWARN, "%s: unknown TMF code 0x%x for chan %d lun 0x%x", __func__, notify->nt_ncode, notify->nt_channel, lun);
+		isp_prt(isp, ISP_LOGWARN, "%s: unknown TMF code 0x%x for chan %d lun %#jx", __func__, notify->nt_ncode, notify->nt_channel, (uintmax_t)lun);
 		goto bad;
 	}
 
@@ -5187,7 +5187,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
-			isp_prt(isp, ISP_LOGDEBUG0, "SET (%d.%d.%d) to flags %x off %x per %x", bus, tgt, cts->ccb_h.target_lun, sdp->isp_devparam[tgt].goal_flags,
+			isp_prt(isp, ISP_LOGDEBUG0, "SET (%d.%d.%jx) to flags %x off %x per %x", bus, tgt, (uintmax_t)cts->ccb_h.target_lun, sdp->isp_devparam[tgt].goal_flags,
 			    sdp->isp_devparam[tgt].goal_offset, sdp->isp_devparam[tgt].goal_period);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			sdp->update = 1;
@@ -5276,8 +5276,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				spi->valid |= CTS_SPI_VALID_DISC;
 			}
-			isp_prt(isp, ISP_LOGDEBUG0, "GET %s (%d.%d.%d) to flags %x off %x per %x", IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
-			    bus, tgt, cts->ccb_h.target_lun, dval, oval, pval);
+			isp_prt(isp, ISP_LOGDEBUG0, "GET %s (%d.%d.%jx) to flags %x off %x per %x", IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
+			    bus, tgt, (uintmax_t)cts->ccb_h.target_lun, dval, oval, pval);
 		}
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);

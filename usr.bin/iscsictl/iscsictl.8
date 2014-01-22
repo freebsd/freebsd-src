@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2012
+.Dd January 4, 2014
 .Dt ISCSICTL 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Sh SYNOPSIS
 .Nm
 .Fl A
-.Fl h Ar host Fl t Ar target Op Fl u Ar user Fl s Ar secret
+.Fl p Ar portal Fl t Ar target Op Fl u Ar user Fl s Ar secret
 .Nm
 .Fl A
 .Fl d Ar discovery-host Op Fl u Ar user Fl s Ar secret
@@ -48,7 +48,7 @@
 .Fl n Ar nickname Op Fl c Ar path
 .Nm
 .Fl R
-.Op Fl h Ar host
+.Op Fl p Ar portal
 .Op Fl t Ar target
 .Nm
 .Fl R
@@ -84,12 +84,16 @@ Target host name or address used for SendTargets discovery.
 When used, it will add a temporary discovery session.
 After discovery is done, sessions will be added for each discovered target,
 and the temporary discovery sesion will be removed.
-.It Fl h
-Target host name or address for statically defined targets.
 .It Fl n
 The "nickname" of session defined in the configuration file.
+.It Fl p
+Target portal - host name or address - for statically defined targets.
+.It Fl s
+CHAP secret.
 .It Fl t
 Target name.
+.It Fl u
+CHAP login.
 .It Fl v
 Verbose mode.
 .El
@@ -99,9 +103,6 @@ exit status does not mean that the session was successfully established.
 Use
 .Nm Fl L
 to check the connection status.
-The initiator notifies
-.Xr devd 8
-when session gets connected or disconnected.
 .Pp
 Note that in order to the iSCSI initiator to be able to connect to a target,
 the
@@ -132,8 +133,8 @@ The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh EXAMPLES
-Attach to target qn.2012-06.com.example:target0, served by 192.168.1.1:
-.Dl Nm Fl A Fl t Ar qn.2012-06.com.example:target0 Fl h Ar 192.168.1.1
+Attach to target iqn.2012-06.com.example:target0, served by 192.168.1.1:
+.Dl Nm Fl A Fl t Ar iqn.2012-06.com.example:target0 Fl p Ar 192.168.1.1
 .Pp
 Disconnect all iSCSI sessions:
 .Dl Nm Fl Ra

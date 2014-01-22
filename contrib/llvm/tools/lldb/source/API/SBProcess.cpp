@@ -11,6 +11,9 @@
 
 #include "lldb/API/SBProcess.h"
 
+// C Includes
+#include <inttypes.h>
+
 #include "lldb/lldb-defines.h"
 #include "lldb/lldb-types.h"
 
@@ -23,6 +26,7 @@
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 
@@ -334,7 +338,7 @@ SBProcess::PutSTDIN (const char *src, size_t src_len)
     }
     
     if (log)
-        log->Printf ("SBProcess(%p)::PutSTDIN (src=\"%s\", src_len=%d) => %lu", 
+        log->Printf ("SBProcess(%p)::PutSTDIN (src=\"%s\", src_len=%d) => %zu", 
                      process_sp.get(), 
                      src, 
                      (uint32_t) src_len, 
@@ -1253,4 +1257,38 @@ SBProcess::UnloadImage (uint32_t image_token)
     else
         sb_error.SetErrorString("invalid process");
     return sb_error;
+}
+
+uint32_t
+SBProcess::GetNumExtendedBacktraceTypes ()
+{
+    ProcessSP process_sp(GetSP());
+    if (process_sp && process_sp->GetSystemRuntime())
+    {
+        SystemRuntime *runtime = process_sp->GetSystemRuntime();
+        return runtime->GetExtendedBacktraceTypes().size();
+    }
+    return 0;
+}
+
+const char *
+SBProcess::GetExtendedBacktraceTypeAtIndex (uint32_t idx)
+{
+    ProcessSP process_sp(GetSP());
+    if (process_sp && process_sp->GetSystemRuntime())
+    {
+        SystemRuntime *runtime = process_sp->GetSystemRuntime();
+        const std::vector<ConstString> &names = runtime->GetExtendedBacktraceTypes();
+        if (idx < names.size())
+        {
+            return names[idx].AsCString();
+        }
+        else
+        {
+            Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+            if (log)
+                log->Printf("SBProcess(%p)::GetExtendedBacktraceTypeAtIndex() => error: requested extended backtrace name out of bounds", process_sp.get());
+        }
+    }
+    return NULL;
 }

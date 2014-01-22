@@ -122,6 +122,7 @@ extern int pmap_vhpt_log2size;
 
 vm_offset_t pmap_alloc_vhpt(void);
 void	pmap_bootstrap(void);
+void	pmap_invalidate_all(void);
 void	pmap_kenter(vm_offset_t va, vm_offset_t pa);
 vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);

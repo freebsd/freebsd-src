@@ -203,7 +203,6 @@ s3c2410_getc(struct uart_bas *bas, struct mtx *mtx)
 
 	return sscom_getc(bas->bst, bas->bsh);
 }
-
 static int s3c2410_bus_probe(struct uart_softc *sc);
 static int s3c2410_bus_attach(struct uart_softc *sc);
 static int s3c2410_bus_flush(struct uart_softc *, int);
@@ -214,6 +213,8 @@ static int s3c2410_bus_param(struct uart_softc *, int, int, int, int);
 static int s3c2410_bus_receive(struct uart_softc *);
 static int s3c2410_bus_setsig(struct uart_softc *, int);
 static int s3c2410_bus_transmit(struct uart_softc *);
+static void s3c2410_bus_grab(struct uart_softc *);
+static void s3c2410_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t s3c2410_methods[] = {
 	KOBJMETHOD(uart_probe,		s3c2410_bus_probe),
@@ -226,6 +227,8 @@ static kobj_method_t s3c2410_methods[] = {
 	KOBJMETHOD(uart_receive,	s3c2410_bus_receive),
 	KOBJMETHOD(uart_setsig,		s3c2410_bus_setsig),
 	KOBJMETHOD(uart_transmit,	s3c2410_bus_transmit),
+	KOBJMETHOD(uart_grab,		s3c2410_bus_grab),
+	KOBJMETHOD(uart_ungrab,		s3c2410_bus_ungrab),
 	
 	{0, 0 }
 };
@@ -371,6 +374,25 @@ static int
 s3c2410_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	return (EINVAL);
+}
+
+
+static void
+s3c2410_bus_grab(struct uart_softc *sc)
+{
+	uintptr_t irq;
+
+	irq = rman_get_start(sc->sc_ires);
+	arm_mask_irq(get_sub_irq(irq, RX_OFF));
+}
+
+static void
+s3c2410_bus_ungrab(struct uart_softc *sc)
+{
+	uintptr_t irq;
+
+	irq = rman_get_start(sc->sc_ires);
+	arm_unmask_irq(get_sub_irq(irq, RX_OFF));
 }
 
 struct uart_class uart_s3c2410_class = {

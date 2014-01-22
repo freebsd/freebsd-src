@@ -195,8 +195,27 @@ nandbus_attach(device_t dev)
 		if (chip_id.man_id == 0xff)
 			continue;
 
-		/* Check if chip is ONFI compliant */
-		if (nand_probe_onfi(dev, &onfi) != 0) {
+		/*
+		 * First try to get info from the table.  If that fails, see if
+		 * the chip can provide ONFI info.  We check the table first to
+		 * allow table entries to override info from chips that are
+		 * known to provide bad ONFI data.
+		 */
+		onfi = 0;
+		chip_params = nand_get_params(&chip_id);
+		if (chip_params == NULL) {
+			nand_probe_onfi(dev, &onfi);
+		}
+
+		/*
+		 * At this point it appears there is a chip at this chipselect,
+		 * so if we can't work with it, whine about it.
+		 */
+		if (chip_params == NULL && onfi == 0) {
+			if (bootverbose || (nand_debug_flag & NDBG_BUS))
+				printf("Chip params not found, chipsel: %d "
+				    "(manuf: 0x%0x, chipid: 0x%0x, onfi: %d)\n",
+				    cs, chip_id.man_id, chip_id.dev_id, onfi);
 			continue;
 		}
 
@@ -215,15 +234,6 @@ nandbus_attach(device_t dev)
 
 			child = device_add_child(dev, NULL, -1);
 			device_set_ivars(child, ivar);
-			continue;
-		}
-
-		chip_params = nand_get_params(&chip_id);
-		if (chip_params == NULL) {
-			nand_debug(NDBG_BUS,"Chip description not found! "
-			    "(manuf: 0x%0x, chipid: 0x%0x)\n",
-			    chip_id.man_id, chip_id.dev_id);
-			free(ivar, M_NAND);
 			continue;
 		}
 
@@ -493,7 +503,7 @@ nandbus_wait_ready(device_t dev, uint8_t *status)
 	struct timeval tv, tv2;
 
 	tv2.tv_sec = 0;
-	tv2.tv_usec = 50 * 5000; /* 10ms */
+	tv2.tv_usec = 50 * 5000; /* 250ms */
 
 	getmicrotime(&tv);
 	timevaladd(&tv, &tv2);

@@ -134,12 +134,10 @@ mkfs(struct partition *pp, char *fsys)
 	 */
 	disk.d_bsize = sectorsize;
 	disk.d_ufs = Oflag;
-	if (Rflag) {
+	if (Rflag)
 		utime = 1000000000;
-	} else {
+	else
 		time(&utime);
-		arc4random_stir();
-	}
 	sblock.fs_old_flags = FS_FLAGS_UPDATED;
 	sblock.fs_flags = 0;
 	if (Uflag)

@@ -794,6 +794,7 @@ f_media_init_ftp()
 #
 f_media_get_ftp()
 {
+	local funcname=f_media_get_ftp
 	local dev="$1" file="$2" probe_type="$3" hosts=
 
 	f_dprintf "f_media_get_ftp: dev=[%s] file=[%s] probe_type=%s" \
@@ -870,9 +871,10 @@ f_media_get_ftp()
 	if [ "$probe_type" ]; then
 		local url="ftp://$userpass$host$port/$dir/$file" size
 		[ "$use_anon" ] && url="ftp://$host$port/$dir/$file"
-		if ! size=$( fetch -s "$url" 2>&1 ) || ! f_isinteger "$size"
+		if ! f_eval_catch -dk size $funcname fetch \
+			'fetch -s "%s"' "$url" || ! f_isinteger "$size"
 		then
-			f_dprintf "request failed! size response=[%s]" "$size"
+			f_dprintf "size request failed!"
 			[ "$probe_type" = "$PROBE_SIZE" ] && echo "-1"
 			return $FAILURE
 		fi

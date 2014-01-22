@@ -708,13 +708,25 @@ static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 
-	/*
-	 * We will rely on rcvif being set properly in the deferred context,
-	 * so assert it is correct here.
-	 */
-	KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+	struct mbuf *mn;
 
-	netisr_dispatch(NETISR_ETHER, m);
+	/*
+	 * The drivers are allowed to pass in a chain of packets linked with
+	 * m_nextpkt. We split them up into separate packets here and pass
+	 * them up. This allows the drivers to amortize the receive lock.
+	 */
+	while (m) {
+		mn = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+
+		/*
+		 * We will rely on rcvif being set properly in the deferred context,
+		 * so assert it is correct here.
+		 */
+		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+		netisr_dispatch(NETISR_ETHER, m);
+		m = mn;
+	}
 }
 
 /*
@@ -1156,14 +1168,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ETHER;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ETHER_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -1185,14 +1190,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ETHER;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ETHER_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);

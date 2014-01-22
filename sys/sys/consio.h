@@ -184,7 +184,7 @@ typedef struct mouse_info mouse_info_t;
 #define CONS_CURSOR_ATTRS	(CONS_BLINK_CURSOR | CONS_CHAR_CURSOR |	\
 				 CONS_HIDDEN_CURSOR)
 #define CONS_RESET_CURSOR	(1 << 30)
-#define CONS_LOCAL_CURSOR	(1 << 31)
+#define CONS_LOCAL_CURSOR	(1U << 31)
 #define CONS_CURSOR_FLAGS	(CONS_RESET_CURSOR | CONS_LOCAL_CURSOR)
 struct cshape {
 	/* shape[0]: flags, shape[1]: base, shape[2]: height */
@@ -209,12 +209,36 @@ struct fnt16 {
 };
 typedef struct fnt16	fnt16_t;
 
+struct vfnt_map {
+	uint32_t	src;
+	uint16_t	dst;
+	uint16_t	len;
+};
+typedef struct vfnt_map	vfnt_map_t;
+
+#define VFNT_MAP_NORMAL		0
+#define VFNT_MAP_NORMAL_RIGHT	1
+#define VFNT_MAP_BOLD		2
+#define VFNT_MAP_BOLD_RIGHT	3
+#define VFNT_MAPS		4
+struct vfnt {
+	vfnt_map_t	*map[VFNT_MAPS];
+	uint8_t		*glyphs;
+	unsigned int	map_count[VFNT_MAPS];
+	unsigned int	glyph_count;
+	unsigned int	width;
+	unsigned int	height;
+};
+typedef struct vfnt	vfnt_t;
+
 #define PIO_FONT8x8	_IOW('c', 64, fnt8_t)
 #define GIO_FONT8x8	_IOR('c', 65, fnt8_t)
 #define PIO_FONT8x14	_IOW('c', 66, fnt14_t)
 #define GIO_FONT8x14	_IOR('c', 67, fnt14_t)
 #define PIO_FONT8x16	_IOW('c', 68, fnt16_t)
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
+#define PIO_VFONT	_IOW('c', 70, vfnt_t)
+#define GIO_VFONT	_IOR('c', 71, vfnt_t)
 
 /* get video mode information */
 struct colors	{

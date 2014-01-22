@@ -1167,9 +1167,6 @@ options 	MAC_TEST
 options 	CAPABILITIES	# fine-grained rights on file descriptors
 options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 
-# Support for process descriptors
-options		PROCDESC
-
 
 #####################################################################
 # CLOCK OPTIONS

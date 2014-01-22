@@ -106,6 +106,7 @@ LIBDEPS=\
 	llvmmipsinstprinter \
 	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
+	llvmpowerpcasmparser \
 	llvmruntimedyld \
 	llvmvectorize \
 	llvmx86desc \

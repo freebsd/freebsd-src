@@ -88,9 +88,10 @@ __FBSDID("$FreeBSD$");
 #define	GB	(1024 * 1024 * 1024UL)
 #define	BSP	0
 
-static char *host_base = "/";
+static char *host_base;
 static struct termios term, oldterm;
 static int disk_fd = -1;
+static int consin_fd, consout_fd;
 
 static char *vmname, *progname;
 static struct vmctx *ctx;
@@ -108,7 +109,7 @@ cb_putc(void *arg, int ch)
 {
 	char c = ch;
 
-	write(1, &c, 1);
+	(void) write(consout_fd, &c, 1);
 }
 
 static int
@@ -116,7 +117,7 @@ cb_getc(void *arg)
 {
 	char c;
 
-	if (read(0, &c, 1) == 1)
+	if (read(consin_fd, &c, 1) == 1)
 		return (c);
 	return (-1);
 }
@@ -126,7 +127,7 @@ cb_poll(void *arg)
 {
 	int n;
 
-	if (ioctl(0, FIONREAD, &n) >= 0)
+	if (ioctl(consin_fd, FIONREAD, &n) >= 0)
 		return (n > 0);
 	return (0);
 }
@@ -488,7 +489,7 @@ static void
 cb_exit(void *arg, int v)
 {
 
-	tcsetattr(0, TCSAFLUSH, &oldterm);
+	tcsetattr(consout_fd, TCSAFLUSH, &oldterm);
 	exit(v);
 }
 
@@ -564,13 +565,45 @@ static struct loader_callbacks cb = {
 	.getenv = cb_getenv,
 };
 
+static int
+altcons_open(char *path)
+{
+	struct stat sb;
+	int err;
+	int fd;
+
+	/*
+	 * Allow stdio to be passed in so that the same string
+	 * can be used for the bhyveload console and bhyve com-port
+	 * parameters
+	 */
+	if (!strcmp(path, "stdio"))
+		return (0);
+
+	err = stat(path, &sb);
+	if (err == 0) {
+		if (!S_ISCHR(sb.st_mode))
+			err = ENOTSUP;
+		else {
+			fd = open(path, O_RDWR | O_NONBLOCK);
+			if (fd < 0)
+				err = errno;
+			else
+				consin_fd = consout_fd = fd;
+		}
+	}
+
+	return (err);
+}
+
 static void
 usage(void)
 {
 
 	fprintf(stderr,
 	    "usage: %s [-m mem-size] [-d <disk-path>] [-h <host-path>]\n"
-	    "       %*s [-e <name=value>] <vmname>\n", progname,
+	    "       %*s [-e <name=value>] [-c <console-device>] <vmname>\n",
+	    progname,
 	    (int)strlen(progname), "");
 	exit(1);
 }
@@ -589,8 +622,16 @@ main(int argc, char** argv)
 	mem_size = 256 * MB;
 	disk_image = NULL;
 
-	while ((opt = getopt(argc, argv, "d:e:h:m:")) != -1) {
+	consin_fd = STDIN_FILENO;
+	consout_fd = STDOUT_FILENO;
+
+	while ((opt = getopt(argc, argv, "c:d:e:h:m:")) != -1) {
 		switch (opt) {
+		case 'c':
+			error = altcons_open(optarg);
+			if (error != 0)
+				errx(EX_USAGE, "Could not open '%s'", optarg);
+			break;
 		case 'd':
 			disk_image = optarg;
 			break;
@@ -640,11 +681,13 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
-	tcgetattr(0, &term);
+	tcgetattr(consout_fd, &term);
 	oldterm = term;
-	term.c_lflag &= ~(ICANON|ECHO);
-	term.c_iflag &= ~ICRNL;
-	tcsetattr(0, TCSAFLUSH, &term);
+	cfmakeraw(&term);
+	term.c_cflag |= CLOCAL;
+	
+	tcsetattr(consout_fd, TCSAFLUSH, &term);
+
 	h = dlopen("/boot/userboot.so", RTLD_LOCAL);
 	if (!h) {
 		printf("%s\n", dlerror());

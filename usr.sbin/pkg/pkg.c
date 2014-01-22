@@ -135,7 +135,7 @@ cleanup:
 }
 
 static int
-install_pkg_static(const char *path, const char *pkgpath)
+install_pkg_static(const char *path, const char *pkgpath, bool force)
 {
 	int pstat;
 	pid_t pid;
@@ -144,7 +144,12 @@ install_pkg_static(const char *path, const char *pkgpath)
 	case -1:
 		return (-1);
 	case 0:
-		execl(path, "pkg-static", "add", pkgpath, (char *)NULL);
+		if (force)
+			execl(path, "pkg-static", "add", "-f", pkgpath,
+			    (char *)NULL);
+		else
+			execl(path, "pkg-static", "add", pkgpath,
+			    (char *)NULL);
 		_exit(1);
 	default:
 		break;
@@ -227,9 +232,6 @@ fetch_to_fd(const char *url, char *path)
 			}
 		}
 	}
-
-	if (remote == NULL)
-		goto fetchfail;
 
 	while (done < st.size) {
 		if ((r = fread(buf, 1, sizeof(buf), remote)) < 1)
@@ -321,11 +323,10 @@ parse_fingerprint(yaml_document_t *doc, yaml_node_t *node)
 static void
 free_fingerprint_list(struct fingerprint_list* list)
 {
-	struct fingerprint* fingerprint;
+	struct fingerprint *fingerprint, *tmp;
 
-	STAILQ_FOREACH(fingerprint, list, next) {
-		if (fingerprint->name)
-			free(fingerprint->name);
+	STAILQ_FOREACH_SAFE(fingerprint, list, next, tmp) {
+		free(fingerprint->name);
 		free(fingerprint);
 	}
 	free(list);
@@ -727,12 +728,9 @@ cleanup:
 	if (revoked)
 		free_fingerprint_list(revoked);
 	if (sc) {
-		if (sc->cert)
-			free(sc->cert);
-		if (sc->sig)
-			free(sc->sig);
-		if (sc->name)
-			free(sc->name);
+		free(sc->cert);
+		free(sc->sig);
+		free(sc->name);
 		free(sc);
 	}
 
@@ -740,14 +738,11 @@ cleanup:
 }
 
 static int
-bootstrap_pkg(void)
+bootstrap_pkg(bool force)
 {
-	FILE *config;
 	int fd_pkg, fd_sig;
 	int ret;
-	char *site;
 	char url[MAXPATHLEN];
-	char conf[MAXPATHLEN];
 	char tmppkg[MAXPATHLEN];
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
@@ -756,7 +751,6 @@ bootstrap_pkg(void)
 
 	fd_sig = -1;
 	ret = -1;
-	config = NULL;
 
 	if (config_string(PACKAGESITE, &packagesite) != 0) {
 		warnx("No PACKAGESITE defined");
@@ -801,27 +795,7 @@ bootstrap_pkg(void)
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
-		ret = install_pkg_static(pkgstatic, tmppkg);
-
-	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
-
-	if (access(conf, R_OK) == -1) {
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-
-		config = fopen(conf, "w+");
-		if (config == NULL)
-			goto cleanup;
-		fprintf(config, "packagesite: %s\n", url);
-		fclose(config);
-	}
+		ret = install_pkg_static(pkgstatic, tmppkg, force);
 
 	goto cleanup;
 
@@ -847,6 +821,11 @@ static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
 "Do you want to fetch and install it now? [y/N]: ";
 
+static const char non_interactive_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to bootstrap "
+"in non-interactive (stdin not being a tty)\n";
+
 static int
 pkg_query_yes_no(void)
 {
@@ -866,7 +845,7 @@ pkg_query_yes_no(void)
 }
 
 static int
-bootstrap_pkg_local(const char *pkgpath)
+bootstrap_pkg_local(const char *pkgpath, bool force)
 {
 	char path[MAXPATHLEN];
 	char pkgstatic[MAXPATHLEN];
@@ -898,7 +877,7 @@ bootstrap_pkg_local(const char *pkgpath)
 	}
 
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
-		ret = install_pkg_static(pkgstatic, pkgpath);
+		ret = install_pkg_static(pkgstatic, pkgpath, force);
 
 cleanup:
 	close(fd_pkg);
@@ -909,15 +888,27 @@ cleanup:
 }
 
 int
-main(__unused int argc, char *argv[])
+main(int argc, char *argv[])
 {
 	char pkgpath[MAXPATHLEN];
-	bool yes = false;
+	const char *pkgarg;
+	bool bootstrap_only, force, yes;
+
+	bootstrap_only = false;
+	force = false;
+	pkgarg = NULL;
+	yes = false;
 
 	snprintf(pkgpath, MAXPATHLEN, "%s/sbin/pkg",
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
-	if (access(pkgpath, X_OK) == -1) {
+	if (argc > 1 && strcmp(argv[1], "bootstrap") == 0) {
+		bootstrap_only = true;
+		if (argc == 3 && strcmp(argv[2], "-f") == 0)
+			force = true;
+	}
+
+	if ((bootstrap_only && force) || access(pkgpath, X_OK) == -1) {
 		/* 
 		 * To allow 'pkg -N' to be used as a reliable test for whether
 		 * a system is configured to use pkg, don't bootstrap pkg
@@ -928,9 +919,21 @@ main(__unused int argc, char *argv[])
 
 		config_init();
 
-		if (argc > 2 && strcmp(argv[1], "add") == 0 &&
-		    access(argv[2], R_OK) == 0) {
-			if (bootstrap_pkg_local(argv[2]) != 0)
+		if (argc > 1 && strcmp(argv[1], "add") == 0) {
+			if (argc > 2 && strcmp(argv[2], "-f") == 0) {
+				force = true;
+				pkgarg = argv[3];
+			} else
+				pkgarg = argv[2];
+			if (pkgarg == NULL) {
+				fprintf(stderr, "Path to pkg.txz required\n");
+				exit(EXIT_FAILURE);
+			}
+			if (access(pkgarg, R_OK) == -1) {
+				fprintf(stderr, "No such file: %s\n", pkgarg);
+				exit(EXIT_FAILURE);
+			}
+			if (bootstrap_pkg_local(pkgarg, force) != 0)
 				exit(EXIT_FAILURE);
 			exit(EXIT_SUCCESS);
 		}
@@ -941,16 +944,24 @@ main(__unused int argc, char *argv[])
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
-			printf("%s", confirmation_message);
-			if (!isatty(fileno(stdin)))
+			if (!isatty(fileno(stdin))) {
+				fprintf(stderr, non_interactive_message);
 				exit(EXIT_FAILURE);
+			}
 
+			printf("%s", confirmation_message);
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}
-		if (bootstrap_pkg() != 0)
+		if (bootstrap_pkg(force) != 0)
 			exit(EXIT_FAILURE);
 		config_finish();
+
+		if (bootstrap_only)
+			exit(EXIT_SUCCESS);
+	} else if (bootstrap_only) {
+		printf("pkg already bootstrapped at %s\n", pkgpath);
+		exit(EXIT_SUCCESS);
 	}
 
 	execv(pkgpath, argv);

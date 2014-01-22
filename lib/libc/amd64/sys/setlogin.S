@@ -40,10 +40,8 @@ __FBSDID("$FreeBSD$");
 
 .globl	CNAME(_logname_valid)		/* in _getlogin() */
 
-	.weak	_setlogin
-	.set	_setlogin,__sys_setlogin
-	.weak	setlogin
-	.set	setlogin,__sys_setlogin
+	WEAK_REFERENCE(__sys_setlogin, _setlogin)
+	WEAK_REFERENCE(__sys_setlogin, setlogin)
 ENTRY(__sys_setlogin)
 	mov	$SYS_setlogin,%rax
 	KERNCALL
