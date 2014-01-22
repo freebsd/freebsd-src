@@ -310,7 +310,7 @@ VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 #define	STATE_LOOKUP(i, k, d, s, pd)					\
 	do {								\
 		(s) = pf_find_state((i), (k), (d));			\
-		if ((s) == NULL || (s)->timeout == PFTM_PURGE)		\
+		if ((s) == NULL)					\
 			return (PF_DROP);				\
 		if (PACKET_LOOPED(pd))					\
 			return (PF_PASS);				\
@@ -1222,11 +1222,11 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir)
 		if (s->kif == V_pfi_all || s->kif == kif) {
 			PF_STATE_LOCK(s);
 			PF_HASHROW_UNLOCK(kh);
-			if (s->timeout == PFTM_UNLINKED) {
+			if (s->timeout >= PFTM_MAX) {
 				/*
-				 * State is being processed
-				 * by pf_unlink_state() in
-				 * an other thread.
+				 * State is either being processed by
+				 * pf_unlink_state() in an other thread, or
+				 * is scheduled for immediate expiry.
 				 */
 				PF_STATE_UNLOCK(s);
 				return (NULL);
@@ -1427,8 +1427,6 @@ pf_state_expires(const struct pf_state *state)
 	/* handle all PFTM_* > PFTM_MAX here */
 	if (state->timeout == PFTM_PURGE)
 		return (time_uptime);
-	if (state->timeout == PFTM_UNTIL_PACKET)
-		return (0);
 	KASSERT(state->timeout != PFTM_UNLINKED,
 	    ("pf_state_expires: timeout == PFTM_UNLINKED"));
 	KASSERT((state->timeout < PFTM_MAX),
@@ -1465,7 +1463,7 @@ pf_purge_expired_src_nodes()
 	for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask; i++, sh++) {
 	    PF_HASHROW_LOCK(sh);
 	    LIST_FOREACH_SAFE(cur, &sh->nodes, entry, next)
-		if (cur->states <= 0 && cur->expire <= time_uptime) {
+		if (cur->states == 0 && cur->expire <= time_uptime) {
 			if (cur->rule.ptr != NULL)
 				cur->rule.ptr->src_nodes--;
 			LIST_REMOVE(cur, entry);
@@ -1486,7 +1484,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 	if (s->src_node != NULL) {
 		if (s->src.tcp_est)
 			--s->src_node->conn;
-		if (--s->src_node->states <= 0) {
+		if (--s->src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
@@ -1495,7 +1493,7 @@ pf_src_tree_remove_state(struct pf_state *s)
 		}
 	}
 	if (s->nat_src_node != s->src_node && s->nat_src_node != NULL) {
-		if (--s->nat_src_node->states <= 0) {
+		if (--s->nat_src_node->states == 0) {
 			timeout = s->rule.ptr->timeout[PFTM_SRC_NODE];
 			if (!timeout)
 				timeout =
