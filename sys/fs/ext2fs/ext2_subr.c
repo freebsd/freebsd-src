@@ -82,7 +82,7 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	*bpp = NULL;
 
 	/*
-	 * E4_EXTENTS requires special treatment otherwise we can fall
+	 * E4_EXTENTS requires special treatment as we can otherwise fall
 	 * back to the normal path.
 	 */
 	if (!(ip->i_flags & E4_EXTENTS))
