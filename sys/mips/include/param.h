@@ -164,7 +164,7 @@
 /*
  * The kernel stack needs to be aligned on a (PAGE_SIZE * 2) boundary.
  */
-#ifdef LARGE_KSTACK
+#if defined(__mips_n64)
 /* XXXSS A workaround for the small kernel thread stack. */
 #define	KSTACK_PAGES		4	/* kernel stack */
 #else
