@@ -343,9 +343,8 @@ ext2_getattr(struct vop_getattr_args *ap)
 		vap->va_birthtime.tv_sec = ip->i_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_birthnsec;
 	}
-	vap->va_flags = ip->i_flags;
-	/* E4_* flags are private to the driver */
-	vap->va_flags &= !(E4_INDEX | E4_EXTENTS);
+	/* E4_* flags are private to the filesystem. */
+	vap->va_flags = ip->i_flags & ~(E4_INDEX | E4_EXTENTS);
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
