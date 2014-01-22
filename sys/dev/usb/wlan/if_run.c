@@ -1356,11 +1356,22 @@ run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 	uint16_t reg;
 	int error, ntries;
 
+	switch (count) {
+	case 1:
+		*val = 0xff;	/* address not found */
+		break;
+	case 2:
+		*val = 0xffff;	/* address not found */
+		addr *= 2;
+		break;
+	default:
+		*val = 0xffff;	/* address not found */
+		return (USB_ERR_INVAL);
+	}
+
 	if ((error = run_read(sc, RT3070_EFUSE_CTRL, &tmp)) != 0)
 		return (error);
 
-	if (count == 2)
-		addr *= 2;
 	/*-
 	 * Read one 16-byte block into registers EFUSE_DATA[0-3]:
 	 * DATA0: F E D C
@@ -1381,21 +1392,21 @@ run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 	if (ntries == 100)
 		return (ETIMEDOUT);
 
-	if ((tmp & RT3070_EFUSE_AOUT_MASK) == RT3070_EFUSE_AOUT_MASK) {
-		*val = 0xffff;	/* address not found */
+	if ((tmp & RT3070_EFUSE_AOUT_MASK) == RT3070_EFUSE_AOUT_MASK)
 		return (0);
-	}
+
 	/* determine to which 32-bit register our 16-bit word belongs */
 	reg = RT3070_EFUSE_DATA3 - (addr & 0xc);
 	if ((error = run_read(sc, reg, &tmp)) != 0)
 		return (error);
 
-	if (count == 2)
-		*val = (addr & 2) ? tmp >> 16 : tmp & 0xffff;
-	else {
-		tmp >>= (8 *(addr & 0x3));
-		memmove(val, &tmp, sizeof(*val));
-	}
+	/* get correct bytes */
+	*val = (uint16_t)(tmp >> (8 * (addr & 0x3)));
+
+	/* mask for byte read, if any */
+	if (count == 1)
+		*val &= 0xff;
+
 	return (0);
 }
 
@@ -3083,10 +3094,9 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		size = (sc->mac_ver == 0x5592) ? 
-		    RUN_MAX_TXSZ + sizeof(uint32_t) : RUN_MAX_TXSZ;
-		if ((m->m_pkthdr.len +
-		    sizeof(data->desc) + 3 + 8) > size) {
+		size = (sc->mac_ver == 0x5592) ?
+		    sizeof(data->desc) + sizeof(uint32_t) : sizeof(data->desc);
+		if ((m->m_pkthdr.len + size + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -3098,8 +3108,6 @@ tr_setup:
 		}
 
 		pc = usbd_xfer_get_frame(xfer, 0);
-		size = (sc->mac_ver == 0x5592) ?
-		    sizeof(data->desc) + sizeof(uint32_t) : sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
 		size += m->m_pkthdr.len;
