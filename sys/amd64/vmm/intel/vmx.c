@@ -1491,6 +1491,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	bool retu;
 
 	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_VIRTUAL_NMI) != 0);
+	CTASSERT((PINBASED_CTLS_ONE_SETTING & PINBASED_NMI_EXITING) != 0);
 
 	handled = 0;
 	vmxctx = &vmx->ctx[vcpu];
@@ -1643,9 +1644,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EXCEPTION:
+		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EXCEPTION, 1);
 		intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
 		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
 		    ("VM exit interruption info invalid: %#x", intr_info));
+
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to a
 		 * fault encountered during the execution of IRET then we must
@@ -1658,6 +1661,21 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		    (intr_info & 0xff) != IDT_DF &&
 		    (intr_info & EXIT_QUAL_NMIUDTI) != 0)
 			vmx_restore_nmi_blocking(vmx, vcpu);
+
+		/*
+		 * If the NMI-exiting VM execution control is set to '1'
+		 * then an NMI in non-root operation causes a VM-exit.
+		 * NMI blocking is in effect for this logical processor so
+		 * it is sufficient to simply vector to the NMI handler via
+		 * a software interrupt.
+		 */
+		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI) {
+			KASSERT((intr_info & 0xff) == IDT_NMI, ("VM exit due "
+			    "to NMI has invalid vector: %#x", intr_info));
+			VCPU_CTR0(vmx->vm, vcpu, "Vectoring to NMI handler");
+			__asm __volatile("int $2");
+			return (1);
+		}
 		break;
 	case EXIT_REASON_EPT_FAULT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
@@ -1728,6 +1746,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			 */
 			vmexit->exitcode = VM_EXITCODE_VMX;
 			vmexit->u.vmx.status = VM_SUCCESS;
+			vmexit->u.vmx.inst_type = 0;
+			vmexit->u.vmx.inst_error = 0;
 		} else {
 			/*
 			 * The exitcode and collateral have been populated.
