@@ -275,14 +275,16 @@ STAILQ_HEAD(svc_reqlist, svc_req);
  * thread to read and execute pending RPCs.
  */
 typedef struct __rpc_svcthread {
+	struct __rpc_svcpool	*st_pool;
 	SVCXPRT			*st_xprt; /* transport we are processing */
 	struct svc_reqlist	st_reqs;  /* RPC requests to execute */
-	int			st_reqcount; /* number of queued reqs */
 	int			st_idle; /* thread is on idle list */
 	struct cv		st_cond; /* sleeping for work */
 	LIST_ENTRY(__rpc_svcthread) st_link; /* all threads list */
 	LIST_ENTRY(__rpc_svcthread) st_ilink; /* idle threads list */
 	LIST_ENTRY(__rpc_svcthread) st_alink; /* application thread list */
+	int		st_p2;		/* application workspace */
+	uint64_t	st_p3;		/* application workspace */
 } SVCTHREAD;
 LIST_HEAD(svcthread_list, __rpc_svcthread);
 
