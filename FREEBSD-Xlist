@@ -1,11 +1,15 @@
+openssl-*/*.bak
 openssl-*/*.com
 openssl-*/*.doxy
 openssl-*/*.mak
+openssl-*/*.save
 openssl-*/*.spec
 openssl-*/*/*.bat
 openssl-*/*/*.com
+openssl-*/*/*.save
 openssl-*/*/*/*.bat
 openssl-*/*/*/*.com
+openssl-*/*/*/*.save
 openssl-*/INSTALL.DJGPP
 openssl-*/INSTALL.MacOS
 openssl-*/INSTALL.NW
