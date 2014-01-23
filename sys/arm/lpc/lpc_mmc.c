@@ -64,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/lpcreg.h>
 #include <arm/lpc/lpcvar.h>
 
-#define	DEBUG
-#undef	DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \
     printf(fmt,##args); } while (0)
