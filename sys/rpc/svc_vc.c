@@ -555,7 +555,7 @@ svc_vc_backchannel_stat(SVCXPRT *xprt)
  * leaving the result in cd->mreq. If we don't have a complete record, leave
  * the partial result in cd->mreq and try to read more from the socket.
  */
-static void
+static int
 svc_vc_process_pending(SVCXPRT *xprt)
 {
 	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
@@ -584,7 +584,7 @@ svc_vc_process_pending(SVCXPRT *xprt)
 		}
 		if (n < sizeof(uint32_t)) {
 			so->so_rcv.sb_lowat = sizeof(uint32_t) - n;
-			return;
+			return (FALSE);
 		}
 		m_copydata(cd->mpending, 0, sizeof(header),
 		    (char *)&header);
@@ -620,6 +620,7 @@ svc_vc_process_pending(SVCXPRT *xprt)
 	}
 
 	so->so_rcv.sb_lowat = imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	return (TRUE);
 }
 
 static bool_t
@@ -642,8 +643,10 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	for (;;) {
 		/* If we have no request ready, check pending queue. */
 		while (cd->mpending &&
-		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor))
-			svc_vc_process_pending(xprt);
+		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor)) {
+			if (!svc_vc_process_pending(xprt))
+				break;
+		}
 
 		/* Process and return complete request in cd->mreq. */
 		if (cd->mreq != NULL && cd->resid == 0 && cd->eor) {
