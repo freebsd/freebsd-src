@@ -130,7 +130,6 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
     struct fha_callbacks *cb)
 {
 	struct mbuf *md;
-	fhandle_t fh;
 	caddr_t dpos;
 	static u_int64_t random_fh = 0;
 	int error;
@@ -177,11 +176,9 @@ fha_extract_info(struct svc_req *req, struct fha_info *i,
 	dpos = mtod(md, caddr_t);
 
 	/* Grab the filehandle. */
-	error = cb->get_fh(&fh, v3, &md, &dpos);
+	error = cb->get_fh(&i->fh, v3, &md, &dpos);
 	if (error)
 		goto out;
-
-	bcopy(fh.fh_fid.fid_data, &i->fh, sizeof(i->fh));
 
 	/* Content ourselves with zero offset for all but reads. */
 	if (cb->is_read(procnum) || cb->is_write(procnum))
