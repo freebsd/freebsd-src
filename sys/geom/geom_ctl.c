@@ -122,10 +122,7 @@ geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 	void *ptr;
 
 	ptr = g_malloc(len, M_WAITOK);
-	if (ptr == NULL)
-		req->nerror = ENOMEM;
-	else
-		req->nerror = copyin(uaddr, ptr, len);
+	nreq->nerror = copyin(uaddr, ptr, len);
 	if (!req->nerror)
 		return (ptr);
 	if (ptr != NULL)
