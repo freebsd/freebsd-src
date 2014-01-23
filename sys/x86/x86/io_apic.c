@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/resource.h>
 #include <machine/segments.h>
 

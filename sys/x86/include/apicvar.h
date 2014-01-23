@@ -29,8 +29,8 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_APICVAR_H_
-#define _MACHINE_APICVAR_H_
+#ifndef _X86_APICVAR_H_
+#define _X86_APICVAR_H_
 
 /*
  * Local && I/O APIC variable definitions.
@@ -114,14 +114,16 @@
 #define	IPI_INVLPG	(APIC_IPI_INTS + 2)
 #define	IPI_INVLRNG	(APIC_IPI_INTS + 3)
 #define	IPI_INVLCACHE	(APIC_IPI_INTS + 4)
+#ifdef __i386__
 #define	IPI_LAZYPMAP	(APIC_IPI_INTS + 5)	/* Lazy pmap release. */
+#endif
 /* Vector to handle bitmap based IPIs */
 #define	IPI_BITMAP_VECTOR	(APIC_IPI_INTS + 6) 
 
-/* IPIs handled by IPI_BITMAPED_VECTOR  (XXX ups is there a better place?) */
+/* IPIs handled by IPI_BITMAP_VECTOR */
 #define	IPI_AST		0 	/* Generate software trap. */
 #define IPI_PREEMPT     1
-#define IPI_HARDCLOCK   2 
+#define IPI_HARDCLOCK   2
 #define IPI_BITMAP_LAST IPI_HARDCLOCK
 #define IPI_IS_BITMAPED(x) ((x) <= IPI_BITMAP_LAST)
 
@@ -220,4 +222,4 @@ void	lapic_setup(int boot);
 void	xen_intr_handle_upcall(struct trapframe *frame);
 
 #endif /* !LOCORE */
-#endif /* _MACHINE_APICVAR_H_ */
+#endif /* _X86_APICVAR_H_ */
