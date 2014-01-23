@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2012 NetApp, Inc.
+ * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
+ * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,13 +27,18 @@
  * $FreeBSD$
  */
 
-#ifndef _IOAPIC_H_
-#define	_IOAPIC_H_
+#ifndef _VHPET_H_
+#define	_VHPET_H_
 
-struct vmctx;
+#define	VHPET_BASE	0xfed00000
+#define	VHPET_SIZE	1024
 
-void	ioapic_init(int num);
-void	ioapic_deassert_pin(struct vmctx *ctx, int pin);
-void	ioapic_assert_pin(struct vmctx *ctx, int pin);
+struct vhpet *vhpet_init(struct vm *vm);
+void 	vhpet_cleanup(struct vhpet *vhpet);
+int	vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val,
+	    int size, void *arg);
+int	vhpet_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *val,
+	    int size, void *arg);
+int	vhpet_getcap(struct vm_hpet_cap *cap);
 
-#endif
+#endif	/* _VHPET_H_ */

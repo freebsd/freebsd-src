@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include "pci_emul.h"
 #include "pci_lpc.h"
 #include "xmsr.h"
-#include "ioapic.h"
 #include "spinup_ap.h"
 #include "rtc.h"
 
@@ -662,8 +661,6 @@ main(int argc, char *argv[])
 	 */
 	if (init_pci(ctx) != 0)
 		exit(1);
-
-	ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);

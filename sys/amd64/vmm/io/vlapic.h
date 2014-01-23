@@ -29,10 +29,8 @@
 #ifndef _VLAPIC_H_
 #define	_VLAPIC_H_
 
-#include "vdev.h"
-
 struct vm;
-  
+ 
 /*
  * Map of APIC Registers:       Offset  Description          		 	Access
  */
@@ -92,16 +90,11 @@ enum x2apic_state;
 
 struct vlapic *vlapic_init(struct vm *vm, int vcpuid);
 void vlapic_cleanup(struct vlapic *vlapic);
-
-int vlapic_op_mem_write(void* dev, uint64_t gpa,
-    			opsize_t size, uint64_t data);
-
-int vlapic_op_mem_read(void* dev, uint64_t gpa,
-    			opsize_t size, uint64_t *data);
-
+int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data);
+int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data);
 int vlapic_pending_intr(struct vlapic *vlapic);
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
-void vlapic_set_intr_ready(struct vlapic *vlapic, int vector);
+void vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
 int vlapic_timer_tick(struct vlapic *vlapic);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);

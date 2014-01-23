@@ -67,6 +67,9 @@ int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 			 int vector, int error_code);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
+int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
@@ -92,6 +95,8 @@ const char *vm_get_stat_desc(struct vmctx *ctx, int index);
 
 int	vm_get_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state *s);
 int	vm_set_x2apic_state(struct vmctx *ctx, int vcpu, enum x2apic_state s);
+
+int	vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities);
 
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
