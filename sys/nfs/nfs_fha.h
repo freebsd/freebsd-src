@@ -82,7 +82,7 @@ struct fha_info {
 struct fha_callbacks {
 	rpcproc_t (*get_procnum)(rpcproc_t procnum);
 	int (*realign)(struct mbuf **mb, int malloc_flags);
-	int (*get_fh)(fhandle_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
+	int (*get_fh)(uint64_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
 	int (*is_read)(rpcproc_t procnum);
 	int (*is_write)(rpcproc_t procnum);
 	int (*get_offset)(struct mbuf **md, caddr_t *dpos, int v3, struct
