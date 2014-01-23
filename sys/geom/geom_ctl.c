@@ -134,13 +134,13 @@ geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 static void
 gctl_copyin(struct gctl_req *req)
 {
-	int error, i;
 	struct gctl_req_arg *ap;
 	char *p;
+	int i;
 
 	ap = geom_alloc_copyin(req, req->arg, req->narg * sizeof(*ap));
 	if (ap == NULL) {
-		req->nerror = ENOMEM;
+		gctl_error(req, "bad control request");
 		req->arg = NULL;
 		return;
 	}
@@ -152,10 +152,9 @@ gctl_copyin(struct gctl_req *req)
 		ap[i].kvalue = NULL;
 	}
 
-	error = 0;
 	for (i = 0; i < req->narg; i++) {
 		if (ap[i].nlen < 1 || ap[i].nlen > SPECNAMELEN) {
-			error = gctl_error(req,
+			gctl_error(req,
 			    "wrong param name length %d: %d", i, ap[i].nlen);
 			break;
 		}
@@ -163,14 +162,14 @@ gctl_copyin(struct gctl_req *req)
 		if (p == NULL)
 			break;
 		if (p[ap[i].nlen - 1] != '\0') {
-			error = gctl_error(req, "unterminated param name");
+			gctl_error(req, "unterminated param name");
 			g_free(p);
 			break;
 		}
 		ap[i].name = p;
 		ap[i].flag |= GCTL_PARAM_NAMEKERNEL;
 		if (ap[i].len <= 0) {
-			error = gctl_error(req, "negative param length");
+			gctl_error(req, "negative param length");
 			break;
 		}
 		p = geom_alloc_copyin(req, ap[i].value, ap[i].len);
@@ -178,7 +177,7 @@ gctl_copyin(struct gctl_req *req)
 			break;
 		if ((ap[i].flag & GCTL_PARAM_ASCII) &&
 		    p[ap[i].len - 1] != '\0') {
-			error = gctl_error(req, "unterminated param value");
+			gctl_error(req, "unterminated param value");
 			g_free(p);
 			break;
 		}
@@ -232,9 +231,9 @@ gctl_free(struct gctl_req *req)
 static void
 gctl_dump(struct gctl_req *req)
 {
+	struct gctl_req_arg *ap;
 	u_int i;
 	int j;
-	struct gctl_req_arg *ap;
 
 	printf("Dump of gctl request at %p:\n", req);
 	if (req->nerror > 0) {
@@ -242,6 +241,8 @@ gctl_dump(struct gctl_req *req)
 		if (sbuf_len(req->serror) > 0)
 			printf("  error:\t\"%s\"\n", sbuf_data(req->serror));
 	}
+	if (req->arg == NULL)
+		return;
 	for (i = 0; i < req->narg; i++) {
 		ap = &req->arg[i];
 		if (!(ap->flag & GCTL_PARAM_NAMEKERNEL))
