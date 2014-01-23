@@ -4584,7 +4584,9 @@ int
 sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
 
-	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
+	td->td_retval[0] = kern_posix_fallocate(td, uap->fd, uap->offset,
+	    uap->len);
+	return (0);
 }
 
 /*
