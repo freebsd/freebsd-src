@@ -71,8 +71,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/mv/mvvar.h>
 #include "cesa.h"
 
-#undef DEBUG
-
 static int	cesa_probe(device_t);
 static int	cesa_attach(device_t);
 static int	cesa_detach(device_t);

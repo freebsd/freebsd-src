@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 
 #include "gpio_if.h"
 
-#undef	DEBUG
-
 #ifdef DEBUG
 #define dprintf(fmt, args...) do { printf("%s(): ", __func__);   \
     printf(fmt,##args); } while (0)
