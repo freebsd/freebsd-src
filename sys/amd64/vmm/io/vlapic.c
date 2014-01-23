@@ -44,14 +44,14 @@ __FBSDID("$FreeBSD$");
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
 #include "vmm_ktr.h"
-#include "vdev.h"
 #include "vlapic.h"
+#include "vioapic.h"
 
 #define	VLAPIC_CTR0(vlapic, format)					\
-	VMM_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
+	VCPU_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
 
 #define	VLAPIC_CTR1(vlapic, format, p1)					\
-	VMM_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
+	VCPU_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
 
 #define	VLAPIC_CTR_IRR(vlapic, msg)					\
 do {									\
@@ -100,8 +100,6 @@ struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
 
-	struct io_region	*mmio;
-	struct vdev_ops		*ops;
 	struct LAPIC		 apic;
 
 	int			 esr_update;
@@ -195,9 +193,8 @@ vlapic_init_ipi(struct vlapic *vlapic)
 }
 
 static int
-vlapic_op_reset(void* dev)
+vlapic_reset(struct vlapic *vlapic)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
 
 	memset(lapic, 0, sizeof(*lapic));
@@ -214,36 +211,33 @@ vlapic_op_reset(void* dev)
 
 }
 
-static int
-vlapic_op_init(void* dev)
-{
-	struct vlapic *vlapic = (struct vlapic*)dev;
-	vdev_register_region(vlapic->ops, vlapic, vlapic->mmio);
-	return vlapic_op_reset(dev);
-}
-
-static int
-vlapic_op_halt(void* dev)
-{
-	struct vlapic *vlapic = (struct vlapic*)dev;
-	vdev_unregister_region(vlapic, vlapic->mmio);
-	return 0;
-
-}
-
 void
-vlapic_set_intr_ready(struct vlapic *vlapic, int vector)
+vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint32_t	*irrptr;
+	uint32_t	*irrptr, *tmrptr, mask;
 	int		idx;
 
 	if (vector < 0 || vector >= 256)
 		panic("vlapic_set_intr_ready: invalid vector %d\n", vector);
 
 	idx = (vector / 32) * 4;
+	mask = 1 << (vector % 32);
+
 	irrptr = &lapic->irr0;
-	atomic_set_int(&irrptr[idx], 1 << (vector % 32));
+	atomic_set_int(&irrptr[idx], mask);
+
+	/*
+	 * Upon acceptance of an interrupt into the IRR the corresponding
+	 * TMR bit is cleared for edge-triggered interrupts and set for
+	 * level-triggered interrupts.
+	 */
+	tmrptr = &lapic->tmr0;
+	if (level)
+		atomic_set_int(&tmrptr[idx], mask);
+	else
+		atomic_clear_int(&tmrptr[idx], mask);
+
 	VLAPIC_CTR_IRR(vlapic, "vlapic_set_intr_ready");
 }
 
@@ -371,10 +365,11 @@ static void
 vlapic_process_eoi(struct vlapic *vlapic)
 {
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint32_t	*isrptr;
-	int		i, idx, bitpos;
+	uint32_t	*isrptr, *tmrptr;
+	int		i, idx, bitpos, vector;
 
 	isrptr = &lapic->isr0;
+	tmrptr = &lapic->tmr0;
 
 	/*
 	 * The x86 architecture reserves the the first 32 vectors for use
@@ -383,15 +378,20 @@ vlapic_process_eoi(struct vlapic *vlapic)
 	for (i = 7; i > 0; i--) {
 		idx = i * 4;
 		bitpos = fls(isrptr[idx]);
-		if (bitpos != 0) {
+		if (bitpos-- != 0) {
 			if (vlapic->isrvec_stk_top <= 0) {
 				panic("invalid vlapic isrvec_stk_top %d",
 				      vlapic->isrvec_stk_top);
 			}
-			isrptr[idx] &= ~(1 << (bitpos - 1));
+			isrptr[idx] &= ~(1 << bitpos);
 			VLAPIC_CTR_ISR(vlapic, "vlapic_process_eoi");
 			vlapic->isrvec_stk_top--;
 			vlapic_update_ppr(vlapic);
+			if ((tmrptr[idx] & (1 << bitpos)) != 0) {
+				vector = i * 32 + bitpos;
+				vioapic_process_eoi(vlapic->vm, vlapic->vcpuid,
+				    vector);
+			}
 			return;
 		}
 	}
@@ -426,7 +426,7 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	if (!vlapic_get_lvt_field(lvt, APIC_LVTT_M)) {
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
 		vector = vlapic_get_lvt_field(lvt,APIC_LVTT_VECTOR);
-		vlapic_set_intr_ready(vlapic, vector);
+		vlapic_set_intr_ready(vlapic, vector, false);
 	}
 }
 
@@ -472,7 +472,7 @@ lapic_process_icr(struct vlapic *vlapic, uint64_t icrval)
 			i--;
 			CPU_CLR(i, &dmask);
 			if (mode == APIC_DELMODE_FIXED) {
-				lapic_set_intr(vlapic->vm, i, vec);
+				lapic_intr_edge(vlapic->vm, i, vec);
 				vmm_stat_array_incr(vlapic->vm, vlapic->vcpuid,
 						    IPIS_SENT, i, 1);
 			} else
@@ -594,11 +594,9 @@ vlapic_intr_accepted(struct vlapic *vlapic, int vector)
 }
 
 int
-vlapic_op_mem_read(void* dev, uint64_t gpa, opsize_t size, uint64_t *data)
+vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint64_t	 offset = gpa & ~(PAGE_SIZE);
 	uint32_t	*reg;
 	int		 i;
 
@@ -686,11 +684,9 @@ vlapic_op_mem_read(void* dev, uint64_t gpa, opsize_t size, uint64_t *data)
 }
 
 int
-vlapic_op_mem_write(void* dev, uint64_t gpa, opsize_t size, uint64_t data)
+vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data)
 {
-	struct vlapic 	*vlapic = (struct vlapic*)dev;
 	struct LAPIC	*lapic = &vlapic->apic;
-	uint64_t	 offset = gpa & ~(PAGE_SIZE);
 	uint32_t	*reg;
 	int		retval;
 
@@ -832,16 +828,6 @@ restart:
 		return (0);
 }
 
-struct vdev_ops vlapic_dev_ops = {
-	.name = "vlapic",
-	.init = vlapic_op_init,
-	.reset = vlapic_op_reset,
-	.halt = vlapic_op_halt,
-	.memread = vlapic_op_mem_read,
-	.memwrite = vlapic_op_mem_write,
-};
-static struct io_region vlapic_mmio[VM_MAXCPU];
-
 struct vlapic *
 vlapic_init(struct vm *vm, int vcpuid)
 {
@@ -856,17 +842,7 @@ vlapic_init(struct vm *vm, int vcpuid)
 	if (vcpuid == 0)
 		vlapic->msr_apicbase |= APICBASE_BSP;
 
-	vlapic->ops = &vlapic_dev_ops;
-
-	vlapic->mmio = vlapic_mmio + vcpuid;
-	vlapic->mmio->base = DEFAULT_APIC_BASE;
-	vlapic->mmio->len = PAGE_SIZE;
-	vlapic->mmio->attr = MMIO_READ|MMIO_WRITE;
-	vlapic->mmio->vcpu = vcpuid;
-
-	vdev_register(&vlapic_dev_ops, vlapic);
-
-	vlapic_op_init(vlapic);
+	vlapic_reset(vlapic);
 
 	return (vlapic);
 }
@@ -874,8 +850,7 @@ vlapic_init(struct vm *vm, int vcpuid)
 void
 vlapic_cleanup(struct vlapic *vlapic)
 {
-	vlapic_op_halt(vlapic);
-	vdev_unregister(vlapic);
+
 	free(vlapic, M_VLAPIC);
 }
 

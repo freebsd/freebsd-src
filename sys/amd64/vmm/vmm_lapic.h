@@ -66,6 +66,22 @@ void	lapic_intr_accepted(struct vm *vm, int cpu, int vector);
  * Signals to the LAPIC that an interrupt at 'vector' needs to be generated
  * to the 'cpu', the state is recorded in IRR.
  */
-int	lapic_set_intr(struct vm *vm, int cpu, int vector);
+int	lapic_set_intr(struct vm *vm, int cpu, int vector, bool trig);
+
+#define	LAPIC_TRIG_LEVEL	true
+#define	LAPIC_TRIG_EDGE		false
+static __inline int
+lapic_intr_level(struct vm *vm, int cpu, int vector)
+{
+
+	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_LEVEL));
+}
+
+static __inline int
+lapic_intr_edge(struct vm *vm, int cpu, int vector)
+{
+
+	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
+}
 
 #endif
