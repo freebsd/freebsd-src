@@ -84,8 +84,8 @@ g_ctl_init(void)
 }
 
 /*
- * Report an error back to the user in ascii format.  Return whatever copyout
- * returned, or EINVAL if it succeeded.
+ * Report an error back to the user in ascii format.  Return nerror
+ * or EINVAL if nerror isn't specified.
  */
 int
 gctl_error(struct gctl_req *req, const char *fmt, ...)
@@ -99,9 +99,10 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	if (sbuf_done(req->serror)) {
 		if (!req->nerror)
 			req->nerror = EEXIST;
-	}
-	if (req->nerror)
 		return (req->nerror);
+	}
+	if (!req->nerror)
+		req->nerror = EINVAL;
 
 	va_start(ap, fmt);
 	sbuf_vprintf(req->serror, fmt, ap);
@@ -109,7 +110,7 @@ gctl_error(struct gctl_req *req, const char *fmt, ...)
 	sbuf_finish(req->serror);
 	if (g_debugflags & G_F_CTLDUMP)
 		printf("gctl %p error \"%s\"\n", req, sbuf_data(req->serror));
-	return (0);
+	return (req->nerror);
 }
 
 /*
@@ -122,7 +123,7 @@ geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 	void *ptr;
 
 	ptr = g_malloc(len, M_WAITOK);
-	nreq->nerror = copyin(uaddr, ptr, len);
+	req->nerror = copyin(uaddr, ptr, len);
 	if (!req->nerror)
 		return (ptr);
 	if (ptr != NULL)
