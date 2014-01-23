@@ -214,6 +214,7 @@ gctl_free(struct gctl_req *req)
 {
 	int i;
 
+	sbuf_delete(req->serror);
 	if (req->arg == NULL)
 		return;
 	for (i = 0; i < req->narg; i++) {
@@ -224,7 +225,6 @@ gctl_free(struct gctl_req *req)
 			g_free(req->arg[i].kvalue);
 	}
 	g_free(req->arg);
-	sbuf_delete(req->serror);
 }
 
 static void
