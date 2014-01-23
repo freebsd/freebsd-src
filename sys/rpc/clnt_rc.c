@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <rpc/rpc.h>
 #include <rpc/rpc_com.h>
+#include <rpc/krpc.h>
 
 static enum clnt_stat clnt_reconnect_call(CLIENT *, struct rpc_callextra *,
     rpcproc_t, struct mbuf *, struct mbuf **, struct timeval);
@@ -66,27 +67,6 @@ static struct clnt_ops clnt_reconnect_ops = {
 };
 
 static int	fake_wchan;
-
-struct rc_data {
-	struct mtx		rc_lock;
-	struct sockaddr_storage	rc_addr; /* server address */
-	struct netconfig*	rc_nconf; /* network type */
-	rpcprog_t		rc_prog;  /* program number */
-	rpcvers_t		rc_vers;  /* version number */
-	size_t			rc_sendsz;
-	size_t			rc_recvsz;
-	struct timeval		rc_timeout;
-	struct timeval		rc_retry;
-	int			rc_retries;
-	int			rc_privport;
-	char			*rc_waitchan;
-	int			rc_intr;
-	int			rc_connecting;
-	int			rc_closed;
-	struct ucred		*rc_ucred;
-	CLIENT*			rc_client; /* underlying RPC client */
-	struct rpc_err		rc_err;
-};
 
 CLIENT *
 clnt_reconnect_create(
@@ -211,6 +191,8 @@ clnt_reconnect_connect(CLIENT *cl)
 	CLNT_CONTROL(newclient, CLSET_RETRY_TIMEOUT, &rc->rc_retry);
 	CLNT_CONTROL(newclient, CLSET_WAITCHAN, rc->rc_waitchan);
 	CLNT_CONTROL(newclient, CLSET_INTERRUPTIBLE, &rc->rc_intr);
+	if (rc->rc_backchannel != NULL)
+		CLNT_CONTROL(newclient, CLSET_BACKCHANNEL, rc->rc_backchannel);
 	stat = RPC_SUCCESS;
 
 out:
@@ -385,6 +367,7 @@ static bool_t
 clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 {
 	struct rc_data *rc = (struct rc_data *)cl->cl_private;
+	SVCXPRT *xprt;
 
 	if (info == NULL) {
 		return (FALSE);
@@ -466,6 +449,13 @@ clnt_reconnect_control(CLIENT *cl, u_int request, void *info)
 		*(int *) info = rc->rc_privport;
 		break;
 
+	case CLSET_BACKCHANNEL:
+		xprt = (SVCXPRT *)info;
+		SVC_ACQUIRE(xprt);
+		xprt_register(xprt);
+		rc->rc_backchannel = info;
+		break;
+
 	default:
 		return (FALSE);
 	}
@@ -502,9 +492,15 @@ static void
 clnt_reconnect_destroy(CLIENT *cl)
 {
 	struct rc_data *rc = (struct rc_data *)cl->cl_private;
+	SVCXPRT *xprt;
 
 	if (rc->rc_client)
 		CLNT_DESTROY(rc->rc_client);
+	if (rc->rc_backchannel) {
+		xprt = (SVCXPRT *)rc->rc_backchannel;
+		xprt_unregister(xprt);
+		SVC_RELEASE(xprt);
+	}
 	crfree(rc->rc_ucred);
 	mtx_destroy(&rc->rc_lock);
 	mem_free(rc, sizeof(*rc));
