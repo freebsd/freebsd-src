@@ -126,8 +126,7 @@ geom_alloc_copyin(struct gctl_req *req, void *uaddr, size_t len)
 	req->nerror = copyin(uaddr, ptr, len);
 	if (!req->nerror)
 		return (ptr);
-	if (ptr != NULL)
-		g_free(ptr);
+	g_free(ptr);
 	return (NULL);
 }
 
@@ -463,30 +462,31 @@ g_ctl_ioctl_ctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct th
 
 	req = (void *)data;
 	req->nerror = 0;
-	req->serror = sbuf_new_auto();
 	/* It is an error if we cannot return an error text */
 	if (req->lerror < 2)
 		return (EINVAL);
 	if (!useracc(req->error, req->lerror, VM_PROT_WRITE))
 		return (EINVAL);
 
+	req->serror = sbuf_new_auto();
 	/* Check the version */
-	if (req->version != GCTL_VERSION)
-		return (gctl_error(req,
-		    "kernel and libgeom version mismatch."));
-	
-	/* Get things on board */
-	gctl_copyin(req);
+	if (req->version != GCTL_VERSION) {
+		gctl_error(req, "kernel and libgeom version mismatch.");
+		req->arg = NULL;
+	} else {
+		/* Get things on board */
+		gctl_copyin(req);
 
-	if (g_debugflags & G_F_CTLDUMP)
-		gctl_dump(req);
+		if (g_debugflags & G_F_CTLDUMP)
+			gctl_dump(req);
 
-	if (!req->nerror) {
-		g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
-		gctl_copyout(req);
+		if (!req->nerror) {
+			g_waitfor_event(g_ctl_req, req, M_WAITOK, NULL);
+			gctl_copyout(req);
+		}
 	}
 	if (sbuf_done(req->serror)) {
-		req->nerror = copyout(sbuf_data(req->serror), req->error,
+		copyout(sbuf_data(req->serror), req->error,
 		    imin(req->lerror, sbuf_len(req->serror) + 1));
 	}
 
