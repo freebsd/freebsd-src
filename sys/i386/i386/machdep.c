@@ -143,7 +143,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_APIC
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
