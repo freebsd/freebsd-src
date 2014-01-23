@@ -89,7 +89,6 @@ struct run_tx_data {
 	uint32_t align[0];	/* dummy field */
 	uint8_t	desc[sizeof(struct rt2870_txd) +
 		     sizeof(struct rt2860_txwi)];
-	uint8_t desc_extra[4];	/* used by v5592 */
 	uint8_t			ridx;
 };
 STAILQ_HEAD(run_tx_data_head, run_tx_data);
