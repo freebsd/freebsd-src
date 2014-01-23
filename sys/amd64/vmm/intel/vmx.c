@@ -1121,15 +1121,15 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 	}
 
 	/*
-	 * If there is already an interrupt pending then just return. This
-	 * could happen for multiple reasons:
-	 * - A vectoring VM-entry was aborted due to astpending or rendezvous.
-	 * - A VM-exit happened during event injection.
-	 * - A NMI was injected above or after "NMI window exiting" VM-exit.
+	 * If interrupt-window exiting is already in effect then don't bother
+	 * checking for pending interrupts. This is just an optimization and
+	 * not needed for correctness.
 	 */
-	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	if (info & VMCS_INTR_VALID)
+	if ((vmx->cap[vcpu].proc_ctls & PROCBASED_INT_WINDOW_EXITING) != 0) {
+		VCPU_CTR0(vmx->vm, vcpu, "Skip interrupt injection due to "
+		    "pending int_window_exiting");
 		return;
+	}
 
 	/* Ask the local apic for a vector to inject */
 	if (!vlapic_pending_intr(vlapic, &vector))
@@ -1139,12 +1139,31 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 
 	/* Check RFLAGS.IF and the interruptibility state of the guest */
 	rflags = vmcs_read(VMCS_GUEST_RFLAGS);
-	if ((rflags & PSL_I) == 0)
+	if ((rflags & PSL_I) == 0) {
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "rflags %#lx", vector, rflags);
 		goto cantinject;
+	}
 
 	gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
-	if (gi & HWINTR_BLOCKING)
+	if (gi & HWINTR_BLOCKING) {
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "Guest Interruptibility-state %#x", vector, gi);
 		goto cantinject;
+	}
+
+	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+	if (info & VMCS_INTR_VALID) {
+		/*
+		 * This is expected and could happen for multiple reasons:
+		 * - A vectoring VM-entry was aborted due to astpending
+		 * - A VM-exit happened during event injection.
+		 * - An NMI was injected above or after "NMI window exiting"
+		 */
+		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
+		    "VM-entry intr info %#x", vector, info);
+		goto cantinject;
+	}
 
 	/* Inject the interrupt */
 	info = VMCS_INTR_T_HWINTR | VMCS_INTR_VALID;
