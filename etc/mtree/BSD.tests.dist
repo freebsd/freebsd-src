@@ -78,6 +78,10 @@
                 ..
             ..
         ..
+        sys
+            kern
+            ..
+        ..
         usr.bin
             atf
                 atf-sh
