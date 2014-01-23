@@ -619,7 +619,15 @@ svc_vc_process_pending(SVCXPRT *xprt)
 		}
 	}
 
-	so->so_rcv.sb_lowat = imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	/*
+	 * Block receive upcalls if we have more data pending,
+	 * otherwise report our need.
+	 */
+	if (cd->mpending)
+		so->so_rcv.sb_lowat = INT_MAX;
+	else
+		so->so_rcv.sb_lowat =
+		    imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
 	return (TRUE);
 }
 
