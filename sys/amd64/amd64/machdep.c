@@ -140,7 +140,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ATPIC
 #include <x86/isa/icu.h>
 #else
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #include <isa/isareg.h>
