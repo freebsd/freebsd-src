@@ -1388,7 +1388,7 @@ run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 	return (0);
 }
 
-/* Read 16-bit from eFUSE ROM (RT3070 only.) */
+/* Read 16-bit from eFUSE ROM for RT3xxx. */
 static int
 run_efuse_read_2(struct run_softc *sc, uint16_t addr, uint16_t *val)
 {
