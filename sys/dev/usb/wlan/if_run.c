@@ -359,8 +359,6 @@ static int	run_write(struct run_softc *, uint16_t, uint32_t);
 static int	run_write_region_1(struct run_softc *, uint16_t,
 		    const uint8_t *, int);
 static int	run_set_region_4(struct run_softc *, uint16_t, uint32_t, int);
-static int	run_rf3593_efuse_read_1(struct run_softc *, uint16_t,
-		    uint16_t *);
 static int	run_efuse_read(struct run_softc *, uint16_t, uint16_t *, int);
 static int	run_efuse_read_2(struct run_softc *, uint16_t, uint16_t *);
 static int	run_eeprom_read_2(struct run_softc *, uint16_t, uint16_t *);
@@ -1344,12 +1342,6 @@ run_set_region_4(struct run_softc *sc, uint16_t reg, uint32_t val, int len)
 }
 
 static int
-run_rf3593_efuse_read_1(struct run_softc *sc, uint16_t addr, uint16_t *val)
-{
-	return (run_efuse_read(sc, addr * 2, val, 1));
-}
-
-static int
 run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 {
 	uint32_t tmp;
@@ -1390,12 +1382,9 @@ run_efuse_read(struct run_softc *sc, uint16_t addr, uint16_t *val, int count)
 	if ((error = run_read(sc, reg, &tmp)) != 0)
 		return (error);
 
-	if (count == 2)
-		*val = (addr & 2) ? tmp >> 16 : tmp & 0xffff;
-	else {
-		tmp >>= (8 *(addr & 0x3));
-		memmove(val, &tmp, sizeof(*val));
-	}
+	tmp >>= (8 * (addr & 0x3));
+	*val = (addr & 1) ? tmp >> 16 : tmp & 0xffff;
+
 	return (0);
 }
 
@@ -1753,10 +1742,8 @@ run_read_eeprom(struct run_softc *sc)
 	if (sc->mac_ver >= 0x3070) {
 		run_read(sc, RT3070_EFUSE_CTRL, &tmp);
 		DPRINTF("EFUSE_CTRL=0x%08x\n", tmp);
-		if ((tmp & RT3070_SEL_EFUSE) && sc->mac_ver != 0x3593)
+		if ((tmp & RT3070_SEL_EFUSE) || sc->mac_ver == 0x3593)
 			sc->sc_srom_read = run_efuse_read_2;
-		else
-			sc->sc_srom_read = run_rf3593_efuse_read_1;
 	}
 
 	/* read ROM version */
