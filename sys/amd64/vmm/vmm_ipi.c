@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/segments.h>
 #include <machine/md_var.h>
 
