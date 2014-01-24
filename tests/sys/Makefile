@@ -2,6 +2,7 @@
 
 .include <bsd.own.mk>
 
+SUBDIR= kern
 TESTSDIR= ${TESTSBASE}/sys
 
 KYUAFILE= yes
