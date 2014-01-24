@@ -2028,8 +2028,8 @@ vm_page_dequeue(vm_page_t m)
 {
 	struct vm_pagequeue *pq;
 
-	vm_page_lock_assert(m, MA_OWNED);
-	KASSERT(m->queue != PQ_NONE,
+	vm_page_assert_locked(m);
+	KASSERT(m->queue == PQ_ACTIVE || m->queue == PQ_INACTIVE,
 	    ("vm_page_dequeue: page %p is not queued", m));
 	pq = vm_page_pagequeue(m);
 	vm_pagequeue_lock(pq);
