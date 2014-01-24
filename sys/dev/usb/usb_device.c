@@ -98,7 +98,7 @@ static void	usb_init_attach_arg(struct usb_device *,
 		    struct usb_attach_arg *);
 static void	usb_suspend_resume_sub(struct usb_device *, device_t,
 		    uint8_t);
-static void	usbd_clear_stall_proc(struct usb_proc_msg *_pm);
+static usb_proc_callback_t usbd_clear_stall_proc;
 static usb_error_t usb_config_parse(struct usb_device *, uint8_t, uint8_t);
 static void	usbd_set_device_strings(struct usb_device *);
 #if USB_HAVE_DEVCTL
@@ -1474,7 +1474,7 @@ usb_suspend_resume(struct usb_device *udev, uint8_t do_suspend)
 static void
 usbd_clear_stall_proc(struct usb_proc_msg *_pm)
 {
-	struct usb_clear_stall_msg *pm = (void *)_pm;
+	struct usb_udev_msg *pm = (void *)_pm;
 	struct usb_device *udev = pm->udev;
 
 	/* Change lock */

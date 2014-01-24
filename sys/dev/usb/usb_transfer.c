@@ -2432,7 +2432,9 @@ usbd_transfer_enqueue(struct usb_xfer_queue *pq, struct usb_xfer *xfer)
 void
 usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 {
-	USB_BUS_LOCK_ASSERT(xfer->xroot->bus, MA_OWNED);
+	struct usb_xfer_root *info = xfer->xroot;
+
+	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
 
 	DPRINTF("err=%s\n", usbd_errstr(error));
 
@@ -2446,10 +2448,10 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 		xfer->flags_int.control_act = 0;
 		return;
 	}
-	/* only set transfer error if not already set */
-	if (!xfer->error) {
+	/* only set transfer error, if not already set */
+	if (xfer->error == USB_ERR_NORMAL_COMPLETION)
 		xfer->error = error;
-	}
+
 	/* stop any callouts */
 	usb_callout_stop(&xfer->timeout_handle);
 
@@ -2461,14 +2463,14 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 	usbd_transfer_dequeue(xfer);
 
 #if USB_HAVE_BUSDMA
-	if (mtx_owned(xfer->xroot->xfer_mtx)) {
+	if (mtx_owned(info->xfer_mtx)) {
 		struct usb_xfer_queue *pq;
 
 		/*
 		 * If the private USB lock is not locked, then we assume
 		 * that the BUS-DMA load stage has been passed:
 		 */
-		pq = &xfer->xroot->dma_q;
+		pq = &info->dma_q;
 
 		if (pq->curr == xfer) {
 			/* start the next BUS-DMA load, if any */
@@ -2478,10 +2480,10 @@ usbd_transfer_done(struct usb_xfer *xfer, usb_error_t error)
 #endif
 	/* keep some statistics */
 	if (xfer->error) {
-		xfer->xroot->bus->stats_err.uds_requests
+		info->bus->stats_err.uds_requests
 		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	} else {
-		xfer->xroot->bus->stats_ok.uds_requests
+		info->bus->stats_ok.uds_requests
 		    [xfer->endpoint->edesc->bmAttributes & UE_XFERTYPE]++;
 	}
 
@@ -2847,6 +2849,22 @@ usbd_callback_wrapper_sub(struct usb_xfer *xfer)
 		/* end of control transfer, if any */
 		xfer->flags_int.control_act = 0;
 
+#if USB_HAVE_TT_SUPPORT
+		switch (xfer->error) {
+		case USB_ERR_NORMAL_COMPLETION:
+		case USB_ERR_SHORT_XFER:
+		case USB_ERR_STALLED:
+		case USB_ERR_CANCELLED:
+			/* nothing to do */
+			break;
+		default:
+			/* try to reset the TT, if any */
+			USB_BUS_LOCK(bus);
+			uhub_tt_buffer_reset_async_locked(xfer->xroot->udev, xfer->endpoint);
+			USB_BUS_UNLOCK(bus);
+			break;
+		}
+#endif
 		/* check if we should block the execution queue */
 		if ((xfer->error != USB_ERR_CANCELLED) &&
 		    (xfer->flags.pipe_bof)) {

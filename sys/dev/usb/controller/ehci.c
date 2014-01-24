@@ -1198,9 +1198,16 @@ ehci_non_isoc_done_sub(struct usb_xfer *xfer)
 		    (status & EHCI_QTD_PINGSTATE) ? "[PING]" : "");
 	}
 #endif
-
-	return ((status & EHCI_QTD_HALTED) ?
-	    USB_ERR_STALLED : USB_ERR_NORMAL_COMPLETION);
+	if (status & EHCI_QTD_HALTED) {
+		if ((xfer->xroot->udev->parent_hs_hub != NULL) ||
+		    (xfer->xroot->udev->address != 0)) {
+			/* try to separate I/O errors from STALL */
+			if (EHCI_QTD_GET_CERR(status) == 0)
+				return (USB_ERR_IOERROR);
+		}
+		return (USB_ERR_STALLED);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
