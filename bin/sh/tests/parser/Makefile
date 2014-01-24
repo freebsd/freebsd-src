@@ -15,6 +15,7 @@ FILES+=		alias7.0
 FILES+=		alias8.0
 FILES+=		alias9.0
 FILES+=		alias10.0
+FILES+=		alias11.0
 FILES+=		and-pipe-not.0
 FILES+=		case1.0
 FILES+=		case2.0
