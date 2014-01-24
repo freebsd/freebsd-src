@@ -10,6 +10,26 @@
 
 set -e
 
+before_build() {
+	case ${KERNEL} in
+		BEAGLEBONE)
+			KNOWNHASH="4150e5a4480707c55a8d5b4570262e43af68d8ed3bdc0a433d8e7df47989a69e"
+			chroot ${CHROOTDIR} fetch -o /tmp/crochet/u-boot-2013.04.tar.bz2 \
+				http://people.freebsd.org/~gjb/u-boot-2013.04.tar.bz2
+			UBOOT_HASH="$(sha256 -q ${CHROOTDIR}/tmp/crochet/u-boot-2013.04.tar.bz2)"
+			if [ "${UBOOT_HASH}" != "${KNOWNHASH}" ]; then
+				echo "Checksum mismatch!  Exiting now."
+				exit 1
+			fi
+			chroot ${CHROOTDIR} tar xf /tmp/crochet/u-boot-2013.04.tar.bz2 \
+				-C /tmp/crochet/ 
+			;;
+		*)
+			# Fallthrough.
+			;;
+	esac
+}
+
 install_crochet() {
 	chroot ${CHROOTDIR} svn co -q ${CROCHETSRC}/${CROCHETBRANCH} \
 		/tmp/crochet
@@ -46,9 +66,10 @@ main() {
 			BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
 	done
 
+	mkdir -p ${CHROOTDIR}/tmp/crochet/work
+	before_build
 	install_crochet
 	install_uboot
-	mkdir -p ${CHROOTDIR}/tmp/crochet/work
 	eval chroot ${CHROOTDIR} /bin/sh /tmp/crochet/crochet.sh \
 		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
 }
