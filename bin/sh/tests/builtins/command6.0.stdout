@@ -4,4 +4,4 @@ fun is a shell function
 break is a special shell builtin
 if is a shell keyword
 { is a shell keyword
-foo is an alias for bar 
+foo is an alias for bar
