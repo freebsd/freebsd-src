@@ -2036,6 +2036,8 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	DPRINTFN(4, "udev=%p port=%d\n", udev, udev->port_no);
 
 	bus = udev->bus;
+
+	/* set DETACHED state to prevent any further references */
 	usb_set_device_state(udev, USB_STATE_DETACHED);
 
 #if USB_HAVE_DEVCTL
@@ -2051,16 +2053,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 		usb_free_symlink(udev->ugen_symlink);
 		udev->ugen_symlink = NULL;
 	}
-#endif
-	/*
-	 * Unregister our device first which will prevent any further
-	 * references:
-	 */
-	usb_bus_port_set_device(bus, udev->parent_hub ?
-	    udev->parent_hub->hub->ports + udev->port_index : NULL,
-	    NULL, USB_ROOT_HUB_ADDR);
 
-#if USB_HAVE_UGEN
 	/* wait for all pending references to go away: */
 	mtx_lock(&usb_ref_lock);
 	udev->refcount--;
@@ -2079,6 +2072,11 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 
 	/* the following will get the device unconfigured in software */
 	usb_unconfigure(udev, USB_UNCFG_FLAG_FREE_EP0);
+
+	/* final device unregister after all character devices are closed */
+	usb_bus_port_set_device(bus, udev->parent_hub ?
+	    udev->parent_hub->hub->ports + udev->port_index : NULL,
+	    NULL, USB_ROOT_HUB_ADDR);
 
 	/* unsetup any leftover default USB transfers */
 	usbd_transfer_unsetup(udev->ctrl_xfer, USB_CTRL_XFER_MAX);
@@ -2688,8 +2686,14 @@ usb_set_device_state(struct usb_device *udev, enum usb_dev_state state)
 
 	DPRINTF("udev %p state %s -> %s\n", udev,
 	    usb_statestr(udev->state), usb_statestr(state));
-	udev->state = state;
 
+#if USB_HAVE_UGEN
+	mtx_lock(&usb_ref_lock);
+#endif
+	udev->state = state;
+#if USB_HAVE_UGEN
+	mtx_unlock(&usb_ref_lock);
+#endif
 	if (udev->bus->methods->device_state_change != NULL)
 		(udev->bus->methods->device_state_change) (udev);
 }

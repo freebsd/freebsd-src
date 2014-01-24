@@ -203,6 +203,11 @@ usb_ref_device(struct usb_cdev_privdata *cpd,
 		DPRINTFN(2, "no device at %u\n", cpd->dev_index);
 		goto error;
 	}
+	if (cpd->udev->state == USB_STATE_DETACHED &&
+	    (need_uref != 2)) {
+		DPRINTFN(2, "device is detached\n");
+		goto error;
+	}
 	if (cpd->udev->refcount == USB_DEV_REF_MAX) {
 		DPRINTFN(2, "no dev ref\n");
 		goto error;
@@ -593,6 +598,13 @@ usb_fifo_free(struct usb_fifo *f)
 		mtx_unlock(f->priv_mtx);
 		mtx_lock(&usb_ref_lock);
 
+		/*
+		 * Check if the "f->refcount" variable reached zero
+		 * during the unlocked time before entering wait:
+		 */
+		if (f->refcount == 0)
+			break;
+
 		/* wait for sync */
 		cv_wait(&f->cv_drain, &usb_ref_lock);
 	}
@@ -911,23 +923,12 @@ usb_close(void *arg)
 
 	DPRINTFN(2, "cpd=%p\n", cpd);
 
-	err = usb_ref_device(cpd, &refs, 0);
-	if (err)
+	err = usb_ref_device(cpd, &refs,
+	    2 /* uref and allow detached state */);
+	if (err) {
+		DPRINTFN(0, "Cannot grab USB reference when "
+		    "closing USB file handle\n");
 		goto done;
-
-	/*
-	 * If this function is not called directly from the root HUB
-	 * thread, there is usually a need to lock the enumeration
-	 * lock. Check this.
-	 */
-	if (!usbd_enum_is_locked(cpd->udev)) {
-
-		DPRINTFN(2, "Locking enumeration\n");
-
-		/* reference device */
-		err = usb_usb_ref_device(cpd, &refs);
-		if (err)
-			goto done;
 	}
 	if (cpd->fflags & FREAD) {
 		usb_fifo_close(refs.rxfifo, cpd->fflags);
