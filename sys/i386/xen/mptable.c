@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 
 #include <xen/hypervisor.h>
 #include <xen/xen-os.h>
