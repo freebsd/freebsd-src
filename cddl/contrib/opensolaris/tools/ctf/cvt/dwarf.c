@@ -96,11 +96,6 @@
 #include "list.h"
 #include "traverse.h"
 
-/* The versions of DWARF which we support. */
-#define	DWARF_VERSION	2
-#define	DWARF_VERSION3	3
-#define	DWARF_VERSION4	4
-
 /*
  * We need to define a couple of our own intrinsics, to smooth out some of the
  * differences between the GCC and DevPro DWARF emitters.  See the referenced
@@ -1983,10 +1978,9 @@ dw_read(tdata_t *td, Elf *elf, char *filename __unused)
 		terminate("file contains too many types\n");
 
 	debug(1, "DWARF version: %d\n", vers);
-	if (vers != DWARF_VERSION && vers != DWARF_VERSION3 &&
-	    vers != DWARF_VERSION4) {
+	if (vers < 2 || vers > 4) {
 		terminate("file contains incompatible version %d DWARF code "
-		    "(version 2, 3, or 4 required)\n", vers);
+		    "(version 2, 3 or 4 required)\n", vers);
 	}
 
 	if (die_string(&dw, cu, DW_AT_producer, &prod, 0)) {
