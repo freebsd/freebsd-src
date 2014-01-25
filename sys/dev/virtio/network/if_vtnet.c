@@ -2027,7 +2027,8 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 		}
 
 		KASSERT(hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM,
-		    ("%s: mbuf %p TSO without checksum offload", __func__, m));
+		    ("%s: mbuf %p TSO without checksum offload %#x",
+		    __func__, m, flags));
 
 		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
 		if (error)
