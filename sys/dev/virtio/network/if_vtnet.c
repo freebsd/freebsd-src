@@ -147,6 +147,7 @@ static int	vtnet_txq_mq_start_locked(struct vtnet_txq *, struct mbuf *);
 static int	vtnet_txq_mq_start(struct ifnet *, struct mbuf *);
 static void	vtnet_txq_tq_deferred(void *, int);
 #endif
+static void	vtnet_txq_start(struct vtnet_txq *);
 static void	vtnet_txq_tq_intr(void *, int);
 static void	vtnet_txq_eof(struct vtnet_txq *);
 static void	vtnet_tx_vq_intr(void *);
@@ -2309,6 +2310,24 @@ vtnet_txq_tq_deferred(void *xtxq, int pending)
 #endif /* VTNET_LEGACY_TX */
 
 static void
+vtnet_txq_start(struct vtnet_txq *txq)
+{
+	struct vtnet_softc *sc;
+	struct ifnet *ifp;
+
+	sc = txq->vtntx_sc;
+	ifp = sc->vtnet_ifp;
+
+#ifdef VTNET_LEGACY_TX
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		vtnet_start_locked(txq, ifp);
+#else
+	if (!drbr_empty(ifp, txq->vtntx_br))
+		vtnet_txq_mq_start_locked(txq, NULL);
+#endif
+}
+
+static void
 vtnet_txq_tq_intr(void *xtxq, int pending)
 {
 	struct vtnet_softc *sc;
@@ -2328,13 +2347,7 @@ vtnet_txq_tq_intr(void *xtxq, int pending)
 
 	vtnet_txq_eof(txq);
 
-#ifdef VTNET_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vtnet_start_locked(txq, ifp);
-#else
-	if (!drbr_empty(ifp, txq->vtntx_br))
-		vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+	vtnet_txq_start(txq);
 
 	if (vtnet_txq_enable_intr(txq) != 0) {
 		vtnet_txq_disable_intr(txq);
@@ -2405,13 +2418,7 @@ again:
 
 	vtnet_txq_eof(txq);
 
-#ifdef VTNET_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vtnet_start_locked(txq, ifp);
-#else
-	if (!drbr_empty(ifp, txq->vtntx_br))
-		vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+	vtnet_txq_start(txq);
 
 	if (vtnet_txq_enable_intr(txq) != 0) {
 		vtnet_txq_disable_intr(txq);
@@ -2431,24 +2438,16 @@ again:
 static void
 vtnet_tx_start_all(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
 	struct vtnet_txq *txq;
 	int i;
 
-	ifp = sc->vtnet_ifp;
 	VTNET_CORE_LOCK_ASSERT(sc);
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		txq = &sc->vtnet_txqs[i];
 
 		VTNET_TXQ_LOCK(txq);
-#ifdef VTNET_LEGACY_TX
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			vtnet_start_locked(txq, ifp);
-#else
-		if (!drbr_empty(ifp, txq->vtntx_br))
-			vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+		vtnet_txq_start(txq);
 		VTNET_TXQ_UNLOCK(txq);
 	}
 }
