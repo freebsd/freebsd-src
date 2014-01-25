@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 201401xx: libelf and libdwarf import
+# 20140125: libelf and libdwarf import
 OLD_LIBS+=usr/lib/libelf.so.1
 OLD_LIBS+=usr/lib32/libelf.so.1
 OLD_LIBS+=usr/lib/libdwarf.so.3
