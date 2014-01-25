@@ -65,11 +65,13 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 
 	pa = trunc_page(bpa);
 	if (pa >= AT91_PA_BASE + 0xff00000) {
-		*bshp = pa - AT91_PA_BASE + AT91_BASE;
+		*bshp = bpa - AT91_PA_BASE + AT91_BASE;
 		return (0);
 	}
-	if (pa >= AT91_BASE + 0xff00000)
+	if (pa >= AT91_BASE + 0xff00000) {
+		*bshp = bpa;
 		return (0);
+	}
 	endpa = round_page(bpa + size);
 
 	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
