@@ -843,7 +843,7 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		nvqs++;
 
-	info = malloc(sizeof(struct vq_alloc_info) * nvqs , M_TEMP, M_NOWAIT);
+	info = malloc(sizeof(struct vq_alloc_info) * nvqs, M_TEMP, M_NOWAIT);
 	if (info == NULL)
 		return (ENOMEM);
 
