@@ -159,7 +159,7 @@ ipfw_add_rule(struct ip_fw_chain *chain, struct ip_fw *input_rule)
 	int i, l, insert_before;
 	struct ip_fw **map;	/* the new array of pointers */
 
-	if (chain->rules == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE-1)
+	if (chain->map == NULL || input_rule->rulenum > IPFW_DEFAULT_RULE - 1)
 		return (EINVAL);
 
 	l = RULESIZE(input_rule);
