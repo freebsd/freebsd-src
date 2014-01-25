@@ -75,6 +75,8 @@ static int	vtscsi_suspend(device_t);
 static int	vtscsi_resume(device_t);
 
 static void	vtscsi_negotiate_features(struct vtscsi_softc *);
+static void	vtscsi_read_config(struct vtscsi_softc *,
+		    struct virtio_scsi_config *);
 static int	vtscsi_maximum_segments(struct vtscsi_softc *, int);
 static int	vtscsi_alloc_virtqueues(struct vtscsi_softc *);
 static void	vtscsi_write_device_config(struct vtscsi_softc *);
@@ -287,8 +289,7 @@ vtscsi_attach(device_t dev)
 	if (virtio_with_feature(dev, VIRTIO_SCSI_F_HOTPLUG))
 		sc->vtscsi_flags |= VTSCSI_FLAG_HOTPLUG;
 
-	virtio_read_device_config(dev, 0, &scsicfg,
-	    sizeof(struct virtio_scsi_config));
+	vtscsi_read_config(sc, &scsicfg);
 
 	sc->vtscsi_max_channel = scsicfg.max_channel;
 	sc->vtscsi_max_target = scsicfg.max_target;
@@ -407,6 +408,35 @@ vtscsi_negotiate_features(struct vtscsi_softc *sc)
 	features = virtio_negotiate_features(dev, VTSCSI_FEATURES);
 	sc->vtscsi_features = features;
 }
+
+#define VTSCSI_GET_CONFIG(_dev, _field, _cfg)			\
+	virtio_read_device_config(_dev,				\
+	    offsetof(struct virtio_scsi_config, _field),	\
+	    &(_cfg)->_field, sizeof((_cfg)->_field))		\
+
+static void
+vtscsi_read_config(struct vtscsi_softc *sc,
+    struct virtio_scsi_config *scsicfg)
+{
+	device_t dev;
+
+	dev = sc->vtscsi_dev;
+
+	bzero(scsicfg, sizeof(struct virtio_scsi_config));
+
+	VTSCSI_GET_CONFIG(dev, num_queues, scsicfg);
+	VTSCSI_GET_CONFIG(dev, seg_max, scsicfg);
+	VTSCSI_GET_CONFIG(dev, max_sectors, scsicfg);
+	VTSCSI_GET_CONFIG(dev, cmd_per_lun, scsicfg);
+	VTSCSI_GET_CONFIG(dev, event_info_size, scsicfg);
+	VTSCSI_GET_CONFIG(dev, sense_size, scsicfg);
+	VTSCSI_GET_CONFIG(dev, cdb_size, scsicfg);
+	VTSCSI_GET_CONFIG(dev, max_channel, scsicfg);
+	VTSCSI_GET_CONFIG(dev, max_target, scsicfg);
+	VTSCSI_GET_CONFIG(dev, max_lun, scsicfg);
+}
+
+#undef VTSCSI_GET_CONFIG
 
 static int
 vtscsi_maximum_segments(struct vtscsi_softc *sc, int seg_max)
