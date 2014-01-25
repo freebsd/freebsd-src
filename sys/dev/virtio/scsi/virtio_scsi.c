@@ -81,7 +81,7 @@ static void	vtscsi_write_device_config(struct vtscsi_softc *);
 static int	vtscsi_reinit(struct vtscsi_softc *);
 
 static int	vtscsi_alloc_cam(struct vtscsi_softc *);
-static int 	vtscsi_register_cam(struct vtscsi_softc *);
+static int	vtscsi_register_cam(struct vtscsi_softc *);
 static void	vtscsi_free_cam(struct vtscsi_softc *);
 static void	vtscsi_cam_async(void *, uint32_t, struct cam_path *, void *);
 static int	vtscsi_register_async(struct vtscsi_softc *);
@@ -91,7 +91,7 @@ static void	vtscsi_cam_poll(struct cam_sim *);
 
 static void	vtscsi_cam_scsi_io(struct vtscsi_softc *, struct cam_sim *,
 		    union ccb *);
-static void 	vtscsi_cam_get_tran_settings(struct vtscsi_softc *,
+static void	vtscsi_cam_get_tran_settings(struct vtscsi_softc *,
 		    union ccb *);
 static void	vtscsi_cam_reset_bus(struct vtscsi_softc *, union ccb *);
 static void	vtscsi_cam_reset_dev(struct vtscsi_softc *, union ccb *);
@@ -99,69 +99,69 @@ static void	vtscsi_cam_abort(struct vtscsi_softc *, union ccb *);
 static void	vtscsi_cam_path_inquiry(struct vtscsi_softc *,
 		    struct cam_sim *, union ccb *);
 
-static int 	vtscsi_sg_append_scsi_buf(struct vtscsi_softc *,
+static int	vtscsi_sg_append_scsi_buf(struct vtscsi_softc *,
 		    struct sglist *, struct ccb_scsiio *);
-static int 	vtscsi_fill_scsi_cmd_sglist(struct vtscsi_softc *,
+static int	vtscsi_fill_scsi_cmd_sglist(struct vtscsi_softc *,
 		    struct vtscsi_request *, int *, int *);
-static int 	vtscsi_execute_scsi_cmd(struct vtscsi_softc *,
+static int	vtscsi_execute_scsi_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
-static int 	vtscsi_start_scsi_cmd(struct vtscsi_softc *, union ccb *);
+static int	vtscsi_start_scsi_cmd(struct vtscsi_softc *, union ccb *);
 static void	vtscsi_complete_abort_timedout_scsi_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
-static int 	vtscsi_abort_timedout_scsi_cmd(struct vtscsi_softc *,
+static int	vtscsi_abort_timedout_scsi_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 static void	vtscsi_timedout_scsi_cmd(void *);
 static cam_status vtscsi_scsi_cmd_cam_status(struct virtio_scsi_cmd_resp *);
 static cam_status vtscsi_complete_scsi_cmd_response(struct vtscsi_softc *,
 		    struct ccb_scsiio *, struct virtio_scsi_cmd_resp *);
-static void 	vtscsi_complete_scsi_cmd(struct vtscsi_softc *,
+static void	vtscsi_complete_scsi_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 
 static void	vtscsi_poll_ctrl_req(struct vtscsi_softc *,
 		    struct vtscsi_request *);
-static int 	vtscsi_execute_ctrl_req(struct vtscsi_softc *,
+static int	vtscsi_execute_ctrl_req(struct vtscsi_softc *,
 		    struct vtscsi_request *, struct sglist *, int, int, int);
-static void 	vtscsi_complete_abort_task_cmd(struct vtscsi_softc *c,
+static void	vtscsi_complete_abort_task_cmd(struct vtscsi_softc *c,
 		    struct vtscsi_request *);
-static int 	vtscsi_execute_abort_task_cmd(struct vtscsi_softc *,
+static int	vtscsi_execute_abort_task_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
-static int 	vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *,
+static int	vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 
-static void 	vtscsi_get_request_lun(uint8_t [], target_id_t *, lun_id_t *);
+static void	vtscsi_get_request_lun(uint8_t [], target_id_t *, lun_id_t *);
 static void	vtscsi_set_request_lun(struct ccb_hdr *, uint8_t []);
 static void	vtscsi_init_scsi_cmd_req(struct ccb_scsiio *,
 		    struct virtio_scsi_cmd_req *);
 static void	vtscsi_init_ctrl_tmf_req(struct ccb_hdr *, uint32_t,
 		    uintptr_t, struct virtio_scsi_ctrl_tmf_req *);
 
-static void 	vtscsi_freeze_simq(struct vtscsi_softc *, int);
+static void	vtscsi_freeze_simq(struct vtscsi_softc *, int);
 static int	vtscsi_thaw_simq(struct vtscsi_softc *, int);
 
-static void 	vtscsi_announce(struct vtscsi_softc *, uint32_t, target_id_t,
+static void	vtscsi_announce(struct vtscsi_softc *, uint32_t, target_id_t,
 		    lun_id_t);
-static void 	vtscsi_execute_rescan(struct vtscsi_softc *, target_id_t,
+static void	vtscsi_execute_rescan(struct vtscsi_softc *, target_id_t,
 		    lun_id_t);
-static void 	vtscsi_execute_rescan_bus(struct vtscsi_softc *);
+static void	vtscsi_execute_rescan_bus(struct vtscsi_softc *);
 
-static void 	vtscsi_handle_event(struct vtscsi_softc *,
+static void	vtscsi_handle_event(struct vtscsi_softc *,
 		    struct virtio_scsi_event *);
-static int 	vtscsi_enqueue_event_buf(struct vtscsi_softc *,
+static int	vtscsi_enqueue_event_buf(struct vtscsi_softc *,
 		    struct virtio_scsi_event *);
 static int	vtscsi_init_event_vq(struct vtscsi_softc *);
-static void 	vtscsi_reinit_event_vq(struct vtscsi_softc *);
-static void 	vtscsi_drain_event_vq(struct vtscsi_softc *);
+static void	vtscsi_reinit_event_vq(struct vtscsi_softc *);
+static void	vtscsi_drain_event_vq(struct vtscsi_softc *);
 
-static void 	vtscsi_complete_vqs_locked(struct vtscsi_softc *);
-static void 	vtscsi_complete_vqs(struct vtscsi_softc *);
-static void 	vtscsi_drain_vqs(struct vtscsi_softc *);
-static void 	vtscsi_cancel_request(struct vtscsi_softc *,
+static void	vtscsi_complete_vqs_locked(struct vtscsi_softc *);
+static void	vtscsi_complete_vqs(struct vtscsi_softc *);
+static void	vtscsi_drain_vqs(struct vtscsi_softc *);
+static void	vtscsi_cancel_request(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 static void	vtscsi_drain_vq(struct vtscsi_softc *, struct virtqueue *);
 static void	vtscsi_stop(struct vtscsi_softc *);
 static int	vtscsi_reset_bus(struct vtscsi_softc *);
 
-static void 	vtscsi_init_request(struct vtscsi_softc *,
+static void	vtscsi_init_request(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 static int	vtscsi_alloc_requests(struct vtscsi_softc *);
 static void	vtscsi_free_requests(struct vtscsi_softc *);
@@ -170,18 +170,18 @@ static void	vtscsi_enqueue_request(struct vtscsi_softc *,
 static struct vtscsi_request * vtscsi_dequeue_request(struct vtscsi_softc *);
 
 static void	vtscsi_complete_request(struct vtscsi_request *);
-static void 	vtscsi_complete_vq(struct vtscsi_softc *, struct virtqueue *);
+static void	vtscsi_complete_vq(struct vtscsi_softc *, struct virtqueue *);
 
 static void	vtscsi_control_vq_intr(void *);
 static void	vtscsi_event_vq_intr(void *);
 static void	vtscsi_request_vq_intr(void *);
-static void 	vtscsi_disable_vqs_intr(struct vtscsi_softc *);
-static void 	vtscsi_enable_vqs_intr(struct vtscsi_softc *);
+static void	vtscsi_disable_vqs_intr(struct vtscsi_softc *);
+static void	vtscsi_enable_vqs_intr(struct vtscsi_softc *);
 
-static void 	vtscsi_get_tunables(struct vtscsi_softc *);
-static void 	vtscsi_add_sysctl(struct vtscsi_softc *);
+static void	vtscsi_get_tunables(struct vtscsi_softc *);
+static void	vtscsi_add_sysctl(struct vtscsi_softc *);
 
-static void 	vtscsi_printf_req(struct vtscsi_request *, const char *,
+static void	vtscsi_printf_req(struct vtscsi_request *, const char *,
 		    const char *, ...);
 
 /* Global tunables. */
