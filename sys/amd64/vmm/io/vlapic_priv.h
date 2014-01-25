@@ -139,6 +139,7 @@ struct vlapic_ops {
 	int (*pending_intr)(struct vlapic *vlapic, int *vecptr);
 	void (*intr_accepted)(struct vlapic *vlapic, int vector);
 	void (*post_intr)(struct vlapic *vlapic, int hostcpu);
+	void (*set_tmr)(struct vlapic *vlapic, int vector, bool level);
 };
 
 struct vlapic {

@@ -1150,6 +1150,10 @@ restart:
 	if (error == 0) {
 		retu = false;
 		switch (vme->exitcode) {
+		case VM_EXITCODE_IOAPIC_EOI:
+			vioapic_process_eoi(vm, vcpuid,
+			    vme->u.ioapic_eoi.vector);
+			break;
 		case VM_EXITCODE_RENDEZVOUS:
 			vm_handle_rendezvous(vm, vcpuid);
 			error = 0;
