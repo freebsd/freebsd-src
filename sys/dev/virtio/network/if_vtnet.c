@@ -1821,9 +1821,9 @@ vtnet_rx_vq_intr(void *xrxq)
 		return;
 	}
 
-again:
 	VTNET_RXQ_LOCK(rxq);
 
+again:
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
@@ -1837,10 +1837,11 @@ again:
 		 * This is an occasional condition or race (when !more),
 		 * so retry a few times before scheduling the taskqueue.
 		 */
-		rxq->vtnrx_stats.vrxs_rescheduled++;
-		VTNET_RXQ_UNLOCK(rxq);
 		if (tries++ < VTNET_INTR_DISABLE_RETRIES)
 			goto again;
+
+		VTNET_RXQ_UNLOCK(rxq);
+		rxq->vtnrx_stats.vrxs_rescheduled++;
 		taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
 	} else
 		VTNET_RXQ_UNLOCK(rxq);
@@ -2408,9 +2409,9 @@ vtnet_tx_vq_intr(void *xtxq)
 		return;
 	}
 
-again:
 	VTNET_TXQ_LOCK(txq);
 
+again:
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
@@ -2426,9 +2427,10 @@ again:
 		 * This is an occasional race, so retry a few times
 		 * before scheduling the taskqueue.
 		 */
-		VTNET_TXQ_UNLOCK(txq);
 		if (tries++ < VTNET_INTR_DISABLE_RETRIES)
 			goto again;
+
+		VTNET_TXQ_UNLOCK(txq);
 		txq->vtntx_stats.vtxs_rescheduled++;
 		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
 	} else
