@@ -250,6 +250,12 @@
 
     <para revision="258884">&man.lldb.1; has been updated to upstream
       snapshot version r196259.</para>
+
+    <para revision="261037"><application>OpenSSL</application> has
+      been updated to version 1.0.1.f.</para>
+
+    <para revision="261071">&man.jemalloc.3; has been updated to
+      version 3.5.0.</para>
   </sect2>
 
   <sect2 xml:id="ports">

@@ -246,7 +246,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -256,12 +256,12 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		-DWITHOUT_GDB
+		-DWITHOUT_GDB -DNO_TESTS
 
 # kernel-tools stage
 KTMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
@@ -414,7 +414,8 @@ LIB32WMAKEFLAGS+=	\
 		-DLIBRARIES_ONLY \
 		-DNO_CPU_CFLAGS \
 		-DNO_CTF \
-		-DNO_LINT
+		-DNO_LINT \
+		-DNO_TESTS
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
 		-DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
@@ -569,7 +570,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DNO_PROFILE libraries
+	    -DWITHOUT_MAN -DNO_PROFILE -DNO_TESTS libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -771,7 +772,7 @@ _nmtree_itools=	nmtree
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
-	rm sed sh sysctl test true uname wc ${_zoneinfo}
+	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo}
 
 #
 # distributeworld
@@ -1501,7 +1502,12 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_secure_lib_libcrypto} ${_lib_libldns} \
 		${_secure_lib_libssh} ${_secure_lib_libssl}
 
-.if ${MK_TESTS} != "no"
+.if defined(WITH_ATF) || ${MK_TESTS} != "no"
+.if !defined(WITH_ATF)
+# Ensure that the ATF libraries will be built during make libraries, even
+# though they will have -DNO_TESTS
+MAKE+=		-DWITH_ATF
+.endif
 _lib_atf=	lib/atf
 .endif
 
@@ -1877,7 +1883,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
 	-DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE \
-	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
+	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_TESTS -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 

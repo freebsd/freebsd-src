@@ -2027,7 +2027,8 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 		}
 
 		KASSERT(hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM,
-		    ("%s: mbuf %p TSO without checksum offload", __func__, m));
+		    ("%s: mbuf %p TSO without checksum offload %#x",
+		    __func__, m, flags));
 
 		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
 		if (error)
@@ -3485,6 +3486,7 @@ static void
 vtnet_set_hwaddr(struct vtnet_softc *sc)
 {
 	device_t dev;
+	int i;
 
 	dev = sc->vtnet_dev;
 
@@ -3492,9 +3494,11 @@ vtnet_set_hwaddr(struct vtnet_softc *sc)
 		if (vtnet_ctrl_mac_cmd(sc, sc->vtnet_hwaddr) != 0)
 			device_printf(dev, "unable to set MAC address\n");
 	} else if (sc->vtnet_flags & VTNET_FLAG_MAC) {
-		virtio_write_device_config(dev,
-		    offsetof(struct virtio_net_config, mac),
-		    sc->vtnet_hwaddr, ETHER_ADDR_LEN);
+		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+			virtio_write_dev_config_1(dev,
+			    offsetof(struct virtio_net_config, mac) + i,
+			    sc->vtnet_hwaddr[i]);
+		}
 	}
 }
 
@@ -3502,6 +3506,7 @@ static void
 vtnet_get_hwaddr(struct vtnet_softc *sc)
 {
 	device_t dev;
+	int i;
 
 	dev = sc->vtnet_dev;
 
@@ -3519,8 +3524,10 @@ vtnet_get_hwaddr(struct vtnet_softc *sc)
 		return;
 	}
 
-	virtio_read_device_config(dev, offsetof(struct virtio_net_config, mac),
-	    sc->vtnet_hwaddr, ETHER_ADDR_LEN);
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->vtnet_hwaddr[i] = virtio_read_dev_config_1(dev,
+		    offsetof(struct virtio_net_config, mac) + i);
+	}
 }
 
 static void
