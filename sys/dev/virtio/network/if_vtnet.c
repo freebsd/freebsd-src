@@ -2243,6 +2243,12 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 	vtnet_txq_eof(txq);
 
 	while ((m = drbr_peek(ifp, br)) != NULL) {
+		if (virtqueue_full(vq)) {
+			drbr_putback(ifp, br, m);
+			error = ENOBUFS;
+			break;
+		}
+
 		error = vtnet_txq_encap(txq, &m);
 		if (error) {
 			if (m != NULL)
