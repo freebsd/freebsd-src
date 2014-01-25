@@ -21,6 +21,12 @@ FBSD_1.3 {
 	mallctl;
 	mallctlnametomib;
 	mallctlbymib;
+	mallocx;
+	rallocx;
+	xallocx;
+	sallocx;
+	dallocx;
+	nallocx;
 	allocm;
 	rallocm;
 	sallocm;
@@ -32,6 +38,12 @@ FBSD_1.3 {
 	__free;
 	__posix_memalign;
 	__malloc_usable_size;
+	__mallocx;
+	__rallocx;
+	__xallocx;
+	__sallocx;
+	__dallocx;
+	__nallocx;
 	__allocm;
 	__rallocm;
 	__sallocm;

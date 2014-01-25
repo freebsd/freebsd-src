@@ -226,7 +226,14 @@ preadbuffer(void)
 	int more;
 	char savec;
 
-	if (parsefile->strpush) {
+	while (parsefile->strpush) {
+		/*
+		 * Add a space to the end of an alias to ensure that the
+		 * alias remains in use while parsing its last word.
+		 * This avoids alias recursions.
+		 */
+		if (parsenleft == -1 && parsefile->strpush->ap != NULL)
+			return ' ';
 		popstring();
 		if (--parsenleft >= 0)
 			return (*parsenextc++);

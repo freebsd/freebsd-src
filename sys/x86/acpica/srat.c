@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/include/actables.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 
 #include <dev/acpica/acpivar.h>
 

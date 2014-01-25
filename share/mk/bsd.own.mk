@@ -251,7 +251,6 @@ __DEFAULT_YES_OPTIONS = \
     ARM_EABI \
     ASSERT_DEBUG \
     AT \
-    ATF \
     ATM \
     AUDIT \
     AUTHPF \
