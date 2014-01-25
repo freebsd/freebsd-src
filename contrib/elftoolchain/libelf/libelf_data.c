@@ -82,6 +82,17 @@ _libelf_xlate_shtype(uint32_t sht)
 		return (ELF_T_VNEED);
 	case SHT_SUNW_versym:	/* == SHT_GNU_versym */
 		return (ELF_T_HALF);
+
+	case SHT_ARM_PREEMPTMAP:
+	case SHT_ARM_ATTRIBUTES:
+	case SHT_ARM_DEBUGOVERLAY:
+	case SHT_ARM_OVERLAYSECTION:
+	case SHT_MIPS_DWARF:
+	case SHT_MIPS_REGINFO:
+	case SHT_MIPS_OPTIONS:
+	case SHT_AMD64_UNWIND:	/* == SHT_IA_64_UNWIND == SHT_ARM_EXIDX */
+		return (ELF_T_BYTE);
+
 	default:
 		return (-1);
 	}
