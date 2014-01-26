@@ -48,6 +48,9 @@ install_uboot() {
 }
 
 main() {
+	# Build gcc for use in the chroot for arm builds.
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
+		WITH_GCC=1 obj depend all install
 	# Build the 'xdev' target for crochet.
 	eval chroot ${CHROOTDIR} make -C /usr/src \
 		XDEV=${XDEV} XDEV_ARCH=${XDEV_ARCH} WITH_GCC=1 xdev
