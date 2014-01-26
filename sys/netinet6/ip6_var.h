@@ -383,6 +383,7 @@ void	ip6_notify_pmtu(struct inpcb *, struct sockaddr_in6 *,
 int	ip6_sysctl(int *, u_int, void *, size_t *, void *, size_t);
 
 void	ip6_forward(struct mbuf *, int);
+struct mbuf *ip6_fastforward(struct mbuf *);
 
 void	ip6_mloopback(struct ifnet *, struct mbuf *, struct sockaddr_in6 *);
 int	ip6_output(struct mbuf *, struct ip6_pktopts *,

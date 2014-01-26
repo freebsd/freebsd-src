@@ -476,12 +476,6 @@ ip6_input(struct mbuf *m)
 			IP6STAT_INC(ip6s_m1);
 	}
 
-	/* drop the packet if IPv6 operation is disabled on the IF */
-	if ((ND_IFINFO(m->m_pkthdr.rcvif)->flags & ND6_IFF_IFDISABLED)) {
-		m_freem(m);
-		return;
-	}
-
 	in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_receive);
 	IP6STAT_INC(ip6s_total);
 

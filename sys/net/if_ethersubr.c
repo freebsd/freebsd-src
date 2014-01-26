@@ -76,6 +76,7 @@
 #include <netinet/ip_var.h>
 #endif
 #ifdef INET6
+#include <netinet6/ip6_var.h>
 #include <netinet6/nd6.h>
 #endif
 
@@ -820,6 +821,8 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #endif
 #ifdef INET6
 	case ETHERTYPE_IPV6:
+		if ((m = ip6_fastforward(m)) == NULL)
+			return;
 		isr = NETISR_IPV6;
 		break;
 #endif
