@@ -1,7 +1,7 @@
-#	$Id: Makefile,v 1.20 2013/09/04 15:42:03 sjg Exp $
+#	$Id: Makefile,v 1.23 2014/01/02 22:20:52 sjg Exp $
 
 # Base version on src date
-MAKE_VERSION= 20130904
+MAKE_VERSION= 20140101
 
 PROG=	bmake
 
@@ -68,7 +68,7 @@ SRCS+= ${LIBOBJS:T:.o=.c}
 prefix?= /usr
 srcdir?= ${.CURDIR}
 
-DEFAULT_SYS_PATH?= .../share/mk:${prefix}/share/mk
+DEFAULT_SYS_PATH?= ${prefix}/share/mk
 
 CPPFLAGS+= -DUSE_META
 CFLAGS+= ${CPPFLAGS}
