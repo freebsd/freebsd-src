@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2003, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2003, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: milter.h,v 8.41 2006/05/22 23:23:55 ca Exp $
+ *	$Id: milter.h,v 8.42 2013/11/22 20:51:27 ca Exp $
  */
 
 /*

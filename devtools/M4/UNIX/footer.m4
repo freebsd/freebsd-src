@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: footer.m4,v 8.2 1999/05/13 16:16:35 gshapiro Exp $
+#	$Id: footer.m4,v 8.3 2013/11/22 20:51:22 ca Exp $
 #
 divert(0)dnl
 ################  Dependency scripts

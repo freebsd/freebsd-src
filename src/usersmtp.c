@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2006, 2008-2010 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2006, 2008-2010 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.486 2013/03/12 15:24:54 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.488 2013/11/22 20:51:57 ca Exp $")
 
 #include <sysexits.h>
 
@@ -524,15 +524,15 @@ static int attemptauth	__P((MAILER *, MCI *, ENVELOPE *, SASL_AI_T *));
 
 static sasl_callback_t callbacks[] =
 {
-	{	SASL_CB_GETREALM,	&saslgetrealm,	NULL	},
+	{	SASL_CB_GETREALM,	(sasl_callback_ft)&saslgetrealm,	NULL	},
 #define CB_GETREALM_IDX	0
-	{	SASL_CB_PASS,		&getsecret,	NULL	},
+	{	SASL_CB_PASS,		(sasl_callback_ft)&getsecret,	NULL	},
 #define CB_PASS_IDX	1
-	{	SASL_CB_USER,		&getsimple,	NULL	},
+	{	SASL_CB_USER,		(sasl_callback_ft)&getsimple,	NULL	},
 #define CB_USER_IDX	2
-	{	SASL_CB_AUTHNAME,	&getsimple,	NULL	},
+	{	SASL_CB_AUTHNAME,	(sasl_callback_ft)&getsimple,	NULL	},
 #define CB_AUTHNAME_IDX	3
-	{	SASL_CB_VERIFYFILE,	&safesaslfile,	NULL	},
+	{	SASL_CB_VERIFYFILE,	(sasl_callback_ft)&safesaslfile,	NULL	},
 #define CB_SAFESASL_IDX	4
 	{	SASL_CB_LIST_END,	NULL,		NULL	}
 };
