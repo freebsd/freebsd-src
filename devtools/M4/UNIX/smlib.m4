@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: smlib.m4,v 8.3 2000/07/07 18:52:23 dmoen Exp $
+#	$Id: smlib.m4,v 8.4 2013/11/22 20:51:23 ca Exp $
 #
 divert(0)dnl
 

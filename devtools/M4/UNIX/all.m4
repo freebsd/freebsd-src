@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1999-2000, 2006 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2000, 2006 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: all.m4,v 8.21 2006/06/14 20:18:27 ca Exp $
+#	$Id: all.m4,v 8.22 2013/11/22 20:51:22 ca Exp $
 #
 divert(0)dnl
 ALL=${BEFORE} ${LINKS} bldTARGETS

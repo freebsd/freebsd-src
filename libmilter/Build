@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1999-2000 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1999-2000 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -8,6 +8,6 @@
 # the sendmail distribution.
 #
 #
-#	$Id: Build,v 8.4 2000/09/17 17:30:03 gshapiro Exp $
+#	$Id: Build,v 8.6 2013/11/22 20:51:36 ca Exp $
 
-exec ../devtools/bin/Build $*
+exec ../devtools/bin/Build "$@"

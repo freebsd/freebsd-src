@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1998-2002, 2008 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2002, 2008 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1993, 1996-1997 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1993
@@ -11,7 +11,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: Build,v 8.187 2008/01/11 18:40:17 ca Exp $
+#	$Id: Build,v 8.189 2013/12/02 22:11:07 gshapiro Exp $
 #
 
 #
@@ -783,8 +783,13 @@ then
 		${M4} ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - | \
 		grep "^_HCRSBIL_=" | \
 		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e "s/^_HCRSBIL_=//"`
+	soext=`(cat $obj/.settings$$; echo "_EMANOS_= confSHAREDLIB_EXT" ) | \
+		sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' | \
+		${M4} ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - | \
+		grep "^_EMANOS_=" | \
+		sed -e 's/#_define_/#define/g' -e 's/_include_/include/g' -e "s/^_EMANOS_=//" -e 's/^ //'`
 	echo 'divert(-1)' >> $obj/.settings$$
-	LIBDIRS="$libdirs" LIBSRCH="$libsrch" LIBPATH="$libpath" SITECONFIG="$siteconfig" $SHELL $BUILDTOOLS/bin/configure.sh $sflag $oscf >> $obj/.settings$$
+	LIBDIRS="$libdirs" LIBSRCH="$libsrch" LIBPATH="$libpath" SITECONFIG="$siteconfig" SOEXT="$soext" $SHELL $BUILDTOOLS/bin/configure.sh $sflag $oscf >> $obj/.settings$$
 	echo 'divert(0)dnl' >> $obj/.settings$$
 	sed -e 's/\(.\)include/\1_include_/g' -e 's/#define/#_define_/g' -e 's///g' $obj/.settings$$ | \
 		${M4}  ${M4_BLDVARIANT_FLAGS} -DconfBUILDTOOLSDIR=$BUILDTOOLS - Makefile.m4 | \

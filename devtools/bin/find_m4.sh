@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 # the sendmail distribution.
 #
 #
-#       $Id: find_m4.sh,v 8.13 2001/01/23 01:47:45 gshapiro Exp $
+#       $Id: find_m4.sh,v 8.14 2013/11/22 20:51:24 ca Exp $
 #
 
 # Try to find a working M4 program.

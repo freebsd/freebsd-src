@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001-2002 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@ divert(-1)
 #
 #	Compile/run a test program for libsm.
 #
-#	$Id: sm-test.m4,v 1.7 2002/02/01 17:38:07 ca Exp $
+#	$Id: sm-test.m4,v 1.8 2013/11/22 20:51:23 ca Exp $
 #
 define(`smtest',
 `bldPUSH_TARGET($1)dnl

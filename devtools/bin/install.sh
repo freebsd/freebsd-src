@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 1998, 1999, 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999, 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: install.sh,v 8.14 2001/03/16 23:37:31 gshapiro Exp $
+#	$Id: install.sh,v 8.15 2013/11/22 20:51:25 ca Exp $
 
 # Set default program
 program=mv

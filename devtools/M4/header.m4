@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: header.m4,v 8.27 2002/08/01 21:58:26 gshapiro Exp $
+#	$Id: header.m4,v 8.28 2013/11/22 20:51:18 ca Exp $
 #
 changecom(^A)
 undefine(`format')

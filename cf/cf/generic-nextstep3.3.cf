@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998-2004, 2009, 2010 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998-2004, 2009, 2010 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Fri Apr 19 08:04:44 PDT 2013
-##### in /extra/home/ca/sm-8.14.7/OpenSource/sendmail-8.14.7/cf/cf
+##### built by ca@lab.smi.sendmail.com on Thu Jan 23 12:29:13 PST 2014
+##### in /home/ca/sm8-rel/sm-8.14.8/OpenSource/sendmail-8.14.8/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -27,21 +27,21 @@
 ######################################################################
 ######################################################################
 
-#####  $Id: cfhead.m4,v 8.121 2010/01/07 18:20:19 ca Exp $  #####
-#####  $Id: cf.m4,v 8.32 1999/02/07 07:26:14 gshapiro Exp $  #####
-#####  $Id: generic-nextstep3.3.mc,v 8.10 1999/02/07 07:26:02 gshapiro Exp $  #####
+#####  $Id: cfhead.m4,v 8.122 2013/11/22 20:51:13 ca Exp $  #####
+#####  $Id: cf.m4,v 8.33 2013/11/22 20:51:13 ca Exp $  #####
+#####  $Id: generic-nextstep3.3.mc,v 8.11 2013/11/22 20:51:08 ca Exp $  #####
 
-#####  $Id: nextstep.m4,v 8.21 1999/10/21 00:31:40 gshapiro Exp $  #####
+#####  $Id: nextstep.m4,v 8.22 2013/11/22 20:51:15 ca Exp $  #####
 
-#####  $Id: generic.m4,v 8.15 1999/04/04 00:51:09 ca Exp $  #####
+#####  $Id: generic.m4,v 8.16 2013/11/22 20:51:10 ca Exp $  #####
 
-#####  $Id: redirect.m4,v 8.15 1999/08/06 01:47:36 gshapiro Exp $  #####
+#####  $Id: redirect.m4,v 8.16 2013/11/22 20:51:11 ca Exp $  #####
 
-#####  $Id: use_cw_file.m4,v 8.11 2001/08/26 20:58:57 gshapiro Exp $  #####
+#####  $Id: use_cw_file.m4,v 8.12 2013/11/22 20:51:11 ca Exp $  #####
 
 
 
-#####  $Id: proto.m4,v 8.760 2012/09/07 16:30:15 ca Exp $  #####
+#####  $Id: proto.m4,v 8.762 2013/11/22 20:51:13 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -122,7 +122,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.7
+DZ8.14.8
 
 
 ###############
@@ -1298,7 +1298,7 @@ Sauthinfo
 ###   Local and Program Mailer specification   ###
 ##################################################
 
-#####  $Id: local.m4,v 8.59 2004/11/23 00:37:25 ca Exp $  #####
+#####  $Id: local.m4,v 8.60 2013/11/22 20:51:14 ca Exp $  #####
 
 #
 #  Envelope sender rewriting
@@ -1350,7 +1350,7 @@ Mprog,		P=/bin/sh, F=lsDFMoqeuP, S=EnvFromL/HdrFromL, R=EnvToL/HdrToL, D=$z:/,
 ###   SMTP Mailer specification   ###
 #####################################
 
-#####  $Id: smtp.m4,v 8.65 2006/07/12 21:08:10 ca Exp $  #####
+#####  $Id: smtp.m4,v 8.66 2013/11/22 20:51:14 ca Exp $  #####
 
 #
 #  common sender and masquerading recipient rewriting
@@ -1441,7 +1441,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=2
 ### generic-nextstep3.3.mc ###
 # divert(-1)
 # #
-# # Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# # Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 # #	All rights reserved.
 # # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # # Copyright (c) 1988, 1993
@@ -1461,7 +1461,7 @@ Mrelay,		P=[IPC], F=mDFMuXa8, S=EnvFromSMTP/HdrFromSMTP, R=MasqSMTP, E=\r\n, L=2
 # #
 # 
 # divert(0)dnl
-# VERSIONID(`$Id: generic-nextstep3.3.mc,v 8.10 1999/02/07 07:26:02 gshapiro Exp $')
+# VERSIONID(`$Id: generic-nextstep3.3.mc,v 8.11 2013/11/22 20:51:08 ca Exp $')
 # OSTYPE(nextstep)dnl
 # DOMAIN(generic)dnl
 # MAILER(local)dnl
