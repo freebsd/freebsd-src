@@ -421,7 +421,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 {
 	int err;
 	int i;
-	uint32_t cr;
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
@@ -490,8 +489,8 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	}
 
 	/* Turn on rx and tx */
-	cr = USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX;
-	WR4(&sc->sc_bas, USART_CR, cr);
+	DELAY(1000);		/* Give pending character a chance to drain.  */
+	WR4(&sc->sc_bas, USART_CR, USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX);
 	WR4(&sc->sc_bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
 
 	/*
