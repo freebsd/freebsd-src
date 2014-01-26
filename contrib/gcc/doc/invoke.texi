@@ -164,10 +164,13 @@ in the following sections.
 @xref{C Dialect Options,,Options Controlling C Dialect}.
 @gccoptlist{-ansi  -std=@var{standard}  -fgnu89-inline @gol
 -aux-info @var{filename} @gol
--fno-asm  -fno-builtin  -fno-builtin-@var{function} @gol
+@c APPLE LOCAL blocks 7205047 5811887
+-fno-asm  -fno-blocks -fno-builtin  -fno-builtin-@var{function} @gol
 -fhosted  -ffreestanding -fopenmp -fms-extensions @gol
 -trigraphs  -no-integrated-cpp  -traditional  -traditional-cpp @gol
 -fallow-single-precision  -fcond-mismatch -flax-vector-conversions @gol
+@c APPLE LOCAL nested functions 4357979 */
+-fno-nested-functions @gol
 -fsigned-bitfields  -fsigned-char @gol
 @c APPLE LOCAL -Wnewline-eof 2001-08-23 --sts **
 -Wnewline-eof (Apple compatible) @gol
@@ -222,6 +225,10 @@ in the following sections.
 -Wmain  -Wmissing-braces  -Wmissing-field-initializers @gol
 -Wmissing-format-attribute  -Wmissing-include-dirs @gol
 -Wmissing-noreturn @gol
+@c APPLE LOCAL warn missing prototype 6261539
+-Wmissing-prototypes @gol
+@c APPLE LOCAL -Wmost
+-Wmost (APPLE ONLY) @gol
 -Wno-multichar  -Wnonnull  -Wno-overflow @gol
 -Woverlength-strings  -Wpacked  -Wpadded @gol
 -Wparentheses  -Wpointer-arith  -Wno-pointer-to-int-cast @gol
@@ -240,7 +247,8 @@ in the following sections.
 
 @item C-only Warning Options
 @gccoptlist{-Wbad-function-cast  -Wmissing-declarations @gol
--Wmissing-prototypes  -Wnested-externs  -Wold-style-definition @gol
+@c APPLE LOCAL warn missing prototype 6261539
+-Wnested-externs  -Wold-style-definition @gol
 -Wstrict-prototypes  -Wtraditional @gol
 -Wdeclaration-after-statement -Wpointer-sign}
 
@@ -1228,6 +1236,16 @@ effect.  In C99 mode (@option{-std=c99} or @option{-std=gnu99}), this
 switch only affects the @code{asm} and @code{typeof} keywords, since
 @code{inline} is a standard keyword in ISO C99.
 
+@c APPLE LOCAL begin blocks 7205047 5811887
+@item -fno-blocks
+@opindex fno-blocks
+Disable the use of blocks.  In @option{-std=c99} mode, blocks are
+turned off by default.  @option{-fblocks} can be used to re-enable the
+feature, if off.  Runtime support for blocks first appeared in Mac OS
+X 10.6.  When targeting 10.6 (see @option{-mmacosx-version-min}) and
+later, the extension is on by default.
+@c APPLE LOCAL end blocks 7205047 5811887
+
 @item -fno-builtin
 @itemx -fno-builtin-@var{function}
 @opindex fno-builtin
@@ -1333,6 +1351,13 @@ Formerly, these options caused GCC to attempt to emulate a pre-standard
 C compiler.  They are now only supported with the @option{-E} switch.
 The preprocessor continues to support a pre-standard mode.  See the GNU
 CPP manual for details.
+
+@c APPLE LOCAL begin nested functions 4357979
+@item -fno-nested-functions
+@opindex fno-nested-functions
+Disable nested functions.  This option is not supported for C++ or
+Objective-C++.  On FreeBSD, nested functions are disabled by default.
+@c APPLE LOCAL end nested functions 4357979
 
 @item -fcond-mismatch
 @opindex fcond-mismatch
@@ -2652,7 +2677,12 @@ warnings about constructions that some users consider questionable, and
 that are easy to avoid (or modify to prevent the warning), even in
 conjunction with macros.  This also enables some language-specific
 warnings described in @ref{C++ Dialect Options}.
+@c APPLE LOCAL begin -Wmost
+@item -Wmost
+@opindex Wmost
+This is equivalent to -Wall -Wno-parentheses.  (Apple compatible)
 @end table
+@c APPLE LOCAL end -Wmost
 
 The following @option{-W@dots{}} options are not implied by @option{-Wall}.
 Some of them warn about constructions that users generally do not
@@ -3025,7 +3055,8 @@ types.)
 Warn if an old-style function definition is used.  A warning is given
 even if there is a previous prototype.
 
-@item -Wmissing-prototypes @r{(C only)}
+@c APPLE LOCAL warn missing prototype 6261539
+@item -Wmissing-prototypes
 @opindex Wmissing-prototypes
 Warn if a global function is defined without a previous prototype
 declaration.  This warning is issued even if the definition itself

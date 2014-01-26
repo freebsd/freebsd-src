@@ -40,6 +40,7 @@
 #include <sys/_mutex.h>
 #include <sys/callout.h>
 #include <sys/condvar.h>
+#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/kbio.h>
 #include <sys/mouse.h>
@@ -134,6 +135,7 @@ struct vt_device {
 #define	VDF_DEAD	0x10	/* Early probing found nothing. */
 #define	VDF_INITIALIZED	0x20	/* vtterm_cnprobe already done. */
 #define	VDF_MOUSECURSOR	0x40	/* Mouse cursor visible. */
+#define	VDF_QUIET_BELL	0x80	/* Disable bell. */
 	int			 vd_keyboard;	/* (G) Keyboard index. */
 	unsigned int		 vd_kbstate;	/* (?) Device unit. */
 	unsigned int		 vd_unit;	/* (c) Device unit. */
@@ -282,6 +284,9 @@ typedef void vd_bitbltchr_t(struct vt_device *vd, const uint8_t *src,
     unsigned int width, unsigned int height, term_color_t fg, term_color_t bg);
 typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
     vt_axis_t top, vt_axis_t left, term_color_t fg, term_color_t bg);
+typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
+typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
+    vm_memattr_t *);
 
 struct vt_driver {
 	/* Console attachment. */
@@ -290,6 +295,12 @@ struct vt_driver {
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+
+	/* Framebuffer ioctls, if present. */
+	vd_fb_ioctl_t	*vd_fb_ioctl;
+
+	/* Framebuffer mmap, if present. */
+	vd_fb_mmap_t	*vd_fb_mmap;
 
 	/* Text mode operation. */
 	vd_putchar_t	*vd_putchar;

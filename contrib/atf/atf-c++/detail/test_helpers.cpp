@@ -40,6 +40,18 @@
 #include "process.hpp"
 #include "test_helpers.hpp"
 
+// Path to the directory containing the libatf-c tests, used to locate the
+// process_helpers program.  If NULL (the default), the code will use a
+// relative path.  Otherwise, the provided path will be used; this is so
+// that we can locate the helpers binary if the installation uses a
+// different layout than the one we provide (as is the case in FreeBSD).
+#if defined(ATF_C_TESTS_BASE)
+static const char* atf_c_tests_base = ATF_C_TESTS_BASE;
+#else
+static const char* atf_c_tests_base = NULL;
+#endif
+#undef ATF_C_TESTS_BASE
+
 void
 build_check_cxx_o_aux(const atf::fs::path& sfile, const char* failmsg,
                       const bool expect_pass)
@@ -67,25 +79,30 @@ build_check_cxx_o(const atf::tests::tc& tc, const char* sfile,
 void
 header_check(const char *hdrname)
 {
-    std::ofstream srcfile("test.c");
+    std::ofstream srcfile("test.cpp");
     ATF_REQUIRE(srcfile);
     srcfile << "#include <" << hdrname << ">\n";
     srcfile.close();
 
     const std::string failmsg = std::string("Header check failed; ") +
         hdrname + " is not self-contained";
-    build_check_cxx_o_aux(atf::fs::path("test.c"), failmsg.c_str(), true);
+    build_check_cxx_o_aux(atf::fs::path("test.cpp"), failmsg.c_str(), true);
 }
 
 atf::fs::path
 get_process_helpers_path(const atf::tests::tc& tc, bool is_detail)
 {
-    if (is_detail)
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / ".." / "atf-c" / "detail" / "process_helpers";
-    else
-        return atf::fs::path(tc.get_config_var("srcdir")) /
-               ".." / "atf-c" / "detail" / "process_helpers";
+    const char* helper = "detail/process_helpers";
+    if (atf_c_tests_base == NULL) {
+        if (is_detail)
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / ".." / "atf-c" / helper;
+        else
+            return atf::fs::path(tc.get_config_var("srcdir")) /
+                   ".." / "atf-c" / helper;
+    } else {
+        return atf::fs::path(atf_c_tests_base) / helper;
+    }
 }
 
 void

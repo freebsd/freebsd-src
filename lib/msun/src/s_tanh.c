@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
  *	only tanh(0)=0 is exact for finite argument.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -75,3 +77,7 @@ tanh(double x)
 	}
 	return (jx>=0)? z: -z;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(tanh, tanhl);
+#endif

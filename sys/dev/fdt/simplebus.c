@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
-#include <machine/fdt.h>
-
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
@@ -196,7 +194,7 @@ simplebus_attach(device_t dev)
 			continue;
 		}
 
-		if (fdt_intr_to_rl(dt_child, &di->di_res, di->di_intr_sl)) {
+		if (fdt_intr_to_rl(dev, dt_child, &di->di_res, di->di_intr_sl)) {
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);

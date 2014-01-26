@@ -153,6 +153,13 @@ struct inode {
 #define IN_LAZYACCESS   0x0100		/* Process IN_ACCESS after the
 					    suspension finished */
 
+/*
+ * These are translation flags for some attributes that Ext4
+ * passes as inode flags but that we cannot pass directly.
+ */
+#define	E4_INDEX	0x01000000
+#define	E4_EXTENTS	0x02000000
+
 #define i_devvp i_ump->um_devvp
 
 #ifdef _KERNEL

@@ -73,6 +73,7 @@ static int ntest = 1;
 		printf("not ok %d %s:%u\n", ntest, __FILE__, __LINE__);	\
 		exit(1);						\
 	}								\
+	ntest++;							\
 } while (0)
 
 #define	SYSCTL0_READ0		0x0001
@@ -1470,7 +1471,7 @@ main(void)
 	int scvalue0, scvalue1;
 	size_t scsize;
 
-	printf("1..250\n");
+	printf("1..256\n");
 
 	scsize = sizeof(scvalue0);
 	CHECKX(sysctlbyname(SYSCTL0_NAME, &scvalue0, &scsize, NULL, 0) == 0);

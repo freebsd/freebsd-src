@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
+#include "acpi.h"
 #include "bhyverun.h"
 #include "mptbl.h"
 
@@ -70,6 +71,9 @@ __FBSDID("$FreeBSD$");
 	 (MPEP_SIG_STEPPING))
 
 #define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
+
+/* Number of local intr entries */
+#define	MPEII_NUM_LOCAL_IRQ	2
 
 /* Number of i/o intr entries */
 #define	MPEII_MAX_IRQ		24
@@ -140,6 +144,30 @@ mpt_build_proc_entries(proc_entry_ptr mpep, int ncpu)
 }
 
 static void
+mpt_build_localint_entries(int_entry_ptr mpie)
+{
+
+	/* Hardcode LINT0 as ExtINT on all CPUs. */
+	memset(mpie, 0, sizeof(*mpie));
+	mpie->type = MPCT_ENTRY_LOCAL_INT;
+	mpie->int_type = INTENTRY_TYPE_EXTINT;
+	mpie->int_flags = INTENTRY_FLAGS_POLARITY_CONFORM |
+	    INTENTRY_FLAGS_TRIGGER_CONFORM;
+	mpie->dst_apic_id = 0xff;
+	mpie->dst_apic_int = 0;
+	mpie++;
+
+	/* Hardcode LINT1 as NMI on all CPUs. */
+	memset(mpie, 0, sizeof(*mpie));
+	mpie->type = MPCT_ENTRY_LOCAL_INT;
+	mpie->int_type = INTENTRY_TYPE_NMI;
+	mpie->int_flags = INTENTRY_FLAGS_POLARITY_CONFORM |
+	    INTENTRY_FLAGS_TRIGGER_CONFORM;
+	mpie->dst_apic_id = 0xff;
+	mpie->dst_apic_int = 1;
+}
+
+static void
 mpt_build_bus_entries(bus_entry_ptr mpeb)
 {
 
@@ -200,13 +228,21 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int num_pins, int id)
 			mpie->int_type = INTENTRY_TYPE_INT;
 			mpie->src_bus_irq = 0;
 			break;
+		case SCI_INT:
+			/* ACPI SCI is level triggered and active-lo. */
+			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
+			    INTENTRY_FLAGS_TRIGGER_LEVEL;
+			mpie->int_type = INTENTRY_TYPE_INT;
+			mpie->src_bus_irq = SCI_INT;
+			break;
 		case 5:
 		case 10:
 		case 11:
 			/*
-			 * PCI Irqs set to level triggered.
+			 * PCI Irqs set to level triggered and active-lo.
 			 */
-			mpie->int_flags = INTENTRY_FLAGS_TRIGGER_LEVEL;
+			mpie->int_flags = INTENTRY_FLAGS_POLARITY_ACTIVELO |
+			    INTENTRY_FLAGS_TRIGGER_LEVEL;
 			mpie->src_bus_id = 0;
 			/* fall through.. */
 		default:
@@ -274,6 +310,11 @@ mptable_build(struct vmctx *ctx, int ncpu)
 	mpt_build_ioint_entries(mpie, MPEII_MAX_IRQ, 0);
 	curraddr += sizeof(*mpie) * MPEII_MAX_IRQ;
 	mpch->entry_count += MPEII_MAX_IRQ;
+
+	mpie = (int_entry_ptr)curraddr;
+	mpt_build_localint_entries(mpie);
+	curraddr += sizeof(*mpie) * MPEII_NUM_LOCAL_IRQ;
+	mpch->entry_count += MPEII_NUM_LOCAL_IRQ;
 
 	if (oem_tbl_start) {
 		mpch->oem_table_pointer = curraddr - startaddr + MPTABLE_BASE;

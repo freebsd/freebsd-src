@@ -147,6 +147,7 @@ static int	vtnet_txq_mq_start_locked(struct vtnet_txq *, struct mbuf *);
 static int	vtnet_txq_mq_start(struct ifnet *, struct mbuf *);
 static void	vtnet_txq_tq_deferred(void *, int);
 #endif
+static void	vtnet_txq_start(struct vtnet_txq *);
 static void	vtnet_txq_tq_intr(void *, int);
 static void	vtnet_txq_eof(struct vtnet_txq *);
 static void	vtnet_tx_vq_intr(void *);
@@ -843,7 +844,7 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		nvqs++;
 
-	info = malloc(sizeof(struct vq_alloc_info) * nvqs , M_TEMP, M_NOWAIT);
+	info = malloc(sizeof(struct vq_alloc_info) * nvqs, M_TEMP, M_NOWAIT);
 	if (info == NULL)
 		return (ENOMEM);
 
@@ -1820,9 +1821,9 @@ vtnet_rx_vq_intr(void *xrxq)
 		return;
 	}
 
-again:
 	VTNET_RXQ_LOCK(rxq);
 
+again:
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
@@ -1836,10 +1837,11 @@ again:
 		 * This is an occasional condition or race (when !more),
 		 * so retry a few times before scheduling the taskqueue.
 		 */
-		rxq->vtnrx_stats.vrxs_rescheduled++;
-		VTNET_RXQ_UNLOCK(rxq);
 		if (tries++ < VTNET_INTR_DISABLE_RETRIES)
 			goto again;
+
+		VTNET_RXQ_UNLOCK(rxq);
+		rxq->vtnrx_stats.vrxs_rescheduled++;
 		taskqueue_enqueue(rxq->vtnrx_tq, &rxq->vtnrx_intrtask);
 	} else
 		VTNET_RXQ_UNLOCK(rxq);
@@ -2027,7 +2029,8 @@ vtnet_txq_offload(struct vtnet_txq *txq, struct mbuf *m,
 		}
 
 		KASSERT(hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM,
-		    ("%s: mbuf %p TSO without checksum offload", __func__, m));
+		    ("%s: mbuf %p TSO without checksum offload %#x",
+		    __func__, m, flags));
 
 		error = vtnet_txq_offload_tso(txq, m, etype, csum_start, hdr);
 		if (error)
@@ -2240,6 +2243,12 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 	vtnet_txq_eof(txq);
 
 	while ((m = drbr_peek(ifp, br)) != NULL) {
+		if (virtqueue_full(vq)) {
+			drbr_putback(ifp, br, m);
+			error = ENOBUFS;
+			break;
+		}
+
 		error = vtnet_txq_encap(txq, &m);
 		if (error) {
 			if (m != NULL)
@@ -2308,6 +2317,24 @@ vtnet_txq_tq_deferred(void *xtxq, int pending)
 #endif /* VTNET_LEGACY_TX */
 
 static void
+vtnet_txq_start(struct vtnet_txq *txq)
+{
+	struct vtnet_softc *sc;
+	struct ifnet *ifp;
+
+	sc = txq->vtntx_sc;
+	ifp = sc->vtnet_ifp;
+
+#ifdef VTNET_LEGACY_TX
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+		vtnet_start_locked(txq, ifp);
+#else
+	if (!drbr_empty(ifp, txq->vtntx_br))
+		vtnet_txq_mq_start_locked(txq, NULL);
+#endif
+}
+
+static void
 vtnet_txq_tq_intr(void *xtxq, int pending)
 {
 	struct vtnet_softc *sc;
@@ -2327,13 +2354,7 @@ vtnet_txq_tq_intr(void *xtxq, int pending)
 
 	vtnet_txq_eof(txq);
 
-#ifdef VTNET_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vtnet_start_locked(txq, ifp);
-#else
-	if (!drbr_empty(ifp, txq->vtntx_br))
-		vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+	vtnet_txq_start(txq);
 
 	if (vtnet_txq_enable_intr(txq) != 0) {
 		vtnet_txq_disable_intr(txq);
@@ -2394,9 +2415,9 @@ vtnet_tx_vq_intr(void *xtxq)
 		return;
 	}
 
-again:
 	VTNET_TXQ_LOCK(txq);
 
+again:
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
@@ -2404,13 +2425,7 @@ again:
 
 	vtnet_txq_eof(txq);
 
-#ifdef VTNET_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vtnet_start_locked(txq, ifp);
-#else
-	if (!drbr_empty(ifp, txq->vtntx_br))
-		vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+	vtnet_txq_start(txq);
 
 	if (vtnet_txq_enable_intr(txq) != 0) {
 		vtnet_txq_disable_intr(txq);
@@ -2418,9 +2433,10 @@ again:
 		 * This is an occasional race, so retry a few times
 		 * before scheduling the taskqueue.
 		 */
-		VTNET_TXQ_UNLOCK(txq);
 		if (tries++ < VTNET_INTR_DISABLE_RETRIES)
 			goto again;
+
+		VTNET_TXQ_UNLOCK(txq);
 		txq->vtntx_stats.vtxs_rescheduled++;
 		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
 	} else
@@ -2430,24 +2446,16 @@ again:
 static void
 vtnet_tx_start_all(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
 	struct vtnet_txq *txq;
 	int i;
 
-	ifp = sc->vtnet_ifp;
 	VTNET_CORE_LOCK_ASSERT(sc);
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		txq = &sc->vtnet_txqs[i];
 
 		VTNET_TXQ_LOCK(txq);
-#ifdef VTNET_LEGACY_TX
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-			vtnet_start_locked(txq, ifp);
-#else
-		if (!drbr_empty(ifp, txq->vtntx_br))
-			vtnet_txq_mq_start_locked(txq, NULL);
-#endif
+		vtnet_txq_start(txq);
 		VTNET_TXQ_UNLOCK(txq);
 	}
 }
@@ -3485,6 +3493,7 @@ static void
 vtnet_set_hwaddr(struct vtnet_softc *sc)
 {
 	device_t dev;
+	int i;
 
 	dev = sc->vtnet_dev;
 
@@ -3492,9 +3501,11 @@ vtnet_set_hwaddr(struct vtnet_softc *sc)
 		if (vtnet_ctrl_mac_cmd(sc, sc->vtnet_hwaddr) != 0)
 			device_printf(dev, "unable to set MAC address\n");
 	} else if (sc->vtnet_flags & VTNET_FLAG_MAC) {
-		virtio_write_device_config(dev,
-		    offsetof(struct virtio_net_config, mac),
-		    sc->vtnet_hwaddr, ETHER_ADDR_LEN);
+		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+			virtio_write_dev_config_1(dev,
+			    offsetof(struct virtio_net_config, mac) + i,
+			    sc->vtnet_hwaddr[i]);
+		}
 	}
 }
 
@@ -3502,6 +3513,7 @@ static void
 vtnet_get_hwaddr(struct vtnet_softc *sc)
 {
 	device_t dev;
+	int i;
 
 	dev = sc->vtnet_dev;
 
@@ -3519,8 +3531,10 @@ vtnet_get_hwaddr(struct vtnet_softc *sc)
 		return;
 	}
 
-	virtio_read_device_config(dev, offsetof(struct virtio_net_config, mac),
-	    sc->vtnet_hwaddr, ETHER_ADDR_LEN);
+	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		sc->vtnet_hwaddr[i] = virtio_read_dev_config_1(dev,
+		    offsetof(struct virtio_net_config, mac) + i);
+	}
 }
 
 static void

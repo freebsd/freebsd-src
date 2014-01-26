@@ -197,7 +197,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 			goto done;
 		}
 
-		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
+		error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
 		if (error)
 			goto done;
 
@@ -214,14 +214,14 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		 */
 		error = 0;
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++) {
-			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN);
+			error = vcpu_set_state(sc->vm, vcpu, VCPU_FROZEN, true);
 			if (error)
 				break;
 		}
 
 		if (error) {
 			while (--vcpu >= 0)
-				vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+				vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 			goto done;
 		}
 
@@ -296,6 +296,11 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
+		break;
+	case VM_LAPIC_LOCAL_IRQ:
+		vmirq = (struct vm_lapic_irq *)data;
+		error = lapic_set_local_intr(sc->vm, vmirq->cpuid,
+		    vmirq->vector);
 		break;
 	case VM_LAPIC_MSI:
 		vmmsi = (struct vm_lapic_msi *)data;
@@ -382,10 +387,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	}
 
 	if (state_changed == 1) {
-		vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+		vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 	} else if (state_changed == 2) {
 		for (vcpu = 0; vcpu < VM_MAXCPU; vcpu++)
-			vcpu_set_state(sc->vm, vcpu, VCPU_IDLE);
+			vcpu_set_state(sc->vm, vcpu, VCPU_IDLE, false);
 	}
 
 done:

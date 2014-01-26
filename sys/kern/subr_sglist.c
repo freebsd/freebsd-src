@@ -243,6 +243,8 @@ sglist_append(struct sglist *sg, void *buf, size_t len)
 /*
  * Append the segments to describe a bio's data to a scatter/gather list.
  * If there are insufficient segments, then this fails with EFBIG.
+ *
+ * NOTE: This function expects bio_bcount to be initialized.
  */
 int
 sglist_append_bio(struct sglist *sg, struct bio *bp)
@@ -321,6 +323,7 @@ sglist_append_mbuf(struct sglist *sg, struct mbuf *m0)
 	if (sg->sg_maxseg == 0)
 		return (EINVAL);
 
+	error = 0;
 	SGLIST_SAVE(sg, save);
 	for (m = m0; m != NULL; m = m->m_next) {
 		if (m->m_len > 0) {

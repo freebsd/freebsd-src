@@ -75,12 +75,14 @@ static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
 static vd_putchar_t	vga_putchar;
+static vd_postswitch_t	vga_postswitch;
 
 static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
 	.vd_putchar	= vga_putchar,
+	.vd_postswitch	= vga_postswitch,
 	.vd_priority	= VD_PRIORITY_GENERIC,
 };
 
@@ -601,4 +603,14 @@ vga_init(struct vt_device *vd)
 	vga_initialize(vd, textmode);
 
 	return (CN_INTERNAL);
+}
+
+static void
+vga_postswitch(struct vt_device *vd)
+{
+
+	/* Reinit VGA mode, to restore view after app which change mode. */
+	vga_initialize(vd, (vd->vd_flags & VDF_TEXTMODE));
+	/* Ask vt(9) to update chars on visible area. */
+	vd->vd_flags |= VDF_INVALID;
 }

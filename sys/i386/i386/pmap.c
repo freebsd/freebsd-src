@@ -140,7 +140,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_APIC
 #include <sys/bus.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 #include <machine/cpu.h>
 #include <machine/cputypes.h>

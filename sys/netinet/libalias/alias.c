@@ -1722,7 +1722,7 @@ LibAliasUnLoadAllModule(void)
 
 	/* Unload all modules then reload everything. */
 	while ((p = first_handler()) != NULL) {	
-		detach_handler(p);
+		LibAliasDetachHandlers(p);
 	}
 	while ((t = walk_dll_chain()) != NULL) {	
 		dlclose(t->handle);

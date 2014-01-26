@@ -1026,7 +1026,7 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 }
 {	.mii
 	mov		cr.itir=r26
-(p12)	dep		r28=0,r30,61,3
+(p12)	dep		r28=0,r30,0,12
 (p13)	extr.u		r28=r30,3*PAGE_SHIFT-8, PAGE_SHIFT-3	// dir L0 index
 	;;
 }

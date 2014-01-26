@@ -140,7 +140,7 @@ __FBSDID("$FreeBSD$");
 #ifdef DEV_ATPIC
 #include <x86/isa/icu.h>
 #else
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #include <isa/isareg.h>
@@ -214,6 +214,8 @@ struct mtx icu_lock;
 struct mem_range_softc mem_range_softc;
 
 struct mtx dt_lock;	/* lock for GDT and LDT */
+
+void (*vmm_resume_p)(void);
 
 static void
 cpu_startup(dummy)

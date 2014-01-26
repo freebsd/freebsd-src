@@ -878,6 +878,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 	/*
 	 * Duplicate the source descriptor.
 	 */
+	filecaps_free(&newfde->fde_caps);
 	*newfde = *oldfde;
 	filecaps_copy(&oldfde->fde_caps, &newfde->fde_caps);
 	if ((flags & DUP_CLOEXEC) != 0)
@@ -1481,18 +1482,13 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 static void
 fdgrowtable_exp(struct filedesc *fdp, int nfd)
 {
-	int nfd1, maxfd;
+	int nfd1;
 
 	FILEDESC_XLOCK_ASSERT(fdp);
 
 	nfd1 = fdp->fd_nfiles * 2;
 	if (nfd1 < nfd)
 		nfd1 = nfd;
-	maxfd = getmaxfd(curproc);
-	if (maxfd < nfd1)
-		nfd1 = maxfd;
-	KASSERT(nfd <= nfd1,
-	    ("too low nfd1 %d %d %d %d", nfd, fdp->fd_nfiles, maxfd, nfd1));
 	fdgrowtable(fdp, nfd1);
 }
 

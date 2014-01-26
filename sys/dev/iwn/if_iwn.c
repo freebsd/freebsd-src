@@ -108,6 +108,8 @@ static const struct iwn_ident iwn_ident_table[] = {
 	{ 0x8086, IWN_DID_130_2, "Intel Centrino Wireless-N 130"		},
 	{ 0x8086, IWN_DID_100_1, "Intel Centrino Wireless-N 100"		},
 	{ 0x8086, IWN_DID_100_2, "Intel Centrino Wireless-N 100"		},
+	{ 0x8086, IWN_DID_135_1, "Intel Centrino Wireless-N 135"		},
+	{ 0x8086, IWN_DID_135_2, "Intel Centrino Wireless-N 135"		},
 	{ 0x8086, IWN_DID_4965_1, "Intel Wireless WiFi Link 4965"		},
 	{ 0x8086, IWN_DID_6x00_1, "Intel Centrino Ultimate-N 6300"		},
 	{ 0x8086, IWN_DID_6x00_2, "Intel Centrino Advanced-N 6200"		},
@@ -352,7 +354,8 @@ static device_method_t iwn_methods[] = {
 	DEVMETHOD(device_shutdown,	iwn_shutdown),
 	DEVMETHOD(device_suspend,	iwn_suspend),
 	DEVMETHOD(device_resume,	iwn_resume),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t iwn_driver = {
@@ -362,7 +365,7 @@ static driver_t iwn_driver = {
 };
 static devclass_t iwn_devclass;
 
-DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, 0, 0);
+DRIVER_MODULE(iwn, pci, iwn_driver, iwn_devclass, NULL, NULL);
 
 MODULE_VERSION(iwn, 1);
 
@@ -379,7 +382,7 @@ iwn_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
@@ -391,8 +394,7 @@ iwn_attach(device_t dev)
 	struct iwn_softc *sc = (struct iwn_softc *)device_get_softc(dev);
 	struct ieee80211com *ic;
 	struct ifnet *ifp;
-	uint32_t reg;
-	int i, error, result;
+	int i, error, rid;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
 
 	sc->sc_dev = dev;
@@ -421,20 +423,11 @@ iwn_attach(device_t dev)
 	/* Clear device-specific "PCI retry timeout" register (41h). */
 	pci_write_config(dev, 0x41, 0, 1);
 
-	/* Hardware bug workaround. */
-	reg = pci_read_config(dev, PCIR_COMMAND, 2);
-	if (reg & PCIM_CMD_INTxDIS) {
-		DPRINTF(sc, IWN_DEBUG_RESET, "%s: PCIe INTx Disable set\n",
-		    __func__);
-		reg &= ~PCIM_CMD_INTxDIS;
-		pci_write_config(dev, PCIR_COMMAND, reg, 2);
-	}
-
 	/* Enable bus-mastering. */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = PCIR_BAR(0);
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
+	rid = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "can't map mem space\n");
@@ -444,13 +437,13 @@ iwn_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	if ((result = pci_msi_count(dev)) == 1 &&
-	    pci_alloc_msi(dev, &result) == 0)
-		sc->irq_rid = 1;
+	i = 1;
+	rid = 0;
+	if (pci_alloc_msi(dev, &i) == 0)
+		rid = 1;
 	/* Install interrupt handler. */
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
-	    RF_ACTIVE | RF_SHAREABLE);
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE |
+	    (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->irq == NULL) {
 		device_printf(dev, "can't map interrupt\n");
 		error = ENOMEM;
@@ -975,6 +968,28 @@ iwn_config_specific(struct iwn_softc *sc, uint16_t pid)
 		}
 		break;
 
+/* 135 Series */
+/* XXX: This series will need adjustment for rate.
+ * see rx_with_siso_diversity in linux kernel
+ */
+	case IWN_DID_135_1:
+	case IWN_DID_135_2:
+		switch(sc->subdevice_id) {
+			case IWN_SDID_135_1:
+			case IWN_SDID_135_2:
+			case IWN_SDID_135_3:
+				sc->limits = &iwn2030_sensitivity_limits;
+				sc->base_params = &iwn2030_base_params;
+				sc->fwname = "iwn135fw";
+				break;
+			default:
+				device_printf(sc->sc_dev, "adapter type id : 0x%04x sub id :"
+				    "0x%04x rev %d not supported (subdevice)\n", pid,
+				    sc->subdevice_id,sc->hw_type);
+				return ENOTSUP;
+		}
+		break;
+
 /* 2x00 Series */
 	case IWN_DID_2x00_1:
 	case IWN_DID_2x00_2:
@@ -1319,9 +1334,9 @@ iwn_detach(device_t dev)
 	/* Uninstall interrupt handler. */
 	if (sc->irq != NULL) {
 		bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
-		if (sc->irq_rid == 1)
-			pci_release_msi(dev);
+		bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq),
+		    sc->irq);
+		pci_release_msi(dev);
 	}
 
 	/* Free DMA resources. */
@@ -1335,7 +1350,8 @@ iwn_detach(device_t dev)
 	iwn_free_fwmem(sc);
 
 	if (sc->mem != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->mem), sc->mem);
 
 	if (ifp != NULL)
 		if_free(ifp);
@@ -4145,7 +4161,7 @@ iwn_tx_data(struct iwn_softc *sc, struct mbuf *m, struct ieee80211_node *ni)
 	}
 
 	/* Encrypt the frame if need be. */
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		/* Retrieve key for TX. */
 		k = ieee80211_crypto_encap(ni, m);
 		if (k == NULL) {
@@ -5902,7 +5918,7 @@ iwn_check_rx_recovery(struct iwn_softc *sc, struct iwn_stats *rs)
 	 * if ((delta * 100 / msecs) > threshold)
 	 */
 	if (thresh > 0 && (delta_cck + delta_ofdm + delta_ht) * 100 > thresh) {
-		device_printf(sc->sc_dev,
+		DPRINTF(sc, IWN_DEBUG_ANY,
 		    "%s: PLCP error threshold raw (%d) comparison (%d) "
 		    "over limit (%d); retune!\n",
 		    __func__,
@@ -6063,7 +6079,6 @@ iwn_send_advanced_btcoex(struct iwn_softc *sc)
 		error = iwn_cmd(sc, IWN_CMD_BT_COEX, &btconfig,
 		    sizeof(btconfig), 1);
 	}
-
 
 	if (error != 0)
 		return error;

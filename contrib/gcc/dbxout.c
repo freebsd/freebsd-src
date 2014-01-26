@@ -1825,6 +1825,8 @@ dbxout_type (tree type, int full)
     {
     case VOID_TYPE:
     case LANG_TYPE:
+      /* APPLE LOCAL blocks 6034272 */
+    case BLOCK_POINTER_TYPE:
       /* For a void type, just define it as itself; i.e., "5=5".
 	 This makes us consider it defined
 	 without saying what it is.  The debugger will make it
