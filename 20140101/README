@@ -1,0 +1,47 @@
+			       bmake
+
+This directory contains a port of the BSD make tool (from NetBSD)
+I have run it on SunOS,Solaris,HP-UX,AIX,IRIX,FreeBSD and Linux.
+
+Version 3 was re-worked from scratch to better facilitate
+importing newer make(1) versions from NetBSD.  The original code base
+was NetBSD-1.0, so version 3 was built by doing a fresh import of the
+NetBSD-1.0 usr.bin/make, adding the autoconf and other portability
+patches to sync it with bmake v2, and then NetBSD's make 
+of Feb 20, 2000 was imported and conflicts dealt with.
+NetBSD's make was again imported on June 6 and December 15, 2000.
+
+In 2003 bmake switched to a date based version (first was 20030714)
+which generally represents the date it was last merged with NetBSD's
+make.  Since then, NetBSD's make is imported within a week of any
+interesting changes, so that bmake tracks it very closely.
+
+Building:
+
+The prefered way to bootstrap bmake is:
+
+./bmake/boot-strap
+
+there are a number of args - most of which get passed to configure,
+eg.
+
+./bmake/boot-strap --prefix=/opt
+
+see the boot-strap script for details.
+
+To make much use of bmake you will need the bsd.*.mk macros or my
+portable *.mk macros.  See 
+http://www.crufty.net/ftp/pub/sjg/mk.tar.gz
+which will be links to the latest versions.
+
+On a non-BSD system, you would want to unpack mk[-YYYYmmdd].tar.gz in
+the same directory as bmake (so ./mk and ./bmake exist), and
+./bmake/boot-strap will do the rest.
+
+If you want to do it all by hand then read boot-strap first to get the
+idea.
+
+Even if you have an earlier version of bmake installed, use boot-strap
+to ensure that all goes well.
+
+--sjg
