@@ -9,7 +9,7 @@ For the import of sendmail, the following directories were renamed:
 
 Imported using the instructions at:
 
-http://wiki.freebsd.org/SubversionPrimer/VendorImports
+http://www.freebsd.org/doc/en_US.ISO8859-1/articles/committers-guide/subversion-primer.html
 
 Then merged using:
 
