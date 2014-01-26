@@ -1827,7 +1827,7 @@ md_assemble (line)
     {
       expressionS *exp;
 
-      if ((i.tm.cpu_flags & CpuSSE3) && i.operands > 0)
+      if ((i.tm.cpu_flags & (CpuSSE3|CpuSMAP)) && i.operands > 0)
 	{
 	  /* Streaming SIMD extensions 3 Instructions have the fixed
 	     operands with an opcode suffix which is coded in the same
