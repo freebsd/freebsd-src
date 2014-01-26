@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2005 Sendmail, Inc. and its suppliers.
+.\" Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.
 .\"	All rights reserved.
 .\" Copyright (c) 1983, 1995 Eric P. Allman.  All rights reserved.
 .\" Copyright (c) 1983, 1993
@@ -9,7 +9,7 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: op.me,v 8.751 2013/04/08 21:41:25 ca Exp $
+.\"	$Id: op.me,v 8.759 2014/01/13 14:40:05 ca Exp $
 .\"
 .\" eqn op.me | pic | troff -me
 .\"
@@ -85,18 +85,18 @@ This documentation is under modification.
 Eric Allman
 Claus Assmann
 Gregory Neil Shapiro
-Sendmail, Inc.
+Proofpoint, Inc.
 .sp
 .de Ve
 Version \\$2
 ..
-.Ve $Revision: 8.751 $
+.Ve $Revision: 8.759 $
 .rm Ve
 .sp
 For Sendmail Version 8.14
 .)l
 .(f
-Sendmail is a trademark of Sendmail, Inc.
+Sendmail is a trademark of Proofpoint, Inc.
 US Patent Numbers 6865671, 6986037.
 .)f
 .sp 2
@@ -1205,7 +1205,6 @@ mailer which uses the hold mailer flag.
 .bu
 The mail message has been marked as quarantined via a mail filter or
 rulesets.
-.bu
 .sh 3 "Queue Groups and Queue Directories"
 .pp
 There are one or more mail queues.
@@ -6001,6 +6000,10 @@ or on queue runs
 unless the queued message is selected
 using one of the -qI/-qR/-qS queue run modifiers
 or an ETRN request.
+.ip !
+Disable an MH hack that drops an explicit
+From: header
+if it is the same as what sendmail would generate.
 .pp
 Configuration files prior to level 6
 assume the `A', `w', `5', `:', `|', `/', and `@' options
@@ -6732,16 +6735,17 @@ STARTTLS is disabled.
 Possible values are:
 .(b
 .ta 1i
-5	use 512 bit prime
-1	use 1024 bit prime
+5	use precomputed 512 bit prime
+1	generate 1024 bit prime
+2	generate 2048 bit prime
 none	do not use Diffie-Hellman
 NAME	load prime from file
 .)b
 This is only required if a ciphersuite containing DSA/DH is used.
 If ``5'' is selected, then precomputed, fixed primes are used.
 This is the default for the client side.
-If ``1'' is selected, then prime values are computed during startup.
-This is the default for the server side.
+If ``1'' or ``2'' is selected, then prime values are computed during startup.
+The server side default is ``1''.
 Note: this operation can take a significant amount of time on a
 slow machine (several seconds), but it is only done once at startup.
 If ``none'' is selected, then TLS ciphersuites containing DSA/DH
@@ -10672,6 +10676,16 @@ two (Bourne) shell commands:
 C=FileName_of_CA_Certificate
 ln -s $C `openssl x509 -noout -hash < $C`.0
 .)b
+A better way to do this is to use the
+.b c_rehash
+command that is part of the OpenSSL distribution
+because it handles subject hash collisions
+by incrementing the number in the suffix of the filename of the symbolic link,
+e.g.,
+.b \&.0
+to
+.b \&.1 ,
+and so on.
 An X.509 certificate is also required for authentication in client mode
 (ClientCertFile and corresponding private ClientKeyFile), however,
 .i sendmail
@@ -11478,7 +11492,7 @@ replace it with a blank sheet for double-sided output.
 .\".sz 10
 .\"Eric Allman
 .\".sp
-.\"Version $Revision: 8.751 $
+.\"Version $Revision: 8.759 $
 .\".ce 0
 .bp 3
 .ce

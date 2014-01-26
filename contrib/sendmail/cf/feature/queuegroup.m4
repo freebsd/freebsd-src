@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2001 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: queuegroup.m4,v 1.4 2001/03/28 00:39:39 ca Exp $')
+VERSIONID(`$Id: queuegroup.m4,v 1.5 2013/11/22 20:51:11 ca Exp $')
 divert(-1)
 
 ifdef(`_ACCESS_TABLE_', `',
