@@ -1634,6 +1634,13 @@ write_type (tree type)
 	  write_type (TREE_TYPE (type));
 	  break;
 
+	   /* APPLE LOCAL begin blocks 6040305 */
+	 case BLOCK_POINTER_TYPE:
+	   write_string ("U13block_pointer");
+	   write_type (TREE_TYPE (type));
+	   break;
+	    /* APPLE LOCAL end blocks 6040305 */
+
 	case REFERENCE_TYPE:
 	  write_char ('R');
 	  write_type (TREE_TYPE (type));
