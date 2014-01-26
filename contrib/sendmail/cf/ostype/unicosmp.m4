@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2003 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2003 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -17,7 +17,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: unicosmp.m4,v 1.1 2003/04/21 17:03:51 ca Exp $')
+VERSIONID(`$Id: unicosmp.m4,v 1.2 2013/11/22 20:51:15 ca Exp $')
 _DEFIFNOT(`LOCAL_MAILER_FLAGS', `Ehm9')dnl
 ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', `mail -s -d $u')')dnl
 ifdef(`QUEUE_DIR',, `define(`QUEUE_DIR', /var/spool/mqueue)')dnl
