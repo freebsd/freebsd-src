@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.28 2013/03/25 21:11:43 sjg Exp $
+# $Id: dirdeps.mk,v 1.29 2013/10/13 18:43:53 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -149,11 +149,11 @@ DEP_$v ?= ${$v}
 JOT ?= jot
 _tspec_x := ${${JOT} ${TARGET_SPEC_VARS:[#]}:L:sh}
 # this handles unqualified entries
-M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.${DEP_TARGET_SPEC};
+M_dep_qual_fixes = C;(/[^/.,]+)$$;\1.$${DEP_TARGET_SPEC};
 # there needs to be at least one item missing for these to make sense
 .for i in ${_tspec_x:[2..-1]}
 _tspec_m$i := ${TARGET_SPEC_VARS:[2..$i]:@w@[^,]+@:ts,}
-_tspec_a$i := ,${TARGET_SPEC_VARS:[$i..-1]:@v@$${DEP_$v}@:ts,}
+_tspec_a$i := ,${TARGET_SPEC_VARS:[$i..-1]:@v@$$$${DEP_$v}@:ts,}
 M_dep_qual_fixes += C;(\.${_tspec_m$i})$$;\1${_tspec_a$i};
 .endfor
 .else
@@ -359,7 +359,8 @@ _machines := ${_machines:O:u}
 .if ${TARGET_SPEC_VARS:[#]} > 1
 # we need to tweak _machines
 _dm := ${DEP_MACHINE}
-_machines := ${_machines:@DEP_MACHINE@${DEP_TARGET_SPEC}@}
+# apply the same filtering that we do when qualifying DIRDEPS.
+_machines := ${_machines:@DEP_MACHINE@${DEP_TARGET_SPEC}@:${M_dep_qual_fixes:ts:}:O:u}
 DEP_MACHINE := ${_dm}
 .endif
 
@@ -464,6 +465,9 @@ ${_this_dir}.$m: ${_build_dirs:M*.$m:N${_this_dir}.$m}
 .if ${_DIRDEP_CHECKED:M$d} == ""
 # once only
 _DIRDEP_CHECKED += $d
+.if !empty(_debug_search)
+.info checking $d
+.endif
 # Note: _build_dirs is fully qualifed so d:R is always the directory
 .if exists(${d:R})
 # Warning: there is an assumption here that MACHINE is always 
@@ -471,7 +475,8 @@ _DIRDEP_CHECKED += $d
 # If TARGET_SPEC and MACHINE are insufficient, you have a problem.
 _m := ${.MAKE.DEPENDFILE_PREFERENCE:T:S;${TARGET_SPEC}$;${d:E};:S;${MACHINE};${d:E:C/,.*//};:@m@${exists(${d:R}/$m):?${d:R}/$m:}@:[1]}
 .if !empty(_m)
-_qm := ${_m:${M_dep_qual_fixes:ts:}}
+# M_dep_qual_fixes isn't geared to Makefile.depend
+_qm := ${_m:C;(\.depend)$;\1.${d:E};:${M_dep_qual_fixes:ts:}}
 .if !empty(_debug_search)
 .info Looking for ${_qm}
 .endif
