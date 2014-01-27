@@ -1,0 +1,21 @@
+/dts-v1/;
+
+/* common format */
+#line 3 "foo.dts"
+/* newer gcc format */
+# 9 "baz.dts" 1
+/* flags are optional */
+# 6 "bar.dts"
+
+/ {
+/*
+ * Make sure optional flags don't consume integer data on next line. The issue
+ * was that the {WS} in the trailing ({WS}+[0-9]+)? could cross the * line-
+ * break, and consume the leading "0" of the hex constant, leaving "x12345678"
+ * to be parsed as a number, which is invalid syntax.
+ */
+	prop1 = <
+# 10 "qux.dts"
+		0x12345678
+	>;
+};
