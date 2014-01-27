@@ -75,6 +75,10 @@ main() {
 	install_uboot
 	eval chroot ${CHROOTDIR} /bin/sh /tmp/crochet/crochet.sh \
 		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
+	mkdir -p ${CHROOTDIR}/R/
+	cp -p ${CHROOTDIR}/usr/obj/*.img ${CHROOTDIR}/R/
+	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img > CHECKSUM.SHA256
+	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img > CHECKSUM.MD5
 }
 
 main "$@"
