@@ -321,7 +321,6 @@ __DEFAULT_YES_OPTIONS = \
     NIS \
     NLS \
     NLS_CATALOGS \
-    NMTREE \
     NS_CACHING \
     NTP \
     OPENSSH \
