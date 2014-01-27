@@ -240,7 +240,7 @@ getstr(void)
 }
 
 int
-main(void)
+main(u_int argc __unused, char *argv[] __unused, char *envv[] __unused)
 {
     uint8_t autoboot;
     ufs_ino_t ino;

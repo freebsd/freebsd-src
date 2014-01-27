@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -36,7 +36,13 @@
 /*
  * Save arguments from the BERI firmware for use in C-land, and jump into
  * main.  Assume that registers/stack/etc are sufficiently initialised to get
- * going.
+ * going.  Notice that we use only temporaries while relocating, as we want to
+ * retain argument registers to pass in to main().
+ *
+ * Note slightly surprising structure: boot2 is linked for a specific address,
+ * but we may start running the code somewhere else (e.g., in DRAM as inserted
+ * with JTAG, or in flash).  The starting assembly is therefore PIC, but the
+ * main body of the code is not PIC.
  */
 
 
@@ -45,23 +51,34 @@
 		.ent start
 start:
 		/*
+		 * Calculate the actual run-time, pre-relocated value of
+		 * 'start', which we will use as the source address for
+		 * memcpy().  Note that although a symbol is used here, this
+		 * should generate code for a short relative branch, leaving
+		 * the previous $pc in $ra.
+		 */
+		bal	baltarget
+		nop
+baltarget:
+		dsub	$t1, $ra, 8				/* Src. */
+
+		/*
 		 * Relocate boot2 to DRAM where we can write back global
-		 * variable values; jump to it.  Assume all values are 64-bit
+		 * variable values; jump to it.  Assume all values are 32-bit
 		 * aligned.  Use an inline PIC version of memcpy()
-		 * pre-relocation.
+		 * pre-relocation; strong alignment assumptions.
 		 */
 		dla	$t0, __boot2_base_vaddr__		/* Dst. */
-		dla	$t1, __cheri_flash_boot_loader_vaddr__	/* Src. */
 		dla	$t2, __boot_loader_len__		/* Len. */
 
 memcpy_loop:
 		beq	$t2, 0, memcopy_done
 		nop
-		ld	$at, 0($t1)
-		sd	$at, 0($t0)
-		daddiu	$t0, 8
-		daddiu	$t1, 8
-		daddi	$t2, -8
+		lw	$at, 0($t1)
+		sw	$at, 0($t0)
+		daddiu	$t0, 4
+		daddiu	$t1, 4
+		daddi	$t2, -4
 		b	memcpy_loop
 		nop
 
@@ -76,8 +93,12 @@ memcopy_done:
 		sd	$a3, 0($at)
 
 		/*
+		 * Zero BSS.
+
+		/*
 		 * We can now jump into the relocated code, running from
-		 * cached DRAM rather than uncached flash.
+		 * cached DRAM rather than uncached flash.  Note that a
+		 * relative branch instruction cannot be used.
 		 */
 		dla	$at, relocated_start
 		jr	$at
