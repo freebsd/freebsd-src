@@ -1,0 +1,6 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	\#gpio-cells = <2>;
+};

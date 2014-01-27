@@ -1,0 +1,18 @@
+{
+   allocation methods causes uninitialized data in alignment gap
+   Memcheck:Param
+   write(buf)
+   fun:__write_nocancel
+   fun:utilfdt_write_err
+   fun:save_blob
+   fun:main
+}
+{
+   allocation methods causes uninitialized data in alignment gap
+   Memcheck:Param
+   write(buf)
+   fun:__write_nocancel
+   fun:utilfdt_write_err
+   fun:save_blob
+   fun:main
+}

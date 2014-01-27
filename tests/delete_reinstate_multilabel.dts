@@ -1,0 +1,37 @@
+/dts-v1/;
+
+/* Create some nodes and properties with multiple labels */
+
+/ {
+	label1: label2: prop = "value";
+
+	label3: label4: node {
+		label5: label6: prop = "value";
+	};
+};
+
+/* Delete them, and everything that's part of them, i.e. the labels */
+
+/ {
+	/delete-property/ prop;
+	/delete-node/ node;
+};
+
+/*
+ * Re-instate them. None of the old labels should come back
+ *
+ * Note: Do not add any new/extra labels here. As of the time of writing,
+ * when dtc adds labels to an object, they are added to the head of the list
+ * of labels, and this test is specifically about ensuring the correct
+ * handling of lists of labels where the first label in the list is marked as
+ * deleted. Failure to observe this note may result in the test passing when
+ * it should not.
+ */
+
+/ {
+	prop = "value";
+
+	node {
+		prop = "value";
+	};
+};
