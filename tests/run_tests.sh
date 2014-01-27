@@ -7,6 +7,7 @@ if [ -z "$CC" ]; then
 fi
 
 export QUIET_TEST=1
+STOP_ON_FAIL=0
 
 export VALGRIND=
 VGCODE=126
@@ -24,6 +25,9 @@ base_run_test() {
 	tot_pass=$((tot_pass + 1))
     else
 	ret="$?"
+	if [ "$STOP_ON_FAIL" -eq 1 ]; then
+	    exit 1
+	fi
 	if [ "$ret" -eq 1 ]; then
 	    tot_config=$((tot_config + 1))
 	elif [ "$ret" -eq 2 ]; then
@@ -80,7 +84,7 @@ wrap_test () {
 }
 
 run_wrap_test () {
-    echo -n "$@:	"
+    shorten_echo "$@:	"
     base_run_test wrap_test "$@"
 }
 
@@ -190,6 +194,14 @@ libfdt_tests () {
     tree1_tests unfinished_tree1.test.dtb
     run_test dtbs_equal_ordered test_tree1.dtb sw_tree1.test.dtb
 
+    # Resizing tests
+    for mode in resize realloc; do
+	run_test sw_tree1 $mode
+	tree1_tests sw_tree1.test.dtb
+	tree1_tests unfinished_tree1.test.dtb
+	run_test dtbs_equal_ordered test_tree1.dtb sw_tree1.test.dtb
+    done
+
     # fdt_move tests
     for tree in test_tree1.dtb sw_tree1.test.dtb unfinished_tree1.test.dtb; do
 	rm -f moved.$tree shunted.$tree deshunted.$tree
@@ -241,6 +253,9 @@ libfdt_tests () {
 	tree1_tests_rw noppy.$basetree
     done
 
+    run_dtc_test -I dts -O dtb -o subnode_iterate.dtb subnode_iterate.dts
+    run_test subnode_iterate subnode_iterate.dtb
+
     # Tests for behaviour on various sorts of corrupted trees
     run_test truncated_property
 
@@ -253,6 +268,11 @@ dtc_tests () {
     tree1_tests dtc_tree1.test.dtb
     tree1_tests_rw dtc_tree1.test.dtb
     run_test dtbs_equal_ordered dtc_tree1.test.dtb test_tree1.dtb
+
+    run_dtc_test -I dts -O dtb -o dtc_escapes.test.dtb propname_escapes.dts
+    run_test propname_escapes dtc_escapes.test.dtb
+
+    run_dtc_test -I dts -O dtb -o line_directives.test.dtb line_directives.dts
 
     run_dtc_test -I dts -O dtb -o dtc_escapes.test.dtb escapes.dts
     run_test string_escapes dtc_escapes.test.dtb
@@ -366,6 +386,13 @@ dtc_tests () {
     run_test dtbs_equal_ordered multilabel.test.dtb multilabel_merge.test.dtb
     run_dtc_test -I dts -O dtb -o dtc_tree1_merge_path.test.dtb test_tree1_merge_path.dts
     tree1_tests dtc_tree1_merge_path.test.dtb test_tree1.dtb
+
+    # Check prop/node delete functionality
+    run_dtc_test -I dts -O dtb -o dtc_tree1_delete.test.dtb test_tree1_delete.dts
+    tree1_tests dtc_tree1_delete.test.dtb
+
+    run_dtc_test -I dts -O dts -o delete_reinstate_multilabel.dts.test.dts delete_reinstate_multilabel.dts
+    run_wrap_test cmp delete_reinstate_multilabel.dts.test.dts delete_reinstate_multilabel_ref.dts
 
     # Check some checks
     check_tests dup-nodename.dts duplicate_node_names
@@ -486,9 +513,10 @@ fdtget_tests () {
 
     # run_fdtget_test <expected-result> [<flags>] <file> <node> <property>
     run_fdtget_test "MyBoardName" $dtb / model
+    run_fdtget_test "MyBoardName MyBoardFamilyName" $dtb / compatible
     run_fdtget_test "77 121 66 111 \
 97 114 100 78 97 109 101 0 77 121 66 111 97 114 100 70 97 109 105 \
-108 121 78 97 109 101 0" $dtb / compatible
+108 121 78 97 109 101 0" -t bu $dtb / compatible
     run_fdtget_test "MyBoardName MyBoardFamilyName" -t s $dtb / compatible
     run_fdtget_test 32768 $dtb /cpus/PowerPC,970@1 d-cache-size
     run_fdtget_test 8000 -tx $dtb /cpus/PowerPC,970@1 d-cache-size
@@ -533,8 +561,8 @@ fdtput_tests () {
 	-tx "a0b0c0d deeaae ef000000"
     run_fdtput_test "$(cat $text)" $dtb /randomnode blob -ts "$(cat $text)"
 
-    # This should be larger than available space in the fdt
-    run_wrap_error_test $DTPUT $dtb /randomnode blob -ts "$(cat $text $text)"
+    # Test expansion of the blob when insufficient room for property
+    run_fdtput_test "$(cat $text $text)" $dtb /randomnode blob -ts "$(cat $text $text)"
 
     # Start again with a fresh dtb
     run_dtc_test -O dtb -p $(stat -c %s $text) -o $dtb $dts
@@ -556,7 +584,9 @@ fdtput_tests () {
     run_fdtput_test "fine wine" $dtb /blackadder/the-second/potato drink \
 	"-ts" "fine wine"
     run_wrap_test $DTPUT $dtb -p /you/are/drunk/sir/winston slurp -ts twice
-    run_wrap_error_test $DTPUT $dtb -cp "$(cat $text $text)/longish"
+
+    # Test expansion of the blob when insufficent room for a new node
+    run_wrap_test $DTPUT $dtb -cp "$(cat $text $text)/longish"
 
     # Allowed to create an existing node with -p
     run_wrap_test $DTPUT $dtb -cp /chosen
@@ -569,7 +599,7 @@ utilfdt_tests () {
     run_test utilfdt_test
 }
 
-while getopts "vt:m" ARG ; do
+while getopts "vt:me" ARG ; do
     case $ARG in
 	"v")
 	    unset QUIET_TEST
@@ -579,6 +609,9 @@ while getopts "vt:m" ARG ; do
 	    ;;
 	"m")
 	    VALGRIND="valgrind --tool=memcheck -q --error-exitcode=$VGCODE"
+	    ;;
+	"e")
+	    STOP_ON_FAIL=1
 	    ;;
     esac
 done

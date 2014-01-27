@@ -24,7 +24,6 @@
 #include <stdint.h>
 #include <stdarg.h>
 
-#include <fdt.h>
 #include <libfdt.h>
 #include <util.h>
 

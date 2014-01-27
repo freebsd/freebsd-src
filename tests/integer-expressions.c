@@ -25,7 +25,6 @@
 #include <errno.h>
 
 
-#include <fdt.h>
 #include <libfdt.h>
 
 #include "tests.h"

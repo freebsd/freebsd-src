@@ -25,9 +25,7 @@
 #include <fcntl.h>
 #include <stdint.h>
 
-#include <fdt.h>
 #include <libfdt.h>
-#include <libfdt_env.h>
 
 #include "testdata.h"
 
