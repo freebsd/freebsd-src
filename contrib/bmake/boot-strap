@@ -111,7 +111,7 @@
 #	Simon J. Gerraty <sjg@crufty.net>
 
 # RCSid:
-#	$Id: boot-strap,v 1.43 2013/03/02 18:55:23 sjg Exp $
+#	$Id: boot-strap,v 1.44 2014/01/08 14:49:10 sjg Exp $
 #
 #	@(#) Copyright (c) 2001 Simon J. Gerraty
 #
@@ -216,11 +216,9 @@ do
 	--share=*) share_dir=`get_optarg "$1"`;;
 	--share) share_dir="$2"; shift;;
 	--with-default-sys-path=*)
-	    CONFIGURE_ARGS="$1"
-	    MAKESYSPATH=`get_optarg "$1"`;;
+	    CONFIGURE_ARGS="$1";;
 	--with-default-sys-path)
-	    CONFIGURE_ARGS="$1 $2"
-	    MAKESYSPATH="$2"; shift;;
+	    CONFIGURE_ARGS="$1 $2";;
 	--install) INSTALL_PREFIX=${INSTALL_PREFIX:-$prefix};;
 	--install-host-target)
                 INSTALL_PREFIX=${INSTALL_PREFIX:-$prefix}
@@ -330,8 +328,8 @@ add_path () {
 srcdir=`GetDir /bmake make-bootstrap.sh.in "$srcdir" "$2" "$Mydir" ./bmake* "$Mydir"/../bmake*`
 [ -d "${srcdir:-/dev/null}" ] || Usage
 case "$mksrc" in
-none|-) # we don't want it
-	mksrc=
+none|-) # we ignore this now
+	mksrc=$Mydir/mk
 	;;
 .../*)	# find here or above
 	mksrc=`FindHereOrAbove -C "$Mydir" -s "$mksrc/sys.mk"`
