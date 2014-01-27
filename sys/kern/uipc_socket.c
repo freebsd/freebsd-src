@@ -3350,7 +3350,7 @@ soisdisconnected(struct socket *so)
 	sorwakeup_locked(so);
 	SOCKBUF_LOCK(&so->so_snd);
 	so->so_snd.sb_state |= SBS_CANTSENDMORE;
-	sbdrop_locked(&so->so_snd, so->so_snd.sb_ccc);
+	sbdrop_locked(&so->so_snd, sbused(&so->so_snd));
 	sowwakeup_locked(so);
 	wakeup(&so->so_timeo);
 }
