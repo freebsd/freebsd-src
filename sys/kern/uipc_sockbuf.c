@@ -72,6 +72,7 @@ static void
 sb_shift_nrdy(struct sockbuf *sb, struct mbuf *m)
 {
 
+	SOCKBUF_LOCK_ASSERT(sb);
 	KASSERT(m->m_flags & M_NOTREADY, ("%s: m %p !M_NOTREADY", __func__, m));
 
 	m = m->m_next;
@@ -91,6 +92,11 @@ sbready(struct sockbuf *sb, struct mbuf *m, int count)
 
 	SOCKBUF_LOCK(sb);
 
+	if (sb->sb_state & SBS_CANTSENDMORE) {
+		SOCKBUF_UNLOCK(sb);
+		return (ENOTCONN);
+	}
+
 	KASSERT(sb->sb_fnrdy != NULL, ("%s: sb %p NULL fnrdy", __func__, sb));
 
 	blocker = (sb->sb_fnrdy == m) ? M_BLOCKED : 0;
@@ -99,7 +105,8 @@ sbready(struct sockbuf *sb, struct mbuf *m, int count)
 		KASSERT(m->m_flags & M_NOTREADY,
 		    ("%s: m %p !M_NOTREADY", __func__, m));
 		m->m_flags &= ~(M_NOTREADY | blocker);
-		sb->sb_acc += m->m_len;
+		if (blocker)
+			sb->sb_acc += m->m_len;
 	}
 
 	if (!blocker) {
