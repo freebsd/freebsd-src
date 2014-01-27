@@ -199,7 +199,6 @@ int	pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx,
 	    uint64_t hostbase, enum pcibar_type type, uint64_t size);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 int	pci_emul_add_pciecap(struct pci_devinst *pi, int pcie_device_type);
-int	pci_is_legacy(struct pci_devinst *pi);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
 void	pci_lintr_assert(struct pci_devinst *pi);
@@ -210,7 +209,7 @@ int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
 int	pci_msix_pba_bar(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
-int	pci_parse_slot(char *opt, int legacy);
+int	pci_parse_slot(char *opt);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
