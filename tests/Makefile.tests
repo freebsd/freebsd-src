@@ -12,7 +12,7 @@ LIB_TESTS_L = get_mem_rsv \
 	sw_tree1 \
 	move_and_save mangle-layout nopulate \
 	open_pack rw_tree1 set_name setprop del_property del_node \
-	appendprop1 appendprop2 \
+	appendprop1 appendprop2 propname_escapes \
 	string_escapes references path-references phandle_format \
 	boot-cpuid incbin \
 	extra-terminating-null \
@@ -20,7 +20,8 @@ LIB_TESTS_L = get_mem_rsv \
 	dtb_reverse dtbs_equal_unordered \
 	add_subnode_with_nops path_offset_aliases \
 	utilfdt_test \
-	integer-expressions
+	integer-expressions \
+	subnode_iterate
 LIB_TESTS = $(LIB_TESTS_L:%=$(TESTS_PREFIX)%)
 
 LIBTREE_TESTS_L = truncated_property

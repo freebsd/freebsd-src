@@ -26,7 +26,6 @@
 
 #include <dlfcn.h>
 
-#include <fdt.h>
 #include <libfdt.h>
 
 #include "tests.h"

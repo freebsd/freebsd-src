@@ -24,7 +24,6 @@
 #include <ctype.h>
 #include <stdint.h>
 
-#include <fdt.h>
 #include <libfdt.h>
 
 #include "tests.h"
