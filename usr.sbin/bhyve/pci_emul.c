@@ -75,7 +75,6 @@ static struct slotinfo {
 	char	*si_name;
 	char	*si_param;
 	struct pci_devinst *si_devi;
-	int	si_legacy;
 } pci_slotinfo[MAXSLOTS][MAXFUNCS];
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
@@ -123,7 +122,7 @@ pci_parse_slot_usage(char *aopt)
 }
 
 int
-pci_parse_slot(char *opt, int legacy)
+pci_parse_slot(char *opt)
 {
 	char *slot, *func, *emul, *config;
 	char *str, *cpy;
@@ -170,7 +169,6 @@ pci_parse_slot(char *opt, int legacy)
 	error = 0;
 	pci_slotinfo[snum][fnum].si_name = emul;
 	pci_slotinfo[snum][fnum].si_param = config;
-	pci_slotinfo[snum][fnum].si_legacy = legacy;
 
 done:
 	if (error)
@@ -521,13 +519,7 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		addr = mask = lobits = 0;
 		break;
 	case PCIBAR_IO:
-		if (hostbase &&
-		    pci_slotinfo[pdi->pi_slot][pdi->pi_func].si_legacy) {
-			assert(hostbase < PCI_EMUL_IOBASE);
-			baseptr = &hostbase;
-		} else {
-			baseptr = &pci_emul_iobase;
-		}
+		baseptr = &pci_emul_iobase;
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
 		lobits = PCIM_BAR_IO_SPACE;
@@ -1182,13 +1174,6 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 		vm_lapic_msi(pi->pi_vmctx, pi->pi_msi.addr,
 			     pi->pi_msi.msg_data + index);
 	}
-}
-
-int
-pci_is_legacy(struct pci_devinst *pi)
-{
-
-	return (pci_slotinfo[pi->pi_slot][pi->pi_func].si_legacy);
 }
 
 int
