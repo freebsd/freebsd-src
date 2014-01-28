@@ -110,9 +110,11 @@ FreeBSD 2.1          | |     |                               |
  |         |         | |     | NetBSD 1.3.2    |             |
  |     FreeBSD 2.2.7 | |     |    |            |             |
  |         |         | |     |    |            |           BSD/OS 4.0
- |         v         | |     |    |            |             |
  |     FreeBSD 2.2.8 | |     |    |            |             |
- |                   | |     |    |        OpenBSD 2.4       |
+ |         |         | |     |    |            |             |
+ |         v         | |     |    |        OpenBSD 2.4       |
+ |     FreeBSD 2.2.9 | |     |    |            |             |
+ |                   | |     |    |            |             |
 FreeBSD 3.0 <--------* |     |    v            |             |
  |                     |     | NetBSD 1.3.3    |             |
  *---FreeBSD 3.1       |     |                 |             |
@@ -540,6 +542,7 @@ FreeBSD 6.0		2005-11-01 [FBD]
 NetBSD 2.1		2005-11-02 [NBD]
 NetBSD 3.0		2005-12-23 [NBD]
 DragonFly 1.4.0		2006-01-08 [DFB]
+FreeBSD 2.2.9		2006-04-01 [FBD]
 OpenBSD 3.9		2006-05-01 [OBD]
 FreeBSD 6.1		2006-05-08 [FBD]
 FreeBSD 5.5		2006-05-25 [FBD]
