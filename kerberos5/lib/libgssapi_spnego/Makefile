@@ -45,10 +45,10 @@ ${GEN}: spnego.asn1 spnego.opt
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
 
 .include <bsd.lib.mk>
 
