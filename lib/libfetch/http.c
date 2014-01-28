@@ -208,6 +208,7 @@ static int
 http_fillbuf(struct httpio *io, size_t len)
 {
 	ssize_t nbytes;
+	char ch;
 
 	if (io->error)
 		return (-1);
@@ -249,10 +250,8 @@ http_fillbuf(struct httpio *io, size_t len)
 	io->chunksize -= io->buflen;
 
 	if (io->chunksize == 0) {
-		char endl[2];
-
-		if (fetch_read(io->conn, endl, 2) != 2 ||
-		    endl[0] != '\r' || endl[1] != '\n')
+		if (fetch_read(io->conn, &ch, 1) != 1 || ch != '\r' ||
+		    fetch_read(io->conn, &ch, 1) != 1 || ch != '\n')
 			return (-1);
 	}
 
@@ -268,31 +267,28 @@ static int
 http_readfn(void *v, char *buf, int len)
 {
 	struct httpio *io = (struct httpio *)v;
-	int l, pos;
+	int rlen;
 
 	if (io->error)
 		return (-1);
 	if (io->eof)
 		return (0);
 
-	for (pos = 0; len > 0; pos += l, len -= l) {
-		/* empty buffer */
-		if (!io->buf || io->bufpos == io->buflen)
-			if (http_fillbuf(io, len) < 1)
-				break;
-		l = io->buflen - io->bufpos;
-		if (len < l)
-			l = len;
-		memcpy(buf + pos, io->buf + io->bufpos, l);
-		io->bufpos += l;
+	/* empty buffer */
+	if (!io->buf || io->bufpos == io->buflen) {
+		if (http_fillbuf(io, len) < 1) {
+			if (io->error == EINTR)
+				io->error = 0;
+			return (-1);
+		}
 	}
 
-	if (!pos && io->error) {
-		if (io->error == EINTR)
-			io->error = 0;
-		return (-1);
-	}
-	return (pos);
+	rlen = io->buflen - io->bufpos;
+	if (len < rlen)
+		rlen = len;
+	memcpy(buf, io->buf + io->bufpos, rlen);
+	io->bufpos += rlen;
+	return (rlen);
 }
 
 /*
