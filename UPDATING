@@ -31,7 +31,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
-20140125:
+20140128:
 	The libelf and libdwarf libraries have been updated to newer
 	versions from upstream. Shared library version numbers for
 	these two libraries were bumped. Any ports or binaries
