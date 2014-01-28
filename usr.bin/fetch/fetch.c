@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fetch.h>
 
-#define MINBUFSIZE	4096
+#define MINBUFSIZE	16384
 #define TIMEOUT		120
 
 /* Option flags */
@@ -716,6 +716,7 @@ fetch(char *URL, const char *path)
 	sigalrm = siginfo = sigint = 0;
 
 	/* suck in the data */
+	setvbuf(f, NULL, _IOFBF, B_size);
 	signal(SIGINFO, sig_handler);
 	while (!sigint) {
 		if (us.size != -1 && us.size - count < B_size &&
