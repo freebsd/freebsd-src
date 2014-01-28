@@ -1044,11 +1044,19 @@ socket_send(struct socket *s, struct mbuf *mm, struct sockaddr_in6 *src)
 int
 X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
+	struct rtdetq *rte;
+	struct mbuf *mb0;
 	struct mf6c *rt;
 	struct mif6 *mifp;
 	struct mbuf *mm;
+	u_long hash;
 	mifi_t mifi;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
+#ifdef UPCALL_TIMING
+	struct timeval tp;
+
+	GET_TIME(tp);
+#endif /* UPCALL_TIMING */
 
 	MRT6_DLOG(DEBUG_FORWARD, "src %s, dst %s, ifindex %d",
 	    ip6_sprintf(ip6bufs, &ip6->ip6_src),
@@ -1096,200 +1104,178 @@ X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 	if (rt) {
 		MFC6_UNLOCK();
 		return (ip6_mdq(m, ifp, rt));
-	} else {
-		/*
-		 * If we don't have a route for packet's origin,
-		 * Make a copy of the packet &
-		 * send message to routing daemon
-		 */
+	}
 
-		struct mbuf *mb0;
-		struct rtdetq *rte;
-		u_long hash;
-/*		int i, npkts;*/
-#ifdef UPCALL_TIMING
-		struct timeval tp;
+	/*
+	 * If we don't have a route for packet's origin,
+	 * Make a copy of the packet & send message to routing daemon.
+	 */
+	MRT6STAT_INC(mrt6s_no_route);
+	MRT6_DLOG(DEBUG_FORWARD | DEBUG_MFC, "no rte s %s g %s",
+	    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+	    ip6_sprintf(ip6bufd, &ip6->ip6_dst));
 
-		GET_TIME(tp);
-#endif /* UPCALL_TIMING */
+	/*
+	 * Allocate mbufs early so that we don't do extra work if we
+	 * are just going to fail anyway.
+	 */
+	rte = (struct rtdetq *)malloc(sizeof(*rte), M_MRTABLE6, M_NOWAIT);
+	if (rte == NULL) {
+		MFC6_UNLOCK();
+		return (ENOBUFS);
+	}
+	mb0 = m_copy(m, 0, M_COPYALL);
+	/*
+	 * Pullup packet header if needed before storing it,
+	 * as other references may modify it in the meantime.
+	 */
+	if (mb0 && (M_HASCL(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
+		mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
+	if (mb0 == NULL) {
+		free(rte, M_MRTABLE6);
+		MFC6_UNLOCK();
+		return (ENOBUFS);
+	}
 
-		MRT6STAT_INC(mrt6s_no_route);
-		MRT6_DLOG(DEBUG_FORWARD | DEBUG_MFC, "no rte s %s g %s",
-		    ip6_sprintf(ip6bufs, &ip6->ip6_src),
-		    ip6_sprintf(ip6bufd, &ip6->ip6_dst));
+	/* is there an upcall waiting for this packet? */
+	hash = MF6CHASH(ip6->ip6_src, ip6->ip6_dst);
+	for (rt = mf6ctable[hash]; rt; rt = rt->mf6c_next) {
+		if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src,
+		    &rt->mf6c_origin.sin6_addr) &&
+		    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
+		    &rt->mf6c_mcastgrp.sin6_addr) && (rt->mf6c_stall != NULL))
+			break;
+	}
 
-		/*
-		 * Allocate mbufs early so that we don't do extra work if we
-		 * are just going to fail anyway.
-		 */
-		rte = (struct rtdetq *)malloc(sizeof(*rte), M_MRTABLE6,
-					      M_NOWAIT);
-		if (rte == NULL) {
-			MFC6_UNLOCK();
-			return (ENOBUFS);
-		}
-		mb0 = m_copy(m, 0, M_COPYALL);
-		/*
-		 * Pullup packet header if needed before storing it,
-		 * as other references may modify it in the meantime.
-		 */
-		if (mb0 &&
-		    (M_HASCL(mb0) || mb0->m_len < sizeof(struct ip6_hdr)))
-			mb0 = m_pullup(mb0, sizeof(struct ip6_hdr));
-		if (mb0 == NULL) {
-			free(rte, M_MRTABLE6);
-			MFC6_UNLOCK();
-			return (ENOBUFS);
-		}
-
-		/* is there an upcall waiting for this packet? */
-		hash = MF6CHASH(ip6->ip6_src, ip6->ip6_dst);
-		for (rt = mf6ctable[hash]; rt; rt = rt->mf6c_next) {
-			if (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src,
-					       &rt->mf6c_origin.sin6_addr) &&
-			    IN6_ARE_ADDR_EQUAL(&ip6->ip6_dst,
-					       &rt->mf6c_mcastgrp.sin6_addr) &&
-			    (rt->mf6c_stall != NULL))
-				break;
-		}
-
+	if (rt == NULL) {
+		struct mrt6msg *im;
+#ifdef MRT6_OINIT
+		struct omrt6msg *oim;
+#endif
+		/* no upcall, so make a new entry */
+		rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6, M_NOWAIT);
 		if (rt == NULL) {
-			struct mrt6msg *im;
+			free(rte, M_MRTABLE6);
+			m_freem(mb0);
+			MFC6_UNLOCK();
+			return (ENOBUFS);
+		}
+		/*
+		 * Make a copy of the header to send to the user
+		 * level process
+		 */
+		mm = m_copy(mb0, 0, sizeof(struct ip6_hdr));
+		if (mm == NULL) {
+			free(rte, M_MRTABLE6);
+			m_freem(mb0);
+			free(rt, M_MRTABLE6);
+			MFC6_UNLOCK();
+			return (ENOBUFS);
+		}
+
+		/*
+		 * Send message to routing daemon
+		 */
+		sin6.sin6_addr = ip6->ip6_src;
+		im = NULL;
 #ifdef MRT6_OINIT
-			struct omrt6msg *oim;
+		oim = NULL;
 #endif
-
-			/* no upcall, so make a new entry */
-			rt = (struct mf6c *)malloc(sizeof(*rt), M_MRTABLE6,
-						  M_NOWAIT);
-			if (rt == NULL) {
-				free(rte, M_MRTABLE6);
-				m_freem(mb0);
-				MFC6_UNLOCK();
-				return (ENOBUFS);
-			}
-			/*
-			 * Make a copy of the header to send to the user
-			 * level process
-			 */
-			mm = m_copy(mb0, 0, sizeof(struct ip6_hdr));
-
-			if (mm == NULL) {
-				free(rte, M_MRTABLE6);
-				m_freem(mb0);
-				free(rt, M_MRTABLE6);
-				MFC6_UNLOCK();
-				return (ENOBUFS);
-			}
-
-			/*
-			 * Send message to routing daemon
-			 */
-			sin6.sin6_addr = ip6->ip6_src;
-
-			im = NULL;
+		switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-			oim = NULL;
+		case MRT6_OINIT:
+			oim = mtod(mm, struct omrt6msg *);
+			oim->im6_msgtype = MRT6MSG_NOCACHE;
+			oim->im6_mbz = 0;
+			break;
 #endif
-			switch (V_ip6_mrouter_ver) {
-#ifdef MRT6_OINIT
-			case MRT6_OINIT:
-				oim = mtod(mm, struct omrt6msg *);
-				oim->im6_msgtype = MRT6MSG_NOCACHE;
-				oim->im6_mbz = 0;
-				break;
-#endif
-			case MRT6_INIT:
-				im = mtod(mm, struct mrt6msg *);
-				im->im6_msgtype = MRT6MSG_NOCACHE;
-				im->im6_mbz = 0;
-				break;
-			default:
-				free(rte, M_MRTABLE6);
-				m_freem(mb0);
-				free(rt, M_MRTABLE6);
-				MFC6_UNLOCK();
-				return (EINVAL);
-			}
+		case MRT6_INIT:
+			im = mtod(mm, struct mrt6msg *);
+			im->im6_msgtype = MRT6MSG_NOCACHE;
+			im->im6_mbz = 0;
+			break;
+		default:
+			free(rte, M_MRTABLE6);
+			m_freem(mb0);
+			free(rt, M_MRTABLE6);
+			MFC6_UNLOCK();
+			return (EINVAL);
+		}
 
-			MRT6_DLOG(DEBUG_FORWARD,
-			    "getting the iif info in the kernel");
-
-			for (mifp = mif6table, mifi = 0;
-			     mifi < nummifs && mifp->m6_ifp != ifp;
-			     mifp++, mifi++)
+		MRT6_DLOG(DEBUG_FORWARD, "getting the iif info in the kernel");
+		for (mifp = mif6table, mifi = 0;
+		    mifi < nummifs && mifp->m6_ifp != ifp; mifp++, mifi++)
 				;
 
-			switch (V_ip6_mrouter_ver) {
+		switch (V_ip6_mrouter_ver) {
 #ifdef MRT6_OINIT
-			case MRT6_OINIT:
-				oim->im6_mif = mifi;
-				break;
+		case MRT6_OINIT:
+			oim->im6_mif = mifi;
+			break;
 #endif
-			case MRT6_INIT:
-				im->im6_mif = mifi;
-				break;
-			}
-
-			if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
-				log(LOG_WARNING, "ip6_mforward: ip6_mrouter "
-				    "socket queue full\n");
-				MRT6STAT_INC(mrt6s_upq_sockfull);
-				free(rte, M_MRTABLE6);
-				m_freem(mb0);
-				free(rt, M_MRTABLE6);
-				MFC6_UNLOCK();
-				return (ENOBUFS);
-			}
-
-			MRT6STAT_INC(mrt6s_upcalls);
-
-			/* insert new entry at head of hash chain */
-			bzero(rt, sizeof(*rt));
-			rt->mf6c_origin.sin6_family = AF_INET6;
-			rt->mf6c_origin.sin6_len = sizeof(struct sockaddr_in6);
-			rt->mf6c_origin.sin6_addr = ip6->ip6_src;
-			rt->mf6c_mcastgrp.sin6_family = AF_INET6;
-			rt->mf6c_mcastgrp.sin6_len = sizeof(struct sockaddr_in6);
-			rt->mf6c_mcastgrp.sin6_addr = ip6->ip6_dst;
-			rt->mf6c_expire = UPCALL_EXPIRE;
-			n6expire[hash]++;
-			rt->mf6c_parent = MF6C_INCOMPLETE_PARENT;
-
-			/* link into table */
-			rt->mf6c_next  = mf6ctable[hash];
-			mf6ctable[hash] = rt;
-			/* Add this entry to the end of the queue */
-			rt->mf6c_stall = rte;
-		} else {
-			/* determine if q has overflowed */
-			struct rtdetq **p;
-			int npkts = 0;
-
-			for (p = &rt->mf6c_stall; *p != NULL; p = &(*p)->next)
-				if (++npkts > MAX_UPQ6) {
-					MRT6STAT_INC(mrt6s_upq_ovflw);
-					free(rte, M_MRTABLE6);
-					m_freem(mb0);
-					MFC6_UNLOCK();
-					return (0);
-				}
-
-			/* Add this entry to the end of the queue */
-			*p = rte;
+		case MRT6_INIT:
+			im->im6_mif = mifi;
+			break;
 		}
 
-		rte->next = NULL;
-		rte->m = mb0;
-		rte->ifp = ifp;
+		if (socket_send(V_ip6_mrouter, mm, &sin6) < 0) {
+			log(LOG_WARNING, "ip6_mforward: ip6_mrouter "
+			    "socket queue full\n");
+			MRT6STAT_INC(mrt6s_upq_sockfull);
+			free(rte, M_MRTABLE6);
+			m_freem(mb0);
+			free(rt, M_MRTABLE6);
+			MFC6_UNLOCK();
+			return (ENOBUFS);
+		}
+
+		MRT6STAT_INC(mrt6s_upcalls);
+
+		/* insert new entry at head of hash chain */
+		bzero(rt, sizeof(*rt));
+		rt->mf6c_origin.sin6_family = AF_INET6;
+		rt->mf6c_origin.sin6_len = sizeof(struct sockaddr_in6);
+		rt->mf6c_origin.sin6_addr = ip6->ip6_src;
+		rt->mf6c_mcastgrp.sin6_family = AF_INET6;
+		rt->mf6c_mcastgrp.sin6_len = sizeof(struct sockaddr_in6);
+		rt->mf6c_mcastgrp.sin6_addr = ip6->ip6_dst;
+		rt->mf6c_expire = UPCALL_EXPIRE;
+		n6expire[hash]++;
+		rt->mf6c_parent = MF6C_INCOMPLETE_PARENT;
+
+		/* link into table */
+		rt->mf6c_next  = mf6ctable[hash];
+		mf6ctable[hash] = rt;
+		/* Add this entry to the end of the queue */
+		rt->mf6c_stall = rte;
+	} else {
+		/* determine if q has overflowed */
+		struct rtdetq **p;
+		int npkts = 0;
+
+		for (p = &rt->mf6c_stall; *p != NULL; p = &(*p)->next)
+			if (++npkts > MAX_UPQ6) {
+				MRT6STAT_INC(mrt6s_upq_ovflw);
+				free(rte, M_MRTABLE6);
+				m_freem(mb0);
+				MFC6_UNLOCK();
+				return (0);
+			}
+
+		/* Add this entry to the end of the queue */
+		*p = rte;
+	}
+
+	rte->next = NULL;
+	rte->m = mb0;
+	rte->ifp = ifp;
 #ifdef UPCALL_TIMING
-		rte->t = tp;
+	rte->t = tp;
 #endif /* UPCALL_TIMING */
 
-		MFC6_UNLOCK();
+	MFC6_UNLOCK();
 
-		return (0);
-	}
+	return (0);
 }
 
 /*
