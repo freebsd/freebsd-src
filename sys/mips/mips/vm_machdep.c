@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 
@@ -337,6 +338,13 @@ cpu_thread_alloc(struct thread *td)
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
+
+	/*
+	 * If the CPU supports the UserLocal Register Implementation then
+	 * flag the thread to update this register in cpu_switch().
+	 */
+	if (cpuinfo.userlocal_reg == true)
+		td->td_md.md_flags |= MDTD_ULRI;
 }
 
 void

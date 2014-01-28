@@ -427,6 +427,7 @@
  *  2	MIPS_COP_0_TLB_LO0	.636 r4k TLB entry low.
  *  3	MIPS_COP_0_TLB_LO1	.636 r4k TLB entry low, extended.
  *  4	MIPS_COP_0_TLB_CONTEXT	3636 TLB Context.
+ *  4/2	MIPS_COP_0_USERLOCAL	..36 UserLocal.
  *  5	MIPS_COP_0_TLB_PG_MASK	.333 TLB Page Mask register.
  *  6	MIPS_COP_0_TLB_WIRED	.333 Wired TLB number.
  *  7	MIPS_COP_0_INFO		..33 Info registers
@@ -507,6 +508,7 @@
 #define	MIPS_COP_0_ERROR_PC	_(30)
 
 /* MIPS32/64 */
+#define	MIPS_COP_0_USERLOCAL	_(4)	/* sel 2 is userlevel register */
 #define	MIPS_COP_0_INFO		_(7)
 #define	MIPS_COP_0_DEBUG	_(23)
 #define	MIPS_COP_0_DEPC		_(24)
@@ -521,11 +523,21 @@
 #define MIPS_MMU_BAT			0x02		/* Standard BAT */
 #define MIPS_MMU_FIXED			0x03		/* Standard fixed mapping */
 
-#define MIPS_CONFIG0_MT_MASK		0x00000380	/* bits 9..7 MMU Type */
-#define MIPS_CONFIG0_MT_SHIFT		7
-#define MIPS_CONFIG0_BE			0x00008000	/* data is big-endian */
-#define MIPS_CONFIG0_VI			0x00000004	/* instruction cache is virtual */
+/*
+ * Config Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.39)
+ */
+#define	MIPS_CONFIG0_M		0x80000000 	/* Flag: Config1 is present. */
+#define MIPS_CONFIG0_MT_MASK	0x00000380	/* bits 9..7 MMU Type */
+#define MIPS_CONFIG0_MT_SHIFT	7
+#define MIPS_CONFIG0_BE		0x00008000	/* data is big-endian */
+#define MIPS_CONFIG0_VI		0x00000004	/* instruction cache is virtual */
 
+/*
+ * Config1 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9-1)
+ */
+#define	MIPS_CONFIG1_M		0x80000000	/* Flag: Config2 is present. */
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
 
@@ -549,6 +561,19 @@
 #define MIPS_CONFIG1_CA			0x00000004	/* MIPS16e ISA implemented */
 #define MIPS_CONFIG1_EP			0x00000002	/* EJTAG implemented */
 #define MIPS_CONFIG1_FP			0x00000001	/* FPU implemented */
+
+/*
+ * Config2 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.40)
+ */
+#define	MIPS_CONFIG2_M		0x80000000	/* Flag: Config3 is present. */
+
+/*
+ * Config3 Register Fields
+ * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.41)
+ */
+#define	MIPS_CONFIG3_M		0x80000000	/* Flag: Config4 is present */
+#define	MIPS_CONFIG3_ULR	0x00002000	/* UserLocal reg implemented */
 
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
 #define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */

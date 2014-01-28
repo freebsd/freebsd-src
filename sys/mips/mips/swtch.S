@@ -315,9 +315,23 @@ blocked_loop:
  */
 	GET_CPU_PCPU(a3)
 	PTR_S	a1, PC_CURTHREAD(a3)
+/*
+ * Check if the UserLocal Register is Implemented (ULRI flag set).
+ * If so, set the new thread's TLS pointer.
+ */
+	lw	a2, TD_MDFLAGS(a1)		# Get md_flags
+	and	t1, a2, MDTD_ULRI
+	beqz	t1, no_ulri
+	nop
+	PTR_L	a2, TD_MDTLS(a1)		# Get TLS pointer
+	PTR_ADDU v0, a2, TLS_TCB_OFFSET		# Add TLS/TCB offset
+	MTC0	v0, MIPS_COP_0_USERLOCAL, 2	# write it to ULR for rdhwr
+	HAZARD_DELAY
+
+no_ulri:
 	PTR_L	a2, TD_PCB(a1)
 	PTR_S	a2, PC_CURPCB(a3)
-	PTR_L	v0, TD_KSTACK(a1)				# va of 1st half of kstack
+	PTR_L	v0, TD_KSTACK(a1)		# va of 1st half of kstack
 #if defined(__mips_n64)
 	PTR_LI	s0,2*PAGE_SIZE
 	PTR_SUB	v1,v0,s0

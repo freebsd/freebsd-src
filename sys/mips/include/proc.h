@@ -78,6 +78,8 @@ struct mdthread {
 #define	MDTD_FPUSED	0x0001		/* Process used the FPU */
 #define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
 
+#define	MDTD_ULRI	0x8000		/* Thread using UserLocal Register */
+
 struct mdproc {
 	/* empty */
 };

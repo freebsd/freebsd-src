@@ -71,8 +71,7 @@ static void
 mips_get_identity(struct mips_cpuinfo *cpuinfo)
 {
 	u_int32_t prid;
-	u_int32_t cfg0;
-	u_int32_t cfg1;
+	u_int32_t cfg0, cfg1, cfg2 = 0, cfg3 = 0;
 #if defined(CPU_CNMIPS)
 	u_int32_t cfg4;
 #endif
@@ -93,12 +92,23 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	    ((cfg0 & MIPS_CONFIG0_MT_MASK) >> MIPS_CONFIG0_MT_SHIFT);
 	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
-	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS_CONFIG_CM))
+	/* If config register selection 1 does not exist, return. */
+	if (!(cfg0 & MIPS_CONFIG0_M))
 		return;
 
 	/* Learn TLB size and L1 cache geometry. */
 	cfg1 = mips_rd_config1();
+
+	/* Get the Config2 and Config3 registers as well, if they are available. */
+	if (cfg1 & MIPS_CONFIG1_M) {
+		cfg2 = mips_rd_config2();
+		if (cfg2 & MIPS_CONFIG2_M)
+				cfg3 = mips_rd_config3();
+	}
+
+	/* Check to see if UserLocal register is implemented. */
+	if (cfg3 & MIPS_CONFIG3_ULR)
+		cpuinfo->userlocal_reg = true;
 
 #if defined(CPU_NLM)
 	/* Account for Extended TLB entries in XLP */
@@ -315,7 +325,7 @@ cpu_identify(void)
 
 	/* Print Config3 if it contains any useful info */
 	if (cfg3 & ~(0x80000000))
-		printf("  Config3=0x%b\n", cfg3, "\20\2SmartMIPS\1TraceLogic");
+		printf("  Config3=0x%b\n", cfg3, "\20\14ULRI\2SmartMIPS\1TraceLogic");
 }
 
 static struct rman cpu_hardirq_rman;

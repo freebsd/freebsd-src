@@ -43,7 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 
+#include <machine/cpufunc.h>
 #include <machine/sysarch.h>
+#include <machine/cpuregs.h>
+#include <machine/tls.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sysarch_args {
@@ -61,14 +64,36 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 	switch (uap->op) {
 	case MIPS_SET_TLS:
 		td->td_md.md_tls = uap->parms;
+
+		/*
+		 * If there is an user local register implementation (ULRI)
+		 * update it as well.  Add the TLS and TCB offsets so the
+		 * value in this register is adjusted like in the case of the
+		 * rdhwr trap() instruction handler.
+		 *
+		 * XXXSS For more information why this offset is required see:
+		 * 	'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
+		 */
+		if (td->td_md.md_flags & MDTD_ULRI) {
+#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
+			mips_wr_userlocal((unsigned long)(uap->parms +
+			    TLS_TP_OFFSET + TLS_TCB_SIZE32));
+#else
+			mips_wr_userlocal((unsigned long)(uap->parms +
+			    TLS_TP_OFFSET + TLS_TCB_SIZE));
+#endif
+		}
 		return (0);
-	case MIPS_GET_TLS: 
+
+	case MIPS_GET_TLS:
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
 		return (error);
+
 	case MIPS_GET_COUNT:
 		td->td_retval[0] = mips_rd_count();
 		return (0);
+
 	default:
 		break;
 	}

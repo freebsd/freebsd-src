@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/sigframe.h>
 #include <machine/proc.h>
+#include <machine/tls.h>
 
 #ifdef	CPU_CNMIPS
 #include <machine/octeon_cop2.h>
@@ -72,6 +73,13 @@ ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
 ASSYM(TD_MDFLAGS, offsetof(struct thread, td_md.md_flags));
+ASSYM(TD_MDTLS, offsetof(struct thread, td_md.md_tls));
+
+#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
+ASSYM(TLS_TCB_OFFSET, (TLS_TP_OFFSET + TLS_TCB_SIZE32));
+#else
+ASSYM(TLS_TCB_OFFSET, (TLS_TP_OFFSET + TLS_TCB_SIZE));
+#endif
 
 ASSYM(U_PCB_REGS, offsetof(struct pcb, pcb_regs.zero));
 ASSYM(U_PCB_CONTEXT, offsetof(struct pcb, pcb_context));
@@ -99,6 +107,7 @@ ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MDTD_COP2USED, MDTD_COP2USED);
+ASSYM(MDTD_ULRI, MDTD_ULRI);
 
 ASSYM(MIPS_KSEG0_START, MIPS_KSEG0_START);
 ASSYM(MIPS_KSEG1_START, MIPS_KSEG1_START);
