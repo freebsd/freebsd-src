@@ -89,8 +89,9 @@ main() {
 		-c /tmp/external/${XDEV}/crochet-${KERNEL}.conf
 	mkdir -p ${CHROOTDIR}/R/
 	cp -p ${CHROOTDIR}/usr/obj/*.img ${CHROOTDIR}/R/
-	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img > CHECKSUM.SHA256
-	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img > CHECKSUM.MD5
+	bzip2 ${CHROOTDIR}/R/FreeBSD*.img
+	cd ${CHROOTDIR}/R/ && sha256 FreeBSD*.img.bz2 > CHECKSUM.SHA256
+	cd ${CHROOTDIR}/R/ && md5 FreeBSD*.img.bz2 > CHECKSUM.MD5
 }
 
 main "$@"
