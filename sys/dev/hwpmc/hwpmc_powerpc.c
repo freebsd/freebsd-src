@@ -147,6 +147,7 @@ pmc_md_initialize()
 	case MPC7455:
 	case MPC7457:
 		error = pmc_mpc7xxx_initialize(pmc_mdep);
+		break;
 	case IBM970:
 	case IBM970FX:
 	case IBM970MP:

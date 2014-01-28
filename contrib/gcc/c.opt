@@ -280,9 +280,11 @@ Wmissing-include-dirs
 C ObjC C++ ObjC++
 Warn about user-specified include directories that do not exist
 
+; APPLE LOCAL begin warn missing prototype 6261539
 Wmissing-prototypes
-C ObjC Var(warn_missing_prototypes)
+C ObjC C++ ObjC++ Var(warn_missing_prototypes)
 Warn about global functions without prototypes
+; APPLE LOCAL end warn missing prototype 6261539
 
 ; APPLE LOCAL begin -Wmost
 Wmost

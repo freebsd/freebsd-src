@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2002, 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: bdb.h,v 1.4 2003/03/06 16:30:05 ca Exp $
+ *	$Id: bdb.h,v 1.5 2013/11/22 20:51:31 ca Exp $
  */
 
 #ifndef	SM_BDB_H

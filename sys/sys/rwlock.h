@@ -218,7 +218,7 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	_sleep((chan), &(rw)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
-#define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
+#define	rw_initialized(rw)	lock_initialized(&(rw)->lock_object)
 
 struct rw_args {
 	void		*ra_rw;

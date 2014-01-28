@@ -269,7 +269,7 @@ db_unwind_exec_insn(struct unwind_state *state)
 		/* Stop processing */
 		state->entries = 0;
 
-	} else if ((insn == INSN_POP_REGS)) {
+	} else if (insn == INSN_POP_REGS) {
 		unsigned int mask, reg;
 
 		mask = db_unwind_exec_read_byte(state);

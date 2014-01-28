@@ -197,7 +197,6 @@ struct ukbd_softc {
 #define	UKBD_FLAG_NUMLOCK	0x00080000
 #define	UKBD_FLAG_CAPSLOCK	0x00100000
 #define	UKBD_FLAG_SCROLLLOCK 	0x00200000
-#define	UKBD_FLAG_VALID_KEYS	0x00400000
 
 	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int	sc_state;		/* shift/lock key state */
@@ -474,7 +473,8 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 	    || (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
 	    ("not polling in kdb or panic\n"));
 
-	if (sc->sc_inputs == 0) {
+	if (sc->sc_inputs == 0 &&
+	    (sc->sc_flags & UKBD_FLAG_GONE) == 0) {
 		/* start transfer, if not already started */
 		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
@@ -513,41 +513,6 @@ ukbd_interrupt(struct ukbd_softc *sc)
 
 	n_mod = sc->sc_ndata.modifiers;
 	o_mod = sc->sc_odata.modifiers;
-
-	/*
-	 * Don't output any modifier keys before we see a valid
-	 * non-modifier key press. This prevents so-called "ghost
-	 * keyboards" keeping modifier keys pressed while not actually
-	 * seen as a real keyboard.
-	 */
-	if (sc->sc_flags & UKBD_FLAG_VALID_KEYS)
-		goto kfound;
-
-	for (i = 0; i != UKBD_NKEYCODE; i++) {
-		key = sc->sc_ndata.keycode[i];
-		switch (key) {
-		case 0xe0:
-		case 0xe4:
-		case 0xe1:
-		case 0xe5:
-		case 0xe2:
-		case 0xe6:
-		case 0xe3:
-		case 0xe7:
-		case 0x00:
-		case KEY_ERROR:
-			break;
-		default:
-			sc->sc_flags |= UKBD_FLAG_VALID_KEYS;
-			goto kfound;
-		}
-	}
-	DPRINTF("Keeping modifiers buffered\n");
-
-	/* keep modifiers in buffer */
-	sc->sc_ndata.modifiers = n_mod = 0;
-
-kfound:
 	if (n_mod != o_mod) {
 		for (i = 0; i < UKBD_NMOD; i++) {
 			if ((n_mod & ukbd_mods[i].mask) !=
@@ -1354,6 +1319,18 @@ ukbd_detach(device_t dev)
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
 	usb_callout_stop(&sc->sc_callout);
+
+	/* kill any stuck keys */
+	if (sc->sc_flags & UKBD_FLAG_ATTACHED) {
+		/* stop receiving events from the USB keyboard */
+		usbd_transfer_stop(sc->sc_xfer[UKBD_INTR_DT]);
+
+		/* release all leftover keys, if any */
+		memset(&sc->sc_ndata, 0, sizeof(sc->sc_ndata));
+
+		/* process releasing of all keys */
+		ukbd_interrupt(sc);
+	}
 
 	ukbd_disable(&sc->sc_kbd);
 
