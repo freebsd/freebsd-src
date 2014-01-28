@@ -24,6 +24,18 @@ before_build() {
 			chroot ${CHROOTDIR} tar xf /tmp/crochet/u-boot-2013.04.tar.bz2 \
 				-C /tmp/crochet/ 
 			;;
+		PANDABOARD)
+			KNOWNHASH="e08e20a6979bfca6eebb9a2b0e42aa4416af3d796332fd63a3470495a089d496"
+			chroot ${CHROOTDIR} fetch -o /tmp/crochet/u-boot-2012.07.tar.bz2 \
+				http://people.freebsd.org/~gjb/u-boot-2012.07.tar.bz2
+			UBOOT_HASH="$(sha256 -q ${CHROOTDIR}/tmp/crochet/u-boot-2012.07.tar.bz2)"
+			if [ "${UBOOT_HASH}" != "${KNOWNHASH}" ]; then
+				echo "Checksum mismatch!  Exiting now."
+				exit 1
+			fi
+			chroot ${CHROOTDIR} tar xf /tmp/crochet/u-boot-2012.07.tar.bz2 \
+				-C /tmp/crochet/ 
+			;;
 		*)
 			# Fallthrough.
 			;;
