@@ -2429,8 +2429,19 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		hhook_run_tcp_est_in(tp, th, &to);
 
 		if (SEQ_LEQ(th->th_ack, tp->snd_una)) {
-			if (tlen == 0 && tiwin == tp->snd_wnd &&
-			    !(thflags & TH_FIN)) {
+			if (tlen == 0 && tiwin == tp->snd_wnd) {
+				/*
+				 * If this is the first time we've seen a
+				 * FIN from the remote, this is not a
+				 * duplicate and it needs to be processed
+				 * normally.  This happens during a
+				 * simultaneous close.
+				 */
+				if ((thflags & TH_FIN) &&
+				    (TCPS_HAVERCVDFIN(tp->t_state) == 0)) {
+					tp->t_dupacks = 0;
+					break;
+				}
 				TCPSTAT_INC(tcps_rcvdupack);
 				/*
 				 * If we have outstanding data (other than
@@ -2485,16 +2496,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 						}
 					} else
 						tp->snd_cwnd += tp->t_maxseg;
-					if ((thflags & TH_FIN) &&
-					    (TCPS_HAVERCVDFIN(tp->t_state) == 0)) {
-						/* 
-						 * If its a fin we need to process
-						 * it to avoid a race where both
-						 * sides enter FIN-WAIT and send FIN|ACK
-						 * at the same time.
-						 */
-						break;
-					}
 					(void) tcp_output(tp);
 					goto drop;
 				} else if (tp->t_dupacks == tcprexmtthresh) {
@@ -2534,16 +2535,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					}
 					tp->snd_nxt = th->th_ack;
 					tp->snd_cwnd = tp->t_maxseg;
-					if ((thflags & TH_FIN) &&
-					    (TCPS_HAVERCVDFIN(tp->t_state) == 0)) {
-						/* 
-						 * If its a fin we need to process
-						 * it to avoid a race where both
-						 * sides enter FIN-WAIT and send FIN|ACK
-						 * at the same time.
-						 */
-						break;
-					}
 					(void) tcp_output(tp);
 					KASSERT(tp->snd_limited <= 2,
 					    ("%s: tp->snd_limited too big",
@@ -2571,16 +2562,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    (tp->snd_nxt - tp->snd_una) +
 					    (tp->t_dupacks - tp->snd_limited) *
 					    tp->t_maxseg;
-					if ((thflags & TH_FIN) &&
-					    (TCPS_HAVERCVDFIN(tp->t_state) == 0)) {
-						/* 
-						 * If its a fin we need to process
-						 * it to avoid a race where both
-						 * sides enter FIN-WAIT and send FIN|ACK
-						 * at the same time.
-						 */
-						break;
-					}
 					/*
 					 * Only call tcp_output when there
 					 * is new data available to be sent.
