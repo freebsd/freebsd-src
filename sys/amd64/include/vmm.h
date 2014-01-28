@@ -298,6 +298,7 @@ enum vm_exitcode {
 	VM_EXITCODE_SPINUP_AP,
 	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_RENDEZVOUS,
+	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_MAX
 };
 
@@ -354,6 +355,9 @@ struct vm_exit {
 		struct {
 			uint64_t	rflags;
 		} hlt;
+		struct {
+			int		vector;
+		} ioapic_eoi;
 	} u;
 };
 

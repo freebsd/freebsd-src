@@ -98,6 +98,8 @@ int feupdateenv(const fenv_t *__envp);
 #define	vmrs_fpscr(__r)	__asm __volatile("vmrs %0, fpscr" : "=&r"(__r))
 #define	vmsr_fpscr(__r)	__asm __volatile("vmsr fpscr, %0" : : "r"(__r))
 
+#define _FPU_MASK_SHIFT	8
+
 __fenv_static inline int
 feclearexcept(int __excepts)
 {
@@ -213,29 +215,31 @@ feupdateenv(const fenv_t *__envp)
 
 /* We currently provide no external definitions of the functions below. */
 
-static inline int
+__fenv_static inline int
 feenableexcept(int __mask)
 {
 	fenv_t __old_fpsr, __new_fpsr;
 
 	vmrs_fpscr(__old_fpsr);
-	__new_fpsr = __old_fpsr | (__mask & FE_ALL_EXCEPT);
+	__new_fpsr = __old_fpsr |
+	    ((__mask & FE_ALL_EXCEPT) << _FPU_MASK_SHIFT);
 	vmsr_fpscr(__new_fpsr);
-	return (__old_fpsr & FE_ALL_EXCEPT);
+	return ((__old_fpsr >> _FPU_MASK_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+__fenv_static inline int
 fedisableexcept(int __mask)
 {
 	fenv_t __old_fpsr, __new_fpsr;
 
 	vmrs_fpscr(__old_fpsr);
-	__new_fpsr = __old_fpsr & ~(__mask & FE_ALL_EXCEPT);
+	__new_fpsr = __old_fpsr &
+	    ~((__mask & FE_ALL_EXCEPT) << _FPU_MASK_SHIFT);
 	vmsr_fpscr(__new_fpsr);
-	return (__old_fpsr & FE_ALL_EXCEPT);
+	return ((__old_fpsr >> _FPU_MASK_SHIFT) & FE_ALL_EXCEPT);
 }
 
-static inline int
+__fenv_static inline int
 fegetexcept(void)
 {
 	fenv_t __fpsr;

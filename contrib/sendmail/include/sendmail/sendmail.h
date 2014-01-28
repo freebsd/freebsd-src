@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: sendmail.h,v 8.68 2002/07/01 22:18:53 gshapiro Exp $
+ *	$Id: sendmail.h,v 8.69 2013/11/22 20:51:30 ca Exp $
  */
 
 /*

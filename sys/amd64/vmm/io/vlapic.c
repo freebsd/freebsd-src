@@ -1300,6 +1300,7 @@ vlapic_reset(struct vlapic *vlapic)
 	lapic->dfr = 0xffffffff;
 	lapic->svr = APIC_SVR_VECTOR;
 	vlapic_mask_lvts(vlapic);
+	vlapic_reset_tmr(vlapic);
 
 	lapic->dcr_timer = 0;
 	vlapic_dcr_write_handler(vlapic);
@@ -1457,32 +1458,42 @@ vlapic_enabled(struct vlapic *vlapic)
 		return (false);
 }
 
+static void
+vlapic_set_tmr(struct vlapic *vlapic, int vector, bool level)
+{
+	struct LAPIC *lapic;
+	uint32_t *tmrptr, mask;
+	int idx;
+
+	lapic = vlapic->apic_page;
+	tmrptr = &lapic->tmr0;
+	idx = (vector / 32) * 4;
+	mask = 1 << (vector % 32);
+	if (level)
+		tmrptr[idx] |= mask;
+	else
+		tmrptr[idx] &= ~mask;
+
+	if (vlapic->ops.set_tmr != NULL)
+		(*vlapic->ops.set_tmr)(vlapic, vector, level);
+}
+
 void
 vlapic_reset_tmr(struct vlapic *vlapic)
 {
-	struct LAPIC *lapic;
+	int vector;
 
 	VLAPIC_CTR0(vlapic, "vlapic resetting all vectors to edge-triggered");
 
-	lapic = vlapic->apic_page;
-	lapic->tmr0 = 0;
-	lapic->tmr1 = 0;
-	lapic->tmr2 = 0;
-	lapic->tmr3 = 0;
-	lapic->tmr4 = 0;
-	lapic->tmr5 = 0;
-	lapic->tmr6 = 0;
-	lapic->tmr7 = 0;
+	for (vector = 0; vector <= 255; vector++)
+		vlapic_set_tmr(vlapic, vector, false);
 }
 
 void
 vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
     int delmode, int vector)
 {
-	struct LAPIC *lapic;
-	uint32_t *tmrptr, mask;
 	cpuset_t dmask;
-	int idx;
 	bool lowprio;
 
 	KASSERT(vector >= 0 && vector <= 255, ("invalid vector %d", vector));
@@ -1502,11 +1513,6 @@ vlapic_set_tmr_level(struct vlapic *vlapic, uint32_t dest, bool phys,
 	if (!CPU_ISSET(vlapic->vcpuid, &dmask))
 		return;
 
-	lapic = vlapic->apic_page;
-	tmrptr = &lapic->tmr0;
-	idx = (vector / 32) * 4;
-	mask = 1 << (vector % 32);
-	tmrptr[idx] |= mask;
-
 	VLAPIC_CTR1(vlapic, "vector %d set to level-triggered", vector);
+	vlapic_set_tmr(vlapic, vector, true);
 }

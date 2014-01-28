@@ -1726,6 +1726,11 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		    (qual & EXIT_QUAL_NMIUDTI) != 0)
 			vmx_restore_nmi_blocking(vmx, vcpu);
 		break;
+	case EXIT_REASON_VIRTUALIZED_EOI:
+		vmexit->exitcode = VM_EXITCODE_IOAPIC_EOI;
+		vmexit->u.ioapic_eoi.vector = qual & 0xFF;
+		vmexit->inst_length = 0;	/* trap-like */
+		break;
 	case EXIT_REASON_APIC_ACCESS:
 		handled = vmx_handle_apic_access(vmx, vcpu, vmexit);
 		break;
@@ -2320,6 +2325,7 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 struct vlapic_vtx {
 	struct vlapic	vlapic;
 	struct pir_desc	*pir_desc;
+	struct vmx	*vmx;
 };
 
 #define	VMX_CTR_PIR(vm, vcpuid, pir_desc, notify, vector, level, msg)	\
@@ -2345,9 +2351,6 @@ vmx_set_intr_ready(struct vlapic *vlapic, int vector, bool level)
 	uint64_t mask;
 	int idx, notify;
 
-	/*
-	 * XXX need to deal with level triggered interrupts
-	 */
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
 	pir_desc = vlapic_vtx->pir_desc;
 
@@ -2419,6 +2422,33 @@ vmx_intr_accepted(struct vlapic *vlapic, int vector)
 {
 
 	panic("vmx_intr_accepted: not expected to be called");
+}
+
+static void
+vmx_set_tmr(struct vlapic *vlapic, int vector, bool level)
+{
+	struct vlapic_vtx *vlapic_vtx;
+	struct vmx *vmx;
+	struct vmcs *vmcs;
+	uint64_t mask, val;
+
+	KASSERT(vector >= 0 && vector <= 255, ("invalid vector %d", vector));
+	KASSERT(!vcpu_is_running(vlapic->vm, vlapic->vcpuid, NULL),
+	    ("vmx_set_tmr: vcpu cannot be running"));
+
+	vlapic_vtx = (struct vlapic_vtx *)vlapic;
+	vmx = vlapic_vtx->vmx;
+	vmcs = &vmx->vmcs[vlapic->vcpuid];
+	mask = 1UL << (vector % 64);
+
+	VMPTRLD(vmcs);
+	val = vmcs_read(VMCS_EOI_EXIT(vector));
+	if (level)
+		val |= mask;
+	else
+		val &= ~mask;
+	vmcs_write(VMCS_EOI_EXIT(vector), val);
+	VMCLEAR(vmcs);
 }
 
 static void
@@ -2519,11 +2549,13 @@ vmx_vlapic_init(void *arg, int vcpuid)
 
 	vlapic_vtx = (struct vlapic_vtx *)vlapic;
 	vlapic_vtx->pir_desc = &vmx->pir_desc[vcpuid];
+	vlapic_vtx->vmx = vmx;
 
 	if (virtual_interrupt_delivery) {
 		vlapic->ops.set_intr_ready = vmx_set_intr_ready;
 		vlapic->ops.pending_intr = vmx_pending_intr;
 		vlapic->ops.intr_accepted = vmx_intr_accepted;
+		vlapic->ops.set_tmr = vmx_set_tmr;
 	}
 
 	if (posted_interrupts)

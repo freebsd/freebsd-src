@@ -83,7 +83,7 @@ bi_dbgu(void)
 }
 
 static void
-bi_emac()
+bi_emac(void)
 {
 
 	/*

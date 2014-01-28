@@ -140,7 +140,7 @@ ti_mbox_attach(device_t dev)
 	}
 	sc = device_get_softc(dev);
 	rid = 0;
-	mtx_init(&sc->sc_mtx, "TI mbox", MTX_DEF, 0);
+	mtx_init(&sc->sc_mtx, "TI mbox", NULL, MTX_DEF);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {

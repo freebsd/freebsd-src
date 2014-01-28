@@ -11,7 +11,7 @@ yes) XDEFS="-DUSE_META ${XDEFS}";;
 esac
 
 CC="@CC@"
-CFLAGS="@CFLAGS@ -I. -I${srcdir} @DEFS@ @CPPFLAGS@ -DMAKE_NATIVE ${XDEFS}"
+CFLAGS="@CFLAGS@ -I. -I${srcdir} @DEFS@ @CPPFLAGS@ -DMAKE_NATIVE ${XDEFS} -DBMAKE_PATH_MAX=@bmake_path_max@"
 
 MAKE_VERSION=`sed -n '/^MAKE_VERSION=/s,.*=[^0-9]*,,p' $srcdir/Makefile`
 
