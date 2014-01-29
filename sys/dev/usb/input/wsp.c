@@ -569,15 +569,11 @@ static const STRUCT_USB_HOST_ID wsp_devs[] = {
 
 enum {
 	WSP_INTR_DT,
-	WSP_RESET,
 	WSP_N_TRANSFER,
 };
 
 struct wsp_softc {
-	device_t sc_dev;
 	struct usb_device *sc_usb_device;
-#define	MODE_LENGTH 8
-	uint8_t	sc_mode_bytes[MODE_LENGTH];	/* device mode */
 	struct mtx sc_mutex;		/* for synchronization */
 	struct usb_xfer *sc_xfer[WSP_N_TRANSFER];
 	struct usb_fifo_sc sc_fifo;
@@ -648,8 +644,6 @@ static struct usb_fifo_methods wsp_fifo_methods = {
 };
 
 /* device initialization and shutdown */
-static usb_error_t wsp_req_get_report(struct usb_device *udev, void *data);
-static int wsp_set_device_mode(device_t dev, interface_mode mode);
 static int wsp_enable(struct wsp_softc *sc);
 static void wsp_disable(struct wsp_softc *sc);
 
@@ -662,7 +656,6 @@ static device_probe_t wsp_probe;
 static device_attach_t wsp_attach;
 static device_detach_t wsp_detach;
 static usb_callback_t wsp_intr_callback;
-static usb_callback_t wsp_reset_callback;
 
 static struct usb_config wsp_config[WSP_N_TRANSFER] = {
 	[WSP_INTR_DT] = {
@@ -676,87 +669,36 @@ static struct usb_config wsp_config[WSP_N_TRANSFER] = {
 		.bufsize = 0,		/* use wMaxPacketSize */
 		.callback = &wsp_intr_callback,
 	},
-	[WSP_RESET] = {
-		.type = UE_CONTROL,
-		.endpoint = 0,		/* Control pipe */
-		.direction = UE_DIR_ANY,
-		.bufsize = sizeof(struct usb_device_request) + MODE_LENGTH,
-		.callback = &wsp_reset_callback,
-		.interval = 0,		/* no pre-delay */
-	},
 };
 
-usb_error_t
-wsp_req_get_report(struct usb_device *udev, void *data)
+static usb_error_t
+wsp_set_device_mode(struct wsp_softc *sc, interface_mode mode)
 {
-	struct usb_device_request req;
-
-	req.bmRequestType = UT_READ_CLASS_INTERFACE;
-	req.bRequest = UR_GET_REPORT;
-	USETW2(req.wValue, (uint8_t)0x03 /* type */ , (uint8_t)0x00 /* id */ );
-	USETW(req.wIndex, 0);
-	USETW(req.wLength, MODE_LENGTH);
-
-	return (usbd_do_request(udev, NULL /* mutex */ , &req, data));
-}
-
-static int
-wsp_set_device_mode(device_t dev, interface_mode mode)
-{
-	struct wsp_softc *sc;
-	usb_device_request_t req;
+	uint8_t	mode_bytes[8];
 	usb_error_t err;
 
-	if ((mode != RAW_SENSOR_MODE) && (mode != HID_MODE))
-		return (ENXIO);
+	err = usbd_req_get_report(sc->sc_usb_device, NULL,
+	    mode_bytes, sizeof(mode_bytes), 0,
+	    0x03, 0x00);
 
-	sc = device_get_softc(dev);
-
-	sc->sc_mode_bytes[0] = mode;
-	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
-	req.bRequest = UR_SET_REPORT;
-	USETW2(req.wValue, (uint8_t)0x03 /* type */ , (uint8_t)0x00 /* id */ );
-	USETW(req.wIndex, 0);
-	USETW(req.wLength, MODE_LENGTH);
-	err = usbd_do_request(sc->sc_usb_device, NULL, &req, sc->sc_mode_bytes);
-	if (err != USB_ERR_NORMAL_COMPLETION)
-		return (ENXIO);
-
-	return (0);
-}
-
-static void
-wsp_reset_callback(struct usb_xfer *xfer, usb_error_t error)
-{
-	usb_device_request_t req;
-	struct usb_page_cache *pc;
-	struct wsp_softc *sc = usbd_xfer_softc(xfer);
-
-	switch (USB_GET_STATE(xfer)) {
-	case USB_ST_SETUP:
-		sc->sc_mode_bytes[0] = RAW_SENSOR_MODE;
-		req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
-		req.bRequest = UR_SET_REPORT;
-		USETW2(req.wValue,
-		    (uint8_t)0x03 /* type */ , (uint8_t)0x00 /* id */ );
-		USETW(req.wIndex, 0);
-		USETW(req.wLength, MODE_LENGTH);
-
-		pc = usbd_xfer_get_frame(xfer, 0);
-		usbd_copy_in(pc, 0, &req, sizeof(req));
-		pc = usbd_xfer_get_frame(xfer, 1);
-		usbd_copy_in(pc, 0, sc->sc_mode_bytes, MODE_LENGTH);
-
-		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
-		usbd_xfer_set_frame_len(xfer, 1, MODE_LENGTH);
-		usbd_xfer_set_frames(xfer, 2);
-		usbd_transfer_submit(xfer);
-		break;
-
-	case USB_ST_TRANSFERRED:
-	default:
-		break;
+	if (err != USB_ERR_NORMAL_COMPLETION) {
+		DPRINTF("Failed to read device mode (%d)\n", err);
+		return (err);
 	}
+
+	/*
+	 * XXX Need to wait at least 250ms for hardware to get
+	 * ready. The device mode handling appears to be handled
+	 * asynchronously and we should not issue these commands too
+	 * quickly.
+	 */
+	pause("WHW", hz / 4);
+
+	mode_bytes[0] = mode;
+
+	return (usbd_req_set_report(sc->sc_usb_device, NULL,
+	    mode_bytes, sizeof(mode_bytes), 0,
+	    0x03, 0x00));
 }
 
 static int
@@ -820,27 +762,35 @@ wsp_attach(device_t dev)
 
 	DPRINTFN(WSP_LLEVEL_INFO, "sc=%p\n", sc);
 
-	sc->sc_dev = dev;
 	sc->sc_usb_device = uaa->device;
 
 	/*
-	 * By default the touchpad behaves like an HID device, sending
+	 * By default the touchpad behaves like a HID device, sending
 	 * packets with reportID = 8. Such reports contain only
 	 * limited information. They encode movement deltas and button
 	 * events, but do not include data from the pressure
 	 * sensors. The device input mode can be switched from HID
 	 * reports to raw sensor data using vendor-specific USB
-	 * control commands; but first the mode must be read.
+	 * control commands:
 	 */
-	err = wsp_req_get_report(sc->sc_usb_device, sc->sc_mode_bytes);
+
+	/*
+	 * During re-enumeration of the device we need to force the
+	 * device back into HID mode before switching it to RAW
+	 * mode. Else the device does not work like expected.
+	 */
+	err = wsp_set_device_mode(sc, HID_MODE);
 	if (err != USB_ERR_NORMAL_COMPLETION) {
-		DPRINTF("failed to read device mode (%d)\n", err);
+		DPRINTF("Failed to set mode to HID MODE (%d)\n", err);
 		return (ENXIO);
 	}
-	if (wsp_set_device_mode(dev, RAW_SENSOR_MODE) != 0) {
-		DPRINTF("failed to set mode to 'RAW_SENSOR' (%d)\n", err);
+
+	err = wsp_set_device_mode(sc, RAW_SENSOR_MODE);
+	if (err != USB_ERR_NORMAL_COMPLETION) {
+		DPRINTF("failed to set mode to RAW MODE (%d)\n", err);
 		return (ENXIO);
 	}
+
 	mtx_init(&sc->sc_mutex, "wspmtx", NULL, MTX_DEF | MTX_RECURSE);
 
 	/* get device specific configuration */
@@ -891,7 +841,7 @@ wsp_detach(device_t dev)
 {
 	struct wsp_softc *sc = device_get_softc(dev);
 
-	wsp_set_device_mode(dev, HID_MODE);
+	(void) wsp_set_device_mode(sc, HID_MODE);
 
 	mtx_lock(&sc->sc_mutex);
 	if (sc->sc_state & WSP_ENABLED)
