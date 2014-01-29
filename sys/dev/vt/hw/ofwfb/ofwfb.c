@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: user/ed/newcons/sys/dev/vt/hw/ofwfb/ofwfb.c 219888 2011-03-22 21:31:31Z ed $");
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -78,17 +78,19 @@ static void
 ofwfb_blank(struct vt_device *vd, term_color_t color)
 {
 	struct ofwfb_softc *sc = vd->vd_softc;
-	u_int ofs;
+	u_int ofs, size;
 	uint32_t c;
 
+	size = sc->sc_stride * vd->vd_height;
 	switch (sc->sc_depth) {
 	case 8:
-		for (ofs = 0; ofs < sc->sc_stride*vd->vd_height; ofs++)
-			*(uint8_t *)(sc->sc_addr + ofs) = color;
+		c = (color << 24) | (color << 16) | (color << 8) | color;
+		for (ofs = 0; ofs < size/4; ofs++)
+			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
 		break;
 	case 32:
 		c = sc->sc_colormap[color];
-		for (ofs = 0; ofs < sc->sc_stride*vd->vd_height; ofs++)
+		for (ofs = 0; ofs < size; ofs++)
 			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
 		break;
 	default:
