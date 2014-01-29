@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
-#include "legacy_irq.h"
+#include "ioapic.h"
 #include "mem.h"
 #include "mevent.h"
 #include "mptbl.h"
@@ -695,7 +695,7 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
-	legacy_irq_init();
+	ioapic_init(ctx);
 
 	rtc_init(ctx);
 

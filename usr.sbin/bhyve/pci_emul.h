@@ -32,6 +32,7 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
+#include <sys/_pthreadtypes.h>
 
 #include <dev/pci/pcireg.h>
 
@@ -102,14 +103,25 @@ struct msix_table_entry {
 #define MAX_MSIX_TABLE_ENTRIES	2048
 #define PBA_TABLE_ENTRY_SIZE	8
 
+enum lintr_stat {
+	IDLE,
+	ASSERTED,
+	PENDING
+};
+
 struct pci_devinst {
 	struct pci_devemu *pi_d;
 	struct vmctx *pi_vmctx;
 	uint8_t	  pi_bus, pi_slot, pi_func;
-	int8_t    pi_lintr_pin;
-	int8_t	  pi_lintr_state;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
+
+	struct {
+		int8_t    	pin;
+		enum lintr_stat	state;
+		int	  	ioapic_irq;
+		pthread_mutex_t	lock;
+	} pi_lintr;
 
 	struct {
 		int		enabled;
@@ -187,6 +199,8 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
+typedef void (*pci_lintr_cb)(int slot, int pin, int ioapic_irq, void *arg);
+
 int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
@@ -203,7 +217,7 @@ void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
 void	pci_lintr_assert(struct pci_devinst *pi);
 void	pci_lintr_deassert(struct pci_devinst *pi);
-int	pci_lintr_request(struct pci_devinst *pi, int ivec);
+int	pci_lintr_request(struct pci_devinst *pi);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
@@ -215,6 +229,8 @@ int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
 			     uint64_t value);
 uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
+int	pci_count_lintr(void);
+void	pci_walk_lintr(pci_lintr_cb cb, void *arg);
 void	pci_write_dsdt(void);
 
 static __inline void 
