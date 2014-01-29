@@ -526,6 +526,14 @@ vmx_enable(void *arg __unused)
 		vmxon_enabled[curcpu] = 1;
 }
 
+static void
+vmx_restore(void)
+{
+
+	if (vmxon_enabled[curcpu])
+		vmxon(vmxon_region[curcpu]);
+}
+
 static int
 vmx_init(void)
 {
@@ -2053,6 +2061,7 @@ vmx_setcap(void *arg, int vcpu, int type, int val)
 struct vmm_ops vmm_ops_intel = {
 	vmx_init,
 	vmx_cleanup,
+	vmx_restore,
 	vmx_vminit,
 	vmx_run,
 	vmx_vmcleanup,

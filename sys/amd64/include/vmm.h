@@ -49,6 +49,7 @@ enum x2apic_state;
 
 typedef int	(*vmm_init_func_t)(void);
 typedef int	(*vmm_cleanup_func_t)(void);
+typedef void	(*vmm_resume_func_t)(void);
 typedef void *	(*vmi_init_func_t)(struct vm *vm, struct pmap *pmap);
 typedef int	(*vmi_run_func_t)(void *vmi, int vcpu, register_t rip,
 				  struct pmap *pmap);
@@ -72,6 +73,7 @@ typedef void	(*vmi_vmspace_free)(struct vmspace *vmspace);
 struct vmm_ops {
 	vmm_init_func_t		init;		/* module wide initialization */
 	vmm_cleanup_func_t	cleanup;
+	vmm_resume_func_t	resume;
 
 	vmi_init_func_t		vminit;		/* vm-specific initialization */
 	vmi_run_func_t		vmrun;
