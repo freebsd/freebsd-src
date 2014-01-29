@@ -976,13 +976,13 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 		else
 #endif
 			rlen = fetch_socket_read(conn->sd, buf, len);
-		if (rlen > 0) {
+		if (rlen >= 0) {
 			break;
 		} else if (rlen == FETCH_READ_ERROR) {
-			if (errno == EINTR)
-				break;
+			fetch_syserr();
 			return (-1);
 		}
+		// assert(rlen == FETCH_READ_WAIT);
 		if (fetchTimeout > 0) {
 			gettimeofday(&now, NULL);
 			if (!timercmp(&timeout, &now, >)) {
@@ -1079,7 +1079,7 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 	struct timeval now, timeout, delta;
 	struct pollfd pfd;
 	ssize_t wlen, total;
-	int deltams, r;
+	int deltams;
 
 	memset(&pfd, 0, sizeof pfd);
 	if (fetchTimeout) {
@@ -1093,20 +1093,17 @@ fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 	while (iovcnt > 0) {
 		while (fetchTimeout && pfd.revents == 0) {
 			gettimeofday(&now, NULL);
-			delta.tv_sec = timeout.tv_sec - now.tv_sec;
-			delta.tv_usec = timeout.tv_usec - now.tv_usec;
-			if (delta.tv_usec < 0) {
-				delta.tv_usec += 1000000;
-				delta.tv_sec--;
-			}
-			if (delta.tv_sec < 0) {
+			if (!timercmp(&timeout, &now, >)) {
 				errno = ETIMEDOUT;
 				fetch_syserr();
 				return (-1);
 			}
-			deltams = delta.tv_sec * 1000 + delta.tv_usec / 1000;;
+			timersub(&timeout, &now, &delta);
+			deltams = delta.tv_sec * 1000 +
+			    delta.tv_usec / 1000;
 			errno = 0;
-			if ((r = poll(&pfd, 1, deltams)) == -1) {
+			pfd.revents = 0;
+			if (poll(&pfd, 1, deltams) < 0) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
 				return (-1);
