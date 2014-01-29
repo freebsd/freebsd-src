@@ -71,6 +71,11 @@ TICK_USE_MALTA_RTC	opt_global.h
 MAXMEM			opt_global.h
 
 #
+# Manual override of cache config
+#
+MIPS_DISABLE_L1_CACHE	opt_global.h
+
+#
 # Options that control the Cavium Simple Executive.
 #
 OCTEON_MODEL			opt_cvmx.h
