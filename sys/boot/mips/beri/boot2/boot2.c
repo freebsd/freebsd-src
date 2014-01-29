@@ -409,8 +409,8 @@ parse()
 {
     char *arg = cmd;
     char *ep, *p, *q;
-#if 0
     const char *cp;
+#if 0
     unsigned int drv;
     int c, i, j;
 #else
@@ -426,16 +426,20 @@ parse()
 	    *p++ = 0;
 	if (c == '-') {
 	    while ((c = *arg++)) {
-#if 0
 		if (c == 'P') {
+#if 0
 		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
+#endif
 			cp = "yes";
+#if 0
 		    } else {
 			opts |= OPT_SET(RBX_DUAL) | OPT_SET(RBX_SERIAL);
 			cp = "no";
 		    }
+#endif
 		    printf("Keyboard: %s\n", cp);
 		    continue;
+#if 0
 		} else if (c == 'S') {
 		    j = 0;
 		    while ((unsigned int)(i = *arg++ - '0') <= 9)
@@ -445,8 +449,8 @@ parse()
 			break;
 		    }
 		    /* Fall through to error below ('S' not in optstr[]). */
-		}
 #endif
+		}
 		for (i = 0; c != optstr[i]; i++)
 		    if (i == NOPT - 1)
 			return -1;
