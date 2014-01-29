@@ -7,15 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define _LIBCPP_EXTERN_TEMPLATE(...) extern template __VA_ARGS__;
+
 #include "string"
 #include "cstdlib"
 #include "cwchar"
 #include "cerrno"
 #include "limits"
 #include "stdexcept"
-#ifdef _WIN32
+#ifdef _LIBCPP_MSVCRT
 #include "support/win32/support.h"
-#endif // _WIN32
+#endif // _LIBCPP_MSVCRT
+#include <stdio.h>
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -38,6 +41,7 @@ void throw_helper( const string& msg )
 #ifndef _LIBCPP_NO_EXCEPTIONS
     throw T( msg );
 #else
+    printf("%s\n", msg.c_str());
     abort();
 #endif
 }
@@ -87,7 +91,7 @@ inline
 int
 as_integer(const string& func, const string& s, size_t* idx, int base )
 {
-    // Use long as no Stantard string to integer exists.
+    // Use long as no Standard string to integer exists.
     long r = as_integer_helper<long>( func, s, idx, base, strtol );
     if (r < numeric_limits<int>::min() || numeric_limits<int>::max() < r)
         throw_from_string_out_of_range(func);
@@ -425,7 +429,7 @@ inline
 wide_printf
 get_swprintf()
 {
-#ifndef _WIN32
+#ifndef _LIBCPP_MSVCRT
     return swprintf;
 #else
     return static_cast<int (__cdecl*)(wchar_t* __restrict, size_t, const wchar_t*__restrict, ...)>(swprintf);
