@@ -935,7 +935,10 @@ static void
 die_sou_create(dwarf_t *dw, Dwarf_Die str, Dwarf_Off off, tdesc_t *tdp,
     int type, const char *typename)
 {
-	Dwarf_Unsigned sz, bysz, bitsz, bitoff, maxsz=0;
+	Dwarf_Unsigned sz, bitsz, bitoff, maxsz=0;
+#if BYTE_ORDER == _LITTLE_ENDIAN
+	Dwarf_Unsigned bysz;
+#endif
 	Dwarf_Die mem;
 	mlist_t *ml, **mlastp;
 	iidesc_t *ii;
