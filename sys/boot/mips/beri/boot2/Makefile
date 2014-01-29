@@ -30,7 +30,6 @@ CFLAGS=		-ffreestanding			\
 LDFLAGS=	-nostdlib			\
 		-static				\
 		-N				\
-		-T ${.CURDIR}/linker.cfg	\
 		-G0
 
 .PATH:		${.CURDIR}/../common
@@ -43,5 +42,7 @@ flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o
 jtagboot.elf: start.o boot2.o altera_jtag_uart.o cfi.o
 	${LD} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC}
+
+CLEANFILES+=	flashboot.elf jtagboot.elf
 
 .include <bsd.prog.mk>
