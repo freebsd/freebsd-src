@@ -52,8 +52,8 @@ SECTIONS
 		start.o(.text)
 		*(EXCLUDE_FILE (relocate.o start.o) .text)
 	}
-	.bss ALIGN(0x8): { *(.bss) }
 	.data ALIGN(0x8): { *(.data)}
+	.bss ALIGN(0x8): { *(.bss) }
 
 	__heap = ALIGN(0x8);	/* 64-bit aligned heap pointer */
 	__data_end = .;
