@@ -2660,6 +2660,9 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
+# USB touchpad(s)
+device		atp
+device		wsp
 # eGalax USB touch screen
 device		uep
 # Diamond Rio 500 MP3 player
