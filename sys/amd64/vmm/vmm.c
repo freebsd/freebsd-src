@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_param.h>
 
+#include <machine/cpu.h>
 #include <machine/vm.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
@@ -131,6 +132,7 @@ static int vmm_initialized;
 static struct vmm_ops *ops;
 #define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
+#define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
 
 #define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
 #define	VMRUN(vmi, vcpu, rip, pmap) \
@@ -202,6 +204,12 @@ vm_exitinfo(struct vm *vm, int cpuid)
 	return (&vcpu->exitinfo);
 }
 
+static void
+vmm_resume(void)
+{
+	VMM_RESUME();
+}
+
 static int
 vmm_init(void)
 {
@@ -222,6 +230,7 @@ vmm_init(void)
 		return (ENXIO);
 
 	vmm_msr_init();
+	vmm_resume_p = vmm_resume;
 
 	return (VMM_INIT());
 }
@@ -242,6 +251,7 @@ vmm_handler(module_t mod, int what, void *arg)
 	case MOD_UNLOAD:
 		error = vmmdev_cleanup();
 		if (error == 0) {
+			vmm_resume_p = NULL;
 			iommu_cleanup();
 			vmm_ipi_cleanup();
 			error = VMM_CLEANUP();
