@@ -47,47 +47,64 @@
 
 
 		.text
-		.global start
-		.ent start
-start:
+		.global prerelocate_start
+		.ent prerelocate_start
+prerelocate_start:
 
 		/*
-		 * Zero BSS.  Run from cached memory as this will speed up
-		 * code execution noticeably.  Assuming 64-bit alignment of
-		 * everything here.
+		 * Calculate the actual run-time, pre-relocated value of
+		 * 'start', which we will use as the source address for
+		 * memcpy().  Note that although a symbol is used here, this
+		 * should generate code for a short relative branch, leaving
+		 * the previous $pc in $ra.
 		 */
-		dla	$t0, __bss_start
-		dla	$t1, __bss_end
-
-bss_loop:
-		beq	$t0, $t1, bss_done
+		bal	baltarget
 		nop
-		sd	$zero, 0($t0)
-		daddiu	$t0, 8
-		b	bss_loop
-		nop
-
-bss_done:
-		jal	main
-		nop
+baltarget:
+		dsub	$t1, $ra, 8				/* Src. */
 
 		/*
-		 * Ideally we wouldn't get here, but just in case.
+		 * Relocate boot2 to DRAM where we can write back global
+		 * variable values; jump to it.  Assume all values are 32-bit
+		 * aligned.  Use an inline PIC version of memcpy()
+		 * pre-relocation; strong alignment assumptions.
 		 */
-loop:
-		b	loop
+		dla	$t0, __boot2_base_vaddr__		/* Dst. */
+		dla	$t2, __boot_loader_len__		/* Len. */
+
+memcpy_loop:
+		beq	$t2, 0, memcopy_done
 		nop
-		.end start
+		lw	$at, 0($t1)
+		sw	$at, 0($t0)
+		daddiu	$t0, 4
+		daddiu	$t1, 4
+		daddi	$t2, -4
+		b	memcpy_loop
+		nop
+
+memcopy_done:
+		dla	$at, beri_argc
+		sd	$a0, 0($at)
+		dla	$at, beri_argv
+		sd	$a1, 0($at)
+		dla	$at, beri_envv
+		sd	$a2, 0($at)
+		dla	$at, beri_memsize
+		sd	$a3, 0($at)
 
 		/*
-		 * Globals exported to boot2.
+		 * We can now jump into the relocated code, running from
+		 * cached DRAM rather than uncached flash.  Note that a
+		 * relative branch instruction cannot be used.
 		 */
-		.data
-		.global beri_argc
-beri_argc:	.dword	0x0000000000000000
-		.global beri_argv
-beri_argv:	.dword	0x0000000000000000
-		.global beri_envv
-beri_envv:	.dword	0x0000000000000000
-		.global	beri_memsize
-beri_memsize:	.dword	0x0000000000000000
+		dla	$at, relocated_start
+		jr	$at
+		nop
+
+relocated_start:
+		dla	$at, start
+		jr	$at
+		nop
+
+		.end prerelocate_start

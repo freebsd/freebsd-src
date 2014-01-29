@@ -1,11 +1,14 @@
 #  $FreeBSD$
 
-PROG=		boot2.elf
+PROG=		jtagboot.elf		\
+		flashboot.elf
+
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 FILES=		${PROG}
-SRCS=		start.S			\
+SRCS=		relocate.S		\
+		start.S			\
 		boot2.c			\
 		altera_jtag_uart.c	\
 		cfi.c
@@ -33,14 +36,12 @@ LDFLAGS=	-nostdlib			\
 .PATH:		${.CURDIR}/../common
 CFLAGS+=	-I${.CURDIR}/../common
 
-boot2.elf: linker.cfg
+flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o
+	${LD} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
+	    ${.ALLSRC}
 
-boot2: boot2.elf
-	objcopy -S -O binary boot2.elf boot2
-
-boot2.dump: boot2.elf
-	objdump -dS boot2.elf > boot2.dump
-
-all: boot2 boot2.dump
+jtagboot.elf: start.o boot2.o altera_jtag_uart.o cfi.o
+	${LD} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
+	    ${.ALLSRC}
 
 .include <bsd.prog.mk>
