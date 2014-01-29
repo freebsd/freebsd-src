@@ -55,7 +55,7 @@ static int
 cheri_compositor_nexus_probe(device_t dev)
 {
 	device_set_desc(dev, "CHERI Compositor");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

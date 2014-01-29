@@ -12,4 +12,4 @@ ident		CHERI_DE4_SDROOT
 nocpu		CPU_BERI
 cpu		CPU_CHERI
 
-#device		cheri_compositor
+device		cheri_compositor
