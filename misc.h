@@ -1,4 +1,4 @@
-/* $OpenBSD: misc.h,v 1.49 2013/06/01 13:15:52 dtucker Exp $ */
+/* $OpenBSD: misc.h,v 1.50 2013/10/14 23:28:23 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -36,6 +36,8 @@ void	 sanitise_stdfd(void);
 void	 ms_subtract_diff(struct timeval *, int *);
 void	 ms_to_timeval(struct timeval *, int);
 time_t	 monotime(void);
+void	 lowercase(char *s);
+
 void	 sock_set_v6only(int);
 
 struct passwd *pwcopy(struct passwd *);
