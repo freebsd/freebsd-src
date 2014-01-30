@@ -1,4 +1,4 @@
-#	$OpenBSD: ssh_config,v 1.27 2013/05/16 02:00:34 dtucker Exp $
+#	$OpenBSD: ssh_config,v 1.28 2013/09/16 11:35:43 sthen Exp $
 
 # This is the ssh client system-wide configuration file.  See
 # ssh_config(5) for more information.  This file provides defaults for

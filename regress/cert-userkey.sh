@@ -1,23 +1,26 @@
-#	$OpenBSD: cert-userkey.sh,v 1.11 2013/05/17 00:37:40 dtucker Exp $
+#	$OpenBSD: cert-userkey.sh,v 1.12 2013/12/06 13:52:46 markus Exp $
 #	Placed in the Public Domain.
 
 tid="certified user keys"
 
-# used to disable ECC based tests on platforms without ECC
-ecdsa=""
-if test "x$TEST_SSH_ECC" = "xyes"; then
-	ecdsa=ecdsa
-fi
-
 rm -f $OBJ/authorized_keys_$USER $OBJ/user_ca_key* $OBJ/cert_user_key*
 cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
+
+PLAIN_TYPES=`$SSH -Q key-plain | sed 's/^ssh-dss/ssh-dsa/;s/^ssh-//'`
+
+type_has_legacy() {
+	case $1 in
+		ed25519*|ecdsa*) return 1 ;;
+	esac
+	return 0
+}
 
 # Create a CA key
 ${SSHKEYGEN} -q -N '' -t rsa  -f $OBJ/user_ca_key ||\
 	fail "ssh-keygen of user_ca_key failed"
 
 # Generate and sign user keys
-for ktype in rsa dsa $ecdsa ; do 
+for ktype in $PLAIN_TYPES ; do 
 	verbose "$tid: sign user ${ktype} cert"
 	${SSHKEYGEN} -q -N '' -t ${ktype} \
 	    -f $OBJ/cert_user_key_${ktype} || \
@@ -25,18 +28,18 @@ for ktype in rsa dsa $ecdsa ; do
 	${SSHKEYGEN} -q -s $OBJ/user_ca_key -I "regress user key for $USER" \
 	    -z $$ -n ${USER},mekmitasdigoat $OBJ/cert_user_key_${ktype} ||
 		fail "couldn't sign cert_user_key_${ktype}"
-	# v00 ecdsa certs do not exist
-	test "${ktype}" = "ecdsa" && continue
+	type_has_legacy $ktype || continue
 	cp $OBJ/cert_user_key_${ktype} $OBJ/cert_user_key_${ktype}_v00
 	cp $OBJ/cert_user_key_${ktype}.pub $OBJ/cert_user_key_${ktype}_v00.pub
+	verbose "$tid: sign host ${ktype}_v00 cert"
 	${SSHKEYGEN} -q -t v00 -s $OBJ/user_ca_key -I \
 	    "regress user key for $USER" \
 	    -n ${USER},mekmitasdigoat $OBJ/cert_user_key_${ktype}_v00 ||
-		fail "couldn't sign cert_user_key_${ktype}_v00"
+		fatal "couldn't sign cert_user_key_${ktype}_v00"
 done
 
 # Test explicitly-specified principals
-for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
+for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do 
 	for privsep in yes no ; do
 		_prefix="${ktype} privsep $privsep"
 
@@ -162,7 +165,7 @@ basic_tests() {
 		extra_sshd="TrustedUserCAKeys $OBJ/user_ca_key.pub"
 	fi
 	
-	for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
+	for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do 
 		for privsep in yes no ; do
 			_prefix="${ktype} privsep $privsep $auth"
 			# Simple connect
@@ -332,7 +335,7 @@ test_one "principals key option no principals" failure "" \
 
 # Wrong certificate
 cat $OBJ/sshd_proxy_bak > $OBJ/sshd_proxy
-for ktype in rsa dsa $ecdsa rsa_v00 dsa_v00 ; do 
+for ktype in $PLAIN_TYPES rsa_v00 dsa_v00 ; do 
 	case $ktype in
 	*_v00) args="-t v00" ;;
 	*) args="" ;;

@@ -91,6 +91,17 @@ an MAC algorithm. Additionally, if AES-GCM is selected as the cipher
 the exchanged MAC algorithms are ignored and there doesn't have to be
 a matching MAC.
 
+1.7 transport: chacha20-poly1305@openssh.com authenticated encryption
+
+OpenSSH supports authenticated encryption using ChaCha20 and Poly1305
+as described in PROTOCOL.chacha20poly1305.
+
+1.8 transport: curve25519-sha256@libssh.org key exchange algorithm
+
+OpenSSH supports the use of ECDH in Curve25519 for key exchange as
+described at:
+http://git.libssh.org/users/aris/libssh.git/plain/doc/curve25519-sha256@libssh.org.txt?h=curve25519
+
 2. Connection protocol changes
 
 2.1. connection: Channel write close extension "eow@openssh.com"
@@ -331,4 +342,18 @@ link(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
 This extension is advertised in the SSH_FXP_VERSION hello with version
 "1".
 
-$OpenBSD: PROTOCOL,v 1.20 2013/01/08 18:49:04 markus Exp $
+10. sftp: Extension request "fsync@openssh.com"
+
+This request asks the server to call fsync(2) on an open file handle.
+
+	uint32		id
+	string		"fsync@openssh.com"
+	string		handle
+
+One receiving this request, a server will call fsync(handle_fd) and will
+respond with a SSH_FXP_STATUS message.
+
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+$OpenBSD: PROTOCOL,v 1.23 2013/12/01 23:19:05 djm Exp $
