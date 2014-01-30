@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2011 Dag-Erling Smørgrav
+ * Copyright (c) 1998-2014 Dag-Erling Smørgrav
  * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
