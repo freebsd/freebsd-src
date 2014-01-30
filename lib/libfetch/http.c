@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Dag-Erling Smørgrav
+ * Copyright (c) 2000-2014 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
