@@ -275,6 +275,7 @@ __DEFAULT_YES_OPTIONS = \
     ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
+    FMTREE \
     FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \

@@ -48,7 +48,7 @@ SUBDIR=	adduser \
 	mountd \
 	mptutil \
 	mtest \
-	mtree \
+	${_mtree} \
 	newsyslog \
 	nfscbd \
 	nfsd \
@@ -140,6 +140,10 @@ SUBDIR+=	fdcontrol
 SUBDIR+=	fdformat
 SUBDIR+=	fdread
 SUBDIR+=	fdwrite
+.endif
+
+.if ${MK_FMTREE} != "no"
+SUBDIR+=	mtree
 .endif
 
 .if ${MK_FREEBSD_UPDATE} != "no"
