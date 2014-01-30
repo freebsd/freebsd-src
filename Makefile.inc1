@@ -448,7 +448,7 @@ MTREEFLAGS+=	-W
 .endif
 .if defined(DB_FROM_SRC) || defined(NO_ROOT)
 IMAKE_INSTALL=	INSTALL="install ${INSTALLFLAGS}"
-IMAKE_MTREE=	MTREE_CMD="nmtree ${MTREEFLAGS}"
+IMAKE_MTREE=	MTREE_CMD="mtree ${MTREEFLAGS}"
 .endif
 
 # kernel stage
@@ -765,13 +765,9 @@ _install-info=	install-info
 _zoneinfo=	zic tzsetup
 .endif
 
-.if exists(/usr/sbin/nmtree)
-_nmtree_itools=	nmtree
-.endif
-
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
-	ln lockf make mkdir mtree ${_nmtree_itools} mv pwd_mkdb \
+	ln lockf make mkdir mtree mv pwd_mkdb \
 	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo}
 
 #
@@ -834,11 +830,11 @@ distributeworld installworld: _installcheck_world
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
 .if defined(NO_ROOT)
-	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
 	    sed -e 's#^\./#./${dist}/#' >> ${METALOG}
-	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.usr.dist | \
 	    sed -e 's#^\./#./${dist}/usr/#' >> ${METALOG}
-	${IMAKEENV} nmtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
+	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.include.dist | \
 	    sed -e 's#^\./#./${dist}/usr/include/#' >> ${METALOG}
 .endif
 .endfor
