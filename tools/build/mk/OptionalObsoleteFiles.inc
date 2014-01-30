@@ -600,6 +600,11 @@ OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .endif
 
+.if ${MK_FMTREE} == no
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
+.endif
+
 .if ${MK_GNUCXX} == no
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/include/c++/4.2/algorithm
@@ -3156,6 +3161,8 @@ OLD_FILES+=usr/include/c++/v1/cwctype
 OLD_FILES+=usr/include/c++/v1/cxxabi.h
 OLD_FILES+=usr/include/c++/v1/deque
 OLD_FILES+=usr/include/c++/v1/exception
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
+OLD_FILES+=usr/include/c++/v1/experimental/optional
 OLD_FILES+=usr/include/c++/v1/ext/__hash
 OLD_FILES+=usr/include/c++/v1/ext/hash_map
 OLD_FILES+=usr/include/c++/v1/ext/hash_set
@@ -3206,6 +3213,7 @@ OLD_FILES+=usr/include/c++/v1/unwind.h
 OLD_FILES+=usr/include/c++/v1/utility
 OLD_FILES+=usr/include/c++/v1/valarray
 OLD_FILES+=usr/include/c++/v1/vector
+OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
 .endif

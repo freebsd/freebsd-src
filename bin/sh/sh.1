@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd January 3, 2014
+.Dd January 26, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -532,6 +532,20 @@ then the input
 would become
 .Pp
 .Dl "ls -F foobar"
+.Pp
+Aliases are also recognized after an alias
+whose value ends with a space or tab.
+For example, if there is also an alias called
+.Dq Li nohup
+with the value
+.Dq Li "nohup " ,
+then the input
+.Pp
+.Dl "nohup lf foobar"
+.Pp
+would become
+.Pp
+.Dl "nohup ls -F foobar"
 .Pp
 Aliases provide a convenient way for naive users to
 create shorthands for commands without having to learn how

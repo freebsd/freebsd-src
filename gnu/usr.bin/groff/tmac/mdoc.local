@@ -37,6 +37,7 @@
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
 .ds doc-str-Lb-libefi      EFI Runtime Services Library (libefi, \-lefi)
 .ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
+.ds doc-str-Lb-libexecinfo Backtrace Access Library (libexecinfo, \-lexecinfo)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libpmc      Performance Monitoring Counters Interface Library (libpmc, \-lpmc)
 .ds doc-str-Lb-libproc     Processor Monitoring and Analysis Library (libproc, \-lproc)
@@ -48,6 +49,7 @@
 .ds doc-default-operating-system FreeBSD\~11.0
 .
 .\" FreeBSD releases not found in doc-common
+.ds doc-operating-system-FreeBSD-2.2.9  2.2.9
 .ds doc-operating-system-FreeBSD-7.4    7.4
 .ds doc-operating-system-FreeBSD-8.3    8.3
 .ds doc-operating-system-FreeBSD-8.4    8.4

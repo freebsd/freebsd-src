@@ -65,7 +65,7 @@ atexit()
 }
 
 DEBUG=
-# Allow duplice manifest entries when not file list is given because the
+# Allow duplicate manifest entries when not file list is given because the
 # FreeBSD METALOG still includes it.
 DUPFLAG=-D
 EXTRAS=

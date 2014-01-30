@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2003 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2003 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sm_os_unicosmp.h,v 1.1 2003/04/21 17:03:51 ca Exp $
+ *	$Id: sm_os_unicosmp.h,v 1.2 2013/11/22 20:51:34 ca Exp $
  */
 
 /*
