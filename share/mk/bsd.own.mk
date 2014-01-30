@@ -314,6 +314,7 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
+    NCURSESW \
     NDIS \
     NETCAT \
     NETGRAPH \
