@@ -430,7 +430,7 @@
  *  4/2	MIPS_COP_0_USERLOCAL	..36 UserLocal.
  *  5	MIPS_COP_0_TLB_PG_MASK	.333 TLB Page Mask register.
  *  6	MIPS_COP_0_TLB_WIRED	.333 Wired TLB number.
- *  7	MIPS_COP_0_INFO		..33 Info registers
+ *  7	MIPS_COP_0_HWRENA	..33 rdHWR Enable.
  *  8	MIPS_COP_0_BAD_VADDR	3636 Bad virtual address.
  *  9	MIPS_COP_0_COUNT	.333 Count register.
  * 10	MIPS_COP_0_TLB_HI	3636 TLB entry high.
@@ -509,7 +509,7 @@
 
 /* MIPS32/64 */
 #define	MIPS_COP_0_USERLOCAL	_(4)	/* sel 2 is userlevel register */
-#define	MIPS_COP_0_INFO		_(7)
+#define	MIPS_COP_0_HWRENA	_(7)
 #define	MIPS_COP_0_DEBUG	_(23)
 #define	MIPS_COP_0_DEPC		_(24)
 #define	MIPS_COP_0_PERFCNT	_(25)
@@ -651,5 +651,16 @@
  */
 #define	MIPS_OPCODE_SHIFT	26
 #define	MIPS_OPCODE_C1		0x11
+
+/*
+ * Bits defined for for the HWREna (CP0 register 7, select 0).
+ */
+#define	MIPS_HWRENA_CPUNUM	(1<<0)	/* CPU number program is running on */
+#define	MIPS_HWRENA_SYNCI_STEP 	(1<<1)	/* Address step sized used with SYNCI */
+#define	MIPS_HWRENA_CC		(1<<2)	/* Hi Res cycle counter */
+#define	MIPS_HWRENA_CCRES	(1<<3)	/* Cycle counter resolution */
+#define	MIPS_HWRENA_UL		(1<<29)	/* UserLocal Register */
+#define	MIPS_HWRENA_IMPL30	(1<<30)	/* Implementation-dependent 30 */
+#define	MIPS_HWRENA_IMPL31	(1<<31)	/* Implementation-dependent 31 */
 
 #endif /* _MIPS_CPUREGS_H_ */

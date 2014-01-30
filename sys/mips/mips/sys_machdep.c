@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 
 #include <machine/cpufunc.h>
+#include <machine/cpuinfo.h>
 #include <machine/sysarch.h>
 #include <machine/cpuregs.h>
 #include <machine/tls.h>
@@ -74,7 +75,7 @@ sysarch(struct thread *td, struct sysarch_args *uap)
 		 * XXXSS For more information why this offset is required see:
 		 * 	'git show c6be4f4d2d1b71c04de5d3bbb6933ce2dbcdb317'
 		 */
-		if (td->td_md.md_flags & MDTD_ULRI) {
+		if (cpuinfo.userlocal_reg == true) {
 #if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
 			mips_wr_userlocal((unsigned long)(uap->parms +
 			    TLS_TP_OFFSET + TLS_TCB_SIZE32));

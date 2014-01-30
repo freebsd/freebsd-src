@@ -63,9 +63,11 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpufunc.h>
 #include <machine/cpuinfo.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
+#include <machine/tls.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -338,13 +340,6 @@ cpu_thread_alloc(struct thread *td)
 		pte = pmap_pte(kernel_pmap, td->td_kstack + i * PAGE_SIZE);
 		td->td_md.md_upte[i] = *pte & ~TLBLO_SWBITS_MASK;
 	}
-
-	/*
-	 * If the CPU supports the UserLocal Register Implementation then
-	 * flag the thread to update this register in cpu_switch().
-	 */
-	if (cpuinfo.userlocal_reg == true)
-		td->td_md.md_flags |= MDTD_ULRI;
 }
 
 void
@@ -663,6 +658,15 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
 	td->td_md.md_tls = (char*)tls_base;
+	if (td == curthread && cpuinfo.userlocal_reg == true) {
+#if defined(__mips_n64) && defined(COMPAT_FREEBSD32)
+		mips_wr_userlocal((unsigned long)tls_base + TLS_TP_OFFSET +
+		    TLS_TCB_SIZE32);
+#else
+		mips_wr_userlocal((unsigned long)tls_base + TLS_TP_OFFSET +
+		    TLS_TCB_SIZE);
+#endif
+	}
 
 	return (0);
 }

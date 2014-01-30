@@ -315,20 +315,6 @@ blocked_loop:
  */
 	GET_CPU_PCPU(a3)
 	PTR_S	a1, PC_CURTHREAD(a3)
-/*
- * Check if the UserLocal Register is Implemented (ULRI flag set).
- * If so, set the new thread's TLS pointer.
- */
-	lw	a2, TD_MDFLAGS(a1)		# Get md_flags
-	and	t1, a2, MDTD_ULRI
-	beqz	t1, no_ulri
-	nop
-	PTR_L	a2, TD_MDTLS(a1)		# Get TLS pointer
-	PTR_ADDU v0, a2, TLS_TCB_OFFSET		# Add TLS/TCB offset
-	MTC0	v0, MIPS_COP_0_USERLOCAL, 2	# write it to ULR for rdhwr
-	HAZARD_DELAY
-
-no_ulri:
 	PTR_L	a2, TD_PCB(a1)
 	PTR_S	a2, PC_CURPCB(a3)
 	PTR_L	v0, TD_KSTACK(a1)		# va of 1st half of kstack
@@ -437,6 +423,7 @@ sw3:
  * Restore registers and return.
  */
 	move	a0, s0
+	move	a1, s7
 	RESTORE_U_PCB_CONTEXT(gp, PCB_REG_GP, a0)
 	RESTORE_U_PCB_CONTEXT(v0, PCB_REG_SR, a0)	# restore kernel context
 	RESTORE_U_PCB_CONTEXT(ra, PCB_REG_RA, a0)
@@ -456,6 +443,16 @@ sw3:
 	or	v0, v0, t0
 	mtc0	v0, MIPS_COP_0_STATUS
 	ITLBNOPFIX
+/*
+ * Check if the UserLocal Register is Implemented (ULRI flag set).
+ * If so, set the new thread's TLS pointer.
+ *
+ * Note that this code is removed if the CPU doesn't support ULRI by
+ * remove_userlocal_code() in cpu.c.
+ */
+	PTR_L	t0, TD_MDTLS(a1)		# Get TLS pointer
+	PTR_ADDIU v0, t0, TLS_TCB_OFFSET	# Add TLS/TCB offset
+	MTC0	v0, MIPS_COP_0_USERLOCAL, 2	# write it to ULR for rdhwr
 
 	j	ra
 	nop
