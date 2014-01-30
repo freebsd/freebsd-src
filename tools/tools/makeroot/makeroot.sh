@@ -65,7 +65,7 @@ atexit()
 }
 
 DEBUG=
-# Allow duplice manifest entries when not file list is given because the
+# Allow duplicate manifest entries when not file list is given because the
 # FreeBSD METALOG still includes it.
 DUPFLAG=-D
 EXTRAS=
@@ -75,7 +75,7 @@ KEYDIR=
 KEYUSERS=
 PASSWD=
 
-while getopts "Bde:f:g:K:k:p:s:" opt; do
+while getopts "B:de:f:g:K:k:p:s:" opt; do
 	case "$opt" in
 	B)	BFLAG="-B ${OPTARG}" ;;
 	d)	DEBUG=1 ;;
@@ -174,7 +174,7 @@ else
 		/ type=/ { if ($1 != file) {print} }' >> ${manifest}
 fi
 
-# For each extras file, add contents kyes relative to the directory the
+# For each extras file, add contents keys relative to the directory the
 # manifest lives in for each file line that does not have one.  Adjust
 # contents keys relative to ./ to be relative to the same directory.
 for eman in ${EXTRAS}; do
