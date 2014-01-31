@@ -74,7 +74,7 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	}
 	endpa = round_page(bpa + size);
 
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
+	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa) + (bpa - pa);
 
 	return (0);
 }
