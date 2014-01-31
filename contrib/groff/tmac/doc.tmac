@@ -3423,6 +3423,8 @@
 .
 .  nr doc-book-count-saved \n[doc-book-count]
 .  ds doc-book-name-saved "\*[doc-book-name]
+.  nr doc-city-count-saved \n[doc-city-count]
+.  ds doc-city-name-saved "\*[doc-city-name]
 .  nr doc-date-count-saved \n[doc-date-count]
 .  ds doc-date-saved "\*[doc-date]
 .  nr doc-publisher-count-saved \n[doc-publisher-count]
@@ -3565,6 +3567,8 @@
 .
 .  nr doc-book-count \n[doc-book-count-saved]
 .  ds doc-book-name "\*[doc-book-name-saved]
+.  nr doc-city-count \n[doc-city-count-saved]
+.  ds doc-city-name "\*[doc-city-name-saved]
 .  nr doc-date-count \n[doc-date-count-saved]
 .  ds doc-date "\*[doc-date-saved]
 .  nr doc-publisher-count \n[doc-publisher-count-saved]
@@ -5190,6 +5194,8 @@
 .\" NS   doc-author-nameXXX
 .\" NS   doc-book-count
 .\" NS   doc-book-name
+.\" NS   doc-city-count
+.\" NS   doc-city-name
 .\" NS   doc-corporate-count
 .\" NS   doc-corporate-name
 .\" NS   doc-date
@@ -5228,6 +5234,7 @@
 .  nr doc-reference-title-count 0
 .  nr doc-url-count 0
 .  nr doc-volume-count 0
+.  nr doc-city-count 0
 .  nr doc-date-count 0
 .  nr doc-page-number-count 0
 .  nr doc-book-count 0
@@ -5243,6 +5250,7 @@
 .  ds doc-reference-title-name-for-book
 .  ds doc-url-name
 .  ds doc-volume-name
+.  ds doc-city-name
 .  ds doc-date
 .  ds doc-page-number-string
 .  ds doc-book-name
@@ -5355,6 +5363,13 @@
 .    chop doc-corporate-name
 .    nop \*[doc-corporate-name]\c
 .    doc-finish-reference \n[doc-corporate-count]
+.  \}
+.
+.  if \n[doc-city-count] \{\
+.    unformat doc-city-name
+.    chop doc-city-name
+.    nop \*[doc-city-name]\c
+.    doc-finish-reference \n[doc-city-count]
 .  \}
 .
 .  if \n[doc-date-count] \{\
@@ -5525,6 +5540,60 @@
 .    nop \*[doc-Em-font]\c
 .    doc-print-recursive
 .  \}
+..
+.
+.
+.\" NS doc-city-count global register
+.\" NS   counter of city references
+.
+.nr doc-city-count 0
+.
+.
+.\" NS doc-city-name global box
+.\" NS   string of collected city references
+.
+.ds doc-city-name
+.
+.
+.\" NS %C user macro
+.\" NS   [reference] city
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-city-count
+.\" NS   doc-macro-name
+.\" NS   doc-reference-count
+.\" NS
+.\" NS local variables:
+.\" NS   doc-env-%C
+.\" NS
+.\" NS width register `%C' set in doc-common
+.
+.de %C
+.  if (\n[doc-arg-limit] : (\n[.$] == 0)) \{\
+.    tm Usage: .%C city_name ... (#\n[.c])
+.    return
+.  \}
+.
+.  nr doc-city-count +1
+.  nr doc-reference-count +1
+.
+.  ds doc-macro-name %C
+.  doc-parse-args \$@
+.
+.  nr doc-arg-ptr +1
+.  nr doc-curr-font \n[.f]
+.  nr doc-curr-size \n[.ps]
+.
+.  \" append to reference box
+.  boxa doc-city-name
+.  ev doc-env-%C
+.  evc 0
+.  in 0
+.  nf
+.  doc-do-references
 ..
 .
 .
