@@ -210,3 +210,10 @@ METHOD void reset {
 	platform_t	_plat;
 };
 
+/**
+ * @brief Suspend the CPU
+ */
+METHOD void sleep {
+	platform_t	_plat;
+};
+
