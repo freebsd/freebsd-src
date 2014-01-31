@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-pubkey.c,v 1.38 2013/06/21 00:34:49 djm Exp $ */
+/* $OpenBSD: auth2-pubkey.c,v 1.39 2013/12/30 23:52:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -114,6 +114,12 @@ userauth_pubkey(Authctxt *authctxt)
 	if (key->type != pktype) {
 		error("userauth_pubkey: type mismatch for decoded key "
 		    "(received %d, expected %d)", key->type, pktype);
+		goto done;
+	}
+	if (key_type_plain(key->type) == KEY_RSA &&
+	    (datafellows & SSH_BUG_RSASIGMD5) != 0) {
+		logit("Refusing RSA key because client uses unsafe "
+		    "signature scheme");
 		goto done;
 	}
 	if (have_sig) {

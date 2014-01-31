@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-common.c,v 1.24 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: sftp-common.c,v 1.26 2014/01/09 03:26:00 guenther Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  * Copyright (c) 2001 Damien Miller.  All rights reserved.
@@ -33,6 +33,7 @@
 #include <grp.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <stdarg.h>
@@ -194,6 +195,7 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 	const char *user, *group;
 	char buf[1024], mode[11+1], tbuf[12+1], ubuf[11+1], gbuf[11+1];
 	char sbuf[FMT_SCALED_STRSIZE];
+	time_t now;
 
 	strmode(st->st_mode, mode);
 	if (!remote) {
@@ -209,7 +211,9 @@ ls_file(const char *name, const struct stat *st, int remote, int si_units)
 		group = gbuf;
 	}
 	if (ltime != NULL) {
-		if (time(NULL) - st->st_mtime < (365*24*60*60)/2)
+		now = time(NULL);
+		if (now - (365*24*60*60)/2 < st->st_mtime &&
+		    now >= st->st_mtime)
 			sz = strftime(tbuf, sizeof tbuf, "%b %e %H:%M", ltime);
 		else
 			sz = strftime(tbuf, sizeof tbuf, "%b %e  %Y", ltime);

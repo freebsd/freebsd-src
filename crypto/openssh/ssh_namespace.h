@@ -11,6 +11,12 @@
  * $FreeBSD$
  */
 
+#define Blowfish_decipher			ssh_Blowfish_decipher
+#define Blowfish_encipher			ssh_Blowfish_encipher
+#define Blowfish_expand0state			ssh_Blowfish_expand0state
+#define Blowfish_expandstate			ssh_Blowfish_expandstate
+#define Blowfish_initstate			ssh_Blowfish_initstate
+#define Blowfish_stream2word			ssh_Blowfish_stream2word
 #define a2port					ssh_a2port
 #define a2tun					ssh_a2tun
 #define add_host_to_hostfile			ssh_add_host_to_hostfile
@@ -25,6 +31,14 @@
 #define auth_request_forwarding			ssh_auth_request_forwarding
 #define bandwidth_limit				ssh_bandwidth_limit
 #define bandwidth_limit_init			ssh_bandwidth_limit_init
+#define bcrypt_pbkdf				ssh_bcrypt_pbkdf
+#define blf_cbc_decrypt				ssh_blf_cbc_decrypt
+#define blf_cbc_encrypt				ssh_blf_cbc_encrypt
+#define blf_dec					ssh_blf_dec
+#define blf_ecb_decrypt				ssh_blf_ecb_decrypt
+#define blf_ecb_encrypt				ssh_blf_ecb_encrypt
+#define blf_enc					ssh_blf_enc
+#define blf_key					ssh_blf_key
 #define buffer_append				ssh_buffer_append
 #define buffer_append_space			ssh_buffer_append_space
 #define buffer_check_alloc			ssh_buffer_check_alloc
@@ -42,6 +56,8 @@
 #define buffer_get				ssh_buffer_get
 #define buffer_get_bignum			ssh_buffer_get_bignum
 #define buffer_get_bignum2			ssh_buffer_get_bignum2
+#define buffer_get_bignum2_as_string		ssh_buffer_get_bignum2_as_string
+#define buffer_get_bignum2_as_string_ret	ssh_buffer_get_bignum2_as_string_ret
 #define buffer_get_bignum2_ret			ssh_buffer_get_bignum2_ret
 #define buffer_get_bignum_ret			ssh_buffer_get_bignum_ret
 #define buffer_get_char				ssh_buffer_get_char
@@ -67,6 +83,7 @@
 #define buffer_ptr				ssh_buffer_ptr
 #define buffer_put_bignum			ssh_buffer_put_bignum
 #define buffer_put_bignum2			ssh_buffer_put_bignum2
+#define buffer_put_bignum2_from_string		ssh_buffer_put_bignum2_from_string
 #define buffer_put_bignum2_ret			ssh_buffer_put_bignum2_ret
 #define buffer_put_bignum_ret			ssh_buffer_put_bignum_ret
 #define buffer_put_char				ssh_buffer_put_char
@@ -78,6 +95,12 @@
 #define buffer_put_short			ssh_buffer_put_short
 #define buffer_put_string			ssh_buffer_put_string
 #define buffer_uncompress			ssh_buffer_uncompress
+#define chacha_encrypt_bytes			ssh_chacha_encrypt_bytes
+#define chacha_ivsetup				ssh_chacha_ivsetup
+#define chacha_keysetup				ssh_chacha_keysetup
+#define chachapoly_crypt			ssh_chachapoly_crypt
+#define chachapoly_get_length			ssh_chachapoly_get_length
+#define chachapoly_init				ssh_chachapoly_init
 #define chan_ibuf_empty				ssh_chan_ibuf_empty
 #define chan_is_dead				ssh_chan_is_dead
 #define chan_mark_dead				ssh_chan_mark_dead
@@ -157,6 +180,7 @@
 #define cipher_get_keycontext			ssh_cipher_get_keycontext
 #define cipher_get_keyiv			ssh_cipher_get_keyiv
 #define cipher_get_keyiv_len			ssh_cipher_get_keyiv_len
+#define cipher_get_length			ssh_cipher_get_length
 #define cipher_get_number			ssh_cipher_get_number
 #define cipher_init				ssh_cipher_init
 #define cipher_is_cbc				ssh_cipher_is_cbc
@@ -165,6 +189,7 @@
 #define cipher_mask_ssh1			ssh_cipher_mask_ssh1
 #define cipher_name				ssh_cipher_name
 #define cipher_number				ssh_cipher_number
+#define cipher_seclen				ssh_cipher_seclen
 #define cipher_set_key_string			ssh_cipher_set_key_string
 #define cipher_set_keycontext			ssh_cipher_set_keycontext
 #define cipher_set_keyiv			ssh_cipher_set_keyiv
@@ -177,7 +202,52 @@
 #define compat20				ssh_compat20
 #define compat_cipher_proposal			ssh_compat_cipher_proposal
 #define compat_datafellows			ssh_compat_datafellows
+#define compat_pkalg_proposal			ssh_compat_pkalg_proposal
 #define convtime				ssh_convtime
+#define crypto_hash_sha512			ssh_crypto_hash_sha512
+#define crypto_hashblocks_sha512		ssh_crypto_hashblocks_sha512
+#define crypto_scalarmult_curve25519		ssh_crypto_scalarmult_curve25519
+#define crypto_sign_ed25519			ssh_crypto_sign_ed25519
+#define crypto_sign_ed25519_keypair		ssh_crypto_sign_ed25519_keypair
+#define crypto_sign_ed25519_open		ssh_crypto_sign_ed25519_open
+#define crypto_sign_ed25519_ref_double_scalarmult_vartime ssh_crypto_sign_ed25519_ref_double_scalarmult_vartime
+#define crypto_sign_ed25519_ref_fe25519_add	ssh_crypto_sign_ed25519_ref_fe25519_add
+#define crypto_sign_ed25519_ref_fe25519_cmov	ssh_crypto_sign_ed25519_ref_fe25519_cmov
+#define crypto_sign_ed25519_ref_fe25519_freeze	ssh_crypto_sign_ed25519_ref_fe25519_freeze
+#define crypto_sign_ed25519_ref_fe25519_getparity ssh_crypto_sign_ed25519_ref_fe25519_getparity
+#define crypto_sign_ed25519_ref_fe25519_invert	ssh_crypto_sign_ed25519_ref_fe25519_invert
+#define crypto_sign_ed25519_ref_fe25519_iseq_vartime ssh_crypto_sign_ed25519_ref_fe25519_iseq_vartime
+#define crypto_sign_ed25519_ref_fe25519_iszero	ssh_crypto_sign_ed25519_ref_fe25519_iszero
+#define crypto_sign_ed25519_ref_fe25519_mul	ssh_crypto_sign_ed25519_ref_fe25519_mul
+#define crypto_sign_ed25519_ref_fe25519_neg	ssh_crypto_sign_ed25519_ref_fe25519_neg
+#define crypto_sign_ed25519_ref_fe25519_pack	ssh_crypto_sign_ed25519_ref_fe25519_pack
+#define crypto_sign_ed25519_ref_fe25519_pow2523 ssh_crypto_sign_ed25519_ref_fe25519_pow2523
+#define crypto_sign_ed25519_ref_fe25519_setone	ssh_crypto_sign_ed25519_ref_fe25519_setone
+#define crypto_sign_ed25519_ref_fe25519_setzero ssh_crypto_sign_ed25519_ref_fe25519_setzero
+#define crypto_sign_ed25519_ref_fe25519_square	ssh_crypto_sign_ed25519_ref_fe25519_square
+#define crypto_sign_ed25519_ref_fe25519_sub	ssh_crypto_sign_ed25519_ref_fe25519_sub
+#define crypto_sign_ed25519_ref_fe25519_unpack	ssh_crypto_sign_ed25519_ref_fe25519_unpack
+#define crypto_sign_ed25519_ref_ge25519_base	ssh_crypto_sign_ed25519_ref_ge25519_base
+#define crypto_sign_ed25519_ref_isneutral_vartime ssh_crypto_sign_ed25519_ref_isneutral_vartime
+#define crypto_sign_ed25519_ref_pack		ssh_crypto_sign_ed25519_ref_pack
+#define crypto_sign_ed25519_ref_sc25519_2interleave2 ssh_crypto_sign_ed25519_ref_sc25519_2interleave2
+#define crypto_sign_ed25519_ref_sc25519_add	ssh_crypto_sign_ed25519_ref_sc25519_add
+#define crypto_sign_ed25519_ref_sc25519_from32bytes ssh_crypto_sign_ed25519_ref_sc25519_from32bytes
+#define crypto_sign_ed25519_ref_sc25519_from64bytes ssh_crypto_sign_ed25519_ref_sc25519_from64bytes
+#define crypto_sign_ed25519_ref_sc25519_from_shortsc ssh_crypto_sign_ed25519_ref_sc25519_from_shortsc
+#define crypto_sign_ed25519_ref_sc25519_isshort_vartime ssh_crypto_sign_ed25519_ref_sc25519_isshort_vartime
+#define crypto_sign_ed25519_ref_sc25519_iszero_vartime ssh_crypto_sign_ed25519_ref_sc25519_iszero_vartime
+#define crypto_sign_ed25519_ref_sc25519_lt_vartime ssh_crypto_sign_ed25519_ref_sc25519_lt_vartime
+#define crypto_sign_ed25519_ref_sc25519_mul	ssh_crypto_sign_ed25519_ref_sc25519_mul
+#define crypto_sign_ed25519_ref_sc25519_mul_shortsc ssh_crypto_sign_ed25519_ref_sc25519_mul_shortsc
+#define crypto_sign_ed25519_ref_sc25519_sub_nored ssh_crypto_sign_ed25519_ref_sc25519_sub_nored
+#define crypto_sign_ed25519_ref_sc25519_to32bytes ssh_crypto_sign_ed25519_ref_sc25519_to32bytes
+#define crypto_sign_ed25519_ref_sc25519_window3 ssh_crypto_sign_ed25519_ref_sc25519_window3
+#define crypto_sign_ed25519_ref_sc25519_window5 ssh_crypto_sign_ed25519_ref_sc25519_window5
+#define crypto_sign_ed25519_ref_scalarmult_base ssh_crypto_sign_ed25519_ref_scalarmult_base
+#define crypto_sign_ed25519_ref_shortsc25519_from16bytes ssh_crypto_sign_ed25519_ref_shortsc25519_from16bytes
+#define crypto_sign_ed25519_ref_unpackneg_vartime ssh_crypto_sign_ed25519_ref_unpackneg_vartime
+#define crypto_verify_32			ssh_crypto_verify_32
 #define current_keys				ssh_current_keys
 #define datafellows				ssh_datafellows
 #define debug					ssh_debug
@@ -194,6 +264,7 @@
 #define dh_new_group14				ssh_dh_new_group14
 #define dh_new_group_asc			ssh_dh_new_group_asc
 #define dh_pub_is_valid				ssh_dh_pub_is_valid
+#define digests					ssh_digests
 #define dispatch				ssh_dispatch
 #define dispatch_init				ssh_dispatch_init
 #define dispatch_protocol_error			ssh_dispatch_protocol_error
@@ -240,7 +311,9 @@
 #define iptos2str				ssh_iptos2str
 #define ipv64_normalise_mapped			ssh_ipv64_normalise_mapped
 #define kex_alg_list				ssh_kex_alg_list
+#define kex_c25519_hash				ssh_kex_c25519_hash
 #define kex_derive_keys				ssh_kex_derive_keys
+#define kex_derive_keys_bn			ssh_kex_derive_keys_bn
 #define kex_dh_hash				ssh_kex_dh_hash
 #define kex_ecdh_hash				ssh_kex_ecdh_hash
 #define kex_finish				ssh_kex_finish
@@ -249,6 +322,9 @@
 #define kex_names_valid				ssh_kex_names_valid
 #define kex_send_kexinit			ssh_kex_send_kexinit
 #define kex_setup				ssh_kex_setup
+#define kexc25519_client			ssh_kexc25519_client
+#define kexc25519_keygen			ssh_kexc25519_keygen
+#define kexc25519_shared_key			ssh_kexc25519_shared_key
 #define kexdh_client				ssh_kexdh_client
 #define kexecdh_client				ssh_kexecdh_client
 #define kexgex_client				ssh_kexgex_client
@@ -265,7 +341,7 @@
 #define key_curve_nid_to_name			ssh_key_curve_nid_to_name
 #define key_demote				ssh_key_demote
 #define key_drop_cert				ssh_key_drop_cert
-#define key_ec_nid_to_evpmd			ssh_key_ec_nid_to_evpmd
+#define key_ec_nid_to_hash_alg			ssh_key_ec_nid_to_hash_alg
 #define key_ec_validate_private			ssh_key_ec_validate_private
 #define key_ec_validate_public			ssh_key_ec_validate_public
 #define key_ecdsa_bits_to_nid			ssh_key_ecdsa_bits_to_nid
@@ -294,6 +370,8 @@
 #define key_new_private				ssh_key_new_private
 #define key_parse_private			ssh_key_parse_private
 #define key_perm_ok				ssh_key_perm_ok
+#define key_private_deserialize			ssh_key_private_deserialize
+#define key_private_serialize			ssh_key_private_serialize
 #define key_read				ssh_key_read
 #define key_save_private			ssh_key_save_private
 #define key_sign				ssh_key_sign
@@ -304,6 +382,7 @@
 #define key_to_certified			ssh_key_to_certified
 #define key_type				ssh_key_type
 #define key_type_from_name			ssh_key_type_from_name
+#define key_type_is_cert			ssh_key_type_is_cert
 #define key_type_plain				ssh_key_type_plain
 #define key_verify				ssh_key_verify
 #define key_write				ssh_key_write
@@ -318,6 +397,7 @@
 #define log_redirect_stderr_to			ssh_log_redirect_stderr_to
 #define logit					ssh_logit
 #define lookup_key_in_hostkeys_by_type		ssh_lookup_key_in_hostkeys_by_type
+#define lowercase				ssh_lowercase
 #define mac_alg_list				ssh_mac_alg_list
 #define mac_clear				ssh_mac_clear
 #define mac_compute				ssh_mac_compute
@@ -420,6 +500,7 @@
 #define pkcs11_interactive			ssh_pkcs11_interactive
 #define pkcs11_providers			ssh_pkcs11_providers
 #define pkcs11_terminate			ssh_pkcs11_terminate
+#define poly1305_auth				ssh_poly1305_auth
 #define prime_test				ssh_prime_test
 #define proto_spec				ssh_proto_spec
 #define put_host_port				ssh_put_host_port

@@ -48,6 +48,10 @@
 /* Can't do comparisons on readv */
 /* #undef BROKEN_READV_COMPARISON */
 
+/* NetBSD read function is sometimes redirected, breaking atomicio comparisons
+   against it */
+/* #undef BROKEN_READ_COMPARISON */
+
 /* Define if you have a broken realpath. */
 /* #undef BROKEN_REALPATH */
 
@@ -75,7 +79,7 @@
 /* Define if your snprintf is busted */
 /* #undef BROKEN_SNPRINTF */
 
-/* FreeBSD strnvis does not do what we need */
+/* FreeBSD strnvis argument order is swapped compared to OpenBSD */
 #define BROKEN_STRNVIS 1
 
 /* tcgetattr with ICANON may hang */
@@ -183,6 +187,9 @@
 /* Define to 1 if you have the `arc4random_buf' function. */
 #define HAVE_ARC4RANDOM_BUF 1
 
+/* Define to 1 if you have the `arc4random_stir' function. */
+#define HAVE_ARC4RANDOM_STIR 1
+
 /* Define to 1 if you have the `arc4random_uniform' function. */
 #define HAVE_ARC4RANDOM_UNIFORM 1
 
@@ -213,8 +220,29 @@
 /* Define to 1 if you have the `bcopy' function. */
 #define HAVE_BCOPY 1
 
+/* Define to 1 if you have the `bcrypt_pbkdf' function. */
+/* #undef HAVE_BCRYPT_PBKDF */
+
 /* Define to 1 if you have the `bindresvport_sa' function. */
 #define HAVE_BINDRESVPORT_SA 1
+
+/* Define to 1 if you have the `blf_enc' function. */
+/* #undef HAVE_BLF_ENC */
+
+/* Define to 1 if you have the <blf.h> header file. */
+/* #undef HAVE_BLF_H */
+
+/* Define to 1 if you have the `Blowfish_expand0state' function. */
+/* #undef HAVE_BLOWFISH_EXPAND0STATE */
+
+/* Define to 1 if you have the `Blowfish_expandstate' function. */
+/* #undef HAVE_BLOWFISH_EXPANDSTATE */
+
+/* Define to 1 if you have the `Blowfish_initstate' function. */
+/* #undef HAVE_BLOWFISH_INITSTATE */
+
+/* Define to 1 if you have the `Blowfish_stream2word' function. */
+/* #undef HAVE_BLOWFISH_STREAM2WORD */
 
 /* Define to 1 if you have the `BN_is_prime_ex' function. */
 #define HAVE_BN_IS_PRIME_EX 1
@@ -227,6 +255,9 @@
 
 /* Define to 1 if you have the <bstring.h> header file. */
 /* #undef HAVE_BSTRING_H */
+
+/* Define to 1 if you have the `cap_rights_limit' function. */
+#define HAVE_CAP_RIGHTS_LIMIT 1
 
 /* Define to 1 if you have the `clock' function. */
 #define HAVE_CLOCK 1
@@ -375,6 +406,18 @@
 /* Define if libcrypto has EVP_CIPHER_CTX_ctrl */
 #define HAVE_EVP_CIPHER_CTX_CTRL 1
 
+/* Define to 1 if you have the `EVP_DigestFinal_ex' function. */
+#define HAVE_EVP_DIGESTFINAL_EX 1
+
+/* Define to 1 if you have the `EVP_DigestInit_ex' function. */
+#define HAVE_EVP_DIGESTINIT_EX 1
+
+/* Define to 1 if you have the `EVP_MD_CTX_cleanup' function. */
+#define HAVE_EVP_MD_CTX_CLEANUP 1
+
+/* Define to 1 if you have the `EVP_MD_CTX_init' function. */
+#define HAVE_EVP_MD_CTX_INIT 1
+
 /* Define to 1 if you have the `EVP_sha256' function. */
 #define HAVE_EVP_SHA256 1
 
@@ -413,6 +456,9 @@
 
 /* Define to 1 if the system has the type `fsfilcnt_t'. */
 #define HAVE_FSFILCNT_T 1
+
+/* Define to 1 if you have the `fstatfs' function. */
+#define HAVE_FSTATFS 1
 
 /* Define to 1 if you have the `fstatvfs' function. */
 #define HAVE_FSTATVFS 1
@@ -584,6 +630,9 @@
 
 /* define if you have int64_t data type */
 #define HAVE_INT64_T 1
+
+/* Define to 1 if the system has the type `intmax_t'. */
+#define HAVE_INTMAX_T 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -1084,6 +1133,9 @@
 /* Define to 1 if you have the <sys/bsdtty.h> header file. */
 /* #undef HAVE_SYS_BSDTTY_H */
 
+/* Define to 1 if you have the <sys/capability.h> header file. */
+#define HAVE_SYS_CAPABILITY_H 1
+
 /* Define to 1 if you have the <sys/cdefs.h> header file. */
 #define HAVE_SYS_CDEFS_H 1
 
@@ -1197,6 +1249,9 @@
 
 /* Define to 1 if you have the <ucred.h> header file. */
 /* #undef HAVE_UCRED_H */
+
+/* Define to 1 if the system has the type `uintmax_t'. */
+#define HAVE_UINTMAX_T 1
 
 /* define if you have uintxx_t data type */
 #define HAVE_UINTXX_T 1
@@ -1386,8 +1441,17 @@
 /* Define if EVP_DigestUpdate returns void */
 /* #undef OPENSSL_EVP_DIGESTUPDATE_VOID */
 
-/* libcrypto includes complete ECC support */
+/* OpenSSL has ECC */
 #define OPENSSL_HAS_ECC 1
+
+/* libcrypto has NID_X9_62_prime256v1 */
+#define OPENSSL_HAS_NISTP256 1
+
+/* libcrypto has NID_secp384r1 */
+#define OPENSSL_HAS_NISTP384 1
+
+/* libcrypto has NID_secp521r1 */
+#define OPENSSL_HAS_NISTP521 1
 
 /* libcrypto has EVP AES CTR */
 #define OPENSSL_HAVE_EVPCTR 1
@@ -1441,6 +1505,9 @@
 /* read(1) can return 0 for a non-closed fd */
 /* #undef PTY_ZEROREAD */
 
+/* Sandbox using capsicum */
+#define SANDBOX_CAPSICUM 1
+
 /* Sandbox using Darwin sandbox_init(3) */
 /* #undef SANDBOX_DARWIN */
 
@@ -1448,13 +1515,16 @@
 /* #undef SANDBOX_NULL */
 
 /* Sandbox using setrlimit(2) */
-#define SANDBOX_RLIMIT 1
+/* #undef SANDBOX_RLIMIT */
 
 /* Sandbox using seccomp filter */
 /* #undef SANDBOX_SECCOMP_FILTER */
 
 /* setrlimit RLIMIT_FSIZE works */
 /* #undef SANDBOX_SKIP_RLIMIT_FSIZE */
+
+/* define if setrlimit RLIMIT_NOFILE breaks things */
+#define SANDBOX_SKIP_RLIMIT_NOFILE 1
 
 /* Sandbox using systrace(4) */
 /* #undef SANDBOX_SYSTRACE */

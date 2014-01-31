@@ -24,6 +24,7 @@ extra_commands="configtest keygen reload"
 : ${sshd_rsa_enable:="yes"}
 : ${sshd_dsa_enable:="yes"}
 : ${sshd_ecdsa_enable:="yes"}
+: ${sshd_ed25519_enable:="yes"}
 
 sshd_keygen_alg()
 {
@@ -39,7 +40,7 @@ sshd_keygen_alg()
 	rsa1)
 		keyfile="/etc/ssh/ssh_host_key"
 		;;
-	rsa|dsa|ecdsa)
+	rsa|dsa|ecdsa|ed25519)
 		keyfile="/etc/ssh/ssh_host_${alg}_key"
 		;;
 	*)
@@ -67,6 +68,7 @@ sshd_keygen()
 	sshd_keygen_alg rsa
 	sshd_keygen_alg dsa
 	sshd_keygen_alg ecdsa
+	sshd_keygen_alg ed25519
 }
 
 sshd_configtest()
