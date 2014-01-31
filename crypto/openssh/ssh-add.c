@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.106 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.108 2013/12/19 00:10:30 djm Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -73,6 +73,7 @@ static char *default_files[] = {
 #ifdef OPENSSL_HAS_ECC
 	_PATH_SSH_CLIENT_ID_ECDSA,
 #endif
+	_PATH_SSH_CLIENT_ID_ED25519,
 	_PATH_SSH_CLIENT_IDENTITY,
 	NULL
 };
@@ -292,14 +293,17 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 static int
 update_card(AuthenticationConnection *ac, int add, const char *id)
 {
-	char *pin;
+	char *pin = NULL;
 	int ret = -1;
 
-	pin = read_passphrase("Enter passphrase for PKCS#11: ", RP_ALLOW_STDIN);
-	if (pin == NULL)
-		return -1;
+	if (add) {
+		if ((pin = read_passphrase("Enter passphrase for PKCS#11: ",
+		    RP_ALLOW_STDIN)) == NULL)
+			return -1;
+	}
 
-	if (ssh_update_card(ac, add, id, pin, lifetime, confirm)) {
+	if (ssh_update_card(ac, add, id, pin == NULL ? "" : pin,
+	    lifetime, confirm)) {
 		fprintf(stderr, "Card %s: %s\n",
 		    add ? "added" : "removed", id);
 		ret = 0;

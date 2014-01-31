@@ -1,4 +1,4 @@
-/* $Id: bsd-setres_id.c,v 1.1 2012/11/05 06:04:37 dtucker Exp $ */
+/* $Id: bsd-setres_id.c,v 1.2 2013/12/07 21:23:09 djm Exp $ */
 
 /*
  * Copyright (c) 2012 Darren Tucker (dtucker at zip com au).
@@ -22,6 +22,7 @@
 
 #include <stdarg.h>
 #include <unistd.h>
+#include <string.h>
 
 #include "log.h"
 

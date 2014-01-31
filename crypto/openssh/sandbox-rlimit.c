@@ -42,7 +42,7 @@ struct ssh_sandbox {
 };
 
 struct ssh_sandbox *
-ssh_sandbox_init(void)
+ssh_sandbox_init(struct monitor *monitor)
 {
 	struct ssh_sandbox *box;
 
@@ -69,9 +69,11 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 		fatal("%s: setrlimit(RLIMIT_FSIZE, { 0, 0 }): %s",
 			__func__, strerror(errno));
 #endif
+#ifndef SANDBOX_SKIP_RLIMIT_NOFILE
 	if (setrlimit(RLIMIT_NOFILE, &rl_zero) == -1)
 		fatal("%s: setrlimit(RLIMIT_NOFILE, { 0, 0 }): %s",
 			__func__, strerror(errno));
+#endif
 #ifdef HAVE_RLIMIT_NPROC
 	if (setrlimit(RLIMIT_NPROC, &rl_zero) == -1)
 		fatal("%s: setrlimit(RLIMIT_NPROC, { 0, 0 }): %s",
