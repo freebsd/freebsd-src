@@ -1,4 +1,4 @@
-/*	$Id: preconv.c,v 1.5 2011/07/24 18:15:14 kristaps Exp $ */
+/*	$Id: preconv.c,v 1.6 2013/06/02 03:52:21 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -32,12 +32,8 @@
 
 /* 
  * The read_whole_file() and resize_buf() functions are copied from
- * read.c, including all dependency code (MAP_FILE, etc.).
+ * read.c, including all dependency code.
  */
-
-#ifndef MAP_FILE
-#define	MAP_FILE	0
-#endif
 
 enum	enc {
 	ENC_UTF_8, /* UTF-8 */
@@ -271,8 +267,7 @@ read_whole_file(const char *f, int fd,
 	if (S_ISREG(st.st_mode)) {
 		*with_mmap = 1;
 		fb->sz = (size_t)st.st_size;
-		fb->buf = mmap(NULL, fb->sz, PROT_READ, 
-				MAP_FILE|MAP_SHARED, fd, 0);
+		fb->buf = mmap(NULL, fb->sz, PROT_READ, MAP_SHARED, fd, 0);
 		if (fb->buf != MAP_FAILED)
 			return(1);
 	}

@@ -1,4 +1,4 @@
-/*      $Id: mandocdb.h,v 1.6 2012/03/23 02:52:33 kristaps Exp $ */
+/*      $Id: mandocdb.h,v 1.6.2.1 2013/09/18 00:54:20 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -17,8 +17,8 @@
 #ifndef MANDOCDB_H
 #define MANDOCDB_H
 
-#define	MANDOC_DB	"mandocdb.db"
-#define	MANDOC_IDX	"mandocdb.index"
+#define	MANDOC_DB	"mandoc.db"
+#define	MANDOC_IDX	"mandoc.index"
 
 #define	TYPE_An		0x0000000000000001ULL
 #define	TYPE_Ar		0x0000000000000002ULL

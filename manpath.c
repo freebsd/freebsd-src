@@ -1,4 +1,4 @@
-/*	$Id: manpath.c,v 1.8 2011/12/24 22:37:16 kristaps Exp $ */
+/*	$Id: manpath.c,v 1.12 2013/11/21 01:49:18 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -18,8 +18,6 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
-
-#include <sys/param.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -42,7 +40,7 @@ manpath_parse(struct manpaths *dirs, const char *file,
 		char *defp, char *auxp)
 {
 #ifdef	USE_MANPATH
-	char		 cmd[(MAXPATHLEN * 3) + 20];
+	char		 cmd[(PATH_MAX * 3) + 20];
 	FILE		*stream;
 	char		*buf;
 	size_t		 sz, bsz;
@@ -74,7 +72,7 @@ manpath_parse(struct manpaths *dirs, const char *file,
 
 	do {
 		buf = mandoc_realloc(buf, bsz + 1024);
-		sz = fread(buf + (int)bsz, 1, 1024, stream);
+		sz = fread(buf + bsz, 1, 1024, stream);
 		bsz += sz;
 	} while (sz > 0);
 
@@ -90,8 +88,8 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	char		*insert;
 
 	/* Always prepend -m. */
- 	manpath_parseline(dirs, auxp);
- 
+	manpath_parseline(dirs, auxp);
+
 	/* If -M is given, it overrides everything else. */
 	if (NULL != defp) {
 		manpath_parseline(dirs, defp);
@@ -117,7 +115,7 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	}
 
 	/* Append man.conf(5) to MANPATH. */
-	if (':' == defp[(int)strlen(defp) - 1]) {
+	if (':' == defp[strlen(defp) - 1]) {
 		manpath_parseline(dirs, defp);
 		manpath_manconf(dirs, file);
 		return;
@@ -162,7 +160,7 @@ manpath_add(struct manpaths *dirs, const char *dir)
 {
 	char		 buf[PATH_MAX];
 	char		*cp;
-	int		 i;
+	size_t		 i;
 
 	if (NULL == (cp = realpath(dir, buf)))
 		return;
@@ -173,7 +171,7 @@ manpath_add(struct manpaths *dirs, const char *dir)
 
 	dirs->paths = mandoc_realloc
 		(dirs->paths,
-		 ((size_t)dirs->sz + 1) * sizeof(char *));
+		 (dirs->sz + 1) * sizeof(char *));
 
 	dirs->paths[dirs->sz++] = mandoc_strdup(cp);
 }
@@ -181,7 +179,7 @@ manpath_add(struct manpaths *dirs, const char *dir)
 void
 manpath_free(struct manpaths *p)
 {
-	int		 i;
+	size_t		 i;
 
 	for (i = 0; i < p->sz; i++)
 		free(p->paths[i]);
@@ -211,7 +209,7 @@ manpath_manconf(struct manpaths *dirs, const char *file)
 		if (strncmp(MAN_CONF_KEY, p, keysz))
 			continue;
 		p += keysz;
-		while (isspace(*p))
+		while (isspace((unsigned char)*p))
 			p++;
 		if ('\0' == *p)
 			continue;

@@ -1,6 +1,6 @@
-.\"	$Id: whatis.1,v 1.8 2012/03/24 01:54:43 kristaps Exp $
+.\"	$Id: whatis.1,v 1.7.2.2 2013/10/05 01:25:20 schwarze Exp $
 .\"
-.\" Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: March 24 2012 $
+.Dd $Mdocdate: October 5 2013 $
 .Dt WHATIS 1
 .Os
 .Sh NAME
@@ -23,8 +23,8 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl C Ar file
-.Op Fl M Ar manpath
-.Op Fl m Ar manpath
+.Op Fl M Ar path
+.Op Fl m Ar path
 .Op Fl S Ar arch
 .Op Fl s Ar section
 .Ar name ...
@@ -47,8 +47,6 @@ searches for
 .Xr mandocdb 8
 databases in the default paths stipulated by
 .Xr man 1 .
-If standard output is a TTY, a result may be selected from a list and
-its manual displayed with the pager.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
@@ -58,16 +56,16 @@ Specify an alternative configuration
 in
 .Xr man.conf 5
 format.
-.It Fl M Ar manpath
+.It Fl M Ar path
 Use the colon-separated
-.Ar manpath
+.Ar path
 instead of the default list of paths searched for
 .Xr mandocdb 8
 databases.
 Invalid paths, or paths without manual databases, are ignored.
-.It Fl m Ar manpath
+.It Fl m Ar path
 Prepend the colon-separated
-.Ar manpath
+.Ar path
 to the list of paths searched for
 .Xr mandocdb 8
 databases.
@@ -97,21 +95,13 @@ If an architecture is specified for the manual, it is displayed as
 .Pp
 .D1 title(cat/arch) \- description
 .Pp
-If on a TTY, results are prefixed with a numeric identifier.
+Resulting manuals may be accessed as
 .Pp
-.D1 [index] title(cat) \- description
+.Dl $ man \-s sec title
 .Pp
-One may choose a manual be entering the index at the prompt.
-Valid choices are displayed using
-.Ev MANPAGER ,
-or failing that ,
-.Ev PAGER
-or just
-.Xr more 1 .
-Source pages are formatted with
-.Xr mandoc 1 ;
-preformatted pages with
-.Xr cat 1 .
+If an architecture is specified in the output, use
+.Pp
+.Dl $ man \-s sec \-S arch title
 .Pp
 .Nm
 is identical to running
@@ -121,14 +111,6 @@ as follows:
 .Dl $ apropos -- -i 'Nm~[[:<:]]term[[:>:]]'
 .Sh ENVIRONMENT
 .Bl -tag -width Ds
-.It Ev MANPAGER
-Default pager for manuals.
-If this is unset, falls back to
-.Ev Pager .
-.It Ev PAGER
-The second choice for a manual pager.
-If this is unset, use
-.Xr more 1 .
 .It Ev MANPATH
 Colon-separated paths modifying the default list of paths searched for
 manual databases.
@@ -149,11 +131,11 @@ If none of these conditions are met, it overrides the default list.
 .El
 .Sh FILES
 .Bl -tag -width "/etc/man.conf" -compact
-.It Pa whatis.db
+.It Pa mandoc.db
 name of the
 .Xr mandocdb 8
 keyword database
-.It Pa whatis.index
+.It Pa mandoc.index
 name of the
 .Xr mandocdb 8
 filename database
@@ -186,5 +168,4 @@ wrote the original
 .Nm
 in 1979.
 The current version was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
