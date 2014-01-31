@@ -573,17 +573,6 @@ with non-jailed parts of the system.
 Sockets within a jail are normally restricted to IPv4, IPv6, local
 (UNIX), and route.  This allows access to other protocol stacks that
 have not had jail functionality added to them.
-.It Va allow.kmem
-Jailed processes may access
-.Pa /dev/kmem
-and similar devices (e.g. io, dri) if they have sufficient permission
-(via the usual file permissions).
-Note that the device files must exist within the jail for this parameter
-to be of any use;
-the default devfs ruleset for jails does not include any such devices.
-Giving a jail access to kernel memory obviates much of the security that
-jails offer, but can still be useful for other purposes.
-For example, this would allow the Xorg server to run inside a jail.
 .El
 .El
 .Pp

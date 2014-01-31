@@ -208,7 +208,6 @@ static char *pr_allow_names[] = {
 	"allow.mount.zfs",
 	"allow.mount.procfs",
 	"allow.mount.tmpfs",
-	"allow.kmem",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -225,7 +224,6 @@ static char *pr_allow_nonames[] = {
 	"allow.mount.nozfs",
 	"allow.mount.noprocfs",
 	"allow.mount.notmpfs",
-	"allow.nokmem",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -3953,27 +3951,6 @@ prison_priv_check(struct ucred *cred, int priv)
 		return (0);
 
 		/*
-		 * Allow access to /dev/io in a jail if the non-jailed admin
-		 * requests this and if /dev/io exists in the jail. This
-		 * allows Xorg to probe a card.
-		 */
-	case PRIV_IO:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_KMEM)
-			return (0);
-		else
-			return (EPERM);
-
-		/*
-		 * Allow low level access to KMEM-like devices (e.g. to
-		 * allow Xorg to use DRI).
-		 */
-	case PRIV_KMEM_WRITE:
-		if (cred->cr_prison->pr_allow & PR_ALLOW_KMEM)
-			return (0);
-		else
-			return (EPERM);
-
-		/*
 		 * Allow jailed root to set loginclass.
 		 */
 	case PRIV_PROC_SETLOGINCLASS:
@@ -4407,8 +4384,6 @@ SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
-SYSCTL_JAIL_PARAM(_allow, kmem, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may access kmem-like devices (io, dri) if they exist");
 
 SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
