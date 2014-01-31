@@ -28,6 +28,7 @@
 #include <string.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <time.h>
 #include <unistd.h>
 
 #include "xmalloc.h"

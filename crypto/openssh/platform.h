@@ -1,4 +1,4 @@
-/* $Id: platform.h,v 1.8 2013/03/12 00:31:05 dtucker Exp $ */
+/* $Id: platform.h,v 1.9 2013/09/22 09:02:40 dtucker Exp $ */
 
 /*
  * Copyright (c) 2006 Darren Tucker.  All rights reserved.
@@ -22,6 +22,7 @@
 
 void platform_pre_listen(void);
 void platform_pre_fork(void);
+void platform_pre_restart(void);
 void platform_post_fork_parent(pid_t child_pid);
 void platform_post_fork_child(void);
 int  platform_privileged_uidswap(void);

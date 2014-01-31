@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.255 2013/11/08 00:39:15 djm Exp $ */
+/* $OpenBSD: clientloop.c,v 1.256 2013/11/20 20:54:10 deraadt Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -290,7 +290,7 @@ client_x11_display_valid(const char *display)
 
 	dlen = strlen(display);
 	for (i = 0; i < dlen; i++) {
-		if (!isalnum(display[i]) &&
+		if (!isalnum((u_char)display[i]) &&
 		    strchr(SSH_X11_VALID_DISPLAY_CHARS, display[i]) == NULL) {
 			debug("Invalid character '%c' in DISPLAY", display[i]);
 			return 0;
@@ -885,7 +885,7 @@ process_cmdline(void)
 	cmd = s = read_passphrase("\r\nssh> ", RP_ECHO);
 	if (s == NULL)
 		goto out;
-	while (isspace(*s))
+	while (isspace((u_char)*s))
 		s++;
 	if (*s == '-')
 		s++;	/* Skip cmdline '-', if any */
@@ -939,7 +939,7 @@ process_cmdline(void)
 		goto out;
 	}
 
-	while (isspace(*++s))
+	while (isspace((u_char)*++s))
 		;
 
 	/* XXX update list of forwards in options */
@@ -1154,7 +1154,7 @@ process_escapes(Channel *c, Buffer *bin, Buffer *bout, Buffer *berr,
 					    "%cB\r\n", escape_char);
 					buffer_append(berr, string,
 					    strlen(string));
-					channel_request_start(session_ident,
+					channel_request_start(c->self,
 					    "break", 0);
 					packet_put_int(1000);
 					packet_send();
