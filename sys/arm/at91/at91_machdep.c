@@ -116,18 +116,6 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-/* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
-
-struct pv_addr systempage;
-struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-struct pv_addr kernelstack;
-
 /* Static device mappings. */
 const struct arm_devmap_entry at91_devmap[] = {
 	/*
@@ -208,6 +196,18 @@ const struct arm_devmap_entry at91_devmap[] = {
 	},
 	{ 0, 0, 0, 0, 0, }
 };
+
+/* Physical and virtual addresses for some global pages */
+
+vm_paddr_t phys_avail[10];
+vm_paddr_t dump_avail[4];
+
+struct pv_addr systempage;
+struct pv_addr msgbufpv;
+struct pv_addr irqstack;
+struct pv_addr undstack;
+struct pv_addr abtstack;
+struct pv_addr kernelstack;
 
 #ifdef LINUX_BOOT_ABI
 extern int membanks;
