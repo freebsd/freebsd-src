@@ -1621,7 +1621,7 @@ ext2_read(struct vop_read_args *ap)
 	ip = VTOI(vp);
 
 	/*EXT4_EXT_LOCK(ip);*/
-	if (ip->i_flags & EXT4_EXTENTS)
+	if (ip->i_flag & IN_E4EXTENTS)
 		error = ext4_ext_read(ap);
 	else
 		error = ext2_ind_read(ap);
