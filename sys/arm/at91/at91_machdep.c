@@ -146,6 +146,7 @@ const struct arm_devmap_entry at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/* There's a notion that we should do the rest of these lazily. */
 	/*
 	 * We can't just map the OHCI registers VA == PA, because
 	 * AT91xx_xxx_BASE belongs to the userland address space.
@@ -163,16 +164,16 @@ const struct arm_devmap_entry at91_devmap[] = {
 		 * on this chip select for a VA/PA mapping.
 		 */
 		/* Internal Memory 1MB  */
+		AT91RM92_OHCI_VA_BASE,
 		AT91RM92_OHCI_BASE,
-		AT91RM92_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
+		AT91RM92_CF_VA_BASE,
 		AT91RM92_CF_BASE,
-		AT91RM92_CF_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -183,16 +184,16 @@ const struct arm_devmap_entry at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G20_OHCI_VA_BASE,
 		AT91SAM9G20_OHCI_BASE,
-		AT91SAM9G20_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* EBI CS3 256MB */
+		AT91SAM9G20_NAND_VA_BASE,
 		AT91SAM9G20_NAND_BASE,
-		AT91SAM9G20_NAND_PA_BASE,
 		AT91SAM9G20_NAND_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -202,8 +203,8 @@ const struct arm_devmap_entry at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_VA_BASE,
 		AT91SAM9G45_OHCI_BASE,
-		AT91SAM9G45_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
