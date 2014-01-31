@@ -93,7 +93,7 @@ powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
-powerpc/aim/mp_cpudep.c		optional	aim smp
+powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim
