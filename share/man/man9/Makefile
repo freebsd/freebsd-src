@@ -1538,9 +1538,13 @@ MLINKS+=vslock.9 vsunlock.9
 MLINKS+=zero_copy.9 zero_copy_sockets.9
 MLINKS+=zone.9 uma.9 \
 	zone.9 uma_zalloc.9 \
+	zone.9 uma_zalloc_arg.9 \
 	zone.9 uma_zcreate.9 \
 	zone.9 uma_zdestroy.9 \
 	zone.9 uma_zfree.9 \
+	zone.9 uma_zfree_arg.9 \
+	zone.9 uma_zone_get_cur.9 \
+	zone.9 uma_zone_get_max.9 \
 	zone.9 uma_zone_set_max.9
 
 .include <bsd.prog.mk>
