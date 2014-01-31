@@ -605,7 +605,8 @@ struct wsp_softc {
 	int	dz_count;
 #define	WSP_DZ_MAX_COUNT	32
 	int	dt_sum;			/* T-axis cumulative movement */
-
+	
+	uint8_t o_ntouch;		/* old touch finger status */
 	uint8_t	finger;			/* 0 or 1 *, check which finger moving */
 	uint16_t intr_count;
 #define	WSP_TAP_THRESHOLD	3
@@ -871,7 +872,6 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	int dx = 0;
 	int dy = 0;
 	int dz = 0;
-	int n = 0;
 	int len;
 	int i;
 
@@ -936,13 +936,9 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    f[i].tool_major, f[i].tool_minor, f[i].orientation,
 			    f[i].touch_major, f[i].touch_minor, f[i].multi);
 
-			if (f[i].touch_major < tun.pressure_untouch_threshold)
-				continue;
-
-			sc->pos_x[n] = f[i].abs_x;
-			sc->pos_y[n] = params->y.min + params->y.max - f[i].abs_y;
-			sc->index[n] = &f[i];
-			n++;
+			sc->pos_x[i] = f[i].abs_x;
+			sc->pos_y[i] = params->y.min + params->y.max - f[i].abs_y;
+			sc->index[i] = &f[i];
 		}
 
 		sc->sc_status.flags &= ~MOUSE_POSCHANGED;
@@ -957,8 +953,8 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		if (h->q2 == 4)
 			sc->intr_count++;
 
-		if (sc->ntaps < n) {
-			switch (n) {
+		if (sc->ntaps < ntouch) {
+			switch (ntouch) {
 			case 1:
 				if (f[0].touch_major > tun.pressure_tap_threshold)
 					sc->ntaps = 1;
@@ -978,7 +974,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				break;
 			}
 		}
-		if (n == 2) {
+		if (ntouch == 2) {
 			sc->distance = max(sc->distance, max(
 			    abs(sc->pos_x[0] - sc->pos_x[1]),
 			    abs(sc->pos_y[0] - sc->pos_y[1])));
@@ -1050,15 +1046,34 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			if (sc->sc_touch == WSP_SECOND_TOUCH)
 				sc->sc_touch = WSP_TOUCHING;
 
-			if (n != 0 &&
+			if (ntouch != 0 &&
 			    h->q2 == 4 &&
 			    f[0].touch_major >= tun.pressure_touch_threshold) {
 				dx = sc->pos_x[0] - sc->pre_pos_x;
 				dy = sc->pos_y[0] - sc->pre_pos_y;
-				if (n == 2 && sc->sc_status.button != 0) {
+
+				/* Ignore movement from ibt=1 to ibt=0 */
+				if (sc->sc_status.obutton != 0 && 
+				    sc->sc_status.button == 0) {
+					dx = 0;
+					dy = 0;
+				}
+				/* Ignore movement if ntouch changed */
+				if (sc->o_ntouch != ntouch) {
+					dx = 0;
+					dy = 0;
+				}
+
+				if (ntouch == 2 && sc->sc_status.button != 0) {
 					dx = sc->pos_x[sc->finger] - sc->pre_pos_x;
 					dy = sc->pos_y[sc->finger] - sc->pre_pos_y;
-					if (f[0].origin == 0 || f[1].origin == 0) {
+					
+					/*
+					 * Ignore movement of switch finger or
+					 * movement from ibt=0 to ibt=1
+					 */
+					if (f[0].origin == 0 || f[1].origin == 0 ||
+					    sc->sc_status.obutton != sc->sc_status.button) {
 						dx = 0;
 						dy = 0;
 						sc->finger = 0;
@@ -1092,7 +1107,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->dx_sum += dx;
 			sc->dy_sum += dy;
 
-			if (n == 2 && sc->sc_status.button == 0) {
+			if (ntouch == 2 && sc->sc_status.button == 0) {
 				if (sc->scr_mode == WSP_SCR_NONE &&
 				    abs(sc->dx_sum) + abs(sc->dy_sum) > 50)
 					sc->scr_mode = abs(sc->dx_sum) >
@@ -1134,10 +1149,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 		sc->pre_pos_x = sc->pos_x[0];
 		sc->pre_pos_y = sc->pos_y[0];
 
-		if (n == 2 && sc->sc_status.button != 0) {
+		if (ntouch == 2 && sc->sc_status.button != 0) {
 			sc->pre_pos_x = sc->pos_x[sc->finger];
 			sc->pre_pos_y = sc->pos_y[sc->finger];
 		}
+		sc->o_ntouch = ntouch;
+
 	case USB_ST_SETUP:
 tr_setup:
 		/* check if we can put more data into the FIFO */
