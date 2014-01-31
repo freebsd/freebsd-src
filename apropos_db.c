@@ -1,4 +1,4 @@
-/*	$Id: apropos_db.c,v 1.31 2012/03/24 01:46:25 kristaps Exp $ */
+/*	$Id: apropos_db.c,v 1.32.2.3 2013/10/10 23:43:04 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
@@ -19,6 +19,8 @@
 #include "config.h"
 #endif
 
+#include <sys/param.h>
+
 #include <assert.h>
 #include <fcntl.h>
 #include <regex.h>
@@ -28,12 +30,18 @@
 #include <string.h>
 #include <unistd.h>
 
-#if defined(__linux__)
-# include <endian.h>
-# include <db_185.h>
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 # include <libkern/OSByteOrder.h>
-# include <db.h>
+#elif defined(__linux__)
+# include <endian.h>
+#elif defined(__sun)
+# include <sys/byteorder.h>
+#else
+# include <sys/endian.h>
+#endif
+
+#if defined(__linux__) || defined(__sun)
+# include <db_185.h>
 #else
 # include <db.h>
 #endif
@@ -411,11 +419,10 @@ apropos_search(int pathsz, char **paths, const struct opts *opts,
 {
 	struct rectree	 tree;
 	struct mchars	*mc;
-	int		 i, rc;
+	int		 i;
 
 	memset(&tree, 0, sizeof(struct rectree));
 
-	rc = 0;
 	mc = mchars_alloc();
 	*sz = 0;
 	*resp = NULL;
@@ -426,6 +433,7 @@ apropos_search(int pathsz, char **paths, const struct opts *opts,
 	 */
 
 	for (i = 0; i < pathsz; i++) {
+		assert('/' == paths[i][0]);
 		if (chdir(paths[i]))
 			continue;
 		if (single_search(&tree, opts, expr, terms, mc, i))

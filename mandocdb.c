@@ -1,7 +1,7 @@
-/*	$Id: mandocdb.c,v 1.46 2012/03/23 06:52:17 kristaps Exp $ */
+/*	$Id: mandocdb.c,v 1.49.2.10 2013/11/21 01:53:48 schwarze Exp $ */
 /*
- * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2011, 2012 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -19,7 +19,6 @@
 #include "config.h"
 #endif
 
-#include <sys/param.h>
 #include <sys/types.h>
 
 #include <assert.h>
@@ -28,18 +27,26 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#if defined(__linux__)
-# include <endian.h>
-# include <db_185.h>
-#elif defined(__APPLE__)
+#if defined(__APPLE__)
 # include <libkern/OSByteOrder.h>
-# include <db.h>
+#elif defined(__linux__)
+# include <endian.h>
+#elif defined(__sun)
+# include <sys/byteorder.h>
+# include <sys/stat.h>
+#else
+# include <sys/endian.h>
+#endif
+
+#if defined(__linux__) || defined(__sun)
+# include <db_185.h>
 #else
 # include <db.h>
 #endif
@@ -56,20 +63,11 @@
 #define	MANDOC_SRC	  0x1
 #define	MANDOC_FORM	  0x2
 
-#define WARNING(_f, _b, _fmt, _args...) \
-	do if (warnings) { \
-		fprintf(stderr, "%s: ", (_b)); \
-		fprintf(stderr, (_fmt), ##_args); \
-		if ('\0' != *(_f)) \
-			fprintf(stderr, ": %s", (_f)); \
-		fprintf(stderr, "\n"); \
-	} while (/* CONSTCOND */ 0)
-		
 /* Access to the mandoc database on disk. */
 
 struct	mdb {
-	char		  idxn[MAXPATHLEN]; /* index db filename */
-	char		  dbn[MAXPATHLEN]; /* keyword db filename */
+	char		  idxn[PATH_MAX]; /* index db filename */
+	char		  dbn[PATH_MAX]; /* keyword db filename */
 	DB		 *idx; /* index recno database */
 	DB		 *db; /* keyword btree database */
 };
@@ -133,17 +131,16 @@ static	void		  hash_put(DB *, const struct buf *, uint64_t);
 static	void		  hash_reset(DB **);
 static	void		  index_merge(const struct of *, struct mparse *,
 				struct buf *, struct buf *, DB *,
-				struct mdb *, struct recs *,
-				const char *);
+				struct mdb *, struct recs *);
 static	void		  index_prune(const struct of *, struct mdb *,
-				struct recs *, const char *);
-static	void		  ofile_argbuild(int, char *[], 
-				struct of **, const char *);
+				struct recs *);
+static	void		  ofile_argbuild(int, char *[], struct of **,
+				const char *);
 static	void		  ofile_dirbuild(const char *, const char *,
-				const char *, int, struct of **, char *);
+				const char *, int, struct of **);
 static	void		  ofile_free(struct of *);
-static	void		  pformatted(DB *, struct buf *, struct buf *, 
-				const struct of *, const char *);
+static	void		  pformatted(DB *, struct buf *, 
+				struct buf *, const struct of *);
 static	int		  pman_node(MAN_ARGS);
 static	void		  pmdoc_node(MDOC_ARGS);
 static	int		  pmdoc_head(MDOC_ARGS);
@@ -304,11 +301,12 @@ main(int argc, char *argv[])
 	struct recs	 recs;
 	enum op		 op; /* current operation */
 	const char	*dir;
+	char		*cp;
+	char		 pbuf[PATH_MAX];
 	int		 ch, i, flags;
-	char		 dirbuf[MAXPATHLEN];
 	DB		*hash; /* temporary keyword hashtable */
 	BTREEINFO	 info; /* btree configuration */
-	size_t		 sz1, sz2;
+	size_t		 sz1, sz2, ipath;
 	struct buf	 buf, /* keyword buffer */
 			 dbuf; /* description buffer */
 	struct of	*of; /* list of files for processing */
@@ -396,7 +394,7 @@ main(int argc, char *argv[])
 	info.lorder = 4321;
 	info.flags = R_DUP;
 
-	mp = mparse_alloc(MPARSE_AUTO, MANDOCLEVEL_FATAL, NULL, NULL);
+	mp = mparse_alloc(MPARSE_AUTO, MANDOCLEVEL_FATAL, NULL, NULL, NULL);
 
 	memset(&buf, 0, sizeof(struct buf));
 	memset(&dbuf, 0, sizeof(struct buf));
@@ -407,25 +405,31 @@ main(int argc, char *argv[])
 	dbuf.cp = mandoc_malloc(dbuf.size);
 
 	if (OP_TEST == op) {
-		ofile_argbuild(argc, argv, &of, ".");
+		ofile_argbuild(argc, argv, &of, NULL);
 		if (NULL == of)
 			goto out;
-		index_merge(of, mp, &dbuf, &buf, 
-				hash, &mdb, &recs, ".");
+		index_merge(of, mp, &dbuf, &buf, hash, &mdb, &recs);
 		goto out;
 	}
 
 	if (OP_UPDATE == op || OP_DELETE == op) {
-		strlcat(mdb.dbn, dir, MAXPATHLEN);
-		strlcat(mdb.dbn, "/", MAXPATHLEN);
-		sz1 = strlcat(mdb.dbn, MANDOC_DB, MAXPATHLEN);
+		if (NULL == realpath(dir, pbuf)) {
+			perror(dir);
+			exit((int)MANDOCLEVEL_BADARG);
+		}
+		if (strlcat(pbuf, "/", PATH_MAX) >= PATH_MAX) {
+			fprintf(stderr, "%s: path too long\n", pbuf);
+			exit((int)MANDOCLEVEL_BADARG);
+		}
 
-		strlcat(mdb.idxn, dir, MAXPATHLEN);
-		strlcat(mdb.idxn, "/", MAXPATHLEN);
-		sz2 = strlcat(mdb.idxn, MANDOC_IDX, MAXPATHLEN);
+		strlcat(mdb.dbn, pbuf, PATH_MAX);
+		sz1 = strlcat(mdb.dbn, MANDOC_DB, PATH_MAX);
 
-		if (sz1 >= MAXPATHLEN || sz2 >= MAXPATHLEN) {
-			fprintf(stderr, "%s: path too long\n", dir);
+		strlcat(mdb.idxn, pbuf, PATH_MAX);
+		sz2 = strlcat(mdb.idxn, MANDOC_IDX, PATH_MAX);
+
+		if (sz1 >= PATH_MAX || sz2 >= PATH_MAX) {
+			fprintf(stderr, "%s: path too long\n", mdb.idxn);
 			exit((int)MANDOCLEVEL_BADARG);
 		}
 
@@ -441,12 +445,12 @@ main(int argc, char *argv[])
 			exit((int)MANDOCLEVEL_SYSERR);
 		}
 
-		ofile_argbuild(argc, argv, &of, dir);
+		ofile_argbuild(argc, argv, &of, pbuf);
 
 		if (NULL == of)
 			goto out;
 
-		index_prune(of, &mdb, &recs, dir);
+		index_prune(of, &mdb, &recs);
 
 		/*
 		 * Go to the root of the respective manual tree.
@@ -460,7 +464,7 @@ main(int argc, char *argv[])
 				exit((int)MANDOCLEVEL_SYSERR);
 			}
 			index_merge(of, mp, &dbuf, &buf, hash,
-					&mdb, &recs, dir);
+					&mdb, &recs);
 		}
 
 		goto out;
@@ -475,48 +479,72 @@ main(int argc, char *argv[])
 	if (argc > 0) {
 		dirs.paths = mandoc_calloc(argc, sizeof(char *));
 		dirs.sz = argc;
-		for (i = 0; i < argc; i++) 
-			dirs.paths[i] = mandoc_strdup(argv[i]);
+		for (i = 0; i < argc; i++) {
+			if (NULL == (cp = realpath(argv[i], pbuf))) {
+				perror(argv[i]);
+				goto out;
+			}
+			dirs.paths[i] = mandoc_strdup(cp);
+		}
 	} else
 		manpath_parse(&dirs, dir, NULL, NULL);
 
-	for (i = 0; i < dirs.sz; i++) {
+	for (ipath = 0; ipath < dirs.sz; ipath++) {
+
 		/*
 		 * Go to the root of the respective manual tree.
 		 * This must work or no manuals may be found:
 		 * They are indexed relative to the root.
 		 */
 
-		if (-1 == chdir(dirs.paths[i])) {
-			perror(dirs.paths[i]);
+		if (-1 == chdir(dirs.paths[ipath])) {
+			perror(dirs.paths[ipath]);
 			exit((int)MANDOCLEVEL_SYSERR);
 		}
 
-		strlcpy(mdb.dbn, MANDOC_DB, MAXPATHLEN);
-		strlcpy(mdb.idxn, MANDOC_IDX, MAXPATHLEN);
+		/* Create a new database in two temporary files. */
 
-		flags = O_CREAT | O_TRUNC | O_RDWR;
-		mdb.db = dbopen(mdb.dbn, flags, 0644, DB_BTREE, &info);
-		mdb.idx = dbopen(mdb.idxn, flags, 0644, DB_RECNO, NULL);
-
-		if (NULL == mdb.db) {
-			perror(mdb.dbn);
-			exit((int)MANDOCLEVEL_SYSERR);
-		} else if (NULL == mdb.idx) {
-			perror(mdb.idxn);
-			exit((int)MANDOCLEVEL_SYSERR);
+		flags = O_CREAT | O_EXCL | O_RDWR;
+		while (NULL == mdb.db) {
+			strlcpy(mdb.dbn, MANDOC_DB, PATH_MAX);
+			strlcat(mdb.dbn, ".XXXXXXXXXX", PATH_MAX);
+			if (NULL == mktemp(mdb.dbn)) {
+				perror(mdb.dbn);
+				exit((int)MANDOCLEVEL_SYSERR);
+			}
+			mdb.db = dbopen(mdb.dbn, flags, 0644,
+					DB_BTREE, &info);
+			if (NULL == mdb.db && EEXIST != errno) {
+				perror(mdb.dbn);
+				exit((int)MANDOCLEVEL_SYSERR);
+			}
+		}
+		while (NULL == mdb.idx) {
+			strlcpy(mdb.idxn, MANDOC_IDX, PATH_MAX);
+			strlcat(mdb.idxn, ".XXXXXXXXXX", PATH_MAX);
+			if (NULL == mktemp(mdb.idxn)) {
+				perror(mdb.idxn);
+				unlink(mdb.dbn);
+				exit((int)MANDOCLEVEL_SYSERR);
+			}
+			mdb.idx = dbopen(mdb.idxn, flags, 0644,
+					DB_RECNO, NULL);
+			if (NULL == mdb.idx && EEXIST != errno) {
+				perror(mdb.idxn);
+				unlink(mdb.dbn);
+				exit((int)MANDOCLEVEL_SYSERR);
+			}
 		}
 
 		/*
 		 * Search for manuals and fill the new database.
 		 */
 
-		strlcpy(dirbuf, dirs.paths[i], MAXPATHLEN);
-	       	ofile_dirbuild(".", "", "", 0, &of, dirbuf);
+	       	ofile_dirbuild(".", "", "", 0, &of);
 
 		if (NULL != of) {
 			index_merge(of, mp, &dbuf, &buf, hash,
-			     &mdb, &recs, dirs.paths[i]);
+			     &mdb, &recs);
 			ofile_free(of);
 			of = NULL;
 		}
@@ -525,6 +553,26 @@ main(int argc, char *argv[])
 		(*mdb.idx->close)(mdb.idx);
 		mdb.db = NULL;
 		mdb.idx = NULL;
+
+		/*
+		 * Replace the old database with the new one.
+		 * This is not perfectly atomic,
+		 * but i cannot think of a better way.
+		 */
+
+		if (-1 == rename(mdb.dbn, MANDOC_DB)) {
+			perror(MANDOC_DB);
+			unlink(mdb.dbn);
+			unlink(mdb.idxn);
+			exit((int)MANDOCLEVEL_SYSERR);
+		}
+		if (-1 == rename(mdb.idxn, MANDOC_IDX)) {
+			perror(MANDOC_IDX);
+			unlink(MANDOC_DB);
+			unlink(MANDOC_IDX);
+			unlink(mdb.idxn);
+			exit((int)MANDOCLEVEL_SYSERR);
+		}
 	}
 
 out:
@@ -547,7 +595,7 @@ out:
 
 usage:
 	fprintf(stderr,
-		"usage: %s [-av] [-C file] | dir ... | -t file ...\n"
+		"usage: %s [-avvv] [-C file] | dir ... | -t file ...\n"
 		"                        -d dir [file ...] | "
 		"-u dir [file ...]\n",
 		progname);
@@ -558,23 +606,23 @@ usage:
 void
 index_merge(const struct of *of, struct mparse *mp,
 		struct buf *dbuf, struct buf *buf, DB *hash,
-		struct mdb *mdb, struct recs *recs,
-		const char *basedir)
+		struct mdb *mdb, struct recs *recs)
 {
 	recno_t		 rec;
 	int		 ch, skip;
 	DBT		 key, val;
 	DB		*files;  /* temporary file name table */
-	char	 	 emptystring[1] = {'\0'};
 	struct mdoc	*mdoc;
 	struct man	*man;
-	char		*p;
 	const char	*fn, *msec, *march, *mtitle;
+	char		*p;
 	uint64_t	 mask;
 	size_t		 sv;
 	unsigned	 seq;
 	uint64_t	 vbuf[2];
 	char		 type;
+
+	static char	 emptystring[] = "";
 
 	if (warnings) {
 		files = NULL;
@@ -629,9 +677,13 @@ index_merge(const struct of *of, struct mparse *mp,
 		skip = 0;
 		assert(of->sec);
 		assert(msec);
-		if (strcasecmp(msec, of->sec))
-			WARNING(fn, basedir, "Section \"%s\" manual "
-				"in \"%s\" directory", msec, of->sec);
+		if (warnings)
+			if (strcasecmp(msec, of->sec))
+				fprintf(stderr, "%s: "
+					"section \"%s\" manual "
+					"in \"%s\" directory\n",
+					fn, msec, of->sec);
+
 		/*
 		 * Manual page directories exist for each kernel
 		 * architecture as returned by machine(1).
@@ -649,10 +701,12 @@ index_merge(const struct of *of, struct mparse *mp,
 
 		assert(of->arch);
 		assert(march);
-		if (strcasecmp(march, of->arch))
-			WARNING(fn, basedir, "Architecture \"%s\" "
-				"manual in \"%s\" directory", 
-				march, of->arch);
+		if (warnings)
+			if (strcasecmp(march, of->arch))
+				fprintf(stderr, "%s: "
+					"architecture \"%s\" manual "
+					"in \"%s\" directory\n",
+					fn, march, of->arch);
 
 		/*
 		 * By default, skip a file if the title given
@@ -682,7 +736,7 @@ index_merge(const struct of *of, struct mparse *mp,
 			}
 			buf_appendb(buf, ")", 2);
 			for (p = buf->cp; '\0' != *p; p++)
-				*p = tolower(*p);
+				*p = tolower((unsigned char)*p);
 			key.data = buf->cp;
 			key.size = buf->len;
 			val.data = NULL;
@@ -742,7 +796,7 @@ index_merge(const struct of *of, struct mparse *mp,
 		else if (man)
 			pman_node(hash, buf, dbuf, man_node(man));
 		else
-			pformatted(hash, buf, dbuf, of, basedir);
+			pformatted(hash, buf, dbuf, of);
 
 		/* Test mode, do not access any database. */
 
@@ -789,6 +843,8 @@ index_merge(const struct of *of, struct mparse *mp,
 		}
 		if (ch < 0) {
 			perror("hash");
+			unlink(mdb->dbn);
+			unlink(mdb->idxn);
 			exit((int)MANDOCLEVEL_SYSERR);
 		}
 
@@ -807,7 +863,7 @@ index_merge(const struct of *of, struct mparse *mp,
 		val.size = dbuf->len;
 
 		if (verb)
-			printf("%s: Adding to index: %s\n", basedir, fn);
+			printf("%s: adding to index\n", fn);
 
 		dbt_put(mdb->idx, mdb->idxn, &key, &val);
 	}
@@ -822,9 +878,9 @@ index_merge(const struct of *of, struct mparse *mp,
 		while (0 == (*files->seq)(files, &key, &val, seq)) {
 			seq = R_NEXT;
 			if (val.size)
-				WARNING((char *)val.data, basedir, 
-					"Probably unreachable, title "
-					"is %s", (char *)key.data);
+				fprintf(stderr, "%s: probably "
+				    "unreachable, title is %s\n",
+				    (char *)val.data, (char *)key.data);
 		}
 		(*files->close)(files);
 	}
@@ -837,8 +893,7 @@ index_merge(const struct of *of, struct mparse *mp,
  * in `idx' (zeroing its value size).
  */
 static void
-index_prune(const struct of *ofile, struct mdb *mdb, 
-		struct recs *recs, const char *basedir)
+index_prune(const struct of *ofile, struct mdb *mdb, struct recs *recs)
 {
 	const struct of	*of;
 	const char	*fn;
@@ -913,8 +968,7 @@ index_prune(const struct of *ofile, struct mdb *mdb,
 		}
 
 		if (verb)
-			printf("%s: Deleting from index: %s\n", 
-					basedir, fn);
+			printf("%s: deleting from index\n", fn);
 
 		val.size = 0;
 		ch = (*mdb->idx->put)(mdb->idx, &key, &val, R_CURSOR);
@@ -1474,15 +1528,16 @@ pman_node(MAN_ARGS)
  * By necessity, this involves rather crude guesswork.
  */
 static void
-pformatted(DB *hash, struct buf *buf, struct buf *dbuf, 
-		const struct of *of, const char *basedir)
+pformatted(DB *hash, struct buf *buf, 
+		struct buf *dbuf, const struct of *of)
 {
 	FILE		*stream;
 	char		*line, *p, *title;
 	size_t		 len, plen, titlesz;
 
 	if (NULL == (stream = fopen(of->fname, "r"))) {
-		WARNING(of->fname, basedir, "%s", strerror(errno));
+		if (warnings)
+			perror(of->fname);
 		return;
 	}
 
@@ -1537,6 +1592,7 @@ pformatted(DB *hash, struct buf *buf, struct buf *dbuf,
 		title[(int)titlesz - 1] = ' ';
 	}
 
+
 	/*
 	 * If no page content can be found, or the input line
 	 * is already the next section header, or there is no
@@ -1545,8 +1601,9 @@ pformatted(DB *hash, struct buf *buf, struct buf *dbuf,
 	 */
 
 	if (NULL == title || '\0' == *title) {
-		WARNING(of->fname, basedir, 
-			"Cannot find NAME section");
+		if (warnings)
+			fprintf(stderr, "%s: cannot find NAME section\n",
+					of->fname);
 		buf_appendb(dbuf, buf->cp, buf->size);
 		hash_put(hash, buf, TYPE_Nd);
 		fclose(stream);
@@ -1567,8 +1624,9 @@ pformatted(DB *hash, struct buf *buf, struct buf *dbuf,
 		for (p += 2; ' ' == *p || '\b' == *p; p++)
 			/* Skip to next word. */ ;
 	} else {
-		WARNING(of->fname, basedir, 
-			"No dash in title line");
+		if (warnings)
+			fprintf(stderr, "%s: no dash in title line\n",
+					of->fname);
 		p = title;
 	}
 
@@ -1595,16 +1653,30 @@ pformatted(DB *hash, struct buf *buf, struct buf *dbuf,
 }
 
 static void
-ofile_argbuild(int argc, char *argv[], 
-		struct of **of, const char *basedir)
+ofile_argbuild(int argc, char *argv[], struct of **of,
+		const char *basedir)
 {
-	char		 buf[MAXPATHLEN];
+	char		 buf[PATH_MAX];
+	char		 pbuf[PATH_MAX];
 	const char	*sec, *arch, *title;
-	char		*p;
+	char		*relpath, *p;
 	int		 i, src_form;
 	struct of	*nof;
 
 	for (i = 0; i < argc; i++) {
+		if (NULL == (relpath = realpath(argv[i], pbuf))) {
+			perror(argv[i]);
+			continue;
+		}
+		if (NULL != basedir) {
+			if (strstr(pbuf, basedir) != pbuf) {
+				fprintf(stderr, "%s: file outside "
+				    "base directory %s\n",
+				    pbuf, basedir);
+				continue;
+			}
+			relpath = pbuf + strlen(basedir);
+		}
 
 		/*
 		 * Try to infer the manual section, architecture and
@@ -1613,8 +1685,8 @@ ofile_argbuild(int argc, char *argv[],
 		 *   cat<section>[/<arch>]/<title>.0
 		 */
 
-		if (strlcpy(buf, argv[i], sizeof(buf)) >= sizeof(buf)) {
-			fprintf(stderr, "%s: Path too long\n", argv[i]);
+		if (strlcpy(buf, relpath, sizeof(buf)) >= sizeof(buf)) {
+			fprintf(stderr, "%s: path too long\n", relpath);
 			continue;
 		}
 		sec = arch = title = "";
@@ -1646,8 +1718,11 @@ ofile_argbuild(int argc, char *argv[],
 			break;
 		}
 		if ('\0' == *title) {
-			WARNING(argv[i], basedir, 
-				"Cannot deduce title from filename");
+			if (warnings)
+				fprintf(stderr,
+				    "%s: cannot deduce title "
+				    "from filename\n",
+				    relpath);
 			title = buf;
 		}
 
@@ -1656,7 +1731,7 @@ ofile_argbuild(int argc, char *argv[],
 		 */
 
 		nof = mandoc_calloc(1, sizeof(struct of));
-		nof->fname = mandoc_strdup(argv[i]);
+		nof->fname = mandoc_strdup(relpath);
 		nof->sec = mandoc_strdup(sec);
 		nof->arch = mandoc_strdup(arch);
 		nof->title = mandoc_strdup(title);
@@ -1681,15 +1756,18 @@ ofile_argbuild(int argc, char *argv[],
  * Recursively build up a list of files to parse.
  * We use this instead of ftw() and so on because I don't want global
  * variables hanging around.
- * This ignores the mandocdb.db and mandocdb.index files, but assumes that
+ * This ignores the mandoc.db and mandoc.index files, but assumes that
  * everything else is a manual.
  * Pass in a pointer to a NULL structure for the first invocation.
  */
 static void
 ofile_dirbuild(const char *dir, const char* psec, const char *parch,
-		int p_src_form, struct of **of, char *basedir)
+		int p_src_form, struct of **of)
 {
-	char		 buf[MAXPATHLEN];
+	char		 buf[PATH_MAX];
+#if defined(__sun)
+	struct stat	 sb;
+#endif
 	size_t		 sz;
 	DIR		*d;
 	const char	*fn, *sec, *arch;
@@ -1699,7 +1777,8 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 	int		 src_form;
 
 	if (NULL == (d = opendir(dir))) {
-		WARNING("", dir, "%s", strerror(errno));
+		if (warnings)
+			perror(dir);
 		return;
 	}
 
@@ -1711,7 +1790,12 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 
 		src_form = p_src_form;
 
+#if defined(__sun)
+		stat(dp->d_name, &sb);
+		if (S_IFDIR & sb.st_mode) {
+#else
 		if (DT_DIR == dp->d_type) {
+#endif
 			sec = psec;
 			arch = parch;
 
@@ -1729,7 +1813,9 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 					src_form |= MANDOC_FORM;
 					sec = fn + 3;
 				} else {
-					WARNING(fn, basedir, "Bad section");
+					if (warnings) fprintf(stderr,
+					    "%s/%s: bad section\n",
+					    dir, fn);
 					if (use_all)
 						sec = fn;
 					else
@@ -1737,45 +1823,53 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 				}
 			} else if ('\0' == *arch) {
 				if (NULL != strchr(fn, '.')) {
-					WARNING(fn, basedir, "Bad architecture");
+					if (warnings) fprintf(stderr,
+					    "%s/%s: bad architecture\n",
+					    dir, fn);
 					if (0 == use_all)
 						continue;
 				}
 				arch = fn;
 			} else {
-				WARNING(fn, basedir, "Excessive subdirectory");
+				if (warnings) fprintf(stderr, "%s/%s: "
+				    "excessive subdirectory\n", dir, fn);
 				if (0 == use_all)
 					continue;
 			}
 
 			buf[0] = '\0';
-			strlcat(buf, dir, MAXPATHLEN);
-			strlcat(buf, "/", MAXPATHLEN);
-			strlcat(basedir, "/", MAXPATHLEN);
-			strlcat(basedir, fn, MAXPATHLEN);
-			sz = strlcat(buf, fn, MAXPATHLEN);
+			strlcat(buf, dir, PATH_MAX);
+			strlcat(buf, "/", PATH_MAX);
+			sz = strlcat(buf, fn, PATH_MAX);
 
-			if (MAXPATHLEN <= sz) {
-				WARNING(fn, basedir, "Path too long");
+			if (PATH_MAX <= sz) {
+				if (warnings) fprintf(stderr, "%s/%s: "
+				    "path too long\n", dir, fn);
 				continue;
 			}
 
-			ofile_dirbuild(buf, sec, arch, 
-					src_form, of, basedir);
-
-			p = strrchr(basedir, '/');
-			*p = '\0';
+			ofile_dirbuild(buf, sec, arch, src_form, of);
 			continue;
 		}
 
+#if defined(__sun)
+		if (0 == S_IFREG & sb.st_mode) {
+#else
 		if (DT_REG != dp->d_type) {
-			WARNING(fn, basedir, "Not a regular file");
+#endif
+			if (warnings)
+				fprintf(stderr,
+				    "%s/%s: not a regular file\n",
+				    dir, fn);
 			continue;
 		}
 		if (!strcmp(MANDOC_DB, fn) || !strcmp(MANDOC_IDX, fn))
 			continue;
 		if ('\0' == *psec) {
-			WARNING(fn, basedir, "File outside section");
+			if (warnings)
+				fprintf(stderr,
+				    "%s/%s: file outside section\n",
+				    dir, fn);
 			if (0 == use_all)
 				continue;
 		}
@@ -1788,14 +1882,20 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 
 		suffix = strrchr(fn, '.');
 		if (NULL == suffix) {
-			WARNING(fn, basedir, "No filename suffix");
+			if (warnings)
+				fprintf(stderr,
+				    "%s/%s: no filename suffix\n",
+				    dir, fn);
 			if (0 == use_all)
 				continue;
 		} else if ((MANDOC_SRC & src_form &&
 				strcmp(suffix + 1, psec)) ||
 			    (MANDOC_FORM & src_form &&
 				strcmp(suffix + 1, "0"))) {
-			WARNING(fn, basedir, "Wrong filename suffix");
+			if (warnings)
+				fprintf(stderr,
+				    "%s/%s: wrong filename suffix\n",
+				    dir, fn);
 			if (0 == use_all)
 				continue;
 			if ('0' == suffix[1])
@@ -1814,7 +1914,7 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 		if (0 == use_all && MANDOC_FORM & src_form &&
 				'\0' != *psec) {
 			buf[0] = '\0';
-			strlcat(buf, dir, MAXPATHLEN);
+			strlcat(buf, dir, PATH_MAX);
 			p = strrchr(buf, '/');
 			if ('\0' != *parch && NULL != p)
 				for (p--; p > buf; p--)
@@ -1826,18 +1926,22 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 				p++;
 			if (0 == strncmp("cat", p, 3))
 				memcpy(p, "man", 3);
-			strlcat(buf, "/", MAXPATHLEN);
-			sz = strlcat(buf, fn, MAXPATHLEN);
-			if (sz >= MAXPATHLEN) {
-				WARNING(fn, basedir, "Path too long");
+			strlcat(buf, "/", PATH_MAX);
+			sz = strlcat(buf, fn, PATH_MAX);
+			if (sz >= PATH_MAX) {
+				if (warnings) fprintf(stderr,
+				    "%s/%s: path too long\n",
+				    dir, fn);
 				continue;
 			}
 			q = strrchr(buf, '.');
 			if (NULL != q && p < q++) {
 				*q = '\0';
-				sz = strlcat(buf, psec, MAXPATHLEN);
-				if (sz >= MAXPATHLEN) {
-					WARNING(fn, basedir, "Path too long");
+				sz = strlcat(buf, psec, PATH_MAX);
+				if (sz >= PATH_MAX) {
+					if (warnings) fprintf(stderr,
+					    "%s/%s: path too long\n",
+					    dir, fn);
 					continue;
 				}
 				if (0 == access(buf, R_OK))
@@ -1848,12 +1952,13 @@ ofile_dirbuild(const char *dir, const char* psec, const char *parch,
 		buf[0] = '\0';
 		assert('.' == dir[0]);
 		if ('/' == dir[1]) {
-			strlcat(buf, dir + 2, MAXPATHLEN);
-			strlcat(buf, "/", MAXPATHLEN);
+			strlcat(buf, dir + 2, PATH_MAX);
+			strlcat(buf, "/", PATH_MAX);
 		}
-		sz = strlcat(buf, fn, MAXPATHLEN);
-		if (sz >= MAXPATHLEN) {
-			WARNING(fn, basedir, "Path too long");
+		sz = strlcat(buf, fn, PATH_MAX);
+		if (sz >= PATH_MAX) {
+			if (warnings) fprintf(stderr,
+			    "%s/%s: path too long\n", dir, fn);
 			continue;
 		}
 

@@ -1,0 +1,35 @@
+#!/bin/sh
+# Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+if [ `id -u` -eq 0 ]; then
+  echo "$0: do not run me as root"
+  exit 1
+fi
+
+if [ $# -eq 0 ]; then
+  echo "usage: $0 manual_source_file ..."
+  exit 1
+fi
+
+while [ -n "$1" ]; do
+  file=$1
+  shift
+  echo " ========== $file ========== "
+  tbl $file | groff -mandoc -Tascii -P -c 2>&1 > /tmp/groff.out
+  mandoc -Ios='OpenBSD ports' -Werror $file 2>&1 > /tmp/mandoc.out
+  diff -au /tmp/groff.out /tmp/mandoc.out 2>&1
+done
+
+exit 0

@@ -1,7 +1,7 @@
-/*	$Id: man_term.c,v 1.127 2012/01/03 15:16:24 kristaps Exp $ */
+/*	$Id: man_term.c,v 1.139 2013/12/22 23:34:13 schwarze Exp $ */
 /*
- * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2010, 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2010, 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -35,8 +35,6 @@
 
 #define	MAXMARGINS	  64 /* maximum number of indented scopes */
 
-/* FIXME: have PD set the default vspace width. */
-
 struct	mtermp {
 	int		  fl;
 #define	MANT_LITERAL	 (1 << 0)
@@ -44,12 +42,13 @@ struct	mtermp {
 	int		  lmargincur; /* index of current margin */
 	int		  lmarginsz; /* actual number of nested margins */
 	size_t		  offset; /* default offset to visible page */
+	int		  pardist; /* vert. space before par., unit: [v] */
 };
 
 #define	DECL_ARGS 	  struct termp *p, \
 			  struct mtermp *mt, \
 			  const struct man_node *n, \
-			  const struct man_meta *m
+			  const struct man_meta *meta
 
 struct	termact {
 	int		(*pre)(DECL_ARGS);
@@ -66,18 +65,20 @@ static	void		  print_man_node(DECL_ARGS);
 static	void		  print_man_head(struct termp *, const void *);
 static	void		  print_man_foot(struct termp *, const void *);
 static	void		  print_bvspace(struct termp *, 
-				const struct man_node *);
+				const struct man_node *, int);
 
 static	int		  pre_B(DECL_ARGS);
 static	int		  pre_HP(DECL_ARGS);
 static	int		  pre_I(DECL_ARGS);
 static	int		  pre_IP(DECL_ARGS);
 static	int		  pre_OP(DECL_ARGS);
+static	int		  pre_PD(DECL_ARGS);
 static	int		  pre_PP(DECL_ARGS);
 static	int		  pre_RS(DECL_ARGS);
 static	int		  pre_SH(DECL_ARGS);
 static	int		  pre_SS(DECL_ARGS);
 static	int		  pre_TP(DECL_ARGS);
+static	int		  pre_UR(DECL_ARGS);
 static	int		  pre_alternate(DECL_ARGS);
 static	int		  pre_ft(DECL_ARGS);
 static	int		  pre_ign(DECL_ARGS);
@@ -91,6 +92,7 @@ static	void		  post_RS(DECL_ARGS);
 static	void		  post_SH(DECL_ARGS);
 static	void		  post_SS(DECL_ARGS);
 static	void		  post_TP(DECL_ARGS);
+static	void		  post_UR(DECL_ARGS);
 
 static	const struct termact termacts[MAN_MAX] = {
 	{ pre_sp, NULL, MAN_NOTEXT }, /* br */
@@ -122,11 +124,15 @@ static	const struct termact termacts[MAN_MAX] = {
 	{ pre_RS, post_RS, 0 }, /* RS */
 	{ pre_ign, NULL, 0 }, /* DT */
 	{ pre_ign, NULL, 0 }, /* UC */
-	{ pre_ign, NULL, 0 }, /* PD */
+	{ pre_PD, NULL, MAN_NOTEXT }, /* PD */
 	{ pre_ign, NULL, 0 }, /* AT */
 	{ pre_in, NULL, MAN_NOTEXT }, /* in */
 	{ pre_ft, NULL, MAN_NOTEXT }, /* ft */
 	{ pre_OP, NULL, 0 }, /* OP */
+	{ pre_literal, NULL, 0 }, /* EX */
+	{ pre_literal, NULL, 0 }, /* EE */
+	{ pre_UR, post_UR, 0 }, /* UR */
+	{ NULL, NULL, 0 }, /* UE */
 };
 
 
@@ -136,7 +142,7 @@ terminal_man(void *arg, const struct man *man)
 {
 	struct termp		*p;
 	const struct man_node	*n;
-	const struct man_meta	*m;
+	const struct man_meta	*meta;
 	struct mtermp		 mt;
 
 	p = (struct termp *)arg;
@@ -152,18 +158,19 @@ terminal_man(void *arg, const struct man *man)
 		p->symtab = mchars_alloc();
 
 	n = man_node(man);
-	m = man_meta(man);
+	meta = man_meta(man);
 
-	term_begin(p, print_man_head, print_man_foot, m);
+	term_begin(p, print_man_head, print_man_foot, meta);
 	p->flags |= TERMP_NOSPACE;
 
 	memset(&mt, 0, sizeof(struct mtermp));
 
 	mt.lmargin[mt.lmargincur] = term_len(p, p->defindent);
 	mt.offset = term_len(p, p->defindent);
+	mt.pardist = 1;
 
 	if (n->child)
-		print_man_nodelist(p, &mt, n->child, m);
+		print_man_nodelist(p, &mt, n->child, meta);
 
 	term_end(p);
 }
@@ -201,8 +208,9 @@ a2width(const struct termp *p, const char *cp)
  * first, print it.
  */
 static void
-print_bvspace(struct termp *p, const struct man_node *n)
+print_bvspace(struct termp *p, const struct man_node *n, int pardist)
 {
+	int	 i;
 
 	term_newln(p);
 
@@ -214,7 +222,8 @@ print_bvspace(struct termp *p, const struct man_node *n)
 		if (NULL == n->prev)
 			return;
 
-	term_vspace(p);
+	for (i = 0; i < pardist; i++)
+		term_vspace(p);
 }
 
 /* ARGSUSED */
@@ -243,7 +252,7 @@ pre_literal(DECL_ARGS)
 
 	term_newln(p);
 
-	if (MAN_nf == n->tok)
+	if (MAN_nf == n->tok || MAN_EX == n->tok)
 		mt->fl |= MANT_LITERAL;
 	else
 		mt->fl &= ~MANT_LITERAL;
@@ -256,10 +265,26 @@ pre_literal(DECL_ARGS)
 	if (MAN_HP == n->parent->tok && p->rmargin < p->maxrmargin) {
 		p->offset = p->rmargin;
 		p->rmargin = p->maxrmargin;
-		p->flags &= ~(TERMP_NOBREAK | TERMP_TWOSPACE);
+		p->trailspace = 0;
+		p->flags &= ~TERMP_NOBREAK;
 		p->flags |= TERMP_NOSPACE;
 	}
 
+	return(0);
+}
+
+/* ARGSUSED */
+static int
+pre_PD(DECL_ARGS)
+{
+
+	n = n->child;
+	if (0 == n) {
+		mt->pardist = 1;
+		return(0);
+	}
+	assert(MAN_TEXT == n->type);
+	mt->pardist = atoi(n->string);
 	return(0);
 }
 
@@ -307,7 +332,7 @@ pre_alternate(DECL_ARGS)
 		term_fontrepl(p, font[i]);
 		if (savelit && NULL == nn->next)
 			mt->fl |= MANT_LITERAL;
-		print_man_node(p, mt, nn, m);
+		print_man_node(p, mt, nn, meta);
 		if (nn->next)
 			p->flags |= TERMP_NOSPACE;
 	}
@@ -438,28 +463,54 @@ pre_in(DECL_ARGS)
 static int
 pre_sp(DECL_ARGS)
 {
+	char		*s;
 	size_t		 i, len;
+	int		 neg;
 
 	if ((NULL == n->prev && n->parent)) {
-		if (MAN_SS == n->parent->tok)
+		switch (n->parent->tok) {
+		case (MAN_SH):
+			/* FALLTHROUGH */
+		case (MAN_SS):
+			/* FALLTHROUGH */
+		case (MAN_PP):
+			/* FALLTHROUGH */
+		case (MAN_LP):
+			/* FALLTHROUGH */
+		case (MAN_P):
+			/* FALLTHROUGH */
 			return(0);
-		if (MAN_SH == n->parent->tok)
-			return(0);
+		default:
+			break;
+		}
 	}
 
+	neg = 0;
 	switch (n->tok) {
 	case (MAN_br):
 		len = 0;
 		break;
 	default:
-		len = n->child ? a2height(p, n->child->string) : 1;
+		if (NULL == n->child) {
+			len = 1;
+			break;
+		}
+		s = n->child->string;
+		if ('-' == *s) {
+			neg = 1;
+			s++;
+		}
+		len = a2height(p, s);
 		break;
 	}
 
 	if (0 == len)
 		term_newln(p);
-	for (i = 0; i < len; i++)
-		term_vspace(p);
+	else if (neg)
+		p->skipvsp += len;
+	else
+		for (i = 0; i < len; i++)
+			term_vspace(p);
 
 	return(0);
 }
@@ -475,14 +526,17 @@ pre_HP(DECL_ARGS)
 
 	switch (n->type) {
 	case (MAN_BLOCK):
-		print_bvspace(p, n);
+		print_bvspace(p, n, mt->pardist);
 		return(1);
 	case (MAN_BODY):
-		p->flags |= TERMP_NOBREAK;
-		p->flags |= TERMP_TWOSPACE;
 		break;
 	default:
 		return(0);
+	}
+
+	if ( ! (MANT_LITERAL & mt->fl)) {
+		p->flags |= TERMP_NOBREAK;
+		p->trailspace = 2;
 	}
 
 	len = mt->lmargin[mt->lmargincur];
@@ -514,13 +568,10 @@ post_HP(DECL_ARGS)
 {
 
 	switch (n->type) {
-	case (MAN_BLOCK):
-		term_flushln(p);
-		break;
 	case (MAN_BODY):
-		term_flushln(p);
+		term_newln(p);
 		p->flags &= ~TERMP_NOBREAK;
-		p->flags &= ~TERMP_TWOSPACE;
+		p->trailspace = 0;
 		p->offset = mt->offset;
 		p->rmargin = p->maxrmargin;
 		break;
@@ -538,7 +589,7 @@ pre_PP(DECL_ARGS)
 	switch (n->type) {
 	case (MAN_BLOCK):
 		mt->lmargin[mt->lmargincur] = term_len(p, p->defindent);
-		print_bvspace(p, n);
+		print_bvspace(p, n, mt->pardist);
 		break;
 	default:
 		p->offset = mt->offset;
@@ -563,9 +614,10 @@ pre_IP(DECL_ARGS)
 		break;
 	case (MAN_HEAD):
 		p->flags |= TERMP_NOBREAK;
+		p->trailspace = 1;
 		break;
 	case (MAN_BLOCK):
-		print_bvspace(p, n);
+		print_bvspace(p, n, mt->pardist);
 		/* FALLTHROUGH */
 	default:
 		return(1);
@@ -598,7 +650,7 @@ pre_IP(DECL_ARGS)
 		mt->fl &= ~MANT_LITERAL;
 
 		if (n->child)
-			print_man_node(p, mt, n->child, m);
+			print_man_node(p, mt, n->child, meta);
 
 		if (savelit)
 			mt->fl |= MANT_LITERAL;
@@ -625,10 +677,12 @@ post_IP(DECL_ARGS)
 	case (MAN_HEAD):
 		term_flushln(p);
 		p->flags &= ~TERMP_NOBREAK;
+		p->trailspace = 0;
 		p->rmargin = p->maxrmargin;
 		break;
 	case (MAN_BODY):
 		term_newln(p);
+		p->offset = mt->offset;
 		break;
 	default:
 		break;
@@ -647,12 +701,13 @@ pre_TP(DECL_ARGS)
 	switch (n->type) {
 	case (MAN_HEAD):
 		p->flags |= TERMP_NOBREAK;
+		p->trailspace = 1;
 		break;
 	case (MAN_BODY):
 		p->flags |= TERMP_NOSPACE;
 		break;
 	case (MAN_BLOCK):
-		print_bvspace(p, n);
+		print_bvspace(p, n, mt->pardist);
 		/* FALLTHROUGH */
 	default:
 		return(1);
@@ -683,7 +738,7 @@ pre_TP(DECL_ARGS)
 		/* Don't print same-line elements. */
 		for (nn = n->child; nn; nn = nn->next)
 			if (nn->line > n->line)
-				print_man_node(p, mt, nn, m);
+				print_man_node(p, mt, nn, meta);
 
 		if (savelit)
 			mt->fl |= MANT_LITERAL;
@@ -694,6 +749,8 @@ pre_TP(DECL_ARGS)
 	case (MAN_BODY):
 		p->offset = mt->offset + len;
 		p->rmargin = p->maxrmargin;
+		p->trailspace = 0;
+		p->flags &= ~TERMP_NOBREAK;
 		break;
 	default:
 		break;
@@ -711,12 +768,10 @@ post_TP(DECL_ARGS)
 	switch (n->type) {
 	case (MAN_HEAD):
 		term_flushln(p);
-		p->flags &= ~TERMP_NOBREAK;
-		p->flags &= ~TERMP_TWOSPACE;
-		p->rmargin = p->maxrmargin;
 		break;
 	case (MAN_BODY):
 		term_newln(p);
+		p->offset = mt->offset;
 		break;
 	default:
 		break;
@@ -728,6 +783,7 @@ post_TP(DECL_ARGS)
 static int
 pre_SS(DECL_ARGS)
 {
+	int	 i;
 
 	switch (n->type) {
 	case (MAN_BLOCK):
@@ -740,11 +796,12 @@ pre_SS(DECL_ARGS)
 				break;
 		if (NULL == n->prev)
 			break;
-		term_vspace(p);
+		for (i = 0; i < mt->pardist; i++)
+			term_vspace(p);
 		break;
 	case (MAN_HEAD):
 		term_fontrepl(p, TERMFONT_BOLD);
-		p->offset = term_len(p, p->defindent/2);
+		p->offset = term_len(p, 3);
 		break;
 	case (MAN_BODY):
 		p->offset = mt->offset;
@@ -779,6 +836,7 @@ post_SS(DECL_ARGS)
 static int
 pre_SH(DECL_ARGS)
 {
+	int	 i;
 
 	switch (n->type) {
 	case (MAN_BLOCK):
@@ -792,7 +850,8 @@ pre_SH(DECL_ARGS)
 		/* If the first macro, no vspae. */
 		if (NULL == n->prev)
 			break;
-		term_vspace(p);
+		for (i = 0; i < mt->pardist; i++)
+			term_vspace(p);
 		break;
 	case (MAN_HEAD):
 		term_fontrepl(p, TERMFONT_BOLD);
@@ -890,6 +949,32 @@ post_RS(DECL_ARGS)
 		mt->lmargincur = mt->lmarginsz;
 }
 
+/* ARGSUSED */
+static int
+pre_UR(DECL_ARGS)
+{
+
+	return (MAN_HEAD != n->type);
+}
+
+/* ARGSUSED */
+static void
+post_UR(DECL_ARGS)
+{
+
+	if (MAN_BLOCK != n->type)
+		return;
+
+	term_word(p, "<");
+	p->flags |= TERMP_NOSPACE;
+
+	if (NULL != n->child->child)
+		print_man_node(p, mt, n->child->child, meta);
+
+	p->flags |= TERMP_NOSPACE;
+	term_word(p, ">");
+}
+
 static void
 print_man_node(DECL_ARGS)
 {
@@ -910,29 +995,8 @@ print_man_node(DECL_ARGS)
 			term_newln(p);
 
 		term_word(p, n->string);
+		goto out;
 
-		/*
-		 * If we're in a literal context, make sure that words
-		 * togehter on the same line stay together.  This is a
-		 * POST-printing call, so we check the NEXT word.  Since
-		 * -man doesn't have nested macros, we don't need to be
-		 * more specific than this.
-		 */
-		if (MANT_LITERAL & mt->fl && ! (TERMP_NOBREAK & p->flags) &&
-				(NULL == n->next || 
-				 n->next->line > n->line)) {
-			rm = p->rmargin;
-			rmax = p->maxrmargin;
-			p->rmargin = p->maxrmargin = TERM_MAXMARGIN;
-			p->flags |= TERMP_NOSPACE;
-			term_flushln(p);
-			p->rmargin = rm;
-			p->maxrmargin = rmax;
-		}
-
-		if (MAN_EOS & n->flags)
-			p->flags |= TERMP_SENTENCE;
-		return;
 	case (MAN_EQN):
 		term_eqn(p, n->eqn);
 		return;
@@ -954,16 +1018,41 @@ print_man_node(DECL_ARGS)
 
 	c = 1;
 	if (termacts[n->tok].pre)
-		c = (*termacts[n->tok].pre)(p, mt, n, m);
+		c = (*termacts[n->tok].pre)(p, mt, n, meta);
 
 	if (c && n->child)
-		print_man_nodelist(p, mt, n->child, m);
+		print_man_nodelist(p, mt, n->child, meta);
 
 	if (termacts[n->tok].post)
-		(*termacts[n->tok].post)(p, mt, n, m);
+		(*termacts[n->tok].post)(p, mt, n, meta);
 	if ( ! (MAN_NOTEXT & termacts[n->tok].flags))
 		term_fontrepl(p, TERMFONT_NONE);
 
+out:
+	/*
+	 * If we're in a literal context, make sure that words
+	 * together on the same line stay together.  This is a
+	 * POST-printing call, so we check the NEXT word.  Since
+	 * -man doesn't have nested macros, we don't need to be
+	 * more specific than this.
+	 */
+	if (MANT_LITERAL & mt->fl && ! (TERMP_NOBREAK & p->flags) &&
+	    (NULL == n->next || n->next->line > n->line)) {
+		rm = p->rmargin;
+		rmax = p->maxrmargin;
+		p->rmargin = p->maxrmargin = TERM_MAXMARGIN;
+		p->flags |= TERMP_NOSPACE;
+		if (NULL != n->string && '\0' != *n->string)
+			term_flushln(p);
+		else
+			term_newln(p);
+		if (rm < rmax && n->parent->tok == MAN_HP) {
+			p->offset = rm;
+			p->rmargin = rmax;
+		} else
+			p->rmargin = rm;
+		p->maxrmargin = rmax;
+	}
 	if (MAN_EOS & n->flags)
 		p->flags |= TERMP_SENTENCE;
 }
@@ -973,10 +1062,10 @@ static void
 print_man_nodelist(DECL_ARGS)
 {
 
-	print_man_node(p, mt, n, m);
+	print_man_node(p, mt, n, meta);
 	if ( ! n->next)
 		return;
-	print_man_nodelist(p, mt, n->next, m);
+	print_man_nodelist(p, mt, n->next, meta);
 }
 
 
@@ -1016,6 +1105,7 @@ print_man_foot(struct termp *p, const void *arg)
 	/* Bottom left corner: manual source. */
 
 	p->flags |= TERMP_NOSPACE | TERMP_NOBREAK;
+	p->trailspace = 1;
 	p->offset = 0;
 	p->rmargin = (p->maxrmargin - datelen + term_len(p, 1)) / 2;
 
@@ -1038,6 +1128,7 @@ print_man_foot(struct termp *p, const void *arg)
 
 	p->flags &= ~TERMP_NOBREAK;
 	p->flags |= TERMP_NOSPACE;
+	p->trailspace = 0;
 	p->offset = p->rmargin;
 	p->rmargin = p->maxrmargin;
 
@@ -1051,24 +1142,25 @@ print_man_head(struct termp *p, const void *arg)
 {
 	char		buf[BUFSIZ], title[BUFSIZ];
 	size_t		buflen, titlen;
-	const struct man_meta *m;
+	const struct man_meta *meta;
 
-	m = (const struct man_meta *)arg;
-	assert(m->title);
-	assert(m->msec);
+	meta = (const struct man_meta *)arg;
+	assert(meta->title);
+	assert(meta->msec);
 
-	if (m->vol)
-		strlcpy(buf, m->vol, BUFSIZ);
+	if (meta->vol)
+		strlcpy(buf, meta->vol, BUFSIZ);
 	else
 		buf[0] = '\0';
 	buflen = term_strlen(p, buf);
 
 	/* Top left corner: manual title and section. */
 
-	snprintf(title, BUFSIZ, "%s(%s)", m->title, m->msec);
+	snprintf(title, BUFSIZ, "%s(%s)", meta->title, meta->msec);
 	titlen = term_strlen(p, title);
 
 	p->flags |= TERMP_NOBREAK | TERMP_NOSPACE;
+	p->trailspace = 1;
 	p->offset = 0;
 	p->rmargin = 2 * (titlen+1) + buflen < p->maxrmargin ?
 	    (p->maxrmargin - 
@@ -1091,6 +1183,7 @@ print_man_head(struct termp *p, const void *arg)
 	/* Top right corner: title and section, again. */
 
 	p->flags &= ~TERMP_NOBREAK;
+	p->trailspace = 0;
 	if (p->rmargin + titlen <= p->maxrmargin) {
 		p->flags |= TERMP_NOSPACE;
 		p->offset = p->rmargin;

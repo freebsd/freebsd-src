@@ -1,4 +1,4 @@
-/*	$Id: catman.c,v 1.10 2012/01/03 15:17:20 kristaps Exp $ */
+/*	$Id: catman.c,v 1.11.2.2 2013/10/11 00:06:48 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -31,7 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__sun)
 # include <db_185.h>
 #else
 # include <db.h>
@@ -212,9 +212,6 @@ indexhtml(char *src, size_t ssz, char *dst, size_t dsz)
 	const char	*f;
 	char		*d;
 	char		 fname[MAXPATHLEN];
-	pid_t		 pid;
-
-	pid = -1;
 
 	xstrlcpy(fname, dst, MAXPATHLEN);
 	xstrlcat(fname, "/", MAXPATHLEN);
@@ -380,7 +377,8 @@ manup(const struct manpaths *dirs, char *base)
 	char		 dst[MAXPATHLEN],
 			 src[MAXPATHLEN];
 	const char	*path;
-	int		 i, c;
+	size_t		 i;
+	int		 c;
 	size_t		 sz;
 	FILE		*f;
 
