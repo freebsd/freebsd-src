@@ -973,10 +973,10 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 * blocks are zeroed out - ext2_balloc depends on this
 	 * although for regular files and directories only
 	 *
-	 * If EXT4_EXTENTS flag is enabled, unused blocks aren't
-	 * zeroed out because we could corrupt the extent tree.
+	 * If IN_E4EXTENTS is enabled, unused blocks are not zeroed
+	 * out because we could corrupt the extent tree.
 	 */
-	if (!(ip->i_flags & EXT4_EXTENTS) &&
+	if (!(ip->i_flag & IN_E4EXTENTS) &&
 	    (S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode))) {
 		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
