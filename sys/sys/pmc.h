@@ -95,6 +95,7 @@
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")		\
 	__PMC_CPU(MIPS_OCTEON,  0x201,  "Cavium Octeon")	\
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")	\
+	__PMC_CPU(PPC_970,      0x380,  "IBM PowerPC 970")	\
 	__PMC_CPU(GENERIC, 	0x400,  "Generic")
 
 enum pmc_cputype {
@@ -125,6 +126,7 @@ enum pmc_cputype {
 	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
 	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
 	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\
+	__PMC_CLASS(PPC970)	/* IBM PowerPC 970 class */		\
 	__PMC_CLASS(SOFT)	/* Software events */
 
 enum pmc_class {
