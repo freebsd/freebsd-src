@@ -69,10 +69,10 @@ __FBSDID("$FreeBSD$");
  * specifically).
  */
 
-struct powerpc_event_code_map {
+struct mpc7xxx_event_code_map {
 	enum pmc_event	pe_ev;       /* enum value */
 	uint8_t         pe_counter_mask;  /* Which counter this can be counted in. */
-	uint8_t			pe_code;     /* numeric code */
+	uint8_t		pe_code;     /* numeric code */
 };
 
 #define PPC_PMC_MASK1	0
@@ -85,7 +85,7 @@ struct powerpc_event_code_map {
 #define PMC_POWERPC_EVENT(id, mask, number) \
 	{ .pe_ev = PMC_EV_PPC7450_##id, .pe_counter_mask = mask, .pe_code = number }
 
-static struct powerpc_event_code_map powerpc_event_codes[] = {
+static struct mpc7xxx_event_code_map mpc7xxx_event_codes[] = {
 	PMC_POWERPC_EVENT(CYCLE,PPC_PMC_MASK_ALL, 1),
 	PMC_POWERPC_EVENT(INSTR_COMPLETED, 0x0f, 2),
 	PMC_POWERPC_EVENT(TLB_BIT_TRANSITIONS, 0x0f, 3),
@@ -311,8 +311,8 @@ static struct powerpc_event_code_map powerpc_event_codes[] = {
 	PMC_POWERPC_EVENT(PREFETCH_ENGINE_FULL, 0x20, 57)
 };
 
-const size_t powerpc_event_codes_size = 
-	sizeof(powerpc_event_codes) / sizeof(powerpc_event_codes[0]);
+const size_t mpc7xxx_event_codes_size = 
+	sizeof(mpc7xxx_event_codes) / sizeof(mpc7xxx_event_codes[0]);
 
 static pmc_value_t
 mpc7xxx_pmcn_read(unsigned int pmc)
@@ -565,6 +565,7 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	    M_WAITOK|M_ZERO);
 	pac->pc_ppcpmcs = malloc(sizeof(struct pmc_hw) * MPC7XXX_MAX_PMCS,
 	    M_PMC, M_WAITOK|M_ZERO);
+	pac->pc_class = PMC_CLASS_PPC7450;
 	pc = pmc_pcpu[cpu];
 	first_ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450].pcd_ri;
 	KASSERT(pc != NULL, ("[powerpc,%d] NULL per-cpu pointer", __LINE__));
@@ -611,14 +612,14 @@ mpc7xxx_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	caps = a->pm_caps;
 
 	pe = a->pm_ev;
-	for (i = 0; i < powerpc_event_codes_size; i++) {
-		if (powerpc_event_codes[i].pe_ev == pe) {
-			config = powerpc_event_codes[i].pe_code;
-			counter =  powerpc_event_codes[i].pe_counter_mask;
+	for (i = 0; i < mpc7xxx_event_codes_size; i++) {
+		if (mpc7xxx_event_codes[i].pe_ev == pe) {
+			config = mpc7xxx_event_codes[i].pe_code;
+			counter =  mpc7xxx_event_codes[i].pe_counter_mask;
 			break;
 		}
 	}
-	if (i == powerpc_event_codes_size)
+	if (i == mpc7xxx_event_codes_size)
 		return (EINVAL);
 
 	if ((counter & (1 << ri)) == 0)
@@ -724,6 +725,8 @@ pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep)
 {
 	struct pmc_classdep *pcd;
 
+	pmc_mdep->pmd_cputype = PMC_CPU_PPC_7450;
+
 	pcd = &pmc_mdep->pmd_classdep[PMC_MDEP_CLASS_INDEX_PPC7450];
 	pcd->pcd_caps  = POWERPC_PMC_CAPS;
 	pcd->pcd_class = PMC_CLASS_PPC7450;
@@ -735,6 +738,8 @@ pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep)
 	pcd->pcd_config_pmc     = mpc7xxx_config_pmc;
 	pcd->pcd_pcpu_fini      = mpc7xxx_pcpu_fini;
 	pcd->pcd_pcpu_init      = mpc7xxx_pcpu_init;
+	pcd->pcd_describe       = powerpc_describe;
+	pcd->pcd_get_config     = powerpc_get_config;
 	pcd->pcd_read_pmc       = mpc7xxx_read_pmc;
 	pcd->pcd_release_pmc    = mpc7xxx_release_pmc;
 	pcd->pcd_start_pmc      = mpc7xxx_start_pmc;
@@ -742,7 +747,7 @@ pmc_mpc7xxx_initialize(struct pmc_mdep *pmc_mdep)
  	pcd->pcd_write_pmc      = mpc7xxx_write_pmc;
 
 	pmc_mdep->pmd_npmc   += MPC7XXX_MAX_PMCS;
-	pmc_mdep->pmd_intr   = mpc7xxx_intr;
+	pmc_mdep->pmd_intr   =  mpc7xxx_intr;
 
-	return 0;
+	return (0);
 }
