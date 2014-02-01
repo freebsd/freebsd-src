@@ -687,6 +687,9 @@ hv_vmbus_load="YES"</programlisting>  Alternatively, the Hyper-V drivers can be 
 
     <para revision="254225">&man.nvi.1; supports wide character locales.</para>
 
+
+    <para role="merged"><application>sendmail</application> has been
+      updated from 8.14.7 to 8.14.8.</para>
   </sect2>
 
   <sect2 xml:id="ports">
