@@ -90,7 +90,7 @@ CFLAGS+=	-G0					\
 
 LDFLAGS=	-nostdlib				\
 		-static					\
-		-T ${.CURDIR}/linker.cfg		\
+		-T ${.CURDIR}/loader.cfg		\
 		-e __start
 
 # where to get libstand from
