@@ -2051,7 +2051,7 @@ mmu_booke_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 	pmap_t pmap;
 	vm_page_t m;
 	vm_offset_t addr;
-	vm_paddr_t pa;
+	vm_paddr_t pa = 0;
 	int active, valid;
  
 	va = trunc_page(va);
