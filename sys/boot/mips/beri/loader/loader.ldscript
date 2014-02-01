@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2012 Robert N. M. Watson
+ * Copyright (c) 2011-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -61,9 +61,9 @@ ENTRY(start)
 SECTIONS
 {
 	/*
-	 * Before entering linked C, loader will self-relocate from Intel
-	 * StrataFlash into DRAM reached via MIPS ckseg0.  We depend on the
-	 * firmware having set up a stack for us.
+	 * We rely on boot2 having (a) configured a stack, and (b) loaded us
+	 * to an appropriate bit of physical/virtual memory such that no
+	 * self-relocating code is required here.
 	 */
 	. = __loader_base_vaddr__;
 
