@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.3,v 1.17 2012/01/13 15:27:14 joerg Exp $
+.\"	$Id: mandoc.3,v 1.22 2013/10/06 17:01:52 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: January 13 2012 $
+.Dd $Mdocdate: October 6 2013 $
 .Dt MANDOC 3
 .Os
 .Sh NAME
@@ -43,15 +43,15 @@
 .Nm mparse_strlevel
 .Nd mandoc macro compiler library
 .Sh LIBRARY
-.Lb mandoc
+.Lb libmandoc
 .Sh SYNOPSIS
 .In man.h
 .In mdoc.h
 .In mandoc.h
 .Ft "enum mandoc_esc"
 .Fo mandoc_escape
-.Fa "const char **end"
-.Fa "const char **start"
+.Fa "const char const **end"
+.Fa "const char const **start"
 .Fa "int *sz"
 .Fc
 .Ft "const struct man_meta *"
@@ -67,7 +67,7 @@
 .Fa "const struct man *man"
 .Fc
 .Ft "struct mchars *"
-.Fn mchars_alloc
+.Fn mchars_alloc "void"
 .Ft void
 .Fn mchars_free "struct mchars *p"
 .Ft char
@@ -86,7 +86,6 @@
 .Fa "const struct mchars *p"
 .Fa "const char *cp"
 .Fa "size_t sz"
-.Ft "const char *"
 .Fc
 .Ft "const struct mdoc_meta *"
 .Fo mdoc_meta
@@ -257,16 +256,32 @@ and
 .Va sz
 may be
 .Dv NULL .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa mandoc.c .
 .It Fn man_meta
 Obtain the meta-data of a successful parse.
 This may only be used on a pointer returned by
 .Fn mparse_result .
+Declared in
+.In man.h ,
+implemented in
+.Pa man.c .
 .It Fn man_mparse
 Get the parser used for the current output.
+Declared in
+.In man.h ,
+implemented in
+.Pa man.c .
 .It Fn man_node
 Obtain the root node of a successful parse.
 This may only be used on a pointer returned by
 .Fn mparse_result .
+Declared in
+.In man.h ,
+implemented in
+.Pa man.c .
 .It Fn mchars_alloc
 Allocate an
 .Vt "struct mchars *"
@@ -276,33 +291,65 @@ See
 for an overview of special characters.
 The object must be freed with
 .Fn mchars_free .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mchars_free
 Free an object created with
 .Fn mchars_alloc .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mchars_num2char
 Convert a character index (e.g., the \eN\(aq\(aq escape) into a
 printable ASCII character.
 Returns \e0 (the nil character) if the input sequence is malformed.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mchars_num2uc
 Convert a hexadecimal character index (e.g., the \e[uNNNN] escape) into
 a Unicode codepoint.
 Returns \e0 (the nil character) if the input sequence is malformed.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mchars_spec2cp
 Convert a special character into a valid Unicode codepoint.
 Returns \-1 on failure or a non-zero Unicode codepoint on success.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mchars_spec2str
 Convert a special character into an ASCII string.
 Returns
 .Dv NULL
 on failure.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa chars.c .
 .It Fn mdoc_meta
 Obtain the meta-data of a successful parse.
 This may only be used on a pointer returned by
 .Fn mparse_result .
+Declared in
+.In mdoc.h ,
+implemented in
+.Pa mdoc.c .
 .It Fn mdoc_node
 Obtain the root node of a successful parse.
 This may only be used on a pointer returned by
 .Fn mparse_result .
+Declared in
+.In mdoc.h ,
+implemented in
+.Pa mdoc.c .
 .It Fn mparse_alloc
 Allocate a parser.
 The same parser may be used for multiple files so long as
@@ -310,18 +357,34 @@ The same parser may be used for multiple files so long as
 is called between parses.
 .Fn mparse_free
 must be called to free the memory allocated by this function.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_free
 Free all memory allocated by
 .Fn mparse_alloc .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_getkeep
 Acquire the keep buffer.
 Must follow a call of
 .Fn mparse_keep .
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_keep
 Instruct the parser to retain a copy of its parsed input.
 This can be acquired with subsequent
 .Fn mparse_getkeep
 calls.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_readfd
 Parse a file or file descriptor.
 If
@@ -336,10 +399,18 @@ is assumed to be the name associated with
 This may be called multiple times with different parameters; however,
 .Fn mparse_reset
 should be invoked between parses.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_reset
 Reset a parser so that
 .Fn mparse_readfd
 may be used again.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_result
 Obtain the result of a parse.
 Only successful parses
@@ -350,10 +421,22 @@ returned less than MANDOCLEVEL_FATAL
 .Pc
 should invoke this function, in which case one of the two pointers will
 be filled in.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_strerror
 Return a statically-allocated string representation of an error code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .It Fn mparse_strlevel
 Return a statically-allocated string representation of a level code.
+Declared in
+.In mandoc.h ,
+implemented in
+.Pa read.c .
 .El
 .Ss Variables
 .Bl -ohang
@@ -596,5 +679,4 @@ levels of badly-nested blocks.
 The
 .Nm
 library was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv .
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv .
