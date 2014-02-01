@@ -15,6 +15,6 @@ SRCS=	arch.c att.c chars.c \
 	tbl.c tbl_data.c tbl_layout.c tbl_opts.c vol.c
 
 WARNS?=	3
-CFLAGS+= -DHAVE_CONFIG_H -DVERSION="\"1.12.1\""
+CFLAGS+= -DHAVE_CONFIG_H
 
 .include <bsd.lib.mk>
