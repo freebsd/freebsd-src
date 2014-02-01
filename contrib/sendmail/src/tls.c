@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2006, 2008, 2009, 2011, 2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2006, 2008, 2009, 2011, 2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: tls.c,v 8.121 2013/01/02 23:54:17 ca Exp $")
+SM_RCSID("@(#)$Id: tls.c,v 8.127 2013/11/27 02:51:11 gshapiro Exp $")
 
 #if STARTTLS
 #  include <openssl/err.h>
@@ -282,6 +282,7 @@ init_tls_library(fipsmode)
 	/* basic TLS initialization, ignore result for now */
 	SSL_library_init();
 	SSL_load_error_strings();
+	OpenSSL_add_all_algorithms();
 # if 0
 	/* this is currently a macro for SSL_library_init */
 	SSLeay_add_ssl_algorithms();
@@ -645,8 +646,9 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	/*
 	**  valid values for dhparam are (only the first char is checked)
 	**  none	no parameters: don't use DH
-	**  512		generate 512 bit parameters (fixed)
+	**  512		use precomputed 512 bit parameters
 	**  1024	generate 1024 bit parameters
+	**  2048	generate 2048 bit parameters
 	**  /file/name	read parameters from /file/name
 	**  default is: 1024 for server, 512 for client (OK? XXX)
 	*/
@@ -659,6 +661,8 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 
 			if (c == '1')
 				req |= TLS_I_DH1024;
+			else if (c == '2')
+				req |= TLS_I_DH2048;
 			else if (c == '5')
 				req |= TLS_I_DH512;
 			else if (c != 'n' && c != 'N' && c != '/')
@@ -970,6 +974,9 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 	/* Diffie-Hellman initialization */
 	if (bitset(TLS_I_TRY_DH, req))
 	{
+#if _FFR_TLS_EC
+		EC_KEY *ecdh;
+#endif /* _FFR_TLS_EC */
 		if (bitset(TLS_S_DHPAR_OK, status))
 		{
 			BIO *bio;
@@ -1003,19 +1010,28 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 				}
 			}
 		}
-		if (dh == NULL && bitset(TLS_I_DH1024, req))
+		if (dh == NULL && bitset(TLS_I_DH1024|TLS_I_DH2048, req))
 		{
+			int bits;
 			DSA *dsa;
 
-			/* this takes a while! (7-130s on a 450MHz AMD K6-2) */
-			dsa = DSA_generate_parameters(1024, NULL, 0, NULL,
+			bits = bitset(TLS_I_DH2048, req) ? 2048 : 1024;
+			if (tTd(96, 2))
+				sm_dprintf("inittls: Generating %d bit DH parameters\n", bits);
+
+			/* this takes a while! */
+			dsa = DSA_generate_parameters(bits, NULL, 0, NULL,
 						      NULL, 0, NULL);
 			dh = DSA_dup_DH(dsa);
 			DSA_free(dsa);
 		}
 		else
 		if (dh == NULL && bitset(TLS_I_DH512, req))
+		{
+			if (tTd(96, 2))
+				sm_dprintf("inittls: Using precomputed 512 bit DH parameters\n");
 			dh = get_dh512();
+		}
 
 		if (dh == NULL)
 		{
@@ -1034,16 +1050,27 @@ inittls(ctx, req, options, srv, certfile, keyfile, cacertpath, cacertfile, dhpar
 		}
 		else
 		{
-			SSL_CTX_set_tmp_dh(*ctx, dh);
-
 			/* important to avoid small subgroup attacks */
 			SSL_CTX_set_options(*ctx, SSL_OP_SINGLE_DH_USE);
+
+			SSL_CTX_set_tmp_dh(*ctx, dh);
 			if (LogLevel > 13)
 				sm_syslog(LOG_INFO, NOQID,
 					  "STARTTLS=%s, Diffie-Hellman init, key=%d bit (%c)",
 					  who, 8 * DH_size(dh), *dhparam);
 			DH_free(dh);
 		}
+
+#if _FFR_TLS_EC
+		ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
+		if (ecdh != NULL)
+		{
+			SSL_CTX_set_options(*ctx, SSL_OP_SINGLE_ECDH_USE);
+			SSL_CTX_set_tmp_ecdh(*ctx, ecdh);
+			EC_KEY_free(ecdh);
+		}
+#endif /* _FFR_TLS_EC */
+
 	}
 # endif /* !NO_DH */
 

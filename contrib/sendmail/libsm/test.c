@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_IDSTR(Id, "@(#)$Id: test.c,v 1.16 2002/01/08 17:54:40 ca Exp $")
+SM_IDSTR(Id, "@(#)$Id: test.c,v 1.17 2013/11/22 20:51:44 ca Exp $")
 
 /*
 **  Abstractions for writing libsm test programs.

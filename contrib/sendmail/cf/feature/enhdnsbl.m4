@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2002, 2005-2007 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002, 2005-2007 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -13,7 +13,7 @@ ifelse(defn(`_ARG_'), `',
 	`errprint(`*** ERROR: missing argument for FEATURE(`enhdnsbl')')')
 divert(0)
 ifdef(`_EDNSBL_R_',`dnl',`dnl
-VERSIONID(`$Id: enhdnsbl.m4,v 1.12 2007/01/08 18:22:05 ca Exp $')
+VERSIONID(`$Id: enhdnsbl.m4,v 1.13 2013/11/22 20:51:11 ca Exp $')
 LOCAL_CONFIG
 define(`_EDNSBL_R_',`')dnl
 # map for enhanced DNS based blacklist lookups
