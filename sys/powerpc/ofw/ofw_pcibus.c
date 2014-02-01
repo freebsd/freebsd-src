@@ -216,12 +216,8 @@ ofw_pcibus_enum_devtree(device_t dev, u_int domain, u_int busno)
 					    "#interrupt-cells", &icells,
 					    sizeof(icells));
 					intr[0] = ofw_bus_map_intr(dev, iparent,
-					    intr[0]);
+					    icells, intr);
 				}
-
-				if (iparent != 0 && icells > 1)
-					ofw_bus_config_intr(dev, intr[0],
-					    intr[1]);
 
 				resource_list_add(&dinfo->opd_dinfo.resources,
 				    SYS_RES_IRQ, 0, intr[0], intr[0], 1);
@@ -309,18 +305,18 @@ ofw_pcibus_child_pnpinfo_str_method(device_t cbdev, device_t child, char *buf,
 static int
 ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 {
-	ofw_pci_intr_t intr;
+	ofw_pci_intr_t intr[2];
 	phandle_t node, iparent;
-	int isz;
+	int isz, icells;
 
 	node = ofw_bus_get_node(child);
 
 	if (node == -1) {
 		/* Non-firmware enumerated child, use standard routing */
 	
-		intr = pci_get_intpin(child);
+		intr[0] = pci_get_intpin(child);
 		return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, 
-		    intr));
+		    intr[0]));
 	}
 	
 	/*
@@ -331,24 +327,28 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	iparent = -1;
 	if (OF_getprop(node, "interrupt-parent", &iparent, sizeof(iparent)) < 0)
 		iparent = -1;
+	icells = 1;
+	if (iparent != -1)
+		OF_getprop(OF_xref_phandle(iparent), "#interrupt-cells",
+		    &icells, sizeof(icells));
 	
 	/*
 	 * Any AAPL,interrupts property gets priority and is
 	 * fully specified (i.e. does not need routing)
 	 */
 
-	isz = OF_getprop(node, "AAPL,interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr))
-		return ((iparent == -1) ? intr : ofw_bus_map_intr(dev, iparent,
-		    intr));
+	isz = OF_getprop(node, "AAPL,interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells)
+		return ((iparent == -1) ? intr[0] : ofw_bus_map_intr(dev,
+		    iparent, icells, intr));
 
-	isz = OF_getprop(node, "interrupts", &intr, sizeof(intr));
-	if (isz == sizeof(intr)) {
+	isz = OF_getprop(node, "interrupts", intr, sizeof(intr));
+	if (isz == sizeof(intr[0])*icells) {
 		if (iparent != -1)
-			intr = ofw_bus_map_intr(dev, iparent, intr);
+			intr[0] = ofw_bus_map_intr(dev, iparent, icells, intr);
 	} else {
 		/* No property: our best guess is the intpin. */
-		intr = pci_get_intpin(child);
+		intr[0] = pci_get_intpin(child);
 	}
 	
 	/*
@@ -361,7 +361,7 @@ ofw_pcibus_assign_interrupt(device_t dev, device_t child)
 	 * will always use the route_interrupt method, and treat exceptions
 	 * on the level they become apparent.
 	 */
-	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr));
+	return (PCIB_ROUTE_INTERRUPT(device_get_parent(dev), child, intr[0]));
 }
 
 static const struct ofw_bus_devinfo *
