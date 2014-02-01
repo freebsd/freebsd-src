@@ -123,6 +123,25 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RW,
 
 #define	WSP_IFACE_INDEX	1
 
+/*
+ * Some tables, structures, definitions and initialisation values for
+ * the touchpad protocol has been copied from Linux's
+ * "drivers/input/mouse/bcm5974.c" which has the following copyright
+ * holders under GPLv2. All device specific code in this driver has
+ * been written from scratch. The decoding algorithm is based on
+ * output from usbdump.
+ *
+ * Copyright (C) 2008      Henrik Rydberg (rydberg@euromail.se)
+ * Copyright (C) 2008      Scott Shawcroft (scott.shawcroft@gmail.com)
+ * Copyright (C) 2001-2004 Greg Kroah-Hartman (greg@kroah.com)
+ * Copyright (C) 2005      Johannes Berg (johannes@sipsolutions.net)
+ * Copyright (C) 2005      Stelian Pop (stelian@popies.net)
+ * Copyright (C) 2005      Frank Arnold (frank@scirocco-5v-turbo.de)
+ * Copyright (C) 2005      Peter Osterlund (petero2@telia.com)
+ * Copyright (C) 2005      Michael Hanselmann (linux-kernel@hansmi.ch)
+ * Copyright (C) 2006      Nicolas Boichat (nicolas@boichat.ch)
+ */
+
 /* button data structure */
 struct bt_data {
 	uint8_t	unknown1;		/* constant */
