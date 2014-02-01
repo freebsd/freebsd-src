@@ -160,7 +160,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 {
 	u_int intr = MAP_IRQ(iparent, irq[0]);
 	if (icells > 1)
-		powerpc_fw_config_intr(irq[0], irq[1]);
+		powerpc_fw_config_intr(intr, irq[1]);
 	return (intr);
 }
 
