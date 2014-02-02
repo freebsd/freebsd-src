@@ -2071,33 +2071,30 @@ vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
 	struct virtqueue *vq;
 	struct sglist *sg;
 	struct mbuf *m;
-	int collapsed, error;
+	int error;
 
 	sc = txq->vtntx_sc;
 	vq = txq->vtntx_vq;
 	sg = txq->vtntx_sg;
 	m = *m_head;
-	collapsed = 0;
 
 	sglist_reset(sg);
 	error = sglist_append(sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
 	KASSERT(error == 0 && sg->sg_nseg == 1,
 	    ("%s: error %d adding header to sglist", __func__, error));
 
-again:
 	error = sglist_append_mbuf(sg, m);
 	if (error) {
-		if (collapsed)
-			goto fail;
-
-		m = m_collapse(m, M_NOWAIT, sc->vtnet_tx_nsegs - 1);
+		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL)
 			goto fail;
 
 		*m_head = m;
-		collapsed = 1;
-		txq->vtntx_stats.vtxs_collapsed++;
-		goto again;
+		sc->vtnet_stats.tx_defragged++;
+
+		error = sglist_append_mbuf(sg, m);
+		if (error)
+			goto fail;
 	}
 
 	txhdr->vth_mbuf = m;
@@ -2106,6 +2103,7 @@ again:
 	return (error);
 
 fail:
+	sc->vtnet_stats.tx_defrag_failed++;
 	m_freem(*m_head);
 	*m_head = NULL;
 
@@ -2550,7 +2548,6 @@ vtnet_txq_accum_stats(struct vtnet_txq *txq, struct vtnet_txq_stats *accum)
 	accum->vtxs_obytes += st->vtxs_obytes;
 	accum->vtxs_csum += st->vtxs_csum;
 	accum->vtxs_tso += st->vtxs_tso;
-	accum->vtxs_collapsed += st->vtxs_collapsed;
 	accum->vtxs_rescheduled += st->vtxs_rescheduled;
 }
 
@@ -3631,8 +3628,6 @@ vtnet_setup_txq_sysctl(struct sysctl_ctx_list *ctx,
 	    &stats->vtxs_csum, "Transmit checksum offloaded");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "tso", CTLFLAG_RD,
 	    &stats->vtxs_tso, "Transmit segmentation offloaded");
-	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "collapsed", CTLFLAG_RD,
-	    &stats->vtxs_collapsed, "Transmit mbufs collapsed");
 	SYSCTL_ADD_UQUAD(ctx, list, OID_AUTO, "rescheduled", CTLFLAG_RD,
 	    &stats->vtxs_rescheduled,
 	    "Transmit interrupt handler rescheduled");
@@ -3712,6 +3707,12 @@ vtnet_setup_stat_sysctl(struct sysctl_ctx_list *ctx,
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_tso_not_tcp",
 	    CTLFLAG_RD, &stats->tx_tso_not_tcp,
 	    "Aborted transmit of TSO buffer with non TCP protocol");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defragged",
+	    CTLFLAG_RD, &stats->tx_defragged,
+	    "Transmit mbufs defragged");
+	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_defrag_failed",
+	    CTLFLAG_RD, &stats->tx_defrag_failed,
+	    "Aborted transmit of buffer because defrag failed");
 	SYSCTL_ADD_UQUAD(ctx, child, OID_AUTO, "tx_csum_offloaded",
 	    CTLFLAG_RD, &stats->tx_csum_offloaded,
 	    "Offloaded checksum of transmitted buffer");
