@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Robert N. M. Watson
+ * Copyright (c) 2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -26,50 +26,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- */
-
-/*
- * MIPS segment definitions.
- */
-__mips_ckseg_cached__ = 0xffffffff80000000;	/* BSD kernel here. */
-__mips64_xkphys_cached__ = 0x9800000000000000;	/* Device memory here. */
-__mips64_xkphys_uncached__ = 0x9000000000000000; /* Device I/O here. */
-
-/*
- * Physical addresses of various peripherals.
- */
-__cheri_flash_base__ = 0x74000000;
-__cheri_sdcard_base__ = 0x7f008000;
-
-/*
- * Location of boot2 in flash.
- */
-__cheri_flash_boot_loader_base_ = 0x03fe0000;
-__cheri_flash_boot_loader_vaddr__ = __mips64_xkphys_cached__ +
-    __cheri_flash_base__ + __cheri_flash_boot_loader_base_;
-
-/*
- * Location of boot file system in flash.
- */
-__cheri_flash_bootfs_base__ = 0x1820000;
-__cheri_flash_bootfs_len__ = 0x27c0000;
-__cheri_flash_bootfs_vaddr__ = __mips64_xkphys_cached__ +
-    __cheri_flash_base__ + __cheri_flash_bootfs_base__;
-
-/*
- * Location of SD card controller.
- */
-__cheri_sdcard_vaddr__ = __mips64_xkphys_uncached__ + __cheri_sdcard_base__;
-
-/*
- * Location where the production kernel gets put.  This must agree with other
- * definitions, such as in the kernel's own linker script.
  *
- * (As it happens, in the short run, we also place boot2 here, as Miniboot
- * expects to find an ELF binary there -- but that will change.)
  */
-__kernel_base__ = 0x100000;
-__kernel_vaddr__ = __mips64_xkphys_cached__ + __kernel_base__;
 
-OUTPUT_FORMAT("elf64-tradbigmips");
-OUTPUT_ARCH(mips)
+#ifndef _SDCARD_H_
+#define	_SDCARD_H_
+
+int	altera_sdcard_read(void *buf, unsigned lba, unsigned nblk);
+
+#endif /* !_SDCARD_H_ */
