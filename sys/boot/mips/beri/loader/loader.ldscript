@@ -66,6 +66,7 @@ SECTIONS
 	 * self-relocating code is required here.
 	 */
 	. = __loader_base_vaddr__;
+	. += SIZEOF_HEADERS;
 
 	.text ALIGN(0x8): {
 		start.o(.text)
