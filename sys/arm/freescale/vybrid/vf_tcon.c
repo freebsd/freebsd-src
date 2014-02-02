@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/vybrid/vf_common.h>
 
 #define	TCON0_CTRL1	0x00
+#define	TCON_BYPASS	(1 << 29)
 
 struct tcon_softc {
 	struct resource		*res[1];
@@ -80,7 +81,7 @@ tcon_bypass(void)
 
 	sc = tcon_sc;
 
-	WRITE4(tcon_sc, TCON0_CTRL1, (1 << 29));
+	WRITE4(tcon_sc, TCON0_CTRL1, TCON_BYPASS);
 
 	return (0);
 }
