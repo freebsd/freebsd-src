@@ -119,6 +119,10 @@ ti_mbox_reg_write(struct ti_mbox_softc *sc, uint16_t reg, uint32_t val)
 static int
 ti_mbox_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "ti,system-mbox")) {
 		device_set_desc(dev, "TI System Mailbox");
 		return (BUS_PROBE_DEFAULT);

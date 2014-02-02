@@ -244,6 +244,9 @@ static int
 arm_tmr_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
 		return (ENXIO);
 
