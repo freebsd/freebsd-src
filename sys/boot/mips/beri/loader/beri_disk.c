@@ -56,11 +56,11 @@ struct devsw beri_cfi_disk = {
 	.dv_name = "cfi",
 	.dv_type = DEVT_DISK,
 	.dv_init = beri_disk_init,
-	.dv_strategy = beri_sdcard_disk_strategy,
+	.dv_strategy = beri_cfi_disk_strategy,
 	.dv_open = beri_disk_open,
 	.dv_close = beri_disk_close,
 	.dv_ioctl = beri_disk_ioctl,
-	.dv_print = beri_sdcard_disk_print,
+	.dv_print = beri_cfi_disk_print,
  	.dv_cleanup = beri_disk_cleanup,
 };
 
