@@ -36,17 +36,6 @@ __FBSDID("$FreeBSD$");
 .set nobopt
 .set noat
 
-/*-
- * Starting point for loader on MIPS -- assume that boot2 has either inherited
- * or otherwise configured a stack, and loaded us at the right
- * physical/virtual addresses.
- *
- * Arguments as follows:
- * a0 - boot2 kernel flags
- * a1 - physical memory size as received from firmware
- * a2 - dtb pointer as received from firmware
- */
-
 ASM_ENTRY(__start)
 VECTOR(_loader_start, unknown)
 	/* Not much here yet. */
