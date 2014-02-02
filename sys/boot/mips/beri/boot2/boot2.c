@@ -123,11 +123,11 @@ extern register_t	beri_memsize;
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
-#define	TYPE_CFI	0		/* CFI flash. */
-#define	TYPE_SDCARD	1		/* Altera SD Card. */
-#define	TYPE_DRAM	2		/* File system found in DRAM. */
+#define	TYPE_CFI	0		/* CFI flash ("cf"). */
+#define	TYPE_SDCARD	1		/* Altera SD Card ("sd"). */
+#define	TYPE_DRAM	2		/* File system in DRAM ("dr"). */
 #define	TYPE_MAXHARD	1
-#define	TYPE_DRAM_KERNEL	3	/* Kernel found in DRAM. */
+#define	TYPE_DRAM_KERNEL	3	/* Kernel/loader file in DRAM ("dl"). */
 
 /* Default to using CFI flash. */
 #define	TYPE_DEFAULT	TYPE_CFI
@@ -158,7 +158,7 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[NDEV] = {"cf", "sd", "dr", "dk"};
+static const char *const dev_nm[NDEV] = {"cf", "sd", "dr", "dl"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static struct dmadat __dmadat;
