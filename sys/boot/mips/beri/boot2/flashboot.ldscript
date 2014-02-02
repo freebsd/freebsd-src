@@ -28,7 +28,7 @@
  * SUCH DAMAGE.
  */
 
-INCLUDE common.ldscript
+INCLUDE ../common/common.ldscript
 
 /*
  * When boot2 is loaded via JTAG, it's dropped at 0x10000, and will not need

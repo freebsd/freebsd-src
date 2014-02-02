@@ -28,20 +28,7 @@
  * SUCH DAMAGE.
  */
 
-/*
- * MIPS segment definitions.
- */
-__mips_ckseg_cached__ = 0xffffffff80000000;	/* BSD kernel here. */
-__mips64_xkphys_cached__ = 0x9800000000000000;	/* Device memory here. */
-
-/*
- * Location of boot file system in flash.
- */
-__cheri_flash_base__ = 0x74000000;
-__cheri_flash_bootfs_base__ = 0x2000000;
-__cheri_flash_bootfs_len__ = 0x2000000;
-__cheri_flash_bootfs_vaddr__ = __mips64_xkphys_cached__ +
-    __cheri_flash_base__ + __cheri_flash_bootfs_base__;
+INCLUDE ../common/common.ldscript
 
 /*
  * Location where loader will execute.
