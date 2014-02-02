@@ -248,7 +248,7 @@ name:
 	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
 
 #define GET_CURTHREAD_PTR(tmp) \
-	ldr	tmp, .Lcurthread     \
+	ldr	tmp, .Lcurthread;     \
 	ldr	tmp, [tmp]
 #endif
 
