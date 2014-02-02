@@ -248,6 +248,7 @@ getstr(void)
 	    break;
 	case '\n':
 	case '\r':
+		putchar('\n');
 	    *s = 0;
 	    return;
 	default:
