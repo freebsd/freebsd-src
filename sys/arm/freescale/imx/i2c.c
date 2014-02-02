@@ -224,6 +224,9 @@ i2c_probe(device_t dev)
 {
 	struct i2c_softc *sc;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,imx-i2c"))
 		return (ENXIO);
 

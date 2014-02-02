@@ -186,6 +186,9 @@ static int
 bcm_systimer_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "broadcom,bcm2835-system-timer")) {
 		device_set_desc(dev, "BCM2835 System Timer");
 		return (BUS_PROBE_DEFAULT);
