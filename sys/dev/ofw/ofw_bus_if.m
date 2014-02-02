@@ -46,6 +46,7 @@ HEADER {
 		char		*obd_model;
 		char		*obd_name;
 		char		*obd_type;
+		char		*obd_status;
 	};
 };
 
