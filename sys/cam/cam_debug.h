@@ -61,13 +61,13 @@ typedef enum {
 #endif
 
 #ifndef CAM_DEBUG_BUS
-#define CAM_DEBUG_BUS		(-1)
+#define CAM_DEBUG_BUS		CAM_BUS_WILDCARD
 #endif
 #ifndef CAM_DEBUG_TARGET
-#define CAM_DEBUG_TARGET	(-1)
+#define CAM_DEBUG_TARGET	CAM_TARGET_WILDCARD
 #endif
 #ifndef CAM_DEBUG_LUN
-#define CAM_DEBUG_LUN		(-1)
+#define CAM_DEBUG_LUN		CAM_LUN_WILDCARD
 #endif
 
 #ifndef CAM_DEBUG_DELAY
@@ -94,6 +94,17 @@ extern u_int32_t cam_debug_delay;
 	 && (xpt_path_comp(cam_dpath, path) >= 0)	\
 	 && (xpt_path_comp(cam_dpath, path) < 2)) {	\
 		xpt_print_path(path);			\
+		printf printfargs;			\
+		if (cam_debug_delay != 0)		\
+			DELAY(cam_debug_delay);		\
+	}
+
+#define	CAM_DEBUG_DEV(dev, flag, printfargs)		\
+	if (((flag) & (CAM_DEBUG_COMPILE) & cam_dflags)	\
+	 && (cam_dpath != NULL)				\
+	 && (xpt_path_comp_dev(cam_dpath, dev) >= 0)	\
+	 && (xpt_path_comp_dev(cam_dpath, dev) < 2)) {	\
+		xpt_print_device(dev);			\
 		printf printfargs;			\
 		if (cam_debug_delay != 0)		\
 			DELAY(cam_debug_delay);		\

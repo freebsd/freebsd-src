@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2009
+.Dd October 1, 2013
 .Dt DD 1
 .Os
 .Sh NAME
@@ -378,12 +378,12 @@ will exit.
 .Sh EXAMPLES
 Check that a disk drive contains no bad blocks:
 .Pp
-.Dl "dd if=/dev/ad0 of=/dev/null bs=1m"
+.Dl "dd if=/dev/ada0 of=/dev/null bs=1m"
 .Pp
 Do a refresh of a disk drive, in order to prevent presently
 recoverable read errors from progressing into unrecoverable read errors:
 .Pp
-.Dl "dd if=/dev/ad0 of=/dev/ad0 bs=1m"
+.Dl "dd if=/dev/ada0 of=/dev/ada0 bs=1m"
 .Pp
 Remove parity bit from a file:
 .Pp

@@ -954,7 +954,8 @@ addpartform:
 	}
 
 	/* If there isn't one, and we need one, ask */
-	if (strcmp(items[2].text, "/") == 0 && bootpart_size(scheme) > 0 &&
+	if ((strcmp(items[0].text, "freebsd") == 0 ||
+	    strcmp(items[2].text, "/") == 0) && bootpart_size(scheme) > 0 &&
 	    pp == NULL) {
 		if (interactive)
 			choice = dialog_yesno("Boot Partition",

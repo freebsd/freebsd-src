@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd January 23, 2014
 .Dt POSIX_FALLOCATE 2
 .Os
 .Sh NAME
@@ -83,9 +83,8 @@ that reduces the file size to a size smaller than
 If successful,
 .Fn posix_fallocate
 returns zero.
-It returns -1 on failure, and sets
-.Va errno
-to indicate the error.
+It returns an error on failure, without setting
+.Va errno .
 .Sh ERRORS
 Possible failure conditions:
 .Bl -tag -width Er
@@ -107,7 +106,7 @@ A signal was caught during execution.
 .It Bq Er EINVAL
 The
 .Fa len
-argument was zero or the
+argument was less than or equal to zero or the
 .Fa offset
 argument was less than zero.
 .It Bq Er EIO

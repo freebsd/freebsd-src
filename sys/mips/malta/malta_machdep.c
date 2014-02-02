@@ -269,8 +269,8 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
-	char **argv = (char **)a1;
-	char **envp = (char **)a2;
+	int32_t *argv = (int32_t*)a1;
+	int32_t *envp = (int32_t*)a2;
 	unsigned int memsize = a3;
 	int i;
 
@@ -289,15 +289,20 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	printf("entry: platform_start()\n");
 
 	bootverbose = 1;
+	/* 
+	 * YAMON uses 32bit pointers to strings so
+	 * convert them to proper type manually
+	 */
 	if (bootverbose) {
 		printf("cmd line: ");
 		for (i = 0; i < argc; i++)
-			printf("%s ", argv[i]);
+			printf("%s ", (char*)(intptr_t)argv[i]);
 		printf("\n");
 
 		printf("envp:\n");
 		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", envp[i], envp[i+1]);
+			printf("\t%s = %s\n", (char*)(intptr_t)envp[i],
+			    (char*)(intptr_t)envp[i+1]);
 
 		printf("memsize = %08x\n", memsize);
 	}

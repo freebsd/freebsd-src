@@ -365,6 +365,8 @@ static kobj_method_t ns8250_methods[] = {
 	KOBJMETHOD(uart_receive,	ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	ns8250_bus_transmit),
+	KOBJMETHOD(uart_grab,		ns8250_bus_grab),
+	KOBJMETHOD(uart_ungrab,		ns8250_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -453,7 +455,19 @@ ns8250_bus_attach(struct uart_softc *sc)
 	ns8250->ier |= ns8250->ier_rxbits;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
-	
+
+	/*
+	 * Timing of the H/W access was changed with r253161 of uart_core.c
+	 * It has been observed that an ITE IT8513E would signal a break
+	 * condition with pretty much every character it received, unless
+	 * it had enough time to settle between ns8250_bus_attach() and
+	 * ns8250_bus_ipend() -- which it accidentally had before r253161.
+	 * It's not understood why the UART chip behaves this way and it
+	 * could very well be that the DELAY make the H/W work in the same
+	 * accidental manner as before. More analysis is warranted, but
+	 * at least now we fixed a known regression.
+	 */
+	DELAY(200);
 	return (0);
 }
 
@@ -635,11 +649,35 @@ int
 ns8250_bus_param(struct uart_softc *sc, int baudrate, int databits,
     int stopbits, int parity)
 {
+	struct ns8250_softc *ns8250;
 	struct uart_bas *bas;
-	int error;
+	int error, limit;
 
+	ns8250 = (struct ns8250_softc*)sc;
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
+	/*
+	 * When using DW UART with BUSY detection it is necessary to wait
+	 * until all serial transfers are finished before manipulating the
+	 * line control. LCR will not be affected when UART is busy.
+	 */
+	if (ns8250->busy_detect != 0) {
+		/*
+		 * Pick an arbitrary high limit to avoid getting stuck in
+		 * an infinite loop in case when the hardware is broken.
+		 */
+		limit = 10 * 1024;
+		while (((uart_getreg(bas, DW_REG_USR) & USR_BUSY) != 0) &&
+		    --limit)
+			DELAY(4);
+
+		if (limit <= 0) {
+			/* UART appears to be stuck */
+			uart_unlock(sc->sc_hwmtx);
+			return (EIO);
+		}
+	}
+
 	error = ns8250_param(bas, baudrate, databits, stopbits, parity);
 	uart_unlock(sc->sc_hwmtx);
 	return (error);
@@ -885,4 +923,35 @@ ns8250_bus_transmit(struct uart_softc *sc)
 	if (broken_txfifo)
 		uart_sched_softih(sc, SER_INT_TXIDLE);
 	return (0);
+}
+
+void
+ns8250_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * turn off all interrupts to enter polling mode. Leave the
+	 * saved mask alone. We'll restore whatever it was in ungrab.
+	 * All pending interupt signals are reset when IER is set to 0.
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, 0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+void
+ns8250_bus_ungrab(struct uart_softc *sc)
+{
+	struct ns8250_softc *ns8250 = (struct ns8250_softc*)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * Restore previous interrupt mask
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, ns8250->ier);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }

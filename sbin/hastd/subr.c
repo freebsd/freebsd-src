@@ -231,6 +231,7 @@ drop_privs(const struct hast_resource *res)
 		pjdlog_common(LOG_DEBUG, 1, errno,
 		    "Unable to sandbox using capsicum");
 	} else if (res != NULL) {
+		cap_rights_t rights;
 		static const unsigned long geomcmds[] = {
 		    DIOCGDELETE,
 		    DIOCGFLUSH
@@ -239,8 +240,9 @@ drop_privs(const struct hast_resource *res)
 		PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY ||
 		    res->hr_role == HAST_ROLE_SECONDARY);
 
-		if (cap_rights_limit(res->hr_localfd,
-		    CAP_FLOCK | CAP_IOCTL | CAP_PREAD | CAP_PWRITE) == -1) {
+		cap_rights_init(&rights, CAP_FLOCK, CAP_IOCTL, CAP_PREAD,
+		    CAP_PWRITE);
+		if (cap_rights_limit(res->hr_localfd, &rights) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to limit capability rights on local descriptor");
 		}
@@ -258,7 +260,8 @@ drop_privs(const struct hast_resource *res)
 			    G_GATE_CMD_DESTROY
 			};
 
-			if (cap_rights_limit(res->hr_ggatefd, CAP_IOCTL) == -1) {
+			cap_rights_init(&rights, CAP_IOCTL);
+			if (cap_rights_limit(res->hr_ggatefd, &rights) == -1) {
 				pjdlog_errno(LOG_ERR,
 				    "Unable to limit capability rights to CAP_IOCTL on ggate descriptor");
 			}

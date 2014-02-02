@@ -1,10 +1,10 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 1993-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
- * $Id: kmem.h,v 2.5 2002/08/21 22:57:36 darrenr Exp $
+ * $Id$
  */
 
 #ifndef	__KMEM_H__

@@ -664,4 +664,4 @@ static struct g_class g_uncompress_class = {
 };
 
 DECLARE_GEOM_CLASS(g_uncompress_class, g_uncompress);
-
+MODULE_DEPEND(g_uncompress, zlib, 1, 1, 1);

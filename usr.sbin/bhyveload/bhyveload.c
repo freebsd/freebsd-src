@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/disk.h>
+#include <sys/queue.h>
 
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
@@ -67,12 +68,15 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <dlfcn.h>
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -84,9 +88,10 @@ __FBSDID("$FreeBSD$");
 #define	GB	(1024 * 1024 * 1024UL)
 #define	BSP	0
 
-static char *host_base = "/";
+static char *host_base;
 static struct termios term, oldterm;
 static int disk_fd = -1;
+static int consin_fd, consout_fd;
 
 static char *vmname, *progname;
 static struct vmctx *ctx;
@@ -104,7 +109,7 @@ cb_putc(void *arg, int ch)
 {
 	char c = ch;
 
-	write(1, &c, 1);
+	(void) write(consout_fd, &c, 1);
 }
 
 static int
@@ -112,7 +117,7 @@ cb_getc(void *arg)
 {
 	char c;
 
-	if (read(0, &c, 1) == 1)
+	if (read(consin_fd, &c, 1) == 1)
 		return (c);
 	return (-1);
 }
@@ -122,7 +127,7 @@ cb_poll(void *arg)
 {
 	int n;
 
-	if (ioctl(0, FIONREAD, &n) >= 0)
+	if (ioctl(consin_fd, FIONREAD, &n) >= 0)
 		return (n > 0);
 	return (0);
 }
@@ -484,7 +489,7 @@ static void
 cb_exit(void *arg, int v)
 {
 
-	tcsetattr(0, TCSAFLUSH, &oldterm);
+	tcsetattr(consout_fd, TCSAFLUSH, &oldterm);
 	exit(v);
 }
 
@@ -492,27 +497,41 @@ static void
 cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 {
 
-	vm_get_memory_seg(ctx, 0, ret_lowmem);
-	vm_get_memory_seg(ctx, 4 * GB, ret_highmem);
+	vm_get_memory_seg(ctx, 0, ret_lowmem, NULL);
+	vm_get_memory_seg(ctx, 4 * GB, ret_highmem, NULL);
+}
+
+struct env {
+	const char *str;	/* name=value */
+	SLIST_ENTRY(env) next;
+};
+
+static SLIST_HEAD(envhead, env) envhead;
+
+static void
+addenv(const char *str)
+{
+	struct env *env;
+
+	env = malloc(sizeof(struct env));
+	env->str = str;
+	SLIST_INSERT_HEAD(&envhead, env, next);
 }
 
 static const char *
 cb_getenv(void *arg, int num)
 {
-	int max;
+	int i;
+	struct env *env;
 
-	static const char * var[] = {
-		"smbios.bios.vendor=BHYVE",
-		"boot_serial=1",
-		NULL
-	};
+	i = 0;
+	SLIST_FOREACH(env, &envhead, next) {
+		if (i == num)
+			return (env->str);
+		i++;
+	}
 
-	max = sizeof(var) / sizeof(var[0]);
-
-	if (num < max)
-		return (var[num]);
-	else
-		return (NULL);
+	return (NULL);
 }
 
 static struct loader_callbacks cb = {
@@ -546,13 +565,46 @@ static struct loader_callbacks cb = {
 	.getenv = cb_getenv,
 };
 
+static int
+altcons_open(char *path)
+{
+	struct stat sb;
+	int err;
+	int fd;
+
+	/*
+	 * Allow stdio to be passed in so that the same string
+	 * can be used for the bhyveload console and bhyve com-port
+	 * parameters
+	 */
+	if (!strcmp(path, "stdio"))
+		return (0);
+
+	err = stat(path, &sb);
+	if (err == 0) {
+		if (!S_ISCHR(sb.st_mode))
+			err = ENOTSUP;
+		else {
+			fd = open(path, O_RDWR | O_NONBLOCK);
+			if (fd < 0)
+				err = errno;
+			else
+				consin_fd = consout_fd = fd;
+		}
+	}
+
+	return (err);
+}
+
 static void
 usage(void)
 {
 
 	fprintf(stderr,
-		"usage: %s [-m mem-size][-d <disk-path>] [-h <host-path>] "
-		"<vmname>\n", progname);
+	    "usage: %s [-m mem-size] [-d <disk-path>] [-h <host-path>]\n"
+	    "       %*s [-e <name=value>] [-c <console-device>] <vmname>\n",
+	    progname,
+	    (int)strlen(progname), "");
 	exit(1);
 }
 
@@ -565,15 +617,27 @@ main(int argc, char** argv)
 	int opt, error;
 	char *disk_image;
 
-	progname = argv[0];
+	progname = basename(argv[0]);
 
 	mem_size = 256 * MB;
 	disk_image = NULL;
 
-	while ((opt = getopt(argc, argv, "d:h:m:")) != -1) {
+	consin_fd = STDIN_FILENO;
+	consout_fd = STDOUT_FILENO;
+
+	while ((opt = getopt(argc, argv, "c:d:e:h:m:")) != -1) {
 		switch (opt) {
+		case 'c':
+			error = altcons_open(optarg);
+			if (error != 0)
+				errx(EX_USAGE, "Could not open '%s'", optarg);
+			break;
 		case 'd':
 			disk_image = optarg;
+			break;
+
+		case 'e':
+			addenv(optarg);
 			break;
 
 		case 'h':
@@ -581,9 +645,10 @@ main(int argc, char** argv)
 			break;
 
 		case 'm':
-			mem_size = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &mem_size);
+			if (error != 0)
+				errx(EX_USAGE, "Invalid memsize '%s'", optarg);
 			break;
-		
 		case '?':
 			usage();
 		}
@@ -616,11 +681,13 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
-	tcgetattr(0, &term);
+	tcgetattr(consout_fd, &term);
 	oldterm = term;
-	term.c_lflag &= ~(ICANON|ECHO);
-	term.c_iflag &= ~ICRNL;
-	tcsetattr(0, TCSAFLUSH, &term);
+	cfmakeraw(&term);
+	term.c_cflag |= CLOCAL;
+	
+	tcsetattr(consout_fd, TCSAFLUSH, &term);
+
 	h = dlopen("/boot/userboot.so", RTLD_LOCAL);
 	if (!h) {
 		printf("%s\n", dlerror());
@@ -635,5 +702,9 @@ main(int argc, char** argv)
 	if (disk_image) {
 		disk_fd = open(disk_image, O_RDONLY);
 	}
+
+	addenv("smbios.bios.vendor=BHYVE");
+	addenv("boot_serial=1");
+
 	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
 }

@@ -654,10 +654,19 @@ AcpiWalkNamespace (
         goto UnlockAndExit;
     }
 
+    /* Now we can validate the starting node */
+
+    if (!AcpiNsValidateHandle (StartObject))
+    {
+        Status = AE_BAD_PARAMETER;
+        goto UnlockAndExit2;
+    }
+
     Status = AcpiNsWalkNamespace (Type, StartObject, MaxDepth,
                 ACPI_NS_WALK_UNLOCK, DescendingCallback,
                 AscendingCallback, Context, ReturnValue);
 
+UnlockAndExit2:
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
 
 UnlockAndExit:

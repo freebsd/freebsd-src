@@ -398,7 +398,7 @@ ds1631_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t dev;
 	struct ds1631_softc *sc;
 	int error;
-	unsigned int temp;
+	int temp;
 
 	dev = arg1;
 	sc = device_get_softc(dev);

@@ -1,4 +1,4 @@
-/* $OpenBSD: cipher.h,v 1.39 2013/01/08 18:49:04 markus Exp $ */
+/* $OpenBSD: cipher.h,v 1.44 2014/01/25 10:12:50 dtucker Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -38,6 +38,8 @@
 #define CIPHER_H
 
 #include <openssl/evp.h>
+#include "cipher-chachapoly.h"
+
 /*
  * Cipher types for SSH-1.  New types can be added, but old types should not
  * be removed for compatibility.  The maximum allowed value is 31.
@@ -66,23 +68,28 @@ struct CipherContext {
 	int	plaintext;
 	int	encrypt;
 	EVP_CIPHER_CTX evp;
-	Cipher *cipher;
+	struct chachapoly_ctx cp_ctx; /* XXX union with evp? */
+	const Cipher *cipher;
 };
 
 u_int	 cipher_mask_ssh1(int);
-Cipher	*cipher_by_name(const char *);
-Cipher	*cipher_by_number(int);
+const Cipher	*cipher_by_name(const char *);
+const Cipher	*cipher_by_number(int);
 int	 cipher_number(const char *);
 char	*cipher_name(int);
 int	 ciphers_valid(const char *);
-void	 cipher_init(CipherContext *, Cipher *, const u_char *, u_int,
+char	*cipher_alg_list(char, int);
+void	 cipher_init(CipherContext *, const Cipher *, const u_char *, u_int,
     const u_char *, u_int, int);
-void	 cipher_crypt(CipherContext *, u_char *, const u_char *,
+int	 cipher_crypt(CipherContext *, u_int, u_char *, const u_char *,
     u_int, u_int, u_int);
+int	 cipher_get_length(CipherContext *, u_int *, u_int,
+    const u_char *, u_int);
 void	 cipher_cleanup(CipherContext *);
-void	 cipher_set_key_string(CipherContext *, Cipher *, const char *, int);
+void	 cipher_set_key_string(CipherContext *, const Cipher *, const char *, int);
 u_int	 cipher_blocksize(const Cipher *);
 u_int	 cipher_keylen(const Cipher *);
+u_int	 cipher_seclen(const Cipher *);
 u_int	 cipher_authlen(const Cipher *);
 u_int	 cipher_ivlen(const Cipher *);
 u_int	 cipher_is_cbc(const Cipher *);

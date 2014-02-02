@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1999
+.Dd August 23, 2013
 .Dt SA 4
 .Os
 .Sh NAME
@@ -158,6 +158,70 @@ The next read will return immediately with a value
 of 0.
 (As above, if the file mark is never read, it remains for the next
 process to read if in no-rewind mode.)
+.El
+.Sh BLOCK SIZES
+By default, the driver will NOT accept reads or writes to a tape device that
+are larger than may be written to or read from the mounted tape using a single
+write or read request.
+Because of this, the application author may have confidence that his wishes
+are respected in terms of the block size written to tape.
+For example, if the user tries to write a 256KB block to the tape, but the
+controller can handle no more than 128KB, the write will fail.
+The previous
+.Fx
+behavior, prior to
+.Fx
+10.0,
+was to break up large reads or writes into smaller blocks when going to the
+tape.
+The problem with that behavior, though, is that it hides the actual on-tape
+block size from the application writer, at least in variable block mode.
+.Pp
+If the user would like his large reads and writes broken up into separate
+pieces, he may set the following loader tunables.
+Note that these tunables WILL GO AWAY in
+.Fx 11.0 .
+They are provided for transition purposes only.
+.Bl -tag -width 12
+.It kern.cam.sa.allow_io_split
+.Pp
+This variable, when set to 1, will configure all
+.Nm
+devices to split large buffers into smaller pieces when needed.
+.It kern.cam.sa.%d.allow_io_split
+.Pp
+This variable, when set to 1, will configure the given
+.Nm
+unit to split large buffers into multiple pieces.
+This will override the global setting, if it exists.
+.El
+.Pp
+There are several
+.Xr sysctl 8
+variables available to view block handling parameters:
+.Bl -tag -width 12
+.It kern.cam.sa.%d.allow_io_split
+.Pp
+This variable allows the user to see, but not modify, the current I/O split
+setting.
+The user is not permitted to modify this setting so that there is no chance
+of behavior changing for the application while a tape is mounted.
+.It kern.cam.sa.%d.maxio
+.Pp
+This variable shows the maximum I/O size in bytes that is allowed by the
+combination of kernel tuning parameters (MAXPHYS, DFLTPHYS) and the
+capabilities of the controller that is attached to the tape drive.
+Applications may look at this value for a guide on how large an I/O may be
+permitted, but should keep in mind that the actual maximum may be
+restricted further by the tape drive via the
+.Tn SCSI
+READ BLOCK LIMITS command.
+.It kern.cam.sa.%d.cpi_maxio
+.Pp
+This variable shows the maximum I/O size supported by the controller, in
+bytes, that is reported via the CAM Path Inquiry CCB (XPT_PATH_INQ).
+If this is 0, that means that the controller has not reported a maximum I/O
+size.
 .El
 .Sh FILE MARK HANDLING
 The handling of file marks on write is automatic.

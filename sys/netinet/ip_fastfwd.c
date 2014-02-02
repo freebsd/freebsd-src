@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/sdt.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
@@ -97,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <net/vnet.h>
 
 #include <netinet/in.h>
+#include <netinet/in_kdtrace.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
@@ -531,6 +533,7 @@ passout:
 		/*
 		 * Send off the packet via outgoing interface
 		 */
+		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 		error = (*ifp->if_output)(ifp, m,
 				(struct sockaddr *)dst, &ro);
 	} else {
@@ -562,6 +565,7 @@ passout:
 				 */
 				m_clrprotoflags(m);
 
+				IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
 				error = (*ifp->if_output)(ifp, m,
 					(struct sockaddr *)dst, &ro);
 				if (error)

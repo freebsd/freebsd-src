@@ -280,6 +280,7 @@ typedef struct {
 #define	SHT_SUNW_cap		0x6ffffff5
 #define	SHT_SUNW_SIGNATURE	0x6ffffff6
 #define	SHT_GNU_HASH		0x6ffffff6
+#define	SHT_GNU_LIBLIST		0x6ffffff7
 #define	SHT_SUNW_ANNOTATE	0x6ffffff7
 #define	SHT_SUNW_DEBUGSTR	0x6ffffff8
 #define	SHT_SUNW_DEBUG		0x6ffffff9
@@ -487,6 +488,7 @@ typedef struct {
 #define	DF_1_LOADFLTR	0x00000010	/* Immediate loading of filtees */
 #define	DF_1_NOOPEN     0x00000040	/* Do not allow loading on dlopen() */
 #define	DF_1_ORIGIN	0x00000080	/* Process $ORIGIN */
+#define	DF_1_INTERPOSE	0x00000400	/* Interpose all objects but main */
 #define	DF_1_NODEFLIB	0x00000800	/* Do not search default paths */
 
 /* Values for n_type.  Used in core files. */
@@ -768,6 +770,7 @@ typedef struct {
 #define	R_MIPS_PC16	10	/* PC relative 16 bit */
 #define	R_MIPS_CALL16	11	/* 16 bit GOT entry for function */
 #define	R_MIPS_GPREL32	12	/* GP relative 32 bit */
+#define	R_MIPS_64	18	/* Direct 64 bit */
 #define	R_MIPS_GOTHI16	21	/* GOT HI 16 bit */
 #define	R_MIPS_GOTLO16	22	/* GOT LO 16 bit */
 #define	R_MIPS_CALLHI16 30	/* upper 16 bit GOT entry for function */

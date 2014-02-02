@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
  *	only cosh(0)=1 is exact for finite x.
  */
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -77,3 +79,7 @@ __ieee754_cosh(double x)
     /* |x| > overflowthresold, cosh(x) overflow */
 	return huge*huge;
 }
+
+#if (LDBL_MANT_DIG == 53)
+__weak_reference(cosh, coshl);
+#endif

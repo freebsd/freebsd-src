@@ -138,6 +138,7 @@ enum {
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 
@@ -343,6 +344,7 @@ en_k2sz(int k)
 }
 #define en_log2(X) en_k2sz(X)
 
+#if 0
 /*
  * en_b2sz: convert a DMA burst code to its byte size
  */
@@ -364,6 +366,7 @@ en_b2sz(int b)
 	}
 	return (0);
 }
+#endif
 
 /*
  * en_sz2b: convert a burst size (bytes) to DMA burst code

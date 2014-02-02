@@ -296,10 +296,8 @@ rm_rainfo(struct rainfo *rai)
 	if (rai->rai_ra_data != NULL)
 		free(rai->rai_ra_data);
 
-	while ((pfx = TAILQ_FIRST(&rai->rai_prefix)) != NULL) {
-		TAILQ_REMOVE(&rai->rai_prefix, pfx, pfx_next);
-		free(pfx);
-	}
+	while ((pfx = TAILQ_FIRST(&rai->rai_prefix)) != NULL)
+		delete_prefix(pfx);
 	while ((sol = TAILQ_FIRST(&rai->rai_soliciter)) != NULL) {
 		TAILQ_REMOVE(&rai->rai_soliciter, sol, sol_next);
 		free(sol);
@@ -1125,9 +1123,9 @@ add_prefix(struct rainfo *rai, struct in6_prefixreq *ipr)
 	pfx->pfx_onlinkflg = ipr->ipr_raf_onlink;
 	pfx->pfx_autoconfflg = ipr->ipr_raf_auto;
 	pfx->pfx_origin = PREFIX_FROM_DYNAMIC;
+	pfx->pfx_rainfo = rai;
 
 	TAILQ_INSERT_TAIL(&rai->rai_prefix, pfx, pfx_next);
-	pfx->pfx_rainfo = rai;
 
 	syslog(LOG_DEBUG, "<%s> new prefix %s/%d was added on %s",
 	    __func__,

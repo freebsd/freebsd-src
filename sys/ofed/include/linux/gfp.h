@@ -92,14 +92,14 @@ __free_page(struct page *m)
 }
 
 static inline void
-__free_pages(void *p, unsigned int order)
+__free_pages(struct page *m, unsigned int order)
 {
 	size_t size;
 
-	if (p == 0)
+	if (m == NULL)
 		return;
 	size = PAGE_SIZE << order;
-	kmem_free(kmem_arena, (vm_offset_t)p, size);
+	kmem_free(kmem_arena, (vm_offset_t)page_address(m), size);
 }
 
 /*
@@ -120,5 +120,9 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
 		return (NULL);
         return (virt_to_page(page));
 }
+
+#define alloc_pages_node(node, mask, order)     alloc_pages(mask, order)
+
+#define kmalloc_node(chunk, mask, node)         kmalloc(chunk, mask)
 
 #endif	/* _LINUX_GFP_H_ */

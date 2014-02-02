@@ -23,7 +23,7 @@
 #define HAVE_MEMORY_H 1
 
 /* Define to 1 if getopt has optreset */
-/* #undef HAVE_OPTRESET */
+#define HAVE_OPTRESET 1
 
 /* Define to 1 if you have the `putenv' function. */
 #define HAVE_PUTENV 1
@@ -80,9 +80,6 @@
    */
 #define LT_OBJDIR ".libs/"
 
-/* Define to 1 if your C compiler doesn't accept -c and -o together. */
-/* #undef NO_MINUS_C_MINUS_O */
-
 /* Name of package */
 #define PACKAGE "atf"
 
@@ -96,7 +93,7 @@
 #define PACKAGE_NAME "Automated Testing Framework"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Automated Testing Framework 0.16"
+#define PACKAGE_STRING "Automated Testing Framework 0.18"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "atf"
@@ -105,10 +102,10 @@
 #define PACKAGE_URL "http://code.google.com/p/kyua/wiki/ATF"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.16"
+#define PACKAGE_VERSION "0.18"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.16"
+#define VERSION "0.18"

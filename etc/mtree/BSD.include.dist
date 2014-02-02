@@ -9,10 +9,6 @@
     ..
     arpa
     ..
-    atf-c
-    ..
-    atf-c++
-    ..
     bsm
     ..
     bsnmp
@@ -81,7 +77,11 @@
             ..
         ..
         v1
+            experimental
+            ..
             ext
+            ..
+            tr1
             ..
         ..
     ..
@@ -247,8 +247,6 @@
     ..
     libmilter
     ..
-    lwres
-    ..
     lzma
     ..
     machine
@@ -287,6 +285,10 @@
         saal
         ..
         sig
+        ..
+    ..
+    netpfil
+        pf
         ..
     ..
     netsmb
@@ -328,6 +330,8 @@
     ssp
     ..
     sys
+    ..
+    teken
     ..
     ufs
         ffs

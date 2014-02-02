@@ -1,10 +1,10 @@
 # $FreeBSD$
 
 NO_MAN=
-WITHOUT_SSP=
 BUILDING_EFI=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 PROG=		loader.sym
 INTERNALPROG=

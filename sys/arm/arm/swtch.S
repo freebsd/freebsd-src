@@ -131,7 +131,7 @@ ENTRY(cpu_throw)
 	/* Switch to lwp0 context */
 
 	ldr	r9, .Lcpufuncs
-#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B)
+#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B) && !defined(CPU_KRAIT)
 	mov	lr, pc
 	ldr	pc, [r9, #CF_IDCACHE_WBINV_ALL]
 #endif
@@ -218,6 +218,11 @@ END(cpu_throw)
 ENTRY(cpu_switch)
 	stmfd	sp!, {r4-r7, lr}
 	sub	sp, sp, #4;
+#ifdef __ARM_EABI__
+	.save	{r4-r7, lr}
+	.pad	#4
+#endif
+
 	mov	r6, r2 /* Save the mutex */
 
 .Lswitch_resume:
@@ -356,7 +361,7 @@ ENTRY(cpu_switch)
 	cmpeq	r0, r5				/* Same DACR? */
 	beq	.Lcs_context_switched		/* yes! */
 
-#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B)
+#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B) && !defined(CPU_KRAIT)
 	/*
 	 * Definately need to flush the cache.
 	 */

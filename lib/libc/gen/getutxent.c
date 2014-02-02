@@ -122,9 +122,20 @@ getfutxent(struct futx *fu)
 	if (udb == UTXDB_LOG) {
 		uint16_t len;
 
+retry:
 		if (fread(&len, sizeof(len), 1, uf) != 1)
 			return (-1);
 		len = be16toh(len);
+		if (len == 0) {
+			/*
+			 * XXX: Though zero-size records are valid in theory,
+			 * they can never occur in practice. Zero-size records
+			 * indicate file corruption. Seek one byte forward, to
+			 * see if we can find a record there.
+			 */
+			ungetc('\0', uf);
+			goto retry;
+		}
 		if (len > sizeof *fu) {
 			/* Forward compatibility. */
 			if (fread(fu, sizeof(*fu), 1, uf) != 1)

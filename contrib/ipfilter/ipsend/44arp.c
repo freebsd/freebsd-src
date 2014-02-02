@@ -13,9 +13,6 @@
 #endif
 #include <net/if_dl.h>
 #include <net/if_types.h>
-#if defined(__FreeBSD__)
-# include "radix_ipf.h"
-#endif
 #ifndef __osf__
 # include <net/route.h>
 #endif
@@ -44,7 +41,7 @@
  * (4 bytes)
  */
 int	resolve(host, address)
-char	*host, *address;
+	char	*host, *address;
 {
         struct	hostent	*hp;
         u_long	add;
@@ -66,7 +63,7 @@ char	*host, *address;
 
 
 int	arp(addr, eaddr)
-char	*addr, *eaddr;
+	char	*addr, *eaddr;
 {
 	int	mib[6];
 	size_t	needed;

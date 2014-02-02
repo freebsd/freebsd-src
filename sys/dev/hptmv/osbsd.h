@@ -153,6 +153,7 @@ typedef struct _BUS_DMAMAP
 {	struct _BUS_DMAMAP 	 	*next;
 	struct IALAdapter 			*pAdapter;
 	bus_dmamap_t 			dma_map;
+	struct callout_handle		timeout_ch;
 	SCAT_GATH				psg[MAX_SG_DESCRIPTORS];
 } BUS_DMAMAP, *PBUS_DMAMAP;
 

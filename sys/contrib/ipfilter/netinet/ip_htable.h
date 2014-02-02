@@ -6,36 +6,52 @@
 typedef	struct	iphtent_s	{
 	struct	iphtent_s	*ipe_next, **ipe_pnext;
 	struct	iphtent_s	*ipe_hnext, **ipe_phnext;
+	struct	iphtent_s	*ipe_dnext, **ipe_pdnext;
+	struct	iphtable_s	*ipe_owner;
 	void		*ipe_ptr;
 	i6addr_t	ipe_addr;
 	i6addr_t	ipe_mask;
+	U_QUAD_T	ipe_hits;
+	U_QUAD_T	ipe_bytes;
+	u_long		ipe_die;
+	int		ipe_uid;
 	int		ipe_ref;
 	int		ipe_unit;
+	char		ipe_family;
+	char		ipe_xxx[3];
 	union	{
 		char	ipeu_char[16];
 		u_long	ipeu_long;
 		u_int	ipeu_int;
-	}ipe_un;
+	} ipe_un;
 } iphtent_t;
 
 #define	ipe_value	ipe_un.ipeu_int
 #define	ipe_group	ipe_un.ipeu_char
 
-#define	IPE_HASH_FN(a, m, s)	(((a) * (m)) % (s))
-
+#define	IPE_V4_HASH_FN(a, m, s)	((((m) ^ (a)) - 1 - ((a) >> 8)) % (s))
+#define	IPE_V6_HASH_FN(a, m, s)	(((((m)[0] ^ (a)[0]) - ((a)[0] >> 8)) + \
+				  (((m)[1] & (a)[1]) - ((a)[1] >> 8)) + \
+				  (((m)[2] & (a)[2]) - ((a)[2] >> 8)) + \
+				  (((m)[3] & (a)[3]) - ((a)[3] >> 8))) % (s))
 
 typedef	struct	iphtable_s	{
 	ipfrwlock_t	iph_rwlock;
 	struct	iphtable_s	*iph_next, **iph_pnext;
 	struct	iphtent_s	**iph_table;
 	struct	iphtent_s	*iph_list;
+	struct	iphtent_s	**iph_tail;
+#ifdef USE_INET6
+	ipf_v6_masktab_t	iph_v6_masks;
+#endif
+	ipf_v4_masktab_t	iph_v4_masks;
 	size_t	iph_size;		/* size of hash table */
 	u_long	iph_seed;		/* hashing seed */
 	u_32_t	iph_flags;
 	u_int	iph_unit;		/* IPL_LOG* */
 	u_int	iph_ref;
 	u_int	iph_type;		/* lookup or group map  - IPHASH_* */
-	u_int	iph_masks;		/* IPv4 netmasks in use */
+	u_int	iph_maskset[4];		/* netmasks in use */
 	char	iph_name[FR_GROUPLEN];	/* hash table number */
 } iphtable_t;
 
@@ -55,24 +71,11 @@ typedef	struct	iphtstat_s	{
 } iphtstat_t;
 
 
-extern iphtable_t *ipf_htables[IPL_LOGSIZE];
-
-extern iphtable_t *fr_existshtable __P((int, char *));
-extern int fr_clearhtable __P((iphtable_t *));
-extern void fr_htable_unload __P((void));
-extern int fr_newhtable __P((iplookupop_t *));
-extern iphtable_t *fr_findhtable __P((int, char *));
-extern int fr_removehtable __P((int, char *));
-extern size_t fr_flushhtable __P((iplookupflush_t *));
-extern int fr_addhtent __P((iphtable_t *, iphtent_t *));
-extern int fr_delhtent __P((iphtable_t *, iphtent_t *));
-extern int fr_derefhtable __P((iphtable_t *));
-extern int fr_derefhtent __P((iphtent_t *));
-extern int fr_delhtable __P((iphtable_t *));
-extern void *fr_iphmfindgroup __P((void *, void *));
-extern int fr_iphmfindip __P((void *, int, void *));
-extern int fr_gethtablestat __P((iplookupop_t *));
-extern int fr_htable_getnext __P((ipftoken_t *, ipflookupiter_t *));
-extern void fr_htable_iterderef __P((u_int, int, void *));
+extern void *ipf_iphmfindgroup __P((ipf_main_softc_t *, void *, void *));
+extern iphtable_t *ipf_htable_find __P((void *, int, char *));
+extern ipf_lookup_t ipf_htable_backend;
+#ifndef _KERNEL
+extern	void	ipf_htable_dump __P((ipf_main_softc_t *, void *));
+#endif
 
 #endif /* __IP_HTABLE_H__ */

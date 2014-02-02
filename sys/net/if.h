@@ -35,10 +35,6 @@
 
 #include <sys/cdefs.h>
 
-#ifdef _KERNEL
-#include <sys/queue.h>
-#endif
-
 #if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
@@ -49,8 +45,6 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #endif
-
-struct ifnet;
 #endif
 
 /*
@@ -103,7 +97,7 @@ struct if_data {
 	u_long	ifi_omcasts;		/* packets sent via multicast */
 	u_long	ifi_iqdrops;		/* dropped on input, this interface */
 	u_long	ifi_noproto;		/* destined for unsupported protocol */
-	u_long	ifi_hwassist;		/* HW offload capabilities, see IFCAP */
+	uint64_t ifi_hwassist;		/* HW offload capabilities, see IFCAP */
 	time_t	ifi_epoch;		/* uptime at attach or stat reset */
 	struct	timeval ifi_lastchange;	/* time of last administrative change */
 };
@@ -135,7 +129,7 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* (n) turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
-#define	IFF_SMART	0x20		/* (i) interface manages own routes */
+/*			0x20		   was IFF_SMART */
 #define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
@@ -165,7 +159,7 @@ struct if_data {
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
 	    IFF_DYING|IFF_CANTCONFIG)
 
 /*
@@ -231,6 +225,7 @@ struct if_data {
 #define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
 #define	IFCAP_RXCSUM_IPV6	0x200000  /* can offload checksum on IPv6 RX */
 #define	IFCAP_TXCSUM_IPV6	0x400000  /* can offload checksum on IPv6 TX */
+#define	IFCAP_HWSTATS		0x800000 /* manages counters internally */
 
 #define IFCAP_HWCSUM_IPV6	(IFCAP_RXCSUM_IPV6 | IFCAP_TXCSUM_IPV6)
 
@@ -417,7 +412,7 @@ struct ifaliasreq {
 	int	ifra_vhid;
 };
 
-/* Compat with pre-10.x */
+/* 9.x compat */
 struct oifaliasreq {
 	char	ifra_name[IFNAMSIZ];
 	struct	sockaddr ifra_addr;
@@ -502,18 +497,6 @@ struct ifgroupreq {
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
 };
 
-/*
- * Structure for SIOC[AGD]LIFADDR
- */
-struct if_laddrreq {
-	char	iflr_name[IFNAMSIZ];
-	u_int	flags;
-#define	IFLR_PREFIX	0x8000  /* in: prefix given  out: kernel fills id */
-	u_int	prefixlen;         /* in/out */
-	struct	sockaddr_storage addr;   /* in/out */
-	struct	sockaddr_storage dstaddr; /* out */
-};
-
 #endif /* __BSD_VISIBLE */
 
 #ifdef _KERNEL
@@ -536,10 +519,4 @@ struct if_nameindex	*if_nameindex(void);
 unsigned int		 if_nametoindex(const char *);
 __END_DECLS
 #endif
-
-#ifdef _KERNEL
-/* XXX - this should go away soon. */
-#include <net/if_var.h>
-#endif
-
 #endif /* !_NET_IF_H_ */

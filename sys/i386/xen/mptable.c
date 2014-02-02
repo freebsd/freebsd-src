@@ -37,10 +37,10 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 
 #include <xen/hypervisor.h>
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 #include <machine/smp.h>
 #include <xen/interface/vcpu.h>
 
@@ -87,6 +87,8 @@ static int
 mptable_setup_local(void)
 {
 
+	PCPU_SET(apic_id, 0);
+	PCPU_SET(vcpu_id, 0);
 	return (0);
 }
 

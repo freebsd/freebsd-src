@@ -67,6 +67,7 @@ device		loop
 device		md
 
 # USB
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 options 	USB_DEBUG		# enable debug msgs
 device		usb
 device		ehci
@@ -76,8 +77,7 @@ device		pass
 device		da
 
 # SATA
-device		ata
-#device		mvs
+device		mvs
 
 # Serial ports
 device		uart

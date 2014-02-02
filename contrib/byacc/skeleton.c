@@ -1,4 +1,4 @@
-/* $Id: skeleton.c,v 1.32 2013/03/04 23:19:39 tom Exp $ */
+/* $Id: skeleton.c,v 1.35 2014/01/01 16:52:33 tom Exp $ */
 
 #include "defs.h"
 
@@ -90,12 +90,12 @@ const char *const hdr_defs[] =
     "#ifdef YYMAXDEPTH",
     "#define YYSTACKSIZE YYMAXDEPTH",
     "#else",
-    "#define YYSTACKSIZE 500",
-    "#define YYMAXDEPTH  500",
+    "#define YYSTACKSIZE 10000",
+    "#define YYMAXDEPTH  10000",
     "#endif",
     "#endif",
     "",
-    "#define YYINITSTACKSIZE 500",
+    "#define YYINITSTACKSIZE 200",
     "",
     "typedef struct {",
     "    unsigned stacksize;",
@@ -231,9 +231,7 @@ const char *const body_2[] =
     "#if YYDEBUG",
     "        if (yydebug)",
     "        {",
-    "            yys = 0;",
-    "            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];",
-    "            if (!yys) yys = \"illegal-symbol\";",
+    "            yys = yyname[YYTRANSLATE(yychar)];",
     "            printf(\"%sdebug: state %d, reading %d (%s)\\n\",",
     "                    YYPREFIX, yystate, yychar, yys);",
     "        }",
@@ -320,9 +318,7 @@ const char *const body_3[] =
     "#if YYDEBUG",
     "        if (yydebug)",
     "        {",
-    "            yys = 0;",
-    "            if (yychar <= YYMAXTOKEN) yys = yyname[yychar];",
-    "            if (!yys) yys = \"illegal-symbol\";",
+    "            yys = yyname[YYTRANSLATE(yychar)];",
     "            printf(\"%sdebug: state %d, error recovery discards token %d\
  (%s)\\n\",",
     "                    YYPREFIX, yystate, yychar, yys);",
@@ -371,9 +367,7 @@ const char *const trailer[] =
     "#if YYDEBUG",
     "            if (yydebug)",
     "            {",
-    "                yys = 0;",
-    "                if (yychar <= YYMAXTOKEN) yys = yyname[yychar];",
-    "                if (!yys) yys = \"illegal-symbol\";",
+    "                yys = yyname[YYTRANSLATE(yychar)];",
     "                printf(\"%sdebug: state %d, reading %d (%s)\\n\",",
     "                        YYPREFIX, YYFINAL, yychar, yys);",
     "            }",

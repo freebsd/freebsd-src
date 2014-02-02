@@ -227,7 +227,8 @@ struct prison_racct {
 #define	PR_ALLOW_MOUNT_NULLFS		0x0100
 #define	PR_ALLOW_MOUNT_ZFS		0x0200
 #define	PR_ALLOW_MOUNT_PROCFS		0x0400
-#define	PR_ALLOW_ALL			0x07ff
+#define	PR_ALLOW_MOUNT_TMPFS		0x0800
+#define	PR_ALLOW_ALL			0x0fff
 
 /*
  * OSD methods
@@ -383,7 +384,7 @@ int prison_equal_ip4(struct prison *, struct prison *);
 int prison_get_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_local_ip4(struct ucred *cred, struct in_addr *ia);
 int prison_remote_ip4(struct ucred *cred, struct in_addr *ia);
-int prison_check_ip4(struct ucred *cred, struct in_addr *ia);
+int prison_check_ip4(const struct ucred *, const struct in_addr *);
 int prison_saddrsel_ip4(struct ucred *, struct in_addr *);
 #ifdef INET6
 int prison_equal_ip6(struct prison *, struct prison *);

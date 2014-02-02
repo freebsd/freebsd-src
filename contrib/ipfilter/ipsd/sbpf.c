@@ -68,7 +68,7 @@ static	u_int	bufsize = 32768, timeout = 1;
 
 
 int	ack_recv(ep)
-char	*ep;
+	char	*ep;
 {
 	struct	tcpiphdr	tip;
 	tcphdr_t	*tcp;
@@ -89,8 +89,8 @@ char	*ep;
 
 
 int	readloop(fd, port, dst)
-int 	fd, port;
-struct	in_addr dst;
+	int 	fd, port;
+	struct	in_addr dst;
 {
 	register u_char	*bp, *cp, *bufend;
 	register struct	bpf_hdr	*bh;
@@ -119,8 +119,8 @@ struct	in_addr dst;
 }
 
 int	initdevice(device, tout)
-char	*device;
-int	tout;
+	char	*device;
+	int	tout;
 {
 	struct	bpf_program prog;
 	struct	bpf_version bv;

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 
 #include <machine/stdarg.h>
 
@@ -134,7 +135,8 @@ OF_init(void *cookie)
 	rv = OFW_INIT(ofw_obj, cookie);
 
 	if ((chosen = OF_finddevice("/chosen")) != -1)
-		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
+		if (OF_getencprop(chosen, "stdout", &stdout,
+		    sizeof(stdout)) == -1)
 			stdout = -1;
 
 	return (rv);
@@ -280,6 +282,21 @@ OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)
 	return (OFW_GETPROP(ofw_obj, package, propname, buf, buflen));
 }
 
+ssize_t
+OF_getencprop(phandle_t node, const char *propname, pcell_t *buf, size_t len)
+{
+	ssize_t retval;
+	int i;
+
+	KASSERT(len % 4 == 0, ("Need a multiple of 4 bytes"));
+
+	retval = OF_getprop(node, propname, buf, len);
+	for (i = 0; i < len/4; i++)
+		buf[i] = be32toh(buf[i]);
+
+	return (retval);
+}
+
 /*
  * Recursively search the node and its parent for the given property, working
  * downward from the node to the device tree root.  Returns the value of the
@@ -292,6 +309,17 @@ OF_searchprop(phandle_t node, const char *propname, void *buf, size_t len)
 
 	for (; node != 0; node = OF_parent(node))
 		if ((rv = OF_getprop(node, propname, buf, len)) != -1)
+			return (rv);
+	return (-1);
+}
+
+ssize_t
+OF_searchencprop(phandle_t node, const char *propname, void *buf, size_t len)
+{
+	ssize_t rv;
+
+	for (; node != 0; node = OF_parent(node))
+		if ((rv = OF_getencprop(node, propname, buf, len)) != -1)
 			return (rv);
 	return (-1);
 }
@@ -318,6 +346,24 @@ OF_getprop_alloc(phandle_t package, const char *propname, int elsz, void **buf)
 		return (-1);
 	}
 	return (len / elsz);
+}
+
+ssize_t
+OF_getencprop_alloc(phandle_t package, const char *name, int elsz, void **buf)
+{
+	ssize_t retval;
+	pcell_t *cell;
+	int i;
+
+	retval = OF_getprop_alloc(package, name, elsz, buf);
+	if (retval == -1 || retval*elsz % 4 != 0)
+		return (-1);
+
+	cell = *buf;
+	for (i = 0; i < retval*elsz/4; i++)
+		cell[i] = be32toh(cell[i]);
+
+	return (retval);
 }
 
 /* Get the next property of a package. */
@@ -384,6 +430,48 @@ OF_package_to_path(phandle_t package, char *buf, size_t len)
 		return (-1);
 
 	return (OFW_PACKAGE_TO_PATH(ofw_obj, package, buf, len));
+}
+
+/* Look up effective phandle (see FDT/PAPR spec) */
+static phandle_t
+OF_child_xref_phandle(phandle_t parent, phandle_t xref)
+{
+	phandle_t child, rxref;
+
+	/*
+	 * Recursively descend from parent, looking for a node with a property
+	 * named either "phandle", "ibm,phandle", or "linux,phandle" that
+	 * matches the xref we are looking for.
+	 */
+
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+		rxref = OF_child_xref_phandle(child, xref);
+		if (rxref != -1)
+			return (rxref);
+
+		if (OF_getencprop(child, "phandle", &rxref, sizeof(rxref)) ==
+		    -1 && OF_getencprop(child, "ibm,phandle", &rxref,
+		    sizeof(rxref)) == -1 && OF_getencprop(child,
+		    "linux,phandle", &rxref, sizeof(rxref)) == -1)
+			continue;
+
+		if (rxref == xref)
+			return (child);
+	}
+
+	return (-1);
+}
+
+phandle_t
+OF_xref_phandle(phandle_t xref)
+{
+	phandle_t node;
+
+	node = OF_child_xref_phandle(OF_peer(0), xref);
+	if (node == -1)
+		return (xref);
+
+	return (node);
 }
 
 /*  Call the method in the scope of a given instance. */

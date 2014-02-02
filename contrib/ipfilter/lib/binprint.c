@@ -1,19 +1,19 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2002 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: binprint.c,v 1.8.4.1 2006/06/16 17:20:56 darrenr Exp $
+ * $Id$
  */
 
 #include "ipf.h"
 
 
 void binprint(ptr, size)
-void *ptr;
-size_t size;
+	void *ptr;
+	size_t size;
 {
 	u_char *s;
 	int i, j;

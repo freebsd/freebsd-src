@@ -68,7 +68,7 @@ if_nametoindex(const char *ifname)
 	struct ifaddrs *ifaddrs, *ifa;
 	unsigned int ni;
 
-	s = _socket(AF_INET, SOCK_DGRAM, 0);
+	s = _socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	if (s != -1) {
 #ifdef PURIFY
 		memset(&ifr, 0, sizeof(ifr));

@@ -90,7 +90,7 @@ popen(command, type)
 		    (type[1] && (type[1] != 'e' || type[2])))
 			return (NULL);
 	}
-	if ((cloexec ? pipe2(pdes, O_CLOEXEC) : pipe(pdes)) < 0)
+	if (pipe2(pdes, O_CLOEXEC) < 0)
 		return (NULL);
 
 	if ((cur = malloc(sizeof(struct pid))) == NULL) {
@@ -123,29 +123,20 @@ popen(command, type)
 			 * the compiler is free to corrupt all the local
 			 * variables.
 			 */
-			if (!cloexec)
-				(void)_close(pdes[0]);
 			if (pdes[1] != STDOUT_FILENO) {
 				(void)_dup2(pdes[1], STDOUT_FILENO);
-				if (!cloexec)
-					(void)_close(pdes[1]);
 				if (twoway)
 					(void)_dup2(STDOUT_FILENO, STDIN_FILENO);
 			} else if (twoway && (pdes[1] != STDIN_FILENO)) {
 				(void)_dup2(pdes[1], STDIN_FILENO);
-				if (cloexec)
-					(void)_fcntl(pdes[1], F_SETFD, 0);
-			} else if (cloexec)
+				(void)_fcntl(pdes[1], F_SETFD, 0);
+			} else
 				(void)_fcntl(pdes[1], F_SETFD, 0);
 		} else {
 			if (pdes[0] != STDIN_FILENO) {
 				(void)_dup2(pdes[0], STDIN_FILENO);
-				if (!cloexec)
-					(void)_close(pdes[0]);
-			} else if (cloexec)
+			} else
 				(void)_fcntl(pdes[0], F_SETFD, 0);
-			if (!cloexec)
-				(void)_close(pdes[1]);
 		}
 		SLIST_FOREACH(p, &pidlist, next)
 			(void)_close(fileno(p->fp));
@@ -170,6 +161,14 @@ popen(command, type)
 	THREAD_LOCK();
 	SLIST_INSERT_HEAD(&pidlist, cur, next);
 	THREAD_UNLOCK();
+
+	/*
+	 * To guard against undesired fd passing with concurrent calls,
+	 * only clear the close-on-exec flag after linking the file into
+	 * the list which will cause an explicit close.
+	 */
+	if (!cloexec)
+		(void)_fcntl(*type == 'r' ? pdes[0] : pdes[1], F_SETFD, 0);
 
 	return (iop);
 }

@@ -56,6 +56,7 @@
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/firewire.h>
 #include <net/if_arp.h>
 #include <net/if_types.h>

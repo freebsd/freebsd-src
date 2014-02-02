@@ -1,0 +1,244 @@
+.\" Copyright (c) 2012 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed by Edward Tomasz Napierala under sponsorship
+.\" from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 2, 2013
+.Dt CTL.CONF 5
+.Os
+.Sh NAME
+.Nm ctl.conf
+.Nd CAM Target Layer / iSCSI target daemon configuration file
+.Sh DESCRIPTION
+The
+.Nm
+configuration file is used by the
+.Xr ctld 8
+daemon.
+Lines starting with
+.Ql #
+and empty lines are interpreted as comments.
+The general syntax of the
+.Nm
+file is:
+.Bd -literal -offset indent
+pidfile <path>
+
+auth-group <name> {
+	chap <user> <secret>
+	...
+}
+
+portal-group <name> {
+	listen <address>
+	listen-iser <address>
+	discovery-auth-group <name>
+	...
+}
+
+target <name> {
+	auth-group <name>
+	portal-group <name>
+	lun <number> {
+		path <path>
+	}
+	...
+}
+.Ed
+.Ss global level
+The following statements are available at the global level:
+.Bl -tag -width indent
+.It Ic auth-group Aq Ar name
+Opens an auth-group section, defining an authentication group,
+which can then be assigned to any number of targets.
+.It Ic debug Aq Ar level
+Specifies debug level.
+The default is 0.
+.It Ic maxproc Aq Ar number
+Specifies limit for concurrently running child processes handling
+incoming connections.
+The default is 30.
+Setting it to 0 disables the limit.
+.It Ic pidfile Aq Ar path
+Specifies path to pidfile.
+The default is
+.Pa /var/run/ctld.pid .
+.It Ic portal-group Aq Ar name
+Opens a portal-group section, defining a portal group,
+which can then be assigned to any number of targets.
+.It Ic target Aq Ar name
+Opens a target configuration section.
+.It Ic timeout Aq Ar seconds
+Specifies timeout for login session, after which the connection
+will be forcibly terminated.
+The default is 60.
+Setting it to 0 disables the timeout.
+.El
+.Ss auth-group level
+The following statements are available at the auth-group level:
+.Bl -tag -width indent
+.It Ic chap Ao Ar user Ac Aq Ar secret
+Specifies CHAP authentication credentials.
+.It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
+Specifies mutual CHAP authentication credentials.
+Note that for any auth-group, configuration may contain either chap,
+or chap-mutual entries; it's an error to mix them.
+.El
+.Ss portal-group level
+The following statements are available at the portal-group level:
+.Bl -tag -width indent
+.It Ic discovery-auth-group Aq Ar name
+Assigns previously defined authentication group to that portal group,
+to be used for target discovery.
+By default, the discovery will be denied.
+A special auth-group, "no-authentication", may be used to allow for discovery
+without authentication.
+.It Ic listen Aq Ar address
+Specifies IPv4 or IPv6 address and port to listen on for incoming connections.
+.It Ic listen-iser Aq Ar address
+Specifies IPv4 or IPv6 address and port to listen on for incoming connections
+using iSER (iSCSI over RDMA) protocol.
+.El
+.Ss target level:
+The following statements are available at the target level:
+.Bl -tag -width indent
+.It Ic alias Aq Ar text
+Assigns human-readable description to that target.
+There is no default.
+.It Ic auth-group Aq Ar name
+Assigns previously defined authentication group to that target.
+There is no default; every target must use either auth-group,
+or chap, or chap-mutual statements.
+A special auth-group, "no-authentication", may be used to permit access
+without authentication.
+.It Ic chap Ao Ar user Ac Aq Ar secret
+Specifies CHAP authentication credentials.
+Note that targets must use either auth-group, or chap,
+or chap-mutual clauses; it's a configuration error to mix them in one target.
+.It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
+Specifies mutual CHAP authentication credentials.
+Note that targets must use either auth-group, chap, or
+chap-mutual clauses; it's a configuration error to mix them in one target.
+.It Ic portal-group Aq Ar name
+Assigns previously defined portal group to that target.
+Default portal group is "default", which makes the target available
+on TCP port 3260 on all configured IPv4 and IPv6 addresses.
+.It Ic lun Aq Ar number
+Opens a lun configuration section, defining LUN exported by a target.
+.El
+.Ss lun level
+The following statements are available at the lun level:
+.Bl -tag -width indent
+.It Ic backend Ao Ar block | Ar ramdisk Ac
+Specifies the CTL backend to use for a given LUN.
+Valid choices are
+.Dq block
+and
+.Dq ramdisk ;
+block is used for LUNs backed
+by files in the filesystem; ramdisk is a bitsink device, used mostly for
+testing.
+The default backend is block.
+.It Ic blocksize Aq Ar size
+Specifies blocksize visible to the initiator.
+The default blocksize is 512.
+.It Ic device-id Aq Ar string
+Specifies SCSI Device Identification string presented to the initiator.
+.It Ic option Ao Ar name Ac Aq Ar value
+Specifies CTL-specific options passed to the kernel.
+.It Ic path Aq Ar path
+Specifies path to file used to back the LUN.
+.It Ic serial Aq Ar string
+Specifies SCSI serial number presented to the initiator.
+.It Ic size Aq Ar size
+Specifies LUN size, in bytes.
+.El
+.Sh FILES
+.Bl -tag -width ".Pa /etc/ctl.conf" -compact
+.It Pa /etc/ctl.conf
+The default location of the
+.Xr ctld 8
+configuration file.
+.El
+.Sh EXAMPLES
+.Bd -literal
+pidfile	/var/run/ctld.pid
+
+auth-group example2 {
+	chap-mutual "user" "secret" "mutualuser" "mutualsecret"
+	chap-mutual "user2" "secret2" "mutualuser" "mutualsecret"
+}
+
+portal-group example2 {
+	discovery-auth-group no-authentication
+	listen 127.0.0.1
+	listen 0.0.0.0:3261
+	listen [::]:3261
+	listen [fe80::be:ef]
+}
+
+target iqn.2012-06.com.example:target0 {
+	alias "Testing target"
+	auth-group no-authentication
+	lun 0 {
+		path /dev/zvol/example_0
+		blocksize 4096
+		size 4G
+	}
+}
+
+target iqn.2012-06.com.example:target3 {
+	chap chapuser chapsecret
+	lun 0 {
+		path /dev/zvol/example_3
+	}
+}
+
+target iqn.2012-06.com.example:target2 {
+	auth-group example2
+	portal-group example2
+	lun 0 {
+		path /dev/zvol/example2_0
+	}
+	lun 1 {
+		path /dev/zvol/example2_1
+		option foo bar
+	}
+}
+.Ed
+.Sh SEE ALSO
+.Xr ctl 4 ,
+.Xr ctladm 8 ,
+.Xr ctld 8
+.Sh AUTHORS
+The
+.Nm
+configuration file functionality for
+.Xr ctld 8
+was developed by
+.An Edward Tomasz Napierala Aq trasz@FreeBSD.org
+under sponsorship from the FreeBSD Foundation.

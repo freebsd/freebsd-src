@@ -43,24 +43,53 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 PACKAGE_INDEX=
 _INDEX_INITTED=
 
+#
+# Default path to pkg(8) repo-packagesite.sqlite database
+#
+SQLITE_REPO="/var/db/pkg/repo-packagesite.sqlite"
+
+#
+# Default path to on-disk cache INDEX file
+#
+PACKAGES_INDEX_CACHEFILE="/var/run/bsdconfig/packages_INDEX.cache"
+
+#
+# INDEX format for FreeBSD-6.0 or higher:
+#
+# 	package|port-origin|install-prefix|comment|port-desc-file|maintainer|
+# 	categories|build-deps|run-deps|www-site|reserve|reserve|reserve|disc
+#
+INDEX_FORMAT="%n-%v" # package
+INDEX_FORMAT="$INDEX_FORMAT|/usr/ports/%o"	# port-origin
+INDEX_FORMAT="$INDEX_FORMAT|%p"			# install-prefix
+INDEX_FORMAT="$INDEX_FORMAT|%c"			# comment
+INDEX_FORMAT="$INDEX_FORMAT|/usr/ports/%o/pkg-descr"	# port-desc-file
+INDEX_FORMAT="$INDEX_FORMAT|%m"			# maintainer
+INDEX_FORMAT="$INDEX_FORMAT|@CATEGORIES@"	# place-holder
+INDEX_FORMAT="$INDEX_FORMAT|"			# build-deps
+INDEX_FORMAT="$INDEX_FORMAT|@RUNDEPS@"		# place-holder
+INDEX_FORMAT="$INDEX_FORMAT|%w"			# www-site
+INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
+INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
+INDEX_FORMAT="$INDEX_FORMAT|"			# reserved
+INDEX_FORMAT="$INDEX_FORMAT|"			# disc
+
 ############################################################ FUNCTIONS
 
-# f_index_initialize $path [$var_to_set]
+# f_index_initialize [$var_to_set]
 #
-# Read and initialize the global index. $path is to be relative to the chosen
-# media (not necessarily the filesystem; e.g. FTP) -- this is usually going to
-# be `packages/INDEX'. Returns success unless media cannot be initialized for
-# any reason (e.g. user cancels media selection dialog) or an error occurs. The
-# index is sorted before being loaded into $var_to_set.
+# Read and initialize the global index. Returns success unless media cannot be
+# initialized for any reason (e.g. user cancels media selection dialog or an
+# error occurs). The index is sorted before being loaded into $var_to_set.
 #
 # NOTE: The index is processed with f_index_read() [below] after being loaded.
 #
 f_index_initialize()
 {
-	local __path="$1" __var_to_set="${2:-PACKAGE_INDEX}"
+	local __funcname=f_index_initialize
+	local __var_to_set="${2:-PACKAGE_INDEX}"
 
 	[ "$_INDEX_INITTED" ] && return $SUCCESS
-	[ "$__path" ] || return $FAILURE
 
 	# Got any media?
 	f_media_verify || return $FAILURE
@@ -68,20 +97,177 @@ f_index_initialize()
 	# Does it move when you kick it?
 	f_device_init media || return $FAILURE
 
-	f_show_info "$msg_attempting_to_fetch_file_from_selected_media" \
-	            "$__path"
-	eval "$__var_to_set"='$( f_device_get media "$__path" )'
-	if [ $? -ne $SUCCESS ]; then
-		f_show_msg "$msg_unable_to_get_file_from_selected_media" \
-		           "$__path"
+	f_show_info "$msg_attempting_to_update_repository_catalogue"
+
+	#
+	# Generate $PACKAGESITE variable for pkg(8) based on media type
+	#
+	local __type __data __site
+	device_media get type __type
+	device_media get private __data
+	case "$__type" in
+	$DEVICE_TYPE_DIRECTORY)
+		__site="file://$__data/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FLOPPY)
+		__site="file://${__data:-$MOUNTPOINT}/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_FTP)
+		f_getvar $VAR_FTP_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_HTTP)
+		f_getvar $VAR_HTTP_PATH __site
+		__site="$__site/$PKG_ABI/latest" ;;
+	$DEVICE_TYPE_HTTP_PROXY)
+		f_getvar $VAR_HTTP_PROXY_PATH __site
+		__site="$__site/packages/$PKG_ABI" ;;
+	$DEVICE_TYPE_CDROM)
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
+		export REPOS_DIR="$MOUNTPOINT/packages/repos" ;;
+	*) # UFS, DISK, CDROM, USB, DOS, NFS, etc.
+		__site="file://$MOUNTPOINT/packages/$PKG_ABI"
+	esac
+
+	export PACKAGESITE="$__site"
+	f_dprintf "PACKAGESITE=[%s]" "$PACKAGESITE"
+	if ! f_eval_catch $__funcname pkg "pkg update"; then
+		f_show_err "$msg_unable_to_update_pkg_from_selected_media"
 		f_device_shutdown media
 		return $FAILURE
 	fi
+
+	#
+	# Try to get contents from validated on-disk cache
+	#
+
+	#
+	# Calculate digest used to determine if the on-disk persistant cache
+	# INDEX (containing this digest on the first line) is valid and can be
+	# used to quickly populate the environment.
+	#
+	local __sqlite_digest
+	if ! __sqlite_digest=$( md5 < "$SQLITE_REPO" 2> /dev/null ); then
+		f_show_err "$msg_no_pkg_database_found"
+		f_device_shutdown media
+		return $FAILURE
+	fi
+
+	#
+	# Check to see if the persistant cache INDEX file exists
+	#
+	if [ -f "$PACKAGES_INDEX_CACHEFILE" ]; then
+		#
+		# Attempt to populate the environment with the (soon to be)
+		# validated on-disk cache. If validation fails, fall-back to
+		# generating a fresh cache.
+		#
+		if eval $__var_to_set='$(
+			(	# Get digest as the first word on first line
+				read digest rest_ignored
+
+				#
+				# If the stored digest matches the calculated-
+				# one populate the environment from the on-disk
+				# cache and provide success exit status.
+				#
+				if [ "$digest" = "$__sqlite_digest" ]; then
+					cat
+					exit $SUCCESS
+				else
+					# Otherwise, return the current value
+					eval echo \"\$__var_to_set\"
+					exit $FAILURE
+				fi
+			) < "$PACKAGES_INDEX_CACHEFILE" 2> /dev/null
+		)'; then
+			f_show_info \
+			  "$msg_located_index_now_reading_package_data_from_it"
+			if ! f_index_read "$__var_to_set"; then
+				f_show_err \
+					"$msg_io_or_format_error_on_index_file"
+				return $FAILURE
+			fi
+			_INDEX_INITTED=1
+			return $SUCCESS
+		fi
+		# Otherwise, fall-thru to create a fresh cache from scratch
+	fi
+
+	#
+	# If we reach this point, we need to generate the data from scratch
+	#
+
+	f_show_info "$msg_getting_package_categories_via_pkg_rquery"
+	if ! eval "$( pkg rquery "%n-%v %C" | awk '
+	{ categories[$1] = categories[$1] " " $2 }
+	END {
+		for (package in categories)
+		{
+			cats = categories[package]
+			sub(/^ /, "", cats)
+			gsub(/[^[:alnum:]_]/, "_", package)
+			printf "local _%s_categories=\"%s\";\n", package, cats
+		}
+	}' )"; then
+		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
+		f_device_shutdown media
+		return $FAILURE
+	fi
+
+	f_show_info "$msg_getting_package_dependencies_via_pkg_rquery"
+	if ! eval "$( pkg rquery "%n-%v %dn-%dv" | awk '
+	{ rundeps[$1] = rundeps[$1] " " $2 }
+	END {
+		for (package in rundeps)
+		{
+			deps = rundeps[package]
+			sub(/^ /, "", deps)
+			gsub(/[^[:alnum:]_]/, "_", package)
+			printf "local _%s_rundeps=\"%s\";\n", package, deps
+		}
+	}' )"; then
+		f_show_err "$msg_unable_to_pkg_rquery_package_dependencies"
+		f_device_shutdown media
+		return $FAILURE
+	fi
+
+	f_show_info "$msg_generating_index_from_pkg_database"
+	eval "$__var_to_set"='$( pkg rquery "$INDEX_FORMAT" |
+		while read LINE; do
+			package="${LINE%%|*}";
+			f_str2varname "$package" varpkg;
+			eval f_replaceall \"\$LINE\" \"\|@CATEGORIES@\|\" \
+				\"\|\$_${varpkg}_categories\|\" LINE
+			eval f_replaceall \"\$LINE\" \"\|@RUNDEPS@\|\" \
+				\"\|\$_${varpkg}_rundeps\|\" LINE
+			echo "$LINE"
+		done
+	)' # always returns true (status of last item in pipe-chain)
 	eval "$__var_to_set"='$( debug= f_getvar "$__var_to_set" | sort )'
+
+	#
+	# Attempt to create the persistant on-disk cache
+	#
+
+	# Create a new temporary file to write to
+	local __tmpfile
+	if f_eval_catch -dk __tmpfile $__funcname mktemp \
+		'mktemp -t "%s"' "$pgm"
+	then
+		# Write the temporary file contents
+		echo "$__sqlite_digest" > "$__tmpfile"
+		debug= f_getvar "$__var_to_set" >> "$__tmpfile"
+
+		# Finally, move the temporary file into place
+		case "$PACKAGES_INDEX_CACHEFILE" in
+		*/*) f_eval_catch -d $funcname mkdir \
+			'mkdir -p "%s"' "${PACKAGES_INDEX_CACHEFILE%/*}"
+		esac
+		f_eval_catch -d $__funcname mv 'mv -f "%s" "%s"' \
+			"$__tmpfile" "$PACKAGES_INDEX_CACHEFILE"
+	fi
 
 	f_show_info "$msg_located_index_now_reading_package_data_from_it"
 	if ! f_index_read "$__var_to_set"; then
-		f_show_msg "$msg_io_or_format_error_on_index_file" "$__path"
+		f_show_err "$msg_io_or_format_error_on_index_file"
 		return $FAILURE
 	fi
 

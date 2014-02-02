@@ -1,18 +1,21 @@
 # $FreeBSD$
 
+arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
 arm/broadcom/bcm2835/bcm2835_dma.c		standard
 arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
+arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
 arm/broadcom/bcm2835/bcm2835_gpio.c		optional gpio
 arm/broadcom/bcm2835/bcm2835_intr.c		standard
 arm/broadcom/bcm2835/bcm2835_machdep.c		standard
 arm/broadcom/bcm2835/bcm2835_mbox.c		standard
 arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci
+arm/broadcom/bcm2835/bcm2835_spi.c		optional bcm2835_spi
 arm/broadcom/bcm2835/bcm2835_systimer.c		standard
 arm/broadcom/bcm2835/bcm2835_wdog.c		standard
-arm/broadcom/bcm2835/bus_space.c		optional fdt
 arm/broadcom/bcm2835/common.c			optional fdt
-arm/broadcom/bcm2835/dwc_otg_brcm.c		optional dwcotg
+dev/usb/controller/dwc_otg_fdt.c		optional dwcotg
 
+arm/arm/bus_space-v6.c				standard
 arm/arm/bus_space_generic.c                     standard
 arm/arm/bus_space_asm_generic.S                 standard
 arm/arm/cpufunc_asm_arm11.S                     standard

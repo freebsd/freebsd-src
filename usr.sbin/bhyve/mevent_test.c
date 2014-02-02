@@ -34,12 +34,16 @@
  */
 
 #include <sys/types.h>
+#include <sys/stdint.h>
+#include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <machine/cpufunc.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include "mevent.h"
 
@@ -48,7 +52,61 @@
 static pthread_mutex_t accept_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t accept_condvar = PTHREAD_COND_INITIALIZER;
 
+static struct mevent *tevp;
+
+char *vmname = "test vm";
+
+
 #define MEVENT_ECHO
+
+/* Number of timer events to capture */
+#define TEVSZ	4096
+uint64_t tevbuf[TEVSZ];
+
+static void
+timer_print(void)
+{
+	uint64_t min, max, diff, sum, tsc_freq;
+	size_t len;
+	int j;
+
+	min = UINT64_MAX;
+	max = 0;
+	sum = 0;
+
+	len = sizeof(tsc_freq);
+	sysctlbyname("machdep.tsc_freq", &tsc_freq, &len, NULL, 0);
+
+	for (j = 1; j < TEVSZ; j++) {
+		/* Convert a tsc diff into microseconds */
+		diff = (tevbuf[j] - tevbuf[j-1]) * 1000000 / tsc_freq;
+		sum += diff;
+		if (min > diff)
+			min = diff;
+		if (max < diff)
+			max = diff;
+	}
+
+	printf("timers done: usecs, min %ld, max %ld, mean %ld\n", min, max,
+	    sum/(TEVSZ - 1));
+}
+
+static void
+timer_callback(int fd, enum ev_type type, void *param)
+{
+	static int i;
+
+	if (i >= TEVSZ)
+		abort();
+
+	tevbuf[i++] = rdtsc();
+
+	if (i == TEVSZ) {
+		mevent_delete(tevp);
+		timer_print();
+	}
+}
+
 
 #ifdef MEVENT_ECHO
 struct esync {
@@ -101,6 +159,8 @@ echoer(void *param)
 	pthread_mutex_unlock(&sync.e_mt);
 	pthread_mutex_destroy(&sync.e_mt);
 	pthread_cond_destroy(&sync.e_cond);
+
+	return (NULL);
 }
 
 #else
@@ -115,6 +175,8 @@ echoer(void *param)
 	while ((len = read(fd, buf, sizeof(buf))) > 0) {
 		write(1, buf, len);
 	}
+
+	return (NULL);
 }
 #endif /* MEVENT_ECHO */
 
@@ -133,6 +195,7 @@ acceptor(void *param)
 	pthread_t tid;
 	int news;
 	int s;
+	static int first;
 
         if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
                 perror("socket");
@@ -163,11 +226,24 @@ acceptor(void *param)
 		if (news < 0) {
 			perror("accept error");
 		} else {
+			static int first = 1;
+
+			if (first) {
+				/*
+				 * Start a timer
+				 */
+				first = 0;
+				tevp = mevent_add(1, EVF_TIMER, timer_callback,
+						  NULL);
+			}
+
 			printf("incoming connection, spawning thread\n");
 			pthread_create(&tid, NULL, echoer,
 				       (void *)(uintptr_t)news);
 		}
 	}
+
+	return (NULL);
 }
 
 main()

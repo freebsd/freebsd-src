@@ -61,6 +61,7 @@ device		bpf
 options 	HZ=1000
 
 # USB
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
 device		ehci
 device		umass

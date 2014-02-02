@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 11, 2010
+.Dd September 11, 2013
 .Dt IOCTL 2
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@
 .Sh SYNOPSIS
 .In sys/ioctl.h
 .Ft int
-.Fn ioctl "int d" "unsigned long request" ...
+.Fn ioctl "int fd" "unsigned long request" ...
 .Sh DESCRIPTION
 The
 .Fn ioctl
@@ -51,7 +51,7 @@ may be controlled with
 .Fn ioctl
 requests.
 The argument
-.Fa d
+.Fa fd
 must be an open file descriptor.
 .Pp
 The third argument to
@@ -116,19 +116,19 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The
-.Fa d
+.Fa fd
 argument
 is not a valid descriptor.
 .It Bq Er ENOTTY
 The
-.Fa d
+.Fa fd
 argument
 is not associated with a character
 special device.
 .It Bq Er ENOTTY
 The specified request does not apply to the kind
 of object that the descriptor
-.Fa d
+.Fa fd
 references.
 .It Bq Er EINVAL
 The

@@ -238,6 +238,7 @@ struct nvme_namespace {
 	uint16_t			flags;
 	struct cdev			*cdev;
 	void				*cons_cookie[NVME_MAX_CONSUMERS];
+	uint32_t			stripesize;
 	struct mtx			lock;
 };
 
@@ -320,6 +321,9 @@ struct nvme_controller {
 	struct nvme_namespace		ns[NVME_MAX_NAMESPACES];
 
 	struct cdev			*cdev;
+
+	/** bit mask of warning types currently enabled for async events */
+	union nvme_critical_warning_state	async_event_config;
 
 	uint32_t			num_aers;
 	struct nvme_async_event_request	aer[NVME_MAX_ASYNC_EVENTS];

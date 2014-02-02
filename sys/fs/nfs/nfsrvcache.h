@@ -46,6 +46,7 @@
 /* Cache table entry. */
 struct nfsrvcache {
 	LIST_ENTRY(nfsrvcache) rc_hash;		/* Hash chain */
+	LIST_ENTRY(nfsrvcache) rc_ahash;	/* ACK hash chain */
 	TAILQ_ENTRY(nfsrvcache)	rc_lru;		/* UDP lru chain */
 	u_int32_t	rc_xid;			/* rpc id number */
 	time_t		rc_timestamp;		/* Time done */
@@ -64,6 +65,7 @@ struct nfsrvcache {
 			int16_t		refcnt;
 			u_int16_t	cksum;
 			time_t		cachetime;
+			int		acked;
 		} ot;
 	} rc_un2;
 	u_int16_t	rc_proc;		/* rpc proc number */
@@ -81,6 +83,13 @@ struct nfsrvcache {
 #define	rc_reqlen	rc_un2.ot.len
 #define	rc_cksum	rc_un2.ot.cksum
 #define	rc_cachetime	rc_un2.ot.cachetime
+#define	rc_acked	rc_un2.ot.acked
+
+/* TCP ACK values */
+#define	RC_NO_SEQ		0
+#define	RC_NO_ACK		1
+#define	RC_ACK			2
+#define	RC_NACK			3
 
 /* Return values */
 #define	RC_DROPIT		0
@@ -95,7 +104,6 @@ struct nfsrvcache {
 #define	RC_UDP		0x0010
 #define	RC_INETIPV6	0x0020
 #define	RC_INPROG	0x0040
-#define	RC_TCPSEQ	0x0080
 #define	RC_NFSV2	0x0100
 #define	RC_NFSV3	0x0200
 #define	RC_NFSV4	0x0400

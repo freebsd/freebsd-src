@@ -259,6 +259,8 @@ struct ata_params {
 /*215*/ u_int16_t       nv_cache_size_1;
 	u_int16_t       nv_cache_size_2;
 /*217*/ u_int16_t       media_rotation_rate;
+#define ATA_RATE_NOT_REPORTED		0x0000
+#define ATA_RATE_NON_ROTATING		0x0001
 	u_int16_t       reserved218;
 /*219*/ u_int16_t       nv_cache_opt;
 /*220*/ u_int16_t       wrv_mode;

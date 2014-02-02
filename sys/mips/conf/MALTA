@@ -51,7 +51,7 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
-options 	ROOTDEVNAME=\"ufs:ada0s1a\"
+options 	ROOTDEVNAME=\"ufs:ada0\"
 
 
 # Debugging for use in -current
@@ -65,5 +65,6 @@ device		loop
 device		ether
 device		le
 device		miibus
+device		bpf
 device		md
 device		uart

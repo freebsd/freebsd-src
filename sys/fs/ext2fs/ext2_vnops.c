@@ -1615,7 +1615,7 @@ ext2_read(struct vop_read_args *ap)
 	ip = VTOI(vp);
 
 	/*EXT4_EXT_LOCK(ip);*/
-	if (ip->i_flags & EXT4_EXTENTS)
+	if (ip->i_flag & IN_E4EXTENTS)
 		error = ext4_ext_read(ap);
 	else
 		error = ext2_ind_read(ap);
@@ -1689,7 +1689,7 @@ ext2_ind_read(struct vop_read_args *ap)
 			    NOCRED, blkoffset + uio->uio_resid, seqcount,
 			    0, &bp);
 		} else if (seqcount > 1) {
-			int nextsize = blksize(fs, ip, nextlbn);
+			u_int nextsize = blksize(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else

@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #define NBPFILTER	1
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -79,11 +80,6 @@ static int      MY_USEIOSPACE = 1;
 
 
 #include <dev/my/if_myreg.h>
-
-#ifndef lint
-static          const char rcsid[] =
-"$Id: if_my.c,v 1.16 2003/04/15 06:37:25 mdodd Exp $";
-#endif
 
 /*
  * Various supported device vendors/types and their names.

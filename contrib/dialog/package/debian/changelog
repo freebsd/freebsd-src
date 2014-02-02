@@ -1,3 +1,15 @@
+cdialog (20130923) unstable; urgency=low
+
+  * improved memory-caching for gauge widget
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sat, 21 Sep 2013 09:18:26 -0400
+
+cdialog (20130902) unstable; urgency=low
+
+  * maintenance updates
+
+ -- Thomas E. Dickey <dickey@invisible-island.net>  Sun, 01 Sep 2013 19:08:31 -0400
+
 cdialog (20130523) unstable; urgency=low
 
   * minor fixes

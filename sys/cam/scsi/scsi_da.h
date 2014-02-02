@@ -116,6 +116,31 @@ struct scsi_read_defect_data_10
 	u_int8_t control;
 };
 
+struct scsi_sanitize
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+#define SSZ_SERVICE_ACTION_OVERWRITE         0x01
+#define SSZ_SERVICE_ACTION_BLOCK_ERASE       0x02
+#define SSZ_SERVICE_ACTION_CRYPTO_ERASE      0x03
+#define SSZ_SERVICE_ACTION_EXIT_MODE_FAILURE 0x1F
+#define SSZ_UNRESTRICTED_EXIT                0x20
+#define SSZ_IMMED                            0x80
+	u_int8_t reserved[5];
+	u_int8_t length[2];
+	u_int8_t control;
+};
+
+struct scsi_sanitize_parameter_list
+{
+	u_int8_t byte1;
+#define SSZPL_INVERT 0x80
+	u_int8_t reserved;
+	u_int8_t length[2];
+	/* Variable length initialization pattern. */
+#define SSZPL_MAX_PATTERN_LENGTH 65535
+};
+
 struct scsi_read_defect_data_12
 {
 	u_int8_t opcode;
@@ -156,6 +181,7 @@ struct scsi_read_defect_data_12
 #define	WRITE_AND_VERIFY	0x2e
 #define	VERIFY			0x2f
 #define READ_DEFECT_DATA_10	0x37
+#define SANITIZE		0x48
 #define READ_DEFECT_DATA_12	0xb7
 
 struct format_defect_list_header
@@ -507,6 +533,12 @@ void scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
 		      u_int8_t tag_action, u_int8_t byte2, u_int16_t ileave,
 		      u_int8_t *data_ptr, u_int32_t dxfer_len,
 		      u_int8_t sense_len, u_int32_t timeout);
+
+void scsi_sanitize(struct ccb_scsiio *csio, u_int32_t retries,
+		   void (*cbfcnp)(struct cam_periph *, union ccb *),
+		   u_int8_t tag_action, u_int8_t byte2, u_int16_t control,
+		   u_int8_t *data_ptr, u_int32_t dxfer_len, u_int8_t sense_len,
+		   u_int32_t timeout);
 
 #endif /* !_KERNEL */
 __END_DECLS

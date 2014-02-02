@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 .PATH: ${CONTRIBDIR}/lib/smb
 
@@ -15,5 +17,9 @@ SRCS=	rcfile.c ctx.c cfopt.c subr.c nls.c rap.c mbuf.c rq.c file.c \
 
 WARNS?=	1
 CFLAGS+= -DSMB_CFG_FILE=\"/etc/nsmb.conf\" -I${CONTRIBDIR}/include
+
+.if ${MK_ICONV} != "no"
+CFLAGS+= -DHAVE_ICONV=1
+.endif
 
 .include <bsd.lib.mk>

@@ -154,6 +154,7 @@ f_media_set_nfs()
 #
 f_media_init_nfs()
 {
+	local funcname=f_media_init_nfs
 	local dev="$1" name err
 
 	device_$dev get name name || return $FAILURE
@@ -170,11 +171,9 @@ f_media_init_nfs()
 		return $FAILURE
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
 	local cp tcp="" use3="" secure="" readsize=4096 writesize=4096
@@ -191,8 +190,9 @@ f_media_init_nfs()
 	[ "$use3" ] && options="$options,nfsv3"
 	[ "$tcp" ] && options="$options,tcp"
 
-	if ! err=$( mount_nfs \
-		${secure:+-P} -o "$options" "$name" "$MOUNTPOINT" 2>&1 )
+	if ! f_eval_catch -dk err $funcname mount_nfs \
+		'mount_nfs %s -o "%s" "%s" "%s"' \
+		"${secure:+-P}" "$options" "$name" "$MOUNTPOINT"
 	then
 		err="${err#mount_nfs: }"
 		f_show_msg "$msg_error_mounting_device" \
@@ -231,12 +231,15 @@ f_media_get_nfs()
 #
 f_media_shutdown_nfs()
 {
+	local funcname=f_media_shutdown_nfs
 	local dev="$1" err
 
-	[ "$NFS_MOUNTED" ] || return
+	[ "$NFS_MOUNTED" ] || return $FAILURE
 
 	f_dprintf "Unmounting NFS partition on %s" "$MOUNTPOINT"
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNTPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_nfs_partition" \
 		           "$MOUNTPOINT" "$err"

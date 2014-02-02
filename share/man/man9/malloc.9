@@ -29,7 +29,7 @@
 .\" $NetBSD: malloc.9,v 1.3 1996/11/11 00:05:11 lukem Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2012
+.Dd January 16, 2014
 .Dt MALLOC 9
 .Os
 .Sh NAME
@@ -214,17 +214,6 @@ of two for requests up to the size of a page of memory.
 For larger requests, one or more pages is allocated.
 While it should not be relied upon, this information may be useful for
 optimizing the efficiency of memory use.
-.Pp
-Programmers should be careful not to confuse the malloc flags
-.Dv M_NOWAIT
-and
-.Dv M_WAITOK
-with the
-.Xr mbuf 9
-flags
-.Dv M_DONTWAIT
-and
-.Dv M_WAIT .
 .Sh CONTEXT
 .Fn malloc ,
 .Fn realloc

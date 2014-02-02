@@ -150,6 +150,18 @@ a10wd_watchdog_fn(void *private, u_int cmd, int *error)
 			    (wd_intervals[i].value << WDOG_MODE_INTVL_SHIFT) |
 			    WDOG_MODE_EN | WDOG_MODE_RST_EN);
 			WRITE(sc, WDOG_CTRL, WDOG_CTRL_RESTART);
+			*error = 0;
+		}
+		else {
+			/* 
+			 * Can't arm
+			 * disable watchdog as watchdog(9) requires
+			 */
+			device_printf(sc->dev,
+			    "Can't arm, timeout is more than 16 sec\n");
+			mtx_unlock(&sc->mtx);
+			WRITE(sc, WDOG_MODE, 0);
+			return;
 		}
 	}
 	else

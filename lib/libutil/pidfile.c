@@ -73,7 +73,7 @@ pidfile_read(const char *path, pid_t *pidptr)
 	char buf[16], *endptr;
 	int error, fd, i;
 
-	fd = open(path, O_RDONLY);
+	fd = open(path, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		return (errno);
 

@@ -120,6 +120,7 @@ static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
 static vfs_sync_t nfs_sync;
 static vfs_sysctl_t nfs_sysctl;
+static vfs_purge_t nfs_purge;
 
 /*
  * nfs vfs operations.
@@ -134,6 +135,7 @@ static struct vfsops nfs_vfsops = {
 	.vfs_uninit =		ncl_uninit,
 	.vfs_unmount =		nfs_unmount,
 	.vfs_sysctl =		nfs_sysctl,
+	.vfs_purge =		nfs_purge,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK | VFCF_SBDRY);
 
@@ -717,7 +719,8 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minorversion",
-    "nametimeo", "negnametimeo", "nocto", "pnfs", "wcommitsize",
+    "nametimeo", "negnametimeo", "nocto", "noncontigwr", "pnfs",
+    "wcommitsize",
     NULL };
 
 /*
@@ -838,6 +841,8 @@ nfs_mount(struct mount *mp)
 		args.flags |= NFSMNT_ALLGSSNAME;
 	if (vfs_getopt(mp->mnt_optnew, "nocto", NULL, NULL) == 0)
 		args.flags |= NFSMNT_NOCTO;
+	if (vfs_getopt(mp->mnt_optnew, "noncontigwr", NULL, NULL) == 0)
+		args.flags |= NFSMNT_NONCONTIGWR;
 	if (vfs_getopt(mp->mnt_optnew, "pnfs", NULL, NULL) == 0)
 		args.flags |= NFSMNT_PNFS;
 	if (vfs_getopt(mp->mnt_optnew, "readdirsize", (void **)&opt, NULL) == 0) {
@@ -1676,6 +1681,19 @@ nfs_sysctl(struct mount *mp, fsctlop_t op, struct sysctl_req *req)
 }
 
 /*
+ * Purge any RPCs in progress, so that they will all return errors.
+ * This allows dounmount() to continue as far as VFS_UNMOUNT() for a
+ * forced dismount.
+ */
+static void
+nfs_purge(struct mount *mp)
+{
+	struct nfsmount *nmp = VFSTONFS(mp);
+
+	newnfs_nmcancelreqs(nmp);
+}
+
+/*
  * Extract the information needed by the nlm from the nfs vnode.
  */
 static void
@@ -1777,6 +1795,8 @@ void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
 	    &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) != 0, ",nocto", &buf,
 	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NONCONTIGWR) != 0,
+	    ",noncontigwr", &buf, &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
 	    0, ",lockd", &buf, &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==

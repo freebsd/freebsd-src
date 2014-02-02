@@ -5,9 +5,9 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.43 2013/07/16 21:14:30 sjg Exp $
+# $Id: Makefile.in,v 1.44 2013/08/28 22:09:29 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.37 2013/07/16 19:59:28 sjg Exp $
+# $NetBSD: Makefile,v 1.38 2013/08/28 21:56:50 sjg Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -52,6 +52,7 @@ SUBFILES= \
 	phony-end \
 	posix \
 	qequals \
+	sunshcmd \
 	sysv \
 	ternary \
 	unexport \

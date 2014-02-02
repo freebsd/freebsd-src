@@ -8,9 +8,10 @@ arm/arm/irq_dispatch.S			standard
 kern/kern_clocksource.c			standard
 
 # Init
+arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx51_machdep.c	standard
 arm/freescale/imx/common.c		standard
-arm/freescale/imx/bus_space.c		standard
+arm/arm/bus_space-v6.c			standard
 
 # Dummy serial console
 #arm/freescale/imx/console.c		standard
@@ -36,7 +37,8 @@ dev/ata/chipsets/ata-fsl.c		optional imxata
 # UART driver
 dev/uart/uart_dev_imx.c			optional uart
 
-# USB join controller (1 OTG, 3 EHCI)
+# USB OH3 controller (1 OTG, 3 EHCI)
+arm/freescale/imx/imx_nop_usbphy.c	optional echi
 dev/usb/controller/ehci_imx.c		optional ehci
 
 # Watchdog
@@ -44,8 +46,8 @@ arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
 arm/freescale/imx/i2c.c			optional fsliic
-dev/ofw/ofw_iicbus.c			optional fsliic
 
 # IPU - Image Processing Unit (frame buffer also)
 arm/freescale/imx/imx51_ipuv3.c		optional sc
-
+arm/freescale/imx/imx51_ipuv3_fbd.c	optional vt
+dev/vt/hw/fb/vt_early_fb.c		optional vt

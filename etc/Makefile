@@ -50,6 +50,10 @@ BIN1=	crontab \
 	syslog.conf \
 	termcap.small
 
+.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
+BIN1+=	libmap32.conf
+.endif
+
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
 .elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
@@ -135,14 +139,11 @@ BIN1+= regdomain.xml
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_TESTS} != "no"
+MTREE+=	BSD.tests.dist
+.endif
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
-.endif
-.if ${MK_BIND} != "no"
-MTREE+=	BIND.chroot.dist
-.if ${MK_BIND_LIBS} != "no"
-MTREE+=	BIND.include.dist
-.endif
 .endif
 .if ${MK_DEBUG_FILES} != "no"
 MTREE+=	BSD.debug.dist
@@ -217,16 +218,19 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_ATF} != "no"
-	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
-.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
+.endif
+.if ${MK_CASPER} != "no"
+	${_+_}cd ${.CURDIR}/casper; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+.if ${MK_PKGBOOTSTRAP} != "no"
+	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
@@ -238,13 +242,10 @@ distribution:
 	    ${BSM_ETC_RESTRICTED_FILES} ${BSM_ETC_DIR}
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
-.if ${MK_BIND_MTREE} != "no"
-	if [ ! -e ${DESTDIR}/etc/namedb ]; then \
-		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
+.if ${MK_UNBOUND} != "no"
+	if [ ! -e ${DESTDIR}/etc/unbound ]; then \
+		${INSTALL_SYMLINK} ../var/unbound ${DESTDIR}/etc/unbound; \
 	fi
-.endif
-.if ${MK_BIND_ETC} != "no"
-	${_+_}cd ${.CURDIR}/namedb; ${MAKE} install
 .endif
 .if ${MK_SENDMAIL} != "no"
 	${_+_}cd ${.CURDIR}/sendmail; ${MAKE} distribution
@@ -319,14 +320,11 @@ MTREES=		mtree/BSD.root.dist		/		\
 .if ${MK_DEBUG_FILES} != "no"
 MTREES+=	mtree/BSD.debug.dist		/usr/lib
 .endif
-.if ${MK_BIND_LIBS} != "no"
-MTREES+=	mtree/BIND.include.dist		/usr/include
-.endif
-.if ${MK_BIND_MTREE} != "no"
-MTREES+=	mtree/BIND.chroot.dist		/var/named
-.endif
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
+.endif
+.if ${MK_TESTS} != "no"
+MTREES+=	mtree/BSD.tests.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/

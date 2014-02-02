@@ -233,8 +233,9 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("CPU Frequency=%d MHz\n", u_ar71xx_cpu_freq / 1000000);
 	printf("CPU DDR Frequency=%d MHz\n", u_ar71xx_ddr_freq / 1000000);
 	printf("CPU AHB Frequency=%d MHz\n", u_ar71xx_ahb_freq / 1000000);
-	printf("platform frequency: %lld\n", platform_counter_freq);
+	printf("platform frequency: %lld MHz\n", platform_counter_freq / 1000000);
 	printf("CPU reference clock: %d MHz\n", u_ar71xx_refclk / 1000000);
+	printf("CPU MDIO clock: %d MHz\n", u_ar71xx_mdio_freq / 1000000);
 	printf("arguments: \n");
 	printf("  a0 = %08x\n", a0);
 	printf("  a1 = %08x\n", a1);
@@ -278,6 +279,16 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	 * Reset USB devices 
 	 */
 	ar71xx_init_usb_peripheral();
+
+	/*
+	 * Reset internal ethernet switch, if one exists
+	 */
+	ar71xx_reset_ethernet_switch();
+
+	/*
+	 * Initialise the gmac driver.
+	 */
+	ar71xx_init_gmac();
 
 	kdb_init();
 #ifdef KDB

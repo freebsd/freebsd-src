@@ -43,7 +43,7 @@
 
 @ For FPA, float words are always big-endian.
 @ For VFP, floats words follow the memory system mode.
-#if defined(__VFP_FP__) && !defined(__ARMEB__)
+#if (defined(__ARM_EABI__) || defined(__VFP_FP__)) && !defined(__ARMEB__)
 #define xl r0
 #define xh r1
 #define yl r2

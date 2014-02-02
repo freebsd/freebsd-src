@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 NO_MAN=
-WITHOUT_SSP=
 
 .include <bsd.own.mk>
+MK_SSP=		no
 
 SHLIB_NAME=	userboot.so
 NO_CTF=		yes

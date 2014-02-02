@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/if_atm.h>
 #include <net/route.h>
@@ -319,7 +320,7 @@ patm_stop(struct patm_softc *sc)
 		for (i = 0; i < IDT_TSQE_TAG_SPACE; i++) {
 			if ((m = scd->on_card[i]) != NULL) {
 				scd->on_card[i] = 0;
-				map = m->m_pkthdr.header;
+				map = m->m_pkthdr.PH_loc.ptr;
 
 				bus_dmamap_unload(sc->tx_tag, map->map);
 				SLIST_INSERT_HEAD(&sc->tx_maps_free, map, link);

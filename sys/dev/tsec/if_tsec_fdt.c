@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/endian.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -48,9 +50,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_media.h>
-#include <net/if_arp.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/mii/mii.h>
@@ -110,6 +110,10 @@ tsec_fdt_probe(device_t dev)
 	struct tsec_softc *sc;
 	uint32_t id;
 
+	if (ofw_bus_get_type(dev) == NULL ||
+	    strcmp(ofw_bus_get_type(dev), "network") != 0)
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "gianfar"))
 		return (ENXIO);
 
@@ -148,6 +152,7 @@ static int
 tsec_fdt_attach(device_t dev)
 {
 	struct tsec_softc *sc;
+	phandle_t phy;
 	int error = 0;
 
 	sc = device_get_softc(dev);
@@ -155,9 +160,14 @@ tsec_fdt_attach(device_t dev)
 	sc->node = ofw_bus_get_node(dev);
 
 	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, sc->dev, &sc->phyaddr,
-	    (void **)&sc->phy_sc) != 0)
+	if (OF_getencprop(sc->node, "phy-handle", &phy, sizeof(phy)) <= 0) {
+		device_printf(dev, "PHY not found in device tree");
 		return (ENXIO);
+	}
+
+	phy = OF_xref_phandle(phy);
+	OF_decode_addr(OF_parent(phy), 0, &sc->phy_bst, &sc->phy_bsh);
+	OF_getencprop(phy, "reg", &sc->phyaddr, sizeof(sc->phyaddr));
 
 	/* Init timer */
 	callout_init(&sc->tsec_callout, 1);
@@ -319,6 +329,13 @@ tsec_get_hwaddr(struct tsec_softc *sc, uint8_t *addr)
 
 	/* Retrieve the hardware address from the device tree. */
 	i = OF_getprop(sc->node, "local-mac-address", (void *)hw.addr, 6);
+	if (i == 6 && (hw.reg[0] != 0 || hw.reg[1] != 0)) {
+		bcopy(hw.addr, addr, 6);
+		return;
+	}
+
+	/* Also try the mac-address property, which is second-best */
+	i = OF_getprop(sc->node, "mac-address", (void *)hw.addr, 6);
 	if (i == 6 && (hw.reg[0] != 0 || hw.reg[1] != 0)) {
 		bcopy(hw.addr, addr, 6);
 		return;

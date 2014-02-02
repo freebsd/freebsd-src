@@ -111,7 +111,7 @@ enum
 	Q81_PAUSE_FRM_DEST_LO          = 0x00000128,
 	Q81_PAUSE_FRM_DEST_HI          = 0x0000012c,
 	Q81_MAC_TX_PARAMS              = 0x00000134,
-	Q81_MAC_TX_PARAMS_JUMBO        = (1 << 31),   /*Control*/
+	Q81_MAC_TX_PARAMS_JUMBO        = (1U << 31),   /*Control*/
 	Q81_MAC_TX_PARAMS_SIZE_SHIFT   = 16,          /*Control*/
 	Q81_MAC_RX_PARAMS              = 0x00000138,
 	Q81_MAC_SYS_INT                = 0x00000144,

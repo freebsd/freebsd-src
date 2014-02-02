@@ -22,10 +22,6 @@
 #ifndef RB_H_
 #define	RB_H_
 
-#if 0
-__FBSDID("$FreeBSD$");
-#endif
-
 #ifdef RB_COMPACT
 /* Node structure. */
 #define	rb_node(a_type)							\

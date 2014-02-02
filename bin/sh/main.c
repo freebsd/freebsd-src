@@ -231,7 +231,7 @@ cmdloop(int top)
 		popstackmark(&smark);
 		setstackmark(&smark);
 		if (evalskip != 0) {
-			if (evalskip == SKIPFILE)
+			if (evalskip == SKIPRETURN)
 				evalskip = 0;
 			break;
 		}

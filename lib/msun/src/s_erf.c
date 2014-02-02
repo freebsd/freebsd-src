@@ -201,7 +201,7 @@ erf(double x)
 	if(ix < 0x3feb0000) {		/* |x|<0.84375 */
 	    if(ix < 0x3e300000) { 	/* |x|<2**-28 */
 	        if (ix < 0x00800000)
-		    return 0.125*(8.0*x+efx8*x);  /*avoid underflow */
+		    return (8*x+efx8*x)/8;	/* avoid spurious underflow */
 		return x + efx*x;
 	    }
 	    z = x*x;

@@ -82,15 +82,21 @@
 #define	VM_PHYSSEG_DENSE
 
 /*
- * Create three free page pools: VM_FREEPOOL_DEFAULT is the default pool
- * from which physical pages are allocated and VM_FREEPOOL_DIRECT is
- * the pool from which physical pages for small UMA objects are
- * allocated.
+ * Create two or three free page pools depending on the existence of a direct
+ * map: VM_FREEPOOL_DEFAULT is the default pool from which physical pages are
+ * allocated, and VM_FREEPOOL_DIRECT is the pool from which physical pages for
+ * small UMA objects are allocated.
  */
+#ifdef ARM_USE_SMALL_ALLOC
 #define	VM_NFREEPOOL		3
 #define	VM_FREEPOOL_CACHE	2
-#define	VM_FREEPOOL_DEFAULT	0
 #define	VM_FREEPOOL_DIRECT	1
+#else
+#define	VM_NFREEPOOL		2
+#define	VM_FREEPOOL_CACHE	1
+#define	VM_FREEPOOL_DIRECT	0
+#endif
+#define	VM_FREEPOOL_DEFAULT	0
 
 /*
  * we support 2 free lists:
@@ -109,10 +115,17 @@
 #define	VM_NFREEORDER		9
 
 /*
- * Disable superpage reservations.
+ * Enable superpage reservations: 1 level.
  */
 #ifndef	VM_NRESERVLEVEL
-#define	VM_NRESERVLEVEL		0
+#define	VM_NRESERVLEVEL		1
+#endif
+
+/*
+ * Level 0 reservations consist of 256 pages.
+ */
+#ifndef	VM_LEVEL_0_ORDER
+#define	VM_LEVEL_0_ORDER	8
 #endif
 
 #define UPT_MAX_ADDRESS		VADDR(UPTPTDI + 3, 0)
@@ -152,17 +165,22 @@
 #define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 /*
- * Virtual size (bytes) for various kernel submaps.
+ * How many physical pages per kmem arena virtual page.
  */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12*1024*1024)
-#endif
 #ifndef VM_KMEM_SIZE_SCALE
-#define VM_KMEM_SIZE_SCALE	(3)
+#define	VM_KMEM_SIZE_SCALE	(3)
 #endif
 
 /*
- * Ceiling on the size of the kmem submap: 40% of the kernel map.
+ * Optional floor (in bytes) on the size of the kmem arena.
+ */
+#ifndef VM_KMEM_SIZE_MIN
+#define	VM_KMEM_SIZE_MIN	(12 * 1024 * 1024)
+#endif
+
+/*
+ * Optional ceiling (in bytes) on the size of the kmem arena: 40% of the
+ * kernel map.
  */
 #ifndef VM_KMEM_SIZE_MAX
 #define	VM_KMEM_SIZE_MAX	((vm_max_kernel_address - \

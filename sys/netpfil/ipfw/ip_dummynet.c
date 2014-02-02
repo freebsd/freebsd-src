@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -82,13 +83,15 @@ dummynet(void *arg)
 {
 
 	(void)arg;	/* UNUSED */
-	taskqueue_enqueue(dn_tq, &dn_task);
+	taskqueue_enqueue_fast(dn_tq, &dn_task);
 }
 
 void
 dn_reschedule(void)
 {
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+
+	callout_reset_sbt(&dn_timeout, tick_sbt, 0, dummynet, NULL,
+	    C_HARDCLOCK | C_DIRECT_EXEC);
 }
 /*----- end of callout hooks -----*/
 
@@ -2159,12 +2162,12 @@ ip_dn_init(void)
 	DN_LOCK_INIT();
 
 	TASK_INIT(&dn_task, 0, dummynet_task, curvnet);
-	dn_tq = taskqueue_create("dummynet", M_WAITOK,
+	dn_tq = taskqueue_create_fast("dummynet", M_WAITOK,
 	    taskqueue_thread_enqueue, &dn_tq);
 	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
 
 	callout_init(&dn_timeout, CALLOUT_MPSAFE);
-	callout_reset(&dn_timeout, 1, dummynet, NULL);
+	dn_reschedule();
 
 	/* Initialize curr_time adjustment mechanics. */
 	getmicrouptime(&dn_cfg.prev_t);

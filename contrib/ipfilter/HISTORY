@@ -10,745 +10,268 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
-4.1.28 - Release 16 October 2007
-
-backout changes (B1) & (B2) as they've caused NAT entries to persist for
-too long and possibly other side effects.
-
-Still need to compile in our own radix.c for Solaris as the one in S10U4
-has a different alignment of structure members (causes panic)
-
-keep state doesn't work with multicast/broadcast packets (makes UPnP easier)
-
-ippool -l may only lists every 2nd pool's contents
-
-4.1.27 - Released 29 September 2007
-
-SunOS5/replace script does not deal with i386 systems that have the
-i86/amd64 directory pair.
-
-make BSD/kupgrade try to build ip_rules.[ch] before complaining
-
-Need to look for ipl.ko LKM on FreeBSD, not just ipf.ko
-
-Cleanup SunOS5 Makefile pieces, removing CPU, sunos5x86; buildsunos needs
-to drive 32bit cc builds differently for sparc/i386 now.
-
-Update instructions for rebuilding FreeBSD kernels
-
-Make the target "freebsd" work for building ipfilter
-
-destroying NAT entries for blocked packets can lead to NAT table entry leak,
-provide a counter of orphan'd NAT entries to track this problem.
-
-4.1.26 - Released 24 September 2007
-
-Fix build problem for Solaris prior to S10U4
-
-4.1.25 - Released 20 September 2007
-
-stepping through structures with ioctls can lead to the wrong things
-being free'd and panics
-
-if a NAT entry (such as an rdr) is created but the packet ends up being
-blocked, tear down the NAT entry.
-
-fix fragment cache preventing keep state from functioning
-
-fix handling of \ to indicate a continued line in .conf files
-
-include port ranges in the allowed input for ipf when using "port = ()"
-
-only advance TCP state for packets on the leading edge of the window. (B1)
-
-using ipnat -l can lead to memory corruption in high stress situations
-
-track TCP sequence numbers with NAT so that it can do timeout advances
-correctly inline with state
-
-ICMP checksums for some redirect'd packets are not adjusted correctly.
-
-IPv6 address components need to be explicitly cast to a 32bit pointer
-boundary so that compilers don't try to access them as two 64bit
-pieces (no guarantee is made that an Ipv6 address is on a 64bit
-aligned address)
-
-filling up the ipauth packet queue can lead to no more packets being
-processed.
-
-locking used to deref a nat entry causes a significant performance hit
-
-m_pulldown isn't properly handled, leading to possible panics with ICMPv6
-packets
-
-IPv6 fragment handling doesn't allow for "keep frag" to work
-
-build on Solaris10 Update4 with pfhooks in the kernel
-
-logging of Ipv6 packets with extension headers fix - Miroslaw Luc
-
-4.1.24 - Released 8 July 2007
-
-patch from Stuart Remphrey to address recursive mutex lock with TCP state
-
-add hash table bucket stats display to ipnat -s
-
-give ASSERT some teeth for user compiles
-
-initialising ipf_global, ipf_frcache, ipf_mutex should all be done very
-early on
-
-do some caddr_t cleanup, where possible
-
-fr_ref no longer tracks the number of children rules in a group for head rules
-
-make sure all BCOPY* have a value assigned to something
-
-fix possible use of icmp pointer after pullup makes it invalid
-
-resolve compile problems related to FreeBSD tree
-
-4.1.23 - Released 31 May 2007
-
-NAT was not always correctly fixing ICMP headers for errors
-
-some TCP state steps when closing do not update timeouts, leading to
-them being removed prematurely. (B2)
-
-fix compilation problems for netbsd 4.99
-
-protect enumeration of lists in the kernel from callout interrupts on
-BSD without locking
-
-fix various problems with IPv6 header checks: TCP/UDP checksum validation
-was not being done, fragmentation header parsed dangerously and routing
-header prevented others from being seen
-
-fix gcc 4.2 compiler warnings
-
-fix TCP/UDP checksum calculation for IPv6
-
-fix reference after free'ing ipftoken memory
-
-4.1.22 - Released 13 May 2007
-
-fix endless loop when flushing state/NAT by idle time
-
-4.1.21 - Released 12 May 2007
-
-show the number of states created against a rule with "-v" for ipfstat
-
-fix build problems with FreeBSD
-
-make it possible to flush the state table by idle time and TCP state
-
-fix flushing out idle connections when state/NAT tables fill
-
-print out the TCP state population with ipfstat/ipnat
-
-stop creation of state table orphans via return-*/fastroute
-
-fix printing out of rule groups - they now only appear once
-
-4.1.20 - Released 30 April 2007
-
-adjust TCP state numbers, making 11 closed (was 0) to better facilitate
-detecting closing connections that we can wipe out when a SYN arrives
-that matches the old
-
-make it compile on Solaris10 Update3
-
-structures used for ipf command ioctls weren't being freed in timeout
-fashion on solairs
-
-use NL_EXPIRE, not ISL_EXPIRE, for expiring NAT sessions
-
-adjust TCP timeout values and introduce a time-wait specifc timeout
-to get a better TCP FSM emulation and one that can hopefully do a better
-job of cleaning up in a speedy fashion than previous
-
-refactor the automatic flushing of TCP state entries when we fill up,
-but use the same algorithm as before but now it hopefully works
-
-only 2 out of 4 interface names were being changed by ipfs when
-interface renaming was being used for state entries
-
-add ipf_proxy_debug to ipf-T
-
-matching of last fragments that had a number of bytes that wasn't a
-multiple of 8 failed
-
-some combinations of TCP flags are considered bad aren't picked up as such,
-but these may be possible with T/TCP
-
-4.1.19 - Released 22 February 2007
-
-Fix up compilation problems with NetBSD and Solaris.
-
-4.1.18 - Released 18 February 2007
-
-fix compiling on Tru64
-
-fix listing out filter rules with ipfstat (delete token at end of
-the list and detect zero rule being returned.)
-
-fix extended flushing of NAT tables (was clearing out state tables)
-
-fix null-pointer deref in hash table lookup
-
-fix NAT and stateful filtering with to/reply-to on destination interface
-
-4.1.17 - Released 20 January 2007
-
-make flushing pools that are still in use mark them for deletion and
-have attempting to recreate them clear the delete flag
-
-walking through the NAT tables with ioctls caused lock recursion
-
-fix tracking TCP window scaling in the state code
-
-4.1.16 - Released 20 December 2006
-
-allow rdr rules to only differ on the new port number
-
-when creating state entry orphans, leave them on the linked list but not
-attached to the hash table and mark them visible as orphans in "ipfstat -sl"
-
-log state removed when unloading differently to allow visible cues
-
-return ipf ticks via SIOCGETGS for /dev/ipnat so "ipnat -l" can display ttl
-
-abort logging a packet if the mbuf pointer is null when ipflog is called
-
-Some NetBSD's have a selinfo.h instead of select.h
-
-SIOCIPFFL was using copyoutptr and should have been using bcopy for /dev/ipauth
-
-listing accounting rules using ioctl interface wasn't possible
-
-fix leakage of state entries due to packets not matching up with NAT
-
-improve ICMP error packet matching with state/NAT
-
-fix problems with parsing and printing "-" as an interface name in ipnat.conf
-
-4.1.15 - Released 03 November 2006
-
-Add in automatic flushing of NAT, like state, table if it fills up too much
-
-Update comments in the code for NAT checksum adjustments
-
-Fix compiling on FreeBSD 5.4 and 6.0
-
-prevent panics from read/write IOs trying to use uninitialised structures
-
-Newer NetBSD should use malloc() instead of MALLOC() in the kernel where
-the size is not staticly defined
-
-Some gcc warning message cleanup from NetBSD
-
-Missing include for <sys/filio.h> on Solaris for poll work
-
-NetBSD now uses opt_ipfilter.h, not opt_ipfilter_log.h
-
-4.1.14 - Released 04 October 2006
-
-rewrite checksum alteration for ICMP packets being NAT'd to use a sane
-algorithm that can be understood...now it needs better comments
-
-fix 1 byte error in checksum validation perl script
-
-remove unused files in lib directory
-
-ipftest will say "bad-packet" if it has been freed rather than just "blocked"
-
-make it possible to load IP address pools from external files in ippool.conf
-
-update copyright messages in tools directory
-
-consolidate ioctl hanlding source code into fil.c
-
-make ipfstat, ippool, ipnat retrieve information via ioctls rather than /dev/kmem
-
-4.1.13 - Released 4 April 2006
-
-fix bug where null pointers introduced by proxies could cause a crash
-
-pass out the rule flags with SIOCAUTHW
-
-force loading NAT rules with bad proxy labels to cause an error
-
-nat_state is used unsafely in calls to fr_addstate
-
-make return-rst and return-icmp* work with auth rules
-
-4.1.12 - Released 28 March 2006
-
-poll support on FreeBSD/NetBSD needs to use selrecord/selwakeup
-
-make the fastroute code used by ipftest invoke state/NAT
-
-move verbose/debug macros out of fil.c and into ip_fil.h (for wider use)
-
-remove unused code in fr_fastroute
-
-fix NAT with rules that specify forward and reverise interfaces
-
-add missing ipfsync_canread() and ipfsync_canwrite()
-
-behaviour of \ on the end of a line in ipf.conf does not match older behaviour
-
-remove duplicate statistics line output with "ipfstat -s"
-
-4.1.11 - Released 19 March 2006
-
-Patch for NAT with ipfsync from N. Ersen (SESCI) - www.enderunix.org
-
-NetBSD coverity report fixes (from run 5)
-
-Possible to reacquire ipf_auth without releasing it in some circumstances
-
-Locking in FreeBSD's iplioctl for ipf_global isn't present like it shoudl be
-
-Add poll support for platforms I can build on: NetBSD, FreeBSD, Solaris, Linux
-
-Using auth rules to return "keep state" got broken with pushing fr_addstate
-call into fr_firewall
-
-all use of '!' in map/rdr rules to match use in ipf configs
-
-add -L command line option to ipmon to set the default syslog facility
-
-looking up a port number is more complex than needed in ipft_tx.c
-
-allow lib/getport to work when neither tcp or udp are specified in a rule
-
-remove some dead code from lib/addicmpc, lib/facpri.c, lib/icmpcode.c
-
-program in some more cases where TCP packets fail an initial in-window
-check but should be allowed to match
-
-filter rule added with NAT/state handling of SIOCSTPUT doesn't properly
-initialise all fields, making it possible to panic
-
-simplify NAT ICMP error handling where it updates checksums
-
-rename "min" variables to "xmin" on NetBSD to avoid problems with the
-macro "min"
-
-#ifdef's for NetBSD compile incorrect for pfil interface
-
-support select/poll on NetBSD
-
-copying out a packet with an auth rule fails (EFAULT) because the wrong
-pointer is passed to copyoutptr
-
-ip_len/ip_off where byte swapped twice instead of once for packets
-going to be stored on the auth queue
-
-change timeout queue manipulation functions to make fewer mutex calls
-
-fix use of skip rules with groups
-fix coding problems discovered by the coverity project for FreeBSD
-
-update BPF program validation with FreeBSD changes
-
-4.1.10 - Released 6 December 2005
-
-Expand regression testing to cover more features
-
-Add "coverage" build target for BSD
-
-Fix building 64bit sparc target for Solaris
-
-Add IPv6 mobility header to list of accepted keywords for V6 headers
-
-Resolve locking problems on Solaris when sending RST/icmp packets
-
-#ifdef's for IPFILTER_BPF need to check if words are defined before
-using them in comparisons
-
-Add checking for SACK permitted option in TCP SYN packets
-
-Fix loading anonymous pools from inline rule configuration groups
-
-Add -C command line option to ipftest
-
-Include extra "const" from NetBSD
-
-Don't require SIOCKSTLCK for SIOCSTPUT
-
-Fix some use of "sticky" on NAT rules
-
-Fix statistical counting of deleting state for TCP connections
-
-Fix compile problems caused by changes to is_opt/is_optmsk in ip_sync.c
-
-Fix TCP out-of-window (OOW) problems:
-- window scaling turned off if one chose for its scale factor
-- Microsoft Windows TCP sends the "next packet" to the right of the window
-  when using SACK and filling in a hole
-
-4.1.9 - Released 13 August 2005
-
-make ipfilter fix IPv4 header checksums for outgoing packets if BRIDGE_IPF
-is defined when compiled.
-
-move the definition of SIOCPROXY from ip_nat.h to ip_proxy.h
-
-make the BSD/upgrade script more instructive about the requiements for
-ip_rules.[ch] when it is run
-
-register for interface events on FreeBSD (>5.2.1) and NetBSD so that
-"ipf -y" is not not requried to tell ipfilter about interface changes.
-
-for "quick" rules that do "keep state", move the state adding into the rule
-evaluation so that we can detect it failing as rules are evaluated and
-continue on to the next rather than wait until we're done and it's too late
-to recover for more rule processing.
-
-mark ICMP packets advertising an MTU that's too small as being bad
-
-rework ipv6 header parsing to get better code reuse and fix logic errors
-in dealing with ipv6 packets containing fragment headers.  Also, where a
-protocol handler was doing both v4 & v6, make a seperate function for each.
-
-build for both amd64 and i86pc (32bit) on Solaris10 and later, if possible
-
-include start of work to get IPFilter working on AIX 5.3
-
-Use FI_ICMPERR flag rather than try to compute its equivalent all the time
-
-Rewrork IPv6 extension header parsing to get better code reuse
-
-Add missing timeout on Linux
-
-Fix for locking when reading from ipsync (Frank Volf)
-
-Fix insertion/appending of rules that use a collection number
-
-Somehow turning up the spl knob to splnet disappeared on platforms that still
-use the spl interface.
-
-fix problems with "ipf -T" not listing multiple variables properly
-
-4.1.8 - Released 29 March 2005
-
-include path from Phil Dibowitz for sorting ipfstat -t output by source or
-destination port.
-
-fix a bug in printing rules where interface names could not be printed,
-even if they're in the rule structure.
-
-fix BSD/kupgrade to correctly change ipfilter lkm Makefile for FreeBSD
-
-add 2 new features to SIOCGNATL:
-- if IPN_FINDFORWARD is set, check if the respective MAP is already
-  present in the outbound table
-- if IPN_IN is set, search for a matching MAP entry instead of RDR
-  (Peter Potsma)
-
-turn off function inlining for freebsd 5.3+
-
-UDP doesn't pullup enough data which can sometimes cause a panic.
-Fix other protocols, as required, where a similar problem may exist.
-
-overhaul the timeout queue management, especially that for user defined queues
-which are now only freed in an orderly manner.
-
-4.1.7 - Released 13 March 2005
-
-Using the GRE call field is almost impossible because it is unbalanced and
-both call fields are not present in each v1 header.
-
-Fix a problem where it was possible to load duplicate rules into ipf
-
-patch from John Wehle to address problems with fastroute on solaris
-
-Copying data out for ipf -z failed because it tried to copy out to an address
-that is a kernel pointer in user space.
-
-add "ip" timeout for both NAT & state that's for non-TCP/UDP/ICMP
-
-synch up with NetBSD's changes
-
-fix problems parsing long lines of text in the ftp proxy where they would not
-be parsed properly and stop the session from working
-
-enhance the PPTP proxy so that it tries to decode messages in the TCP stream
-so it knows when to create and destroy the state/nat sessions for GRE.  There
-are also 4 new regression tests for it, testing map/rdr rules.
-
-impose some limits on the size of data that can be moved with SIOCSTPUT in
-the NAT code and also prevent a duplicate session entry from being created
-using this method.
-
-add a new flag (IPN_FINDFORWARD) to NAT code that can be used with SIOCGNATL
-to check if it is possible to create an outgoing transparent NAT mapping to
-compliment the redirect being investigated.
-
-Linux requires that the checksums in the IP header get adjusted
-
-only resolve unknown interfaces in fr_stinsert, and nuke all interface pointers
-in SIOCSTPUT to prevent bad data being loaded from userspace.
-
-make the byte counting for state correct (was counting data from ICMP packet
-twice)
-
-print out the keyword "frag-body" if the flag is set.
-
-fix ipfs loading/restoring NAT sessions
-
-patch from Frank to correctly format IP addresses in ipfstat -t output
-
-parsing port numbers in ipf/ipnat was confusing as the port number was returned
-in an int that was also overloaded to be the suceess/failure.  instead, change
-the port using pass by reference and only use the return value for indicating
-success or failure.
-
-4.1.6 - Released 19 February 2005
-
-add a new timeout number to NAT (fr_defnatipage) that is used for all
-non-TCP/UDP/ICMP protocols - default 60 seconds.
-
-buffer leak with bad nat - David Gueluy
-
-fix memory leak with state entries created by proxies
-
-eliminate copying too much data into a scan buffer
-
-allow a trailing protocol name for map rules as well as rdr ones
-
-fix bug in parsing of <= and > for NAT rules (two were crossed over)
-
-FreeBSD's iplwrite hasn't kept pace with iplread's prototype
-
-expand documention on the karma of using "auto" in ipnat map rules
-
-add matching on IP protocol to ipnat map rules
-
-allow ippool definitions to contain no addresses to start with
-
-Linux NAT needs to modify the IP header checksum as it gets called after it
-has been computed by IP.
-
-UDP was missing a pullup for packet header information before examining
-the header
-
-4.1.5 - Released 9 January 2005
-
-all rules were being converted into "dup-to" rules in the kernel
-
-fix two ftp proxy problems: 1st, buffer needs to be bigger for fitting in
-complete RETR/CWD commands, 2nd is () use in 227 messages isn't copied
-over correctly.
-
-response to CWDs
-revert ip_off back to network byte order in the ICMP error packet that
-gets generated.
-
-4.1.4 - Released 9 January 2005
-
-force NAT rules to only match ipv4 NAT rules (which all are, currently,
-by default)
-
-include state synchronisation fixes from Frank Volf
-
-make the maximum log size for internally buffered log entries accessible
-via "ipf -T"
-
-redesign start of fr_check() to avoid putting duplicate information in
-ipfilter about how much data needs to be pulled up for a protocol to be
-properly filtered.
-
-tidy up sending ICMP error messages - some bad inputs could result in
-data not being freed and/or no error returned.
-
-make the maximum size of the log buffer run-time tunable
-
-fix bug in parsing TCP header when looking for MSS option that could make
-the system hang
-
-change pool lookups that fail to find a match to return "no match"
-rather than fail.
-
-add run-time tunable debugging for proxy support code and FTP proxy.
-
-fix state table updates for entries where the first packet as an ICMPv6
-multicast message
-
-fix hang when flushing state for v4/v6 and other (v6/v4) entries are present
-too
-
-attaching filtering to ipv6 pfil hook wasn't present for solaris
-
-don't allow rules with "keep state" and "with oow"
-
-move a bunch of userland only code from fil.c to ip_fil.c
-
-make fr_coalesce() more resiliant to bad input, just returning an error
-instead of crashing, making calling it easier in many places
-
-When m_pulldown doesn't return NULL, it doesn't necessarily return a pointer
-to the same mbuf passed in as the first arg.
-
-remove fr_unreach and use ENETUNREACH by default.
-
-printing out of tag data in ipf rules doesn't match input syntax
-
-ipftest(1) man page update
-
-ipfs command line option parsing still rejects some valid syntaxes
-
-SIGHUP handling by ipmon was not as safe as it could be
-
-fix various parsing regressions, including "<thishost>", "tcpudp", ordering
-of "keep" options
-
-patches from Frank Volk: add udp_acktimeout to sysctl list for FreeBSD,
-ICMP packet length not calculated correctly in send_icmp_err, reply-to
-not printed by ipfstat, keep state with icmp passing (mtrr)
-
-patches for return-rst and return-icmp from Attila Fueloep
-(lichtscheu@gesindel.org)
-
-4.1.3 - Released 18 July 2004
-
-do some more fine tuning on NAT checksum adjustments
-
-correct IP address byte order in proxy setup for ipsec/pptp
-
-man page updates
-
-fix numerous problems with ipfs operation
-
-complete new syntax for ipmon.conf in its parser and update the sample file
-
-assign error value consistantly in fastroute code
-
-rewrite allocation of mbufs in send_reset/send_icmp_err to better use
-mbuf clusters and size calculations
-
-resolve problem with linux panic'ing because the wrong flag was being
-passed to skb_clone/skb_alloc
-
-enable use of shared/exclusive locks on freebsd5 and above
-
-do not rely on m_pkthdr.len to be valid all the time for mbufs on modern BSD
-and so use mbufchainlen to get the mbuf length instead
-
-replace lots of COPYIN/COPYOUT with BCOPYIN/BCOPYOUT where the data is
-going to be on the stack and not in userland
-
-packet buffer pointers were not refreshed & used properly in fr_check()
-
-include extra bits for OpenBSD 3.4 & 3.5.
-
-fix ipf/ipnat parsing regression problems with v3.4
-
-4.1.2 - RELEASED - 27 May 2004
-
-add state top for ipv6
-
-fix numerous parsing regressions
-
-change sample proxies to use SIOCGNATL with the new API
-
-allow macro names to contain underscores (_)
-
-split the parser into a collection of dictionaries so that keywords do
-not interfere with resolving hostnames and portnames
-
-fix ipfrule LKM loading on freebsd
-
-support mapping a fixed range of ports to a single port
-
-fix timeout queue use by proxies with private queues
-
-handle space-led ftp server replies properly
-
-fix timeout queue management
-
-fix fastroute, generation of RST & ICMP packets and operation with to/fastroute
-
-resolve further linux compatibility problems
-
-replace the use of COPYIN with BCOPYIN for platforms that provide ioctl
-args on the stack
-
-allow flushing of ipv6 rules independant of ipv4 rules
-
-correct internal ipv6 checksum calculations
-
-if a 'keep state' rule fails to create state, block the packet rather
-than let it through
-
-correct all checksums in regression tests and correct NAT code to adjust
-checksums correctly.
-
-fix ipfs -R/-W
-
-4.1.1 - RELEASED - 24 March 2004
-
-allow new connections with the same port numbers as an existing one
-in the state table if the creating packet is a SYN
-
-timeout values have drifted, incorrectly, from what they were in 3.4
-
-FreeBSD - compatibility changes for 5.2
-
-don't match on sequence number (as well) for ICMO ECHO/REPLY, just the
-ICMP Id. field as otherwise thre is a state/NAT entry per packet pair
-rather than per "flow"
-
-fr_cksum() returned the wrong answer for ICMP
-
-Linux:
-- get return-rst and return-icmp working
-- treat the interface name the same as if_xname on BSD
-
-adjust expectations for TCP urgent bits based on observed traffic in the
-wild
-
-openbsd3.4 has ip_len/ip_off in network byte order when ipfilter is called
-
-fix flushing of hash pool gorups (ippool -F) as well as displaying them
-(ippool -l)
-
-passing of pointers to interface structures wrong for HP-UX/Solaris with
-return-* rules.
-
-Make the solaris boot script able to run on 2.5.1
-
-ippool related files missing from Solaris packages
-
-The name /dev/ippool should be /dev/iplookup
-
-add regression testing for parsing long interface names in nat rules,
-along with mssclamp and tags.  Also add test for mssclamp operation.
-
-ttl displayed for "ipfstat -t" is wrong because ttl is not computed.
-
-parse logical interface names (Sun)
-
-unloading LKMs was only working if they were enabled.
-
-sync'ing up NAT sessions when NICs change should cause NAT rules to
-re-lookup name->pointer mappings
-
-not all of the ippool ioctl's are IOWR and they should be because they
-use the ipfobj_t for passing information in/out of the kernel.  leave the
-old values defined and handle them, for compatibility.
-
-pool stats wrong: ippoolstate used where ipoolstat should be, hash table
-  statistics not reported at all
-
-fr_running not set correctly for OpenBSD when compiled into the kernel
-
-Allow SIOCGETFF while disabled
-
-Fix mssclamp with NAT (pasing and printing of the word, plus wrong bytes
-altered.  How do you say "untested" ?)
+5.1.2 - RELEASED - 22 Jul 2012
+
+3546266 macro letters could be more consistent
+3546265 not all of the state statistics are displayed
+3546261 scripts for updating BSD environment out of date
+3546260 compiler warnings about non-integer array subscript
+3546259 asserting numdereflists == 0 is not correct
+3546258 expression matching does not see IPF_EXP_END
+3544317 ipnat/ipfstat are not using ipfexp_t
+3545324 proxy checksum calculation is not hardware aware
+3545321 FTP sequence number adjustment incorrectly applied
+3545320 EPSV is not recognised
+3545319 move nat rule creation to ip_proxy.c
+3545317 better feedback of checksum requirements for proxies
+3545314 ftp proxy levels do not make sense
+3545312 EPRT is not supported by ftp proxy
+3544318 ipnat.conf parsing ignores LHS address family
+3545309 non-ipv6 safe proxies do not fail with ipv6
+3545323 NAT updates the source port twice
+3545322 ipv6 nat rules cannot start proxies
+3544314 bucket copyout tries to copy too much data
+3544313 remove nat encap feature
+3546248 compat rule pointer type mismatch
+3546247 UDP hardware checksum offload not recognised
+3545311 ifp_ifaddr does not find the first set address
+3545310 ipmon needs ipl_sec on 64bit boundary
+3545326 reference count changes made without lock
+3544315 stateful matching does not use ipfexp_t
+3543493 tokens are not flushed when disabled
+3543487 NAT rules do not always release lookup objects
+3543491 function comments in ip_state.c are old
+3543404 ipnat.conf parsing uses family/ip version badly
+3543403 incorrect line number printed in ipnat parsing errors
+3543402 Not all NAT statistics are printed
+3542979 NAT session list management is too simple
+3542978 ipv4 and ipv6 nat insert have common hash insertion
+3542977 ipnat_t refence tracking incomplete
+3542975 proxies must use ipnat_t separately
+3542980 printing ipv6 expressions is wrong
+3542983 ippool cannot handle more than one ipv6 address
+3543018 mask array shifted incorrectly.
+3542974 reason for dropping packet is lost
+3542982 line numbers not recorded/displayed correctly by ipf
+3542981 exclamation mark cuases trouble with pools
+3541655 test suite checksums incorrect
+3541653 display proxy fail status correctly
+3540993 IP header offset excluded in pullup calculations
+3540994 pullupmsg does not work as required
+3540992 pointer to ipv6 frag header not updated on pullup
+3541645 netmask management adds /32 for /0
+3541637 ipnat parser does not zero port fields for non-port protocol
+3541635 pool names cannot by numbers
+3540995 IPv6 fragment tracking does not always work
+3540996 printing of nextip for ipv6 nat rules is wrong
+3540999 ipnat.conf parsing has trouble with icmpidmap for ipv6
+3540825 whois output parsing error for ipv6
+3540814 ipfd_lock serves no purpose
+3540810 lookup objects need tail pointers
+3540809 refactor hash table lookups for nat
+3540819 radix tree does not work with ipv6
+3540820 mutex emulation should be logged
+3540828 ipfstat filtering with -m fails tests
+3536480 ippool could be more like the others
+3536477 pool printing not uniform
+3536483 flushing empty destination lists causes panic
+3536481 more use of bzero after KMALLOC required
+3536479 ipnat.conf line numbers not stored
+3536484 Makefile missing dependency for ippool
+3536199 TFTP proxy requires something extra
+3536198 ICMP checksum out by one
+3536203 ipnat does not return an error
+3536201 ipf.conf parsing too address friendly
+3536200 printing of bytes/packets not indented
+3497941 ipv4 multicast detection incorrect on little endian
+3535361 to interfaces printed out of order
+3535363 ipf parser is inconsistent
+3532306 deleting ipnat rules does not work
+3532054 new error required for ipf_rx_create
+3532053 icmp6 checksums wrong
+3532052 icmpv6 state check with incorrect length
+3531871 checksum verification wants too many icmp6 bytes
+3531870 ipnat.conf parsing needs to support inet6
+3532048 error in ipf group parsing
+3531868 ICMPV6 checksum not validated
+3531893 ipftest exits without error for bad input
+3531890 whois pool parsing builds bad structures
+3531891 icmpv6 text parsing ignorant of icmp types
+3531653 rewrite with icmp does not work
+3530563 NAT operations fail with EPERM
+3530544 first pass at gcc -Wextra cleanup
+3530540 lookup create functions do not set error properly
+3530539 ipf_main_soft_destroy doesn't need 2nd arg
+3530541 reorder structure for better packing
+3530543 ipnat purge needs documentation
+3530515 BSD upgrade script required
+3528029 ipmon bad-mutex panic
+3530247 loading address pools light on input validation
+3530255 radix tree delete uses wrong lookup
+3530254 radix tree allocation support wrong
+3530264 ipmon prints qd for some 64bit numbers
+3530260 decapsulate rules not printed correctly.
+3530266 ipfstat -v/-d flags confused
+2939220 why a packet is blocked is not discernable
+2939218 output interface not recorded
+2941850 use of destination lists with to/dup-to beneficial
+3457747 build errors introduced with radix change
+3535360 timeout groups leak
+3535359 memory leak with tokens
+3535358 listing rules in groups requires tracking groups
+3535357 rule head removal is problematic
+3530259 not all ioctl error checked wth SIOCIPFINTERROR
+3530258 error routine that uses fd required
+3530253 inadequate function comment blocks
+3530249 walking lookup tables leaks memory
+3530241 extra lock padding required for freebsd
+3529901 ipf returns 0 when rules fail to load
+3529491 checksum validation could be better
+3529486 tcp checksum wrong for ipv6
+3533779 ipv6 nat rules missing inet6 keyword
+3532693 ipnat.conf rejects some ipv6 addresses
+3532691 ipv4 should not be forced for icmp
+3532689 ipv6 nat rules do not print inet6
+3532688 ipv6 address always printed with "to <if>"
+3532687 with v6hdrs not supported like with ipopts
+3532686 ipf expressions do not work with ipv6
+3540825 whois output parsing error for ipv6
+3540818 NAT for certain IPv6 ICMP packets should not be allowed
+3540815 memory leak with destination lists
+3540814 ipfd_lock serves no purpose
+3540810 lookup objects need tail pointers
+3540809 refactor hash table lookups for nat
+3540808 completed tokens do not stop iteration
+3530492 address hash table name not used
+3528029 ipmon bad-mutex panic
+3530256 hook memory leaked
+3530271 pools parsing produces badly formed address structures
+3488061 cleanup for illumos build
+3484434 SIOCIPFINTERROR must work for all devices
+3484067 mandoc -Tlint warnings to be fixed
+3483343 compile warning in ipfcomp.c
+3482893 building without IPFILTER_LOG fails
+3482765 building netbsd kernel without inet6 fails
+3482116 ipf_check frees packet from ipftest
+3481663 does not compile on solaris 11
+
+5.1.1 - RELEASED - 9 May 2012
+
+3481322 ip_fil_compat.c needs a cleanup
+3481211 add user errors to dtrace
+3481152 compatibility for 4.1 needs more work
+3481153 PRIu64 problems on FreeBSD
+3481155 ipnat listing incorrect
+3480543 change leads to compat problems
+3480538 compiler errors from earlier patch
+3480537 ipf_instance_destroy is incomplete
+3480536 _fini order leads to panic
+3479991 compiler warnings about size mismatches
+3479974 copyright dates are wrong (fix)
+3479464 add support for leaks testing
+3479457 %qu is not the prefered way
+3479451 iterators leak memory
+3479453 nat rules with pools leak
+3479454 memory leak in hostmap table
+3479461 load_hash uses memory after free
+3479462 printpool leaks memory
+3479452 missing FREE_MB_T to freembt leaks
+3479450 ipfdetach is called when detached
+3479448 group mapping rules memory leak
+3479455 memory leak from tuning
+3479458 ipf must be running in global zone
+3479460 driver replace is wrong
+3479459 radix tree tries to free null pointer
+3479463 rwlock emulation does not free memory
+3479465 parser leaks memory
+3475959 hardware checksum not correctly used
+3475426 ip pseudo checksum wrong
+3473566 radix tree does not delete dups right
+3472987 compile is not clean
+3472337 not everything is zero'd
+3472344 interface setup needs to be after insert
+3472340 wildcard counter drops twice
+3472338 change fastroute interface
+3472335 kernel lock defines not placed correctly
+3472324 ICMP INFOREQ/REPLY not handled
+3472330 multicast packets tagged by address
+3472333 ipf_deliverlocal called incorrectly
+3472345 mutex debug could be more granular
+3472761 building i19 regression is flawed
+3456457 use of bsd tree.h needs to be removed
+3460522 code cleanup required for building on freebsd
+3459734 trade some cpu for memory
+3457747 build errors introduced with radix change
+3457804 build errors from removal of pcap-int,h
+3440163 rewrite radix tree
+3428004 snoop, tcpdump, etherfind readers are unused
+3439495 ipf_rand_push never called (fix brackets)
+3437732 getnattype does not need to use ipnat_t (fix variable name)
+3437696 fr_cksum is a nightmare
+3439061 ipf_send_ip doesn't need 3rd arg
+3439059 ipid needs to be file local
+3437740 complete buildout of fnew
+3438575 add dtrace probes to block events
+3438347 comment blocks missing softc
+3437687 description of ipf_makefrip wrong
+3438340 more stats as dtrace probes
+3438316 free on nat structure uses fixed size
+3437745 nat iterator using the wrong size
+3437710 fail checksum verification if packet is short
+3437696 fr_cksum is a nightmare
+3437732 getnattype does not need to use ipnat_t
+3437735 rename ipf_allocmbt to allocmbt
+3437697 fr_family to version assignment is wrong
+3437746 ap_session_t has unused fields
+3437747 move softc structure to .h file (ip_state.c)
+3437704 there is no DTRACE_PROBE5
+3437748 wrong interface in qpktinfo_t
+3437729 create function to hexdump mb_t
+3438273 msgdsize should be easier to read
+3437683 object direction not set for 32bit
+3433767 calling ip_cksum could be easier
+3433764 left over locking
+3428015 printing proxy data size is useless
+3428013 add M_ADJ to hide adjmsg/m_adj
+3428012 interface name is not always returned correctly
+3428002 ip_ttl is too low
+3427997 ipft readers do not set buffer length
+3426558 resistence is futile
+3424495 various copy-paste errors
+1826936 shall we allow ipf to be as dumb as its admin
+3424477 specfuncs needs to go
+3424484 missing fr_checkv6sum
+3424478 one entry at a time
+2998760 auth rules do not mix well with to/dup-to/fastroute
+3424195 add ctfmerge to sunos5 makefile
+3424132 some dtrace probes to start with
+3423812 makefile needs ip_frag.h for some files
+3423817 reference count useful in verbose output
+3423800 walking lists does not drop reference
+3423805 fragmentation stats not reported correclty
+3423808 ip addresses reportied incorrectly with ipfstat -f
+3423821 track packets and bytes for fragmentation
+3423803 attempt to double free rule
+3423805 fragmentation stats not reported correctly
+3422712 system panic with ipfstat -f
+3422619 pullup counter bumped for every packet
+3422608 dummy rtentry required to build
+3422018 frflush next to ipf_fini_all is redundant
+3422012 instance cleanup is not clean
+3421845 instance name not set
+3005622 ip_fil5.1.0 does not load on Solaris 10 U8
+2976332 stateful filtering is incompatible with ipv4 options
+3387509 ipftest needs help construction ip packets with options
+2998746 passp can never be null
+3064034 mbuf clobbering problem with ipv6
+3105725 ipnat divide by zero panic
+2998750 ipf_htent_insert can leak memory
+3064034 mbuf clobbering problem with ipv6
+3105725 ipnat divie by zero panic
+
+5.1 - RELEASED - 9 May 2010
+
+* See WhatsNew50.txt
 
 4.1 - RELEASED - 12 February 2004
 
@@ -1744,7 +1267,7 @@ loop forms in frag cache table - Yury Pshenychny <yura@rd.zgik.zaporizhzhe.ua>
 
 should use SPLNET/SPLX around expire routines in NAT/frag/state code.
 
-redeclared malloc in 44arp.c - 
+redeclared malloc in 44arp.c -
 
 3.1.7		8/2/97 - Released
 

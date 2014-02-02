@@ -41,6 +41,18 @@
 /* In 64 bit the whole memory is directly mapped */
 struct	sf_buf;
 
+static inline struct sf_buf *
+sf_buf_alloc(struct vm_page *m, int pri)
+{
+
+	return ((struct sf_buf *)m);
+}
+
+static inline void
+sf_buf_free(struct sf_buf *sf)
+{
+}
+
 static __inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)
 {
@@ -65,6 +77,9 @@ struct sf_buf {
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */
 };
+
+struct sf_buf * sf_buf_alloc(struct vm_page *m, int flags);
+void sf_buf_free(struct sf_buf *sf);
 
 static __inline vm_offset_t
 sf_buf_kva(struct sf_buf *sf)

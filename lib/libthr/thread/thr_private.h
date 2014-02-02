@@ -433,6 +433,9 @@ struct pthread {
 	/* the sigaction should be used for deferred signal. */
 	struct sigaction	deferred_sigact;
 
+	/* deferred signal delivery is performed, do not reenter. */
+	int			deferred_run;
+
 	/* Force new thread to exit. */
 	int			force_exit;
 

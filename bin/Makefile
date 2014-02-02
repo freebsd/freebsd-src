@@ -15,6 +15,7 @@ SUBDIR= cat \
 	echo \
 	ed \
 	expr \
+	freebsd-version \
 	getfacl \
 	hostname \
 	kenv \
@@ -49,6 +50,10 @@ SUBDIR+=	rmail
 
 .if ${MK_TCSH} != "no"
 SUBDIR+=	csh
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
 .endif
 
 .include <bsd.arch.inc.mk>

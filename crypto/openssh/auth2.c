@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2.c,v 1.126 2012/12/02 20:34:09 djm Exp $ */
+/* $OpenBSD: auth2.c,v 1.129 2013/05/19 02:42:42 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -100,8 +100,12 @@ static void input_userauth_request(int, u_int32_t, void *);
 /* helper */
 static Authmethod *authmethod_lookup(Authctxt *, const char *);
 static char *authmethods_get(Authctxt *authctxt);
-static int method_allowed(Authctxt *, const char *);
-static int list_starts_with(const char *, const char *);
+
+#define MATCH_NONE	0	/* method or submethod mismatch */
+#define MATCH_METHOD	1	/* method matches (no submethod specified) */
+#define MATCH_BOTH	2	/* method and submethod match */
+#define MATCH_PARTIAL	3	/* method matches, submethod can't be checked */
+static int list_starts_with(const char *, const char *, const char *);
 
 char *
 auth2_read_banner(void)
@@ -128,7 +132,7 @@ auth2_read_banner(void)
 	close(fd);
 
 	if (n != len) {
-		xfree(banner);
+		free(banner);
 		return (NULL);
 	}
 	banner[n] = '\0';
@@ -164,8 +168,7 @@ userauth_banner(void)
 	userauth_send_banner(banner);
 
 done:
-	if (banner)
-		xfree(banner);
+	free(banner);
 }
 
 /*
@@ -210,7 +213,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 		debug("bad service request %s", service);
 		packet_disconnect("bad service request %s", service);
 	}
-	xfree(service);
+	free(service);
 }
 
 /*ARGSUSED*/
@@ -318,9 +321,9 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	}
 	userauth_finish(authctxt, authenticated, method, NULL);
 
-	xfree(service);
-	xfree(user);
-	xfree(method);
+	free(service);
+	free(user);
+	free(method);
 }
 
 void
@@ -346,14 +349,14 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 	}
 
 	if (authenticated && options.num_auth_methods != 0) {
-		if (!auth2_update_methods_lists(authctxt, method)) {
+		if (!auth2_update_methods_lists(authctxt, method, submethod)) {
 			authenticated = 0;
 			partial = 1;
 		}
 	}
 
 	/* Log before sending the reply */
-	auth_log(authctxt, authenticated, partial, method, submethod, " ssh2");
+	auth_log(authctxt, authenticated, partial, method, submethod);
 
 	if (authctxt->postponed)
 		return;
@@ -408,7 +411,7 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
 		packet_put_char(partial);
 		packet_send();
 		packet_write_wait();
-		xfree(methods);
+		free(methods);
 	}
 }
 
@@ -417,8 +420,9 @@ userauth_finish(Authctxt *authctxt, int authenticated, const char *method,
  * methods list. Returns 1 if allowed, or no methods lists configured.
  * 0 otherwise.
  */
-static int
-method_allowed(Authctxt *authctxt, const char *method)
+int
+auth2_method_allowed(Authctxt *authctxt, const char *method,
+    const char *submethod)
 {
 	u_int i;
 
@@ -429,7 +433,8 @@ method_allowed(Authctxt *authctxt, const char *method)
 	if (options.num_auth_methods == 0)
 		return 1;
 	for (i = 0; i < authctxt->num_auth_methods; i++) {
-		if (list_starts_with(authctxt->auth_methods[i], method))
+		if (list_starts_with(authctxt->auth_methods[i], method,
+		    submethod) != MATCH_NONE)
 			return 1;
 	}
 	return 0;
@@ -449,7 +454,8 @@ authmethods_get(Authctxt *authctxt)
 		if (authmethods[i]->enabled == NULL ||
 		    *(authmethods[i]->enabled) == 0)
 			continue;
-		if (!method_allowed(authctxt, authmethods[i]->name))
+		if (!auth2_method_allowed(authctxt, authmethods[i]->name,
+		    NULL))
 			continue;
 		if (buffer_len(&b) > 0)
 			buffer_append(&b, ",", 1);
@@ -472,7 +478,8 @@ authmethod_lookup(Authctxt *authctxt, const char *name)
 			if (authmethods[i]->enabled != NULL &&
 			    *(authmethods[i]->enabled) != 0 &&
 			    strcmp(name, authmethods[i]->name) == 0 &&
-			    method_allowed(authctxt, authmethods[i]->name))
+			    auth2_method_allowed(authctxt,
+			    authmethods[i]->name, NULL))
 				return authmethods[i];
 	debug2("Unrecognized authentication method name: %s",
 	    name ? name : "NULL");
@@ -487,7 +494,7 @@ authmethod_lookup(Authctxt *authctxt, const char *name)
 int
 auth2_methods_valid(const char *_methods, int need_enable)
 {
-	char *methods, *omethods, *method;
+	char *methods, *omethods, *method, *p;
 	u_int i, found;
 	int ret = -1;
 
@@ -498,6 +505,8 @@ auth2_methods_valid(const char *_methods, int need_enable)
 	omethods = methods = xstrdup(_methods);
 	while ((method = strsep(&methods, ",")) != NULL) {
 		for (found = i = 0; !found && authmethods[i] != NULL; i++) {
+			if ((p = strchr(method, ':')) != NULL)
+				*p = '\0';
 			if (strcmp(method, authmethods[i]->name) != 0)
 				continue;
 			if (need_enable) {
@@ -563,15 +572,30 @@ auth2_setup_methods_lists(Authctxt *authctxt)
 }
 
 static int
-list_starts_with(const char *methods, const char *method)
+list_starts_with(const char *methods, const char *method,
+    const char *submethod)
 {
 	size_t l = strlen(method);
+	int match;
+	const char *p;
 
 	if (strncmp(methods, method, l) != 0)
-		return 0;
-	if (methods[l] != ',' && methods[l] != '\0')
-		return 0;
-	return 1;
+		return MATCH_NONE;
+	p = methods + l;
+	match = MATCH_METHOD;
+	if (*p == ':') {
+		if (!submethod)
+			return MATCH_PARTIAL;
+		l = strlen(submethod);
+		p += 1;
+		if (strncmp(submethod, p, l))
+			return MATCH_NONE;
+		p += l;
+		match = MATCH_BOTH;
+	}
+	if (*p != ',' && *p != '\0')
+		return MATCH_NONE;
+	return match;
 }
 
 /*
@@ -580,14 +604,21 @@ list_starts_with(const char *methods, const char *method)
  * if it did.
  */
 static int
-remove_method(char **methods, const char *method)
+remove_method(char **methods, const char *method, const char *submethod)
 {
-	char *omethods = *methods;
+	char *omethods = *methods, *p;
 	size_t l = strlen(method);
+	int match;
 
-	if (!list_starts_with(omethods, method))
+	match = list_starts_with(omethods, method, submethod);
+	if (match != MATCH_METHOD && match != MATCH_BOTH)
 		return 0;
-	*methods = xstrdup(omethods + l + (omethods[l] == ',' ? 1 : 0));
+	p = omethods + l;
+	if (submethod && match == MATCH_BOTH)
+		p += 1 + strlen(submethod); /* include colon */
+	if (*p == ',')
+		p++;
+	*methods = xstrdup(p);
 	free(omethods);
 	return 1;
 }
@@ -599,13 +630,15 @@ remove_method(char **methods, const char *method)
  * Returns 1 if the method completed any authentication list or 0 otherwise.
  */
 int
-auth2_update_methods_lists(Authctxt *authctxt, const char *method)
+auth2_update_methods_lists(Authctxt *authctxt, const char *method,
+    const char *submethod)
 {
 	u_int i, found = 0;
 
 	debug3("%s: updating methods list after \"%s\"", __func__, method);
 	for (i = 0; i < authctxt->num_auth_methods; i++) {
-		if (!remove_method(&(authctxt->auth_methods[i]), method))
+		if (!remove_method(&(authctxt->auth_methods[i]), method,
+		    submethod))
 			continue;
 		found = 1;
 		if (*authctxt->auth_methods[i] == '\0') {

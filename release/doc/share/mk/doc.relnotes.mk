@@ -4,6 +4,8 @@ DOC_PREFIX?= ${RELN_ROOT}/../../../doc
 
 # XXX
 RELEASETYPE!= grep -o 'release.type "[a-z]*"' ${RELN_ROOT}/share/xml/release.ent | sed 's|[a-z.]* "\([a-z]*\)"|\1|'
+RELEASEURL!= grep -o 'release.url \"[^\"]*\"' ${RELN_ROOT}/share/xml/release.ent | sed 's|[^ ]* "\([^"]*\)"|\1|'
+RELEASEBRANCH!= grep -o 'release.branch "\([^"]*\)"' ${RELN_ROOT}/share/xml/release.ent | sed 's|[^ ]* "\([^"]*\)"|\1|'
 .if ${RELEASETYPE} == "current"
 PROFILING+= --param profile.attribute "'releasetype'" --param profile.value "'current'"
 .elif ${RELEASETYPE} == "snapshot"
@@ -11,13 +13,14 @@ PROFILING+= --param profile.attribute "'releasetype'" --param profile.value "'sn
 .elif ${RELEASETYPE} == "release"
 PROFILING+= --param profile.attribute "'releasetype'" --param profile.value "'release'"
 .endif
+XSLTPROCFLAGS+= --param release.url "'${RELEASEURL}'"
+XSLTPROCFLAGS+= --param release.branch "'${RELEASEBRANCH}'"
 
 # Find the RELNOTESng document catalogs
 EXTRA_CATALOGS+= file://${RELN_ROOT}/${LANGCODE}/share/xml/catalog.xml \
-		file://${RELN_ROOT}/share/xml/catalog.xml
+		 file://${RELN_ROOT}/share/xml/catalog.xml
 
-# Use the appropriate architecture-dependent RELNOTESng stylesheet
-DSLPRINT?=	${RELN_ROOT}/share/xml/default.dsl
+XSLXHTML= http://www.FreeBSD.org/release/XML/share/xml/release.xsl
 
 #
 # Automatic device list generation:

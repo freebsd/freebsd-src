@@ -279,7 +279,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 }
 
 void
-intr_resume(void)
+intr_resume(bool suspend_cancelled)
 {
 	struct pic *pic;
 
@@ -289,7 +289,7 @@ intr_resume(void)
 	mtx_lock(&intr_table_lock);
 	TAILQ_FOREACH(pic, &pics, pics) {
 		if (pic->pic_resume != NULL)
-			pic->pic_resume(pic);
+			pic->pic_resume(pic, suspend_cancelled);
 	}
 	mtx_unlock(&intr_table_lock);
 }

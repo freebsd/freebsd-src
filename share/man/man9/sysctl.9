@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2010
+.Dd September 12, 2013
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -35,11 +35,12 @@
 .Nm SYSCTL_NODE ,
 .Nm SYSCTL_OPAQUE ,
 .Nm SYSCTL_PROC ,
+.Nm SYSCTL_QUAD ,
 .Nm SYSCTL_STRING ,
 .Nm SYSCTL_STRUCT ,
 .Nm SYSCTL_UINT ,
 .Nm SYSCTL_ULONG ,
-.Nm SYSCTL_QUAD
+.Nm SYSCTL_UQUAD
 .Nd Static sysctl declaration functions
 .Sh SYNOPSIS
 .In sys/types.h
@@ -50,11 +51,12 @@
 .Fn SYSCTL_NODE parent nbr name access handler descr
 .Fn SYSCTL_OPAQUE parent nbr name access ptr len fmt descr
 .Fn SYSCTL_PROC parent nbr name access ptr arg handler fmt descr
+.Fn SYSCTL_QUAD parent nbr name access ptr val descr
 .Fn SYSCTL_STRING parent nbr name access arg len descr
 .Fn SYSCTL_STRUCT parent nbr name access ptr type descr
 .Fn SYSCTL_UINT parent nbr name access ptr val descr
 .Fn SYSCTL_ULONG parent nbr name access ptr val descr
-.Fn SYSCTL_QUAD parent nbr name access ptr val descr
+.Fn SYSCTL_UQUAD parent nbr name access ptr val descr
 .Sh DESCRIPTION
 The
 .Nm SYSCTL
@@ -76,12 +78,13 @@ New nodes are declared using one of
 .Fn SYSCTL_NODE ,
 .Fn SYSCTL_OPAQUE ,
 .Fn SYSCTL_PROC ,
+.Fn SYSCTL_QUAD ,
 .Fn SYSCTL_STRING ,
 .Fn SYSCTL_STRUCT ,
 .Fn SYSCTL_UINT ,
 .Fn SYSCTL_ULONG ,
 and
-.Fn SYSCTL_QUAD .
+.Fn SYSCTL_UQUAD .
 Each macro accepts a parent name, as declared using
 .Fn SYSCTL_DECL ,
 an OID number, typically
@@ -118,15 +121,23 @@ This is an unsigned long.
 This is a 64-bit unsigned integer.
 .El
 .Pp
-All sysctl types except for new node declarations require one or more flags
-to be set indicating the read and write disposition of the sysctl:
+All sysctl types except for new node declarations require one of the following
+flags to be set indicating the read and write disposition of the sysctl:
 .Bl -tag -width ".Dv CTLFLAG_ANYBODY"
 .It Dv CTLFLAG_RD
 This is a read-only sysctl.
+.It Dv CTLFLAG_RDTUN
+This is a read-only sysctl which can be set by a system tunable.
 .It Dv CTLFLAG_WR
 This is a writable sysctl.
 .It Dv CTLFLAG_RW
 This sysctl is readable and writable.
+.It Dv CTLFLAG_RWTUN
+This sysctl is readable and writable and can also be set by a system tunable.
+.El
+.Pp
+Additionally, any of the following optional flags may also be specified:
+.Bl -tag -width ".Dv CTLFLAG_ANYBODY"
 .It Dv CTLFLAG_ANYBODY
 Any user or process can write to this sysctl.
 .It Dv CTLFLAG_SECURE
@@ -139,9 +150,6 @@ This sysctl can be written to by processes in
 When iterating the sysctl name space, do not list this sysctl.
 .It Dv CTLFLAG_TUN
 Advisory flag that a system tunable also exists for this variable.
-.It Dv CTLFLAG_RDTUN
-Advisory flag that a system tunable also exists for this variable;
-however, the run-time variable is read-only.
 .El
 .Pp
 When creating new sysctls, careful attention should be paid to the security

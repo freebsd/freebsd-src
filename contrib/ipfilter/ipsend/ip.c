@@ -7,20 +7,18 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.8.2.2 2007/02/17 12:41:51 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id$";
 #endif
 #include <sys/param.h>
 #include <sys/types.h>
 #include <netinet/in_systm.h>
 #include <sys/socket.h>
-#ifdef __osf__
-# include "radix_ipf_local.h"
-#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <sys/param.h>
 #ifndef	linux
+# include <net/route.h>
 # include <netinet/if_ether.h>
 # include <netinet/ip_var.h>
 # if __FreeBSD_version >= 300000
@@ -39,8 +37,8 @@ static	char	*ipbuf = NULL, *ethbuf = NULL;
 
 
 u_short	chksum(buf,len)
-u_short	*buf;
-int	len;
+	u_short	*buf;
+	int	len;
 {
 	u_long	sum = 0;
 	int	nwords = len >> 1;
@@ -54,9 +52,9 @@ int	len;
 
 
 int	send_ether(nfd, buf, len, gwip)
-int	nfd, len;
-char	*buf;
-struct	in_addr	gwip;
+	int	nfd, len;
+	char	*buf;
+	struct	in_addr	gwip;
 {
 	static	struct	in_addr	last_gw;
 	static	char	last_arp[6] = { 0, 0, 0, 0, 0, 0};
@@ -89,10 +87,10 @@ struct	in_addr	gwip;
 /*
  */
 int	send_ip(nfd, mtu, ip, gwip, frag)
-int	nfd, mtu;
-ip_t	*ip;
-struct	in_addr	gwip;
-int	frag;
+	int	nfd, mtu;
+	ip_t	*ip;
+	struct	in_addr	gwip;
+	int	frag;
 {
 	static	struct	in_addr	last_gw, local_ip;
 	static	char	local_arp[6] = { 0, 0, 0, 0, 0, 0};
@@ -250,9 +248,9 @@ int	frag;
  * send a tcp packet.
  */
 int	send_tcp(nfd, mtu, ip, gwip)
-int	nfd, mtu;
-ip_t	*ip;
-struct	in_addr	gwip;
+	int	nfd, mtu;
+	ip_t	*ip;
+	struct	in_addr	gwip;
 {
 	static	tcp_seq	iss = 2;
 	tcphdr_t *t, *t2;
@@ -303,9 +301,9 @@ struct	in_addr	gwip;
  * send a udp packet.
  */
 int	send_udp(nfd, mtu, ip, gwip)
-int	nfd, mtu;
-ip_t	*ip;
-struct	in_addr	gwip;
+	int	nfd, mtu;
+	ip_t	*ip;
+	struct	in_addr	gwip;
 {
 	struct	tcpiphdr *ti;
 	int	thlen;
@@ -335,9 +333,9 @@ struct	in_addr	gwip;
  * send an icmp packet.
  */
 int	send_icmp(nfd, mtu, ip, gwip)
-int	nfd, mtu;
-ip_t	*ip;
-struct	in_addr	gwip;
+	int	nfd, mtu;
+	ip_t	*ip;
+	struct	in_addr	gwip;
 {
 	struct	icmp	*ic;
 
@@ -351,9 +349,9 @@ struct	in_addr	gwip;
 
 
 int	send_packet(nfd, mtu, ip, gwip)
-int	nfd, mtu;
-ip_t	*ip;
-struct	in_addr	gwip;
+	int	nfd, mtu;
+	ip_t	*ip;
+	struct	in_addr	gwip;
 {
         switch (ip->ip_p)
         {

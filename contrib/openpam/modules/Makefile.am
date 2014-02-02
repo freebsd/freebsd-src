@@ -1,3 +1,7 @@
-# $Id: Makefile.am 320 2006-02-16 20:33:19Z des $
+# $Id: Makefile.am 714 2013-08-19 15:30:21Z des $
 
-SUBDIRS = pam_unix pam_deny pam_permit
+SUBDIRS = pam_deny pam_permit
+
+if WITH_PAM_UNIX
+SUBDIRS += pam_unix
+endif

@@ -92,6 +92,7 @@ linux_creat(struct thread *td, struct linux_creat_args *args)
 static int
 linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mode)
 {
+    cap_rights_t rights;
     struct proc *p = td->td_proc;
     struct file *fp;
     int fd;
@@ -143,7 +144,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	     * having the same filedesc could use that fd without
 	     * checking below.
 	     */
-	    error = fget(td, fd, CAP_IOCTL, &fp);
+	    error = fget(td, fd, cap_rights_init(&rights, CAP_IOCTL), &fp);
 	    if (!error) {
 		    sx_slock(&proctree_lock);
 		    PROC_LOCK(p);
@@ -328,6 +329,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	caddr_t outp;			/* Linux-format */
 	int resid, linuxreclen=0;	/* Linux-format */
 	caddr_t lbuf;			/* Linux-format */
+	cap_rights_t rights;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
@@ -348,7 +350,9 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	if ((error = getvnode(td->td_proc->p_fd, args->fd, CAP_READ, &fp)) != 0)
+	error = getvnode(td->td_proc->p_fd, args->fd,
+	    cap_rights_init(&rights, CAP_READ), &fp);
+	if (error != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -1024,6 +1028,7 @@ linux_pread(td, uap)
 	struct linux_pread_args *uap;
 {
 	struct pread_args bsd;
+	cap_rights_t rights;
 	struct vnode *vp;
 	int error;
 
@@ -1036,7 +1041,9 @@ linux_pread(td, uap)
 
 	if (error == 0) {
 		/* This seems to violate POSIX but linux does it */
-		if ((error = fgetvp(td, uap->fd, CAP_PREAD, &vp)) != 0)
+		error = fgetvp(td, uap->fd,
+		    cap_rights_init(&rights, CAP_PREAD), &vp);
+		if (error != 0)
 			return (error);
 		if (vp->v_type == VDIR) {
 			vrele(vp);
@@ -1283,6 +1290,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 {
 	struct l_flock linux_flock;
 	struct flock bsd_flock;
+	cap_rights_t rights;
 	struct file *fp;
 	long arg;
 	int error, result;
@@ -1385,7 +1393,8 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
 		 */
-		error = fget(td, args->fd, CAP_FCNTL, &fp);
+		error = fget(td, args->fd,
+		    cap_rights_init(&rights, CAP_FCNTL), &fp);
 		if (error)
 			return (error);
 		if (fp->f_type == DTYPE_PIPE) {

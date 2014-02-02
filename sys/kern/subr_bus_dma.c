@@ -124,24 +124,33 @@ static int
 _bus_dmamap_load_bio(bus_dma_tag_t dmat, bus_dmamap_t map, struct bio *bio,
     int *nsegs, int flags)
 {
-	vm_paddr_t paddr;
-	bus_size_t len, tlen;
-	int error, i, ma_offs;
+	int error;
 
 	if ((bio->bio_flags & BIO_UNMAPPED) == 0) {
 		error = _bus_dmamap_load_buffer(dmat, map, bio->bio_data,
 		    bio->bio_bcount, kernel_pmap, flags, NULL, nsegs);
-		return (error);
+	} else {
+		error = _bus_dmamap_load_ma(dmat, map, bio->bio_ma,
+		    bio->bio_bcount, bio->bio_ma_offset, flags, NULL, nsegs);
 	}
+	return (error);
+}
+
+int
+bus_dmamap_load_ma_triv(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct vm_page **ma, bus_size_t tlen, int ma_offs, int flags,
+    bus_dma_segment_t *segs, int *segp)
+{
+	vm_paddr_t paddr;
+	bus_size_t len;
+	int error, i;
 
 	error = 0;
-	tlen = bio->bio_bcount;
-	ma_offs = bio->bio_ma_offset;
 	for (i = 0; tlen > 0; i++, tlen -= len) {
 		len = min(PAGE_SIZE - ma_offs, tlen);
-		paddr = VM_PAGE_TO_PHYS(bio->bio_ma[i]) + ma_offs;
+		paddr = VM_PAGE_TO_PHYS(ma[i]) + ma_offs;
 		error = _bus_dmamap_load_phys(dmat, map, paddr, len,
-		    flags, NULL, nsegs);
+		    flags, segs, segp);
 		if (error != 0)
 			break;
 		ma_offs = 0;

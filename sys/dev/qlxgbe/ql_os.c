@@ -1642,8 +1642,6 @@ qla_error_recovery(void *context, int pending)
 
         QLA_UNLOCK(ha, __func__);
 
-	ql_minidump(ha);
-	
 	if ((ha->pci_func & 0x1) == 0) {
 
 		if (!ha->msg_from_peer) {
@@ -1655,6 +1653,8 @@ qla_error_recovery(void *context, int pending)
 		}
 
 		ha->msg_from_peer = 0;
+
+		ql_minidump(ha);
 
 		(void) ql_init_hw(ha);
         	qla_free_xmt_bufs(ha);

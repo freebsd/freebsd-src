@@ -38,7 +38,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -129,6 +131,12 @@ amrr_deinit(struct ieee80211vap *vap)
 	free(vap->iv_rs, M_80211_RATECTL);
 }
 
+/*
+ * Return whether 11n rates are possible.
+ *
+ * Some 11n devices may return HT information but no HT rates.
+ * Thus, we shouldn't treat them as an 11n node.
+ */
 static int
 amrr_node_is_11n(struct ieee80211_node *ni)
 {
@@ -136,6 +144,8 @@ amrr_node_is_11n(struct ieee80211_node *ni)
 	if (ni->ni_chan == NULL)
 		return (0);
 	if (ni->ni_chan == IEEE80211_CHAN_ANYC)
+		return (0);
+	if (IEEE80211_IS_CHAN_HT(ni->ni_chan) && ni->ni_htrates.rs_nrates == 0)
 		return (0);
 	return (IEEE80211_IS_CHAN_HT(ni->ni_chan));
 }
@@ -189,13 +199,13 @@ amrr_node_init(struct ieee80211_node *ni)
 	    amn->amn_rix--) {
 		/* legacy - anything < 36mbit, stop searching */
 		/* 11n - stop at MCS4 / MCS12 / MCS28 */
-		if (amrr_node_is_11n(ni) &&
-		    (rs->rs_rates[amn->amn_rix] & 0x7) < 4)
+		if (amrr_node_is_11n(ni)) {
+			if ((rs->rs_rates[amn->amn_rix] & 0x7) < 4)
+				break;
+		} else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
 			break;
-		else if ((rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL) <= 72)
-			break;
-		rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
 	}
+	rate = rs->rs_rates[amn->amn_rix] & IEEE80211_RATE_VAL;
 
 	/* if the rate is an 11n rate, ensure the MCS bit is set */
 	if (amrr_node_is_11n(ni))

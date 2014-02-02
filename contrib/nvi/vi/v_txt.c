@@ -295,7 +295,8 @@ v_txt(
 	tiqh = sp->tiq;
 	if (!TAILQ_EMPTY(tiqh)) {
 		tp = TAILQ_FIRST(tiqh);
-		if (TAILQ_NEXT(tp, q) != NULL || tp->lb_len < len + 32) {
+		if (TAILQ_NEXT(tp, q) != NULL ||
+		    tp->lb_len < (len + 32) * sizeof(CHAR_T)) {
 			text_lfree(tiqh);
 			goto newtp;
 		}

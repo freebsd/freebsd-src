@@ -35,6 +35,7 @@
 #ifndef _E1000_I210_H_
 #define _E1000_I210_H_
 
+bool e1000_get_flash_presence_i210(struct e1000_hw *hw);
 s32 e1000_update_flash_i210(struct e1000_hw *hw);
 s32 e1000_update_nvm_checksum_i210(struct e1000_hw *hw);
 s32 e1000_validate_nvm_checksum_i210(struct e1000_hw *hw);
@@ -42,9 +43,12 @@ s32 e1000_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset,
 			      u16 words, u16 *data);
 s32 e1000_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset,
 			     u16 words, u16 *data);
-s32 e1000_read_invm_i211(struct e1000_hw *hw, u8 address, u16 *data);
 s32 e1000_acquire_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
 void e1000_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask);
+s32 e1000_read_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			 u16 *data);
+s32 e1000_write_xmdio_reg(struct e1000_hw *hw, u16 addr, u8 dev_addr,
+			  u16 data);
 
 #define E1000_STM_OPCODE		0xDB00
 #define E1000_EEPROM_FLASH_SIZE_WORD	0x11
@@ -82,7 +86,7 @@ enum E1000_INVM_STRUCTURE_TYPE {
 					 (ID_LED_OFF1_OFF2))
 #define ID_LED_DEFAULT_I210_SERDES	((ID_LED_DEF1_DEF2 << 8) | \
 					 (ID_LED_DEF1_DEF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_OFF1_ON2))
 
 /* NVM offset defaults for I211 devices */
 #define NVM_INIT_CTRL_2_DEFAULT_I211	0X7243

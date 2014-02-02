@@ -339,16 +339,16 @@ AcpiEvGpeXruptHandler (
     void                    *Context);
 
 UINT32
+AcpiEvSciDispatch (
+    void);
+
+UINT32
 AcpiEvInstallSciHandler (
     void);
 
 ACPI_STATUS
-AcpiEvRemoveSciHandler (
+AcpiEvRemoveAllSciHandlers (
     void);
-
-UINT32
-AcpiEvInitializeSCI (
-    UINT32                  ProgramSCI);
 
 ACPI_HW_DEPENDENT_RETURN_VOID (
 void

@@ -31,6 +31,18 @@ INTERFACE virtio;
 
 CODE {
 	static int
+	virtio_default_attach_completed(device_t dev)
+	{
+		return (0);
+	}
+};
+
+METHOD int attach_completed {
+	device_t	dev;
+} DEFAULT virtio_default_attach_completed;
+
+CODE {
+	static int
 	virtio_default_config_change(device_t dev)
 	{
 		return (0);

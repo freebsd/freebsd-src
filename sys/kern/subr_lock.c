@@ -78,7 +78,7 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 	int i;
 
 	/* Check for double-init and zero object. */
-	KASSERT(!lock_initalized(lock), ("lock \"%s\" %p already initialized",
+	KASSERT(!lock_initialized(lock), ("lock \"%s\" %p already initialized",
 	    name, lock));
 
 	/* Look up lock class to find its index. */
@@ -100,7 +100,7 @@ void
 lock_destroy(struct lock_object *lock)
 {
 
-	KASSERT(lock_initalized(lock), ("lock %p is not initialized", lock));
+	KASSERT(lock_initialized(lock), ("lock %p is not initialized", lock));
 	WITNESS_DESTROY(lock);
 	LOCK_LOG_DESTROY(lock, 0);
 	lock->lo_flags &= ~LO_INITIALIZED;

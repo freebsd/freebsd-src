@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -222,9 +223,8 @@ frag6_input(struct mbuf **mp, int *offp, int proto)
 	offset += sizeof(struct ip6_frag);
 
 	/*
-	 * XXX-BZ RFC XXXX (draft-gont-6man-ipv6-atomic-fragments)
-	 * Handle "atomic" fragments (offset and m bit set to 0) upfront,
-	 * unrelated to any reassembly.  Just skip the fragment header.
+	 * RFC 6946: Handle "atomic" fragments (offset and m bit set to 0)
+	 * upfront, unrelated to any reassembly.  Just skip the fragment header.
 	 */
 	if ((ip6f->ip6f_offlg & ~IP6F_RESERVED_MASK) == 0) {
 		/* XXX-BZ we want dedicated counters for this. */

@@ -216,6 +216,7 @@ sys_extattr_set_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
@@ -225,7 +226,8 @@ sys_extattr_set_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_SET, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_SET), &fp);
 	if (error)
 		return (error);
 
@@ -389,6 +391,7 @@ sys_extattr_get_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
@@ -398,7 +401,8 @@ sys_extattr_get_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_GET, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_GET), &fp);
 	if (error)
 		return (error);
 
@@ -531,6 +535,7 @@ sys_extattr_delete_fd(td, uap)
 {
 	struct file *fp;
 	char attrname[EXTATTR_MAXNAMELEN];
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
@@ -540,8 +545,8 @@ sys_extattr_delete_fd(td, uap)
 		return (error);
 	AUDIT_ARG_TEXT(attrname);
 
-	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_DELETE,
-	    &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_DELETE), &fp);
 	if (error)
 		return (error);
 
@@ -687,11 +692,13 @@ sys_extattr_list_fd(td, uap)
 	} */ *uap;
 {
 	struct file *fp;
+	cap_rights_t rights;
 	int error;
 
 	AUDIT_ARG_FD(uap->fd);
 	AUDIT_ARG_VALUE(uap->attrnamespace);
-	error = getvnode(td->td_proc->p_fd, uap->fd, CAP_EXTATTR_LIST, &fp);
+	error = getvnode(td->td_proc->p_fd, uap->fd,
+	    cap_rights_init(&rights, CAP_EXTATTR_LIST), &fp);
 	if (error)
 		return (error);
 

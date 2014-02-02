@@ -187,8 +187,11 @@ main(int argc, char *argv[])
 			if (argc != 0)
 				usage();
 			search(0, nuke_entry);
-		} else
+		} else {
+			if (argc != 1)
+				usage();
 			rtn = delete(argv[0]);
+		}
 		break;
 	case F_FILESET:
 		if (argc != 1)

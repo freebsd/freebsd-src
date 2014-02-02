@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -123,7 +124,7 @@ struct pv_addr minidataclean;
 #define IQ80321_OBIO_BASE 0xfe800000UL
 #define IQ80321_OBIO_SIZE 0x00100000UL
 /* Static device mappings. */
-static const struct pmap_devmap iq80321_devmap[] = {
+static const struct arm_devmap_entry iq80321_devmap[] = {
 	/*
 	 * Map the on-board devices VA == PA so that we can access them
 	 * with the MMU on or off.
@@ -301,7 +302,7 @@ initarm(struct arm_boot_params *abp)
 	/* Map the vector page. */
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-	pmap_devmap_bootstrap(l1pagetable, iq80321_devmap);
+	arm_devmap_bootstrap(l1pagetable, iq80321_devmap);
 	/*
 	 * Give the XScale global cache clean code an appropriately
 	 * sized chunk of unmapped VA space starting at 0xff000000
@@ -334,6 +335,8 @@ initarm(struct arm_boot_params *abp)
 	 * this problem will not occur after initarm().
 	 */
 	cpu_idcache_wbinv_all();
+	cpu_setup("");
+
 	/*
 	 * Fetch the SDRAM start/size from the i80321 SDRAM configration
 	 * registers.
@@ -366,7 +369,7 @@ initarm(struct arm_boot_params *abp)
 	dump_avail[2] = 0;
 	dump_avail[3] = 0;
 					
-	vm_max_kernel_address = 0xd0000000;
+	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

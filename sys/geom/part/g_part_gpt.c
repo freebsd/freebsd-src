@@ -167,6 +167,7 @@ static struct uuid gpt_uuid_linux_swap = GPT_ENT_TYPE_LINUX_SWAP;
 static struct uuid gpt_uuid_vmfs = GPT_ENT_TYPE_VMFS;
 static struct uuid gpt_uuid_vmkdiag = GPT_ENT_TYPE_VMKDIAG;
 static struct uuid gpt_uuid_vmreserved = GPT_ENT_TYPE_VMRESERVED;
+static struct uuid gpt_uuid_vmvsanhdr = GPT_ENT_TYPE_VMVSANHDR;
 static struct uuid gpt_uuid_ms_basic_data = GPT_ENT_TYPE_MS_BASIC_DATA;
 static struct uuid gpt_uuid_ms_reserved = GPT_ENT_TYPE_MS_RESERVED;
 static struct uuid gpt_uuid_ms_ldm_data = GPT_ENT_TYPE_MS_LDM_DATA;
@@ -208,6 +209,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_vmfs,		G_PART_ALIAS_VMFS,		 0 },
 	{ &gpt_uuid_vmkdiag,		G_PART_ALIAS_VMKDIAG,		 0 },
 	{ &gpt_uuid_vmreserved,		G_PART_ALIAS_VMRESERVED,	 0 },
+	{ &gpt_uuid_vmvsanhdr,		G_PART_ALIAS_VMVSANHDR,		 0 },
 	{ &gpt_uuid_mbr,		G_PART_ALIAS_MBR,		 0 },
 	{ &gpt_uuid_ms_basic_data,	G_PART_ALIAS_MS_BASIC_DATA,	 0x0b },
 	{ &gpt_uuid_ms_ldm_data,	G_PART_ALIAS_MS_LDM_DATA,	 0 },
@@ -731,8 +733,11 @@ g_part_gpt_resize(struct g_part_table *basetable,
     struct g_part_entry *baseentry, struct g_part_parms *gpp)
 {
 	struct g_part_gpt_entry *entry;
-	entry = (struct g_part_gpt_entry *)baseentry;
 
+	if (baseentry == NULL)
+		return (EOPNOTSUPP);
+
+	entry = (struct g_part_gpt_entry *)baseentry;
 	baseentry->gpe_end = baseentry->gpe_start + gpp->gpp_size - 1;
 	entry->ent.ent_lba_end = baseentry->gpe_end;
 
@@ -756,8 +761,8 @@ static int
 g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	char *buf;
-	int error, res;
+	u_char *buf;
+	int error, index, pri, res;
 
 	/* We don't nest, which means that our depth should be 0. */
 	if (table->gpt_depth != 0)
@@ -782,11 +787,21 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	if (pp->sectorsize < MBRSIZE || pp->mediasize < 6 * pp->sectorsize)
 		return (ENOSPC);
 
-	/* Check that there's a MBR. */
+	/*
+	 * Check that there's a MBR or a PMBR. If it's a PMBR, we return
+	 * as the highest priority on a match, otherwise we assume some
+	 * GPT-unaware tool has destroyed the GPT by recreating a MBR and
+	 * we really want the MBR scheme to take precedence.
+	 */
 	buf = g_read_data(cp, 0L, pp->sectorsize, &error);
 	if (buf == NULL)
 		return (error);
 	res = le16dec(buf + DOSMAGICOFFSET);
+	pri = G_PART_PROBE_PRI_LOW;
+	for (index = 0; index < NDOSPART; index++) {
+		if (buf[DOSPARTOFF + DOSPARTSIZE * index + 4] == 0xee)
+			pri = G_PART_PROBE_PRI_HIGH;
+	}
 	g_free(buf);
 	if (res != DOSMAGIC) 
 		return (ENXIO);
@@ -798,7 +813,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 	res = memcmp(buf, GPT_HDR_SIG, 8);
 	g_free(buf);
 	if (res == 0)
-		return (G_PART_PROBE_PRI_HIGH);
+		return (pri);
 
 	/* No primary? Check that there's a secondary. */
 	buf = g_read_data(cp, pp->mediasize - pp->sectorsize, pp->sectorsize,
@@ -807,7 +822,7 @@ g_part_gpt_probe(struct g_part_table *table, struct g_consumer *cp)
 		return (error);
 	res = memcmp(buf, GPT_HDR_SIG, 8); 
 	g_free(buf);
-	return ((res == 0) ? G_PART_PROBE_PRI_HIGH : ENXIO);
+	return ((res == 0) ? pri : ENXIO);
 }
 
 static int

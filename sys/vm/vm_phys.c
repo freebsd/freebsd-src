@@ -161,9 +161,9 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 		return (error);
 	sbuf_new_for_sysctl(&sbuf, NULL, 128 * vm_ndomains, req);
 	for (dom = 0; dom < vm_ndomains; dom++) {
-		sbuf_printf(&sbuf,"DOMAIN: %d\n", dom);
+		sbuf_printf(&sbuf,"\nDOMAIN %d:\n", dom);
 		for (flind = 0; flind < vm_nfreelists; flind++) {
-			sbuf_printf(&sbuf, "FREE LIST %d:\n"
+			sbuf_printf(&sbuf, "\nFREE LIST %d:\n"
 			    "\n  ORDER (SIZE)  |  NUMBER"
 			    "\n              ", flind);
 			for (pind = 0; pind < VM_NFREEPOOL; pind++)
@@ -177,14 +177,12 @@ sysctl_vm_phys_free(SYSCTL_HANDLER_ARGS)
 				    1 << (PAGE_SHIFT - 10 + oind));
 				for (pind = 0; pind < VM_NFREEPOOL; pind++) {
 				fl = vm_phys_free_queues[dom][flind][pind];
-					sbuf_printf(&sbuf, "  |  %6.6d",
+					sbuf_printf(&sbuf, "  |  %6d",
 					    fl[oind].lcnt);
 				}
 				sbuf_printf(&sbuf, "\n");
 			}
-			sbuf_printf(&sbuf, "\n");
 		}
-		sbuf_printf(&sbuf, "\n");
 	}
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
@@ -393,7 +391,6 @@ vm_phys_add_page(vm_paddr_t pa)
 	vmd = vm_phys_domain(m);
 	vmd->vmd_page_count++;
 	vmd->vmd_segs |= 1UL << m->segind;
-	m->flags = PG_FREE;
 	KASSERT(m->order == VM_NFREEORDER,
 	    ("vm_phys_add_page: page %p has unexpected order %d",
 	    m, m->order));

@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -681,7 +682,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	 * connection when the SYN arrived.  If we can't create
 	 * the connection, abort it.
 	 */
-	so = sonewconn(lso, SS_ISCONNECTED);
+	so = sonewconn(lso, 0);
 	if (so == NULL) {
 		/*
 		 * Drop the connection; we will either send a RST or
@@ -719,6 +720,16 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #ifdef INET6
 	}
 #endif
+
+	/*
+	 * If there's an mbuf and it has a flowid, then let's initialise the
+	 * inp with that particular flowid.
+	 */
+	if (m != NULL && m->m_flags & M_FLOWID) {
+		inp->inp_flags |= INP_HW_FLOWID;
+		inp->inp_flags &= ~INP_SW_FLOWID;
+		inp->inp_flowid = m->m_pkthdr.flowid;
+	}
 
 	/*
 	 * Install in the reservation hash table for now, but don't yet
@@ -835,7 +846,7 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 #endif /* INET */
 	INP_HASH_WUNLOCK(&V_tcbinfo);
 	tp = intotcpcb(inp);
-	tp->t_state = TCPS_SYN_RECEIVED;
+	tcp_state_change(tp, TCPS_SYN_RECEIVED);
 	tp->iss = sc->sc_iss;
 	tp->irs = sc->sc_irs;
 	tcp_rcvseqinit(tp);
@@ -910,6 +921,8 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tcp_timer_activate(tp, TT_KEEP, TP_KEEPINIT(tp));
 
 	INP_WUNLOCK(inp);
+
+	soisconnected(so);
 
 	TCPSTAT_INC(tcps_accepts);
 	return (so);

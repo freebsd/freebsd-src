@@ -166,7 +166,7 @@ undefined_init()
 
 
 void
-undefinedinstruction(trapframe_t *frame)
+undefinedinstruction(struct trapframe *frame)
 {
 	struct thread *td;
 	u_int fault_pc;

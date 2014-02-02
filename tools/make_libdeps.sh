@@ -28,6 +28,7 @@
 
 export PATH=/bin:/usr/bin
 
+LC_ALL=C			# make sort deterministic
 FS=': '				# internal field separator
 LIBDEPENDS=./_libdeps		# intermediate output file
 USRSRC=${1:-/usr/src}		# source root
@@ -47,7 +48,6 @@ sed -E
     -e's; ;! ;g'
     -e's;$;!;'
     -e's;-lbsdxml!;lib/libexpat;g'
-    -e's;-lbsdyml!;lib/libyaml;g'
     -e's;-lpthread!;lib/libthr;g'
     -e's;-lm!;lib/msun;g'
     -e's;-l(ncurses|termcap)!;lib/ncurses/ncurses;g'
@@ -64,7 +64,7 @@ genlibdepends()
 {
 	(
 		cd ${USRSRC}
-		find ${LIBS} -mindepth 1 -name Makefile |
+		find -s ${LIBS} -mindepth 1 -name Makefile |
 		xargs grep -l 'bsd\.lib\.mk' |
 		while read makefile; do
 			libdir=$(dirname ${makefile})

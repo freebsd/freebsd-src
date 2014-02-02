@@ -349,6 +349,9 @@ Now we expect an error...
 *** Error code 1 (continuing)
 `all' not remade because of errors.
 V.i386 ?= OK
+TEST1=hello
+TEST2=bye
+TEST3=later
 FOOBAR =
 FOOBAR = foobar fubar
 fun

@@ -205,6 +205,13 @@ extern "C" {
 	_Unwind_Control_Block *, struct _Unwind_Context *, void *);
   _Unwind_Reason_Code _Unwind_ForcedUnwind (_Unwind_Control_Block *,
 					    _Unwind_Stop_Fn, void *);
+  /* @@@ Use unwind data to perform a stack backtrace.  The trace callback
+     is called for every stack frame in the call chain, but no cleanup
+     actions are performed.  */
+  typedef _Unwind_Reason_Code (*_Unwind_Trace_Fn) (_Unwind_Context *, void *);
+  _Unwind_Reason_Code _Unwind_Backtrace(_Unwind_Trace_Fn,
+					void*);
+
   _Unwind_Word _Unwind_GetCFA (struct _Unwind_Context *);
   void _Unwind_Complete(_Unwind_Control_Block *ucbp);
   void _Unwind_DeleteException (_Unwind_Exception *);
@@ -246,12 +253,17 @@ extern "C" {
       return val;
     }
 
+#ifndef __FreeBSD__
   /* Return the address of the instruction, not the actual IP value.  */
 #define _Unwind_GetIP(context) \
   (_Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
 
 #define _Unwind_GetIPInfo(context, ip_before_insn) \
   (*ip_before_insn = 0, _Unwind_GetGR (context, 15) & ~(_Unwind_Word)1)
+#else
+  _Unwind_Ptr _Unwind_GetIP (struct _Unwind_Context *);
+  _Unwind_Ptr _Unwind_GetIPInfo (struct _Unwind_Context *, int *);
+#endif
 
   static inline void
   _Unwind_SetGR (_Unwind_Context *context, int regno, _Unwind_Word val)

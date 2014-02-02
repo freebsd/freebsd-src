@@ -364,7 +364,11 @@ gpart_autofill_resize(struct gctl_req *req)
 	}
 
 	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
-	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
+	s = find_geomcfg(gp, "last");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Final block not found for geom %s",
+		    gp->lg_name);
+	last = (off_t)strtoimax(s, NULL, 0);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
 		if (s == NULL)
@@ -450,8 +454,19 @@ gpart_autofill(struct gctl_req *req)
 	if (s == NULL)
 		abort();
 	gp = find_geom(cp, s);
-	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	if (gp == NULL) {
+		if (g_device_path(s) == NULL) {
+			errx(EXIT_FAILURE, "No such geom %s.", s);
+		} else {
+			/*
+			 * We don't free memory allocated by g_device_path() as
+			 * we are about to exit.
+			 */
+			errx(EXIT_FAILURE,
+			    "No partitioning scheme found on geom %s. Create one first using 'gpart create'.",
+			    s);
+		}
+	}
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
@@ -502,8 +517,16 @@ gpart_autofill(struct gctl_req *req)
 	if (size > alignment)
 		size = ALIGNDOWN(size, alignment);
 
-	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
-	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
+	s = find_geomcfg(gp, "first");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Starting block not found for geom %s",
+		    gp->lg_name);
+	first = (off_t)strtoimax(s, NULL, 0);
+	s = find_geomcfg(gp, "last");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Final block not found for geom %s",
+		    gp->lg_name);
+	last = (off_t)strtoimax(s, NULL, 0);
 	grade = ~0ULL;
 	a_first = ALIGNUP(first + offset, alignment);
 	last = ALIGNDOWN(last + offset, alignment);
@@ -587,12 +610,22 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 	int idx, wblocks, wname, wmax;
 
 	scheme = find_geomcfg(gp, "scheme");
+	if (scheme == NULL)
+		errx(EXIT_FAILURE, "Scheme not found for geom %s", gp->lg_name);
 	s = find_geomcfg(gp, "first");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Starting block not found for geom %s",
+		    gp->lg_name);
 	first = (off_t)strtoimax(s, NULL, 0);
 	s = find_geomcfg(gp, "last");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Final block not found for geom %s",
+		    gp->lg_name);
 	last = (off_t)strtoimax(s, NULL, 0);
 	wblocks = strlen(s);
 	s = find_geomcfg(gp, "state");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "State not found for geom %s", gp->lg_name);
 	if (s != NULL && *s != 'C')
 		s = NULL;
 	wmax = strlen(gp->lg_name);
@@ -748,6 +781,8 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 		abort();
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	s = find_geomcfg(gp, "last");
+	if (s == NULL)
+		abort();
 	wblocks = strlen(s);
 	wtype = 0;
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
@@ -757,6 +792,8 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 			wtype = i;
 	}
 	s = find_geomcfg(gp, "entries");
+	if (s == NULL)
+		abort();
 	windex = strlen(s);
 	printf("%s %s\n", scheme, s);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
@@ -1177,6 +1214,8 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 	if (gp == NULL)
 		errx(EXIT_FAILURE, "No such geom: %s.", s);
 	s = find_geomcfg(gp, "scheme");
+	if (s == NULL)
+		errx(EXIT_FAILURE, "Scheme not found for geom %s", gp->lg_name);
 	vtoc8 = 0;
 	if (strcmp(s, "VTOC8") == 0)
 		vtoc8 = 1;

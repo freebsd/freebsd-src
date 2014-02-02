@@ -125,26 +125,26 @@ struct suj_cg {
 	int			sc_cgx;
 };
 
-LIST_HEAD(cghd, suj_cg) cghash[SUJ_HASHSIZE];
-LIST_HEAD(dblkhd, data_blk) dbhash[SUJ_HASHSIZE];
-struct suj_cg *lastcg;
-struct data_blk *lastblk;
+static LIST_HEAD(cghd, suj_cg) cghash[SUJ_HASHSIZE];
+static LIST_HEAD(dblkhd, data_blk) dbhash[SUJ_HASHSIZE];
+static struct suj_cg *lastcg;
+static struct data_blk *lastblk;
 
-TAILQ_HEAD(seghd, suj_seg) allsegs;
-uint64_t oldseq;
+static TAILQ_HEAD(seghd, suj_seg) allsegs;
+static uint64_t oldseq;
 static struct uufsd *disk = NULL;
 static struct fs *fs = NULL;
-ino_t sujino;
+static ino_t sujino;
 
 /*
  * Summary statistics.
  */
-uint64_t freefrags;
-uint64_t freeblocks;
-uint64_t freeinos;
-uint64_t freedir;
-uint64_t jbytes;
-uint64_t jrecs;
+static uint64_t freefrags;
+static uint64_t freeblocks;
+static uint64_t freeinos;
+static uint64_t freedir;
+static uint64_t jbytes;
+static uint64_t jrecs;
 
 static jmp_buf	jmpbuf;
 
@@ -155,6 +155,7 @@ static void ino_decr(ino_t);
 static void ino_adjust(struct suj_ino *);
 static void ino_build(struct suj_ino *);
 static int blk_isfree(ufs2_daddr_t);
+static void initsuj(void);
 
 static void *
 errmalloc(size_t n)
@@ -2413,7 +2414,7 @@ struct jextent {
 	int		je_blocks;	/* Disk block count. */
 };
 
-struct jblocks *suj_jblocks;
+static struct jblocks *suj_jblocks;
 
 static struct jblocks *
 jblocks_create(void)
@@ -2673,8 +2674,8 @@ suj_check(const char *filesys)
 	struct suj_seg *seg;
 	struct suj_seg *segn;
 
+	initsuj();
 	opendisk(filesys);
-	TAILQ_INIT(&allsegs);
 
 	/*
 	 * Set an exit point when SUJ check failed
@@ -2762,4 +2763,29 @@ suj_check(const char *filesys)
 	}
 
 	return (0);
+}
+
+static void
+initsuj(void)
+{
+	int i;
+
+	for (i = 0; i < SUJ_HASHSIZE; i++) {
+		LIST_INIT(&cghash[i]);
+		LIST_INIT(&dbhash[i]);
+	}
+	lastcg = NULL;
+	lastblk = NULL;
+	TAILQ_INIT(&allsegs);
+	oldseq = 0;
+	disk = NULL;
+	fs = NULL;
+	sujino = 0;
+	freefrags = 0;
+	freeblocks = 0;
+	freeinos = 0;
+	freedir = 0;
+	jbytes = 0;
+	jrecs = 0;
+	suj_jblocks = NULL;
 }

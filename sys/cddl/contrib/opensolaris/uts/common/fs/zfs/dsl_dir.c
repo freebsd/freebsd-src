@@ -33,6 +33,7 @@
 #include <sys/dsl_prop.h>
 #include <sys/dsl_synctask.h>
 #include <sys/dsl_deleg.h>
+#include <sys/dmu_impl.h>
 #include <sys/spa.h>
 #include <sys/metaslab.h>
 #include <sys/zap.h>
@@ -93,7 +94,7 @@ dsl_dir_hold_obj(dsl_pool_t *dp, uint64_t ddobj,
 	{
 		dmu_object_info_t doi;
 		dmu_object_info_from_db(dbuf, &doi);
-		ASSERT3U(doi.doi_type, ==, DMU_OT_DSL_DIR);
+		ASSERT3U(doi.doi_bonus_type, ==, DMU_OT_DSL_DIR);
 		ASSERT3U(doi.doi_bonus_size, >=, sizeof (dsl_dir_phys_t));
 	}
 #endif
@@ -589,7 +590,6 @@ dsl_dir_space_available(dsl_dir_t *dd,
 
 struct tempreserve {
 	list_node_t tr_node;
-	dsl_pool_t *tr_dp;
 	dsl_dir_t *tr_ds;
 	uint64_t tr_size;
 };
@@ -740,24 +740,24 @@ dsl_dir_tempreserve_space(dsl_dir_t *dd, uint64_t lsize, uint64_t asize,
 		tr = kmem_zalloc(sizeof (struct tempreserve), KM_SLEEP);
 		tr->tr_size = lsize;
 		list_insert_tail(tr_list, tr);
-
-		err = dsl_pool_tempreserve_space(dd->dd_pool, asize, tx);
 	} else {
 		if (err == EAGAIN) {
-			txg_delay(dd->dd_pool, tx->tx_txg, 1);
+			/*
+			 * If arc_memory_throttle() detected that pageout
+			 * is running and we are low on memory, we delay new
+			 * non-pageout transactions to give pageout an
+			 * advantage.
+			 *
+			 * It is unfortunate to be delaying while the caller's
+			 * locks are held.
+			 */
+			txg_delay(dd->dd_pool, tx->tx_txg,
+			    MSEC2NSEC(10), MSEC2NSEC(10));
 			err = SET_ERROR(ERESTART);
 		}
-		dsl_pool_memory_pressure(dd->dd_pool);
 	}
 
 	if (err == 0) {
-		struct tempreserve *tr;
-
-		tr = kmem_zalloc(sizeof (struct tempreserve), KM_SLEEP);
-		tr->tr_dp = dd->dd_pool;
-		tr->tr_size = asize;
-		list_insert_tail(tr_list, tr);
-
 		err = dsl_dir_tempreserve_impl(dd, asize, fsize >= asize,
 		    FALSE, asize > usize, tr_list, tx, TRUE);
 	}
@@ -786,10 +786,8 @@ dsl_dir_tempreserve_clear(void *tr_cookie, dmu_tx_t *tx)
 	if (tr_cookie == NULL)
 		return;
 
-	while (tr = list_head(tr_list)) {
-		if (tr->tr_dp) {
-			dsl_pool_tempreserve_clear(tr->tr_dp, tr->tr_size, tx);
-		} else if (tr->tr_ds) {
+	while ((tr = list_head(tr_list)) != NULL) {
+		if (tr->tr_ds) {
 			mutex_enter(&tr->tr_ds->dd_lock);
 			ASSERT3U(tr->tr_ds->dd_tempreserved[txgidx], >=,
 			    tr->tr_size);
@@ -805,8 +803,14 @@ dsl_dir_tempreserve_clear(void *tr_cookie, dmu_tx_t *tx)
 	kmem_free(tr_list, sizeof (list_t));
 }
 
-static void
-dsl_dir_willuse_space_impl(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx)
+/*
+ * This should be called from open context when we think we're going to write
+ * or free space, for example when dirtying data. Be conservative; it's okay
+ * to write less space or free more, but we don't want to write more or free
+ * less than the amount specified.
+ */
+void
+dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx)
 {
 	int64_t parent_space;
 	uint64_t est_used;
@@ -824,19 +828,7 @@ dsl_dir_willuse_space_impl(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx)
 
 	/* XXX this is potentially expensive and unnecessary... */
 	if (parent_space && dd->dd_parent)
-		dsl_dir_willuse_space_impl(dd->dd_parent, parent_space, tx);
-}
-
-/*
- * Call in open context when we think we're going to write/free space,
- * eg. when dirtying data.  Be conservative (ie. OK to write less than
- * this or free more than this, but don't write more or free less).
- */
-void
-dsl_dir_willuse_space(dsl_dir_t *dd, int64_t space, dmu_tx_t *tx)
-{
-	dsl_pool_willuse_space(dd->dd_pool, space, tx);
-	dsl_dir_willuse_space_impl(dd, space, tx);
+		dsl_dir_willuse_space(dd->dd_parent, parent_space, tx);
 }
 
 /* call from syncing context when we actually write/free space for this dd */
@@ -845,10 +837,20 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
     int64_t used, int64_t compressed, int64_t uncompressed, dmu_tx_t *tx)
 {
 	int64_t accounted_delta;
+
+	/*
+	 * dsl_dataset_set_refreservation_sync_impl() calls this with
+	 * dd_lock held, so that it can atomically update
+	 * ds->ds_reserved and the dsl_dir accounting, so that
+	 * dsl_dataset_check_quota() can see dataset and dir accounting
+	 * consistently.
+	 */
 	boolean_t needlock = !MUTEX_HELD(&dd->dd_lock);
 
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT(type < DD_USED_NUM);
+
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 
 	if (needlock)
 		mutex_enter(&dd->dd_lock);
@@ -858,7 +860,6 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	    dd->dd_phys->dd_compressed_bytes >= -compressed);
 	ASSERT(uncompressed >= 0 ||
 	    dd->dd_phys->dd_uncompressed_bytes >= -uncompressed);
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_bytes += used;
 	dd->dd_phys->dd_uncompressed_bytes += uncompressed;
 	dd->dd_phys->dd_compressed_bytes += compressed;
@@ -891,8 +892,6 @@ void
 dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
     dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx)
 {
-	boolean_t needlock = !MUTEX_HELD(&dd->dd_lock);
-
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT(oldtype < DD_USED_NUM);
 	ASSERT(newtype < DD_USED_NUM);
@@ -900,17 +899,15 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 	if (delta == 0 || !(dd->dd_phys->dd_flags & DD_FLAG_USED_BREAKDOWN))
 		return;
 
-	if (needlock)
-		mutex_enter(&dd->dd_lock);
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
+	mutex_enter(&dd->dd_lock);
 	ASSERT(delta > 0 ?
 	    dd->dd_phys->dd_used_breakdown[oldtype] >= delta :
 	    dd->dd_phys->dd_used_breakdown[newtype] >= -delta);
 	ASSERT(dd->dd_phys->dd_used_bytes >= ABS(delta));
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_breakdown[oldtype] -= delta;
 	dd->dd_phys->dd_used_breakdown[newtype] += delta;
-	if (needlock)
-		mutex_exit(&dd->dd_lock);
+	mutex_exit(&dd->dd_lock);
 }
 
 typedef struct dsl_dir_set_qr_arg {
@@ -1366,4 +1363,11 @@ dsl_dir_snap_cmtime_update(dsl_dir_t *dd)
 	mutex_enter(&dd->dd_lock);
 	dd->dd_snap_cmtime = t;
 	mutex_exit(&dd->dd_lock);
+}
+
+void
+dsl_dir_zapify(dsl_dir_t *dd, dmu_tx_t *tx)
+{
+	objset_t *mos = dd->dd_pool->dp_meta_objset;
+	dmu_object_zapify(mos, dd->dd_object, DMU_OT_DSL_DIR, tx);
 }

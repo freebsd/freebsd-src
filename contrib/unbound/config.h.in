@@ -6,15 +6,6 @@
 /* Pathname to the Unbound configuration file */
 #undef CONFIGFILE
 
-/* configure flags */
-#undef CONFIGURE_BUILD_WITH
-
-/* configure date */
-#undef CONFIGURE_DATE
-
-/* configure target system */
-#undef CONFIGURE_TARGET
-
 /* Define this if on macOSX10.4-darwin8 and setreuid and setregid do not work
    */
 #undef DARWIN_BROKEN_SETREUID

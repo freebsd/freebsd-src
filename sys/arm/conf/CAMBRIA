@@ -136,6 +136,7 @@ options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
 device		ath_hal
 
 # NB: 2 USB 2.0 ports standard
+options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
 options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options 	USB_DEBUG

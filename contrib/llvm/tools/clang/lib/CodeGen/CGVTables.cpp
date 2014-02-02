@@ -454,10 +454,9 @@ void CodeGenVTables::EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk,
   } else {
     // Normal thunk body generation.
     CodeGenFunction(CGM).GenerateThunk(ThunkFn, FnInfo, GD, Thunk);
+    if (UseAvailableExternallyLinkage)
+      ThunkFn->setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
   }
-
-  if (UseAvailableExternallyLinkage)
-    ThunkFn->setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
 }
 
 void CodeGenVTables::MaybeEmitThunkAvailableExternally(GlobalDecl GD,

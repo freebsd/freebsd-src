@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <machine/devmap.h>
 #include <machine/vmparam.h>
 #include <machine/pcb.h>
 #include <machine/undefined.h>
@@ -115,36 +116,22 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-/* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
-
-struct pv_addr systempage;
-struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-struct pv_addr kernelstack;
-
 /* Static device mappings. */
-const struct pmap_devmap at91_devmap[] = {
+const struct arm_devmap_entry at91_devmap[] = {
 	/*
-	 * Map the on-board devices VA == PA so that we can access them
-	 * with the MMU on or off.
+	 * Map the critical on-board devices. The interrupt vector at
+	 * 0xffff0000 makes it impossible to map them PA == VA, so we map all
+	 * 0xfffxxxxx addresses to 0xdffxxxxx. This covers all critical devices
+	 * on all members of the AT91SAM9 and AT91RM9200 families.
 	 */
 	{
-		/*
-		 * This at least maps the interrupt controller, the UART
-		 * and the timer. Other devices should use newbus to
-		 * map their memory anyway.
-		 */
 		0xdff00000,
 		0xfff00000,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/* There's a notion that we should do the rest of these lazily. */
 	/*
 	 * We can't just map the OHCI registers VA == PA, because
 	 * AT91xx_xxx_BASE belongs to the userland address space.
@@ -162,16 +149,16 @@ const struct pmap_devmap at91_devmap[] = {
 		 * on this chip select for a VA/PA mapping.
 		 */
 		/* Internal Memory 1MB  */
+		AT91RM92_OHCI_VA_BASE,
 		AT91RM92_OHCI_BASE,
-		AT91RM92_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
+		AT91RM92_CF_VA_BASE,
 		AT91RM92_CF_BASE,
-		AT91RM92_CF_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -182,16 +169,16 @@ const struct pmap_devmap at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G20_OHCI_VA_BASE,
 		AT91SAM9G20_OHCI_BASE,
-		AT91SAM9G20_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* EBI CS3 256MB */
+		AT91SAM9G20_NAND_VA_BASE,
 		AT91SAM9G20_NAND_BASE,
-		AT91SAM9G20_NAND_PA_BASE,
 		AT91SAM9G20_NAND_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -201,14 +188,26 @@ const struct pmap_devmap at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_VA_BASE,
 		AT91SAM9G45_OHCI_BASE,
-		AT91SAM9G45_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
+
+/* Physical and virtual addresses for some global pages */
+
+vm_paddr_t phys_avail[10];
+vm_paddr_t dump_avail[4];
+
+struct pv_addr systempage;
+struct pv_addr msgbufpv;
+struct pv_addr irqstack;
+struct pv_addr undstack;
+struct pv_addr abtstack;
+struct pv_addr kernelstack;
 
 #ifdef LINUX_BOOT_ABI
 extern int membanks;
@@ -566,7 +565,7 @@ initarm(struct arm_boot_params *abp)
 		    VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	}
 
-	pmap_devmap_bootstrap(l1pagetable, at91_devmap);
+	arm_devmap_bootstrap(l1pagetable, at91_devmap);
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
@@ -603,6 +602,7 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
+	cpu_setup("");
 
 	set_stackptrs(0);
 
@@ -631,7 +631,8 @@ initarm(struct arm_boot_params *abp)
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
 	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
-	vm_max_kernel_address = KERNVIRTADDR + 3 * memsize;
+	/* Always use the 256MB of KVA we have available between the kernel and devices */
+	vm_max_kernel_address = KERNVIRTADDR + (256 << 20);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);

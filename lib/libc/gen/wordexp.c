@@ -121,7 +121,7 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 
 	serrno = errno;
 
-	if (pipe(pdes) < 0)
+	if (pipe2(pdes, O_CLOEXEC) < 0)
 		return (WRDE_NOSPACE);	/* XXX */
 	(void)sigemptyset(&newsigblock);
 	(void)sigaddset(&newsigblock, SIGCHLD);
@@ -140,10 +140,10 @@ we_askshell(const char *words, wordexp_t *we, int flags)
 		 * builtin on `words'.
 		 */
 		(void)_sigprocmask(SIG_SETMASK, &oldsigblock, NULL);
-		_close(pdes[0]);
-		if (_dup2(pdes[1], STDOUT_FILENO) < 0)
+		if ((pdes[1] != STDOUT_FILENO ?
+		    _dup2(pdes[1], STDOUT_FILENO) :
+		    _fcntl(pdes[1], F_SETFD, 0)) < 0)
 			_exit(1);
-		_close(pdes[1]);
 		execl(_PATH_BSHELL, "sh", flags & WRDE_UNDEF ? "-u" : "+u",
 		    "-c", "eval \"$1\";eval \"wordexp $2\"", "",
 		    flags & WRDE_SHOWERR ? "" : "exec 2>/dev/null", words,

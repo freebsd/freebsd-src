@@ -56,6 +56,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/capability.h>
+
 #include "dhcpd.h"
 #include "privsep.h"
 
@@ -346,6 +348,7 @@ main(int argc, char *argv[])
 	int			 immediate_daemon = 0;
 	struct passwd		*pw;
 	pid_t			 otherpid;
+	cap_rights_t		 rights;
 
 	/* Initially, log errors to stderr as well as to syslogd. */
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
@@ -477,10 +480,9 @@ main(int argc, char *argv[])
 
 	close(pipe_fd[0]);
 	privfd = pipe_fd[1];
-	if (cap_rights_limit(privfd, CAP_READ | CAP_WRITE) < 0 &&
-	    errno != ENOSYS) {
+	cap_rights_init(&rights, CAP_READ, CAP_WRITE);
+	if (cap_rights_limit(privfd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit private descriptor: %m");
-	}
 
 	if ((fd = open(path_dhclient_db, O_RDONLY|O_EXLOCK|O_CREAT, 0)) == -1)
 		error("can't open and lock %s: %m", path_dhclient_db);
@@ -492,10 +494,9 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
-	if (cap_rights_limit(routefd, CAP_POLL_EVENT | CAP_READ) < 0 &&
-	    errno != ENOSYS) {
+	cap_rights_init(&rights, CAP_POLL_EVENT, CAP_READ);
+	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
-	}
 
 	if (chroot(_PATH_VAREMPTY) == -1)
 		error("chroot");
@@ -1840,13 +1841,15 @@ void
 rewrite_client_leases(void)
 {
 	struct client_lease *lp;
+	cap_rights_t rights;
 
 	if (!leaseFile) {
 		leaseFile = fopen(path_dhclient_db, "w");
 		if (!leaseFile)
 			error("can't create %s: %m", path_dhclient_db);
-		if (cap_rights_limit(fileno(leaseFile), CAP_FSTAT | CAP_FSYNC |
-		    CAP_FTRUNCATE | CAP_SEEK | CAP_WRITE) < 0 &&
+		cap_rights_init(&rights, CAP_FSTAT, CAP_FSYNC, CAP_FTRUNCATE,
+		    CAP_SEEK, CAP_WRITE);
+		if (cap_rights_limit(fileno(leaseFile), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("can't limit lease descriptor: %m");
 		}
@@ -2354,6 +2357,7 @@ void
 go_daemon(void)
 {
 	static int state = 0;
+	cap_rights_t rights;
 
 	if (no_daemon || state)
 		return;
@@ -2366,9 +2370,11 @@ go_daemon(void)
 	if (daemon(1, 0) == -1)
 		error("daemon");
 
+	cap_rights_init(&rights);
+
 	if (pidfile != NULL) {
 		pidfile_write(pidfile);
-		if (cap_rights_limit(pidfile_fileno(pidfile), CAP_NONE) < 0 &&
+		if (cap_rights_limit(pidfile_fileno(pidfile), &rights) < 0 &&
 		    errno != ENOSYS) {
 			error("can't limit pidfile descriptor: %m");
 		}
@@ -2383,11 +2389,12 @@ go_daemon(void)
 		nullfd = -1;
 	}
 
-	if (cap_rights_limit(STDIN_FILENO, CAP_NONE) < 0 && errno != ENOSYS)
+	if (cap_rights_limit(STDIN_FILENO, &rights) < 0 && errno != ENOSYS)
 		error("can't limit stdin: %m");
-	if (cap_rights_limit(STDOUT_FILENO, CAP_WRITE) < 0 && errno != ENOSYS)
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
 		error("can't limit stdout: %m");
-	if (cap_rights_limit(STDERR_FILENO, CAP_WRITE) < 0 && errno != ENOSYS)
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
 		error("can't limit stderr: %m");
 }
 

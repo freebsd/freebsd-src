@@ -24,11 +24,12 @@
  * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
+/*
+ * Copyright (c) 2012, Joyent, Inc.  All rights reserved.
+ */
 
 #ifndef	_CTF_IMPL_H
 #define	_CTF_IMPL_H
-
-#pragma ident	"%Z%%M%	%I%	%E% SMI"
 
 #include <sys/types.h>
 #include <sys/errno.h>
@@ -149,6 +150,7 @@ typedef struct ctf_dtdef {
 	char *dtd_name;		/* name associated with definition (if any) */
 	ctf_id_t dtd_type;	/* type identifier for this definition */
 	ctf_type_t dtd_data;	/* type node (see <sys/ctf.h>) */
+	int dtd_ref;		/* recfount for dyanmic types */
 	union {
 		ctf_list_t dtu_members;	/* struct, union, or enum */
 		ctf_arinfo_t dtu_arr;	/* array */
@@ -269,7 +271,9 @@ enum {
 	ECTF_DTFULL,		/* CTF type is full (no more members allowed) */
 	ECTF_FULL,		/* CTF container is full */
 	ECTF_DUPMEMBER,		/* duplicate member name definition */
-	ECTF_CONFLICT		/* conflicting type definition present */
+	ECTF_CONFLICT,		/* conflicting type definition present */
+	ECTF_REFERENCED,	/* type has outstanding references */
+	ECTF_NOTDYN		/* type is not a dynamic type */
 };
 
 extern ssize_t ctf_get_ctt_size(const ctf_file_t *, const ctf_type_t *,

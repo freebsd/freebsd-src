@@ -170,6 +170,7 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 MAN+=	alarm.3 \
 	arc4random.3 \
 	basename.3 \
+	cap_rights_get.3 \
 	cap_sandboxed.3 \
 	check_utility_compat.3 \
 	clock.3 \
@@ -303,8 +304,9 @@ MLINKS+=devname.3 fdevname.3
 MLINKS+=devname.3 fdevname_r.3
 MLINKS+=directory.3 closedir.3 \
 	directory.3 dirfd.3 \
-	directory.3 opendir.3 \
+	directory.3 fdclosedir.3 \
 	directory.3 fdopendir.3 \
+	directory.3 opendir.3 \
 	directory.3 readdir.3 \
 	directory.3 readdir_r.3 \
 	directory.3 rewinddir.3 \

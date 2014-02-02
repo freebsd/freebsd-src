@@ -74,7 +74,7 @@ ext2_bmap(struct vop_bmap_args *ap)
 	if (ap->a_bnp == NULL)
 		return (0);
 
-	if (VTOI(ap->a_vp)->i_flags & EXT4_EXTENTS)
+	if (VTOI(ap->a_vp)->i_flag & IN_E4EXTENTS)
 		error = ext4_bmapext(ap->a_vp, ap->a_bn, &blkno,
 		    ap->a_runp, ap->a_runb);
 	else

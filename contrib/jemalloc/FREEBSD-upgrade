@@ -60,7 +60,7 @@ do_extract() {
   local rev=$1
   # Clone.
   rm -rf ${work}
-  git clone git://canonware.com/jemalloc.git ${work}
+  git clone https://github.com/jemalloc/jemalloc.git ${work}
   (
     cd ${work}
     if [ "x${rev}" != "x" ] ; then
@@ -74,7 +74,7 @@ do_extract() {
     # Generate various files.
     ./autogen.sh --enable-cc-silence --enable-dss --enable-xmalloc \
       --enable-utrace --with-xslroot=/usr/local/share/xsl/docbook \
-      --with-private-namespace=__jemalloc_
+      --with-private-namespace=__
     gmake dist
   )
 }

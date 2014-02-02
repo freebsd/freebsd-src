@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2007, Juniper Networks, Inc.
+ * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * (FA8750-10-C-0237) ("CTSRD"), as part of the DARPA CRASH research
+ * programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/cfi/cfi_reg.h>
 #include <dev/cfi/cfi_var.h>
+
+static void cfi_add_sysctls(struct cfi_softc *);
 
 extern struct cdevsw cfi_cdevsw;
 
@@ -262,6 +270,7 @@ cfi_attach(device_t dev)
 	struct cfi_softc *sc;
 	u_int blksz, blocks;
 	u_int r, u;
+	uint64_t mtoexp, ttoexp;
 #ifdef CFI_SUPPORT_STRATAFLASH
 	uint64_t ppr;
 	char name[KENV_MNAMELEN], value[32];
@@ -272,18 +281,90 @@ cfi_attach(device_t dev)
 
 	sc->sc_rid = 0;
 	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->sc_rid,
+#ifndef ATSE_CFI_HACK
 	    RF_ACTIVE);
+#else
+	    RF_ACTIVE | RF_SHAREABLE);
+#endif
 	if (sc->sc_res == NULL)
 		return (ENXIO);
 
 	sc->sc_tag = rman_get_bustag(sc->sc_res);
 	sc->sc_handle = rman_get_bushandle(sc->sc_res);
 
-	/* Get time-out values for erase and write. */
-	sc->sc_write_timeout = 1 << cfi_read_qry(sc, CFI_QRY_TTO_WRITE);
-	sc->sc_erase_timeout = 1 << cfi_read_qry(sc, CFI_QRY_TTO_ERASE);
-	sc->sc_write_timeout *= 1 << cfi_read_qry(sc, CFI_QRY_MTO_WRITE);
-	sc->sc_erase_timeout *= 1 << cfi_read_qry(sc, CFI_QRY_MTO_ERASE);
+	/* Get time-out values for erase, write, and buffer write. */
+	ttoexp = cfi_read_qry(sc, CFI_QRY_TTO_ERASE);
+	mtoexp = cfi_read_qry(sc, CFI_QRY_MTO_ERASE);
+	if (ttoexp == 0) {
+		device_printf(dev, "erase timeout == 0, using 2^16ms\n");
+		ttoexp = 16;
+	}
+	if (ttoexp > 41) {
+		device_printf(dev, "insane timeout: 2^%jdms\n", ttoexp);
+		return (EINVAL);
+	}
+	if (mtoexp == 0) {
+		device_printf(dev, "max erase timeout == 0, using 2^%jdms\n",
+		    ttoexp + 4);
+		mtoexp = 4;
+	}
+	if (ttoexp + mtoexp > 41) {
+		device_printf(dev, "insane max erase timeout: 2^%jd\n",
+		    ttoexp + mtoexp);
+		return (EINVAL);
+	}
+	sc->sc_typical_timeouts[CFI_TIMEOUT_ERASE] = SBT_1MS * (1ULL << ttoexp);
+	sc->sc_max_timeouts[CFI_TIMEOUT_ERASE] =
+	    sc->sc_typical_timeouts[CFI_TIMEOUT_ERASE] * (1ULL << mtoexp);
+
+	ttoexp = cfi_read_qry(sc, CFI_QRY_TTO_WRITE);
+	mtoexp = cfi_read_qry(sc, CFI_QRY_MTO_WRITE);
+	if (ttoexp == 0) {
+		device_printf(dev, "write timeout == 0, using 2^18ns\n");
+		ttoexp = 18;
+	}
+	if (ttoexp > 51) {
+		device_printf(dev, "insane write timeout: 2^%jdus\n", ttoexp);
+		return (EINVAL);
+	}
+	if (mtoexp == 0) {
+		device_printf(dev, "max write timeout == 0, using 2^%jdms\n",
+		    ttoexp + 4);
+		mtoexp = 4;
+	}
+	if (ttoexp + mtoexp > 51) {
+		device_printf(dev, "insane max write timeout: 2^%jdus\n",
+		    ttoexp + mtoexp);
+		return (EINVAL);
+	}
+	sc->sc_typical_timeouts[CFI_TIMEOUT_WRITE] = SBT_1US * (1ULL << ttoexp);
+	sc->sc_max_timeouts[CFI_TIMEOUT_WRITE] =
+	    sc->sc_typical_timeouts[CFI_TIMEOUT_WRITE] * (1ULL << mtoexp);
+
+	ttoexp = cfi_read_qry(sc, CFI_QRY_TTO_BUFWRITE);
+	mtoexp = cfi_read_qry(sc, CFI_QRY_MTO_BUFWRITE);
+	/* Don't check for 0, it means not-supported. */
+	if (ttoexp > 51) {
+		device_printf(dev, "insane write timeout: 2^%jdus\n", ttoexp);
+		return (EINVAL);
+	}
+	if (ttoexp + mtoexp > 51) {
+		device_printf(dev, "insane max write timeout: 2^%jdus\n",
+		    ttoexp + mtoexp);
+		return (EINVAL);
+	}
+	sc->sc_typical_timeouts[CFI_TIMEOUT_BUFWRITE] =
+	    SBT_1US * (1ULL << cfi_read_qry(sc, CFI_QRY_TTO_BUFWRITE));
+	sc->sc_max_timeouts[CFI_TIMEOUT_BUFWRITE] =
+	    sc->sc_typical_timeouts[CFI_TIMEOUT_BUFWRITE] *
+	    (1ULL << cfi_read_qry(sc, CFI_QRY_MTO_BUFWRITE));
+
+	/* Get the maximum size of a multibyte program */
+	if (sc->sc_typical_timeouts[CFI_TIMEOUT_BUFWRITE] != 0)
+		sc->sc_maxbuf = 1 << (cfi_read_qry(sc, CFI_QRY_MAXBUF) |
+		    cfi_read_qry(sc, CFI_QRY_MAXBUF) << 8);
+	else
+		sc->sc_maxbuf = 0;
 
 	/* Get erase regions. */
 	sc->sc_regions = cfi_read_qry(sc, CFI_QRY_NREGIONS);
@@ -317,6 +398,8 @@ cfi_attach(device_t dev)
 	    "%s%u", cfi_driver_name, u);
 	sc->sc_nod->si_drv1 = sc;
 
+	cfi_add_sysctls(sc);
+
 #ifdef CFI_SUPPORT_STRATAFLASH
 	/*
 	 * Store the Intel factory PPR in the environment.  In some
@@ -337,6 +420,45 @@ cfi_attach(device_t dev)
 	return (0);
 }
 
+static void
+cfi_add_sysctls(struct cfi_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+
+	ctx = device_get_sysctl_ctx(sc->sc_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->sc_dev));
+
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+	    "typical_erase_timout_count",
+	    CTLFLAG_RD, &sc->sc_tto_counts[CFI_TIMEOUT_ERASE],
+	    0, "Number of times the typical erase timeout was exceeded");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+	    "max_erase_timout_count",
+	    CTLFLAG_RD, &sc->sc_mto_counts[CFI_TIMEOUT_ERASE], 0,
+	    "Number of times the maximum erase timeout was exceeded");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+	    "typical_write_timout_count",
+	    CTLFLAG_RD, &sc->sc_tto_counts[CFI_TIMEOUT_WRITE], 0,
+	    "Number of times the typical write timeout was exceeded");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+	    "max_write_timout_count",
+	    CTLFLAG_RD, &sc->sc_mto_counts[CFI_TIMEOUT_WRITE], 0,
+	    "Number of times the maximum write timeout was exceeded");
+	if (sc->sc_maxbuf > 0) {
+		SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+		    "typical_bufwrite_timout_count",
+		    CTLFLAG_RD, &sc->sc_tto_counts[CFI_TIMEOUT_BUFWRITE], 0,
+		    "Number of times the typical buffered write timeout was "
+		    "exceeded");
+		SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
+		    "max_bufwrite_timout_count",
+		    CTLFLAG_RD, &sc->sc_mto_counts[CFI_TIMEOUT_BUFWRITE], 0,
+		    "Number of times the maximum buffered write timeout was "
+		    "exceeded");
+	}
+}
+
 int
 cfi_detach(device_t dev)
 {
@@ -351,17 +473,22 @@ cfi_detach(device_t dev)
 }
 
 static int
-cfi_wait_ready(struct cfi_softc *sc, u_int ofs, u_int timeout)
+cfi_wait_ready(struct cfi_softc *sc, u_int ofs, sbintime_t start,
+    enum cfi_wait_cmd cmd)
 {
-	int done, error;
+	int done, error, tto_exceeded;
 	uint32_t st0 = 0, st = 0;
+	sbintime_t now;
 
 	done = 0;
 	error = 0;
-	timeout *= 10;
-	while (!done && !error && timeout) {
-		DELAY(100);
-		timeout--;
+	tto_exceeded = 0;
+	while (!done && !error) {
+		/*
+		 * Save time before we start so we always do one check
+		 * after the timeout has expired.
+		 */
+		now = sbinuptime();
 
 		switch (sc->sc_cmdset) {
 		case CFI_VEND_INTEL_ECS:
@@ -390,6 +517,25 @@ cfi_wait_ready(struct cfi_softc *sc, u_int ofs, u_int timeout)
 			done = ((st & 0x40) == (st0 & 0x40)) ? 1 : 0;
 			break;
 		}
+
+		if (tto_exceeded ||
+		    now > start + sc->sc_typical_timeouts[cmd]) {
+			if (!tto_exceeded) {
+				tto_exceeded = 1;
+				sc->sc_tto_counts[cmd]++;
+#ifdef CFI_DEBUG_TIMEOUT
+				device_printf(sc->sc_dev,
+				    "typical timeout exceeded (cmd %d)", cmd);
+#endif
+			}
+			if (now > start + sc->sc_max_timeouts[cmd]) {
+				sc->sc_mto_counts[cmd]++;
+#ifdef CFI_DEBUG_TIMEOUT
+				device_printf(sc->sc_dev,
+				    "max timeout exceeded (cmd %d)", cmd);
+#endif
+			}
+		}
 	}
 	if (!done && !error)
 		error = ETIMEDOUT;
@@ -405,9 +551,12 @@ cfi_write_block(struct cfi_softc *sc)
 		uint8_t		*x8;
 		uint16_t	*x16;
 		uint32_t	*x32;
-	} ptr;
+	} ptr, cpyprt;
 	register_t intr;
-	int error, i;
+	int error, i, neederase = 0;
+	uint32_t st;
+	u_int wlen;
+	sbintime_t start;
 
 	/* Intel flash must be unlocked before modification */
 	switch (sc->sc_cmdset) {
@@ -419,30 +568,123 @@ cfi_write_block(struct cfi_softc *sc)
 		break;
 	}
 
-	/* Erase the block. */
-	switch (sc->sc_cmdset) {
-	case CFI_VEND_INTEL_ECS:
-	case CFI_VEND_INTEL_SCS:
-		cfi_write(sc, sc->sc_wrofs, CFI_BCS_BLOCK_ERASE);
-		cfi_write(sc, sc->sc_wrofs, CFI_BCS_CONFIRM);
-		break;
-	case CFI_VEND_AMD_SCS:
-	case CFI_VEND_AMD_ECS:
-		cfi_amd_write(sc, sc->sc_wrofs, AMD_ADDR_START,
-		    CFI_AMD_ERASE_SECTOR);
-		cfi_amd_write(sc, sc->sc_wrofs, 0, CFI_AMD_BLOCK_ERASE);
-		break;
-	default:
-		/* Better safe than sorry... */
-		return (ENODEV);
-	}
-	error = cfi_wait_ready(sc, sc->sc_wrofs, sc->sc_erase_timeout);
-	if (error)
-		goto out;
+	/* Check if an erase is required. */
+	for (i = 0; i < sc->sc_wrbufsz; i++)
+		if ((sc->sc_wrbuf[i] & sc->sc_wrbufcpy[i]) != sc->sc_wrbuf[i]) {
+			neederase = 1;
+			break;
+		}
 
-	/* Write the block. */
+	if (neederase) {
+		intr = intr_disable();
+		start = sbinuptime();
+		/* Erase the block. */
+		switch (sc->sc_cmdset) {
+		case CFI_VEND_INTEL_ECS:
+		case CFI_VEND_INTEL_SCS:
+			cfi_write(sc, sc->sc_wrofs, CFI_BCS_BLOCK_ERASE);
+			cfi_write(sc, sc->sc_wrofs, CFI_BCS_CONFIRM);
+			break;
+		case CFI_VEND_AMD_SCS:
+		case CFI_VEND_AMD_ECS:
+			cfi_amd_write(sc, sc->sc_wrofs, AMD_ADDR_START,
+			    CFI_AMD_ERASE_SECTOR);
+			cfi_amd_write(sc, sc->sc_wrofs, 0, CFI_AMD_BLOCK_ERASE);
+			break;
+		default:
+			/* Better safe than sorry... */
+			intr_restore(intr);
+			return (ENODEV);
+		}
+		intr_restore(intr);
+		error = cfi_wait_ready(sc, sc->sc_wrofs, start, 
+		    CFI_TIMEOUT_ERASE);
+		if (error)
+			goto out;
+	} else
+		error = 0;
+
+	/* Write the block using a multibyte write if supported. */
 	ptr.x8 = sc->sc_wrbuf;
+	cpyprt.x8 = sc->sc_wrbufcpy;
+	if (sc->sc_maxbuf > sc->sc_width) {
+		switch (sc->sc_cmdset) {
+		case CFI_VEND_INTEL_ECS:
+		case CFI_VEND_INTEL_SCS:
+			for (i = 0; i < sc->sc_wrbufsz; i += wlen) {
+				wlen = MIN(sc->sc_maxbuf, sc->sc_wrbufsz - i);
+
+				intr = intr_disable();
+
+				start = sbinuptime();
+				do {
+					cfi_write(sc, sc->sc_wrofs + i,
+					    CFI_BCS_BUF_PROG_SETUP);
+					if (sbinuptime() > start + sc->sc_max_timeouts[CFI_TIMEOUT_BUFWRITE]) {
+						error = ETIMEDOUT;
+						goto out;
+					}
+					st = cfi_read(sc, sc->sc_wrofs + i);
+				} while (! (st & CFI_INTEL_STATUS_WSMS));
+
+				cfi_write(sc, sc->sc_wrofs + i,
+				    (wlen / sc->sc_width) - 1);
+				switch (sc->sc_width) {
+				case 1:
+					bus_space_write_region_1(sc->sc_tag,
+					    sc->sc_handle, sc->sc_wrofs + i,
+					    ptr.x8 + i, wlen);
+					break;
+				case 2:
+					bus_space_write_region_2(sc->sc_tag,
+					    sc->sc_handle, sc->sc_wrofs + i,
+					    ptr.x16 + i / 2, wlen / 2);
+					break;
+				case 4:
+					bus_space_write_region_4(sc->sc_tag,
+					    sc->sc_handle, sc->sc_wrofs + i,
+					    ptr.x32 + i / 4, wlen / 4);
+					break;
+				}
+
+				cfi_write(sc, sc->sc_wrofs + i,
+				    CFI_BCS_CONFIRM);
+
+				intr_restore(intr);
+
+				error = cfi_wait_ready(sc, sc->sc_wrofs + i,
+				    start, CFI_TIMEOUT_BUFWRITE);
+				if (error != 0)
+					goto out;
+			}
+			goto out;
+		default:
+			/* Fall through to single word case */
+			break;
+		}
+
+	}
+
+	/* Write the block one byte/word at a time. */
 	for (i = 0; i < sc->sc_wrbufsz; i += sc->sc_width) {
+
+		/* Avoid writing unless we are actually changing bits */
+		if (!neederase) {
+			switch (sc->sc_width) {
+			case 1:
+				if(*(ptr.x8 + i) == *(cpyprt.x8 + i))
+					continue;
+				break;
+			case 2:
+				if(*(ptr.x16 + i / 2) == *(cpyprt.x16 + i / 2))
+					continue;
+				break;
+			case 4:
+				if(*(ptr.x32 + i / 4) == *(cpyprt.x32 + i / 4))
+					continue;
+				break;
+			}
+		}
 
 		/*
 		 * Make sure the command to start a write and the
@@ -451,6 +693,7 @@ cfi_write_block(struct cfi_softc *sc)
 		 */
 		intr = intr_disable();
 
+		start = sbinuptime();
 		switch (sc->sc_cmdset) {
 		case CFI_VEND_INTEL_ECS:
 		case CFI_VEND_INTEL_SCS:
@@ -464,21 +707,22 @@ cfi_write_block(struct cfi_softc *sc)
 		switch (sc->sc_width) {
 		case 1:
 			bus_space_write_1(sc->sc_tag, sc->sc_handle,
-			    sc->sc_wrofs + i, *(ptr.x8)++);
+			    sc->sc_wrofs + i, *(ptr.x8 + i));
 			break;
 		case 2:
 			bus_space_write_2(sc->sc_tag, sc->sc_handle,
-			    sc->sc_wrofs + i, *(ptr.x16)++);
+			    sc->sc_wrofs + i, *(ptr.x16 + i / 2));
 			break;
 		case 4:
 			bus_space_write_4(sc->sc_tag, sc->sc_handle,
-			    sc->sc_wrofs + i, *(ptr.x32)++);
+			    sc->sc_wrofs + i, *(ptr.x32 + i / 4));
 			break;
 		}
-
+		
 		intr_restore(intr);
 
-		error = cfi_wait_ready(sc, sc->sc_wrofs, sc->sc_write_timeout);
+		error = cfi_wait_ready(sc, sc->sc_wrofs, start,
+		   CFI_TIMEOUT_WRITE);
 		if (error)
 			goto out;
 	}
@@ -576,6 +820,7 @@ cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
 #ifdef CFI_ARMEDANDDANGEROUS
 	register_t intr;
 	int i, error;
+	sbintime_t start;
 #endif
 
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
@@ -585,11 +830,12 @@ cfi_intel_set_oem_pr(struct cfi_softc *sc, uint64_t id)
 #ifdef CFI_ARMEDANDDANGEROUS
 	for (i = 7; i >= 4; i--, id >>= 16) {
 		intr = intr_disable();
+		start = sbinuptime();
 		cfi_write(sc, 0, CFI_INTEL_PP_SETUP);
 		cfi_put16(sc, CFI_INTEL_PR(i), id&0xffff);
 		intr_restore(intr);
-		error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS,
-		    sc->sc_write_timeout);
+		error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, start,
+		    CFI_TIMEOUT_WRITE);
 		if (error)
 			break;
 	}
@@ -629,6 +875,7 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 #ifdef CFI_ARMEDANDDANGEROUS
 	register_t intr;
 	int error;
+	sbintime_t start;
 #endif
 	if (sc->sc_cmdset != CFI_VEND_INTEL_ECS)
 		return EOPNOTSUPP;
@@ -638,10 +885,12 @@ cfi_intel_set_plr(struct cfi_softc *sc)
 	/* worthy of console msg */
 	device_printf(sc->sc_dev, "set PLR\n");
 	intr = intr_disable();
+	binuptime(&start);
 	cfi_write(sc, 0, CFI_INTEL_PP_SETUP);
 	cfi_put16(sc, CFI_INTEL_PLR, 0xFFFD);
 	intr_restore(intr);
-	error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, sc->sc_write_timeout);
+	error = cfi_wait_ready(sc, CFI_BCS_READ_STATUS, start,
+	    CFI_TIMEOUT_WRITE);
 	cfi_write(sc, 0, CFI_BCS_READ_ARRAY);
 	return error;
 #else

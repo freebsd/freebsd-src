@@ -1910,6 +1910,12 @@ again:
 		 * not specified.
 		 */
 		vm_page_lock(p);
+		if (vm_page_xbusied(p)) {
+			VM_OBJECT_WUNLOCK(object);
+			vm_page_busy_sleep(p, "vmopax");
+			VM_OBJECT_WLOCK(object);
+			goto again;
+		}
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
 			if ((options & (OBJPR_NOTWIRED | OBJPR_NOTMAPPED)) ==
@@ -2093,8 +2099,9 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	if (prev_object == NULL)
 		return (TRUE);
 	VM_OBJECT_WLOCK(prev_object);
-	if (prev_object->type != OBJT_DEFAULT &&
-	    prev_object->type != OBJT_SWAP) {
+	if ((prev_object->type != OBJT_DEFAULT &&
+	    prev_object->type != OBJT_SWAP) ||
+	    (prev_object->flags & OBJ_TMPFS) != 0) {
 		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}

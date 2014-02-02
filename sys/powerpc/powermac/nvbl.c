@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #define NVIDIA_MMIO_PMC       (0x0)
 #define  NVIDIA_PMC_OFF         (NVIDIA_MMIO_PMC + 0x10f0)
 #define   NVIDIA_PMC_BL_SHIFT    (16)
-#define   NVIDIA_PMC_BL_EN       (1 << 31)
+#define   NVIDIA_PMC_BL_EN       (1U << 31)
 
 
 struct nvbl_softc {
@@ -82,6 +82,8 @@ DRIVER_MODULE(nvbl, vgapci, nvbl_driver, nvbl_devclass, 0, 0);
 static void
 nvbl_identify(driver_t *driver, device_t parent)
 {
+	if (OF_finddevice("mac-io/backlight") == -1)
+		return;
 	if (device_find_child(parent, "backlight", -1) == NULL)
 		device_add_child(parent, "backlight", -1);
 }

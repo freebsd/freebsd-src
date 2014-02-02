@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -946,10 +947,8 @@ ate_intr(void *xsc)
 
 			} while (!done);
 
-			if (mb != NULL) {
-				ifp->if_ipackets++;
-				(*ifp->if_input)(ifp, mb);
-			}
+			ifp->if_ipackets++;
+			(*ifp->if_input)(ifp, mb);
 		}
 	}
 
@@ -973,16 +972,14 @@ ate_intr(void *xsc)
 				sc->tx_descs[sc->txtail + 1].status |= ETHB_TX_USED;
 		}
 
-		while (sc->txtail != sc->txhead &&
-		    sc->tx_descs[sc->txtail].status & ETHB_TX_USED ) {
-
+		while ((sc->tx_descs[sc->txtail].status & ETHB_TX_USED) &&
+		    sc->sent_mbuf[sc->txtail] != NULL) {
 			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
 			m_freem(sc->sent_mbuf[sc->txtail]);
 			sc->tx_descs[sc->txtail].addr = 0;
 			sc->sent_mbuf[sc->txtail] = NULL;
-
 			ifp->if_opackets++;
 			sc->txtail = NEXT_TX_IDX(sc, sc->txtail);
 		}
@@ -1117,12 +1114,10 @@ atestart_locked(struct ifnet *ifp)
 		 * xmit packets.  We use OACTIVE to indicate "we can stuff more
 		 * into our buffers (clear) or not (set)."
 		 */
-		if (!sc->is_emacb) {
-			/* RM9200 has only two hardware entries */
-			if (!sc->is_emacb && (RD4(sc, ETH_TSR) & ETH_TSR_BNQ) == 0) {
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				return;
-			}
+		/* RM9200 has only two hardware entries */
+		if (!sc->is_emacb && (RD4(sc, ETH_TSR) & ETH_TSR_BNQ) == 0) {
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			return;
 		}
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
@@ -1145,6 +1140,21 @@ atestart_locked(struct ifnet *ifp)
 			m_freem(m);
 			continue;
 		}
+
+		/*
+		 * There's a small race between the loop in ate_intr finishing
+		 * and the check above to see if the packet was finished, as well
+		 * as when atestart gets called via other paths. Lose the race
+		 * gracefully and free the mbuf...
+		 */
+		if (sc->sent_mbuf[sc->txhead] != NULL) {
+			bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txtail],
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
+			m_free(sc->sent_mbuf[sc->txhead]);
+			ifp->if_opackets++;
+		}
+		
 		sc->sent_mbuf[sc->txhead] = m;
 
 		bus_dmamap_sync(sc->mtag, sc->tx_map[sc->txhead],

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 7, 2013
+.Dd January 5, 2014
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -485,11 +485,40 @@ transfer completes or another thread stops event handling, and 1 if the
 timeout expired.
 .Pp
 .Ft int
+.Fn libusb_handle_events_timeout_completed "libusb_context *ctx" "struct timeval *tv" "int *completed"
+Handle any pending events by checking if timeouts have expired and by
+checking the set of file descriptors for activity.
+If the
+.Fa completed
+argument is not equal to NULL, this function will
+loop until a transfer completion callback sets the variable pointed to
+by the
+.Fa completed
+argument to non-zero.
+If the
+.Fa tv
+argument is not equal to NULL, this function will return
+LIBUSB_ERROR_TIMEOUT after the given timeout.
+Returns 0 on success, or a LIBUSB_ERROR code on failure or timeout.
+.Pp
+.Ft int
+.Fn libusb_handle_events_completed "libusb_context *ctx" "int *completed"
+Handle any pending events by checking the set of file descriptors for activity.
+If the
+.Fa completed
+argument is not equal to NULL, this function will
+loop until a transfer completion callback sets the variable pointed to
+by the
+.Fa completed
+argument to non-zero.
+Returns 0 on success, or a LIBUSB_ERROR code on failure.
+.Pp
+.Ft int
 .Fn libusb_handle_events_timeout "libusb_context *ctx" "struct timeval *tv"
 Handle any pending events by checking if timeouts have expired and by
 checking the set of file descriptors for activity.
 Returns 0 on success, or a
-LIBUSB_ERROR code on failure.
+LIBUSB_ERROR code on failure or timeout.
 .Pp
 .Ft int
 .Fn libusb_handle_events "libusb_context *ctx"
@@ -508,7 +537,7 @@ Must be called with the event lock held.
 Determine the next internal timeout that libusb needs to handle.
 Returns 0
 if there are no pending timeouts, 1 if a timeout was returned, or a LIBUSB_ERROR
-code on failure.
+code on failure or timeout.
 .Pp
 .Ft void
 .Fn libusb_set_pollfd_notifiers "libusb_context *ctx" "libusb_pollfd_added_cb added_cb" "libusb_pollfd_removed_cb remove_cb" "void *user_data"

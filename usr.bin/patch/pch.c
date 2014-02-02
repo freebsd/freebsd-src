@@ -1516,15 +1516,12 @@ posix_name(const struct file_name *names, bool assume_exists)
 	return path ? savestr(path) : NULL;
 }
 
-/*
- * Choose the name of the file to be patched based the "best" one
- * available.
- */
 static char *
-best_name(const struct file_name *names, bool assume_exists)
+compare_names(const struct file_name *names, bool assume_exists, int phase)
 {
 	size_t min_components, min_baselen, min_len, tmp;
 	char *best = NULL;
+	char *path;
 	int i;
 
 	/*
@@ -1536,47 +1533,43 @@ best_name(const struct file_name *names, bool assume_exists)
 	 */
 	min_components = min_baselen = min_len = SIZE_MAX;
 	for (i = INDEX_FILE; i >= OLD_FILE; i--) {
-		if (names[i].path == NULL ||
-		    (!names[i].exists && !assume_exists))
+		path = names[i].path;
+		if (path == NULL ||
+		    (phase == 1 && !names[i].exists && !assume_exists) ||
+		    (phase == 2 && checked_in(path) == NULL))
 			continue;
-		if ((tmp = num_components(names[i].path)) > min_components)
+		if ((tmp = num_components(path)) > min_components)
 			continue;
 		if (tmp < min_components) {
 			min_components = tmp;
-			best = names[i].path;
+			best = path;
 		}
-		if ((tmp = strlen(basename(names[i].path))) > min_baselen)
+		if ((tmp = strlen(basename(path))) > min_baselen)
 			continue;
 		if (tmp < min_baselen) {
 			min_baselen = tmp;
-			best = names[i].path;
+			best = path;
 		}
-		if ((tmp = strlen(names[i].path)) > min_len)
+		if ((tmp = strlen(path)) > min_len)
 			continue;
 		min_len = tmp;
-		best = names[i].path;
+		best = path;
 	}
+	return best;
+}
+
+/*
+ * Choose the name of the file to be patched based the "best" one
+ * available.
+ */
+static char *
+best_name(const struct file_name *names, bool assume_exists)
+{
+	char *best;
+
+	best = compare_names(names, assume_exists, 1);
 	if (best == NULL) {
-		/*
-		 * No files found, look for something we can checkout from
-		 * RCS/SCCS dirs.  Logic is identical to that above...
-		 */
-		min_components = min_baselen = min_len = SIZE_MAX;
-		for (i = INDEX_FILE; i >= OLD_FILE; i--) {
-			if (names[i].path == NULL ||
-			    checked_in(names[i].path) == NULL)
-				continue;
-			if ((tmp = num_components(names[i].path)) > min_components)
-				continue;
-			min_components = tmp;
-			if ((tmp = strlen(basename(names[i].path))) > min_baselen)
-				continue;
-			min_baselen = tmp;
-			if ((tmp = strlen(names[i].path)) > min_len)
-				continue;
-			min_len = tmp;
-			best = names[i].path;
-		}
+		best = compare_names(names, assume_exists, 2);
 		/*
 		 * Still no match?  Check to see if the diff could be creating
 		 * a new file.

@@ -887,8 +887,8 @@ ext2_direnter(struct inode *ip, struct vnode *dvp, struct componentname *cnp)
 	if (ext2_htree_has_idx(dp)) {
 		error = ext2_htree_add_entry(dvp, &newdir, cnp);
 		if (error) {
-			dp->i_flags &= ~EXT4_INDEX;
-			dp->i_flags |= IN_CHANGE | IN_UPDATE;
+			dp->i_flag &= ~IN_E4INDEX;
+			dp->i_flag |= IN_CHANGE | IN_UPDATE;
 		}
 		return (error);
 	}

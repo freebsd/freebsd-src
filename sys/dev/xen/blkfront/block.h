@@ -179,7 +179,7 @@ struct xbd_softc {
 	uint32_t			 xbd_max_request_size;
 	grant_ref_t			 xbd_ring_ref[XBD_MAX_RING_PAGES];
 	blkif_front_ring_t		 xbd_ring;
-	unsigned int			 xbd_irq;
+	xen_intr_handle_t		 xen_intr_handle;
 	struct gnttab_free_callback	 xbd_callback;
 	xbd_cm_q_t			 xbd_cm_q[XBD_Q_COUNT];
 	bus_dma_tag_t			 xbd_io_dmat;

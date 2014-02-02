@@ -34,7 +34,12 @@ SRCS	= \
 SRCS	+= i915_ioc32.c
 .endif
 
-SRCS	+= device_if.h bus_if.h pci_if.h iicbus_if.h iicbb_if.h opt_drm.h \
-	 opt_compat.h
+SRCS	+= device_if.h fb_if.h bus_if.h pci_if.h iicbus_if.h iicbb_if.h \
+	 opt_drm.h opt_compat.h opt_syscons.h
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.i915_debug.c=	-Wno-unused-function
+CWARNFLAGS.intel_lvds.c=	-Wno-unused
+CWARNFLAGS.intel_tv.c=		-Wno-unused
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

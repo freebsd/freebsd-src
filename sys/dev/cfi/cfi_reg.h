@@ -1,6 +1,12 @@
 /*-
  * Copyright (c) 2007, Juniper Networks, Inc.
+ * Copyright (c) 2012-2013, SRI International
  * All rights reserved.
+ *
+ * Portions of this software were developed by SRI International and the
+ * University of Cambridge Computer Laboratory under DARPA/AFRL contract
+ * (FA8750-10-C-0237) ("CTSRD"), as part of the DARPA CRASH research
+ * programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -44,8 +50,8 @@ struct cfi_qry {
 	u_char		max_vcc;
 	u_char		min_vpp;
 	u_char		max_vpp;
-	u_char		tto_byte_write;		/* 2**n milliseconds. */
-	u_char		tto_buf_write;		/* 2**n milliseconds. */
+	u_char		tto_byte_write;		/* 2**n microseconds. */
+	u_char		tto_buf_write;		/* 2**n microseconds. */
 	u_char		tto_block_erase;	/* 2**n milliseconds. */
 	u_char		tto_chip_erase;		/* 2**n milliseconds. */
 	u_char		mto_byte_write;		/* 2**n times typical t/o. */
@@ -70,12 +76,15 @@ struct cfi_qry {
 #define	CFI_QRY_VEND		offsetof(struct cfi_qry, pri_vend)
 
 #define	CFI_QRY_TTO_WRITE	offsetof(struct cfi_qry, tto_byte_write)
+#define	CFI_QRY_TTO_BUFWRITE	offsetof(struct cfi_qry, tto_buf_write)
 #define	CFI_QRY_TTO_ERASE	offsetof(struct cfi_qry, tto_block_erase)
 #define	CFI_QRY_MTO_WRITE	offsetof(struct cfi_qry, mto_byte_write)
+#define	CFI_QRY_MTO_BUFWRITE	offsetof(struct cfi_qry, mto_buf_write)
 #define	CFI_QRY_MTO_ERASE	offsetof(struct cfi_qry, mto_block_erase)
 
 #define	CFI_QRY_SIZE		offsetof(struct cfi_qry, size)
 #define	CFI_QRY_IFACE		offsetof(struct cfi_qry, iface)
+#define	CFI_QRY_MAXBUF		offsetof(struct cfi_qry, max_buf_write_size)
 #define	CFI_QRY_NREGIONS	offsetof(struct cfi_qry, nregions)
 #define	CFI_QRY_REGION0		offsetof(struct cfi_qry, region)
 #define	CFI_QRY_REGION(x)	(CFI_QRY_REGION0 + (x) * 4)
@@ -102,6 +111,7 @@ struct cfi_qry {
 #define	CFI_BCS_ERASE_SUSPEND	0xb0
 #define	CFI_BCS_ERASE_RESUME	0xd0	/* Equals CONFIRM */
 #define	CFI_BCS_CONFIRM		0xd0
+#define	CFI_BCS_BUF_PROG_SETUP	0xe8
 #define	CFI_BCS_READ_ARRAY	0xff
 
 /* Intel commands. */

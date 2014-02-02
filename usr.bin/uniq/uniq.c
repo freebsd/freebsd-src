@@ -145,20 +145,19 @@ main (int argc, char *argv[])
 	ofp = stdout;
 	if (argc > 0 && strcmp(argv[0], "-") != 0)
 		ifp = file(ifn = argv[0], "r");
-	if (cap_rights_limit(fileno(ifp), CAP_FSTAT | CAP_READ) < 0 &&
-	    errno != ENOSYS) {
+	cap_rights_init(&rights, CAP_FSTAT, CAP_READ);
+	if (cap_rights_limit(fileno(ifp), &rights) < 0 && errno != ENOSYS)
 		err(1, "unable to limit rights for %s", ifn);
-	}
-	rights = CAP_FSTAT | CAP_WRITE;
+	cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
 	if (argc > 1)
 		ofp = file(argv[1], "w");
 	else
-		rights |= CAP_IOCTL;
-	if (cap_rights_limit(fileno(ofp), rights) < 0 && errno != ENOSYS) {
+		cap_rights_set(&rights, CAP_IOCTL);
+	if (cap_rights_limit(fileno(ofp), &rights) < 0 && errno != ENOSYS) {
 		err(1, "unable to limit rights for %s",
 		    argc > 1 ? argv[1] : "stdout");
 	}
-	if ((rights & CAP_IOCTL) != 0) {
+	if (cap_rights_is_set(&rights, CAP_IOCTL)) {
 		unsigned long cmd;
 
 		cmd = TIOCGETA; /* required by isatty(3) in printf(3) */

@@ -189,6 +189,7 @@ acpi_timer_probe(device_t dev)
     else
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
+    acpi_timer_timecounter.tc_flags = TC_FLAGS_SUSPEND_SAFE;
     if (testenv("debug.acpi.timer_test"))
 	acpi_timer_boot_test();
 
@@ -283,6 +284,14 @@ acpi_timer_suspend_handler(struct timecounter *newtc)
 	if (acpi_timer_eh != NULL) {
 		EVENTHANDLER_DEREGISTER(power_resume, acpi_timer_eh);
 		acpi_timer_eh = NULL;
+	}
+
+	if ((timecounter->tc_flags & TC_FLAGS_SUSPEND_SAFE) != 0) {
+		/*
+		 * If we are using a suspend safe timecounter, don't
+		 * save/restore it across suspend/resume.
+		 */
+		return;
 	}
 
 	KASSERT(newtc == &acpi_timer_timecounter,

@@ -207,9 +207,9 @@ aha_free(struct aha_softc *aha)
 	case 7:
 		bus_dmamap_unload(aha->ccb_dmat, aha->ccb_dmamap);
 	case 6:
-		bus_dmamap_destroy(aha->ccb_dmat, aha->ccb_dmamap);
 		bus_dmamem_free(aha->ccb_dmat, aha->aha_ccb_array,
 		    aha->ccb_dmamap);
+		bus_dmamap_destroy(aha->ccb_dmat, aha->ccb_dmamap);
 	case 5:
 		bus_dma_tag_destroy(aha->ccb_dmat);
 	case 4:
@@ -1168,8 +1168,10 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		    cam_sim_path(aha->sim), accb->hccb.target,
 		    CAM_LUN_WILDCARD);
 
-		if (error == CAM_REQ_CMP)
+		if (error == CAM_REQ_CMP) {
 			xpt_async(AC_SENT_BDR, path, NULL);
+			xpt_free_path(path);
+		}
 
 		ccb_h = LIST_FIRST(&aha->pending_ccbs);
 		while (ccb_h != NULL) {

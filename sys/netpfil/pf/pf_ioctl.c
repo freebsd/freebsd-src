@@ -53,9 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
@@ -63,6 +65,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucred.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
+#include <net/vnet.h>
 #include <net/route.h>
 #include <net/pfil.h>
 #include <net/pfvar.h>
@@ -151,6 +155,7 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(struct pf_src_node *);
+static void		 pf_kill_srcnodes(struct pfioc_src_node_kill *);
 static void		 pf_tbladdr_copyout(struct pf_addr_wrap *);
 
 /*
@@ -1682,8 +1687,7 @@ relock_DIOCKILLSTATES:
 		struct pfioc_state	*ps = (struct pfioc_state *)addr;
 		struct pfsync_state	*sp = &ps->state;
 
-		if (sp->timeout >= PFTM_MAX &&
-		    sp->timeout != PFTM_UNTIL_PACKET) {
+		if (sp->timeout >= PFTM_MAX) {
 			error = EINVAL;
 			break;
 		}
@@ -2277,6 +2281,7 @@ DIOCGETSTATES_full:
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 			if (newpa->ifname[0])
 				kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
+			newpa->kif = NULL;
 		}
 
 #define	ERROUT(x)	{ error = (x); goto DIOCCHANGEADDR_error; }
@@ -2294,8 +2299,8 @@ DIOCGETSTATES_full:
 			if (newpa->ifname[0]) {
 				newpa->kif = pfi_kif_attach(kif, newpa->ifname);
 				pfi_kif_ref(newpa->kif);
-			} else
-				newpa->kif = NULL;
+				kif = NULL;
+			}
 
 			switch (newpa->addr.type) {
 			case PF_ADDR_DYNIFTL:
@@ -2309,32 +2314,24 @@ DIOCGETSTATES_full:
 					error = ENOMEM;
 				break;
 			}
-			if (error) {
-				if (newpa->kif)
-					pfi_kif_unref(newpa->kif);
-				PF_RULES_WUNLOCK();
-				free(newpa, M_PFRULE);
-				break;
-			}
+			if (error)
+				goto DIOCCHANGEADDR_error;
 		}
 
-		if (pca->action == PF_CHANGE_ADD_HEAD)
+		switch (pca->action) {
+		case PF_CHANGE_ADD_HEAD:
 			oldpa = TAILQ_FIRST(&pool->list);
-		else if (pca->action == PF_CHANGE_ADD_TAIL)
+			break;
+		case PF_CHANGE_ADD_TAIL:
 			oldpa = TAILQ_LAST(&pool->list, pf_palist);
-		else {
-			int	i = 0;
-
+			break;
+		default:
 			oldpa = TAILQ_FIRST(&pool->list);
-			while ((oldpa != NULL) && (i < pca->nr)) {
+			for (int i = 0; oldpa && i < pca->nr; i++)
 				oldpa = TAILQ_NEXT(oldpa, entries);
-				i++;
-			}
-			if (oldpa == NULL) {
-				PF_RULES_WUNLOCK();
-				error = EINVAL;
-				break;
-			}
+
+			if (oldpa == NULL)
+				ERROUT(EINVAL);
 		}
 
 		if (pca->action == PF_CHANGE_REMOVE) {
@@ -2362,13 +2359,14 @@ DIOCGETSTATES_full:
 		}
 
 		pool->cur = TAILQ_FIRST(&pool->list);
-		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr,
-		    pca->af);
+		PF_ACPY(&pool->counter, &pool->cur->addr.v.a.addr, pca->af);
 		PF_RULES_WUNLOCK();
 		break;
 
 #undef ERROUT
 DIOCCHANGEADDR_error:
+		if (newpa->kif)
+			pfi_kif_unref(newpa->kif);
 		PF_RULES_WUNLOCK();
 		if (newpa != NULL)
 			free(newpa, M_PFRULE);
@@ -3078,7 +3076,7 @@ DIOCCHANGEADDR_error:
 		uint32_t		 i, nr = 0;
 
 		if (psn->psn_len == 0) {
-			for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+			for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 			    i++, sh++) {
 				PF_HASHROW_LOCK(sh);
 				LIST_FOREACH(n, &sh->nodes, entry)
@@ -3090,7 +3088,7 @@ DIOCCHANGEADDR_error:
 		}
 
 		p = pstore = malloc(psn->psn_len, M_TEMP, M_WAITOK);
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 		    i++, sh++) {
 		    PF_HASHROW_LOCK(sh);
 		    LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3140,45 +3138,9 @@ DIOCCHANGEADDR_error:
 		break;
 	}
 
-	case DIOCKILLSRCNODES: {
-		struct pfioc_src_node_kill *psnk =
-		    (struct pfioc_src_node_kill *)addr;
-		struct pf_srchash	*sh;
-		struct pf_src_node	*sn;
-		u_int			i, killed = 0;
-
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
-		    i++, sh++) {
-		    /*
-		     * XXXGL: we don't ever acquire sources hash lock
-		     * but if we ever do, the below call to pf_clear_srcnodes()
-		     * would lead to a LOR.
-		     */
-		    PF_HASHROW_LOCK(sh);
-		    LIST_FOREACH(sn, &sh->nodes, entry)
-			if (PF_MATCHA(psnk->psnk_src.neg,
-				&psnk->psnk_src.addr.v.a.addr,
-				&psnk->psnk_src.addr.v.a.mask,
-				&sn->addr, sn->af) &&
-			    PF_MATCHA(psnk->psnk_dst.neg,
-				&psnk->psnk_dst.addr.v.a.addr,
-				&psnk->psnk_dst.addr.v.a.mask,
-				&sn->raddr, sn->af)) {
-				/* Handle state to src_node linkage */
-				if (sn->states != 0)
-					pf_clear_srcnodes(sn);
-				sn->expire = 1;
-				killed++;
-			}
-		    PF_HASHROW_UNLOCK(sh);
-		}
-
-		if (killed > 0)
-			pf_purge_expired_src_nodes();
-
-		psnk->psnk_killed = killed;
+	case DIOCKILLSRCNODES:
+		pf_kill_srcnodes((struct pfioc_src_node_kill *)addr);
 		break;
-	}
 
 	case DIOCSETHOSTID: {
 		u_int32_t	*hostid = (u_int32_t *)addr;
@@ -3382,7 +3344,7 @@ pf_clear_srcnodes(struct pf_src_node *n)
 	if (n == NULL) {
 		struct pf_srchash *sh;
 
-		for (i = 0, sh = V_pf_srchash; i < V_pf_srchashmask;
+		for (i = 0, sh = V_pf_srchash; i <= V_pf_srchashmask;
 		    i++, sh++) {
 			PF_HASHROW_LOCK(sh);
 			LIST_FOREACH(n, &sh->nodes, entry) {
@@ -3397,6 +3359,59 @@ pf_clear_srcnodes(struct pf_src_node *n)
 		n->states = 0;
 	}
 }
+
+static void
+pf_kill_srcnodes(struct pfioc_src_node_kill *psnk)
+{
+	struct pf_src_node_list	 kill;
+
+	LIST_INIT(&kill);
+	for (int i = 0; i <= V_pf_srchashmask; i++) {
+		struct pf_srchash *sh = &V_pf_srchash[i];
+		struct pf_src_node *sn, *tmp;
+
+		PF_HASHROW_LOCK(sh);
+		LIST_FOREACH_SAFE(sn, &sh->nodes, entry, tmp)
+			if (PF_MATCHA(psnk->psnk_src.neg,
+			      &psnk->psnk_src.addr.v.a.addr,
+			      &psnk->psnk_src.addr.v.a.mask,
+			      &sn->addr, sn->af) &&
+			    PF_MATCHA(psnk->psnk_dst.neg,
+			      &psnk->psnk_dst.addr.v.a.addr,
+			      &psnk->psnk_dst.addr.v.a.mask,
+			      &sn->raddr, sn->af)) {
+				pf_unlink_src_node_locked(sn);
+				LIST_INSERT_HEAD(&kill, sn, entry);
+				sn->expire = 1;
+			}
+		PF_HASHROW_UNLOCK(sh);
+	}
+
+	for (int i = 0; i <= V_pf_hashmask; i++) {
+		struct pf_idhash *ih = &V_pf_idhash[i];
+		struct pf_state *s;
+
+		PF_HASHROW_LOCK(ih);
+		LIST_FOREACH(s, &ih->states, entry) {
+			if (s->src_node && s->src_node->expire == 1) {
+#ifdef INVARIANTS
+				s->src_node->states--;
+#endif
+				s->src_node = NULL;
+			}
+			if (s->nat_src_node && s->nat_src_node->expire == 1) {
+#ifdef INVARIANTS
+				s->nat_src_node->states--;
+#endif
+				s->nat_src_node = NULL;
+			}
+		}
+		PF_HASHROW_UNLOCK(ih);
+	}
+
+	psnk->psnk_killed = pf_free_src_nodes(&kill);
+}
+
 /*
  * XXX - Check for version missmatch!!!
  */

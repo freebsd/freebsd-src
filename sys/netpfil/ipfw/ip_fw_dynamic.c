@@ -45,12 +45,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -104,7 +106,8 @@ __FBSDID("$FreeBSD$");
  *
  * Each dynamic rule holds a pointer to the parent ipfw rule so
  * we know what action to perform. Dynamic rules are removed when
- * the parent rule is deleted. XXX we should make them survive.
+ * the parent rule is deleted. This can be changed by dyn_keep_states
+ * sysctl.
  *
  * There are some limitations with dynamic rules -- we do not
  * obey the 'randomized match', and we do not do multiple
@@ -138,6 +141,10 @@ static VNET_DEFINE(uma_zone_t, ipfw_dyn_rule_zone);
 #define	IPFW_BUCK_LOCK(i)	mtx_lock(&V_ipfw_dyn_v[(i)].mtx)
 #define	IPFW_BUCK_UNLOCK(i)	mtx_unlock(&V_ipfw_dyn_v[(i)].mtx)
 #define	IPFW_BUCK_ASSERT(i)	mtx_assert(&V_ipfw_dyn_v[(i)].mtx, MA_OWNED)
+
+
+static VNET_DEFINE(int, dyn_keep_states);
+#define	V_dyn_keep_states		VNET(dyn_keep_states)
 
 /*
  * Timeouts for various events in handing dynamic rules.
@@ -178,6 +185,13 @@ static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 
 #define	DYN_COUNT			uma_zone_get_cur(V_ipfw_dyn_rule_zone)
 #define	V_dyn_max			VNET(dyn_max)
+
+/* for userspace, we emulate the uma_zone_counter with ipfw_dyn_count */
+static int ipfw_dyn_count;	/* number of objects */
+
+#ifdef USERSPACE /* emulation of UMA object counters for userspace */
+#define uma_zone_get_cur(x)	ipfw_dyn_count
+#endif /* USERSPACE */
 
 static int last_log;	/* Log ratelimiting */
 
@@ -225,6 +239,9 @@ SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
 SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
     CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dyn. rules");
+SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keep_states,
+    CTLFLAG_RW, &VNET_NAME(dyn_keep_states), 0,
+    "Do not flush dynamic states on rule deletion");
 
 SYSEND
 
@@ -298,6 +315,7 @@ print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
 	print_dyn_rule_flags(id, dtype, LOG_DEBUG, prefix, postfix)
 
 #define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
+#define TIME_LE(a,b)       ((int)((a)-(b)) < 0)
 
 /*
  * Lookup a dynamic rule, locked version.
@@ -577,6 +595,7 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 		}
 		return NULL;
 	}
+	ipfw_dyn_count++;
 
 	/*
 	 * refcount on parent is already incremented, so
@@ -1090,6 +1109,20 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
 			if ((TIME_LEQ(q->expire, time_uptime)) ||
 			    ((rule != NULL) && (q->rule == rule)) ||
 			    ((set != RESVD_SET) && (q->rule->set == set))) {
+				if (TIME_LE(time_uptime, q->expire) &&
+				    q->dyn_type == O_KEEP_STATE &&
+				    V_dyn_keep_states != 0) {
+					/*
+					 * Do not delete state if
+					 * it is not expired and
+					 * dyn_keep_states is ON.
+					 * However we need to re-link it
+					 * to any other stable rule
+					 */
+					q->rule = chain->default_rule;
+					NEXT_RULE();
+				}
+
 				/* Unlink q from current list */
 				q_next = q->next;
 				if (q == V_ipfw_dyn_v[i].head)
@@ -1251,11 +1284,13 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
 	for (q = exp_head; q != NULL; q = q_next) {
 		q_next = q->next;
 		uma_zfree(V_ipfw_dyn_rule_zone, q);
+		ipfw_dyn_count--;
 	}
 
 	for (q = exp_lhead; q != NULL; q = q_next) {
 		q_next = q->next;
 		uma_zfree(V_ipfw_dyn_rule_zone, q);
+		ipfw_dyn_count--;
 	}
 
 	/*

@@ -41,10 +41,11 @@
 typedef uint32_t teken_char_t;
 typedef unsigned short teken_unit_t;
 typedef unsigned char teken_format_t;
-#define	TF_BOLD		0x01
-#define	TF_UNDERLINE	0x02
-#define	TF_BLINK	0x04
-#define	TF_REVERSE	0x08
+#define	TF_BOLD		0x01	/* Bold character. */
+#define	TF_UNDERLINE	0x02	/* Underline character. */
+#define	TF_BLINK	0x04	/* Blinking character. */
+#define	TF_REVERSE	0x08	/* Reverse rendered character. */
+#define	TF_CJK_RIGHT	0x10	/* Right-hand side of CJK character. */
 typedef unsigned char teken_color_t;
 #define	TC_BLACK	0
 #define	TC_RED		1
@@ -168,6 +169,7 @@ void	teken_set_cursor(teken_t *, const teken_pos_t *);
 void	teken_set_curattr(teken_t *, const teken_attr_t *);
 void	teken_set_defattr(teken_t *, const teken_attr_t *);
 void	teken_set_winsize(teken_t *, const teken_pos_t *);
+void	teken_set_winsize_noreset(teken_t *, const teken_pos_t *);
 
 /* Key input escape sequences. */
 #define	TKEY_UP		0x00

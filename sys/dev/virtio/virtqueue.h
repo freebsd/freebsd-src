@@ -41,6 +41,16 @@ struct sglist;
 /* Device callback for a virtqueue interrupt. */
 typedef void virtqueue_intr_t(void *);
 
+/*
+ * Hint on how long the next interrupt should be postponed. This is
+ * only used when the EVENT_IDX feature is negotiated.
+ */
+typedef enum {
+	VQ_POSTPONE_SHORT,
+	VQ_POSTPONE_LONG,
+	VQ_POSTPONE_EMPTIED	/* Until all available desc are used. */
+} vq_postpone_t;
+
 #define VIRTQUEUE_MAX_NAME_SZ	32
 
 /* One for each virtqueue the device wishes to allocate. */
@@ -73,7 +83,7 @@ int	 virtqueue_reinit(struct virtqueue *vq, uint16_t size);
 int	 virtqueue_intr_filter(struct virtqueue *vq);
 void	 virtqueue_intr(struct virtqueue *vq);
 int	 virtqueue_enable_intr(struct virtqueue *vq);
-int	 virtqueue_postpone_intr(struct virtqueue *vq);
+int	 virtqueue_postpone_intr(struct virtqueue *vq, vq_postpone_t hint);
 void	 virtqueue_disable_intr(struct virtqueue *vq);
 
 /* Get physical address of the virtqueue ring. */

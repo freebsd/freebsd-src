@@ -46,8 +46,6 @@
 #include "config.h"
 #include "util/fptr_wlist.h"
 #include "util/mini_event.h"
-#include "daemon/worker.h"
-#include "daemon/remote.h"
 #include "services/outside_network.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
@@ -69,6 +67,7 @@
 #include "util/locks.h"
 #include "libunbound/libworker.h"
 #include "libunbound/context.h"
+#include "libunbound/worker.h"
 #include "util/tube.h"
 #include "util/config_file.h"
 #ifdef UB_ON_WINDOWS

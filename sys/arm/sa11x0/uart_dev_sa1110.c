@@ -137,6 +137,8 @@ static int sa1110_bus_param(struct uart_softc *, int, int, int, int);
 static int sa1110_bus_receive(struct uart_softc *);
 static int sa1110_bus_setsig(struct uart_softc *, int);
 static int sa1110_bus_transmit(struct uart_softc *);
+static void sa1110_bus_grab(struct uart_softc *);
+static void sa1110_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t sa1110_methods[] = {
 	KOBJMETHOD(uart_probe,		sa1110_bus_probe),
@@ -149,6 +151,8 @@ static kobj_method_t sa1110_methods[] = {
 	KOBJMETHOD(uart_receive,	sa1110_bus_receive),
 	KOBJMETHOD(uart_setsig,		sa1110_bus_setsig),
 	KOBJMETHOD(uart_transmit,	sa1110_bus_transmit),
+	KOBJMETHOD(uart_grab,		sa1110_bus_grab),
+	KOBJMETHOD(uart_ungrab,		sa1110_bus_ungrab),
 	
 	{0, 0 }
 };
@@ -164,10 +168,10 @@ sa1110_bus_probe(struct uart_softc *sc)
 static int
 sa1110_bus_attach(struct uart_softc *sc)
 {
-	 bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
+	bcopy(&sc->sc_sysdev->bas, &sc->sc_bas, sizeof(sc->sc_bas));
 
-	 sc->sc_hwiflow = 0;
-	 uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | CR3_TXE | CR3_RIE | CR3_TIE);
+	sc->sc_hwiflow = 0;
+	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | CR3_TXE | CR3_RIE | CR3_TIE);
 	return (0);
 }
 static int
@@ -271,6 +275,26 @@ static int
 sa1110_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 {
 	return (EINVAL);
+}
+
+static void
+sa1110_bus_grab(struct uart_softc *sc)
+{
+
+	/* Turn off Rx interrupts */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_TXE | CR3_TIE);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+sa1110_bus_ungrab(struct uart_softc *sc)
+{
+
+	/* Turn on Rx interrupts */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(&sc->sc_bas, SACOM_CR3, CR3_RXE | CR3_TXE | CR3_RIE | CR3_TIE);
+	uart_unlock(sc->sc_hwmtx);
 }
 
 struct uart_class uart_sa1110_class = {

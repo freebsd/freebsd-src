@@ -59,31 +59,17 @@ nlm_nae_flush_free_fifo(uint64_t nae_base, int nblocks)
 }
 
 void
-nlm_program_nae_parser_seq_fifo(uint64_t nae_base, int nblock,
+nlm_program_nae_parser_seq_fifo(uint64_t nae_base, int maxports,
     struct nae_port_config *cfg)
 {
 	uint32_t val;
-	int start = 0, size, i, j;
+	int start = 0, size, i;
 
-	for (i = 0; i < nblock; i++) {
-		for (j = 0; j < PORTS_PER_CMPLX; j++) {
-			if ((i == 4) && (j > 1))
-				size = 0;
-			else
-				size = cfg[(i*4)+j].pseq_fifo_size;
-			start += size;
-		}
-	}
-
-	for (j = 0; j < PORTS_PER_CMPLX; j++) {
-		if ((i == 4) && (j > 1))
-			size = 0;
-		else
-			size = cfg[(i*4)+j].pseq_fifo_size;
-
+	for (i = 0; i < maxports; i++) {
+		size = cfg[i].pseq_fifo_size;
 		val = (((size & 0x1fff) << 17) |
 		    ((start & 0xfff) << 5) |
-		    (((i * 4) + j) & 0x1f));
+		    (i & 0x1f));
 		nlm_write_nae_reg(nae_base, NAE_PARSER_SEQ_FIFO_CFG, val);
 		start += size;
 	}
@@ -255,105 +241,66 @@ nlm_setup_flow_crc_poly(uint64_t nae_base, uint32_t poly)
 }
 
 void
-nlm_setup_iface_fifo_cfg(uint64_t nae_base, int nblock,
+nlm_setup_iface_fifo_cfg(uint64_t nae_base, int maxports,
     struct nae_port_config *cfg)
 {
 	uint32_t reg;
 	int fifo_xoff_thresh = 12;
-	int i, size, j;
+	int i, size;
 	int cur_iface_start = 0;
 
-	for (i = 0; i < nblock; i++) {
-		for (j = 0; j < PORTS_PER_CMPLX; j++) {
-			if ((i == 4) && (j > 1))
-				size = 0;
-			else
-				size = cfg[(i*4)+j].iface_fifo_size;
-			cur_iface_start += size;
-		}
-	}
-
-	for (j = 0; j < PORTS_PER_CMPLX; j++) {
-		if ((i == 4) && (j > 1))
-			size = 0;
-		else
-			size = cfg[(i*4)+j].iface_fifo_size;
+	for (i = 0; i < maxports; i++) {
+		size = cfg[i].iface_fifo_size;
 		reg = ((fifo_xoff_thresh << 25) |
 		    ((size & 0x1ff) << 16) |
 		    ((cur_iface_start & 0xff) << 8) |
-		    (((i * 4) + j) & 0x1f));
+		    (i & 0x1f));
 		nlm_write_nae_reg(nae_base, NAE_IFACE_FIFO_CFG, reg);
 		cur_iface_start += size;
 	}
 }
 
 void
-nlm_setup_rx_base_config(uint64_t nae_base, int nblock,
+nlm_setup_rx_base_config(uint64_t nae_base, int maxports,
     struct nae_port_config *cfg)
 {
-	uint32_t val, nc;
 	int base = 0;
-	int i, j;
+	uint32_t val;
+	int i;
 	int id;
 
-	for (i = 0; i < nblock; i++) {
-		for (j = 0; j < (PORTS_PER_CMPLX/2); j++) {
-			base += cfg[(i*4)+(2*j)].num_channels;
-			base += cfg[(i*4)+(2*j + 1)].num_channels;
-		}
-	}
+	for (i = 0; i < (maxports/2); i++) {
+		id = 0x12 + i; /* RX_IF_BASE_CONFIG0 */
 
-	id = 0x12 + (i * 2); /* RX_IF_BASE_CONFIG0 */
-
-	for (j = 0; j < (PORTS_PER_CMPLX/2); j++) {
 		val = (base & 0x3ff);
-		nc = cfg[(i*4)+(2*j)].num_channels;
-		base += nc;
+		base += cfg[(i * 2)].num_channels;
 
 		val |= ((base & 0x3ff) << 16);
-		nc = cfg[(i*4)+(2*j + 1)].num_channels;
-		base += nc;
+		base += cfg[(i * 2) + 1].num_channels;
 
-		nlm_write_nae_reg(nae_base, NAE_REG(7, 0, (id+j)), val);
+		nlm_write_nae_reg(nae_base, NAE_REG(7, 0, id), val);
 	}
 }
 
 void
-nlm_setup_rx_buf_config(uint64_t nae_base, int nblock,
+nlm_setup_rx_buf_config(uint64_t nae_base, int maxports,
     struct nae_port_config *cfg)
 {
 	uint32_t val;
-	int i, sz, j, k;
+	int i, sz, k;
 	int context = 0;
 	int base = 0;
-	int nc = 0;
 
-	for (i = 0; i < nblock; i++) {
-		for (j = 0; j < PORTS_PER_CMPLX; j++) {
-			if ((i == 4) && (j > 1))
-				nc = 0;
-			else
-				nc = cfg[(i*4)+j].num_channels;
-			for (k = 0; k < nc; k++) {
-				sz = cfg[(i*4)+j].rxbuf_size;
-				base += sz;
-			}
-			context += nc;
-		}
-	}
-
-	for (j = 0; j < PORTS_PER_CMPLX; j++) {
-		if ((i == 4) && (j > 1))
-			nc = 0;
-		else
-			nc = cfg[(i*4)+j].num_channels;
-		for (k = 0; k < nc; k++) {
+	for (i = 0; i < maxports; i++) {
+		if (cfg[i].type == UNKNOWN)
+			continue;
+		for (k = 0; k < cfg[i].num_channels; k++) {
 			/* write index (context num) */
 			nlm_write_nae_reg(nae_base, NAE_RXBUF_BASE_DPTH_ADDR,
 			    (context+k));
 
 			/* write value (rx buf sizes) */
-			sz = cfg[(i*4)+j].rxbuf_size;
+			sz = cfg[i].rxbuf_size;
 			val = 0x80000000 | ((base << 2) & 0x3fff); /* base */
 			val |= (((sz << 2)  & 0x3fff) << 16); /* size */
 
@@ -362,46 +309,29 @@ nlm_setup_rx_buf_config(uint64_t nae_base, int nblock,
 			    (0x7fffffff & val));
 			base += sz;
 		}
-		context += nc;
+		context += cfg[i].num_channels;
 	}
 }
 
 void
-nlm_setup_freein_fifo_cfg(uint64_t nae_base, int nblock,
-    struct nae_port_config *cfg)
+nlm_setup_freein_fifo_cfg(uint64_t nae_base, struct nae_port_config *cfg)
 {
-	int size, i, cp = 0;
+	int size, i;
 	uint32_t reg;
-	int start = 0;
+	int start = 0, maxbufpool;
 
-	for (cp = 0 ; cp < nblock; cp++ ) {
-		for (i = 0; i < PORTS_PER_CMPLX; i++) { /* 4 interfaces */
-			if ((cp == 4) && (i > 1))
-				size = 0;
-			else {
-			/* Each entry represents 2 descs; hence division by 2 */
-				size = cfg[(cp*4)+i].num_free_descs / 2;
-			}
-			if (size == 0)
-				size = 8;
-			start += size;
-		}
-	}
-
-	for (i = 0; i < PORTS_PER_CMPLX; i++) { /* 4 interfaces */
-		if ((cp == 4) && (i > 1))
-			size = 0;
-		else {
+	if (nlm_is_xlp8xx())
+		maxbufpool = MAX_FREE_FIFO_POOL_8XX;
+	else
+		maxbufpool = MAX_FREE_FIFO_POOL_3XX;
+	for (i = 0; i < maxbufpool; i++) {
 		/* Each entry represents 2 descs; hence division by 2 */
-			size = cfg[(cp*4)+i].num_free_descs / 2;
-		}
-		/* Each entry represents 2 descs; hence division by 2 */
+		size = (cfg[i].num_free_descs / 2);
 		if (size == 0)
 			size = 8;
-
 		reg = ((size  & 0x3ff ) << 20) | /* fcSize */
 		    ((start & 0x1ff)  << 8) | /* fcStart */
-		    (((cp * 4) + i)  & 0x1f);
+		    (i & 0x1f);
 
 		nlm_write_nae_reg(nae_base, NAE_FREE_IN_FIFO_CFG, reg);
 		start += size;
@@ -1471,7 +1401,7 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 		mac_cfg1 = nlm_read_nae_reg(nae_base, conf1_reg);
 		nlm_write_nae_reg(nae_base, conf1_reg,
 		    mac_cfg1	|
-		    (1 << 31)	|	/* soft reset */
+		    (1U << 31)	|	/* soft reset */
 		    (1 << 2)	|	/* rx enable */
 		    (1));		/* tx enable */
 
@@ -1485,7 +1415,7 @@ nlm_nae_open_if(uint64_t nae_base, int nblock, int port_type,
 
 		/* clear gmac reset */
 		mac_cfg1 = nlm_read_nae_reg(nae_base, conf1_reg);
-		nlm_write_nae_reg(nae_base, conf1_reg, mac_cfg1 & ~(1 << 31));
+		nlm_write_nae_reg(nae_base, conf1_reg, mac_cfg1 & ~(1U << 31));
 
 		/* clear speed debug bit */
 		iface_ctrl3_reg = SGMII_NET_IFACE_CTRL3(nblock, iface);

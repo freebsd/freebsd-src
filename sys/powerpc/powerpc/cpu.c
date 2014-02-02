@@ -74,6 +74,8 @@
 #include <machine/smp.h>
 #include <machine/spr.h>
 
+#include <dev/ofw/openfirm.h>
+
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
 static void	cpu_970_setup(int cpuid, uint16_t vers);
 static void	cpu_booke_setup(int cpuid, uint16_t vers);
@@ -127,6 +129,26 @@ static const struct cputab models[] = {
         { "IBM PowerPC 970MP",		IBM970MP,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
 	   cpu_970_setup },
+        { "IBM POWER4",		IBMPOWER4,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+        { "IBM POWER4+",	IBMPOWER4PLUS,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+        { "IBM POWER5",		IBMPOWER5,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+        { "IBM POWER5+",	IBMPOWER5PLUS,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_FPU, NULL },
+        { "IBM POWER6",		IBMPOWER6,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL },
+        { "IBM POWER7",		IBMPOWER7,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL },
+        { "IBM POWER7+",	IBMPOWER7PLUS,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL },
+        { "IBM POWER8",		IBMPOWER8,	REVFMT_MAJMIN,
+	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
+	   NULL },
         { "Motorola PowerPC 7400",	MPC7400,	REVFMT_MAJMIN,
 	   PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
         { "Motorola PowerPC 7410",	MPC7410,	REVFMT_MAJMIN,
@@ -253,6 +275,9 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 {
 	uint16_t	vers;
 	register_t	msr;
+	phandle_t	cpu, dev, root;
+	int		res  = 0;
+	char		buf[8];
 
 	vers = mfpvr() >> 16;
 	msr = mfmsr();
@@ -296,9 +321,40 @@ cpu_est_clockrate(int cpu_id, uint64_t *cps)
 
 			mtmsr(msr);
 			return (0);
+
+		default:
+			root = OF_peer(0);
+			if (root == 0)
+				return (ENXIO);
+
+			dev = OF_child(root);
+			while (dev != 0) {
+				res = OF_getprop(dev, "name", buf, sizeof(buf));
+				if (res > 0 && strcmp(buf, "cpus") == 0)
+					break;
+				dev = OF_peer(dev);
+			}
+			cpu = OF_child(dev);
+			while (cpu != 0) {
+				res = OF_getprop(cpu, "device_type", buf,
+						sizeof(buf));
+				if (res > 0 && strcmp(buf, "cpu") == 0)
+					break;
+				cpu = OF_peer(cpu);
+			}
+			if (cpu == 0)
+				return (ENOENT);
+			if (OF_getprop(cpu, "ibm,extended-clock-frequency",
+			    cps, sizeof(*cps)) >= 0) {
+				return (0);
+			} else if (OF_getprop(cpu, "clock-frequency", cps, 
+			    sizeof(cell_t)) >= 0) {
+				*cps >>= 32;
+				return (0);
+			} else {
+				return (ENOENT);
+			}
 	}
-	
-	return (ENXIO);
 }
 
 void

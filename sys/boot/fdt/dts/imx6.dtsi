@@ -1,0 +1,322 @@
+/*
+ * Copyright (c) 2013 Ian Lepore
+ * Copyright (c) 2012 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * Freescale i.MX6 Common Device Tree Source.
+ * There are enough differences between the Solo, Dual, Quad, and *-lite
+ * flavors of this SoC that eventually we will need a finer-grained breakdown
+ * of some of this stuff.  For now this file works for all of them.  I think.
+ *
+ * $FreeBSD$
+ */
+
+/ {
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "ARM,MCIMX6";
+			reg = <0x0>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <0x8000>;
+			i-cache-size = <0x8000>;
+			/* TODO: describe L2 cache also */
+			timebase-frequency = <0>;
+			bus-frequency = <0>;
+			clock-frequency = <0>;
+		};
+	};
+
+	aliases {
+		soc = &SOC;
+	};
+
+	SOC: soc@00000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&gic>;
+		ranges = <0x00000000 0x00000000 0x10000000>;
+
+		gic: generic-interrupt-controller@00a00100 {
+			compatible = "arm,gic";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x00a01000 0x00001000
+			       0x00a00100 0x00000100>;
+		};
+
+		l2-cache@00a02000 {
+			compatible = "arm,pl310-cache", "arm,pl310";
+			reg = <0xa02000 0x1000>;
+			interrupts = <124>;
+			cache-level = <0x2>;
+			interrupt-parent = < &gic >;
+		};
+
+		aips@02000000 { /* AIPS1 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-parent = <&gic>;
+			reg = <0x02000000 0x00100000>;
+			ranges;
+
+			/* Required by many devices, so better to stay first */
+			clks: ccm@020c4000 {
+				compatible = "fsl,imx6q-ccm";
+				reg = <0x020c4000 0x4000>;
+				interrupts = <119 120>;
+			};
+
+			anatop: anatop@020c8000 {
+				compatible = "fsl,imx6q-anatop";
+				reg = <0x020c8000 0x1000>;
+			}
+
+			gpt: timer@02098000 {
+				compatible = "fsl,imx6q-gpt", "fsl,imx51-gpt";
+				reg = <0x02098000 0x4000>;
+				interrupt-parent = <&gic>; interrupts = <87>;
+			};
+
+//			iomux@73fa8000 {
+//				compatible = "fsl,imx51-iomux";
+//				reg = <0x73fa8000 0x4000>;
+//				interrupt-parent = <&gic>; interrupts = <7>;
+//				status = "disabled";
+//			};
+
+//			/*
+//			 * GPIO modules moved up - to have it attached for
+//			 * drivers which rely on GPIO
+//			 */
+//			gpio1: gpio@0209C000 {
+//				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+//				reg = <0x0209C000 0x4000>;
+//				interrupt-parent = <&gic>;
+//				interrupts = <50 51 42 43 44 45 46 47 48 49>;
+//				/* TODO: use <> also */
+//				gpio-controller;
+//				#gpio-cells = <2>;
+//				interrupt-controller;
+//				#interrupt-cells = <1>;
+//				status = "disabled";
+//			};
+//
+//			gpio2: gpio@020A0000 {
+//				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+//				reg = <0x020A0000 0x4000>;
+//				interrupt-parent = <&gic>;
+//				interrupts = <52 53>;
+//				gpio-controller;
+//				#gpio-cells = <2>;
+//				interrupt-controller;
+//				#interrupt-cells = <1>;
+//				status = "disabled";
+//			};
+//
+//			gpio3: gpio@020A4000 {
+//				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+//				reg = <0x020A4000 0x4000>;
+//				interrupt-parent = <&gic>;
+//				interrupts = <54 55>;
+//				gpio-controller;
+//				#gpio-cells = <2>;
+//				interrupt-controller;
+//				#interrupt-cells = <1>;
+//				status = "disabled";
+//			};
+//
+//			gpio4: gpio@020A8000 {
+//				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
+//				reg = <0x020A8000 0x4000>;
+//				interrupt-parent = <&gic>;
+//				interrupts = <56 57>;
+//				gpio-controller;
+//				#gpio-cells = <2>;
+//				interrupt-controller;
+//				#interrupt-cells = <1>;
+//				status = "disabled";
+//			};
+
+			uart1: serial@02020000 {
+				compatible = "fsl,imx6q-uart";
+				reg = <0x02020000 0x4000>;
+				interrupt-parent = <&gic>; 
+				interrupts = <58>;
+				clock-frequency = <80000000>;
+				status = "disabled";
+			};
+
+			uart2: serial@021e8000 {
+				compatible = "fsl,imx6q-uart";
+				reg = <0x021e8000 0x4000>;
+				interrupt-parent = <&gic>; 
+				interrupts = <59>;
+				clock-frequency = <80000000>;
+				status = "disabled";
+			};
+
+			uart3: serial@021ec000 {
+				compatible = "fsl,imx6q-uart";
+				reg = <0x021ec000 0x4000>;
+				interrupt-parent = <&gic>; 
+				interrupts = <60>;
+				clock-frequency = <80000000>;
+				status = "disabled";
+			};
+
+			uart4: serial@021f0000 {
+				compatible = "fsl,imx6q-uart";
+				reg = <0x021f0000 0x4000>;
+				interrupt-parent = <&gic>; 
+				interrupts = <61>;
+				clock-frequency = <80000000>;
+				status = "disabled";
+			};
+
+			uart5: serial@021f4000 {
+				compatible = "fsl,imx6q-uart";
+				reg = <0x021f4000 0x4000>;
+				interrupt-parent = <&gic>; 
+				interrupts = <62>;
+				clock-frequency = <80000000>;
+				status = "disabled";
+			};
+
+			usbphy1: usbphy@020c9000 {
+				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
+				reg = <0x020c9000 0x1000>;
+				interrupts = <44>;
+				status = "disabled";
+			};
+			
+			usbphy2: usbphy@020ca000 {
+				compatible = "fsl,imx6q-usbphy", "fsl,imx23-usbphy";
+				reg = <0x020ca000 0x1000>;
+				interrupts = <45>;
+				status = "disabled";
+			};
+			
+		};
+
+		aips@02100000 { /* AIPS2 */
+			compatible = "fsl,aips-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			interrupt-parent = <&gic>;
+			reg = <0x02100000 0x00100000>;
+			ranges;
+
+			fec1: ethernet@02188000 {
+				compatible = "fsl,imx6q-fec";
+				reg = <0x02188000 0x4000>;
+				interrupts = <150 151>;
+				status = "disabled";
+			};
+			
+			usbotg1: usb@02184000 {
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184000 0x200>;
+				interrupts = <75>;
+				fsl,usbphy = <&usbphy1>;
+				fsl,usbmisc = <&usbmisc 0>;
+				status = "disabled";
+			};
+			
+			usbh1: usb@02184200 {
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184200 0x200>;
+				interrupts = <72>;
+				fsl,usbphy = <&usbphy2>;
+				fsl,usbmisc = <&usbmisc 1>;
+				status = "disabled";
+			};
+			
+			usbh2: usb@02184400 {
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184400 0x200>;
+				interrupts = <73>;
+				fsl,usbmisc = <&usbmisc 2>;
+				status = "disabled";
+			};
+			
+			usbh3: usb@02184600 {
+				compatible = "fsl,imx6q-usb", "fsl,imx27-usb";
+				reg = <0x02184600 0x200>;
+				interrupts = <74>;
+				fsl,usbmisc = <&usbmisc 3>;
+				status = "disabled";
+			};
+			
+			usbmisc: usbmisc@02184800 {
+				#index-cells = <1>;
+				compatible = "fsl,imx6q-usbmisc";
+				reg = <0x02184800 0x200>;
+				// Not disabled on purpose.
+			};
+
+			usdhc1: usdhc@02190000 {
+				compatible = "fsl,imx6q-usdhc";
+				reg = <0x02190000 0x4000>;
+				interrupt-parent = <&gic>;
+				interrupts = <54>;
+				bus-width = <0x4>;
+				status ="disabled";
+			};
+
+			usdhc2: usdhc@02194000 {
+				compatible = "fsl,imx6q-usdhc";
+				reg = <0x02194000 0x4000>;
+				interrupt-parent = <&gic>;
+				interrupts = <55>;
+				bus-width = <0x4>;
+				status ="disabled";
+			};
+
+			usdhc3: usdhc@02198000 {
+				compatible = "fsl,imx6q-usdhc";
+				reg = <0x02198000 0x4000>;
+				interrupt-parent = <&gic>;
+				interrupts = <56>;
+				bus-width = <0x4>;
+				status ="disabled";
+			};
+
+			usdhc4: usdhc@0219c000 {
+				compatible = "fsl,imx6q-usdhc";
+				reg = <0x0219c000 0x4000>;
+				interrupt-parent = <&gic>;
+				interrupts = <57>;
+				bus-width = <0x4>;
+				status ="disabled";
+			};
+		};
+	};
+};

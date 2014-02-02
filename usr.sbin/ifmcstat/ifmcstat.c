@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
+#define	_WANT_IFADDR
 #include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>

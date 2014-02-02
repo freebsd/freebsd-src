@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/usermgmt/user_input.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ MAIN
 
@@ -75,7 +75,7 @@ while :; do
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 	defaultitem="$mtag"
 
-	[ $retval -eq 0 ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	[ "$mtag" = "X $msg_exit" ] && break
 

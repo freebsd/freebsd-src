@@ -2601,14 +2601,14 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	static int guest_buttons;
 	int w, x0, y0;
 
-	/* TouchPad PS/2 absolute mode message format
+	/* TouchPad PS/2 absolute mode message format with capFourButtons:
 	 *
 	 *  Bits:        7   6   5   4   3   2   1   0 (LSB)
 	 *  ------------------------------------------------
 	 *  ipacket[0]:  1   0  W3  W2   0  W1   R   L
 	 *  ipacket[1]: Yb  Ya  Y9  Y8  Xb  Xa  X9  X8
 	 *  ipacket[2]: Z7  Z6  Z5  Z4  Z3  Z2  Z1  Z0
-	 *  ipacket[3]:  1   1  Yc  Xc   0  W0   D   U
+	 *  ipacket[3]:  1   1  Yc  Xc   0  W0 D^R U^L
 	 *  ipacket[4]: X7  X6  X5  X4  X3  X2  X1  X0
 	 *  ipacket[5]: Y7  Y6  Y5  Y4  Y3  Y2  Y1  Y0
 	 *
@@ -2621,6 +2621,21 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 	 *  X: x position
 	 *  Y: y position
 	 *  Z: pressure
+	 *
+	 * Without capFourButtons but with nExtendeButtons and/or capMiddle
+	 *
+	 *  Bits:        7   6   5   4      3      2      1      0 (LSB)
+	 *  ------------------------------------------------------
+	 *  ipacket[3]:  1   1  Yc  Xc      0     W0    E^R    M^L
+	 *  ipacket[4]: X7  X6  X5  X4  X3|b7  X2|b5  X1|b3  X0|b1
+	 *  ipacket[5]: Y7  Y6  Y5  Y4  Y3|b8  Y2|b6  Y1|b4  Y0|b2
+	 *
+	 * Legend:
+	 *  M: Middle physical mouse button
+	 *  E: Extended mouse buttons reported instead of low bits of X and Y
+	 *  b1-b8: Extended mouse buttons
+	 *    Only ((nExtendedButtons + 1) >> 1) bits are used in packet
+	 *    4 and 5, for reading X and Y value they should be zeroed.
 	 *
 	 * Absolute reportable limits:    0 - 6143.
 	 * Typical bezel limits:       1472 - 5472.
@@ -2675,8 +2690,10 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		w = 4;
 	}
 
-	/* Handle packets from the guest device */
-	/* XXX Documentation? */
+	/*
+	 * Handle packets from the guest device. See:
+	 * Synaptics PS/2 TouchPad Interfacing Guide, Section 5.1
+	 */
 	if (w == 3 && sc->synhw.capPassthrough) {
 		*x = ((pb->ipacket[1] & 0x10) ?
 		    pb->ipacket[4] - 256 : pb->ipacket[4]);
@@ -2704,36 +2721,49 @@ proc_synaptics(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 		touchpad_buttons |= MOUSE_BUTTON3DOWN;
 
 	if (sc->synhw.capExtended && sc->synhw.capFourButtons) {
-		if ((pb->ipacket[3] & 0x01) && (pb->ipacket[0] & 0x01) == 0)
+		if ((pb->ipacket[3] ^ pb->ipacket[0]) & 0x01)
 			touchpad_buttons |= MOUSE_BUTTON4DOWN;
-		if ((pb->ipacket[3] & 0x02) && (pb->ipacket[0] & 0x02) == 0)
+		if ((pb->ipacket[3] ^ pb->ipacket[0]) & 0x02)
 			touchpad_buttons |= MOUSE_BUTTON5DOWN;
-	}
-
-	/*
-	 * In newer pads - bit 0x02 in the third byte of
-	 * the packet indicates that we have an extended
-	 * button press.
-	 */
-	/* XXX Documentation? */
-	if (pb->ipacket[3] & 0x02) {
-		/*
-		 * if directional_scrolls is not 1, we treat any of
-		 * the scrolling directions as middle-click.
-		 */
-		if (sc->syninfo.directional_scrolls) {
-			if (pb->ipacket[4] & 0x01)
-				touchpad_buttons |= MOUSE_BUTTON4DOWN;
-			if (pb->ipacket[5] & 0x01)
-				touchpad_buttons |= MOUSE_BUTTON5DOWN;
-			if (pb->ipacket[4] & 0x02)
-				touchpad_buttons |= MOUSE_BUTTON6DOWN;
-			if (pb->ipacket[5] & 0x02)
-				touchpad_buttons |= MOUSE_BUTTON7DOWN;
-		} else {
-			if ((pb->ipacket[4] & 0x0F) ||
-			    (pb->ipacket[5] & 0x0F))
+	} else if (sc->synhw.capExtended && sc->synhw.capMiddle) {
+		/* Middle Button */
+		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x01)
+			touchpad_buttons |= MOUSE_BUTTON2DOWN;
+	} else if (sc->synhw.capExtended && (sc->synhw.nExtendedButtons > 0)) {
+		/* Extended Buttons */
+		if ((pb->ipacket[0] ^ pb->ipacket[3]) & 0x02) {
+			if (sc->syninfo.directional_scrolls) {
+				if (pb->ipacket[4] & 0x01)
+					touchpad_buttons |= MOUSE_BUTTON4DOWN;
+				if (pb->ipacket[5] & 0x01)
+					touchpad_buttons |= MOUSE_BUTTON5DOWN;
+				if (pb->ipacket[4] & 0x02)
+					touchpad_buttons |= MOUSE_BUTTON6DOWN;
+				if (pb->ipacket[5] & 0x02)
+					touchpad_buttons |= MOUSE_BUTTON7DOWN;
+			} else {
 				touchpad_buttons |= MOUSE_BUTTON2DOWN;
+			}
+
+			/*
+			 * Zero out bits used by extended buttons to avoid
+			 * misinterpretation of the data absolute position.
+			 *
+			 * The bits represented by
+			 *
+			 *     (nExtendedButtons + 1) >> 1
+			 *
+			 * will be masked out in both bytes.
+			 * The mask for n bits is computed with the formula
+			 *
+			 *     (1 << n) - 1
+			 */
+			int maskedbits = 0;
+			int mask = 0;
+			maskedbits = (sc->synhw.nExtendedButtons + 1) >> 1;
+			mask = (1 << maskedbits) - 1;
+			pb->ipacket[4] &= ~(mask);
+			pb->ipacket[5] &= ~(mask);
 		}
 	}
 
@@ -4440,15 +4470,20 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 	buttons = 0;
 	synhw.capExtended = (status[0] & 0x80) != 0;
 	if (synhw.capExtended) {
-		synhw.capPassthrough = (status[2] & 0x80) != 0;
-		synhw.capSleep       = (status[2] & 0x10) != 0;
-		synhw.capFourButtons = (status[2] & 0x08) != 0;
-		synhw.capMultiFinger = (status[2] & 0x02) != 0;
-		synhw.capPalmDetect  = (status[2] & 0x01) != 0;
+		synhw.nExtendedQueries = (status[0] & 0x70) != 0;
+		synhw.capMiddle        = (status[0] & 0x04) != 0;
+		synhw.capPassthrough   = (status[2] & 0x80) != 0;
+		synhw.capSleep         = (status[2] & 0x10) != 0;
+		synhw.capFourButtons   = (status[2] & 0x08) != 0;
+		synhw.capMultiFinger   = (status[2] & 0x02) != 0;
+		synhw.capPalmDetect    = (status[2] & 0x01) != 0;
 
 		if (verbose >= 2) {
 			printf("  Extended capabilities:\n");
 			printf("   capExtended: %d\n", synhw.capExtended);
+			printf("   capMiddle: %d\n", synhw.capMiddle);
+			printf("   nExtendedQueries: %d\n",
+			    synhw.nExtendedQueries);
 			printf("   capPassthrough: %d\n", synhw.capPassthrough);
 			printf("   capSleep: %d\n", synhw.capSleep);
 			printf("   capFourButtons: %d\n", synhw.capFourButtons);
@@ -4457,16 +4492,27 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		}
 
 		/*
-		 * If we have bits set in status[0] & 0x70, then we can load
+		 * If nExtendedQueries is 1 or greater, then the TouchPad
+		 * supports this number of extended queries. We can load
 		 * more information about buttons using query 0x09.
 		 */
-		if ((status[0] & 0x70) != 0) {
+		if (synhw.capExtended && synhw.nExtendedQueries) {
 			if (mouse_ext_command(kbdc, 0x09) == 0)
 				return (FALSE);
 			if (get_mouse_status(kbdc, status, 0, 3) != 3)
 				return (FALSE);
-			buttons = (status[1] & 0xf0) >> 4;
+			synhw.nExtendedButtons = (status[1] & 0xf0) >> 4;
+			/*
+			 * Add the number of extended buttons to the total
+			 * button support count, including the middle button
+			 * if capMiddle support bit is set.
+			 */
+			buttons = synhw.nExtendedButtons + synhw.capMiddle;
 		} else
+			/*
+			 * If the capFourButtons support bit is set,
+			 * add a fourth button to the total button count.
+			 */
 			buttons = synhw.capFourButtons ? 1 : 0;
 	}
 	if (verbose >= 2) {
@@ -4475,6 +4521,12 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 		else
 			printf("  No extended capabilities\n");
 	}
+
+	/*
+	 * Add the default number of 3 buttons to the total
+	 * count of supported buttons reported above.
+	 */
+	buttons += 3;
 
 	/*
 	 * Read the mode byte.
@@ -4503,7 +4555,6 @@ enable_synaptics(KBDC kbdc, struct psm_softc *sc)
 	/* "Commit" the Set Mode Byte command sent above. */
 	set_mouse_sampling_rate(kbdc, 20);
 
-	buttons += 3;
 	VLOG(3, (LOG_DEBUG, "synaptics: END init (%d buttons)\n", buttons));
 
 	if (sc != NULL) {

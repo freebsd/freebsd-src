@@ -917,9 +917,9 @@
 512	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	STD	{ int cap_new(int fd, uint64_t rights); }
-515	AUE_CAP_RIGHTS_GET	STD	{ int cap_rights_get(int fd, \
-				    uint64_t *rightsp); }
+514	AUE_NULL	OBSOL	cap_new
+515	AUE_CAP_RIGHTS_GET	STD	{ int __cap_rights_get(int version, \
+				    int fd, cap_rights_t *rightsp); }
 516	AUE_CAP_ENTER	STD	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	STD	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	STD	{ int pdfork(int *fdp, int flags); }
@@ -952,12 +952,12 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
-532	AUE_WAIT6	STD	{ int wait6(int idtype, id_t id, \
+532	AUE_WAIT6	STD	{ int wait6(idtype_t idtype, id_t id, \
 				    int *status, int options, \
 				    struct __wrusage *wrusage, \
 				    siginfo_t *info); }
 533	AUE_CAP_RIGHTS_LIMIT	STD	{ int cap_rights_limit(int fd, \
-					    uint64_t rights); }
+					    cap_rights_t *rightsp); }
 534	AUE_CAP_IOCTLS_LIMIT	STD	{ int cap_ioctls_limit(int fd, \
 					    const u_long *cmds, size_t ncmds); }
 535	AUE_CAP_IOCTLS_GET	STD	{ ssize_t cap_ioctls_get(int fd, \
@@ -978,5 +978,7 @@
 				    int flags); }
 542	AUE_PIPE	STD	{ int pipe2(int *fildes, int flags); }
 543	AUE_NULL	NOSTD	{ int aio_mlock(struct aiocb *aiocbp); }
+544	AUE_NULL	STD	{ int procctl(idtype_t idtype, id_t id, \
+				    int com, void *data); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

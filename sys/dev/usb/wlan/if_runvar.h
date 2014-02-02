@@ -23,31 +23,25 @@
 #ifndef _IF_RUNVAR_H_
 #define	_IF_RUNVAR_H_
 
-#define RUN_MAX_RXSZ			\
+#define	RUN_MAX_RXSZ			\
 	MIN(4096, MJUMPAGESIZE)
-#if 0
-	(sizeof (uint32_t) +		\
-	 sizeof (struct rt2860_rxwi) +	\
-	 sizeof (uint16_t) +		\
-	 MCLBYTES +			\
-	 sizeof (struct rt2870_rxd))
-#endif
+
 /* NB: "11" is the maximum number of padding bytes needed for Tx */
-#define RUN_MAX_TXSZ			\
+#define	RUN_MAX_TXSZ			\
 	(sizeof (struct rt2870_txd) +	\
-	 sizeof (struct rt2860_rxwi) +	\
+	 sizeof (struct rt2860_txwi) +	\
 	 MCLBYTES + 11)
 
-#define RUN_TX_TIMEOUT	5000	/* ms */
+#define	RUN_TX_TIMEOUT	5000	/* ms */
 
 /* Tx ring count was 8/endpoint, now 32 for all 4 (or 6) endpoints. */
-#define RUN_TX_RING_COUNT	32
-#define RUN_RX_RING_COUNT	1
+#define	RUN_TX_RING_COUNT	32
+#define	RUN_RX_RING_COUNT	1
 
-#define RT2870_WCID_MAX		64
-#define RUN_AID2WCID(aid)	((aid) & 0xff)
+#define	RT2870_WCID_MAX		64
+#define	RUN_AID2WCID(aid)	((aid) & 0xff)
 
-#define RUN_VAP_MAX		8
+#define	RUN_VAP_MAX		8
 
 struct run_rx_radiotap_header {
 	struct ieee80211_radiotap_header wr_ihdr;
@@ -60,7 +54,7 @@ struct run_rx_radiotap_header {
 	uint8_t		wr_antsignal;
 } __packed __aligned(8);
 
-#define RUN_RX_RADIOTAP_PRESENT				\
+#define	RUN_RX_RADIOTAP_PRESENT				\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_RATE |			\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
@@ -79,7 +73,7 @@ struct run_tx_radiotap_header {
 
 #define IEEE80211_RADIOTAP_HWQUEUE 15
 
-#define RUN_TX_RADIOTAP_PRESENT				\
+#define	RUN_TX_RADIOTAP_PRESENT				\
 	(1 << IEEE80211_RADIOTAP_FLAGS |		\
 	 1 << IEEE80211_RADIOTAP_RATE |			\
 	 1 << IEEE80211_RADIOTAP_CHANNEL |		\
@@ -128,7 +122,7 @@ struct run_vap {
 
 	uint8_t				rvp_id;
 };
-#define RUN_VAP(vap)    ((struct run_vap *)(vap))
+#define	RUN_VAP(vap)	((struct run_vap *)(vap))
 
 /*
  * There are 7 bulk endpoints: 1 for RX
@@ -170,7 +164,7 @@ struct run_softc {
 
 	uint16_t			mac_ver;
 	uint16_t			mac_rev;
-	uint8_t				rf_rev;
+	uint16_t			rf_rev;
 	uint8_t				freq;
 	uint8_t				ntxchains;
 	uint8_t				nrxchains;
@@ -189,6 +183,7 @@ struct run_softc {
 	uint8_t				txmixgain_5ghz;
 	int8_t				txpow1[54];
 	int8_t				txpow2[54];
+	int8_t				txpow3[54];
 	int8_t				rssi_2ghz[3];
 	int8_t				rssi_5ghz[3];
 	uint8_t				lna[4];
@@ -212,19 +207,19 @@ struct run_softc {
 	struct task                     ratectl_task;
 	struct usb_callout              ratectl_ch;
 	uint8_t				ratectl_run;
-#define RUN_RATECTL_OFF	0
+#define	RUN_RATECTL_OFF	0
 
 /* need to be power of 2, otherwise RUN_CMDQ_GET fails */
-#define RUN_CMDQ_MAX	16
-#define RUN_CMDQ_MASQ	(RUN_CMDQ_MAX - 1)
+#define	RUN_CMDQ_MAX	16
+#define	RUN_CMDQ_MASQ	(RUN_CMDQ_MAX - 1)
 	struct run_cmdq			cmdq[RUN_CMDQ_MAX];
 	struct task			cmdq_task;
 	uint32_t			cmdq_store;
 	uint8_t				cmdq_exec;
 	uint8_t				cmdq_run;
 	uint8_t				cmdq_key_set;
-#define RUN_CMDQ_ABORT	0
-#define RUN_CMDQ_GO	1
+#define	RUN_CMDQ_ABORT	0
+#define	RUN_CMDQ_GO	1
 
 	struct usb_xfer			*sc_xfer[RUN_N_XFER];
 
@@ -256,8 +251,8 @@ struct run_softc {
 	int				sc_txtap_len;
 };
 
-#define RUN_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
-#define RUN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
-#define RUN_LOCK_ASSERT(sc, t)	mtx_assert(&(sc)->sc_mtx, t)
+#define	RUN_LOCK(sc)		mtx_lock(&(sc)->sc_mtx)
+#define	RUN_UNLOCK(sc)		mtx_unlock(&(sc)->sc_mtx)
+#define	RUN_LOCK_ASSERT(sc, t)	mtx_assert(&(sc)->sc_mtx, t)
 
 #endif	/* _IF_RUNVAR_H_ */

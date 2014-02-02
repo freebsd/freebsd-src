@@ -541,65 +541,6 @@ struct cpu_functions pj4bv7_cpufuncs = {
 
 	pj4bv7_setup			/* cpu setup		*/
 };
-
-struct cpu_functions pj4bv6_cpufuncs = {
-	/* CPU functions */
-
-	cpufunc_id,			/* id			*/
-	arm11_drain_writebuf,		/* cpwait		*/
-
-	/* MMU functions */
-
-	cpufunc_control,		/* control		*/
-	cpufunc_domains,		/* Domain		*/
-	pj4b_setttb,			/* Setttb		*/
-	cpufunc_faultstatus,		/* Faultstatus		*/
-	cpufunc_faultaddress,		/* Faultaddress		*/
-
-	/* TLB functions */
-
-	arm11_tlb_flushID,		/* tlb_flushID		*/
-	arm11_tlb_flushID_SE,		/* tlb_flushID_SE	*/
-	arm11_tlb_flushI,		/* tlb_flushI		*/
-	arm11_tlb_flushI_SE,		/* tlb_flushI_SE	*/
-	arm11_tlb_flushD,		/* tlb_flushD		*/
-	arm11_tlb_flushD_SE,		/* tlb_flushD_SE	*/
-
-	/* Cache operations */
-	armv6_icache_sync_all,		/* icache_sync_all	*/
-	pj4b_icache_sync_range,		/* icache_sync_range	*/
-
-	armv6_dcache_wbinv_all,		/* dcache_wbinv_all	*/
-	pj4b_dcache_wbinv_range,	/* dcache_wbinv_range	*/
-	pj4b_dcache_inv_range,		/* dcache_inv_range	*/
-	pj4b_dcache_wb_range,		/* dcache_wb_range	*/
-
-	armv6_idcache_wbinv_all,	/* idcache_wbinv_all	*/
-	pj4b_idcache_wbinv_range,	/* idcache_wbinv_all	*/
-
-	(void *)cpufunc_nullop,		/* l2cache_wbinv_all	*/
-	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
-	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
-
-	/* Other functions */
-
-	pj4b_drain_readbuf,		/* flush_prefetchbuf	*/
-	arm11_drain_writebuf,		/* drain_writebuf	*/
-	pj4b_flush_brnchtgt_all,	/* flush_brnchtgt_C	*/
-	pj4b_flush_brnchtgt_va,		/* flush_brnchtgt_E	*/
-
-	(void *)cpufunc_nullop,		/* sleep		*/
-
-	/* Soft functions */
-
-	cpufunc_null_fixup,		/* dataabt_fixup	*/
-	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
-
-	arm11_context_switch,		/* context_switch	*/
-
-	pj4bv6_setup			/* cpu setup		*/
-};
 #endif /* CPU_MV_PJ4B */
 
 #ifdef CPU_SA110
@@ -1097,7 +1038,7 @@ struct cpu_functions arm1176_cpufuncs = {
 };
 #endif /*CPU_ARM1176 */
 
-#if defined(CPU_CORTEXA)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
 	
@@ -1177,7 +1118,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_CORTEXA)
+  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 static void get_cachetype_cp15(void);
 
@@ -1475,15 +1416,17 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM1136 || CPU_ARM1176 */
-#ifdef CPU_CORTEXA
-	if (cputype == CPU_ID_CORTEXA7 ||
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+	if (cputype == CPU_ID_CORTEXA5 ||
+	    cputype == CPU_ID_CORTEXA7 ||
 	    cputype == CPU_ID_CORTEXA8R1 ||
 	    cputype == CPU_ID_CORTEXA8R2 ||
 	    cputype == CPU_ID_CORTEXA8R3 ||
 	    cputype == CPU_ID_CORTEXA9R1 ||
 	    cputype == CPU_ID_CORTEXA9R2 ||
 	    cputype == CPU_ID_CORTEXA9R3 ||
-	    cputype == CPU_ID_CORTEXA15 ) {
+	    cputype == CPU_ID_CORTEXA15 ||
+	    cputype == CPU_ID_KRAIT ) {
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
@@ -1496,27 +1439,14 @@ set_cpufuncs()
 #endif /* CPU_CORTEXA */
 		
 #if defined(CPU_MV_PJ4B)
-	if (cputype == CPU_ID_MV88SV581X_V6 ||
-	    cputype == CPU_ID_MV88SV581X_V7 ||
+	if (cputype == CPU_ID_MV88SV581X_V7 ||
 	    cputype == CPU_ID_MV88SV584X_V7 ||
-	    cputype == CPU_ID_ARM_88SV581X_V6 ||
 	    cputype == CPU_ID_ARM_88SV581X_V7) {
-		if (cpu_pfr(0) & ARM_PFR0_THUMBEE_MASK)
-			cpufuncs = pj4bv7_cpufuncs;
-		else
-			cpufuncs = pj4bv6_cpufuncs;
-
-		get_cachetype_cp15();
-		pmap_pte_init_mmu_v6();
-		goto out;
-	} else if (cputype == CPU_ID_ARM_88SV584X_V6 ||
-	    cputype == CPU_ID_MV88SV584X_V6) {
-		cpufuncs = pj4bv6_cpufuncs;
+		cpufuncs = pj4bv7_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_mmu_v6();
 		goto out;
 	}
-
 #endif /* CPU_MV_PJ4B */
 #ifdef CPU_SA110
 	if (cputype == CPU_ID_SA110) {
@@ -1720,7 +1650,7 @@ int
 early_abort_fixup(arg)
 	void *arg;
 {
-	trapframe_t *frame = arg;
+	struct trapframe *frame = arg;
 	u_int fault_pc;
 	u_int fault_instruction;
 	int saved_lr = 0;
@@ -1861,7 +1791,7 @@ int
 late_abort_fixup(arg)
 	void *arg;
 {
-	trapframe_t *frame = arg;
+	struct trapframe *frame = arg;
 	u_int fault_pc;
 	u_int fault_instruction;
 	int saved_lr = 0;
@@ -2446,44 +2376,6 @@ arm11x6_setup(char *args)
 
 #ifdef CPU_MV_PJ4B
 void
-pj4bv6_setup(char *args)
-{
-	int cpuctrl;
-
-	pj4b_config();
-
-	cpuctrl = CPU_CONTROL_MMU_ENABLE;
-#ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
-	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
-#endif
-	cpuctrl |= CPU_CONTROL_DC_ENABLE;
-	cpuctrl |= (0xf << 3);
-#ifdef __ARMEB__
-	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
-#endif
-	cpuctrl |= CPU_CONTROL_SYST_ENABLE;
-	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
-	cpuctrl |= CPU_CONTROL_IC_ENABLE;
-	if (vector_page == ARM_VECTORS_HIGH)
-		cpuctrl |= CPU_CONTROL_VECRELOC;
-	cpuctrl |= (0x5 << 16);
-	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
-	/* XXX not yet */
-	/* cpuctrl |= CPU_CONTROL_L2_ENABLE; */
-
-	/* Make sure caches are clean.  */
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
-
-	/* Set the control register */
-	ctrl = cpuctrl;
-	cpu_control(0xffffffff, cpuctrl);
-
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
-}
-
-void
 pj4bv7_setup(args)
 	char *args;
 {
@@ -2516,7 +2408,7 @@ pj4bv7_setup(args)
 }
 #endif /* CPU_MV_PJ4B */
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 void
 cortexa_setup(char *args)

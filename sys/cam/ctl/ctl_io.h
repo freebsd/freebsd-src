@@ -204,6 +204,8 @@ struct ctl_nexus {
 	uint32_t targ_port;		/* Target port, filled in by PORT */
 	struct ctl_id targ_target;	/* Destination target */
 	uint32_t targ_lun;		/* Destination lun */
+	uint32_t (*lun_map_fn)(void *arg, uint32_t lun);
+	void *lun_map_arg;
 };
 
 typedef enum {

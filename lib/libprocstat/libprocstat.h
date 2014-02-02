@@ -36,6 +36,7 @@
 #ifndef ZFS
 #include <sys/elf.h>
 #endif
+#include <sys/caprights.h>
 
 /*
  * Vnode types.

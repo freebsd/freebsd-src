@@ -127,8 +127,9 @@ typedef struct acpi_exception_info
 #define AE_NO_HANDLER                   EXCEP_ENV (0x001A)
 #define AE_OWNER_ID_LIMIT               EXCEP_ENV (0x001B)
 #define AE_NOT_CONFIGURED               EXCEP_ENV (0x001C)
+#define AE_ACCESS                       EXCEP_ENV (0x001D)
 
-#define AE_CODE_ENV_MAX                 0x001C
+#define AE_CODE_ENV_MAX                 0x001D
 
 
 /*
@@ -235,7 +236,7 @@ static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Env[] =
     EXCEP_TXT ("AE_NO_ACPI_TABLES",             "ACPI tables could not be found"),
     EXCEP_TXT ("AE_NO_NAMESPACE",               "A namespace has not been loaded"),
     EXCEP_TXT ("AE_NO_MEMORY",                  "Insufficient dynamic memory"),
-    EXCEP_TXT ("AE_NOT_FOUND",                  "The name was not found in the namespace"),
+    EXCEP_TXT ("AE_NOT_FOUND",                  "A requested entity is not found"),
     EXCEP_TXT ("AE_NOT_EXIST",                  "A required entity does not exist"),
     EXCEP_TXT ("AE_ALREADY_EXISTS",             "An entity already exists"),
     EXCEP_TXT ("AE_TYPE",                       "The object type is incorrect"),
@@ -258,7 +259,8 @@ static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Env[] =
     EXCEP_TXT ("AE_SAME_HANDLER",               "Attempt was made to install the same handler that is already installed"),
     EXCEP_TXT ("AE_NO_HANDLER",                 "A handler for the operation is not installed"),
     EXCEP_TXT ("AE_OWNER_ID_LIMIT",             "There are no more Owner IDs available for ACPI tables or control methods"),
-    EXCEP_TXT ("AE_NOT_CONFIGURED",             "The interface is not part of the current subsystem configuration")
+    EXCEP_TXT ("AE_NOT_CONFIGURED",             "The interface is not part of the current subsystem configuration"),
+    EXCEP_TXT ("AE_ACCESS",                     "Permission denied for the requested operation")
 };
 
 static const ACPI_EXCEPTION_INFO    AcpiGbl_ExceptionNames_Pgm[] =

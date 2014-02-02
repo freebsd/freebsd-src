@@ -64,7 +64,9 @@ NO_PROFILE=
 
 CSTD=	c99
 
-CFLAGS+=	-DDEBUG=1
-#DEBUG_FLAGS+=	-g
+# Since there are many asserts in this library, it makes no sense to compile
+# it without debugging.
+
+CFLAGS+=	-g -DDEBUG=1
 
 .include <bsd.lib.mk>

@@ -175,7 +175,8 @@ struct pmc_md_iap_pmc {
  * Prototypes.
  */
 
-int	pmc_core_initialize(struct pmc_mdep *_md, int _maxcpu);
+int	pmc_core_initialize(struct pmc_mdep *_md, int _maxcpu,
+	    int _version_override);
 void	pmc_core_finalize(struct pmc_mdep *_md);
 
 void	pmc_core_mark_started(int _cpu, int _pmc);

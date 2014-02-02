@@ -295,10 +295,10 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 static int
 update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
+	void *ptr;
 	uint64_t rev0, rev1;
 	uint32_t tmp[4];
-	int is_bound = 0;
+	int is_bound;
 	int oldcpu;
 	int ret;
 
@@ -312,10 +312,11 @@ update_intel(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	}
 
 	/*
-	 * 16 byte alignment required.
+	 * 16 byte alignment required.  Rely on the fact that
+	 * malloc(9) always returns the pointer aligned at least on
+	 * the size of the allocation.
 	 */
 	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
-	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);
@@ -408,10 +409,10 @@ fail:
 static int
 update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 {
-	void *ptr = NULL;
+	void *ptr;
 	uint64_t rev0, rev1, res;
 	uint32_t tmp[4];
-	int is_bound = 0;
+	int is_bound;
 	int oldcpu;
 	int ret;
 
@@ -427,8 +428,7 @@ update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	/*
 	 * 4 byte alignment required.
 	 */
-	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
-	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
+	ptr = malloc(args->size, M_CPUCTL, M_WAITOK);
 	if (copyin(args->data, ptr, args->size) != 0) {
 		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
 		    __LINE__, args->data, ptr, args->size);

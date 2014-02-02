@@ -51,6 +51,7 @@
 #include <sys/uuid.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -62,9 +63,10 @@
 #include <net/if_bridgevar.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
-#include <net/pf_mtag.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
+
+#include <netpfil/pf/pf_mtag.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -528,7 +530,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m->m_flags &= ~M_HASFCS;
 	}
 
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if (!(ifp->if_capenable & IFCAP_HWSTATS))
+		ifp->if_ibytes += m->m_pkthdr.len;
 
 	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
@@ -638,9 +641,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
-		random_harvest(m, 16, 3, 0, RANDOM_NET);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
@@ -706,13 +708,25 @@ static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 
-	/*
-	 * We will rely on rcvif being set properly in the deferred context,
-	 * so assert it is correct here.
-	 */
-	KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+	struct mbuf *mn;
 
-	netisr_dispatch(NETISR_ETHER, m);
+	/*
+	 * The drivers are allowed to pass in a chain of packets linked with
+	 * m_nextpkt. We split them up into separate packets here and pass
+	 * them up. This allows the drivers to amortize the receive lock.
+	 */
+	while (m) {
+		mn = m->m_nextpkt;
+		m->m_nextpkt = NULL;
+
+		/*
+		 * We will rely on rcvif being set properly in the deferred context,
+		 * so assert it is correct here.
+		 */
+		KASSERT(m->m_pkthdr.rcvif == ifp, ("%s: ifnet mismatch", __func__));
+		netisr_dispatch(NETISR_ETHER, m);
+		m = mn;
+	}
 }
 
 /*
@@ -1154,14 +1168,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return ENOMEM;
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ETHER;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ETHER_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IP_MULTICAST(&sin->sin_addr, e_addr);
@@ -1183,14 +1190,7 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return EADDRNOTAVAIL;
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT|M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_ETHER;
+		sdl = link_init_sdl(ifp, *llsa, IFT_ETHER);
 		sdl->sdl_alen = ETHER_ADDR_LEN;
 		e_addr = LLADDR(sdl);
 		ETHER_MAP_IPV6_MULTICAST(&sin6->sin6_addr, e_addr);

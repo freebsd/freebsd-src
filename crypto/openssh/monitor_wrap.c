@@ -1,4 +1,4 @@
-/* $OpenBSD: monitor_wrap.c,v 1.75 2013/01/08 18:49:04 markus Exp $ */
+/* $OpenBSD: monitor_wrap.c,v 1.77 2013/11/06 16:52:11 markus Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -259,8 +259,10 @@ mm_getpwnamallow(const char *username)
 		fatal("%s: struct passwd size mismatch", __func__);
 	pw->pw_name = buffer_get_string(&m, NULL);
 	pw->pw_passwd = buffer_get_string(&m, NULL);
+#ifdef HAVE_STRUCT_PASSWD_PW_GECOS
 	pw->pw_gecos = buffer_get_string(&m, NULL);
-#ifdef HAVE_PW_CLASS_IN_PASSWD
+#endif
+#ifdef HAVE_STRUCT_PASSWD_PW_CLASS
 	pw->pw_class = buffer_get_string(&m, NULL);
 #endif
 	pw->pw_dir = buffer_get_string(&m, NULL);
@@ -286,7 +288,7 @@ out:
 #undef M_CP_STRARRAYOPT
 
 	copy_set_server_options(&options, newopts, 1);
-	xfree(newopts);
+	free(newopts);
 
 	buffer_free(&m);
 
@@ -312,7 +314,7 @@ mm_auth2_read_banner(void)
 
 	/* treat empty banner as missing banner */
 	if (strlen(banner) == 0) {
-		xfree(banner);
+		free(banner);
 		banner = NULL;
 	}
 	return (banner);
@@ -405,7 +407,7 @@ mm_key_allowed(enum mm_keytype type, char *user, char *host, Key *key)
 	buffer_put_cstring(&m, user ? user : "");
 	buffer_put_cstring(&m, host ? host : "");
 	buffer_put_string(&m, blob, len);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYALLOWED, &m);
 
@@ -448,7 +450,7 @@ mm_key_verify(Key *key, u_char *sig, u_int siglen, u_char *data, u_int datalen)
 	buffer_put_string(&m, blob, len);
 	buffer_put_string(&m, sig, siglen);
 	buffer_put_string(&m, data, datalen);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_KEYVERIFY, &m);
 
@@ -480,7 +482,7 @@ mm_newkeys_from_blob(u_char *blob, int blen)
 	buffer_init(&b);
 	buffer_append(&b, blob, blen);
 
-	newkey = xmalloc(sizeof(*newkey));
+	newkey = xcalloc(1, sizeof(*newkey));
 	enc = &newkey->enc;
 	mac = &newkey->mac;
 	comp = &newkey->comp;
@@ -617,7 +619,7 @@ mm_send_keystate(struct monitor *monitor)
 		keylen = packet_get_encryption_key(key);
 		buffer_put_string(&m, key, keylen);
 		memset(key, 0, keylen);
-		xfree(key);
+		free(key);
 
 		ivlen = packet_get_keyiv_len(MODE_OUT);
 		packet_get_keyiv(MODE_OUT, iv, ivlen);
@@ -640,13 +642,13 @@ mm_send_keystate(struct monitor *monitor)
 		fatal("%s: conversion of newkeys failed", __func__);
 
 	buffer_put_string(&m, blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	if (!mm_newkeys_to_blob(MODE_IN, &blob, &bloblen))
 		fatal("%s: conversion of newkeys failed", __func__);
 
 	buffer_put_string(&m, blob, bloblen);
-	xfree(blob);
+	free(blob);
 
 	packet_get_state(MODE_OUT, &seqnr, &blocks, &packets, &bytes);
 	buffer_put_int(&m, seqnr);
@@ -666,13 +668,13 @@ mm_send_keystate(struct monitor *monitor)
 	p = xmalloc(plen+1);
 	packet_get_keycontext(MODE_OUT, p);
 	buffer_put_string(&m, p, plen);
-	xfree(p);
+	free(p);
 
 	plen = packet_get_keycontext(MODE_IN, NULL);
 	p = xmalloc(plen+1);
 	packet_get_keycontext(MODE_IN, p);
 	buffer_put_string(&m, p, plen);
-	xfree(p);
+	free(p);
 
 	/* Compression state */
 	debug3("%s: Sending compression state", __func__);
@@ -734,10 +736,10 @@ mm_pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, size_t namebuflen)
 	buffer_free(&m);
 
 	strlcpy(namebuf, p, namebuflen); /* Possible truncation */
-	xfree(p);
+	free(p);
 
 	buffer_append(&loginmsg, msg, strlen(msg));
-	xfree(msg);
+	free(msg);
 
 	if ((*ptyfd = mm_receive_fd(pmonitor->m_recvfd)) == -1 ||
 	    (*ttyfd = mm_receive_fd(pmonitor->m_recvfd)) == -1)
@@ -803,7 +805,7 @@ mm_do_pam_account(void)
 	ret = buffer_get_int(&m);
 	msg = buffer_get_string(&m, NULL);
 	buffer_append(&loginmsg, msg, strlen(msg));
-	xfree(msg);
+	free(msg);
 
 	buffer_free(&m);
 
@@ -1033,7 +1035,7 @@ mm_skey_query(void *ctx, char **name, char **infotxt,
 	mm_chall_setup(name, infotxt, numprompts, prompts, echo_on);
 
 	xasprintf(*prompts, "%s%s", challenge, SKEY_PROMPT);
-	xfree(challenge);
+	free(challenge);
 
 	return (0);
 }
@@ -1107,7 +1109,7 @@ mm_auth_rsa_key_allowed(struct passwd *pw, BIGNUM *client_n, Key **rkey)
 		if ((key = key_from_blob(blob, blen)) == NULL)
 			fatal("%s: key_from_blob failed", __func__);
 		*rkey = key;
-		xfree(blob);
+		free(blob);
 	}
 	buffer_free(&m);
 
@@ -1134,7 +1136,7 @@ mm_auth_rsa_generate_challenge(Key *key)
 
 	buffer_init(&m);
 	buffer_put_string(&m, blob, blen);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSACHALLENGE, &m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSACHALLENGE, &m);
@@ -1163,7 +1165,7 @@ mm_auth_rsa_verify_response(Key *key, BIGNUM *p, u_char response[16])
 	buffer_init(&m);
 	buffer_put_string(&m, blob, blen);
 	buffer_put_string(&m, response, 16);
-	xfree(blob);
+	free(blob);
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_RSARESPONSE, &m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_RSARESPONSE, &m);

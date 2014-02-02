@@ -18,7 +18,6 @@ SUBDIR=	async \
 	etf \
 	ether \
 	ether_echo \
-	fec \
 	frame_relay \
 	gif \
 	gif_demux \

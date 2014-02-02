@@ -102,10 +102,14 @@ int vmm_emulate_instruction(void *vm, int cpuid, uint64_t gpa, struct vie *vie,
 #ifdef _KERNEL
 /*
  * APIs to fetch and decode the instruction from nested page fault handler.
+ *
+ * 'vie' must be initialized before calling 'vmm_fetch_instruction()'
  */
 int vmm_fetch_instruction(struct vm *vm, int cpuid,
 			  uint64_t rip, int inst_length, uint64_t cr3,
 			  struct vie *vie);
+
+void vie_init(struct vie *vie);
 
 /*
  * Decode the instruction fetched into 'vie' so it can be emulated.

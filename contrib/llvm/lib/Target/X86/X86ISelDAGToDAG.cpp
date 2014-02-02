@@ -1988,6 +1988,7 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
 
   if (Node->isMachineOpcode()) {
     DEBUG(dbgs() << "== ";  Node->dump(CurDAG); dbgs() << '\n');
+    Node->setNodeId(-1);
     return NULL;   // Already selected.
   }
 

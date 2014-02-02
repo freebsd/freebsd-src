@@ -57,6 +57,9 @@ int	legacy_pcib_write_ivar(device_t dev, device_t child, int which,
     uintptr_t value);
 struct resource *legacy_pcib_alloc_resource(device_t dev, device_t child,
     int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+int	legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count,
+    int maxcount, int *irqs);
+int	legacy_pcib_alloc_msix(device_t pcib, device_t dev, int *irq);
 int	legacy_pcib_map_msi(device_t pcib, device_t dev, int irq,
     uint64_t *addr, uint32_t *data);
 

@@ -59,6 +59,8 @@ __system(const char *command)
 
 	(void)sigemptyset(&newsigblock);
 	(void)sigaddset(&newsigblock, SIGCHLD);
+	(void)sigaddset(&newsigblock, SIGINT);
+	(void)sigaddset(&newsigblock, SIGQUIT);
 	(void)_sigprocmask(SIG_BLOCK, &newsigblock, &oldsigblock);
 	switch(pid = vfork()) {
 	case -1:			/* error */

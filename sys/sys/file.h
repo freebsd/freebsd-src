@@ -88,6 +88,9 @@ foffset_get(struct file *fp)
 	return (foffset_lock(fp, FOF_NOLOCK));
 }
 
+/* XXX pollution? */
+struct sendfile_sync;
+
 typedef int fo_rdwr_t(struct file *fp, struct uio *uio,
 		    struct ucred *active_cred, int flags,
 		    struct thread *td);
@@ -107,7 +110,8 @@ typedef	int fo_chown_t(struct file *fp, uid_t uid, gid_t gid,
 		    struct ucred *active_cred, struct thread *td);
 typedef int fo_sendfile_t(struct file *fp, int sockfd, struct uio *hdr_uio,
 		    struct uio *trl_uio, off_t offset, size_t nbytes,
-		    off_t *sent, int flags, int kflags, struct thread *td);
+		    off_t *sent, int flags, int kflags,
+		    struct sendfile_sync *sfs, struct thread *td);
 typedef int fo_seek_t(struct file *fp, off_t offset, int whence,
 		    struct thread *td);
 typedef	int fo_flags_t;
@@ -217,12 +221,12 @@ extern int maxfiles;		/* kernel limit on number of open files */
 extern int maxfilesperproc;	/* per process limit on number of open files */
 extern volatile int openfiles;	/* actual number of open files */
 
-int fget(struct thread *td, int fd, cap_rights_t rights, struct file **fpp);
-int fget_mmap(struct thread *td, int fd, cap_rights_t rights,
+int fget(struct thread *td, int fd, cap_rights_t *rightsp, struct file **fpp);
+int fget_mmap(struct thread *td, int fd, cap_rights_t *rightsp,
     u_char *maxprotp, struct file **fpp);
-int fget_read(struct thread *td, int fd, cap_rights_t rights,
+int fget_read(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
-int fget_write(struct thread *td, int fd, cap_rights_t rights,
+int fget_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct file **fpp);
 int _fdrop(struct file *fp, struct thread *td);
 
@@ -248,17 +252,18 @@ fo_sendfile_t	vn_sendfile;
 fo_seek_t	vn_seek;
 
 void finit(struct file *, u_int, short, void *, struct fileops *);
-int fgetvp(struct thread *td, int fd, cap_rights_t rights, struct vnode **vpp);
-int fgetvp_exec(struct thread *td, int fd, cap_rights_t rights,
+int fgetvp(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
-int fgetvp_rights(struct thread *td, int fd, cap_rights_t need,
+int fgetvp_exec(struct thread *td, int fd, cap_rights_t *rightsp,
+    struct vnode **vpp);
+int fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
     struct filecaps *havecaps, struct vnode **vpp);
-int fgetvp_read(struct thread *td, int fd, cap_rights_t rights,
+int fgetvp_read(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
-int fgetvp_write(struct thread *td, int fd, cap_rights_t rights,
+int fgetvp_write(struct thread *td, int fd, cap_rights_t *rightsp,
     struct vnode **vpp);
 
-int fgetsock(struct thread *td, int fd, cap_rights_t rights,
+int fgetsock(struct thread *td, int fd, cap_rights_t *rightsp,
     struct socket **spp, u_int *fflagp);
 void fputsock(struct socket *sp);
 
@@ -367,11 +372,11 @@ fo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static __inline int
 fo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 
 	return ((*fp->f_ops->fo_sendfile)(fp, sockfd, hdr_uio, trl_uio, offset,
-	    nbytes, sent, flags, kflags, td));
+	    nbytes, sent, flags, kflags, sfs, td));
 }
 
 static __inline int

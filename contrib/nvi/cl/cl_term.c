@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: cl_term.c,v 10.33 2012/04/21 23:51:46 zy Exp $";
+static const char sccsid[] = "$Id: cl_term.c,v 10.34 2013/12/07 16:21:14 wjenkner Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -187,14 +187,18 @@ cl_term_init(SCR *sp)
 int
 cl_term_end(GS *gp)
 {
-	SEQ *qp, *nqp;
+	SEQ *qp, *nqp, *pre_qp = NULL;
 
 	/* Delete screen specific mappings. */
 	SLIST_FOREACH_SAFE(qp, gp->seqq, q, nqp)
 		if (F_ISSET(qp, SEQ_SCREEN)) {
-			SLIST_REMOVE_HEAD(gp->seqq, q);
+			if (qp == SLIST_FIRST(gp->seqq))
+				SLIST_REMOVE_HEAD(gp->seqq, q);
+			else
+				SLIST_REMOVE_AFTER(pre_qp, q);
 			(void)seq_free(qp);
-		}
+		} else
+			pre_qp = qp;
 	return (0);
 }
 

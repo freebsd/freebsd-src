@@ -311,11 +311,8 @@ static int
 clock_probe(device_t dev)
 {
 
-	if (device_get_unit(dev) != 0)
-		panic("can't attach more clocks");
-
 	device_set_desc(dev, "Generic MIPS32 ticker");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -329,6 +326,9 @@ static int
 clock_attach(device_t dev)
 {
 	struct clock_softc *sc;
+
+	if (device_get_unit(dev) != 0)
+		panic("can't attach more clocks");
 
 	softc = sc = device_get_softc(dev);
 	cpu_establish_hardintr("compare", clock_intr, NULL,

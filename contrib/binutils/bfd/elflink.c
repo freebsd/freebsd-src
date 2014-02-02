@@ -488,11 +488,27 @@ bfd_elf_record_link_assignment (bfd *output_bfd,
       if (h->root.u.undef.next != NULL || htab->root.undefs_tail == &h->root)
 	bfd_link_repair_undef_list (&htab->root);
     }
-
-  if (h->root.type == bfd_link_hash_new)
+  else if (h->root.type == bfd_link_hash_new)
     {
       bfd_elf_link_mark_dynamic_symbol (info, h, NULL);
       h->non_elf = 0;
+    }
+  else if (h->root.type == bfd_link_hash_indirect)
+    {
+      const struct elf_backend_data *bed = get_elf_backend_data (output_bfd);
+      struct elf_link_hash_entry *hv = h;
+      do
+	hv = (struct elf_link_hash_entry *) hv->root.u.i.link;
+      while (hv->root.type == bfd_link_hash_indirect
+	     || hv->root.type == bfd_link_hash_warning);
+      h->root.type = bfd_link_hash_undefined;
+      hv->root.type = bfd_link_hash_indirect;
+      hv->root.u.i.link = (struct bfd_link_hash_entry *) h;
+      (*bed->elf_backend_copy_indirect_symbol) (info, h, hv);
+    }
+  else if (h->root.type == bfd_link_hash_warning)
+    {
+      abort ();
     }
 
   /* If this symbol is being provided by the linker script, and it is
@@ -1417,10 +1433,10 @@ _bfd_elf_merge_symbol (bfd *abfd,
 	 case, we make the versioned symbol point to the normal one.  */
       const struct elf_backend_data *bed = get_elf_backend_data (abfd);
       flip->root.type = h->root.type;
+      flip->root.u.undef.abfd = h->root.u.undef.abfd;
       h->root.type = bfd_link_hash_indirect;
       h->root.u.i.link = (struct bfd_link_hash_entry *) flip;
       (*bed->elf_backend_copy_indirect_symbol) (info, flip, h);
-      flip->root.u.undef.abfd = h->root.u.undef.abfd;
       if (h->def_dynamic)
 	{
 	  h->def_dynamic = 0;
@@ -4341,8 +4357,8 @@ elf_link_add_object_symbols (bfd *abfd, struct bfd_link_info *info)
 	      if ((elf_dyn_lib_class (abfd) & DYN_NO_NEEDED) != 0)
 		{
 		  (*_bfd_error_handler)
-		    (_("%s: invalid DSO for symbol `%s' definition"),
-		     abfd, name);
+		    (_("%B: invalid DSO for symbol `%s' definition"),
+		    abfd, name);
 		  bfd_set_error (bfd_error_bad_value);
 		  goto error_free_vers;
 		}

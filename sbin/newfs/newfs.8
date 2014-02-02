@@ -28,7 +28,7 @@
 .\"     @(#)newfs.8	8.6 (Berkeley) 5/3/95
 .\" $FreeBSD$
 .\"
-.Dd June 22, 2011
+.Dd October 1, 2013
 .Dt NEWFS 8
 .Os
 .Sh NAME
@@ -285,10 +285,10 @@ to find the alternate superblocks if the standard superblock is lost.
 The size of a sector in bytes (almost never anything but 512).
 .El
 .Sh EXAMPLES
-.Dl newfs /dev/ad3s1a
+.Dl newfs /dev/ada3s1a
 .Pp
 Creates a new ufs file system on
-.Pa ad3s1a .
+.Pa ada3s1a .
 The
 .Nm
 utility will use a block size of 32768 bytes, a fragment size of 4096 bytes

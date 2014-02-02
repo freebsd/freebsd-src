@@ -51,8 +51,8 @@
 #define	PMC_FN_CSW_IN			2
 #define	PMC_FN_CSW_OUT			3
 #define	PMC_FN_DO_SAMPLES		4
-#define	PMC_FN_KLD_LOAD			5
-#define	PMC_FN_KLD_UNLOAD		6
+#define	PMC_FN_UNUSED1			5
+#define	PMC_FN_UNUSED2			6
 #define	PMC_FN_MMAP			7
 #define	PMC_FN_MUNMAP			8
 #define	PMC_FN_USER_CALLCHAIN		9
@@ -110,7 +110,7 @@ struct pmckern_soft {
 #ifdef PMC_FAKE_TRAPFRAME
 #define PMC_SOFT_CALL(pr, mo, fu, na)						\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\
@@ -135,7 +135,7 @@ do {										\
  */
 #define PMC_SOFT_CALL_TF(pr, mo, fu, na, tf)					\
 do {										\
-	if (pmc_##pr##_##mo##_##fu##_##na.ps_running) {				\
+	if (__predict_false(pmc_##pr##_##mo##_##fu##_##na.ps_running)) {	\
 		struct pmckern_soft ks;						\
 		register_t intr;						\
 		intr = intr_disable();						\

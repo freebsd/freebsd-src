@@ -137,7 +137,7 @@ property_value::resolve_type()
 				break;
 			}
 		}
-		if (is_all_printable && (bytes > nuls))
+		if ((is_all_printable && (bytes > nuls)) || bytes == 0)
 		{
 			type = STRING;
 			if (nuls > 0)
@@ -204,7 +204,7 @@ property_value::write_as_bytes(FILE *file)
 	putc('[', file);
 	for (byte_buffer::iterator i=byte_data.begin(), e=byte_data.end(); i!=e ; i++)
 	{
-		fprintf(file, "%hhx", *i);
+		fprintf(file, "%02hhx", *i);
 		if (i+1 != e)
 		{
 			putc(' ', file);
@@ -367,6 +367,11 @@ property::property(input_buffer &structs, input_buffer &strings)
 		return;
 	}
 	key = string(name_buffer);
+
+	// If we're empty, do not push anything as value.
+	if (!length)
+		return;
+
 	// Read the value
 	uint8_t byte;
 	property_value v;
@@ -1181,7 +1186,7 @@ void
 device_tree::write_dts(int fd)
 {
 	FILE *file = fdopen(fd, "w");
-	fputs("/dtc-v1/;\n\n", file);
+	fputs("/dts-v1/;\n\n", file);
 
 	if (!reservations.empty())
 	{
@@ -1190,7 +1195,7 @@ device_tree::write_dts(int fd)
 		for (std::vector<reservation>::iterator i=reservations.begin(),
 		     e=reservations.end() ; i!=e ; ++i)
 		{
-			fprintf(stderr, " %" PRIx64 " %" PRIx64, i->first, i->second);
+			fprintf(file, " %" PRIx64 " %" PRIx64, i->first, i->second);
 		}
 		fputs(";\n\n", file);
 	}

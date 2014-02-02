@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/callout.h>
+#include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -42,8 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -519,11 +522,7 @@ lacp_port_create(struct lagg_port *lgp)
 	boolean_t active = TRUE; /* XXX should be configurable */
 	boolean_t fast = FALSE; /* XXX should be configurable */
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_index = ifp->if_index;
-	sdl.sdl_type = IFT_ETHER;
+	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	bcopy(&ethermulticastaddr_slowprotocols,
@@ -874,7 +873,7 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 	}
 
 	if (sc->use_flowid && (m->m_flags & M_FLOWID))
-		hash = m->m_pkthdr.flowid;
+		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);
 	hash %= pm->pm_count;
@@ -1089,8 +1088,45 @@ lacp_compose_key(struct lacp_port *lp)
 		KASSERT(IFM_TYPE(media) == IFM_ETHER, ("invalid media type"));
 		KASSERT((media & IFM_FDX) != 0, ("aggregating HDX interface"));
 
-		/* bit 0..4:	IFM_SUBTYPE */
-		key = subtype;
+		/* bit 0..4:	IFM_SUBTYPE modulo speed */
+		switch (subtype) {
+		case IFM_10_T:
+		case IFM_10_2:
+		case IFM_10_5:
+		case IFM_10_STP:
+		case IFM_10_FL:
+			key = IFM_10_T;
+			break;
+		case IFM_100_TX:
+		case IFM_100_FX:
+		case IFM_100_T4:
+		case IFM_100_VG:
+		case IFM_100_T2:
+			key = IFM_100_TX;
+			break;
+		case IFM_1000_SX:
+		case IFM_1000_LX:
+		case IFM_1000_CX:
+		case IFM_1000_T:
+			key = IFM_1000_SX;
+			break;
+		case IFM_10G_LR:
+		case IFM_10G_SR:
+		case IFM_10G_CX4:
+		case IFM_10G_TWINAX:
+		case IFM_10G_TWINAX_LONG:
+		case IFM_10G_LRM:
+		case IFM_10G_T:
+			key = IFM_10G_LR;
+			break;
+		case IFM_40G_CR4:
+		case IFM_40G_SR4:
+		case IFM_40G_LR4:
+			key = IFM_40G_CR4;
+			break;
+		default:
+			key = subtype;
+		}
 		/* bit 5..14:	(some bits of) if_index of lagg device */
 		key |= 0x7fe0 & ((sc->sc_ifp->if_index) << 5);
 		/* bit 15:	0 */

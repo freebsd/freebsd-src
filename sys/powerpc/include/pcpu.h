@@ -49,7 +49,8 @@ struct pmap;
 	uint32_t	pc_ipimask;					\
 	register_t	pc_tempsave[CPUSAVE_LEN];			\
 	register_t	pc_disisave[CPUSAVE_LEN];			\
-	register_t	pc_dbsave[CPUSAVE_LEN];
+	register_t	pc_dbsave[CPUSAVE_LEN];				\
+	void		*pc_restore;
 
 #define PCPU_MD_AIM32_FIELDS						\
 	/* char		__pad[0] */
@@ -135,7 +136,6 @@ struct pmap;
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
-#ifdef AIM /* Book-E not yet adapted */
 static __inline __pure2 struct thread *
 __curthread(void)
 {
@@ -148,7 +148,6 @@ __curthread(void)
 	return (td);
 }
 #define curthread (__curthread())
-#endif
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 

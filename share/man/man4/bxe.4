@@ -1,35 +1,38 @@
-.\" Copyright (c) 2012 Edward Tomasz Napierala <trasz@FreeBSD.org>
-.\" All rights reserved.
+.\" Copyright (c) 2013 Broadcom Corporation. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
+.\"
 .\" 1. Redistributions of source code must retain the above copyright
 .\"    notice, this list of conditions and the following disclaimer.
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. Neither the name of Broadcom Corporation nor the name of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written consent.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS'
+.\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-.\" SUCH DAMAGE.
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 25, 2012
+.Dd April 29, 2012
 .Dt BXE 4
 .Os
 .Sh NAME
 .Nm bxe
-.Nd "Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet adapter driver"
+.Nd Broadcom NetXtreme II Ethernet 10Gb PCIe adapter driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -38,8 +41,8 @@ kernel configuration file:
 .Cd "device bxe"
 .Ed
 .Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
+Alternatively, to load the driver as a module at boot time, place the
+following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_bxe_load="YES"
@@ -47,77 +50,276 @@ if_bxe_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for PCIe 10GbE Ethernet adapters based on
-BCM5771x chips.
-The driver supports Jumbo Frames, VLAN tagging, IP, UDP and TCP checksum
-offload, MSI-X, TCP Segmentation Offload (TSO), Large Receive Offload (LRO),
-and Receive Side Steering (RSS).
-.Pp
-For more information on configuring this device, see
-.Xr ifconfig 8 .
+driver provides support for PCIe 10Gb Ethernet adapters based on the Broadcom
+NetXtreme II family of 10Gb chips.
+The driver supports Jumbo Frames, VLAN
+tagging, checksum offload (IPv4, TCP, UDP, IPv6-TCP, IPv6-UDP), MSI-X
+interrupts, TCP Segmentation Offload (TSO), Large Receive Offload (LRO), and
+Receive Side Scaling (RSS).
 .Sh HARDWARE
 The
 .Nm
-driver provides support for various NICs based on the Broadcom BCM5771x
-family of 10GbE Ethernet controller chips, including the
-following:
+driver provides support for various NICs based on the Broadcom NetXtreme II
+family of 10Gb Ethernet controller chips, including the following:
 .Pp
 .Bl -bullet -compact
 .It
-Broadcom NetXtreme II BCM57710 10GbE
+Broadcom NetXtreme II BCM57710 10Gb
 .It
-Broadcom NetXtreme II BCM57711 10GbE
+Broadcom NetXtreme II BCM57711 10Gb
 .It
-Broadcom NetXtreme II BCM57711E 10GbE
+Broadcom NetXtreme II BCM57711E 10Gb
+.It
+Broadcom NetXtreme II BCM57712 10Gb
+.It
+Broadcom NetXtreme II BCM57712-MF 10Gb
+.It
+Broadcom NetXtreme II BCM57800 10Gb
+.It
+Broadcom NetXtreme II BCM57800-MF 10Gb
+.It
+Broadcom NetXtreme II BCM57810 10Gb
+.It
+Broadcom NetXtreme II BCM57810-MF 10Gb
+.It
+Broadcom NetXtreme II BCM57840 10Gb / 20Gb
+.It
+Broadcom NetXtreme II BCM57840-MF 10Gb
 .El
-.Sh SYSCTL VARIABLES
-The following variables are available as both
-.Xr sysctl 8
-variables and
-.Xr loader 8
-tunables:
+.Sh CONFIGURATION
+There a number of configuration parameters that can be set to tweak the
+driver's behavior.
+These parameters can be set via the
+.Xr loader.conf 5
+file to take affect during the next system boot.
+The following parameters affect
+ALL instances of the driver.
 .Bl -tag -width indent
-.It Va hw.bxe.dcc_enable
-Enable HP Flex-10 support.
-Allowed values are 0 to disable and 1 to enable.
-The default value is 0.
-.It Va hw.bxe.tso_enable
-Enable TCP Segmentation Offload.
-The default value is 1.
-.It Va hw.bxe.int_mode
-Set interrupt mode.
-Allowed values are 0 for IRQ, 1 for MSI/IRQ and 2 for MSI-X/MSI/IRQ.
-The default value is 2.
+.It Va hw.bxe.debug
+DEFAULT = 0
+.br
+Sets the default logging level of the driver.
+See the Diagnostics and Debugging
+section below for more details.
+.It Va hw.bxe.interrupt_mode
+DEFAULT = 2
+.br
+Sets the default interrupt mode: 0=IRQ, 1=MSI, 2=MSIX.
+If set to MSIX and
+allocation fails, the driver will roll back and attempt MSI allocation.
+If MSI
+allocation fails, the driver will roll back and attempt fixed level IRQ
+allocation.
+If IRQ allocation fails, then the driver load fails.
+With MSI/MSIX,
+the driver attempts to allocate a vector for each queue in addition to one more
+for default processing.
 .It Va hw.bxe.queue_count
-Specify the number of queues that will be used when a multi-queue
-RSS mode is selected using bxe_multi_mode.
-Allowed values are 0 for Auto or 1 to 16 for fixed number of queues.
-The default value is 0.
-.It Va hw.bxe.multi_mode
-Enable Receive Side Steering.
-Allowed values are 0, which disables all multi-queue/packet sorting
-algorithms, and 1, which assigns incoming frames to receive queues
-according to RSS.
-The default value is 0.
-.It Va hw.bxe.rx_ticks
-Control interrupt coalescing for received frames.
-The first frame always causes an interrupt, but subsequent frames
-are coalesced until the RX/TX ticks timer value expires and another
-interrupt occurs.
-The default value is 25.
-.It Va hw.bxe.tx_ticks
-Control interrupt coalescing for trasmitted frames.
-The first frame always causes an interrupt, but subsequent frames
-are coalesced until the RX/TX ticks timer value expires and another
-interrupt occurs.
-The default value is 50.
+DEFAULT = 4
+.br
+Sets the default number of fast path packet processing queues.
+Note that one
+MSI/MSIX interrupt vector is allocated per-queue.
+.It Va hw.bxe.max_rx_bufs
+DEFAULT = 0
+.br
+Sets the maximum number of receive buffers to allocate per-queue.
+Zero(0) means
+to allocate a receive buffer for every buffer descriptor.
+By default this
+equates to 4080 buffers per-queue which is the maximum value for this config
+parameter.
+.It Va hw.bxe.hc_rx_ticks
+DEFAULT = 25
+.br
+Sets the number of ticks for host interrupt coalescing in the receive path.
+.It Va hw.bxe.hc_tx_ticks
+DEFAULT = 50
+.br
+Sets the number of ticks for host interrupt coalescing in the transmit path.
+.It Va hw.bxe.rx_budget
+DEFAULT = 0xffffffff
+.br
+Sets the maximum number of receive packets to process in an interrupt.
+If the
+budget is reached then the remaining/pending packets will be processed in a
+scheduled taskqueue.
+.It Va hw.bxe.max_aggregation_size
+DEFAULT = 32768
+.br
+Sets the maximum LRO aggregration byte size.
+The higher the value the more
+packets the hardware will aggregate.
+Maximum is 65K.
 .It Va hw.bxe.mrrs
-Allows to set the PCIe maximum read request size.
-Allowed values are -1 for Auto, 0 for 128B, 1 for 256B, 2 for 512B,
-and 3 for 1kB.
-The default value is -1.
+DEFAULT = -1
+.br
+Sets the PCI MRRS: -1=Auto, 0=128B, 1=256B, 2=512B, 3=1KB
+.It Va hw.bxe.autogreeen
+DEFAULT = 0
+.br
+Set AutoGrEEEN: 0=HW_DEFAULT, 1=FORCE_ON, 2=FORCE_OFF
+.It Va hw.bxe.udp_rss
+DEFAULT = 0
+.br
+Enable/Disable 4-tuple RSS for UDP: 0=DISABLED, 1=ENABLED
 .El
+.Pp
+Special care must be taken when modifying the number of queues and receive
+buffers.
+FreeBSD imposes a limit on the maximum number of
+.Xr mbuf 9
+allocations.
+If buffer allocations fail, the interface initialization will fail
+and the interface will not be usable.
+The driver does not make a best effort
+for buffer allocations.
+It is an all or nothing effort.
+.Pp
+You can tweak the
+.Xr mbuf 9
+allocation limit using
+.Xr sysctl 8
+and view the current usage with
+.Xr netstat 1
+as follows:
+.Bd -literal -offset indent
+# netstat -m
+# sysctl kern.ipc.nmbclusters
+# sysctl kern.ipc.nmbclusters=<#>
+.Ed
+.Pp
+There are additional configuration parameters that can be set on a per-instance
+basis to dynamically override the default configuration.
+The '#' below must be
+replaced with the driver instance / interface unit number:
+.Bl -tag -width indent
+.It Va dev.bxe.#.debug
+DEFAULT = 0
+.br
+Sets the default logging level of the driver instance.
+See
+.Va hw.bxe.debug
+above and
+the Diagnostics and Debugging section below for more details.
+.It Va dev.bxe.#.rx_budget
+DEFAULT = 0xffffffff
+.br
+Sets the maximum number of receive packets to process in an interrupt for the
+driver instance.
+See
+.Va hw.bxe.rx_budget
+above for more details.
+.El
+.Pp
+Additional items can be configured using
+.Xr ifconfig 8 :
+.Bl -tag -width indent
+.It Va MTU - Maximum Transmission Unit
+DEFAULT = 1500
+.br
+RANGE = 46-9184
+.br
+# ifconfig bxe# mtu <n>
+.It Va Promiscuous Mode
+DEFAULT = OFF
+.br
+# ifconfig bxe# [ promisc | -promisc ]
+.It Va Rx/Tx Checksum Offload
+DEFAULT = RX/TX CSUM ON
+.br
+Note that the Rx and Tx settings are not independent.
+.br
+# ifconfig bxe# [ rxcsum | -rxcsum | txcsum | -txcsum ]
+.It Va TSO - TCP Segmentation Offload
+DEFAULT = ON
+.br
+# ifconfig bxe# [ tso | -tso | tso6 | -tso6 ]
+.It Va LRO - TCP Large Receive Offload
+DEFAULT = ON
+.br
+# ifconfig bxe# [ lro | -lro ]
+.El
+.Sh DIAGNOSTICS AND DEBUGGING
+There are many statistics exposed by
+.Nm
+via
+.Xr sysctl 8 .
+.Pp
+To dump the default driver configuration:
+.Bd -literal -offset indent
+# sysctl -a | grep hw.bxe
+.Ed
+.Pp
+To dump every instance's configuration and detailed statistics:
+.Bd -literal -offset indent
+# sysctl -a | grep dev.bxe
+.Ed
+.Pp
+To dump information for a single instance (replace the '#' with the driver
+instance / interface unit number):
+.Bd -literal -offset indent
+# sysctl -a | grep dev.bxe.#
+.Ed
+.Pp
+To dump information for all the queues of a single instance:
+.Bd -literal -offset indent
+# sysctl -a | grep dev.bxe.#.queue
+.Ed
+.Pp
+To dump information for a single queue of a single instance (replace the
+additional '#' with the queue number):
+.Bd -literal -offset indent
+# sysctl -a | grep dev.bxe.#.queue.#
+.Ed
+.Pp
+The
+.Nm
+driver has the ability to dump a ton of debug messages to the system
+log.
+The default level of logging can be set with the
+.Va hw.bxe.debug
+.Xr sysctl 8 .
+Take care with this setting as it can result in too
+many logs being dumped.
+Since this parameter is the default one, it affects
+every instance and will dramatically change the timing in the driver.
+A better
+alternative to aid in debugging is to dynamically change the debug level of a
+specific instance with the
+.Va dev.bxe.#.debug
+.Xr sysctl 8 .
+This allows
+you to turn on/off logging of various debug groups on-the-fly.
+.Pp
+The different debug groups that can be toggled are:
+.Bd -literal -offset indent
+DBG_LOAD   0x00000001 /* load and unload    */
+DBG_INTR   0x00000002 /* interrupt handling */
+DBG_SP     0x00000004 /* slowpath handling  */
+DBG_STATS  0x00000008 /* stats updates      */
+DBG_TX     0x00000010 /* packet transmit    */
+DBG_RX     0x00000020 /* packet receive     */
+DBG_PHY    0x00000040 /* phy/link handling  */
+DBG_IOCTL  0x00000080 /* ioctl handling     */
+DBG_MBUF   0x00000100 /* dumping mbuf info  */
+DBG_REGS   0x00000200 /* register access    */
+DBG_LRO    0x00000400 /* lro processing     */
+DBG_ASSERT 0x80000000 /* debug assert       */
+DBG_ALL    0xFFFFFFFF /* flying monkeys     */
+.Ed
+.Pp
+For example, to debug an issue in the receive path on bxe0:
+.Bd -literal -offset indent
+# sysctl dev.bxe.0.debug=0x22
+.Ed
+.Pp
+When finished turn the logging back off:
+.Bd -literal -offset indent
+# sysctl dev.bxe.0.debug=0
+.Ed
 .Sh SEE ALSO
+.Xr netstat 1 ,
 .Xr altq 4 ,
 .Xr arp 4 ,
 .Xr netintro 4 ,
@@ -133,6 +335,7 @@ device driver first appeared in
 The
 .Nm
 driver was written by
-.An Gary Zambrano Aq zambrano@broadcom.com
+.An Eric Davis Aq edavis@broadcom.com ,
+.An David Christensen Aq davidch@broadcom.com ,
 and
-.An David Christensen Aq davidch@broadcom.com .
+.An Gary Zambrano Aq zambrano@broadcom.com .

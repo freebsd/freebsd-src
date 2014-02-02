@@ -317,7 +317,7 @@ DtCompileDataTable (
         DtSetTableLength ();
         return (Status);
     }
-    else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_RSDP))
+    else if (ACPI_VALIDATE_RSDP_SIG (Signature))
     {
         Status = DtCompileRsdp (FieldList);
         return (Status);

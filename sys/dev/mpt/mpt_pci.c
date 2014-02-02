@@ -105,14 +105,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
-#if __FreeBSD_version < 700000
-#define	pci_msix_count(x)	0
-#define	pci_msi_count(x)	0
-#define	pci_alloc_msi(x, y)	1
-#define	pci_alloc_msix(x, y)	1
-#define	pci_release_msi(x)	do { ; } while (0)
-#endif
-
 /*
  * XXX it seems no other MPT driver knows about the following chips.
  */
@@ -149,10 +141,6 @@ __FBSDID("$FreeBSD$");
 #define	MPI_MANUFACTPAGE_DEVID_SAS1078DE_FB	0x007C
 #endif
 
-#ifndef	PCIM_CMD_SERRESPEN
-#define	PCIM_CMD_SERRESPEN	0x0100
-#endif
-
 static int mpt_pci_probe(device_t);
 static int mpt_pci_attach(device_t);
 static void mpt_free_bus_resources(struct mpt_softc *mpt);
@@ -178,6 +166,7 @@ static device_method_t mpt_methods[] = {
 static driver_t mpt_driver = {
 	"mpt", mpt_methods, sizeof(struct mpt_softc)
 };
+
 static devclass_t mpt_devclass;
 DRIVER_MODULE(mpt, pci, mpt_driver, mpt_devclass, NULL, NULL);
 MODULE_DEPEND(mpt, pci, 1, 1, 1);
@@ -288,6 +277,7 @@ mpt_set_options(struct mpt_softc *mpt)
 	}
 }
 
+#if 0
 static void
 mpt_link_peer(struct mpt_softc *mpt)
 {
@@ -326,13 +316,14 @@ mpt_unlink_peer(struct mpt_softc *mpt)
 		mpt->mpt2->mpt2 = NULL;
 	}
 }
+#endif
 
 static int
 mpt_pci_attach(device_t dev)
 {
 	struct mpt_softc *mpt;
 	int		  iqd;
-	uint32_t	  data, cmd;
+	uint32_t	  val;
 	int		  mpt_io_bar, mpt_mem_bar;
 
 	mpt  = (struct mpt_softc*)device_get_softc(dev);
@@ -393,19 +384,19 @@ mpt_pci_attach(device_t dev)
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER are set.
 	 */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	cmd |=
-	    PCIM_CMD_SERRESPEN | PCIM_CMD_PERRESPEN |
+	val = pci_read_config(dev, PCIR_COMMAND, 2);
+	val |= PCIM_CMD_SERRESPEN | PCIM_CMD_PERRESPEN |
 	    PCIM_CMD_BUSMASTEREN | PCIM_CMD_MWRICEN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+	pci_write_config(dev, PCIR_COMMAND, val, 2);
 
 	/*
 	 * Make sure we've disabled the ROM.
 	 */
-	data = pci_read_config(dev, PCIR_BIOS, 4);
-	data &= ~PCIM_BIOS_ENABLE;
-	pci_write_config(dev, PCIR_BIOS, data, 4);
+	val = pci_read_config(dev, PCIR_BIOS, 4);
+	val &= ~PCIM_BIOS_ENABLE;
+	pci_write_config(dev, PCIR_BIOS, val, 4);
 
+#if 0
 	/*
 	 * Is this part a dual?
 	 * If so, link with our partner (around yet)
@@ -422,12 +413,13 @@ mpt_pci_attach(device_t dev)
 	default:
 		break;
 	}
+#endif
 
 	/*
 	 * Figure out which are the I/O and MEM Bars
 	 */
-	data = pci_read_config(dev, PCIR_BAR(0), 4);
-	if (PCI_BAR_IO(data)) {
+	val = pci_read_config(dev, PCIR_BAR(0), 4);
+	if (PCI_BAR_IO(val)) {
 		/* BAR0 is IO, BAR1 is memory */
 		mpt_io_bar = 0;
 		mpt_mem_bar = 1;
@@ -484,25 +476,15 @@ mpt_pci_attach(device_t dev)
 		 * First try to alloc an MSI-X message.  If that
 		 * fails, then try to alloc an MSI message instead.
 		 */
-		if (pci_msix_count(dev) == 1) {
-			mpt->pci_msi_count = 1;
-			if (pci_alloc_msix(dev, &mpt->pci_msi_count) == 0) {
-				iqd = 1;
-			} else {
-				mpt->pci_msi_count = 0;
-			}
-		}
-		if (iqd == 0 && pci_msi_count(dev) == 1) {
-			mpt->pci_msi_count = 1;
-			if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0) {
-				iqd = 1;
-			} else {
-				mpt->pci_msi_count = 0;
-			}
-		}
+		val = 1;
+		if (pci_alloc_msix(dev, &val) == 0)
+			iqd = 1;
+		val = 1;
+		if (iqd == 0 && pci_alloc_msi(dev, &val) == 0)
+			iqd = 1;
 	}
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
-	    RF_ACTIVE | (mpt->pci_msi_count ? 0 : RF_SHAREABLE));
+	    RF_ACTIVE | (iqd != 0 ? 0 : RF_SHAREABLE));
 	if (mpt->pci_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
@@ -514,7 +496,7 @@ mpt_pci_attach(device_t dev)
 	mpt_disable_ints(mpt);
 
 	/* Register the interrupt handler */
-	if (mpt_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, NULL, mpt_pci_intr,
+	if (bus_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, NULL, mpt_pci_intr,
 	    mpt, &mpt->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
@@ -562,7 +544,10 @@ mpt_pci_attach(device_t dev)
 
 	if (mpt->eh == NULL) {
 		mpt_prt(mpt, "shutdown event registration failed\n");
+		mpt_disable_ints(mpt);
 		(void) mpt_detach(mpt);
+		mpt_reset(mpt, /*reinit*/FALSE);
+		mpt_raid_free_mem(mpt);
 		goto bad;
 	}
 	return (0);
@@ -570,7 +555,9 @@ mpt_pci_attach(device_t dev)
 bad:
 	mpt_dma_mem_free(mpt);
 	mpt_free_bus_resources(mpt);
+#if 0
 	mpt_unlink_peer(mpt);
+#endif
 
 	MPT_LOCK_DESTROY(mpt);
 
@@ -595,25 +582,21 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 	if (mpt->pci_irq) {
 		bus_release_resource(mpt->dev, SYS_RES_IRQ,
 		    rman_get_rid(mpt->pci_irq), mpt->pci_irq);
+		pci_release_msi(mpt->dev);
 		mpt->pci_irq = NULL;
 	}
 
-	if (mpt->pci_msi_count) {
-		pci_release_msi(mpt->dev);
-		mpt->pci_msi_count = 0;
-	}
-		
 	if (mpt->pci_pio_reg) {
 		bus_release_resource(mpt->dev, SYS_RES_IOPORT,
 		    rman_get_rid(mpt->pci_pio_reg), mpt->pci_pio_reg);
 		mpt->pci_pio_reg = NULL;
 	}
+
 	if (mpt->pci_reg) {
 		bus_release_resource(mpt->dev, SYS_RES_MEMORY,
 		    rman_get_rid(mpt->pci_reg), mpt->pci_reg);
 		mpt->pci_reg = NULL;
 	}
-	MPT_LOCK_DESTROY(mpt);
 }
 
 /*
@@ -630,12 +613,16 @@ mpt_pci_detach(device_t dev)
 		mpt_disable_ints(mpt);
 		mpt_detach(mpt);
 		mpt_reset(mpt, /*reinit*/FALSE);
+		mpt_raid_free_mem(mpt);
 		mpt_dma_mem_free(mpt);
 		mpt_free_bus_resources(mpt);
-		mpt_raid_free_mem(mpt);
+#if 0
+		mpt_unlink_peer(mpt);
+#endif
 		if (mpt->eh != NULL) {
                         EVENTHANDLER_DEREGISTER(shutdown_post_sync, mpt->eh);
 		}
+		MPT_LOCK_DESTROY(mpt);
 	}
 	return(0);
 }
@@ -649,11 +636,8 @@ mpt_pci_shutdown(device_t dev)
 	struct mpt_softc *mpt;
 
 	mpt = (struct mpt_softc *)device_get_softc(dev);
-	if (mpt) {
-		int r;
-		r = mpt_shutdown(mpt);
-		return (r);
-	}
+	if (mpt)
+		return (mpt_shutdown(mpt));
 	return(0);
 }
 
@@ -669,20 +653,11 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	}
 
 	len = sizeof (request_t) * MPT_MAX_REQUESTS(mpt);
-#ifdef	RELENG_4
-	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK);
-	if (mpt->request_pool == NULL) {
-		mpt_prt(mpt, "cannot allocate request pool\n");
-		return (1);
-	}
-	memset(mpt->request_pool, 0, len);
-#else
 	mpt->request_pool = (request_t *)malloc(len, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (mpt->request_pool == NULL) {
 		mpt_prt(mpt, "cannot allocate request pool\n");
 		return (1);
 	}
-#endif
 
 	/*
 	 * Create a parent dma tag for this device.

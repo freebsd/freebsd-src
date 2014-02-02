@@ -89,7 +89,6 @@ SRCS=	addrtoname.c \
 	print-olsr.c \
 	print-ospf.c \
 	print-otv.c \
-	print-pfsync.c \
 	print-pgm.c \
 	print-pim.c \
 	print-ppi.c \
@@ -163,6 +162,11 @@ CFLAGS+=	-DLBL_ALIGN
 
 DPADD=	${LIBL} ${LIBPCAP}
 LDADD=	-ll -lpcap
+.if ${MK_CASPER} != "no"
+DPADD+=	${LIBCAPSICUM} ${LIBNV}
+LDADD+=	-lcapsicum -lnv
+CFLAGS+=-DHAVE_LIBCAPSICUM
+.endif
 .if ${MK_OPENSSL} != "no" && !defined(RELEASE_CRUNCH)
 DPADD+= ${LIBCRYPTO}
 LDADD+= -lcrypto
@@ -171,7 +175,8 @@ CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif
 
 .if ${MK_PF} != "no"
-SRCS+=	print-pflog.c
+SRCS+=	print-pflog.c \
+	print-pfsync.c
 CFLAGS+= -DHAVE_NET_PFVAR_H
 .endif
 

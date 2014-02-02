@@ -1,4 +1,4 @@
-/* $OpenBSD: netcat.c,v 1.111 2013/03/20 09:27:56 sthen Exp $ */
+/* $OpenBSD: netcat.c,v 1.112 2013/04/29 00:28:23 okan Exp $ */
 /*
  * Copyright (c) 2001 Eric Jackson <ericj@monkey.org>
  *
@@ -568,7 +568,7 @@ unix_connect(char *path)
 		if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
 			return (-1);
 	}
-	(void)fcntl(s, F_SETFD, 1);
+	(void)fcntl(s, F_SETFD, FD_CLOEXEC);
 
 	memset(&sun, 0, sizeof(struct sockaddr_un));
 	sun.sun_family = AF_UNIX;

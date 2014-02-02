@@ -1,11 +1,11 @@
 /*	$FreeBSD$	*/
 
 /*
- * Copyright (C) 2000-2001 by Darren Reed.
+ * Copyright (C) 2012 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $Id: verbose.c,v 1.6.4.1 2006/06/16 17:21:18 darrenr Exp $
+ * $Id$
  */
 
 #if defined(__STDC__)
@@ -15,16 +15,16 @@
 #endif
 #include <stdio.h>
 
-#include "ipt.h"
+#include "ipf.h"
 #include "opts.h"
 
 
 #if defined(__STDC__)
-void	verbose(char *fmt, ...)
+void	verbose(int level, char *fmt, ...)
 #else
-void	verbose(fmt, va_alist)
-char	*fmt;
-va_dcl
+void	verbose(level, fmt, va_alist)
+	char	*fmt;
+	va_dcl
 #endif
 {
 	va_list pvar;
@@ -33,5 +33,23 @@ va_dcl
 
 	if (opts & OPT_VERBOSE)
 		vprintf(fmt, pvar);
+	va_end(pvar);
+}
+
+
+#if defined(__STDC__)
+void	ipfkverbose(char *fmt, ...)
+#else
+void	ipfkverbose(fmt, va_alist)
+	char	*fmt;
+	va_dcl
+#endif
+{
+	va_list pvar;
+
+	va_start(pvar, fmt);
+
+	if (opts & OPT_VERBOSE)
+		verbose(0x1fffffff, fmt, pvar);
 	va_end(pvar);
 }

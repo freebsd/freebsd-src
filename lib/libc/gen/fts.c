@@ -62,7 +62,7 @@ static size_t	 fts_maxarglen(char * const *);
 static void	 fts_padjust(FTS *, FTSENT *);
 static int	 fts_palloc(FTS *, size_t);
 static FTSENT	*fts_sort(FTS *, FTSENT *, size_t);
-static int	 fts_stat(FTS *, FTSENT *, int);
+static int	 fts_stat(FTS *, FTSENT *, int, int);
 static int	 fts_safe_changedir(FTS *, FTSENT *, int, char *);
 static int	 fts_ufslinks(FTS *, const FTSENT *);
 
@@ -171,7 +171,7 @@ fts_open(argv, options, compar)
 		p->fts_level = FTS_ROOTLEVEL;
 		p->fts_parent = parent;
 		p->fts_accpath = p->fts_name;
-		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOW));
+		p->fts_info = fts_stat(sp, p, ISSET(FTS_COMFOLLOW), -1);
 
 		/* Command-line "." and ".." are real directories. */
 		if (p->fts_info == FTS_DOT)
@@ -326,7 +326,7 @@ fts_read(FTS *sp)
 
 	/* Any type of file may be re-visited; re-stat and re-turn. */
 	if (instr == FTS_AGAIN) {
-		p->fts_info = fts_stat(sp, p, 0);
+		p->fts_info = fts_stat(sp, p, 0, -1);
 		return (p);
 	}
 
@@ -338,7 +338,7 @@ fts_read(FTS *sp)
 	 */
 	if (instr == FTS_FOLLOW &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
-		p->fts_info = fts_stat(sp, p, 1);
+		p->fts_info = fts_stat(sp, p, 1, -1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 			if ((p->fts_symfd = _open(".", O_RDONLY | O_CLOEXEC,
 			    0)) < 0) {
@@ -429,7 +429,7 @@ next:	tmp = p;
 		if (p->fts_instr == FTS_SKIP)
 			goto next;
 		if (p->fts_instr == FTS_FOLLOW) {
-			p->fts_info = fts_stat(sp, p, 1);
+			p->fts_info = fts_stat(sp, p, 1, -1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
 				    _open(".", O_RDONLY | O_CLOEXEC, 0)) < 0) {
@@ -800,10 +800,11 @@ mem1:				saved_errno = errno;
 			if (ISSET(FTS_NOCHDIR)) {
 				p->fts_accpath = p->fts_path;
 				memmove(cp, p->fts_name, p->fts_namelen + 1);
-			} else
+				p->fts_info = fts_stat(sp, p, 0, _dirfd(dirp));
+			} else {
 				p->fts_accpath = p->fts_name;
-			/* Stat it. */
-			p->fts_info = fts_stat(sp, p, 0);
+				p->fts_info = fts_stat(sp, p, 0, -1);
+			}
 
 			/* Decrement link count if applicable. */
 			if (nlinks > 0 && (p->fts_info == FTS_D ||
@@ -868,13 +869,19 @@ mem1:				saved_errno = errno;
 }
 
 static int
-fts_stat(FTS *sp, FTSENT *p, int follow)
+fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 {
 	FTSENT *t;
 	dev_t dev;
 	ino_t ino;
 	struct stat *sbp, sb;
 	int saved_errno;
+	const char *path;
+
+	if (dfd == -1)
+		path = p->fts_accpath, dfd = AT_FDCWD;
+	else
+		path = p->fts_name;
 
 	/* If user needs stat info, stat buffer already allocated. */
 	sbp = ISSET(FTS_NOSTAT) ? &sb : p->fts_statp;
@@ -896,16 +903,16 @@ fts_stat(FTS *sp, FTSENT *p, int follow)
 	 * fail, set the errno from the stat call.
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (stat(p->fts_accpath, sbp)) {
+		if (fstatat(dfd, path, sbp, 0)) {
 			saved_errno = errno;
-			if (!lstat(p->fts_accpath, sbp)) {
+			if (!fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 				errno = 0;
 				return (FTS_SLNONE);
 			}
 			p->fts_errno = saved_errno;
 			goto err;
 		}
-	} else if (lstat(p->fts_accpath, sbp)) {
+	} else if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 		p->fts_errno = errno;
 err:		memset(sbp, 0, sizeof(struct stat));
 		return (FTS_NS);

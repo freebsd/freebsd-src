@@ -227,7 +227,7 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #	define R128_ROP3_P			0x00f00000
 #define R128_DP_WRITE_MASK		0x16cc
 #define R128_DST_PITCH_OFFSET_C		0x1c80
-#	define R128_DST_TILE			(1 << 31)
+#	define R128_DST_TILE			(1U << 31)
 
 #define R128_GEN_INT_CNTL		0x0040
 #	define R128_CRTC_VBLANK_INT_EN		(1 <<  0)
@@ -246,7 +246,7 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #define R128_GUI_STAT			0x1740
 #	define R128_GUI_FIFOCNT_MASK		0x0fff
-#	define R128_GUI_ACTIVE			(1 << 31)
+#	define R128_GUI_ACTIVE			(1U << 31)
 
 #define R128_MCLK_CNTL			0x000f
 #	define R128_FORCE_GCP			(1 << 16)
@@ -258,7 +258,7 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #	define R128_PC_FLUSH_GUI		(3 << 0)
 #	define R128_PC_RI_GUI			(1 << 2)
 #	define R128_PC_FLUSH_ALL		0x00ff
-#	define R128_PC_BUSY			(1 << 31)
+#	define R128_PC_BUSY			(1U << 31)
 
 #define R128_PCI_GART_PAGE		0x017c
 #define R128_PRIM_TEX_CNTL_C		0x1cb0
@@ -302,7 +302,7 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #define R128_PM4_BUFFER_DL_RPTR_ADDR	0x070c
 #define R128_PM4_BUFFER_DL_RPTR		0x0710
 #define R128_PM4_BUFFER_DL_WPTR		0x0714
-#	define R128_PM4_BUFFER_DL_DONE		(1 << 31)
+#	define R128_PM4_BUFFER_DL_DONE		(1U << 31)
 
 #define R128_PM4_VC_FPU_SETUP		0x071c
 
@@ -312,7 +312,7 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #define R128_PM4_STAT			0x07b8
 #	define R128_PM4_FIFOCNT_MASK		0x0fff
 #	define R128_PM4_BUSY			(1 << 16)
-#	define R128_PM4_GUI_ACTIVE		(1 << 31)
+#	define R128_PM4_GUI_ACTIVE		(1U << 31)
 
 #define R128_PM4_MICROCODE_ADDR		0x07d4
 #define R128_PM4_MICROCODE_RADDR	0x07d8

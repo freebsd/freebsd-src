@@ -837,7 +837,9 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 		  (tbp->b_bcount != tbp->b_bufsize) ||
 		  (tbp->b_bcount != size) ||
 		  (len == 1) ||
-		  ((bp = getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
+		  ((bp = (vp->v_vflag & VV_MD) != 0 ?
+		  trypbuf(&cluster_pbuf_freecnt) :
+		  getpbuf(&cluster_pbuf_freecnt)) == NULL)) {
 			totalwritten += tbp->b_bufsize;
 			bawrite(tbp);
 			++start_lbn;
@@ -961,7 +963,7 @@ cluster_wbuild(struct vnode *vp, long size, daddr_t start_lbn, int len,
 				VM_OBJECT_WLOCK(tbp->b_bufobj->bo_object);
 				if (i == 0) {
 					vfs_drain_busy_pages(tbp);
-				} else  { /* if not first buffer */
+				} else { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
 						if (vm_page_xbusied(m)) {

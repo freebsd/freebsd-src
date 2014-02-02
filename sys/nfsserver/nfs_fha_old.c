@@ -49,7 +49,7 @@ static void fhaold_init(void *foo);
 static void fhaold_uninit(void *foo);
 rpcproc_t fhaold_get_procnum(rpcproc_t procnum);
 int fhaold_realign(struct mbuf **mb, int malloc_flags);
-int fhaold_get_fh(fhandle_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
+int fhaold_get_fh(uint64_t *fh, int v3, struct mbuf **md, caddr_t *dpos);
 int fhaold_is_read(rpcproc_t procnum);
 int fhaold_is_write(rpcproc_t procnum);
 int fhaold_get_offset(struct mbuf **md, caddr_t *dpos, int v3,
@@ -135,9 +135,33 @@ fhaold_realign(struct mbuf **mb, int malloc_flags)
 }
 
 int
-fhaold_get_fh(fhandle_t *fh, int v3, struct mbuf **md, caddr_t *dpos)
+fhaold_get_fh(uint64_t *fh, int v3, struct mbuf **md, caddr_t *dpos)
 {
-	return (nfsm_srvmtofh_xx(fh, v3, md, dpos));
+	u_int32_t *tl;
+	uint8_t *buf;
+	uint64_t t;
+	int fhlen, i;
+
+	if (v3) {
+		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
+		if (tl == NULL)
+			return EBADRPC;
+		fhlen = fxdr_unsigned(int, *tl);
+		if (fhlen != 0 && fhlen != NFSX_V3FH)
+			return EBADRPC;
+	} else {
+		fhlen = NFSX_V2FH;
+	}
+	t = 0;
+	if (fhlen != 0) {
+		buf = nfsm_dissect_xx_nonblock(fhlen, md, dpos);
+		if (buf == NULL)
+			return EBADRPC;
+		for (i = 0; i < fhlen; i++)
+			t ^= ((uint64_t)buf[i] << (i & 7) * 8);
+	}
+	*fh = t;
+	return 0;
 }
 
 int

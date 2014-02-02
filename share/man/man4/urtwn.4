@@ -1,6 +1,3 @@
-.\" $OpenBSD: urtwn.4,v 1.20 2013/05/16 10:02:59 sthen Exp $
-.\" $FreeBSD$
-.\"
 .\" Copyright (c) 2010 Damien Bergamini <damien.bergamini@free.fr>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +12,9 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd July 7, 2013
+.\" $FreeBSD$
+.\"
+.Dd October 31, 2013
 .Dt URTWN 4
 .Os
 .Sh NAME
@@ -40,6 +39,13 @@ module at boot time, place the following line in
 .Bd -literal -offset indent
 if_urtwn_load="YES"
 .Ed
+.Pp
+In both cases, place the following line in
+.Xr loader.conf 5
+to acknowledge the firmware license (see below):
+.Bd -literal -offset indent
+legal.realtek.license_ack=1
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -58,17 +64,21 @@ The RTL8192CU is a highly integrated multiple-in, multiple-out (MIMO)
 RF in a single chip.
 It operates in the 2GHz spectrum only.
 .Pp
-The driver needs at least version 1.1p0 of the following firmware files,
-which are loaded when an interface is attached:
+This driver requires the firmware built with the
+.Nm urtwnfw
+module to work.
+For the loaded firmware to be enabled for use the license at
+.Pa /usr/share/doc/legal/realtek
+must be agreed by adding the following line to
+.Xr loader.conf 5 :
 .Pp
-.Bl -tag -width Ds -offset indent -compact
-.It urtwn-rtl8192cfwT
-.It urtwn-rtl8192cfwU
-.It urtwn-rtl8723fw
+.Dl "legal.realtek.license_ack=1"
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/realtek" -compact
+.It Pa /usr/share/doc/legal/realtek
+.Nm
+firmware license
 .El
-.Pp
-The firmware is available as part of the FreeBSD Ports collection in
-net/urtwn-firmware-kmod.
 .Sh HARDWARE
 The following adapters should work:
 .Pp
@@ -109,6 +119,7 @@ The driver will reset the hardware.
 This should not happen.
 .El
 .Sh SEE ALSO
+.Xr urtwnfw 4 ,
 .Xr intro 4 ,
 .Xr netintro 4 ,
 .Xr usb 4 ,

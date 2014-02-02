@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_TASKQUEUE, "taskqueue", "Task Queues");
 static void	*taskqueue_giant_ih;
 static void	*taskqueue_ih;
+static void	 taskqueue_fast_enqueue(void *);
+static void	 taskqueue_swi_enqueue(void *);
+static void	 taskqueue_swi_giant_enqueue(void *);
 
 struct taskqueue_busy {
 	struct task	*tb_running;
@@ -69,7 +72,7 @@ struct taskqueue {
 
 #define	TQ_FLAGS_ACTIVE		(1 << 0)
 #define	TQ_FLAGS_BLOCKED	(1 << 1)
-#define	TQ_FLAGS_PENDING	(1 << 2)
+#define	TQ_FLAGS_UNLOCKED_ENQUEUE	(1 << 2)
 
 #define	DT_CALLOUT_ARMED	(1 << 0)
 
@@ -97,7 +100,8 @@ _timeout_task_init(struct taskqueue *queue, struct timeout_task *timeout_task,
 {
 
 	TASK_INIT(&timeout_task->t, priority, func, context);
-	callout_init_mtx(&timeout_task->c, &queue->tq_mutex, 0);
+	callout_init_mtx(&timeout_task->c, &queue->tq_mutex,
+	    CALLOUT_RETURNUNLOCKED);
 	timeout_task->q = queue;
 	timeout_task->f = 0;
 }
@@ -128,6 +132,11 @@ _taskqueue_create(const char *name __unused, int mflags,
 	queue->tq_context = context;
 	queue->tq_spin = (mtxflags & MTX_SPIN) != 0;
 	queue->tq_flags |= TQ_FLAGS_ACTIVE;
+	if (enqueue == taskqueue_fast_enqueue ||
+	    enqueue == taskqueue_swi_enqueue ||
+	    enqueue == taskqueue_swi_giant_enqueue ||
+	    enqueue == taskqueue_thread_enqueue)
+		queue->tq_flags |= TQ_FLAGS_UNLOCKED_ENQUEUE;
 	mtx_init(&queue->tq_mutex, mtxname, NULL, mtxflags);
 
 	return queue;
@@ -197,6 +206,7 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	if (task->ta_pending) {
 		if (task->ta_pending < USHRT_MAX)
 			task->ta_pending++;
+		TQ_UNLOCK(queue);
 		return (0);
 	}
 
@@ -220,11 +230,14 @@ taskqueue_enqueue_locked(struct taskqueue *queue, struct task *task)
 	}
 
 	task->ta_pending = 1;
+	if ((queue->tq_flags & TQ_FLAGS_UNLOCKED_ENQUEUE) != 0)
+		TQ_UNLOCK(queue);
 	if ((queue->tq_flags & TQ_FLAGS_BLOCKED) == 0)
 		queue->tq_enqueue(queue->tq_context);
-	else
-		queue->tq_flags |= TQ_FLAGS_PENDING;
+	if ((queue->tq_flags & TQ_FLAGS_UNLOCKED_ENQUEUE) == 0)
+		TQ_UNLOCK(queue);
 
+	/* Return with lock released. */
 	return (0);
 }
 int
@@ -234,7 +247,7 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 
 	TQ_LOCK(queue);
 	res = taskqueue_enqueue_locked(queue, task);
-	TQ_UNLOCK(queue);
+	/* The lock is released inside. */
 
 	return (res);
 }
@@ -251,6 +264,7 @@ taskqueue_timeout_func(void *arg)
 	timeout_task->f &= ~DT_CALLOUT_ARMED;
 	queue->tq_callouts--;
 	taskqueue_enqueue_locked(timeout_task->q, &timeout_task->t);
+	/* The lock is released inside. */
 }
 
 int
@@ -267,6 +281,7 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 	res = timeout_task->t.ta_pending;
 	if (ticks == 0) {
 		taskqueue_enqueue_locked(queue, &timeout_task->t);
+		/* The lock is released inside. */
 	} else {
 		if ((timeout_task->f & DT_CALLOUT_ARMED) != 0) {
 			res++;
@@ -280,9 +295,18 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 			callout_reset(&timeout_task->c, ticks,
 			    taskqueue_timeout_func, timeout_task);
 		}
+		TQ_UNLOCK(queue);
 	}
-	TQ_UNLOCK(queue);
 	return (res);
+}
+
+static void
+taskqueue_drain_running(struct taskqueue *queue)
+{
+
+	while (!TAILQ_EMPTY(&queue->tq_active))
+		TQ_SLEEP(queue, &queue->tq_active, &queue->tq_mutex,
+		    PWAIT, "-", 0);
 }
 
 void
@@ -300,10 +324,8 @@ taskqueue_unblock(struct taskqueue *queue)
 
 	TQ_LOCK(queue);
 	queue->tq_flags &= ~TQ_FLAGS_BLOCKED;
-	if (queue->tq_flags & TQ_FLAGS_PENDING) {
-		queue->tq_flags &= ~TQ_FLAGS_PENDING;
+	if (!STAILQ_EMPTY(&queue->tq_queue))
 		queue->tq_enqueue(queue->tq_context);
-	}
 	TQ_UNLOCK(queue);
 }
 
@@ -337,6 +359,8 @@ taskqueue_run_locked(struct taskqueue *queue)
 		wakeup(task);
 	}
 	TAILQ_REMOVE(&queue->tq_active, &tb, tb_link);
+	if (TAILQ_EMPTY(&queue->tq_active))
+		wakeup(&queue->tq_active);
 }
 
 void
@@ -377,11 +401,9 @@ taskqueue_cancel_locked(struct taskqueue *queue, struct task *task,
 int
 taskqueue_cancel(struct taskqueue *queue, struct task *task, u_int *pendp)
 {
-	u_int pending;
 	int error;
 
 	TQ_LOCK(queue);
-	pending = task->ta_pending;
 	error = taskqueue_cancel_locked(queue, task, pendp);
 	TQ_UNLOCK(queue);
 
@@ -419,6 +441,25 @@ taskqueue_drain(struct taskqueue *queue, struct task *task)
 	TQ_LOCK(queue);
 	while (task->ta_pending != 0 || task_is_running(queue, task))
 		TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
+	TQ_UNLOCK(queue);
+}
+
+void
+taskqueue_drain_all(struct taskqueue *queue)
+{
+	struct task *task;
+
+	if (!queue->tq_spin)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, __func__);
+
+	TQ_LOCK(queue);
+	task = STAILQ_LAST(&queue->tq_queue, task, ta_link);
+	if (task != NULL)
+		while (task->ta_pending != 0)
+			TQ_SLEEP(queue, task, &queue->tq_mutex, PWAIT, "-", 0);
+	taskqueue_drain_running(queue);
+	KASSERT(STAILQ_EMPTY(&queue->tq_queue),
+	    ("taskqueue queue is not empty after draining"));
 	TQ_UNLOCK(queue);
 }
 
@@ -568,7 +609,6 @@ taskqueue_thread_enqueue(void *context)
 	tqp = context;
 	tq = *tqp;
 
-	TQ_ASSERT_LOCKED(tq);
 	wakeup_one(tq);
 }
 
@@ -620,7 +660,6 @@ taskqueue_member(struct taskqueue *queue, struct thread *td)
 {
 	int i, j, ret = 0;
 
-	TQ_LOCK(queue);
 	for (i = 0, j = 0; ; i++) {
 		if (queue->tq_threads[i] == NULL)
 			continue;
@@ -631,6 +670,5 @@ taskqueue_member(struct taskqueue *queue, struct thread *td)
 		if (++j >= queue->tq_tcount)
 			break;
 	}
-	TQ_UNLOCK(queue);
 	return (ret);
 }

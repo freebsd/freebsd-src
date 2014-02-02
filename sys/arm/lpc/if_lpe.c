@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_dl.h>
 #include <net/if_media.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #include <net/bpf.h>
 
@@ -63,9 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/lpc/if_lpereg.h>
 
 #include "miibus_if.h"
-
-#define	DEBUG
-#undef	DEBUG
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);   \

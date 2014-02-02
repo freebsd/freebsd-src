@@ -153,10 +153,11 @@ SRCF+=	divsi3 \
 .endif
 
 # FreeBSD-specific atomic intrinsics.
-.if ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "armv6"
 .PATH: ${.CURDIR}/../../sys/arm/arm
 
 SRCF+=	stdatomic
+CFLAGS+=	-DEMIT_SYNC_ATOMICS
 .elif ${MACHINE_CPUARCH} == "mips"
 .PATH: ${.CURDIR}/../../sys/mips/mips
 

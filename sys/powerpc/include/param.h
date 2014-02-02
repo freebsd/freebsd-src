@@ -69,7 +69,7 @@
 
 #if defined(SMP) || defined(KLD_MODULE)
 #ifndef MAXCPU
-#define	MAXCPU		8
+#define	MAXCPU		32	
 #endif
 #else
 #define	MAXCPU		1
@@ -104,7 +104,11 @@
 #define	MAXPAGESIZES	1		/* maximum number of supported page sizes */
 
 #ifndef KSTACK_PAGES
+#ifdef __powerpc64__
+#define	KSTACK_PAGES		8		/* includes pcb */
+#else
 #define	KSTACK_PAGES		4		/* includes pcb */
+#endif
 #endif
 #define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */

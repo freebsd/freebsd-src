@@ -1,4 +1,4 @@
-/* $Id: main.c,v 1.40 2012/09/29 13:11:00 Adrian.Bunk Exp $ */
+/* $Id: main.c,v 1.41 2014/01/01 14:23:27 Christos.Zoulas Exp $ */
 
 #include <signal.h>
 #include <unistd.h>		/* for _exit() */
@@ -87,6 +87,7 @@ short *symbol_prec;
 char *symbol_assoc;
 
 int pure_parser;
+int token_table;
 int exit_code;
 
 Value_t *ritem;

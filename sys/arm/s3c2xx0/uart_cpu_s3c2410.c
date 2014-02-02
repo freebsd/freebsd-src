@@ -47,8 +47,6 @@ extern struct uart_ops uart_s3c2410_ops;
 vm_offset_t s3c2410_uart_vaddr;
 unsigned int s3c2410_pclk;
 
-extern struct uart_class uart_s3c2410_class;
-
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {

@@ -1,4 +1,4 @@
-/*	$Id: tbl.c,v 1.26 2011/07/25 15:37:00 kristaps Exp $ */
+/*	$Id: tbl.c,v 1.27 2013/05/31 22:08:09 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
@@ -72,21 +72,21 @@ tbl_read(struct tbl_node *tbl, int ln, const char *p, int offs)
 struct tbl_node *
 tbl_alloc(int pos, int line, struct mparse *parse)
 {
-	struct tbl_node	*p;
+	struct tbl_node	*tbl;
 
-	p = mandoc_calloc(1, sizeof(struct tbl_node));
-	p->line = line;
-	p->pos = pos;
-	p->parse = parse;
-	p->part = TBL_PART_OPTS;
-	p->opts.tab = '\t';
-	p->opts.linesize = 12;
-	p->opts.decimal = '.';
-	return(p);
+	tbl = mandoc_calloc(1, sizeof(struct tbl_node));
+	tbl->line = line;
+	tbl->pos = pos;
+	tbl->parse = parse;
+	tbl->part = TBL_PART_OPTS;
+	tbl->opts.tab = '\t';
+	tbl->opts.linesize = 12;
+	tbl->opts.decimal = '.';
+	return(tbl);
 }
 
 void
-tbl_free(struct tbl_node *p)
+tbl_free(struct tbl_node *tbl)
 {
 	struct tbl_row	*rp;
 	struct tbl_cell	*cp;
@@ -94,8 +94,8 @@ tbl_free(struct tbl_node *p)
 	struct tbl_dat	*dp;
 	struct tbl_head	*hp;
 
-	while (NULL != (rp = p->first_row)) {
-		p->first_row = rp->next;
+	while (NULL != (rp = tbl->first_row)) {
+		tbl->first_row = rp->next;
 		while (rp->first) {
 			cp = rp->first;
 			rp->first = cp->next;
@@ -104,8 +104,8 @@ tbl_free(struct tbl_node *p)
 		free(rp);
 	}
 
-	while (NULL != (sp = p->first_span)) {
-		p->first_span = sp->next;
+	while (NULL != (sp = tbl->first_span)) {
+		tbl->first_span = sp->next;
 		while (sp->first) {
 			dp = sp->first;
 			sp->first = dp->next;
@@ -116,12 +116,12 @@ tbl_free(struct tbl_node *p)
 		free(sp);
 	}
 
-	while (NULL != (hp = p->first_head)) {
-		p->first_head = hp->next;
+	while (NULL != (hp = tbl->first_head)) {
+		tbl->first_head = hp->next;
 		free(hp);
 	}
 
-	free(p);
+	free(tbl);
 }
 
 void

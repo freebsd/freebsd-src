@@ -6,8 +6,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: t_openpam_readlinev.c 581 2012-04-06 01:08:37Z des $
+ * $Id: t_openpam_readlinev.c 648 2013-03-05 17:54:27Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -35,66 +34,15 @@
 #endif
 
 #include <err.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
 
 #include "openpam_impl.h"
 #include "t.h"
-
-static char filename[1024];
-static FILE *f;
-
-/*
- * Open the temp file and immediately unlink it so it doesn't leak in case
- * of premature exit.
- */
-static void
-orlv_open(void)
-{
-	int fd;
-
-	if ((fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600)) < 0)
-		err(1, "%s(): %s", __func__, filename);
-	if ((f = fdopen(fd, "r+")) == NULL)
-		err(1, "%s(): %s", __func__, filename);
-	if (unlink(filename) < 0)
-		err(1, "%s(): %s", __func__, filename);
-}
-
-/*
- * Write text to the temp file.
- */
-static void
-orlv_output(const char *fmt, ...)
-{
-	va_list ap;
-
-	va_start(ap, fmt);
-	vfprintf(f, fmt, ap);
-	va_end(ap);
-	if (ferror(f))
-		err(1, "%s", filename);
-}
-
-/*
- * Rewind the temp file.
- */
-static void
-orlv_rewind(void)
-{
-
-	errno = 0;
-	rewind(f);
-	if (errno != 0)
-		err(1, "%s(): %s", __func__, filename);
-}
 
 /*
  * Read a line from the temp file and verify that the result matches our
@@ -103,7 +51,7 @@ orlv_rewind(void)
  * newlines) and whether we reached the end of the file.
  */
 static int
-orlv_expect(const char **expectedv, int lines, int eof)
+orlv_expect(struct t_file *tf, const char **expectedv, int lines, int eof)
 {
 	int expectedc, gotc, i, lineno = 0;
 	char **gotv;
@@ -112,9 +60,9 @@ orlv_expect(const char **expectedv, int lines, int eof)
 	if (expectedv != NULL)
 		while (expectedv[expectedc] != NULL)
 			++expectedc;
-	gotv = openpam_readlinev(f, &lineno, &gotc);
-	if (ferror(f))
-		err(1, "%s(): %s", __func__, filename);
+	gotv = openpam_readlinev(tf->file, &lineno, &gotc);
+	if (t_ferror(tf))
+		err(1, "%s(): %s", __func__, tf->name);
 	if (expectedv != NULL && gotv == NULL) {
 		t_verbose("expected %d words, got nothing\n", expectedc);
 		return (0);
@@ -146,28 +94,17 @@ orlv_expect(const char **expectedv, int lines, int eof)
 		    lines, lineno);
 		return (0);
 	}
-	if (eof && !feof(f)) {
+	if (eof && !t_feof(tf)) {
 		t_verbose("expected EOF, but didn't get it\n");
 		return (0);
 	}
-	if (!eof && feof(f)) {
+	if (!eof && t_feof(tf)) {
 		t_verbose("didn't expect EOF, but got it anyway\n");
 		return (0);
 	}
 	return (1);
 }
 
-/*
- * Close the temp file.
- */
-void
-orlv_close(void)
-{
-
-	if (fclose(f) != 0)
-		err(1, "%s(): %s", __func__, filename);
-	f = NULL;
-}
 
 /***************************************************************************
  * Commonly-used lines
@@ -195,71 +132,77 @@ static const char *hello_world[] = {
 
 T_FUNC(empty_input, "empty input")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	ret = orlv_expect(NULL, 0 /*lines*/, 1 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	ret = orlv_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(empty_line, "empty line")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output("\n");
-	orlv_rewind();
-	ret = orlv_expect(empty, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "\n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, empty, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(unterminated_empty_line, "unterminated empty line")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output(" ");
-	orlv_rewind();
-	ret = orlv_expect(NULL, 0 /*lines*/, 1 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " ");
+	t_frewind(tf);
+	ret = orlv_expect(tf, NULL, 0 /*lines*/, 1 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(whitespace, "whitespace")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output(" \n");
-	orlv_rewind();
-	ret = orlv_expect(empty, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " \n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, empty, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(comment, "comment")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output("# comment\n");
-	orlv_rewind();
-	ret = orlv_expect(empty, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "# comment\n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, empty, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(whitespace_before_comment, "whitespace before comment")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output(" # comment\n");
-	orlv_rewind();
-	ret = orlv_expect(empty, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, " # comment\n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, empty, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -270,37 +213,40 @@ T_FUNC(whitespace_before_comment, "whitespace before comment")
 
 T_FUNC(one_word, "one word")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output("hello\n");
-	orlv_rewind();
-	ret = orlv_expect(hello, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello\n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, hello, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(two_words, "two words")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output("hello world\n");
-	orlv_rewind();
-	ret = orlv_expect(hello_world, 1 /*lines*/, 0 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello world\n");
+	t_frewind(tf);
+	ret = orlv_expect(tf, hello_world, 1 /*lines*/, 0 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
 T_FUNC(unterminated_line, "unterminated line")
 {
+	struct t_file *tf;
 	int ret;
 
-	orlv_open();
-	orlv_output("hello world");
-	orlv_rewind();
-	ret = orlv_expect(hello_world, 0 /*lines*/, 1 /*eof*/);
-	orlv_close();
+	tf = t_fopen(NULL);
+	t_fprintf(tf, "hello world");
+	t_frewind(tf);
+	ret = orlv_expect(tf, hello_world, 0 /*lines*/, 1 /*eof*/);
+	t_fclose(tf);
 	return (ret);
 }
 
@@ -330,9 +276,6 @@ t_prepare(int argc, char *argv[])
 
 	(void)argc;
 	(void)argv;
-	snprintf(filename, sizeof filename, "%s.%d.tmp", t_progname, getpid());
-	if (filename == NULL)
-		err(1, "asprintf()");
 	return (t_plan);
 }
 

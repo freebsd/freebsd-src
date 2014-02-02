@@ -144,9 +144,15 @@ disable_mmu:
 	nop
 	mov	pc, r7
 Lunmapped:
-#ifdef STARTUP_PAGETABLE_ADDR
-	/* build page table from scratch */
-	ldr	r0, Lstartup_pagetable
+	/*
+	 * Build page table from scratch.
+	 */
+
+	/* Load the page tables physical address */
+	ldr	r1, Lstartup_pagetable
+	ldr	r2, =(KERNVIRTADDR - KERNPHYSADDR)
+	sub	r0, r1, r2
+
 	adr	r4, mmu_init_table
 	b	3f
 
@@ -170,7 +176,7 @@ Lunmapped:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -187,7 +193,7 @@ Lunmapped:
 	mrc	p15, 0, r0, c1, c0, 0
 #ifdef _ARM_ARCH_6
 	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
-	orr	r2, r2, #(CPU_CONTROL_AFLT_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_AFLT_ENABLE)
 	orr	r0, r0, #(CPU_CONTROL_AF_ENABLE)
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
@@ -197,7 +203,6 @@ Lunmapped:
 	nop
 	CPWAIT(r0)
 
-#endif
 mmu_done:
 	nop
 	adr	r1, .Lstart
@@ -231,7 +236,6 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
-#ifdef STARTUP_PAGETABLE_ADDR
 #define MMU_INIT(va,pa,n_sec,attr) \
 	.word	n_sec					    ; \
 	.word	4*((va)>>L1_S_SHIFT)			    ; \
@@ -246,7 +250,7 @@ Lreal_start:
 Lend:	
 	.word	_edata
 Lstartup_pagetable:
-	.word	STARTUP_PAGETABLE_ADDR
+	.word	pagetable
 #ifdef SMP
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
@@ -258,24 +262,23 @@ mmu_init_table:
 	/* fill all table VA==PA */
 	/* map SDRAM VA==PA, WT cacheable */
 #if !defined(SMP)
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+	MMU_INIT(PHYSADDR, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
+	/* Map in 0x04000000 worth of the SoC's devices for bootstrap debugging */
+	MMU_INIT(SOCDEV_VA, SOCDEV_PA, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#endif
 #else
 	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(CPU_MV_PJ4B)
-	/* map VA 0xf1000000..0xf1100000 to PA 0xd0000000 */
-	MMU_INIT(0xf1000000, 0xd0000000, 1, L1_TYPE_S|L1_SHARED|L1_S_B|L1_S_AP(AP_KRW))
-#endif /* CPU_MV_PJ4B */
 #endif /* SMP */
 	.word 0	/* end of table */
-#endif
 .Lstart:
 	.word	_edata
-	.word	_end
+	.word	_ebss
 	.word	svcstk + INIT_ARM_STACK_SIZE
 
 .Lvirt_done:
@@ -292,6 +295,15 @@ mmu_init_table:
 	.bss
 svcstk:
 	.space	INIT_ARM_STACK_SIZE
+
+/*
+ * Memory for the initial pagetable. We are unable to place this in
+ * the bss as this will be cleared after the table is loaded.
+ */
+	.section ".init_pagetable"
+	.align	14 /* 16KiB aligned */
+pagetable:
+	.space	L1_TABLE_SIZE
 
 	.text
 	.align	0
@@ -321,10 +333,10 @@ ASENTRY_NP(mptramp)
 
 	AP_DEBUG(#1)
 
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	bic	r3, r3, #(PSR_MODE)
 	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_all, r3
+        msr	cpsr_fsxc, r3
 
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, #0x0f		/* Get CPU ID */
@@ -381,7 +393,7 @@ Ltag:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -393,8 +405,9 @@ Ltag:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
@@ -433,7 +446,7 @@ ENTRY_NP(cpu_halt)
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(I32_bit | F32_bit)
-	msr     cpsr_all, r2
+	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]

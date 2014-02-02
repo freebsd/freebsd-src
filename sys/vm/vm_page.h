@@ -142,23 +142,21 @@ struct vm_page {
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_paddr_t phys_addr;		/* physical address of page */
 	struct md_page md;		/* machine dependant stuff */
-	uint8_t	queue;			/* page queue index (P,Q) */
-	int8_t segind;
-	short hold_count;		/* page hold count (P) */
-	uint8_t	order;			/* index of the buddy queue */
-	uint8_t pool;
-	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
+	volatile u_int busy_lock;	/* busy owners lock */
+	uint16_t hold_count;		/* page hold count (P) */
+	uint16_t flags;			/* page PG_* flags (P) */
 	uint8_t aflags;			/* access is atomic */
 	uint8_t oflags;			/* page VPO_* flags (O) */
-	uint16_t flags;			/* page PG_* flags (P) */
+	uint8_t	queue;			/* page queue index (P,Q) */
+	int8_t segind;
+	uint8_t	order;			/* index of the buddy queue */
+	uint8_t pool;
 	u_char	act_count;		/* page usage count (P) */
-	u_char __pad0;			/* unused padding */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page */
 	/* so, on normal X86 kernels, they must be at least 8 bits wide */
 	vm_page_bits_t valid;		/* map of valid DEV_BSIZE chunks (O) */
 	vm_page_bits_t dirty;		/* map of dirty DEV_BSIZE chunks (M) */
-	volatile u_int busy_lock;	/* busy owners lock */
 };
 
 /*
@@ -323,11 +321,9 @@ extern struct mtx_padalign pa_lock[];
  * freeing, the modification must be protected by the vm_page lock.
  */
 #define	PG_CACHED	0x0001		/* page is cached */
-#define	PG_FREE		0x0002		/* page is free */
 #define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
 #define	PG_ZERO		0x0008		/* page is zeroed */
 #define	PG_MARKER	0x0010		/* special queue marker page */
-#define	PG_SLAB		0x0020		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x0040		/* flush dirty page on inactive q */
 #define	PG_NODUMP	0x0080		/* don't include this page in a dump */
 #define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */
@@ -374,8 +370,6 @@ extern int vm_page_zero_count;
 extern vm_page_t vm_page_array;		/* First resident page in table */
 extern long vm_page_array_size;		/* number of vm_page_t's */
 extern long first_page;			/* first physical page number */
-
-#define	VM_PAGE_IS_FREE(m)	(((m)->flags & PG_FREE) != 0)
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
@@ -482,9 +476,6 @@ vm_page_bits_t vm_page_bits(int base, int size);
 void vm_page_zero_invalid(vm_page_t m, boolean_t setvalid);
 void vm_page_free_toq(vm_page_t m);
 void vm_page_zero_idle_wakeup(void);
-void vm_page_cowfault (vm_page_t);
-int vm_page_cowsetup(vm_page_t);
-void vm_page_cowclear (vm_page_t);
 
 void vm_page_dirty_KBI(vm_page_t m);
 void vm_page_lock_KBI(vm_page_t m, const char *file, int line);

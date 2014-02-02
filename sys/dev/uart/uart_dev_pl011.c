@@ -147,9 +147,6 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 		break;
 	}
 
-	/* TODO: Calculate divisors */
-	baud = (0x1 << 16) | 0x28;
-
 	if (stopbits == 2)
 		line |= LCR_H_STP2;
 	else
@@ -164,8 +161,11 @@ uart_pl011_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	line &=  ~LCR_H_FEN;
 	ctrl |= (CR_RXE | CR_TXE | CR_UARTEN);
 
-	__uart_setreg(bas, UART_IBRD, ((uint32_t)(baud >> 16)) & IBRD_BDIVINT);
-	__uart_setreg(bas, UART_FBRD, (uint32_t)(baud) & FBRD_BDIVFRAC);
+	if (bas->rclk != 0 && baudrate != 0) {
+		baud = bas->rclk * 4 / baudrate;
+		__uart_setreg(bas, UART_IBRD, ((uint32_t)(baud >> 6)) & IBRD_BDIVINT);
+		__uart_setreg(bas, UART_FBRD, (uint32_t)(baud & 0x3F) & FBRD_BDIVFRAC);
+	}
 
 	/* Add config. to line before reenabling UART */
 	__uart_setreg(bas, UART_LCR_H, (__uart_getreg(bas, UART_LCR_H) &
@@ -242,6 +242,8 @@ static int uart_pl011_bus_probe(struct uart_softc *);
 static int uart_pl011_bus_receive(struct uart_softc *);
 static int uart_pl011_bus_setsig(struct uart_softc *, int);
 static int uart_pl011_bus_transmit(struct uart_softc *);
+static void uart_pl011_bus_grab(struct uart_softc *);
+static void uart_pl011_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t uart_pl011_methods[] = {
 	KOBJMETHOD(uart_attach,		uart_pl011_bus_attach),
@@ -255,6 +257,9 @@ static kobj_method_t uart_pl011_methods[] = {
 	KOBJMETHOD(uart_receive,	uart_pl011_bus_receive),
 	KOBJMETHOD(uart_setsig,		uart_pl011_bus_setsig),
 	KOBJMETHOD(uart_transmit,	uart_pl011_bus_transmit),
+	KOBJMETHOD(uart_grab,		uart_pl011_bus_grab),
+	KOBJMETHOD(uart_ungrab,		uart_pl011_bus_ungrab),
+
 	{ 0, 0 }
 };
 
@@ -440,4 +445,28 @@ uart_pl011_bus_transmit(struct uart_softc *sc)
 	uart_unlock(sc->sc_hwmtx);
 
 	return (0);
+}
+
+static void
+uart_pl011_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	__uart_setreg(bas, UART_IMSC, 	/* Switch to RX polling while grabbed */
+	    ~UART_RXREADY & __uart_getreg(bas, UART_IMSC));
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+uart_pl011_bus_ungrab(struct uart_softc *sc)
+{
+	struct uart_bas *bas;
+
+	bas = &sc->sc_bas;
+	uart_lock(sc->sc_hwmtx);
+	__uart_setreg(bas, UART_IMSC,	/* Switch to RX interrupts while not grabbed */
+	    UART_RXREADY | __uart_getreg(bas, UART_IMSC));
+	uart_unlock(sc->sc_hwmtx);
 }

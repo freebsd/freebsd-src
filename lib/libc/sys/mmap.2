@@ -28,7 +28,7 @@
 .\"	@(#)mmap.2	8.4 (Berkeley) 5/11/95
 .\" $FreeBSD$
 .\"
-.Dd August 16, 2013
+.Dd September 9, 2013
 .Dt MMAP 2
 .Os
 .Sh NAME
@@ -98,6 +98,12 @@ argument by
 .Em or Ns 'ing
 the following values:
 .Bl -tag -width MAP_PREFAULT_READ
+.It Dv MAP_32BIT
+Request a region in the first 2GB of the current process's address space.
+If a suitable region cannot be found,
+.Fn mmap
+will fail.
+This flag is only available on 64-bit platforms.
 .It Dv MAP_ALIGNED Ns Pq Fa n
 Align the region on a requested boundary.
 If a suitable region cannot be found,
@@ -361,6 +367,13 @@ was specified and the
 .Fa addr
 argument was not page aligned, or part of the desired address space
 resides out of the valid address space for a user process.
+.It Bq Er EINVAL
+Both
+.Dv MAP_FIXED
+and
+.Dv MAP_32BIT
+were specified and part of the desired address space resides outside
+of the first 2GB of user address space.
 .It Bq Er EINVAL
 The
 .Fa len

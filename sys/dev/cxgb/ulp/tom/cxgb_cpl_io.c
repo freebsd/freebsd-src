@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/route.h>
 
@@ -1792,53 +1793,6 @@ do_wr_ack(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 		wr_ack(toep, m);
 
 	return (0);
-}
-
-/*
- * Build a CPL_BARRIER message as payload of a ULP_TX_PKT command.
- */
-static inline void
-mk_cpl_barrier_ulp(struct cpl_barrier *b)
-{
-	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)b;
-
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*b) / 8));
-	b->opcode = CPL_BARRIER;
-}
-
-/*
- * Build a CPL_GET_TCB message as payload of a ULP_TX_PKT command.
- */
-static inline void
-mk_get_tcb_ulp(struct cpl_get_tcb *req, unsigned int tid, unsigned int cpuno)
-{
-	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
-
-	txpkt = (struct ulp_txpkt *)req;
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_GET_TCB, tid));
-	req->cpuno = htons(cpuno);
-}
-
-/*
- * Build a CPL_SET_TCB_FIELD message as payload of a ULP_TX_PKT command.
- */
-static inline void
-mk_set_tcb_field_ulp(struct cpl_set_tcb_field *req, unsigned int tid,
-                     unsigned int word, uint64_t mask, uint64_t val)
-{
-	struct ulp_txpkt *txpkt = (struct ulp_txpkt *)req;
-
-	txpkt->cmd_dest = htonl(V_ULPTX_CMD(ULP_TXPKT));
-	txpkt->len = htonl(V_ULPTX_NFLITS(sizeof(*req) / 8));
-	OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_SET_TCB_FIELD, tid));
-	req->reply = V_NO_REPLY(1);
-	req->cpu_idx = 0;
-	req->word = htons(word);
-	req->mask = htobe64(mask);
-	req->val = htobe64(val);
 }
 
 void

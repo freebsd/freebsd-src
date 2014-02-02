@@ -316,9 +316,9 @@ struct musbotg_td {
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_frame_size;	/* packet_size * mult */
+	uint16_t reg_max_packet;
 	uint8_t	ep_no;
 	uint8_t	transfer_type;
-	uint8_t	max_packet;
 	uint8_t	error:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;

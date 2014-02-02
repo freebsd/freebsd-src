@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2002, 2004, 2008 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002, 2004, 2008 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1992 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1992, 1993
@@ -14,13 +14,13 @@
 #include <sm/gen.h>
 
 SM_IDSTR(copyright,
-"@(#) Copyright (c) 1998-2002, 2004 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2002, 2004 Proofpoint, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1992 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.181 2013/03/12 15:24:51 ca Exp $")
+SM_IDSTR(id, "@(#)$Id: makemap.c,v 8.183 2013/11/22 20:51:52 ca Exp $")
 
 
 #include <sys/types.h>
@@ -234,67 +234,71 @@ main(argc, argv)
 	}
 
 #if HASFCHOWN
-	/* Find TrustedUser value in sendmail.cf */
-	if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile, SM_IO_RDONLY,
-			      NULL)) == NULL)
+	if (!unmake && geteuid() == 0)
 	{
-		sm_io_fprintf(smioerr, SM_TIME_DEFAULT, "makemap: %s: %s\n",
-			      cfile, sm_errstring(errno));
-		exit(EX_NOINPUT);
-	}
-	while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
-	{
-		register char *b;
-
-		if ((b = strchr(buf, '\n')) != NULL)
-			*b = '\0';
-
-		b = buf;
-		switch (*b++)
+		/* Find TrustedUser value in sendmail.cf */
+		if ((cfp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, cfile,
+				      SM_IO_RDONLY, NULL)) == NULL)
 		{
-		  case 'O':		/* option */
-			if (strncasecmp(b, " TrustedUser", 12) == 0 &&
-			    !(isascii(b[12]) && isalnum(b[12])))
+			sm_io_fprintf(smioerr, SM_TIME_DEFAULT,
+				      "makemap: %s: %s\n",
+				      cfile, sm_errstring(errno));
+			exit(EX_NOINPUT);
+		}
+		while (sm_io_fgets(cfp, SM_TIME_DEFAULT, buf, sizeof(buf)) >= 0)
+		{
+			register char *b;
+
+			if ((b = strchr(buf, '\n')) != NULL)
+				*b = '\0';
+
+			b = buf;
+			switch (*b++)
 			{
-				b = strchr(b, '=');
-				if (b == NULL)
-					continue;
-				while (isascii(*++b) && isspace(*b))
-					continue;
-				if (isascii(*b) && isdigit(*b))
-					TrustedUid = atoi(b);
-				else
+			  case 'O':		/* option */
+				if (strncasecmp(b, " TrustedUser", 12) == 0 &&
+				    !(isascii(b[12]) && isalnum(b[12])))
 				{
-					TrustedUid = 0;
-					pw = getpwnam(b);
-					if (pw == NULL)
-						(void) sm_io_fprintf(smioerr,
-								     SM_TIME_DEFAULT,
-								     "TrustedUser: unknown user %s\n", b);
+					b = strchr(b, '=');
+					if (b == NULL)
+						continue;
+					while (isascii(*++b) && isspace(*b))
+						continue;
+					if (isascii(*b) && isdigit(*b))
+						TrustedUid = atoi(b);
 					else
-						TrustedUid = pw->pw_uid;
-				}
+					{
+						TrustedUid = 0;
+						pw = getpwnam(b);
+						if (pw == NULL)
+							(void) sm_io_fprintf(smioerr,
+									     SM_TIME_DEFAULT,
+									     "TrustedUser: unknown user %s\n", b);
+						else
+							TrustedUid = pw->pw_uid;
+					}
 
 # ifdef UID_MAX
-				if (TrustedUid > UID_MAX)
-				{
-					(void) sm_io_fprintf(smioerr,
-							     SM_TIME_DEFAULT,
-							     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
-						(long) TrustedUid,
-						(long) UID_MAX);
-					TrustedUid = 0;
-				}
+					if (TrustedUid > UID_MAX)
+					{
+						(void) sm_io_fprintf(smioerr,
+								     SM_TIME_DEFAULT,
+								     "TrustedUser: uid value (%ld) > UID_MAX (%ld)",
+							(long) TrustedUid,
+							(long) UID_MAX);
+						TrustedUid = 0;
+					}
 # endif /* UID_MAX */
-				break;
+					break;
+				}
+
+
+			  default:
+				continue;
 			}
-
-
-		  default:
-			continue;
 		}
+		(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 	}
-	(void) sm_io_close(cfp, SM_TIME_DEFAULT);
 #endif /* HASFCHOWN */
 
 	if (!params.smdbp_allow_dup && !allowreplace)

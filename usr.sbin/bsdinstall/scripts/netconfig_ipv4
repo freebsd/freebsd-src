@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,13 +26,15 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ INCLUDES
 
-: ${DIALOG_OK=0}
-: ${DIALOG_CANCEL=1}
-: ${DIALOG_HELP=2}
-: ${DIALOG_EXTRA=3}
-: ${DIALOG_ITEM_HELP=4}
-: ${DIALOG_ESC=255}
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
+f_include $BSDCFG_SHARE/dialog.subr
+
+############################################################ MAIN
 
 INTERFACE=$1
 IFCONFIG_PREFIX="$2"
@@ -49,8 +52,9 @@ if [ $? -eq $DIALOG_OK ]; then
 
 	if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 		dialog --backtitle 'FreeBSD Installer' --infobox "Acquiring DHCP lease..." 0 0
-		dhclient $INTERFACE 2>> $BSDINSTALL_LOG
+		err=$( dhclient $INTERFACE 2>&1 )
 		if [ $? -ne 0 ]; then
+			f_dprintf "%s" "$err"
 			dialog --backtitle 'FreeBSD Installer' --msgbox "DHCP lease acquisition failed." 0 0
 			exec $0 ${INTERFACE} "${IFCONFIG_PREFIX}"
 		fi
@@ -86,3 +90,6 @@ if [ ! -z $BSDINSTALL_CONFIGCURRENT ]; then
 	fi
 fi
 
+################################################################################
+# END
+################################################################################

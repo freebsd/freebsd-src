@@ -30,7 +30,6 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <regex.h>
 #include <unistd.h>
 
 #include "atf-c/build.h"
@@ -104,72 +103,6 @@ get_process_helpers_path(const atf_tc_t *tc, const bool is_detail,
     RE(atf_fs_path_init_fmt(path, "%s/%sprocess_helpers",
                             atf_tc_get_config_var(tc, "srcdir"),
                             is_detail ? "" : "detail/"));
-}
-
-bool
-grep_string(const atf_dynstr_t *str, const char *regex)
-{
-    int res;
-    regex_t preg;
-
-    printf("Looking for '%s' in '%s'\n", regex, atf_dynstr_cstring(str));
-    ATF_REQUIRE(regcomp(&preg, regex, REG_EXTENDED) == 0);
-
-    res = regexec(&preg, atf_dynstr_cstring(str), 0, NULL, 0);
-    ATF_REQUIRE(res == 0 || res == REG_NOMATCH);
-
-    regfree(&preg);
-
-    return res == 0;
-}
-
-bool
-grep_file(const char *file, const char *regex, ...)
-{
-    bool done, found;
-    int fd;
-    va_list ap;
-    atf_dynstr_t formatted;
-
-    va_start(ap, regex);
-    RE(atf_dynstr_init_ap(&formatted, regex, ap));
-    va_end(ap);
-
-    done = false;
-    found = false;
-    ATF_REQUIRE((fd = open(file, O_RDONLY)) != -1);
-    do {
-        atf_dynstr_t line;
-
-        RE(atf_dynstr_init(&line));
-
-        done = read_line(fd, &line);
-        if (!done)
-            found = grep_string(&line, atf_dynstr_cstring(&formatted));
-
-        atf_dynstr_fini(&line);
-    } while (!found && !done);
-    close(fd);
-
-    atf_dynstr_fini(&formatted);
-
-    return found;
-}
-
-bool
-read_line(int fd, atf_dynstr_t *dest)
-{
-    char ch;
-    ssize_t cnt;
-
-    while ((cnt = read(fd, &ch, sizeof(ch))) == sizeof(ch) &&
-           ch != '\n') {
-        const atf_error_t err = atf_dynstr_append_fmt(dest, "%c", ch);
-        ATF_REQUIRE(!atf_is_error(err));
-    }
-    ATF_REQUIRE(cnt != -1);
-
-    return cnt == 0;
 }
 
 struct run_h_tc_data {

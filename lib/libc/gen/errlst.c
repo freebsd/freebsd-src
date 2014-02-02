@@ -34,6 +34,7 @@ static char sccsid[] = "@(#)errlst.c	8.2 (Berkeley) 11/16/93";
 __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
+#include "errlst.h"
 
 const char *const sys_errlist[] = {
 	"No error: 0",				/*  0 - ENOERROR */
@@ -156,3 +157,8 @@ const char *const sys_errlist[] = {
 	"Previous owner died",			/* 96 - EOWNERDEAD */
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
+
+#ifdef PIC
+__strong_reference(sys_errlist, __hidden_sys_errlist);
+__strong_reference(sys_nerr, __hidden_sys_nerr);
+#endif

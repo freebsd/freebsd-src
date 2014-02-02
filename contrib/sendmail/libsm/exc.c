@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: exc.c,v 1.49 2006/12/19 19:28:09 ca Exp $")
+SM_RCSID("@(#)$Id: exc.c,v 1.50 2013/11/22 20:51:42 ca Exp $")
 
 /*
 **  exception handling

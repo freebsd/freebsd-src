@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/conf.h>
 
-#include <machine/xen/xen-os.h>
+#include <xen/xen-os.h>
 
 #include <xen/hypervisor.h>
 #include <xen/xenstore/xenstorevar.h>

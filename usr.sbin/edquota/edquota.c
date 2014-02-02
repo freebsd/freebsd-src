@@ -284,7 +284,7 @@ main(int argc, char *argv[])
 			freeprivs(protoprivs);
 		exit(0);
 	}
-	tmpfd = mkstemp(tmpfil);
+	tmpfd = mkostemp(tmpfil, O_CLOEXEC);
 	fchown(tmpfd, getuid(), getgid());
 	if (tflag) {
 		if ((protoprivs = getprivs(0, quotatype, fspath)) != NULL) {

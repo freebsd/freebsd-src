@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/usermgmt/user_input.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -74,29 +74,24 @@ copy_dotfiles()
 #
 save_changes()
 {
-	local err retval=$SUCCESS
+	local funcname=save_changes
 
 	case "$mode" in
 	Delete)
-		err=$( pw userdel -u "$pw_uid" 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+		f_eval_catch $funcname pw 'pw userdel -u "%s"' "$pw_uid" ||
+			return $?
 		f_show_msg "$msg_login_deleted"
 
 		if [ "$pw_group_delete" = "$msg_yes" ] &&
 		   f_quietly pw groupshow -g "$pw_gid"
 		then
-			err=$( pw groupdel -g "$pw_gid" 2>&1 ) ||
-				f_dialog_msgbox "$msg_warning $err\n"
+			f_eval_catch $funcname pw \
+				'pw groupdel -g "%s"' "$pw_gid"
 		fi
 
 		if [ "$pw_home_delete" = "$msg_yes" ]; then
 			f_dialog_info "$msg_deleting_home_directory"
-			err=$( rm -Rf "$pw_home_dir" 2>&1 ) ||
-				f_dialog_msgbox "$msg_warning $err\n"
+			f_eval_catch $funcname rm 'rm -Rf "%s"' "$pw_home_dir"
 		fi
 		;;
 	Add)
@@ -111,35 +106,27 @@ save_changes()
 		[ "$pw_shell"           ] && cmd="$cmd -s '$pw_shell'"
 		[ "$pw_uid"             ] && cmd="$cmd -u '$pw_uid'"
 		if [ "$pw_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$pw_password" ]; then
-			cmd="echo \"\$pw_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$pw_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_login_added"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
-			err=$( mkdir -p "$pw_home_dir" 2>&1 )
-			if [ $? -ne $SUCCESS ]; then
-				f_dialog_msgbox "$msg_warning $err\n"
-			elif [ -e "$pw_home_dir" ]; then
-				err=$( chown -R "$pw_uid:$pw_gid" \
-				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] ||
-					f_dialog_msgbox "$msg_warning $err\n"
+			if f_eval_catch $funcname mkdir \
+				'mkdir -p "%s"' "$pw_home_dir"
+			then
+				f_eval_catch $funcname chown \
+					'chown -R "%s" "%s"' \
+					"$pw_uid:$pw_gid" "$pw_home_dir"
 			fi
 		fi
 
-		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
-			err=$( copy_dotfiles 2>&1 ) ||
-				f_dialog_msgbox "$msg_warning $err\n"
-		fi
+		[ "$pw_dotfiles_create" = "$msg_yes" ] &&
+			f_eval_catch $funcname copy_dotfiles copy_dotfiles
 
 		user="$pw_name"
 		f_quietly pw usershow -n "$pw_name" &&
@@ -157,35 +144,27 @@ save_changes()
 		[ "$pw_shell"           ] && cmd="$cmd -s '$pw_shell'"
 		[ "$pw_uid"             ] && cmd="$cmd -u '$pw_uid'"
 		if [ "$pw_password_disable" ]; then
-			cmd="$cmd -h -"
+			f_eval_catch $funcname pw '%s -h -' "$cmd"
 		elif [ "$pw_password" ]; then
-			cmd="echo \"\$pw_password\" | $cmd -h 0"
-		fi
-		f_dprintf "cmd=%s" "$cmd"
-		err=$( eval $cmd 2>&1 )
-		retval=$?
-		if [ $retval -ne $SUCCESS ]; then
-			f_dialog_msgbox "$msg_error $err\n"
-			return $retval
-		fi
+			echo "$pw_password" |
+				f_eval_catch $funcname pw '%s -h 0' "$cmd"
+		else
+			f_eval_catch $funcname pw '%s' "$cmd"
+		fi || return $?
 		f_show_msg "$msg_login_updated"
 
 		if [ "$pw_home_create" = "$msg_yes" ]; then
-			err=$( mkdir -p "$pw_home_dir" )
-			if [ $? -ne $SUCCESS ]; then
-				f_dialog_msgbox "$msg_warning $err\n"
-			elif [ -e "$pw_home_dir" ]; then
-				err=$( chown -R "$pw_uid:$pw_gid" \
-				                "$pw_home_dir" 2>&1 )
-				[ $? -eq $SUCCESS ] ||
-					f_dialog_msgbox "$msg_warning $err\n"
+			if f_eval_catch $funcname mkdir \
+				'mkdir -p "%s"' "$pw_home_dir"
+			then
+				f_eval_catch $funcname chown \
+					'chown -R "%i:%i" "%s"' \
+					"$pw_uid" "$pw_gid" "$pw_home_dir"
 			fi
 		fi
 
-		if [ "$pw_dotfiles_create" = "$msg_yes" ]; then
-			err=$( copy_dotfiles 2>&1 ) ||
-				f_dialog_msgbox "$msg_warning $err\n"
-		fi
+		[ "$pw_dotfiles_create" = "$msg_yes" ] &&
+			f_eval_catch $funcname copy_dotfiles copy_dotfiles
 		;;
 	esac
 
@@ -257,9 +236,9 @@ if [ "$mode" = "Add" ]; then
 	f_dialog_noyes "$msg_use_default_values_for_all_account_details"
 	retval=$?
 
-	if [ $retval -eq 255 ]; then # User pressed ESC
+	if [ $retval -eq $DIALOG_ESC ]; then
 		exit $SUCCESS
-	elif [ $retval -ne $SUCCESS ]; then
+	elif [ $retval -ne $DIALOG_OK ]; then
 		#
 		# Ask a series of questions to pre-fill the editor screen.
 		#
@@ -431,7 +410,7 @@ while :; do
 	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || f_die
+	[ $retval -eq $DIALOG_OK ] || f_die
 
 	case "$mtag" in
 	X) # Exit
@@ -450,7 +429,7 @@ while :; do
 	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
-	   	[ $retval -eq $SUCCESS ] || continue
+	   	[ $retval -eq $DIALOG_OK ] || continue
 
 	   	[ "$mtag" = "X $msg_exit" ] && continue
 

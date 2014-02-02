@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -62,17 +67,140 @@ struct vga_pci_softc {
 
 SYSCTL_DECL(_hw_pci);
 
+static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
+static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+static int	vga_pci_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
+
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
 
+int
+vga_pci_is_boot_display(device_t dev)
+{
+	int unit;
+	device_t pcib;
+	uint16_t config;
+
+	/* Check that the given device is a video card */
+	if ((pci_get_class(dev) != PCIC_DISPLAY &&
+	    (pci_get_class(dev) != PCIC_OLD ||
+	     pci_get_subclass(dev) != PCIS_OLD_VGA)))
+		return (0);
+
+	unit = device_get_unit(dev);
+
+	if (vga_pci_default_unit >= 0) {
+		/*
+		 * The boot display device was determined by a previous
+		 * call to this function, or the user forced it using
+		 * the hw.pci.default_vgapci_unit tunable.
+		 */
+		return (vga_pci_default_unit == unit);
+	}
+
+	/*
+	 * The primary video card used as a boot display must have the
+	 * "I/O" and "Memory Address Space Decoding" bits set in its
+	 * Command register.
+	 *
+	 * Furthermore, if the card is attached to a bridge, instead of
+	 * the root PCI bus, the bridge must have the "VGA Enable" bit
+	 * set in its Control register.
+	 */
+
+	pcib = device_get_parent(device_get_parent(dev));
+	if (device_get_devclass(device_get_parent(pcib)) ==
+	    devclass_find("pci")) {
+		/*
+		 * The parent bridge is a PCI-to-PCI bridge: check the
+		 * value of the "VGA Enable" bit.
+		 */
+		config = pci_read_config(pcib, PCIR_BRIDGECTL_1, 2);
+		if ((config & PCIB_BCR_VGA_ENABLE) == 0)
+			return (0);
+	}
+
+	config = pci_read_config(dev, PCIR_COMMAND, 2);
+	if ((config & (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN)) == 0)
+		return (0);
+
+	/* This video card is the boot display: record its unit number. */
+	vga_pci_default_unit = unit;
+	device_set_flags(dev, 1);
+
+	return (1);
+}
+
+void *
+vga_pci_map_bios(device_t dev, size_t *size)
+{
+	int rid;
+	struct resource *res;
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/*
+		 * On x86, the System BIOS copy the default display
+		 * device's Video BIOS at a fixed location in system
+		 * memory (0xC0000, 128 kBytes long) at boot time.
+		 *
+		 * We use this copy for the default boot device, because
+		 * the original ROM may not be valid after boot.
+		 */
+
+		*size = VGA_PCI_BIOS_SHADOW_SIZE;
+		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
+	}
+#endif
+
+	rid = PCIR_BIOS;
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0ul,
+	    ~0ul, 1, RF_ACTIVE);
+	if (res == NULL) {
+		return (NULL);
+	}
+
+	*size = rman_get_size(res);
+	return (rman_get_virtual(res));
+}
+
+void
+vga_pci_unmap_bios(device_t dev, void *bios)
+{
+	struct vga_resource *vr;
+
+	if (bios == NULL) {
+		return;
+	}
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/* We mapped the BIOS shadow copy located at 0xC0000. */
+		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
+
+		return;
+	}
+#endif
+
+	/*
+	 * Look up the PCIR_BIOS resource in our softc.  It should match
+	 * the address we returned previously.
+	 */
+	vr = lookup_res(device_get_softc(dev), PCIR_BIOS);
+	KASSERT(vr->vr_res != NULL, ("vga_pci_unmap_bios: bios not mapped"));
+	KASSERT(rman_get_virtual(vr->vr_res) == bios,
+	    ("vga_pci_unmap_bios: mismatch"));
+	vga_pci_release_resource(dev, NULL, SYS_RES_MEMORY, PCIR_BIOS,
+	    vr->vr_res);
+}
+
 static int
 vga_pci_probe(device_t dev)
 {
-	device_t bdev;
-	int unit;
-	uint16_t bctl;
 
 	switch (pci_get_class(dev)) {
 	case PCIC_DISPLAY:
@@ -86,13 +214,7 @@ vga_pci_probe(device_t dev)
 	}
 
 	/* Probe default display. */
-	unit = device_get_unit(dev);
-	bdev = device_get_parent(device_get_parent(dev));
-	bctl = pci_read_config(bdev, PCIR_BRIDGECTL_1, 2);
-	if (vga_pci_default_unit < 0 && (bctl & PCIB_BCR_VGA_ENABLE) != 0)
-		vga_pci_default_unit = unit;
-	if (vga_pci_default_unit == unit)
-		device_set_flags(dev, 1);
+	vga_pci_is_boot_display(dev);
 
 	device_set_desc(dev, "VGA-compatible display");
 	return (BUS_PROBE_GENERIC);
@@ -108,6 +230,10 @@ vga_pci_attach(device_t dev)
 	device_add_child(dev, "drm", -1);
 	device_add_child(dev, "drmn", -1);
 	bus_generic_attach(dev);
+
+	if (vga_pci_is_boot_display(dev))
+		device_printf(dev, "Boot video device\n");
+
 	return (0);
 }
 

@@ -45,7 +45,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/param.h>
@@ -783,7 +782,7 @@ mac_vnode_check_revoke(struct ucred *cred, struct vnode *vp)
 }
 
 MAC_CHECK_PROBE_DEFINE4(vnode_check_setacl, "struct ucred *",
-    "struct vnode *", "acl_tpe_t", "struct acl *");
+    "struct vnode *", "acl_type_t", "struct acl *");
 
 int
 mac_vnode_check_setacl(struct ucred *cred, struct vnode *vp, acl_type_t type,

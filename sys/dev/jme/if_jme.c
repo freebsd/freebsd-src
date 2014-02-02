@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -1690,7 +1691,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 	struct mbuf *m;
 	bus_dma_segment_t txsegs[JME_MAXTXSEGS];
 	int error, i, nsegs, prod;
-	uint32_t cflags, tso_segsz;
+	uint32_t cflags, tsosegsz;
 
 	JME_LOCK_ASSERT(sc);
 
@@ -1808,10 +1809,10 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 
 	m = *m_head;
 	cflags = 0;
-	tso_segsz = 0;
+	tsosegsz = 0;
 	/* Configure checksum offload and TSO. */
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		tso_segsz = (uint32_t)m->m_pkthdr.tso_segsz <<
+		tsosegsz = (uint32_t)m->m_pkthdr.tso_segsz <<
 		    JME_TD_MSS_SHIFT;
 		cflags |= JME_TD_TSO;
 	} else {
@@ -1830,7 +1831,7 @@ jme_encap(struct jme_softc *sc, struct mbuf **m_head)
 
 	desc = &sc->jme_rdata.jme_tx_ring[prod];
 	desc->flags = htole32(cflags);
-	desc->buflen = htole32(tso_segsz);
+	desc->buflen = htole32(tsosegsz);
 	desc->addr_hi = htole32(m->m_pkthdr.len);
 	desc->addr_lo = 0;
 	sc->jme_cdata.jme_tx_cnt++;

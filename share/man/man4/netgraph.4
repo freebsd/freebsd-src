@@ -36,7 +36,7 @@
 .\" $Whistle: netgraph.4,v 1.7 1999/01/28 23:54:52 julian Exp $
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2008
+.Dd November 25, 2013
 .Dt NETGRAPH 4
 .Os
 .Sh NAME
@@ -292,7 +292,7 @@ unless specifically declared to be a reader in their definition.
 (See
 .Dv NGM_READONLY
 in
-.In ng_message.h . )
+.In netgraph/ng_message.h . )
 .Pp
 While this mode of operation
 results in good performance, it has a few implications for node
@@ -840,26 +840,27 @@ and should be used as a starting point for new node writers.
 .Ss Netgraph Message Structure
 Control messages have the following structure:
 .Bd -literal
-#define NG_CMDSTRSIZ    32      /* Max command string (including nul) */
+#define NG_CMDSTRSIZ    32      /* Max command string (including null) */
 
 struct ng_mesg {
   struct ng_msghdr {
     u_char      version;        /* Must equal NG_VERSION */
-    u_char      spare;          /* Pad to 2 bytes */
-    u_short     arglen;         /* Length of cmd/resp data */
-    u_long      flags;          /* Message status flags */
-    u_long      token;          /* Reply should have the same token */
-    u_long      typecookie;     /* Node type understanding this message */
-    u_long      cmd;            /* Command identifier */
-    u_char      cmdstr[NG_CMDSTRSIZ]; /* Cmd string (for debug) */
+    u_char      spare;          /* Pad to 4 bytes */
+    uint16_t    spare2;
+    uint32_t    arglen;         /* Length of cmd/resp data */
+    uint32_t    cmd;            /* Command identifier */
+    uint32_t    flags;          /* Message status flags */
+    uint32_t    token;          /* Reply should have the same token */
+    uint32_t    typecookie;     /* Node type understanding this message */
+    u_char      cmdstr[NG_CMDSTRSIZ];  /* cmd string + \0 */
   } header;
-  char  data[0];                /* Start of cmd/resp data */
+  char  data[];                 /* placeholder for actual data */
 };
 
-#define NG_ABI_VERSION  5               /* Netgraph kernel ABI version */
-#define NG_VERSION      4               /* Netgraph message version */
-#define NGF_ORIG        0x0000          /* Command */
-#define NGF_RESP        0x0001          /* Response */
+#define NG_ABI_VERSION  12              /* Netgraph kernel ABI version */
+#define NG_VERSION      8               /* Netgraph message version */
+#define NGF_ORIG        0x00000000      /* The msg is the original request */
+#define NGF_RESP        0x00000001      /* The message is a response */
 .Ed
 .Pp
 Control messages have the fixed header shown above, followed by a
@@ -1284,7 +1285,7 @@ link between two machines.
 There is a full multilink PPP implementation that runs in
 .Nm .
 The
-.Pa net/mpd
+.Pa net/mpd5
 port can use these modules to make a very low latency high
 capacity PPP system.
 It also supports
@@ -1296,7 +1297,7 @@ Used in conjunction with
 either
 .Xr ppp 8
 or the
-.Pa net/mpd
+.Pa net/mpd5
 port.
 .It BRIDGE
 This node, together with the Ethernet nodes, allows a very flexible
@@ -1423,13 +1424,13 @@ common networking problems, solved using
 .Xr ng_bridge 4 ,
 .Xr ng_bt3c 4 ,
 .Xr ng_btsocket 4 ,
+.Xr ng_car 4 ,
 .Xr ng_cisco 4 ,
 .Xr ng_device 4 ,
 .Xr ng_echo 4 ,
 .Xr ng_eiface 4 ,
 .Xr ng_etf 4 ,
 .Xr ng_ether 4 ,
-.Xr ng_fec 4 ,
 .Xr ng_frame_relay 4 ,
 .Xr ng_gif 4 ,
 .Xr ng_gif_demux 4 ,
@@ -1439,13 +1440,16 @@ common networking problems, solved using
 .Xr ng_hub 4 ,
 .Xr ng_iface 4 ,
 .Xr ng_ip_input 4 ,
+.Xr ng_ipfw 4 ,
 .Xr ng_ksocket 4 ,
 .Xr ng_l2cap 4 ,
 .Xr ng_l2tp 4 ,
 .Xr ng_lmi 4 ,
 .Xr ng_mppc 4 ,
+.Xr ng_nat 4 ,
 .Xr ng_netflow 4 ,
 .Xr ng_one2many 4 ,
+.Xr ng_patch 4 ,
 .Xr ng_ppp 4 ,
 .Xr ng_pppoe 4 ,
 .Xr ng_pptpgre 4 ,

@@ -33,12 +33,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <machine/vmparam.h>
 #include <machine/armreg.h>
+#include <machine/frame.h>
 #include <machine/pcb.h>
 #include <machine/cpu.h>
 #include <machine/proc.h>

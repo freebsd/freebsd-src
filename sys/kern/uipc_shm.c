@@ -134,7 +134,7 @@ static struct fileops shm_ops = {
 	.fo_close = shm_close,
 	.fo_chmod = shm_chmod,
 	.fo_chown = shm_chown,
-	.fo_sendfile = invfo_sendfile,
+	.fo_sendfile = vn_sendfile,
 	.fo_seek = shm_seek,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
@@ -704,7 +704,7 @@ sys_shm_open(struct thread *td, struct shm_open_args *uap)
 	    (uap->flags & O_ACCMODE) != O_RDWR)
 		return (EINVAL);
 
-	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC)) != 0)
+	if ((uap->flags & ~(O_ACCMODE | O_CREAT | O_EXCL | O_TRUNC | O_CLOEXEC)) != 0)
 		return (EINVAL);
 
 	fdp = td->td_proc->p_fd;
@@ -954,7 +954,7 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	ofs = offset & PAGE_MASK;
 	offset = trunc_page(offset);
 	size = round_page(size + ofs);
-	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
+	rv = vm_map_find(kernel_map, obj, offset, &kva, size, 0,
 	    VMFS_OPTIMAL_SPACE, VM_PROT_READ | VM_PROT_WRITE,
 	    VM_PROT_READ | VM_PROT_WRITE, 0);
 	if (rv == KERN_SUCCESS) {

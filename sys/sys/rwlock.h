@@ -112,8 +112,12 @@
 									\
 	if ((rw)->rw_recurse)						\
 		(rw)->rw_recurse--;					\
-	else if (!_rw_write_unlock((rw), _tid))				\
-		_rw_wunlock_hard((rw), _tid, (file), (line));		\
+	else {								\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_WUNLOCK_RELEASE,	\
+		    (rw));						\
+		if (!_rw_write_unlock((rw), _tid))			\
+			_rw_wunlock_hard((rw), _tid, (file), (line));	\
+	}								\
 } while (0)
 
 /*
@@ -214,7 +218,7 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	_sleep((chan), &(rw)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
-#define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
+#define	rw_initialized(rw)	lock_initialized(&(rw)->lock_object)
 
 struct rw_args {
 	void		*ra_rw;
