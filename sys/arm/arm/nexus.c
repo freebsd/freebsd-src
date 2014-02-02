@@ -362,7 +362,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 	}
 
 	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, intr[0]);
+	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
 
 	return (interrupt);
 }
