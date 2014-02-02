@@ -364,7 +364,7 @@ buf_recv(int sock, void *buf, size_t size)
 	unsigned char *ptr;
 
 	ptr = buf;
-	do {
+	while (size > 0) {
 		fd_wait(sock, true);
 		done = recv(sock, ptr, size, 0);
 		if (done == -1) {
@@ -377,7 +377,7 @@ buf_recv(int sock, void *buf, size_t size)
 		}
 		size -= done;
 		ptr += done;
-	} while (size > 0);
+	}
 
 	return (0);
 }
