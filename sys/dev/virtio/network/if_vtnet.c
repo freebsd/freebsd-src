@@ -609,6 +609,20 @@ vtnet_setup_features(struct vtnet_softc *sc)
 	} else
 		sc->vtnet_hdr_size = sizeof(struct virtio_net_hdr);
 
+	if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
+		sc->vtnet_rx_nsegs = VTNET_MRG_RX_SEGS;
+	else if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG)
+		sc->vtnet_rx_nsegs = VTNET_MAX_RX_SEGS;
+	else
+		sc->vtnet_rx_nsegs = VTNET_MIN_RX_SEGS;
+
+	if (virtio_with_feature(dev, VIRTIO_NET_F_GSO) ||
+	    virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO4) ||
+	    virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO6))
+		sc->vtnet_tx_nsegs = VTNET_MAX_TX_SEGS;
+	else
+		sc->vtnet_tx_nsegs = VTNET_MIN_TX_SEGS;
+
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_VQ)) {
 		sc->vtnet_flags |= VTNET_FLAG_CTRL_VQ;
 
@@ -664,6 +678,10 @@ vtnet_init_rxq(struct vtnet_softc *sc, int id)
 	rxq->vtnrx_sc = sc;
 	rxq->vtnrx_id = id;
 
+	rxq->vtnrx_sg = sglist_alloc(sc->vtnet_rx_nsegs, M_NOWAIT);
+	if (rxq->vtnrx_sg == NULL)
+		return (ENOMEM);
+
 	TASK_INIT(&rxq->vtnrx_intrtask, 0, vtnet_rxq_tq_intr, rxq);
 	rxq->vtnrx_tq = taskqueue_create(rxq->vtnrx_name, M_NOWAIT,
 	    taskqueue_thread_enqueue, &rxq->vtnrx_tq);
@@ -684,6 +702,10 @@ vtnet_init_txq(struct vtnet_softc *sc, int id)
 
 	txq->vtntx_sc = sc;
 	txq->vtntx_id = id;
+
+	txq->vtntx_sg = sglist_alloc(sc->vtnet_tx_nsegs, M_NOWAIT);
+	if (txq->vtntx_sg == NULL)
+		return (ENOMEM);
 
 #ifndef VTNET_LEGACY_TX
 	txq->vtntx_br = buf_ring_alloc(VTNET_DEFAULT_BUFRING_SIZE, M_DEVBUF,
@@ -737,6 +759,11 @@ vtnet_destroy_rxq(struct vtnet_rxq *rxq)
 	rxq->vtnrx_sc = NULL;
 	rxq->vtnrx_id = -1;
 
+	if (rxq->vtnrx_sg != NULL) {
+		sglist_free(rxq->vtnrx_sg);
+		rxq->vtnrx_sg = NULL;
+	}
+
 	if (mtx_initialized(&rxq->vtnrx_mtx) != 0)
 		mtx_destroy(&rxq->vtnrx_mtx);
 }
@@ -747,6 +774,11 @@ vtnet_destroy_txq(struct vtnet_txq *txq)
 
 	txq->vtntx_sc = NULL;
 	txq->vtntx_id = -1;
+
+	if (txq->vtntx_sg != NULL) {
+		sglist_free(txq->vtntx_sg);
+		txq->vtntx_sg = NULL;
+	}
 
 #ifndef VTNET_LEGACY_TX
 	if (txq->vtntx_br != NULL) {
@@ -822,23 +854,10 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	struct vq_alloc_info *info;
 	struct vtnet_rxq *rxq;
 	struct vtnet_txq *txq;
-	int i, idx, flags, nvqs, rxsegs, error;
+	int i, idx, flags, nvqs, error;
 
 	dev = sc->vtnet_dev;
 	flags = 0;
-
-	/*
-	 * Indirect descriptors are not needed for the Rx virtqueue when
-	 * mergeable buffers are negotiated. The header is placed inline
-	 * with the data, not in a separate descriptor, and mbuf clusters
-	 * are always physically contiguous.
-	 */
-	if (sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS)
-		rxsegs = 0;
-	else if (sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG)
-		rxsegs = VTNET_MAX_RX_SEGS;
-	else
-		rxsegs = VTNET_MIN_RX_SEGS;
 
 	nvqs = sc->vtnet_max_vq_pairs * 2;
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
@@ -850,12 +869,12 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 
 	for (i = 0, idx = 0; i < sc->vtnet_max_vq_pairs; i++, idx+=2) {
 		rxq = &sc->vtnet_rxqs[i];
-		VQ_ALLOC_INFO_INIT(&info[idx], rxsegs,
+		VQ_ALLOC_INFO_INIT(&info[idx], sc->vtnet_rx_nsegs,
 		    vtnet_rx_vq_intr, rxq, &rxq->vtnrx_vq,
 		    "%s-%d rx", device_get_nameunit(dev), rxq->vtnrx_id);
 
 		txq = &sc->vtnet_txqs[i];
-		VQ_ALLOC_INFO_INIT(&info[idx+1], VTNET_MAX_TX_SEGS,
+		VQ_ALLOC_INFO_INIT(&info[idx+1], sc->vtnet_tx_nsegs,
 		    vtnet_tx_vq_intr, txq, &txq->vtntx_vq,
 		    "%s-%d tx", device_get_nameunit(dev), txq->vtntx_id);
 	}
@@ -1362,14 +1381,14 @@ vtnet_rxq_replace_buf(struct vtnet_rxq *rxq, struct mbuf *m, int len)
 static int
 vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 {
-	struct sglist sg;
-	struct sglist_seg segs[VTNET_MAX_RX_SEGS];
 	struct vtnet_softc *sc;
+	struct sglist *sg;
 	struct vtnet_rx_header *rxhdr;
 	uint8_t *mdata;
 	int offset, error;
 
 	sc = rxq->vtnrx_sc;
+	sg = rxq->vtnrx_sg;
 	mdata = mtod(m, uint8_t *);
 
 	VTNET_RXQ_LOCK_ASSERT(rxq);
@@ -1379,22 +1398,22 @@ vtnet_rxq_enqueue_buf(struct vtnet_rxq *rxq, struct mbuf *m)
 	    ("%s: unexpected cluster size %d/%d", __func__, m->m_len,
 	     sc->vtnet_rx_clsize));
 
-	sglist_init(&sg, VTNET_MAX_RX_SEGS, segs);
+	sglist_reset(sg);
 	if ((sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS) == 0) {
 		MPASS(sc->vtnet_hdr_size == sizeof(struct virtio_net_hdr));
 		rxhdr = (struct vtnet_rx_header *) mdata;
-		sglist_append(&sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
+		sglist_append(sg, &rxhdr->vrh_hdr, sc->vtnet_hdr_size);
 		offset = sizeof(struct vtnet_rx_header);
 	} else
 		offset = 0;
 
-	sglist_append(&sg, mdata + offset, m->m_len - offset);
+	sglist_append(sg, mdata + offset, m->m_len - offset);
 	if (m->m_next != NULL) {
-		error = sglist_append_mbuf(&sg, m->m_next);
+		error = sglist_append_mbuf(sg, m->m_next);
 		MPASS(error == 0);
 	}
 
-	error = virtqueue_enqueue(rxq->vtnrx_vq, m, &sg, 0, sg.sg_nseg);
+	error = virtqueue_enqueue(rxq->vtnrx_vq, m, sg, 0, sg->sg_nseg);
 
 	return (error);
 }
@@ -2048,30 +2067,30 @@ static int
 vtnet_txq_enqueue_buf(struct vtnet_txq *txq, struct mbuf **m_head,
     struct vtnet_tx_header *txhdr)
 {
-	struct sglist sg;
-	struct sglist_seg segs[VTNET_MAX_TX_SEGS];
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
+	struct sglist *sg;
 	struct mbuf *m;
 	int collapsed, error;
 
-	vq = txq->vtntx_vq;
 	sc = txq->vtntx_sc;
+	vq = txq->vtntx_vq;
+	sg = txq->vtntx_sg;
 	m = *m_head;
 	collapsed = 0;
 
-	sglist_init(&sg, VTNET_MAX_TX_SEGS, segs);
-	error = sglist_append(&sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
-	KASSERT(error == 0 && sg.sg_nseg == 1,
+	sglist_reset(sg);
+	error = sglist_append(sg, &txhdr->vth_uhdr, sc->vtnet_hdr_size);
+	KASSERT(error == 0 && sg->sg_nseg == 1,
 	    ("%s: error %d adding header to sglist", __func__, error));
 
 again:
-	error = sglist_append_mbuf(&sg, m);
+	error = sglist_append_mbuf(sg, m);
 	if (error) {
 		if (collapsed)
 			goto fail;
 
-		m = m_collapse(m, M_NOWAIT, VTNET_MAX_TX_SEGS - 1);
+		m = m_collapse(m, M_NOWAIT, sc->vtnet_tx_nsegs - 1);
 		if (m == NULL)
 			goto fail;
 
@@ -2082,7 +2101,7 @@ again:
 	}
 
 	txhdr->vth_mbuf = m;
-	error = virtqueue_enqueue(vq, txhdr, &sg, sg.sg_nseg, 0);
+	error = virtqueue_enqueue(vq, txhdr, sg, sg->sg_nseg, 0);
 
 	return (error);
 
@@ -2849,9 +2868,10 @@ vtnet_init_rx_queues(struct vtnet_softc *sc)
 	sc->vtnet_rx_clsize = clsize;
 	sc->vtnet_rx_nmbufs = VTNET_NEEDED_RX_MBUFS(sc, clsize);
 
-	/* The first segment is reserved for the header. */
-	KASSERT(sc->vtnet_rx_nmbufs < VTNET_MAX_RX_SEGS,
-	    ("%s: too many rx mbufs %d", __func__, sc->vtnet_rx_nmbufs));
+	KASSERT(sc->vtnet_flags & VTNET_FLAG_MRG_RXBUFS ||
+	    sc->vtnet_rx_nmbufs < sc->vtnet_rx_nsegs,
+	    ("%s: too many rx mbufs %d for %d segments", __func__,
+	    sc->vtnet_rx_nmbufs, sc->vtnet_rx_nsegs));
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		rxq = &sc->vtnet_rxqs[i];
