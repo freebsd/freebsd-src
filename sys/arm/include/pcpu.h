@@ -65,11 +65,15 @@ extern struct pcpu *pcpup;
 
 #define CPU_MASK (0xf)
 
+#ifndef SMP
+#define get_pcpu() (pcpup)
+#else
 #define get_pcpu() __extension__ ({			  		\
     	int id;								\
         __asm __volatile("mrc p15, 0, %0, c0, c0, 5" : "=r" (id));	\
     	(pcpup + (id & CPU_MASK));					\
     })
+#endif
 	
 static inline struct thread *
 get_curthread(void)
