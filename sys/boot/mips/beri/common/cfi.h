@@ -28,8 +28,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _DRV_H_
-#define	_DRV_H_
+#ifndef _CFI_H_
+#define	_CFI_H_
 
 int	cfi_read(void *buf, unsigned lba, unsigned blk);
 
