@@ -44,6 +44,8 @@ struct vtnet_statistics {
 	uint64_t	tx_csum_bad_ethtype;
 	uint64_t	tx_tso_bad_ethtype;
 	uint64_t	tx_tso_not_tcp;
+	uint64_t	tx_defragged;
+	uint64_t	tx_defrag_failed;
 
 	/*
 	 * These are accumulated from each Rx/Tx queue.
@@ -92,7 +94,6 @@ struct vtnet_txq_stats {
 	uint64_t vtxs_omcasts;	/* if_omcasts */
 	uint64_t vtxs_csum;
 	uint64_t vtxs_tso;
-	uint64_t vtxs_collapsed;
 	uint64_t vtxs_rescheduled;
 };
 
