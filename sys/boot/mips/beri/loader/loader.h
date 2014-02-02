@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,7 +35,8 @@
 extern struct console	 altera_jtag_uart_console;
 
 /* beri_disk.c */
-extern struct devsw	 beri_disk;
+extern struct devsw	 beri_cfi_disk;
+extern struct devsw	 beri_sdcard_disk;
 
 /* exec.c */
 extern struct file_format	beri_elf;

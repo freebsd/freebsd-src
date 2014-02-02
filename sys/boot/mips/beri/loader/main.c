@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -44,7 +44,8 @@ __FBSDID("$FreeBSD$");
 static int	__elfN(exec)(struct preloaded_file *);
 
 struct devsw *devsw[] = {
-	&beri_disk,
+	&beri_cfi_disk,
+	&beri_sdcard_disk,
 	NULL
 };
 

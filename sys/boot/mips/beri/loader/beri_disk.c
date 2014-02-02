@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -37,25 +37,42 @@ __FBSDID("$FreeBSD$");
 
 #include <stand.h>
 #include <cfi.h>
+#include <sdcard.h>
 
 static int	beri_disk_init(void);
-static int	beri_disk_strategy(void *, int, daddr_t, size_t, char *,
-		    size_t *);
 static int	beri_disk_open(struct open_file *, ...);
 static int	beri_disk_close(struct open_file *);
 static int	beri_disk_ioctl(struct open_file *, u_long, void *);
-static void	beri_disk_print(int);
 static void	beri_disk_cleanup(void);
 
-struct devsw beri_disk = {
+static int	beri_cfi_disk_strategy(void *, int, daddr_t, size_t, char *,
+		    size_t *);
+static void	beri_cfi_disk_print(int);
+static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t, char *,
+		    size_t *);
+static void	beri_sdcard_disk_print(int);
+
+struct devsw beri_cfi_disk = {
 	.dv_name = "cfi",
 	.dv_type = DEVT_DISK,
 	.dv_init = beri_disk_init,
-	.dv_strategy = beri_disk_strategy,
+	.dv_strategy = beri_sdcard_disk_strategy,
 	.dv_open = beri_disk_open,
 	.dv_close = beri_disk_close,
 	.dv_ioctl = beri_disk_ioctl,
-	.dv_print = beri_disk_print,
+	.dv_print = beri_sdcard_disk_print,
+ 	.dv_cleanup = beri_disk_cleanup,
+};
+
+struct devsw beri_sdcard_disk = {
+	.dv_name = "sdcard",
+	.dv_type = DEVT_DISK,
+	.dv_init = beri_disk_init,
+	.dv_strategy = beri_sdcard_disk_strategy,
+	.dv_open = beri_disk_open,
+	.dv_close = beri_disk_close,
+	.dv_ioctl = beri_disk_ioctl,
+	.dv_print = beri_sdcard_disk_print,
  	.dv_cleanup = beri_disk_cleanup,
 };
 
@@ -67,7 +84,7 @@ beri_disk_init(void)
 }
 
 static int
-beri_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+beri_cfi_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
     char *buf, size_t *rsizep)
 {
 	int error;
@@ -75,6 +92,20 @@ beri_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	if (flag != F_READ)
 		return (EROFS);
 	error = cfi_read(buf, dblk, size >> 9);
+	if (error == 0)
+		*rsizep = size;
+	return (error);
+}
+
+static int
+beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsizep)
+{
+	int error;
+
+	if (flag != F_READ)
+		return (EROFS);
+	error = altera_sdcard_read(buf, dblk, size >> 9);
 	if (error == 0)
 		*rsizep = size;
 	return (error);
@@ -102,10 +133,17 @@ beri_disk_ioctl(struct open_file *f, u_long cmd, void *data)
 }
 
 static void
-beri_disk_print(int verbose)
+beri_cfi_disk_print(int verbose)
 {
 
 	printf("    cfi\n");
+}
+
+static void
+beri_sdcard_disk_print(int verbose)
+{
+
+	printf("    sdcard\n");
 }
 
 static void
