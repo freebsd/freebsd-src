@@ -356,7 +356,7 @@ nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
 
 		if (rv == 0) {
 			/* This was recognized as our PIC and decoded. */
-			interrupt = FDT_MAP_IRQ(intr_parent, intr[0]);
+			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
 			return (interrupt);
 		}
 	}
