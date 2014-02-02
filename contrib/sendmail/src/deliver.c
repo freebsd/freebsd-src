@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2010, 2012 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010, 2012 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.1028 2013/01/02 18:57:42 ca Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 8.1030 2013/11/22 20:51:55 ca Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>

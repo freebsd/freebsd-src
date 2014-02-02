@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2009 Proofpoint, Inc. and its suppliers.
  *      All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
 #define LDAP_DEPRECATED	1
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.85 2011/04/18 22:20:20 ca Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.86 2013/11/22 20:51:43 ca Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>
