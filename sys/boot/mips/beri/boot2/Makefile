@@ -11,7 +11,8 @@ SRCS=		relocate.S		\
 		start.S			\
 		boot2.c			\
 		altera_jtag_uart.c	\
-		cfi.c
+		cfi.c			\
+		sdcard.c
 
 NO_MAN=
 

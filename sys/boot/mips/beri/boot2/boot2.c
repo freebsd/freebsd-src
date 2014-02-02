@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <cfi.h>
 #include <cons.h>
 #include <mips.h>
+#include <sdcard.h>
 
 extern int	beri_argc;
 extern const char	*beri_argv[], *beri_envv[];
@@ -595,10 +596,10 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 	case TYPE_CFI:
 		return (cfi_read(buf, lba, nblk));
 
-#if 0
 	case TYPE_SDCARD:
-		return (sdcard_read(buf, lba, nblk));
+		return (altera_sdcard_read(buf, lba, nblk));
 
+#if 0
 	case TYPE_DRAM:
 		return (dram_read(buf, lba, nblk));
 #endif
