@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #define DOMAIN_CLIENT	0x01
 
-#ifdef _ARM_ARCH_6
+#if defined(_ARM_ARCH_6) && defined(SMP)
 #define GET_PCPU(tmp, tmp2) \
 	mrc 	p15, 0, tmp, c0, c0, 5;	\
 	and	tmp, tmp, #0xf;		\
@@ -240,8 +240,7 @@ ENTRY(cpu_switch)
 	/* Process is now on a processor. */
 	/* We have a new curthread now so make a note it */
 	GET_PCPU(r7, r2)
-	add	r7, r7, #PC_CURTHREAD
-	str	r1, [r7]
+	str	r1, [r7, #PC_CURTHREAD]
 #ifndef ARM_TP_ADDRESS
 	mcr	p15, 0, r1, c13, c0, 4
 #endif
