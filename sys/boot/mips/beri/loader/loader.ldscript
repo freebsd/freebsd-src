@@ -81,7 +81,7 @@ SECTIONS
 	__bss_start = ADDR(.bss);
 	__bss_end = ALIGN(__bss_start + SIZEOF(.bss), 0x8);
 
-	__heap_base = .;
-	__heap_top = __loader_end_vaddr__;
-	__heap_len = __heap_top - __heap_base;
+	__heap_start = .;
+	__heap_end = __loader_end_vaddr__;
+	__heap_len = __heap_end - __heap_start;
 }

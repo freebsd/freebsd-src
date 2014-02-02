@@ -67,8 +67,8 @@ struct console *consoles[] = {
 	NULL
 };
 
-extern void	*__heap_base;
-extern void	*__heap_top;
+extern void	__bss_start, __bss_end;
+extern void	__heap_start, __heap_end;
 
 static int
 __elfN(exec)(struct preloaded_file *fp)
@@ -95,7 +95,8 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 	boot2_envv = envv;
 	boot2_bootinfop = bootinfop;
 
-	setheap((void *)&__heap_base, (void *)&__heap_top);
+	bzero(&__bss_start, (uintptr_t)&__bss_end - (uintptr_t)&__bss_start);
+	setheap((void *)&__heap_start, (void *)&__heap_end);
 
 	/*
 	 * Probe for a console.
