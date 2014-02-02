@@ -1889,7 +1889,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	 * or an anycast address(i.e. not a multicast).
 	 */
 
-	flags = ((m != NULL) || (lle != NULL)) ? LLE_EXCLUSIVE : 0;
+	flags = (lle != NULL) ? LLE_EXCLUSIVE : 0;
 	if (ln == NULL) {
 	retry:
 		IF_AFDATA_RLOCK(ifp);
