@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -67,16 +67,12 @@ __FBSDID("$FreeBSD$");
 #define	MUX_MODE_MASK		7
 #define	MUX_MODE_SHIFT		20
 #define	MUX_MODE_GPIO		0
-#define	MUX_MODE_RMII		1
-#define	MUX_MODE_RMII_CLKIN	2
 #define	MUX_MODE_VBUS_EN_OTG	2
 
 #define	PUS_22_KOHM_PULL_UP	(3 << 4)
 #define	DSE_25_OHM		(6 << 6)
 
-#define	NET0_PAD_START	45
-#define	NET1_PAD_START	54
-#define	NET_PAD_N	9
+#define	MAX_MUX_LEN		1024
 
 struct iomuxc_softc {
 	struct resource		*tmr_res[1];
@@ -115,11 +111,62 @@ configure_pad(struct iomuxc_softc *sc, int pad, int mux_mode)
 }
 
 static int
+pinmux_set(struct iomuxc_softc *sc)
+{
+	phandle_t child, parent, root;
+	pcell_t iomux_config[MAX_MUX_LEN];
+	int len;
+	int values;
+	int pin;
+	int mux_mode;
+	int i;
+
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Find 'iomux_config' prop in the nodes */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+
+		if (!fdt_is_enabled(child))
+			continue;
+
+		if ((len = OF_getproplen(child, "iomux_config")) > 0) {
+			OF_getprop(child, "iomux_config", &iomux_config, len);
+
+			values = len / (sizeof(uint32_t));
+			for (i = 0; i < values; i += 2) {
+				pin = fdt32_to_cpu(iomux_config[i]);
+				mux_mode = fdt32_to_cpu(iomux_config[i+1]);
+#if 0
+				device_printf(sc->dev, "Set pin %d to ALT%d\n",
+				    pin, mux_mode);
+#endif
+				configure_pad(sc, IOMUXC(pin), mux_mode);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
+
+	return (0);
+}
+
+static int
 iomuxc_attach(device_t dev)
 {
 	struct iomuxc_softc *sc;
 	int reg;
-	int i;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -138,18 +185,7 @@ iomuxc_attach(device_t dev)
 	reg = (PKE | PUE | PUS_22_KOHM_PULL_UP | DSE_25_OHM | OBE);
 	WRITE4(sc, IOMUXC_PTA7, reg);
 
-	/* NET */
-	configure_pad(sc, IOMUXC_PTA6, MUX_MODE_RMII_CLKIN);
-
-	/* NET0 */
-	for (i = NET0_PAD_START; i <= (NET0_PAD_START + NET_PAD_N); i++) {
-		configure_pad(sc, IOMUXC(i), MUX_MODE_RMII);
-	}
-
-	/* NET1 */
-	for (i = NET1_PAD_START; i <= (NET1_PAD_START + NET_PAD_N); i++) {
-		configure_pad(sc, IOMUXC(i), MUX_MODE_RMII);
-	}
+	pinmux_set(sc);
 
 	return (0);
 }
