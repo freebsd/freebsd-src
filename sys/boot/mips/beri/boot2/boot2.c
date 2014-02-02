@@ -59,8 +59,11 @@ __FBSDID("$FreeBSD$");
 #include <beri.h>
 #include <cfi.h>
 #include <cons.h>
+#include <mips.h>
 
-extern register_t	beri_argc, beri_argv, beri_envv, beri_memsize;
+extern int	beri_argc;
+extern const char	*beri_argv[], *beri_envv[];
+extern register_t	beri_memsize;
 
 #define IO_KEYBOARD	1
 #define IO_SERIAL	2
@@ -109,17 +112,28 @@ extern register_t	beri_argc, beri_argv, beri_envv, beri_memsize;
 
 #define ARGS		0x900
 #define NOPT		14
-#define NDEV		3
+#define NDEV		4
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
 
+/*
+ * XXXRW: I think this has to do with whether boot2 expects a partition
+ * table?
+ */
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
-#define TYPE_AD		0
-#define TYPE_DA		1
-#define TYPE_MAXHARD	TYPE_DA
-#define TYPE_FD		2
+#define	TYPE_CFI	0		/* CFI flash. */
+#define	TYPE_SDCARD	1		/* Altera SD Card. */
+#define	TYPE_DRAM	2		/* File system found in DRAM. */
+#define	TYPE_MAXHARD	1
+#define	TYPE_DRAM_KERNEL	3	/* Kernel found in DRAM. */
+
+/* Default to using CFI flash. */
+#define	TYPE_DEFAULT	TYPE_CFI
+
+/* Hard-coded assumption about location of JTAG-loaded kernel. */
+#define	DRAM_KERNEL_ADDR	((void *)mips_phys_to_cached(0x20000))
 
 #define OPT_SET(opt)	(1 << (opt))
 #define OPT_CHECK(opt)	((opts) & OPT_SET(opt))
@@ -144,7 +158,7 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
+static const char *const dev_nm[NDEV] = {"cf", "sd", "dr", "dk"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static struct dmadat __dmadat;
@@ -155,8 +169,10 @@ static struct dsk {
     unsigned unit;
     uint8_t slice;
     uint8_t part;
+#if 0
     unsigned start;
     int init;
+#endif
 } dsk;
 static char cmd[512], cmddup[512], knamebuf[1024];
 static const char *kname;
@@ -168,6 +184,8 @@ struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
+static void boot_fromdram(void);
+static void boot_fromfs(void);
 static void load(void);
 static int parse(void);
 static int dskread(void *, unsigned, unsigned);
@@ -175,6 +193,7 @@ static void printf(const char *,...);
 static void putchar(int);
 static int xputc(int);
 static int xgetc(int);
+
 
 #if 0
 void memcpy(void *, const void *, int);
@@ -252,7 +271,9 @@ main(u_int argc __unused, char *argv[] __unused, char *envv[] __unused)
     v86.ctl = V86_FLAGS;
     v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
     dsk.drive = *(uint8_t *)PTOV(ARGS);
-    dsk.type = dsk.drive & DRV_HARD ? TYPE_AD : TYPE_FD;
+#endif
+    dsk.type = TYPE_DEFAULT;
+#if 0
     dsk.unit = dsk.drive & DRV_MASK;
     dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
 #endif
@@ -287,7 +308,7 @@ main(u_int argc __unused, char *argv[] __unused, char *envv[] __unused)
     if (!kname) {
 	kname = PATH_BOOT3;
 	if (autoboot && !keyhit(3*SECOND)) {
-	    load();
+	    boot_fromfs();
 	    kname = PATH_KERNEL;
 	}
     }
@@ -324,7 +345,51 @@ exit(int x)
 }
 
 static void
-load(void)
+boot(void *entryp, int argc, const char *argv[], const char *envv[])
+{
+
+    /* XXXRW: For now, NULL, as these aren't actually set by miniboot. */
+    argv = NULL;
+    envv = NULL;
+    argc = 0;
+
+#if 0
+    bootinfo.bi_kernelname = VTOP(kname);
+    bootinfo.bi_bios_dev = dsk.drive;
+    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
+	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.slice, dsk.unit, dsk.part),
+	   0, 0, 0, VTOP(&bootinfo));
+#endif
+    bootinfo.bi_kernelname = (bi_ptr_t)kname;
+    bootinfo.bi_boot2opts = opts & RBX_MASK;
+    if (beri_memsize <= BERI_MEMVSDTB)
+	bootinfo.bi_memsize = beri_memsize;
+    else
+	bootinfo.bi_dtb = beri_memsize;
+    ((void(*)(int, const char **, const char **, void *))entryp)(argc, argv,
+      envv, &bootinfo);
+}
+
+/*
+ * Boot a kernel that has mysteriously (i.e., by JTAG) appeared in DRAM;
+ * assume that it is already properly relocated, etc, and invoke its entry
+ * address without question or concern.
+ */
+static void
+boot_fromdram(void)
+{
+    void *kaddr = DRAM_KERNEL_ADDR;	/* XXXRW: Something better here. */
+    Elf64_Ehdr *ehp = kaddr;
+
+    if (!IS_ELF(*ehp)) {
+	printf("Invalid %s\n", "format");
+	return;
+    }
+    boot((void *)ehp->e_entry, beri_argc, beri_argv, beri_envv);
+}
+
+static void
+boot_fromfs(void)
 {
     union {
 	Elf64_Ehdr eh;
@@ -386,22 +451,22 @@ load(void)
 	printf("Invalid %s\n", "format");
 	return;
     }
+    boot((void *)addr, beri_argc, beri_argv, beri_envv);
+}
 
-#if 0
-    bootinfo.bi_kernelname = VTOP(kname);
-    bootinfo.bi_bios_dev = dsk.drive;
-    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
-	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.slice, dsk.unit, dsk.part),
-	   0, 0, 0, VTOP(&bootinfo));
-#endif
-    bootinfo.bi_kernelname = (bi_ptr_t)kname;
-    bootinfo.bi_boot2opts = opts & RBX_MASK;
-    if (beri_memsize <= BERI_MEMVSDTB)
-	bootinfo.bi_memsize = beri_memsize;
-    else
-	bootinfo.bi_dtb = beri_memsize;
-    ((void(*)(int, int, int, void *))addr)(beri_argc, beri_argv, beri_envv,
-	&bootinfo);
+static void
+load(void)
+{
+
+	switch (dsk.type) {
+	case TYPE_DRAM_KERNEL:
+		boot_fromdram();
+		break;
+
+	default:
+		boot_fromfs();
+		break;
+	}
 }
 
 static int
@@ -410,8 +475,8 @@ parse()
     char *arg = cmd;
     char *ep, *p, *q;
     const char *cp;
-#if 0
     unsigned int drv;
+#if 0
     int c, i, j;
 #else
     int c, i;
@@ -466,7 +531,6 @@ parse()
 #endif
 	} else {
 	    for (q = arg--; *q && *q != '('; q++);
-#if 0
 	    if (*q) {
 		drv = -1;
 		if (arg[1] == ':') {
@@ -487,6 +551,8 @@ parse()
 		if (arg[1] != ',' || dsk.unit > 9)
 		    return -1;
 		arg += 2;
+#if 0
+		/* XXXRW: No slices/etc yet. */
 		dsk.slice = WHOLE_DISK_SLICE;
 		if (arg[1] == ',') {
 		    dsk.slice = *arg - '0' + 1;
@@ -500,13 +566,13 @@ parse()
 		if (dsk.part > 7)
 		    return (-1);
 		arg += 2;
+#endif
 		if (drv == -1)
 		    drv = dsk.unit;
 		dsk.drive = (dsk.type <= TYPE_MAXHARD
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-#endif
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(knamebuf))
 		    return -1;
@@ -523,8 +589,22 @@ static int
 drvread(void *buf, unsigned lba, unsigned nblk)
 {
 
-	/* XXXRW: Eventually, a device switch. */
-	return (cfi_read(buf, lba, nblk));
+	/* XXXRW: eventually, we may want to pass 'drive' and 'unit' here. */
+	switch (dsk.type) {
+	case TYPE_CFI:
+		return (cfi_read(buf, lba, nblk));
+
+#if 0
+	case TYPE_SDCARD:
+		return (sdcard_read(buf, lba, nblk));
+
+	case TYPE_DRAM:
+		return (dram_read(buf, lba, nblk));
+#endif
+
+	default:
+		return (-1);
+	}
 }
 
 static int
