@@ -410,6 +410,10 @@ a10_gpio_pin_toggle(device_t dev, uint32_t pin)
 static int
 a10_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "allwinner,sun4i-gpio"))
 		return (ENXIO);
 
