@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 
 #include <stdarg.h>
+#include <string.h>
 
 #include <beri.h>
 #include <cfi.h>
@@ -113,7 +114,6 @@ extern register_t	beri_memsize;
 
 #define ARGS		0x900
 #define NOPT		14
-#define NDEV		4
 #define MEM_BASE	0x12
 #define MEM_EXT 	0x15
 
@@ -124,14 +124,8 @@ extern register_t	beri_memsize;
 #define DRV_HARD	0x80
 #define DRV_MASK	0x7f
 
-#define	TYPE_CFI	0		/* CFI flash ("cf"). */
-#define	TYPE_SDCARD	1		/* Altera SD Card ("sd"). */
-#define	TYPE_DRAM	2		/* File system in DRAM ("dr"). */
-#define	TYPE_MAXHARD	1
-#define	TYPE_DRAM_KERNEL	3	/* Kernel/loader file in DRAM ("dl"). */
-
 /* Default to using CFI flash. */
-#define	TYPE_DEFAULT	TYPE_CFI
+#define	TYPE_DEFAULT	BOOTINFO_DEV_TYPE_CFI
 
 /* Hard-coded assumption about location of JTAG-loaded kernel. */
 #define	DRAM_KERNEL_ADDR	((void *)mips_phys_to_cached(0x20000))
@@ -159,15 +153,15 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[NDEV] = {"cf", "sd", "dr", "dl"};
-static const unsigned char dev_maj[NDEV] = {30, 4, 2};
+/* These must match BOOTINFO_DEV_TYPE constants. */
+static const char *const dev_nm[] = {"dram", "cfi", "sdcard"};
+static const u_int dev_nm_count = sizeof(dev_nm) / sizeof(dev_nm[0]);
 
 static struct dmadat __dmadat;
 
 static struct dsk {
-    unsigned drive;
-    unsigned type;
-    unsigned unit;
+    unsigned type;		/* BOOTINFO_DEV_TYPE_x object type. */
+    uintptr_t unitptr;		/* Unit number or pointer to object. */
     uint8_t slice;
     uint8_t part;
 #if 0
@@ -195,26 +189,6 @@ static void putchar(int);
 static int xputc(int);
 static int xgetc(int);
 
-
-#if 0
-void memcpy(void *, const void *, int);
-#endif
-void
-memcpy(void *dst, const void *src, int len)
-{
-    const char *s = src;
-    char *d = dst;
-
-    while (len--)
-        *d++ = *s++;
-}
-
-static inline int
-strcmp(const char *s1, const char *s2)
-{
-    for (; *s1 == *s2 && *s1; s1++, s2++);
-    return (unsigned char)*s1 - (unsigned char)*s2;
-}
 
 #define	UFS_SMALL_CGBASE
 #include "ufsread.c"
@@ -320,10 +294,9 @@ main(u_int argc __unused, char *argv[] __unused, char *envv[] __unused)
     for (;;) {
 	if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    printf("\nFreeBSD/mips boot\n"
-		   "Default: %u:%s(%u,%c)%s\n"
+		   "Default: %s:%s\n"
 		   "boot: ",
-		   dsk.drive & DRV_MASK, dev_nm[dsk.type], dsk.unit,
-		   'a' + dsk.part, kname);
+		   dev_nm[dsk.type], kname);
 #if 0
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
@@ -364,6 +337,8 @@ boot(void *entryp, int argc, const char *argv[], const char *envv[])
 #endif
     bootinfo.bi_kernelname = (bi_ptr_t)kname;
     bootinfo.bi_boot2opts = opts & RBX_MASK;
+    bootinfo.bi_boot_dev_type = dsk.type;
+    bootinfo.bi_boot_dev_unitptr = dsk.unitptr;
     if (beri_memsize <= BERI_MEMVSDTB)
 	bootinfo.bi_memsize = beri_memsize;
     else
@@ -461,7 +436,7 @@ load(void)
 {
 
 	switch (dsk.type) {
-	case TYPE_DRAM_KERNEL:
+	case BOOTINFO_DEV_TYPE_DRAM:
 		boot_fromdram();
 		break;
 
@@ -477,7 +452,6 @@ parse()
     char *arg = cmd;
     char *ep, *p, *q;
     const char *cp;
-    unsigned int drv;
 #if 0
     int c, i, j;
 #else
@@ -494,9 +468,6 @@ parse()
 	if (c == '-') {
 	    while ((c = *arg++)) {
 		if (c == 'P') {
-#if 0
-		    if (*(uint8_t *)PTOV(0x496) & 0x10) {
-#endif
 			cp = "yes";
 #if 0
 		    } else {
@@ -532,49 +503,38 @@ parse()
 	    }
 #endif
 	} else {
-	    for (q = arg--; *q && *q != '('; q++);
-	    if (*q) {
-		drv = -1;
-		if (arg[1] == ':') {
-		    drv = *arg - '0';
-		    if (drv > 9)
-			return (-1);
-		    arg += 2;
+	    /*-
+	     * Parse a device/kernel name.  Format(s):
+	     *
+	     *   path
+	     *   device:path
+	     *
+	     * NB: Utterly incomprehensible but space-efficient ARM/i386
+	     * parsing removed in favour of larger but easier-to-read C.
+	     *
+	     * XXXRW: Pick up pieces here.
+	     */
+
+	    /*
+	     * Search for a parens; if none, then it's just a path.
+	     * Otherwise, it's a devicename.
+	     */
+	    arg--;
+	    q = strsep(&arg, ":");
+	    if (arg != NULL) {
+		printf("Searching for %s (remainder: %s)\n", q, arg);
+		for (i = 0; i < dev_nm_count; i++) {
+		    if (strcmp(q, dev_nm[i]) == 0)
+			break;
 		}
-		if (q - arg != 2)
-		    return -1;
-		for (i = 0; arg[0] != dev_nm[i][0] ||
-			    arg[1] != dev_nm[i][1]; i++)
-		    if (i == NDEV - 1)
-			return -1;
-		dsk.type = i;
-		arg += 3;
-		dsk.unit = *arg - '0';
-		if (arg[1] != ',' || dsk.unit > 9)
-		    return -1;
-		arg += 2;
-#if 0
-		/* XXXRW: No slices/etc yet. */
-		dsk.slice = WHOLE_DISK_SLICE;
-		if (arg[1] == ',') {
-		    dsk.slice = *arg - '0' + 1;
-		    if (dsk.slice > NDOSPART + 1)
-			return -1;
-		    arg += 2;
-		}
-		if (arg[1] != ')')
-		    return -1;
-		dsk.part = *arg - 'a';
-		if (dsk.part > 7)
+		if (i == dev_nm_count) {
+		    printf("Invalid device\n");
 		    return (-1);
-		arg += 2;
-#endif
-		if (drv == -1)
-		    drv = dsk.unit;
-		dsk.drive = (dsk.type <= TYPE_MAXHARD
-			     ? DRV_HARD : 0) + drv;
-		dsk_meta = 0;
-	    }
+		}
+		dsk.type = i;
+		dsk.unitptr = 0;		/* Always, for now. */
+	    } else
+		arg = q;
 	    if ((i = ep - arg)) {
 		if ((size_t)i >= sizeof(knamebuf))
 		    return -1;
@@ -593,16 +553,11 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 
 	/* XXXRW: eventually, we may want to pass 'drive' and 'unit' here. */
 	switch (dsk.type) {
-	case TYPE_CFI:
+	case BOOTINFO_DEV_TYPE_CFI:
 		return (cfi_read(buf, lba, nblk));
 
-	case TYPE_SDCARD:
+	case BOOTINFO_DEV_TYPE_SDCARD:
 		return (altera_sdcard_read(buf, lba, nblk));
-
-#if 0
-	case TYPE_DRAM:
-		return (dram_read(buf, lba, nblk));
-#endif
 
 	default:
 		return (-1);

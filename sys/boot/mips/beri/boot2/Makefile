@@ -28,6 +28,10 @@ CFLAGS=		-ffreestanding			\
 		-fno-pic -mno-abicalls		\
 		-g
 
+# where to get libstand from
+CFLAGS+=	-I${.CURDIR}/../../../../../lib/libstand/
+LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
+
 LDFLAGS=	-nostdlib			\
 		-static				\
 		-N				\
@@ -38,11 +42,11 @@ CFLAGS+=	-I${.CURDIR}/../common
 
 flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o
 	${LD} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
-	    ${.ALLSRC}
+	    ${.ALLSRC} ${LIBSTAND}
 
 jtagboot.elf: start.o boot2.o altera_jtag_uart.o cfi.o
 	${LD} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
-	    ${.ALLSRC}
+	    ${.ALLSRC} ${LIBSTAND}
 
 CLEANFILES+=	flashboot.elf jtagboot.elf
 
