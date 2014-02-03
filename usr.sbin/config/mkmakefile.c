@@ -299,7 +299,7 @@ read_file(char *fname)
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
 	const char *objprefix;
 	int compile, match, nreqs, std, filetype,
-	    imp_rule, no_obj, before_depend, mandatory, nowerror;
+	    imp_rule, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
 	if (fp == 0)
@@ -307,7 +307,7 @@ read_file(char *fname)
 next:
 	/*
 	 * include "filename"
-	 * filename    [ standard | mandatory | optional ]
+	 * filename    [ standard | optional ]
 	 *	[ dev* [ | dev* ... ] | profiling-routine ] [ no-obj ]
 	 *	[ compile-with "compile rule" [no-implicit-rule] ]
 	 *      [ dependency "dependency-list"] [ before-depend ]
@@ -358,7 +358,7 @@ next:
 	depends = 0;
 	clean = 0;
 	warning = 0;
-	std = mandatory = 0;
+	std = 0;
 	imp_rule = 0;
 	no_obj = 0;
 	before_depend = 0;
@@ -367,16 +367,9 @@ next:
 	objprefix = "";
 	if (eq(wd, "standard")) {
 		std = 1;
-	/*
-	 * If an entry is marked "mandatory", config will abort if it's
-	 * not called by a configuration line in the config file.  Apart
-	 * from this, the device is handled like one marked "optional".
-	 */
-	} else if (eq(wd, "mandatory")) {
-		mandatory = 1;
 	} else if (!eq(wd, "optional")) {
 		fprintf(stderr,
-		    "%s: \"%s\" %s must be optional, mandatory or standard\n",
+		    "%s: \"%s\" %s must be optional or standard\n",
 		    fname, wd, this);
 		exit(1);
 	}
@@ -526,11 +519,6 @@ nextparam:
 			dp->d_done |= DEVDONE;
 			goto nextparam;
 		}
-	if (mandatory) {
-		fprintf(stderr, "%s: mandatory device \"%s\" not found\n",
-		       fname, wd);
-		exit(1);
-	}
 	if (std) {
 		fprintf(stderr,
 		    "standard entry %s has a device keyword - %s!\n",
