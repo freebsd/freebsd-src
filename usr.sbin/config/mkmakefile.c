@@ -329,9 +329,7 @@ next:
 	}
 	if (eq(wd, "include")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			fprintf(stderr, "%s: missing include filename.\n",
 			    fname);
 			exit(1);
@@ -436,9 +434,7 @@ nextparam:
 	}
 	if (eq(wd, "dependency")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing dependency string.\n",
 			    fname, this);
@@ -449,9 +445,7 @@ nextparam:
 	}
 	if (eq(wd, "clean")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			fprintf(stderr, "%s: %s missing clean file list.\n",
 			    fname, this);
 			exit(1);
@@ -461,9 +455,7 @@ nextparam:
 	}
 	if (eq(wd, "compile-with")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing compile command string.\n",
 			    fname, this);
@@ -474,9 +466,7 @@ nextparam:
 	}
 	if (eq(wd, "warning")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing warning text string.\n",
 			    fname, this);
@@ -487,9 +477,7 @@ nextparam:
 	}
 	if (eq(wd, "obj-prefix")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF)
-			return;
-		if (wd == 0) {
+		if (wd == (char *)EOF || wd == 0) {
 			printf("%s: %s missing object prefix string.\n",
 				fname, this);
 			exit(1);
