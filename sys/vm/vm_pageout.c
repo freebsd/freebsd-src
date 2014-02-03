@@ -1047,11 +1047,11 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * level VM system not knowing anything about existing 
 		 * references.
 		 */
-		act_delta = 0;
 		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
 			act_delta = 1;
-		}
+		} else
+			act_delta = 0;
 		if (object->ref_count != 0) {
 			act_delta += pmap_ts_referenced(m);
 		} else {
@@ -1064,7 +1064,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		 * references, we reactivate the page or requeue it.
 		 */
 		if (act_delta != 0) {
-			if (object->ref_count) {
+			if (object->ref_count != 0) {
 				vm_page_activate(m);
 				m->act_count += act_delta + ACT_ADVANCE;
 			} else {
@@ -1361,11 +1361,12 @@ relock_queues:
 		/*
 		 * Check to see "how much" the page has been used.
 		 */
-		act_delta = 0;
-		if (m->aflags & PGA_REFERENCED) {
+		if ((m->aflags & PGA_REFERENCED) != 0) {
 			vm_page_aflag_clear(m, PGA_REFERENCED);
-			act_delta += 1;
-		}
+			act_delta = 1;
+		} else
+			act_delta = 0;
+
 		/*
 		 * Unlocked object ref count check.  Two races are possible.
 		 * 1) The ref was transitioning to zero and we saw non-zero,
@@ -1380,20 +1381,18 @@ relock_queues:
 		/*
 		 * Advance or decay the act_count based on recent usage.
 		 */
-		if (act_delta) {
+		if (act_delta != 0) {
 			m->act_count += ACT_ADVANCE + act_delta;
 			if (m->act_count > ACT_MAX)
 				m->act_count = ACT_MAX;
-		} else {
+		} else
 			m->act_count -= min(m->act_count, ACT_DECLINE);
-			act_delta = m->act_count;
-		}
 
 		/*
 		 * Move this page to the tail of the active or inactive
 		 * queue depending on usage.
 		 */
-		if (act_delta == 0) {
+		if (m->act_count == 0) {
 			/* Dequeue to avoid later lock recursion. */
 			vm_page_dequeue_locked(m);
 			vm_page_deactivate(m);
