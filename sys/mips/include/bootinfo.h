@@ -64,7 +64,19 @@ struct bootinfo {
 	bi_ptr_t	bi_dtb;		/* Pointer to dtb. */
 	bi_ptr_t	bi_memsize;	/* Physical memory size in bytes. */
 	bi_ptr_t	bi_modulep;	/* Preloaded modules. */
+	bi_ptr_t	bi_boot_dev_type;	/* Boot-device type. */
+	bi_ptr_t	bi_boot_dev_unitptr;	/* Boot-device unit/pointer. */
 };
+
+/*
+ * Possible boot-device types passed from boot2 to loader, loader to kernel.
+ * In most cases, the object pointed to will hold a filesystem; one exception
+ * is BOOTINFO_DEV_TYPE_DRAM, which points to a pre-loaded object (e.g.,
+ * loader, kernel).
+ */
+#define	BOOTINFO_DEV_TYPE_DRAM		0	/* DRAM loader/kernel (ptr). */
+#define	BOOTINFO_DEV_TYPE_CFI		1	/* CFI flash (unit). */
+#define	BOOTINFO_DEV_TYPE_SDCARD	2	/* SD card (unit). */
 
 #ifdef _KERNEL
 extern struct bootinfo	bootinfo;
