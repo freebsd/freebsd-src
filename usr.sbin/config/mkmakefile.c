@@ -373,133 +373,131 @@ next:
 	else if (!eq(wd, "optional"))
 		errout("%s: \"%s\" %s must be optional or standard\n",
 		    fname, wd, this);
-nextparam:
-	wd = get_word(fp);
-	if (wd == (char *)EOF)
-		return;
-	if (wd == 0) {
-		compile += match;
-		if (compile && tp == NULL) {
-			if (std == 0 && nreqs == 0)
-				errout("%s: what is %s optional on?\n",
-				    fname, this);
-			if (filetype == PROFILING && profiling == 0)
-				goto next;
-			tp = new_fent();
-			tp->f_fn = this;
-			tp->f_type = filetype;
-			if (imp_rule)
-				tp->f_flags |= NO_IMPLCT_RULE;
-			if (no_obj)
-				tp->f_flags |= NO_OBJ;
-			if (before_depend)
-				tp->f_flags |= BEFORE_DEPEND;
-			if (nowerror)
-				tp->f_flags |= NOWERROR;
-			tp->f_compilewith = compilewith;
-			tp->f_depends = depends;
-			tp->f_clean = clean;
-			tp->f_warn = warning;
-			tp->f_objprefix = objprefix;
+	for (wd = get_word(fp); wd; wd = get_word(fp)) {
+		if (wd == (char *)EOF)
+			return;
+		if (eq(wd, "|")) {
+			if (nreqs == 0)
+				errout("%s: syntax error describing %s\n",
+				       fname, this);
+			compile += match;
+			match = 1;
+			nreqs = 0;
+			continue;
 		}
-		goto next;
-	}
-	if (eq(wd, "|")) {
-		if (nreqs == 0)
-			errout("%s: syntax error describing %s\n",
-			    fname, this);
-		compile += match;
-		match = 1;
-		nreqs = 0;
-		goto nextparam;
-	}
-	if (eq(wd, "no-obj")) {
-		no_obj++;
-		goto nextparam;
-	}
-	if (eq(wd, "no-implicit-rule")) {
-		if (compilewith == 0)
-			errout("%s: alternate rule required when "
-			    "\"no-implicit-rule\" is specified for %s.\n",
-			    fname, this);
-		imp_rule++;
-		goto nextparam;
-	}
-	if (eq(wd, "before-depend")) {
-		before_depend++;
-		goto nextparam;
-	}
-	if (eq(wd, "dependency")) {
-		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
-			errout("%s: %s missing dependency string.\n",
-			    fname, this);
-		depends = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "clean")) {
-		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
-			errout("%s: %s missing clean file list.\n",
-			    fname, this);
-		clean = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "compile-with")) {
-		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
-			errout("%s: %s missing compile command string.\n",
-			    fname, this);
-		compilewith = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "warning")) {
-		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
-			errout("%s: %s missing warning text string.\n",
-			    fname, this);
-		warning = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "obj-prefix")) {
-		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0)
-			errout("%s: %s missing object prefix string.\n",
-				fname, this);
-		objprefix = ns(wd);
-		goto nextparam;
-	}
-	if (eq(wd, "local")) {
-		filetype = LOCAL;
-		goto nextparam;
-	}
-	if (eq(wd, "no-depend")) {
-		filetype = NODEPEND;
-		goto nextparam;
-	}
-	if (eq(wd, "nowerror")) {
-		nowerror = 1;
-		goto nextparam;
-	}
-	nreqs++;
-	/* Hack to allow "optional profiling-routine" to work */
-	if (eq(wd, "profiling-routine")) {
-		filetype = PROFILING;
-		goto nextparam;
-	}
-	if (std)
-		errout("standard entry %s has optional inclusion specifier %s!\n",
-		    this, wd);
-	STAILQ_FOREACH(dp, &dtab, d_next)
-		if (eq(dp->d_name, wd)) {
-			dp->d_done |= DEVDONE;
-			goto nextparam;
+		if (eq(wd, "no-obj")) {
+			no_obj++;
+			continue;
 		}
-	SLIST_FOREACH(op, &opt, op_next)
-		if (op->op_value == 0 && opteq(op->op_name, wd))
-			goto nextparam;
-	match = 0;
-	goto nextparam;
+		if (eq(wd, "no-implicit-rule")) {
+			if (compilewith == 0)
+				errout("%s: alternate rule required when "
+				       "\"no-implicit-rule\" is specified for"
+				       " %s.\n",
+				       fname, this);
+			imp_rule++;
+			continue;
+		}
+		if (eq(wd, "before-depend")) {
+			before_depend++;
+			continue;
+		}
+		if (eq(wd, "dependency")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing dependency string.\n",
+				       fname, this);
+			depends = ns(wd);
+			continue;
+		}
+		if (eq(wd, "clean")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing clean file list.\n",
+				       fname, this);
+			clean = ns(wd);
+			continue;
+		}
+		if (eq(wd, "compile-with")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing compile command string.\n",
+				       fname, this);
+			compilewith = ns(wd);
+			continue;
+		}
+		if (eq(wd, "warning")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing warning text string.\n",
+				       fname, this);
+			warning = ns(wd);
+			continue;
+		}
+		if (eq(wd, "obj-prefix")) {
+			wd = get_quoted_word(fp);
+			if (wd == (char *)EOF || wd == 0)
+				errout("%s: %s missing object prefix string.\n",
+				       fname, this);
+			objprefix = ns(wd);
+			continue;
+		}
+		if (eq(wd, "nowerror")) {
+			nowerror = 1;
+			continue;
+		}
+		if (eq(wd, "local")) {
+			filetype = LOCAL;
+			continue;
+		}
+		if (eq(wd, "no-depend")) {
+			filetype = NODEPEND;
+			continue;
+		}
+		nreqs++;
+		if (eq(wd, "profiling-routine")) {
+			filetype = PROFILING;
+			continue;
+		}
+		if (std)
+			errout("standard entry %s has optional inclusion specifier %s!\n",
+			       this, wd);
+		STAILQ_FOREACH(dp, &dtab, d_next)
+			if (eq(dp->d_name, wd)) {
+				dp->d_done |= DEVDONE;
+				goto nextparam;
+			}
+		SLIST_FOREACH(op, &opt, op_next)
+			if (op->op_value == 0 && opteq(op->op_name, wd))
+				goto nextparam;
+		match = 0;
+nextparam:;
+	}
+	compile += match;
+	if (compile && tp == NULL) {
+		if (std == 0 && nreqs == 0)
+			errout("%s: what is %s optional on?\n",
+			       fname, this);
+		if (filetype == PROFILING && profiling == 0)
+			goto next;
+		tp = new_fent();
+		tp->f_fn = this;
+		tp->f_type = filetype;
+		if (imp_rule)
+			tp->f_flags |= NO_IMPLCT_RULE;
+		if (no_obj)
+			tp->f_flags |= NO_OBJ;
+		if (before_depend)
+			tp->f_flags |= BEFORE_DEPEND;
+		if (nowerror)
+			tp->f_flags |= NOWERROR;
+		tp->f_compilewith = compilewith;
+		tp->f_depends = depends;
+		tp->f_clean = clean;
+		tp->f_warn = warning;
+		tp->f_objprefix = objprefix;
+	}
+	goto next;
 }
 
 /*
