@@ -259,6 +259,15 @@
 
     <para role="merged"><application>sendmail</application> has been
       updated from 8.14.7 to 8.14.8.</para>
+
+    <para revision="261320"><application>OpenSSH</application> has
+      been updated to 6.5p1.</para>
+
+    <para revision="261212"><application>bmake</application> has been
+      updated to version 20140101.</para>
+
+    <para revision="261283"><application>libc++</application> has been
+      updated to version 3.4.</para>
   </sect2>
 
   <sect2 xml:id="ports">
