@@ -497,7 +497,6 @@ nextparam:
 		objprefix = ns(wd);
 		goto nextparam;
 	}
-	nreqs++;
 	if (eq(wd, "local")) {
 		filetype = LOCAL;
 		goto nextparam;
@@ -514,6 +513,7 @@ nextparam:
 		nowerror = 1;
 		goto nextparam;
 	}
+	nreqs++;
 	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
 			dp->d_done |= DEVDONE;
