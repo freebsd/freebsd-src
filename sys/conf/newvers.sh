@@ -130,6 +130,15 @@ if [ -d "${SYSDIR}/../.git" ] ; then
 	done
 fi
 
+if [ -d "${SYSDIR}/../.hg" ] ; then
+	for dir in /usr/bin /usr/local/bin; do
+		if [ -x "${dir}/hg" ] ; then
+			hg_cmd="${dir}/hg -R ${SYSDIR}/../.hg"
+			break
+		fi
+	done
+fi
+
 if [ -n "$svnversion" ] ; then
 	svn=`cd ${SYSDIR} && $svnversion 2>/dev/null`
 	case "$svn" in
@@ -184,12 +193,23 @@ if [ -n "$p4_cmd" ] ; then
 	*)	unset p4version ;;
 	esac
 fi
-	
+
+if [ -n "$hg_cmd" ] ; then
+	hg=`$hg_cmd id 2>/dev/null`
+	svn=`$hg_cmd svn info 2>/dev/null | \
+		awk -F': ' '/Revision/ { print $2 }'`
+	if [ -n "$svn" ] ; then
+		svn=" r${svn}"
+	fi
+	if [ -n "$hg" ] ; then
+		hg=" ${hg}"
+	fi
+fi
 
 cat << EOF > vers.c
 $COPYRIGHT
-#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}${p4version}: ${t}"
-#define VERSTR "${VERSION} #${v}${svn}${git}${p4version}: ${t}\\n    ${u}@${h}:${d}\\n"
+#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}"
+#define VERSTR "${VERSION} #${v}${svn}${git}${hg}${p4version}: ${t}\\n    ${u}@${h}:${d}\\n"
 #define RELSTR "${RELEASE}"
 
 char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;
