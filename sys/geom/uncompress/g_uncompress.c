@@ -451,7 +451,7 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	struct g_provider *pp2;
 	struct g_consumer *cp;
 	struct g_geom *gp;
-	uint32_t i, total_offsets, offsets_read, type;
+	uint32_t i, total_offsets, type;
 	uint8_t *buf;
 	int error;
 
@@ -546,21 +546,15 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		    gp->name, sc->nblocks);
 		goto err;
 	}
-	sc->offsets = malloc(
-	    total_offsets * sizeof(uint64_t), M_GEOM_UNCOMPRESS, M_WAITOK);
-	offsets_read = MIN(total_offsets,
-	    (pp->sectorsize - sizeof(*header)) / sizeof(uint64_t));
-	for (i = 0; i < offsets_read; i++)
-		sc->offsets[i] = be64toh(((uint64_t *) (header + 1))[i]);
-	DPRINTF(("%s: %u offsets in the first sector\n",
-	    gp->name, offsets_read));
-
 	free(buf, M_GEOM);
+
 	i = roundup((sizeof(struct cloop_header) +
 		total_offsets * sizeof(uint64_t)),pp->sectorsize);
 	buf = g_read_data(cp, 0, i, NULL);
 	if (buf == NULL)
 		goto err;
+	sc->offsets = malloc(total_offsets * sizeof(uint64_t),
+	    M_GEOM_UNCOMPRESS, M_WAITOK);
 	for (i = 0; i <= total_offsets; i++) {
 		sc->offsets[i] = be64toh(((uint64_t *)
 		    (buf+sizeof(struct cloop_header)))[i]);
