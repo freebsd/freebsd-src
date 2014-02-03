@@ -88,7 +88,7 @@ void usage(string message)
 // 
 // @return 0 for 0K, -1 for error, sets errno
 //
-void grab(char *interface, struct in_addr *group, int number) {
+void grab(char *interface, struct in_addr *group, int number, int block) {
 
     
     int sock;
@@ -138,8 +138,10 @@ void grab(char *interface, struct in_addr *group, int number) {
 	
 	group->s_addr = htonl(ntohl(group->s_addr) + 1);
     }
-    printf("Press Control-C to exit.\n");
-    sleep(INT_MAX);
+    if (block > 0) {
+	    printf("Press Control-C to exit.\n");
+	    sleep(INT_MAX);
+    }
 
 }
 
@@ -160,11 +162,12 @@ int main(int argc, char**argv)
 	char* interface = 0;    ///< Name of the interface
 	struct in_addr *group = NULL;	///< the multicast group address
 	int number = 0;		///< Number of addresses to grab
+	int block = 1;		///< Do we block or just return?
 	
-	if (argc != 7)
+	if ((argc < 7) || (argc > 8))
 		usage();
 	
-	while ((ch = getopt(argc, argv, "g:i:n:h")) != -1) {
+	while ((ch = getopt(argc, argv, "g:i:n:bh")) != -1) {
 		switch (ch) {
 		case 'g':
 			group = new (struct in_addr );
@@ -178,12 +181,15 @@ int main(int argc, char**argv)
 		case 'n':
 			number = atoi(optarg);
 			break;
+		case 'b':
+			block = 0;
+			break;
 		case 'h':
 			usage(string("Help\n"));
 			break;
 		}
 	}
 	
-	grab(interface, group, number);
+	grab(interface, group, number, block);
 	
 }

@@ -800,6 +800,7 @@ device		vtnet		# VirtIO Ethernet device
 device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
+device		virtio_random	# VirtIO Entropy device
 
 device 		hyperv		# HyperV drivers
 

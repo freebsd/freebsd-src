@@ -302,15 +302,6 @@
 	(cp_parser_objc_declaration): Parses attribute list and passes it down 
 	to cp_parser_objc_class_interface/cp_parser_objc_protocol_declaration.
 	
-2007-07-24  Fariborz Jahanian <fjahanian@apple.com>
-
-	 Radar 5355344
-	* cp-tree.h (cp_objc_protocol_id_list): New declaration
-	* cp-lang.c (cp_objc_protocol_id_list): New stub
-	* parser.c (cp_parser_type_name): Added code to disambiguate
-	conditional from a protocol type.
-	(cp_parser_objc_tentative_protocol_refs_opt): New
-
 2007-07-13  Fariborz Jahanian <fjahanian@apple.com>
 
 	 Radar 5277239

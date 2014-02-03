@@ -1644,18 +1644,28 @@ struct sf_hdtr32 {
 	int trl_cnt;
 };
 
+struct sf_hdtr_kq32 {
+	int kq_fd;
+	uint32_t kq_flags;
+	uint32_t kq_udata;	/* 32-bit void ptr */
+	uint32_t kq_ident;	/* 32-bit uintptr_t */
+};
+
 static int
 freebsd32_do_sendfile(struct thread *td,
     struct freebsd32_sendfile_args *uap, int compat)
 {
 	struct sf_hdtr32 hdtr32;
 	struct sf_hdtr hdtr;
+	struct sf_hdtr_kq32 hdtr_kq32;
+	struct sf_hdtr_kq hdtr_kq;
 	struct uio *hdr_uio, *trl_uio;
 	struct iovec32 *iov32;
 	off_t offset;
 	int error;
 	off_t sbytes;
 	struct sendfile_sync *sfs;
+	int do_kqueue = 0;
 
 	offset = PAIR32TO64(off_t, uap->offset);
 	if (offset < 0)
@@ -1687,10 +1697,32 @@ freebsd32_do_sendfile(struct thread *td,
 			if (error)
 				goto out;
 		}
+
+		/*
+		 * If SF_KQUEUE is set, then we need to also copy in
+		 * the kqueue data after the normal hdtr set and set do_kqueue=1.
+		 */
+		if (uap->flags & SF_KQUEUE) {
+			error = copyin(((char *) uap->hdtr) + sizeof(hdtr32),
+			    &hdtr_kq32,
+			    sizeof(hdtr_kq32));
+			if (error != 0)
+				goto out;
+
+			/* 32->64 bit fields */
+			CP(hdtr_kq32, hdtr_kq, kq_fd);
+			CP(hdtr_kq32, hdtr_kq, kq_flags);
+			PTRIN_CP(hdtr_kq32, hdtr_kq, kq_udata);
+			CP(hdtr_kq32, hdtr_kq, kq_ident);
+			do_kqueue = 1;
+		}
 	}
 
+
+	/* Call sendfile */
+	/* XXX stack depth! */
 	error = _do_sendfile(td, uap->fd, uap->s, uap->flags, compat,
-	    offset, uap->nbytes, &sbytes, hdr_uio, trl_uio);
+	    offset, uap->nbytes, &sbytes, hdr_uio, trl_uio, &hdtr_kq);
 
 	if (uap->sbytes != NULL)
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));

@@ -1827,10 +1827,6 @@ static tree cp_parser_objc_identifier_list
 /* APPLE LOCAL end radar 3803157 - objc attribute */
 static tree cp_parser_objc_protocol_refs_opt
   (cp_parser *);
-/* APPLE LOCAL begin radar 5355344 */
-static bool cp_parser_objc_tentative_protocol_refs_opt
-  (cp_parser *, tree *);
-/* APPLE LOCAL end radar 5355344 */
 static void cp_parser_objc_declaration
   (cp_parser *);
 static tree cp_parser_objc_statement
@@ -17872,32 +17868,6 @@ cp_parser_objc_protocol_refs_opt (cp_parser* parser)
 
   return protorefs;
 }
-
-/* APPLE LOCAL begin radar 5355344 */
-/* This routine also parses a list of Objective-C protocol references; except that
- if list is not valid, it returns FALSE and back-tracks parsing. */
-
-static bool
-cp_parser_objc_tentative_protocol_refs_opt (cp_parser* parser, tree *protorefs)
-{
-  *protorefs = NULL_TREE;
-  if(cp_lexer_next_token_is (parser->lexer, CPP_LESS))
-    {
-      cp_parser_parse_tentatively (parser);
-      cp_lexer_consume_token (parser->lexer);  /* Eat '<'.  */
-      *protorefs = cp_parser_objc_identifier_list (parser);
-      if (!cp_objc_protocol_id_list (*protorefs))
-	 {
-	cp_parser_abort_tentative_parse (parser);
-	return false;
-	 }
-      if (cp_parser_parse_definitely (parser))
-	cp_parser_require (parser, CPP_GREATER, "`>'");
-    }
-
-  return true;
-}
-/* APPLE LOCAL end radar 5355344 */
 
 /* Parse a Objective-C visibility specification.  */
 

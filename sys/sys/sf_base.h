@@ -31,6 +31,7 @@
 
 extern	int _do_sendfile(struct thread *, int src_fd, int sock_fd, int flags,
 	    int compat, off_t offset, size_t nbytes, off_t *sbytes,
-	    struct uio *hdr_uio, struct uio *trl_uio);
+	    struct uio *hdr_uio, struct uio *trl_uio,
+	    struct sf_hdtr_kq *hdtr_kq);
 
 #endif	/* _SYS_SF_BASE_H_ */

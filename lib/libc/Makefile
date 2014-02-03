@@ -40,11 +40,11 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 .endif
 
 #
-# Only link with static libgcc.a (no libgcc_eh.a).
+# Link with static libcompiler_rt.a.
 #
-DPADD+=	${LIBGCC}
+DPADD+=	${LIBCOMPILER_RT}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lgcc
+LDADD+= -lcompiler_rt
 
 .if ${MK_SSP} != "no"
 LDADD+= -lssp_nonshared

@@ -119,8 +119,8 @@ LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
 .if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
+DPADD+=		${LIBCOMPILER_RT}
+LDADD+=		-lcompiler_rt
 .else
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .endif
@@ -145,6 +145,7 @@ LIB1ASMFUNCS = __divxf3 __divdf3 __divsf3 \
 	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
 	__nonlocal_goto __restore_stack_nonlocal __trampoline \
 	_fixtfdi _fixunstfdi _floatditf
+LIB2FUNCS += _bswapsi2 _bswapdi2
 LIB2ADDEH = unwind-ia64.c unwind-sjlj.c unwind-c.c
 .endif
 

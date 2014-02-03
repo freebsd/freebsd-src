@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/route.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
@@ -99,19 +100,14 @@ ip6_fastforward(struct mbuf *m)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
-		if (n)
-			M_MOVE_PKTHDR(n, m);
-		if (n && n->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_DONTWAIT);
-			if ((n->m_flags & M_EXT) == 0) {
-				m_freem(n);
-				n = NULL;
-			}
-		}
+		if (m->m_pkthdr.len > MHLEN)
+			n = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+		else
+			n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL)
 			goto dropin;
 
+		m_move_pkthdr(n, m);
 		m_copydata(m, 0, n->m_pkthdr.len, mtod(n, caddr_t));
 		n->m_len = n->m_pkthdr.len;
 		m_freem(m);
