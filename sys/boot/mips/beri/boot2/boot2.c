@@ -184,8 +184,6 @@ static void boot_fromfs(void);
 static void load(void);
 static int parse(void);
 static int dskread(void *, unsigned, unsigned);
-static void printf(const char *,...);
-static void putchar(int);
 static int xputc(int);
 static int xgetc(int);
 
@@ -522,7 +520,6 @@ parse()
 	    arg--;
 	    q = strsep(&arg, ":");
 	    if (arg != NULL) {
-		printf("Searching for %s (remainder: %s)\n", q, arg);
 		for (i = 0; i < dev_nm_count; i++) {
 		    if (strcmp(q, dev_nm[i]) == 0)
 			break;
@@ -636,45 +633,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 #endif
 }
 
-static void
-printf(const char *fmt,...)
-{
-    va_list ap;
-    static char buf[10];
-    char *s;
-    unsigned u;
-    int c;
-
-    va_start(ap, fmt);
-    while ((c = *fmt++)) {
-	if (c == '%') {
-	    c = *fmt++;
-	    switch (c) {
-	    case 'c':
-		putchar(va_arg(ap, int));
-		continue;
-	    case 's':
-		for (s = va_arg(ap, char *); *s; s++)
-		    putchar(*s);
-		continue;
-	    case 'u':
-		u = va_arg(ap, unsigned);
-		s = buf;
-		do
-		    *s++ = '0' + u % 10U;
-		while (u /= 10U);
-		while (--s >= buf)
-		    putchar(*s);
-		continue;
-	    }
-	}
-	putchar(c);
-    }
-    va_end(ap);
-    return;
-}
-
-static void
+void
 putchar(int c)
 {
     if (c == '\n')
