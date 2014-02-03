@@ -513,18 +513,18 @@ nextparam:
 		nowerror = 1;
 		goto nextparam;
 	}
+	if (std) {
+		fprintf(stderr,
+		    "standard entry %s has optional inclusion specifier %s!\n",
+		    this, wd);
+		exit(1);
+	}
 	nreqs++;
 	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
 			dp->d_done |= DEVDONE;
 			goto nextparam;
 		}
-	if (std) {
-		fprintf(stderr,
-		    "standard entry %s has a device keyword - %s!\n",
-		    this, wd);
-		exit(1);
-	}
 	SLIST_FOREACH(op, &opt, op_next)
 		if (op->op_value == 0 && opteq(op->op_name, wd))
 			goto nextparam;
