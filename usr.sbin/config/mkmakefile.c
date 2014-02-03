@@ -43,6 +43,7 @@ static const char rcsid[] =
 
 #include <ctype.h>
 #include <err.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
@@ -58,6 +59,15 @@ static void do_objs(FILE *);
 static void do_before_depend(FILE *);
 static int opteq(const char *, const char *);
 static void read_files(void);
+
+static void errout(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	exit(1);
+}
 
 /*
  * Lookup a file, by name.
@@ -329,11 +339,8 @@ next:
 	}
 	if (eq(wd, "include")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			fprintf(stderr, "%s: missing include filename.\n",
-			    fname);
-			exit(1);
-		}
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: missing include filename.\n", fname);
 		(void) snprintf(ifname, sizeof(ifname), "../../%s", wd);
 		read_file(ifname);
 		while (((wd = get_word(fp)) != (char *)EOF) && wd)
@@ -344,10 +351,8 @@ next:
 	wd = get_word(fp);
 	if (wd == (char *)EOF)
 		return;
-	if (wd == 0) {
-		fprintf(stderr, "%s: No type for %s.\n", fname, this);
-		exit(1);
-	}
+	if (wd == 0)
+		errout("%s: No type for %s.\n", fname, this);
 	tp = fl_lookup(this);
 	compile = 0;
 	match = 1;
@@ -363,14 +368,11 @@ next:
 	nowerror = 0;
 	filetype = NORMAL;
 	objprefix = "";
-	if (eq(wd, "standard")) {
+	if (eq(wd, "standard"))
 		std = 1;
-	} else if (!eq(wd, "optional")) {
-		fprintf(stderr,
-		    "%s: \"%s\" %s must be optional or standard\n",
+	else if (!eq(wd, "optional"))
+		errout("%s: \"%s\" %s must be optional or standard\n",
 		    fname, wd, this);
-		exit(1);
-	}
 nextparam:
 	wd = get_word(fp);
 	if (wd == (char *)EOF)
@@ -378,11 +380,9 @@ nextparam:
 	if (wd == 0) {
 		compile += match;
 		if (compile && tp == NULL) {
-			if (std == 0 && nreqs == 0) {
-				fprintf(stderr, "%s: what is %s optional on?\n",
-					fname, this);
-				exit(1);
-			}
+			if (std == 0 && nreqs == 0)
+				errout("%s: what is %s optional on?\n",
+				    fname, this);
 			if (filetype == PROFILING && profiling == 0)
 				goto next;
 			tp = new_fent();
@@ -405,11 +405,9 @@ nextparam:
 		goto next;
 	}
 	if (eq(wd, "|")) {
-		if (nreqs == 0) {
-			fprintf(stderr, "%s: syntax error describing %s\n",
+		if (nreqs == 0)
+			errout("%s: syntax error describing %s\n",
 			    fname, this);
-			exit(1);
-		}
 		compile += match;
 		match = 1;
 		nreqs = 0;
@@ -420,11 +418,10 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "no-implicit-rule")) {
-		if (compilewith == 0) {
-			fprintf(stderr, "%s: alternate rule required when "
-			    "\"no-implicit-rule\" is specified.\n",
-			    fname);
-		}
+		if (compilewith == 0)
+			errout("%s: alternate rule required when "
+			    "\"no-implicit-rule\" is specified for %s.\n",
+			    fname, this);
 		imp_rule++;
 		goto nextparam;
 	}
@@ -434,54 +431,41 @@ nextparam:
 	}
 	if (eq(wd, "dependency")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing dependency string.\n",
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: %s missing dependency string.\n",
 			    fname, this);
-			exit(1);
-		}
 		depends = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "clean")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			fprintf(stderr, "%s: %s missing clean file list.\n",
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: %s missing clean file list.\n",
 			    fname, this);
-			exit(1);
-		}
 		clean = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "compile-with")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing compile command string.\n",
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: %s missing compile command string.\n",
 			    fname, this);
-			exit(1);
-		}
 		compilewith = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "warning")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			fprintf(stderr,
-			    "%s: %s missing warning text string.\n",
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: %s missing warning text string.\n",
 			    fname, this);
-			exit(1);
-		}
 		warning = ns(wd);
 		goto nextparam;
 	}
 	if (eq(wd, "obj-prefix")) {
 		wd = get_quoted_word(fp);
-		if (wd == (char *)EOF || wd == 0) {
-			printf("%s: %s missing object prefix string.\n",
+		if (wd == (char *)EOF || wd == 0)
+			errout("%s: %s missing object prefix string.\n",
 				fname, this);
-			exit(1);
-		}
 		objprefix = ns(wd);
 		goto nextparam;
 	}
@@ -501,12 +485,9 @@ nextparam:
 		nowerror = 1;
 		goto nextparam;
 	}
-	if (std) {
-		fprintf(stderr,
-		    "standard entry %s has optional inclusion specifier %s!\n",
+	if (std)
+		errout("standard entry %s has optional inclusion specifier %s!\n",
 		    this, wd);
-		exit(1);
-	}
 	nreqs++;
 	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
