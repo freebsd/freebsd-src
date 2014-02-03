@@ -33,6 +33,7 @@
 #include <sys/endian.h>
 
 #include <inttypes.h>
+#include <stdio.h>
 
 
 /*
@@ -153,8 +154,10 @@ altera_sdcard_read_block(void *buf, unsigned lba)
 	uint16_t asr, rr1;
 	int i;
 
-	if (!(altera_sdcard_read_asr() & ALTERA_SDCARD_ASR_CARDPRESENT))
+	if (!(altera_sdcard_read_asr() & ALTERA_SDCARD_ASR_CARDPRESENT)) {
+		printf("SD Card: card not present\n");
 		return (-1);
+	}
 
 	bufp = (uint32_t *)buf;
 	rxtxp = ALTERA_SDCARD_PTR(uint32_t, ALTERA_SDCARD_OFF_RXTX_BUFFER);
@@ -174,13 +177,17 @@ altera_sdcard_read_block(void *buf, unsigned lba)
 	/*
 	 * Due to hardware bugs/features, interpretting this field is messy.
 	 */
-	rr1 &= ~ALTERA_SDCARD_RR1_COMMANDCRCFAILED;	/* ??? */
 	rr1 = altera_sdcard_read_rr1();
-	if (asr & ALTERA_SDCARD_ASR_CMDTIMEOUT)
+	rr1 &= ~ALTERA_SDCARD_RR1_COMMANDCRCFAILED;	/* HW bug. */
+	if (asr & ALTERA_SDCARD_ASR_CMDTIMEOUT) {
+		printf("SD Card: timeout\n");
 		return (-1);
+	}
 	if ((asr & ALTERA_SDCARD_ASR_CMDDATAERROR) &&
-	    (rr1 & ALTERA_SDCARD_RR1_ERRORMASK))
+	    (rr1 & ALTERA_SDCARD_RR1_ERRORMASK)) {
+		printf("SD card: asr %u rr1 %u\n", asr, rr1);
 		return (-1);
+	}
 
 	/*
 	 * We can't use a regular memcpy() due to byte-enable bugs in the
@@ -202,8 +209,10 @@ altera_sdcard_read(void *buf, unsigned lba, unsigned nblk)
 
 	for (i = 0; i < nblk; i++) {
 		if (altera_sdcard_read_block(bufp + i *
-		    ALTERA_SDCARD_SECTORSIZE, lba + i) < 0)
+		    ALTERA_SDCARD_SECTORSIZE, lba + i) < 0) {
+			printf("SD Card: block read %u failed\n", i);
 			return (-1);
+		}
 	}
 	return (0);
 }
