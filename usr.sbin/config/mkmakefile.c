@@ -50,21 +50,6 @@ static const char rcsid[] =
 #include "config.h"
 #include "configvers.h"
 
-#define next_word(fp, wd) \
-	{ char *word = get_word(fp); \
-	  if (word == (char *)EOF) \
-		return; \
-	  else \
-		wd = word; \
-	}
-#define next_quoted_word(fp, wd) \
-	{ char *word = get_quoted_word(fp); \
-	  if (word == (char *)EOF) \
-		return; \
-	  else \
-		wd = word; \
-	}
-
 static char *tail(char *);
 static void do_clean(FILE *);
 static void do_rules(FILE *);
@@ -343,7 +328,9 @@ next:
 		goto next;
 	}
 	if (eq(wd, "include")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			fprintf(stderr, "%s: missing include filename.\n",
 			    fname);
@@ -356,7 +343,9 @@ next:
 		goto next;
 	}
 	this = ns(wd);
-	next_word(fp, wd);
+	wd = get_word(fp);
+	if (wd == (char *)EOF)
+		return;
 	if (wd == 0) {
 		fprintf(stderr, "%s: No type for %s.\n", fname, this);
 		exit(1);
@@ -392,11 +381,36 @@ next:
 		exit(1);
 	}
 nextparam:
-	next_word(fp, wd);
+	wd = get_word(fp);
+	if (wd == (char *)EOF)
+		return;
 	if (wd == 0) {
 		compile += match;
-		if (compile && tp == NULL)
-			goto doneparam;
+		if (compile && tp == NULL) {
+			if (std == 0 && nreqs == 0) {
+				fprintf(stderr, "%s: what is %s optional on?\n",
+					fname, this);
+				exit(1);
+			}
+			if (filetype == PROFILING && profiling == 0)
+				goto next;
+			tp = new_fent();
+			tp->f_fn = this;
+			tp->f_type = filetype;
+			if (imp_rule)
+				tp->f_flags |= NO_IMPLCT_RULE;
+			if (no_obj)
+				tp->f_flags |= NO_OBJ;
+			if (before_depend)
+				tp->f_flags |= BEFORE_DEPEND;
+			if (nowerror)
+				tp->f_flags |= NOWERROR;
+			tp->f_compilewith = compilewith;
+			tp->f_depends = depends;
+			tp->f_clean = clean;
+			tp->f_warn = warning;
+			tp->f_objprefix = objprefix;
+		}
 		goto next;
 	}
 	if (eq(wd, "|")) {
@@ -428,7 +442,9 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "dependency")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing dependency string.\n",
@@ -439,7 +455,9 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "clean")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			fprintf(stderr, "%s: %s missing clean file list.\n",
 			    fname, this);
@@ -449,7 +467,9 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "compile-with")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing compile command string.\n",
@@ -460,7 +480,9 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "warning")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			fprintf(stderr,
 			    "%s: %s missing warning text string.\n",
@@ -471,7 +493,9 @@ nextparam:
 		goto nextparam;
 	}
 	if (eq(wd, "obj-prefix")) {
-		next_quoted_word(fp, wd);
+		wd = get_quoted_word(fp);
+		if (wd == (char *)EOF)
+			return;
 		if (wd == 0) {
 			printf("%s: %s missing object prefix string.\n",
 				fname, this);
@@ -518,38 +542,6 @@ nextparam:
 			goto nextparam;
 	match = 0;
 	goto nextparam;
-
-doneparam:
-	if (std == 0 && nreqs == 0) {
-		fprintf(stderr, "%s: what is %s optional on?\n",
-		    fname, this);
-		exit(1);
-	}
-
-	if (wd) {
-		fprintf(stderr, "%s: syntax error describing %s\n",
-		    fname, this);
-		exit(1);
-	}
-	if (filetype == PROFILING && profiling == 0)
-		goto next;
-	tp = new_fent();
-	tp->f_fn = this;
-	tp->f_type = filetype;
-	if (imp_rule)
-		tp->f_flags |= NO_IMPLCT_RULE;
-	if (no_obj)
-		tp->f_flags |= NO_OBJ;
-	if (before_depend)
-		tp->f_flags |= BEFORE_DEPEND;
-	if (nowerror)
-		tp->f_flags |= NOWERROR;
-	tp->f_compilewith = compilewith;
-	tp->f_depends = depends;
-	tp->f_clean = clean;
-	tp->f_warn = warning;
-	tp->f_objprefix = objprefix;
-	goto next;
 }
 
 /*
