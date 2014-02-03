@@ -477,18 +477,19 @@ nextparam:
 		filetype = NODEPEND;
 		goto nextparam;
 	}
-	if (eq(wd, "profiling-routine")) {
-		filetype = PROFILING;
-		goto nextparam;
-	}
 	if (eq(wd, "nowerror")) {
 		nowerror = 1;
+		goto nextparam;
+	}
+	nreqs++;
+	/* Hack to allow "optional profiling-routine" to work */
+	if (eq(wd, "profiling-routine")) {
+		filetype = PROFILING;
 		goto nextparam;
 	}
 	if (std)
 		errout("standard entry %s has optional inclusion specifier %s!\n",
 		    this, wd);
-	nreqs++;
 	STAILQ_FOREACH(dp, &dtab, d_next)
 		if (eq(dp->d_name, wd)) {
 			dp->d_done |= DEVDONE;
