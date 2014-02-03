@@ -264,7 +264,7 @@ g_uncompress_done(struct bio *bp)
 
 			err = (inflate(sc->zs, Z_FINISH) != Z_STREAM_END) ?
 			    1 : 0;
-			if ((err) && (inflateReset(sc->zs) != Z_OK))
+			if ((err) || (inflateReset(sc->zs) != Z_OK))
 				printf("%s: UZIP decoder reset failed\n",
 				     gp->name);
 			break;
