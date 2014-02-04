@@ -218,7 +218,7 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 			 * Already reserved by a thread that will not back
 			 * off for us. We need to back off.
 			 */
-			if (unlikely(sequence - bo->val_seq < (1 << 31)))
+			if (unlikely(sequence - bo->val_seq < (1U << 31)))
 				return -EAGAIN;
 		}
 
@@ -237,7 +237,7 @@ int ttm_bo_reserve_nolru(struct ttm_buffer_object *bo,
 		 * Wake up waiters that may need to recheck for deadlock,
 		 * if we decreased the sequence number.
 		 */
-		if (unlikely((bo->val_seq - sequence < (1 << 31))
+		if (unlikely((bo->val_seq - sequence < (1U << 31))
 			     || !bo->seq_valid))
 			wake_up = true;
 
@@ -315,7 +315,7 @@ int ttm_bo_reserve_slowpath_nolru(struct ttm_buffer_object *bo,
 			return ret;
 	}
 
-	if ((bo->val_seq - sequence < (1 << 31)) || !bo->seq_valid)
+	if ((bo->val_seq - sequence < (1U << 31)) || !bo->seq_valid)
 		wake_up = true;
 
 	/**

@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-#define PCI_CFG_ENA		(1 << 31)
+#define PCI_CFG_ENA		(1U << 31)
 #define PCI_CFG_BUS(bus)	(((bus) & 0xff) << 16)
 #define PCI_CFG_DEV(dev)	(((dev) & 0x1f) << 11)
 #define PCI_CFG_FUN(fun)	(((fun) & 0x7) << 8)

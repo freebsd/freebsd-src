@@ -1431,7 +1431,7 @@ bad:
 			/* SAS1078 36GB limitation WAR */
 			if (mpt->is_1078 && (((uint64_t)dm_segs->ds_addr +
 			    MPI_SGE_LENGTH(se->FlagsLength)) >> 32) == 9) {
-				addr |= (1 << 31);
+				addr |= (1U << 31);
 				tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
 			}
 			se->Address.High = htole32(addr);
@@ -1554,7 +1554,7 @@ bad:
 				    (((uint64_t)dm_segs->ds_addr +
 				    MPI_SGE_LENGTH(se->FlagsLength)) >>
 				    32) == 9) {
-					addr |= (1 << 31);
+					addr |= (1U << 31);
 					tf |= MPI_SGE_FLAGS_LOCAL_ADDRESS;
 				}
 				se->Address.High = htole32(addr);

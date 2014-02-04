@@ -1051,7 +1051,7 @@ rebuild_round_done:
 			    nsd->sd_pos);
 			if (do_write)
 				mask |= 1 << 31;
-			if ((mask & (1 << 31)) != 0)
+			if ((mask & (1U << 31)) != 0)
 				sd->sd_recovery++;
 			cbp->bio_caller2 = (void *)mask;
 			if (do_write) {
@@ -1074,7 +1074,7 @@ rebuild_round_done:
 	}
 	if (bp->bio_cmd == BIO_READ &&
 	    bp->bio_error == 0 &&
-	    (mask & (1 << 31)) != 0) {
+	    (mask & (1U << 31)) != 0) {
 		G_RAID_LOGREQ(3, bp, "Recovered data from other drive");
 
 		/* Restore what we were doing. */
@@ -1101,7 +1101,7 @@ rebuild_round_done:
 			return;
 		}
 	}
-	if ((mask & (1 << 31)) != 0) {
+	if ((mask & (1U << 31)) != 0) {
 		/*
 		 * We're done with a recovery, mark the range as unlocked.
 		 * For any write errors, we agressively fail the disk since

@@ -500,7 +500,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a ^= (1 << 31);
+				*a ^= (1U << 31);
 				break;
 			case	OPC63_MCRFS:
 				FPU_EMU_EVCNT_INCR(mcrfs);
@@ -547,7 +547,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a |= (1 << 31);
+				*a |= (1U << 31);
 				break;
 			case	OPC63_FABS:
 				FPU_EMU_EVCNT_INCR(fabs);
@@ -555,7 +555,7 @@ fpu_execute(struct trapframe *tf, struct fpemu *fe, union instr *insn)
 				memcpy(&fs->fpreg[rt], &fs->fpreg[rb],
 					sizeof(double));
 				a = (int *)&fs->fpreg[rt];
-				*a &= ~(1 << 31);
+				*a &= ~(1U << 31);
 				break;
 			case	OPC63_MFFS:
 				FPU_EMU_EVCNT_INCR(mffs);
