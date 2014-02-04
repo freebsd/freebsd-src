@@ -84,15 +84,6 @@ memcpy_loop:
 		nop
 
 memcopy_done:
-		dla	$at, beri_argc
-		sd	$a0, 0($at)
-		dla	$at, beri_argv
-		sd	$a1, 0($at)
-		dla	$at, beri_envv
-		sd	$a2, 0($at)
-		dla	$at, beri_memsize
-		sd	$a3, 0($at)
-
 		/*
 		 * We can now jump into the relocated code, running from
 		 * cached DRAM rather than uncached flash.  Note that a

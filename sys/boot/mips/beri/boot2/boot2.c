@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
 
+#include <stand.h>
 #include <stdarg.h>
 #include <string.h>
 
@@ -63,9 +64,9 @@ __FBSDID("$FreeBSD$");
 #include <mips.h>
 #include <sdcard.h>
 
-extern int	beri_argc;
-extern const char	*beri_argv[], *beri_envv[];
-extern register_t	beri_memsize;
+static int		 beri_argc;
+static const char	**beri_argv, **beri_envv;
+static uint64_t		 beri_memsize;
 
 #define IO_KEYBOARD	1
 #define IO_SERIAL	2
@@ -179,6 +180,7 @@ struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
+void putchar(int);
 static void boot_fromdram(void);
 static void boot_fromfs(void);
 static void load(void);
@@ -233,11 +235,17 @@ getstr(void)
 }
 
 int
-main(u_int argc __unused, char *argv[] __unused, char *envv[] __unused)
+main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
 {
     uint8_t autoboot;
     ufs_ino_t ino;
     size_t nbyte;
+
+    /* Arguments from Miniboot. */
+    beri_argc = argc;
+    beri_argv = argv;
+    beri_envv = envv;
+    beri_memsize = memsize;
 
     dmadat = &__dmadat;
 #if 0
@@ -321,11 +329,6 @@ static void
 boot(void *entryp, int argc, const char *argv[], const char *envv[])
 {
 
-    /* XXXRW: For now, NULL, as these aren't actually set by miniboot. */
-    argv = NULL;
-    envv = NULL;
-    argc = 0;
-
 #if 0
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.drive;
@@ -337,10 +340,17 @@ boot(void *entryp, int argc, const char *argv[], const char *envv[])
     bootinfo.bi_boot2opts = opts & RBX_MASK;
     bootinfo.bi_boot_dev_type = dsk.type;
     bootinfo.bi_boot_dev_unitptr = dsk.unitptr;
+    bootinfo.bi_memsize = beri_memsize;
+#if 0
+    /*
+     * XXXRW: A possible future way to distinguish Miniboot passing a memory
+     * size vs DTB..?
+     */
     if (beri_memsize <= BERI_MEMVSDTB)
 	bootinfo.bi_memsize = beri_memsize;
     else
 	bootinfo.bi_dtb = beri_memsize;
+#endif
     ((void(*)(int, const char **, const char **, void *))entryp)(argc, argv,
       envv, &bootinfo);
 }

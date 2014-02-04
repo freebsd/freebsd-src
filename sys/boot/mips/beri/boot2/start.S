@@ -78,16 +78,3 @@ loop:
 		b	loop
 		nop
 		.end start
-
-		/*
-		 * Globals exported to boot2.
-		 */
-		.data
-		.global beri_argc
-beri_argc:	.dword	0x0000000000000000
-		.global beri_argv
-beri_argv:	.dword	0x0000000000000000
-		.global beri_envv
-beri_envv:	.dword	0x0000000000000000
-		.global	beri_memsize
-beri_memsize:	.dword	0x0000000000000000
