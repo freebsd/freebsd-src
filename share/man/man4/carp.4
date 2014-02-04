@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2011
+.Dd February 4, 2014
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -276,7 +276,7 @@ status change events can be set up by using the following devd.conf rules:
 notify 0 {
 	match "system"          "IFNET";
 	match "type"            "LINK_UP";
-	match "subsystem"       "carp*";
+	match "subsystem"       "carp.*";
 	action "/root/carpcontrol.sh $type $subsystem";
 };
 
