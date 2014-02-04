@@ -10,6 +10,7 @@ INSTALLFLAGS=	-b
 # Architecture-specific loader code
 SRCS=		start.S main.c exec.c metadata.c vers.c arch.c
 SRCS+=		beri_console.c altera_jtag_uart.c beri_disk.c cfi.c sdcard.c
+SRCS+=		devicename.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes

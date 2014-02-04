@@ -32,9 +32,8 @@ __FBSDID("$FreeBSD$");
 
 #include "bootstrap.h"
 #include "disk.h"
-#include "libuserboot.h"
 
-static int	userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path);
+static int	beri_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -42,7 +41,7 @@ static int	userboot_parsedev(struct disk_devdesc **dev, const char *devspec, con
  * use that.  If not, use the default device.
  */
 int
-userboot_getdev(void **vdev, const char *devspec, const char **path)
+beri_getdev(void **vdev, const char *devspec, const char **path)
 {
     struct disk_devdesc **dev = (struct disk_devdesc **)vdev;
     int				rv;
@@ -55,7 +54,7 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
 	(devspec[0] == '/') || 
 	(strchr(devspec, ':') == NULL)) {
 
-	if (((rv = userboot_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+	if (((rv = beri_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
 	    (path != NULL))
 		*path = devspec;
 	return(rv);
@@ -64,7 +63,7 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
     /*
      * Try to parse the device name off the beginning of the devspec
      */
-    return(userboot_parsedev(dev, devspec, path));
+    return(beri_parsedev(dev, devspec, path));
 }
 
 /*
@@ -82,12 +81,12 @@ userboot_getdev(void **vdev, const char *devspec, const char **path)
  * 
  */
 static int
-userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path)
+beri_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path)
 {
     struct disk_devdesc *idev;
     struct devsw	*dv;
     int			i, unit, err;
-    char		*cp;
+    const char		*cp;
     const char		*np;
 
     /* minimum length check */
@@ -161,7 +160,7 @@ userboot_parsedev(struct disk_devdesc **dev, const char *devspec, const char **p
 
 
 char *
-userboot_fmtdev(void *vdev)
+beri_fmtdev(void *vdev)
 {
     struct disk_devdesc	*dev = (struct disk_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
@@ -191,12 +190,12 @@ userboot_fmtdev(void *vdev)
  * Set currdev to suit the value being supplied in (value)
  */
 int
-userboot_setcurrdev(struct env_var *ev, int flags, const void *value)
+beri_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
     struct disk_devdesc	*ncurr;
     int			rv;
 
-    if ((rv = userboot_parsedev(&ncurr, value, NULL)) != 0)
+    if ((rv = beri_parsedev(&ncurr, value, NULL)) != 0)
 	return(rv);
     free(ncurr);
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
