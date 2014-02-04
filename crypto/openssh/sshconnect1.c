@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect1.c,v 1.71 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: sshconnect1.c,v 1.72 2013/09/02 22:00:34 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -541,9 +541,6 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 	client_flags = SSH_PROTOFLAG_SCREEN_NUMBER | SSH_PROTOFLAG_HOST_IN_FWD_OPEN;
 
 	derive_ssh1_session_id(host_key->rsa->n, server_key->rsa->n, cookie, session_id);
-
-	/* Generate a session key. */
-	arc4random_stir();
 
 	/*
 	 * Generate an encryption key for the session.   The key is a 256 bit

@@ -38,7 +38,7 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	UFS_ACL			#Support for access control lists
 #options 	UFS_DIRHASH		#Improve performance on big directories
 #options 	MD_ROOT			#MD is a potential root device
-#options 	MD_ROOT_SIZE=4096	# 3MB ram disk
+#options 	MD_ROOT_SIZE=4096	# 4MB ram disk
 options 	NFSCL			#New Network Filesystem Client
 #options 	NFSD			#New Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
@@ -63,7 +63,6 @@ options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
-#options 	SYSCTL_OMIT_DESCR
 options 	MUTEX_NOINLINE
 options 	RWLOCK_NOINLINE
 options 	NO_FFS_SNAPSHOT

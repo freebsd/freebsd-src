@@ -177,7 +177,6 @@ init_secondary(int cpu)
 	cpu_tlb_flushID();
 
 	pc = &__pcpu[cpu];
-	set_pcpu(pc);
 
 	/*
 	 * pcpu_init() updates queue, so it should not be executed in parallel
@@ -203,6 +202,7 @@ init_secondary(int cpu)
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
 	pc->pc_curthread = pc->pc_idlethread;
 	pc->pc_curpcb = pc->pc_idlethread->td_pcb;
+	set_curthread(pc->pc_idlethread);
 #ifdef VFP
 	pc->pc_cpu = cpu;
 

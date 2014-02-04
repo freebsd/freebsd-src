@@ -497,6 +497,8 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	aior->cfis = cfis;
 	aior->slot = slot;
 	aior->len = 0;
+	aior->done = 0;
+	aior->prdtl = 0;
 	breq = &aior->io_req;
 
 	err = blockif_flush(p->bctx, breq);

@@ -25,7 +25,6 @@ ident		NSLU
 #options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 #options 	FLASHADDR=0x50000000
 #options 	LOADERRAMADDR=0x00000000
-#options 	STARTUP_PAGETABLE_ADDR=0x10000000
 
 include		"../xscale/ixp425/std.ixp425"
 # NB: memory mapping is defined in std.avila (see also comment above)

@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>

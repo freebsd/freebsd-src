@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.24 2013/02/12 00:00:40 djm Exp $ */
+/* $Id: openssl-compat.h,v 1.25 2014/01/17 06:32:31 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -148,6 +148,14 @@ int DSA_generate_parameters_ex(DSA *, int, const unsigned char *, int, int *,
 int RSA_generate_key_ex(RSA *, int, BIGNUM *, void *);
 # endif
 
+# ifndef HAVE_EVP_DIGESTINIT_EX
+int EVP_DigestInit_ex(EVP_MD_CTX *, const EVP_MD *, void *);
+# endif
+
+# ifndef HAVE_EVP_DISESTFINAL_EX
+int EVP_DigestFinal_ex(EVP_MD_CTX *, unsigned char *, unsigned int *);
+# endif
+
 int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);
 int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
@@ -156,6 +164,14 @@ void ssh_OpenSSL_add_all_algorithms(void);
 
 # ifndef HAVE_HMAC_CTX_INIT
 #  define HMAC_CTX_init(a)
+# endif
+
+# ifndef HAVE_EVP_MD_CTX_INIT
+#  define EVP_MD_CTX_init(a)
+# endif
+
+# ifndef HAVE_EVP_MD_CTX_CLEANUP
+#  define EVP_MD_CTX_cleanup(a)
 # endif
 
 #endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */

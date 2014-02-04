@@ -219,20 +219,6 @@ at91_usart_param(struct uart_bas *bas, int baudrate, int databits,
 	return (0);
 }
 
-static void
-at91_usart_grab(struct uart_bas *bas)
-{
-
-	WR4(bas, USART_IDR, USART_CSR_RXRDY);
-}
-
-static void
-at91_usart_ungrab(struct uart_bas *bas)
-{
-
-	WR4(bas, USART_IER, USART_CSR_RXRDY);
-}
-
 static struct uart_ops at91_usart_ops = {
 	.probe = at91_usart_probe,
 	.init = at91_usart_init,
@@ -240,8 +226,6 @@ static struct uart_ops at91_usart_ops = {
 	.putc = at91_usart_putc,
 	.rxready = at91_usart_rxready,
 	.getc = at91_usart_getc,
-	.grab = at91_usart_grab,
-	.ungrab = at91_usart_ungrab,
 };
 
 static int
@@ -292,6 +276,28 @@ at91_usart_putc(struct uart_bas *bas, int c)
 	WR4(bas, USART_THR, c);
 }
 
+#ifdef EARLY_PRINTF
+/*
+ * Early printf support. This assumes that we have the SoC "system" devices
+ * mapped into AT91_BASE. To use this before we adjust the boostrap tables,
+ * You'll need to define SOCDEV_VA to be 0xdc000000 and SOCDEV_PA to be
+ * 0xfc000000 in your config file where you define EARLY_PRINTF
+ */
+volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
+
+void
+eputc(int c)
+{
+
+	if (c == '\n')
+		eputc('\r');
+
+	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
+		continue;
+	at91_dbgu[USART_THR / 4] = c;
+}
+#endif
+
 /*
  * Check for a character available.
  */
@@ -331,6 +337,8 @@ static int at91_usart_bus_param(struct uart_softc *, int, int, int, int);
 static int at91_usart_bus_receive(struct uart_softc *);
 static int at91_usart_bus_setsig(struct uart_softc *, int);
 static int at91_usart_bus_transmit(struct uart_softc *);
+static void at91_usart_bus_grab(struct uart_softc *);
+static void at91_usart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_probe,		at91_usart_bus_probe),
@@ -343,6 +351,8 @@ static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_receive,	at91_usart_bus_receive),
 	KOBJMETHOD(uart_setsig,		at91_usart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	at91_usart_bus_transmit),
+	KOBJMETHOD(uart_grab,		at91_usart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		at91_usart_bus_ungrab),
 
 	KOBJMETHOD_END
 };
@@ -411,7 +421,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 {
 	int err;
 	int i;
-	uint32_t cr;
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
@@ -480,8 +489,8 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	}
 
 	/* Turn on rx and tx */
-	cr = USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX;
-	WR4(&sc->sc_bas, USART_CR, cr);
+	DELAY(1000);		/* Give pending character a chance to drain.  */
+	WR4(&sc->sc_bas, USART_CR, USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX);
 	WR4(&sc->sc_bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
 
 	/*
@@ -813,6 +822,25 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+
+static void
+at91_usart_bus_grab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IDR, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+at91_usart_bus_ungrab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
 }
 
 struct uart_class at91_usart_class = {

@@ -338,6 +338,10 @@ buf_send(int sock, void *buf, size_t size)
 	ssize_t done;
 	unsigned char *ptr;
 
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(size > 0);
+	PJDLOG_ASSERT(buf != NULL);
+
 	ptr = buf;
 	do {
 		fd_wait(sock, false);
@@ -363,8 +367,11 @@ buf_recv(int sock, void *buf, size_t size)
 	ssize_t done;
 	unsigned char *ptr;
 
+	PJDLOG_ASSERT(sock >= 0);
+	PJDLOG_ASSERT(buf != NULL);
+
 	ptr = buf;
-	do {
+	while (size > 0) {
 		fd_wait(sock, true);
 		done = recv(sock, ptr, size, 0);
 		if (done == -1) {
@@ -377,7 +384,7 @@ buf_recv(int sock, void *buf, size_t size)
 		}
 		size -= done;
 		ptr += done;
-	} while (size > 0);
+	}
 
 	return (0);
 }

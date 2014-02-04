@@ -62,6 +62,7 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
 SYSCTL_DEBUG	opt_sysctl.h
+EARLY_PRINTF	opt_global.h
 TEXTDUMP_PREFERRED	opt_ddb.h
 TEXTDUMP_VERBOSE	opt_ddb.h
 

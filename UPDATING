@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140128:
+	The libelf and libdwarf libraries have been updated to newer
+	versions from upstream. Shared library version numbers for
+	these two libraries were bumped. Any ports or binaries
+	requiring these two libraries should be recompiled.
+	__FreeBSD_version is bumped to 1100006.
+
 20140110:
 	If a Makefile in a tests/ directory was auto-generating a Kyuafile
 	instead of providing an explicit one, this would prevent such

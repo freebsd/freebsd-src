@@ -54,22 +54,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/nand/nandbus.h>
 #include "nfc_if.h"
 
+#include <dev/nand/nfc_at91.h>
+#include <arm/at91/at91_smc.h>
+
 /*
  * Data cycles are triggered by access to any address within the EBI CS3 region
  * that has A21 and A22 clear.  Command cycles are any access with bit A21
- * asserted. Address cycles are any access with bit A22 asserted.
- *
- * XXX The atmel docs say that any address bits can be used instead of A21 and
- * A22; these values should be configurable.
+ * asserted. Address cycles are any access with bit A22 asserted. Or vice versa.
+ * We get these parameters from the nand_param that the board is required to
+ * call at91_enable_nand, and enable the GPIO lines properly (that will be moved
+ * into at91_enable_nand when the great GPIO pin renumbering happens). We use
+ * ale (Address Latch Enable) and cle (Comand Latch Enable) to match the hardware
+ * names used in NAND.
  */
 #define	AT91_NAND_DATA		0
-#define	AT91_NAND_COMMAND	(1 << 21)
-#define	AT91_NAND_ADDRESS	(1 << 22)
 
 struct at91_nand_softc {
 	struct nand_softc	nand_sc;
 	struct resource		*res;
+	struct at91_nand_params *nand_param;
 };
+
+static struct at91_nand_params nand_param;
 
 static int	at91_nand_attach(device_t);
 static int	at91_nand_probe(device_t);
@@ -80,6 +86,12 @@ static int	at91_nand_select_cs(device_t, uint8_t);
 static int	at91_nand_send_command(device_t, uint8_t);
 static int	at91_nand_send_address(device_t, uint8_t);
 static void	at91_nand_write_buf(device_t, void *, uint32_t);
+
+void
+at91_enable_nand(const struct at91_nand_params *np)
+{
+	nand_param = *np;
+}
 
 static inline u_int8_t
 dev_read_1(struct at91_nand_softc *sc, bus_size_t offset)
@@ -108,6 +120,14 @@ at91_nand_attach(device_t dev)
 	int err, rid;
 
 	sc = device_get_softc(dev);
+	sc->nand_param = &nand_param;
+	if (sc->nand_param->width != 8 && sc->nand_param->width != 16) {
+		device_printf(dev, "Bad bus width (%d) defaulting to 8 bits\n",
+		    sc->nand_param->width);
+		sc->nand_param->width = 8;
+	}
+	at91_ebi_enable(sc->nand_param->cs);
+
 	rid = 0;
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
@@ -128,10 +148,10 @@ at91_nand_send_command(device_t dev, uint8_t command)
 {
 	struct at91_nand_softc *sc;
 
-        /* nand_debug(NDBG_DRV,"at91_nand_send_command: 0x%02x", command); */
+        nand_debug(NDBG_DRV,"at91_nand_send_command: 0x%02x", command);
 
 	sc = device_get_softc(dev);
-	dev_write_1(sc, AT91_NAND_COMMAND, command);
+	dev_write_1(sc, sc->nand_param->cle, command);
 	return (0);
 }
 
@@ -140,10 +160,10 @@ at91_nand_send_address(device_t dev, uint8_t addr)
 {
 	struct at91_nand_softc *sc;
 
-        /* nand_debug(NDBG_DRV,"at91_nand_send_address: x%02x", addr); */
+        nand_debug(NDBG_DRV,"at91_nand_send_address: x%02x", addr);
 
 	sc = device_get_softc(dev);
-	dev_write_1(sc, AT91_NAND_ADDRESS, addr);
+	dev_write_1(sc, sc->nand_param->ale, addr);
 	return (0);
 }
 
@@ -156,7 +176,7 @@ at91_nand_read_byte(device_t dev)
 	sc = device_get_softc(dev);
 	data = dev_read_1(sc, AT91_NAND_DATA);
 
-        /* nand_debug(NDBG_DRV,"at91_nand_read_byte: 0x%02x", data); */
+        nand_debug(NDBG_DRV,"at91_nand_read_byte: 0x%02x", data);
 
 	return (data);
 }

@@ -55,6 +55,9 @@ CFLAGS += -mllvm -arm-enable-ehabi
 .endif
 .endif
 
+# hack because genassym.c includes sys/bus.h which includes these.
+genassym.o: bus_if.h device_if.h
+
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
 	   ${FULLKERNEL}.noheader -X ${SYSTEM_OBJS} vers.o

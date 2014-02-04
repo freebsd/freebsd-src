@@ -105,6 +105,7 @@ gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
 glewis [label="Greg Lewis\nglewis@FreeBSD.org\n2002/04/08"]
+grembo [label="Michael Gmelin\ngrembo@FreeBSD.org\n2014/01/21"]
 gnn [label="George Neville-Neil\ngnn@FreeBSD.org\n2013/09/04"]
 hq [label="Herve Quiroz\nhq@FreeBSD.org\n2004/08/05"]
 ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
@@ -182,6 +183,7 @@ rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
 riggs [label="Thomas Zander\nriggs@FreeBSD.org\n2014/01/09"]
 rm [label="Ruslan Makhmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
+rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
@@ -257,6 +259,7 @@ bapt -> eadler
 bapt -> jlaffaye
 bapt -> marius
 bapt -> marino
+bapt -> rodrigo
 
 beat -> decke
 beat -> marius
@@ -391,6 +394,7 @@ krion -> sem
 krion -> sergei
 
 kwm -> jsa
+kwm -> rodrigo
 kwm -> zeising
 
 lawrance -> itetcu

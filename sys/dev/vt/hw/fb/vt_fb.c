@@ -69,8 +69,9 @@ vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
 	return (info->fb_ioctl(info->fb_cdev, cmd, data, 0, td));
 }
 
-static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
-    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr)
+static int
+vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct fb_info *info;
 

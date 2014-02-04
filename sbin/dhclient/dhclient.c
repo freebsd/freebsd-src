@@ -393,7 +393,7 @@ main(int argc, char *argv[])
 		if (path_dhclient_pidfile == NULL)
 			error("asprintf");
 	}
-	pidfile = pidfile_open(path_dhclient_pidfile, 0600, &otherpid);
+	pidfile = pidfile_open(path_dhclient_pidfile, 0644, &otherpid);
 	if (pidfile == NULL) {
 		if (errno == EEXIST)
 			error("dhclient already running, pid: %d.", otherpid);

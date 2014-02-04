@@ -318,6 +318,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		ioapic_irq = (struct vm_ioapic_irq *)data;
 		error = vioapic_pulse_irq(sc->vm, ioapic_irq->irq);
 		break;
+	case VM_IOAPIC_PINCOUNT:
+		*(int *)data = vioapic_pincount(sc->vm);
+		break;
 	case VM_MAP_MEMORY:
 		seg = (struct vm_memory_segment *)data;
 		error = vm_malloc(sc->vm, seg->gpa, seg->len);

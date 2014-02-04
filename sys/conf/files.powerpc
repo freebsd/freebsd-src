@@ -31,7 +31,9 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/hwpmc/hwpmc_mpc7xxx.c	optional	hwpmc
+dev/hwpmc/hwpmc_ppc970.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
+dev/iicbus/adt746x.c		optional        adt746x powermac
 dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
@@ -93,7 +95,7 @@ powerpc/aim/mmu_oea.c		optional	aim powerpc
 powerpc/aim/mmu_oea64.c		optional	aim
 powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
-powerpc/aim/mp_cpudep.c		optional	aim smp
+powerpc/aim/mp_cpudep.c		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/trap.c		optional	aim
 powerpc/aim/uma_machdep.c	optional	aim

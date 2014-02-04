@@ -1,4 +1,4 @@
-#	$OpenBSD: forward-control.sh,v 1.1 2012/12/02 20:47:48 djm Exp $
+#	$OpenBSD: forward-control.sh,v 1.2 2013/11/18 05:09:32 naddy Exp $
 #	Placed in the Public Domain.
 
 tid="sshd control of local and remote forwarding"

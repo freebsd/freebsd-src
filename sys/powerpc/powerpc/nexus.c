@@ -75,7 +75,6 @@ static bus_bind_intr_t nexus_bind_intr;
 #endif
 static bus_config_intr_t nexus_config_intr;
 static ofw_bus_map_intr_t nexus_ofw_map_intr;
-static ofw_bus_config_intr_t nexus_ofw_config_intr;
 
 static device_method_t nexus_methods[] = {
 	/* Bus interface */
@@ -90,7 +89,6 @@ static device_method_t nexus_methods[] = {
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_map_intr,	nexus_ofw_map_intr),
-	DEVMETHOD(ofw_bus_config_intr,	nexus_ofw_config_intr),
 
 	DEVMETHOD_END
 };
@@ -157,17 +155,14 @@ nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
 } 
 
 static int
-nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int irq)
+nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
+    pcell_t *irq)
 {
-	return (MAP_IRQ(iparent, irq));
+	u_int intr = MAP_IRQ(iparent, irq[0]);
+	if (icells > 1)
+		powerpc_fw_config_intr(intr, irq[1]);
+	return (intr);
 }
-
-static int
-nexus_ofw_config_intr(device_t dev, device_t child, int irq, int sense)
-{
- 
-	return (powerpc_fw_config_intr(irq, sense));
-} 
 
 static int
 nexus_activate_resource(device_t bus __unused, device_t child __unused,
