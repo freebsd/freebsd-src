@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Compat
+MK_FORMAT_EXTENSIONS?=no
+
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
