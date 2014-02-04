@@ -1007,7 +1007,7 @@
 #define ZYD_FILTER_CTS		(1 << 28)
 #define ZYD_FILTER_ACK		(1 << 29)
 #define ZYD_FILTER_CFE		(1 << 30)
-#define ZYD_FILTER_CFE_A	(1 << 31)
+#define ZYD_FILTER_CFE_A	(1U << 31)
 
 /* helpers for register ZYD_MAC_RXFILTER */
 #define ZYD_FILTER_MONITOR	0xffffffff

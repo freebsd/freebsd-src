@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #define	CTRL_SET_REG			0x0034
 #define	CTRL_CLR_REG			0x0038
 #define	CTRL_TOGGLE_REG			0x003c
-#define	  CTRL_SFTRST			  (1 << 31)
+#define	  CTRL_SFTRST			  (1U << 31)
 #define	  CTRL_CLKGATE			  (1 << 30)
 #define	  CTRL_ENUTMILEVEL3		  (1 << 15)
 #define	  CTRL_ENUTMILEVEL2		  (1 << 14)

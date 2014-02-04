@@ -321,7 +321,7 @@ struct ahci_dma_prd {
     u_int32_t                   dbc;            /* 0 based */
 #define AHCI_PRD_MASK		0x003fffff      /* max 4MB */
 #define AHCI_PRD_MAX		(AHCI_PRD_MASK + 1)
-#define AHCI_PRD_IPC		(1 << 31)
+#define AHCI_PRD_IPC		(1U << 31)
 } __packed;
 
 struct ahci_cmd_tab {

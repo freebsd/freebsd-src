@@ -72,7 +72,7 @@
 #define ARGE_MDIO_READ(_sc, _reg)	\
 	ARGE_READ((_sc), (_reg))
 
-#define ARGE_DESC_EMPTY		(1 << 31)
+#define ARGE_DESC_EMPTY		(1U << 31)
 #define ARGE_DESC_MORE		(1 << 24)
 #define ARGE_DESC_SIZE_MASK	((1 << 12) - 1)
 #define	ARGE_DMASIZE(len)	((len) & ARGE_DESC_SIZE_MASK)
