@@ -2657,7 +2657,7 @@ usbd_transfer_timeout_ms(struct usb_xfer *xfer,
 
 	/* defer delay */
 	usb_callout_reset(&xfer->timeout_handle,
-	    USB_MS_TO_TICKS(ms), cb, xfer);
+	    USB_MS_TO_TICKS(ms) + USB_CALLOUT_ZERO_TICKS, cb, xfer);
 }
 
 /*------------------------------------------------------------------------*
