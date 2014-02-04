@@ -11,6 +11,7 @@ SRCS=	gmt2local.c \
 	machdep.c \
 	setsignal.c \
 	tcpdump.c \
+	util.c \
 	version.c
 CLEANFILES+=	version.c
 

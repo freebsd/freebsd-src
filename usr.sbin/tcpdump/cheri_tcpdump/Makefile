@@ -17,6 +17,7 @@ SRCS=	cheri_tcpdump_system.c \
 	setsignal.c \
 	tcpdump.c \
 	util.c \
+	util-print.c \
 	print.c \
 	print-ascii.c \
 	version.c

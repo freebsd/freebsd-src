@@ -11,6 +11,7 @@ SRCS=	tcpdump-helper.c			\
 	pcap_datalink_val_to_name.c		\
 	pcap-eproto_db.c			\
 	stub.c					\
+	util.c					\
 	chsbrt.S
 
 .include "${.CURDIR}/../../usr.sbin/tcpdump/tcpdump/Makefile.print"

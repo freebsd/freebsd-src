@@ -125,7 +125,7 @@ SRCS+=	addrtoname.c \
 	print-zeromq.c \
 	signature.c \
 	smbutil.c \
-	util.c
+	util-print.c
 
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	print-babel.c \
