@@ -45,6 +45,7 @@
 #include <sys/random.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
@@ -918,7 +919,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EAFNOSUPPORT);
 	}
 	if (harvest.point_to_point)
-		random_harvest(&(m->m_data), 12, 3, 0, RANDOM_NET_TUN);
+		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_TUN);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
 	CURVNET_SET(ifp->if_vnet);

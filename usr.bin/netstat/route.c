@@ -631,10 +631,9 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 			cp = routename(sockin->sin_addr.s_addr);
 		else if (mask)
 			cp = netname(sockin->sin_addr.s_addr,
-				     ntohl(((struct sockaddr_in *)mask)
-					   ->sin_addr.s_addr));
+			    ((struct sockaddr_in *)mask)->sin_addr.s_addr);
 		else
-			cp = netname(sockin->sin_addr.s_addr, 0L);
+			cp = netname(sockin->sin_addr.s_addr, INADDR_ANY);
 		break;
 	    }
 
@@ -870,19 +869,21 @@ domask(char *dst, in_addr_t addr __unused, u_long mask)
 
 /*
  * Return the name of the network whose address is given.
- * The address is assumed to be that of a net or subnet, not a host.
  */
 char *
-netname(in_addr_t in, u_long mask)
+netname(in_addr_t in, in_addr_t mask)
 {
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
 	in_addr_t i;
 
+	/* It is ok to supply host address. */
+	in &= mask;
+
 	i = ntohl(in);
 	if (!numeric_addr && i) {
-		np = getnetbyaddr(i >> NSHIFT(mask), AF_INET);
+		np = getnetbyaddr(i >> NSHIFT(ntohl(mask)), AF_INET);
 		if (np != NULL) {
 			cp = np->n_name;
 			trimdomain(cp, strlen(cp));
@@ -893,7 +894,7 @@ netname(in_addr_t in, u_long mask)
 	} else {
 		inet_ntop(AF_INET, &in, line, sizeof(line) - 1);
 	}
-	domask(line + strlen(line), i, mask);
+	domask(line + strlen(line), i, ntohl(mask));
 	return (line);
 }
 

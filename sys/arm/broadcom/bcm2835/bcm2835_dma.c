@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
-#include <machine/pmap.h>
 
 #include "bcm2835_dma.h"
 #include "bcm2835_vcbus.h"
@@ -75,7 +74,7 @@ __FBSDID("$FreeBSD$");
 #define		CS_WAITWRT		(1 << 28)
 #define		CS_DISDBG		(1 << 29)
 #define		CS_ABORT		(1 << 30)
-#define		CS_RESET		(1 << 31)
+#define		CS_RESET		(1U << 31)
 #define	BCM_DMA_CBADDR(n)	(0x100*(n) + 0x04)
 #define	BCM_DMA_INFO(n)		(0x100*(n) + 0x08)
 #define		INFO_INT_EN		(1 << 0)

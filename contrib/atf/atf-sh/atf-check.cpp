@@ -49,9 +49,9 @@ extern "C" {
 
 #include "atf-c++/check.hpp"
 #include "atf-c++/config.hpp"
-#include "atf-c++/utils.hpp"
 
 #include "atf-c++/detail/application.hpp"
+#include "atf-c++/detail/auto_array.hpp"
 #include "atf-c++/detail/exceptions.hpp"
 #include "atf-c++/detail/fs.hpp"
 #include "atf-c++/detail/process.hpp"
@@ -116,7 +116,7 @@ public:
         std::ostream(NULL),
         m_fd(-1)
     {
-        atf::utils::auto_array< char > buf(new char[p.str().length() + 1]);
+        atf::auto_array< char > buf(new char[p.str().length() + 1]);
         std::strcpy(buf.get(), p.c_str());
 
         m_fd = ::mkstemp(buf.get());
@@ -331,10 +331,13 @@ static
 std::auto_ptr< atf::check::check_result >
 execute(const char* const* argv)
 {
+    // TODO: This should go to stderr... but fixing it now may be hard as test
+    // cases out there might be relying on stderr being silent.
     std::cout << "Executing command [ ";
     for (int i = 0; argv[i] != NULL; ++i)
         std::cout << argv[i] << " ";
     std::cout << "]\n";
+    std::cout.flush();
 
     atf::process::argv_array argva(argv);
     return atf::check::exec(argva);

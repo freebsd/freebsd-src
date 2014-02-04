@@ -82,6 +82,41 @@ ifn_stop()
 	return $cfg
 }
 
+# ifn_vnetup ifn
+#	Move ifn to the specified vnet jail.
+#
+ifn_vnetup()
+{
+
+	ifn_vnet0 $1 vnet
+}
+
+# ifn_vnetdown ifn
+#	Reclaim ifn from the specified vnet jail.
+#
+ifn_vnetdown()
+{
+
+	ifn_vnet0 $1 -vnet
+}
+
+# ifn_vnet0 ifn action
+#	Helper function for ifn_vnetup and ifn_vnetdown.
+#
+ifn_vnet0()
+{
+	local _ifn _cfg _action _vnet
+	_ifn="$1"
+	_action="$2"
+	_cfg=1
+
+	if _vnet=$(vnetif $_ifn); then
+		${IFCONFIG_CMD} $_ifn $_action $_vnet && _cfg=0
+	fi
+
+	return $_cfg
+}
+
 # ifconfig_up if
 #	Evaluate ifconfig(8) arguments for interface $if and
 #	run ifconfig(8) with those arguments. It returns 0 if
@@ -284,24 +319,27 @@ _ifconfig_getargs()
 #	args such as DHCP and WPA.
 ifconfig_getargs()
 {
-	local _tmpargs _arg _args
+	local _tmpargs _arg _args _vnet
 	_tmpargs=`_ifconfig_getargs $1 $2`
 	if [ $? -eq 1 ]; then
 		return 1
 	fi
 	_args=
+	_vnet=0
 
 	for _arg in $_tmpargs; do
-		case $_arg in
-		[Dd][Hh][Cc][Pp]) ;;
-		[Nn][Oo][Aa][Uu][Tt][Oo]) ;;
-		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
-		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]) ;;
-		[Ww][Pp][Aa]) ;;
-		[Hh][Oo][Ss][Tt][Aa][Pp]) ;;
-		*)
+		case $_arg:$_vnet in
+		[Dd][Hh][Cc][Pp]:0) ;;
+		[Nn][Oo][Aa][Uu][Tt][Oo]:0) ;;
+		[Nn][Oo][Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ss][Yy][Nn][Cc][Dd][Hh][Cc][Pp]:0) ;;
+		[Ww][Pp][Aa]:0) ;;
+		[Hh][Oo][Ss][Tt][Aa][Pp]:0) ;;
+		vnet:0)	_vnet=1 ;;
+		*:1)	_vnet=0 ;;
+		*:0)
 			_args="$_args $_arg"
-			;;
+		;;
 		esac
 	done
 
@@ -420,6 +458,25 @@ hostapif()
 		[Hh][Oo][Ss][Tt][Aa][Pp])
 			return 0
 			;;
+		esac
+	done
+
+	return 1
+}
+
+# vnetif if
+#	Returns 0 and echo jail if "vnet" keyword is specified on the
+#	interface, and 1 otherwise.
+vnetif()
+{
+	local _tmpargs _arg _vnet
+	_tmpargs=`_ifconfig_getargs $1`
+
+	_vnet=0
+	for _arg in $_tmpargs; do
+		case $_arg:$_vnet in
+		vnet:0)	_vnet=1 ;;
+		*:1)	echo $_arg; return 0 ;;
 		esac
 	done
 
@@ -1460,54 +1517,6 @@ ng_create_one()
 			echo ${t}
 			return
 		fi
-	done
-}
-
-# ng_fec_create ifn
-#	Configure Fast EtherChannel for interface $ifn. Returns 0 if
-#	FEC arguments were found and configured; returns !0 otherwise.
-ng_fec_create()
-{
-	 local req_iface iface bogus
-	 req_iface="$1"
-
-	 ngctl shutdown ${req_iface}: > /dev/null 2>&1
-
-	 bogus=""
-	 while true; do
-		 iface=`ng_create_one fec dummy fec`
-		 if [ -z "${iface}" ]; then
-			 exit 2
-		 fi
-		 if [ "${iface}" = "${req_iface}" ]; then
-			 break
-		 fi
-		 bogus="${bogus} ${iface}"
-	 done
-
-	 for iface in ${bogus}; do
-		 ngctl shutdown ${iface}:
-	 done
-}
-
-# fec_up
-#	Create Fast EtherChannel interfaces.
-fec_up()
-{
-	local i j
-
-	for i in ${fec_interfaces}; do
-		ng_fec_create $i
-		for j in `get_if_var $i fecconfig_IF`; do
-			case ${j} in
-			'')
-				continue
-				;;
-			*)
-				ngctl msg ${i}: add_iface "\"${j}\""
-				;;
-			esac
-		done
 	done
 }
 

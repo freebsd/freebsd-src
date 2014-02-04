@@ -448,6 +448,7 @@ struct ctl_softc {
 	struct ctl_frontend *ctl_ports[CTL_MAX_PORTS];
 	uint32_t num_backends;
 	STAILQ_HEAD(, ctl_backend_driver) be_list;
+	struct mtx pool_lock;
 	uint32_t num_pools;
 	uint32_t cur_pool_id;
 	STAILQ_HEAD(, ctl_io_pool) io_pools;
@@ -462,10 +463,7 @@ extern struct ctl_cmd_entry ctl_cmd_table[];
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
 		    uint32_t total_ctl_io, struct ctl_io_pool **npool);
-int ctl_pool_acquire(struct ctl_io_pool *pool);
-int ctl_pool_invalidate(struct ctl_io_pool *pool);
-int ctl_pool_release(struct ctl_io_pool *pool);
-void ctl_pool_free(struct ctl_softc *ctl_softc, struct ctl_io_pool *pool);
+void ctl_pool_free(struct ctl_io_pool *pool);
 int ctl_scsi_release(struct ctl_scsiio *ctsio);
 int ctl_scsi_reserve(struct ctl_scsiio *ctsio);
 int ctl_start_stop(struct ctl_scsiio *ctsio);

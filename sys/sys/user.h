@@ -498,6 +498,12 @@ struct kinfo_kstack {
 	int	 _kkst_ispare[16];		/* Space for more stuff. */
 };
 
+struct kinfo_sigtramp {
+	void	*ksigtramp_start;
+	void	*ksigtramp_end;
+	void	*ksigtramp_spare[4];
+};
+
 #ifdef _KERNEL
 /* Flags for kern_proc_out function. */
 #define KERN_PROC_NOTHREADS	0x1

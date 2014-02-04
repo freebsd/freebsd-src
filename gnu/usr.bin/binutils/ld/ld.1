@@ -929,20 +929,6 @@ the default behaviour of the linker, before release 2.14.  The default
 behaviour from release 2.14 onwards is to reject such input files, and
 so the \fB\-\-accept\-unknown\-input\-arch\fR option has been added to
 restore the old behaviour.
-.IP "\fB\-\-as\-needed\fR" 4
-.IX Item "--as-needed"
-.PD 0
-.IP "\fB\-\-no\-as\-needed\fR" 4
-.IX Item "--no-as-needed"
-.PD
-This option affects \s-1ELF\s0 \s-1DT_NEEDED\s0 tags for dynamic libraries mentioned
-on the command line after the \fB\-\-as\-needed\fR option.  Normally,
-the linker will add a \s-1DT_NEEDED\s0 tag for each dynamic library mentioned
-on the command line, regardless of whether the library is actually
-needed.  \fB\-\-as\-needed\fR causes \s-1DT_NEEDED\s0 tags to only be emitted
-for libraries that satisfy some symbol reference from regular objects
-which is undefined at the point that the library was linked.
-\&\fB\-\-no\-as\-needed\fR restores the default behaviour.
 .IP "\fB\-\-add\-needed\fR" 4
 .IX Item "--add-needed"
 .PD 0
@@ -951,11 +937,25 @@ which is undefined at the point that the library was linked.
 .PD
 This option affects the treatment of dynamic libraries from \s-1ELF\s0
 \&\s-1DT_NEEDED\s0 tags in dynamic libraries mentioned on the command line after
-the \fB\-\-no\-add\-needed\fR option.  Normally, the linker will add
-a \s-1DT_NEEDED\s0 tag for each dynamic library from \s-1DT_NEEDED\s0 tags.
-\&\fB\-\-no\-add\-needed\fR causes \s-1DT_NEEDED\s0 tags will never be emitted
-for those libraries from \s-1DT_NEEDED\s0 tags. \fB\-\-add\-needed\fR restores
-the default behaviour.
+the \fB\-\-add\-needed\fR option.  Normally, the linker will not copy
+a \s-1DT_NEEDED\s0 tags from each dynamic library to the produced output object.
+\&\fB\-\-add\-needed\fR makes linker to copy \s-1DT_NEEDED\s0 tags from all
+dynamic libraries mentioned after this flag.
+\fB\-\-no\-add\-needed\fR restores the default behaviour.
+.IP "\fB\-\-as\-needed\fR" 4
+.IX Item "--as-needed"
+.PD 0
+.IP "\fB\-\-no\-as\-needed\fR" 4
+.IX Item "--no-as-needed"
+.PD
+This option affects \s-1ELF\s0 \s-1DT_NEEDED\s0 tags for dynamic
+libraries mentioned on the command line after the \fB\-\-as\-needed\fR
+option when \fB\-\-add\-needed\fR is in effect.
+In such a case \fB\-\-as\-needed\fR causes \s-1DT_NEEDED\s0 tags
+to only be emitted for libraries that satisfy some symbol reference
+from regular objects which is undefined at the point that the library
+was linked.
+\&\fB\-\-no\-as\-needed\fR restores the default behaviour.
 .IP "\fB\-assert\fR \fIkeyword\fR" 4
 .IX Item "-assert keyword"
 This option is ignored for SunOS compatibility.

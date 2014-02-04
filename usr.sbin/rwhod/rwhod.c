@@ -281,7 +281,7 @@ main(int argc, char *argv[])
 		} else if (pid_child_receiver == -1) {
 			if (errno == ENOSYS) {
 				syslog(LOG_ERR,
-				    "The pdfork(2) system call is not available; recompile the kernel with options PROCDESC");
+				    "The pdfork(2) system call is not available - kernel too old.");
 			} else {
 				syslog(LOG_ERR, "pdfork: %m");
 			}

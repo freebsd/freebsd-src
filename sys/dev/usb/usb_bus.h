@@ -81,6 +81,7 @@ struct usb_bus {
 	struct usb_bus_msg attach_msg[2];
 	struct usb_bus_msg suspend_msg[2];
 	struct usb_bus_msg resume_msg[2];
+	struct usb_bus_msg reset_msg[2];
 	struct usb_bus_msg shutdown_msg[2];
 	/*
 	 * This mutex protects the USB hardware:

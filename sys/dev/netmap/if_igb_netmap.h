@@ -39,38 +39,6 @@
 
 
 /*
- * wrapper to export locks to the generic code
- */
-static void
-igb_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int queueid)
-{
-	struct adapter *adapter = ifp->if_softc;
-
-	ASSERT(queueid < adapter->num_queues);
-	switch (what) {
-	case NETMAP_CORE_LOCK:
-		IGB_CORE_LOCK(adapter);
-		break;
-	case NETMAP_CORE_UNLOCK:
-		IGB_CORE_UNLOCK(adapter);
-		break;
-	case NETMAP_TX_LOCK:
-		IGB_TX_LOCK(&adapter->tx_rings[queueid]);
-		break;
-	case NETMAP_TX_UNLOCK:
-		IGB_TX_UNLOCK(&adapter->tx_rings[queueid]);
-		break;
-	case NETMAP_RX_LOCK:
-		IGB_RX_LOCK(&adapter->rx_rings[queueid]);
-		break;
-	case NETMAP_RX_UNLOCK:
-		IGB_RX_UNLOCK(&adapter->rx_rings[queueid]);
-		break;
-	}
-}
-
-
-/*
  * register-unregister routine
  */
 static int
@@ -92,7 +60,7 @@ igb_netmap_reg(struct ifnet *ifp, int onoff)
 		ifp->if_capenable |= IFCAP_NETMAP;
 
 		na->if_transmit = ifp->if_transmit;
-		ifp->if_transmit = netmap_start;
+		ifp->if_transmit = netmap_transmit;
 
 		igb_init_locked(adapter);
 		if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) == 0) {
@@ -114,7 +82,7 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  */
 static int
-igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
+igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int flags)
 {
 	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
@@ -130,8 +98,6 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	if (k > lim)
 		return netmap_ring_reinit(kring);
 
-	if (do_lock)
-		IGB_TX_LOCK(txr);
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
 
@@ -153,7 +119,14 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			/* curr is the current slot in the nic ring */
 			union e1000_adv_tx_desc *curr =
 			    (union e1000_adv_tx_desc *)&txr->tx_base[l];
-			struct igb_tx_buffer *txbuf = &txr->tx_buffers[l];
+#ifndef IGB_MEDIA_RESET
+/* at the same time as IGB_MEDIA_RESET was defined, the
+ * tx buffer descriptor was renamed, so use this to revert
+ * back to the old name.
+ */
+#define igb_tx_buf igb_tx_buffer
+#endif
+			struct igb_tx_buf *txbuf = &txr->tx_buffers[l];
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
 					E1000_ADVTXD_DCMD_RS : 0;
@@ -162,8 +135,6 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			u_int len = slot->len;
 
 			if (addr == netmap_buffer_base || len > NETMAP_BUF_SIZE) {
-				if (do_lock)
-					IGB_TX_UNLOCK(txr);
 				return netmap_ring_reinit(kring);
 			}
 
@@ -223,8 +194,6 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	/* update avail to what the kernel knows */
 	ring->avail = kring->nr_hwavail;
 
-	if (do_lock)
-		IGB_TX_UNLOCK(txr);
 	return 0;
 }
 
@@ -233,7 +202,7 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
  * Reconcile kernel and user view of the receive ring.
  */
 static int
-igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
+igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int flags)
 {
 	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
@@ -241,15 +210,12 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	u_int j, l, n, lim = kring->nkr_num_slots - 1;
-	int force_update = do_lock || kring->nr_kflags & NKR_PENDINTR;
+	int force_update = (flags & NAF_FORCE_READ) || kring->nr_kflags & NKR_PENDINTR;
 	u_int k = ring->cur, resvd = ring->reserved;
 
 	k = ring->cur;
 	if (k > lim)
 		return netmap_ring_reinit(kring);
-
-	if (do_lock)
-		IGB_RX_LOCK(rxr);
 
 	/* XXX check sync modes */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
@@ -303,8 +269,6 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			void *addr = PNMB(slot, &paddr);
 
 			if (addr == netmap_buffer_base) { /* bad buf */
-				if (do_lock)
-					IGB_RX_UNLOCK(rxr);
 				return netmap_ring_reinit(kring);
 			}
 
@@ -332,8 +296,6 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	}
 	/* tell userspace that there are new packets */
 	ring->avail = kring->nr_hwavail - resvd;
-	if (do_lock)
-		IGB_RX_UNLOCK(rxr);
 	return 0;
 }
 
@@ -346,12 +308,11 @@ igb_netmap_attach(struct adapter *adapter)
 	bzero(&na, sizeof(na));
 
 	na.ifp = adapter->ifp;
-	na.separate_locks = 1;
+	na.na_flags = NAF_BDG_MAYSLEEP;
 	na.num_tx_desc = adapter->num_tx_desc;
 	na.num_rx_desc = adapter->num_rx_desc;
 	na.nm_txsync = igb_netmap_txsync;
 	na.nm_rxsync = igb_netmap_rxsync;
-	na.nm_lock = igb_netmap_lock_wrapper;
 	na.nm_register = igb_netmap_reg;
 	netmap_attach(&na, adapter->num_queues);
 }	

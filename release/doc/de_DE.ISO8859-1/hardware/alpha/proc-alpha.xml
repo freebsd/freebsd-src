@@ -4,21 +4,14 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.xml,v 1.35 2003/05/24 19:11:43 ue Exp $
   basiert auf: 1.60
 -->
-
-<sect1 id="support-proc">
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-proc">
+  <info><title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
     <authorgroup>
-      <author>
-	<firstname>Wilko</firstname>
-
-	<surname>Bulte</surname>
-
-	<contrib>Gepflegt von </contrib>
-      </author>
+      <author><personname><firstname>Wilko</firstname><surname>Bulte</surname></personname><contrib>Gepflegt von </contrib></author>
     </authorgroup>
-  </sect1info>
+  </info>
 
-  <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
+  
 
   <para>Wir freuen uns &uuml;ber Erg&auml;nzungen, Korrekturen und
     konstruktive Kritik.  Informationen &uuml;ber Fehlverhalten von
@@ -75,9 +68,8 @@
       <para>Compaq stellt auf seinen Webseiten Informationen f&uuml;r
 	Linux-Entwickler bereit.  Auch f&uuml;r &os; Anwender sind
 	diese durchaus n&uuml;tzlich.  Werfen Sie einmal einen Blick
-	auf <ulink
-	url="http://www.support.compaq.com/alpha-tools/">Linux Alpha
-	Power tools</ulink>.</para>
+	auf <link xlink:href="http://www.support.compaq.com/alpha-tools/">Linux Alpha
+	Power tools</link>.</para>
     </note>
   </sect2>
 
@@ -538,9 +530,8 @@
 	<quote>DIN</quote>-Variante sollte aber f&uuml;r &os;
 	ausreichend sein.</para>
 
-      <para>Lesen Sie nach M&ouml;glichkeit das <ulink
-	url="ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps">
-	OEM manual</ulink>.</para>
+      <para>Lesen Sie nach M&ouml;glichkeit das <link xlink:href="ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps">
+	OEM manual</link>.</para>
 
       <para>Die Konfigurationsdatei f&uuml;r den Kernel einer NoName
 	mu&szlig; die folgenden Zeilen enthalten:</para>
@@ -734,8 +725,7 @@ cpu     EV4</programlisting>
 	mit voller Drehzahl (und Lautst&auml;rke) betrieben.
 	H&uuml;ten Sie sich vor PCI-Karten, die sehr viel Strom
 	brauchen.  Falls Ihr System trotzdem sterben sollten,
-	k&ouml;nnten Ihnen die Multia-Heat-Death Seiten auf der <ulink
-	url="http://www.netbsd.org/">Website von NetBSD</ulink> bei
+	k&ouml;nnten Ihnen die Multia-Heat-Death Seiten auf der <link xlink:href="http://www.netbsd.org/">Website von NetBSD</link> bei
 	der Reparatur weiterhelfen.</para>
 
       <para>Die Intel 82378ZB PCI to ISA Bridge erm&ouml;glicht es,
@@ -779,11 +769,10 @@ cpu     EV4</programlisting>
       <programlisting>options   DEC_AXPPCI_33
 cpu     EV4</programlisting>
 
-      <para>Wichtige Informationen zur Multia finden Sie unter <ulink
-	url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
-	http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink> und
-	<ulink url="http://www.brouhaha.com/~eric/computers/udb.html">
-	http://www.brouhaha.com/~eric/computers/udb.html</ulink>.</para>
+      <para>Wichtige Informationen zur Multia finden Sie unter <link xlink:href="http://www.netbsd.org/Ports/alpha/multiafaq.html">
+	http://www.netbsd.org/Ports/alpha/multiafaq.html</link> und
+	<link xlink:href="http://www.brouhaha.com/~eric/computers/udb.html">
+	http://www.brouhaha.com/~eric/computers/udb.html</link>.</para>
     </sect3>
 
     <sect3>
@@ -959,7 +948,7 @@ cpu     EV4</programlisting>
 
       <para>Der vollst&auml;ndige Befehl lautet:</para>
 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE &lt;vendor_id&gt;&lt;device_id&gt;</userinput></screen>
 
       <para>Zum Beispiel:</para>
 
@@ -1078,8 +1067,7 @@ device  sbc</programlisting>
       <para>sollten Sie die SRM Firmware auf V7.2-1 (oder neuer)
 	aktualisieren.  Diese Version erschien zuerst auf der
 	<quote>Firmware Update CD V5.7</quote>, ist aber auch auf
-	<ulink
-	url="http://www.compaq.com/">http://www.compaq.com/</ulink>
+	<link xlink:href="http://www.compaq.com/">http://www.compaq.com/</link>
 	erh&auml;ltlich.  Damit wird dieser Fehler des SRM sowohl bei
 	der Miata MX5 als auch bei der Miata GL behoben.</para>
 
@@ -3771,7 +3759,7 @@ cpu     EV5</programlisting>
 
     <para>Um dieses Dokument zusammenzustellen, wurden viele Quellen
       genutzt; aber die wichtigste und wertvollste Quelle waren die
-      <ulink url="http://www.netbsd.org/">NetBSD Webseiten</ulink>.
+      <link xlink:href="http://www.netbsd.org/">NetBSD Webseiten</link>.
       Ohne NetBSD/alpha g&auml;be es kein &os;/alpha.</para>
 
     <para>Die folgenden Personen haben mich bei der Arbeit an diesem

@@ -1,0 +1,22 @@
+# $FreeBSD$
+kern/kern_clocksource.c			standard
+
+arm/arm/bus_space_asm_generic.S		standard
+arm/arm/bus_space_generic.c		standard
+arm/arm/cpufunc_asm_armv5.S		standard
+arm/arm/cpufunc_asm_arm10.S		standard
+arm/arm/cpufunc_asm_arm11.S		standard
+arm/arm/cpufunc_asm_armv7.S		standard
+arm/arm/irq_dispatch.S			standard
+
+arm/arm/gic.c				standard
+arm/arm/mpcore_timer.c			standard
+
+arm/arm/bus_space-v6.c			standard
+arm/rockchip/common.c			standard
+arm/rockchip/rk30xx_machdep.c		standard
+arm/rockchip/rk30xx_pmu.c		standard
+arm/rockchip/rk30xx_grf.c		standard
+arm/rockchip/rk30xx_wdog.c		standard
+arm/rockchip/rk30xx_gpio.c		optional	gpio
+dev/usb/controller/dwc_otg_fdt.c	optional	dwcotg

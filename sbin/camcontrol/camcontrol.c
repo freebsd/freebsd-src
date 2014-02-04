@@ -566,11 +566,11 @@ getdevtree(void)
 				}
 
 				fprintf(stdout, "%-33s  at scbus%d "
-					"target %d lun %d (",
+					"target %d lun %jx (",
 					tmpstr,
 					dev_result->path_id,
 					dev_result->target_id,
-					dev_result->target_lun);
+					(uintmax_t)dev_result->target_lun);
 
 				need_close = 1;
 
@@ -2748,7 +2748,7 @@ atasecurity(struct cam_device *device, int retry_count, int timeout,
 			if (strcasecmp(optarg, "user") == 0) {
 				pwd.ctrl |= ATA_SECURITY_PASSWORD_USER;
 				pwd.ctrl &= ~ATA_SECURITY_PASSWORD_MASTER;
-			} else if (strcasecmp(optarg, "master") != 0) {
+			} else if (strcasecmp(optarg, "master") == 0) {
 				pwd.ctrl |= ATA_SECURITY_PASSWORD_MASTER;
 				pwd.ctrl &= ~ATA_SECURITY_PASSWORD_USER;
 			} else {

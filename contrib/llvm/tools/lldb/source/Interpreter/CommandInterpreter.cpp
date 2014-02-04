@@ -11,8 +11,6 @@
 
 #include <string>
 #include <vector>
-
-#include <getopt.h>
 #include <stdlib.h>
 
 #include "CommandObjectScript.h"
@@ -230,6 +228,13 @@ CommandInterpreter::Initialize ()
         AddAlias ("t", cmd_obj_sp);
     }
 
+    cmd_obj_sp = GetCommandSPExact ("_regexp-jump",false);
+    if (cmd_obj_sp)
+    {
+        AddAlias ("j", cmd_obj_sp);
+        AddAlias ("jump", cmd_obj_sp);
+    }
+
     cmd_obj_sp = GetCommandSPExact ("_regexp-list", false);
     if (cmd_obj_sp)
     {
@@ -318,7 +323,7 @@ CommandInterpreter::Initialize ()
 #if defined (__arm__)
         ProcessAliasOptionsArgs (cmd_obj_sp, "--", alias_arguments_vector_sp);
 #else
-        ProcessAliasOptionsArgs (cmd_obj_sp, "--shell=/bin/bash --", alias_arguments_vector_sp);
+        ProcessAliasOptionsArgs (cmd_obj_sp, "--shell=" LLDB_DEFAULT_SHELL " --", alias_arguments_vector_sp);
 #endif
         AddAlias ("r", cmd_obj_sp);
         AddAlias ("run", cmd_obj_sp);
@@ -587,7 +592,7 @@ CommandInterpreter::LoadCommandDictionary ()
     list_regex_cmd_ap(new CommandObjectRegexCommand (*this,
                                                      "_regexp-list",
                                                      "Implements the GDB 'list' command in all of its forms except FILE:FUNCTION and maps them to the appropriate 'source list' commands.",
-                                                     "_regexp-list [<line>]\n_regexp-attach [<file>:<line>]\n_regexp-attach [<file>:<line>]",
+                                                     "_regexp-list [<line>]\n_regexp-list [<file>:<line>]\n_regexp-list [<file>:<line>]",
                                                      2,
                                                      CommandCompletions::eSourceFileCompletion));
     if (list_regex_cmd_ap.get())
@@ -617,6 +622,26 @@ CommandInterpreter::LoadCommandDictionary ()
         {
             CommandObjectSP env_regex_cmd_sp(env_regex_cmd_ap.release());
             m_command_dict[env_regex_cmd_sp->GetCommandName ()] = env_regex_cmd_sp;
+        }
+    }
+
+    std::unique_ptr<CommandObjectRegexCommand>
+    jump_regex_cmd_ap(new CommandObjectRegexCommand (*this,
+                                                    "_regexp-jump",
+                                                    "Sets the program counter to a new address.",
+                                                    "_regexp-jump [<line>]\n"
+                                                    "_regexp-jump [<+-lineoffset>]\n"
+                                                    "_regexp-jump [<file>:<line>]\n"
+                                                    "_regexp-jump [*<addr>]\n", 2));
+    if (jump_regex_cmd_ap.get())
+    {
+        if (jump_regex_cmd_ap->AddRegexCommand("^\\*(.*)$", "thread jump --addr %1") &&
+            jump_regex_cmd_ap->AddRegexCommand("^([0-9]+)$", "thread jump --line %1") &&
+            jump_regex_cmd_ap->AddRegexCommand("^([^:]+):([0-9]+)$", "thread jump --file %1 --line %2") &&
+            jump_regex_cmd_ap->AddRegexCommand("^([+\\-][0-9]+)$", "thread jump --by %1"))
+        {
+            CommandObjectSP jump_regex_cmd_sp(jump_regex_cmd_ap.release());
+            m_command_dict[jump_regex_cmd_sp->GetCommandName ()] = jump_regex_cmd_sp;
         }
     }
 
@@ -1326,9 +1351,9 @@ CommandInterpreter::BuildAliasResult (const char *alias_name,
                 else
                 {
                     result_str.Printf (" %s", option.c_str());
-                    if (value_type != optional_argument)
+                    if (value_type != OptionParser::eOptionalArgument)
                         result_str.Printf (" ");
-                    if (value.compare ("<no_argument>") != 0)
+                    if (value.compare ("<OptionParser::eNoArgument>") != 0)
                     {
                         int index = GetOptionArgumentPosition (value.c_str());
                         if (index == 0)
@@ -1409,12 +1434,12 @@ CommandInterpreter::PreprocessCommand (std::string &command)
                     ValueObjectSP expr_result_valobj_sp;
                     
                     EvaluateExpressionOptions options;
-                    options.SetCoerceToId(false)
-                    .SetUnwindOnError(true)
-                    .SetIgnoreBreakpoints(true)
-                    .SetKeepInMemory(false)
-                    .SetRunOthers(true)
-                    .SetTimeoutUsec(0);
+                    options.SetCoerceToId(false);
+                    options.SetUnwindOnError(true);
+                    options.SetIgnoreBreakpoints(true);
+                    options.SetKeepInMemory(false);
+                    options.SetTryAllThreads(true);
+                    options.SetTimeoutUsec(0);
                     
                     ExecutionResults expr_result = target->EvaluateExpression (expr_str.c_str(), 
                                                                                exe_ctx.GetFramePtr(),
@@ -1472,6 +1497,9 @@ CommandInterpreter::PreprocessCommand (std::string &command)
                                     break;
                                 case eExecutionTimedOut:
                                     error.SetErrorStringWithFormat("expression timed out for the expression '%s'", expr_str.c_str());
+                                    break;
+                                case eExecutionStoppedForDebug:
+                                    error.SetErrorStringWithFormat("expression stop at entry point for debugging for the expression '%s'", expr_str.c_str());
                                     break;
                             }
                         }
@@ -2295,7 +2323,7 @@ CommandInterpreter::BuildAliasCommandArgs (CommandObject *alias_cmd_obj,
             }
             else
             {
-                if (value_type != optional_argument)
+                if (value_type != OptionParser::eOptionalArgument)
                     new_args.AppendArgument (option.c_str());
                 if (value.compare ("<no-argument>") != 0)
                 {
@@ -2303,7 +2331,7 @@ CommandInterpreter::BuildAliasCommandArgs (CommandObject *alias_cmd_obj,
                     if (index == 0)
                     {
                         // value was NOT a positional argument; must be a real value
-                        if (value_type != optional_argument)
+                        if (value_type != OptionParser::eOptionalArgument)
                             new_args.AppendArgument (value.c_str());
                         else
                         {
@@ -2330,7 +2358,7 @@ CommandInterpreter::BuildAliasCommandArgs (CommandObject *alias_cmd_obj,
                             raw_input_string = raw_input_string.erase (strpos, strlen (cmd_args.GetArgumentAtIndex (index)));
                         }
 
-                        if (value_type != optional_argument)
+                        if (value_type != OptionParser::eOptionalArgument)
                             new_args.AppendArgument (cmd_args.GetArgumentAtIndex (index));
                         else
                         {

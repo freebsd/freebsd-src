@@ -221,6 +221,9 @@ Hash_FindEntry(Hash_Table *t, const char *key)
 	unsigned h;
 	const char *p;
 
+	if (t == NULL || t->bucketPtr == NULL) {
+	    return NULL;
+	}
 	for (h = 0, p = key; *p;)
 		h = (h << 5) - h + *p++;
 	p = key;

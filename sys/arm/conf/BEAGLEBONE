@@ -104,6 +104,7 @@ device		gpio
 
 # USB support
 device		usb
+options 	USB_HOST_ALIGN=64	# Cacheline size is 64 on AM335x.
 options 	USB_DEBUG
 #options 	USB_REQ_DEBUG
 #options 	USB_VERBOSE

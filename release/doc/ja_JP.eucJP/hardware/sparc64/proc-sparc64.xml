@@ -3,13 +3,13 @@
     $FreeBSD$
     Original revision: 1.12
 -->
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>対応システム</title>
 
   <para>この節には、&arch.print; プラットフォーム版 &os;
     で、現在動作することが確認されているシステムが書かれています。
     ハードウェア構成の予備知識については
-    <ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</ulink>
+    <link xlink:href="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</link>
     を参照してください。</para>
 
   <para>複数のプロセッサを搭載したすべてのシステムにおける

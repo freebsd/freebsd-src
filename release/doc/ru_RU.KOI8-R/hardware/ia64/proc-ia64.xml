@@ -7,19 +7,18 @@
 
      Original revision: 1.9
 -->
-
-<sect1 id="proc-ia64">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="proc-ia64">
   <title>Поддерживаемые процессоры и материнские платы</title>
 
   <para>В настоящее время поддерживаются процессоры 
-    <ulink url="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</ulink>
-    и <ulink url="http://www.intel.com/design/itanium2/index.htm">Itanium 2</ulink>.</para>
+    <link xlink:href="http://www.intel.com/design/itanium/itanium/index.htm">Itanium</link>
+    и <link xlink:href="http://www.intel.com/design/itanium2/index.htm">Itanium 2</link>.</para>
 
   <para>Поддерживаемые чипсеты включают:</para>
    <itemizedlist>
      <listitem>
        <para>HP zx1 (только в ветви разработки, смотрите 
-         <ulink url="http://perforce.FreeBSD.org/">Perforce repository</ulink>)</para>
+         <link xlink:href="http://perforce.FreeBSD.org/">Perforce repository</link>)</para>
      </listitem>
      <listitem>
        <para>HP i2000</para>

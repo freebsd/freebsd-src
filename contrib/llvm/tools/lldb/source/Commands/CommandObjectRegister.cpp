@@ -98,7 +98,7 @@ public:
             {
                 strm.Indent ();
 
-                bool prefix_with_altname = m_command_options.alternate_name;
+                bool prefix_with_altname = (bool)m_command_options.alternate_name;
                 bool prefix_with_name = !prefix_with_altname;
                 reg_value.Dump(&strm, reg_info, prefix_with_name, prefix_with_altname, m_format_options.GetFormat(), 8);
                 if ((reg_info->encoding == eEncodingUint) || (reg_info->encoding == eEncodingSint))
@@ -192,7 +192,7 @@ protected:
                         if (!DumpRegisterSet (m_exe_ctx, strm, reg_ctx, set_idx))
                         {
                             if (errno)
-                                result.AppendErrorWithFormat ("register read failed with errno: %d\n", errno);
+                                result.AppendErrorWithFormat ("register read failed: %s\n", strerror(errno));
                             else
                                 result.AppendError ("unknown error while reading registers.\n");
                             result.SetStatus (eReturnStatusFailed);
@@ -351,9 +351,9 @@ protected:
 const OptionDefinition
 CommandObjectRegisterRead::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "alternate", 'A', no_argument      , NULL, 0, eArgTypeNone      , "Display register names using the alternate register name if there is one."},
-    { LLDB_OPT_SET_1  , false, "set"      , 's', required_argument, NULL, 0, eArgTypeIndex     , "Specify which register sets to dump by index."},
-    { LLDB_OPT_SET_2  , false, "all"      , 'a', no_argument      , NULL, 0, eArgTypeNone      , "Show all register sets."},
+    { LLDB_OPT_SET_ALL, false, "alternate", 'A', OptionParser::eNoArgument      , NULL, 0, eArgTypeNone      , "Display register names using the alternate register name if there is one."},
+    { LLDB_OPT_SET_1  , false, "set"      , 's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeIndex     , "Specify which register sets to dump by index."},
+    { LLDB_OPT_SET_2  , false, "all"      , 'a', OptionParser::eNoArgument      , NULL, 0, eArgTypeNone      , "Show all register sets."},
 };
 
 uint32_t

@@ -55,6 +55,7 @@ SRCS=	Address.cpp \
 	StreamAsynchronousIO.cpp \
 	StreamCallback.cpp \
 	StreamFile.cpp \
+	StreamGDBRemote.cpp \
 	StreamString.cpp \
 	StringList.cpp \
 	Timer.cpp \

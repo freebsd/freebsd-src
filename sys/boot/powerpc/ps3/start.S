@@ -27,7 +27,7 @@
 
 #define LOCORE
 
-#include <machine/trap_aim.h>
+#include <machine/trap.h>
 
 /*
  * KBoot and simulators will start this program from the _start symbol, with

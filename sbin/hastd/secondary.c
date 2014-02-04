@@ -82,18 +82,21 @@ static struct hast_resource *gres;
  * until some in-progress requests are freed.
  */
 static TAILQ_HEAD(, hio) hio_free_list;
+static size_t hio_free_list_size;
 static pthread_mutex_t hio_free_list_lock;
 static pthread_cond_t hio_free_list_cond;
 /*
  * Disk thread (the one that does I/O requests) takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_disk_list;
+static size_t hio_disk_list_size;
 static pthread_mutex_t hio_disk_list_lock;
 static pthread_cond_t hio_disk_list_cond;
 /*
  * Thread that sends requests back to primary takes requests from this list.
  */
 static TAILQ_HEAD(, hio) hio_send_list;
+static size_t hio_send_list_size;
 static pthread_mutex_t hio_send_list_lock;
 static pthread_cond_t hio_send_list_cond;
 
@@ -107,14 +110,12 @@ static void *disk_thread(void *arg);
 static void *send_thread(void *arg);
 
 #define	QUEUE_INSERT(name, hio)	do {					\
-	bool _wakeup;							\
-									\
 	mtx_lock(&hio_##name##_list_lock);				\
-	_wakeup = TAILQ_EMPTY(&hio_##name##_list);			\
-	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
-	mtx_unlock(&hio_##name##_list_lock);				\
-	if (_wakeup)							\
+	if (TAILQ_EMPTY(&hio_##name##_list))				\
 		cv_broadcast(&hio_##name##_list_cond);			\
+	TAILQ_INSERT_TAIL(&hio_##name##_list, (hio), hio_next);		\
+	hio_##name##_list_size++;					\
+	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
 #define	QUEUE_TAKE(name, hio)	do {					\
 	mtx_lock(&hio_##name##_list_lock);				\
@@ -122,9 +123,20 @@ static void *send_thread(void *arg);
 		cv_wait(&hio_##name##_list_cond,			\
 		    &hio_##name##_list_lock);				\
 	}								\
+	PJDLOG_ASSERT(hio_##name##_list_size != 0);			\
+	hio_##name##_list_size--;					\
 	TAILQ_REMOVE(&hio_##name##_list, (hio), hio_next);		\
 	mtx_unlock(&hio_##name##_list_lock);				\
 } while (0)
+
+static void
+output_status_aux(struct nv *nvout)
+{
+
+	nv_add_uint64(nvout, (uint64_t)hio_free_list_size, "idle_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_disk_list_size, "local_queue_size");
+	nv_add_uint64(nvout, (uint64_t)hio_send_list_size, "send_queue_size");
+}
 
 static void
 hio_clear(struct hio *hio)
@@ -190,6 +202,7 @@ init_environment(void)
 		}
 		hio_clear(hio);
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_next);
+		hio_free_list_size++;
 	}
 }
 
@@ -441,6 +454,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	}
 
 	gres = res;
+	res->output_status_aux = output_status_aux;
 	mode = pjdlog_mode_get();
 	debuglevel = pjdlog_debug_get();
 

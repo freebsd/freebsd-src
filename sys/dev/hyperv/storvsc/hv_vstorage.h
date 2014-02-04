@@ -24,6 +24,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef __HV_VSTORAGE_H__
@@ -107,7 +109,7 @@ struct vmscsi_req {
 	    uint8_t sense_data[SENSE_BUFFER_SIZE];
 
 	    uint8_t reserved_array[MAX_DATA_BUFFER_LENGTH_WITH_PADDING];
-	};
+	} u;
 
 } __packed;
 
@@ -191,7 +193,7 @@ struct vstor_packet {
 	     * Used during version negotiations.
 	     */
 	    struct vmstor_proto_ver version;
-	};
+	} u;
 
 } __packed;
 

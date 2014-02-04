@@ -155,8 +155,11 @@ tokenscpp(char *buf, char *string)
 			s = p+1;
 			if ((p = strchr(s, '>')) != NULL)
 				*p = '\0';
-			snprintf (string, MAXPATHLEN, "%s/%s",
-				_PATH_INCLUDE, s);
+			if (*s != '/')
+				snprintf (string, MAXPATHLEN, "%s/%s",
+					_PATH_INCLUDE, s);
+			else
+				strncpy(string, s, MAXPATHLEN);
 		} else if (*p == '(') {
 			s = p+1;
 			if ((p = strchr(p, '>')) != NULL)

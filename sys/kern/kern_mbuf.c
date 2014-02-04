@@ -161,7 +161,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 
 	newnmbclusters = nmbclusters;
 	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbclusters != nmbclusters) {
 		if (newnmbclusters > nmbclusters &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbclusters = newnmbclusters;
@@ -183,7 +183,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbop = nmbjumbop;
 	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbop != nmbjumbop) {
 		if (newnmbjumbop > nmbjumbop &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbop = newnmbjumbop;
@@ -204,7 +204,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbo9 = nmbjumbo9;
 	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbo9 != nmbjumbo9) {
 		if (newnmbjumbo9 > nmbjumbo9 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo9 = newnmbjumbo9;
@@ -225,7 +225,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 
 	newnmbjumbo16 = nmbjumbo16;
 	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbjumbo16 != nmbjumbo16) {
 		if (newnmbjumbo16 > nmbjumbo16 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo16 = newnmbjumbo16;
@@ -246,7 +246,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 
 	newnmbufs = nmbufs;
 	error = sysctl_handle_int(oidp, &newnmbufs, 0, req);
-	if (error == 0 && req->newptr) {
+	if (error == 0 && req->newptr && newnmbufs != nmbufs) {
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
 			nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);

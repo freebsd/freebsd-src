@@ -55,10 +55,17 @@
 /*
  * register space access macros
  */
+#define	ARGE_BARRIER_READ(sc)	bus_barrier(sc->arge_res, 0, 0, \
+				    BUS_SPACE_BARRIER_READ)
+#define	ARGE_BARRIER_WRITE(sc)	bus_barrier(sc->arge_res, 0, 0, \
+				    BUS_SPACE_BARRIER_WRITE)
+#define	ARGE_BARRIER_RW(sc)	bus_barrier(sc->arge_res, 0, 0, \
+				    BUS_SPACE_BARRIER_READ | \
+				    BUS_SPACE_BARRIER_WRITE)
 #define ARGE_WRITE(sc, reg, val)	do {	\
 		bus_write_4(sc->arge_res, (reg), (val)); \
+		ARGE_BARRIER_WRITE((sc)); \
 	} while (0)
-
 #define ARGE_READ(sc, reg)	 bus_read_4(sc->arge_res, (reg))
 
 #define ARGE_SET_BITS(sc, reg, bits)	\
@@ -71,8 +78,11 @@
 	ARGE_WRITE((_sc), (_reg), (_val))
 #define ARGE_MDIO_READ(_sc, _reg)	\
 	ARGE_READ((_sc), (_reg))
+#define	ARGE_MDIO_BARRIER_READ(_sc)	ARGE_BARRIER_READ(_sc)
+#define	ARGE_MDIO_BARRIER_WRITE(_sc)	ARGE_BARRIER_WRITE(_sc)
+#define	ARGE_MDIO_BARRIER_RW(_sc)	ARGE_BARRIER_READ_RW(_sc)
 
-#define ARGE_DESC_EMPTY		(1 << 31)
+#define ARGE_DESC_EMPTY		(1U << 31)
 #define ARGE_DESC_MORE		(1 << 24)
 #define ARGE_DESC_SIZE_MASK	((1 << 12) - 1)
 #define	ARGE_DMASIZE(len)	((len) & ARGE_DESC_SIZE_MASK)
@@ -159,6 +169,7 @@ struct arge_softc {
 	int			arge_mac_unit;
 	int			arge_if_flags;
 	uint32_t		arge_debug;
+	uint32_t		arge_mdiofreq;
 	struct {
 		uint32_t	tx_pkts_unaligned;
 		uint32_t	tx_pkts_aligned;

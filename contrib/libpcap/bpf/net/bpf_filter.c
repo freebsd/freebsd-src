@@ -209,8 +209,8 @@ m_xhalf(m, k, err)
  */
 u_int
 bpf_filter(pc, p, wirelen, buflen)
-	register struct bpf_insn *pc;
-	register u_char *p;
+	register const struct bpf_insn *pc;
+	register const u_char *p;
 	u_int wirelen;
 	register u_int buflen;
 {

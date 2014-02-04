@@ -13,6 +13,7 @@ you didn't get a copy, you may request one from <license@inner.net>.
 
 #include "opie_cfg.h"
 #include <stdio.h>
+#include <string.h>
 #include "opie.h"
 
 int opielookup FUNCTION((opie, principal), struct opie *opie AND char *principal)

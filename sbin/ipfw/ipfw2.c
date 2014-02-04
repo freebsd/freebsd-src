@@ -60,6 +60,8 @@ int resvd_set_number = RESVD_SET;
 
 int ipfw_socket = -1;
 
+uint32_t ipfw_tables_max = 0; /* Number of tables supported by kernel */
+
 #ifndef s6_addr32
 #define s6_addr32 __u6_addr.__u6_addr32
 #endif
@@ -2203,6 +2205,7 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen)
 {
 	int len = 0;
 	uint32_t *d = ((ipfw_insn_u32 *)cmd)->d;
+	uint32_t tables_max;
 
 	cmd->o.len &= ~F_LEN_MASK;	/* zero len */
 
@@ -2221,6 +2224,10 @@ fill_ip(ipfw_insn_ip *cmd, char *av, int cblen)
 			*p++ = '\0';
 		cmd->o.opcode = O_IP_DST_LOOKUP;
 		cmd->o.arg1 = strtoul(av + 6, NULL, 0);
+		tables_max = ipfw_get_tables_max();
+		if (cmd->o.arg1 > tables_max)
+			errx(EX_USAGE, "The table number exceeds the maximum "
+			    "allowed value (%u)", tables_max - 1);
 		if (p) {
 			cmd->o.len |= F_INSN_SIZE(ipfw_insn_u32);
 			d[0] = strtoul(p, NULL, 0);
@@ -4119,6 +4126,33 @@ static void table_list(uint16_t num, int need_header);
 static void table_fill_xentry(char *arg, ipfw_table_xentry *xent);
 
 /*
+ * Retrieve maximum number of tables supported by ipfw(4) module.
+ */
+uint32_t
+ipfw_get_tables_max()
+{
+	size_t len;
+	uint32_t tables_max;
+
+	if (ipfw_tables_max != 0)
+		return (ipfw_tables_max);
+
+	len = sizeof(tables_max);
+	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
+	    NULL, 0) == -1) {
+		if (co.test_only)
+			tables_max = 128; /* Old conservative default */
+		else
+			errx(1, "Can't determine maximum number of ipfw tables."
+			    " Perhaps you forgot to load ipfw module?");
+	}
+
+	ipfw_tables_max = tables_max;
+
+	return (ipfw_tables_max);
+}
+
+/*
  * This one handles all table-related commands
  * 	ipfw table N add addr[/masklen] [value]
  * 	ipfw table N delete addr[/masklen]
@@ -4131,19 +4165,10 @@ ipfw_table_handler(int ac, char *av[])
 	ipfw_table_xentry xent;
 	int do_add;
 	int is_all;
-	size_t len;
 	uint32_t a;
 	uint32_t tables_max;
 
-	len = sizeof(tables_max);
-	if (sysctlbyname("net.inet.ip.fw.tables_max", &tables_max, &len,
-	    NULL, 0) == -1) {
-		if (co.test_only)
-			tables_max = 128; /* Old conservative default */
-		else
-			errx(1, "Can't determine maximum number of ipfw tables."
-			    " Perhaps you forgot to load ipfw module?");
-	}
+	tables_max = ipfw_get_tables_max();
 
 	memset(&xent, 0, sizeof(xent));
 
@@ -4274,13 +4299,24 @@ table_fill_xentry(char *arg, ipfw_table_xentry *xent)
 			addrlen = sizeof(struct in6_addr);
 		} else {
 			/* Port or any other key */
-			key = strtol(arg, &p, 10);
 			/* Skip non-base 10 entries like 'fa1' */
-			if (p != arg) {
+			key = strtol(arg, &p, 10);
+			if (*p == '\0') {
 				pkey = (uint32_t *)paddr;
 				*pkey = htonl(key);
 				type = IPFW_TABLE_CIDR;
+				masklen = 32;
 				addrlen = sizeof(uint32_t);
+			} else if ((p != arg) && (*p == '.')) {
+				/*
+				 * Warn on IPv4 address strings
+				 * which are "valid" for inet_aton() but not
+				 * in inet_pton().
+				 *
+				 * Typical examples: '10.5' or '10.0.0.05'
+				 */
+				errx(EX_DATAERR,
+				    "Invalid IPv4 address: %s", arg);
 			}
 		}
 	}

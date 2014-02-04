@@ -77,9 +77,14 @@ struct bxe_softc;
 typedef bus_addr_t ecore_dma_addr_t; /* expected to be 64 bit wide */
 typedef volatile int ecore_atomic_t;
 
-#if __FreeBSD_version < 1000002
-typedef int bool;
+#ifndef __bool_true_false_are_defined
+#ifndef __cplusplus
+#define bool _Bool
+#if __STDC_VERSION__ < 199901L && __GNUC__ < 3 && !defined(__INTEL_COMPILER)
+typedef _Bool bool;
 #endif
+#endif /* !__cplusplus */
+#endif /* !__bool_true_false_are_defined$ */
 
 #define ETH_ALEN ETHER_ADDR_LEN /* 6 */
 
@@ -1143,6 +1148,9 @@ enum {
 	ECORE_RSS_IPV6_UDP,
 
 	ECORE_RSS_TUNNELING,
+#if defined(__VMKLNX__) && (VMWARE_ESX_DDK_VERSION < 55000) /* ! BNX2X_UPSTREAM */
+	ECORE_RSS_MODE_ESX51,
+#endif
 };
 
 struct ecore_config_rss_params {
@@ -1852,6 +1860,9 @@ int ecore_config_rss(struct bxe_softc *sc,
 void ecore_get_rss_ind_table(struct ecore_rss_config_obj *rss_obj,
 			     uint8_t *ind_table);
 
+/* set as inline so printout will show the offending function */
+int validate_vlan_mac(struct bxe_softc *sc,
+		      struct ecore_vlan_mac_obj *vlan_mac);
 
 #endif /* ECORE_SP_H */
 

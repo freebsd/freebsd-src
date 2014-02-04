@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 20, 2013
+.Dd November 30, 2013
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -89,6 +89,9 @@ Options indicate an action to be performed:
 Attach a memory disk.
 This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
+If the
+.Fl u Ar unit
+option is not provided, the newly created device name will be printed on stdout.
 .It Fl d
 Detach a memory disk from the system and release all resources.
 .It Fl r
@@ -119,6 +122,8 @@ Using
 backing is generally preferred instead of using
 .Cm malloc
 backing.
+.It Cm null
+Bitsink; all writes do nothing, all reads return zeroes.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.
@@ -209,9 +214,12 @@ that might adversely affect the system.
 Enable/disable readonly mode.
 .El
 .It Fl u Ar unit
-Request a specific unit number for the
+Request a specific unit number or device name for the
 .Xr md 4
 device instead of automatic allocation.
+If a device name is specified, it must be start with
+.Dq md
+followed by the unit number.
 .El
 .Pp
 The last form,
@@ -237,19 +245,19 @@ with
 .Pa /tmp/boot.flp
 as backing storage:
 .Pp
-.Dl mdconfig -a -t vnode -f /tmp/boot.flp -u 4
+.Dl mdconfig -a -t vnode -f /tmp/boot.flp -u md4
 .Pp
 Detach and free all resources used by
 .Pa /dev/md4 :
 .Pp
-.Dl mdconfig -d -u 4
+.Dl mdconfig -d -u md4
 .Pp
 Create a 128MByte swap backed disk, initialize an
 .Xr ffs 7
 file system on it, and mount it on
 .Pa /tmp :
 .Bd -literal -offset indent
-mdconfig -a -t swap -s 128M -u 10
+mdconfig -a -t swap -s 128M -u md10
 newfs -U /dev/md10
 mount /dev/md10 /tmp
 chmod 1777 /tmp
@@ -263,7 +271,7 @@ are implied
 .Pc :
 .Bd -literal -offset indent
 dd if=/dev/zero of=somebackingfile bs=1k count=5k
-mdconfig -f somebackingfile -u 0
+mdconfig -f somebackingfile -u md0
 bsdlabel -w md0 auto
 newfs md0c
 mount /dev/md0c /mnt
@@ -290,7 +298,7 @@ is used to skip over the header information, positioning
 .Pa md1.nop
 to the start of the filesystem in the image.
 .Bd -literal -offset indent
-mdconfig -f diskimage.img -u 1
+mdconfig -f diskimage.img -u md1
 gnop create -o 512K md1
 mount /dev/md1.nop /mnt
 .Ed

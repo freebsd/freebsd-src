@@ -1,28 +1,48 @@
 $FreeBSD$
 
-atf
+This document contains a collection of notes specific to the import
+of atf into head.  These notes are built on the instructions in
+the FreeBSD Subversion Primer that detail how to deal with vendor
+branches and you are supposed to follow those:
 
-The source code is hosted on GoogleCode as a subcomponent of the Kyua project:
+	http://www.freebsd.org/doc/en/articles/committers-guide/subversion-primer.html
+
+The ATF source code is hosted on Google Code as a subcomponent of the
+Kyua project:
 
 	http://code.google.com/p/kyua/downloads/list
 
-For the contrib directory, the sources were initially prepared like so:
+and is imported into the atf vendor branch (see base/vendor/atf/).
 
-	./configure --prefix=/ --exec-prefix=/usr --datarootdir=/usr/share
+To merge the vendor branch into head do something like this:
 
-For the contrib directory, files and directories were pruned by:
+	cd .../base/head/contrib/atf
+	svn merge --accept=postpone \
+	    svn+ssh://svn.freebsd.org/base/vendor/atf/dist .
+	svn remove --force $(cat FREEBSD-Xlist)
 
-sh -c 'for F in `cat FREEBSD-Xlist`; do rm -rf ./$F ; done'
+and resolve any conflicts that may arise at this point.
 
-You may check if there are any new files that we don't need.
+Once this is done, you must regenerate bconfig.h.  The recommended way
+of doing so is by using the release files already imported into the
+vendor branch (which is a good justification for importing the verbatim
+sources in the first place so that this step is reproducible).  You can
+use a set of commands similar to the following:
 
-The instructions for importing new release and merging to HEAD can be found
-at FreeBSD wiki:
+	mkdir /tmp/atf
+	cd /tmp/atf
+	.../vendor/atf/dist/configure \
+	    --prefix=/ \
+	    --exec-prefix=/usr \
+	    --datarootdir=/usr/share
+	cp bconfig.h .../base/head/contrib/atf/
 
-	http://wiki.freebsd.org/SubversionPrimer/VendorImports
+Please do NOT run './configure' straight from the 'dist' directory of
+the vendor branch as you easily risk committing build products into the
+tree.
 
-To make local changes to atf, simply patch and commit to the trunk
-branch (aka HEAD).  Never make local changes on the vendor branch.
+Lastly, with the list of old and new files in this import, make sure
+to udpate the reachover Makefiles accordingly.
 
-gcooper@FreeBSD.org
-5-August-2012
+Test the build (keeping in mind the WITH_TESTS/WITHOUT_TESTS knobs) and,
+if all looks good, you are ready to commit all the changes in one go.

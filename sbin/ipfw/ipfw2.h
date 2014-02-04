@@ -228,6 +228,8 @@ char const *match_value(struct _s_x *p, int value);
 
 int do_cmd(int optname, void *optval, uintptr_t optlen);
 
+uint32_t ipfw_get_tables_max(void);
+
 struct in6_addr;
 void n2mask(struct in6_addr *mask, int n);
 int contigmask(uint8_t *p, int len);

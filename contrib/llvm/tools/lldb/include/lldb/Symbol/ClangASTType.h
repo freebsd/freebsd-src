@@ -98,7 +98,7 @@ public:
     // Tests
     //----------------------------------------------------------------------
 
-    operator bool () const
+    explicit operator bool () const
     {
         return m_type != NULL && m_ast != NULL;
     }
@@ -155,6 +155,12 @@ public:
     bool
     IsFunctionType (bool *is_variadic_ptr = NULL) const;
 
+    size_t
+    GetNumberOfFunctionArguments () const;
+    
+    ClangASTType
+    GetFunctionArgumentAtIndex (const size_t index);
+    
     bool
     IsVariadicFunctionType () const;
 
@@ -193,6 +199,9 @@ public:
 
     bool
     IsPointerToScalarType () const;
+    
+    bool
+    IsRuntimeGeneratedType () const;
     
     bool
     IsPointerType (ClangASTType *pointee_type = NULL) const;
@@ -249,7 +258,7 @@ public:
     ConstString
     GetConstTypeName () const;
     
-    std::string
+    ConstString
     GetTypeName () const;
 
     uint32_t

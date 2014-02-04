@@ -2,30 +2,18 @@
  * $FreeBSD$
  */
 
-FBSD_1.2 {
-	__iconv;
-	__iconv_free_list;
-	__iconv_get_list;
-	_libiconv_version;
-	iconv_canonicalize;
-	libiconv;
-	libiconv_close;
-	libiconv_open;
-	libiconv_open_into;
-	libiconv_set_relocation_prefix;
-	libiconvctl;
-	libiconvlist;
-};
-
 FBSD_1.3 {
-	_iconv_version;
-	iconv;
-	iconv_open;
-	iconv_close;
-	iconv_open_into;
-	iconv_set_relocation_prefix;
-	iconvctl;
-	iconvlist;
+	__bsd___iconv;
+	__bsd___iconv_free_list;
+	__bsd___iconv_get_list;
+	__bsd_iconv;
+	__bsd_iconv_canonicalize;
+	__bsd_iconv_close;
+	__bsd_iconv_open;
+	__bsd_iconv_open_into;
+	__bsd_iconv_set_relocation_prefix;
+	__bsd_iconvctl;
+	__bsd_iconvlist;
 };
 
 FBSDprivate_1.0 {

@@ -187,7 +187,7 @@ Lunmapped:
 	mrc	p15, 0, r0, c1, c0, 0
 #ifdef _ARM_ARCH_6
 	orr	r0, r0, #(CPU_CONTROL_V6_EXTPAGE | CPU_CONTROL_UNAL_ENABLE)
-	orr	r2, r2, #(CPU_CONTROL_AFLT_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_AFLT_ENABLE)
 	orr	r0, r0, #(CPU_CONTROL_AF_ENABLE)
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
@@ -266,10 +266,6 @@ mmu_init_table:
 	/* map VA 0xc0000000..0xc3ffffff to PA */
 	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
 	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(CPU_MV_PJ4B)
-	/* map VA 0xf1000000..0xf1100000 to PA 0xd0000000 */
-	MMU_INIT(0xf1000000, 0xd0000000, 1, L1_TYPE_S|L1_SHARED|L1_S_B|L1_S_AP(AP_KRW))
-#endif /* CPU_MV_PJ4B */
 #endif /* SMP */
 	.word 0	/* end of table */
 #endif
@@ -395,6 +391,7 @@ Ltag:
 	mrc	p15, 0, r0, c1, c0, 0
 #if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0

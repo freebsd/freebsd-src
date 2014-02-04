@@ -37,7 +37,6 @@ SUBDIR=	adduser \
 	inetd \
 	iostat \
 	iscsid \
-	isfctl \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -250,10 +249,6 @@ SUBDIR+=	ftp-proxy
 
 .if ${MK_PKGBOOTSTRAP} != "no"
 SUBDIR+=	pkg
-.endif
-
-.if ${MK_PKGTOOLS} != "no"
-SUBDIR+=	pkg_install
 .endif
 
 # XXX MK_TOOLCHAIN?

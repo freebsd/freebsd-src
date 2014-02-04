@@ -49,9 +49,9 @@ lldb_private::formatters::ExtractValueFromObjCExpression (ValueObject &valobj,
         return false;
     
     EvaluateExpressionOptions options;
-    options.SetCoerceToId(false)
-    .SetUnwindOnError(true)
-    .SetKeepInMemory(true);
+    options.SetCoerceToId(false);
+    options.SetUnwindOnError(true);
+    options.SetKeepInMemory(true);
     
     target->EvaluateExpression(expr.GetData(),
                                stack_frame,
@@ -83,10 +83,10 @@ lldb_private::formatters::ExtractSummaryFromObjCExpression (ValueObject &valobj,
         return false;
     
     EvaluateExpressionOptions options;
-    options.SetCoerceToId(false)
-    .SetUnwindOnError(true)
-    .SetKeepInMemory(true)
-    .SetUseDynamic(lldb::eDynamicCanRunTarget);
+    options.SetCoerceToId(false);
+    options.SetUnwindOnError(true);
+    options.SetKeepInMemory(true);
+    options.SetUseDynamic(lldb::eDynamicCanRunTarget);
     
     target->EvaluateExpression(expr.GetData(),
                                stack_frame,
@@ -121,10 +121,10 @@ lldb_private::formatters::CallSelectorOnObject (ValueObject &valobj,
         return valobj_sp;
     
     EvaluateExpressionOptions options;
-    options.SetCoerceToId(false)
-    .SetUnwindOnError(true)
-    .SetKeepInMemory(true)
-    .SetUseDynamic(lldb::eDynamicCanRunTarget);
+    options.SetCoerceToId(false);
+    options.SetUnwindOnError(true);
+    options.SetKeepInMemory(true);
+    options.SetUseDynamic(lldb::eDynamicCanRunTarget);
     
     target->EvaluateExpression(expr.GetData(),
                                stack_frame,
@@ -158,10 +158,10 @@ lldb_private::formatters::CallSelectorOnObject (ValueObject &valobj,
         return valobj_sp;
     
     EvaluateExpressionOptions options;
-    options.SetCoerceToId(false)
-    .SetUnwindOnError(true)
-    .SetKeepInMemory(true)
-    .SetUseDynamic(lldb::eDynamicCanRunTarget);
+    options.SetCoerceToId(false);
+    options.SetUnwindOnError(true);
+    options.SetKeepInMemory(true);
+    options.SetUseDynamic(lldb::eDynamicCanRunTarget);
     
     target->EvaluateExpression(expr.GetData(),
                                stack_frame,
@@ -1003,11 +1003,11 @@ lldb_private::formatters::NSStringSummaryProvider (ValueObject& valobj, Stream& 
     if (!has_null && has_explicit_length && !is_special)
     {
         lldb::addr_t explicit_length_offset = 2*ptr_size;
-        if (is_mutable and not is_inline)
+        if (is_mutable && !is_inline)
             explicit_length_offset = explicit_length_offset + ptr_size; //  notInlineMutable.length;
         else if (is_inline)
             explicit_length = explicit_length + 0; // inline1.length;
-        else if (not is_inline and not is_mutable)
+        else if (!is_inline && !is_mutable)
             explicit_length_offset = explicit_length_offset + ptr_size; // notInlineImmutable1.length;
         else
             explicit_length_offset = 0;
@@ -1039,7 +1039,7 @@ lldb_private::formatters::NSStringSummaryProvider (ValueObject& valobj, Stream& 
         location = process_sp->ReadPointerFromMemory(location, error);
         if (error.Fail())
             return false;
-        if (has_explicit_length and is_unicode)
+        if (has_explicit_length && is_unicode)
         {
             ReadUTFBufferAndDumpToStreamOptions<UTF16> options;
             options.SetConversionFunction(ConvertUTF16toUTF8);
@@ -1237,6 +1237,7 @@ lldb_private::formatters::GetOSXEpoch ()
     static time_t epoch = 0;
     if (!epoch)
     {
+#ifndef _WIN32
         tzset();
         tm tm_epoch;
         tm_epoch.tm_sec = 0;
@@ -1249,6 +1250,7 @@ lldb_private::formatters::GetOSXEpoch ()
         tm_epoch.tm_gmtoff = 0;
         tm_epoch.tm_zone = NULL;
         epoch = timegm(&tm_epoch);
+#endif
     }
     return epoch;
 }

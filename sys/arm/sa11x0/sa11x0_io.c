@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_kern.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
 
 /* Proto types for all the bus_space structure functions */
 

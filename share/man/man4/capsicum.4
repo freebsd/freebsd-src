@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2013
+.Dd October 19, 2013
 .Dt CAPSICUM 4
 .Os
 .Sh NAME
@@ -35,7 +35,6 @@
 .Sh SYNOPSIS
 .Cd "options CAPABILITY_MODE"
 .Cd "options CAPABILITIES"
-.Cd "options PROCDESC"
 .Sh DESCRIPTION
 .Nm
 is a lightweight OS capability and sandbox framework implementing a hybrid
@@ -58,8 +57,8 @@ memory mappings or file descriptors, may be used.
 Once set, the flag is inherited by future children processes, and may not be
 cleared.
 .It capabilities
-File descriptors that wrap other file descriptors, masking operations that can
-be called on them; for example, a file descriptor returned by
+Limit operations that can be called on file descriptors.
+For example, a file descriptor returned by
 .Xr open 2
 may be refined using
 .Xr cap_rights_limit 2
@@ -69,6 +68,9 @@ and
 .Xr write 2
 can be called, but not
 .Xr fchmod 2 .
+The complete list of the capability rights can be found in the
+.Xr rights 4
+manual page.
 .El
 .Pp
 In some cases,
@@ -88,8 +90,9 @@ associated with file descriptors; described in greater detail in
 .El
 .Sh SEE ALSO
 .Xr cap_enter 2 ,
+.Xr cap_fcntls_limit 2 ,
 .Xr cap_getmode 2 ,
-.Xr cap_rights_get 2 ,
+.Xr cap_ioctls_limit 2 ,
 .Xr cap_rights_limit 2 ,
 .Xr fchmod 2 ,
 .Xr open 2 ,
@@ -100,6 +103,7 @@ associated with file descriptors; described in greater detail in
 .Xr read 2 ,
 .Xr shm_open 2 ,
 .Xr write 2 ,
+.Xr cap_rights_get 3 ,
 .Xr procdesc 4
 .Sh HISTORY
 .Nm
@@ -117,7 +121,8 @@ at the University of Cambridge, and
 .An "Ben Laurie" Aq benl@FreeBSD.org
 and
 .An "Kris Kennaway" Aq kris@FreeBSD.org
-at Google, Inc.
+at Google, Inc., and
+.An "Pawel Jakub Dawidek" Aq pawel@dawidek.net .
 .Sh BUGS
 .Nm
 is considered experimental in

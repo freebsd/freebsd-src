@@ -772,14 +772,14 @@ Output::output_hash_function () const
   printf (option[KRC] ?
                  "(str, len)\n"
             "     register char *str;\n"
-            "     register unsigned int len;\n" :
+            "     register %s len;\n" :
           option[C] ?
                  "(str, len)\n"
             "     register const char *str;\n"
-            "     register unsigned int len;\n" :
+            "     register %s len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register unsigned int len)\n" :
-          "");
+                 "(register const char *str, register %s len)\n" :
+          "%s", option.get_size_type());
 
   /* Note that when the hash function is called, it has already been verified
      that  min_key_len <= len <= max_key_len.  */
@@ -875,7 +875,7 @@ Output::output_hash_function () const
                   "  switch (%s)\n"
                   "    {\n"
                   "      default:\n",
-                  option[NOLENGTH] ? "0" : "len",
+                  option[NOLENGTH] ? "0" : "(int)len",
                   option[NOLENGTH] ? "len" : "hval");
 
           while (key_pos != Positions::LASTCHAR && key_pos >= _max_key_len)
@@ -1106,9 +1106,7 @@ output_keyword_entry (KeywordExt *temp, int stringpool_index, const char *indent
   if (option[TYPE])
     printf ("{");
   if (option[SHAREDLIB])
-    printf ("(int)(long)&((struct %s_t *)0)->%s_str%d",
-            option.get_stringpool_name (), option.get_stringpool_name (),
-            stringpool_index);
+    printf("offsetof(struct %s_t, %s_str%d)", option.get_stringpool_name (), option.get_stringpool_name (), stringpool_index);
   else
     output_string (temp->_allchars, temp->_allchars_length);
   if (option[TYPE])
@@ -1902,14 +1900,14 @@ Output::output_lookup_function () const
   printf (option[KRC] ?
                  "(str, len)\n"
             "     register char *str;\n"
-            "     register unsigned int len;\n" :
+            "     register %s len;\n" :
           option[C] ?
                  "(str, len)\n"
             "     register const char *str;\n"
-            "     register unsigned int len;\n" :
+            "     register %s len;\n" :
           option[ANSIC] | option[CPLUSPLUS] ?
-                 "(register const char *str, register unsigned int len)\n" :
-          "");
+                 "(register const char *str, register %s len)\n" :
+          "%s", option.get_size_type());
 
   /* Output the function's body.  */
   printf ("{\n");
@@ -2035,8 +2033,11 @@ Output::output ()
       printf ("%s\n", _struct_decl);
     }
 
-  if (option[INCLUDE])
+  if (option[INCLUDE]) {
     printf ("#include <string.h>\n"); /* Declare strlen(), strcmp(), strncmp(). */
+    if (option[SHAREDLIB])
+      printf("#include <stddef.h>\n"); /* Declare offsetof() */
+  }
 
   if (!option[ENUM])
     {
@@ -2073,13 +2074,14 @@ Output::output ()
     printf ("class %s\n"
             "{\n"
             "private:\n"
-            "  static inline unsigned int %s (const char *str, unsigned int len);\n"
+            "  static inline unsigned int %s (const char *str, %s len);\n"
             "public:\n"
-            "  static %s%s%s (const char *str, unsigned int len);\n"
+            "  static %s%s%s (const char *str, %s len);\n"
             "};\n"
             "\n",
-            option.get_class_name (), option.get_hash_name (),
-            const_for_struct, _return_type, option.get_function_name ());
+            option.get_class_name (), option.get_hash_name (), option.get_size_type(),
+            const_for_struct, _return_type, option.get_function_name (),
+	    option.get_size_type());
 
   output_hash_function ();
 

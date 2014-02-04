@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 
-#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <contrib/dev/acpica/include/acpi.h>
 
@@ -74,11 +73,11 @@ struct vtdmap {
 
 #define	VTD_GCR_WBF		(1 << 27)
 #define	VTD_GCR_SRTP		(1 << 30)
-#define	VTD_GCR_TE		(1 << 31)
+#define	VTD_GCR_TE		(1U << 31)
 
 #define	VTD_GSR_WBFS		(1 << 27)
 #define	VTD_GSR_RTPS		(1 << 30)
-#define	VTD_GSR_TES		(1 << 31)
+#define	VTD_GSR_TES		(1U << 31)
 
 #define	VTD_CCR_ICC		(1UL << 63)	/* invalidate context cache */
 #define	VTD_CCR_CIRG_GLOBAL	(1UL << 61)	/* global invalidation */

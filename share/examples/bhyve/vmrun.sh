@@ -31,7 +31,7 @@ LOADER=/usr/sbin/bhyveload
 BHYVECTL=/usr/sbin/bhyvectl
 FBSDRUN=/usr/sbin/bhyve
 
-DEFAULT_MEMSIZE=512
+DEFAULT_MEMSIZE=512M
 DEFAULT_CPUS=2
 DEFAULT_TAPDEV=tap0
 
@@ -39,15 +39,16 @@ DEFAULT_VIRTIO_DISK="./diskdev"
 DEFAULT_ISOFILE="./release.iso"
 
 usage() {
-	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-I <location of installation iso>][-t <tapdev>] <vmname>"
+	echo "Usage: vmrun.sh [-hai][-g <gdbport>][-m <memsize>][-d <disk file>][-e <name=value>][-I <location of installation iso>][-t <tapdev>] <vmname>"
 	echo "       -h: display this help message"
 	echo "       -a: force memory mapped local apic access"
 	echo "       -c: number of virtual cpus (default is ${DEFAULT_CPUS})"
 	echo "       -d: virtio diskdev file (default is ${DEFAULT_VIRTIO_DISK})"
+	echo "       -e: set FreeBSD loader environment variable"
 	echo "       -g: listen for connection from kgdb at <gdbport>"
 	echo "       -i: force boot of the Installation CDROM image"
 	echo "       -I: Installation CDROM image location (default is ${DEFAULT_ISOFILE})"
-	echo "       -m: memory size in MB (default is ${DEFAULT_MEMSIZE}MB)"
+	echo "       -m: memory size (default is ${DEFAULT_MEMSIZE})"
 	echo "       -t: tap device for virtio-net (default is $DEFAULT_TAPDEV)"
 	echo ""
 	echo "       This script needs to be executed with superuser privileges"
@@ -73,8 +74,9 @@ virtio_diskdev=${DEFAULT_VIRTIO_DISK}
 tapdev=${DEFAULT_TAPDEV}
 apic_opt=""
 gdbport=0
+env_opt=""
 
-while getopts haic:g:I:m:d:t: c ; do
+while getopts haic:e:g:I:m:d:t: c ; do
 	case $c in
 	h)
 		usage
@@ -84,6 +86,9 @@ while getopts haic:g:I:m:d:t: c ; do
 		;;
 	d)
 		virtio_diskdev=${OPTARG}
+		;;
+	e)
+		env_opt="${env_opt} -e ${OPTARG}"
 		;;
 	g)	gdbport=${OPTARG}
 		;;
@@ -157,24 +162,25 @@ while [ 1 ]; do
 			exit 1
 		fi
 		BOOTDISK=${isofile}
-		installer_opt="-s 3:0,virtio-blk,${BOOTDISK}"
+		installer_opt="-s 31:0,virtio-blk,${BOOTDISK}"
 	else
 		BOOTDISK=${virtio_diskdev}
 		installer_opt=""
 	fi
 
-	${LOADER} -m ${memsize} -d ${BOOTDISK} ${vmname}
+	${LOADER} -m ${memsize} -d ${BOOTDISK} ${env_opt} ${vmname}
 	if [ $? -ne 0 ]; then
 		break
 	fi
 
-	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -AI -H -P	\
+	${FBSDRUN} -c ${cpus} -m ${memsize} ${apic_opt} -A -H -P	\
 		-g ${gdbport}						\
 		-s 0:0,hostbridge					\
-		-s 1:0,virtio-net,${tapdev}				\
-		-s 2:0,virtio-blk,${virtio_diskdev}			\
+		-s 1:0,lpc						\
+		-s 2:0,virtio-net,${tapdev}				\
+		-s 3:0,virtio-blk,${virtio_diskdev}			\
+		-l com1,stdio						\
 		${installer_opt}					\
-		-S 31,uart,stdio					\
 		${vmname}
 	if [ $? -ne 0 ]; then
 		break

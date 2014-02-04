@@ -84,6 +84,7 @@ struct vmxctx {
 struct vmxcap {
 	int	set;
 	uint32_t proc_ctls;
+	uint32_t proc_ctls2;
 };
 
 struct vmxstate {

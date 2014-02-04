@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2012-2013 Luigi Rizzo. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -130,20 +130,14 @@ netmap_open(struct my_ring *me, int ringid, int promisc)
 	req.nr_version = NETMAP_API;
 	strncpy(req.nr_name, me->ifname, sizeof(req.nr_name));
 	req.nr_ringid = ringid;
-	err = ioctl(fd, NIOCGINFO, &req);
-	if (err) {
-		D("cannot get info on %s, errno %d ver %d",
-			me->ifname, errno, req.nr_version);
-		goto error;
-	}
-	me->memsize = l = req.nr_memsize;
-	if (verbose)
-		D("memsize is %d MB", l>>20);
 	err = ioctl(fd, NIOCREGIF, &req);
 	if (err) {
 		D("Unable to register %s", me->ifname);
 		goto error;
 	}
+	me->memsize = l = req.nr_memsize;
+	if (verbose)
+		D("memsize is %d MB", l>>20);
 
 	if (me->mem == NULL) {
 		me->mem = mmap(0, l, PROT_WRITE | PROT_READ, MAP_SHARED, fd, 0);

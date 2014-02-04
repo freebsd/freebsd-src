@@ -10,18 +10,13 @@
 #ifndef lldb_IOChannel_h_
 #define lldb_IOChannel_h_
 
+#include <thread>
+#include <mutex>
+#include <atomic>
+#include <condition_variable>
+
 #include <string>
 #include <queue>
-
-#if defined(__FreeBSD__)
-#include <readline/readline.h>
-#else
-#include <editline/readline.h>
-#endif
-#include <histedit.h>
-#include <pthread.h>
-#include <sys/time.h>
-
 #include "Driver.h"
 
 class IOChannel : public lldb::SBBroadcaster
@@ -63,7 +58,7 @@ public:
     bool
     Stop ();
 
-    static void *
+    static lldb::thread_result_t
     IOReadThread (void *);
 
     void
@@ -127,7 +122,8 @@ protected:
 
 private:
 
-    pthread_mutex_t m_output_mutex;
+    std::recursive_mutex m_output_mutex;
+    std::condition_variable_any m_output_cond;
     struct timeval m_enter_elgets_time;
 
     Driver *m_driver;
@@ -135,6 +131,7 @@ private:
     bool m_read_thread_should_exit;
     FILE *m_out_file;
     FILE *m_err_file;
+    FILE *m_editline_out;
     std::queue<std::string> m_command_queue;
     const char *m_completion_key;
 
@@ -143,7 +140,8 @@ private:
     HistEvent m_history_event;
     bool m_getting_command;
     bool m_expecting_prompt;
-	std::string m_prompt_str;  // for accumlating the prompt as it gets written out by editline
+    bool m_output_flushed;
+    std::string m_prompt_str;  // for accumlating the prompt as it gets written out by editline
     bool m_refresh_request_pending;
 
     void
@@ -151,24 +149,6 @@ private:
 
     unsigned char
     HandleCompletion (EditLine *e, int ch);
-};
-
-class IOLocker 
-{
-public:
-
-    IOLocker (pthread_mutex_t &mutex);
-
-    ~IOLocker ();
-
-protected:
-
-    pthread_mutex_t *m_mutex_ptr;
-
-private:
-
-    IOLocker (const IOLocker&);
-    const IOLocker& operator= (const IOLocker&);
 };
 
 #endif  // lldb_IOChannel_h_

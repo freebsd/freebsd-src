@@ -318,7 +318,10 @@ main(int argc, char **argv)
 	 * Use KERN_PROC_PROC instead of KERN_PROC_ALL, since we
 	 * just want processes and not individual kernel threads.
 	 */
-	plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
+	if (pidfromfile >= 0)
+		plist = kvm_getprocs(kd, KERN_PROC_PID, pidfromfile, &nproc);
+	else
+		plist = kvm_getprocs(kd, KERN_PROC_PROC, 0, &nproc);
 	if (plist == NULL) {
 		errx(STATUS_ERROR, "Cannot get process list (%s)",
 		    kvm_geterr(kd));

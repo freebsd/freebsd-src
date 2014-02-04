@@ -38,17 +38,16 @@
 
 /* $FreeBSD$ */
 
-
 #include "oce_if.h"
 
 static void copy_stats_to_sc_xe201(POCE_SOFTC sc);
 static void copy_stats_to_sc_be3(POCE_SOFTC sc);
 static void copy_stats_to_sc_be2(POCE_SOFTC sc);
 static int  oce_sysctl_loopback(SYSCTL_HANDLER_ARGS);
+static int  oce_sys_aic_enable(SYSCTL_HANDLER_ARGS);
 static int  oce_be3_fwupgrade(POCE_SOFTC sc, const struct firmware *fw);
+static int oce_skyhawk_fwupgrade(POCE_SOFTC sc, const struct firmware *fw);
 static int  oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS);
-static int  oce_be3_flashdata(POCE_SOFTC sc, const struct firmware
-						*fw, int num_imgs);
 static int  oce_lancer_fwupgrade(POCE_SOFTC sc, const struct firmware *fw);
 static int oce_sysctl_sfp_vpd_dump(SYSCTL_HANDLER_ARGS);
 static boolean_t oce_phy_flashing_required(POCE_SOFTC sc);
@@ -62,8 +61,17 @@ static void oce_add_stats_sysctls_xe201(POCE_SOFTC sc,
 				struct sysctl_ctx_list *ctx,
 				struct sysctl_oid *stats_node);
 
+
 extern char component_revision[32];
 uint32_t sfp_vpd_dump_buffer[TRANSCEIVER_DATA_NUM_ELE];
+
+struct flash_img_attri {
+	int img_offset;
+	int img_size;
+	int img_type;
+	bool skip_image;
+	int optype;
+};
 
 void
 oce_add_sysctls(POCE_SOFTC sc)
@@ -124,6 +132,10 @@ oce_add_sysctls(POCE_SOFTC sc)
 		CTLTYPE_STRING | CTLFLAG_RW, (void *)sc, 0,
 		oce_sys_fwupgrade, "A", "Firmware ufi file");
 
+	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "aic_enable",
+		CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 1,
+		oce_sys_aic_enable, "I", "aic flags");
+
         /*
          *  Dumps Transceiver data
 	 *  "sysctl dev.oce.0.sfp_vpd_dump=0"
@@ -154,12 +166,41 @@ oce_loopback_test(struct oce_softc *sc, uint8_t loopback_type)
 {
 	uint32_t status = 0;
 
-	oce_mbox_cmd_set_loopback(sc, sc->if_id, loopback_type, 1);
-	status = oce_mbox_cmd_test_loopback(sc, sc->if_id, loopback_type,
+	oce_mbox_cmd_set_loopback(sc, sc->port_id, loopback_type, 1);
+	status = oce_mbox_cmd_test_loopback(sc, sc->port_id, loopback_type,
 				1500, 2, 0xabc);
-	oce_mbox_cmd_set_loopback(sc, sc->if_id, OCE_NO_LOOPBACK, 1);
+	oce_mbox_cmd_set_loopback(sc, sc->port_id, OCE_NO_LOOPBACK, 1);
 
 	return status;
+}
+
+static int
+oce_sys_aic_enable(SYSCTL_HANDLER_ARGS)
+{
+	int value = 0;
+	uint32_t status, vector;
+	POCE_SOFTC sc = (struct oce_softc *)arg1;
+	struct oce_aic_obj *aic;
+
+	status = sysctl_handle_int(oidp, &value, 0, req);
+	if (status || !req->newptr)
+		return status; 
+
+	for (vector = 0; vector < sc->intr_count; vector++) {
+		aic = &sc->aic_obj[vector];
+
+		if (value == 0){
+			aic->max_eqd = aic->min_eqd = aic->et_eqd = 0;
+			aic->enable = 0;
+		}
+		else {
+			aic->max_eqd = OCE_MAX_EQD;
+			aic->min_eqd = OCE_MIN_EQD;
+			aic->et_eqd = OCE_MIN_EQD;
+			aic->enable = TRUE;
+		}
+	}
+	return 0;
 }
 
 static int
@@ -223,7 +264,7 @@ oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
 		return ENOENT;
 	}
 
-	if (IS_BE(sc) || IS_SH(sc)) {
+	if (IS_BE(sc)) {
 		if ((sc->flags & OCE_FLAGS_BE2)) {
 			device_printf(sc->dev, 
 				"Flashing not supported for BE2 yet.\n");
@@ -231,6 +272,8 @@ oce_sys_fwupgrade(SYSCTL_HANDLER_ARGS)
 			goto done;
 		}
 		status = oce_be3_fwupgrade(sc, fw);
+	} else if (IS_SH(sc)) {
+		status = oce_skyhawk_fwupgrade(sc,fw);
 	} else
 		status = oce_lancer_fwupgrade(sc, fw);
 done:
@@ -246,6 +289,277 @@ done:
 	return status;
 }
 
+static void oce_fill_flash_img_data(POCE_SOFTC sc, const struct flash_sec_info * fsec,
+				struct flash_img_attri *pimg, int i,
+				const struct firmware *fw, int bin_offset)
+{
+	if (IS_SH(sc)) {
+		pimg->img_offset = HOST_32(fsec->fsec_entry[i].offset);
+		pimg->img_size   = HOST_32(fsec->fsec_entry[i].pad_size);
+	}
+
+	pimg->img_type = HOST_32(fsec->fsec_entry[i].type);
+	pimg->skip_image = FALSE;
+	switch (pimg->img_type) {
+		case IMG_ISCSI:
+			pimg->optype = 0;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 2097152;
+				pimg->img_size   = 2097152;
+			}
+			break;
+		case IMG_REDBOOT:
+			pimg->optype = 1;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 262144;
+				pimg->img_size   = 1048576;
+			}
+			if (!oce_img_flashing_required(sc, fw->data,
+						pimg->optype,
+						pimg->img_offset,
+						pimg->img_size,
+						bin_offset))
+				pimg->skip_image = TRUE;
+			break;
+		case IMG_BIOS:
+			pimg->optype = 2;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 12582912;
+				pimg->img_size   = 524288;
+			}
+			break;
+		case IMG_PXEBIOS:
+			pimg->optype = 3;
+			if (IS_BE3(sc)) {
+				pimg->img_offset =  13107200;;
+				pimg->img_size   = 524288;
+			}
+			break;
+		case IMG_FCOEBIOS:
+			pimg->optype = 8;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 13631488;
+				pimg->img_size   = 524288;
+			}
+			break;
+		case IMG_ISCSI_BAK:
+			pimg->optype = 9;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 4194304;
+				pimg->img_size   = 2097152;
+			}
+			break;
+		case IMG_FCOE:
+			pimg->optype = 10;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 6291456;
+				pimg->img_size   = 2097152;
+			}
+			break;
+		case IMG_FCOE_BAK:
+			pimg->optype = 11;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 8388608;
+				pimg->img_size   = 2097152;
+			}
+			break;
+		case IMG_NCSI:
+			pimg->optype = 13;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 15990784;
+				pimg->img_size   = 262144;
+			}
+			break;
+		case IMG_PHY:
+			pimg->optype = 99;
+			if (IS_BE3(sc)) {
+				pimg->img_offset = 1310720;
+				pimg->img_size   = 262144;
+			}
+			if (!oce_phy_flashing_required(sc))
+				pimg->skip_image = TRUE;
+			break;
+		default:
+			pimg->skip_image = TRUE;
+			break;
+	}
+
+}
+
+static int
+oce_sh_be3_flashdata(POCE_SOFTC sc, const struct firmware *fw, int32_t num_imgs)
+{
+	char cookie[2][16] =    {"*** SE FLAS", "H DIRECTORY *** "};
+	const char *p = (const char *)fw->data;
+	const struct flash_sec_info *fsec = NULL;
+	struct mbx_common_read_write_flashrom *req;
+	int rc = 0, i, bin_offset = 0, opcode, num_bytes;
+	OCE_DMA_MEM dma_mem;
+	struct flash_img_attri imgatt;
+
+	/* Validate Cookie */
+	bin_offset = (sizeof(struct flash_file_hdr) +
+			(num_imgs * sizeof(struct image_hdr)));
+	p += bin_offset;
+	while (p < ((const char *)fw->data + fw->datasize)) {
+		fsec = (const struct flash_sec_info *)p;
+		if (!memcmp(cookie, fsec->cookie, sizeof(cookie)))
+			break;
+		fsec = NULL;
+		p += 32;
+	}
+
+	if (!fsec) {
+		device_printf(sc->dev,
+				"Invalid Cookie. Firmware image corrupted ?\n");
+		return EINVAL;
+	}
+
+	rc = oce_dma_alloc(sc, sizeof(struct mbx_common_read_write_flashrom),
+				&dma_mem, 0);
+	if (rc) {
+		device_printf(sc->dev,
+				"Memory allocation failure while flashing\n");
+		return ENOMEM;
+	}
+	req = OCE_DMAPTR(&dma_mem, struct mbx_common_read_write_flashrom);
+
+	if (IS_SH(sc))
+		num_imgs = HOST_32(fsec->fsec_hdr.num_images);
+	else if (IS_BE3(sc))
+		num_imgs = MAX_FLASH_COMP;
+
+	for (i = 0; i < num_imgs; i++) {
+
+		bzero(&imgatt, sizeof(struct flash_img_attri));
+
+		oce_fill_flash_img_data(sc, fsec, &imgatt, i, fw, bin_offset);
+
+		if (imgatt.skip_image)
+			continue;
+
+		p = fw->data;
+		p = p + bin_offset + imgatt.img_offset;
+
+		if ((p + imgatt.img_size) > ((const char *)fw->data + fw->datasize)) {
+			rc = 1;
+			goto ret;
+		}
+
+		while (imgatt.img_size) {
+
+			if (imgatt.img_size > 32*1024)
+				num_bytes = 32*1024;
+			else
+				num_bytes = imgatt.img_size;
+			imgatt.img_size -= num_bytes;
+
+			if (!imgatt.img_size)
+				opcode = FLASHROM_OPER_FLASH;
+			else
+				opcode = FLASHROM_OPER_SAVE;
+
+			memcpy(req->data_buffer, p, num_bytes);
+			p += num_bytes;
+
+			rc = oce_mbox_write_flashrom(sc, imgatt.optype, opcode,
+					&dma_mem, num_bytes);
+			if (rc) {
+				device_printf(sc->dev,
+						"cmd to write to flash rom failed.\n");
+				rc = EIO;
+				goto ret;
+			}
+			/* Leave the CPU for others for some time */
+			pause("yield", 10);
+
+		}
+
+	}
+
+ret:
+	oce_dma_free(sc, &dma_mem);
+	return rc;
+}
+
+#define UFI_TYPE2		2
+#define UFI_TYPE3		3
+#define UFI_TYPE3R		10
+#define UFI_TYPE4		4
+#define UFI_TYPE4R		11
+static int oce_get_ufi_type(POCE_SOFTC sc,
+			    const struct flash_file_hdr *fhdr)
+{
+	if (fhdr == NULL)
+		goto be_get_ufi_exit;
+
+	if (IS_SH(sc) && fhdr->build[0] == '4') {
+		if (fhdr->asic_type_rev >= 0x10)
+			return UFI_TYPE4R;
+		else
+			return UFI_TYPE4;
+	} else if (IS_BE3(sc) && fhdr->build[0] == '3') {
+		if (fhdr->asic_type_rev == 0x10)
+			return UFI_TYPE3R;
+		else
+			return UFI_TYPE3;
+	} else if (IS_BE2(sc) && fhdr->build[0] == '2')
+		return UFI_TYPE2;
+
+be_get_ufi_exit:
+	device_printf(sc->dev,
+		"UFI and Interface are not compatible for flashing\n");
+	return -1;
+}
+
+
+static int
+oce_skyhawk_fwupgrade(POCE_SOFTC sc, const struct firmware *fw)
+{
+	int rc = 0, num_imgs = 0, i = 0, ufi_type;
+	const struct flash_file_hdr *fhdr;
+	const struct image_hdr *img_ptr;
+
+	fhdr = (const struct flash_file_hdr *)fw->data;
+
+	ufi_type = oce_get_ufi_type(sc, fhdr);
+
+	/* Display flash version */
+	device_printf(sc->dev, "Flashing Firmware %s\n", &fhdr->build[2]);
+
+	num_imgs = fhdr->num_imgs;
+	for (i = 0; i < num_imgs; i++) {
+		img_ptr = (const struct image_hdr *)((const char *)fw->data +
+				sizeof(struct flash_file_hdr) +
+				(i * sizeof(struct image_hdr)));
+
+		if (img_ptr->imageid != 1)
+			continue;
+
+		switch (ufi_type) {
+			case UFI_TYPE4R:
+				rc = oce_sh_be3_flashdata(sc, fw,
+						num_imgs);
+				break;
+			case UFI_TYPE4:
+				if (sc->asic_revision < 0x10)
+					rc = oce_sh_be3_flashdata(sc, fw,
+								   num_imgs);
+				else {
+					rc = -1;
+					device_printf(sc->dev,
+						"Cant load SH A0 UFI on B0\n");
+				}
+				break;
+			default:
+				rc = -1;
+				break;
+
+		}
+	}
+
+	return rc;
+}
 
 static int
 oce_be3_fwupgrade(POCE_SOFTC sc, const struct firmware *fw)
@@ -268,162 +582,13 @@ oce_be3_fwupgrade(POCE_SOFTC sc, const struct firmware *fw)
 				sizeof(struct flash_file_hdr) +
 				(i * sizeof(struct image_hdr)));
 		if (img_ptr->imageid == 1) {
-			rc = oce_be3_flashdata(sc, fw, num_imgs);
+			rc = oce_sh_be3_flashdata(sc, fw, num_imgs);
+
 			break;
 		}
 	}
 
 	return rc;
-}
-
-
-static int
-oce_be3_flashdata(POCE_SOFTC sc, const struct firmware *fw, int num_imgs)
-{
-	char cookie[2][16] =    {"*** SE FLAS", "H DIRECTORY *** "};
-	const char *p = (const char *)fw->data;
-	const struct flash_sec_info *fsec = NULL;
-	struct mbx_common_read_write_flashrom *req;
-	int rc = 0, i, img_type, bin_offset = 0;
-	boolean_t skip_image;
-	uint32_t optype = 0, size = 0, start = 0, num_bytes = 0;
-	uint32_t opcode = 0;
-	OCE_DMA_MEM dma_mem;
-
-	/* Validate Cookie */
-	bin_offset = (sizeof(struct flash_file_hdr) +
-		(num_imgs * sizeof(struct image_hdr)));
-	p += bin_offset;
-	while (p < ((const char *)fw->data + fw->datasize)) {
-		fsec = (const struct flash_sec_info *)p;
-		if (!memcmp(cookie, fsec->cookie, sizeof(cookie)))
-			break;
-		fsec = NULL;
-		p += 32;
-	}
-
-	if (!fsec) {
-		device_printf(sc->dev,
-			"Invalid Cookie. Firmware image corrupted ?\n");
-		return EINVAL;
-	}
-
-	rc = oce_dma_alloc(sc, sizeof(struct mbx_common_read_write_flashrom)
-			+ 32*1024, &dma_mem, 0);
-	if (rc) {
-		device_printf(sc->dev,
-			"Memory allocation failure while flashing\n");
-		return ENOMEM;
-	}
-	req = OCE_DMAPTR(&dma_mem, struct mbx_common_read_write_flashrom);
-
-	for (i = 0; i < MAX_FLASH_COMP; i++) {
-
-		img_type = fsec->fsec_entry[i].type;
-		skip_image = FALSE;
-		switch (img_type) {
-		case IMG_ISCSI:
-			optype = 0;
-			size = 2097152;
-			start = 2097152;
-			break;
-		case IMG_REDBOOT:
-			optype = 1;
-			size = 1048576;
-			start = 262144;
-			if (!oce_img_flashing_required(sc, fw->data,
-				optype, start, size, bin_offset))
-				skip_image = TRUE;
-			break;
-		case IMG_BIOS:
-			optype = 2;
-			size = 524288;
-			start = 12582912;
-			break;
-		case IMG_PXEBIOS:
-			optype = 3;
-			size = 524288;
-			start = 13107200;
-			break;
-		case IMG_FCOEBIOS:
-			optype = 8;
-			size = 524288;
-			start = 13631488;
-			break;
-		case IMG_ISCSI_BAK:
-			optype = 9;
-			size = 2097152;
-			start = 4194304;
-			break;
-		case IMG_FCOE:
-			optype = 10;
-			size = 2097152;
-			start = 6291456;
-			break;
-		case IMG_FCOE_BAK:
-			optype = 11;
-			size = 2097152;
-			start = 8388608;
-			break;
-		case IMG_NCSI:
-			optype = 13;
-			size = 262144;
-			start = 15990784;
-			break;
-		case IMG_PHY:
-			optype = 99;
-			size = 262144;
-			start = 1310720;
-			if (!oce_phy_flashing_required(sc))
-				skip_image = TRUE;
-			break;
-		default:
-			skip_image = TRUE;
-			break;
-		}
-		if (skip_image)
-			continue;
-
-		p = fw->data;
-		p = p + bin_offset + start;
-		if ((p + size) > ((const char *)fw->data + fw->datasize)) {
-			rc = 1;
-			goto ret;
-		}
-
-		while (size) {
-
-			if (size > 32*1024)
-				num_bytes = 32*1024;
-			else
-				num_bytes = size;
-			size -= num_bytes;
-
-			if (!size)
-				opcode = FLASHROM_OPER_FLASH;
-			else
-				opcode = FLASHROM_OPER_SAVE;
-
-			memcpy(req->data_buffer, p, num_bytes);
-			p += num_bytes;
-
-			rc = oce_mbox_write_flashrom(sc, optype, opcode,
-						&dma_mem, num_bytes);
-			if (rc) {
-				device_printf(sc->dev,
-					"cmd to write to flash rom failed.\n");
-				rc = EIO;
-				goto ret;
-			}
-			/* Leave the CPU for others for some time */
-			pause("yield", 10);
-
-		}
-	}
-ret:
-	oce_dma_free(sc, &dma_mem);
-	return rc;
-
 }
 
 

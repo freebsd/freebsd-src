@@ -9,12 +9,14 @@
 #include <sys/param.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#if !defined(_KERNEL)
+#ifdef _KERNEL
+#include <sys/systm.h>
+#else
 # include <stddef.h>
 # include <stdlib.h>
 # include <strings.h>
 # include <string.h>
-#endif
+#endif /* !_KERNEL */
 #include "netinet/ip_compat.h"
 #include "netinet/ip_fil.h"
 #ifdef RDX_DEBUG

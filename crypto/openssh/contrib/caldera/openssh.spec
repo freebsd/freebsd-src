@@ -16,7 +16,7 @@
 
 #old cvs stuff.  please update before use.  may be deprecated.
 %define use_stable	1
-%define version 	6.3p1
+%define version 	6.4p1
 %if %{use_stable}
   %define cvs		%{nil}
   %define release 	1
@@ -363,4 +363,4 @@ fi
 * Mon Jan 01 1998 ...
 Template Version: 1.31
 
-$Id: openssh.spec,v 1.80 2013/07/25 02:34:00 djm Exp $
+$Id: openssh.spec,v 1.80.4.1 2013/11/08 01:36:19 djm Exp $

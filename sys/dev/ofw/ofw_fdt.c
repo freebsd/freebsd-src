@@ -137,26 +137,6 @@ fdt_phandle_offset(phandle_t p)
 	return (pint - dtoff);
 }
 
-static int
-fdt_pointer_offset(const void *ptr)
-{
-	uintptr_t dt_struct, p;
-	int offset;
-
-	p = (uintptr_t)ptr;
-	dt_struct = (uintptr_t)fdtp + fdt_off_dt_struct(fdtp);
-
-	if ((p < dt_struct) ||
-	    p > (dt_struct + fdt_size_dt_struct(fdtp)))
-		return (-1);
-
-	offset = p - dt_struct;
-	if (offset < 0)
-		return (-1);
-
-	return (offset);
-}
-
 /* Return the next sibling of this node or 0. */
 static phandle_t
 ofw_fdt_peer(ofw_t ofw, phandle_t node)
@@ -226,20 +206,9 @@ ofw_fdt_parent(ofw_t ofw, phandle_t node)
 static phandle_t
 ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
-	int offset;
 
-	/*
-	 * Note: FDT does not have the notion of instances, but we somewhat
-	 * abuse the semantics and let treat as 'instance' the internal
-	 * 'phandle' prop, so that ofw I/F consumers have a uniform way of
-	 * translation between internal representation (which appear in some
-	 * contexts as property values) and effective phandles.
-	 */
-	offset = fdt_node_offset_by_phandle(fdtp, instance);
-	if (offset < 0)
-		return (-1);
-
-	return (fdt_offset_phandle(offset));
+	/* Where real OF uses ihandles in the tree, FDT uses xref phandles */
+	return (OF_xref_phandle(instance));
 }
 
 /* Get the length of a property of a package. */
@@ -297,70 +266,53 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 	return (len);
 }
 
-static int
-fdt_nextprop(int offset, char *buf, size_t size)
-{
-	const struct fdt_property *prop;
-	const char *name;
-	uint32_t tag;
-	int nextoffset, depth;
-
-	depth = 0;
-	tag = fdt_next_tag(fdtp, offset, &nextoffset);
-
-	/* Find the next prop */
-	do {
-		offset = nextoffset;
-		tag = fdt_next_tag(fdtp, offset, &nextoffset);
-
-		if (tag == FDT_BEGIN_NODE)
-			depth++;
-		else if (tag == FDT_END_NODE)
-			depth--;
-		else if ((tag == FDT_PROP) && (depth == 0)) {
-			prop =
-			    (const struct fdt_property *)fdt_offset_ptr(fdtp,
-			    offset, sizeof(*prop));
-			name = fdt_string(fdtp,
-			    fdt32_to_cpu(prop->nameoff));
-			strncpy(buf, name, size);
-			return (strlen(name));
-		} else
-			depth = -1;
-	} while (depth >= 0);
-
-	return (-1);
-}
-
 /*
- * Get the next property of a package. Return the actual len of retrieved
- * prop name.
+ * Get the next property of a package. Return values:
+ *  -1: package or previous property does not exist
+ *   0: no more properties
+ *   1: success
  */
 static int
 ofw_fdt_nextprop(ofw_t ofw, phandle_t package, const char *previous, char *buf,
     size_t size)
 {
 	const struct fdt_property *prop;
-	int offset, rv;
+	const char *name;
+	int offset;
 
 	offset = fdt_phandle_offset(package);
 	if (offset < 0)
 		return (-1);
 
-	if (previous == NULL)
-		/* Find the first prop in the node */
-		return (fdt_nextprop(offset, buf, size));
+	/* Find the first prop in the node */
+	offset = fdt_first_property_offset(fdtp, offset);
+	if (offset < 0)
+		return (0); /* No properties */
 
-	/*
-	 * Advance to the previous prop
-	 */
-	prop = fdt_get_property(fdtp, offset, previous, NULL);
+	if (previous != NULL) {
+		while (offset >= 0) {
+			prop = fdt_get_property_by_offset(fdtp, offset, NULL);
+			if (prop == NULL)
+				return (-1); /* Internal error */
+
+			offset = fdt_next_property_offset(fdtp, offset);
+			if (offset < 0)
+				return (0); /* No more properties */
+
+			/* Check if the last one was the one we wanted */
+			name = fdt_string(fdtp, fdt32_to_cpu(prop->nameoff));
+			if (strcmp(name, previous) == 0)
+				break;
+		}
+	}
+
+	prop = fdt_get_property_by_offset(fdtp, offset, &offset);
 	if (prop == NULL)
-		return (-1);
+		return (-1); /* Internal error */
 
-	offset = fdt_pointer_offset(prop);
-	rv = fdt_nextprop(offset, buf, size);
-	return (rv);
+	strncpy(buf, fdt_string(fdtp, fdt32_to_cpu(prop->nameoff)), size);
+
+	return (1);
 }
 
 /* Set the value of a property of a package. */
@@ -401,8 +353,13 @@ ofw_fdt_finddevice(ofw_t ofw, const char *device)
 static ssize_t
 ofw_fdt_instance_to_path(ofw_t ofw, ihandle_t instance, char *buf, size_t len)
 {
+	phandle_t phandle;
 
-	return (-1);
+	phandle = OF_instance_to_package(instance);
+	if (phandle == -1)
+		return (-1);
+
+	return (OF_package_to_path(phandle, buf, len));
 }
 
 /* Return the fully qualified pathname corresponding to a package. */

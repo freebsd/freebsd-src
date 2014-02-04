@@ -135,7 +135,7 @@ cctl_start_element(void *user_data, const char *name, const char **attr)
 	devlist = (struct cctl_devlist_data *)user_data;
 	cur_lun = devlist->cur_lun;
 	devlist->level++;
-	if ((u_int)devlist->level > (sizeof(devlist->cur_sb) /
+	if ((u_int)devlist->level >= (sizeof(devlist->cur_sb) /
 	    sizeof(devlist->cur_sb[0])))
 		log_errx(1, "%s: too many nesting levels, %zd max", __func__,
 		     sizeof(devlist->cur_sb) / sizeof(devlist->cur_sb[0]));

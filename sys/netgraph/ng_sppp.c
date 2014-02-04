@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/libkern.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/if_sppp.h>

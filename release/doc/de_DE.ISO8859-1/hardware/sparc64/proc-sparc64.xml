@@ -3,15 +3,14 @@
 	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/proc-sparc64.xml,v 1.10 2003/02/08 07:43:14 ue Exp $
 	basiert auf: 1.11
 -->
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>Unterst&uuml;tzte Systeme</title>
 
   <para>In diesem Kapitel sind alle Systeme aufgef&uuml;hrt, von denen
     wir wissen, da&szlig; sie von &os; f&uuml;r &arch.print;
     unterst&uuml;tzt werden.  Zus&auml;tzliche Informationen zu den
-    einzelnen Systemen finden Sie im <ulink
-    url="http://sunsolve.sun.com/handbook_pub/">Sun System
-    Handbook</ulink>.</para>
+    einzelnen Systemen finden Sie im <link xlink:href="http://sunsolve.sun.com/handbook_pub/">Sun System
+    Handbook</link>.</para>
 
   <para>SMP wird auf allen Systemen mit mehr als einem Prozessor
     unterst&uuml;tzt.</para>

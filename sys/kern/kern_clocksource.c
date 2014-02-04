@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_device_polling.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>

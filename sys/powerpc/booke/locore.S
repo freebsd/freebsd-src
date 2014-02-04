@@ -158,7 +158,7 @@ __start:
 	mtspr	SPR_MAS0, %r3
 	isync
 
-	li	%r3, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
+	li	%r3, (TLB_SIZE_64M << MAS1_TSIZE_SHIFT)@l
 	oris	%r3, %r3, (MAS1_VALID | MAS1_IPROT)@h
 	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
 	isync
@@ -738,8 +738,7 @@ ENTRY(icache_enable)
 setfault:
 	mflr	%r0
 	mfsprg0	%r4
-	lwz	%r4, PC_CURTHREAD(%r4)
-	lwz	%r4, TD_PCB(%r4)
+	lwz	%r4, TD_PCB(%r2)
 	stw	%r3, PCB_ONFAULT(%r4)
 	mfcr	%r10
 	mfctr	%r11

@@ -74,11 +74,6 @@ static void		rtaspci_write_config(device_t, u_int, u_int, u_int,
 			    u_int, u_int32_t, int);
 
 /*
- * IOMMU LPAR interface
- */
-static bus_dma_tag_t	rtaspci_get_dma_tag(device_t dev, device_t child);
-
-/*
  * Driver methods.
  */
 static device_method_t	rtaspci_methods[] = {
@@ -90,19 +85,11 @@ static device_method_t	rtaspci_methods[] = {
 	DEVMETHOD(pcib_read_config,	rtaspci_read_config),
 	DEVMETHOD(pcib_write_config,	rtaspci_write_config),
 
-	/* IOMMU functions */
-	DEVMETHOD(bus_get_dma_tag,	rtaspci_get_dma_tag),
-#ifdef __powerpc64__
-	DEVMETHOD(iommu_map,		phyp_iommu_map),
-	DEVMETHOD(iommu_unmap,		phyp_iommu_unmap),
-#endif
-
 	DEVMETHOD_END
 };
 
 struct rtaspci_softc {
 	struct ofw_pci_softc	pci_sc;
-	bus_dma_tag_t		dma_tag;
 
 	cell_t			read_pci_config, write_pci_config;
 	cell_t			ex_read_pci_config, ex_write_pci_config;
@@ -148,15 +135,6 @@ rtaspci_attach(device_t dev)
 	sc->sc_extended_config = 0;
 	OF_getprop(ofw_bus_get_node(dev), "ibm,pci-config-space-type",
 	    &sc->sc_extended_config, sizeof(sc->sc_extended_config));
-
-	bus_dma_tag_create(bus_get_dma_tag(dev),
-	    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-	    NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
-	    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->dma_tag);
-#ifdef __powerpc64__
-	if (!(mfmsr() & PSL_HV))
-		phyp_iommu_set_dma_tag(dev, dev, sc->dma_tag);
-#endif
 
 	return (ofw_pci_attach(dev));
 }
@@ -223,14 +201,5 @@ rtaspci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	else
 		rtas_call_method(sc->write_pci_config, 3, 1, config_addr,
 		    width, val, &pcierror);
-}
-
-static bus_dma_tag_t
-rtaspci_get_dma_tag(device_t dev, device_t child)
-{
-	struct rtaspci_softc *sc;
-
-	sc = device_get_softc(dev);
-	return (sc->dma_tag);
 }
 

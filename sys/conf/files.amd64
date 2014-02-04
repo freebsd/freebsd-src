@@ -241,7 +241,7 @@ dev/hyperv/vmbus/hv_connection.c			optional	hyperv
 dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
@@ -259,8 +259,8 @@ dev/nvme/nvme_sysctl.c		optional	nvme
 dev/nvme/nvme_test.c		optional	nvme
 dev/nvme/nvme_util.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
-dev/random/ivy.c		optional	random rdrand_rng
-dev/random/nehemiah.c		optional	random padlock_rng
+dev/random/ivy.c		optional	rdrand_rng
+dev/random/nehemiah.c		optional	padlock_rng
 dev/qlxge/qls_dbg.c		optional	qlxge pci
 dev/qlxge/qls_dump.c		optional	qlxge pci
 dev/qlxge/qls_hw.c		optional	qlxge pci
@@ -531,6 +531,15 @@ x86/cpufreq/powernow.c		optional	cpufreq
 x86/cpufreq/est.c		optional	cpufreq
 x86/cpufreq/hwpstate.c		optional	cpufreq
 x86/cpufreq/p4tcc.c		optional	cpufreq
+x86/iommu/busdma_dmar.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_ctx.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_drv.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_fault.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_gas.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_idpgtbl.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_qi.c		optional	acpi acpi_dmar pci
+x86/iommu/intel_quirks.c	optional	acpi acpi_dmar pci
+x86/iommu/intel_utils.c		optional	acpi acpi_dmar pci
 x86/isa/atpic.c			optional	atpic isa
 x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
@@ -541,6 +550,7 @@ x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
 x86/pci/pci_bus.c		optional	pci
 x86/pci/qpi.c			optional	pci
+x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional	fdt

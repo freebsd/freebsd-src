@@ -117,7 +117,9 @@ lzjb_decompress(void *s_start, void *d_start, size_t s_len, size_t d_len, int n)
 			src += 2;
 			if ((cpy = dst - offset) < (uchar_t *)d_start)
 				return (-1);
-			while (--mlen >= 0 && dst < d_end)
+			if (mlen > (d_end - dst))
+				mlen = d_end - dst;
+			while (--mlen >= 0)
 				*dst++ = *cpy++;
 		} else {
 			*dst++ = *src++;

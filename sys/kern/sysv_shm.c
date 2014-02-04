@@ -342,7 +342,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	int shmflg;
 {
 	struct proc *p = td->td_proc;
-	int i, flags;
+	int i;
 	struct shmid_kernel *shmseg;
 	struct shmmap_state *shmmap_s = NULL;
 	vm_offset_t attach_va;
@@ -389,9 +389,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	prot = VM_PROT_READ;
 	if ((shmflg & SHM_RDONLY) == 0)
 		prot |= VM_PROT_WRITE;
-	flags = MAP_ANON | MAP_SHARED;
 	if (shmaddr) {
-		flags |= MAP_FIXED;
 		if (shmflg & SHM_RND) {
 			attach_va = (vm_offset_t)shmaddr & ~(SHMLBA-1);
 		} else if (((vm_offset_t)shmaddr & (SHMLBA-1)) == 0) {
@@ -413,7 +411,7 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 
 	vm_object_reference(shmseg->object);
 	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object,
-	    0, &attach_va, size, 0, (flags & MAP_FIXED) ? VMFS_NO_SPACE :
+	    0, &attach_va, size, 0, shmaddr != NULL ? VMFS_NO_SPACE :
 	    VMFS_OPTIMAL_SPACE, prot, prot, MAP_INHERIT_SHARE);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);

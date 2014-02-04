@@ -499,6 +499,15 @@ void	pci_restore_state(device_t dev);
 void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
 
+
+#ifdef BUS_SPACE_MAXADDR
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
+#define	PCI_DMA_BOUNDARY	0x100000000
+#else
+#define	PCI_DMA_BOUNDARY	0
+#endif
+#endif
+
 #endif	/* _SYS_BUS_H_ */
 
 /*

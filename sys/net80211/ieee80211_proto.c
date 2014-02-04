@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
 
@@ -107,8 +108,6 @@ static void update_promisc(void *, int);
 static void update_channel(void *, int);
 static void update_chw(void *, int);
 static void ieee80211_newstate_cb(void *, int);
-static int ieee80211_new_state_locked(struct ieee80211vap *,
-	enum ieee80211_state, int);
 
 static int
 null_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
@@ -1834,7 +1833,7 @@ done:
  * is usually a mistake and indicates lack of proper integration
  * with the net80211 layer.
  */
-static int
+int
 ieee80211_new_state_locked(struct ieee80211vap *vap,
 	enum ieee80211_state nstate, int arg)
 {

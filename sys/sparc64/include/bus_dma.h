@@ -146,5 +146,7 @@ struct bus_dma_tag {
 	((t)->dt_mt->dm_dmamem_alloc((t), (v), (f), (m)))
 #define	bus_dmamem_free(t, v, m)					\
 	((t)->dt_mt->dm_dmamem_free((t), (v), (m)))
+#define _bus_dmamap_load_ma(t, m, a, tt, o, f, s, p)			\
+	bus_dmamap_load_ma_triv((t), (m), (a), (tt), (o), (f), (s), (p))
 
 #endif /* !_SPARC64_BUS_DMA_H_ */

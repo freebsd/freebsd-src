@@ -105,6 +105,11 @@
 #endif
 #define	KSTACK_GUARD_PAGES 0		/* pages of kstack guard; 0 disables */
 
+/* The default size of identity mappings in region 6 & 7. */
+#ifndef LOG2_ID_PAGE_SIZE
+#define	LOG2_ID_PAGE_SIZE	16
+#endif
+
 /*
  * Mach derived conversion macros
  */

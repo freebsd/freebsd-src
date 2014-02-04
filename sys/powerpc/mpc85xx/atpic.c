@@ -79,6 +79,9 @@ static void atpic_ipi(device_t, u_int);
 static void atpic_mask(device_t, u_int);
 static void atpic_unmask(device_t, u_int);
 
+static void atpic_ofw_translate_code(device_t, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol);
+
 static device_method_t atpic_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, 	atpic_isa_identify),
@@ -93,6 +96,8 @@ static device_method_t atpic_isa_methods[] = {
 	DEVMETHOD(pic_ipi,		atpic_ipi),
 	DEVMETHOD(pic_mask,		atpic_mask),
 	DEVMETHOD(pic_unmask,		atpic_unmask),
+
+	DEVMETHOD(pic_translate_code,	atpic_ofw_translate_code),
 
 	{ 0, 0 },
 };
@@ -325,3 +330,35 @@ atpic_unmask(device_t dev, u_int irq)
 		atpic_write(sc, ATPIC_MASTER, 1, sc->sc_mask[ATPIC_MASTER]);
 	}
 }
+
+static void
+atpic_ofw_translate_code(device_t dev, u_int irq, int code,
+    enum intr_trigger *trig, enum intr_polarity *pol)
+{
+	switch (code) {
+	case 0:
+		/* Active L level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	case 1:
+		/* Active H level */
+		*trig = INTR_TRIGGER_LEVEL;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	case 2:
+		/* H to L edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_LOW;
+		break;
+	case 3:
+		/* L to H edge */
+		*trig = INTR_TRIGGER_EDGE;
+		*pol = INTR_POLARITY_HIGH;
+		break;
+	default:
+		*trig = INTR_TRIGGER_CONFORM;
+		*pol = INTR_POLARITY_CONFORM;
+	}
+}
+

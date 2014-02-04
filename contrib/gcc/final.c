@@ -1425,6 +1425,15 @@ final_start_function (rtx first ATTRIBUTE_UNUSED, FILE *file,
       TREE_ASM_WRITTEN (DECL_INITIAL (current_function_decl)) = 1;
     }
 
+  if (warn_frame_larger_than
+    && get_frame_size () > frame_larger_than_size)
+  {
+      /* Issue a warning */
+      warning (OPT_Wframe_larger_than_,
+               "the frame size of %wd bytes is larger than %wd bytes",
+               get_frame_size (), frame_larger_than_size);
+  }
+
   /* First output the function prologue: code to set up the stack frame.  */
   targetm.asm_out.function_prologue (file, get_frame_size ());
 
@@ -4083,4 +4092,3 @@ struct tree_opt_pass pass_clean_state =
   0,                                    /* todo_flags_finish */
   0                                     /* letter */
 };
-

@@ -748,6 +748,9 @@ struct bxe_fastpath {
 #define BXE_VF_ID_INVALID  0xFF
 #define IS_SRIOV(sc) 0
 
+#define GET_NUM_VFS_PER_PATH(sc) 0
+#define GET_NUM_VFS_PER_PF(sc)   0
+
 /* maximum number of fast-path interrupt contexts */
 #define FP_SB_MAX_E1x 16
 #define FP_SB_MAX_E2  HC_SB_MAX_SB_E2
@@ -1405,7 +1408,7 @@ struct bxe_softc {
 #define BXE_MF_FUNC_DIS      0x00000800
 #define BXE_TX_SWITCHING     0x00001000
 
-    uint32_t debug; /* per-instance debug logging config */
+    unsigned long debug; /* per-instance debug logging config */
 
 #define MAX_BARS 5
     struct bxe_bar bar[MAX_BARS]; /* map BARs 0, 2, 4 */
@@ -1603,7 +1606,7 @@ struct bxe_softc {
     int      max_rx_bufs;
     int      hc_rx_ticks;
     int      hc_tx_ticks;
-    uint32_t rx_budget;
+    int      rx_budget;
     int      max_aggregation_size;
     int      mrrs;
     int      autogreeen;

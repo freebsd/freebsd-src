@@ -170,6 +170,7 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 MAN+=	alarm.3 \
 	arc4random.3 \
 	basename.3 \
+	cap_rights_get.3 \
 	cap_sandboxed.3 \
 	check_utility_compat.3 \
 	clock.3 \

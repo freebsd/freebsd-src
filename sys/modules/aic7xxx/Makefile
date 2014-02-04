@@ -1,6 +1,6 @@
 
 # $FreeBSD$
 
-SUBDIR= aicasm ahc ahd
+SUBDIR= ahc ahd
 
 .include <bsd.subdir.mk>

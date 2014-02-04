@@ -46,7 +46,13 @@ struct inout_port {
 };
 #define	IOPORT_F_IN		0x1
 #define	IOPORT_F_OUT		0x2
-#define	IOPORT_F_INOUT		0x3
+#define	IOPORT_F_INOUT		(IOPORT_F_IN | IOPORT_F_OUT)
+
+/*
+ * The following flags are used internally and must not be used by
+ * device models.
+ */
+#define	IOPORT_F_DEFAULT	0x80000000	/* claimed by default handler */
 
 #define	INOUT_PORT(name, port, flags, handler)				\
 	static struct inout_port __CONCAT(__inout_port, __LINE__) = {	\

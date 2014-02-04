@@ -9,6 +9,7 @@
 
 #include "lldb/lldb-python.h"
 
+#include "lldb/Core/AddressResolverFileLine.h"
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/DataBuffer.h"
@@ -134,6 +135,7 @@ Module::Module (const ModuleSpec &module_spec) :
     m_uuid (),
     m_file (module_spec.GetFileSpec()),
     m_platform_file(module_spec.GetPlatformFileSpec()),
+    m_remote_install_file(),
     m_symfile_spec (module_spec.GetSymbolFileSpec()),
     m_object_name (module_spec.GetObjectName()),
     m_object_offset (module_spec.GetObjectOffset()),
@@ -178,6 +180,7 @@ Module::Module(const FileSpec& file_spec,
     m_uuid (),
     m_file (file_spec),
     m_platform_file(),
+    m_remote_install_file (),
     m_symfile_spec (),
     m_object_name (),
     m_object_offset (object_offset),
@@ -448,7 +451,8 @@ Module::ResolveFileAddress (lldb::addr_t vm_addr, Address& so_addr)
 }
 
 uint32_t
-Module::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve_scope, SymbolContext& sc)
+Module::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve_scope, SymbolContext& sc,
+                                        bool resolve_tail_call_address)
 {
     Mutex::Locker locker (m_mutex);
     uint32_t resolved_flags = 0;
@@ -467,6 +471,10 @@ Module::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve
         sc.module_sp = shared_from_this();
         resolved_flags |= eSymbolContextModule;
 
+        SymbolVendor* sym_vendor = GetSymbolVendor();
+        if (!sym_vendor)
+            return resolved_flags;
+
         // Resolve the compile unit, function, block, line table or line
         // entry if requested.
         if (resolve_scope & eSymbolContextCompUnit    ||
@@ -474,25 +482,92 @@ Module::ResolveSymbolContextForAddress (const Address& so_addr, uint32_t resolve
             resolve_scope & eSymbolContextBlock       ||
             resolve_scope & eSymbolContextLineEntry   )
         {
-            SymbolVendor *symbols = GetSymbolVendor ();
-            if (symbols)
-                resolved_flags |= symbols->ResolveSymbolContext (so_addr, resolve_scope, sc);
+            resolved_flags |= sym_vendor->ResolveSymbolContext (so_addr, resolve_scope, sc);
         }
 
         // Resolve the symbol if requested, but don't re-look it up if we've already found it.
         if (resolve_scope & eSymbolContextSymbol && !(resolved_flags & eSymbolContextSymbol))
         {
-            SymbolVendor* sym_vendor = GetSymbolVendor();
-            if (sym_vendor)
+            Symtab *symtab = sym_vendor->GetSymtab();
+            if (symtab && so_addr.IsSectionOffset())
             {
-                Symtab *symtab = sym_vendor->GetSymtab();
-                if (symtab)
+                sc.symbol = symtab->FindSymbolContainingFileAddress(so_addr.GetFileAddress());
+                if (!sc.symbol &&
+                    resolve_scope & eSymbolContextFunction && !(resolved_flags & eSymbolContextFunction))
                 {
-                    if (so_addr.IsSectionOffset())
+                    bool verify_unique = false; // No need to check again since ResolveSymbolContext failed to find a symbol at this address.
+                    if (ObjectFile *obj_file = sc.module_sp->GetObjectFile())
+                        sc.symbol = obj_file->ResolveSymbolForAddress(so_addr, verify_unique);
+                }
+
+                if (sc.symbol)
+                {
+                    if (sc.symbol->IsSynthetic())
                     {
-                        sc.symbol = symtab->FindSymbolContainingFileAddress(so_addr.GetFileAddress());
-                        if (sc.symbol)
-                            resolved_flags |= eSymbolContextSymbol;
+                        // We have a synthetic symbol so lets check if the object file
+                        // from the symbol file in the symbol vendor is different than
+                        // the object file for the module, and if so search its symbol
+                        // table to see if we can come up with a better symbol. For example
+                        // dSYM files on MacOSX have an unstripped symbol table inside of
+                        // them.
+                        ObjectFile *symtab_objfile = symtab->GetObjectFile();
+                        if (symtab_objfile && symtab_objfile->IsStripped())
+                        {
+                            SymbolFile *symfile = sym_vendor->GetSymbolFile();
+                            if (symfile)
+                            {
+                                ObjectFile *symfile_objfile = symfile->GetObjectFile();
+                                if (symfile_objfile != symtab_objfile)
+                                {
+                                    Symtab *symfile_symtab = symfile_objfile->GetSymtab();
+                                    if (symfile_symtab)
+                                    {
+                                        Symbol *symbol = symfile_symtab->FindSymbolContainingFileAddress(so_addr.GetFileAddress());
+                                        if (symbol && !symbol->IsSynthetic())
+                                        {
+                                            sc.symbol = symbol;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    resolved_flags |= eSymbolContextSymbol;
+                }
+            }
+        }
+
+        // For function symbols, so_addr may be off by one.  This is a convention consistent
+        // with FDE row indices in eh_frame sections, but requires extra logic here to permit
+        // symbol lookup for disassembly and unwind.
+        if (resolve_scope & eSymbolContextSymbol && !(resolved_flags & eSymbolContextSymbol) &&
+            resolve_tail_call_address && so_addr.IsSectionOffset())
+        {
+            Address previous_addr = so_addr;
+            previous_addr.Slide(-1);
+
+            bool do_resolve_tail_call_address = false; // prevent recursion
+            const uint32_t flags = ResolveSymbolContextForAddress(previous_addr, resolve_scope, sc,
+                                                                  do_resolve_tail_call_address);
+            if (flags & eSymbolContextSymbol)
+            {
+                AddressRange addr_range;
+                if (sc.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, addr_range))
+                {
+                    if (addr_range.GetBaseAddress().GetSection() == so_addr.GetSection())
+                    {
+                        // If the requested address is one past the address range of a function (i.e. a tail call),
+                        // or the decremented address is the start of a function (i.e. some forms of trampoline),
+                        // indicate that the symbol has been resolved.
+                        if (so_addr.GetOffset() == addr_range.GetBaseAddress().GetOffset() ||
+                            so_addr.GetOffset() == addr_range.GetBaseAddress().GetOffset() + addr_range.GetByteSize())
+                        {
+                            resolved_flags |= flags;
+                        }
+                    }
+                    else
+                    {
+                        sc.symbol = nullptr; // Don't trust the symbol if the sections didn't match.
                     }
                 }
             }
@@ -573,7 +648,7 @@ Module::FindCompileUnits (const FileSpec &path,
     const size_t num_compile_units = GetNumCompileUnits();
     SymbolContext sc;
     sc.module_sp = shared_from_this();
-    const bool compare_directory = path.GetDirectory();
+    const bool compare_directory = (bool)path.GetDirectory();
     for (size_t i=0; i<num_compile_units; ++i)
     {
         sc.comp_unit = GetCompileUnitAtIndex(i).get();
@@ -750,6 +825,27 @@ Module::FindFunctions (const RegularExpression& regex,
         }
     }
     return sc_list.GetSize() - start_size;
+}
+
+void
+Module::FindAddressesForLine (const lldb::TargetSP target_sp,
+                              const FileSpec &file, uint32_t line,
+                              Function *function,
+                              std::vector<Address> &output_local, std::vector<Address> &output_extern)
+{
+    SearchFilterByModule filter(target_sp, m_file);
+    AddressResolverFileLine resolver(file, line, true);
+    resolver.ResolveAddress (filter);
+
+    for (size_t n=0;n<resolver.GetNumberOfAddresses();n++)
+    {
+        Address addr = resolver.GetAddressRangeAtIndex(n).GetBaseAddress();
+        Function *f = addr.CalculateSymbolContextFunction();
+        if (f && f == function)
+            output_local.push_back (addr);
+        else
+            output_extern.push_back (addr);
+    }
 }
 
 size_t
@@ -1447,14 +1543,14 @@ Module::MatchesModuleSpec (const ModuleSpec &module_ref)
     const FileSpec &file_spec = module_ref.GetFileSpec();
     if (file_spec)
     {
-        if (!FileSpec::Equal (file_spec, m_file, file_spec.GetDirectory()))
+        if (!FileSpec::Equal (file_spec, m_file, (bool)file_spec.GetDirectory()))
             return false;
     }
 
     const FileSpec &platform_file_spec = module_ref.GetPlatformFileSpec();
     if (platform_file_spec)
     {
-        if (!FileSpec::Equal (platform_file_spec, GetPlatformFileSpec (), platform_file_spec.GetDirectory()))
+        if (!FileSpec::Equal (platform_file_spec, GetPlatformFileSpec (), (bool)platform_file_spec.GetDirectory()))
             return false;
     }
     

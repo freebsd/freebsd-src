@@ -45,8 +45,9 @@ Breakpoint::GetEventIdentifier ()
 //----------------------------------------------------------------------
 // Breakpoint constructor
 //----------------------------------------------------------------------
-Breakpoint::Breakpoint(Target &target, SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp) :
+Breakpoint::Breakpoint(Target &target, SearchFilterSP &filter_sp, BreakpointResolverSP &resolver_sp, bool hardware) :
     m_being_created(true),
+    m_hardware(hardware),
     m_target (target),
     m_filter_sp (filter_sp),
     m_resolver_sp (resolver_sp),
@@ -111,6 +112,12 @@ BreakpointLocationSP
 Breakpoint::GetLocationAtIndex (size_t index)
 {
     return m_locations.GetByIndex(index);
+}
+
+void
+Breakpoint::RemoveInvalidLocations (const ArchSpec &arch)
+{
+    m_locations.RemoveInvalidLocations(arch);
 }
 
 // For each of the overall options we need to decide how they propagate to
@@ -558,7 +565,7 @@ Breakpoint::GetDescription (Stream *s, lldb::DescriptionLevel level, bool show_l
         {
             s->Printf(", locations = %" PRIu64, (uint64_t)num_locations);
             if (num_resolved_locations > 0)
-                s->Printf(", resolved = %" PRIu64, (uint64_t)num_resolved_locations);
+                s->Printf(", resolved = %" PRIu64 ", hit count = %d", (uint64_t)num_resolved_locations, GetHitCount());
         }
         else
         {

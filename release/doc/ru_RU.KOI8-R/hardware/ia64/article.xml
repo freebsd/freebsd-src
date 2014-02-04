@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="koi8-r"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 <!ENTITY % devauto-ru PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU" "devauto.ru.ent">
@@ -14,7 +14,6 @@
 <!ENTITY arch "ia64">
 <!ENTITY arch.print "IA-64">
 ]>
-
 <!--
      The FreeBSD Russian Documentation Project
 
@@ -23,16 +22,8 @@
 
      Original revision: 1.5
 -->
-
-<article lang="ru">
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:lang="ru">
   &artheader;
-
-  <abstract>
-    <para>Это предварительный документ.  Он неполон и нуждается в
-      дополнительной информации.  Пожалуйста, отправляйте дополнительную
-      информацию по &arch.print; процессорам, материнским платам, и различным
-      устройствам, работающим в &os; в &a.ia64;.</para>
-  </abstract>
 
   &sect.intro;
   &sect.proc.ia64;

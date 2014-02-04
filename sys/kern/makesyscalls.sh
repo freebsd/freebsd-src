@@ -57,7 +57,7 @@ case $# in
 	;;
 esac
 
-if [ -n "$2" -a -f "$2" ]; then
+if [ -n "$2" ]; then
 	. $2
 fi
 
@@ -326,6 +326,7 @@ s/\$//g
 		for (cap in capenabled) {
 			if (funcname == capenabled[cap]) {
 				flags = "SYF_CAPENABLED";
+				break;
 			}
 		}
 

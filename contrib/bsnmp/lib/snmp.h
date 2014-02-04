@@ -182,7 +182,7 @@ struct snmp_pdu {
 
 	/* fixes for encoding */
 	size_t			outer_len;
-	size_t			scoped_len;
+	asn_len_t		scoped_len;
 	u_char			*outer_ptr;
 	u_char			*digest_ptr;
 	u_char			*encrypted_ptr;

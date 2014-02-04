@@ -75,7 +75,7 @@ ar71xx_ehci_probe(device_t self)
 
 	device_set_desc(self, EHCI_HC_DEVSTR);
 
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

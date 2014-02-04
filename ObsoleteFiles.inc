@@ -38,12 +38,104 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20131202: libcapsicum and libcasper moved to /lib/
+OLD_LIBS+=usr/lib/libcapsicum.so.0
+OLD_LIBS+=usr/lib/libcasper.so.0
+# 20131109: extattr(2) mlinks fixed
+OLD_FILES+=usr/share/man/man2/extattr_delete_list.2.gz
+OLD_FILES+=usr/share/man/man2/extattr_get_list.2.gz
+# 20131107: example files removed
+OLD_FILES+=usr/share/examples/libusb20/aux.c
+OLD_FILES+=usr/share/examples/libusb20/aux.h
+# 20131105: tzdata 2013h import
+OLD_FILES+=usr/share/zoneinfo/America/Shiprock
+OLD_FILES+=usr/share/zoneinfo/Antarctica/South_Pole
+# 20131103: WITH_LIBICONV_COMPAT removal
+OLD_FILES+=usr/include/_libiconv_compat.h
+OLD_FILES+=usr/lib/libiconv.a
+OLD_FILES+=usr/lib/libiconv.so
+OLD_FILES+=usr/lib/libiconv.so.3
+OLD_FILES+=usr/lib/libiconv_p.a
+OLD_FILES+=usr/lib32/libiconv.a
+OLD_FILES+=usr/lib32/libiconv.so
+OLD_FILES+=usr/lib32/libiconv.so.3
+OLD_FILES+=usr/lib32/libiconv_p.a
+# 20131103: removal of utxrm(8), use 'utx rm' instead.
+OLD_FILES+=usr/sbin/utxrm
+OLD_FILES+=usr/share/man/man8/utxrm.8.gz
+# 20131031: pkg_install has been removed
+OLD_FILES+=etc/periodic/daily/220.backup-pkgdb
+OLD_FILES+=etc/periodic/daily/490.status-pkg-changes
+OLD_FILES+=etc/periodic/security/460.chkportsum
+OLD_FILES+=etc/periodic/weekly/400.status-pkg
+OLD_FILES+=usr/sbin/pkg_add
+OLD_FILES+=usr/sbin/pkg_create
+OLD_FILES+=usr/sbin/pkg_delete
+OLD_FILES+=usr/sbin/pkg_info
+OLD_FILES+=usr/sbin/pkg_updating
+OLD_FILES+=usr/sbin/pkg_version
+OLD_FILES+=usr/share/man/man1/pkg_add.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_create.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_delete.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_info.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_updating.1.gz
+OLD_FILES+=usr/share/man/man1/pkg_version.1.gz
+# 20131030: /etc/keys moved to /usr/share/keys
+OLD_DIRS+=etc/keys
+OLD_DIRS+=etc/keys/pkg
+OLD_DIRS+=etc/keys/pkg/revoked
+OLD_DIRS+=etc/keys/pkg/trusted
+OLD_FILES+=etc/keys/pkg/trusted/pkg.freebsd.org.2013102301
+# 20131028: ng_fec(4) removed
+OLD_FILES+=usr/include/netgraph/ng_fec.h
+OLD_FILES+=usr/share/man/man4/ng_fec.4.gz
+# 20131027: header moved
+OLD_FILES+=usr/include/net/pf_mtag.h
+# 20131023: remove never used iscsi directory
+OLD_DIRS+=usr/share/examples/iscsi
+# 20131021: isf(4) removed
+OLD_FILES+=usr/sbin/isfctl
+OLD_FILES+=usr/share/man/man4/isf.4.gz
+OLD_FILES+=usr/share/man/man8/isfctl.8.gz
+# 20131014: libbsdyml becomes private
+OLD_FILES+=usr/lib/libbsdyml.a
+OLD_FILES+=usr/lib/libbsdyml.so
+OLD_LIBS+=usr/lib/libbsdyml.so.0
+OLD_FILES+=usr/lib/libbsdyml_p.a
+OLD_FILES+=usr/lib32/libbsdyml.a
+OLD_FILES+=usr/lib32/libbsdyml.so
+OLD_LIBS+=usr/lib32/libbsdyml.so.0
+OLD_FILES+=usr/lib32/libbsdyml_p.a
+OLD_FILES+=usr/share/man/man3/libbsdyml.3.gz
+OLD_FILES+=usr/include/bsdyml.h
+# 20131013: Removal of the ATF tools
+OLD_FILES+=etc/atf/FreeBSD.conf
+OLD_FILES+=etc/atf/atf-run.hooks
+OLD_FILES+=etc/atf/common.conf
+OLD_FILES+=usr/bin/atf-config
+OLD_FILES+=usr/bin/atf-report
+OLD_FILES+=usr/bin/atf-run
+OLD_FILES+=usr/bin/atf-version
+OLD_FILES+=usr/share/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/atf-run.hooks
+OLD_FILES+=usr/share/examples/atf/tests-results.css
+OLD_FILES+=usr/share/man/man1/atf-config.1.gz
+OLD_FILES+=usr/share/man/man1/atf-report.1.gz
+OLD_FILES+=usr/share/man/man1/atf-run.1.gz
+OLD_FILES+=usr/share/man/man1/atf-version.1.gz
+OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
+OLD_FILES+=usr/share/man/man7/atf.7.gz
+OLD_FILES+=usr/share/xml/atf/tests-results.dtd
+OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
+# 20131009: freebsd-version moved from /libexec to /bin
+OLD_FILES+=libexec/freebsd-version
 # 20131001: ar and ranlib from binutils not used
 OLD_FILES+=usr/bin/gnu-ar
 OLD_FILES+=usr/bin/gnu-ranlib
 OLD_FILES+=usr/share/man/man1/gnu-ar.1.gz
 OLD_FILES+=usr/share/man/man1/gnu-ranlib.1.gz
 # 20130930: BIND removed from base
+OLD_FILES+=etc/mtree/BIND.chroot.dist
 OLD_FILES+=etc/namedb
 OLD_FILES+=etc/periodic/daily/470.status-named
 OLD_FILES+=usr/bin/dig
@@ -65,7 +157,7 @@ OLD_FILES+=usr/include/lwres/result.h
 OLD_FILES+=usr/include/lwres/version.h
 OLD_FILES+=usr/lib/liblwres.a
 OLD_FILES+=usr/lib/liblwres.so
-OLD_LIBS+=usr/lib/liblwres.so.50
+OLD_LIBS+=usr/lib/liblwres.so.90
 OLD_FILES+=usr/lib/liblwres_p.a
 OLD_FILES+=usr/sbin/arpaname
 OLD_FILES+=usr/sbin/ddns-confgen
@@ -75,6 +167,7 @@ OLD_FILES+=usr/sbin/dnssec-keygen
 OLD_FILES+=usr/sbin/dnssec-revoke
 OLD_FILES+=usr/sbin/dnssec-settime
 OLD_FILES+=usr/sbin/dnssec-signzone
+OLD_FILES+=usr/sbin/dnssec-verify
 OLD_FILES+=usr/sbin/genrandom
 OLD_FILES+=usr/sbin/isc-hmac-fixup
 OLD_FILES+=usr/sbin/lwresd
@@ -238,6 +331,7 @@ OLD_FILES+=usr/share/man/man8/dnssec-keygen.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-revoke.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-settime.8.gz
 OLD_FILES+=usr/share/man/man8/dnssec-signzone.8.gz
+OLD_FILES+=usr/share/man/man8/dnssec-verify.8.gz
 OLD_FILES+=usr/share/man/man8/genrandom.8.gz
 OLD_FILES+=usr/share/man/man8/isc-hmac-fixup.8.gz
 OLD_FILES+=usr/share/man/man8/lwresd.8.gz
@@ -272,6 +366,8 @@ OLD_DIRS+=var/named/var/run
 OLD_DIRS+=var/named/var/run/named
 OLD_DIRS+=var/named/var/stats
 OLD_DIRS+=var/run/named
+# 20130923: example moved
+OLD_FILES+=usr/share/examples/bsdconfig/browse_packages.sh
 # 20130908: libssh becomes private
 OLD_FILES+=usr/lib/libssh.a
 OLD_FILES+=usr/lib/libssh.so
@@ -2455,6 +2551,7 @@ OLD_FILES+=usr/sbin/zfs
 OLD_FILES+=usr/sbin/zpool
 # 20070423: rc.bluetooth (examples) removed
 OLD_FILES+=usr/share/examples/netgraph/bluetooth/rc.bluetooth
+OLD_DIRS+=usr/share/examples/netgraph/bluetooth
 # 20070421: worm.4 removed
 OLD_FILES+=usr/share/man/man4/worm.4.gz
 # 20070417: trunk(4) renamed to lagg(4)
@@ -6091,6 +6188,13 @@ OLD_LIBS+=usr/lib/libkse.so.1
 OLD_LIBS+=usr/lib/liblwres.so.3
 OLD_LIBS+=usr/lib/pam_ftp.so.2
 
+# 20131013: Removal of the ATF tools
+OLD_DIRS+=etc/atf
+OLD_DIRS+=usr/share/examples/atf
+OLD_DIRS+=usr/share/xml/atf
+OLD_DIRS+=usr/share/xml
+OLD_DIRS+=usr/share/xsl/atf
+OLD_DIRS+=usr/share/xsl
 # 20040925: bind9 import
 OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc

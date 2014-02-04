@@ -198,7 +198,7 @@ atomic_cmpset_32(volatile u_int32_t *p, volatile u_int32_t cmpval, volatile u_in
 	
 	__asm __volatile("1: ldrex %0, [%1]\n"
 	                 "cmp %0, %2\n"
-	                 "it ne\n"
+	                 "itt ne\n"
 			 "movne %0, #0\n"
 			 "bne 2f\n"
 			 "strex %0, %3, [%1]\n"

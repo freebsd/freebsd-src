@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="euc-jp"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 <!ENTITY % devauto-ja PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//JA" "devauto.ja.ent">
@@ -14,13 +14,11 @@
 <!ENTITY arch "i386">
 <!ENTITY arch.print "i386">
 ]>
-
 <!--
     $FreeBSD$
     Original revision: 1.6
 -->
-
-<article>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   &artheader;
   &sect.intro;
   &sect.proc.i386;

@@ -1,6 +1,7 @@
 #!/bin/sh
 #-
 # Copyright (c) 2011 Nathan Whitehorn
+# Copyright (c) 2013 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -25,8 +26,13 @@
 # SUCH DAMAGE.
 #
 # $FreeBSD$
+#
+############################################################ INCLUDES
 
-echo "Begun Installation at $(date)" > $BSDINSTALL_LOG
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+
+############################################################ FUNCTIONS
 
 error() {
 	test -n "$DISTDIR_IS_UNIONFS" && umount -f $BSDINSTALL_DISTDIR
@@ -41,6 +47,9 @@ error() {
 	fi
 }
 
+############################################################ MAIN
+
+f_dprintf "Began Installation at %s" "$( date )"
 
 rm -rf $BSDINSTALL_TMPETC
 mkdir $BSDINSTALL_TMPETC
@@ -93,22 +102,49 @@ fi
 rm $PATH_FSTAB
 touch $PATH_FSTAB
 
-dialog --backtitle "FreeBSD Installer" --title "Partitioning" --extra-button \
-    --extra-label "Manual" --ok-label "Guided" --cancel-label "Shell" \
-    --yesno "Would you like to use the guided partitioning tool (recommended for beginners) or to set up partitions manually (experts)? You can also open a shell and set up partitions entirely by hand." 0 0
+PMODES="\
+Guided \"Partitioning Tool (Recommended for Beginners)\" \
+Manual \"Manually Configure Partitions (Expert)\" \
+Shell \"Open a shell and partition by hand\""
 
-case $? in
-0)	# Guided
+CURARCH=$( uname -m )
+case $CURARCH in
+	amd64|i386)	# Booting ZFS Supported
+		PMODES="$PMODES ZFS \"Automatic Root-on-ZFS (Experimental)\""
+		;;
+	*)		# Booting ZFS Unspported
+		;;
+esac
+
+exec 3>&1
+PARTMODE=`echo $PMODES | xargs dialog --backtitle "FreeBSD Installer" \
+	--title "Partitioning" \
+	--menu "How would you like to partition your disk?" \
+	0 0 0 2>&1 1>&3`
+if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi
+exec 3>&-
+
+case "$PARTMODE" in
+"Guided")	# Guided
 	bsdinstall autopart || error
 	bsdinstall mount || error
 	;;
-1)	# Shell
+"Shell")	# Shell
 	clear
 	echo "Use this shell to set up partitions for the new system. When finished, mount the system at $BSDINSTALL_CHROOT and place an fstab file for the new system at $PATH_FSTAB. Then type 'exit'. You can also enter the partition editor at any time by entering 'bsdinstall partedit'."
 	sh 2>&1
 	;;
-3)	# Manual
-	bsdinstall partedit || error
+"Manual")	# Manual
+	if f_isset debugFile; then
+		# Give partedit the path to our logfile so it can append
+		BSDINSTALL_LOG="${debugFile#+}" bsdinstall partedit || error
+	else
+		bsdinstall partedit || error
+	fi
+	bsdinstall mount || error
+	;;
+"ZFS")	# ZFS
+	bsdinstall zfsboot || error
 	bsdinstall mount || error
 	;;
 *)
@@ -222,5 +258,11 @@ if [ $? -eq 0 ]; then
 	chroot "$BSDINSTALL_CHROOT" /bin/sh 2>&1
 fi
 
-echo "Installation Completed at $(date)" >> $BSDINSTALL_LOG
+bsdinstall entropy
+bsdinstall umount
 
+f_dprintf "Installation Completed at %s" "$( date )"
+
+################################################################################
+# END
+################################################################################

@@ -1,4 +1,23 @@
                                                      -*- coding: utf-8 -*-
+Changes with APR-util 1.5.3
+
+  *) Cygwin: Use correct file extension when loading APR DSOs.  PR 55587.
+     [Carlo Bramini <carlo.bramix libero.it>]
+
+  *) Add experimental cmake-based build system for Windows.  Refer to
+     README.cmake for more information.  [Jeff Trawick, Tom Donovan]
+
+  *) Fix warnings in odbc driver on 64bit systems.
+     PR 55197  [Tom Donovan]
+
+  *) Add support to apr_memcache for unix domain sockets. PR 54573 [Remi
+     Gacogne <rgacogne+asf aquaray.com>]
+
+  *) Add support for Berkeley DB 6.0. [Rainer Jung]
+
+  *) Improve platform detection for bundled expat by updating
+     config.guess and config.sub. [Rainer Jung]
+
 Changes with APR-util 1.5.2
 
   *) Windows: Add command line makefiles. [Gregg Smith]

@@ -4,7 +4,7 @@
   basiert auf: 1.14
   This file contains sparc64-specific installation instructions.
 -->
-<sect1 id="install">
+<sect1 xml:id="install">
   <title>Installation von &os;</title>
 
   <para>Hier finden Sie Informationen, wie Sie die &arch; Version
@@ -67,7 +67,7 @@
       finden Sie hier noch keine Verweise auf deutsche Server.</para>
   </important>
 
-  <sect2 id="getting-to-prom-prompt">
+  <sect2 xml:id="getting-to-prom-prompt">
     <title>Start von OpenBoot</title>
 
     <para>Die meisten &arch; Systeme booten automatisch von
@@ -97,8 +97,8 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
     <screenco>
       <areaspec>
-	<area id="prompt-single" coords="1 5">
-	<area id="prompt-smp" coords="2 5">
+	<area xml:id="prompt-single" coords="1 5">
+	<area xml:id="prompt-smp" coords="2 5">
       </areaspec>
 
       <screen><prompt>ok   </prompt>
@@ -118,12 +118,12 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     </screenco>
   </sect2>
 
-  <sect2 id="prepare-cd">
+  <sect2 xml:id="prepare-cd">
     <title>Vorbereitungen f&uuml;r die Installation von CD</title>
 
     <para>Wenn Sie von CD installieren wollen, finden Sie ein ISO
       Image mit einem Schnappschu&szlig; der aktuellen Version von
-      &os;/&arch; bei <ulink url="&release.url;"></ulink>.  Mit dieser
+      &os;/&arch; bei <link xlink:href="&release.url;"/>.  Mit dieser
       Datei k&ouml;nnen Sie eine bootf&auml;hige CD erzeugen, auf der
       sich alle notwendigen Dateien f&uuml;r den Systemstart und die
       Erzeugung einer minimalen &os;  Installation befinden.</para>
@@ -138,7 +138,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       linkend="creating-root-filesystem"> beschrieben.</para>
   </sect2>
 
-  <sect2 id="prepare-network">
+  <sect2 xml:id="prepare-network">
     <title>Vorbereitungen f&uuml;r die Netzwerk-Installation</title>
 
     <para>Um den &os;/&arch; Kernel zu starten, mu&szlig; die Firmware
@@ -150,7 +150,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
       kann TFTP oder NFS nutzen, um den Kernel zu laden.  Weitere
       Informationen dazu finden Sie in den folgenden Kapiteln.</para>
 
-    <sect3 id="downloading">
+    <sect3 xml:id="downloading">
       <title>Download der ben&ouml;tigten Dateien</title>
 
       <para>Wenn Sie &uuml;ber ein Netzwerk installieren wollen,
@@ -164,25 +164,25 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
 
       <itemizedlist>
 	<listitem>
-	  <para><ulink
-	    url="&release.url;loader-tftp.gz"></ulink></para>
+	  <para><link
+	    xlink:href="&release.url;loader-tftp.gz"/></para>
 	</listitem>
 
 	<listitem>
-	  <para><ulink
-	    url="&release.url;loader-nfs.gz"></ulink></para>
+	  <para><link
+	    xlink:href="&release.url;loader-nfs.gz"/></para>
 	</listitem>
       </itemizedlist>
 
       <para>Die zweite Datei ist der Kernel, der dem bootenden System
 	zur Verf&uuml;gung gestellt wird.  Diese Datei finden Sie auf
-	<ulink url="&release.url;"></ulink>.</para>
+	<link xlink:href="&release.url;"/>.</para>
         <!-- XXX kernel filename?-->
 
       <para>Die dritte (und letzte) Datei ist das &man.tar.1;  Archiv
 	mit den Programmen und Konfigurationsdateien des Basissystems.
-	Dieses Archiv finden Sie hier:  <ulink
-	url="&release.url;distrib.tar.gz"></ulink>.</para>
+	Dieses Archiv finden Sie hier:  <link
+	xlink:href="&release.url;distrib.tar.gz"/>.</para>
     </sect3>
 
     <sect3>
@@ -406,7 +406,7 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     </sect3>
   </sect2>
 
-  <sect2 id="creating-disk-label">
+  <sect2 xml:id="creating-disk-label">
     <title>Aufteilung der Festplatte</title>
 
     <para>Der Kernel unterst&uuml;tzt das von Sun f&uuml;r den
@@ -417,9 +417,9 @@ Ethernet address 0:3:ba:b:92:d4, Host ID: 830b92d4.</screen>
     <para>Da es f&uuml;r &os;/&arch; noch kein &man.sysinstall.8;
       gibt, m&uuml;ssen Sie das Disk Label manuell erzeugen, wenn Sie
       &os;/&arch; &os; verwenden.  Weitere Informationen zu diesem
-      Thema k&ouml;nnen Sie dem <ulink
-      url="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
-      Handbuch</ulink> entnehmen.</para>
+      Thema k&ouml;nnen Sie dem <link
+      xlink:href="http://www.FreeBSD.org/doc/de_DE.ISO8859-1/books/handbook/">FreeBSD
+      Handbuch</link> entnehmen.</para>
 
     <para>Bei &os;/&arch; mu&szlig; ein Sun-kompatibles Label in das
       &os; Label eingebettet werden, damit OpenBoot von der Platte
@@ -530,14 +530,14 @@ drivedata: 0
 	  ist es m&ouml;glich, den <application>Loader</application>
 	  wie oben beschrieben via TFTP zu starten und ihn dann den
 	  Kernel von Festplatte starten zu lassen.  Dazu brauchen Sie
-	  eine spezielle Version des Loaders, die bei <ulink
-	  url="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz"></ulink>
+	  eine spezielle Version des Loaders, die bei <link
+	  xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/loader-ufs.gz"/>
 	  erh&auml;ltlich ist.</para>
       </step>
     </procedure>
   </sect2>
 
-  <sect2 id="creating-root-filesystem">
+  <sect2 xml:id="creating-root-filesystem">
     <title>Erzeugung des Root Dateisystems</title>
 
     <para>Wenn Sie von der lokalen Platte booten wollen, brauchen Sie
@@ -593,7 +593,7 @@ drivedata: 0
       kann.</para>
   </sect2>
 
-  <sect2 id="installing-base-system">
+  <sect2 xml:id="installing-base-system">
     <title>Installation des Basissystems</title>
 
     <para>Wenn Sie &uuml;ber ein Netzwerk gebootet haben, haben Sie

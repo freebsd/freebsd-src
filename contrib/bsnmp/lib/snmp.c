@@ -288,11 +288,13 @@ parse_secparams(struct asn_buf *b, struct snmp_pdu *pdu)
 	memset(buf, 0, 256);
 	tb.asn_ptr = buf;
 	tb.asn_len = 256;
+	u_int len;
 
-	if (asn_get_octetstring(b, buf, &tb.asn_len) != ASN_ERR_OK) {
+	if (asn_get_octetstring(b, buf, &len) != ASN_ERR_OK) {
 		snmp_error("cannot parse usm header");
 		return (ASN_ERR_FAILED);
 	}
+	tb.asn_len = len;
 
 	if (asn_get_sequence(&tb, &octs_len) != ASN_ERR_OK) {
 		snmp_error("cannot decode usm header");
@@ -864,7 +866,7 @@ snmp_fix_encoding(struct asn_buf *b, struct snmp_pdu *pdu)
 			return (SNMP_CODE_FAILED);
 
 		pdu->scoped_len = b->asn_ptr - pdu->scoped_ptr;
-		if ((code = snmp_pdu_fix_padd(b, pdu))!= ASN_ERR_OK)
+		if (snmp_pdu_fix_padd(b, pdu) != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
 
 		if (pdu->security_model != SNMP_SECMODEL_USM)
@@ -997,7 +999,7 @@ snmp_pdu_encode(struct snmp_pdu *pdu, struct asn_buf *resp_b)
 	if ((err = snmp_pdu_encode_header(resp_b, pdu)) != SNMP_CODE_OK)
 		return (err);
 	for (idx = 0; idx < pdu->nbindings; idx++)
-		if ((err = snmp_binding_encode(resp_b, &pdu->bindings[idx]))
+		if (snmp_binding_encode(resp_b, &pdu->bindings[idx])
 		    != ASN_ERR_OK)
 			return (SNMP_CODE_FAILED);
 

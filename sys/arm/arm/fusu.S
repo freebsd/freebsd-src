@@ -67,11 +67,27 @@ ENTRY(casuword)
 	stmfd	sp!, {r4, r5}
 	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
+#ifdef _ARM_ARCH_6
+1:    
+	cmp     r0, #KERNBASE
+	mvnhs   r0, #0
+	bhs     2f
+	
+	ldrex   r5, [r0]
+	cmp     r5, r1
+	movne   r0, r5
+	bne     2f
+	strex   r5, r2, [r0]
+	cmp     r5, #0
+	bne     1b
+#else
 	ldrt	r5, [r0]
 	cmp	r5, r1
 	movne	r0, r5
 	streqt	r2, [r0]
+#endif
 	moveq	r0, r1
+2:
 	ldmfd	sp!, {r4, r5}
 	mov	r1, #0x00000000
 	str	r1, [r3, #PCB_ONFAULT]

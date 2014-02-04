@@ -123,8 +123,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 
-void swi_handler(trapframe_t *);
-void undefinedinstruction(trapframe_t *);
+void swi_handler(struct trapframe *);
+void undefinedinstruction(struct trapframe *);
 
 #include <machine/disassem.h>
 #include <machine/machdep.h>
@@ -145,13 +145,17 @@ struct ksig {
 	u_long code;
 };
 struct data_abort {
-	int (*func)(trapframe_t *, u_int, u_int, struct thread *, struct ksig *);
+	int (*func)(struct trapframe *, u_int, u_int, struct thread *, 
+	    struct ksig *);
 	const char *desc;
 };
 
-static int dab_fatal(trapframe_t *, u_int, u_int, struct thread *, struct ksig *);
-static int dab_align(trapframe_t *, u_int, u_int, struct thread *, struct ksig *);
-static int dab_buserr(trapframe_t *, u_int, u_int, struct thread *, struct ksig *);
+static int dab_fatal(struct trapframe *, u_int, u_int, struct thread *,
+    struct ksig *);
+static int dab_align(struct trapframe *, u_int, u_int, struct thread *,
+    struct ksig *);
+static int dab_buserr(struct trapframe *, u_int, u_int, struct thread *,
+    struct ksig *);
 
 static const struct data_abort data_aborts[] = {
 	{dab_fatal,	"Vector Exception"},
@@ -196,7 +200,8 @@ call_trapsignal(struct thread *td, int sig, u_long code)
 }
 
 static __inline int
-data_abort_fixup(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig *ksig)
+data_abort_fixup(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
+    struct ksig *ksig)
 {
 #ifdef CPU_ABORT_FIXUP_REQUIRED
 	int error;
@@ -226,7 +231,7 @@ data_abort_fixup(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struc
 }
 
 void
-data_abort_handler(trapframe_t *tf)
+data_abort_handler(struct trapframe *tf)
 {
 	struct vm_map *map;
 	struct pcb *pcb;
@@ -482,7 +487,8 @@ out:
  * Note: If 'l' is NULL, we assume we're dealing with a prefetch abort.
  */
 static int
-dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig *ksig)
+dab_fatal(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
+    struct ksig *ksig)
 {
 	const char *mode;
 
@@ -522,7 +528,8 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
 
 #ifdef KDB
 	if (debugger_on_panic || kdb_active)
-		kdb_trap(fsr, 0, tf);
+		if (kdb_trap(fsr, 0, tf))
+			return (0);
 #endif
 	panic("Fatal abort");
 	/*NOTREACHED*/
@@ -538,7 +545,8 @@ dab_fatal(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
  * deliver a bus error to the process.
  */
 static int
-dab_align(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig *ksig)
+dab_align(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
+    struct ksig *ksig)
 {
 
 	/* Alignment faults are always fatal if they occur in kernel mode */
@@ -586,7 +594,8 @@ dab_align(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig 
  * In all other cases, these data aborts are considered fatal.
  */
 static int
-dab_buserr(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig *ksig)
+dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
+    struct ksig *ksig)
 {
 	struct pcb *pcb = td->td_pcb;
 
@@ -607,7 +616,7 @@ dab_buserr(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig
 		 * If the current trapframe is at the top of the kernel stack,
 		 * the fault _must_ have come from user mode.
 		 */
-		if (tf != ((trapframe_t *)pcb->un_32.pcb32_sp) - 1) {
+		if (tf != ((struct trapframe *)pcb->un_32.pcb32_sp) - 1) {
 			/*
 			 * Kernel mode. We're either about to die a
 			 * spectacular death, or pcb_onfault will come
@@ -660,7 +669,7 @@ dab_buserr(trapframe_t *tf, u_int fsr, u_int far, struct thread *td, struct ksig
 }
 
 static __inline int
-prefetch_abort_fixup(trapframe_t *tf, struct ksig *ksig)
+prefetch_abort_fixup(struct trapframe *tf, struct ksig *ksig)
 {
 #ifdef CPU_ABORT_FIXUP_REQUIRED
 	int error;
@@ -691,7 +700,7 @@ prefetch_abort_fixup(trapframe_t *tf, struct ksig *ksig)
 }
 
 /*
- * void prefetch_abort_handler(trapframe_t *tf)
+ * void prefetch_abort_handler(struct trapframe *tf)
  *
  * Abort handler called when instruction execution occurs at
  * a non existent or restricted (access permissions) memory page.
@@ -702,7 +711,7 @@ prefetch_abort_fixup(trapframe_t *tf, struct ksig *ksig)
  * Otherwise fault the page in and try again.
  */
 void
-prefetch_abort_handler(trapframe_t *tf)
+prefetch_abort_handler(struct trapframe *tf)
 {
 	struct thread *td;
 	struct proc * p;
@@ -907,7 +916,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 static void
-syscall(struct thread *td, trapframe_t *frame)
+syscall(struct thread *td, struct trapframe *frame)
 {
 	struct syscall_args sa;
 	int error;
@@ -932,7 +941,7 @@ syscall(struct thread *td, trapframe_t *frame)
 }
 
 void
-swi_handler(trapframe_t *frame)
+swi_handler(struct trapframe *frame)
 {
 	struct thread *td = curthread;
 

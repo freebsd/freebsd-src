@@ -17,12 +17,7 @@
 
 #else
 
-#if defined (__APPLE__)
-#include <Python/Python.h>
-#else
-#include <Python.h>
-#endif
-
+#include "lldb/lldb-python.h"
 #include "lldb/lldb-private.h"
 #include "lldb/Interpreter/ScriptInterpreter.h"
 #include "lldb/Core/InputReader.h"
@@ -97,6 +92,16 @@ public:
     OSPlugin_CreateThread (lldb::ScriptInterpreterObjectSP os_plugin_object_sp,
                            lldb::tid_t tid,
                            lldb::addr_t context);
+    
+    virtual lldb::ScriptInterpreterObjectSP
+    LoadPluginModule (const FileSpec& file_spec,
+                      lldb_private::Error& error);
+    
+    virtual lldb::ScriptInterpreterObjectSP
+    GetDynamicSettings (lldb::ScriptInterpreterObjectSP plugin_module_sp,
+                        Target* target,
+                        const char* setting_name,
+                        lldb_private::Error& error);
     
     virtual size_t
     CalculateNumChildren (const lldb::ScriptInterpreterObjectSP& implementor);
@@ -200,7 +205,8 @@ public:
     LoadScriptingModule (const char* filename,
                          bool can_reload,
                          bool init_session,
-                         lldb_private::Error& error);
+                         lldb_private::Error& error,
+                         lldb::ScriptInterpreterObjectSP* module_sp = nullptr);
     
     virtual lldb::ScriptInterpreterObjectSP
     MakeScriptObject (void* object);
@@ -239,7 +245,26 @@ public:
     InitializePrivate ();
 
     static void
-    InitializeInterpreter (SWIGInitCallback python_swig_init_callback);
+    InitializeInterpreter (SWIGInitCallback python_swig_init_callback,
+                           SWIGBreakpointCallbackFunction swig_breakpoint_callback,
+                           SWIGWatchpointCallbackFunction swig_watchpoint_callback,
+                           SWIGPythonTypeScriptCallbackFunction swig_typescript_callback,
+                           SWIGPythonCreateSyntheticProvider swig_synthetic_script,
+                           SWIGPythonCalculateNumChildren swig_calc_children,
+                           SWIGPythonGetChildAtIndex swig_get_child_index,
+                           SWIGPythonGetIndexOfChildWithName swig_get_index_child,
+                           SWIGPythonCastPyObjectToSBValue swig_cast_to_sbvalue ,
+                           SWIGPythonGetValueObjectSPFromSBValue swig_get_valobj_sp_from_sbvalue,
+                           SWIGPythonUpdateSynthProviderInstance swig_update_provider,
+                           SWIGPythonMightHaveChildrenSynthProviderInstance swig_mighthavechildren_provider,
+                           SWIGPythonCallCommand swig_call_command,
+                           SWIGPythonCallModuleInit swig_call_module_init,
+                           SWIGPythonCreateOSPlugin swig_create_os_plugin,
+                           SWIGPythonScriptKeyword_Process swig_run_script_keyword_process,
+                           SWIGPythonScriptKeyword_Thread swig_run_script_keyword_thread,
+                           SWIGPythonScriptKeyword_Target swig_run_script_keyword_target,
+                           SWIGPythonScriptKeyword_Frame swig_run_script_keyword_frame,
+                           SWIGPython_GetDynamicSetting swig_plugin_get);
 
 protected:
 
@@ -254,7 +279,7 @@ protected:
 
     void
     RestoreTerminalState ();
-    
+
 private:
     
     class SynchronicityHandler
@@ -282,7 +307,7 @@ private:
             Py_XINCREF(m_object);
         }
         
-        operator bool ()
+        explicit operator bool ()
         {
             return m_object && m_object != Py_None;
         }
@@ -351,7 +376,7 @@ private:
     public:
         PythonInputReaderManager (ScriptInterpreterPython *interpreter);
         
-        operator bool()
+        explicit operator bool()
         {
             return m_error;
         }

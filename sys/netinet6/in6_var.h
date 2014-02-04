@@ -65,6 +65,7 @@
 #define _NETINET6_IN6_VAR_H_
 
 #include <sys/tree.h>
+#include <sys/counter.h>
 
 #ifdef _KERNEL
 #include <sys/fnv_hash.h>
@@ -98,9 +99,6 @@ struct scope6_id;
 struct lltable;
 struct mld_ifinfo;
 
-#ifdef _KERNEL
-#include <sys/counter.h>
-
 struct in6_ifextra {
 	counter_u64_t *in6_ifstat;
 	counter_u64_t *icmp6_ifstat;
@@ -109,20 +107,10 @@ struct in6_ifextra {
 	struct lltable *lltable;
 	struct mld_ifinfo *mld_ifinfo;
 };
-#else
-
-struct in6_ifextra {
-	void *in6_ifstat;
-	void *icmp6_ifstat;
-	struct nd_ifinfo *nd_ifinfo;
-	struct scope6_id *scope6_id;
-	struct lltable *lltable;
-	struct mld_ifinfo *mld_ifinfo;
-};
-#endif /* !_KERNEL */
 
 #define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
 
+#if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */
 #define	ia_ifp		ia_ifa.ifa_ifp
@@ -153,6 +141,7 @@ struct	in6_ifaddr {
 /* List of in6_ifaddr's. */
 TAILQ_HEAD(in6_ifaddrhead, in6_ifaddr);
 LIST_HEAD(in6_ifaddrlisthead, in6_ifaddr);
+#endif
 
 /* control structure to manage address selection policy */
 struct in6_addrpolicy {

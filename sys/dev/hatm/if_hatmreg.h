@@ -294,7 +294,7 @@
 
 #define HE_REGO_CON_DAT		0x807F8
 #define HE_REGO_CON_CTL		0x807FC
-#define HE_REGM_CON_MBOX	(2 << 30)
+#define HE_REGM_CON_MBOX	(2U << 30)
 #define HE_REGM_CON_TCM		(1 << 30)
 #define HE_REGM_CON_RCM		(0 << 30)
 #define HE_REGM_CON_WE		(1 << 29)
@@ -444,7 +444,7 @@
 #define HE_REGM_TSR3_CRM		(0xff << 0)
 #define HE_REGS_TSR3_CRM		0
 
-#define HE_REGM_TSR4_FLUSH		(1 << 31)
+#define HE_REGM_TSR4_FLUSH		(1U << 31)
 #define HE_REGM_TSR4_SESS_END		(1 << 30)
 #define HE_REGM_TSR4_OAM_CRC10		(1 << 28)
 #define HE_REGM_TSR4_NULL_CRC10		(1 << 27)
@@ -475,7 +475,7 @@
 #define HE_REGM_TSR13_CRM		0xffff
 #define HE_REGS_TSR13_CRM		0
 
-#define HE_REGM_TSR14_CBR_DELETE	(1 << 31)
+#define HE_REGM_TSR14_CBR_DELETE	(1U << 31)
 #define HE_REGM_TSR14_ABR_CLOSE		(1 << 16)
 
 /*

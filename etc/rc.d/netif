@@ -39,7 +39,9 @@ stop_cmd="network_stop"
 cloneup_cmd="clone_up"
 clonedown_cmd="clone_down"
 clear_cmd="doclear"
-extra_commands="cloneup clonedown clear"
+vnetup_cmd="vnet_up"
+vnetdown_cmd="vnet_down"
+extra_commands="cloneup clonedown clear vnetup vnetdown"
 cmdifn=
 
 set_rcvar_obsolete ipv6_enable ipv6_activate_all_interfaces
@@ -60,9 +62,6 @@ network_start()
 
 		# disable SIGINT (Ctrl-c) when running at startup
 		trap : 2
-
-		# Create Fast EtherChannel interfaces
-		fec_up
 	fi
 
 	# Create cloned interfaces
@@ -121,6 +120,20 @@ network_stop0()
 			/etc/rc.d/routing stop any $_if
 		done
 	fi
+}
+
+vnet_up()
+{
+	cmdifn=$*
+
+	network_common ifn_vnetup $cmdifn
+}
+
+vnet_down()
+{
+	cmdifn=$*
+
+	network_common ifn_vnetdown $cmdifn
 }
 
 # network_common routine
@@ -198,7 +211,7 @@ network_common()
 
 	# inet6 address configuration needs sleep for DAD.
 	case ${_func}:${_dadwait} in
-	ifn_start:1)
+	ifn_start:1|ifn_vnetup:1|ifn_vnetdown:1)
 		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
 		sleep 1
 	;;
@@ -209,12 +222,25 @@ network_common()
 		case ${_func} in
 		ifn_start)
 			_str='Starting'
-			;;
+		;;
 		ifn_stop)
 			_str='Stopping'
-			;;
+		;;
+		ifn_vnetup)
+			_str='Moving'
+		;;
+		ifn_vnetdown)
+			_str='Reclaiming'
+		;;
 		esac
 		echo "${_str} Network:${_ok}."
+		case ${_func} in
+		ifn_vnetup)
+			# Clear _ok not to do "ifconfig $ifn"
+			# because $ifn is no longer in the current vnet.
+			_ok=
+		;;
+		esac
 		if check_startmsgs; then
 			for ifn in ${_ok}; do
 				/sbin/ifconfig ${ifn}

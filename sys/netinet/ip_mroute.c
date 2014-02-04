@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/counter.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/vnet.h>

@@ -41,6 +41,7 @@
 #include "lldb/Core/SearchFilter.h"
 #include "lldb/Core/Section.h"
 #include "lldb/Core/STLUtils.h"
+#include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Core/ValueObjectList.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/Host/FileSpec.h"
@@ -602,6 +603,19 @@ SBTarget::LaunchSimple
                    launch_flags,
                    stop_at_entry,
                    error);
+}
+
+SBError
+SBTarget::Install()
+{
+    SBError sb_error;
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        sb_error.ref() = target_sp->Install(NULL);
+    }
+    return sb_error;
 }
 
 SBProcess
@@ -1260,7 +1274,8 @@ SBTarget::ResolveLoadAddress (lldb::addr_t vm_addr)
 }
 
 SBSymbolContext
-SBTarget::ResolveSymbolContextForAddress (const SBAddress& addr, uint32_t resolve_scope)
+SBTarget::ResolveSymbolContextForAddress (const SBAddress& addr,
+                                          uint32_t resolve_scope)
 {
     SBSymbolContext sc;
     if (addr.IsValid())
@@ -1274,13 +1289,15 @@ SBTarget::ResolveSymbolContextForAddress (const SBAddress& addr, uint32_t resolv
 
 
 SBBreakpoint
-SBTarget::BreakpointCreateByLocation (const char *file, uint32_t line)
+SBTarget::BreakpointCreateByLocation (const char *file,
+                                      uint32_t line)
 {
     return SBBreakpoint(BreakpointCreateByLocation (SBFileSpec (file, false), line));
 }
 
 SBBreakpoint
-SBTarget::BreakpointCreateByLocation (const SBFileSpec &sb_file_spec, uint32_t line)
+SBTarget::BreakpointCreateByLocation (const SBFileSpec &sb_file_spec,
+                                      uint32_t line)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1293,7 +1310,8 @@ SBTarget::BreakpointCreateByLocation (const SBFileSpec &sb_file_spec, uint32_t l
         const LazyBool check_inlines = eLazyBoolCalculate;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         const bool internal = false;
-        *sb_bp = target_sp->CreateBreakpoint (NULL, *sb_file_spec, line, check_inlines, skip_prologue, internal);
+        const bool hardware = false;
+        *sb_bp = target_sp->CreateBreakpoint (NULL, *sb_file_spec, line, check_inlines, skip_prologue, internal, hardware);
     }
 
     if (log)
@@ -1314,7 +1332,8 @@ SBTarget::BreakpointCreateByLocation (const SBFileSpec &sb_file_spec, uint32_t l
 }
 
 SBBreakpoint
-SBTarget::BreakpointCreateByName (const char *symbol_name, const char *module_name)
+SBTarget::BreakpointCreateByName (const char *symbol_name,
+                                  const char *module_name)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1325,16 +1344,17 @@ SBTarget::BreakpointCreateByName (const char *symbol_name, const char *module_na
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         
         const bool internal = false;
+        const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         if (module_name && module_name[0])
         {
             FileSpecList module_spec_list;
             module_spec_list.Append (FileSpec (module_name, false));
-            *sb_bp = target_sp->CreateBreakpoint (&module_spec_list, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal);
+            *sb_bp = target_sp->CreateBreakpoint (&module_spec_list, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal, hardware);
         }
         else
         {
-            *sb_bp = target_sp->CreateBreakpoint (NULL, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal);
+            *sb_bp = target_sp->CreateBreakpoint (NULL, NULL, symbol_name, eFunctionNameTypeAuto, skip_prologue, internal, hardware);
         }
     }
     
@@ -1349,8 +1369,8 @@ SBTarget::BreakpointCreateByName (const char *symbol_name, const char *module_na
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateByName (const char *symbol_name, 
-                            const SBFileSpecList &module_list, 
-                            const SBFileSpecList &comp_unit_list)
+                                  const SBFileSpecList &module_list,
+                                  const SBFileSpecList &comp_unit_list)
 {
     uint32_t name_type_mask = eFunctionNameTypeAuto;
     return BreakpointCreateByName (symbol_name, name_type_mask, module_list, comp_unit_list);
@@ -1358,9 +1378,9 @@ SBTarget::BreakpointCreateByName (const char *symbol_name,
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateByName (const char *symbol_name,
-                            uint32_t name_type_mask,
-                            const SBFileSpecList &module_list, 
-                            const SBFileSpecList &comp_unit_list)
+                                  uint32_t name_type_mask,
+                                  const SBFileSpecList &module_list,
+                                  const SBFileSpecList &comp_unit_list)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1369,14 +1389,16 @@ SBTarget::BreakpointCreateByName (const char *symbol_name,
     if (target_sp && symbol_name && symbol_name[0])
     {
         const bool internal = false;
+        const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         *sb_bp = target_sp->CreateBreakpoint (module_list.get(), 
-                                                comp_unit_list.get(), 
-                                                symbol_name, 
-                                                name_type_mask, 
-                                                skip_prologue,
-                                                internal);
+                                              comp_unit_list.get(),
+                                              symbol_name,
+                                              name_type_mask,
+                                              skip_prologue,
+                                              internal,
+                                              hardware);
     }
     
     if (log)
@@ -1403,6 +1425,7 @@ SBTarget::BreakpointCreateByNames (const char *symbol_names[],
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         const bool internal = false;
+        const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         *sb_bp = target_sp->CreateBreakpoint (module_list.get(), 
                                                 comp_unit_list.get(), 
@@ -1410,7 +1433,8 @@ SBTarget::BreakpointCreateByNames (const char *symbol_names[],
                                                 num_names,
                                                 name_type_mask, 
                                                 skip_prologue,
-                                                internal);
+                                                internal,
+                                                hardware);
     }
     
     if (log)
@@ -1436,7 +1460,8 @@ SBTarget::BreakpointCreateByNames (const char *symbol_names[],
 }
 
 SBBreakpoint
-SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, const char *module_name)
+SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex,
+                                   const char *module_name)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1447,6 +1472,7 @@ SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, const char *mo
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         RegularExpression regexp(symbol_name_regex);
         const bool internal = false;
+        const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         
         if (module_name && module_name[0])
@@ -1454,11 +1480,11 @@ SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, const char *mo
             FileSpecList module_spec_list;
             module_spec_list.Append (FileSpec (module_name, false));
             
-            *sb_bp = target_sp->CreateFuncRegexBreakpoint (&module_spec_list, NULL, regexp, skip_prologue, internal);
+            *sb_bp = target_sp->CreateFuncRegexBreakpoint (&module_spec_list, NULL, regexp, skip_prologue, internal, hardware);
         }
         else
         {
-            *sb_bp = target_sp->CreateFuncRegexBreakpoint (NULL, NULL, regexp, skip_prologue, internal);
+            *sb_bp = target_sp->CreateFuncRegexBreakpoint (NULL, NULL, regexp, skip_prologue, internal, hardware);
         }
     }
 
@@ -1473,8 +1499,8 @@ SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, const char *mo
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex, 
-                         const SBFileSpecList &module_list, 
-                         const SBFileSpecList &comp_unit_list)
+                                   const SBFileSpecList &module_list,
+                                   const SBFileSpecList &comp_unit_list)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1485,9 +1511,10 @@ SBTarget::BreakpointCreateByRegex (const char *symbol_name_regex,
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         RegularExpression regexp(symbol_name_regex);
         const bool internal = false;
+        const bool hardware = false;
         const LazyBool skip_prologue = eLazyBoolCalculate;
         
-        *sb_bp = target_sp->CreateFuncRegexBreakpoint (module_list.get(), comp_unit_list.get(), regexp, skip_prologue, internal);
+        *sb_bp = target_sp->CreateFuncRegexBreakpoint (module_list.get(), comp_unit_list.get(), regexp, skip_prologue, internal, hardware);
     }
 
     if (log)
@@ -1509,7 +1536,8 @@ SBTarget::BreakpointCreateByAddress (addr_t address)
     if (target_sp)
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
-        *sb_bp = target_sp->CreateBreakpoint (address, false);
+        const bool hardware = false;
+        *sb_bp = target_sp->CreateBreakpoint (address, false, hardware);
     }
     
     if (log)
@@ -1521,7 +1549,9 @@ SBTarget::BreakpointCreateByAddress (addr_t address)
 }
 
 lldb::SBBreakpoint
-SBTarget::BreakpointCreateBySourceRegex (const char *source_regex, const lldb::SBFileSpec &source_file, const char *module_name)
+SBTarget::BreakpointCreateBySourceRegex (const char *source_regex,
+                                         const lldb::SBFileSpec &source_file,
+                                         const char *module_name)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1532,6 +1562,7 @@ SBTarget::BreakpointCreateBySourceRegex (const char *source_regex, const lldb::S
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         RegularExpression regexp(source_regex);
         FileSpecList source_file_spec_list;
+        const bool hardware = false;
         source_file_spec_list.Append (source_file.ref());
         
         if (module_name && module_name[0])
@@ -1539,11 +1570,11 @@ SBTarget::BreakpointCreateBySourceRegex (const char *source_regex, const lldb::S
             FileSpecList module_spec_list;
             module_spec_list.Append (FileSpec (module_name, false));
             
-            *sb_bp = target_sp->CreateSourceRegexBreakpoint (&module_spec_list, &source_file_spec_list, regexp, false);
+            *sb_bp = target_sp->CreateSourceRegexBreakpoint (&module_spec_list, &source_file_spec_list, regexp, false, hardware);
         }
         else
         {
-            *sb_bp = target_sp->CreateSourceRegexBreakpoint (NULL, &source_file_spec_list, regexp, false);
+            *sb_bp = target_sp->CreateSourceRegexBreakpoint (NULL, &source_file_spec_list, regexp, false, hardware);
         }
     }
 
@@ -1560,8 +1591,8 @@ SBTarget::BreakpointCreateBySourceRegex (const char *source_regex, const lldb::S
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateBySourceRegex (const char *source_regex, 
-                               const SBFileSpecList &module_list, 
-                               const lldb::SBFileSpecList &source_file_list)
+                                         const SBFileSpecList &module_list,
+                                         const lldb::SBFileSpecList &source_file_list)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1570,8 +1601,9 @@ SBTarget::BreakpointCreateBySourceRegex (const char *source_regex,
     if (target_sp && source_regex && source_regex[0])
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        const bool hardware = false;
         RegularExpression regexp(source_regex);
-        *sb_bp = target_sp->CreateSourceRegexBreakpoint (module_list.get(), source_file_list.get(), regexp, false);
+        *sb_bp = target_sp->CreateSourceRegexBreakpoint (module_list.get(), source_file_list.get(), regexp, false, hardware);
     }
 
     if (log)
@@ -1585,8 +1617,8 @@ SBTarget::BreakpointCreateBySourceRegex (const char *source_regex,
 
 lldb::SBBreakpoint
 SBTarget::BreakpointCreateForException  (lldb::LanguageType language,
-                               bool catch_bp,
-                               bool throw_bp)
+                                         bool catch_bp,
+                                         bool throw_bp)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
@@ -1595,7 +1627,8 @@ SBTarget::BreakpointCreateForException  (lldb::LanguageType language,
     if (target_sp)
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
-        *sb_bp = target_sp->CreateExceptionBreakpoint (language, catch_bp, throw_bp);
+        const bool hardware = false;
+        *sb_bp = target_sp->CreateExceptionBreakpoint (language, catch_bp, throw_bp, hardware);
     }
 
     if (log)
@@ -1862,6 +1895,50 @@ SBTarget::DisableAllWatchpoints ()
     return false;
 }
 
+SBValue
+SBTarget::CreateValueFromAddress (const char *name, SBAddress addr, SBType type)
+{
+    SBValue sb_value;
+    lldb::ValueObjectSP new_value_sp;
+    if (IsValid() && name && *name && addr.IsValid() && type.IsValid())
+    {
+        lldb::addr_t address(addr.GetLoadAddress(*this));
+        lldb::TypeImplSP type_impl_sp (type.GetSP());
+        ClangASTType pointer_ast_type(type_impl_sp->GetClangASTType(true).GetPointerType ());
+        if (pointer_ast_type)
+        {
+            lldb::DataBufferSP buffer(new lldb_private::DataBufferHeap(&address,sizeof(lldb::addr_t)));
+            
+            ExecutionContext exe_ctx (ExecutionContextRef(ExecutionContext(m_opaque_sp.get(),false)));
+            ValueObjectSP ptr_result_valobj_sp(ValueObjectConstResult::Create (exe_ctx.GetBestExecutionContextScope(),
+                                                                               pointer_ast_type,
+                                                                               ConstString(name),
+                                                                               buffer,
+                                                                               exe_ctx.GetByteOrder(),
+                                                                               exe_ctx.GetAddressByteSize()));
+            
+            if (ptr_result_valobj_sp)
+            {
+                ptr_result_valobj_sp->GetValue().SetValueType(Value::eValueTypeLoadAddress);
+                Error err;
+                new_value_sp = ptr_result_valobj_sp->Dereference(err);
+                if (new_value_sp)
+                    new_value_sp->SetName(ConstString(name));
+            }
+        }
+    }
+    sb_value.SetSP(new_value_sp);
+    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
+    if (log)
+    {
+        if (new_value_sp)
+            log->Printf ("SBTarget(%p)::CreateValueFromAddress => \"%s\"", m_opaque_sp.get(), new_value_sp->GetName().AsCString());
+        else
+            log->Printf ("SBTarget(%p)::CreateValueFromAddress => NULL", m_opaque_sp.get());
+    }
+    return sb_value;
+}
+
 bool
 SBTarget::DeleteAllWatchpoints ()
 {
@@ -1905,6 +1982,8 @@ SBTarget::AddModule (const char *path,
         
         if (triple)
             module_spec.GetArchitecture().SetTriple (triple, target_sp->GetPlatform ().get());
+        else
+            module_spec.GetArchitecture() = target_sp->GetArchitecture();
         
         if (symfile)
             module_spec.GetSymbolFileSpec ().SetFile(symfile, false);

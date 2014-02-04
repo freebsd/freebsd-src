@@ -121,12 +121,6 @@ pnaphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		break;
 
 	case MII_MEDIACHG:
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
-			break;
-
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_HPNA_1:
 			mii_phy_setmedia(sc);

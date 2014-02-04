@@ -146,7 +146,7 @@ kernel_add(const struct connection *conn, const char *target)
 	int error;
 
 	memset(&isa, 0, sizeof(isa));
-	memcpy(&isa.isa_conf, &conn->conn_conf, sizeof(isa));
+	memcpy(&isa.isa_conf, &conn->conn_conf, sizeof(isa.isa_conf));
 	strlcpy(isa.isa_conf.isc_target, target,
 	    sizeof(isa.isa_conf.isc_target));
 	isa.isa_conf.isc_discovery = 0;
@@ -212,6 +212,7 @@ discovery(struct connection *conn)
 	log_debugx("discovery done; logging out");
 	request = logout_new_request(conn);
 	pdu_send(request);
+	pdu_delete(request);
 	request = NULL;
 
 	log_debugx("waiting for Logout Response");

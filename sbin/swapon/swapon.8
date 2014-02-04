@@ -28,7 +28,7 @@
 .\"     @(#)swapon.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2013
+.Dd November 22, 2013
 .Dt SWAPON 8
 .Os
 .Sh NAME
@@ -60,9 +60,7 @@ At boot time all swap entries in
 .Pa /etc/fstab
 are added automatically when the system goes multi-user.
 Swap devices use a fixed interleave; the maximum number of devices
-is specified by the kernel configuration option
-.Dv NSWAPDEV ,
-which is typically set to 4.
+is unlimited.
 There is no priority mechanism.
 .Pp
 The
@@ -193,8 +191,8 @@ overridden.
 512 byte blocks are used by default.
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /dev/{ad,da}?s?b" -compact
-.It Pa /dev/{ad,da}?s?b
+.Bl -tag -width ".Pa /dev/{ada,da}?s?b" -compact
+.It Pa /dev/{ada,da}?s?b
 standard paging devices
 .It Pa /dev/md?
 memory disk devices

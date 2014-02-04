@@ -32,13 +32,12 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 -->
-
-<sect1 id="support">
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support">
+  <info><title>Unterst&uuml;tzte Ger&auml;te</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>Unterst&uuml;tzte Ger&auml;te</title>
+  
 
   <para>Dieses Kapitel enth&auml;lt alle Ger&auml;te, die auf jeden
     Fall von &os; auf &arch; Systemen unterst&uuml;tzt werden.  Andere
@@ -1112,7 +1111,7 @@
     </para>
   </sect2>
 
-  <sect2 id="ethernet">
+  <sect2 xml:id="ethernet">
     <title>Netzwerkkarten</title>
 
     <para arch="i386,pc98,alpha">Adaptec Duralink PCI Fast Ethernet
@@ -3710,7 +3709,7 @@
       (&man.meteor.4; Treiber)</para>
   </sect2>
 
-  <sect2 id="usb">
+  <sect2 xml:id="usb">
     <title>USB Ger&auml;te</title>
 
     <para arch="alpha,i386,pc98">&os; unterst&uuml;tzt viele verschiedene Arten von
@@ -3724,8 +3723,7 @@
 
     <note arch="alpha,i386,pc98">
       <para>USB Netzwerkkarten finden Sie in einem eigenen Abschnitt
-	im Kapitel <link
-	linkend="ethernet">Netzwerkkarten</link>.</para>
+	im Kapitel <link linkend="ethernet">Netzwerkkarten</link>.</para>
     </note>
 
     <note arch="alpha,i386,pc98">
@@ -4227,7 +4225,7 @@
     </para>
   </sect2>
 
-  <sect2 id="firewire">
+  <sect2 xml:id="firewire">
     <title>IEEE 1394 (Firewire) Ger&auml;te</title>
 
     <para arch="i386,sparc64">Host Controller (&man.fwohci.4;
@@ -4269,7 +4267,7 @@
     </para>
   </sect2>
 
-  <sect2 id="bluetooth">
+  <sect2 xml:id="bluetooth">
     <title>Bluetooth Ger&auml;te</title>
 
     <para arch="i386,pc98">PCCARD Host Kontroller (&man.ng.bt3c.4;
@@ -4371,8 +4369,7 @@
       <note>
 	<para>Informationen &uuml;ber spezielle Grafikkarten und ihre
 	  Kompatibilit&auml;t mit <application>XFree86</application>
-	  k&ouml;nnen Sie bei <ulink
-	  url="http://www.xfree86.org/"></ulink> finden.</para>
+	  k&ouml;nnen Sie bei <uri xlink:href="http://www.xfree86.org/">http://www.xfree86.org/</uri> finden.</para>
       </note>
     </para>
 
@@ -4429,8 +4426,7 @@
 	<para>In &man.moused.8; finden Sie weitere Informationen zur
 	  Nutzung von M&auml;usen in &os;.  Informationen &uuml;ber
 	  die Nutzung von M&auml;usen in
-	  <application>XFree86</application> erhalten Sie bei <ulink
-	  url="http://www.xfree86.org/"></ulink>.</para>
+	  <application>XFree86</application> erhalten Sie bei <uri xlink:href="http://www.xfree86.org/">http://www.xfree86.org/</uri>.</para>
       </note>
     </para>
 
@@ -4463,8 +4459,8 @@
     </para>
 
     <para arch="i386">Karten auf Basis des Xilinx XC6200, die mit dem
-      HOT1 von <ulink url="http://www.vcc.com/">Virtual
-      Computers</ulink> kompatibel sind (xrpu Treiber).</para>
+      HOT1 von <link xlink:href="http://www.vcc.com/">Virtual
+      Computers</link> kompatibel sind (xrpu Treiber).</para>
 
     <para arch="pc98">Power Management Controller im NEC PC-98 Note
       (pmc Treiber)</para>

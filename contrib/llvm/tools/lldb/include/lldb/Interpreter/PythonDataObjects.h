@@ -19,11 +19,7 @@
 #include "lldb/Core/ConstString.h"
 #include "lldb/Core/Flags.h"
 #include "lldb/Interpreter/OptionValue.h"
-#if defined (__APPLE__)
-#include <Python/Python.h>
-#else
-#include <Python.h>
-#endif
+#include "lldb/lldb-python.h"
 
 namespace lldb_private {
     
@@ -105,7 +101,7 @@ namespace lldb_private {
         PythonString
         Str ();
         
-        operator bool () const
+        explicit operator bool () const
         {
             return m_py_obj != NULL;
         }

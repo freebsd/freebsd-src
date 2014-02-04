@@ -4,8 +4,7 @@
   $Id: abstract.xml,v 1.2 2002/03/10 15:37:17 ue Exp $
   basiert auf: 1.2
 -->
-
-<abstract>
+<abstract xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
   <para>Dieser Artikel enth&auml;lt eine kurze Anleitung f&uuml;r die
     Installation von &os;/&arch; &release.current;, dabei wird
     besonderen Wert auf den Bezug einer &os; gelegt.  Au&szlig;erdem

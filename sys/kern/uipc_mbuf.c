@@ -1196,6 +1196,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 	remain = m->m_len - len;
 	if (m0->m_flags & M_PKTHDR && remain == 0) {
 		n = m_gethdr(wait, m0->m_type);
+		if (n == NULL)
 			return (NULL);
 		n->m_next = m->m_next;
 		m->m_next = NULL;

@@ -58,6 +58,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_fpu_emu.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -91,6 +92,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/sigframe.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
+
+#ifdef FPU_EMU
+#include <powerpc/fpu/fpu_extern.h>
+#endif
 
 #ifdef COMPAT_FREEBSD32
 #include <compat/freebsd32/freebsd32_signal.h>
@@ -381,19 +386,20 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		mcp->mc_gpr[4] = 0;
 	}
 
-#ifdef AIM
 	/*
 	 * This assumes that floating-point context is *not* lazy,
 	 * so if the thread has used FP there would have been a
 	 * FP-unavailable exception that would have set things up
 	 * correctly.
 	 */
-	if (pcb->pcb_flags & PCB_FPU) {
-		KASSERT(td == curthread,
-			("get_mcontext: fp save not curthread"));
-		critical_enter();
-		save_fpu(td);
-		critical_exit();
+	if (pcb->pcb_flags & PCB_FPREGS) {
+		if (pcb->pcb_flags & PCB_FPU) {
+			KASSERT(td == curthread,
+				("get_mcontext: fp save not curthread"));
+			critical_enter();
+			save_fpu(td);
+			critical_exit();
+		}
 		mcp->mc_flags |= _MC_FP_VALID;
 		memcpy(&mcp->mc_fpscr, &pcb->pcb_fpu.fpscr, sizeof(double));
 		memcpy(mcp->mc_fpreg, pcb->pcb_fpu.fpr, 32*sizeof(double));
@@ -414,7 +420,6 @@ grab_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 		mcp->mc_vrsave =  pcb->pcb_vec.vrsave;
 		memcpy(mcp->mc_avec, pcb->pcb_vec.vr, sizeof(mcp->mc_avec));
 	}
-#endif
 
 	mcp->mc_len = sizeof(*mcp);
 
@@ -449,14 +454,12 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	if (mcp->mc_vers != _MC_VERSION || mcp->mc_len != sizeof(*mcp))
 		return (EINVAL);
 
-#ifdef AIM
 	/*
 	 * Don't let the user set privileged MSR bits
 	 */
 	if ((mcp->mc_srr1 & PSL_USERSTATIC) != (tf->srr1 & PSL_USERSTATIC)) {
 		return (EINVAL);
 	}
-#endif
 
 	/* Copy trapframe, preserving TLS pointer across context change */
 	if (SV_PROC_FLAG(td->td_proc, SV_LP64))
@@ -469,13 +472,9 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	else
 		tf->fixreg[2] = tls;
 
-#ifdef AIM
 	if (mcp->mc_flags & _MC_FP_VALID) {
-		if ((pcb->pcb_flags & PCB_FPU) != PCB_FPU) {
-			critical_enter();
-			enable_fpu(td);
-			critical_exit();
-		}
+		/* enable_fpu() will happen lazily on a fault */
+		pcb->pcb_flags |= PCB_FPREGS;
 		memcpy(&pcb->pcb_fpu.fpscr, &mcp->mc_fpscr, sizeof(double));
 		memcpy(pcb->pcb_fpu.fpr, mcp->mc_fpreg, 32*sizeof(double));
 	}
@@ -490,7 +489,6 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 		pcb->pcb_vec.vrsave = mcp->mc_vrsave;
 		memcpy(pcb->pcb_vec.vr, mcp->mc_avec, sizeof(mcp->mc_avec));
 	}
-#endif
 
 	return (0);
 }
@@ -594,7 +592,7 @@ ppc32_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	tf->fixreg[8] = (register_t)imgp->ps_strings;	/* NetBSD extension */
 
 	tf->srr0 = imgp->entry_addr;
-	tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+	tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 	tf->srr1 &= ~PSL_SF;
 	if (mfmsr() & PSL_HV)
 		tf->srr1 |= PSL_HV;
@@ -627,7 +625,7 @@ fill_fpregs(struct thread *td, struct fpreg *fpregs)
 
 	pcb = td->td_pcb;
 
-	if ((pcb->pcb_flags & PCB_FPU) == 0)
+	if ((pcb->pcb_flags & PCB_FPREGS) == 0)
 		memset(fpregs, 0, sizeof(struct fpreg));
 	else
 		memcpy(fpregs, &pcb->pcb_fpu, sizeof(struct fpreg));
@@ -656,14 +654,11 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 int
 set_fpregs(struct thread *td, struct fpreg *fpregs)
 {
-#ifdef AIM
 	struct pcb *pcb;
 
 	pcb = td->td_pcb;
-	if ((pcb->pcb_flags & PCB_FPU) == 0)
-		enable_fpu(td);
+	pcb->pcb_flags |= PCB_FPREGS;
 	memcpy(&pcb->pcb_fpu, fpregs, sizeof(struct fpreg));
-#endif
 
 	return (0);
 }
@@ -1023,14 +1018,10 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 	tf->fixreg[3] = (register_t)arg;
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		tf->srr0 = (register_t)entry;
-	    #ifdef AIM
-		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = PSL_USERSET | PSL_FE_DFLT;
 		#ifdef __powerpc64__
 		tf->srr1 &= ~PSL_SF;
 		#endif
-	    #else
-		tf->srr1 = PSL_USERSET;
-	    #endif
 	} else {
 	    #ifdef __powerpc64__
 		register_t entry_desc[3];
@@ -1038,7 +1029,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = entry_desc[0];
 		tf->fixreg[2] = entry_desc[1];
 		tf->fixreg[11] = entry_desc[2];
-		tf->srr1 = PSL_SF | PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		tf->srr1 = PSL_SF | PSL_USERSET | PSL_FE_DFLT;
 	    #endif
 	}
 
@@ -1050,5 +1041,38 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 
 	td->td_retval[0] = (register_t)entry;
 	td->td_retval[1] = 0;
+}
+
+int
+ppc_instr_emulate(struct trapframe *frame, struct pcb *pcb)
+{
+	uint32_t instr;
+	int reg, sig;
+
+	instr = fuword32((void *)frame->srr0);
+	sig = SIGILL;
+
+	if ((instr & 0xfc1fffff) == 0x7c1f42a6) {	/* mfpvr */
+		reg = (instr & ~0xfc1fffff) >> 21;
+		frame->fixreg[reg] = mfpvr();
+		frame->srr0 += 4;
+		return (0);
+	}
+
+	if ((instr & 0xfc000ffe) == 0x7c0004ac) {	/* various sync */
+		powerpc_sync(); /* Do a heavy-weight sync */
+		frame->srr0 += 4;
+		return (0);
+	}
+
+#ifdef FPU_EMU
+	if (!(pcb->pcb_flags & PCB_FPREGS)) {
+		bzero(&pcb->pcb_fpu, sizeof(pcb->pcb_fpu));
+		pcb->pcb_flags |= PCB_FPREGS;
+	}
+	sig = fpu_emulate(frame, (struct fpreg *)&pcb->pcb_fpu);
+#endif
+
+	return (sig);
 }
 

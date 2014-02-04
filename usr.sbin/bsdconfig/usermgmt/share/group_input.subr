@@ -125,15 +125,15 @@ f_dialog_input_group_name()
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		f_dialog_input _input "$msg_group" "$_input" \
-		               "$hline_alnum_tab_enter" || return
+		               "$hline_alnum_tab_enter" || return $?
 
 		# Check for no-change
-		[ "$_input" = "$_name" ] && return $SUCCESS
+		[ "$_input" = "$_name" ] && return $DIALOG_OK
 
 		# Check for reversion
 		if [ "$_input" = "$cur_group_name" ]; then
 			group_name="$cur_group_name"
-			return $SUCCESS
+			return $DIALOG_OK
 		fi
 
 		# Check for NULL entry
@@ -161,7 +161,7 @@ f_dialog_input_group_name()
 
 	f_dprintf "group_name: [%s]->[%s]" "$cur_group_name" "$group_name"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_group_password
@@ -210,7 +210,7 @@ f_dialog_input_group_password()
 		debug= f_dialog_line_sanitize _password1
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		_password2=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
@@ -227,7 +227,7 @@ f_dialog_input_group_password()
 		debug= f_dialog_line_sanitize _password2
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		# Check for password mismatch
 		if [ "$_password1" != "$_password2" ]; then
@@ -239,9 +239,9 @@ f_dialog_input_group_password()
 		if [ ! "$_password1" ]; then
 			f_dialog_yesno "$msg_disable_password_auth_for_group"
 			local retval=$?
-			if [ $retval -eq 255 ]; then # ESC was pressed
+			if [ $retval -eq $DIALOG_ESC ]; then
 				return $retval
-			elif [ $retval -eq $SUCCESS ]; then
+			elif [ $retval -eq $DIALOG_OK ]; then
 				pw_group_password_disable=1
 			else
 				continue # back to password prompt
@@ -258,7 +258,7 @@ f_dialog_input_group_password()
 	f_dprintf "group_password: [%s]->[%s]" \
 	          "$cur_group_password" "$group_password"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_group_gid [$group_gid]
@@ -273,14 +273,14 @@ f_dialog_input_group_gid()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_group_id_leave_empty_for_default" \
-	               "$_input" "$hline_num_tab_enter" || return
+	               "$_input" "$hline_num_tab_enter" || return $?
 
 	group_gid="$_input"
 	save_flag=1
 
 	f_dprintf "group_gid: [%s]->[%s]" "$cur_group_gid" "$group_gid"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_group_members [$group_members]
@@ -329,7 +329,7 @@ f_dialog_input_group_members()
 		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		local _group_members
 		case "$menu_choice" in
@@ -371,15 +371,12 @@ f_dialog_input_group_members()
 				# pressed ESC or chose Cancel/No
 			f_dialog_data_sanitize _group_members
 
+			#
 			# Convert the newline separated list into a comma-
 			# separated one so that if the user switches over to
 			# manual editing, list reflects checklist selections
-			_group_members=$( echo "$_group_members" |
-				tr '\n' ' ' |
-				sed -e 's/[[:space:]]\{1,\}/,/g;s/^,//;s/,$//'
-			)
-
-			_input="$_group_members"
+			#
+			f_replaceall "$_group_members" "[$IFS]" "," _input
 			;;
 		2) # Enter Group Members manually
 			local p="$msg_group_members ($msg_separated_by_commas)"
@@ -399,7 +396,7 @@ f_dialog_input_group_members()
 	f_dprintf "group_members: [%s]->[%s]" \
 	          "$cur_group_members" "$group_members"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

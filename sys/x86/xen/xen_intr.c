@@ -611,9 +611,9 @@ xen_rebind_ipi(struct xenisrc *isrc)
 {
 #ifdef SMP
 	int cpu = isrc->xi_cpu;
-	int acpi_id = pcpu_find(cpu)->pc_acpi_id;
+	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	int error;
-	struct evtchn_bind_ipi bind_ipi = { .vcpu = acpi_id };
+	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
 
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_ipi,
 	                                    &bind_ipi);
@@ -640,10 +640,10 @@ static void
 xen_rebind_virq(struct xenisrc *isrc)
 {
 	int cpu = isrc->xi_cpu;
-	int acpi_id = pcpu_find(cpu)->pc_acpi_id;
+	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	int error;
 	struct evtchn_bind_virq bind_virq = { .virq = isrc->xi_virq,
-	                                      .vcpu = acpi_id };
+	                                      .vcpu = vcpu_id };
 
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 	                                    &bind_virq);
@@ -796,7 +796,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 #ifdef SMP
 	struct evtchn_bind_vcpu bind_vcpu;
 	struct xenisrc *isrc;
-	u_int to_cpu, acpi_id;
+	u_int to_cpu, vcpu_id;
 	int error;
 
 #ifdef XENHVM
@@ -805,7 +805,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 #endif
 
 	to_cpu = apic_cpuid(apic_id);
-	acpi_id = pcpu_find(to_cpu)->pc_acpi_id;
+	vcpu_id = pcpu_find(to_cpu)->pc_vcpu_id;
 	xen_intr_intrcnt_add(to_cpu);
 
 	mtx_lock(&xen_intr_isrc_lock);
@@ -830,7 +830,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	}
 
 	bind_vcpu.port = isrc->xi_port;
-	bind_vcpu.vcpu = acpi_id;
+	bind_vcpu.vcpu = vcpu_id;
 
 	/*
 	 * Allow interrupts to be fielded on the new VCPU before
@@ -1063,9 +1063,9 @@ xen_intr_bind_virq(device_t dev, u_int virq, u_int cpu,
     driver_filter_t filter, driver_intr_t handler, void *arg,
     enum intr_type flags, xen_intr_handle_t *port_handlep)
 {
-	int acpi_id = pcpu_find(cpu)->pc_acpi_id;
+	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	struct xenisrc *isrc;
-	struct evtchn_bind_virq bind_virq = { .virq = virq, .vcpu = acpi_id };
+	struct evtchn_bind_virq bind_virq = { .virq = virq, .vcpu = vcpu_id };
 	int error;
 
 	/* Ensure the target CPU is ready to handle evtchn interrupts. */
@@ -1126,9 +1126,9 @@ xen_intr_alloc_and_bind_ipi(device_t dev, u_int cpu,
     xen_intr_handle_t *port_handlep)
 {
 #ifdef SMP
-	int acpi_id = pcpu_find(cpu)->pc_acpi_id;
+	int vcpu_id = pcpu_find(cpu)->pc_vcpu_id;
 	struct xenisrc *isrc;
-	struct evtchn_bind_ipi bind_ipi = { .vcpu = acpi_id };
+	struct evtchn_bind_ipi bind_ipi = { .vcpu = vcpu_id };
 	int error;
 
 	/* Ensure the target CPU is ready to handle evtchn interrupts. */

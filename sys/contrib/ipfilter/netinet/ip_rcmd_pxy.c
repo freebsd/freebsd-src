@@ -159,7 +159,7 @@ ipf_p_rcmd_portmsg(fin, aps, nat)
 	ip6_t *ip6;
 #endif
 	int tcpsz;
-	int slen;
+	int slen = 0; /* silence gcc */
 	ip_t *ip;
 	mb_t *m;
 

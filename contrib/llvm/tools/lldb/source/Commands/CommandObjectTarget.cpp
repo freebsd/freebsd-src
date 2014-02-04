@@ -26,6 +26,7 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObjectVariable.h"
+#include "lldb/DataFormatters/ValueObjectPrinter.h"
 #include "lldb/Host/Symbols.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/CommandReturnObject.h"
@@ -158,6 +159,7 @@ public:
         m_arch_option (),
         m_platform_options(true), // Do include the "--platform" option in the platform settings by passing true
         m_core_file (LLDB_OPT_SET_1, false, "core", 'c', 0, eArgTypeFilename, "Fullpath to a core file to use for this target."),
+        m_platform_path (LLDB_OPT_SET_1, false, "platform-path", 'P', 0, eArgTypePath, "Path to the remote file to use for this target."),
         m_symbol_file (LLDB_OPT_SET_1, false, "symfile", 's', 0, eArgTypeFilename, "Fullpath to a stand alone debug symbols file for when debug symbols are not in the executable."),
         m_remote_file (LLDB_OPT_SET_1, false, "remote-file", 'r', 0, eArgTypeFilename, "Fullpath to the file on the remote host if debugging remotely."),
         m_add_dependents (LLDB_OPT_SET_1, false, "no-dependents", 'd', "Don't load dependent files when creating the target, just add the specified executable.", true, true)
@@ -178,6 +180,7 @@ public:
         m_option_group.Append (&m_arch_option, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_platform_options, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_core_file, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
+        m_option_group.Append (&m_platform_path, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_symbol_file, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_remote_file, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
         m_option_group.Append (&m_add_dependents, LLDB_OPT_SET_ALL, LLDB_OPT_SET_1);
@@ -226,7 +229,7 @@ protected:
         FileSpec core_file (m_core_file.GetOptionValue().GetCurrentValue());
         FileSpec remote_file (m_remote_file.GetOptionValue().GetCurrentValue());
 
-        if (argc == 1 || core_file)
+        if (argc == 1 || core_file || remote_file)
         {
             FileSpec symfile (m_symbol_file.GetOptionValue().GetCurrentValue());
             if (symfile)
@@ -243,11 +246,70 @@ protected:
 
             const char *file_path = command.GetArgumentAtIndex(0);
             Timer scoped_timer(__PRETTY_FUNCTION__, "(lldb) target create '%s'", file_path);
-            TargetSP target_sp;
+            FileSpec file_spec;
+            
+            if (file_path)
+                file_spec.SetFile (file_path, true);
+            
+            bool must_set_platform_path = false;
+            
             Debugger &debugger = m_interpreter.GetDebugger();
+            PlatformSP platform_sp(debugger.GetPlatformList().GetSelectedPlatform ());
+
+            if (remote_file)
+            {
+                // I have a remote file.. two possible cases
+                if (file_spec && file_spec.Exists())
+                {
+                    // if the remote file does not exist, push it there
+                    if (!platform_sp->GetFileExists (remote_file))
+                    {
+                        Error err = platform_sp->PutFile(file_spec, remote_file);
+                        if (err.Fail())
+                        {
+                            result.AppendError(err.AsCString());
+                            result.SetStatus (eReturnStatusFailed);
+                            return false;
+                        }
+                    }
+                }
+                else
+                {
+                    // there is no local file and we need one
+                    // in order to make the remote ---> local transfer we need a platform
+                    // TODO: if the user has passed in a --platform argument, use it to fetch the right platform
+                    if (!platform_sp)
+                    {
+                        result.AppendError("unable to perform remote debugging without a platform");
+                        result.SetStatus (eReturnStatusFailed);
+                        return false;
+                    }
+                    if (file_path)
+                    {
+                        // copy the remote file to the local file
+                        Error err = platform_sp->GetFile(remote_file, file_spec);
+                        if (err.Fail())
+                        {
+                            result.AppendError(err.AsCString());
+                            result.SetStatus (eReturnStatusFailed);
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        // make up a local file
+                        result.AppendError("remote --> local transfer without local path is not implemented yet");
+                        result.SetStatus (eReturnStatusFailed);
+                        return false;
+                    }
+                }
+            }
+
+            TargetSP target_sp;
             const char *arch_cstr = m_arch_option.GetArchitectureName();
             const bool get_dependent_files = m_add_dependents.GetOptionValue().GetCurrentValue();
             Error error (debugger.GetTargetList().CreateTarget (debugger,
+//                                                                remote_file ? remote_file : file_spec,
                                                                 file_path,
                                                                 arch_cstr,
                                                                 get_dependent_files,
@@ -273,6 +335,13 @@ protected:
                 }
                 
                 debugger.GetTargetList().SetSelectedTarget(target_sp.get());
+                if (must_set_platform_path)
+                {
+                    ModuleSpec main_module_spec(file_spec);
+                    ModuleSP module_sp = target_sp->GetSharedModule(main_module_spec);
+                    if (module_sp)
+                        module_sp->SetPlatformFileSpec(remote_file);
+                }
                 if (core_file)
                 {
                     char core_path[PATH_MAX];
@@ -341,6 +410,7 @@ private:
     OptionGroupArchitecture m_arch_option;
     OptionGroupPlatform m_platform_options;
     OptionGroupFile m_core_file;
+    OptionGroupFile m_platform_path;
     OptionGroupFile m_symbol_file;
     OptionGroupFile m_remote_file;
     OptionGroupBoolean m_add_dependents;
@@ -650,7 +720,7 @@ public:
     void
     DumpValueObject (Stream &s, VariableSP &var_sp, ValueObjectSP &valobj_sp, const char *root_name)
     {
-        ValueObject::DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions());
+        DumpValueObjectOptions options(m_varobj_options.GetAsDumpOptions());
         
         switch (var_sp->GetScope())
         {
@@ -692,10 +762,7 @@ public:
 
         options.SetRootValueObjectName(root_name);
         
-        ValueObject::DumpValueObject (s, 
-                                      valobj_sp.get(), 
-                                      options);                                        
-
+        valobj_sp->Dump(s,options);
     }
     
     
@@ -1729,10 +1796,8 @@ LookupTypeInModule (CommandInterpreter &interpreter,
             strm.Printf("%zu match%s found in ", num_matches, num_matches > 1 ? "es" : "");
             DumpFullpath (strm, &module->GetFileSpec(), 0);
             strm.PutCString(":\n");
-            const uint32_t num_types = type_list.GetSize();
-            for (uint32_t i=0; i<num_types; ++i)
+            for (TypeSP type_sp : type_list.Types())
             {
-                TypeSP type_sp (type_list.GetTypeAtIndex(i));
                 if (type_sp)
                 {
                     // Resolve the clang type so that any forward references
@@ -2214,7 +2279,7 @@ g_sort_option_enumeration[4] =
 OptionDefinition
 CommandObjectTargetModulesDumpSymtab::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "sort", 's', required_argument, g_sort_option_enumeration, 0, eArgTypeSortOrder, "Supply a sort order when dumping the symbol table."},
+    { LLDB_OPT_SET_1, false, "sort", 's', OptionParser::eRequiredArgument, g_sort_option_enumeration, 0, eArgTypeSortOrder, "Supply a sort order when dumping the symbol table."},
     { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -2694,6 +2759,8 @@ protected:
                                 module_spec.GetUUID() = m_uuid_option_group.GetOptionValue ().GetCurrentValue();
                             if (m_symbol_file.GetOptionValue().OptionWasSet())
                                 module_spec.GetSymbolFileSpec() = m_symbol_file.GetOptionValue().GetCurrentValue();
+                            if (!module_spec.GetArchitecture().IsValid())
+                                module_spec.GetArchitecture() = target->GetArchitecture();
                             Error error;
                             ModuleSP module_sp (target->GetSharedModule (module_spec, &error));
                             if (!module_sp)
@@ -3401,21 +3468,21 @@ protected:
 OptionDefinition
 CommandObjectTargetModulesList::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "address",    'a', required_argument, NULL, 0, eArgTypeAddressOrExpression, "Display the image at this address."},
-    { LLDB_OPT_SET_1, false, "arch",       'A', optional_argument, NULL, 0, eArgTypeWidth,   "Display the architecture when listing images."},
-    { LLDB_OPT_SET_1, false, "triple",     't', optional_argument, NULL, 0, eArgTypeWidth,   "Display the triple when listing images."},
-    { LLDB_OPT_SET_1, false, "header",     'h', no_argument,       NULL, 0, eArgTypeNone,    "Display the image header address as a load address if debugging, a file address otherwise."},
-    { LLDB_OPT_SET_1, false, "offset",     'o', no_argument,       NULL, 0, eArgTypeNone,    "Display the image header address offset from the header file address (the slide amount)."},
-    { LLDB_OPT_SET_1, false, "uuid",       'u', no_argument,       NULL, 0, eArgTypeNone,    "Display the UUID when listing images."},
-    { LLDB_OPT_SET_1, false, "fullpath",   'f', optional_argument, NULL, 0, eArgTypeWidth,   "Display the fullpath to the image object file."},
-    { LLDB_OPT_SET_1, false, "directory",  'd', optional_argument, NULL, 0, eArgTypeWidth,   "Display the directory with optional width for the image object file."},
-    { LLDB_OPT_SET_1, false, "basename",   'b', optional_argument, NULL, 0, eArgTypeWidth,   "Display the basename with optional width for the image object file."},
-    { LLDB_OPT_SET_1, false, "symfile",    's', optional_argument, NULL, 0, eArgTypeWidth,   "Display the fullpath to the image symbol file with optional width."},
-    { LLDB_OPT_SET_1, false, "symfile-unique", 'S', optional_argument, NULL, 0, eArgTypeWidth,   "Display the symbol file with optional width only if it is different from the executable object file."},
-    { LLDB_OPT_SET_1, false, "mod-time",   'm', optional_argument, NULL, 0, eArgTypeWidth,   "Display the modification time with optional width of the module."},
-    { LLDB_OPT_SET_1, false, "ref-count",  'r', optional_argument, NULL, 0, eArgTypeWidth,   "Display the reference count if the module is still in the shared module cache."},
-    { LLDB_OPT_SET_1, false, "pointer",    'p', optional_argument, NULL, 0, eArgTypeNone,    "Display the module pointer."},
-    { LLDB_OPT_SET_1, false, "global",     'g', no_argument,       NULL, 0, eArgTypeNone,    "Display the modules from the global module list, not just the current target."},
+    { LLDB_OPT_SET_1, false, "address",    'a', OptionParser::eRequiredArgument, NULL, 0, eArgTypeAddressOrExpression, "Display the image at this address."},
+    { LLDB_OPT_SET_1, false, "arch",       'A', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the architecture when listing images."},
+    { LLDB_OPT_SET_1, false, "triple",     't', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the triple when listing images."},
+    { LLDB_OPT_SET_1, false, "header",     'h', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Display the image header address as a load address if debugging, a file address otherwise."},
+    { LLDB_OPT_SET_1, false, "offset",     'o', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Display the image header address offset from the header file address (the slide amount)."},
+    { LLDB_OPT_SET_1, false, "uuid",       'u', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Display the UUID when listing images."},
+    { LLDB_OPT_SET_1, false, "fullpath",   'f', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the fullpath to the image object file."},
+    { LLDB_OPT_SET_1, false, "directory",  'd', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the directory with optional width for the image object file."},
+    { LLDB_OPT_SET_1, false, "basename",   'b', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the basename with optional width for the image object file."},
+    { LLDB_OPT_SET_1, false, "symfile",    's', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the fullpath to the image symbol file with optional width."},
+    { LLDB_OPT_SET_1, false, "symfile-unique", 'S', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the symbol file with optional width only if it is different from the executable object file."},
+    { LLDB_OPT_SET_1, false, "mod-time",   'm', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the modification time with optional width of the module."},
+    { LLDB_OPT_SET_1, false, "ref-count",  'r', OptionParser::eOptionalArgument, NULL, 0, eArgTypeWidth,   "Display the reference count if the module is still in the shared module cache."},
+    { LLDB_OPT_SET_1, false, "pointer",    'p', OptionParser::eOptionalArgument, NULL, 0, eArgTypeNone,    "Display the module pointer."},
+    { LLDB_OPT_SET_1, false, "global",     'g', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,    "Display the modules from the global module list, not just the current target."},
     { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -3468,6 +3535,7 @@ public:
                 case 'a':
                 {
                     ExecutionContext exe_ctx (m_interpreter.GetExecutionContext());
+                    m_str = option_arg;
                     m_type = eLookupTypeAddress;
                     m_addr = Args::StringToAddress(&exe_ctx, option_arg, LLDB_INVALID_ADDRESS, &error);
                     if (m_addr == LLDB_INVALID_ADDRESS)
@@ -3481,6 +3549,10 @@ public:
                     m_type = eLookupTypeFunctionOrSymbol;
                     break;
                 }
+
+                default:
+                    error.SetErrorStringWithFormat ("unrecognized option %c.", short_option);
+                    break;
             }
 
             return error;
@@ -3591,8 +3663,21 @@ protected:
                 }
             }
         }
+        else
+        {
+            result.AppendError ("address-expression or function name option must be specified.");
+            result.SetStatus (eReturnStatusFailed);
+            return false;
+        }
 
         size_t num_matches = sc_list.GetSize();
+        if (num_matches == 0)
+        {
+            result.AppendErrorWithFormat ("no unwind data found that matches '%s'.", m_options.m_str.c_str());
+            result.SetStatus (eReturnStatusFailed);
+            return false;
+        }
+
         for (uint32_t idx = 0; idx < num_matches; idx++)
         {
             SymbolContext sc;
@@ -3668,8 +3753,8 @@ protected:
 OptionDefinition
 CommandObjectTargetModulesShowUnwind::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1,   false,  "name",       'n', required_argument, NULL, 0, eArgTypeFunctionName, "Show unwind instructions for a function or symbol name."},
-    { LLDB_OPT_SET_2,   false,  "address",    'a', required_argument, NULL, 0, eArgTypeAddressOrExpression, "Show unwind instructions for a function or symbol containing an address"},
+    { LLDB_OPT_SET_1,   false,  "name",       'n', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFunctionName, "Show unwind instructions for a function or symbol name."},
+    { LLDB_OPT_SET_2,   false,  "address",    'a', OptionParser::eRequiredArgument, NULL, 0, eArgTypeAddressOrExpression, "Show unwind instructions for a function or symbol containing an address"},
     { 0,                false, NULL,           0, 0,                 NULL, 0, eArgTypeNone, NULL }
 };
 
@@ -4112,21 +4197,21 @@ protected:
 OptionDefinition
 CommandObjectTargetModulesLookup::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1,   true,  "address",    'a', required_argument, NULL, 0, eArgTypeAddressOrExpression, "Lookup an address in one or more target modules."},
-    { LLDB_OPT_SET_1,   false, "offset",     'o', required_argument, NULL, 0, eArgTypeOffset,           "When looking up an address subtract <offset> from any addresses before doing the lookup."},
+    { LLDB_OPT_SET_1,   true,  "address",    'a', OptionParser::eRequiredArgument, NULL, 0, eArgTypeAddressOrExpression, "Lookup an address in one or more target modules."},
+    { LLDB_OPT_SET_1,   false, "offset",     'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset,           "When looking up an address subtract <offset> from any addresses before doing the lookup."},
     { LLDB_OPT_SET_2| LLDB_OPT_SET_4 | LLDB_OPT_SET_5
       /* FIXME: re-enable this for types when the LookupTypeInModule actually uses the regex option: | LLDB_OPT_SET_6 */ ,
-                        false, "regex",      'r', no_argument,       NULL, 0, eArgTypeNone,             "The <name> argument for name lookups are regular expressions."},
-    { LLDB_OPT_SET_2,   true,  "symbol",     's', required_argument, NULL, 0, eArgTypeSymbol,           "Lookup a symbol by name in the symbol tables in one or more target modules."},
-    { LLDB_OPT_SET_3,   true,  "file",       'f', required_argument, NULL, 0, eArgTypeFilename,         "Lookup a file by fullpath or basename in one or more target modules."},
-    { LLDB_OPT_SET_3,   false, "line",       'l', required_argument, NULL, 0, eArgTypeLineNum,          "Lookup a line number in a file (must be used in conjunction with --file)."},
+                        false, "regex",      'r', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,             "The <name> argument for name lookups are regular expressions."},
+    { LLDB_OPT_SET_2,   true,  "symbol",     's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeSymbol,           "Lookup a symbol by name in the symbol tables in one or more target modules."},
+    { LLDB_OPT_SET_3,   true,  "file",       'f', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename,         "Lookup a file by fullpath or basename in one or more target modules."},
+    { LLDB_OPT_SET_3,   false, "line",       'l', OptionParser::eRequiredArgument, NULL, 0, eArgTypeLineNum,          "Lookup a line number in a file (must be used in conjunction with --file)."},
     { LLDB_OPT_SET_FROM_TO(3,5),
-                        false, "no-inlines", 'i', no_argument,       NULL, 0, eArgTypeNone,             "Ignore inline entries (must be used in conjunction with --file or --function)."},
-    { LLDB_OPT_SET_4,   true,  "function",   'F', required_argument, NULL, 0, eArgTypeFunctionName,     "Lookup a function by name in the debug symbols in one or more target modules."},
-    { LLDB_OPT_SET_5,   true,  "name",       'n', required_argument, NULL, 0, eArgTypeFunctionOrSymbol, "Lookup a function or symbol by name in one or more target modules."},
-    { LLDB_OPT_SET_6,   true,  "type",       't', required_argument, NULL, 0, eArgTypeName,             "Lookup a type by name in the debug symbols in one or more target modules."},
-    { LLDB_OPT_SET_ALL, false, "verbose",    'v', no_argument,       NULL, 0, eArgTypeNone,             "Enable verbose lookup information."},
-    { LLDB_OPT_SET_ALL, false, "all",        'A', no_argument,       NULL, 0, eArgTypeNone,             "Print all matches, not just the best match, if a best match is available."},
+                        false, "no-inlines", 'i', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,             "Ignore inline entries (must be used in conjunction with --file or --function)."},
+    { LLDB_OPT_SET_4,   true,  "function",   'F', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFunctionName,     "Lookup a function by name in the debug symbols in one or more target modules."},
+    { LLDB_OPT_SET_5,   true,  "name",       'n', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFunctionOrSymbol, "Lookup a function or symbol by name in one or more target modules."},
+    { LLDB_OPT_SET_6,   true,  "type",       't', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,             "Lookup a type by name in the debug symbols in one or more target modules."},
+    { LLDB_OPT_SET_ALL, false, "verbose",    'v', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,             "Enable verbose lookup information."},
+    { LLDB_OPT_SET_ALL, false, "all",        'A', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone,             "Print all matches, not just the best match, if a best match is available."},
     { 0,                false, NULL,           0, 0,                 NULL, 0, eArgTypeNone,             NULL }
 };
 
@@ -5062,27 +5147,27 @@ private:
 OptionDefinition
 CommandObjectTargetStopHookAdd::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, false, "one-liner", 'o', required_argument, NULL, 0, eArgTypeOneLiner,
+    { LLDB_OPT_SET_ALL, false, "one-liner", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOneLiner,
         "Specify a one-line breakpoint command inline. Be sure to surround it with quotes." },
-    { LLDB_OPT_SET_ALL, false, "shlib", 's', required_argument, NULL, CommandCompletions::eModuleCompletion, eArgTypeShlibName,
+    { LLDB_OPT_SET_ALL, false, "shlib", 's', OptionParser::eRequiredArgument, NULL, CommandCompletions::eModuleCompletion, eArgTypeShlibName,
         "Set the module within which the stop-hook is to be run."},
-    { LLDB_OPT_SET_ALL, false, "thread-index", 'x', required_argument, NULL, 0, eArgTypeThreadIndex,
+    { LLDB_OPT_SET_ALL, false, "thread-index", 'x', OptionParser::eRequiredArgument, NULL, 0, eArgTypeThreadIndex,
         "The stop hook is run only for the thread whose index matches this argument."},
-    { LLDB_OPT_SET_ALL, false, "thread-id", 't', required_argument, NULL, 0, eArgTypeThreadID,
+    { LLDB_OPT_SET_ALL, false, "thread-id", 't', OptionParser::eRequiredArgument, NULL, 0, eArgTypeThreadID,
         "The stop hook is run only for the thread whose TID matches this argument."},
-    { LLDB_OPT_SET_ALL, false, "thread-name", 'T', required_argument, NULL, 0, eArgTypeThreadName,
+    { LLDB_OPT_SET_ALL, false, "thread-name", 'T', OptionParser::eRequiredArgument, NULL, 0, eArgTypeThreadName,
         "The stop hook is run only for the thread whose thread name matches this argument."},
-    { LLDB_OPT_SET_ALL, false, "queue-name", 'q', required_argument, NULL, 0, eArgTypeQueueName,
+    { LLDB_OPT_SET_ALL, false, "queue-name", 'q', OptionParser::eRequiredArgument, NULL, 0, eArgTypeQueueName,
         "The stop hook is run only for threads in the queue whose name is given by this argument."},
-    { LLDB_OPT_SET_1, false, "file", 'f', required_argument, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,
+    { LLDB_OPT_SET_1, false, "file", 'f', OptionParser::eRequiredArgument, NULL, CommandCompletions::eSourceFileCompletion, eArgTypeFilename,
         "Specify the source file within which the stop-hook is to be run." },
-    { LLDB_OPT_SET_1, false, "start-line", 'l', required_argument, NULL, 0, eArgTypeLineNum,
+    { LLDB_OPT_SET_1, false, "start-line", 'l', OptionParser::eRequiredArgument, NULL, 0, eArgTypeLineNum,
         "Set the start of the line range for which the stop-hook is to be run."},
-    { LLDB_OPT_SET_1, false, "end-line", 'e', required_argument, NULL, 0, eArgTypeLineNum,
+    { LLDB_OPT_SET_1, false, "end-line", 'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeLineNum,
         "Set the end of the line range for which the stop-hook is to be run."},
-    { LLDB_OPT_SET_2, false, "classname", 'c', required_argument, NULL, 0, eArgTypeClassName,
+    { LLDB_OPT_SET_2, false, "classname", 'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypeClassName,
         "Specify the class within which the stop-hook is to be run." },
-    { LLDB_OPT_SET_3, false, "name", 'n', required_argument, NULL, CommandCompletions::eSymbolCompletion, eArgTypeFunctionName,
+    { LLDB_OPT_SET_3, false, "name", 'n', OptionParser::eRequiredArgument, NULL, CommandCompletions::eSymbolCompletion, eArgTypeFunctionName,
         "Set the function name within which the stop hook will be run." },
     { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
 };

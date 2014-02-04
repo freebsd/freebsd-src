@@ -41,8 +41,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -50,10 +52,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
-#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/if_media.h>
+#include <net/ethernet.h>
 #include <net/if_types.h>
 
 #include <net/bpf.h>
@@ -90,6 +91,7 @@ MODULE_VERSION(arge, 1);
 #include "miibus_if.h"
 
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar934xreg.h>	/* XXX tsk! */
 #include <mips/atheros/if_argevar.h>
 #include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_cpudef.h>
@@ -260,7 +262,7 @@ arge_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static void
@@ -298,17 +300,38 @@ static void
 arge_reset_mac(struct arge_softc *sc)
 {
 	uint32_t reg;
+	uint32_t reset_reg;
 
 	/* Step 1. Soft-reset MAC */
 	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
+	/*
+	 * XXX TODO: migrate this (and other) chip specific stuff into
+	 * a chipdef method.
+	 */
+	if (sc->arge_mac_unit == 0) {
+		reset_reg = RST_RESET_GE0_MAC;
+	} else {
+		reset_reg = RST_RESET_GE1_MAC;
+	}
+
+	/*
+	 * AR934x (and later) also needs the MDIO block reset.
+	 */
+	if (ar71xx_soc == AR71XX_SOC_AR9341 ||
+	   ar71xx_soc == AR71XX_SOC_AR9342 ||
+	   ar71xx_soc == AR71XX_SOC_AR9344) {
+		if (sc->arge_mac_unit == 0) {
+			reset_reg |= AR934X_RESET_GE0_MDIO;
+		} else {
+			reset_reg |= AR934X_RESET_GE1_MDIO;
+		}
+	}
+	ar71xx_device_stop(reset_reg);
 	DELAY(100);
-	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
-	    RST_RESET_GE1_MAC);
+	ar71xx_device_start(reset_reg);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
@@ -322,14 +345,173 @@ arge_reset_mac(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
 }
 
+/*
+ * These values map to the divisor values programmed into
+ * AR71XX_MAC_MII_CFG.
+ *
+ * The index of each value corresponds to the divisor section
+ * value in AR71XX_MAC_MII_CFG (ie, table[0] means '0' in
+ * AR71XX_MAC_MII_CFG, table[1] means '1', etc.)
+ */
+static const uint32_t ar71xx_mdio_div_table[] = {
+	4, 4, 6, 8, 10, 14, 20, 28,
+};
+
+static const uint32_t ar7240_mdio_div_table[] = {
+	2, 2, 4, 6, 8, 12, 18, 26, 32, 40, 48, 56, 62, 70, 78, 96,
+};
+
+static const uint32_t ar933x_mdio_div_table[] = {
+	4, 4, 6, 8, 10, 14, 20, 28, 34, 42, 50, 58, 66, 74, 82, 98,
+};
+
+/*
+ * Lookup the divisor to use based on the given frequency.
+ *
+ * Returns the divisor to use, or -ve on error.
+ */
+static int
+arge_mdio_get_divider(struct arge_softc *sc, unsigned long mdio_clock)
+{
+	unsigned long ref_clock, t;
+	const uint32_t *table;
+	int ndivs;
+	int i;
+
+	/*
+	 * This is the base MDIO frequency on the SoC.
+	 * The dividers .. well, divide. Duh.
+	 */
+	ref_clock = ar71xx_mdio_freq();
+
+	/*
+	 * If either clock is undefined, just tell the
+	 * caller to fall through to the defaults.
+	 */
+	if (ref_clock == 0 || mdio_clock == 0)
+		return (-EINVAL);
+
+	/*
+	 * Pick the correct table!
+	 */
+	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR9330:
+	case AR71XX_SOC_AR9331:
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
+		table = ar933x_mdio_div_table;
+		ndivs = nitems(ar933x_mdio_div_table);
+		break;
+
+	case AR71XX_SOC_AR7240:
+	case AR71XX_SOC_AR7241:
+	case AR71XX_SOC_AR7242:
+		table = ar7240_mdio_div_table;
+		ndivs = nitems(ar7240_mdio_div_table);
+		break;
+
+	default:
+		table = ar71xx_mdio_div_table;
+		ndivs = nitems(ar71xx_mdio_div_table);
+	}
+
+	/*
+	 * Now, walk through the list and find the first divisor
+	 * that falls under the target MDIO frequency.
+	 *
+	 * The divisors go up, but the corresponding frequencies
+	 * are actually decreasing.
+	 */
+	for (i = 0; i < ndivs; i++) {
+		t = ref_clock / table[i];
+		if (t <= mdio_clock) {
+			return (i);
+		}
+	}
+
+	ARGEDEBUG(sc, ARGE_DBG_RESET,
+	    "No divider found; MDIO=%lu Hz; target=%lu Hz\n",
+		ref_clock, mdio_clock);
+	return (-ENOENT);
+}
+
+/*
+ * Fetch the MDIO bus clock rate.
+ *
+ * For now, the default is DIV_28 for everything
+ * bar AR934x, which will be DIV_58.
+ *
+ * It will definitely need updating to take into account
+ * the MDIO bus core clock rate and the target clock
+ * rate for the chip.
+ */
+static uint32_t
+arge_fetch_mdiobus_clock_rate(struct arge_softc *sc)
+{
+	int mdio_freq, div;
+
+	/*
+	 * Is the MDIO frequency defined? If so, find a divisor that
+	 * makes reasonable sense.  Don't overshoot the frequency.
+	 */
+	if (resource_int_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "mdio_freq",
+	    &mdio_freq) == 0) {
+		sc->arge_mdiofreq = mdio_freq;
+		div = arge_mdio_get_divider(sc, sc->arge_mdiofreq);
+		if (bootverbose)
+			device_printf(sc->arge_dev,
+			    "%s: mdio ref freq=%llu Hz, target freq=%llu Hz,"
+			    " divisor index=%d\n",
+			    __func__,
+			    (unsigned long long) ar71xx_mdio_freq(),
+			    (unsigned long long) mdio_freq,
+			    div);
+		if (div >= 0)
+			return (div);
+	}
+
+	/*
+	 * Default value(s).
+	 *
+	 * XXX obviously these need .. fixing.
+	 *
+	 * From Linux/OpenWRT:
+	 *
+	 * + 7240? DIV_6
+	 * + Builtin-switch port and not 934x? DIV_10
+	 * + Not built-in switch port and 934x? DIV_58
+	 * + .. else DIV_28.
+	 */
+	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR9341:
+	case AR71XX_SOC_AR9342:
+	case AR71XX_SOC_AR9344:
+		return (MAC_MII_CFG_CLOCK_DIV_58);
+		break;
+	default:
+		return (MAC_MII_CFG_CLOCK_DIV_28);
+	}
+}
+
 static void
 arge_reset_miibus(struct arge_softc *sc)
 {
+	uint32_t mdio_div;
 
-	/* Reset MII bus */
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
+	mdio_div = arge_fetch_mdiobus_clock_rate(sc);
+
+	/*
+	 * XXX AR934x and later; should we be also resetting the
+	 * MDIO block(s) using the reset register block?
+	 */
+
+	/* Reset MII bus; program in the default divisor */
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET | mdio_div);
 	DELAY(100);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, mdio_div);
 	DELAY(100);
 }
 
@@ -588,9 +770,13 @@ arge_attach(device_t dev)
 		case AR71XX_SOC_AR7242:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0010ffff);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x015500aa);
 			break;
+		/* AR71xx, AR913x */
 		default:
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG1, 0x0fff0000);
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
@@ -917,12 +1103,16 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		case AR71XX_SOC_AR7242:
 		case AR71XX_SOC_AR9330:
 		case AR71XX_SOC_AR9331:
+		case AR71XX_SOC_AR9341:
+		case AR71XX_SOC_AR9342:
+		case AR71XX_SOC_AR9344:
 			fifo_tx = 0x01f00140;
 			break;
 		case AR71XX_SOC_AR9130:
 		case AR71XX_SOC_AR9132:
 			fifo_tx = 0x00780fff;
 			break;
+		/* AR71xx */
 		default:
 			fifo_tx = 0x008001ff;
 	}
@@ -1072,6 +1262,10 @@ arge_init_locked(struct arge_softc *sc)
  * The TX engine requires each fragment to be aligned to a
  * 4 byte boundary and the size of each fragment except
  * the last to be a multiple of 4 bytes.
+ *
+ * XXX TODO: I believe this is only a bug on the AR71xx and
+ * AR913x MACs. The later MACs (AR724x and later) does not
+ * need this workaround.
  */
 static int
 arge_mbuf_chain_is_tx_aligned(struct mbuf *m0)
@@ -1105,6 +1299,10 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	/*
 	 * Fix mbuf chain, all fragments should be 4 bytes aligned and
 	 * even 4 bytes
+	 *
+	 * XXX TODO: I believe this is only a bug on the AR71xx and
+	 * AR913x MACs. The later MACs (AR724x and later) does not
+	 * need this workaround.
 	 */
 	m = *m_head;
 	if (! arge_mbuf_chain_is_tx_aligned(m)) {

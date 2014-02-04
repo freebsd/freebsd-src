@@ -3,6 +3,7 @@ syntax("kyuafile", 1)
 test_suite("atf")
 
 atf_test_program{name="application_test"}
+atf_test_program{name="auto_array_test"}
 atf_test_program{name="env_test"}
 atf_test_program{name="exceptions_test"}
 atf_test_program{name="expand_test"}

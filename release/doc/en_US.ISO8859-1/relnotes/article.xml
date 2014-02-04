@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+<info><title>&os; &release.current; Release Notes</title>
+  
 
-<article>
-<articleinfo>
-  <title>&os; &release.current; Release Notes</title>
-
-  <corpauthor>The &os; Project</corpauthor>
+  <author><orgname>The &os; Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -31,7 +30,7 @@
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
-  <legalnotice id="trademarks" role="trademarks">
+  <legalnotice xml:id="trademarks" role="trademarks">
     &tm-attrib.freebsd;
     &tm-attrib.ibm;
     &tm-attrib.ieee;
@@ -49,9 +48,9 @@
       kernel and userland.
       Some brief remarks on upgrading are also presented.</para>
   </abstract>
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
@@ -64,24 +63,21 @@
     apply represents the latest point along the &release.branch; development
     branch since &release.branch; was created.  Information regarding pre-built, binary
     &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
+    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
   <para releasetype="snapshot">The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
     branch between &release.prev; and the future &release.next;.
     Information regarding
     pre-built, binary &release.type; distributions along this branch
-    can be found at <ulink url="&release.url;"></ulink>.</para>
+    can be found at <uri xlink:href="&release.url;">&release.url;</uri>.</para>
 
   <para releasetype="release">This distribution of &os; &release.current; is a
-    &release.type; distribution.  It can be found at <ulink
-    url="&release.url;"></ulink> or any of its mirrors.  More
+    &release.type; distribution.  It can be found at <uri xlink:href="&release.url;">&release.url;</uri> or any of its mirrors.  More
     information on obtaining this (or other) &release.type;
-    distributions of &os; can be found in the <ulink
-    url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-    &os;</quote> appendix</ulink> to the <ulink
-    url="&url.books.handbook;/">&os;
-    Handbook</ulink>.</para>
+    distributions of &os; can be found in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+    &os;</quote> appendix</link> to the <link xlink:href="&url.books.handbook;/">&os;
+    Handbook</link>.</para>
 
   <para>All users are encouraged to consult the release errata before
     installing &os;.  The errata document is updated with
@@ -93,7 +89,7 @@
 
 </sect1>
 
-<sect1 id="new">
+<sect1 xml:id="new">
   <title>What's New</title>
 
   <para>This section describes
@@ -114,15 +110,18 @@
     primarily on security advisories, user-visible changes, and major
     architectural improvements.</para>
 
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>Kernel Changes</title>
+
+    <para arch="amd64">The maximum amount of memory the &os; kernel
+      can address has been increased from 1TB to 4TB.</para>
 
     <para>A new &man.cpuset.2; API has been added
       for thread to CPU binding and CPU resource grouping and
@@ -173,7 +172,7 @@
       scheduler is now the default process scheduler
       in <filename>GENERIC</filename> kernels.</para>
 
-    <sect3 id="boot">
+    <sect3 xml:id="boot">
       <title>Boot Loader Changes</title>
 
       <para arch="amd64,i386" role="merged">The BTX kernel used by the boot
@@ -190,7 +189,7 @@
 
     </sect3>
 
-    <sect3 id="proc">
+    <sect3 xml:id="proc">
       <title>Hardware Support</title>
 
       <para role="merged">The &man.cmx.4; driver, a driver for Omnikey CardMan 4040
@@ -202,14 +201,16 @@
         Laboratories CP2101/CP2102-based USB serial adapters, has been
         imported from OpenBSD.</para>
 
-      <sect4 id="mm">
+      <sect4 xml:id="mm">
 	<title>Multimedia Support</title>
 
-	<para></para>
+        <para>Support for version 2.0 of the USB Audio reference design
+          has been added. New devices should support higher bandwidth,
+          increased sampling frequency and wider dynamic range.</para>
 
       </sect4>
 
-      <sect4 id="net-if">
+      <sect4 xml:id="net-if">
 	<title>Network Interface Support</title>
 
 	<para>The &man.ale.4; driver has been added to provide support
@@ -250,33 +251,30 @@
       </sect4>
     </sect3>
 
-    <sect3 id="net-proto">
+    <sect3 xml:id="net-proto">
       <title>Network Protocols</title>
 
-      <para>The &man.bpf.4; packet filter and capture facility now
-        supports a zero-copy mode of operation, in which buffers are
-        loaned from a user process to the kernel.  This feature can
-        be enabled by setting
-        the <varname>net.bpf.zerocopy_enable</varname> sysctl
-        variable to <literal>1</literal>.</para>
+      <para>&man.carp.4; has been rewritten to make addresses
+        more sane from the viewpoint of routing daemons such as
+        quagga/zebra. It also brings support for a single redundant
+        address on the subnet (carpdev), switching state with
+        ifconfig, better locking and using modern kernel
+        interfaces to allocate multicast memberships.</para>
 
-      <para>ISDN4BSD(I4B), <filename>netatm</filename>, and all
-        related subsystems have been removed due to lack of
-        multi-processor support.</para>
+      <para>The &man.pf.4; firewall now supports fine-grain locking
+        and better utilization on multi-cpu machines resulting in
+        significant improvements in performance.</para>
 
-      <para role="merged">A bug in TCP options padding, where the wrong padding
-        bytes were used, has been fixed.</para>
+      <para>Support for up to 65536 routing tables has been
+        introduced.</para>
 
-      <para role="merged">The IEEE 802.11s element identifiers have
-        been updated to reflect the final version of the amendment.  This
-        update breaks compatibility with older mesh setups but is necessary
-        as the previous IDs are used by another amendment leading to
-        unexpected results when trying to associate with an accesspoint
-        using the affected IDs.</para>
+      <para>Support for setting/matching differentiated services
+        codepoints (DSCP) in IP header has been added to
+        &man.ipfw.8;.</para>
 
     </sect3>
 
-    <sect3 id="disks">
+    <sect3 xml:id="disks">
       <title>Disks and Storage</title>
 
       <para role="merged">The &man.aac.4; driver now supports volumes larger than
@@ -294,25 +292,40 @@
 
     </sect3>
 
-    <sect3 id="fs">
+    <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>A problem with using &man.mmap.2; on ZFS filesystems has
-        been fixed.</para>
+      <para>A new kernel-based iSCSI target and initiator has been
+        added</para>
 
-      <para>A new kernel-mode NFS lock manager has been added,
-        improving performance and behavior of NFS locking.  A new
-        &man.clear.locks.8; command has been added to clear locks held
-        on behalf of an NFS client.</para>
+      <para>UFS filesystems can now be enlarged with &man.growfs.8; while
+        mounted read-write. This is especially useful for virtual
+        machines, allowing the addition of more harddrive space without
+        interruption of service.</para>
 
-      <para role="merged">The <application>ZFS</application> file system
-        has been upgraded to version 28.  Changes include Data
-        Deduplication, Triple parity RAIDZ, and zfs diff.</para>
+      <para>A state of the art FUSE implementation is now part of the
+        base system. It allows the use of nearly all fusefs file
+        systems</para>
+
+      <para>Support for the high performance LZ4 compression algorithm
+        has been added to ZFS. LZ4 is usually faster and can achieve a
+        higher compression ratio than LZJB, the default compression
+        algorithm</para>
+
+      <para>Support for L2ARC compression has been added to ZFS.</para>
+
+      <para>ZFS will now compare the checksums of incoming writes to
+        the checksum of the existing on-disk data and avoid issuing any
+        write I/O for data that has not changed. This will reduce I/O
+        as well as space usage because if the old block is referenced
+        by a snapshot, both copies of the block are kept even though
+        both contain the same data.</para>
 
     </sect3>
+
   </sect2>
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>Userland Changes</title>
 
     <para role="merged">The &man.adduser.8; utility now supports
@@ -427,15 +440,15 @@
       to send probe packets with no upper-layer protocol, rather than
       the usual UDP probe packets.</para>
 
-    <sect3 id="rc-scripts">
+    <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para></para>
+      <para/>
 
     </sect3>
   </sect2>
 
-  <sect2 id="contrib">
+  <sect2 xml:id="contrib">
     <title>Contributed Software</title>
 
     <para role="merged"><application>AMD</application> has been updated from 6.0.10
@@ -447,8 +460,8 @@
     <para role="merged"><application>bzip2</application> has been updated from 1.0.4
       to 1.0.5.</para>
 
-    <para><application>CVS</application> has been updated from 1.11.17
-      to a post-1.11.22 snapshot from 10 March 2008.</para>
+    <para><application>CVS</application> has been removed from the
+    base system, but is still available from ports</para>
 
     <para><application>FILE</application> has been updated from 4.23
       to 5.03.</para>
@@ -493,7 +506,7 @@
 
   </sect2>
 
-  <sect2 id="ports">
+  <sect2 xml:id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
     <para>The &man.pkg.create.1; utility now supports
@@ -511,25 +524,25 @@
 
   </sect2>
 
-  <sect2 id="releng">
+  <sect2 xml:id="releng">
     <title>Release Engineering and Integration</title>
 
     <para role="merged">The supported version of
       the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
+      (<package>x11/gnome2</package>) has been
       updated from 2.20.1 to 2.22.</para>
 
   </sect2>
 
-  <sect2 id="doc">
+  <sect2 xml:id="doc">
     <title>Documentation</title>
 
-    <para></para>
+    <para/>
 
   </sect2>
 </sect1>
 
-<sect1 id="upgrade">
+<sect1 xml:id="upgrade">
   <title>Upgrading from previous releases of &os;</title>
 
   <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE,

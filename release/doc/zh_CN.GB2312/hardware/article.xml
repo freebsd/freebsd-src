@@ -1,18 +1,17 @@
 <?xml version="1.0" encoding="gb2312"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 <!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" "devauto.ent">
 %devauto;
 ]>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
 
-<article>
+<info><title>&os; &release.current; 兼容硬件说明</title>
+  
 
-<articleinfo>
-  <title>&os; &release.current; 兼容硬件说明</title>
-
-  <corpauthor>The &os; Documentation Project</corpauthor>
+  <author><orgname>The &os; Documentation Project</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -28,7 +27,7 @@
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
-  <legalnotice id="trademarks" role="trademarks">
+  <legalnotice xml:id="trademarks" role="trademarks">
     &tm-attrib.freebsd;
     &tm-attrib.amd;
     &tm-attrib.ibm;
@@ -38,9 +37,9 @@
     &tm-attrib.general;
   </legalnotice>
 
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>介绍</title>
 
   <para>这份文档是
@@ -51,13 +50,13 @@
 
 </sect1>
 
-<sect1 id="proc">
+<sect1 xml:id="proc">
   <title>支持的处理器和主板</title>
 
   <para>这一节中列出了一些与具体硬件架构相关的，
     在这些硬件架构上能够支持的处理器和系统有关的信息。</para>
 
-<sect2 id="proc-amd64">
+<sect2 xml:id="proc-amd64">
   <title>amd64</title>
 
   <para>从 2003 年中开始， &os;/&arch.amd64; 提供了对于 AMD64
@@ -117,7 +116,7 @@
 
 </sect2>
 
-<sect2 id="proc-i386">
+<sect2 xml:id="proc-i386">
   <title>i386</title>
 
   <para>&os;/&arch.i386; 能够在各式各样的 <quote>IBM PC
@@ -186,21 +185,19 @@
   <para>ACPI 依赖于由计算机的 BIOS 提供的 系统差异描述表 (Differentiated System Descriptor Table,
     DSDT) 来工作。 一些计算机上的 DSDT 可能不完整或者有问题，
     这会导致 ACPI 工作不正常。 针对一些计算机的替换 DSDT，
-    可以在 <ulink
-    url="http://acpi.sourceforge.net/">ACPI4Linux</ulink> 项目网站上的 <ulink
-    url="http://acpi.sourceforge.net/dsdt/index.php">DSDT</ulink>
+    可以在 <link xlink:href="http://acpi.sourceforge.net/">ACPI4Linux</link> 项目网站上的 <link xlink:href="http://acpi.sourceforge.net/dsdt/index.php">DSDT</link>
     环节中找到。 &os; 可以利用这些 DSDT 来覆盖 BIOS 提供的 DSDT；
     请参阅联机手册 &man.acpi.4; 以了解具体的细节。</para>
 </sect2>
 
-<sect2 id="proc-ia64">
+<sect2 xml:id="proc-ia64">
   <title>ia64</title>
 
   <para>目前支持的处理器是
-    <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">
-    &itanium;</ulink> 和
-    <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">
-    &itanium; 2</ulink>。</para>
+    <link xlink:href="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">
+    &itanium;</link> 和
+    <link xlink:href="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">
+    &itanium; 2</link>。</para>
 
   <para>支持的芯片组包括：</para>
    <itemizedlist>
@@ -226,7 +223,7 @@
 
 </sect2>
 
-<sect2 id="proc-pc98">
+<sect2 xml:id="proc-pc98">
   <title>pc98</title>
 
   <para>支持采用几乎所有 &i386; 兼容处理器的 NEC PC-9801/9821 系列计算机，
@@ -254,18 +251,18 @@
 
 </sect2>
 
-<sect2 id="proc-powerpc">
+<sect2 xml:id="proc-powerpc">
   <title>powerpc</title>
 
   <para>这一节内容还有待撰写。</para>
 
 </sect2>
 
-<sect2 id="proc-sparc64">
+<sect2 xml:id="proc-sparc64">
   <title>sparc64</title>
 
   <para>这一节介绍已知的为 &os; 支持的 &ultrasparc; 平台的计算机系统。
-    关于各类硬件的设计细节， 请参见 <ulink url="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</ulink>。</para>
+    关于各类硬件的设计细节， 请参见 <link xlink:href="http://sunsolve.sun.com/handbook_pub/">Sun System Handbook</link>。</para>
 
   <para>在所有包含 1 个以上处理器的系统上， 均支持 SMP。</para>
 
@@ -419,7 +416,7 @@
 	build.
 -->
 
-<sect1 id="support">
+<sect1 xml:id="support">
   <title>支持的硬件</title>
 
   <para>这一节描述了目前已知的 &os; 支持的硬件。
@@ -436,7 +433,7 @@
       如果它们被多种不同的驱动程序支持的话， 可能会相应地出现多次。</para>
   </note>
 
-  <sect2 id="disk">
+  <sect2 xml:id="disk">
     <title>磁盘控制器</title>
 
     <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;, &arch.sparc64;] IDE/ATA 控制器 (&man.ata.4; 驱动程序)</para>
@@ -544,7 +541,7 @@
     WORM 设备则提供了只读的支持
     (例如 &man.cd.4;)。  WORM/CD-R/CD-RW 写操作的支持由
     &man.cdrecord.1; 提供， 它是 Ports Collection 中
-    <filename role="package">sysutils/cdrtools</filename> port
+    <package>sysutils/cdrtools</package> port
     的一部分。</para>
 
     <para>目前， 对以下 CD-ROM 文件系统类型提供支持：
@@ -573,7 +570,7 @@
     </para>
 
   </sect2>
-  <sect2 id="ethernet">
+  <sect2 xml:id="ethernet">
     <title>以太网接口</title>
 
     &hwlist.aue;
@@ -686,13 +683,13 @@
 
   </sect2>
 
-  <sect2 id="fddi">
+  <sect2 xml:id="fddi">
     <title>FDDI 接口</title>
     <para>[&arch.i386;, &arch.pc98;] DEC DEFPA PCI (&man.fpa.4; 驱动程序)</para>
     <para>[&arch.i386;] DEC DEFEA EISA (&man.fpa.4; 驱动程序)</para>
   </sect2>
 
-  <sect2 id="atm">
+  <sect2 xml:id="atm">
     <title>ATM 接口</title>
 
     <para>[&arch.i386;, &arch.pc98;] 基于 Midway 的 ATM 接口 (&man.en.4;
@@ -711,7 +708,7 @@
       驱动程序)</para>
 
   </sect2>
-  <sect2 id="wlan">
+  <sect2 xml:id="wlan">
     <title>无线网络接口</title>
 
     <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] Cisco/Aironet 802.11b 无线适配器 (&man.an.4; 驱动程序)
@@ -747,7 +744,7 @@
 
   </sect2>
 
-  <sect2 id="misc-network">
+  <sect2 xml:id="misc-network">
     <title>其他网络设备</title>
 
     &hwlist.ce;
@@ -762,7 +759,7 @@
 
   </sect2>
 
-  <sect2 id="isdn">
+  <sect2 xml:id="isdn">
     <title>ISDN 接口</title>
     <para>[&arch.i386;] AcerISDN P10 ISA PnP (实验性的)</para>
     <para>[&arch.i386;] Asuscom ISDNlink 128K ISA</para>
@@ -856,7 +853,7 @@
     <para>[&arch.i386;] 基于 Winbond W6692 的 PCI 卡</para>
   </sect2>
 
-  <sect2 id="serial">
+  <sect2 xml:id="serial">
     <title>串口</title>
 
     <para>[&arch.amd64; &arch.i386;] <quote>PC 标准</quote> 基于 8250、 16450， 以及基于 16550 的串口 (&man.sio.4; 驱动程序)</para>
@@ -1046,7 +1043,7 @@
       </note>
 
   </sect2>
-  <sect2 id="sound">
+  <sect2 xml:id="sound">
     <title>声音设备</title>
 
     &hwlist.snd.ad1816;
@@ -1134,7 +1131,7 @@
     </para>
   </sect2>
 
-  <sect2 id="camera">
+  <sect2 xml:id="camera">
     <title>照相机和视频捕捉设备</title>
 
     &hwlist.bktr;
@@ -1142,7 +1139,7 @@
     <para>[&arch.i386;] Connectix QuickCam</para>
   </sect2>
 
-  <sect2 id="usb">
+  <sect2 xml:id="usb">
     <title>USB 设备</title>
 
     <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] &os; 能够支持一系列 USB 外设；
@@ -1151,13 +1148,11 @@
     即使在这里没有明确地列出。</para>
 
     <note>
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB 以太网适配器可以在 <link
-      linkend="ethernet">以太网接口</link> 一节找到。</para>
+      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB 以太网适配器可以在 <link linkend="ethernet">以太网接口</link> 一节找到。</para>
     </note>
 
     <note>
-      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB 蓝牙适配器可以在 <link
-      linkend="bluetooth">蓝牙</link> 一节找到。</para>
+      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;] USB 蓝牙适配器可以在 <link linkend="bluetooth">蓝牙</link> 一节找到。</para>
     </note>
 
     &hwlist.ohci;
@@ -1219,7 +1214,7 @@
 
  </sect2>
 
-  <sect2 id="firewire">
+  <sect2 xml:id="firewire">
     <title>IEEE 1394 (火线) 设备</title>
 
     &hwlist.fwohci;
@@ -1229,7 +1224,7 @@
 
   </sect2>
 
-  <sect2 id="bluetooth">
+  <sect2 xml:id="bluetooth">
     <title>蓝牙设备</title>
 
     &hwlist.ng.bt3c;
@@ -1238,7 +1233,7 @@
 
   </sect2>
 
-  <sect2 id="crypto-accel">
+  <sect2 xml:id="crypto-accel">
     <title>密码学加速器</title>
 
     &hwlist.hifn;
@@ -1248,7 +1243,7 @@
     &hwlist.ubsec;
   </sect2>
 
-  <sect2 id="misc">
+  <sect2 xml:id="misc">
     <title>其他</title>
 
     <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] FAX-Modem/PCCARD
@@ -1269,8 +1264,7 @@
 
       <note>
 	<para>关于特定显卡与 <application>Xorg</application> 的兼容信息，
-	  可以在 <ulink
-	  url="http://www.x.org/"></ulink> 找到。</para>
+	  可以在 <uri xlink:href="http://www.x.org/">http://www.x.org/</uri> 找到。</para>
       </note>
 
       </para>
@@ -1312,7 +1306,7 @@
       <note>
 	<para>&man.moused.8; 提供了如何在 &os; 中使用定点设备的进一步信息。
 	  关于如何在 <application>Xorg</application> 中使用这类设备的信息， 可以在
-	  <ulink url="http://www.x.org/"></ulink> 找到。</para>
+	  <uri xlink:href="http://www.x.org/">http://www.x.org/</uri> 找到。</para>
       </note>
     </para>
 
@@ -1339,8 +1333,8 @@
     </para>
 
     <para>[&arch.i386;] 基于 Xilinx XC6200 的可重配置硬件卡， 与
-    <ulink url="http://www.vcc.com/">Virtual
-    Computers</ulink> 的 HOT1 兼容 (xrpu 驱动程序)。</para>
+    <link xlink:href="http://www.vcc.com/">Virtual
+    Computers</link> 的 HOT1 兼容 (xrpu 驱动程序)。</para>
 
     <para>[&arch.pc98;] NEC PC-98 笔记本的电源管理控制器 (pmc
     驱动程序)</para>

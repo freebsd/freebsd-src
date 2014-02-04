@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_dl.h>
@@ -181,7 +182,7 @@ static const struct rl_type re_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8101E, 0,
 	    "RealTek 810xE PCIe 10/100baseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8168, 0,
-	    "RealTek 8168/8111 B/C/CP/D/DP/E/F PCIe Gigabit Ethernet" },
+	    "RealTek 8168/8111 B/C/CP/D/DP/E/F/G PCIe Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169, 0,
 	    "RealTek 8169/8169S/8169SB(L)/8110S/8110SB(L) Gigabit Ethernet" },
 	{ RT_VENDORID, RT_DEVICEID_8169SC, 0,
@@ -223,6 +224,7 @@ static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8402, RL_8169, "8402", RL_MTU },
 	{ RL_HWREV_8105E, RL_8169, "8105E", RL_MTU },
 	{ RL_HWREV_8105E_SPIN1, RL_8169, "8105E", RL_MTU },
+	{ RL_HWREV_8106E, RL_8169, "8106E", RL_MTU },
 	{ RL_HWREV_8168B_SPIN2, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168B_SPIN3, RL_8169, "8168", RL_JUMBO_MTU },
 	{ RL_HWREV_8168C, RL_8169, "8168C/8111C", RL_JUMBO_MTU_6K },
@@ -232,8 +234,12 @@ static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8168DP, RL_8169, "8168DP/8111DP", RL_JUMBO_MTU_9K },
 	{ RL_HWREV_8168E, RL_8169, "8168E/8111E", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168E_VL, RL_8169, "8168E/8111E-VL", RL_JUMBO_MTU_6K},
+	{ RL_HWREV_8168EP, RL_8169, "8168EP/8111EP", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8168F, RL_8169, "8168F/8111F", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8168G, RL_8169, "8168G/8111G", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8168GU, RL_8169, "8168GU/8111GU", RL_JUMBO_MTU_9K},
 	{ RL_HWREV_8411, RL_8169, "8411", RL_JUMBO_MTU_9K},
+	{ RL_HWREV_8411B, RL_8169, "8411B", RL_JUMBO_MTU_9K},
 	{ 0, 0, NULL, 0 }
 };
 
@@ -1367,10 +1373,11 @@ re_attach(device_t dev)
 		break;
 	default:
 		device_printf(dev, "Chip rev. 0x%08x\n", hwrev & 0x7c800000);
+		sc->rl_macrev = hwrev & 0x00700000;
 		hwrev &= RL_TXCFG_HWREV;
 		break;
 	}
-	device_printf(dev, "MAC rev. 0x%08x\n", hwrev & 0x00700000);
+	device_printf(dev, "MAC rev. 0x%08x\n", sc->rl_macrev);
 	while (hw_rev->rl_desc != NULL) {
 		if (hw_rev->rl_rev == hwrev) {
 			sc->rl_type = hw_rev->rl_type;
@@ -1408,6 +1415,7 @@ re_attach(device_t dev)
 	case RL_HWREV_8401E:
 	case RL_HWREV_8105E:
 	case RL_HWREV_8105E_SPIN1:
+	case RL_HWREV_8106E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
@@ -1429,7 +1437,7 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168C:
-		if ((hwrev & 0x00700000) == 0x00200000)
+		if (sc->rl_macrev == 0x00200000)
 			sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
@@ -1455,12 +1463,26 @@ re_attach(device_t dev)
 		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
+	case RL_HWREV_8168EP:
 	case RL_HWREV_8168F:
+	case RL_HWREV_8168G:
 	case RL_HWREV_8411:
+	case RL_HWREV_8411B:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
 		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168GU:
+		if (pci_get_device(dev) == RT_DEVICEID_8101E) {
+			/* RTL8106EUS */
+			sc->rl_flags |= RL_FLAG_FASTETHER;
+		} else
+			sc->rl_flags |= RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
+
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -2112,8 +2134,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT),
-	    &rx_npkts))
+	if (netmap_rx_irq(ifp, 0, &rx_npkts))
 		return 0;
 #endif /* DEV_NETMAP */
 	if (ifp->if_mtu > RL_MTU && (sc->rl_flags & RL_FLAG_JUMBOV2) != 0)
@@ -2358,7 +2379,7 @@ re_txeof(struct rl_softc *sc)
 
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, 0 | (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, 0))
 		return;
 #endif /* DEV_NETMAP */
 	/* Invalidate the TX descriptor list */
@@ -3332,7 +3353,9 @@ re_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu < ETHERMIN ||
-		    ifr->ifr_mtu > sc->rl_hwrev->rl_max_mtu) {
+		    ifr->ifr_mtu > sc->rl_hwrev->rl_max_mtu ||
+		    ((sc->rl_flags & RL_FLAG_FASTETHER) != 0 &&
+		    ifr->ifr_mtu > RL_MTU)) {
 			error = EINVAL;
 			break;
 		}

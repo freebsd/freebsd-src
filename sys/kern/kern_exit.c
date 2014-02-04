@@ -38,9 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,7 +92,7 @@ dtrace_execexit_func_t	dtrace_fasttrap_exit;
 #endif
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE1(proc, kernel, , exit, exit, "int");
+SDT_PROBE_DEFINE1(proc, kernel, , exit, "int");
 
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
@@ -501,9 +499,7 @@ exit1(struct thread *td, int rv)
 	 * procdesc_exit() to serialize concurrent calls to close() and
 	 * exit().
 	 */
-#ifdef PROCDESC
 	if (p->p_procdesc == NULL || procdesc_exit(p)) {
-#endif
 		/*
 		 * Notify parent that we're gone.  If parent has the
 		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
@@ -540,10 +536,8 @@ exit1(struct thread *td, int rv)
 			else	/* LINUX thread */
 				kern_psignal(p->p_pptr, p->p_sigparent);
 		}
-#ifdef PROCDESC
 	} else
 		PROC_LOCK(p->p_pptr);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -808,10 +802,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	clear_orphan(p);
 	PROC_UNLOCK(p);
 	leavepgrp(p);
-#ifdef PROCDESC
 	if (p->p_procdesc != NULL)
 		procdesc_reap(p);
-#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -974,16 +966,19 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		 *  This is still a rough estimate.  We will fix the
 		 *  cases TRAPPED, STOPPED, and CONTINUED later.
 		 */
-		if (WCOREDUMP(p->p_xstat))
+		if (WCOREDUMP(p->p_xstat)) {
 			siginfo->si_code = CLD_DUMPED;
-		else if (WIFSIGNALED(p->p_xstat))
+			siginfo->si_status = WTERMSIG(p->p_xstat);
+		} else if (WIFSIGNALED(p->p_xstat)) {
 			siginfo->si_code = CLD_KILLED;
-		else
+			siginfo->si_status = WTERMSIG(p->p_xstat);
+		} else {
 			siginfo->si_code = CLD_EXITED;
+			siginfo->si_status = WEXITSTATUS(p->p_xstat);
+		}
 
 		siginfo->si_pid = p->p_pid;
 		siginfo->si_uid = p->p_ucred->cr_uid;
-		siginfo->si_status = p->p_xstat;
 
 		/*
 		 * The si_addr field would be useful additional
