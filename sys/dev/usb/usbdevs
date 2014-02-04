@@ -643,6 +643,7 @@ vendor ABOCOM2		0x1482	AboCom Systems
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
+vendor ATP		0x14af	ATP Electronics
 vendor CONCEPTRONIC2	0x14b2	Conceptronic
 vendor SUPERTOP		0x14cd	Super Top
 vendor PLANEX3		0x14ea	Planex Communications
@@ -1158,6 +1159,9 @@ product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
 product ATEN UC210T		0x2009	UC-210T Ethernet
 product ATEN DSB650C		0x4000	DSB-650C
+
+/* ATP Electronics products */
+product ATP EUSB		0xaf01	ATP IG eUSB SSD
 
 /* Atheros Communications products */
 product ATHEROS AR5523		0x0001	AR5523
