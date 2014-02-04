@@ -180,7 +180,7 @@ svm_cpuid_features(void)
 		"\012<b20>"
 		"\013PauseFilter"	
 		"\014<b20>"
-		"\013PauseFilterThreshold"	
+		"\015PauseFilterThreshold"	
 		);
 
 	/* SVM Lock */ 
@@ -467,17 +467,14 @@ svm_handle_io(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	return (false);
 }
 
-static void
-svm_npf_paging(uint64_t exitinfo1, int *type, int *prot)
+static int
+svm_npf_paging(uint64_t exitinfo1)
 {
 
 	if (exitinfo1 & VMCB_NPF_INFO1_W)
-		*type = VM_PROT_WRITE;
-	else
-		*type = VM_PROT_READ;
-	
-	/* XXX: protection is not used. */
-	*prot = 0;
+		return (VM_PROT_WRITE);
+
+	return (VM_PROT_READ);
 }
 
 static bool
@@ -536,7 +533,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct svm_regctx *ctx;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
-	bool update_rip, loop;
+	bool update_rip, loop, retu;
 
 	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
 
@@ -565,11 +562,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			edx = ctx->e.g.sctx_rdx;
 			
 			if (ecx == MSR_EFER) {
-				VMM_CTR0(svm_sc->vm, vcpu,"VMEXIT EFER\n");
+				VCPU_CTR0(svm_sc->vm, vcpu,"VMEXIT EFER\n");
 				svm_efer(svm_sc, vcpu, info1);
 				break;
 			}
-
+		
+			retu = false;	
 			if (info1) {
 				/* VM exited because of write MSR */
 				vmm_stat_incr(svm_sc->vm, vcpu, 
@@ -577,11 +575,14 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 				vmexit->exitcode = VM_EXITCODE_WRMSR;
 				vmexit->u.msr.code = ecx;
 				val = (uint64_t)edx << 32 | eax;
-				if (emulate_wrmsr(svm_sc->vm, vcpu, ecx, val)) {
+				if (emulate_wrmsr(svm_sc->vm, vcpu, ecx, val,
+					&retu)) {
 					vmexit->u.msr.wval = val;
 					loop = false;
-				}
-				VMM_CTR3(svm_sc->vm, vcpu,
+				} else
+					loop = retu ? false : true;
+
+				VCPU_CTR3(svm_sc->vm, vcpu,
 					"VMEXIT WRMSR(%s handling) 0x%lx @0x%x",
 					loop ? "kernel" : "user", val, ecx);
 			} else {
@@ -589,10 +590,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 					VMEXIT_RDMSR, 1);
 				vmexit->exitcode = VM_EXITCODE_RDMSR;
 				vmexit->u.msr.code = ecx;
-				if (emulate_rdmsr(svm_sc->vm, vcpu, ecx)) {
+				if (emulate_rdmsr(svm_sc->vm, vcpu, ecx, 
+					&retu)) {
 					loop = false; 
-				}
-				VMM_CTR3(svm_sc->vm, vcpu, "SVM:VMEXIT RDMSR"
+				} else
+					loop = retu ? false : true;
+				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:VMEXIT RDMSR"
 					" MSB=0x%08x, LSB=%08x @0x%x", 
 					ctx->e.g.sctx_rdx, state->rax, ecx);
 			}
@@ -615,7 +618,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			 * interrupt, local APIC will inject event in guest.
 			 */
 			update_rip = false;
-			VMM_CTR1(svm_sc->vm, vcpu, "SVM:VMEXIT ExtInt"
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:VMEXIT ExtInt"
 				" RIP:0x%lx.\n", state->rip);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EXTINT, 1);
 			break;
@@ -633,7 +636,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 					(uint32_t *)&ctx->sctx_rbx,
 					(uint32_t *)&ctx->sctx_rcx,
 					(uint32_t *)&ctx->e.g.sctx_rdx);
-			VMM_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT CPUID\n");
+			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT CPUID\n");
 			break;
 
 		case VMCB_EXIT_HLT:
@@ -642,19 +645,20 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 				 /* Interrupt is pending, can't halt guest. */
 				vmm_stat_incr(svm_sc->vm, vcpu,
 					VMEXIT_HLT_IGNORED, 1);
-				VMM_CTR0(svm_sc->vm, vcpu, 
+				VCPU_CTR0(svm_sc->vm, vcpu, 
 					"VMEXIT halt ignored.");
 			} else {
-				VMM_CTR0(svm_sc->vm, vcpu,
+				VCPU_CTR0(svm_sc->vm, vcpu,
 					"VMEXIT halted CPU.");
 				vmexit->exitcode = VM_EXITCODE_HLT;
+				vmexit->u.hlt.rflags = state->rflags;
 				loop = false;
 
 			}
 			break;
 
 		case VMCB_EXIT_PAUSE:
-			VMM_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT pause");
+			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT pause");
 			vmexit->exitcode = VM_EXITCODE_PAUSE;
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_PAUSE, 1);
 
@@ -666,7 +670,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 
         		if (info1 & VMCB_NPF_INFO1_RSV) {
- 				VMM_CTR2(svm_sc->vm, vcpu, "SVM_ERR:NPT"
+ 				VCPU_CTR2(svm_sc->vm, vcpu, "SVM_ERR:NPT"
 					" reserved bit is set,"
 					"INFO1:0x%lx INFO2:0x%lx .\n", 
 					info1, info2);
@@ -675,15 +679,15 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 			 /* EXITINFO2 has the physical fault address (GPA). */
 			if(vm_mem_allocated(svm_sc->vm, info2)) {
- 				VMM_CTR3(svm_sc->vm, vcpu, "SVM:NPF-paging,"
+ 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF-paging,"
 					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
 				 	state->rip, info1, info2);
 				vmexit->exitcode = VM_EXITCODE_PAGING;
 				vmexit->u.paging.gpa = info2;
-				svm_npf_paging(info1, &vmexit->u.paging.fault_type,
-					&vmexit->u.paging.protection);
+				vmexit->u.paging.fault_type = 
+					svm_npf_paging(info1);
 			} else if (svm_npf_emul_fault(info1)) {
- 				VMM_CTR3(svm_sc->vm, vcpu, "SVM:NPF-inst_emul,"
+ 				VCPU_CTR3(svm_sc->vm, vcpu, "SVM:NPF-inst_emul,"
 					"RIP:0x%lx INFO1:0x%lx INFO2:0x%lx .\n",
 					state->rip, info1, info2);
 				vmexit->exitcode = VM_EXITCODE_INST_EMUL;
@@ -696,12 +700,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			break;
 
 		case VMCB_EXIT_SHUTDOWN:
-			VMM_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT shutdown.");
+			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT shutdown.");
 			loop = false;
 			break;
 
 		case VMCB_EXIT_INVALID:
-			VMM_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT INVALID.");
+			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:VMEXIT INVALID.");
 			loop = false;
 			break;
 
@@ -709,10 +713,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			 /* Return to user space. */
 			loop = false;
 			update_rip = false;
-			VMM_CTR3(svm_sc->vm, vcpu, "VMEXIT=0x%lx"
+			VCPU_CTR3(svm_sc->vm, vcpu, "VMEXIT=0x%lx"
 				" EXITINFO1: 0x%lx EXITINFO2:0x%lx\n",
 		 		ctrl->exitcode, info1, info2);
-			VMM_CTR3(svm_sc->vm, vcpu, "SVM:RIP: 0x%lx nRIP:0x%lx"
+			VCPU_CTR3(svm_sc->vm, vcpu, "SVM:RIP: 0x%lx nRIP:0x%lx"
 				" Inst decoder len:%d\n", state->rip,
 				ctrl->nrip, ctrl->inst_decode_size);
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
@@ -722,7 +726,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	vmexit->rip = state->rip;
 	if (update_rip) {
 		if (ctrl->nrip == 0) {
- 			VMM_CTR1(svm_sc->vm, vcpu, "SVM_ERR:nRIP is not set "
+ 			VCPU_CTR1(svm_sc->vm, vcpu, "SVM_ERR:nRIP is not set "
 				 "for RIP0x%lx.\n", state->rip);
 			vmexit->exitcode = VM_EXITCODE_VMX;
 		} else 
@@ -735,7 +739,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	}
 
 	if (state->rip == 0) {
-		VMM_CTR0(svm_sc->vm, vcpu, "SVM_ERR:RIP is NULL\n");
+		VCPU_CTR0(svm_sc->vm, vcpu, "SVM_ERR:RIP is NULL\n");
 		vmexit->exitcode = VM_EXITCODE_VMX;
 	}
 	
@@ -759,14 +763,14 @@ svm_inject_nmi(struct svm_softc *svm_sc, int vcpu)
 
 	 /* Inject NMI, vector number is not used.*/
 	if (vmcb_eventinject(ctrl, VM_NMI, IDT_NMI, 0, false)) {
-		VMM_CTR0(svm_sc->vm, vcpu, "SVM:NMI injection failed.\n");
+		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:NMI injection failed.\n");
 		return (EIO);
 	}
 
 	/* Acknowledge the request is accepted.*/
 	vm_nmi_clear(svm_sc->vm, vcpu);
 
-	VMM_CTR0(svm_sc->vm, vcpu, "SVM:Injected NMI.\n");
+	VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Injected NMI.\n");
 
 	return (1);
 }
@@ -788,14 +792,14 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu)
 
 	/* Can't inject multiple events at once. */
 	if (ctrl->eventinj & VMCB_EVENTINJ_VALID) {
-		VMM_CTR1(svm_sc->vm, vcpu,
+		VCPU_CTR1(svm_sc->vm, vcpu,
 			"SVM:Last event(0x%lx) is pending.\n", ctrl->eventinj);
 		return ;
 	}
 
 	/* Wait for guest to come out of interrupt shadow. */
 	if (ctrl->intr_shadow) {
-		VMM_CTR0(svm_sc->vm, vcpu, "SVM:Guest in interrupt shadow.\n");
+		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Guest in interrupt shadow.\n");
 		return;
 	}
 
@@ -811,26 +815,26 @@ svm_inj_interrupts(struct svm_softc *svm_sc, int vcpu)
 		return;
 	
 	if (vector < 32 || vector > 255) {
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM_ERR:Event injection"
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM_ERR:Event injection"
 			"invalid vector=%d.\n", vector);
 		ERR("SVM_ERR:Event injection invalid vector=%d.\n", vector);
 		return;
 	}
 
 	if ((state->rflags & PSL_I) == 0) {
-		VMM_CTR0(svm_sc->vm, vcpu, "SVM:Interrupt is disabled\n");
+		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Interrupt is disabled\n");
 		return;
 	}
 
 	if (vmcb_eventinject(ctrl, VM_HW_INTR, vector, 0, false)) {
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM:Event injection failed to"
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Event injection failed to"
 			" vector=%d.\n", vector);
 		return;
 	}	
 
 	/* Acknowledge that event is accepted.*/
 	lapic_intr_accepted(svm_sc->vm, vcpu, vector);
-	VMM_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
+	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:event injected,vector=%d.\n", vector);
 }
 
 /*
@@ -868,13 +872,13 @@ svm_handle_exitintinfo(struct svm_softc *svm_sc, int vcpu)
 	
 	if (intinfo & VMCB_EXITINTINFO_VALID) {
 		vmm_stat_incr(svm_sc->vm, vcpu, VCPU_EXITINTINFO, 1);
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM:EXITINTINFO:0x%lx is valid\n", 
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:EXITINTINFO:0x%lx is valid\n", 
 			intinfo);
 		if (vmcb_eventinject(ctrl, VMCB_EXITINTINFO_TYPE(intinfo), 
 			VMCB_EXITINTINFO_VECTOR(intinfo), 
 			VMCB_EXITINTINFO_EC(intinfo), 
 			VMCB_EXITINTINFO_EC_VALID & intinfo)) {
-			VMM_CTR1(svm_sc->vm, vcpu, "SVM:couldn't inject pending"
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:couldn't inject pending"
 				" interrupt, exitintinfo:0x%lx\n", intinfo);
 		}
 	}
@@ -942,7 +946,7 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	}
 
 	vcpustate->lastcpu = curcpu;
-	VMM_CTR3(svm_sc->vm, vcpu, "SVM:Enter vmrun old RIP:0x%lx"
+	VCPU_CTR3(svm_sc->vm, vcpu, "SVM:Enter vmrun old RIP:0x%lx"
 		" new RIP:0x%lx inst len=%d\n",
 		state->rip, rip, vmexit->inst_length);
 	/* Update Guest RIP */
@@ -954,14 +958,12 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		if (curthread->td_flags & (TDF_ASTPENDING | TDF_NEEDRESCHED)) {
 			vmexit->exitcode = VM_EXITCODE_BOGUS;
 			vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_ASTPENDING, 1);
-			VMM_CTR1(svm_sc->vm, vcpu, 
+			VCPU_CTR1(svm_sc->vm, vcpu, 
 				"SVM: gave up CPU, RIP:0x%lx\n", state->rip);
 			vmexit->rip = state->rip;
 			break;
 		}
 
-		lapic_timer_tick(svm_sc->vm, vcpu);
-		
 		(void)svm_set_vmcb(svm_get_vmcb(svm_sc, vcpu), svm_sc->asid);
 		
 		svm_handle_exitintinfo(svm_sc, vcpu);
@@ -1032,7 +1034,7 @@ svm_vmcleanup(void *arg)
 
 	svm_sc = arg;
 	
-	VMM_CTR0(svm_sc->vm, 0, "SVM:cleanup\n");
+	VCPU_CTR0(svm_sc->vm, 0, "SVM:cleanup\n");
 
 	free(svm_sc, M_SVM);
 }
@@ -1159,7 +1161,7 @@ svm_setdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 
 	vmcb = svm_get_vmcb(svm_sc, vcpu);
 
-	VMM_CTR1(svm_sc->vm, vcpu, "SVM:set_desc: Type%d\n", type);
+	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:set_desc: Type%d\n", type);
 
 	seg = vmcb_seg(vmcb, type);
 	if (seg == NULL) {
@@ -1169,7 +1171,7 @@ svm_setdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 
 	/* Map seg_desc access to VMCB attribute format.*/
 	attrib = ((desc->access & 0xF000) >> 4) | (desc->access & 0xFF);
-	VMM_CTR3(svm_sc->vm, vcpu, "SVM:[sel %d attribute 0x%x limit:0x%x]\n",
+	VCPU_CTR3(svm_sc->vm, vcpu, "SVM:[sel %d attribute 0x%x limit:0x%x]\n",
 		type, desc->access, desc->limit);
 	seg->attrib = attrib;
 	seg->base = desc->base;
@@ -1190,7 +1192,7 @@ svm_getdesc(void *arg, int vcpu, int type, struct seg_desc *desc)
 	svm_sc = arg;
 	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
 
-	VMM_CTR1(svm_sc->vm, vcpu, "SVM:get_desc: Type%d\n", type);
+	VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_desc: Type%d\n", type);
 
 	seg = vmcb_seg(svm_get_vmcb(svm_sc, vcpu), type);
 	if (!seg) {
@@ -1217,7 +1219,7 @@ svm_inject_event(void *arg, int vcpu, int type, int vector,
 	KASSERT(vcpu < svm_sc->vcpu_cnt, ("Guest doesn't have VCPU%d", vcpu));
 
 	ctrl = svm_get_vmcb_ctrl(svm_sc, vcpu);
-	VMM_CTR3(svm_sc->vm, vcpu, "Injecting event type:0x%x vector:0x%x"
+	VCPU_CTR3(svm_sc->vm, vcpu, "Injecting event type:0x%x vector:0x%x"
 		"error:0x%x\n", type, vector, error);
 
 	return (vmcb_eventinject(ctrl, type, vector, error,
@@ -1243,7 +1245,7 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 			else
 				ctrl->ctrl1 &= ~VMCB_INTCPT_HLT;
 			ret = 0;
-			VMM_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Halt exit %s.\n",
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Halt exit %s.\n",
 				val ? "enabled": "disabled");
 			break;
 
@@ -1253,7 +1255,7 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 			else
 				ctrl->ctrl1 &= ~VMCB_INTCPT_PAUSE;
 			ret = 0;
-			VMM_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Pause exit %s.\n",
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:Pause exit %s.\n",
 				val ? "enabled": "disabled");
 			break;
 
@@ -1263,13 +1265,13 @@ svm_setcap(void *arg, int vcpu, int type, int val)
 			else
 				ctrl->exception &= ~BIT(IDT_MC);
 			ret = 0;
-			VMM_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:MC exit %s.\n",
+			VCPU_CTR1(svm_sc->vm, vcpu, "SVM:Set_gap:MC exit %s.\n",
 				val ? "enabled": "disabled"); 
 			break;
 
 		case VM_CAP_UNRESTRICTED_GUEST:
 			/* SVM doesn't need special capability for SMP.*/
-			VMM_CTR0(svm_sc->vm, vcpu, "SVM:Set_gap:Unrestricted "
+			VCPU_CTR0(svm_sc->vm, vcpu, "SVM:Set_gap:Unrestricted "
 			"always enabled.\n");
 			ret = 0;
 			break;
@@ -1295,24 +1297,24 @@ svm_getcap(void *arg, int vcpu, int type, int *retval)
 	switch (type) {
 		case VM_CAP_HALT_EXIT:
 		*retval = (ctrl->ctrl1 & VMCB_INTCPT_HLT) ? 1 : 0;
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Halt exit %s.\n",
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Halt exit %s.\n",
 			*retval ? "enabled": "disabled");
 		break;
 
 		case VM_CAP_PAUSE_EXIT:
 		*retval = (ctrl->ctrl1 & VMCB_INTCPT_PAUSE) ? 1 : 0;
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Pause exit %s.\n",
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:Pause exit %s.\n",
 			*retval ? "enabled": "disabled");
 		break;
 
 		case VM_CAP_MTRAP_EXIT:
 		*retval = (ctrl->exception & BIT(IDT_MC)) ? 1 : 0;
-		VMM_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:MC exit %s.\n",
+		VCPU_CTR1(svm_sc->vm, vcpu, "SVM:get_cap:MC exit %s.\n",
 			*retval ? "enabled": "disabled");
 		break;
 
 	case VM_CAP_UNRESTRICTED_GUEST:
-		VMM_CTR0(svm_sc->vm, vcpu, "SVM:get_cap:Unrestricted.\n");
+		VCPU_CTR0(svm_sc->vm, vcpu, "SVM:get_cap:Unrestricted.\n");
 		*retval = 1;
 		break;
 		default:
