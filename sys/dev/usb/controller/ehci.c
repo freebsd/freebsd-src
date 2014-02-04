@@ -3781,7 +3781,7 @@ ehci_get_dma_delay(struct usb_device *udev, uint32_t *pus)
 	 * Wait until the hardware has finished any possible use of
 	 * the transfer descriptor(s) and QH
 	 */
-	*pus = (188);			/* microseconds */
+	*pus = (1125);			/* microseconds */
 }
 
 static void
