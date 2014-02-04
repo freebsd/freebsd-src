@@ -38,6 +38,11 @@ extern struct console	 altera_jtag_uart_console;
 extern struct devsw	 beri_cfi_disk;
 extern struct devsw	 beri_sdcard_disk;
 
+/* devicename.c */
+int	 beri_arch_setcurrdev(struct env_var *, int, const void *);
+char	*beri_arch_fmtdev(void *);
+int	 beri_arch_getdev(void **, const char *, const char **);
+
 /* exec.c */
 extern struct file_format	beri_elf;
 

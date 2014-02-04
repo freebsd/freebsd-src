@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -33,65 +33,95 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <machine/elf.h>
+#include <bootstrap.h>
+#include <stdarg.h>
 
 #include <stand.h>
-#include <bootstrap.h>
-#include <loader.h>
-#include <mips.h>
+#include <disk.h>
 
-static int	beri_arch_autoload(void);
-static ssize_t	beri_arch_copyin(const void *src, vm_offset_t va, size_t len);
-static ssize_t	beri_arch_copyout(vm_offset_t va, void *dst, size_t len);
-static uint64_t	beri_arch_loadaddr(u_int type, void *data, uint64_t addr);
-static ssize_t	beri_arch_readin(int fd, vm_offset_t va, size_t len);
+#include <sdcard.h>
 
-struct arch_switch archsw = {
-	.arch_autoload = beri_arch_autoload,
-	.arch_getdev = beri_arch_getdev,
-	.arch_copyin = beri_arch_copyin,
-	.arch_copyout = beri_arch_copyout,
-	.arch_loadaddr = beri_arch_loadaddr,
-	.arch_readin = beri_arch_readin,
+static int	beri_disk_init(void);
+static int	beri_disk_open(struct open_file *, ...);
+static int	beri_disk_close(struct open_file *);
+static int	beri_disk_ioctl(struct open_file *, u_long, void *);
+static void	beri_disk_cleanup(void);
 
+static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t, char *,
+		    size_t *);
+static void	beri_sdcard_disk_print(int);
+
+struct devsw beri_sdcard_disk = {
+	.dv_name = "sdcard",
+	.dv_type = DEVT_DISK,
+	.dv_init = beri_disk_init,
+	.dv_strategy = beri_sdcard_disk_strategy,
+	.dv_open = beri_disk_open,
+	.dv_close = beri_disk_close,
+	.dv_ioctl = beri_disk_ioctl,
+	.dv_print = beri_sdcard_disk_print,
+ 	.dv_cleanup = beri_disk_cleanup,
 };
 
 static int
-beri_arch_autoload(void)
+beri_disk_init(void)
 {
 
 	return (0);
 }
 
-static ssize_t
-beri_arch_copyin(const void *src, vm_offset_t va, size_t len)
+static int
+beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
+    char *buf, size_t *rsizep)
 {
+	int error;
 
-	memcpy((void *)va, src, len);
-	return (len);
+	if (flag != F_READ)
+		return (EROFS);
+	error = altera_sdcard_read(buf, dblk, size >> 9);
+	if (error == 0)
+		*rsizep = size;
+	return (error);
 }
 
-static ssize_t
-beri_arch_copyout(vm_offset_t va, void *dst, size_t len)
+static int
+beri_disk_open(struct open_file *f, ...)
 {
+	va_list ap;
+	struct disk_devdesc *dev;
 
-	memcpy(dst, (void *)va, len);
-	return (len);
+	va_start(ap, f);
+	dev = va_arg(ap, struct disk_devdesc *);
+	va_end(ap);
+
+	if (dev->d_unit != 0)
+		return (EIO);
+	return (disk_open(dev, /* Media size? */ 0, 512, 0));
 }
 
-static uint64_t
-beri_arch_loadaddr(u_int type, void *data, uint64_t addr)
+static int
+beri_disk_close(struct open_file *f)
 {
-	uint64_t align;
 
-	/* Align ELF objects at page boundaries; others at cache lines. */
-	align = (type == LOAD_ELF) ? PAGE_SIZE : CACHE_LINE_SIZE;
-	return ((addr + align - 1) & ~(align - 1));
+	return (0);
 }
 
-static ssize_t
-beri_arch_readin(int fd, vm_offset_t va, size_t len)
+static int
+beri_disk_ioctl(struct open_file *f, u_long cmd, void *data)
 {
 
-	return (read(fd, (void *)va, len));
+	return (EINVAL);
+}
+
+static void
+beri_sdcard_disk_print(int verbose)
+{
+
+	printf("    sdcard0\n");
+}
+
+static void
+beri_disk_cleanup(void)
+{
+
 }

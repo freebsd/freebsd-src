@@ -34,10 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <bootstrap.h>
+#include <stdarg.h>
 
 #include <stand.h>
+#include <disk.h>
+
 #include <cfi.h>
-#include <sdcard.h>
 
 static int	beri_disk_init(void);
 static int	beri_disk_open(struct open_file *, ...);
@@ -48,9 +50,6 @@ static void	beri_disk_cleanup(void);
 static int	beri_cfi_disk_strategy(void *, int, daddr_t, size_t, char *,
 		    size_t *);
 static void	beri_cfi_disk_print(int);
-static int	beri_sdcard_disk_strategy(void *, int, daddr_t, size_t, char *,
-		    size_t *);
-static void	beri_sdcard_disk_print(int);
 
 struct devsw beri_cfi_disk = {
 	.dv_name = "cfi",
@@ -61,18 +60,6 @@ struct devsw beri_cfi_disk = {
 	.dv_close = beri_disk_close,
 	.dv_ioctl = beri_disk_ioctl,
 	.dv_print = beri_cfi_disk_print,
- 	.dv_cleanup = beri_disk_cleanup,
-};
-
-struct devsw beri_sdcard_disk = {
-	.dv_name = "sdcard",
-	.dv_type = DEVT_DISK,
-	.dv_init = beri_disk_init,
-	.dv_strategy = beri_sdcard_disk_strategy,
-	.dv_open = beri_disk_open,
-	.dv_close = beri_disk_close,
-	.dv_ioctl = beri_disk_ioctl,
-	.dv_print = beri_sdcard_disk_print,
  	.dv_cleanup = beri_disk_cleanup,
 };
 
@@ -98,23 +85,9 @@ beri_cfi_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 }
 
 static int
-beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
-    char *buf, size_t *rsizep)
-{
-	int error;
-
-	if (flag != F_READ)
-		return (EROFS);
-	error = altera_sdcard_read(buf, dblk, size >> 9);
-	if (error == 0)
-		*rsizep = size;
-	return (error);
-}
-
-static int
 beri_disk_open(struct open_file *f, ...)
 {
-	va_list *ap;
+	va_list ap;
 	struct disk_devdesc *dev;
 
 	va_start(ap, f);
@@ -123,7 +96,7 @@ beri_disk_open(struct open_file *f, ...)
 
 	if (dev->d_unit != 0)
 		return (EIO);
-	return (disk_open(dev, /* Media size? */ 0, 512, 0);
+	return (disk_open(dev, /* Media size? */ 0, 512, 0));
 }
 
 static int
@@ -145,13 +118,6 @@ beri_cfi_disk_print(int verbose)
 {
 
 	printf("    cfi0\n");
-}
-
-static void
-beri_sdcard_disk_print(int verbose)
-{
-
-	printf("    sdcard0\n");
 }
 
 static void

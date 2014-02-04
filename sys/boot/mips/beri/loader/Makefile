@@ -8,9 +8,23 @@ NEWVERSWHAT=	"BERI loader" ${MACHINE_CPUARCH}
 INSTALLFLAGS=	-b
 
 # Architecture-specific loader code
-SRCS=		start.S main.c exec.c metadata.c vers.c arch.c
-SRCS+=		beri_console.c altera_jtag_uart.c beri_disk.c cfi.c sdcard.c
-SRCS+=		devicename.c
+SRCS=		start.S						\
+		main.c						\
+		devicename.c					\
+		exec.c						\
+		metadata.c					\
+		vers.c						\
+		arch.c
+
+# libstand front-ends for shared driver code
+SRCS+=		beri_console.c					\
+		beri_disk_cfi.c					\
+		beri_disk_sdcard.c
+
+# Common code with boot2
+SRCS+=		altera_jtag_uart.c				\
+		cfi.c						\
+		sdcard.c
 
 LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes

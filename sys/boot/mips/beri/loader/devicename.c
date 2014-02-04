@@ -33,7 +33,8 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "disk.h"
 
-static int	beri_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path);
+static int	beri_arch_parsedev(struct disk_devdesc **dev,
+		    const char *devspec, const char **path);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -41,7 +42,7 @@ static int	beri_parsedev(struct disk_devdesc **dev, const char *devspec, const c
  * use that.  If not, use the default device.
  */
 int
-beri_getdev(void **vdev, const char *devspec, const char **path)
+beri_arch_getdev(void **vdev, const char *devspec, const char **path)
 {
     struct disk_devdesc **dev = (struct disk_devdesc **)vdev;
     int				rv;
@@ -54,7 +55,7 @@ beri_getdev(void **vdev, const char *devspec, const char **path)
 	(devspec[0] == '/') || 
 	(strchr(devspec, ':') == NULL)) {
 
-	if (((rv = beri_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
+	if (((rv = beri_arch_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
 	    (path != NULL))
 		*path = devspec;
 	return(rv);
@@ -63,7 +64,7 @@ beri_getdev(void **vdev, const char *devspec, const char **path)
     /*
      * Try to parse the device name off the beginning of the devspec
      */
-    return(beri_parsedev(dev, devspec, path));
+    return(beri_arch_parsedev(dev, devspec, path));
 }
 
 /*
@@ -81,7 +82,8 @@ beri_getdev(void **vdev, const char *devspec, const char **path)
  * 
  */
 static int
-beri_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path)
+beri_arch_parsedev(struct disk_devdesc **dev, const char *devspec,
+    const char **path)
 {
     struct disk_devdesc *idev;
     struct devsw	*dv;
@@ -160,7 +162,7 @@ beri_parsedev(struct disk_devdesc **dev, const char *devspec, const char **path)
 
 
 char *
-beri_fmtdev(void *vdev)
+beri_arch_fmtdev(void *vdev)
 {
     struct disk_devdesc	*dev = (struct disk_devdesc *)vdev;
     static char		buf[128];	/* XXX device length constant? */
@@ -190,12 +192,12 @@ beri_fmtdev(void *vdev)
  * Set currdev to suit the value being supplied in (value)
  */
 int
-beri_setcurrdev(struct env_var *ev, int flags, const void *value)
+beri_arch_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
     struct disk_devdesc	*ncurr;
     int			rv;
 
-    if ((rv = beri_parsedev(&ncurr, value, NULL)) != 0)
+    if ((rv = beri_arch_parsedev(&ncurr, value, NULL)) != 0)
 	return(rv);
     free(ncurr);
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);

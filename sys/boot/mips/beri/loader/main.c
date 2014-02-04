@@ -33,7 +33,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/linker.h>
+#include <sys/reboot.h>
 
+#include <machine/bootinfo.h>
 #include <machine/elf.h>
 
 #include <stand.h>
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <mips.h>
 
 static int	__elfN(exec)(struct preloaded_file *);
+static void	extract_currdev(struct bootinfo *);
 
 struct devsw *devsw[] = {
 	&beri_cfi_disk,
@@ -100,9 +103,19 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 	setheap((void *)&__heap_start, (void *)&__heap_end);
 
 	/*
-	 * Probe for a console.
+	 * Pick up console settings from boot2; probe console.
 	 */
+	if (bootinfop->bi_boot2opts & RB_MULTIPLE) {
+		if (bootinfop->bi_boot2opts & RB_SERIAL)
+			setenv("console", "comconsole vidconsole", 1);
+		else
+			setenv("console", "vidconsole comconsole", 1);
+	} else if (bootinfop->bi_boot2opts & RB_SERIAL)
+		setenv("console", "comconsole", 1);
+	else if (bootinfop->bi_boot2opts & RB_MUTE)
+		setenv("console", "nullconsole", 1);
 	cons_probe();
+	setenv("LINES", "24", 1);
 
 	/*
 	 * Initialise devices.
@@ -111,11 +124,7 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 		if ((*dp)->dv_init != NULL)
 			(*dp)->dv_init();
 	}
-
-#if 0
-	env_setenv("currdev", EV_VOLATILE, ...);
-	env_setenv("loaddev", EV_VOLATILE, ...);
-#endif
+	extract_currdev(bootinfop);
 
 	printf("\n");
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
@@ -126,6 +135,40 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 
 	interact();
 	return (0);
+}
+
+static void
+extract_currdev(struct bootinfo *bootinfop)
+{
+	const char *bootdev;
+
+	/*
+	 * Pick up boot device information from boot2.
+	 *
+	 * XXXRW: Someday: device units.
+	 */
+	switch(bootinfop->bi_boot_dev_type) {
+	case BOOTINFO_DEV_TYPE_DRAM:
+		bootdev = "dram0";
+		break;
+
+	case BOOTINFO_DEV_TYPE_CFI:
+		bootdev = "cfi0";
+		break;
+
+	case BOOTINFO_DEV_TYPE_SDCARD:
+		bootdev = "sdcard0";
+		break;
+
+	default:
+		bootdev = NULL;
+	}
+
+	if (bootdev != NULL) {
+		env_setenv("currdev", EV_VOLATILE, bootdev, NULL, env_nounset);
+		env_setenv("loaddev", EV_VOLATILE, bootdev, env_noset,
+		    env_nounset);
+	}
 }
 
 void
