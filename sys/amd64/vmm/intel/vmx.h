@@ -64,16 +64,13 @@ struct vmxctx {
 	/*
 	 * XXX todo debug registers and fpu state
 	 */
-	
+
 	int		inst_fail_status;
 
-	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
-
 	/*
-	 * The 'eptp' and the 'pmap' do not change during the lifetime of
-	 * the VM so it is safe to keep a copy in each vcpu's vmxctx.
+	 * The pmap needs to be deactivated in vmx_exit_guest()
+	 * so keep a copy of the 'pmap' in each vmxctx.
 	 */
-	vm_paddr_t	eptp;
 	struct pmap	*pmap;
 };
 
@@ -113,6 +110,7 @@ struct vmx {
 	struct vmxstate	state[VM_MAXCPU];
 	uint64_t	eptp;
 	struct vm	*vm;
+	long		eptgen[MAXCPU];		/* cached pmap->pm_eptgen */
 };
 CTASSERT((offsetof(struct vmx, vmcs) & PAGE_MASK) == 0);
 CTASSERT((offsetof(struct vmx, msr_bitmap) & PAGE_MASK) == 0);
@@ -123,7 +121,7 @@ CTASSERT((offsetof(struct vmx, pir_desc[0]) & 63) == 0);
 #define	VMX_VMRESUME_ERROR	1
 #define	VMX_VMLAUNCH_ERROR	2
 #define	VMX_INVEPT_ERROR	3
-int	vmx_enter_guest(struct vmxctx *ctx, int launched);
+int	vmx_enter_guest(struct vmxctx *ctx, struct vmx *vmx, int launched);
 void	vmx_exit_guest(void);
 void	vmx_call_isr(uintptr_t entry);
 
