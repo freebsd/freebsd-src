@@ -52,16 +52,14 @@ exec 3>&-
 
 havedump=
 for daemon in $DAEMONS; do
-	if [ "$daemon" == "dumpdev" ]; then
-		havedump=1
-		echo '# Set dumpdev to "AUTO" to enable crash dumps, "NO"' \
-		     'to disable' >> $BSDINSTALL_TMPETC/rc.conf.services
-		echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
-		continue
-	fi
+	[ "$daemon" = "dumpdev" ] && havedump=1 continue
 	echo ${daemon}_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 done
 
-if [ ! "$havedump" ]; then
+echo '# Set dumpdev to "AUTO" to enable crash dumps, "NO"' \
+     'to disable' >> $BSDINSTALL_TMPETC/rc.conf.services
+if [ "$havedump" ]; then
+	echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+else
 	echo dumpdev=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
 fi

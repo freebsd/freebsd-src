@@ -1899,7 +1899,7 @@ int
 in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 {
 	struct ifnet *ifp = ia0->ia_ifa.ifa_ifp;
-	struct in6_ifaddr *newia, *ia;
+	struct in6_ifaddr *newia;
 	struct in6_aliasreq ifra;
 	int error;
 	int trylimit = 3;	/* XXX: adhoc value */
@@ -1933,26 +1933,18 @@ in6_tmpifadd(const struct in6_ifaddr *ia0, int forcegen, int delay)
 	 * there may be a time lag between generation of the ID and generation
 	 * of the address.  So, we'll do one more sanity check.
 	 */
-	IN6_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia, &V_in6_ifaddrhead, ia_link) {
-		if (IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr,
-		    &ifra.ifra_addr.sin6_addr)) {
-			if (trylimit-- == 0) {
-				IN6_IFADDR_RUNLOCK();
-				/*
-				 * Give up.  Something strange should have
-				 * happened.
-				 */
-				nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
-				    "find a unique random IFID\n"));
-				return (EEXIST);
-			}
-			IN6_IFADDR_RUNLOCK();
+
+	if (in6_localip(&ifra.ifra_addr.sin6_addr) != 0) {
+		if (trylimit-- > 0) {
 			forcegen = 1;
 			goto again;
 		}
+
+		/* Give up.  Something strange should have happened.  */
+		nd6log((LOG_NOTICE, "in6_tmpifadd: failed to "
+		    "find a unique random IFID\n"));
+		return (EEXIST);
 	}
-	IN6_IFADDR_RUNLOCK();
 
 	/*
 	 * The Valid Lifetime is the lower of the Valid Lifetime of the
