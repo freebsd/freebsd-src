@@ -162,13 +162,13 @@ msr_num_to_idx(u_int num)
 }
 
 int
-emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val, bool *retu)
+emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 {
 	int idx;
 	uint64_t *guest_msrs;
 
 	if (lapic_msr(num))
-		return (lapic_wrmsr(vm, cpu, num, val, retu));
+		return (lapic_wrmsr(vm, cpu, num, val));
 
 	idx = msr_num_to_idx(num);
 	if (idx < 0 || invalid_msr(idx))
@@ -189,14 +189,14 @@ emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val, bool *retu)
 }
 
 int
-emulate_rdmsr(struct vm *vm, int cpu, u_int num, bool *retu)
+emulate_rdmsr(struct vm *vm, int cpu, u_int num)
 {
 	int error, idx;
 	uint32_t eax, edx;
 	uint64_t result, *guest_msrs;
 
 	if (lapic_msr(num)) {
-		error = lapic_rdmsr(vm, cpu, num, &result, retu);
+		error = lapic_rdmsr(vm, cpu, num, &result);
 		goto done;
 	}
 

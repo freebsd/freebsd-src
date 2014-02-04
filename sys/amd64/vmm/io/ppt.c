@@ -421,7 +421,7 @@ pptintr(void *arg)
 	vec = pptarg->vec;
 
 	if (ppt->vm != NULL)
-		lapic_intr_edge(ppt->vm, pptarg->vcpu, vec);
+		(void) lapic_set_intr(ppt->vm, pptarg->vcpu, vec);
 	else {
 		/*
 		 * XXX

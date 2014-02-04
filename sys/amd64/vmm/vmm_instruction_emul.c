@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/pmap.h>
 #include <machine/vmparam.h>
 #include <machine/vmm.h>
 #else	/* !_KERNEL */
