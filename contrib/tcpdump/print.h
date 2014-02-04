@@ -47,7 +47,7 @@ int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 /* XXX: should return a malloced pointer */
 struct print_info	get_print_info(int type);
 
-int	pretty_print_packet(struct print_info *print_info,
+void	pretty_print_packet(struct print_info *print_info,
 	    const struct pcap_pkthdr *h, const u_char *sp);
 
 void	ndo_default_print(netdissect_options *ndo _U_, const u_char *bp,

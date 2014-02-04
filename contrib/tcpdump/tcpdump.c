@@ -1829,7 +1829,6 @@ static void
 print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct print_info *print_info;
-	u_int hdrlen;
 
 	++packets_captured;
 
@@ -1844,65 +1843,7 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	 */
 	snapend = sp + h->caplen;
 
-	hdrlen = pretty_print_packet(print_info, h, sp);
-                
-	if (Xflag) {
-		/*
-		 * Print the raw packet data in hex and ASCII.
-		 */
-		if (Xflag > 1) {
-			/*
-			 * Include the link-layer header.
-			 */
-			hex_and_ascii_print("\n\t", sp, h->caplen);
-		} else {
-			/*
-			 * Don't include the link-layer header - and if
-			 * we have nothing past the link-layer header,
-			 * print nothing.
-			 */
-			if (h->caplen > hdrlen)
-				hex_and_ascii_print("\n\t", sp + hdrlen,
-				    h->caplen - hdrlen);
-		}
-	} else if (xflag) {
-		/*
-		 * Print the raw packet data in hex.
-		 */
-		if (xflag > 1) {
-			/*
-			 * Include the link-layer header.
-			 */
-			hex_print("\n\t", sp, h->caplen);
-		} else {
-			/*
-			 * Don't include the link-layer header - and if
-			 * we have nothing past the link-layer header,
-			 * print nothing.
-			 */
-			if (h->caplen > hdrlen)
-				hex_print("\n\t", sp + hdrlen,
-				    h->caplen - hdrlen);
-		}
-	} else if (Aflag) {
-		/*
-		 * Print the raw packet data in ASCII.
-		 */
-		if (Aflag > 1) {
-			/*
-			 * Include the link-layer header.
-			 */
-			ascii_print(sp, h->caplen);
-		} else {
-			/*
-			 * Don't include the link-layer header - and if
-			 * we have nothing past the link-layer header,
-			 * print nothing.
-			 */
-			if (h->caplen > hdrlen)
-				ascii_print(sp + hdrlen, h->caplen - hdrlen);
-		}
-	}
+	pretty_print_packet(print_info, h, sp);
 
 	putchar('\n');
 

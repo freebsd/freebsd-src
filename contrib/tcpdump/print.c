@@ -323,7 +323,7 @@ get_print_info(int type)
 	return (printinfo);
 }
 
-int
+void
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
     const u_char *sp)
 {
@@ -338,7 +338,7 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
                 hdrlen = (*print_info->p.printer)(h, sp);
         }
 
-	return (hdrlen);
+	raw_print(h, sp, hdrlen);
 }
 
 /*

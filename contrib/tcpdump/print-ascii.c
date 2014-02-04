@@ -163,6 +163,70 @@ hex_print(register const char *ident, register const u_char *cp, register u_int 
 	hex_print_with_offset(ident, cp, length, 0);
 }
 
+void
+raw_print(const struct pcap_pkthdr *h, const u_char *sp, u_int hdrlen)
+{
+
+       if (Xflag) {
+                /*
+                 * Print the raw packet data in hex and ASCII.
+                 */
+                if (Xflag > 1) {
+                        /*
+                         * Include the link-layer header.
+                         */
+                        hex_and_ascii_print("\n\t", sp, h->caplen);
+                } else {
+                        /*
+                         * Don't include the link-layer header - and if
+                         * we have nothing past the link-layer header,
+                         * print nothing.
+                         */
+                        if (h->caplen > hdrlen)
+                                hex_and_ascii_print("\n\t", sp + hdrlen,
+                                    h->caplen - hdrlen);
+                }
+        } else if (xflag) {
+                /*
+                 * Print the raw packet data in hex.
+                 */
+                if (xflag > 1) {
+                        /*
+                         * Include the link-layer header.
+                         */
+                        hex_print("\n\t", sp, h->caplen);
+                } else {
+                        /*
+                         * Don't include the link-layer header - and if
+                         * we have nothing past the link-layer header,
+                         * print nothing.
+                         */
+                        if (h->caplen > hdrlen)
+                                hex_print("\n\t", sp + hdrlen,
+                                   h->caplen - hdrlen);
+                }
+        } else if (Aflag) {
+                /*
+                 * Print the raw packet data in ASCII.
+                 */
+                if (Aflag > 1) {
+                        /*
+                         * Include the link-layer header.
+                         */
+                        ascii_print(sp, h->caplen);
+                } else {
+                        /*
+                         * Don't include the link-layer header - and if
+                         * we have nothing past the link-layer header,
+                         * print nothing.
+                         */
+                        if (h->caplen > hdrlen)
+                                ascii_print(sp + hdrlen, h->caplen -
+hdrlen);
+                }
+        }
+}
+
 #ifdef MAIN
 int
 main(int argc, char *argv[])

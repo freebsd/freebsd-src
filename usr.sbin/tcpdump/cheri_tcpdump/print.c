@@ -532,7 +532,7 @@ get_print_info(int type)
 	return printinfo;
 }
 
-int
+void
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
     const u_char *sp)
 {
@@ -562,7 +562,8 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	}
 	if (ctdc->ctdc_colorize)
 		set_color_default();
-	return (ret);
+
+	raw_print(h, sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
 }
 
 /*
