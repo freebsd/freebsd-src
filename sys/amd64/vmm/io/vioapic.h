@@ -1,5 +1,6 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2013 Tycho Nightingale <tycho.nightingale@pluribusnetworks.com>
+ * Copyright (c) 2013 Neel Natu <neel@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,40 +27,24 @@
  * $FreeBSD$
  */
 
-#ifndef _VMM_KTR_H_
-#define	_VMM_KTR_H_
+#ifndef _VIOAPIC_H_
+#define	_VIOAPIC_H_
 
-#include <sys/ktr.h>
-#include <sys/pcpu.h>
+#define	VIOAPIC_BASE	0xFEC00000
+#define	VIOAPIC_SIZE	4096
 
-#ifndef KTR_VMM
-#define	KTR_VMM	KTR_GEN
-#endif
+struct vioapic *vioapic_init(struct vm *vm);
+void	vioapic_cleanup(struct vioapic *vioapic);
 
-#define	VCPU_CTR0(vm, vcpuid, format)					\
-CTR2(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid))
+int	vioapic_assert_irq(struct vm *vm, int irq);
+int	vioapic_deassert_irq(struct vm *vm, int irq);
+int	vioapic_pulse_irq(struct vm *vm, int irq);
 
-#define	VCPU_CTR1(vm, vcpuid, format, p1)				\
-CTR3(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1))
+int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
+	    uint64_t wval, int size, void *arg);
+int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
+	    uint64_t *rval, int size, void *arg);
 
-#define	VCPU_CTR2(vm, vcpuid, format, p1, p2)				\
-CTR4(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1), (p2))
-
-#define	VCPU_CTR3(vm, vcpuid, format, p1, p2, p3)			\
-CTR5(KTR_VMM, "vm %s[%d]: " format, vm_name((vm)), (vcpuid), (p1), (p2), (p3))
-
-#define	VM_CTR0(vm, format)						\
-CTR1(KTR_VMM, "vm %s: " format, vm_name((vm)))
-
-#define	VM_CTR1(vm, format, p1)						\
-CTR2(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1))
-
-#define	VM_CTR2(vm, format, p1, p2)					\
-CTR3(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2))
-
-#define	VM_CTR3(vm, format, p1, p2, p3)					\
-CTR4(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3))
-
-#define	VM_CTR4(vm, format, p1, p2, p3, p4)				\
-CTR5(KTR_VMM, "vm %s: " format, vm_name((vm)), (p1), (p2), (p3), (p4))
+int	vioapic_pincount(struct vm *vm);
+void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
 #endif
