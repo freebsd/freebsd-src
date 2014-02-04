@@ -816,6 +816,8 @@ uhso_probe_iface_auto(struct usb_device *udev, int index)
 		    UHSO_PORT_SERIAL | UHSO_PORT_NETWORK, port));
 	case UHSO_PORT_TYPE_DIAG:
 	case UHSO_PORT_TYPE_DIAG2:
+	case UHSO_PORT_TYPE_GPS:
+	case UHSO_PORT_TYPE_GPSCTL:
 	case UHSO_PORT_TYPE_CTL:
 	case UHSO_PORT_TYPE_APP:
 	case UHSO_PORT_TYPE_APP2:
