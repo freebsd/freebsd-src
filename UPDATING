@@ -16,8 +16,8 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 head, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
-NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
-	FreeBSD 10.x has many debugging features turned on, in both the kernel
+NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
+	FreeBSD 11.x has many debugging features turned on, in both the kernel
 	and userland.  These features attempt to detect incorrect use of
 	system primitives, and encourage loud failure through extra sanity
 	checking and fail stop semantics.  They also substantially impact
@@ -31,11 +31,57 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20131108:
+	The WITHOUT_ATF build knob has been removed and its functionality
+	has been subsumed into the more generic WITHOUT_TESTS.  If you were
+	using the former to disable the build of the ATF libraries, you
+	should change your settings to use the latter.
+
+20131025:
+	The default version of mtree is nmtree which is obtained from
+	NetBSD.  The output is generally the same, but may vary
+	slightly.  If you found you need identical output adding
+	"-F freebsd9" to the command line should do the trick.  For the
+	time being, the old mtree is available as fmtree.
+
+20131014:
+	libbsdyml has been renamed to libyaml and moved to /usr/lib/private.
+	This will break ports-mgmt/pkg. Rebuild the port, or upgrade to pkg
+	1.1.4_8 and verify bsdyml not linked in, before running "make
+	delete-old-libs":
+	  # make -C /usr/ports/ports-mgmt/pkg build deinstall install clean
+	  or
+	  # pkg install pkg; ldd /usr/local/sbin/pkg | grep bsdyml
+
+20131010:
+	The rc.d/jail script has been updated to support jail(8)
+	configuration file.  The "jail_<jname>_*" rc.conf(5) variables
+	for per-jail configuration are automatically converted to
+	/var/run/jail.<jname>.conf before the jail(8) utility is invoked.
+	This is transparently backward compatible.  See below about some
+	incompatibilities and rc.conf(5) manual page for more details.
+
+	These variables are now deprecated in favor of jail(8) configuration
+	file.  One can use "rc.d/jail config <jname>" command to generate
+	a jail(8) configuration file in /var/run/jail.<jname>.conf without
+	running the jail(8) utility.   The default pathname of the
+	configuration file is /etc/jail.conf and can be specified by
+	using $jail_conf or $jail_<jname>_conf variables.
+
+	Please note that jail_devfs_ruleset accepts an integer at
+	this moment.  Please consider to rewrite the ruleset name
+	with an integer.
+
 20130930:
 	BIND has been removed from the base system.  If all you need
 	is a local resolver, simply enable and start the local_unbound
 	service instead.  Otherwise, several versions of BIND are
-	available in the ports tree.
+	available in the ports tree.   The dns/bind99 port is one example.
+
+	With this change, nslookup(1) and dig(1) are no longer in the base
+	system.  Users should instead use host(1) and drill(1) which are
+	in the base system.  Alternatively, nslookup and dig can
+	be obtained by installing the dns/bind-tools port.
 
 20130916:
 	With the addition of unbound(8), a new unbound user is now
@@ -72,19 +118,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	AES-NI intrinsic support has been added to gcc.  The AES-NI module
 	has been updated to use this support.  A new gcc is required to build
 	the aesni module on both i386 and amd64.
-
-20130827:
-        Thomas Dickey (vendor author thereof) reports that dialog(1) since
-        2011/10/18 has a bug in handling --hline. Testers and I noticed the
-        --hline is not ignored but displayed as a NULL string, regardless of
-        value. This will cause confusion in some bsdconfig dialogs where the
-        --hline is used to inform users which keybindings to use. This will
-        likewise affect any other persons relying on --hline. It also looks
-        rather strange seeing "[]" at the bottom of dialog(1) widgets when
-        passing --hline "anything". Thomas said he will have a look in a few
-        weeks. NOTE: The "[]" brackets appear with the left-edge where it
-        would normally appear given the width of text to display, but the
-        displayed text is not there (part of the bug).
 
 20130821:
 	The PADLOCK_RNG and RDRAND_RNG kernel options are now devices.

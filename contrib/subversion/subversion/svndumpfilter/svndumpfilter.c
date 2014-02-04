@@ -45,6 +45,7 @@
 
 #include "private/svn_mergeinfo_private.h"
 #include "private/svn_cmdline_private.h"
+#include "private/svn_subr_private.h"
 
 #ifdef _WIN32
 typedef apr_status_t (__stdcall *open_fn_t)(apr_file_t **, apr_pool_t *);
@@ -1176,7 +1177,7 @@ check_lib_versions(void)
     };
   SVN_VERSION_DEFINE(my_version);
 
-  return svn_ver_check_list(&my_version, checklist);
+  return svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
 }
 
 

@@ -362,10 +362,12 @@ void
 ignoresig(int signo)
 {
 
+	if (sigmode[signo] == 0)
+		setsignal(signo);
 	if (sigmode[signo] != S_IGN && sigmode[signo] != S_HARD_IGN) {
 		signal(signo, SIG_IGN);
+		sigmode[signo] = S_IGN;
 	}
-	sigmode[signo] = S_HARD_IGN;
 }
 
 

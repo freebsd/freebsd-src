@@ -32,5 +32,6 @@
 
 #include <atf-c/error.h>
 #include <atf-c/macros.h>
+#include <atf-c/utils.h>
 
 #endif /* !defined(ATF_C_H) */

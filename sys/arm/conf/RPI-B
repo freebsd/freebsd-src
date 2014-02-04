@@ -79,6 +79,11 @@ device		mmcsd
 device		gpio
 device		gpioled
 
+# I2C
+device		iic
+device		iicbus
+device		bcm2835_bsc
+
 options 	KDB
 options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
@@ -101,6 +106,10 @@ device		umass
 device		smcphy
 device		mii
 device		smsc
+
+# SPI
+device		spibus
+device		bcm2835_spi
 
 # Flattened Device Tree
 options         FDT

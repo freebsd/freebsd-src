@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
-
 <!--
      The FreeBSD Documentation Project
      The FreeBSD French Documentation Project
@@ -23,18 +22,17 @@
 	not be the one that received the last change in the document.)
 
 -->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; Errata</title>
 
-<article>
-  <articleinfo>
 
-<!-- XXX Change release.current to release.prev when there's -->
-<!-- XXX a release on this branch. -->
 
-    <title>&os; &release.current; Errata</title>
 
-    <corpauthor>
+    
+
+    <author><orgname>
     Le projet &os;
-    </corpauthor>
+    </orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -45,7 +43,6 @@
       <year>2003</year>
       <holder role="mailto:doc@FreeBSD.org">Projet de Documentation &os;</holder>
     </copyright>
-  </articleinfo>
 
   <abstract>
 
@@ -80,6 +77,7 @@ propre pour les nouvelles branches cr&eacute;es. (Normalement cette
 note ne devrait apparaitre sur aucune version de branches)
 </para>
   </abstract>
+  </info>
 
   <sect1>
     <title>Introduction</title>
@@ -97,8 +95,7 @@ note ne devrait apparaitre sur aucune version de branches)
     obsol&egrave;te par d&eacute;finition, mais les autres copies sont
     gard&eacute;es et mises a jour sur Internet et peuvent etre
     consult&eacute;es comment <quote>errata</quote> pour cette version
-    finale. Les autres copies de cet errata se trouvent <ulink
-    url="http://www.FreeBSD.org/releases/">ici</ulink> et sur les
+    finale. Les autres copies de cet errata se trouvent <link xlink:href="http://www.FreeBSD.org/releases/">ici</link> et sur les
     autres sites mirroirs de ce site</para>
 
 
@@ -107,18 +104,16 @@ note ne devrait apparaitre sur aucune version de branches)
     de ce document (au moment de la creation du snapshot).</para>
 
     <para>Pour une liste de tous les avis de securit&eacute; du CERT 
-    sur &os;, voyez <ulink
-    url="http://www.FreeBSD.org/security/"></ulink> ou <ulink
-    url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    sur &os;, voyez <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> ou <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
   </sect1>
 
   <sect1>
     <title>Avis de securit&eacute;</title>
-    <para></para>
+    <para/>
   </sect1>
 
   <sect1>
     <title>Information de mise a jour du syst&egrave;me</title>
-    <para></para>
+    <para/>
   </sect1>
 </article>

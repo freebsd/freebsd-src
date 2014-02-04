@@ -744,6 +744,22 @@ xen_hvm_sysinit(void *arg __unused)
 }
 
 static void
+xen_set_vcpu_id(void)
+{
+	struct pcpu *pc;
+	int i;
+
+	/* Set vcpu_id to acpi_id */
+	CPU_FOREACH(i) {
+		pc = pcpu_find(i);
+		pc->pc_vcpu_id = pc->pc_acpi_id;
+		if (bootverbose)
+			printf("XEN: CPU %u has VCPU ID %u\n",
+			       i, pc->pc_vcpu_id);
+	}
+}
+
+static void
 xen_hvm_cpu_init(void)
 {
 	struct vcpu_register_vcpu_info info;
@@ -763,7 +779,7 @@ xen_hvm_cpu_init(void)
 	}
 
 	vcpu_info = DPCPU_PTR(vcpu_local_info);
-	cpu = PCPU_GET(acpi_id);
+	cpu = PCPU_GET(vcpu_id);
 	info.mfn = vtophys(vcpu_info) >> PAGE_SHIFT;
 	info.offset = vtophys(vcpu_info) - trunc_page(vtophys(vcpu_info));
 
@@ -779,3 +795,4 @@ SYSINIT(xen_hvm_init, SI_SUB_HYPERVISOR, SI_ORDER_FIRST, xen_hvm_sysinit, NULL);
 SYSINIT(xen_setup_cpus, SI_SUB_SMP, SI_ORDER_FIRST, xen_setup_cpus, NULL);
 #endif
 SYSINIT(xen_hvm_cpu_init, SI_SUB_INTR, SI_ORDER_FIRST, xen_hvm_cpu_init, NULL);
+SYSINIT(xen_set_vcpu_id, SI_SUB_CPU, SI_ORDER_ANY, xen_set_vcpu_id, NULL);

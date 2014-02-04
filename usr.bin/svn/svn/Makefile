@@ -53,4 +53,13 @@ DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
 	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
 
+.if(defined(ORGANIZATION) && !empty(ORGANIZATION))
+DPSRCS+=	freebsd-organization.h
+CLEANFILES+=	freebsd-organization.h
+CFLAGS+=	-I. -DHAS_ORGANIZATION_NAME
+freebsd-organization.h:
+	@echo '#define ORGANIZATION_NAME ${ORGANIZATION}' \
+	    > freebsd-organization.h
+.endif
+
 .include <bsd.prog.mk>

@@ -33,13 +33,17 @@ WORKDIR=work
 
 usage()
 {
-	echo "Usage: fbsdid.sh [-w workdir]"
+	echo "Usage: fbsdid.sh [-s script] [-w workdir]"
 	exit 1
 }
 
-# Allow the user to specify an alternate work directory.
-while getopts "w:" option; do
+# Allow the user to specify an alternate work directory or script.
+COMMAND=etcupdate
+while getopts "s:w:" option; do
 	case $option in
+		s)
+			COMMAND="sh $OPTARG"
+			;;
 		w)
 			WORKDIR=$OPTARG
 			;;
@@ -191,6 +195,17 @@ EOF
 
 these are some local mods to the file
 EOF
+
+	# local-remove: A file removed locally changed it's FreeBSD ID
+	# but nothing else
+	store_id $OLD/local-remove ": head/local-remove 12000 jhb "
+	store_id $NEW/local-remove ": head/local-remove 12345 jhb "
+	for i in $OLD $NEW; do
+		cat >> $i/local-remove <<EOF
+
+this is a file
+EOF
+	done
 }
 
 # $1 - relative path to file that should be missing from TEST
@@ -267,7 +282,7 @@ fi
 
 build_trees
 
-etcupdate -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
+$COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 cat > $WORKDIR/correct.out <<EOF
   C /already
@@ -278,6 +293,7 @@ cat > $WORKDIR/correct.out <<EOF
   C /add
 Warnings:
   Modified regular file remains: /remove
+  Removed file changed: /local-remove
 EOF
 
 echo "Differences for regular:"
@@ -295,12 +311,13 @@ conflict /conflict 868452f666fea1c60ffb918ad9ad9607
 file /local "" aa33e614b5e749449f230e2a2b0072eb
 conflict /local 3df93e64043c8e348fc625b93ea220f4
 file /local-already "" 0298b958a603049f45ae6a109c4f7fea
+missing /local-remove
 
 # Now test with -F.
 
 build_trees
 
-etcupdate -rF -d $WORKDIR -D $TEST > $WORKDIR/testF.out
+$COMMAND -rF -d $WORKDIR -D $TEST > $WORKDIR/testF.out
 
 cat > $WORKDIR/correctF.out <<EOF
   D /remove
@@ -325,3 +342,38 @@ file /conflict "" dc27978df125b0daeb7d9b93265f03fd
 conflict /conflict 868452f666fea1c60ffb918ad9ad9607
 file /local "" 3ed5a35e380c8a93fb5f599d4c052713
 file /local-already "" 0298b958a603049f45ae6a109c4f7fea
+missing /local-remove
+
+# Now test with -F and -A forcing all installs.  (-A should have
+# precedence over -F)
+
+build_trees
+
+$COMMAND -A '/*' -rF -d $WORKDIR -D $TEST > $WORKDIR/testAF.out
+
+cat > $WORKDIR/correctAF.out <<EOF
+  D /remove
+  U /already
+  U /conflict
+  U /local
+  U /local-already
+  A /local-remove
+  U /old
+  U /add
+EOF
+
+echo "Differences for -A '/*' -F:"
+diff -u -L "correct" $WORKDIR/correctAF.out -L "test" $WORKDIR/testAF.out
+
+missing /remove
+file /old "" 6a9f34f109d94406a4de3bc5d72de259
+noconflict /old
+file /already "" 21f4eca3aacc702c49878c8da7afd3d0
+noconflict /already
+file /add "" 0208bd647111fedf6318511712ab9e97
+noconflict /add
+file /conflict "" 75ee141c4136beaf14e39de92efa84e4
+noconflict /conflict
+file /local "" 6a8fc5c2755b7a49015089f5e1dbe092
+file /local-already "" 49045f8b51542dd634655301cd296f66
+file /local-remove "" 5c38322efed4014797d7127f5c652d9d

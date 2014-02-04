@@ -7,8 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <errno.h>
 
 #include "GDBRemoteCommunicationServer.h"
+#include "lldb/Core/StreamGDBRemote.h"
 
 // C Includes
 // C++ Includes
@@ -20,6 +22,7 @@
 #include "lldb/Core/State.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Host/Endian.h"
+#include "lldb/Host/File.h"
 #include "lldb/Host/Host.h"
 #include "lldb/Host/TimeValue.h"
 #include "lldb/Target/Process.h"
@@ -40,10 +43,12 @@ GDBRemoteCommunicationServer::GDBRemoteCommunicationServer(bool is_platform) :
     m_async_thread (LLDB_INVALID_HOST_THREAD),
     m_process_launch_info (),
     m_process_launch_error (),
+    m_spawned_pids (),
+    m_spawned_pids_mutex (Mutex::eMutexTypeRecursive),
     m_proc_infos (),
     m_proc_infos_index (0),
-    m_lo_port_num (0),
-    m_hi_port_num (0)
+    m_port_map (),
+    m_port_offset(0)
 {
 }
 
@@ -65,7 +70,7 @@ GDBRemoteCommunicationServer::~GDBRemoteCommunicationServer()
 //        log->Printf ("ProcessGDBRemote::%s (arg = %p, pid = %i) thread starting...", __FUNCTION__, arg, process->GetID());
 //
 //    StringExtractorGDBRemote packet;
-//    
+//
 //    while ()
 //    {
 //        if (packet.
@@ -79,9 +84,9 @@ GDBRemoteCommunicationServer::~GDBRemoteCommunicationServer()
 //}
 //
 bool
-GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec, 
+GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec,
                                                         Error &error,
-                                                        bool &interrupt, 
+                                                        bool &interrupt,
                                                         bool &quit)
 {
     StringExtractorGDBRemote packet;
@@ -103,7 +108,7 @@ GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec,
                 error.SetErrorString("interrupt received");
                 interrupt = true;
                 break;
-            
+
             case StringExtractorGDBRemote::eServerPacketType_unimplemented:
                 return SendUnimplementedResponse (packet.GetStringRef().c_str()) > 0;
 
@@ -112,22 +117,25 @@ GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec,
 
             case StringExtractorGDBRemote::eServerPacketType_qfProcessInfo:
                 return Handle_qfProcessInfo (packet);
-                
+
             case StringExtractorGDBRemote::eServerPacketType_qsProcessInfo:
                 return Handle_qsProcessInfo (packet);
-                
+
             case StringExtractorGDBRemote::eServerPacketType_qC:
                 return Handle_qC (packet);
-                
+
             case StringExtractorGDBRemote::eServerPacketType_qHostInfo:
                 return Handle_qHostInfo (packet);
-                
+
             case StringExtractorGDBRemote::eServerPacketType_qLaunchGDBServer:
                 return Handle_qLaunchGDBServer (packet);
-                
+
+            case StringExtractorGDBRemote::eServerPacketType_qKillSpawnedProcess:
+                return Handle_qKillSpawnedProcess (packet);
+
             case StringExtractorGDBRemote::eServerPacketType_qLaunchSuccess:
                 return Handle_qLaunchSuccess (packet);
-                
+
             case StringExtractorGDBRemote::eServerPacketType_qGroupName:
                 return Handle_qGroupName (packet);
 
@@ -140,26 +148,74 @@ GDBRemoteCommunicationServer::GetPacketAndSendResponse (uint32_t timeout_usec,
             case StringExtractorGDBRemote::eServerPacketType_qUserName:
                 return Handle_qUserName (packet);
 
+            case StringExtractorGDBRemote::eServerPacketType_qGetWorkingDir:
+                return Handle_qGetWorkingDir(packet);
+    
             case StringExtractorGDBRemote::eServerPacketType_QEnvironment:
                 return Handle_QEnvironment (packet);
-            
+
+            case StringExtractorGDBRemote::eServerPacketType_QLaunchArch:
+                return Handle_QLaunchArch (packet);
+
             case StringExtractorGDBRemote::eServerPacketType_QSetDisableASLR:
                 return Handle_QSetDisableASLR (packet);
-            
+
             case StringExtractorGDBRemote::eServerPacketType_QSetSTDIN:
                 return Handle_QSetSTDIN (packet);
-            
+
             case StringExtractorGDBRemote::eServerPacketType_QSetSTDOUT:
                 return Handle_QSetSTDOUT (packet);
-            
+
             case StringExtractorGDBRemote::eServerPacketType_QSetSTDERR:
                 return Handle_QSetSTDERR (packet);
-            
+
             case StringExtractorGDBRemote::eServerPacketType_QSetWorkingDir:
                 return Handle_QSetWorkingDir (packet);
 
             case StringExtractorGDBRemote::eServerPacketType_QStartNoAckMode:
                 return Handle_QStartNoAckMode (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_qPlatform_mkdir:
+                return Handle_qPlatform_mkdir (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_qPlatform_chmod:
+                return Handle_qPlatform_chmod (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_qPlatform_shell:
+                return Handle_qPlatform_shell (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_open:
+                return Handle_vFile_Open (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_close:
+                return Handle_vFile_Close (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_pread:
+                return Handle_vFile_pRead (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_pwrite:
+                return Handle_vFile_pWrite (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_size:
+                return Handle_vFile_Size (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_mode:
+                return Handle_vFile_Mode (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_exists:
+                return Handle_vFile_Exists (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_stat:
+                return Handle_vFile_Stat (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_md5:
+                return Handle_vFile_MD5 (packet);
+
+            case StringExtractorGDBRemote::eServerPacketType_vFile_symlink:
+                return Handle_vFile_symlink (packet);
+                
+            case StringExtractorGDBRemote::eServerPacketType_vFile_unlink:
+                return Handle_vFile_unlink (packet);
         }
         return true;
     }
@@ -207,7 +263,7 @@ bool
 GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet)
 {
     StreamString response;
-    
+
     // $cputype:16777223;cpusubtype:3;ostype:Darwin;vendor:apple;endian:little;ptrsize:8;#00
 
     ArchSpec host_arch (Host::GetArchitecture ());
@@ -222,12 +278,12 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
         response.Printf ("cputype:%u;", cpu);
     if (sub != LLDB_INVALID_CPUTYPE)
         response.Printf ("cpusubtype:%u;", sub);
-    
+
     if (cpu == ArchSpec::kCore_arm_any)
         response.Printf("watchpoint_exceptions_received:before;");   // On armv7 we use "synchronous" watchpoints which means the exception is delivered before the instruction executes.
     else
         response.Printf("watchpoint_exceptions_received:after;");
-    
+
     switch (lldb::endian::InlHostByteOrder())
     {
     case eByteOrderBig:     response.PutCString ("endian:big;"); break;
@@ -235,7 +291,7 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
     case eByteOrderPDP:     response.PutCString ("endian:pdp;"); break;
     default:                response.PutCString ("endian:unknown;"); break;
     }
-    
+
     uint32_t major = UINT32_MAX;
     uint32_t minor = UINT32_MAX;
     uint32_t update = UINT32_MAX;
@@ -267,13 +323,34 @@ GDBRemoteCommunicationServer::Handle_qHostInfo (StringExtractorGDBRemote &packet
         response.PutCStringAsRawHex8(s.c_str());
         response.PutChar(';');
     }
+#if defined(__APPLE__)
+
+#if defined(__arm__)
+    // For iOS devices, we are connected through a USB Mux so we never pretend
+    // to actually have a hostname as far as the remote lldb that is connecting
+    // to this lldb-platform is concerned
+    response.PutCString ("hostname:");
+    response.PutCStringAsRawHex8("localhost");
+    response.PutChar(';');
+#else   // #if defined(__arm__)
     if (Host::GetHostname (s))
     {
         response.PutCString ("hostname:");
         response.PutCStringAsRawHex8(s.c_str());
         response.PutChar(';');
     }
-    
+
+#endif  // #if defined(__arm__)
+
+#else   // #if defined(__APPLE__)
+    if (Host::GetHostname (s))
+    {
+        response.PutCString ("hostname:");
+        response.PutCStringAsRawHex8(s.c_str());
+        response.PutChar(';');
+    }
+#endif  // #if defined(__APPLE__)
+
     return SendPacketNoLock (response.GetData(), response.GetSize()) > 0;
 }
 
@@ -319,7 +396,7 @@ GDBRemoteCommunicationServer::Handle_qProcessInfoPID (StringExtractorGDBRemote &
     return SendErrorResponse (1);
 }
 
-bool 
+bool
 GDBRemoteCommunicationServer::Handle_qfProcessInfo (StringExtractorGDBRemote &packet)
 {
     m_proc_infos_index = 0;
@@ -329,7 +406,7 @@ GDBRemoteCommunicationServer::Handle_qfProcessInfo (StringExtractorGDBRemote &pa
     packet.SetFilePos(::strlen ("qfProcessInfo"));
     if (packet.GetChar() == ':')
     {
-    
+
         std::string key;
         std::string value;
         while (packet.GetNameColonValue(key, value))
@@ -360,11 +437,11 @@ GDBRemoteCommunicationServer::Handle_qfProcessInfo (StringExtractorGDBRemote &pa
                 {
                     match_info.SetNameMatchType (eNameMatchContains);
                 }
-                else if (value.compare("regex") == 0)       
+                else if (value.compare("regex") == 0)
                 {
                     match_info.SetNameMatchType (eNameMatchRegularExpression);
                 }
-                else 
+                else
                 {
                     success = false;
                 }
@@ -405,7 +482,7 @@ GDBRemoteCommunicationServer::Handle_qfProcessInfo (StringExtractorGDBRemote &pa
             {
                 success = false;
             }
-            
+
             if (!success)
                 return SendErrorResponse (2);
         }
@@ -420,7 +497,7 @@ GDBRemoteCommunicationServer::Handle_qfProcessInfo (StringExtractorGDBRemote &pa
     return SendErrorResponse (3);
 }
 
-bool 
+bool
 GDBRemoteCommunicationServer::Handle_qsProcessInfo (StringExtractorGDBRemote &packet)
 {
     if (m_proc_infos_index < m_proc_infos.GetSize())
@@ -433,7 +510,7 @@ GDBRemoteCommunicationServer::Handle_qsProcessInfo (StringExtractorGDBRemote &pa
     return SendErrorResponse (4);
 }
 
-bool 
+bool
 GDBRemoteCommunicationServer::Handle_qUserName (StringExtractorGDBRemote &packet)
 {
     // Packet format: "qUserName:%i" where %i is the uid
@@ -450,10 +527,10 @@ GDBRemoteCommunicationServer::Handle_qUserName (StringExtractorGDBRemote &packet
         }
     }
     return SendErrorResponse (5);
-    
+
 }
 
-bool 
+bool
 GDBRemoteCommunicationServer::Handle_qGroupName (StringExtractorGDBRemote &packet)
 {
     // Packet format: "qGroupName:%i" where %i is the gid
@@ -539,11 +616,11 @@ AcceptPortFromInferior (void *arg)
 //    for (int i=0; i<num_retries; i++)
 //    {
 //        struct proc_bsdinfo bsd_info;
-//        int error = ::proc_pidinfo (pid, PROC_PIDTBSDINFO, 
-//                                    (uint64_t) 0, 
-//                                    &bsd_info, 
+//        int error = ::proc_pidinfo (pid, PROC_PIDTBSDINFO,
+//                                    (uint64_t) 0,
+//                                    &bsd_info,
 //                                    PROC_PIDTBSDINFO_SIZE);
-//        
+//
 //        switch (error)
 //        {
 //            case EINVAL:
@@ -551,10 +628,10 @@ AcceptPortFromInferior (void *arg)
 //            case ESRCH:
 //            case EPERM:
 //                return false;
-//                
+//
 //            default:
 //                break;
-//                
+//
 //            case 0:
 //                if (bsd_info.pbi_status == SSTOP)
 //                    return true;
@@ -567,9 +644,9 @@ AcceptPortFromInferior (void *arg)
 bool
 GDBRemoteCommunicationServer::Handle_A (StringExtractorGDBRemote &packet)
 {
-    // The 'A' packet is the most over designed packet ever here with 
-    // redundant argument indexes, redundant argument lengths and needed hex 
-    // encoded argument string values. Really all that is needed is a comma 
+    // The 'A' packet is the most over designed packet ever here with
+    // redundant argument indexes, redundant argument lengths and needed hex
+    // encoded argument string values. Really all that is needed is a comma
     // separated hex encoded argument value list, but we will stay true to the
     // documented version of the 'A' packet here...
 
@@ -615,7 +692,7 @@ GDBRemoteCommunicationServer::Handle_A (StringExtractorGDBRemote &packet)
                                 if (packet.GetChar() != ',')
                                     success = false;
                             }
-                            
+
                             if (success)
                             {
                                 if (arg_idx == 0)
@@ -649,11 +726,11 @@ GDBRemoteCommunicationServer::Handle_qC (StringExtractorGDBRemote &packet)
     response.Printf("QC%" PRIx64, pid);
     if (m_is_platform)
     {
-        // If we launch a process and this GDB server is acting as a platform, 
-        // then we need to clear the process launch state so we can start 
+        // If we launch a process and this GDB server is acting as a platform,
+        // then we need to clear the process launch state so we can start
         // launching another process. In order to launch a process a bunch or
         // packets need to be sent: environment packets, working directory,
-        // disable ASLR, and many more settings. When we launch a process we 
+        // disable ASLR, and many more settings. When we launch a process we
         // then need to know when to clear this information. Currently we are
         // selecting the 'qC' packet as that packet which seems to make the most
         // sense.
@@ -666,8 +743,31 @@ GDBRemoteCommunicationServer::Handle_qC (StringExtractorGDBRemote &packet)
 }
 
 bool
+GDBRemoteCommunicationServer::DebugserverProcessReaped (lldb::pid_t pid)
+{
+    Mutex::Locker locker (m_spawned_pids_mutex);
+    FreePortForProcess(pid);
+    return m_spawned_pids.erase(pid) > 0;
+}
+bool
+GDBRemoteCommunicationServer::ReapDebugserverProcess (void *callback_baton,
+                                                      lldb::pid_t pid,
+                                                      bool exited,
+                                                      int signal,    // Zero for no signal
+                                                      int status)    // Exit value of process if signal is zero
+{
+    GDBRemoteCommunicationServer *server = (GDBRemoteCommunicationServer *)callback_baton;
+    server->DebugserverProcessReaped (pid);
+    return true;
+}
+
+bool
 GDBRemoteCommunicationServer::Handle_qLaunchGDBServer (StringExtractorGDBRemote &packet)
 {
+#ifdef _WIN32
+    // No unix sockets on windows
+    return false;
+#else
     // Spawn a local debugserver as a platform so we can then attach or launch
     // a process...
 
@@ -677,60 +777,180 @@ GDBRemoteCommunicationServer::Handle_qLaunchGDBServer (StringExtractorGDBRemote 
         ConnectionFileDescriptor file_conn;
         char connect_url[PATH_MAX];
         Error error;
-        char unix_socket_name[PATH_MAX] = "/tmp/XXXXXX";    
-        if (::mktemp (unix_socket_name) == NULL)
+        std::string hostname;
+        // TODO: /tmp/ should not be hardcoded. User might want to override /tmp
+        // with the TMPDIR environnement variable
+        packet.SetFilePos(::strlen ("qLaunchGDBServer;"));
+        std::string name;
+        std::string value;
+        uint16_t port = UINT16_MAX;
+        while (packet.GetNameColonValue(name, value))
         {
-            error.SetErrorString ("failed to make temporary path for a unix socket");
+            if (name.compare ("host") == 0)
+                hostname.swap(value);
+            else if (name.compare ("port") == 0)
+                port = Args::StringToUInt32(value.c_str(), 0, 0);
         }
-        else
+        if (port == UINT16_MAX)
+            port = GetNextAvailablePort();
+
+        // Spawn a new thread to accept the port that gets bound after
+        // binding to port 0 (zero).
+        lldb::thread_t accept_thread = LLDB_INVALID_HOST_THREAD;
+        const char *unix_socket_name = NULL;
+        char unix_socket_name_buf[PATH_MAX] = "/tmp/XXXXXXXXX";
+
+        if (port == 0)
         {
-            ::snprintf (connect_url, sizeof(connect_url), "unix-accept://%s", unix_socket_name);
-            // Spawn a new thread to accept the port that gets bound after
-            // binding to port 0 (zero).
-            lldb::thread_t accept_thread = Host::ThreadCreate (unix_socket_name,
-                                                               AcceptPortFromInferior,
-                                                               connect_url,
-                                                               &error);
-            
-            if (IS_VALID_LLDB_HOST_THREAD(accept_thread))
+            if (::mkstemp (unix_socket_name_buf) == 0)
             {
-                // Spawn a debugserver and try to get
-                ProcessLaunchInfo debugserver_launch_info;
-                error = StartDebugserverProcess ("localhost:0", 
-                                                 unix_socket_name, 
-                                                 debugserver_launch_info);
-                
-                lldb::pid_t debugserver_pid = debugserver_launch_info.GetProcessID();
-                if (error.Success())
+                unix_socket_name = unix_socket_name_buf;
+                ::snprintf (connect_url, sizeof(connect_url), "unix-accept://%s", unix_socket_name);
+                accept_thread = Host::ThreadCreate (unix_socket_name,
+                                                    AcceptPortFromInferior,
+                                                    connect_url,
+                                                    &error);
+            }
+            else
+            {
+                error.SetErrorStringWithFormat("failed to make temporary path for a unix socket: %s", strerror(errno));
+            }
+        }
+
+        if (error.Success())
+        {
+            // Spawn a debugserver and try to get the port it listens to.
+            ProcessLaunchInfo debugserver_launch_info;
+            StreamString host_and_port;
+            if (hostname.empty())
+                hostname = "localhost";
+            host_and_port.Printf("%s:%u", hostname.c_str(), port);
+            const char *host_and_port_cstr = host_and_port.GetString().c_str();
+            Log *log(GetLogIfAnyCategoriesSet(LIBLLDB_LOG_PLATFORM));
+            if (log)
+                log->Printf("Launching debugserver with: %s...\n", host_and_port_cstr);
+
+            debugserver_launch_info.SetMonitorProcessCallback(ReapDebugserverProcess, this, false);
+            
+            error = StartDebugserverProcess (host_and_port_cstr,
+                                             unix_socket_name,
+                                             debugserver_launch_info);
+
+            lldb::pid_t debugserver_pid = debugserver_launch_info.GetProcessID();
+
+
+            if (debugserver_pid != LLDB_INVALID_PROCESS_ID)
+            {
+                Mutex::Locker locker (m_spawned_pids_mutex);
+                m_spawned_pids.insert(debugserver_pid);
+                if (port > 0)
+                    AssociatePortWithProcess(port, debugserver_pid);
+            }
+            else
+            {
+                if (port > 0)
+                    FreePort (port);
+            }
+
+            if (error.Success())
+            {
+                bool success = false;
+
+                if (IS_VALID_LLDB_HOST_THREAD(accept_thread))
                 {
-                    bool success = false;
-                    
                     thread_result_t accept_thread_result = NULL;
                     if (Host::ThreadJoin (accept_thread, &accept_thread_result, &error))
                     {
                         if (accept_thread_result)
                         {
-                            uint16_t port = (intptr_t)accept_thread_result;
+                            port = (intptr_t)accept_thread_result;
                             char response[256];
-                            const int response_len = ::snprintf (response, sizeof(response), "pid:%" PRIu64 ";port:%u;", debugserver_pid, port);
-                            assert (response_len < (int)sizeof(response));
+                            const int response_len = ::snprintf (response, sizeof(response), "pid:%" PRIu64 ";port:%u;", debugserver_pid, port + m_port_offset);
+                            assert (response_len < sizeof(response));
                             //m_port_to_pid_map[port] = debugserver_launch_info.GetProcessID();
                             success = SendPacketNoLock (response, response_len) > 0;
                         }
                     }
-                    ::unlink (unix_socket_name);
-                    
-                    if (!success)
-                    {
-                        if (debugserver_pid != LLDB_INVALID_PROCESS_ID)
-                            ::kill (debugserver_pid, SIGINT);
-                    }
-                    return success;
                 }
+                else
+                {
+                    char response[256];
+                    const int response_len = ::snprintf (response, sizeof(response), "pid:%" PRIu64 ";port:%u;", debugserver_pid, port + m_port_offset);
+                    assert (response_len < sizeof(response));
+                    //m_port_to_pid_map[port] = debugserver_launch_info.GetProcessID();
+                    success = SendPacketNoLock (response, response_len) > 0;
+
+                }
+                Host::Unlink (unix_socket_name);
+
+                if (!success)
+                {
+                    if (debugserver_pid != LLDB_INVALID_PROCESS_ID)
+                        ::kill (debugserver_pid, SIGINT);
+                }
+                return success;
+            }
+            else if (accept_thread)
+            {
+                Host::Unlink (unix_socket_name);
             }
         }
     }
-    return SendErrorResponse (13);
+    return SendErrorResponse (9);
+#endif
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_qKillSpawnedProcess (StringExtractorGDBRemote &packet)
+{
+    // Spawn a local debugserver as a platform so we can then attach or launch
+    // a process...
+
+    if (m_is_platform)
+    {
+        packet.SetFilePos(::strlen ("qKillSpawnedProcess:"));
+
+        lldb::pid_t pid = packet.GetU64(LLDB_INVALID_PROCESS_ID);
+
+        // Scope for locker
+        {
+            Mutex::Locker locker (m_spawned_pids_mutex);
+            if (m_spawned_pids.find(pid) == m_spawned_pids.end())
+                return SendErrorResponse (10);
+        }
+        Host::Kill (pid, SIGTERM);
+
+        for (size_t i=0; i<10; ++i)
+        {
+            // Scope for locker
+            {
+                Mutex::Locker locker (m_spawned_pids_mutex);
+                if (m_spawned_pids.find(pid) == m_spawned_pids.end())
+                    return SendOKResponse();
+            }
+            usleep (10000);
+        }
+
+        // Scope for locker
+        {
+            Mutex::Locker locker (m_spawned_pids_mutex);
+            if (m_spawned_pids.find(pid) == m_spawned_pids.end())
+                return SendOKResponse();
+        }
+        Host::Kill (pid, SIGKILL);
+
+        for (size_t i=0; i<10; ++i)
+        {
+            // Scope for locker
+            {
+                Mutex::Locker locker (m_spawned_pids_mutex);
+                if (m_spawned_pids.find(pid) == m_spawned_pids.end())
+                    return SendOKResponse();
+            }
+            usleep (10000);
+        }
+    }
+    return SendErrorResponse (11);
 }
 
 bool
@@ -738,7 +958,7 @@ GDBRemoteCommunicationServer::Handle_qLaunchSuccess (StringExtractorGDBRemote &p
 {
     if (m_process_launch_error.Success())
         return SendOKResponse();
-    StreamString response;    
+    StreamString response;
     response.PutChar('E');
     response.PutCString(m_process_launch_error.AsCString("<unknown error>"));
     return SendPacketNoLock (response.GetData(), response.GetSize());
@@ -754,7 +974,22 @@ GDBRemoteCommunicationServer::Handle_QEnvironment  (StringExtractorGDBRemote &pa
         m_process_launch_info.GetEnvironmentEntries ().AppendArgument (packet.Peek());
         return SendOKResponse ();
     }
-    return SendErrorResponse (9);
+    return SendErrorResponse (12);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_QLaunchArch (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen ("QLaunchArch:"));
+    const uint32_t bytes_left = packet.GetBytesLeft();
+    if (bytes_left > 0)
+    {
+        const char* arch_triple = packet.Peek();
+        ArchSpec arch_spec(arch_triple,NULL);
+        m_process_launch_info.SetArchitecture(arch_spec);
+        return SendOKResponse();
+    }
+    return SendErrorResponse(13);
 }
 
 bool
@@ -774,8 +1009,58 @@ GDBRemoteCommunicationServer::Handle_QSetWorkingDir (StringExtractorGDBRemote &p
     packet.SetFilePos(::strlen ("QSetWorkingDir:"));
     std::string path;
     packet.GetHexByteString(path);
-    m_process_launch_info.SwapWorkingDirectory (path);
+    if (m_is_platform)
+    {
+#ifdef _WIN32
+        // Not implemented on Windows
+        return SendUnimplementedResponse("GDBRemoteCommunicationServer::Handle_QSetWorkingDir unimplemented");
+#else
+        // If this packet is sent to a platform, then change the current working directory
+        if (::chdir(path.c_str()) != 0)
+            return SendErrorResponse(errno);
+#endif
+    }
+    else
+    {
+        m_process_launch_info.SwapWorkingDirectory (path);
+    }
     return SendOKResponse ();
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_qGetWorkingDir (StringExtractorGDBRemote &packet)
+{
+    StreamString response;
+
+    if (m_is_platform)
+    {
+        // If this packet is sent to a platform, then change the current working directory
+        char cwd[PATH_MAX];
+        if (getcwd(cwd, sizeof(cwd)) == NULL)
+        {
+            return SendErrorResponse(errno);
+        }
+        else
+        {
+            response.PutBytesAsRawHex8(cwd, strlen(cwd));
+            SendPacketNoLock(response.GetData(), response.GetSize());
+            return true;
+        }
+    }
+    else
+    {
+        const char *working_dir = m_process_launch_info.GetWorkingDirectory();
+        if (working_dir && working_dir[0])
+        {
+            response.PutBytesAsRawHex8(working_dir, strlen(working_dir));
+            SendPacketNoLock(response.GetData(), response.GetSize());
+            return true;
+        }
+        else
+        {
+            return SendErrorResponse(14);
+        }
+    }
 }
 
 bool
@@ -792,7 +1077,7 @@ GDBRemoteCommunicationServer::Handle_QSetSTDIN (StringExtractorGDBRemote &packet
         m_process_launch_info.AppendFileAction(file_action);
         return SendOKResponse ();
     }
-    return SendErrorResponse (10);
+    return SendErrorResponse (15);
 }
 
 bool
@@ -809,7 +1094,7 @@ GDBRemoteCommunicationServer::Handle_QSetSTDOUT (StringExtractorGDBRemote &packe
         m_process_launch_info.AppendFileAction(file_action);
         return SendOKResponse ();
     }
-    return SendErrorResponse (11);
+    return SendErrorResponse (16);
 }
 
 bool
@@ -826,7 +1111,7 @@ GDBRemoteCommunicationServer::Handle_QSetSTDERR (StringExtractorGDBRemote &packe
         m_process_launch_info.AppendFileAction(file_action);
         return SendOKResponse ();
     }
-    return SendErrorResponse (12);
+    return SendErrorResponse (17);
 }
 
 bool
@@ -837,3 +1122,337 @@ GDBRemoteCommunicationServer::Handle_QStartNoAckMode (StringExtractorGDBRemote &
     m_send_acks = false;
     return true;
 }
+
+bool
+GDBRemoteCommunicationServer::Handle_qPlatform_mkdir (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("qPlatform_mkdir:"));
+    mode_t mode = packet.GetHexMaxU32(false, UINT32_MAX);
+    if (packet.GetChar() == ',')
+    {
+        std::string path;
+        packet.GetHexByteString(path);
+        Error error = Host::MakeDirectory(path.c_str(),mode);
+        if (error.Success())
+            return SendPacketNoLock ("OK", 2);
+        else
+            return SendErrorResponse(error.GetError());
+    }
+    return SendErrorResponse(20);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_qPlatform_chmod (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("qPlatform_chmod:"));
+    
+    mode_t mode = packet.GetHexMaxU32(false, UINT32_MAX);
+    if (packet.GetChar() == ',')
+    {
+        std::string path;
+        packet.GetHexByteString(path);
+        Error error = Host::SetFilePermissions (path.c_str(), mode);
+        if (error.Success())
+            return SendPacketNoLock ("OK", 2);
+        else
+            return SendErrorResponse(error.GetError());
+    }
+    return SendErrorResponse(19);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Open (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:open:"));
+    std::string path;
+    packet.GetHexByteStringTerminatedBy(path,',');
+    if (!path.empty())
+    {
+        if (packet.GetChar() == ',')
+        {
+            uint32_t flags = packet.GetHexMaxU32(false, 0);
+            if (packet.GetChar() == ',')
+            {
+                mode_t mode = packet.GetHexMaxU32(false, 0600);
+                Error error;
+                int fd = ::open (path.c_str(), flags, mode);
+                printf ("open('%s', flags=0x%x, mode=%o) fd = %i (%s)\n", path.c_str(), flags, mode, fd, fd == -1 ? strerror(errno) : "<success>");
+                const int save_errno = fd == -1 ? errno : 0;
+                StreamString response;
+                response.PutChar('F');
+                response.Printf("%i", fd);
+                if (save_errno)
+                    response.Printf(",%i", save_errno);
+                return SendPacketNoLock(response.GetData(), response.GetSize());
+            }
+        }
+    }
+    return SendErrorResponse(18);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Close (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:close:"));
+    int fd = packet.GetS32(-1);
+    Error error;
+    int err = -1;
+    int save_errno = 0;
+    if (fd >= 0)
+    {
+        err = close(fd);
+        save_errno = err == -1 ? errno : 0;
+    }
+    else
+    {
+        save_errno = EINVAL;
+    }
+    StreamString response;
+    response.PutChar('F');
+    response.Printf("%i", err);
+    if (save_errno)
+        response.Printf(",%i", save_errno);
+    return SendPacketNoLock(response.GetData(), response.GetSize());
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_pRead (StringExtractorGDBRemote &packet)
+{
+#ifdef _WIN32
+    // Not implemented on Windows
+    return SendUnimplementedResponse("GDBRemoteCommunicationServer::Handle_vFile_pRead() unimplemented");
+#else
+    StreamGDBRemote response;
+    packet.SetFilePos(::strlen("vFile:pread:"));
+    int fd = packet.GetS32(-1);
+    if (packet.GetChar() == ',')
+    {
+        uint64_t count = packet.GetU64(UINT64_MAX);
+        if (packet.GetChar() == ',')
+        {
+            uint64_t offset = packet.GetU64(UINT32_MAX);
+            if (count == UINT64_MAX)
+            {
+                response.Printf("F-1:%i", EINVAL);
+                return SendPacketNoLock(response.GetData(), response.GetSize());
+            }
+            
+            std::string buffer(count, 0);
+            const ssize_t bytes_read = ::pread (fd, &buffer[0], buffer.size(), offset);
+            const int save_errno = bytes_read == -1 ? errno : 0;
+            response.PutChar('F');
+            response.Printf("%zi", bytes_read);
+            if (save_errno)
+                response.Printf(",%i", save_errno);
+            else
+            {
+                response.PutChar(';');
+                response.PutEscapedBytes(&buffer[0], bytes_read);
+            }
+            return SendPacketNoLock(response.GetData(), response.GetSize());
+        }
+    }
+    return SendErrorResponse(21);
+
+#endif
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_pWrite (StringExtractorGDBRemote &packet)
+{
+#ifdef _WIN32
+    return SendUnimplementedResponse("GDBRemoteCommunicationServer::Handle_vFile_pWrite() unimplemented");
+#else
+    packet.SetFilePos(::strlen("vFile:pwrite:"));
+
+    StreamGDBRemote response;
+    response.PutChar('F');
+
+    int fd = packet.GetU32(UINT32_MAX);
+    if (packet.GetChar() == ',')
+    {
+        off_t offset = packet.GetU64(UINT32_MAX);
+        if (packet.GetChar() == ',')
+        {
+            std::string buffer;
+            if (packet.GetEscapedBinaryData(buffer))
+            {
+                const ssize_t bytes_written = ::pwrite (fd, buffer.data(), buffer.size(), offset);
+                const int save_errno = bytes_written == -1 ? errno : 0;
+                response.Printf("%zi", bytes_written);
+                if (save_errno)
+                    response.Printf(",%i", save_errno);
+            }
+            else
+            {
+                response.Printf ("-1,%i", EINVAL);
+            }
+            return SendPacketNoLock(response.GetData(), response.GetSize());
+        }
+    }
+    return SendErrorResponse(27);
+#endif
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Size (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:size:"));
+    std::string path;
+    packet.GetHexByteString(path);
+    if (!path.empty())
+    {
+        lldb::user_id_t retcode = Host::GetFileSize(FileSpec(path.c_str(), false));
+        StreamString response;
+        response.PutChar('F');
+        response.PutHex64(retcode);
+        if (retcode == UINT64_MAX)
+        {
+            response.PutChar(',');
+            response.PutHex64(retcode); // TODO: replace with Host::GetSyswideErrorCode()
+        }
+        return SendPacketNoLock(response.GetData(), response.GetSize());
+    }
+    return SendErrorResponse(22);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Mode (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:mode:"));
+    std::string path;
+    packet.GetHexByteString(path);
+    if (!path.empty())
+    {
+        Error error;
+        const uint32_t mode = File::GetPermissions(path.c_str(), error);
+        StreamString response;
+        response.Printf("F%u", mode);
+        if (mode == 0 || error.Fail())
+            response.Printf(",%i", (int)error.GetError());
+        return SendPacketNoLock(response.GetData(), response.GetSize());
+    }
+    return SendErrorResponse(23);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Exists (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:exists:"));
+    std::string path;
+    packet.GetHexByteString(path);
+    if (!path.empty())
+    {
+        bool retcode = Host::GetFileExists(FileSpec(path.c_str(), false));
+        StreamString response;
+        response.PutChar('F');
+        response.PutChar(',');
+        if (retcode)
+            response.PutChar('1');
+        else
+            response.PutChar('0');
+        return SendPacketNoLock(response.GetData(), response.GetSize());
+    }
+    return SendErrorResponse(24);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_symlink (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:symlink:"));
+    std::string dst, src;
+    packet.GetHexByteStringTerminatedBy(dst, ',');
+    packet.GetChar(); // Skip ',' char
+    packet.GetHexByteString(src);
+    Error error = Host::Symlink(src.c_str(), dst.c_str());
+    StreamString response;
+    response.Printf("F%u,%u", error.GetError(), error.GetError());
+    return SendPacketNoLock(response.GetData(), response.GetSize());
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_unlink (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:unlink:"));
+    std::string path;
+    packet.GetHexByteString(path);
+    Error error = Host::Unlink(path.c_str());
+    StreamString response;
+    response.Printf("F%u,%u", error.GetError(), error.GetError());
+    return SendPacketNoLock(response.GetData(), response.GetSize());
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_qPlatform_shell (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("qPlatform_shell:"));
+    std::string path;
+    std::string working_dir;
+    packet.GetHexByteStringTerminatedBy(path,',');
+    if (!path.empty())
+    {
+        if (packet.GetChar() == ',')
+        {
+            // FIXME: add timeout to qPlatform_shell packet
+            // uint32_t timeout = packet.GetHexMaxU32(false, 32);
+            uint32_t timeout = 10;
+            if (packet.GetChar() == ',')
+                packet.GetHexByteString(working_dir);
+            int status, signo;
+            std::string output;
+            Error err = Host::RunShellCommand(path.c_str(),
+                                              working_dir.empty() ? NULL : working_dir.c_str(),
+                                              &status, &signo, &output, timeout);
+            StreamGDBRemote response;
+            if (err.Fail())
+            {
+                response.PutCString("F,");
+                response.PutHex32(UINT32_MAX);
+            }
+            else
+            {
+                response.PutCString("F,");
+                response.PutHex32(status);
+                response.PutChar(',');
+                response.PutHex32(signo);
+                response.PutChar(',');
+                response.PutEscapedBytes(output.c_str(), output.size());
+            }
+            return SendPacketNoLock(response.GetData(), response.GetSize());
+        }
+    }
+    return SendErrorResponse(24);
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_Stat (StringExtractorGDBRemote &packet)
+{
+    return SendUnimplementedResponse("GDBRemoteCommunicationServer::Handle_vFile_Stat() unimplemented");
+}
+
+bool
+GDBRemoteCommunicationServer::Handle_vFile_MD5 (StringExtractorGDBRemote &packet)
+{
+    packet.SetFilePos(::strlen("vFile:MD5:"));
+    std::string path;
+    packet.GetHexByteString(path);
+    if (!path.empty())
+    {
+        uint64_t a,b;
+        StreamGDBRemote response;
+        if (Host::CalculateMD5(FileSpec(path.c_str(),false),a,b) == false)
+        {
+            response.PutCString("F,");
+            response.PutCString("x");
+        }
+        else
+        {
+            response.PutCString("F,");
+            response.PutHex64(a);
+            response.PutHex64(b);
+        }
+        return SendPacketNoLock(response.GetData(), response.GetSize());
+    }
+    return SendErrorResponse(25);
+}
+

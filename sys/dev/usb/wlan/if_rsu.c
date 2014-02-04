@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
@@ -102,7 +103,7 @@ static const STRUCT_USB_HOST_ID rsu_devs[] = {
 	RSU_DEV_HT(DLINK2,		RTL8192SU_2),
 	RSU_DEV_HT(EDIMAX,		RTL8192SU_1),
 	RSU_DEV_HT(EDIMAX,		RTL8192SU_2),
-	RSU_DEV_HT(EDIMAX,		RTL8192SU_3),
+	RSU_DEV_HT(EDIMAX,		EW7622UMN),
 	RSU_DEV_HT(GUILLEMOT,		HWGUN54),
 	RSU_DEV_HT(GUILLEMOT,		HWNUM300),
 	RSU_DEV_HT(HAWKING,		RTL8192SU_1),
@@ -480,8 +481,13 @@ rsu_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 	if (uvp == NULL)
 		return (NULL);
 	vap = &uvp->vap;
-	ieee80211_vap_setup(ic, vap, name, unit, opmode,
-	    flags, bssid, mac);
+
+	if (ieee80211_vap_setup(ic, vap, name, unit, opmode,
+	    flags, bssid, mac) != 0) {
+		/* out of memory */
+		free(uvp, M_80211_VAP);
+		return (NULL);
+	}
 
 	/* override state transition machine */
 	uvp->newstate = vap->iv_newstate;
@@ -1153,7 +1159,7 @@ rsu_event_survey(struct rsu_softc *sc, uint8_t *buf, int len)
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT |
 	    IEEE80211_FC0_SUBTYPE_BEACON;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
-	*(uint16_t *)wh->i_dur = 0;
+	USETW(wh->i_dur, 0);
 	IEEE80211_ADDR_COPY(wh->i_addr1, ifp->if_broadcastaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr2, bss->macaddr);
 	IEEE80211_ADDR_COPY(wh->i_addr3, bss->macaddr);

@@ -7,8 +7,7 @@
 
      Original revision: 1.7
 -->
-
-<sect1 id="intro">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="intro">
   <title>Введение</title>
 
   <para>В этом документе находится информация об аппаратной совместимости
@@ -26,7 +25,7 @@
 
   <para arch="ia64">Дополнительная информация по &os;/&arch; находится на
     странице
-    <ulink url="&url.base;/platforms/ia64/index.html">&os;/&arch; 
-    Project</ulink>.</para>
+    <link xlink:href="&url.base;/platforms/ia64/index.html">&os;/&arch; 
+    Project</link>.</para>
 
 </sect1>

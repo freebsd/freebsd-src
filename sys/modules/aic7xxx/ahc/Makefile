@@ -15,13 +15,10 @@ REG_PRINT_OPT= -p aic7xxx_reg_print.c
 .endif
 BEFORE_DEPEND = ${GENSRCS}
 
-../aicasm/aicasm: ${.CURDIR}/../../../dev/aci7xxx/aicasm/*.[chyl]
-	( cd ${.CURDIR}/../aicasm; ${MAKE} aicasm; )
-
 ${GENSRCS}:								 \
 		${.CURDIR}/../../../dev/aic7xxx/aic7xxx.{reg,seq}	 \
-		${.CURDIR}/../../../cam/scsi/scsi_message.h ../aicasm/aicasm
-	../aicasm/aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi	 \
+		${.CURDIR}/../../../cam/scsi/scsi_message.h 
+	aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi	 \
 			-I${.CURDIR}/../../../dev/aic7xxx		 \
 			-o aic7xxx_seq.h -r aic7xxx_reg.h		 \
 			${REG_PRINT_OPT}				 \

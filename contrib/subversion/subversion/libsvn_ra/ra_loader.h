@@ -45,7 +45,7 @@ typedef struct svn_ra__vtable_t {
 
   /* Return a short description of the RA implementation, as a localized
    * string. */
-  const char *(*get_description)(void);
+  const char *(*get_description)(apr_pool_t *pool);
 
   /* Return a list of actual URI schemes supported by this implementation.
    * The returned array is NULL-terminated. */

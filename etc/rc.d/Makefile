@@ -90,7 +90,6 @@ FILES=	DAEMON \
 	mroute6d \
 	mrouted \
 	msgs \
-	named \
 	natd \
 	netif \
 	netoptions \

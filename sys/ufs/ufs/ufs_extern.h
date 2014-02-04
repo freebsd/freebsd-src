@@ -98,7 +98,6 @@ void	softdep_setup_remove(struct buf *,struct inode *, struct inode *, int);
 void	softdep_setup_directory_change(struct buf *, struct inode *,
 	    struct inode *, ino_t, int);
 void	softdep_change_linkcnt(struct inode *);
-void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);
 void	softdep_setup_create(struct inode *, struct inode *);
 void	softdep_setup_dotdot_link(struct inode *, struct inode *);
@@ -107,7 +106,6 @@ void	softdep_setup_mkdir(struct inode *, struct inode *);
 void	softdep_setup_rmdir(struct inode *, struct inode *);
 void	softdep_setup_unlink(struct inode *, struct inode *);
 void	softdep_revert_create(struct inode *, struct inode *);
-void	softdep_revert_dotdot_link(struct inode *, struct inode *);
 void	softdep_revert_link(struct inode *, struct inode *);
 void	softdep_revert_mkdir(struct inode *, struct inode *);
 void	softdep_revert_rmdir(struct inode *, struct inode *);

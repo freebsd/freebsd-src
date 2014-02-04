@@ -43,11 +43,14 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <libutil.h>
+
 #include <machine/vmm.h>
 #include <machine/vmm_dev.h>
 
 #include "vmmapi.h"
 
+#define	MB	(1024 * 1024UL)
 #define	GB	(1024 * 1024 * 1024UL)
 
 struct vmctx {
@@ -121,6 +124,30 @@ vm_destroy(struct vmctx *vm)
 	DESTROY(vm->name);
 
 	free(vm);
+}
+
+int
+vm_parse_memsize(const char *optarg, size_t *ret_memsize)
+{
+	char *endptr;
+	size_t optval;
+	int error;
+
+	optval = strtoul(optarg, &endptr, 0);
+	if (*optarg != '\0' && *endptr == '\0') {
+		/*
+		 * For the sake of backward compatibility if the memory size
+		 * specified on the command line is less than a megabyte then
+		 * it is interpreted as being in units of MB.
+		 */
+		if (optval < MB)
+			optval *= MB;
+		*ret_memsize = optval;
+		error = 0;
+	} else
+		error = expand_number(optarg, ret_memsize);
+
+	return (error);
 }
 
 int
@@ -370,6 +397,39 @@ vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector)
 }
 
 int
+vm_ioapic_assert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_ASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_deassert_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_DEASSERT_IRQ, &ioapic_irq));
+}
+
+int
+vm_ioapic_pulse_irq(struct vmctx *ctx, int irq)
+{
+	struct vm_ioapic_irq ioapic_irq;
+
+	bzero(&ioapic_irq, sizeof(struct vm_ioapic_irq));
+	ioapic_irq.irq = irq;
+
+	return (ioctl(ctx->fd, VM_IOAPIC_PULSE_IRQ, &ioapic_irq));
+}
+
+int
 vm_inject_nmi(struct vmctx *ctx, int vcpu)
 {
 	struct vm_nmi vmnmi;
@@ -388,6 +448,7 @@ static struct {
 	{ "mtrap_exit",		VM_CAP_MTRAP_EXIT },
 	{ "pause_exit",		VM_CAP_PAUSE_EXIT },
 	{ "unrestricted_guest",	VM_CAP_UNRESTRICTED_GUEST },
+	{ "enable_invpcid",	VM_CAP_ENABLE_INVPCID },
 	{ 0 }
 };
 
@@ -762,5 +823,18 @@ vm_get_gpa_pmap(struct vmctx *ctx, uint64_t gpa, uint64_t *pte, int *num)
 			pte[i] = gpapte.pte[i];
 	}
 
+	return (error);
+}
+
+int
+vm_get_hpet_capabilities(struct vmctx *ctx, uint32_t *capabilities)
+{
+	int error;
+	struct vm_hpet_cap cap;
+
+	bzero(&cap, sizeof(struct vm_hpet_cap));
+	error = ioctl(ctx->fd, VM_GET_HPET_CAPABILITIES, &cap);
+	if (capabilities != NULL)
+		*capabilities = cap.capabilities;
 	return (error);
 }

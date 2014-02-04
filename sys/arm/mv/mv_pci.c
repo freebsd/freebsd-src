@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
-#define PCI_CFG_ENA		(1 << 31)
+#define PCI_CFG_ENA		(1U << 31)
 #define PCI_CFG_BUS(bus)	(((bus) & 0xff) << 16)
 #define PCI_CFG_DEV(dev)	(((dev) & 0x1f) << 11)
 #define PCI_CFG_FUN(fun)	(((fun) & 0x7) << 8)
@@ -230,7 +230,7 @@ static driver_t mv_pcib_driver = {
 
 devclass_t pcib_devclass;
 
-DRIVER_MODULE(pcib, fdtbus, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, nexus, mv_pcib_driver, pcib_devclass, 0, 0);
 
 static struct mtx pcicfg_mtx;
 

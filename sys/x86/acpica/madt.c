@@ -517,9 +517,9 @@ madt_parse_local_nmi(ACPI_MADT_LOCAL_APIC_NMI *nmi)
 		return;
 	}
 	if (nmi->Lint == 0)
-		pin = LVT_LINT0;
+		pin = APIC_LVT_LINT0;
 	else
-		pin = LVT_LINT1;
+		pin = APIC_LVT_LINT1;
 	lapic_set_lvt_mode(apic_id, pin, APIC_LVT_DM_NMI);
 	if (!(nmi->IntiFlags & ACPI_MADT_TRIGGER_CONFORMS))
 		lapic_set_lvt_triggermode(apic_id, pin,
@@ -575,4 +575,4 @@ madt_set_ids(void *dummy)
 			    la->la_acpi_id);
 	}
 }
-SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_ANY, madt_set_ids, NULL);
+SYSINIT(madt_set_ids, SI_SUB_CPU, SI_ORDER_MIDDLE, madt_set_ids, NULL);

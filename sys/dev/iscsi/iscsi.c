@@ -726,10 +726,15 @@ iscsi_error_callback(struct icl_conn *ic)
 static void
 iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 {
+	struct iscsi_session *is;
 	struct iscsi_bhs_nop_out *bhsno;
 	struct iscsi_bhs_nop_in *bhsni;
 	struct icl_pdu *request;
+	void *data = NULL;
+	size_t datasize;
+	int error;
 
+	is = PDU_SESSION(response);
 	bhsni = (struct iscsi_bhs_nop_in *)response->ip_bhs;
 
 	if (bhsni->bhsni_target_transfer_tag == 0xffffffff) {
@@ -741,22 +746,47 @@ iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 		return;
 	}
 
+	datasize = icl_pdu_data_segment_length(response);
+	if (datasize > 0) {
+		data = malloc(datasize, M_ISCSI, M_NOWAIT | M_ZERO);
+		if (data == NULL) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
+			icl_pdu_free(response);
+			iscsi_session_reconnect(is);
+			return;
+		}
+		icl_pdu_get_data(response, 0, data, datasize);
+	}
+
 	request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
 	if (request == NULL) {
+		ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+		    "reconnecting");
+		free(data, M_ISCSI);
 		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
 		return;
 	}
 	bhsno = (struct iscsi_bhs_nop_out *)request->ip_bhs;
 	bhsno->bhsno_opcode = ISCSI_BHS_OPCODE_NOP_OUT |
 	    ISCSI_BHS_OPCODE_IMMEDIATE;
 	bhsno->bhsno_flags = 0x80;
-	bhsno->bhsno_initiator_task_tag = 0xffffffff; /* XXX */
+	bhsno->bhsno_initiator_task_tag = 0xffffffff;
 	bhsno->bhsno_target_transfer_tag = bhsni->bhsni_target_transfer_tag;
-
-	request->ip_data_len = response->ip_data_len;
-	request->ip_data_mbuf = response->ip_data_mbuf;
-	response->ip_data_len = 0;
-	response->ip_data_mbuf = NULL;
+	if (datasize > 0) {
+		error = icl_pdu_append_data(request, data, datasize, M_NOWAIT);
+		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
+			free(data, M_ISCSI);
+			icl_pdu_free(request);
+			icl_pdu_free(response);
+			iscsi_session_reconnect(is);
+			return;
+		}
+		free(data, M_ISCSI);
+	}
 
 	icl_pdu_free(response);
 	iscsi_pdu_queue_locked(request);
@@ -920,40 +950,59 @@ iscsi_pdu_handle_data_in(struct icl_pdu *response)
 
 	csio = &io->io_ccb->csio;
 
-	if (ntohl(bhsdi->bhsdi_buffer_offset) + data_segment_len >
-	    csio->dxfer_len) {
+	if (io->io_received + data_segment_len > csio->dxfer_len) {
 		ISCSI_SESSION_WARN(is, "oversize data segment (%zd bytes "
-		    "at offset %d, buffer is %d)",
-		    data_segment_len, ntohl(bhsdi->bhsdi_buffer_offset),
-		    csio->dxfer_len);
+		    "at offset %zd, buffer is %d)",
+		    data_segment_len, io->io_received, csio->dxfer_len);
 		icl_pdu_free(response);
 		iscsi_session_reconnect(is);
 		return;
 	}
 
-	icl_pdu_get_data(response, 0, csio->data_ptr + ntohl(bhsdi->bhsdi_buffer_offset), data_segment_len);
+	icl_pdu_get_data(response, 0, csio->data_ptr + io->io_received, data_segment_len);
 	io->io_received += data_segment_len;
 
 	/*
 	 * XXX: Check DataSN.
 	 * XXX: Check F.
 	 */
-	if (bhsdi->bhsdi_flags & BHSDI_FLAGS_S) {
-		//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
-		if (bhsdi->bhsdi_status == 0) {
-			io->io_ccb->ccb_h.status = CAM_REQ_CMP;
-		} else {
-			if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
-				xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
-				ISCSI_SESSION_DEBUG(is, "freezing devq");
-			}
-			io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
-			csio->scsi_status = bhsdi->bhsdi_status;
-		}
-		xpt_done(io->io_ccb);
-		iscsi_outstanding_remove(is, io);
+	if ((bhsdi->bhsdi_flags & BHSDI_FLAGS_S) == 0) {
+		/*
+		 * Nothing more to do.
+		 */
+		icl_pdu_free(response);
+		return;
 	}
 
+	//ISCSI_SESSION_DEBUG(is, "got S flag; status 0x%x", bhsdi->bhsdi_status);
+	if (bhsdi->bhsdi_status == 0) {
+		io->io_ccb->ccb_h.status = CAM_REQ_CMP;
+	} else {
+		if ((io->io_ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+			xpt_freeze_devq(io->io_ccb->ccb_h.path, 1);
+			ISCSI_SESSION_DEBUG(is, "freezing devq");
+		}
+		io->io_ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR | CAM_DEV_QFRZN;
+		csio->scsi_status = bhsdi->bhsdi_status;
+	}
+
+	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
+		KASSERT(io->io_received <= csio->dxfer_len,
+		    ("io->io_received > csio->dxfer_len"));
+		if (io->io_received < csio->dxfer_len) {
+			csio->resid = ntohl(bhsdi->bhsdi_residual_count);
+			if (csio->resid != csio->dxfer_len - io->io_received) {
+				ISCSI_SESSION_WARN(is, "underflow mismatch: "
+				    "target indicates %d, we calculated %zd",
+				    csio->resid,
+				    csio->dxfer_len - io->io_received);
+			}
+			csio->resid = csio->dxfer_len - io->io_received;
+		}
+	}
+
+	xpt_done(io->io_ccb);
+	iscsi_outstanding_remove(is, io);
 	icl_pdu_free(response);
 }
 
@@ -1003,8 +1052,24 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 	 */
 
 	io->io_datasn = 0;
+
 	off = ntohl(bhsr2t->bhsr2t_buffer_offset);
+	if (off > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid offset "
+		    "%zd, buffer is is %d; reconnecting", off, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
+
 	total_len = ntohl(bhsr2t->bhsr2t_desired_data_transfer_length);
+	if (total_len == 0 || total_len > csio->dxfer_len) {
+		ISCSI_SESSION_WARN(is, "target requested invalid length "
+		    "%zd, buffer is %d; reconnecting", total_len, csio->dxfer_len);
+		icl_pdu_free(response);
+		iscsi_session_reconnect(is);
+		return;
+	}
 
 	//ISCSI_SESSION_DEBUG(is, "r2t; off %zd, len %zd", off, total_len);
 
@@ -1015,7 +1080,8 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			len = is->is_max_data_segment_length;
 
 		if (off + len > csio->dxfer_len) {
-			ISCSI_SESSION_WARN(is, "bad off %zd, len %d",
+			ISCSI_SESSION_WARN(is, "target requested invalid "
+			    "length/offset %zd, buffer is %d; reconnecting",
 			    off + len, csio->dxfer_len);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1038,8 +1104,11 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 		    bhsr2t->bhsr2t_target_transfer_tag;
 		bhsdo->bhsdo_datasn = htonl(io->io_datasn++);
 		bhsdo->bhsdo_buffer_offset = htonl(off);
-		error = icl_pdu_append_data(request, csio->data_ptr + off, len, M_NOWAIT);
+		error = icl_pdu_append_data(request, csio->data_ptr + off, len,
+		    M_NOWAIT);
 		if (error != 0) {
+			ISCSI_SESSION_WARN(is, "failed to allocate memory; "
+			    "reconnecting");
 			icl_pdu_free(request);
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1177,6 +1246,18 @@ iscsi_ioctl_daemon_handoff(struct iscsi_softc *sc,
 		ISCSI_SESSION_UNLOCK(is);
 		sx_sunlock(&sc->sc_lock);
 		return (EINVAL);
+	}
+	if (is->is_connected) {
+		/*
+		 * This might have happened because another iscsid(8)
+		 * instance handed off the connection in the meantime.
+		 * Just return.
+		 */
+		ISCSI_SESSION_WARN(is, "handoff on already connected "
+		    "session");
+		ISCSI_SESSION_UNLOCK(is);
+		sx_sunlock(&sc->sc_lock);
+		return (EBUSY);
 	}
 
 	strlcpy(is->is_target_alias, handoff->idh_target_alias,
@@ -2041,10 +2122,12 @@ iscsi_load(void)
 	sc->sc_cdev->si_drv1 = sc;
 
 	/*
-	 * XXX: For some reason this doesn't do its job; active sessions still hang out there
-	 * 	after final sync, making the reboot effectively hang.
+	 * Note that this needs to get run before dashutdown().  Otherwise,
+	 * when rebooting with iSCSI session with outstanding requests,
+	 * but disconnected, dashutdown() will hang on cam_periph_runccb().
 	 */
-	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync, iscsi_shutdown, sc, SHUTDOWN_PRI_DEFAULT);
+	sc->sc_shutdown_eh = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    iscsi_shutdown, sc, SHUTDOWN_PRI_FIRST);
 
 	return (0);
 }

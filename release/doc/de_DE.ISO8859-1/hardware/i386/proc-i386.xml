@@ -3,8 +3,7 @@
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/proc-i386.xml,v 1.13 2003/05/24 21:49:22 ue Exp $
   basiert auf: 1.11
 -->
-
-<sect1 id="proc">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="proc">
   <title>Unterst&uuml;tzte Prozessoren und Mainboards</title>
 
   <para>&os;/i386 kann auf vielen <quote>IBM PC kompatiblen</quote>
@@ -107,10 +106,8 @@
     Descriptor Table (DSDT), die vom BIOS bereitgestellt wird.  Einige
     Systemen haben fehlerhafte oder unvollst&auml;ndige DSDTs, daher
     kann ACPI auf diesen Maschinen nicht korrekt funktionieren.
-    Korrigierte DSDTs f&uuml;r einige Maschinen sind im Bereich <ulink
-    url="http://acpi.sourceforge.net/dsdt/index.php">DSDT</ulink> der
-    Webseiten des <ulink
-    url="http://acpi.sourceforge.net/">ACPI4Linux</ulink> Projekts
+    Korrigierte DSDTs f&uuml;r einige Maschinen sind im Bereich <link xlink:href="http://acpi.sourceforge.net/dsdt/index.php">DSDT</link> der
+    Webseiten des <link xlink:href="http://acpi.sourceforge.net/">ACPI4Linux</link> Projekts
     verf&uuml;gbar.  &os; kann diese DSDTs an Stelle der vom BIOS
     bereitgestellten DSDT nutzen, weitere Informationen dazu finden
     Sie in der Onlinehilfe zu &man.acpi.4;</para>

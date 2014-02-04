@@ -7,8 +7,7 @@
 
      Original revision: 1.5
 -->
-
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>Поддерживаемые системы</title>
 
   <para>NEC PC-9801/9821 series с почти всеми i386-совместимыми процессорами,

@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/malloc.h>
 
+#include <vm/vm.h>
+
+#include <machine/devmap.h>
 #include <machine/fdt.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -153,7 +156,7 @@ static struct localbus_bank localbus_banks[MV_LOCALBUS_MAX_BANKS];
 
 devclass_t localbus_devclass;
 
-DRIVER_MODULE(localbus, fdtbus, localbus_driver, localbus_devclass, 0, 0);
+DRIVER_MODULE(localbus, nexus, localbus_driver, localbus_devclass, 0, 0);
 
 static int
 fdt_localbus_reg_decode(phandle_t node, struct localbus_softc *sc,
@@ -380,7 +383,7 @@ localbus_get_devinfo(device_t bus, device_t child)
 }
 
 int
-fdt_localbus_devmap(phandle_t dt_node, struct pmap_devmap *fdt_devmap,
+fdt_localbus_devmap(phandle_t dt_node, struct arm_devmap_entry *fdt_devmap,
     int banks_max_num, int *banks_added)
 {
 	pcell_t ranges[MV_LOCALBUS_MAX_BANKS * MV_LOCALBUS_MAX_BANK_CELLS];
@@ -431,7 +434,7 @@ fdt_localbus_devmap(phandle_t dt_node, struct pmap_devmap *fdt_devmap,
 		bank = fdt_data_get((void *)rangesptr, 1);
 		rangesptr += 1;
 
-		if (bank < 0 || bank > MV_LOCALBUS_MAX_BANKS) {
+		if (bank > MV_LOCALBUS_MAX_BANKS) {
 			/* Bank out of range */
 			rangesptr += ((addr_cells - 1) + par_addr_cells +
 			    size_cells);

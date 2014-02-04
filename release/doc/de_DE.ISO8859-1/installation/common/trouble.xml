@@ -5,10 +5,10 @@
 
 	This file contains the comments of the old TROUBLE.TXT file.
 -->
-<sect1 id="trouble">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="trouble">
   <title>Erste Hilfe</title>
 
-  <sect2 id="repairing">
+  <sect2 xml:id="repairing">
     <title>Reparatur einer &os; Installation</title>
 
     <para>Bei &os; gibt es im Hauptmen&uuml; des
@@ -137,8 +137,8 @@
             konfiguriert sind und auf dem Sie &os; von der zweiten
             Platte booten wollen.  Das BIOS verwendet f&uuml;r die
             beiden Platten die Nummern 0 und 1, w&auml;hrend &os;
-            <devicename>ad0</devicename> und
-            <devicename>ad2</devicename> verwendet.</para>
+            <filename>ad0</filename> und
+            <filename>ad2</filename> verwendet.</para>
 
           <para>&os; liegt auf BIOS Platte 1, der Typ der Platte ist
             <literal>ad</literal>, und &os; vergibt die Nummer 2.  In
@@ -229,8 +229,8 @@
         <answer>
           <para>Benutzen Sie UserConfig (wie, steht in
             <filename>HARDWARE.TXT</filename>) und schalten die
-            Erkennung der Ger&auml;te <devicename>mcd0</devicename>
-            und <devicename>mcd1</devicename> ab.  Es ist immer
+            Erkennung der Ger&auml;te <filename>mcd0</filename>
+            und <filename>mcd1</filename> ab.  Es ist immer
             besser, wenn Sie nur die Treiber aktiv lassen, f&uuml;r
             die Sie auch passende Ger&auml;te haben, alle anderen
             Treiber sollten Sie aus dem Kernel entfernen oder

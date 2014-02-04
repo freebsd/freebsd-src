@@ -58,7 +58,7 @@ altera_avgen_nexus_probe(device_t dev)
 {
 
 	device_set_desc(dev, "Generic Altera Avalon device attachment");
-	return (BUS_PROBE_DEFAULT);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int

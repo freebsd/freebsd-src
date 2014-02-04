@@ -223,6 +223,13 @@ ql_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		}
 		
 		fw_dump = (qla_rd_fw_dump_t *)data;
+
+		if ((fw_dump->md_template == NULL) ||
+			(fw_dump->template_size != ha->hw.dma_buf.minidump.size)) {
+			rval = EINVAL;
+			break;
+		}
+
 		if ((rval = copyout(ha->hw.dma_buf.minidump.dma_b,
 			fw_dump->md_template, fw_dump->template_size)))
 			rval = ENXIO;

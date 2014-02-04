@@ -75,6 +75,21 @@ struct ti_sdhci_softc {
 };
 
 /*
+ * Table of supported FDT compat strings.
+ *
+ * Note that "ti,mmchs" is our own invention, and should be phased out in favor
+ * of the documented names.
+ *
+ * Note that vendor Beaglebone dtsi files use "ti,omap3-hsmmc" for the am335x.
+ */
+static struct ofw_compat_data compat_data[] = {
+	{"ti,omap3-hsmmc",	1},
+	{"ti,omap4-hsmmc",	1},
+	{"ti,mmchs",		1},
+	{NULL,		 	0},
+};
+
+/*
  * The MMCHS hardware has a few control and status registers at the beginning of
  * the device's memory map, followed by the standard sdhci register block.
  * Different SoCs have the register blocks at different offsets from the
@@ -93,6 +108,10 @@ struct ti_sdhci_softc {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define	MMCHS_SD_CAPA			0x140
+#define	  MMCHS_SD_CAPA_VS18		  (1 << 26)
+#define	  MMCHS_SD_CAPA_VS30		  (1 << 25)
+#define	  MMCHS_SD_CAPA_VS33		  (1 << 24)
 
 static inline uint32_t
 ti_mmchs_read_4(struct ti_sdhci_softc *sc, bus_size_t off)
@@ -320,6 +339,7 @@ ti_sdhci_hw_init(device_t dev)
 {
 	struct ti_sdhci_softc *sc = device_get_softc(dev);
 	clk_ident_t clk;
+	uint32_t regval;
 	unsigned long timeout;
 
 	/* Enable the controller and interface/functional clocks */
@@ -357,6 +377,21 @@ ti_sdhci_hw_init(device_t dev)
 		DELAY(100);
 	}
 
+	/*
+	 * The attach() routine has examined fdt data and set flags in
+	 * slot.host.caps to reflect what voltages we can handle.  Set those
+	 * values in the CAPA register.  The manual says that these values can
+	 * only be set once, "before initialization" whatever that means, and
+	 * that they survive a reset.  So maybe doing this will be a no-op if
+	 * u-boot has already initialized the hardware.
+	 */
+	regval = ti_mmchs_read_4(sc, MMCHS_SD_CAPA);
+	if (sc->slot.host.caps & MMC_OCR_LOW_VOLTAGE)
+		regval |= MMCHS_SD_CAPA_VS18;
+	if (sc->slot.host.caps & (MMC_OCR_290_300 | MMC_OCR_300_310))
+		regval |= MMCHS_SD_CAPA_VS30;
+	ti_mmchs_write_4(sc, MMCHS_SD_CAPA, regval);
+
 	/* Set initial host configuration (1-bit, std speed, pwr off). */
 	ti_sdhci_write_1(dev, NULL, SDHCI_HOST_CONTROL, 0);
 	ti_sdhci_write_1(dev, NULL, SDHCI_POWER_CONTROL, 0);
@@ -378,7 +413,8 @@ ti_sdhci_attach(device_t dev)
 	/*
 	 * Get the MMCHS device id from FDT.  If it's not there use the newbus
 	 * unit number (which will work as long as the devices are in order and
-	 * none are skipped in the fdt).
+	 * none are skipped in the fdt).  Note that this is a property we made
+	 * up and added in freebsd, it doesn't exist in the published bindings.
 	 */
 	node = ofw_bus_get_node(dev);
 	if ((OF_getprop(node, "mmchs-device-id", &prop, sizeof(prop))) <= 0) {
@@ -388,7 +424,23 @@ ti_sdhci_attach(device_t dev)
 	} else
 		sc->mmchs_device_id = fdt32_to_cpu(prop);
 
-	/* See if we've got a GPIO-based write detect pin. */
+	/*
+	 * The hardware can inherently do dual-voltage (1p8v, 3p0v) on the first
+	 * device, and only 1p8v on other devices unless an external transceiver
+	 * is used.  The only way we could know about a transceiver is fdt data.
+	 * Note that we have to do this before calling ti_sdhci_hw_init() so
+	 * that it can set the right values in the CAPA register, which can only
+	 * be done once and never reset.
+	 */
+	sc->slot.host.caps |= MMC_OCR_LOW_VOLTAGE;
+	if (sc->mmchs_device_id == 0 || OF_hasprop(node, "ti,dual-volt")) {
+		sc->slot.host.caps |= MMC_OCR_290_300 | MMC_OCR_300_310;
+	}
+
+	/*
+	 * See if we've got a GPIO-based write detect pin.  This is not the
+	 * standard documented property for this, we added it in freebsd.
+	 */
 	if ((OF_getprop(node, "mmchs-wp-gpio-pin", &prop, sizeof(prop))) <= 0)
 		sc->wp_gpio_pin = 0xffffffff;
 	else
@@ -406,10 +458,6 @@ ti_sdhci_attach(device_t dev)
 
 	/*
 	 * Set the offset from the device's memory start to the MMCHS registers.
-	 *
-	 * XXX A better way to handle this would be to have separate memory
-	 * resources for the sdhci registers and the mmchs registers.  That
-	 * requires changing everyone's DTS files.
 	 */
 	if (ti_chip() == CHIP_OMAP_3)
 		sc->mmchs_reg_off = OMAP3_MMCHS_REG_OFFSET;
@@ -482,14 +530,35 @@ ti_sdhci_attach(device_t dev)
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_BROKEN_DMA;
 
-	/* Set up the hardware and go. */
+	/*
+	 *  Set up the hardware and go.  Note that this sets many of the
+	 *  slot.host.* fields, so we have to do this before overriding any of
+	 *  those values based on fdt data, below.
+	 */
 	sdhci_init_slot(dev, &sc->slot, 0);
 
 	/*
-	 * The SDHCI controller doesn't realize it, but we support 8-bit even
-	 * though we're not a v3.0 controller.  Advertise the ability.
+	 * The SDHCI controller doesn't realize it, but we can support 8-bit
+	 * even though we're not a v3.0 controller.  If there's an fdt bus-width
+	 * property, honor it.
 	 */
-	sc->slot.host.caps |= MMC_CAP_8_BIT_DATA;
+	if (OF_getencprop(node, "bus-width", &prop, sizeof(prop)) > 0) {
+		sc->slot.host.caps &= ~(MMC_CAP_4_BIT_DATA | 
+		    MMC_CAP_8_BIT_DATA);
+		switch (prop) {
+		case 8:
+			sc->slot.host.caps |= MMC_CAP_8_BIT_DATA;
+			/* FALLTHROUGH */
+		case 4:
+			sc->slot.host.caps |= MMC_CAP_4_BIT_DATA;
+			break;
+		case 1:
+			break;
+		default:
+			device_printf(dev, "Bad bus-width value %u\n", prop);
+			break;
+		}
+	}
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -513,13 +582,12 @@ static int
 ti_sdhci_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible(dev, "ti,mmchs")) {
-		return (ENXIO);
+	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
+		device_set_desc(dev, "TI MMCHS (SDHCI 2.0)");
+		return (BUS_PROBE_DEFAULT);
 	}
 
-	device_set_desc(dev, "TI MMCHS (SDHCI 2.0)");
-
-	return (BUS_PROBE_DEFAULT);
+	return (ENXIO);
 }
 
 static device_method_t ti_sdhci_methods[] = {

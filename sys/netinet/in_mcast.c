@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/tree.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/route.h>
 #include <net/vnet.h>
@@ -220,6 +221,49 @@ imf_init(struct in_mfilter *imf, const int st0, const int st1)
 	RB_INIT(&imf->imf_sources);
 	imf->imf_st[0] = st0;
 	imf->imf_st[1] = st1;
+}
+
+/*
+ * Function for looking up an in_multi record for an IPv4 multicast address
+ * on a given interface. ifp must be valid. If no record found, return NULL.
+ * The IN_MULTI_LOCK and IF_ADDR_LOCK on ifp must be held.
+ */
+struct in_multi *
+inm_lookup_locked(struct ifnet *ifp, const struct in_addr ina)
+{
+	struct ifmultiaddr *ifma;
+	struct in_multi *inm;
+
+	IN_MULTI_LOCK_ASSERT();
+	IF_ADDR_LOCK_ASSERT(ifp);
+
+	inm = NULL;
+	TAILQ_FOREACH(ifma, &((ifp)->if_multiaddrs), ifma_link) {
+		if (ifma->ifma_addr->sa_family == AF_INET) {
+			inm = (struct in_multi *)ifma->ifma_protospec;
+			if (inm->inm_addr.s_addr == ina.s_addr)
+				break;
+			inm = NULL;
+		}
+	}
+	return (inm);
+}
+
+/*
+ * Wrapper for inm_lookup_locked().
+ * The IF_ADDR_LOCK will be taken on ifp and released on return.
+ */
+struct in_multi *
+inm_lookup(struct ifnet *ifp, const struct in_addr ina)
+{
+	struct in_multi *inm;
+
+	IN_MULTI_LOCK_ASSERT();
+	IF_ADDR_RLOCK(ifp);
+	inm = inm_lookup_locked(ifp, ina);
+	IF_ADDR_RUNLOCK(ifp);
+
+	return (inm);
 }
 
 /*

@@ -137,6 +137,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/reboot.h>
 
+#include <contrib/libfdt/libfdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 
@@ -192,7 +193,8 @@ extern int elf32_nxstack;
 static void
 cpu_booke_startup(void *dummy)
 {
-	int indx, size;
+	int indx;
+	unsigned long size;
 
 	/* Initialise the decrementer-based clock. */
 	decr_init();
@@ -200,7 +202,7 @@ cpu_booke_startup(void *dummy)
 	/* Good {morning,afternoon,evening,night}. */
 	cpu_setup(PCPU_GET(cpuid));
 
-	printf("real memory  = %ld (%ld MB)\n", ptoa(physmem),
+	printf("real memory  = %lu (%ld MB)\n", ptoa(physmem),
 	    ptoa(physmem) / 1048576);
 	realmem = physmem;
 
@@ -210,7 +212,7 @@ cpu_booke_startup(void *dummy)
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			size = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08x - 0x%08x, %d bytes (%ld pages)\n",
+			printf("0x%08x - 0x%08x, %lu bytes (%lu pages)\n",
 			    phys_avail[indx], phys_avail[indx + 1] - 1,
 			    size, size / PAGE_SIZE);
 		}
@@ -218,7 +220,7 @@ cpu_booke_startup(void *dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ld (%ld MB)\n", ptoa(cnt.v_free_count),
+	printf("avail memory = %lu (%ld MB)\n", ptoa(cnt.v_free_count),
 	    ptoa(cnt.v_free_count) / 1048576);
 
 	/* Set up buffers, so they can be used to read disk labels. */
@@ -275,6 +277,23 @@ print_kernel_section_addr(void)
 	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
 }
 
+static int
+booke_check_for_fdt(uint32_t arg1, vm_offset_t *dtbp)
+{
+	void *ptr;
+
+	if (arg1 % 8 != 0)
+		return (-1);
+
+	ptr = (void *)pmap_early_io_map(arg1, PAGE_SIZE);
+	if (fdt_check_header(ptr) != 0)
+		return (-1);
+
+	*dtbp = (vm_offset_t)ptr;
+
+	return (0);
+}
+
 u_int
 booke_init(uint32_t arg1, uint32_t arg2)
 {
@@ -286,6 +305,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 
 	end = (uintptr_t)_end;
 	dtbp = (vm_offset_t)NULL;
+
+	/* Set up TLB initially */
+	bootinfo = NULL;
+	tlb1_init();
 
 	/*
 	 * Handle the various ways we can get loaded and started:
@@ -301,11 +324,21 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	 *	in arg1 and arg2 (resp). arg1 is between 1 and some
 	 *	relatively small number, such as 64K. arg2 is the
 	 *	physical address of the argv vector.
+	 *  -   ePAPR loaders pass an FDT blob in r3 (arg1) and the magic hex
+	 *      string 0x45504150 ('ePAP') in r6 (which has been lost by now).
+	 *      r4 (arg2) is supposed to be set to zero, but is not always.
 	 */
-	if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
-		mdp = (void *)arg1;
-	else if (arg1 == 0)			/* Juniper loader */
+	
+	if (arg1 == 0)				/* Juniper loader */
 		mdp = (void *)arg2;
+	else if (booke_check_for_fdt(arg1, &dtbp) == 0) { /* ePAPR */
+		end = roundup(end, 8);
+		memmove((void *)end, (void *)dtbp, fdt_totalsize((void *)dtbp));
+		dtbp = end;
+		end += fdt_totalsize((void *)dtbp);
+		mdp = NULL;
+	} else if (arg1 > (uintptr_t)kernel_text)	/* FreeBSD loader */
+		mdp = (void *)arg1;
 	else					/* U-Boot */
 		mdp = NULL;
 
@@ -349,13 +382,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 
-	if (fdt_immr_addr(CCSRBAR_VA) != 0)
-		while (1);
-
 	OF_interpret("perform-fixup", 0);
 	
-	/* Set up TLB initially */
-	booke_init_tlb(fdt_immr_pa);
+	/* Reset TLB1 to get rid of temporary mappings */
+	tlb1_init();
 
 	/* Reset Time Base */
 	mttb(0);
@@ -371,6 +401,11 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pc = &__pcpu[0];
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
+#ifdef __powerpc64__
+	__asm __volatile("mr 13,%0" :: "r"(pc->pc_curthread));
+#else
+	__asm __volatile("mr 2,%0" :: "r"(pc->pc_curthread));
+#endif
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
 	/* Initialize system mutexes. */

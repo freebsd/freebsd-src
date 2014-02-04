@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
  * copy data between mbuf chains and uio lists.
  */
 
-#include "opt_kdtrace.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>

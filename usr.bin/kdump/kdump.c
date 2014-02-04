@@ -1655,10 +1655,15 @@ ktrstat(struct stat *statp)
 	 * buffer exactly sizeof(struct stat) bytes long.
 	 */
 	printf("struct stat {");
-	strmode(statp->st_mode, mode);
-	printf("dev=%ju, ino=%ju, mode=%s, nlink=%ju, ",
-		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino, mode,
-		(uintmax_t)statp->st_nlink);
+	printf("dev=%ju, ino=%ju, ",
+		(uintmax_t)statp->st_dev, (uintmax_t)statp->st_ino);
+	if (resolv == 0)
+		printf("mode=0%jo, ", (uintmax_t)statp->st_mode);
+	else {
+		strmode(statp->st_mode, mode);
+		printf("mode=%s, ", mode);
+	}
+	printf("nlink=%ju, ", (uintmax_t)statp->st_nlink);
 	if (resolv == 0 || (pwd = getpwuid(statp->st_uid)) == NULL)
 		printf("uid=%ju, ", (uintmax_t)statp->st_uid);
 	else

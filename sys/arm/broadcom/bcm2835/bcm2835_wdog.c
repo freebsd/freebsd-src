@@ -76,11 +76,10 @@ struct bcmwd_softc {
 	int			wdog_armed;
 	int			wdog_period;
 	char			wdog_passwd;
+	struct mtx		mtx;
 };
 
-#ifdef notyet
 static void bcmwd_watchdog_fn(void *private, u_int cmd, int *error);
-#endif
 
 static int
 bcmwd_probe(device_t dev)
@@ -120,19 +119,59 @@ bcmwd_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->res);
 
 	bcmwd_lsc = sc;
-#ifdef notyet
+	mtx_init(&sc->mtx, "BCM2835 Watchdog", "bcmwd", MTX_DEF);
 	EVENTHANDLER_REGISTER(watchdog_list, bcmwd_watchdog_fn, sc, 0);
-#endif
+
 	return (0);
 }
 
-#ifdef notyet
 static void
 bcmwd_watchdog_fn(void *private, u_int cmd, int *error)
 {
-	/* XXX: not yet */
+	struct bcmwd_softc *sc;
+	uint64_t sec;
+	uint32_t ticks, reg;
+
+	sc = private;
+	mtx_lock(&sc->mtx);
+
+	cmd &= WD_INTERVAL;
+
+	if (cmd > 0) {
+		sec = ((uint64_t)1 << (cmd & WD_INTERVAL)) / 1000000000;
+		ticks = (sec << 16) & BCM2835_WDOG_TIME_MASK;
+		if (ticks == 0) {
+			/* 
+			 * Can't arm
+			 * disable watchdog as watchdog(9) requires
+			 */
+			device_printf(sc->dev,
+			    "Can't arm, timeout is less than 1 second\n");
+			WRITE(sc, BCM2835_RSTC_REG, 
+			    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
+			    BCM2835_RSTC_RESET);
+			mtx_unlock(&sc->mtx);
+			return;
+		}
+
+		reg = (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) | ticks;
+		WRITE(sc, BCM2835_WDOG_REG, reg);
+
+		reg = READ(sc, BCM2835_RSTC_REG);
+		reg &= BCM2835_RSTC_WRCFG_CLR;
+		reg |= BCM2835_RSTC_WRCFG_FULL_RESET;
+		reg |= (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT);
+		WRITE(sc, BCM2835_RSTC_REG, reg);
+
+		*error = 0;
+	}
+	else
+		WRITE(sc, BCM2835_RSTC_REG, 
+		    (BCM2835_PASWORD << BCM2835_PASSWORD_SHIFT) |
+		    BCM2835_RSTC_RESET);
+
+	mtx_unlock(&sc->mtx);
 }
-#endif
 
 void
 bcmwd_watchdog_reset()

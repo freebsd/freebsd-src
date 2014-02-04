@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/fdt/fdt_common.h>
 
 #include <machine/bus.h>
-#include <machine/pmap.h>
-#include <machine/frame.h>
+#include <machine/devmap.h>
 #include <machine/machdep.h>
 
 #include <arm/xilinx/zy7_reg.h>
@@ -61,7 +60,13 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (ZYNQ7_PSIO_VBASE - ARM_NOCACHE_KVA_SIZE);
+	return (ZYNQ7_PSIO_VBASE);
+}
+
+void
+initarm_early_init(void)
+{
+
 }
 
 void
@@ -75,13 +80,13 @@ initarm_late_init(void)
 }
 
 #define FDT_DEVMAP_SIZE 3
-static struct pmap_devmap fdt_devmap[FDT_DEVMAP_SIZE];
+static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_SIZE];
 
 /*
  * Construct pmap_devmap[] with DT-derived config data.
  */
 int
-platform_devmap_init(void)
+initarm_devmap_init(void)
 {
 	int i = 0;
 
@@ -106,7 +111,7 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_prot = 0;
 	fdt_devmap[i].pd_cache = 0;
 
-	pmap_devmap_bootstrap_table = &fdt_devmap[0];
+	arm_devmap_register_table(&fdt_devmap[0]);
 	return (0);
 }
 

@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build any test programs nor install them in /usr/tests.

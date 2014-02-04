@@ -1170,9 +1170,9 @@ g_eli_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	if (pp != NULL || cp != NULL)
 		return;	/* Nothing here. */
 
-	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>", indent,
+	sbuf_printf(sb, "%s<KeysTotal>%ju</KeysTotal>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_total);
-	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>", indent,
+	sbuf_printf(sb, "%s<KeysAllocated>%ju</KeysAllocated>\n", indent,
 	    (uintmax_t)sc->sc_ekeys_allocated);
 	sbuf_printf(sb, "%s<Flags>", indent);
 	if (sc->sc_flags == 0)

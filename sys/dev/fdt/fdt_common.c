@@ -63,6 +63,8 @@ vm_paddr_t fdt_immr_pa;
 vm_offset_t fdt_immr_va;
 vm_offset_t fdt_immr_size;
 
+struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
+
 int
 fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 {
@@ -476,21 +478,31 @@ fdt_intr_decode(phandle_t intr_parent, pcell_t *intr, int *interrupt,
     int *trig, int *pol)
 {
 	fdt_pic_decode_t intr_decode;
+	phandle_t intr_offset;
 	int i, rv;
+
+	intr_offset = OF_xref_phandle(intr_parent);
 
 	for (i = 0; fdt_pic_table[i] != NULL; i++) {
 
 		/* XXX check if pic_handle has interrupt-controller prop? */
 
 		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_parent, intr, interrupt, trig, pol);
+		rv = intr_decode(intr_offset, intr, interrupt, trig, pol);
 
-		if (rv == 0)
+		if (rv == 0) {
 			/* This was recognized as our PIC and decoded. */
+			*interrupt = FDT_MAP_IRQ(intr_parent, *interrupt);
 			return (0);
+		}
 	}
 
-	return (ENXIO);
+	/* Not in table, so guess */
+	*interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(*intr));
+	*trig = INTR_TRIGGER_CONFORM;
+	*pol = INTR_POLARITY_CONFORM;
+
+	return (0);
 }
 
 int
@@ -498,11 +510,11 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
     struct fdt_sense_level *intr_sl)
 {
 	phandle_t intr_par;
-	ihandle_t iph;
+	phandle_t iph;
 	pcell_t *intr;
 	pcell_t intr_cells;
 	int interrupt, trig, pol;
-	int i, intr_num, irq, rv;
+	int i, intr_num, rv;
 
 	if (OF_getproplen(node, "interrupts") <= 0)
 		/* Node does not have 'interrupts' property. */
@@ -511,12 +523,11 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 	/*
 	 * Find #interrupt-cells of the interrupt domain.
 	 */
-	if (OF_getprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
+	if (OF_getencprop(node, "interrupt-parent", &iph, sizeof(iph)) <= 0) {
 		debugf("no intr-parent phandle\n");
 		intr_par = OF_parent(node);
 	} else {
-		iph = fdt32_to_cpu(iph);
-		intr_par = OF_instance_to_package(iph);
+		intr_par = OF_xref_phandle(iph);
 	}
 
 	if (OF_getprop(intr_par, "#interrupt-cells", &intr_cells,
@@ -538,7 +549,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		interrupt = -1;
 		trig = pol = 0;
 
-		if (fdt_intr_decode(intr_par, &intr[i * intr_cells],
+		if (fdt_intr_decode(iph, &intr[i * intr_cells],
 		    &interrupt, &trig, &pol) != 0) {
 			rv = ENXIO;
 			goto out;
@@ -555,8 +566,7 @@ fdt_intr_to_rl(phandle_t node, struct resource_list *rl,
 		intr_sl[i].trig = trig;
 		intr_sl[i].pol = pol;
 
-		irq = FDT_MAP_IRQ(intr_par, interrupt);
-		resource_list_add(rl, SYS_RES_IRQ, i, irq, irq, 1);
+		resource_list_add(rl, SYS_RES_IRQ, i, interrupt, interrupt, 1);
 	}
 
 out:
@@ -568,18 +578,15 @@ int
 fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 {
 	phandle_t phy_node;
-	ihandle_t phy_ihandle;
 	pcell_t phy_handle, phy_reg;
 	uint32_t i;
 	device_t parent, child;
 
-	if (OF_getprop(node, "phy-handle", (void *)&phy_handle,
+	if (OF_getencprop(node, "phy-handle", (void *)&phy_handle,
 	    sizeof(phy_handle)) <= 0)
 		return (ENXIO);
 
-	phy_ihandle = (ihandle_t)phy_handle;
-	phy_ihandle = fdt32_to_cpu(phy_ihandle);
-	phy_node = OF_instance_to_package(phy_ihandle);
+	phy_node = OF_xref_phandle(phy_handle);
 
 	if (OF_getprop(phy_node, "reg", (void *)&phy_reg,
 	    sizeof(phy_reg)) <= 0)

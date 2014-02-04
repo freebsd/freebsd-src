@@ -471,7 +471,7 @@ g_eli_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			    prov, error);
 		}
 		bzero(&md, sizeof(md));
-		bzero(sector, sizeof(sector));
+		bzero(sector, pp->sectorsize);
 		free(sector, M_ELI);
 	}
 }
@@ -562,7 +562,7 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 
 	/* Encrypt Master Key with the new key. */
 	error = g_eli_mkey_encrypt(md.md_ealgo, key, md.md_keylen, mkeydst);
-	bzero(key, sizeof(key));
+	bzero(key, keysize);
 	if (error != 0) {
 		bzero(&md, sizeof(md));
 		gctl_error(req, "Cannot encrypt Master Key (error=%d).", error);
@@ -575,7 +575,7 @@ g_eli_ctl_setkey(struct gctl_req *req, struct g_class *mp)
 	bzero(&md, sizeof(md));
 	error = g_write_data(cp, pp->mediasize - pp->sectorsize, sector,
 	    pp->sectorsize);
-	bzero(sector, sizeof(sector));
+	bzero(sector, pp->sectorsize);
 	free(sector, M_ELI);
 	if (error != 0) {
 		gctl_error(req, "Cannot store metadata on %s (error=%d).",
@@ -691,7 +691,7 @@ g_eli_ctl_delkey(struct gctl_req *req, struct g_class *mp)
 		(void)g_io_flush(cp);
 	}
 	bzero(&md, sizeof(md));
-	bzero(sector, sizeof(sector));
+	bzero(sector, pp->sectorsize);
 	free(sector, M_ELI);
 	if (*all)
 		G_ELI_DEBUG(1, "All keys removed from %s.", pp->name);

@@ -57,7 +57,8 @@ translator psinfo_t < struct proc *T > {
 	pr_gid = T->p_ucred->cr_rgid;
 	pr_egid = T->p_ucred->cr_groups[0];
 	pr_addr = 0;
-	pr_psargs = stringof(T->p_args->ar_args);
+	pr_psargs = (T->p_args->ar_args == 0) ? "" :
+	    memstr(T->p_args->ar_args, ' ', T->p_args->ar_length);
 	pr_arglen = T->p_args->ar_length;
 	pr_jailid = T->p_ucred->cr_prison->pr_id;
 };

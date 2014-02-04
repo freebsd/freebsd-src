@@ -46,10 +46,15 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <assert.h>
 #include <pthread.h>
+#include <md5.h>
 
 #include "bhyverun.h"
 #include "pci_emul.h"
 #include "virtio.h"
+
+#ifndef min
+#define	min(a, b)	((a) < (b) ? (a) : (b))
+#endif
 
 #define VTBLK_RINGSZ	64
 
@@ -57,12 +62,20 @@ __FBSDID("$FreeBSD$");
 
 #define VTBLK_S_OK	0
 #define VTBLK_S_IOERR	1
+#define	VTBLK_S_UNSUPP	2
+
+#define	VTBLK_BLK_ID_BYTES	20
+
+/* Capability bits */
+#define	VTBLK_F_SEG_MAX		(1 << 2)	/* Maximum request segments */
+#define	VTBLK_F_BLK_SIZE       	(1 << 6)	/* cfg block size valid */
 
 /*
  * Host capabilities
  */
 #define VTBLK_S_HOSTCAPS      \
-  ( 0x00000004 |	/* host maximum request segments */ \
+  ( VTBLK_F_SEG_MAX  |						    \
+    VTBLK_F_BLK_SIZE |						    \
     VIRTIO_RING_F_INDIRECT_DESC )	/* indirect descriptors */
 
 /*
@@ -85,6 +98,7 @@ struct vtblk_config {
 struct virtio_blk_hdr {
 #define	VBH_OP_READ		0
 #define	VBH_OP_WRITE		1
+#define	VBH_OP_IDENT		8		
 #define	VBH_FLAG_BARRIER	0x80000000	/* OR'ed into vbh_type */
 	uint32_t       	vbh_type;
 	uint32_t	vbh_ioprio;
@@ -106,6 +120,7 @@ struct pci_vtblk_softc {
 	struct vqueue_info vbsc_vq;
 	int		vbsc_fd;
 	struct vtblk_config vbsc_cfg;	
+	char vbsc_ident[VTBLK_BLK_ID_BYTES];
 };
 
 static void pci_vtblk_reset(void *);
@@ -180,7 +195,7 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	for (i = 1; i < n; i++) {
 		/*
 		 * - write op implies read-only descriptor,
-		 * - read op implies write-only descriptor,
+		 * - read/ident op implies write-only descriptor,
 		 * therefore test the inverse of the descriptor bit
 		 * to the op.
 		 */
@@ -189,14 +204,34 @@ pci_vtblk_proc(struct pci_vtblk_softc *sc, struct vqueue_info *vq)
 	}
 
 	DPRINTF(("virtio-block: %s op, %d bytes, %d segs, offset %ld\n\r", 
-		 writeop ? "write" : "read", iolen, i - 1, offset));
+		 writeop ? "write" : "read/ident", iolen, i - 1, offset));
 
-	if (writeop)
+	switch (type) {
+	case VBH_OP_WRITE:
 		err = pwritev(sc->vbsc_fd, iov + 1, i - 1, offset);
-	else
+		break;
+	case VBH_OP_READ:
 		err = preadv(sc->vbsc_fd, iov + 1, i - 1, offset);
+		break;
+	case VBH_OP_IDENT:
+		/* Assume a single buffer */
+		strlcpy(iov[1].iov_base, sc->vbsc_ident,
+		    min(iov[1].iov_len, sizeof(sc->vbsc_ident)));
+		err = 0;
+		break;
+	default:
+		err = -ENOSYS;
+		break;
+	}
 
-	*status = err < 0 ? VTBLK_S_IOERR : VTBLK_S_OK;
+	/* convert errno into a virtio block error return */
+	if (err < 0) {
+		if (err == -ENOSYS)
+			*status = VTBLK_S_UNSUPP;
+		else
+			*status = VTBLK_S_IOERR;
+	} else
+		*status = VTBLK_S_OK;
 
 	/*
 	 * Return the descriptor back to the host.
@@ -220,12 +255,12 @@ static int
 pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	struct stat sbuf;
+	MD5_CTX mdctx;
+	u_char digest[16];
 	struct pci_vtblk_softc *sc;
 	off_t size;	
 	int fd;
 	int sectsz;
-	int use_msix;
-	const char *env_msi;
 
 	if (opts == NULL) {
 		printf("virtio-block: backing device required\n");
@@ -274,8 +309,18 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vbsc_vq.vq_qsize = VTBLK_RINGSZ;
 	/* sc->vbsc_vq.vq_notify = we have no per-queue notify */
 
+	/*
+	 * Create an identifier for the backing file. Use parts of the
+	 * md5 sum of the filename
+	 */
+	MD5Init(&mdctx);
+	MD5Update(&mdctx, opts, strlen(opts));
+	MD5Final(digest, &mdctx);	
+	sprintf(sc->vbsc_ident, "BHYVE-%02X%02X-%02X%02X-%02X%02X",
+	    digest[0], digest[1], digest[2], digest[3], digest[4], digest[5]);
+
 	/* setup virtio block config space */
-	sc->vbsc_cfg.vbc_capacity = size / sectsz;
+	sc->vbsc_cfg.vbc_capacity = size / DEV_BSIZE; /* 512-byte units */
 	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
 	sc->vbsc_cfg.vbc_blk_size = sectsz;
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
@@ -294,12 +339,7 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	pci_set_cfgdata8(pi, PCIR_CLASS, PCIC_STORAGE);
 	pci_set_cfgdata16(pi, PCIR_SUBDEV_0, VIRTIO_TYPE_BLOCK);
 
-	use_msix = 1;
-	if ((env_msi = getenv("BHYVE_USE_MSI"))) {
-		if (strcasecmp(env_msi, "yes") == 0)
-			use_msix = 0;
-	} 
-	if (vi_intr_init(&sc->vbsc_vs, 1, use_msix))
+	if (vi_intr_init(&sc->vbsc_vs, 1, fbsdrun_virtio_msix()))
 		return (1);
 	vi_set_io_bar(&sc->vbsc_vs, 0);
 	return (0);

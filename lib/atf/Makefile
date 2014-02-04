@@ -27,9 +27,13 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=		\
-		libatf-c \
-		libatf-c++
+SUBDIR=		libatf-c \
+		libatf-c++ \
+                ${_tests}
+
+.if ${MK_TESTS} != "no"
+_tests= 	tests
+.endif
 
 .ORDER: ${SUBDIR}
 

@@ -189,19 +189,11 @@
 #define	USRSTACK		VM_MAXUSER_ADDRESS
 #define	IA64_BACKINGSTORE	(USRSTACK - (2 * MAXSSIZ) - PAGE_SIZE)
 
-/* virtual sizes (bytes) for various kernel submaps */
-#ifndef VM_KMEM_SIZE
-#define VM_KMEM_SIZE		(12 * 1024 * 1024)
-#endif
-
 /*
- * How many physical pages per KVA page allocated.
- * min(max(max(VM_KMEM_SIZE, Physical memory/VM_KMEM_SIZE_SCALE),
- *     VM_KMEM_SIZE_MIN), VM_KMEM_SIZE_MAX)
- * is the total KVA space allocated for kmem_map.
+ * How many physical pages per kmem arena virtual page.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(4) /* XXX 8192 byte pages */
+#define	VM_KMEM_SIZE_SCALE	(4)
 #endif
 
 /* initial pagein size of beginning of executable file */

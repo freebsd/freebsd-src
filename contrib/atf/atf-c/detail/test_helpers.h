@@ -81,7 +81,5 @@ void build_check_c_o(const atf_tc_t *, const char *, const char *, const bool);
 void header_check(const char *);
 void get_process_helpers_path(const atf_tc_t *, const bool,
                               struct atf_fs_path *);
-bool grep_string(const struct atf_dynstr *, const char *);
-bool grep_file(const char *, const char *, ...);
 bool read_line(int, struct atf_dynstr *);
 void run_h_tc(atf_tc_t *, const char *, const char *, const char *);

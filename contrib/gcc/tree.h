@@ -1084,6 +1084,11 @@ extern void omp_clause_range_check_failed (const tree, const char *, int,
 
 #define TREE_OVERFLOW(NODE) (CST_CHECK (NODE)->common.public_flag)
 
+/* TREE_OVERFLOW can only be true for EXPR of CONSTANT_CLASS_P. */
+
+#define TREE_OVERFLOW_P(EXPR) \
+  (CONSTANT_CLASS_P (EXPR) && TREE_OVERFLOW (EXPR))
+
 /* In a VAR_DECL, FUNCTION_DECL, NAMESPACE_DECL or TYPE_DECL,
    nonzero means name is to be accessible from outside this module.
    In an IDENTIFIER_NODE, nonzero means an external declaration
@@ -2421,13 +2426,11 @@ struct tree_struct_field_tag GTY(())
 /* Likewise for the size in bytes.  */
 #define DECL_SIZE_UNIT(NODE) (DECL_COMMON_CHECK (NODE)->decl_common.size_unit)
 /* Holds the alignment required for the datum, in bits.  */
-#define DECL_ALIGN(NODE) (DECL_COMMON_CHECK (NODE)->decl_common.u1.a.align)
+#define DECL_ALIGN(NODE) (DECL_COMMON_CHECK (NODE)->decl_common.align)
 /* The alignment of NODE, in bytes.  */
 #define DECL_ALIGN_UNIT(NODE) (DECL_ALIGN (NODE) / BITS_PER_UNIT)
-/* For FIELD_DECLs, off_align holds the number of low-order bits of
-   DECL_FIELD_OFFSET which are known to be always zero.
-   DECL_OFFSET_ALIGN thus returns the alignment that DECL_FIELD_OFFSET
-   has.  */
+/* Set if the alignment of this DECL has been set by the user, for
+   example with an 'aligned' attribute.  */
 #define DECL_USER_ALIGN(NODE) (DECL_COMMON_CHECK (NODE)->decl_common.user_align)
 /* Holds the machine mode corresponding to the declaration of a variable or
    field.  Always equal to TYPE_MODE (TREE_TYPE (decl)) except for a
@@ -2438,7 +2441,8 @@ struct tree_struct_field_tag GTY(())
    operation it is.  Note, however, that this field is overloaded, with
    DECL_BUILT_IN_CLASS as the discriminant, so the latter must always be
    checked before any access to the former.  */
-#define DECL_FUNCTION_CODE(NODE) (FUNCTION_DECL_CHECK (NODE)->decl_common.u1.f)
+#define DECL_FUNCTION_CODE(NODE) \
+  (FUNCTION_DECL_CHECK (NODE)->function_decl.function_code)
 #define DECL_DEBUG_EXPR_IS_FROM(NODE) \
   (DECL_COMMON_CHECK (NODE)->decl_common.debug_expr_is_from)
 
@@ -2576,20 +2580,9 @@ struct tree_decl_common GTY(())
   unsigned gimple_reg_flag : 1;
   unsigned call_clobbered_flag : 1;
 
-  union tree_decl_u1 {
-    /* In a FUNCTION_DECL for which DECL_BUILT_IN holds, this is
-       DECL_FUNCTION_CODE.  */
-    enum built_in_function f;
-    /* In a FUNCTION_DECL for which DECL_BUILT_IN does not hold, this
-       is used by language-dependent code.  */
-    HOST_WIDE_INT i;
-    /* DECL_ALIGN and DECL_OFFSET_ALIGN.  (These are not used for
-       FUNCTION_DECLs).  */
-    struct tree_decl_u1_a {
-      unsigned int align : 24;
-      unsigned int off_align : 8;
-    } a;
-  } GTY ((skip)) u1;
+  unsigned int align : 24;
+  /* DECL_OFFSET_ALIGN, used only for FIELD_DECLs.  */
+  unsigned int off_align : 8;
 
   tree size_unit;
   tree initial;
@@ -2674,11 +2667,11 @@ struct tree_decl_with_rtl GTY(())
    DECL_OFFSET_ALIGN thus returns the alignment that DECL_FIELD_OFFSET
    has.  */
 #define DECL_OFFSET_ALIGN(NODE) \
-  (((unsigned HOST_WIDE_INT)1) << FIELD_DECL_CHECK (NODE)->decl_common.u1.a.off_align)
+  (((unsigned HOST_WIDE_INT)1) << FIELD_DECL_CHECK (NODE)->decl_common.off_align)
 
 /* Specify that DECL_ALIGN(NODE) is a multiple of X.  */
 #define SET_DECL_OFFSET_ALIGN(NODE, X) \
-  (FIELD_DECL_CHECK (NODE)->decl_common.u1.a.off_align = exact_log2 ((X) & -(X)))
+  (FIELD_DECL_CHECK (NODE)->decl_common.off_align = exact_log2 ((X) & -(X)))
 /* 1 if the alignment for this type was requested by "aligned" attribute,
    0 if it is the default for this type.  */
 
@@ -3091,6 +3084,10 @@ struct tree_function_decl GTY(())
 {
   struct tree_decl_non_common common;
 
+  /* In a FUNCTION_DECL for which DECL_BUILT_IN holds, this is
+     DECL_FUNCTION_CODE.  Otherwise unused.  */
+  enum built_in_function function_code;
+
   unsigned static_ctor_flag : 1;
   unsigned static_dtor_flag : 1;
   unsigned uninlinable : 1;
@@ -3240,6 +3237,9 @@ enum tree_index
   TI_UINTDI_TYPE,
   TI_UINTTI_TYPE,
 
+  TI_UINT32_TYPE,
+  TI_UINT64_TYPE,
+
   TI_INTEGER_ZERO,
   TI_INTEGER_ONE,
   TI_INTEGER_MINUS_ONE,
@@ -3314,6 +3314,9 @@ extern GTY(()) tree global_trees[TI_MAX];
 #define unsigned_intSI_type_node	global_trees[TI_UINTSI_TYPE]
 #define unsigned_intDI_type_node	global_trees[TI_UINTDI_TYPE]
 #define unsigned_intTI_type_node	global_trees[TI_UINTTI_TYPE]
+
+#define uint32_type_node		global_trees[TI_UINT32_TYPE]
+#define uint64_type_node		global_trees[TI_UINT64_TYPE]
 
 #define integer_zero_node		global_trees[TI_INTEGER_ZERO]
 #define integer_one_node		global_trees[TI_INTEGER_ONE]
@@ -4180,7 +4183,7 @@ extern GTY(()) const char * current_function_func_begin_label;
 /* In tree.c */
 extern unsigned crc32_string (unsigned, const char *);
 extern void clean_symbol_name (char *);
-extern tree get_file_function_name_long (const char *);
+extern tree get_file_function_name (const char *);
 extern tree get_callee_fndecl (tree);
 extern void change_decl_assembler_name (tree, tree);
 extern int type_num_arguments (tree);
@@ -4523,10 +4526,6 @@ extern void gimplify_function_tree (tree);
 extern const char *get_name (tree);
 extern tree unshare_expr (tree);
 extern void sort_case_labels (tree);
-
-/* If KIND=='I', return a suitable global initializer (constructor) name.
-   If KIND=='D', return a suitable global clean-up (destructor) name.  */
-extern tree get_file_function_name (int);
 
 /* Interface of the DWARF2 unwind info support.  */
 

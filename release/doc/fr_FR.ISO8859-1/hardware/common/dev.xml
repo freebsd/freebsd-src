@@ -37,13 +37,12 @@
 	this file to fix "missed" conversions are likely to break the
 	build.
 -->
-
-<sect1>
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>P&eacute;riph&eacute;riques support&eacute;s</title>
     <pubdate>$FreeBSD$</pubdate>
-  </sect1info>
+  </info>
 
-  <title>P&eacute;riph&eacute;riques support&eacute;s</title>
+  
 
   <para>Cette section d&eacute;crit les p&eacute;riph&eacute;riques
   actuellement connus pour fonctionner avec &os; sur la
@@ -162,7 +161,7 @@
           &man.ahb.4;)</para>
 	</listitem>
 	<listitem arch="i386">
-	  <para>>Contr&ocirc;leurs SCSI EISA Adaptec mod&egrave;le 274x,
+	  <para>&gt;Contr&ocirc;leurs SCSI EISA Adaptec mod&egrave;le 274x,
           incluant les variantes narrow et wide (gestionnaire
           &man.ahc.4;)</para>
 	</listitem>
@@ -870,7 +869,7 @@
     commandes des CD-ROM sont vu comme des lecteurs de CD-ROM en
     lecture seule (comme &man.cd.4;). Le support d'&eacute;criture des
     CD-R/CD-RW/WORM est founri par &man.cdrecord.1;, qui est un module
-    du port  <filename role="package">sysutils/cdrtools</filename>.</para>
+    du port  <package>sysutils/cdrtools</package>.</para>
 
     <para>Les type de CD-ROM suivant sont actuellement support&eacute;s:
       <itemizedlist>
@@ -928,7 +927,7 @@
     </para>
 
   </sect2>
-  <sect2 id="ethernet">
+  <sect2 xml:id="ethernet">
     <title>Cartes Ethernet</title>
 
     <para arch="i386,pc98,alpha">Cartes Adaptec Duralink PCI Fast
@@ -2928,7 +2927,7 @@
     &man.meteor.4;)</para>
   </sect2>
 
-  <sect2 id="usb">
+  <sect2 xml:id="usb">
     <title>P&eacute;riph&eacute;riques USB</title>
 
     <para>Certains p&eacute;riph&eacute;riques USB sont support&eacute;s; les
@@ -2941,8 +2940,7 @@
 
     <note>
       <para>Les cartes USB Ethernet peuvent &ecirc;tre trouv&eacute;s dans la
-      section<link
-      linkend="ethernet">Cartes Ethernet</link>.</para>
+      section<link linkend="ethernet">Cartes Ethernet</link>.</para>
     </note>
 
     <para arch="i386,pc98,alpha">Contr&ocirc;leurs machine (gestionnaires
@@ -3201,7 +3199,7 @@
  </sect2>
 
 
-  <sect2 id="firewire">
+  <sect2 xml:id="firewire">
     <title>P&eacute;riph&eacute;riques IEEE 1394 (Firewire)</title>
 
     <para arch="i386,pc98,powerpc">Controleurs hotes (gestionnaire
@@ -3303,8 +3301,7 @@
 	</listitem>
         <listitem arch="i386,pc98,alpha">
 	  <para>Claviers USB (les mat&eacute;riels sp&eacute;cifiques sont
-          list&eacute;s dans la section d&eacute;crivant les <link
-          linkend="usb">p&eacute;riph&eacute;riques USB</link>)</para>
+          list&eacute;s dans la section d&eacute;crivant les <link linkend="usb">p&eacute;riph&eacute;riques USB</link>)</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3323,8 +3320,7 @@
 	</listitem>
         <listitem arch="i386,pc98,alpha">
 	  <para>Souris USB (les mat&eacute;riels sp&eacute;cifiques sont
-          list&eacute;s dans la section d&eacute;crivant les <link
-          linkend="usb">p&eacute;riph&eacute;riques USB</link>)</para>
+          list&eacute;s dans la section d&eacute;crivant les <link linkend="usb">p&eacute;riph&eacute;riques USB</link>)</para>
 	</listitem>
       </itemizedlist>
     </para>
@@ -3355,8 +3351,7 @@
     &man.tw.4;)</para>
 
     <para arch="i386">Mat&eacute;riel reconfigurable bas&eacute; sur les
-    cartes Xilinx XC6200 compatible avec HOT1 de <ulink
-    url="http://www.vcc.com/">Virtual Computers</ulink> (gestionnaire
+    cartes Xilinx XC6200 compatible avec HOT1 de <link xlink:href="http://www.vcc.com/">Virtual Computers</link> (gestionnaire
     xrpu).</para>
 
     <para arch="pc98">Contr&ocirc;leur de gestion d'&eacute;nergie des NEC PC-98

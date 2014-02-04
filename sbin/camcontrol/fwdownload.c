@@ -224,6 +224,7 @@ fw_read_img(const char *fw_img_path, const struct fw_vendor *vp, int *num_bytes)
 		goto bailout;
 	}
 	*num_bytes = img_size;
+	close(fd);
 	return (buf);
 bailout:
 	free(buf);
@@ -286,6 +287,7 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 		ata_28bit_cmd(&ccb->ataio, ATA_ATA_IDENTIFY, 0, 0, 0);
 	} else {
 		warnx("weird disk type '%s'", type);
+		cam_freeccb(ccb);
 		return 1;
 	}
 	/* Disable freezing the device queue. */

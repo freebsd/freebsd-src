@@ -39,7 +39,7 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include <atf-c++/utils.hpp>
+#include <atf-c++/noncopyable.hpp>
 
 namespace atf {
 
@@ -60,7 +60,7 @@ namespace check {
 //! of executing arbitrary command and manages files containing
 //! its output.
 //!
-class check_result : utils::noncopyable {
+class check_result : noncopyable {
     //!
     //! \brief Internal representation of a result.
     //!

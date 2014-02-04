@@ -32,6 +32,8 @@
  * converted into VSCSI protocol messages which are delivered to the parent
  * partition StorVSP driver over the Hyper-V VMBUS.
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -322,10 +324,10 @@ hv_storvsc_channel_init(struct hv_device *dev)
 	vstor_packet->operation = VSTOR_OPERATION_QUERYPROTOCOLVERSION;
 	vstor_packet->flags = REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
+	vstor_packet->u.version.major_minor = VMSTOR_PROTOCOL_VERSION_CURRENT;
 
 	/* revision is only significant for Windows guests */
-	vstor_packet->version.revision = 0;
+	vstor_packet->u.version.revision = 0;
 
 	ret = hv_vmbus_channel_send_packet(
 			dev->channel,
@@ -532,11 +534,11 @@ hv_storvsc_io_request(struct hv_device *device,
 
 	vstor_packet->flags |= REQUEST_COMPLETION_FLAG;
 
-	vstor_packet->vm_srb.length = sizeof(struct vmscsi_req);
+	vstor_packet->u.vm_srb.length = sizeof(struct vmscsi_req);
 	
-	vstor_packet->vm_srb.sense_info_len = SENSE_BUFFER_SIZE;
+	vstor_packet->u.vm_srb.sense_info_len = SENSE_BUFFER_SIZE;
 
-	vstor_packet->vm_srb.transfer_len = request->data_buf.length;
+	vstor_packet->u.vm_srb.transfer_len = request->data_buf.length;
 
 	vstor_packet->operation = VSTOR_OPERATION_EXECUTESRB;
 
@@ -583,7 +585,7 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 {
 	struct vmscsi_req *vm_srb;
 
-	vm_srb = &vstor_packet->vm_srb;
+	vm_srb = &vstor_packet->u.vm_srb;
 
 	request->sense_info_len = 0;
 	if (((vm_srb->scsi_status & 0xFF) == SCSI_STATUS_CHECK_COND) &&
@@ -594,7 +596,7 @@ hv_storvsc_on_iocompletion(struct storvsc_softc *sc,
 				("vm_srb->sense_info_len <= "
 				 "request->sense_info_len"));
 
-		memcpy(request->sense_data, vm_srb->sense_data,
+		memcpy(request->sense_data, vm_srb->u.sense_data,
 			vm_srb->sense_info_len);
 
 		request->sense_info_len = vm_srb->sense_info_len;
@@ -1298,35 +1300,35 @@ create_storvsc_request(union ccb *ccb, struct hv_storvsc_request *reqp)
 	uint32_t pfn;
 	
 	/* refer to struct vmscsi_req for meanings of these two fields */
-	reqp->vstor_packet.vm_srb.port =
+	reqp->vstor_packet.u.vm_srb.port =
 		cam_sim_unit(xpt_path_sim(ccb->ccb_h.path));
-	reqp->vstor_packet.vm_srb.path_id =
+	reqp->vstor_packet.u.vm_srb.path_id =
 		cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
 
-	reqp->vstor_packet.vm_srb.target_id = ccb->ccb_h.target_id;
-	reqp->vstor_packet.vm_srb.lun = ccb->ccb_h.target_lun;
+	reqp->vstor_packet.u.vm_srb.target_id = ccb->ccb_h.target_id;
+	reqp->vstor_packet.u.vm_srb.lun = ccb->ccb_h.target_lun;
 
-	reqp->vstor_packet.vm_srb.cdb_len = csio->cdb_len;
+	reqp->vstor_packet.u.vm_srb.cdb_len = csio->cdb_len;
 	if(ccb->ccb_h.flags & CAM_CDB_POINTER) {
-		memcpy(&reqp->vstor_packet.vm_srb.cdb, csio->cdb_io.cdb_ptr,
+		memcpy(&reqp->vstor_packet.u.vm_srb.u.cdb, csio->cdb_io.cdb_ptr,
 			csio->cdb_len);
 	} else {
-		memcpy(&reqp->vstor_packet.vm_srb.cdb, csio->cdb_io.cdb_bytes,
+		memcpy(&reqp->vstor_packet.u.vm_srb.u.cdb, csio->cdb_io.cdb_bytes,
 			csio->cdb_len);
 	}
 
 	switch (ccb->ccb_h.flags & CAM_DIR_MASK) {
     	case CAM_DIR_OUT: 
-    		reqp->vstor_packet.vm_srb.data_in = WRITE_TYPE;
+    		reqp->vstor_packet.u.vm_srb.data_in = WRITE_TYPE;
     		break;
     	case CAM_DIR_IN:
-    		reqp->vstor_packet.vm_srb.data_in = READ_TYPE;
+    		reqp->vstor_packet.u.vm_srb.data_in = READ_TYPE;
     		break;
     	case CAM_DIR_NONE:
-    		reqp->vstor_packet.vm_srb.data_in = UNKNOWN_TYPE;
+    		reqp->vstor_packet.u.vm_srb.data_in = UNKNOWN_TYPE;
     		break;
     	default:
-    		reqp->vstor_packet.vm_srb.data_in = UNKNOWN_TYPE;
+    		reqp->vstor_packet.u.vm_srb.data_in = UNKNOWN_TYPE;
     		break;
 	}
 
@@ -1375,7 +1377,7 @@ storvsc_io_done(struct hv_storvsc_request *reqp)
 	union ccb *ccb = reqp->ccb;
 	struct ccb_scsiio *csio = &ccb->csio;
 	struct storvsc_softc *sc = reqp->softc;
-	struct vmscsi_req *vm_srb = &reqp->vstor_packet.vm_srb;
+	struct vmscsi_req *vm_srb = &reqp->vstor_packet.u.vm_srb;
 	
 	if (reqp->retries > 0) {
 		mtx_lock(&sc->hs_lock);

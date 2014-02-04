@@ -1,0 +1,28 @@
+# $FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/arm/bus_space_generic.c			standard
+arm/arm/bus_space_asm_generic.S			standard
+arm/arm/cpufunc_asm_armv5.S			standard
+arm/arm/cpufunc_asm_arm10.S			standard
+arm/arm/cpufunc_asm_arm11.S			standard
+arm/arm/cpufunc_asm_armv7.S			standard
+arm/arm/irq_dispatch.S				standard
+
+arm/arm/bus_space-v6.c				standard
+arm/arm/gic.c					standard
+arm/arm/mpcore_timer.c				standard
+
+arm/freescale/vybrid/vf_machdep.c		standard
+arm/freescale/vybrid/vf_common.c		standard
+arm/freescale/vybrid/vf_ccm.c			standard
+arm/freescale/vybrid/vf_anadig.c		standard
+arm/freescale/vybrid/vf_iomuxc.c		standard
+arm/freescale/vybrid/vf_mscm.c			standard
+arm/freescale/vybrid/vf_src.c			standard
+arm/freescale/vybrid/vf_nfc.c			optional	nand
+arm/freescale/vybrid/vf_ehci.c			optional	ehci
+arm/freescale/vybrid/vf_gpio.c			optional	gpio
+arm/freescale/vybrid/vf_uart.c			optional	uart
+dev/ffec/if_ffec.c				optional	ffec

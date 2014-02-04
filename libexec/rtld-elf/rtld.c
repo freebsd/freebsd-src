@@ -116,6 +116,7 @@ static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
 static void objlist_init(Objlist *);
 static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
+static void objlist_put_after(Objlist *, Obj_Entry *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_object_dag(Obj_Entry *root, bool bind_now,
@@ -230,6 +231,7 @@ char **main_argv;
 size_t tls_last_offset;		/* Static TLS offset of last module */
 size_t tls_last_size;		/* Static TLS size of last module */
 size_t tls_static_space;	/* Static TLS space allocated */
+size_t tls_static_max_align;
 int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
 int tls_max_index = 1;		/* Largest module index allocated */
 
@@ -323,6 +325,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Objlist_Entry *entry;
     Obj_Entry *obj;
     Obj_Entry **preload_tail;
+    Obj_Entry *last_interposer;
     Objlist initlist;
     RtldLockState lockstate;
     char *library_path_rpath;
@@ -537,8 +540,14 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	die();
 
     /* Make a list of all objects loaded at startup. */
+    last_interposer = obj_main;
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	objlist_push_tail(&list_main, obj);
+	if (obj->z_interpose && obj != obj_main) {
+	    objlist_put_after(&list_main, last_interposer, obj);
+	    last_interposer = obj;
+	} else {
+	    objlist_push_tail(&list_main, obj);
+	}
     	obj->refcount++;
     }
 
@@ -1128,6 +1137,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_nodelete = true;
 		if (dynp->d_un.d_val & DF_1_LOADFLTR)
 		    obj->z_loadfltr = true;
+		if (dynp->d_un.d_val & DF_1_INTERPOSE)
+		    obj->z_interpose = true;
 		if (dynp->d_un.d_val & DF_1_NODEFLIB)
 		    obj->z_nodeflib = true;
 	    break;
@@ -1976,6 +1987,7 @@ static int
 load_preload_objects(void)
 {
     char *p = ld_preload;
+    Obj_Entry *obj;
     static const char delim[] = " \t:;";
 
     if (p == NULL)
@@ -1988,8 +2000,10 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, -1, NULL, 0) == NULL)
+	obj = load_object(p, -1, NULL, 0);
+	if (obj == NULL)
 	    return -1;	/* XXX - cleanup */
+	obj->z_interpose = true;
 	p[len] = savech;
 	p += len;
 	p += strspn(p, delim);
@@ -2375,6 +2389,23 @@ objlist_push_tail(Objlist *list, Obj_Entry *obj)
     elm = NEW(Objlist_Entry);
     elm->obj = obj;
     STAILQ_INSERT_TAIL(list, elm, link);
+}
+
+static void
+objlist_put_after(Objlist *list, Obj_Entry *listobj, Obj_Entry *obj)
+{
+	Objlist_Entry *elm, *listelm;
+
+	STAILQ_FOREACH(listelm, list, link) {
+		if (listelm->obj == listobj)
+			break;
+	}
+	elm = NEW(Objlist_Entry);
+	elm->obj = obj;
+	if (listelm != NULL)
+		STAILQ_INSERT_AFTER(list, listelm, elm, link);
+	else
+		STAILQ_INSERT_TAIL(list, elm, link);
 }
 
 static void
@@ -3239,6 +3270,11 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
 		break;
 
     }
+    if (error == 0) {
+	rtld_fill_dl_phdr_info(&obj_rtld, &phdr_info);
+	error = callback(&phdr_info, sizeof(phdr_info), param);
+    }
+
     lock_release(rtld_bind_lock, &bind_lockstate);
     lock_release(rtld_phdr_lock, &phdr_lockstate);
 
@@ -4246,19 +4282,22 @@ void *
 allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 {
     Obj_Entry *obj;
-    size_t size;
+    size_t size, ralign;
     char *tls;
     Elf_Addr *dtv, *olddtv;
     Elf_Addr segbase, oldsegbase, addr;
     int i;
 
-    size = round(tls_static_space, tcbalign);
+    ralign = tcbalign;
+    if (tls_static_max_align > ralign)
+	    ralign = tls_static_max_align;
+    size = round(tls_static_space, ralign) + round(tcbsize, ralign);
 
     assert(tcbsize >= 2*sizeof(Elf_Addr));
-    tls = xcalloc(1, size + tcbsize);
+    tls = malloc_aligned(size, ralign);
     dtv = xcalloc(tls_max_index + 2, sizeof(Elf_Addr));
 
-    segbase = (Elf_Addr)(tls + size);
+    segbase = (Elf_Addr)(tls + round(tls_static_space, ralign));
     ((Elf_Addr*)segbase)[0] = segbase;
     ((Elf_Addr*)segbase)[1] = (Elf_Addr) dtv;
 
@@ -4310,8 +4349,8 @@ allocate_tls(Obj_Entry *objs, void *oldtls, size_t tcbsize, size_t tcbalign)
 void
 free_tls(void *tls, size_t tcbsize, size_t tcbalign)
 {
-    size_t size;
     Elf_Addr* dtv;
+    size_t size, ralign;
     int dtvsize, i;
     Elf_Addr tlsstart, tlsend;
 
@@ -4319,19 +4358,22 @@ free_tls(void *tls, size_t tcbsize, size_t tcbalign)
      * Figure out the size of the initial TLS block so that we can
      * find stuff which ___tls_get_addr() allocated dynamically.
      */
-    size = round(tls_static_space, tcbalign);
+    ralign = tcbalign;
+    if (tls_static_max_align > ralign)
+	    ralign = tls_static_max_align;
+    size = round(tls_static_space, ralign);
 
     dtv = ((Elf_Addr**)tls)[1];
     dtvsize = dtv[1];
     tlsend = (Elf_Addr) tls;
     tlsstart = tlsend - size;
     for (i = 0; i < dtvsize; i++) {
-	if (dtv[i+2] && (dtv[i+2] < tlsstart || dtv[i+2] > tlsend)) {
-	    free((void*) dtv[i+2]);
+	if (dtv[i + 2] != 0 && (dtv[i + 2] < tlsstart || dtv[i + 2] > tlsend)) {
+		free_aligned((void *)dtv[i + 2]);
 	}
     }
 
-    free((void*) tlsstart);
+    free_aligned((void *)tlsstart);
     free((void*) dtv);
 }
 
@@ -4355,11 +4397,7 @@ allocate_module_tls(int index)
 	die();
     }
 
-    p = malloc(obj->tlssize);
-    if (p == NULL) {
-	_rtld_error("Cannot allocate TLS block for index %d", index);
-	die();
-    }
+    p = malloc_aligned(obj->tlssize, obj->tlsalign);
     memcpy(p, obj->tlsinit, obj->tlsinitsize);
     memset(p + obj->tlsinitsize, 0, obj->tlssize - obj->tlsinitsize);
 
@@ -4391,9 +4429,11 @@ allocate_tls_offset(Obj_Entry *obj)
      * leave a small amount of space spare to be used for dynamically
      * loading modules which use static TLS.
      */
-    if (tls_static_space) {
+    if (tls_static_space != 0) {
 	if (calculate_tls_end(off, obj->tlssize) > tls_static_space)
 	    return false;
+    } else if (obj->tlsalign > tls_static_max_align) {
+	    tls_static_max_align = obj->tlsalign;
     }
 
     tls_last_offset = obj->tlsoffset = off;

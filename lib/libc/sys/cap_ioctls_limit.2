@@ -58,7 +58,7 @@ argument is an array of
 commands and the
 .Fa ncmds
 argument specifies the number of elements in the array.
-There might be up to
+There can be up to
 .Va 256
 elements in the array.
 .Pp
@@ -92,7 +92,7 @@ system call was never called for this file descriptor), the
 .Fn cap_ioctls_get
 system call will return
 .Dv CAP_IOCTLS_ALL
-and won't modify the buffer pointed out by the
+and won't modify the buffer pointed to by the
 .Fa cmds
 argument.
 .Sh RETURN VALUES
@@ -100,7 +100,7 @@ argument.
 .Pp
 The
 .Fn cap_ioctls_get
-function, if successfull, returns the total number of allowed ioctl commands or
+function, if successful, returns the total number of allowed ioctl commands or
 the value
 .Dv CAP_IOCTLS_ALL
 if all ioctls commands are allowed.

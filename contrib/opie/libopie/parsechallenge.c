@@ -19,6 +19,8 @@ you didn't get a copy, you may request one from <license@inner.net>.
 #if HAVE_STRING_H
 #include <string.h>
 #endif /* HAVE_STRING_H */
+#include <ctype.h>
+#include <stdlib.h>
 #include "opie.h"
 
 struct algorithm {

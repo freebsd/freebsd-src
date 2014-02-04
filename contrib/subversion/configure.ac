@@ -1089,7 +1089,6 @@ if test "$enable_optimization" = "yes"; then
             SVN_CFLAGS_ADD_IFELSE([-O])])])])
       SVN_CFLAGS_ADD_IFELSE([-Wno-clobbered])
       SVN_CFLAGS_ADD_IFELSE([-flto])
-      SVN_CFLAGS_ADD_IFELSE([-fwhole-program])
     fi
   fi
   if test -z ["`echo $CXXUSERFLAGS' ' | $EGREP -- '-O[^ ]* '`"]; then
@@ -1106,7 +1105,6 @@ if test "$enable_optimization" = "yes"; then
             SVN_CXXFLAGS_ADD_IFELSE([-O])])])])
       SVN_CXXFLAGS_ADD_IFELSE([-Wno-clobbered])
       SVN_CXXFLAGS_ADD_IFELSE([-flto])
-      SVN_CXXFLAGS_ADD_IFELSE([-fwhole-program])
     fi
   fi
 elif test "$enable_optimization" = "no"; then

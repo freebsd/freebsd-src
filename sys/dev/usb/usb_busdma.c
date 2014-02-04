@@ -215,9 +215,7 @@ usbd_m_copy_in(struct usb_page_cache *cache, usb_frlength_t dst_offset,
     struct mbuf *m, usb_size_t src_offset, usb_frlength_t src_len)
 {
 	struct usb_m_copy_in_arg arg = {cache, dst_offset};
-	int error;
-
-	error = m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
+	(void) m_apply(m, src_offset, src_len, &usbd_m_copy_in_cb, &arg);
 }
 #endif
 

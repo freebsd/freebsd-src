@@ -803,9 +803,7 @@ sbus_activate_resource(device_t bus, device_t child, int type, int rid,
 		for (i = 0; i < sc->sc_nrange; i++) {
 			if (rman_is_region_manager(r,
 			    &sc->sc_rd[i].rd_rman) != 0) {
-				tag = sparc64_alloc_bus_tag(r,
-				    rman_get_bustag(sc->sc_sysio_res),
-				    SBUS_BUS_SPACE, NULL);
+				tag = sparc64_alloc_bus_tag(r, SBUS_BUS_SPACE);
 				if (tag == NULL)
 					return (ENOMEM);
 				rman_set_bustag(r, tag);

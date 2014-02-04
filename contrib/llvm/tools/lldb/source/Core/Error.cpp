@@ -8,7 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 // C Includes
-#include <errno.h>
+#ifdef __APPLE__
+#include <mach/mach.h>
+#endif
 
 // C++ Includes
 // Other libraries and framework includes
@@ -16,9 +18,8 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Core/Log.h"
 #include "llvm/ADT/SmallVector.h"
+#include <cerrno>
 #include <cstdarg>
-#include <cstdlib>
-#include <cstring>
 
 #if defined (__arm__) && defined (__APPLE__)
 #include <SpringBoardServices/SpringBoardServer.h>
@@ -51,12 +52,16 @@ Error::Error (const Error &rhs) :
 {
 }
 
-Error::Error (const char* err_str):
+Error::Error (const char* format, ...):
     m_code (0),
     m_type (eErrorTypeInvalid),
     m_string ()
 {
-    SetErrorString(err_str);
+    va_list args;
+    va_start (args, format);
+    SetErrorToGenericError ();
+    SetErrorStringWithVarArg (format, args);
+    va_end (args);
 }
 
 //----------------------------------------------------------------------
@@ -238,7 +243,7 @@ Error::LogIfError (Log *log, const char *format, ...)
             if (err_str == NULL)
                 err_str = "???";
 
-            SetErrorStringWithFormat("error: %s err = %s (0x%8.8x)", arg_msg, err_str, m_code);
+            SetErrorStringWithFormat("%s err = %s (0x%8.8x)", arg_msg, err_str, m_code);
             if (log)
                 log->Error("%s", m_string.c_str());
 

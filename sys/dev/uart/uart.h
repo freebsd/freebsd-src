@@ -75,6 +75,12 @@ extern struct uart_class uart_lpc_class __attribute__((weak));
 extern struct uart_class uart_pl011_class __attribute__((weak));
 extern struct uart_class uart_cdnc_class __attribute__((weak));
 extern struct uart_class uart_ti8250_class __attribute__((weak));
+extern struct uart_class uart_vybrid_class __attribute__((weak));
+
+#ifdef FDT
+struct ofw_compat_data;
+extern const struct ofw_compat_data *uart_fdt_compat_data;
+#endif
 
 #ifdef PC98
 struct uart_class *uart_pc98_getdev(u_long port);

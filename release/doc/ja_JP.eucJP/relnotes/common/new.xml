@@ -6,11 +6,16 @@
 
     Original revision: 1.663.2.5
 -->
+<!--
+     Local Variables:
+     mode: sgml
+     sgml-parent-document: ("../i386/article.xml" "article" "articleinfo")
+     End:
+-->
+<info xmlns="http://docbook.org/ns/docbook"><title>&os;/&arch; &release.current; リリースノート</title>
+  
 
-<articleinfo>
-  <title>&os;/&arch; &release.current; リリースノート</title>
-
-  <corpauthor>FreeBSD プロジェクト</corpauthor>
+  <author><orgname>FreeBSD プロジェクト</orgname></author>
 
   <pubdate>$FreeBSD$</pubdate>
 
@@ -32,9 +37,9 @@
       前のリリース以降に発行されたセキュリティ勧告が書かれています。
       また、アップグレードの際の注意点も載せてあります。</para>
   </abstract>
-</articleinfo>
+</info>
 
-<sect1 id="intro">
+<sect1 xml:id="intro">
   <title>はじめに</title>
 
   <para>この文書は &arch.print; ハードウェアプラットフォーム用
@@ -46,18 +51,18 @@
     &release.branch; 開発ブランチの &release.prev; から
     将来の &release.next; の間に位置します。
     このブランチのあらかじめコンパイルされたバイナリ &release.type;
-    配布物は <ulink url="&release.url;"></ulink> に公開されています。
+    配布物は <uri xlink:href="&release.url;">&release.url;</uri> に公開されています。
   </para>
 
   <para releasetype="release">この &os; &release.current; 配布物は &release.type; 配布物です。
-    この配布物はあらゆるミラーの <ulink url="&release.url;"></ulink>
+    この配布物はあらゆるミラーの <uri xlink:href="&release.url;">&release.url;</uri>
     で見つけることができます。
     この (もしくは他の) &os; の &release.type; 配布物を取得する方法
     は
-    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD ハンドブック</ulink>
+    <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD ハンドブック</link>
     の
-    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
-      付録 <quote>FreeBSD を取得する</quote></ulink>
+    <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
+      付録 <quote>FreeBSD を取得する</quote></link>
     を参照してください。</para>
 
   <para>&os; &release.type; の &release.branch;
@@ -81,7 +86,7 @@
 
 </sect1>
 
-<sect1 id="new">
+<sect1 xml:id="new">
   <title>更新情報</title>
 
   <para>この節では
@@ -109,7 +114,7 @@
     監査で見つかったセキュリティ上好ましくないスタイルで書かれたコードの修正、
     ソースコードの整理などです。</para>
 
-  <sect2 id="security">
+  <sect2 xml:id="security">
     <title>セキュリティ勧告</title>
 
     <para>&man.realpath.3; 関数の実装にあった
@@ -118,7 +123,7 @@
       (したがって、&release.prev; には影響がありません)
       が、リリース文書には記載されていませんでした。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</link>
       をご覧ください。
       &merged;</para>
 
@@ -126,7 +131,7 @@
       このバグは、カーネルパニックを引き起こしたり、
       特定の状況ではカーネルメモリを不正に改変できる可能性があります。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</link>
       をご覧ください。
       &merged;</para>
 
@@ -134,28 +139,28 @@
       iBCS2 エミュレーションモジュールのバグが修正されました。
       なお、このモジュールはデフォルトでは有効になっていません。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</link>
       をご覧ください。
       &merged;</para>
 
     <para><application>OpenSSH</application> のバッファを管理する
       コードにあったクラッシュを引き起こす可能性があるバグが修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</link>
       をご覧ください。
       &merged;</para>
 
     <para><application>sendmail</application>
       のバッファオーバフロー問題が修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</link>
       をご覧ください。
       &merged;</para>
 
     <para>ARP キャッシュコードにあった、カーネル資源を枯渇させ、
       システムパニックを発生させる可能性があるバグが修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</link>
       をご覧ください。
       &merged;</para>
 
@@ -163,14 +168,14 @@
       PAM チャレンジ/レスポンス認証サブシステムにあったいくつかの誤りが修正されました。
       これらのバグの影響には、さまざまなものが存在します。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</link>
       をご覧ください。
       &merged;</para>
 
     <para>カーネルメモリの内容が漏洩する可能性がある
       &man.procfs.5; と &man.linprocfs.5; のバグが修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</link>.
       をご覧ください。
       &merged;</para>
 
@@ -180,19 +185,19 @@
       を利用するアプリケーションをクラッシュさせたり、
       アプリケーションの権限で任意のコードを実行できる可能性があります。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</link>
       をご覧ください。
       &merged;</para>
 
     <para><application>BIND</application>
       において、サービス妨害の可能性があったバグが修正されました。
       詳細はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>
+      <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</link>
       をご覧ください。
       &merged;</para>
   </sect2>
 
-  <sect2 id="kernel">
+  <sect2 xml:id="kernel">
     <title>カーネルの変更点</title>
 
     <para arch="i386,ia64,amd64">&man.acpi.4; ドライバの CPU
@@ -289,7 +294,7 @@
       コンパイル時に指定していたスワップデバイス数の上限がなくなったこと、
       メモリオーバヘッドが減少したことなどがあります。</para>
 
-    <sect3 id="proc">
+    <sect3 xml:id="proc">
       <title>プラットフォーム固有のハードウェアの対応状況</title>
 
       <para arch="i386">割り込み経路の制御と SMP 対応を改良するため、
@@ -319,16 +324,16 @@
 	明示的に有効にする必要がありました)。</para>
     </sect3>
 
-    <sect3 id="boot">
+    <sect3 xml:id="boot">
       <title>ブートローダの変更</title>
 
-      <para></para>
+      <para/>
 
        <!-- Above this line, order bootloader changes by keyword-->
 
     </sect3>
 
-    <sect3 id="net-if">
+    <sect3 xml:id="net-if">
       <title>ネットワークインターフェイスの対応状況</title>
 
       <para>&man.ath.4; および &man.ath.hal.4; ドライバが新しく追加されました。
@@ -404,7 +409,7 @@
 	&man.wi.4;, &man.sis.4; などがあります。</para>
     </sect3>
 
-    <sect3 id="net-proto">
+    <sect3 xml:id="net-proto">
       <title>ネットワークプロトコル</title>
 
       <para>IPv4 プロトコル実装における <literal>ip_flow</literal> 機能が、
@@ -526,7 +531,7 @@
 	経路表に格納されていた、同じような情報は削除されました。</para>
    </sect3>
 
-    <sect3 id="disks">
+    <sect3 xml:id="disks">
       <title>ディスク・記憶装置</title>
 
       <para>&man.amr.4; ドライバがクラッシュダンプ機構に対応しました。&merged;</para>
@@ -571,7 +576,7 @@
 	&merged;</para>
     </sect3>
 
-    <sect3 id="fs">
+    <sect3 xml:id="fs">
       <title>ファイルシステム</title>
 
       <para>cd9660、msdosfs、ntfs, udf ファイルシステムが
@@ -608,9 +613,9 @@
         <listitem>
 	  <para>&man.statfs.2; を使っているプログラムは、
 	    再構築する必要があります。再構築が必要だと判明しているものには、
-	    <filename role="package">devel/gnomevfs2</filename>,
-	    <filename role="package">mail/postfix</filename>,
-	    <filename role="package">security/cfg</filename>
+	    <package>devel/gnomevfs2</package>,
+	    <package>mail/postfix</package>,
+	    <package>security/cfg</package>
 	    などがあります。</para>
 	</listitem>
       </itemizedlist>
@@ -621,14 +626,14 @@
 	&man.idmapd.8; のマニュアルページをご覧ください。</para>
     </sect3>
 
-    <sect3 id="mm">
+    <sect3 xml:id="mm">
       <title>マルチメディアへの対応状況</title>
 
-      <para></para>
+      <para/>
     </sect3>
   </sect2>
 
-  <sect2 id="userland">
+  <sect2 xml:id="userland">
     <title>ユーザランドの変更点</title>
 
     <para arch="i386,pc98">i386 専用の a.out
@@ -676,12 +681,12 @@
 
     <para>&man.fsck.ffs.8; および &man.newfs.8; が、
       各ファイルシステムのルートディレクトリに
-      <groupname>operator</groupname> グループで
+      <systemitem class="groupname">operator</systemitem> グループで
       <filename>.snap</filename> ディレクトリを作成するようになりました。
       &man.fsck.ffs.8;, &man.mksnap.ffs.8;, &man.dump.8; は、
       それぞれのファイルシステムスナップショットをこのディレクトリに書き込みます。
       この変更は、スナップショットの作成中にファイルシステムのルートディレクトリへの
-      アクセスをロックしないようにするため、また、<username>root</username>
+      アクセスをロックしないようにするため、また、<systemitem class="username">root</systemitem>
       以外のユーザがスナップショットを作成できるようにするためのものです。</para>
 
     <para>&man.ffsinfo.8; ユーティリティが
@@ -858,7 +863,7 @@
       <filename>/rescue</filename> ディレクトリに置かれています。</para>
   </sect2>
 
-  <sect2 id="contrib">
+  <sect2 xml:id="contrib">
     <title>寄贈ソフトウェア</title>
 
     <para><application>ACPI-CA</application> コードが、
@@ -923,20 +928,20 @@
   </sect2>
 
 
-  <sect2 id="ports">
+  <sect2 xml:id="ports">
     <title>Ports/Packages Collection インフラストラクチャ</title>
 
-    <para><makevar>GNU_CONFIGURE</makevar> が定義されている場合、
-      <filename><makevar>WRKDIR</makevar></filename> 以下にある
+    <para><varname>GNU_CONFIGURE</varname> が定義されている場合、
+      <filename>WRKDIR</filename> 以下にある
       すべての <filename>config.guess</filename> および
       <filename>config.sub</filename> ファイルが、
-      <filename><makevar>PORTSDIR</makevar>/Template</filename>
+      <filename>PORTSDIR/Template</filename>
       にあるものと置き換えられるようになりました。
       これは、古いバージョンのスクリプトを含む ports が、ia64 や amd64
       などの新しいアーキテクチャで構築できるようにするための措置です。</para>
   </sect2>
 
-  <sect2 id="releng">
+  <sect2 xml:id="releng">
     <title>リリースエンジニアリングと統合</title>
 
     <para arch="alpha,amd64,ia64">インストール用のフロッピディスクイメージが
@@ -951,7 +956,7 @@
       &merged;</para>
   </sect2>
 
-  <sect2 id="doc">
+  <sect2 xml:id="doc">
     <title>ドキュメンテーション</title>
 
     <para>情報の重複をなくし、内容管理の効率化をはかるため、
@@ -963,7 +968,7 @@
   </sect2>
 </sect1>
 
-<sect1 id="upgrade">
+<sect1 xml:id="upgrade">
   <title>前のリリースの &os; からのアップグレード</title>
 
   <para>現存する &os; システムからアップグレードするユーザは
@@ -984,10 +989,3 @@
       バックアップしてからのみ行うべきです。</para>
   </important>
 </sect1>
-
-<!--
-     Local Variables:
-     mode: sgml
-     sgml-parent-document: ("../i386/article.xml" "article" "articleinfo")
-     End:
--->

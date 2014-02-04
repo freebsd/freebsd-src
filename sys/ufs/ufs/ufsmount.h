@@ -78,19 +78,7 @@ struct ufsmount {
 	u_long	um_seqinc;			/* inc between seq blocks */
 	struct	mtx um_lock;			/* Protects ufsmount & fs */
 	pid_t	um_fsckpid;			/* PID permitted fsck sysctls */
-	long	um_numindirdeps;		/* outstanding indirdeps */
-	struct	workhead softdep_workitem_pending; /* softdep work queue */
-	struct	worklist *softdep_worklist_tail; /* Tail pointer for above */
-	struct	workhead softdep_journal_pending; /* journal work queue */
-	struct	worklist *softdep_journal_tail;	/* Tail pointer for above */
-	struct	jblocks *softdep_jblocks;	/* Journal block information */
-	struct	inodedeplst softdep_unlinked;	/* Unlinked inodes */
-	struct	bmsafemaphd softdep_dirtycg;	/* Dirty CGs */
-	int	softdep_on_journal;		/* Items on the journal list */
-	int	softdep_on_worklist;		/* Items on the worklist */
-	int	softdep_deps;			/* Total dependency count */
-	int	softdep_accdeps;		/* accumulated dep count */
-	int	softdep_req;			/* Wakeup when deps hits 0. */
+	struct	mount_softdeps *um_softdep;	/* softdep mgmt structure */
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
 	time_t	um_btime[MAXQUOTAS];		/* block quota time limit */

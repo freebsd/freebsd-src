@@ -2119,7 +2119,7 @@ getmq(struct thread *td, int fd, struct file **fpp, struct mqfs_node **ppn,
 {
 	cap_rights_t rights;
 
-	return _getmq(td, fd, cap_rights_init(&rights, CAP_POLL_EVENT), fget,
+	return _getmq(td, fd, cap_rights_init(&rights, CAP_EVENT), fget,
 	    fpp, ppn, pmq);
 }
 
@@ -2282,7 +2282,7 @@ again:
 	}
 #ifdef CAPABILITIES
 	error = cap_check(cap_rights(fdp, mqd),
-	    cap_rights_init(&rights, CAP_POLL_EVENT));
+	    cap_rights_init(&rights, CAP_EVENT));
 	if (error) {
 		FILEDESC_SUNLOCK(fdp);
 		goto out;

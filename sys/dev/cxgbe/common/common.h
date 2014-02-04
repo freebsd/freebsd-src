@@ -246,7 +246,7 @@ struct pci_params {
  * Firmware device log.
  */
 struct devlog_params {
-	u32 memtype;			/* which memory (EDC0, EDC1, MC) */
+	u32 memtype;			/* which memory (FW_MEMTYPE_* ) */
 	u32 start;			/* start of log in firmware memory */
 	u32 size;			/* size of log */
 };
@@ -587,4 +587,8 @@ int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid, enum ctxt_type cty
 int t4_sge_ctxt_flush(struct adapter *adap, unsigned int mbox);
 int t4_handle_fw_rpl(struct adapter *adap, const __be64 *rpl);
 int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 val);
+int t4_sched_config(struct adapter *adapter, int type, int minmaxen);
+int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
+		    int rateunit, int ratemode, int channel, int cl,
+		    int minrate, int maxrate, int weight, int pktsize);
 #endif /* __CHELSIO_COMMON_H */

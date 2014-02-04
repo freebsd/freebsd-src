@@ -322,9 +322,13 @@ isp_destroy_handle(ispsoftc_t *isp, uint32_t handle)
 void *
 isp_getrqentry(ispsoftc_t *isp)
 {
-	isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
-	if (ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp)) == isp->isp_reqodx) {
-		return (NULL);
+	uint32_t next;
+
+	next = ISP_NXT_QENTRY(isp->isp_reqidx, RQUEST_QUEUE_LEN(isp));
+	if (next == isp->isp_reqodx) {
+		isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+		if (next == isp->isp_reqodx)
+			return (NULL);
 	}
 	return (ISP_QUEUE_ENTRY(isp->isp_rquest, isp->isp_reqidx));
 }

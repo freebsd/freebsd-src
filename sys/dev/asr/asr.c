@@ -2740,12 +2740,13 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 		}
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
 			printf(
-			  "asr%d WARNING: scsi_cmd(%x) already done on b%dt%du%d\n",
+			  "asr%d WARNING: scsi_cmd(%x) already done on b%dt%d "
+			  "LUN %jx\n",
 			  cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)),
 			  ccb->csio.cdb_io.cdb_bytes[0],
 			  cam_sim_bus(sim),
 			  ccb->ccb_h.target_id,
-			  ccb->ccb_h.target_lun);
+			  (uintmax_t)ccb->ccb_h.target_lun);
 		}
 		debug_asr_cmd_printf("(%d,%d,%d,%d)", cam_sim_unit(sim),
 				     cam_sim_bus(sim), ccb->ccb_h.target_id,

@@ -7,19 +7,14 @@
      $FreeBSD$
      Original revision: 1.43
 -->
-
-<sect1>
-  <sect1info>
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>Processeurs et cartes m&egrave;res support&eacute;es</title>
     <authorgroup>
-      <author>
-	<firstname>Wilko</firstname>
-	<surname>Bulte</surname>
-	<contrib>Maintenu par </contrib>
-      </author>
+      <author><personname><firstname>Wilko</firstname><surname>Bulte</surname></personname><contrib>Maintenu par </contrib></author>
     </authorgroup>
-  </sect1info>
+  </info>
 
-  <title>Processeurs et cartes m&egrave;res support&eacute;es</title>
+  
 
   <para>Des retours, mises &agrave; jour et corrections a
   cette liste sont encourag&eacute;s.</para>
@@ -71,9 +66,8 @@
     <note>
       <para>Compaq a mis en ligne des informations pour les
       d&eacute;veloppeurs Linux, qui sont tr&egrave;s utiles aussi pour les
-      utilisateurs de &os;. Voyez la page des <ulink
-      url="http://www.support.compaq.com/alpha-tools/">Utilitaires
-      Linux pour Alpha</ulink>.</para>
+      utilisateurs de &os;. Voyez la page des <link xlink:href="http://www.support.compaq.com/alpha-tools/">Utilitaires
+      Linux pour Alpha</link>.</para>
 
     </note>
      
@@ -108,8 +102,8 @@
     la ROM syst&egrave;me, il suffit de le selectionner (via le menu ARC
     ou AlphaBIOS correspondant). Dans tous les autres cas vous devrez
     r&eacute;-inscrire le code SRM dans les ROMs. V&eacute;rifiez sur 
-    <ulink url="http://ftp.digital.com/pub/DEC/Alpha/firmware"> le site des
-    microcode Alpha</ulink> pour v&eacute;rifier si il est disponible pour
+    <link xlink:href="http://ftp.digital.com/pub/DEC/Alpha/firmware"> le site des
+    microcode Alpha</link> pour v&eacute;rifier si il est disponible pour
     votre syst&egrave;me. Dans tous les cas: <quote>no SRM</quote> veut
     dir qu'il n'existe pas pour &os; (ou NetBSD, OpenBSD, Tru64 Unix
     ou OpenVMS). Avec la d&eacute;convenue de WindowNT/alpha, un grand
@@ -504,9 +498,8 @@
       variante avec un connecteur <quote>DIN</quote> doit fonctionner
       correctement avec &os;.</para>
 
-      <para>La lecture du <ulink
-      url="ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps">
-      manuel OEM</ulink> est recommand&eacute;.</para>
+      <para>La lecture du <link xlink:href="ftp://ftp.digital.com/pub/DEC/axppci/design_guide.ps">
+      manuel OEM</link> est recommand&eacute;.</para>
 
       <para>Le fichier de configuration du noyau pour un noyau NoName
       doit contenir la ligne:</para>
@@ -683,7 +676,7 @@
       attention aux cartes PCI avec une forte consommation
       d'&eacute;nergie. Si votre syst&egrave;me Multia cesse de fonctionner
       suite &agrave; un probl&egrave;me de chaleur, consultez les pages du
-      <ulink url="http://www.netbsd.org/">site web de NetBSD</ulink>
+      <link xlink:href="http://www.netbsd.org/">site web de NetBSD</link>
       pour de l'aide sur la fa&ccedil;on de le remettre en marche.</para>
 
       <para>Le pont Intel 82378ZB PCI vers ISA permet d'utiliser un
@@ -723,12 +716,10 @@
 
       <programlisting>options DEC_AXPPCI_33 cpu EV4</programlisting>
 
-      <para>La lecture du document <ulink
-      url="http://www.netbsd.org/Ports/alpha/multiafaq.html">
-      http://www.netbsd.org/Ports/alpha/multiafaq.html</ulink> ou
-      <ulink
-      url="http://www.brouhaha.com/~eric/computers/udb.html">
-      http://www.brouhaha.com/~eric/computers/udb.html</ulink> est
+      <para>La lecture du document <link xlink:href="http://www.netbsd.org/Ports/alpha/multiafaq.html">
+      http://www.netbsd.org/Ports/alpha/multiafaq.html</link> ou
+      <link xlink:href="http://www.brouhaha.com/~eric/computers/udb.html">
+      http://www.brouhaha.com/~eric/computers/udb.html</link> est
       recommand&eacute;.</para>
 
     </sect3>
@@ -880,7 +871,7 @@
 
       <para>La commande exacte est:</para>
 
-      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE <replaceable>&lt;vendor_id&gt;</replaceable><replaceable>&lt;device_id&gt;</replaceable></userinput></screen>
+      <screen><prompt>&gt;&gt;&gt;</prompt> <userinput>SET PCI_DEVICE_OVERRIDE &lt;vendor_id&gt;&lt;device_id&gt;</userinput></screen>
 
       <para>Par exemple:</para>
 
@@ -980,8 +971,7 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       <para>apr&egrave;s avoir arr&eacute;ter &os;, vous devez mettre &agrave;
       jour votre micro-code SRM en version V7.2-1 ou sup&eacute;rieure. La
       premi&egrave;re version SRM disponible peut se trouver sur le CD de
-      mise &agrave; jour du micro-code V5.7, ou sur le site <ulink
-      url="http://www.compaq.com/">http://www.compaq.com/</ulink>. Ce
+      mise &agrave; jour du micro-code V5.7, ou sur le site <link xlink:href="http://www.compaq.com/">http://www.compaq.com/</link>. Ce
       probl&egrave;me SRM a &eacute;t&eacute; corrig&eacute; sur les
       mod&egrave;les Miata MX5 et Miata GL.</para>
 
@@ -2930,8 +2920,8 @@ cpu	EV5</programlisting>
     <title>Acknowledgments</title>
 
     <para>In compiling this file I used multiple information sources,
-    but <ulink url="http://www.netbsd.org/">the NetBSD Web
-    site</ulink> proved to be an invaluable source of information.  If
+    but <link xlink:href="http://www.netbsd.org/">the NetBSD Web
+    site</link> proved to be an invaluable source of information.  If
     it wasn't for NetBSD/alpha there probably would not be a
     &os;/alpha in the first place.</para>
 

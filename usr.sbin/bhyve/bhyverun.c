@@ -33,16 +33,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/time.h>
 
+#include <machine/atomic.h>
 #include <machine/segments.h>
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <err.h>
 #include <libgen.h>
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
+#include <sysexits.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -51,12 +55,13 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
+#include "legacy_irq.h"
 #include "mem.h"
 #include "mevent.h"
 #include "mptbl.h"
 #include "pci_emul.h"
+#include "pci_lpc.h"
 #include "xmsr.h"
-#include "ioapic.h"
 #include "spinup_ap.h"
 #include "rtc.h"
 
@@ -79,8 +84,7 @@ int guest_ncpus;
 
 static int pincpu = -1;
 static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
-
-static int foundcpus;
+static int virtio_msix = 1;
 
 static int strictio;
 
@@ -118,23 +122,23 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIP][-g <gdb port>][-s <pci>][-S <pci>]"
-		"[-c vcpus][-p pincpu][-m mem]"
-		" <vmname>\n"
+                "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
+		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
-		"       -g: gdb port (default is %d and 0 means don't open)\n"
+		"       -g: gdb port\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
 		"       -H: vmexit from the guest on hlt\n"
-		"       -I: present an ioapic to the guest\n"
 		"       -P: vmexit from the guest on pause\n"
-		"	-e: exit on unhandled i/o access\n"
+		"       -W: force virtio to use single-vector MSI\n"
+		"       -e: exit on unhandled I/O access\n"
 		"       -h: help\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
+		"       -l: LPC device configuration\n"
 		"       -m: memory size in MB\n",
-		progname, DEFAULT_GDB_PORT);
+		progname, (int)strlen(progname), "");
 
 	exit(code);
 }
@@ -167,6 +171,13 @@ fbsdrun_vmexit_on_hlt(void)
 	return (guest_vmexit_on_hlt);
 }
 
+int
+fbsdrun_virtio_msix(void)
+{
+
+	return (virtio_msix);
+}
+
 static void *
 fbsdrun_start_thread(void *param)
 {
@@ -177,7 +188,7 @@ fbsdrun_start_thread(void *param)
 	mtp = param;
 	vcpu = mtp->mt_vcpu;
 
-	snprintf(tname, sizeof(tname), "%s vcpu %d", vmname, vcpu);
+	snprintf(tname, sizeof(tname), "vcpu %d", vcpu);
 	pthread_set_name_np(mtp->mt_thr, tname);
 
 	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
@@ -198,8 +209,7 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 		exit(1);
 	}
 
-	cpumask |= 1 << vcpu;
-	foundcpus++;
+	atomic_set_int(&cpumask, 1 << vcpu);
 
 	/*
 	 * Set up the vmexit struct to allow execution to start
@@ -217,14 +227,17 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 }
 
 static int
-fbsdrun_get_next_cpu(int curcpu)
+fbsdrun_deletecpu(struct vmctx *ctx, int vcpu)
 {
 
-	/*
-	 * Get the next available CPU. Assumes they arrive
-	 * in ascending order with no gaps.
-	 */
-	return ((curcpu + 1) % foundcpus);
+	if ((cpumask & (1 << vcpu)) == 0) {
+		fprintf(stderr, "addcpu: attempting to delete unknown cpu %d\n",
+		    vcpu);
+		exit(1);
+	}
+
+	atomic_clear_int(&cpumask, 1 << vcpu);
+	return (cpumask == 0);
 }
 
 static int
@@ -326,6 +339,17 @@ vmexit_spinup_ap(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 }
 
 static int
+vmexit_spindown_cpu(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
+{
+	int lastcpu;
+
+	lastcpu = fbsdrun_deletecpu(ctx, *pvcpu);
+	if (!lastcpu)
+		pthread_exit(NULL);
+	return (vmexit_catch_reset());
+}
+
+static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
@@ -416,6 +440,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 	[VM_EXITCODE_MTRAP]  = vmexit_mtrap,
 	[VM_EXITCODE_INST_EMUL] = vmexit_inst_emul,
 	[VM_EXITCODE_SPINUP_AP] = vmexit_spinup_ap,
+	[VM_EXITCODE_SPINDOWN_CPU] = vmexit_spindown_cpu,
 };
 
 static void
@@ -493,10 +518,54 @@ num_vcpus_allowed(struct vmctx *ctx)
 		return (1);
 }
 
+void
+fbsdrun_set_capabilities(struct vmctx *ctx, int cpu)
+{
+	int err, tmp;
+
+	if (fbsdrun_vmexit_on_hlt()) {
+		err = vm_get_capability(ctx, cpu, VM_CAP_HALT_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr, "VM exit on HLT not supported\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_HALT_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_HLT] = vmexit_hlt;
+	}
+
+        if (fbsdrun_vmexit_on_pause()) {
+		/*
+		 * pause exit support required for this mode
+		 */
+		err = vm_get_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, &tmp);
+		if (err < 0) {
+			fprintf(stderr,
+			    "SMP mux requested, no pause support\n");
+			exit(1);
+		}
+		vm_set_capability(ctx, cpu, VM_CAP_PAUSE_EXIT, 1);
+		if (cpu == BSP)
+			handler[VM_EXITCODE_PAUSE] = vmexit_pause;
+        }
+
+	if (fbsdrun_disable_x2apic())
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_DISABLED);
+	else
+		err = vm_set_x2apic_state(ctx, cpu, X2APIC_ENABLED);
+
+	if (err) {
+		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
+		exit(1);
+	}
+
+	vm_set_capability(ctx, cpu, VM_CAP_ENABLE_INVPCID, 1);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, tmp, err, ioapic, bvmcons;
+	int c, error, gdb_port, err, bvmcons;
 	int max_vcpus;
 	struct vmctx *ctx;
 	uint64_t rip;
@@ -504,12 +573,11 @@ main(int argc, char *argv[])
 
 	bvmcons = 0;
 	progname = basename(argv[0]);
-	gdb_port = DEFAULT_GDB_PORT;
+	gdb_port = 0;
 	guest_ncpus = 1;
-	ioapic = 0;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPp:g:c:s:S:m:")) != -1) {
+	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -529,6 +597,12 @@ main(int argc, char *argv[])
 		case 'g':
 			gdb_port = atoi(optarg);
 			break;
+		case 'l':
+			if (lpc_device_parse(optarg) != 0) {
+				errx(EX_USAGE, "invalid lpc device "
+				    "configuration '%s'", optarg);
+			}
+			break;
 		case 's':
 			if (pci_parse_slot(optarg, 0) != 0)
 				exit(1);
@@ -540,19 +614,30 @@ main(int argc, char *argv[])
 			else
 				break;
                 case 'm':
-			memsize = strtoul(optarg, NULL, 0) * MB;
+			error = vm_parse_memsize(optarg, &memsize);
+			if (error)
+				errx(EX_USAGE, "invalid memsize '%s'", optarg);
 			break;
 		case 'H':
 			guest_vmexit_on_hlt = 1;
 			break;
 		case 'I':
-			ioapic = 1;
+			/*
+			 * The "-I" option was used to add an ioapic to the
+			 * virtual machine.
+			 *
+			 * An ioapic is now provided unconditionally for each
+			 * virtual machine and this option is now deprecated.
+			 */
 			break;
 		case 'P':
 			guest_vmexit_on_pause = 1;
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'W':
+			virtio_msix = 0;
 			break;
 		case 'h':
 			usage(0);			
@@ -581,39 +666,7 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	if (fbsdrun_vmexit_on_hlt()) {
-		err = vm_get_capability(ctx, BSP, VM_CAP_HALT_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr, "VM exit on HLT not supported\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_HALT_EXIT, 1);
-		handler[VM_EXITCODE_HLT] = vmexit_hlt;
-	}
-
-        if (fbsdrun_vmexit_on_pause()) {
-		/*
-		 * pause exit support required for this mode
-		 */
-		err = vm_get_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, &tmp);
-		if (err < 0) {
-			fprintf(stderr,
-			    "SMP mux requested, no pause support\n");
-			exit(1);
-		}
-		vm_set_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, 1);
-		handler[VM_EXITCODE_PAUSE] = vmexit_pause;
-        }
-
-	if (fbsdrun_disable_x2apic())
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_DISABLED);
-	else
-		err = vm_set_x2apic_state(ctx, BSP, X2APIC_ENABLED);
-
-	if (err) {
-		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
-		exit(1);
-	}
+	fbsdrun_set_capabilities(ctx, BSP);
 
 	err = vm_setup_memory(ctx, memsize, VM_MMAP_ALL);
 	if (err) {
@@ -623,6 +676,7 @@ main(int argc, char *argv[])
 
 	init_mem();
 	init_inout();
+	legacy_irq_init();
 
 	rtc_init(ctx);
 
@@ -631,9 +685,6 @@ main(int argc, char *argv[])
 	 */
 	if (init_pci(ctx) != 0)
 		exit(1);
-
-	if (ioapic)
-		ioapic_init(0);
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
@@ -647,13 +698,18 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	mptable_build(ctx, guest_ncpus, ioapic);
+	mptable_build(ctx, guest_ncpus);
 
 	if (acpi) {
-		error = acpi_build(ctx, guest_ncpus, ioapic);
+		error = acpi_build(ctx, guest_ncpus);
 		assert(error == 0);
 	}
 
+	/*
+	 * Change the proc title to include the VM name.
+	 */
+	setproctitle("%s", vmname); 
+	
 	/*
 	 * Add CPU 0
 	 */

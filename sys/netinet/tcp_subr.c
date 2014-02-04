@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
-#include "opt_kdtrace.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -64,6 +63,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/route.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/cc.h>
@@ -431,6 +431,7 @@ tcp_init(void)
 void
 tcp_destroy(void)
 {
+	int error;
 
 	tcp_reass_destroy();
 	tcp_hc_destroy();
@@ -439,6 +440,19 @@ tcp_destroy(void)
 	in_pcbinfo_destroy(&V_tcbinfo);
 	uma_zdestroy(V_sack_hole_zone);
 	uma_zdestroy(V_tcpcb_zone);
+
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_IN]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN, error);
+	}
+	error = hhook_head_deregister(V_tcp_hhh[HHOOK_TCP_EST_OUT]);
+	if (error != 0) {
+		printf("%s: WARNING: unable to deregister helper hook "
+		    "type=%d, id=%d: error %d returned\n", __func__,
+		    HHOOK_TYPE_TCP, HHOOK_TCP_EST_OUT, error);
+	}
 }
 #endif
 
@@ -706,9 +720,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		tcp_trace(TA_OUTPUT, 0, tp, mtod(m, void *), th, 0);
 #endif
 	if (flags & TH_RST)
-		TCP_PROBE5(accept_refused, NULL, NULL, m->m_data, tp, nth);
+		TCP_PROBE5(accept__refused, NULL, NULL, mtod(m, const char *),
+		    tp, nth);
 
-	TCP_PROBE5(send, NULL, tp, m->m_data, tp, nth);
+	TCP_PROBE5(send, NULL, tp, mtod(m, const char *), tp, nth);
 #ifdef INET6
 	if (isipv6)
 		(void) ip6_output(m, NULL, NULL, ipflags, NULL, NULL, inp);
@@ -2397,5 +2412,5 @@ tcp_state_change(struct tcpcb *tp, int newstate)
 #endif
 
 	tp->t_state = newstate;
-	TCP_PROBE6(state_change, NULL, tp, NULL, tp, NULL, pstate);
+	TCP_PROBE6(state__change, NULL, tp, NULL, tp, NULL, pstate);
 }

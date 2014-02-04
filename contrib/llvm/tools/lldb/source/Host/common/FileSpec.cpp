@@ -8,9 +8,15 @@
 //===----------------------------------------------------------------------===//
 
 
+#ifndef _WIN32
 #include <dirent.h>
+#else
+#include "lldb/Host/windows/windows.h"
+#endif
 #include <fcntl.h>
+#ifndef _MSC_VER
 #include <libgen.h>
+#endif
 #include <sys/stat.h>
 #include <set>
 #include <string.h>
@@ -25,8 +31,10 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 
+#include "lldb/Core/StreamString.h"
 #include "lldb/Host/File.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/Host.h"
 #include "lldb/Core/DataBufferHeap.h"
 #include "lldb/Core/DataBufferMemoryMap.h"
 #include "lldb/Core/RegularExpression.h"
@@ -323,7 +331,11 @@ FileSpec::SetFile (const char *pathname, bool resolve)
             // Truncate the basename off the end of the resolved path
 
             // Only attempt to get the dirname if it looks like we have a path
-            if (strchr(resolved_path, '/'))
+            if (strchr(resolved_path, '/')
+#ifdef _WIN32
+                || strchr(resolved_path, '\\')
+#endif
+                )
             {
                 char *directory = ::dirname (resolved_path);
 
@@ -334,6 +346,11 @@ FileSpec::SetFile (const char *pathname, bool resolve)
                 else
                 {
                     char *last_resolved_path_slash = strrchr(resolved_path, '/');
+#ifdef _WIN32
+                    char* last_resolved_path_slash_windows = strrchr(resolved_path, '\\');
+                    if (last_resolved_path_slash_windows > last_resolved_path_slash)
+                        last_resolved_path_slash = last_resolved_path_slash_windows;
+#endif
                     if (last_resolved_path_slash)
                     {
                         *last_resolved_path_slash = '\0';
@@ -617,16 +634,27 @@ FileSpec::GetFileType () const
         switch (file_type)
         {
         case S_IFDIR:   return eFileTypeDirectory;
-        case S_IFIFO:   return eFileTypePipe;
         case S_IFREG:   return eFileTypeRegular;
+#ifndef _WIN32
+        case S_IFIFO:   return eFileTypePipe;
         case S_IFSOCK:  return eFileTypeSocket;
         case S_IFLNK:   return eFileTypeSymbolicLink;
+#endif
         default:
             break;
         }
         return eFileTypeUnknown;
     }
     return eFileTypeInvalid;
+}
+
+uint32_t
+FileSpec::GetPermissions () const
+{
+    uint32_t file_permissions = 0;
+    if (*this)
+        Host::GetFilePermissions(GetPath().c_str(), file_permissions);
+    return file_permissions;
 }
 
 TimeValue
@@ -908,7 +936,94 @@ FileSpec::EnumerateDirectory
 {
     if (dir_path && dir_path[0])
     {
-        lldb_utility::CleanUp <DIR *, int> dir_path_dir (opendir(dir_path), NULL, closedir);
+#if _WIN32
+        char szDir[MAX_PATH];
+        strcpy_s(szDir, MAX_PATH, dir_path);
+        strcat_s(szDir, MAX_PATH, "\\*");
+
+        WIN32_FIND_DATA ffd;
+        HANDLE hFind = FindFirstFile(szDir, &ffd);
+
+        if (hFind == INVALID_HANDLE_VALUE)
+        {
+            return eEnumerateDirectoryResultNext;
+        }
+
+        do
+        {
+            bool call_callback = false;
+            FileSpec::FileType file_type = eFileTypeUnknown;
+            if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+            {
+                size_t len = strlen(ffd.cFileName);
+
+                if (len == 1 && ffd.cFileName[0] == '.')
+                    continue;
+
+                if (len == 2 && ffd.cFileName[0] == '.' && ffd.cFileName[1] == '.')
+                    continue;
+
+                file_type = eFileTypeDirectory;
+                call_callback = find_directories;
+            }
+            else if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DEVICE)
+            {
+                file_type = eFileTypeOther;
+                call_callback = find_other;
+            }
+            else
+            {
+                file_type = eFileTypeRegular;
+                call_callback = find_files;
+            }
+            if (call_callback)
+            {
+                char child_path[MAX_PATH];
+                const int child_path_len = ::snprintf (child_path, sizeof(child_path), "%s\\%s", dir_path, ffd.cFileName);
+                if (child_path_len < (int)(sizeof(child_path) - 1))
+                {
+                    // Don't resolve the file type or path
+                    FileSpec child_path_spec (child_path, false);
+
+                    EnumerateDirectoryResult result = callback (callback_baton, file_type, child_path_spec);
+
+                    switch (result)
+                    {
+                    case eEnumerateDirectoryResultNext:
+                        // Enumerate next entry in the current directory. We just
+                        // exit this switch and will continue enumerating the
+                        // current directory as we currently are...
+                        break;
+
+                    case eEnumerateDirectoryResultEnter: // Recurse into the current entry if it is a directory or symlink, or next if not
+                        if (FileSpec::EnumerateDirectory(child_path,
+                            find_directories,
+                            find_files,
+                            find_other,
+                            callback,
+                            callback_baton) == eEnumerateDirectoryResultQuit)
+                        {
+                            // The subdirectory returned Quit, which means to 
+                            // stop all directory enumerations at all levels.
+                            return eEnumerateDirectoryResultQuit;
+                        }
+                        break;
+
+                    case eEnumerateDirectoryResultExit:  // Exit from the current directory at the current level.
+                        // Exit from this directory level and tell parent to 
+                        // keep enumerating.
+                        return eEnumerateDirectoryResultNext;
+
+                    case eEnumerateDirectoryResultQuit:  // Stop directory enumerations at any level
+                        return eEnumerateDirectoryResultQuit;
+                    }
+                }
+            }
+        } while (FindNextFile(hFind, &ffd) != 0);
+
+        FindClose(hFind);
+#else
+        lldb_utility::CleanUp <DIR *, int> dir_path_dir(opendir(dir_path), NULL, closedir);
         if (dir_path_dir.is_valid())
         {
             long path_max = fpathconf (dirfd (dir_path_dir.get()), _PC_NAME_MAX);
@@ -1007,12 +1122,147 @@ FileSpec::EnumerateDirectory
                 free (buf);
             }
         }
+#endif
     }
     // By default when exiting a directory, we tell the parent enumeration
     // to continue enumerating.
     return eEnumerateDirectoryResultNext;    
 }
 
+FileSpec
+FileSpec::CopyByAppendingPathComponent (const char *new_path)  const
+{
+    const bool resolve = false;
+    if (m_filename.IsEmpty() && m_directory.IsEmpty())
+        return FileSpec(new_path,resolve);
+    StreamString stream;
+    if (m_filename.IsEmpty())
+        stream.Printf("%s/%s",m_directory.GetCString(),new_path);
+    else if (m_directory.IsEmpty())
+        stream.Printf("%s/%s",m_filename.GetCString(),new_path);
+    else
+        stream.Printf("%s/%s/%s",m_directory.GetCString(), m_filename.GetCString(),new_path);
+    return FileSpec(stream.GetData(),resolve);
+}
+
+FileSpec
+FileSpec::CopyByRemovingLastPathComponent ()  const
+{
+    const bool resolve = false;
+    if (m_filename.IsEmpty() && m_directory.IsEmpty())
+        return FileSpec("",resolve);
+    if (m_directory.IsEmpty())
+        return FileSpec("",resolve);
+    if (m_filename.IsEmpty())
+    {
+        const char* dir_cstr = m_directory.GetCString();
+        const char* last_slash_ptr = ::strrchr(dir_cstr, '/');
+        
+        // check for obvious cases before doing the full thing
+        if (!last_slash_ptr)
+            return FileSpec("",resolve);
+        if (last_slash_ptr == dir_cstr)
+            return FileSpec("/",resolve);
+        
+        size_t last_slash_pos = last_slash_ptr - dir_cstr+1;
+        ConstString new_path(dir_cstr,last_slash_pos);
+        return FileSpec(new_path.GetCString(),resolve);
+    }
+    else
+        return FileSpec(m_directory.GetCString(),resolve);
+}
+
+ConstString
+FileSpec::GetLastPathComponent () const
+{
+    if (m_filename)
+        return m_filename;
+    if (m_directory)
+    {
+        const char* dir_cstr = m_directory.GetCString();
+        const char* last_slash_ptr = ::strrchr(dir_cstr, '/');
+        if (last_slash_ptr == NULL)
+            return m_directory;
+        if (last_slash_ptr == dir_cstr)
+        {
+            if (last_slash_ptr[1] == 0)
+                return ConstString(last_slash_ptr);
+            else
+                return ConstString(last_slash_ptr+1);
+        }
+        if (last_slash_ptr[1] != 0)
+            return ConstString(last_slash_ptr+1);
+        const char* penultimate_slash_ptr = last_slash_ptr;
+        while (*penultimate_slash_ptr)
+        {
+            --penultimate_slash_ptr;
+            if (penultimate_slash_ptr == dir_cstr)
+                break;
+            if (*penultimate_slash_ptr == '/')
+                break;
+        }
+        ConstString result(penultimate_slash_ptr+1,last_slash_ptr-penultimate_slash_ptr);
+        return result;
+    }
+    return ConstString();
+}
+
+void
+FileSpec::AppendPathComponent (const char *new_path)
+{
+    const bool resolve = false;
+    if (m_filename.IsEmpty() && m_directory.IsEmpty())
+    {
+        SetFile(new_path,resolve);
+        return;
+    }
+    StreamString stream;
+    if (m_filename.IsEmpty())
+        stream.Printf("%s/%s",m_directory.GetCString(),new_path);
+    else if (m_directory.IsEmpty())
+        stream.Printf("%s/%s",m_filename.GetCString(),new_path);
+    else
+        stream.Printf("%s/%s/%s",m_directory.GetCString(), m_filename.GetCString(),new_path);
+    SetFile(stream.GetData(), resolve);
+}
+
+void
+FileSpec::RemoveLastPathComponent ()
+{
+    const bool resolve = false;
+    if (m_filename.IsEmpty() && m_directory.IsEmpty())
+    {
+        SetFile("",resolve);
+        return;
+    }
+    if (m_directory.IsEmpty())
+    {
+        SetFile("",resolve);
+        return;
+    }
+    if (m_filename.IsEmpty())
+    {
+        const char* dir_cstr = m_directory.GetCString();
+        const char* last_slash_ptr = ::strrchr(dir_cstr, '/');
+        
+        // check for obvious cases before doing the full thing
+        if (!last_slash_ptr)
+        {
+            SetFile("",resolve);
+            return;
+        }
+        if (last_slash_ptr == dir_cstr)
+        {
+            SetFile("/",resolve);
+            return;
+        }        
+        size_t last_slash_pos = last_slash_ptr - dir_cstr+1;
+        ConstString new_path(dir_cstr,last_slash_pos);
+        SetFile(new_path.GetCString(),resolve);
+    }
+    else
+        SetFile(m_directory.GetCString(),resolve);
+}
 //------------------------------------------------------------------
 /// Returns true if the filespec represents an implementation source
 /// file (files with a ".c", ".cpp", ".m", ".mm" (many more)

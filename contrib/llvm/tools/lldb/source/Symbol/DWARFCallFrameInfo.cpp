@@ -341,7 +341,7 @@ DWARFCallFrameInfo::GetFDEIndex ()
         dw_offset_t next_entry = current_entry + len + 4;
         dw_offset_t cie_id = m_cfi_data.GetU32 (&offset);
 
-        if (cie_id == 0 || cie_id == UINT32_MAX)
+        if (cie_id == 0 || cie_id == UINT32_MAX || len == 0)
         {
             m_cie_map[current_entry] = ParseCIE (current_entry);
             offset = next_entry;
@@ -443,6 +443,8 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
 
     unwind_plan.SetRegisterKind (m_reg_kind);
     unwind_plan.SetReturnAddressRegister (cie->return_addr_reg_num);
+
+    std::vector<UnwindPlan::RowSP> stack;
 
     UnwindPlan::Row::RegisterLocation reg_location;
     while (m_cfi_data.ValidOffset(offset) && offset < end_offset)
@@ -629,7 +631,7 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
                         // the stack and place them in the current row. (This operation is
                         // useful for compilers that move epilogue code into the body of a
                         // function.)
-                        unwind_plan.AppendRow (row);
+                        stack.push_back (row);
                         UnwindPlan::Row *newrow = new UnwindPlan::Row;
                         *newrow = *row.get();
                         row.reset (newrow);
@@ -645,7 +647,8 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
                     // useful for compilers that move epilogue code into the body of a
                     // function.)
                     {
-                        row = unwind_plan.GetRowAtIndex(unwind_plan.GetRowCount() - 1);
+                        row = stack.back ();
+                        stack.pop_back ();
                     }
                     break;
 

@@ -38,6 +38,8 @@ struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
 struct vm_run;
+struct vhpet;
+struct vioapic;
 struct vlapic;
 struct vmspace;
 struct vm_object;
@@ -116,10 +118,13 @@ int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
 uint64_t *vm_guest_msrs(struct vm *vm, int cpu);
 struct vlapic *vm_lapic(struct vm *vm, int cpu);
+struct vioapic *vm_ioapic(struct vm *vm);
+struct vhpet *vm_hpet(struct vm *vm);
 int vm_get_capability(struct vm *vm, int vcpu, int type, int *val);
 int vm_set_capability(struct vm *vm, int vcpu, int type, int val);
 int vm_get_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state *state);
 int vm_set_x2apic_state(struct vm *vm, int vcpu, enum x2apic_state state);
+int vm_apicid2vcpuid(struct vm *vm, int apicid);
 void vm_activate_cpu(struct vm *vm, int vcpu);
 cpuset_t vm_active_cpus(struct vm *vm);
 struct vm_exit *vm_exitinfo(struct vm *vm, int vcpuid);
@@ -151,7 +156,7 @@ vcpu_is_running(struct vm *vm, int vcpu, int *hostcpu)
 }
 
 void *vcpu_stats(struct vm *vm, int vcpu);
-void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
+void vcpu_notify_event(struct vm *vm, int vcpuid);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
@@ -223,6 +228,7 @@ enum vm_cap_type {
 	VM_CAP_MTRAP_EXIT,
 	VM_CAP_PAUSE_EXIT,
 	VM_CAP_UNRESTRICTED_GUEST,
+	VM_CAP_ENABLE_INVPCID,
 	VM_CAP_MAX
 };
 
@@ -258,6 +264,7 @@ enum vm_exitcode {
 	VM_EXITCODE_PAGING,
 	VM_EXITCODE_INST_EMUL,
 	VM_EXITCODE_SPINUP_AP,
+	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_MAX
 };
 
@@ -277,7 +284,6 @@ struct vm_exit {
 		struct {
 			uint64_t	gpa;
 			int		fault_type;
-			int		protection;
 		} paging;
 		struct {
 			uint64_t	gpa;
@@ -302,6 +308,9 @@ struct vm_exit {
 			int		vcpu;
 			uint64_t	rip;
 		} spinup_ap;
+		struct {
+			uint64_t	rflags;
+		} hlt;
 	} u;
 };
 

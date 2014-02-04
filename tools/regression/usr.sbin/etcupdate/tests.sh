@@ -33,13 +33,17 @@ WORKDIR=work
 
 usage()
 {
-	echo "Usage: tests.sh [-w workdir]"
+	echo "Usage: tests.sh [-s script] [-w workdir]"
 	exit 1
 }
 
-# Allow the user to specify an alternate work directory.
-while getopts "w:" option; do
+# Allow the user to specify an alternate work directory or script.
+COMMAND=etcupdate
+while getopts "s:w:" option; do
 	case $option in
+		s)
+			COMMAND="sh $OPTARG"
+			;;
 		w)
 			WORKDIR=$OPTARG
 			;;
@@ -624,6 +628,24 @@ root: someone@example.com
 MAILER-DAEMON: postmaster
 postmaster: root
 EOF
+
+	# - Verify that updating an unmodified /etc/services builds
+	# /var/db/services.db.
+	cat > $OLD/etc/services <<EOF
+rtmp		  1/ddp	   #Routing Table Maintenance Protocol
+tcpmux		  1/tcp	   #TCP Port Service Multiplexer
+tcpmux		  1/udp	   #TCP Port Service Multiplexer
+EOF
+	cat > $NEW/etc/services <<EOF
+rtmp		  1/ddp	   #Routing Table Maintenance Protocol
+tcpmux		  1/tcp	   #TCP Port Service Multiplexer
+tcpmux		  1/udp	   #TCP Port Service Multiplexer
+nbp		  2/ddp	   #Name Binding Protocol
+compressnet	  2/tcp	   #Management Utility
+compressnet	  2/udp	   #Management Utility
+EOF
+	cp $OLD/etc/services $TEST/etc/services
+	mkdir -p $TEST/var/db
 }
 
 # $1 - relative path to file that should be missing from TEST
@@ -892,6 +914,8 @@ check_trees()
 	file /etc/login.conf "" 7774a0f9a3a372c7c109c32fd31c4b6b
 	file /etc/login.conf.db
 	file /etc/mail/aliases "" 7d598f89ec040ab56af54011bdb83337
+	file /etc/services "" 37fb6a8d1273f3b78329d431f21d9c7d
+	file /var/db/services.db
 }
 
 if [ `id -u` -ne 0 ]; then
@@ -904,7 +928,7 @@ fi
 
 build_trees
 
-etcupdate -nr -d $WORKDIR -D $TEST > $WORKDIR/testn.out
+$COMMAND -nr -d $WORKDIR -D $TEST > $WORKDIR/testn.out
 
 cat > $WORKDIR/correct.out <<EOF
   D /dirchange/fromdir/extradir/file
@@ -930,6 +954,7 @@ cat > $WORKDIR/correct.out <<EOF
   U /dirchange/old/todir
   U /etc/login.conf
   M /etc/mail/aliases
+  U /etc/services
   A /adddir/partial/file
   A /dirchange/old/todir/file
   A /etc/master.passwd
@@ -971,7 +996,7 @@ EOF
 echo "Differences for -n:"
 diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/testn.out
 
-etcupdate -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
+$COMMAND -r -d $WORKDIR -D $TEST > $WORKDIR/test.out
 
 echo "Differences for real:"
 diff -u -L "correct" $WORKDIR/correct.out -L "test" $WORKDIR/test.out

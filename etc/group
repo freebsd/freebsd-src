@@ -16,7 +16,6 @@ staff:*:20:
 sshd:*:22:
 smmsp:*:25:
 mailnull:*:26:
-_atf:*:27:
 guest:*:31:
 bind:*:53:
 unbound:*:59:

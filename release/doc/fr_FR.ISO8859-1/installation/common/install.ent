@@ -14,7 +14,6 @@
 <!-- Files to be included -->
 
 <!ENTITY artheader SYSTEM "artheader.xml">
-<!ENTITY abstract SYSTEM "abstract.xml">
 <!ENTITY sect.install SYSTEM "install.xml">
 <!ENTITY sect.layout SYSTEM "layout.xml">
 <!ENTITY sect.upgrade SYSTEM "upgrade.xml">

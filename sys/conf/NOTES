@@ -127,7 +127,7 @@ options 	BLKDEV_IOSIZE=8192
 # devices and DFLTPHYS for the rest. Some applications have better
 # performance with larger raw I/O access sizes. Note that certain VM
 # parameters are derived from these values and making them too large
-# can make an an unbootable kernel.
+# can make an unbootable kernel.
 #
 # The defaults are 64K and 128K respectively.
 options 	DFLTPHYS=(64*1024)
@@ -728,7 +728,6 @@ options 	NETGRAPH_DEVICE
 options 	NETGRAPH_ECHO
 options 	NETGRAPH_EIFACE
 options 	NETGRAPH_ETHER
-options 	NETGRAPH_FEC
 options 	NETGRAPH_FRAME_RELAY
 options 	NETGRAPH_GIF
 options 	NETGRAPH_GIF_DEMUX
@@ -1168,9 +1167,6 @@ options 	MAC_TEST
 options 	CAPABILITIES	# fine-grained rights on file descriptors
 options 	CAPABILITY_MODE	# sandboxes with no global namespace access
 
-# Support for process descriptors
-options		PROCDESC
-
 
 #####################################################################
 # CLOCK OPTIONS
@@ -1281,8 +1277,7 @@ hint.sa.1.target="6"
 # to incoming commands that do not otherwise have a logical unit assigned
 # to them.
 #
-# The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
-# configuration as the "pass" driver.
+# The pass driver provides a passthrough API to access the CAM subsystem.
 
 device		scbus		#base SCSI code
 device		ch		#SCSI media changers
@@ -2962,3 +2957,8 @@ options 	RCTL
 options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
+# Random number generator
+options 	RANDOM_YARROW	# Yarrow RNG
+##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+options 	RANDOM_DEBUG	# Debugging messages
+options 	RANDOM_RWFILE	# Read and write entropy cache

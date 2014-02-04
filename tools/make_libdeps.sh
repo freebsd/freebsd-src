@@ -48,7 +48,6 @@ sed -E
     -e's; ;! ;g'
     -e's;$;!;'
     -e's;-lbsdxml!;lib/libexpat;g'
-    -e's;-lbsdyml!;lib/libyaml;g'
     -e's;-lpthread!;lib/libthr;g'
     -e's;-lm!;lib/msun;g'
     -e's;-l(ncurses|termcap)!;lib/ncurses/ncurses;g'

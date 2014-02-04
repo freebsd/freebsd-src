@@ -5,7 +5,7 @@ arm/at91/at91_machdep.c		standard
 arm/at91/at91.c			standard
 arm/at91/at91_cfata.c		optional	at91_cfata
 arm/at91/at91_mci.c		optional	at91_mci
-arm/at91/at91_nand.c		optional	nand
+dev/nand/nfc_at91.c		optional	nand
 arm/at91/at91_pio.c		standard
 arm/at91/at91_pmc.c		standard
 arm/at91/at91_pit.c		optional	at91sam9

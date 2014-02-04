@@ -503,6 +503,8 @@ kdb_reenter(void)
 	if (!kdb_active || kdb_jmpbufp == NULL)
 		return;
 
+	printf("KDB: reentering\n");
+	kdb_backtrace();
 	longjmp(kdb_jmpbufp, 1);
 	/* NOTREACHED */
 }

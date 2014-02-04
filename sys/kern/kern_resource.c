@@ -1432,3 +1432,21 @@ chgptscnt(uip, diff, max)
 	}
 	return (1);
 }
+
+int
+chgkqcnt(struct uidinfo *uip, int diff, rlim_t max)
+{
+
+	if (diff > 0 && max != 0) {
+		if (atomic_fetchadd_long(&uip->ui_kqcnt, (long)diff) +
+		    diff > max) {
+			atomic_subtract_long(&uip->ui_kqcnt, (long)diff);
+			return (0);
+		}
+	} else {
+		atomic_add_long(&uip->ui_kqcnt, (long)diff);
+		if (uip->ui_kqcnt < 0)
+			printf("negative kqcnt for uid = %d\n", uip->ui_uid);
+	}
+	return (1);
+}

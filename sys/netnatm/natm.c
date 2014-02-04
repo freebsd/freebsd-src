@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_atm.h>
 #include <net/netisr.h>
 

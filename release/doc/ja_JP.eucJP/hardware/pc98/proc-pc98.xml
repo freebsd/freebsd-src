@@ -3,7 +3,7 @@
     $FreeBSD$
     Original revision: 1.5
 -->
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>対応しているシステム</title>
 
   <para>80486, Pentium, Pentium Pro, Pentium II をはじめとする

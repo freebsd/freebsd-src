@@ -10,7 +10,7 @@
 #include "config.h"
 
 #ifndef lint
-static const char sccsid[] = "$Id: key.c,v 10.53 2013/03/11 01:20:53 yamt Exp $";
+static const char sccsid[] = "$Id: key.c,v 10.54 2013/11/13 12:15:27 zy Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -272,7 +272,7 @@ v_key_name(
 	 * The code prints non-printable wide characters in 4 or 5 digits
 	 * Unicode escape sequences, so only supports plane 0 to 15.
 	 */
-	if (ISPRINT(ach))
+	if (CAN_PRINT(sp, ach))
 		goto done;
 nopr:	if (iscntrl(ch) && (ch < 0x20 || ch == 0x7f)) {
 		sp->cname[0] = '^';

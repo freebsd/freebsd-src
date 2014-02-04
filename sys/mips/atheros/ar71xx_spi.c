@@ -62,8 +62,16 @@ __FBSDID("$FreeBSD$");
 /*
  * register space access macros
  */
-#define SPI_WRITE(sc, reg, val)	do {	\
-		bus_write_4(sc->sc_mem_res, (reg), (val)); \
+
+#define	SPI_BARRIER_WRITE(sc)		bus_barrier((sc)->sc_mem_res, 0, 0, 	\
+					    BUS_SPACE_BARRIER_WRITE)
+#define	SPI_BARRIER_READ(sc)	bus_barrier((sc)->sc_mem_res, 0, 0, 	\
+					    BUS_SPACE_BARRIER_READ)
+#define	SPI_BARRIER_RW(sc)		bus_barrier((sc)->sc_mem_res, 0, 0, 	\
+					    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE)
+
+#define SPI_WRITE(sc, reg, val)	do {				\
+		bus_write_4(sc->sc_mem_res, (reg), (val));	\
 	} while (0)
 
 #define SPI_READ(sc, reg)	 bus_read_4(sc->sc_mem_res, (reg))
@@ -84,7 +92,7 @@ static int
 ar71xx_spi_probe(device_t dev)
 {
 	device_set_desc(dev, "AR71XX SPI");
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 static int
@@ -102,11 +110,29 @@ ar71xx_spi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-
 	SPI_WRITE(sc, AR71XX_SPI_FS, 1);
+
+	/* Flush out read before reading the control register */
+	SPI_BARRIER_WRITE(sc);
+
 	sc->sc_reg_ctrl  = SPI_READ(sc, AR71XX_SPI_CTRL);
+
+	/*
+	 * XXX TODO: document what the SPI control register does.
+	 */
 	SPI_WRITE(sc, AR71XX_SPI_CTRL, 0x43);
+
+	/*
+	 * Ensure the config register write has gone out before configuring
+	 * the chip select mask.
+	 */
+	SPI_BARRIER_WRITE(sc);
 	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, SPI_IO_CTRL_CSMASK);
+
+	/*
+	 * .. and ensure the write has gone out before continuing.
+	 */
+	SPI_BARRIER_WRITE(sc);
 
 	device_add_child(dev, "spibus", -1);
 	return (bus_generic_attach(dev));
@@ -121,7 +147,15 @@ ar71xx_spi_chip_activate(struct ar71xx_spi_softc *sc, int cs)
 	 */
 	ioctrl &= ~(SPI_IO_CTRL_CS0 << cs);
 
+	/*
+	 * Make sure any other writes have gone out to the
+	 * device before changing the chip select line;
+	 * then ensure that it has made it out to the device
+	 * before continuing.
+	 */
+	SPI_BARRIER_WRITE(sc);
 	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, ioctrl);
+	SPI_BARRIER_WRITE(sc);
 }
 
 static void
@@ -150,14 +184,18 @@ ar71xx_spi_txrx(struct ar71xx_spi_softc *sc, int cs, uint8_t data)
 			iod = ioctrl | SPI_IO_CTRL_DO;
 		else
 			iod = ioctrl & ~SPI_IO_CTRL_DO;
+		SPI_BARRIER_WRITE(sc);
 		SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, iod);
+		SPI_BARRIER_WRITE(sc);
 		SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, iod | SPI_IO_CTRL_CLK);
 	}
 
 	/*
 	 * Provide falling edge for connected device by clear clock bit.
 	 */
+	SPI_BARRIER_WRITE(sc);
 	SPI_WRITE(sc, AR71XX_SPI_IO_CTRL, iod);
+	SPI_BARRIER_WRITE(sc);
 	rds = SPI_READ(sc, AR71XX_SPI_RDS);
 
 	return (rds & 0xff);
@@ -206,8 +244,25 @@ ar71xx_spi_detach(device_t dev)
 {
 	struct ar71xx_spi_softc *sc = device_get_softc(dev);
 
+	/*
+	 * Ensure any other writes to the device are finished
+	 * before we tear down the SPI device.
+	 */
+	SPI_BARRIER_WRITE(sc);
+
+	/*
+	 * Restore the control register; ensure it has hit the
+	 * hardware before continuing.
+	 */
 	SPI_WRITE(sc, AR71XX_SPI_CTRL, sc->sc_reg_ctrl);
+	SPI_BARRIER_WRITE(sc);
+
+	/*
+	 * And now, put the flash back into mapped IO mode and
+	 * ensure _that_ has completed before we finish up.
+	 */
 	SPI_WRITE(sc, AR71XX_SPI_FS, 0);
+	SPI_BARRIER_WRITE(sc);
 
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);

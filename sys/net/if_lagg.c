@@ -347,6 +347,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	ifp->if_init = lagg_init;
 	ifp->if_ioctl = lagg_ioctl;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
+	ifp->if_capenable = ifp->if_capabilities = IFCAP_HWSTATS;
 
 	/*
 	 * Attach as an ordinary ethernet device, children will be attached

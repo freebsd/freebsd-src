@@ -206,7 +206,7 @@ f_dialog_input_member_groups()
 	f_dprintf "pw_member_groups: [%s]->[%s]" \
 	          "$cur_pw_member_groups" "$pw_member_groups"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_name [$name]
@@ -229,15 +229,15 @@ f_dialog_input_name()
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		f_dialog_input _input "$msg_login" "$_input" \
-		               "$hline_alnum_tab_enter" || return
+		               "$hline_alnum_tab_enter" || return $?
 
 		# Check for no-change
-		[ "$_input" = "$_name" ] && return $SUCCESS
+		[ "$_input" = "$_name" ] && return $DIALOG_OK
 
 		# Check for reversion
 		if [ "$_input" = "$cur_pw_name" ]; then
 			pw_name="$cur_pw_name"
-			return $SUCCESS
+			return $DIALOG_OK
 		fi
 
 		# Check for NULL entry
@@ -265,7 +265,7 @@ f_dialog_input_name()
 
 	f_dprintf "pw_name: [%s]->[%s]" "$cur_pw_name" "$pw_name"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_password
@@ -336,9 +336,9 @@ f_dialog_input_password()
 		if [ ! "$_password1" ]; then
 			f_dialog_yesno "$msg_disable_password_auth_for_account"
 			local retval=$?
-			if [ $retval -eq 255 ]; then # ESC was pressed
+			if [ $retval -eq $DIALOG_ESC ]; then
 				return $retval
-			elif [ $retval -eq $SUCCESS ]; then
+			elif [ $retval -eq $DIALOG_OK ]; then
 				pw_password_disable=1
 			else
 				continue # back to password prompt
@@ -354,7 +354,7 @@ f_dialog_input_password()
 
 	f_dprintf "pw_password: [%s]->[%s]" "$cur_pw_password" "$pw_password"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_gecos [$gecos]
@@ -370,14 +370,14 @@ f_dialog_input_gecos()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_full_name" "$_input" \
-	               "$hline_alnum_punc_tab_enter" || return
+	               "$hline_alnum_punc_tab_enter" || return $?
 
 	pw_gecos="$_input"
 	save_flag=1
 
 	f_dprintf "pw_gecos: [%s]->[%s]" "$cur_pw_gecos" "$pw_gecos"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_uid [$uid]
@@ -392,14 +392,14 @@ f_dialog_input_uid()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_user_id_leave_empty_for_default" \
-	               "$_input" "$hline_num_tab_enter" || return
+	               "$_input" "$hline_num_tab_enter" || return $?
 
 	pw_uid="$_input"
 	save_flag=1
 
 	f_dprintf "pw_uid: [%s]->[%s]" "$cur_pw_uid" "$pw_uid"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_gid [$gid]
@@ -414,14 +414,14 @@ f_dialog_input_gid()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_group_id_leave_empty_for_default" \
-	               "$_input" "$hline_num_tab_enter" || return
+	               "$_input" "$hline_num_tab_enter" || return $?
 
 	pw_gid="$_input"
 	save_flag=1
 
 	f_dprintf "pw_gid: [%s]->[%s]" "$cur_pw_gid" "$pw_gid"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_class [$class]
@@ -436,14 +436,14 @@ f_dialog_input_class()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_login_class" "$_input" \
-	               "$hline_alnum_tab_enter" || return
+	               "$hline_alnum_tab_enter" || return $?
 
 	pw_class="$_input"
 	save_flag=1
 
 	f_dprintf "pw_class: [%s]->[%s]" "$cur_pw_class" "$pw_class"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_expire_password [$seconds]
@@ -508,7 +508,7 @@ f_dialog_input_expire_password()
 		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		case "$date_type" in
 		1) # Password does not expire
@@ -538,7 +538,7 @@ f_dialog_input_expire_password()
 			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			[ $retval -eq $DIALOG_OK ] || continue
 
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
@@ -559,7 +559,7 @@ f_dialog_input_expire_password()
 			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			[ $retval -eq $DIALOG_OK ] || continue
 
 			_input=$( date \
 			          	-j -f "%d/%m/%Y %T" \
@@ -599,8 +599,8 @@ f_dialog_input_expire_password()
 
 		4) # Enter value manually
 			local msg ret_secs
-			msg=$( printf "$msg_number_of_seconds_since_epoch" \
-			              "$( date -r 1 "+%c %Z" )" )
+			f_sprintf msg "$msg_number_of_seconds_since_epoch" \
+			              "$( date -r 1 "+%c %Z" )"
 
 			# Return to menu if either ESC or Cancel/No
 			f_dialog_input ret_secs \
@@ -627,7 +627,7 @@ f_dialog_input_expire_password()
 	f_dprintf "pw_password_expire: [%s]->[%s]" \
 	          "$cur_pw_password_expire" "$pw_password_expire"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_expire_account [$seconds]
@@ -692,7 +692,7 @@ f_dialog_input_expire_account()
 		f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		[ $retval -eq $DIALOG_OK ] || return $retval
 
 		case "$date_type" in
 		1) # Account does not expire
@@ -722,7 +722,7 @@ f_dialog_input_expire_account()
 			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			[ $retval -eq $DIALOG_OK ] || continue
 
 			_input_time=
 			[ "$secs" ] && _input_time=$( date -j \
@@ -743,7 +743,7 @@ f_dialog_input_expire_account()
 			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			[ $retval -eq $DIALOG_OK ] || continue
 
 			_input=$( date \
 			          	-j -f "%d/%m/%Y %T" \
@@ -783,8 +783,8 @@ f_dialog_input_expire_account()
 
 		4) # Enter value manually
 			local msg ret_secs
-			msg=$( printf "$msg_number_of_seconds_since_epoch" \
-			              "$( date -r 1 "+%c %Z" )" )
+			f_sprintf msg "$msg_number_of_seconds_since_epoch" \
+			              "$( date -r 1 "+%c %Z" )"
 
 			# Return to menu if either ESC or Cancel/No
 			f_dialog_input ret_secs "$msg" \
@@ -811,7 +811,7 @@ f_dialog_input_expire_account()
 	f_dprintf "pw_account_expire: [%s]->[%s]" \
 	          "$cur_pw_account_expire" "$pw_account_expire"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_home_dir [$home_dir]
@@ -826,14 +826,14 @@ f_dialog_input_home_dir()
 
 	# Return if user has either pressed ESC or chosen Cancel/No
 	f_dialog_input _input "$msg_home_directory" "$_input" \
-	               "$hline_alnum_punc_tab_enter" || return
+	               "$hline_alnum_punc_tab_enter" || return $?
 
 	pw_home_dir="$_input"
 	save_flag=1
 
 	f_dprintf "pw_home_dir: [%s]->[%s]" "$cur_pw_home_dir" "$pw_home_dir"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 # f_dialog_input_home_create
@@ -850,7 +850,7 @@ f_dialog_input_home_create()
 	f_dialog_yesno "$msg_create_home_directory"
 	retval=$?
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		pw_home_create="$msg_yes"
 	else
 		pw_home_create="$msg_no"
@@ -860,7 +860,7 @@ f_dialog_input_home_create()
 	f_dprintf "pw_home_create: [%s]->[%s]" \
 	          "$cur_pw_home_create" "$pw_home_create"
 
-	[ $retval -ne 255 ] # return failure if user pressed ESC
+	[ $retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
 }
 
 # f_dialog_input_group_delete
@@ -893,7 +893,7 @@ f_dialog_input_group_delete()
 	fi
 	retval=$?
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		pw_group_delete="$msg_yes"
 	else
 		pw_group_delete="$msg_no"
@@ -903,7 +903,7 @@ f_dialog_input_group_delete()
 	f_dprintf "pw_group_delete: [%s]->[%s]" \
 	          "$cur_pw_group_delete" "$pw_group_delete"
 
-	[ $retval -ne 255 ] # return failure if user pressed ESC
+	[ $retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
 }
 
 # f_dialog_input_home_delete
@@ -920,7 +920,7 @@ f_dialog_input_home_delete()
 	f_dialog_yesno "$msg_delete_home_directory"
 	retval=$?
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		pw_home_delete="$msg_yes"
 	else
 		pw_home_delete="$msg_no"
@@ -930,7 +930,7 @@ f_dialog_input_home_delete()
 	f_dprintf "pw_home_delete: [%s]->[%s]" \
 	          "$cur_pw_home_delete" "$pw_home_delete"
 
-	[ $retval -ne 255 ] # return failure if user pressed ESC
+	[ $retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
 }
 
 # f_dialog_input_dotfiles_create
@@ -948,7 +948,7 @@ f_dialog_input_dotfiles_create()
 	f_dialog_yesno "$msg_create_dotfiles"
 	retval=$?
 
-	if [ $retval -eq $SUCCESS ]; then
+	if [ $retval -eq $DIALOG_OK ]; then
 		pw_dotfiles_create="$msg_yes"
 	else
 		pw_dotfiles_create="$msg_no"
@@ -958,7 +958,7 @@ f_dialog_input_dotfiles_create()
 	f_dprintf "pw_dotfiles_create: [%s]->[%s]" \
 	          "$cur_pw_dotfiles_create" "$pw_dotfiles_create"
 
-	[ $retval -ne 255 ] # return failure if user pressed ESC
+	[ $retval -ne $DIALOG_ESC ] # return failure if user pressed ESC
 }
 
 # f_dialog_input_shell [$shell]
@@ -1015,7 +1015,7 @@ f_dialog_input_shell()
 
 	f_dprintf "pw_shell: [%s]->[%s]" "$cur_pw_shell" "$pw_shell"
 
-	return $SUCCESS
+	return $DIALOG_OK
 }
 
 ############################################################ MAIN

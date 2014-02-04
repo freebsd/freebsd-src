@@ -448,7 +448,7 @@ gt_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	/* Clear cause register bits. */
 	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1 << 31) | addr);
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
 	/* 
 	 * Galileo system controller is special
 	 */
@@ -555,7 +555,7 @@ gt_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	/* Clear cause register bits. */
 	GT_REGVAL(GT_INTR_CAUSE) = GT_PCI_DATA(0);
 
-	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1 << 31) | addr);
+	GT_REGVAL(GT_PCI0_CFG_ADDR) = GT_PCI_DATA((1U << 31) | addr);
 
 	/* 
 	 * Galileo system controller is special

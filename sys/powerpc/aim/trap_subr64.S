@@ -569,11 +569,12 @@ disitrap:
 	std	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1)
 
 #ifdef KDB
-	/* Try and detect a kernel stack overflow */
+	/* Try to detect a kernel stack overflow */
 	mfsrr1	%r31
 	mtcr	%r31
 	bt	17,realtrap		/* branch is user mode */
 	mfsprg1	%r31			/* get old SP */
+	clrrdi	%r31,%r31,11		/* Round SP down to nearest page */
 	sub.	%r30,%r31,%r30		/* SP - DAR */
 	bge	1f
 	neg	%r30,%r30		/* modulo value */

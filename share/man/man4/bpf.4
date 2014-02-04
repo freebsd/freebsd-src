@@ -697,9 +697,11 @@ is used when the time stamp is set to
 .Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
 or
 .Dv BPF_T_NONE
-for backward compatibility reasons.  Otherwise,
+for backward compatibility reasons.
+Otherwise,
 .Vt bpf_xhdr
-is used.  However,
+is used.
+However,
 .Vt bpf_hdr
 may be deprecated in the near future.
 Suitable precautions
@@ -962,19 +964,23 @@ subsystem
 .It Va net.bpf.optimize_writers: No 0
 Various programs use BPF to send (but not receive) raw packets
 (cdpd, lldpd, dhcpd, dhcp relays, etc. are good examples of such programs).
-They do not need incoming packets to be send to them. Turning this option on
+They do not need incoming packets to be send to them.
+Turning this option on
 makes new BPF users to be attached to write-only interface list until program
 explicitly specifies read filter via
-.Cm pcap_set_filter() .
+.Fn pcap_set_filter .
 This removes any performance degradation for high-speed interfaces.
 .It Va net.bpf.stats:
 Binary interface for retrieving general statistics.
 .It Va net.bpf.zerocopy_enable: No 0
-Permits zero-copy to be used with net BPF readers. Use with caution.
+Permits zero-copy to be used with net BPF readers.
+Use with caution.
 .It Va net.bpf.maxinsns: No 512
-Maximum number of instructions that BPF program can contain. Use
+Maximum number of instructions that BPF program can contain.
+Use
 .Xr tcpdump 1
--d option to determine approximate number of instruction for any filter.
+.Fl d
+option to determine approximate number of instruction for any filter.
 .It Va net.bpf.maxbufsize: No 524288
 Maximum buffer size to allocate for packets buffer.
 .It Va net.bpf.bufsize: No 4096

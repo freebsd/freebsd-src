@@ -10,11 +10,9 @@
 #include "lldb/lldb-python.h"
 
 // C Includes
-#include <pthread.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 // C++ Includes
 #include <map>
@@ -101,8 +99,8 @@ Log::PrintfWithFlagsVarArg (uint32_t flags, const char *format, va_list args)
         // Timestamp if requested
         if (m_options.Test (LLDB_LOG_OPTION_PREPEND_TIMESTAMP))
         {
-            struct timeval tv = TimeValue::Now().GetAsTimeVal();
-            header.Printf ("%9ld.%6.6d ", tv.tv_sec, (int32_t)tv.tv_usec);
+            TimeValue now = TimeValue::Now();
+            header.Printf ("%9d.%6.6d ", now.seconds(), now.nanoseconds());
         }
 
         // Add the process and thread if requested

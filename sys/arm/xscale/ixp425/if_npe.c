@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_media.h>
 #include <net/if_mib.h>
 #include <net/if_types.h>
+#include <net/if_var.h>
 
 #ifdef INET
 #include <netinet/in.h>
@@ -507,7 +508,6 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 		    dma->name, error);
 		return error;
 	}
-	/* XXX COHERENT for now */
 	if (bus_dmamem_alloc(dma->buf_tag, (void **)&dma->hwbuf,
 	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT,
 	    &dma->buf_map) != 0) {
@@ -1073,6 +1073,7 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
 	m->m_pkthdr.len = m->m_len = 1536;
 	/* backload payload and align ip hdr */
 	m->m_data = m->m_ext.ext_buf + (m->m_ext.ext_size - (1536+ETHER_ALIGN));
+	bus_dmamap_unload(dma->mtag, npe->ix_map);
 	error = bus_dmamap_load_mbuf_sg(dma->mtag, npe->ix_map, m,
 			segs, &nseg, 0);
 	if (error != 0) {
@@ -1085,6 +1086,8 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
 	/* NB: buffer length is shifted in word */
 	hw->ix_ne[0].len = htobe32(segs[0].ds_len << 16);
 	hw->ix_ne[0].next = 0;
+	bus_dmamap_sync(dma->buf_tag, dma->buf_map, 
+	    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 	npe->ix_m = m;
 	/* Flush the memory in the mbuf */
 	bus_dmamap_sync(dma->mtag, npe->ix_map, BUS_DMASYNC_PREREAD);
@@ -1110,6 +1113,8 @@ npe_rxdone(int qid, void *arg)
 		struct npebuf *npe = P2V(NPE_QM_Q_ADDR(entry), dma);
 		struct mbuf *m;
 
+		bus_dmamap_sync(dma->buf_tag, dma->buf_map,
+		    BUS_DMASYNC_POSTREAD);
 		DPRINTF(sc, "%s: entry 0x%x neaddr 0x%x ne_len 0x%x\n",
 		    __func__, entry, npe->ix_neaddr, npe->ix_hw->ix_ne[0].len);
 		/*
@@ -1130,7 +1135,6 @@ npe_rxdone(int qid, void *arg)
 			bus_dmamap_sync(dma->mtag, npe->ix_map,
 			    BUS_DMASYNC_POSTREAD);
 
-			/* XXX flush hw buffer; works now 'cuz coherent */
 			/* set m_len etc. per rx frame size */
 			mrx->m_len = be32toh(hw->ix_ne[0].len) & 0xffff;
 			mrx->m_pkthdr.len = mrx->m_len;
@@ -1313,6 +1317,7 @@ npestart_locked(struct ifnet *ifp)
 			return;
 		}
 		npe = sc->tx_free;
+		bus_dmamap_unload(dma->mtag, npe->ix_map);
 		error = bus_dmamap_load_mbuf_sg(dma->mtag, npe->ix_map,
 		    m, segs, &nseg, 0);
 		if (error == EFBIG) {
@@ -1355,7 +1360,8 @@ npestart_locked(struct ifnet *ifp)
 			next += sizeof(hw->ix_ne[0]);
 		}
 		hw->ix_ne[i-1].next = 0;	/* zero last in chain */
-		/* XXX flush descriptor instead of using uncached memory */
+		bus_dmamap_sync(dma->buf_tag, dma->buf_map,
+		    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 
 		DPRINTF(sc, "%s: qwrite(%u, 0x%x) ne_data %x ne_len 0x%x\n",
 		    __func__, sc->tx_qid, npe->ix_neaddr,

@@ -1495,6 +1495,7 @@ main(int argc, char *argv[])
 					vm_capability_type2name(captype),
 					val ? "set" : "not set", vcpu);
 			} else if (errno == ENOENT) {
+				error = 0;
 				printf("Capability \"%s\" is not available\n",
 					vm_capability_type2name(captype));
 			} else {

@@ -104,7 +104,9 @@ typedef enum {
 	CAM_SEND_SENSE		= 0x08000000,/* Send sense data with status   */
 	CAM_TERM_IO		= 0x10000000,/* Terminate I/O Message sup.    */
 	CAM_DISCONNECT		= 0x20000000,/* Disconnects are mandatory     */
-	CAM_SEND_STATUS		= 0x40000000 /* Send status after data phase  */
+	CAM_SEND_STATUS		= 0x40000000,/* Send status after data phase  */
+
+	CAM_UNLOCKED		= 0x80000000 /* Call callback without lock.   */
 } ccb_flags;
 
 typedef enum {
@@ -151,6 +153,9 @@ typedef enum {
 				/* Device statistics (error counts, etc.) */
 	XPT_DEV_ADVINFO		= 0x0e,
 				/* Get/Set Device advanced information */
+	XPT_ASYNC		= 0x0f | XPT_FC_QUEUED | XPT_FC_USER_CCB
+				       | XPT_FC_XPT_ONLY,
+				/* Asynchronous event */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -1154,6 +1159,16 @@ struct ccb_dev_advinfo {
 };
 
 /*
+ * CCB for sending async events
+ */
+struct ccb_async {
+	struct ccb_hdr ccb_h;
+	uint32_t async_code;
+	off_t async_arg_size;
+	void *async_arg_ptr;
+};
+
+/*
  * Union of all CCB types for kernel space allocation.  This union should
  * never be used for manipulating CCBs - its only use is for the allocation
  * and deallocation of raw CCB space and is the return type of xpt_ccb_alloc
@@ -1192,6 +1207,7 @@ union ccb {
 	struct  ccb_debug		cdbg;
 	struct	ccb_ataio		ataio;
 	struct	ccb_dev_advinfo		cdai;
+	struct	ccb_async		casync;
 };
 
 __BEGIN_DECLS

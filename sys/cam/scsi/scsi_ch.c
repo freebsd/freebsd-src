@@ -116,8 +116,7 @@ typedef enum {
 } ch_state;
 
 typedef enum {
-	CH_CCB_PROBE,
-	CH_CCB_WAITING
+	CH_CCB_PROBE
 } ch_ccb_types;
 
 typedef enum {
@@ -248,19 +247,18 @@ chinit(void)
 static void
 chdevgonecb(void *arg)
 {
-	struct cam_sim	  *sim;
 	struct ch_softc   *softc;
 	struct cam_periph *periph;
+	struct mtx *mtx;
 	int i;
 
 	periph = (struct cam_periph *)arg;
-	sim = periph->sim;
-	softc = (struct ch_softc *)periph->softc;
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
+	softc = (struct ch_softc *)periph->softc;
 	KASSERT(softc->open_count >= 0, ("Negative open count %d",
 		softc->open_count));
-
-	mtx_lock(sim->mtx);
 
 	/*
 	 * When we get this callback, we will get no more close calls from
@@ -278,13 +276,13 @@ chdevgonecb(void *arg)
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the final call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
 	 * with a cam_periph_unlock() call would cause a page fault.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 }
 
 static void
@@ -306,9 +304,6 @@ choninvalidate(struct cam_periph *periph)
 	 * when it has cleaned up its state.
 	 */
 	destroy_dev_sched_cb(softc->dev, chdevgonecb, periph);
-
-	xpt_print(periph->path, "lost device\n");
-
 }
 
 static void
@@ -317,8 +312,6 @@ chcleanup(struct cam_periph *periph)
 	struct ch_softc *softc;
 
 	softc = (struct ch_softc *)periph->softc;
-
-	xpt_print(periph->path, "removing device entry\n");
 
 	devstat_remove_entry(softc->device_stats);
 
@@ -355,7 +348,7 @@ chasync(void *callback_arg, u_int32_t code, struct cam_path *path, void *arg)
 		 */
 		status = cam_periph_alloc(chregister, choninvalidate,
 					  chcleanup, chstart, "ch",
-					  CAM_PERIPH_BIO, cgd->ccb_h.path,
+					  CAM_PERIPH_BIO, path,
 					  chasync, AC_FOUND_DEVICE, cgd);
 
 		if (status != CAM_REQ_CMP
@@ -508,25 +501,23 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
-	struct	cam_sim *sim;
 	struct	cam_periph *periph;
 	struct  ch_softc *softc;
+	struct mtx *mtx;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
+	mtx = cam_periph_mtx(periph);
+	mtx_lock(mtx);
 
-	sim = periph->sim;
 	softc = (struct ch_softc *)periph->softc;
-
-	mtx_lock(sim->mtx);
-
 	softc->open_count--;
 
 	cam_periph_release_locked(periph);
 
 	/*
-	 * We reference the SIM lock directly here, instead of using
+	 * We reference the lock directly here, instead of using
 	 * cam_periph_unlock().  The reason is that the call to
 	 * cam_periph_release_locked() above could result in the periph
 	 * getting freed.  If that is the case, dereferencing the periph
@@ -537,7 +528,7 @@ chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * protect the open count and avoid another lock acquisition and
 	 * release.
 	 */
-	mtx_unlock(sim->mtx);
+	mtx_unlock(mtx);
 
 	return(0);
 }
@@ -552,14 +543,7 @@ chstart(struct cam_periph *periph, union ccb *start_ccb)
 	switch (softc->state) {
 	case CH_STATE_NORMAL:
 	{
-		if (periph->immediate_priority <= periph->pinfo.priority){
-			start_ccb->ccb_h.ccb_state = CH_CCB_WAITING;
-
-			SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
-					  periph_links.sle);
-			periph->immediate_priority = CAM_PRIORITY_NONE;
-			wakeup(&periph->ccb_list);
-		}
+		xpt_release_ccb(start_ccb);
 		break;
 	}
 	case CH_STATE_PROBE:
@@ -737,12 +721,6 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		xpt_release_ccb(done_ccb);
 		cam_periph_unhold(periph);
-		return;
-	}
-	case CH_CCB_WAITING:
-	{
-		/* Caller will release the CCB */
-		wakeup(&done_ccb->ccb_h.cbfcnp);
 		return;
 	}
 	default:
@@ -1729,10 +1707,8 @@ chscsiversion(struct cam_periph *periph)
 	struct scsi_inquiry_data *inq_data;
 	struct ccb_getdev *cgd;
 	int dev_scsi_version;
-	struct cam_sim *sim;
 
-	sim = xpt_path_sim(periph->path);
-	mtx_assert(sim->mtx, MA_OWNED);
+	cam_periph_assert(periph, MA_OWNED);
 	if ((cgd = (struct ccb_getdev *)xpt_alloc_ccb_nowait()) == NULL)
 		return (-1);
 	/*

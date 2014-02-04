@@ -160,6 +160,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
+	${_tests} \
 	tftp \
 	time \
 	tip \
@@ -208,10 +209,6 @@ SUBDIR=	alias \
 
 .if ${MK_AT} != "no"
 SUBDIR+=	at
-.endif
-
-.if ${MK_ATF} != "no"
-_atf=		atf
 .endif
 
 .if ${MK_ATM} != "no"
@@ -330,6 +327,11 @@ SUBDIR+=	vacation
 
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_TEXTPROC} != "no"

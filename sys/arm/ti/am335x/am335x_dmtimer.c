@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/watchdog.h>
 #include <machine/bus.h>
 #include <machine/cpu.h>
-#include <machine/frame.h>
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -360,7 +359,7 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-	counts = usec * ((am335x_dmtimer_tc.tc_frequency / 1000000) + 1);
+	counts = usec * (am335x_dmtimer_tc.tc_frequency / 1000000) + 1;
 
 	first = am335x_dmtimer_tc_read_4(DMTIMER_TCRR);
 

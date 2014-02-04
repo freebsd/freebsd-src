@@ -235,7 +235,8 @@ Disassembler::DisassembleRange
     const char *plugin_name,
     const char *flavor,
     const ExecutionContext &exe_ctx,
-    const AddressRange &range
+    const AddressRange &range,
+    bool prefer_file_cache
 )
 {
     lldb::DisassemblerSP disasm_sp;
@@ -245,7 +246,6 @@ Disassembler::DisassembleRange
 
         if (disasm_sp)
         {
-            const bool prefer_file_cache = false;
             size_t bytes_disassembled = disasm_sp->ParseInstructions (&exe_ctx, range, NULL, prefer_file_cache);
             if (bytes_disassembled == 0)
                 disasm_sp.reset();
@@ -611,8 +611,8 @@ Instruction::Dump (lldb_private::Stream *s,
         }
         else
         {
-            // Else, we have ARM which can show up to a uint32_t 0x00000000 (10 spaces)
-            // plus two for padding...
+            // Else, we have ARM or MIPS which can show up to a uint32_t
+            // 0x00000000 (10 spaces) plus two for padding...
             if (max_opcode_byte_size > 0)
                 m_opcode.Dump (&ss, max_opcode_byte_size * 3 + 1);
             else

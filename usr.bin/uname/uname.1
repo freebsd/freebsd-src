@@ -28,7 +28,7 @@
 .\"	@(#)uname.1	8.3 (Berkeley) 4/8/94
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2010
+.Dd November 20, 2013
 .Dt UNAME 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd display information about the system
 .Sh SYNOPSIS
 .Nm
-.Op Fl aimnoprsv
+.Op Fl aiKmnoprsUv
 .Sh DESCRIPTION
 The
 .Nm
@@ -55,6 +55,10 @@ and
 were specified.
 .It Fl i
 Write the kernel ident to standard output.
+.It Fl K
+Write the
+.Fx
+version of the kernel.
 .It Fl m
 Write the type of the current hardware platform to standard output.
 .It Fl n
@@ -70,6 +74,10 @@ Write the current release level of the operating system
 to standard output.
 .It Fl s
 Write the name of the operating system implementation to standard output.
+.It Fl U
+Write the
+.Fx
+version of the user environment.
 .It Fl v
 Write the version level of this release of the operating system
 to standard output.
@@ -79,6 +87,14 @@ If the
 .Fl a
 flag is specified, or multiple flags are specified, all
 output is written on a single line, separated by spaces.
+.Pp
+The
+.Fl K
+and
+.Fl U
+flags are intended to be used for fine grain differentiation of incremental
+.Fx
+development and user visible changes.
 .Sh ENVIRONMENT
 An environment variable composed of the string
 .Ev UNAME_
@@ -91,6 +107,8 @@ of the environment variable.
 .Sh EXIT STATUS
 .Ex -std
 .Sh SEE ALSO
+.Xr feature_present 3 ,
+.Xr getosreldate 3 ,
 .Xr sysctl 3 ,
 .Xr uname 3 ,
 .Xr sysctl 8
@@ -104,3 +122,10 @@ specification.
 The
 .Nm
 command appeared in PWB UNIX.
+.Pp
+The
+.Fl K
+and
+.Fl U
+extension flags appeared in
+.Fx 10.0 .

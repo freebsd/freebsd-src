@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="koi8-r"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 <!ENTITY release.bugfix "5.2.1-RELEASE">
 ]>
-
 <!--
    The FreeBSD Russian Documentation Project
 
@@ -14,14 +13,13 @@
 
    Original revision: 1.72
 -->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:lang="ru">
+  <info><title>Список проблем &os; &release;</title>
+    
 
-<article lang="ru">
-  <articleinfo>
-    <title>Список проблем &os; &release;</title>
-
-    <corpauthor>
+    <author><orgname>
     Проект &os;
-    </corpauthor>
+    </orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -34,13 +32,12 @@
       <holder role="mailto:doc@FreeBSD.org">Проект документирования &os;</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
   <abstract>
     <para>В этом документе находится список проблем &os; &release;,
@@ -54,8 +51,9 @@
     <para>Этот список проблем &os; &release;.
       будет поддерживаться до &os; &release.next;.</para>
   </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Введение</title>
 
     <para>Этот документ содержит последние новости об &os; &release;.
@@ -68,21 +66,18 @@
       (например, на CDROM дистрибутиве), уже устарела по определению,
       но другие копии обновляются в интернет и их необходимо прочесть
       как <quote>текущие сообщения о проблемах</quote> этого релиза.
-      Эти копии находятся на <ulink
-      url="http://www.FreeBSD.org/ru/releases/"></ulink> и на любых
+      Эти копии находятся на <uri xlink:href="http://www.FreeBSD.org/ru/releases/">http://www.FreeBSD.org/ru/releases/</uri> и на любых
       сайтах, поддерживающих обновляемые зеркала этой страницы.</para>
 
     <para>Снэпшоты в исходных текстах и бинарные снэпшоты &os;
       &release.branch; также содержат обновленные копии этого документа
       (на время создания снэпшота).</para>
 
-    <para>За списком всех сообщений безопасности &os; CERT обращайтесь к <ulink
-      url="http://www.FreeBSD.org/ru/security/"></ulink> или <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+    <para>За списком всех сообщений безопасности &os; CERT обращайтесь к <uri xlink:href="http://www.FreeBSD.org/ru/security/">http://www.FreeBSD.org/ru/security/</uri> или <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
 
   </sect1>
 
-  <sect1 id="security">
+  <sect1 xml:id="security">
     <title>Сообщения безопасности</title>
 
     <para releasetype="current">Нет сообщений.</para>
@@ -93,7 +88,7 @@
 
   </sect1>
 
-  <sect1 id="open-issues">
+  <sect1 xml:id="open-issues">
     <title>Актуальные проблемы</title>
 
     <para releasetype="current">Нет актуальных проблем.</para>
@@ -104,7 +99,7 @@
 
   </sect1>
 
-  <sect1 id="late-news">
+  <sect1 xml:id="late-news">
     <title>Последние новости</title>
 
     <para releasetype="current">Нет новостей.</para>

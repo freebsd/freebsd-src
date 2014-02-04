@@ -1859,33 +1859,6 @@ err:
 			    "is incorrect. The parameter value is discarded!");
 }
 
-static int mlx4_ib_dev_idx(struct mlx4_dev *dev)
-{
-	int /*bus,*/ slot, fn;
-	int i;
-
-	if (!dev)
-		return -1;
-	else if (!dev->pdev)
-		return -1;
-	//else if (!dev->pdev->bus)
-	//	return -1;
-
-	//bus	= dev->pdev->bus->conf.pc_sel.pc_bus;
-	slot	= PCI_SLOT(dev->pdev->devfn);
-	fn	= PCI_FUNC(dev->pdev->devfn);
-
-	for (i = 0; i < MAX_DR; ++i) {
-		if (/*dr[i].bus == bus &&*/
-		    dr[i].dev == slot &&
-		    dr[i].func == fn) {
-			return dr[i].nr;
-		}
-	}
-
-	return -1;
-}
-
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -1893,7 +1866,6 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
-	int dev_idx;
 
 	printk(KERN_INFO "%s", mlx4_ib_version);
 
@@ -1928,12 +1900,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 	ibdev->dev = dev;
 
-	dev_idx = mlx4_ib_dev_idx(dev);
-	if (dev_idx >= 0)
-		sprintf(ibdev->ib_dev.name, "mlx4_%d", dev_idx);
-	else
-		strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
-
+	strlcpy(ibdev->ib_dev.name, "mlx4_%d", IB_DEVICE_NAME_MAX);
 	ibdev->ib_dev.owner		= THIS_MODULE;
 	ibdev->ib_dev.node_type		= RDMA_NODE_IB_CA;
 	ibdev->ib_dev.local_dma_lkey	= dev->caps.reserved_lkey;

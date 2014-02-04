@@ -311,6 +311,24 @@ public:
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
     GetLocationAtIndex (size_t index);
+    
+    //------------------------------------------------------------------
+    /// Removes all invalid breakpoint locations.
+    ///
+    /// Removes all breakpoint locations with architectures that aren't
+    /// compatible with \a arch. Also remove any breakpoint locations
+    /// with whose locations have address where the section has been
+    /// deleted (module and object files no longer exist).
+    ///
+    /// This is typically used after the process calls exec, or anytime
+    /// the architecture of the target changes.
+    ///
+    /// @param[in] arch
+    ///     If valid, check the module in each breakpoint to make sure
+    ///     they are compatible, otherwise, ignore architecture.
+    //------------------------------------------------------------------
+    void
+    RemoveInvalidLocations (const ArchSpec &arch);
 
     //------------------------------------------------------------------
     // The next section deals with various breakpoint options.
@@ -576,6 +594,12 @@ public:
     InvokeCallback (StoppointCallbackContext *context,
                     lldb::break_id_t bp_loc_id);
 
+    bool
+    IsHardware() const
+    {
+        return m_hardware;
+    }
+
 protected:
     friend class Target;
     //------------------------------------------------------------------
@@ -590,7 +614,10 @@ protected:
     /// variants that make breakpoints for some common cases.
     //------------------------------------------------------------------
     // This is the generic constructor
-    Breakpoint(Target &target, lldb::SearchFilterSP &filter_sp, lldb::BreakpointResolverSP &resolver_sp);
+    Breakpoint(Target &target,
+               lldb::SearchFilterSP &filter_sp,
+               lldb::BreakpointResolverSP &resolver_sp,
+               bool hardware);
     
     friend class BreakpointLocation;  // To call the following two when determining whether to stop.
 
@@ -609,12 +636,13 @@ private:
     // For Breakpoint only
     //------------------------------------------------------------------
     bool m_being_created;
+    bool m_hardware;                          // If this breakpoint is required to use a hardware breakpoint
     Target &m_target;                         // The target that holds this breakpoint.
     lldb::SearchFilterSP m_filter_sp;         // The filter that constrains the breakpoint's domain.
     lldb::BreakpointResolverSP m_resolver_sp; // The resolver that defines this breakpoint.
     BreakpointOptions m_options;              // Settable breakpoint options
     BreakpointLocationList m_locations;       // The list of locations currently found for this breakpoint.
-    std::string            m_kind_description;
+    std::string m_kind_description;
     
     void
     SendBreakpointChangedEvent (lldb::BreakpointEventType eventKind);

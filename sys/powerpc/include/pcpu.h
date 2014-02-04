@@ -135,7 +135,6 @@ struct pmap;
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
-#ifdef AIM /* Book-E not yet adapted */
 static __inline __pure2 struct thread *
 __curthread(void)
 {
@@ -148,7 +147,6 @@ __curthread(void)
 	return (td);
 }
 #define curthread (__curthread())
-#endif
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 

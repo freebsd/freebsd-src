@@ -175,7 +175,7 @@ END(copystr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyinstr, CALLFRAME_SIZ, ra)
+NESTED(copyinstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -203,7 +203,7 @@ END(copyinstr)
  *		u_int maxlength;
  *		u_int *lencopied;
  */
-NON_LEAF(copyoutstr, CALLFRAME_SIZ, ra)
+NESTED(copyoutstr, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -228,7 +228,7 @@ END(copyoutstr)
  *		caddr_t *to;	(kernel destination address)
  *		unsigned len;
  */
-NON_LEAF(copyin, CALLFRAME_SIZ, ra)
+NESTED(copyin, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -254,7 +254,7 @@ END(copyin)
  *		caddr_t *to;	(user destination address)
  *		unsigned len;
  */
-NON_LEAF(copyout, CALLFRAME_SIZ, ra)
+NESTED(copyout, CALLFRAME_SIZ, ra)
 	PTR_SUBU	sp, sp, CALLFRAME_SIZ
 	.mask	0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
 	PTR_LA	v0, copyerr
@@ -288,7 +288,7 @@ END(copyerr)
  */
 #ifdef __mips_n64
 LEAF(fuword64)
-ALEAF(fuword)
+XLEAF(fuword)
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
 	nop
@@ -303,7 +303,7 @@ END(fuword64)
 
 LEAF(fuword32)
 #ifndef __mips_n64
-ALEAF(fuword)
+XLEAF(fuword)
 #endif
 	PTR_LA	v0, fswberr
 	blt	a0, zero, fswberr	# make sure address is in user space
@@ -553,7 +553,7 @@ END(memset)
  * bzero(s1, n)
  */
 LEAF(bzero)
-ALEAF(blkclr)
+XLEAF(blkclr)
 	.set	noreorder
 	blt	a1, 12, smallclr	# small amount to clear?
 	PTR_SUBU	a3, zero, a0		# compute # bytes to word align address

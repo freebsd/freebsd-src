@@ -7,15 +7,13 @@
 
      Original revision: 1.12
 -->
-
-<sect1 id="support-sys">
+<sect1 xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0" xml:id="support-sys">
   <title>Поддерживаемые системы</title>
 
   <para>В этом разделе описаны системы, поддерживаемые на данный момент
     &os; на платформе &arch.print;.  За информацией о различных аппаратных
-    архитектурах обращайтесь к <ulink
-    url="http://sunsolve.sun.com/handbook_pub/">Sun System
-    Handbook</ulink>.</para>
+    архитектурах обращайтесь к <link xlink:href="http://sunsolve.sun.com/handbook_pub/">Sun System
+    Handbook</link>.</para>
 
   <para>SMP поддерживается на всех системах с более чем 1 процессором.</para>
 

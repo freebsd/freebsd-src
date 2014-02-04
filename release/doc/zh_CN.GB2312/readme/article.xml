@@ -1,22 +1,28 @@
 <?xml version="1.0" encoding="gb2312"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
-
 <!--
 	The FreeBSD Documentation Project
 	The FreeBSD Simplified Chinese Project
 
 	Original Revision: 179456
 -->
+<!-- 
+     Local Variables:
+     mode: sgml
+     sgml-indent-data: t
+     sgml-omittag: nil
+     sgml-always-quote-attributes: t
+     End:
+-->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; 自述</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; 自述</title>
-
-    <corpauthor>The &os; Project</corpauthor>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -33,14 +39,13 @@
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.opengroup;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
   <abstract>
     <para>这份文档对 &os;
@@ -48,8 +53,9 @@
       &os;、&os;
       项目联系的多种方式， 以及一些其他的信息来源。</para>
   </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>介绍</title>
 
     <para>这个发行版本是 &os; &release.current; 的一个 &release.type;，
@@ -140,7 +146,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="obtain">
+  <sect1 xml:id="obtain">
     <title>获取 &os;</title>
 
     <para>&os; 可以通过各种方式得到。
@@ -157,31 +163,26 @@
 	预编译的 <quote>package</quote> 以及其他资料。</para>
 
       <para>一个已知的 CDROM 和 DVD
-	发行商列表列在使用手册的 <ulink
-	url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-	&os;</quote></ulink> 中。</para>
+	发行商列表列在使用手册的 <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	&os;</quote></link> 中。</para>
     </sect2>
 
     <sect2>
       <title>FTP</title>
 
-      <para>您可以使用 FTP 来从 <ulink
-	url="ftp://ftp.FreeBSD.org/"></ulink> 下载 &os;
+      <para>您可以使用 FTP 来从 <uri xlink:href="ftp://ftp.FreeBSD.org/">ftp://ftp.FreeBSD.org/</uri> 下载 &os;
 	以及所有的可选软件包，这是官方的 &os; 发行站点，或者从任何一个
 	<quote>镜像</quote> 下载。</para>
 
       <para>&os; 的镜像列表可以在使用手册的
-	<ulink
-	url="&url.books.handbook;/mirrors-ftp.html">FTP
-	站点</ulink>一节， 或者在 <ulink
-	url="http://mirrorlist.FreeBSD.org/"></ulink> 网页上找到。
+	<link xlink:href="&url.books.handbook;/mirrors-ftp.html">FTP
+	站点</link>一节， 或者在 <uri xlink:href="http://mirrorlist.FreeBSD.org/">http://mirrorlist.FreeBSD.org/</uri> 网页上找到。
 	强烈推荐您从其中离您最近 (以网络的观点)
 	的镜像来下载发行版本。</para>
 
       <para>我们非常欢迎您建立新的镜像站点。 联系
 	<email>freebsd-admin@FreeBSD.org</email> 了解成为官方镜像站点的更多细节。
-	也可以在<ulink
-        url="&url.articles.hubs;/">如何为 &os; 做镜像站点</ulink>
+	也可以在<link xlink:href="&url.articles.hubs;/">如何为 &os; 做镜像站点</link>
         这篇文章中找到关于镜像站点的更多有用的信息。</para>
 
       <para>镜像站点通常会提供用于刻录 &os; 发行版本的 CDROM
@@ -191,7 +192,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="contacting">
+  <sect1 xml:id="contacting">
     <title>联系 &os; 项目</title>
 
     <sect2>
@@ -217,12 +218,11 @@
 	&a.announce; 可能更合适。</para>
 
       <para>所有的邮件列表都可以如人们希望的那样自由加入。
-	请访问 <ulink url="&url.base;/mailman/listinfo">
-	FreeBSD Mailman 信息页</ulink>。这里会提供有关加入各种列表、
+	请访问 <link xlink:href="&url.base;/mailman/listinfo">
+	FreeBSD Mailman 信息页</link>。这里会提供有关加入各种列表、
 	访问存档等等的更多信息。
 	还有很多针对特定的兴趣群体的邮件列表在这里没有提及，
-	可以从 Mailman 页面或者 &os; Web 站点的 <ulink
-	url="&url.base;/support.html#mailing-list">邮件列表</ulink>
+	可以从 Mailman 页面或者 &os; Web 站点的 <link xlink:href="&url.base;/support.html#mailing-list">邮件列表</link>
 	一节获得更多信息。</para>
 
       <important>
@@ -241,9 +241,8 @@
       <para>从一台能够收发 Internet 邮件的主机提交 bug
 	报告的首选方法是使用 &man.send-pr.1; 命令。
 	用这种方式提交的<quote>问题报告</quote>(PR)会被归档并跟踪进度，
-	&os; 开发者会尽最大努力尽快地对所有报告的 bug 做出反应。<ulink
-	url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">
-	所有尚未完全解决的 PR 列表</ulink>可以在 &os; Web 站点上找到，
+	&os; 开发者会尽最大努力尽快地对所有报告的 bug 做出反应。<link xlink:href="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">
+	所有尚未完全解决的 PR 列表</link>可以在 &os; Web 站点上找到，
 	这个列表可以用于查看其它用户可能遭遇的问题。</para>
 
       <para>注意 &man.send-pr.1; 本身是一个 shell 脚本，
@@ -252,19 +251,18 @@
 	&man.send-pr.1; 来提交 bug 报告，您可以尝试把它发送到
 	&a.bugs;。</para>
 
-      <para>要了解更多的信息，&os; Web 站点上的<ulink
-	url="&url.articles.problem-reports;/"><quote>
-	撰写 FreeBSD 问题报告</quote></ulink>对撰写并提交有效的错误报告有很多有用的提示。</para>
+      <para>要了解更多的信息，&os; Web 站点上的<link xlink:href="&url.articles.problem-reports;/"><quote>
+	撰写 FreeBSD 问题报告</quote></link>对撰写并提交有效的错误报告有很多有用的提示。</para>
     </sect2>
   </sect1>
 
-  <sect1 id="seealso">
+  <sect1 xml:id="seealso">
     <title>进一步阅读</title>
 
     <para>有很多关于 &os; 的信息资源，一些包含在发行版中，
       另一些则以在线或印刷版本的方式提供。</para>
 
-    <sect2 id="release-docs">
+    <sect2 xml:id="release-docs">
       <title>发行文档</title>
 
       <para>许多其它的文档提供了有关这个 &release.type;
@@ -304,11 +302,11 @@
 	</itemizedlist>
       </para>
 
-      <para>在支持 &man.sysinstall.8; 的平台上 (目前有
+      <para>在支持 &man.bsdinstall.8; 的平台上 (目前有
 	&arch.amd64;、 &arch.i386;、 &arch.ia64;、 &arch.pc98; 以及 &arch.sparc64;)，
 	这些文档在安装时都可以通过 Documentation 菜单访问。
 	一旦系统已经安装，您可以通过重新运行
-	&man.sysinstall.8; 工具来重新访问菜单。</para>
+	&man.bsdinstall.8; 工具来重新访问菜单。</para>
 
       <note>
 	<para>在安装您拿到的任何发行版之前阅读勘误是非常重要的，
@@ -318,7 +316,7 @@
 	  但是其它的副本会通过 Internet 保持更新并作为
 	  这个发行的 <quote>最新勘误</quote> 参考。
 	  这些其它的勘误副本放在
-	  <ulink url="&url.base;/releases/"></ulink>
+	  <uri xlink:href="&url.base;/releases/">&url.base;/releases/</uri>
 	  (还有保持更新的任何镜像站点的同一位置)。</para>
       </note>
     </sect2>
@@ -327,9 +325,8 @@
       <title>联机手册</title>
 
       <para>像所有的类 &unix; 操作系统一样，&os; 附带一套在线联机手册，
-	可以通过 &man.man.1; 命令或者通过 &os; Web 站点上的<ulink
-	url="http://www.FreeBSD.org/cgi/man.cgi">超文本联机手册网关
-	</ulink>访问。 一般情况下，联机手册为 &os;
+	可以通过 &man.man.1; 命令或者通过 &os; Web 站点上的<link xlink:href="http://www.FreeBSD.org/cgi/man.cgi">超文本联机手册网关
+	</link>访问。 一般情况下，联机手册为 &os;
 	用户提供不同命令和 API 的信息。</para>
 
       <para>有时，联机手册还提供特定主题的信息。
@@ -342,13 +339,10 @@
       <title>书籍和文章</title>
 
       <para>两个由 &os; 项目维护的非常有用的 &os; 相关的信息集合，
-	是 &os; 使用手册和 &os; FAQ (频繁被问到的问题)。 <ulink
-	url="&url.books.handbook;/">使用手册</ulink>
-	和 <ulink
-	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
-	的在线版本可以从 <ulink
-	url="&url.books.faq;/">FreeBSD
-	文档页面</ulink> 或者它的镜像上得到。 如果安装了
+	是 &os; 使用手册和 &os; FAQ (频繁被问到的问题)。 <link xlink:href="&url.books.handbook;/">使用手册</link>
+	和 <link xlink:href="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</link>
+	的在线版本可以从 <link xlink:href="&url.books.faq;/">FreeBSD
+	文档页面</link> 或者它的镜像上得到。 如果安装了
 	<filename>doc</filename> 发行集， 则可以在本地使用 Web
 	浏览器来阅读使用手册和 FAQ。 值得一提的是，
 	在使用手册中提供了如何安装 &os; 的详细说明。</para>
@@ -360,33 +354,22 @@
         文档页面或者 <filename>doc</filename>
         分类中得到。</para>
 
-      <para>有关 &os; 的其它书籍和文档的列表可以在 &os; 使用手册的<ulink
-        url="&url.books.handbook;/bibliography.html">参考书目</ulink>
+      <para>有关 &os; 的其它书籍和文档的列表可以在 &os; 使用手册的<link xlink:href="&url.books.handbook;/bibliography.html">参考书目</link>
         一章找到。由于 &os; 固有的 &unix; 传统，
         许多为 &unix; 系统撰写的文章和书籍也是适用的，
         其中一些也被列在参考书目中。</para>
     </sect2>
   </sect1>
 
-  <sect1 id="acknowledgements">
+  <sect1 xml:id="acknowledgements">
     <title>感谢</title>
 
     <para>&os; 有全世界的成百上千的人工作无数个小时才带来这个
       &release.type;。要查看 &os; 开发者和捐献者的完整列表，请查看
-      &os; Web 站点或者任何一个镜像站点上的 <ulink
-      url="&url.articles.contributors;/"><quote>&os;
-      捐献者</quote></ulink>。</para>
+      &os; Web 站点或者任何一个镜像站点上的 <link xlink:href="&url.articles.contributors;/"><quote>&os;
+      捐献者</quote></link>。</para>
 
     <para>在此也要特别感谢众多的 &os; 用户和全世界的测试人员，
       没有他们就根本不会有这个 &release.type;。</para>
   </sect1>
 </article>
-
-<!-- 
-     Local Variables:
-     mode: sgml
-     sgml-indent-data: t
-     sgml-omittag: nil
-     sgml-always-quote-attributes: t
-     End:
--->

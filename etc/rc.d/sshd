@@ -53,7 +53,7 @@ sshd_keygen_alg()
 	fi
 
 	if [ -f "${keyfile}" ] ; then
-		echo "$ALG host key exists."
+		info "$ALG host key exists."
 	else
 		echo "Generating $ALG host key."
 		/usr/bin/ssh-keygen -q -t $alg -f "$keyfile" -N ""

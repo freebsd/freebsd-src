@@ -139,6 +139,9 @@ BIN1+= regdomain.xml
 BIN2=	netstart pccard_ether rc.suspend rc.resume
 
 MTREE=	BSD.include.dist BSD.root.dist BSD.usr.dist BSD.var.dist
+.if ${MK_TESTS} != "no"
+MTREE+=	BSD.tests.dist
+.endif
 .if ${MK_SENDMAIL} != "no"
 MTREE+=	BSD.sendmail.dist
 .endif
@@ -215,16 +218,19 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
-.if ${MK_ATF} != "no"
-	${_+_}cd ${.CURDIR}/atf; ${MAKE} install
-.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
+.endif
+.if ${MK_CASPER} != "no"
+	${_+_}cd ${.CURDIR}/casper; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+.if ${MK_PKGBOOTSTRAP} != "no"
+	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/../gnu/usr.bin/send-pr; ${MAKE} etc-gnats-freefall
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
@@ -316,6 +322,9 @@ MTREES+=	mtree/BSD.debug.dist		/usr/lib
 .endif
 .if ${MK_GROFF} != "no"
 MTREES+=	mtree/BSD.groff.dist		/usr
+.endif
+.if ${MK_TESTS} != "no"
+MTREES+=	mtree/BSD.tests.dist		/usr
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/

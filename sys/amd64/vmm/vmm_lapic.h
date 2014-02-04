@@ -32,15 +32,15 @@
 struct vm;
 
 boolean_t lapic_msr(u_int num);
-int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval);
-int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
+int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval,
+	    bool *retu);
+int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval,
+	    bool *retu);
 
 int	lapic_mmio_read(void *vm, int cpu, uint64_t gpa,
 			uint64_t *rval, int size, void *arg);
 int	lapic_mmio_write(void *vm, int cpu, uint64_t gpa,
 			 uint64_t wval, int size, void *arg);
-
-int	lapic_timer_tick(struct vm *vm, int cpu);
 
 /*
  * Returns a vector between 32 and 255 if an interrupt is pending in the
@@ -66,6 +66,22 @@ void	lapic_intr_accepted(struct vm *vm, int cpu, int vector);
  * Signals to the LAPIC that an interrupt at 'vector' needs to be generated
  * to the 'cpu', the state is recorded in IRR.
  */
-int	lapic_set_intr(struct vm *vm, int cpu, int vector);
+int	lapic_set_intr(struct vm *vm, int cpu, int vector, bool trig);
+
+#define	LAPIC_TRIG_LEVEL	true
+#define	LAPIC_TRIG_EDGE		false
+static __inline int
+lapic_intr_level(struct vm *vm, int cpu, int vector)
+{
+
+	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_LEVEL));
+}
+
+static __inline int
+lapic_intr_edge(struct vm *vm, int cpu, int vector)
+{
+
+	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
+}
 
 #endif

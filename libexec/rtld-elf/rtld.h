@@ -259,6 +259,7 @@ typedef struct Struct_Obj_Entry {
     bool z_nodelete : 1;	/* Do not unload the object and dependencies */
     bool z_noopen : 1;		/* Do not load on dlopen */
     bool z_loadfltr : 1;	/* Immediately load filtees */
+    bool z_interpose : 1;	/* Interpose all objects but main */
     bool z_nodeflib : 1;	/* Don't search default library path */
     bool ref_nodel : 1;		/* Refcount increased to prevent dlclose */
     bool init_scanned: 1;	/* Object is already on init list. */
@@ -351,6 +352,8 @@ Obj_Entry *map_object(int, const char *, const struct stat *);
 void *xcalloc(size_t, size_t);
 void *xmalloc(size_t);
 char *xstrdup(const char *);
+void *malloc_aligned(size_t size, size_t align);
+void free_aligned(void *ptr);
 extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 extern Elf_Sym sym_zero;	/* For resolving undefined weak refs. */
 

@@ -381,10 +381,8 @@ mevent_delete_close(struct mevent *evp)
 static void
 mevent_set_name(void)
 {
-	char tname[MAXCOMLEN + 1];
 
-	snprintf(tname, sizeof(tname), "%s mevent", vmname);
-	pthread_set_name_np(mevent_tid, tname);
+	pthread_set_name_np(mevent_tid, "mevent");
 }
 
 void

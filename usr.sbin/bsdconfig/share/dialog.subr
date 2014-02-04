@@ -74,6 +74,18 @@ unset XDIALOG_FORCE_AUTOSIZE
 unset XDIALOG_INFOBOX_TIMEOUT
 
 #
+# Exit codes for [X]dialog(1)
+#
+DIALOG_OK=${SUCCESS:-0}
+DIALOG_CANCEL=${FAILURE:-1}
+DIALOG_HELP=2
+DIALOG_ITEM_HELP=2
+DIALOG_EXTRA=3
+DIALOG_ITEM_HELP=4
+export DIALOG_ERROR=254 # sh(1) can't handle the default of `-1'
+DIALOG_ESC=255
+
+#
 # Default behavior is to call f_dialog_init() automatically when loaded.
 #
 : ${DIALOG_SELF_INITIALIZE=1}
@@ -284,12 +296,25 @@ f_dialog_backtitle_restore()
 #
 f_dialog_max_size()
 {
+	local funcname=f_dialog_max_size
 	local __var_height="$1" __var_width="$2" __max_size
 	[ "$__var_height" -o "$__var_width" ] || return $FAILURE
 	if [ "$USE_XDIALOG" ]; then
 		__max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
-		__max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		if __max_size=$( $DIALOG --print-maxsize \
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD )
+		then
+			f_dprintf "$funcname: %s --print-maxsize = [%s]" \
+			          "$DIALOG" "$__max_size"
+			# usually "MaxSize: 24, 80"
+			__max_size="${__max_size#*: }"
+			f_replaceall "$__max_size" "," "" __max_size
+		else
+			f_eval_catch -dk __max_size $funcname stty \
+				'stty size' || __max_size=
+			# usually "24 80"
+		fi
 		: ${__max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	if [ "$__var_height" ]; then
@@ -403,8 +428,8 @@ f_dialog_size_constrain()
 
 	if [ "$debug" ]; then
 		# Print final constrained values to debugging
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -506,7 +531,7 @@ f_dialog_menu_constrain()
 			: ${__min_rows:=0}
 		fi
 
-		local __max_rows=$(( $__max_height_menu_constrain - 8 ))
+		local __max_rows=$(( $__max_height_menu_constrain - 7 ))
 		# If prompt_len is zero (no prompt), bump the max-rows by 1
 		# Default assumption is (if no argument) that there's no prompt
 		[ ${__prompt_len:-0} -gt 0 ] ||
@@ -520,10 +545,10 @@ f_dialog_menu_constrain()
 	fi
 
 	if [ "$debug" ]; then
-		# Print final constrained values to debuggin
-		f_quietly f_getvar "$__var_height"
-		f_quietly f_getvar "$__var_width"
-		f_quietly f_getvar "$__var_rows"
+		# Print final constrained values to debugging
+		[ "$__var_height" ] && f_quietly f_getvar "$__var_height"
+		[ "$__var_width"  ] && f_quietly f_getvar "$__var_width"
+		[ "$__var_rows"   ] && f_quietly f_getvar "$__var_rows"
 	fi
 
 	return $__retval # success if no debug warnings were printed
@@ -2031,7 +2056,10 @@ f_dialog_menutag2index_with_help()
 #
 f_dialog_init()
 {
+	local funcname=f_dialog_init
+
 	DIALOG_SELF_INITIALIZE=
+	USE_DIALOG=1
 
 	#
 	# Clone terminal stdout so we can redirect to it from within sub-shells
@@ -2075,7 +2103,7 @@ f_dialog_init()
 	#
 	# Process `-X' command-line option
 	#
-	[ "$USE_XDIALOG" ] && DIALOG=Xdialog
+	[ "$USE_XDIALOG" ] && DIALOG=Xdialog USE_DIALOG=
 
 	#
 	# Sanity check, or die gracefully
@@ -2118,7 +2146,7 @@ f_dialog_init()
 			DIALOG=dialog
 			f_die 1 "$msg_no_such_file_or_directory" "$pgm" "xauth"
 		fi
-		HOSTNAME=$(hostname)
+		HOSTNAME=$( hostname )
 		local displaynum="${DISPLAY#*:}"
 		eval xauth -if \~$SUDO_USER/.Xauthority extract - \
 			\"\$HOSTNAME/unix:\$displaynum\" \
@@ -2132,7 +2160,8 @@ f_dialog_init()
 	#
 	if [ "$USE_XDIALOG" ]; then
 		local maxsize
-		if ! maxsize=$( LANG= LC_ALL= $DIALOG --print-maxsize 2>&1 )
+		if ! f_eval_catch -dk maxsize $funcname "$DIALOG" \
+			'LANG= LC_ALL= %s --print-maxsize' "$DIALOG"
 		then
 			# Xdialog(1) failed, fall back to dialog(1)
 			unset USE_XDIALOG

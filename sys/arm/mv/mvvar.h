@@ -44,7 +44,6 @@
 #include <machine/bus.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
 #include <machine/vm.h>
 
 #define	MV_TYPE_PCI		0
@@ -67,7 +66,6 @@ struct decode_win {
 	vm_paddr_t	remap;
 };
 
-extern const struct pmap_devmap pmap_devmap[];
 extern const struct gpio_config mv_gpio_config[];
 extern const struct decode_win *cpu_wins;
 extern const struct decode_win *idma_wins;

@@ -355,6 +355,13 @@ control_list(struct nv *nv)
 		    (uintmax_t)nv_get_uint64(nv, "stat_write_error%u", ii),
 		    (uintmax_t)nv_get_uint64(nv, "stat_delete_error%u", ii),
 		    (uintmax_t)nv_get_uint64(nv, "stat_flush_error%u", ii));
+		printf("    queues: "
+		    "local: %ju, send: %ju, recv: %ju, done: %ju, idle: %ju\n",
+		    (uintmax_t)nv_get_uint64(nv, "local_queue_size%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "send_queue_size%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "recv_queue_size%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "done_queue_size%u", ii),
+		    (uintmax_t)nv_get_uint64(nv, "idle_queue_size%u", ii));
 	}
 	return (ret);
 }

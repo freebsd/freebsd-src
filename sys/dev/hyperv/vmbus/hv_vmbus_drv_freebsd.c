@@ -29,6 +29,8 @@
 /*
  * VM Bus Driver Implementation
  */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
@@ -113,7 +115,7 @@ vmbus_msg_swintr(void *dummy)
 	     */
 	    wmb();
 
-	    if (msg->header.message_flags.message_pending) {
+	    if (msg->header.message_flags.u.message_pending) {
 			/*
 			 * This will cause message queue rescan to possibly
 			 * deliver another msg from the hypervisor
@@ -293,11 +295,15 @@ hv_vmbus_child_device_unregister(struct hv_device *child_dev)
 	return(ret);
 }
 
-static void vmbus_identify(driver_t *driver, device_t parent) {
+static void
+vmbus_identify(driver_t *driver, device_t parent)
+{
+	if (!hv_vmbus_query_hypervisor_presence())
+		return;
+
+	vm_guest = VM_GUEST_HV;
+
 	BUS_ADD_CHILD(parent, 0, "vmbus", 0);
-	if (device_find_child(parent, "vmbus", 0) == NULL) {
-		BUS_ADD_CHILD(parent, 0, "vmbus", 0);
-	}
 }
 
 static int
@@ -305,12 +311,9 @@ vmbus_probe(device_t dev) {
 	if(bootverbose)
 		device_printf(dev, "VMBUS: probe\n");
 
-	if (!hv_vmbus_query_hypervisor_presence())
-		return (ENXIO);
-
 	device_set_desc(dev, "Vmbus Devices");
 
-	return (0);
+	return (BUS_PROBE_NOWILDCARD);
 }
 
 /**
@@ -489,10 +492,13 @@ vmbus_attach(device_t dev)
 static void
 vmbus_init(void)
 {
+	if (vm_guest != VM_GUEST_HV)
+		return;
+
 	/* 
 	 * If the system has already booted and thread
-	 * scheduling is possible indicated by the global
-	 * cold set to zero, we just call the driver
+	 * scheduling is possible, as indicated by the
+	 * global cold set to zero, we just call the driver
 	 * initialization directly.
 	 */
 	if (!cold) 

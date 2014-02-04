@@ -58,6 +58,9 @@ Lst_Member(Lst l, void *d)
     List    	  	list = l;
     ListNode	lNode;
 
+    if (list == NULL) {
+	return NULL;
+    }
     lNode = list->firstPtr;
     if (lNode == NULL) {
 	return NULL;

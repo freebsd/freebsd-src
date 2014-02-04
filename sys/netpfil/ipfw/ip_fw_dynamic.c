@@ -45,12 +45,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -178,6 +180,13 @@ static VNET_DEFINE(u_int32_t, dyn_max);		/* max # of dynamic rules */
 
 #define	DYN_COUNT			uma_zone_get_cur(V_ipfw_dyn_rule_zone)
 #define	V_dyn_max			VNET(dyn_max)
+
+/* for userspace, we emulate the uma_zone_counter with ipfw_dyn_count */
+static int ipfw_dyn_count;	/* number of objects */
+
+#ifdef USERSPACE /* emulation of UMA object counters for userspace */
+#define uma_zone_get_cur(x)	ipfw_dyn_count
+#endif /* USERSPACE */
 
 static int last_log;	/* Log ratelimiting */
 
@@ -577,6 +586,7 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 		}
 		return NULL;
 	}
+	ipfw_dyn_count++;
 
 	/*
 	 * refcount on parent is already incremented, so
@@ -1251,11 +1261,13 @@ check_dyn_rules(struct ip_fw_chain *chain, struct ip_fw *rule,
 	for (q = exp_head; q != NULL; q = q_next) {
 		q_next = q->next;
 		uma_zfree(V_ipfw_dyn_rule_zone, q);
+		ipfw_dyn_count--;
 	}
 
 	for (q = exp_lhead; q != NULL; q = q_next) {
 		q_next = q->next;
 		uma_zfree(V_ipfw_dyn_rule_zone, q);
+		ipfw_dyn_count--;
 	}
 
 	/*

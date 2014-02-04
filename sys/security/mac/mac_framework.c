@@ -66,7 +66,6 @@
  * src/sys/security/mac_*.
  */
 
-#include "opt_kdtrace.h"
 #include "opt_mac.h"
 
 #include <sys/cdefs.h>
@@ -94,11 +93,11 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
-SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, modevent, "int",
+SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, "int",
     "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, kernel, policy, register, register,
+SDT_PROBE_DEFINE1(mac, kernel, policy, register,
     "struct mac_policy_conf *");
-SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, unregister,
+SDT_PROBE_DEFINE1(mac, kernel, policy, unregister,
     "struct mac_policy_conf *");
 
 /*

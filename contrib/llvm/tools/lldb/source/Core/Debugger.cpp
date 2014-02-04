@@ -9,8 +9,6 @@
 
 #include "lldb/lldb-python.h"
 
-#include "lldb/API/SBDebugger.h"
-
 #include "lldb/Core/Debugger.h"
 
 #include <map>
@@ -46,6 +44,7 @@
 #include "lldb/Target/TargetList.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StopInfo.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
@@ -132,6 +131,7 @@ g_properties[] =
 {   "thread-format",            OptionValue::eTypeString , true, 0    , DEFAULT_THREAD_FORMAT, NULL, "The default thread format string to use when displaying thread information." },
 {   "use-external-editor",      OptionValue::eTypeBoolean, true, false, NULL, NULL, "Whether to use an external editor or not." },
 {   "use-color",                OptionValue::eTypeBoolean, true, true , NULL, NULL, "Whether to use Ansi color codes or not." },
+{   "auto-one-line-summaries",     OptionValue::eTypeBoolean, true, true, NULL, NULL, "If true, LLDB will automatically display small structs in one-liner format (default: true)." },
 
     {   NULL,                       OptionValue::eTypeInvalid, true, 0    , NULL, NULL, NULL }
 };
@@ -151,21 +151,10 @@ enum
     ePropertyThreadFormat,
     ePropertyUseExternalEditor,
     ePropertyUseColor,
+    ePropertyAutoOneLineSummaries
 };
 
-//
-//const char *
-//Debugger::GetFrameFormat() const
-//{
-//    return m_properties_sp->GetFrameFormat();
-//}
-//const char *
-//Debugger::GetThreadFormat() const
-//{
-//    return m_properties_sp->GetThreadFormat();
-//}
-//
-
+Debugger::LoadPluginCallbackType Debugger::g_load_plugin_callback = NULL;
 
 Error
 Debugger::SetPropertyValue (const ExecutionContext *exe_ctx,
@@ -347,6 +336,14 @@ Debugger::GetDisassemblyLineCount () const
     return m_collection_sp->GetPropertyAtIndexAsSInt64 (NULL, idx, g_properties[idx].default_uint_value);
 }
 
+bool
+Debugger::GetAutoOneLineSummaries () const
+{
+    const uint32_t idx = ePropertyAutoOneLineSummaries;
+    return m_collection_sp->GetPropertyAtIndexAsBoolean (NULL, idx, true);
+
+}
+
 #pragma mark Debugger
 
 //const DebuggerPropertiesSP &
@@ -363,8 +360,9 @@ Debugger::TestDebuggerRefCount ()
 }
 
 void
-Debugger::Initialize ()
+Debugger::Initialize (LoadPluginCallbackType load_plugin_callback)
 {
+    g_load_plugin_callback = load_plugin_callback;
     if (g_shared_debugger_refcount++ == 0)
         lldb_private::Initialize();
 }
@@ -402,31 +400,22 @@ Debugger::SettingsTerminate ()
 bool
 Debugger::LoadPlugin (const FileSpec& spec, Error& error)
 {
-    lldb::DynamicLibrarySP dynlib_sp(new lldb_private::DynamicLibrary(spec));
-    if (!dynlib_sp || dynlib_sp->IsValid() == false)
+    if (g_load_plugin_callback)
     {
-        if (spec.Exists())
-            error.SetErrorString("this file does not represent a loadable dylib");
-        else
-            error.SetErrorString("no such file");
-        return false;
+        lldb::DynamicLibrarySP dynlib_sp = g_load_plugin_callback (shared_from_this(), spec, error);
+        if (dynlib_sp)
+        {
+            m_loaded_plugins.push_back(dynlib_sp);
+            return true;
+        }
     }
-    lldb::DebuggerSP debugger_sp(shared_from_this());
-    lldb::SBDebugger debugger_sb(debugger_sp);
-    // This calls the bool lldb::PluginInitialize(lldb::SBDebugger debugger) function.
-    // TODO: mangle this differently for your system - on OSX, the first underscore needs to be removed and the second one stays
-    LLDBCommandPluginInit init_func = dynlib_sp->GetSymbol<LLDBCommandPluginInit>("_ZN4lldb16PluginInitializeENS_10SBDebuggerE");
-    if (!init_func)
+    else
     {
-        error.SetErrorString("cannot find the initialization function lldb::PluginInitialize(lldb::SBDebugger)");
-        return false;
+        // The g_load_plugin_callback is registered in SBDebugger::Initialize()
+        // and if the public API layer isn't available (code is linking against
+        // all of the internal LLDB static libraries), then we can't load plugins
+        error.SetErrorString("Public API layer is not available");
     }
-    if (init_func(debugger_sb))
-    {
-        m_loaded_plugins.push_back(dynlib_sp);
-        return true;
-    }
-    error.SetErrorString("dylib refused to be loaded");
     return false;
 }
 
@@ -821,7 +810,6 @@ Debugger::GetSelectedExecutionContext ()
         }
     }
     return exe_ctx;
-
 }
 
 InputReaderSP 
@@ -1720,7 +1708,6 @@ FormatPromptRecurse
                                     do_deref_pointer = false;
                                 }
                                 
-                                // <rdar://problem/11338654>
                                 // we do not want to use the summary for a bitfield of type T:n
                                 // if we were originally dealing with just a T - that would get
                                 // us into an endless recursion
@@ -1902,12 +1889,12 @@ FormatPromptRecurse
                                                 if (var_name_begin[0] == 'n' || var_name_begin[5] == 'f')
                                                 {
                                                     format_file_spec.GetFilename() = exe_module->GetFileSpec().GetFilename();
-                                                    var_success = format_file_spec;
+                                                    var_success = (bool)format_file_spec;
                                                 }
                                                 else
                                                 {
                                                     format_file_spec = exe_module->GetFileSpec();
-                                                    var_success = format_file_spec;
+                                                    var_success = (bool)format_file_spec;
                                                 }
                                             }
                                         }
@@ -1983,7 +1970,7 @@ FormatPromptRecurse
                                                 ValueObjectSP return_valobj_sp = StopInfo::GetReturnValueObject (stop_info_sp);
                                                 if (return_valobj_sp)
                                                 {
-                                                    ValueObject::DumpValueObject (s, return_valobj_sp.get());
+                                                    return_valobj_sp->Dump(s);
                                                     var_success = true;
                                                 }
                                             }
@@ -2067,12 +2054,12 @@ FormatPromptRecurse
                                             if (IsToken (var_name_begin, "basename}"))
                                             {
                                                 format_file_spec.GetFilename() = module->GetFileSpec().GetFilename();
-                                                var_success = format_file_spec;
+                                                var_success = (bool)format_file_spec;
                                             }
                                             else if (IsToken (var_name_begin, "fullpath}"))
                                             {
                                                 format_file_spec = module->GetFileSpec();
-                                                var_success = format_file_spec;
+                                                var_success = (bool)format_file_spec;
                                             }
                                         }
                                     }
@@ -2091,12 +2078,12 @@ FormatPromptRecurse
                                     if (IsToken (var_name_begin, "basename}"))
                                     {
                                         format_file_spec.GetFilename() = sc->comp_unit->GetFilename();
-                                        var_success = format_file_spec;
+                                        var_success = (bool)format_file_spec;
                                     }
                                     else if (IsToken (var_name_begin, "fullpath}"))
                                     {
                                         format_file_spec = *sc->comp_unit;
-                                        var_success = format_file_spec;
+                                        var_success = (bool)format_file_spec;
                                     }
                                 }
                             }
@@ -2355,12 +2342,12 @@ FormatPromptRecurse
                                         if (IsToken (var_name_begin, "basename}"))
                                         {
                                             format_file_spec.GetFilename() = sc->line_entry.file.GetFilename();
-                                            var_success = format_file_spec;
+                                            var_success = (bool)format_file_spec;
                                         }
                                         else if (IsToken (var_name_begin, "fullpath}"))
                                         {
                                             format_file_spec = sc->line_entry.file;
-                                            var_success = format_file_spec;
+                                            var_success = (bool)format_file_spec;
                                         }
                                     }
                                     else if (IsTokenWithFormat (var_name_begin, "number", token_format, "%" PRIu64, exe_ctx, sc))

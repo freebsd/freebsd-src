@@ -52,6 +52,9 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -72,9 +75,9 @@
 
 #include <net/bpf.h>
 
+#include <net/if_var.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-#include <net/if.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -187,6 +190,7 @@ netvsc_init(void)
 	if (!cold && !g_netvsc_drv.drv_inited) {
 		g_netvsc_drv.drv_inited = 1;
 		netvsc_drv_init();
+		printf("done!\n");
 	} else {
 		printf("Already initialized!\n");
 	}
@@ -618,13 +622,15 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 {
 	hn_softc_t *sc = (hn_softc_t *)device_get_softc(device_ctx->device);
 	struct mbuf *m_new;
-	struct ifnet *ifp = sc->hn_ifp;
+	struct ifnet *ifp;
 	int size;
 	int i;
 
 	if (sc == NULL) {
 		return (0); /* TODO: KYS how can this be! */
 	}
+
+	ifp = sc->hn_ifp;
 	
 	ifp = sc->arpcom.ac_ifp;
 
@@ -702,6 +708,17 @@ netvsc_recv(struct hv_device *device_ctx, netvsc_packet *packet)
 }
 
 /*
+ * Rules for using sc->temp_unusable:
+ * 1.  sc->temp_unusable can only be read or written while holding NV_LOCK()
+ * 2.  code reading sc->temp_unusable under NV_LOCK(), and finding 
+ *     sc->temp_unusable set, must release NV_LOCK() and exit
+ * 3.  to retain exclusive control of the interface,
+ *     sc->temp_unusable must be set by code before releasing NV_LOCK()
+ * 4.  only code setting sc->temp_unusable can clear sc->temp_unusable
+ * 5.  code setting sc->temp_unusable must eventually clear sc->temp_unusable
+ */
+
+/*
  * Standard ioctl entry point.  Called when the user wants to configure
  * the interface.
  */
@@ -713,7 +730,8 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	netvsc_device_info device_info;
 	struct hv_device *hn_dev;
 	int mask, error = 0;
-
+	int retry_cnt = 500;
+	
 	switch(cmd) {
 
 	case SIOCSIFADDR:
@@ -723,38 +741,80 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFMTU:
 		hn_dev = vmbus_get_devctx(sc->hn_dev);
 
-		NV_LOCK(sc);
+		/* Check MTU value change */
+		if (ifp->if_mtu == ifr->ifr_mtu)
+			break;
 
 		if (ifr->ifr_mtu > NETVSC_MAX_CONFIGURABLE_MTU) {
 			error = EINVAL;
-			NV_UNLOCK(sc);
 			break;
 		}
+
 		/* Obtain and record requested MTU */
 		ifp->if_mtu = ifr->ifr_mtu;
+ 		
+		do {
+			NV_LOCK(sc);
+			if (!sc->temp_unusable) {
+				sc->temp_unusable = TRUE;
+				retry_cnt = -1;
+			}
+			NV_UNLOCK(sc);
+			if (retry_cnt > 0) {
+				retry_cnt--;
+				DELAY(5 * 1000);
+			}
+		} while (retry_cnt > 0);
 
-		/*
-		 * We must remove and add back the device to cause the new
+		if (retry_cnt == 0) {
+			error = EINVAL;
+			break;
+		}
+
+		/* We must remove and add back the device to cause the new
 		 * MTU to take effect.  This includes tearing down, but not
 		 * deleting the channel, then bringing it back up.
 		 */
 		error = hv_rf_on_device_remove(hn_dev, HV_RF_NV_RETAIN_CHANNEL);
 		if (error) {
+			NV_LOCK(sc);
+			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
 		error = hv_rf_on_device_add(hn_dev, &device_info);
 		if (error) {
+			NV_LOCK(sc);
+			sc->temp_unusable = FALSE;
 			NV_UNLOCK(sc);
 			break;
 		}
 
 		hn_ifinit_locked(sc);
 
+		NV_LOCK(sc);
+		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
 		break;
 	case SIOCSIFFLAGS:
-		NV_LOCK(sc);
+		do {
+                       NV_LOCK(sc);
+                       if (!sc->temp_unusable) {
+                               sc->temp_unusable = TRUE;
+                               retry_cnt = -1;
+                       }
+                       NV_UNLOCK(sc);
+                       if (retry_cnt > 0) {
+                      	        retry_cnt--;
+                        	DELAY(5 * 1000);
+                       }
+                } while (retry_cnt > 0);
+
+                if (retry_cnt == 0) {
+                       error = EINVAL;
+                       break;
+                }
+
 		if (ifp->if_flags & IFF_UP) {
 			/*
 			 * If only the state of the PROMISC flag changed,
@@ -766,21 +826,14 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 */
 #ifdef notyet
 			/* Fixme:  Promiscuous mode? */
-			/* No promiscuous mode with Xen */
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
 			    !(sc->hn_if_flags & IFF_PROMISC)) {
 				/* do something here for Hyper-V */
-				;
-/*				XN_SETBIT(sc, XN_RX_MODE,		*/
-/*					  XN_RXMODE_RX_PROMISC);	*/
 			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-				   !(ifp->if_flags & IFF_PROMISC) &&
-				   sc->hn_if_flags & IFF_PROMISC) {
+			    !(ifp->if_flags & IFF_PROMISC) &&
+			    sc->hn_if_flags & IFF_PROMISC) {
 				/* do something here for Hyper-V */
-				;
-/*				XN_CLRBIT(sc, XN_RX_MODE,		*/
-/*					  XN_RXMODE_RX_PROMISC);	*/
 			} else
 #endif
 				hn_ifinit_locked(sc);
@@ -789,8 +842,10 @@ hn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				hn_stop(sc);
 			}
 		}
-		sc->hn_if_flags = ifp->if_flags;
+		NV_LOCK(sc);
+		sc->temp_unusable = FALSE;
 		NV_UNLOCK(sc);
+		sc->hn_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCSIFCAP:
@@ -838,7 +893,6 @@ hn_stop(hn_softc_t *sc)
 	int ret;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 
-	NV_LOCK_ASSERT(sc);
 	ifp = sc->hn_ifp;
 
 	printf(" Closing Device ...\n");
@@ -859,6 +913,10 @@ hn_start(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	NV_LOCK(sc);
+	if (sc->temp_unusable) {
+		NV_UNLOCK(sc);
+		return;
+	}
 	hn_start_locked(ifp);
 	NV_UNLOCK(sc);
 }
@@ -872,8 +930,6 @@ hn_ifinit_locked(hn_softc_t *sc)
 	struct ifnet *ifp;
 	struct hv_device *device_ctx = vmbus_get_devctx(sc->hn_dev);
 	int ret;
-
-	NV_LOCK_ASSERT(sc);
 
 	ifp = sc->hn_ifp;
 
@@ -902,7 +958,17 @@ hn_ifinit(void *xsc)
 	hn_softc_t *sc = xsc;
 
 	NV_LOCK(sc);
+	if (sc->temp_unusable) {
+		NV_UNLOCK(sc);
+		return;
+	}
+	sc->temp_unusable = TRUE;
+	NV_UNLOCK(sc);
+
 	hn_ifinit_locked(sc);
+
+	NV_LOCK(sc);
+	sc->temp_unusable = FALSE;
 	NV_UNLOCK(sc);
 }
 

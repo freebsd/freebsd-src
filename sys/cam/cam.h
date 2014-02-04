@@ -50,6 +50,12 @@ typedef union {
 #define	CAM_TARGET_WILDCARD ((target_id_t)~0)
 #define	CAM_LUN_WILDCARD ((lun_id_t)~0)
 
+#define CAM_EXTLUN_BYTE_SWIZZLE(lun) (	\
+	((((u_int64_t)lun) & 0xffff000000000000L) >> 48) | \
+	((((u_int64_t)lun) & 0x0000ffff00000000L) >> 16) | \
+	((((u_int64_t)lun) & 0x00000000ffff0000L) << 16) | \
+	((((u_int64_t)lun) & 0x000000000000ffffL) << 48))
+
 /*
  * Maximum length for a CAM CDB.  
  */

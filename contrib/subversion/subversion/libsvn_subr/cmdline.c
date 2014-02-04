@@ -356,7 +356,7 @@ svn_cmdline_fputs(const char *string, FILE* stream, apr_pool_t *pool)
         {
           /* ### Issue #3014: Return a specific error for broken pipes,
            * ### with a single element in the error chain. */
-          if (APR_STATUS_IS_EPIPE(apr_get_os_error()))
+          if (SVN__APR_STATUS_IS_EPIPE(apr_get_os_error()))
             return svn_error_create(SVN_ERR_IO_PIPE_WRITE_ERROR, NULL, NULL);
           else
             return svn_error_wrap_apr(apr_get_os_error(), _("Write error"));
@@ -379,7 +379,7 @@ svn_cmdline_fflush(FILE *stream)
         {
           /* ### Issue #3014: Return a specific error for broken pipes,
            * ### with a single element in the error chain. */
-          if (APR_STATUS_IS_EPIPE(apr_get_os_error()))
+          if (SVN__APR_STATUS_IS_EPIPE(apr_get_os_error()))
             return svn_error_create(SVN_ERR_IO_PIPE_WRITE_ERROR, NULL, NULL);
           else
             return svn_error_wrap_apr(apr_get_os_error(), _("Write error"));

@@ -506,6 +506,22 @@ Search @var{dir} only for header files requested with
 @xref{Search Path}.
 @end ifset
 
+@item -fdirectives-only
+@opindex fdirectives-only
+This option provides a simplified preprocessor to improve the
+performance of distributed build systems such as distcc.  It's
+behavior depends on a number of other flags.
+
+If the @option{-E} option is enabled, it suppresses things like macro
+expansion, trigraph conversion, and escaped newline splicing
+outside of directives.  All directives are processed normally, except that
+macro definitions are output similar to the @option{-dD} option.
+
+If the @option{-fpreprocessed} option is enabled, it suppresses
+predefinition of most builtin and command line macros.  This
+prevents duplicate definition of macros output with the @option{-E}
+option.
+
 @item -fdollars-in-identifiers
 @opindex fdollars-in-identifiers
 @anchor{fdollars-in-identifiers}

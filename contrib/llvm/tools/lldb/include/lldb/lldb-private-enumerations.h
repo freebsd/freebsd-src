@@ -51,6 +51,7 @@ typedef enum ArchitectureType
     eArchTypeInvalid,
     eArchTypeMachO,
     eArchTypeELF,
+    eArchTypeCOFF,
     kNumArchTypes
 } ArchitectureType;
 
@@ -132,7 +133,8 @@ typedef enum ExecutionResults
     eExecutionDiscarded,
     eExecutionInterrupted,
     eExecutionHitBreakpoint,
-    eExecutionTimedOut
+    eExecutionTimedOut,
+    eExecutionStoppedForDebug
 } ExecutionResults;
 
 typedef enum ObjCRuntimeVersions {
@@ -191,7 +193,9 @@ typedef enum FormatCategoryItem
     eFormatCategoryItemFilter =          0x0004,
     eFormatCategoryItemRegexFilter =     0x0008,
     eFormatCategoryItemSynth =           0x0010,
-    eFormatCategoryItemRegexSynth =      0x0020
+    eFormatCategoryItemRegexSynth =      0x0020,
+    eFormatCategoryItemValue =           0x0040,
+    eFormatCategoryItemRegexValue =      0x0080
 } FormatCategoryItem;
 
 //------------------------------------------------------------------
@@ -228,6 +232,14 @@ typedef enum ScriptedCommandSynchronicity
     eScriptedCommandSynchronicityCurrentValue // use whatever the current synchronicity is
 } ScriptedCommandSynchronicity;
 
+//----------------------------------------------------------------------
+// Verbosity mode of "po" output
+//----------------------------------------------------------------------
+typedef enum LanguageRuntimeDescriptionDisplayVerbosity
+{
+    eLanguageRuntimeDescriptionDisplayVerbosityCompact, // only print the description string, if any
+    eLanguageRuntimeDescriptionDisplayVerbosityFull,    // print the full-blown output
+} LanguageRuntimeDescriptionDisplayVerbosity;
 
 //----------------------------------------------------------------------
 // Loading modules from memory

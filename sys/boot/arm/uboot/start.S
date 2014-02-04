@@ -39,9 +39,10 @@ _start:
 	ldr	ip, =uboot_address
 	str	sp, [ip]
 
-	/* Save U-Boot's r8 */
+	/* Save U-Boot's r8 and r9 */
 	ldr	ip, =saved_regs
 	str	r8, [ip, #0]
+	str	r9, [ip, #4]
 
 #ifdef _ARM_ARCH_6
 	mrc     p15, 0, r2, c1, c0, 0
@@ -57,21 +58,24 @@ _start:
  * syscall()
  */
 ENTRY(syscall)
-	/* Save caller's lr and r8 */
+	/* Save caller's lr, r8 and r9 */
 	ldr	ip, =saved_regs
-	str	lr, [ip, #4]
 	str	r8, [ip, #8]
-	/* Restore U-Boot's r8 */
+	str	r9, [ip, #12]
+	str	lr, [ip, #16]
+	/* Restore U-Boot's r8 and r9 */
 	ldr	r8, [ip, #0]
+	ldr	r9, [ip, #4]
 	/* Call into U-Boot */
 	ldr	lr, =return_from_syscall
 	ldr	ip, =syscall_ptr
 	ldr	pc, [ip]
 return_from_syscall:
-	/* Restore loader's r8 and lr */
+	/* Restore loader's r8, r9 and lr */
 	ldr	ip, =saved_regs
+	ldr	lr, [ip, #16]
+	ldr	r9, [ip, #12]
 	ldr	r8, [ip, #8]
-	ldr	lr, [ip, #4]
 	/* Return to caller */
 	mov	pc, lr
 
@@ -90,5 +94,7 @@ uboot_address:
 
 saved_regs:
 	.long	0	/* U-Boot's r8 */
+	.long	0	/* U-Boot's r9 */
 	.long	0	/* Loader's r8 */
+	.long	0	/* Loader's r9 */
 	.long	0	/* Loader's lr */

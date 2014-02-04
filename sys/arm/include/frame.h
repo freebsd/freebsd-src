@@ -59,7 +59,7 @@
  * Trap frame.  Pushed onto the kernel stack on a trap (synchronous exception).
  */
 
-typedef struct trapframe {
+struct trapframe {
 	register_t tf_spsr; /* Zero on arm26 */
 	register_t tf_r0;
 	register_t tf_r1;
@@ -80,7 +80,7 @@ typedef struct trapframe {
 	register_t tf_svc_lr; /* Not used on arm26 */
 	register_t tf_pc;
 	register_t tf_pad;
-} trapframe_t;
+};
 
 /* Register numbers */
 #define tf_r13 tf_usr_sp

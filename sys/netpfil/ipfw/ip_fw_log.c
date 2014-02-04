@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <net/ethernet.h> /* for ETHERTYPE_IP */
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_clone.h>
 #include <net/vnet.h>
 #include <net/if_types.h>	/* for IFT_PFLOG */
@@ -84,8 +85,15 @@ __FBSDID("$FreeBSD$");
 #define	ICMP(p)		((struct icmphdr *)(p))
 #define	ICMP6(p)	((struct icmp6_hdr *)(p))
 
+#ifdef __APPLE__
+#undef snprintf
+#define snprintf	sprintf
+#define SNPARGS(buf, len) buf + len
+#define SNP(buf) buf
+#else	/* !__APPLE__ */
 #define SNPARGS(buf, len) buf + len, sizeof(buf) > len ? sizeof(buf) - len : 0
 #define SNP(buf) buf, sizeof(buf)
+#endif /* !__APPLE__ */
 
 #ifdef WITHOUT_BPF
 void

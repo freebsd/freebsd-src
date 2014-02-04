@@ -2,7 +2,7 @@
 # Configuration validation subroutine script.
 #   Copyright 1992-2013 Free Software Foundation, Inc.
 
-timestamp='2013-02-04'
+timestamp='2013-09-05'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -252,12 +252,12 @@ case $basic_machine in
 	| alpha | alphaev[4-8] | alphaev56 | alphaev6[78] | alphapca5[67] \
 	| alpha64 | alpha64ev[4-8] | alpha64ev56 | alpha64ev6[78] | alpha64pca5[67] \
 	| am33_2.0 \
-	| arc \
+	| arc | arceb \
 	| arm | arm[bl]e | arme[lb] | armv[2-8] | armv[3-8][lb] | armv7[arm] \
 	| avr | avr32 \
 	| be32 | be64 \
 	| bfin \
-	| c4x | clipper \
+	| c4x | c8051 | clipper \
 	| d10v | d30v | dlx | dsp16xx \
 	| epiphany \
 	| fido | fr30 | frv \
@@ -296,7 +296,7 @@ case $basic_machine in
 	| nios | nios2 | nios2eb | nios2el \
 	| ns16k | ns32k \
 	| open8 \
-	| or32 \
+	| or1k | or32 \
 	| pdp10 | pdp11 | pj | pjl \
 	| powerpc | powerpc64 | powerpc64le | powerpcle \
 	| pyramid \
@@ -324,7 +324,7 @@ case $basic_machine in
 	c6x)
 		basic_machine=tic6x-unknown
 		;;
-	m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x | picochip)
+	m6811 | m68hc11 | m6812 | m68hc12 | m68hcs12x | nvptx | picochip)
 		basic_machine=$basic_machine-unknown
 		os=-none
 		;;
@@ -366,13 +366,13 @@ case $basic_machine in
 	| aarch64-* | aarch64_be-* \
 	| alpha-* | alphaev[4-8]-* | alphaev56-* | alphaev6[78]-* \
 	| alpha64-* | alpha64ev[4-8]-* | alpha64ev56-* | alpha64ev6[78]-* \
-	| alphapca5[67]-* | alpha64pca5[67]-* | arc-* \
+	| alphapca5[67]-* | alpha64pca5[67]-* | arc-* | arceb-* \
 	| arm-*  | armbe-* | armle-* | armeb-* | armv*-* \
 	| avr-* | avr32-* \
 	| be32-* | be64-* \
 	| bfin-* | bs2000-* \
 	| c[123]* | c30-* | [cjt]90-* | c4x-* \
-	| clipper-* | craynv-* | cydra-* \
+	| c8051-* | clipper-* | craynv-* | cydra-* \
 	| d10v-* | d30v-* | dlx-* \
 	| elxsi-* \
 	| f30[01]-* | f700-* | fido-* | fr30-* | frv-* | fx80-* \
@@ -794,7 +794,7 @@ case $basic_machine in
 		os=-mingw64
 		;;
 	mingw32)
-		basic_machine=i386-pc
+		basic_machine=i686-pc
 		os=-mingw32
 		;;
 	mingw32ce)
@@ -830,7 +830,7 @@ case $basic_machine in
 		basic_machine=`echo $basic_machine | sed -e 's/ms1-/mt-/'`
 		;;
 	msys)
-		basic_machine=i386-pc
+		basic_machine=i686-pc
 		os=-msys
 		;;
 	mvs)
@@ -1546,6 +1546,9 @@ case $basic_machine in
 	c4x-* | tic4x-*)
 		os=-coff
 		;;
+	c8051-*)
+		os=-elf
+		;;
 	hexagon-*)
 		os=-elf
 		;;
@@ -1587,6 +1590,9 @@ case $basic_machine in
 		os=-elf
 		;;
 	mips*-*)
+		os=-elf
+		;;
+	or1k-*)
 		os=-elf
 		;;
 	or32-*)

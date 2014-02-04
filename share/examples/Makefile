@@ -107,8 +107,8 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/syscall/test/call.c \
 	libusb20/Makefile \
 	libusb20/README \
-	libusb20/aux.c \
-	libusb20/aux.h \
+	libusb20/util.c \
+	libusb20/util.h \
 	libusb20/bulk.c \
 	libusb20/control.c \
 	libvgl/Makefile \
@@ -241,15 +241,16 @@ etc-examples:
 
 .if ${SHARED} != "symlinks"
 SUBDIR=	smbfs
-.if ${MK_ATF} != "no"
-SUBDIR+=atf
-.endif
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=ipfilter
 .endif
 .if ${MK_PF} != "no"
 SUBDIR+=pf
 .endif
+.endif
+
+.if ${MK_TESTS} != "no"
+SUBDIR+=tests
 .endif
 
 .include <bsd.subdir.mk>

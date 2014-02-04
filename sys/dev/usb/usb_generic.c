@@ -1762,16 +1762,11 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 
 	switch (mode) {
 	case USB_POWER_MODE_OFF:
-		/* get the device unconfigured */
-		err = ugen_set_config(f, USB_UNCONFIG_INDEX);
-		if (err) {
-			DPRINTFN(0, "Could not unconfigure "
-			    "device (ignored)\n");
+		if (udev->flags.usb_mode == USB_MODE_HOST &&
+		    udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+			udev->re_enumerate_wait = USB_RE_ENUM_PWR_OFF;
 		}
-
-		/* clear port enable */
-		err = usbd_req_clear_port_feature(udev->parent_hub,
-		    NULL, udev->port_no, UHF_PORT_ENABLE);
+		/* set power mode will wake up the explore thread */
 		break;
 
 	case USB_POWER_MODE_ON:
@@ -1819,9 +1814,9 @@ ugen_set_power_mode(struct usb_fifo *f, int mode)
 
 	/* if we are powered off we need to re-enumerate first */
 	if (old_mode == USB_POWER_MODE_OFF) {
-		if (udev->flags.usb_mode == USB_MODE_HOST) {
-			if (udev->re_enumerate_wait == 0)
-				udev->re_enumerate_wait = 1;
+		if (udev->flags.usb_mode == USB_MODE_HOST &&
+		    udev->re_enumerate_wait == USB_RE_ENUM_DONE) {
+			udev->re_enumerate_wait = USB_RE_ENUM_START;
 		}
 		/* set power mode will wake up the explore thread */
 	}

@@ -2099,8 +2099,9 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	if (prev_object == NULL)
 		return (TRUE);
 	VM_OBJECT_WLOCK(prev_object);
-	if (prev_object->type != OBJT_DEFAULT &&
-	    prev_object->type != OBJT_SWAP) {
+	if ((prev_object->type != OBJT_DEFAULT &&
+	    prev_object->type != OBJT_SWAP) ||
+	    (prev_object->flags & OBJ_TMPFS) != 0) {
 		VM_OBJECT_WUNLOCK(prev_object);
 		return (FALSE);
 	}

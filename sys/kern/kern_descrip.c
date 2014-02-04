@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_ktrace.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -119,6 +118,7 @@ static int	closefp(struct filedesc *fdp, int fd, struct file *fp,
 static int	fd_first_free(struct filedesc *fdp, int low, int size);
 static int	fd_last_used(struct filedesc *fdp, int size);
 static void	fdgrowtable(struct filedesc *fdp, int nfd);
+static void	fdgrowtable_exp(struct filedesc *fdp, int nfd);
 static void	fdunused(struct filedesc *fdp, int fd);
 static void	fdused(struct filedesc *fdp, int fd);
 static int	fill_pipe_info(struct pipe *pi, struct kinfo_file *kif);
@@ -129,6 +129,7 @@ static int	fill_sem_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_shm_info(struct file *fp, struct kinfo_file *kif);
 static int	fill_socket_info(struct socket *so, struct kinfo_file *kif);
 static int	fill_vnode_info(struct vnode *vp, struct kinfo_file *kif);
+static int	getmaxfd(struct proc *p);
 
 /*
  * Each process has:
@@ -771,6 +772,18 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	return (error);
 }
 
+static int
+getmaxfd(struct proc *p)
+{
+	int maxfd;
+
+	PROC_LOCK(p);
+	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
+	PROC_UNLOCK(p);
+
+	return (maxfd);
+}
+
 /*
  * Common code for dup, dup2, fcntl(F_DUPFD) and fcntl(F_DUP2FD).
  */
@@ -797,9 +810,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 		return (EBADF);
 	if (new < 0)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
-	PROC_LOCK(p);
-	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	maxfd = getmaxfd(p);
 	if (new >= maxfd)
 		return (flags & DUP_FCNTL ? EINVAL : EBADF);
 
@@ -844,7 +855,7 @@ do_dup(struct thread *td, int flags, int old, int new,
 				return (EMFILE);
 			}
 #endif
-			fdgrowtable(fdp, new + 1);
+			fdgrowtable_exp(fdp, new + 1);
 			oldfde = &fdp->fd_ofiles[old];
 		}
 		newfde = &fdp->fd_ofiles[new];
@@ -1467,6 +1478,24 @@ filecaps_validate(const struct filecaps *fcaps, const char *func)
 	    ("%s: ioctls without CAP_IOCTL", func));
 }
 
+static void
+fdgrowtable_exp(struct filedesc *fdp, int nfd)
+{
+	int nfd1, maxfd;
+
+	FILEDESC_XLOCK_ASSERT(fdp);
+
+	nfd1 = fdp->fd_nfiles * 2;
+	if (nfd1 < nfd)
+		nfd1 = nfd;
+	maxfd = getmaxfd(curproc);
+	if (maxfd < nfd1)
+		nfd1 = maxfd;
+	KASSERT(nfd <= nfd1,
+	    ("too low nfd1 %d %d %d %d", nfd, fdp->fd_nfiles, maxfd, nfd1));
+	fdgrowtable(fdp, nfd1);
+}
+
 /*
  * Grow the file table to accomodate (at least) nfd descriptors.
  */
@@ -1563,9 +1592,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 	if (fdp->fd_freefile > minfd)
 		minfd = fdp->fd_freefile;
 
-	PROC_LOCK(p);
-	maxfd = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	maxfd = getmaxfd(p);
 
 	/*
 	 * Search the bitmap for a free descriptor starting at minfd.
@@ -1587,7 +1614,7 @@ fdalloc(struct thread *td, int minfd, int *result)
 		 * fd is already equal to first free descriptor >= minfd, so
 		 * we only need to grow the table and we are done.
 		 */
-		fdgrowtable(fdp, allocfd);
+		fdgrowtable_exp(fdp, allocfd);
 	}
 
 	/*
@@ -1652,9 +1679,7 @@ fdavail(struct thread *td, int n)
 	 *      call racct_add() from there instead of dealing with containers
 	 *      here.
 	 */
-	PROC_LOCK(p);
-	lim = min((int)lim_cur(p, RLIMIT_NOFILE), maxfilesperproc);
-	PROC_UNLOCK(p);
+	lim = getmaxfd(p);
 	if ((i = lim - fdp->fd_nfiles) > 0 && (n -= i) <= 0)
 		return (1);
 	last = min(fdp->fd_nfiles, lim);
@@ -3089,11 +3114,9 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			tp = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			kif->kf_type = KF_TYPE_PROCDESC;
 			break;
-#endif
 
 		default:
 			kif->kf_type = KF_TYPE_UNKNOWN;
@@ -3459,12 +3482,10 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 			data = fp->f_data;
 			break;
 
-#ifdef PROCDESC
 		case DTYPE_PROCDESC:
 			type = KF_TYPE_PROCDESC;
 			data = fp->f_data;
 			break;
-#endif
 
 		default:
 			type = KF_TYPE_UNKNOWN;
@@ -3928,7 +3949,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 
 	return (EBADF);
@@ -3967,7 +3988,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct thread *td)
+    int kflags, struct sendfile_sync *sfs, struct thread *td)
 {
 
 	return (EINVAL);

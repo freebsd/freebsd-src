@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
-<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V4.5-Based Extension//EN"
-        "../../../share/xml/freebsd45.dtd" [
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
+        "../../../share/xml/freebsd50.dtd" [
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
  %release;
 ]>
+<!-- 
+     Local Variables:
+     mode: sgml
+     sgml-indent-data: t
+     sgml-omittag: nil
+     sgml-always-quote-attributes: t
+     End:
+-->
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
+  <info><title>&os; &release.current; README</title>
+    
 
-<article>
-  <articleinfo>
-    <title>&os; &release.current; README</title>
-
-    <corpauthor>The &os; Project</corpauthor>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
@@ -23,17 +30,21 @@
       <year>2006</year>
       <year>2007</year>
       <year>2008</year>
+      <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
+      <year>2012</year>
+      <year>2013</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
-    <legalnotice id="trademarks" role="trademarks">
+    <legalnotice xml:id="trademarks" role="trademarks">
       &tm-attrib.freebsd;
       &tm-attrib.intel;
       &tm-attrib.opengroup;
       &tm-attrib.sparc;
       &tm-attrib.general;
     </legalnotice>
-  </articleinfo>
 
   <abstract>
     <para>This document gives a brief introduction to &os;
@@ -42,8 +53,9 @@
       Project, and pointers to some other sources of
       information.</para>
   </abstract>
+  </info>
 
-  <sect1 id="intro">
+  <sect1 xml:id="intro">
     <title>Introduction</title>
 
     <para>This distribution is a &release.type; of &os; &release.current;, the
@@ -133,7 +145,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="obtain">
+  <sect1 xml:id="obtain">
     <title>Obtaining &os;</title>
 
     <para>&os; may be obtained in a variety of ways.  This section
@@ -153,33 +165,29 @@
 	Collection, or other extra material.</para>
 
       <para>A list of the CDROM and DVD publishers known to the
-	project are listed in the <ulink
-	url="&url.books.handbook;/mirrors.html"><quote>Obtaining
-	&os;</quote></ulink> appendix to the Handbook.</para>
+	project are listed in the <link xlink:href="&url.books.handbook;/mirrors.html"><quote>Obtaining
+	&os;</quote></link> appendix to the Handbook.</para>
     </sect2>
 
     <sect2>
       <title>FTP</title>
 
       <para>You can use FTP to retrieve &os; and any or all of its
-	optional packages from <ulink
-	url="ftp://ftp.FreeBSD.org/"></ulink>, which is the official
+	optional packages from <uri xlink:href="ftp://ftp.FreeBSD.org/">ftp://ftp.FreeBSD.org/</uri>, which is the official
 	&os; release site, or any of its
 	<quote>mirrors</quote>.</para>
 
       <para>Lists of locations that mirror &os; can be found in the
-	<ulink
-	url="&url.books.handbook;/mirrors-ftp.html">FTP
-	Sites</ulink> section of the Handbook.
+	<link xlink:href="&url.books.handbook;/mirrors-ftp.html">FTP
+	Sites</link> section of the Handbook.
 	Finding a close (in networking terms) mirror from which to
 	download the distribution is highly recommended.</para>
 
       <para>Additional mirror sites are always welcome.  Contact
 	<email>freebsd-admin@FreeBSD.org</email> for more details on
 	becoming an official mirror site.  You can also find useful
-        information for mirror sites at the <ulink
-        url="&url.articles.hubs;/">Mirroring
-        &os;</ulink> article.</para>
+        information for mirror sites at the <link xlink:href="&url.articles.hubs;/">Mirroring
+        &os;</link> article.</para>
 
       <para>Mirrors generally contain the ISO images generally used to
 	create a CDROM of a &os; release.  They usually also contain
@@ -190,7 +198,7 @@
     </sect2>
   </sect1>
 
-  <sect1 id="contacting">
+  <sect1 xml:id="contacting">
     <title>Contacting the &os; Project</title>
 
     <sect2>
@@ -217,14 +225,13 @@
 	preferable to subscribe instead to the &a.announce;.</para>
 
       <para>All of the mailing lists can be freely joined by anyone
-	wishing to do so.  Visit the <ulink url="&url.base;/mailman/listinfo">
-	&os; Mailman Info Page</ulink>.  This will give you more
+	wishing to do so.  Visit the <link xlink:href="&url.base;/mailman/listinfo">
+	&os; Mailman Info Page</link>.  This will give you more
 	information on joining the various lists, accessing archives,
 	etc.  There are a number of mailing lists targeted at special
 	interest groups not mentioned here; more information can be
-	obtained either from the Mailman pages or the <ulink
-	url="&url.base;/support.html#mailing-list">mailing
-	lists section</ulink> of the &os; Web site.</para>
+	obtained either from the Mailman pages or the <link xlink:href="&url.base;/support.html#mailing-list">mailing
+	lists section</link> of the &os; Web site.</para>
 
       <important>
 	<para>Do <emphasis>not</emphasis> send email to the lists
@@ -247,9 +254,8 @@
 	<quote>Problem Reports</quote> (PRs) submitted in this way
 	will be filed and their progress tracked; the &os; developers
 	will do their best to respond to all reported bugs as soon as
-	possible.  <ulink
-	url="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">A list
-	of all active PRs</ulink> is available on the &os; Web site;
+	possible.  <link xlink:href="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">A list
+	of all active PRs</link> is available on the &os; Web site;
 	this list is useful to see what potential problems other users
 	have encountered.</para>
 
@@ -259,22 +265,21 @@
 	are unable to use &man.send-pr.1; to submit a bug report, you
 	can try to send it to the &a.bugs;.</para>
 
-      <para>For more information, <ulink
-	url="&url.articles.problem-reports;/"><quote>Writing
-	&os; Problem Reports</quote></ulink>, available on the &os; Web
+      <para>For more information, <link xlink:href="&url.articles.problem-reports;/"><quote>Writing
+	&os; Problem Reports</quote></link>, available on the &os; Web
 	site, has a number of helpful hints on writing and submitting
 	effective problem reports.</para>
     </sect2>
   </sect1>
 
-  <sect1 id="seealso">
+  <sect1 xml:id="seealso">
     <title>Further Reading</title>
 
     <para>There are many sources of information about &os;; some are
       included with this distribution, while others are available
       on-line or in print versions.</para>
 
-    <sect2 id="release-docs">
+    <sect2 xml:id="release-docs">
       <title>Release Documentation</title>
 
       <para>A number of other files provide more specific information
@@ -319,11 +324,11 @@
 	</itemizedlist>
       </para>
 
-      <para>On platforms that support &man.sysinstall.8; (currently
+      <para>On platforms that support &man.bsdinstall.8; (currently
 	&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;, and &arch.sparc64;), these documents are generally available via the
 	Documentation menu during installation.  Once the system is
 	installed, you can revisit this menu by re-running the
-	&man.sysinstall.8; utility.</para>
+	&man.bsdinstall.8; utility.</para>
 
       <note>
 	<para>It is extremely important to read the errata for any
@@ -334,7 +339,7 @@
 	  other copies are kept updated on the Internet and should be
 	  consulted as the <quote>current errata</quote> for this
 	  release.  These other copies of the errata are located at
-	  <ulink url="&url.base;/releases/"></ulink> (as
+	  <uri xlink:href="&url.base;/releases/">&url.base;/releases/</uri> (as
 	  well as any sites which keep up-to-date mirrors of this
 	  location).</para>
       </note>
@@ -345,9 +350,8 @@
 
       <para>As with almost all &unix; like operating systems, &os; comes
 	with a set of on-line manual pages, accessed through the
-	&man.man.1; command or through the <ulink
-	url="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
-	pages gateway</ulink> on the &os; Web site.  In general, the
+	&man.man.1; command or through the <link xlink:href="http://www.FreeBSD.org/cgi/man.cgi">hypertext manual
+	pages gateway</link> on the &os; Web site.  In general, the
 	manual pages provide information on the different commands and
 	APIs available to the &os; user.</para>
 
@@ -364,13 +368,10 @@
       <para>Two highly-useful collections of &os;-related information,
 	maintained by the &os; Project,
 	are the &os; Handbook and &os; FAQ (Frequently Asked
-	Questions document).  On-line versions of the <ulink
-	url="&url.books.handbook;/">Handbook</ulink>
-	and <ulink
-	url="&url.books.faq;/">FAQ</ulink>
-	are always available from the <ulink
-	url="&url.base;/docs.html">&os; Documentation
-	page</ulink> or its mirrors.  If you install the
+	Questions document).  On-line versions of the <link xlink:href="&url.books.handbook;/">Handbook</link>
+	and <link xlink:href="&url.books.faq;/">FAQ</link>
+	are always available from the <link xlink:href="&url.base;/docs.html">&os; Documentation
+	page</link> or its mirrors.  If you install the
 	<filename>doc</filename> distribution set, you can use a Web
 	browser to read the Handbook and FAQ locally.  In particular,
 	note that the Handbook contains a step-by-step guide to
@@ -386,8 +387,7 @@
         distribution set.</para>
 
       <para>A listing of other books and documents about &os; can be
-        found in the <ulink
-        url="&url.books.handbook;/bibliography.html">bibliography</ulink>
+        found in the <link xlink:href="&url.books.handbook;/bibliography.html">bibliography</link>
         of the &os; Handbook.  Because of &os;'s strong &unix; heritage,
         many other articles and books written for &unix; systems are
         applicable as well, some of which are also listed in the
@@ -395,16 +395,15 @@
     </sect2>
   </sect1>
 
-  <sect1 id="acknowledgements">
+  <sect1 xml:id="acknowledgements">
     <title>Acknowledgments</title>
 
     <para>&os; represents the cumulative work of many hundreds, if not
       thousands, of individuals from around the world who have worked
       countless hours to bring about this &release.type;.  For a
       complete list of &os; developers and contributors, please see
-      <ulink
-      url="&url.articles.contributors;/"><quote>Contributors
-      to &os;</quote></ulink> on the &os; Web site or any of its
+      <link xlink:href="&url.articles.contributors;/"><quote>Contributors
+      to &os;</quote></link> on the &os; Web site or any of its
       mirrors.</para>
 
     <para>Special thanks also go to the many thousands of &os; users
@@ -412,12 +411,3 @@
       simply would not have been possible.</para>
   </sect1>
 </article>
-
-<!-- 
-     Local Variables:
-     mode: sgml
-     sgml-indent-data: t
-     sgml-omittag: nil
-     sgml-always-quote-attributes: t
-     End:
--->

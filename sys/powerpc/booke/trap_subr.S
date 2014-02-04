@@ -219,7 +219,8 @@
 	lwz	%r30, (savearea+CPUSAVE_SRR0)(%r2);			\
 	lwz	%r31, (savearea+CPUSAVE_SRR1)(%r2);			\
 	stw	%r30, FRAME_SRR0+8(%r1);				\
-	stw	%r31, FRAME_SRR1+8(%r1)
+	stw	%r31, FRAME_SRR1+8(%r1);				\
+	lwz	%r2,PC_CURTHREAD(%r2)	/* set curthread pointer */
 
 /*
  *
@@ -734,7 +735,8 @@ interrupt_vector_top:
 INTERRUPT(int_debug)
 	STANDARD_CRIT_PROLOG(SPR_SPRG2, PC_BOOKE_CRITSAVE, SPR_CSRR0, SPR_CSRR1)
 	FRAME_SETUP(SPR_SPRG2, PC_BOOKE_CRITSAVE, EXC_DEBUG)
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r2);
+	GET_CPUINFO(%r3)
+	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0)(%r3)
 	lis	%r4, interrupt_vector_base@ha
 	addi	%r4, %r4, interrupt_vector_base@l
 	cmplw	cr0, %r3, %r4
@@ -748,9 +750,10 @@ INTERRUPT(int_debug)
 	rlwinm	%r3, %r3, 0, 23, 21
 	stw	%r3, FRAME_SRR1+8(%r1);
 	/* Restore srr0 and srr1 as they could have been clobbered. */
-	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r2);
+	GET_CPUINFO(%r4)
+	lwz	%r3, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR0+8)(%r4);
 	mtspr	SPR_SRR0, %r3
-	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r2);
+	lwz	%r4, (PC_BOOKE_CRITSAVE+CPUSAVE_SRR1+8)(%r4);
 	mtspr	SPR_SRR1, %r4
 	b	9f
 1:

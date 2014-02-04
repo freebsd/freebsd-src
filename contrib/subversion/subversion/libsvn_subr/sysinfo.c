@@ -546,7 +546,7 @@ linux_release_name(apr_pool_t *pool)
 
 #ifdef WIN32
 typedef DWORD (WINAPI *FNGETNATIVESYSTEMINFO)(LPSYSTEM_INFO);
-typedef BOOL (WINAPI *FNENUMPROCESSMODULES) (HANDLE, HMODULE, DWORD, LPDWORD);
+typedef BOOL (WINAPI *FNENUMPROCESSMODULES) (HANDLE, HMODULE*, DWORD, LPDWORD);
 
 /* Get system and version info, and try to tell the difference
    between the native system type and the runtime environment of the
@@ -763,16 +763,36 @@ win32_release_name(apr_pool_t *pool)
 static HMODULE *
 enum_loaded_modules(apr_pool_t *pool)
 {
+  HMODULE psapi_dll = 0;
   HANDLE current = GetCurrentProcess();
   HMODULE dummy[1];
   HMODULE *handles;
   DWORD size;
+  FNENUMPROCESSMODULES EnumProcessModules_;
 
-  if (!EnumProcessModules(current, dummy, sizeof(dummy), &size))
+  psapi_dll = GetModuleHandleA("psapi.dll");
+
+  if (!psapi_dll)
+    {
+      /* Load and never unload, just like static linking */
+      psapi_dll = LoadLibraryA("psapi.dll");
+    }
+
+  if (!psapi_dll)
+      return NULL;
+
+  EnumProcessModules_ = (FNENUMPROCESSMODULES)
+                              GetProcAddress(psapi_dll, "EnumProcessModules");
+
+  /* Before Windows XP psapi was an optional module */
+  if (! EnumProcessModules_)
+    return NULL;
+
+  if (!EnumProcessModules_(current, dummy, sizeof(dummy), &size))
     return NULL;
 
   handles = apr_palloc(pool, size + sizeof *handles);
-  if (!EnumProcessModules(current, handles, size, &size))
+  if (! EnumProcessModules_(current, handles, size, &size))
     return NULL;
   handles[size / sizeof *handles] = NULL;
   return handles;
