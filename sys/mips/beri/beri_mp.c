@@ -184,9 +184,18 @@ platform_smp_topo(void)
 void
 platform_init_ap(int cpuid)
 {
+	uint32_t status;
 	u_int clock_int_mask;
 
 	KASSERT(cpuid < MAXCPU, ("%s: invalid CPU id %d", __func__, cpuid));
+
+	/* Make sure coprocessors are enabled. */
+	status = mips_rd_status();
+	status |= (MIPS_SR_COP_0_BIT | MIPS_SR_COP_1_BIT);
+#if defined(CPU_CHERI)
+	status |= MIPS_SR_COP_2_BIT;
+#endif
+	mips_wr_status(status);
 
 	/*
 	 * Enable per-thread timer.
