@@ -114,8 +114,16 @@ beri_sdcard_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 static int
 beri_disk_open(struct open_file *f, ...)
 {
+	va_list *ap;
+	struct disk_devdesc *dev;
 
-	return (0);
+	va_start(ap, f);
+	dev = va_arg(ap, struct disk_devdesc *);
+	va_end(ap);
+
+	if (dev->d_unit != 0)
+		return (EIO);
+	return (disk_open(dev, /* Media size? */ 0, 512, 0);
 }
 
 static int
@@ -136,14 +144,14 @@ static void
 beri_cfi_disk_print(int verbose)
 {
 
-	printf("    cfi\n");
+	printf("    cfi0\n");
 }
 
 static void
 beri_sdcard_disk_print(int verbose)
 {
 
-	printf("    sdcard\n");
+	printf("    sdcard0\n");
 }
 
 static void
