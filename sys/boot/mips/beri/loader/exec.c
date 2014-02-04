@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Robert N. M. Watson
+ * Copyright (c) 2013-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -42,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <mips.h>
 #include <stand.h>
 
-static int	beri_elf64_loadfile(char *filename, uint64_t dest,
-		    struct preloaded_file **result);
+static int	beri_elf64_loadfile(char *, uint64_t,
+		    struct preloaded_file **);
 static int	beri_elf64_exec(struct preloaded_file *fp);
 
 struct file_format beri_elf = {
@@ -62,7 +62,11 @@ beri_elf64_loadfile(char *filename, uint64_t dest,
     struct preloaded_file **result)
 {
 
-	return (EFTYPE);
+	/*
+	 * Some platforms require invalidation of instruction caches here; we
+	 * don't need that currently.
+	 */
+	return (__elfN(loadfile)(filename, dest, result));
 }
 
 static int
@@ -75,13 +79,17 @@ beri_elf64_exec(struct preloaded_file *fp)
 	int error;
 
 	md = file_findmetadata(fp, MODINFOMD_ELFHDR);
-	if (md == NULL)
+	if (md == NULL) {
+		printf("%s: file_findmetadata failed\n");
 		return (EFTYPE);
+	}
 	ehdr = (Elf_Ehdr *)md->md_data;
 
-	error = md_load(fp->f_args, &mdp);
-	if (error)
+	error = md_load64(fp->f_args, &mdp);
+	if (error) {
+		printf("%s: md_load64 failed\n");
 		return (error);
+	}
 
 	entry = (void *)ehdr->e_entry;
 	printf("Kernel entry at %p\n", entry);
@@ -97,14 +105,21 @@ beri_elf64_exec(struct preloaded_file *fp)
 	bzero(&bootinfo, sizeof(bootinfo));
 	bootinfo.bi_version = BOOTINFO_VERSION;
 	bootinfo.bi_size = sizeof(bootinfo);
-	bootinfo.bi_boot2opts = boot2_bootinfop->bi_boot2opts;
+	bootinfo.bi_boot2opts = boot2_bootinfo.bi_boot2opts;
 	/* NB: bi_kernelname used only by boot2. */
 	/* NB: bi_nfs_diskless not yet. */
-	bootinfo.bi_dtb = boot2_bootinfop->bi_dtb;
-	bootinfo.bi_memsize = boot2_bootinfop->bi_memsize;
+	bootinfo.bi_dtb = boot2_bootinfo.bi_dtb;
+	bootinfo.bi_memsize = boot2_bootinfo.bi_memsize;
 	bootinfo.bi_modulep = mdp;
 
-	(*entry)(0, 0, 0, &bootinfo);
+	/*
+	 * XXXRW: For now, pass 'memsize' rather than dtb or bootinfo.  This
+	 * is the 'old' ABI spoken by Miniboot and the kernel.  To pass in
+	 * boot2opts, modules, etc, we will need to fix this to pass in at
+	 * least bootinfop.
+	 */
+	(*entry)(boot2_argc, (register_t)boot2_argv, (register_t)boot2_envv,
+	    bootinfo.bi_memsize);
 
 	panic("exec returned");
 }

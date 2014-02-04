@@ -50,7 +50,7 @@ extern struct file_format	beri_elf;
 extern int		 boot2_argc;
 extern char		**boot2_argv;
 extern char		**boot2_envv;
-extern struct bootinfo	*boot2_bootinfop;
+extern struct bootinfo	 boot2_bootinfo;
 
 /* metadata.c */
 int	md_load64(char *args, vm_offset_t *modulep);

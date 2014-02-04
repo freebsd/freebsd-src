@@ -83,23 +83,31 @@ __elfN(exec)(struct preloaded_file *fp)
 
 /*
  * Capture arguments from boot2 for later reuse when launching the kernel.
+ * Note that we choose not to maintain a pointer to boo2_bootinfop after
+ * initial argument processing: this is because we might load the kernel over
+ * the spot where boot2 was running, so we can't pass that pointer on to the
+ * kernel.  To be on the safe side, never reference it outside of the body of
+ * main(), instead preserving a copy.
  */
 int		 boot2_argc;
 char		**boot2_argv;
 char		**boot2_envv;
-struct bootinfo	*boot2_bootinfop;
+
+struct bootinfo	boot2_bootinfo;
 
 int
 main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 {
 	struct devsw **dp;
 
+	/* NB: Must be sure to bzero() before using any globals. */
+	bzero(&__bss_start, (uintptr_t)&__bss_end - (uintptr_t)&__bss_start);
+
 	boot2_argc = argc;
 	boot2_argv = argv;
 	boot2_envv = envv;
-	boot2_bootinfop = bootinfop;
+	boot2_bootinfo = *bootinfop;	/* Copy rather than by reference. */
 
-	bzero(&__bss_start, (uintptr_t)&__bss_end - (uintptr_t)&__bss_start);
 	setheap((void *)&__heap_start, (void *)&__heap_end);
 
 	/*
@@ -116,6 +124,9 @@ main(int argc, char *argv[], char *envv[], struct bootinfo *bootinfop)
 		setenv("console", "nullconsole", 1);
 	cons_probe();
 	setenv("LINES", "24", 1);
+
+	printf("%s(%d, %p, %p, %p (%p))\n", __func__, argc, argv, envv,
+	    bootinfop, (void *)bootinfop->bi_memsize);
 
 	/*
 	 * Initialise devices.
