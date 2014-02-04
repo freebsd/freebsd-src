@@ -57,3 +57,17 @@ cfi_read(void *buf, unsigned lba, unsigned nblk)
 	memcpy(buf, (void *)(CHERI_BOOTFS_BASE + (lba << 9)), nblk << 9);
 	return (0);
 }
+
+uint64_t
+cfi_get_mediasize(void)
+{
+
+	return (CHERI_BOOTFS_LENGTH);
+}
+
+uint64_t
+cfi_get_sectorsize(void)
+{
+
+	return (512);	/* Always a good sector size. */
+}

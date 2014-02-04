@@ -41,12 +41,10 @@ __FBSDID("$FreeBSD$");
 
 #include <cfi.h>
 
-static int	beri_disk_init(void);
-static int	beri_disk_open(struct open_file *, ...);
-static int	beri_disk_close(struct open_file *);
-static int	beri_disk_ioctl(struct open_file *, u_long, void *);
-static void	beri_disk_cleanup(void);
-
+static int	beri_cfi_disk_init(void);
+static int	beri_cfi_disk_open(struct open_file *, ...);
+static int	beri_cfi_disk_close(struct open_file *);
+static void	beri_cfi_disk_cleanup(void);
 static int	beri_cfi_disk_strategy(void *, int, daddr_t, size_t, char *,
 		    size_t *);
 static void	beri_cfi_disk_print(int);
@@ -54,17 +52,17 @@ static void	beri_cfi_disk_print(int);
 struct devsw beri_cfi_disk = {
 	.dv_name = "cfi",
 	.dv_type = DEVT_DISK,
-	.dv_init = beri_disk_init,
+	.dv_init = beri_cfi_disk_init,
 	.dv_strategy = beri_cfi_disk_strategy,
-	.dv_open = beri_disk_open,
-	.dv_close = beri_disk_close,
-	.dv_ioctl = beri_disk_ioctl,
+	.dv_open = beri_cfi_disk_open,
+	.dv_close = beri_cfi_disk_close,
+	.dv_ioctl = noioctl,
 	.dv_print = beri_cfi_disk_print,
- 	.dv_cleanup = beri_disk_cleanup,
+	.dv_cleanup = beri_cfi_disk_cleanup,
 };
 
 static int
-beri_disk_init(void)
+beri_cfi_disk_init(void)
 {
 
 	return (0);
@@ -76,16 +74,22 @@ beri_cfi_disk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 {
 	int error;
 
-	if (flag != F_READ)
+	if (flag == F_WRITE)
 		return (EROFS);
+	if (flag != F_READ)
+		return (EINVAL);
+	if (rsizep != NULL)
+		*rsizep = 0;
 	error = cfi_read(buf, dblk, size >> 9);
-	if (error == 0)
+	if (error == 0 && rsizep != NULL)
 		*rsizep = size;
+	else if (error != 0)
+		printf("%s: error %d\n", __func__, error);
 	return (error);
 }
 
 static int
-beri_disk_open(struct open_file *f, ...)
+beri_cfi_disk_open(struct open_file *f, ...)
 {
 	va_list ap;
 	struct disk_devdesc *dev;
@@ -96,32 +100,42 @@ beri_disk_open(struct open_file *f, ...)
 
 	if (dev->d_unit != 0)
 		return (EIO);
-	return (disk_open(dev, /* Media size? */ 0, 512, 0));
+	return (disk_open(dev, cfi_get_mediasize(), cfi_get_sectorsize(), 0));
 }
 
 static int
-beri_disk_close(struct open_file *f)
+beri_cfi_disk_close(struct open_file *f)
 {
+	struct disk_devdesc *dev;
 
-	return (0);
-}
-
-static int
-beri_disk_ioctl(struct open_file *f, u_long cmd, void *data)
-{
-
-	return (EINVAL);
+	dev = (struct disk_devdesc *)f->f_devdata;
+	return (disk_close(dev));
 }
 
 static void
 beri_cfi_disk_print(int verbose)
 {
+	struct disk_devdesc dev;
+	char line[80];
 
-	printf("    cfi0\n");
+	sprintf(line, "    cfi%d   CFI flash device\n", 0);
+	pager_output(line);
+	dev.d_dev = &beri_cfi_disk;
+	dev.d_unit = 0;
+	dev.d_slice = -1;
+	dev.d_partition = -1;
+	if (disk_open(&dev, cfi_get_mediasize(),
+	    cfi_get_sectorsize(), 0) == 0) {
+		sprintf(line, "    cfi%d", 0);
+		disk_print(&dev, line, verbose);
+		disk_close(&dev);
+	}
+
 }
 
 static void
-beri_disk_cleanup(void)
+beri_cfi_disk_cleanup(void)
 {
 
+	disk_cleanup(&beri_cfi_disk);
 }

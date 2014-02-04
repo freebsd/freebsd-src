@@ -26,50 +26,14 @@ SRCS+=		altera_jtag_uart.c				\
 		cfi.c						\
 		sdcard.c
 
-LOADER_DISK_SUPPORT?=	yes
-LOADER_UFS_SUPPORT?=	yes
-#LOADER_CD9660_SUPPORT?=	yes
-#LOADER_ZFS_SUPPORT?=	yes
-#LOADER_NET_SUPPORT?=	yes
-#LOADER_NFS_SUPPORT?=	yes
-#LOADER_TFTP_SUPPORT?=	yes
-LOADER_GZIP_SUPPORT?=	yes
-LOADER_BZIP2_SUPPORT?=	yes
-#LOADER_DEBUG?=		yes
-
-.if defined(${LOADER_DEBUG})
-CFLAGS+=	-DLOADER_DEBUG
-.endif
-.if defined(${LOADER_DISK_SUPPORT})
 CFLAGS+=	-DLOADER_DISK_SUPPORT
-.endif
-.if defined(${LOADER_UFS_SUPPORT})
 CFLAGS+=	-DLOADER_UFS_SUPPORT
-.endif
-.if defined(${LOADER_CD9660_SUPPORT})
-CFLAGS+=	-DLOADER_CD9660_SUPPORT
-.endif
-.if defined(${LOADER_ZFS_SUPPORT})
-CFLAGS+=	-DLOADER_ZFS_SUPPORT
-CFLAGS+=	-I${.CURDIR}/../../../zfs
-CFLAGS+=	-I${.CURDIR}/../../../../cddl/boot/zfs
-LIBZFSBOOT=	${.OBJDIR}/../../../zfs/libzfsboot.a
-.endif
-.if defined(${LOADER_GZIP_SUPPORT})
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
-.endif
-.if defined(${LOADER_BZIP2_SUPPORT})
 CFLAGS+=	-DLOADER_BZIP2_SUPPORT
-.endif
-.if defined(${LOADER_NET_SUPPORT})
-CFLAGS+=	-DLOADER_NET_SUPPORT
-.endif
-.if defined(${LOADER_NFS_SUPPORT})
-CFLAGS+=	-DLOADER_NFS_SUPPORT
-.endif
-.if defined(${LOADER_TFTP_SUPPORT})
-CFLAGS+=	-DLOADER_TFTP_SUPPORT
-.endif
+
+#CFLAGS+=	-DLOADER_NET_SUPPORT
+#CFLAGS+=	-DLOADER_NFS_SUPPORT
+#CFLAGS+=	-DLOADER_TFTP_SUPPORT
 
 .if ${MK_FORTH} != "no"
 # Enable BootForth

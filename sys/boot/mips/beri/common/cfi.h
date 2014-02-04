@@ -32,5 +32,7 @@
 #define	_CFI_H_
 
 int	cfi_read(void *buf, unsigned lba, unsigned blk);
+uint64_t	cfi_get_mediasize(void);
+uint64_t	cfi_get_sectorsize(void);
 
 #endif

@@ -32,6 +32,9 @@
 #ifndef _SDCARD_H_
 #define	_SDCARD_H_
 
-int	altera_sdcard_read(void *buf, unsigned lba, unsigned nblk);
+int		altera_sdcard_read(void *buf, unsigned lba, unsigned nblk);
+uint64_t	altera_sdcard_get_mediasize(void);
+int		altera_sdcard_get_present(void);
+uint64_t	altera_sdcard_get_sectorsize(void);
 
 #endif /* !_SDCARD_H_ */
