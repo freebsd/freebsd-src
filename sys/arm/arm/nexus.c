@@ -63,11 +63,11 @@ __FBSDID("$FreeBSD$");
 #include "opt_platform.h"
 
 #ifdef FDT
-#include <dev/ofw/ofw_nexus.h>
 #include <dev/fdt/fdt_common.h>
 #include <machine/fdt.h>
 #include "ofw_bus_if.h"
-#else
+#endif
+
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -84,7 +84,6 @@ static	int nexus_print_child(device_t, device_t);
 static	device_t nexus_add_child(device_t, u_int, const char *, int);
 static	struct resource *nexus_alloc_resource(device_t, device_t, int, int *,
     u_long, u_long, u_long, u_int);
-#endif
 static	int nexus_activate_resource(device_t, device_t, int, int,
     struct resource *);
 static int nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
@@ -102,7 +101,6 @@ static int nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent,
 #endif
 
 static device_method_t nexus_methods[] = {
-#ifndef FDT
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
 	DEVMETHOD(device_attach,	nexus_attach),
@@ -110,7 +108,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
-#endif
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_config_intr,	nexus_config_intr),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
@@ -123,19 +120,13 @@ static device_method_t nexus_methods[] = {
 };
 
 static devclass_t nexus_devclass;
-#ifndef FDT
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
 	1			/* no softc */
 };
-#else
-DEFINE_CLASS_1(nexus, nexus_driver, nexus_methods,
-    sizeof(struct ofw_nexus_softc), ofw_nexus_driver);
-#endif
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
-#ifndef FDT
 static int
 nexus_probe(device_t dev)
 {
@@ -235,7 +226,6 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 	return (rv);
 }
-#endif
 
 static int
 nexus_config_intr(device_t dev, int irq, enum intr_trigger trig,
