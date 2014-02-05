@@ -63,6 +63,7 @@ static void read_files(void);
 static void errout(const char *fmt, ...)
 {
 	va_list ap;
+
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -480,8 +481,7 @@ next:
 			if (op->op_value == 0 && opteq(op->op_name, wd))
 				goto nextparam;
 		match = 0;
-nextparam:
-		not = 0;
+nextparam:;
 	}
 	if (not)
 		compile += !match;
