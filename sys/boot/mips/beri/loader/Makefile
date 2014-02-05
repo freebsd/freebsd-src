@@ -26,6 +26,9 @@ SRCS+=		altera_jtag_uart.c				\
 		cfi.c						\
 		sdcard.c
 
+# Since we don't have a backward compatibility issue, default to this on BERI.
+CFLAGS+=	-DBOOT_PROMPT_123
+
 CFLAGS+=	-DLOADER_DISK_SUPPORT
 CFLAGS+=	-DLOADER_UFS_SUPPORT
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
