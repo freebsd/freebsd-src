@@ -126,7 +126,7 @@ static uint64_t		 beri_memsize;
 #define DRV_MASK	0x7f
 
 /* Default to using CFI flash. */
-#define	TYPE_DEFAULT	BOOTINFO_DEV_TYPE_CFI
+#define	TYPE_DEFAULT	BOOTINFO_DEV_TYPE_SDCARD
 
 /* Hard-coded assumption about location of JTAG-loaded kernel. */
 #define	DRAM_KERNEL_ADDR	((void *)mips_phys_to_cached(0x20000))
