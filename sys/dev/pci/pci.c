@@ -4177,7 +4177,6 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
-	struct resource_list_entry *rle;
 	struct resource *res;
 	struct pci_map *pm;
 	pci_addr_t map, testval;
@@ -4250,23 +4249,16 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * Allocate enough resource, and then write back the
 	 * appropriate BAR for that resource.
 	 */
-	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
-	    start, end, count, flags & ~RF_ACTIVE);
+	resource_list_add(rl, type, *rid, start, end, count);
+	res = resource_list_reserve(rl, dev, child, type, rid, start, end,
+	    count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
+		resource_list_delete(rl, type, *rid);
 		device_printf(child,
 		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
 		    count, *rid, type, start, end);
 		goto out;
 	}
-	resource_list_add(rl, type, *rid, start, end, count);
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		panic("pci_reserve_map: unexpectedly can't find resource.");
-	rle->res = res;
-	rle->start = rman_get_start(res);
-	rle->end = rman_get_end(res);
-	rle->count = count;
-	rle->flags = RLE_RESERVED;
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
