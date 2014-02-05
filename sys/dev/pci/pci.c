@@ -332,6 +332,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
 Disable this if you depend on BIOS emulation of USB devices, that is\n\
 you use USB devices (like keyboard or mouse) but do not load USB drivers");
 
+static int pci_clear_bars;
+TUNABLE_INT("hw.pci.clear_bars", &pci_clear_bars);
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
+    "Ignore firmware-assigned resources for BARs.");
+
 static int
 pci_has_quirk(uint32_t devid, int quirk)
 {
@@ -2851,7 +2856,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	flags = RF_ALIGNMENT_LOG2(mapsize);
 	if (prefetch)
 		flags |= RF_PREFETCHABLE;
-	if (basezero || base == pci_mapbase(testval)) {
+	if (basezero || base == pci_mapbase(testval) || pci_clear_bars) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ul;
 	} else {
