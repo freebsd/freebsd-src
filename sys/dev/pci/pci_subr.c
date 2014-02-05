@@ -151,7 +151,7 @@ pcib_child_name(device_t child)
 /*
  * Some Host-PCI bridge drivers know which resource ranges they can
  * decode and should only allocate subranges to child PCI devices.
- * This API provides a way to manage this.  The bridge drive should
+ * This API provides a way to manage this.  The bridge driver should
  * initialize this structure during attach and call
  * pcib_host_res_decodes() on each resource range it decodes.  It can
  * then use pcib_host_res_alloc() and pcib_host_res_adjust() as helper
