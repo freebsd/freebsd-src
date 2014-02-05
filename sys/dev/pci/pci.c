@@ -2742,7 +2742,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	struct pci_map *pm;
 	pci_addr_t base, map, testval;
 	pci_addr_t start, end, count;
-	int barlen, basezero, maprange, mapsize, type;
+	int barlen, basezero, flags, maprange, mapsize, type;
 	uint16_t cmd;
 	struct resource *res;
 
@@ -2848,6 +2848,9 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	count = (pci_addr_t)1 << mapsize;
+	flags = RF_ALIGNMENT_LOG2(mapsize);
+	if (prefetch)
+		flags |= RF_PREFETCHABLE;
 	if (basezero || base == pci_mapbase(testval)) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ul;
@@ -2864,7 +2867,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * pci_alloc_resource().
 	 */
 	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
-	    prefetch ? RF_PREFETCHABLE : 0);
+	    flags);
 	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
 		/*
 		 * If the allocation fails, try to allocate a resource for
@@ -2875,7 +2878,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		resource_list_delete(rl, type, reg);
 		resource_list_add(rl, type, reg, 0, ~0ul, count);
 		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0ul,
-		    count, prefetch ? RF_PREFETCHABLE : 0);
+		    count, flags);
 	}
 	if (res == NULL) {
 		/*
