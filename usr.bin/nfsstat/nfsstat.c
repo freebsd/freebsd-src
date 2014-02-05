@@ -604,14 +604,15 @@ sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 		if (clientOnly) {
 		    printf("%s %6d %6d %6d %6d %6d %6d %6d %6d",
 			((clientOnly && serverOnly) ? "Client:" : ""),
-			DELTA(attrcache_hits) + DELTA(attrcache_misses),
-			DELTA(lookupcache_hits) + DELTA(lookupcache_misses),
-			DELTA(biocache_readlinks),
-			DELTA(biocache_reads),
-			DELTA(biocache_writes),
-			nfsstats.rpccnt[NFSPROC_RENAME]-lastst.rpccnt[NFSPROC_RENAME],
-			DELTA(accesscache_hits) + DELTA(accesscache_misses),
-			DELTA(biocache_readdirs)
+			DELTA(rpccnt[NFSPROC_GETATTR]),
+			DELTA(rpccnt[NFSPROC_LOOKUP]),
+			DELTA(rpccnt[NFSPROC_READLINK]),
+			DELTA(rpccnt[NFSPROC_READ]),
+			DELTA(rpccnt[NFSPROC_WRITE]),
+			DELTA(rpccnt[NFSPROC_RENAME]),
+			DELTA(rpccnt[NFSPROC_ACCESS]),
+			DELTA(rpccnt[NFSPROC_READDIR]) +
+			DELTA(rpccnt[NFSPROC_READDIRPLUS])
 		    );
 		    if (widemode) {
 			    printf(" %s %s %s %s %s %s",
@@ -993,15 +994,15 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 		if (clientOnly) {
 		    printf("%s %6d %6d %6d %6d %6d %6d %6d %6d",
 			((clientOnly && serverOnly) ? "Client:" : ""),
-			DELTA(attrcache_hits) + DELTA(attrcache_misses),
-			DELTA(lookupcache_hits) + DELTA(lookupcache_misses),
-			DELTA(biocache_readlinks),
-			DELTA(biocache_reads),
-			DELTA(biocache_writes),
-			nfsstats.rpccnt[NFSPROC_RENAME] -
-			lastst.rpccnt[NFSPROC_RENAME],
-			DELTA(accesscache_hits) + DELTA(accesscache_misses),
-			DELTA(biocache_readdirs)
+			DELTA(rpccnt[NFSPROC_GETATTR]),
+			DELTA(rpccnt[NFSPROC_LOOKUP]),
+			DELTA(rpccnt[NFSPROC_READLINK]),
+			DELTA(rpccnt[NFSPROC_READ]),
+			DELTA(rpccnt[NFSPROC_WRITE]),
+			DELTA(rpccnt[NFSPROC_RENAME]),
+			DELTA(rpccnt[NFSPROC_ACCESS]),
+			DELTA(rpccnt[NFSPROC_READDIR]) +
+			DELTA(rpccnt[NFSPROC_READDIRPLUS])
 		    );
 		    if (widemode) {
 			    printf(" %s %s %s %s %s %s",
