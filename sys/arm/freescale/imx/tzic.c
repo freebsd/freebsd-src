@@ -146,9 +146,9 @@ static devclass_t tzic_devclass;
 
 /*
  * Memory space of controller located outside of device range, so let him to
- * attach not only to simplebus, but nexus also.
+ * attach not only to simplebus, but ofwbus also.
  */
-EARLY_DRIVER_MODULE(tzic, nexus, tzic_driver, tzic_devclass, 0, 0,
+EARLY_DRIVER_MODULE(tzic, ofwbus, tzic_driver, tzic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 EARLY_DRIVER_MODULE(tzic, simplebus, tzic_driver, tzic_devclass, 0, 0,
     BUS_PASS_INTERRUPT);

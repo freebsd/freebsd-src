@@ -210,7 +210,7 @@ static driver_t smu_driver = {
 
 static devclass_t smu_devclass;
 
-DRIVER_MODULE(smu, nexus, smu_driver, smu_devclass, 0, 0);
+DRIVER_MODULE(smu, ofwbus, smu_driver, smu_devclass, 0, 0);
 static MALLOC_DEFINE(M_SMU, "smu", "SMU Sensor Information");
 
 #define SMU_MAILBOX		0x8000860c
