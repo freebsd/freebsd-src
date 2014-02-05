@@ -111,5 +111,8 @@ int	vcpu_reset(struct vmctx *ctx, int vcpu);
 int	vm_setup_freebsd_registers(struct vmctx *ctx, int vcpu,
 				uint64_t rip, uint64_t cr3, uint64_t gdtbase,
 				uint64_t rsp);
+int	vm_setup_freebsd_registers_i386(struct vmctx *vmctx, int vcpu,
+					uint32_t eip, uint32_t gdtbase,
+					uint32_t esp);
 void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 #endif	/* _VMMAPI_H_ */
