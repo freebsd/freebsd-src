@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -135,12 +136,13 @@ void
 platform_start(__register_t a0, __register_t a1,  __register_t a2, 
     __register_t a3)
 {
+	struct bootinfo *bootinfop;
 	vm_offset_t kernend;
 	uint64_t platform_counter_freq;
 	int argc = a0;
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
-	unsigned int memsize = a3;
+	long memsize;
 #ifdef FDT
 	vm_offset_t dtbp;
 	void *kmdp;
@@ -154,6 +156,24 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	mips_postboot_fixup();
 
 	mips_pcpu0_init();
+
+	/*
+	 * Over time, we've changed out boot-time binary interface for the
+	 * kernel.  Miniboot simply provides a 'memsize' in a3, whereas the
+	 * FreeBSD boot loader provides a 'bootinfo *' in a3.  While slightly
+	 * grody, we support both here by detecting 'pointer-like' values in
+	 * a3 and assuming physical memory can never be that back.
+	 *
+	 * XXXRW: Pull more values than memsize out of bootinfop -- e.g.,
+	 * module information.
+	 */
+	if (a3 >= 0x9800000000000000ULL) {
+		bootinfop = (void *)a3;
+		memsize = bootinfop->bi_memsize;
+	} else {
+		bootinfop = NULL;
+		memsize = a3;
+	}
 
 #ifdef FDT
 	/*
@@ -203,7 +223,10 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 		for (i = 0; envp[i]; i += 2)
 			printf("\t%s = %s\n", envp[i], envp[i+1]);
 
-		printf("memsize = %08x\n", memsize);
+		if (bootinfop != NULL)
+			printf("bootinfo found at %p\n", bootinfop);
+
+		printf("memsize = %p\n", (void *)memsize);
 	}
 
 	realmem = btoc(memsize);
