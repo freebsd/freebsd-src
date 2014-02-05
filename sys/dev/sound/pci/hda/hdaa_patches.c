@@ -142,7 +142,6 @@ static const struct {
 	    0, HDAA_QUIRK_OVREF,
 	    0 }
 };
-#define HDAC_QUIRKS_LEN (sizeof(hdac_quirks) / sizeof(hdac_quirks[0]))
 
 static void
 hdac_pin_patch(struct hdaa_widget *w)
@@ -466,7 +465,7 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	/*
 	 * Quirks
 	 */
-	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
+	for (i = 0; i < nitems(hdac_quirks); i++) {
 		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].id, id) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].subsystemid, subsystemid)))
