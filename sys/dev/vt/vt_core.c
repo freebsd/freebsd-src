@@ -1045,6 +1045,30 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 }
 
 static int
+vt_set_border(struct vt_window *vw, struct vt_font *vf, term_color_t c)
+{
+	struct vt_device *vd = vw->vw_device;
+	int l, r, t, b, w, h;
+
+	if (vd->vd_driver->vd_drawrect == NULL)
+		return (ENOTSUP);
+
+	w = vd->vd_width - 1;
+	h = vd->vd_height - 1;
+	l = vd->vd_offset.tp_col - 1;
+	r = w - l;
+	t = vd->vd_offset.tp_row - 1;
+	b = h - t;
+
+	vd->vd_driver->vd_drawrect(vd, 0, 0, w, t, 1, c); /* Top bar. */
+	vd->vd_driver->vd_drawrect(vd, 0, t, l, b, 1, c); /* Left bar. */
+	vd->vd_driver->vd_drawrect(vd, r, t, w, b, 1, c); /* Right bar. */
+	vd->vd_driver->vd_drawrect(vd, 0, b, w, h, 1, c); /* Bottom bar. */
+
+	return (0);
+}
+
+static int
 vt_proc_alive(struct vt_window *vw)
 {
 	struct proc *p;
@@ -1562,6 +1586,10 @@ skip_thunk:
 			return (error);
 
 		error = vt_change_font(vw, vf);
+		if (error == 0) {
+			/* XXX: replace 0 with current bg color. */
+			vt_set_border(vw, vf, 0);
+		}
 		vtfont_unref(vf);
 		return (error);
 	}
