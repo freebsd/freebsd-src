@@ -517,6 +517,7 @@ struct sge {
 	int timer_val[SGE_NTIMERS];
 	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
+	int fl_starve_threshold2;
 	int eq_s_qpp;
 	int iq_s_qpp;
 
