@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2006 Wojciech A. Koszek <wkoszek@FreeBSD.org>
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -202,6 +202,12 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	if (OF_init((void *)dtbp) != 0)
 		while (1);
 #endif
+
+	/*
+	 * Configure more boot-time parameters passed in by loader.
+	 */
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
 
 	/*
 	 * XXXRW: We have no way to compare wallclock time to cycle rate on
