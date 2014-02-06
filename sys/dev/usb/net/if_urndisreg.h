@@ -53,7 +53,7 @@ struct urndis_softc {
 
 #define	URNDIS_LOCK(sc) mtx_lock(&(sc)->sc_mtx)
 #define	URNDIS_UNLOCK(sc) mtx_unlock(&(sc)->sc_mtx)
-#define	URNDIS_LOCK_ASSERT(sc, what) mtx_assert(&(sc)->sc_mtx, (x))
+#define	URNDIS_LOCK_ASSERT(sc, what) mtx_assert(&(sc)->sc_mtx, (what))
 
 #define	RNDIS_STATUS_BUFFER_OVERFLOW 	0x80000005L
 #define	RNDIS_STATUS_FAILURE 		0xC0000001L

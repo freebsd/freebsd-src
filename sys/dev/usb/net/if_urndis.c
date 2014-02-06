@@ -838,7 +838,7 @@ urndis_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				DPRINTF("invalid dataoffset %u larger than %u\n",
 				    msg.rm_dataoffset + msg.rm_datalen +
 				    (uint32_t)__offsetof(struct urndis_packet_msg,
-				    rm_dataoffset));
+				    rm_dataoffset), actlen);
 				goto tr_setup;
 			} else if (msg.rm_datalen < (uint32_t)sizeof(struct ether_header)) {
 				ifp->if_ierrors++;
