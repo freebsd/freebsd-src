@@ -35,7 +35,8 @@ LIBSTAND=	${.OBJDIR}/../../../../../lib/libstand/libstand.a
 LDFLAGS=	-nostdlib			\
 		-static				\
 		-N				\
-		-G0
+		-G0				\
+		-L${.CURDIR}
 
 .PATH:		${.CURDIR}/../common
 CFLAGS+=	-I${.CURDIR}/../common
