@@ -7778,11 +7778,11 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 
 		if (port_id >= sc->params.nports)
 			return (EINVAL);
+		pi = sc->port[port_id];
 
 		/* MAC stats */
-		t4_clr_port_stats(sc, port_id);
+		t4_clr_port_stats(sc, pi->tx_chan);
 
-		pi = sc->port[port_id];
 		if (pi->flags & PORT_INIT_DONE) {
 			struct sge_rxq *rxq;
 			struct sge_txq *txq;
