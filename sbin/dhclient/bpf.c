@@ -269,7 +269,7 @@ if_register_receive(struct interface_info *info)
 	if (ioctl(info->rfdesc, BIOCLOCK, NULL) < 0)
 		error("Cannot lock bpf");
 
-	cap_rights_init(&rights, CAP_IOCTL, CAP_POLL_EVENT, CAP_READ);
+	cap_rights_init(&rights, CAP_IOCTL, CAP_EVENT, CAP_READ);
 	if (cap_rights_limit(info->rfdesc, &rights) < 0 && errno != ENOSYS)
 		error("Can't limit bpf descriptor: %m");
 	if (cap_ioctls_limit(info->rfdesc, cmds, 2) < 0 && errno != ENOSYS)
