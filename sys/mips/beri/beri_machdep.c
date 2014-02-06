@@ -170,6 +170,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	if (a3 >= 0x9800000000000000ULL) {
 		bootinfop = (void *)a3;
 		memsize = bootinfop->bi_memsize;
+		preload_metadata = (caddr_t)bootinfop->bi_modulep;
 	} else {
 		bootinfop = NULL;
 		memsize = a3;
