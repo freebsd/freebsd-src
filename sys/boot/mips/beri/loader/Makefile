@@ -107,9 +107,6 @@ FILES+= loader.rc
 FILES+= menu.rc
 .endif
 
-loader.dump: loader
-	objdump -dS loader > loader.dump
-
-all: loader loader.dump
+all: loader
 
 .include <bsd.prog.mk>
