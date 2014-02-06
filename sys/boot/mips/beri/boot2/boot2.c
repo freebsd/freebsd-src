@@ -300,9 +300,9 @@ main(u_int argc, const char *argv[], const char *envv[], uint64_t memsize)
     for (;;) {
 	if (!autoboot || !OPT_CHECK(RBX_QUIET))
 	    printf("\nFreeBSD/mips boot\n"
-		   "Default: %s:%s\n"
+		   "Default: %s%ju:%s\n"
 		   "boot: ",
-		   dev_nm[dsk.type], kname);
+		   dev_nm[dsk.type], dsk.unitptr, kname);
 #if 0
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
@@ -329,13 +329,6 @@ static void
 boot(void *entryp, int argc, const char *argv[], const char *envv[])
 {
 
-#if 0
-    bootinfo.bi_kernelname = VTOP(kname);
-    bootinfo.bi_bios_dev = dsk.drive;
-    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
-	   MAKEBOOTDEV(dev_maj[dsk.type], dsk.slice, dsk.unit, dsk.part),
-	   0, 0, 0, VTOP(&bootinfo));
-#endif
     bootinfo.bi_kernelname = (bi_ptr_t)kname;
     bootinfo.bi_boot2opts = opts & RBX_MASK;
     bootinfo.bi_boot_dev_type = dsk.type;
@@ -459,6 +452,8 @@ parse()
 {
     char *arg = cmd;
     char *ep, *p, *q;
+    char unit;
+    size_t len;
     const char *cp;
 #if 0
     int c, i, j;
@@ -515,10 +510,14 @@ parse()
 	     * Parse a device/kernel name.  Format(s):
 	     *
 	     *   path
-	     *   device:path
+	     *   deviceX:path
 	     *
 	     * NB: Utterly incomprehensible but space-efficient ARM/i386
-	     * parsing removed in favour of larger but easier-to-read C.
+	     * parsing removed in favour of larger but easier-to-read C.  This
+	     * is still not great, however -- e.g., relating to unit handling.
+	     *
+	     * TODO: it would be nice if a DRAM pointer could be specified
+	     * here.
 	     *
 	     * XXXRW: Pick up pieces here.
 	     */
@@ -530,16 +529,37 @@ parse()
 	    arg--;
 	    q = strsep(&arg, ":");
 	    if (arg != NULL) {
+		len = strlen(q);
+		if (len < 2) {
+		    printf("Invalid device: name too short\n");
+		    return (-1);
+		}
+
+		/*
+		 * First, handle one-digit unit.
+		 */
+		unit = q[len-1];
+		if (unit < '0' || unit > '9') {
+		    printf("Invalid device: invalid unit\n", q,
+		      unit);
+		    return (-1);
+		}
+		unit -= '0';
+		q[len-1] = '\0';
+
+		/*
+		 * Next, find matching device.
+		 */
 		for (i = 0; i < dev_nm_count; i++) {
 		    if (strcmp(q, dev_nm[i]) == 0)
 			break;
 		}
 		if (i == dev_nm_count) {
-		    printf("Invalid device\n");
+		    printf("Invalid device: no driver match\n");
 		    return (-1);
 		}
 		dsk.type = i;
-		dsk.unitptr = 0;		/* Always, for now. */
+		dsk.unitptr = unit;	/* Someday: also a DRAM pointer? */
 	    } else
 		arg = q;
 	    if ((i = ep - arg)) {
