@@ -170,8 +170,11 @@ static const struct usb_ether_methods urndis_ue_methods = {
 };
 
 static const STRUCT_USB_HOST_ID urndis_host_devs[] = {
+#if 0
+	/* XXX this entry has a conflict an entry the umodem driver XXX */
 	{USB_IFACE_CLASS(UICLASS_CDC), USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 	USB_IFACE_PROTOCOL(0xff)},
+#endif
 	{USB_IFACE_CLASS(UICLASS_WIRELESS), USB_IFACE_SUBCLASS(UISUBCLASS_RF),
 	USB_IFACE_PROTOCOL(UIPROTO_RNDIS)},
 	{USB_IFACE_CLASS(UICLASS_IAD), USB_IFACE_SUBCLASS(UISUBCLASS_SYNC),
