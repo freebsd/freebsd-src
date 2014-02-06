@@ -339,7 +339,7 @@ teken_get_winsize(teken_t *t)
 }
 
 static void
-taken_trim_cursor_pos(teken_t *t, const teken_pos_t *new)
+teken_trim_cursor_pos(teken_t *t, const teken_pos_t *new)
 {
 	const teken_pos_t *cur;
 
@@ -357,7 +357,7 @@ void
 teken_set_winsize(teken_t *t, const teken_pos_t *p)
 {
 
-	taken_trim_cursor_pos(t, p);
+	teken_trim_cursor_pos(t, p);
 	t->t_winsize = *p;
 	teken_subr_do_reset(t);
 }
@@ -366,7 +366,7 @@ void
 teken_set_winsize_noreset(teken_t *t, const teken_pos_t *p)
 {
 
-	taken_trim_cursor_pos(t, p);
+	teken_trim_cursor_pos(t, p);
 	t->t_winsize = *p;
 	teken_subr_do_resize(t);
 }
