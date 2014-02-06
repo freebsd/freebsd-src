@@ -21,7 +21,7 @@ CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
-.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE} == "pc98"
