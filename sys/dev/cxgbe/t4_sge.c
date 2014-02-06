@@ -2474,7 +2474,7 @@ tnl_cong(struct port_info *pi)
 	else if (cong_drop == 1)
 		return (0);
 	else
-		return (1 << pi->tx_chan);
+		return (pi->rx_chan_map);
 }
 
 static int
@@ -2581,7 +2581,7 @@ alloc_ofld_rxq(struct port_info *pi, struct sge_ofld_rxq *ofld_rxq,
 	char name[16];
 
 	rc = alloc_iq_fl(pi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx,
-	    1 << pi->tx_chan);
+	    pi->rx_chan_map);
 	if (rc != 0)
 		return (rc);
 
