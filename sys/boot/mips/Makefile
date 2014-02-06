@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-#SUBDIR=	beri
+SUBDIR=	beri
 
 .include <bsd.subdir.mk>
