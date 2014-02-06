@@ -450,14 +450,14 @@ static int is_ubik(u_int32_t);
  */
 
 void
-rx_print(register const u_char *bp, int length, int sport, int dport,
+rx_print(const u_char *bp, int length, int sport, int dport,
 	 u_char *bp2)
 {
 	register struct rx_header *rxh;
 	int i;
 	int32_t opcode;
 
-	if (snapend - bp < (int)sizeof (struct rx_header)) {
+	if (!TTEST2(bp, sizeof(struct rx_header))) {
 		printf(" [|rx] (%d)", length);
 		return;
 	}
@@ -608,7 +608,7 @@ rx_cache_insert(const u_char *bp, const struct ip *ip, int dport)
 	struct rx_cache_entry *rxent;
 	const struct rx_header *rxh = (const struct rx_header *) bp;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t)))
+	if (!TTEST2(bp, (int)(sizeof(struct rx_header) + sizeof(int32_t) + 1)))
 		return;
 
 	rxent = &rx_cache[rx_cache_next];
@@ -670,7 +670,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
  */
 
 #ifdef CHERI_TCPDUMP_VULNERABILITY
-#define	TRUNC(n) if (snapend - bp + 1 <= (long)n) goto trunc;
+#define	TRUNC(n) TCHECK2(bp, (n))
 #define FIDOUT() { unsigned long n1, n2, n3; \
 			TRUNC(sizeof(int32_t) *3); \
 			n1 = EXTRACT_32BITS(bp); \
@@ -827,9 +827,7 @@ fs_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, (int)(sizeof(struct rx_header) + sizeof(int32_t)) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1234,10 +1232,8 @@ cb_print(register const u_char *bp, int length)
 
 	if (length <= (int)sizeof(struct rx_header))
 		return;
-
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+ 
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof(int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1366,9 +1362,7 @@ prot_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1621,9 +1615,7 @@ vldb_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -1900,9 +1892,7 @@ kauth_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2044,9 +2034,7 @@ vol_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2379,9 +2367,7 @@ bos_print(register const u_char *bp, int length)
 	if (length <= (int)sizeof(struct rx_header))
 		return;
 
-	if (snapend - bp + 1 <= (int)(sizeof(struct rx_header) + sizeof(int32_t))) {
-		goto trunc;
-	}
+	TCHECK2(*bp, sizeof(struct rx_header) + sizeof (int32_t) + 1);
 
 	/*
 	 * Print out the afs call we're invoking.  The table used here was
@@ -2857,7 +2843,8 @@ rx_ack_print(register const u_char *bp, int length)
 	 * you may or may not see them
 	 */
 
-#define TRUNCRET(n)	if (snapend - bp + 1 <= n) return;
+/* XXX-BD: OVERFLOW: old code allowed 1 byte too small buffers */
+#define TRUNCRET(n)	if (!TTEST2(*bp, n)) return;
 
 	if (vflag > 1) {
 		TRUNCRET(4);

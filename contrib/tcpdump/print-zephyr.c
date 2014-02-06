@@ -91,18 +91,22 @@ parse_field(char **pptr, int *len)
 
     if (*len <= 0 || !pptr || !*pptr)
 	return NULL;
-    if (*pptr > (char *) snapend)
+    if (!PACKET_VALID(*pptr))
 	return NULL;
 
     s = *pptr;
-    while (*pptr <= (char *) snapend && *len >= 0 && **pptr) {
+    /*
+     * XXX-BD: OVERFLOW: Previous code incremented two past the end and
+     * dereferenced one past.
+     */
+    while (PACKET_REMAINING(*pptr) && *len >= 0 && **pptr) {
 	(*pptr)++;
 	(*len)--;
     }
+    if (*len == 0 || !PACKET_REMAINING(*pptr))
+	return NULL;
     (*pptr)++;
     (*len)--;
-    if (*len < 0 || *pptr > (char *) snapend)
-	return NULL;
     return s;
 }
 

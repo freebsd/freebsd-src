@@ -91,7 +91,7 @@ cnfp_print(const u_char *cp, const u_char *bp _U_)
 
 	nh = (const struct nfhdr *)cp;
 
-	if ((const u_char *)(nh + 1) > snapend)
+	if (!TTEST(*nh))
 		return;
 
 	nrecs = EXTRACT_32BITS(&nh->ver_cnt) & 0xffff;
@@ -121,7 +121,8 @@ cnfp_print(const u_char *cp, const u_char *bp _U_)
 
 	printf("%2u recs", nrecs);
 
-	for (; nrecs-- && (const u_char *)(nr + 1) <= snapend; nr++) {
+	/* XXX-BD: OVERFLOW: previous code overflowed if truncated mid rec */
+	for (; nrecs-- && TTEST(*nr); nr++) {
 		char buf[20];
 		char asbuf[20];
 

@@ -60,11 +60,12 @@ aodv_extension(const struct aodv_ext *ep, u_int length)
 
 	switch (ep->type) {
 	case AODV_EXT_HELLO:
-		if (snapend < (u_char *) ep) {
+		/* XXX-BD: we've already dereferenced ep... */
+		if (!PACKET_VALID(ep)) {
 			printf(" [|hello]");
 			return;
 		}
-		i = min(length, (u_int)(snapend - (u_char *)ep));
+		i = min(length, PACKET_REMAINING(ep));
 		if (i < sizeof(struct aodv_hello)) {
 			printf(" [|hello]");
 			return;
@@ -86,11 +87,12 @@ aodv_rreq(const union aodv *ap, const u_char *dat, u_int length)
 {
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rreq)) {
 		printf(" [|rreq]");
 		return;
@@ -118,11 +120,12 @@ aodv_rrep(const union aodv *ap, const u_char *dat, u_int length)
 {
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rrep)) {
 		printf(" [|rrep]");
 		return;
@@ -149,11 +152,12 @@ aodv_rerr(const union aodv *ap, const u_char *dat, u_int length)
 	const struct rerr_unreach *dp = NULL;
 	int n, trunc;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < offsetof(struct aodv_rerr, r)) {
 		printf(" [|rerr]");
 		return;
@@ -184,11 +188,12 @@ aodv_v6_rreq(const union aodv *ap _U_, const u_char *dat _U_, u_int length)
 #ifdef INET6
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rreq6)) {
 		printf(" [|rreq6]");
 		return;
@@ -224,11 +229,12 @@ aodv_v6_rrep(const union aodv *ap _U_, const u_char *dat _U_, u_int length)
 #ifdef INET6
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rrep6)) {
 		printf(" [|rrep6]");
 		return;
@@ -292,11 +298,12 @@ aodv_v6_draft_01_rreq(const union aodv *ap _U_, const u_char *dat _U_,
 #ifdef INET6
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rreq6_draft_01)) {
 		printf(" [|rreq6]");
 		return;
@@ -333,11 +340,12 @@ aodv_v6_draft_01_rrep(const union aodv *ap _U_, const u_char *dat _U_,
 #ifdef INET6
 	u_int i;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	i = min(length, (u_int)(snapend - dat));
+	i = min(length, PACKET_REMAINING(dat));
 	if (i < sizeof(ap->rrep6_draft_01)) {
 		printf(" [|rrep6]");
 		return;
@@ -396,11 +404,12 @@ aodv_print(const u_char *dat, u_int length, int is_ip6)
 	const union aodv *ap;
 
 	ap = (union aodv *)dat;
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
+		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");
 		return;
 	}
-	if (min(length, (u_int)(snapend - dat)) < sizeof(ap->rrep_ack)) {
+	if (min(length, (u_int)PACKET_REMAINING(dat)) < sizeof(ap->rrep_ack)) {
 		printf(" [|aodv]");
 		return;
 	}

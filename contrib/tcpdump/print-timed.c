@@ -46,12 +46,11 @@ static const char *tsptype[TSPTYPENUMBER] =
 void
 timed_print(register const u_char *bp)
 {
-#define endof(x) ((u_char *)&(x) + sizeof (x))
 	struct tsp *tsp = (struct tsp *)bp;
 	long sec, usec;
 	const u_char *end;
 
-	if (endof(tsp->tsp_type) > snapend) {
+	if (!TTEST(tsp->tsp_type)) {
 		fputs("[|timed]", stdout);
 		return;
 	}
@@ -60,20 +59,20 @@ timed_print(register const u_char *bp)
 	else
 		printf("(tsp_type %#x)", tsp->tsp_type);
 
-	if (endof(tsp->tsp_vers) > snapend) {
+	if (!TTEST(tsp->tsp_vers)) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" vers %d", tsp->tsp_vers);
 
-	if (endof(tsp->tsp_seq) > snapend) {
+	if (!TTEST(tsp->tsp_seq)) {
 		fputs(" [|timed]", stdout);
 		return;
 	}
 	printf(" seq %d", tsp->tsp_seq);
 
 	if (tsp->tsp_type == TSP_LOOP) {
-		if (endof(tsp->tsp_hopcnt) > snapend) {
+		if (!TTEST(tsp->tsp_hopcnt)) {
 			fputs(" [|timed]", stdout);
 			return;
 		}
@@ -82,7 +81,7 @@ timed_print(register const u_char *bp)
 	  tsp->tsp_type == TSP_ADJTIME ||
 	  tsp->tsp_type == TSP_SETDATE ||
 	  tsp->tsp_type == TSP_SETDATEREQ) {
-		if (endof(tsp->tsp_time) > snapend) {
+		if (!TTEST(tsp->tsp_time)) {
 			fputs(" [|timed]", stdout);
 			return;
 		}
@@ -101,7 +100,7 @@ timed_print(register const u_char *bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
+	end = memchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {

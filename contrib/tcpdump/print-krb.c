@@ -163,7 +163,7 @@ krb4_print(const u_char *cp)
 
 	kp = (struct krb *)cp;
 
-	if ((&kp->type) >= snapend) {
+	if (!TTEST(kp->type)) {
 		fputs(tstr, stdout);
 		return;
 	}
@@ -233,7 +233,7 @@ krb_print(const u_char *dat)
 
 	kp = (struct krb *)dat;
 
-	if (dat >= snapend) {
+	if (!TTEST(kp->pvno)) {
 		fputs(tstr, stdout);
 		return;
 	}

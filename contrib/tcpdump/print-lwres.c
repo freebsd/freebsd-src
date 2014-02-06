@@ -200,8 +200,7 @@ lwres_printname(size_t l, const char *p0)
 
 	p = p0;
 	/* + 1 for terminating \0 */
-	if (p + l + 1 > (const char *)snapend)
-		goto trunc;
+	TCHECK2(*p, l + 1);
 
 	printf(" ");
 	for (i = 0; i < l; i++)
@@ -220,8 +219,7 @@ lwres_printnamelen(const char *p)
 	u_int16_t l;
 	int advance;
 
-	if (p + 2 > (const char *)snapend)
-		goto trunc;
+	TCHECK2(*p, 2);
 	l = EXTRACT_16BITS(p);
 	advance = lwres_printname(l, p + 2);
 	if (advance < 0)
@@ -240,12 +238,10 @@ lwres_printbinlen(const char *p0)
 	int i;
 
 	p = p0;
-	if (p + 2 > (const char *)snapend)
-		goto trunc;
+	TCHECK2(*p, 2);
 	l = EXTRACT_16BITS(p);
-	if (p + 2 + l > (const char *)snapend)
-		goto trunc;
 	p += 2;
+	TCHECK2(*p, l);
 	for (i = 0; i < l; i++)
 		printf("%02x", *p++);
 	return p - p0;

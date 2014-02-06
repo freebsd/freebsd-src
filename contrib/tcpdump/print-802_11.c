@@ -1726,6 +1726,7 @@ ieee802_11_print(const u_char *p, u_int length, u_int orig_caplen, int pad,
 		/* Amount of FCS in actual packet data, if any */
 		fcslen = caplen - length;
 		caplen -= fcslen;
+		/* XXX-BD: truncate capability in CHERI */
 		snapend -= fcslen;
 	}
 

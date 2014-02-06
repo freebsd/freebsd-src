@@ -62,10 +62,10 @@ static const char rcsid[] _U_ =
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 
-static int print_probe(const u_char *, const u_char *, u_int);
-static int print_report(const u_char *, const u_char *, u_int);
-static int print_neighbors(const u_char *, const u_char *, u_int);
-static int print_neighbors2(const u_char *, const u_char *, u_int);
+static int print_probe(const u_char *, u_int);
+static int print_report(const u_char *, u_int);
+static int print_neighbors(const u_char *, u_int);
+static int print_neighbors2(const u_char *, u_int);
 static int print_prune(const u_char *);
 static int print_graft(const u_char *);
 static int print_graft_ack(const u_char *);
@@ -75,11 +75,9 @@ static u_int32_t target_level;
 void
 dvmrp_print(register const u_char *bp, register u_int len)
 {
-	register const u_char *ep;
 	register u_char type;
 
-	ep = (const u_char *)snapend;
-	if (bp >= ep)
+	if (PACKET_REMAINING(bp) == 0)
 		return;
 
 	TCHECK(bp[1]);
@@ -94,7 +92,7 @@ dvmrp_print(register const u_char *bp, register u_int len)
 	case DVMRP_PROBE:
 		printf(" Probe");
 		if (vflag) {
-			if (print_probe(bp, ep, len) < 0)
+			if (print_probe(bp, len) < 0)
 				goto trunc;
 		}
 		break;
@@ -102,7 +100,7 @@ dvmrp_print(register const u_char *bp, register u_int len)
 	case DVMRP_REPORT:
 		printf(" Report");
 		if (vflag > 1) {
-			if (print_report(bp, ep, len) < 0)
+			if (print_report(bp, len) < 0)
 				goto trunc;
 		}
 		break;
@@ -113,7 +111,7 @@ dvmrp_print(register const u_char *bp, register u_int len)
 
 	case DVMRP_NEIGHBORS:
 		printf(" Neighbors(old)");
-		if (print_neighbors(bp, ep, len) < 0)
+		if (print_neighbors(bp, len) < 0)
 			goto trunc;
 		break;
 
@@ -132,7 +130,7 @@ dvmrp_print(register const u_char *bp, register u_int len)
 		target_level = (bp[0] << 24) | (bp[1] << 16) |
 		    (bp[2] << 8) | bp[3];
 		bp += 4;
-		if (print_neighbors2(bp, ep, len) < 0)
+		if (print_neighbors2(bp, len) < 0)
 			goto trunc;
 		break;
 
@@ -166,8 +164,7 @@ trunc:
 }
 
 static int 
-print_report(register const u_char *bp, register const u_char *ep,
-    register u_int len)
+print_report(register const u_char *bp, register u_int len)
 {
 	register u_int32_t mask, origin;
 	register int metric, done;
@@ -192,7 +189,7 @@ print_report(register const u_char *bp, register const u_char *ep,
 		bp += 3;
 		len -= 3;
 		do {
-			if (bp + width + 1 > ep) {
+			if (!TTEST2(*bp, width)) {
 				printf(" [|]");
 				return (0);
 			}
@@ -223,13 +220,12 @@ trunc:
 }
 
 static int
-print_probe(register const u_char *bp, register const u_char *ep,
-    register u_int len)
+print_probe(register const u_char *bp, register u_int len)
 {
 	register u_int32_t genid;
 
 	TCHECK2(bp[0], 4);
-	if ((len < 4) || ((bp + 4) > ep)) {
+	if (len < 4) {
 		/* { (ctags) */
 		printf(" [|}");
 		return (0);
@@ -245,7 +241,7 @@ print_probe(register const u_char *bp, register const u_char *ep,
 	if (vflag < 2)
 		return (0);
 
-	while ((len > 0) && (bp < ep)) {
+	while (len > 0 && PACKET_REMAINING(bp)) {
 		TCHECK2(bp[0], 4);
 		printf("\n\tneighbor %s", ipaddr_string(bp));
 		bp += 4; len -= 4;
@@ -256,15 +252,14 @@ trunc:
 }
 
 static int
-print_neighbors(register const u_char *bp, register const u_char *ep,
-    register u_int len)
+print_neighbors(register const u_char *bp, register u_int len)
 {
 	const u_char *laddr;
 	register u_char metric;
 	register u_char thresh;
 	register int ncount;
 
-	while (len > 0 && bp < ep) {
+	while (len > 0 && PACKET_REMAINING(bp)) {
 		TCHECK2(bp[0], 7);
 		laddr = bp;
 		bp += 4;
@@ -287,8 +282,7 @@ trunc:
 }
 
 static int
-print_neighbors2(register const u_char *bp, register const u_char *ep,
-    register u_int len)
+print_neighbors2(register const u_char *bp, register u_int len)
 {
 	const u_char *laddr;
 	register u_char metric, thresh, flags;
@@ -298,7 +292,7 @@ print_neighbors2(register const u_char *bp, register const u_char *ep,
 	       (int)target_level & 0xff,
 	       (int)(target_level >> 8) & 0xff);
 
-	while (len > 0 && bp < ep) {
+	while (len > 0 && PACKET_REMAINING(bp)) {
 		TCHECK2(bp[0], 8);
 		laddr = bp;
 		bp += 4;
@@ -307,7 +301,7 @@ print_neighbors2(register const u_char *bp, register const u_char *ep,
 		flags = *bp++;
 		ncount = *bp++;
 		len -= 8;
-		while (--ncount >= 0 && (len >= 4) && (bp + 4) <= ep) {
+		while (--ncount >= 0 && (len >= 4) && TTEST2(*bp, 4)) {
 			printf(" [%s -> ", ipaddr_string(laddr));
 			printf("%s (%d/%d", ipaddr_string(bp),
 				     metric, thresh);

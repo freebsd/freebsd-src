@@ -932,9 +932,9 @@ nbt_tcp_print(const u_char *data, int length)
 
     if (length < 4)
 	goto trunc;
-    if (snapend < data)
+    if (!PACKET_VALID(data))
 	goto trunc;
-    caplen = snapend - data;
+    caplen = PACKET_REMAINING(data);
     if (caplen < 4)
 	goto trunc;
     maxbuf = data + caplen;
@@ -1256,9 +1256,9 @@ smb_tcp_print (const u_char * data, int length)
 
     if (length < 4)
 	goto trunc;
-    if (snapend < data)
+    if (!PACKET_VALID(data))
 	goto trunc;
-    caplen = snapend - data;
+    caplen = PACKET_REMAINING(data);
     if (caplen < 4)
 	goto trunc;
     maxbuf = data + caplen;
@@ -1292,12 +1292,9 @@ trunc:
 void
 nbt_udp138_print(const u_char *data, int length)
 {
-    const u_char *maxbuf = data + length;
+    const u_char *maxbuf;
 
-    if (maxbuf > snapend)
-	maxbuf = snapend;
-    if (maxbuf <= data)
-	return;
+    maxbuf = PACKET_SECTION_END(data, length);
     startbuf = data;
 
     if (vflag < 2) {
@@ -1390,13 +1387,13 @@ netbeui_print(u_short control, const u_char *data, int length)
     const u_char *data2;
     int is_truncated = 0;
 
-    if (maxbuf > snapend)
-	maxbuf = snapend;
+    maxbuf = PACKET_SECTION_END(data, length);
     TCHECK(data[4]);
     len = EXTRACT_LE_16BITS(data);
     command = data[4];
-    data2 = data + len;
-    if (data2 >= maxbuf) {
+    if (len <= PACKET_REMAINING(data))
+	data2 = data + len;
+    else {
 	data2 = maxbuf;
 	is_truncated = 1;
     }
@@ -1489,10 +1486,7 @@ ipx_netbios_print(const u_char *data, u_int length)
     int i;
     const u_char *maxbuf;
 
-    maxbuf = data + length;
-    /* Don't go past the end of the captured data in the packet. */
-    if (maxbuf > snapend)
-	maxbuf = snapend;
+    maxbuf = PACKET_SECTION_END(data, length);
     startbuf = data;
     for (i = 0; i < 128; i++) {
 	if (&data[i + 4] > maxbuf)

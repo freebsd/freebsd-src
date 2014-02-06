@@ -174,7 +174,6 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 #ifdef INET6
 	const struct ip6_hdr *ip6;
 #endif
-	const u_char *cp;
 	u_short sport, dport;
 	u_int hlen;
 	u_int extlen = 0;
@@ -188,8 +187,7 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	cp = (const u_char *)(dh + 1);
-	if (cp > snapend) {
+	if (!TTEST(*dh)) {
 		printf("[Invalid packet|dccp]");
 		return;
 	}

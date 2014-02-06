@@ -154,7 +154,7 @@ ns_nprint(register const u_char *cp, register const u_char *bp)
 	register int compress = 0;
 	int chars_processed;
 	int elt;
-	int data_size = snapend - bp;
+	int data_size = PACKET_REMAINING(bp);
 
 	if ((l = labellen(cp)) == (u_int)-1)
 		return(NULL);
@@ -167,7 +167,7 @@ ns_nprint(register const u_char *cp, register const u_char *bp)
 	}
 
 	if (i != 0)
-		while (i && cp < snapend) {
+		while (i && PACKET_REMAINING(cp)) {
 			if ((i & INDIR_MASK) == INDIR_MASK) {
 				if (!compress) {
 					rp = cp + 1;
@@ -409,11 +409,11 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 	len = EXTRACT_16BITS(cp);
 	cp += 2;
 
-	rp = cp + len;
 
 	printf(" %s", tok2str(ns_type2str, "Type%d", typ));
-	if (rp > snapend)
+	if (!TTEST2(*cp, len))
 		return(NULL);
+	rp = cp + len;
 
 	switch (typ) {
 	case T_A:
@@ -544,7 +544,7 @@ ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 
 	case T_TSIG:
 	    {
-		if (cp + len > snapend)
+		if (!TTEST2(*cp, len))
 			return(NULL);
 		if (!vflag)
 			break;
@@ -625,7 +625,7 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 		if (ancount--) {
 			if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 				goto trunc;
-			while (cp < snapend && ancount--) {
+			while (PACKET_REMAINING(cp) && ancount--) {
 				putchar(',');
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
@@ -635,11 +635,11 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			goto trunc;
 		/* Print NS and AR sections on -vv */
 		if (vflag > 1) {
-			if (cp < snapend && nscount--) {
+			if (PACKET_REMAINING(cp) && nscount--) {
 				fputs(" ns:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (cp < snapend && nscount--) {
+				while (PACKET_REMAINING(cp) && nscount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -647,11 +647,11 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			}
 			if (nscount > 0)
 				goto trunc;
-			if (cp < snapend && arcount--) {
+			if (PACKET_REMAINING(cp) && arcount--) {
 				fputs(" ar:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (cp < snapend && arcount--) {
+				while (PACKET_REMAINING(cp) && arcount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -694,7 +694,7 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			cp = ns_qprint(cp, (const u_char *)np, is_mdns);
 			if (!cp)
 				goto trunc;
-			while (cp < snapend && qdcount--) {
+			while (PACKET_REMAINING(cp) && qdcount--) {
 				cp = ns_qprint((const u_char *)cp,
 					       (const u_char *)np,
 					       is_mdns);
@@ -710,7 +710,7 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			if (ancount--) {
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (cp < snapend && ancount--) {
+				while (PACKET_REMAINING(cp) && ancount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -718,11 +718,11 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			}
 			if (ancount > 0)
 				goto trunc;
-			if (cp < snapend && nscount--) {
+			if (PACKET_REMAINING(cp) && nscount--) {
 				fputs(" ns:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (nscount-- && cp < snapend) {
+				while (nscount-- && PACKET_REMAINING(cp)) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;
@@ -730,11 +730,11 @@ ns_print(register const u_char *bp, u_int length, int is_mdns)
 			}
 			if (nscount > 0)
 				goto trunc;
-			if (cp < snapend && arcount--) {
+			if (PACKET_REMAINING(cp) && arcount--) {
 				fputs(" ar:", stdout);
 				if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 					goto trunc;
-				while (cp < snapend && arcount--) {
+				while (PACKET_REMAINING(cp) && arcount--) {
 					putchar(',');
 					if ((cp = ns_rprint(cp, bp, is_mdns)) == NULL)
 						goto trunc;

@@ -181,11 +181,11 @@ rip_print(const u_char *dat, u_int length)
 	register const struct rip_netinfo *ni;
 	register u_int i, j;
 
-	if (snapend < dat) {
+	if (!PACKET_VALID(dat)) {
 		printf(" [|rip]");
 		return;
 	}
-	i = snapend - dat;
+	i = PACKET_REMAINING(dat);
 	if (i > length)
 		i = length;
 	if (i < sizeof(*rp)) {

@@ -51,9 +51,10 @@ static const char rcsid[] _U_ =
  */
 #define DOP_ALIGN 4
 #define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
+#define DOP_LEN(d)\
+	DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))
 #define DOP_NEXT(d)\
-	((struct dophdr *)((u_char *)(d) + \
-			  DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
+	((struct dophdr *)((u_char *)(d) + DOP_LEN(d)))
 
 /*
  * Format of the whiteboard packet header.
@@ -189,7 +190,7 @@ wb_id(const struct pkt_id *id, u_int len)
 	int nid;
 
 	printf(" wb-id:");
-	if (len < sizeof(*id) || (u_char *)(id + 1) > snapend)
+	if (len < sizeof(*id) || !TTEST(*id))
 		return (-1);
 	len -= sizeof(*id);
 
@@ -205,14 +206,14 @@ wb_id(const struct pkt_id *id, u_int len)
 	len -= sizeof(*io) * nid;
 	io = (struct id_off *)(id + 1);
 	cp = (char *)(io + nid);
-	if ((u_char *)cp + len <= snapend) {
+	if (!TTEST2(*cp, len)) {
 		putchar('"');
 		(void)fn_print((u_char *)cp, (u_char *)cp + len);
 		putchar('"');
 	}
 
 	c = '<';
-	for (i = 0; i < nid && (u_char *)(io + 1) <= snapend; ++io, ++i) {
+	for (i = 0; i < nid && TTEST(*io); ++io, ++i) {
 		printf("%c%s:%u",
 		    c, ipaddr_string(&io->id), EXTRACT_32BITS(&io->off));
 		c = ',';
@@ -228,7 +229,7 @@ static int
 wb_rreq(const struct pkt_rreq *rreq, u_int len)
 {
 	printf(" wb-rreq:");
-	if (len < sizeof(*rreq) || (u_char *)(rreq + 1) > snapend)
+	if (len < sizeof(*rreq) || !TTEST(*rreq))
 		return (-1);
 
 	printf(" please repair %s %s:%u<%u:%u>",
@@ -244,7 +245,7 @@ static int
 wb_preq(const struct pkt_preq *preq, u_int len)
 {
 	printf(" wb-preq:");
-	if (len < sizeof(*preq) || (u_char *)(preq + 1) > snapend)
+	if (len < sizeof(*preq) || !TTEST(*preq))
 		return (-1);
 
 	printf(" need %u/%s:%u",
@@ -259,15 +260,14 @@ wb_prep(const struct pkt_prep *prep, u_int len)
 {
 	int n;
 	const struct pgstate *ps;
-	const u_char *ep = snapend;
 
 	printf(" wb-prep:");
-	if (len < sizeof(*prep)) {
+	if (len < sizeof(*prep) || !TTEST(*prep)) {
 		return (-1);
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (const struct pgstate *)(prep + 1);
-	while (--n >= 0 && (u_char *)(ps + 1) <= ep) {
+	while (--n >= 0 && TTEST(*ps)) {
 		const struct id_off *io, *ie;
 		char c = '<';
 
@@ -276,15 +276,18 @@ wb_prep(const struct pkt_prep *prep, u_int len)
 		    ipaddr_string(&ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid));
 		io = (struct id_off *)(ps + 1);
-		for (ie = io + ps->nid; io < ie && (u_char *)(io + 1) <= ep; ++io) {
+		for (ie = io + ps->nid; io < ie && TTEST(*io); ++io) {
 			printf("%c%s:%u", c, ipaddr_string(&io->id),
 			    EXTRACT_32BITS(&io->off));
 			c = ',';
 		}
 		printf(">");
+		/*
+		 * XXX-BD: what if this is a truncated struct id_off?
+		 */
 		ps = (struct pgstate *)io;
 	}
-	return ((u_char *)ps <= ep? 0 : -1);
+	return (PACKET_VALID(ps) ? 0 : -1);
 }
 
 
@@ -312,7 +315,18 @@ wb_dops(const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 {
 	printf(" <");
 	for ( ; ss <= es; ++ss) {
-		register int t = dh->dh_type;
+		int t;
+
+		/*
+		 * XXX-BD: OVERFLOW: previous code didn't check if dh header
+		 * was all there!
+		 */
+		if (!TTEST(*dh)) {
+			printf("[|wb]");
+			break;
+		}
+
+		t = dh->dh_type;
 
 		if (t > DT_MAXTYPE)
 			printf(" dop-%d!", t);
@@ -329,8 +343,9 @@ wb_dops(const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 				ss = ts;
 			}
 		}
-		dh = DOP_NEXT(dh);
-		if ((u_char *)dh > snapend) {
+		if (DOP_LEN(dh) > PACKET_REMAINING(dh))
+			dh = DOP_NEXT(dh);
+		else {
 			printf("[|wb]");
 			break;
 		}
@@ -345,7 +360,7 @@ wb_rrep(const struct pkt_rrep *rrep, u_int len)
 	const struct pkt_dop *dop = &rrep->pr_dop;
 
 	printf(" wb-rrep:");
-	if (len < sizeof(*rrep) || (u_char *)(rrep + 1) > snapend)
+	if (len < sizeof(*rrep) || !TTEST(*rrep))
 		return (-1);
 	len -= sizeof(*rrep);
 
@@ -367,7 +382,7 @@ static int
 wb_drawop(const struct pkt_dop *dop, u_int len)
 {
 	printf(" wb-dop:");
-	if (len < sizeof(*dop) || (u_char *)(dop + 1) > snapend)
+	if (len < sizeof(*dop) || !TTEST(*dop))
 		return (-1);
 	len -= sizeof(*dop);
 
@@ -393,7 +408,7 @@ wb_print(register const void *hdr, register u_int len)
 	register const struct pkt_hdr *ph;
 
 	ph = (const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || (u_char *)(ph + 1) > snapend) {
+	if (len < sizeof(*ph) || !TTEST(*ph)) {
 		printf("[|wb]");
 		return;
 	}

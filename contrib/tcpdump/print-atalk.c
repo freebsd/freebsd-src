@@ -70,12 +70,10 @@ static char tstr[] = "[|atalk]";
 static void atp_print(const struct atATP *, u_int);
 static void atp_bitmap_print(u_char);
 static void nbp_print(const struct atNBP *, u_int, u_short, u_char, u_char);
-static const char *print_cstring(const char *, const u_char *);
+static const char *print_cstring(const char *);
 static const struct atNBPtuple *nbp_tuple_print(const struct atNBPtuple *,
-						const u_char *,
 						u_short, u_char, u_char);
-static const struct atNBPtuple *nbp_name_print(const struct atNBPtuple *,
-					       const u_char *);
+static const struct atNBPtuple *nbp_name_print(const struct atNBPtuple *);
 static const char *ataddr_string(u_short, u_char);
 static void ddp_print(const u_char *, u_int, int, u_short, u_char, u_char);
 static const char *ddpskt_string(int);
@@ -258,7 +256,7 @@ atp_print(register const struct atATP *ap, u_int length)
 	char c;
 	u_int32_t data;
 
-	if ((const u_char *)(ap + 1) > snapend) {
+	if (!TTEST(*ap)) {
 		/* Just bail if we don't have the whole chunk. */
 		fputs(tstr, stdout);
 		return;
@@ -383,10 +381,8 @@ static void
 nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 	  register u_char snode, register u_char skt)
 {
-	register const struct atNBPtuple *tp =
-		(const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
+	register const struct atNBPtuple *tp;
 	int i;
-	const u_char *ep;
 
 	if (length < nbpHeaderSize) {
 		(void)printf(" truncated-nbp %u", length);
@@ -399,23 +395,22 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 		(void)printf(" truncated-nbp %u", length + nbpHeaderSize);
 		return;
 	}
-	/* ep points to end of available data */
-	ep = snapend;
-	if ((const u_char *)tp > ep) {
+	if (PACKET_REMAINING(np) < nbpHeaderSize) {
 		fputs(tstr, stdout);
 		return;
 	}
+	tp = (const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
 	switch (i = np->control & 0xf0) {
 
 	case nbpBrRq:
 	case nbpLkUp:
 		(void)printf(i == nbpLkUp? " nbp-lkup %d:":" nbp-brRq %d:",
 			     np->id);
-		if ((const u_char *)(tp + 1) > ep) {
+		if (!TTEST(*tp)) {
 			fputs(tstr, stdout);
 			return;
 		}
-		(void)nbp_name_print(tp, ep);
+		(void)nbp_name_print(tp);
 		/*
 		 * look for anomalies: the spec says there can only
 		 * be one tuple, the address must match the source
@@ -437,7 +432,7 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 
 		/* print each of the tuples in the reply */
 		for (i = np->control & 0xf; --i >= 0 && tp; )
-			tp = nbp_tuple_print(tp, ep, snet, snode, skt);
+			tp = nbp_tuple_print(tp, snet, snode, skt);
 		break;
 
 	default:
@@ -449,11 +444,11 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 
 /* print a counted string */
 static const char *
-print_cstring(register const char *cp, register const u_char *ep)
+print_cstring(register const char *cp)
 {
 	register u_int length;
 
-	if (cp >= (const char *)ep) {
+	if (PACKET_REMAINING(cp) == 0) {
 		fputs(tstr, stdout);
 		return (0);
 	}
@@ -465,7 +460,7 @@ print_cstring(register const char *cp, register const u_char *ep)
 		return (0);
 	}
 	while ((int)--length >= 0) {
-		if (cp >= (const char *)ep) {
+		if (PACKET_REMAINING(cp) == 0) {
 			fputs(tstr, stdout);
 			return (0);
 		}
@@ -476,17 +471,16 @@ print_cstring(register const char *cp, register const u_char *ep)
 
 static const struct atNBPtuple *
 nbp_tuple_print(register const struct atNBPtuple *tp,
-		register const u_char *ep,
 		register u_short snet, register u_char snode,
 		register u_char skt)
 {
 	register const struct atNBPtuple *tpn;
 
-	if ((const u_char *)(tp + 1) > ep) {
+	if (!TTEST(*tp)) {
 		fputs(tstr, stdout);
 		return 0;
 	}
-	tpn = nbp_name_print(tp, ep);
+	tpn = nbp_name_print(tp);
 
 	/* if the enumerator isn't 1, print it */
 	if (tp->enumerator != 1)
@@ -505,7 +499,7 @@ nbp_tuple_print(register const struct atNBPtuple *tp,
 }
 
 static const struct atNBPtuple *
-nbp_name_print(const struct atNBPtuple *tp, register const u_char *ep)
+nbp_name_print(const struct atNBPtuple *tp)
 {
 	register const char *cp = (const char *)tp + nbpTupleSize;
 
@@ -513,13 +507,13 @@ nbp_name_print(const struct atNBPtuple *tp, register const u_char *ep)
 
 	/* Object */
 	putchar('"');
-	if ((cp = print_cstring(cp, ep)) != NULL) {
+	if ((cp = print_cstring(cp)) != NULL) {
 		/* Type */
 		putchar(':');
-		if ((cp = print_cstring(cp, ep)) != NULL) {
+		if ((cp = print_cstring(cp)) != NULL) {
 			/* Zone */
 			putchar('@');
-			if ((cp = print_cstring(cp, ep)) != NULL)
+			if ((cp = print_cstring(cp)) != NULL)
 				putchar('"');
 		}
 	}

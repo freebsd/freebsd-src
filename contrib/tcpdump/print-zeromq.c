@@ -139,7 +139,7 @@ trunc:
 
 void
 zmtp1_print(const u_char *cp, u_int len) {
-	const u_char *ep = MIN(snapend, cp + len);
+	const u_char *ep = PACKET_SECTION_END(cp, len);
 
 	printf(": ZMTP/1.0");
 	while (cp < ep)

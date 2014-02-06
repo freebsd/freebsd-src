@@ -171,13 +171,9 @@ int
 mobility_print(const u_char *bp, const u_char *bp2 _U_)
 {
 	const struct ip6_mobility *mh;
-	const u_char *ep;
 	int mhlen, hlen, type;
 
 	mh = (struct ip6_mobility *)bp;
-
-	/* 'ep' points to the end of available data. */
-	ep = snapend;
 
 	if (!TTEST(mh->ip6m_len)) {
 		/*
@@ -192,7 +188,7 @@ mobility_print(const u_char *bp, const u_char *bp2 _U_)
 		 * returned length, however, as it breaks out of the
 		 * header-processing loop.
 		 */
-		mhlen = ep - bp;
+		mhlen = PACKET_REMAINING(bp);
 		goto trunc;
 	}
 	mhlen = (int)((mh->ip6m_len + 1) << 3);

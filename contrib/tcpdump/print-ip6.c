@@ -86,8 +86,7 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	register const struct ip6_hdr *ip6;
 	register int advance;
 	u_int len;
-	const u_char *ipend;
-	register const u_char *cp;
+	const u_char *cp;
 	register u_int payload_len;
 	int nh;
 	int fragmented = 0;
@@ -137,14 +136,15 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 	/*
 	 * Cut off the snapshot length to the end of the IP payload.
 	 */
-	ipend = bp + len;
-	if (ipend < ndo->ndo_snapend)
-		ndo->ndo_snapend = ipend;
+	/* XXX-BD: should create new truncated capability on CHERI */
+ 	if (PACKET_REMAINING(bp) > len)
+		ndo->ndo_snapend = bp + len;
 
 	cp = (const u_char *)ip6;
 	advance = sizeof(struct ip6_hdr);
 	nh = ip6->ip6_nxt;
-	while (cp < ndo->ndo_snapend && advance > 0) {
+	/* XXX-BD: previously could run off the end */
+	while (ND_TTEST2(cp, advance)) {
 		cp += advance;
 		len -= advance;
 
@@ -166,7 +166,7 @@ ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 			break;
 		case IPPROTO_FRAGMENT:
 			advance = frag6_print(cp, (const u_char *)ip6);
-			if (ndo->ndo_snapend <= cp + advance)
+			if (!ND_TTEST2(cp, advance))
 				return;
 			nh = *cp;
 			fragmented = 1;

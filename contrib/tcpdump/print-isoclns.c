@@ -1224,8 +1224,9 @@ esis_print(const u_int8_t *pptr, u_int length)
 
 	default:
             if (vflag <= 1) {
-		    if (pptr < snapend) 
-                            print_unknown_data(pptr,"\n\t  ",snapend-pptr);
+		    if (PACKET_REMAINING(pptr) > 0)
+                            print_unknown_data(pptr, "\n\t  ",
+				PACKET_REMAINING(pptr));
             }
             return;
 	}
@@ -2436,13 +2437,13 @@ static int isis_print (const u_int8_t *p, u_int length)
      */
 
     while (packet_len >= 2) {
-        if (pptr == snapend) {
+        if (PACKET_REMAINING(pptr) == 0) {
 	    return (1);
         }
 
 	if (!TTEST2(*pptr, 2)) {
 	    printf("\n\t\t packet exceeded snapshot (%ld) bytes",
-                   (long)(pptr-snapend));
+                   PACKET_REMAINING(pptr));
 	    return (1);
 	}
 	tlv_type = *pptr++;

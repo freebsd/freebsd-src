@@ -44,12 +44,10 @@ int
 ah_print(register const u_char *bp)
 {
 	register const struct ah *ah;
-	register const u_char *ep;
 	int sumlen;
 	u_int32_t spi;
 
 	ah = (const struct ah *)bp;
-	ep = snapend;		/* 'ep' points to the end of available data. */
 
 	TCHECK(*ah);
 
@@ -60,7 +58,8 @@ ah_print(register const u_char *bp)
 	if (vflag)
 		printf(",sumlen=%d", sumlen);
 	printf(",seq=0x%x", EXTRACT_32BITS(ah + 1));
-	if (bp + sizeof(struct ah) + sumlen > ep)
+	/* XXX-BD: previous code allowed 1-byte short packets */
+	if (!TTEST2(*bp, sizeof(struct ah) + sumlen))
 		fputs("[truncated]", stdout);
 	fputs("): ", stdout);
 

@@ -45,15 +45,11 @@ rt6_print(register const u_char *bp, const u_char *bp2 _U_)
 {
 	register const struct ip6_rthdr *dp;
 	register const struct ip6_rthdr0 *dp0;
-	register const u_char *ep;
 	int i, len;
 	register const struct in6_addr *addr;
 
 	dp = (struct ip6_rthdr *)bp;
 	len = dp->ip6r_len;
-
-	/* 'ep' points to the end of available data. */
-	ep = snapend;
 
 	TCHECK(dp->ip6r_segleft);
 
@@ -83,8 +79,7 @@ rt6_print(register const u_char *bp, const u_char *bp2 _U_)
 		len >>= 1;
 		addr = &dp0->ip6r0_addr[0];
 		for (i = 0; i < len; i++) {
-			if ((u_char *)(addr + 1) > ep)
-				goto trunc;
+			TCHECK(*addr);
 
 			printf(", [%d]%s", i, ip6addr_string(addr));
 			addr++;

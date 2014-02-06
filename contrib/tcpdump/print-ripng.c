@@ -68,9 +68,9 @@ ripng_print(const u_char *dat, unsigned int length)
 	int j;
 	int trunc;
 
-	if (snapend < dat)
+	if (!PACKET_VALID(dat))
 		return;
-	amt = snapend - dat;
+	amt = PACKET_REMAINING(dat);
 	i = min(length, amt);
 	if (i < (sizeof(struct rip6) - sizeof(struct netinfo6)))
 		return;

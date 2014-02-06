@@ -130,6 +130,7 @@ int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 	EVP_Cipher(&ctx, buf, buf, len);
 	EVP_CIPHER_CTX_cleanup(&ctx);
 
+	/* XXX-BD: should create new capability on CHERI */
 	ndo->ndo_packetp = buf;
 	ndo->ndo_snapend = end;
 

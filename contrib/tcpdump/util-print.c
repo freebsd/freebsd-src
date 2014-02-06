@@ -256,13 +256,13 @@ print_unknown_data(const u_char *cp,const char *ident,int len)
 		    ident);
 		return(0);
 	}
-	if (snapend - cp < len)
-		len = snapend - cp;
-	if (len < 0) {
+	if (!PACKET_VALID(cp)) {
 		printf("%sDissector error: print_unknown_data called with pointer past end of packet",
 		    ident);
 		return(0);
 	}
+	if (PACKET_REMAINING(cp) < len)
+		len = PACKET_REMAINING(cp);
         hex_print(ident,cp,len);
 	return(1); /* everything is ok */
 }

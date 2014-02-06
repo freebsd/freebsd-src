@@ -364,14 +364,13 @@ udp_print(register const u_char *bp, u_int length,
 	register const struct udphdr *up;
 	register const struct ip *ip;
 	register const u_char *cp;
-	register const u_char *ep = bp + length;
+	register const u_char *ep;
 	u_int16_t sport, dport, ulen;
 #ifdef INET6
 	register const struct ip6_hdr *ip6;
 #endif
 
-	if (ep > snapend)
-		ep = snapend;
+	ep = PACKET_SECTION_END(bp, length);
 	up = (struct udphdr *)bp;
 	ip = (struct ip *)bp2;
 #ifdef INET6
@@ -380,7 +379,6 @@ udp_print(register const u_char *bp, u_int length,
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	cp = (u_char *)(up + 1);
 	if (!TTEST(up->uh_dport)) {
 		udpipaddr_print(ip, -1, -1);
 		(void)printf("[|udp]");
@@ -397,11 +395,12 @@ udp_print(register const u_char *bp, u_int length,
 	}
 	length -= sizeof(struct udphdr);
 
-	if (cp > snapend) {
+	if (!TTEST(*up)) {
 		udpipaddr_print(ip, sport, dport);
 		(void)printf("[|udp]");
 		return;
 	}
+	cp = (u_char *)(up + 1);
 
 	ulen = EXTRACT_16BITS(&up->uh_ulen);
 	if (ulen < 8) {

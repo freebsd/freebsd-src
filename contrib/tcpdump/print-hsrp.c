@@ -127,6 +127,7 @@ hsrp_print(register const u_int8_t *bp, register u_int len)
 		relts_print(hp->hsrp_holdtime);
 		printf(" priority=%d", hp->hsrp_priority);
 		printf(" auth=\"");
+		/* XXX-BD: how is hp->hsrp_authdata a pointer?!? */
 		if (fn_printn(hp->hsrp_authdata, sizeof(hp->hsrp_authdata),
 		    snapend)) {
 			printf("\"");
