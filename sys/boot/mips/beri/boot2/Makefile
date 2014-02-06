@@ -26,6 +26,7 @@ CFLAGS=		-ffreestanding			\
 		-Wall				\
 		-G0 -Xassembler -G0		\
 		-fno-pic -mno-abicalls		\
+		-msoft-float			\
 		-g
 
 # where to get libstand from

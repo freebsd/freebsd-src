@@ -68,6 +68,7 @@ CLEANFILES+=	vers.c loader.help
 CFLAGS+=	-G0					\
 		-fno-pic				\
 		-mno-abicalls				\
+		-msoft-float				\
 		-g
 
 LDFLAGS=	-nostdlib				\
