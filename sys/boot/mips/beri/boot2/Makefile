@@ -1,12 +1,15 @@
 #  $FreeBSD$
 
-PROG=		jtagboot.elf		\
-		flashboot.elf
+PROG=		jtagboot		\
+		flashboot
 
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
 FILES=		${PROG}
+FILES+=		jtagboot.md5		\
+		flashboot.md5
+
 SRCS=		relocate.S		\
 		start.S			\
 		boot2.c			\
@@ -42,14 +45,20 @@ LDFLAGS=	-nostdlib			\
 .PATH:		${.CURDIR}/../common
 CFLAGS+=	-I${.CURDIR}/../common
 
-flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o
+flashboot.elf: relocate.o start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${LD} ${LDFLAGS} -T ${.CURDIR}/flashboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC} ${LIBSTAND}
+flashboot: flashboot.elf
+	objcopy -S -O binary ${.TARGET}.elf ${.TARGET}
+flashboot.md5: flashboot
+	md5 flashboot > flashboot.md5
 
-jtagboot.elf: start.o boot2.o altera_jtag_uart.o cfi.o
+jtagboot: start.o boot2.o altera_jtag_uart.o cfi.o sdcard.o
 	${LD} ${LDFLAGS} -T ${.CURDIR}/jtagboot.ldscript -o ${.TARGET}	\
 	    ${.ALLSRC} ${LIBSTAND}
+jtagboot.md5: jtagboot
+	md5 jtagboot > jtagboot.md5
 
-CLEANFILES+=	flashboot.elf jtagboot.elf
+CLEANFILES+=	flashboot.elf
 
 .include <bsd.prog.mk>
