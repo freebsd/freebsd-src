@@ -850,7 +850,8 @@ mfi_tbolt_build_ldio(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	io_request = cmd->io_request;
 	io_request->RaidContext.TargetID = device_id;
 	io_request->RaidContext.Status = 0;
-	io_request->RaidContext.exStatus =0;
+	io_request->RaidContext.exStatus = 0;
+	io_request->RaidContext.regLockFlags = 0;
 
 	start_lba_lo = mfi_cmd->cm_frame->io.lba_lo;
 	start_lba_hi = mfi_cmd->cm_frame->io.lba_hi;
@@ -945,6 +946,7 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	uint8_t i, sg_processed, sg_to_process;
 	uint8_t sge_count, sge_idx;
 	union mfi_sgl *os_sgl;
+	pMpi25IeeeSgeChain64_t sgl_end;
 
 	/*
 	 * Return 0 if there is no data transfer
@@ -968,6 +970,11 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 	else
 		sge_idx = sge_count;
 
+	if (sc->mfi_flags & (MFI_FLAGS_INVADER | MFI_FLAGS_FURY)) {
+		sgl_end = sgl_ptr + (sc->max_SGEs_in_main_message - 1);
+		sgl_end->Flags = 0;
+	}
+
 	for (i = 0; i < sge_idx; i++) {
 		/*
 		 * For 32bit BSD we are getting 32 bit SGL's from OS
@@ -981,7 +988,11 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 			sgl_ptr->Length = os_sgl->sg32[i].len;
 			sgl_ptr->Address = os_sgl->sg32[i].addr;
 		}
-		sgl_ptr->Flags = 0;
+		if (i == sge_count - 1 &&
+		    (sc->mfi_flags & (MFI_FLAGS_INVADER | MFI_FLAGS_FURY)))
+			sgl_ptr->Flags = MPI25_IEEE_SGE_FLAGS_END_OF_LIST;
+		else
+			sgl_ptr->Flags = 0;
 		sgl_ptr++;
 		cmd->io_request->ChainOffset = 0;
 	}
@@ -996,8 +1007,11 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 		sg_chain = sgl_ptr;
 		/* Prepare chain element */
 		sg_chain->NextChainOffset = 0;
-		sg_chain->Flags = (MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT |
-		    MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR);
+		if (sc->mfi_flags & (MFI_FLAGS_INVADER | MFI_FLAGS_FURY))
+			sg_chain->Flags = MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT;
+		else
+			sg_chain->Flags = MPI2_IEEE_SGE_FLAGS_CHAIN_ELEMENT |
+			    MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR;
 		sg_chain->Length =  (sizeof(MPI2_SGE_IO_UNION) *
 		    (sge_count - sg_processed));
 		sg_chain->Address = cmd->sg_frame_phys_addr;
@@ -1010,7 +1024,13 @@ mfi_tbolt_make_sgl(struct mfi_softc *sc, struct mfi_command *mfi_cmd,
 				sgl_ptr->Length = os_sgl->sg32[i].len;
 				sgl_ptr->Address = os_sgl->sg32[i].addr;
 			}
-			sgl_ptr->Flags = 0;
+			if (i == sge_count - 1 &&
+			    (sc->mfi_flags &
+			    (MFI_FLAGS_INVADER | MFI_FLAGS_FURY)))
+				sgl_ptr->Flags =
+				    MPI25_IEEE_SGE_FLAGS_END_OF_LIST;
+			else
+				sgl_ptr->Flags = 0;
 			sgl_ptr++;
 		}
 	}
