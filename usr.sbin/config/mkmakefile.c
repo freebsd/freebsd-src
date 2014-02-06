@@ -63,6 +63,7 @@ static void read_files(void);
 static void errout(const char *fmt, ...)
 {
 	va_list ap;
+
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
@@ -308,7 +309,7 @@ read_file(char *fname)
 	struct opt *op;
 	char *wd, *this, *compilewith, *depends, *clean, *warning;
 	const char *objprefix;
-	int compile, match, nreqs, std, filetype,
+	int compile, match, nreqs, std, filetype, not,
 	    imp_rule, no_obj, before_depend, nowerror;
 
 	fp = fopen(fname, "r");
@@ -366,6 +367,7 @@ next:
 	no_obj = 0;
 	before_depend = 0;
 	nowerror = 0;
+	not = 0;
 	filetype = NORMAL;
 	objprefix = "";
 	if (eq(wd, "standard"))
@@ -376,13 +378,21 @@ next:
 	for (wd = get_word(fp); wd; wd = get_word(fp)) {
 		if (wd == (char *)EOF)
 			return;
+		if (eq(wd, "!")) {
+			not = 1;
+			continue;
+		}
 		if (eq(wd, "|")) {
 			if (nreqs == 0)
 				errout("%s: syntax error describing %s\n",
 				       fname, this);
-			compile += match;
+			if (not)
+				compile += !match;
+			else
+				compile += match;
 			match = 1;
 			nreqs = 0;
+			not = 0;
 			continue;
 		}
 		if (eq(wd, "no-obj")) {
@@ -473,7 +483,10 @@ next:
 		match = 0;
 nextparam:;
 	}
-	compile += match;
+	if (not)
+		compile += !match;
+	else
+		compile += match;
 	if (compile && tp == NULL) {
 		if (std == 0 && nreqs == 0)
 			errout("%s: what is %s optional on?\n",

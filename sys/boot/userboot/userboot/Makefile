@@ -11,6 +11,7 @@ STRIP=
 LIBDIR=		/boot
 
 SRCS=		autoload.c
+SRCS+=		biossmap.c
 SRCS+=		bootinfo.c
 SRCS+=		bootinfo32.c
 SRCS+=		bootinfo64.c

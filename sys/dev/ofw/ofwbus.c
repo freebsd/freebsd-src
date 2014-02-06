@@ -49,69 +49,78 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-#include <dev/ofw/ofw_nexus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
 
 /*
- * The nexus (which is a pseudo-bus actually) iterates over the nodes that
+ * The ofwbus (which is a pseudo-bus actually) iterates over the nodes that
  * hang from the Open Firmware root node and adds them as devices to this bus
  * (except some special nodes which are excluded) so that drivers can be
  * attached to them.
  *
- * Additionally, interrupt setup/teardown and some resource management are
- * done at this level.
- *
  */
 
-struct nexus_devinfo {
+struct ofwbus_devinfo {
 	struct ofw_bus_devinfo	ndi_obdinfo;
 	struct resource_list	ndi_rl;
 };
 
-static device_probe_t nexus_probe;
-static device_attach_t nexus_attach;
-static bus_print_child_t nexus_print_child;
-static bus_add_child_t nexus_add_child;
-static bus_probe_nomatch_t nexus_probe_nomatch;
-static bus_alloc_resource_t nexus_alloc_resource;
-static bus_adjust_resource_t nexus_adjust_resource;
-static bus_release_resource_t nexus_release_resource;
-static bus_get_resource_list_t nexus_get_resource_list;
-static ofw_bus_get_devinfo_t nexus_get_devinfo;
+struct ofwbus_softc {
+	uint32_t	acells, scells;
+	struct rman	sc_intr_rman;
+	struct rman	sc_mem_rman;
+};
 
-static int nexus_inlist(const char *, const char *const *);
-static struct nexus_devinfo * nexus_setup_dinfo(device_t, phandle_t);
-static void nexus_destroy_dinfo(struct nexus_devinfo *);
-static int nexus_print_res(struct nexus_devinfo *);
+static device_identify_t ofwbus_identify;
+static device_probe_t ofwbus_probe;
+static device_attach_t ofwbus_attach;
+static bus_print_child_t ofwbus_print_child;
+static bus_add_child_t ofwbus_add_child;
+static bus_probe_nomatch_t ofwbus_probe_nomatch;
+static bus_alloc_resource_t ofwbus_alloc_resource;
+static bus_adjust_resource_t ofwbus_adjust_resource;
+static bus_release_resource_t ofwbus_release_resource;
+static bus_get_resource_list_t ofwbus_get_resource_list;
+static ofw_bus_get_devinfo_t ofwbus_get_devinfo;
 
-static device_method_t nexus_methods[] = {
+static int ofwbus_inlist(const char *, const char *const *);
+static struct ofwbus_devinfo * ofwbus_setup_dinfo(device_t, phandle_t);
+static void ofwbus_destroy_dinfo(struct ofwbus_devinfo *);
+static int ofwbus_print_res(struct ofwbus_devinfo *);
+
+static device_method_t ofwbus_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		nexus_probe),
-	DEVMETHOD(device_attach,	nexus_attach),
+	DEVMETHOD(device_identify,	ofwbus_identify),
+	DEVMETHOD(device_probe,		ofwbus_probe),
+	DEVMETHOD(device_attach,	ofwbus_attach),
 	DEVMETHOD(device_detach,	bus_generic_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	nexus_print_child),
-	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
+	DEVMETHOD(bus_print_child,	ofwbus_print_child),
+	DEVMETHOD(bus_probe_nomatch,	ofwbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_add_child,	nexus_add_child),
+	DEVMETHOD(bus_add_child,	ofwbus_add_child),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
-	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
-	DEVMETHOD(bus_adjust_resource,	nexus_adjust_resource),
-	DEVMETHOD(bus_release_resource,	nexus_release_resource),
+	DEVMETHOD(bus_alloc_resource,	ofwbus_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	ofwbus_adjust_resource),
+	DEVMETHOD(bus_release_resource,	ofwbus_release_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
-	DEVMETHOD(bus_get_resource_list, nexus_get_resource_list),
+	DEVMETHOD(bus_get_resource_list, ofwbus_get_resource_list),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_config_intr,	bus_generic_config_intr),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_devinfo,	nexus_get_devinfo),
+	DEVMETHOD(ofw_bus_get_devinfo,	ofwbus_get_devinfo),
 	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
 	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
 	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
@@ -121,11 +130,16 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(ofw_nexus, ofw_nexus_driver, nexus_methods,
-    sizeof(struct ofw_nexus_softc));
-MODULE_VERSION(ofw_nexus, 1);
+static driver_t ofwbus_driver = {
+	"ofwbus",
+	ofwbus_methods,
+	sizeof(struct ofwbus_softc)
+};
+static devclass_t ofwbus_devclass;
+DRIVER_MODULE(ofwbus, nexus, ofwbus_driver, ofwbus_devclass, 0, 0);
+MODULE_VERSION(ofwbus, 1);
 
-static const char *const nexus_excl_name[] = {
+static const char *const ofwbus_excl_name[] = {
 	"FJSV,system",
 	"aliases",
 	"associations",
@@ -145,14 +159,14 @@ static const char *const nexus_excl_name[] = {
 	NULL
 };
 
-static const char *const nexus_excl_type[] = {
+static const char *const ofwbus_excl_type[] = {
 	"core",
 	"cpu",
 	NULL
 };
 
 static int
-nexus_inlist(const char *name, const char *const *list)
+ofwbus_inlist(const char *name, const char *const *list)
 {
 	int i;
 
@@ -164,30 +178,47 @@ nexus_inlist(const char *name, const char *const *list)
 	return (0);
 }
 
-#define	NEXUS_EXCLUDED(name, type)					\
-	(nexus_inlist((name), nexus_excl_name) ||			\
-	((type) != NULL && nexus_inlist((type), nexus_excl_type)))
+#define	OFWBUS_EXCLUDED(name, type)					\
+	(ofwbus_inlist((name), ofwbus_excl_name) ||			\
+	((type) != NULL && ofwbus_inlist((type), ofwbus_excl_type)))
 
-static int
-nexus_probe(device_t dev)
+static void
+ofwbus_identify(driver_t *driver, device_t parent)
 {
 
-	/* Nexus does always match. */
-	device_set_desc(dev, "Open Firmware Nexus device");
-	return (0);
+	/* Check if Open Firmware has been instantiated */
+	if (OF_peer(0) == -1)
+		return;
+        
+	if (device_find_child(parent, "ofwbus", -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, "ofwbus", -1);
 }
 
 static int
-nexus_attach(device_t dev)
+ofwbus_probe(device_t dev)
 {
-	struct nexus_devinfo *ndi;
-	struct ofw_nexus_softc *sc;
+
+	device_set_desc(dev, "Open Firmware Device Tree");
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+static int
+ofwbus_attach(device_t dev)
+{
+	struct ofwbus_devinfo *ndi;
+	struct ofwbus_softc *sc;
 	device_t cdev;
 	phandle_t node;
 
 	sc = device_get_softc(dev);
 
 	node = OF_peer(0);
+
+	/*
+	 * If no Open Firmware, bail early
+	 */
+	if (node == -1)
+		return (ENXIO);
 
 	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
 	sc->sc_intr_rman.rm_descr = "Interrupts";
@@ -205,12 +236,6 @@ nexus_attach(device_t dev)
 	bus_generic_probe(dev);
 
 	/*
-	 * If no Open Firmware, bail early
-	 */
-	if (node == -1)
-		return (bus_generic_attach(dev));
-
-	/*
 	 * Some important numbers
 	 */
 	sc->acells = 2;
@@ -222,13 +247,13 @@ nexus_attach(device_t dev)
 	 * Now walk the OFW tree and attach top-level devices.
 	 */
 	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
-		if ((ndi = nexus_setup_dinfo(dev, node)) == NULL)
+		if ((ndi = ofwbus_setup_dinfo(dev, node)) == NULL)
 			continue;
 		cdev = device_add_child(dev, NULL, -1);
 		if (cdev == NULL) {
 			device_printf(dev, "<%s>: device_add_child failed\n",
 			    ndi->ndi_obdinfo.obd_name);
-			nexus_destroy_dinfo(ndi);
+			ofwbus_destroy_dinfo(ndi);
 			continue;
 		}
 		device_set_ivars(cdev, ndi);
@@ -237,10 +262,10 @@ nexus_attach(device_t dev)
 }
 
 static device_t
-nexus_add_child(device_t dev, u_int order, const char *name, int unit)
+ofwbus_add_child(device_t dev, u_int order, const char *name, int unit)
 {
 	device_t cdev;
-	struct nexus_devinfo *ndi;
+	struct ofwbus_devinfo *ndi;
 
 	cdev = device_add_child_ordered(dev, order, name, unit);
 	if (cdev == NULL)
@@ -255,18 +280,18 @@ nexus_add_child(device_t dev, u_int order, const char *name, int unit)
 }
 
 static int
-nexus_print_child(device_t bus, device_t child)
+ofwbus_print_child(device_t bus, device_t child)
 {
 	int rv;
 
 	rv = bus_print_child_header(bus, child);
-	rv += nexus_print_res(device_get_ivars(child));
+	rv += ofwbus_print_res(device_get_ivars(child));
 	rv += bus_print_child_footer(bus, child);
 	return (rv);
 }
 
 static void
-nexus_probe_nomatch(device_t bus, device_t child)
+ofwbus_probe_nomatch(device_t bus, device_t child)
 {
 	const char *name, *type;
 
@@ -278,16 +303,16 @@ nexus_probe_nomatch(device_t bus, device_t child)
 
 	device_printf(bus, "<%s>",
 	    name != NULL ? name : "unknown");
-	nexus_print_res(device_get_ivars(child));
+	ofwbus_print_res(device_get_ivars(child));
 	printf(" type %s (no driver attached)\n",
 	    type != NULL ? type : "unknown");
 }
 
 static struct resource *
-nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
+ofwbus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct ofw_nexus_softc *sc;
+	struct ofwbus_softc *sc;
 	struct rman *rm;
 	struct resource *rv;
 	struct resource_list_entry *rle;
@@ -344,17 +369,17 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-nexus_adjust_resource(device_t bus, device_t child __unused, int type,
+ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
     struct resource *r, u_long start, u_long end)
 {
-	struct ofw_nexus_softc *sc;
+	struct ofwbus_softc *sc;
 	struct rman *rm;
-	device_t nexus;
+	device_t ofwbus;
 
-	nexus = bus;
-	while (strcmp(device_get_name(device_get_parent(nexus)), "root") != 0)
-		nexus = device_get_parent(nexus);
-	sc = device_get_softc(nexus);
+	ofwbus = bus;
+	while (strcmp(device_get_name(device_get_parent(ofwbus)), "root") != 0)
+		ofwbus = device_get_parent(ofwbus);
+	sc = device_get_softc(ofwbus);
 	switch (type) {
 	case SYS_RES_IRQ:
 		rm = &sc->sc_intr_rman;
@@ -373,7 +398,7 @@ nexus_adjust_resource(device_t bus, device_t child __unused, int type,
 }
 
 static int
-nexus_release_resource(device_t bus __unused, device_t child, int type,
+ofwbus_release_resource(device_t bus __unused, device_t child, int type,
     int rid, struct resource *r)
 {
 	int error;
@@ -387,28 +412,28 @@ nexus_release_resource(device_t bus __unused, device_t child, int type,
 }
 
 static struct resource_list *
-nexus_get_resource_list(device_t bus __unused, device_t child)
+ofwbus_get_resource_list(device_t bus __unused, device_t child)
 {
-	struct nexus_devinfo *ndi;
+	struct ofwbus_devinfo *ndi;
 
 	ndi = device_get_ivars(child);
 	return (&ndi->ndi_rl);
 }
 
 static const struct ofw_bus_devinfo *
-nexus_get_devinfo(device_t bus __unused, device_t child)
+ofwbus_get_devinfo(device_t bus __unused, device_t child)
 {
-	struct nexus_devinfo *ndi;
+	struct ofwbus_devinfo *ndi;
 
 	ndi = device_get_ivars(child);
 	return (&ndi->ndi_obdinfo);
 }
 
-static struct nexus_devinfo *
-nexus_setup_dinfo(device_t dev, phandle_t node)
+static struct ofwbus_devinfo *
+ofwbus_setup_dinfo(device_t dev, phandle_t node)
 {
-	struct ofw_nexus_softc *sc;
-	struct nexus_devinfo *ndi;
+	struct ofwbus_softc *sc;
+	struct ofwbus_devinfo *ndi;
 	uint32_t *reg, *intr, icells;
 	uint64_t phys, size;
 	phandle_t iparent;
@@ -423,7 +448,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 		free(ndi, M_DEVBUF);
 		return (NULL);
 	}
-	if (NEXUS_EXCLUDED(ndi->ndi_obdinfo.obd_name,
+	if (OFWBUS_EXCLUDED(ndi->ndi_obdinfo.obd_name,
 	    ndi->ndi_obdinfo.obd_type)) {
 		ofw_bus_gen_destroy_devinfo(&ndi->ndi_obdinfo);
 		free(ndi, M_DEVBUF);
@@ -479,7 +504,7 @@ nexus_setup_dinfo(device_t dev, phandle_t node)
 }
 
 static void
-nexus_destroy_dinfo(struct nexus_devinfo *ndi)
+ofwbus_destroy_dinfo(struct ofwbus_devinfo *ndi)
 {
 
 	resource_list_free(&ndi->ndi_rl);
@@ -488,7 +513,7 @@ nexus_destroy_dinfo(struct nexus_devinfo *ndi)
 }
 
 static int
-nexus_print_res(struct nexus_devinfo *ndi)
+ofwbus_print_res(struct ofwbus_devinfo *ndi)
 {
 	int rv;
 

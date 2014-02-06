@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Marius Strobl <marius@FreeBSD.org>
+ * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,19 +22,53 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _OFW_NEXUS_H_
-#define	_OFW_NEXUS_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-struct ofw_nexus_softc {
-	uint32_t	acells, scells;
-	struct rman	sc_intr_rman;
-	struct rman	sc_mem_rman;
-};
+#include <stand.h>
+#include <sys/param.h>
+#include <sys/reboot.h>
+#include <sys/linker.h>
+#include <machine/pc/bios.h>
+#include <machine/metadata.h>
 
-DECLARE_CLASS(ofw_nexus_driver);
+#include "bootstrap.h"
+#include "libuserboot.h"
 
-#endif /* _OFW_NEXUS_H_ */
+#define GB (1024UL * 1024 * 1024)
+
+void
+bios_addsmapdata(struct preloaded_file *kfp)
+{
+	uint64_t lowmem, highmem;
+	int smapnum, len;
+	struct bios_smap smap[3], *sm;
+
+	CALLBACK(getmem, &lowmem, &highmem);
+
+	sm = &smap[0];
+
+	sm->base = 0;				/* base memory */
+	sm->length = 640 * 1024;
+	sm->type = SMAP_TYPE_MEMORY;
+	sm++;
+
+	sm->base = 0x100000;			/* extended memory */
+	sm->length = lowmem - 0x100000;
+	sm->type = SMAP_TYPE_MEMORY;
+	sm++;
+
+	smapnum = 2;
+
+        if (highmem != 0) {
+                sm->base = 4 * GB;
+                sm->length = highmem;
+                sm->type = SMAP_TYPE_MEMORY;
+		smapnum++;
+        }
+
+        len = smapnum * sizeof(struct bios_smap);
+        file_addmetadata(kfp, MODINFOMD_SMAP, len, &smap[0]);
+}
