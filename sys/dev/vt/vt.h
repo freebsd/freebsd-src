@@ -287,6 +287,9 @@ typedef void vd_putchar_t(struct vt_device *vd, term_char_t,
 typedef int vd_fb_ioctl_t(struct vt_device *, u_long, caddr_t, struct thread *);
 typedef int vd_fb_mmap_t(struct vt_device *, vm_ooffset_t, vm_paddr_t *, int,
     vm_memattr_t *);
+typedef void vd_drawrect_t(struct vt_device *, int, int, int, int, int,
+    term_color_t);
+typedef void vd_setpixel_t(struct vt_device *, int, int, term_color_t);
 
 struct vt_driver {
 	/* Console attachment. */
@@ -295,6 +298,8 @@ struct vt_driver {
 	/* Drawing. */
 	vd_blank_t	*vd_blank;
 	vd_bitbltchr_t	*vd_bitbltchr;
+	vd_drawrect_t	*vd_drawrect;
+	vd_setpixel_t	*vd_setpixel;
 
 	/* Framebuffer ioctls, if present. */
 	vd_fb_ioctl_t	*vd_fb_ioctl;
