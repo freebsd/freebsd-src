@@ -73,6 +73,7 @@ CFLAGS+=	-G0					\
 LDFLAGS=	-nostdlib				\
 		-static					\
 		-T ${.CURDIR}/loader.ldscript		\
+		-L${.CURDIR}				\
 		-e __start
 
 # where to get libstand from
