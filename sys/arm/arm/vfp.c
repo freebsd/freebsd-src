@@ -42,10 +42,9 @@ __FBSDID("$FreeBSD$");
 
 /* function prototypes */
 unsigned int get_coprocessorACR(void);
-int	vfp_bounce(u_int, u_int, struct trapframe *, int);
+static int vfp_bounce(u_int, u_int, struct trapframe *, int);
+static void vfp_restore(struct vfp_state *);
 void	vfp_discard(void);
-void	vfp_enable(void);
-void	vfp_restore(struct vfp_state *);
 void	vfp_store(struct vfp_state *);
 void	set_coprocessorACR(u_int);
 
@@ -134,7 +133,7 @@ SYSINIT(vfp, SI_SUB_CPU, SI_ORDER_ANY, vfp_init, NULL);
 /* start VFP unit, restore the vfp registers from the PCB  and retry
  * the instruction
  */
-int
+static int
 vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
 {
 	u_int fpexc;
@@ -196,7 +195,7 @@ vfp_bounce(u_int addr, u_int insn, struct trapframe *frame, int code)
  * Eventually we will use the information that this process was the last
  * to use the VFP hardware and bypass the restore, just turn on the hardware.
  */
-void
+static void
 vfp_restore(struct vfp_state *vfpsave)
 {
 	u_int vfpscr = 0;
@@ -280,17 +279,5 @@ vfp_discard()
 	fmxr(VFPEXC, tmp);
 }
 
-/* Enable the VFP hardware without restoring registers.
- * Called when the registers are still in the VFP unit
- */
-void
-vfp_enable()
-{
-	u_int tmp = 0;
-
-	tmp = fmrx(VFPEXC);
-	tmp |= VFPEXC_EN;
-	fmxr(VFPEXC, tmp);
-}
 #endif
 
