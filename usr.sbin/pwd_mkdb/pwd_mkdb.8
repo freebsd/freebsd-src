@@ -147,7 +147,7 @@ A Version 7 format password file.
 Regenerate the password database after manually editing or replacing
 the password file:
 .Bd -literal -offset -indent
-/usr/sbin/pwd_mkdb /etc/master.passwd
+/usr/sbin/pwd_mkdb -p /etc/master.passwd
 .Ed
 .Sh COMPATIBILITY
 Previous versions of the system had a program similar to
