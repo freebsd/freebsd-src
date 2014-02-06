@@ -72,6 +72,6 @@ void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
 
 /* Setup standard arrays */
-void arm_dump_avail_init( vm_offset_t memsize, size_t max);
+void arm_dump_avail_init(vm_paddr_t, vm_offset_t, size_t);
 
 #endif /* !_MACHINE_MACHDEP_H_ */
