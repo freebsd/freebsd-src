@@ -122,13 +122,6 @@ struct flentry_v6 {
 	union ipv6_flow	fl_flow;
 };
 
-#define	fl_fhash	fl_entry.fl_fhash
-#define	fl_flags	fl_entry.fl_flags
-#define	fl_proto	fl_entry.fl_proto
-#define	fl_uptime	fl_entry.fl_uptime
-#define	fl_rt		fl_entry.fl_rt
-#define	fl_lle		fl_entry.fl_lle
-
 #define	SECS_PER_HOUR		3600
 #define	SECS_PER_DAY		(24*SECS_PER_HOUR)
 
