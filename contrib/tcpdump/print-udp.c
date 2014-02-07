@@ -611,10 +611,12 @@ udp_print(register const u_char *bp, u_int length,
 		 * Since there are 10 possible ports to check, I think
 		 * a <> test would be more efficient
 		 */
+#if 0
 		else if ((sport >= RX_PORT_LOW && sport <= RX_PORT_HIGH) ||
 			 (dport >= RX_PORT_LOW && dport <= RX_PORT_HIGH))
 			rx_print((const void *)(up + 1), length, sport, dport,
 				 (u_char *) ip);
+#endif
 #ifdef INET6
 		else if (ISPORT(RIPNG_PORT))
 			ripng_print((const u_char *)(up + 1), length);
