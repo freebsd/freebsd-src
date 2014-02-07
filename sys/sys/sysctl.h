@@ -186,6 +186,9 @@ int sysctl_handle_string(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 int sysctl_handle_counter_u64(SYSCTL_HANDLER_ARGS);
 
+int sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS);
+int sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS);
+
 int sysctl_dpcpu_int(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_long(SYSCTL_HANDLER_ARGS);
 int sysctl_dpcpu_quad(SYSCTL_HANDLER_ARGS);
@@ -430,6 +433,30 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	SYSCTL_ADD_PROC(ctx, parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
 	sysctl_add_oid(ctx, parent, nbr, name, (access),			    \
 	ptr, arg, handler, fmt, __DESCR(descr))
+
+/* Oid to handle limits on uma(9) zone specified by pointer. */
+#define	SYSCTL_UMA_MAX(parent, nbr, name, access, ptr, descr)		\
+	SYSCTL_ASSERT_TYPE(INT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    ptr, 0, sysctl_handle_uma_zone_max, "I", descr)
+#define	SYSCTL_ADD_UMA_MAX(ctx, parent, nbr, name, access, ptr, descr)\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | (access),			\
+	    SYSCTL_ADD_ASSERT_TYPE(INT, ptr), 0,			\
+	    sysctl_handle_uma_zone_max, "I", __DESCR(descr))
+
+/* Oid to obtain current use of uma(9) zone specified by pointer. */
+#define	SYSCTL_UMA_CUR(parent, nbr, name, access, ptr, descr)		\
+	SYSCTL_ASSERT_TYPE(INT, ptr, parent, name);			\
+	SYSCTL_OID(parent, nbr, name,					\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    ptr, 0, sysctl_handle_uma_zone_cur, "I", descr)
+#define	SYSCTL_ADD_UMA_CUR(ctx, parent, nbr, name, access, ptr, descr)	\
+	sysctl_add_oid(ctx, parent, nbr, name,				\
+	    CTLTYPE_INT | CTLFLAG_MPSAFE | CTLFLAG_RD | (access),	\
+	    SYSCTL_ADD_ASSERT_TYPE(INT, ptr), 0,			\
+	    sysctl_handle_uma_zone_cur, "I", __DESCR(descr))
 
 /*
  * A macro to generate a read-only sysctl to indicate the presense of optional
