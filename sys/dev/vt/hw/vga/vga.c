@@ -74,6 +74,8 @@ struct vga_softc {
 static vd_init_t	vga_init;
 static vd_blank_t	vga_blank;
 static vd_bitbltchr_t	vga_bitbltchr;
+static vd_drawrect_t	vga_drawrect;
+static vd_setpixel_t	vga_setpixel;
 static vd_putchar_t	vga_putchar;
 static vd_postswitch_t	vga_postswitch;
 
@@ -81,6 +83,8 @@ static const struct vt_driver vt_vga_driver = {
 	.vd_init	= vga_init,
 	.vd_blank	= vga_blank,
 	.vd_bitbltchr	= vga_bitbltchr,
+	.vd_drawrect	= vga_drawrect,
+	.vd_setpixel	= vga_setpixel,
 	.vd_putchar	= vga_putchar,
 	.vd_postswitch	= vga_postswitch,
 	.vd_priority	= VD_PRIORITY_GENERIC,
@@ -136,6 +140,31 @@ vga_bitblt_put(struct vt_device *vd, u_long dst, term_color_t color,
 		if (v != 0xff)
 			MEM_READ1(sc, dst);
 		MEM_WRITE1(sc, dst, v);
+	}
+}
+
+static void
+vga_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
+{
+
+	vga_bitblt_put(vd, (y * VT_VGA_WIDTH / 8) + (x / 8), color,
+	    0x80 >> (x % 8));
+}
+
+static void
+vga_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
+    term_color_t color)
+{
+	int x, y;
+
+	for (y = y1; y <= y2; y++) {
+		if (fill || (y == y1) || (y == y2)) {
+			for (x = x1; x <= x2; x++)
+				vga_setpixel(vd, x, y, color);
+		} else {
+			vga_setpixel(vd, x1, y, color);
+			vga_setpixel(vd, x2, y, color);
+		}
 	}
 }
 
