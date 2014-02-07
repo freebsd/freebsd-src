@@ -75,4 +75,4 @@ void flow_to_route_in6(struct flentry *fl, struct route_in6 *ro);
 #endif
 
 #endif /* _KERNEL */
-#endif /* _NET_FLOWTABLE_H_ */
+#endif /* !_NET_FLOWTABLE_H_ */
