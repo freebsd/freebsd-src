@@ -59,8 +59,8 @@
  * call, and reload them afterwards.
  */
 
-static SYSCTL_NODE(_security, OID_AUTO, cheri, CTLFLAG_RD, 0,
-    "CHERI parameters and statistics");
+SYSCTL_NODE(_security, OID_AUTO, cheri, CTLFLAG_RD, 0,
+    "CHERI settings and statistics");
 
 /* XXXRW: Should possibly be u_long. */
 static u_int	security_cheri_syscall_violations;
@@ -71,11 +71,6 @@ static u_int	security_cheri_debugger_on_exception;
 SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_exception, CTLFLAG_RW,
     &security_cheri_debugger_on_exception, 0,
     "Run debugger on CHERI exception");
-
-u_int	security_cheri_debugger_on_sandbox_exception;
-SYSCTL_UINT(_security_cheri, OID_AUTO, debugger_on_sandbox_exception,
-    CTLFLAG_RW, &security_cheri_debugger_on_sandbox_exception, 0,
-    "Run debugger on sandbox exception");
 
 /*
  * Capability memcpy() routine -- not a general-purpose memcpy() as it has

@@ -32,6 +32,7 @@
 #define	_MIPS_INCLUDE_CHERI_H_
 
 #ifdef _KERNEL
+#include <sys/sysctl.h>		/* SYSCTL_DECL() */
 #include <sys/systm.h>		/* CTASSERT() */
 #else
 #include <assert.h>		/* assert() */
@@ -443,9 +444,9 @@ int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
 	    int signum);
 
 /*
- * Global sysctls required outside of cheri.c.
+ * Global sysctl definitions required outside of cheri.c.
  */
-extern u_int	security_cheri_debugger_on_sandbox_exception;
-#endif
+SYSCTL_DECL(_security_cheri);
+#endif /* !_KERNEL */
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */
