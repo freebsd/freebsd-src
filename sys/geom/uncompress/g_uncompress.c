@@ -213,10 +213,11 @@ g_uncompress_done(struct bio *bp)
 	pos = sc->offsets[start_blk] % bsize;
 	upos = 0;
 
-	DPRINTF(("%s: done: bio_length %lld bio_completed %lld start_blk %d, "
-		"pos %lld, upos %lld (%lld, %d, %d)\n",
-	    gp->name, bp->bio_length, bp->bio_completed, start_blk, pos, upos,
-	    bp2->bio_offset, sc->blksz, bsize));
+	DPRINTF(("%s: done: bio_length %jd bio_completed %jd start_blk %d, "
+	    "pos %jd, upos %jd (%jd, %d, %zu)\n",
+	    gp->name, (intmax_t)bp->bio_length, (intmax_t)bp->bio_completed,
+	    start_blk, (intmax_t)pos, (intmax_t)upos,
+	    (intmax_t)bp2->bio_offset, sc->blksz, bsize));
 
 	for (i = start_blk; upos < bp2->bio_length; i++) {
 		off_t len, dlen, ulen, uoff;
@@ -225,9 +226,10 @@ g_uncompress_done(struct bio *bp)
 		ulen = MIN(sc->blksz - uoff, bp2->bio_length - upos);
 		dlen = len = sc->offsets[i + 1] - sc->offsets[i];
 
-		DPRINTF(("%s: done: inflate block %d, start %lld, end %lld "
-			"len %lld\n",
-		    gp->name, i, sc->offsets[i], sc->offsets[i + 1], len));
+		DPRINTF((
+		    "%s: done: inflate block %d, start %ju, end %ju len %jd\n",
+		    gp->name, i, (uintmax_t)sc->offsets[i],
+		    (uintmax_t)sc->offsets[i + 1], (intmax_t)len));
 
 		if (len == 0) {
 			/* All zero block: no cache update */
@@ -298,8 +300,9 @@ done:
 	/*
 	 * Finish processing the request.
 	 */
-	DPRINTF(("%s: done: (%d, %lld, %ld)\n",
-	    gp->name, bp2->bio_error, bp2->bio_completed, bp2->bio_resid));
+	DPRINTF(("%s: done: (%d, %jd, %ld)\n",
+	    gp->name, bp2->bio_error, (intmax_t)bp2->bio_completed,
+	    bp2->bio_resid));
 	free(bp->bio_data, M_GEOM_UNCOMPRESS);
 	g_destroy_bio(bp);
 	g_io_deliver(bp2, bp2->bio_error);
@@ -319,9 +322,10 @@ g_uncompress_start(struct bio *bp)
 
 	pp = bp->bio_to;
 	gp = pp->geom;
-	DPRINTF(("%s: start (%s) to %s off=%lld len=%lld\n", gp->name,
-		(bp->bio_cmd==BIO_READ) ? "BIO_READ" : "BIO_WRITE*",
-		pp->name, bp->bio_offset, bp->bio_length));
+	DPRINTF(("%s: start (%d:%s) to %s off=%jd len=%jd\n",
+	    gp->name, bp->bio_cmd,
+	    (bp->bio_cmd == BIO_READ) ? "BIO_READ" : "NOTSUPPORTED",
+	    pp->name, (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length));
 
 	if (bp->bio_cmd != BIO_READ) {
 		g_io_deliver(bp, EOPNOTSUPP);
@@ -353,9 +357,9 @@ g_uncompress_start(struct bio *bp)
 			sc->req_cached++;
 			mtx_unlock(&sc->last_mtx);
 
-			DPRINTF(("%s: start: cached 0 + %lld, "
-			    "%lld + 0 + %lld\n",
-			    gp->name, bp->bio_length, uoff, bp->bio_length));
+			DPRINTF(("%s: start: cached 0 + %jd, %jd + 0 + %jd\n",
+			    gp->name, (intmax_t)bp->bio_length, (intmax_t)uoff,
+			    (intmax_t)bp->bio_length));
 			bp->bio_completed = bp->bio_length;
 			g_io_deliver(bp, 0);
 			return;
@@ -368,10 +372,10 @@ g_uncompress_start(struct bio *bp)
 		g_io_deliver(bp, ENOMEM);
 		return;
 	}
-	DPRINTF(("%s: start (%d..%d), %s: %d + %llu, %s: %d + %llu\n",
+	DPRINTF(("%s: start (%d..%d), %s: %d + %jd, %s: %d + %jd\n",
 	    gp->name, start_blk, end_blk,
-	    pp->name, pp->sectorsize, pp->mediasize,
-	    pp2->name, pp2->sectorsize, pp2->mediasize));
+	    pp->name, pp->sectorsize, (intmax_t)pp->mediasize,
+	    pp2->name, pp2->sectorsize, (intmax_t)pp2->mediasize));
 
 	bsize = pp2->sectorsize;
 
@@ -381,12 +385,12 @@ g_uncompress_start(struct bio *bp)
 	    bp2->bio_offset;
 	bp2->bio_data = malloc(bp2->bio_length, M_GEOM_UNCOMPRESS, M_NOWAIT);
 
-	DPRINTF(("%s: start %lld + %lld -> %lld + %lld -> %lld + %lld\n",
+	DPRINTF(("%s: start %jd + %jd -> %ju + %ju -> %jd + %jd\n",
 	    gp->name,
-	    bp->bio_offset, bp->bio_length,
-	    sc->offsets[start_blk],
-	    sc->offsets[end_blk] - sc->offsets[start_blk],
-	    bp2->bio_offset, bp2->bio_length));
+	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length,
+	    (uintmax_t)sc->offsets[start_blk],
+	    (uintmax_t)sc->offsets[end_blk] - sc->offsets[start_blk],
+	    (intmax_t)bp2->bio_offset, (intmax_t)bp2->bio_length));
 
 	if (bp2->bio_data == NULL) {
 		g_destroy_bio(bp2);
@@ -484,8 +488,8 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	 * Read cloop header, look for CLOOP magic, perform
 	 * other validity checks.
 	 */
-	DPRINTF(("%s: media sectorsize %u, mediasize %lld\n",
-	    gp->name, pp->sectorsize, pp->mediasize));
+	DPRINTF(("%s: media sectorsize %u, mediasize %jd\n",
+	    gp->name, pp->sectorsize, (intmax_t)pp->mediasize));
 
 	i = roundup(sizeof(struct cloop_header), pp->sectorsize);
 	buf = g_read_data(cp, 0, i, NULL);
@@ -596,9 +600,9 @@ g_uncompress_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	free(buf, M_GEOM);
 	g_access(cp, -1, 0, 0);
 
-	DPRINTF(("%s: taste ok (%d, %lld), (%d, %d), %x\n",
+	DPRINTF(("%s: taste ok (%d, %jd), (%d, %d), %x\n",
 	    gp->name,
-	    pp2->sectorsize, pp2->mediasize,
+	    pp2->sectorsize, (intmax_t)pp2->mediasize,
 	    pp2->stripeoffset, pp2->stripesize, pp2->flags));
 	printf("%s: %u x %u blocks\n",
 	    gp->name, sc->nblocks, sc->blksz);
