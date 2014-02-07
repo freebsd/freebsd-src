@@ -36,13 +36,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>  
+#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/bitstring.h>
 #include <sys/condvar.h>
 #include <sys/callout.h>
 #include <sys/hash.h>
-#include <sys/kernel.h>  
+#include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/limits.h>
 #include <sys/malloc.h>
@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_llatbl.h>
 #include <net/if_var.h>
-#include <net/route.h> 
+#include <net/route.h>
 #include <net/flowtable.h>
 #include <net/vnet.h>
 
@@ -167,8 +167,8 @@ struct flowtable {
 	fl_lock_t 	*ft_unlock;
 	fl_rtalloc_t	*ft_rtalloc;
 	/*
-	 * XXX need to pad out 
-	 */ 
+	 * XXX need to pad out
+	 */
 	struct mtx	*ft_locks;
 	union flentryp	ft_table;
 	bitstr_t 	*ft_masks[MAXCPU];
@@ -219,7 +219,7 @@ do {		  				\
  * - Make flowtable stats per-cpu, aggregated at sysctl call time,
  *   to avoid extra cache evictions caused by incrementing a shared
  *   counter
- * - add sysctls to resize && flush flow tables 
+ * - add sysctls to resize && flush flow tables
  * - Add per flowtable sysctls for statistics and configuring timeouts
  * - add saturation counter to rtentry to support per-packet load-balancing
  *   add flag to indicate round-robin flow, add list lookup from head
@@ -286,7 +286,7 @@ sysctl_nmbflows(SYSCTL_HANDLER_ARGS)
 	int error, newnmbflows;
 
 	newnmbflows = V_flowtable_nmbflows;
-	error = sysctl_handle_int(oidp, &newnmbflows, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbflows, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbflows > V_flowtable_nmbflows) {
 			V_flowtable_nmbflows = newnmbflows;
@@ -532,17 +532,17 @@ ipv4_mbuf_demarshal(struct flowtable *ft, struct mbuf *m,
 		if ((*flags & FL_HASH_ALL) &&
 		    (th->th_flags & (TH_RST|TH_FIN)))
 			*flags |= FL_STALE;
-	break;
+		break;
 	case IPPROTO_UDP:
 		uh = (struct udphdr *)((caddr_t)ip + iphlen);
 		sport = uh->uh_sport;
 		dport = uh->uh_dport;
-	break;
+		break;
 	case IPPROTO_SCTP:
 		sh = (struct sctphdr *)((caddr_t)ip + iphlen);
 		sport = sh->src_port;
 		dport = sh->dest_port;
-	break;
+		break;
 	default:
 		FLDPRINTF(ft, FL_DEBUG_ALL, "proto=0x%x not supported\n", proto);
 		return (ENOTSUP);
@@ -560,7 +560,7 @@ skipports:
 
 static uint32_t
 ipv4_flow_lookup_hash_internal(
-	struct sockaddr_in *ssin, struct sockaddr_in *dsin, 
+	struct sockaddr_in *ssin, struct sockaddr_in *dsin,
 	    uint32_t *key, uint16_t flags)
 {
 	uint16_t sport, dport;
@@ -581,7 +581,7 @@ ipv4_flow_lookup_hash_internal(
 	}
 	if (flags & FL_HASH_ALL) {
 		((uint16_t *)key)[0] = sport;
-		((uint16_t *)key)[1] = dport; 
+		((uint16_t *)key)[1] = dport;
 	} else
 		offset = V_flow_hashjitter + proto;
 
@@ -764,7 +764,7 @@ do {				\
 	
 static uint32_t
 ipv6_flow_lookup_hash_internal(
-	struct sockaddr_in6 *ssin6, struct sockaddr_in6 *dsin6, 
+	struct sockaddr_in6 *ssin6, struct sockaddr_in6 *dsin6,
 	    uint32_t *key, uint16_t flags)
 {
 	uint16_t sport, dport;
@@ -787,7 +787,7 @@ ipv6_flow_lookup_hash_internal(
 	}
 	if (flags & FL_HASH_ALL) {
 		((uint16_t *)key)[0] = sport;
-		((uint16_t *)key)[1] = dport; 
+		((uint16_t *)key)[1] = dport;
 	} else
 		offset = V_flow_hashjitter + proto;
 
@@ -885,7 +885,7 @@ flow_stale(struct flowtable *ft, struct flentry *fle)
 		&& (idle_time > ft->ft_syn_idle)) ||
 	    ((fle->f_flags & (TH_SYN|TH_ACK)) == (TH_SYN|TH_ACK)
 		&& (idle_time > ft->ft_tcp_idle)) ||
-	    ((fle->f_rt->rt_flags & RTF_UP) == 0 || 
+	    ((fle->f_rt->rt_flags & RTF_UP) == 0 ||
 		(fle->f_rt->rt_ifp == NULL)))
 		return (1);
 
@@ -906,7 +906,7 @@ flowtable_set_hashkey(struct flentry *fle, uint32_t *key)
 		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
 	}
 	
-	for (i = 0; i < nwords; i++) 
+	for (i = 0; i < nwords; i++)
 		hashkey[i] = key[i];
 }
 
@@ -991,7 +991,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 		bit_set(mask, FL_ENTRY_INDEX(ft, hash));
 		*flep = fle = newfle;
 		goto skip;
-	} 
+	}
 	
 	depth = 0;
 	fs->ft_collisions++;
@@ -1008,7 +1008,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 			FL_ENTRY_UNLOCK(ft, hash);
 			flow_free(newfle, ft);
 			
-			if (flags & FL_OVERWRITE) 
+			if (flags & FL_OVERWRITE)
 				goto skip;
 			return (EEXIST);
 		}
@@ -1020,7 +1020,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 
 		depth++;
 		fle = fle->f_next;
-	} 
+	}
 
 	if (depth > fs->ft_max_depth)
 		fs->ft_max_depth = depth;
@@ -1050,12 +1050,12 @@ kern_flowtable_insert(struct flowtable *ft,
 	hash = 0;
 
 #ifdef INET
-	if (ssa->ss_family == AF_INET) 
+	if (ssa->ss_family == AF_INET)
 		hash = ipv4_flow_lookup_hash_internal((struct sockaddr_in *)ssa,
 		    (struct sockaddr_in *)dsa, key, flags);
 #endif
 #ifdef INET6
-	if (ssa->ss_family == AF_INET6) 
+	if (ssa->ss_family == AF_INET6)
 		hash = ipv6_flow_lookup_hash_internal((struct sockaddr_in6 *)ssa,
 		    (struct sockaddr_in6 *)dsa, key, flags);
 #endif	
@@ -1082,7 +1082,7 @@ flowtable_key_equal(struct flentry *fle, uint32_t *key)
 		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
 	}
 
-	for (i = 0; i < nwords; i++) 
+	for (i = 0; i < nwords; i++)
 		if (hashkey[i] != key[i])
 			return (0);
 
@@ -1137,9 +1137,9 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 		memcpy(&ro->ro_dst, dsa, sizeof(struct sockaddr_in));
 		/*
 		 * The harvested source and destination addresses
-		 * may contain port information if the packet is 
-		 * from a transport protocol (e.g. TCP/UDP). The 
-		 * port field must be cleared before performing 
+		 * may contain port information if the packet is
+		 * from a transport protocol (e.g. TCP/UDP). The
+		 * port field must be cleared before performing
 		 * a route lookup.
 		 */
 		((struct sockaddr_in *)&ro->ro_dst)->sin_port = 0;
@@ -1170,7 +1170,7 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 #endif
 	/*
 	 * Ports are zero and this isn't a transmit cache
-	 * - thus not a protocol for which we need to keep 
+	 * - thus not a protocol for which we need to keep
 	 * state
 	 * FL_HASH_ALL => key[0] != 0 for TCP || UDP || SCTP
 	 */
@@ -1229,7 +1229,7 @@ uncached:
 #endif
 
 	ft->ft_rtalloc(ro, hash, fibnum);
-	if (ro->ro_rt == NULL) 
+	if (ro->ro_rt == NULL)
 		error = ENETUNREACH;
 	else {
 		struct llentry *lle = NULL;
@@ -1286,7 +1286,7 @@ uncached:
 			ro->ro_rt = NULL;
 			ro->ro_lle = NULL;
 		}
-	} 
+	}
 
 	return ((error) ? NULL : fle);
 }
@@ -1347,7 +1347,7 @@ flowtable_alloc(char *name, int nentry, int flags)
 	ft->ft_tmpmask = bit_alloc(nentry);
 
 	/*
-	 * In the local transmit case the table truly is 
+	 * In the local transmit case the table truly is
 	 * just a cache - so everything is eligible for
 	 * replacement after 5s of non-use
 	 */
@@ -1381,7 +1381,7 @@ flowtable_alloc(char *name, int nentry, int flags)
  * The rest of the code is devoted to garbage collection of expired entries.
  * It is a new additon made necessary by the switch to dynamically allocating
  * flow tables.
- * 
+ *
  */
 static void
 fle_free(struct flentry *fle, struct flowtable *ft)
@@ -1707,7 +1707,7 @@ flow_show(struct flowtable *ft, struct flentry *fle)
 	idle_time = (int)(time_uptime - fle->f_uptime);
 	rt = fle->f_rt;
 	rt_valid = rt != NULL;
-	if (rt_valid) 
+	if (rt_valid)
 		ifp = rt->rt_ifp;
 	ifp_valid = ifp != NULL;
 	hashkey = flowtable_get_hashkey(fle);
@@ -1722,9 +1722,9 @@ flow_show(struct flowtable *ft, struct flentry *fle)
 		db_printf("%s:%d->%s:%d",
 		    saddr, sport, daddr,
 		    dport);
-	} else 
+	} else
 		db_printf("%s ", daddr);
-    
+
 skipaddr:
 	if (fle->f_flags & FL_STALE)
 		db_printf(" FL_STALE ");
