@@ -132,7 +132,7 @@ struct cheri_stack_frame {
 	struct chericap	csf_idc;
 };
 
-#define	CHERI_STACK_DEPTH	2	/* XXXRW: 2 is a nice round number. */
+#define	CHERI_STACK_DEPTH	4	/* XXXRW: 4 is a nice round number. */
 struct cheri_stack {
 	register_t	cs_tsp;		/* Byte offset, not frame index. */
 	register_t	_cs_pad0;
