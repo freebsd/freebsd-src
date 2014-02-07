@@ -32,6 +32,15 @@ $FreeBSD$
 #ifndef	_NET_FLOWTABLE_H_
 #define	_NET_FLOWTABLE_H_
 
+struct flowtable_stat {
+	uint64_t	ft_collisions;
+	uint64_t	ft_misses;
+	uint64_t	ft_free_checks;
+	uint64_t	ft_frees;
+	uint64_t	ft_hits;
+	uint64_t	ft_lookups;
+};
+
 #ifdef	_KERNEL
 
 #define	FL_HASH_ALL	(1<<0)	/* hash 4-tuple + protocol */
@@ -50,34 +59,20 @@ struct flentry;
 struct route;
 struct route_in6;
 
-VNET_DECLARE(struct flowtable *, ip_ft);
-#define	V_ip_ft			VNET(ip_ft)
-
-VNET_DECLARE(struct flowtable *, ip6_ft);
-#define	V_ip6_ft		VNET(ip6_ft)
-
-struct flowtable *flowtable_alloc(char *name, int nentry, int flags);
-
 /*
  * Given a flow table, look up the L3 and L2 information and
  * return it in the route.
  *
  */
-struct flentry *flowtable_lookup_mbuf(struct flowtable *ft, struct mbuf *m, int af);
+struct flentry *flowtable_lookup(sa_family_t, struct mbuf *);
+void flowtable_route_flush(sa_family_t, struct rtentry *);
 
-struct flentry *flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
-    struct sockaddr_storage *dsa, uint32_t fibnum, int flags);
-
-int kern_flowtable_insert(struct flowtable *ft, struct sockaddr_storage *ssa,
-    struct sockaddr_storage *dsa, struct route *ro, uint32_t fibnum, int flags);
-
-void flow_invalidate(struct flentry *fl);
-void flowtable_route_flush(struct flowtable *ft, struct rtentry *rt);
-
+#ifdef INET
 void flow_to_route(struct flentry *fl, struct route *ro);
-
+#endif
+#ifdef INET6
 void flow_to_route_in6(struct flentry *fl, struct route_in6 *ro);
-
+#endif
 
 #endif /* _KERNEL */
-#endif
+#endif /* _NET_FLOWTABLE_H_ */

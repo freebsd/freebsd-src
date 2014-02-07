@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_mbuf_stress_test.h"
@@ -162,7 +163,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		 * longer than that long for the stability of ro_rt. The
 		 * flow ID assignment must have happened before this point.
 		 */
-		fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET);
+		fle = flowtable_lookup(AF_INET, m);
 		if (fle != NULL)
 			flow_to_route(fle, ro);
 	}

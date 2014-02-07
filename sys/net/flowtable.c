@@ -146,23 +146,13 @@ union flentryp {
 	struct flentry		**pcpu[MAXCPU];
 };
 
-struct flowtable_stats {
-	uint64_t	ft_collisions;
-	uint64_t	ft_allocated;
-	uint64_t	ft_misses;
-	uint64_t	ft_max_depth;
-	uint64_t	ft_free_checks;
-	uint64_t	ft_frees;
-	uint64_t	ft_hits;
-	uint64_t	ft_lookups;
-} __aligned(CACHE_LINE_SIZE);
-
 struct flowtable {
-	struct	flowtable_stats ft_stats[MAXCPU];
+	counter_u64_t	*ft_stat;
+	uma_zone_t	ft_zone;
 	int 		ft_size;
 	int 		ft_lock_count;
 	uint32_t	ft_flags;
-	char		*ft_name;
+	uint32_t	ft_max_depth;
 	fl_lock_t	*ft_lock;
 	fl_lock_t 	*ft_unlock;
 	fl_rtalloc_t	*ft_rtalloc;
@@ -173,9 +163,7 @@ struct flowtable {
 	union flentryp	ft_table;
 	bitstr_t 	*ft_masks[MAXCPU];
 	bitstr_t	*ft_tmpmask;
-	struct flowtable *ft_next;
 
-	uint32_t	ft_count __aligned(CACHE_LINE_SIZE);
 	uint32_t	ft_udp_idle __aligned(CACHE_LINE_SIZE);
 	uint32_t	ft_fin_wait_idle;
 	uint32_t	ft_syn_idle;
@@ -183,17 +171,12 @@ struct flowtable {
 	boolean_t	ft_full;
 } __aligned(CACHE_LINE_SIZE);
 
+#define	FLOWSTAT_ADD(ft, name, v)	\
+	counter_u64_add((ft)->ft_stat[offsetof(struct flowtable_stat, name) / sizeof(uint64_t)], (v))
+#define	FLOWSTAT_INC(ft, name)	FLOWSTAT_ADD(ft, name, 1)
+
 static struct proc *flowcleanerproc;
-static VNET_DEFINE(struct flowtable *, flow_list_head);
-static VNET_DEFINE(uint32_t, flow_hashjitter);
-static VNET_DEFINE(uma_zone_t, flow_ipv4_zone);
-static VNET_DEFINE(uma_zone_t, flow_ipv6_zone);
-
-#define	V_flow_list_head	VNET(flow_list_head)
-#define	V_flow_hashjitter	VNET(flow_hashjitter)
-#define	V_flow_ipv4_zone	VNET(flow_ipv4_zone)
-#define	V_flow_ipv6_zone	VNET(flow_ipv6_zone)
-
+static uint32_t flow_hashjitter;
 
 static struct cv 	flowclean_f_cv;
 static struct cv 	flowclean_c_cv;
@@ -201,24 +184,8 @@ static struct mtx	flowclean_lock;
 static uint32_t		flowclean_cycles;
 static uint32_t		flowclean_freq;
 
-#ifdef FLOWTABLE_DEBUG
-#define FLDPRINTF(ft, flags, fmt, ...) 		\
-do {		  				\
-	if ((ft)->ft_flags & (flags))		\
-		printf((fmt), __VA_ARGS__);	\
-} while (0);					\
-
-#else
-#define FLDPRINTF(ft, flags, fmt, ...)
-
-#endif
-
-
 /*
  * TODO:
- * - Make flowtable stats per-cpu, aggregated at sysctl call time,
- *   to avoid extra cache evictions caused by incrementing a shared
- *   counter
  * - add sysctls to resize && flush flow tables
  * - Add per flowtable sysctls for statistics and configuring timeouts
  * - add saturation counter to rtentry to support per-packet load-balancing
@@ -230,147 +197,50 @@ do {		  				\
  * - support explicit connection state (currently only ad-hoc for DSR)
  * - idetach() cleanup for options VIMAGE builds.
  */
-VNET_DEFINE(int, flowtable_enable) = 1;
-static VNET_DEFINE(int, flowtable_debug);
+#ifdef INET
+static VNET_DEFINE(struct flowtable, ip4_ft);
+#define V_ip4_ft	VNET(ip4_ft)
+static uma_zone_t	flow_ipv4_zone;
+#endif
+#ifdef INET6
+static VNET_DEFINE(struct flowtable, ip6_ft);
+#define	V_ip6_ft	VNET(ip6_ft)
+static uma_zone_t	flow_ipv6_zone;
+#endif
+
+static VNET_DEFINE(int, flowtable_enable) = 1;
 static VNET_DEFINE(int, flowtable_syn_expire) = SYN_IDLE;
 static VNET_DEFINE(int, flowtable_udp_expire) = UDP_IDLE;
 static VNET_DEFINE(int, flowtable_fin_wait_expire) = FIN_WAIT_IDLE;
 static VNET_DEFINE(int, flowtable_tcp_expire) = TCP_IDLE;
-static VNET_DEFINE(int, flowtable_nmbflows);
-static VNET_DEFINE(int, flowtable_ready) = 0;
 
 #define	V_flowtable_enable		VNET(flowtable_enable)
-#define	V_flowtable_debug		VNET(flowtable_debug)
 #define	V_flowtable_syn_expire		VNET(flowtable_syn_expire)
 #define	V_flowtable_udp_expire		VNET(flowtable_udp_expire)
 #define	V_flowtable_fin_wait_expire	VNET(flowtable_fin_wait_expire)
 #define	V_flowtable_tcp_expire		VNET(flowtable_tcp_expire)
-#define	V_flowtable_nmbflows		VNET(flowtable_nmbflows)
-#define	V_flowtable_ready		VNET(flowtable_ready)
 
-static SYSCTL_NODE(_net_inet, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
+static SYSCTL_NODE(_net, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
     "flowtable");
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, debug, CTLFLAG_RW,
-    &VNET_NAME(flowtable_debug), 0, "print debug info.");
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
 
 /*
  * XXX This does not end up updating timeouts at runtime
  * and only reflects the value for the last table added :-/
  */
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, syn_expire, CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, syn_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_syn_expire), 0,
     "seconds after which to remove syn allocated flow.");
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, udp_expire, CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, udp_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_udp_expire), 0,
     "seconds after which to remove flow allocated to UDP.");
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, fin_wait_expire, CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, fin_wait_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_fin_wait_expire), 0,
     "seconds after which to remove a flow in FIN_WAIT.");
-SYSCTL_VNET_INT(_net_inet_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
+SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_tcp_expire), 0,
     "seconds after which to remove flow allocated to a TCP connection.");
-
-
-/*
- * Maximum number of flows that can be allocated of a given type.
- *
- * The table is allocated at boot time (for the pure caching case
- * there is no reason why this could not be changed at runtime)
- * and thus (currently) needs to be set with a tunable.
- */
-static int
-sysctl_nmbflows(SYSCTL_HANDLER_ARGS)
-{
-	int error, newnmbflows;
-
-	newnmbflows = V_flowtable_nmbflows;
-	error = sysctl_handle_int(oidp, &newnmbflows, 0, req);
-	if (error == 0 && req->newptr) {
-		if (newnmbflows > V_flowtable_nmbflows) {
-			V_flowtable_nmbflows = newnmbflows;
-			uma_zone_set_max(V_flow_ipv4_zone,
-			    V_flowtable_nmbflows);
-			uma_zone_set_max(V_flow_ipv6_zone,
-			    V_flowtable_nmbflows);
-		} else
-			error = EINVAL;
-	}
-	return (error);
-}
-SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, nmbflows,
-    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_nmbflows, "IU",
-    "Maximum number of flows allowed");
-
-
-
-#define FS_PRINT(sb, field)	sbuf_printf((sb), "\t%s: %jd\n", #field, fs->ft_##field)
-
-static void
-fs_print(struct sbuf *sb, struct flowtable_stats *fs)
-{
-
-	FS_PRINT(sb, collisions);
-	FS_PRINT(sb, allocated);
-	FS_PRINT(sb, misses);
-	FS_PRINT(sb, max_depth);
-	FS_PRINT(sb, free_checks);
-	FS_PRINT(sb, frees);
-	FS_PRINT(sb, hits);
-	FS_PRINT(sb, lookups);
-}
-
-static void
-flowtable_show_stats(struct sbuf *sb, struct flowtable *ft)
-{
-	int i;
-	struct flowtable_stats fs, *pfs;
-
-	if (ft->ft_flags & FL_PCPU) {
-		bzero(&fs, sizeof(fs));
-		pfs = &fs;
-		CPU_FOREACH(i) {
-			pfs->ft_collisions  += ft->ft_stats[i].ft_collisions;
-			pfs->ft_allocated   += ft->ft_stats[i].ft_allocated;
-			pfs->ft_misses      += ft->ft_stats[i].ft_misses;
-			pfs->ft_free_checks += ft->ft_stats[i].ft_free_checks;
-			pfs->ft_frees       += ft->ft_stats[i].ft_frees;
-			pfs->ft_hits        += ft->ft_stats[i].ft_hits;
-			pfs->ft_lookups     += ft->ft_stats[i].ft_lookups;
-			if (ft->ft_stats[i].ft_max_depth > pfs->ft_max_depth)
-				pfs->ft_max_depth = ft->ft_stats[i].ft_max_depth;
-		}
-	} else {
-		pfs = &ft->ft_stats[0];
-	}
-	fs_print(sb, pfs);
-}
-
-static int
-sysctl_flowtable_stats(SYSCTL_HANDLER_ARGS)
-{
-	struct flowtable *ft;
-	struct sbuf *sb;
-	int error;
-
-	sb = sbuf_new(NULL, NULL, 64*1024, SBUF_FIXEDLEN);
-
-	ft = V_flow_list_head;
-	while (ft != NULL) {
-		sbuf_printf(sb, "\ntable name: %s\n", ft->ft_name);
-		flowtable_show_stats(sb, ft);
-		ft = ft->ft_next;
-	}
-	sbuf_finish(sb);
-	error = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);
-	sbuf_delete(sb);
-
-	return (error);
-}
-SYSCTL_VNET_PROC(_net_inet_flowtable, OID_AUTO, stats, CTLTYPE_STRING|CTLFLAG_RD,
-    NULL, 0, sysctl_flowtable_stats, "A", "flowtable statistics");
-
 
 #ifndef RADIX_MPATH
 static void
@@ -419,12 +289,8 @@ flowtable_pcpu_unlock(struct flowtable *table, uint32_t hash)
 #define FL_STALE 	(1<<8)
 #define FL_OVERWRITE	(1<<10)
 
-void
-flow_invalidate(struct flentry *fle)
-{
-
-	fle->f_flags |= FL_STALE;
-}
+static struct flentry *flowtable_lookup_common(struct flowtable *,
+    struct sockaddr_storage *, struct sockaddr_storage *, struct mbuf *, int);
 
 static __inline int
 proto_to_flags(uint8_t proto)
@@ -495,8 +361,8 @@ ipv4_flow_print_tuple(int flags, int proto, struct sockaddr_in *ssin,
 #endif
 
 static int
-ipv4_mbuf_demarshal(struct flowtable *ft, struct mbuf *m,
-    struct sockaddr_in *ssin, struct sockaddr_in *dsin, uint16_t *flags)
+ipv4_mbuf_demarshal(struct mbuf *m, struct sockaddr_in *ssin,
+    struct sockaddr_in *dsin, uint16_t *flags)
 {
 	struct ip *ip;
 	uint8_t proto;
@@ -516,11 +382,8 @@ ipv4_mbuf_demarshal(struct flowtable *ft, struct mbuf *m,
 	ssin->sin_addr = ip->ip_src;	
 
 	proto = ip->ip_p;
-	if ((*flags & FL_HASH_ALL) == 0) {
-		FLDPRINTF(ft, FL_DEBUG_ALL, "skip port check flags=0x%x ",
-		    *flags);
+	if ((*flags & FL_HASH_ALL) == 0)
 		goto skipports;
-	}
 
 	iphlen = ip->ip_hl << 2; /* XXX options? */
 
@@ -544,7 +407,6 @@ ipv4_mbuf_demarshal(struct flowtable *ft, struct mbuf *m,
 		dport = sh->dest_port;
 		break;
 	default:
-		FLDPRINTF(ft, FL_DEBUG_ALL, "proto=0x%x not supported\n", proto);
 		return (ENOTSUP);
 		/* no port - hence not a protocol we care about */
 		break;
@@ -559,7 +421,7 @@ skipports:
 }
 
 static uint32_t
-ipv4_flow_lookup_hash_internal(
+ipv4_flow_lookup_hash(
 	struct sockaddr_in *ssin, struct sockaddr_in *dsin,
 	    uint32_t *key, uint16_t flags)
 {
@@ -567,8 +429,6 @@ ipv4_flow_lookup_hash_internal(
 	uint8_t proto;
 	int offset = 0;
 
-	if ((V_flowtable_enable == 0) || (V_flowtable_ready == 0))
-		return (0);
 	proto = flags_to_proto(flags);
 	sport = dport = key[2] = key[1] = key[0] = 0;
 	if ((ssin != NULL) && (flags & FL_HASH_ALL)) {
@@ -583,13 +443,13 @@ ipv4_flow_lookup_hash_internal(
 		((uint16_t *)key)[0] = sport;
 		((uint16_t *)key)[1] = dport;
 	} else
-		offset = V_flow_hashjitter + proto;
+		offset = flow_hashjitter + proto;
 
 	return (jenkins_hash32(key, 3, offset));
 }
 
 static struct flentry *
-flowtable_lookup_mbuf4(struct flowtable *ft, struct mbuf *m)
+flowtable_lookup_ipv4(struct mbuf *m)
 {
 	struct sockaddr_storage ssa, dsa;
 	uint16_t flags;
@@ -599,11 +459,11 @@ flowtable_lookup_mbuf4(struct flowtable *ft, struct mbuf *m)
 	ssin = (struct sockaddr_in *)&ssa;
 	bzero(dsin, sizeof(*dsin));
 	bzero(ssin, sizeof(*ssin));
-	flags = ft->ft_flags;
-	if (ipv4_mbuf_demarshal(ft, m, ssin, dsin, &flags) != 0)
+	flags = V_ip4_ft.ft_flags;
+	if (ipv4_mbuf_demarshal(m, ssin, dsin, &flags) != 0)
 		return (NULL);
 
-	return (flowtable_lookup(ft, &ssa, &dsa, M_GETFIB(m), flags));
+	return (flowtable_lookup_common(&V_ip4_ft, &ssa, &dsa, m, flags));
 }
 
 void
@@ -644,8 +504,8 @@ do {									\
 #define	UDP(p)		((struct udphdr *)(p))
 
 static int
-ipv6_mbuf_demarshal(struct flowtable *ft, struct mbuf *m,
-    struct sockaddr_in6 *ssin6, struct sockaddr_in6 *dsin6, uint16_t *flags)
+ipv6_mbuf_demarshal(struct mbuf *m, struct sockaddr_in6 *ssin6,
+    struct sockaddr_in6 *dsin6, uint16_t *flags)
 {
 	struct ip6_hdr *ip6;
 	uint8_t proto;
@@ -763,16 +623,13 @@ do {				\
 } while (0)
 	
 static uint32_t
-ipv6_flow_lookup_hash_internal(
+ipv6_flow_lookup_hash(
 	struct sockaddr_in6 *ssin6, struct sockaddr_in6 *dsin6,
 	    uint32_t *key, uint16_t flags)
 {
 	uint16_t sport, dport;
 	uint8_t proto;
 	int offset = 0;
-
-	if ((V_flowtable_enable == 0) || (V_flowtable_ready == 0))
-		return (0);
 
 	proto = flags_to_proto(flags);
 	zero_key(key);
@@ -789,13 +646,13 @@ ipv6_flow_lookup_hash_internal(
 		((uint16_t *)key)[0] = sport;
 		((uint16_t *)key)[1] = dport;
 	} else
-		offset = V_flow_hashjitter + proto;
+		offset = flow_hashjitter + proto;
 
 	return (jenkins_hash32(key, 9, offset));
 }
 
 static struct flentry *
-flowtable_lookup_mbuf6(struct flowtable *ft, struct mbuf *m)
+flowtable_lookup_ipv6(struct mbuf *m)
 {
 	struct sockaddr_storage ssa, dsa;
 	struct sockaddr_in6 *dsin6, *ssin6;	
@@ -805,12 +662,12 @@ flowtable_lookup_mbuf6(struct flowtable *ft, struct mbuf *m)
 	ssin6 = (struct sockaddr_in6 *)&ssa;
 	bzero(dsin6, sizeof(*dsin6));
 	bzero(ssin6, sizeof(*ssin6));
-	flags = ft->ft_flags;
+	flags = V_ip6_ft.ft_flags;
 	
-	if (ipv6_mbuf_demarshal(ft, m, ssin6, dsin6, &flags) != 0)
+	if (ipv6_mbuf_demarshal(m, ssin6, dsin6, &flags) != 0)
 		return (NULL);
 
-	return (flowtable_lookup(ft, &ssa, &dsa, M_GETFIB(m), flags));
+	return (flowtable_lookup_common(&V_ip6_ft, &ssa, &dsa, m, flags));
 }
 
 void
@@ -910,43 +767,19 @@ flowtable_set_hashkey(struct flentry *fle, uint32_t *key)
 		hashkey[i] = key[i];
 }
 
-static struct flentry *
-flow_alloc(struct flowtable *ft)
-{
-	struct flentry *newfle;
-	uma_zone_t zone;
-
-	newfle = NULL;
-	zone = (ft->ft_flags & FL_IPV6) ? V_flow_ipv6_zone : V_flow_ipv4_zone;
-
-	newfle = uma_zalloc(zone, M_NOWAIT | M_ZERO);
-	if (newfle != NULL)
-		atomic_add_int(&ft->ft_count, 1);
-	return (newfle);
-}
-
-static void
-flow_free(struct flentry *fle, struct flowtable *ft)
-{
-	uma_zone_t zone;
-
-	zone = (ft->ft_flags & FL_IPV6) ? V_flow_ipv6_zone : V_flow_ipv4_zone;
-	atomic_add_int(&ft->ft_count, -1);
-	uma_zfree(zone, fle);
-}
-
 static int
 flow_full(struct flowtable *ft)
 {
 	boolean_t full;
-	uint32_t count;
+	int count, max;
 	
 	full = ft->ft_full;
-	count = ft->ft_count;
+	count = uma_zone_get_cur(ft->ft_zone);
+	max = uma_zone_get_max(ft->ft_zone);
 
-	if (full && (count < (V_flowtable_nmbflows - (V_flowtable_nmbflows >> 3))))
+	if (full && (count < (max - (max >> 3))))
 		ft->ft_full = FALSE;
-	else if (!full && (count > (V_flowtable_nmbflows - (V_flowtable_nmbflows >> 5))))
+	else if (!full && (count > (max - (max >> 5))))
 		ft->ft_full = TRUE;
 	
 	if (full && !ft->ft_full) {
@@ -970,12 +803,11 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     uint32_t fibnum, struct route *ro, uint16_t flags)
 {
 	struct flentry *fle, *fletail, *newfle, **flep;
-	struct flowtable_stats *fs = &ft->ft_stats[curcpu];
 	int depth;
 	bitstr_t *mask;
 	uint8_t proto;
 
-	newfle = flow_alloc(ft);
+	newfle = uma_zalloc(ft->ft_zone, M_NOWAIT | M_ZERO);
 	if (newfle == NULL)
 		return (ENOMEM);
 
@@ -994,7 +826,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 	}
 	
 	depth = 0;
-	fs->ft_collisions++;
+	FLOWSTAT_INC(ft, ft_collisions);
 	/*
 	 * find end of list and make sure that we were not
 	 * preempted by another thread handling this flow
@@ -1006,7 +838,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 			 * or we lost a race to insert
 			 */
 			FL_ENTRY_UNLOCK(ft, hash);
-			flow_free(newfle, ft);
+			uma_zfree(ft->ft_zone, newfle);
 			
 			if (flags & FL_OVERWRITE)
 				goto skip;
@@ -1022,8 +854,8 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 		fle = fle->f_next;
 	}
 
-	if (depth > fs->ft_max_depth)
-		fs->ft_max_depth = depth;
+	if (depth > ft->ft_max_depth)
+		ft->ft_max_depth = depth;
 	fletail->f_next = newfle;
 	fle = newfle;
 skip:
@@ -1037,35 +869,6 @@ skip:
 	fle->f_uptime = time_uptime;
 	FL_ENTRY_UNLOCK(ft, hash);
 	return (0);
-}
-
-int
-kern_flowtable_insert(struct flowtable *ft,
-    struct sockaddr_storage *ssa, struct sockaddr_storage *dsa,
-    struct route *ro, uint32_t fibnum, int flags)
-{
-	uint32_t key[9], hash;
-
-	flags = (ft->ft_flags | flags | FL_OVERWRITE);
-	hash = 0;
-
-#ifdef INET
-	if (ssa->ss_family == AF_INET)
-		hash = ipv4_flow_lookup_hash_internal((struct sockaddr_in *)ssa,
-		    (struct sockaddr_in *)dsa, key, flags);
-#endif
-#ifdef INET6
-	if (ssa->ss_family == AF_INET6)
-		hash = ipv6_flow_lookup_hash_internal((struct sockaddr_in6 *)ssa,
-		    (struct sockaddr_in6 *)dsa, key, flags);
-#endif	
-	if (ro->ro_rt == NULL || ro->ro_lle == NULL)
-		return (EINVAL);
-
-	FLDPRINTF(ft, FL_DEBUG,
-	    "kern_flowtable_insert: key=%x:%x:%x hash=%x fibnum=%d flags=%x\n",
-	    key[0], key[1], key[2], hash, fibnum, flags);
-	return (flowtable_insert(ft, hash, key, fibnum, ro, flags));
 }
 
 static int
@@ -1090,48 +893,53 @@ flowtable_key_equal(struct flentry *fle, uint32_t *key)
 }
 
 struct flentry *
-flowtable_lookup_mbuf(struct flowtable *ft, struct mbuf *m, int af)
+flowtable_lookup(sa_family_t sa, struct mbuf *m)
 {
-	struct flentry *fle = NULL;
 
+	switch (sa) {
 #ifdef INET
-	if (af == AF_INET)
-		fle = flowtable_lookup_mbuf4(ft, m);
+	case AF_INET:
+		return (flowtable_lookup_ipv4(m));
 #endif
 #ifdef INET6
-	if (af == AF_INET6)
-		fle = flowtable_lookup_mbuf6(ft, m);
-#endif	
-	if (fle != NULL && m != NULL && (m->m_flags & M_FLOWID) == 0) {
-		m->m_flags |= M_FLOWID;
-		m->m_pkthdr.flowid = fle->f_fhash;
+	case AF_INET6:
+		return (flowtable_lookup_ipv6(m));
+#endif
+	default:
+		panic("%s: sa %d", __func__, sa);
 	}
-	return (fle);
 }
-	
-struct flentry *
-flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
-    struct sockaddr_storage *dsa, uint32_t fibnum, int flags)
+
+static struct flentry *
+flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
+    struct sockaddr_storage *dsa, struct mbuf *m, int flags)
 {
-	uint32_t key[9], hash;
+	struct route_in6 sro6;
+	struct route sro, *ro;
 	struct flentry *fle;
-	struct flowtable_stats *fs = &ft->ft_stats[curcpu];
-	uint8_t proto = 0;
-	int error = 0;
 	struct rtentry *rt;
 	struct llentry *lle;
-	struct route sro, *ro;
-	struct route_in6 sro6;
+	struct sockaddr_storage *l3addr;
+	struct ifnet *ifp;
+	uint32_t key[9], hash, fibnum;
+	uint8_t proto;
+
+	if (V_flowtable_enable == 0)
+		return (NULL);
 
 	sro.ro_rt = sro6.ro_rt = NULL;
 	sro.ro_lle = sro6.ro_lle = NULL;
-	ro = NULL;
-	hash = 0;
 	flags |= ft->ft_flags;
 	proto = flags_to_proto(flags);
+	fibnum = M_GETFIB(m);
+
+	switch (ssa->ss_family) {
 #ifdef INET
-	if (ssa->ss_family == AF_INET) {
+	case AF_INET: {
 		struct sockaddr_in *ssin, *dsin;
+
+		KASSERT(dsa->ss_family == AF_INET,
+		    ("%s: dsa family %d\n", __func__, dsa->ss_family));
 
 		ro = &sro;
 		memcpy(&ro->ro_dst, dsa, sizeof(struct sockaddr_in));
@@ -1150,12 +958,16 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 		    (ntohl(ssin->sin_addr.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
 			return (NULL);
 
-		hash = ipv4_flow_lookup_hash_internal(ssin, dsin, key, flags);
+		hash = ipv4_flow_lookup_hash(ssin, dsin, key, flags);
+		break;
 	}
 #endif
 #ifdef INET6
-	if (ssa->ss_family == AF_INET6) {
+	case AF_INET6: {
 		struct sockaddr_in6 *ssin6, *dsin6;
+
+		KASSERT(dsa->ss_family == AF_INET6,
+		    ("%s: dsa family %d\n", __func__, dsa->ss_family));
 
 		ro = (struct route *)&sro6;
 		memcpy(&sro6.ro_dst, dsa,
@@ -1165,19 +977,24 @@ flowtable_lookup(struct flowtable *ft, struct sockaddr_storage *ssa,
 		ssin6 = (struct sockaddr_in6 *)ssa;
 
 		flags |= FL_IPV6;
-		hash = ipv6_flow_lookup_hash_internal(ssin6, dsin6, key, flags);
+		hash = ipv6_flow_lookup_hash(ssin6, dsin6, key, flags);
+		break;
 	}
 #endif
+	default:
+		panic("%s: ssa family %d", __func__, ssa->ss_family);
+	}
+
 	/*
 	 * Ports are zero and this isn't a transmit cache
 	 * - thus not a protocol for which we need to keep
 	 * state
 	 * FL_HASH_ALL => key[0] != 0 for TCP || UDP || SCTP
 	 */
-	if (hash == 0 || (key[0] == 0 && (ft->ft_flags & FL_HASH_ALL)))
+	if (key[0] == 0 && (ft->ft_flags & FL_HASH_ALL))
 		return (NULL);
 
-	fs->ft_lookups++;
+	FLOWSTAT_INC(ft, ft_lookups);
 	FL_ENTRY_LOCK(ft, hash);
 	if ((fle = FL_ENTRY(ft, hash)) == NULL) {
 		FL_ENTRY_UNLOCK(ft, hash);
@@ -1195,11 +1012,11 @@ keycheck:
 	    && (rt->rt_flags & RTF_UP)
 	    && (rt->rt_ifp != NULL)
 	    && (lle->la_flags & LLE_VALID)) {
-		fs->ft_hits++;
+		FLOWSTAT_INC(ft, ft_hits);
 		fle->f_uptime = time_uptime;
 		fle->f_flags |= flags;
 		FL_ENTRY_UNLOCK(ft, hash);
-		return (fle);
+		goto success;
 	} else if (fle->f_next != NULL) {
 		fle = fle->f_next;
 		goto keycheck;
@@ -1209,7 +1026,7 @@ uncached:
 	if (flags & FL_NOAUTO || flow_full(ft))
 		return (NULL);
 
-	fs->ft_misses++;
+	FLOWSTAT_INC(ft, ft_misses);
 	/*
 	 * This bit of code ends up locking the
 	 * same route 3 times (just like ip_output + ether_output)
@@ -1222,73 +1039,66 @@ uncached:
 	 * receive the route locked
 	 */
 
-#ifdef INVARIANTS
-	if ((ro->ro_dst.sa_family != AF_INET) &&
-	    (ro->ro_dst.sa_family != AF_INET6))
-		panic("sa_family == %d\n", ro->ro_dst.sa_family);
-#endif
-
 	ft->ft_rtalloc(ro, hash, fibnum);
 	if (ro->ro_rt == NULL)
-		error = ENETUNREACH;
-	else {
-		struct llentry *lle = NULL;
-		struct sockaddr_storage *l3addr;
-		struct rtentry *rt = ro->ro_rt;
-		struct ifnet *ifp = rt->rt_ifp;
+		return (NULL);
 
-		if (ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) {
-			RTFREE(rt);
-			ro->ro_rt = NULL;
-			return (NULL);
-		}
-#ifdef INET6
-		if (ssa->ss_family == AF_INET6) {
-			struct sockaddr_in6 *dsin6;
+	rt = ro->ro_rt;
+	ifp = rt->rt_ifp;
 
-			dsin6 = (struct sockaddr_in6 *)dsa;			
-			if (in6_localaddr(&dsin6->sin6_addr)) {
-				RTFREE(rt);
-				ro->ro_rt = NULL;
-				return (NULL);				
-			}
-
-			if (rt->rt_flags & RTF_GATEWAY)
-				l3addr = (struct sockaddr_storage *)rt->rt_gateway;
-			
-			else
-				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			lle = llentry_alloc(ifp, LLTABLE6(ifp), l3addr);
-		}
-#endif	
-#ifdef INET
-		if (ssa->ss_family == AF_INET) {
-			if (rt->rt_flags & RTF_GATEWAY)
-				l3addr = (struct sockaddr_storage *)rt->rt_gateway;
-			else
-				l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-			lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);	
-		}
-			
-#endif
-		ro->ro_lle = lle;
-
-		if (lle == NULL) {
-			RTFREE(rt);
-			ro->ro_rt = NULL;
-			return (NULL);
-		}
-		error = flowtable_insert(ft, hash, key, fibnum, ro, flags);
-
-		if (error) {
-			RTFREE(rt);
-			LLE_FREE(lle);
-			ro->ro_rt = NULL;
-			ro->ro_lle = NULL;
-		}
+	if (ifp->if_flags & (IFF_POINTOPOINT | IFF_LOOPBACK)) {
+		RTFREE(rt);
+		return (NULL);
 	}
 
-	return ((error) ? NULL : fle);
+	switch (ssa->ss_family) {
+#ifdef INET
+	case AF_INET:
+		if (rt->rt_flags & RTF_GATEWAY)
+			l3addr = (struct sockaddr_storage *)rt->rt_gateway;
+		else
+			l3addr = (struct sockaddr_storage *)&ro->ro_dst;
+		lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);	
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6: {
+		struct sockaddr_in6 *dsin6;
+
+		dsin6 = (struct sockaddr_in6 *)dsa;			
+		if (in6_localaddr(&dsin6->sin6_addr)) {
+			RTFREE(rt);
+			return (NULL);				
+		}
+
+		if (rt->rt_flags & RTF_GATEWAY)
+			l3addr = (struct sockaddr_storage *)rt->rt_gateway;
+		else
+			l3addr = (struct sockaddr_storage *)&ro->ro_dst;
+		lle = llentry_alloc(ifp, LLTABLE6(ifp), l3addr);
+		break;
+	}
+#endif	
+	}
+
+	if (lle == NULL) {
+		RTFREE(rt);
+		return (NULL);
+	}
+	ro->ro_lle = lle;
+
+	if (flowtable_insert(ft, hash, key, fibnum, ro, flags) != 0) {
+		RTFREE(rt);
+		LLE_FREE(lle);
+		return (NULL);
+	}
+
+success:
+	if (fle != NULL && (m->m_flags & M_FLOWID) == 0) {
+		m->m_flags |= M_FLOWID;
+		m->m_pkthdr.flowid = fle->f_fhash;
+	}
+	return (fle);
 }
 
 /*
@@ -1296,37 +1106,24 @@ uncached:
  */
 #define calloc(count, size) malloc((count)*(size), M_DEVBUF, M_WAITOK|M_ZERO)
 	
-struct flowtable *
-flowtable_alloc(char *name, int nentry, int flags)
+static void
+flowtable_alloc(struct flowtable *ft)
 {
-	struct flowtable *ft, *fttail;
-	int i;
 
-	if (V_flow_hashjitter == 0)
-		V_flow_hashjitter = arc4random();
-
-	KASSERT(nentry > 0, ("nentry must be > 0, is %d\n", nentry));
-
-	ft = malloc(sizeof(struct flowtable),
-	    M_RTABLE, M_WAITOK | M_ZERO);
-
-	ft->ft_name = name;
-	ft->ft_flags = flags;
-	ft->ft_size = nentry;
 #ifdef RADIX_MPATH
 	ft->ft_rtalloc = rtalloc_mpath_fib;
 #else
 	ft->ft_rtalloc = rtalloc_ign_wrapper;
 #endif
-	if (flags & FL_PCPU) {
+	if (ft->ft_flags & FL_PCPU) {
 		ft->ft_lock = flowtable_pcpu_lock;
 		ft->ft_unlock = flowtable_pcpu_unlock;
 
-		for (i = 0; i <= mp_maxid; i++) {
+		for (int i = 0; i <= mp_maxid; i++) {
 			ft->ft_table.pcpu[i] =
-			    malloc(nentry*sizeof(struct flentry *),
+			    malloc(ft->ft_size * sizeof(struct flentry *),
 				M_RTABLE, M_WAITOK | M_ZERO);
-			ft->ft_masks[i] = bit_alloc(nentry);
+			ft->ft_masks[i] = bit_alloc(ft->ft_size);
 		}
 	} else {
 		ft->ft_lock_count = 2*(powerof2(mp_maxid + 1) ? (mp_maxid + 1):
@@ -1335,23 +1132,24 @@ flowtable_alloc(char *name, int nentry, int flags)
 		ft->ft_lock = flowtable_global_lock;
 		ft->ft_unlock = flowtable_global_unlock;
 		ft->ft_table.global =
-			    malloc(nentry*sizeof(struct flentry *),
+			    malloc(ft->ft_size * sizeof(struct flentry *),
 				M_RTABLE, M_WAITOK | M_ZERO);
 		ft->ft_locks = malloc(ft->ft_lock_count*sizeof(struct mtx),
 				M_RTABLE, M_WAITOK | M_ZERO);
-		for (i = 0; i < ft->ft_lock_count; i++)
-			mtx_init(&ft->ft_locks[i], "flow", NULL, MTX_DEF|MTX_DUPOK);
+		for (int i = 0; i < ft->ft_lock_count; i++)
+			mtx_init(&ft->ft_locks[i], "flow", NULL,
+			    MTX_DEF | MTX_DUPOK);
 
-		ft->ft_masks[0] = bit_alloc(nentry);
+		ft->ft_masks[0] = bit_alloc(ft->ft_size);
 	}
-	ft->ft_tmpmask = bit_alloc(nentry);
+	ft->ft_tmpmask = bit_alloc(ft->ft_size);
 
 	/*
 	 * In the local transmit case the table truly is
 	 * just a cache - so everything is eligible for
 	 * replacement after 5s of non-use
 	 */
-	if (flags & FL_HASH_ALL) {
+	if (ft->ft_flags & FL_HASH_ALL) {
 		ft->ft_udp_idle = V_flowtable_udp_expire;
 		ft->ft_syn_idle = V_flowtable_syn_expire;
 		ft->ft_fin_wait_idle = V_flowtable_fin_wait_expire;
@@ -1361,20 +1159,6 @@ flowtable_alloc(char *name, int nentry, int flags)
 		    ft->ft_syn_idle = ft->ft_tcp_idle = 30;
 		
 	}
-
-	/*
-	 * hook in to the cleaner list
-	 */
-	if (V_flow_list_head == NULL)
-		V_flow_list_head = ft;
-	else {
-		fttail = V_flow_list_head;
-		while (fttail->ft_next != NULL)
-			fttail = fttail->ft_next;
-		fttail->ft_next = ft;
-	}
-
-	return (ft);
 }
 
 /*
@@ -1395,17 +1179,16 @@ fle_free(struct flentry *fle, struct flowtable *ft)
 		RTFREE(rt);
 	if (lle != NULL)
 		LLE_FREE(lle);
-	flow_free(fle, ft);
+	uma_zfree(ft->ft_zone, fle);
 }
 
 static void
 flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 {
-	int curbit = 0, count, tmpsize;
+	int curbit = 0, tmpsize;
 	struct flentry *fle,  **flehead, *fleprev;
 	struct flentry *flefreehead, *flefreetail, *fletmp;
 	bitstr_t *mask, *tmpmask;
-	struct flowtable_stats *fs = &ft->ft_stats[curcpu];
 
 	flefreehead = flefreetail = NULL;
 	mask = flowtable_mask(ft);
@@ -1429,7 +1212,7 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 		flehead = flowtable_entry(ft, curbit);
 		fle = fleprev = *flehead;
 
-		fs->ft_free_checks++;
+		FLOWSTAT_INC(ft, ft_free_checks);
 #ifdef DIAGNOSTIC
 		if (fle == NULL && curbit > 0) {
 			log(LOG_ALERT,
@@ -1484,21 +1267,33 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 		tmpsize -= (curbit / 8) * 8;
 		bit_ffs(tmpmask, tmpsize, &curbit);
 	}
-	count = 0;
 	while ((fle = flefreehead) != NULL) {
 		flefreehead = fle->f_next;
-		count++;
-		fs->ft_frees++;
+		FLOWSTAT_INC(ft, ft_frees);
 		fle_free(fle, ft);
 	}
-	if (V_flowtable_debug && count)
-		log(LOG_DEBUG, "freed %d flow entries\n", count);
 }
 
 void
-flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
+flowtable_route_flush(sa_family_t sa, struct rtentry *rt)
 {
+	struct flowtable *ft;
 	int i;
+
+	switch (sa) {
+#ifdef INET
+	case AF_INET:
+		ft = &V_ip4_ft;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		ft = &V_ip6_ft;
+		break;
+#endif
+	default:
+		panic("%s: sa %d", __func__, sa);
+	}
 
 	if (ft->ft_flags & FL_PCPU) {
 		CPU_FOREACH(i) {
@@ -1522,34 +1317,29 @@ flowtable_route_flush(struct flowtable *ft, struct rtentry *rt)
 }
 
 static void
-flowtable_clean_vnet(void)
+flowtable_clean_vnet(struct flowtable *ft)
 {
-	struct flowtable *ft;
-	int i;
 
-	ft = V_flow_list_head;
-	while (ft != NULL) {
-		if (ft->ft_flags & FL_PCPU) {
-			CPU_FOREACH(i) {
-				if (smp_started == 1) {
-					thread_lock(curthread);
-					sched_bind(curthread, i);
-					thread_unlock(curthread);
-				}
+	if (ft->ft_flags & FL_PCPU) {
+		int i;
 
-				flowtable_free_stale(ft, NULL);
-
-				if (smp_started == 1) {
-					thread_lock(curthread);
-					sched_unbind(curthread);
-					thread_unlock(curthread);
-				}
+		CPU_FOREACH(i) {
+			if (smp_started == 1) {
+				thread_lock(curthread);
+				sched_bind(curthread, i);
+				thread_unlock(curthread);
 			}
-		} else {
+
 			flowtable_free_stale(ft, NULL);
+
+			if (smp_started == 1) {
+				thread_lock(curthread);
+				sched_unbind(curthread);
+				thread_unlock(curthread);
+			}
 		}
-		ft = ft->ft_next;
-	}
+	} else
+		flowtable_free_stale(ft, NULL);
 }
 
 static void
@@ -1565,7 +1355,12 @@ flowtable_cleaner(void)
 		VNET_LIST_RLOCK();
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
-			flowtable_clean_vnet();
+#ifdef INET
+			flowtable_clean_vnet(&V_ip4_ft);
+#endif
+#ifdef INET6
+			flowtable_clean_vnet(&V_ip6_ft);
+#endif
 			CURVNET_RESTORE();
 		}
 		VNET_LIST_RUNLOCK();
@@ -1606,25 +1401,44 @@ static struct kproc_desc flow_kp = {
 };
 SYSINIT(flowcleaner, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start, &flow_kp);
 
-static void
-flowtable_init_vnet(const void *unused __unused)
+static int
+flowtable_get_size(char *name)
 {
+	int size;
 
-	V_flowtable_nmbflows = 1024 + maxusers * 64 * mp_ncpus;
-	V_flow_ipv4_zone = uma_zcreate("ip4flow", sizeof(struct flentry_v4),
-	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);
-	V_flow_ipv6_zone = uma_zcreate("ip6flow", sizeof(struct flentry_v6),
-	    NULL, NULL, NULL, NULL, 64, UMA_ZONE_MAXBUCKET);	
-	uma_zone_set_max(V_flow_ipv4_zone, V_flowtable_nmbflows);
-	uma_zone_set_max(V_flow_ipv6_zone, V_flowtable_nmbflows);
-	V_flowtable_ready = 1;
+	if (TUNABLE_INT_FETCH(name, &size)) {
+		if (size < 256)
+			size = 256;
+		if (!powerof2(size)) {
+			printf("%s must be power of 2\n", name);
+			size = 2048;
+		}
+	} else {
+		/*
+		 * round up to the next power of 2
+		 */
+		size = 1 << fls((1024 + maxusers * 64) - 1);
+	}
+
+	return (size);
 }
-VNET_SYSINIT(flowtable_init_vnet, SI_SUB_SMP, SI_ORDER_ANY,
-    flowtable_init_vnet, NULL);
 
 static void
 flowtable_init(const void *unused __unused)
 {
+
+	flow_hashjitter = arc4random();
+
+#ifdef INET
+	flow_ipv4_zone = uma_zcreate("ip4flow", sizeof(struct flentry_v4),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_MAXBUCKET);
+	uma_zone_set_max(flow_ipv4_zone, 1024 + maxusers * 64 * mp_ncpus);
+#endif
+#ifdef INET6
+	flow_ipv6_zone = uma_zcreate("ip6flow", sizeof(struct flentry_v6),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_MAXBUCKET);
+	uma_zone_set_max(flow_ipv6_zone, 1024 + maxusers * 64 * mp_ncpus);
+#endif
 
 	cv_init(&flowclean_c_cv, "c_flowcleanwait");
 	cv_init(&flowclean_f_cv, "f_flowcleanwait");
@@ -1633,23 +1447,62 @@ flowtable_init(const void *unused __unused)
 	    EVENTHANDLER_PRI_ANY);
 	flowclean_freq = 20*hz;
 }
-SYSINIT(flowtable_init, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST,
+SYSINIT(flowtable_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
     flowtable_init, NULL);
 
+#ifdef INET
+static SYSCTL_NODE(_net_flowtable, OID_AUTO, ip4, CTLFLAG_RD, NULL,
+    "Flowtable for IPv4");
+SYSCTL_UMA_MAX(_net_flowtable_ip4, OID_AUTO, maxflows, CTLFLAG_RW,
+    &flow_ipv4_zone, "Maximum number of IPv4 flows allowed");
 
-#ifdef VIMAGE
+static VNET_PCPUSTAT_DEFINE(struct flowtable_stat, ip4_ftstat);
+VNET_PCPUSTAT_SYSINIT(ip4_ftstat);
+VNET_PCPUSTAT_SYSUNINIT(ip4_ftstat);
+SYSCTL_VNET_PCPUSTAT(_net_flowtable_ip4, OID_AUTO, stat, struct flowtable_stat,
+    ip4_ftstat, "Flowtable statistics for IPv4 "
+    "(struct flowtable_stat, net/flowtable.h)");
+
 static void
-flowtable_uninit(const void *unused __unused)
+flowtable_init_vnet_v4(const void *unused __unused)
 {
 
-	V_flowtable_ready = 0;
-	uma_zdestroy(V_flow_ipv4_zone);
-	uma_zdestroy(V_flow_ipv6_zone);
+	V_ip4_ft.ft_zone = flow_ipv4_zone;
+	V_ip4_ft.ft_size = flowtable_get_size("net.flowtable.ip4.size");
+	V_ip4_ft.ft_flags = FL_PCPU;
+	V_ip4_ft.ft_stat = VNET(ip4_ftstat);
+	flowtable_alloc(&V_ip4_ft);
 }
+VNET_SYSINIT(ft_vnet_v4, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    flowtable_init_vnet_v4, NULL);
+#endif /* INET */
 
-VNET_SYSUNINIT(flowtable_uninit, SI_SUB_KTHREAD_INIT, SI_ORDER_ANY,
-    flowtable_uninit, NULL);
-#endif
+#ifdef INET6
+static SYSCTL_NODE(_net_flowtable, OID_AUTO, ip6, CTLFLAG_RD, NULL,
+    "Flowtable for IPv6");
+SYSCTL_UMA_MAX(_net_flowtable_ip6, OID_AUTO, maxflows, CTLFLAG_RW,
+    &flow_ipv6_zone, "Maximum number of IPv6 flows allowed");
+
+static VNET_PCPUSTAT_DEFINE(struct flowtable_stat, ip6_ftstat);
+VNET_PCPUSTAT_SYSINIT(ip6_ftstat);
+VNET_PCPUSTAT_SYSUNINIT(ip6_ftstat);
+SYSCTL_VNET_PCPUSTAT(_net_flowtable_ip6, OID_AUTO, stat, struct flowtable_stat,
+    ip6_ftstat, "Flowtable statistics for IPv6 "
+    "(struct flowtable_stat, net/flowtable.h)");
+
+static void
+flowtable_init_vnet_v6(const void *unused __unused)
+{
+
+	V_ip6_ft.ft_zone = flow_ipv6_zone;
+	V_ip6_ft.ft_size = flowtable_get_size("net.flowtable.ip6.size");
+	V_ip6_ft.ft_flags = FL_PCPU;
+	V_ip6_ft.ft_stat = VNET(ip6_ftstat);
+	flowtable_alloc(&V_ip6_ft);
+}
+VNET_SYSINIT(flowtable_init_vnet_v6, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+    flowtable_init_vnet_v6, NULL);
+#endif /* INET6 */
 
 #ifdef DDB
 static uint32_t *
@@ -1796,23 +1649,17 @@ flowtable_show(struct flowtable *ft, int cpuid)
 }
 
 static void
-flowtable_show_vnet(void)
+flowtable_show_vnet(struct flowtable *ft)
 {
-	struct flowtable *ft;
-	int i;
 
-	ft = V_flow_list_head;
-	while (ft != NULL) {
-		printf("name: %s\n", ft->ft_name);
-		if (ft->ft_flags & FL_PCPU) {
-			CPU_FOREACH(i) {
-				flowtable_show(ft, i);
-			}
-		} else {
-			flowtable_show(ft, -1);
+	if (ft->ft_flags & FL_PCPU) {
+		int i;
+
+		CPU_FOREACH(i) {
+			flowtable_show(ft, i);
 		}
-		ft = ft->ft_next;
-	}
+	} else
+		flowtable_show(ft, -1);
 }
 
 DB_SHOW_COMMAND(flowtables, db_show_flowtables)
@@ -1824,7 +1671,14 @@ DB_SHOW_COMMAND(flowtables, db_show_flowtables)
 #ifdef VIMAGE
 		db_printf("vnet %p\n", vnet_iter);
 #endif
-		flowtable_show_vnet();
+#ifdef INET
+		printf("IPv4:\n");
+		flowtable_show_vnet(&V_ip4_ft);
+#endif
+#ifdef INET6
+		printf("IPv6:\n");
+		flowtable_show_vnet(&V_ip6_ft);
+#endif
 		CURVNET_RESTORE();
 	}
 }
