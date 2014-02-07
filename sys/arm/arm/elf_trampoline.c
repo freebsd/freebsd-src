@@ -189,7 +189,7 @@ _startC(void)
 	int physaddr = KERNPHYSADDR;
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
-#if defined(FLASHADDR) && defined(LOADERRAMADDR)
+#if defined(FLASHADDR) && defined(PHYSADDR) && defined(LOADERRAMADDR)
 	unsigned int pc;
 
 	__asm __volatile("mov %0, pc\n"

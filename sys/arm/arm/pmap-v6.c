@@ -1312,8 +1312,6 @@ pmap_init(void)
 	vm_size_t s;
 	int i, pv_npg;
 
-	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
-
 	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
 	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable), NULL,
