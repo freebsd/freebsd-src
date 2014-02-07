@@ -121,4 +121,4 @@ cheri_zerocap(void)
 } while (0)
 #endif
 
-#endif /* _MIPS_INCLUDE_CHERI_H_ */
+#endif /* _MIPS_INCLUDE_CHERIC_H_ */
