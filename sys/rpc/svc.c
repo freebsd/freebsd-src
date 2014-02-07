@@ -1180,9 +1180,9 @@ svc_run_internal(SVCPOOL *pool, bool_t ismaster)
 			 */
 			xprt->xp_lastactive = time_uptime;
 			do {
-				mtx_unlock(&pool->sp_lock);
 				if (!svc_request_space_available(pool))
 					break;
+				mtx_unlock(&pool->sp_lock);
 				rqstp = NULL;
 				stat = svc_getreq(xprt, &rqstp);
 				if (rqstp) {
