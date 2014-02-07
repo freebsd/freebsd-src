@@ -447,6 +447,7 @@ int	cheri_stack_sandboxexception(struct thread *td, struct trapframe *tf,
  * Global sysctl definitions required outside of cheri.c.
  */
 SYSCTL_DECL(_security_cheri);
+SYSCTL_DECL(_security_cheri_stats);
 #endif /* !_KERNEL */
 
 #endif /* _MIPS_INCLUDE_CHERI_H_ */

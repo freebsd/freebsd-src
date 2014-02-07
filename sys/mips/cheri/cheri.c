@@ -62,6 +62,9 @@
 SYSCTL_NODE(_security, OID_AUTO, cheri, CTLFLAG_RD, 0,
     "CHERI settings and statistics");
 
+SYSCTL_NODE(_security_cheri, OID_AUTO, stats, CTLFLAG_RD, 0,
+    "CHERI statistics");
+
 /* XXXRW: Should possibly be u_long. */
 static u_int	security_cheri_syscall_violations;
 SYSCTL_UINT(_security_cheri, OID_AUTO, syscall_violations, CTLFLAG_RD,
