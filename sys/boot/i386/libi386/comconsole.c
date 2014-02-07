@@ -181,8 +181,7 @@ comc_speed_set(struct env_var *ev, int flags, const void *value)
 	return (CMD_ERROR);
     }
 
-    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
-	comc_curspeed != speed)
+    if (comc_curspeed != speed)
 	comc_setup(speed, comc_port);
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
@@ -200,8 +199,7 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	return (CMD_ERROR);
     }
 
-    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
-	comc_port != port)
+    if (comc_port != port)
 	comc_setup(comc_curspeed, port);
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
@@ -309,6 +307,8 @@ comc_setup(int speed, int port)
     unsetenv("hw.uart.console");
     comc_curspeed = speed;
     comc_port = port;
+    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) == 0)
+	return;
 
     outb(comc_port + com_cfcr, CFCR_DLAB | COMC_FMT);
     outb(comc_port + com_dlbl, COMC_BPS(speed) & 0xff);
