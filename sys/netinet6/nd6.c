@@ -1925,6 +1925,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	    ln->ln_state < ND6_LLINFO_REACHABLE) {
 		if ((flags & LLE_EXCLUSIVE) == 0) {
 			flags |= LLE_EXCLUSIVE;
+			LLE_RUNLOCK(ln);
 			goto retry;
 		}
 		ln->ln_state = ND6_LLINFO_STALE;
