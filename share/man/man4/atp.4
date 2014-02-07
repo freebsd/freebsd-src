@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2009
+.Dd February 7, 2014
 .Dt ATP 4
 .Os
 .Sh NAME
@@ -114,57 +114,6 @@ type device\-\-see
 .Xr moused 8
 for an explanation of these mouse
 types.
-.Xr moused 8
-can be configured to read touchpad data from
-.Pa /dev/atp0
-and pass it along to the
-.Xr sysmouse 4
-driver so that any process wanting to utilize mouse operation (such as
-an X server) may fetch it from
-.Pa /dev/sysmouse ;
-alternatively,
-.Pa /dev/atp0
-may be manipulated via
-.Xr read 2
-and
-.Xr ioctl 2
-calls to get mouse data directly.
-.Sh EXAMPLES
-To use a compatible Apple Trackpad as your console mouse:
-.Pp
-.Dl moused -p /dev/atp0 -t auto
-.Pp
-To launch
-.Xr moused 8
-automatically upon boot, add the following to
-.Pa /etc/rc.conf :
-.Pp
-.Dl moused_enable="YES"
-.Dl moused_type="auto"
-.Dl moused_port="/dev/atp0"
-.Pp
-If you want
-.Xr moused 8
-to also probe for external USB mice or other devices, then add the
-following to
-.Pa /etc/rc.conf :
-.Pp
-.Dl moused_nondefault_enable="YES"
-.Dl moused_ums0_enable="YES"
-.Dl moused_ums1_enable="YES"
-.Pp
-To be able to use the trackpad under X, change the "Pointer" section in
-.Nm xorg.conf
-to the following:
-.Pp
-.Dl Device "/dev/atp0"
-.Dl Protocol "Auto"
-.Pp
-Better still, if you want to be able to use the mouse in both virtual
-consoles as well as in X change it to:
-.Pp
-.Dl Device "/dev/sysmouse"
-.Dl Protocol "Auto"
 .Sh SEE ALSO
 .Xr sysmouse 4 ,
 .Xr usb 4 ,
