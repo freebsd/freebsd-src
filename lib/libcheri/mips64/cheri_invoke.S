@@ -78,7 +78,7 @@
 cheri_invoke:
 
 	#
-	# Save caller-save general-purpose registers.
+	# Save callee-save general-purpose registers.
 	#
 	# Caller-save registers are: $s0..$s7, $gp, $sp, $s8 ($fp).
 	#
