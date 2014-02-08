@@ -102,7 +102,6 @@ device		loop
 device		md
 device          random          # Entropy device
 
-#options 	ARM_USE_SMALL_ALLOC
 
 device		usb
 #options 	USB_DEBUG

@@ -213,20 +213,6 @@ initarm(struct arm_boot_params *abp)
 	valloc_pages(kernelstack, KSTACK_PAGES);
 	alloc_pages(minidataclean.pv_pa, 1);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
-#ifdef ARM_USE_SMALL_ALLOC
-	freemempos -= PAGE_SIZE;
-	freemem_pt = trunc_page(freemem_pt);
-	freemem_after = freemempos - ((freemem_pt - 0xa0100000) /
-	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	    , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
-	freemem_after -= ((freemem_after - 0xa0001000) / PAGE_SIZE) *
-	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
-	freemempos = trunc_page(freemem_after);
-	freemempos -= PAGE_SIZE;
-#endif
 	/*
 	 * Allocate memory for the l1 and l2 page tables. The scheme to avoid
 	 * wasting memory by allocating the l1pt on the first 16k memory was
@@ -267,13 +253,6 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_entry(l1pagetable, afterkern, minidataclean.pv_pa,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-#ifdef ARM_USE_SMALL_ALLOC
-	if ((freemem_after + 2 * PAGE_SIZE) <= afterkern) {
-		arm_add_smallalloc_pages((void *)(freemem_after),
-		    (void*)(freemem_after + PAGE_SIZE),
-		    afterkern - (freemem_after + PAGE_SIZE), 0);
-	}
-#endif
 
 	/* Map the Mini-Data cache clean area. */
 	xscale_setup_minidata(l1pagetable, afterkern,
@@ -350,10 +329,6 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	/*
-	 * ARM USE_SMALL_ALLOC uses dump_avail, so it must be filled before
-	 * calling pmap_bootstrap.
-	 */
 	i = 0;
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
 		if (memsize[j] > 0) {
@@ -371,13 +346,6 @@ initarm(struct arm_boot_params *abp)
 	mutex_init();
 
 	i = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[i++] = 0xa0000000;
-	phys_avail[i++] = 0xa0001000; 	/*
-					 *XXX: Gross hack to get our
-					 * pages in the vm_page_array
-					 . */
-#endif
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
 		if (memsize[j] > 0) {
 			phys_avail[i] = round_page(memstart[j]);
@@ -393,11 +361,7 @@ initarm(struct arm_boot_params *abp)
 	phys_avail[i++] = 0;
 	dump_avail[i] = 0;
 	phys_avail[i] = 0;
-#ifdef ARM_USE_SMALL_ALLOC
-	phys_avail[2] = round_page(virtual_avail - KERNBASE + phys_avail[2]);
-#else
 	phys_avail[0] = round_page(virtual_avail - KERNBASE + phys_avail[0]);
-#endif
 
 	init_param2(physmem);
 	kdb_init();
