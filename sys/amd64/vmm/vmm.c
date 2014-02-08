@@ -89,6 +89,7 @@ struct vcpu {
 	struct vlapic	*vlapic;
 	int		 vcpuid;
 	struct savefpu	*guestfpu;	/* guest fpu state */
+	uint64_t	guest_xcr0;
 	void		*stats;
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
@@ -206,6 +207,7 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
 	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
+	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
@@ -815,6 +817,10 @@ restore_guest_fpustate(struct vcpu *vcpu)
 	fpu_stop_emulating();
 	fpurestore(vcpu->guestfpu);
 
+	/* restore guest XCR0 if XSAVE is enabled in the host */
+	if (rcr4() & CR4_XSAVE)
+		load_xcr(0, vcpu->guest_xcr0);
+
 	/*
 	 * The FPU is now "dirty" with the guest's state so turn on emulation
 	 * to trap any access to the FPU by the host.
@@ -828,6 +834,12 @@ save_guest_fpustate(struct vcpu *vcpu)
 
 	if ((rcr0() & CR0_TS) == 0)
 		panic("fpu emulation not enabled in host!");
+
+	/* save guest XCR0 and restore host XCR0 */
+	if (rcr4() & CR4_XSAVE) {
+		vcpu->guest_xcr0 = rxcr(0);
+		load_xcr(0, vmm_get_host_xcr0());
+	}
 
 	/* save guest FPU state */
 	fpu_stop_emulating();

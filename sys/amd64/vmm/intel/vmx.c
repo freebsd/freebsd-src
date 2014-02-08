@@ -1228,6 +1228,40 @@ vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
 }
 
 static int
+vmx_emulate_xsetbv(struct vmx *vmx, int vcpu)
+{
+	struct vmxctx *vmxctx;
+	uint64_t xcrval;
+	const struct xsave_limits *limits;
+
+	vmxctx = &vmx->ctx[vcpu];
+	limits = vmm_get_xsave_limits();
+
+	/* We only handle xcr0 if the host has XSAVE enabled. */
+	if (vmxctx->guest_rcx != 0 || !limits->xsave_enabled)
+		return (UNHANDLED);
+
+	xcrval = vmxctx->guest_rdx << 32 | (vmxctx->guest_rax & 0xffffffff);
+	if ((xcrval & ~limits->xcr0_allowed) != 0)
+		return (UNHANDLED);
+
+	if (!(xcrval & XFEATURE_ENABLED_X87))
+		return (UNHANDLED);
+
+	if ((xcrval & (XFEATURE_ENABLED_AVX | XFEATURE_ENABLED_SSE)) ==
+	    XFEATURE_ENABLED_AVX)
+		return (UNHANDLED);
+
+	/*
+	 * This runs "inside" vmrun() with the guest's FPU state, so
+	 * modifying xcr0 directly modifies the guest's xcr0, not the
+	 * host's.
+	 */
+	load_xcr(0, xcrval);
+	return (HANDLED);
+}
+
+static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
 	int cr, vmcs_guest_cr, vmcs_shadow_cr;
@@ -1773,6 +1807,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->inst_length = 0;
 		vlapic = vm_lapic(vmx->vm, vcpu);
 		handled = vmx_handle_apic_write(vlapic, qual);
+		break;
+	case EXIT_REASON_XSETBV:
+		handled = vmx_emulate_xsetbv(vmx, vcpu);
 		break;
 	default:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
