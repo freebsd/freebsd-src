@@ -110,9 +110,6 @@ struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
 
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
-
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
 struct pv_addr irqstack;
