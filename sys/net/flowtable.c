@@ -103,7 +103,7 @@ union ipv6_flow {
 struct flentry {
 	volatile uint32_t	f_fhash;	/* hash flowing forward */
 	uint16_t		f_flags;	/* flow flags */
-	uint8_t			f_pad;		
+	uint8_t			f_pad;
 	uint8_t			f_proto;	/* protocol */
 	uint32_t		f_fibnum;	/* fib index */
 	uint32_t		f_uptime;	/* uptime at last access */
@@ -246,7 +246,7 @@ rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
 
 static void
 flowtable_global_lock(struct flowtable *table, uint32_t hash)
-{	
+{
 	int lock_index = (hash)&(table->ft_lock_count - 1);
 
 	mtx_lock(&table->ft_locks[lock_index]);
@@ -254,7 +254,7 @@ flowtable_global_lock(struct flowtable *table, uint32_t hash)
 
 static void
 flowtable_global_unlock(struct flowtable *table, uint32_t hash)
-{	
+{
 	int lock_index = (hash)&(table->ft_lock_count - 1);
 
 	mtx_unlock(&table->ft_locks[lock_index]);
@@ -295,7 +295,7 @@ proto_to_flags(uint8_t proto)
 		break;
 	case IPPROTO_SCTP:
 		flag = FL_SCTP;
-		break;		
+		break;
 	case IPPROTO_UDP:
 		flag = FL_UDP;
 		break;
@@ -371,7 +371,7 @@ ipv4_mbuf_demarshal(struct mbuf *m, struct sockaddr_in *ssin,
 	dsin->sin_addr = ip->ip_dst;
 	ssin->sin_family = AF_INET;
 	ssin->sin_len = sizeof(*ssin);
-	ssin->sin_addr = ip->ip_src;	
+	ssin->sin_addr = ip->ip_src;
 
 	proto = ip->ip_p;
 	if ((*flags & FL_HASH_ALL) == 0)
@@ -402,7 +402,7 @@ ipv4_mbuf_demarshal(struct mbuf *m, struct sockaddr_in *ssin,
 		return (ENOTSUP);
 		/* no port - hence not a protocol we care about */
 		break;
-	
+
 	}
 
 skipports:
@@ -550,7 +550,7 @@ ipv6_mbuf_demarshal(struct mbuf *m, struct sockaddr_in6 *ssin6,
 			ulp = NULL;
 			break;
 		case IPPROTO_ROUTING:	/* RFC 2460 */
-			PULLUP_TO(hlen, ulp, struct ip6_rthdr);	
+			PULLUP_TO(hlen, ulp, struct ip6_rthdr);
 			hlen += (((struct ip6_rthdr *)ulp)->ip6r_len + 1) << 3;
 			proto = ((struct ip6_rthdr *)ulp)->ip6r_nxt;
 			ulp = NULL;
@@ -613,7 +613,7 @@ do {				\
 	key[7] = 0;		\
 	key[8] = 0;		\
 } while (0)
-	
+
 static uint32_t
 ipv6_flow_lookup_hash(
 	struct sockaddr_in6 *ssin6, struct sockaddr_in6 *dsin6,
@@ -647,7 +647,7 @@ static struct flentry *
 flowtable_lookup_ipv6(struct mbuf *m)
 {
 	struct sockaddr_storage ssa, dsa;
-	struct sockaddr_in6 *dsin6, *ssin6;	
+	struct sockaddr_in6 *dsin6, *ssin6;
 	uint16_t flags;
 
 	dsin6 = (struct sockaddr_in6 *)&dsa;
@@ -655,7 +655,7 @@ flowtable_lookup_ipv6(struct mbuf *m)
 	bzero(dsin6, sizeof(*dsin6));
 	bzero(ssin6, sizeof(*ssin6));
 	flags = V_ip6_ft.ft_flags;
-	
+
 	if (ipv6_mbuf_demarshal(m, ssin6, dsin6, &flags) != 0)
 		return (NULL);
 
@@ -706,7 +706,7 @@ flowtable_entry(struct flowtable *ft, uint32_t hash)
 		KASSERT(&ft->ft_table.global[0] != NULL, ("global not set"));
 		fle = &ft->ft_table.global[index];
 	}
-	
+
 	return (fle);
 }
 
@@ -754,7 +754,7 @@ flowtable_set_hashkey(struct flentry *fle, uint32_t *key)
 		nwords = 3;
 		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
 	}
-	
+
 	for (i = 0; i < nwords; i++)
 		hashkey[i] = key[i];
 }
@@ -764,7 +764,7 @@ flow_full(struct flowtable *ft)
 {
 	boolean_t full;
 	int count, max;
-	
+
 	full = ft->ft_full;
 	count = uma_zone_get_cur(ft->ft_zone);
 	max = uma_zone_get_max(ft->ft_zone);
@@ -773,7 +773,7 @@ flow_full(struct flowtable *ft)
 		ft->ft_full = FALSE;
 	else if (!full && (count > (max - (max >> 5))))
 		ft->ft_full = TRUE;
-	
+
 	if (full && !ft->ft_full) {
 		flowclean_freq = 4*hz;
 		if ((ft->ft_flags & FL_HASH_ALL) == 0)
@@ -816,7 +816,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 		*flep = fle = newfle;
 		goto skip;
 	}
-	
+
 	depth = 0;
 	FLOWSTAT_INC(ft, ft_collisions);
 	/*
@@ -831,7 +831,7 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 			 */
 			FL_ENTRY_UNLOCK(ft, hash);
 			uma_zfree(ft->ft_zone, newfle);
-			
+
 			return (EEXIST);
 		}
 		/*
@@ -990,7 +990,7 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 		FL_ENTRY_UNLOCK(ft, hash);
 		goto uncached;
 	}
-keycheck:	
+keycheck:
 	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
 	if ((rt != NULL)
@@ -1048,17 +1048,17 @@ uncached:
 			l3addr = (struct sockaddr_storage *)rt->rt_gateway;
 		else
 			l3addr = (struct sockaddr_storage *)&ro->ro_dst;
-		lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);	
+		lle = llentry_alloc(ifp, LLTABLE(ifp), l3addr);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6: {
 		struct sockaddr_in6 *dsin6;
 
-		dsin6 = (struct sockaddr_in6 *)dsa;			
+		dsin6 = (struct sockaddr_in6 *)dsa;
 		if (in6_localaddr(&dsin6->sin6_addr)) {
 			RTFREE(rt);
-			return (NULL);				
+			return (NULL);
 		}
 
 		if (rt->rt_flags & RTF_GATEWAY)
@@ -1068,7 +1068,7 @@ uncached:
 		lle = llentry_alloc(ifp, LLTABLE6(ifp), l3addr);
 		break;
 	}
-#endif	
+#endif
 	}
 
 	if (lle == NULL) {
@@ -1095,7 +1095,7 @@ success:
  * used by the bit_alloc macro
  */
 #define calloc(count, size) malloc((count)*(size), M_DEVBUF, M_WAITOK|M_ZERO)
-	
+
 static void
 flowtable_alloc(struct flowtable *ft)
 {
@@ -1118,7 +1118,7 @@ flowtable_alloc(struct flowtable *ft)
 	} else {
 		ft->ft_lock_count = 2*(powerof2(mp_maxid + 1) ? (mp_maxid + 1):
 		    (fls(mp_maxid + 1) << 1));
-		
+
 		ft->ft_lock = flowtable_global_lock;
 		ft->ft_unlock = flowtable_global_unlock;
 		ft->ft_table.global =
@@ -1147,7 +1147,7 @@ flowtable_alloc(struct flowtable *ft)
 	} else {
 		ft->ft_udp_idle = ft->ft_fin_wait_idle =
 		    ft->ft_syn_idle = ft->ft_tcp_idle = 30;
-		
+
 	}
 }
 
@@ -1209,7 +1209,7 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 			    "warning bit=%d set, but no fle found\n",
 			    curbit);
 		}
-#endif		
+#endif
 		while (fle != NULL) {
 			if (rt != NULL) {
 				if (__DEVOLATILE(struct rtentry *, fle->f_rt) != rt) {
@@ -1532,7 +1532,7 @@ flowtable_entry_pcpu(struct flowtable *ft, uint32_t hash, int cpuid)
 	} else {
 		fle = &ft->ft_table.global[index];
 	}
-	
+
 	return (fle);
 }
 
@@ -1559,7 +1559,7 @@ flow_show(struct flowtable *ft, struct flentry *fle)
 
 	inet_ntoa_r(*(struct in_addr *) &hashkey[2], daddr);
 	if (ft->ft_flags & FL_HASH_ALL) {
-		inet_ntoa_r(*(struct in_addr *) &hashkey[1], saddr);		
+		inet_ntoa_r(*(struct in_addr *) &hashkey[1], saddr);
 		sport = ntohs(((uint16_t *)hashkey)[0]);
 		dport = ntohs(((uint16_t *)hashkey)[1]);
 		db_printf("%s:%d->%s:%d",
@@ -1583,9 +1583,9 @@ skipaddr:
 		if (ifp->if_flags & IFF_LOOPBACK)
 			db_printf(" IFF_LOOPBACK ");
 		if (ifp->if_flags & IFF_UP)
-			db_printf(" IFF_UP ");		
+			db_printf(" IFF_UP ");
 		if (ifp->if_flags & IFF_POINTOPOINT)
-			db_printf(" IFF_POINTOPOINT ");		
+			db_printf(" IFF_POINTOPOINT ");
 	}
 	if (fle->f_flags & FL_IPV6)
 		db_printf("\n\tkey=%08x:%08x:%08x%08x:%08x:%08x%08x:%08x:%08x",
@@ -1628,7 +1628,7 @@ flowtable_show(struct flowtable *ft, int cpuid)
 		flehead = flowtable_entry_pcpu(ft, curbit, cpuid);
 		fle = *flehead;
 
-		while (fle != NULL) {	
+		while (fle != NULL) {
 			flow_show(ft, fle);
 			fle = fle->f_next;
 			continue;
