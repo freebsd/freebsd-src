@@ -111,6 +111,7 @@
 			      <0x40019000 0x1000>; /* TCD */
 			interrupts = < 40 41 >;
 			interrupt-parent = <&GIC>;
+			device-id = < 0 >;
 			status = "disabled";
 		};
 
@@ -120,6 +121,7 @@
 			      <0x40099000 0x1000>; /* TCD */
 			interrupts = < 42 43 >;
 			interrupt-parent = <&GIC>;
+			device-id = < 1 >;
 			status = "disabled";
 		};
 
@@ -308,6 +310,7 @@
 			interrupts = < 119 >;
 			interrupt-parent = <&GIC>;
 			status = "disabled";
+			edma-controller = <&edma1>;
 			clock_names = "sai3", "cko1";
 			iomux_config = < 16 0x2
 					 19 0x2
