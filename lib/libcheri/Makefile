@@ -6,7 +6,8 @@ SRCS=	__cheri_enter.S			\
 	cheri_enter.c			\
 	cheri_system.c			\
 	libcheri_stat.c			\
-	sandbox.c
+	sandbox.c			\
+	sandbox_loader.c
 
 INCS=	cheri_enter.h			\
 	cheri_invoke.h			\

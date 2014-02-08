@@ -56,6 +56,7 @@
 #include "cheri_invoke.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
+#include "sandbox_internal.h"
 #include "sandboxasm.h"
 
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
@@ -69,63 +70,6 @@
  * default but may be enabled using an environmental variable.
  */
 int sb_verbose;
-
-/*
- * Description of a 'sandbox class': an instance of code that may be sandboxed
- * and invoked, along with statistics/monitoring information, etc.
- *
- * NB: For now, support up to 'SANDBOX_CLASS_METHOD_COUNT' sets of method
- * statistics, which will be indexed by method number.  If the requested
- * method number isn't in range, use the catchall entry instead.
- *
- * XXXRW: Ideally, we would load this data from the target ELF rather than
- * letting the caller provide it.
- */
-#define	SANDBOX_CLASS_METHOD_COUNT	32
-struct sandbox_class {
-	char			*sbc_path;
-	int			 sbc_fd;
-	struct stat		 sbc_stat;
-	size_t			 sbc_sandboxlen;
-	struct sandbox_class_stat	*sbc_sandbox_class_statp;
-	struct sandbox_method_stat	*sbc_sandbox_method_nonamep;
-	struct sandbox_method_stat	*sbc_sandbox_methods[
-					    SANDBOX_CLASS_METHOD_COUNT];
-};
-
-/*-
- * Description of a 'sandbox object' or 'sandbox instance': an in-flight
- * combination of code and data.  Currently, due to compiler limitations, we
- * must conflate 'code', 'heap', and 'stack', but eventually would like to
- * allow one VM mapping of code to serve many object instances.  This would
- * also ease supporting multithreaded objects.
- *
- * TODO:
- * - Add atomically set flag and assertion to ensure single-threaded entry to
- *   the sandbox.
- * - Once the compiler supports it, move the code memory mapping and
- *   capability out of sandbox_object into sandbox_class.
- */
-struct sandbox_object {
-	struct sandbox_class	*sbo_sandbox_classp;
-	void			*sbo_mem;
-	register_t		 sbo_sandboxlen;
-	register_t		 sbo_heapbase;
-	register_t		 sbo_heaplen;
-	struct cheri_object	 sbo_cheri_object;
-	struct cheri_object	 sbo_cheri_system_object;
-	struct sandbox_object_stat	*sbo_sandbox_object_statp;
-};
-
-/*
- * A classic 'sandbox' is actually a combination of a sandbox class and a
- * sandbox object.  We continue to support this model as it is used in some
- * CHERI demo and test code.
- */
-struct sandbox {
-	struct sandbox_class	*sb_sandbox_classp;
-	struct sandbox_object	*sb_sandbox_objectp;
-};
 
 /*
  * Routines for measuring time -- depends on a later MIPS userspace cycle
@@ -259,243 +203,24 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 	free(sbcp);
 }
 
-extern void __cheri_enter;
-
 int
 sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 {
-	__capability void *basecap, *sbcap;
 	struct sandbox_object *sbop;
-	struct sandbox_metadata *sbm;
-	size_t length;
-	int saved_errno;
-	uint8_t *base;
-	register_t v;
+	int error;
 
 	sbop = calloc(1, sizeof(*sbop));
 	if (sbop == NULL)
 		return (-1);
 	sbop->sbo_sandbox_classp = sbcp;
 
-	/*
-	 * Perform an initial reservation of space for the sandbox, but using
-	 * anonymous memory that is neither readable nor writable.  This
-	 * ensures there is space for all the various segments we will be
-	 * installing later.
-	 *
-	 * The rough sandbox memory map is as follows:
-	 *
-	 * K + 0x1000 [stack]
-	 * K          [guard page]
-	 * J + 0x1000 [heap]
-	 * J          [guard page]
-	 * 0x8000     [memory mapped binary] (SANDBOX_ENTRY)
-	 * 0x2000     [guard page]
-	 * 0x1000     [read-only sandbox metadata page]
-	 * 0x0000     [guard page]
-	 *
-	 * Address constants in sandbox.h must be synchronised with the layout
-	 * implemented here.  Location and contents of sandbox metadata is
-	 * part of the ABI.
-	 */
-	length = sbcp->sbc_sandboxlen;
-	base = sbop->sbo_mem = mmap(NULL, length, 0, MAP_ANON, -1, 0);
-	if (sbop->sbo_mem == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap region", __func__);
-		goto error;
+	error = sandbox_object_load(sbcp, sbop);
+	if (error) {
+		free(sbop);
+		return (-1);
 	}
-
-	/*
-	 * Skip guard page(s) to the base of the metadata structure.
-	 */
-	base += SANDBOX_METADATA_BASE;
-	length -= SANDBOX_METADATA_BASE;
-
-	/*
-	 * Map metadata structure -- but can't fill it out until we have
-	 * calculated all the other addresses involved.
-	 */
-	if ((sbm = mmap(base, METADATA_SIZE, PROT_READ | PROT_WRITE,
-	    MAP_ANON | MAP_FIXED, -1, 0)) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap metadata", __func__);
-		goto error;
-	}
-
-	/*
-	 * Skip forward to the mapping location for the binary -- in case we
-	 * add more metadata in the future.  Assert that we didn't bump into
-	 * the sandbox entry address.  This address is hard to change as it is
-	 * the address used in static linking for sandboxed code.
-	 */
-	assert((register_t)base - (register_t)sbop->sbo_mem < SANDBOX_ENTRY);
-	base = (void *)((register_t)sbop->sbo_mem + SANDBOX_ENTRY);
-	length = sbcp->sbc_sandboxlen - SANDBOX_ENTRY;
-
-	/*
-	 * Map program binary.
-	 */
-	if (mmap(base, sbcp->sbc_stat.st_size, PROT_READ | PROT_WRITE,
-	    MAP_PRIVATE | MAP_FIXED, sbcp->sbc_fd, 0) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap %s", __func__, sbcp->sbc_path);
-		goto error;
-	}
-	base += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
-	length += roundup2(sbcp->sbc_stat.st_size, PAGE_SIZE);
-
-	/*
-	 * Skip guard page.
-	 */
-	base += GUARD_PAGE_SIZE;
-	length -= GUARD_PAGE_SIZE;
-
-	/*
-	 * Heap.
-	 */
-	sbop->sbo_heapbase = (register_t)base - (register_t)sbop->sbo_mem;
-	sbop->sbo_heaplen = length - (GUARD_PAGE_SIZE + STACK_SIZE);
-	if (mmap(base, sbop->sbo_heaplen, PROT_READ | PROT_WRITE,
-	    MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap heap", __func__);
-		goto error;
-	}
-	memset(base, 0, sbop->sbo_heaplen);
-	base += sbop->sbo_heaplen;
-	length -= sbop->sbo_heaplen;
-
-	/*
-	 * Skip guard page.
-	 */
-	base += GUARD_PAGE_SIZE;
-	length -= GUARD_PAGE_SIZE;
-
-	/*
-	 * Stack.
-	 */
-	if (mmap(base, length, PROT_READ | PROT_WRITE, MAP_ANON | MAP_FIXED,
-	    -1, 0) == MAP_FAILED) {
-		saved_errno = errno;
-		warn("%s: mmap stack", __func__);
-		goto error;
-	}
-	memset(base, 0, length);
-	base += STACK_SIZE;
-	length -= STACK_SIZE;
-
-	/*
-	 * There should not be too much, nor too little space remaining.  0
-	 * is our Goldilocks number.
-	 */
-	assert(length == 0);
-
-	/*
-	 * Now that addresses are known, write out metadata for in-sandbox
-	 * use; then mprotect() so that it can't be modified by the sandbox.
-	 */
-	sbm->sbm_heapbase = sbop->sbo_heapbase;
-	sbm->sbm_heaplen = sbop->sbo_heaplen;
-	if (mprotect(base, METADATA_SIZE, PROT_READ) < 0) {
-		saved_errno = errno;
-		warn("%s: mprotect metadata", __func__);
-		goto error;
-	}
-
-	if (sbcp->sbc_sandbox_class_statp != NULL) {
-		(void)sandbox_stat_object_register(
-		    &sbop->sbo_sandbox_object_statp,
-		    sbcp->sbc_sandbox_class_statp,
-		    SANDBOX_OBJECT_TYPE_POINTER, (uintptr_t)sbop->sbo_mem);
-		SANDBOX_CLASS_ALLOC(sbcp->sbc_sandbox_class_statp);
-	}
-
-	/*
-	 * Construct a generic capability that describes the combined
-	 * data/code segment that we will seal.
-	 */
-	basecap = cheri_ptrtype(sbop->sbo_mem, sbcp->sbc_sandboxlen,
-	    SANDBOX_ENTRY);
-
-	/* Construct sealed code capability. */
-	sbcap = cheri_andperm(basecap, CHERI_PERM_EXECUTE | CHERI_PERM_LOAD |
-	    CHERI_PERM_SEAL);
-	sbop->sbo_cheri_object.co_codecap =
-	    cheri_sealcode(sbcap);
-
-	/* Construct sealed data capability. */
-	sbcap = cheri_andperm(basecap, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_cheri_object.co_datacap = cheri_sealdata(sbcap, basecap);
-
-	/*
-	 * Construct an object capability for the system class instance that
-	 * will be passed into the sandbox.  Its code capability is just our
-	 * $c0; the data capability is to the sandbox structure itself, which
-	 * allows the system class to identify which sandbox a request is
-	 * being issued from.
-	 *
-	 * Note that $c0 in the 'sandbox' will be set from $pcc, so leave a
-	 * full set of write/etc permissions on the code capability.
-	 */
-	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
-	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
-
-	sbcap = cheri_ptr(sbop, sizeof(*sbop));
-	sbcap = cheri_andperm(sbcap,
-	    CHERI_PERM_LOAD | CHERI_PERM_STORE | CHERI_PERM_LOAD_CAP |
-	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_EPHEM_CAP);
-	sbop->sbo_cheri_system_object.co_datacap = cheri_sealdata(sbcap,
-	    basecap);
-
-	/* XXXRW: This is not right for USE_C_CAPS. */
-	if (sb_verbose) {
-		printf("Sandbox configured:\n");
-		printf("  Path: %s\n", sbcp->sbc_path);
-		printf("  Mem: %p\n", sbop->sbo_mem);
-		printf("  Len: %ju\n", (uintmax_t)sbcp->sbc_sandboxlen);
-		printf("  Code capability:\n");
-		CHERI_CGETTAG(v, 1);
-		printf("    t %u", (u_int)v);
-		CHERI_CGETUNSEALED(v, 1);
-		printf(" u %u", (u_int)v);
-		CHERI_CGETPERM(v, 1);
-		printf(" perms %04x", (u_int)v);
-		CHERI_CGETTYPE(v, 1);
-		printf(" otype %p\n", (void *)v);
-		CHERI_CGETBASE(v, 1);
-		printf("    base %p", (void *)v);
-		CHERI_CGETLEN(v, 1);
-		printf(" length %p\n", (void *)v);
-
-		printf("  Data capability:\n");
-		CHERI_CGETTAG(v, 2);
-		printf("    t %u", (u_int)v);
-		CHERI_CGETUNSEALED(v, 2);
-		printf(" u %u", (u_int)v);
-		CHERI_CGETPERM(v, 2);
-		printf(" perms %04x", (u_int)v);
-		CHERI_CGETTYPE(v, 2);
-		printf(" otype %p\n", (void *)v);
-		CHERI_CGETBASE(v, 2);
-		printf("    base %p", (void *)v);
-		CHERI_CGETLEN(v, 2);
-		printf(" length %p\n", (void *)v);
-	}
-
 	*sbopp = sbop;
 	return (0);
-
-error:
-	if (sbop != NULL) {
-		if (sbop->sbo_mem != NULL)
-			munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
-		free(sbop);
-	}
-	errno = saved_errno;
-	return (-1);
 }
 
 register_t
@@ -609,7 +334,7 @@ sandbox_object_destroy(struct sandbox_object *sbop)
 	if (sbop->sbo_sandbox_object_statp != NULL)
 		(void)sandbox_stat_object_deregister(
 		    sbop->sbo_sandbox_object_statp);
-	munmap(sbop->sbo_mem, sbcp->sbc_sandboxlen);
+	sandbox_object_unload(sbcp, sbop);	/* Unmap memory. */
 	bzero(sbop, sizeof(*sbop));		/* Clears tags. */
 	free(sbop);
 }
