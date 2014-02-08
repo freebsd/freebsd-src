@@ -46,6 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#endif
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -62,10 +67,94 @@ struct vga_pci_softc {
 
 SYSCTL_DECL(_hw_pci);
 
+static struct vga_resource *lookup_res(struct vga_pci_softc *sc, int rid);
+static struct resource *vga_pci_alloc_resource(device_t dev, device_t child,
+    int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
+static int	vga_pci_release_resource(device_t dev, device_t child, int type,
+    int rid, struct resource *r);
+
 int vga_pci_default_unit = -1;
 TUNABLE_INT("hw.pci.default_vgapci_unit", &vga_pci_default_unit);
 SYSCTL_INT(_hw_pci, OID_AUTO, default_vgapci_unit, CTLFLAG_RDTUN,
     &vga_pci_default_unit, -1, "Default VGA-compatible display");
+
+int
+vga_pci_is_boot_display(device_t dev)
+{
+
+	/*
+	 * Return true if the given device is the default display used
+	 * at boot time.
+	 */
+	return (
+	    (pci_get_class(dev) == PCIC_DISPLAY ||
+	     (pci_get_class(dev) == PCIC_OLD &&
+	      pci_get_subclass(dev) == PCIS_OLD_VGA)) &&
+	    device_get_unit(dev) == vga_pci_default_unit);
+}
+
+void *
+vga_pci_map_bios(device_t dev, size_t *size)
+{
+	int rid;
+	struct resource *res;
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/*
+		 * On x86, the System BIOS copy the default display
+		 * device's Video BIOS at a fixed location in system
+		 * memory (0xC0000, 128 kBytes long) at boot time.
+		 *
+		 * We use this copy for the default boot device, because
+		 * the original ROM may not be valid after boot.
+		 */
+
+		*size = VGA_PCI_BIOS_SHADOW_SIZE;
+		return (pmap_mapbios(VGA_PCI_BIOS_SHADOW_ADDR, *size));
+	}
+#endif
+
+	rid = PCIR_BIOS;
+	res = vga_pci_alloc_resource(dev, NULL, SYS_RES_MEMORY, &rid, 0ul,
+	    ~0ul, 1, RF_ACTIVE);
+	if (res == NULL) {
+		return (NULL);
+	}
+
+	*size = rman_get_size(res);
+	return (rman_get_virtual(res));
+}
+
+void
+vga_pci_unmap_bios(device_t dev, void *bios)
+{
+	struct vga_resource *vr;
+
+	if (bios == NULL) {
+		return;
+	}
+
+#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
+	if (vga_pci_is_boot_display(dev)) {
+		/* We mapped the BIOS shadow copy located at 0xC0000. */
+		pmap_unmapdev((vm_offset_t)bios, VGA_PCI_BIOS_SHADOW_SIZE);
+
+		return;
+	}
+#endif
+
+	/*
+	 * Look up the PCIR_BIOS resource in our softc.  It should match
+	 * the address we returned previously.
+	 */
+	vr = lookup_res(device_get_softc(dev), PCIR_BIOS);
+	KASSERT(vr->vr_res != NULL, ("vga_pci_unmap_bios: bios not mapped"));
+	KASSERT(rman_get_virtual(vr->vr_res) == bios,
+	    ("vga_pci_unmap_bios: mismatch"));
+	vga_pci_release_resource(dev, NULL, SYS_RES_MEMORY, PCIR_BIOS,
+	    vr->vr_res);
+}
 
 static int
 vga_pci_probe(device_t dev)
