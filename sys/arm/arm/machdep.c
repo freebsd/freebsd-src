@@ -783,9 +783,6 @@ makectx(struct trapframe *tf, struct pcb *pcb)
  * Make a standard dump_avail array.  Can't make the phys_avail
  * since we need to do that after we call pmap_bootstrap, but this
  * is needed before pmap_boostrap.
- *
- * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
- * calling pmap_bootstrap.
  */
 void
 arm_dump_avail_init(vm_paddr_t physaddr, vm_offset_t ramsize, size_t max)
