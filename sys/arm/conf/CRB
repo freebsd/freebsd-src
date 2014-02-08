@@ -106,6 +106,5 @@ device		md
 device		random		# Entropy device
 
 device		iopwdog
-options 	ARM_USE_SMALL_ALLOC
 # Floppy drives
 
