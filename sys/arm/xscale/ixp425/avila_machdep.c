@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 
@@ -113,9 +114,6 @@ extern u_int undefined_handler_address;
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 /* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 
 struct pv_addr systempage;
 struct pv_addr msgbufpv;
@@ -391,7 +389,6 @@ initarm(struct arm_boot_params *abp)
 		memsize = ixp435_ddram_size();
 	else
 		memsize = ixp425_sdram_size();
-	physmem = memsize / PAGE_SIZE;
 
 	/* Set stack for exception handlers */
 
@@ -405,19 +402,26 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	arm_dump_avail_init(abp->abp_physaddr, memsize,
-	    sizeof(dump_avail) / sizeof(dump_avail[0]));
 	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
-	phys_avail[i++] = round_page(virtual_avail - KERNBASE + PHYSADDR);
-	phys_avail[i++] = trunc_page(PHYSADDR + memsize - 1);
-	phys_avail[i++] = 0;
-	phys_avail[i] = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel, and all the things we allocated which immediately
+	 * follow the kernel, from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(PHYSADDR, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();
