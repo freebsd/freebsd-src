@@ -132,7 +132,6 @@ struct flentry_v6 {
 
 
 typedef	void fl_lock_t(struct flowtable *, uint32_t);
-typedef void fl_rtalloc_t(struct route *, uint32_t, u_int);
 
 union flentryp {
 	struct flentry		**global;
@@ -148,7 +147,6 @@ struct flowtable {
 	uint32_t	ft_max_depth;
 	fl_lock_t	*ft_lock;
 	fl_lock_t 	*ft_unlock;
-	fl_rtalloc_t	*ft_rtalloc;
 	/*
 	 * XXX need to pad out
 	 */
@@ -234,15 +232,6 @@ SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, fin_wait_expire, CTLFLAG_RW,
 SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_tcp_expire), 0,
     "seconds after which to remove flow allocated to a TCP connection.");
-
-#ifndef RADIX_MPATH
-static void
-rtalloc_ign_wrapper(struct route *ro, uint32_t hash, u_int fibnum)
-{
-
-	rtalloc_ign_fib(ro, 0, fibnum);
-}
-#endif
 
 static void
 flowtable_global_lock(struct flowtable *table, uint32_t hash)
@@ -1029,7 +1018,12 @@ uncached:
 	 * receive the route locked
 	 */
 
-	ft->ft_rtalloc(ro, hash, fibnum);
+#ifdef RADIX_MPATH
+	rtalloc_mpath_fib(ro, hash, fibnum);
+#else
+	rtalloc_ign_fib(ro, 0, fibnum);
+#endif
+
 	if (ro->ro_rt == NULL)
 		return (NULL);
 
@@ -1100,11 +1094,6 @@ static void
 flowtable_alloc(struct flowtable *ft)
 {
 
-#ifdef RADIX_MPATH
-	ft->ft_rtalloc = rtalloc_mpath_fib;
-#else
-	ft->ft_rtalloc = rtalloc_ign_wrapper;
-#endif
 	if (ft->ft_flags & FL_PCPU) {
 		ft->ft_lock = flowtable_pcpu_lock;
 		ft->ft_unlock = flowtable_pcpu_unlock;
