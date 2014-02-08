@@ -1580,6 +1580,8 @@ extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
 extern void			 pf_unlink_src_node(struct pf_src_node *);
 extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
 extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
+extern void			 pf_print_state(struct pf_state *);
+extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,
 				    u_int8_t);
 
@@ -1742,6 +1744,8 @@ int	pf_osfp_get(struct pf_osfp_ioctl *);
 int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 
 #ifdef _KERNEL
+void			 pf_print_host(struct pf_addr *, u_int16_t, u_int8_t);
+
 void			 pf_step_into_anchor(struct pf_anchor_stackframe *, int *,
 			    struct pf_ruleset **, int, struct pf_rule **,
 			    struct pf_rule **, int *);
