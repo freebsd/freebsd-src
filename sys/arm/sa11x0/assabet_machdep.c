@@ -122,8 +122,6 @@ extern vm_offset_t sa1_cache_clean_addr;
 #endif
 /* Physical and virtual addresses for some global pages */
 
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
