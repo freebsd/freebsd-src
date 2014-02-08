@@ -1725,7 +1725,6 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			return (1);
 		break;
 	case EXIT_REASON_EPT_FAULT:
-		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 		/*
 		 * If 'gpa' lies within the address space allocated to
 		 * memory then this must be a nested page fault otherwise
@@ -1736,6 +1735,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 			vmexit->u.inst_emul.gpa = gpa;
@@ -1743,6 +1743,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
 			vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
 			vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to an
