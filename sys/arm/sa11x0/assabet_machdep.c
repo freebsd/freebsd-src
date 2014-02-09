@@ -205,7 +205,6 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 	cninit();
 	set_cpufuncs();
-	physmem = memsize / PAGE_SIZE;
 	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
