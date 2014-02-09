@@ -198,14 +198,14 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags)
 				continue;
 			}
 			/*
-			 * If excluded region partially overlaps this region,
-			 * trim the excluded portion off the appropriate end.
+			 * We know the excluded region overlaps either the start
+			 * or end of this hardware region (but not both), trim
+			 * the excluded portion off the appropriate end.
 			 */
-			if ((xstart >= start) && (xstart <= end)) {
-				end = xstart;
-			} else if ((xend >= start) && (xend <= end)) {
+			if (xstart <= start)
 				start = xend;
-			}
+			else
+				end = xstart;
 		}
 		/*
 		 * If the trimming actions above left a non-zero size, create an
