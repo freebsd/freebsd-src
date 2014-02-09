@@ -35,9 +35,6 @@ CFLAGS+=	-Os
 .if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
 .endif
-.if ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-m32 -I.
-.endif
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
 .endif
