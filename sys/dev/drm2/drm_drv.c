@@ -311,8 +311,22 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	sx_init(&dev->dev_struct_lock, "drmslk");
 
 	error = drm_load(dev);
-	if (error == 0)
-		error = drm_create_cdevs(kdev);
+	if (error)
+		goto error;
+
+	error = drm_create_cdevs(kdev);
+	if (error)
+		goto error;
+
+	return (error);
+error:
+	if (dev->irqr) {
+		bus_release_resource(dev->device, SYS_RES_IRQ,
+		    dev->irqrid, dev->irqr);
+	}
+	if (dev->msi_enabled) {
+		pci_release_msi(dev->device);
+	}
 	return (error);
 }
 
@@ -570,7 +584,7 @@ static int drm_load(struct drm_device *dev)
 			DRM_ERROR("Request to enable bus-master failed.\n");
 		DRM_UNLOCK(dev);
 		if (retcode != 0)
-			goto error;
+			goto error1;
 	}
 
 	DRM_INFO("Initialized %s %d.%d.%d %s\n",
@@ -584,7 +598,9 @@ static int drm_load(struct drm_device *dev)
 
 error1:
 	delete_unrhdr(dev->drw_unrhdr);
+	drm_gem_destroy(dev);
 error:
+	drm_ctxbitmap_cleanup(dev);
 	drm_sysctl_cleanup(dev);
 	DRM_LOCK(dev);
 	drm_lastclose(dev);
