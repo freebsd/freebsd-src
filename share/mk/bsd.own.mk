@@ -254,7 +254,6 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
-    BINUTILS \
     BLUETOOTH \
     BMAKE \
     BOOT \
@@ -282,7 +281,6 @@ __DEFAULT_YES_OPTIONS = \
     FREEBSD_UPDATE \
     GAMES \
     GCOV \
-    GDB \
     GNU \
     GPIB \
     GPIO \
@@ -398,7 +396,7 @@ __TT=${TARGET}
 __TT=${MACHINE}
 .endif
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+.if ${__T} == "amd64" || ${__T} == "arm64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL
 .elif ${__T} == "arm" || ${__T} == "armv6"
 __DEFAULT_YES_OPTIONS+=CLANG
@@ -408,8 +406,8 @@ __DEFAULT_NO_OPTIONS+=CLANG_FULL
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
-.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
-    ${__T} == "i386"
+.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "arm64" || \
+    ${__T} == "armv6" || ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 # The pc98 bootloader requires gcc to build and so we must leave gcc enabled
 # for pc98 for now.
@@ -438,6 +436,12 @@ __DEFAULT_NO_OPTIONS+=GNUCXX
 .else
 __DEFAULT_YES_OPTIONS+=GNUCXX
 .endif
+.endif
+# GDB is too old for arm64
+.if ${__T} == "arm64"
+__DEFAULT_NO_OPTIONS+=BINUTILS GDB
+.else
+__DEFAULT_YES_OPTIONS+=BINUTILS GDB
 .endif
 # FDT is needed only for arm, mips and powerpc
 .if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
