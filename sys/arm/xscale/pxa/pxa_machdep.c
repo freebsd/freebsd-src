@@ -308,11 +308,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	pxa_probe_sdram(obio_tag, PXA2X0_MEMCTL_BASE, memstart, memsize);
 
-	physmem = 0;
-	for (i = 0; i < PXA2X0_SDRAM_BANKS; i++) {
-		physmem += memsize[i] / PAGE_SIZE;
-	}
-
 	/* Fire up consoles. */
 	cninit();
 
@@ -328,39 +323,29 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
-	i = 0;
-	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			dump_avail[i++] = round_page(memstart[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
-	}
-	dump_avail[i] = 0;
-	dump_avail[i] = 0;
 	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
 	for (j = 0; j < PXA2X0_SDRAM_BANKS; j++) {
-		if (memsize[j] > 0) {
-			phys_avail[i] = round_page(memstart[j]);
-			dump_avail[i++] = round_page(memstart[j]);
-			phys_avail[i] =
-			    trunc_page(memstart[j] + memsize[j]);
-			dump_avail[i++] =
-			    trunc_page(memstart[j] + memsize[j]);
-		}
+		if (memsize[j] > 0)
+			arm_physmem_hardware_region(memstart[j], memsize[j]);
 	}
-
-	dump_avail[i] = 0;
-	phys_avail[i++] = 0;
-	dump_avail[i] = 0;
-	phys_avail[i] = 0;
-	phys_avail[0] = round_page(virtual_avail - KERNBASE + phys_avail[0]);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();
