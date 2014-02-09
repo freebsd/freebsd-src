@@ -92,11 +92,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <arm/xscale/ixp425/ixp425var.h>
 
-/* kernel text starts where we were loaded at boot */
-#define	KERNEL_TEXT_OFF		(KERNPHYSADDR  - PHYSADDR)
-#define	KERNEL_TEXT_BASE	(KERNBASE + KERNEL_TEXT_OFF)
-#define	KERNEL_TEXT_PHYS	(PHYSADDR + KERNEL_TEXT_OFF)
-
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define	KERNEL_PT_IO		1
 #define KERNEL_PT_IO_NUM	3
@@ -221,6 +216,11 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 	uint32_t memsize;
 
+	/* kernel text starts where we were loaded at boot */
+#define	KERNEL_TEXT_OFF		(abp->abp_physaddr  - PHYSADDR)
+#define	KERNEL_TEXT_BASE	(KERNBASE + KERNEL_TEXT_OFF)
+#define	KERNEL_TEXT_PHYS	(PHYSADDR + KERNEL_TEXT_OFF)
+
 	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();		/* NB: sets cputype */
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
@@ -238,7 +238,7 @@ initarm(struct arm_boot_params *abp)
 	 * write-through).  Note this leaves a gap for expansion
 	 * (or might be repurposed).
 	 */
-	freemempos = KERNPHYSADDR;
+	freemempos = abp->abp_physaddr;
 
 	/* macros to simplify initial memory allocation */
 #define alloc_pages(var, np) do {					\
@@ -249,7 +249,7 @@ initarm(struct arm_boot_params *abp)
 } while (0)
 #define	valloc_pages(var, np) do {					\
 	alloc_pages((var).pv_pa, (np));					\
-	(var).pv_va = (var).pv_pa + (KERNVIRTADDR - KERNPHYSADDR);	\
+	(var).pv_va = (var).pv_pa + (KERNVIRTADDR - abp->abp_physaddr);	\
 } while (0)
 
 	/* force L1 page table alignment */
@@ -268,7 +268,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_va =
 			    kernel_pt_table[loop].pv_pa +
-				(KERNVIRTADDR - KERNPHYSADDR);
+				(KERNVIRTADDR - abp->abp_physaddr);
 		}
 	}
 	freemem_pt = freemempos;		/* base of allocated pt's */
