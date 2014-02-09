@@ -189,7 +189,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)                   \
 	alloc_pages((var).pv_va, (np));         \
-	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
 
 #define	alloc_pages(var, np)			\
 	(var) = freemempos;		\
@@ -209,7 +209,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[loop].pv_pa =
 			    kernel_pt_table[loop].pv_va - KERNVIRTADDR +
-			    KERNPHYSADDR;
+			    abp->abp_physaddr;
 		}
 	}
 	/*
