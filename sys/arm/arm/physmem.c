@@ -122,6 +122,16 @@ physmem_dump_tables(int (*prfunc)(const char *, ...))
 		    (flags & EXFLAG_NOALLOC) ? "NoAlloc" : "",
 		    (flags & EXFLAG_NODUMP)  ? "NoDump" : "");
 	}
+
+#ifdef DEBUG
+	prfunc("Avail lists:\n");
+	for (i = 0; phys_avail[i] != 0; ++i) {
+		prfunc("  phys_avail[%d] 0x%08x\n", i, phys_avail[i]);
+	}
+	for (i = 0; dump_avail[i] != 0; ++i) {
+		prfunc("  dump_avail[%d] 0x%08x\n", i, dump_avail[i]);
+	}
+#endif
 }
 
 /*
