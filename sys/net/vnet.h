@@ -303,7 +303,7 @@ void	 vnet_data_free(void *start_arg, int size);
 	    descr)							\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr, len, 		\
-	    vnet_sysctl_handle_opaque, fmt, descr)
+	    sysctl_handle_opaque, fmt, descr)
 #define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
