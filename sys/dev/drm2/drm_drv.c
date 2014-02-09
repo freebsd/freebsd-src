@@ -207,13 +207,22 @@ static struct drm_msi_blacklist_entry drm_msi_blacklist[] = {
 	{0, 0}
 };
 
-static int drm_msi_is_blacklisted(int vendor, int device)
+static int drm_msi_is_blacklisted(struct drm_device *dev, unsigned long flags)
 {
 	int i = 0;
 
+	if (dev->driver->use_msi != NULL) {
+		int use_msi;
+
+		use_msi = dev->driver->use_msi(dev, flags);
+
+		return (!use_msi);
+	}
+
+	/* TODO: Maybe move this to a callback in i915? */
 	for (i = 0; drm_msi_blacklist[i].vendor != 0; i++) {
-		if ((drm_msi_blacklist[i].vendor == vendor) &&
-		    (drm_msi_blacklist[i].device == device)) {
+		if ((drm_msi_blacklist[i].vendor == dev->pci_vendor) &&
+		    (drm_msi_blacklist[i].device == dev->pci_device)) {
 			return 1;
 		}
 	}
@@ -262,10 +271,16 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 
 	dev->pci_vendor = pci_get_vendor(dev->device);
 	dev->pci_device = pci_get_device(dev->device);
+	dev->pci_subvendor = pci_get_subvendor(dev->device);
+	dev->pci_subdevice = pci_get_subdevice(dev->device);
+
+	id_entry = drm_find_description(dev->pci_vendor,
+	    dev->pci_device, idlist);
+	dev->id_entry = id_entry;
 
 	if (drm_core_check_feature(dev, DRIVER_HAVE_IRQ)) {
 		if (drm_msi &&
-		    !drm_msi_is_blacklisted(dev->pci_vendor, dev->pci_device)) {
+		    !drm_msi_is_blacklisted(dev, dev->id_entry->driver_private)) {
 			msicount = pci_msi_count(dev->device);
 			DRM_DEBUG("MSI count = %d\n", msicount);
 			if (msicount > 1)
@@ -294,10 +309,6 @@ int drm_attach(device_t kdev, drm_pci_id_list_t *idlist)
 	mtx_init(&dev->drw_lock, "drmdrw", NULL, MTX_DEF);
 	mtx_init(&dev->event_lock, "drmev", NULL, MTX_DEF);
 	sx_init(&dev->dev_struct_lock, "drmslk");
-
-	id_entry = drm_find_description(dev->pci_vendor,
-	    dev->pci_device, idlist);
-	dev->id_entry = id_entry;
 
 	error = drm_load(dev);
 	if (error == 0)
