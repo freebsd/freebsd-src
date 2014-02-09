@@ -38,11 +38,15 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20140205: Open Firmware device moved
+OLD_FILES+=usr/include/dev/ofw/ofw_nexus.h
 # 20140128: libelf and libdwarf import
 OLD_LIBS+=usr/lib/libelf.so.1
 OLD_LIBS+=usr/lib32/libelf.so.1
 OLD_LIBS+=usr/lib/libdwarf.so.3
 OLD_LIBS+=usr/lib32/libdwarf.so.3
+# 20140123: apicvar header moved to x86
+OLD_FILES+=usr/include/machine/apicvar.h
 # 20131215: libcam version bumped
 OLD_LIBS+=lib/libcam.so.6 usr/lib32/libcam.so.6
 # 20131202: libcapsicum and libcasper moved to /lib/
