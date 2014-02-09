@@ -277,11 +277,6 @@ build_pagetables:
 
 	RET
 
-#define MMU_INIT(va,pa,n_sec,attr) \
-	.word	n_sec					    ; \
-	.word	4*((va)>>L1_S_SHIFT)			    ; \
-	.word	(pa)|(attr)				    ;
-
 Lvirtaddr:
 	.word	KERNVIRTADDR
 Lphysaddr:
