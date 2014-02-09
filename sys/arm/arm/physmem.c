@@ -89,6 +89,9 @@ vm_paddr_t dump_avail[MAX_AVAIL_ENTRIES + 2]; /* of zeroes to terminate. */
 /* This is the total number of hardware pages, excluded or not. */
 long realmem;
 
+/* The address at which the kernel was loaded.  Set early in initarm(). */
+vm_offset_t arm_physmem_kernaddr;
+
 /*
  * Print the contents of the physical and excluded region tables using the
  * provided printf-like output function (which will be either printf or

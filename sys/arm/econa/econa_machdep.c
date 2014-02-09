@@ -178,6 +178,7 @@ initarm(struct arm_boot_params *abp)
 
 	boothowto = RB_VERBOSE;
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu0_init();
 
