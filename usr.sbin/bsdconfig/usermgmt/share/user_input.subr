@@ -599,8 +599,8 @@ f_dialog_input_expire_password()
 
 		4) # Enter value manually
 			local msg ret_secs
-			msg=$( printf "$msg_number_of_seconds_since_epoch" \
-			              "$( date -r 1 "+%c %Z" )" )
+			f_sprintf msg "$msg_number_of_seconds_since_epoch" \
+			              "$( date -r 1 "+%c %Z" )"
 
 			# Return to menu if either ESC or Cancel/No
 			f_dialog_input ret_secs \
@@ -783,8 +783,8 @@ f_dialog_input_expire_account()
 
 		4) # Enter value manually
 			local msg ret_secs
-			msg=$( printf "$msg_number_of_seconds_since_epoch" \
-			              "$( date -r 1 "+%c %Z" )" )
+			f_sprintf msg "$msg_number_of_seconds_since_epoch" \
+			              "$( date -r 1 "+%c %Z" )"
 
 			# Return to menu if either ESC or Cancel/No
 			f_dialog_input ret_secs "$msg" \

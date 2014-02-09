@@ -679,6 +679,8 @@ degreesrankine		5|9 K
 degrankine		degreesrankine
 degreerankine		degreesrankine
 degreaumur		10|8&+273.15 K
+gasmark			25|1&250 degF
+Stufe			25|1&125 degC
 drachm			60 grain
 poncelet		100 kg m g / sec
 denier			.05|450 gram / m

@@ -278,7 +278,7 @@ again:
 	instr++;
 
 	for (j = 0; j < 12 && instr < limit; j++, instr++) {
-		if ((*instr == FBT_BCTR) || (*instr == FBT_BLR) |
+		if ((*instr == FBT_BCTR) || (*instr == FBT_BLR) ||
 		    FBT_IS_JUMP(*instr))
 			break;
 	}

@@ -107,11 +107,6 @@ static struct clnt_ops clnt_vc_ops = {
 
 static void clnt_vc_upcallsdone(struct ct_data *);
 
-static const char clnt_vc_errstr[] = "%s : %s";
-static const char clnt_vc_str[] = "clnt_vc_create";
-static const char clnt_read_vc_str[] = "read_vc";
-static const char __no_mem_str[] = "out of memory";
-
 /*
  * Create a client handle for a connection.
  * Default options are set, which the user can change using clnt_control()'s.

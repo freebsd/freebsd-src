@@ -991,7 +991,11 @@ do_diagnostic (cpp_reader *pfile, int code, int print_dir)
       if (print_dir)
 	fprintf (stderr, "#%s ", pfile->directive->name);
       pfile->state.prevent_expansion++;
+      /* APPLE LOCAL #error with unmatched quotes 5607574 */
+      pfile->state.in_diagnostic++;
       cpp_output_line (pfile, stderr);
+      /* APPLE LOCAL #error with unmatched quotes 5607574 */
+      pfile->state.in_diagnostic--;
       pfile->state.prevent_expansion--;
     }
 }
@@ -1173,12 +1177,25 @@ cpp_register_deferred_pragma (cpp_reader *pfile, const char *space,
     }
 }  
 
+/* APPLE LOCAL begin pragma mark 5614511 */
+/* Handle #pragma mark.  */
+static void
+do_pragma_mark (cpp_reader *pfile)
+{
+  ++pfile->state.skipping;
+  skip_rest_of_line (pfile);
+  --pfile->state.skipping;
+}
+/* APPLE LOCAL end pragma mark 5614511 */
+
 /* Register the pragmas the preprocessor itself handles.  */
 void
 _cpp_init_internal_pragmas (cpp_reader *pfile)
 {
   /* Pragmas in the global namespace.  */
   register_pragma_internal (pfile, 0, "once", do_pragma_once);
+  /* APPLE LOCAL pragma mark 5614511 */
+  register_pragma_internal (pfile, 0, "mark", do_pragma_mark);
 
   /* New GCC-specific pragmas should be put in the GCC namespace.  */
   register_pragma_internal (pfile, "GCC", "poison", do_pragma_poison);

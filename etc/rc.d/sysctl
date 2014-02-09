@@ -27,7 +27,9 @@ sysctl_start()
 	esac
 
 	for _f in /etc/sysctl.conf /etc/sysctl.conf.local; do
-		[ -r ${_f} ] && ${command} ${command_args} ${_f} > /dev/null
+		if [ -r ${_f} ]; then
+			${command} ${command_args} ${_f} > /dev/null
+		fi
 	done
 }
 

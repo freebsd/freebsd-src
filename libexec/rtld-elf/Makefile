@@ -43,11 +43,12 @@ DPADD=		${LIBC_PIC}
 LDADD=		-lc_pic
 
 .if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
-# Some of the required math functions (div & mod) are implemented in libgcc
-# on ARM. The library also needs to be placed first to be correctly linked.
-# As some of the functions are used before we have shared libraries.
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
+# Some of the required math functions (div & mod) are implemented in
+# libcompiler_rt on ARM. The library also needs to be placed first to be
+# correctly linked. As some of the functions are used before we have
+# shared libraries.
+DPADD+=		${LIBCOMPILER_RT}
+LDADD+=		-lcompiler_rt
 .endif
 
 

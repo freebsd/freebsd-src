@@ -320,7 +320,13 @@ struct kinfo_ofile {
 };
 
 #if defined(__amd64__) || defined(__i386__)
-#define	KINFO_FILE_SIZE	1424
+/*
+ * This size should never be changed. If you really need to, you must provide
+ * backward ABI compatibility by allocating a new sysctl MIB that will return
+ * the new structure. The current structure has to be returned by the current
+ * sysctl MIB. See how it is done for the kinfo_ofile structure.
+ */
+#define	KINFO_FILE_SIZE	1392
 #endif
 
 struct kinfo_file {
@@ -391,8 +397,7 @@ struct kinfo_file {
 	uint16_t	kf_pad1;		/* Round to 32 bit alignment. */
 	int		_kf_ispare0;		/* Space for more stuff. */
 	cap_rights_t	kf_cap_rights;		/* Capability rights. */
-	uint64_t	_kf_cap_spare[3];	/* Space for future cap_rights_t. */
-	int		_kf_ispare[4];		/* Space for more stuff. */
+	uint64_t	_kf_cap_spare;		/* Space for future cap_rights_t. */
 	/* Truncated before copyout in sysctl */
 	char		kf_path[PATH_MAX];	/* Path to file, if any. */
 };

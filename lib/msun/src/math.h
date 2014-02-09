@@ -451,6 +451,7 @@ long double	atanl(long double);
 long double	cbrtl(long double);
 long double	ceill(long double);
 long double	copysignl(long double, long double) __pure2;
+long double	coshl(long double);
 long double	cosl(long double);
 long double	exp2l(long double);
 long double	expl(long double);
@@ -488,8 +489,10 @@ long double	rintl(long double);
 long double	roundl(long double);
 long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
+long double	sinhl(long double);
 long double	sinl(long double);
 long double	sqrtl(long double);
+long double	tanhl(long double);
 long double	tanl(long double);
 long double	truncl(long double);
 
@@ -510,13 +513,10 @@ __END_DECLS
  */
 __BEGIN_DECLS
 
-long double	coshl(long double);
 long double	erfcl(long double);
 long double	erfl(long double);
 long double	lgammal(long double);
 long double	powl(long double, long double);
-long double	sinhl(long double);
-long double	tanhl(long double);
 long double	tgammal(long double);
 
 __END_DECLS

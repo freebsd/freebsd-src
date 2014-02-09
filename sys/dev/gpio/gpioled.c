@@ -75,6 +75,8 @@ gpioled_control(void *priv, int onoff)
 	GPIOLED_LOCK(sc);
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
 	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
+	    GPIO_PIN_OUTPUT);
 	GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN, 
 	    onoff ? GPIO_PIN_HIGH : GPIO_PIN_LOW);
 	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
@@ -102,9 +104,6 @@ gpioled_attach(device_t dev)
 	if (resource_string_value(device_get_name(dev), 
 	    device_get_unit(dev), "name", &name))
 		name = NULL;
-
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, GPIOLED_PIN,
-	    GPIO_PIN_OUTPUT);
 
 	sc->sc_leddev = led_create(gpioled_control, sc, name ? name :
 	    device_get_nameunit(dev));

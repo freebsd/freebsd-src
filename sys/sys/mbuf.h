@@ -466,14 +466,6 @@ struct mbuf {
 				   a non-initialized mbuf */
 
 /*
- * Compatibility with historic mbuf allocator.
- */
-#define	MBTOM(how)	(how)
-#define	M_DONTWAIT	M_NOWAIT
-#define	M_TRYWAIT	M_WAITOK
-#define	M_WAIT		M_WAITOK
-
-/*
  * String names of mbuf-related UMA(9) and malloc(9) types.  Exposed to
  * !_KERNEL so that monitoring tools can look up the zones with
  * libmemstat(3).

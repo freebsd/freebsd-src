@@ -220,6 +220,11 @@ struct lexer_state
 
   /* Nonzero if the deferred pragma being handled allows macro expansion.  */
   unsigned char pragma_allow_expansion;
+
+  /* APPLE LOCAL begin #error with unmatched quotes 5607574 */
+  /* Nonzero when handling #error and #warning to allow unmatched quotes.  */
+  unsigned char in_diagnostic;
+  /* APPLE LOCAL end #error with unmatched quotes 5607574 */
 };
 
 /* Special nodes - identifiers with predefined significance.  */

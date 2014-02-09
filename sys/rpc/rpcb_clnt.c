@@ -64,13 +64,13 @@ __FBSDID("$FreeBSD$");
 #include <rpc/rpc_com.h>
 
 static struct timeval tottimeout = { 60, 0 };
-static const struct timeval rmttimeout = { 3, 0 };
 static const char nullstring[] = "\000";
 
 static CLIENT *local_rpcb(void);
 
 #if 0
 
+static const struct timeval rmttimeout = { 3, 0 };
 static struct timeval rpcbrmttime = { 15, 0 };
 
 #define	CACHESIZE 6

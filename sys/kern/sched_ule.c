@@ -76,10 +76,6 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__powerpc__) && defined(BOOKE_E500)
-#error "This architecture is not currently compatible with ULE"
-#endif
-
 #define	KTR_ULE	0
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
@@ -813,30 +809,6 @@ sched_highest(const struct cpu_group *cg, cpuset_t mask, int minload)
 	return high.cs_cpu;
 }
 
-/*
- * Simultaneously find the highest and lowest loaded cpu reachable via
- * cg.
- */
-static inline void
-sched_both(const struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
-{
-	struct cpu_search high;
-	struct cpu_search low;
-
-	low.cs_cpu = -1;
-	low.cs_prefer = -1;
-	low.cs_pri = -1;
-	low.cs_limit = INT_MAX;
-	low.cs_mask = mask;
-	high.cs_cpu = -1;
-	high.cs_limit = -1;
-	high.cs_mask = mask;
-	cpu_search_both(cg, &low, &high);
-	*lowcpu = low.cs_cpu;
-	*highcpu = high.cs_cpu;
-	return;
-}
-
 static void
 sched_balance_group(struct cpu_group *cg)
 {
@@ -1532,7 +1504,7 @@ sched_priority(struct thread *td)
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
 			pri += min(SCHED_PRI_TICKS(td->td_sched),
-			    SCHED_PRI_RANGE);
+			    SCHED_PRI_RANGE - 1);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 

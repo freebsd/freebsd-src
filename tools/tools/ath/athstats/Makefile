@@ -21,9 +21,7 @@ CLEANFILES+=	opt_ah.h
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
 
-.if (${COMPILER_TYPE} == "clang")
-CFLAGS+=-fbracket-depth=512
-.endif
+CFLAGS.clang+= -fbracket-depth=512
 
 opt_ah.h:
 	echo "#define AH_DEBUG 1" > opt_ah.h

@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -440,6 +437,9 @@ __rw_rlock(volatile uintptr_t *c, const char *file, int line)
 					break;
 				cpu_spinwait();
 			}
+#ifdef KDTRACE_HOOKS
+			spin_cnt += rowner_loops - i;
+#endif
 			if (i != rowner_loops)
 				continue;
 		}

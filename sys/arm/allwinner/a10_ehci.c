@@ -93,6 +93,10 @@ bs_w_1_proto(reversed);
 static int
 a10_ehci_probe(device_t self)
 {
+
+	if (!ofw_bus_status_okay(self))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(self, "allwinner,usb-ehci")) 
 		return (ENXIO);
 

@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2013
+.Dd December 27, 2013
 .Dt PS 1
 .Os
 .Sh NAME
@@ -416,8 +416,9 @@ The process has reduced CPU scheduling priority (see
 .It Li s
 The process is a session leader.
 .It Li V
-The process is suspended during a
-.Xr vfork 2 .
+The process' parent is suspended during a
+.Xr vfork 2 ,
+waiting for the process to exec or exit.
 .It Li W
 The process is swapped out.
 .It Li X

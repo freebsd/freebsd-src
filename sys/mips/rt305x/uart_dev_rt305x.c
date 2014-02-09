@@ -195,6 +195,8 @@ static int rt305x_uart_bus_probe(struct uart_softc *);
 static int rt305x_uart_bus_receive(struct uart_softc *);
 static int rt305x_uart_bus_setsig(struct uart_softc *, int);
 static int rt305x_uart_bus_transmit(struct uart_softc *);
+static void rt305x_uart_bus_grab(struct uart_softc *);
+static void rt305x_uart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t rt305x_uart_methods[] = {
 	KOBJMETHOD(uart_attach,		rt305x_uart_bus_attach),
@@ -208,6 +210,8 @@ static kobj_method_t rt305x_uart_methods[] = {
 	KOBJMETHOD(uart_receive,	rt305x_uart_bus_receive),
 	KOBJMETHOD(uart_setsig,		rt305x_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	rt305x_uart_bus_transmit),
+	KOBJMETHOD(uart_grab,		rt305x_uart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		rt305x_uart_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -278,7 +282,7 @@ rt305x_uart_bus_attach(struct uart_softc *sc)
 	uart_setreg(bas, UART_FCR_REG, 
 	    uart_getreg(bas, UART_FCR_REG) | 
 	    UART_FCR_FIFOEN | UART_FCR_TXTGR_1 | UART_FCR_RXTGR_1);
-	uart_barrier(bas);
+ 	uart_barrier(bas);
 	/* Enable interrupts */
 	uart_setreg(bas, UART_IER_REG,
 	    UART_IER_EDSSI | UART_IER_ELSI | UART_IER_ERBFI);
@@ -504,4 +508,29 @@ rt305x_uart_bus_transmit(struct uart_softc *sc)
 	sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+static void
+rt305x_uart_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/* disable interrupts -- XXX not sure which one is RX, so kill them all */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, UART_IER_REG, 0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+rt305x_uart_bus_ungrab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/* Enable interrupts */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, UART_IER_REG,
+	    UART_IER_EDSSI | UART_IER_ELSI | UART_IER_ERBFI);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
+ * Copyright (C) 2012-2014 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -8,7 +8,7 @@
  *      notice, this list of conditions and the following disclaimer.
  *   2. Redistributions in binary form must reproduce the above copyright
  *      notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ *      documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -167,12 +167,12 @@ const struct netmap_mem_d nm_blueprint = {
 #define DECLARE_SYSCTLS(id, name) \
 	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_size, \
 	    CTLFLAG_RW, &netmap_params[id].size, 0, "Requested size of netmap " STRINGIFY(name) "s"); \
-        SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_size, \
-            CTLFLAG_RD, &nm_mem.pools[id]._objsize, 0, "Current size of netmap " STRINGIFY(name) "s"); \
-        SYSCTL_INT(_dev_netmap, OID_AUTO, name##_num, \
-            CTLFLAG_RW, &netmap_params[id].num, 0, "Requested number of netmap " STRINGIFY(name) "s"); \
-        SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_num, \
-            CTLFLAG_RD, &nm_mem.pools[id].objtotal, 0, "Current number of netmap " STRINGIFY(name) "s")
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_size, \
+	    CTLFLAG_RD, &nm_mem.pools[id]._objsize, 0, "Current size of netmap " STRINGIFY(name) "s"); \
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_num, \
+	    CTLFLAG_RW, &netmap_params[id].num, 0, "Requested number of netmap " STRINGIFY(name) "s"); \
+	SYSCTL_INT(_dev_netmap, OID_AUTO, name##_curr_num, \
+	    CTLFLAG_RD, &nm_mem.pools[id].objtotal, 0, "Current number of netmap " STRINGIFY(name) "s")
 
 SYSCTL_DECL(_dev_netmap);
 DECLARE_SYSCTLS(NETMAP_IF_POOL, if);
@@ -310,7 +310,7 @@ netmap_obj_malloc(struct netmap_obj_pool *p, u_int len, uint32_t *start, uint32_
 	}
 
 	if (p->objfree == 0) {
-		D("%s allocator: run out of memory", p->name);
+		D("no more %s objects", p->name);
 		return NULL;
 	}
 	if (start)
@@ -395,28 +395,22 @@ netmap_obj_free_va(struct netmap_obj_pool *p, void *vaddr)
 
 /* Return nonzero on error */
 static int
-netmap_new_bufs(struct netmap_mem_d *nmd, struct netmap_if *nifp,
-                struct netmap_slot *slot, u_int n)
+netmap_new_bufs(struct netmap_mem_d *nmd, struct netmap_slot *slot, u_int n)
 {
 	struct netmap_obj_pool *p = &nmd->pools[NETMAP_BUF_POOL];
 	u_int i = 0;	/* slot counter */
 	uint32_t pos = 0;	/* slot in p->bitmap */
 	uint32_t index = 0;	/* buffer index */
 
-	(void)nifp;	/* UNUSED */
 	for (i = 0; i < n; i++) {
 		void *vaddr = netmap_buf_malloc(nmd, &pos, &index);
 		if (vaddr == NULL) {
-			D("unable to locate empty packet buffer");
+			D("no more buffers after %d of %d", i, n);
 			goto cleanup;
 		}
 		slot[i].buf_idx = index;
 		slot[i].len = p->_objsize;
-		/* XXX setting flags=NS_BUF_CHANGED forces a pointer reload
-		 * in the NIC ring. This is a hack that hides missing
-		 * initializations in the drivers, and should go away.
-		 */
-		// slot[i].flags = NS_BUF_CHANGED;
+		slot[i].flags = 0;
 	}
 
 	ND("allocated %d buffers, %d available, first at %d", n, p->objfree, pos);
@@ -433,11 +427,10 @@ cleanup:
 
 
 static void
-netmap_free_buf(struct netmap_mem_d *nmd, struct netmap_if *nifp, uint32_t i)
+netmap_free_buf(struct netmap_mem_d *nmd, uint32_t i)
 {
 	struct netmap_obj_pool *p = &nmd->pools[NETMAP_BUF_POOL];
 
-	(void)nifp;
 	if (i < 2 || i >= p->objtotal) {
 		D("Cannot free buf#%d: should be in [2, %d[", i, p->objtotal);
 		return;
@@ -513,7 +506,7 @@ netmap_config_obj_allocator(struct netmap_obj_pool *p, u_int objtotal, u_int obj
 	p->r_objsize = objsize;
 
 #define MAX_CLUSTSIZE	(1<<17)
-#define LINE_ROUND	64
+#define LINE_ROUND	NM_CACHE_ALIGN	// 64
 	if (objsize >= MAX_CLUSTSIZE) {
 		/* we could do it but there is no point */
 		D("unsupported allocation for %d bytes", objsize);
@@ -760,7 +753,8 @@ netmap_mem_private_finalize(struct netmap_mem_d *nmd)
 
 }
 
-static void netmap_mem_private_deref(struct netmap_mem_d *nmd)
+static void
+netmap_mem_private_deref(struct netmap_mem_d *nmd)
 {
 	NMA_LOCK(nmd);
 	if (--nmd->refcount <= 0)
@@ -845,7 +839,7 @@ netmap_mem_global_config(struct netmap_mem_d *nmd)
 			netmap_reset_obj_allocator(&nmd->pools[i]);
 		}
 		nmd->flags &= ~NETMAP_MEM_FINALIZED;
-        }
+	}
 
 	for (i = 0; i < NETMAP_POOLS_NR; i++) {
 		nmd->lasterr = netmap_config_obj_allocator(&nmd->pools[i],
@@ -938,31 +932,132 @@ netmap_free_rings(struct netmap_adapter *na)
 			na->rx_rings[i].ring = NULL;
 		}
 	}
-	free(na->tx_rings, M_DEVBUF);
-	na->tx_rings = na->rx_rings = NULL;
 }
 
+/* call with NMA_LOCK held *
+ *
+ * Allocate netmap rings and buffers for this card
+ * The rings are contiguous, but have variable size.
+ */
+int
+netmap_mem_rings_create(struct netmap_adapter *na)
+{
+	struct netmap_ring *ring;
+	u_int len, ndesc;
+	struct netmap_kring *kring;
+
+	NMA_LOCK(na->nm_mem);
+
+	for (kring = na->tx_rings; kring != na->rx_rings; kring++) { /* Transmit rings */
+		ndesc = kring->nkr_num_slots;
+		len = sizeof(struct netmap_ring) +
+			  ndesc * sizeof(struct netmap_slot);
+		ring = netmap_ring_malloc(na->nm_mem, len);
+		if (ring == NULL) {
+			D("Cannot allocate tx_ring");
+			goto cleanup;
+		}
+		ND("txring at %p", ring);
+		kring->ring = ring;
+		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
+		*(int64_t *)(uintptr_t)&ring->buf_ofs =
+		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
+			na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
+			netmap_ring_offset(na->nm_mem, ring);
+
+		/* copy values from kring */
+		ring->head = kring->rhead;
+		ring->cur = kring->rcur;
+		ring->tail = kring->rtail;
+		*(uint16_t *)(uintptr_t)&ring->nr_buf_size =
+			NETMAP_BDG_BUF_SIZE(na->nm_mem);
+		ND("initializing slots for txring");
+		if (netmap_new_bufs(na->nm_mem, ring->slot, ndesc)) {
+			D("Cannot allocate buffers for tx_ring");
+			goto cleanup;
+		}
+	}
+
+	for ( ; kring != na->tailroom; kring++) { /* Receive rings */
+		ndesc = kring->nkr_num_slots;
+		len = sizeof(struct netmap_ring) +
+			  ndesc * sizeof(struct netmap_slot);
+		ring = netmap_ring_malloc(na->nm_mem, len);
+		if (ring == NULL) {
+			D("Cannot allocate rx_ring");
+			goto cleanup;
+		}
+		ND("rxring at %p", ring);
+		kring->ring = ring;
+		*(uint32_t *)(uintptr_t)&ring->num_slots = ndesc;
+		*(int64_t *)(uintptr_t)&ring->buf_ofs =
+		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
+		        na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
+			netmap_ring_offset(na->nm_mem, ring);
+
+		/* copy values from kring */
+		ring->head = kring->rhead;
+		ring->cur = kring->rcur;
+		ring->tail = kring->rtail;
+		*(int *)(uintptr_t)&ring->nr_buf_size =
+			NETMAP_BDG_BUF_SIZE(na->nm_mem);
+		ND("initializing slots for rxring %p", ring);
+		if (netmap_new_bufs(na->nm_mem, ring->slot, ndesc)) {
+			D("Cannot allocate buffers for rx_ring");
+			goto cleanup;
+		}
+	}
+
+	NMA_UNLOCK(na->nm_mem);
+
+	return 0;
+
+cleanup:
+	netmap_free_rings(na);
+
+	NMA_UNLOCK(na->nm_mem);
+
+	return ENOMEM;
+}
+
+void
+netmap_mem_rings_delete(struct netmap_adapter *na)
+{
+	/* last instance, release bufs and rings */
+	u_int i, lim;
+	struct netmap_kring *kring;
+	struct netmap_ring *ring;
+
+	NMA_LOCK(na->nm_mem);
+
+	for (kring = na->tx_rings; kring != na->tailroom; kring++) {
+		ring = kring->ring;
+		if (ring == NULL)
+			continue;
+		lim = kring->nkr_num_slots;
+		for (i = 0; i < lim; i++)
+			netmap_free_buf(na->nm_mem, ring->slot[i].buf_idx);
+	}
+	netmap_free_rings(na);
+
+	NMA_UNLOCK(na->nm_mem);
+}
 
 
 /* call with NMA_LOCK held */
 /*
  * Allocate the per-fd structure netmap_if.
- * If this is the first instance, also allocate the krings, rings etc.
  *
  * We assume that the configuration stored in na
  * (number of tx/rx rings and descs) does not change while
  * the interface is in netmap mode.
  */
-extern int nma_is_vp(struct netmap_adapter *na);
 struct netmap_if *
 netmap_mem_if_new(const char *ifname, struct netmap_adapter *na)
 {
 	struct netmap_if *nifp;
-	struct netmap_ring *ring;
 	ssize_t base; /* handy for relative offsets between rings and nifp */
-	u_int i, len, ndesc, ntx, nrx;
-	struct netmap_kring *kring;
-	uint32_t *tx_leases = NULL, *rx_leases = NULL;
+	u_int i, len, ntx, nrx;
 
 	/*
 	 * verify whether virtual port need the stack ring
@@ -990,124 +1085,6 @@ netmap_mem_if_new(const char *ifname, struct netmap_adapter *na)
 	*(u_int *)(uintptr_t)&nifp->ni_rx_rings = na->num_rx_rings;
 	strncpy(nifp->ni_name, ifname, (size_t)IFNAMSIZ);
 
-	if (na->refcount) { /* already setup, we are done */
-		goto final;
-	}
-
-	len = (ntx + nrx) * sizeof(struct netmap_kring);
-	/*
-	 * Leases are attached to TX rings on NIC/host ports,
-	 * and to RX rings on VALE ports.
-	 */
-	if (nma_is_vp(na)) {
-		len += sizeof(uint32_t) * na->num_rx_desc * na->num_rx_rings;
-	} else {
-		len += sizeof(uint32_t) * na->num_tx_desc * ntx;
-	}
-
-	na->tx_rings = malloc((size_t)len, M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (na->tx_rings == NULL) {
-		D("Cannot allocate krings for %s", ifname);
-		goto cleanup;
-	}
-	na->rx_rings = na->tx_rings + ntx;
-
-	if (nma_is_vp(na)) {
-		rx_leases = (uint32_t *)(na->rx_rings + nrx);
-	} else {
-		tx_leases = (uint32_t *)(na->rx_rings + nrx);
-	}
-
-	/*
-	 * First instance, allocate netmap rings and buffers for this card
-	 * The rings are contiguous, but have variable size.
-	 */
-	for (i = 0; i < ntx; i++) { /* Transmit rings */
-		kring = &na->tx_rings[i];
-		ndesc = na->num_tx_desc;
-		bzero(kring, sizeof(*kring));
-		len = sizeof(struct netmap_ring) +
-			  ndesc * sizeof(struct netmap_slot);
-		ring = netmap_ring_malloc(na->nm_mem, len);
-		if (ring == NULL) {
-			D("Cannot allocate tx_ring[%d] for %s", i, ifname);
-			goto cleanup;
-		}
-		ND("txring[%d] at %p ofs %d", i, ring);
-		kring->na = na;
-		kring->ring = ring;
-		if (tx_leases) {
-			kring->nkr_leases = tx_leases;
-			tx_leases += ndesc;
-		}
-		*(uint32_t *)(uintptr_t)&ring->num_slots = kring->nkr_num_slots = ndesc;
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
-		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
-			na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
-			netmap_ring_offset(na->nm_mem, ring);
-
-		/*
-		 * IMPORTANT:
-		 * Always keep one slot empty, so we can detect new
-		 * transmissions comparing cur and nr_hwcur (they are
-		 * the same only if there are no new transmissions).
-		 */
-		ring->avail = kring->nr_hwavail = ndesc - 1;
-		ring->cur = kring->nr_hwcur = 0;
-		*(uint16_t *)(uintptr_t)&ring->nr_buf_size =
-			NETMAP_BDG_BUF_SIZE(na->nm_mem);
-		ND("initializing slots for txring[%d]", i);
-		if (netmap_new_bufs(na->nm_mem, nifp, ring->slot, ndesc)) {
-			D("Cannot allocate buffers for tx_ring[%d] for %s", i, ifname);
-			goto cleanup;
-		}
-	}
-
-	for (i = 0; i < nrx; i++) { /* Receive rings */
-		kring = &na->rx_rings[i];
-		ndesc = na->num_rx_desc;
-		bzero(kring, sizeof(*kring));
-		len = sizeof(struct netmap_ring) +
-			  ndesc * sizeof(struct netmap_slot);
-		ring = netmap_ring_malloc(na->nm_mem, len);
-		if (ring == NULL) {
-			D("Cannot allocate rx_ring[%d] for %s", i, ifname);
-			goto cleanup;
-		}
-		ND("rxring[%d] at %p ofs %d", i, ring);
-
-		kring->na = na;
-		kring->ring = ring;
-		if (rx_leases && i < na->num_rx_rings) {
-			kring->nkr_leases = rx_leases;
-			rx_leases += ndesc;
-		}
-		*(uint32_t *)(uintptr_t)&ring->num_slots = kring->nkr_num_slots = ndesc;
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
-		    (na->nm_mem->pools[NETMAP_IF_POOL].memtotal +
-		        na->nm_mem->pools[NETMAP_RING_POOL].memtotal) -
-			netmap_ring_offset(na->nm_mem, ring);
-
-		ring->cur = kring->nr_hwcur = 0;
-		ring->avail = kring->nr_hwavail = 0; /* empty */
-		*(int *)(uintptr_t)&ring->nr_buf_size =
-			NETMAP_BDG_BUF_SIZE(na->nm_mem);
-		ND("initializing slots for rxring[%d]", i);
-		if (netmap_new_bufs(na->nm_mem, nifp, ring->slot, ndesc)) {
-			D("Cannot allocate buffers for rx_ring[%d] for %s", i, ifname);
-			goto cleanup;
-		}
-	}
-#ifdef linux
-	// XXX initialize the selrecord structs.
-	for (i = 0; i < ntx; i++)
-		init_waitqueue_head(&na->tx_rings[i].si);
-	for (i = 0; i < nrx; i++)
-		init_waitqueue_head(&na->rx_rings[i].si);
-	init_waitqueue_head(&na->tx_si);
-	init_waitqueue_head(&na->rx_si);
-#endif
-final:
 	/*
 	 * fill the slots for the rx and tx rings. They contain the offset
 	 * between the ring and nifp, so the information is usable in
@@ -1126,13 +1103,6 @@ final:
 	NMA_UNLOCK(na->nm_mem);
 
 	return (nifp);
-cleanup:
-	netmap_free_rings(na);
-	netmap_if_free(na->nm_mem, nifp);
-
-	NMA_UNLOCK(na->nm_mem);
-
-	return NULL;
 }
 
 void
@@ -1143,25 +1113,6 @@ netmap_mem_if_delete(struct netmap_adapter *na, struct netmap_if *nifp)
 		return;
 	NMA_LOCK(na->nm_mem);
 
-	if (na->refcount <= 0) {
-		/* last instance, release bufs and rings */
-		u_int i, j, lim;
-		struct netmap_ring *ring;
-
-		for (i = 0; i < na->num_tx_rings + 1; i++) {
-			ring = na->tx_rings[i].ring;
-			lim = na->tx_rings[i].nkr_num_slots;
-			for (j = 0; j < lim; j++)
-				netmap_free_buf(na->nm_mem, nifp, ring->slot[j].buf_idx);
-		}
-		for (i = 0; i < na->num_rx_rings + 1; i++) {
-			ring = na->rx_rings[i].ring;
-			lim = na->rx_rings[i].nkr_num_slots;
-			for (j = 0; j < lim; j++)
-				netmap_free_buf(na->nm_mem, nifp, ring->slot[j].buf_idx);
-		}
-		netmap_free_rings(na);
-	}
 	netmap_if_free(na->nm_mem, nifp);
 
 	NMA_UNLOCK(na->nm_mem);
@@ -1179,12 +1130,14 @@ netmap_mem_global_deref(struct netmap_mem_d *nmd)
 	NMA_UNLOCK(nmd);
 }
 
-int netmap_mem_finalize(struct netmap_mem_d *nmd)
+int
+netmap_mem_finalize(struct netmap_mem_d *nmd)
 {
 	return nmd->finalize(nmd);
 }
 
-void netmap_mem_deref(struct netmap_mem_d *nmd)
+void
+netmap_mem_deref(struct netmap_mem_d *nmd)
 {
 	return nmd->deref(nmd);
 }

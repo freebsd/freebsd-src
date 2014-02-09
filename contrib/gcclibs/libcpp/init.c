@@ -146,6 +146,10 @@ cpp_create_reader (enum c_lang lang, hash_table *table,
   pfile = XCNEW (cpp_reader);
 
   cpp_set_lang (pfile, lang);
+  /* APPLE LOCAL begin -Wnewline-eof 2001-08-23 --sts */
+  /* Suppress warnings about missing newlines at ends of files.  */
+  CPP_OPTION (pfile, warn_newline_at_eof) = 0;
+  /* APPLE LOCAL end -Wnewline-eof 2001-08-23 --sts */
   CPP_OPTION (pfile, warn_multichar) = 1;
   CPP_OPTION (pfile, discard_comments) = 1;
   CPP_OPTION (pfile, discard_comments_in_macro_exp) = 1;

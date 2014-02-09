@@ -26,6 +26,8 @@
         ..
         bluetooth
         ..
+        casper
+        ..
         defaults
         ..
         devd
@@ -74,6 +76,8 @@
         ..
     ..
     libexec
+        casper
+        ..
         resolvconf
         ..
     ..

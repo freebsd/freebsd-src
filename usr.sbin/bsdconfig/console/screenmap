@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="080.console"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -141,7 +141,8 @@ case "$mtag" in
 esac
 
 if [ "$scrnmap_to_set" ]; then
-	f_sysrc_set scrnmap "$scrnmap_to_set" || f_die
+	f_eval_catch "$0" f_sysrc_set \
+		'f_sysrc_set scrnmap "%s"' "$scrnmap_to_set" || f_die
 	break
 else
 	f_die 1 "$msg_unknown_screenmap_selection"

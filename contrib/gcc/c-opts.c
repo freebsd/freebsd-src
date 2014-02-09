@@ -385,12 +385,17 @@ c_common_handle_option (size_t scode, const char *arg, int value)
       break;
 
     case OPT_Wall:
+      /* APPLE LOCAL -Wmost */
+    case OPT_Wmost:
       set_Wunused (value);
       set_Wformat (value);
       set_Wimplicit (value);
       warn_char_subscripts = value;
       warn_missing_braces = value;
-      warn_parentheses = value;
+      /* APPLE LOCAL begin -Wmost --dpatel */
+      if (code != OPT_Wmost) 
+	warn_parentheses = value;
+      /* APPLE LOCAL end -Wmost --dpatel */
       warn_return_type = value;
       warn_sequence_point = value;	/* Was C only.  */
       if (c_dialect_cxx ())
@@ -486,6 +491,12 @@ c_common_handle_option (size_t scode, const char *arg, int value)
     case OPT_Wmultichar:
       cpp_opts->warn_multichar = value;
       break;
+
+      /* APPLE LOCAL begin -Wnewline-eof */
+    case OPT_Wnewline_eof:
+      cpp_opts->warn_newline_at_eof = value;
+      break;
+      /* APPLE LOCAL end -Wnewline-eof */
 
     case OPT_Wnormalized_:
       if (!value || (arg && strcasecmp (arg, "none") == 0))
@@ -708,6 +719,10 @@ c_common_handle_option (size_t scode, const char *arg, int value)
 
     case OPT_fimplicit_templates:
       flag_implicit_templates = value;
+      break;
+
+    case OPT_flax_vector_conversions:
+      flag_lax_vector_conversions = value;
       break;
 
     case OPT_fms_extensions:
@@ -1024,6 +1039,13 @@ c_common_post_options (const char **pfilename)
     flag_no_inline = 1;
   if (flag_inline_functions)
     flag_inline_trees = 2;
+
+  /* APPLE LOCAL begin radar 5811887  - radar 6084601 */
+  /* In all flavors of c99, except for ObjC/ObjC++, blocks are off by default 
+     unless requested via -fblocks. */
+  if (flag_blocks == -1 && flag_iso && !c_dialect_objc())
+    flag_blocks = 0;
+  /* APPLE LOCAL end radar 5811887 - radar 6084601 */
 
   /* By default we use C99 inline semantics in GNU99 or C99 mode.  C99
      inline semantics are not supported in GNU89 or C89 mode.  */

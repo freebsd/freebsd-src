@@ -48,7 +48,4 @@ vm_offset_t parse_boot_param(struct arm_boot_params *abp);
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
 
-/* Setup standard arrays */
-void arm_dump_avail_init( vm_offset_t memsize, size_t max);
-
 #endif /* !_MACHINE_MACHDEP_H_ */

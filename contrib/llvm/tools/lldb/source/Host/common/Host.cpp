@@ -22,6 +22,7 @@
 #include <grp.h>
 #include <netdb.h>
 #include <pwd.h>
+#include <sys/stat.h>
 #endif
 
 #if !defined (__GNU__) && !defined (_WIN32)
@@ -33,6 +34,7 @@
 #include <mach/mach_port.h>
 #include <mach/mach_init.h>
 #include <mach-o/dyld.h>
+#include <AvailabilityMacros.h>
 #endif
 
 #if defined (__linux__) || defined (__FreeBSD__) || defined (__FreeBSD_kernel__)
@@ -978,6 +980,7 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
     // on linux this is assumed to be the "lldb" main executable. If LLDB on
     // linux is actually in a shared library (liblldb.so) then this function will
     // need to be modified to "do the right thing".
+    Log *log = lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_HOST);
 
     switch (path_type)
     {
@@ -988,6 +991,8 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
             {
                 FileSpec lldb_file_spec (Host::GetModuleFileSpecForHostAddress ((void *)Host::GetLLDBPath));
                 g_lldb_so_dir = lldb_file_spec.GetDirectory();
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypeLLDBShlibDir) => '%s'", g_lldb_so_dir.GetCString());
             }
             file_spec.GetDirectory() = g_lldb_so_dir;
             return (bool)file_spec.GetDirectory();
@@ -1011,7 +1016,11 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                     if (framework_pos)
                     {
                         framework_pos += strlen("LLDB.framework");
-#if !defined (__arm__)
+#if defined (__arm__)
+                        // Shallow bundle
+                        *framework_pos = '\0';
+#else
+                        // Normal bundle
                         ::strncpy (framework_pos, "/Resources", PATH_MAX - (framework_pos - raw_path));
 #endif
                     }
@@ -1019,6 +1028,8 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                     FileSpec::Resolve (raw_path, resolved_path, sizeof(resolved_path));
                     g_lldb_support_exe_dir.SetCString(resolved_path);
                 }
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypeSupportExecutableDir) => '%s'", g_lldb_support_exe_dir.GetCString());
             }
             file_spec.GetDirectory() = g_lldb_support_exe_dir;
             return (bool)file_spec.GetDirectory();
@@ -1051,6 +1062,8 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                 // TODO: Anyone know how we can determine this for linux? Other systems??
                 g_lldb_headers_dir.SetCString ("/opt/local/include/lldb");
 #endif
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypeHeaderDir) => '%s'", g_lldb_headers_dir.GetCString());
             }
             file_spec.GetDirectory() = g_lldb_headers_dir;
             return (bool)file_spec.GetDirectory();
@@ -1096,6 +1109,10 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                     FileSpec::Resolve (raw_path, resolved_path, sizeof(resolved_path));
                     g_lldb_python_dir.SetCString(resolved_path);
                 }
+                
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypePythonDir) => '%s'", g_lldb_python_dir.GetCString());
+
             }
             file_spec.GetDirectory() = g_lldb_python_dir;
             return (bool)file_spec.GetDirectory();
@@ -1136,6 +1153,10 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
                     g_lldb_system_plugin_dir.SetCString(lldb_file_spec.GetPath().c_str());
                 }
 #endif // __APPLE__ || __linux__
+                
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypeLLDBSystemPlugins) => '%s'", g_lldb_system_plugin_dir.GetCString());
+
             }
             
             if (g_lldb_system_plugin_dir)
@@ -1194,6 +1215,8 @@ Host::GetLLDBPath (PathType path_type, FileSpec &file_spec)
 
                 if (lldb_file_spec.Exists())
                     g_lldb_user_plugin_dir.SetCString(lldb_file_spec.GetPath().c_str());
+                if (log)
+                    log->Printf("Host::GetLLDBPath(ePathTypeLLDBUserPlugins) => '%s'", g_lldb_user_plugin_dir.GetCString());
             }
             file_spec.GetDirectory() = g_lldb_user_plugin_dir;
             return (bool)file_spec.GetDirectory();
@@ -1546,7 +1569,7 @@ Host::RunShellCommand (const char *command,
     return error;
 }
 
-#if defined(__linux__) or defined(__FreeBSD__)
+#if defined(__linux__) || defined(__FreeBSD__)
 // The functions below implement process launching via posix_spawn() for Linux
 // and FreeBSD.
 
@@ -1826,11 +1849,168 @@ Host::LaunchApplication (const FileSpec &app_file_spec)
     return LLDB_INVALID_PROCESS_ID;
 }
 
-uint32_t
-Host::MakeDirectory (const char* path, mode_t mode)
+#endif
+
+
+#ifdef LLDB_DISABLE_POSIX
+
+Error
+Host::MakeDirectory (const char* path, uint32_t mode)
 {
-    return UINT32_MAX;
+    Error error;
+    error.SetErrorStringWithFormat("%s in not implemented on this host", __PRETTY_FUNCTION__);
+    return error;
 }
+
+Error
+Host::GetFilePermissions (const char* path, uint32_t &file_permissions)
+{
+    Error error;
+    error.SetErrorStringWithFormat("%s is not supported on this host", __PRETTY_FUNCTION__);
+    return error;
+}
+
+Error
+Host::SetFilePermissions (const char* path, uint32_t file_permissions)
+{
+    Error error;
+    error.SetErrorStringWithFormat("%s is not supported on this host", __PRETTY_FUNCTION__);
+    return error;
+}
+
+Error
+Host::Symlink (const char *src, const char *dst)
+{
+    Error error;
+    error.SetErrorStringWithFormat("%s is not supported on this host", __PRETTY_FUNCTION__);
+    return error;
+}
+
+Error
+Host::Readlink (const char *path, char *buf, size_t buf_len)
+{
+    Error error;
+    error.SetErrorStringWithFormat("%s is not supported on this host", __PRETTY_FUNCTION__);
+    return error;
+}
+
+Error
+Host::Unlink (const char *path)
+{
+    Error error;
+    error.SetErrorStringWithFormat("%s is not supported on this host", __PRETTY_FUNCTION__);
+    return error;
+}
+
+#else
+
+Error
+Host::MakeDirectory (const char* path, uint32_t file_permissions)
+{
+    Error error;
+    if (path && path[0])
+    {
+        if (::mkdir(path, file_permissions) != 0)
+        {
+            error.SetErrorToErrno();
+            switch (error.GetError())
+            {
+            case ENOENT:
+                {
+                    // Parent directory doesn't exist, so lets make it if we can
+                    FileSpec spec(path, false);
+                    if (spec.GetDirectory() && spec.GetFilename())
+                    {
+                        // Make the parent directory and try again
+                        Error error2 = Host::MakeDirectory(spec.GetDirectory().GetCString(), file_permissions);
+                        if (error2.Success())
+                        {
+                            // Try and make the directory again now that the parent directory was made successfully
+                            if (::mkdir(path, file_permissions) == 0)
+                                error.Clear();
+                            else
+                                error.SetErrorToErrno();
+                        }
+                    }
+                }
+                break;
+            case EEXIST:
+                {
+                    FileSpec path_spec(path, false);
+                    if (path_spec.IsDirectory())
+                        error.Clear(); // It is a directory and it already exists
+                }
+                break;
+            }
+        }
+    }
+    else
+    {
+        error.SetErrorString("empty path");
+    }
+    return error;
+}
+
+Error
+Host::GetFilePermissions (const char* path, uint32_t &file_permissions)
+{
+    Error error;
+    struct stat file_stats;
+    if (::stat (path, &file_stats) == 0)
+    {
+        // The bits in "st_mode" currently match the definitions
+        // for the file mode bits in unix.
+        file_permissions = file_stats.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
+    }
+    else
+    {
+        error.SetErrorToErrno();
+    }
+    return error;
+}
+
+Error
+Host::SetFilePermissions (const char* path, uint32_t file_permissions)
+{
+    Error error;
+    if (::chmod(path, file_permissions) != 0)
+        error.SetErrorToErrno();
+    return error;
+}
+
+Error
+Host::Symlink (const char *src, const char *dst)
+{
+    Error error;
+    if (::symlink(dst, src) == -1)
+        error.SetErrorToErrno();
+    return error;
+}
+
+Error
+Host::Unlink (const char *path)
+{
+    Error error;
+    if (::unlink(path) == -1)
+        error.SetErrorToErrno();
+    return error;
+}
+
+Error
+Host::Readlink (const char *path, char *buf, size_t buf_len)
+{
+    Error error;
+    ssize_t count = ::readlink(path, buf, buf_len);
+    if (count < 0)
+        error.SetErrorToErrno();
+    else if (count < (buf_len-1))
+        buf[count] = '\0'; // Success
+    else
+        error.SetErrorString("'buf' buffer is too small to contain link contents");
+    return error;
+}
+
+
 #endif
 
 typedef std::map<lldb::user_id_t, lldb::FileSP> FDToFileMap;
@@ -1843,7 +2023,7 @@ FDToFileMap& GetFDToFileMap()
 lldb::user_id_t
 Host::OpenFile (const FileSpec& file_spec,
                 uint32_t flags,
-                mode_t mode,
+                uint32_t mode,
                 Error &error)
 {
     std::string path (file_spec.GetPath());

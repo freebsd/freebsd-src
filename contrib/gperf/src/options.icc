@@ -155,9 +155,3 @@ Options::get_key_positions () const
 {
   return _key_positions;
 }
-
-INLINE const char *
-Options::get_size_type() const
-{
-	return _size_type;
-}

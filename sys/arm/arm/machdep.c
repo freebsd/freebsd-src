@@ -92,10 +92,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
+#include <machine/intr.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
 #include <machine/pcb.h>
+#include <machine/physmem.h>
 #include <machine/platform.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
@@ -124,8 +126,6 @@ uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
 
-long realmem = 0;
-
 int (*_arm_memcpy)(void *, void *, int, int) = NULL;
 int (*_arm_bzero)(void *, int, int) = NULL;
 int _min_memcpy_size = 0;
@@ -145,9 +145,6 @@ extern vm_offset_t ksym_start, ksym_end;
 #define KERNEL_PT_MAX	78
 
 static struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -357,6 +354,7 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+	const unsigned int mbyte = 1024 * 1024;
 #ifdef ARM_TP_ADDRESS
 #ifndef ARM_CACHE_LOCK_ENABLE
 	vm_page_t m;
@@ -365,33 +363,21 @@ cpu_startup(void *dummy)
 
 	identify_arm_cpu();
 
-	printf("real memory  = %ju (%ju MB)\n", (uintmax_t)ptoa(physmem),
-	    (uintmax_t)ptoa(physmem) / 1048576);
-	realmem = physmem;
+	vm_ksubmap_init(&kmi);
 
 	/*
 	 * Display the RAM layout.
 	 */
-	if (bootverbose) {
-		int indx;
-
-		printf("Physical memory chunk(s):\n");
-		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
-			vm_paddr_t size;
-
-			size = phys_avail[indx + 1] - phys_avail[indx];
-			printf("%#08jx - %#08jx, %ju bytes (%ju pages)\n",
-			    (uintmax_t)phys_avail[indx],
-			    (uintmax_t)phys_avail[indx + 1] - 1,
-			    (uintmax_t)size, (uintmax_t)size / PAGE_SIZE);
-		}
-	}
-
-	vm_ksubmap_init(&kmi);
-
+	printf("real memory  = %ju (%ju MB)\n", 
+	    (uintmax_t)arm32_ptob(realmem),
+	    (uintmax_t)arm32_ptob(realmem) / mbyte);
 	printf("avail memory = %ju (%ju MB)\n",
-	    (uintmax_t)ptoa(cnt.v_free_count),
-	    (uintmax_t)ptoa(cnt.v_free_count) / 1048576);
+	    (uintmax_t)arm32_ptob(cnt.v_free_count),
+	    (uintmax_t)arm32_ptob(cnt.v_free_count) / mbyte);
+	if (bootverbose) {
+		arm_physmem_print_tables();
+		arm_devmap_print_table();
+	}
 
 	bufinit();
 	vm_pager_bufferinit();
@@ -779,48 +765,6 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 
 #ifndef FDT
 /*
- * Make a standard dump_avail array.  Can't make the phys_avail
- * since we need to do that after we call pmap_bootstrap, but this
- * is needed before pmap_boostrap.
- *
- * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
- * calling pmap_bootstrap.
- */
-void
-arm_dump_avail_init(vm_offset_t ramsize, size_t max)
-{
-#ifdef LINUX_BOOT_ABI
-	/*
-	 * Linux boot loader passes us the actual banks of memory, so use them
-	 * to construct the dump_avail array.
-	 */
-	if (membanks > 0) 
-	{
-		int i, j;
-
-		if (max < (membanks + 1) * 2)
-			panic("dump_avail[%d] too small for %d banks\n",
-			    max, membanks);
-		for (j = 0, i = 0; i < membanks; i++) {
-			dump_avail[j++] = round_page(memstart[i]);
-			dump_avail[j++] = trunc_page(memstart[i] + memsize[i]);
-		}
-		dump_avail[j++] = 0;
-		dump_avail[j++] = 0;
-		return;
-	}
-#endif
-	if (max < 4)
-		panic("dump_avail too small\n");
-
-	dump_avail[0] = round_page(PHYSADDR);
-	dump_avail[1] = trunc_page(PHYSADDR + ramsize);
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-}
-#endif
-
-/*
  * Fake up a boot descriptor table
  */
 static vm_offset_t
@@ -887,7 +831,7 @@ void
 pcpu0_init(void)
 {
 #if ARM_ARCH_6 || ARM_ARCH_7A || defined(CPU_MV_PJ4B)
-	set_pcpu(pcpup);
+	set_curthread(&thread0);
 #endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
@@ -943,11 +887,8 @@ linux_parse_boot_param(struct arm_boot_params *abp)
 			case ATAG_CORE:
 				break;
 			case ATAG_MEM:
-				if (membanks < LBABI_MAX_BANKS) {
-					memstart[membanks] = walker->u.tag_mem.start;
-					memsize[membanks] = walker->u.tag_mem.size;
-				}
-				membanks++;
+				arm_physmem_hardware_region(walker->u.tag_mem.start,
+				    walker->u.tag_mem.size);
 				break;
 			case ATAG_INITRD2:
 				break;
@@ -1136,120 +1077,10 @@ print_kenv(void)
 		debugf(" %x %s\n", (uint32_t)cp, cp);
 }
 
-static void
-physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz,
-    vm_offset_t kernload)
-{
-	int i, j, cnt;
-	vm_offset_t phys_kernelend;
-	uint32_t s, e, sz;
-	struct mem_region *mp, *mp1;
-
-	phys_kernelend = kernload + (virtual_avail - KERNVIRTADDR);
-
-	/*
-	 * Remove kernel physical address range from avail
-	 * regions list. Page align all regions.
-	 * Non-page aligned memory isn't very interesting to us.
-	 * Also, sort the entries for ascending addresses.
-	 */
-	sz = 0;
-	cnt = availmem_regions_sz;
-	debugf("processing avail regions:\n");
-	for (mp = availmem_regions; mp->mr_size; mp++) {
-		s = mp->mr_start;
-		e = mp->mr_start + mp->mr_size;
-		debugf(" %08x-%08x -> ", s, e);
-		/* Check whether this region holds all of the kernel. */
-		if (s < kernload && e > phys_kernelend) {
-			availmem_regions[cnt].mr_start = phys_kernelend;
-			availmem_regions[cnt++].mr_size = e - phys_kernelend;
-			e = kernload;
-		}
-		/* Look whether this regions starts within the kernel. */
-		if (s >= kernload && s < phys_kernelend) {
-			if (e <= phys_kernelend)
-				goto empty;
-			s = phys_kernelend;
-		}
-		/* Now look whether this region ends within the kernel. */
-		if (e > kernload && e <= phys_kernelend) {
-			if (s >= kernload) {
-				goto empty;
-			}
-			e = kernload;
-		}
-		/* Now page align the start and size of the region. */
-		s = round_page(s);
-		e = trunc_page(e);
-		if (e < s)
-			e = s;
-		sz = e - s;
-		debugf("%08x-%08x = %x\n", s, e, sz);
-
-		/* Check whether some memory is left here. */
-		if (sz == 0) {
-		empty:
-			printf("skipping\n");
-			bcopy(mp + 1, mp,
-			    (cnt - (mp - availmem_regions)) * sizeof(*mp));
-			cnt--;
-			mp--;
-			continue;
-		}
-
-		/* Do an insertion sort. */
-		for (mp1 = availmem_regions; mp1 < mp; mp1++)
-			if (s < mp1->mr_start)
-				break;
-		if (mp1 < mp) {
-			bcopy(mp1, mp1 + 1, (char *)mp - (char *)mp1);
-			mp1->mr_start = s;
-			mp1->mr_size = sz;
-		} else {
-			mp->mr_start = s;
-			mp->mr_size = sz;
-		}
-	}
-	availmem_regions_sz = cnt;
-
-	/* Fill in phys_avail table, based on availmem_regions */
-	debugf("fill in phys_avail:\n");
-	for (i = 0, j = 0; i < availmem_regions_sz; i++, j += 2) {
-
-		debugf(" region: 0x%08x - 0x%08x (0x%08x)\n",
-		    availmem_regions[i].mr_start,
-		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
-		    availmem_regions[i].mr_size);
-
-		/*
-		 * We should not map the page at PA 0x0000000, the VM can't
-		 * handle it, as pmap_extract() == 0 means failure.
-		 */
-		if (availmem_regions[i].mr_start > 0 ||
-		    availmem_regions[i].mr_size > PAGE_SIZE) {
-			vm_size_t size;
-			phys_avail[j] = availmem_regions[i].mr_start;
-
-			size = availmem_regions[i].mr_size;
-			if (phys_avail[j] == 0) {
-				phys_avail[j] += PAGE_SIZE;
-				size -= PAGE_SIZE;
-			}
-			phys_avail[j + 1] = availmem_regions[i].mr_start + size;
-		} else
-			j -= 2;
-	}
-	phys_avail[j] = 0;
-	phys_avail[j + 1] = 0;
-}
-
 void *
 initarm(struct arm_boot_params *abp)
 {
-	struct mem_region memory_regions[FDT_MEM_REGIONS];
-	struct mem_region availmem_regions[FDT_MEM_REGIONS];
-	struct mem_region reserved_regions[FDT_MEM_REGIONS];
+	struct mem_region mem_regions[FDT_MEM_REGIONS];
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
@@ -1257,13 +1088,7 @@ initarm(struct arm_boot_params *abp)
 	char *env;
 	void *kmdp;
 	u_int l1pagetable;
-	int i = 0, j = 0, err_devmap = 0;
-	int memory_regions_sz;
-	int availmem_regions_sz;
-	int reserved_regions_sz;
-	vm_offset_t start, end;
-	vm_offset_t rstart, rend;
-	int curr;
+	int i, j, err_devmap, mem_regions_sz;
 
 	/*
 	 * This needs to be before parse_boot_param as we may map memory in.
@@ -1272,6 +1097,8 @@ initarm(struct arm_boot_params *abp)
 	 */
 	set_cpufuncs();
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
+
 	memsize = 0;
 
 	/*
@@ -1299,85 +1126,16 @@ initarm(struct arm_boot_params *abp)
 		while (1);
 
 	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(memory_regions, &memory_regions_sz,
-	    &memsize) != 0)
-		while(1);
+	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)
+		panic("Cannot get physical memory regions");
+	arm_physmem_hardware_regions(mem_regions, mem_regions_sz);
 
-	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_reserved_regions(reserved_regions, &reserved_regions_sz) != 0)
-		reserved_regions_sz = 0;
+	/* Grab reserved memory regions information from device tree. */
+	if (fdt_get_reserved_regions(mem_regions, &mem_regions_sz) == 0)
+		arm_physmem_exclude_regions(mem_regions, mem_regions_sz, 
+		    EXFLAG_NODUMP | EXFLAG_NOALLOC);
 
 	platform_probe_and_attach();
-
-	/*
-	 * Build the dump_avail table
-	 */
-	start = memory_regions[i].mr_start;
-	end = start + memory_regions[i].mr_size;
-
-	dump_avail[0] = round_page(start);
-	dump_avail[1] = trunc_page(end);
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
-	/*
-	 * Now exclude all the reserved regions
-	 */
-	curr = 0;
-	for (i = 0; i < memory_regions_sz; i++) {
-		start = memory_regions[i].mr_start;
-		end = start + memory_regions[i].mr_size;
-		for (j = 0; j < reserved_regions_sz; j++) {
-			rstart = reserved_regions[j].mr_start;
-			rend = rstart + reserved_regions[j].mr_size;
-			/* 
-			 * Restricted region is before available
-			 * Skip restricted region
-			 */
-			if (rend <= start)
-				continue;
-			/* 
-			 * Restricted region is behind available
-			 * No  further processing required
-			 */
-			if (rstart >= end)
-				break;
-			/*
-			 * Restricted region includes memory region
-			 * skip available region
-			 */
-			if ((start >= rstart) && (rend >= end)) {
-				start = rend;
-				end = rend;
-				break;
-			}
-			/*
-			 * Memory region includes restricted region
-			 */
-			if ((rstart > start) && (end > rend)) {
-				availmem_regions[curr].mr_start = start;
-				availmem_regions[curr++].mr_size = rstart - start;
-				start = rend;
-				break;
-			}
-			/*
-			 * Memory region partially overlaps with restricted
-			 */
-			if ((rstart >= start) && (rstart <= end)) {
-				end = rstart;
-			}
-			else if ((rend >= start) && (rend <= end)) {
-				start = rend;
-			}
-		}
-
-		if (end > start) {
-			availmem_regions[curr].mr_start = start;
-			availmem_regions[curr++].mr_size = end - start;
-		}
-	}
-
-	availmem_regions_sz = curr;
 
 	pcpu0_init();
 
@@ -1413,7 +1171,7 @@ initarm(struct arm_boot_params *abp)
 		freemempos += PAGE_SIZE;
 	valloc_pages(kernel_l1pt, L1_TABLE_SIZE / PAGE_SIZE);
 
-	for (i = 0; i < l2size; ++i) {
+	for (i = 0, j = 0; i < l2size; ++i) {
 		if (!(i % (PAGE_SIZE / L2_TABLE_SIZE_REAL))) {
 			valloc_pages(kernel_pt_table[i],
 			    L2_TABLE_SIZE / PAGE_SIZE);
@@ -1520,8 +1278,6 @@ initarm(struct arm_boot_params *abp)
 
 	cninit();
 
-	physmem = memsize / PAGE_SIZE;
-
 	debugf("initarm: console initialized\n");
 	debugf("   arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf("   boothowto = 0x%08x\n", boothowto);
@@ -1583,9 +1339,16 @@ initarm(struct arm_boot_params *abp)
 	mutex_init();
 
 	/*
-	 * Prepare map of physical memory regions available to vm subsystem.
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
 	 */
-	physmap_init(availmem_regions, availmem_regions_sz, abp->abp_physaddr);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    (virtual_avail - KERNVIRTADDR), EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
 
 	init_param2(physmem);
 	kdb_init();

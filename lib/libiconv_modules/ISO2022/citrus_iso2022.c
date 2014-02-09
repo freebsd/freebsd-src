@@ -444,6 +444,7 @@ _citrus_ISO2022_init_state(_ISO2022EncodingInfo * __restrict ei,
 	s->flags |= _ISO2022STATE_FLAG_INITIALIZED;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_ISO2022_pack_state(_ISO2022EncodingInfo * __restrict ei __unused,
@@ -461,6 +462,7 @@ _citrus_ISO2022_unpack_state(_ISO2022EncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static int
 /*ARGSUSED*/

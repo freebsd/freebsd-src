@@ -200,7 +200,7 @@
 #define IWN_RESET_SW			(1 << 7)
 #define IWN_RESET_MASTER_DISABLED	(1 << 8)
 #define IWN_RESET_STOP_MASTER		(1 << 9)
-#define IWN_RESET_LINK_PWR_MGMT_DIS	(1 << 31)
+#define IWN_RESET_LINK_PWR_MGMT_DIS	(1U << 31)
 
 /* Possible flags for register IWN_GP_CNTRL. */
 #define IWN_GP_CNTRL_MAC_ACCESS_ENA	(1 << 0)
@@ -265,7 +265,7 @@ static const struct {
 
 /* Possible flags for register IWN_DRAM_INT_TBL. */
 #define IWN_DRAM_INT_TBL_WRAP_CHECK	(1 << 27)
-#define IWN_DRAM_INT_TBL_ENABLE		(1 << 31)
+#define IWN_DRAM_INT_TBL_ENABLE		(1U << 31)
 
 /* Possible values for register IWN_ANA_PLL. */
 #define IWN_ANA_PLL_INIT	0x00880300
@@ -275,7 +275,7 @@ static const struct {
 
 /* Possible flags for register IWN_BSM_WR_CTRL. */
 #define IWN_BSM_WR_CTRL_START_EN	(1 << 30)
-#define IWN_BSM_WR_CTRL_START		(1 << 31)
+#define IWN_BSM_WR_CTRL_START		(1U << 31)
 
 /* Possible flags for register IWN_INT. */
 #define IWN_INT_ALIVE		(1 <<  0)
@@ -288,7 +288,7 @@ static const struct {
 #define IWN_INT_FH_TX		(1 << 27)
 #define IWN_INT_RX_PERIODIC	(1 << 28)
 #define IWN_INT_HW_ERR		(1 << 29)
-#define IWN_INT_FH_RX		(1 << 31)
+#define IWN_INT_FH_RX		(1U << 31)
 
 /* Shortcut. */
 #define IWN_INT_MASK_DEF						\
@@ -308,7 +308,7 @@ static const struct {
 
 /* Possible flags/values for register IWN_FH_TX_CONFIG. */
 #define IWN_FH_TX_CONFIG_DMA_PAUSE		0
-#define IWN_FH_TX_CONFIG_DMA_ENA		(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA		(1U << 31)
 #define IWN_FH_TX_CONFIG_CIRQ_HOST_ENDTFD	(1 << 20)
 
 /* Possible flags/values for register IWN_FH_TXBUF_STATUS. */
@@ -323,7 +323,7 @@ static const struct {
 #define IWN_FH_TX_STATUS_IDLE(chnl)	(1 << ((chnl) + 16))
 
 /* Possible flags for register IWN_FH_RX_CONFIG. */
-#define IWN_FH_RX_CONFIG_ENA		(1 << 31)
+#define IWN_FH_RX_CONFIG_ENA		(1U << 31)
 #define IWN_FH_RX_CONFIG_NRBD(x)	((x) << 20)
 #define IWN_FH_RX_CONFIG_RB_SIZE_8K	(1 << 16)
 #define IWN_FH_RX_CONFIG_SINGLE_FRAME	(1 << 15)
@@ -332,7 +332,7 @@ static const struct {
 #define IWN_FH_RX_CONFIG_IGN_RXF_EMPTY	(1 <<  2)
 
 /* Possible flags for register IWN_FH_TX_CONFIG. */
-#define IWN_FH_TX_CONFIG_DMA_ENA	(1 << 31)
+#define IWN_FH_TX_CONFIG_DMA_ENA	(1U << 31)
 #define IWN_FH_TX_CONFIG_DMA_CREDIT_ENA	(1 <<  3)
 
 /* Possible flags for register IWN_EEPROM. */
@@ -380,7 +380,7 @@ static const struct {
 #define IWN_APMG_PCI_STT_L1A_DIS	(1 << 11)
 
 /* Possible flags for register IWN_BSM_DRAM_TEXT_SIZE. */
-#define IWN_FW_UPDATED	(1 << 31)
+#define IWN_FW_UPDATED	(1U << 31)
 
 #define IWN_SCHED_WINSZ		64
 #define IWN_SCHED_LIMIT		64
@@ -922,17 +922,53 @@ struct iwn_scan_chan {
 /* Maximum size of a scan command. */
 #define IWN_SCAN_MAXSZ	(MCLBYTES - 4)
 
-#define	IWN_ACTIVE_DWELL_TIME_24	(30)	/* all times in msec */
-#define	IWN_ACTIVE_DWELL_TIME_52	(20)
-#define	IWN_ACTIVE_DWELL_FACTOR_24	(3)
-#define	IWN_ACTIVE_DWELL_FACTOR_52	(2)
+/*
+ * For active scan, listen ACTIVE_DWELL_TIME (msec) on each channel after
+ * sending probe req.  This should be set long enough to hear probe responses
+ * from more than one AP.
+ */
+#define	IWN_ACTIVE_DWELL_TIME_2GHZ	(30)	/* all times in msec */
+#define	IWN_ACTIVE_DWELL_TIME_5GHZ	(20)
+#define	IWN_ACTIVE_DWELL_FACTOR_2GHZ	(3)
+#define	IWN_ACTIVE_DWELL_FACTOR_5GHZ	(2)
 
-#define	IWN_PASSIVE_DWELL_TIME_24	(20)	/* all times in msec */
-#define	IWN_PASSIVE_DWELL_TIME_52	(10)
+/*
+ * For passive scan, listen PASSIVE_DWELL_TIME (msec) on each channel.
+ * Must be set longer than active dwell time.
+ * For the most reliable scan, set > AP beacon interval (typically 100msec).
+ */
+#define	IWN_PASSIVE_DWELL_TIME_2GHZ	(20)	/* all times in msec */
+#define	IWN_PASSIVE_DWELL_TIME_5GHZ	(10)
 #define	IWN_PASSIVE_DWELL_BASE		(100)
 #define	IWN_CHANNEL_TUNE_TIME		(5)
 
 #define	IWN_SCAN_CHAN_TIMEOUT		2
+#define	IWN_MAX_SCAN_CHANNEL		50
+
+/*
+ * If active scanning is requested but a certain channel is
+ * marked passive, we can do active scanning if we detect
+ * transmissions.
+ *
+ * There is an issue with some firmware versions that triggers
+ * a sysassert on a "good CRC threshold" of zero (== disabled),
+ * on a radar channel even though this means that we should NOT
+ * send probes.
+ *
+ * The "good CRC threshold" is the number of frames that we
+ * need to receive during our dwell time on a channel before
+ * sending out probes -- setting this to a huge value will
+ * mean we never reach it, but at the same time work around
+ * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
+ * here instead of IWL_GOOD_CRC_TH_DISABLED.
+ *
+ * This was fixed in later versions along with some other
+ * scan changes, and the threshold behaves as a flag in those
+ * versions.
+ */
+#define	IWN_GOOD_CRC_TH_DISABLED	0
+#define	IWN_GOOD_CRC_TH_DEFAULT		htole16(1)
+#define	IWN_GOOD_CRC_TH_NEVER		htole16(0xffff)
 
 /* Structure for command IWN_CMD_TXPOWER (4965AGN only.) */
 #define IWN_RIDX_MAX	32
@@ -1965,6 +2001,7 @@ struct iwn_sensitivity_limits {
 	uint32_t	min_energy_cck;
 	uint32_t	energy_cck;
 	uint32_t	energy_ofdm;
+	uint32_t	barker_mrc;
 };
 
 /*
@@ -1979,7 +2016,8 @@ static const struct iwn_sensitivity_limits iwn4965_sensitivity_limits = {
 	200, 400,
 	 97,
 	100,
-	100
+	100,
+	390
 };
 
 static const struct iwn_sensitivity_limits iwn5000_sensitivity_limits = {
@@ -1991,7 +2029,8 @@ static const struct iwn_sensitivity_limits iwn5000_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390
 };
 
 static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
@@ -2003,7 +2042,8 @@ static const struct iwn_sensitivity_limits iwn5150_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390,
 };
 
 static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
@@ -2015,7 +2055,8 @@ static const struct iwn_sensitivity_limits iwn1000_sensitivity_limits = {
 	170, 400,
 	 95,
 	 95,
-	 95
+	 95,
+	 390,
 };
 
 static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {
@@ -2027,8 +2068,23 @@ static const struct iwn_sensitivity_limits iwn6000_sensitivity_limits = {
 	160, 310,
 	 97,
 	 97,
-	100
+	100,
+	390
 };
+
+static const struct iwn_sensitivity_limits iwn6235_sensitivity_limits = {
+	105, 110,
+	192, 232,
+	 80, 145,
+	128, 232,
+	125, 175,
+	160, 310,
+	100,
+	110,
+	110,
+	336
+};
+
 
 /* Get value from linux kernel 3.2.+ in Drivers/net/wireless/iwlwifi/iwl-2000.c*/
 static const struct iwn_sensitivity_limits iwn2030_sensitivity_limits = {

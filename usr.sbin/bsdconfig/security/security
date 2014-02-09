@@ -38,8 +38,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="130.security"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ FUNCTIONS
 
@@ -162,9 +162,11 @@ while :; do
 	"2 ["?"] $msg_securelevel") # Configure securelevels for the system
 		$BSDCFG_LIBE/$APP_DIR/kern_securelevel ${USE_XDIALOG:+-X} ;;
 	"3 [X] $msg_nfs_port") # Require that NFS clients use reserved ports
-		f_sysrc_set nfs_reserved_port_only "NO" ;;
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set nfs_reserved_port_only NO' ;;
 	"3 [ ] $msg_nfs_port") # Same; Toggle value
-		f_sysrc_set nfs_reserved_port_only "YES" ;;
+		f_eval_catch "$0" f_sysrc_set \
+			'f_sysrc_set nfs_reserved_port_only YES' ;;
 	*)
 		f_die 1 "$msg_unknown_security_menu_selection"
 	esac

@@ -713,7 +713,6 @@ pf_free_src_node(struct pf_src_node *sn)
 {
 
 	KASSERT(sn->states == 0, ("%s: %p has refs", __func__, sn));
-	LIST_REMOVE(sn, entry);
 	uma_zfree(V_pf_sources_z, sn);
 }
 
@@ -5494,7 +5493,6 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			PF_STATE_UNLOCK(s);
 		rt = rtalloc1_fib(sintosa(&dst), 0, 0, M_GETFIB(m0));
 		if (rt == NULL) {
-			RTFREE_LOCKED(rt);
 			KMOD_IPSTAT_INC(ips_noroute);
 			error = EHOSTUNREACH;
 			goto bad;

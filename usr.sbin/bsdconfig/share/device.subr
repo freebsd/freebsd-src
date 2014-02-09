@@ -42,6 +42,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 DEVICES=
 DEVICE_NAMES=
+NDEVICES=0
 
 # A "device" from sysinstall's point of view
 f_struct_define DEVICE \
@@ -100,7 +101,7 @@ f_device_try()
 {
 	local name="$1" i="$2" var_path="$3" unit
 	if [ "$i" ]; then
-		unit=$( printf "$name" "$i" )
+		f_sprintf unit "$name" "$i"
 	else
 		unit="$name"
 	fi
@@ -213,7 +214,7 @@ f_device_reset_network()
 #
 f_device_get_all()
 {
-	local devname desc
+	local devname desc capacity
 
 	f_dprintf "f_device_get_all: Probing devices..."
 	f_dialog_info "$msg_probing_devices_please_wait_this_can_take_a_while"
@@ -225,7 +226,7 @@ f_device_get_all()
 	# as a media source for content
 	#
 
-	local dev desc type max n=0
+	local dev type max n=0
 	for dev in $DEVICE_NAMES; do
 		n=$(( $n + 1 ))
 		# Get the desc, type, and max (with debugging disabled)
@@ -245,32 +246,32 @@ f_device_get_all()
 			case "$type" in
 			$DEVICE_TYPE_CDROM)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_CDROM 1 \
 					f_media_init_cdrom f_media_get_cdrom \
-					f_media_shutdown_cdrom "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_cdrom "" "$capacity"
 				f_dprintf "Found a CDROM device for %s" \
 				          "$devname"
 				;;
 			$DEVICE_TYPE_FLOPPY)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_FLOPPY 1 \
 					f_media_init_floppy \
 					f_media_get_floppy \
-					f_media_shutdown_floppy "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_floppy "" "$capacity"
 				f_dprintf "Found a floppy device for %s" \
 				          "$devname"
 				;;
 			$DEVICE_TYPE_USB)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_USB 1 \
 					f_media_init_usb f_media_get_usb \
-					f_media_shutdown_usb "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_usb "" "$capacity"
 				f_dprintf "Found a USB disk for %s" "$devname"
 				;;
 			esac
@@ -280,11 +281,11 @@ f_device_get_all()
 	# Register ISO9660 providers as CDROM devices
 	for devname in /dev/iso9660/*; do
 		f_device_try "$devname" || continue
+		f_device_capacity "$devname" capacity
 		f_device_register "${devname##*/}" "ISO9660 file system" \
 			"$devname" $DEVICE_TYPE_CDROM 1 \
 			f_media_init_cdrom f_media_get_cdrom \
-			f_media_shutdown_cdrom "" \
-			"$( f_device_capacity "$devname" )"
+			f_media_shutdown_cdrom "" "$capacity"
 		f_dprintf "Found a CDROM device for %s" "$devname"
 	done
 
@@ -307,12 +308,12 @@ f_device_get_all()
 			' )
 		case "$filename" in
 		*.iso) # Register the device as an ISO9660 provider
+			f_device_capacity "$devname" capacity
 			f_device_register "${devname##*/}" \
 				"md(4) vnode file system" \
 				"$devname" $DEVICE_TYPE_CDROM 1 \
 				f_media_init_cdrom f_media_get_cdrom \
-				f_media_shutdown_cdrom "" \
-				"$( f_device_capacity "$devname" )"
+				f_media_shutdown_cdrom "" "$capacity"
 			f_dprintf "Found a CDROM device for %s" "$devname"
 			;;
 		esac
@@ -347,10 +348,10 @@ f_device_get_all()
 		# Try and find its description
 		f_device_desc "$diskname" $DEVICE_TYPE_DISK desc
 
+		f_device_capacity "$diskname" capacity
 		f_device_register "$diskname" "$desc" \
 		                  "/dev/$diskname" $DEVICE_TYPE_DISK 0 \
-		                  "" "" "" "" \
-		                  "$( f_device_capacity "$diskname" )"
+		                  "" "" "" "" "$capacity"
 		f_dprintf "Found a disk device named %s" "$diskname"
 
 		# Look for existing partitions to register
@@ -360,11 +361,11 @@ f_device_get_all()
 			case "$type" in
 			0x01|0x04|0x06|0x0b|0x0c|0x0e|0xef)
 				# DOS partitions to add as "DOS media devices"
+				f_device_capacity "/dev/$slice" capacity
 				f_device_register "$slice" "" \
 					"/dev/$slice" $DEVICE_TYPE_DOS 1 \
 					f_media_init_dos f_media_get_dos \
-					f_media_shutdown_dos "" \
-					"$( f_device_capacity "/dev/$slice" )"
+					f_media_shutdown_dos "" "$capacity"
 				f_dprintf "Found a DOS partition %s" "$slice"
 				;;
 			0xa5) # FreeBSD partition
@@ -379,14 +380,15 @@ f_device_get_all()
 				); do
 					f_quietly dumpfs -m /dev/$part ||
 						continue
+					f_device_capacity \
+						"$/dev/$part" capacity
 					f_device_register \
 						"$part" "" "/dev/$part" \
 						$DEVICE_TYPE_UFS 1 \
 						f_media_init_ufs \
 						f_media_get_ufs \
 						f_media_shutdown_ufs "" \
-						"$( f_device_capacity \
-							"$/dev/$part" )"
+						"$capacity"
 					f_dprintf "Found a UFS partition %s" \
 					          "$part"
 				done # parts
@@ -1007,8 +1009,9 @@ f_network "xe"    "Xircom/Intel EtherExpress Pro100/16 Ethernet card"
 f_network "xl"    "3COM 3c90x / 3c90xB PCI Ethernet card"
 f_network "zyd"   "ZyDAS ZD1211/ZD1211B USB 802.11 wireless adapter"
 
+f_count NDEVICES $DEVICE_NAMES
 f_dprintf "%s: Initialized %u known device names/descriptions." device.subr \
-	  "$( set -- $DEVICE_NAMES; echo $# )"
+	  $NDEVICES
 
 #
 # Scan for the above devices unless requeted otherwise

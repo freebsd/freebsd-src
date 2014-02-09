@@ -1007,6 +1007,14 @@ login(struct connection *conn)
 		return;
 	}
 
+	if (ag->ag_type == AG_TYPE_UNKNOWN) {
+		/*
+		 * This can happen with empty auth-group.
+		 */
+		login_send_error(request, 0x02, 0x01);
+		log_errx(1, "auth-group type not set, denying access");
+	}
+
 	log_debugx("CHAP authentication required");
 
 	auth_method = keys_find(request_keys, "AuthMethod");

@@ -95,6 +95,7 @@ f_dialog_validate_hostname()
 #
 f_dialog_input_hostname()
 {
+	local funcname=f_dialog_input_hostname
 	local hostname="$( f_sysrc_get 'hostname:-$(hostname)' )"
 	local hostname_orig="$hostname" # for change-tracking
 
@@ -120,7 +121,8 @@ f_dialog_input_hostname()
 	#
 	if [ "$hostname" != "$hostname_orig" ]; then
 		f_dialog_info "$msg_saving_hostname"
-		f_sysrc_set hostname "$hostname"
+		f_eval_catch $funcname f_sysrc_set \
+			'f_sysrc_set hostname "%s"' "$hostname"
 	fi
 
 	#

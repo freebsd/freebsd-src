@@ -60,10 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_platform.h"
 
-#ifdef FDT
-#include <dev/ofw/ofw_nexus.h>
-#endif
-
 #undef NEXUS_DEBUG
 #ifdef NEXUS_DEBUG
 #define dprintf printf
@@ -73,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #define NUM_MIPS_IRQS	6
 
-#ifndef FDT
 static MALLOC_DEFINE(M_NEXUSDEV, "nexusdev", "Nexus device");
 
 struct nexus_device {
@@ -102,7 +97,6 @@ static int	nexus_release_resource(device_t, device_t, int, int,
 		    struct resource *);
 static int	nexus_set_resource(device_t, device_t, int, int, u_long,
 		    u_long);
-#endif
 static int	nexus_activate_resource(device_t, device_t, int, int,
 		    struct resource *);
 static int	nexus_deactivate_resource(device_t, device_t, int, int,
@@ -115,7 +109,6 @@ static int	nexus_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 
 static device_method_t nexus_methods[] = {
-#ifndef FDT
 	/* Device interface */
 	DEVMETHOD(device_probe,		nexus_probe),
 	DEVMETHOD(device_attach,	nexus_attach),
@@ -129,7 +122,6 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
 	DEVMETHOD(bus_set_resource,	nexus_set_resource),
-#endif
 	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
 	DEVMETHOD(bus_activate_resource,nexus_activate_resource),
@@ -139,19 +131,13 @@ static device_method_t nexus_methods[] = {
 	{ 0, 0 }
 };
 
-#ifndef FDT
 static driver_t nexus_driver = {
 	"nexus",
 	nexus_methods,
 	1			/* no softc */
 };
-#else
-DEFINE_CLASS_1(nexus, nexus_driver, nexus_methods,
-    sizeof(struct ofw_nexus_softc), ofw_nexus_driver);
-#endif
 static devclass_t nexus_devclass;
 
-#ifndef FDT
 static int
 nexus_probe(device_t dev)
 {
@@ -387,7 +373,6 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_release_resource(r));
 }
-#endif
 
 static int
 nexus_activate_resource(device_t bus, device_t child, int type, int rid,

@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/armreg.h>
+#include <machine/physmem.h>
+
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
@@ -122,8 +124,6 @@ extern vm_offset_t sa1_cache_clean_addr;
 #endif
 /* Physical and virtual addresses for some global pages */
 
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
 vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
@@ -202,9 +202,9 @@ initarm(struct arm_boot_params *abp)
 
 	boothowto = RB_VERBOSE | RB_SINGLE;     /* Default value */
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	cninit();
 	set_cpufuncs();
-	physmem = memsize / PAGE_SIZE;
 	pcpu0_init();
 
 	/* Do basic tuning, hz etc */

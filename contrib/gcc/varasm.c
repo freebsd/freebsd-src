@@ -4071,6 +4071,8 @@ output_constant (tree exp, unsigned HOST_WIDE_INT size, unsigned int align)
     case ENUMERAL_TYPE:
     case POINTER_TYPE:
     case REFERENCE_TYPE:
+    /* APPLE LOCAL radar 5822844 */
+    case BLOCK_POINTER_TYPE:
     case OFFSET_TYPE:
       if (! assemble_integer (expand_expr (exp, NULL_RTX, VOIDmode,
 					   EXPAND_INITIALIZER),

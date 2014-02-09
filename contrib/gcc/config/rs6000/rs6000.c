@@ -11738,11 +11738,20 @@ rs6000_emit_vector_compare (enum rtx_code rcode,
 	  try_again = true;
 	  break;
 	case NE:
-	  /* Treat A != B as ~(A==B).  */
+	case UNLE:
+	case UNLT:
+	case UNGE:
+	case UNGT:
+	  /* Invert condition and try again.
+	     e.g., A != B becomes ~(A==B).  */
 	  {
+	    enum rtx_code rev_code;
 	    enum insn_code nor_code;
-	    rtx eq_rtx = rs6000_emit_vector_compare (EQ, op0, op1,
-						     dest_mode);
+	    rtx eq_rtx;
+
+	    rev_code = reverse_condition_maybe_unordered (rcode);
+	    eq_rtx = rs6000_emit_vector_compare (rev_code, op0, op1,
+						 dest_mode);
 
 	    nor_code = one_cmpl_optab->handlers[(int)dest_mode].insn_code;
 	    gcc_assert (nor_code != CODE_FOR_nothing);
@@ -14704,8 +14713,17 @@ rs6000_emit_prologue (void)
   if (!WORLD_SAVE_P (info) && info->push_p
       && !(DEFAULT_ABI == ABI_V4 || current_function_calls_eh_return))
     {
-      rs6000_emit_allocate_stack (info->total_size, FALSE);
+      if (info->total_size < 32767)
       sp_offset = info->total_size;
+      else
+	frame_reg_rtx = frame_ptr_rtx;
+      rs6000_emit_allocate_stack (info->total_size,
+				  (frame_reg_rtx != sp_reg_rtx
+				   && ((info->altivec_size != 0)
+				       || (info->vrsave_mask != 0)
+				       )));
+      if (frame_reg_rtx != sp_reg_rtx)
+	rs6000_emit_stack_tie ();
     }
 
   /* Set frame pointer, if needed.  */
@@ -15046,8 +15064,7 @@ rs6000_emit_epilogue (int sibcall)
     }
 
   /* Set sp_offset based on the stack push from the prologue.  */
-  if ((DEFAULT_ABI == ABI_V4 || current_function_calls_eh_return)
-      && info->total_size < 32767)
+  if (info->total_size < 32767)
     sp_offset = info->total_size;
 
   /* Restore AltiVec registers if needed.  */

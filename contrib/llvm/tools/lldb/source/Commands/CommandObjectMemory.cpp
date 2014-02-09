@@ -914,6 +914,311 @@ protected:
     ClangASTType m_prev_clang_ast_type;
 };
 
+OptionDefinition
+g_memory_find_option_table[] =
+{
+    { LLDB_OPT_SET_1, false, "expression", 'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeExpression, "Evaluate an expression to obtain a byte pattern."},
+    { LLDB_OPT_SET_2, false, "string", 's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,   "Use text to find a byte pattern."},
+    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "count", 'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount,   "How many times to perform the search."},
+    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "dump-offset", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset,   "When dumping memory for a match, an offset from the match location to start dumping from."},
+};
+
+//----------------------------------------------------------------------
+// Find the specified data in memory
+//----------------------------------------------------------------------
+class CommandObjectMemoryFind : public CommandObjectParsed
+{
+public:
+  
+  class OptionGroupFindMemory : public OptionGroup
+  {
+  public:
+    OptionGroupFindMemory () :
+      OptionGroup(),
+      m_count(1),
+      m_offset(0)
+    {
+    }
+    
+    virtual
+    ~OptionGroupFindMemory ()
+    {
+    }
+    
+    virtual uint32_t
+    GetNumDefinitions ()
+    {
+      return sizeof (g_memory_find_option_table) / sizeof (OptionDefinition);
+    }
+    
+    virtual const OptionDefinition*
+    GetDefinitions ()
+    {
+      return g_memory_find_option_table;
+    }
+    
+    virtual Error
+    SetOptionValue (CommandInterpreter &interpreter,
+                    uint32_t option_idx,
+                    const char *option_arg)
+    {
+        Error error;
+        const int short_option = g_memory_find_option_table[option_idx].short_option;
+      
+        switch (short_option)
+        {
+        case 'e':
+              m_expr.SetValueFromCString(option_arg);
+              break;
+          
+        case 's':
+              m_string.SetValueFromCString(option_arg);
+              break;
+          
+        case 'c':
+              if (m_count.SetValueFromCString(option_arg).Fail())
+                  error.SetErrorString("unrecognized value for count");
+              break;
+                
+        case 'o':
+               if (m_offset.SetValueFromCString(option_arg).Fail())
+                   error.SetErrorString("unrecognized value for dump-offset");
+                break;
+
+        default:
+              error.SetErrorStringWithFormat("unrecognized short option '%c'", short_option);
+              break;
+        }
+        return error;
+    }
+    
+    virtual void
+    OptionParsingStarting (CommandInterpreter &interpreter)
+    {
+        m_expr.Clear();
+        m_string.Clear();
+        m_count.Clear();
+    }
+    
+      OptionValueString m_expr;
+      OptionValueString m_string;
+      OptionValueUInt64 m_count;
+      OptionValueUInt64 m_offset;
+  };
+  
+  CommandObjectMemoryFind (CommandInterpreter &interpreter) :
+  CommandObjectParsed (interpreter,
+                       "memory find",
+                       "Find a value in the memory of the process being debugged.",
+                       NULL,
+                       eFlagRequiresProcess | eFlagProcessMustBeLaunched),
+  m_option_group (interpreter),
+  m_memory_options ()
+  {
+    CommandArgumentEntry arg1;
+    CommandArgumentEntry arg2;
+    CommandArgumentData addr_arg;
+    CommandArgumentData value_arg;
+    
+    // Define the first (and only) variant of this arg.
+    addr_arg.arg_type = eArgTypeAddress;
+    addr_arg.arg_repetition = eArgRepeatPlain;
+    
+    // There is only one variant this argument could be; put it into the argument entry.
+    arg1.push_back (addr_arg);
+    
+    // Define the first (and only) variant of this arg.
+    value_arg.arg_type = eArgTypeValue;
+    value_arg.arg_repetition = eArgRepeatPlus;
+    
+    // There is only one variant this argument could be; put it into the argument entry.
+    arg2.push_back (value_arg);
+    
+    // Push the data for the first argument into the m_arguments vector.
+    m_arguments.push_back (arg1);
+    m_arguments.push_back (arg2);
+    
+    m_option_group.Append (&m_memory_options, LLDB_OPT_SET_ALL, LLDB_OPT_SET_2);
+    m_option_group.Finalize();
+  }
+  
+  virtual
+  ~CommandObjectMemoryFind ()
+  {
+  }
+  
+  Options *
+  GetOptions ()
+  {
+    return &m_option_group;
+  }
+  
+protected:
+  virtual bool
+  DoExecute (Args& command, CommandReturnObject &result)
+  {
+      // No need to check "process" for validity as eFlagRequiresProcess ensures it is valid
+      Process *process = m_exe_ctx.GetProcessPtr();
+
+      const size_t argc = command.GetArgumentCount();
+
+      if (argc != 2)
+      {
+          result.AppendError("two addresses needed for memory find");
+          return false;
+      }
+
+      Error error;
+      lldb::addr_t low_addr = Args::StringToAddress(&m_exe_ctx, command.GetArgumentAtIndex(0),LLDB_INVALID_ADDRESS,&error);
+      if (low_addr == LLDB_INVALID_ADDRESS || error.Fail())
+      {
+          result.AppendError("invalid low address");
+          return false;
+      }
+      lldb::addr_t high_addr = Args::StringToAddress(&m_exe_ctx, command.GetArgumentAtIndex(1),LLDB_INVALID_ADDRESS,&error);
+      if (high_addr == LLDB_INVALID_ADDRESS || error.Fail())
+      {
+          result.AppendError("invalid low address");
+          return false;
+      }
+
+      if (high_addr <= low_addr)
+      {
+          result.AppendError("starting address must be smaller than ending address");
+          return false;
+      }
+      
+      lldb::addr_t found_location = LLDB_INVALID_ADDRESS;
+      
+      DataBufferHeap buffer;
+      
+      if (m_memory_options.m_string.OptionWasSet())
+          buffer.CopyData(m_memory_options.m_string.GetStringValue(), strlen(m_memory_options.m_string.GetStringValue()));
+      else if (m_memory_options.m_expr.OptionWasSet())
+      {
+          StackFrame* frame = m_exe_ctx.GetFramePtr();
+          ValueObjectSP result_sp;
+          if (process->GetTarget().EvaluateExpression(m_memory_options.m_expr.GetStringValue(), frame, result_sp) && result_sp.get())
+          {
+              uint64_t value = result_sp->GetValueAsUnsigned(0);
+              switch (result_sp->GetClangType().GetByteSize())
+              {
+                  case 1: {
+                      uint8_t byte = (uint8_t)value;
+                      buffer.CopyData(&byte,1);
+                  }
+                      break;
+                  case 2: {
+                      uint16_t word = (uint16_t)value;
+                      buffer.CopyData(&word,2);
+                  }
+                      break;
+                  case 4: {
+                      uint32_t lword = (uint32_t)value;
+                      buffer.CopyData(&lword,4);
+                  }
+                      break;
+                  case 8: {
+                      buffer.CopyData(&value, 8);
+                  }
+                      break;
+                  case 3:
+                  case 5:
+                  case 6:
+                  case 7:
+                      result.AppendError("unknown type. pass a string instead");
+                      return false;
+                  default:
+                      result.AppendError("do not know how to deal with larger than 8 byte result types. pass a string instead");
+                      return false;
+              }
+          }
+          else
+          {
+              result.AppendError("expression evaluation failed. pass a string instead?");
+              return false;
+          }
+      }
+      else
+      {
+          result.AppendError("please pass either a block of text, or an expression to evaluate.");
+          return false;
+      }
+      
+      size_t count = m_memory_options.m_count.GetCurrentValue();
+      found_location = low_addr;
+      bool ever_found = false;
+      while (count)
+      {
+          found_location = Search(found_location, high_addr, buffer.GetBytes(), buffer.GetByteSize());
+          if (found_location == LLDB_INVALID_ADDRESS)
+          {
+              if (!ever_found)
+              {
+                  result.AppendMessage("Your data was not found within the range.\n");
+                  result.SetStatus(lldb::eReturnStatusSuccessFinishNoResult);
+              }
+              else
+                  result.AppendMessage("No more matches found within the range.\n");
+              break;
+          }
+          result.AppendMessageWithFormat("Your data was found at location: 0x%" PRIx64 "\n", found_location);
+
+          DataBufferHeap dumpbuffer(32,0);
+          process->ReadMemory(found_location+m_memory_options.m_offset.GetCurrentValue(), dumpbuffer.GetBytes(), dumpbuffer.GetByteSize(), error);
+          if (!error.Fail())
+          {
+              DataExtractor data(dumpbuffer.GetBytes(), dumpbuffer.GetByteSize(), process->GetByteOrder(), process->GetAddressByteSize());
+              data.Dump(&result.GetOutputStream(), 0, lldb::eFormatBytesWithASCII, 1, dumpbuffer.GetByteSize(), 16, found_location+m_memory_options.m_offset.GetCurrentValue(), 0, 0);
+              result.GetOutputStream().EOL();
+          }
+
+          --count;
+          found_location++;
+          ever_found = true;
+      }
+      
+      result.SetStatus(lldb::eReturnStatusSuccessFinishResult);
+      return true;
+  }
+    
+    lldb::addr_t
+    Search (lldb::addr_t low,
+            lldb::addr_t high,
+            uint8_t* buffer,
+            size_t buffer_size)
+    {
+        Process *process = m_exe_ctx.GetProcessPtr();
+        DataBufferHeap heap(buffer_size, 0);
+        lldb::addr_t fictional_ptr = low;
+        for (auto ptr = low;
+             low < high;
+             fictional_ptr++)
+        {
+            Error error;
+            if (ptr == low || buffer_size == 1)
+                process->ReadMemory(ptr, heap.GetBytes(), buffer_size, error);
+            else
+            {
+                memmove(heap.GetBytes(), heap.GetBytes()+1, buffer_size-1);
+                process->ReadMemory(ptr, heap.GetBytes()+buffer_size-1, 1, error);
+            }
+            if (error.Fail())
+                return LLDB_INVALID_ADDRESS;
+            if (memcmp(heap.GetBytes(), buffer, buffer_size) == 0)
+                return fictional_ptr;
+            if (ptr == low)
+                ptr += buffer_size;
+            else
+                ptr += 1;
+        }
+        return LLDB_INVALID_ADDRESS;
+    }
+  
+    OptionGroupOptions m_option_group;
+    OptionGroupFindMemory m_memory_options;
+};
+
 
 OptionDefinition
 g_memory_write_option_table[] =
@@ -921,7 +1226,6 @@ g_memory_write_option_table[] =
 { LLDB_OPT_SET_1, true,  "infile", 'i', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename, "Write memory using the contents of a file."},
 { LLDB_OPT_SET_1, false, "offset", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset,   "Start writng bytes from an offset within the input file."},
 };
-
 
 //----------------------------------------------------------------------
 // Write memory to the inferior process
@@ -948,13 +1252,13 @@ public:
         {
             return sizeof (g_memory_write_option_table) / sizeof (OptionDefinition);
         }
-        
+      
         virtual const OptionDefinition*
         GetDefinitions ()
         {
             return g_memory_write_option_table;
         }
-        
+      
         virtual Error
         SetOptionValue (CommandInterpreter &interpreter,
                         uint32_t option_idx,
@@ -962,7 +1266,7 @@ public:
         {
             Error error;
             const int short_option = g_memory_write_option_table[option_idx].short_option;
-            
+          
             switch (short_option)
             {
                 case 'i':
@@ -973,7 +1277,7 @@ public:
                         error.SetErrorStringWithFormat("input file does not exist: '%s'", option_arg);
                     }
                     break;
-                    
+                
                 case 'o':
                     {
                         bool success;
@@ -1374,6 +1678,7 @@ CommandObjectMemory::CommandObjectMemory (CommandInterpreter &interpreter) :
                             "A set of commands for operating on memory.",
                             "memory <subcommand> [<subcommand-options>]")
 {
+    LoadSubCommand ("find", CommandObjectSP (new CommandObjectMemoryFind (interpreter)));
     LoadSubCommand ("read",  CommandObjectSP (new CommandObjectMemoryRead (interpreter)));
     LoadSubCommand ("write", CommandObjectSP (new CommandObjectMemoryWrite (interpreter)));
 }

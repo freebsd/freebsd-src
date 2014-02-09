@@ -123,7 +123,25 @@ Lram_offset:	.word from_ram-_C_LABEL(_start)
 from_ram:
 	nop
 #endif
+	adr	r7, Lunmapped
+	bic     r7, r7, #0xf0000000
+	orr     r7, r7, #PHYSADDR
 
+
+disable_mmu:
+	/* Disable MMU for a while */
+	mrc     p15, 0, r2, c1, c0, 0
+	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
+	    CPU_CONTROL_WBUF_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
+	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
+	mcr     p15, 0, r2, c1, c0, 0
+
+	nop
+	nop
+	nop
+	mov	pc, r7
+Lunmapped:
 	/*
 	 * Build page table from scratch.
 	 */
@@ -165,13 +183,20 @@ from_ram:
 	ldr	r2, =(KERNVIRTADDR)
 	bl	build_pagetables
 
+#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
+	/* Create the custom map */
+	ldr	r1, =SOCDEV_VA
+	ldr	r2, =SOCDEV_PA
+	bl	build_pagetables
+#endif
+
 #if defined(SMP)
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
 #endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#ifdef _ARM_ARCH_6
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -345,10 +370,10 @@ ASENTRY_NP(mptramp)
 
 	AP_DEBUG(#1)
 
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	bic	r3, r3, #(PSR_MODE)
 	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_all, r3
+        msr	cpsr_fsxc, r3
 
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, #0x0f		/* Get CPU ID */
@@ -405,7 +430,7 @@ Ltag:
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	mov	r0, #0
 	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
 #endif
@@ -417,8 +442,9 @@ Ltag:
 	mcr	p15, 0, r0, c3, c0, 0
 	/* Enable MMU */
 	mrc	p15, 0, r0, c1, c0, 0
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
+	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
 #endif
 	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
@@ -457,7 +483,7 @@ ENTRY_NP(cpu_halt)
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(I32_bit | F32_bit)
-	msr     cpsr_all, r2
+	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]

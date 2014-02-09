@@ -531,7 +531,7 @@ skip_ipsec2:;
 		 * longer than that long for the stability of ro_rt.  The
 		 * flow ID assignment must have happened before this point.
 		 */
-		fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6);
+		fle = flowtable_lookup(AF_INET6, m);
 		if (fle != NULL)
 			flow_to_route_in6(fle, ro);
 	}

@@ -28,12 +28,13 @@
 .\"     from: @(#)cosh.3	5.1 (Berkeley) 5/2/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd August 17, 2013
 .Dt COSH 3
 .Os
 .Sh NAME
 .Nm cosh ,
-.Nm coshf
+.Nm coshf ,
+.Nm coshl
 .Nd hyperbolic cosine functions
 .Sh LIBRARY
 .Lb libm
@@ -43,11 +44,14 @@
 .Fn cosh "double x"
 .Ft float
 .Fn coshf "float x"
+.Ft long double
+.Fn coshl "long double x"
 .Sh DESCRIPTION
 The
-.Fn cosh
-and the
-.Fn coshf
+.Fn cosh ,
+.Fn coshf ,
+and
+.Fn coshl
 functions compute the hyperbolic cosine of
 .Fa x .
 .Sh SEE ALSO

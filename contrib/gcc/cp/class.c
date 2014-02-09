@@ -1282,6 +1282,12 @@ check_bases (tree t,
       TYPE_NEEDS_CONSTRUCTING (t) |= TYPE_NEEDS_CONSTRUCTING (basetype);
       TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t)
 	|= TYPE_HAS_NONTRIVIAL_DESTRUCTOR (basetype);
+      /* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+      if (CLASSTYPE_HAS_NONTRIVIAL_DESTRUCTOR_BODY (basetype)
+	  || CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (basetype))
+	CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (t) = 1;
+      /* APPLE LOCAL end omit calls to empty destructors 5559195 */
+
       TYPE_HAS_COMPLEX_ASSIGN_REF (t)
 	|= TYPE_HAS_COMPLEX_ASSIGN_REF (basetype);
       TYPE_HAS_COMPLEX_INIT_REF (t) |= TYPE_HAS_COMPLEX_INIT_REF (basetype);
@@ -1439,6 +1445,13 @@ finish_struct_bits (tree t)
       TYPE_NEEDS_CONSTRUCTING (variants) = TYPE_NEEDS_CONSTRUCTING (t);
       TYPE_HAS_NONTRIVIAL_DESTRUCTOR (variants)
 	= TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t);
+
+      /* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+      CLASSTYPE_HAS_NONTRIVIAL_DESTRUCTOR_BODY (variants) =
+	CLASSTYPE_HAS_NONTRIVIAL_DESTRUCTOR_BODY (t);
+      CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (variants) =
+	CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (t);
+      /* APPLE LOCAL end omit calls to empty destructors 5559195 */
 
       TYPE_POLYMORPHIC_P (variants) = TYPE_POLYMORPHIC_P (t);
 
@@ -2539,6 +2552,13 @@ add_implicitly_declared_members (tree t,
       if (TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t))
 	{
 	  bool lazy_p = true;
+
+	  /* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+	  /* Since this is an empty destructor, it can only be nontrivial
+	     because one of its base classes has a destructor that must be
+	     called. */
+	  CLASSTYPE_DESTRUCTOR_NONTRIVIAL_BECAUSE_OF_BASE (t) = 1;
+	  /* APPLE LOCAL end omit calls to empty destructors 5559195 */
 
 	  if (TYPE_FOR_JAVA (t))
 	    /* If this a Java class, any non-trivial destructor is
@@ -3729,7 +3749,16 @@ check_methods (tree t)
 	}
       /* All user-declared destructors are non-trivial.  */
       if (DECL_DESTRUCTOR_P (x))
-	TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t) = 1;
+	/* APPLE LOCAL begin omit calls to empty destructors 5559195 */
+	{
+	  TYPE_HAS_NONTRIVIAL_DESTRUCTOR (t) = 1;
+
+	  /* Conservatively assume that destructor body is nontrivial.  Will
+	     be unmarked during parsing of function body if it happens to be
+	     trivial. */
+	  CLASSTYPE_HAS_NONTRIVIAL_DESTRUCTOR_BODY (t) = 1;
+	}
+	/* APPLE LOCAL end omit calls to empty destructors 5559195 */
     }
 }
 

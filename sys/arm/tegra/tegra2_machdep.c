@@ -50,17 +50,12 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
-/* FIXME move to tegrareg.h */
-#define TEGRA2_BASE			0xE0000000	/* KVM base for peripherials */
-#define TEGRA2_UARTA_VA_BASE		0xE0006000
-#define TEGRA2_UARTA_PA_BASE		0x70006000
-
 #define TEGRA2_CLK_RST_PA_BASE		0x60006000
 
 #define TEGRA2_CLK_RST_OSC_FREQ_DET_REG		0x58
 #define TEGRA2_CLK_RST_OSC_FREQ_DET_STAT_REG	0x5C
-#define OSC_FREQ_DET_TRIG			(1<<31)
-#define OSC_FREQ_DET_BUSY               	(1<<31)
+#define OSC_FREQ_DET_TRIG			(1U<<31)
+#define OSC_FREQ_DET_BUSY               	(1U<<31)
 
 #if 0
 static int
@@ -107,15 +102,12 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	return (fdt_immr_va);
+	return (arm_devmap_lastaddr());
 }
 
 void
 initarm_early_init(void)
 {
-
-	if (fdt_immr_addr(TEGRA2_BASE) != 0)				/* FIXME ???? */
-		while (1);
 }
 
 void
@@ -128,26 +120,16 @@ initarm_late_init(void)
 {
 }
 
-#define FDT_DEVMAP_MAX	(1 + 2 + 1 + 1)	/* FIXME */
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Add a static mapping for the register range that includes the debug uart.
+ * It's not clear this is needed, but the original code established this mapping
+ * before conversion to the newer arm_devmap_add_entry() routine.
  */
 int
 initarm_devmap_init(void)
 {
-	int i = 0;
-	fdt_devmap[i].pd_va = 0xe0000000;
-	fdt_devmap[i].pd_pa = 0x70000000;
-	fdt_devmap[i].pd_size = 0x100000;
-	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
-	i++;
 
-	arm_devmap_register_table(&fdt_devmap[0]);
+	arm_devmap_add_entry(0x70000000, 0x00100000);
 	return (0);
 }
 

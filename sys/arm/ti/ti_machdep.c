@@ -58,8 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include "platform_if.h"
 
-/* Start of address space used for bootstrap map */
-#define DEVMAP_BOOTSTRAP_MAP_START	0xF0000000
 
 #if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
 #error "Unknown SoC"
@@ -80,30 +78,19 @@ static vm_offset_t
 ti_lastaddr(platform_t plat)
 {
 
-	return (DEVMAP_BOOTSTRAP_MAP_START);
+	return (arm_devmap_lastaddr());
 }
 
-#define FDT_DEVMAP_MAX	(2)		// FIXME
-static struct arm_devmap_entry fdt_devmap[FDT_DEVMAP_MAX] = {
-	{ 0, 0, 0, 0, 0, }
-};
-
-
 /*
- * Construct pmap_devmap[] with DT-derived config data.
+ * Construct static devmap entries to map out the most frequently used
+ * peripherals using 1mb section mappings.
  */
 #if defined(SOC_OMAP4)
 static int
 ti_omap4_devmap_init(platform_t plat)
 {
-
-	fdt_devmap[0].pd_va = 0xF8000000;
-	fdt_devmap[0].pd_pa = 0x48000000;
-	fdt_devmap[0].pd_size = 0x1000000;
-	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[0].pd_cache = PTE_DEVICE;
-
-	arm_devmap_register_table(&fdt_devmap[0]);
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_CFG devices */
 	return (0);
 }
 #endif
@@ -113,13 +100,13 @@ static int
 ti_am335x_devmap_init(platform_t plat)
 {
 
-	fdt_devmap[0].pd_va = 0xF4C00000;
-	fdt_devmap[0].pd_pa = 0x44C00000;       /* L4_WKUP */
-	fdt_devmap[0].pd_size = 0x400000;       /* 4 MB */
-	fdt_devmap[0].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[0].pd_cache = PTE_DEVICE;
-
-	arm_devmap_register_table(&fdt_devmap[0]);
+	arm_devmap_add_entry(0x44C00000, 0x00400000); /* 4mb L4_WKUP devices*/
+	arm_devmap_add_entry(0x47400000, 0x00100000); /* 1mb USB            */
+	arm_devmap_add_entry(0x47800000, 0x00100000); /* 1mb mmchs2         */
+	arm_devmap_add_entry(0x48000000, 0x01000000); /*16mb L4_PER devices */
+	arm_devmap_add_entry(0x49000000, 0x00100000); /* 1mb edma3          */
+	arm_devmap_add_entry(0x49800000, 0x00300000); /* 3mb edma3          */
+	arm_devmap_add_entry(0x4A000000, 0x01000000); /*16mb L4_FAST devices*/
 	return (0);
 }
 #endif

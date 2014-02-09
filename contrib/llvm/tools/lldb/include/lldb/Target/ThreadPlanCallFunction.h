@@ -18,6 +18,8 @@
 #include "lldb/Target/Thread.h"
 #include "lldb/Target/ThreadPlan.h"
 
+#include "llvm/ADT/ArrayRef.h"
+
 namespace lldb_private {
 
 class ThreadPlanCallFunction : public ThreadPlan
@@ -29,25 +31,8 @@ public:
     ThreadPlanCallFunction (Thread &thread,
                             const Address &function,
                             const ClangASTType &return_type,
-                            lldb::addr_t arg,
-                            bool stop_other_threads,
-                            bool unwind_on_error = true,
-                            bool ignore_breakpoints = false,
-                            lldb::addr_t *this_arg = 0,
-                            lldb::addr_t *cmd_arg = 0);
-
-    ThreadPlanCallFunction (Thread &thread,
-                            const Address &function,
-                            const ClangASTType &return_type,
-                            bool stop_other_threads,
-                            bool unwind_on_error,
-                            bool ignore_breakpoints,
-                            lldb::addr_t *arg1_ptr = NULL,
-                            lldb::addr_t *arg2_ptr = NULL,
-                            lldb::addr_t *arg3_ptr = NULL,
-                            lldb::addr_t *arg4_ptr = NULL,
-                            lldb::addr_t *arg5_ptr = NULL,
-                            lldb::addr_t *arg6_ptr = NULL);
+                            llvm::ArrayRef<lldb::addr_t> args,
+                            const EvaluateExpressionOptions &options);
 
     virtual
     ~ThreadPlanCallFunction ();
@@ -171,10 +156,13 @@ private:
     
     bool                                            m_valid;
     bool                                            m_stop_other_threads;
+    bool                                            m_unwind_on_error;
+    bool                                            m_ignore_breakpoints;
+    bool                                            m_debug_execution;
+    bool                                            m_trap_exceptions;
     Address                                         m_function_addr;
     Address                                         m_start_addr;
     lldb::addr_t                                    m_function_sp;
-    Thread::RegisterCheckpoint                      m_register_backup;
     lldb::ThreadPlanSP                              m_subplan_sp;
     LanguageRuntime                                *m_cxx_language_runtime;
     LanguageRuntime                                *m_objc_language_runtime;
@@ -187,9 +175,9 @@ private:
     ClangASTType                                    m_return_type;
     lldb::ValueObjectSP                             m_return_valobj_sp;  // If this contains a valid pointer, use the ABI to extract values when complete
     bool                                            m_takedown_done;    // We want to ensure we only do the takedown once.  This ensures that.
+    bool                                            m_should_clear_objc_exception_bp;
+    bool                                            m_should_clear_cxx_exception_bp;
     lldb::addr_t                                    m_stop_address;     // This is the address we stopped at.  Also set in DoTakedown;
-    bool                                            m_unwind_on_error;
-    bool                                            m_ignore_breakpoints;
 
     DISALLOW_COPY_AND_ASSIGN (ThreadPlanCallFunction);
 };

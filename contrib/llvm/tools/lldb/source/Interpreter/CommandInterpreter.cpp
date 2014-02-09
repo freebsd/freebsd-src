@@ -1434,12 +1434,12 @@ CommandInterpreter::PreprocessCommand (std::string &command)
                     ValueObjectSP expr_result_valobj_sp;
                     
                     EvaluateExpressionOptions options;
-                    options.SetCoerceToId(false)
-                    .SetUnwindOnError(true)
-                    .SetIgnoreBreakpoints(true)
-                    .SetKeepInMemory(false)
-                    .SetRunOthers(true)
-                    .SetTimeoutUsec(0);
+                    options.SetCoerceToId(false);
+                    options.SetUnwindOnError(true);
+                    options.SetIgnoreBreakpoints(true);
+                    options.SetKeepInMemory(false);
+                    options.SetTryAllThreads(true);
+                    options.SetTimeoutUsec(0);
                     
                     ExecutionResults expr_result = target->EvaluateExpression (expr_str.c_str(), 
                                                                                exe_ctx.GetFramePtr(),
@@ -1497,6 +1497,9 @@ CommandInterpreter::PreprocessCommand (std::string &command)
                                     break;
                                 case eExecutionTimedOut:
                                     error.SetErrorStringWithFormat("expression timed out for the expression '%s'", expr_str.c_str());
+                                    break;
+                                case eExecutionStoppedForDebug:
+                                    error.SetErrorStringWithFormat("expression stop at entry point for debugging for the expression '%s'", expr_str.c_str());
                                     break;
                             }
                         }

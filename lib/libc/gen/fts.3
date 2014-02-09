@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd May 21, 2013
+.Dd January 12, 2014
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -304,7 +304,6 @@ file is a member.
 A parent structure for the initial entry point is provided as well,
 however, only the
 .Fa fts_level ,
-.Fa fts_bignum ,
 .Fa fts_number
 and
 .Fa fts_pointer
@@ -366,13 +365,6 @@ The
 .Fa fts_name
 field is always
 .Dv NUL Ns -terminated .
-.Pp
-Note that the use of
-.Fa fts_bignum
-is mutually exclusive with the use of
-.Fa fts_number
-or
-.Fa fts_pointer .
 .Sh FTS_OPEN
 The
 .Fn fts_open

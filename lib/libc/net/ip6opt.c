@@ -381,11 +381,8 @@ inet6_opt_init(void *extbuf, socklen_t extlen)
 {
 	struct ip6_ext *ext = (struct ip6_ext *)extbuf;
 
-	if (extlen < 0 || (extlen % 8))
-		return(-1);
-
 	if (ext) {
-		if (extlen == 0)
+		if (extlen <= 0 || (extlen % 8))
 			return(-1);
 		ext->ip6e_len = (extlen >> 3) - 1;
 	}

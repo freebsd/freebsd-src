@@ -40,6 +40,7 @@ f_include $BSDCFG_SHARE/networking/media.subr
 f_include $BSDCFG_SHARE/networking/netmask.subr
 f_include $BSDCFG_SHARE/networking/resolv.subr
 f_include $BSDCFG_SHARE/networking/routing.subr
+f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
@@ -163,6 +164,7 @@ f_dialog_menu_netdev()
 #
 f_dialog_menu_netdev_edit()
 {
+	local funcname=f_dialog_menu_netdev_edit
 	local interface="$1" ipaddr="$2" netmask="$3" options="$4" dhcp="$5"
 	local prompt menu_list height width rows
 
@@ -175,7 +177,7 @@ f_dialog_menu_netdev_edit()
 	      dhcp_orig="$5"
 
 	local hline="$hline_arrows_tab_enter"
-	prompt=$( printf "$msg_network_configuration" "$interface" )
+	f_sprintf prompt "$msg_network_configuration" "$interface"
 
 	#
 	# Loop forever until the user has finished configuring the different
@@ -254,8 +256,9 @@ f_dialog_menu_netdev_edit()
 		      # are made is changed parts of the system may hang.
 		      #
 		      if f_nfs_mounted && ! f_jailed; then
-		      	local setting="$( printf "$msg_current_dhcp_status" \
-		      	                         "$interface" "$dhcp_status" )"
+			local setting
+			f_sprintf setting "$msg_current_dhcp_status" \
+		      	                  "$interface" "$dhcp_status"
 			f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
 		      		continue
 		      fi
@@ -269,7 +272,7 @@ f_dialog_menu_netdev_edit()
 		      	trap - SIGINT
 		      	( # Execute within sub-shell to allow/catch Ctrl-C
 		      	  trap 'exit $FAILURE' SIGINT
-		      	  msg=$( printf "$msg_scanning_for_dhcp" "$interface" )
+			  f_sprintf msg "$msg_scanning_for_dhcp" "$interface"
 		      	  if [ "$USE_XDIALOG" ]; then
 		      	  	(
 		      	  	  f_quietly ifconfig "$interface" delete
@@ -319,14 +322,16 @@ f_dialog_menu_netdev_edit()
 
 		local value=
 		if [ "$dhcp" ]; then
-			f_sysrc_delete defaultrouter
+			f_eval_catch $funcname f_sysrc_delete \
+				'f_sysrc_delete defaultrouter'
 			value=DHCP
 		else
 			value="inet $ipaddr netmask $netmask"
 			value="$value${options:+ }$options"
 		fi
 
-		f_sysrc_set ifconfig_$interface "$value"
+		f_eval_catch $funcname f_sysrc_set \
+			'f_sysrc_set "ifconfig_%s" "%s"' "$interface" "$value"
 	fi
 
 	#
@@ -337,10 +342,12 @@ f_dialog_menu_netdev_edit()
 		then
 			f_show_info "$msg_bring_interface_up" "$interface"
 
-			local dr="$( f_sysrc_get defaultrouter )" err
+			local dr="$( f_sysrc_get defaultrouter )"
 			if [ "$dr" = "NO" -o ! "$dr" ]; then
-				dr=$( f_route_get_default )
-				[ "$dr" ] && f_sysrc_set defaultrouter "$dr"
+				f_route_get_default dr
+				[ "$dr" ] && f_eval_catch \
+					$funcname f_sysrc_set \
+					'f_sysrc_set defaultrouter "%s"' "$dr"
 			fi
 			#
 			# Make a backup of resolv.conf(5) before using
@@ -351,16 +358,13 @@ f_dialog_menu_netdev_edit()
 			# resolv.conf(5) by-default upon termination).
 			#
 			f_quietly cp -fp "$RESOLV_CONF" "$RESOLV_CONF.$$"
-			err=$( ifconfig $interface inet $ipaddr \
-			       	netmask $netmask $options 2>&1 )
-			if [ $? -eq $SUCCESS ]; then
-				if [ "$dr" -a "$dr" != "NO" ]; then
-					err=$( route add default "$dr" 2>&1 )
-					[ $? -eq $SUCCESS ] || \
-						dialog_msgbox "$err"
-				fi
-			else
-				dialog_msgbox "$err"
+			if f_eval_catch $funcname ifconfig \
+				'ifconfig "%s" inet "%s" netmask "%s" %s' \
+				"$interface" "$ipaddr" "$netmask" "$options"
+			then
+				[ "$dr" -a "$dr" != "NO" ] &&
+					f_eval_catch $funcname route \
+						'route add default "%s"' "$dr"
 			fi
 			if cmp -s "$RESOLV_CONF" "$RESOLV_CONF.$$"; then
 				f_quietly rm -f "$RESOLV_CONF.$$"

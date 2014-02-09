@@ -638,7 +638,6 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 	uint64_t start;
 	uint32_t rintr;
 	int i, nintr, nreg, rv;
-	uint8_t maskbuf[sizeof(reg) + sizeof(intr)];
 
 	edi = malloc(sizeof(*edi), M_DEVBUF, M_ZERO | M_WAITOK);
 	if (ofw_bus_gen_setup_devinfo(&edi->edi_obdinfo, node) != 0) {
@@ -673,7 +672,7 @@ ebus_setup_dinfo(device_t dev, struct ebus_softc *sc, phandle_t node)
 			intr = intrs[i];
 			rv = ofw_bus_lookup_imap(node, &sc->sc_iinfo, &reg,
 			    sizeof(reg), &intr, sizeof(intr), &rintr,
-			    sizeof(rintr), NULL, maskbuf);
+			    sizeof(rintr), NULL);
 #ifndef SUN4V
 			if (rv != 0)
 				rintr = INTMAP_VEC(sc->sc_ign, rintr);

@@ -358,6 +358,13 @@ OLD_DIRS+=usr/share/calendar
 OLD_FILES+=usr/share/man/man1/calendar.1.gz
 .endif
 
+.if ${MK_CASPER} == no
+OLD_FILES+=etc/rc.d/casperd
+OLD_LIBS+=lib/libcasper.so.0
+OLD_FILES+=sbin/casper
+OLD_FILES+=usr/lib/libcasper.a
+.endif
+
 .if ${MK_CDDL} == no
 OLD_LIBS+=lib/libavl.so.2
 OLD_LIBS+=lib/libctf.so.2
@@ -591,6 +598,11 @@ OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
+.endif
+
+.if ${MK_FMTREE} == no
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 .endif
 
 .if ${MK_GNUCXX} == no
@@ -3149,6 +3161,8 @@ OLD_FILES+=usr/include/c++/v1/cwctype
 OLD_FILES+=usr/include/c++/v1/cxxabi.h
 OLD_FILES+=usr/include/c++/v1/deque
 OLD_FILES+=usr/include/c++/v1/exception
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
+OLD_FILES+=usr/include/c++/v1/experimental/optional
 OLD_FILES+=usr/include/c++/v1/ext/__hash
 OLD_FILES+=usr/include/c++/v1/ext/hash_map
 OLD_FILES+=usr/include/c++/v1/ext/hash_set
@@ -3199,6 +3213,7 @@ OLD_FILES+=usr/include/c++/v1/unwind.h
 OLD_FILES+=usr/include/c++/v1/utility
 OLD_FILES+=usr/include/c++/v1/valarray
 OLD_FILES+=usr/include/c++/v1/vector
+OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
 .endif
@@ -3306,9 +3321,60 @@ OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
 .endif
 
-#.if ${MK_NIS} == no
-# to be filled in
-#.endif
+.if ${MK_NIS} == no
+OLD_FILES+=usr/bin/ypcat
+OLD_FILES+=usr/bin/ypchfn
+OLD_FILES+=usr/bin/ypchpass
+OLD_FILES+=usr/bin/ypchsh
+OLD_FILES+=usr/bin/ypmatch
+OLD_FILES+=usr/bin/yppasswd
+OLD_FILES+=usr/bin/ypwhich
+OLD_FILES+=usr/include/ypclnt.h
+OLD_FILES+=usr/lib/libypclnt.a
+OLD_FILES+=usr/lib/libypclnt.so
+OLD_LIBS+=usr/lib/libypclnt.so.4
+OLD_FILES+=usr/lib/libypclnt_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libypclnt.a
+OLD_FILES+=usr/lib32/libypclnt.so
+OLD_LIBS+=usr/lib32/libypclnt.so.4
+OLD_FILES+=usr/lib32/libypclnt_p.a
+.endif
+OLD_FILES+=usr/libexec/mknetid
+OLD_FILES+=usr/libexec/yppwupdate
+OLD_FILES+=usr/libexec/ypxfr
+OLD_FILES+=usr/sbin/rpc.yppasswdd
+OLD_FILES+=usr/sbin/rpc.ypupdated
+OLD_FILES+=usr/sbin/rpc.ypxfrd
+OLD_FILES+=usr/sbin/yp_mkdb
+OLD_FILES+=usr/sbin/ypbind
+OLD_FILES+=usr/sbin/ypinit
+OLD_FILES+=usr/sbin/yppoll
+OLD_FILES+=usr/sbin/yppush
+OLD_FILES+=usr/sbin/ypserv
+OLD_FILES+=usr/sbin/ypset
+OLD_FILES+=usr/share/man/man1/ypcat.1.gz
+OLD_FILES+=usr/share/man/man1/ypchfn.1.gz
+OLD_FILES+=usr/share/man/man1/ypchpass.1.gz
+OLD_FILES+=usr/share/man/man1/ypchsh.1.gz
+OLD_FILES+=usr/share/man/man1/ypmatch.1.gz
+OLD_FILES+=usr/share/man/man1/yppasswd.1.gz
+OLD_FILES+=usr/share/man/man1/ypwhich.1.gz
+OLD_FILES+=usr/share/man/man5/netid.5.gz
+OLD_FILES+=usr/share/man/man8/mknetid.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.yppasswdd.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.ypxfrd.8.gz
+OLD_FILES+=usr/share/man/man8/yp_mkdb.8.gz
+OLD_FILES+=usr/share/man/man8/ypbind.8.gz
+OLD_FILES+=usr/share/man/man8/ypinit.8.gz
+OLD_FILES+=usr/share/man/man8/yppoll.8.gz
+OLD_FILES+=usr/share/man/man8/yppush.8.gz
+OLD_FILES+=usr/share/man/man8/ypserv.8.gz
+OLD_FILES+=usr/share/man/man8/ypset.8.gz
+OLD_FILES+=usr/share/man/man8/ypxfr.8.gz
+OLD_FILES+=var/yp/Makefile
+OLD_FILES+=var/yp/Makefile.dist
+.endif
 
 #.if ${MK_NLS} == no
 # to be filled in
@@ -4059,6 +4125,26 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .if ${MK_TESTS} == yes
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/ui_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/dynstr_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/env_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/fs_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/list_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/map_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_helpers
+OLD_FILES+=usr/tests/lib/atf/libatf-c/process_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/sanity_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/text_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c/user_test
 .else
 # ATF libraries.
 OLD_FILES+=usr/bin/atf-sh

@@ -143,7 +143,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_APIC
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
@@ -1416,7 +1416,7 @@ cpu_idle(int busy)
 	/* Call main idle method. */
 	cpu_idle_fn(sbt);
 
-	/* Switch timers mack into active mode. */
+	/* Switch timers back into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();

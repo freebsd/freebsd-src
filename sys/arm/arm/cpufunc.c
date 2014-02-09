@@ -1038,7 +1038,7 @@ struct cpu_functions arm1176_cpufuncs = {
 };
 #endif /*CPU_ARM1176 */
 
-#if defined(CPU_CORTEXA)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
 	
@@ -1119,7 +1119,7 @@ l2cache l2cache_type = L2CACHE_UNKNOWN;
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_CORTEXA)
+  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 static void get_cachetype_cp15(void);
 
@@ -1417,7 +1417,7 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM1136 || CPU_ARM1176 */
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	if (cputype == CPU_ID_CORTEXA5 ||
 	    cputype == CPU_ID_CORTEXA7 ||
 	    cputype == CPU_ID_CORTEXA8R1 ||
@@ -1426,7 +1426,8 @@ set_cpufuncs()
 	    cputype == CPU_ID_CORTEXA9R1 ||
 	    cputype == CPU_ID_CORTEXA9R2 ||
 	    cputype == CPU_ID_CORTEXA9R3 ||
-	    cputype == CPU_ID_CORTEXA15 ) {
+	    cputype == CPU_ID_CORTEXA15 ||
+	    cputype == CPU_ID_KRAIT ) {
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
@@ -2408,7 +2409,7 @@ pj4bv7_setup(args)
 }
 #endif /* CPU_MV_PJ4B */
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 void
 cortexa_setup(char *args)

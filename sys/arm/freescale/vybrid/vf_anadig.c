@@ -90,7 +90,7 @@ __FBSDID("$FreeBSD$");
 #define	USB_LOOPBACK(n)			(0x1E0 + 0x60 * n)
 #define	USB_MISC(n)			(0x1F0 + 0x60 * n)
 
-#define	ANADIG_PLL_LOCKED	(1 << 31)
+#define	ANADIG_PLL_LOCKED	(1U << 31)
 #define	ENABLE_LINREG		(1 << 0)
 #define	EN_CLK_TO_UTMI		(1 << 30)
 
@@ -113,6 +113,9 @@ static struct resource_spec anadig_spec[] = {
 static int
 anadig_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "fsl,mvf600-anadig"))
 		return (ENXIO);

@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." media/tcpip.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
@@ -168,8 +169,9 @@ f_inet_atoi()
 {
 	local __addr="$1" __var_to_set="$2" __num=0
 	if f_validate_ipaddr "$__addr"; then
-		__num=$( IFS=.;  set -- $__addr; \
-			echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) )
+		IFS=.
+		set -- $__addr
+		__num=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 ))
 	fi
 	if [ "$__var_to_set" ]; then
 		setvar "$__var_to_set" $__num
@@ -574,7 +576,7 @@ f_ifconfig_netmask()
 
 	local __octet __netmask=
 	for __octet in $__octets; do
-		__netmask="$__netmask.$( printf "%u" "0x$__octet" )"
+		f_sprintf __netmask "%s.%u" "$__netmask" "0x$__octet"
 	done
 	__netmask="${__netmask#.}"
 	if [ "$__var_to_set" ]; then
@@ -1035,10 +1037,11 @@ f_host_lookup()
 
 	# Calculate wait time as dividend of total time and host(1) invocations
 	local __host_runs __wait
+	f_count __host_runs $__srvtypes
 	if [ "$__ip6" = "YES" ]; then
-		__host_runs=$(( 2 + $( set -- $__srvtypes; echo $# ) ))
+		__host_runs=$(( $__host_runs + 2 ))
 	else
-		__host_runs=$(( 1 + $( set -- $__srvtypes; echo $# ) ))
+		__host_runs=$(( $__host_runs + 1 ))
 	fi
 	f_getvar $VAR_MEDIA_TIMEOUT __wait
 	[ "$__wait" ] && __wait="-W $(( $__wait / $__host_runs ))"
@@ -1614,7 +1617,7 @@ f_device_select_tcp()
 			esac
 
 			f_device_find "$dev" $DEVICE_TYPE_NETWORK devs
-			cnt=$( set -- $devs; echo $# )
+			f_count cnt $devs
 
 			if [ ${cnt:=0} -gt 0 ]; then
 				dev="${devs%%[$IFS]*}"
@@ -1632,7 +1635,7 @@ f_device_select_tcp()
 	fi # $network_dev
 
 	f_device_find "" $DEVICE_TYPE_NETWORK devs
-	cnt=$( set -- $devs; echo $# )
+	f_count cnt $devs
 	dev="${devs%%[$IFS]*}"
 
 	f_quietly f_getvar NETWORK_CONFIGURED # for debugging info

@@ -70,6 +70,9 @@ extern struct	cpu_ops cpu_ops;
 extern char	btext[];
 extern char	etext[];
 
+/* Resume hook for VMM. */
+extern	void (*vmm_resume_p)(void);
+
 void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);

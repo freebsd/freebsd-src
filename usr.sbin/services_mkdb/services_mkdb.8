@@ -37,6 +37,7 @@
 .Nd generate the services database
 .Sh SYNOPSIS
 .Nm
+.Op Fl b | l
 .Op Fl q
 .Op Fl o Ar database
 .Op Ar file
@@ -61,6 +62,10 @@ The file must be in the correct format (see
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl b
+Use big-endian byte order for database metadata.
+.It Fl l
+Use little-endian byte order for database metadata.
 .It Fl o Ar database
 Put the output databases in the named file.
 .It Fl q
@@ -70,6 +75,13 @@ Print the services file to stdout, omitting duplicate entries and comments.
 .El
 .Pp
 The databases are used by the C library services routines (see
+.Pp
+The
+.Fl b
+and
+.Fl l
+flags are mutually exclusive.
+The default byte ordering is the current host order.
 .Xr getservent 3 ) .
 .Sh FILES
 .Bl -tag -width ".Pa /var/db/services.db.tmp" -compact

@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/fdt.h>
 #include <machine/resource.h>
 #include <machine/intr.h>
 
@@ -252,6 +253,9 @@ static int
 ipu3_fb_probe(device_t dev)
 {
 	int error;
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (!ofw_bus_is_compatible(dev, "fsl,ipu3"))
 		return (ENXIO);

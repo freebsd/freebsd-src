@@ -12709,7 +12709,9 @@ flush_pagedep_deps(pvp, mp, diraddhdp)
 	int error = 0;
 	struct buf *bp;
 	ino_t inum;
+	struct diraddhd unfinished;
 
+	LIST_INIT(&unfinished);
 	ump = VFSTOUFS(mp);
 	LOCK_OWNED(ump);
 restart:
@@ -12728,8 +12730,20 @@ restart:
 			 */
 			if (dap != LIST_FIRST(diraddhdp))
 				continue;
-			if (dap->da_state & MKDIR_PARENT)
-				panic("flush_pagedep_deps: MKDIR_PARENT");
+			/*
+			 * All MKDIR_PARENT dependencies and all the
+			 * NEWBLOCK pagedeps that are contained in direct
+			 * blocks were resolved by doing above ffs_update.
+			 * Pagedeps contained in indirect blocks may
+			 * require a complete sync'ing of the directory.
+			 * We are in the midst of doing a complete sync,
+			 * so if they are not resolved in this pass we
+			 * defer them for now as they will be sync'ed by
+			 * our caller shortly.
+			 */
+			LIST_REMOVE(dap, da_pdlist);
+			LIST_INSERT_HEAD(&unfinished, dap, da_pdlist);
+			continue;
 		}
 		/*
 		 * A newly allocated directory must have its "." and
@@ -12838,6 +12852,10 @@ retry:
 	}
 	if (error)
 		ACQUIRE_LOCK(ump);
+	while ((dap = LIST_FIRST(&unfinished)) != NULL) {
+		LIST_REMOVE(dap, da_pdlist);
+		LIST_INSERT_HEAD(diraddhdp, dap, da_pdlist);
+	}
 	return (error);
 }
 

@@ -76,10 +76,11 @@ static void svc_vc_rendezvous_destroy(SVCXPRT *);
 static bool_t svc_vc_null(void);
 static void svc_vc_destroy(SVCXPRT *);
 static enum xprt_stat svc_vc_stat(SVCXPRT *);
+static bool_t svc_vc_ack(SVCXPRT *, uint32_t *);
 static bool_t svc_vc_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
 static bool_t svc_vc_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *);
+    struct sockaddr *, struct mbuf *, uint32_t *seq);
 static bool_t svc_vc_control(SVCXPRT *xprt, const u_int rq, void *in);
 static bool_t svc_vc_rendezvous_control (SVCXPRT *xprt, const u_int rq,
     void *in);
@@ -88,7 +89,7 @@ static enum xprt_stat svc_vc_backchannel_stat(SVCXPRT *);
 static bool_t svc_vc_backchannel_recv(SVCXPRT *, struct rpc_msg *,
     struct sockaddr **, struct mbuf **);
 static bool_t svc_vc_backchannel_reply(SVCXPRT *, struct rpc_msg *,
-    struct sockaddr *, struct mbuf *);
+    struct sockaddr *, struct mbuf *, uint32_t *);
 static bool_t svc_vc_backchannel_control(SVCXPRT *xprt, const u_int rq,
     void *in);
 static SVCXPRT *svc_vc_create_conn(SVCPOOL *pool, struct socket *so,
@@ -100,7 +101,7 @@ static struct xp_ops svc_vc_rendezvous_ops = {
 	.xp_recv =	svc_vc_rendezvous_recv,
 	.xp_stat =	svc_vc_rendezvous_stat,
 	.xp_reply =	(bool_t (*)(SVCXPRT *, struct rpc_msg *,
-		struct sockaddr *, struct mbuf *))svc_vc_null,
+		struct sockaddr *, struct mbuf *, uint32_t *))svc_vc_null,
 	.xp_destroy =	svc_vc_rendezvous_destroy,
 	.xp_control =	svc_vc_rendezvous_control
 };
@@ -108,6 +109,7 @@ static struct xp_ops svc_vc_rendezvous_ops = {
 static struct xp_ops svc_vc_ops = {
 	.xp_recv =	svc_vc_recv,
 	.xp_stat =	svc_vc_stat,
+	.xp_ack =	svc_vc_ack,
 	.xp_reply =	svc_vc_reply,
 	.xp_destroy =	svc_vc_destroy,
 	.xp_control =	svc_vc_control
@@ -184,8 +186,10 @@ svc_vc_create(SVCPOOL *pool, struct socket *so, size_t sendsize,
 
 	return (xprt);
 cleanup_svc_vc_create:
-	if (xprt)
+	if (xprt) {
+		sx_destroy(&xprt->xp_lock);
 		svc_xprt_free(xprt);
+	}
 	return (NULL);
 }
 
@@ -270,7 +274,8 @@ svc_vc_create_conn(SVCPOOL *pool, struct socket *so, struct sockaddr *raddr)
 	return (xprt);
 cleanup_svc_vc_create:
 	if (xprt) {
-		mem_free(xprt, sizeof(*xprt));
+		sx_destroy(&xprt->xp_lock);
+		svc_xprt_free(xprt);
 	}
 	if (cd)
 		mem_free(cd, sizeof(*cd));
@@ -381,15 +386,11 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * We must re-test for new connections after taking
 		 * the lock to protect us in the case where a new
 		 * connection arrives after our call to accept fails
-		 * with EWOULDBLOCK. The pool lock protects us from
-		 * racing the upcall after our TAILQ_EMPTY() call
-		 * returns false.
+		 * with EWOULDBLOCK.
 		 */
 		ACCEPT_LOCK();
-		mtx_lock(&xprt->xp_pool->sp_lock);
 		if (TAILQ_EMPTY(&xprt->xp_socket->so_comp))
-			xprt_inactive_locked(xprt);
-		mtx_unlock(&xprt->xp_pool->sp_lock);
+			xprt_inactive_self(xprt);
 		ACCEPT_UNLOCK();
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -402,7 +403,7 @@ svc_vc_rendezvous_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			soupcall_clear(xprt->xp_socket, SO_RCV);
 		}
 		SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
 	}
@@ -455,7 +456,6 @@ svc_vc_destroy_common(SVCXPRT *xprt)
 	}
 	SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
 
-	sx_destroy(&xprt->xp_lock);
 	if (xprt->xp_socket)
 		(void)soclose(xprt->xp_socket);
 
@@ -526,40 +526,28 @@ static enum xprt_stat
 svc_vc_stat(SVCXPRT *xprt)
 {
 	struct cf_conn *cd;
-	struct mbuf *m;
-	size_t n;
 
 	cd = (struct cf_conn *)(xprt->xp_p1);
 
 	if (cd->strm_stat == XPRT_DIED)
 		return (XPRT_DIED);
 
-	/*
-	 * Return XPRT_MOREREQS if we have buffered data and we are
-	 * mid-record or if we have enough data for a record
-	 * marker. Since this is only a hint, we read mpending and
-	 * resid outside the lock. We do need to take the lock if we
-	 * have to traverse the mbuf chain.
-	 */
-	if (cd->mpending) {
-		if (cd->resid)
-			return (XPRT_MOREREQS);
-		n = 0;
-		sx_xlock(&xprt->xp_lock);
-		m = cd->mpending;
-		while (m && n < sizeof(uint32_t)) {
-			n += m->m_len;
-			m = m->m_next;
-		}
-		sx_xunlock(&xprt->xp_lock);
-		if (n >= sizeof(uint32_t))
-			return (XPRT_MOREREQS);
-	}
+	if (cd->mreq != NULL && cd->resid == 0 && cd->eor)
+		return (XPRT_MOREREQS);
 
 	if (soreadable(xprt->xp_socket))
 		return (XPRT_MOREREQS);
 
 	return (XPRT_IDLE);
+}
+
+static bool_t
+svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
+{
+
+	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
+	*ack -= xprt->xp_socket->so_snd.sb_cc;
+	return (TRUE);
 }
 
 static enum xprt_stat
@@ -575,6 +563,87 @@ svc_vc_backchannel_stat(SVCXPRT *xprt)
 	return (XPRT_IDLE);
 }
 
+/*
+ * If we have an mbuf chain in cd->mpending, try to parse a record from it,
+ * leaving the result in cd->mreq. If we don't have a complete record, leave
+ * the partial result in cd->mreq and try to read more from the socket.
+ */
+static int
+svc_vc_process_pending(SVCXPRT *xprt)
+{
+	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
+	struct socket *so = xprt->xp_socket;
+	struct mbuf *m;
+
+	/*
+	 * If cd->resid is non-zero, we have part of the
+	 * record already, otherwise we are expecting a record
+	 * marker.
+	 */
+	if (!cd->resid && cd->mpending) {
+		/*
+		 * See if there is enough data buffered to
+		 * make up a record marker. Make sure we can
+		 * handle the case where the record marker is
+		 * split across more than one mbuf.
+		 */
+		size_t n = 0;
+		uint32_t header;
+
+		m = cd->mpending;
+		while (n < sizeof(uint32_t) && m) {
+			n += m->m_len;
+			m = m->m_next;
+		}
+		if (n < sizeof(uint32_t)) {
+			so->so_rcv.sb_lowat = sizeof(uint32_t) - n;
+			return (FALSE);
+		}
+		m_copydata(cd->mpending, 0, sizeof(header),
+		    (char *)&header);
+		header = ntohl(header);
+		cd->eor = (header & 0x80000000) != 0;
+		cd->resid = header & 0x7fffffff;
+		m_adj(cd->mpending, sizeof(uint32_t));
+	}
+
+	/*
+	 * Start pulling off mbufs from cd->mpending
+	 * until we either have a complete record or
+	 * we run out of data. We use m_split to pull
+	 * data - it will pull as much as possible and
+	 * split the last mbuf if necessary.
+	 */
+	while (cd->mpending && cd->resid) {
+		m = cd->mpending;
+		if (cd->mpending->m_next
+		    || cd->mpending->m_len > cd->resid)
+			cd->mpending = m_split(cd->mpending,
+			    cd->resid, M_WAITOK);
+		else
+			cd->mpending = NULL;
+		if (cd->mreq)
+			m_last(cd->mreq)->m_next = m;
+		else
+			cd->mreq = m;
+		while (m) {
+			cd->resid -= m->m_len;
+			m = m->m_next;
+		}
+	}
+
+	/*
+	 * Block receive upcalls if we have more data pending,
+	 * otherwise report our need.
+	 */
+	if (cd->mpending)
+		so->so_rcv.sb_lowat = INT_MAX;
+	else
+		so->so_rcv.sb_lowat =
+		    imax(1, imin(cd->resid, so->so_rcv.sb_hiwat / 2));
+	return (TRUE);
+}
+
 static bool_t
 svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
     struct sockaddr **addrp, struct mbuf **mp)
@@ -582,6 +651,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	struct cf_conn *cd = (struct cf_conn *) xprt->xp_p1;
 	struct uio uio;
 	struct mbuf *m;
+	struct socket* so = xprt->xp_socket;
 	XDR xdrs;
 	int error, rcvflag;
 
@@ -592,99 +662,42 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	sx_xlock(&xprt->xp_lock);
 
 	for (;;) {
-		/*
-		 * If we have an mbuf chain in cd->mpending, try to parse a
-		 * record from it, leaving the result in cd->mreq. If we don't
-		 * have a complete record, leave the partial result in
-		 * cd->mreq and try to read more from the socket.
-		 */
-		if (cd->mpending) {
-			/*
-			 * If cd->resid is non-zero, we have part of the
-			 * record already, otherwise we are expecting a record
-			 * marker.
-			 */
-			if (!cd->resid) {
-				/*
-				 * See if there is enough data buffered to
-				 * make up a record marker. Make sure we can
-				 * handle the case where the record marker is
-				 * split across more than one mbuf.
-				 */
-				size_t n = 0;
-				uint32_t header;
-
-				m = cd->mpending;
-				while (n < sizeof(uint32_t) && m) {
-					n += m->m_len;
-					m = m->m_next;
-				}
-				if (n < sizeof(uint32_t))
-					goto readmore;
-				m_copydata(cd->mpending, 0, sizeof(header),
-				    (char *)&header);
-				header = ntohl(header);
-				cd->eor = (header & 0x80000000) != 0;
-				cd->resid = header & 0x7fffffff;
-				m_adj(cd->mpending, sizeof(uint32_t));
-			}
-
-			/*
-			 * Start pulling off mbufs from cd->mpending
-			 * until we either have a complete record or
-			 * we run out of data. We use m_split to pull
-			 * data - it will pull as much as possible and
-			 * split the last mbuf if necessary.
-			 */
-			while (cd->mpending && cd->resid) {
-				m = cd->mpending;
-				if (cd->mpending->m_next
-				    || cd->mpending->m_len > cd->resid)
-					cd->mpending = m_split(cd->mpending,
-					    cd->resid, M_WAITOK);
-				else
-					cd->mpending = NULL;
-				if (cd->mreq)
-					m_last(cd->mreq)->m_next = m;
-				else
-					cd->mreq = m;
-				while (m) {
-					cd->resid -= m->m_len;
-					m = m->m_next;
-				}
-			}
-
-			/*
-			 * If cd->resid is zero now, we have managed to
-			 * receive a record fragment from the stream. Check
-			 * for the end-of-record mark to see if we need more.
-			 */
-			if (cd->resid == 0) {
-				if (!cd->eor)
-					continue;
-
-				/*
-				 * Success - we have a complete record in
-				 * cd->mreq.
-				 */
-				xdrmbuf_create(&xdrs, cd->mreq, XDR_DECODE);
-				cd->mreq = NULL;
-				sx_xunlock(&xprt->xp_lock);
-
-				if (! xdr_callmsg(&xdrs, msg)) {
-					XDR_DESTROY(&xdrs);
-					return (FALSE);
-				}
-
-				*addrp = NULL;
-				*mp = xdrmbuf_getall(&xdrs);
-				XDR_DESTROY(&xdrs);
-
-				return (TRUE);
-			}
+		/* If we have no request ready, check pending queue. */
+		while (cd->mpending &&
+		    (cd->mreq == NULL || cd->resid != 0 || !cd->eor)) {
+			if (!svc_vc_process_pending(xprt))
+				break;
 		}
 
-	readmore:
+		/* Process and return complete request in cd->mreq. */
+		if (cd->mreq != NULL && cd->resid == 0 && cd->eor) {
+
+			xdrmbuf_create(&xdrs, cd->mreq, XDR_DECODE);
+			cd->mreq = NULL;
+
+			/* Check for next request in a pending queue. */
+			svc_vc_process_pending(xprt);
+			if (cd->mreq == NULL || cd->resid != 0) {
+				SOCKBUF_LOCK(&so->so_rcv);
+				if (!soreadable(so))
+					xprt_inactive_self(xprt);
+				SOCKBUF_UNLOCK(&so->so_rcv);
+			}
+
+			sx_xunlock(&xprt->xp_lock);
+
+			if (! xdr_callmsg(&xdrs, msg)) {
+				XDR_DESTROY(&xdrs);
+				return (FALSE);
+			}
+
+			*addrp = NULL;
+			*mp = xdrmbuf_getall(&xdrs);
+			XDR_DESTROY(&xdrs);
+
+			return (TRUE);
+		}
+
 		/*
 		 * The socket upcall calls xprt_active() which will eventually
 		 * cause the server to call us here. We attempt to
@@ -697,8 +710,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 		uio.uio_td = curthread;
 		m = NULL;
 		rcvflag = MSG_DONTWAIT;
-		error = soreceive(xprt->xp_socket, NULL, &uio, &m, NULL,
-		    &rcvflag);
+		error = soreceive(so, NULL, &uio, &m, NULL, &rcvflag);
 
 		if (error == EWOULDBLOCK) {
 			/*
@@ -706,26 +718,24 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			 * taking the lock to protect us in the case
 			 * where a new packet arrives on the socket
 			 * after our call to soreceive fails with
-			 * EWOULDBLOCK. The pool lock protects us from
-			 * racing the upcall after our soreadable()
-			 * call returns false.
+			 * EWOULDBLOCK.
 			 */
-			mtx_lock(&xprt->xp_pool->sp_lock);
-			if (!soreadable(xprt->xp_socket))
-				xprt_inactive_locked(xprt);
-			mtx_unlock(&xprt->xp_pool->sp_lock);
+			SOCKBUF_LOCK(&so->so_rcv);
+			if (!soreadable(so))
+				xprt_inactive_self(xprt);
+			SOCKBUF_UNLOCK(&so->so_rcv);
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
 		}
 
 		if (error) {
-			SOCKBUF_LOCK(&xprt->xp_socket->so_rcv);
+			SOCKBUF_LOCK(&so->so_rcv);
 			if (xprt->xp_upcallset) {
 				xprt->xp_upcallset = 0;
-				soupcall_clear(xprt->xp_socket, SO_RCV);
+				soupcall_clear(so, SO_RCV);
 			}
-			SOCKBUF_UNLOCK(&xprt->xp_socket->so_rcv);
-			xprt_inactive(xprt);
+			SOCKBUF_UNLOCK(&so->so_rcv);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -735,7 +745,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 			/*
 			 * EOF - the other end has closed the socket.
 			 */
-			xprt_inactive(xprt);
+			xprt_inactive_self(xprt);
 			cd->strm_stat = XPRT_DIED;
 			sx_xunlock(&xprt->xp_lock);
 			return (FALSE);
@@ -766,7 +776,7 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 	mtx_lock(&ct->ct_lock);
 	m = cd->mreq;
 	if (m == NULL) {
-		xprt_inactive(xprt);
+		xprt_inactive_self(xprt);
 		mtx_unlock(&ct->ct_lock);
 		sx_xunlock(&xprt->xp_lock);
 		return (FALSE);
@@ -788,12 +798,12 @@ svc_vc_backchannel_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 
 static bool_t
 svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m)
+    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	XDR xdrs;
 	struct mbuf *mrep;
 	bool_t stat = TRUE;
-	int error;
+	int error, len;
 
 	/*
 	 * Leave space for record mark.
@@ -820,14 +830,19 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		 * Prepend a record marker containing the reply length.
 		 */
 		M_PREPEND(mrep, sizeof(uint32_t), M_WAITOK);
+		len = mrep->m_pkthdr.len;
 		*mtod(mrep, uint32_t *) =
-			htonl(0x80000000 | (mrep->m_pkthdr.len
-				- sizeof(uint32_t)));
+			htonl(0x80000000 | (len - sizeof(uint32_t)));
+		atomic_add_acq_32(&xprt->xp_snd_cnt, len);
 		error = sosend(xprt->xp_socket, NULL, NULL, mrep, NULL,
 		    0, curthread);
 		if (!error) {
+			atomic_add_rel_32(&xprt->xp_snt_cnt, len);
+			if (seq)
+				*seq = xprt->xp_snd_cnt;
 			stat = TRUE;
-		}
+		} else
+			atomic_subtract_32(&xprt->xp_snd_cnt, len);
 	} else {
 		m_freem(mrep);
 	}
@@ -840,7 +855,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 
 static bool_t
 svc_vc_backchannel_reply(SVCXPRT *xprt, struct rpc_msg *msg,
-    struct sockaddr *addr, struct mbuf *m)
+    struct sockaddr *addr, struct mbuf *m, uint32_t *seq)
 {
 	struct ct_data *ct;
 	XDR xdrs;
@@ -908,7 +923,8 @@ svc_vc_soupcall(struct socket *so, void *arg, int waitflag)
 {
 	SVCXPRT *xprt = (SVCXPRT *) arg;
 
-	xprt_active(xprt);
+	if (soreadable(xprt->xp_socket))
+		xprt_active(xprt);
 	return (SU_OK);
 }
 

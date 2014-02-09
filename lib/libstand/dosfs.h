@@ -23,6 +23,8 @@
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef DOSIO_H
@@ -108,6 +110,7 @@ typedef struct {
     u_int lsndta;               /* start of data area */
     u_int fatsz;                /* FAT entry size */
     u_int xclus;                /* maximum cluster number */
+    DOS_DE root;
 } DOS_FS;
 
 typedef struct {

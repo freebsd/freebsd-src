@@ -1038,6 +1038,13 @@ cbb_cardbus_power_disable_socket(device_t brdev, device_t child)
 /* CardBus Resource							*/
 /************************************************************************/
 
+static void
+cbb_activate_window(device_t brdev, int type)
+{
+
+	PCI_ENABLE_IO(device_get_parent(brdev), brdev, type);
+}
+
 static int
 cbb_cardbus_io_open(device_t brdev, int win, uint32_t start, uint32_t end)
 {
@@ -1055,6 +1062,7 @@ cbb_cardbus_io_open(device_t brdev, int win, uint32_t start, uint32_t end)
 
 	pci_write_config(brdev, basereg, start, 4);
 	pci_write_config(brdev, limitreg, end, 4);
+	cbb_activate_window(brdev, SYS_RES_IOPORT);
 	return (0);
 }
 
@@ -1075,6 +1083,7 @@ cbb_cardbus_mem_open(device_t brdev, int win, uint32_t start, uint32_t end)
 
 	pci_write_config(brdev, basereg, start, 4);
 	pci_write_config(brdev, limitreg, end, 4);
+	cbb_activate_window(brdev, SYS_RES_MEMORY);
 	return (0);
 }
 
@@ -1342,7 +1351,12 @@ cbb_pcic_activate_resource(device_t brdev, device_t child, int type, int rid,
     struct resource *res)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	return (exca_activate_resource(&sc->exca[0], child, type, rid, res));
+	int error;
+
+	error = exca_activate_resource(&sc->exca[0], child, type, rid, res);
+	if (error == 0)
+		cbb_activate_window(brdev, type);
+	return (error);
 }
 
 static int

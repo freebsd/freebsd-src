@@ -82,6 +82,13 @@ struct g_command class_commands[] = {
 	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
 	},
+	{ "destroy", G_FLAG_VERBOSE, NULL,
+	    {
+		{ 'f', "force", NULL, G_TYPE_BOOL },
+		G_OPT_SENTINEL
+	    },
+	    "[-fv] name ..."
+	},
 	{ "dump", 0, mirror_main, G_NULL_OPTS,
 	    "prov ..."
 	},

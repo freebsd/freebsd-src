@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2013
+.Dd December 2, 2013
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -230,10 +230,6 @@ When set,
 will prevent the
 .Fa doc.txz
 distribution package from being created.
-.It Va NODVD
-Set to a non-empty value to skip the
-.Cm dvdrom
-target.
 .It Va NOPORTS
 Set to a non-empty value to skip the
 .Li ports/
@@ -245,6 +241,10 @@ will prevent the
 distribution package from being created.
 Setting this also sets
 .Va NODOC .
+.It Va WITH_DVD
+Set to a non-empty value to include the
+.Cm dvdrom
+target.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile

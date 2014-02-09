@@ -77,8 +77,8 @@ struct vhpet {
 
 	uint64_t	config;		/* Configuration */
 	uint64_t	isr;		/* Interrupt Status */
-	uint32_t	counter;	/* HPET Counter */
-	sbintime_t	counter_sbt;
+	uint32_t	countbase;	/* HPET counter base value */
+	sbintime_t	countbase_sbt;	/* uptime corresponding to base value */
 
 	struct {
 		uint64_t	cap_config;	/* Configuration */
@@ -86,12 +86,16 @@ struct vhpet {
 		uint32_t	compval;	/* Comparator */
 		uint32_t	comprate;
 		struct callout	callout;
+		sbintime_t	callout_sbt;	/* time when counter==compval */
 		struct vhpet_callout_arg arg;
 	} timer[VHPET_NUM_TIMERS];
 };
 
 #define	VHPET_LOCK(vhp)		mtx_lock(&((vhp)->mtx))
 #define	VHPET_UNLOCK(vhp)	mtx_unlock(&((vhp)->mtx))
+
+static void vhpet_start_timer(struct vhpet *vhpet, int n, uint32_t counter,
+    sbintime_t now);
 
 static uint64_t
 vhpet_capabilities(void)
@@ -164,30 +168,28 @@ vhpet_timer_ioapic_pin(struct vhpet *vhpet, int n)
 }
 
 static uint32_t
-vhpet_counter(struct vhpet *vhpet, bool latch)
+vhpet_counter(struct vhpet *vhpet, sbintime_t *nowptr)
 {
 	uint32_t val;
-	sbintime_t cur_sbt, delta_sbt;
+	sbintime_t now, delta;
 
-	val = vhpet->counter;
+	val = vhpet->countbase;
 	if (vhpet_counter_enabled(vhpet)) {
-		cur_sbt = sbinuptime();
-		delta_sbt = cur_sbt - vhpet->counter_sbt;
-		KASSERT(delta_sbt >= 0,
-		    ("vhpet counter went backwards: %#lx to %#lx",
-		    vhpet->counter_sbt, cur_sbt));
-		val += delta_sbt / vhpet->freq_sbt;
-
+		now = sbinuptime();
+		delta = now - vhpet->countbase_sbt;
+		KASSERT(delta >= 0, ("vhpet_counter: uptime went backwards: "
+		    "%#lx to %#lx", vhpet->countbase_sbt, now));
+		val += delta / vhpet->freq_sbt;
+		if (nowptr != NULL)
+			*nowptr = now;
+	} else {
 		/*
-		 * Keep track of the last value of the main counter that
-		 * was read by the guest.
+		 * The sbinuptime corresponding to the 'countbase' is
+		 * meaningless when the counter is disabled. Make sure
+		 * that the the caller doesn't want to use it.
 		 */
-		if (latch) {
-			vhpet->counter = val;
-			vhpet->counter_sbt = cur_sbt;
-		}
+		KASSERT(nowptr == NULL, ("vhpet_counter: nowptr must be NULL"));
 	}
-
 	return (val);
 }
 
@@ -240,8 +242,7 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 static void
 vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 {
-	int apicid, vector, vcpuid, pin;
-	cpuset_t dmask;
+	int pin;
 
 	/* If interrupts are not enabled for this timer then just return. */
 	if (!vhpet_timer_interrupt_enabled(vhpet, n))
@@ -256,26 +257,8 @@ vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 	}
 
 	if (vhpet_timer_msi_enabled(vhpet, n)) {
-		/*
-		 * XXX should have an API 'vlapic_deliver_msi(vm, addr, data)'
-		 * - assuming physical delivery mode
-		 * - no need to interpret contents of 'msireg' here
-		 */
-		vector = vhpet->timer[n].msireg & 0xff;
-		apicid = (vhpet->timer[n].msireg >> (32 + 12)) & 0xff;
-		if (apicid != 0xff) {
-			/* unicast */
-			vcpuid = vm_apicid2vcpuid(vhpet->vm, apicid);
-			lapic_intr_edge(vhpet->vm, vcpuid, vector);
-		} else {
-			/* broadcast */
-			dmask = vm_active_cpus(vhpet->vm);
-			while ((vcpuid = CPU_FFS(&dmask)) != 0) {
-				vcpuid--;
-				CPU_CLR(vcpuid, &dmask);
-				lapic_intr_edge(vhpet->vm, vcpuid, vector);
-			}
-		}
+		lapic_intr_msi(vhpet->vm, vhpet->timer[n].msireg >> 32,
+		    vhpet->timer[n].msireg & 0xffffffff);
 		return;
 	}	
 
@@ -324,7 +307,7 @@ vhpet_handler(void *a)
 {
 	int n;
 	uint32_t counter;
-	sbintime_t sbt;
+	sbintime_t now;
 	struct vhpet *vhpet;
 	struct callout *callout;
 	struct vhpet_callout_arg *arg;
@@ -349,14 +332,8 @@ vhpet_handler(void *a)
 	if (!vhpet_counter_enabled(vhpet))
 		panic("vhpet(%p) callout with counter disabled", vhpet);
 
-	counter = vhpet_counter(vhpet, false);
-
-	/* Update the accumulator for periodic timers */
-	if (vhpet->timer[n].comprate != 0)
-		vhpet_adjust_compval(vhpet, n, counter);
-
-	sbt = (vhpet->timer[n].compval - counter) * vhpet->freq_sbt;
-	callout_reset_sbt(callout, sbt, 0, vhpet_handler, arg, 0);
+	counter = vhpet_counter(vhpet, &now);
+	vhpet_start_timer(vhpet, n, counter, now);
 	vhpet_timer_interrupt(vhpet, n);
 done:
 	VHPET_UNLOCK(vhpet);
@@ -364,45 +341,47 @@ done:
 }
 
 static void
-vhpet_stop_timer(struct vhpet *vhpet, int n)
+vhpet_stop_timer(struct vhpet *vhpet, int n, sbintime_t now)
 {
 
+	VM_CTR1(vhpet->vm, "hpet t%d stopped", n);
 	callout_stop(&vhpet->timer[n].callout);
-	vhpet_timer_clear_isr(vhpet, n);
+
+	/*
+	 * If the callout was scheduled to expire in the past but hasn't
+	 * had a chance to execute yet then trigger the timer interrupt
+	 * here. Failing to do so will result in a missed timer interrupt
+	 * in the guest. This is especially bad in one-shot mode because
+	 * the next interrupt has to wait for the counter to wrap around.
+	 */
+	if (vhpet->timer[n].callout_sbt < now) {
+		VM_CTR1(vhpet->vm, "hpet t%d interrupt triggered after "
+		    "stopping timer", n);
+		vhpet_timer_interrupt(vhpet, n);
+	}
 }
 
 static void
-vhpet_start_timer(struct vhpet *vhpet, int n)
+vhpet_start_timer(struct vhpet *vhpet, int n, uint32_t counter, sbintime_t now)
 {
-	uint32_t counter, delta, delta2;
-	sbintime_t sbt;
-
-	counter = vhpet_counter(vhpet, false);
+	sbintime_t delta, precision;
 
 	if (vhpet->timer[n].comprate != 0)
 		vhpet_adjust_compval(vhpet, n, counter);
-
-	delta = vhpet->timer[n].compval - counter;
-
-	/*
-	 * In one-shot mode the guest will typically read the main counter
-	 * before programming the comparator. We can use this heuristic to
-	 * figure out whether the expiration time is in the past. If this
-	 * is the case we schedule the callout to fire immediately.
-	 */
-	if (!vhpet_periodic_timer(vhpet, n)) {
-		delta2 = vhpet->timer[n].compval - vhpet->counter;
-		if (delta > delta2) {
-			VM_CTR3(vhpet->vm, "hpet t%d comparator value is in "
-			    "the past: %u/%u/%u", counter,
-			    vhpet->timer[n].compval, vhpet->counter);
-			delta = 0;
-		}
+	else {
+		/*
+		 * In one-shot mode it is the guest's responsibility to make
+		 * sure that the comparator value is not in the "past". The
+		 * hardware doesn't have any belt-and-suspenders to deal with
+		 * this so we don't either.
+		 */
 	}
 
-	sbt = delta * vhpet->freq_sbt;
-	callout_reset_sbt(&vhpet->timer[n].callout, sbt, 0, vhpet_handler,
-	    &vhpet->timer[n].arg, 0);
+	delta = (vhpet->timer[n].compval - counter) * vhpet->freq_sbt;
+	precision = delta >> tc_precexp;
+	vhpet->timer[n].callout_sbt = now + delta;
+	callout_reset_sbt(&vhpet->timer[n].callout, vhpet->timer[n].callout_sbt,
+	    precision, vhpet_handler, &vhpet->timer[n].arg, C_ABSOLUTE);
 }
 
 static void
@@ -410,18 +389,25 @@ vhpet_start_counting(struct vhpet *vhpet)
 {
 	int i;
 
-	vhpet->counter_sbt = sbinuptime();
-	for (i = 0; i < VHPET_NUM_TIMERS; i++)
-		vhpet_start_timer(vhpet, i);
+	vhpet->countbase_sbt = sbinuptime();
+	for (i = 0; i < VHPET_NUM_TIMERS; i++) {
+		/*
+		 * Restart the timers based on the value of the main counter
+		 * when it stopped counting.
+		 */
+		vhpet_start_timer(vhpet, i, vhpet->countbase,
+		    vhpet->countbase_sbt);
+	}
 }
 
 static void
-vhpet_stop_counting(struct vhpet *vhpet)
+vhpet_stop_counting(struct vhpet *vhpet, uint32_t counter, sbintime_t now)
 {
 	int i;
 
+	vhpet->countbase = counter;
 	for (i = 0; i < VHPET_NUM_TIMERS; i++)
-		vhpet_stop_timer(vhpet, i);
+		vhpet_stop_timer(vhpet, i, now);
 }
 
 static __inline void
@@ -515,7 +501,8 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 {
 	struct vhpet *vhpet;
 	uint64_t data, mask, oldval, val64;
-	uint32_t isr_clear_mask, old_compval, old_comprate;
+	uint32_t isr_clear_mask, old_compval, old_comprate, counter;
+	sbintime_t now, *nowptr;
 	int i, offset;
 
 	vhpet = vm_hpet(vm);
@@ -551,6 +538,14 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 	}
 
 	if (offset == HPET_CONFIG || offset == HPET_CONFIG + 4) {
+		/*
+		 * Get the most recent value of the counter before updating
+		 * the 'config' register. If the HPET is going to be disabled
+		 * then we need to update 'countbase' with the value right
+		 * before it is disabled.
+		 */
+		nowptr = vhpet_counter_enabled(vhpet) ? &now : NULL;
+		counter = vhpet_counter(vhpet, nowptr);
 		oldval = vhpet->config;
 		update_register(&vhpet->config, data, mask);
 		if ((oldval ^ vhpet->config) & HPET_CNF_ENABLE) {
@@ -558,7 +553,7 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 				vhpet_start_counting(vhpet);
 				VM_CTR0(vhpet->vm, "hpet enabled");
 			} else {
-				vhpet_stop_counting(vhpet);
+				vhpet_stop_counting(vhpet, counter, now);
 				VM_CTR0(vhpet->vm, "hpet disabled");
 			}
 		}
@@ -578,9 +573,9 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 
 	if (offset == HPET_MAIN_COUNTER || offset == HPET_MAIN_COUNTER + 4) {
 		/* Zero-extend the counter to 64-bits before updating it */
-		val64 = vhpet->counter;
+		val64 = vhpet_counter(vhpet, NULL);
 		update_register(&val64, data, mask);
-		vhpet->counter = val64;
+		vhpet->countbase = val64;
 		if (vhpet_counter_enabled(vhpet))
 			vhpet_start_counting(vhpet);
 		goto done;
@@ -623,8 +618,11 @@ vhpet_mmio_write(void *vm, int vcpuid, uint64_t gpa, uint64_t val, int size,
 
 			if (vhpet->timer[i].compval != old_compval ||
 			    vhpet->timer[i].comprate != old_comprate) {
-				if (vhpet_counter_enabled(vhpet))
-					vhpet_start_timer(vhpet, i);
+				if (vhpet_counter_enabled(vhpet)) {
+					counter = vhpet_counter(vhpet, &now);
+					vhpet_start_timer(vhpet, i, counter,
+					    now);
+				}
 			}
 			break;
 		}
@@ -685,7 +683,7 @@ vhpet_mmio_read(void *vm, int vcpuid, uint64_t gpa, uint64_t *rval, int size,
 	}
 
 	if (offset == HPET_MAIN_COUNTER || offset == HPET_MAIN_COUNTER + 4) {
-		data = vhpet_counter(vhpet, true);
+		data = vhpet_counter(vhpet, NULL);
 		goto done;
 	}
 

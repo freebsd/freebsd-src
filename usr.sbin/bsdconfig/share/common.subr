@@ -58,14 +58,14 @@ FAILURE=1
 #
 # Operating environment details
 #
-export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
-export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
-export UNAME_M="$(uname -m)" # Machine platform (i.e. i386)
-export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
+export UNAME_S="$( uname -s )" # Operating System (i.e. FreeBSD)
+export UNAME_P="$( uname -p )" # Processor Architecture (i.e. i386)
+export UNAME_M="$( uname -m )" # Machine platform (i.e. i386)
+export UNAME_R="$( uname -r )" # Release Level (i.e. X.Y-RELEASE)
 if [ ! "${PKG_ABI+set}" ]; then
 	export PKG_ABI="$(
-		ASSUME_ALWAYS_YES=1 pkg -vv |
-			awk '$1=="ABI:"{print $2;exit}' 2> /dev/null
+		ASSUME_ALWAYS_YES=1 pkg -vv 2> /dev/null |
+			awk '$1=="ABI"{print $3;exit}'
 	)"
 fi
 
@@ -204,7 +204,7 @@ f_debug_init()
 #
 f_err()
 {
-	printf "$@" >&${TERMINAL_STDERR_PASSTHRU:-2}
+	printf "$@" >&2
 }
 
 # f_quietly $command [$arguments ...]
@@ -565,7 +565,7 @@ f_usage()
 	exit $FAILURE
 }
 
-# f_index_file $keyword
+# f_index_file $keyword [$var_to_set]
 #
 # Process all INDEX files known to bsdconfig and return the path to first file
 # containing a menu_selection line with a keyword portion matching $keyword.
@@ -574,6 +574,9 @@ f_usage()
 # "INDEX.encoding" files will be searched first.
 #
 # If no file is found, error status is returned along with the NULL string.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
@@ -591,33 +594,55 @@ END { exit ! found }
 '
 f_index_file()
 {
-	local keyword="$1"
-	local lang="${LANG:-$LC_ALL}"
+	local __keyword="$1" __var_to_set="$2"
+	local __lang="${LANG:-$LC_ALL}"
+	local __indexes="$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX"
 
-	f_dprintf "f_index_file: keyword=[%s] lang=[%s]" "$keyword" "$lang"
+	f_dprintf "f_index_file: keyword=[%s] lang=[%s]" "$__keyword" "$__lang"
 
-	if [ "$lang" ]; then
-		awk -v keyword="$keyword" "$f_index_file_awk" \
-			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang &&
-			return $SUCCESS
+	if [ "$__lang" ]; then
+		if [ "$__var_to_set" ]; then
+			eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+				"$f_index_file_awk" $__indexes.$__lang
+			)"' && return $SUCCESS
+		else
+			awk -v keyword="$__keyword" "$f_index_file_awk" \
+				$__indexes.$__lang && return $SUCCESS
+		fi
 		# No match, fall-thru to non-i18n sources
 	fi
-	awk -v keyword="$keyword" "$f_index_file_awk" \
-		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX && return $SUCCESS
+	if [ "$__var_to_set" ]; then
+		eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+			"$f_index_file_awk" $__indexes )"' && return $SUCCESS
+	else
+		awk -v keyword="$__keyword" "$f_index_file_awk" $__indexes &&
+			return $SUCCESS
+	fi
 
 	# No match? Fall-thru to `local' libexec sources (add-on modules)
 
 	[ "$BSDCFG_LOCAL_LIBE" ] || return $FAILURE
-	if [ "$lang" ]; then
-		awk -v keyword="$keyword" "$f_index_file_awk" \
-			$BSDCFG_LOCAL_LIBE/*/INDEX.$lang && return $SUCCESS
+	__indexes="$BSDCFG_LOCAL_LIBE/*/INDEX"
+	if [ "$__lang" ]; then
+		if [ "$__var_to_set" ]; then
+			eval "$__var_to_set"='"$( awk -v keyword="$__keyword" \
+				"$f_index_file_awk" $__indexes.$__lang
+			)"' && return $SUCCESS
+		else
+			awk -v keyword="$__keyword" "$f_index_file_awk" \
+				$__indexes.$__lang && return $SUCCESS
+		fi
 		# No match, fall-thru to non-i18n sources
 	fi
-	awk -v keyword="$keyword" "$f_index_file_awk" \
-		$BSDCFG_LOCAL_LIBE/*/INDEX
+	if [ "$__var_to_set" ]; then
+		eval "$__var_to_set"='$( awk -v keyword="$__keyword" \
+			"$f_index_file_awk" $__indexes )"'
+	else
+		awk -v keyword="$__keyword" "$f_index_file_awk" $__indexes
+	fi
 }
 
-# f_index_menusel_keyword $indexfile $pgm
+# f_index_menusel_keyword $indexfile $pgm [$var_to_set]
 #
 # Process $indexfile and return only the keyword portion of the menu_selection
 # line with a command portion matching $pgm.
@@ -633,6 +658,9 @@ f_index_file()
 # returned.
 #
 # If $indexfile does not exist, error status is returned with NULL.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
@@ -664,24 +692,23 @@ END { exit ! found }
 '
 f_index_menusel_keyword()
 {
-	local indexfile="$1" pgm="$2"
-	local lang="${LANG:-$LC_ALL}"
+	local __indexfile="$1" __pgm="$2" __var_to_set="$3"
+	local __lang="${LANG:-$LC_ALL}" __file="$__indexfile"
 
+	[ -f "$__indexfile.$__lang" ] && __file="$__indexfile.$__lang"
 	f_dprintf "f_index_menusel_keyword: index=[%s] pgm=[%s] lang=[%s]" \
-	          "$indexfile" "$pgm" "$lang"
+	          "$__file" "$__pgm" "$__lang"
 
-	if [ -f "$indexfile.$lang" ]; then
-		awk -v pgm="$pgm" \
-			"$f_index_menusel_keyword_awk" \
-			"$indexfile.$lang"
-	elif [ -f "$indexfile" ]; then
-		awk -v pgm="$pgm" \
-			"$f_index_menusel_keyword_awk" \
-			"$indexfile"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$( awk \
+		    -v pgm="$__pgm" "$f_index_menusel_keyword_awk" "$__file"
+		)"
+	else
+		awk -v pgm="$__pgm" "$f_index_menusel_keyword_awk" "$__file"
 	fi
 }
 
-# f_index_menusel_command $indexfile $keyword
+# f_index_menusel_command $indexfile $keyword [$var_to_set]
 #
 # Process $indexfile and return only the command portion of the menu_selection
 # line with a keyword portion matching $keyword.
@@ -696,6 +723,9 @@ f_index_menusel_keyword()
 # returned.
 #
 # If $indexfile doesn't exist, error status is returned with NULL.
+#
+# If $var_to_set is NULL or missing, output is printed to stdout (which is less
+# recommended due to performance degradation; in a loop for example).
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
@@ -727,37 +757,34 @@ END { exit ! found }
 '
 f_index_menusel_command()
 {
-	local indexfile="$1" keyword="$2" command
-	local lang="${LANG:-$LC_ALL}"
+	local __indexfile="$1" __keyword="$2" __var_to_set="$3" __command
+	local __lang="${LANG:-$LC_ALL}" __file="$__indexfile"
 
+	[ -f "$__indexfile.$__lang" ] && __file="$__indexfile.$__lang"
 	f_dprintf "f_index_menusel_command: index=[%s] key=[%s] lang=[%s]" \
-	          "$indexfile" "$keyword" "$lang"
+	          "$__file" "$__keyword" "$__lang"
 
-	if [ -f "$indexfile.$lang" ]; then
-		command=$( awk -v key="$keyword" \
-				"$f_index_menusel_command_awk" \
-				"$indexfile.$lang" ) || return $FAILURE
-	elif [ -f "$indexfile" ]; then
-		command=$( awk -v key="$keyword" \
-				"$f_index_menusel_command_awk" \
-				"$indexfile" ) || return $FAILURE
-	else
-		return $FAILURE
-	fi
+	[ -f "$__file" ] || return $FAILURE
+	__command=$( awk -v key="$__keyword" \
+		"$f_index_menusel_command_awk" "$__file" ) || return $FAILURE
 
 	#
 	# If the command pathname is not fully qualified fix-up/force to be
 	# relative to the $indexfile directory.
 	#
-	case "$command" in
+	case "$__command" in
 	/*) : already fully qualified ;;
 	*)
-		local indexdir="${indexfile%/*}"
-		[ "$indexdir" != "$indexfile" ] || indexdir="."
-		command="$indexdir/$command"
+		local __indexdir="${__indexfile%/*}"
+		[ "$__indexdir" != "$__indexfile" ] || __indexdir="."
+		__command="$__indexdir/$__command"
 	esac
 
-	echo "$command"
+	if [ "$__var_to_set" ]; then
+		setvar "$__var_to_set" "$__command"
+	else
+		echo "$__command"
+	fi
 }
 
 # f_running_as_init
@@ -784,35 +811,30 @@ f_mounted()
 	mount | grep -Eq " on $dir \([^)]+\)$"
 }
 
-# f_eval_catch [-d] $funcname $utility $format [$arguments ...]
+# f_eval_catch [-de] [-k $var_to_set] $funcname $utility \
+#              $format [$arguments ...]
 #
 # Silently evaluate a command in a sub-shell and test for error. If debugging
 # is enabled a copy of the command and its output is sent to debug (either
 # stdout or file depending on environment). If an error occurs, output of the
 # command is displayed in a dialog(1) msgbox using the [above] f_show_err()
-# function (unless optional `-d' flag is the first argument, then no dialog).
+# function (unless optional `-d' flag is given, then no dialog).
+#
 # The $funcname argument is sent to debugging while the $utility argument is
-# used in the title of the dialog box. The command that is sent to debugging
-# along with $funcname is the product of the printf(1) syntax produced by
-# $format with optional $arguments.
+# used in the title of the dialog box. The command that is executed as well as
+# sent to debugging with $funcname is the product of the printf(1) syntax
+# produced by $format with optional $arguments.
+#
+# The following options are supported:
+#
+# 	-d	Do not use dialog(1).
+# 	-e	Produce error text from failed command on stderr.
+# 	-k var	Save output from the command in var.
 #
 # Example 1:
 #
 # 	debug=1
-# 	f_eval_catch myfunc cat 'contents=$( cat "%s" )' /some/file
-# 	# Error displayed ``cat: /some/file: No such file or directory''
-#
-# 	Produces the following debug output:
-#
-# 		DEBUG: myfunc: cat "/some/file"
-# 		DEBUG: myfunc: retval=1 <output below>
-# 		cat: /some/file: No such file or directory
-#
-# Example 2:
-#
-# 	debug=1
 # 	f_eval_catch myfunc echo 'echo "%s"' "Hello, World!"
-# 	# No error displayed
 #
 # 	Produces the following debug output:
 #
@@ -820,11 +842,23 @@ f_mounted()
 # 		DEBUG: myfunc: retval=0 <output below>
 # 		Hello, World!
 #
+# Example 2:
+#
+# 	debug=1
+# 	f_eval_catch -k contents myfunc cat 'cat "%s"' /some/file
+# 	# dialog(1) Error ``cat: /some/file: No such file or directory''
+# 	# contents=[cat: /some/file: No such file or directory]
+#
+# 	Produces the following debug output:
+#
+# 		DEBUG: myfunc: cat "/some/file"
+# 		DEBUG: myfunc: retval=1 <output below>
+# 		cat: /some/file: No such file or directory
+#
 # Example 3:
 #
 # 	debug=1
 # 	echo 123 | f_eval_catch myfunc rev rev
-# 	# No error displayed
 #
 # 	Produces the following debug output:
 #
@@ -836,34 +870,107 @@ f_mounted()
 #
 # 	debug=1
 # 	f_eval_catch myfunc true true
-# 	# No error displayed
 #
 # 	Produces the following debug output:
 #
 # 		DEBUG: myfunc: true
 # 		DEBUG: myfunc: retval=0 <no output>
 #
+# Example 5:
+#
+# 	f_eval_catch -de myfunc ls 'ls "%s"' /some/dir
+# 	# Output on stderr ``ls: /some/dir: No such file or directory''
+#
+# Example 6:
+#
+# 	f_eval_catch -dek contents myfunc ls 'ls "%s"' /etc
+# 	# Output from `ls' sent to stderr and also saved in $contents
+#
 f_eval_catch()
 {
-	local no_dialog=
-	[ "$1" = "-d" ] && no_dialog=1 && shift 1
-	local funcname="$1" utility="$2"; shift 2
-	local cmd output retval
-	cmd=$( printf -- "$@" )
-	f_dprintf "%s: %s" "$funcname" "$cmd" # Log command *before* eval
-	output=$( exec 2>&1; eval "$cmd" )
-	retval=$?
-	if [ "$output" ]; then
-		f_dprintf "%s: retval=%i <output below>\n%s" "$funcname" \
-		          $retval "$output"
+	local __no_dialog= __show_err= __var_to_set=
+
+	#
+	# Process local function arguments
+	#
+	local OPTIND __flag
+	while getopts "dek:" __flag > /dev/null; do
+		case "$__flag" in
+		d) __no_dialog=1 ;;
+		e) __show_err=1 ;;
+		k) __var_to_set="$OPTARG" ;;
+		esac
+	done
+	shift $(( $OPTIND - 1 ))
+
+	local __funcname="$1" __utility="$2"; shift 2
+	local __cmd __output __retval
+
+	__cmd=$( printf -- "$@" )
+	f_dprintf "%s: %s" "$__funcname" "$__cmd" # Log command *before* eval
+	__output=$( exec 2>&1; eval "$__cmd" )
+	__retval=$?
+	if [ "$__output" ]; then
+		[ "$__show_err" ] && echo "$__output" >&2
+		f_dprintf "%s: retval=%i <output below>\n%s" "$__funcname" \
+		          $__retval "$__output"
 	else
-		f_dprintf "%s: retval=%i <no output>" "$funcname" $retval
+		f_dprintf "%s: retval=%i <no output>" "$__funcname" $__retval
 	fi
-	! [ "$no_dialog" -o "$nonInteractive" -o $retval -eq $SUCCESS ] &&
-		msg_error="${msg_error:-Error}${utility:+: $utility}" \
-			f_show_err "%s" "$output"
+
+	! [ "$__no_dialog" -o "$nonInteractive" -o $__retval -eq $SUCCESS ] &&
+		msg_error="${msg_error:-Error}${__utility:+: $__utility}" \
+			f_show_err "%s" "$__output"
 		# NB: f_show_err will handle NULL output appropriately
-	return $retval
+
+	[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
+
+	return $__retval
+}
+
+# f_count $var_to_set arguments ...
+#
+# Sets $var_to_set to the number of arguments minus one (the effective number
+# of arguments following $var_to_set).
+#
+# Example:
+# 	f_count count dog house # count=[2]
+#
+f_count()
+{
+	setvar "$1" $(( $# - 1 ))
+}
+
+# f_count_ifs $var_to_set string ...
+#
+# Sets $var_to_set to the number of words (split by the internal field
+# separator, IFS) following $var_to_set.
+#
+# Example 1:
+#
+# 	string="word1   word2   word3"
+# 	f_count_ifs count "$string" # count=[3]
+# 	f_count_ifs count $string # count=[3]
+#
+# Example 2:
+#
+# 	IFS=. f_count_ifs count www.freebsd.org # count=[3]
+#
+# NB: Make sure to use double-quotes if you are using a custom value for IFS
+# and you don't want the current value to effect the result. See example 3.
+#
+# Example 3:
+#
+# 	string="a-b c-d"
+# 	IFS=- f_count_ifs count "$string" # count=[3]
+# 	IFS=- f_count_ifs count $string # count=[4]
+#
+f_count_ifs()
+{
+	local __var_to_set="$1"
+	shift 1
+	set -- $*
+	setvar "$__var_to_set" $#
 }
 
 ############################################################ MAIN

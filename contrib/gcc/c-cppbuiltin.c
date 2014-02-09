@@ -501,6 +501,11 @@ c_cpp_builtins (cpp_reader *pfile)
 
   /* Other target-independent built-ins determined by command-line
      options.  */
+  /* APPLE LOCAL begin blocks */
+  /* APPLE LOCAL radar 5868913 */
+  if (flag_blocks)
+    cpp_define (pfile, "__BLOCKS__=1");
+  /* APPLE LOCAL end blocks */
   if (optimize_size)
     cpp_define (pfile, "__OPTIMIZE_SIZE__");
   if (optimize)

@@ -45,7 +45,7 @@
 
 #include <machine/smp.h>
 #include <x86/apicreg.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/mp_watchdog.h>
 
 /*

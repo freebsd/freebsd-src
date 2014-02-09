@@ -74,7 +74,7 @@ END(atomic_add_64_nv)
  */
 ENTRY(atomic_or_8_nv, 2)
 1:
-	ld8		r16 = [r32]
+	ld1		r16 = [r32]
 	;;
 	mov		ar.ccv = r16
 	or		r8 = r16, r33

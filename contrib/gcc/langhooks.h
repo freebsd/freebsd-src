@@ -152,6 +152,12 @@ struct lang_hooks_for_types
      firstprivate variables.  */
   void (*omp_firstprivatize_type_sizes) (struct gimplify_omp_ctx *, tree);
 
+  /* APPLE LOCAL begin radar 6386976  */
+  /* Determine whether the type-tree passed in is specific to the
+     language/runtime definitions, e.g. is an Objective-C class...  */
+  bool (*is_runtime_specific_type) (tree);
+  /* APPLE LOCAL end radar 6386976  */
+
   /* Nonzero if types that are identical are to be hashed so that only
      one copy is kept.  If a language requires unique types for each
      user-specified type, such as Ada, this should be set to TRUE.  */
@@ -467,6 +473,12 @@ struct lang_hooks
      *SE if in the process TREE_CONSTANT, TREE_INVARIANT or
      TREE_SIDE_EFFECTS need updating.  */
   tree (*expr_to_decl) (tree expr, bool *tc, bool *ti, bool *se);
+
+  /* APPLE LOCAL begin radar 6353006  */
+  /*  For c-based languages, builds a generic type for Blocks pointers (for
+   emitting debug information.  For other languages, returns NULL.  */
+  tree (*build_generic_block_struct_type) (void);
+  /* APPLE LOCAL end radar 6353006  */
 
   /* Whenever you add entries here, make sure you adjust langhooks-def.h
      and langhooks.c accordingly.  */

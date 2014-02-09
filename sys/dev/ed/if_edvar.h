@@ -28,7 +28,10 @@
  */
 
 #ifndef SYS_DEV_ED_IF_EDVAR_H
-#define SYS_DEV_ED_IF_EDVAR_H
+#define	SYS_DEV_ED_IF_EDVAR_H
+
+#include <dev/mii/mii_bitbang.h>
+
 /*
  * ed_softc: per line info and status
  */
@@ -62,8 +65,7 @@ struct ed_softc {
 	    u_long command);
 	void	(*sc_mediachg)(struct ed_softc *);
 	device_t miibus;	/* MII bus for cards with MII. */
-	void	(*mii_writebits)(struct ed_softc *, u_int, int);
-	u_int	(*mii_readbits)(struct ed_softc *, int);
+	mii_bitbang_ops_t mii_bitbang_ops;
 	struct callout	      tick_ch;
         void	(*sc_tick)(struct ed_softc *);
 	void (*readmem)(struct ed_softc *sc, bus_size_t src, uint8_t *dst,
@@ -109,6 +111,10 @@ struct ed_softc {
 	struct	ifmib_iso_8802_3 mibdata; /* stuff for network mgmt */
 };
 
+#define	ed_nic_barrier(sc, port, length, flags) \
+	bus_space_barrier(sc->port_bst, sc->port_bsh, \
+	    (sc)->nic_offset + (port), (length), (flags))
+
 #define	ed_nic_inb(sc, port) \
 	bus_space_read_1(sc->port_bst, sc->port_bsh, (sc)->nic_offset + (port))
 
@@ -146,6 +152,10 @@ struct ed_softc {
 #define	ed_nic_outsl(sc, port, addr, count) \
 	bus_space_write_multi_4(sc->port_bst, sc->port_bsh, \
 		(sc)->nic_offset + (port), (uint32_t *)(addr), (count))
+
+#define	ed_asic_barrier(sc, port, length, flags) \
+	bus_space_barrier(sc->port_bst, sc->port_bsh, \
+	    (sc)->asic_offset + (port), (length), (flags))
 
 #define	ed_asic_inb(sc, port) \
 	bus_space_read_1(sc->port_bst, sc->port_bsh, \

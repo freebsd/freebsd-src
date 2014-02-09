@@ -3078,6 +3078,10 @@ nfs_advlock(struct vop_advlock_args *ap)
 					np->n_change = va.va_filerev;
 				}
 			}
+			/* Mark that a file lock has been acquired. */
+			mtx_lock(&np->n_mtx);
+			np->n_flag |= NHASBEENLOCKED;
+			mtx_unlock(&np->n_mtx);
 		}
 		NFSVOPUNLOCK(vp, 0);
 		return (0);
@@ -3096,6 +3100,12 @@ nfs_advlock(struct vop_advlock_args *ap)
 				NFSVOPUNLOCK(vp, 0);
 				error = ENOLCK;
 			}
+		}
+		if (error == 0 && ap->a_op == F_SETLK) {
+			/* Mark that a file lock has been acquired. */
+			mtx_lock(&np->n_mtx);
+			np->n_flag |= NHASBEENLOCKED;
+			mtx_unlock(&np->n_mtx);
 		}
 	}
 	return (error);

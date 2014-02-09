@@ -312,9 +312,10 @@ struct pmap {
 };
 
 /* flags */
-#define	PMAP_PDE_SUPERPAGE	(1 << 0)	/* supports 2MB superpages */
-#define	PMAP_EMULATE_AD_BITS	(1 << 1)	/* needs A/D bits emulation */
-#define	PMAP_SUPPORTS_EXEC_ONLY	(1 << 2)	/* execute only mappings ok */
+#define	PMAP_NESTED_IPIMASK	0xff
+#define	PMAP_PDE_SUPERPAGE	(1 << 8)	/* supports 2MB superpages */
+#define	PMAP_EMULATE_AD_BITS	(1 << 9)	/* needs A/D bits emulation */
+#define	PMAP_SUPPORTS_EXEC_ONLY	(1 << 10)	/* execute only mappings ok */
 
 typedef struct pmap	*pmap_t;
 

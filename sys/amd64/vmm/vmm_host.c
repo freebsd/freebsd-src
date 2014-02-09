@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 
 #include "vmm_host.h"
 
-static uint64_t vmm_host_efer, vmm_host_pat, vmm_host_cr0, vmm_host_cr4;
+static uint64_t vmm_host_efer, vmm_host_pat, vmm_host_cr0, vmm_host_cr4,
+	vmm_host_xcr0;
+static struct xsave_limits vmm_xsave_limits;
 
 void
 vmm_host_state_init(void)
 {
+	int regs[4];
 
 	vmm_host_efer = rdmsr(MSR_EFER);
 	vmm_host_pat = rdmsr(MSR_PAT);
@@ -57,6 +60,21 @@ vmm_host_state_init(void)
 	vmm_host_cr0 = rcr0() | CR0_TS;
 
 	vmm_host_cr4 = rcr4();
+
+	/*
+	 * Only permit a guest to use XSAVE if the host is using
+	 * XSAVE.  Only permit a guest to use XSAVE features supported
+	 * by the host.  This ensures that the FPU state used by the
+	 * guest is always a subset of the saved guest FPU state.
+	 */
+	if (vmm_host_cr4 & CR4_XSAVE) {
+		vmm_xsave_limits.xsave_enabled = 1;
+		vmm_host_xcr0 = rxcr(0);
+		vmm_xsave_limits.xcr0_allowed = vmm_host_xcr0;
+
+		cpuid_count(0xd, 0x0, regs);
+		vmm_xsave_limits.xsave_max_size = regs[1];
+	}
 }
 
 uint64_t
@@ -85,6 +103,13 @@ vmm_get_host_cr4(void)
 {
 
 	return (vmm_host_cr4);
+}
+
+uint64_t
+vmm_get_host_xcr0(void)
+{
+
+	return (vmm_host_xcr0);
 }
 
 uint64_t
@@ -121,4 +146,11 @@ vmm_get_host_idtrbase(void)
 {
 
 	return (r_idt.rd_base);
+}
+
+const struct xsave_limits *
+vmm_get_xsave_limits(void)
+{
+
+	return (&vmm_xsave_limits);
 }

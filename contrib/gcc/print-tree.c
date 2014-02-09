@@ -302,6 +302,10 @@ print_node (FILE *file, const char *prefix, tree node, int indent)
     fputs (" static", file);
   if (TREE_DEPRECATED (node))
     fputs (" deprecated", file);
+  /* APPLE LOCAL begin "unavailable" attribute (Radar 2809697) */
+  if (TREE_UNAVAILABLE (node))
+    fputs (" unavailable", file);
+  /* APPLE LOCAL end "unavailable" attribute (Radar 2809697) */
   if (TREE_VISITED (node))
     fputs (" visited", file);
   if (TREE_LANG_FLAG_0 (node))

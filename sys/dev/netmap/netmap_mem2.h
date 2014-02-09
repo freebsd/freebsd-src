@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012-2013 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
+ * Copyright (C) 2012-2014 Matteo Landi, Luigi Rizzo, Giuseppe Lettieri. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -189,7 +189,7 @@ struct netmap_mem_d {
 	/* the three allocators */
 	struct netmap_obj_pool pools[NETMAP_POOLS_NR];
 
-	netmap_mem_config_t   config;	
+	netmap_mem_config_t   config;
 	netmap_mem_finalize_t finalize;
 	netmap_mem_deref_t    deref;
 };
@@ -200,14 +200,17 @@ vm_paddr_t netmap_mem_ofstophys(struct netmap_mem_d *, vm_ooffset_t);
 int	   netmap_mem_finalize(struct netmap_mem_d *);
 int 	   netmap_mem_init(void);
 void 	   netmap_mem_fini(void);
-struct netmap_if *   netmap_mem_if_new(const char *, struct netmap_adapter *);
-void 	   netmap_mem_if_delete(struct netmap_adapter *na, struct netmap_if *nifp);
+struct netmap_if *
+	   netmap_mem_if_new(const char *, struct netmap_adapter *);
+void 	   netmap_mem_if_delete(struct netmap_adapter *, struct netmap_if *);
+int	   netmap_mem_rings_create(struct netmap_adapter *);
+void	   netmap_mem_rings_delete(struct netmap_adapter *);
 void 	   netmap_mem_deref(struct netmap_mem_d *);
-int	   netmap_mem_get_info(struct netmap_mem_d *nm_mem, u_int *size, u_int *memflags);
-ssize_t    netmap_mem_if_offset(struct netmap_mem_d *nm_mem, const void *vaddr);
+int	   netmap_mem_get_info(struct netmap_mem_d *, u_int *size, u_int *memflags);
+ssize_t    netmap_mem_if_offset(struct netmap_mem_d *, const void *vaddr);
 struct netmap_mem_d*
 	   netmap_mem_private_new(const char *name, u_int txr, u_int txd, u_int rxr, u_int rxd);
-void	   netmap_mem_private_delete(struct netmap_mem_d *nm_mem);
+void	   netmap_mem_private_delete(struct netmap_mem_d *);
 
 #define NETMAP_BDG_BUF_SIZE(n)	((n)->pools[NETMAP_BUF_POOL]._objsize)
 

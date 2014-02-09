@@ -510,6 +510,7 @@ ctl_be_block_biodone(struct bio *bio)
 	struct ctl_be_block_io *beio;
 	struct ctl_be_block_lun *be_lun;
 	union ctl_io *io;
+	int error;
 
 	beio = bio->bio_caller1;
 	be_lun = beio->lun;
@@ -517,8 +518,9 @@ ctl_be_block_biodone(struct bio *bio)
 
 	DPRINTF("entered\n");
 
+	error = bio->bio_error;
 	mtx_lock(&be_lun->lock);
-	if (bio->bio_error != 0)
+	if (error != 0)
 		beio->num_errors++;
 
 	beio->num_bios_done++;
@@ -550,7 +552,9 @@ ctl_be_block_biodone(struct bio *bio)
 	 * entire I/O with a medium error.
 	 */
 	if (beio->num_errors > 0) {
-		if (beio->bio_cmd == BIO_FLUSH) {
+		if (error == EOPNOTSUPP) {
+			ctl_set_invalid_opcode(&io->scsiio);
+		} else if (beio->bio_cmd == BIO_FLUSH) {
 			/* XXX KDM is there is a better error here? */
 			ctl_set_internal_failure(&io->scsiio,
 						 /*sks_valid*/ 1,
@@ -1483,6 +1487,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 		case CTL_BE_BLOCK_FILE:
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1501,6 +1506,7 @@ ctl_be_block_close(struct ctl_be_block_lun *be_lun)
 			}
 			break;
 		case CTL_BE_BLOCK_NONE:
+			break;
 		default:
 			panic("Unexpected backend type.");
 			break;
@@ -1587,7 +1593,7 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	} else {
 		error = EINVAL;
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s is not a disk or file", be_lun->dev_path);
+			 "%s is not a disk or plain file", be_lun->dev_path);
 	}
 	VOP_UNLOCK(be_lun->vn, 0);
 
