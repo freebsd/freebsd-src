@@ -186,14 +186,20 @@ static void arm9_setup(void);
 void
 _startC(void)
 {
-	int physaddr = KERNPHYSADDR;
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
-#if defined(FLASHADDR) && defined(PHYSADDR) && defined(LOADERRAMADDR)
-	unsigned int pc;
+	unsigned int pc, kernphysaddr;
 
+	/*
+	 * Figure out the physical address the kernel was loaded at.  This
+	 * assumes the entry point (this code right here) is in the first page,
+	 * which will always be the case for this trampoline code.
+	 */
 	__asm __volatile("mov %0, pc\n"
 	    : "=r" (pc));
+	kernphysaddr = pc & ~PAGE_MASK;
+
+#if defined(FLASHADDR) && defined(PHYSADDR) && defined(LOADERRAMADDR)
 	if ((FLASHADDR > LOADERRAMADDR && pc >= FLASHADDR) ||
 	    (FLASHADDR < LOADERRAMADDR && pc < LOADERRAMADDR)) {
 		/*
@@ -247,7 +253,7 @@ _startC(void)
 			 "mov pc, %0\n"
 			 "2: nop\n"
 			 "mov sp, %2\n"
-			 : "=r" (tmp1), "+r" (physaddr), "+r" (sp));
+			 : "=r" (tmp1), "+r" (kernphysaddr), "+r" (sp));
 #ifndef KZIP
 #ifdef CPU_ARM9
 	/* So that idcache_wbinv works; */
