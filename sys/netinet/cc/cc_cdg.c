@@ -81,11 +81,6 @@ __FBSDID("$FreeBSD$");
 
 #define	CAST_PTR_INT(X) (*((int*)(X)))
 
-#ifndef	VIMAGE
-#define	vnet_sysctl_handle_uint(oidp, arg1, arg2, req) \
-    sysctl_handle_int(oidp, arg1, arg2, req)
-#endif
-
 /* Private delay-gradient induced congestion control signal. */
 #define	CC_CDG_DELAY 0x01000000
 
@@ -357,7 +352,7 @@ cdg_beta_handler(SYSCTL_HANDLER_ARGS)
 	    (CAST_PTR_INT(req->newptr) == 0 || CAST_PTR_INT(req->newptr) > 100))
 		return (EINVAL);
 
-	return (vnet_sysctl_handle_uint(oidp, arg1, arg2, req));
+	return (sysctl_handle_int(oidp, arg1, arg2, req));
 }
 
 static int
@@ -367,7 +362,7 @@ cdg_exp_backoff_scale_handler(SYSCTL_HANDLER_ARGS)
 	if (req->newptr != NULL && CAST_PTR_INT(req->newptr) < 1)
 		return (EINVAL);
 
-	return (vnet_sysctl_handle_uint(oidp, arg1, arg2, req));
+	return (sysctl_handle_int(oidp, arg1, arg2, req));
 }
 
 static inline unsigned long
