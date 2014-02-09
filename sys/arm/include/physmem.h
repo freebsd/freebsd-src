@@ -32,7 +32,7 @@
 /*
  * The physical address at which the kernel was loaded.
  */
-extern vm_offset_t arm_physmem_kernaddr;
+extern vm_paddr_t arm_physmem_kernaddr;
 
 /*
  * Routines to help configure physical ram.
@@ -52,8 +52,8 @@ extern vm_offset_t arm_physmem_kernaddr;
 #define	EXFLAG_NODUMP	0x01
 #define	EXFLAG_NOALLOC	0x02
 
-void arm_physmem_hardware_region(vm_offset_t pa, vm_size_t sz);
-void arm_physmem_exclude_region(vm_offset_t pa, vm_size_t sz, uint32_t flags);
+void arm_physmem_hardware_region(vm_paddr_t pa, vm_size_t sz);
+void arm_physmem_exclude_region(vm_paddr_t pa, vm_size_t sz, uint32_t flags);
 void arm_physmem_init_kernel_globals(void);
 void arm_physmem_print_tables(void);
 
