@@ -87,6 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/armreg.h>
+#include <machine/physmem.h>
+
 #include <machine/bus.h>
 #include <sys/reboot.h>
 
@@ -200,6 +202,7 @@ initarm(struct arm_boot_params *abp)
 
 	boothowto = RB_VERBOSE | RB_SINGLE;     /* Default value */
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	cninit();
 	set_cpufuncs();
 	physmem = memsize / PAGE_SIZE;

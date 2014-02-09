@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msgbuf.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
+#include <machine/physmem.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -176,6 +177,7 @@ initarm(struct arm_boot_params *abp)
 	uint32_t memsize, memstart;
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
