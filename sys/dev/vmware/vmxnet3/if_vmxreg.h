@@ -170,6 +170,12 @@ struct vmxnet3_rxcompdesc {
 	uint32_t	gen:1;
 } __packed;
 
+#define VMXNET3_RCD_RSS_TYPE_NONE	0
+#define VMXNET3_RCD_RSS_TYPE_IPV4	1
+#define VMXNET3_RCD_RSS_TYPE_TCPIPV4	2
+#define VMXNET3_RCD_RSS_TYPE_IPV6	3
+#define VMXNET3_RCD_RSS_TYPE_TCPIPV6	4
+
 #define VMXNET3_REV1_MAGIC	0XBABEFEE1
 
 #define VMXNET3_GOS_UNKNOWN	0x00
@@ -311,6 +317,27 @@ struct vmxnet3_rxq_shared {
 	struct		UPT1_RxStats stats;
 
 	uint8_t		pad4[88];
+} __packed;
+
+#define UPT1_RSS_HASH_TYPE_NONE		0x00
+#define UPT1_RSS_HASH_TYPE_IPV4		0x01
+#define UPT1_RSS_HASH_TYPE_TCP_IPV4	0x02
+#define UPT1_RSS_HASH_TYPE_IPV6		0x04
+#define UPT1_RSS_HASH_TYPE_TCP_IPV6	0x08
+
+#define UPT1_RSS_HASH_FUNC_NONE		0x00
+#define UPT1_RSS_HASH_FUNC_TOEPLITZ	0x01
+
+#define UPT1_RSS_MAX_KEY_SIZE		40
+#define UPT1_RSS_MAX_IND_TABLE_SIZE	128
+
+struct vmxnet3_rss_shared {
+	uint16_t		hash_type;
+	uint16_t		hash_func;
+	uint16_t		hash_key_size;
+	uint16_t		ind_table_size;
+	uint8_t			hash_key[UPT1_RSS_MAX_KEY_SIZE];
+	uint8_t			ind_table[UPT1_RSS_MAX_IND_TABLE_SIZE];
 } __packed;
 
 #endif /* _IF_VMXREG_H */
