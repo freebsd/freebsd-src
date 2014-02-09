@@ -1405,5 +1405,10 @@ do {									\
 #define	KTR_DRM		KTR_DEV
 #define	KTR_DRM_REG	KTR_SPARE3
 
+/* Error codes conversion from Linux to FreeBSD. */
+/* XXXKIB what is the right code for EREMOTEIO on FreeBSD? */
+#define	EREMOTEIO	ENXIO
+#define	ERESTARTSYS	ERESTART
+
 #endif /* __KERNEL__ */
 #endif /* _DRM_P_H_ */
