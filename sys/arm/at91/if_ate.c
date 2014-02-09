@@ -30,6 +30,8 @@
  * 2) GPIO initializtion in board setup code.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -73,6 +75,12 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91reg.h>
 #include <arm/at91/at91var.h>
 #include <arm/at91/if_atereg.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "miibus_if.h"
 
@@ -229,7 +237,10 @@ static int	ate_miibus_writereg(device_t dev, int phy, int reg, int data);
 static int
 ate_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "cdns,at32ap7000-macb"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "EMAC");
 	return (0);
 }
@@ -1458,7 +1469,11 @@ static driver_t ate_driver = {
 	sizeof(struct ate_softc),
 };
 
+#ifdef FDT
+DRIVER_MODULE(ate, simplebus, ate_driver, ate_devclass, NULL, NULL);
+#else
 DRIVER_MODULE(ate, atmelarm, ate_driver, ate_devclass, NULL, NULL);
+#endif
 DRIVER_MODULE(miibus, ate, miibus_driver, miibus_devclass, NULL, NULL);
 MODULE_DEPEND(ate, miibus, 1, 1, 1);
 MODULE_DEPEND(ate, ether, 1, 1, 1);
