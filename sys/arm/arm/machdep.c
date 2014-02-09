@@ -1215,8 +1215,6 @@ initarm(struct arm_boot_params *abp)
 
 	cninit();
 
-	physmem = memsize / PAGE_SIZE;
-
 	debugf("initarm: console initialized\n");
 	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
