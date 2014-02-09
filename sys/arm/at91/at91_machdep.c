@@ -590,7 +590,6 @@ initarm(struct arm_boot_params *abp)
 		printf("Warning: No soc support for %s found.\n", soc_info.name);
 
 	memsize = board_init();
-	physmem = memsize / PAGE_SIZE;
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
