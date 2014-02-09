@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 2013 Tsubai Masanari
- * Copyright (c) 2013 Bryan Venteicher <bryanv@FreeBSD.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
