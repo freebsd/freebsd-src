@@ -316,6 +316,9 @@ typedef int8_t s8;
 
 #define DRM_HZ			hz
 #define DRM_UDELAY(udelay)	DELAY(udelay)
+#define DRM_MDELAY(msecs)	do { int loops = (msecs);		\
+	                          while (loops--) DELAY(1000);		\
+				} while (0)
 #define DRM_TIME_SLICE		(hz/20)  /* Time slice for GLXContexts	  */
 
 #define DRM_GET_PRIV_SAREA(_dev, _ctx, _map) do {	\
