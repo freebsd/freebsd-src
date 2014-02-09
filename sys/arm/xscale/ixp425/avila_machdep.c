@@ -222,6 +222,7 @@ initarm(struct arm_boot_params *abp)
 #define	KERNEL_TEXT_PHYS	(PHYSADDR + KERNEL_TEXT_OFF)
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();		/* NB: sets cputype */
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);

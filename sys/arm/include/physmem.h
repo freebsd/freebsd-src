@@ -30,6 +30,11 @@
 #define	_MACHINE_PHYSMEM_H_
 
 /*
+ * The physical address at which the kernel was loaded.
+ */
+extern vm_offset_t arm_physmem_kernaddr;
+
+/*
  * Routines to help configure physical ram.
  *
  * Multiple regions of contiguous physical ram can be added (in any order).

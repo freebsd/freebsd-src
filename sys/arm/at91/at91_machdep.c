@@ -461,6 +461,7 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu0_init();
 
