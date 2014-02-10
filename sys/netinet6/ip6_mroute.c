@@ -361,7 +361,7 @@ X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 	mifi_t mifi;
 
 	if (so != V_ip6_mrouter && sopt->sopt_name != MRT6_INIT)
-		return (EACCES);
+		return (EPERM);
 
 	switch (sopt->sopt_name) {
 	case MRT6_INIT:
