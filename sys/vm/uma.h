@@ -33,8 +33,8 @@
  *
 */
 
-#ifndef VM_UMA_H
-#define VM_UMA_H
+#ifndef _VM_UMA_H_
+#define _VM_UMA_H_
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
@@ -683,4 +683,4 @@ struct uma_percpu_stat {
 	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
 
-#endif
+#endif	/* _VM_UMA_H_ */
