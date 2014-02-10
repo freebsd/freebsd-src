@@ -4919,6 +4919,8 @@ public:
     if (getTriple().getOS() == llvm::Triple::FreeBSD) {
       LongDoubleWidth = LongDoubleAlign = 64;
       LongDoubleFormat = &llvm::APFloat::IEEEdouble;
+      IntMaxType = SignedLong;
+      UIntMaxType = UnsignedLong;
     }
     SuitableAlign = 128;
     MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 64;
