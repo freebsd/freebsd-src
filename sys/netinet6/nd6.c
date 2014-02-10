@@ -1849,8 +1849,6 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
  * KMM
  *
  */
-#define senderr(e) { error = (e); goto bad;}
-
 int
 nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
     struct sockaddr_in6 *dst, struct rtentry *rt0, struct llentry *lle,
@@ -1872,6 +1870,13 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 		KASSERT(chain != NULL, (" lle locked but no mbuf chain pointer passed"));
 	}
 #endif
+	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
+	/* discard the packet if IPv6 operation is disabled on the interface */
+	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
+		m_freem(m);
+		return (ENETDOWN); /* better error? */
+	}
+
 	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr))
 		goto sendpkt;
 
@@ -1901,7 +1906,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			flags = ND6_CREATE | (m ? ND6_EXCLUSIVE : 0);
+			flags = ND6_CREATE | ND6_EXCLUSIVE;
 			IF_AFDATA_LOCK(ifp);
 			ln = nd6_lookup(&dst->sin6_addr, flags, ifp);
 			IF_AFDATA_UNLOCK(ifp);
@@ -1915,7 +1920,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 			    "nd6_output: can't allocate llinfo for %s "
 			    "(ln=%p)\n",
 			    ip6_sprintf(ip6buf, &dst->sin6_addr), ln);
-			senderr(EIO);	/* XXX: good error? */
+			m_freem(m);
+			return (ENOBUFS);
 		}
 		goto sendpkt;	/* send anyway */
 	}
@@ -2023,11 +2029,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	return (0);
 
   sendpkt:
-	/* discard the packet if IPv6 operation is disabled on the interface */
-	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
-		error = ENETDOWN; /* better error? */
-		goto bad;
-	}
 	/*
 	 * ln is valid and the caller did not pass in 
 	 * an llentry
@@ -2090,29 +2091,13 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m0,
 	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
 	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
 	    mtod(m, struct ip6_hdr *));
-	if ((ifp->if_flags & IFF_LOOPBACK) != 0) {
-		return ((*ifp->if_output)(origifp, m, (struct sockaddr *)dst,
-		    NULL));
-	}
-	error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, NULL);
-	return (error);
 
-  bad:
-	/*
-	 * ln is valid and the caller did not pass in 
-	 * an llentry
-	 */
-	if ((ln != NULL) && (lle == NULL)) {
-		if (flags & LLE_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-	}
-	if (m)
-		m_freem(m);
+	if ((ifp->if_flags & IFF_LOOPBACK) != 0)
+		origifp = ifp;
+
+	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
 	return (error);
 }
-#undef senderr
 
 
 int
