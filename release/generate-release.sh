@@ -109,6 +109,7 @@ if [ -d ${CHROOTDIR}/usr/doc ]; then
 	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 
 	# Install docproj to build release documentation
+	${CHROOT_CMD} /etc/rc.d/ldconfig forcerestart
 	${CHROOT_CMD} /bin/sh -c \
 		'make -C /usr/ports/textproc/docproj \
 			BATCH=yes \
