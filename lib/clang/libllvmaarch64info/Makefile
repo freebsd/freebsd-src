@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarminfo
+LIB=	llvmaarch64info
 
 SRCDIR=	lib/Target/AArch64/TargetInfo
 INCDIR=	lib/Target/AArch64

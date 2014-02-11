@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarmasmparser
+LIB=	llvmaarch64asmparser
 
 SRCDIR=	lib/Target/AArch64/AsmParser
 INCDIR=	lib/Target/AArch64

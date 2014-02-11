@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarmcodegen
+LIB=	llvmaarch64codegen
 
 SRCDIR=	lib/Target/AArch64
 SRCS=	AArch64AsmPrinter.cpp \

@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarmdesc
+LIB=	llvmaarch64desc
 
 SRCDIR=	lib/Target/AArch64/MCTargetDesc
 SRCS=	AArch64AsmBackend.cpp \

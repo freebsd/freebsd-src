@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-LIB=	llvmarmdisassembler
+LIB=	llvmaarch64disassembler
 
 SRCDIR=	lib/Target/AArch64/Disassembler
 INCDIR=	lib/Target/AArch64
