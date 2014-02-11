@@ -952,6 +952,10 @@
 
       &hwlist.qlxgb;
 
+      &hwlist.qlxgbe;
+
+      &hwlist.qlxge;
+
       &hwlist.re;
 
       &hwlist.rl;

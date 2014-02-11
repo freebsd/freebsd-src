@@ -104,6 +104,8 @@ oltr	i386
 pcn	i386,pc98,ia64,amd64
 pst	i386
 qlxgb	amd64
+qlxgbe	amd64
+qlxge	amd64
 rc	i386
 ral	i386,amd64
 rue	i386,pc98,amd64
