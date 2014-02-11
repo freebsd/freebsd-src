@@ -1956,3 +1956,9 @@ The
 .Xr mdoc 7
 implementation of this manual page was initially written by
 .An Martin Matuska Aq mm@FreeBSD.org .
+.Sh CAVEATS
+The
+.Cm spare
+feature requires a utility to detect zpool degradation and initiate
+disk replacement within the zpool. FreeBSD does not provide such a
+utility at this time.
