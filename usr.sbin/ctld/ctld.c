@@ -149,6 +149,126 @@ auth_find(struct auth_group *ag, const char *user)
 	return (NULL);
 }
 
+static void
+auth_check_secret_length(struct auth *auth)
+{
+	size_t len;
+
+	len = strlen(auth->a_secret);
+	if (len > 16) {
+		if (auth->a_auth_group->ag_name != NULL)
+			log_warnx("secret for user \"%s\", auth-group \"%s\", "
+			    "is too long; it should be at most 16 characters "
+			    "long", auth->a_user, auth->a_auth_group->ag_name);
+		else
+			log_warnx("secret for user \"%s\", target \"%s\", "
+			    "is too long; it should be at most 16 characters "
+			    "long", auth->a_user,
+			    auth->a_auth_group->ag_target->t_iqn);
+	}
+	if (len < 12) {
+		if (auth->a_auth_group->ag_name != NULL)
+			log_warnx("secret for user \"%s\", auth-group \"%s\", "
+			    "is too short; it should be at least 12 characters "
+			    "long", auth->a_user,
+			    auth->a_auth_group->ag_name);
+		else
+			log_warnx("secret for user \"%s\", target \"%s\", "
+			    "is too short; it should be at least 16 characters "
+			    "long", auth->a_user,
+			    auth->a_auth_group->ag_target->t_iqn);
+	}
+
+	if (auth->a_mutual_secret != NULL) {
+		len = strlen(auth->a_secret);
+		if (len > 16) {
+			if (auth->a_auth_group->ag_name != NULL)
+				log_warnx("mutual secret for user \"%s\", "
+				    "auth-group \"%s\", is too long; it should "
+				    "be at most 16 characters long",
+				    auth->a_user, auth->a_auth_group->ag_name);
+			else
+				log_warnx("mutual secret for user \"%s\", "
+				    "target \"%s\", is too long; it should "
+				    "be at most 16 characters long",
+				    auth->a_user,
+				    auth->a_auth_group->ag_target->t_iqn);
+		}
+		if (len < 12) {
+			if (auth->a_auth_group->ag_name != NULL)
+				log_warnx("mutual secret for user \"%s\", "
+				    "auth-group \"%s\", is too short; it "
+				    "should be at least 12 characters long",
+				    auth->a_user, auth->a_auth_group->ag_name);
+			else
+				log_warnx("mutual secret for user \"%s\", "
+				    "target \"%s\", is too short; it should be "
+				    "at least 16 characters long",
+				    auth->a_user,
+				    auth->a_auth_group->ag_target->t_iqn);
+		}
+	}
+}
+
+const struct auth *
+auth_new_chap(struct auth_group *ag, const char *user,
+    const char *secret)
+{
+	struct auth *auth;
+
+	if (ag->ag_type == AG_TYPE_UNKNOWN)
+		ag->ag_type = AG_TYPE_CHAP;
+	if (ag->ag_type != AG_TYPE_CHAP) {
+		if (ag->ag_name != NULL)
+			log_warnx("cannot mix \"chap\" authentication with "
+			    "other types for auth-group \"%s\"", ag->ag_name);
+		else
+			log_warnx("cannot mix \"chap\" authentication with "
+			    "other types for target \"%s\"",
+			    ag->ag_target->t_iqn);
+		return (NULL);
+	}
+
+	auth = auth_new(ag);
+	auth->a_user = checked_strdup(user);
+	auth->a_secret = checked_strdup(secret);
+
+	auth_check_secret_length(auth);
+
+	return (auth);
+}
+
+const struct auth *
+auth_new_chap_mutual(struct auth_group *ag, const char *user,
+    const char *secret, const char *user2, const char *secret2)
+{
+	struct auth *auth;
+
+	if (ag->ag_type == AG_TYPE_UNKNOWN)
+		ag->ag_type = AG_TYPE_CHAP_MUTUAL;
+	if (ag->ag_type != AG_TYPE_CHAP_MUTUAL) {
+		if (ag->ag_name != NULL)
+			log_warnx("cannot mix \"chap-mutual\" authentication "
+			    "with other types for auth-group \"%s\"",
+			    ag->ag_name); 
+		else
+			log_warnx("cannot mix \"chap-mutual\" authentication "
+			    "with other types for target \"%s\"",
+			    ag->ag_target->t_iqn);
+		return (NULL);
+	}
+
+	auth = auth_new(ag);
+	auth->a_user = checked_strdup(user);
+	auth->a_secret = checked_strdup(secret);
+	auth->a_mutual_user = checked_strdup(user2);
+	auth->a_mutual_secret = checked_strdup(secret2);
+
+	auth_check_secret_length(auth);
+
+	return (auth);
+}
+
 const struct auth_name *
 auth_name_new(struct auth_group *ag, const char *name)
 {
@@ -295,126 +415,6 @@ auth_group_find(struct conf *conf, const char *name)
 	}
 
 	return (NULL);
-}
-
-static void
-auth_check_secret_length(struct auth *auth)
-{
-	size_t len;
-
-	len = strlen(auth->a_secret);
-	if (len > 16) {
-		if (auth->a_auth_group->ag_name != NULL)
-			log_warnx("secret for user \"%s\", auth-group \"%s\", "
-			    "is too long; it should be at most 16 characters "
-			    "long", auth->a_user, auth->a_auth_group->ag_name);
-		else
-			log_warnx("secret for user \"%s\", target \"%s\", "
-			    "is too long; it should be at most 16 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_iqn);
-	}
-	if (len < 12) {
-		if (auth->a_auth_group->ag_name != NULL)
-			log_warnx("secret for user \"%s\", auth-group \"%s\", "
-			    "is too short; it should be at least 12 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_name);
-		else
-			log_warnx("secret for user \"%s\", target \"%s\", "
-			    "is too short; it should be at least 16 characters "
-			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_iqn);
-	}
-
-	if (auth->a_mutual_secret != NULL) {
-		len = strlen(auth->a_secret);
-		if (len > 16) {
-			if (auth->a_auth_group->ag_name != NULL)
-				log_warnx("mutual secret for user \"%s\", "
-				    "auth-group \"%s\", is too long; it should "
-				    "be at most 16 characters long",
-				    auth->a_user, auth->a_auth_group->ag_name);
-			else
-				log_warnx("mutual secret for user \"%s\", "
-				    "target \"%s\", is too long; it should "
-				    "be at most 16 characters long",
-				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_iqn);
-		}
-		if (len < 12) {
-			if (auth->a_auth_group->ag_name != NULL)
-				log_warnx("mutual secret for user \"%s\", "
-				    "auth-group \"%s\", is too short; it "
-				    "should be at least 12 characters long",
-				    auth->a_user, auth->a_auth_group->ag_name);
-			else
-				log_warnx("mutual secret for user \"%s\", "
-				    "target \"%s\", is too short; it should be "
-				    "at least 16 characters long",
-				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_iqn);
-		}
-	}
-}
-
-const struct auth *
-auth_new_chap(struct auth_group *ag, const char *user,
-    const char *secret)
-{
-	struct auth *auth;
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN)
-		ag->ag_type = AG_TYPE_CHAP;
-	if (ag->ag_type != AG_TYPE_CHAP) {
-		if (ag->ag_name != NULL)
-			log_warnx("cannot mix \"chap\" authentication with "
-			    "other types for auth-group \"%s\"", ag->ag_name);
-		else
-			log_warnx("cannot mix \"chap\" authentication with "
-			    "other types for target \"%s\"",
-			    ag->ag_target->t_iqn);
-		return (NULL);
-	}
-
-	auth = auth_new(ag);
-	auth->a_user = checked_strdup(user);
-	auth->a_secret = checked_strdup(secret);
-
-	auth_check_secret_length(auth);
-
-	return (auth);
-}
-
-const struct auth *
-auth_new_chap_mutual(struct auth_group *ag, const char *user,
-    const char *secret, const char *user2, const char *secret2)
-{
-	struct auth *auth;
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN)
-		ag->ag_type = AG_TYPE_CHAP_MUTUAL;
-	if (ag->ag_type != AG_TYPE_CHAP_MUTUAL) {
-		if (ag->ag_name != NULL)
-			log_warnx("cannot mix \"chap-mutual\" authentication "
-			    "with other types for auth-group \"%s\"",
-			    ag->ag_name); 
-		else
-			log_warnx("cannot mix \"chap-mutual\" authentication "
-			    "with other types for target \"%s\"",
-			    ag->ag_target->t_iqn);
-		return (NULL);
-	}
-
-	auth = auth_new(ag);
-	auth->a_user = checked_strdup(user);
-	auth->a_secret = checked_strdup(secret);
-	auth->a_mutual_user = checked_strdup(user2);
-	auth->a_mutual_secret = checked_strdup(secret2);
-
-	auth_check_secret_length(auth);
-
-	return (auth);
 }
 
 static struct portal *
