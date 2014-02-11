@@ -68,3 +68,5 @@ tcpdump-helper.dump: tcpdump-helper
 .PATH: ${.CURDIR}/../../contrib/tcpdump
 
 .include <bsd.prog.mk>
+
+CFLAGS:=	${CFLAGS:N-Wcast-align}
