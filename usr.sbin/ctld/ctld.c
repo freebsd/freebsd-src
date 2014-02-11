@@ -439,6 +439,8 @@ auth_group_set_type_str(struct auth_group *ag, const char *str)
 
 	if (strcmp(str, "none") == 0) {
 		type = AG_TYPE_NO_AUTHENTICATION;
+	} else if (strcmp(str, "deny") == 0) {
+		type = AG_TYPE_DENY;
 	} else if (strcmp(str, "chap") == 0) {
 		type = AG_TYPE_CHAP;
 	} else if (strcmp(str, "chap-mutual") == 0) {
