@@ -169,18 +169,20 @@ cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
 			 */
 			if (pindex > object->size)
 				object->size = pindex;
+			KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 		} else {
 			object = object1;
 			object1 = NULL;
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
-			KASSERT(object->type == tp,
-		("Inconsistent device pager type %p %d", object, tp));
 		}
 	} else {
 		if (pindex > object->size)
 			object->size = pindex;
+		KASSERT(object->type == tp,
+		    ("Inconsistent device pager type %p %d", object, tp));
 	}
 	mtx_unlock(&dev_pager_mtx);
 	if (object1 != NULL) {
