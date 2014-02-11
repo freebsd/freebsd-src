@@ -233,6 +233,12 @@ boot</screen>
 	  on &os;-CURRENT and will be fixed in &os;
 	  &release.current;.</para>
       </listitem>
+
+      <listitem>
+	<para>The &man.mount.udf.8; utility has a bug which prevents
+	  it from mounting any UDF file system.  This has been fixed
+  	  in &os;-CURRENT and &os; &release.current;.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
