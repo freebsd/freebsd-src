@@ -239,7 +239,7 @@ icl_pdu_size(const struct icl_pdu *response)
 	    icl_pdu_padding(response);
 	if (response->ip_conn->ic_header_crc32c)
 		len += ISCSI_HEADER_DIGEST_SIZE;
-	if (response->ip_conn->ic_data_crc32c)
+	if (response->ip_data_len != 0 && response->ip_conn->ic_data_crc32c)
 		len += ISCSI_DATA_DIGEST_SIZE;
 
 	return (len);
@@ -615,7 +615,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 			break;
 
 		ic->ic_receive_state = ICL_CONN_STATE_DATA_DIGEST;
-		if (ic->ic_data_crc32c == false)
+		if (request->ip_data_len == 0 || ic->ic_data_crc32c == false)
 			ic->ic_receive_len = 0;
 		else
 			ic->ic_receive_len = ISCSI_DATA_DIGEST_SIZE;
