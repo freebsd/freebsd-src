@@ -13,6 +13,7 @@ MAN=	aac.4 \
 	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
+	${_acpi_rapidstart.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
@@ -733,6 +734,7 @@ _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
+_acpi_rapidstart.4=acpi_rapidstart.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
