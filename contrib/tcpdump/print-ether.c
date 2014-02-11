@@ -130,7 +130,8 @@ ether_hdr_print(netdissect_options *ndo,
 void
 ether_print(netdissect_options *ndo,
             packetbody_t p, u_int length, u_int caplen,
-            void (*print_encap_header)(netdissect_options *ndo, const u_char *), const u_char *encap_header_arg)
+            void (*print_encap_header)(netdissect_options *ndo, packetbody_t),
+	    packetbody_t encap_header_arg)
 {
 	__capability struct ether_header *ep;
 	u_int orig_length;

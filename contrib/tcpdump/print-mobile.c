@@ -68,15 +68,15 @@ struct mobile_ip {
  * Deencapsulate and print a mobile-tunneled IP datagram
  */
 void
-mobile_print(const u_char *bp, u_int length)
+mobile_print(packetbody_t bp, u_int length)
 {
-	const u_char *cp = bp +8 ;
-	const struct mobile_ip *mob;
+	packetbody_t cp = bp +8 ;
+	__capability const struct mobile_ip *mob;
 	struct cksum_vec vec[1];
 	u_short proto,crc;
 	u_char osp =0;			/* old source address present */
 
-	mob = (const struct mobile_ip *)bp;
+	mob = (__capability const struct mobile_ip *)bp;
 
 	if (length < MOBILE_SIZE || !TTEST(*mob)) {
 		fputs("[|mobile]", stdout);
@@ -102,7 +102,7 @@ mobile_print(const u_char *bp, u_int length)
 		(void)printf("> %s ",ipaddr_string(&mob->odst));
 		(void)printf("(oproto=%d)",proto>>8);
 	}
-	vec[0].ptr = (const u_int8_t *)(void *)mob;
+	vec[0].ptr = (__capability const u_int8_t *)mob;
 	vec[0].len = osp ? 12 : 8;
 	if (in_cksum(vec, 1)!=0) {
 		(void)printf(" (bad checksum %d)",crc);

@@ -49,11 +49,11 @@ struct msnlb_heartbeat_pkt {
 };
 
 void
-msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length)
+msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 {
-	const struct msnlb_heartbeat_pkt *hb;
+	__capability const struct msnlb_heartbeat_pkt *hb;
 
-	hb = (struct msnlb_heartbeat_pkt *)bp;
+	hb = (__capability struct msnlb_heartbeat_pkt *)bp;
 	ND_TCHECK(*hb);
 
 	ND_PRINT((ndo, "MS NLB heartbeat, host priority: %u,",

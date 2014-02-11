@@ -132,24 +132,24 @@ static const struct tok mpcp_reg_ack_flag_values[] = {
 };
 
 void
-mpcp_print(register const u_char *pptr, register u_int length) {
+mpcp_print(packetbody_t pptr, register u_int length) {
 
     union {
-        const struct mpcp_common_header_t *common_header;
-        const struct mpcp_grant_t *grant;
-        const struct mpcp_reg_req_t *reg_req;
-        const struct mpcp_reg_t *reg;
-        const struct mpcp_reg_ack_t *reg_ack;
+        __capability const struct mpcp_common_header_t *common_header;
+        __capability const struct mpcp_grant_t *grant;
+        __capability const struct mpcp_reg_req_t *reg_req;
+        __capability const struct mpcp_reg_t *reg;
+        __capability const struct mpcp_reg_ack_t *reg_ack;
     } mpcp;
 
 
-    const u_char *tptr;
+    packetbody_t tptr;
     u_int16_t opcode;
     u_int8_t grant_numbers, grant;
     u_int8_t queue_sets, queue_set, report_bitmap, report;
 
     tptr=pptr;
-    mpcp.common_header = (const struct mpcp_common_header_t *)pptr;
+    mpcp.common_header = (__capability const struct mpcp_common_header_t *)pptr;
 
     if (!TTEST2(*tptr, sizeof(const struct mpcp_common_header_t)))
         goto trunc;
@@ -183,7 +183,7 @@ mpcp_print(register const u_char *pptr, register u_int length) {
         for (grant = 1; grant <= grant_numbers; grant++) {
             if (!TTEST2(*tptr, sizeof(const struct mpcp_grant_t)))
                 goto trunc;
-            mpcp.grant = (const struct mpcp_grant_t *)tptr;        
+            mpcp.grant = (__capability const struct mpcp_grant_t *)tptr;        
             printf("\n\tGrant #%u, Start-Time %u ticks, duration %u ticks",
                    grant,
                    EXTRACT_32BITS(mpcp.grant->starttime),
@@ -232,7 +232,7 @@ mpcp_print(register const u_char *pptr, register u_int length) {
     case MPCP_OPCODE_REG_REQ:
         if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_req_t)))
             goto trunc;
-        mpcp.reg_req = (const struct mpcp_reg_req_t *)tptr;        
+        mpcp.reg_req = (__capability const struct mpcp_reg_req_t *)tptr;        
         printf("\n\tFlags [ %s ], Pending-Grants %u",
                bittok2str(mpcp_reg_req_flag_values, "Reserved", mpcp.reg_req->flags),
                mpcp.reg_req->pending_grants);
@@ -241,7 +241,7 @@ mpcp_print(register const u_char *pptr, register u_int length) {
     case MPCP_OPCODE_REG:
         if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_t)))
             goto trunc;
-        mpcp.reg = (const struct mpcp_reg_t *)tptr;        
+        mpcp.reg = (__capability const struct mpcp_reg_t *)tptr;        
         printf("\n\tAssigned-Port %u, Flags [ %s ]" \
                "\n\tSync-Time %u ticks, Echoed-Pending-Grants %u",
                EXTRACT_16BITS(mpcp.reg->assigned_port),
@@ -253,7 +253,7 @@ mpcp_print(register const u_char *pptr, register u_int length) {
     case MPCP_OPCODE_REG_ACK:
         if (!TTEST2(*tptr, sizeof(const struct mpcp_reg_ack_t)))
             goto trunc;
-        mpcp.reg_ack = (const struct mpcp_reg_ack_t *)tptr;        
+        mpcp.reg_ack = (__capability const struct mpcp_reg_ack_t *)tptr;        
         printf("\n\tEchoed-Assigned-Port %u, Flags [ %s ]" \
                "\n\tEchoed-Sync-Time %u ticks",
                EXTRACT_16BITS(mpcp.reg_ack->echoed_assigned_port),

@@ -313,8 +313,8 @@ extern void rrcp_print(netdissect_options *, packetbody_t, u_int);
 
 extern void ether_print(netdissect_options *,
                         packetbody_t, u_int, u_int,
-                        void (*)(netdissect_options *, const u_char *),
-                        const u_char *);
+                        void (*)(netdissect_options *, packetbody_t),
+                        packetbody_t);
 
 extern u_int ether_if_print(netdissect_options *,
                             const struct pcap_pkthdr *,packetbody_t);

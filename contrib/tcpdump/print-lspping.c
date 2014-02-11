@@ -466,39 +466,39 @@ static const struct tok lspping_tlv_downstream_addr_values[] = {
 };
 
 void
-lspping_print(register const u_char *pptr, register u_int len) {
+lspping_print(packetbody_t pptr, register u_int len) {
 
-    const struct lspping_common_header *lspping_com_header;
-    const struct lspping_tlv_header *lspping_tlv_header;
-    const struct lspping_tlv_header *lspping_subtlv_header;
-    const u_char *tptr,*tlv_tptr,*subtlv_tptr;
+    __capability const struct lspping_common_header *lspping_com_header;
+    __capability const struct lspping_tlv_header *lspping_tlv_header;
+    __capability const struct lspping_tlv_header *lspping_subtlv_header;
+    packetbody_t tptr, tlv_tptr, subtlv_tptr;
     int tlen,lspping_tlv_len,lspping_tlv_type,tlv_tlen;
     int tlv_hexdump,subtlv_hexdump;
     int lspping_subtlv_len,lspping_subtlv_type;
     struct timeval timestamp; 
 
     union {
-        const struct lspping_tlv_downstream_map_ipv4_t *lspping_tlv_downstream_map_ipv4;
-        const struct lspping_tlv_downstream_map_ipv6_t *lspping_tlv_downstream_map_ipv6;
-        const struct lspping_tlv_downstream_map_info_t  *lspping_tlv_downstream_map_info;
+        __capability const struct lspping_tlv_downstream_map_ipv4_t *lspping_tlv_downstream_map_ipv4;
+        __capability const struct lspping_tlv_downstream_map_ipv6_t *lspping_tlv_downstream_map_ipv6;
+        __capability const struct lspping_tlv_downstream_map_info_t  *lspping_tlv_downstream_map_info;
     } tlv_ptr;
 
     union {
-        const struct lspping_tlv_targetfec_subtlv_ldp_ipv4_t *lspping_tlv_targetfec_subtlv_ldp_ipv4;
-        const struct lspping_tlv_targetfec_subtlv_ldp_ipv6_t *lspping_tlv_targetfec_subtlv_ldp_ipv6;
-        const struct lspping_tlv_targetfec_subtlv_rsvp_ipv4_t *lspping_tlv_targetfec_subtlv_rsvp_ipv4;
-        const struct lspping_tlv_targetfec_subtlv_rsvp_ipv6_t *lspping_tlv_targetfec_subtlv_rsvp_ipv6;
-        const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv4_t *lspping_tlv_targetfec_subtlv_l3vpn_ipv4;
-        const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv6_t *lspping_tlv_targetfec_subtlv_l3vpn_ipv6;
-        const struct lspping_tlv_targetfec_subtlv_l2vpn_endpt_t *lspping_tlv_targetfec_subtlv_l2vpn_endpt;
-        const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_old_t *lspping_tlv_targetfec_subtlv_l2vpn_vcid_old;
-        const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_t *lspping_tlv_targetfec_subtlv_l2vpn_vcid;
-        const struct lspping_tlv_targetfec_subtlv_bgp_ipv4_t *lspping_tlv_targetfec_subtlv_bgp_ipv4;
-        const struct lspping_tlv_targetfec_subtlv_bgp_ipv6_t *lspping_tlv_targetfec_subtlv_bgp_ipv6;
+        __capability const struct lspping_tlv_targetfec_subtlv_ldp_ipv4_t *lspping_tlv_targetfec_subtlv_ldp_ipv4;
+        __capability const struct lspping_tlv_targetfec_subtlv_ldp_ipv6_t *lspping_tlv_targetfec_subtlv_ldp_ipv6;
+        __capability const struct lspping_tlv_targetfec_subtlv_rsvp_ipv4_t *lspping_tlv_targetfec_subtlv_rsvp_ipv4;
+        __capability const struct lspping_tlv_targetfec_subtlv_rsvp_ipv6_t *lspping_tlv_targetfec_subtlv_rsvp_ipv6;
+        __capability const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv4_t *lspping_tlv_targetfec_subtlv_l3vpn_ipv4;
+        __capability const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv6_t *lspping_tlv_targetfec_subtlv_l3vpn_ipv6;
+        __capability const struct lspping_tlv_targetfec_subtlv_l2vpn_endpt_t *lspping_tlv_targetfec_subtlv_l2vpn_endpt;
+        __capability const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_old_t *lspping_tlv_targetfec_subtlv_l2vpn_vcid_old;
+        __capability const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_t *lspping_tlv_targetfec_subtlv_l2vpn_vcid;
+        __capability const struct lspping_tlv_targetfec_subtlv_bgp_ipv4_t *lspping_tlv_targetfec_subtlv_bgp_ipv4;
+        __capability const struct lspping_tlv_targetfec_subtlv_bgp_ipv6_t *lspping_tlv_targetfec_subtlv_bgp_ipv6;
     } subtlv_ptr;
 
     tptr=pptr;
-    lspping_com_header = (const struct lspping_common_header *)pptr;
+    lspping_com_header = (__capability const struct lspping_common_header *)pptr;
     TCHECK(*lspping_com_header);
 
     /*
@@ -579,7 +579,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
         if (!TTEST2(*tptr, sizeof(struct lspping_tlv_header)))
             goto trunc;
 
-        lspping_tlv_header = (const struct lspping_tlv_header *)tptr;
+        lspping_tlv_header = (__capability const struct lspping_tlv_header *)tptr;
         lspping_tlv_type=EXTRACT_16BITS(lspping_tlv_header->type);
         lspping_tlv_len=EXTRACT_16BITS(lspping_tlv_header->length);
 
@@ -616,7 +616,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
                     goto trunc;
                 subtlv_hexdump=FALSE;
 
-                lspping_subtlv_header = (const struct lspping_tlv_header *)tlv_tptr;
+                lspping_subtlv_header = (__capability const struct lspping_tlv_header *)tlv_tptr;
                 lspping_subtlv_type=EXTRACT_16BITS(lspping_subtlv_header->type);
                 lspping_subtlv_len=EXTRACT_16BITS(lspping_subtlv_header->length);
                 subtlv_tptr=tlv_tptr+sizeof(struct lspping_tlv_header);
@@ -635,7 +635,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_LDP_IPV4:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv4 = \
-                        (const struct lspping_tlv_targetfec_subtlv_ldp_ipv4_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_ldp_ipv4_t *)subtlv_tptr;
                     printf("\n\t      %s/%u",
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv4->prefix),
                            subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv4->prefix_len);
@@ -644,7 +644,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 #ifdef INET6
                 case LSPPING_TLV_TARGETFEC_SUBTLV_LDP_IPV6:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv6 = \
-                        (const struct lspping_tlv_targetfec_subtlv_ldp_ipv6_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_ldp_ipv6_t *)subtlv_tptr;
                     printf("\n\t      %s/%u",
                            ip6addr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv6->prefix),
                            subtlv_ptr.lspping_tlv_targetfec_subtlv_ldp_ipv6->prefix_len);
@@ -653,7 +653,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_BGP_IPV4:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv4 = \
-                        (const struct lspping_tlv_targetfec_subtlv_bgp_ipv4_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_bgp_ipv4_t *)subtlv_tptr;
                     printf("\n\t      %s/%u, sender-id %s",
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv4->prefix),
                            subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv4->prefix_len,
@@ -663,7 +663,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 #ifdef INET6
                 case LSPPING_TLV_TARGETFEC_SUBTLV_BGP_IPV6:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv6 = \
-                        (const struct lspping_tlv_targetfec_subtlv_bgp_ipv6_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_bgp_ipv6_t *)subtlv_tptr;
                     printf("\n\t      %s/%u, sender-id %s",
                            ip6addr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv6->prefix),
                            subtlv_ptr.lspping_tlv_targetfec_subtlv_bgp_ipv6->prefix_len,
@@ -673,7 +673,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_RSVP_IPV4:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_rsvp_ipv4 = \
-                        (const struct lspping_tlv_targetfec_subtlv_rsvp_ipv4_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_rsvp_ipv4_t *)subtlv_tptr;
                     printf("\n\t      tunnel end-point %s, tunnel sender %s, lsp-id 0x%04x" \
                            "\n\t      tunnel-id 0x%04x, extended tunnel-id %s",
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_rsvp_ipv4->tunnel_endpoint),
@@ -686,7 +686,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 #ifdef INET6
                 case LSPPING_TLV_TARGETFEC_SUBTLV_RSVP_IPV6:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_rsvp_ipv6 = \
-                        (const struct lspping_tlv_targetfec_subtlv_rsvp_ipv6_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_rsvp_ipv6_t *)subtlv_tptr;
                     printf("\n\t      tunnel end-point %s, tunnel sender %s, lsp-id 0x%04x" \
                            "\n\t      tunnel-id 0x%04x, extended tunnel-id %s",
                            ip6addr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_rsvp_ipv6->tunnel_endpoint),
@@ -699,7 +699,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_L3VPN_IPV4:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv4 = \
-                        (const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv4_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv4_t *)subtlv_tptr;
                     printf("\n\t      RD: %s, %s/%u",
                            bgp_vpn_rd_print(subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv4->rd),
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv4->prefix),
@@ -709,7 +709,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 #ifdef INET6
                 case LSPPING_TLV_TARGETFEC_SUBTLV_L3VPN_IPV6:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv6 = \
-                        (const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv6_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_l3vpn_ipv6_t *)subtlv_tptr;
                     printf("\n\t      RD: %s, %s/%u",
                            bgp_vpn_rd_print(subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv6->rd),
                            ip6addr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_l3vpn_ipv6->prefix),
@@ -719,7 +719,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_L2VPN_ENDPT:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_endpt = \
-                        (const struct lspping_tlv_targetfec_subtlv_l2vpn_endpt_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_l2vpn_endpt_t *)subtlv_tptr;
                     printf("\n\t      RD: %s, Sender CE-ID: %u, Receiver CE-ID: %u" \
                            "\n\t      Encapsulation Type: %s (%u)",
                            bgp_vpn_rd_print(subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_endpt->rd),
@@ -735,7 +735,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
                     /* the old L2VPN VCID subTLV does not have support for the sender field */
                 case LSPPING_TLV_TARGETFEC_SUBTLV_L2VPN_VCID_OLD:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_vcid_old = \
-                        (const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_old_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_old_t *)subtlv_tptr;
                     printf("\n\t      Remote PE: %s" \
                            "\n\t      VC-ID: 0x%08x, Encapsulation Type: %s (%u)",
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_vcid_old->remote_pe_address),
@@ -749,7 +749,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
 
                 case LSPPING_TLV_TARGETFEC_SUBTLV_L2VPN_VCID:
                     subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_vcid = \
-                        (const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_t *)subtlv_tptr;
+                        (__capability const struct lspping_tlv_targetfec_subtlv_l2vpn_vcid_t *)subtlv_tptr;
                     printf("\n\t      Sender PE: %s, Remote PE: %s" \
                            "\n\t      VC-ID: 0x%08x, Encapsulation Type: %s (%u)",
                            ipaddr_string(subtlv_ptr.lspping_tlv_targetfec_subtlv_l2vpn_vcid->sender_pe_address),
@@ -783,9 +783,9 @@ lspping_print(register const u_char *pptr, register u_int len) {
              * lets recast the tlv_tptr and move on */
 
             tlv_ptr.lspping_tlv_downstream_map_ipv4= \
-                (const struct lspping_tlv_downstream_map_ipv4_t *)tlv_tptr;
+                (__capability const struct lspping_tlv_downstream_map_ipv4_t *)tlv_tptr;
             tlv_ptr.lspping_tlv_downstream_map_ipv6= \
-                (const struct lspping_tlv_downstream_map_ipv6_t *)tlv_tptr;
+                (__capability const struct lspping_tlv_downstream_map_ipv6_t *)tlv_tptr;
             printf("\n\t    MTU: %u, Address-Type: %s (%u)",
                    EXTRACT_16BITS(tlv_ptr.lspping_tlv_downstream_map_ipv4->mtu),
                    tok2str(lspping_tlv_downstream_addr_values,
@@ -828,7 +828,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
             }
 
             tlv_ptr.lspping_tlv_downstream_map_info= \
-                (const struct lspping_tlv_downstream_map_info_t *)tlv_tptr;
+                (__capability const struct lspping_tlv_downstream_map_info_t *)tlv_tptr;
             
             /* FIXME add hash-key type, depth limit, multipath processing */
 

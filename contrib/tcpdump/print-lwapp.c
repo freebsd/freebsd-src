@@ -169,11 +169,11 @@ struct lwapp_message_header {
 };
 
 void
-lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
+lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
 
-    const struct lwapp_transport_header *lwapp_trans_header;
-    const struct lwapp_control_header *lwapp_control_header;
-    const u_char *tptr;
+    __capability const struct lwapp_transport_header *lwapp_trans_header;
+    __capability const struct lwapp_control_header *lwapp_control_header;
+    packetbody_t tptr;
     int  tlen;
     int  msg_tlen;
 
@@ -183,9 +183,9 @@ lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
         /* check if enough bytes for AP identity */
         if (!TTEST2(*tptr, 6))
             goto trunc;
-        lwapp_trans_header = (const struct lwapp_transport_header *)(pptr+6);
+        lwapp_trans_header = (__capability const struct lwapp_transport_header *)(pptr+6);
     } else {
-        lwapp_trans_header = (const struct lwapp_transport_header *)pptr;
+        lwapp_trans_header = (__capability const struct lwapp_transport_header *)pptr;
     }
     TCHECK(*lwapp_trans_header);
 
@@ -233,7 +233,7 @@ lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
         if (!TTEST2(*tptr, sizeof(struct lwapp_control_header)))
             goto trunc;
 
-        lwapp_control_header = (const struct lwapp_control_header *)tptr;
+        lwapp_control_header = (__capability const struct lwapp_control_header *)tptr;
 	msg_tlen = EXTRACT_16BITS(lwapp_control_header->len);
 
 	/* print message header */ 
@@ -295,10 +295,10 @@ lwapp_control_print(const u_char *pptr, u_int len, int has_ap_ident) {
 }
 
 void
-lwapp_data_print(const u_char *pptr, u_int len) {
+lwapp_data_print(packetbody_t pptr, u_int len) {
 
-    const struct lwapp_transport_header *lwapp_trans_header;
-    const u_char *tptr;
+    __capability const struct lwapp_transport_header *lwapp_trans_header;
+    packetbody_t tptr;
     int tlen;
 
     tptr=pptr;
@@ -306,7 +306,7 @@ lwapp_data_print(const u_char *pptr, u_int len) {
     /* check if enough bytes for AP identity */
     if (!TTEST2(*tptr, 6))
         goto trunc;
-    lwapp_trans_header = (const struct lwapp_transport_header *)pptr;
+    lwapp_trans_header = (__capability const struct lwapp_transport_header *)pptr;
     TCHECK(*lwapp_trans_header);
 
     /*
