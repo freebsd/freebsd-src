@@ -61,9 +61,6 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (request->pdu_data_len == 0)
-		log_errx(1, "received Text PDU with empty data segment");
-
 	if (ntohl(bhstr->bhstr_cmdsn) < conn->conn_cmdsn) {
 		log_errx(1, "received Text PDU with decreasing CmdSN: "
 		    "was %d, is %d", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
