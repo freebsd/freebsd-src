@@ -107,9 +107,9 @@ static struct tok igmpv3report2str[] = {
 };
 
 static void
-print_mtrace(register const u_char *bp, register u_int len)
+print_mtrace(packetbody_t bp, register u_int len)
 {
-    register const struct tr_query *tr = (const struct tr_query *)(bp + 8);
+    __capability const struct tr_query *tr = (__capability const struct tr_query *)(bp + 8);
 
     TCHECK(*tr);
     if (len < 8 + sizeof (struct tr_query)) {
@@ -129,9 +129,9 @@ trunc:
 }
 
 static void
-print_mresp(register const u_char *bp, register u_int len)
+print_mresp(packetbody_t bp, register u_int len)
 {
-    register const struct tr_query *tr = (const struct tr_query *)(bp + 8);
+    __capability const struct tr_query *tr = (__capability const struct tr_query *)(bp + 8);
 
     TCHECK(*tr);
     if (len < 8 + sizeof (struct tr_query)) {
@@ -151,7 +151,7 @@ trunc:
 }
 
 static void
-print_igmpv3_report(register const u_char *bp, register u_int len)
+print_igmpv3_report(packetbody_t bp, register u_int len)
 {
     u_int group, nsrcs, ngroups;
     register u_int i, j;
@@ -205,7 +205,7 @@ trunc:
 }
 
 static void
-print_igmpv3_query(register const u_char *bp, register u_int len)
+print_igmpv3_query(packetbody_t bp, register u_int len)
 {
     u_int mrc;
     int mrt;
@@ -261,7 +261,7 @@ trunc:
 }
 
 void
-igmp_print(register const u_char *bp, register u_int len)
+igmp_print(packetbody_t bp, register u_int len)
 {
     struct cksum_vec vec[1];
 

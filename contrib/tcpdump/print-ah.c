@@ -41,13 +41,13 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-ah_print(register const u_char *bp)
+ah_print(packetbody_t bp)
 {
-	register const struct ah *ah;
+	__capability const struct ah *ah;
 	int sumlen;
 	u_int32_t spi;
 
-	ah = (const struct ah *)bp;
+	ah = bp;
 
 	TCHECK(*ah);
 

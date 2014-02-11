@@ -82,10 +82,10 @@ struct  arp_pkthdr {
 	u_char	ar_tha[];	/* target hardware address */
 	u_char	ar_tpa[];	/* target protocol address */
 #endif
-#define ar_sha(ap)	(((const u_char *)((ap)+1))+0)
-#define ar_spa(ap)	(((const u_char *)((ap)+1))+  (ap)->ar_hln)
-#define ar_tha(ap)	(((const u_char *)((ap)+1))+  (ap)->ar_hln+(ap)->ar_pln)
-#define ar_tpa(ap)	(((const u_char *)((ap)+1))+2*(ap)->ar_hln+(ap)->ar_pln)
+#define ar_sha(ap)	(((__capability const u_char *)((ap)+1))+0)
+#define ar_spa(ap)	(((__capability const u_char *)((ap)+1))+  (ap)->ar_hln)
+#define ar_tha(ap)	(((__capability const u_char *)((ap)+1))+  (ap)->ar_hln+(ap)->ar_pln)
+#define ar_tpa(ap)	(((__capability const u_char *)((ap)+1))+2*(ap)->ar_hln+(ap)->ar_pln)
 };
 
 #define ARP_HDRLEN	8
@@ -166,7 +166,7 @@ struct  atmarp_pkthdr {
 #define ATMTHRD_LEN(ap) ((ap)->aar_thtl & ATMARP_LEN_MASK)
 #define ATMTSLN(ap) ((ap)->aar_tstl & ATMARP_LEN_MASK)
 #define ATMTPROTO_LEN(ap) ((ap)->aar_tpln)
-#define aar_sha(ap)	((const u_char *)((ap)+1))
+#define aar_sha(ap)	((__capability const u_char *)((ap)+1))
 #define aar_ssa(ap)	(aar_sha(ap) + ATMSHRD_LEN(ap))
 #define aar_spa(ap)	(aar_ssa(ap) + ATMSSLN(ap))
 #define aar_tha(ap)	(aar_spa(ap) + ATMSPROTO_LEN(ap))
@@ -185,7 +185,8 @@ static u_char ezero[6];
 
 static void
 atmarp_addr_print(netdissect_options *ndo,
-		  const u_char *ha, u_int ha_len, const u_char *srca,
+		  __capability const u_char *ha, u_int ha_len, __capability
+		  const u_char *srca,
     u_int srca_len)
 {
 	if (ha_len == 0)
@@ -200,12 +201,12 @@ atmarp_addr_print(netdissect_options *ndo,
 
 static void
 atmarp_print(netdissect_options *ndo,
-	     const u_char *bp, u_int length, u_int caplen)
+	     __capability const u_char *bp, u_int length, u_int caplen)
 {
-	const struct atmarp_pkthdr *ap;
+	__capability const struct atmarp_pkthdr *ap;
 	u_short pro, hrd, op;
 
-	ap = (const struct atmarp_pkthdr *)bp;
+	ap = (__capability const struct atmarp_pkthdr *)bp;
 	ND_TCHECK(*ap);
 
 	hrd = ATMHRD(ap);
@@ -214,7 +215,7 @@ atmarp_print(netdissect_options *ndo,
 
 	if (!ND_TTEST2(*aar_tpa(ap), ATMTPROTO_LEN(ap))) {
 		ND_PRINT((ndo, "[|ARP]"));
-		ND_DEFAULTPRINT((const u_char *)ap, length);
+		ND_DEFAULTPRINT((__capability const u_char *)ap, length);
 		return;
 	}
 
@@ -282,7 +283,7 @@ atmarp_print(netdissect_options *ndo,
 		break;
 
 	default:
-		ND_DEFAULTPRINT((const u_char *)ap, caplen);
+		ND_DEFAULTPRINT((__capability const u_char *)ap, caplen);
 		return;
 	}
 
@@ -296,12 +297,12 @@ trunc:
 
 void
 arp_print(netdissect_options *ndo,
-	  const u_char *bp, u_int length, u_int caplen)
+	  __capability const u_char *bp, u_int length, u_int caplen)
 {
-	const struct arp_pkthdr *ap;
+	__capability const struct arp_pkthdr *ap;
 	u_short pro, hrd, op, linkaddr;
 
-	ap = (const struct arp_pkthdr *)bp;
+	ap = (__capability const struct arp_pkthdr *)bp;
 	ND_TCHECK(*ap);
 
 	hrd = HRD(ap);
@@ -328,7 +329,7 @@ arp_print(netdissect_options *ndo,
 
 	if (!ND_TTEST2(*ar_tpa(ap), PROTO_LEN(ap))) {
 		ND_PRINT((ndo, "[|ARP]"));
-		ND_DEFAULTPRINT((const u_char *)ap, length);
+		ND_DEFAULTPRINT((__capability const u_char *)ap, length);
 		return;
 	}
 
@@ -399,7 +400,7 @@ arp_print(netdissect_options *ndo,
 		break;
 
 	default:
-		ND_DEFAULTPRINT((const u_char *)ap, caplen);
+		ND_DEFAULTPRINT((__capability const u_char *)ap, caplen);
 		return;
 	}
 

@@ -36,13 +36,28 @@ int32_t thiszone;		/* seconds offset from gmt to local time */
 
 static char * ts_format(register int, register int);
 
+static inline void
+__fn_putchar(u_char c)
+{
+	if (!isascii(c)) {
+		c = toascii(c);
+		putchar('M');
+		putchar('-');
+	}
+	if (!isprint(c)) {
+		c ^= 0x40;	/* DEL to ?, others to alpha */
+		putchar('^');
+	}
+	putchar(c);
+}
+
 /*
  * Print out a null-terminated filename (or other ascii string).
  * If ep is NULL, assume no truncation check is needed.
  * Return true if truncated.
  */
 int
-fn_print(register const u_char *s, register const u_char *ep)
+fn_print(packetbody_t s, packetbody_t ep)
 {
 	register int ret;
 	register u_char c;
@@ -54,16 +69,7 @@ fn_print(register const u_char *s, register const u_char *ep)
 			ret = 0;
 			break;
 		}
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
-		}
-		if (!isprint(c)) {
-			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
-		}
-		putchar(c);
+		__fn_putchar(c);
 	}
 	return(ret);
 }
@@ -82,15 +88,7 @@ fn_printn(register const u_char *s, register u_int n,
 	while (n > 0 && (ep == NULL || s < ep)) {
 		n--;
 		c = *s++;
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
-		}
-		if (!isprint(c)) {
-			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
-		}
+		__fn_putchar(c);
 		putchar(c);
 	}
 	return (n == 0) ? 0 : 1;
@@ -116,18 +114,28 @@ fn_printzp(register const u_char *s, register u_int n,
 			ret = 0;
 			break;
 		}
-		if (!isascii(c)) {
-			c = toascii(c);
-			putchar('M');
-			putchar('-');
-		}
-		if (!isprint(c)) {
-			c ^= 0x40;	/* DEL to ?, others to alpha */
-			putchar('^');
-		}
-		putchar(c);
+		__fn_putchar(c);
 	}
 	return (n == 0) ? 0 : ret;
+}
+
+/* Print null-terminated non-packet data */
+int
+fn_print_str(const u_char *s)
+{
+	register int ret;
+	register u_char c;
+
+	ret = 1;			/* assume truncated */
+	while (ep == NULL) {
+		c = *s++;
+		if (c == '\0') {
+			ret = 0;
+			break;
+		}
+		__fn_putchar(c);
+	}
+	return(ret);
 }
 
 /*
@@ -459,7 +467,7 @@ mask62plen(const u_char *mask)
 #endif /* INET6 */
 
 void
-safeputs(const char *s, int maxlen)
+safeputs(packetbody_t, int maxlen)
 {
 	int idx = 0;
 

@@ -90,10 +90,10 @@ struct sa_list {
 int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 				      int initiator,
 				      u_char spii[8], u_char spir[8],
-				      u_char *buf, u_char *end)
+				      packetbody_t buf, packetbody_t end)
 {
 	struct sa_list *sa;
-	u_char *iv;
+	__capability u_char *iv;
 	int len;
 	EVP_CIPHER_CTX ctx;
 
@@ -515,7 +515,7 @@ void esp_print_decodesecret(netdissect_options *ndo)
 
 int
 esp_print(netdissect_options *ndo,
-	  const u_char *bp, const int length, const u_char *bp2
+	  packetbody_t bp, const int length, packetbody_t bp2
 #ifndef HAVE_LIBCRYPTO
 	_U_
 #endif
@@ -531,8 +531,8 @@ esp_print(netdissect_options *ndo,
 #endif
 	)
 {
-	register const struct newesp *esp;
-	register const u_char *ep;
+	__capability const struct newesp *esp;
+	__capability const u_char *ep;
 #ifdef HAVE_LIBCRYPTO
 	struct ip *ip;
 	struct sa_list *sa = NULL;
@@ -550,7 +550,7 @@ esp_print(netdissect_options *ndo,
 	int blocksz;
 #endif
 
-	esp = (struct newesp *)bp;
+	esp = (__capability const struct newesp *)bp;
 
 #ifdef HAVE_LIBCRYPTO
 	secret = NULL;

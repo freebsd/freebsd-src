@@ -23,6 +23,18 @@
 
 /* Name to address translation routines. */
 
+
+#ifndef __PACKETBODY_T_DEFINED
+#define __PACKETBODY_T_DEFINED
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+#if !__has_feature(capabilities)
+#define __capability
+#endif
+#endif
+typedef __capability const u_char * packetbody_t;
+#endif
+
 enum {
     LINKADDR_ETHER,
     LINKADDR_FRELAY,
@@ -32,15 +44,15 @@ enum {
 
 #define BUFSIZE 128
 
-extern const char *linkaddr_string(const u_char *, const unsigned int, const unsigned int);
-extern const char *etheraddr_string(const u_char *);
-extern const char *le64addr_string(const u_char *);
+extern const char *linkaddr_string(__capability const u_char *, const unsigned int, const unsigned int);
+extern const char *etheraddr_string(__capability const u_char *);
+extern const char *le64addr_string(__capability const u_char *);
 extern const char *etherproto_string(u_short);
 extern const char *tcpport_string(u_short);
 extern const char *udpport_string(u_short);
-extern const char *getname(const u_char *);
+extern const char *getname(__capability const u_char *);
 #ifdef INET6
-extern const char *getname6(const u_char *);
+extern const char *getname6(packetbody_t);
 #endif
 extern const char *intoa(u_int32_t);
 
@@ -50,7 +62,7 @@ extern struct hnamemem *newhnamemem(void);
 extern struct h6namemem *newh6namemem(void);
 #endif
 
-#define ipaddr_string(p) getname((const u_char *)(p))
+#define ipaddr_string(p) getname((__capability const u_char *)(p))
 #ifdef INET6
-#define ip6addr_string(p) getname6((const u_char *)(p))
+#define ip6addr_string(p) getname6((__capability const u_char *)(p))
 #endif

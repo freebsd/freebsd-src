@@ -165,7 +165,6 @@ invoke(register_t op, register_t arg1, register_t arg2,
     __capability const struct pcap_pkthdr *h, __capability const u_char *sp)
 {
 	int ret;
-	u_char *data;
 	struct pcap_pkthdr hdr;
 
 	cheri_system_setup(system_object);
@@ -179,29 +178,19 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	case TCPDUMP_HELPER_OP_PRINT_PACKET:
 		assert(h->caplen == cheri_getlen((__capability void *)sp));
 
-		/*
-		 * XXX: copy in the data for now.  snapend is evil, but
-		 * widely used in the code so we need to hunt it down
-		 * and replace it with a macro that can be implemented
-		 * sanely in a capability world.
-		 */
-		if ((data = malloc(h->caplen)) == NULL)
-			abort();
-		memcpy_c(cheri_ptr(data, h->caplen), sp, h->caplen);
 		memcpy_c((__capability struct pcap_pkthdr *)&hdr, h,
 		    sizeof(struct pcap_pkthdr));
 
-		gndo->ndo_packetp = data;
-		gndo->ndo_snapend = data + h->caplen;
+		gndo->ndo_packetp = sp;
+		gndo->ndo_snapend = sp + h->caplen;
 
 		if (printinfo.ndo_type)
 			ret = (*printinfo.p.ndo_printer)(printinfo.ndo,
-			     &hdr, data);
+			     &hdr, sp);
 		else
-			ret = (*printinfo.p.printer)(&hdr, data);
+			ret = (*printinfo.p.printer)(&hdr, sp);
 
 		/* XXX: what else to reset? */
-		free(data);
 		gndo->ndo_packetp = NULL;
 		snapend = NULL;
 		break;

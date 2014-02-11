@@ -43,7 +43,7 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 #include "oui.h"
 
-static void frf15_print(const u_char *, u_int);
+static void frf15_print(packetbody_t, u_int);
 
 /*
  * the frame relay header has a variable length
@@ -102,7 +102,7 @@ struct tok frf_flag_values[] = {
 /* Finds out Q.922 address length, DLCI and flags. Returns 0 on success
  * save the flags dep. on address length
  */
-static int parse_q922_addr(const u_char *p, u_int *dlci,
+static int parse_q922_addr(packetbody_t p, u_int *dlci,
                            u_int *addr_len, u_int8_t *flags)
 {
 	if ((p[0] & FR_EA_BIT))
@@ -137,7 +137,7 @@ static int parse_q922_addr(const u_char *p, u_int *dlci,
 	return 0;
 }
 
-char *q922_string(const u_char *p) {
+char *q922_string(packetbody_t p) {
 
     static u_int dlci, addr_len;
     static u_int8_t flags[4];
@@ -179,7 +179,7 @@ char *q922_string(const u_char *p) {
 */
 
 static u_int
-fr_hdrlen(const u_char *p, u_int addr_len)
+fr_hdrlen(packetbody_t p, u_int addr_len)
 {
 	if (!p[addr_len + 1] /* pad exist */)
 		return addr_len + 1 /* UI */ + 1 /* pad */ + 1 /* NLPID */;
@@ -199,7 +199,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
             (void)printf("Q.922, hdr-len %u, DLCI %u, Flags [%s], NLPID %s (0x%02x), length %u: ",
                          addr_len,
                          dlci,
-                         bittok2str(fr_header_flag_values, "none", EXTRACT_32BITS(flags)),
+                         bittok2str(fr_header_flag_values, "none", *flags),
                          tok2str(nlpid_values,"unknown", nlpid),
                          nlpid,
                          length);
@@ -207,7 +207,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
             (void)printf("Q.922, hdr-len %u, DLCI %u, Flags [%s], cisco-ethertype %s (0x%04x), length %u: ",
                          addr_len,
                          dlci,
-                         bittok2str(fr_header_flag_values, "none", EXTRACT_32BITS(flags)),
+                         bittok2str(fr_header_flag_values, "none", *flags),
                          tok2str(ethertype_values, "unknown", nlpid),
                          nlpid,
                          length);        
@@ -215,7 +215,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
 }
 
 u_int
-fr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+fr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -232,7 +232,7 @@ fr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 }
 
 u_int
-fr_print(register const u_char *p, u_int length)
+fr_print(packetbody_t p, u_int length)
 {
 	u_int16_t extracted_ethertype;
 	u_int dlci;
@@ -337,7 +337,7 @@ fr_print(register const u_char *p, u_int length)
 }
 
 u_int
-mfr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+mfr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -398,12 +398,12 @@ struct ie_tlv_header_t {
 };
 
 u_int
-mfr_print(register const u_char *p, u_int length)
+mfr_print(packetbody_t p, u_int length)
 {
     u_int tlen,idx,hdr_len = 0;
     u_int16_t sequence_num;
     u_int8_t ie_type,ie_len;
-    const u_int8_t *tptr;
+    __capability const u_int8_t *tptr;
 
 
 /*
@@ -557,7 +557,7 @@ mfr_print(register const u_char *p, u_int length)
 #define FR_FRF15_FRAGTYPE 0x01
 
 static void
-frf15_print (const u_char *p, u_int length) {
+frf15_print (packetbody_t p, u_int length) {
     
     u_int16_t sequence_num, flags;
 
@@ -700,10 +700,10 @@ static struct tok *fr_q933_ie_codesets[] = {
 };
 
 static int fr_q933_print_ie_codeset5(const struct ie_tlv_header_t  *ie_p,
-    const u_char *p);
+    packetbody_t p);
 
 typedef int (*codeset_pr_func_t)(const struct ie_tlv_header_t  *ie_p,
-    const u_char *p);
+    packetbody_t p);
 
 /* array of 16 codepages - currently we only support codepage 1,5 */
 static codeset_pr_func_t fr_q933_print_ie_codeset[] = {
@@ -726,9 +726,9 @@ static codeset_pr_func_t fr_q933_print_ie_codeset[] = {
 };
 
 void
-q933_print(const u_char *p, u_int length)
+q933_print(packetbody_t p, u_int length)
 {
-	const u_char *ptemp = p;
+	packetbody_t ptemp = p;
 	struct ie_tlv_header_t  *ie_p;
         int olen;
 	int is_ansi = 0;
@@ -826,7 +826,7 @@ q933_print(const u_char *p, u_int length)
 }
 
 static int
-fr_q933_print_ie_codeset5(const struct ie_tlv_header_t  *ie_p, const u_char *p)
+fr_q933_print_ie_codeset5(const struct ie_tlv_header_t  *ie_p, packetbody_t p)
 {
         u_int dlci;
 

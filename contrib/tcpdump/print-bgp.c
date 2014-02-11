@@ -486,7 +486,7 @@ as_printf (char *str, int size, u_int asnum)
 #define ITEMCHECK(minlen) if (itemlen < minlen) goto badtlv;
 
 int
-decode_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
+decode_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in_addr addr;
 	u_int plen, plenbytes;
@@ -502,12 +502,12 @@ decode_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
 	plenbytes = (plen + 7) / 8;
 	TCHECK2(pptr[1], plenbytes);
 	ITEMCHECK(plenbytes);
-	memcpy(&addr, &pptr[1], plenbytes);
+	OPEN_MEMCPY(&addr, &pptr[1], plenbytes);
 	if (plen % 8) {
 		((u_char *)&addr)[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname((u_char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname((__capability u_char *)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -518,7 +518,7 @@ badtlv:
 }
 
 static int
-decode_labeled_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
+decode_labeled_prefix4(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in_addr addr;
 	u_int plen, plenbytes;
@@ -549,14 +549,14 @@ decode_labeled_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int bufle
 	plenbytes = (plen + 7) / 8;
 	TCHECK2(pptr[4], plenbytes);
 	ITEMCHECK(plenbytes);
-	memcpy(&addr, &pptr[4], plenbytes);
+	OPEN_MEMCPY(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
 		((u_char *)&addr)[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "%s/%d, label:%u %s",
-                 getname((u_char *)&addr),
+                 getname((__capability const u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -576,7 +576,7 @@ badtlv:
  * print an ipv4 or ipv6 address into a buffer dependend on address length.
  */
 static char *
-bgp_vpn_ip_print (const u_char *pptr, u_int addr_length) {
+bgp_vpn_ip_print (packetbody_t pptr, u_int addr_length) {
 
     /* worst case string is s fully formatted v6 address */
     static char addr[sizeof("1234:5678:89ab:cdef:1234:5678:89ab:cdef")];
@@ -623,7 +623,7 @@ trunc:
  * return the number of bytes read from the wire.
  */
 static int
-bgp_vpn_sg_print (const u_char *pptr, char *buf, u_int buflen) {
+bgp_vpn_sg_print(packetbody_t pptr, char *buf, u_int buflen) {
 
     u_int8_t addr_length;
     u_int total_length, offset;
@@ -667,7 +667,7 @@ trunc:
  * we use bgp_vpn_rd_print for
  * printing route targets inside a NLRI */
 char *
-bgp_vpn_rd_print (const u_char *pptr) {
+bgp_vpn_rd_print(packetbody_t pptr) {
 
    /* allocate space for the largest possible string */
     static char rd[sizeof("xxxxxxxxxx:xxxxx (xxx.xxx.xxx.xxx:xxxxx)")];
@@ -707,7 +707,7 @@ bgp_vpn_rd_print (const u_char *pptr) {
 }
 
 static int
-decode_rt_routing_info(const u_char *pptr, char *buf, u_int buflen)
+decode_rt_routing_info(packetbody_t pptr, char *buf, u_int buflen)
 {
 	u_int8_t route_target[8];
 	u_int plen;
@@ -728,14 +728,14 @@ decode_rt_routing_info(const u_char *pptr, char *buf, u_int buflen)
 
 	memset(&route_target, 0, sizeof(route_target));
 	TCHECK2(pptr[1], (plen + 7) / 8);
-	memcpy(&route_target, &pptr[1], (plen + 7) / 8);
+	OPEN_MEMCPY(&route_target, &pptr[1], (plen + 7) / 8);
 	if (plen % 8) {
 		((u_char *)&route_target)[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "origin AS: %s, route target %s",
 	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(pptr+1)),
-	    bgp_vpn_rd_print((u_char *)&route_target));
+	    bgp_vpn_rd_print((__capability u_char *)&route_target));
 
 	return 5 + (plen + 7) / 8;
 
@@ -744,7 +744,7 @@ trunc:
 }
 
 static int
-decode_labeled_vpn_prefix4(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_vpn_prefix4(packetbody_t pptr, char *buf, u_int buflen)
 {
 	struct in_addr addr;
 	u_int plen;
@@ -762,7 +762,7 @@ decode_labeled_vpn_prefix4(const u_char *pptr, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	TCHECK2(pptr[12], (plen + 7) / 8);
-	memcpy(&addr, &pptr[12], (plen + 7) / 8);
+	OPEN_MEMCPY(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
@@ -770,7 +770,7 @@ decode_labeled_vpn_prefix4(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname((u_char *)&addr),
+                 getname((__capability const u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -794,11 +794,11 @@ trunc:
 #define MDT_VPN_NLRI_LEN 16
 
 static int
-decode_mdt_vpn_nlri(const u_char *pptr, char *buf, u_int buflen)
+decode_mdt_vpn_nlri(packetbody_t pptr, char *buf, u_int buflen)
 {
 
-    const u_char *rd;
-    const u_char *vpn_ip;
+    __capability const u_char *rd;
+    __capability const u_char *vpn_ip;
     
     TCHECK(pptr[0]);
 
@@ -849,7 +849,7 @@ static struct tok bgp_multicast_vpn_route_type_values[] = {
 };
 
 static int
-decode_multicast_vpn(const u_char *pptr, char *buf, u_int buflen)
+decode_multicast_vpn(packetbody_t pptr, char *buf, u_int buflen)
 {
         u_int8_t route_type, route_length, addr_length, sg_length;
         u_int offset;
@@ -955,7 +955,7 @@ trunc:
     }
 
 static int
-decode_labeled_vpn_l2(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_vpn_l2(packetbody_t pptr, char *buf, u_int buflen)
 {
         int plen,tlen,strlen,tlv_type,tlv_len,ttlv_len;
 
@@ -1048,7 +1048,7 @@ trunc:
 
 #ifdef INET6
 int
-decode_prefix6(const u_char *pd, u_int itemlen, char *buf, u_int buflen)
+decode_prefix6(packetbody_t pd, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in6_addr addr;
 	u_int plen, plenbytes;
@@ -1064,12 +1064,12 @@ decode_prefix6(const u_char *pd, u_int itemlen, char *buf, u_int buflen)
 	plenbytes = (plen + 7) / 8;
 	TCHECK2(pd[1], plenbytes);
 	ITEMCHECK(plenbytes);
-	memcpy(&addr, &pd[1], plenbytes);
+	OPEN_MEMCPY(&addr, &pd[1], plenbytes);
 	if (plen % 8) {
 		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname6((u_char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname6((__capability const u_char *)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -1080,7 +1080,7 @@ badtlv:
 }
 
 static int
-decode_labeled_prefix6(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
+decode_labeled_prefix6(packetbody_t pptr, u_int itemlen, char *buf, u_int buflen)
 {
 	struct in6_addr addr;
 	u_int plen, plenbytes;
@@ -1102,14 +1102,14 @@ decode_labeled_prefix6(const u_char *pptr, u_int itemlen, char *buf, u_int bufle
 	memset(&addr, 0, sizeof(addr));
 	plenbytes = (plen + 7) / 8;
 	TCHECK2(pptr[4], plenbytes);
-	memcpy(&addr, &pptr[4], plenbytes);
+	OPEN_MEMCPY(&addr, &pptr[4], plenbytes);
 	if (plen % 8) {
 		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "%s/%d, label:%u %s",
-                 getname6((u_char *)&addr),
+                 getname6((__capability const u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1124,7 +1124,7 @@ badtlv:
 }
 
 static int
-decode_labeled_vpn_prefix6(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_vpn_prefix6(packetbody_t pptr, char *buf, u_int buflen)
 {
 	struct in6_addr addr;
 	u_int plen;
@@ -1142,7 +1142,7 @@ decode_labeled_vpn_prefix6(const u_char *pptr, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	TCHECK2(pptr[12], (plen + 7) / 8);
-	memcpy(&addr, &pptr[12], (plen + 7) / 8);
+	OPEN_MEMCPY(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		addr.s6_addr[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
@@ -1150,7 +1150,7 @@ decode_labeled_vpn_prefix6(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname6((u_char *)&addr),
+                 getname6((__capability const u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1163,7 +1163,7 @@ trunc:
 #endif
 
 static int
-decode_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
+decode_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
 {
         u_int8_t addr[19];
 	u_int plen;
@@ -1176,13 +1176,13 @@ decode_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	TCHECK2(pptr[4], (plen + 7) / 8);
-	memcpy(&addr, &pptr[4], (plen + 7) / 8);
+	OPEN_MEMCPY(&addr, &pptr[4], (plen + 7) / 8);
 	if (plen % 8) {
 		addr[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "%s/%d",
-                 isonsap_string(addr,(plen + 7) / 8),
+                 isonsap_string((__capability const u_char *)addr,(plen + 7) / 8),
                  plen);
 
 	return 1 + (plen + 7) / 8;
@@ -1192,7 +1192,7 @@ trunc:
 }
 
 static int
-decode_labeled_vpn_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
+decode_labeled_vpn_clnp_prefix(packetbody_t pptr, char *buf, u_int buflen)
 {
         u_int8_t addr[19];
 	u_int plen;
@@ -1210,7 +1210,7 @@ decode_labeled_vpn_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
 
 	memset(&addr, 0, sizeof(addr));
 	TCHECK2(pptr[12], (plen + 7) / 8);
-	memcpy(&addr, &pptr[12], (plen + 7) / 8);
+	OPEN_MEMCPY(&addr, &pptr[12], (plen + 7) / 8);
 	if (plen % 8) {
 		addr[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
@@ -1218,7 +1218,7 @@ decode_labeled_vpn_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 isonsap_string(addr,(plen + 7) / 8),
+                 isonsap_string((__capability const u_char *)addr,(plen + 7) / 8),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1237,9 +1237,10 @@ trunc:
  * support, exchange AS-Path with the same path-attribute type value 0x02.
  */
 static int
-bgp_attr_get_as_size (u_int8_t bgpa_type, const u_char *pptr, int len)
+bgp_attr_get_as_size (u_int8_t bgpa_type, packetbody_t pptr, int len)
 {
-    const u_char *tptr = pptr;
+    int incr;
+    packetbody_t tptr = pptr;
 
     /*
      * If the path attribute is the optional AS4 path type, then we already
@@ -1264,7 +1265,10 @@ bgp_attr_get_as_size (u_int8_t bgpa_type, const u_char *pptr, int len)
             goto trunc;
         }
         TCHECK(tptr[1]);
-        tptr += 2 + tptr[1] * 2;
+	incr = 2 + tptr[1] * 2;
+	if ((tptr - pptr) + incr > len)
+		break;
+        tptr += incr;
     }
 
     /*
@@ -1287,7 +1291,7 @@ trunc:
 }
 
 static int
-bgp_attr_print(u_int atype, const u_char *pptr, u_int len)
+bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 {
 	int i;
 	u_int16_t af;
@@ -1298,7 +1302,7 @@ bgp_attr_print(u_int atype, const u_char *pptr, u_int len)
         } bw;
 	int advance;
 	u_int tlen;
-	const u_char *tptr;
+	packetbody_t tptr;
 	char buf[MAXHOSTNAMELEN + 100];
 	char tokbuf[TOKBUFSIZE];
         int  as_size;
@@ -2207,7 +2211,7 @@ trunc:
 }
 
 static void
-bgp_capabilities_print(const u_char *opt, int caps_len)
+bgp_capabilities_print(packetbody_t opt, int caps_len)
 {
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
@@ -2291,22 +2295,22 @@ trunc:
 }
 
 static void
-bgp_open_print(const u_char *dat, int length)
+bgp_open_print(packetbody_t dat, int length)
 {
 	struct bgp_open bgpo;
 	struct bgp_opt bgpopt;
-	const u_char *opt;
+	packetbody_t opt;
 	int i;
 	char tokbuf[TOKBUFSIZE];
 
 	TCHECK2(dat[0], BGP_OPEN_SIZE);
-	memcpy(&bgpo, dat, BGP_OPEN_SIZE);
+	OPEN_MEMCPY(&bgpo, dat, BGP_OPEN_SIZE);
 
 	printf("\n\t  Version %d, ", bgpo.bgpo_version);
 	printf("my AS %s, ",
 	    as_printf(astostr, sizeof(astostr), ntohs(bgpo.bgpo_myas)));
 	printf("Holdtime %us, ", ntohs(bgpo.bgpo_holdtime));
-	printf("ID %s", getname((u_char *)&bgpo.bgpo_id));
+	printf("ID %s", getname((__capability const u_char *)&bgpo.bgpo_id));
 	printf("\n\t  Optional parameters, length: %u", bgpo.bgpo_optlen);
 
         /* some little sanity checking */
@@ -2314,13 +2318,13 @@ bgp_open_print(const u_char *dat, int length)
             return;
 
 	/* ugly! */
-	opt = &((const struct bgp_open *)dat)->bgpo_optlen;
+	opt = &((__capability const struct bgp_open *)dat)->bgpo_optlen;
 	opt++;
 
 	i = 0;
 	while (i < bgpo.bgpo_optlen) {
 		TCHECK2(opt[i], BGP_OPT_SIZE);
-		memcpy(&bgpopt, &opt[i], BGP_OPT_SIZE);
+		OPEN_MEMCPY(&bgpopt, &opt[i], BGP_OPT_SIZE);
 		if (i + 2 + bgpopt.bgpopt_len > bgpo.bgpo_optlen) {
 			printf("\n\t     Option %d, length: %u", bgpopt.bgpopt_type, bgpopt.bgpopt_len);
 			break;
@@ -2355,10 +2359,10 @@ trunc:
 }
 
 static void
-bgp_update_print(const u_char *dat, int length)
+bgp_update_print(packetbody_t dat, int length)
 {
 	struct bgp bgp;
-	const u_char *p;
+	packetbody_t p;
 	int withdrawn_routes_len;
 	int len;
 	int i;
@@ -2371,7 +2375,7 @@ bgp_update_print(const u_char *dat, int length)
 	TCHECK2(dat[0], BGP_SIZE);
 	if (length < BGP_SIZE)
 		goto trunc;
-	memcpy(&bgp, dat, BGP_SIZE);
+	OPEN_MEMCPY(&bgp, dat, BGP_SIZE);
 	p = dat + BGP_SIZE;	/*XXX*/
 	length -= BGP_SIZE;
 
@@ -2524,15 +2528,15 @@ trunc:
 }
 
 static void
-bgp_notification_print(const u_char *dat, int length)
+bgp_notification_print(packetbody_t dat, int length)
 {
 	struct bgp_notification bgpn;
-	const u_char *tptr;
+	packetbody_t tptr;
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
 
 	TCHECK2(dat[0], BGP_NOTIFICATION_SIZE);
-	memcpy(&bgpn, dat, BGP_NOTIFICATION_SIZE);
+	OPEN_MEMCPY(&bgpn, dat, BGP_NOTIFICATION_SIZE);
 
         /* some little sanity checking */
         if (length<BGP_NOTIFICATION_SIZE)
@@ -2600,9 +2604,9 @@ trunc:
 }
 
 static void
-bgp_route_refresh_print(const u_char *pptr, int len) {
+bgp_route_refresh_print(packetbody_t pptr, int len) {
 
-        const struct bgp_route_refresh *bgp_route_refresh_header;
+        __capability const struct bgp_route_refresh *bgp_route_refresh_header;
 	char tokbuf[TOKBUFSIZE];
 	char tokbuf2[TOKBUFSIZE];
 
@@ -2612,7 +2616,7 @@ bgp_route_refresh_print(const u_char *pptr, int len) {
         if (len<BGP_ROUTE_REFRESH_SIZE)
             return;
 
-        bgp_route_refresh_header = (const struct bgp_route_refresh *)pptr;
+        bgp_route_refresh_header = (__capability const struct bgp_route_refresh *)pptr;
 
         printf("\n\t  AFI %s (%u), SAFI %s (%u)",
                tok2strbuf(af_values,"Unknown",
@@ -2637,13 +2641,13 @@ trunc:
 }
 
 static int
-bgp_header_print(const u_char *dat, int length)
+bgp_header_print(packetbody_t dat, int length)
 {
 	struct bgp bgp;
 	char tokbuf[TOKBUFSIZE];
 
 	TCHECK2(dat[0], BGP_SIZE);
-	memcpy(&bgp, dat, BGP_SIZE);
+	OPEN_MEMCPY(&bgp, dat, BGP_SIZE);
 	printf("\n\t%s Message (%u), length: %u",
                tok2strbuf(bgp_msg_values, "Unknown", bgp.bgp_type,
 			  tokbuf, sizeof(tokbuf)),
@@ -2679,11 +2683,11 @@ trunc:
 }
 
 void
-bgp_print(const u_char *dat, int length)
+bgp_print(packetbody_t dat, int length)
 {
-	const u_char *p;
-	const u_char *ep;
-	const u_char *start;
+	packetbody_t p;
+	packetbody_t ep;
+	packetbody_t start;
 	const u_char marker[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
@@ -2712,14 +2716,14 @@ bgp_print(const u_char *dat, int length)
 
 		if (!TTEST2(p[0], sizeof(marker)))
 			break;
-		if (memcmp(p, marker, sizeof(marker)) != 0) {
+		if (cmemcmp(p, cheri_ptr(marker, sizeof(marker)), sizeof(marker)) != 0) {
 			p++;
 			continue;
 		}
 
 		/* found BGP header */
 		TCHECK2(p[0], BGP_SIZE);	/*XXX*/
-		memcpy(&bgp, p, BGP_SIZE);
+		OPEN_MEMCPY(&bgp, p, BGP_SIZE);
 
 		if (start != p)
 			printf(" [|BGP]");

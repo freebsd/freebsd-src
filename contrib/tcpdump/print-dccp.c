@@ -60,7 +60,8 @@ static const char *dccp_feature_nums[] = {
 	"check data checksum",
 };
 
-static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh, u_int len)
+static inline u_int dccp_csum_coverage(__capability const struct dccp_hdr* dh,
+    u_int len)
 {
 	u_int cov;
 	
@@ -70,17 +71,18 @@ static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh, u_int len)
 	return (cov > len)? len : cov;
 }
 
-static int dccp_cksum(const struct ip *ip,
-	const struct dccp_hdr *dh, u_int len)
+static int dccp_cksum(__capability const struct ip *ip,
+    __capability const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto4_cksum(ip, (const u_int8_t *)(void *)dh,
+	return nextproto4_cksum(ip, (__capability const u_int8_t *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 
 #ifdef INET6
-static int dccp6_cksum(const struct ip6_hdr *ip6, const struct dccp_hdr *dh, u_int len)
+static int dccp6_cksum(__capability const struct ip6_hdr *ip6,
+    __capability const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto6_cksum(ip6, (const u_int8_t *)(void *)dh,
+	return nextproto6_cksum(ip6, (__capability const u_int8_t *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 #endif
@@ -92,31 +94,33 @@ static const char *dccp_reset_code(u_int8_t code)
 	return dccp_reset_codes[code];
 }
 
-static u_int64_t dccp_seqno(const struct dccp_hdr *dh)
+static u_int64_t dccp_seqno(__capability const struct dccp_hdr *dh)
 {
 	u_int32_t seq_high = DCCPH_SEQ(dh);
 	u_int64_t seqno = EXTRACT_24BITS(&seq_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
-		const struct dccp_hdr_ext *dhx = (void *)(dh + 1);
-		u_int32_t seq_low = dhx->dccph_seq_low;
+		__capability const struct dccp_hdr_ext *dhx =
+		    (__capability const struct dccp_hdr_ext *)(dh + 1);
 		seqno &= 0x00FFFF;  /* clear reserved field */
-		seqno = (seqno << 32) + EXTRACT_32BITS(&seq_low);
+		seqno = (seqno << 32) + EXTRACT_32BITS(&dhx->dccph_seq_low);
 	}
 
 	return seqno;
 }
 
-static inline unsigned int dccp_basic_hdr_len(const struct dccp_hdr *dh)
+static inline unsigned int
+dccp_basic_hdr_len(__capability const struct dccp_hdr *dh)
 {
 	return sizeof(*dh) + (DCCPH_X(dh) ? sizeof(struct dccp_hdr_ext) : 0);
 }
 
-static void dccp_print_ack_no(const u_char *bp)
+static void dccp_print_ack_no(__capability const u_char *bp)
 {
-	const struct dccp_hdr *dh = (const struct dccp_hdr *)bp;
-	const struct dccp_hdr_ack_bits *dh_ack =
-		(struct dccp_hdr_ack_bits *)(bp + dccp_basic_hdr_len(dh));
+	__capability const struct dccp_hdr *dh =
+		(__capability const struct dccp_hdr *)bp;
+	__capability const struct dccp_hdr_ack_bits *dh_ack =
+		(__capability struct dccp_hdr_ack_bits *)(bp + dccp_basic_hdr_len(dh));
 	u_int32_t ack_high;
 	u_int64_t ackno;
 
@@ -125,13 +129,11 @@ static void dccp_print_ack_no(const u_char *bp)
 	ackno = EXTRACT_24BITS(&ack_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
-		u_int32_t ack_low;
-
 		TCHECK2(*dh_ack,8);
-		ack_low = dh_ack->dccph_ack_nr_low;
 
 		ackno &= 0x00FFFF;  /* clear reserved field */
-		ackno = (ackno << 32) + EXTRACT_32BITS(&ack_low);
+		ackno = (ackno << 32) +
+		    EXTRACT_32BITS(&dh_ack->dccph_ack_nr_low);
 	}
 
 	(void)printf("(ack=%" PRIu64 ") ", ackno);
@@ -159,7 +161,7 @@ static inline unsigned int dccp_packet_hdr_len(const u_int8_t type)
 }
 #endif
 
-static int dccp_print_option(const u_char *option);
+static int dccp_print_option(packetbody_t option);
 
 /**
  * dccp_print - show dccp packet
@@ -167,23 +169,23 @@ static int dccp_print_option(const u_char *option);
  * @data2 - beginning of enclosing 
  * @len - lenght of ip packet
  */
-void dccp_print(const u_char *bp, const u_char *data2, u_int len)
+void dccp_print(packetbody_t bp, const u_char *data2, u_int len)
 {
-	const struct dccp_hdr *dh;
-	const struct ip *ip;
+	__capability const struct dccp_hdr *dh;
+	__capability const struct ip *ip;
 #ifdef INET6
-	const struct ip6_hdr *ip6;
+	__capability const struct ip6_hdr *ip6;
 #endif
 	u_short sport, dport;
 	u_int hlen;
 	u_int extlen = 0;
 
-	dh = (const struct dccp_hdr *)bp;
+	dh = (__capability const struct dccp_hdr *)bp;
 
-	ip = (struct ip *)data2;
+	ip = (__capability struct ip *)data2;
 #ifdef INET6
 	if (IP_V(ip) == 6)
-		ip6 = (const struct ip6_hdr *)data2;
+		ip6 = (__capability const struct ip6_hdr *)data2;
 	else
 		ip6 = NULL;
 #endif /*INET6*/
@@ -250,8 +252,8 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 
 	switch (DCCPH_TYPE(dh)) {
 	case DCCP_PKT_REQUEST: {
-		struct dccp_hdr_request *dhr =
-			(struct dccp_hdr_request *)(bp + dccp_basic_hdr_len(dh));
+		__capability struct dccp_hdr_request *dhr =
+			(__capability struct dccp_hdr_request *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("request (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_req_service));
@@ -259,8 +261,8 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 		break;
 	}
 	case DCCP_PKT_RESPONSE: {
-		struct dccp_hdr_response *dhr =
-			(struct dccp_hdr_response *)(bp + dccp_basic_hdr_len(dh));
+		__capability struct dccp_hdr_response *dhr =
+			(__capability struct dccp_hdr_response *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("response (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_resp_service));
@@ -289,8 +291,8 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 		extlen += 8;
 		break;
 	case DCCP_PKT_RESET: {
-		struct dccp_hdr_reset *dhr =
-			(struct dccp_hdr_reset *)(bp + dccp_basic_hdr_len(dh));
+		__capability struct dccp_hdr_reset *dhr =
+			(__capability struct dccp_hdr_reset *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("reset (code=%s) ",
 			     dccp_reset_code(dhr->dccph_reset_code));
@@ -321,7 +323,7 @@ void dccp_print(const u_char *bp, const u_char *data2, u_int len)
 
 	/* process options */
 	if (hlen > dccp_basic_hdr_len(dh) + extlen){
-		const u_char *cp;
+		packetbody_t cp;
 		u_int optlen;
 		cp = bp + dccp_basic_hdr_len(dh) + extlen;
 		printf(" <");	
@@ -345,7 +347,7 @@ trunc2:
 	return;
 }
 
-static int dccp_print_option(const u_char *option)
+static int dccp_print_option(packetbody_t option)
 {	
 	u_int8_t optlen, i;
 

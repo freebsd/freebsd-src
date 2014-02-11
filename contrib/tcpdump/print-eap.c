@@ -160,17 +160,17 @@ static const struct tok eap_aka_subtype_values[] = {
  */
 void
 eap_print(netdissect_options *ndo _U_,
-          register const u_char *cp,
+          packetbody_t cp,
           u_int length _U_)
 {
-    const struct eap_frame_t *eap;
-    const u_char *tptr;
+    __capability const struct eap_frame_t *eap;
+    packetbody_t tptr;
     u_int tlen, type, subtype;
     int count=0, len;
     
     tptr = cp;
     tlen = length;
-    eap = (const struct eap_frame_t *)cp;
+    eap = (__capability const struct eap_frame_t *)cp;
     TCHECK(*eap);
 
     /* in non-verbose mode just lets print the basic info */
@@ -215,14 +215,14 @@ eap_print(netdissect_options *ndo _U_,
             case EAP_TYPE_IDENTITY:
                 if (len - 5 > 0) {
                     printf(", Identity: ");
-                    safeputs((const char *)tptr+5, len-5);
+                    safeputs(tptr+5, len-5);
                 }
                 break;
 
             case EAP_TYPE_NOTIFICATION:
                 if (len - 5 > 0) {
                     printf(", Notification: ");
-                    safeputs((const char *)tptr+5, len-5);
+                    safeputs(tptr+5, len-5);
                 }
                 break;
 

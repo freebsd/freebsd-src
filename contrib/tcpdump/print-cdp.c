@@ -81,15 +81,15 @@ static struct tok cdp_capability_values[] = {
     { 0, NULL }
 };
 
-static int cdp_print_addr(const u_char *, int);
-static int cdp_print_prefixes(const u_char *, int);
-static unsigned long cdp_get_number(const u_char *, int);
+static int cdp_print_addr(packetbody_t , int);
+static int cdp_print_prefixes(packetbody_t, int);
+static unsigned long cdp_get_number(packetbody_t, int);
 
 void
-cdp_print(const u_char *pptr, u_int length, u_int caplen)
+cdp_print(packetbody_t pptr, u_int length, u_int caplen)
 {
 	int type, len, i, j;
-        const u_char *tptr;
+        packetbody_t tptr;
 
 	if (caplen < CDP_HEADER_LEN) {
 		(void)printf("[|cdp]");
@@ -247,10 +247,10 @@ trunc:
 #define PT_IEEE_802_2		2	/* IEEE 802.2 LLC header */
 
 static int
-cdp_print_addr(const u_char * p, int l)
+cdp_print_addr(packetbody_t p, int l)
 {
 	int pt, pl, al, num;
-	const u_char *endp = p + l;
+	packetbody_t endp = p + l;
 #ifdef INET6
 	static u_char prot_ipv6[] = {
 		0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00, 0x86, 0xdd
@@ -292,7 +292,7 @@ cdp_print_addr(const u_char * p, int l)
 		}
 #ifdef INET6
 		else if (pt == PT_IEEE_802_2 && pl == 8 &&
-		    memcmp(p, prot_ipv6, 8) == 0 && al == 16) {
+		    cmemcmp(p, cheri_ptr(prot_ipv6, sizeof(prot_ipv6)), 8) == 0 && al == 16) {
 			/*
 			 * IPv6: protocol type = IEEE 802.2 header,
 			 * protocol length = 8 (size of LLC+SNAP header),
@@ -345,7 +345,7 @@ trunc:
 
 
 static int
-cdp_print_prefixes(const u_char * p, int l)
+cdp_print_prefixes(packetbody_t p, int l)
 {
 	if (l % 5)
 		goto trunc;
@@ -367,7 +367,7 @@ trunc:
 /* read in a <n>-byte number, MSB first
  * (of course this can handle max sizeof(long))
  */
-static unsigned long cdp_get_number(const u_char * p, int l)
+static unsigned long cdp_get_number(packetbody_t p, int l)
 {
     unsigned long res=0;
     while( l>0 )

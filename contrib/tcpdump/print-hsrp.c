@@ -98,9 +98,9 @@ struct hsrp {
 };
 
 void
-hsrp_print(register const u_int8_t *bp, register u_int len)
+hsrp_print(packetbody_t bp, register u_int len)
 {
-	struct hsrp *hp = (struct hsrp *) bp;
+	__capability struct hsrp *hp = (__capability struct hsrp *) bp;
 
 	TCHECK(hp->hsrp_version);
 	printf("HSRPv%d", hp->hsrp_version);

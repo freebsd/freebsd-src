@@ -48,15 +48,15 @@ struct ipcomp {
 #include "extract.h"
 
 int
-ipcomp_print(register const u_char *bp, int *nhdr _U_)
+ipcomp_print(packetbody_t bp, int *nhdr _U_)
 {
-	register const struct ipcomp *ipcomp;
+	__capability const struct ipcomp *ipcomp;
 	u_int16_t cpi;
 #if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
 	int advance;
 #endif
 
-	ipcomp = (struct ipcomp *)bp;
+	ipcomp = (__capability const struct ipcomp *)bp;
 
 	/*
 	 * XXX-BD: OVERFLOW: prior blind dereference of ipcomp->comp_cpi.

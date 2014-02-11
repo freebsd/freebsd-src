@@ -49,7 +49,7 @@ l_strnstart(const char *tstr1, u_int tl1, const char *str2, u_int l2)
 }
 
 void
-beep_print(const u_char *bp, u_int length)
+beep_print(packetbody_t bp, u_int length)
 {
 
 	if (l_strnstart("MSG", 4, (const char *)bp, length)) /* A REQuest */

@@ -135,9 +135,9 @@ const char *egp_reasons[] = {
 };
 
 static void
-egpnrprint(register const struct egp_packet *egp)
+egpnrprint(__capability const struct egp_packet *egp)
 {
-	register const u_int8_t *cp;
+	__capability const u_int8_t *cp;
 	u_int32_t addr;
 	register u_int32_t net;
 	register u_int netlen;
@@ -159,7 +159,7 @@ egpnrprint(register const struct egp_packet *egp)
 		net = 0;
 		netlen = 0;
 	}
-	cp = (u_int8_t *)(egp + 1);
+	cp = (__capability u_int8_t *)(egp + 1);
 
 	t_gateways = egp->egp_intgw + egp->egp_extgw;
 	for (gateways = 0; gateways < t_gateways; ++gateways) {
@@ -214,14 +214,14 @@ trunc:
 }
 
 void
-egp_print(register const u_int8_t *bp, register u_int length)
+egp_print(packetbody_t bp, register u_int length)
 {
-	register const struct egp_packet *egp;
+	__capability const struct egp_packet *egp;
 	register int status;
 	register int code;
 	register int type;
 
-	egp = (struct egp_packet *)bp;
+	egp = (__capability struct egp_packet *)bp;
         if (!TTEST2(*egp, length)) {
 		printf("[|egp]");
 		return;

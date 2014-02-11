@@ -403,7 +403,7 @@ wb_drawop(const struct pkt_dop *dop, u_int len)
  * Print whiteboard multicast packets.
  */
 void
-wb_print(register const void *hdr, register u_int len)
+wb_print(packetbody_t hdr, register u_int len)
 {
 	register const struct pkt_hdr *ph;
 

@@ -92,12 +92,12 @@ const struct tok ethertype_values[] = {
 
 static inline void
 ether_hdr_print(netdissect_options *ndo,
-                const u_char *bp, u_int length)
+                packetbody_t bp, u_int length)
 {
-	register const struct ether_header *ep;
+	__capability const struct ether_header *ep;
 	u_int16_t ether_type;
 
-	ep = (const struct ether_header *)bp;
+	ep = (__capability const struct ether_header *)bp;
 
 	(void)ND_PRINT((ndo, "%s > %s",
 		     etheraddr_string(ESRC(ep)),
@@ -129,10 +129,10 @@ ether_hdr_print(netdissect_options *ndo,
  */
 void
 ether_print(netdissect_options *ndo,
-            const u_char *p, u_int length, u_int caplen,
+            packetbody_t p, u_int length, u_int caplen,
             void (*print_encap_header)(netdissect_options *ndo, const u_char *), const u_char *encap_header_arg)
 {
-	struct ether_header *ep;
+	__capability struct ether_header *ep;
 	u_int orig_length;
 	u_short ether_type;
 	u_short extracted_ether_type;
@@ -151,7 +151,7 @@ ether_print(netdissect_options *ndo,
 
 	length -= ETHER_HDRLEN;
 	caplen -= ETHER_HDRLEN;
-	ep = (struct ether_header *)p;
+	ep = (__capability struct ether_header *)p;
 	p += ETHER_HDRLEN;
 
 	ether_type = EXTRACT_16BITS(&ep->ether_type);
@@ -168,7 +168,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (packetbody_t )ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
@@ -219,7 +219,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (packetbody_t)ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
@@ -231,7 +231,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (packetbody_t)ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
@@ -248,7 +248,7 @@ recurse:
  */
 u_int
 ether_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
-               const u_char *p)
+               packetbody_t p)
 {
 	ether_print(ndo, p, h->len, h->caplen, NULL, NULL);
 
@@ -266,7 +266,7 @@ ether_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
  */
 u_int
 netanalyzer_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
-                     const u_char *p)
+                     packetbody_t p)
 {
 	/*
 	 * Fail if we don't have enough data for the Hilscher pseudo-header.
@@ -295,7 +295,7 @@ netanalyzer_if_print(netdissect_options *ndo, const struct pcap_pkthdr *h,
 u_int
 netanalyzer_transparent_if_print(netdissect_options *ndo,
                                  const struct pcap_pkthdr *h,
-                                 const u_char *p)
+                                 packetbody_t p)
 {
 	/*
 	 * Fail if we don't have enough data for the Hilscher pseudo-header,
@@ -321,7 +321,7 @@ netanalyzer_transparent_if_print(netdissect_options *ndo,
 
 int
 ethertype_print(netdissect_options *ndo,
-                u_short ether_type, const u_char *p,
+                u_short ether_type, packetbody_t p,
                 u_int length, u_int caplen)
 {
 	switch (ether_type) {

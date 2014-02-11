@@ -50,7 +50,8 @@ static const char rcsid[] _U_ =
  * Compute a V6-style checksum by building a pseudoheader.
  */
 int
-nextproto6_cksum(const struct ip6_hdr *ip6, const u_int8_t *data,
+nextproto6_cksum(__capability const struct ip6_hdr *ip6,
+		 __capability const u_int8_t *data,
 		 u_int len, u_int next_proto)
 {
         struct {

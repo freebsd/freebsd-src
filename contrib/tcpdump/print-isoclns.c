@@ -567,11 +567,11 @@ struct isis_tlv_ptp_adj {
     u_int8_t neighbor_extd_local_circuit_id[4];
 };
 
-static void osi_print_cksum(const u_int8_t *pptr, u_int16_t checksum,
+static void osi_print_cksum(packetbody_t pptr, u_int16_t checksum,
                             u_int checksum_offset, u_int length);
-static int clnp_print(const u_int8_t *, u_int);
-static void esis_print(const u_int8_t *, u_int);
-static int isis_print(const u_int8_t *, u_int);
+static int clnp_print(packetbody_t, u_int);
+static void esis_print(packetbody_t, u_int);
+static int isis_print(packetbody_t, u_int);
 
 struct isis_metric_block {
     u_int8_t metric_default;
@@ -672,7 +672,7 @@ struct isis_tlv_lsp {
 #define ISIS_CSNP_HEADER_SIZE (sizeof(struct isis_csnp_header))
 #define ISIS_PSNP_HEADER_SIZE (sizeof(struct isis_psnp_header))
 
-void isoclns_print(const u_int8_t *p, u_int length, u_int caplen)
+void isoclns_print(packetbody_t p, u_int length, u_int caplen)
 {
         if (caplen <= 1) { /* enough bytes on the wire ? */
             printf("|OSI");
@@ -772,15 +772,15 @@ struct clnp_segment_header_t {
  * Decode CLNP packets.  Return 0 on error.
  */
 
-static int clnp_print (const u_int8_t *pptr, u_int length)
+static int clnp_print (packetbody_t pptr, u_int length)
 {
-	const u_int8_t *optr,*source_address,*dest_address;
+	packetbody_t optr, source_address, dest_address;
         u_int li,tlen,nsap_offset,source_address_length,dest_address_length, clnp_pdu_type, clnp_flags;
-	const struct clnp_header_t *clnp_header;
-	const struct clnp_segment_header_t *clnp_segment_header;
+	__capability const struct clnp_header_t *clnp_header;
+	__capability const struct clnp_segment_header_t *clnp_segment_header;
         u_int8_t rfd_error_major,rfd_error_minor;
 
-	clnp_header = (const struct clnp_header_t *) pptr;
+	clnp_header = (__capability const struct clnp_header_t *) pptr;
         TCHECK(*clnp_header);
 
         li = clnp_header->length_indicator;
@@ -849,7 +849,7 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
                isonsap_string(dest_address,dest_address_length));
 
         if (clnp_flags & CLNP_SEGMENT_PART) {
-            	clnp_segment_header = (const struct clnp_segment_header_t *) pptr;
+            	clnp_segment_header = (__capability const struct clnp_segment_header_t *) pptr;
                 TCHECK(*clnp_segment_header);
                 printf("\n\tData Unit ID: 0x%04x, Segment Offset: %u, Total PDU Length: %u",
                        EXTRACT_16BITS(clnp_segment_header->data_unit_id),
@@ -862,7 +862,7 @@ static int clnp_print (const u_int8_t *pptr, u_int length)
         /* now walk the options */
         while (li >= 2) {
             u_int op, opli;
-            const u_int8_t *tptr;
+            packetbody_t tptr;
             
             TCHECK2(*pptr, 2);
             if (li < 2) {
@@ -1027,11 +1027,11 @@ struct esis_header_t {
 };
 
 static void
-esis_print(const u_int8_t *pptr, u_int length)
+esis_print(packetbody_t pptr, u_int length)
 {
-	const u_int8_t *optr;
+	packetbody_t optr;
 	u_int li,esis_pdu_type,source_address_length, source_address_number;
-	const struct esis_header_t *esis_header;
+	__capability const struct esis_header_t *esis_header;
 
         if (!eflag)
             printf("ES-IS");
@@ -1044,7 +1044,7 @@ esis_print(const u_int8_t *pptr, u_int length)
 		return;
 	}
 
-	esis_header = (const struct esis_header_t *) pptr;
+	esis_header = (__capability const struct esis_header_t *) pptr;
         TCHECK(*esis_header);
         li = esis_header->length_indicator;
         optr = pptr;
@@ -1105,7 +1105,7 @@ esis_print(const u_int8_t *pptr, u_int length)
 
 	switch (esis_pdu_type) {
 	case ESIS_PDU_REDIRECT: {
-		const u_int8_t *dst, *snpa, *neta;
+		packetbody_t dst, snpa, neta;
 		u_int dstl, snpal, netal;
 
 		TCHECK(*pptr);
@@ -1234,7 +1234,7 @@ esis_print(const u_int8_t *pptr, u_int length)
         /* now walk the options */
         while (li != 0) {
             u_int op, opli;
-            const u_int8_t *tptr;
+            packetbody_t tptr;
             
             if (li < 2) {
                 printf(", bad opts/li");
@@ -1306,7 +1306,7 @@ trunc:
 
 
 static void
-isis_print_mcid (const struct isis_spb_mcid *mcid)
+isis_print_mcid (__capability const struct isis_spb_mcid *mcid)
 {
   int i;
 
@@ -1329,10 +1329,10 @@ isis_print_mcid (const struct isis_spb_mcid *mcid)
 }
 
 static int
-isis_print_mt_port_cap_subtlv (const u_int8_t *tptr, int len)
+isis_print_mt_port_cap_subtlv (packetbody_t tptr, int len)
 {
   int stlv_type, stlv_len;
-  const struct isis_subtlv_spb_mcid *subtlv_spb_mcid;
+  __capability const struct isis_subtlv_spb_mcid *subtlv_spb_mcid;
   int i;
 
   while (len > 0)
@@ -1356,7 +1356,7 @@ isis_print_mt_port_cap_subtlv (const u_int8_t *tptr, int len)
         if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_MCID_MIN_LEN))
           goto trunctlv;
 
-        subtlv_spb_mcid = (struct isis_subtlv_spb_mcid *)tptr;
+        subtlv_spb_mcid = (__capability const struct isis_subtlv_spb_mcid *)tptr;
 
         printf( "\n\t         MCID: ");
         isis_print_mcid (&(subtlv_spb_mcid->mcid));
@@ -1441,7 +1441,7 @@ isis_print_mt_port_cap_subtlv (const u_int8_t *tptr, int len)
 }
 
 static int
-isis_print_mt_capability_subtlv (const u_int8_t *tptr, int len)
+isis_print_mt_capability_subtlv (packetbody_t tptr, int len)
 {
   int stlv_type, stlv_len, tmp;
 
@@ -1558,7 +1558,7 @@ isis_print_mt_capability_subtlv (const u_int8_t *tptr, int len)
 
 /* shared routine for printing system, node and lsp-ids */
 static char *
-isis_print_id(const u_int8_t *cp, int id_len)
+isis_print_id(packetbody_t cp, int id_len)
 {
     int i;
     static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
@@ -1581,7 +1581,7 @@ isis_print_id(const u_int8_t *cp, int id_len)
 
 /* print the 4-byte metric block which is common found in the old-style TLVs */
 static int
-isis_print_metric_block (const struct isis_metric_block *isis_metric_block)
+isis_print_metric_block (__capability const struct isis_metric_block *isis_metric_block)
 {
     printf(", Default Metric: %d, %s",
            ISIS_LSP_TLV_METRIC_VALUE(isis_metric_block->metric_default),
@@ -1603,12 +1603,12 @@ isis_print_metric_block (const struct isis_metric_block *isis_metric_block)
 }
 
 static int
-isis_print_tlv_ip_reach (const u_int8_t *cp, const char *ident, int length)
+isis_print_tlv_ip_reach (packetbody_t cp, const char *ident, int length)
 {
 	int prefix_len;
-	const struct isis_tlv_ip_reach *tlv_ip_reach;
+	__capability const struct isis_tlv_ip_reach *tlv_ip_reach;
 
-	tlv_ip_reach = (const struct isis_tlv_ip_reach *)cp;
+	tlv_ip_reach = (__capability const struct isis_tlv_ip_reach *)cp;
 
 	while (length > 0) {
 		if ((size_t)length < sizeof(*tlv_ip_reach)) {
@@ -1669,7 +1669,7 @@ isis_print_tlv_ip_reach (const u_int8_t *cp, const char *ident, int length)
  */
 
 static int
-isis_print_ip_reach_subtlv (const u_int8_t *tptr,int subt,int subl,const char *ident) {
+isis_print_ip_reach_subtlv (packetbody_t tptr,int subt,int subl,const char *ident) {
 
         /* first lets see if we know the subTLVs name*/
 	printf("%s%s subTLV #%u, length: %u",
@@ -1722,7 +1722,7 @@ trunctlv:
  */
 
 static int
-isis_print_is_reach_subtlv (const u_int8_t *tptr,u_int subt,u_int subl,const char *ident) {
+isis_print_is_reach_subtlv (packetbody_t tptr,u_int subt,u_int subl,const char *ident) {
 
         u_int te_class,priority_level,gmpls_switch_cap;
         union { /* int to float conversion buffer for several subTLVs */
@@ -1886,7 +1886,7 @@ trunctlv:
  */
 
 static int
-isis_print_ext_is_reach (const u_int8_t *tptr,const char *ident, int tlv_type) {
+isis_print_ext_is_reach (packetbody_t tptr,const char *ident, int tlv_type) {
 
     char ident_buffer[20];
     int subtlv_type,subtlv_len,subtlv_sum_len;
@@ -1935,7 +1935,7 @@ isis_print_ext_is_reach (const u_int8_t *tptr,const char *ident, int tlv_type) {
  */
 
 static int
-isis_print_mtid (const u_int8_t *tptr,const char *ident) {
+isis_print_mtid (packetbody_t tptr,const char *ident) {
     
     if (!TTEST2(*tptr, 2))
         return(0);
@@ -1961,7 +1961,7 @@ isis_print_mtid (const u_int8_t *tptr,const char *ident) {
  */
 
 static int
-isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi) {
+isis_print_extd_ip_reach (packetbody_t tptr, const char *ident, u_int16_t afi) {
 
     char ident_buffer[20];
 #ifdef INET6
@@ -2011,7 +2011,7 @@ isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi
     if (!TTEST2(*tptr, byte_length))
         return (0);
     memset(prefix, 0, sizeof prefix);   /* clear the copy buffer */
-    memcpy(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
+    OPEN_MEMCPY(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
     tptr+=byte_length;
     processed+=byte_length;
 
@@ -2077,24 +2077,24 @@ isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi
  * Decode IS-IS packets.  Return 0 on error.
  */
 
-static int isis_print (const u_int8_t *p, u_int length)
+static int isis_print (packetbody_t p, u_int length)
 {
-    const struct isis_common_header *isis_header;
+    __capability const struct isis_common_header *isis_header;
 
-    const struct isis_iih_lan_header *header_iih_lan;
-    const struct isis_iih_ptp_header *header_iih_ptp;
-    struct isis_lsp_header *header_lsp;
-    const struct isis_csnp_header *header_csnp;
-    const struct isis_psnp_header *header_psnp;
+    __capability const struct isis_iih_lan_header *header_iih_lan;
+    __capability const struct isis_iih_ptp_header *header_iih_ptp;
+    __capability struct isis_lsp_header *header_lsp;
+    __capability const struct isis_csnp_header *header_csnp;
+    __capability const struct isis_psnp_header *header_psnp;
 
-    const struct isis_tlv_lsp *tlv_lsp;
-    const struct isis_tlv_ptp_adj *tlv_ptp_adj;
-    const struct isis_tlv_is_reach *tlv_is_reach;
-    const struct isis_tlv_es_reach *tlv_es_reach;
+    __capability const struct isis_tlv_lsp *tlv_lsp;
+    __capability const struct isis_tlv_ptp_adj *tlv_ptp_adj;
+    __capability const struct isis_tlv_is_reach *tlv_is_reach;
+    __capability const struct isis_tlv_es_reach *tlv_es_reach;
 
     u_int8_t pdu_type, max_area, id_length, tlv_type, tlv_len, tmp, alen, lan_alen, prefix_len;
     u_int8_t ext_is_len, ext_ip_len, mt_len;
-    const u_int8_t *optr, *pptr, *tptr;
+    packetbody_t optr, pptr, tptr;
     u_short packet_len,pdu_len, key_id;
     u_int i,vendor_id;
     int sigcheck;
@@ -2103,14 +2103,14 @@ static int isis_print (const u_int8_t *p, u_int length)
     optr = p; /* initialize the _o_riginal pointer to the packet start -
                  need it for parsing the checksum TLV and authentication
                  TLV verification */
-    isis_header = (const struct isis_common_header *)p;
+    isis_header = (__capability const struct isis_common_header *)p;
     TCHECK(*isis_header);
     pptr = p+(ISIS_COMMON_HEADER_SIZE);
-    header_iih_lan = (const struct isis_iih_lan_header *)pptr;
-    header_iih_ptp = (const struct isis_iih_ptp_header *)pptr;
-    header_lsp = (struct isis_lsp_header *)pptr;
-    header_csnp = (const struct isis_csnp_header *)pptr;
-    header_psnp = (const struct isis_psnp_header *)pptr;
+    header_iih_lan = (__capability const struct isis_iih_lan_header *)pptr;
+    header_iih_ptp = (__capability const struct isis_iih_ptp_header *)pptr;
+    header_lsp = (__capability struct isis_lsp_header *)pptr;
+    header_csnp = (__capability const struct isis_csnp_header *)pptr;
+    header_psnp = (__capability const struct isis_psnp_header *)pptr;
 
     if (!eflag)
         printf("IS-IS");
@@ -2331,9 +2331,10 @@ static int isis_print (const u_int8_t *p, u_int length)
                EXTRACT_16BITS(header_lsp->checksum));
 
 
-        osi_print_cksum((u_int8_t *)header_lsp->lsp_id,
+        osi_print_cksum((packetbody_t)header_lsp->lsp_id,
                         EXTRACT_16BITS(header_lsp->checksum), 12, length-12);
 
+#ifdef BROKEN_HEADER_LSP
         /*
          * Clear checksum and lifetime prior to signature verification.
          */
@@ -2356,6 +2357,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	}
 	printf("%s", ISIS_MASK_LSP_PARTITION_BIT(header_lsp->typeblock) ? "P bit set, " : "");
 	printf("%s ]", tok2str(isis_lsp_istype_values,"Unknown(0x%x)",ISIS_MASK_LSP_ISTYPE_BITS(header_lsp->typeblock)));
+#endif
 
         if (vflag > 1) {
             if(!print_unknown_data(pptr,"\n\t  ",ISIS_LSP_HEADER_SIZE))
@@ -2559,7 +2561,7 @@ static int isis_print (const u_int8_t *p, u_int length)
                    tok2str(isis_is_reach_virtual_values,
                            "bogus virtual flag 0x%02x",
                            *tptr++));
-	    tlv_is_reach = (const struct isis_tlv_is_reach *)tptr;
+	    tlv_is_reach = (__capability const struct isis_tlv_is_reach *)tptr;
             while (tmp >= sizeof(struct isis_tlv_is_reach)) {
 		if (!TTEST(*tlv_is_reach))
 		    goto trunctlv;
@@ -2572,7 +2574,7 @@ static int isis_print (const u_int8_t *p, u_int length)
             break;
 
         case ISIS_TLV_ESNEIGH:
-	    tlv_es_reach = (const struct isis_tlv_es_reach *)tptr;
+	    tlv_es_reach = (__capability const struct isis_tlv_es_reach *)tptr;
             while (tmp >= sizeof(struct isis_tlv_es_reach)) {
 		if (!TTEST(*tlv_es_reach))
 		    goto trunctlv;
@@ -2712,7 +2714,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_PTP_ADJ:
-	    tlv_ptp_adj = (const struct isis_tlv_ptp_adj *)tptr;
+	    tlv_ptp_adj = (__capability const struct isis_tlv_ptp_adj *)tptr;
 	    if(tmp>=1) {
 		if (!TTEST2(*tptr, 1))
 		    goto trunctlv;
@@ -2866,7 +2868,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 	    break;
 
 	case ISIS_TLV_LSP:
-	    tlv_lsp = (const struct isis_tlv_lsp *)tptr;
+	    tlv_lsp = (__capability const struct isis_tlv_lsp *)tptr;
 	    while(tmp>=sizeof(struct isis_tlv_lsp)) {
 		if (!TTEST((tlv_lsp->lsp_id)[LSP_ID_LEN-1]))
 		    goto trunctlv;
@@ -2999,7 +3001,7 @@ static int isis_print (const u_int8_t *p, u_int length)
             if (!TTEST2(*tptr, sizeof(struct isis_metric_block)))
                 goto trunctlv;
             printf("\n\t      Metric Block");
-            isis_print_metric_block((const struct isis_metric_block *)tptr);
+            isis_print_metric_block((__capability const struct isis_metric_block *)tptr);
             tptr+=sizeof(struct isis_metric_block);
             tmp-=sizeof(struct isis_metric_block);
 
@@ -3090,7 +3092,7 @@ static int isis_print (const u_int8_t *p, u_int length)
 }
 
 static void
-osi_print_cksum (const u_int8_t *pptr, u_int16_t checksum,
+osi_print_cksum (packetbody_t pptr, u_int16_t checksum,
                     u_int checksum_offset, u_int length)
 {
         u_int16_t calculated_checksum;

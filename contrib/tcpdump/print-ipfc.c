@@ -47,24 +47,24 @@ static const char rcsid[] _U_ =
 
 /* Extract src, dst addresses */
 static inline void
-extract_ipfc_addrs(const struct ipfc_header *ipfcp, char *ipfcsrc,
-    char *ipfcdst)
+extract_ipfc_addrs(__capability const struct ipfc_header *ipfcp,
+    packetbody_t ipfcsrc, packetbody_t ipfcdst)
 {
 	/*
 	 * We assume that, as per RFC 2625, the lower 48 bits of the
 	 * source and destination addresses are MAC addresses.
 	 */
-	memcpy(ipfcdst, (const char *)&ipfcp->ipfc_dhost[2], 6);
-	memcpy(ipfcsrc, (const char *)&ipfcp->ipfc_shost[2], 6);
+	OPEN_MEMCPY(ipfcdst, (const char *)&ipfcp->ipfc_dhost[2], 6);
+	OPEN_MEMCPY(ipfcsrc, (const char *)&ipfcp->ipfc_shost[2], 6);
 }
 
 /*
  * Print the Network_Header
  */
 static inline void
-ipfc_hdr_print(register const struct ipfc_header *ipfcp _U_,
-	   register u_int length, register const u_char *ipfcsrc,
-	   register const u_char *ipfcdst)
+ipfc_hdr_print(__capability const struct ipfc_header *ipfcp _U_,
+	   register u_int length, packetbody_t ipfcsrc,
+	   packetbody_t ipfcdst)
 {
 	const char *srcname, *dstname;
 
@@ -78,10 +78,11 @@ ipfc_hdr_print(register const struct ipfc_header *ipfcp _U_,
 }
 
 static void
-ipfc_print(const u_char *p, u_int length, u_int caplen)
+ipfc_print(packetbody_t p, u_int length, u_int caplen)
 {
-	const struct ipfc_header *ipfcp = (const struct ipfc_header *)p;
+	__capability const struct ipfc_header *ipfcp = (__capability const struct ipfc_header *)p;
 	struct ether_header ehdr;
+	__capability struct ether_header *ehdrp;
 	u_short extracted_ethertype;
 
 	if (caplen < IPFC_HDRLEN) {
@@ -91,10 +92,11 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 	/*
 	 * Get the network addresses into a canonical form
 	 */
-	extract_ipfc_addrs(ipfcp, (char *)ESRC(&ehdr), (char *)EDST(&ehdr));
+	ehdrp = cheri_ptr(&ehdr, sizeof(ehdr));
+	extract_ipfc_addrs(ipfcp, ESRC(ehdrp), EDST(ehdrp));
 
 	if (eflag)
-		ipfc_hdr_print(ipfcp, length, ESRC(&ehdr), EDST(&ehdr));
+		ipfc_hdr_print(ipfcp, length, ESRC(ehdrp), EDST(ehdrp));
 
 	/* Skip over Network_Header */
 	length -= IPFC_HDRLEN;
@@ -102,7 +104,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 	caplen -= IPFC_HDRLEN;
 
 	/* Try to print the LLC-layer header & higher layers */
-	if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr),
+	if (llc_print(p, length, caplen, ESRC(ehdrp), EDST(ehdrp),
 	    &extracted_ethertype) == 0) {
 		/*
 		 * Some kinds of LLC packet we cannot
@@ -110,7 +112,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 		 */
 		if (!eflag)
 			ipfc_hdr_print(ipfcp, length + IPFC_HDRLEN,
-			    ESRC(&ehdr), EDST(&ehdr));
+			    ESRC(ehdrp), EDST(ehdrp));
 		if (extracted_ethertype) {
 			printf("(LLC %s) ",
 		etherproto_string(htons(extracted_ethertype)));
@@ -127,7 +129,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-ipfc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+ipfc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	ipfc_print(p, h->len, h->caplen);
 

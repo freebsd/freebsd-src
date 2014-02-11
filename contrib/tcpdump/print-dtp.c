@@ -46,10 +46,10 @@ static struct tok dtp_tlv_values[] = {
 };
 
 void
-dtp_print (const u_char *pptr, u_int length)
+dtp_print (packetbody_t pptr, u_int length)
 {
     int type, len;
-    const u_char *tptr;
+    packetbody_t tptr;
 
     if (length < DTP_HEADER_LEN)
         goto trunc;

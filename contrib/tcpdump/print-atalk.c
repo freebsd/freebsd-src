@@ -67,22 +67,22 @@ struct aarp {
 
 static char tstr[] = "[|atalk]";
 
-static void atp_print(const struct atATP *, u_int);
+static void atp_print(__capability const struct atATP *, u_int);
 static void atp_bitmap_print(u_char);
-static void nbp_print(const struct atNBP *, u_int, u_short, u_char, u_char);
-static const char *print_cstring(const char *);
-static const struct atNBPtuple *nbp_tuple_print(const struct atNBPtuple *,
+static void nbp_print(__capability const struct atNBP *, u_int, u_short, u_char, u_char);
+static __capability const char *print_cstring(__capability const char *);
+static __capability const struct atNBPtuple *nbp_tuple_print(__capability const struct atNBPtuple *,
 						u_short, u_char, u_char);
-static const struct atNBPtuple *nbp_name_print(const struct atNBPtuple *);
+static __capability const struct atNBPtuple *nbp_name_print(__capability const struct atNBPtuple *);
 static const char *ataddr_string(u_short, u_char);
-static void ddp_print(const u_char *, u_int, int, u_short, u_char, u_char);
+static void ddp_print(packetbody_t, u_int, int, u_short, u_char, u_char);
 static const char *ddpskt_string(int);
 
 /*
  * Print LLAP packets received on a physical LocalTalk interface.
  */
 u_int
-ltalk_if_print(const struct pcap_pkthdr *h, const u_char *p)
+ltalk_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	return (llap_print(p, h->caplen));
 }
@@ -91,11 +91,11 @@ ltalk_if_print(const struct pcap_pkthdr *h, const u_char *p)
  * Print AppleTalk LLAP packets.
  */
 u_int
-llap_print(register const u_char *bp, u_int length)
+llap_print(packetbody_t bp, u_int length)
 {
-	register const struct LAP *lp;
-	register const struct atDDP *dp;
-	register const struct atShortDDP *sdp;
+	__capability const struct LAP *lp;
+	__capability const struct atDDP *dp;
+	__capability const struct atShortDDP *sdp;
 	u_short snet;
 	u_int hdrlen;
 
@@ -103,7 +103,7 @@ llap_print(register const u_char *bp, u_int length)
 		(void)printf(" [|llap %u]", length);
 		return (length);
 	}
-	lp = (const struct LAP *)bp;
+	lp = (__capability const struct LAP *)bp;
 	bp += sizeof(*lp);
 	length -= sizeof(*lp);
 	hdrlen = sizeof(*lp);
@@ -114,7 +114,7 @@ llap_print(register const u_char *bp, u_int length)
 			(void)printf(" [|sddp %u]", length);
 			return (length);
 		}
-		sdp = (const struct atShortDDP *)bp;
+		sdp = (__capability const struct atShortDDP *)bp;
 		printf("%s.%s",
 		    ataddr_string(0, lp->src), ddpskt_string(sdp->srcSkt));
 		printf(" > %s.%s:",
@@ -130,7 +130,7 @@ llap_print(register const u_char *bp, u_int length)
 			(void)printf(" [|ddp %u]", length);
 			return (length);
 		}
-		dp = (const struct atDDP *)bp;
+		dp = (__capability const struct atDDP *)bp;
 		snet = EXTRACT_16BITS(&dp->srcNet);
 		printf("%s.%s", ataddr_string(snet, dp->srcNode),
 		    ddpskt_string(dp->srcSkt));
@@ -163,9 +163,9 @@ llap_print(register const u_char *bp, u_int length)
  * packets in them).
  */
 void
-atalk_print(register const u_char *bp, u_int length)
+atalk_print(packetbody_t bp, u_int length)
 {
-	register const struct atDDP *dp;
+	__capability const struct atDDP *dp;
 	u_short snet;
 
         if(!eflag)
@@ -175,7 +175,7 @@ atalk_print(register const u_char *bp, u_int length)
 		(void)printf(" [|ddp %u]", length);
 		return;
 	}
-	dp = (const struct atDDP *)bp;
+	dp = (__capability const struct atDDP *)bp;
 	snet = EXTRACT_16BITS(&dp->srcNet);
 	printf("%s.%s", ataddr_string(snet, dp->srcNode),
 	       ddpskt_string(dp->srcSkt));
@@ -189,14 +189,14 @@ atalk_print(register const u_char *bp, u_int length)
 
 /* XXX should probably pass in the snap header and do checks like arp_print() */
 void
-aarp_print(register const u_char *bp, u_int length)
+aarp_print(packetbody_t bp, u_int length)
 {
-	register const struct aarp *ap;
+	__capability const struct aarp *ap;
 
 #define AT(member) ataddr_string((ap->member[1]<<8)|ap->member[2],ap->member[3])
 
 	printf("aarp ");
-	ap = (const struct aarp *)bp;
+	ap = (__capability const struct aarp *)bp;
 	if (EXTRACT_16BITS(&ap->htype) == 1 &&
 	    EXTRACT_16BITS(&ap->ptype) == ETHERTYPE_ATALK &&
 	    ap->halen == 6 && ap->palen == 4 )
@@ -226,18 +226,18 @@ aarp_print(register const u_char *bp, u_int length)
  * Print AppleTalk Datagram Delivery Protocol packets.
  */
 static void
-ddp_print(register const u_char *bp, register u_int length, register int t,
+ddp_print(packetbody_t bp, register u_int length, register int t,
 	  register u_short snet, register u_char snode, u_char skt)
 {
 
 	switch (t) {
 
 	case ddpNBP:
-		nbp_print((const struct atNBP *)bp, length, snet, snode, skt);
+		nbp_print((__capability const struct atNBP *)bp, length, snet, snode, skt);
 		break;
 
 	case ddpATP:
-		atp_print((const struct atATP *)bp, length);
+		atp_print((__capability const struct atATP *)bp, length);
 		break;
 
 	case ddpEIGRP:
@@ -251,7 +251,7 @@ ddp_print(register const u_char *bp, register u_int length, register int t,
 }
 
 static void
-atp_print(register const struct atATP *ap, u_int length)
+atp_print(__capability const struct atATP *ap, u_int length)
 {
 	char c;
 	u_int32_t data;
@@ -378,10 +378,10 @@ atp_bitmap_print(register u_char bm)
 }
 
 static void
-nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
+nbp_print(__capability const struct atNBP *np, u_int length, register u_short snet,
 	  register u_char snode, register u_char skt)
 {
-	register const struct atNBPtuple *tp;
+	__capability const struct atNBPtuple *tp;
 	int i;
 
 	if (length < nbpHeaderSize) {
@@ -399,7 +399,7 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 		fputs(tstr, stdout);
 		return;
 	}
-	tp = (const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
+	tp = (__capability const struct atNBPtuple *)((u_char *)np + nbpHeaderSize);
 	switch (i = np->control & 0xf0) {
 
 	case nbpBrRq:
@@ -443,8 +443,8 @@ nbp_print(register const struct atNBP *np, u_int length, register u_short snet,
 }
 
 /* print a counted string */
-static const char *
-print_cstring(register const char *cp)
+static __capability const char *
+print_cstring(__capability const char *cp)
 {
 	register u_int length;
 
@@ -469,12 +469,12 @@ print_cstring(register const char *cp)
 	return (cp);
 }
 
-static const struct atNBPtuple *
-nbp_tuple_print(register const struct atNBPtuple *tp,
+static __capability const struct atNBPtuple *
+nbp_tuple_print(__capability const struct atNBPtuple *tp,
 		register u_short snet, register u_char snode,
 		register u_char skt)
 {
-	register const struct atNBPtuple *tpn;
+	__capability const struct atNBPtuple *tpn;
 
 	if (!TTEST(*tp)) {
 		fputs(tstr, stdout);
@@ -498,10 +498,10 @@ nbp_tuple_print(register const struct atNBPtuple *tp,
 	return (tpn);
 }
 
-static const struct atNBPtuple *
-nbp_name_print(const struct atNBPtuple *tp)
+static __capability const struct atNBPtuple *
+nbp_name_print(__capability const struct atNBPtuple *tp)
 {
-	register const char *cp = (const char *)tp + nbpTupleSize;
+	__capability const char *cp = (__capability const char *)tp + nbpTupleSize;
 
 	putchar(' ');
 
@@ -517,7 +517,7 @@ nbp_name_print(const struct atNBPtuple *tp)
 				putchar('"');
 		}
 	}
-	return ((const struct atNBPtuple *)cp);
+	return ((__capability const struct atNBPtuple *)cp);
 }
 
 
