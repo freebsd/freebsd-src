@@ -131,7 +131,7 @@ struct target {
 	struct conf			*t_conf;
 	struct auth_group		*t_auth_group;
 	struct portal_group		*t_portal_group;
-	char				*t_iqn;
+	char				*t_name;
 	char				*t_alias;
 };
 
@@ -224,10 +224,10 @@ struct portal_group	*portal_group_find(struct conf *conf, const char *name);
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 
-struct target		*target_new(struct conf *conf, const char *iqn);
+struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
-			    const char *iqn);
+			    const char *name);
 
 struct lun		*lun_new(struct target *target, int lun_id);
 void			lun_delete(struct lun *lun);
