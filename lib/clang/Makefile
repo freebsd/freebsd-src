@@ -68,6 +68,7 @@ SUBDIR=	libclanganalysis \
 	libllvmaarch64disassembler \
 	libllvmaarch64info \
 	libllvmaarch64instprinter \
+	libllvmaarch64utils \
 	libllvmarmasmparser \
 	libllvmarmcodegen \
 	libllvmarmdesc \
