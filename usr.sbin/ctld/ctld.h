@@ -53,6 +53,18 @@ struct auth {
 	char				*a_mutual_secret;
 };
 
+struct auth_name {
+	TAILQ_ENTRY(auth_name)		an_next;
+	struct auth_group		*an_auth_group;
+	char				*an_initator_name;
+};
+
+struct auth_portal {
+	TAILQ_ENTRY(auth_portal)	ap_next;
+	struct auth_group		*ap_auth_group;
+	char				*ap_initator_portal;
+};
+
 #define	AG_TYPE_UNKNOWN			0
 #define	AG_TYPE_NO_AUTHENTICATION	1
 #define	AG_TYPE_CHAP			2
@@ -65,6 +77,8 @@ struct auth_group {
 	struct target			*ag_target;
 	int				ag_type;
 	TAILQ_HEAD(, auth)		ag_auths;
+	TAILQ_HEAD(, auth_name)		ag_names;
+	TAILQ_HEAD(, auth_portal)	ag_portals;
 };
 
 struct portal {
@@ -191,6 +205,18 @@ const struct auth	*auth_new_chap_mutual(struct auth_group *ag,
 			    const char *user2, const char *secret2);
 const struct auth	*auth_find(struct auth_group *ag,
 			    const char *user);
+
+const struct auth_name	*auth_name_new(struct auth_group *ag,
+			    const char *initiator_name);
+bool			auth_name_defined(const struct auth_group *ag);
+const struct auth_name	*auth_name_find(const struct auth_group *ag,
+			    const char *initiator_name);
+
+const struct auth_portal	*auth_portal_new(struct auth_group *ag,
+				    const char *initiator_portal);
+bool			auth_portal_defined(const struct auth_group *ag);
+const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
+				    const char *initiator_portal);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
 void			portal_group_delete(struct portal_group *pg);

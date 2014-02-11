@@ -58,9 +58,9 @@ extern void	yyrestart(FILE *);
 %}
 
 %token ALIAS AUTH_GROUP BACKEND BLOCKSIZE CHAP CHAP_MUTUAL CLOSING_BRACKET
-%token DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP LISTEN LISTEN_ISER LUN MAXPROC NUM
-%token OPENING_BRACKET OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET 
-%token TIMEOUT
+%token DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP INITIATOR_NAME INITIATOR_PORTAL
+%token LISTEN LISTEN_ISER LUN MAXPROC NUM OPENING_BRACKET OPTION PATH PIDFILE
+%token PORTAL_GROUP SERIAL SIZE STR TARGET TIMEOUT
 
 %union
 {
@@ -148,6 +148,10 @@ auth_group_entry:
 	auth_group_chap
 	|
 	auth_group_chap_mutual
+	|
+	auth_group_initiator_name
+	|
+	auth_group_initiator_portal
 	;
 
 auth_group_chap:	CHAP STR STR
@@ -172,6 +176,28 @@ auth_group_chap_mutual:	CHAP_MUTUAL STR STR STR STR
 		free($4);
 		free($5);
 		if (ca == NULL)
+			return (1);
+	}
+	;
+
+auth_group_initiator_name:	INITIATOR_NAME STR
+	{
+		const struct auth_name *an;
+
+		an = auth_name_new(auth_group, $2);
+		free($2);
+		if (an == NULL)
+			return (1);
+	}
+	;
+
+auth_group_initiator_portal:	INITIATOR_PORTAL STR
+	{
+		const struct auth_portal *ap;
+
+		ap = auth_portal_new(auth_group, $2);
+		free($2);
+		if (ap == NULL)
 			return (1);
 	}
 	;
@@ -277,6 +303,10 @@ target_entry:
 	|
 	chap_mutual_statement
 	|
+	initiator_name_statement
+	|
+	initiator_portal_statement
+	|
 	portal_group_statement
 	|
 	lun_statement
@@ -378,6 +408,60 @@ chap_mutual_statement:	CHAP_MUTUAL STR STR STR STR
 		free($4);
 		free($5);
 		if (ca == NULL)
+			return (1);
+	}
+	;
+
+initiator_name_statement:	INITIATOR_NAME STR
+	{
+		const struct auth_name *an;
+
+		if (target->t_auth_group != NULL) {
+			if (target->t_auth_group->ag_name != NULL) {
+				log_warnx("cannot mix auth-group with "
+				    "initiator-name for target \"%s\"",
+				    target->t_iqn);
+				free($2);
+				return (1);
+			}
+		} else {
+			target->t_auth_group = auth_group_new(conf, NULL);
+			if (target->t_auth_group == NULL) {
+				free($2);
+				return (1);
+			}
+			target->t_auth_group->ag_target = target;
+		}
+		an = auth_name_new(target->t_auth_group, $2);
+		free($2);
+		if (an == NULL)
+			return (1);
+	}
+	;
+
+initiator_portal_statement:	INITIATOR_PORTAL STR
+	{
+		const struct auth_portal *ap;
+
+		if (target->t_auth_group != NULL) {
+			if (target->t_auth_group->ag_name != NULL) {
+				log_warnx("cannot mix auth-group with "
+				    "initiator-portal for target \"%s\"",
+				    target->t_iqn);
+				free($2);
+				return (1);
+			}
+		} else {
+			target->t_auth_group = auth_group_new(conf, NULL);
+			if (target->t_auth_group == NULL) {
+				free($2);
+				return (1);
+			}
+			target->t_auth_group->ag_target = target;
+		}
+		ap = auth_portal_new(target->t_auth_group, $2);
+		free($2);
+		if (ap == NULL)
 			return (1);
 	}
 	;
