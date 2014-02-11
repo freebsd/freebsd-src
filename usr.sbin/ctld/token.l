@@ -50,6 +50,7 @@ extern int	yylex(void);
 %%
 alias			{ return ALIAS; }
 auth-group		{ return AUTH_GROUP; }
+auth-type		{ return AUTH_TYPE; }
 backend			{ return BACKEND; }
 blocksize		{ return BLOCKSIZE; }
 chap			{ return CHAP; }

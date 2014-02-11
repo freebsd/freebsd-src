@@ -417,6 +417,58 @@ auth_group_find(struct conf *conf, const char *name)
 	return (NULL);
 }
 
+static int
+auth_group_set_type(struct auth_group *ag, int type)
+{
+
+	if (ag->ag_type == AG_TYPE_UNKNOWN) {
+		ag->ag_type = type;
+		return (0);
+	}
+
+	if (ag->ag_type == type)
+		return (0);
+
+	return (1);
+}
+
+int
+auth_group_set_type_str(struct auth_group *ag, const char *str)
+{
+	int error, type;
+
+	if (strcmp(str, "none") == 0) {
+		type = AG_TYPE_NO_AUTHENTICATION;
+	} else if (strcmp(str, "chap") == 0) {
+		type = AG_TYPE_CHAP;
+	} else if (strcmp(str, "chap-mutual") == 0) {
+		type = AG_TYPE_CHAP_MUTUAL;
+	} else {
+		if (ag->ag_name != NULL)
+			log_warnx("invalid auth-type \"%s\" for auth-group "
+			    "\"%s\"", str, ag->ag_name);
+		else
+			log_warnx("invalid auth-type \"%s\" for target "
+			    "\"%s\"", str, ag->ag_target->t_name);
+		return (1);
+	}
+
+	error = auth_group_set_type(ag, type);
+	if (error != 0) {
+		if (ag->ag_name != NULL)
+			log_warnx("cannot set auth-type to \"%s\" for "
+			    "auth-group \"%s\"; already has a different "
+			    "type", str, ag->ag_name);
+		else
+			log_warnx("cannot set auth-type to \"%s\" for target "
+			    "\"%s\"; already has a different type",
+			    str, ag->ag_target->t_name);
+		return (1);
+	}
+
+	return (error);
+}
+
 static struct portal *
 portal_new(struct portal_group *pg)
 {

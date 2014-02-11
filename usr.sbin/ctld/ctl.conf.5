@@ -101,6 +101,11 @@ Setting it to 0 disables the timeout.
 .Ss auth-group level
 The following statements are available at the auth-group level:
 .Bl -tag -width indent
+.It Ic auth-type Ao Ar type Ac
+Specifies authentication type.
+Type can be either "none", "chap", or "chap-mutual".
+In most cases it is not neccessary to set the type using this clause;
+it is usually used to disable authentication for a given auth-group.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 .It Ic chap-mutual Ao Ar user Ac Ao Ar secret Ac Ao Ar mutualuser Ac Aq Ar mutualsecret
@@ -147,6 +152,13 @@ There is no default; every target must use either auth-group,
 or chap, or chap-mutual statements.
 A special auth-group, "no-authentication", may be used to permit access
 without authentication.
+.It Ic auth-type Ao Ar type Ac
+Specifies authentication type.
+Type can be either "none", "chap", or "chap-mutual".
+In most cases it is not neccessary to set the type using this clause;
+it is usually used to disable authentication for a given target.
+This clause is mutually exclusive with auth-group; one cannot use
+both in a single target.
 .It Ic chap Ao Ar user Ac Aq Ar secret
 Specifies CHAP authentication credentials.
 Note that targets must use either auth-group, or chap,

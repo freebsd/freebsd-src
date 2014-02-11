@@ -197,6 +197,8 @@ int			conf_verify(struct conf *conf);
 struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(struct conf *conf, const char *name);
+int			auth_group_set_type_str(struct auth_group *ag,
+			    const char *type);
 
 const struct auth	*auth_new_chap(struct auth_group *ag,
 			    const char *user, const char *secret);
