@@ -1742,6 +1742,17 @@ sigterm_handler(int dummy __unused)
 }
 
 static void
+sigchld_handler(int dummy __unused)
+{
+
+	/*
+	 * The only purpose of this handler is to make SIGCHLD
+	 * interrupt the ISCSIDWAIT ioctl(2), so we can call
+	 * wait_for_children().
+	 */
+}
+
+static void
 register_signals(void)
 {
 	struct sigaction sa;
@@ -1761,6 +1772,11 @@ register_signals(void)
 
 	sa.sa_handler = sigterm_handler;
 	error = sigaction(SIGINT, &sa, NULL);
+	if (error != 0)
+		log_err(1, "sigaction");
+
+	sa.sa_handler = sigchld_handler;
+	error = sigaction(SIGCHLD, &sa, NULL);
 	if (error != 0)
 		log_err(1, "sigaction");
 }
