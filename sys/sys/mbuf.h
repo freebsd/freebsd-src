@@ -135,7 +135,7 @@ struct pkthdr {
 	uint8_t		 l4hlen;	/* layer 4 header length */
 	uint8_t		 l5hlen;	/* layer 5 header length */
 	union {
-		uint8_t  eigth[8];
+		uint8_t  eight[8];
 		uint16_t sixteen[4];
 		uint32_t thirtytwo[2];
 		uint64_t sixtyfour[1];
@@ -145,7 +145,7 @@ struct pkthdr {
 
 	/* Layer specific non-persistent local storage for reassembly, etc. */
 	union {
-		uint8_t  eigth[8];
+		uint8_t  eight[8];
 		uint16_t sixteen[4];
 		uint32_t thirtytwo[2];
 		uint64_t sixtyfour[1];
