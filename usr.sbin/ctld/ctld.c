@@ -1105,10 +1105,9 @@ conf_verify(struct conf *conf)
 
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		if (targ->t_auth_group == NULL) {
-			log_warnx("missing authentication for target \"%s\"; "
-			    "must specify either \"auth-group\", \"chap\", "
-			    "or \"chap-mutual\"", targ->t_name);
-			return (1);
+			targ->t_auth_group = auth_group_find(conf,
+			    "default");
+			assert(targ->t_auth_group != NULL);
 		}
 		if (targ->t_portal_group == NULL) {
 			targ->t_portal_group = portal_group_find(conf,
