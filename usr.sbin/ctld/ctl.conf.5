@@ -131,9 +131,11 @@ The following statements are available at the portal-group level:
 .It Ic discovery-auth-group Aq Ar name
 Assigns previously defined authentication group to that portal group,
 to be used for target discovery.
-By default, the discovery will be denied.
-A special auth-group, "no-authentication", may be used to allow for discovery
-without authentication.
+By default, portal groups that do not specify their own auth settings,
+using clauses such as "chap" or "initiator-name", are assigned
+predefined auth-group "default", which denies discovery.
+Another predefined auth-group, "no-authentication", may be used
+to permit discovery without authentication.
 .It Ic listen Aq Ar address
 Specifies IPv4 or IPv6 address and port to listen on for incoming connections.
 .It Ic listen-iser Aq Ar address
