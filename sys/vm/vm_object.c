@@ -676,8 +676,7 @@ vm_object_destroy(vm_object_t object)
 	if (object->cred != NULL) {
 		KASSERT(object->type == OBJT_DEFAULT ||
 		    object->type == OBJT_SWAP,
-		    ("vm_object_terminate: non-swap obj %p has cred",
-		     object));
+		    ("%s: non-swap obj %p has cred", __func__, object));
 		swap_release_by_cred(object->charge, object->cred);
 		object->charge = 0;
 		crfree(object->cred);
