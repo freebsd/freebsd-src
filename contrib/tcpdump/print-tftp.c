@@ -72,15 +72,15 @@ static struct tok err2str[] = {
  * Print trivial file transfer program requests
  */
 void
-tftp_print(register const u_char *bp, u_int length)
+tftp_print(packetbody_t bp, u_int length)
 {
-	register const struct tftphdr *tp;
-	register const char *cp;
-	register const u_char *p;
+	__capability  const struct tftphdr *tp;
+	const char *cp;
+	packetbody_t p;
 	register int opcode, i;
 	static char tstr[] = " [|tftp]";
 
-	tp = (const struct tftphdr *)bp;
+	tp = (__capability const struct tftphdr *)bp;
 
 	/* Print length */
 	printf(" %d", length);
@@ -99,7 +99,7 @@ tftp_print(register const u_char *bp, u_int length)
 	case RRQ:
 	case WRQ:
 	case OACK:
-		p = (u_char *)tp->th_stuff;
+		p = (packetbody_t)tp->th_stuff;
 		putchar(' ');
 		/* Print filename or first option */
 		if (opcode != OACK)
@@ -109,8 +109,8 @@ tftp_print(register const u_char *bp, u_int length)
 			putchar('"');
 
 		/* Print the mode (RRQ and WRQ only) and any options */
-		while ((p = (const u_char *)strchr((const char *)p, '\0')) != NULL) {
-			if (length <= (u_int)(p - (const u_char *)&tp->th_block))
+		while ((p = (packetbody_t)cstrchr((packetbody_t)p, '\0')) != NULL) {
+			if (length <= (u_int)(p - (packetbody_t)&tp->th_block))
 				break;
 			p++;
 			if (*p != '\0') {
@@ -135,7 +135,7 @@ tftp_print(register const u_char *bp, u_int length)
 		printf(" %s \"", tok2str(err2str, "tftp-err-#%d \"",
 				       EXTRACT_16BITS(&tp->th_code)));
 		/* Print error message string */
-		i = fn_print((const u_char *)tp->th_data, snapend);
+		i = fn_print((packetbody_t)tp->th_data, snapend);
 		putchar('"');
 		if (i)
 			goto trunc;

@@ -26,7 +26,7 @@ static const char rcsid[] _U_ =
 #include "smb.h"
 
 static u_int32_t stringlen;
-extern const u_char *startbuf;
+extern packetbody_t startbuf;
 
 /*
  * interpret a 32 bit dos packed date/time to some parameters
@@ -74,7 +74,7 @@ int_unix_date(u_int32_t dos_date)
  * in network byte order
  */
 static time_t
-make_unix_date(const u_char *date_ptr)
+make_unix_date(packetbody_t date_ptr)
 {
     u_int32_t dos_date = 0;
 
@@ -88,7 +88,7 @@ make_unix_date(const u_char *date_ptr)
  * in halfword-swapped network byte order!
  */
 static time_t
-make_unix_date2(const u_char *date_ptr)
+make_unix_date2(packetbody_t date_ptr)
 {
     u_int32_t x, x2;
 
@@ -102,7 +102,7 @@ make_unix_date2(const u_char *date_ptr)
  * It's originally in "100ns units since jan 1st 1601"
  */
 static time_t
-interpret_long_date(const u_char *p)
+interpret_long_date(packetbody_t p)
 {
     double d;
     time_t ret;
@@ -129,7 +129,7 @@ interpret_long_date(const u_char *p)
  * we run past the end of the buffer
  */
 static int
-name_interpret(const u_char *in, const u_char *maxbuf, char *out)
+name_interpret(packetbody_t in, packetbody_t maxbuf, char *out)
 {
     int ret;
     int len;
@@ -168,10 +168,10 @@ trunc:
 /*
  * find a pointer to a netbios name
  */
-static const u_char *
-name_ptr(const u_char *buf, int ofs, const u_char *maxbuf)
+static packetbody_t
+name_ptr(packetbody_t buf, int ofs, packetbody_t maxbuf)
 {
-    const u_char *p;
+    packetbody_t p;
     u_char c;
 
     p = buf + ofs;
@@ -208,9 +208,9 @@ trunc:
  * extract a netbios name from a buf
  */
 static int
-name_extract(const u_char *buf, int ofs, const u_char *maxbuf, char *name)
+name_extract(packetbody_t buf, int ofs, packetbody_t maxbuf, char *name)
 {
-    const u_char *p = name_ptr(buf, ofs, maxbuf);
+    packetbody_t p = name_ptr(buf, ofs, maxbuf);
     if (p == NULL)
 	return(-1);	/* error (probably name going past end of buffer) */
     name[0] = '\0';
@@ -222,9 +222,9 @@ name_extract(const u_char *buf, int ofs, const u_char *maxbuf, char *name)
  * return the total storage length of a mangled name
  */
 static int
-name_len(const unsigned char *s, const unsigned char *maxbuf)
+name_len(packetbody_t s, packetbody_t maxbuf)
 {
-    const unsigned char *s0 = s;
+    packetbody_t s0 = s;
     unsigned char c;
 
     if (s >= maxbuf)
@@ -246,7 +246,7 @@ trunc:
 }
 
 static void
-print_asc(const unsigned char *buf, int len)
+print_asc(packetbody_t buf, int len)
 {
     int i;
     for (i = 0; i < len; i++)
@@ -271,7 +271,7 @@ name_type_str(int name_type)
 }
 
 void
-print_data(const unsigned char *buf, int len)
+print_data(packetbody_t buf, int len)
 {
     int i = 0;
 
@@ -337,12 +337,12 @@ write_bits(unsigned int val, const char *fmt)
 /* convert a UCS2 string into iso-8859-1 string */
 #define MAX_UNISTR_SIZE	1000
 static const char *
-unistr(const u_char *s, u_int32_t *len, int use_unicode)
+unistr(packetbody_t s, u_int32_t *len, int use_unicode)
 {
     static char buf[MAX_UNISTR_SIZE+1];
     size_t l = 0;
     u_int32_t strsize;
-    const u_char *sp;
+    packetbody_t sp;
 
     if (use_unicode) {
 	/*
@@ -428,8 +428,8 @@ trunc:
     return NULL;
 }
 
-static const u_char *
-smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
+static packetbody_t
+smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
     int unicodestr)
 {
     int reverse = 0;
@@ -787,8 +787,8 @@ trunc:
     return(NULL);
 }
 
-const u_char *
-smb_fdata(const u_char *buf, const char *fmt, const u_char *maxbuf,
+packetbody_t
+smb_fdata(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
     int unicodestr)
 {
     static int depth = 0;
@@ -800,7 +800,7 @@ smb_fdata(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	case '*':
 	    fmt++;
 	    while (buf < maxbuf) {
-		const u_char *buf2;
+		packetbody_t buf2;
 		depth++;
 		buf2 = smb_fdata(buf, fmt, maxbuf, unicodestr);
 		depth--;

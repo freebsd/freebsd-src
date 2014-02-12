@@ -174,6 +174,12 @@ extern int mask2plen(u_int32_t);
 extern const char *tok2strary_internal(const char **, int, const char *, int);
 #define	tok2strary(a,f,i) tok2strary_internal(a, sizeof(a)/sizeof(a[0]),f,i)
 
+extern const char *inet_ntop_cap(int af,
+    __capability const void * restrict src, char * restrict dst,
+    socklen_t size);
+
+void *memcpy_fromcap(void *dst, __capability const void *src, size_t len);
+
 extern const char *dnaddr_string(u_short);
 
 extern void error(const char *, ...)
@@ -222,7 +228,7 @@ extern int oam_print(packetbody_t, u_int, u_int);
 extern void bootp_print(packetbody_t, u_int);
 extern void bgp_print(packetbody_t, int);
 extern void beep_print(packetbody_t, u_int);
-extern void cnfp_print(packetbody_t, const u_char *);
+extern void cnfp_print(packetbody_t, packetbody_t);
 extern void decnet_print(packetbody_t, u_int, u_int);
 extern void default_print(packetbody_t, u_int);
 extern void dvmrp_print(packetbody_t, u_int);
@@ -266,7 +272,7 @@ extern void ns_print(packetbody_t, u_int, int);
 extern packetbody_t ns_nprint(__capability const u_char *, __capability const u_char *);
 extern void ntp_print(packetbody_t, u_int);
 extern u_int null_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern void ospf_print(packetbody_t, u_int, const u_char *);
+extern void ospf_print(packetbody_t, u_int, packetbody_t);
 extern void olsr_print (packetbody_t, u_int, int);
 extern void pimv1_print(packetbody_t, u_int);
 extern void cisco_autorp_print(packetbody_t, u_int);
@@ -317,13 +323,13 @@ extern u_int juniper_frelay_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int juniper_chdlc_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int sll_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern void snmp_print(packetbody_t, u_int);
-extern void sunrpcrequest_print(packetbody_t, u_int, const u_char *);
+extern void sunrpcrequest_print(packetbody_t, u_int, packetbody_t);
 extern u_int symantec_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern void tcp_print(packetbody_t, u_int, const u_char *, int);
+extern void tcp_print(packetbody_t, u_int, packetbody_t, int);
 extern void tftp_print(packetbody_t, u_int);
 extern void timed_print(packetbody_t);
 extern void udld_print(packetbody_t, u_int);
-extern void udp_print(packetbody_t, u_int, const u_char *, int);
+extern void udp_print(packetbody_t, u_int, packetbody_t, int);
 extern void vtp_print(packetbody_t, u_int);
 extern void wb_print(packetbody_t, u_int);
 extern int ah_print(packetbody_t);
@@ -345,15 +351,15 @@ extern void slow_print(packetbody_t, u_int);
 extern void sflow_print(packetbody_t, u_int);
 extern void mpcp_print(packetbody_t, u_int);
 extern void cfm_print(packetbody_t, u_int);
-extern void pgm_print(packetbody_t, u_int, const u_char *);
+extern void pgm_print(packetbody_t, u_int, packetbody_t);
 extern void cdp_print(packetbody_t, u_int, u_int);
 extern void dtp_print(packetbody_t, u_int);
 extern void stp_print(packetbody_t, u_int);
 extern void radius_print(packetbody_t, u_int);
 extern void lwres_print(packetbody_t, u_int);
 extern void pptp_print(packetbody_t);
-extern void dccp_print(packetbody_t, const u_char *, u_int);
-extern void sctp_print(packetbody_t, const u_char *, u_int);
+extern void dccp_print(packetbody_t, packetbody_t, u_int);
+extern void sctp_print(packetbody_t, packetbody_t, u_int);
 extern void forces_print(packetbody_t, u_int);
 extern void mpls_print(packetbody_t, u_int);
 extern void mpls_lsp_ping_print(packetbody_t, u_int);
@@ -374,10 +380,10 @@ extern void otv_print(packetbody_t, u_int);
 extern void ip6_opt_print(packetbody_t, int);
 extern int hbhopt_print(packetbody_t);
 extern int dstopt_print(packetbody_t);
-extern int frag6_print(const u_char *, const u_char *);
-extern int mobility_print(const u_char *, const u_char *);
+extern int frag6_print(packetbody_t, packetbody_t);
+extern int mobility_print(packetbody_t, packetbody_t);
 extern void ripng_print(packetbody_t, unsigned int);
-extern int rt6_print(const u_char *, const u_char *);
+extern int rt6_print(packetbody_t, packetbody_t);
 extern void ospf6_print(packetbody_t, u_int);
 extern void dhcp6_print(packetbody_t, u_int);
 extern void babel_print(packetbody_t, u_int);

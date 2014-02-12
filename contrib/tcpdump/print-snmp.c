@@ -328,10 +328,10 @@ struct obj_abrev {
 struct be {
 	u_int32_t asnlen;
 	union {
-		caddr_t raw;
+		packetbody_t raw;
 		int32_t integer;
 		u_int32_t uns;
-		const u_char *str;
+		packetbody_t str;
 	        struct {
 		        u_int32_t high;
 		        u_int32_t low;
@@ -403,7 +403,7 @@ const char *SnmpVersion[] = {
  * O/w, this returns the number of bytes parsed from "p".
  */
 static int
-asn1_parse(register const u_char *p, u_int len, struct be *elem)
+asn1_parse(packetbody_t p, u_int len, struct be *elem)
 {
 	u_char form, class, id;
 	int i, hdr;
@@ -527,7 +527,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 
 			case OBJECTID:
 				elem->type = BE_OID;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				break;
 
 			case ASN_NULL:
@@ -537,7 +537,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 
 			default:
 				elem->type = BE_OCTET;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				printf("[P/U/%s]",
 					Class[class].Id[id]);
 				break;
@@ -548,7 +548,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			switch (id) {
 			case IPADDR:
 				elem->type = BE_INETADDR;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				break;
 
 			case COUNTER:
@@ -581,7 +581,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 
 			default:
 				elem->type = BE_OCTET;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				printf("[P/A/%s]",
 					Class[class].Id[id]);
 				break;
@@ -612,7 +612,7 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 				Class[class].name, Class[class].Id[id]);
 			TCHECK2(*p, elem->asnlen);
 			elem->type = BE_OCTET;
-			elem->data.raw = (caddr_t)p;
+			elem->data.raw = p;
 			break;
 		}
 		break;
@@ -623,12 +623,12 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 			switch (id) {
 			case SEQUENCE:
 				elem->type = BE_SEQ;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				break;
 
 			default:
 				elem->type = BE_OCTET;
-				elem->data.raw = (caddr_t)p;
+				elem->data.raw = p;
 				printf("C/U/%s", Class[class].Id[id]);
 				break;
 			}
@@ -636,12 +636,12 @@ asn1_parse(register const u_char *p, u_int len, struct be *elem)
 
 		case CONTEXT:
 			elem->type = BE_PDU;
-			elem->data.raw = (caddr_t)p;
+			elem->data.raw = p;
 			break;
 
 		default:
 			elem->type = BE_OCTET;
-			elem->data.raw = (caddr_t)p;
+			elem->data.raw = p;
 			printf("C/%s/%s",
 				Class[class].name, Class[class].Id[id]);
 			break;
@@ -665,7 +665,7 @@ trunc:
 static int
 asn1_print(struct be *elem)
 {
-	u_char *p = (u_char *)elem->data.raw;
+	packetbody_t p = elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
 	u_int32_t i;
 
@@ -681,7 +681,8 @@ asn1_print(struct be *elem)
 		break;
 
 	case BE_OID: {
-		int o = 0, first = -1, i = asnlen;
+		int o = 0, first = -1;
+		i = asnlen;
 
 		if (!sflag && !nflag && asnlen > 2) {
 			struct obj_abrev *a = &obj_abrev_list[0];
@@ -779,7 +780,7 @@ asn1_print(struct be *elem)
 
 	case BE_STR: {
 		register int printable = 1, first = 1;
-		const u_char *p = elem->data.str;
+		p = elem->data.str;
 		TCHECK2(*p, asnlen);
 		for (i = asnlen; printable && i-- > 0; p++)
 			printable = isprint(*p) || isspace(*p);
@@ -1197,7 +1198,7 @@ smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
  * Decode SNMP varBind
  */
 static void
-varbind_print(u_char pduid, const u_char *np, u_int length)
+varbind_print(u_char pduid, packetbody_t np, u_int length)
 {
 	struct be elem;
 	int count = 0, ind;
@@ -1218,10 +1219,10 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		printf("[%d extra after SEQ of varbind]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = (u_char *)elem.data.raw;
+	np = elem.data.raw;
 
 	for (ind = 1; length > 0; ind++) {
-		const u_char *vbend;
+		packetbody_t vbend;
 		u_int vblength;
 
 		fputs(" ", stdout);
@@ -1238,7 +1239,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		vblength = length - count;
 		/* descend */
 		length = elem.asnlen;
-		np = (u_char *)elem.data.raw;
+		np = elem.data.raw;
 
 		/* objName (OID) */
 		if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1293,7 +1294,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
  * GetBulk, Inform, V2Trap, and Report
  */
 static void
-snmppdu_print(u_short pduid, const u_char *np, u_int length)
+snmppdu_print(u_short pduid, packetbody_t np, u_int length)
 {
 	struct be elem;
 	int count = 0, error;
@@ -1373,7 +1374,7 @@ snmppdu_print(u_short pduid, const u_char *np, u_int length)
  * Decode SNMP Trap PDU
  */
 static void
-trappdu_print(const u_char *np, u_int length)
+trappdu_print(packetbody_t np, u_int length)
 {
 	struct be elem;
 	int count = 0, generic;
@@ -1463,7 +1464,7 @@ trappdu_print(const u_char *np, u_int length)
  * Decode arbitrary SNMP PDUs.
  */
 static void
-pdu_print(const u_char *np, u_int length, int version)
+pdu_print(packetbody_t np, u_int length, int version)
 {
 	struct be pdu;
 	int count = 0;
@@ -1485,7 +1486,7 @@ pdu_print(const u_char *np, u_int length, int version)
 	fputs(" ", stdout);
 	/* descend into PDU */
 	length = pdu.asnlen;
-	np = (u_char *)pdu.data.raw;
+	np = pdu.data.raw;
 
 	if (version == SNMP_VERSION_1 &&
 	    (pdu.id == GETBULKREQ || pdu.id == INFORMREQ ||
@@ -1524,7 +1525,7 @@ pdu_print(const u_char *np, u_int length, int version)
  * Decode a scoped SNMP PDU.
  */
 static void
-scopedpdu_print(const u_char *np, u_int length, int version)
+scopedpdu_print(packetbody_t np, u_int length, int version)
 {
 	struct be elem;
 	int i, count = 0;
@@ -1538,7 +1539,7 @@ scopedpdu_print(const u_char *np, u_int length, int version)
 		return;
 	}
 	length = elem.asnlen;
-	np = (u_char *)elem.data.raw;
+	np = elem.data.raw;
 
 	/* contextEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1577,7 +1578,7 @@ scopedpdu_print(const u_char *np, u_int length, int version)
  * Decode SNMP Community Header (SNMPv1 and SNMPv2c)
  */
 static void
-community_print(const u_char *np, u_int length, int version)
+community_print(packetbody_t np, u_int length, int version)
 {
 	struct be elem;
 	int count = 0;
@@ -1606,7 +1607,7 @@ community_print(const u_char *np, u_int length, int version)
  * Decode SNMPv3 User-based Security Message Header (SNMPv3)
  */
 static void
-usm_print(const u_char *np, u_int length)
+usm_print(packetbody_t np, u_int length)
 {
         struct be elem;
 	int count = 0;
@@ -1620,7 +1621,7 @@ usm_print(const u_char *np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = (u_char *)elem.data.raw;
+	np = elem.data.raw;
 
 	/* msgAuthoritativeEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1702,13 +1703,13 @@ usm_print(const u_char *np, u_int length)
  * Decode SNMPv3 Message Header (SNMPv3)
  */
 static void
-v3msg_print(const u_char *np, u_int length)
+v3msg_print(packetbody_t np, u_int length)
 {
 	struct be elem;
 	int count = 0;
 	u_char flags;
 	int model;
-	const u_char *xnp = np;
+	packetbody_t xnp = np;
 	int xlength = length;
 
 	/* Sequence */
@@ -1720,7 +1721,7 @@ v3msg_print(const u_char *np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = (u_char *)elem.data.raw;
+	np = elem.data.raw;
 
 	if (vflag) {
 		fputs("{ ", stdout);
@@ -1839,7 +1840,7 @@ v3msg_print(const u_char *np, u_int length)
  * Decode SNMP header and pass on to PDU printing routines
  */
 void
-snmp_print(const u_char *np, u_int length)
+snmp_print(packetbody_t np, u_int length)
 {
 	struct be elem;
 	int count = 0;
@@ -1859,7 +1860,7 @@ snmp_print(const u_char *np, u_int length)
 		printf("[%d extra after iSEQ]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = (u_char *)elem.data.raw;
+	np = elem.data.raw;
 
 	/* Version (INTEGER) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)

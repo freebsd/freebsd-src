@@ -106,12 +106,12 @@ static const struct tok vqp_obj_values[] = {
 };
 
 void
-vqp_print(register const u_char *pptr, register u_int len) 
+vqp_print(packetbody_t pptr, register u_int len) 
 {
-    const struct vqp_common_header_t *vqp_common_header;
-    const struct vqp_obj_tlv_t *vqp_obj_tlv;
+    __capability const struct vqp_common_header_t *vqp_common_header;
+    __capability const struct vqp_obj_tlv_t *vqp_obj_tlv;
 
-    const u_char *tptr;
+    packetbody_t tptr;
     u_int16_t vqp_obj_len;
     u_int32_t vqp_obj_type;
     int tlen;
@@ -119,7 +119,7 @@ vqp_print(register const u_char *pptr, register u_int len)
 
     tptr=pptr;
     tlen = len;
-    vqp_common_header = (const struct vqp_common_header_t *)pptr;
+    vqp_common_header = (__capability const struct vqp_common_header_t *)pptr;
     TCHECK(*vqp_common_header);
 
     /*
@@ -159,7 +159,7 @@ vqp_print(register const u_char *pptr, register u_int len)
 
     while (nitems > 0 && tlen > 0) {
 
-        vqp_obj_tlv = (const struct vqp_obj_tlv_t *)tptr;
+        vqp_obj_tlv = (__capability const struct vqp_obj_tlv_t *)tptr;
         vqp_obj_type = EXTRACT_32BITS(vqp_obj_tlv->obj_type);
         vqp_obj_len = EXTRACT_16BITS(vqp_obj_tlv->obj_length);
         tptr+=sizeof(struct vqp_obj_tlv_t);
@@ -187,7 +187,7 @@ vqp_print(register const u_char *pptr, register u_int len)
 	case VQP_OBJ_VLAN_NAME:
 	case VQP_OBJ_VTP_DOMAIN:
 	case VQP_OBJ_ETHERNET_PKT:
-            safeputs((const char *)tptr, vqp_obj_len);
+            safeputs(tptr, vqp_obj_len);
             break;
             /* those objects have similar semantics - fall through */
 	case VQP_OBJ_MAC_ADDRESS:

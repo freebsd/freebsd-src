@@ -89,7 +89,7 @@ struct ip6_mobility {
 #define IP6MOPT_AUTH_MINLEN    12
 
 static void
-mobility_opt_print(const u_char *bp, int len)
+mobility_opt_print(packetbody_t bp, int len)
 {
 	int i;
 	int optlen;
@@ -168,12 +168,12 @@ trunc:
  * Mobility Header
  */
 int
-mobility_print(const u_char *bp, const u_char *bp2 _U_)
+mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 {
-	const struct ip6_mobility *mh;
+	__capability const struct ip6_mobility *mh;
 	int mhlen, hlen, type;
 
-	mh = (struct ip6_mobility *)bp;
+	mh = (__capability const struct ip6_mobility *)bp;
 
 	if (!TTEST(mh->ip6m_len)) {
 		/*

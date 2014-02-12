@@ -39,10 +39,10 @@
 #include "interface.h"
 #include "extract.h"
 
-static void babel_print_v2(const u_char *cp, u_int length);
+static void babel_print_v2(packetbody_t cp, u_int length);
 
 void
-babel_print(const u_char *cp, u_int length) {
+babel_print(packetbody_t cp, u_int length) {
     printf("babel");
 
     TCHECK2(*cp, 4);
@@ -85,7 +85,7 @@ babel_print(const u_char *cp, u_int length) {
 #define MESSAGE_HMAC 12
 
 static const char *
-format_id(const u_char *id)
+format_id(packetbody_t id)
 {
     static char buf[25];
     snprintf(buf, 25, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
@@ -128,7 +128,7 @@ format_address(const u_char *prefix)
 
 static int
 network_prefix(int ae, int plen, unsigned int omitted,
-               const unsigned char *p, const unsigned char *dp,
+               packetbody_t p, const unsigned char *dp,
                unsigned int len, unsigned char *p_r)
 {
     unsigned pb;
@@ -156,7 +156,7 @@ network_prefix(int ae, int plen, unsigned int omitted,
             if (dp == NULL) return -1;
             memcpy(prefix, dp, 12 + omitted);
         }
-        if(pb > omitted) memcpy(prefix + 12 + omitted, p, pb - omitted);
+        if(pb > omitted) OPEN_MEMCPY(prefix + 12 + omitted, p, pb - omitted);
         break;
     case 2:
         if(omitted > 16 || (pb > omitted && len < pb - omitted))
@@ -165,13 +165,13 @@ network_prefix(int ae, int plen, unsigned int omitted,
             if (dp == NULL) return -1;
             memcpy(prefix, dp, omitted);
         }
-        if(pb > omitted) memcpy(prefix + omitted, p, pb - omitted);
+        if(pb > omitted) OPEN_MEMCPY(prefix + omitted, p, pb - omitted);
         break;
     case 3:
         if(pb > 8 && len < pb - 8) return -1;
         prefix[0] = 0xfe;
         prefix[1] = 0x80;
-        if(pb > 8) memcpy(prefix + 8, p, pb - 8);
+        if(pb > 8) OPEN_MEMCPY(prefix + 8, p, pb - 8);
         break;
     default:
         return -1;
@@ -182,7 +182,7 @@ network_prefix(int ae, int plen, unsigned int omitted,
 }
 
 static int
-network_address(int ae, const unsigned char *a, unsigned int len,
+network_address(int ae, packetbody_t a, unsigned int len,
                 unsigned char *a_r)
 {
     return network_prefix(ae, -1, 0, a, NULL, len, a_r);
@@ -192,7 +192,7 @@ network_address(int ae, const unsigned char *a, unsigned int len,
 	if ((i) + (l) > bodylen || (i) + (l) > length) goto corrupt;
 
 static void
-babel_print_v2(const u_char *cp, u_int length) {
+babel_print_v2(packetbody_t cp, u_int length) {
     u_int i;
     u_short bodylen;
     u_char v4_prefix[16] =
@@ -208,7 +208,7 @@ babel_print_v2(const u_char *cp, u_int length) {
     /* Process the TLVs in the body */
     i = 0;
     while(i < bodylen) {
-        const u_char *message;
+        packetbody_t message;
         u_int type, len;
 
         message = cp + 4 + i;

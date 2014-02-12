@@ -82,7 +82,7 @@ static const struct tok syslog_facility_values[] = {
 };
 
 void
-syslog_print(register const u_char *pptr, register u_int len)
+syslog_print(packetbody_t pptr, register u_int len)
 {
     u_int16_t msg_off = 0;
     u_int16_t pri = 0;

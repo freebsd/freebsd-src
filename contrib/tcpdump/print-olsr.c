@@ -182,13 +182,13 @@ struct olsr_lq_neighbor6 {
  * print a neighbor list with LQ extensions.
  */
 static void
-olsr_print_lq_neighbor4 (const u_char *msg_data, u_int hello_len)
+olsr_print_lq_neighbor4 (packetbody_t msg_data, u_int hello_len)
 {
-    struct olsr_lq_neighbor4 *lq_neighbor;
+    __capability struct olsr_lq_neighbor4 *lq_neighbor;
 
     while (hello_len >= sizeof(struct olsr_lq_neighbor4)) {
 
-        lq_neighbor = (struct olsr_lq_neighbor4 *)msg_data;
+        lq_neighbor = (__capability struct olsr_lq_neighbor4 *)msg_data;
 
         printf("\n\t      neighbor %s, link-quality %.2lf%%"
                ", neighbor-link-quality %.2lf%%",
@@ -203,13 +203,13 @@ olsr_print_lq_neighbor4 (const u_char *msg_data, u_int hello_len)
 
 #if INET6
 static void
-olsr_print_lq_neighbor6 (const u_char *msg_data, u_int hello_len)
+olsr_print_lq_neighbor6 (packetbody_t msg_data, u_int hello_len)
 {
-    struct olsr_lq_neighbor6 *lq_neighbor;
+    __capability struct olsr_lq_neighbor6 *lq_neighbor;
 
     while (hello_len >= sizeof(struct olsr_lq_neighbor6)) {
 
-        lq_neighbor = (struct olsr_lq_neighbor6 *)msg_data;
+        lq_neighbor = (__capability struct olsr_lq_neighbor6 *)msg_data;
 
         printf("\n\t      neighbor %s, link-quality %.2lf%%"
                ", neighbor-link-quality %.2lf%%",
@@ -227,7 +227,7 @@ olsr_print_lq_neighbor6 (const u_char *msg_data, u_int hello_len)
  * print a neighbor list.
  */
 static void
-olsr_print_neighbor (const u_char *msg_data, u_int hello_len)
+olsr_print_neighbor (packetbody_t msg_data, u_int hello_len)
 {
     int neighbor;
 
@@ -248,23 +248,23 @@ olsr_print_neighbor (const u_char *msg_data, u_int hello_len)
 
 
 void
-olsr_print (const u_char *pptr, u_int length, int is_ipv6)
+olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 {
     union {
-        const struct olsr_common *common;
-        const struct olsr_msg4 *msg4;
-        const struct olsr_msg6 *msg6;
-        const struct olsr_hello *hello;
-        const struct olsr_hello_link *hello_link;
-        const struct olsr_tc *tc;
-        const struct olsr_hna4 *hna;
+        __capability const struct olsr_common *common;
+        __capability const struct olsr_msg4 *msg4;
+        __capability const struct olsr_msg6 *msg6;
+        __capability const struct olsr_hello *hello;
+        __capability const struct olsr_hello_link *hello_link;
+        __capability const struct olsr_tc *tc;
+        __capability const struct olsr_hna4 *hna;
     } ptr;
 
     u_int msg_type, msg_len, msg_tlen, hello_len;
     u_int16_t name_entry_type, name_entry_len;
     u_int name_entry_padding;
     u_int8_t link_type, neighbor_type;
-    const u_char *tptr, *msg_data;
+    packetbody_t tptr, msg_data;
 
     tptr = pptr;
 
@@ -276,7 +276,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
         goto trunc;
     }
 
-    ptr.common = (struct olsr_common *)tptr;
+    ptr.common = (__capability struct olsr_common *)tptr;
     length = MIN(length, EXTRACT_16BITS(ptr.common->packet_len));
 
     printf("OLSRv%i, seq 0x%04x, length %u",
@@ -296,8 +296,8 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
     while (tptr < (pptr+length)) {
         union
         {
-            struct olsr_msg4 *v4;
-            struct olsr_msg6 *v6;
+            __capability struct olsr_msg4 *v4;
+            __capability struct olsr_msg6 *v6;
         } msgptr;
         int msg_len_valid = 0;
 
@@ -307,7 +307,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
 #if INET6
         if (is_ipv6)
         {
-            msgptr.v6 = (struct olsr_msg6 *) tptr;
+            msgptr.v6 = (__capability struct olsr_msg6 *) tptr;
             msg_type = msgptr.v6->msg_type;
             msg_len = EXTRACT_16BITS(msgptr.v6->msg_len);
             if ((msg_len >= sizeof (struct olsr_msg6))
@@ -335,7 +335,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
         else /* (!is_ipv6) */
 #endif /* INET6 */
         {
-            msgptr.v4 = (struct olsr_msg4 *) tptr;
+            msgptr.v4 = (__capability struct olsr_msg4 *) tptr;
             msg_type = msgptr.v4->msg_type;
             msg_len = EXTRACT_16BITS(msgptr.v4->msg_len);
             if ((msg_len >= sizeof (struct olsr_msg4))
@@ -367,7 +367,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
             if (!TTEST2(*msg_data, sizeof(struct olsr_hello)))
                 goto trunc;
 
-            ptr.hello = (struct olsr_hello *)msg_data;
+            ptr.hello = (__capability struct olsr_hello *)msg_data;
             printf("\n\t  hello-time %.3lfs, MPR willingness %u",
                    ME_TO_DOUBLE(ptr.hello->htime), ptr.hello->will);
             msg_data += sizeof(struct olsr_hello);
@@ -382,7 +382,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
                 if (!TTEST2(*msg_data, sizeof(struct olsr_hello_link)))
                     goto trunc;
 
-                ptr.hello_link = (struct olsr_hello_link *)msg_data;
+                ptr.hello_link = (__capability struct olsr_hello_link *)msg_data;
 
                 hello_len = EXTRACT_16BITS(ptr.hello_link->len);
                 link_type = OLSR_EXTRACT_LINK_TYPE(ptr.hello_link->link_code);
@@ -426,7 +426,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
             if (!TTEST2(*msg_data, sizeof(struct olsr_tc)))
                 goto trunc;
 
-            ptr.tc = (struct olsr_tc *)msg_data;
+            ptr.tc = (__capability struct olsr_tc *)msg_data;
             printf("\n\t    advertised neighbor seq 0x%04x",
                    EXTRACT_16BITS(ptr.tc->ans_seq));
             msg_data += sizeof(struct olsr_tc);
@@ -476,12 +476,12 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
             {
                 int i = 0;
                 while (msg_tlen >= sizeof(struct olsr_hna6)) {
-                    struct olsr_hna6 *hna6;
+                    __capability struct olsr_hna6 *hna6;
 
                     if (!TTEST2(*msg_data, sizeof(struct olsr_hna6)))
                         goto trunc;
 
-                    hna6 = (struct olsr_hna6 *)msg_data;
+                    hna6 = (__capability struct olsr_hna6 *)msg_data;
 
                     printf("\n\t    #%i: %s/%u",
                             i, ip6addr_string(hna6->network),
@@ -499,7 +499,7 @@ olsr_print (const u_char *pptr, u_int length, int is_ipv6)
                     if (!TTEST2(*msg_data, sizeof(struct olsr_hna4)))
                         goto trunc;
 
-                    ptr.hna = (struct olsr_hna4 *)msg_data;
+                    ptr.hna = (__capability struct olsr_hna4 *)msg_data;
 
                     /* print 4 prefixes per line */
                     if (col == 0)

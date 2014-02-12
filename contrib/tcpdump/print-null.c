@@ -86,7 +86,7 @@ null_hdr_print(u_int family, u_int length)
  * is the number of bytes actually captured.
  */
 u_int
-null_if_print(const struct pcap_pkthdr *h, const u_char *p)
+null_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
@@ -97,7 +97,7 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		return (NULL_HDRLEN);
 	}
 
-	memcpy((char *)&family, (char *)p, sizeof(family));
+	OPEN_MEMCPY((char *)&family, p, sizeof(family));
 
 	/*
 	 * This isn't necessarily in our host byte order; if this is

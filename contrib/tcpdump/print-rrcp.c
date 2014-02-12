@@ -82,17 +82,17 @@ static const struct tok opcode_values[] = {
  */
 void
 rrcp_print(netdissect_options *ndo,
-	  register const u_char *cp,
+	  packetbody_t cp,
 	  u_int length _U_)
 {
-	const u_char *rrcp;
+	packetbody_t rrcp;
 	u_int8_t rrcp_proto;
 	u_int8_t rrcp_opcode;
-	register const struct ether_header *ep;
+	__capability const struct ether_header *ep;
 	char proto_str[16];
 	char opcode_str[32];
 
-	ep = (const struct ether_header *)cp;
+	ep = (__capability const struct ether_header *)cp;
 	rrcp = cp + ETHER_HDRLEN;
 
 	ND_TCHECK(*(rrcp + RRCP_PROTO_OFFSET));

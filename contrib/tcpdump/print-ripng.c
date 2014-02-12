@@ -47,7 +47,7 @@ static int IN6_IS_ADDR_UNSPECIFIED(const struct in6_addr *addr)
 #endif
 
 static int
-rip6_entry_print(register const struct netinfo6 *ni, int metric)
+rip6_entry_print(__capability const struct netinfo6 *ni, int metric)
 {
 	int l;
 	l = printf("%s/%d", ip6addr_string(&ni->rip6_dest), ni->rip6_plen);
@@ -59,10 +59,11 @@ rip6_entry_print(register const struct netinfo6 *ni, int metric)
 }
 
 void
-ripng_print(const u_char *dat, unsigned int length)
+ripng_print(packetbody_t dat, unsigned int length)
 {
-	register const struct rip6 *rp = (struct rip6 *)dat;
-	register const struct netinfo6 *ni;
+	__capability const struct rip6 *rp =
+	    (__capability const struct rip6 *)dat;
+	__capability const struct netinfo6 *ni;
 	register u_int amt;
 	register u_int i;
 	int j;

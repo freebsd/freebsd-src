@@ -121,11 +121,11 @@ static struct tok vtp_stp_type_values[] = {
 };
 
 void
-vtp_print (const u_char *pptr, u_int length)
+vtp_print (packetbody_t pptr, u_int length)
 {
     int type, len, tlv_len, tlv_value;
-    const u_char *tptr;
-    const struct vtp_vlan_ *vtp_vlan;
+    packetbody_t tptr;
+    __capability const struct vtp_vlan_ *vtp_vlan;
 
     if (length < VTP_HEADER_LEN)
         goto trunc;
@@ -245,7 +245,7 @@ vtp_print (const u_char *pptr, u_int length)
 	    if (!TTEST2(*tptr, len))
 		goto trunc;
 
-	    vtp_vlan = (struct vtp_vlan_*)tptr;
+	    vtp_vlan = (__capability const struct vtp_vlan_*)tptr;
 	    printf("\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),

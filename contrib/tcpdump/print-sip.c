@@ -33,7 +33,7 @@ static const char rcsid[] _U_ =
 #include "udp.h"
 
 void
-sip_print(register const u_char *pptr, register u_int len)
+sip_print(packetbody_t pptr, register u_int len)
 {
     u_int idx;
 

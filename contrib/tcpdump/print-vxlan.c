@@ -41,7 +41,7 @@
  */
 
 void
-vxlan_print(const u_char *bp, u_int len)
+vxlan_print(packetbody_t bp, u_int len)
 {
     u_int8_t flags;
     u_int32_t vni;

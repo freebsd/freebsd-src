@@ -276,7 +276,7 @@ struct pptp_msg_sli {
    these functions. */
 
 static void
-pptp_bearer_cap_print(const u_int32_t *bearer_cap)
+pptp_bearer_cap_print(__capability const u_int32_t *bearer_cap)
 {
 	printf(" BEARER_CAP(");
 	if (EXTRACT_32BITS(bearer_cap) & PPTP_BEARER_CAP_DIGITAL_MASK) {
@@ -289,7 +289,7 @@ pptp_bearer_cap_print(const u_int32_t *bearer_cap)
 }
 
 static void
-pptp_bearer_type_print(const u_int32_t *bearer_type)
+pptp_bearer_type_print(__capability const u_int32_t *bearer_type)
 {
 	printf(" BEARER_TYPE(");
 	switch (EXTRACT_32BITS(bearer_type)) {
@@ -310,31 +310,31 @@ pptp_bearer_type_print(const u_int32_t *bearer_type)
 }
 
 static void
-pptp_call_id_print(const u_int16_t *call_id)
+pptp_call_id_print(__capability const u_int16_t *call_id)
 {
 	printf(" CALL_ID(%u)", EXTRACT_16BITS(call_id));
 }
 
 static void
-pptp_call_ser_print(const u_int16_t *call_ser)
+pptp_call_ser_print(__capability const u_int16_t *call_ser)
 {
 	printf(" CALL_SER_NUM(%u)", EXTRACT_16BITS(call_ser));
 }
 
 static void
-pptp_cause_code_print(const u_int16_t *cause_code)
+pptp_cause_code_print(__capability const u_int16_t *cause_code)
 {
 	printf(" CAUSE_CODE(%u)", EXTRACT_16BITS(cause_code));
 }
 
 static void
-pptp_conn_speed_print(const u_int32_t *conn_speed)
+pptp_conn_speed_print(__capability const u_int32_t *conn_speed)
 {
 	printf(" CONN_SPEED(%u)", EXTRACT_32BITS(conn_speed));
 }
 
 static void
-pptp_err_code_print(const u_int8_t *err_code)
+pptp_err_code_print(__capability const u_int8_t *err_code)
 {
 	printf(" ERR_CODE(%u", *err_code);
 	if (vflag) {
@@ -369,13 +369,13 @@ pptp_err_code_print(const u_int8_t *err_code)
 }
 
 static void
-pptp_firm_rev_print(const u_int16_t *firm_rev)
+pptp_firm_rev_print(__capability const u_int16_t *firm_rev)
 {
 	printf(" FIRM_REV(%u)", EXTRACT_16BITS(firm_rev));
 }
 
 static void
-pptp_framing_cap_print(const u_int32_t *framing_cap)
+pptp_framing_cap_print(__capability const u_int32_t *framing_cap)
 {
 	printf(" FRAME_CAP(");
 	if (EXTRACT_32BITS(framing_cap) & PPTP_FRAMING_CAP_ASYNC_MASK) {
@@ -388,7 +388,7 @@ pptp_framing_cap_print(const u_int32_t *framing_cap)
 }
 
 static void
-pptp_framing_type_print(const u_int32_t *framing_type)
+pptp_framing_type_print(__capability const u_int32_t *framing_type)
 {
 	printf(" FRAME_TYPE(");
 	switch (EXTRACT_32BITS(framing_type)) {
@@ -409,43 +409,43 @@ pptp_framing_type_print(const u_int32_t *framing_type)
 }
 
 static void
-pptp_hostname_print(const u_char *hostname)
+pptp_hostname_print(__capability const u_char *hostname)
 {
 	printf(" HOSTNAME(%.64s)", hostname);
 }
 
 static void
-pptp_id_print(const u_int32_t *id)
+pptp_id_print(__capability const u_int32_t *id)
 {
 	printf(" ID(%u)", EXTRACT_32BITS(id));
 }
 
 static void
-pptp_max_channel_print(const u_int16_t *max_channel)
+pptp_max_channel_print(__capability const u_int16_t *max_channel)
 {
 	printf(" MAX_CHAN(%u)", EXTRACT_16BITS(max_channel));
 }
 
 static void
-pptp_peer_call_id_print(const u_int16_t *peer_call_id)
+pptp_peer_call_id_print(__capability const u_int16_t *peer_call_id)
 {
 	printf(" PEER_CALL_ID(%u)", EXTRACT_16BITS(peer_call_id));
 }
 
 static void
-pptp_phy_chan_id_print(const u_int32_t *phy_chan_id)
+pptp_phy_chan_id_print(__capability const u_int32_t *phy_chan_id)
 {
 	printf(" PHY_CHAN_ID(%u)", EXTRACT_32BITS(phy_chan_id));
 }
 
 static void
-pptp_pkt_proc_delay_print(const u_int16_t *pkt_proc_delay)
+pptp_pkt_proc_delay_print(__capability const u_int16_t *pkt_proc_delay)
 {
 	printf(" PROC_DELAY(%u)", EXTRACT_16BITS(pkt_proc_delay));
 }
 
 static void
-pptp_proto_ver_print(const u_int16_t *proto_ver)
+pptp_proto_ver_print(__capability const u_int16_t *proto_ver)
 {
 	printf(" PROTO_VER(%u.%u)",	/* Version.Revision */
 	       EXTRACT_16BITS(proto_ver) >> 8,
@@ -453,13 +453,14 @@ pptp_proto_ver_print(const u_int16_t *proto_ver)
 }
 
 static void
-pptp_recv_winsiz_print(const u_int16_t *recv_winsiz)
+pptp_recv_winsiz_print(__capability const u_int16_t *recv_winsiz)
 {
 	printf(" RECV_WIN(%u)", EXTRACT_16BITS(recv_winsiz));
 }
 
 static void
-pptp_result_code_print(const u_int8_t *result_code, int ctrl_msg_type)
+pptp_result_code_print(__capability const u_int8_t *result_code,
+    int ctrl_msg_type)
 {
 	printf(" RESULT_CODE(%u", *result_code);
 	if (vflag) {
@@ -571,13 +572,13 @@ pptp_result_code_print(const u_int8_t *result_code, int ctrl_msg_type)
 }
 
 static void
-pptp_subaddr_print(const u_char *subaddr)
+pptp_subaddr_print(__capability const u_char *subaddr)
 {
 	printf(" SUB_ADDR(%.64s)", subaddr);
 }
 
 static void
-pptp_vendor_print(const u_char *vendor)
+pptp_vendor_print(__capability const u_char *vendor)
 {
 	printf(" VENDOR(%.64s)", vendor);
 }
@@ -586,9 +587,10 @@ pptp_vendor_print(const u_char *vendor)
 /* PPTP message print out functions */
 /************************************/
 static void
-pptp_sccrq_print(const u_char *dat)
+pptp_sccrq_print(packetbody_t dat)
 {
-	struct pptp_msg_sccrq *ptr = (struct pptp_msg_sccrq *)dat;
+	__capability struct pptp_msg_sccrq *ptr =
+	    (__capability struct pptp_msg_sccrq *)dat;
 
 	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
@@ -613,9 +615,10 @@ trunc:
 }
 
 static void
-pptp_sccrp_print(const u_char *dat)
+pptp_sccrp_print(packetbody_t dat)
 {
-	struct pptp_msg_sccrp *ptr = (struct pptp_msg_sccrp *)dat;
+	__capability struct pptp_msg_sccrp *ptr =
+	    (__capability struct pptp_msg_sccrp *)dat;
 
 	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
@@ -643,9 +646,10 @@ trunc:
 }
 
 static void
-pptp_stopccrq_print(const u_char *dat)
+pptp_stopccrq_print(packetbody_t dat)
 {
-	struct pptp_msg_stopccrq *ptr = (struct pptp_msg_stopccrq *)dat;
+	__capability struct pptp_msg_stopccrq *ptr =
+	    (__capability struct pptp_msg_stopccrq *)dat;
 
 	TCHECK(ptr->reason);
 	printf(" REASON(%u", ptr->reason);
@@ -676,9 +680,10 @@ trunc:
 }
 
 static void
-pptp_stopccrp_print(const u_char *dat)
+pptp_stopccrp_print(packetbody_t dat)
 {
-	struct pptp_msg_stopccrp *ptr = (struct pptp_msg_stopccrp *)dat;
+	__capability struct pptp_msg_stopccrp *ptr =
+	    (__capability struct pptp_msg_stopccrp *)dat;
 
 	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_StopCCRP);
@@ -693,9 +698,10 @@ trunc:
 }
 
 static void
-pptp_echorq_print(const u_char *dat)
+pptp_echorq_print(packetbody_t dat)
 {
-	struct pptp_msg_echorq *ptr = (struct pptp_msg_echorq *)dat;
+	__capability struct pptp_msg_echorq *ptr =
+	    (__capability struct pptp_msg_echorq *)dat;
 
 	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
@@ -707,9 +713,10 @@ trunc:
 }
 
 static void
-pptp_echorp_print(const u_char *dat)
+pptp_echorp_print(packetbody_t dat)
 {
-	struct pptp_msg_echorp *ptr = (struct pptp_msg_echorp *)dat;
+	__capability struct pptp_msg_echorp *ptr =
+	    (__capability struct pptp_msg_echorp *)dat;
 
 	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
@@ -726,9 +733,10 @@ trunc:
 }
 
 static void
-pptp_ocrq_print(const u_char *dat)
+pptp_ocrq_print(packetbody_t dat)
 {
-	struct pptp_msg_ocrq *ptr = (struct pptp_msg_ocrq *)dat;
+	__capability struct pptp_msg_ocrq *ptr =
+	(__capability struct pptp_msg_ocrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -761,9 +769,10 @@ trunc:
 }
 
 static void
-pptp_ocrp_print(const u_char *dat)
+pptp_ocrp_print(packetbody_t dat)
 {
-	struct pptp_msg_ocrp *ptr = (struct pptp_msg_ocrp *)dat;
+	__capability struct pptp_msg_ocrp *ptr =
+	(__capability struct pptp_msg_ocrp *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -791,9 +800,10 @@ trunc:
 }
 
 static void
-pptp_icrq_print(const u_char *dat)
+pptp_icrq_print(packetbody_t dat)
 {
-	struct pptp_msg_icrq *ptr = (struct pptp_msg_icrq *)dat;
+	__capability struct pptp_msg_icrq *ptr =
+	(__capability struct pptp_msg_icrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -821,9 +831,10 @@ trunc:
 }
 
 static void
-pptp_icrp_print(const u_char *dat)
+pptp_icrp_print(packetbody_t dat)
 {
-	struct pptp_msg_icrp *ptr = (struct pptp_msg_icrp *)dat;
+	__capability struct pptp_msg_icrp *ptr =
+	(__capability struct pptp_msg_icrp *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -846,9 +857,10 @@ trunc:
 }
 
 static void
-pptp_iccn_print(const u_char *dat)
+pptp_iccn_print(packetbody_t dat)
 {
-	struct pptp_msg_iccn *ptr = (struct pptp_msg_iccn *)dat;
+	__capability struct pptp_msg_iccn *ptr =
+	(__capability struct pptp_msg_iccn *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
@@ -869,9 +881,10 @@ trunc:
 }
 
 static void
-pptp_ccrq_print(const u_char *dat)
+pptp_ccrq_print(packetbody_t dat)
 {
-	struct pptp_msg_ccrq *ptr = (struct pptp_msg_ccrq *)dat;
+	__capability struct pptp_msg_ccrq *ptr =
+	(__capability struct pptp_msg_ccrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -884,9 +897,10 @@ trunc:
 }
 
 static void
-pptp_cdn_print(const u_char *dat)
+pptp_cdn_print(packetbody_t dat)
 {
-	struct pptp_msg_cdn *ptr = (struct pptp_msg_cdn *)dat;
+	__capability struct pptp_msg_cdn *ptr =
+	(__capability struct pptp_msg_cdn *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -907,9 +921,10 @@ trunc:
 }
 
 static void
-pptp_wen_print(const u_char *dat)
+pptp_wen_print(packetbody_t dat)
 {
-	struct pptp_msg_wen *ptr = (struct pptp_msg_wen *)dat;
+	__capability struct pptp_msg_wen *ptr =
+	(__capability struct pptp_msg_wen *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
@@ -934,9 +949,10 @@ trunc:
 }
 
 static void
-pptp_sli_print(const u_char *dat)
+pptp_sli_print(packetbody_t dat)
 {
-	struct pptp_msg_sli *ptr = (struct pptp_msg_sli *)dat;
+	__capability struct pptp_msg_sli *ptr =
+	(__capability struct pptp_msg_sli *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
@@ -953,15 +969,15 @@ trunc:
 }
 
 void
-pptp_print(const u_char *dat)
+pptp_print(packetbody_t dat)
 {
-	const struct pptp_hdr *hdr;
+	__capability const struct pptp_hdr *hdr;
 	u_int32_t mc;
 	u_int16_t ctrl_msg_type;
 
 	printf(": pptp");
 
-	hdr = (struct pptp_hdr *)dat;
+	hdr = (__capability struct pptp_hdr *)dat;
 
 	TCHECK(hdr->length);
 	if (vflag) {

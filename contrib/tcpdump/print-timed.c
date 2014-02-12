@@ -44,11 +44,11 @@ static const char *tsptype[TSPTYPENUMBER] =
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
 
 void
-timed_print(register const u_char *bp)
+timed_print(packetbody_t bp)
 {
-	struct tsp *tsp = (struct tsp *)bp;
+	__capability const struct tsp *tsp = (__capability const struct tsp *)bp;
 	long sec, usec;
-	const u_char *end;
+	packetbody_t end;
 
 	if (!TTEST(tsp->tsp_type)) {
 		fputs("[|timed]", stdout);
@@ -100,11 +100,11 @@ timed_print(register const u_char *bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = memchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
+	end = cmemchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {
 		fputs(" name ", stdout);
-		fwrite(tsp->tsp_name, end - (u_char *)tsp->tsp_name, 1, stdout);
+		fn_print(tsp->tsp_name, end);
 	}
 }

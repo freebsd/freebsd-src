@@ -95,17 +95,17 @@ static struct tok pppoetag2str[] = {
 #define MAXTAGPRINT 80
 
 u_int
-pppoe_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+pppoe_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	return (pppoe_print(p, h->len));
 }
 
 u_int
-pppoe_print(register const u_char *bp, u_int length)
+pppoe_print(packetbody_t bp, u_int length)
 {
 	u_int16_t pppoe_ver, pppoe_type, pppoe_code, pppoe_sessionid;
 	u_int pppoe_length;
-	const u_char *pppoe_packet, *pppoe_payload;
+	packetbody_t pppoe_packet, pppoe_payload;
 
 	if (length < PPPOE_HDRLEN) {
 		(void)printf("truncated-pppoe %u", length);
@@ -143,7 +143,7 @@ pppoe_print(register const u_char *bp, u_int length)
 	if (pppoe_code) {
 		/* PPP session packets don't contain tags */
 		u_short tag_type = 0xffff, tag_len;
-		const u_char *p = pppoe_payload;
+		packetbody_t p = pppoe_payload;
 
 		/*
 		 * loop invariant:
@@ -159,7 +159,7 @@ pppoe_print(register const u_char *bp, u_int length)
 
 			if (tag_len) {
 				unsigned isascii = 0, isgarbage = 0;
-				const u_char *v;
+				packetbody_t v;
 				char tag_str[MAXTAGPRINT];
 				unsigned tag_str_len = 0;
 

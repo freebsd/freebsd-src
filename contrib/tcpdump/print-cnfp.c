@@ -79,7 +79,7 @@ struct nfrec {
 };
 
 void
-cnfp_print(packetbody_t cp, const u_char *bp _U_)
+cnfp_print(packetbody_t cp, packetbody_t bp _U_)
 {
 	__capability const struct nfhdr *nh;
 	__capability const struct nfrec *nr;

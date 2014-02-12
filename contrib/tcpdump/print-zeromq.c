@@ -74,8 +74,8 @@
  *   zero.
  */
 
-static const u_char *
-zmtp1_print_frame(const u_char *cp, const u_char *ep) {
+static packetbody_t
+zmtp1_print_frame(packetbody_t cp, packetbody_t ep) {
 	u_int64_t body_len_declared, body_len_captured, header_len;
 	u_int8_t flags;
 
@@ -138,8 +138,8 @@ trunc:
 }
 
 void
-zmtp1_print(const u_char *cp, u_int len) {
-	const u_char *ep = PACKET_SECTION_END(cp, len);
+zmtp1_print(packetbody_t cp, u_int len) {
+	packetbody_t ep = PACKET_SECTION_END(cp, len);
 
 	printf(": ZMTP/1.0");
 	while (cp < ep)

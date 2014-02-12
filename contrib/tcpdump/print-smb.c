@@ -27,14 +27,14 @@ static const char rcsid[] _U_ =
 static int request = 0;
 static int unicodestr = 0;
 
-const u_char *startbuf = NULL;
+packetbody_t startbuf = NULL;
 
 struct smbdescript {
     const char *req_f1;
     const char *req_f2;
     const char *rep_f1;
     const char *rep_f2;
-    void (*fn)(const u_char *, const u_char *, const u_char *, const u_char *);
+    void (*fn)(packetbody_t, packetbody_t, packetbody_t, packetbody_t);
 };
 
 struct smbdescriptint {
@@ -42,7 +42,7 @@ struct smbdescriptint {
     const char *req_f2;
     const char *rep_f1;
     const char *rep_f2;
-    void (*fn)(const u_char *, const u_char *, int, int);
+    void (*fn)(packetbody_t, packetbody_t, int, int);
 };
 
 struct smbfns
@@ -90,7 +90,7 @@ smbfindint(int id, struct smbfnsint *list)
 }
 
 static void
-trans2_findfirst(const u_char *param, const u_char *data, int pcnt, int dcnt)
+trans2_findfirst(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
 {
     const char *fmt;
 
@@ -107,7 +107,7 @@ trans2_findfirst(const u_char *param, const u_char *data, int pcnt, int dcnt)
 }
 
 static void
-trans2_qfsinfo(const u_char *param, const u_char *data, int pcnt, int dcnt)
+trans2_qfsinfo(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
 {
     static int level = 0;
     const char *fmt="";
@@ -170,12 +170,12 @@ struct smbfnsint trans2_fns[] = {
 
 
 static void
-print_trans2(const u_char *words, const u_char *dat, const u_char *buf, const u_char *maxbuf)
+print_trans2(packetbody_t words, packetbody_t dat, packetbody_t buf, packetbody_t maxbuf)
 {
     u_int bcc;
     static struct smbfnsint *fn = &trans2_fns[0];
-    const u_char *data, *param;
-    const u_char *w = words + 1;
+    packetbody_t data, param;
+    packetbody_t w = words + 1;
     const char *f1 = NULL, *f2 = NULL;
     int pcnt, dcnt;
 
@@ -240,9 +240,9 @@ trunc:
 
 
 static void
-print_browse(const u_char *param, int paramlen, const u_char *data, int datalen)
+print_browse(packetbody_t param, int paramlen, packetbody_t data, int datalen)
 {
-    const u_char *maxbuf = data + datalen;
+    packetbody_t maxbuf = data + datalen;
     int command;
 
     TCHECK(data[0]);
@@ -322,7 +322,7 @@ trunc:
 
 
 static void
-print_ipc(const u_char *param, int paramlen, const u_char *data, int datalen)
+print_ipc(packetbody_t param, int paramlen, packetbody_t data, int datalen)
 {
     if (paramlen)
 	smb_fdata(param, "Command=[w]\nStr1=[S]\nStr2=[S]\n", param + paramlen,
@@ -333,12 +333,12 @@ print_ipc(const u_char *param, int paramlen, const u_char *data, int datalen)
 
 
 static void
-print_trans(const u_char *words, const u_char *data1, const u_char *buf, const u_char *maxbuf)
+print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody_t maxbuf)
 {
     u_int bcc;
     const char *f1, *f2, *f3, *f4;
-    const u_char *data, *param;
-    const u_char *w = words + 1;
+    packetbody_t data, param;
+    packetbody_t w = words + 1;
     int datalen, paramlen;
 
     if (request) {
@@ -395,7 +395,7 @@ trunc:
 
 
 static void
-print_negprot(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
+print_negprot(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
 {
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
@@ -436,7 +436,7 @@ trunc:
 }
 
 static void
-print_sesssetup(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
+print_sesssetup(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
 {
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
@@ -480,10 +480,10 @@ trunc:
 }
 
 static void
-print_lockingandx(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
+print_lockingandx(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
 {
     u_int wct, bcc;
-    const u_char *maxwords;
+    packetbody_t maxwords;
     const char *f1 = NULL, *f2 = NULL;
 
     TCHECK(words[0]);
@@ -792,13 +792,13 @@ static struct smbfns smb_fns[] = {
  * print a SMB message
  */
 static void
-print_smb(const u_char *buf, const u_char *maxbuf)
+print_smb(packetbody_t buf, packetbody_t maxbuf)
 {
     u_int16_t flags2;
     int nterrcodes;
     int command;
     u_int32_t nterror;
-    const u_char *words, *maxwords, *data;
+    packetbody_t words, maxwords, data;
     struct smbfns *fn;
     const char *fmt_smbheader =
         "[P4]SMB Command   =  [B]\nError class   =  [BP1]\nError code    =  [d]\nFlags1        =  [B]\nFlags2        =  [B][P13]\nTree ID       =  [d]\nProc ID       =  [d]\nUID           =  [d]\nMID           =  [d]\nWord Count    =  [b]\n";
@@ -923,12 +923,12 @@ trunc:
  * print a NBT packet received across tcp on port 139
  */
 void
-nbt_tcp_print(const u_char *data, int length)
+nbt_tcp_print(packetbody_t data, int length)
 {
     int caplen;
     int type;
     u_int nbt_len;
-    const u_char *maxbuf;
+    packetbody_t maxbuf;
 
     if (length < 4)
 	goto trunc;
@@ -1009,7 +1009,7 @@ nbt_tcp_print(const u_char *data, int length)
 		data + 4, 0);
 	    if (data == NULL)
 		break;
-	    if (nbt_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB",4) == 0) {
+	    if (nbt_len >= 4 && caplen >= 4 && cmemcmp(data,cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 		if ((int)nbt_len > caplen) {
 		    if ((int)nbt_len > length)
 			printf("WARNING: Packet is continued in later TCP segments\n");
@@ -1034,7 +1034,7 @@ nbt_tcp_print(const u_char *data, int length)
 
 	case 0x83:
 	  {
-	    const u_char *origdata;
+	    packetbody_t origdata;
 	    int ecode;
 
 	    origdata = data;
@@ -1087,13 +1087,13 @@ trunc:
  * print a NBT packet received across udp on port 137
  */
 void
-nbt_udp137_print(const u_char *data, int length)
+nbt_udp137_print(packetbody_t data, int length)
 {
-    const u_char *maxbuf = data + length;
+    packetbody_t maxbuf = data + length;
     int name_trn_id, response, opcode, nm_flags, rcode;
     int qdcount, ancount, nscount, arcount;
     const char *opcodestr;
-    const u_char *p;
+    packetbody_t p;
     int total, i;
 
     TCHECK2(data[10], 2);
@@ -1248,11 +1248,11 @@ trunc:
  * Print an SMB-over-TCP packet received across tcp on port 445
  */
 void
-smb_tcp_print (const u_char * data, int length)
+smb_tcp_print (packetbody_t data, int length)
 {
     int caplen;
     u_int smb_len;
-    const u_char *maxbuf;
+    packetbody_t maxbuf;
 
     if (length < 4)
 	goto trunc;
@@ -1269,7 +1269,7 @@ smb_tcp_print (const u_char * data, int length)
     startbuf = data;
     data += 4;
 
-    if (smb_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB",4) == 0) {
+    if (smb_len >= 4 && caplen >= 4 && cmemcmp(data,cheri_ptr((void *)"\377SMB",4),4) == 0) {
 	if ((int)smb_len > caplen) {
 	    if ((int)smb_len > length)
 		printf("WARNING: Packet is continued in later TCP segments\n");
@@ -1290,9 +1290,9 @@ trunc:
  * print a NBT packet received across udp on port 138
  */
 void
-nbt_udp138_print(const u_char *data, int length)
+nbt_udp138_print(packetbody_t data, int length)
 {
-    const u_char *maxbuf;
+    packetbody_t maxbuf;
 
     maxbuf = PACKET_SECTION_END(data, length);
     startbuf = data;
@@ -1311,7 +1311,7 @@ nbt_udp138_print(const u_char *data, int length)
 	if (&data[3] >= maxbuf)
 	    goto out;
 
-	if (memcmp(data, "\377SMB",4) == 0)
+	if (cmemcmp(data, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
 	    print_smb(data, maxbuf);
     }
 out:
@@ -1379,12 +1379,12 @@ struct nbf_strings {
 };
 
 void
-netbeui_print(u_short control, const u_char *data, int length)
+netbeui_print(u_short control, packetbody_t data, int length)
 {
-    const u_char *maxbuf = data + length;
+    packetbody_t maxbuf = data + length;
     int len;
     int command;
-    const u_char *data2;
+    packetbody_t data2;
     int is_truncated = 0;
 
     maxbuf = PACKET_SECTION_END(data, length);
@@ -1449,14 +1449,14 @@ netbeui_print(u_short control, const u_char *data, int length)
     if (&data2[3] >= maxbuf)
 	goto out;
 
-    if (memcmp(data2, "\377SMB",4) == 0)
+    if (cmemcmp(data2, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
 	print_smb(data2, maxbuf);
     else {
 	int i;
 	for (i = 0; i < 128; i++) {
 	    if (&data2[i + 3] >= maxbuf)
 		break;
-	    if (memcmp(&data2[i], "\377SMB", 4) == 0) {
+	    if (cmemcmp(&data2[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 		printf("found SMB packet at %d\n", i);
 		print_smb(&data2[i], maxbuf);
 		break;
@@ -1477,21 +1477,21 @@ trunc:
  * print IPX-Netbios frames
  */
 void
-ipx_netbios_print(const u_char *data, u_int length)
+ipx_netbios_print(packetbody_t data, u_int length)
 {
     /*
      * this is a hack till I work out how to parse the rest of the
      * NetBIOS-over-IPX stuff
      */
     int i;
-    const u_char *maxbuf;
+    packetbody_t maxbuf;
 
     maxbuf = PACKET_SECTION_END(data, length);
     startbuf = data;
     for (i = 0; i < 128; i++) {
 	if (&data[i + 4] > maxbuf)
 	    break;
-	if (memcmp(&data[i], "\377SMB", 4) == 0) {
+	if (cmemcmp(&data[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 	    smb_fdata(data, "\n>>> IPX transport ", &data[i], 0);
 	    print_smb(&data[i], maxbuf);
 	    printf("\n");

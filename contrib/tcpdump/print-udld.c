@@ -83,10 +83,10 @@ static struct tok udld_flags_values[] = {
 #define	UDLD_EXTRACT_OPCODE(x) ((x)&0x1f) 
 
 void
-udld_print (const u_char *pptr, u_int length)
+udld_print (packetbody_t pptr, u_int length)
 {
     int code, type, len;
-    const u_char *tptr;
+    packetbody_t tptr;
 
     if (length < UDLD_HEADER_LEN)
         goto trunc;

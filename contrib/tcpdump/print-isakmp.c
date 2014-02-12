@@ -2476,7 +2476,6 @@ isakmp_print(netdissect_options *ndo,
 	minor = (base.vers & ISAKMP_VERS_MINOR)
 		>> ISAKMP_VERS_MINOR_SHIFT;
 
-#ifdef XXX_COMPILER_BUG
 	if (ndo->ndo_vflag) {
 		ND_PRINT((ndo," %d.%d", major, minor));
 	}
@@ -2506,7 +2505,6 @@ isakmp_print(netdissect_options *ndo,
 		ikev2_print(ndo, bp, length, bp2, &base);
 		break;
 	}
-#endif
 }
 
 void

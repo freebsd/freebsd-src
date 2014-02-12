@@ -46,6 +46,8 @@
 #include <sys/cdefs.h>
 #if !__has_feature(capabilities)
 #define __capability
+#else
+#include <machine/cheric.h>
 #endif
 #endif
 typedef __capability const u_char * packetbody_t;
@@ -300,7 +302,7 @@ extern void arp_print(netdissect_options *, packetbody_t, u_int, u_int);
 extern void tipc_print(netdissect_options *, packetbody_t, u_int, u_int);
 extern void msnlb_print(netdissect_options *, packetbody_t, u_int);
 extern void icmp6_print(netdissect_options *ndo, packetbody_t,
-                        u_int, const u_char *, int);
+                        u_int, packetbody_t, int);
 extern void isakmp_print(netdissect_options *, packetbody_t,
 			 u_int, packetbody_t);
 extern void isakmp_rfc3948_print(netdissect_options *, packetbody_t,

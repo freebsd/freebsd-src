@@ -408,28 +408,28 @@ struct tok papcode_values[] = {
 #define BAP_CSIND	7
 #define BAP_CSRES	8
 
-static void handle_ctrl_proto (u_int proto,const u_char *p, int length);
-static void handle_chap (const u_char *p, int length);
-static void handle_pap (const u_char *p, int length);
-static void handle_bap (const u_char *p, int length);
-static void handle_mlppp(const u_char *p, int length);
-static int print_lcp_config_options (const u_char *p, int);
-static int print_ipcp_config_options (const u_char *p, int);
-static int print_ip6cp_config_options (const u_char *p, int);
-static int print_ccp_config_options (const u_char *p, int);
-static int print_bacp_config_options (const u_char *p, int);
-static void handle_ppp (u_int proto, const u_char *p, int length);
-static void ppp_hdlc(const u_char *p, int length);
+static void handle_ctrl_proto (u_int proto,packetbody_t p, int length);
+static void handle_chap (packetbody_t p, int length);
+static void handle_pap (packetbody_t p, int length);
+static void handle_bap (packetbody_t p, int length);
+static void handle_mlppp(packetbody_t p, int length);
+static int print_lcp_config_options (packetbody_t p, int);
+static int print_ipcp_config_options (packetbody_t p, int);
+static int print_ip6cp_config_options (packetbody_t p, int);
+static int print_ccp_config_options (packetbody_t p, int);
+static int print_bacp_config_options (packetbody_t p, int);
+static void handle_ppp (u_int proto, packetbody_t p, int length);
+static void ppp_hdlc(packetbody_t p, int length);
 
 /* generic Control Protocol (e.g. LCP, IPCP, CCP, etc.) handler */
 static void
-handle_ctrl_proto(u_int proto, const u_char *pptr, int length)
+handle_ctrl_proto(u_int proto, packetbody_t pptr, int length)
 {
 	const char *typestr;
 	u_int code, len;
-	int (*pfunc)(const u_char *, int);
+	int (*pfunc)(packetbody_t, int);
 	int x, j;
-        const u_char *tptr;
+        packetbody_t tptr;
 
         tptr=pptr;
 
@@ -588,7 +588,7 @@ trunc:
 
 /* LCP config options */
 static int
-print_lcp_config_options(const u_char *p, int length)
+print_lcp_config_options(packetbody_t p, int length)
 {
 	int len, opt;
 
@@ -782,7 +782,7 @@ struct tok ppp_ml_flag_values[] = {
 };
 
 static void
-handle_mlppp(const u_char *p, int length) {
+handle_mlppp(packetbody_t p, int length) {
 
     if (!eflag)
         printf("MLPPP, ");
@@ -797,11 +797,11 @@ handle_mlppp(const u_char *p, int length) {
 
 /* CHAP */
 static void
-handle_chap(const u_char *p, int length)
+handle_chap(packetbody_t p, int length)
 {
 	u_int code, len;
 	int val_size, name_size, msg_size;
-	const u_char *p0;
+	packetbody_t p0;
 	int i;
 
 	p0 = p;
@@ -876,11 +876,11 @@ trunc:
 
 /* PAP (see RFC 1334) */
 static void
-handle_pap(const u_char *p, int length)
+handle_pap(packetbody_t p, int length)
 {
 	u_int code, len;
 	int peerid_len, passwd_len, msg_len;
-	const u_char *p0;
+	packetbody_t p0;
 	int i;
 
 	p0 = p;
@@ -970,7 +970,7 @@ trunc:
 
 /* BAP */
 static void
-handle_bap(const u_char *p _U_, int length _U_)
+handle_bap(packetbody_t p _U_, int length _U_)
 {
 	/* XXX: to be supported!! */
 }
@@ -978,7 +978,7 @@ handle_bap(const u_char *p _U_, int length _U_)
 
 /* IPCP config options */
 static int
-print_ipcp_config_options(const u_char *p, int length)
+print_ipcp_config_options(packetbody_t p, int length)
 {
 	int len, opt;
         u_int compproto, ipcomp_subopttotallen, ipcomp_subopt, ipcomp_suboptlen;
@@ -1105,7 +1105,7 @@ trunc:
 
 /* IP6CP config options */
 static int
-print_ip6cp_config_options(const u_char *p, int length)
+print_ip6cp_config_options(packetbody_t p, int length)
 {
 	int len, opt;
 
@@ -1162,7 +1162,7 @@ trunc:
 
 /* CCP config options */
 static int
-print_ccp_config_options(const u_char *p, int length)
+print_ccp_config_options(packetbody_t p, int length)
 {
 	int len, opt;
 
@@ -1220,7 +1220,7 @@ trunc:
 
 /* BACP config options */
 static int
-print_bacp_config_options(const u_char *p, int length)
+print_bacp_config_options(packetbody_t p, int length)
 {
 	int len, opt;
 
@@ -1266,13 +1266,15 @@ trunc:
 
 
 static void
-ppp_hdlc(const u_char *p, int length)
+ppp_hdlc(packetbody_t p, int length)
 {
-	u_char *b, *s, *t, c;
+	__capability u_char *b, *t;
+	u_char c;
+	packetbody_t s;
 	int i, proto;
-	const void *se;
+	packetbody_t se;
 
-	b = (u_int8_t *)malloc(length);
+	b = (__capability u_char *)malloc(length);
 	if (b == NULL)
 		return;
 
@@ -1281,7 +1283,7 @@ ppp_hdlc(const u_char *p, int length)
 	 * Do this so that we dont overwrite the original packet
 	 * contents.
 	 */
-	for (s = (u_char *)p, t = b, i = length; i > 0; i--) {
+	for (s = p, t = b, i = length; i > 0; i--) {
 		c = *s++;
 		if (c == 0x7d) {
 			if (i > 1) {
@@ -1326,14 +1328,14 @@ ppp_hdlc(const u_char *p, int length)
 
 cleanup:
         snapend = se;
-	free(b);
+	free((void *)b);
         return;
 }
 
 
 /* PPP */
 static void
-handle_ppp(u_int proto, const u_char *p, int length)
+handle_ppp(u_int proto, packetbody_t p, int length)
 {
         if ((proto & 0xff00) == 0x7e00) {/* is this an escape code ? */
             ppp_hdlc(p-1, length);
@@ -1396,7 +1398,7 @@ handle_ppp(u_int proto, const u_char *p, int length)
 
 /* Standard PPP printer */
 u_int
-ppp_print(register const u_char *p, u_int length)
+ppp_print(packetbody_t p, u_int length)
 {
 	u_int proto,ppp_header;
         u_int olen = length; /* _o_riginal length */
@@ -1466,7 +1468,7 @@ trunc:
 
 /* PPP I/F printer */
 u_int
-ppp_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+ppp_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -1532,7 +1534,7 @@ ppp_if_print(const struct pcap_pkthdr *h, register const u_char *p)
  * This handles, for example, DLT_PPP_SERIAL in NetBSD.
  */
 u_int
-ppp_hdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
+ppp_hdlc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -1594,7 +1596,7 @@ ppp_hdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 
 /* BSD/OS specific PPP printer */
 u_int
-ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_)
+ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, packetbody_t p _U_)
 {
 	register int hdrlength;
 #ifdef __bsdi__
