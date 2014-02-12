@@ -132,9 +132,6 @@ static int	filt_sfsync(struct knote *kn, long hint);
  */
 static SYSCTL_NODE(_kern_ipc, OID_AUTO, sendfile, CTLFLAG_RW, 0,
     "sendfile(2) tunables");
-static int sfreadahead = 1;
-SYSCTL_INT(_kern_ipc_sendfile, OID_AUTO, readahead, CTLFLAG_RW,
-    &sfreadahead, 0, "Number of sendfile(2) read-ahead MAXBSIZE blocks");
 
 #ifdef	SFSYNC_DEBUG
 static int sf_sync_debug = 0;
@@ -2651,11 +2648,53 @@ vmoff(int i, off_t off)
 	return (trunc_page(off + i * PAGE_SIZE));
 }
 
+struct sf_io {
+	u_int		nios;
+	int		npages;
+	struct file	*sock_fp;
+	struct mbuf	*m;
+	vm_page_t	pa[];
+};
+
 static void
-sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
-    off_t len)
+sf_io_done(void *arg)
 {
-	int rv;
+	struct sf_io *sfio = arg;
+	struct socket *so;
+
+	if (!refcount_release(&sfio->nios))
+		return;
+
+	so  = sfio->sock_fp->f_data;
+
+	if (sbready(&so->so_snd, sfio->m, sfio->npages) == 0) {
+		struct mbuf *m;
+
+		m = m_get(M_NOWAIT, MT_DATA);
+		if (m == NULL) {
+			panic("XXXGL");
+		}
+		m->m_len = 0;
+		CURVNET_SET(so->so_vnet);
+		/* XXXGL: curthread */
+		(void )(so->so_proto->pr_usrreqs->pru_send)
+		    (so, 0, m, NULL, NULL, curthread);
+		CURVNET_RESTORE();
+	}
+
+	/* XXXGL: curthread */
+	fdrop(sfio->sock_fp, curthread);
+	free(sfio, M_TEMP);
+}
+
+static int
+sendfile_swapin(vm_object_t obj, struct sf_io *sfio, off_t off, off_t len)
+{
+	vm_page_t *pa = sfio->pa;
+	int npages = sfio->npages;
+	int nios, rv;
+
+	nios = 0;
 
 	VM_OBJECT_WLOCK(obj);
 	for (int i = 0; i < npages; i++)
@@ -2687,13 +2726,16 @@ sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
 		if (i == j)
 			continue;
 
-		rv = vm_pager_get_pages(obj, pa + i, min(a + 1, npages - i), 0);
+		refcount_acquire(&sfio->nios);
+		rv = vm_pager_get_pages_async(obj, pa + i,
+		    min(a + 1, npages - i), 0, &sf_io_done, sfio);
 
 		KASSERT(rv == VM_PAGER_OK, ("%s: pager fail obj %p page %p",
 		    __func__, obj, pa[i]));
 
-		vm_page_xunbusy(pa[i]);
 		SFSTAT_INC(sf_iocnt);
+		nios++;
+
 		i += a;
 		for (j = i - a; a > 0 && j < npages; a--, j++)
 			KASSERT(pa[j] == vm_page_lookup(obj,
@@ -2702,14 +2744,9 @@ sendfile_swapin(vm_object_t obj, vm_page_t *pa, int npages, off_t off,
 			    vm_page_lookup(obj, OFF_TO_IDX(vmoff(j, off)))));
 	}
 
-	for (int i = 0; i < npages; i++)
-		KASSERT((pa[i]->wire_count > 0 && vm_page_is_valid(pa[i],
-		    vmoff(i, off) & PAGE_MASK, xfsize(i, npages, off, len))),
-		    ("wrong page %p state off 0x%jx len 0x%jx",
-		    pa[i], (uintmax_t)vmoff(i, off),
-		    (uintmax_t)xfsize(i, npages, off, len)));
-
 	VM_OBJECT_WUNLOCK(obj);
+
+	return (nios);
 }
 
 static int
@@ -2905,9 +2942,10 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	 * and takes care of the overall progress.
 	 */
 	for (off = offset; rem > 0; ) {
+		struct sf_io *sfio;
 		vm_page_t *pa;
 		struct mbuf *mtail;
-		int space, npages;
+		int nios, space, npages;
 
 		mtail = NULL;
 		/*
@@ -3002,17 +3040,22 @@ retry_space:
 			    (PAGE_SIZE - (off & PAGE_MASK)), PAGE_SIZE);
 		else
 			npages = howmany(space, PAGE_SIZE);
-		pa = malloc(npages * sizeof(vm_page_t), M_TEMP, mwait);
-		if (pa == NULL) {
+		sfio = malloc(sizeof(struct sf_io) +
+		    npages * sizeof(vm_page_t), M_TEMP, mwait);
+		if (sfio == NULL) {
 			error = merror;
 			goto done;
 		}
-		sendfile_swapin(obj, pa, npages, off, space);
+		refcount_init(&sfio->nios, 1);
+		sfio->npages = npages;
+
+		nios = sendfile_swapin(obj, sfio, off, space);
 
 		/*
 		 * Loop and construct maximum sized mbuf chain to be bulk
 		 * dumped into socket buffer.
 		 */
+		pa = sfio->pa;
 		for (int i = 0; i < npages; i++) {
 			struct mbuf *m0;
 
@@ -3065,6 +3108,10 @@ retry_space:
 			m0->m_data = (char *)sf_buf_kva(sf) +
 			    (vmoff(i, off) & PAGE_MASK);
 			m0->m_len = xfsize(i, npages, off, space);
+			m0->m_flags |= M_NOTREADY;
+
+			if (i == 0)
+				sfio->m = m0;
 
 			/* Append to mbuf chain. */
 			if (mtail != NULL)
@@ -3081,14 +3128,12 @@ retry_space:
 				sf_sync_ref(sfs);
 		}
 
-		/* Keep track of bytes processed. */
-		off += space;
-		rem -= space;
-
 		if (vp != NULL)
 			VOP_UNLOCK(vp, 0);
 
-		free(pa, M_TEMP);
+		/* Keep track of bytes processed. */
+		off += space;
+		rem -= space;
 
 		/* Prepend header, if any. */
 		if (hdrlen) {
@@ -3096,26 +3141,30 @@ retry_space:
 			m = mh;
 		}
 
-		if (error)
-			break;
+		if (error) {
+			free(sfio, M_TEMP);
+			goto done;
+		}
 
 		/* Add the buffer chain to the socket buffer. */
 		KASSERT(m_length(m, NULL) == space + hdrlen,
 		    ("%s: mlen %u space %d hdrlen %d",
 		    __func__, m_length(m, NULL), space, hdrlen));
 
-		SOCKBUF_LOCK(&so->so_snd);
-		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-			error = EPIPE;
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
-		}
-		SOCKBUF_UNLOCK(&so->so_snd);
 		CURVNET_SET(so->so_vnet);
-		/* Avoid error aliasing. */
-		serror = (*so->so_proto->pr_usrreqs->pru_send)
+		if (nios == 0) {
+			free(sfio, M_TEMP);
+			serror = (*so->so_proto->pr_usrreqs->pru_send)
 			    (so, 0, m, NULL, NULL, td);
+		} else {
+			sfio->sock_fp = sock_fp;
+			fhold(sock_fp);
+			serror = (*so->so_proto->pr_usrreqs->pru_send)
+			    (so, PRUS_NOTREADY, m, NULL, NULL, td);
+			sf_io_done(sfio);
+		}
 		CURVNET_RESTORE();
+
 		if (serror == 0) {
 			sbytes += space + hdrlen;
 			if (hdrlen)
