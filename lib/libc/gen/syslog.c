@@ -300,7 +300,8 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	 * Make sure the error reported is the one from the syslogd failure.
 	 */
 	if (LogStat & LOG_CONS &&
-	    (fd = _open(_PATH_CONSOLE, O_WRONLY|O_NONBLOCK, 0)) >= 0) {
+	    (fd = _open(_PATH_CONSOLE, O_WRONLY|O_NONBLOCK|O_CLOEXEC, 0)) >=
+	    0) {
 		struct iovec iov[2];
 		struct iovec *v = iov;
 

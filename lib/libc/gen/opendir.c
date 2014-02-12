@@ -190,7 +190,8 @@ __opendir_common(int fd, const char *name, int flags)
 		 */
 		if (flags & DTF_REWIND) {
 			(void)_close(fd);
-			if ((fd = _open(name, O_RDONLY | O_DIRECTORY)) == -1) {
+			if ((fd = _open(name, O_RDONLY | O_DIRECTORY |
+			    O_CLOEXEC)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);
