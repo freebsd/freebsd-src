@@ -20,6 +20,10 @@ LDADD+=	-lcapsicum -lnv
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 
+.if ${MK_PF} != "no"
+CFLAGS+=-DPF
+.endif
+
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 SRCS+=		linux_syscalls.c
 .endif
