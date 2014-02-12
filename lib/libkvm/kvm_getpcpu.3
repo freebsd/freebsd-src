@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 11, 2013
+.Dd February 12, 2014
 .Dt KVM_GETPCPU 3
 .Os
 .Sh NAME
@@ -47,6 +47,8 @@
 .Fn kvm_dpcpu_setcpu "kvm_t *kd" "u_int cpu"
 .Ft int
 .Fn kvm_getmaxcpu "kvm_t *kd"
+.Ft int
+.Fn kvm_getncpus "kvm_t *kd"
 .Ft void *
 .Fn kvm_getpcpu "kvm_t *kd" "int cpu"
 .Ft ssize_t
@@ -71,6 +73,10 @@ accessed from.
 The
 .Fn kvm_getmaxcpu
 function returns the maximum number of CPUs supported by the kernel.
+.Pp
+The
+.Fn kvm_getncpus
+function returns the current number of CPUs in the kernel.
 .Pp
 The
 .Fn kvm_getpcpu
