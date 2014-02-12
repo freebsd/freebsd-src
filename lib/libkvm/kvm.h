@@ -88,7 +88,7 @@ kvm_t	 *kvm_open
 kvm_t	 *kvm_openfiles
 	    (const char *, const char *, const char *, int, char *);
 ssize_t	  kvm_read(kvm_t *, unsigned long, void *, size_t);
-ssize_t	  kvm_read_zpcpu(kvm_t *, void *, u_long, size_t, int);
+ssize_t	  kvm_read_zpcpu(kvm_t *, unsigned long, void *, size_t, int);
 ssize_t	  kvm_write(kvm_t *, unsigned long, const void *, size_t);
 __END_DECLS
 

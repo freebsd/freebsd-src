@@ -306,7 +306,7 @@ kvm_dpcpu_setcpu(kvm_t *kd, u_int cpu)
  * Obtain a per-CPU copy for given cpu from UMA_ZONE_PCPU allocation.
  */
 ssize_t
-kvm_read_zpcpu(kvm_t *kd, void *buf, u_long base, size_t size, int cpu)
+kvm_read_zpcpu(kvm_t *kd, u_long base, void *buf, size_t size, int cpu)
 {
 
 	return (kvm_read(kd, (uintptr_t)(base + sizeof(struct pcpu) * cpu),
@@ -327,7 +327,7 @@ kvm_counter_u64_fetch(kvm_t *kd, u_long base)
 
 	r = 0;
 	for (int i = 0; i < mp_ncpus; i++) {
-		if (kvm_read_zpcpu(kd, &c, base, sizeof(c), i) != sizeof(c))
+		if (kvm_read_zpcpu(kd, base, &c, sizeof(c), i) != sizeof(c))
 			return (0);
 		r += c;
 	}
