@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140212:
+	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
+	This could cause certain C++ applications using shared libraries built
+	against the previous version of libc++ to crash.  The incompatibility
+	has now been fixed, but any C++ applications or shared libraries built
+	between r261283 and r261801 should be recompiled.
+
 20140128:
 	The libelf and libdwarf libraries have been updated to newer
 	versions from upstream. Shared library version numbers for
