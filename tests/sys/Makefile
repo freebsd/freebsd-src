@@ -2,12 +2,11 @@
 
 .include <bsd.own.mk>
 
+.PATH: ${.CURDIR}/..
+
+TESTS_SUBDIRS+=		kern
 TESTSDIR= ${TESTSBASE}/sys
 
 KYUAFILE= yes
-
-CLEANFILES+= Kyuafile
-Kyuafile: ${.CURDIR}/../Kyuafile
-	cp -f ${.CURDIR}/../Kyuafile .
 
 .include <bsd.test.mk>

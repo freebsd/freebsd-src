@@ -83,9 +83,8 @@ that reduces the file size to a size smaller than
 If successful,
 .Fn posix_fallocate
 returns zero.
-It returns error number on failure, without setting
-.Va errno
-variable.
+It returns an error on failure, without setting
+.Va errno .
 .Sh ERRORS
 Possible failure conditions:
 .Bl -tag -width Er

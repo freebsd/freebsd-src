@@ -38,6 +38,8 @@ CFLAGS.gcc+=	--param max-inline-insns-single=100
 
 LD_FLAGS=-static -N --gc-sections
 
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
+
 # Pick up ../Makefile.inc early.
 .include <bsd.init.mk>
 

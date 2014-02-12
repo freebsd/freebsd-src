@@ -103,10 +103,10 @@ ${GEN_KX509}: kx509.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
 
 .hx.h:
-	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cp ${.IMPSRC} ${.TARGET}
+	cmp -s ${.IMPSRC} ${.TARGET} 2> /dev/null || cat ${.IMPSRC} > ${.TARGET}
 	
 .include <bsd.lib.mk>
 

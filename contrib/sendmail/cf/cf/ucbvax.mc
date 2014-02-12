@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1998, 1999 Sendmail, Inc. and its suppliers.
+# Copyright (c) 1998, 1999 Proofpoint, Inc. and its suppliers.
 #	All rights reserved.
 # Copyright (c) 1983 Eric P. Allman.  All rights reserved.
 # Copyright (c) 1988, 1993
@@ -22,7 +22,7 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: ucbvax.mc,v 8.14 1999/02/07 07:26:05 gshapiro Exp $')
+VERSIONID(`$Id: ucbvax.mc,v 8.15 2013/11/22 20:51:08 ca Exp $')
 OSTYPE(bsd4.3)
 DOMAIN(CS.Berkeley.EDU)
 MASQUERADE_AS(CS.Berkeley.EDU)

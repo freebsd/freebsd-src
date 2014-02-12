@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= # still empty
+SUBDIR= sys
 
 TESTSDIR= ${TESTSBASE}
 KYUAFILE= yes

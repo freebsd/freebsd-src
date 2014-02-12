@@ -343,8 +343,7 @@ ext2_getattr(struct vop_getattr_args *ap)
 		vap->va_birthtime.tv_sec = ip->i_birthtime;
 		vap->va_birthtime.tv_nsec = ip->i_birthnsec;
 	}
-	/* E4_* flags are private to the filesystem. */
-	vap->va_flags = ip->i_flags & ~(E4_INDEX | E4_EXTENTS);
+	vap->va_flags = ip->i_flags;
 	vap->va_gen = ip->i_gen;
 	vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	vap->va_bytes = dbtob((u_quad_t)ip->i_blocks);
@@ -1616,7 +1615,7 @@ ext2_read(struct vop_read_args *ap)
 	ip = VTOI(vp);
 
 	/*EXT4_EXT_LOCK(ip);*/
-	if (ip->i_flags & E4_EXTENTS)
+	if (ip->i_flag & IN_E4EXTENTS)
 		error = ext4_ext_read(ap);
 	else
 		error = ext2_ind_read(ap);

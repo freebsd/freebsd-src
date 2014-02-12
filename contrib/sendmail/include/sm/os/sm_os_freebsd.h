@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2000-2001 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$Id: sm_os_freebsd.h,v 1.11 2002/04/15 17:17:05 gshapiro Exp $
+ *	$Id: sm_os_freebsd.h,v 1.12 2013/11/22 20:51:34 ca Exp $
  */
 
 /*
@@ -39,7 +39,3 @@
 #ifndef SM_CONF_MSG
 # define SM_CONF_MSG	1
 #endif /* SM_CONF_MSG */
-
-#ifndef SM_IPNODEBYNAME_FLAGS
-# define SM_IPNODEBYNAME_FLAGS	AI_DEFAULT|AI_ALL
-#endif /* SM_IPNODEBYNAME_FLAGS */

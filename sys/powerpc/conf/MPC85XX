@@ -48,7 +48,9 @@ options 	NFSCL
 options 	NFSLOCKD
 options 	PROCFS
 options 	PSEUDOFS
-options 	SCHED_4BSD
+options 	SCHED_ULE
+options		CAPABILITIES
+options		CAPABILITY_MODE
 options		SMP
 options 	SYSVMSG
 options 	SYSVSEM
@@ -64,6 +66,7 @@ device		cryptodev
 device		da
 device		ds1553
 device		em
+device		alc
 device		ether
 device		fxp
 device		iic

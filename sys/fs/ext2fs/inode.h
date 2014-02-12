@@ -157,8 +157,8 @@ struct inode {
  * These are translation flags for some attributes that Ext4
  * passes as inode flags but that we cannot pass directly.
  */
-#define	E4_INDEX	0x01000000
-#define	E4_EXTENTS	0x02000000
+#define	IN_E4INDEX	0x010000
+#define	IN_E4EXTENTS	0x020000
 
 #define i_devvp i_ump->um_devvp
 

@@ -19,6 +19,13 @@ else
 	exit 0
 fi
 
+if $OBJ/setuid-allowed ${SSHAGENT} ; then
+	: ok
+else
+	echo "skipped (${SSHAGENT} is mounted on a no-setuid filesystem)"
+	exit 0
+fi
+
 if test -z "$SUDO" ; then
 	echo "skipped (SUDO not set)"
 	exit 0
@@ -38,8 +45,9 @@ else
 	gdb ${SSHAGENT} ${SSH_AGENT_PID} > ${OBJ}/gdb.out 2>&1 << EOF
 		quit
 EOF
-	if [ $? -ne 0 ]; then
-		fail "gdb failed: exit code $?"
+	r=$?
+	if [ $r -ne 0 ]; then
+		fail "gdb failed: exit code $r"
 	fi
 	egrep 'ptrace: Operation not permitted.|procfs:.*Permission denied.|ttrace.*Permission denied.|procfs:.*: Invalid argument.|Unable to access task ' >/dev/null ${OBJ}/gdb.out
 	r=$?
