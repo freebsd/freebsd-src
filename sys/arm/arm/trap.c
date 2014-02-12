@@ -108,6 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
 
+#include <machine/armreg.h>
 #include <machine/cpuconf.h>
 #include <machine/vmparam.h>
 #include <machine/frame.h>
@@ -393,7 +394,7 @@ data_abort_handler(struct trapframe *tf)
 	 * location, so we can deal with those quickly.  Otherwise we need to
 	 * disassemble the faulting instruction to determine if it was a write.
 	 */
-#ifdef _ARM_ARCH_6
+#if ARM_ARCH_6 || ARM_ARCH_7A
 	ftype = (fsr & FAULT_WNR) ? VM_PROT_READ | VM_PROT_WRITE : VM_PROT_READ;
 #else
 	if (IS_PERMISSION_FAULT(fsr))
@@ -411,8 +412,8 @@ data_abort_handler(struct trapframe *tf)
 			else
 				ftype = VM_PROT_READ;
 		}
-#endif
 	}
+#endif
 
 	/*
 	 * See if the fault is as a result of ref/mod emulation,
