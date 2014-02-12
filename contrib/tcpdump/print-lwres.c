@@ -586,7 +586,7 @@ lwres_print(packetbody_t bp, u_int length)
 		printf(" [len: %u != %u]", EXTRACT_32BITS(&np->length),
 		    length);
 	}
-	if (!unsupported && s < (const char *)np + EXTRACT_32BITS(&np->length))
+	if (!unsupported && s < (packetbody_t)np + EXTRACT_32BITS(&np->length))
 		printf("[extra]");
 	return;
 

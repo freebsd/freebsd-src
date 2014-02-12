@@ -344,7 +344,7 @@ again:
 	{
 		int enh, padlen;
 		ipds->advance = esp_print(ndo, ipds->cp, ipds->len,
-				    ipds->ip,
+				    (packetbody_t)ipds->ip,
 				    &enh, &padlen);
 		if (ipds->advance <= 0)
 			break;
@@ -367,22 +367,22 @@ again:
 	}
 
 	case IPPROTO_SCTP:
-		sctp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
+		sctp_print(ipds->cp, (packetbody_t)ipds->ip, ipds->len);
 		break;
 
 	case IPPROTO_DCCP:
-		dccp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
+		dccp_print(ipds->cp, (packetbody_t)ipds->ip, ipds->len);
 		break;
 
 	case IPPROTO_TCP:
 		/* pass on the MF bit plus the offset to detect fragments */
-		tcp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
+		tcp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip,
 			  ipds->off & (IP_MF|IP_OFFMASK));
 		break;
 
 	case IPPROTO_UDP:
 		/* pass on the MF bit plus the offset to detect fragments */
-		udp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
+		udp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip,
 			  ipds->off & (IP_MF|IP_OFFMASK));
 		break;
 
@@ -422,7 +422,7 @@ again:
 		break;
 
 	case IPPROTO_OSPF:
-		ospf_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
+		ospf_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip);
 		break;
 
 	case IPPROTO_IGMP:
@@ -481,7 +481,7 @@ again:
 		break;
 
 	case IPPROTO_PGM:
-		pgm_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
+		pgm_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip);
 		break;
 
 #if defined(HAVE_NET_PFVAR_H)

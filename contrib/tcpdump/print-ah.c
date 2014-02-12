@@ -47,7 +47,7 @@ ah_print(packetbody_t bp)
 	int sumlen;
 	u_int32_t spi;
 
-	ah = bp;
+	ah = (__capability const struct ah *)bp;
 
 	TCHECK(*ah);
 

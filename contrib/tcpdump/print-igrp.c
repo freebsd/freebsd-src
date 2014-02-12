@@ -41,7 +41,7 @@ static const char rcsid[] _U_ =
 #include "extract.h"			/* must come after interface.h */
 
 static void
-igrp_entry_print(__capability struct igrprte *igr, register int is_interior,
+igrp_entry_print(__capability const struct igrprte *igr, register int is_interior,
     register int is_exterior)
 {
 	register u_int delay, bandwidth;

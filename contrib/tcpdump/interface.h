@@ -28,6 +28,9 @@
 #include "os-proto.h"
 #endif
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
 /* snprintf et al */
 
 #include <stdarg.h>

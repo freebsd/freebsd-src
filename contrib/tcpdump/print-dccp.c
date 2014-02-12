@@ -169,7 +169,7 @@ static int dccp_print_option(packetbody_t option);
  * @data2 - beginning of enclosing 
  * @len - lenght of ip packet
  */
-void dccp_print(packetbody_t bp, const u_char *data2, u_int len)
+void dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 {
 	__capability const struct dccp_hdr *dh;
 	__capability const struct ip *ip;
