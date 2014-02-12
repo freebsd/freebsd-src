@@ -67,6 +67,22 @@ tcpdump-helper.dump: tcpdump-helper
 .PATH: ${.CURDIR}/../../lib/libc/string
 .PATH: ${.CURDIR}/../../contrib/tcpdump
 
+SRCS:=	${SRCS:Nprint-bgp.c}
+SRCS:=	${SRCS:Nprint-isakmp.c}
+SRCS:=	${SRCS:Nprint-isoclns.c}
+SRCS:=	${SRCS:Nprint-pim.c}
+SRCS:=	${SRCS:Nprint-rpki-rtr.c}
+SRCS:=	${SRCS:Nprint-sctp.c}
+SRCS:=	${SRCS:Nprint-smb.c}
+SRCS:=	${SRCS:Nprint-stp.c}
+SRCS:=	${SRCS:Nprint-udp.c}
+SRCS:=	${SRCS:Nprint-vtp.c}
+SRCS:=	${SRCS:Nprint-zeromq.c}
+SRCS:=	${SRCS:Nsmbutil.c}
+SRCS:=	${SRCS:Nprint-babel.c}
+SRCS:=	${SRCS:Nprint-dhcp6.c}
+SRCS:=	${SRCS:Nprint-pflog.c}
+
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:N-Wcast-align}
