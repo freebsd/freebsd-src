@@ -384,7 +384,7 @@ load_msgcat(const char *path, const char *name, const char *lang)
 	}
 	UNLOCK;
 
-	if ((fd = _open(path, O_RDONLY)) == -1) {
+	if ((fd = _open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 		SAVEFAIL(name, lang, errno);
 		NLRETERR(errno);
 	}

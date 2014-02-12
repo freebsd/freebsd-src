@@ -198,7 +198,7 @@ _sem_open(const char *name, int flags, ...)
 		goto error;
 	}
 
-	fd = _open(path, flags|O_RDWR, mode);
+	fd = _open(path, flags|O_RDWR|O_CLOEXEC, mode);
 	if (fd == -1)
 		goto error;
 	if (flock(fd, LOCK_EX) == -1)
