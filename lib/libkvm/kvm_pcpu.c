@@ -173,6 +173,16 @@ kvm_getmaxcpu(kvm_t *kd)
 	return (maxcpu);
 }
 
+int
+kvm_getncpus(kvm_t *kd)
+{
+
+	if (mp_ncpus == 0)
+		if (_kvm_pcpu_init(kd) < 0)
+			return (-1);
+	return (mp_ncpus);
+}
+
 static int
 _kvm_dpcpu_setcpu(kvm_t *kd, u_int cpu, int report_error)
 {
