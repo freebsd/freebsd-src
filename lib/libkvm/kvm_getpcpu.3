@@ -50,7 +50,7 @@
 .Ft void *
 .Fn kvm_getpcpu "kvm_t *kd" "int cpu"
 .Ft ssize_t
-.Fn kvm_read_zpcpu "kvm_t *kd" "void *buf" "u_long base" "size_t size" "int cpu"
+.Fn kvm_read_zpcpu "kvm_t *kd" "u_long base" "void *buf" "size_t size" "int cpu"
 .Ft uint64_t
 .Fn kvm_counter_u64_fetch "kvm_t *kd" "u_long base"
 .Sh DESCRIPTION
