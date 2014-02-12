@@ -238,6 +238,20 @@ qpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	}
 }
 
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+static struct resource *
+qpi_pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+
+	if (type == PCI_RES_BUS)
+		return (pci_domain_alloc_bus(0, child, rid, start, end, count,
+		    flags));
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags));
+}
+#endif
+
 static int
 qpi_pcib_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
     uint32_t *data)
@@ -258,8 +272,14 @@ static device_method_t qpi_pcib_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	qpi_pcib_read_ivar),
+#if defined(NEW_PCIB) && defined(PCI_RES_BUS)
+	DEVMETHOD(bus_alloc_resource,	qpi_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	legacy_pcib_adjust_resource),
+	DEVMETHOD(bus_release_resource,	legacy_pcib_release_resource),
+#else
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
+#endif
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
