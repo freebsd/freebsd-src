@@ -422,6 +422,10 @@ data_abort_handler(struct trapframe *tf)
 #ifdef DEBUG
 	last_fault_code = fsr;
 #endif
+	if (td->td_critnest != 0 || WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK,
+	    NULL, "Kernel page fault") != 0)
+		goto fatal_pagefault;
+
 	if (pmap_fault_fixup(vmspace_pmap(td->td_proc->p_vmspace), va, ftype,
 	    user)) {
 		goto out;
@@ -444,6 +448,7 @@ data_abort_handler(struct trapframe *tf)
 	}
 	if (__predict_true(error == 0))
 		goto out;
+fatal_pagefault:
 	if (user == 0) {
 		if (pcb->pcb_onfault) {
 			tf->tf_r0 = error;
