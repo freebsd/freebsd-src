@@ -477,6 +477,19 @@ vop_getpages {
 };
 
 
+%% getpages_async	vp	L L L
+
+vop_getpages_async {
+	IN struct vnode *vp;
+	IN vm_page_t *m;
+	IN int count;
+	IN int reqpage;
+	IN vm_ooffset_t offset;
+	IN void (*vop_getpages_iodone)(void *);
+	IN void *arg;
+};
+
+
 %% putpages	vp	L L L
 
 vop_putpages {

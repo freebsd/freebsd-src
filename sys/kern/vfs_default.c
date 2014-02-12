@@ -111,6 +111,7 @@ struct vop_vector default_vnodeops = {
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
 	.vop_getpages =		vop_stdgetpages,
+	.vop_getpages_async =	vop_stdgetpages_async,
 	.vop_getwritemount = 	vop_stdgetwritemount,
 	.vop_inactive =		VOP_NULL,
 	.vop_ioctl =		VOP_ENOTTY,
@@ -726,7 +727,16 @@ vop_stdgetpages(ap)
 {
 
 	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
-	    ap->a_count, ap->a_reqpage);
+	    ap->a_count, ap->a_reqpage, NULL, NULL);
+}
+
+/* XXX Needs good comment and a manpage. */
+int
+vop_stdgetpages_async(struct vop_getpages_async_args *ap)
+{
+
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m,
+	    ap->a_count, ap->a_reqpage, ap->a_vop_getpages_iodone, ap->a_arg);
 }
 
 int

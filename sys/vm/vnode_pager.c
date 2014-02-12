@@ -83,6 +83,8 @@ static int vnode_pager_input_smlfs(vm_object_t object, vm_page_t m);
 static int vnode_pager_input_old(vm_object_t object, vm_page_t m);
 static void vnode_pager_dealloc(vm_object_t);
 static int vnode_pager_getpages(vm_object_t, vm_page_t *, int, int);
+static int vnode_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
+    void(*)(void  *), void *);
 static void vnode_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t vnode_pager_haspage(vm_object_t, vm_pindex_t, int *, int *);
 static vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t,
@@ -92,6 +94,7 @@ struct pagerops vnodepagerops = {
 	.pgo_alloc =	vnode_pager_alloc,
 	.pgo_dealloc =	vnode_pager_dealloc,
 	.pgo_getpages =	vnode_pager_getpages,
+	.pgo_getpages_async = vnode_pager_getpages_async,
 	.pgo_putpages =	vnode_pager_putpages,
 	.pgo_haspage =	vnode_pager_haspage,
 };
@@ -664,17 +667,51 @@ vnode_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 	return rtval;
 }
 
+static int
+vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
+    int reqpage, void (*iodone)(void *), void *arg)
+{
+	int rtval;
+	struct vnode *vp;
+	int bytes = count * PAGE_SIZE;
+
+	vp = object->handle;
+	VM_OBJECT_WUNLOCK(object);
+	rtval = VOP_GETPAGES_ASYNC(vp, m, bytes, reqpage, 0, iodone, arg);
+	KASSERT(rtval != EOPNOTSUPP,
+	    ("vnode_pager: FS getpages_async not implemented\n"));
+	VM_OBJECT_WLOCK(object);
+	return rtval;
+}
+
+struct getpages_softc {
+	vm_page_t *m;
+	struct buf *bp;
+	vm_object_t object;
+	vm_offset_t kva;
+	off_t foff;
+	int size;
+	int count;
+	int unmapped;
+	int reqpage;
+	void (*iodone)(void *);
+	void *arg;
+};
+
+int	vnode_pager_generic_getpages_done(struct getpages_softc *);
+void	vnode_pager_generic_getpages_done_async(struct buf *);
+
 /*
  * This is now called from local media FS's to operate against their
  * own vnodes if they fail to implement VOP_GETPAGES.
  */
 int
 vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
-    int reqpage)
+    int reqpage, void (*iodone)(void *), void *arg)
 {
 	vm_object_t object;
 	vm_offset_t kva;
-	off_t foff, tfoff, nextoff;
+	off_t foff;
 	int i, j, size, bsize, first;
 	daddr_t firstaddr, reqblock;
 	struct bufobj *bo;
@@ -684,6 +721,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	struct mount *mp;
 	int count;
 	int error;
+	int unmapped;
 
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
@@ -891,8 +929,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	 * requires mapped buffers.
 	 */
 	mp = vp->v_mount;
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0 &&
-	    unmapped_buf_allowed) {
+	unmapped = (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS));
+	if (unmapped && unmapped_buf_allowed) {
 		bp->b_data = unmapped_buf;
 		bp->b_kvabase = unmapped_buf;
 		bp->b_offset = 0;
@@ -905,7 +943,6 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 
 	/* build a minimal buffer header */
 	bp->b_iocmd = BIO_READ;
-	bp->b_iodone = bdone;
 	KASSERT(bp->b_rcred == NOCRED, ("leaking read ucred"));
 	KASSERT(bp->b_wcred == NOCRED, ("leaking write ucred"));
 	bp->b_rcred = crhold(curthread->td_ucred);
@@ -923,9 +960,89 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 
 	/* do the input */
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	bstrategy(bp);
 
-	bwait(bp, PVM, "vnread");
+	if (iodone) { /* async */
+		struct getpages_softc *sc;
+
+		sc = malloc(sizeof(*sc), M_TEMP, M_WAITOK);
+
+		sc->m = m;
+		sc->bp = bp;
+		sc->object = object;
+		sc->foff = foff;
+		sc->size = size;
+		sc->count = count;
+		sc->unmapped = unmapped;
+		sc->reqpage = reqpage;
+		sc->kva = kva;
+
+		sc->iodone = iodone;
+		sc->arg = arg;
+
+		bp->b_iodone = vnode_pager_generic_getpages_done_async;
+		bp->b_caller1 = sc;
+		BUF_KERNPROC(bp);
+		bstrategy(bp);
+		/* Good bye! */
+	} else {
+		struct getpages_softc sc;
+
+		sc.m = m;
+		sc.bp = bp;
+		sc.object = object;
+		sc.foff = foff;
+		sc.size = size;
+		sc.count = count;
+		sc.unmapped = unmapped;
+		sc.reqpage = reqpage;
+		sc.kva = kva;
+
+		bp->b_iodone = bdone;
+		bstrategy(bp);
+		bwait(bp, PVM, "vnread");
+		error = vnode_pager_generic_getpages_done(&sc);
+	}
+
+	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+}
+
+void
+vnode_pager_generic_getpages_done_async(struct buf *bp)
+{
+	struct getpages_softc *sc = bp->b_caller1;
+	int error;
+
+	error = vnode_pager_generic_getpages_done(sc);
+	if (error)
+		printf("zhopa %d\n", error);
+
+	vm_page_xunbusy(sc->m[sc->reqpage]);
+
+	sc->iodone(sc->arg);
+
+	free(sc, M_TEMP);
+}
+
+int
+vnode_pager_generic_getpages_done(struct getpages_softc *sc)
+{
+	vm_object_t object;
+	vm_offset_t kva;
+	vm_page_t *m;
+	struct buf *bp;
+	off_t foff, tfoff, nextoff;
+	int i, size, count, unmapped, reqpage;
+	int error = 0;
+
+	m = sc->m;
+	bp = sc->bp;
+	object = sc->object;
+	foff = sc->foff;
+	size = sc->size;
+	count = sc->count;
+	unmapped = sc->unmapped;
+	reqpage = sc->reqpage;
+	kva = sc->kva;
 
 	if ((bp->b_ioflags & BIO_ERROR) != 0)
 		error = EIO;
@@ -939,7 +1056,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	}
 	if ((bp->b_flags & B_UNMAPPED) == 0)
 		pmap_qremove(kva, count);
-	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMAPPED_BUFS) != 0) {
+	if (unmapped) {
 		bp->b_data = (caddr_t)kva;
 		bp->b_kvabase = (caddr_t)kva;
 		bp->b_flags &= ~B_UNMAPPED;
@@ -995,7 +1112,8 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	if (error) {
 		printf("vnode_pager_getpages: I/O read error\n");
 	}
-	return (error ? VM_PAGER_ERROR : VM_PAGER_OK);
+
+	return (error);
 }
 
 /*
