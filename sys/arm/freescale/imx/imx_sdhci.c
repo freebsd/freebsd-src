@@ -71,6 +71,7 @@ struct imx_sdhci_softc {
 	uint32_t		r1bfix_intmask;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
+	boolean_t		force_card_present;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -323,6 +324,8 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		val32 &= 0x000F0F07;
 		val32 |= (wrk32 >> 4) & SDHCI_STATE_DAT_MASK;
 		val32 |= (wrk32 >> 9) & SDHCI_RETUNE_REQUEST;
+		if (sc->force_card_present)
+			val32 |= SDHCI_CARD_PRESENT;
 		return (val32);
 	}
 
@@ -591,6 +594,7 @@ imx_sdhci_attach(device_t dev)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
+	phandle_t node;
 
 	sc->dev = dev;
 
@@ -656,6 +660,25 @@ imx_sdhci_attach(device_t dev)
 	}
 
 	sdhci_init_slot(dev, &sc->slot, 0);
+
+	/*
+	 * If the slot is flagged with the non-removable property, set our flag
+	 * to always force the SDHCI_CARD_PRESENT bit on.
+	 *
+	 * XXX Workaround for gpio-based card detect...
+	 *
+	 * We don't have gpio support yet.  If there's a cd-gpios property just
+	 * force the SDHCI_CARD_PRESENT bit on for now.  If there isn't really a
+	 * card there it will fail to probe at the mmc layer and nothing bad
+	 * happens except instantiating a /dev/mmcN device for an empty slot.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "non-removable"))
+		sc->force_card_present = true;
+	else if (OF_hasprop(node, "cd-gpios")) {
+		/* XXX put real gpio hookup here. */
+		sc->force_card_present = true;
+	}
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
