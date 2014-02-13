@@ -2,9 +2,11 @@
 
 .include <bsd.own.mk>
 
-SUBDIR= sys
+.PATH: ${.CURDIR}/..
 
-TESTSDIR= ${TESTSBASE}
+TESTS_SUBDIRS+=		kern
+TESTSDIR= ${TESTSBASE}/sys
+
 KYUAFILE= yes
 
 .include <bsd.test.mk>
