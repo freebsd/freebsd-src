@@ -26,13 +26,21 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2011
+.Dd February 13, 2014
 .Dt NVE 4
 .Os
 .Sh NAME
 .Nm nve
 .Nd "NVIDIA nForce MCP Networking Adapter device driver"
 .Sh SYNOPSIS
+.Sy Warning:
+This driver is deprecated and will not be available in
+.Fx 11.0
+and later.
+Please consider using the
+.Xr nfe 4
+driver instead.
+.Pp
 To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
@@ -119,6 +127,7 @@ the network connection (cable).
 .Xr arp 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
+.Xr nfe 4 ,
 .Xr ng_ether 4 ,
 .Xr rgephy 4 ,
 .Xr ifconfig 8
