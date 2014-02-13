@@ -67,17 +67,13 @@ arm64_readin(int fd, vm_offset_t va, size_t len)
 	return read(fd, va, len);
 }
 
-#if 0
 EFI_GUID acpi = ACPI_TABLE_GUID;
 EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
-#endif
 EFI_GUID imgid = LOADED_IMAGE_PROTOCOL;
-#if 0
 EFI_GUID mps = MPS_TABLE_GUID;
 EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
 EFI_GUID smbios = SMBIOS_TABLE_GUID;
-#endif
 
 EFI_STATUS
 main(int argc, CHAR16 *argv[])
@@ -145,10 +141,6 @@ main(int argc, CHAR16 *argv[])
 	env_setenv("loaddev", EV_VOLATILE, arm64_fmtdev(&currdev), env_noset,
 	    env_nounset);
 
-#if 0
-	setenv("LINES", "24", 1);	/* optional */
-#endif   
- 
 	archsw.arch_autoload = amd64_autoload;
 	archsw.arch_getdev = arm64_getdev;
 	archsw.arch_copyin = arm64_copyin;
@@ -178,6 +170,7 @@ command_reboot(int argc, char *argv[])
 	/* NOTREACHED */
 	return (CMD_ERROR);
 }
+#endif
 
 COMMAND_SET(quit, "quit", "exit the loader", command_quit);
 
@@ -305,6 +298,7 @@ command_configuration(int argc, char *argv[])
 }    
 
 
+#if 0
 COMMAND_SET(mode, "mode", "change or display text modes", command_mode);
 
 static int
