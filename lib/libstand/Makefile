@@ -80,8 +80,12 @@ SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 .endif
-
 .endif
+
+.if ${MACHINE_CPUARCH} == "arm64"
+.PATH: ${.CURDIR}/../libc/arm64/gen
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 .PATH: ${.CURDIR}/../libc/ia64/string
 SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
