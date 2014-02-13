@@ -13,6 +13,7 @@ MAN=	aac.4 \
 	${_acpi_hp.4} \
 	${_acpi_ibm.4} \
 	${_acpi_panasonic.4} \
+	${_acpi_rapidstart.4} \
 	${_acpi_sony.4} \
 	acpi_thermal.4 \
 	${_acpi_toshiba.4} \
@@ -59,7 +60,7 @@ MAN=	aac.4 \
 	ath_pci.4 \
 	atkbd.4 \
 	atkbdc.4 \
-	${_atp.4} \
+	atp.4 \
 	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
@@ -526,6 +527,7 @@ MAN=	aac.4 \
 	uplcom.4 \
 	ural.4 \
 	urio.4 \
+	urndis.4 \
 	${_urtw.4} \
 	urtwn.4 \
 	urtwnfw.4 \
@@ -566,6 +568,7 @@ MAN=	aac.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
+	wsp.4 \
 	xe.4 \
 	${_xen.4} \
 	xhci.4 \
@@ -715,6 +718,7 @@ MLINKS+=uath.4 if_uath.4
 MLINKS+=udav.4 if_udav.4
 MLINKS+=upgt.4 if_upgt.4
 MLINKS+=ural.4 if_ural.4
+MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
@@ -740,6 +744,7 @@ _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
 _acpi_ibm.4=	acpi_ibm.4
 _acpi_panasonic.4=acpi_panasonic.4
+_acpi_rapidstart.4=acpi_rapidstart.4
 _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
@@ -753,7 +758,6 @@ _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
-_atp.4=		atp.4
 _bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
@@ -826,9 +830,6 @@ MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc"
-_atp.4=		atp.4
-.endif
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
 .endif

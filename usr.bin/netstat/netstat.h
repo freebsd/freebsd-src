@@ -125,6 +125,7 @@ void	intpr(int, void (*)(char *), int);
 void	pr_rthdr(int);
 void	pr_family(int);
 void	rt_stats(void);
+void	flowtable_stats(void);
 char	*ipx_pnet(struct sockaddr *);
 char	*ipx_phost(struct sockaddr *);
 char	*ns_phost(struct sockaddr *);

@@ -554,6 +554,11 @@ i386/xbox/pic16l.s		optional xbox
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
 #
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
+#
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #
 x86/acpica/OsdEnvironment.c	optional acpi

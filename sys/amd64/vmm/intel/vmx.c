@@ -907,7 +907,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 			panic("vmx_setup_cr4_shadow %d", error);
 
 		vmx->ctx[i].pmap = pmap;
-		vmx->ctx[i].eptp = vmx->eptp;
 	}
 
 	return (vmx);
@@ -955,19 +954,19 @@ vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
 #endif
 }
 
+static VMM_STAT_INTEL(VCPU_INVVPID_SAVED, "Number of vpid invalidations saved");
+
 static void
-vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
+vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu, pmap_t pmap)
 {
-	int lastcpu;
 	struct vmxstate *vmxstate;
-	struct invvpid_desc invvpid_desc = { 0 };
+	struct invvpid_desc invvpid_desc;
 
 	vmxstate = &vmx->state[vcpu];
-	lastcpu = vmxstate->lastcpu;
-	vmxstate->lastcpu = curcpu;
-
-	if (lastcpu == curcpu)
+	if (vmxstate->lastcpu == curcpu)
 		return;
+
+	vmxstate->lastcpu = curcpu;
 
 	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
 
@@ -991,8 +990,20 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 	 * for "all" EP4TAs.
 	 */
 	if (vmxstate->vpid != 0) {
-		invvpid_desc.vpid = vmxstate->vpid;
-		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
+		if (pmap->pm_eptgen == vmx->eptgen[curcpu]) {
+			invvpid_desc._res1 = 0;
+			invvpid_desc._res2 = 0;
+			invvpid_desc.vpid = vmxstate->vpid;
+			invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
+		} else {
+			/*
+			 * The invvpid can be skipped if an invept is going to
+			 * be performed before entering the guest. The invept
+			 * will invalidate combined mappings tagged with
+			 * 'vmx->eptp' for all vpids.
+			 */
+			vmm_stat_incr(vmx->vm, vcpu, VCPU_INVVPID_SAVED, 1);
+		}
 	}
 }
 
@@ -1217,6 +1228,40 @@ vmx_clear_nmi_blocking(struct vmx *vmx, int vcpuid)
 }
 
 static int
+vmx_emulate_xsetbv(struct vmx *vmx, int vcpu)
+{
+	struct vmxctx *vmxctx;
+	uint64_t xcrval;
+	const struct xsave_limits *limits;
+
+	vmxctx = &vmx->ctx[vcpu];
+	limits = vmm_get_xsave_limits();
+
+	/* We only handle xcr0 if the host has XSAVE enabled. */
+	if (vmxctx->guest_rcx != 0 || !limits->xsave_enabled)
+		return (UNHANDLED);
+
+	xcrval = vmxctx->guest_rdx << 32 | (vmxctx->guest_rax & 0xffffffff);
+	if ((xcrval & ~limits->xcr0_allowed) != 0)
+		return (UNHANDLED);
+
+	if (!(xcrval & XFEATURE_ENABLED_X87))
+		return (UNHANDLED);
+
+	if ((xcrval & (XFEATURE_ENABLED_AVX | XFEATURE_ENABLED_SSE)) ==
+	    XFEATURE_ENABLED_AVX)
+		return (UNHANDLED);
+
+	/*
+	 * This runs "inside" vmrun() with the guest's FPU state, so
+	 * modifying xcr0 directly modifies the guest's xcr0, not the
+	 * host's.
+	 */
+	load_xcr(0, xcrval);
+	return (HANDLED);
+}
+
+static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
 	int cr, vmcs_guest_cr, vmcs_shadow_cr;
@@ -1325,6 +1370,30 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	}
 
 	return (HANDLED);
+}
+
+static enum vie_cpu_mode
+vmx_cpu_mode(void)
+{
+
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LMA)
+		return (CPU_MODE_64BIT);
+	else
+		return (CPU_MODE_COMPATIBILITY);
+}
+
+static enum vie_paging_mode
+vmx_paging_mode(void)
+{
+
+	if (!(vmcs_read(VMCS_GUEST_CR0) & CR0_PG))
+		return (PAGING_MODE_FLAT);
+	if (!(vmcs_read(VMCS_GUEST_CR4) & CR4_PAE))
+		return (PAGING_MODE_32);
+	if (vmcs_read(VMCS_GUEST_IA32_EFER) & EFER_LME)
+		return (PAGING_MODE_64);
+	else
+		return (PAGING_MODE_PAE);
 }
 
 static int
@@ -1486,6 +1555,8 @@ vmx_handle_apic_access(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 		vmexit->u.inst_emul.gpa = DEFAULT_APIC_BASE + offset;
 		vmexit->u.inst_emul.gla = VIE_INVALID_GLA;
 		vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+		vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+		vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
 	}
 
 	/*
@@ -1682,22 +1753,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmx_restore_nmi_blocking(vmx, vcpu);
 
 		/*
-		 * If the NMI-exiting VM execution control is set to '1'
-		 * then an NMI in non-root operation causes a VM-exit.
-		 * NMI blocking is in effect for this logical processor so
-		 * it is sufficient to simply vector to the NMI handler via
-		 * a software interrupt.
+		 * The NMI has already been handled in vmx_exit_handle_nmi().
 		 */
-		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI) {
-			KASSERT((intr_info & 0xff) == IDT_NMI, ("VM exit due "
-			    "to NMI has invalid vector: %#x", intr_info));
-			VCPU_CTR0(vmx->vm, vcpu, "Vectoring to NMI handler");
-			__asm __volatile("int $2");
+		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI)
 			return (1);
-		}
 		break;
 	case EXIT_REASON_EPT_FAULT:
-		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_EPT_FAULT, 1);
 		/*
 		 * If 'gpa' lies within the address space allocated to
 		 * memory then this must be a nested page fault otherwise
@@ -1708,11 +1769,15 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.gpa = gpa;
 			vmexit->u.paging.fault_type = ept_fault_type(qual);
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_NESTED_FAULT, 1);
 		} else if (ept_emulation_fault(qual)) {
 			vmexit->exitcode = VM_EXITCODE_INST_EMUL;
 			vmexit->u.inst_emul.gpa = gpa;
 			vmexit->u.inst_emul.gla = vmcs_gla();
 			vmexit->u.inst_emul.cr3 = vmcs_guest_cr3();
+			vmexit->u.inst_emul.cpu_mode = vmx_cpu_mode();
+			vmexit->u.inst_emul.paging_mode = vmx_paging_mode();
+			vmm_stat_incr(vmx->vm, vcpu, VMEXIT_INST_EMUL, 1);
 		}
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to an
@@ -1742,6 +1807,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		vmexit->inst_length = 0;
 		vlapic = vm_lapic(vmx->vm, vcpu);
 		handled = vmx_handle_apic_write(vlapic, qual);
+		break;
+	case EXIT_REASON_XSETBV:
+		handled = vmx_emulate_xsetbv(vmx, vcpu);
 		break;
 	default:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_UNKNOWN, 1);
@@ -1835,6 +1903,36 @@ vmx_exit_inst_error(struct vmxctx *vmxctx, int rc, struct vm_exit *vmexit)
 	return (UNHANDLED);
 }
 
+/*
+ * If the NMI-exiting VM execution control is set to '1' then an NMI in
+ * non-root operation causes a VM-exit. NMI blocking is in effect so it is
+ * sufficient to simply vector to the NMI handler via a software interrupt.
+ * However, this must be done before maskable interrupts are enabled
+ * otherwise the "iret" issued by an interrupt handler will incorrectly
+ * clear NMI blocking.
+ */
+static __inline void
+vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
+{
+	uint32_t intr_info;
+
+	KASSERT((read_rflags() & PSL_I) == 0, ("interrupts enabled"));
+
+	if (vmexit->u.vmx.exit_reason != EXIT_REASON_EXCEPTION)
+		return;
+
+	intr_info = vmcs_read(VMCS_EXIT_INTR_INFO);
+	KASSERT((intr_info & VMCS_INTR_VALID) != 0,
+	    ("VM exit interruption info invalid: %#x", intr_info));
+
+	if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI) {
+		KASSERT((intr_info & 0xff) == IDT_NMI, ("VM exit due "
+		    "to NMI has invalid vector: %#x", intr_info));
+		VCPU_CTR0(vmx->vm, vcpuid, "Vectoring to NMI handler");
+		__asm __volatile("int $2");
+	}
+}
+
 static int
 vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
     void *rendezvous_cookie)
@@ -1859,8 +1957,6 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 
 	KASSERT(vmxctx->pmap == pmap,
 	    ("pmap %p different than ctx pmap %p", pmap, vmxctx->pmap));
-	KASSERT(vmxctx->eptp == vmx->eptp,
-	    ("eptp %p different than ctx eptp %#lx", eptp, vmxctx->eptp));
 
 	VMPTRLD(vmcs);
 
@@ -1875,7 +1971,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
 	vmcs_write(VMCS_GUEST_RIP, startrip);
-	vmx_set_pcpu_defaults(vmx, vcpu);
+	vmx_set_pcpu_defaults(vmx, vcpu, pmap);
 	do {
 		/*
 		 * Interrupts are disabled from this point on until the
@@ -1910,9 +2006,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 
 		vmx_inject_interrupts(vmx, vcpu, vlapic);
 		vmx_run_trace(vmx, vcpu);
-		rc = vmx_enter_guest(vmxctx, launched);
-
-		enable_intr();
+		rc = vmx_enter_guest(vmxctx, vmx, launched);
 
 		/* Collect some information for VM exit processing */
 		vmexit->rip = rip = vmcs_guest_rip();
@@ -1921,12 +2015,14 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
 
 		if (rc == VMX_GUEST_VMEXIT) {
-			launched = 1;
+			vmx_exit_handle_nmi(vmx, vcpu, vmexit);
+			enable_intr();
 			handled = vmx_exit_process(vmx, vcpu, vmexit);
 		} else {
+			enable_intr();
 			handled = vmx_exit_inst_error(vmxctx, rc, vmexit);
 		}
-
+		launched = 1;
 		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
 	} while (handled);
 

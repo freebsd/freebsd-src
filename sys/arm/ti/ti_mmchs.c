@@ -1656,6 +1656,10 @@ errout:
 static int
 ti_mmchs_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,mmchs"))
 		return (ENXIO);
 
@@ -1751,7 +1755,6 @@ ti_mmchs_attach(device_t dev)
 
 	device_add_child(dev, "mmc", 0);
 
-	device_set_ivars(dev, &sc->host);
 	err = bus_generic_attach(dev);
 
 out:

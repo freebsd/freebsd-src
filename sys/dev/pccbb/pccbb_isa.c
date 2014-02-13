@@ -51,6 +51,9 @@ __FBSDID("$FreeBSD$");
 
 #include <isa/isavar.h>
 
+#include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
+
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 

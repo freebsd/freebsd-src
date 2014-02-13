@@ -153,22 +153,27 @@ Lunmapped:
 	ldr	r2, =(KERNVIRTADDR - KERNPHYSADDR)
 	sub	r0, r1, r2
 
-	adr	r4, mmu_init_table
-	b	3f
+	/*
+	 * Map PA == VA
+	 */
+	ldr	r5, =(PHYSADDR)
+	mov	r1, r5
+	mov	r2, r5
+	/* Map 64MiB, preserved over calls to build_pagetables */
+	mov	r3, #64
+	bl	build_pagetables
 
-2:
-	str	r3, [r0, r2]
-	add	r2, r2, #4
-	add	r3, r3, #(L1_S_SIZE)
-	adds	r1, r1, #-1
-	bhi	2b
-3:
-	ldmia	r4!, {r1,r2,r3}   /* # of sections, VA, PA|attr */
-	cmp	r1, #0
-	adrne	r5, 2b
-	bicne	r5, r5, #0xf0000000
-	orrne	r5, r5, #PHYSADDR
-	movne	pc, r5
+	/* Create the kernel map to jump to */
+	mov	r1, r5
+	ldr	r2, =(KERNBASE)
+	bl	build_pagetables
+	
+#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
+	/* Create the custom map */
+	ldr	r1, =SOCDEV_PA
+	ldr	r2, =SOCDEV_VA
+	bl	build_pagetables
+#endif
 
 #if defined(SMP)
 	orr 	r0, r0, #2		/* Set TTB shared memory flag */
@@ -216,7 +221,7 @@ mmu_done:
 	ldr	pc, .Lvirt_done
 
 virt_done:
-	mov	r1, #20			/* loader info size is 20 bytes also second arg */
+	mov	r1, #28			/* loader info size is 28 bytes also second arg */
 	subs	sp, sp, r1		/* allocate arm_boot_params struct on stack */
 	bic	sp, sp, #7		/* align stack to 8 bytes */
 	mov	r0, sp			/* loader info pointer is first arg */
@@ -225,6 +230,10 @@ virt_done:
 	str	r8, [r0, #8]		/* Store r1 from boot loader */
 	str	ip, [r0, #12]		/* store r2 from boot loader */
 	str	fp, [r0, #16]		/* store r3 from boot loader */
+	ldr	r5, =KERNPHYSADDR	/* load KERNPHYSADDR as the physical address */
+	str	r5, [r0, #20]		/* store the physical address */
+	ldr	r5, Lstartup_pagetable
+	str	r5, [r0, #24]		/* store the pagetable address */
 	mov	fp, #0			/* trace back starts here */
 	bl	_C_LABEL(initarm)	/* Off we go */
 
@@ -236,10 +245,39 @@ virt_done:
 	adr	r0, .Lmainreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
-#define MMU_INIT(va,pa,n_sec,attr) \
-	.word	n_sec					    ; \
-	.word	4*((va)>>L1_S_SHIFT)			    ; \
-	.word	(pa)|(attr)				    ;
+END(btext)
+END(_start)
+
+/*
+ * Builds the page table
+ * r0 - The table base address
+ * r1 - The physical address (trashed)
+ * r2 - The virtual address (trashed)
+ * r3 - The number of 1MiB sections
+ * r4 - Trashed
+ *
+ * Addresses must be 1MiB aligned
+ */
+build_pagetables:
+	/* Set the required page attributed */
+	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
+#if defined(SMP)
+	orr	r4, #(L1_SHARED)
+#endif
+	orr	r1, r4
+
+	/* Move the virtual address to the correct bit location */
+	lsr	r2, #(L1_S_SHIFT - 2)
+
+	mov	r4, r3
+1:
+	str	r1, [r0, r2]
+	add	r2, r2, #4
+	add	r1, r1, #(L1_S_SIZE)
+	adds	r4, r4, #-1
+	bhi	1b
+
+	RET
 
 Lvirtaddr:
 	.word	KERNVIRTADDR
@@ -255,27 +293,7 @@ Lstartup_pagetable:
 Lstartup_pagetable_secondary:
 	.word	temp_pagetable
 #endif
-END(btext)
-END(_start)
 
-mmu_init_table:
-	/* fill all table VA==PA */
-	/* map SDRAM VA==PA, WT cacheable */
-#if !defined(SMP)
-	MMU_INIT(PHYSADDR, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(SOCDEV_PA) && defined(SOCDEV_VA)
-	/* Map in 0x04000000 worth of the SoC's devices for bootstrap debugging */
-	MMU_INIT(SOCDEV_VA, SOCDEV_PA, 64, L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#endif
-#else
-	MMU_INIT(PHYSADDR, PHYSADDR , 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	/* map VA 0xc0000000..0xc3ffffff to PA */
-	MMU_INIT(KERNBASE, PHYSADDR, 64, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-	MMU_INIT(0x48000000, 0x48000000, 1, L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW))
-#endif /* SMP */
-	.word 0	/* end of table */
 .Lstart:
 	.word	_edata
 	.word	_ebss
@@ -333,10 +351,10 @@ ASENTRY_NP(mptramp)
 
 	AP_DEBUG(#1)
 
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	bic	r3, r3, #(PSR_MODE)
 	orr	r3, r3, #(PSR_SVC32_MODE)
-        msr	cpsr_all, r3
+        msr	cpsr_fsxc, r3
 
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, #0x0f		/* Get CPU ID */
@@ -446,7 +464,7 @@ ENTRY_NP(cpu_halt)
 	bic	r2, r2, #(PSR_MODE)
 	orr     r2, r2, #(PSR_SVC32_MODE)
 	orr	r2, r2, #(I32_bit | F32_bit)
-	msr     cpsr_all, r2
+	msr     cpsr_fsxc, r2
 
 	ldr	r4, .Lcpu_reset_address
 	ldr	r4, [r4]

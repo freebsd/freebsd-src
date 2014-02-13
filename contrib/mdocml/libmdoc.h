@@ -1,6 +1,7 @@
-/*	$Id: libmdoc.h,v 1.78 2011/12/02 01:37:14 schwarze Exp $ */
+/*	$Id: libmdoc.h,v 1.82 2013/10/21 23:47:58 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +25,7 @@ enum	mdoc_next {
 
 struct	mdoc {
 	struct mparse	 *parse; /* parse pointer */
+	char		 *defos; /* default argument for .Os */
 	int		  flags; /* parse flags */
 #define	MDOC_HALT	 (1 << 0) /* error in parse: halt */
 #define	MDOC_LITERAL	 (1 << 1) /* in a literal scope */
@@ -33,6 +35,8 @@ struct	mdoc {
 #define	MDOC_PPHRASE	 (1 << 5) /* within a partial phrase */
 #define	MDOC_FREECOL	 (1 << 6) /* `It' invocation should close */
 #define	MDOC_SYNOPSIS	 (1 << 7) /* SYNOPSIS-style formatting */
+#define	MDOC_KEEP	 (1 << 8) /* in a word keep */
+#define	MDOC_SMOFF	 (1 << 9) /* spacing is off */
 	enum mdoc_next	  next; /* where to put the next node */
 	struct mdoc_node *last; /* the last node parsed */
 	struct mdoc_node *first; /* the first node parsed */
@@ -42,7 +46,7 @@ struct	mdoc {
 	struct roff	 *roff;
 };
 
-#define	MACRO_PROT_ARGS	struct mdoc *m, \
+#define	MACRO_PROT_ARGS	struct mdoc *mdoc, \
 			enum mdoct tok, \
 			int line, \
 			int ppos, \
@@ -56,8 +60,8 @@ struct	mdoc_macro {
 #define	MDOC_PARSED	 (1 << 1)
 #define	MDOC_EXPLICIT	 (1 << 2)
 #define	MDOC_PROLOGUE	 (1 << 3)
-#define	MDOC_IGNDELIM	 (1 << 4) 
-	/* Reserved words in arguments treated as text. */
+#define	MDOC_IGNDELIM	 (1 << 4)
+#define	MDOC_JOIN	 (1 << 5)
 };
 
 enum	margserr {
@@ -99,13 +103,14 @@ extern	const struct mdoc_macro *const mdoc_macros;
 
 __BEGIN_DECLS
 
-#define		  mdoc_pmsg(m, l, p, t) \
-		  mandoc_msg((t), (m)->parse, (l), (p), NULL)
-#define		  mdoc_nmsg(m, n, t) \
-		  mandoc_msg((t), (m)->parse, (n)->line, (n)->pos, NULL)
+#define		  mdoc_pmsg(mdoc, l, p, t) \
+		  mandoc_msg((t), (mdoc)->parse, (l), (p), NULL)
+#define		  mdoc_nmsg(mdoc, n, t) \
+		  mandoc_msg((t), (mdoc)->parse, (n)->line, (n)->pos, NULL)
 int		  mdoc_macro(MACRO_PROT_ARGS);
 int		  mdoc_word_alloc(struct mdoc *, 
 			int, int, const char *);
+void		  mdoc_word_append(struct mdoc *, const char *);
 int		  mdoc_elem_alloc(struct mdoc *, int, int, 
 			enum mdoct, struct mdoc_arg *);
 int		  mdoc_block_alloc(struct mdoc *, int, int, 
@@ -113,10 +118,10 @@ int		  mdoc_block_alloc(struct mdoc *, int, int,
 int		  mdoc_head_alloc(struct mdoc *, int, int, enum mdoct);
 int		  mdoc_tail_alloc(struct mdoc *, int, int, enum mdoct);
 int		  mdoc_body_alloc(struct mdoc *, int, int, enum mdoct);
-int		  mdoc_endbody_alloc(struct mdoc *m, int line, int pos,
-			enum mdoct tok, struct mdoc_node *body,
-			enum mdoc_endbody end);
+int		  mdoc_endbody_alloc(struct mdoc *, int, int, enum mdoct,
+			struct mdoc_node *, enum mdoc_endbody);
 void		  mdoc_node_delete(struct mdoc *, struct mdoc_node *);
+int		  mdoc_node_relink(struct mdoc *, struct mdoc_node *);
 void		  mdoc_hash_init(void);
 enum mdoct	  mdoc_hash_find(const char *);
 const char	 *mdoc_a2att(const char *);

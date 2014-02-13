@@ -323,6 +323,8 @@ struct vm_exit {
 			uint64_t	gpa;
 			uint64_t	gla;
 			uint64_t	cr3;
+			enum vie_cpu_mode cpu_mode;
+			enum vie_paging_mode paging_mode;
 			struct vie	vie;
 		} inst_emul;
 		/*
