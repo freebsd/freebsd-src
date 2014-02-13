@@ -115,6 +115,16 @@ __FBSDID("$FreeBSD$");
 #include <geom/geom.h>
 
 /*
+ * XXXCHERI: It would be good to offer some sort of machine-dependent
+ * metadata abstraction for swapped pages, getting CHERI-aware code out of
+ * the machine-independent swap pager.  However, that will have to follow
+ * another day.
+ */
+#ifdef CPU_CHERI
+#include <machine/cheri.h>
+#endif
+
+/*
  * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, 16
  * or 32 pages per allocation.
  * The 32-page limit is due to the radix code (kern/subr_blist.c).
@@ -143,6 +153,9 @@ struct swblock {
 	vm_object_t	swb_object;
 	vm_pindex_t	swb_index;
 	int		swb_count;
+#ifdef CPU_CHERI
+	uint64_t	swb_tags[(PAGE_SIZE / 32) / sizeof(uint64_t)];
+#endif
 	daddr_t		swb_pages[SWAP_META_PAGES];
 };
 
@@ -1386,6 +1399,11 @@ swap_pager_putpages(vm_object_t object, vm_page_t *m, int count,
 		bp->b_bufsize = PAGE_SIZE * n;
 		bp->b_blkno = blk;
 
+#ifdef CPU_CHERI
+		/*
+		 * XXXCHERI: This is (possibly) where we should save the tags.
+		 */
+#endif
 		VM_OBJECT_WLOCK(object);
 		for (j = 0; j < n; ++j) {
 			vm_page_t mreq = m[i+j];
@@ -1481,6 +1499,12 @@ swp_pager_async_iodone(struct buf *bp)
 		    bp->b_error
 		);
 	}
+
+#ifdef CPU_CHERI
+	/*
+	 * XXXCHERI: This is (probably) where we should restore the tags.
+	 */
+#endif
 
 	/*
 	 * remove the mapping for kernel virtual
