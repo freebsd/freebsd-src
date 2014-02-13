@@ -2149,14 +2149,15 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
 		tptr+=4;
                 len -=4;
 
+		/* XXX-BD: apparently harmless shadowning of atype */
                 while (len) {
-                    u_int aflags, atype, alenlen, alen;
+                    u_int aflags, _atype, alenlen, alen;
                     
                     TCHECK2(tptr[0], 2);
                     if (len < 2)
                         goto trunc;
                     aflags = *tptr;
-                    atype = *(tptr + 1);
+                    _atype = *(tptr + 1);
                     tptr += 2;
                     len -= 2;
                     alenlen = bgp_attr_lenlen(aflags, tptr);
@@ -2169,9 +2170,9 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                     
                     printf("\n\t      %s (%u), length: %u",
                            tok2strbuf(bgp_attr_values,
-                                      "Unknown Attribute", atype,
+                                      "Unknown Attribute", _atype,
                                       tokbuf, sizeof(tokbuf)),
-                           atype,
+                           _atype,
                            alen);
                     
                     if (aflags) {
@@ -2185,7 +2186,7 @@ bgp_attr_print(u_int atype, packetbody_t pptr, u_int len)
                         printf("]: ");
                     }
                     /* FIXME check for recursion */
-                    if (!bgp_attr_print(atype, tptr, alen))
+                    if (!bgp_attr_print(_atype, tptr, alen))
                         return 0;
                     tptr += alen;
                     len -= alen;
