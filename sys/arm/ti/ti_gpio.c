@@ -792,6 +792,14 @@ ti_gpio_detach(device_t dev)
 	return(0);
 }
 
+static phandle_t
+ti_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(device_probe, ti_gpio_probe),
 	DEVMETHOD(device_attach, ti_gpio_attach),
@@ -806,6 +814,10 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get, ti_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set, ti_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle, ti_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node, ti_gpio_get_node),
+
 	{0, 0},
 };
 
