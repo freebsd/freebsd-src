@@ -237,6 +237,7 @@ typedef struct {
 #define	EM_ARCA		109	/* Arca RISC Microprocessor. */
 #define	EM_UNICORE	110	/* Microprocessor series from PKU-Unity Ltd.
 				   and MPRC of Peking University */
+#define	EM_AARCH64	183	/* AArch64 (64-bit ARM) */
 
 /* Non-standard or deprecated. */
 #define	EM_486		6	/* Intel i486. */
@@ -636,6 +637,8 @@ typedef struct {
 #define	R_386_TLS_DTPOFF32	36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
 #define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
+
+#define	R_AARCH64_RELATIVE 	1027
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
