@@ -227,10 +227,15 @@ fdt_load_dtb(vm_offset_t va)
 static int
 fdt_load_dtb_addr(struct fdt_header *header)
 {
+	int err;
 
-	// TODO: Verify that there really is an FDT at
-	// the specified location.
 	fdtp_size = fdt_totalsize(header);
+	err = fdt_check_header(&header);
+	if (err < 0) {
+		sprintf(command_errbuf, "error validating blob: %s",
+		    fdt_strerror(err));
+		return (err);
+	}
 	free(fdtp);
 	if ((fdtp = malloc(fdtp_size)) == NULL) {
 		command_errmsg = "can't allocate memory for device tree copy";
