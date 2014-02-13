@@ -5230,6 +5230,8 @@ static TargetInfo *AllocateTarget(const std::string &T) {
     switch (os) {
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<AArch64TargetInfo>(T);
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<AArch64TargetInfo>(T);
     default:
       return new AArch64TargetInfo(T);
     }
