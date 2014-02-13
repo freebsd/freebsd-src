@@ -47,13 +47,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/pcpu.h>
 #include <sys/proc.h>
+#include <sys/queue.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/sysctl.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/if_llatbl.h>
@@ -76,6 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ddb/ddb.h>
 
+#ifdef INET
 struct ipv4_tuple {
 	uint16_t 	ip_sport;	/* source port */
 	uint16_t 	ip_dport;	/* destination port */
@@ -87,7 +91,9 @@ union ipv4_flow {
 	struct ipv4_tuple ipf_ipt;
 	uint32_t 	ipf_key[3];
 };
+#endif
 
+#ifdef INET6
 struct ipv6_tuple {
 	uint16_t 	ip_sport;	/* source port */
 	uint16_t 	ip_dport;	/* destination port */
@@ -99,28 +105,44 @@ union ipv6_flow {
 	struct ipv6_tuple ipf_ipt;
 	uint32_t 	ipf_key[9];
 };
+#endif
 
 struct flentry {
-	volatile uint32_t	f_fhash;	/* hash flowing forward */
+	uint32_t		f_fhash;	/* hash flowing forward */
 	uint16_t		f_flags;	/* flow flags */
 	uint8_t			f_pad;
 	uint8_t			f_proto;	/* protocol */
 	uint32_t		f_fibnum;	/* fib index */
 	uint32_t		f_uptime;	/* uptime at last access */
-	struct flentry		*f_next;	/* pointer to collision entry */
-	volatile struct rtentry *f_rt;		/* rtentry for flow */
-	volatile struct llentry *f_lle;		/* llentry for flow */
+	SLIST_ENTRY(flentry)	f_next;		/* pointer to collision entry */
+	struct rtentry		*f_rt;		/* rtentry for flow */
+	struct llentry		*f_lle;		/* llentry for flow */
+	union {
+#ifdef INET
+		union ipv4_flow	v4;
+#endif
+#ifdef INET6
+		union ipv6_flow	v6;
+#endif
+	} f_flow;
+#define	f_flow4	f_flow.v4
+#define	f_flow6	f_flow.v6
 };
+#define	KEYLEN(flags)	((((flags) & FL_IPV6) ? 9 : 3) * 4)
 
-struct flentry_v4 {
-	struct flentry	fl_entry;
-	union ipv4_flow	fl_flow;
-};
+/* Make sure f_flow begins with key. */
+#ifdef INET
+CTASSERT(offsetof(struct flentry, f_flow) ==
+    offsetof(struct flentry, f_flow4.ipf_key));
+#endif
+#ifdef INET6
+CTASSERT(offsetof(struct flentry, f_flow) ==
+    offsetof(struct flentry, f_flow6.ipf_key));
+#endif
 
-struct flentry_v6 {
-	struct flentry	fl_entry;
-	union ipv6_flow	fl_flow;
-};
+SLIST_HEAD(flist, flentry);
+/* Make sure we can use pcpu_zone_ptr for struct flist. */
+CTASSERT(sizeof(struct flist) == sizeof(void *));
 
 #define	SECS_PER_HOUR		3600
 #define	SECS_PER_DAY		(24*SECS_PER_HOUR)
@@ -130,37 +152,28 @@ struct flentry_v6 {
 #define	FIN_WAIT_IDLE		600
 #define	TCP_IDLE		SECS_PER_DAY
 
-
-typedef	void fl_lock_t(struct flowtable *, uint32_t);
-
-union flentryp {
-	struct flentry		**global;
-	struct flentry		**pcpu[MAXCPU];
-};
-
 struct flowtable {
 	counter_u64_t	*ft_stat;
-	uma_zone_t	ft_zone;
 	int 		ft_size;
-	int 		ft_lock_count;
 	uint32_t	ft_flags;
 	uint32_t	ft_max_depth;
-	fl_lock_t	*ft_lock;
-	fl_lock_t 	*ft_unlock;
+
 	/*
-	 * XXX need to pad out
+	 * ft_table is a malloc(9)ed array of pointers.  Pointers point to
+	 * memory from UMA_ZONE_PCPU zone.
+	 * ft_masks is per-cpu pointer itself.  Each instance points
+	 * to a malloc(9)ed bitset, that is private to corresponding CPU.
 	 */
-	struct mtx	*ft_locks;
-	union flentryp	ft_table;
-	bitstr_t 	*ft_masks[MAXCPU];
+	struct flist	**ft_table;
+	bitstr_t 	**ft_masks;
 	bitstr_t	*ft_tmpmask;
 
-	uint32_t	ft_udp_idle __aligned(CACHE_LINE_SIZE);
+	uint32_t	ft_udp_idle;
 	uint32_t	ft_fin_wait_idle;
 	uint32_t	ft_syn_idle;
 	uint32_t	ft_tcp_idle;
 	boolean_t	ft_full;
-} __aligned(CACHE_LINE_SIZE);
+};
 
 #define	FLOWSTAT_ADD(ft, name, v)	\
 	counter_u64_add((ft)->ft_stat[offsetof(struct flowtable_stat, name) / sizeof(uint64_t)], (v))
@@ -190,14 +203,14 @@ static uint32_t		flowclean_freq;
  */
 #ifdef INET
 static VNET_DEFINE(struct flowtable, ip4_ft);
-#define V_ip4_ft	VNET(ip4_ft)
-static uma_zone_t	flow_ipv4_zone;
+#define	V_ip4_ft	VNET(ip4_ft)
 #endif
 #ifdef INET6
 static VNET_DEFINE(struct flowtable, ip6_ft);
 #define	V_ip6_ft	VNET(ip6_ft)
-static uma_zone_t	flow_ipv6_zone;
 #endif
+
+static uma_zone_t flow_zone;
 
 static VNET_DEFINE(int, flowtable_enable) = 1;
 static VNET_DEFINE(int, flowtable_syn_expire) = SYN_IDLE;
@@ -215,6 +228,8 @@ static SYSCTL_NODE(_net, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
     "flowtable");
 SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_RW,
     &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
+SYSCTL_UMA_MAX(_net_flowtable, OID_AUTO, maxflows, CTLFLAG_RW,
+    &flow_zone, "Maximum number of flows allowed");
 
 /*
  * XXX This does not end up updating timeouts at runtime
@@ -233,42 +248,9 @@ SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, tcp_expire, CTLFLAG_RW,
     &VNET_NAME(flowtable_tcp_expire), 0,
     "seconds after which to remove flow allocated to a TCP connection.");
 
-static void
-flowtable_global_lock(struct flowtable *table, uint32_t hash)
-{
-	int lock_index = (hash)&(table->ft_lock_count - 1);
-
-	mtx_lock(&table->ft_locks[lock_index]);
-}
-
-static void
-flowtable_global_unlock(struct flowtable *table, uint32_t hash)
-{
-	int lock_index = (hash)&(table->ft_lock_count - 1);
-
-	mtx_unlock(&table->ft_locks[lock_index]);
-}
-
-static void
-flowtable_pcpu_lock(struct flowtable *table, uint32_t hash)
-{
-
-	critical_enter();
-}
-
-static void
-flowtable_pcpu_unlock(struct flowtable *table, uint32_t hash)
-{
-
-	critical_exit();
-}
-
-#define FL_ENTRY_INDEX(table, hash)((hash) % (table)->ft_size)
-#define FL_ENTRY(table, hash) *flowtable_entry((table), (hash))
-#define FL_ENTRY_LOCK(table, hash)  (table)->ft_lock((table), (hash))
-#define FL_ENTRY_UNLOCK(table, hash) (table)->ft_unlock((table), (hash))
-
 #define FL_STALE 	(1<<8)
+
+static MALLOC_DEFINE(M_FTABLE, "flowtable", "flowtable hashes and bitstrings");
 
 static struct flentry *flowtable_lookup_common(struct flowtable *,
     struct sockaddr_storage *, struct sockaddr_storage *, struct mbuf *, int);
@@ -320,27 +302,6 @@ flags_to_proto(int flags)
 }
 
 #ifdef INET
-#ifdef FLOWTABLE_DEBUG
-static void
-ipv4_flow_print_tuple(int flags, int proto, struct sockaddr_in *ssin,
-    struct sockaddr_in *dsin)
-{
-	char saddr[4*sizeof "123"], daddr[4*sizeof "123"];
-
-	if (flags & FL_HASH_ALL) {
-		inet_ntoa_r(ssin->sin_addr, saddr);
-		inet_ntoa_r(dsin->sin_addr, daddr);
-		printf("proto=%d %s:%d->%s:%d\n",
-		    proto, saddr, ntohs(ssin->sin_port), daddr,
-		    ntohs(dsin->sin_port));
-	} else {
-		inet_ntoa_r(*(struct in_addr *) &dsin->sin_addr, daddr);
-		printf("proto=%d %s\n", proto, daddr);
-	}
-
-}
-#endif
-
 static int
 ipv4_mbuf_demarshal(struct mbuf *m, struct sockaddr_in *ssin,
     struct sockaddr_in *dsin, uint16_t *flags)
@@ -456,10 +417,10 @@ flow_to_route(struct flentry *fle, struct route *ro)
 	sin = (struct sockaddr_in *)&ro->ro_dst;
 	sin->sin_family = AF_INET;
 	sin->sin_len = sizeof(*sin);
-	hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
+	hashkey = fle->f_flow4.ipf_key;
 	sin->sin_addr.s_addr = hashkey[2];
-	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
-	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
+	ro->ro_rt = fle->f_rt;
+	ro->ro_lle = fle->f_lle;
 	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET */
@@ -661,10 +622,10 @@ flow_to_route_in6(struct flentry *fle, struct route_in6 *ro)
 
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
-	hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
+	hashkey = fle->f_flow6.ipf_key;
 	memcpy(&sin6->sin6_addr, &hashkey[5], sizeof (struct in6_addr));
-	ro->ro_rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
-	ro->ro_lle = __DEVOLATILE(struct llentry *, fle->f_lle);
+	ro->ro_rt = fle->f_rt;
+	ro->ro_lle = fle->f_lle;
 	ro->ro_flags |= RT_NORTREF;
 }
 #endif /* INET6 */
@@ -672,31 +633,24 @@ flow_to_route_in6(struct flentry *fle, struct route_in6 *ro)
 static bitstr_t *
 flowtable_mask(struct flowtable *ft)
 {
-	bitstr_t *mask;
 
-	if (ft->ft_flags & FL_PCPU)
-		mask = ft->ft_masks[curcpu];
-	else
-		mask = ft->ft_masks[0];
+	/* 
+	 * flowtable_free_stale() calls w/o critical section, but
+	 * with sched_bind(). Since pointer is stable throughout
+	 * ft lifetime, it is safe, otherwise...
+	 *
+	 * CRITICAL_ASSERT(curthread);
+	 */
 
-	return (mask);
+	return (*(bitstr_t **)zpcpu_get(ft->ft_masks));
 }
 
-static struct flentry **
-flowtable_entry(struct flowtable *ft, uint32_t hash)
+static struct flist *
+flowtable_list(struct flowtable *ft, uint32_t hash)
 {
-	struct flentry **fle;
-	int index = (hash % ft->ft_size);
 
-	if (ft->ft_flags & FL_PCPU) {
-		KASSERT(&ft->ft_table.pcpu[curcpu][0] != NULL, ("pcpu not set"));
-		fle = &ft->ft_table.pcpu[curcpu][index];
-	} else {
-		KASSERT(&ft->ft_table.global[0] != NULL, ("global not set"));
-		fle = &ft->ft_table.global[index];
-	}
-
-	return (fle);
+	CRITICAL_ASSERT(curthread);
+	return (zpcpu_get(ft->ft_table[hash % ft->ft_size]));
 }
 
 static int
@@ -730,24 +684,6 @@ flow_stale(struct flowtable *ft, struct flentry *fle)
 	return (0);
 }
 
-static void
-flowtable_set_hashkey(struct flentry *fle, uint32_t *key)
-{
-	uint32_t *hashkey;
-	int i, nwords;
-
-	if (fle->f_flags & FL_IPV6) {
-		nwords = 9;
-		hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
-	} else {
-		nwords = 3;
-		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
-	}
-
-	for (i = 0; i < nwords; i++)
-		hashkey[i] = key[i];
-}
-
 static int
 flow_full(struct flowtable *ft)
 {
@@ -755,8 +691,8 @@ flow_full(struct flowtable *ft)
 	int count, max;
 
 	full = ft->ft_full;
-	count = uma_zone_get_cur(ft->ft_zone);
-	max = uma_zone_get_max(ft->ft_zone);
+	count = uma_zone_get_cur(flow_zone);
+	max = uma_zone_get_max(flow_zone);
 
 	if (full && (count < (max - (max >> 3))))
 		ft->ft_full = FALSE;
@@ -783,26 +719,31 @@ static int
 flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     uint32_t fibnum, struct route *ro, uint16_t flags)
 {
-	struct flentry *fle, *fletail, *newfle, **flep;
+	struct flist *flist;
+	struct flentry *fle, *iter;
 	int depth;
 	bitstr_t *mask;
-	uint8_t proto;
 
-	newfle = uma_zalloc(ft->ft_zone, M_NOWAIT | M_ZERO);
-	if (newfle == NULL)
+	fle = uma_zalloc(flow_zone, M_NOWAIT | M_ZERO);
+	if (fle == NULL)
 		return (ENOMEM);
 
-	newfle->f_flags |= (flags & FL_IPV6);
-	proto = flags_to_proto(flags);
+	bcopy(key, &fle->f_flow, KEYLEN(flags));
+	fle->f_flags |= (flags & FL_IPV6);
+	fle->f_proto = flags_to_proto(flags);
+	fle->f_rt = ro->ro_rt;
+	fle->f_lle = ro->ro_lle;
+	fle->f_fhash = hash;
+	fle->f_fibnum = fibnum;
+	fle->f_uptime = time_uptime;
 
-	FL_ENTRY_LOCK(ft, hash);
+	critical_enter();
 	mask = flowtable_mask(ft);
-	flep = flowtable_entry(ft, hash);
-	fletail = fle = *flep;
+	flist = flowtable_list(ft, hash);
 
-	if (fle == NULL) {
-		bit_set(mask, FL_ENTRY_INDEX(ft, hash));
-		*flep = fle = newfle;
+	if (SLIST_EMPTY(flist)) {
+		bit_set(mask, (hash % ft->ft_size));
+		SLIST_INSERT_HEAD(flist, fle, f_next);
 		goto skip;
 	}
 
@@ -812,63 +753,28 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 	 * find end of list and make sure that we were not
 	 * preempted by another thread handling this flow
 	 */
-	while (fle != NULL) {
-		if (fle->f_fhash == hash && !flow_stale(ft, fle)) {
+	SLIST_FOREACH(iter, flist, f_next) {
+		if (iter->f_fhash == hash && !flow_stale(ft, iter)) {
 			/*
 			 * there was either a hash collision
 			 * or we lost a race to insert
 			 */
-			FL_ENTRY_UNLOCK(ft, hash);
-			uma_zfree(ft->ft_zone, newfle);
+			critical_exit();
+			uma_zfree(flow_zone, fle);
 
 			return (EEXIST);
 		}
-		/*
-		 * re-visit this double condition XXX
-		 */
-		if (fletail->f_next != NULL)
-			fletail = fle->f_next;
-
 		depth++;
-		fle = fle->f_next;
 	}
 
 	if (depth > ft->ft_max_depth)
 		ft->ft_max_depth = depth;
-	fletail->f_next = newfle;
-	fle = newfle;
+
+	SLIST_INSERT_HEAD(flist, fle, f_next);
 skip:
-	flowtable_set_hashkey(fle, key);
+	critical_exit();
 
-	fle->f_proto = proto;
-	fle->f_rt = ro->ro_rt;
-	fle->f_lle = ro->ro_lle;
-	fle->f_fhash = hash;
-	fle->f_fibnum = fibnum;
-	fle->f_uptime = time_uptime;
-	FL_ENTRY_UNLOCK(ft, hash);
 	return (0);
-}
-
-static int
-flowtable_key_equal(struct flentry *fle, uint32_t *key)
-{
-	uint32_t *hashkey;
-	int i, nwords;
-
-	if (fle->f_flags & FL_IPV6) {
-		nwords = 9;
-		hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
-	} else {
-		nwords = 3;
-		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
-	}
-
-	for (i = 0; i < nwords; i++)
-		if (hashkey[i] != key[i])
-			return (0);
-
-	return (1);
 }
 
 struct flentry *
@@ -895,6 +801,7 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 {
 	struct route_in6 sro6;
 	struct route sro, *ro;
+	struct flist *flist;
 	struct flentry *fle;
 	struct rtentry *rt;
 	struct llentry *lle;
@@ -974,34 +881,24 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 		return (NULL);
 
 	FLOWSTAT_INC(ft, ft_lookups);
-	FL_ENTRY_LOCK(ft, hash);
-	if ((fle = FL_ENTRY(ft, hash)) == NULL) {
-		FL_ENTRY_UNLOCK(ft, hash);
-		goto uncached;
-	}
-keycheck:
-	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
-	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
-	if ((rt != NULL)
-	    && lle != NULL
-	    && fle->f_fhash == hash
-	    && flowtable_key_equal(fle, key)
-	    && (proto == fle->f_proto)
-	    && (fibnum == fle->f_fibnum)
-	    && (rt->rt_flags & RTF_UP)
-	    && (rt->rt_ifp != NULL)
-	    && (lle->la_flags & LLE_VALID)) {
-		FLOWSTAT_INC(ft, ft_hits);
-		fle->f_uptime = time_uptime;
-		fle->f_flags |= flags;
-		FL_ENTRY_UNLOCK(ft, hash);
-		goto success;
-	} else if (fle->f_next != NULL) {
-		fle = fle->f_next;
-		goto keycheck;
-	}
-	FL_ENTRY_UNLOCK(ft, hash);
-uncached:
+
+	critical_enter();
+	flist = flowtable_list(ft, hash);
+	SLIST_FOREACH(fle, flist, f_next)
+		if (fle->f_fhash == hash && bcmp(&fle->f_flow, key,
+		    KEYLEN(fle->f_flags)) == 0 &&
+		    proto == fle->f_proto && fibnum == fle->f_fibnum &&
+		    (fle->f_rt->rt_flags & RTF_UP) &&
+		    fle->f_rt->rt_ifp != NULL &&
+		    (fle->f_lle->la_flags & LLE_VALID)) {
+			fle->f_uptime = time_uptime;
+			fle->f_flags |= flags;
+			critical_exit();
+			FLOWSTAT_INC(ft, ft_hits);
+			goto success;
+		}
+	critical_exit();
+
 	if (flags & FL_NOAUTO || flow_full(ft))
 		return (NULL);
 
@@ -1088,38 +985,22 @@ success:
 /*
  * used by the bit_alloc macro
  */
-#define calloc(count, size) malloc((count)*(size), M_DEVBUF, M_WAITOK|M_ZERO)
-
+#define calloc(count, size) malloc((count)*(size), M_FTABLE, M_WAITOK | M_ZERO) 
 static void
 flowtable_alloc(struct flowtable *ft)
 {
 
-	if (ft->ft_flags & FL_PCPU) {
-		ft->ft_lock = flowtable_pcpu_lock;
-		ft->ft_unlock = flowtable_pcpu_unlock;
+	ft->ft_table = malloc(ft->ft_size * sizeof(struct flist),
+	    M_FTABLE, M_WAITOK);
+	for (int i = 0; i < ft->ft_size; i++)
+		ft->ft_table[i] = uma_zalloc(pcpu_zone_ptr, M_WAITOK | M_ZERO);
 
-		for (int i = 0; i <= mp_maxid; i++) {
-			ft->ft_table.pcpu[i] =
-			    malloc(ft->ft_size * sizeof(struct flentry *),
-				M_RTABLE, M_WAITOK | M_ZERO);
-			ft->ft_masks[i] = bit_alloc(ft->ft_size);
-		}
-	} else {
-		ft->ft_lock_count = 2*(powerof2(mp_maxid + 1) ? (mp_maxid + 1):
-		    (fls(mp_maxid + 1) << 1));
+	ft->ft_masks = uma_zalloc(pcpu_zone_ptr, M_WAITOK);
+	for (int i = 0; i < mp_ncpus; i++) {
+		bitstr_t **b;
 
-		ft->ft_lock = flowtable_global_lock;
-		ft->ft_unlock = flowtable_global_unlock;
-		ft->ft_table.global =
-			    malloc(ft->ft_size * sizeof(struct flentry *),
-				M_RTABLE, M_WAITOK | M_ZERO);
-		ft->ft_locks = malloc(ft->ft_lock_count*sizeof(struct mtx),
-				M_RTABLE, M_WAITOK | M_ZERO);
-		for (int i = 0; i < ft->ft_lock_count; i++)
-			mtx_init(&ft->ft_locks[i], "flow", NULL,
-			    MTX_DEF | MTX_DUPOK);
-
-		ft->ft_masks[0] = bit_alloc(ft->ft_size);
+		b = zpcpu_get_cpu(ft->ft_masks, i);
+		*b = bit_alloc(ft->ft_size);
 	}
 	ft->ft_tmpmask = bit_alloc(ft->ft_size);
 
@@ -1139,41 +1020,22 @@ flowtable_alloc(struct flowtable *ft)
 
 	}
 }
-
-/*
- * The rest of the code is devoted to garbage collection of expired entries.
- * It is a new additon made necessary by the switch to dynamically allocating
- * flow tables.
- *
- */
-static void
-fle_free(struct flentry *fle, struct flowtable *ft)
-{
-	struct rtentry *rt;
-	struct llentry *lle;
-
-	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
-	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
-	if (rt != NULL)
-		RTFREE(rt);
-	if (lle != NULL)
-		LLE_FREE(lle);
-	uma_zfree(ft->ft_zone, fle);
-}
+#undef calloc
 
 static void
 flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 {
-	int curbit = 0, tmpsize;
-	struct flentry *fle,  **flehead, *fleprev;
-	struct flentry *flefreehead, *flefreetail, *fletmp;
+	struct flist *flist, freelist;
+	struct flentry *fle, *fle1, *fleprev;
 	bitstr_t *mask, *tmpmask;
+	int curbit, tmpsize;
 
-	flefreehead = flefreetail = NULL;
+	SLIST_INIT(&freelist);
 	mask = flowtable_mask(ft);
 	tmpmask = ft->ft_tmpmask;
 	tmpsize = ft->ft_size;
 	memcpy(tmpmask, mask, ft->ft_size/8);
+	curbit = 0;
 	/*
 	 * XXX Note to self, bit_ffs operates at the byte level
 	 * and thus adds gratuitous overhead
@@ -1187,69 +1049,72 @@ flowtable_free_stale(struct flowtable *ft, struct rtentry *rt)
 			break;
 		}
 
-		FL_ENTRY_LOCK(ft, curbit);
-		flehead = flowtable_entry(ft, curbit);
-		fle = fleprev = *flehead;
-
 		FLOWSTAT_INC(ft, ft_free_checks);
+
+		critical_enter();
+		flist = flowtable_list(ft, curbit);
 #ifdef DIAGNOSTIC
-		if (fle == NULL && curbit > 0) {
+		if (SLIST_EMPTY(flist) && curbit > 0) {
 			log(LOG_ALERT,
 			    "warning bit=%d set, but no fle found\n",
 			    curbit);
 		}
 #endif
-		while (fle != NULL) {
-			if (rt != NULL) {
-				if (__DEVOLATILE(struct rtentry *, fle->f_rt) != rt) {
-					fleprev = fle;
-					fle = fle->f_next;
-					continue;
-				}
-			} else if (!flow_stale(ft, fle)) {
+		SLIST_FOREACH_SAFE(fle, flist, f_next, fle1) {
+			if (rt != NULL && fle->f_rt != rt) {
 				fleprev = fle;
-				fle = fle->f_next;
 				continue;
 			}
-			/*
-			 * delete head of the list
-			 */
-			if (fleprev == *flehead) {
-				fletmp = fleprev;
-				if (fle == fleprev) {
-					fleprev = *flehead = fle->f_next;
-				} else
-					fleprev = *flehead = fle;
-				fle = fle->f_next;
-			} else {
-				/*
-				 * don't advance fleprev
-				 */
-				fletmp = fle;
-				fleprev->f_next = fle->f_next;
-				fle = fleprev->f_next;
+			if (!flow_stale(ft, fle)) {
+				fleprev = fle;
+				continue;
 			}
 
-			if (flefreehead == NULL)
-				flefreehead = flefreetail = fletmp;
-			else {
-				flefreetail->f_next = fletmp;
-				flefreetail = fletmp;
-			}
-			fletmp->f_next = NULL;
+			if (fle == SLIST_FIRST(flist))
+				SLIST_REMOVE_HEAD(flist, f_next);
+			else
+				SLIST_REMOVE_AFTER(fleprev, f_next);
+			SLIST_INSERT_HEAD(&freelist, fle, f_next);
 		}
-		if (*flehead == NULL)
+		if (SLIST_EMPTY(flist))
 			bit_clear(mask, curbit);
-		FL_ENTRY_UNLOCK(ft, curbit);
+		critical_exit();
+
 		bit_clear(tmpmask, curbit);
 		tmpmask += (curbit / 8);
 		tmpsize -= (curbit / 8) * 8;
 		bit_ffs(tmpmask, tmpsize, &curbit);
 	}
-	while ((fle = flefreehead) != NULL) {
-		flefreehead = fle->f_next;
+
+	SLIST_FOREACH_SAFE(fle, &freelist, f_next, fle1) {
 		FLOWSTAT_INC(ft, ft_frees);
-		fle_free(fle, ft);
+		if (fle->f_rt != NULL)
+			RTFREE(fle->f_rt);
+		if (fle->f_lle != NULL)
+			LLE_FREE(fle->f_lle);
+		uma_zfree(flow_zone, fle);
+	}
+}
+
+static void
+flowtable_clean_vnet(struct flowtable *ft, struct rtentry *rt)
+{
+	int i;
+
+	CPU_FOREACH(i) {
+		if (smp_started == 1) {
+			thread_lock(curthread);
+			sched_bind(curthread, i);
+			thread_unlock(curthread);
+		}
+
+		flowtable_free_stale(ft, rt);
+
+		if (smp_started == 1) {
+			thread_lock(curthread);
+			sched_unbind(curthread);
+			thread_unlock(curthread);
+		}
 	}
 }
 
@@ -1257,7 +1122,6 @@ void
 flowtable_route_flush(sa_family_t sa, struct rtentry *rt)
 {
 	struct flowtable *ft;
-	int i;
 
 	switch (sa) {
 #ifdef INET
@@ -1274,51 +1138,7 @@ flowtable_route_flush(sa_family_t sa, struct rtentry *rt)
 		panic("%s: sa %d", __func__, sa);
 	}
 
-	if (ft->ft_flags & FL_PCPU) {
-		CPU_FOREACH(i) {
-			if (smp_started == 1) {
-				thread_lock(curthread);
-				sched_bind(curthread, i);
-				thread_unlock(curthread);
-			}
-
-			flowtable_free_stale(ft, rt);
-
-			if (smp_started == 1) {
-				thread_lock(curthread);
-				sched_unbind(curthread);
-				thread_unlock(curthread);
-			}
-		}
-	} else {
-		flowtable_free_stale(ft, rt);
-	}
-}
-
-static void
-flowtable_clean_vnet(struct flowtable *ft)
-{
-
-	if (ft->ft_flags & FL_PCPU) {
-		int i;
-
-		CPU_FOREACH(i) {
-			if (smp_started == 1) {
-				thread_lock(curthread);
-				sched_bind(curthread, i);
-				thread_unlock(curthread);
-			}
-
-			flowtable_free_stale(ft, NULL);
-
-			if (smp_started == 1) {
-				thread_lock(curthread);
-				sched_unbind(curthread);
-				thread_unlock(curthread);
-			}
-		}
-	} else
-		flowtable_free_stale(ft, NULL);
+	flowtable_clean_vnet(ft, rt);
 }
 
 static void
@@ -1335,10 +1155,10 @@ flowtable_cleaner(void)
 		VNET_FOREACH(vnet_iter) {
 			CURVNET_SET(vnet_iter);
 #ifdef INET
-			flowtable_clean_vnet(&V_ip4_ft);
+			flowtable_clean_vnet(&V_ip4_ft, NULL);
 #endif
 #ifdef INET6
-			flowtable_clean_vnet(&V_ip6_ft);
+			flowtable_clean_vnet(&V_ip6_ft, NULL);
 #endif
 			CURVNET_RESTORE();
 		}
@@ -1408,16 +1228,9 @@ flowtable_init(const void *unused __unused)
 
 	flow_hashjitter = arc4random();
 
-#ifdef INET
-	flow_ipv4_zone = uma_zcreate("ip4flow", sizeof(struct flentry_v4),
+	flow_zone = uma_zcreate("flows", sizeof(struct flentry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_MAXBUCKET);
-	uma_zone_set_max(flow_ipv4_zone, 1024 + maxusers * 64 * mp_ncpus);
-#endif
-#ifdef INET6
-	flow_ipv6_zone = uma_zcreate("ip6flow", sizeof(struct flentry_v6),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, UMA_ZONE_MAXBUCKET);
-	uma_zone_set_max(flow_ipv6_zone, 1024 + maxusers * 64 * mp_ncpus);
-#endif
+	uma_zone_set_max(flow_zone, 1024 + maxusers * 64 * mp_ncpus);
 
 	cv_init(&flowclean_c_cv, "c_flowcleanwait");
 	cv_init(&flowclean_f_cv, "f_flowcleanwait");
@@ -1432,8 +1245,6 @@ SYSINIT(flowtable_init, SI_SUB_PROTO_BEGIN, SI_ORDER_FIRST,
 #ifdef INET
 static SYSCTL_NODE(_net_flowtable, OID_AUTO, ip4, CTLFLAG_RD, NULL,
     "Flowtable for IPv4");
-SYSCTL_UMA_MAX(_net_flowtable_ip4, OID_AUTO, maxflows, CTLFLAG_RW,
-    &flow_ipv4_zone, "Maximum number of IPv4 flows allowed");
 
 static VNET_PCPUSTAT_DEFINE(struct flowtable_stat, ip4_ftstat);
 VNET_PCPUSTAT_SYSINIT(ip4_ftstat);
@@ -1446,9 +1257,7 @@ static void
 flowtable_init_vnet_v4(const void *unused __unused)
 {
 
-	V_ip4_ft.ft_zone = flow_ipv4_zone;
 	V_ip4_ft.ft_size = flowtable_get_size("net.flowtable.ip4.size");
-	V_ip4_ft.ft_flags = FL_PCPU;
 	V_ip4_ft.ft_stat = VNET(ip4_ftstat);
 	flowtable_alloc(&V_ip4_ft);
 }
@@ -1459,8 +1268,6 @@ VNET_SYSINIT(ft_vnet_v4, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 #ifdef INET6
 static SYSCTL_NODE(_net_flowtable, OID_AUTO, ip6, CTLFLAG_RD, NULL,
     "Flowtable for IPv6");
-SYSCTL_UMA_MAX(_net_flowtable_ip6, OID_AUTO, maxflows, CTLFLAG_RW,
-    &flow_ipv6_zone, "Maximum number of IPv6 flows allowed");
 
 static VNET_PCPUSTAT_DEFINE(struct flowtable_stat, ip6_ftstat);
 VNET_PCPUSTAT_SYSINIT(ip6_ftstat);
@@ -1473,9 +1280,7 @@ static void
 flowtable_init_vnet_v6(const void *unused __unused)
 {
 
-	V_ip6_ft.ft_zone = flow_ipv6_zone;
 	V_ip6_ft.ft_size = flowtable_get_size("net.flowtable.ip6.size");
-	V_ip6_ft.ft_flags = FL_PCPU;
 	V_ip6_ft.ft_stat = VNET(ip6_ftstat);
 	flowtable_alloc(&V_ip6_ft);
 }
@@ -1484,45 +1289,18 @@ VNET_SYSINIT(flowtable_init_vnet_v6, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
 #endif /* INET6 */
 
 #ifdef DDB
-static uint32_t *
-flowtable_get_hashkey(struct flentry *fle)
-{
-	uint32_t *hashkey;
-
-	if (fle->f_flags & FL_IPV6)
-		hashkey = ((struct flentry_v4 *)fle)->fl_flow.ipf_key;
-	else
-		hashkey = ((struct flentry_v6 *)fle)->fl_flow.ipf_key;
-
-	return (hashkey);
-}
-
 static bitstr_t *
 flowtable_mask_pcpu(struct flowtable *ft, int cpuid)
 {
-	bitstr_t *mask;
 
-	if (ft->ft_flags & FL_PCPU)
-		mask = ft->ft_masks[cpuid];
-	else
-		mask = ft->ft_masks[0];
-
-	return (mask);
+	return (zpcpu_get_cpu(*ft->ft_masks, cpuid));
 }
 
-static struct flentry **
-flowtable_entry_pcpu(struct flowtable *ft, uint32_t hash, int cpuid)
+static struct flist *
+flowtable_list_pcpu(struct flowtable *ft, uint32_t hash, int cpuid)
 {
-	struct flentry **fle;
-	int index = (hash % ft->ft_size);
 
-	if (ft->ft_flags & FL_PCPU) {
-		fle = &ft->ft_table.pcpu[cpuid][index];
-	} else {
-		fle = &ft->ft_table.global[index];
-	}
-
-	return (fle);
+	return (zpcpu_get_cpu(&ft->ft_table[hash % ft->ft_size], cpuid));
 }
 
 static void
@@ -1542,7 +1320,7 @@ flow_show(struct flowtable *ft, struct flentry *fle)
 	if (rt_valid)
 		ifp = rt->rt_ifp;
 	ifp_valid = ifp != NULL;
-	hashkey = flowtable_get_hashkey(fle);
+	hashkey = (uint32_t *)&fle->f_flow;
 	if (fle->f_flags & FL_IPV6)
 		goto skipaddr;
 
@@ -1594,7 +1372,6 @@ static void
 flowtable_show(struct flowtable *ft, int cpuid)
 {
 	int curbit = 0;
-	struct flentry *fle,  **flehead;
 	bitstr_t *mask, *tmpmask;
 
 	if (cpuid != -1)
@@ -1608,20 +1385,19 @@ flowtable_show(struct flowtable *ft, int cpuid)
 	 */
 	bit_ffs(tmpmask, ft->ft_size, &curbit);
 	while (curbit != -1) {
+		struct flist *flist;
+		struct flentry *fle;
+
 		if (curbit >= ft->ft_size || curbit < -1) {
 			db_printf("warning: bad curbit value %d \n",
 			    curbit);
 			break;
 		}
 
-		flehead = flowtable_entry_pcpu(ft, curbit, cpuid);
-		fle = *flehead;
+		flist = flowtable_list_pcpu(ft, curbit, cpuid);
 
-		while (fle != NULL) {
+		SLIST_FOREACH(fle, flist, f_next)
 			flow_show(ft, fle);
-			fle = fle->f_next;
-			continue;
-		}
 		bit_clear(tmpmask, curbit);
 		bit_ffs(tmpmask, ft->ft_size, &curbit);
 	}
@@ -1631,14 +1407,10 @@ static void
 flowtable_show_vnet(struct flowtable *ft)
 {
 
-	if (ft->ft_flags & FL_PCPU) {
-		int i;
+	int i;
 
-		CPU_FOREACH(i) {
-			flowtable_show(ft, i);
-		}
-	} else
-		flowtable_show(ft, -1);
+	CPU_FOREACH(i)
+		flowtable_show(ft, i);
 }
 
 DB_SHOW_COMMAND(flowtables, db_show_flowtables)
