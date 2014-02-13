@@ -131,6 +131,15 @@ at91_spi_attach(device_t dev)
 	if (err)
 		goto out;
 
+#ifdef FDT
+	/*
+	 * Disable devices need to hold their resources, so return now and not attach
+	 * the spibus, setup interrupt handlers, etc.
+	 */
+	if (!ofw_bus_status_okay(dev))
+		return 0;
+#endif
+
 	/*
 	 * Set up the hardware.
 	 */
