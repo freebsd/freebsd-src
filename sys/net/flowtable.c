@@ -899,7 +899,7 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 		}
 	critical_exit();
 
-	if (flags & FL_NOAUTO || flow_full(ft))
+	if (flow_full(ft))
 		return (NULL);
 
 	FLOWSTAT_INC(ft, ft_misses);
