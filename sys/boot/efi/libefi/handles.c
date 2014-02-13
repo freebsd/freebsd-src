@@ -88,3 +88,15 @@ efi_handle_lookup(EFI_HANDLE h, struct devsw **dev, int *unit)
 	}
 	return (ENOENT);
 }
+
+int
+efi_handle_any(struct devsw **dev, int *unit)
+{
+	if (nentries == 0)
+		return (ENOENT);
+	if (dev != NULL)
+		*dev = entry[0].dev;
+	if (unit != NULL)
+		*unit = entry[0].unit;
+	return (0);
+}

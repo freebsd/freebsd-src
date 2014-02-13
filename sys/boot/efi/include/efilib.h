@@ -44,6 +44,7 @@ void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
 int efi_register_handles(struct devsw *, EFI_HANDLE *, int);
 EFI_HANDLE efi_find_handle(struct devsw *, int);
 int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *);
+int efi_handle_any(struct devsw **dev, int *unit);
 
 int efi_status_to_errno(EFI_STATUS);
 time_t efi_time(EFI_TIME *);
