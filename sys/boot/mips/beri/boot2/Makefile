@@ -1,14 +1,10 @@
 #  $FreeBSD$
 
-PROG=		jtagboot		\
-		flashboot
-
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 
-FILES=		${PROG}
-FILES+=		jtagboot.md5		\
-		flashboot.md5
+LOADERS=	flashboot jtagboot
+FILES=		${LOADERS} ${LOADERS:S/$/.md5/}
 
 SRCS=		relocate.S		\
 		start.S			\
