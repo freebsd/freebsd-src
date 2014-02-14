@@ -210,7 +210,7 @@ res_find(int *line, int *startln,
 		if (strncmp(cp, "hint.", 5) != 0)
 			hit = 0;
 		else
-			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%128s",
+			n = sscanf(cp, "hint.%32[^.].%d.%32[^=]=%127s",
 			    r_name, &r_unit, r_resname, r_value);
 		if (hit && n != 4) {
 			printf("CONFIG: invalid hint '%s'\n", cp);
