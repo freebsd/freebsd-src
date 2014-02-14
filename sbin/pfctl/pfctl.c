@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -791,17 +792,17 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
-			    "Bytes: %-10llu  States: %-6lu]\n",
+			    "Bytes: %-10llu  States: %-6ju]\n",
 			    (unsigned long long)rule->evaluations,
 			    (unsigned long long)(rule->packets[0] +
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
-			    rule->bytes[1]), (uint64_t)rule->states_cur);
+			    rule->bytes[1]), (uintmax_t)rule->states_cur);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
-			    "State Creations: %-6lu]\n",
+			    "State Creations: %-6ju]\n",
 			    (unsigned)rule->cuid, (unsigned)rule->cpid,
-			    (uint64_t)rule->states_tot);
+			    (uintmax_t)rule->states_tot);
 	}
 }
 
