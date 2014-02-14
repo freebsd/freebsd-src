@@ -55,7 +55,6 @@ extern "C" {
 #include "atf-c/utils.h"
 }
 
-#include "noncopyable.hpp"
 #include "tests.hpp"
 
 #include "detail/application.hpp"
@@ -63,7 +62,6 @@ extern "C" {
 #include "detail/env.hpp"
 #include "detail/exceptions.hpp"
 #include "detail/fs.hpp"
-#include "detail/parser.hpp"
 #include "detail/sanity.hpp"
 #include "detail/text.hpp"
 
@@ -79,12 +77,7 @@ detail::atf_tp_writer::atf_tp_writer(std::ostream& os) :
     m_os(os),
     m_is_first(true)
 {
-    atf::parser::headers_map hm;
-    atf::parser::attrs_map ct_attrs;
-    ct_attrs["version"] = "1";
-    hm["Content-Type"] = atf::parser::header_entry("Content-Type",
-        "application/X-atf-tp", ct_attrs);
-    atf::parser::write_headers(hm, m_os);
+    m_os << "Content-Type: application/X-atf-tp; version=\"1\"\n\n";
 }
 
 void
@@ -129,7 +122,13 @@ detail::match(const std::string& regexp, const std::string& str)
 static std::map< atf_tc_t*, impl::tc* > wraps;
 static std::map< const atf_tc_t*, const impl::tc* > cwraps;
 
-struct impl::tc_impl : atf::noncopyable {
+struct impl::tc_impl {
+private:
+    // Non-copyable.
+    tc_impl(const tc_impl&);
+    tc_impl& operator=(const tc_impl&);
+
+public:
     std::string m_ident;
     atf_tc_t m_tc;
     bool m_has_cleanup;
@@ -435,7 +434,7 @@ const char* tp::m_description =
     "This is an independent atf test program.";
 
 tp::tp(void (*add_tcs)(tc_vector&)) :
-    app(m_description, "atf-test-program(1)", "atf(7)", false),
+    app(m_description, "atf-test-program(1)"),
     m_lflag(false),
     m_resfile("/dev/stdout"),
     m_srcdir("."),

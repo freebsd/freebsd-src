@@ -27,17 +27,8 @@
 /* Define to 1 if you have the `putenv' function. */
 #undef HAVE_PUTENV
 
-/* Define to 1 if putenv is in std */
-#undef HAVE_PUTENV_IN_STD
-
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
-
-/* Define to 1 if setenv is in std */
-#undef HAVE_SETENV_IN_STD
-
-/* Define to 1 if snprintf is in std */
-#undef HAVE_SNPRINTF_IN_STD
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -60,14 +51,8 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
 
-/* Define to 1 if you have the `unmount' function. */
-#undef HAVE_UNMOUNT
-
 /* Define to 1 if you have the `unsetenv' function. */
 #undef HAVE_UNSETENV
-
-/* Define to 1 if unsetenv is in std */
-#undef HAVE_UNSETENV_IN_STD
 
 /* Define to 1 if vsnprintf is in std */
 #undef HAVE_VSNPRINTF_IN_STD

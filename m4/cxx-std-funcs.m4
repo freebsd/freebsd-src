@@ -38,35 +38,6 @@ AC_DEFUN([ATF_CHECK_IN_STD], [
     )
 ])
 
-AC_DEFUN([ATF_CHECK_STD_PUTENV], [
-    ATF_CHECK_IN_STD([putenv],
-                     [#include <cstdio>],
-                     [std::putenv("a=b");]
-                    )
-])
-
-AC_DEFUN([ATF_CHECK_STD_SETENV], [
-    ATF_CHECK_IN_STD([setenv],
-                     [#include <cstdio>],
-                     [std::setenv("a", "b");]
-                    )
-])
-
-AC_DEFUN([ATF_CHECK_STD_SNPRINTF], [
-    ATF_CHECK_IN_STD([snprintf],
-                     [#include <cstdio>],
-                     [char buf;
-                      std::snprintf(&buf, 1, "");]
-                    )
-])
-
-AC_DEFUN([ATF_CHECK_STD_UNSETENV], [
-    ATF_CHECK_IN_STD([unsetenv],
-                     [#include <cstdio>],
-                     [std::unsetenv("a");]
-                    )
-])
-
 AC_DEFUN([ATF_CHECK_STD_VSNPRINTF], [
     ATF_CHECK_IN_STD([vsnprintf],
                      [#include <cstdarg>

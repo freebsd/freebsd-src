@@ -29,11 +29,11 @@
 
 check_PROGRAMS = bootstrap/h_app_empty
 bootstrap_h_app_empty_SOURCES = bootstrap/h_app_empty.cpp
-bootstrap_h_app_empty_LDADD = $(ATF_CXX_LIBS)
+bootstrap_h_app_empty_LDADD = tools/libtools.a $(ATF_CXX_LIBS)
 
 check_PROGRAMS += bootstrap/h_app_opts_args
 bootstrap_h_app_opts_args_SOURCES = bootstrap/h_app_opts_args.cpp
-bootstrap_h_app_opts_args_LDADD = $(ATF_CXX_LIBS)
+bootstrap_h_app_opts_args_LDADD = tools/libtools.a $(ATF_CXX_LIBS)
 
 check_PROGRAMS += bootstrap/h_tp_basic_c
 bootstrap_h_tp_basic_c_SOURCES = bootstrap/h_tp_basic_c.c

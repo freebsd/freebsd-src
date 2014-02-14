@@ -45,28 +45,22 @@ libatf_c_la_SOURCES = atf-c/build.c \
                       atf-c/utils.c \
                       atf-c/utils.h
 nodist_libatf_c_la_SOURCES = atf-c/defs.h
-libatf_c_la_CPPFLAGS = "-DATF_ARCH=\"$(atf_arch)\"" \
-                       "-DATF_BUILD_CC=\"$(ATF_BUILD_CC)\"" \
+libatf_c_la_CPPFLAGS = "-DATF_BUILD_CC=\"$(ATF_BUILD_CC)\"" \
                        "-DATF_BUILD_CFLAGS=\"$(ATF_BUILD_CFLAGS)\"" \
                        "-DATF_BUILD_CPP=\"$(ATF_BUILD_CPP)\"" \
                        "-DATF_BUILD_CPPFLAGS=\"$(ATF_BUILD_CPPFLAGS)\"" \
                        "-DATF_BUILD_CXX=\"$(ATF_BUILD_CXX)\"" \
                        "-DATF_BUILD_CXXFLAGS=\"$(ATF_BUILD_CXXFLAGS)\"" \
-                       "-DATF_CONFDIR=\"$(atf_confdir)\"" \
                        "-DATF_INCLUDEDIR=\"$(includedir)\"" \
-                       "-DATF_LIBDIR=\"$(libdir)\"" \
                        "-DATF_LIBEXECDIR=\"$(libexecdir)\"" \
-                       "-DATF_MACHINE=\"$(atf_machine)\"" \
-                       "-DATF_M4=\"$(ATF_M4)\"" \
                        "-DATF_PKGDATADIR=\"$(pkgdatadir)\"" \
                        "-DATF_SHELL=\"$(ATF_SHELL)\"" \
-                       "-DATF_WORKDIR=\"$(ATF_WORKDIR)\"" \
-                       -I$(srcdir)/atf-c
+                       "-DATF_WORKDIR=\"$(ATF_WORKDIR)\""
 libatf_c_la_LDFLAGS = -version-info 0:0:0
 
 # XXX For some reason, the nodist line above does not work as expected.
 # Work this problem around.
-dist-hook: kill-defs-h
+DIST_HOOKS += kill-defs-h
 kill-defs-h:
 	rm -f $(distdir)/atf-c/defs.h
 

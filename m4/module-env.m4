@@ -29,8 +29,4 @@ dnl
 
 AC_DEFUN([ATF_MODULE_ENV], [
     AC_CHECK_FUNCS([putenv setenv unsetenv])
-
-    ATF_CHECK_STD_PUTENV
-    ATF_CHECK_STD_SETENV
-    ATF_CHECK_STD_UNSETENV
 ])
