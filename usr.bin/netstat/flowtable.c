@@ -55,6 +55,7 @@ print_stats(struct flowtable_stat *stat)
 	p(ft_collisions, "\t%ju collision%s\n");
 	p(ft_free_checks, "\t%ju free check%s\n");
 	p(ft_frees, "\t%ju free%s\n");
+	p(ft_fail_lle_invalid, "\t%ju lookups w/ no resolved ARP%s\n");
 
 #undef	p2
 #undef	p
