@@ -199,7 +199,7 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
-typedef void (*pci_lintr_cb)(int slot, int pin, int ioapic_irq, void *arg);
+typedef void (*pci_lintr_cb)(int b, int s, int pin, int ioapic_irq, void *arg);
 
 int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
@@ -229,8 +229,8 @@ int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
 			     uint64_t value);
 uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
-int	pci_count_lintr(void);
-void	pci_walk_lintr(pci_lintr_cb cb, void *arg);
+int	pci_count_lintr(int bus);
+void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
 void	pci_write_dsdt(void);
 
 static __inline void 
