@@ -12,15 +12,21 @@ CFLAGS+=	-I${ATF}
 .for _T in	application_test \
 		env_test \
 		exceptions_test \
-		expand_test \
 		fs_test \
-		parser_test \
 		process_test \
 		sanity_test \
-		text_test \
-		ui_test
+		text_test
 ATF_TESTS_CXX+=	${_T}
 SRCS.${_T}=	${_T}.cpp test_helpers.cpp
 .endfor
 
+.for p in version_helper
+PROGS_CXX+=	${p}
+SRCS.${p}=	${p}.cpp
+MAN.${p}=	# defined
+BINDIR.${p}=	${TESTSDIR}
+.endfor
+version_helper.o: atf-version
+
+.include "../../../common.mk"
 .include <atf.test.mk>

@@ -37,7 +37,7 @@ extern "C" {
 
 class getopt_app : public atf::application::app {
 public:
-    getopt_app(void) : app("description", "manpage", "other") {}
+    getopt_app(void) : app("description", "manpage") {}
 
     int main(void)
     {
