@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/counter.h>
 #include <sys/refcount.h>
 #include <sys/tree.h>
 
@@ -512,13 +513,9 @@ struct pf_rule {
 
 	int			 rtableid;
 	u_int32_t		 timeout[PFTM_MAX];
-	u_int32_t		 states_cur;
-	u_int32_t		 states_tot;
 	u_int32_t		 max_states;
-	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
-	u_int32_t		 spare1;			/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -531,6 +528,10 @@ struct pf_rule {
 	u_int32_t		 prob;
 	uid_t			 cuid;
 	pid_t			 cpid;
+
+	counter_u64_t		 states_cur;
+	counter_u64_t		 states_tot;
+	counter_u64_t		 src_nodes;
 
 	u_int16_t		 return_icmp;
 	u_int16_t		 return_icmp6;

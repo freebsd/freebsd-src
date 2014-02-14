@@ -791,17 +791,17 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
-			    "Bytes: %-10llu  States: %-6u]\n",
+			    "Bytes: %-10llu  States: %-6lu]\n",
 			    (unsigned long long)rule->evaluations,
 			    (unsigned long long)(rule->packets[0] +
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
-			    rule->bytes[1]), rule->states_cur);
+			    rule->bytes[1]), (uint64_t)rule->states_cur);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
-			    "State Creations: %-6u]\n",
+			    "State Creations: %-6lu]\n",
 			    (unsigned)rule->cuid, (unsigned)rule->cpid,
-			    rule->states_tot);
+			    (uint64_t)rule->states_tot);
 	}
 }
 
