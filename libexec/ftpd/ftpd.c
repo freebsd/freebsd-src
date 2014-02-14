@@ -965,6 +965,7 @@ sgetpwnam(char *name)
 	if (save.pw_name) {
 		free(save.pw_name);
 		free(save.pw_passwd);
+		free(save.pw_class);
 		free(save.pw_gecos);
 		free(save.pw_dir);
 		free(save.pw_shell);
@@ -972,6 +973,7 @@ sgetpwnam(char *name)
 	save = *p;
 	save.pw_name = sgetsave(p->pw_name);
 	save.pw_passwd = sgetsave(p->pw_passwd);
+	save.pw_class = sgetsave(p->pw_class);
 	save.pw_gecos = sgetsave(p->pw_gecos);
 	save.pw_dir = sgetsave(p->pw_dir);
 	save.pw_shell = sgetsave(p->pw_shell);
