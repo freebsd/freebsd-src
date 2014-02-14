@@ -59,7 +59,7 @@ MAN=	aac.4 \
 	ath_pci.4 \
 	atkbd.4 \
 	atkbdc.4 \
-	${_atp.4} \
+	atp.4 \
 	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
@@ -561,6 +561,7 @@ MAN=	aac.4 \
 	wlan_wep.4 \
 	wlan_xauth.4 \
 	${_wpi.4} \
+	wsp.4 \
 	xe.4 \
 	${_xen.4} \
 	xhci.4 \
@@ -748,7 +749,6 @@ _amdsbwd.4=	amdsbwd.4
 _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
-_atp.4=		atp.4
 _bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
@@ -820,9 +820,6 @@ MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
-.if ${MACHINE_CPUARCH} == "powerpc"
-_atp.4=		atp.4
-.endif
 .if ${MACHINE_CPUARCH} == "mips"
 _nvram2env.4=	nvram2env.4
 .endif
