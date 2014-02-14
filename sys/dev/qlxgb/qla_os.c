@@ -1054,10 +1054,7 @@ qla_send(qla_host_t *ha, struct mbuf **m_headp)
 	ret = bus_dmamap_load_mbuf_sg(ha->tx_tag, map, m_head, segs, &nsegs,
 			BUS_DMA_NOWAIT);
 
-	if ((ret == EFBIG) ||
-		((nsegs > Q8_TX_MAX_SEGMENTS) &&
-		 (((m_head->m_pkthdr.csum_flags & CSUM_TSO) == 0) ||
-			(m_head->m_pkthdr.len <= ha->max_frame_size)))) {
+	if (ret == EFBIG) {
 
 		struct mbuf *m;
 
