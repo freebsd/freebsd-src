@@ -18,3 +18,4 @@ configure*
 doc/atf-formats.5
 doc/atf.7.in
 m4/
+tools/
