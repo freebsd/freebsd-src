@@ -40,6 +40,7 @@ struct flowtable_stat {
 	uint64_t	ft_hits;
 	uint64_t	ft_lookups;
 	uint64_t	ft_fail_lle_invalid;
+	uint64_t	ft_inserts;
 };
 
 #ifdef	_KERNEL
