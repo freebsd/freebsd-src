@@ -3124,7 +3124,8 @@ net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
 net80211/ieee80211_ageq.c	optional wlan
-net80211/ieee80211_adhoc.c	optional wlan
+net80211/ieee80211_adhoc.c	optional wlan \
+	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_ageq.c	optional wlan
 net80211/ieee80211_amrr.c	optional wlan | wlan_amrr
 net80211/ieee80211_crypto.c	optional wlan \
@@ -3136,7 +3137,8 @@ net80211/ieee80211_crypto_wep.c	optional wlan wlan_wep
 net80211/ieee80211_ddb.c	optional wlan ddb
 net80211/ieee80211_dfs.c	optional wlan
 net80211/ieee80211_freebsd.c	optional wlan
-net80211/ieee80211_hostap.c	optional wlan
+net80211/ieee80211_hostap.c	optional wlan \
+	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_ht.c		optional wlan
 net80211/ieee80211_hwmp.c	optional wlan ieee80211_support_mesh
 net80211/ieee80211_input.c	optional wlan
@@ -3156,7 +3158,8 @@ net80211/ieee80211_regdomain.c	optional wlan
 net80211/ieee80211_rssadapt.c	optional wlan wlan_rssadapt
 net80211/ieee80211_scan.c	optional wlan
 net80211/ieee80211_scan_sta.c	optional wlan
-net80211/ieee80211_sta.c	optional wlan
+net80211/ieee80211_sta.c	optional wlan \
+	compile-with "${NORMAL_C} -Wno-unused-function"
 net80211/ieee80211_superg.c	optional wlan ieee80211_support_superg
 net80211/ieee80211_tdma.c	optional wlan ieee80211_support_tdma
 net80211/ieee80211_wds.c	optional wlan
