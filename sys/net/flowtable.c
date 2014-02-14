@@ -966,6 +966,15 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 		RTFREE(rt);
 		return (NULL);
 	}
+
+	/* Don't insert the entry if the ARP hasn't yet finished resolving */
+	if ((lle->la_flags & LLE_VALID) == 0) {
+		RTFREE(rt);
+		LLE_FREE(lle);
+		FLOWSTAT_INC(ft, ft_fail_lle_invalid);
+		return (NULL);
+	}
+
 	ro->ro_lle = lle;
 
 	if (flowtable_insert(ft, hash, key, fibnum, ro, flags) != 0) {
