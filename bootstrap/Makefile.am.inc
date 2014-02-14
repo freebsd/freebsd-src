@@ -27,15 +27,7 @@
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-check_PROGRAMS = bootstrap/h_app_empty
-bootstrap_h_app_empty_SOURCES = bootstrap/h_app_empty.cpp
-bootstrap_h_app_empty_LDADD = tools/libtools.a $(ATF_CXX_LIBS)
-
-check_PROGRAMS += bootstrap/h_app_opts_args
-bootstrap_h_app_opts_args_SOURCES = bootstrap/h_app_opts_args.cpp
-bootstrap_h_app_opts_args_LDADD = tools/libtools.a $(ATF_CXX_LIBS)
-
-check_PROGRAMS += bootstrap/h_tp_basic_c
+check_PROGRAMS = bootstrap/h_tp_basic_c
 bootstrap_h_tp_basic_c_SOURCES = bootstrap/h_tp_basic_c.c
 bootstrap_h_tp_basic_c_LDADD = libatf-c.la
 
@@ -85,11 +77,7 @@ EXTRA_DIST +=	bootstrap/testsuite \
 		bootstrap/testsuite.at \
 		$(testsuite_incs)
 
-testsuite_incs=	$(srcdir)/bootstrap/t_application_help.at \
-		$(srcdir)/bootstrap/t_application_opts_args.at \
-		$(srcdir)/bootstrap/t_atf_config.at \
-		$(srcdir)/bootstrap/t_atf_run.at \
-		$(srcdir)/bootstrap/t_subr_atf_check.at \
+testsuite_incs= $(srcdir)/bootstrap/t_subr_atf_check.at \
 		$(srcdir)/bootstrap/t_test_program_compare.at \
 		$(srcdir)/bootstrap/t_test_program_filter.at \
 		$(srcdir)/bootstrap/t_test_program_list.at \
@@ -103,7 +91,6 @@ testsuite_incs=	$(srcdir)/bootstrap/t_application_help.at \
 	echo 'm4_define(AT_PACKAGE_VERSION,   @PACKAGE_VERSION@)'; \
 	echo 'm4_define(AT_PACKAGE_STRING,    @PACKAGE_STRING@)'; \
 	echo 'm4_define(AT_PACKAGE_BUGREPORT, @PACKAGE_BUGREPORT@)'; \
-	echo 'm4_define(ENABLE_TOOLS,         @ENABLE_TOOLS@)'; \
 	} >$(srcdir)/bootstrap/package.m4
 
 @target_srcdir@bootstrap/testsuite: $(srcdir)/bootstrap/testsuite.at \

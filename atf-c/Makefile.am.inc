@@ -60,7 +60,7 @@ libatf_c_la_LDFLAGS = -version-info 0:0:0
 
 # XXX For some reason, the nodist line above does not work as expected.
 # Work this problem around.
-DIST_HOOKS += kill-defs-h
+dist-hook: kill-defs-h
 kill-defs-h:
 	rm -f $(distdir)/atf-c/defs.h
 
@@ -95,8 +95,7 @@ atf-c/atf-c.pc: $(srcdir)/atf-c/atf-c.pc.in Makefile
 	    <$(srcdir)/atf-c/atf-c.pc.in >atf-c/atf-c.pc.tmp
 	mv atf-c/atf-c.pc.tmp atf-c/atf-c.pc
 
-tests_atf_c_DATA = atf-c/Atffile \
-                   atf-c/Kyuafile \
+tests_atf_c_DATA = atf-c/Kyuafile \
                    atf-c/macros_h_test.c \
                    atf-c/unused_test.c
 tests_atf_cdir = $(pkgtestsdir)/atf-c

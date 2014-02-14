@@ -30,7 +30,6 @@
 atf_aclocal_DATA =
 BUILT_SOURCES =
 CLEANFILES =
-DIST_HOOKS =
 EXTRA_DIST =
 bin_PROGRAMS =
 dist_man_MANS =
@@ -54,10 +53,6 @@ include bootstrap/Makefile.am.inc
 include doc/Makefile.am.inc
 include test-programs/Makefile.am.inc
 
-if ENABLE_TOOLS
-include tools/Makefile.am.inc
-endif
-
 #
 # Top-level distfile documents.
 #
@@ -76,32 +71,9 @@ TESTS_ENVIRONMENT = PATH=$(prefix)/bin:$${PATH} \
 testsdir = $(exec_prefix)/tests
 pkgtestsdir = $(testsdir)/$(PACKAGE)
 
-if ENABLE_TOOLS
-INSTALLCHECK_TARGETS += installcheck-atf
-PHONY_TARGETS += installcheck-atf
-installcheck-atf:
-	logfile=$$(pwd)/installcheck.log; \
-	fifofile=$$(pwd)/installcheck.fifo; \
-	cd $(pkgtestsdir); \
-	rm -f $${fifofile}; \
-	mkfifo $${fifofile}; \
-	cat $${fifofile} | tee $${logfile} | $(TESTS_ENVIRONMENT) atf-report & \
-	$(TESTS_ENVIRONMENT) atf-run >>$${fifofile}; \
-	res=$${?}; \
-	wait; \
-	rm $${fifofile}; \
-	echo; \
-	echo "The verbatim output of atf-run has been saved to" \
-	     "installcheck.log; exit was $${res}"; \
-	test $${res} -eq 0
-CLEANFILES += installcheck.fifo installcheck.log
-endif
-
 PHONY_TARGETS += installcheck-kyua
 if HAVE_KYUA
-if !ENABLE_TOOLS
 INSTALLCHECK_TARGETS += installcheck-kyua
-endif
 installcheck-kyua:
 	cd $(pkgtestsdir) && $(TESTS_ENVIRONMENT) $(KYUA) test
 endif
@@ -109,9 +81,6 @@ endif
 installcheck-local: $(INSTALLCHECK_TARGETS)
 
 pkgtests_DATA = Kyuafile
-if ENABLE_TOOLS
-pkgtests_DATA += Atffile
-endif
 EXTRA_DIST += $(pkgtests_DATA)
 
 BUILD_SH_TP = \
@@ -123,17 +92,6 @@ BUILD_SH_TP = \
 #
 # Custom targets.
 #
-
-DIST_HOOKS += forbid-dist
-if ENABLE_TOOLS
-forbid-dist:
-	@true
-else
-forbid-dist:
-	@echo "Sorry; cannot make dist without the tools enabled."
-	@echo "Please reconfigure with --enable-tools."
-	@false
-endif
 
 PHONY_TARGETS += clean-all
 clean-all:
@@ -148,7 +106,5 @@ release-test:
 	$(SH) $(srcdir)/admin/release-test.sh $(DIST_ARCHIVES)
 
 .PHONY: $(PHONY_TARGETS)
-
-dist-hook: $(DIST_HOOKS)
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8

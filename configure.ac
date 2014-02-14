@@ -31,7 +31,7 @@ dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.19], [atf-devel@NetBSD.org], [atf],
+AC_INIT([Automated Testing Framework], [0.20], [atf-devel@NetBSD.org], [atf],
         [https://github.com/jmmv/atf/])
 AC_PREREQ([2.65])
 AC_COPYRIGHT([Copyright (c) 2007-2012 The NetBSD Foundation, Inc.])
@@ -50,17 +50,6 @@ AM_INIT_AUTOMAKE([1.9 check-news foreign subdir-objects -Wall])
 
 AM_PROG_AR
 LT_INIT
-
-AC_ARG_ENABLE(tools,
-    AS_HELP_STRING([--enable-tools],
-        [Enables the build of the deprecated ATF tools]),
-    [case $enableval in
-     yes|no) enable_tools=${enableval} ;;
-     *) AC_MSG_ERROR([Invalid value passed to --enable-tools]) ;;
-     esac],
-    [enable_tools=no])
-AC_SUBST([ENABLE_TOOLS], ${enable_tools})
-AM_CONDITIONAL([ENABLE_TOOLS], [test "${enable_tools}" = yes])
 
 dnl -----------------------------------------------------------------------
 dnl Check for the C and C++ compilers and required features.
@@ -91,9 +80,6 @@ ATF_MODULE_APPLICATION
 ATF_MODULE_DEFS
 ATF_MODULE_ENV
 ATF_MODULE_FS
-ATF_MODULE_SIGNALS
-
-AC_CHECK_TYPE([timer_t], [], [], [[#include <time.h>]])
 
 ATF_RUNTIME_TOOL([ATF_BUILD_CC],
                  [C compiler to use at runtime], [${CC}])
@@ -123,38 +109,8 @@ fi
 AC_SUBST([target_srcdir])
 
 dnl -----------------------------------------------------------------------
-dnl Architecture and machine checks.
-dnl -----------------------------------------------------------------------
-
-atf_arch=`uname -p`
-atf_machine=`uname -m`
-
-AC_MSG_NOTICE([Machine type: ${atf_machine}, architecture: ${atf_arch}])
-AC_SUBST(atf_arch, ${atf_arch})
-AC_SUBST(atf_machine, ${atf_machine})
-
-dnl -----------------------------------------------------------------------
 dnl User-customizable variables.
 dnl -----------------------------------------------------------------------
-
-AC_ARG_VAR([ATF_CONFSUBDIR],
-           [Subdirectory of sysconfdir under which to look for files])
-if test x"${ATF_CONFSUBDIR-unset}" = x"unset"; then
-    ATF_CONFSUBDIR=atf
-else
-    case ${ATF_CONFSUBDIR} in
-    /*)
-        AC_MSG_ERROR([ATF_CONFSUBDIR must hold a relative path])
-        ;;
-    *)
-        ;;
-    esac
-fi
-if test x"${ATF_CONFSUBDIR}" = x""; then
-    AC_SUBST(atf_confdir, \${sysconfdir})
-else
-    AC_SUBST(atf_confdir, \${sysconfdir}/${ATF_CONFSUBDIR})
-fi
 
 AC_ARG_VAR([ATF_WORKDIR],
            [Default location to use for ATF work directories])
@@ -179,11 +135,7 @@ else
 fi
 
 AC_SUBST(atf_aclocaldir, \${datadir}/aclocal)
-AC_SUBST(atf_cssdir, \${datadir}/examples/atf)
-AC_SUBST(atf_dtddir, \${datadir}/xml/atf)
-AC_SUBST(atf_egdir, \${datadir}/examples/atf)
 AC_SUBST(atf_pkgconfigdir, \${libdir}/pkgconfig)
-AC_SUBST(atf_xsldir, \${datadir}/xsl/atf)
 
 dnl -----------------------------------------------------------------------
 dnl Check for the shell and portability problems.
@@ -209,7 +161,6 @@ dnl -----------------------------------------------------------------------
 dnl Check for required tools.
 dnl -----------------------------------------------------------------------
 
-AC_PATH_PROG([GDB], [gdb])
 AC_PATH_PROG([KYUA], [kyua])
 AM_CONDITIONAL([HAVE_KYUA], [test -n "${KYUA}"])
 AC_PATH_PROG([GIT], [git])
@@ -218,11 +169,6 @@ dnl -----------------------------------------------------------------------
 dnl Finally, generate output.
 dnl -----------------------------------------------------------------------
 
-AC_OUTPUT([Makefile atf-c/defs.h tools/defs.hpp])
-
-if test ${enable_tools} = yes; then
-    AC_MSG_WARN([Building the deprecated ATF tools (atf-run and atf-report);])
-    AC_MSG_WARN([please migrate to Kyua as soon as feasible.])
-fi
+AC_OUTPUT([Makefile atf-c/defs.h])
 
 dnl vim: syntax=m4:expandtab:shiftwidth=4:softtabstop=4

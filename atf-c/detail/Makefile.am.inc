@@ -47,8 +47,7 @@ libatf_c_la_SOURCES += atf-c/detail/dynstr.c \
                        atf-c/detail/user.c \
                        atf-c/detail/user.h
 
-tests_atf_c_detail_DATA = atf-c/detail/Atffile \
-                          atf-c/detail/Kyuafile
+tests_atf_c_detail_DATA = atf-c/detail/Kyuafile
 tests_atf_c_detaildir = $(pkgtestsdir)/atf-c/detail
 EXTRA_DIST += $(tests_atf_c_detail_DATA)
 
