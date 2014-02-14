@@ -211,6 +211,8 @@ static int		urtwn_tx_start(struct urtwn_softc *,
 			    struct ieee80211_node *, struct mbuf *,
 			    struct urtwn_data *);
 static void		urtwn_start(struct ifnet *);
+static void		urtwn_start_locked(struct ifnet *,
+			    struct urtwn_softc *);
 static int		urtwn_ioctl(struct ifnet *, u_long, caddr_t);
 static int		urtwn_power_on(struct urtwn_softc *);
 static int		urtwn_llt_init(struct urtwn_softc *);
@@ -868,13 +870,9 @@ tr_setup:
 		}
 		STAILQ_REMOVE_HEAD(&sc->sc_tx_pending, next);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_active, data, next);
-
 		usbd_xfer_set_frame_data(xfer, 0, data->buf, data->buflen);
 		usbd_transfer_submit(xfer);
-
-		URTWN_UNLOCK(sc);
-		urtwn_start(ifp);
-		URTWN_LOCK(sc);
+		urtwn_start_locked(ifp, sc);
 		break;
 	default:
 		data = STAILQ_FIRST(&sc->sc_tx_active);
@@ -1717,14 +1715,22 @@ static void
 urtwn_start(struct ifnet *ifp)
 {
 	struct urtwn_softc *sc = ifp->if_softc;
+
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+	URTWN_LOCK(sc);
+	urtwn_start_locked(ifp, sc);
+	URTWN_UNLOCK(sc);
+}
+
+static void
+urtwn_start_locked(struct ifnet *ifp, struct urtwn_softc *sc)
+{
 	struct ieee80211_node *ni;
 	struct mbuf *m;
 	struct urtwn_data *bf;
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		return;
-
-	URTWN_LOCK(sc);
+	URTWN_ASSERT_LOCKED(sc);
 	for (;;) {
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m);
 		if (m == NULL)
@@ -1747,7 +1753,6 @@ urtwn_start(struct ifnet *ifp)
 		sc->sc_txtimer = 5;
 		callout_reset(&sc->sc_watchdog_ch, hz, urtwn_watchdog, sc);
 	}
-	URTWN_UNLOCK(sc);
 }
 
 static int
