@@ -102,6 +102,9 @@ options		USB_DEBUG
 options		USB_HOST_ALIGN=32		# AR71XX (MIPS in general?) requires this
 device		ehci
 
+device		pci
+device		ar724x_pci
+
 device		scbus
 device		umass
 device		da
