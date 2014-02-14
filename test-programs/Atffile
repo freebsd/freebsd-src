@@ -1,9 +1,0 @@
-Content-Type: application/X-atf-atffile; version="1"
-
-prop: test-suite = atf
-
-tp: config_test
-tp: expect_test
-tp: meta_data_test
-tp: srcdir_test
-tp: result_test

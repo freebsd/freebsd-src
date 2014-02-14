@@ -57,8 +57,7 @@ atf-sh/atf-sh.pc: $(srcdir)/atf-sh/atf-sh.pc.in Makefile
 	    <$(srcdir)/atf-sh/atf-sh.pc.in >atf-sh/atf-sh.pc.tmp
 	mv atf-sh/atf-sh.pc.tmp atf-sh/atf-sh.pc
 
-tests_atf_sh_DATA = atf-sh/Atffile \
-                    atf-sh/Kyuafile
+tests_atf_sh_DATA = atf-sh/Kyuafile
 tests_atf_shdir = $(pkgtestsdir)/atf-sh
 EXTRA_DIST += $(tests_atf_sh_DATA)
 

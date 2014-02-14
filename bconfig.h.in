@@ -57,9 +57,6 @@
 /* Define to 1 if vsnprintf is in std */
 #undef HAVE_VSNPRINTF_IN_STD
 
-/* Define to the last valid signal number */
-#undef LAST_SIGNO
-
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
 #undef LT_OBJDIR
