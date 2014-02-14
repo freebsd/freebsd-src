@@ -716,21 +716,39 @@ flow_full(struct flowtable *ft)
 }
 
 static int
+flow_matches(struct flentry *fle, uint32_t hash, uint32_t *key, uint8_t
+   proto, uint32_t fibnum)
+{
+
+	if (fle->f_fhash == hash &&
+	    bcmp(&fle->f_flow, key, KEYLEN(fle->f_flags)) == 0 &&
+	    proto == fle->f_proto && fibnum == fle->f_fibnum &&
+	    (fle->f_rt->rt_flags & RTF_UP) &&
+	    fle->f_rt->rt_ifp != NULL &&
+	    (fle->f_lle->la_flags & LLE_VALID))
+		return (1);
+
+	return (0);
+}
+
+static struct flentry *
 flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     uint32_t fibnum, struct route *ro, uint16_t flags)
 {
 	struct flist *flist;
 	struct flentry *fle, *iter;
-	int depth;
 	bitstr_t *mask;
+	int depth;
+	uint8_t proto;
 
 	fle = uma_zalloc(flow_zone, M_NOWAIT | M_ZERO);
 	if (fle == NULL)
-		return (ENOMEM);
+		return (NULL);
 
+	proto = flags_to_proto(flags);
 	bcopy(key, &fle->f_flow, KEYLEN(flags));
 	fle->f_flags |= (flags & FL_IPV6);
-	fle->f_proto = flags_to_proto(flags);
+	fle->f_proto = proto;
 	fle->f_rt = ro->ro_rt;
 	fle->f_lle = ro->ro_lle;
 	fle->f_fhash = hash;
@@ -748,21 +766,24 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 	}
 
 	depth = 0;
-	FLOWSTAT_INC(ft, ft_collisions);
 	/*
 	 * find end of list and make sure that we were not
 	 * preempted by another thread handling this flow
 	 */
 	SLIST_FOREACH(iter, flist, f_next) {
-		if (iter->f_fhash == hash && !flow_stale(ft, iter)) {
+		if (flow_matches(iter, hash, key, proto, fibnum)) {
 			/*
-			 * there was either a hash collision
-			 * or we lost a race to insert
+			 * We probably migrated to an other CPU after
+			 * lookup in flowtable_lookup_common() failed.
+			 * It appeared that this CPU already has flow
+			 * entry.
 			 */
+			iter->f_uptime = time_uptime;
+			iter->f_flags |= flags;
 			critical_exit();
+			FLOWSTAT_INC(ft, ft_collisions);
 			uma_zfree(flow_zone, fle);
-
-			return (EEXIST);
+			return (iter);
 		}
 		depth++;
 	}
@@ -773,8 +794,9 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 	SLIST_INSERT_HEAD(flist, fle, f_next);
 skip:
 	critical_exit();
+	FLOWSTAT_INC(ft, ft_inserts);
 
-	return (0);
+	return (fle);
 }
 
 struct flentry *
@@ -885,12 +907,7 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 	critical_enter();
 	flist = flowtable_list(ft, hash);
 	SLIST_FOREACH(fle, flist, f_next)
-		if (fle->f_fhash == hash && bcmp(&fle->f_flow, key,
-		    KEYLEN(fle->f_flags)) == 0 &&
-		    proto == fle->f_proto && fibnum == fle->f_fibnum &&
-		    (fle->f_rt->rt_flags & RTF_UP) &&
-		    fle->f_rt->rt_ifp != NULL &&
-		    (fle->f_lle->la_flags & LLE_VALID)) {
+		if (flow_matches(fle, hash, key, proto, fibnum)) {
 			fle->f_uptime = time_uptime;
 			fle->f_flags |= flags;
 			critical_exit();
@@ -977,17 +994,19 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 
 	ro->ro_lle = lle;
 
-	if (flowtable_insert(ft, hash, key, fibnum, ro, flags) != 0) {
+	fle = flowtable_insert(ft, hash, key, fibnum, ro, flags);
+	if (fle == NULL) {
 		RTFREE(rt);
 		LLE_FREE(lle);
 		return (NULL);
 	}
 
 success:
-	if (fle != NULL && (m->m_flags & M_FLOWID) == 0) {
+	if (m->m_flags & M_FLOWID) {
 		m->m_flags |= M_FLOWID;
 		m->m_pkthdr.flowid = fle->f_fhash;
 	}
+
 	return (fle);
 }
 

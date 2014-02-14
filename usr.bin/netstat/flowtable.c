@@ -52,10 +52,12 @@ print_stats(struct flowtable_stat *stat)
 	p(ft_lookups, "\t%ju lookup%s\n");
 	p(ft_hits, "\t%ju hit%s\n");
 	p2(ft_misses, "\t%ju miss%s\n");
+	p(ft_inserts, "\t%ju insert%s\n");
 	p(ft_collisions, "\t%ju collision%s\n");
 	p(ft_free_checks, "\t%ju free check%s\n");
 	p(ft_frees, "\t%ju free%s\n");
-	p(ft_fail_lle_invalid, "\t%ju lookups w/ no resolved Layer 2 address%s\n");
+	p(ft_fail_lle_invalid,
+	    "\t%ju lookup%s with not resolved Layer 2 address\n");
 
 #undef	p2
 #undef	p
