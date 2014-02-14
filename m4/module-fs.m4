@@ -66,6 +66,4 @@ AC_DEFUN([ATF_MODULE_FS], [
         AC_DEFINE([HAVE_GETCWD_DYN], [1],
                   [Define to 1 if getcwd(NULL, 0) works])
     fi
-
-    AC_CHECK_FUNCS([unmount])
 ])

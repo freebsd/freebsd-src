@@ -584,7 +584,8 @@ at_change_dir=false
 # Whether to enable colored test results.
 at_color=no
 # List of the tested programs.
-at_tested=''
+at_tested='atf-config
+atf-run'
 # As many question marks as there are digits in the last test group number.
 # Used to normalize the test group numbers so that `ls' lists them in
 # numerical order.
@@ -595,6 +596,10 @@ at_help_all="1;t_test_program_filter.at:30;test_program: filter test cases by na
 3;t_test_program_list.at:30;test_program: list test cases;;
 4;t_test_program_compare.at:30;test_program: compare the user-visible interfaces;;
 5;t_subr_atf_check.at:30;subr: atf_check function;;
+6;t_application_opts_args.at:30;application: arguments and options handling;;
+7;t_application_help.at:30;application: online help option;;
+8;t_atf_config.at:30;atf-config: querying of build-time variables;;
+9;t_atf_run.at:30;atf-run: execution of tests;;
 "
 # List of the all the test groups.
 at_groups_all=`$as_echo "$at_help_all" | sed 's/;.*//'`
@@ -608,7 +613,7 @@ at_fn_validate_ranges ()
   for at_grp
   do
     eval at_value=\$$at_grp
-    if test $at_value -lt 1 || test $at_value -gt 5; then
+    if test $at_value -lt 1 || test $at_value -gt 9; then
       $as_echo "invalid test group: $at_value" >&2
       exit 1
     fi
@@ -906,7 +911,7 @@ fi
 # List of tests.
 if $at_list_p; then
   cat <<_ATEOF || at_write_fail=1
-Automated Testing Framework 0.18 test suite: bootstrap tests test groups:
+Automated Testing Framework 0.19 test suite: bootstrap tests test groups:
 
  NUM: FILE-NAME:LINE     TEST-GROUP-NAME
       KEYWORDS
@@ -947,7 +952,7 @@ _ATEOF
   exit $at_write_fail
 fi
 if $at_version_p; then
-  $as_echo "$as_me (Automated Testing Framework 0.18)" &&
+  $as_echo "$as_me (Automated Testing Framework 0.19)" &&
   cat <<\_ATEOF || at_write_fail=1
 
 Copyright (C) 2012 Free Software Foundation, Inc.
@@ -1124,11 +1129,11 @@ exec 5>>"$at_suite_log"
 
 # Banners and logs.
 $as_echo "## ------------------------------------------------------------- ##
-## Automated Testing Framework 0.18 test suite: bootstrap tests. ##
+## Automated Testing Framework 0.19 test suite: bootstrap tests. ##
 ## ------------------------------------------------------------- ##"
 {
   $as_echo "## ------------------------------------------------------------- ##
-## Automated Testing Framework 0.18 test suite: bootstrap tests. ##
+## Automated Testing Framework 0.19 test suite: bootstrap tests. ##
 ## ------------------------------------------------------------- ##"
   echo
 
@@ -1972,7 +1977,7 @@ _ASBOX
   $as_echo "Please send $at_msg and all information you think might help:
 
    To: <atf-devel@NetBSD.org>
-   Subject: [Automated Testing Framework 0.18] $as_me: $at_fail_list${at_fail_list:+ failed${at_xpass_list:+, }}$at_xpass_list${at_xpass_list:+ passed unexpectedly}
+   Subject: [Automated Testing Framework 0.19] $as_me: $at_fail_list${at_fail_list:+ failed${at_xpass_list:+, }}$at_xpass_list${at_xpass_list:+ passed unexpectedly}
 
 You may investigate any problem if you feel able to do so, in which
 case the test suite provides a good starting point.  Its output may
@@ -5871,3 +5876,2471 @@ $at_traceon; }
 ) 5>&1 2>&1 7>&- | eval $at_tee_pipe
 read at_status <"$at_status_file"
 #AT_STOP_5
+#AT_START_6
+at_fn_group_banner 6 't_application_opts_args.at:30' \
+  "application: arguments and options handling" "    "
+at_xfail=no
+(
+  $as_echo "6. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:34: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -h"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:34"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -h
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:34"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:35: grep ' -d ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:35"
+( $at_check_trace; grep ' -d ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:35"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:36: grep ' -h ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:36"
+( $at_check_trace; grep ' -h ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:36"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:37: grep ' -v ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:37"
+( $at_check_trace; grep ' -v ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:37"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:38: grep ' -z ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:38"
+( $at_check_trace; grep ' -z ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:38"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:42: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -h"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:42"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -h
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:42"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:43: grep ' -d ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:43"
+( $at_check_trace; grep ' -d ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:43"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:44: grep ' -h ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:44"
+( $at_check_trace; grep ' -h ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:44"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:45: grep ' -v ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:45"
+( $at_check_trace; grep ' -v ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:45"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:46: grep ' -z ' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:46"
+( $at_check_trace; grep ' -z ' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:46"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:50: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -d"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:50"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -d
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:50"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:51: grep 'Unknown option.*-d' stderr"
+at_fn_check_prepare_trace "t_application_opts_args.at:51"
+( $at_check_trace; grep 'Unknown option.*-d' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:51"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:52: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -v"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:52"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -v
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:52"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:53: grep 'Unknown option.*-v' stderr"
+at_fn_check_prepare_trace "t_application_opts_args.at:53"
+( $at_check_trace; grep 'Unknown option.*-v' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:53"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:54: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -z"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:54"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -z
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:54"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:55: grep 'Unknown option.*-z' stderr"
+at_fn_check_prepare_trace "t_application_opts_args.at:55"
+( $at_check_trace; grep 'Unknown option.*-z' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:55"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:59: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -d"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:59"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -d
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:59"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:60: grep -- '-d given' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:60"
+( $at_check_trace; grep -- '-d given' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:60"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:61: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -v"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:61"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -v
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:61"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:62: grep 'Option.*-v.*requires an argument' stderr"
+at_fn_check_prepare_trace "t_application_opts_args.at:62"
+( $at_check_trace; grep 'Option.*-v.*requires an argument' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:62"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:63: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -v foo"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:63"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -v foo
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:63"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:64: grep -- '-v given with argument foo' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:64"
+( $at_check_trace; grep -- '-v given with argument foo' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:64"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:65: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -z"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:65"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -z
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:65"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:66: grep 'Unknown option.*-z' stderr"
+at_fn_check_prepare_trace "t_application_opts_args.at:66"
+( $at_check_trace; grep 'Unknown option.*-z' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:66"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:69: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -- -d"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:69"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -- -d
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:69"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:70: grep -- '-d given' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:70"
+( $at_check_trace; grep -- '-d given' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:70"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:71: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args arg -d"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:71"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args arg -d
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:71"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:72: grep -- '-d given' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:72"
+( $at_check_trace; grep -- '-d given' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_opts_args.at:72"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:76: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -h"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:76"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -h
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:76"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:77: grep '\\[options\\]\$' stdout"
+at_fn_check_prepare_dynamic "grep '\\[options\\]$' stdout" "t_application_opts_args.at:77"
+( $at_check_trace; grep '\[options\]$' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:77"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:81: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_opts_args -h"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_opts_args.at:81"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_opts_args -h
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:81"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_opts_args.at:82: grep '\\[options\\] <arg1> <arg2>' stdout"
+at_fn_check_prepare_trace "t_application_opts_args.at:82"
+( $at_check_trace; grep '\[options\] <arg1> <arg2>' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_opts_args.at:82"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_6
+#AT_START_7
+at_fn_group_banner 7 't_application_help.at:30' \
+  "application: online help option" "                "
+at_xfail=no
+(
+  $as_echo "7. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_help.at:32: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_help.at:32"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_help.at:32"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_help.at:33: grep 'Available options' stdout"
+at_fn_check_prepare_trace "t_application_help.at:33"
+( $at_check_trace; grep 'Available options' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_application_help.at:33"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_application_help.at:35: \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_app_empty -h"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_application_help.at:35"
+( $at_check_trace; $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_app_empty -h
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_help.at:35"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_application_help.at:36: grep 'Available options' stdout"
+at_fn_check_prepare_trace "t_application_help.at:36"
+( $at_check_trace; grep 'Available options' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_application_help.at:36"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_7
+#AT_START_8
+at_fn_group_banner 8 't_atf_config.at:30' \
+  "atf-config: querying of build-time variables" "   "
+at_xfail=no
+(
+  $as_echo "8. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+all_vars="atf_arch \
+          atf_build_cc \
+          atf_build_cflags \
+          atf_build_cpp \
+          atf_build_cppflags \
+          atf_build_cxx \
+          atf_build_cxxflags \
+          atf_confdir \
+          atf_includedir \
+          atf_libdir \
+          atf_libexecdir \
+          atf_machine \
+          atf_pkgdatadir \
+          atf_shell \
+          atf_workdir"
+all_vars_no=15
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:51: atf-config"
+at_fn_check_prepare_trace "t_atf_config.at:51"
+( $at_check_trace; atf-config
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:51"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:52: test $(wc -l stdout | awk '{ print $1 }') = \${all_vars_no}"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:52"
+( $at_check_trace; test $(wc -l stdout | awk '{ print $1 }') = ${all_vars_no}
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:52"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+for v in ${all_vars}; do
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:54: grep \"\${v}\" stdout"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:54"
+( $at_check_trace; grep "${v}" stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:54"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+done
+
+for v in ${all_vars}; do
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:59: atf-config \${v}"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:59"
+( $at_check_trace; atf-config ${v}
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:59"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:60: test $(wc -l stdout | awk '{ print $1 }') = 1"
+at_fn_check_prepare_notrace 'a shell pipeline' "t_atf_config.at:60"
+( $at_check_trace; test $(wc -l stdout | awk '{ print $1 }') = 1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:60"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:61: grep \"\${v}\" stdout"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:61"
+( $at_check_trace; grep "${v}" stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:61"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:62: cut -d ' ' -f 3- stdout"
+at_fn_check_prepare_trace "t_atf_config.at:62"
+( $at_check_trace; cut -d ' ' -f 3- stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:62"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:63: mv stdout expout"
+at_fn_check_prepare_trace "t_atf_config.at:63"
+( $at_check_trace; mv stdout expout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:63"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:64: atf-config -t \${v}"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:64"
+( $at_check_trace; atf-config -t ${v}
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+$at_diff expout "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:64"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+done
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:68: atf-config atf_libexecdir atf_pkgdatadir"
+at_fn_check_prepare_trace "t_atf_config.at:68"
+( $at_check_trace; atf-config atf_libexecdir atf_pkgdatadir
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:68"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:69: grep 'atf_libexecdir' stdout"
+at_fn_check_prepare_trace "t_atf_config.at:69"
+( $at_check_trace; grep 'atf_libexecdir' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:69"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:70: grep 'atf_pkgdatadir' stdout"
+at_fn_check_prepare_trace "t_atf_config.at:70"
+( $at_check_trace; grep 'atf_pkgdatadir' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:70"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:71: test $(wc -l stdout | awk '{ print $1 }') = 2"
+at_fn_check_prepare_notrace 'a shell pipeline' "t_atf_config.at:71"
+( $at_check_trace; test $(wc -l stdout | awk '{ print $1 }') = 2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:71"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:74: atf-config non_existent"
+at_fn_check_prepare_trace "t_atf_config.at:74"
+( $at_check_trace; atf-config non_existent
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_config.at:74"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_config.at:75: grep 'Unknown variable.*non_existent' stderr"
+at_fn_check_prepare_trace "t_atf_config.at:75"
+( $at_check_trace; grep 'Unknown variable.*non_existent' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:75"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+for v in ${all_vars}; do
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:79: atf-config \${v} non_existent"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:79"
+( $at_check_trace; atf-config ${v} non_existent
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_config.at:79"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:80: grep 'Unknown variable.*non_existent' stderr"
+at_fn_check_prepare_trace "t_atf_config.at:80"
+( $at_check_trace; grep 'Unknown variable.*non_existent' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:80"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:82: atf-config non_existent \${v}"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:82"
+( $at_check_trace; atf-config non_existent ${v}
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_config.at:82"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:83: grep 'Unknown variable.*non_existent' stderr"
+at_fn_check_prepare_trace "t_atf_config.at:83"
+( $at_check_trace; grep 'Unknown variable.*non_existent' stderr
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:83"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+done
+
+for v in ${all_vars}; do
+    V=$(echo ${v} | tr '[a-z]' '[A-Z]')
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:90: env \${V}=testval atf-config"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:90"
+( $at_check_trace; env ${V}=testval atf-config
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:90"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:91: mv stdout all"
+at_fn_check_prepare_trace "t_atf_config.at:91"
+( $at_check_trace; mv stdout all
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:91"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:93: grep \"^\${v} : \" all"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:93"
+( $at_check_trace; grep "^${v} : " all
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:93"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:94: mv stdout affected"
+at_fn_check_prepare_trace "t_atf_config.at:94"
+( $at_check_trace; mv stdout affected
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:94"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:95: grep -v \"^\${v} : \" all"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:95"
+( $at_check_trace; grep -v "^${v} : " all
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:95"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:96: mv stdout unaffected"
+at_fn_check_prepare_trace "t_atf_config.at:96"
+( $at_check_trace; mv stdout unaffected
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:96"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:98: test $(wc -l affected | awk '{ print $1 }') = 1"
+at_fn_check_prepare_notrace 'a shell pipeline' "t_atf_config.at:98"
+( $at_check_trace; test $(wc -l affected | awk '{ print $1 }') = 1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:98"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:99: test $(wc -l unaffected | awk '{ print $1 }') = \$((\${all_vars_no} - 1))"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_config.at:99"
+( $at_check_trace; test $(wc -l unaffected | awk '{ print $1 }') = $((${all_vars_no} - 1))
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:99"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:102: grep \"^\${v} : testval\$\" affected"
+at_fn_check_prepare_notrace 'a ${...} parameter expansion' "t_atf_config.at:102"
+( $at_check_trace; grep "^${v} : testval$" affected
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_config.at:102"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+    { set +x
+$as_echo "$at_srcdir/t_atf_config.at:103: grep ' : testval\$' unaffected"
+at_fn_check_prepare_dynamic "grep ' : testval$' unaffected" "t_atf_config.at:103"
+( $at_check_trace; grep ' : testval$' unaffected
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_config.at:103"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+done
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_8
+#AT_START_9
+at_fn_group_banner 9 't_atf_run.at:30' \
+  "atf-run: execution of tests" "                    "
+at_xfail=no
+(
+  $as_echo "9. $at_setup_line: testing $at_desc ..."
+  $at_traceon
+
+
+
+
+
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:47: mkdir top"
+at_fn_check_prepare_trace "t_atf_run.at:47"
+( $at_check_trace; mkdir top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:47"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:48: mkdir top/dir1"
+at_fn_check_prepare_trace "t_atf_run.at:48"
+( $at_check_trace; mkdir top/dir1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:48"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:49: mkdir top/dir2"
+at_fn_check_prepare_trace "t_atf_run.at:49"
+( $at_check_trace; mkdir top/dir2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:49"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+cat >top/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: dir1
+tp: dir2
+tp: test1
+tp: test2
+_ATEOF
+
+cat >top/dir1/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: test3
+_ATEOF
+
+cat >top/dir2/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: test4
+tp: test5
+_ATEOF
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:75: sed -e 's,@TC_NAME@,tc_1,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:75"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_1,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:75"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:75: mv stdout top/test1"
+at_fn_check_prepare_trace "t_atf_run.at:75"
+( $at_check_trace; mv stdout top/test1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:75"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:75: chmod +x top/test1"
+at_fn_check_prepare_trace "t_atf_run.at:75"
+( $at_check_trace; chmod +x top/test1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:75"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:76: sed -e 's,@TC_NAME@,tc_2,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_fail"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:76"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_2,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_fail
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:76"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:76: mv stdout top/test2"
+at_fn_check_prepare_trace "t_atf_run.at:76"
+( $at_check_trace; mv stdout top/test2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:76"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:76: chmod +x top/test2"
+at_fn_check_prepare_trace "t_atf_run.at:76"
+( $at_check_trace; chmod +x top/test2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:76"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:77: sed -e 's,@TC_NAME@,tc_3,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:77"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_3,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:77"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:77: mv stdout top/dir1/test3"
+at_fn_check_prepare_trace "t_atf_run.at:77"
+( $at_check_trace; mv stdout top/dir1/test3
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:77"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:77: chmod +x top/dir1/test3"
+at_fn_check_prepare_trace "t_atf_run.at:77"
+( $at_check_trace; chmod +x top/dir1/test3
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:77"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:78: sed -e 's,@TC_NAME@,tc_4,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_fail"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:78"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_4,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_fail
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:78"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:78: mv stdout top/dir2/test4"
+at_fn_check_prepare_trace "t_atf_run.at:78"
+( $at_check_trace; mv stdout top/dir2/test4
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:78"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:78: chmod +x top/dir2/test4"
+at_fn_check_prepare_trace "t_atf_run.at:78"
+( $at_check_trace; chmod +x top/dir2/test4
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:78"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:79: sed -e 's,@TC_NAME@,tc_5,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:79"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_5,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:79"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:79: mv stdout top/dir2/test5"
+at_fn_check_prepare_trace "t_atf_run.at:79"
+( $at_check_trace; mv stdout top/dir2/test5
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:79"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:79: chmod +x top/dir2/test5"
+at_fn_check_prepare_trace "t_atf_run.at:79"
+( $at_check_trace; chmod +x top/dir2/test5
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:79"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:81: cd top/dir1 && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:81"
+( $at_check_trace; cd top/dir1 && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:81"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:82: grep '^tc-end: [0-9. ]*, tc_3, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:82"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_3, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:82"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:83: grep -i 'tc_[1245]' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:83"
+( $at_check_trace; grep -i 'tc_[1245]' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:83"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:84: grep 'tc-so:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:84"
+( $at_check_trace; grep 'tc-so:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:84"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:85: grep 'tc-se:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:85"
+( $at_check_trace; grep 'tc-se:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:85"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:87: cd top/dir2 && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:87"
+( $at_check_trace; cd top/dir2 && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:87"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:88: grep '^tc-end: [0-9. ]*, tc_4, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:88"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_4, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:88"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:89: grep '^tc-end: [0-9. ]*, tc_5, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:89"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_5, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:89"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:90: grep -i 'tc_[123]' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:90"
+( $at_check_trace; grep -i 'tc_[123]' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:90"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:91: grep 'tc-so:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:91"
+( $at_check_trace; grep 'tc-so:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:91"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:92: grep 'tc-se:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:92"
+( $at_check_trace; grep 'tc-se:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:92"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:94: cd top && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:94"
+( $at_check_trace; cd top && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:94"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:95: grep '^tc-end: [0-9. ]*, tc_1, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:95"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_1, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:95"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:96: grep '^tc-end: [0-9. ]*, tc_2, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:96"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_2, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:96"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:97: grep '^tc-end: [0-9. ]*, tc_3, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:97"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_3, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:97"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:98: grep '^tc-end: [0-9. ]*, tc_4, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:98"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_4, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:98"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:99: grep '^tc-end: [0-9. ]*, tc_5, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:99"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_5, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:99"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:100: grep 'tc-so:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:100"
+( $at_check_trace; grep 'tc-so:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:100"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:101: grep 'tc-se:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:101"
+( $at_check_trace; grep 'tc-se:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:101"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >top/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: *
+_ATEOF
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:111: cd top && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:111"
+( $at_check_trace; cd top && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:111"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:112: grep '^tc-end: [0-9. ]*, tc_1, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:112"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_1, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:112"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:113: grep '^tc-end: [0-9. ]*, tc_2, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:113"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_2, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:113"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:114: grep '^tc-end: [0-9. ]*, tc_3, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:114"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_3, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:114"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:115: grep '^tc-end: [0-9. ]*, tc_4, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:115"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_4, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:115"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:116: grep '^tc-end: [0-9. ]*, tc_5, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:116"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_5, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:116"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:117: grep 'tc-so:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:117"
+( $at_check_trace; grep 'tc-so:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:117"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:118: grep 'tc-se:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:118"
+( $at_check_trace; grep 'tc-se:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:118"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+cat >top/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: d*
+_ATEOF
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:128: cd top && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:128"
+( $at_check_trace; cd top && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:128"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:129: grep '^tc-end: [0-9. ]*, tc_3, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:129"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_3, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:129"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:130: grep '^tc-end: [0-9. ]*, tc_4, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:130"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_4, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:130"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:131: grep '^tc-end: [0-9. ]*, tc_5, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:131"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_5, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:131"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:132: grep 'tc-so:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:132"
+( $at_check_trace; grep 'tc-so:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:132"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:133: grep 'tc-se:ignore-me' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:133"
+( $at_check_trace; grep 'tc-se:ignore-me' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:133"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:138: rm -rf top"
+at_fn_check_prepare_trace "t_atf_run.at:138"
+( $at_check_trace; rm -rf top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:138"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:139: mkdir top"
+at_fn_check_prepare_trace "t_atf_run.at:139"
+( $at_check_trace; mkdir top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:139"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:140: sed -e 's,@TC_NAME@,tc_1,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:140"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_1,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:140"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:140: mv stdout top/test1"
+at_fn_check_prepare_trace "t_atf_run.at:140"
+( $at_check_trace; mv stdout top/test1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:140"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:140: chmod +x top/test1"
+at_fn_check_prepare_trace "t_atf_run.at:140"
+( $at_check_trace; chmod +x top/test1
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:140"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:141: sed -e 's,@TC_NAME@,tc_2,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:141"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_2,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:141"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:141: mv stdout top/test2"
+at_fn_check_prepare_trace "t_atf_run.at:141"
+( $at_check_trace; mv stdout top/test2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:141"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:141: chmod +x top/test2"
+at_fn_check_prepare_trace "t_atf_run.at:141"
+( $at_check_trace; chmod +x top/test2
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:141"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:142: sed -e 's,@TC_NAME@,tc_3,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:142"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_3,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:142"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:142: mv stdout top/test3"
+at_fn_check_prepare_trace "t_atf_run.at:142"
+( $at_check_trace; mv stdout top/test3
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:142"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:142: chmod +x top/test3"
+at_fn_check_prepare_trace "t_atf_run.at:142"
+( $at_check_trace; chmod +x top/test3
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:142"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:143: chmod -x top/test3"
+at_fn_check_prepare_trace "t_atf_run.at:143"
+( $at_check_trace; chmod -x top/test3
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:143"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:144: sed -e 's,@TC_NAME@,tc_4,g' <\$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_pass"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:144"
+( $at_check_trace; sed -e 's,@TC_NAME@,tc_4,g' <$({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_pass
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:144"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:144: mv stdout top/.test4"
+at_fn_check_prepare_trace "t_atf_run.at:144"
+( $at_check_trace; mv stdout top/.test4
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:144"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:144: chmod +x top/.test4"
+at_fn_check_prepare_trace "t_atf_run.at:144"
+( $at_check_trace; chmod +x top/.test4
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:144"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:145: chmod -x top/.test4"
+at_fn_check_prepare_trace "t_atf_run.at:145"
+( $at_check_trace; chmod -x top/.test4
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:145"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+cat >top/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp-glob: *
+_ATEOF
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:153: cd top && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:153"
+( $at_check_trace; cd top && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:153"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:154: grep '^tc-end: [0-9. ]*, tc_1, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:154"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_1, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:154"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:155: grep '^tc-end: [0-9. ]*, tc_2, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:155"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, tc_2, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:155"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:156: grep -i 'tc_3' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:156"
+( $at_check_trace; grep -i 'tc_3' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:156"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:157: grep -i 'tc_4' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:157"
+( $at_check_trace; grep -i 'tc_4' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:157"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:160: rm -rf top"
+at_fn_check_prepare_trace "t_atf_run.at:160"
+( $at_check_trace; rm -rf top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:160"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:161: mkdir top"
+at_fn_check_prepare_trace "t_atf_run.at:161"
+( $at_check_trace; mkdir top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:161"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:162: cp \$({
+    old=\$(pwd)
+    while test \$(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=\$(pwd)
+    cd \${old}
+    echo \${topdir}
+})/bootstrap/h_tp_basic_sh top"
+at_fn_check_prepare_notrace 'a $(...) command substitution' "t_atf_run.at:162"
+( $at_check_trace; cp $({
+    old=$(pwd)
+    while test $(pwd) != '/' -a ! -e ./Makefile; do
+        cd ..
+    done
+    topdir=$(pwd)
+    cd ${old}
+    echo ${topdir}
+})/bootstrap/h_tp_basic_sh top
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+at_fn_diff_devnull "$at_stdout" || at_failed=:
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:162"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+cat >top/Atffile <<'_ATEOF'
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: h_tp_basic_sh
+_ATEOF
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:170: cd top && atf-run"
+at_fn_check_prepare_trace "t_atf_run.at:170"
+( $at_check_trace; cd top && atf-run
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+echo stderr:; tee stderr <"$at_stderr"
+echo stdout:; tee stdout <"$at_stdout"
+at_fn_check_status 1 $at_status "$at_srcdir/t_atf_run.at:170"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:171: grep '^tc-end: [0-9. ]*, pass, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:171"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, pass, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:171"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:172: grep '^tc-end: [0-9. ]*, fail, failed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:172"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, fail, failed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:172"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:173: grep '^tc-end: [0-9. ]*, skip, skipped' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:173"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, skip, skipped' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:173"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+{ set +x
+$as_echo "$at_srcdir/t_atf_run.at:174: grep '^tc-end: [0-9. ]*, default, passed' stdout"
+at_fn_check_prepare_trace "t_atf_run.at:174"
+( $at_check_trace; grep '^tc-end: [0-9. ]*, default, passed' stdout
+) >>"$at_stdout" 2>>"$at_stderr" 5>&-
+at_status=$? at_failed=false
+$at_check_filter
+at_fn_diff_devnull "$at_stderr" || at_failed=:
+echo stdout:; cat "$at_stdout"
+at_fn_check_status 0 $at_status "$at_srcdir/t_atf_run.at:174"
+$at_failed && at_fn_log_failure
+$at_traceon; }
+
+
+  set +x
+  $at_times_p && times >"$at_times_file"
+) 5>&1 2>&1 7>&- | eval $at_tee_pipe
+read at_status <"$at_status_file"
+#AT_STOP_9

@@ -74,7 +74,7 @@ m4_include(bootstrap/t_test_program_list.at)
 m4_include(bootstrap/t_test_program_compare.at)
 m4_include(bootstrap/t_subr_atf_check.at)
 
-m4_if([ENABLE_TOOLS], yes, [
+m4_if(ENABLE_TOOLS, yes, [
     m4_include(bootstrap/t_application_opts_args.at)
     m4_include(bootstrap/t_application_help.at)
     m4_include(bootstrap/t_atf_config.at)

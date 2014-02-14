@@ -96,4 +96,7 @@ tests_atf_c_detail_PROGRAMS += atf-c/detail/user_test
 atf_c_detail_user_test_SOURCES = atf-c/detail/user_test.c
 atf_c_detail_user_test_LDADD = atf-c/detail/libtest_helpers.la libatf-c.la
 
+tests_atf_c_detail_PROGRAMS += atf-c/detail/version_helper
+atf_c_detail_version_helper_SOURCES = atf-c/detail/version_helper.c
+
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8

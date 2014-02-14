@@ -7,12 +7,6 @@ include("atf-c++/Kyuafile")
 include("atf-sh/Kyuafile")
 include("test-programs/Kyuafile")
 
-if fs.exists("atf-config/Kyuafile") then
-   include("atf-config/Kyuafile")
-end
-if fs.exists("atf-report/Kyuafile") then
-   include("atf-report/Kyuafile")
-end
-if fs.exists("atf-run/Kyuafile") then
-   include("atf-run/Kyuafile")
+if fs.exists("tools/Kyuafile") then
+   include("tools/Kyuafile")
 end

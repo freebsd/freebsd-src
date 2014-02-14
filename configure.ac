@@ -31,8 +31,8 @@ dnl -----------------------------------------------------------------------
 dnl Initialize the GNU build system.
 dnl -----------------------------------------------------------------------
 
-AC_INIT([Automated Testing Framework], [0.18], [atf-devel@NetBSD.org], [atf],
-        [http://code.google.com/p/kyua/wiki/ATF])
+AC_INIT([Automated Testing Framework], [0.19], [atf-devel@NetBSD.org], [atf],
+        [https://github.com/jmmv/atf/])
 AC_PREREQ([2.65])
 AC_COPYRIGHT([Copyright (c) 2007-2012 The NetBSD Foundation, Inc.])
 AC_DEFINE([PACKAGE_COPYRIGHT],
@@ -48,6 +48,7 @@ AC_CANONICAL_TARGET
 
 AM_INIT_AUTOMAKE([1.9 check-news foreign subdir-objects -Wall])
 
+AM_PROG_AR
 LT_INIT
 
 AC_ARG_ENABLE(tools,
@@ -90,7 +91,6 @@ ATF_MODULE_APPLICATION
 ATF_MODULE_DEFS
 ATF_MODULE_ENV
 ATF_MODULE_FS
-ATF_MODULE_SANITY
 ATF_MODULE_SIGNALS
 
 AC_CHECK_TYPE([timer_t], [], [], [[#include <time.h>]])
@@ -218,7 +218,7 @@ dnl -----------------------------------------------------------------------
 dnl Finally, generate output.
 dnl -----------------------------------------------------------------------
 
-AC_OUTPUT([Makefile atf-c/defs.h])
+AC_OUTPUT([Makefile atf-c/defs.h tools/defs.hpp])
 
 if test ${enable_tools} = yes; then
     AC_MSG_WARN([Building the deprecated ATF tools (atf-run and atf-report);])

@@ -39,8 +39,6 @@ extern "C" {
 #include <string>
 #include <vector>
 
-#include <atf-c++/noncopyable.hpp>
-
 namespace atf {
 
 namespace process {
@@ -60,7 +58,11 @@ namespace check {
 //! of executing arbitrary command and manages files containing
 //! its output.
 //!
-class check_result : noncopyable {
+class check_result {
+    // Non-copyable.
+    check_result(const check_result&);
+    check_result& operator=(const check_result&);
+
     //!
     //! \brief Internal representation of a result.
     //!

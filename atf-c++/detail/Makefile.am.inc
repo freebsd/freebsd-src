@@ -34,19 +34,13 @@ libatf_c___la_SOURCES += atf-c++/detail/application.cpp \
                          atf-c++/detail/env.hpp \
                          atf-c++/detail/exceptions.cpp \
                          atf-c++/detail/exceptions.hpp \
-                         atf-c++/detail/expand.cpp \
-                         atf-c++/detail/expand.hpp \
                          atf-c++/detail/fs.cpp \
                          atf-c++/detail/fs.hpp \
-                         atf-c++/detail/parser.cpp \
-                         atf-c++/detail/parser.hpp \
                          atf-c++/detail/process.cpp \
                          atf-c++/detail/process.hpp \
                          atf-c++/detail/sanity.hpp \
                          atf-c++/detail/text.cpp \
-                         atf-c++/detail/text.hpp \
-                         atf-c++/detail/ui.cpp \
-                         atf-c++/detail/ui.hpp
+                         atf-c++/detail/text.hpp
 
 tests_atf_c___detail_DATA = atf-c++/detail/Atffile \
                             atf-c++/detail/Kyuafile
@@ -73,17 +67,9 @@ tests_atf_c___detail_PROGRAMS += atf-c++/detail/exceptions_test
 atf_c___detail_exceptions_test_SOURCES = atf-c++/detail/exceptions_test.cpp
 atf_c___detail_exceptions_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 
-tests_atf_c___detail_PROGRAMS += atf-c++/detail/expand_test
-atf_c___detail_expand_test_SOURCES = atf-c++/detail/expand_test.cpp
-atf_c___detail_expand_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-
 tests_atf_c___detail_PROGRAMS += atf-c++/detail/fs_test
 atf_c___detail_fs_test_SOURCES = atf-c++/detail/fs_test.cpp
 atf_c___detail_fs_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
-
-tests_atf_c___detail_PROGRAMS += atf-c++/detail/parser_test
-atf_c___detail_parser_test_SOURCES = atf-c++/detail/parser_test.cpp
-atf_c___detail_parser_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 
 tests_atf_c___detail_PROGRAMS += atf-c++/detail/process_test
 atf_c___detail_process_test_SOURCES = atf-c++/detail/process_test.cpp
@@ -97,8 +83,7 @@ tests_atf_c___detail_PROGRAMS += atf-c++/detail/text_test
 atf_c___detail_text_test_SOURCES = atf-c++/detail/text_test.cpp
 atf_c___detail_text_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
 
-tests_atf_c___detail_PROGRAMS += atf-c++/detail/ui_test
-atf_c___detail_ui_test_SOURCES = atf-c++/detail/ui_test.cpp
-atf_c___detail_ui_test_LDADD = atf-c++/detail/libtest_helpers.la $(ATF_CXX_LIBS)
+tests_atf_c___detail_PROGRAMS += atf-c++/detail/version_helper
+atf_c___detail_version_helper_SOURCES = atf-c++/detail/version_helper.cpp
 
 # vim: syntax=make:noexpandtab:shiftwidth=8:softtabstop=8
