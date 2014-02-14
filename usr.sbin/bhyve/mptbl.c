@@ -196,16 +196,21 @@ mpt_build_ioapic_entries(io_apic_entry_ptr mpei, int id)
 static int
 mpt_count_ioint_entries(void)
 {
+	int bus, count;
+
+	count = 0;
+	for (bus = 0; bus <= PCI_BUSMAX; bus++)
+		count += pci_count_lintr(bus);
 
 	/*
 	 * Always include entries for the first 16 pins along with a entry
 	 * for each active PCI INTx pin.
 	 */
-	return (16 + pci_count_lintr());
+	return (16 + count);
 }
 
 static void
-mpt_generate_pci_int(int slot, int pin, int ioapic_irq, void *arg)
+mpt_generate_pci_int(int bus, int slot, int pin, int ioapic_irq, void *arg)
 {
 	int_entry_ptr *mpiep, mpie;
 
@@ -219,7 +224,7 @@ mpt_generate_pci_int(int slot, int pin, int ioapic_irq, void *arg)
 	 */
 	mpie->type = MPCT_ENTRY_INT;
 	mpie->int_type = INTENTRY_TYPE_INT;
-	mpie->src_bus_id = 0;
+	mpie->src_bus_id = bus;
 	mpie->src_bus_irq = slot << 2 | (pin - 1);
 	mpie->dst_apic_id = mpie[-1].dst_apic_id;
 	mpie->dst_apic_int = ioapic_irq;
@@ -230,7 +235,7 @@ mpt_generate_pci_int(int slot, int pin, int ioapic_irq, void *arg)
 static void
 mpt_build_ioint_entries(int_entry_ptr mpie, int id)
 {
-	int pin;
+	int pin, bus;
 
 	/*
 	 * The following config is taken from kernel mptable.c
@@ -277,7 +282,8 @@ mpt_build_ioint_entries(int_entry_ptr mpie, int id)
 	}
 
 	/* Next, generate entries for any PCI INTx interrupts. */
-	pci_walk_lintr(mpt_generate_pci_int, &mpie); 
+	for (bus = 0; bus <= PCI_BUSMAX; bus++)
+		pci_walk_lintr(bus, mpt_generate_pci_int, &mpie); 
 }
 
 void
