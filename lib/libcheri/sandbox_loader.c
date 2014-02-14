@@ -53,6 +53,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "cheri_class.h"
 #include "cheri_invoke.h"
 #include "libcheri_stat.h"
 #include "sandbox.h"
@@ -64,6 +65,8 @@
 #define	GUARD_PAGE_SIZE	0x1000
 #define	METADATA_SIZE	0x1000
 #define	STACK_SIZE	(32*PAGE_SIZE)
+
+CHERI_CLASS_DECL(libcheri_system);
 
 int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
@@ -237,7 +240,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Note that $c0 in the 'sandbox' will be set from $pcc, so leave a
 	 * full set of write/etc permissions on the code capability.
 	 */
-	basecap = cheri_settype(cheri_getreg(0), (register_t)&__cheri_enter);
+	basecap = cheri_settype(cheri_getreg(0),
+	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
 	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
 
 	sbcap = cheri_ptr(sbop, sizeof(*sbop));

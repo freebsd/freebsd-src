@@ -33,6 +33,6 @@
 #.set nobopt
 .set noat
 
-#include <cheri_enter_template.h>
+#include <cheri_class.h>
 
-CHERI_ENTER(system, cheri_enter);
+CHERI_CLASS_ASM(libcheri_system, libcheri_system_enter);

@@ -31,9 +31,7 @@
 #ifndef _SANDBOX_INTERNAL_H_
 #define	_SANDBOX_INTERNAL_H_
 
-extern void	__cheri_enter;
 extern int	sb_verbose;
-
 
 /*
  * Description of a 'sandbox class': an instance of code that may be sandboxed

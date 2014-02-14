@@ -1,32 +1,32 @@
-#-
-# Copyright (c) 2012-2014 Robert N. M. Watson
-# All rights reserved.
-#
-# This software was developed by SRI International and the University of
-# Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
-# ("CTSRD"), as part of the DARPA CRASH research programme.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
-# 1. Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright
-#    notice, this list of conditions and the following disclaimer in the
-#    documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
-# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
-# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
-# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
-# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-# SUCH DAMAGE.
-#
+/*-
+ * Copyright (c) 2012-2014 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
 
 /*
  * CHERI system class CCall landing pad code: catches CCalls inbound from
@@ -60,59 +60,63 @@
  * (2) That there is no concurrent sandbox use -- we have a single stack on
  *     the inbound path, which can't be the long-term solution.
  */
-#define	CHERI_ENTER(class, function)					\
+
+#define	CHERI_CLASS_ASM(class, function)				\
 	.text;								\
-	.global __cheri_ ## class ## _enter;				\
-	.ent __cheri_ ## class ## _enter;				\
-__cheri_ ## class ## _enter:						\
-	#								\
-	# Normally in a CHERI sandbox, we would install $c26 ($idc)	\
-	# into $c0 for MIPS load/store instructions.  For the system	\
-	# class, we instead use $pcc so that we can have an executable	\
-	# version of $c0.						\
-	#								\
+	.global __cheri_ ## class ## _entry;				\
+	.ent __cheri_ ## class ## _entry;				\
+__cheri_ ## class ## _entry:						\
+									\
+	/*								\
+	 * Normally in a CHERI sandbox, we would install $c26 ($idc)	\
+	 * into $c0 for MIPS load/store instructions.  For the system	\
+	 * class, we instead use $pcc so that we can have an executable	\
+	 * version of $c0.						\
+	 */								\
 	cgetpcc $zero($c0);						\
 									\
-	#								\
-	# Install global invocation stack.  NB: this means we can't	\
-	# support recursion or concurrency.  Further note: this is	\
-	# shared by all classes outside of the sandbox.			\
-	#								\
+	/*								\
+	 * Install global invocation stack.  NB: this means we can't	\
+	 * support recursion or concurrency.  Further note: this is	\
+	 * shared by all classes outside of the sandbox.		\
+	 */								\
 	dla	$sp, __cheri_enter_stack_top;				\
 	ld	$sp, 0($sp);						\
 	move	$fp, $sp;						\
 									\
-	#								\
-	# XXXRW: Defensively clear all general-purpose and capability	\
-	# registers that aren't explicit or ABI-implied arguments.	\
-	#								\
+	/*								\
+	 * XXXRW: Defensively clear all general-purpose and capability	\
+	 * registers that aren't explicit or ABI-implied arguments.	\
+	 */								\
 									\
-	#								\
-	# Set up global pointer.					\
-	#								\
+	/*								\
+	 * Set up global pointer.					\
+	 */								\
 	dla	$gp, _gp;						\
 									\
-	#								\
-	# Invoke MIPS ABI C "enter" function.				\
-	#								\
+	/*								\
+	 * Invoke MIPS ABI C "enter" function.				\
+	 */								\
 	dla	$t9, function;						\
 	jalr	$t9;							\
-	nop;			# Branch-delay slot			\
+	nop;			/* Branch-delay slot */			\
 									\
-	#								\
-	# Clear our $c0 so that it is not leaked back to caller.	\
-	#								\
-	# XXXRW: Arguably we should do this for many other registers	\
-	# too, especially as the compiler starts using them.		\
-	#								\
+	/*								\
+	 * Clear our $c0 so that it is not leaked back to caller.	\
+	 *								\
+	 * XXXRW: Arguably we should do this for many other registers	\
+	 * too, especially as the compiler starts using them.		\
+	 */								\
 	ccleartag	$c0;						\
 									\
-	#								\
-	# Return to caller.						\
-	#								\
+	/*								\
+	 * Return to caller.						\
+	 */								\
 	creturn;							\
-	.end __cheri_## class ## _enter;
+	.end __cheri_## class ## _entry;
 
-
-#define	CHERI_ENTER_DECL(class)						\
+#define	CHERI_CLASS_DECL(class)						\
 	extern void __cheri_## class ## _enter;
+
+#define	CHERI_CLASS_ENTRY(class)					\
+	(&__cheri_## class ## _enter)
