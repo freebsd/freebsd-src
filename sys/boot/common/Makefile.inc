@@ -13,6 +13,8 @@ SRCS+=	load_elf64.c load_elf64_obj.c reloc_elf64.c
 SRCS+=	load_elf32.c load_elf32_obj.c reloc_elf32.c
 .elif ${MACHINE_CPUARCH} == "arm"
 SRCS+=	load_elf32.c reloc_elf32.c
+.elif ${MACHINE_CPUARCH} == "arm64" 
+SRCS+=	load_elf64.c reloc_elf64.c
 .elif ${MACHINE_CPUARCH} == "powerpc"
 SRCS+=	load_elf32.c reloc_elf32.c
 SRCS+=	load_elf64.c reloc_elf64.c
