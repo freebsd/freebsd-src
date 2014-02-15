@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 
+#include "cheri_enter.h"
 #include "cheri_system.h"
 
 /*
@@ -73,4 +74,64 @@ cheri_system_putchar(int c)
 {
 
 	return (putchar(c));
+}
+
+/*
+ * This function implements the "landing pad" for CHERI method invocations on
+ * system capabilities.  For now, several pretty critical limitations, which
+ * we will work on relaxing over time:
+ *
+ * 1. one global invocation stack, so no concurrency.
+ * 2. one global data object, so no support for multiple data capabilities.
+ */
+register_t	cheri_system_enter(register_t methodnum, register_t a1,
+		    register_t a2, register_t a3, register_t a4,
+		    register_t a5, register_t a6, register_t a7,
+		    struct cheri_object system_object,
+		    __capability void *c3, __capability void *c4,
+		    __capability void *c5, __capability void *c6,
+		    __capability void *c7) __attribute__((cheri_ccall));
+
+static cheri_enter_fn_t	cheri_user_fn_ptr;
+
+/*
+ * Allow the application to register its own methods.
+ */
+void
+cheri_enter_register_fn(cheri_enter_fn_t fn_ptr)
+{
+
+	cheri_user_fn_ptr = fn_ptr;
+}
+
+/*
+ * cheri_system_enter() itself: sandbox invocations turn up here.
+ */
+register_t
+cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
+    register_t a3, register_t a4, register_t a5, register_t a6, register_t a7,
+    struct cheri_object system_object __unused, __capability void *c3,
+    __capability void *c4, __capability void *c5, __capability void *c6,
+    __capability void *c7)
+{
+
+	switch (methodnum) {
+	case CHERI_SYSTEM_METHOD_HELLOWORLD:
+		return (cheri_system_helloworld());
+
+	case CHERI_SYSTEM_METHOD_PUTS:
+		return (cheri_system_puts(c3));
+
+	case CHERI_SYSTEM_METHOD_PUTCHAR:
+		return (cheri_system_putchar(a1));
+
+	default:
+		if (methodnum >= CHERI_ENTER_USER_BASE &&
+		    methodnum < CHERI_ENTER_USER_CEILING &&
+		    cheri_user_fn_ptr != NULL)
+			return (cheri_user_fn_ptr(methodnum, a1, a2, a3,
+			    a4, a5, a6, a7, system_object, c3, c4, c5, c6,
+			    c7));
+		return (-1);
+	}
 }
