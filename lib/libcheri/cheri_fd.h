@@ -42,20 +42,35 @@ void	cheri_fd_destroy(struct cheri_object *cop);
 /*
  * Method numbers used during invocation.
  */
-#define	CHERI_FD_METHOD_WRITE_C		1
-#define	CHERI_FD_METHOD_READ_C		2
+#define	CHERI_FD_METHOD_FSTAT_C		1
+#define	CHERI_FD_METHOD_LSEEK_C		2
+#define	CHERI_FD_METHOD_READ_C		3
+#define	CHERI_FD_METHOD_WRITE_C		4
+
+/*
+ * All methods return the following structure, which fits in register return
+ * values for the calling convention.  In practice, retval0 is what we think
+ * of as the normal return value for each method; retval1 holds an errno value
+ * if retval0 == -1.  This is near-identical to the semantics of the kernel's
+ * td_retval[0,1].
+ */
+struct cheri_fd_ret {
+	register_t	cfr_retval0;	/* Actual return value. */
+	register_t	cfr_retval1;	/* errno if cfr_retval0 == -1. */
+};
 
 /*
  * Methods that can be invoked on cheri_fd objects regardless of ambient
  * authority.
  */
-struct cheri_fd_ret {
-	ssize_t	cfr_ssize;
-	int	cfr_errno;
-};
-struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object co,
-			    __capability void *buf_c);
+struct stat;
+struct cheri_fd_ret	cheri_fd_fstat_c(struct cheri_object co,
+			    __capability __output struct stat *sb_c);
+struct cheri_fd_ret	cheri_fd_lseek_c(struct cheri_object co,
+			    off_t offset, int whence);
 struct cheri_fd_ret	cheri_fd_read_c(struct cheri_object co,
 			    __capability __output void *buf_c);
+struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object co,
+			    __capability void *buf_c);
 
 #endif /* !_CHERI_FD_H_ */

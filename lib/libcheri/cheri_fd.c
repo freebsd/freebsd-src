@@ -29,6 +29,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
@@ -126,39 +127,67 @@ cheri_fd_destroy(struct cheri_object *cop)
 }
 
 /*
- * Forward a write to a cheri_fd to write() on the underling file descriptor.
+ * Forward fstat() on a cheri_fd to the underlying file descriptor.
  */
 static struct cheri_fd_ret
-_cheri_fd_write_c(struct cheri_object co, __capability void *buf_c)
+_cheri_fd_fstat_c(struct cheri_object co, __capability struct stat *sb_c)
 {
 	struct cheri_fd_ret ret;
 	__capability struct cheri_fd *cfp;
-	void *buf;
+	struct stat *sb;
+
+	/* XXXRW: Object-capability user permission check on co.co_datacap. */
 
 	/* XXXRW: Change to check permissions directly and throw exception. */
-	if (!(cheri_getperm(buf_c) & CHERI_PERM_LOAD)) {
-		ret.cfr_ssize = -1;
-		ret.cfr_errno = EPROT;
+	if (!(cheri_getperm(sb_c) & CHERI_PERM_STORE) ||
+	    !(cheri_getlen(sb_c) >= sizeof(*sb))) {
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EPROT;
 		return (ret);
 	}
-	buf = (void *)buf_c;
+	sb = (void *)sb_c;
 
-	/* Check that cheri_fd hasn't been revoked. */
+	/* Check that the cheri_fd hasn't been revoked. */
 	cfp = co.co_datacap;
 	if (cfp->cf_fd == -1) {
-		ret.cfr_ssize = -1;
-		ret.cfr_errno = EBADF;
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EBADF;
 		return (ret);
 	}
 
 	/* Forward to operating system. */
-	ret.cfr_ssize = write(cfp->cf_fd, buf, cheri_getlen(buf_c));
-	ret.cfr_errno = (ret.cfr_ssize < 0 ? errno : 0);
+	ret.cfr_retval0 = fstat(cfp->cf_fd, sb);
+	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
 
 /*
- * Forward a read to a cheri_fd to read() on the underling file descriptor.
+ * Forward lseek() on a cheri_fd to the underlying file descriptor.
+ */
+static struct cheri_fd_ret
+_cheri_fd_lseek_c(struct cheri_object co, off_t offset, int whence)
+{
+	struct cheri_fd_ret ret;
+	__capability struct cheri_fd *cfp;
+
+	/* XXXRW: Object-capability user permission check on co.co_datacap. */
+
+	/* Check that the cheri_fd hasn't been revoked. */
+	cfp = co.co_datacap;
+	if (cfp->cf_fd == -1) {
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EBADF;
+		return (ret);
+	}
+
+	/* Forward to operating system. */
+	ret.cfr_retval0 = lseek(cfp->cf_fd, offset, whence);
+	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
+	return (ret);
+}
+
+/*
+ * Forward read_c() on a cheri_fd to the underlying file descriptor.
  */
 static struct cheri_fd_ret
 _cheri_fd_read_c(struct cheri_object co, __capability __output void *buf_c)
@@ -167,10 +196,12 @@ _cheri_fd_read_c(struct cheri_object co, __capability __output void *buf_c)
 	__capability struct cheri_fd *cfp;
 	void *buf;
 
+	/* XXXRW: Object-capability user permission check on co.co_datacap. */
+
 	/* XXXRW: Change to check permissions directly and throw exception. */
 	if (!(cheri_getperm(buf_c) & CHERI_PERM_STORE)) {
-		ret.cfr_ssize = -1;
-		ret.cfr_errno = EPROT;
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EPROT;
 		return (ret);
 	}
 	buf = (void *)buf_c;
@@ -178,14 +209,48 @@ _cheri_fd_read_c(struct cheri_object co, __capability __output void *buf_c)
 	/* Check that the cheri_fd hasn't been revoked. */
 	cfp = co.co_datacap;
 	if (cfp->cf_fd == -1) {
-		ret.cfr_ssize = -1;
-		ret.cfr_errno = EBADF;
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EBADF;
 		return (ret);
 	}
 
 	/* Forward to operating system. */
-	ret.cfr_ssize = read(cfp->cf_fd, buf, cheri_getlen(buf_c));
-	ret.cfr_errno = (ret.cfr_ssize < 0 ? errno : 0);
+	ret.cfr_retval0 = read(cfp->cf_fd, buf, cheri_getlen(buf_c));
+	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
+	return (ret);
+}
+
+/*
+ * Forward write_c() on a cheri_fd to the underlying file descriptor.
+ */
+static struct cheri_fd_ret
+_cheri_fd_write_c(struct cheri_object co, __capability void *buf_c)
+{
+	struct cheri_fd_ret ret;
+	__capability struct cheri_fd *cfp;
+	void *buf;
+
+	/* XXXRW: Object-capability user permission check on co.co_datacap. */
+
+	/* XXXRW: Change to check permissions directly and throw exception. */
+	if (!(cheri_getperm(buf_c) & CHERI_PERM_LOAD)) {
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EPROT;
+		return (ret);
+	}
+	buf = (void *)buf_c;
+
+	/* Check that cheri_fd hasn't been revoked. */
+	cfp = co.co_datacap;
+	if (cfp->cf_fd == -1) {
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = EBADF;
+		return (ret);
+	}
+
+	/* Forward to operating system. */
+	ret.cfr_retval0 = write(cfp->cf_fd, buf, cheri_getlen(buf_c));
+	ret.cfr_retval1 = (ret.cfr_retval0 < 0 ? errno : 0);
 	return (ret);
 }
 
@@ -194,26 +259,33 @@ _cheri_fd_read_c(struct cheri_object co, __capability __output void *buf_c)
  * could keep this symbol local to the current object rather than making it
  * global.
  */
-struct cheri_fd_ret	cheri_fd_enter(register_t methodnum, 
+struct cheri_fd_ret	cheri_fd_enter(register_t methodnum, register_t a1,
+			    register_t a2,
 			    struct cheri_object co, __capability void *c3)
 			    __attribute__((cheri_ccall));
 
 struct cheri_fd_ret
-cheri_fd_enter(register_t methodnum, struct cheri_object co,
-    __capability void *c3)
+cheri_fd_enter(register_t methodnum, register_t a1, register_t a2,
+    struct cheri_object co, __capability void *c3)
 {
 	struct cheri_fd_ret ret;
 
 	switch (methodnum) {
-	case CHERI_FD_METHOD_WRITE_C:
-		return (_cheri_fd_write_c(co, c3));
+	case CHERI_FD_METHOD_FSTAT_C:
+		return (_cheri_fd_fstat_c(co, c3));
+
+	case CHERI_FD_METHOD_LSEEK_C:
+		return (_cheri_fd_lseek_c(co, a1, a2));
 
 	case CHERI_FD_METHOD_READ_C:
 		return (_cheri_fd_read_c(co, c3));
 
+	case CHERI_FD_METHOD_WRITE_C:
+		return (_cheri_fd_write_c(co, c3));
+
 	default:
-		ret.cfr_ssize = -1;
-		ret.cfr_errno = ENOMETHOD;
+		ret.cfr_retval0 = -1;
+		ret.cfr_retval1 = ENOMETHOD;
 		return (ret);
 	}
 }
