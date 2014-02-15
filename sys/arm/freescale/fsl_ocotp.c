@@ -56,6 +56,7 @@ static struct ocotp_softc *ocotp_sc;
 static inline uint32_t
 RD4(struct ocotp_softc *sc, bus_size_t off)
 {
+
 	return (bus_read_4(sc->mem_res, off));
 }
 
@@ -111,11 +112,11 @@ ocotp_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-        if (ofw_bus_is_compatible(dev, "fsl,fslq-ocotp") == 0)
+        if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, 
-	    "Freescale i.MX6 On-Chip One-Time-Programmable Memory");
+	    "Freescale On-Chip One-Time-Programmable Memory");
 
 	return (BUS_PROBE_DEFAULT);
 }
