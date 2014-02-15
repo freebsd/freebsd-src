@@ -116,7 +116,7 @@ __cheri_ ## class ## _entry:						\
 	.end __cheri_## class ## _entry;
 
 #define	CHERI_CLASS_DECL(class)						\
-	extern void __cheri_## class ## _enter;
+	extern void __cheri_## class ## _entry;
 
 #define	CHERI_CLASS_ENTRY(class)					\
-	(&__cheri_## class ## _enter)
+	(&__cheri_## class ## _entry)
