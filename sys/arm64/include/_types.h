@@ -48,8 +48,8 @@ typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
 typedef	int			__int32_t;
 typedef	unsigned int		__uint32_t;
-typedef	long			__int64_t;
-typedef	unsigned long		__uint64_t;
+typedef	long long		__int64_t;
+typedef	unsigned long long	__uint64_t;
 
 /*
  * Standard type definitions.
@@ -72,8 +72,8 @@ typedef	__int64_t	__int_least64_t;
 typedef	__int64_t	__ptrdiff_t;		/* ptr1 - ptr2 */
 typedef	__int64_t	__register_t;
 typedef	__int64_t	__segsz_t;		/* segment size (in pages) */
-typedef	__uint64_t	__size_t;		/* sizeof() */
-typedef	__int64_t	__ssize_t;		/* byte count or error */
+typedef	unsigned long	__size_t;		/* sizeof() */
+typedef	long		__ssize_t;		/* byte count or error */
 typedef	__int64_t	__time_t;		/* time()... */
 typedef	__uint64_t	__uintfptr_t;
 typedef	__uint64_t	__uintmax_t;

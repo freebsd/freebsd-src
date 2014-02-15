@@ -30,7 +30,7 @@
 #define	_MACHINE_ELF_H_ 1
 
 /*
- * ELF definitions for the sparc64 architecture.
+ * ELF definitions for the AArch64 architecture.
  */
 
 #include <sys/elf32.h>	/* Definitions common to all 32 bit architectures. */
