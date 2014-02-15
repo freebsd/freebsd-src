@@ -1002,7 +1002,7 @@ flowtable_lookup_common(struct flowtable *ft, struct sockaddr_storage *ssa,
 	}
 
 success:
-	if (m->m_flags & M_FLOWID) {
+	if (! (m->m_flags & M_FLOWID)) {
 		m->m_flags |= M_FLOWID;
 		m->m_pkthdr.flowid = fle->f_fhash;
 	}
