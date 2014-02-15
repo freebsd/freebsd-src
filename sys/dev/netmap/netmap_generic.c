@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #define rtnl_lock() D("rtnl_lock called");
 #define rtnl_unlock() D("rtnl_unlock called");
 #define MBUF_TXQ(m)	((m)->m_pkthdr.flowid)
+#define MBUF_RXQ(m)	((m)->m_pkthdr.flowid)
 #define smp_mb()
 
 /*
@@ -222,15 +223,23 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 #endif /* REG_RESET */
 
 	if (enable) { /* Enable netmap mode. */
+		/* Init the mitigation support. */
+		gna->mit = malloc(na->num_rx_rings * sizeof(struct nm_generic_mit),
+					M_DEVBUF, M_NOWAIT | M_ZERO);
+		if (!gna->mit) {
+			D("mitigation allocation failed");
+			error = ENOMEM;
+			goto out;
+		}
+		for (r=0; r<na->num_rx_rings; r++)
+			netmap_mitigation_init(&gna->mit[r], na);
+
 		/* Initialize the rx queue, as generic_rx_handler() can
 		 * be called as soon as netmap_catch_rx() returns.
 		 */
 		for (r=0; r<na->num_rx_rings; r++) {
 			mbq_safe_init(&na->rx_rings[r].rx_queue);
 		}
-
-		/* Init the mitigation timer. */
-		netmap_mitigation_init(gna);
 
 		/*
 		 * Preallocate packet buffers for the tx rings.
@@ -306,7 +315,9 @@ generic_netmap_register(struct netmap_adapter *na, int enable)
 			mbq_safe_destroy(&na->rx_rings[r].rx_queue);
 		}
 
-		netmap_mitigation_cleanup(gna);
+		for (r=0; r<na->num_rx_rings; r++)
+			netmap_mitigation_cleanup(&gna->mit[r]);
+		free(gna->mit, M_DEVBUF);
 
 		for (r=0; r<na->num_tx_rings; r++) {
 			for (i=0; i<na->num_tx_desc; i++) {
@@ -344,10 +355,12 @@ free_tx_pools:
 		free(na->tx_rings[r].tx_pool, M_DEVBUF);
 		na->tx_rings[r].tx_pool = NULL;
 	}
-	netmap_mitigation_cleanup(gna);
 	for (r=0; r<na->num_rx_rings; r++) {
+		netmap_mitigation_cleanup(&gna->mit[r]);
 		mbq_safe_destroy(&na->rx_rings[r].rx_queue);
 	}
+	free(gna->mit, M_DEVBUF);
+out:
 
 	return error;
 }
@@ -557,12 +570,11 @@ generic_netmap_txsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			}
 			slot->flags &= ~(NS_REPORT | NS_BUF_CHANGED);
 			nm_i = nm_next(nm_i, lim);
+			IFRATE(rate_ctx.new.txpkt ++);
 		}
 
 		/* Update hwcur to the next slot to transmit. */
 		kring->nr_hwcur = nm_i; /* not head, we could break early */
-
-		IFRATE(rate_ctx.new.txpkt += ntx);
 	}
 
 	/*
@@ -600,7 +612,11 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_generic_adapter *gna = (struct netmap_generic_adapter *)na;
 	u_int work_done;
-	u_int rr = 0; // receive ring number
+	u_int rr = MBUF_RXQ(m); // receive ring number
+
+	if (rr >= na->num_rx_rings) {
+		rr = rr % na->num_rx_rings; // XXX expensive...
+	}
 
 	/* limit the size of the queue */
 	if (unlikely(mbq_len(&na->rx_rings[rr].rx_queue) > 1024)) {
@@ -617,13 +633,13 @@ generic_rx_handler(struct ifnet *ifp, struct mbuf *m)
 		/* same as send combining, filter notification if there is a
 		 * pending timer, otherwise pass it up and start a timer.
 		 */
-		if (likely(netmap_mitigation_active(gna))) {
+		if (likely(netmap_mitigation_active(&gna->mit[rr]))) {
 			/* Record that there is some pending work. */
-			gna->mit_pending = 1;
+			gna->mit[rr].mit_pending = 1;
 		} else {
 			netmap_generic_irq(na->ifp, rr, &work_done);
 			IFRATE(rate_ctx.new.rxirq++);
-			netmap_mitigation_start(gna);
+			netmap_mitigation_start(&gna->mit[rr]);
 		}
 	}
 }
@@ -682,7 +698,6 @@ generic_netmap_rxsync(struct netmap_adapter *na, u_int ring_nr, int flags)
 			ring->slot[nm_i].flags = slot_flags;
 			m_freem(m);
 			nm_i = nm_next(nm_i, lim);
-			n++;
 		}
 		if (n) {
 			kring->nr_hwtail = nm_i;
@@ -772,7 +787,7 @@ generic_netmap_attach(struct ifnet *ifp)
 	/* when using generic, IFCAP_NETMAP is set so we force
 	 * NAF_SKIP_INTR to use the regular interrupt handler
 	 */
-	na->na_flags = NAF_SKIP_INTR;
+	na->na_flags = NAF_SKIP_INTR | NAF_HOST_RINGS;
 
 	ND("[GNA] num_tx_queues(%d), real_num_tx_queues(%d), len(%lu)",
 			ifp->num_tx_queues, ifp->real_num_tx_queues,
