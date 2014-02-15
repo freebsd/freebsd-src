@@ -3328,10 +3328,6 @@ pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 	l1idx = L1_IDX(va);
 	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
-		/*
-		 * These should only happen for the kernel pmap.
-		 */
-		KASSERT(pmap == kernel_pmap, ("unexpected section"));
 		/* XXX: what to do about the bits > 32 ? */
 		if (l1pd & L1_S_SUPERSEC)
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
