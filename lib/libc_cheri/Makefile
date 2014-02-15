@@ -147,8 +147,9 @@ SRCS+=		asctime.c		\
 CFLAGS.subr_scanf.c=	-Wno-sign-compare
 SRCS+=		subr_scanf.c
 
-# CHERI system class
-SRCS+=		cheri_system_stub.c
+# CHERI system classes
+SRCS+=		cheri_fd_stub.c		\
+		cheri_system_stub.c
 
 INCS=
 SHLIB_MAJOR=	1
