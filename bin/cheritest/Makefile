@@ -10,4 +10,10 @@ LDADD=  -lcheri
 
 NO_SHARED?=	YES
 
+FILES=	cheritest.dump
+CLEANFILES=	cheritest.dump
+
+cheritest.dump: cheritest
+	objdump -xsSD ${.ALLSRC} > ${.TARGET}
+
 .include <bsd.prog.mk>
