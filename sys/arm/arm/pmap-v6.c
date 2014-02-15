@@ -3854,6 +3854,24 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 	 * Map the superpage.
 	 */
 	pmap_map_section(pmap, first_va, l2pte_pa(firstpte), prot, TRUE);
+	/*
+	 * Invalidate all possible TLB mappings for small
+	 * pages within the newly created superpage.
+	 * Rely on the first PTE's attributes since they
+	 * have to be consistent across all of the base pages
+	 * within the superpage. If page is not executable it
+	 * is at least referenced.
+	 * The fastest way to do that is to invalidate whole
+	 * TLB at once instead of executing 256 CP15 TLB
+	 * invalidations by single entry. TLBs usually maintain
+	 * several dozen entries so loss of unrelated entries is
+	 * still a less agresive approach.
+	 */
+	if (L2_S_EXECUTABLE(firstpte))
+		cpu_tlb_flushID();
+	else
+		cpu_tlb_flushD();
+
 	pmap_section_promotions++;
 	CTR2(KTR_PMAP, "pmap_promote_section: success for va %#x"
 	    " in pmap %p", first_va, pmap);
@@ -3889,7 +3907,7 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	struct l2_bucket *l2b;
 	struct pv_entry *l1pdpve;
 	struct md_page *pvh;
-	pd_entry_t *pl1pd, l1pd;
+	pd_entry_t *pl1pd, l1pd, newl1pd;
 	pt_entry_t *firstptep, newpte;
 	vm_offset_t pa;
 	vm_page_t m;
@@ -3969,9 +3987,14 @@ pmap_demote_section(pmap_t pmap, vm_offset_t va)
 	pmap_pv_demote_section(pmap, va, pa);
 
 	/* Now fix-up L1 */
-	l1pd = l2b->l2b_phys | L1_C_DOM(pmap->pm_domain) | L1_C_PROTO;
-	*pl1pd = l1pd;
+	newl1pd = l2b->l2b_phys | L1_C_DOM(pmap->pm_domain) | L1_C_PROTO;
+	*pl1pd = newl1pd;
 	PTE_SYNC(pl1pd);
+	/* Invalidate old TLB mapping */
+	if (L1_S_EXECUTABLE(l1pd))
+		cpu_tlb_flushID_SE(va);
+	else if (L1_S_REFERENCED(l1pd))
+		cpu_tlb_flushD_SE(va);
 
 	pmap_section_demotions++;
 	CTR2(KTR_PMAP, "pmap_demote_section: success for va %#x"
