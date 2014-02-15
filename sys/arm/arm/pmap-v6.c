@@ -3700,13 +3700,14 @@ pmap_remove_section(pmap_t pmap, vm_offset_t sva)
 		KASSERT(l2b->l2b_occupancy == L2_PTE_NUM_TOTAL,
 		    ("pmap_remove_section: l2_bucket occupancy error"));
 		pmap_free_l2_bucket(pmap, l2b, L2_PTE_NUM_TOTAL);
-		/*
-		 * Now invalidate L1 slot as it was not invalidated in
-		 * pmap_free_l2_bucket() due to L1_TYPE mismatch.
-		 */
-		*pl1pd = 0;
-		PTE_SYNC(pl1pd);
 	}
+	/* Now invalidate L1 slot */
+	*pl1pd = 0;
+	PTE_SYNC(pl1pd);
+	if (L1_S_EXECUTABLE(l1pd))
+		cpu_tlb_flushID_SE(sva);
+	else
+		cpu_tlb_flushD_SE(sva);
 }
 
 /*
