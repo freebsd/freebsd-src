@@ -22,6 +22,8 @@ arm/freescale/imx/imx6_anatop.c		standard
 arm/freescale/imx/imx6_ccm.c		standard
 arm/freescale/imx/imx6_machdep.c	standard
 arm/freescale/imx/imx6_pl310.c		standard
+arm/freescale/imx/imx6_ocotp.c		standard
+arm/freescale/imx/imx6_tempmon.c	standard
 arm/freescale/imx/imx_machdep.c		standard
 arm/freescale/imx/imx_gpt.c		standard
 
