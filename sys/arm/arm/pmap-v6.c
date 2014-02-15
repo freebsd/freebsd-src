@@ -2973,8 +2973,10 @@ pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	}
 
 	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
-	if ((*pl1pd & L1_TYPE_MASK) == L1_S_PROTO)
-		panic("pmap_enter_locked: attempt pmap_enter_on 1MB page");
+	if ((va < VM_MAXUSER_ADDRESS) &&
+	    (*pl1pd & L1_TYPE_MASK) == L1_S_PROTO) {
+		(void)pmap_demote_section(pmap, va);
+	}
 
 	user = 0;
 	/*
@@ -3013,6 +3015,10 @@ do_l2b_alloc:
 			return;
 		}
 	}
+
+	pl1pd = &pmap->pm_l1->l1_kva[L1_IDX(va)];
+	if ((*pl1pd & L1_TYPE_MASK) == L1_S_PROTO)
+		panic("pmap_enter: attempt to enter on 1MB page, va: %#x", va);
 
 	ptep = &l2b->l2b_kva[l2pte_index(va)];
 
