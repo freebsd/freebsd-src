@@ -68,6 +68,6 @@ extern register_t cheri_system_methodnum_putchar;
 /*
  * XXXRW: This API probably doesn't belong here.  But where does it belong?
  */
-__capability struct sandbox	*cheri_enter_getsandbox(void);
+__capability struct sandbox	*cheri_getsandbox(void);
 
 #endif /* !_CHERI_SYSTEM_H_ */

@@ -57,7 +57,7 @@ static void *__cheri_enter_stack;
 void *__cheri_enter_stack_top;
 
 __capability struct sandbox *
-cheri_enter_getsandbox(void)
+cheri_getsandbox(void)
 {
 
 	return (cheri_getidc());

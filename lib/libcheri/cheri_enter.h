@@ -31,16 +31,17 @@
 #ifndef _CHERI_ENTER_H_
 #define	_CHERI_ENTER_H_
 
-typedef register_t (*cheri_enter_fn_t)(register_t methodnum, register_t a1,
-	    register_t a2, register_t a3, register_t a4, register_t a5,
-	    register_t a6, register_t a7, struct cheri_object system_object,
-	    __capability void *c3, __capability void *c4,
-	    __capability void *c5, __capability void *c6,
-	    __capability void *c7) __attribute__((cheri_ccall));
+typedef register_t (*cheri_system_user_fn_t)(register_t methodnum,
+	    register_t a1, register_t a2, register_t a3, register_t a4,
+	    register_t a5, register_t a6, register_t a7,
+	    struct cheri_object system_object, __capability void *c3,
+	    __capability void *c4, __capability void *c5,
+	    __capability void *c6, __capability void *c7)
+	    __attribute__((cheri_ccall));
 
-void	cheri_enter_register_fn(cheri_enter_fn_t fn_ptr);
+void	cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr);
 
-#define	CHERI_ENTER_USER_BASE		1000
-#define	CHERI_ENTER_USER_CEILING	2000
+#define	CHERI_SYSTEM_USER_BASE		1000
+#define	CHERI_SYSTEM_USER_CEILING	2000
 
 #endif /* !_CHERI_ENTER_H_ */

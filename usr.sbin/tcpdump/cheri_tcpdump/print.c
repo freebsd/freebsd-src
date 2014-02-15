@@ -492,7 +492,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 	for (i = 0; i < MAX_SANDBOXES; i++)
 		asprintf(&hash_names[i], "hash%02d", i);
 
-	cheri_enter_register_fn(&cheri_tcpdump_enter);
+	cheri_system_user_register_fn(&cheri_tcpdump_system);
 
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)

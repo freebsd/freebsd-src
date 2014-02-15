@@ -92,16 +92,16 @@ register_t	cheri_system_enter(register_t methodnum, register_t a1,
 		    __capability void *c5, __capability void *c6,
 		    __capability void *c7) __attribute__((cheri_ccall));
 
-static cheri_enter_fn_t	cheri_user_fn_ptr;
+static cheri_system_user_fn_t	cheri_system_user_fn_ptr;
 
 /*
  * Allow the application to register its own methods.
  */
 void
-cheri_enter_register_fn(cheri_enter_fn_t fn_ptr)
+cheri_system_user_register_fn(cheri_system_user_fn_t fn_ptr)
 {
 
-	cheri_user_fn_ptr = fn_ptr;
+	cheri_system_user_fn_ptr = fn_ptr;
 }
 
 /*
@@ -126,10 +126,10 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
 		return (cheri_system_putchar(a1));
 
 	default:
-		if (methodnum >= CHERI_ENTER_USER_BASE &&
-		    methodnum < CHERI_ENTER_USER_CEILING &&
-		    cheri_user_fn_ptr != NULL)
-			return (cheri_user_fn_ptr(methodnum, a1, a2, a3,
+		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
+		    methodnum < CHERI_SYSTEM_USER_CEILING &&
+		    cheri_system_user_fn_ptr != NULL)
+			return (cheri_system_user_fn_ptr(methodnum, a1, a2, a3,
 			    a4, a5, a6, a7, system_object, c3, c4, c5, c6,
 			    c7));
 		return (-1);
