@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
+#include "libarm64.h"
+
 static int elf64_exec(struct preloaded_file *amp);
 static int elf64_obj_exec(struct preloaded_file *amp);
 
@@ -55,8 +57,38 @@ struct file_format *file_formats[] = {
 static int
 elf64_exec(struct preloaded_file *fp)
 {
-	printf("elf64_exec\n");
-	return (EINVAL);
+	struct file_metadata *md;
+	EFI_STATUS status;
+	UINTN descsz, memmapsz, mapkey;
+	UINT32 descver;
+	Elf_Ehdr *ehdr;
+	void (*entry)(void *);
+
+	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL)
+        	return(EFTYPE);
+
+	ehdr = (Elf_Ehdr *)&(md->md_data);
+
+	entry = arm64_efi_translate(ehdr->e_entry);
+
+	memmapsz = 0;
+	status = BS->GetMemoryMap(&memmapsz, NULL, &mapkey, &descsz, &descver);
+        if (EFI_ERROR(status) && status != EFI_BUFFER_TOO_SMALL) {
+		printf("%s: GetMemoryMap() returned 0x%lx\n", __func__,
+		    (long)status);
+		return (EINVAL);
+	}
+
+	status = BS->ExitBootServices(IH, mapkey);
+        if (EFI_ERROR(status)) {
+		printf("%s: ExitBootServices() returned 0x%lx\n", __func__,
+		    (long)status);
+		return (EINVAL);
+	}
+
+	/* TODO: Pass the required metadata to the kernel */
+	(*entry)(NULL);
+	panic("exec returned");
 }
 
 static int
