@@ -30,8 +30,8 @@
 
 #include <sys/cdefs.h>
 
-#if __has_feature(capabilities)
-#define USE_C_CAPS
+#if !__has_feature(capabilities)
+#error "This code requires a CHERI-aware compiler"
 #endif
 
 #include <sys/types.h>
@@ -54,7 +54,6 @@
 
 #include "cheritest_sandbox.h"
 
-#ifdef USE_C_CAPS
 #define	CHERI_CAPREG_PRINT(crn) do {					\
 	__capability void *cap = cheri_getreg(crn);			\
 	printf("C%u tag %ju u %ju perms %04jx type %016jx\n", crn,	\
@@ -66,25 +65,6 @@
 	    (uintmax_t)cheri_getbase(cap),				\
 	    (uintmax_t)cheri_getlen(cap));				\
 } while (0)
-#else
-#define	CHERI_CAPREG_PRINT(crn) do {					\
-	register_t c_tag;						\
-	register_t c_unsealed, c_perms, c_otype, c_base, c_length;	\
-									\
-	CHERI_CGETTAG(c_tag, (crn));					\
-	CHERI_CGETUNSEALED(c_unsealed, (crn));				\
-	CHERI_CGETPERM(c_perms, (crn));					\
-	CHERI_CGETBASE(c_base, (crn));					\
-	CHERI_CGETTYPE(c_otype, (crn));					\
-	CHERI_CGETLEN(c_length, (crn));					\
-									\
-	printf("C%u tag %u u %u perms %04jx type %016jx\n", crn,	\
-	    (u_int)c_tag, (u_int)c_unsealed,				\
-	    (uintmax_t)c_perms, (uintmax_t)c_otype);			\
-	printf("\tbase %016jx length %016jx\n", (uintmax_t)c_base,	\
-	    (uintmax_t)c_length);					\
-} while (0)
-#endif
 
 static struct sandbox_class	*cheritest_classp;
 static struct sandbox_object	*cheritest_objectp;
@@ -126,7 +106,6 @@ usage(void)
 static void
 cheritest_overrun(void)
 {
-#ifdef USE_C_CAPS
 #define	ARRAY_LEN	2
 	char array[ARRAY_LEN];
 	__capability char *arrayp = (__capability char *)array;
@@ -135,16 +114,6 @@ cheritest_overrun(void)
 	for (i = 0; i < ARRAY_LEN; i++)
 		arrayp[i] = 0;
 	arrayp[i] = 0;
-#else
-	/* Move a copy of $c0 into $c1. */
-	CHERI_CMOVE(1, 0);
-
-	/* Restrict segment length to 0. */
-	CHERI_CSETLEN(1, 1, 0);
-
-	/* Perform a byte store operation via $c1. */
-	CHERI_CSB(0, 0, 0, 1);
-#endif
 }
 
 /*
@@ -153,7 +122,6 @@ cheritest_overrun(void)
  * that, we use libcheri.
  */
 static void
-#ifdef USE_C_CAPS
 cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
     register_t sandbox_pc, __capability void **codecapp,
     __capability void **datacapp)
@@ -174,43 +142,6 @@ cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
 	*codecapp = codecap;
 	*datacapp = datacap;
 }
-#else
-cheritest_sandbox_setup(void *sandbox_base, void *sandbox_end,
-    register_t sandbox_pc)
-{
-	/*-
-	 * Construct a generic capability in $c3 that describes the combined
-	 * code/data segment that we will seal.
-	 *
-	 * Derive from $c3 a code capability in $c1, and data capability in
-	 * $c2, suitable for use with CCall.
-	 */
-	CHERI_CINCBASE(3, 0, sandbox_base);
-	CHERI_CSETTYPE(3, 3, sandbox_pc);
-	CHERI_CSETLEN(3, 3, (uintptr_t)sandbox_end - (uintptr_t)sandbox_base);
-
-	/*
-	 * Construct a code capability in $c1, derived from $c3, suitable for
-	 * use with CCall.
-	 */
-	CHERI_CANDPERM(1, 3, CHERI_PERM_EXECUTE | CHERI_PERM_SEAL);
-	CHERI_CSEALCODE(1, 1);
-
-	/*
-	 * Construct a data capability in $c2, derived from $c1 and $c3,
-	 * suitable for use with CCall.
-	 */
-	CHERI_CANDPERM(2, 3, CHERI_PERM_LOAD | CHERI_PERM_STORE |
-	    CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE_CAP |
-	    CHERI_PERM_STORE_EPHEM_CAP);
-	CHERI_CSEALDATA(2, 2, 3);
-
-	/*
-	 * Clear $c3 which we no longer require.
-	 */
-	CHERI_CCLEARTAG(3);
-}
-#endif
 
 static void
 cheritest_creturn(void)
@@ -222,32 +153,21 @@ cheritest_creturn(void)
 static void
 cheritest_ccall_creturn(void)
 {
-#ifdef USE_C_CAPS
 	__capability void *codecap, *datacap;
 
 	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0,
 	    &codecap, &datacap);
 	cheritest_ccall(codecap, datacap);
-#else
-	cheritest_sandbox_setup(&sandbox_creturn, &sandbox_creturn_end, 0);
-	cheritest_ccall();
-#endif
 }
 
 static void
 cheritest_ccall_nop_creturn(void)
 {
-#ifdef USE_C_CAPS
 	__capability void *codecap, *datacap;
 
 	cheritest_sandbox_setup(&sandbox_nop_creturn,
 	    &sandbox_nop_creturn_end, 0, &codecap, &datacap);
 	cheritest_ccall(codecap, datacap);
-#else
-	cheritest_sandbox_setup(&sandbox_nop_creturn,
-	    &sandbox_nop_creturn_end, 0);
-	cheritest_ccall();
-#endif
 }
 
 static void
@@ -268,11 +188,7 @@ cheritest_listcausereg(void)
 	register_t cause;
 
 	printf("CP2 cause register:\n");
-#ifdef USE_C_CAPS
 	cause = cheri_getcause();
-#else
-	CHERI_CGETCAUSE(cause);
-#endif
 	printf("Cause: %ju\n", (uintmax_t)cause);
 }
 
@@ -335,21 +251,11 @@ cheritest_invoke_simple_op(int op)
 {
 	register_t v;
 
-#ifdef USE_C_CAPS
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
-#else
-	struct chericap cheri_system_object;
-
-	cheri_system_object =
-	    sandbox_object_getsystemobject(cheritest_objectp);
-	v = sandbox_object_invoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    &cheri_system_object.co_codecap, &cheri_system_object.co_datacap,
-	    NULL, NULL, NULL, NULL, NULL, NULL);
-#endif
 	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
 }
 
@@ -358,22 +264,14 @@ cheritest_invoke_simple_op(int op)
  * stack.  Odd.
  */
 static char md5string[] = "hello world";
-#ifndef USE_C_CAPS
-static struct chericap c5, c6;
-#endif
 
 static void
 cheritest_invoke_md5(void)
 {
-#ifdef USE_C_CAPS
 	__capability void *md5cap, *bufcap, *cclear;
-#else
-	struct chericap cheri_system_object;
-#endif
 	char buf[33];
 	register_t v;
 
-#ifdef USE_C_CAPS
 	cclear = cheri_zerocap();
 	md5cap = cheri_ptrperm(md5string, sizeof(md5string), CHERI_PERM_LOAD);
 	bufcap = cheri_ptrperm(buf, sizeof(buf), CHERI_PERM_STORE);
@@ -383,24 +281,6 @@ cheritest_invoke_md5(void)
 	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
 	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    md5cap, bufcap, cclear, cclear, cclear, cclear);
-#else
-	CHERI_CINCBASE(10, 0, &md5string);
-	CHERI_CSETLEN(10, 10, strlen(md5string));
-	CHERI_CANDPERM(10, 10, CHERI_PERM_LOAD);
-	CHERI_CSC(10, 0, &c5, 0);
-
-	CHERI_CINCBASE(10, 0, &buf);
-	CHERI_CSETLEN(10, 10, sizeof(buf));
-	CHERI_CANDPERM(10, 10, CHERI_PERM_STORE);
-	CHERI_CSC(10, 0, &c6, 0);
-
-	cheri_system_object =
-	    sandbox_object_getsystemobject(cheritest_objectp);
-	v = sandbox_object_invoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
-	    strlen(md5string), 0, 0, 0, 0, 0, 0,
-	    &cheri_system_object.co_codecap, &cheri_system_object.co_datacap,
-	    &c5, &c6, NULL, NULL, NULL, NULL);
-#endif
 
 	printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
 	buf[32] = '\0';

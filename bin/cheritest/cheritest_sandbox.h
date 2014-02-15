@@ -31,12 +31,8 @@
 #ifndef _CHERITEST_SANDBOX_H_
 #define	_CHERITEST_SANDBOX_H_
 
-#ifdef USE_C_CAPS
 void	cheritest_ccall(__capability void *c1, __capability void *c2)
     __attribute__((cheri_ccall));
-#else
-void	cheritest_ccall(void);
-#endif
 
 extern void	sandbox_creturn;
 extern void	sandbox_creturn_end;
