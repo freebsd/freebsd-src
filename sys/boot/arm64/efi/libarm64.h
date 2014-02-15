@@ -34,5 +34,11 @@ int arm64_getdev(void **vdev, const char *devspec, const char **path);
 char *arm64_fmtdev(void *vdev);
 int arm64_setcurrdev(struct env_var *ev, int flags, const void *value);
 
+/* copy.c */
+int arm64_efi_copy_init(void);
+ssize_t arm64_efi_copyin(const void *src, vm_offset_t dest, const size_t len);
+ssize_t arm64_efi_copyout(const vm_offset_t src, void *dest, const size_t len);
+ssize_t arm64_efi_readin(const int fd, vm_offset_t dest, const size_t len);
+
 #endif /* _LIBARM64_H_ */
 

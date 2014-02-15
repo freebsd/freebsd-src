@@ -47,26 +47,6 @@ extern char bootprog_maker[];
 struct devdesc currdev;		/* our current device */
 struct arch_switch archsw;	/* MI/MD interface boundary */
 
-ssize_t
-arm64_copyin(const void *src, vm_offset_t dest, const size_t len)
-{
-	bcopy(src, (void *)dest, len);
-	return (len);
-}
-
-ssize_t
-arm64_copyout(vm_offset_t src, void *dest, const size_t len)
-{
-	bcopy((void *)src, dest, len);
-	return (len);
-}
-
-ssize_t
-arm64_readin(int fd, vm_offset_t va, size_t len)
-{
-	return read(fd, va, len);
-}
-
 EFI_GUID acpi = ACPI_TABLE_GUID;
 EFI_GUID acpi20 = ACPI_20_TABLE_GUID;
 EFI_GUID devid = DEVICE_PATH_PROTOCOL;
@@ -89,6 +69,11 @@ main(int argc, CHAR16 *argv[])
 	 * printf() etc. once this is done.
 	 */
 	cons_probe();
+
+	if (arm64_efi_copy_init()) {
+		printf("failed to allocate staging area\n");
+		exit(EFI_BUFFER_TOO_SMALL);
+	}
 
 	/*
 	 * March through the device switch probing for things.
@@ -140,9 +125,9 @@ main(int argc, CHAR16 *argv[])
 
 	archsw.arch_autoload = amd64_autoload;
 	archsw.arch_getdev = arm64_getdev;
-	archsw.arch_copyin = arm64_copyin;
-	archsw.arch_copyout = arm64_copyout;
-	archsw.arch_readin = arm64_readin;
+	archsw.arch_copyin = arm64_efi_copyin;
+	archsw.arch_copyout = arm64_efi_copyout;
+	archsw.arch_readin = arm64_efi_readin;
 
 	interact();			/* doesn't return */
 
