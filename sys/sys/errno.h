@@ -178,10 +178,12 @@ __END_DECLS
 #define	ECAPMODE	94		/* Not permitted in capability mode */
 #define	ENOTRECOVERABLE	95		/* State not recoverable */
 #define	EOWNERDEAD	96		/* Previous owner died */
+#define	EPROT		97		/* Memory protection violation */
+#define	ENOMETHOD	98		/* Undefined object-capability method */
 #endif /* _POSIX_SOURCE */
 
 #ifndef _POSIX_SOURCE
-#define	ELAST		96		/* Must be equal largest errno */
+#define	ELAST		98		/* Must be equal largest errno */
 #endif /* _POSIX_SOURCE */
 
 #ifdef _KERNEL

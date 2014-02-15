@@ -474,6 +474,10 @@ The system call or operation is not permitted for capability mode processes.
 The state protected by a robust mutex is not recoverable.
 .It Er 96 EOWNERDEAD Em "Previous owner died" .
 The owner of a robust mutex terminated while holding the mutex lock.
+.It Er 97 EPROT Em "Memory protection violation" .
+A memory protection error occurred.
+.It Er 98 ENOMETHOD Em "Object-capability method not defined" .
+A method invoked on an object capability was undefined.
 .El
 .Sh DEFINITIONS
 .Bl -tag -width Ds
