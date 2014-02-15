@@ -241,6 +241,7 @@ struct sdhci_slot {
 	bus_addr_t	paddr;		/* DMA buffer address */
 	struct task	card_task;	/* Card presence check task */
 	struct callout	card_callout;	/* Card insert delay callout */
+	struct callout	timeout_callout;/* Card command/data response timeout */
 	struct mmc_host host;		/* Host parameters */
 	struct mmc_request *req;	/* Current request */
 	struct mmc_command *curcmd;	/* Current command of current request */
