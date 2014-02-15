@@ -767,8 +767,17 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* We shouldn't wait for DAT for stop commands. */
 	if (cmd == slot->req->stop)
 		mask &= ~SDHCI_DAT_INHIBIT;
-	/* Wait for bus no more then 10 ms. */
-	timeout = 10;
+	/*
+	 *  Wait for bus no more then 250 ms.  Typically there will be no wait
+	 *  here at all, but when writing a crash dump we may be bypassing the
+	 *  host platform's interrupt handler, and in some cases that handler
+	 *  may be working around hardware quirks such as not respecting r1b
+	 *  busy indications.  In those cases, this wait-loop serves the purpose
+	 *  of waiting for the prior command and data transfers to be done, and
+	 *  SD cards are allowed to take up to 250ms for write and erase ops.
+	 *  (It's usually more like 20-30ms in the real world.)
+	 */
+	timeout = 250;
 	while (state & mask) {
 		if (timeout == 0) {
 			slot_printf(slot, "Controller never released "
