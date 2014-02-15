@@ -50,6 +50,13 @@
 #include "sandbox.h"
 
 /*
+ * This file implements a stack landing pad for CHERI system classes provided
+ * by libcheri.  The single stack is statically allocated -- meaning no
+ * concurrent invocation from sandboxes.  Currently, that is ensured by virtue
+ * of applications not themselves invoking sandboxes concurrently.
+ */
+
+/*
  * Stack for use on entering from sandbox.
  */
 #define	CHERI_ENTER_STACK_SIZE	(PAGE_SIZE * 4)
