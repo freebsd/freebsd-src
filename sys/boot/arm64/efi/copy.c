@@ -52,12 +52,19 @@ arm64_efi_copy_init(void)
 	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData,
 	    STAGE_PAGES, &staging);
 	if (EFI_ERROR(status)) {
-		printf("failed to allocate staging area: %d\n",
+		printf("failed to allocate staging area: %ld\n",
 		    status & EFI_ERROR_MASK);
 		return (status);
 	}
 
 	return (0);
+}
+
+void *
+arm64_efi_translate(vm_offset_t ptr)
+{
+
+	return ((void *)(ptr + stage_offset));
 }
 
 ssize_t
@@ -69,7 +76,7 @@ arm64_efi_copyin(const void *src, vm_offset_t dest, const size_t len)
 		stage_offset_set = 1;
 	}
 
-	bcopy(src, (void *)(dest + stage_offset), len);
+	bcopy(src, arm64_efi_translate(dest), len);
 	return (len);
 }
 
@@ -77,7 +84,7 @@ ssize_t
 arm64_efi_copyout(const vm_offset_t src, void *dest, const size_t len)
 {
 
-	bcopy((void *)(src + stage_offset), dest, len);
+	bcopy(arm64_efi_translate(src), dest, len);
 	return (len);
 }
 
