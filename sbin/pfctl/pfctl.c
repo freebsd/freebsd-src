@@ -792,17 +792,18 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
-			    "Bytes: %-10llu  States: %-6ju]\n",
+			    "Bytes: %-10llu  States: %-6"PRIuPTR"]\n",
 			    (unsigned long long)rule->evaluations,
 			    (unsigned long long)(rule->packets[0] +
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
-			    rule->bytes[1]), (uintmax_t)rule->states_cur);
+			    rule->bytes[1]),
+			    (uintptr_t)rule->states_cur);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
-			    "State Creations: %-6ju]\n",
+			    "State Creations: %-6"PRIuPTR"]\n",
 			    (unsigned)rule->cuid, (unsigned)rule->cpid,
-			    (uintmax_t)rule->states_tot);
+			    (uintptr_t)rule->states_tot);
 	}
 }
 
@@ -904,7 +905,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_LABELS:
 			if (pr.rule.label[0]) {
 				printf("%s %llu %llu %llu %llu"
-				    " %llu %llu %llu %llu\n",
+				    " %llu %llu %llu %"PRIuPTR"\n",
 				    pr.rule.label,
 				    (unsigned long long)pr.rule.evaluations,
 				    (unsigned long long)(pr.rule.packets[0] +
@@ -915,7 +916,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 				    (unsigned long long)pr.rule.bytes[0],
 				    (unsigned long long)pr.rule.packets[1],
 				    (unsigned long long)pr.rule.bytes[1],
-				    (unsigned long long)pr.rule.states_tot);
+				    (uintptr_t)pr.rule.states_tot);
 			}
 			break;
 		case PFCTL_SHOW_RULES:
