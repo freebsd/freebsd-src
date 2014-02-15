@@ -43,9 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <arm/freescale/imx/imx6_ocotpreg.h>
-#include <arm/freescale/imx/imx6_ocotpvar.h>
-#include <arm/freescale/imx/imx_machdep.h>
+#include <arm/freescale/fsl_ocotpreg.h>
+#include <arm/freescale/fsl_ocotpvar.h>
 
 struct ocotp_softc {
 	device_t	dev;
@@ -112,7 +111,7 @@ ocotp_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-        if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
+        if (ofw_bus_is_compatible(dev, "fsl,fslq-ocotp") == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, 
@@ -122,14 +121,14 @@ ocotp_probe(device_t dev)
 }
 
 uint32_t
-imx6_ocotp_read_4(bus_size_t off)
+fsl_ocotp_read_4(bus_size_t off)
 {
 
 	if (ocotp_sc == NULL)
-		panic("imx6_ocotp_read_4: softc not set!");
+		panic("fsl_ocotp_read_4: softc not set!");
 
-	if (off > IMX6_OCOTP_LAST_REG)
-		panic("imx6_ocotp_read_4: offset out of range");
+	if (off > FSL_OCOTP_LAST_REG)
+		panic("fsl_ocotp_read_4: offset out of range");
 
 	return (RD4(ocotp_sc, off));
 }
