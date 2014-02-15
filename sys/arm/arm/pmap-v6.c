@@ -3794,10 +3794,13 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 	 * we just configure protections for the section mapping
 	 * that is going to be created.
 	 */
-	if (!L2_S_WRITABLE(firstpte) && (first_pve->pv_flags & PVF_WRITE)) {
-		first_pve->pv_flags &= ~PVF_WRITE;
+	if ((first_pve->pv_flags & PVF_WRITE) != 0) {
+		if (!L2_S_WRITABLE(firstpte)) {
+			first_pve->pv_flags &= ~PVF_WRITE;
+			prot &= ~VM_PROT_WRITE;
+		}
+	} else
 		prot &= ~VM_PROT_WRITE;
-	}
 
 	if (!L2_S_EXECUTABLE(firstpte))
 		prot &= ~VM_PROT_EXECUTE;
@@ -3842,6 +3845,12 @@ pmap_promote_section(pmap_t pmap, vm_offset_t va)
 
 		if (!L2_S_WRITABLE(oldpte) && (pve->pv_flags & PVF_WRITE))
 			pve->pv_flags &= ~PVF_WRITE;
+		if (pve->pv_flags != first_pve->pv_flags) {
+			pmap_section_p_failures++;
+			CTR2(KTR_PMAP, "pmap_promote_section: failure for "
+			    "va %#x in pmap %p", va, pmap);
+			return;
+		}
 
 		old_va -= PAGE_SIZE;
 		pa -= PAGE_SIZE;
