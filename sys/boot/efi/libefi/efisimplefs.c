@@ -165,9 +165,35 @@ efifs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
 static off_t
 efifs_seek(struct open_file *f, off_t offset, int where)
 {
-	printf("efifs_seek\n");
+	EFI_STATUS status;
+	EFI_FILE *file;
+	uint64_t pos;
 
-	return (EINVAL);
+	file = f->f_fsdata;
+	if (file == NULL)
+		return (-1);
+
+	switch(where) {
+	case SEEK_SET:
+		pos = 0;
+		break;
+	case SEEK_CUR:
+		/* Read the current position first */
+		status = file->GetPosition(file, &pos);
+		if (EFI_ERROR(status))
+			return (-1);
+		break;
+	case SEEK_END:
+	default:
+		return (-1);
+	}
+
+	pos += offset;
+	status = file->SetPosition(file, pos);
+	if (EFI_ERROR(status))
+		return (-1);
+
+	return (pos);
 }
 
 static int
