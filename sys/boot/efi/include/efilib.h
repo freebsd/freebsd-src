@@ -37,6 +37,8 @@ extern EFI_RUNTIME_SERVICES	*RS;
 extern struct devsw efipart_dev;
 extern struct devsw efinet_dev;
 extern struct netif_driver efinetif;
+extern struct devsw efisfs_dev;
+extern struct fs_ops efifs_fsops;
 
 void *efi_get_table(EFI_GUID *tbl);
 void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
