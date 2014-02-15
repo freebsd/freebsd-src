@@ -2924,10 +2924,21 @@ void
 pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
     vm_prot_t prot, boolean_t wired)
 {
+	struct l2_bucket *l2b;
 
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	pmap_enter_locked(pmap, va, access, m, prot, wired, M_WAITOK);
+	/*
+	 * If both the l2b_occupancy and the reservation are fully
+	 * populated, then attempt promotion.
+	 */
+	l2b = pmap_get_l2_bucket(pmap, va);
+	if ((l2b != NULL) && (l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
+	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
+	    vm_reserv_level_iffullpop(m) == 0)
+		pmap_promote_section(pmap, va);
+
 	PMAP_UNLOCK(pmap);
 	rw_wunlock(&pvh_global_lock);
 }
@@ -3153,14 +3164,6 @@ validate:
 
 	if ((pmap != pmap_kernel()) && (pmap == &curproc->p_vmspace->vm_pmap))
 		cpu_icache_sync_range(va, PAGE_SIZE);
-	/*
-	 * If both the l2b_occupancy and the reservation are fully
-	 * populated, then attempt promotion.
-	 */
-	if ((l2b->l2b_occupancy == L2_PTE_NUM_TOTAL) &&
-	    sp_enabled && (m->flags & PG_FICTITIOUS) == 0 &&
-	    vm_reserv_level_iffullpop(m) == 0)
-		pmap_promote_section(pmap, va);
 }
 
 /*
