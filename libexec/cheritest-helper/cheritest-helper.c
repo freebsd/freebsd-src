@@ -29,10 +29,12 @@
  */
 
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 
+#include <cheri/cheri_fd.h>
 #include <cheri/cheri_invoke.h>
 #include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
@@ -44,7 +46,8 @@
 #include "cheritest-helper.h"
 
 int	invoke(register_t op, size_t len, struct cheri_object system_object,
-	    __capability char *data_input, __capability char *data_output);
+	    __capability char *data_input, __capability char *data_output,
+	    struct cheri_object fd_object);
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -143,6 +146,53 @@ invoke_syscap(struct cheri_object system_object)
 }
 
 static int
+invoke_fd_fstat_c(struct cheri_object fd_object)
+{
+	struct cheri_fd_ret ret;
+	struct stat sb;
+
+	ret = cheri_fd_fstat_c(fd_object, (__capability void *)&sb);
+	printf("cheri_fd_fstat_c returned (%ld, %ld)\n", ret.cfr_retval0,
+	    ret.cfr_retval1);
+	return (0);
+}
+
+static int
+invoke_fd_lseek_c(struct cheri_object fd_object)
+{
+	struct cheri_fd_ret ret;
+
+	ret = cheri_fd_lseek_c(fd_object, 0, SEEK_SET);
+	printf("cheri_fd_lseek_c returned (%ld, %ld)\n", ret.cfr_retval0,
+	    ret.cfr_retval1);
+	return (0);
+}
+
+static int
+invoke_fd_read_c(struct cheri_object fd_object)
+{
+	struct cheri_fd_ret ret;
+	char buf[10];
+
+	ret = cheri_fd_read_c(fd_object, (__capability void *)buf);
+	printf("cheri_fd_read_c returned (%ld, %ld)\n", ret.cfr_retval0,
+	    ret.cfr_retval1);
+	return (0);
+}
+
+static int
+invoke_fd_write_c(struct cheri_object fd_object)
+{
+	struct cheri_fd_ret ret;
+	const char *buf = "fd write test\n";
+
+	ret = cheri_fd_write_c(fd_object, (__capability void *)buf);
+	printf("cheri_fd_write_c returned (%ld, %ld)\n", ret.cfr_retval0,
+	    ret.cfr_retval1);
+	return (0);
+}
+
+static int
 invoke_malloc(void)
 {
 	size_t i;
@@ -170,8 +220,11 @@ invoke_malloc(void)
  */
 int
 invoke(register_t op, size_t len, struct cheri_object system_object,
-    __capability char *data_input, __capability char *data_output)
+    __capability char *data_input, __capability char *data_output,
+    struct cheri_object fd_object)
 {
+	int i = 0;
+	volatile int *ip = &i;
 
 	cheri_system_setup(system_object);
 
@@ -200,7 +253,7 @@ invoke(register_t op, size_t len, struct cheri_object system_object,
 		return (invoke_syscall());
 
 	case CHERITEST_HELPER_OP_DIVZERO:
-		return (1/0);
+		return (1/(*ip));
 
 	case CHERITEST_HELPER_OP_SYSCAP:
 		return (invoke_syscap(system_object));
@@ -220,6 +273,19 @@ invoke(register_t op, size_t len, struct cheri_object system_object,
 
 	case CHERITEST_HELPER_OP_MALLOC:
 		return (invoke_malloc());
+
+	case CHERITEST_HELPER_OP_FD_FSTAT_C:
+		return (invoke_fd_fstat_c(fd_object));
+
+	case CHERITEST_HELPER_OP_FD_LSEEK_C:
+		return (invoke_fd_lseek_c(fd_object));
+
+	case CHERITEST_HELPER_OP_FD_READ_C:
+		return (invoke_fd_read_c(fd_object));
+
+	case CHERITEST_HELPER_OP_FD_WRITE_C:
+		return (invoke_fd_write_c(fd_object));
+
 	}
 	return (-1);
 }
