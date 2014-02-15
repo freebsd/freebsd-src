@@ -41,10 +41,12 @@
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
 
+#include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
 
 #include <cheritest-helper.h>
 #include <err.h>
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +71,9 @@
 static struct sandbox_class	*cheritest_classp;
 static struct sandbox_object	*cheritest_objectp;
 
+static int zero_fd = -1;
+static struct cheri_object zero_fd_object;
+
 static void
 usage(void)
 {
@@ -83,6 +88,10 @@ usage(void)
 	fprintf(stderr, "cheritest invoke_cp2_seal\n");
 	fprintf(stderr, "cheritest invoke_cp2_tag\n");
 	fprintf(stderr, "cheritest invoke_divzero\n");
+	fprintf(stderr, "cheritest invoke_fd_fstat_c\n");
+	fprintf(stderr, "cheritest invoke_fd_lseek_c\n");
+	fprintf(stderr, "cheritest invoke_fd_read_c\n");
+	fprintf(stderr, "cheritest invoke_fd_write_c\n");
 	fprintf(stderr, "cheritest invoke_helloworld\n");
 	fprintf(stderr, "cheritest invoke_md5\n");
 	fprintf(stderr, "cheritest invoke_malloc\n");
@@ -247,6 +256,20 @@ cheritest_listregs(void)
 }
 
 static void
+cheritest_invoke_fd_op(int op)
+{
+	register_t v;
+
+	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
+	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
+	    cheri_zerocap(), cheri_zerocap(),
+	    zero_fd_object.co_codecap, zero_fd_object.co_datacap,
+	    cheri_zerocap(), cheri_zerocap());
+	printf("%s: sandbox returned %jd\n", __func__, (intmax_t)v);
+}
+
+static void
 cheritest_invoke_simple_op(int op)
 {
 	register_t v;
@@ -357,6 +380,15 @@ main(__unused int argc, __unused char *argv[])
 	if (argc == 0)
 		usage();
 
+	/*
+	 * Prepare a CHERI object representing /dev/zero for fd-related tests.
+	 */
+	zero_fd = open("/dev/zero", O_RDWR);
+	if (zero_fd < 0)
+		err(EX_OSFILE, "open: /dev/zero");
+	if (cheri_fd_new(zero_fd, &zero_fd_object) < 0)
+		err(EX_OSFILE, "cheri_fd_new: /dev/zero");
+
 	cheritest_libcheri_setup();
 	for (i = 0; i < argc; i++) {
 		if (strcmp(argv[i], "listcausereg") == 0)
@@ -390,6 +422,18 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_divzero") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_DIVZERO);
+		else if (strcmp(argv[0], "invoke_fd_fstat_c") == 0)
+			cheritest_invoke_fd_op(
+			     CHERITEST_HELPER_OP_FD_FSTAT_C);
+		else if (strcmp(argv[0], "invoke_fd_lseek_c") == 0)
+			cheritest_invoke_fd_op(
+			     CHERITEST_HELPER_OP_FD_LSEEK_C);
+		else if (strcmp(argv[0], "invoke_fd_read_c") == 0)
+			cheritest_invoke_fd_op(
+			     CHERITEST_HELPER_OP_FD_READ_C);
+		else if (strcmp(argv[0], "invoke_fd_write_c") == 0)
+			cheritest_invoke_fd_op(
+			     CHERITEST_HELPER_OP_FD_WRITE_C);
 		else if (strcmp(argv[i], "invoke_helloworld") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_CS_HELLOWORLD);
