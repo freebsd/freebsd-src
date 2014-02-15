@@ -116,12 +116,9 @@ main(int argc, CHAR16 *argv[])
 	status = efi_handle_lookup(img->DeviceHandle, &currdev.d_dev,
 	    &currdev.d_unit);
 	if (status != 0) {
-		status = efi_handle_any(&currdev.d_dev, &currdev.d_unit);
-		if (status != 0) {
-			printf("Boot device not found\n");
-			/* TODO: What error should we use? */
-			return (EFI_SUCCESS);
-		}
+		printf("Boot device not found\n");
+		/* TODO: What error should we use? */
+		return (EFI_SUCCESS);
 	}
 	currdev.d_type = currdev.d_dev->dv_type;
 
