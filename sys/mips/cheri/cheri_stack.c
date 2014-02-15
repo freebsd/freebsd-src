@@ -239,7 +239,7 @@ DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
 		csfp = &pcb->pcb_cheristack.cs_frames[i];
 
 		db_printf("  Frame %d%c\n", i,
-		    (i > (pcb->pcb_cheristack.cs_tsp / CHERI_FRAME_SIZE)) ?
+		    (i >= (pcb->pcb_cheristack.cs_tsp / CHERI_FRAME_SIZE)) ?
 		    '*' : ' ');
 		CHERI_CLC(CHERI_CR_CTEMP, CHERI_CR_KDC, &csfp->csf_idc, 0);
 		CHERI_CGETTAG(ctag, CHERI_CR_CTEMP);
