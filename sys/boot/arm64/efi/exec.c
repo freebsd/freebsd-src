@@ -28,37 +28,43 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+#include <string.h>
+
+#include <sys/param.h>
+#include <sys/linker.h>
+#include <machine/elf.h>
+
 #include <bootstrap.h>
+
 #include <efi.h>
 #include <efilib.h>
 
-struct devsw *devsw[] = {
-	&efipart_dev,
-	&efinet_dev,
-	&efisfs_dev,
+static int elf64_exec(struct preloaded_file *amp);
+static int elf64_obj_exec(struct preloaded_file *amp);
+
+static struct file_format arm64_elf = {
+	elf64_loadfile,
+	elf64_exec
+};
+
+struct file_format *file_formats[] = {
+	&arm64_elf,
 	NULL
 };
 
-struct fs_ops *file_system[] = {
-#if 0
-	&dosfs_fsops,
-	&ufs_fsops,
-	&cd9660_fsops,
-	&nfs_fsops,
-	&gzipfs_fsops,
-#endif
-	&efifs_fsops,
-	NULL
-};
+static int
+elf64_exec(struct preloaded_file *fp)
+{
+	printf("elf64_exec\n");
+	return (EINVAL);
+}
 
-struct netif_driver *netif_drivers[] = {
-	&efinetif,
-	NULL
-};
+static int
+elf64_obj_exec(struct preloaded_file *fp)
+{
 
-extern struct console efi_console;
+	printf("%s called for preloaded file %p (=%s):\n", __func__, fp,
+	    fp->f_name);
+	return (ENOSYS);
+}
 
-struct console *consoles[] = {
-	&efi_console,
-	NULL
-};
