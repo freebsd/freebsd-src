@@ -34,7 +34,6 @@
 #include <machine/cheric.h>
 
 #include <cheri/cheri_fd.h>
-#include <cheri/cheri_invoke.h>
 
 #include <unistd.h>
 
