@@ -36,3 +36,4 @@
 #include <cheri_class.h>
 
 CHERI_CLASS_ASM(libcheri_system, cheri_system_enter);
+CHERI_CLASS_ASM(cheri_fd, cheri_fd_enter);

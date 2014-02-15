@@ -1,0 +1,61 @@
+/*-
+ * Copyright (c) 2014 Robert N. M. Watson
+ * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#ifndef _CHERI_FD_H_
+#define	_CHERI_FD_H_
+
+/*
+ * Interfaces to create/revoke/destroy cheri_fd objects with ambient
+ * authority.
+ */
+int	cheri_fd_new(int fd, struct cheri_object *cop);
+void	cheri_fd_revoke(struct cheri_object *cop);
+void	cheri_fd_destroy(struct cheri_object *cop);
+
+/*
+ * Method numbers used during invocation.
+ */
+#define	CHERI_FD_METHOD_WRITE_C		1
+#define	CHERI_FD_METHOD_READ_C		2
+
+/*
+ * Methods that can be invoked on cheri_fd objects regardless of ambient
+ * authority.
+ */
+struct cheri_fd_ret {
+	ssize_t	cfr_ssize;
+	int	cfr_errno;
+};
+struct cheri_fd_ret	cheri_fd_write_c(struct cheri_object co,
+			    __capability void *buf_c);
+struct cheri_fd_ret	cheri_fd_read_c(struct cheri_object co,
+			    __capability __output void *buf_c);
+
+#endif /* !_CHERI_FD_H_ */
