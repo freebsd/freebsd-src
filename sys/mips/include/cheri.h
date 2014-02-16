@@ -189,6 +189,15 @@ struct cheri_stack {
 } while (0)
 
 /*
+ * Note that despite effectively being a CMove, CGetDefault doesn't require a
+ * memory clobber: if it's writing to $c0, it's a nop; otherwise, it's not
+ * writing to $c0 so no clobber is needed.
+ */
+#define	CHERI_CGETDEFAULT(cd) do {					\
+	__asm__ __volatile__ ("cgetdefault $c%0" : : "i" (cd));		\
+} while (0)
+
+/*
  * Instructions that check capability values and could throw exceptions; no
  * capability-register value changes, so no clobbers required.
  */
@@ -362,14 +371,6 @@ struct cheri_stack {
 	else								\
 		__asm__ __volatile__ ("cmove $c%0, $c%1" : :		\
 		    "i" (cd), "i" (cb));				\
-} while (0)
-
-#define	CHERI_CGETDEFAULT(cd) do {					\
-	if ((cd) == 0)							\
-		__asm__ __volatile__ ("cgetdefault $c%0" : : "i" (cd) :	\
-		    "memory");						\
-	else								\
-		__asm__ __volatile__ ("cmove $c%0, $c%1" : : "i" (cd));	\
 } while (0)
 
 #define	CHERI_CSETDEFAULT(cb) do {					\
