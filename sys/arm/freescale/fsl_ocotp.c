@@ -84,7 +84,7 @@ fsl_ocotp_devmap(void)
 
 	return;
 fatal:
-	panic("cannot find/map the ocotp registers, %d", where);
+	panic("cannot find/map the ocotp registers");
 }
 /* XXX end of temporary code */
 
