@@ -23,7 +23,11 @@ CP?=		cp
 LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
+.if ${MACHINE_CPUARCH} == "arm64"
+SIZE?=		true
+.else
 SIZE?=		size
+.endif
 
 .if defined(DEBUG)
 _MINUS_O=	-O
