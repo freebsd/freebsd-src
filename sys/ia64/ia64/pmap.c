@@ -1318,6 +1318,8 @@ pmap_set_pte(struct ia64_lpte *pte, vm_offset_t va, vm_offset_t pa,
 
 	pte->itir = PAGE_SHIFT << 2;
 
+	ia64_mf();
+
 	pte->tag = ia64_ttag(va);
 }
 
@@ -1336,8 +1338,8 @@ pmap_remove_pte(pmap_t pmap, struct ia64_lpte *pte, vm_offset_t va,
 	 * First remove from the VHPT.
 	 */
 	error = pmap_remove_vhpt(va);
-	if (error)
-		return (error);
+	KASSERT(error == 0, ("%s: pmap_remove_vhpt returned %d",
+	    __func__, error));
 
 	pmap_invalidate_page(va);
 
