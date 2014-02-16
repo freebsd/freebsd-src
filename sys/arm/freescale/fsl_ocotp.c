@@ -46,6 +46,48 @@ __FBSDID("$FreeBSD$");
 #include <arm/freescale/fsl_ocotpreg.h>
 #include <arm/freescale/fsl_ocotpvar.h>
 
+/*
+ * Find the physical address and size of the ocotp registers and devmap them,
+ * returning a pointer to the virtual address of the base.
+ *
+ * XXX This is temporary until we've worked out all the details of controlling
+ * the load order of devices.  In an ideal world this device would be up and
+ * running before anything that needs it.  When we're at a point to make that
+ * happen, this little block of code, and the few lines in fsl_ocotp_read_4()
+ * that refer to it can be deleted.
+ */
+#include <vm/vm.h>
+#include <vm/pmap.h>
+#include <dev/fdt/fdt_common.h>
+#include <machine/devmap.h>
+
+static uint32_t   *ocotp_regs;
+static vm_size_t   ocotp_size;
+
+static void
+fsl_ocotp_devmap(void)
+{
+	phandle_t child, root;
+	u_long base, size;
+
+	if ((root = OF_finddevice("/")) == 0)
+		goto fatal;
+	if ((child = fdt_depth_search_compatible(root, "fsl,imx6q-ocotp", 0)) == 0)
+		goto fatal;
+	if (fdt_regsize(child, &base, &size) != 0)
+		goto fatal;
+
+	ocotp_size = (vm_size_t)size;
+
+	if ((ocotp_regs = pmap_mapdev((vm_offset_t)base, ocotp_size)) == NULL)
+		goto fatal;
+
+	return;
+fatal:
+	panic("cannot find/map the ocotp registers, %d", where);
+}
+/* XXX end of temporary code */
+
 struct ocotp_softc {
 	device_t	dev;
 	struct resource	*mem_res;
@@ -60,20 +102,12 @@ RD4(struct ocotp_softc *sc, bus_size_t off)
 	return (bus_read_4(sc->mem_res, off));
 }
 
-
 static int
 ocotp_detach(device_t dev)
 {
-	struct ocotp_softc *sc;
 
-	sc = device_get_softc(dev);
-
-	if (sc->mem_res != NULL)
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->mem_res);
-
-	ocotp_sc = NULL;
-
-	return (0);
+	/* The ocotp registers are always accessible. */
+	return (EBUSY);
 }
 
 static int
@@ -96,6 +130,11 @@ ocotp_attach(device_t dev)
 	}
 
 	ocotp_sc = sc;
+
+	/* We're done with the temporary mapping now. */
+	if (ocotp_regs != NULL)
+		pmap_unmapdev((vm_offset_t)ocotp_regs, ocotp_size);
+
 	err = 0;
 
 out:
@@ -112,7 +151,7 @@ ocotp_probe(device_t dev)
 	if (!ofw_bus_status_okay(dev))
 		return (ENXIO);
 
-        if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
+	if (ofw_bus_is_compatible(dev, "fsl,imx6q-ocotp") == 0)
 		return (ENXIO);
 
 	device_set_desc(dev, 
@@ -125,13 +164,23 @@ uint32_t
 fsl_ocotp_read_4(bus_size_t off)
 {
 
-	if (ocotp_sc == NULL)
-		panic("fsl_ocotp_read_4: softc not set!");
-
 	if (off > FSL_OCOTP_LAST_REG)
 		panic("fsl_ocotp_read_4: offset out of range");
 
-	return (RD4(ocotp_sc, off));
+	/* If we have a softcontext use the regular bus_space read. */
+	if (ocotp_sc != NULL)
+		return (RD4(ocotp_sc, off));
+
+	/*
+	 * Otherwise establish a tempory device mapping if necessary, and read
+	 * the device without any help from bus_space.
+	 *
+	 * XXX Eventually the code from there down can be deleted.
+	 */
+	if (ocotp_regs == NULL)
+		fsl_ocotp_devmap();
+
+	return (ocotp_regs[off / 4]);
 }
 
 static device_method_t ocotp_methods[] = {
