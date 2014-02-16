@@ -10,6 +10,8 @@ LDADD=  -lcheri
 
 NO_SHARED?=	YES
 
+NO_WERROR=	YES
+
 FILES=	cheritest.dump
 CLEANFILES=	cheritest.dump
 
