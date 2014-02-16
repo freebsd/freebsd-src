@@ -806,10 +806,6 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 	strcat(datfile, ".dat");
 	if (access(datfile, R_OK) < 0) {
 		DPRINTF(2, (stderr, "FALSE (no readable \".dat\" file)\n"));
-#ifdef DEBUG
-		if (Debug < 2)
-			DPRINTF(0, (stderr, "Warning: file \"%s\" unreadable\n", datfile));
-#endif
 		free(datfile);
 		return (FALSE);
 	}
