@@ -127,7 +127,7 @@ extern "C" {
     "movaps  %xmm6, 96(%rsp)\n"
     "movaps  %xmm7, 112(%rsp)\n"
     // JIT callee
-#ifdef _WIN64
+#if defined(_WIN64) || defined(__CYGWIN__)
     "subq    $32, %rsp\n"
     "movq    %rbp, %rcx\n"    // Pass prev frame and return address
     "movq    8(%rbp), %rdx\n"
@@ -339,6 +339,7 @@ extern "C" {
 /// must locate the start of the stub or call site and pass it into the JIT
 /// compiler function.
 extern "C" {
+LLVM_ATTRIBUTE_USED // Referenced from inline asm.
 LLVM_LIBRARY_VISIBILITY void LLVMX86CompilationCallback2(intptr_t *StackPtr,
                                                          intptr_t RetAddr) {
   intptr_t *RetAddrLoc = &StackPtr[1];

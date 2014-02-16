@@ -18,22 +18,26 @@
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCSection.h"
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
-MCObjectStreamer::MCObjectStreamer(StreamerKind Kind, MCContext &Context,
+MCObjectStreamer::MCObjectStreamer(MCContext &Context,
+                                   MCTargetStreamer *TargetStreamer,
                                    MCAsmBackend &TAB, raw_ostream &OS,
                                    MCCodeEmitter *Emitter_)
-    : MCStreamer(Kind, Context),
+    : MCStreamer(Context, TargetStreamer),
       Assembler(new MCAssembler(Context, TAB, *Emitter_,
                                 *TAB.createObjectWriter(OS), OS)),
       CurSectionData(0) {}
 
-MCObjectStreamer::MCObjectStreamer(StreamerKind Kind, MCContext &Context,
+MCObjectStreamer::MCObjectStreamer(MCContext &Context,
+                                   MCTargetStreamer *TargetStreamer,
                                    MCAsmBackend &TAB, raw_ostream &OS,
                                    MCCodeEmitter *Emitter_,
                                    MCAssembler *_Assembler)
-    : MCStreamer(Kind, Context), Assembler(_Assembler), CurSectionData(0) {}
+    : MCStreamer(Context, TargetStreamer), Assembler(_Assembler),
+      CurSectionData(0) {}
 
 MCObjectStreamer::~MCObjectStreamer() {
   delete &Assembler->getBackend();
@@ -98,15 +102,15 @@ const MCExpr *MCObjectStreamer::AddValueSymbols(const MCExpr *Value) {
   return Value;
 }
 
-void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
-                                     unsigned AddrSpace) {
-  assert(AddrSpace == 0 && "Address space must be 0!");
+void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size) {
   MCDataFragment *DF = getOrCreateDataFragment();
+
+  MCLineEntry::Make(this, getCurrentSection().first);
 
   // Avoid fixups when possible.
   int64_t AbsValue;
   if (AddValueSymbols(Value)->EvaluateAsAbsolute(AbsValue, getAssembler())) {
-    EmitIntValue(AbsValue, Size, AddrSpace);
+    EmitIntValue(AbsValue, Size);
     return;
   }
   DF->getFixups().push_back(
@@ -241,7 +245,7 @@ void MCObjectStreamer::EmitInstToFragment(const MCInst &Inst) {
 }
 
 #ifndef NDEBUG
-static const char *BundlingNotImplementedMsg =
+static const char *const BundlingNotImplementedMsg =
   "Aligned bundling is not implemented for this object format";
 #endif
 
@@ -255,6 +259,19 @@ void MCObjectStreamer::EmitBundleLock(bool AlignToEnd) {
 
 void MCObjectStreamer::EmitBundleUnlock() {
   llvm_unreachable(BundlingNotImplementedMsg);
+}
+
+void MCObjectStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
+                                             unsigned Column, unsigned Flags,
+                                             unsigned Isa,
+                                             unsigned Discriminator,
+                                             StringRef FileName) {
+  // In case we see two .loc directives in a row, make sure the
+  // first one gets a line entry.
+  MCLineEntry::Make(this, getCurrentSection().first);
+
+  this->MCStreamer::EmitDwarfLocDirective(FileNo, Line, Column, Flags,
+                                          Isa, Discriminator, FileName);
 }
 
 void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
@@ -287,8 +304,8 @@ void MCObjectStreamer::EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
   insert(new MCDwarfCallFrameFragment(*AddrDelta));
 }
 
-void MCObjectStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
-  assert(AddrSpace == 0 && "Address space must be 0!");
+void MCObjectStreamer::EmitBytes(StringRef Data) {
+  MCLineEntry::Make(this, getCurrentSection().first);
   getOrCreateDataFragment()->getContents().append(Data.begin(), Data.end());
 }
 
@@ -351,12 +368,15 @@ void MCObjectStreamer::EmitGPRel64Value(const MCExpr *Value) {
   DF->getContents().resize(DF->getContents().size() + 8, 0);
 }
 
-void MCObjectStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue,
-                                unsigned AddrSpace) {
-  assert(AddrSpace == 0 && "Address space must be 0!");
+void MCObjectStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
   // FIXME: A MCFillFragment would be more memory efficient but MCExpr has
   //        problems evaluating expressions across multiple fragments.
   getOrCreateDataFragment()->getContents().append(NumBytes, FillValue);
+}
+
+void MCObjectStreamer::EmitZeros(uint64_t NumBytes) {
+  unsigned ItemSize = getCurrentSection().first->isVirtualSection() ? 0 : 1;
+  insert(new MCFillFragment(0, ItemSize, NumBytes));
 }
 
 void MCObjectStreamer::FinishImpl() {

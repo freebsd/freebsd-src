@@ -55,16 +55,24 @@ namespace clang {
 
 template<typename T>
 class ASTVector {
-  T *Begin, *End, *Capacity;
+private:
+  T *Begin, *End;
+  llvm::PointerIntPair<T*, 1, bool> Capacity;
 
   void setEnd(T *P) { this->End = P; }
 
+protected:
+  // Make a tag bit available to users of this class.
+  // FIXME: This is a horrible hack.
+  bool getTag() const { return Capacity.getInt(); }
+  void setTag(bool B) { Capacity.setInt(B); }
+
 public:
   // Default ctor - Initialize to empty.
-  ASTVector() : Begin(NULL), End(NULL), Capacity(NULL) { }
+  ASTVector() : Begin(0), End(0), Capacity(0, false) {}
 
-  ASTVector(ASTContext &C, unsigned N)
-  : Begin(NULL), End(NULL), Capacity(NULL) {
+  ASTVector(const ASTContext &C, unsigned N)
+      : Begin(0), End(0), Capacity(0, false) {
     reserve(C, N);
   }
 
@@ -155,8 +163,8 @@ public:
     return const_pointer(Begin);
   }
 
-  void push_back(const_reference Elt, ASTContext &C) {
-    if (End < Capacity) {
+  void push_back(const_reference Elt, const ASTContext &C) {
+    if (End < this->capacity_ptr()) {
     Retry:
       new (End) T(Elt);
       ++End;
@@ -166,19 +174,19 @@ public:
     goto Retry;
   }
 
-  void reserve(ASTContext &C, unsigned N) {
-    if (unsigned(Capacity-Begin) < N)
+  void reserve(const ASTContext &C, unsigned N) {
+    if (unsigned(this->capacity_ptr()-Begin) < N)
       grow(C, N);
   }
 
   /// capacity - Return the total number of elements in the currently allocated
   /// buffer.
-  size_t capacity() const { return Capacity - Begin; }
+  size_t capacity() const { return this->capacity_ptr() - Begin; }
 
   /// append - Add the specified range to the end of the SmallVector.
   ///
   template<typename in_iter>
-  void append(ASTContext &C, in_iter in_start, in_iter in_end) {
+  void append(const ASTContext &C, in_iter in_start, in_iter in_end) {
     size_type NumInputs = std::distance(in_start, in_end);
 
     if (NumInputs == 0)
@@ -197,7 +205,7 @@ public:
 
   /// append - Add the specified range to the end of the SmallVector.
   ///
-  void append(ASTContext &C, size_type NumInputs, const T &Elt) {
+  void append(const ASTContext &C, size_type NumInputs, const T &Elt) {
     // Grow allocated space if needed.
     if (NumInputs > size_type(this->capacity_ptr()-this->end()))
       this->grow(C, this->size()+NumInputs);
@@ -214,13 +222,13 @@ public:
     std::uninitialized_copy(I, E, Dest);
   }
 
-  iterator insert(ASTContext &C, iterator I, const T &Elt) {
+  iterator insert(const ASTContext &C, iterator I, const T &Elt) {
     if (I == this->end()) {  // Important special case for empty vector.
-      push_back(Elt);
+      push_back(Elt, C);
       return this->end()-1;
     }
 
-    if (this->EndX < this->CapacityX) {
+    if (this->End < this->capacity_ptr()) {
     Retry:
       new (this->end()) T(this->back());
       this->setEnd(this->end()+1);
@@ -235,7 +243,7 @@ public:
     goto Retry;
   }
 
-  iterator insert(ASTContext &C, iterator I, size_type NumToInsert,
+  iterator insert(const ASTContext &C, iterator I, size_type NumToInsert,
                   const T &Elt) {
     if (I == this->end()) {  // Important special case for empty vector.
       append(C, NumToInsert, Elt);
@@ -284,7 +292,7 @@ public:
   }
 
   template<typename ItTy>
-  iterator insert(ASTContext &C, iterator I, ItTy From, ItTy To) {
+  iterator insert(const ASTContext &C, iterator I, ItTy From, ItTy To) {
     if (I == this->end()) {  // Important special case for empty vector.
       append(C, From, To);
       return this->end()-1;
@@ -335,7 +343,7 @@ public:
     return I;
   }
 
-  void resize(ASTContext &C, unsigned N, const T &NV) {
+  void resize(const ASTContext &C, unsigned N, const T &NV) {
     if (N < this->size()) {
       this->destroy_range(this->begin()+N, this->end());
       this->setEnd(this->begin()+N);
@@ -350,7 +358,7 @@ public:
 private:
   /// grow - double the size of the allocated memory, guaranteeing space for at
   /// least one more element or MinSize if specified.
-  void grow(ASTContext &C, size_type MinSize = 1);
+  void grow(const ASTContext &C, size_type MinSize = 1);
 
   void construct_range(T *S, T *E, const T &Elt) {
     for (; S != E; ++S)
@@ -365,13 +373,16 @@ private:
   }
 
 protected:
-  iterator capacity_ptr() { return (iterator)this->Capacity; }
+  const_iterator capacity_ptr() const {
+    return (iterator) Capacity.getPointer();
+  }
+  iterator capacity_ptr() { return (iterator)Capacity.getPointer(); }
 };
 
 // Define this out-of-line to dissuade the C++ compiler from inlining it.
 template <typename T>
-void ASTVector<T>::grow(ASTContext &C, size_t MinSize) {
-  size_t CurCapacity = Capacity-Begin;
+void ASTVector<T>::grow(const ASTContext &C, size_t MinSize) {
+  size_t CurCapacity = this->capacity();
   size_t CurSize = size();
   size_t NewCapacity = 2*CurCapacity;
   if (NewCapacity < MinSize)
@@ -394,7 +405,7 @@ void ASTVector<T>::grow(ASTContext &C, size_t MinSize) {
   // ASTContext never frees any memory.
   Begin = NewElts;
   End = NewElts+CurSize;
-  Capacity = Begin+NewCapacity;
+  Capacity.setPointer(Begin+NewCapacity);
 }
 
 } // end: clang namespace

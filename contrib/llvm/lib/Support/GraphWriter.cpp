@@ -14,6 +14,7 @@
 #include "llvm/Support/GraphWriter.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 using namespace llvm;
@@ -64,31 +65,46 @@ StringRef llvm::DOT::getColorString(unsigned ColorNumber) {
   return Colors[ColorNumber % NumColors];
 }
 
+std::string llvm::createGraphFilename(const Twine &Name, int &FD) {
+  FD = -1;
+  SmallString<128> Filename;
+  error_code EC = sys::fs::createTemporaryFile(Name, "dot", FD, Filename);
+  if (EC) {
+    errs() << "Error: " << EC.message() << "\n";
+    return "";
+  }
+
+  errs() << "Writing '" << Filename << "'... ";
+  return Filename.str();
+}
+
 // Execute the graph viewer. Return true if successful.
 static bool LLVM_ATTRIBUTE_UNUSED
-ExecGraphViewer(const sys::Path &ExecPath, std::vector<const char*> &args,
-                const sys::Path &Filename, bool wait, std::string &ErrMsg) {
+ExecGraphViewer(StringRef ExecPath, std::vector<const char*> &args,
+                StringRef Filename, bool wait, std::string &ErrMsg) {
   if (wait) {
-    if (sys::Program::ExecuteAndWait(ExecPath, &args[0],0,0,0,0,&ErrMsg)) {
+    if (sys::ExecuteAndWait(ExecPath, &args[0],0,0,0,0,&ErrMsg)) {
       errs() << "Error: " << ErrMsg << "\n";
       return false;
     }
-    Filename.eraseFromDisk();
+    bool Existed;
+    sys::fs::remove(Filename, Existed);
     errs() << " done. \n";
   }
   else {
-    sys::Program::ExecuteNoWait(ExecPath, &args[0],0,0,0,&ErrMsg);
+    sys::ExecuteNoWait(ExecPath, &args[0],0,0,0,&ErrMsg);
     errs() << "Remember to erase graph file: " << Filename.str() << "\n";
   }
   return true;
 }
 
-void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
+void llvm::DisplayGraph(StringRef FilenameRef, bool wait,
                         GraphProgram::Name program) {
+  std::string Filename = FilenameRef;
   wait &= !ViewBackground;
   std::string ErrMsg;
 #if HAVE_GRAPHVIZ
-  sys::Path Graphviz(LLVM_PATH_GRAPHVIZ);
+  std::string Graphviz(LLVM_PATH_GRAPHVIZ);
 
   std::vector<const char*> args;
   args.push_back(Graphviz.c_str());
@@ -99,9 +115,9 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   if (!ExecGraphViewer(Graphviz, args, Filename, wait, ErrMsg))
     return;
 
-#elif HAVE_XDOT_PY
+#elif HAVE_XDOT
   std::vector<const char*> args;
-  args.push_back(LLVM_PATH_XDOT_PY);
+  args.push_back(LLVM_PATH_XDOT);
   args.push_back(Filename.c_str());
 
   switch (program) {
@@ -115,53 +131,51 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   args.push_back(0);
 
   errs() << "Running 'xdot.py' program... ";
-  if (!ExecGraphViewer(sys::Path(LLVM_PATH_XDOT_PY), args, Filename, wait, ErrMsg))
+  if (!ExecGraphViewer(LLVM_PATH_XDOT, args, Filename, wait, ErrMsg))
     return;
 
 #elif (HAVE_GV && (HAVE_DOT || HAVE_FDP || HAVE_NEATO || \
                    HAVE_TWOPI || HAVE_CIRCO))
-  sys::Path PSFilename = Filename;
-  PSFilename.appendSuffix("ps");
-
-  sys::Path prog;
+  std::string PSFilename = Filename + ".ps";
+  std::string prog;
 
   // Set default grapher
 #if HAVE_CIRCO
-  prog = sys::Path(LLVM_PATH_CIRCO);
+  prog = LLVM_PATH_CIRCO;
 #endif
 #if HAVE_TWOPI
-  prog = sys::Path(LLVM_PATH_TWOPI);
+  prog = LLVM_PATH_TWOPI;
 #endif
 #if HAVE_NEATO
-  prog = sys::Path(LLVM_PATH_NEATO);
+  prog = LLVM_PATH_NEATO;
 #endif
 #if HAVE_FDP
-  prog = sys::Path(LLVM_PATH_FDP);
+  prog = LLVM_PATH_FDP;
 #endif
 #if HAVE_DOT
-  prog = sys::Path(LLVM_PATH_DOT);
+  prog = LLVM_PATH_DOT;
 #endif
 
   // Find which program the user wants
 #if HAVE_DOT
   if (program == GraphProgram::DOT)
-    prog = sys::Path(LLVM_PATH_DOT);
+    prog = LLVM_PATH_DOT;
 #endif
 #if (HAVE_FDP)
   if (program == GraphProgram::FDP)
-    prog = sys::Path(LLVM_PATH_FDP);
+    prog = LLVM_PATH_FDP;
 #endif
 #if (HAVE_NEATO)
   if (program == GraphProgram::NEATO)
-    prog = sys::Path(LLVM_PATH_NEATO);
+    prog = LLVM_PATH_NEATO;
 #endif
 #if (HAVE_TWOPI)
   if (program == GraphProgram::TWOPI)
-    prog = sys::Path(LLVM_PATH_TWOPI);
+    prog = LLVM_PATH_TWOPI;
 #endif
 #if (HAVE_CIRCO)
   if (program == GraphProgram::CIRCO)
-    prog = sys::Path(LLVM_PATH_CIRCO);
+    prog = LLVM_PATH_CIRCO;
 #endif
 
   std::vector<const char*> args;
@@ -174,12 +188,12 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   args.push_back(PSFilename.c_str());
   args.push_back(0);
 
-  errs() << "Running '" << prog.str() << "' program... ";
+  errs() << "Running '" << prog << "' program... ";
 
   if (!ExecGraphViewer(prog, args, Filename, wait, ErrMsg))
     return;
 
-  sys::Path gv(LLVM_PATH_GV);
+  std::string gv(LLVM_PATH_GV);
   args.clear();
   args.push_back(gv.c_str());
   args.push_back(PSFilename.c_str());
@@ -191,7 +205,7 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
     return;
 
 #elif HAVE_DOTTY
-  sys::Path dotty(LLVM_PATH_DOTTY);
+  std::string dotty(LLVM_PATH_DOTTY);
 
   std::vector<const char*> args;
   args.push_back(dotty.c_str());
@@ -205,5 +219,8 @@ void llvm::DisplayGraph(const sys::Path &Filename, bool wait,
   errs() << "Running 'dotty' program... ";
   if (!ExecGraphViewer(dotty, args, Filename, wait, ErrMsg))
     return;
+#else
+  (void)Filename;
+  (void)ErrMsg;
 #endif
 }

@@ -166,28 +166,28 @@ static void getSection(const MachOObjectFile *Obj,
                        DataRefImpl Sec,
                        MachOSection &Section) {
   if (!Obj->is64Bit()) {
-    macho::Section Sect = Obj->getSection(Sec);
-    Section.Address     = Sect.Address;
-    Section.Size        = Sect.Size;
-    Section.Offset      = Sect.Offset;
-    Section.Alignment   = Sect.Align;
-    Section.RelocationTableOffset = Sect.RelocationTableOffset;
-    Section.NumRelocationTableEntries = Sect.NumRelocationTableEntries;
-    Section.Flags       = Sect.Flags;
-    Section.Reserved1   = Sect.Reserved1;
-    Section.Reserved2   = Sect.Reserved2;
+    MachO::section Sect = Obj->getSection(Sec);
+    Section.Address     = Sect.addr;
+    Section.Size        = Sect.size;
+    Section.Offset      = Sect.offset;
+    Section.Alignment   = Sect.align;
+    Section.RelocationTableOffset = Sect.reloff;
+    Section.NumRelocationTableEntries = Sect.nreloc;
+    Section.Flags       = Sect.flags;
+    Section.Reserved1   = Sect.reserved1;
+    Section.Reserved2   = Sect.reserved2;
     return;
   }
-  macho::Section64 Sect = Obj->getSection64(Sec);
-  Section.Address     = Sect.Address;
-  Section.Size        = Sect.Size;
-  Section.Offset      = Sect.Offset;
-  Section.Alignment   = Sect.Align;
-  Section.RelocationTableOffset = Sect.RelocationTableOffset;
-  Section.NumRelocationTableEntries = Sect.NumRelocationTableEntries;
-  Section.Flags       = Sect.Flags;
-  Section.Reserved1   = Sect.Reserved1;
-  Section.Reserved2   = Sect.Reserved2;
+  MachO::section_64 Sect = Obj->getSection64(Sec);
+  Section.Address     = Sect.addr;
+  Section.Size        = Sect.size;
+  Section.Offset      = Sect.offset;
+  Section.Alignment   = Sect.align;
+  Section.RelocationTableOffset = Sect.reloff;
+  Section.NumRelocationTableEntries = Sect.nreloc;
+  Section.Flags       = Sect.flags;
+  Section.Reserved1   = Sect.reserved1;
+  Section.Reserved2   = Sect.reserved2;
 }
 
 
@@ -195,20 +195,20 @@ static void getSymbol(const MachOObjectFile *Obj,
                       DataRefImpl DRI,
                       MachOSymbol &Symbol) {
   if (!Obj->is64Bit()) {
-    macho::SymbolTableEntry Entry = Obj->getSymbolTableEntry(DRI);
-    Symbol.StringIndex  = Entry.StringIndex;
-    Symbol.Type         = Entry.Type;
-    Symbol.SectionIndex = Entry.SectionIndex;
-    Symbol.Flags        = Entry.Flags;
-    Symbol.Value        = Entry.Value;
+    MachO::nlist Entry = Obj->getSymbolTableEntry(DRI);
+    Symbol.StringIndex  = Entry.n_strx;
+    Symbol.Type         = Entry.n_type;
+    Symbol.SectionIndex = Entry.n_sect;
+    Symbol.Flags        = Entry.n_desc;
+    Symbol.Value        = Entry.n_value;
     return;
   }
-  macho::Symbol64TableEntry Entry = Obj->getSymbol64TableEntry(DRI);
-  Symbol.StringIndex  = Entry.StringIndex;
-  Symbol.Type         = Entry.Type;
-  Symbol.SectionIndex = Entry.SectionIndex;
-  Symbol.Flags        = Entry.Flags;
-  Symbol.Value        = Entry.Value;
+  MachO::nlist_64 Entry = Obj->getSymbol64TableEntry(DRI);
+  Symbol.StringIndex  = Entry.n_strx;
+  Symbol.Type         = Entry.n_type;
+  Symbol.SectionIndex = Entry.n_sect;
+  Symbol.Flags        = Entry.n_desc;
+  Symbol.Value        = Entry.n_value;
 }
 
 void MachODumper::printFileHeaders() {
@@ -341,16 +341,15 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
   uint64_t Offset;
   SmallString<32> RelocName;
   StringRef SymbolName;
-  SymbolRef Symbol;
   if (error(RelI->getOffset(Offset))) return;
   if (error(RelI->getTypeName(RelocName))) return;
-  if (error(RelI->getSymbol(Symbol))) return;
-  if (symbol_iterator(Symbol) != Obj->end_symbols() &&
-      error(Symbol.getName(SymbolName)))
+  symbol_iterator Symbol = RelI->getSymbol();
+  if (Symbol != Obj->end_symbols() &&
+      error(Symbol->getName(SymbolName)))
     return;
 
   DataRefImpl DR = RelI->getRawDataRefImpl();
-  macho::RelocationEntry RE = Obj->getRelocation(DR);
+  MachO::any_relocation_info RE = Obj->getRelocation(DR);
   bool IsScattered = Obj->isRelocationScattered(RE);
 
   if (opts::ExpandRelocs) {
@@ -399,8 +398,6 @@ void MachODumper::printDynamicSymbols() {
 }
 
 void MachODumper::printSymbol(symbol_iterator SymI) {
-  error_code EC;
-
   StringRef SymbolName;
   if (SymI->getName(SymbolName))
     SymbolName = "";
