@@ -56,7 +56,7 @@
 #define HAVE_UNSETENV 1
 
 /* Define to 1 if vsnprintf is in std */
-#define HAVE_VSNPRINTF_IN_STD 1
+/* #undef HAVE_VSNPRINTF_IN_STD */
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
