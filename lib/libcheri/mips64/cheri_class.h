@@ -107,7 +107,7 @@ __cheri_ ## class ## _entry:						\
 	 * XXXRW: Arguably we should do this for many other registers	\
 	 * too, especially as the compiler starts using them.		\
 	 */								\
-	ccleartag	$c0;						\
+	ccleartag	$c0, $c0;					\
 									\
 	/*								\
 	 * Return to caller.						\

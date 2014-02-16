@@ -716,7 +716,7 @@ write_cfb_data_with_border(struct chericap *cfb_id, unsigned int cfb_width,
 	}
 
 	/* Don't leak the capability. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /* Properties of the overlays displayed by animate(), such as their positions

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2012 Robert N. M. Watson
+ * Copyright (c) 2012-2014 Robert N. M. Watson
  * Copyright (c) 2013 Philip Withnall
  * All rights reserved.
  *
@@ -425,7 +425,7 @@ construct_capability_for_cfb_pool_and_offset(struct cheri_compositor_softc *sc,
 
 	/* Clear $c1 so that we return an invalid capability in cfb_cap_out in
 	 * error conditions. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 
 	/* entry->start gives the base of the CFB pool in the process' VM space,
 	 * and entry->offset gives the start of the mmap() from the base of the
@@ -445,7 +445,7 @@ construct_capability_for_cfb_pool_and_offset(struct cheri_compositor_softc *sc,
 	cheri_capability_store(1, cfb_cap_out);
 
 	/* Don't leak the capability. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /**
@@ -1322,7 +1322,7 @@ is_valid_cfb_cap(struct cheri_compositor_softc *sc, struct chericap *cfb_cap,
 
 done:
 	/* Tidy up. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 
 	*cfb_out = cfb;
 	return retval;
@@ -1352,7 +1352,7 @@ get_kernel_seal_capability(struct cheri_compositor_softc *sc,
 	CHERI_CANDPERM(1, 1, CHERI_PERM_SEAL);
 
 	cheri_capability_store(1, cap_out);
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /* Validate the given sealed cfb_cap, and return EINVAL if invalid. If it's
@@ -1441,9 +1441,9 @@ is_valid_cfb_cap_token(struct cheri_compositor_softc *sc,
 
 done:
 	/* Tidy up. */
-	CHERI_CCLEARTAG(1);
-	CHERI_CCLEARTAG(2);
-	CHERI_CCLEARTAG(3);
+	CHERI_CCLEARTAG(1, 1);
+	CHERI_CCLEARTAG(2, 2);
+	CHERI_CCLEARTAG(3, 3);
 
 	*cfb_out = cfb;
 
@@ -1729,9 +1729,9 @@ done:
 	    cfb_cap_out, retval);
 
 	/* Don't leak the capabilities. */
-	CHERI_CCLEARTAG(1);
-	CHERI_CCLEARTAG(2);
-	CHERI_CCLEARTAG(3);
+	CHERI_CCLEARTAG(1, 1);
+	CHERI_CCLEARTAG(2, 2);
+	CHERI_CCLEARTAG(3, 3);
 
 	return retval;
 }

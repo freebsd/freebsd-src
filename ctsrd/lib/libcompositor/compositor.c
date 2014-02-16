@@ -168,7 +168,7 @@ compositor_allocate_cfb(struct compositor_mapping *compositor, uint32_t width,
 	/* Sanity check that we've received a valid CFB. */
 	CHERI_CLC(1, 0, cfb_id_out, 0);
 	CHERI_CGETTAG(tagged, 1);
-	CHERI_CCLEARTAG(1); /* don't leak it */
+	CHERI_CCLEARTAG(1, 1); /* don't leak it */
 
 	if (!tagged) {
 		fprintf(stderr,
@@ -318,7 +318,7 @@ compositor_write_cfb_data_image(const struct chericap *cfb_id,
 	}
 
 	/* Don't leak the capability. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /**
@@ -376,7 +376,7 @@ compositor_write_cfb_data_chequered(const struct chericap *cfb_id,
 	}
 
 	/* Don't leak the capability. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /**
@@ -437,7 +437,7 @@ compositor_write_cfb_data_solid(const struct chericap *cfb_id,
 	}
 
 	/* Don't leak the capability. */
-	CHERI_CCLEARTAG(1);
+	CHERI_CCLEARTAG(1, 1);
 }
 
 /**

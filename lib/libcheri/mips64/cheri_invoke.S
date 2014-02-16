@@ -162,21 +162,21 @@ cheri_invoke:
 	# general-purpose registers as clearing $c0 will disable MIPS memory
 	# instructions.
 	#
-	ccleartag	$c0
-	ccleartag	$c11
-	ccleartag	$c12
-	ccleartag	$c13
-	ccleartag	$c14
-	ccleartag	$c15
-	ccleartag	$c16
-	ccleartag	$c17
-	ccleartag	$c18
-	ccleartag	$c19
-	ccleartag	$c20
-	ccleartag	$c21
-	ccleartag	$c22
-	ccleartag	$c23
-	ccleartag	$c24
+	ccleartag	$c0, $c0
+	ccleartag	$c11, $c11
+	ccleartag	$c12, $c12
+	ccleartag	$c13, $c13
+	ccleartag	$c14, $c14
+	ccleartag	$c15, $c15
+	ccleartag	$c16, $c16
+	ccleartag	$c17, $c17
+	ccleartag	$c18, $c18
+	ccleartag	$c19, $c19
+	ccleartag	$c20, $c20
+	ccleartag	$c21, $c21
+	ccleartag	$c22, $c22
+	ccleartag	$c23, $c23
+	ccleartag	$c24, $c24
 
 	#
 	# Invoke object capability.  CCall/CReturn will save and restore $sp
@@ -207,22 +207,22 @@ cheri_invoke:
 	# and haven't been restored, to prevent accidental use.  Could save on
 	# cycles by not doing this, but have to trust the compiler more.
 	#
-	ccleartag	$c1
-	ccleartag	$c2
-	ccleartag	$c3
-	ccleartag	$c4
-	ccleartag	$c5
-	ccleartag	$c6
-	ccleartag	$c7
-	ccleartag	$c8
-	ccleartag	$c9
-	ccleartag	$c10
-	ccleartag	$c11
-	ccleartag	$c12
-	ccleartag	$c13
-	ccleartag	$c14
-	ccleartag	$c15
-	ccleartag	$c16
+	ccleartag	$c1, $c1
+	ccleartag	$c2, $c2
+	ccleartag	$c3, $c3
+	ccleartag	$c4, $c4
+	ccleartag	$c5, $c5
+	ccleartag	$c6, $c6
+	ccleartag	$c7, $c7
+	ccleartag	$c8, $c8
+	ccleartag	$c9, $c9
+	ccleartag	$c10, $c10
+	ccleartag	$c11, $c11
+	ccleartag	$c12, $c12
+	ccleartag	$c13, $c13
+	ccleartag	$c14, $c14
+	ccleartag	$c15, $c15
+	ccleartag	$c16, $c16
 
 	#
 	# Restore general-purpose registers from the stack.
