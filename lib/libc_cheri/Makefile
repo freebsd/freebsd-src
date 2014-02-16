@@ -157,6 +157,8 @@ NO_MAN=		yes
 USE_CHERI=	yes
 WARNS?= 2
 
+NO_WERROR=	yes
+
 FILES=		cheri_invoke.o
 CLEANFILES=	cheri_invoke.o
 

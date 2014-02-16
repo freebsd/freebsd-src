@@ -30,6 +30,8 @@ MAN=	cheri_invoke.3			\
 
 USE_CHERI=	yes
 
+NO_WERROR=	yes
+
 CLEANFILES=	cheri_classes.o cheri_invoke.o
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
