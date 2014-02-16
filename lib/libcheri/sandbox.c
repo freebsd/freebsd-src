@@ -266,13 +266,6 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 	return (v0);
 }
 
-#define	CHERI_CLOADORCLEAR(cnum, cptr) do {				\
-	if (cptr != NULL)						\
-		CHERI_CLC(cnum, 0, cptr, 0);				\
-	else								\
-		CHERI_CCLEARTAG(cnum);					\
-} while (0)
-
 /*
  * This version of invoke() is intended for callers not implementing CHERI
  * compiler support -- but internally, it can be implemented either way.
