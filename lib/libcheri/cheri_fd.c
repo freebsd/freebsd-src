@@ -274,7 +274,6 @@ cheri_fd_enter(register_t methodnum, register_t a1, register_t a2,
 	struct cheri_fd_ret ret;
 
 	switch (methodnum) {
-#if 0
 	case CHERI_FD_METHOD_FSTAT_C:
 		return (_cheri_fd_fstat_c(c3));
 
@@ -283,7 +282,6 @@ cheri_fd_enter(register_t methodnum, register_t a1, register_t a2,
 
 	case CHERI_FD_METHOD_READ_C:
 		return (_cheri_fd_read_c(c3));
-#endif
 
 	case CHERI_FD_METHOD_WRITE_C:
 		return (_cheri_fd_write_c(c3));
