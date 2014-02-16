@@ -1605,6 +1605,34 @@ iwn1000.fw			optional iwn1000fw | iwnfw		\
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn1000.fw"
+iwn2000fw.c			optional iwn2000fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2000.fw:iwn2000fw -miwn2000fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn2000fw.c"
+iwn2000fw.fwo			optional iwn2000fw | iwnfw		\
+	dependency	"iwn2000.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn2000fw.fwo"
+iwn2000.fw			optional iwn2000fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwlwifi-2000-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn2000.fw"
+iwn2030fw.c			optional iwn2030fw | iwnfw		\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn2030.fw:iwn2030fw -miwn2030fw -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"iwn2030fw.c"
+iwn2030fw.fwo			optional iwn2030fw | iwnfw		\
+	dependency	"iwn2030.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"iwn2030fw.fwo"
+iwn2030.fw			optional iwn2030fw | iwnfw		\
+	dependency	"$S/contrib/dev/iwn/iwnwifi-2030-18.168.6.1.fw.uu" \
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"iwn2030.fw"
 iwn4965fw.c			optional iwn4965fw | iwnfw		\
 	compile-with	"${AWK} -f $S/tools/fw_stub.awk iwn4965.fw:iwn4965fw -miwn4965fw -c${.TARGET}" \
 	no-implicit-rule before-depend local				\
