@@ -51,7 +51,6 @@ xbox_poweroff(void* junk, int howto)
 static void
 xbox_init(void)
 {
-	char* ptr;
 
 	if (!arch_i386_is_xbox)
 		return;
