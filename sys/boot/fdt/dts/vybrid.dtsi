@@ -311,6 +311,9 @@
 			interrupt-parent = <&GIC>;
 			status = "disabled";
 			edma-controller = <&edma1>;
+			edma-src-receive = < 8 >;
+			edma-src-transmit = < 9 >;
+			edma-mux-group = < 1 >;
 			clock_names = "sai3", "cko1";
 			iomux_config = < 16 0x2
 					 19 0x2
