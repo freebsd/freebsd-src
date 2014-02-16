@@ -486,7 +486,7 @@ add_file(int percent, const char *file, const char *dir, FILEDESC **head,
 		if (Offend) {
 			if (was_malloc)
 				free(tpath);
-			path = offensive;
+			path = tpath = offensive;
 			offensive = NULL;
 			was_malloc = TRUE;
 			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
@@ -508,7 +508,7 @@ over:
 		if (All_forts && offensive != NULL) {
 			if (was_malloc)
 				free(tpath);
-			path = offensive;
+			path = tpath = offensive;
 			offensive = NULL;
 			was_malloc = TRUE;
 			DPRINTF(1, (stderr, "\ttrying \"%s\"\n", path));
