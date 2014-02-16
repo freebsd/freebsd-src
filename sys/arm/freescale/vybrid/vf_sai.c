@@ -396,7 +396,8 @@ sai_dma_intr(void *arg, int chn)
 	if (sc->pos >= sc->dma_size)
 		sc->pos -= sc->dma_size;
 
-	chn_intr(ch->channel);
+	if (ch->run)
+		chn_intr(ch->channel);
 
 	return (0);
 }
@@ -492,7 +493,7 @@ setup_dma(struct sc_pcminfo *scp)
 	tcd->nbytes = 64;
 
 	tcd->nmajor = 512;
-	tcd->smod = 18;	/* dma_size range */
+	tcd->smod = 17;	/* dma_size range */
 	tcd->dmod = 0;
 	tcd->esg = 0;
 	tcd->soff = 0x4;
@@ -523,6 +524,7 @@ saichan_trigger(kobj_t obj, void *data, int go)
 #if 0
 		device_printf(scp->dev, "trigger start\n");
 #endif
+		ch->run = 1;
 		break;
 
 	case PCMTRIG_STOP:
@@ -530,6 +532,7 @@ saichan_trigger(kobj_t obj, void *data, int go)
 #if 0
 		device_printf(scp->dev, "trigger stop or abort\n");
 #endif
+		ch->run = 0;
 		break;
 	}
 
@@ -720,7 +723,7 @@ sai_attach(device_t dev)
 	scp->dev = dev;
 
 	/* DMA */
-	sc->dma_size = 262144;
+	sc->dma_size = 131072;
 
 	/*
 	 * Must use dma_size boundary as modulo feature required.
