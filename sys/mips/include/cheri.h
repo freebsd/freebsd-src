@@ -183,6 +183,25 @@ struct cheri_stack {
 	__asm__ __volatile__ ("cgetcause %0" : "=r" (v));		\
 } while (0)
 
+#define	CHERI_CTOPTR(v, cb, ct) do {					\
+	__asm__ __volatile__ ("ctoptr %0, $c%1, $c%2" : "=r" (v) :	\
+	    "i" (cb), "i" (ct));					\
+} while (0)
+
+/*
+ * Instructions that check capability values and could throw exceptions; no
+ * capability-register value changes, so no clobbers required.
+ */
+#define	CHERI_CCHECKPERM(cs, v) do {					\
+	__asm__ __volatile__ ("ccheckperm $c%0, %1" : :			\
+	    "i" (cd), "r" (v));						\
+} while (0)
+
+#define	CHERI_CCHECKTYPE(cs, cb) do {					\
+	__asm__ __volatile__ ("cchecktype $c%0, $c%1" : :		\
+	    "i" (cs), "i" (cb));					\
+} while (0)
+
 /*
  * Routines that modify or replace values in capability registers that don't
  * affect memory access via the register.  These do not require memory
@@ -345,6 +364,19 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb));				\
 } while (0)
 
+#define	CHERI_CGETDEFAULT(cd) do {					\
+	if ((cd) == 0)							\
+		__asm__ __volatile__ ("cgetdefault $c%0" : : "i" (cd) :	\
+		    "memory");						\
+	else								\
+		__asm__ __volatile__ ("cmove $c%0, $c%1" : : "i" (cd));	\
+} while (0)
+
+#define	CHERI_CSETDEFAULT(cb) do {					\
+	__asm__ __volatile__ ("csetdefault %c%0" : : "i" (cb) :		\
+	    "memory");							\
+} while (0)
+
 #define	CHERI_CSETLEN(cd, cb, v) do {					\
 	if ((cd) == 0)							\
 		__asm__ __volatile__ ("csetlen $c%0, $c%1, %2" : :	\
@@ -354,12 +386,13 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
-#define	CHERI_CCLEARTAG(cd) do {					\
+#define	CHERI_CCLEARTAG(cd, cb) do {					\
 	if ((cd) == 0)							\
-		__asm__ __volatile__ ("ccleartag $c%0" : : "i" (cd) :	\
-		    "memory");						\
+		__asm__ __volatile__ ("ccleartag $c%0, $c%1" : :	\
+		    "i" (cd), "i" (cb) : "memory");			\
 	else								\
-		__asm__ __volatile__ ("ccleartag $c%0" : : "i" (cd));	\
+		__asm__ __volatile__ ("ccleartag $c%0, $c%1" : :	\
+		    "i" (cd), "i" (cb));				\
 } while (0)
 
 #define	CHERI_CANDPERM(cd, cb, v) do {					\
@@ -368,6 +401,15 @@ struct cheri_stack {
 		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
 	else								\
 		__asm__ __volatile__ ("candperm $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v));			\
+} while (0)
+
+#define	CHERI_CFROMPTR(cd, cb, v) do {					\
+	if ((cd) == 0)							\
+		__asm__ __volatile__ ("cfromptr $c%0, $c%1, %2" : :	\
+		    "i" (cd), "i" (cb), "r" (v) : "memory");		\
+	else								\
+		__asm__ __volatile__ ("cfromptr $c%0, $c%1, %2" : :	\
 		    "i" (cd), "i" (cb), "r" (v));			\
 } while (0)
 
