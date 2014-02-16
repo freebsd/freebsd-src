@@ -57,7 +57,11 @@
 #include "cheritest_sandbox.h"
 
 #define	CHERI_CAPREG_PRINT(crn) do {					\
-	__capability void *cap = cheri_getreg(crn);			\
+	__capability void *cap;						\
+	if (crn == 0)							\
+		cap = cheri_getdefault();				\
+	else								\
+		cap = cheri_getreg(crn);				\
 	printf("C%u tag %ju u %ju perms %04jx type %016jx\n", crn,	\
 	    (uintmax_t)cheri_gettag(cap),				\
 	    (uintmax_t)cheri_getunsealed(cap),				\
@@ -183,12 +187,12 @@ static void
 cheritest_copyregs(void)
 {
 
-	CHERI_CMOVE(2, 0);
-	CHERI_CMOVE(3, 0);
-	CHERI_CMOVE(4, 0);
-	CHERI_CMOVE(5, 0);
-	CHERI_CMOVE(6, 0);
-	CHERI_CMOVE(7, 0);
+	CHERI_CGETDEFAULT(2);
+	CHERI_CGETDEFAULT(3);
+	CHERI_CGETDEFAULT(4);
+	CHERI_CGETDEFAULT(5);
+	CHERI_CGETDEFAULT(6);
+	CHERI_CGETDEFAULT(7);
 }
 
 static void
