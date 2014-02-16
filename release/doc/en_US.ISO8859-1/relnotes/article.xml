@@ -176,6 +176,11 @@
 	<para revision="258830">Support for Broadcom chipsets
 	  BCM57764, BCM57767, BCM57782, BCM57786 and BCM57787 has
 	  been added to &man.bge.4;.</para>
+
+	<para revision="261975">The deprecated nve(4) driver has been
+	  removed.  Users of NVIDIA nForce MCP network adapters are
+	  advised to use the &man.nfe.4; driver instead, which has been
+	  the default driver for this hardware since &os; 7.0.</para>
       </sect4>
     </sect3>
 
