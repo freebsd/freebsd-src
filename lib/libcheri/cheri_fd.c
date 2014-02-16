@@ -104,11 +104,14 @@ cheri_fd_new(int fd, struct cheri_object *cop)
  * continue.  Note: does not close the fd or free memory.  The latter must
  */
 void
-cheri_fd_revoke(struct cheri_object *cop)
+cheri_fd_revoke(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
+	__capability void *basecap;
 
-	cfp = cop->co_datacap;
+	basecap = cheri_settype(cheri_getdefault(),
+	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
+	cfp = cheri_unseal(co.co_datacap, basecap);
 	cfp->cf_fd = -1;
 }
 
@@ -117,11 +120,14 @@ cheri_fd_revoke(struct cheri_object *cop)
  * outstanding references in any sandboxes (etc).
  */
 void
-cheri_fd_destroy(struct cheri_object *cop)
+cheri_fd_destroy(struct cheri_object co)
 {
 	__capability struct cheri_fd *cfp;
+	__capability void *basecap;
 
-	cfp = cop->co_datacap;
+	basecap = cheri_settype(cheri_getdefault(),
+	    (register_t)CHERI_CLASS_ENTRY(cheri_fd));
+	cfp = cheri_unseal(co.co_datacap, basecap);
 	assert(cfp->cf_fd == -1);
 	free((void *)cfp);
 }

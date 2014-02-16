@@ -36,8 +36,8 @@
  * authority.
  */
 int	cheri_fd_new(int fd, struct cheri_object *cop);
-void	cheri_fd_revoke(struct cheri_object *cop);
-void	cheri_fd_destroy(struct cheri_object *cop);
+void	cheri_fd_revoke(struct cheri_object co);
+void	cheri_fd_destroy(struct cheri_object co);
 
 /*
  * Method numbers used during invocation.
