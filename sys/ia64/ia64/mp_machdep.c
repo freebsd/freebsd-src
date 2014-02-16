@@ -206,8 +206,8 @@ ia64_ap_startup(void)
 	ia64_ap_state.as_trace = 0x100;
 
 	ia64_set_rr(IA64_RR_BASE(5), (5 << 8) | (PAGE_SHIFT << 2) | 1);
-	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (PAGE_SHIFT << 2));
-	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (PAGE_SHIFT << 2));
+	ia64_set_rr(IA64_RR_BASE(6), (6 << 8) | (LOG2_ID_PAGE_SIZE << 2));
+	ia64_set_rr(IA64_RR_BASE(7), (7 << 8) | (LOG2_ID_PAGE_SIZE << 2));
 	ia64_srlz_d();
 
 	pcpup = ia64_ap_state.as_pcpu;
