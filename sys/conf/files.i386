@@ -46,17 +46,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-nvenetlib.o			optional	nve pci			\
-	dependency	"$S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu"	\
-	compile-with	"uudecode $S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
-	no-implicit-rule
-#
-os+%DIKED-nve.h		optional	nve pci				\
-	dependency	"$S/contrib/dev/nve/os.h"			\
-	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
-	no-implicit-rule no-obj before-depend				\
-	clean		"os+%DIKED-nve.h"
-#
 hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
@@ -257,7 +246,6 @@ dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
 dev/nvd/nvd.c			optional nvd nvme
-dev/nve/if_nve.c		optional nve pci
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme

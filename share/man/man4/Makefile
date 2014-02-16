@@ -344,7 +344,6 @@ MAN=	aac.4 \
 	${_ntb.4} \
 	null.4 \
 	${_nvd.4} \
-	${_nve.4} \
 	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
@@ -673,7 +672,6 @@ MLINKS+=${_nfe.4} ${_if_nfe.4}
 MLINKS+=nge.4 if_nge.4
 MLINKS+=${_ntb.4} ${_if_ntb.4} \
 	${_ntb.4} ${_ntb_hw.4}
-MLINKS+=${_nve.4} ${_if_nve.4}
 MLINKS+=${_nxge.4} ${_if_nxge.4}
 MLINKS+=patm.4 if_patm.4
 MLINKS+=pccbb.4 cbb.4
@@ -772,7 +770,6 @@ _ichwd.4=	ichwd.4
 _if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
-_if_nve.4=	if_nve.4
 _if_nxge.4=	if_nxge.4
 _if_urtw.4=	if_urtw.4
 _if_vmx.4=	if_vmx.4
@@ -787,7 +784,6 @@ _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
 _nvd.4=		nvd.4
-_nve.4=		nve.4
 _nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
