@@ -53,7 +53,7 @@ static cl::list<std::string>
 ExtractFuncs("func", cl::desc("Specify function to extract"),
              cl::ZeroOrMore, cl::value_desc("function"));
 
-// ExtractRegExpFuncs - The functions, matched via regular expression, to 
+// ExtractRegExpFuncs - The functions, matched via regular expression, to
 // extract from the module.
 static cl::list<std::string>
 ExtractRegExpFuncs("rfunc", cl::desc("Specify function(s) to extract using a "
@@ -265,8 +265,7 @@ int main(int argc, char **argv) {
   Passes.add(createStripDeadPrototypesPass());   // Remove dead func decls
 
   std::string ErrorInfo;
-  tool_output_file Out(OutputFilename.c_str(), ErrorInfo,
-                       raw_fd_ostream::F_Binary);
+  tool_output_file Out(OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary);
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;

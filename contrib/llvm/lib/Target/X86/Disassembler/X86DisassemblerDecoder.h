@@ -59,6 +59,15 @@ extern "C" {
 #define lFromVEX2of2(vex)       (((vex) & 0x4) >> 2)
 #define ppFromVEX2of2(vex)      ((vex) & 0x3)
 
+#define rFromXOP2of3(xop)       (((~(xop)) & 0x80) >> 7)
+#define xFromXOP2of3(xop)       (((~(xop)) & 0x40) >> 6)
+#define bFromXOP2of3(xop)       (((~(xop)) & 0x20) >> 5)
+#define mmmmmFromXOP2of3(xop)   ((xop) & 0x1f)
+#define wFromXOP3of3(xop)       (((xop) & 0x80) >> 7)
+#define vvvvFromXOP3of3(vex)    (((~(vex)) & 0x78) >> 3)
+#define lFromXOP3of3(xop)       (((xop) & 0x4) >> 2)
+#define ppFromXOP3of3(xop)      ((xop) & 0x3)
+
 /*
  * These enums represent Intel registers for use by the decoder.
  */
@@ -219,7 +228,23 @@ extern "C" {
   ENTRY(XMM12)    \
   ENTRY(XMM13)    \
   ENTRY(XMM14)    \
-  ENTRY(XMM15)
+  ENTRY(XMM15)    \
+  ENTRY(XMM16)    \
+  ENTRY(XMM17)    \
+  ENTRY(XMM18)    \
+  ENTRY(XMM19)    \
+  ENTRY(XMM20)    \
+  ENTRY(XMM21)    \
+  ENTRY(XMM22)    \
+  ENTRY(XMM23)    \
+  ENTRY(XMM24)    \
+  ENTRY(XMM25)    \
+  ENTRY(XMM26)    \
+  ENTRY(XMM27)    \
+  ENTRY(XMM28)    \
+  ENTRY(XMM29)    \
+  ENTRY(XMM30)    \
+  ENTRY(XMM31)
 
 #define REGS_YMM  \
   ENTRY(YMM0)     \
@@ -237,7 +262,57 @@ extern "C" {
   ENTRY(YMM12)    \
   ENTRY(YMM13)    \
   ENTRY(YMM14)    \
-  ENTRY(YMM15)
+  ENTRY(YMM15)    \
+  ENTRY(YMM16)    \
+  ENTRY(YMM17)    \
+  ENTRY(YMM18)    \
+  ENTRY(YMM19)    \
+  ENTRY(YMM20)    \
+  ENTRY(YMM21)    \
+  ENTRY(YMM22)    \
+  ENTRY(YMM23)    \
+  ENTRY(YMM24)    \
+  ENTRY(YMM25)    \
+  ENTRY(YMM26)    \
+  ENTRY(YMM27)    \
+  ENTRY(YMM28)    \
+  ENTRY(YMM29)    \
+  ENTRY(YMM30)    \
+  ENTRY(YMM31)
+
+#define REGS_ZMM  \
+  ENTRY(ZMM0)     \
+  ENTRY(ZMM1)     \
+  ENTRY(ZMM2)     \
+  ENTRY(ZMM3)     \
+  ENTRY(ZMM4)     \
+  ENTRY(ZMM5)     \
+  ENTRY(ZMM6)     \
+  ENTRY(ZMM7)     \
+  ENTRY(ZMM8)     \
+  ENTRY(ZMM9)     \
+  ENTRY(ZMM10)    \
+  ENTRY(ZMM11)    \
+  ENTRY(ZMM12)    \
+  ENTRY(ZMM13)    \
+  ENTRY(ZMM14)    \
+  ENTRY(ZMM15)    \
+  ENTRY(ZMM16)    \
+  ENTRY(ZMM17)    \
+  ENTRY(ZMM18)    \
+  ENTRY(ZMM19)    \
+  ENTRY(ZMM20)    \
+  ENTRY(ZMM21)    \
+  ENTRY(ZMM22)    \
+  ENTRY(ZMM23)    \
+  ENTRY(ZMM24)    \
+  ENTRY(ZMM25)    \
+  ENTRY(ZMM26)    \
+  ENTRY(ZMM27)    \
+  ENTRY(ZMM28)    \
+  ENTRY(ZMM29)    \
+  ENTRY(ZMM30)    \
+  ENTRY(ZMM31)
 
 #define REGS_SEGMENT \
   ENTRY(ES)          \
@@ -285,6 +360,7 @@ extern "C" {
   REGS_MMX            \
   REGS_XMM            \
   REGS_YMM            \
+  REGS_ZMM            \
   REGS_SEGMENT        \
   REGS_DEBUG          \
   REGS_CONTROL        \
@@ -319,6 +395,7 @@ typedef enum {
   ALL_EA_BASES
   REGS_XMM
   REGS_YMM
+  REGS_ZMM
 #undef ENTRY
   SIB_INDEX_max
 } SIBIndex;
@@ -379,6 +456,12 @@ typedef enum {
   VEX_LOB_0F3A = 0x3
 } VEXLeadingOpcodeByte;
 
+typedef enum {
+  XOP_MAP_SELECT_8 = 0x8,
+  XOP_MAP_SELECT_9 = 0x9,
+  XOP_MAP_SELECT_A = 0xA
+} XOPMapSelect;
+
 /*
  * VEXPrefixCode - Possible values for the VEX.pp field
  */
@@ -389,6 +472,13 @@ typedef enum {
   VEX_PREFIX_F3 = 0x2,
   VEX_PREFIX_F2 = 0x3
 } VEXPrefixCode;
+
+typedef enum {
+  TYPE_NO_VEX_XOP = 0x0,
+  TYPE_VEX_2B = 0x1,
+  TYPE_VEX_3B = 0x2,
+  TYPE_XOP = 0x3
+} VEXXOPType;
 
 typedef uint8_t BOOL;
 
@@ -446,10 +536,10 @@ struct InternalInstruction {
   uint8_t prefixPresent[0x100];
   /* contains the location (for use with the reader) of the prefix byte */
   uint64_t prefixLocations[0x100];
-  /* The value of the VEX prefix, if present */
-  uint8_t vexPrefix[3];
+  /* The value of the VEX/XOP prefix, if present */
+  uint8_t vexXopPrefix[3];
   /* The length of the VEX prefix (0 if not present) */
-  uint8_t vexSize;
+  VEXXOPType vexXopType;
   /* The value of the REX prefix, if present */
   uint8_t rexPrefix;
   /* The location where a mandatory prefix would have to be (i.e., right before
@@ -457,6 +547,8 @@ struct InternalInstruction {
   uint64_t necessaryPrefixLocation;
   /* The segment override type */
   SegmentOverride segmentOverride;
+  /* 1 if the prefix byte, 0xf2 or 0xf3 is xacquire or xrelease */
+  BOOL xAcquireRelease;
 
   /* Sizes of various critical pieces of data, in bytes */
   uint8_t registerSize;
@@ -471,10 +563,6 @@ struct InternalInstruction {
 
   /* opcode state */
 
-  /* The value of the two-byte escape prefix (usually 0x0f) */
-  uint8_t twoByteEscape;
-  /* The value of the three-byte escape prefix (usually 0x38 or 0x3a) */
-  uint8_t threeByteEscape;
   /* The last byte of the opcode, not counting any ModR/M extension */
   uint8_t opcode;
   /* The ModR/M byte of the instruction, if it is an opcode extension */

@@ -61,7 +61,7 @@ class MipsInst16<dag outs, dag ins, string asmstr, list<dag> pattern,
 
   // Top 5 bits are the 'opcode' field
   let Inst{15-11} = Opcode;
-  
+
   let Size=2;
   field bits<16> SoftFail = 0;
 }
@@ -74,7 +74,7 @@ class MipsInst16_32<dag outs, dag ins, string asmstr, list<dag> pattern,
   MipsInst16_Base<outs, ins, asmstr, pattern, itin>
 {
   field bits<32> Inst;
-  
+
   let Size=4;
   field bits<32> SoftFail = 0;
 }
@@ -145,6 +145,20 @@ class FRR16<bits<5> _funct, dag outs, dag ins, string asmstr,
 
   let Inst{10-8} = rx;
   let Inst{7-5} = ry;
+  let Inst{4-0}   = funct;
+}
+
+class FRRBreak16<dag outs, dag ins, string asmstr,
+                 list<dag> pattern, InstrItinClass itin>:
+  MipsInst16<outs, ins, asmstr, pattern, itin>
+{
+  bits<6>  Code;
+  bits<5>  funct;
+
+  let Opcode = 0b11101;
+  let funct  = 0b00101;
+
+  let Inst{10-5} = Code;
   let Inst{4-0}   = funct;
 }
 

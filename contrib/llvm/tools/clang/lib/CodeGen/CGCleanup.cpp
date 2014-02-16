@@ -17,8 +17,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CodeGenFunction.h"
 #include "CGCleanup.h"
+#include "CodeGenFunction.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -371,8 +371,7 @@ void CodeGenFunction::ResolveBranchFixups(llvm::BasicBlock *Block) {
 }
 
 /// Pops cleanup blocks until the given savepoint is reached.
-void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
-                                       SourceLocation EHLoc) {
+void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old) {
   assert(Old.isValid());
 
   while (EHStack.stable_begin() != Old) {
@@ -384,8 +383,35 @@ void CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
     bool FallThroughIsBranchThrough =
       Old.strictlyEncloses(Scope.getEnclosingNormalCleanup());
 
-    PopCleanupBlock(FallThroughIsBranchThrough, EHLoc);
+    PopCleanupBlock(FallThroughIsBranchThrough);
   }
+}
+
+/// Pops cleanup blocks until the given savepoint is reached, then add the
+/// cleanups from the given savepoint in the lifetime-extended cleanups stack.
+void
+CodeGenFunction::PopCleanupBlocks(EHScopeStack::stable_iterator Old,
+                                  size_t OldLifetimeExtendedSize) {
+  PopCleanupBlocks(Old);
+
+  // Move our deferred cleanups onto the EH stack.
+  for (size_t I = OldLifetimeExtendedSize,
+              E = LifetimeExtendedCleanupStack.size(); I != E; /**/) {
+    // Alignment should be guaranteed by the vptrs in the individual cleanups.
+    assert((I % llvm::alignOf<LifetimeExtendedCleanupHeader>() == 0) &&
+           "misaligned cleanup stack entry");
+
+    LifetimeExtendedCleanupHeader &Header =
+        reinterpret_cast<LifetimeExtendedCleanupHeader&>(
+            LifetimeExtendedCleanupStack[I]);
+    I += sizeof(Header);
+
+    EHStack.pushCopyOfCleanup(Header.getKind(),
+                              &LifetimeExtendedCleanupStack[I],
+                              Header.getSize());
+    I += Header.getSize();
+  }
+  LifetimeExtendedCleanupStack.resize(OldLifetimeExtendedSize);
 }
 
 static llvm::BasicBlock *CreateNormalEntry(CodeGenFunction &CGF,
@@ -533,8 +559,7 @@ static void destroyOptimisticNormalEntry(CodeGenFunction &CGF,
 /// Pops a cleanup block.  If the block includes a normal cleanup, the
 /// current insertion point is threaded through the cleanup, as are
 /// any branch fixups on the cleanup.
-void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
-                                      SourceLocation EHLoc) {
+void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough) {
   assert(!EHStack.empty() && "cleanup stack is empty!");
   assert(isa<EHCleanupScope>(*EHStack.begin()) && "top not a cleanup!");
   EHCleanupScope &Scope = cast<EHCleanupScope>(*EHStack.begin());
@@ -836,7 +861,7 @@ void CodeGenFunction::PopCleanupBlock(bool FallthroughIsBranchThrough,
   // Emit the EH cleanup if required.
   if (RequiresEHCleanup) {
     if (CGDebugInfo *DI = getDebugInfo())
-      DI->EmitLocation(Builder, EHLoc);
+      DI->EmitLocation(Builder, CurEHLocation);
 
     CGBuilderTy::InsertPoint SavedIP = Builder.saveAndClearIP();
 

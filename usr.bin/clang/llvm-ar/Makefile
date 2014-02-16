@@ -7,7 +7,7 @@ PROG_CXX=llvm-ar
 SRCDIR=	tools/llvm-ar
 SRCS=	llvm-ar.cpp
 
-LIBDEPS=llvmarchive \
+LIBDEPS=llvmobject \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

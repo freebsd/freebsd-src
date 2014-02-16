@@ -33,7 +33,7 @@ using namespace llvm;
 //===----------------------------------------------------------------------===//
 
 /// EmitSLEB128 - emit the specified signed leb128 value.
-void AsmPrinter::EmitSLEB128(int Value, const char *Desc) const {
+void AsmPrinter::EmitSLEB128(int64_t Value, const char *Desc) const {
   if (isVerbose() && Desc)
     OutStreamer.AddComment(Desc);
 
@@ -41,7 +41,7 @@ void AsmPrinter::EmitSLEB128(int Value, const char *Desc) const {
 }
 
 /// EmitULEB128 - emit the specified signed leb128 value.
-void AsmPrinter::EmitULEB128(unsigned Value, const char *Desc,
+void AsmPrinter::EmitULEB128(uint64_t Value, const char *Desc,
                              unsigned PadTo) const {
   if (isVerbose() && Desc)
     OutStreamer.AddComment(Desc);
@@ -169,28 +169,27 @@ void AsmPrinter::EmitSectionOffset(const MCSymbol *Label,
 // Dwarf Lowering Routines
 //===----------------------------------------------------------------------===//
 
-/// EmitCFIFrameMove - Emit a frame instruction.
-void AsmPrinter::EmitCFIFrameMove(const MachineMove &Move) const {
-  const TargetRegisterInfo *RI = TM.getRegisterInfo();
-
-  const MachineLocation &Dst = Move.getDestination();
-  const MachineLocation &Src = Move.getSource();
-
-  // If advancing cfa.
-  if (Dst.isReg() && Dst.getReg() == MachineLocation::VirtualFP) {
-    if (Src.getReg() == MachineLocation::VirtualFP) {
-      OutStreamer.EmitCFIDefCfaOffset(-Src.getOffset());
-    } else {
-      // Reg + Offset
-      OutStreamer.EmitCFIDefCfa(RI->getDwarfRegNum(Src.getReg(), true),
-                                Src.getOffset());
-    }
-  } else if (Src.isReg() && Src.getReg() == MachineLocation::VirtualFP) {
-    assert(Dst.isReg() && "Machine move not supported yet.");
-    OutStreamer.EmitCFIDefCfaRegister(RI->getDwarfRegNum(Dst.getReg(), true));
-  } else {
-    assert(!Dst.isReg() && "Machine move not supported yet.");
-    OutStreamer.EmitCFIOffset(RI->getDwarfRegNum(Src.getReg(), true),
-                              Dst.getOffset());
+void AsmPrinter::emitCFIInstruction(const MCCFIInstruction &Inst) const {
+  switch (Inst.getOperation()) {
+  default:
+    llvm_unreachable("Unexpected instruction");
+  case MCCFIInstruction::OpDefCfaOffset:
+    OutStreamer.EmitCFIDefCfaOffset(Inst.getOffset());
+    break;
+  case MCCFIInstruction::OpDefCfa:
+    OutStreamer.EmitCFIDefCfa(Inst.getRegister(), Inst.getOffset());
+    break;
+  case MCCFIInstruction::OpDefCfaRegister:
+    OutStreamer.EmitCFIDefCfaRegister(Inst.getRegister());
+    break;
+  case MCCFIInstruction::OpOffset:
+    OutStreamer.EmitCFIOffset(Inst.getRegister(), Inst.getOffset());
+    break;
+  case MCCFIInstruction::OpRegister:
+    OutStreamer.EmitCFIRegister(Inst.getRegister(), Inst.getRegister2());
+    break;
+  case MCCFIInstruction::OpWindowSave:
+    OutStreamer.EmitCFIWindowSave();
+    break;
   }
 }

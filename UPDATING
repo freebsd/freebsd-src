@@ -32,6 +32,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
 20140216:
+	Clang and llvm have been upgraded to 3.4 release.
+
+20140216:
 	The nve(4) driver has been removed.  Please use the nfe(4) driver
 	for NVIDIA nForce MCP Ethernet adapters instead.
 

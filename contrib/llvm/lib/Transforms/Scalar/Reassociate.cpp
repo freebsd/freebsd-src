@@ -122,7 +122,6 @@ namespace {
   class XorOpnd {
   public:
     XorOpnd(Value *V);
-    const XorOpnd &operator=(const XorOpnd &That);
 
     bool isInvalid() const { return SymbolicPart == 0; }
     bool isOrExpr() const { return isOr; }
@@ -225,15 +224,6 @@ XorOpnd::XorOpnd(Value *V) {
   isOr = true;
 }
 
-const XorOpnd &XorOpnd::operator=(const XorOpnd &That) {
-  OrigVal = That.OrigVal;
-  SymbolicPart = That.SymbolicPart;
-  ConstPart = That.ConstPart;
-  SymbolicRank = That.SymbolicRank;
-  isOr = That.isOr;
-  return *this;
-}
-
 char Reassociate::ID = 0;
 INITIALIZE_PASS(Reassociate, "reassociate",
                 "Reassociate expressions", false, false)
@@ -251,21 +241,24 @@ static BinaryOperator *isReassociableOp(Value *V, unsigned Opcode) {
 }
 
 static bool isUnmovableInstruction(Instruction *I) {
-  if (I->getOpcode() == Instruction::PHI ||
-      I->getOpcode() == Instruction::LandingPad ||
-      I->getOpcode() == Instruction::Alloca ||
-      I->getOpcode() == Instruction::Load ||
-      I->getOpcode() == Instruction::Invoke ||
-      (I->getOpcode() == Instruction::Call &&
-       !isa<DbgInfoIntrinsic>(I)) ||
-      I->getOpcode() == Instruction::UDiv ||
-      I->getOpcode() == Instruction::SDiv ||
-      I->getOpcode() == Instruction::FDiv ||
-      I->getOpcode() == Instruction::URem ||
-      I->getOpcode() == Instruction::SRem ||
-      I->getOpcode() == Instruction::FRem)
+  switch (I->getOpcode()) {
+  case Instruction::PHI:
+  case Instruction::LandingPad:
+  case Instruction::Alloca:
+  case Instruction::Load:
+  case Instruction::Invoke:
+  case Instruction::UDiv:
+  case Instruction::SDiv:
+  case Instruction::FDiv:
+  case Instruction::URem:
+  case Instruction::SRem:
+  case Instruction::FRem:
     return true;
-  return false;
+  case Instruction::Call:
+    return !isa<DbgInfoIntrinsic>(I);
+  default:
+    return false;
+  }
 }
 
 void Reassociate::BuildRankMap(Function &F) {
