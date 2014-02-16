@@ -237,7 +237,7 @@ fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
 		    (strict == 0 || fdt_is_compatible_strict(node, compat))) {
 			return (node);
 		}
-		child = fdt_search_compatible(node, compat, strict);
+		child = fdt_depth_search_compatible(node, compat, strict);
 		if (child != 0)
 			return (child);
 	}
