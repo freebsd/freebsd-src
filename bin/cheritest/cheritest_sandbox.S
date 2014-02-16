@@ -43,7 +43,7 @@ cheritest_ccall:
         cmove $c26, $c0
 
         /* Clear $c0 so it's not available to sandbox. */
-        ccleartag $c0
+        ccleartag $c0, $c0
 
         /* Invoke object capability. */
         ccall $c1, $c2
