@@ -150,8 +150,10 @@ invoke_fd_fstat_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
 	struct stat sb;
+	__capability void *sb_c;
 
-	ret = cheri_fd_fstat_c(fd_object, (__capability void *)&sb);
+	sb_c = cheri_ptr(&sb, sizeof(sb));
+	ret = cheri_fd_fstat_c(fd_object, sb_c);
 	printf("cheri_fd_fstat_c returned (%ld, %ld)\n", ret.cfr_retval0,
 	    ret.cfr_retval1);
 	return (0);
@@ -173,8 +175,10 @@ invoke_fd_read_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
 	char buf[10];
+	__capability void *buf_c;
 
-	ret = cheri_fd_read_c(fd_object, (__capability void *)buf);
+	buf_c = cheri_ptr(buf, sizeof(buf));
+	ret = cheri_fd_read_c(fd_object, buf_c);
 	printf("cheri_fd_read_c returned (%ld, %ld)\n", ret.cfr_retval0,
 	    ret.cfr_retval1);
 	return (0);
@@ -185,8 +189,10 @@ invoke_fd_write_c(struct cheri_object fd_object)
 {
 	struct cheri_fd_ret ret;
 	const char *buf = "fd write test\n";
+	__capability const void *buf_c;
 
-	ret = cheri_fd_write_c(fd_object, (__capability void *)buf);
+	buf_c = cheri_ptr(buf, strlen(buf));
+	ret = cheri_fd_write_c(fd_object, buf_c);
 	printf("cheri_fd_write_c returned (%ld, %ld)\n", ret.cfr_retval0,
 	    ret.cfr_retval1);
 	return (0);
