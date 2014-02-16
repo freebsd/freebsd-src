@@ -58,7 +58,7 @@
 #define	cheri_setcause(x)	__builtin_cheri_set_cause(x)
 
 
-#define	cheri_getc0()		__builtin_cheri_get_global_data_cap()
+#define	cheri_getdefault()	__builtin_cheri_get_global_data_cap()
 #define	cheri_getidc()		__builtin_cheri_get_invoke_data_cap()
 #define	cheri_getkr0c()		__builtin_cheri_get_kernel_cap1()
 #define	cheri_getkr1c()		__builtin_cheri_get_kernel_cap2()

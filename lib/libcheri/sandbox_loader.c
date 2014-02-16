@@ -240,7 +240,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Note that $c0 in the 'sandbox' will be set from $pcc, so leave a
 	 * full set of write/etc permissions on the code capability.
 	 */
-	basecap = cheri_settype(cheri_getreg(0),
+	basecap = cheri_settype(cheri_getdefault(),
 	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
 	sbop->sbo_cheri_system_object.co_codecap = cheri_sealcode(basecap);
 
