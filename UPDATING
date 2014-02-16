@@ -11,6 +11,12 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20140216:
+	The nve(4) driver for NVIDIA nForce MCP Ethernet adapters has
+	been deprecated and will not be part of FreeBSD 11.0 and later
+	releases.  If you use this driver, please consider switching to
+	the nfe(4) driver instead.
+
 20131216:
 	The behavior of gss_pseudo_random() for the krb5 mechanism
 	has changed, for applications requesting a longer random string
