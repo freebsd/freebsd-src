@@ -37,6 +37,37 @@ def RetCC_PPC : CallingConv<[
 ]>;
 
 
+// Note that we don't currently have calling conventions for 64-bit
+// PowerPC, but handle all the complexities of the ABI in the lowering
+// logic.  FIXME: See if the logic can be simplified with use of CCs.
+// This may require some extensions to current table generation.
+
+// Simple calling convention for 64-bit ELF PowerPC fast isel.
+// Only handle ints and floats.  All ints are promoted to i64.
+// Vector types and quadword ints are not handled.
+def CC_PPC64_ELF_FIS : CallingConv<[
+  CCIfType<[i8],  CCPromoteToType<i64>>,
+  CCIfType<[i16], CCPromoteToType<i64>>,
+  CCIfType<[i32], CCPromoteToType<i64>>,
+  CCIfType<[i64], CCAssignToReg<[X3, X4, X5, X6, X7, X8, X9, X10]>>,
+  CCIfType<[f32, f64], CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>
+]>;
+
+// Simple return-value convention for 64-bit ELF PowerPC fast isel.
+// All small ints are promoted to i64.  Vector types, quadword ints,
+// and multiple register returns are "supported" to avoid compile
+// errors, but none are handled by the fast selector.
+def RetCC_PPC64_ELF_FIS : CallingConv<[
+  CCIfType<[i8],   CCPromoteToType<i64>>,
+  CCIfType<[i16],  CCPromoteToType<i64>>,
+  CCIfType<[i32],  CCPromoteToType<i64>>,
+  CCIfType<[i64],  CCAssignToReg<[X3, X4]>>,
+  CCIfType<[i128], CCAssignToReg<[X3, X4, X5, X6]>>,
+  CCIfType<[f32],  CCAssignToReg<[F1, F2]>>,
+  CCIfType<[f64],  CCAssignToReg<[F1, F2, F3, F4]>>,
+  CCIfType<[v16i8, v8i16, v4i32, v4f32], CCAssignToReg<[V2]>>
+]>;
+
 //===----------------------------------------------------------------------===//
 // PowerPC System V Release 4 32-bit ABI
 //===----------------------------------------------------------------------===//
@@ -105,40 +136,45 @@ def CC_PPC32_SVR4_ByVal : CallingConv<[
   CCCustom<"CC_PPC32_SVR4_Custom_Dummy">
 ]>;
 
+def CSR_Altivec : CalleeSavedRegs<(add V20, V21, V22, V23, V24, V25, V26, V27,
+                                       V28, V29, V30, V31)>;
+
 def CSR_Darwin32 : CalleeSavedRegs<(add R13, R14, R15, R16, R17, R18, R19, R20,
                                         R21, R22, R23, R24, R25, R26, R27, R28,
                                         R29, R30, R31, F14, F15, F16, F17, F18,
                                         F19, F20, F21, F22, F23, F24, F25, F26,
-                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
-                                        V20, V21, V22, V23, V24, V25, V26, V27,
-                                        V28, V29, V30, V31)>;
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4
+                                   )>;
 
-def CSR_SVR432   : CalleeSavedRegs<(add R14, R15, R16, R17, R18, R19, R20, VRSAVE,
+def CSR_Darwin32_Altivec : CalleeSavedRegs<(add CSR_Darwin32, CSR_Altivec)>;
+
+def CSR_SVR432   : CalleeSavedRegs<(add R14, R15, R16, R17, R18, R19, R20,
                                         R21, R22, R23, R24, R25, R26, R27, R28,
                                         R29, R30, R31, F14, F15, F16, F17, F18,
                                         F19, F20, F21, F22, F23, F24, F25, F26,
-                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
-                                        V20, V21, V22, V23, V24, V25, V26, V27,
-                                        V28, V29, V30, V31)>;
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4
+                                   )>;
+
+def CSR_SVR432_Altivec : CalleeSavedRegs<(add CSR_SVR432, CSR_Altivec)>;
 
 def CSR_Darwin64 : CalleeSavedRegs<(add X13, X14, X15, X16, X17, X18, X19, X20,
                                         X21, X22, X23, X24, X25, X26, X27, X28,
                                         X29, X30, X31, F14, F15, F16, F17, F18,
                                         F19, F20, F21, F22, F23, F24, F25, F26,
-                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
-                                        V20, V21, V22, V23, V24, V25, V26, V27,
-                                        V28, V29, V30, V31)>;
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4
+                                   )>;
 
-def CSR_SVR464   : CalleeSavedRegs<(add X14, X15, X16, X17, X18, X19, X20, VRSAVE,
+def CSR_Darwin64_Altivec : CalleeSavedRegs<(add CSR_Darwin64, CSR_Altivec)>;
+
+def CSR_SVR464   : CalleeSavedRegs<(add X14, X15, X16, X17, X18, X19, X20,
                                         X21, X22, X23, X24, X25, X26, X27, X28,
                                         X29, X30, X31, F14, F15, F16, F17, F18,
                                         F19, F20, F21, F22, F23, F24, F25, F26,
-                                        F27, F28, F29, F30, F31, CR2, CR3, CR4,
-                                        V20, V21, V22, V23, V24, V25, V26, V27,
-                                        V28, V29, V30, V31)>;
+                                        F27, F28, F29, F30, F31, CR2, CR3, CR4
+                                   )>;
 
-def CSR_NoRegs : CalleeSavedRegs<(add VRSAVE)>;
-def CSR_NoRegs_Darwin : CalleeSavedRegs<(add)>;
 
-def CSR_NoRegs_Altivec : CalleeSavedRegs<(add (sequence "V%u", 0, 31), VRSAVE)>;
+def CSR_SVR464_Altivec : CalleeSavedRegs<(add CSR_SVR464, CSR_Altivec)>;
+
+def CSR_NoRegs : CalleeSavedRegs<(add)>;
 

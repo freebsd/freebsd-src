@@ -41,7 +41,9 @@ public:
   ///
   /// @returns False on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool allocateSpace(size_t Size, unsigned Alignment, uint64_t &Address);
+  virtual bool allocateSpace(size_t Size,
+                             unsigned Alignment,
+                             uint64_t &Address);
 
   /// Load data into the target address space.
   ///
@@ -51,7 +53,9 @@ public:
   ///
   /// @returns False on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool loadData(uint64_t Address, const void *Data, size_t Size);
+  virtual bool loadData(uint64_t Address,
+                        const void *Data,
+                        size_t Size);
 
   /// Load code into the target address space and prepare it for execution.
   ///
@@ -61,7 +65,9 @@ public:
   ///
   /// @returns False on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool loadCode(uint64_t Address, const void *Data, size_t Size);
+  virtual bool loadCode(uint64_t Address,
+                        const void *Data,
+                        size_t Size);
 
   /// Execute code in the target process. The called function is required
   /// to be of signature int "(*)(void)".
@@ -72,24 +78,29 @@ public:
   ///
   /// @returns False on success. On failure, ErrorMsg is updated with
   ///          descriptive text of the encountered error.
-  bool executeCode(uint64_t Address, int &RetVal);
+  virtual bool executeCode(uint64_t Address,
+                           int &RetVal);
 
   /// Minimum alignment for memory permissions. Used to seperate code and
   /// data regions to make sure data doesn't get marked as code or vice
   /// versa.
   ///
   /// @returns Page alignment return value. Default of 4k.
-  unsigned getPageAlignment() { return 4096; }
+  virtual unsigned getPageAlignment() { return 4096; }
 
   /// Start the remote process.
-  void create();
+  virtual void create();
 
   /// Terminate the remote process.
-  void stop();
+  virtual void stop();
 
   RemoteTarget() : ErrorMsg(""), IsRunning(false) {}
-  ~RemoteTarget() { if (IsRunning) stop(); }
+  virtual ~RemoteTarget() { if (IsRunning) stop(); }
 
+  // Create an instance of the system-specific remote target class.
+  static RemoteTarget *createRemoteTarget();
+  static RemoteTarget *createExternalRemoteTarget(std::string &ChildName);
+  static bool hostSupportsExternalRemoteTarget(); 
 private:
   // Main processing function for the remote target process. Command messages
   // are received on file descriptor CmdFD and responses come back on OutFD.

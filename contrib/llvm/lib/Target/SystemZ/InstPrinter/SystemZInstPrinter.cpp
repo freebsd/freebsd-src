@@ -114,10 +114,14 @@ void SystemZInstPrinter::printAccessRegOperand(const MCInst *MI, int OpNum,
   O << "%a" << (unsigned int)Value;
 }
 
-void SystemZInstPrinter::printCallOperand(const MCInst *MI, int OpNum,
-                                          raw_ostream &O) {
-  printOperand(MI, OpNum, O);
-  O << "@PLT";
+void SystemZInstPrinter::printPCRelOperand(const MCInst *MI, int OpNum,
+                                           raw_ostream &O) {
+  const MCOperand &MO = MI->getOperand(OpNum);
+  if (MO.isImm()) {
+    O << "0x";
+    O.write_hex(MO.getImm());
+  } else
+    O << *MO.getExpr();
 }
 
 void SystemZInstPrinter::printOperand(const MCInst *MI, int OpNum,
@@ -136,6 +140,17 @@ void SystemZInstPrinter::printBDXAddrOperand(const MCInst *MI, int OpNum,
   printAddress(MI->getOperand(OpNum).getReg(),
                MI->getOperand(OpNum + 1).getImm(),
                MI->getOperand(OpNum + 2).getReg(), O);
+}
+
+void SystemZInstPrinter::printBDLAddrOperand(const MCInst *MI, int OpNum,
+                                             raw_ostream &O) {
+  unsigned Base = MI->getOperand(OpNum).getReg();
+  uint64_t Disp = MI->getOperand(OpNum + 1).getImm();
+  uint64_t Length = MI->getOperand(OpNum + 2).getImm();
+  O << Disp << '(' << Length;
+  if (Base)
+    O << ",%" << getRegisterName(Base);
+  O << ')';
 }
 
 void SystemZInstPrinter::printCond4Operand(const MCInst *MI, int OpNum,
