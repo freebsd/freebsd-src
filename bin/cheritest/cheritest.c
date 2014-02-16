@@ -112,6 +112,7 @@ usage(void)
 	fprintf(stderr, "cheritest listprivregs\n");
 	fprintf(stderr, "cheritest listregs\n");
 	fprintf(stderr, "cheritest overrun\n");
+	fprintf(stderr, "cheritest revoke_fd\n");
 	fprintf(stderr, "cheritest sleep\n");
 	exit(EX_USAGE);
 }
@@ -274,6 +275,14 @@ cheritest_invoke_fd_op(int op)
 }
 
 static void
+cheritest_revoke_fd(void)
+{
+
+	cheri_fd_revoke(zero_fd_object);
+	printf("/dev/zero fd_object revoked\n");
+}
+
+static void
 cheritest_invoke_simple_op(int op)
 {
 	register_t v;
@@ -426,16 +435,16 @@ main(__unused int argc, __unused char *argv[])
 		else if (strcmp(argv[i], "invoke_divzero") == 0)
 			cheritest_invoke_simple_op(
 			    CHERITEST_HELPER_OP_DIVZERO);
-		else if (strcmp(argv[0], "invoke_fd_fstat_c") == 0)
+		else if (strcmp(argv[i], "invoke_fd_fstat_c") == 0)
 			cheritest_invoke_fd_op(
 			     CHERITEST_HELPER_OP_FD_FSTAT_C);
-		else if (strcmp(argv[0], "invoke_fd_lseek_c") == 0)
+		else if (strcmp(argv[i], "invoke_fd_lseek_c") == 0)
 			cheritest_invoke_fd_op(
 			     CHERITEST_HELPER_OP_FD_LSEEK_C);
-		else if (strcmp(argv[0], "invoke_fd_read_c") == 0)
+		else if (strcmp(argv[i], "invoke_fd_read_c") == 0)
 			cheritest_invoke_fd_op(
 			     CHERITEST_HELPER_OP_FD_READ_C);
-		else if (strcmp(argv[0], "invoke_fd_write_c") == 0)
+		else if (strcmp(argv[i], "invoke_fd_write_c") == 0)
 			cheritest_invoke_fd_op(
 			     CHERITEST_HELPER_OP_FD_WRITE_C);
 		else if (strcmp(argv[i], "invoke_helloworld") == 0)
@@ -475,6 +484,8 @@ main(__unused int argc, __unused char *argv[])
 			    CHERITEST_HELPER_OP_VM_XFAULT);
 		else if (strcmp(argv[i], "overrun") == 0)
 			cheritest_overrun();
+		else if (strcmp(argv[i], "revoke_fd") == 0)
+			cheritest_revoke_fd();
 		else if (strcmp(argv[i], "sleep") == 0)
 			sleep(10);
 		else
