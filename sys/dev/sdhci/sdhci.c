@@ -725,7 +725,7 @@ sdhci_timeout(void *arg)
 	struct sdhci_slot *slot = arg;
 
 	if (slot->curcmd != NULL) {
-		sdhci_reset(slot, SDHCI_RESET_ALL);
+		sdhci_reset(slot, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
 		slot->curcmd->error = MMC_ERR_TIMEOUT;
 		sdhci_req_done(slot);
 	}
@@ -850,8 +850,8 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	sdhci_set_transfer_mode(slot, cmd->data);
 	/* Start command. */
 	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
-	/* Start timeout callout; no command should take more than a second. */
-	callout_reset(&slot->timeout_callout, hz, sdhci_timeout, slot);
+	/* Start timeout callout. */
+	callout_reset(&slot->timeout_callout, 2*hz, sdhci_timeout, slot);
 }
 
 static void
