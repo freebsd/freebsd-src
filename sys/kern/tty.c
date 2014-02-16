@@ -191,8 +191,10 @@ ttydev_leave(struct tty *tp)
 
 	/* Drain any output. */
 	MPASS((tp->t_flags & TF_STOPPED) == 0);
-	if (!tty_gone(tp))
-		tty_drain(tp);
+	if (!tty_gone(tp)) {
+		while (tty_drain(tp) == ERESTART)
+			;
+	}
 
 	ttydisc_close(tp);
 
