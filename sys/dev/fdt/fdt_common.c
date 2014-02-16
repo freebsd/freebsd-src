@@ -223,6 +223,27 @@ fdt_find_compatible(phandle_t start, const char *compat, int strict)
 	return (0);
 }
 
+phandle_t
+fdt_depth_search_compatible(phandle_t start, const char *compat, int strict)
+{
+	phandle_t child, node;
+
+	/*
+	 * Depth-search all descendants of 'start' node, and find first with
+	 * matching 'compatible' property.
+	 */
+	for (node = OF_child(start); node != 0; node = OF_peer(node)) {
+		if (fdt_is_compatible(node, compat) && 
+		    (strict == 0 || fdt_is_compatible_strict(node, compat))) {
+			return (node);
+		}
+		child = fdt_search_compatible(node, compat, strict);
+		if (child != 0)
+			return (child);
+	}
+	return (0);
+}
+
 int
 fdt_is_enabled(phandle_t node)
 {
