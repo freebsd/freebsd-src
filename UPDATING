@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140216:
+	The nve(4) driver has been removed.  Please use the nfe(4) driver
+	for NVIDIA nForce MCP Ethernet adapters instead.
+
 20140212:
 	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
 	This could cause certain C++ applications using shared libraries built
