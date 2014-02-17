@@ -142,7 +142,6 @@ dtrace_sync(void)
 }
 
 #ifdef notyet
-int (*dtrace_fasttrap_probe_ptr)(struct regs *);
 int (*dtrace_pid_probe_ptr)(struct regs *);
 int (*dtrace_return_probe_ptr)(struct regs *);
 
@@ -212,13 +211,6 @@ dtrace_user_probe(struct regs *rp, caddr_t addr, processorid_t cpuid)
 			(void) (*dtrace_return_probe_ptr)(rp);
 		rw_exit(rwp);
 		rp->r_pc = npc;
-
-	} else if (rp->r_trapno == T_DTRACE_PROBE) {
-		rwp = &CPU->cpu_ft_lock;
-		rw_enter(rwp, RW_READER);
-		if (dtrace_fasttrap_probe_ptr != NULL)
-			(void) (*dtrace_fasttrap_probe_ptr)(rp);
-		rw_exit(rwp);
 
 	} else if (rp->r_trapno == T_BPTFLT) {
 		uint8_t instr;
