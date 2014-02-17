@@ -201,11 +201,15 @@ sdt_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *desc)
 	if (desc->dtargd_ndx < probe->n_args) {
 		TAILQ_FOREACH(argtype, &probe->argtype_list, argtype_entry) {
 			if (desc->dtargd_ndx == argtype->ndx) {
-				/* XXX */
 				desc->dtargd_mapping = desc->dtargd_ndx;
 				strlcpy(desc->dtargd_native, argtype->type,
 				    sizeof(desc->dtargd_native));
-				desc->dtargd_xlate[0] = '\0'; /* XXX */
+				if (argtype->xtype != NULL)
+					strlcpy(desc->dtargd_xlate,
+					    argtype->xtype,
+					    sizeof(desc->dtargd_xlate));
+				else
+					desc->dtargd_xlate[0] = '\0';
 			}
 		}
 	} else
