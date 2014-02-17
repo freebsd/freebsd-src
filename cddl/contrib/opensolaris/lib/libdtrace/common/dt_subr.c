@@ -730,11 +730,6 @@ dt_zalloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
 
-	if (size > 16 * 1024 * 1024) {
-		(void) dt_set_errno(dtp, EDT_NOMEM);
-		return (NULL);
-	}
-
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);
 	else
@@ -747,11 +742,6 @@ void *
 dt_alloc(dtrace_hdl_t *dtp, size_t size)
 {
 	void *data;
-
-	if (size > 16 * 1024 * 1024) {
-		(void) dt_set_errno(dtp, EDT_NOMEM);
-		return (NULL);
-	}
 
 	if ((data = malloc(size)) == NULL)
 		(void) dt_set_errno(dtp, EDT_NOMEM);
