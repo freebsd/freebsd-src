@@ -281,8 +281,6 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 
 #if !defined(sun)
 /* XXX FreeBSD hacks. */
-static kmutex_t		mod_lock;
-
 #define cr_suid		cr_svuid
 #define cr_sgid		cr_svgid
 #define	ipaddr_t	in_addr_t
@@ -7681,7 +7679,9 @@ dtrace_unregister(dtrace_provider_id_t id)
 		}
 	} else {
 		mutex_enter(&dtrace_provider_lock);
+#if defined(sun)
 		mutex_enter(&mod_lock);
+#endif
 		mutex_enter(&dtrace_lock);
 	}
 
@@ -7695,7 +7695,9 @@ dtrace_unregister(dtrace_provider_id_t id)
 	    dtrace_anon.dta_state->dts_necbs > 0))) {
 		if (!self) {
 			mutex_exit(&dtrace_lock);
+#if defined(sun)
 			mutex_exit(&mod_lock);
+#endif
 			mutex_exit(&dtrace_provider_lock);
 		}
 		return (EBUSY);
@@ -7729,7 +7731,9 @@ dtrace_unregister(dtrace_provider_id_t id)
 
 		if (!self) {
 			mutex_exit(&dtrace_lock);
+#if defined(sun)
 			mutex_exit(&mod_lock);
+#endif
 			mutex_exit(&dtrace_provider_lock);
 		}
 
@@ -7811,7 +7815,9 @@ dtrace_unregister(dtrace_provider_id_t id)
 
 	if (!self) {
 		mutex_exit(&dtrace_lock);
+#if defined(sun)
 		mutex_exit(&mod_lock);
+#endif
 		mutex_exit(&dtrace_provider_lock);
 	}
 
@@ -8131,6 +8137,7 @@ dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *prv)
 		 */
 		prv->dtpv_pops.dtps_provide(prv->dtpv_arg, desc);
 
+#if defined(sun)
 		/*
 		 * Now call the per-module provide operation.  We will grab
 		 * mod_lock to prevent the list from being modified.  Note
@@ -8139,7 +8146,6 @@ dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *prv)
 		 */
 		mutex_enter(&mod_lock);
 
-#if defined(sun)
 		ctl = &modules;
 		do {
 			if (ctl->mod_busy || ctl->mod_mp == NULL)
@@ -8148,9 +8154,9 @@ dtrace_probe_provide(dtrace_probedesc_t *desc, dtrace_provider_t *prv)
 			prv->dtpv_pops.dtps_provide_module(prv->dtpv_arg, ctl);
 
 		} while ((ctl = ctl->mod_next) != &modules);
-#endif
 
 		mutex_exit(&mod_lock);
+#endif
 	} while (all && (prv = prv->dtpv_next) != NULL);
 }
 
@@ -15143,7 +15149,9 @@ dtrace_module_loaded(modctl_t *ctl)
 	dtrace_provider_t *prv;
 
 	mutex_enter(&dtrace_provider_lock);
+#if defined(sun)
 	mutex_enter(&mod_lock);
+#endif
 
 #if defined(sun)
 	ASSERT(ctl->mod_busy);
@@ -15156,7 +15164,9 @@ dtrace_module_loaded(modctl_t *ctl)
 	for (prv = dtrace_provider; prv != NULL; prv = prv->dtpv_next)
 		prv->dtpv_pops.dtps_provide_module(prv->dtpv_arg, ctl);
 
+#if defined(sun)
 	mutex_exit(&mod_lock);
+#endif
 	mutex_exit(&dtrace_provider_lock);
 
 	/*
@@ -15218,7 +15228,9 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 #endif
 
 	mutex_enter(&dtrace_provider_lock);
+#if defined(sun)
 	mutex_enter(&mod_lock);
+#endif
 	mutex_enter(&dtrace_lock);
 
 #if !defined(sun)
@@ -15239,7 +15251,9 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 		 * we don't have any work to do.
 		 */
 		mutex_exit(&dtrace_provider_lock);
+#if defined(sun)
 		mutex_exit(&mod_lock);
+#endif
 		mutex_exit(&dtrace_lock);
 		return;
 	}
@@ -15248,7 +15262,9 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 	    probe != NULL; probe = probe->dtpr_nextmod) {
 		if (probe->dtpr_ecb != NULL) {
 			mutex_exit(&dtrace_provider_lock);
+#if defined(sun)
 			mutex_exit(&mod_lock);
+#endif
 			mutex_exit(&dtrace_lock);
 
 			/*
@@ -15320,7 +15336,9 @@ dtrace_module_unloaded(modctl_t *ctl, int *error)
 	}
 
 	mutex_exit(&dtrace_lock);
+#if defined(sun)
 	mutex_exit(&mod_lock);
+#endif
 	mutex_exit(&dtrace_provider_lock);
 }
 

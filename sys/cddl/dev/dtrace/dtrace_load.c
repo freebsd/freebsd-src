@@ -63,12 +63,6 @@ dtrace_load(void *dummy)
 	    dtrace_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
 
 	/*
-	 * XXX This is a short term hack to avoid having to comment
-	 * out lots and lots of lock/unlock calls.
-	 */
-	mutex_init(&mod_lock,"XXX mod_lock hack", MUTEX_DEFAULT, NULL);
-
-	/*
 	 * Initialise the mutexes without 'witness' because the dtrace
 	 * code is mostly written to wait for memory. To have the
 	 * witness code change a malloc() from M_WAITOK to M_NOWAIT
