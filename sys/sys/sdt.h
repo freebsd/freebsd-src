@@ -87,7 +87,7 @@
 #define SDT_PROBE_DEFINE(prov, mod, func, name, sname)
 #define SDT_PROBE_DECLARE(prov, mod, func, name)
 #define SDT_PROBE(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4)
-#define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)
+#define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type, xtype)
 
 #define	SDT_PROBE_DEFINE0(prov, mod, func, name, sname)
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)
@@ -109,6 +109,22 @@
 #define	SDT_PROBE6(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5)
 #define	SDT_PROBE7(prov, mod, func, name, arg0, arg1, arg2, arg3, arg4, arg5,  \
     arg6)
+
+#define	SDT_PROBE_DEFINE0_XLATE(prov, mod, func, name, sname)
+#define	SDT_PROBE_DEFINE1_XLATE(prov, mod, func, name, sname, arg0, xarg0)
+#define	SDT_PROBE_DEFINE2_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1, xarg1)
+#define	SDT_PROBE_DEFINE3_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1, xarg1, arg2, xarg2)
+#define SDT_PROBE_DEFINE4_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3)
+#define	SDT_PROBE_DEFINE5_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4)
+#define	SDT_PROBE_DEFINE6_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1,  xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4, arg5, xarg5)
+#define	SDT_PROBE_DEFINE7_XLATE(prov, mod, func, name, sname, arg0, xarg0,     \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4, arg5, xarg5, arg6,     \
+    xarg6)
 
 #else
 
@@ -143,9 +159,9 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 		    (uintptr_t) arg3, (uintptr_t) arg4);			\
 } while (0)
 
-#define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type)			\
+#define SDT_PROBE_ARGTYPE(prov, mod, func, name, num, type, xtype)		\
 	static struct sdt_argtype sdt_##prov##_##mod##_##func##_##name##num[1]	\
-	    = { { num, type, { NULL, NULL },					\
+	    = { { num, type, xtype, { NULL, NULL },				\
 	    sdt_##prov##_##mod##_##func##_##name }				\
 	};									\
 	DATA_SET(sdt_argtypes_set, sdt_##prov##_##mod##_##func##_##name##num);
@@ -155,54 +171,113 @@ SET_DECLARE(sdt_argtypes_set, struct sdt_argtype);
 
 #define	SDT_PROBE_DEFINE1(prov, mod, func, name, sname, arg0)		\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0)
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL)
 
 #define	SDT_PROBE_DEFINE2(prov, mod, func, name, sname, arg0, arg1)	\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1)
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL)
 
 #define	SDT_PROBE_DEFINE3(prov, mod, func, name, sname, arg0, arg1, arg2)\
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2)
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, NULL)
 
 #define	SDT_PROBE_DEFINE4(prov, mod, func, name, sname, arg0, arg1, arg2, arg3) \
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3)
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, NULL)
 
 #define	SDT_PROBE_DEFINE5(prov, mod, func, name, sname, arg0, arg1, arg2, arg3, arg4) \
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4)
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, NULL)
 
 #define	SDT_PROBE_DEFINE6(prov, mod, func, name, sname, arg0, arg1, arg2, arg3,\
     arg4, arg5) \
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5);
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5, NULL)
 
 #define	SDT_PROBE_DEFINE7(prov, mod, func, name, sname, arg0, arg1, arg2, arg3,\
     arg4, arg5, arg6) \
 	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5);		\
-	SDT_PROBE_ARGTYPE(prov, mod, func, name, 6, arg6);
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5, NULL);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 6, arg6, NULL)
+
+#define	SDT_PROBE_DEFINE0_XLATE(prov, mod, func, name, sname)		\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname)
+
+#define	SDT_PROBE_DEFINE1_XLATE(prov, mod, func, name, sname, arg0, xarg0) \
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0)
+
+#define	SDT_PROBE_DEFINE2_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1,  xarg1)							\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1)
+
+#define	SDT_PROBE_DEFINE3_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1, xarg1, arg2, xarg2)						\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, xarg2)
+
+#define	SDT_PROBE_DEFINE4_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3)				\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, xarg2);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, xarg3)
+
+#define	SDT_PROBE_DEFINE5_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4)			\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, xarg2);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, xarg3);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, xarg4)
+
+#define	SDT_PROBE_DEFINE6_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4, arg5, xarg5)	\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, xarg2);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, xarg3);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, xarg4);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5, xarg5)
+
+#define	SDT_PROBE_DEFINE7_XLATE(prov, mod, func, name, sname, arg0, xarg0, \
+    arg1, xarg1, arg2, xarg2, arg3, xarg3, arg4, xarg4, arg5, xarg5, arg6, \
+    xarg6)								\
+	SDT_PROBE_DEFINE(prov, mod, func, name, sname);			\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 0, arg0, xarg0);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 1, arg1, xarg1);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 2, arg2, xarg2);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 3, arg3, xarg3);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 4, arg4, xarg4);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 5, arg5, xarg5);	\
+	SDT_PROBE_ARGTYPE(prov, mod, func, name, 6, arg6, xarg6)
 
 #define	SDT_PROBE0(prov, mod, func, name)				\
 	SDT_PROBE(prov, mod, func, name, 0, 0, 0, 0, 0)
@@ -257,12 +332,12 @@ struct sdt_provider;
 struct linker_file;
 
 struct sdt_argtype {
-	int	ndx;			/* Argument index. */
-	const char *type;		/* Argument type string. */
+	int		ndx;		/* Argument index. */
+	const char	*type;		/* Argument type string. */
+	const char	*xtype;		/* Translated argument type. */
 	TAILQ_ENTRY(sdt_argtype)
 			argtype_entry;	/* Argument type list entry. */
-	struct sdt_probe
-			*probe;		/* Ptr to the probe structure. */
+	struct sdt_probe *probe;	/* Ptr to the probe structure. */
 };
 
 struct sdt_probe {
