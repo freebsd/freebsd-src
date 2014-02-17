@@ -133,7 +133,7 @@ mac_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd, int prot,
 }
 
 MAC_CHECK_PROBE_DEFINE3(posixshm_check_open, "struct ucred *",
-    "struct shmfd *", "accmode_t accmode");
+    "struct shmfd *", "accmode_t");
 
 int
 mac_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,

@@ -95,7 +95,7 @@ SDT_PROVIDER_DEFINE(mac);
 SDT_PROVIDER_DEFINE(mac_framework);
 
 SDT_PROBE_DEFINE2(mac, kernel, policy, modevent, modevent, "int",
-    "struct mac_policy_conf *mpc");
+    "struct mac_policy_conf *");
 SDT_PROBE_DEFINE1(mac, kernel, policy, register, register,
     "struct mac_policy_conf *");
 SDT_PROBE_DEFINE1(mac, kernel, policy, unregister, unregister,
