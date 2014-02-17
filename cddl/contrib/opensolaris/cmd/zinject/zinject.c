@@ -147,6 +147,7 @@
 #include <sys/mount.h>
 
 #include <libzfs.h>
+#include <libzfs_compat.h>
 
 #undef verify	/* both libzfs.h and zfs_context.h want to define this */
 
