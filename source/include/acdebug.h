@@ -45,6 +45,8 @@
 #define __ACDEBUG_H__
 
 
+#pragma pack(push) /* Set default struct packing */
+
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
 typedef struct acpi_db_command_info
@@ -465,5 +467,7 @@ void
 AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer);
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif  /* __ACDEBUG_H__ */

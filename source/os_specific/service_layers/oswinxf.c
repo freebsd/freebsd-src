@@ -238,10 +238,6 @@ AcpiOsTableOverride (
     ACPI_TABLE_HEADER       *ExistingTable,
     ACPI_TABLE_HEADER       **NewTable)
 {
-#ifdef ACPI_ASL_COMPILER
-    ACPI_STATUS             Status;
-    ACPI_PHYSICAL_ADDRESS   Address;
-#endif
 
     if (!ExistingTable || !NewTable)
     {
@@ -256,29 +252,6 @@ AcpiOsTableOverride (
     /* Call back up to AcpiExec */
 
     AeTableOverride (ExistingTable, NewTable);
-#endif
-
-
-#ifdef ACPI_ASL_COMPILER
-
-    /* Attempt to get the table from the registry */
-
-    /* Construct a null-terminated string from table signature */
-
-    ACPI_MOVE_NAME (TableName, ExistingTable->Signature);
-    TableName[ACPI_NAME_SIZE] = 0;
-
-    Status = AcpiOsGetTableByName (TableName, 0, NewTable, &Address);
-    if (ACPI_SUCCESS (Status))
-    {
-        AcpiOsPrintf ("Table [%s] obtained from registry, %u bytes\n",
-            TableName, (*NewTable)->Length);
-    }
-    else
-    {
-        AcpiOsPrintf ("Could not read table %s from registry (%s)\n",
-            TableName, AcpiFormatException (Status));
-    }
 #endif
 
     return (AE_OK);

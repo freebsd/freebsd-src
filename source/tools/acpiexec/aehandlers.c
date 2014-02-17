@@ -1507,7 +1507,7 @@ AeRegionHandler (
                     BufferResize = TRUE;
                 }
 
-                 else if ((BaseAddressEnd >= RegionAddress) &&
+                else if ((BaseAddressEnd >= RegionAddress) &&
                          (BaseAddressEnd <= RegionAddressEnd) &&
                          (BaseAddress < RegionAddress))
                 {

@@ -47,12 +47,14 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20140114
+#define ACPI_CA_VERSION                 0x20140214
 
 #include "acconfig.h"
 #include "actypes.h"
 #include "actbl.h"
 #include "acbuffer.h"
+
+#pragma pack(push) /* Set default struct packing */
 
 /*
  * Globals that are publically available
@@ -70,7 +72,7 @@ extern UINT32               AcpiDbgLayer;
 
 /* ACPICA runtime options */
 
-extern UINT8                AcpiGbl_AllMethodsSerialized;
+extern UINT8                AcpiGbl_AutoSerializeMethods;
 extern UINT8                AcpiGbl_CopyDsdtLocally;
 extern UINT8                AcpiGbl_CreateOsiMethod;
 extern UINT8                AcpiGbl_DisableAutoRepair;
@@ -830,5 +832,7 @@ AcpiDebugPrintRaw (
     const char              *Format,
     ...);
 #endif
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACXFACE_H__ */

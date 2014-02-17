@@ -280,6 +280,10 @@ ApCheckRegMethod (
  * aslerror - error handling/reporting
  */
 void
+AslAbort (
+    void);
+
+void
 AslError (
     UINT8                   Level,
     UINT8                   MessageId,
@@ -702,10 +706,6 @@ TrLinkPeerNodes (
 /*
  * aslfiles - File I/O support
  */
-void
-AslAbort (
-    void);
-
 void
 FlAddIncludeDirectory (
     char                    *Dir);

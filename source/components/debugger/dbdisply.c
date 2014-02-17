@@ -303,6 +303,10 @@ AcpiDbDecodeAndDisplayObject (
 
             /* Is not a recognizeable object */
 
+            AcpiOsPrintf (
+                "Not a known ACPI internal object, descriptor type %2.2X\n",
+                ACPI_GET_DESCRIPTOR_TYPE (ObjPtr));
+
             Size = 16;
             if (AcpiOsReadable (ObjPtr, 64))
             {

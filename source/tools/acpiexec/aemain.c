@@ -126,13 +126,13 @@ usage (
     ACPI_OPTION ("-di",                 "Disable execution of STA/INI methods during init");
     ACPI_OPTION ("-do",                 "Disable Operation Region address simulation");
     ACPI_OPTION ("-dr",                 "Disable repair of method return values");
+    ACPI_OPTION ("-ds",                 "Disable method auto-serialization");
     ACPI_OPTION ("-dt",                 "Disable allocation tracking (performance)");
     printf ("\n");
 
     ACPI_OPTION ("-ef",                 "Enable display of final memory statistics");
     ACPI_OPTION ("-ei",                 "Enable additional tests for ACPICA interfaces");
     ACPI_OPTION ("-el",                 "Enable loading of additional test tables");
-    ACPI_OPTION ("-em",                 "Enable Interpreter Serialized Mode");
     ACPI_OPTION ("-es",                 "Enable Interpreter Slack Mode");
     ACPI_OPTION ("-et",                 "Enable debug semaphore timeout");
     printf ("\n");
@@ -204,6 +204,11 @@ AeDoOptions (
             AcpiGbl_DisableAutoRepair = TRUE;
             break;
 
+        case 's':
+
+            AcpiGbl_AutoSerializeMethods = FALSE;
+            break;
+
         case 't':
 
             #ifdef ACPI_DBG_TRACK_ALLOCATIONS
@@ -237,12 +242,6 @@ AeDoOptions (
         case 'l':
 
             AcpiGbl_LoadTestTables = TRUE;
-            break;
-
-        case 'm':
-
-            AcpiGbl_AllMethodsSerialized = TRUE;
-            printf ("Enabling AML Interpreter serialized mode\n");
             break;
 
         case 's':

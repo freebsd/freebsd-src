@@ -144,13 +144,13 @@ AcpiNsCheckPackage (
      * Decode the type of the expected package contents
      *
      * PTYPE1 packages contain no subpackages
-     * PTYPE2 packages contain sub-packages
+     * PTYPE2 packages contain subpackages
      */
     switch (Package->RetInfo.Type)
     {
     case ACPI_PTYPE1_FIXED:
         /*
-         * The package count is fixed and there are no sub-packages
+         * The package count is fixed and there are no subpackages
          *
          * If package is too small, exit.
          * If package is larger than expected, issue warning but continue
@@ -177,7 +177,7 @@ AcpiNsCheckPackage (
 
     case ACPI_PTYPE1_VAR:
         /*
-         * The package count is variable, there are no sub-packages, and all
+         * The package count is variable, there are no subpackages, and all
          * elements must be of the same type
          */
         for (i = 0; i < Count; i++)
@@ -194,7 +194,7 @@ AcpiNsCheckPackage (
 
     case ACPI_PTYPE1_OPTION:
         /*
-         * The package count is variable, there are no sub-packages. There are
+         * The package count is variable, there are no subpackages. There are
          * a fixed number of required elements, and a variable number of
          * optional elements.
          *
@@ -250,14 +250,14 @@ AcpiNsCheckPackage (
         Elements++;
         Count--;
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         Status = AcpiNsCheckPackageList (Info, Package, Elements, Count);
         break;
 
     case ACPI_PTYPE2_PKG_COUNT:
 
-        /* First element is the (Integer) count of sub-packages to follow */
+        /* First element is the (Integer) count of subpackages to follow */
 
         Status = AcpiNsCheckObjectType (Info, Elements,
                     ACPI_RTYPE_INTEGER, 0);
@@ -279,7 +279,7 @@ AcpiNsCheckPackage (
         Count = ExpectedCount;
         Elements++;
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         Status = AcpiNsCheckPackageList (Info, Package, Elements, Count);
         break;
@@ -291,9 +291,9 @@ AcpiNsCheckPackage (
     case ACPI_PTYPE2_FIX_VAR:
         /*
          * These types all return a single Package that consists of a
-         * variable number of sub-Packages.
+         * variable number of subpackages.
          *
-         * First, ensure that the first element is a sub-Package. If not,
+         * First, ensure that the first element is a subpackage. If not,
          * the BIOS may have incorrectly returned the object as a single
          * package instead of a Package of Packages (a common error if
          * there is only one entry). We may be able to repair this by
@@ -316,7 +316,7 @@ AcpiNsCheckPackage (
             Count = 1;
         }
 
-        /* Examine the sub-packages */
+        /* Examine the subpackages */
 
         Status = AcpiNsCheckPackageList (Info, Package, Elements, Count);
         break;
@@ -379,9 +379,9 @@ AcpiNsCheckPackageList (
 
 
     /*
-     * Validate each sub-Package in the parent Package
+     * Validate each subpackage in the parent Package
      *
-     * NOTE: assumes list of sub-packages contains no NULL elements.
+     * NOTE: assumes list of subpackages contains no NULL elements.
      * Any NULL elements should have been removed by earlier call
      * to AcpiNsRemoveNullElements.
      */
@@ -400,7 +400,7 @@ AcpiNsCheckPackageList (
             return (Status);
         }
 
-        /* Examine the different types of expected sub-packages */
+        /* Examine the different types of expected subpackages */
 
         Info->ParentPackage = SubPackage;
         switch (Package->RetInfo.Type)
@@ -452,7 +452,7 @@ AcpiNsCheckPackageList (
 
         case ACPI_PTYPE2_FIXED:
 
-            /* Each sub-package has a fixed length */
+            /* Each subpackage has a fixed length */
 
             ExpectedCount = Package->RetInfo2.Count;
             if (SubPackage->Package.Count < ExpectedCount)
@@ -460,7 +460,7 @@ AcpiNsCheckPackageList (
                 goto PackageTooSmall;
             }
 
-            /* Check the type of each sub-package element */
+            /* Check the type of each subpackage element */
 
             for (j = 0; j < ExpectedCount; j++)
             {
@@ -475,7 +475,7 @@ AcpiNsCheckPackageList (
 
         case ACPI_PTYPE2_MIN:
 
-            /* Each sub-package has a variable but minimum length */
+            /* Each subpackage has a variable but minimum length */
 
             ExpectedCount = Package->RetInfo.Count1;
             if (SubPackage->Package.Count < ExpectedCount)
@@ -483,7 +483,7 @@ AcpiNsCheckPackageList (
                 goto PackageTooSmall;
             }
 
-            /* Check the type of each sub-package element */
+            /* Check the type of each subpackage element */
 
             Status = AcpiNsCheckPackageElements (Info, SubElements,
                         Package->RetInfo.ObjectType1,
@@ -532,7 +532,7 @@ AcpiNsCheckPackageList (
                 (*SubElements)->Integer.Value = ExpectedCount;
             }
 
-            /* Check the type of each sub-package element */
+            /* Check the type of each subpackage element */
 
             Status = AcpiNsCheckPackageElements (Info, (SubElements + 1),
                         Package->RetInfo.ObjectType1,
@@ -556,10 +556,10 @@ AcpiNsCheckPackageList (
 
 PackageTooSmall:
 
-    /* The sub-package count was smaller than required */
+    /* The subpackage count was smaller than required */
 
     ACPI_WARN_PREDEFINED ((AE_INFO, Info->FullPathname, Info->NodeFlags,
-        "Return Sub-Package[%u] is too small - found %u elements, expected %u",
+        "Return SubPackage[%u] is too small - found %u elements, expected %u",
         i, SubPackage->Package.Count, ExpectedCount));
 
     return (AE_AML_OPERAND_VALUE);

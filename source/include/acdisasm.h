@@ -47,6 +47,8 @@
 #include "amlresrc.h"
 
 
+#pragma pack(push) /* Set default struct packing */
+
 #define BLOCK_NONE              0
 #define BLOCK_PAREN             1
 #define BLOCK_BRACE             2
@@ -928,5 +930,7 @@ void
 AdDisassemblerHeader (
     char                    *Filename);
 
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif  /* __ACDISASM_H__ */

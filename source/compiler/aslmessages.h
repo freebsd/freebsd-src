@@ -445,7 +445,7 @@ char                        *AslMessages [] =
 /*    ASL_MSG_INVALID_FIELD_NAME */         "Invalid Field Name",
 /*    ASL_MSG_INVALID_HEX_INTEGER */        "Invalid hex integer constant",
 /*    ASL_MSG_OEM_TABLE */                  "OEM table - unknown contents",
-/*    ASL_MSG_RESERVED_VALUE */             "Reserved field must be zero",
+/*    ASL_MSG_RESERVED_VALUE */             "Reserved field",
 /*    ASL_MSG_UNKNOWN_LABEL */              "Label is undefined",
 /*    ASL_MSG_UNKNOWN_SUBTABLE */           "Unknown subtable type",
 /*    ASL_MSG_UNKNOWN_TABLE */              "Unknown ACPI table signature",

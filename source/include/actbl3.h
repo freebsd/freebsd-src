@@ -45,6 +45,8 @@
 #define __ACTBL3_H__
 
 
+#pragma pack(push) /* Set default struct packing */
+
 /*******************************************************************************
  *
  * Additional ACPI Tables (3)
@@ -732,8 +734,6 @@ typedef struct acpi_tpm2_control
 } ACPI_TPM2_CONTROL;
 
 
-/* Reset to default packing */
-
-#pragma pack()
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACTBL3_H__ */

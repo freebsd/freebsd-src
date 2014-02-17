@@ -47,6 +47,8 @@
 #define __AMLRESRC_H
 
 
+#pragma pack(push) /* Set default struct packing */
+
 /*
  * Resource descriptor tags, as defined in the ACPI specification.
  * Used to symbolically reference fields within a descriptor.
@@ -573,5 +575,8 @@ typedef union aml_resource
     UINT8                                   ByteItem;
 
 } AML_RESOURCE;
+
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif
