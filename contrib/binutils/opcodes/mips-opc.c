@@ -206,6 +206,7 @@ const struct mips_opcode mips_builtin_opcodes[] =
 {"cfromptr", "+w,+b,m",	    0x48800007, 0xffe0003f, 0, 0, I1},
 {"ccheckperm", "+w,m",      0x49600000, 0xffe0f83f, 0, 0, I1},
 {"cchecktype", "+w,+b",     0x49600001, 0xffe007ff, 0, 0, I1},
+{"ctoptr",   "t,+b,+v",     0x49800000, 0xffe0003f, 0, 0, I1},
 {"csc",      "+x,d,+o(+w)", 0xf8000000, 0xfc000000, 0, 0, I1},
 {"clc",      "+x,d,+o(+w)", 0xd8000000, 0xfc000000, 0, 0, I1},
 {"cscr",     "+x,d(+w)",    0xf8000000, 0xfc0007ff, 0, 0, I1},
