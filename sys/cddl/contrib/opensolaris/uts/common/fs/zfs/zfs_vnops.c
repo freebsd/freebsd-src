@@ -1625,6 +1625,9 @@ zfs_create(vnode_t *dvp, char *name, vattr_t *vap, int excl, int mode,
 			return (error);
 		}
 	}
+
+	getnewvnode_reserve(1);
+
 top:
 	*vpp = NULL;
 
@@ -1653,6 +1656,7 @@ top:
 				zfs_acl_ids_free(&acl_ids);
 			if (strcmp(name, "..") == 0)
 				error = SET_ERROR(EISDIR);
+			getnewvnode_drop_reserve();
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -1721,6 +1725,7 @@ top:
 			}
 			zfs_acl_ids_free(&acl_ids);
 			dmu_tx_abort(tx);
+			getnewvnode_drop_reserve();
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
@@ -1787,6 +1792,7 @@ top:
 		}
 	}
 out:
+	getnewvnode_drop_reserve();
 	if (dl)
 		zfs_dirent_unlock(dl);
 
@@ -2130,6 +2136,9 @@ zfs_mkdir(vnode_t *dvp, char *dirname, vattr_t *vap, vnode_t **vpp, cred_t *cr,
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
+
+	getnewvnode_reserve(1);
+
 	/*
 	 * First make sure the new directory doesn't exist.
 	 *
@@ -2143,6 +2152,7 @@ top:
 	if (error = zfs_dirent_lock(&dl, dzp, dirname, &zp, zf,
 	    NULL, NULL)) {
 		zfs_acl_ids_free(&acl_ids);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2150,6 +2160,7 @@ top:
 	if (error = zfs_zaccess(dzp, ACE_ADD_SUBDIRECTORY, 0, B_FALSE, cr)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2157,6 +2168,7 @@ top:
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EDQUOT));
 	}
@@ -2189,6 +2201,7 @@ top:
 		}
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -2217,6 +2230,8 @@ top:
 	zfs_acl_ids_free(&acl_ids);
 
 	dmu_tx_commit(tx);
+
+	getnewvnode_drop_reserve();
 
 	zfs_dirent_unlock(dl);
 
@@ -4109,6 +4124,9 @@ zfs_symlink(vnode_t *dvp, vnode_t **vpp, char *name, vattr_t *vap, char *link,
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
+
+	getnewvnode_reserve(1);
+
 top:
 	/*
 	 * Attempt to lock directory; fail if entry already exists.
@@ -4116,6 +4134,7 @@ top:
 	error = zfs_dirent_lock(&dl, dzp, name, &zp, zflg, NULL, NULL);
 	if (error) {
 		zfs_acl_ids_free(&acl_ids);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4123,6 +4142,7 @@ top:
 	if (error = zfs_zaccess(dzp, ACE_ADD_FILE, 0, B_FALSE, cr)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4130,6 +4150,7 @@ top:
 	if (zfs_acl_ids_overquota(zfsvfs, &acl_ids)) {
 		zfs_acl_ids_free(&acl_ids);
 		zfs_dirent_unlock(dl);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (SET_ERROR(EDQUOT));
 	}
@@ -4157,6 +4178,7 @@ top:
 		}
 		zfs_acl_ids_free(&acl_ids);
 		dmu_tx_abort(tx);
+		getnewvnode_drop_reserve();
 		ZFS_EXIT(zfsvfs);
 		return (error);
 	}
@@ -4194,6 +4216,8 @@ top:
 	zfs_acl_ids_free(&acl_ids);
 
 	dmu_tx_commit(tx);
+
+	getnewvnode_drop_reserve();
 
 	zfs_dirent_unlock(dl);
 
