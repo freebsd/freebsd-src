@@ -39,6 +39,8 @@
 #define	MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
 
 /* Atheros specific MII registers */
+#define	MII_ATH_MMD_ADDR		0x0d
+#define	MII_ATH_MMD_DATA		0x0e
 #define	MII_ATH_DBG_ADDR		0x1d
 #define	MII_ATH_DBG_DATA		0x1e
 
