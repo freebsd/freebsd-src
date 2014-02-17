@@ -20,7 +20,7 @@
  */
 
 /*
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
@@ -163,4 +163,7 @@ zpool_feature_init(void)
 	zfeature_register(SPA_FEATURE_MULTI_VDEV_CRASH_DUMP,
 	    "com.joyent:multi_vdev_crash_dump", "multi_vdev_crash_dump",
 	    "Crash dumps to multiple vdev pools.", B_FALSE, B_FALSE, NULL);
+	zfeature_register(SPA_FEATURE_SPACEMAP_HISTOGRAM,
+	    "com.delphix:spacemap_histogram", "spacemap_histogram",
+	    "Spacemaps maintain space histograms.", B_TRUE, B_FALSE, NULL);
 }
