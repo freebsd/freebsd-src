@@ -59,8 +59,8 @@ dtrace_load(void *dummy)
 	/* Register callbacks for linker file load and unload events. */
 	dtrace_kld_load_tag = EVENTHANDLER_REGISTER(kld_load,
 	    dtrace_kld_load, NULL, EVENTHANDLER_PRI_ANY);
-	dtrace_kld_unload_tag = EVENTHANDLER_REGISTER(kld_unload,
-	    dtrace_kld_unload, NULL, EVENTHANDLER_PRI_ANY);
+	dtrace_kld_unload_try_tag = EVENTHANDLER_REGISTER(kld_unload_try,
+	    dtrace_kld_unload_try, NULL, EVENTHANDLER_PRI_ANY);
 
 	/*
 	 * XXX This is a short term hack to avoid having to comment
