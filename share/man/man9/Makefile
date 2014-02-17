@@ -232,6 +232,7 @@ MAN=	accept_filter.9 \
 	rwlock.9 \
 	sbuf.9 \
 	scheduler.9 \
+	SDT.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
@@ -1085,6 +1086,11 @@ MLINKS+=scheduler.9 curpriority_cmp.9 \
 	scheduler.9 sched_setup.9 \
 	scheduler.9 setrunnable.9 \
 	scheduler.9 updatepri.9
+MLINKS+=SDT.9 SDT_PROVIDER_DECLARE.9 \
+	SDT.9 SDT_PROVIDER_DEFINE.9 \
+	SDT.9 SDT_PROBE_DECLARE.9 \
+	SDT.9 SDT_PROBE_DEFINE.9 \
+	SDT.9 SDT_PROBE.9
 MLINKS+=securelevel_gt.9 securelevel_ge.9
 MLINKS+=selrecord.9 seldrain.9 \
 	selrecord.9 selwakeup.9
