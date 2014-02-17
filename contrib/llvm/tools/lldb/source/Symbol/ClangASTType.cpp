@@ -1476,6 +1476,9 @@ ClangASTType::GetTypeClass () const
         case clang::Type::Decltype:                 break;
         case clang::Type::TemplateSpecialization:   break;
         case clang::Type::Atomic:                   break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:                  break;
     }
     // We don't know hot to display this type...
     return lldb::eTypeClassOther;
@@ -1912,6 +1915,9 @@ ClangASTType::GetEncoding (uint64_t &count) const
         case clang::Type::Decltype:
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:
             break;
     }
     count = 0;
@@ -2040,6 +2046,10 @@ ClangASTType::GetFormat () const
         case clang::Type::Decltype:
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
+            break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:
             break;
     }
     // We don't know hot to display this type...
@@ -5227,6 +5237,9 @@ ClangASTType::GetDeclContextForType () const
         case clang::Type::InjectedClassName:        break;
         case clang::Type::DependentName:            break;
         case clang::Type::Atomic:                   break;
+
+        // pointer type decayed from an array or function type.
+        case clang::Type::Decayed:                  break;
     }
     // No DeclContext in this type...
     return NULL;
