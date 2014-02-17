@@ -3584,7 +3584,7 @@ ofed/drivers/infiniband/hw/mlx4/alias_GUID.c    optional mlx4ib         \
         compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/mcg.c           optional mlx4ib         \
         no-depend obj-prefix "mlx4ib_"                                  \
-        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/ -Wno-unused"
+        compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
 ofed/drivers/infiniband/hw/mlx4/sysfs.c         optional mlx4ib         \
         no-depend obj-prefix "mlx4ib_"                                  \
         compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/infiniband/hw/mlx4/"
@@ -3648,7 +3648,7 @@ ofed/drivers/net/mlx4/main.c			optional mlx4ib | mlxen	\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
 ofed/drivers/net/mlx4/mcg.c			optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
-	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
+	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/ -Wno-unused"
 ofed/drivers/net/mlx4/mr.c			optional mlx4ib | mlxen	\
 	no-depend obj-prefix "mlx4_"					\
 	compile-with "${OFED_C_NOIMP} -I$S/ofed/drivers/net/mlx4/"
