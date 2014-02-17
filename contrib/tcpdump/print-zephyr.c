@@ -114,7 +114,7 @@ static const char *
 z_triple(packetbody_t class, packetbody_t inst, packetbody_t recipient)
 {
     if (!*recipient)
-	recipient = (__capability const char *)"*";
+	recipient = (__capability char *)"*";
     snprintf(z_buf, sizeof(z_buf), "<%s,%s,%s>", class, inst, recipient);
     z_buf[sizeof(z_buf)-1] = '\0';
     return z_buf;
@@ -125,7 +125,7 @@ str_to_lower(packetbody_t string)
 {
     char *s;
 
-    cstrncpy(cheri_ptr(z_buf, sizeof(z_buf)), string, sizeof(z_buf));
+    p_strncpy(z_buf, string, sizeof(z_buf));
     z_buf[sizeof(z_buf)-1] = '\0';
 
     s = z_buf;
@@ -161,7 +161,7 @@ zephyr_print(packetbody_t cp, int length)
 
 #define PARSE_FIELD_INT(field)			\
 	PARSE_STRING				\
-	if (!lose) field = cstrtol(s, 0, 16);
+	if (!lose) field = p_strtol(s, 0, 16);
 
 #define PARSE_FIELD_STR(field)			\
 	PARSE_STRING				\
@@ -169,7 +169,7 @@ zephyr_print(packetbody_t cp, int length)
 
     PARSE_FIELD_STR(z.version);
     if (lose) return;
-    if (cstrncmp(z.version, (__capability const char *)"ZEPH", 4))
+    if (p_strcmp_static(z.version, "ZEPH"))
 	return;
 
     PARSE_FIELD_INT(z.numfields);
@@ -195,7 +195,7 @@ zephyr_print(packetbody_t cp, int length)
     }
 
     printf(" zephyr");
-    if (cstrncmp(z.version+4, (__capability const char *)"0.2", 3)) {
+    if (p_strcmp_static(z.version+4, "0.2")) {
 	printf(" v%s", z.version+4);
 	return;
     }
@@ -205,34 +205,34 @@ zephyr_print(packetbody_t cp, int length)
 	/* Initialization to silence warnings */
 	packetbody_t ackdata = NULL;
 	PARSE_FIELD_STR(ackdata);
-	if (!lose && cstrcmp(ackdata, (__capability const char *)"SENT"))
+	if (!lose && p_strcmp_static(ackdata, "SENT"))
 	    printf("/%s", str_to_lower(ackdata));
     }
     if (*z.sender) printf(" %s", z.sender);
 
-    if (!cstrcmp(z.class, (__capability const char *)"USER_LOCATE")) {
-	if (!cstrcmp(z.opcode, (__capability const char *)"USER_HIDE"))
+    if (!p_strcmp_static(z.class, "USER_LOCATE")) {
+	if (!p_strcmp_static(z.opcode, "USER_HIDE"))
 	    printf(" hide");
-	else if (!cstrcmp(z.opcode, (__capability const char *)"USER_UNHIDE"))
+	else if (!p_strcmp_static(z.opcode, "USER_UNHIDE"))
 	    printf(" unhide");
 	else
 	    printf(" locate %s", z.inst);
 	return;
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"ZEPHYR_ADMIN")) {
+    if (!p_strcmp_static(z.class, "ZEPHYR_ADMIN")) {
 	printf(" zephyr-admin %s", str_to_lower(z.opcode));
 	return;
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"ZEPHYR_CTL")) {
-	if (!cstrcmp(z.inst, (__capability const char *)"CLIENT")) {
-	    if (!cstrcmp(z.opcode, (__capability const char *)"SUBSCRIBE") ||
-		!cstrcmp(z.opcode, (__capability const char *)"SUBSCRIBE_NODEFS") ||
-		!cstrcmp(z.opcode, (__capability const char *)"UNSUBSCRIBE")) {
+    if (!p_strcmp_static(z.class, "ZEPHYR_CTL")) {
+	if (!p_strcmp_static(z.inst, "CLIENT")) {
+	    if (!p_strcmp_static(z.opcode, "SUBSCRIBE") ||
+		!p_strcmp_static(z.opcode, "SUBSCRIBE_NODEFS") ||
+		!p_strcmp_static(z.opcode, "UNSUBSCRIBE")) {
 
-		printf(" %ssub%s", cstrcmp(z.opcode, (__capability const char *)"SUBSCRIBE") ? "un" : "",
-				   cstrcmp(z.opcode, (__capability const char *)"SUBSCRIBE_NODEFS") ? "" :
+		printf(" %ssub%s", p_strcmp_static(z.opcode, "SUBSCRIBE") ? "un" : "",
+				   p_strcmp_static(z.opcode, "SUBSCRIBE_NODEFS") ? "" :
 								   "-nodefs");
 		if (z.kind != Z_PACKET_SERVACK) {
 		    /* Initialization to silence warnings */
@@ -245,17 +245,17 @@ zephyr_print(packetbody_t cp, int length)
 		return;
 	    }
 
-	    if (!cstrcmp(z.opcode, (__capability const char *)"GIMME")) {
+	    if (!p_strcmp_static(z.opcode, "GIMME")) {
 		printf(" ret");
 		return;
 	    }
 
-	    if (!cstrcmp(z.opcode, (__capability const char *)"GIMMEDEFS")) {
+	    if (!p_strcmp_static(z.opcode, "GIMMEDEFS")) {
 		printf(" gimme-defs");
 		return;
 	    }
 
-	    if (!cstrcmp(z.opcode, (__capability const char *)"CLEARSUB")) {
+	    if (!p_strcmp_static(z.opcode, "CLEARSUB")) {
 		printf(" clear-subs");
 		return;
 	    }
@@ -264,62 +264,62 @@ zephyr_print(packetbody_t cp, int length)
 	    return;
 	}
 
-	if (!cstrcmp(z.inst, (__capability const char *)"HM")) {
+	if (!p_strcmp_static(z.inst, "HM")) {
 	    printf(" %s", str_to_lower(z.opcode));
 	    return;
 	}
 
-	if (!cstrcmp(z.inst, (__capability const char *)"REALM")) {
-	    if (!cstrcmp(z.opcode, (__capability const char *)"ADD_SUBSCRIBE"))
+	if (!p_strcmp_static(z.inst, "REALM")) {
+	    if (!p_strcmp_static(z.opcode, "ADD_SUBSCRIBE"))
 		printf(" realm add-subs");
-	    if (!cstrcmp(z.opcode, (__capability const char *)"REQ_SUBSCRIBE"))
+	    if (!p_strcmp_static(z.opcode, "REQ_SUBSCRIBE"))
 		printf(" realm req-subs");
-	    if (!cstrcmp(z.opcode, (__capability const char *)"RLM_SUBSCRIBE"))
+	    if (!p_strcmp_static(z.opcode, "RLM_SUBSCRIBE"))
 		printf(" realm rlm-sub");
-	    if (!cstrcmp(z.opcode, (__capability const char *)"RLM_UNSUBSCRIBE"))
+	    if (!p_strcmp_static(z.opcode, "RLM_UNSUBSCRIBE"))
 		printf(" realm rlm-unsub");
 	    return;
 	}
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"HM_CTL")) {
+    if (!p_strcmp_static(z.class, "HM_CTL")) {
 	printf(" hm_ctl %s", str_to_lower(z.inst));
 	printf(" %s", str_to_lower(z.opcode));
 	return;
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"HM_STAT")) {
-	if (!cstrcmp(z.inst, (__capability const char *)"HMST_CLIENT") && !cstrcmp(z.opcode, (__capability const char *)"GIMMESTATS")) {
+    if (!p_strcmp_static(z.class, "HM_STAT")) {
+	if (!p_strcmp_static(z.inst, "HMST_CLIENT") && !p_strcmp_static(z.opcode, "GIMMESTATS")) {
 	    printf(" get-client-stats");
 	    return;
 	}
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"WG_CTL")) {
+    if (!p_strcmp_static(z.class, "WG_CTL")) {
 	printf(" wg_ctl %s", str_to_lower(z.inst));
 	printf(" %s", str_to_lower(z.opcode));
 	return;
     }
 
-    if (!cstrcmp(z.class, (__capability const char *)"LOGIN")) {
-	if (!cstrcmp(z.opcode, (__capability const char *)"USER_FLUSH")) {
+    if (!p_strcmp_static(z.class, "LOGIN")) {
+	if (!p_strcmp_static(z.opcode, "USER_FLUSH")) {
 	    printf(" flush_locs");
 	    return;
 	}
 
-	if (!cstrcmp(z.opcode, (__capability const char *)"NONE") ||
-	    !cstrcmp(z.opcode, (__capability const char *)"OPSTAFF") ||
-	    !cstrcmp(z.opcode, (__capability const char *)"REALM-VISIBLE") ||
-	    !cstrcmp(z.opcode, (__capability const char *)"REALM-ANNOUNCED") ||
-	    !cstrcmp(z.opcode, (__capability const char *)"NET-VISIBLE") ||
-	    !cstrcmp(z.opcode, (__capability const char *)"NET-ANNOUNCED")) {
+	if (!p_strcmp_static(z.opcode, "NONE") ||
+	    !p_strcmp_static(z.opcode, "OPSTAFF") ||
+	    !p_strcmp_static(z.opcode, "REALM-VISIBLE") ||
+	    !p_strcmp_static(z.opcode, "REALM-ANNOUNCED") ||
+	    !p_strcmp_static(z.opcode, "NET-VISIBLE") ||
+	    !p_strcmp_static(z.opcode, "NET-ANNOUNCED")) {
 	    printf(" set-exposure %s", str_to_lower(z.opcode));
 	    return;
 	}
     }
 
     if (!*z.recipient)
-	z.recipient = (__capability const char *)"*";
+	z.recipient = (__capability char *)"*";
 
     printf(" to %s", z_triple(z.class, z.inst, z.recipient));
     if (*z.opcode)

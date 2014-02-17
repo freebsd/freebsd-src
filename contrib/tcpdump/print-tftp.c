@@ -109,7 +109,7 @@ tftp_print(packetbody_t bp, u_int length)
 			putchar('"');
 
 		/* Print the mode (RRQ and WRQ only) and any options */
-		while ((p = (packetbody_t)cstrchr((packetbody_t)p, '\0')) != NULL) {
+		while ((p = p_strchr(p, '\0')) != NULL) {
 			if (length <= (u_int)(p - (packetbody_t)&tp->th_block))
 				break;
 			p++;

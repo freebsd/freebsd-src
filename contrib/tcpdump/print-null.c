@@ -97,7 +97,7 @@ null_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 		return (NULL_HDRLEN);
 	}
 
-	OPEN_MEMCPY((char *)&family, p, sizeof(family));
+	p_memcpy_from_packet(&family, p, sizeof(family));
 
 	/*
 	 * This isn't necessarily in our host byte order; if this is

@@ -189,7 +189,7 @@ print_fddi_fc(u_char fc)
 
 /* Extract src, dst addresses */
 static inline void
-extract_fddi_addrs(__capability const struct fddi_header *fddip, __capability char *fsrc, __capability char *fdst)
+extract_fddi_addrs(__capability const struct fddi_header *fddip, char *fsrc, char *fdst)
 {
 	register int i;
 
@@ -204,8 +204,8 @@ extract_fddi_addrs(__capability const struct fddi_header *fddip, __capability ch
 			fsrc[i] = fddi_bit_swap[fddip->fddi_shost[i]];
 	}
 	else {
-		OPEN_MEMCPY(fdst, (const char *)fddip->fddi_dhost, 6);
-		OPEN_MEMCPY(fsrc, (const char *)fddip->fddi_shost, 6);
+		p_memcpy_from_packet(fdst, fddip->fddi_dhost, 6);
+		p_memcpy_from_packet(fsrc, fddip->fddi_shost, 6);
 	}
 }
 
@@ -214,12 +214,12 @@ extract_fddi_addrs(__capability const struct fddi_header *fddip, __capability ch
  */
 static inline void
 fddi_hdr_print(__capability const struct fddi_header *fddip,
-	       register u_int length, packetbody_t fsrc, packetbody_t fdst)
+	       register u_int length, const char *fsrc, const char *fdst)
 {
 	const char *srcname, *dstname;
 
-	srcname = etheraddr_string(fsrc);
-	dstname = etheraddr_string(fdst);
+	srcname = etheraddr_string(cheri_ptr((void *)fsrc, 6));
+	dstname = etheraddr_string(cheri_ptr((void *)fdst, 6));
 
 	if (vflag)
 		(void) printf("%02x %s %s %d: ",
@@ -244,7 +244,6 @@ void
 fddi_print(packetbody_t p, u_int length, u_int caplen)
 {
 	__capability const struct fddi_header *fddip = (__capability const struct fddi_header *)p;
-	__capability struct ether_header *ehdrp;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;
 
@@ -253,15 +252,13 @@ fddi_print(packetbody_t p, u_int length, u_int caplen)
 		return;
 	}
 
-	ehdrp = cheri_ptr(&ehdr, sizeof(ehdr));
-
 	/*
 	 * Get the FDDI addresses into a canonical form
 	 */
-	extract_fddi_addrs(fddip, ESRC(ehdrp), EDST(ehdrp));
+	extract_fddi_addrs(fddip, ESRC(&ehdr), EDST(&ehdr));
 
 	if (eflag)
-		fddi_hdr_print(fddip, length, ESRC(ehdrp), EDST(ehdrp));
+		fddi_hdr_print(fddip, length, ESRC(&ehdr), EDST(&ehdr));
 
 	/* Skip over FDDI MAC header */
 	length -= FDDI_HDRLEN;
@@ -271,15 +268,15 @@ fddi_print(packetbody_t p, u_int length, u_int caplen)
 	/* Frame Control field determines interpretation of packet */
 	if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_LLC_ASYNC) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, ESRC(ehdrp), EDST(ehdrp),
-		    &extracted_ethertype) == 0) {
+		if (llc_print(p, length, caplen, cheri_ptr(ESRC(&ehdr), 6),
+		    cheri_ptr(EDST(&ehdr), 6), &extracted_ethertype) == 0) {
 			/*
 			 * Some kinds of LLC packet we cannot
 			 * handle intelligently
 			 */
 			if (!eflag)
 				fddi_hdr_print(fddip, length + FDDI_HDRLEN,
-				    ESRC(ehdrp), EDST(ehdrp));
+				    ESRC(&ehdr), EDST(&ehdr));
 			if (extracted_ethertype) {
 				printf("(LLC %s) ",
 			etherproto_string(htons(extracted_ethertype)));
@@ -292,8 +289,8 @@ fddi_print(packetbody_t p, u_int length, u_int caplen)
 	else {
 		/* Some kinds of FDDI packet we cannot handle intelligently */
 		if (!eflag)
-			fddi_hdr_print(fddip, length + FDDI_HDRLEN, ESRC(ehdrp),
-			    EDST(ehdrp));
+			fddi_hdr_print(fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
+			    EDST(&ehdr));
 		if (!suppress_default_print)
 			default_print(p, caplen);
 	}

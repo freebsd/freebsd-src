@@ -1009,7 +1009,7 @@ nbt_tcp_print(packetbody_t data, int length)
 		data + 4, 0);
 	    if (data == NULL)
 		break;
-	    if (nbt_len >= 4 && caplen >= 4 && cmemcmp(data,cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
+	    if (nbt_len >= 4 && caplen >= 4 && p_memcmp(data,cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 		if ((int)nbt_len > caplen) {
 		    if ((int)nbt_len > length)
 			printf("WARNING: Packet is continued in later TCP segments\n");
@@ -1269,7 +1269,7 @@ smb_tcp_print (packetbody_t data, int length)
     startbuf = data;
     data += 4;
 
-    if (smb_len >= 4 && caplen >= 4 && cmemcmp(data,cheri_ptr((void *)"\377SMB",4),4) == 0) {
+    if (smb_len >= 4 && caplen >= 4 && p_memcmp(data,cheri_ptr((void *)"\377SMB",4),4) == 0) {
 	if ((int)smb_len > caplen) {
 	    if ((int)smb_len > length)
 		printf("WARNING: Packet is continued in later TCP segments\n");
@@ -1311,7 +1311,7 @@ nbt_udp138_print(packetbody_t data, int length)
 	if (&data[3] >= maxbuf)
 	    goto out;
 
-	if (cmemcmp(data, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
+	if (p_memcmp(data, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
 	    print_smb(data, maxbuf);
     }
 out:
@@ -1449,14 +1449,14 @@ netbeui_print(u_short control, packetbody_t data, int length)
     if (&data2[3] >= maxbuf)
 	goto out;
 
-    if (cmemcmp(data2, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
+    if (p_memcmp(data2, cheri_ptr((void *)"\377SMB", 4), 4) == 0)
 	print_smb(data2, maxbuf);
     else {
 	int i;
 	for (i = 0; i < 128; i++) {
 	    if (&data2[i + 3] >= maxbuf)
 		break;
-	    if (cmemcmp(&data2[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
+	    if (p_memcmp(&data2[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 		printf("found SMB packet at %d\n", i);
 		print_smb(&data2[i], maxbuf);
 		break;
@@ -1491,7 +1491,7 @@ ipx_netbios_print(packetbody_t data, u_int length)
     for (i = 0; i < 128; i++) {
 	if (&data[i + 4] > maxbuf)
 	    break;
-	if (cmemcmp(&data[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
+	if (p_memcmp(&data[i], cheri_ptr((void *)"\377SMB", 4), 4) == 0) {
 	    smb_fdata(data, "\n>>> IPX transport ", &data[i], 0);
 	    print_smb(&data[i], maxbuf);
 	    printf("\n");

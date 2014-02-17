@@ -29,6 +29,7 @@ static const char rcsid[] _U_ =
 #endif
 
 #include <tcpdump-stdinc.h>
+#include <string.h>
 
 #include "interface.h"
 
@@ -500,12 +501,10 @@ inet_ntop_cap(int af, __capability const void * restrict src,
 
 	switch (af) {
 	case AF_INET:
-		OPEN_MEMCPY(&addr.in, (__capability u_char *)src,
-		    sizeof(addr.in));
+		p_memcpy_from_packet(&addr.in, src, sizeof(addr.in));
 		break;
 	case AF_INET6:
-		OPEN_MEMCPY(&addr.in, (__capability u_char *)src,
-		    sizeof(addr.in));
+		p_memcpy_from_packet(&addr.in, src, sizeof(addr.in));
 		break;
 	default:
 		return NULL;

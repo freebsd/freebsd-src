@@ -785,11 +785,11 @@ icmp6_opt_print(packetbody_t bp, int resid)
 				break;
 			case 2:
 				TCHECK2(*in6p, 8);
-				memcpy_fromcap(&in6, opri + 1, 8);
+				p_memcpy_from_packet(&in6, opri + 1, 8);
 				break;
 			case 3:
 				TCHECK(*in6p);
-				memcpy_fromcap(&in6, opri + 1, sizeof(in6));
+				p_memcpy_from_packet(&in6, opri + 1, sizeof(in6));
 				break;
 			default:
 				goto trunc;

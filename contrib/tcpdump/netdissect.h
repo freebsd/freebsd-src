@@ -40,18 +40,7 @@
 
 #include <stdarg.h>
 
-#ifndef __PACKETBODY_T_DEFINED
-#define __PACKETBODY_T_DEFINED
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>
-#if !__has_feature(capabilities)
-#define __capability
-#else
-#include <machine/cheric.h>
-#endif
-#endif
-typedef __capability const u_char * packetbody_t;
-#endif
+#include "packetbody.h"
 
 #if !defined(HAVE_SNPRINTF)
 int snprintf (char *str, size_t sz, const char *format, ...)

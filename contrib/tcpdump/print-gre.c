@@ -359,7 +359,7 @@ gre_sre_ip_print(u_int8_t sreoff, u_int8_t srelen, packetbody_t bp, u_int len)
 		if (len < 4 || srelen == 0)
 			return;
 
-		OPEN_MEMCPY(&a, bp, sizeof(a));
+		p_memcpy_from_packet(&a, bp, sizeof(a));
 		printf(" %s%s",
 		    ((bp - up) == sreoff) ? "*" : "",
 		    inet_ntoa(a));

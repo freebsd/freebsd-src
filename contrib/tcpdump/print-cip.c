@@ -73,7 +73,7 @@ cip_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	u_int length = h->len;
 	u_short extracted_ethertype;
 
-	if (cmemcmp(cheri_ptr(rfcllc, sizeof(rfcllc)), p, sizeof(rfcllc))==0 && caplen < RFC1483LLC_LEN) {
+	if (p_memcmp(cheri_ptr(rfcllc, sizeof(rfcllc)), p, sizeof(rfcllc))==0 && caplen < RFC1483LLC_LEN) {
 		printf("[|cip]");
 		return (0);
 	}
@@ -81,7 +81,7 @@ cip_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	if (eflag)
 		cip_print(length);
 
-	if (cmemcmp(cheri_ptr(rfcllc, sizeof(rfcllc)), p, sizeof(rfcllc)) == 0) {
+	if (p_memcmp(cheri_ptr(rfcllc, sizeof(rfcllc)), p, sizeof(rfcllc)) == 0) {
 		/*
 		 * LLC header is present.  Try to print it & higher layers.
 		 */

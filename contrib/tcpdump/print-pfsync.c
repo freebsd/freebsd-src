@@ -435,10 +435,10 @@ print_state(__capability const struct pfsync_state *s)
 		expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
-		memcpy_fromcap(&packets[0], s->packets[0], sizeof(uint64_t));
-		memcpy_fromcap(&packets[1], s->packets[1], sizeof(uint64_t));
-		memcpy_fromcap(&bytes[0], s->bytes[0], sizeof(uint64_t));
-		memcpy_fromcap(&bytes[1], s->bytes[1], sizeof(uint64_t));
+		p_memcpy_from_packet(&packets[0], s->packets[0], sizeof(uint64_t));
+		p_memcpy_from_packet(&packets[1], s->packets[1], sizeof(uint64_t));
+		p_memcpy_from_packet(&bytes[0], s->bytes[0], sizeof(uint64_t));
+		p_memcpy_from_packet(&bytes[1], s->bytes[1], sizeof(uint64_t));
 		printf(", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
 		    be64toh(bytes[0]), be64toh(bytes[1]));
@@ -450,7 +450,7 @@ print_state(__capability const struct pfsync_state *s)
 	if (vflag > 1) {
 		uint64_t id;
 
-		memcpy_fromcap(&id, &s->id, sizeof(uint64_t));
+		p_memcpy_from_packet(&id, &s->id, sizeof(uint64_t));
 		printf("\n\tid: %016jx creatorid: %08x",
 		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 	}

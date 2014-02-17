@@ -100,7 +100,7 @@ timed_print(packetbody_t bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = cmemchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
+	end = p_memchr(tsp->tsp_name, '\0', PACKET_REMAINING(tsp->tsp_name));
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {

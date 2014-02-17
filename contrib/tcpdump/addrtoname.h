@@ -23,17 +23,7 @@
 
 /* Name to address translation routines. */
 
-
-#ifndef __PACKETBODY_T_DEFINED
-#define __PACKETBODY_T_DEFINED
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>
-#if !__has_feature(capabilities)
-#define __capability
-#endif
-#endif
-typedef __capability const u_char * packetbody_t;
-#endif
+#include "packetbody.h"
 
 enum {
     LINKADDR_ETHER,

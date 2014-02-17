@@ -39,37 +39,7 @@
 #include <stdint.h>
 #endif
 
-#ifndef __PACKETBODY_T_DEFINED
-#define __PACKETBODY_T_DEFINED
-#ifdef __FreeBSD__
-#include <sys/cdefs.h>
-#if !__has_feature(capabilities)
-#define __capability
-#else
-#include <machine/cheric.h>
-#endif
-#endif
-typedef __capability const u_char * packetbody_t;
-#endif
-
-#if !__has_feature(capabilities)
-#define	cmemcmp memcmp
-#else
-int
-cmemcmp(__capability const void *, __capability const void *, size_t len);
-#endif
-
-#if !__has_feature(capabilities)
-#define OPEN_MEMCPU memcpy
-#else
-#define OPEN_MEMCPY(dst, src, n)					\
-	do {								\
-		size_t __i;						\
-									\
-		for (__i = 0; __i < (n); __i++)				\
-			((u_char *)(dst))[__i] = (src)[__i];			\
-	} while(0)
-#endif
+#include "packetbody.h"
 
 #if !defined(HAVE_SNPRINTF)
 int snprintf(char *, size_t, const char *, ...)
@@ -180,8 +150,6 @@ extern const char *tok2strary_internal(const char **, int, const char *, int);
 extern const char *inet_ntop_cap(int af,
     __capability const void * restrict src, char * restrict dst,
     socklen_t size);
-
-void *memcpy_fromcap(void *dst, __capability const void *src, size_t len);
 
 extern const char *dnaddr_string(u_short);
 

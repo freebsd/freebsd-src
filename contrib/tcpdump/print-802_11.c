@@ -684,7 +684,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			OPEN_MEMCPY(&ssid, p + offset, 2);
+			p_memcpy_from_packet(&ssid, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (ssid.length != 0) {
@@ -694,7 +694,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 					return 0;
 				if (length < ssid.length)
 					return 0;
-				OPEN_MEMCPY(&ssid.ssid, p + offset, ssid.length);
+				p_memcpy_from_packet(&ssid.ssid, p + offset, ssid.length);
 				offset += ssid.length;
 				length -= ssid.length;
 			}
@@ -716,7 +716,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			OPEN_MEMCPY(&challenge, p + offset, 2);
+			p_memcpy_from_packet(&challenge, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (challenge.length != 0) {
@@ -727,7 +727,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 					return 0;
 				if (length < challenge.length)
 					return 0;
-				OPEN_MEMCPY(&challenge.text, p + offset,
+				p_memcpy_from_packet(&challenge.text, p + offset,
 				    challenge.length);
 				offset += challenge.length;
 				length -= challenge.length;
@@ -750,7 +750,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			OPEN_MEMCPY(&rates, p + offset, 2);
+			p_memcpy_from_packet(&rates, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (rates.length != 0) {
@@ -760,7 +760,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 					return 0;
 				if (length < rates.length)
 					return 0;
-				OPEN_MEMCPY(&rates.rate, p + offset, rates.length);
+				p_memcpy_from_packet(&rates.rate, p + offset, rates.length);
 				offset += rates.length;
 				length -= rates.length;
 			}
@@ -790,7 +790,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 3)
 				return 0;
-			OPEN_MEMCPY(&ds, p + offset, 3);
+			p_memcpy_from_packet(&ds, p + offset, 3);
 			offset += 3;
 			length -= 3;
 			/*
@@ -810,7 +810,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 8)
 				return 0;
-			OPEN_MEMCPY(&cf, p + offset, 8);
+			p_memcpy_from_packet(&cf, p + offset, 8);
 			offset += 8;
 			length -= 8;
 			/*
@@ -830,14 +830,14 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			OPEN_MEMCPY(&tim, p + offset, 2);
+			p_memcpy_from_packet(&tim, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (!TTEST2(*(p + offset), 3))
 				return 0;
 			if (length < 3)
 				return 0;
-			OPEN_MEMCPY(&tim.count, p + offset, 3);
+			p_memcpy_from_packet(&tim.count, p + offset, 3);
 			offset += 3;
 			length -= 3;
 
@@ -849,7 +849,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
 				return 0;
 			if (length < (u_int)(tim.length - 3))
 				return 0;
-			OPEN_MEMCPY(tim.bitmap, p + (tim.length - 3),
+			p_memcpy_from_packet(tim.bitmap, p + (tim.length - 3),
 			    (tim.length - 3));
 			offset += tim.length - 3;
 			length -= tim.length - 3;
@@ -908,7 +908,7 @@ handle_beacon(packetbody_t p, u_int length)
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN)
 		return 0;
-	OPEN_MEMCPY(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
+	p_memcpy_from_packet(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
 	offset += IEEE802_11_TSTAMP_LEN;
 	length -= IEEE802_11_TSTAMP_LEN;
 	pbody.beacon_interval = EXTRACT_LE_16BITS(p+offset);
@@ -1013,7 +1013,7 @@ handle_reassoc_request(packetbody_t p, u_int length)
 	pbody.listen_interval = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_LISTENINT_LEN;
 	length -= IEEE802_11_LISTENINT_LEN;
-	OPEN_MEMCPY(&pbody.ap, p+offset, IEEE802_11_AP_LEN);
+	p_memcpy_from_packet(&pbody.ap, p+offset, IEEE802_11_AP_LEN);
 	offset += IEEE802_11_AP_LEN;
 	length -= IEEE802_11_AP_LEN;
 
@@ -1064,7 +1064,7 @@ handle_probe_response(packetbody_t p, u_int length)
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN)
 		return 0;
-	OPEN_MEMCPY(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
+	p_memcpy_from_packet(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
 	offset += IEEE802_11_TSTAMP_LEN;
 	length -= IEEE802_11_TSTAMP_LEN;
 	pbody.beacon_interval = EXTRACT_LE_16BITS(p+offset);
@@ -1446,8 +1446,8 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
  */
 
 static void
-data_header_print(u_int16_t fc, packetbody_t p, __capability const u_int8_t **srcp,
-    __capability const u_int8_t **dstp)
+data_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
+    packetbody_t *dstp)
 {
 	u_int subtype = FC_SUBTYPE(fc);
 
@@ -1522,8 +1522,7 @@ data_header_print(u_int16_t fc, packetbody_t p, __capability const u_int8_t **sr
 }
 
 static void
-mgmt_header_print(packetbody_t p, __capability const u_int8_t **srcp,
-    __capability const u_int8_t **dstp)
+mgmt_header_print(packetbody_t p, packetbody_t *srcp, packetbody_t *dstp)
 {
 	__capability const struct mgmt_header_t *hp = (__capability const struct mgmt_header_t *) p;
 
@@ -1540,8 +1539,8 @@ mgmt_header_print(packetbody_t p, __capability const u_int8_t **srcp,
 }
 
 static void
-ctrl_header_print(u_int16_t fc, packetbody_t p, const u_int8_t **srcp,
-    const u_int8_t **dstp)
+ctrl_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
+    packetbody_t *dstp)
 {
 	if (srcp != NULL)
 		*srcp = NULL;
@@ -1647,7 +1646,7 @@ extract_mesh_header_length(packetbody_t p)
  */
 static void
 ieee_802_11_hdr_print(u_int16_t fc, packetbody_t p, u_int hdrlen,
-    u_int meshdrlen, const u_int8_t **srcp, const u_int8_t **dstp)
+    u_int meshdrlen, packetbody_t *srcp, packetbody_t *dstp)
 {
 	if (vflag) {
 		if (FC_MORE_DATA(fc))
@@ -1662,8 +1661,7 @@ ieee_802_11_hdr_print(u_int16_t fc, packetbody_t p, u_int hdrlen,
 			printf("Strictly Ordered ");
 		if (FC_WEP(fc))
 			printf("WEP Encrypted ");
-		if (FC_TYPE(fc) != T_CTRL || FC_SUBTYPE(fc) != CTRL_PS_POLL)
-			printf("%dus ",
+		if (FC_TYPE(fc) != T_CTRL || FC_SUBTYPE(fc) != CTRL_PS_POLL) printf("%dus ",
 			    EXTRACT_LE_16BITS(
 			        &((const struct mgmt_header_t *)p)->duration));
 	}
@@ -1712,7 +1710,7 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
 {
 	u_int16_t fc;
 	u_int caplen, hdrlen, meshdrlen;
-	packetbody_t *src, *dst;
+	packetbody_t src, dst;
 	u_short extracted_ethertype;
 
 	caplen = orig_caplen;

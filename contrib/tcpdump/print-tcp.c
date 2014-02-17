@@ -278,16 +278,16 @@ tcp_print(packetbody_t bp, register u_int length,
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
-                                if (cmemcmp(src, dst, sizeof ip6->ip6_dst) > 0)
+                                if (p_memcmp(src, dst, sizeof ip6->ip6_dst) > 0)
                                         rev = 1;
                         }
                         if (rev) {
-                                OPEN_MEMCPY(&tha.src, dst, sizeof ip6->ip6_dst);
-                                OPEN_MEMCPY(&tha.dst, src, sizeof ip6->ip6_src);
+                                p_memcpy_from_packet(&tha.src, dst, sizeof ip6->ip6_dst);
+                                p_memcpy_from_packet(&tha.dst, src, sizeof ip6->ip6_src);
                                 tha.port = dport << 16 | sport;
                         } else {
-                                OPEN_MEMCPY(&tha.dst, dst, sizeof ip6->ip6_dst);
-                                OPEN_MEMCPY(&tha.src, src, sizeof ip6->ip6_src);
+                                p_memcpy_from_packet(&tha.dst, dst, sizeof ip6->ip6_dst);
+                                p_memcpy_from_packet(&tha.src, src, sizeof ip6->ip6_src);
                                 tha.port = sport << 16 | dport;
                         }
                 } else {
@@ -317,16 +317,16 @@ tcp_print(packetbody_t bp, register u_int length,
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
-                                if (cmemcmp(src, dst, sizeof ip->ip_dst) > 0)
+                                if (p_memcmp(src, dst, sizeof ip->ip_dst) > 0)
                                         rev = 1;
                         }
                         if (rev) {
-                                OPEN_MEMCPY(&tha.src, dst, sizeof ip->ip_dst);
-                                OPEN_MEMCPY(&tha.dst, src, sizeof ip->ip_src);
+                                p_memcpy_from_packet(&tha.src, dst, sizeof ip->ip_dst);
+                                p_memcpy_from_packet(&tha.dst, src, sizeof ip->ip_src);
                                 tha.port = dport << 16 | sport;
                         } else {
-                                OPEN_MEMCPY(&tha.dst, dst, sizeof ip->ip_dst);
-                                OPEN_MEMCPY(&tha.src, src, sizeof ip->ip_src);
+                                p_memcpy_from_packet(&tha.dst, dst, sizeof ip->ip_dst);
+                                p_memcpy_from_packet(&tha.src, src, sizeof ip->ip_src);
                                 tha.port = sport << 16 | dport;
                         }
                 }
@@ -337,7 +337,7 @@ tcp_print(packetbody_t bp, register u_int length,
                 if (sport > dport)
                         rev = 1;
                 else if (sport == dport) {
-                        if (cmemcmp(src, dst, sizeof ip->ip_dst) > 0)
+                        if (p_memcmp(src, dst, sizeof ip->ip_dst) > 0)
                                 rev = 1;
                 }
                 if (rev) {

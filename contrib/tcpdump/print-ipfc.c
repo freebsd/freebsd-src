@@ -48,14 +48,14 @@ static const char rcsid[] _U_ =
 /* Extract src, dst addresses */
 static inline void
 extract_ipfc_addrs(__capability const struct ipfc_header *ipfcp,
-    packetbody_t ipfcsrc, packetbody_t ipfcdst)
+    u_char *ipfcsrc, u_char *ipfcdst)
 {
 	/*
 	 * We assume that, as per RFC 2625, the lower 48 bits of the
 	 * source and destination addresses are MAC addresses.
 	 */
-	OPEN_MEMCPY(ipfcdst, (const char *)&ipfcp->ipfc_dhost[2], 6);
-	OPEN_MEMCPY(ipfcsrc, (const char *)&ipfcp->ipfc_shost[2], 6);
+	p_memcpy_from_packet(ipfcdst, &ipfcp->ipfc_dhost[2], 6);
+	p_memcpy_from_packet(ipfcsrc, &ipfcp->ipfc_shost[2], 6);
 }
 
 /*
@@ -63,13 +63,12 @@ extract_ipfc_addrs(__capability const struct ipfc_header *ipfcp,
  */
 static inline void
 ipfc_hdr_print(__capability const struct ipfc_header *ipfcp _U_,
-	   register u_int length, packetbody_t ipfcsrc,
-	   packetbody_t ipfcdst)
+	   register u_int length, const u_char *ipfcsrc, const u_char *ipfcdst)
 {
 	const char *srcname, *dstname;
 
-	srcname = etheraddr_string(ipfcsrc);
-	dstname = etheraddr_string(ipfcdst);
+	srcname = etheraddr_string(cheri_ptr((void *)ipfcsrc, 6));
+	dstname = etheraddr_string(cheri_ptr((void *)ipfcdst, 6));
 
 	/*
 	 * XXX - show the upper 16 bits?  Do so only if "vflag" is set?
@@ -82,7 +81,6 @@ ipfc_print(packetbody_t p, u_int length, u_int caplen)
 {
 	__capability const struct ipfc_header *ipfcp = (__capability const struct ipfc_header *)p;
 	struct ether_header ehdr;
-	__capability struct ether_header *ehdrp;
 	u_short extracted_ethertype;
 
 	if (caplen < IPFC_HDRLEN) {
@@ -92,11 +90,10 @@ ipfc_print(packetbody_t p, u_int length, u_int caplen)
 	/*
 	 * Get the network addresses into a canonical form
 	 */
-	ehdrp = cheri_ptr(&ehdr, sizeof(ehdr));
-	extract_ipfc_addrs(ipfcp, ESRC(ehdrp), EDST(ehdrp));
+	extract_ipfc_addrs(ipfcp, ESRC(&ehdr), EDST(&ehdr));
 
 	if (eflag)
-		ipfc_hdr_print(ipfcp, length, ESRC(ehdrp), EDST(ehdrp));
+		ipfc_hdr_print(ipfcp, length, ESRC(&ehdr), EDST(&ehdr));
 
 	/* Skip over Network_Header */
 	length -= IPFC_HDRLEN;
@@ -104,7 +101,8 @@ ipfc_print(packetbody_t p, u_int length, u_int caplen)
 	caplen -= IPFC_HDRLEN;
 
 	/* Try to print the LLC-layer header & higher layers */
-	if (llc_print(p, length, caplen, ESRC(ehdrp), EDST(ehdrp),
+	if (llc_print(p, length, caplen, cheri_ptr(ESRC(&ehdr), 6),
+	    cheri_ptr(EDST(&ehdr), 6),
 	    &extracted_ethertype) == 0) {
 		/*
 		 * Some kinds of LLC packet we cannot
@@ -112,7 +110,7 @@ ipfc_print(packetbody_t p, u_int length, u_int caplen)
 		 */
 		if (!eflag)
 			ipfc_hdr_print(ipfcp, length + IPFC_HDRLEN,
-			    ESRC(ehdrp), EDST(ehdrp));
+			    ESRC(&ehdr), EDST(&ehdr));
 		if (extracted_ethertype) {
 			printf("(LLC %s) ",
 		etherproto_string(htons(extracted_ethertype)));

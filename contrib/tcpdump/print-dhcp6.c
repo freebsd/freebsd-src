@@ -850,10 +850,10 @@ dhcp6_print(packetbody_t cp, u_int length)
 
 		TCHECK(dh6relay->dh6relay_peeraddr);
 
-		OPEN_MEMCPY(&addr6, dh6relay->dh6relay_linkaddr, sizeof (addr6));
+		p_memcpy_from_packet(&addr6, dh6relay->dh6relay_linkaddr, sizeof (addr6));
 		printf("linkaddr=%s", ip6addr_string(&addr6));
 
-		OPEN_MEMCPY(&addr6, dh6relay->dh6relay_peeraddr, sizeof (addr6));
+		p_memcpy_from_packet(&addr6, dh6relay->dh6relay_peeraddr, sizeof (addr6));
 		printf(" peeraddr=%s", ip6addr_string(&addr6));
 
 		dhcp6opt_print((packetbody_t)(dh6relay + 1), ep);

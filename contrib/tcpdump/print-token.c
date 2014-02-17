@@ -52,8 +52,8 @@ static const char rcsid[] _U_ =
 static inline void
 extract_token_addrs(__capability const struct token_header *trp, char *fsrc, char *fdst)
 {
-	OPEN_MEMCPY(fdst, (packetbody_t)trp->token_dhost, 6);
-	OPEN_MEMCPY(fsrc, (packetbody_t)trp->token_shost, 6);
+	p_memcpy_from_packet(fdst, trp->token_dhost, 6);
+	p_memcpy_from_packet(fsrc, trp->token_shost, 6);
 }
 
 /*
