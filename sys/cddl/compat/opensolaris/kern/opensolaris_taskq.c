@@ -166,3 +166,9 @@ taskq_dispatch_ent(taskq_t *tq, task_func_t func, void *arg, u_int flags,
 	TASK_INIT(&task->tqent_task, prio, taskq_run_ent, task);
 	taskqueue_enqueue(tq->tq_queue, &task->tqent_task);
 }
+
+void
+taskq_wait(taskq_t *tq)
+{
+	taskqueue_drain_all(tq->tq_queue);
+}
