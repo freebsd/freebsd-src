@@ -136,7 +136,7 @@ test_eagain(size_t sndbufsize, size_t rcvbufsize)
 	ssize_t ssize, rsize;
 
 	/* setup the socket pair */
-	do_socketpair(sv);
+	do_socketpair_nonblocking(sv);
 	/* Setup the buffers */
 	ATF_REQUIRE_EQ(0, setsockopt(sv[0], SOL_SOCKET, SO_SNDBUF, &sndbufsize,
 	    sizeof(sndbufsize)));
