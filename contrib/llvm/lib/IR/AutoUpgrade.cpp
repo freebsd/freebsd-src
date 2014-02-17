@@ -7,11 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements the auto-upgrade helper functions 
+// This file implements the auto-upgrade helper functions
 //
 //===----------------------------------------------------------------------===//
 
 #include "llvm/AutoUpgrade.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
@@ -55,14 +56,14 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
   case 'a': {
     if (Name.startswith("arm.neon.vclz")) {
       Type* args[2] = {
-        F->arg_begin()->getType(), 
+        F->arg_begin()->getType(),
         Type::getInt1Ty(F->getContext())
       };
       // Can't use Intrinsic::getDeclaration here as it adds a ".i1" to
       // the end of the name. Change name from llvm.arm.neon.vclz.* to
       //  llvm.ctlz.*
       FunctionType* fType = FunctionType::get(F->getReturnType(), args, false);
-      NewFn = Function::Create(fType, F->getLinkage(), 
+      NewFn = Function::Create(fType, F->getLinkage(),
                                "llvm.ctlz." + Name.substr(14), F->getParent());
       return true;
     }
@@ -88,6 +89,20 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
     }
     break;
   }
+  case 'o':
+    // We only need to change the name to match the mangling including the
+    // address space.
+    if (F->arg_size() == 2 && Name.startswith("objectsize.")) {
+      Type *Tys[2] = { F->getReturnType(), F->arg_begin()->getType() };
+      if (F->getName() != Intrinsic::getName(Intrinsic::objectsize, Tys)) {
+        F->setName(Name + ".old");
+        NewFn = Intrinsic::getDeclaration(F->getParent(),
+                                          Intrinsic::objectsize, Tys);
+        return true;
+      }
+    }
+    break;
+
   case 'x': {
     if (Name.startswith("x86.sse2.pcmpeq.") ||
         Name.startswith("x86.sse2.pcmpgt.") ||
@@ -97,6 +112,7 @@ static bool UpgradeIntrinsicFunction1(Function *F, Function *&NewFn) {
         Name == "x86.avx.movnt.dq.256" ||
         Name == "x86.avx.movnt.pd.256" ||
         Name == "x86.avx.movnt.ps.256" ||
+        Name == "x86.sse42.crc32.64.8" ||
         (Name.startswith("x86.xop.vpcom") && F->arg_size() == 2)) {
       NewFn = 0;
       return true;
@@ -257,6 +273,12 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
       Function *VPCOM = Intrinsic::getDeclaration(F->getParent(), intID);
       Rep = Builder.CreateCall3(VPCOM, CI->getArgOperand(0),
                                 CI->getArgOperand(1), Builder.getInt8(Imm));
+    } else if (Name == "llvm.x86.sse42.crc32.64.8") {
+      Function *CRC32 = Intrinsic::getDeclaration(F->getParent(),
+                                               Intrinsic::x86_sse42_crc32_32_8);
+      Value *Trunc0 = Builder.CreateTrunc(CI->getArgOperand(0), Type::getInt32Ty(C));
+      Rep = Builder.CreateCall2(CRC32, Trunc0, CI->getArgOperand(1));
+      Rep = Builder.CreateZExt(Rep, CI->getType(), "");
     } else {
       bool PD128 = false, PD256 = false, PS128 = false, PS256 = false;
       if (Name == "llvm.x86.avx.vpermil.pd.256")
@@ -317,6 +339,14 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
     CI->eraseFromParent();
     return;
 
+  case Intrinsic::objectsize:
+    CI->replaceAllUsesWith(Builder.CreateCall2(NewFn,
+                                               CI->getArgOperand(0),
+                                               CI->getArgOperand(1),
+                                               Name));
+    CI->eraseFromParent();
+    return;
+
   case Intrinsic::arm_neon_vclz: {
     // Change name from llvm.arm.neon.vclz.* to llvm.ctlz.*
     CI->replaceAllUsesWith(Builder.CreateCall2(NewFn, CI->getArgOperand(0),
@@ -369,8 +399,8 @@ void llvm::UpgradeIntrinsicCall(CallInst *CI, Function *NewFn) {
   }
 }
 
-// This tests each Function to determine if it needs upgrading. When we find 
-// one we are interested in, we then upgrade all calls to reflect the new 
+// This tests each Function to determine if it needs upgrading. When we find
+// one we are interested in, we then upgrade all calls to reflect the new
 // function.
 void llvm::UpgradeCallsToIntrinsic(Function* F) {
   assert(F && "Illegal attempt to upgrade a non-existent intrinsic.");
@@ -391,3 +421,81 @@ void llvm::UpgradeCallsToIntrinsic(Function* F) {
   }
 }
 
+void llvm::UpgradeInstWithTBAATag(Instruction *I) {
+  MDNode *MD = I->getMetadata(LLVMContext::MD_tbaa);
+  assert(MD && "UpgradeInstWithTBAATag should have a TBAA tag");
+  // Check if the tag uses struct-path aware TBAA format.
+  if (isa<MDNode>(MD->getOperand(0)) && MD->getNumOperands() >= 3)
+    return;
+
+  if (MD->getNumOperands() == 3) {
+    Value *Elts[] = {
+      MD->getOperand(0),
+      MD->getOperand(1)
+    };
+    MDNode *ScalarType = MDNode::get(I->getContext(), Elts);
+    // Create a MDNode <ScalarType, ScalarType, offset 0, const>
+    Value *Elts2[] = {
+      ScalarType, ScalarType,
+      Constant::getNullValue(Type::getInt64Ty(I->getContext())),
+      MD->getOperand(2)
+    };
+    I->setMetadata(LLVMContext::MD_tbaa, MDNode::get(I->getContext(), Elts2));
+  } else {
+    // Create a MDNode <MD, MD, offset 0>
+    Value *Elts[] = {MD, MD,
+      Constant::getNullValue(Type::getInt64Ty(I->getContext()))};
+    I->setMetadata(LLVMContext::MD_tbaa, MDNode::get(I->getContext(), Elts));
+  }
+}
+
+Instruction *llvm::UpgradeBitCastInst(unsigned Opc, Value *V, Type *DestTy,
+                                      Instruction *&Temp) {
+  if (Opc != Instruction::BitCast)
+    return 0;
+
+  Temp = 0;
+  Type *SrcTy = V->getType();
+  if (SrcTy->isPtrOrPtrVectorTy() && DestTy->isPtrOrPtrVectorTy() &&
+      SrcTy->getPointerAddressSpace() != DestTy->getPointerAddressSpace()) {
+    LLVMContext &Context = V->getContext();
+
+    // We have no information about target data layout, so we assume that
+    // the maximum pointer size is 64bit.
+    Type *MidTy = Type::getInt64Ty(Context);
+    Temp = CastInst::Create(Instruction::PtrToInt, V, MidTy);
+
+    return CastInst::Create(Instruction::IntToPtr, Temp, DestTy);
+  }
+
+  return 0;
+}
+
+Value *llvm::UpgradeBitCastExpr(unsigned Opc, Constant *C, Type *DestTy) {
+  if (Opc != Instruction::BitCast)
+    return 0;
+
+  Type *SrcTy = C->getType();
+  if (SrcTy->isPtrOrPtrVectorTy() && DestTy->isPtrOrPtrVectorTy() &&
+      SrcTy->getPointerAddressSpace() != DestTy->getPointerAddressSpace()) {
+    LLVMContext &Context = C->getContext();
+
+    // We have no information about target data layout, so we assume that
+    // the maximum pointer size is 64bit.
+    Type *MidTy = Type::getInt64Ty(Context);
+
+    return ConstantExpr::getIntToPtr(ConstantExpr::getPtrToInt(C, MidTy),
+                                     DestTy);
+  }
+
+  return 0;
+}
+
+/// Check the debug info version number, if it is out-dated, drop the debug
+/// info. Return true if module is modified.
+bool llvm::UpgradeDebugInfo(Module &M) {
+  if (getDebugMetadataVersionFromModule(M) == DEBUG_METADATA_VERSION)
+    return false;
+
+  return StripDebugInfo(M);
+}

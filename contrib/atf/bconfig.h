@@ -28,17 +28,8 @@
 /* Define to 1 if you have the `putenv' function. */
 #define HAVE_PUTENV 1
 
-/* Define to 1 if putenv is in std */
-/* #undef HAVE_PUTENV_IN_STD */
-
 /* Define to 1 if you have the `setenv' function. */
 #define HAVE_SETENV 1
-
-/* Define to 1 if setenv is in std */
-/* #undef HAVE_SETENV_IN_STD */
-
-/* Define to 1 if snprintf is in std */
-/* #undef HAVE_SNPRINTF_IN_STD */
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -61,20 +52,11 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
-/* Define to 1 if you have the `unmount' function. */
-#define HAVE_UNMOUNT 1
-
 /* Define to 1 if you have the `unsetenv' function. */
 #define HAVE_UNSETENV 1
 
-/* Define to 1 if unsetenv is in std */
-/* #undef HAVE_UNSETENV_IN_STD */
-
 /* Define to 1 if vsnprintf is in std */
 /* #undef HAVE_VSNPRINTF_IN_STD */
-
-/* Define to the last valid signal number */
-#define LAST_SIGNO 128
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -93,19 +75,19 @@
 #define PACKAGE_NAME "Automated Testing Framework"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "Automated Testing Framework 0.18"
+#define PACKAGE_STRING "Automated Testing Framework 0.20"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "atf"
 
 /* Define to the home page for this package. */
-#define PACKAGE_URL "http://code.google.com/p/kyua/wiki/ATF"
+#define PACKAGE_URL "https://github.com/jmmv/atf/"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "0.18"
+#define PACKAGE_VERSION "0.20"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "0.18"
+#define VERSION "0.20"

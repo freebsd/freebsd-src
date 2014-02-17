@@ -277,8 +277,8 @@ void CodeExtractor::splitReturnBlocks() {
 
         DomTreeNode *NewNode = DT->addNewBlock(New, *I);
 
-        for (SmallVector<DomTreeNode*, 8>::iterator I = Children.begin(),
-               E = Children.end(); I != E; ++I) 
+        for (SmallVectorImpl<DomTreeNode *>::iterator I = Children.begin(),
+               E = Children.end(); I != E; ++I)
           DT->changeImmediateDominator(*I, NewNode);
       }
     }
@@ -665,8 +665,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     TheSwitch->setCondition(call);
     TheSwitch->setDefaultDest(TheSwitch->getSuccessor(NumExitBlocks));
     // Remove redundant case
-    SwitchInst::CaseIt ToBeRemoved(TheSwitch, NumExitBlocks-1);
-    TheSwitch->removeCase(ToBeRemoved);
+    TheSwitch->removeCase(SwitchInst::CaseIt(TheSwitch, NumExitBlocks-1));
     break;
   }
 }

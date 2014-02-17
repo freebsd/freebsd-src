@@ -8,7 +8,6 @@ SRCDIR=	tools/llvm-nm
 SRCS=	llvm-nm.cpp
 
 LIBDEPS=llvmobject \
-	llvmarchive \
 	llvmbitreader \
 	llvmcore \
 	llvmsupport

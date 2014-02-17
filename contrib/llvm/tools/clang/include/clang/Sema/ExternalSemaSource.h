@@ -14,6 +14,8 @@
 #define LLVM_CLANG_SEMA_EXTERNAL_SEMA_SOURCE_H
 
 #include "clang/AST/ExternalASTSource.h"
+#include "clang/AST/Type.h"
+#include "clang/Sema/TypoCorrection.h"
 #include "clang/Sema/Weak.h"
 #include "llvm/ADT/MapVector.h"
 #include <utility>
@@ -30,7 +32,8 @@ class Sema;
 class TypedefNameDecl;
 class ValueDecl;
 class VarDecl;
-  
+struct LateParsedTemplate;
+
 /// \brief A simple structure that captures a vtable use for the purposes of
 /// the \c ExternalSemaSource.
 struct ExternalVTableUse {
@@ -176,6 +179,45 @@ public:
   virtual void ReadPendingInstantiations(
                  SmallVectorImpl<std::pair<ValueDecl *, 
                                            SourceLocation> > &Pending) {}
+
+  /// \brief Read the set of late parsed template functions for this source.
+  ///
+  /// The external source should insert its own late parsed template functions
+  /// into the map. Note that this routine may be invoked multiple times; the
+  /// external source should take care not to introduce the same map entries
+  /// repeatedly.
+  virtual void ReadLateParsedTemplates(
+      llvm::DenseMap<const FunctionDecl *, LateParsedTemplate *> &LPTMap) {}
+
+  /// \copydoc Sema::CorrectTypo
+  /// \note LookupKind must correspond to a valid Sema::LookupNameKind
+  ///
+  /// ExternalSemaSource::CorrectTypo is always given the first chance to
+  /// correct a typo (really, to offer suggestions to repair a failed lookup).
+  /// It will even be called when SpellChecking is turned off or after a
+  /// fatal error has already been detected.
+  virtual TypoCorrection CorrectTypo(const DeclarationNameInfo &Typo,
+                                     int LookupKind, Scope *S, CXXScopeSpec *SS,
+                                     CorrectionCandidateCallback &CCC,
+                                     DeclContext *MemberContext,
+                                     bool EnteringContext,
+                                     const ObjCObjectPointerType *OPT) {
+    return TypoCorrection();
+  }
+
+  /// \brief Produces a diagnostic note if the external source contains a
+  /// complete definition for \p T.
+  ///
+  /// \param Loc the location at which a complete type was required but not
+  /// provided
+  ///
+  /// \param T the \c QualType that should have been complete at \p Loc
+  ///
+  /// \return true if a diagnostic was produced, false otherwise.
+  virtual bool MaybeDiagnoseMissingCompleteType(SourceLocation Loc,
+                                                QualType T) {
+    return false;
+  }
 
   // isa/cast/dyn_cast support
   static bool classof(const ExternalASTSource *Source) {

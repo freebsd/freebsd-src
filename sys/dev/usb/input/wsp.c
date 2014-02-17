@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mouse.h>
 
 #define	WSP_DRIVER_NAME "wsp"
+#define	WSP_BUFFER_MAX	1024
 
 #define	WSP_CLAMP(x,low,high) do {		\
 	if ((x) < (low))			\
@@ -124,12 +125,12 @@ SYSCTL_INT(_hw_usb_wsp, OID_AUTO, scr_hor_threshold, CTLFLAG_RW,
 #define	WSP_IFACE_INDEX	1
 
 /*
- * Some tables, structures, definitions and initialisation values for
- * the touchpad protocol has been copied from Linux's
+ * Some tables, structures, definitions and constant values for the
+ * touchpad protocol has been copied from Linux's
  * "drivers/input/mouse/bcm5974.c" which has the following copyright
  * holders under GPLv2. All device specific code in this driver has
  * been written from scratch. The decoding algorithm is based on
- * output from usbdump.
+ * output from FreeBSD's usbdump.
  *
  * Copyright (C) 2008      Henrik Rydberg (rydberg@euromail.se)
  * Copyright (C) 2008      Scott Shawcroft (scott.shawcroft@gmail.com)
@@ -205,20 +206,10 @@ struct tp_finger {
 #define	MAX_FINGERS		16
 #define	SIZEOF_FINGER		sizeof(struct tp_finger)
 #define	SIZEOF_ALL_FINGERS	(MAX_FINGERS * SIZEOF_FINGER)
-#define	MAX_FINGER_ORIENTATION	16384
 
-/* logical signal quality */
-#define	SN_PRESSURE	45		/* pressure signal-to-noise ratio */
-#define	SN_WIDTH	25		/* width signal-to-noise ratio */
-#define	SN_COORD	250		/* coordinate signal-to-noise ratio */
-#define	SN_ORIENT	10		/* orientation signal-to-noise ratio */
-
-/* device-specific parameters */
-struct wsp_param {
-	int	snratio;		/* signal-to-noise ratio */
-	int	min;			/* device minimum reading */
-	int	max;			/* device maximum reading */
-};
+#if (WSP_BUFFER_MAX < ((MAX_FINGERS * 14 * 2) + FINGER_TYPE3))
+#error "WSP_BUFFER_MAX is too small"
+#endif
 
 enum {
 	WSP_FLAG_WELLSPRING1,
@@ -239,282 +230,70 @@ enum {
 /* device-specific configuration */
 struct wsp_dev_params {
 	uint8_t	caps;			/* device capability bitmask */
-	uint16_t bt_datalen;		/* data length of the button interface */
 	uint8_t	tp_type;		/* type of trackpad interface */
 	uint8_t	tp_offset;		/* offset to trackpad finger data */
-	uint16_t tp_datalen;		/* data length of the trackpad
-					 * interface */
-	struct wsp_param p;		/* finger pressure limits */
-	struct wsp_param w;		/* finger width limits */
-	struct wsp_param x;		/* horizontal limits */
-	struct wsp_param y;		/* vertical limits */
-	struct wsp_param o;		/* orientation limits */
 };
 
 static const struct wsp_dev_params wsp_dev_params[WSP_FLAG_MAX] = {
 	[WSP_FLAG_WELLSPRING1] = {
 		.caps = 0,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE1,
 		.tp_offset = FINGER_TYPE1,
-		.tp_datalen = FINGER_TYPE1 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 256
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4824, 5342
-		},
-		.y = {
-			SN_COORD, -172, 5820
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING2] = {
 		.caps = 0,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE1,
 		.tp_offset = FINGER_TYPE1,
-		.tp_datalen = FINGER_TYPE1 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 256
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4824, 4824
-		},
-		.y = {
-			SN_COORD, -172, 4290
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING3] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4460, 5166
-		},
-		.y = {
-			SN_COORD, -75, 6700
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING4] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4620, 5140
-		},
-		.y = {
-			SN_COORD, -150, 6600
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING4A] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4616, 5112
-		},
-		.y = {
-			SN_COORD, -142, 5234
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING5] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4415, 5050
-		},
-		.y = {
-			SN_COORD, -55, 6680
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING6] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4620, 5140
-		},
-		.y = {
-			SN_COORD, -150, 6600
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING5A] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4750, 5280
-		},
-		.y = {
-			SN_COORD, -150, 6730
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING6A] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4620, 5140
-		},
-		.y = {
-			SN_COORD, -150, 6600
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING7] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4750, 5280
-		},
-		.y = {
-			SN_COORD, -150, 6730
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING7A] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE2,
 		.tp_offset = FINGER_TYPE2,
-		.tp_datalen = FINGER_TYPE2 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4750, 5280
-		},
-		.y = {
-			SN_COORD, -150, 6730
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 	[WSP_FLAG_WELLSPRING8] = {
 		.caps = HAS_INTEGRATED_BUTTON,
-		.bt_datalen = sizeof(struct bt_data),
 		.tp_type = TYPE3,
 		.tp_offset = FINGER_TYPE3,
-		.tp_datalen = FINGER_TYPE3 + SIZEOF_ALL_FINGERS,
-		.p = {
-			SN_PRESSURE, 0, 300
-		},
-		.w = {
-			SN_WIDTH, 0, 2048
-		},
-		.x = {
-			SN_COORD, -4620, 5140
-		},
-		.y = {
-			SN_COORD, -150, 6600
-		},
-		.o = {
-			SN_ORIENT, -MAX_FINGER_ORIENTATION, MAX_FINGER_ORIENTATION
-		},
 	},
 };
 
@@ -606,8 +385,6 @@ struct wsp_softc {
 	u_int	sc_state;
 #define	WSP_ENABLED	       0x01
 
-	struct bt_data *bt_data;	/* button transferred data */
-	uint8_t *tp_data;		/* trackpad transferred data */
 	struct tp_finger *index[MAX_FINGERS];	/* finger index data */
 	int16_t	pos_x[MAX_FINGERS];	/* position array */
 	int16_t	pos_y[MAX_FINGERS];	/* position array */
@@ -624,7 +401,7 @@ struct wsp_softc {
 	int	dz_count;
 #define	WSP_DZ_MAX_COUNT	32
 	int	dt_sum;			/* T-axis cumulative movement */
-	
+	int	tp_datalen;
 	uint8_t o_ntouch;		/* old touch finger status */
 	uint8_t	finger;			/* 0 or 1 *, check which finger moving */
 	uint16_t intr_count;
@@ -638,6 +415,7 @@ struct wsp_softc {
 #define	WSP_SCR_NONE		0
 #define	WSP_SCR_VER		1
 #define	WSP_SCR_HOR		2
+	uint8_t tp_data[WSP_BUFFER_MAX] __aligned(4);		/* trackpad transferred data */
 };
 
 typedef enum interface_mode {
@@ -677,7 +455,7 @@ static device_attach_t wsp_attach;
 static device_detach_t wsp_detach;
 static usb_callback_t wsp_intr_callback;
 
-static struct usb_config wsp_config[WSP_N_TRANSFER] = {
+static const struct usb_config wsp_config[WSP_N_TRANSFER] = {
 	[WSP_INTR_DT] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
@@ -686,7 +464,7 @@ static struct usb_config wsp_config[WSP_N_TRANSFER] = {
 			.pipe_bof = 0,
 			.short_xfer_ok = 1,
 		},
-		.bufsize = 0,		/* use wMaxPacketSize */
+		.bufsize = WSP_BUFFER_MAX,
 		.callback = &wsp_intr_callback,
 	},
 };
@@ -724,19 +502,6 @@ wsp_set_device_mode(struct wsp_softc *sc, interface_mode mode)
 static int
 wsp_enable(struct wsp_softc *sc)
 {
-	const struct wsp_dev_params *params = sc->sc_params;
-
-	if (params == NULL || params->tp_datalen == 0) {
-		DPRINTF("params uninitialized!\n");
-		return (ENXIO);
-	}
-	/* Allocate the dynamic buffers */
-	sc->tp_data = malloc(params->tp_datalen, M_USB, M_WAITOK | M_ZERO);
-	if (sc->tp_data == NULL) {
-		DPRINTF("Cannot allocate memory\n");
-		return (ENXIO);
-	}
-
 	/* reset status */
 	memset(&sc->sc_status, 0, sizeof(sc->sc_status));
 	sc->sc_state |= WSP_ENABLED;
@@ -748,9 +513,6 @@ wsp_enable(struct wsp_softc *sc)
 static void
 wsp_disable(struct wsp_softc *sc)
 {
-	free(sc->tp_data, M_USB);
-	sc->tp_data = NULL;
-
 	sc->sc_state &= ~WSP_ENABLED;
 	DPRINTFN(WSP_LLEVEL_INFO, "disabled wsp\n");
 }
@@ -779,8 +541,28 @@ wsp_attach(device_t dev)
 	struct wsp_softc *sc = device_get_softc(dev);
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	usb_error_t err;
+	void *d_ptr = NULL;
+	uint16_t d_len;
 
 	DPRINTFN(WSP_LLEVEL_INFO, "sc=%p\n", sc);
+
+	/* Get HID descriptor */
+	err = usbd_req_get_hid_desc(uaa->device, NULL, &d_ptr,
+	    &d_len, M_TEMP, uaa->info.bIfaceIndex);
+
+	if (err == USB_ERR_NORMAL_COMPLETION) {
+		/* Get HID report descriptor length */
+		sc->tp_datalen = hid_report_size(d_ptr, d_len, hid_input, NULL);
+		free(d_ptr, M_TEMP);
+
+		if (sc->tp_datalen <= 0 || sc->tp_datalen > WSP_BUFFER_MAX) {
+			DPRINTF("Invalid datalength or too big "
+			    "datalength: %d\n", sc->tp_datalen);
+			return (ENXIO);
+		}
+	} else {
+		return (ENXIO);
+	}
 
 	sc->sc_usb_device = uaa->device;
 
@@ -816,13 +598,9 @@ wsp_attach(device_t dev)
 	/* get device specific configuration */
 	sc->sc_params = wsp_dev_params + USB_GET_DRIVER_INFO(uaa);
 
-	/* set to 0 to use wMaxPacketSize is not enough */
-	wsp_config[0].bufsize = sc->sc_params->tp_datalen;
-
 	err = usbd_transfer_setup(uaa->device,
 	    &uaa->info.bIfaceIndex, sc->sc_xfer, wsp_config,
 	    WSP_N_TRANSFER, sc, &sc->sc_mutex);
-
 	if (err) {
 		DPRINTF("error=%s\n", usbd_errstr(err));
 		goto detach;
@@ -903,18 +681,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	switch (USB_GET_STATE(xfer)) {
 	case USB_ST_TRANSFERRED:
-		if (len > (int)params->tp_datalen) {
-			DPRINTFN(WSP_LLEVEL_ERROR,
-			    "truncating large packet from %u to %u bytes\n",
-			    len, params->tp_datalen);
-			len = params->tp_datalen;
-		} else {
-			/* make sure we don't process old data */
-			memset(sc->tp_data + len, 0, params->tp_datalen - len);
-		}
 
+		/* copy out received data */
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, sc->tp_data, len);
+
+		if (len < sc->tp_datalen) {
+			/* make sure we don't process old data */
+			memset(sc->tp_data + len, 0, sc->tp_datalen - len);
+		}
 
 		h = (struct tp_header *)(sc->tp_data);
 
@@ -956,7 +731,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 			    f[i].touch_major, f[i].touch_minor, f[i].multi);
 
 			sc->pos_x[i] = f[i].abs_x;
-			sc->pos_y[i] = params->y.min + params->y.max - f[i].abs_y;
+			sc->pos_y[i] = -f[i].abs_y;
 			sc->index[i] = &f[i];
 		}
 
@@ -1009,12 +784,12 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				 * button-up).
 				 */
 				switch (sc->ntaps) {
-#if 0
 				case 1:
-					wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON1DOWN);
-					DPRINTFN(WSP_LLEVEL_INFO, "LEFT CLICK!\n");
+					if (!(params->caps & HAS_INTEGRATED_BUTTON)) {
+						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON1DOWN);
+						DPRINTFN(WSP_LLEVEL_INFO, "LEFT CLICK!\n");
+					}
 					break;
-#endif
 				case 2:
 					if (sc->distance < MAX_DISTANCE)
 						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON3DOWN);
@@ -1180,7 +955,7 @@ tr_setup:
 		if (usb_fifo_put_bytes_max(
 		    sc->sc_fifo.fp[USB_FIFO_RX]) != 0) {
 			usbd_xfer_set_frame_len(xfer, 0,
-			    sc->sc_params->tp_datalen);
+			    sc->tp_datalen);
 			usbd_transfer_submit(xfer);
 		}
 		break;
@@ -1193,8 +968,6 @@ tr_setup:
 		}
 		break;
 	}
-
-	return;
 }
 
 static void

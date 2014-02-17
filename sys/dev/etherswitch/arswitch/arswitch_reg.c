@@ -111,6 +111,16 @@ arswitch_writedbg(device_t dev, int phy, uint16_t dbg_addr,
 	    MII_ATH_DBG_DATA, dbg_data);
 }
 
+void
+arswitch_writemmd(device_t dev, int phy, uint16_t dbg_addr,
+    uint16_t dbg_data)
+{
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_ADDR, dbg_addr);
+	(void) MDIO_WRITEREG(device_get_parent(dev), phy,
+	    MII_ATH_MMD_DATA, dbg_data);
+}
+
 /*
  * Write half a register
  */

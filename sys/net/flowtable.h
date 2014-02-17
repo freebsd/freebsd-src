@@ -39,13 +39,13 @@ struct flowtable_stat {
 	uint64_t	ft_frees;
 	uint64_t	ft_hits;
 	uint64_t	ft_lookups;
+	uint64_t	ft_fail_lle_invalid;
+	uint64_t	ft_inserts;
 };
 
 #ifdef	_KERNEL
 
 #define	FL_HASH_ALL	(1<<0)	/* hash 4-tuple + protocol */
-#define	FL_PCPU		(1<<1)	/* pcpu cache */
-#define	FL_NOAUTO	(1<<2)	/* don't automatically add flentry on miss */
 #define FL_IPV6  	(1<<9)
 
 #define	FL_TCP		(1<<11)

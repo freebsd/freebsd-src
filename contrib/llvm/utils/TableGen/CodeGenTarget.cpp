@@ -75,6 +75,7 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v16i1:    return "MVT::v16i1";
   case MVT::v32i1:    return "MVT::v32i1";
   case MVT::v64i1:    return "MVT::v64i1";
+  case MVT::v1i8:     return "MVT::v1i8";
   case MVT::v2i8:     return "MVT::v2i8";
   case MVT::v4i8:     return "MVT::v4i8";
   case MVT::v8i8:     return "MVT::v8i8";
@@ -98,10 +99,14 @@ std::string llvm::getEnumName(MVT::SimpleValueType T) {
   case MVT::v8i64:    return "MVT::v8i64";
   case MVT::v16i64:   return "MVT::v16i64";
   case MVT::v2f16:    return "MVT::v2f16";
+  case MVT::v4f16:    return "MVT::v4f16";
+  case MVT::v8f16:    return "MVT::v8f16";
+  case MVT::v1f32:    return "MVT::v1f32";
   case MVT::v2f32:    return "MVT::v2f32";
   case MVT::v4f32:    return "MVT::v4f32";
   case MVT::v8f32:    return "MVT::v8f32";
   case MVT::v16f32:   return "MVT::v16f32";
+  case MVT::v1f64:    return "MVT::v1f64";
   case MVT::v2f64:    return "MVT::v2f64";
   case MVT::v4f64:    return "MVT::v4f64";
   case MVT::v8f64:    return "MVT::v8f64";
@@ -298,7 +303,7 @@ struct SortInstByName {
 /// target, ordered by their enum value.
 void CodeGenTarget::ComputeInstrsByEnum() const {
   // The ordering here must match the ordering in TargetOpcodes.h.
-  const char *const FixedInstrs[] = {
+  static const char *const FixedInstrs[] = {
     "PHI",
     "INLINEASM",
     "PROLOG_LABEL",
@@ -316,6 +321,8 @@ void CodeGenTarget::ComputeInstrsByEnum() const {
     "BUNDLE",
     "LIFETIME_START",
     "LIFETIME_END",
+    "STACKMAP",
+    "PATCHPOINT",
     0
   };
   const DenseMap<const Record*, CodeGenInstruction*> &Insts = getInstructions();
@@ -552,6 +559,12 @@ CodeGenIntrinsic::CodeGenIntrinsic(Record *R) {
     else if (Property->isSubClassOf("NoCapture")) {
       unsigned ArgNo = Property->getValueAsInt("ArgNo");
       ArgumentAttributes.push_back(std::make_pair(ArgNo, NoCapture));
+    } else if (Property->isSubClassOf("ReadOnly")) {
+      unsigned ArgNo = Property->getValueAsInt("ArgNo");
+      ArgumentAttributes.push_back(std::make_pair(ArgNo, ReadOnly));
+    } else if (Property->isSubClassOf("ReadNone")) {
+      unsigned ArgNo = Property->getValueAsInt("ArgNo");
+      ArgumentAttributes.push_back(std::make_pair(ArgNo, ReadNone));
     } else
       llvm_unreachable("Unknown property!");
   }

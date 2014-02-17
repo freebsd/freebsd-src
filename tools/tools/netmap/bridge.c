@@ -9,14 +9,15 @@
  * $FreeBSD$
  */
 
-#include "nm_util.h"
-
+#include <stdio.h>
+#define NETMAP_WITH_LIBS
+#include <net/netmap_user.h>
+#include <sys/poll.h>
 
 int verbose = 0;
 
-char *version = "$Id$";
-
 static int do_abort = 0;
+static int zerocopy = 1; /* enable zerocopy if possible */
 
 static void
 sigint_h(int sig)
@@ -26,6 +27,26 @@ sigint_h(int sig)
 	signal(SIGINT, SIG_DFL);
 }
 
+
+/*
+ * how many packets on this set of queues ?
+ */
+int
+pkt_queued(struct nm_desc *d, int tx)
+{
+        u_int i, tot = 0;
+
+        if (tx) {
+                for (i = d->first_tx_ring; i <= d->last_tx_ring; i++) {
+                        tot += nm_ring_space(NETMAP_TXRING(d->nifp, i));
+                }
+        } else {
+                for (i = d->first_rx_ring; i <= d->last_rx_ring; i++) {
+                        tot += nm_ring_space(NETMAP_RXRING(d->nifp, i));
+                }
+        }
+        return tot;
+}
 
 /*
  * move up to 'limit' pkts from rxring to txring swapping buffers.
@@ -52,12 +73,6 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 	while (limit-- > 0) {
 		struct netmap_slot *rs = &rxring->slot[j];
 		struct netmap_slot *ts = &txring->slot[k];
-#ifdef NO_SWAP
-		char *rxbuf = NETMAP_BUF(rxring, rs->buf_idx);
-		char *txbuf = NETMAP_BUF(txring, ts->buf_idx);
-#else
-		uint32_t pkt;
-#endif
 
 		/* swap packets */
 		if (ts->buf_idx < 2 || rs->buf_idx < 2) {
@@ -65,24 +80,26 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 				j, rs->buf_idx, k, ts->buf_idx);
 			sleep(2);
 		}
-#ifndef NO_SWAP
-		pkt = ts->buf_idx;
-		ts->buf_idx = rs->buf_idx;
-		rs->buf_idx = pkt;
-#endif
 		/* copy the packet length. */
-		if (rs->len < 14 || rs->len > 2048)
+		if (rs->len > 2048) {
 			D("wrong len %d rx[%d] -> tx[%d]", rs->len, j, k);
-		else if (verbose > 1)
+			rs->len = 0;
+		} else if (verbose > 1) {
 			D("%s send len %d rx[%d] -> tx[%d]", msg, rs->len, j, k);
+		}
 		ts->len = rs->len;
-#ifdef NO_SWAP
-		pkt_copy(rxbuf, txbuf, ts->len);
-#else
-		/* report the buffer change. */
-		ts->flags |= NS_BUF_CHANGED;
-		rs->flags |= NS_BUF_CHANGED;
-#endif /* NO_SWAP */
+		if (zerocopy) {
+			uint32_t pkt = ts->buf_idx;
+			ts->buf_idx = rs->buf_idx;
+			rs->buf_idx = pkt;
+			/* report the buffer change. */
+			ts->flags |= NS_BUF_CHANGED;
+			rs->flags |= NS_BUF_CHANGED;
+		} else {
+			char *rxbuf = NETMAP_BUF(rxring, rs->buf_idx);
+			char *txbuf = NETMAP_BUF(txring, ts->buf_idx);
+			nm_pkt_copy(rxbuf, txbuf, ts->len);
+		}
 		j = nm_ring_next(rxring, j);
 		k = nm_ring_next(txring, k);
 	}
@@ -96,7 +113,7 @@ process_rings(struct netmap_ring *rxring, struct netmap_ring *txring,
 
 /* move packts from src to destination */
 static int
-move(struct nm_desc_t *src, struct nm_desc_t *dst, u_int limit)
+move(struct nm_desc *src, struct nm_desc *dst, u_int limit)
 {
 	struct netmap_ring *txring, *rxring;
 	u_int m = 0, si = src->first_rx_ring, di = dst->first_tx_ring;
@@ -104,8 +121,8 @@ move(struct nm_desc_t *src, struct nm_desc_t *dst, u_int limit)
 		"host->net" : "net->host";
 
 	while (si <= src->last_rx_ring && di <= dst->last_tx_ring) {
-		rxring = src->tx + si;
-		txring = dst->tx + di;
+		rxring = NETMAP_RXRING(src->nifp, si);
+		txring = NETMAP_TXRING(dst->nifp, di);
 		ND("txring %p rxring %p", txring, rxring);
 		if (nm_ring_empty(rxring)) {
 			si++;
@@ -141,15 +158,16 @@ int
 main(int argc, char **argv)
 {
 	struct pollfd pollfd[2];
-	int i, ch;
+	int ch;
 	u_int burst = 1024, wait_link = 4;
-	struct nm_desc_t *pa = NULL, *pb = NULL;
+	struct nm_desc *pa = NULL, *pb = NULL;
 	char *ifa = NULL, *ifb = NULL;
+	char ifabuf[64] = { 0 };
 
-	fprintf(stderr, "%s %s built %s %s\n",
-		argv[0], version, __DATE__, __TIME__);
+	fprintf(stderr, "%s built %s %s\n",
+		argv[0], __DATE__, __TIME__);
 
-	while ( (ch = getopt(argc, argv, "b:i:vw:")) != -1) {
+	while ( (ch = getopt(argc, argv, "b:ci:vw:")) != -1) {
 		switch (ch) {
 		default:
 			D("bad option %c %s", ch, optarg);
@@ -166,6 +184,9 @@ main(int argc, char **argv)
 			else
 				D("%s ignored, already have 2 interfaces",
 					optarg);
+			break;
+		case 'c':
+			zerocopy = 0; /* do not zerocopy */
 			break;
 		case 'v':
 			verbose++;
@@ -202,20 +223,25 @@ main(int argc, char **argv)
 	}
 	if (!strcmp(ifa, ifb)) {
 		D("same interface, endpoint 0 goes to host");
-		i = NETMAP_SW_RING;
+		snprintf(ifabuf, sizeof(ifabuf) - 1, "%s^", ifa);
+		ifa = ifabuf;
 	} else {
 		/* two different interfaces. Take all rings on if1 */
-		i = 0;	// all hw rings
 	}
-	pa = netmap_open(ifa, i, 1);
-	if (pa == NULL)
+	pa = nm_open(ifa, NULL, 0, NULL);
+	if (pa == NULL) {
+		D("cannot open %s", ifa);
 		return (1);
+	}
 	// XXX use a single mmap ?
-	pb = netmap_open(ifb, 0, 1);
+	pb = nm_open(ifb, NULL, NM_OPEN_NO_MMAP, pa);
 	if (pb == NULL) {
+		D("cannot open %s", ifb);
 		nm_close(pa);
 		return (1);
 	}
+	zerocopy = zerocopy && (pa->mem == pb->mem);
+	D("------- zerocopy %ssupported", zerocopy ? "" : "NOT ");
 
 	/* setup poll(2) variables. */
 	memset(pollfd, 0, sizeof(pollfd));
@@ -252,23 +278,25 @@ main(int argc, char **argv)
 				pollfd[0].events,
 				pollfd[0].revents,
 				pkt_queued(pa, 0),
-				pa->rx->cur,
+				NETMAP_RXRING(pa->nifp, pa->cur_rx_ring)->cur,
 				pkt_queued(pa, 1),
 				pollfd[1].events,
 				pollfd[1].revents,
 				pkt_queued(pb, 0),
-				pb->rx->cur,
+				NETMAP_RXRING(pb->nifp, pb->cur_rx_ring)->cur,
 				pkt_queued(pb, 1)
 			);
 		if (ret < 0)
 			continue;
 		if (pollfd[0].revents & POLLERR) {
-			D("error on fd0, rx [%d,%d)",
-				pa->rx->cur, pa->rx->tail);
+			struct netmap_ring *rx = NETMAP_RXRING(pa->nifp, pa->cur_rx_ring);
+			D("error on fd0, rx [%d,%d,%d)",
+				rx->head, rx->cur, rx->tail);
 		}
 		if (pollfd[1].revents & POLLERR) {
-			D("error on fd1, rx [%d,%d)",
-				pb->rx->cur, pb->rx->tail);
+			struct netmap_ring *rx = NETMAP_RXRING(pb->nifp, pb->cur_rx_ring);
+			D("error on fd1, rx [%d,%d,%d)",
+				rx->head, rx->cur, rx->tail);
 		}
 		if (pollfd[0].revents & POLLOUT) {
 			move(pb, pa, burst);

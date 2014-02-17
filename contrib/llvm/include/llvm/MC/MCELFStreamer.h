@@ -28,20 +28,17 @@ class MCSymbolData;
 class raw_ostream;
 
 class MCELFStreamer : public MCObjectStreamer {
-protected:
-  MCELFStreamer(StreamerKind Kind, MCContext &Context, MCAsmBackend &TAB,
-                raw_ostream &OS, MCCodeEmitter *Emitter)
-      : MCObjectStreamer(Kind, Context, TAB, OS, Emitter) {}
-
 public:
-  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
-                MCCodeEmitter *Emitter)
-      : MCObjectStreamer(SK_ELFStreamer, Context, TAB, OS, Emitter) {}
+  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
+                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter)
+      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter), 
+                         SeenIdent(false) {}
 
-  MCELFStreamer(MCContext &Context, MCAsmBackend &TAB, raw_ostream &OS,
-                MCCodeEmitter *Emitter, MCAssembler *Assembler)
-      : MCObjectStreamer(SK_ELFStreamer, Context, TAB, OS, Emitter,
-                         Assembler) {}
+  MCELFStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
+                MCAsmBackend &TAB, raw_ostream &OS, MCCodeEmitter *Emitter,
+                MCAssembler *Assembler)
+      : MCObjectStreamer(Context, TargetStreamer, TAB, OS, Emitter, Assembler), 
+                         SeenIdent(false) {}
 
   virtual ~MCELFStreamer();
 
@@ -57,7 +54,7 @@ public:
   virtual void EmitAssemblerFlag(MCAssemblerFlag Flag);
   virtual void EmitThumbFunc(MCSymbol *Func);
   virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
-  virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
+  virtual bool EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
   virtual void EmitSymbolDesc(MCSymbol *Symbol, unsigned DescValue);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
@@ -77,21 +74,17 @@ public:
                             uint64_t Size = 0, unsigned ByteAlignment = 0);
   virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                               uint64_t Size, unsigned ByteAlignment = 0);
-  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                             unsigned AddrSpace);
+  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size);
 
   virtual void EmitFileDirective(StringRef Filename);
 
-  virtual void EmitTCEntry(const MCSymbol &S);
+  virtual void EmitIdent(StringRef IdentString);
 
   virtual void EmitValueToAlignment(unsigned, int64_t, unsigned, unsigned);
 
-  virtual void FinishImpl();
-  /// @}
+  virtual void Flush();
 
-  static bool classof(const MCStreamer *S) {
-    return S->getKind() == SK_ELFStreamer || S->getKind() == SK_ARMELFStreamer;
-  }
+  virtual void FinishImpl();
 
 private:
   virtual void EmitInstToFragment(const MCInst &Inst);
@@ -102,6 +95,8 @@ private:
   virtual void EmitBundleUnlock();
 
   void fixSymbolsInTLSFixups(const MCExpr *expr);
+
+  bool SeenIdent;
 
   struct LocalCommon {
     MCSymbolData *SD;
@@ -120,6 +115,11 @@ private:
   void SetSectionText();
   void SetSectionBss();
 };
+
+MCELFStreamer *createARMELFStreamer(MCContext &Context, MCAsmBackend &TAB,
+                                    raw_ostream &OS, MCCodeEmitter *Emitter,
+                                    bool RelaxAll, bool NoExecStack,
+                                    bool IsThumb);
 
 } // end namespace llvm
 
