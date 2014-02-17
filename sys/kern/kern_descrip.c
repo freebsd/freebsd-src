@@ -1521,7 +1521,7 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		return;
 
 	/*
-	 * Allocate a new table and map.  We need enough space for the
+	 * Allocate a new table.  We need enough space for the
 	 * file entries themselves and the struct freetable we will use
 	 * when we decommission the table and place it on the freelist.
 	 * We place the struct freetable in the middle so we don't have
@@ -1529,16 +1529,20 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 */
 	ntable = malloc(nnfiles * sizeof(ntable[0]) + sizeof(struct freetable),
 	    M_FILEDESC, M_ZERO | M_WAITOK);
-	nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
-	    M_ZERO | M_WAITOK);
-
 	/* copy the old data over and point at the new tables */
 	memcpy(ntable, otable, onfiles * sizeof(*otable));
-	memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
-
-	/* update the pointers and counters */
 	fdp->fd_ofiles = ntable;
-	fdp->fd_map = nmap;
+
+	/* Allocate a new map only if the old is not large enough.  It will
+	 * grow at a slower rate than the table as it can map more
+	 * entries than the table can hold. */
+	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
+		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
+		    M_ZERO | M_WAITOK);
+		/* copy over the old data and update the pointer */
+		memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
+		fdp->fd_map = nmap;
+	}
 
 	/*
 	 * In order to have a valid pattern for fget_unlocked()
@@ -1554,8 +1558,6 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	 * reference entries within it.  Instead, place it on a freelist
 	 * which will be processed when the struct filedesc is released.
 	 *
-	 * Do, however, free the old map.
-	 *
 	 * Note that if onfiles == NDFILE, we're dealing with the original
 	 * static allocation contained within (struct filedesc0 *)fdp,
 	 * which must not be freed.
@@ -1565,8 +1567,12 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		fdp0 = (struct filedesc0 *)fdp;
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
-		free(omap, M_FILEDESC);
 	}
+	/* The map does not have the same possibility of threads still
+	 * holding references to it.  So always free it as long as it
+	 * does not reference the original static allocation. */
+	if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
+		free(omap, M_FILEDESC);
 }
 
 /*
