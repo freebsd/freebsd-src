@@ -59,7 +59,7 @@
 MODULE_DEPEND(usb_quirk, usb, 1, 1, 1);
 MODULE_VERSION(usb_quirk, 1);
 
-#define	USB_DEV_QUIRKS_MAX 256
+#define	USB_DEV_QUIRKS_MAX 320
 #define	USB_SUB_QUIRKS_MAX 8
 
 struct usb_quirk_entry {
