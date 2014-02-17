@@ -3758,7 +3758,8 @@ pci/amdpm.c			optional amdpm pci | nfpm pci
 pci/amdsmb.c			optional amdsmb pci
 pci/if_rl.c			optional rl pci
 pci/intpm.c			optional intpm pci
-pci/ncr.c			optional ncr pci
+pci/ncr.c			optional ncr pci \
+	compile-with "${NORMAL_C} -Wno-unused"
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
 rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
