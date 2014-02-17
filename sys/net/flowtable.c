@@ -1,5 +1,5 @@
 /*-
- *
+ * Copyright (c) 2014 Gleb Smirnoff <glebius@FreeBSD.org>
  * Copyright (c) 2008-2010, BitGravity Inc.
  * All rights reserved.
  *
