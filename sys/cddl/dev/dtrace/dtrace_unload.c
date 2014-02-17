@@ -127,6 +127,8 @@ dtrace_unload()
 	mutex_destroy(&dtrace_errlock);
 #endif
 
+	taskq_destroy(dtrace_taskq);
+
 	/* Reset our hook for exceptions. */
 	dtrace_invop_uninit();
 
