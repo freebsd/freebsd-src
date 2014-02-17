@@ -134,6 +134,40 @@ typedef	__ssize_t	ssize_t;
 void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
+#if __has_feature(capabilities)
+__capability void
+	*memchr_c(__capability const void *, int, size_t) __pure;
+int	 memcmp_c(__capability const void *, __capability const void *, size_t)
+	    __pure;
+__capability void
+	*memcpy_c(__capability void * __restrict,
+	    __capability const void * __restrict, size_t);
+void	*memcpy_c_fromcap(void * __restrict,
+	    __capability const void * __restrict, size_t);
+__capability void
+	*memcpy_c_tocap(__capability void * __restrict,
+	    const void * __restrict, size_t);
+
+__capability char
+	*strchr_c(__capability const char *, int) __pure;
+int 	 strcmp_c(__capability const char *,
+	    __capability const char *s2) __pure;
+__capability char
+	*strcpy_c(__capability char * __restrict,
+	    __capability const char * __restrict);
+int	 strncmp_c(__capability const char *, __capability const char *,
+	    size_t) __pure;
+__capability char
+*strncpy_c(__capability char * __restrict, __capability const char * __restrict,
+	    size_t);
+char	 *strncpy_c_fromcap(char * __restrict,
+	    __capability const char * __restrict, size_t);
+__capability char
+	*strncpy_c_tocap(__capability char * __restrict,
+	    const char * __restrict, size_t);
+size_t	 strnlen_c(__capability const char *, size_t) __pure;
+#endif
+
 #endif /* __BSD_VISIBLE */
 
 #if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)

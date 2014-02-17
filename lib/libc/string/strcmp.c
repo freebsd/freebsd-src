@@ -37,15 +37,17 @@ static char sccsid[] = "@(#)strcmp.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include "cheri_private.h"
 
 /*
  * Compare strings.
  */
 int
-strcmp(const char *s1, const char *s2)
+__CAPSUFFIX(strcmp)(__CAPABILITY const char *s1, __CAPABILITY const char *s2)
 {
 	while (*s1 == *s2++)
 		if (*s1++ == '\0')
 			return (0);
-	return (*(const unsigned char *)s1 - *(const unsigned char *)(s2 - 1));
+	return (*(__CAPABILITY const unsigned char *)s1 -
+	    *(__CAPABILITY const unsigned char *)(s2 - 1));
 }

@@ -37,17 +37,19 @@ static char sccsid[] = "@(#)strncpy.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include "cheri_private.h"
 
 /*
  * Copy src to dst, truncating or null-padding to always copy n bytes.
  * Return dst.
  */
-char *
-strncpy(char * __restrict dst, const char * __restrict src, size_t n)
+__CAPABILITY char *
+__CAPSUFFIX(strncpy)(__CAPABILITY char * __restrict dst,
+    __CAPABILITY const char * __restrict src, size_t n)
 {
 	if (n != 0) {
-		char *d = dst;
-		const char *s = src;
+		__CAPABILITY char *d = dst;
+		__CAPABILITY const char *s = src;
 
 		do {
 			if ((*d++ = *s++) == '\0') {

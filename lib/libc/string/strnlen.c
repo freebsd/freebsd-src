@@ -28,9 +28,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include "cheri_private.h"
 
 size_t
-strnlen(const char *s, size_t maxlen)
+__CAPSUFFIX(strnlen)(__CAPABILITY const char *s, size_t maxlen)
 {
 	size_t len;
 

@@ -16,7 +16,6 @@ SRCS=		cheri_invoke.S		\
 		cheri_printf.c		\
 		cheri_put.c		\
 		cheri_stdio.c		\
-		cmemcpy.s		\
 		malloc.c
 
 # libc/gen
@@ -48,7 +47,9 @@ CFLAGS+=	-I${.CURDIR}/../libc/include \
 
 # libc/gdtoa
 CFLAGS.misc.c=	-Wno-sign-compare
-SRCS+=		glue.c machdep_ldisd.c misc.c
+SRCS+=		glue.c			\
+		machdep_ldisd.c		\
+		misc.c
 # libc/gen
 SRCS+=		assert.c		\
 		getprogname.c		\
@@ -96,6 +97,7 @@ SRCS+=		inet_ntop.c		\
 # libc/stdlib
 SRCS+=		atoi.c			\
 		strtol.c		\
+		strtol_c.c		\
 		strtoll.c		\
 		strtoull.c		\
 		strtoq.c		\
@@ -104,20 +106,30 @@ SRCS+=		atoi.c			\
 CFLAGS.strerror.c=	-Wno-incompatible-pointer-types-discards-qualifiers
 SRCS+=		bcopy.S			\
 		memchr.c		\
+		memchr_c.c		\
 		memcmp.c		\
+		memcmp_c.c		\
 		memcpy.S		\
+		memcpy_c.s		\
+		memcpy_c_tofrom.c	\
 		memset.c		\
 		strcat.c		\
 		strchr.S		\
+		strchr_c.c		\
 		strcmp.S		\
+		strcmp_c.c		\
 		strcpy.c		\
+		strcpy_c.c		\
 		strdup.c		\
 		strerror.c		\
 		strlcat.c		\
 		strlcpy.c		\
 		strlen.S		\
 		strncmp.c		\
-		strncpy.c
+		strncmp_c.c		\
+		strncpy.c		\
+		strncpy_c.c		\
+		strnlen_c.c
 
 # contrib/gdtoa
 CFLAGS.strtod.c=	-Wno-unused-parameter -Wno-uninitialized \
@@ -174,6 +186,8 @@ LIBC_ARCH=${MACHINE_CPUARCH}
 CFLAGS+=	-I${LIBC_DIR}/include			\
 		-I${LIBC_DIR}/${LIBC_ARCH}		\
 		-I${LIBC_DIR}/locale			\
+		-I${LIBC_DIR}/string			\
+		-I${LIBC_DIR}/stdlib			\
 		-I${.CURDIR}/../../contrib/gdtoa	\
 		-I${.CURDIR}/../../include
 

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <cheri_private.h>
 #include "xlocale_private.h"
 
 
@@ -52,10 +53,11 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 long
-strtol_l(const char * __restrict nptr, char ** __restrict endptr, int base,
-		locale_t locale)
+__CAPSUFFIX(strtol_l)(__CAPABILITY const char * __restrict nptr,
+		      __CAPABILITY char ** __restrict endptr, int base,
+		      locale_t locale)
 {
-	const char *s;
+	__CAPABILITY const char *s;
 	unsigned long acc;
 	char c;
 	unsigned long cutoff;
@@ -143,16 +145,19 @@ noconv:
 	} else if (neg)
 		acc = -acc;
 	if (endptr != NULL)
-		*endptr = (char *)(any ? s - 1 : nptr);
+		*endptr = (__CAPABILITY char *)(any ? s - 1 : nptr);
 	return (acc);
 }
 long
-strtol(const char * __restrict nptr, char ** __restrict endptr, int base)
+__CAPSUFFIX(strtol)(__CAPABILITY const char * __restrict nptr,
+		    __CAPABILITY char ** __restrict endptr, int base)
 {
-	return strtol_l(nptr, endptr, base, __get_locale());
+	return __CAPSUFFIX(strtol_l)(nptr, endptr, base, __get_locale());
 }
+#ifndef CAPABILITY_VERSION
 long double
 strtold(const char * __restrict nptr, char ** __restrict endptr)
 {
 	return strtold_l(nptr, endptr, __get_locale());
 }
+#endif

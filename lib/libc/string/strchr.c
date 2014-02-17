@@ -35,20 +35,25 @@ __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 #include <string.h>
+#include "cheri_private.h"
 
-char *
-strchr(const char *p, int ch)
+__CAPABILITY char *
+__CAPSUFFIX(strchr)(__CAPABILITY const char *p, int ch)
 {
 	char c;
 
 	c = ch;
 	for (;; ++p) {
 		if (*p == c)
-			return ((char *)p);
+			return ((__CAPABILITY char *)p);
 		if (*p == '\0')
 			return (NULL);
 	}
 	/* NOTREACHED */
 }
 
+#ifdef CAPABILTY_VERSION
+__weak_reference(strchr_c, index_c);
+#else
 __weak_reference(strchr, index);
+#endif

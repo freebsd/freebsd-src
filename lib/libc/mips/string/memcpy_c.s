@@ -34,31 +34,9 @@
 .set nobopt
 .set noat
 
-# C-compatible memcpy, wrapping the capability version
-# Note: This is currently called smemcpy (simple memcpy) so that we don't need
-# to remove the old memcpy yet.  It's also important to remember that some of
-# the assembly functions here may not respect the ABI in terms of the caller /
-# callee-save registers, and so expect memcpy() to clobber fewer registers than
-# this does.
-# void *memcpy(void *dst,
-#              void *src,
-#              size_t len)
-# dst: $c1
-# src: $c2
-# len: $4
-.text
-.global smemcpy
-.ent smemcpy
-smemcpy:
-	CIncBase $c3, $c0, $a0      # Get the destination capability
-	CIncBase $c4, $c0, $a1      # Get the source capability
-	b        cmemcpy            # Jump to the capability version
-	daddi    $a0, $a2, 0        # Move the length to arg0 (delay slot)
-.end smemcpy
-
 #
 # Capability Memcpy - copies from one capability to another.
-# __capability void *cmemcpy(__capability void *dst,
+# __capability void *memcpy_c(__capability void *dst,
 #                            __capability void *src,
 #                            size_t len)
 # dst: $c3
@@ -66,14 +44,14 @@ smemcpy:
 # len: $4
 # Copies len bytes from src to dst.  Returns dst.
 		.text
-		.global cmemcpy
-		.ent cmemcpy
-cmemcpy:
-	beq      $4, $zero, cmemcpy_return  # Only bother if len != 0.  Unlikely to
+		.global memcpy_c
+		.ent memcpy_c
+memcpy_c:
+	beq      $4, $zero, memcpy_c_return  # Only bother if len != 0.  Unlikely to
 	                               # be taken, so we make it a forward branch
 	                               # to give the predictor a hint.
 	# Note: We use v0 to store the base linear address because memcpy() must
-	# return that value in v0, allowing cmemcpy() to be tail-called from
+	# return that value in v0, allowing memcpy_c() to be tail-called from
 	# memcpy().  This is in the delay slot, so it happens even if len == 0.
 	CGetBase $v0, $c3            # v0 = linear address of dst
 	CGetBase $v1, $c4            # v1 = linear address of src
@@ -132,7 +110,7 @@ copy_caps:
 	dsub    $v1, $a0, $a2        # Subtract the number of bytes copied from the
 	                             # number to copy.  This should give the number
 	                             # of unaligned bytes that we still need to copy
-	beqzl   $v1, cmemcpy_return  # If we have an aligned copy (which we probably
+	beqzl   $v1, memcpy_c_return # If we have an aligned copy (which we probably
 	                             # do) then return
 	nop
 	dadd    $v1, $a1, $v1
@@ -142,7 +120,7 @@ unaligned_end:
 	bne      $v1, $a1, unaligned_end
 	csb      $a2, $a1, -1($c3)
 
-cmemcpy_return:
+memcpy_c_return:
 	jr       $ra                 # Return value remains in c1
 	nop
 
@@ -153,4 +131,4 @@ slow_memcpy_loop:                # byte-by-byte copy
 	csb      $a2, $a1, -1($c3)
 	jr       $ra                 # Return value remains in c1
 	nop
-.end cmemcpy
+.end memcpy_c

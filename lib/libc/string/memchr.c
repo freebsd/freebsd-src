@@ -37,16 +37,17 @@ static char sccsid[] = "@(#)memchr.c	8.1 (Berkeley) 6/4/93";
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include "cheri_private.h"
 
-void *
-memchr(const void *s, int c, size_t n)
+__CAPABILITY void *
+__CAPSUFFIX(memchr)(__CAPABILITY const void *s, int c, size_t n)
 {
 	if (n != 0) {
-		const unsigned char *p = s;
+		__CAPABILITY const unsigned char *p = s;
 
 		do {
 			if (*p++ == (unsigned char)c)
-				return ((void *)(p - 1));
+				return ((__CAPABILITY void *)(p - 1));
 		} while (--n != 0);
 	}
 	return (NULL);

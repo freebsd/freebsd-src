@@ -88,9 +88,6 @@ int	invoke(register_t op, register_t localnet, register_t netmask,
 	    __capability const struct pcap_pkthdr *h,
 	    __capability const u_char *sp);
 
-__capability void *cmemcpy(__capability void *dst,
-                            const __capability void *src,
-                            size_t len);
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
     __capability const netdissect_options *ndo,
@@ -110,7 +107,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	 * those for now and allow them to be reinitalized on a
 	 * per-sandbox basis.
 	 */
-	cmemcpy(cheri_ptr(gndo, sizeof(netdissect_options)), ndo,
+	memcpy_c(cheri_ptr(gndo, sizeof(netdissect_options)), ndo,
 	    sizeof(netdissect_options));
 	if (ndo->ndo_espsecret != NULL) { /* XXX: check the real thing */
 		if (gndo->ndo_espsecret != NULL)
@@ -120,7 +117,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 		gndo->ndo_espsecret = malloc(espsec_len);
 		if (gndo->ndo_espsecret == NULL)
 			abort();
-		cmemcpy(cheri_ptr(gndo->ndo_espsecret, espsec_len),
+		memcpy_c(cheri_ptr(gndo->ndo_espsecret, espsec_len),
 		    ndo_espsecret, espsec_len);
 	}
 	gndo->ndo_printf = tcpdump_printf;
@@ -190,8 +187,8 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		 */
 		if ((data = malloc(h->caplen)) == NULL)
 			abort();
-		cmemcpy(cheri_ptr(data, h->caplen), sp, h->caplen);
-		cmemcpy((__capability struct pcap_pkthdr *)&hdr, h,
+		memcpy_c(cheri_ptr(data, h->caplen), sp, h->caplen);
+		memcpy_c((__capability struct pcap_pkthdr *)&hdr, h,
 		    sizeof(struct pcap_pkthdr));
 
 		gndo->ndo_packetp = data;

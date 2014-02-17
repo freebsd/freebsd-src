@@ -304,6 +304,14 @@ __int64_t
 __uint64_t
 	 strtouq(const char *, char **, int);
 
+#if __has_feature(capabilities)
+long	 strtol_c(__capability const char * __restrict,
+	    __capability char ** __restrict, int);
+long double
+	 strtold_c(__capability const char * __restrict,
+	    __capability char ** __restrict);
+#endif
+
 extern char *suboptarg;			/* getsubopt(3) external variable */
 #endif /* __BSD_VISIBLE */
 __END_DECLS

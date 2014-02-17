@@ -57,3 +57,7 @@ int			 wctomb_l(char *, wchar_t, locale_t);
 int			 ___mb_cur_max_l(locale_t);
 #define MB_CUR_MAX_L(x) (___mb_cur_max_l(x))
 
+#if __has_feature(capabilities)
+long			 strtol_l_c(__capability const char *,
+			    __capability char **, int, locale_t);
+#endif

@@ -18,7 +18,7 @@ MAN=		libstand.3
 WARNS?=		0
 
 CFLAGS+= -ffreestanding -Wformat
-CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../libc/include
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
 CFLAGS.gcc+=	-mpreferred-stack-boundary=2
