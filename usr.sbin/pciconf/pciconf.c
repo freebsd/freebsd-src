@@ -71,8 +71,9 @@ TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 static struct pcisel getsel(const char *str);
 static void list_bars(int fd, struct pci_conf *p);
 static void list_devs(const char *name, int verbose, int bars, int caps,
-    int errors);
+    int errors, int vpd);
 static void list_verbose(struct pci_conf *p);
+static void list_vpd(int fd, struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
@@ -86,7 +87,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-bcev] [device]",
+		"usage: pciconf -l [-bcevV] [device]",
 		"       pciconf -a device",
 		"       pciconf -r [-b | -h] device addr[:addr2]",
 		"       pciconf -w [-b | -h] device addr value");
@@ -98,13 +99,13 @@ main(int argc, char **argv)
 {
 	int c;
 	int listmode, readmode, writemode, attachedmode;
-	int bars, caps, errors, verbose;
+	int bars, caps, errors, verbose, vpd;
 	int byte, isshort;
 
 	listmode = readmode = writemode = attachedmode = 0;
-	bars = caps = errors = verbose = byte = isshort = 0;
+	bars = caps = errors = verbose = vpd = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "abcehlrwv")) != -1) {
+	while ((c = getopt(argc, argv, "abcehlrwvV")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -143,6 +144,10 @@ main(int argc, char **argv)
 			verbose = 1;
 			break;
 
+		case 'V':
+			vpd = 1;
+			break;
+
 		default:
 			usage();
 		}
@@ -156,7 +161,7 @@ main(int argc, char **argv)
 
 	if (listmode) {
 		list_devs(optind + 1 == argc ? argv[optind] : NULL, verbose,
-		    bars, caps, errors);
+		    bars, caps, errors, vpd);
 	} else if (attachedmode) {
 		chkattached(argv[optind]);
 	} else if (readmode) {
@@ -173,7 +178,8 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(const char *name, int verbose, int bars, int caps, int errors)
+list_devs(const char *name, int verbose, int bars, int caps, int errors,
+    int vpd)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -246,6 +252,8 @@ list_devs(const char *name, int verbose, int bars, int caps, int errors)
 				list_caps(fd, p);
 			if (errors)
 				list_errors(fd, p);
+			if (vpd)
+				list_vpd(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
@@ -337,6 +345,63 @@ list_verbose(struct pci_conf *p)
 		printf("    class      = %s\n", dp);
 	if ((dp = guess_subclass(p)) != NULL)
 		printf("    subclass   = %s\n", dp);
+}
+
+static void
+list_vpd(int fd, struct pci_conf *p)
+{
+	struct pci_list_vpd_io list;
+	struct pci_vpd_element *vpd, *end;
+
+	list.plvi_sel = p->pc_sel;
+	list.plvi_len = 0;
+	list.plvi_data = NULL;
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0 || list.plvi_len == 0)
+		return;
+
+	list.plvi_data = malloc(list.plvi_len);
+	if (ioctl(fd, PCIOCLISTVPD, &list) < 0) {
+		free(list.plvi_data);
+		return;
+	}
+
+	vpd = list.plvi_data;
+	end = (struct pci_vpd_element *)((char *)vpd + list.plvi_len);
+	for (; vpd < end; vpd = PVE_NEXT(vpd)) {
+		if (vpd->pve_flags == PVE_FLAG_IDENT) {
+			printf("    VPD ident  = '%.*s'\n",
+			    (int)vpd->pve_datalen, vpd->pve_data);
+			continue;
+		}
+
+		/* Ignore the checksum keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "RV", 2) == 0)
+			continue;
+
+		/* Ignore remaining read-write space. */
+		if (vpd->pve_flags & PVE_FLAG_RW &&
+		    memcmp(vpd->pve_keyword, "RW", 2) == 0)
+			continue;
+
+		/* Handle extended capability keyword. */
+		if (!(vpd->pve_flags & PVE_FLAG_RW) &&
+		    memcmp(vpd->pve_keyword, "CP", 2) == 0) {
+			printf("    VPD ro CP  = ID %02x in map 0x%x[0x%x]\n",
+			    (unsigned int)vpd->pve_data[0],
+			    PCIR_BAR((unsigned int)vpd->pve_data[1]),
+			    (unsigned int)vpd->pve_data[3] << 8 |
+			    (unsigned int)vpd->pve_data[2]);
+			continue;
+		}
+
+		/* Remaining keywords should all have ASCII values. */
+		printf("    VPD %s %c%c  = '%.*s'\n",
+		    vpd->pve_flags & PVE_FLAG_RW ? "rw" : "ro",
+		    vpd->pve_keyword[0], vpd->pve_keyword[1],
+		    (int)vpd->pve_datalen, vpd->pve_data);
+	}
+	free(list.plvi_data);
 }
 
 /*
