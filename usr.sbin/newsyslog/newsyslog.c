@@ -2282,7 +2282,7 @@ sizefile(const char *file)
 
 	if (stat(file, &sb) < 0)
 		return (-1);
-	return (kbytes(dbtob(sb.st_blocks)));
+	return (kbytes(sb.st_size));
 }
 
 /*
