@@ -2492,7 +2492,7 @@ urtwn_write_txpower(struct urtwn_softc *sc, int chain,
 	    SM(R92C_TXAGC_MCS07,  power[19]));
 	urtwn_bb_write(sc, R92C_TXAGC_MCS11_MCS08(chain),
 	    SM(R92C_TXAGC_MCS08,  power[20]) |
-	    SM(R92C_TXAGC_MCS08,  power[21]) |
+	    SM(R92C_TXAGC_MCS09,  power[21]) |
 	    SM(R92C_TXAGC_MCS10,  power[22]) |
 	    SM(R92C_TXAGC_MCS11,  power[23]));
 	urtwn_bb_write(sc, R92C_TXAGC_MCS15_MCS12(chain),
