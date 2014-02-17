@@ -46,35 +46,9 @@
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslfileio")
 
-
-/*******************************************************************************
- *
- * FUNCTION:    AslAbort
- *
- * PARAMETERS:  None
- *
- * RETURN:      None
- *
- * DESCRIPTION: Dump the error log and abort the compiler. Used for serious
- *              I/O errors.
- *
- ******************************************************************************/
-
-void
-AslAbort (
-    void)
-{
-
-    AePrintErrorLog (ASL_FILE_STDERR);
-    if (Gbl_DebugFlag)
-    {
-        /* Print error summary to stdout also */
-
-        AePrintErrorLog (ASL_FILE_STDOUT);
-    }
-
-    exit (1);
-}
+long
+UtGetFileSize (
+    FILE                    *fp);
 
 
 /*******************************************************************************
@@ -141,13 +115,73 @@ FlOpenFile (
 
 /*******************************************************************************
  *
+ * FUNCTION:    UtGetFileSize
+ *
+ * PARAMETERS:  fp              - Open file handle
+ *
+ * RETURN:      File Size. -1 on error.
+ *
+ * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ *              TBD: This function should be used to replace other similar
+ *              functions in ACPICA.
+ *
+ ******************************************************************************/
+
+long
+UtGetFileSize (
+    FILE                    *fp)
+{
+    long                    FileSize;
+    long                    CurrentOffset;
+
+
+    CurrentOffset = ftell (fp);
+    if (CurrentOffset < 0)
+    {
+        goto OffsetError;
+    }
+
+    if (fseek (fp, 0, SEEK_END))
+    {
+        goto SeekError;
+    }
+
+    FileSize = ftell (fp);
+    if (FileSize < 0)
+    {
+        goto OffsetError;
+    }
+
+    /* Restore file pointer */
+
+    if (fseek (fp, CurrentOffset, SEEK_SET))
+    {
+        goto SeekError;
+    }
+
+    return (FileSize);
+
+
+OffsetError:
+    perror ("Could not get file offset");
+    return (-1);
+
+SeekError:
+    perror ("Could not seek file");
+    return (-1);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    FlGetFileSize
  *
  * PARAMETERS:  FileId              - Index into file info array
  *
  * RETURN:      File Size
  *
- * DESCRIPTION: Get current file size. Uses seek-to-EOF. File must be open.
+ * DESCRIPTION: Get current file size. Uses common seek-to-EOF function.
+ *              File must be open. Aborts compiler on error.
  *
  ******************************************************************************/
 
@@ -155,21 +189,16 @@ UINT32
 FlGetFileSize (
     UINT32                  FileId)
 {
-    FILE                    *fp;
-    UINT32                  FileSize;
-    long                    Offset;
+    long                    FileSize;
 
 
-    fp = Gbl_Files[FileId].Handle;
-    Offset = ftell (fp);
+    FileSize = UtGetFileSize (Gbl_Files[FileId].Handle);
+    if (FileSize == -1)
+    {
+        AslAbort();
+    }
 
-    fseek (fp, 0, SEEK_END);
-    FileSize = (UINT32) ftell (fp);
-
-    /* Restore file pointer */
-
-    fseek (fp, Offset, SEEK_SET);
-    return (FileSize);
+    return ((UINT32) FileSize);
 }
 
 

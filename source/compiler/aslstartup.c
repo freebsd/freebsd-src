@@ -251,7 +251,7 @@ AslDoDisassembly (
     AcpiGbl_DbOpt_disasm = TRUE;
     Status = AdAmlDisassemble (AslToFile,
         Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_OutputFilenamePrefix,
-        &Gbl_Files[ASL_FILE_INPUT].Filename, Gbl_GetAllTables);
+        &Gbl_Files[ASL_FILE_INPUT].Filename);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
@@ -331,7 +331,7 @@ AslDoOneFile (
     /*
      * AML Disassembly (Optional)
      */
-    if (Gbl_DisasmFlag || Gbl_GetAllTables)
+    if (Gbl_DisasmFlag)
     {
         Status = AslDoDisassembly ();
         if (Status != AE_CTRL_CONTINUE)

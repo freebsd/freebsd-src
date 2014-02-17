@@ -106,6 +106,7 @@ AcpiOsOpenDirectory (
     if (!FullWildcardSpec)
     {
         printf ("Could not allocate buffer for wildcard pathname\n");
+        free (SearchInfo);
         return (NULL);
     }
 

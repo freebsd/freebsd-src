@@ -118,8 +118,7 @@ AslCommandLine (
     /* Next parameter must be the input filename */
 
     if (!argv[AcpiGbl_Optind] &&
-        !Gbl_DisasmFlag &&
-        !Gbl_GetAllTables)
+        !Gbl_DisasmFlag)
     {
         printf ("Missing input filename\n");
         BadCommandLine = TRUE;
@@ -318,9 +317,8 @@ AslDoOptions (
 
     case 'g':   /* Get all ACPI tables */
 
-        Gbl_GetAllTables = TRUE;
-        Gbl_DoCompile = FALSE;
-        break;
+        printf ("-g option is deprecated, use acpidump utility instead\n");
+        exit (1);
 
     case 'h':
 

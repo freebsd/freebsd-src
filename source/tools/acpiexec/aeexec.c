@@ -287,7 +287,7 @@ AeTestPackageArgument (
     PkgElements[3].Package.Count = 2;
     PkgElements[3].Package.Elements = Pkg2Elements;
 
-    /* Sub-package elements */
+    /* Subpackage elements */
 
     Pkg2Elements[0].Type = ACPI_TYPE_INTEGER;
     Pkg2Elements[0].Integer.Value = 0xAAAABBBB;

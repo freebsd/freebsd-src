@@ -659,7 +659,7 @@ AcpiRsGetPciRoutingTableLength (
 
     for (Index = 0; Index < NumberOfElements; Index++)
     {
-        /* Dereference the sub-package */
+        /* Dereference the subpackage */
 
         PackageElement = *TopObjectList;
 

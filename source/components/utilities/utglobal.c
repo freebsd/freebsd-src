@@ -58,12 +58,7 @@
  *
  ******************************************************************************/
 
-/*
- * We want the debug switches statically initialized so they
- * are already set when the debugger is entered.
- */
-
-/* Debug switch - level and trace mask */
+/* Debug output control masks */
 
 #ifdef ACPI_DEBUG_OUTPUT
 UINT32                      AcpiDbgLevel = ACPI_DEBUG_DEFAULT;
@@ -71,24 +66,24 @@ UINT32                      AcpiDbgLevel = ACPI_DEBUG_DEFAULT;
 UINT32                      AcpiDbgLevel = ACPI_NORMAL_DEFAULT;
 #endif
 
-/* Debug switch - layer (component) mask */
-
 UINT32                      AcpiDbgLayer = ACPI_COMPONENT_DEFAULT;
-UINT32                      AcpiGbl_NestingLevel = 0;
 
-/* Debugger globals */
+/* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
-BOOLEAN                     AcpiGbl_DbTerminateThreads = FALSE;
-BOOLEAN                     AcpiGbl_AbortMethod = FALSE;
-BOOLEAN                     AcpiGbl_MethodExecuting = FALSE;
+ACPI_TABLE_FADT             AcpiGbl_FADT;
+UINT32                      AcpiGbl_TraceFlags;
+ACPI_NAME                   AcpiGbl_TraceMethodName;
+BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
+UINT32                      AcpiCurrentGpeCount;
 
-/* System flags */
+/*
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
+ */
+BOOLEAN                     AcpiGbl_ReducedHardware;
 
-UINT32                      AcpiGbl_StartupFlags = 0;
-
-/* System starts uninitialized */
-
-BOOLEAN                     AcpiGbl_Shutdown = TRUE;
+/* Various state name strings */
 
 const char                  *AcpiGbl_SleepStateNames[ACPI_S_STATE_COUNT] =
 {
@@ -309,7 +304,6 @@ AcpiUtInitGlobals (
 
     AcpiGbl_DSDT                        = NULL;
     AcpiGbl_CmSingleStep                = FALSE;
-    AcpiGbl_DbTerminateThreads          = FALSE;
     AcpiGbl_Shutdown                    = FALSE;
     AcpiGbl_NsLookupCount               = 0;
     AcpiGbl_PsFindCount                 = 0;
@@ -355,6 +349,10 @@ AcpiUtInitGlobals (
 #ifdef ACPI_DBG_TRACK_ALLOCATIONS
     AcpiGbl_DisplayFinalMemStats        = FALSE;
     AcpiGbl_DisableMemTracking          = FALSE;
+#endif
+
+#ifdef ACPI_DEBUGGER
+    AcpiGbl_DbTerminateThreads          = FALSE;
 #endif
 
     return_ACPI_STATUS (AE_OK);

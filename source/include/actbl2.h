@@ -45,6 +45,8 @@
 #define __ACTBL2_H__
 
 
+#pragma pack(push) /* Set default struct packing */
+
 /*******************************************************************************
  *
  * Additional ACPI Tables (2)
@@ -1416,8 +1418,6 @@ typedef struct acpi_table_wdrt
 } ACPI_TABLE_WDRT;
 
 
-/* Reset to default packing */
-
-#pragma pack()
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* __ACTBL2_H__ */

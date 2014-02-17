@@ -250,7 +250,6 @@ AdInitialize (
  *              OutToFile           - TRUE if output should go to a file
  *              Prefix              - Path prefix for output
  *              OutFilename         - where the filename is returned
- *              GetAllTables        - TRUE if all tables are desired
  *
  * RETURN:      Status
  *
@@ -263,8 +262,7 @@ AdAmlDisassemble (
     BOOLEAN                 OutToFile,
     char                    *Filename,
     char                    *Prefix,
-    char                    **OutFilename,
-    BOOLEAN                 GetAllTables)
+    char                    **OutFilename)
 {
     ACPI_STATUS             Status;
     char                    *DisasmFilename = NULL;
@@ -348,7 +346,7 @@ AdAmlDisassemble (
     }
     else
     {
-        Status = AdGetLocalTables (Filename, GetAllTables);
+        Status = AdGetLocalTables ();
         if (ACPI_FAILURE (Status))
         {
             AcpiOsPrintf ("Could not get ACPI tables, %s\n",
@@ -746,8 +744,7 @@ AdDisplayTables (
  *
  * FUNCTION:    AdGetLocalTables
  *
- * PARAMETERS:  Filename            - Not used
- *              GetAllTables        - TRUE if all tables are desired
+ * PARAMETERS:  None
  *
  * RETURN:      Status
  *
@@ -757,105 +754,36 @@ AdDisplayTables (
 
 ACPI_STATUS
 AdGetLocalTables (
-    char                    *Filename,
-    BOOLEAN                 GetAllTables)
+    void)
 {
     ACPI_STATUS             Status;
     ACPI_TABLE_HEADER       TableHeader;
     ACPI_TABLE_HEADER       *NewTable;
-    UINT32                  NumTables;
-    UINT32                  PointerSize;
     UINT32                  TableIndex;
 
 
-    if (GetAllTables)
-    {
-        ACPI_MOVE_32_TO_32 (TableHeader.Signature, ACPI_SIG_RSDT);
-        AcpiOsTableOverride (&TableHeader, &NewTable);
-        if (!NewTable)
-        {
-            fprintf (stderr, "Could not obtain RSDT\n");
-            return (AE_NO_ACPI_TABLES);
-        }
-        else
-        {
-            AdWriteTable (NewTable, NewTable->Length,
-                ACPI_SIG_RSDT, NewTable->OemTableId);
-        }
-
-        if (ACPI_COMPARE_NAME (NewTable->Signature, ACPI_SIG_RSDT))
-        {
-            PointerSize = sizeof (UINT32);
-        }
-        else
-        {
-            PointerSize = sizeof (UINT64);
-        }
-
-        /*
-         * Determine the number of tables pointed to by the RSDT/XSDT.
-         * This is defined by the ACPI Specification to be the number of
-         * pointers contained within the RSDT/XSDT. The size of the pointers
-         * is architecture-dependent.
-         */
-        NumTables = (NewTable->Length - sizeof (ACPI_TABLE_HEADER)) / PointerSize;
-        AcpiOsPrintf ("There are %u tables defined in the %4.4s\n\n",
-            NumTables, NewTable->Signature);
-
-        /* Get the FADT */
-
-        ACPI_MOVE_32_TO_32 (TableHeader.Signature, ACPI_SIG_FADT);
-        AcpiOsTableOverride (&TableHeader, &NewTable);
-        if (NewTable)
-        {
-            AdWriteTable (NewTable, NewTable->Length,
-                ACPI_SIG_FADT, NewTable->OemTableId);
-        }
-        AcpiOsPrintf ("\n");
-
-        /* Don't bother with FACS, it is usually all zeros */
-    }
-
-    /* Always get the DSDT */
+    /* Get the DSDT via table override */
 
     ACPI_MOVE_32_TO_32 (TableHeader.Signature, ACPI_SIG_DSDT);
     AcpiOsTableOverride (&TableHeader, &NewTable);
-    if (NewTable)
-    {
-        AdWriteTable (NewTable, NewTable->Length,
-            ACPI_SIG_DSDT, NewTable->OemTableId);
-
-        /* Store DSDT in the Table Manager */
-
-        Status = AcpiTbStoreTable (0, NewTable, NewTable->Length,
-                    0, &TableIndex);
-        if (ACPI_FAILURE (Status))
-        {
-            fprintf (stderr, "Could not store DSDT\n");
-            return (AE_NO_ACPI_TABLES);
-        }
-    }
-    else
+    if (!NewTable)
     {
         fprintf (stderr, "Could not obtain DSDT\n");
         return (AE_NO_ACPI_TABLES);
     }
 
-#if 0
-    /* TBD: Future implementation */
+    AdWriteTable (NewTable, NewTable->Length,
+        ACPI_SIG_DSDT, NewTable->OemTableId);
 
-    AcpiOsPrintf ("\n");
+    /* Store DSDT in the Table Manager */
 
-    /* Get all SSDTs */
-
-    ACPI_MOVE_32_TO_32 (TableHeader.Signature, ACPI_SIG_SSDT);
-    do
+    Status = AcpiTbStoreTable (0, NewTable, NewTable->Length,
+                0, &TableIndex);
+    if (ACPI_FAILURE (Status))
     {
-        NewTable = NULL;
-        Status = AcpiOsTableOverride (&TableHeader, &NewTable);
-
-    } while (NewTable);
-#endif
+        fprintf (stderr, "Could not store DSDT\n");
+        return (AE_NO_ACPI_TABLES);
+    }
 
     return (AE_OK);
 }

@@ -489,6 +489,11 @@ AcpiPsParseLoop (
                     Status = AE_OK;
                 }
 
+                if (Status == AE_CTRL_TERMINATE)
+                {
+                    return_ACPI_STATUS (Status);
+                }
+
                 Status = AcpiPsCompleteOp (WalkState, &Op, Status);
                 if (ACPI_FAILURE (Status))
                 {

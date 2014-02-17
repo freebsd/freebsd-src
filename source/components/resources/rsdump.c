@@ -52,7 +52,7 @@
         ACPI_MODULE_NAME    ("rsdump")
 
 
-#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DISASSEMBLER) || defined(ACPI_DEBUGGER)
 
 /* Local prototypes */
 

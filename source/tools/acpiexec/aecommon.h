@@ -63,6 +63,8 @@
 #include <string.h>
 #include <signal.h>
 
+#pragma pack(push) /* Set default struct packing */
+
 extern BOOLEAN              AcpiGbl_IgnoreErrors;
 extern UINT8                AcpiGbl_RegionFillValue;
 extern UINT8                AcpiGbl_UseHwReducedFadt;
@@ -195,5 +197,8 @@ AeGlobalEventHandler (
     ACPI_HANDLE             GpeDevice,
     UINT32                  EventNumber,
     void                    *Context);
+
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* _AECOMMON */

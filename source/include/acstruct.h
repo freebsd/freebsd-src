@@ -44,6 +44,9 @@
 #ifndef __ACSTRUCT_H__
 #define __ACSTRUCT_H__
 
+
+#pragma pack(push) /* Set default struct packing */
+
 /* acpisrc:StructDefs -- for acpisrc conversion */
 
 /*****************************************************************************
@@ -139,6 +142,9 @@ typedef struct acpi_init_walk_info
     UINT32                          TableIndex;
     UINT32                          ObjectCount;
     UINT32                          MethodCount;
+    UINT32                          SerialMethodCount;
+    UINT32                          NonSerialMethodCount;
+    UINT32                          SerializedMethodCount;
     UINT32                          DeviceCount;
     UINT32                          OpRegionCount;
     UINT32                          FieldCount;
@@ -266,5 +272,7 @@ typedef struct acpi_walk_info
 
 #define ACPI_DISPLAY_SHORT          (UINT8) 2
 
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif

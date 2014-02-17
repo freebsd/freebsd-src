@@ -45,6 +45,8 @@
 #define _ACAPPS
 
 
+#pragma pack(push) /* Set default struct packing */
+
 #ifdef _MSC_VER                 /* disable some level-4 warnings */
 #pragma warning(disable:4100)   /* warning C4100: unreferenced formal parameter */
 #endif
@@ -123,8 +125,7 @@ AdAmlDisassemble (
     BOOLEAN                 OutToFile,
     char                    *Filename,
     char                    *Prefix,
-    char                    **OutFilename,
-    BOOLEAN                 GetAllTables);
+    char                    **OutFilename);
 
 void
 AdPrintStatistics (
@@ -141,8 +142,7 @@ AdDumpTables (
 
 ACPI_STATUS
 AdGetLocalTables (
-    char                    *Filename,
-    BOOLEAN                 GetAllTables);
+    void);
 
 ACPI_STATUS
 AdParseTable (
@@ -220,5 +220,7 @@ AdWriteTable (
     char                    *TableName,
     char                    *OemTableId);
 #endif
+
+#pragma pack(pop) /* Restore original struct packing */
 
 #endif /* _ACAPPS */
