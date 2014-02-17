@@ -2960,6 +2960,7 @@ zdb_read_block(char *thing, spa_t *spa)
 				free(dup);
 				return;
 			}
+			i += p - &flagstr[i + 1]; /* skip over the number */
 		}
 	}
 
