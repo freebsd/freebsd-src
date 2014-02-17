@@ -2064,20 +2064,16 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 		return (EAGAIN);
 
 	if (cmd == FASTTRAPIOC_MAKEPROBE) {
-		fasttrap_probe_spec_t *uprobe = (void *)arg;
+		fasttrap_probe_spec_t *uprobe = *(fasttrap_probe_spec_t **)arg;
 		fasttrap_probe_spec_t *probe;
 		uint64_t noffs;
 		size_t size;
 		int ret;
 		char *c;
 
-#if defined(sun)
 		if (copyin(&uprobe->ftps_noffs, &noffs,
 		    sizeof (uprobe->ftps_noffs)))
 			return (EFAULT);
-#else
-		noffs = uprobe->ftps_noffs;
-#endif
 
 		/*
 		 * Probes must have at least one tracepoint.
@@ -2093,19 +2089,10 @@ fasttrap_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int fflag,
 
 		probe = kmem_alloc(size, KM_SLEEP);
 
-#if defined(sun)
 		if (copyin(uprobe, probe, size) != 0) {
 			kmem_free(probe, size);
 			return (EFAULT);
 		}
-#else
-		memcpy(probe, uprobe, sizeof(*probe));
-		if (noffs > 1 && copyin(uprobe + 1, probe + 1, size) != 0) {
-			kmem_free(probe, size);
-			return (EFAULT);
-		}
-#endif
-
 
 		/*
 		 * Verify that the function and module strings contain no
