@@ -150,9 +150,6 @@ static int booted = 0;
 #define	UMA_STARTUP	1
 #define	UMA_STARTUP2	2
 
-/* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
-static const u_int uma_max_ipers = SLAB_SETSIZE;
-
 /*
  * Only mbuf clusters use ref zones.  Just provide enough references
  * to support the one user.  New code should not use the ref facility.
@@ -1388,7 +1385,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_slabsize = UMA_SLAB_SIZE;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
-	KASSERT(keg->uk_ipers <= uma_max_ipers,
+	KASSERT(keg->uk_ipers <= SLAB_SETSIZE,
 	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
 }
