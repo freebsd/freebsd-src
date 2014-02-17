@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd August 1, 2013
 .Dt EVENTHANDLER 9
 .Os
 .Sh NAME
@@ -197,6 +197,12 @@ Callbacks invoked when an interface is cloned.
 Callbacks invoked when a new network interface appears.
 .It Vt ifnet_departure_event
 Callbacks invoked when a network interface is taken down.
+.It Vt kld_load
+Callbacks invoked after a linker file has been loaded.
+.It Vt kld_unload
+Callbacks invoked before a linker file is about to be unloaded.
+These callbacks may be used to return an error and prevent the unload from
+proceeding.
 .It Vt power_profile_change
 Callbacks invoked when the power profile of the system changes.
 .It Vt process_exec
