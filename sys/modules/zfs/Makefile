@@ -4,6 +4,12 @@ KMOD=	zfs
 
 SRCS=	bus_if.h device_if.h vnode_if.h
 
+.if !defined(KERNBUILDDIR)
+SRCS+=	opt_kdtrace.h
+opt_kdtrace.h:
+	echo "" > ${.TARGET}
+.endif
+
 SUNW=	${.CURDIR}/../../cddl/contrib/opensolaris
 
 .PATH:	${SUNW}/common/acl
