@@ -5197,7 +5197,7 @@ l2arc_compress_buf(l2arc_buf_hdr_t *l2hdr)
 	len = l2hdr->b_asize;
 	cdata = zio_data_buf_alloc(len);
 	csize = zio_compress_data(ZIO_COMPRESS_LZ4, l2hdr->b_tmp_cdata,
-	    cdata, l2hdr->b_asize);
+	    cdata, l2hdr->b_asize, (size_t)SPA_MINBLOCKSIZE);
 
 	if (csize == 0) {
 		/* zero block, indicate that there's nothing to write */
@@ -5436,6 +5436,8 @@ l2arc_add_vdev(spa_t *spa, vdev_t *vd)
 	l2arc_dev_t *adddev;
 
 	ASSERT(!l2arc_vdev_present(vd));
+
+	vdev_ashift_optimize(vd);
 
 	/*
 	 * Create a new l2arc device entry.
