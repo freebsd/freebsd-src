@@ -412,7 +412,7 @@ static bitstr_t *
 flowtable_mask(struct flowtable *ft)
 {
 
-	/* 
+	/*
 	 * flowtable_free_stale() calls w/o critical section, but
 	 * with sched_bind(). Since pointer is stable throughout
 	 * ft lifetime, it is safe, otherwise...
@@ -496,10 +496,10 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
     int keylen, uint32_t fibnum0)
 {
 #ifdef INET6
-        struct route_in6 sro6;
+	struct route_in6 sro6;
 #endif
 #ifdef INET
-        struct route sro;
+	struct route sro;
 #endif
 	struct route *ro = NULL;
 	struct rtentry *rt;
@@ -735,7 +735,7 @@ flowtable_lookup_common(struct flowtable *ft, uint32_t *key, int keylen,
 /*
  * used by the bit_alloc macro
  */
-#define calloc(count, size) malloc((count)*(size), M_FTABLE, M_WAITOK | M_ZERO) 
+#define calloc(count, size) malloc((count)*(size), M_FTABLE, M_WAITOK | M_ZERO)
 static void
 flowtable_alloc(struct flowtable *ft)
 {
