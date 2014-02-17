@@ -242,7 +242,7 @@ int		dtrace_in_probe;	/* non-zero if executing a probe */
 uintptr_t	dtrace_in_probe_addr;	/* Address of invop when already in probe */
 #endif
 static eventhandler_tag	dtrace_kld_load_tag;
-static eventhandler_tag	dtrace_kld_unload_tag;
+static eventhandler_tag	dtrace_kld_unload_try_tag;
 #endif
 
 /*
@@ -15333,7 +15333,7 @@ dtrace_kld_load(void *arg __unused, linker_file_t lf)
 }
 
 static void
-dtrace_kld_unload(void *arg __unused, linker_file_t lf, int *error)
+dtrace_kld_unload_try(void *arg __unused, linker_file_t lf, int *error)
 {
 
 	if (*error != 0)

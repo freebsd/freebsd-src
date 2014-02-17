@@ -200,6 +200,8 @@ Callbacks invoked when a network interface is taken down.
 .It Vt kld_load
 Callbacks invoked after a linker file has been loaded.
 .It Vt kld_unload
+Callbacks invoked after a linker file has been successfully unloaded.
+.It Vt kld_unload_try
 Callbacks invoked before a linker file is about to be unloaded.
 These callbacks may be used to return an error and prevent the unload from
 proceeding.
