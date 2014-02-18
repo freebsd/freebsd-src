@@ -63,8 +63,9 @@
 
 #include <cheri/cheri_system.h>
 
-#include <md5.h>
 #include <stdlib.h>
+#include <string.h>
+#include <md5.h>
 
 #include "cheri_tcpdump_system.h"
 #include "tcpdump-helper.h"

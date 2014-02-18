@@ -23,6 +23,7 @@
 
 #include <tcpdump-stdinc.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -90,8 +91,12 @@ dtp_print (packetbody_t pptr, u_int length)
                type, len);
 
         switch (type) {
-	case DTP_DOMAIN_TLV:
-		printf(", %s", tptr+4);
+	case DTP_DOMAIN_TLV: {
+		char *buf;
+		buf = p_strdup(tptr+4);
+		printf(", %s", buf == NULL ? "<null>" : buf);
+		p_strfree(buf);
+		}
 		break;
 
 	case DTP_STATUS_TLV:            

@@ -113,10 +113,20 @@ parse_field(packetbody_t *pptr, int *len)
 static const char *
 z_triple(packetbody_t class, packetbody_t inst, packetbody_t recipient)
 {
+    char *class_str, *inst_str, *recipient_str;
+    class_str = p_strdup(class);
+    inst_str = p_strdup(inst);
     if (!*recipient)
-	recipient = (__capability char *)"*";
-    snprintf(z_buf, sizeof(z_buf), "<%s,%s,%s>", class, inst, recipient);
+	recipient_str = (char *)"*";
+    else
+	recipient_str = p_strdup(recipient);
+    snprintf(z_buf, sizeof(z_buf), "<%s,%s,%s>", class_str, inst_str,
+	recipient_str);
     z_buf[sizeof(z_buf)-1] = '\0';
+    p_strfree(class_str);
+    p_strfree(inst_str);
+    if (!*recipient)
+	p_strfree(recipient_str);
     return z_buf;
 }
 
@@ -140,6 +150,7 @@ str_to_lower(packetbody_t string)
 void
 zephyr_print(packetbody_t cp, int length)
 {
+    char *buf;
     struct z_packet z;
     packetbody_t parse = cp;
     int parselen = length;
@@ -196,7 +207,9 @@ zephyr_print(packetbody_t cp, int length)
 
     printf(" zephyr");
     if (p_strcmp_static(z.version+4, "0.2")) {
-	printf(" v%s", z.version+4);
+	buf = p_strdup(z.version+4);
+	printf(" v%s", buf);
+	p_strfree(buf);
 	return;
     }
 
@@ -208,15 +221,22 @@ zephyr_print(packetbody_t cp, int length)
 	if (!lose && p_strcmp_static(ackdata, "SENT"))
 	    printf("/%s", str_to_lower(ackdata));
     }
-    if (*z.sender) printf(" %s", z.sender);
+    if (*z.sender) {
+	buf = p_strdup(z.sender);
+	printf(" %s", buf);
+	p_strfree(buf);
+    }
 
     if (!p_strcmp_static(z.class, "USER_LOCATE")) {
 	if (!p_strcmp_static(z.opcode, "USER_HIDE"))
 	    printf(" hide");
 	else if (!p_strcmp_static(z.opcode, "USER_UNHIDE"))
 	    printf(" unhide");
-	else
-	    printf(" locate %s", z.inst);
+	else {
+	    buf = p_strdup(z.inst);
+	    printf(" locate %s", buf);
+	    p_strfree(buf);
+	}
 	return;
     }
 
@@ -322,7 +342,10 @@ zephyr_print(packetbody_t cp, int length)
 	z.recipient = (__capability char *)"*";
 
     printf(" to %s", z_triple(z.class, z.inst, z.recipient));
-    if (*z.opcode)
-	printf(" op %s", z.opcode);
+    if (*z.opcode) {
+	buf = p_strdup(z.opcode);
+	printf(" op %s", buf);
+	p_strfree(buf);
+    }
     return;
 }

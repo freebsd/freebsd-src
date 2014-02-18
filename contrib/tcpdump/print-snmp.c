@@ -67,6 +67,7 @@ static const char rcsid[] _U_ =
 
 #include <tcpdump-stdinc.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -1527,6 +1528,7 @@ pdu_print(packetbody_t np, u_int length, int version)
 static void
 scopedpdu_print(packetbody_t np, u_int length, int version)
 {
+	char *buf;
 	struct be elem;
 	int i, count = 0;
 
@@ -1569,7 +1571,9 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
 	length -= count;
 	np += count;
 
-	printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
+	buf = p_strndup(elem.data.str, elem.asnlen);
+	printf("C=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
+	p_strfree(buf);
 
 	pdu_print(np, length, version);
 }
@@ -1580,6 +1584,7 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
 static void
 community_print(packetbody_t np, u_int length, int version)
 {
+	char *buf;
 	struct be elem;
 	int count = 0;
 
@@ -1593,10 +1598,14 @@ community_print(packetbody_t np, u_int length, int version)
 	}
 	/* default community */
 	if (!(elem.asnlen == sizeof(DEF_COMMUNITY) - 1 &&
-	    strncmp((char *)elem.data.str, DEF_COMMUNITY,
-	            sizeof(DEF_COMMUNITY) - 1) == 0))
+	    p_strncmp_static(elem.data.str, DEF_COMMUNITY,
+	            sizeof(DEF_COMMUNITY) - 1) == 0)) {
 		/* ! "public" */
-		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
+		buf = p_strndup(elem.data.str, elem.asnlen);
+		printf("C=%.*s ", (int)elem.asnlen,
+		    buf == NULL ?  "<null>" : buf);
+		p_strfree(buf);
+	}
 	length -= count;
 	np += count;
 
@@ -1609,6 +1618,7 @@ community_print(packetbody_t np, u_int length, int version)
 static void
 usm_print(packetbody_t np, u_int length)
 {
+	char *buf;
         struct be elem;
 	int count = 0;
 
@@ -1671,7 +1681,9 @@ usm_print(packetbody_t np, u_int length)
 	length -= count;
         np += count;
 
-	printf("U=%.*s ", (int)elem.asnlen, elem.data.str);
+	buf = p_strndup(elem.data.str, elem.asnlen);
+	printf("U=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
+	free(buf);
 
 	/* msgAuthenticationParameters (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)

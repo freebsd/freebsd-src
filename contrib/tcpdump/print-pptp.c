@@ -34,6 +34,7 @@ static const char rcsid[] _U_ =
 #include <tcpdump-stdinc.h>
 
 #include <stdio.h>
+#include <string.h>
 
 #include "interface.h"
 #include "extract.h"
@@ -409,9 +410,12 @@ pptp_framing_type_print(__capability const u_int32_t *framing_type)
 }
 
 static void
-pptp_hostname_print(__capability const u_char *hostname)
+pptp_hostname_print(packetbody_t hostname)
 {
-	printf(" HOSTNAME(%.64s)", hostname);
+	char hostname_str[64];
+
+	p_strncpy(hostname_str, hostname, 64);
+	printf(" HOSTNAME(%.64s)", hostname_str);
 }
 
 static void
@@ -572,15 +576,21 @@ pptp_result_code_print(__capability const u_int8_t *result_code,
 }
 
 static void
-pptp_subaddr_print(__capability const u_char *subaddr)
+pptp_subaddr_print(packetbody_t subaddr)
 {
-	printf(" SUB_ADDR(%.64s)", subaddr);
+	char buf[64];
+
+	p_strncpy(buf, subaddr, 64);
+	printf(" SUB_ADDR(%.64s)", buf);
 }
 
 static void
-pptp_vendor_print(__capability const u_char *vendor)
+pptp_vendor_print(packetbody_t vendor)
 {
-	printf(" VENDOR(%.64s)", vendor);
+	char buf[64];
+
+	p_strncpy(buf, vendor, 64);
+	printf(" VENDOR(%.64s)", buf);
 }
 
 /************************************/
@@ -735,6 +745,7 @@ trunc:
 static void
 pptp_ocrq_print(packetbody_t dat)
 {
+	char buf[64];
 	__capability struct pptp_msg_ocrq *ptr =
 	(__capability struct pptp_msg_ocrq *)dat;
 
@@ -758,7 +769,8 @@ pptp_ocrq_print(packetbody_t dat)
 	printf(" PHONE_NO_LEN(%u)", EXTRACT_16BITS(&ptr->phone_no_len));
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->phone_no);
-	printf(" PHONE_NO(%.64s)", ptr->phone_no);
+	p_strncpy(buf, ptr->phone_no, 64);
+	printf(" PHONE_NO(%.64s)", buf);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
@@ -802,6 +814,7 @@ trunc:
 static void
 pptp_icrq_print(packetbody_t dat)
 {
+	char buf[64];
 	__capability struct pptp_msg_icrq *ptr =
 	(__capability struct pptp_msg_icrq *)dat;
 
@@ -818,9 +831,11 @@ pptp_icrq_print(packetbody_t dat)
 	TCHECK(ptr->dialing_no_len);
 	printf(" DIALING_NO_LEN(%u)", EXTRACT_16BITS(&ptr->dialing_no_len));
 	TCHECK(ptr->dialed_no);
-	printf(" DIALED_NO(%.64s)", ptr->dialed_no);
+	p_strncpy(buf, ptr->dialed_no, 64);
+	printf(" DIALED_NO(%.64s)", buf);
 	TCHECK(ptr->dialing_no);
-	printf(" DIALING_NO(%.64s)", ptr->dialing_no);
+	p_strncpy(buf, ptr->dialing_no, 64);
+	printf(" DIALING_NO(%.64s)", buf);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
@@ -899,6 +914,7 @@ trunc:
 static void
 pptp_cdn_print(packetbody_t dat)
 {
+	char buf[128];
 	__capability struct pptp_msg_cdn *ptr =
 	(__capability struct pptp_msg_cdn *)dat;
 
@@ -912,7 +928,8 @@ pptp_cdn_print(packetbody_t dat)
 	pptp_cause_code_print(&ptr->cause_code);
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->call_stats);
-	printf(" CALL_STATS(%.128s)", ptr->call_stats);
+	p_strncpy(buf, ptr->call_stats, 128);
+	printf(" CALL_STATS(%.128s)", buf);
 
 	return;
 

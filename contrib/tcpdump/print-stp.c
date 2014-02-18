@@ -238,8 +238,6 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
 {
     char 	   *name;
     packetbody_t    ptr;
-    packetbody_t    name_ptr;
-    size_t	    name_len;
     u_int16_t	    v3len;
     u_int16_t	    len;
     u_int16_t	    msti;
@@ -278,10 +276,7 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
            (float)EXTRACT_16BITS(&stp_bpdu->forward_delay) / STP_TIME_BASE);
 
     printf ("\n\tv3len %d, ", EXTRACT_16BITS(ptr + MST_BPDU_VER3_LEN_OFFSET));
-    name_ptr = ptr + MST_BPDU_CONFIG_NAME_OFFSET;
-    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
-    if ((name = malloc(name_len)) != NULL)
-	    p_strncpy(name, name_ptr, name_len);
+    name = p_strdup(ptr + MST_BPDU_CONFIG_NAME_OFFSET);
     printf("MCID Name %s, rev %u, "
             "\n\t\tdigest %08x%08x%08x%08x, ",
             name == NULL ? "<null>" : name,
@@ -290,7 +285,7 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
         	  EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 4),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 8),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 12));
-    free(name);
+    p_strfree(name);
 
     printf ("CIST int-root-pathcost %u, ", 
             EXTRACT_32BITS(ptr + MST_BPDU_CIST_INT_PATH_COST_OFFSET));  
@@ -327,14 +322,12 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
             len -= MST_BPDU_MSTI_LENGTH;
             offset += MST_BPDU_MSTI_LENGTH;
         }
-    }
+    } else
+	offset = 0; /* XXX-BD: not sure this is right... */
 
     if ((length-offset) >= SPB_BPDU_MIN_LEN)
     {
-      name_ptr = ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET;
-      name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
-      if ((name = malloc(name_len)) != NULL)
-	p_strncpy(name, name_ptr, name_len);
+      name = p_strdup(ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET);
       printf("\n\tv4len %d AUXMCID Name %s, Rev %u, \n\t\tdigest %08x%08x%08x%08x",
               EXTRACT_16BITS (ptr + offset),
               name == NULL ? "<null>" : name,
@@ -343,7 +336,7 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 4),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 8),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 12));
-      free(name);
+      p_strfree(name);
      
       printf("\n\tAgreement num %d, Discarded Agreement num %d, Agreement valid-"
               "flag %d, \n\tRestricted role-flag: %d, Format id %d cap %d, "

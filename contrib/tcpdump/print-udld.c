@@ -24,6 +24,7 @@
 
 #include <tcpdump-stdinc.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -85,6 +86,7 @@ static struct tok udld_flags_values[] = {
 void
 udld_print (packetbody_t pptr, u_int length)
 {
+    char *buf;
     int code, type, len;
     packetbody_t tptr;
 
@@ -140,8 +142,10 @@ udld_print (packetbody_t pptr, u_int length)
         case UDLD_DEVICE_ID_TLV:
         case UDLD_PORT_ID_TLV:
         case UDLD_ECHO_TLV:
-        case UDLD_DEVICE_NAME_TLV: 
-            printf(", %s", tptr);
+        case UDLD_DEVICE_NAME_TLV:
+	    buf = p_strdup(tptr);
+            printf(", %s", buf == NULL ? "<null>" : buf);
+	    p_strfree(buf);
             break;
 
         case UDLD_MESSAGE_INTERVAL_TLV: 

@@ -43,6 +43,7 @@
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "interface.h"
@@ -200,11 +201,15 @@ pfsync_print(__capability const struct pfsync_header *hdr, packetbody_t bp,
 static void
 pfsync_print_clr(__capability const void *bp)
 {
+	char *buf;
 	__capability const struct pfsync_clr *clr = bp;
 
 	printf("\n\tcreatorid: %08x", htonl(clr->creatorid));
-	if (clr->ifname[0] != '\0')
-		printf(" interface: %s", clr->ifname);
+	if (clr->ifname[0] != '\0') {
+		buf = p_strdup(clr->ifname);
+		printf(" interface: %s", buf == NULL ? "<null>" : buf);
+		p_strfree(buf);
+	}
 }
 
 static void
@@ -372,6 +377,7 @@ print_src_dst(__capability const struct pfsync_state_peer *src,
 static void
 print_state(__capability const struct pfsync_state *s)
 {
+	char *buf;
 	__capability const struct pfsync_state_peer *src, *dst;
 	__capability const struct pfsync_state_key *sk, *nk;
 	int min, sec;
@@ -394,7 +400,9 @@ print_state(__capability const struct pfsync_state *s)
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
 			sk_ports[1] = nk->port[1];
 	}
-	printf("\t%s ", s->ifname);
+	buf = p_strdup(s->ifname);
+	printf("\t%s ", buf == NULL ? "<null>" : buf);
+	p_strfree(buf);
 	printf("proto %u ", s->proto);
 
 	print_host(&nk->addr[1], nk->port[1], s->af, NULL);

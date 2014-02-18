@@ -29,6 +29,7 @@ static const char rcsid[] _U_ =
 #endif
 
 #include <tcpdump-stdinc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "interface.h"
@@ -512,3 +513,30 @@ inet_ntop_cap(int af, __capability const void * restrict src,
 	return (inet_ntop(af, &addr, dst, size));
 }
     
+#ifdef HAS_CHERI_CAPABILITIES
+char *
+p_strdup(packetbody_t data) {
+        char *str;
+        size_t len;
+
+        len = strnlen_c(data, PACKET_REMAINING(data)) + 1;
+        if ((str = malloc(len)) != NULL) {
+                strncpy_c_fromcap(str, data, len - 1);
+		str[len] = '\0';
+	}
+        return (str);
+}
+
+char *
+p_strndup(packetbody_t data, size_t n) {
+	char *str;
+	size_t len;
+
+	len = strnlen_c(data, n) + 1;
+	if ((str = malloc(len)) != NULL) {
+		strncpy_c_fromcap(str, data, len - 1);
+		str[len] = '\0';
+	}
+	return (str);
+}
+#endif

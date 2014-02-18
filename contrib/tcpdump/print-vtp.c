@@ -150,15 +150,12 @@ vtp_print (packetbody_t pptr, u_int length)
     }
 
     /* verbose mode print all fields */
-    name_ptr = tptr+4;
-    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
-    if ((name = malloc(name_len)) != NULL)
-	p_strncpy(name, name_ptr, name_len);
+    name = p_strdup(tptr+4);
     printf("\n\tDomain name: %s, %s: %u", 
 	   name == NULL ? "<null>" : name,
 	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
 	   *(tptr+2));
-    free(name);
+    p_strfree(name);
 
     tptr += VTP_HEADER_LEN;
 

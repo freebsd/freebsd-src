@@ -730,7 +730,10 @@ dhcp6opt_print(packetbody_t cp, packetbody_t ep)
 			while (remain_len && *tp) {
 				label_len =  *tp++;
 				if (label_len < remain_len - 1) {
-					printf("%.*s", label_len, tp);
+					char *buf;
+					buf = p_strndup(tp, label_len);
+					printf("%.*s", label_len,
+					    buf == NULL ? "<null>" : buf);
 					tp += label_len;
 					remain_len -= (label_len + 1);
 					if(*tp) printf(".");
