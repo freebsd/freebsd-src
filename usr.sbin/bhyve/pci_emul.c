@@ -792,7 +792,6 @@ pci_msix_table_init(struct pci_devinst *pi, int table_entries)
 int
 pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 {
-	uint16_t pba_index;
 	uint32_t tab_size;
 	struct msixcap msixcap;
 
@@ -809,10 +808,7 @@ pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 	pi->pi_msix.table_offset = 0;
 	pi->pi_msix.table_count = msgnum;
 	pi->pi_msix.pba_offset = tab_size;
-
-	/* calculate the MMIO size required for MSI-X PBA */
-	pba_index = (msgnum - 1) / (PBA_TABLE_ENTRY_SIZE * 8);
-	pi->pi_msix.pba_size = (pba_index + 1) * PBA_TABLE_ENTRY_SIZE;
+	pi->pi_msix.pba_size = PBA_SIZE(msgnum);
 
 	pci_msix_table_init(pi, msgnum);
 
