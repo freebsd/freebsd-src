@@ -1915,6 +1915,7 @@ ClangASTType::GetEncoding (uint64_t &count) const
         case clang::Type::Decltype:
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
+            break;
 
         // pointer type decayed from an array or function type.
         case clang::Type::Decayed:
