@@ -7,6 +7,8 @@ SRCS=	cheri_invoke.S			\
 	cheri_system.c			\
 	libcheri_classes.S		\
 	libcheri_stat.c			\
+	memcpy_c.s			\
+	memcpy_c_tofrom.c		\
 	sandbox.c			\
 	sandbox_loader.c
 
@@ -37,6 +39,7 @@ CLEANFILES=	cheri_classes.o cheri_invoke.o
 NO_WERROR=
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
+.PATH: ${.CURDIR}/../libc/string
 .PATH: ${.CURDIR}/../libc/${MACHINE}/string
 
 .include <bsd.lib.mk>
