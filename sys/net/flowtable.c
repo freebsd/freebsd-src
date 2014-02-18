@@ -634,7 +634,8 @@ flowtable_insert(struct flowtable *ft, uint32_t hash, uint32_t *key,
 	 * preempted by another thread handling this flow
 	 */
 	SLIST_FOREACH(iter, flist, f_next) {
-		KASSERT(iter->f_hash == hash, ("%s: wrong hash", __func__));
+		KASSERT(iter->f_hash % ft->ft_size == hash % ft->ft_size,
+		    ("%s: wrong hash", __func__));
 		if (flow_matches(iter, key, keylen, fibnum)) {
 			/*
 			 * We probably migrated to an other CPU after
@@ -714,7 +715,8 @@ flowtable_lookup_common(struct flowtable *ft, uint32_t *key, int keylen,
 	critical_enter();
 	flist = flowtable_list(ft, hash);
 	SLIST_FOREACH(fle, flist, f_next) {
-		KASSERT(fle->f_hash == hash, ("%s: wrong hash", __func__));
+		KASSERT(fle->f_hash % ft->ft_size == hash % ft->ft_size,
+		    ("%s: wrong hash", __func__));
 		if (flow_matches(fle, key, keylen, fibnum)) {
 			fle->f_uptime = time_uptime;
 #ifdef FLOWTABLE_HASH_ALL
