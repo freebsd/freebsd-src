@@ -580,7 +580,6 @@ icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 	(void)printf("ICMP %s, length %u", str, plen);
 	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		u_int16_t sum, icmp_sum;
-		struct cksum_vec vec[1];
 		if (TTEST2(*bp, plen)) {
 			vec[0].ptr = (packetbody_t)dp;
 			vec[0].len = plen;
