@@ -28,6 +28,7 @@
 
 #include <tcpdump-stdinc.h>
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -123,8 +124,9 @@ static struct tok vtp_stp_type_values[] = {
 void
 vtp_print (packetbody_t pptr, u_int length)
 {
-    int type, len, tlv_len, tlv_value;
-    packetbody_t tptr;
+    int type, len, name_len, tlv_len, tlv_value;
+    packetbody_t name_ptr, tptr;
+    char *name;
     __capability const struct vtp_vlan_ *vtp_vlan;
 
     if (length < VTP_HEADER_LEN)
@@ -148,10 +150,15 @@ vtp_print (packetbody_t pptr, u_int length)
     }
 
     /* verbose mode print all fields */
+    name_ptr = tptr+4;
+    name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+    if ((name = malloc(name_len)) != NULL)
+	strncpy_c_fromcap(name, name_ptr, name_len);
     printf("\n\tDomain name: %s, %s: %u", 
-	   (tptr+4),
+	   name == NULL ? "<null>" : name,
 	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
 	   *(tptr+2));
+    free(name);
 
     tptr += VTP_HEADER_LEN;
 
@@ -246,13 +253,18 @@ vtp_print (packetbody_t pptr, u_int length)
 		goto trunc;
 
 	    vtp_vlan = (__capability const struct vtp_vlan_*)tptr;
+	    name_ptr = tptr + VTP_VLAN_INFO_OFFSET;
+	    name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+	    if ((name = malloc(name_len)) != NULL)
+		strncpy_c_fromcap(name, name_ptr, name_len);
 	    printf("\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),
 		   EXTRACT_16BITS(&vtp_vlan->vlanid),
 		   EXTRACT_16BITS(&vtp_vlan->mtu),
 		   EXTRACT_32BITS(&vtp_vlan->index),
-		   (tptr + VTP_VLAN_INFO_OFFSET));
+		   name == NULL ? "<null>" : name);
+	    free(name);
 
             /*
              * Vlan names are aligned to 32-bit boundaries.

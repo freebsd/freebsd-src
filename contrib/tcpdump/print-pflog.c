@@ -40,6 +40,7 @@ static const char rcsid[] _U_ =
 #include <tcpdump-stdinc.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <pcap.h>
 
 #include "extract.h"
@@ -93,20 +94,29 @@ static struct tok pf_directions[] = {
 static void
 pflog_print(__capability const struct pfloghdr *hdr)
 {
+	char ruleset[PFLOG_RULESET_NAME_SIZE + 1];
+	char ifname[IFNAMSIZ + 1];
 	u_int32_t rulenr, subrulenr;
 
 	rulenr = EXTRACT_32BITS(&hdr->rulenr);
 	subrulenr = EXTRACT_32BITS(&hdr->subrulenr);
 	if (subrulenr == (u_int32_t)-1)
 		printf("rule %u/", rulenr);
-	else
-		printf("rule %u.%s.%u/", rulenr, hdr->ruleset, subrulenr);
+	else {
+		/* XXX-BD: string overflow risk in original */
+		strncpy_c_fromcap(ruleset, hdr->ruleset,
+		    PFLOG_RULESET_NAME_SIZE);
+		ruleset[PFLOG_RULESET_NAME_SIZE] = '\0';
+		printf("rule %u.%s.%u/", rulenr, ruleset, subrulenr);
+	}
 
+	strncpy_c_fromcap(ifname, hdr->ifname, IFNAMSIZ);
+	ifname[IFNAMSIZ] = '\0';
 	printf("%s: %s %s on %s: ",
 	    tok2str(pf_reasons, "unkn(%u)", hdr->reason),
 	    tok2str(pf_actions, "unkn(%u)", hdr->action),
 	    tok2str(pf_directions, "unkn(%u)", hdr->dir),
-	    hdr->ifname);
+	    ifname);
 }
 
 u_int
