@@ -2334,7 +2334,6 @@ static int isis_print (packetbody_t p, u_int length)
         osi_print_cksum((packetbody_t)header_lsp->lsp_id,
                         EXTRACT_16BITS(header_lsp->checksum), 12, length-12);
 
-#ifdef BROKEN_HEADER_LSP
         /*
          * Clear checksum and lifetime prior to signature verification.
          */
@@ -2357,7 +2356,6 @@ static int isis_print (packetbody_t p, u_int length)
 	}
 	printf("%s", ISIS_MASK_LSP_PARTITION_BIT(header_lsp->typeblock) ? "P bit set, " : "");
 	printf("%s ]", tok2str(isis_lsp_istype_values,"Unknown(0x%x)",ISIS_MASK_LSP_ISTYPE_BITS(header_lsp->typeblock)));
-#endif
 
         if (vflag > 1) {
             if(!print_unknown_data(pptr,"\n\t  ",ISIS_LSP_HEADER_SIZE))
