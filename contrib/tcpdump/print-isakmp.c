@@ -2071,11 +2071,13 @@ ikev2_e_print(netdissect_options *ndo,
 	ND_TCHECK2(*dat, dlen);
 	
 #ifdef HAVE_LIBCRYPTO
+#ifndef HAS_CHERI_CAPABILITIES
+	/* XXX-BD: violates the const-ness of the packet */
 	/* try to decypt it! */
 	if(esp_print_decrypt_buffer_by_ikev2(ndo,
 					     base->flags & ISAKMP_FLAG_I,
 					     base->i_ck, base->r_ck,
-					     dat, dat+dlen)) {
+					     (u_char *)dat, dat+dlen)) {
 		
 		ext = (const struct isakmp_gen *)ndo->ndo_packetp;
 
@@ -2083,6 +2085,7 @@ ikev2_e_print(netdissect_options *ndo,
 		ikev2_sub_print(ndo, base, e.np, ext, ndo->ndo_snapend,
 				phase, doi, proto, depth+1);
 	}
+#endif
 #endif
 	
 
