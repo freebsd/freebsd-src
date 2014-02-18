@@ -7,10 +7,14 @@ SRCS=	cheri_invoke.S			\
 	cheri_system.c			\
 	libcheri_classes.S		\
 	libcheri_stat.c			\
-	memcpy_c.s			\
-	memcpy_c_tofrom.c		\
 	sandbox.c			\
-	sandbox_loader.c
+	sandbox_loader.c		\
+
+# Temporary stuff that should be in libc or similar
+SRCS+=	memcpy_c.s			\
+	memcpy_c_tofrom.c		\
+	strnlen_c.c			\
+	strncpy_c.c
 
 INCS=	cheri_class.h			\
 	cheri_enter.h			\
@@ -25,7 +29,8 @@ CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
 
 INCSDIR=	${INCLUDEDIR}/cheri
 
-CFLAGS+=	-I${.CURDIR}/../libc/locale
+CFLAGS+=	-I${.CURDIR}/../libc/include \
+		-I${.CURDIR}/../libc/locale
 
 SHLIB_MAJOR=	1
 
