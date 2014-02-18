@@ -3835,8 +3835,7 @@ em_txeof(struct tx_ring *txr)
 
 	EM_TX_LOCK_ASSERT(txr);
 #ifdef DEV_NETMAP
-	if (netmap_tx_irq(ifp, txr->me |
-	    (NETMAP_LOCKED_ENTER | NETMAP_LOCKED_EXIT)))
+	if (netmap_tx_irq(ifp, txr->me))
 		return;
 #endif /* DEV_NETMAP */
 
@@ -4352,7 +4351,7 @@ em_initialize_receive_unit(struct adapter *adapter)
 		 * preserve the rx buffers passed to userspace.
 		 */
 		if (ifp->if_capenable & IFCAP_NETMAP)
-			rdt -= NA(adapter->ifp)->rx_rings[i].nr_hwavail;
+			rdt -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[i]);
 #endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rdt);
 	}
@@ -4431,8 +4430,10 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	EM_RX_LOCK(rxr);
 
 #ifdef DEV_NETMAP
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		EM_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
