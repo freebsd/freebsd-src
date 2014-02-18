@@ -1245,7 +1245,7 @@ ixgbe_init_locked(struct adapter *adapter)
 		if (ifp->if_capenable & IFCAP_NETMAP) {
 			struct netmap_adapter *na = NA(adapter->ifp);
 			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
+			int t = na->num_rx_desc - 1 - nm_kr_rxspace(kring);
 
 			IXGBE_WRITE_REG(hw, IXGBE_RDT(i), t);
 		} else
@@ -3629,8 +3629,7 @@ ixgbe_txeof(struct tx_ring *txr)
 		if (!netmap_mitigate ||
 		    (kring->nr_kflags < kring->nkr_num_slots &&
 		    txd[kring->nr_kflags].wb.status & IXGBE_TXD_STAT_DD)) {
-			netmap_tx_irq(ifp, txr->me |
-			    (NETMAP_LOCKED_ENTER|NETMAP_LOCKED_EXIT));
+			netmap_tx_irq(ifp, txr->me);
 		}
 		return;
 	}
@@ -4422,8 +4421,10 @@ ixgbe_rxeof(struct ix_queue *que)
 
 #ifdef DEV_NETMAP
 	/* Same as the txeof routine: wakeup clients on intr. */
-	if (netmap_rx_irq(ifp, rxr->me | NETMAP_LOCKED_ENTER, &processed))
+	if (netmap_rx_irq(ifp, rxr->me, &processed)) {
+		IXGBE_RX_UNLOCK(rxr);
 		return (FALSE);
+	}
 #endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check; count != 0;) {
