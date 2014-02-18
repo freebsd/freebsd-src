@@ -4025,6 +4025,9 @@ top:
 		if (error == 0) {
 			cache_purge(sdvp);
 			cache_purge(tdvp);
+			cache_purge(ZTOV(szp));
+			if (tzp)
+				cache_purge(ZTOV(tzp));
 		}
 #endif
 	}
