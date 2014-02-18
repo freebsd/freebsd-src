@@ -104,6 +104,7 @@ static const CoreDefinition g_core_definitions[ArchSpec::kNumCores] =
     { eByteOrderLittle, 4, 1, 15, llvm::Triple::x86    , ArchSpec::eCore_x86_32_i486sx  , "i486sx"    },
 
     { eByteOrderLittle, 8, 1, 15, llvm::Triple::x86_64 , ArchSpec::eCore_x86_64_x86_64  , "x86_64"    },
+    { eByteOrderLittle, 8, 1, 15, llvm::Triple::x86_64 , ArchSpec::eCore_x86_64_x86_64h , "x86_64h"   },
     { eByteOrderLittle, 4, 4, 4 , llvm::Triple::UnknownArch , ArchSpec::eCore_uknownMach32  , "unknown-mach-32" },
     { eByteOrderLittle, 8, 4, 4 , llvm::Triple::UnknownArch , ArchSpec::eCore_uknownMach64  , "unknown-mach-64" }
 };
@@ -205,10 +206,11 @@ static const ArchDefinitionEntry g_macho_arch_entries[] =
     { ArchSpec::eCore_x86_32_i386     , llvm::MachO::CPU_TYPE_I386      , 3      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_x86_32_i486     , llvm::MachO::CPU_TYPE_I386      , 4      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_x86_32_i486sx   , llvm::MachO::CPU_TYPE_I386      , 0x84   , UINT32_MAX , SUBTYPE_MASK },
-    { ArchSpec::eCore_x86_32_i386     , llvm::MachO::CPU_TYPE_I386      , CPU_ANY, UINT32_MAX , UINT32_MAX  },
+    { ArchSpec::eCore_x86_32_i386     , llvm::MachO::CPU_TYPE_I386      , CPU_ANY, UINT32_MAX , UINT32_MAX   },
     { ArchSpec::eCore_x86_64_x86_64   , llvm::MachO::CPU_TYPE_X86_64    , 3      , UINT32_MAX , SUBTYPE_MASK },
     { ArchSpec::eCore_x86_64_x86_64   , llvm::MachO::CPU_TYPE_X86_64    , 4      , UINT32_MAX , SUBTYPE_MASK },
-    { ArchSpec::eCore_x86_64_x86_64   , llvm::MachO::CPU_TYPE_X86_64    , CPU_ANY, UINT32_MAX , UINT32_MAX  },
+    { ArchSpec::eCore_x86_64_x86_64h  , llvm::MachO::CPU_TYPE_X86_64    , 8      , UINT32_MAX , SUBTYPE_MASK },
+    { ArchSpec::eCore_x86_64_x86_64   , llvm::MachO::CPU_TYPE_X86_64    , CPU_ANY, UINT32_MAX , UINT32_MAX   },
     // Catch any unknown mach architectures so we can always use the object and symbol mach-o files
     { ArchSpec::eCore_uknownMach32    , 0                               , 0      , 0xFF000000u, 0x00000000u },
     { ArchSpec::eCore_uknownMach64    , llvm::MachO::CPU_ARCH_ABI64     , 0      , 0xFF000000u, 0x00000000u }
@@ -349,14 +351,16 @@ FindArchDefinitionEntry (const ArchDefinition *def, ArchSpec::Core core)
 ArchSpec::ArchSpec() :
     m_triple (),
     m_core (kCore_invalid),
-    m_byte_order (eByteOrderInvalid)
+    m_byte_order (eByteOrderInvalid),
+    m_distribution_id ()
 {
 }
 
 ArchSpec::ArchSpec (const char *triple_cstr, Platform *platform) :
     m_triple (),
     m_core (kCore_invalid),
-    m_byte_order (eByteOrderInvalid)
+    m_byte_order (eByteOrderInvalid),
+    m_distribution_id ()
 {
     if (triple_cstr)
         SetTriple(triple_cstr, platform);
@@ -366,7 +370,8 @@ ArchSpec::ArchSpec (const char *triple_cstr, Platform *platform) :
 ArchSpec::ArchSpec (const char *triple_cstr) :
     m_triple (),
     m_core (kCore_invalid),
-    m_byte_order (eByteOrderInvalid)
+    m_byte_order (eByteOrderInvalid),
+    m_distribution_id ()
 {
     if (triple_cstr)
         SetTriple(triple_cstr);
@@ -375,7 +380,8 @@ ArchSpec::ArchSpec (const char *triple_cstr) :
 ArchSpec::ArchSpec(const llvm::Triple &triple) :
     m_triple (),
     m_core (kCore_invalid),
-    m_byte_order (eByteOrderInvalid)
+    m_byte_order (eByteOrderInvalid),
+    m_distribution_id ()
 {
     SetTriple(triple);
 }
@@ -383,7 +389,8 @@ ArchSpec::ArchSpec(const llvm::Triple &triple) :
 ArchSpec::ArchSpec (ArchitectureType arch_type, uint32_t cpu, uint32_t subtype) :
     m_triple (),
     m_core (kCore_invalid),
-    m_byte_order (eByteOrderInvalid)
+    m_byte_order (eByteOrderInvalid),
+    m_distribution_id ()
 {
     SetArchitecture (arch_type, cpu, subtype);
 }
@@ -403,6 +410,7 @@ ArchSpec::operator= (const ArchSpec& rhs)
         m_triple = rhs.m_triple;
         m_core = rhs.m_core;
         m_byte_order = rhs.m_byte_order;
+        m_distribution_id = rhs.m_distribution_id;
     }
     return *this;
 }
@@ -413,6 +421,7 @@ ArchSpec::Clear()
     m_triple = llvm::Triple();
     m_core = kCore_invalid;
     m_byte_order = eByteOrderInvalid;
+    m_distribution_id.Clear ();
 }
 
 //===----------------------------------------------------------------------===//
@@ -466,6 +475,18 @@ ArchSpec::GetMachine () const
         return core_def->machine;
 
     return llvm::Triple::UnknownArch;
+}
+
+const ConstString&
+ArchSpec::GetDistributionId () const
+{
+    return m_distribution_id;
+}
+
+void
+ArchSpec::SetDistributionId (const char* distribution_id)
+{
+    m_distribution_id.SetCString (distribution_id);
 }
 
 uint32_t
@@ -763,6 +784,8 @@ ArchSpec::IsCompatibleMatch (const ArchSpec& rhs) const
 bool
 ArchSpec::IsEqualTo (const ArchSpec& rhs, bool exact_match) const
 {
+    // explicitly ignoring m_distribution_id in this method.
+
     if (GetByteOrder() != rhs.GetByteOrder())
         return false;
         
@@ -873,7 +896,7 @@ cores_match (const ArchSpec::Core core1, const ArchSpec::Core core2, bool try_in
         if (core2 == ArchSpec::kCore_arm_any)
             return true;
         break;
-        
+    
     case ArchSpec::kCore_x86_32_any:
         if ((core2 >= ArchSpec::kCore_x86_32_first && core2 <= ArchSpec::kCore_x86_32_last) || (core2 == ArchSpec::kCore_x86_32_any))
             return true;

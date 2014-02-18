@@ -83,6 +83,7 @@ POSIXThread::GetMonitor()
     return process.GetMonitor();
 }
 
+// Overridden by FreeBSDThread; this is used only on Linux.
 void
 POSIXThread::RefreshStateAfterStop()
 {
@@ -150,8 +151,6 @@ POSIXThread::GetRegisterContext()
         {
             case ArchSpec::eCore_mips64:
             {
-                RegisterInfoInterface *reg_interface = NULL;
-
                 switch (target_arch.GetTriple().getOS())
                 {
                     case llvm::Triple::FreeBSD:
@@ -257,6 +256,7 @@ POSIXThread::GetUnwinder()
     return m_unwinder_ap.get();
 }
 
+// Overridden by FreeBSDThread; this is used only on Linux.
 void
 POSIXThread::WillResume(lldb::StateType resume_state)
 {

@@ -47,16 +47,37 @@ public:
     bool
     HandshakeWithServer (lldb_private::Error *error_ptr);
 
-    size_t
+    PacketResult
     SendPacketAndWaitForResponse (const char *send_payload,
                                   StringExtractorGDBRemote &response,
                                   bool send_async);
 
-    size_t
+    PacketResult
     SendPacketAndWaitForResponse (const char *send_payload,
                                   size_t send_length,
                                   StringExtractorGDBRemote &response,
                                   bool send_async);
+
+    // For packets which specify a range of output to be returned,
+    // return all of the output via a series of request packets of the form
+    // <prefix>0,<size>
+    // <prefix><size>,<size>
+    // <prefix><size>*2,<size>
+    // <prefix><size>*3,<size>
+    // ...
+    // until a "$l..." packet is received, indicating the end.
+    // (size is in hex; this format is used by a standard gdbserver to
+    // return the given portion of the output specified by <prefix>;
+    // for example, "qXfer:libraries-svr4:read::fff,1000" means
+    // "return a chunk of the xml description file for shared
+    // library load addresses, where the chunk starts at offset 0xfff
+    // and continues for 0x1000 bytes").
+    // Concatenate the resulting server response packets together and
+    // return in response_string.  If any packet fails, the return value
+    // indicates that failure and the returned string value is undefined.
+    PacketResult
+    SendPacketsAndConcatenateResponses (const char *send_payload_prefix,
+                                        std::string &response_string);
 
     lldb::StateType
     SendContinuePacketAndWaitForResponse (ProcessGDBRemote *process,
@@ -94,7 +115,7 @@ public:
     GetLaunchSuccess (std::string &error_str);
 
     uint16_t
-    LaunchGDBserverAndGetPort (lldb::pid_t &pid);
+    LaunchGDBserverAndGetPort (lldb::pid_t &pid, const char *remote_accept_hostname);
     
     bool
     KillSpawnedProcess (lldb::pid_t pid);
@@ -248,6 +269,9 @@ public:
     const lldb_private::ArchSpec &
     GetProcessArchitecture ();
 
+    void
+    GetRemoteQSupported();
+
     bool
     GetVContSupported (char flavor);
 
@@ -359,6 +383,18 @@ public:
     bool
     SetCurrentThreadForRun (uint64_t tid);
 
+    bool
+    GetQXferLibrariesReadSupported ();
+
+    bool
+    GetQXferLibrariesSVR4ReadSupported ();
+
+    uint64_t
+    GetRemoteMaxPacketSize();
+
+    bool
+    GetAugmentedLibrariesSVR4ReadSupported ();
+
     lldb_private::LazyBool
     SupportsAllocDeallocMemory () // const
     {
@@ -458,6 +494,11 @@ public:
     
 protected:
 
+    PacketResult
+    SendPacketAndWaitForResponseNoLock (const char *payload,
+                                        size_t payload_length,
+                                        StringExtractorGDBRemote &response);
+
     bool
     GetCurrentProcessInfo ();
 
@@ -484,7 +525,10 @@ protected:
     lldb_private::LazyBool m_prepare_for_reg_writing_reply;
     lldb_private::LazyBool m_supports_p;
     lldb_private::LazyBool m_supports_QSaveRegisterState;
-    
+    lldb_private::LazyBool m_supports_qXfer_libraries_read;
+    lldb_private::LazyBool m_supports_qXfer_libraries_svr4_read;
+    lldb_private::LazyBool m_supports_augmented_libraries_svr4_read;
+
     bool
         m_supports_qProcessInfoPID:1,
         m_supports_qfProcessInfo:1,
@@ -511,6 +555,7 @@ protected:
     lldb_private::Mutex m_async_mutex;
     lldb_private::Predicate<bool> m_async_packet_predicate;
     std::string m_async_packet;
+    PacketResult m_async_result;
     StringExtractorGDBRemote m_async_response;
     int m_async_signal; // We were asked to deliver a signal to the inferior process.
     bool m_interrupt_sent;
@@ -526,6 +571,7 @@ protected:
     std::string m_os_kernel;
     std::string m_hostname;
     uint32_t m_default_packet_timeout;
+    uint64_t m_max_packet_size;  // as returned by qSupported
     
     bool
     DecodeProcessInfoResponse (StringExtractorGDBRemote &response, 
