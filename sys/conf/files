@@ -1599,7 +1599,13 @@ dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
+dev/netmap/netmap_freebsd.c	optional netmap
+dev/netmap/netmap_generic.c	optional netmap
+dev/netmap/netmap_mbq.c		optional netmap
 dev/netmap/netmap_mem2.c	optional netmap
+dev/netmap/netmap_offloadings.c	optional netmap
+dev/netmap/netmap_pipe.c	optional netmap
+dev/netmap/netmap_vale.c	optional netmap
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
