@@ -73,6 +73,9 @@ public:
     IsValid () const;
 
     bool
+    IsTrapHandlerFrame () const;
+
+    bool
     GetCFA (lldb::addr_t& cfa);
 
     bool
@@ -86,7 +89,7 @@ private:
     enum FrameType
     {
         eNormalFrame,
-        eSigtrampFrame,
+        eTrapHandlerFrame,
         eDebuggerFrame,  // a debugger inferior function call frame; we get caller's registers from debugger
         eSkipFrame,      // The unwind resulted in a bogus frame but may get back on track so we don't want to give up yet
         eNotAValidFrame  // this frame is invalid for some reason - most likely it is past the top (end) of the stack
@@ -119,6 +122,19 @@ private:
     // the program's actual stack in the unwind and we want to flag that for the user somehow.
     bool
     IsSkipFrame () const;
+
+
+    //------------------------------------------------------------------
+    /// Determines if a SymbolContext is a trap handler or not
+    ///
+    /// Given a SymbolContext, determines if this is a trap handler function
+    /// aka asynchronous signal handler.
+    ///
+    /// @return
+    ///     Returns true if the SymbolContext is a trap handler.
+    //------------------------------------------------------------------
+    bool
+    IsTrapHandlerSymbol (lldb_private::Process *process, const lldb_private::SymbolContext &m_sym_ctx) const;
 
     // Provide a location for where THIS function saved the CALLER's register value
     // Or a frame "below" this one saved it, i.e. a function called by this one, preserved a register that this
@@ -163,6 +179,10 @@ private:
 
     void
     UnwindLogMsgVerbose (const char *fmt, ...) __attribute__ ((format (printf, 2, 3)));
+
+    bool
+    IsUnwindPlanValidForCurrentPC(lldb::UnwindPlanSP unwind_plan_sp, int &valid_pc_offset);
+
 
     lldb_private::Thread& m_thread;
 

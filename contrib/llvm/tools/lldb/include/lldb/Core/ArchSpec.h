@@ -13,6 +13,7 @@
 #if defined(__cplusplus)
 
 #include "lldb/lldb-private.h"
+#include "lldb/Core/ConstString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Triple.h"
 
@@ -90,6 +91,7 @@ public:
         eCore_x86_32_i486sx,
         
         eCore_x86_64_x86_64,
+        eCore_x86_64_x86_64h, // Haswell enabled x86_64
         eCore_uknownMach32,
         eCore_uknownMach64,
         kNumCores,
@@ -201,6 +203,27 @@ public:
     //------------------------------------------------------------------
     llvm::Triple::ArchType
     GetMachine () const;
+
+    //------------------------------------------------------------------
+    /// Returns the distribution id of the architecture.
+    ///
+    /// This will be something like "ubuntu", "fedora", etc. on Linux.
+    ///
+    /// @return A ConstString ref containing the distribution id,
+    ///         potentially empty.
+    //------------------------------------------------------------------
+    const ConstString&
+    GetDistributionId () const;
+
+    //------------------------------------------------------------------
+    /// Set the distribution id of the architecture.
+    ///
+    /// This will be something like "ubuntu", "fedora", etc. on Linux.
+    /// This should be the same value returned by
+    /// Host::GetDistributionId ().
+    ///------------------------------------------------------------------
+    void
+    SetDistributionId (const char* distribution_id);
 
     //------------------------------------------------------------------
     /// Tests if this ArchSpec is valid.
@@ -399,6 +422,8 @@ protected:
     llvm::Triple m_triple;
     Core m_core;
     lldb::ByteOrder m_byte_order;
+
+    ConstString m_distribution_id;
 
     // Called when m_def or m_entry are changed.  Fills in all remaining
     // members with default values.

@@ -38,6 +38,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Scalar.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Symbol/ClangExternalASTSourceCommon.h"
@@ -413,7 +414,7 @@ ClangASTType::GetNumberOfFunctionArguments () const
         QualType qual_type (GetCanonicalQualType());
         const FunctionProtoType* func = dyn_cast<FunctionProtoType>(qual_type.getTypePtr());
         if (func)
-            return func->getNumArgs();
+            return func->getNumParams();
     }
     return 0;
 }
@@ -427,8 +428,8 @@ ClangASTType::GetFunctionArgumentAtIndex (const size_t index)
         const FunctionProtoType* func = dyn_cast<FunctionProtoType>(qual_type.getTypePtr());
         if (func)
         {
-            if (index < func->getNumArgs())
-                return ClangASTType(m_ast, func->getArgType(index).getAsOpaquePtr());
+            if (index < func->getNumParams())
+                return ClangASTType(m_ast, func->getParamType(index).getAsOpaquePtr());
         }
     }
     return ClangASTType();
@@ -1134,7 +1135,7 @@ ClangASTType::GetTypeName () const
         if (typedef_type)
         {
             const TypedefNameDecl *typedef_decl = typedef_type->getDecl();
-            type_name = typedef_decl->getQualifiedNameAsString(printing_policy);
+            type_name = typedef_decl->getQualifiedNameAsString();
         }
         else
         {
@@ -1595,7 +1596,7 @@ ClangASTType::GetFunctionArgumentCount () const
     {
         const FunctionProtoType* func = dyn_cast<FunctionProtoType>(GetCanonicalQualType());
         if (func)
-            return func->getNumArgs();
+            return func->getNumParams();
     }
     return -1;
 }
@@ -1608,9 +1609,9 @@ ClangASTType::GetFunctionArgumentTypeAtIndex (size_t idx)
         const FunctionProtoType* func = dyn_cast<FunctionProtoType>(GetCanonicalQualType());
         if (func)
         {
-            const uint32_t num_args = func->getNumArgs();
+            const uint32_t num_args = func->getNumParams();
             if (idx < num_args)
-                return ClangASTType(m_ast, func->getArgType(idx));
+                return ClangASTType(m_ast, func->getParamType(idx));
         }
     }
     return ClangASTType();
@@ -1624,7 +1625,7 @@ ClangASTType::GetFunctionReturnType () const
         QualType qual_type(GetCanonicalQualType());
         const FunctionProtoType* func = dyn_cast<FunctionProtoType>(qual_type.getTypePtr());
         if (func)
-            return ClangASTType(m_ast, func->getResultType());
+            return ClangASTType(m_ast, func->getReturnType());
     }
     return ClangASTType();
 }
@@ -1915,6 +1916,7 @@ ClangASTType::GetEncoding (uint64_t &count) const
         case clang::Type::Decltype:
         case clang::Type::TemplateSpecialization:
         case clang::Type::Atomic:
+            break;
 
         // pointer type decayed from an array or function type.
         case clang::Type::Decayed:
@@ -4646,7 +4648,7 @@ ClangASTType::AddMethodToCXXRecordType (const char *name,
     if (!method_function_prototype)
         return NULL;
     
-    unsigned int num_params = method_function_prototype->getNumArgs();
+    unsigned int num_params = method_function_prototype->getNumParams();
     
     CXXDestructorDecl *cxx_dtor_decl(NULL);
     CXXConstructorDecl *cxx_ctor_decl(NULL);
@@ -4713,7 +4715,7 @@ ClangASTType::AddMethodToCXXRecordType (const char *name,
                 cxx_method_decl = CXXConversionDecl::Create (*m_ast,
                                                              cxx_record_decl,
                                                              SourceLocation(),
-                                                             DeclarationNameInfo (m_ast->DeclarationNames.getCXXConversionFunctionName (m_ast->getCanonicalType (function_type->getResultType())), SourceLocation()),
+                                                             DeclarationNameInfo (m_ast->DeclarationNames.getCXXConversionFunctionName (m_ast->getCanonicalType (function_type->getReturnType())), SourceLocation()),
                                                              method_qual_type,
                                                              NULL, // TypeSourceInfo *
                                                              is_inline,
@@ -4744,7 +4746,7 @@ ClangASTType::AddMethodToCXXRecordType (const char *name,
     cxx_method_decl->setVirtualAsWritten (is_virtual);
     
     if (is_attr_used)
-        cxx_method_decl->addAttr(::new (*m_ast) UsedAttr(SourceRange(), *m_ast));
+        cxx_method_decl->addAttr(clang::UsedAttr::CreateImplicit(*m_ast));
     
     // Populate the method decl with parameter decls
     
@@ -4759,7 +4761,7 @@ ClangASTType::AddMethodToCXXRecordType (const char *name,
                                                SourceLocation(),
                                                SourceLocation(),
                                                NULL, // anonymous
-                                               method_function_prototype->getArgType(param_index),
+                                               method_function_prototype->getParamType(param_index),
                                                NULL,
                                                SC_None,
                                                NULL));
@@ -5132,7 +5134,7 @@ ClangASTType::AddMethodToObjCObjectType (const char *name,  // the full symbol n
     bool is_defined = false;
     ObjCMethodDecl::ImplementationControl imp_control = ObjCMethodDecl::None;
     
-    const unsigned num_args = method_function_prototype->getNumArgs();
+    const unsigned num_args = method_function_prototype->getNumParams();
     
     if (num_args != num_selectors_with_args)
         return NULL; // some debug information is corrupt.  We are not going to deal with it.
@@ -5141,7 +5143,7 @@ ClangASTType::AddMethodToObjCObjectType (const char *name,  // the full symbol n
                                                                SourceLocation(), // beginLoc,
                                                                SourceLocation(), // endLoc,
                                                                method_selector,
-                                                               method_function_prototype->getResultType(),
+                                                               method_function_prototype->getReturnType(),
                                                                NULL, // TypeSourceInfo *ResultTInfo,
                                                                GetDeclContextForType (),
                                                                name[0] == '-',
@@ -5167,7 +5169,7 @@ ClangASTType::AddMethodToObjCObjectType (const char *name,  // the full symbol n
                                                    SourceLocation(),
                                                    SourceLocation(),
                                                    NULL, // anonymous
-                                                   method_function_prototype->getArgType(param_index),
+                                                   method_function_prototype->getParamType(param_index),
                                                    NULL,
                                                    SC_Auto,
                                                    NULL));

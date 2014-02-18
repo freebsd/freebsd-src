@@ -11,9 +11,7 @@
 #define liblldb_ConnectionFileDescriptor_h_
 
 // C Includes
-#ifdef _WIN32
-typedef unsigned short in_port_t;
-#else
+#ifndef _WIN32
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -68,13 +66,16 @@ public:
 
     // If the read file descriptor is a socket, then return
     // the port number that is being used by the socket.
-    in_port_t
+    uint16_t
     GetReadPort () const;
     
     // If the write file descriptor is a socket, then return
     // the port number that is being used by the socket.
-    in_port_t
+    uint16_t
     GetWritePort () const;
+
+    uint16_t
+    GetBoundPort (uint32_t timeout_sec);
 
 protected:
 
@@ -95,7 +96,7 @@ protected:
     BytesAvailable (uint32_t timeout_usec, Error *error_ptr);
     
     lldb::ConnectionStatus
-    SocketListen (uint16_t listen_port_num, Error *error_ptr);
+    SocketListen (const char *host_and_port, Error *error_ptr);
 
     lldb::ConnectionStatus
     ConnectTCP (const char *host_and_port, Error *error_ptr);
@@ -117,15 +118,16 @@ protected:
     FDType m_fd_send_type;
     FDType m_fd_recv_type;
     std::unique_ptr<SocketAddress> m_udp_send_sockaddr;
-    bool m_should_close_fd;     // True if this class should close the file descriptor when it goes away.
     uint32_t m_socket_timeout_usec;
     int m_pipe_read;            // A pipe that we select on the reading end of along with
     int m_pipe_write;           // m_fd_recv so we can force ourselves out of the select.
-    Mutex m_mutex;          
+    Mutex m_mutex;
+    Predicate<uint16_t> m_port_predicate; // Used when binding to port zero to wait for the thread that creates the socket, binds and listens to resolve the port number
+    bool m_should_close_fd;     // True if this class should close the file descriptor when it goes away.
     bool m_shutting_down;       // This marks that we are shutting down so if we get woken up from BytesAvailable
                                 // to disconnect, we won't try to read again.
     
-    static in_port_t
+    static uint16_t
     GetSocketPort (int fd);
 
     static int

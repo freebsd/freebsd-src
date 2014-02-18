@@ -18,6 +18,7 @@
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Interpreter/OptionValueFileSpecList.h"
 #include "lldb/Symbol/Function.h"
 #include "lldb/Target/DynamicLoader.h"
 #include "lldb/Target/ExecutionContext.h"
@@ -61,12 +62,14 @@ static PropertyDefinition
 g_properties[] =
 {
     { "step-avoid-regexp",  OptionValue::eTypeRegex  , true , REG_EXTENDED, "^std::", NULL, "A regular expression defining functions step-in won't stop in." },
+    { "step-avoid-libraries",  OptionValue::eTypeFileSpecList  , true , REG_EXTENDED, NULL, NULL, "A list of libraries that source stepping won't stop in." },
     { "trace-thread",       OptionValue::eTypeBoolean, false, false, NULL, NULL, "If true, this thread will single-step and log execution." },
     {  NULL               , OptionValue::eTypeInvalid, false, 0    , NULL, NULL, NULL  }
 };
 
 enum {
     ePropertyStepAvoidRegex,
+    ePropertyStepAvoidLibraries,
     ePropertyEnableThreadTrace
 };
 
@@ -130,6 +133,15 @@ ThreadProperties::GetSymbolsToAvoidRegexp()
 {
     const uint32_t idx = ePropertyStepAvoidRegex;
     return m_collection_sp->GetPropertyAtIndexAsOptionValueRegex (NULL, idx);
+}
+
+FileSpecList &
+ThreadProperties::GetLibrariesToAvoid() const
+{
+    const uint32_t idx = ePropertyStepAvoidLibraries;
+    OptionValueFileSpecList *option_value = m_collection_sp->GetPropertyAtIndexAsOptionValueFileSpecList (NULL, false, idx);
+    assert(option_value);
+    return option_value->GetCurrentValue();
 }
 
 bool
@@ -2052,4 +2064,126 @@ Thread::IsStillAtLastBreakpointHit ()
         }
     }
     return false;
+}
+
+
+Error
+Thread::StepIn (bool source_step,
+                bool avoid_code_without_debug_info)
+               
+{
+    Error error;
+    Process *process = GetProcess().get();
+    if (StateIsStoppedState (process->GetState(), true))
+    {
+        StackFrameSP frame_sp = GetStackFrameAtIndex (0);
+        ThreadPlanSP new_plan_sp;
+        const lldb::RunMode run_mode = eOnlyThisThread;
+        const bool abort_other_plans = false;
+    
+        if (source_step && frame_sp && frame_sp->HasDebugInformation ())
+        {
+            SymbolContext sc(frame_sp->GetSymbolContext(eSymbolContextEverything));
+            new_plan_sp = QueueThreadPlanForStepInRange (abort_other_plans,
+                                                         sc.line_entry.range,
+                                                         sc,
+                                                         NULL,
+                                                         run_mode,
+                                                         avoid_code_without_debug_info);
+        }
+        else
+        {
+            new_plan_sp = QueueThreadPlanForStepSingleInstruction (false,
+                                                                   abort_other_plans,
+                                                                   run_mode);
+        }
+        
+        new_plan_sp->SetIsMasterPlan(true);
+        new_plan_sp->SetOkayToDiscard(false);
+        
+        // Why do we need to set the current thread by ID here???
+        process->GetThreadList().SetSelectedThreadByID (GetID());
+        error = process->Resume();
+    }
+    else
+    {
+        error.SetErrorString("process not stopped");
+    }
+    return error;
+}
+
+Error
+Thread::StepOver (bool source_step)
+
+{
+    Error error;
+    Process *process = GetProcess().get();
+    if (StateIsStoppedState (process->GetState(), true))
+    {
+        StackFrameSP frame_sp = GetStackFrameAtIndex (0);
+        ThreadPlanSP new_plan_sp;
+        
+        const lldb::RunMode run_mode = eOnlyThisThread;
+        const bool abort_other_plans = false;
+        
+        if (source_step && frame_sp && frame_sp->HasDebugInformation ())
+        {
+            SymbolContext sc(frame_sp->GetSymbolContext(eSymbolContextEverything));
+            new_plan_sp = QueueThreadPlanForStepOverRange (abort_other_plans,
+                                                           sc.line_entry.range,
+                                                           sc,
+                                                           run_mode);
+        }
+        else
+        {
+            new_plan_sp = QueueThreadPlanForStepSingleInstruction (true,
+                                                                   abort_other_plans,
+                                                                   run_mode);
+        }
+        
+        new_plan_sp->SetIsMasterPlan(true);
+        new_plan_sp->SetOkayToDiscard(false);
+        
+        // Why do we need to set the current thread by ID here???
+        process->GetThreadList().SetSelectedThreadByID (GetID());
+        error = process->Resume();
+    }
+    else
+    {
+        error.SetErrorString("process not stopped");
+    }
+    return error;
+}
+
+Error
+Thread::StepOut ()
+{
+    Error error;
+    Process *process = GetProcess().get();
+    if (StateIsStoppedState (process->GetState(), true))
+    {
+        const bool first_instruction = false;
+        const bool stop_other_threads = false;
+        const bool abort_other_plans = false;
+
+        ThreadPlanSP new_plan_sp(QueueThreadPlanForStepOut (abort_other_plans,
+                                                            NULL,
+                                                            first_instruction,
+                                                            stop_other_threads,
+                                                            eVoteYes,
+                                                            eVoteNoOpinion,
+                                                            0));
+        
+        new_plan_sp->SetIsMasterPlan(true);
+        new_plan_sp->SetOkayToDiscard(false);
+        
+        // Why do we need to set the current thread by ID here???
+        process->GetThreadList().SetSelectedThreadByID (GetID());
+        error = process->Resume();
+    }
+    else
+    {
+        error.SetErrorString("process not stopped");
+    }
+    return error;
 }
