@@ -630,48 +630,39 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 static int
 pci_emul_add_capability(struct pci_devinst *pi, u_char *capdata, int caplen)
 {
-	int i, capoff, capid, reallen;
+	int i, capoff, reallen;
 	uint16_t sts;
 
-	static u_char endofcap[4] = {
-		PCIY_RESERVED, 0, 0, 0
-	};
-
-	assert(caplen > 0 && capdata[0] != PCIY_RESERVED);
+	assert(caplen > 0);
 
 	reallen = roundup2(caplen, 4);		/* dword aligned */
 
 	sts = pci_get_cfgdata16(pi, PCIR_STATUS);
-	if ((sts & PCIM_STATUS_CAPPRESENT) == 0) {
+	if ((sts & PCIM_STATUS_CAPPRESENT) == 0)
 		capoff = CAP_START_OFFSET;
-		pci_set_cfgdata8(pi, PCIR_CAP_PTR, capoff);
-		pci_set_cfgdata16(pi, PCIR_STATUS, sts|PCIM_STATUS_CAPPRESENT);
-	} else {
-		capoff = pci_get_cfgdata8(pi, PCIR_CAP_PTR);
-		while (1) {
-			assert((capoff & 0x3) == 0);
-			capid = pci_get_cfgdata8(pi, capoff);
-			if (capid == PCIY_RESERVED)
-				break;
-			capoff = pci_get_cfgdata8(pi, capoff + 1);
-		}
-	}
+	else
+		capoff = pi->pi_capend + 1;
 
 	/* Check if we have enough space */
-	if (capoff + reallen + sizeof(endofcap) > PCI_REGMAX + 1)
+	if (capoff + reallen > PCI_REGMAX + 1)
 		return (-1);
+
+	/* Set the previous capability pointer */
+	if ((sts & PCIM_STATUS_CAPPRESENT) == 0) {
+		pci_set_cfgdata8(pi, PCIR_CAP_PTR, capoff);
+		pci_set_cfgdata16(pi, PCIR_STATUS, sts|PCIM_STATUS_CAPPRESENT);
+	} else
+		pci_set_cfgdata8(pi, pi->pi_prevcap + 1, capoff);
 
 	/* Copy the capability */
 	for (i = 0; i < caplen; i++)
 		pci_set_cfgdata8(pi, capoff + i, capdata[i]);
 
 	/* Set the next capability pointer */
-	pci_set_cfgdata8(pi, capoff + 1, capoff + reallen);
+	pci_set_cfgdata8(pi, capoff + 1, 0);
 
-	/* Copy of the reserved capability which serves as the end marker */
-	for (i = 0; i < sizeof(endofcap); i++)
-		pci_set_cfgdata8(pi, capoff + reallen + i, endofcap[i]);
-
+	pi->pi_prevcap = capoff;
+	pi->pi_capend = capoff + reallen - 1;
 	return (0);
 }
 
@@ -756,7 +747,7 @@ pci_emul_add_msicap(struct pci_devinst *pi, int msgnum)
 
 static void
 pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
-		     uint32_t msix_tab_size, int nextptr)
+		     uint32_t msix_tab_size)
 {
 	CTASSERT(sizeof(struct msixcap) == 12);
 
@@ -764,7 +755,6 @@ pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
 
 	bzero(msixcap, sizeof(struct msixcap));
 	msixcap->capid = PCIY_MSIX;
-	msixcap->nextptr = nextptr;
 
 	/*
 	 * Message Control Register, all fields set to
@@ -826,7 +816,7 @@ pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 
 	pci_msix_table_init(pi, msgnum);
 
-	pci_populate_msixcap(&msixcap, msgnum, barnum, tab_size, 0);
+	pci_populate_msixcap(&msixcap, msgnum, barnum, tab_size);
 
 	/* allocate memory for MSI-X Table and PBA */
 	pci_emul_alloc_bar(pi, barnum, PCIBAR_MEM32,
@@ -949,11 +939,9 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	/* Find the capability that we want to update */
 	capoff = CAP_START_OFFSET;
 	while (1) {
-		capid = pci_get_cfgdata8(pi, capoff);
-		if (capid == PCIY_RESERVED)
-			break;
-
 		nextoff = pci_get_cfgdata8(pi, capoff + 1);
+		if (nextoff == 0)
+			break;
 		if (offset >= capoff && offset < nextoff)
 			break;
 
@@ -976,6 +964,7 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 			return;
 	}
 
+	capid = pci_get_cfgdata8(pi, capoff);
 	switch (capid) {
 	case PCIY_MSI:
 		msicap_cfgwrite(pi, capoff, offset, bytes, val);
@@ -994,25 +983,14 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 static int
 pci_emul_iscap(struct pci_devinst *pi, int offset)
 {
-	int found;
 	uint16_t sts;
-	uint8_t capid, lastoff;
 
-	found = 0;
 	sts = pci_get_cfgdata16(pi, PCIR_STATUS);
 	if ((sts & PCIM_STATUS_CAPPRESENT) != 0) {
-		lastoff = pci_get_cfgdata8(pi, PCIR_CAP_PTR);
-		while (1) {
-			assert((lastoff & 0x3) == 0);
-			capid = pci_get_cfgdata8(pi, lastoff);
-			if (capid == PCIY_RESERVED)
-				break;
-			lastoff = pci_get_cfgdata8(pi, lastoff + 1);
-		}
-		if (offset >= CAP_START_OFFSET && offset <= lastoff)
-			found = 1;
+		if (offset >= CAP_START_OFFSET && offset <= pi->pi_capend)
+			return (1);
 	}
-	return (found);
+	return (0);
 }
 
 static int

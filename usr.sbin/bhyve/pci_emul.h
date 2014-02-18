@@ -39,7 +39,6 @@
 #include <assert.h>
 
 #define	PCI_BARMAX	PCIR_MAX_BAR_0	/* BAR registers in a Type 0 header */
-#define	PCIY_RESERVED	0x00
 
 struct vmctx;
 struct pci_devinst;
@@ -115,6 +114,8 @@ struct pci_devinst {
 	uint8_t	  pi_bus, pi_slot, pi_func;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
+	int	  pi_prevcap;
+	int	  pi_capend;
 
 	struct {
 		int8_t    	pin;
