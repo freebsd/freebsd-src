@@ -650,7 +650,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    int l = atoi(fmt + 1);
 	    TCHECK2(*buf, l);
 	    if ((tbuf = malloc(l + 1)) != NULL) {
-		strncpy_c_fromcap(tbuf, buf, l);
+		p_strncpy(tbuf, buf, l);
 		tbuf[l] = '\0';
 	    }
 	    printf("%-*.*s", l, l, tbuf == NULL ? "<null>" : tbuf);
@@ -666,7 +666,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    char *tbuf;
 	    TCHECK2(*buf, stringlen);
 	    if ((tbuf = malloc(stringlen + 1)) != NULL) {
-		strncpy_c_fromcap(tbuf, buf, stringlen);
+		p_strncpy(tbuf, buf, stringlen);
 		tbuf[stringlen] = '\0';
 	    }
 	    printf("%-*.*s", (int)stringlen, (int)stringlen,
@@ -723,7 +723,7 @@ smb_fdata1(packetbody_t buf, const char *fmt, packetbody_t maxbuf,
 	    case 2:
 		TCHECK(buf[15]);
 		name_type = buf[15];
-		strncpy_c_fromcap(nbuf, buf, 15);
+		p_strncpy(nbuf, buf, 15);
 		nbuf[15] = '\0';
 		printf("%-15.15s NameType=0x%02X (%s)", nbuf, name_type,
 		    name_type_str(name_type));

@@ -151,9 +151,9 @@ vtp_print (packetbody_t pptr, u_int length)
 
     /* verbose mode print all fields */
     name_ptr = tptr+4;
-    name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
     if ((name = malloc(name_len)) != NULL)
-	strncpy_c_fromcap(name, name_ptr, name_len);
+	p_strncpy(name, name_ptr, name_len);
     printf("\n\tDomain name: %s, %s: %u", 
 	   name == NULL ? "<null>" : name,
 	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
@@ -254,9 +254,9 @@ vtp_print (packetbody_t pptr, u_int length)
 
 	    vtp_vlan = (__capability const struct vtp_vlan_*)tptr;
 	    name_ptr = tptr + VTP_VLAN_INFO_OFFSET;
-	    name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+	    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
 	    if ((name = malloc(name_len)) != NULL)
-		strncpy_c_fromcap(name, name_ptr, name_len);
+		p_strncpy(name, name_ptr, name_len);
 	    printf("\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),

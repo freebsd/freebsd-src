@@ -279,9 +279,9 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
 
     printf ("\n\tv3len %d, ", EXTRACT_16BITS(ptr + MST_BPDU_VER3_LEN_OFFSET));
     name_ptr = ptr + MST_BPDU_CONFIG_NAME_OFFSET;
-    name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
     if ((name = malloc(name_len)) != NULL)
-	    strncpy_c_fromcap(name, name_ptr, name_len);
+	    p_strncpy(name, name_ptr, name_len);
     printf("MCID Name %s, rev %u, "
             "\n\t\tdigest %08x%08x%08x%08x, ",
             name == NULL ? "<null>" : name,
@@ -332,9 +332,9 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
     if ((length-offset) >= SPB_BPDU_MIN_LEN)
     {
       name_ptr = ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET;
-      name_len = strnlen_c(name_ptr, snapend - name_ptr) + 1;
+      name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
       if ((name = malloc(name_len)) != NULL)
-	strncpy_c_fromcap(name, name_ptr, name_len);
+	p_strncpy(name, name_ptr, name_len);
       printf("\n\tv4len %d AUXMCID Name %s, Rev %u, \n\t\tdigest %08x%08x%08x%08x",
               EXTRACT_16BITS (ptr + offset),
               name == NULL ? "<null>" : name,
