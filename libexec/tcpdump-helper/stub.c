@@ -34,9 +34,14 @@
 #include <netinet/in.h>
 #include <sys/stat.h>
 
+#include <net/ethernet.h>
+#include <rpc/rpc.h>
+
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdarg.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -89,6 +94,7 @@ close(int d __unused)
 	errno = ECAPMODE;
 	return (-1);
 }
+int _close(int d __unused);
 int
 _close(int d __unused)
 {
@@ -104,6 +110,7 @@ fstat(int fd __unused, struct stat *sb __unused)
 	errno = ECAPMODE;
 	return (-1);
 }
+int _fstat(int fd __unused, struct stat *sb __unused);
 int
 _fstat(int fd __unused, struct stat *sb __unused)
 {
@@ -127,6 +134,7 @@ open(const char *path __unused, int flags __unused, ...)
 	errno = ECAPMODE;
 	return (-1);
 }
+int _open(const char *path __unused, int flags __unused, ...);
 int
 _open(const char *path __unused, int flags __unused, ...)
 {
@@ -142,6 +150,7 @@ read(int d __unused, void *buf __unused, size_t nbytes __unused)
 	errno = ECAPMODE;
 	return (-1);
 }
+ssize_t _read(int d __unused, void *buf __unused, size_t nbytes __unused);
 ssize_t
 _read(int d __unused, void *buf __unused, size_t nbytes __unused)
 {
@@ -171,7 +180,7 @@ issetugid(void)
 }
 
 char *
-getenv(const char *name)
+getenv(const char *name __unused)
 {
 	return NULL;
 }
@@ -187,12 +196,14 @@ _write(int fd __unused, const void *buf __unused, size_t nbytes __unused)
 	return -1;
 }
 
-void * getrpcbynumber(int number)
+struct rpcent *
+getrpcbynumber(int number __unused)
 {
 	return (NULL);
 }
 
-void * getprotobynumber(int number __unused)
+struct protoent *
+getprotobynumber(int number __unused)
 {
 	return (NULL);
 }
@@ -207,19 +218,19 @@ endprotoent(void)
 {
 }
 
-void *
+struct hostent *
 gethostbyaddr(const void *addr __unused, socklen_t len __unused, int af __unused)
 {
 	return (NULL);
 }
 
 int
-ether_ntohost(char *hostname, const struct ether_addr *e)
+ether_ntohost(char *hostname __unused , const struct ether_addr *e __unused)
 {
 	return -1;
 }
 
-void *
+struct servent *
 getservent(void)
 {
 	return (NULL);
