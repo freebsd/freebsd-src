@@ -418,7 +418,7 @@ hexprint(netdissect_options *ndo, __capability const void *loc, size_t len)
 static int
 rawprint(netdissect_options *ndo, __capability const void *loc, size_t len)
 {
-	ND_TCHECK2(*loc, len);
+	ND_TCHECK2(*(__capability const u_char *)loc, len);
 
 	hexprint(ndo, loc, len);
 	return 1;

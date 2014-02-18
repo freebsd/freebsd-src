@@ -1841,9 +1841,10 @@ print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 	 * end of the packet.
 	 * Rather than pass it all the way down, we set this global.
 	 */
-	snapend = sp + h->caplen;
+	snapend = cheri_ptrperm((void *)(sp + h->caplen), 0, 0);
 
-	pretty_print_packet(print_info, h, sp);
+	pretty_print_packet(print_info, h, cheri_ptrperm((void *)sp, h->caplen,
+	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP));
 
 	putchar('\n');
 

@@ -512,7 +512,8 @@ extern void esp_print_decodesecret(netdissect_options *ndo);
 extern int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 					     int initiator,
 					     u_char spii[8], u_char spir[8],
-					     u_char *buf, u_char *end);
+					     __capability u_char *buf,
+					     packetbody_t end);
 
 
 #endif  /* netdissect_h */

@@ -34,6 +34,8 @@
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
  */
 
+#include "packetbody.h"
+
 /*
  * Definitions for internet protocol version 4.
  * Per RFC 791, September 1981.

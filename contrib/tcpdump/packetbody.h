@@ -36,13 +36,15 @@
 #if __has_feature(capabilities)
 #define HAS_CHERI_CAPABILITIES
 #include <machine/cheric.h>
+#include <machine/cherireg.h>
 #endif
 #else
-#define	cheri_ptr(var, size)	(var)
 #define	__capability
 #endif
 
 #ifndef HAS_CHERI_CAPABILITIES
+#define	cheri_ptr(var, size)		(void *)(var)
+#define	cheri_ptrperm(var, size, perm)	(void *)(var)
 #define	__capability
 #endif
 

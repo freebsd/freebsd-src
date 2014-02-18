@@ -67,12 +67,6 @@ tcpdump-helper.dump: tcpdump-helper
 .PATH: ${.CURDIR}/../../lib/libc/string
 .PATH: ${.CURDIR}/../../contrib/tcpdump
 
-SRCS:=	${SRCS:Nprint-smb.c}
-SRCS:=	${SRCS:Nprint-udp.c}
-SRCS:=	${SRCS:Nprint-vtp.c}
-SRCS:=	${SRCS:Nsmbutil.c}
-SRCS:=	${SRCS:Nprint-pflog.c}
-
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:N-Wcast-align}

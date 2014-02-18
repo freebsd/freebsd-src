@@ -21,6 +21,8 @@
  * @(#) $Header: /tcpdump/master/tcpdump/extract.h,v 1.25 2006-01-30 16:20:07 hannes Exp $ (LBL)
  */
 
+#include "packetbody.h"
+
 /*
  * Macros to extract possibly-unaligned big-endian integral values.
  */

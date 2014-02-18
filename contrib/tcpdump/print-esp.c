@@ -90,10 +90,11 @@ struct sa_list {
 int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 				      int initiator,
 				      u_char spii[8], u_char spir[8],
-				      packetbody_t buf, packetbody_t end)
+				      __capability u_char *buf,
+				      packetbody_t end)
 {
 	struct sa_list *sa;
-	__capability u_char *iv;
+	__capability const u_char *iv;
 	int len;
 	EVP_CIPHER_CTX ctx;
 
