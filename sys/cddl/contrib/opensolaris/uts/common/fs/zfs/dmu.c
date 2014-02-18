@@ -1893,6 +1893,7 @@ dmu_init(void)
 	dnode_init();
 	dbuf_init();
 	zfetch_init();
+	zio_compress_init();
 	l2arc_init();
 	arc_init();
 }
@@ -1903,6 +1904,7 @@ dmu_fini(void)
 	arc_fini(); /* arc depends on l2arc, so arc must go first */
 	l2arc_fini();
 	zfetch_fini();
+	zio_compress_fini();
 	dbuf_fini();
 	dnode_fini();
 	dmu_objset_fini();
