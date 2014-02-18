@@ -7,6 +7,7 @@ LIB=	lldbHostCommon
 SRCDIR=	tools/lldb/source/Host/common
 SRCS=	Condition.cpp \
 	DynamicLibrary.cpp \
+	Editline.cpp \
 	File.cpp \
 	FileSpec.cpp \
 	Host.cpp \
