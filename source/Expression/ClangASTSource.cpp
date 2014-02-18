@@ -318,6 +318,10 @@ ClangASTSource::CompleteType (clang::ObjCInterfaceDecl *interface_decl)
     
     m_ast_importer->CompleteObjCInterfaceDecl (interface_decl);
     
+    if (interface_decl->getSuperClass() &&
+        interface_decl->getSuperClass() != interface_decl)
+        CompleteType(interface_decl->getSuperClass());
+    
     if (log)
     {
         log->Printf("      [COID] After:");
@@ -969,6 +973,9 @@ ClangASTSource::FindObjCMethodDecls (NameSearchContext &context)
         }
     }     
     ss.Flush();
+    
+    if (strstr(ss.GetData(), "$__lldb"))
+        return; // we don't need any results
     
     ConstString selector_name(ss.GetData());
     
@@ -1771,14 +1778,14 @@ NameSearchContext::AddFunDecl (const ClangASTType &type)
     
     if (func_proto_type)
     {        
-        unsigned NumArgs = func_proto_type->getNumArgs();
+        unsigned NumArgs = func_proto_type->getNumParams();
         unsigned ArgIndex;
         
         SmallVector<ParmVarDecl *, 5> parm_var_decls;
                 
         for (ArgIndex = 0; ArgIndex < NumArgs; ++ArgIndex)
         {
-            QualType arg_qual_type (func_proto_type->getArgType(ArgIndex));
+            QualType arg_qual_type (func_proto_type->getParamType(ArgIndex));
             
             parm_var_decls.push_back(ParmVarDecl::Create (*ast,
                                                           const_cast<DeclContext*>(m_decl_context),

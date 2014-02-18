@@ -200,7 +200,7 @@ ProcessPOSIX::GetFilePath(
 
 Error
 ProcessPOSIX::DoLaunch (Module *module,
-                       const ProcessLaunchInfo &launch_info)
+                        ProcessLaunchInfo &launch_info)
 {
     Error error;
     assert(m_monitor == NULL);
@@ -630,20 +630,6 @@ ProcessPOSIX::DoDeallocateMemory(lldb::addr_t addr)
         error.SetErrorStringWithFormat("unable to deallocate memory at 0x%" PRIx64, addr);
 
     return error;
-}
-
-addr_t
-ProcessPOSIX::ResolveIndirectFunction(const Address *address, Error &error)
-{
-    addr_t function_addr = LLDB_INVALID_ADDRESS;
-    if (address == NULL) {
-        error.SetErrorStringWithFormat("unable to determine direct function call for NULL address");
-    } else if (!InferiorCall(this, address, function_addr)) {
-        function_addr = LLDB_INVALID_ADDRESS;
-        error.SetErrorStringWithFormat("unable to determine direct function call for indirect function %s",
-                                       address->CalculateSymbolContextSymbol()->GetName().AsCString());
-    }
-    return function_addr;
 }
 
 size_t
