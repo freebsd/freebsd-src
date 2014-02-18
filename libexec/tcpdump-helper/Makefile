@@ -29,6 +29,10 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${.CURDIR}/../../usr.sbin/tcpdump/cheri_tcpdump
 LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
 
+# Contains a table of formats selected by a function so safe-ish
+CFLAGS.print-icmp.c= -Wno-format-nonliteral
+CFLAGS.util-print.c= -Wno-format-nonliteral
+
 .if ${MACHINE_CPUARCH} != "i386"
 CFLAGS+=	-DLBL_ALIGN
 .endif
@@ -39,11 +43,6 @@ DPADD=	${LIBC_CHERI}
 LDADD=	-lc_cheri
 
 NO_SHARED=	yes
-
-#
-# For libc files!
-#
-NO_WERROR=	yes
 
 FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
@@ -70,3 +69,4 @@ tcpdump-helper.dump: tcpdump-helper
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:N-Wcast-align}
+CFLAGS+= ${CFLAGS.${.IMPSRC:T}}
