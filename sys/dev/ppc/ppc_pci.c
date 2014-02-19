@@ -88,6 +88,7 @@ static struct pci_id pci_ids[] = {
 	{ 0x80001407, "Lava Computers 2SP-PCI parallel port", 0x10 },
 	{ 0x84031415, "Oxford Semiconductor OX12PCI840 Parallel port", 0x10 },
 	{ 0x95131415, "Oxford Semiconductor OX16PCI954 Parallel port", 0x10 },
+	{ 0xc1101415, "Oxford Semiconductor OXPCIe952 Parallel port", 0x10 },
 	{ 0x98059710, "NetMos NM9805 1284 Printer port", 0x10 },
 	{ 0x98659710, "MosChip MCS9865 1284 Printer port", 0x10 },
 	{ 0x99019710, "MosChip MCS9901 PCIe to Peripheral Controller", 0x10 },
