@@ -224,24 +224,23 @@ arswitch_set_vlan_mode(struct arswitch_softc *sc, uint32_t mode)
 }
 
 static void
-arswitch_ports_init(struct arswitch_softc *sc)
+arswitch_port_init(struct arswitch_softc *sc, int port)
 {
-	int port;
 
 	/* Port0 - CPU */
-	arswitch_writereg(sc->sc_dev, AR8X16_REG_PORT_STS(0),
-	    (AR8X16_IS_SWITCH(sc, AR8216) ?
-	    AR8X16_PORT_STS_SPEED_100 : AR8X16_PORT_STS_SPEED_1000) |
-	    (AR8X16_IS_SWITCH(sc, AR8216) ? 0 : AR8X16_PORT_STS_RXFLOW) |
-	    (AR8X16_IS_SWITCH(sc, AR8216) ? 0 : AR8X16_PORT_STS_TXFLOW) |
-	    AR8X16_PORT_STS_RXMAC |
-	    AR8X16_PORT_STS_TXMAC |
-	    AR8X16_PORT_STS_DUPLEX);
-	arswitch_writereg(sc->sc_dev, AR8X16_REG_PORT_CTRL(0),
-	    arswitch_readreg(sc->sc_dev, AR8X16_REG_PORT_CTRL(0)) &
-	    ~AR8X16_PORT_CTRL_HEADER);
-
-	for (port = 1; port <= sc->numphys; port++) { 
+	if (port == AR8X16_PORT_CPU) {
+		arswitch_writereg(sc->sc_dev, AR8X16_REG_PORT_STS(0),
+		    (AR8X16_IS_SWITCH(sc, AR8216) ?
+		    AR8X16_PORT_STS_SPEED_100 : AR8X16_PORT_STS_SPEED_1000) |
+		    (AR8X16_IS_SWITCH(sc, AR8216) ? 0 : AR8X16_PORT_STS_RXFLOW) |
+		    (AR8X16_IS_SWITCH(sc, AR8216) ? 0 : AR8X16_PORT_STS_TXFLOW) |
+		    AR8X16_PORT_STS_RXMAC |
+		    AR8X16_PORT_STS_TXMAC |
+		    AR8X16_PORT_STS_DUPLEX);
+		arswitch_writereg(sc->sc_dev, AR8X16_REG_PORT_CTRL(0),
+		    arswitch_readreg(sc->sc_dev, AR8X16_REG_PORT_CTRL(0)) &
+		    ~AR8X16_PORT_CTRL_HEADER);
+	} else {
 		/* Set ports to auto negotiation. */
 		arswitch_writereg(sc->sc_dev, AR8X16_REG_PORT_STS(port),
 		    AR8X16_PORT_STS_LINK_AUTO);
@@ -256,6 +255,7 @@ arswitch_attach(device_t dev)
 {
 	struct arswitch_softc *sc;
 	int err = 0;
+	int port;
 
 	sc = device_get_softc(dev);
 
@@ -319,7 +319,9 @@ arswitch_attach(device_t dev)
 		return (err);
 
 	/* Initialize the switch ports. */
-	arswitch_ports_init(sc);
+	for (port = 0; port <= sc->numphys; port++) {
+		arswitch_port_init(sc, port);
+	}
 
 	/*
 	 * Attach the PHYs and complete the bus enumeration.
