@@ -154,12 +154,14 @@ int	(*carp_get_vhid_p)(struct ifaddr *);
  */
 #define	RTS_FILTER_FIB	M_PROTO8
 
-static struct {
+typedef struct {
 	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
 	int	ipx_count;	/* attached w/ AF_IPX */
 	int	any_count;	/* total attached */
-} route_cb;
+} route_cb_t;
+static VNET_DEFINE(route_cb_t, route_cb);
+#define	V_route_cb VNET(route_cb)
 
 struct mtx rtsock_mtx;
 MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
@@ -317,16 +319,16 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	RTSOCK_LOCK();
 	switch(rp->rcb_proto.sp_protocol) {
 	case AF_INET:
-		route_cb.ip_count++;
+		V_route_cb.ip_count++;
 		break;
 	case AF_INET6:
-		route_cb.ip6_count++;
+		V_route_cb.ip6_count++;
 		break;
 	case AF_IPX:
-		route_cb.ipx_count++;
+		V_route_cb.ipx_count++;
 		break;
 	}
-	route_cb.any_count++;
+	V_route_cb.any_count++;
 	RTSOCK_UNLOCK();
 	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
@@ -360,16 +362,16 @@ rts_detach(struct socket *so)
 	RTSOCK_LOCK();
 	switch(rp->rcb_proto.sp_protocol) {
 	case AF_INET:
-		route_cb.ip_count--;
+		V_route_cb.ip_count--;
 		break;
 	case AF_INET6:
-		route_cb.ip6_count--;
+		V_route_cb.ip6_count--;
 		break;
 	case AF_IPX:
-		route_cb.ipx_count--;
+		V_route_cb.ipx_count--;
 		break;
 	}
-	route_cb.any_count--;
+	V_route_cb.any_count--;
 	RTSOCK_UNLOCK();
 	raw_usrreqs.pru_detach(so);
 }
@@ -943,7 +945,7 @@ flush:
 	 * Check to see if we don't want our own messages.
 	 */
 	if ((so->so_options & SO_USELOOPBACK) == 0) {
-		if (route_cb.any_count <= 1) {
+		if (V_route_cb.any_count <= 1) {
 			if (rtm)
 				Free(rtm);
 			m_freem(m);
@@ -1274,7 +1276,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	struct mbuf *m;
 	struct sockaddr *sa = rtinfo->rti_info[RTAX_DST];
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 	m = rt_msg1(type, rtinfo);
 	if (m == NULL)
@@ -1312,7 +1314,7 @@ rt_ifmsg(struct ifnet *ifp)
 	struct mbuf *m;
 	struct rt_addrinfo info;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 	bzero((caddr_t)&info, sizeof(info));
 	m = rt_msg1(RTM_IFINFO, &info);
@@ -1342,7 +1344,7 @@ rtsock_addrmsg(int cmd, struct ifaddr *ifa, int fibnum)
 	struct ifa_msghdr *ifam;
 	struct ifnet *ifp = ifa->ifa_ifp;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return (0);
 
 	ncmd = cmd == RTM_ADD ? RTM_NEWADDR : RTM_DELADDR;
@@ -1390,7 +1392,7 @@ rtsock_routemsg(int cmd, struct ifnet *ifp, int error, struct rtentry *rt,
 	struct mbuf *m;
 	struct rt_msghdr *rtm;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return (0);
 
 	bzero((caddr_t)&info, sizeof(info));
@@ -1428,7 +1430,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	struct ifnet *ifp = ifma->ifma_ifp;
 	struct ifma_msghdr *ifmam;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return;
 
 	bzero((caddr_t)&info, sizeof(info));
@@ -1457,7 +1459,7 @@ rt_makeifannouncemsg(struct ifnet *ifp, int type, int what,
 	struct if_announcemsghdr *ifan;
 	struct mbuf *m;
 
-	if (route_cb.any_count == 0)
+	if (V_route_cb.any_count == 0)
 		return NULL;
 	bzero((caddr_t)info, sizeof(*info));
 	m = rt_msg1(type, info);
