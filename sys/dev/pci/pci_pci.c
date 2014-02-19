@@ -103,6 +103,12 @@ DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, NULL, NULL);
 
 #ifdef NEW_PCIB
+SYSCTL_DECL(_hw_pci);
+
+static int pci_clear_pcib;
+TUNABLE_INT("hw.pci.clear_pcib", &pci_clear_pcib);
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_pcib, CTLFLAG_RDTUN, &pci_clear_pcib, 0,
+    "Clear firmware-assigned resources for PCI-PCI bridge I/O windows.");
 
 /*
  * Is a resource from a child device sub-allocated from one of our
@@ -415,6 +421,19 @@ pcib_probe_windows(struct pcib_softc *sc)
 	uint32_t val;
 
 	dev = sc->dev;
+
+	if (pci_clear_pcib) {
+		pci_write_config(dev, PCIR_IOBASEL_1, 0xff, 1);
+		pci_write_config(dev, PCIR_IOBASEH_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_IOLIMITL_1, 0, 1);
+		pci_write_config(dev, PCIR_IOLIMITH_1, 0, 2);
+		pci_write_config(dev, PCIR_MEMBASE_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_MEMLIMIT_1, 0, 2);
+		pci_write_config(dev, PCIR_PMBASEL_1, 0xffff, 2);
+		pci_write_config(dev, PCIR_PMBASEH_1, 0xffffffff, 4);
+		pci_write_config(dev, PCIR_PMLIMITL_1, 0, 2);
+		pci_write_config(dev, PCIR_PMLIMITH_1, 0, 4);
+	}
 
 	/* Determine if the I/O port window is implemented. */
 	val = pci_read_config(dev, PCIR_IOBASEL_1, 1);

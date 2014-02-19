@@ -332,6 +332,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, usb_early_takeover, CTLFLAG_RDTUN,
 Disable this if you depend on BIOS emulation of USB devices, that is\n\
 you use USB devices (like keyboard or mouse) but do not load USB drivers");
 
+static int pci_clear_bars;
+TUNABLE_INT("hw.pci.clear_bars", &pci_clear_bars);
+SYSCTL_INT(_hw_pci, OID_AUTO, clear_bars, CTLFLAG_RDTUN, &pci_clear_bars, 0,
+    "Ignore firmware-assigned resources for BARs.");
+
 static int
 pci_has_quirk(uint32_t devid, int quirk)
 {
@@ -2742,7 +2747,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	struct pci_map *pm;
 	pci_addr_t base, map, testval;
 	pci_addr_t start, end, count;
-	int barlen, basezero, maprange, mapsize, type;
+	int barlen, basezero, flags, maprange, mapsize, type;
 	uint16_t cmd;
 	struct resource *res;
 
@@ -2848,7 +2853,10 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	}
 
 	count = (pci_addr_t)1 << mapsize;
-	if (basezero || base == pci_mapbase(testval)) {
+	flags = RF_ALIGNMENT_LOG2(mapsize);
+	if (prefetch)
+		flags |= RF_PREFETCHABLE;
+	if (basezero || base == pci_mapbase(testval) || pci_clear_bars) {
 		start = 0;	/* Let the parent decide. */
 		end = ~0ul;
 	} else {
@@ -2864,7 +2872,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 	 * pci_alloc_resource().
 	 */
 	res = resource_list_reserve(rl, bus, dev, type, &reg, start, end, count,
-	    prefetch ? RF_PREFETCHABLE : 0);
+	    flags);
 	if (pci_do_realloc_bars && res == NULL && (start != 0 || end != ~0ul)) {
 		/*
 		 * If the allocation fails, try to allocate a resource for
@@ -2875,7 +2883,7 @@ pci_add_map(device_t bus, device_t dev, int reg, struct resource_list *rl,
 		resource_list_delete(rl, type, reg);
 		resource_list_add(rl, type, reg, 0, ~0ul, count);
 		res = resource_list_reserve(rl, bus, dev, type, &reg, 0, ~0ul,
-		    count, prefetch ? RF_PREFETCHABLE : 0);
+		    count, flags);
 	}
 	if (res == NULL) {
 		/*
@@ -4174,7 +4182,6 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	struct resource_list *rl = &dinfo->resources;
-	struct resource_list_entry *rle;
 	struct resource *res;
 	struct pci_map *pm;
 	pci_addr_t map, testval;
@@ -4247,23 +4254,16 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 	 * Allocate enough resource, and then write back the
 	 * appropriate BAR for that resource.
 	 */
-	res = BUS_ALLOC_RESOURCE(device_get_parent(dev), child, type, rid,
-	    start, end, count, flags & ~RF_ACTIVE);
+	resource_list_add(rl, type, *rid, start, end, count);
+	res = resource_list_reserve(rl, dev, child, type, rid, start, end,
+	    count, flags & ~RF_ACTIVE);
 	if (res == NULL) {
+		resource_list_delete(rl, type, *rid);
 		device_printf(child,
 		    "%#lx bytes of rid %#x res %d failed (%#lx, %#lx).\n",
 		    count, *rid, type, start, end);
 		goto out;
 	}
-	resource_list_add(rl, type, *rid, start, end, count);
-	rle = resource_list_find(rl, type, *rid);
-	if (rle == NULL)
-		panic("pci_reserve_map: unexpectedly can't find resource.");
-	rle->res = res;
-	rle->start = rman_get_start(res);
-	rle->end = rman_get_end(res);
-	rle->count = count;
-	rle->flags = RLE_RESERVED;
 	if (bootverbose)
 		device_printf(child,
 		    "Lazy allocation of %#lx bytes rid %#x type %d at %#lx\n",
