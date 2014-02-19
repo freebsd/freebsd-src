@@ -175,7 +175,7 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 
 	mh = (__capability const struct ip6_mobility *)bp;
 
-	if (!TTEST(mh->ip6m_len)) {
+	if (!PACKET_HAS_ELEMENT(mh, ip6m_len)) {
 		/*
 		 * There's not enough captured data to include the
 		 * mobility header length.
@@ -195,7 +195,7 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 
 	/* XXX ip6m_cksum */
 
-	TCHECK(mh->ip6m_type);
+	PACKET_HAS_ELEMENT_OR_TRUNC(mh, ip6m_type);
 	type = mh->ip6m_type;
 	switch (type) {
 	case IP6M_BINDING_REQUEST:
@@ -208,7 +208,7 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 			type == IP6M_HOME_TEST_INIT ? "H" : "C");
 		hlen = IP6M_MINLEN;
     		if (vflag) {
-			TCHECK2(*mh, hlen + 8);
+			PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 8);
 			printf(" %s Init Cookie=%08x:%08x",
 			       type == IP6M_HOME_TEST_INIT ? "Home" : "Care-of",
 			       EXTRACT_32BITS(&bp[hlen]),
@@ -220,11 +220,11 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 	case IP6M_CAREOF_TEST:
 		printf("mobility: %soT",
 			type == IP6M_HOME_TEST ? "H" : "C");
-		TCHECK(mh->ip6m_data16[0]);
+		PACKET_HAS_ELEMENT_OR_TRUNC(mh, ip6m_data16[0]);
 		printf(" nonce id=0x%x", EXTRACT_16BITS(&mh->ip6m_data16[0]));
 		hlen = IP6M_MINLEN;
     		if (vflag) {
-			TCHECK2(*mh, hlen + 8);
+			PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 8);
 			printf(" %s Init Cookie=%08x:%08x",
 			       type == IP6M_HOME_TEST ? "Home" : "Care-of",
 			       EXTRACT_32BITS(&bp[hlen]),
@@ -232,7 +232,7 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 		}
 		hlen += 8;
     		if (vflag) {
-			TCHECK2(*mh, hlen + 8);
+			PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 8);
 			printf(" %s Keygen Token=%08x:%08x",
 			       type == IP6M_HOME_TEST ? "Home" : "Care-of",
 			       EXTRACT_32BITS(&bp[hlen]),
@@ -242,10 +242,10 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 		break;
 	case IP6M_BINDING_UPDATE:
 		printf("mobility: BU");
-		TCHECK(mh->ip6m_data16[0]);
+		PACKET_HAS_ELEMENT_OR_TRUNC(mh, ip6m_data16[0]);
 		printf(" seq#=%d", EXTRACT_16BITS(&mh->ip6m_data16[0]));
 		hlen = IP6M_MINLEN;
-		TCHECK2(*mh, hlen + 1);
+		PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 1);
 		if (bp[hlen] & 0xf0)
 			printf(" ");
 		if (bp[hlen] & 0x80)
@@ -260,34 +260,34 @@ mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
 		hlen += 1;
 		/* Reserved (8bits) */
 		hlen += 1;
-		TCHECK2(*mh, hlen + 2);
+		PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 2);
 		/* units of 4 secs */
 		printf(" lifetime=%d", EXTRACT_16BITS(&bp[hlen]) << 2);
 		hlen += 2;
 		break;
 	case IP6M_BINDING_ACK:
 		printf("mobility: BA");
-		TCHECK(mh->ip6m_data8[0]);
+		PACKET_HAS_ELEMENT_OR_TRUNC(mh, ip6m_data8[0]);
 		printf(" status=%d", mh->ip6m_data8[0]);
 		if (mh->ip6m_data8[1] & 0x80)
 			printf(" K");
 		/* Reserved (7bits) */
 		hlen = IP6M_MINLEN;
-		TCHECK2(*mh, hlen + 2);
+		PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 2);
 		printf(" seq#=%d", EXTRACT_16BITS(&bp[hlen]));
 		hlen += 2;
-		TCHECK2(*mh, hlen + 2);
+		PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 2);
 		/* units of 4 secs */
 		printf(" lifetime=%d", EXTRACT_16BITS(&bp[hlen]) << 2);
 		hlen += 2;
 		break;
 	case IP6M_BINDING_ERROR:
 		printf("mobility: BE");
-		TCHECK(mh->ip6m_data8[0]);
+		PACKET_HAS_ELEMENT_OR_TRUNC(mh, ip6m_data8[0]);
 		printf(" status=%d", mh->ip6m_data8[0]);
 		/* Reserved */
 		hlen = IP6M_MINLEN;
-		TCHECK2(*mh, hlen + 16);
+		PACKET_HAS_SPACE_OR_TRUNC(mh, hlen + 16);
 		printf(" homeaddr %s", ip6addr_string(&bp[hlen]));
 		hlen += 16;
 		break;

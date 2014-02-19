@@ -59,7 +59,7 @@ netbios_print(struct p8022Hdr *nb, u_int length)
 	    (void)printf("802.1 CONN ");
 	}
 
-	if (!TTEST(*nb)) {
+	if (!PACKET_HAS_ONE(nb)) {
 		printf(" [|netbios]");
 		return;
 	}
@@ -78,7 +78,7 @@ netbios_print(struct p8022Hdr *nb, u_int length)
 		     ipxaddr_string(EXTRACT_32BITS(ipx->dstNet), ipx->dstNode),
 		     EXTRACT_16BITS(ipx->dstSkt));
 
-	if (!TTEST(*ipx)) {
+	if (!PACKET_HAS_ONE(ipx)) {
 		printf(" [|ipx]");
 		return;
 	}

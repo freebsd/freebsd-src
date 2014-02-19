@@ -111,7 +111,7 @@ print_mtrace(packetbody_t bp, register u_int len)
 {
     __capability const struct tr_query *tr = (__capability const struct tr_query *)(bp + 8);
 
-    TCHECK(*tr);
+    PACKET_HAS_ONE_OR_TRUNC(tr);
     if (len < 8 + sizeof (struct tr_query)) {
 	(void)printf(" [invalid len %d]", len);
 	return;
@@ -133,7 +133,7 @@ print_mresp(packetbody_t bp, register u_int len)
 {
     __capability const struct tr_query *tr = (__capability const struct tr_query *)(bp + 8);
 
-    TCHECK(*tr);
+    PACKET_HAS_ONE_OR_TRUNC(tr);
     if (len < 8 + sizeof (struct tr_query)) {
 	(void)printf(" [invalid len %d]", len);
 	return;
@@ -161,7 +161,7 @@ print_igmpv3_report(packetbody_t bp, register u_int len)
 	(void)printf(" [invalid len %d]", len);
 	return;
     }
-    TCHECK2(bp[6], 2);
+    PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
     ngroups = EXTRACT_16BITS(&bp[6]);
     (void)printf(", %d group record(s)", ngroups);
     if (vflag > 0) {
@@ -172,7 +172,7 @@ print_igmpv3_report(packetbody_t bp, register u_int len)
 		(void)printf(" [invalid number of groups]");
 		return;
 	    }
-	    TCHECK2(bp[group+4], 4);
+	    PACKET_HAS_SPACE_OR_TRUNC(bp, group + 8);
             (void)printf(" [gaddr %s", ipaddr_string(&bp[group+4]));
 	    (void)printf(" %s", tok2str(igmpv3report2str, " [v3-report-#%d]",
 								bp[group]));
@@ -188,7 +188,7 @@ print_igmpv3_report(packetbody_t bp, register u_int len)
 		/* Print the sources */
                 (void)printf(" {");
                 for (j=0; j<nsrcs; j++) {
-		    TCHECK2(bp[group+8+(j<<2)], 4);
+		    PACKET_HAS_SPACE_OR_TRUNC(bp, (group+8+(j<<2)) + 4);
 		    (void)printf(" %s", ipaddr_string(&bp[group+8+(j<<2)]));
 		}
                 (void)printf(" }");
@@ -218,7 +218,7 @@ print_igmpv3_query(packetbody_t bp, register u_int len)
 	(void)printf(" [invalid len %d]", len);
 	return;
     }
-    TCHECK(bp[1]);
+    PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
     mrc = bp[1];
     if (mrc < 128) {
 	mrt = mrc;
@@ -234,11 +234,11 @@ print_igmpv3_query(packetbody_t bp, register u_int len)
         }
 	(void)printf("]");
     }
-    TCHECK2(bp[4], 4);
+    PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
     if (EXTRACT_32BITS(&bp[4]) == 0)
 	return;
     (void)printf(" [gaddr %s", ipaddr_string(&bp[4]));
-    TCHECK2(bp[10], 2);
+    PACKET_HAS_SPACE_OR_TRUNC(bp, 12);
     nsrcs = EXTRACT_16BITS(&bp[10]);
     if (nsrcs > 0) {
 	if (len < 12 + (nsrcs << 2))
@@ -246,7 +246,7 @@ print_igmpv3_query(packetbody_t bp, register u_int len)
 	else if (vflag > 1) {
 	    (void)printf(" {");
 	    for (i=0; i<nsrcs; i++) {
-		TCHECK2(bp[12+(i<<2)], 4);
+		PACKET_HAS_SPACE_OR_TRUNC(bp, (12+(i<<2)) + 4);
 		(void)printf(" %s", ipaddr_string(&bp[12+(i<<2)]));
 	    }
 	    (void)printf(" }");
@@ -270,21 +270,21 @@ igmp_print(packetbody_t bp, register u_int len)
         return;
     }
 
-    TCHECK(bp[0]);
+    PACKET_HAS_ONE_OR_TRUNC(bp);
     switch (bp[0]) {
     case 0x11:
         (void)printf("igmp query");
 	if (len >= 12)
 	    print_igmpv3_query(bp, len);
 	else {
-            TCHECK(bp[1]);
+            PACKET_HAS_SPACE_OR_TRUNC(bp, 2);
 	    if (bp[1]) {
 		(void)printf(" v2");
 		if (bp[1] != 100)
 		    (void)printf(" [max resp time %d]", bp[1]);
 	    } else
 		(void)printf(" v1");
-            TCHECK2(bp[4], 4);
+            PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
 	    if (EXTRACT_32BITS(&bp[4]))
                 (void)printf(" [gaddr %s]", ipaddr_string(&bp[4]));
             if (len != 8)
@@ -292,13 +292,13 @@ igmp_print(packetbody_t bp, register u_int len)
 	}
         break;
     case 0x12:
-        TCHECK2(bp[4], 4);
+        PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
         (void)printf("igmp v1 report %s", ipaddr_string(&bp[4]));
         if (len != 8)
             (void)printf(" [len %d]", len);
         break;
     case 0x16:
-        TCHECK2(bp[4], 4);
+        PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
         (void)printf("igmp v2 report %s", ipaddr_string(&bp[4]));
         break;
     case 0x22:
@@ -306,7 +306,7 @@ igmp_print(packetbody_t bp, register u_int len)
 	print_igmpv3_report(bp, len);
         break;
     case 0x17:
-        TCHECK2(bp[4], 4);
+        PACKET_HAS_SPACE_OR_TRUNC(bp, 8);
         (void)printf("igmp leave %s", ipaddr_string(&bp[4]));
         break;
     case 0x13:
@@ -331,7 +331,7 @@ igmp_print(packetbody_t bp, register u_int len)
         break;
     }
 
-    if (vflag && TTEST2(bp[0], len)) {
+    if (vflag && PACKET_HAS_SPACE(bp, len)) {
         /* Check the IGMP checksum */
         vec[0].ptr = bp;
         vec[0].len = len;

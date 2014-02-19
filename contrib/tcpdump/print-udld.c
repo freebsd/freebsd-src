@@ -95,7 +95,7 @@ udld_print (packetbody_t pptr, u_int length)
 
     tptr = pptr; 
 
-    if (!TTEST2(*tptr, UDLD_HEADER_LEN))	
+    if (!PACKET_HAS_SPACE(tptr, UDLD_HEADER_LEN))	
 	goto trunc;
 
     code = UDLD_EXTRACT_OPCODE(*tptr);
@@ -121,7 +121,7 @@ udld_print (packetbody_t pptr, u_int length)
 
     while (tptr < (pptr+length)) {
 
-        if (!TTEST2(*tptr, 4)) 
+        if (!PACKET_HAS_SPACE(tptr, 4)) 
             goto trunc;
 
 	type = EXTRACT_16BITS(tptr);

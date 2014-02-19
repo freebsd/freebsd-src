@@ -109,7 +109,7 @@ void sctp_print(packetbody_t bp,        /* beginning of sctp packet */
   else
     ip6 = NULL;
 #endif /*INET6*/
-  TCHECK(*sctpPktHdr);
+  PACKET_HAS_ONE_OR_TRUNC(sctpPktHdr);
 
   if (sctpPacketLength < sizeof(struct sctpHeader))
     {
@@ -171,14 +171,14 @@ void sctp_print(packetbody_t bp,        /* beginning of sctp packet */
       const u_char *chunkEnd;
       u_int16_t align;
 
-      TCHECK(*chunkDescPtr);
+      PACKET_HAS_ONE_OR_TRUNC(chunkDescPtr);
       chunkLength = EXTRACT_16BITS(&chunkDescPtr->chunkLength);
       if (chunkLength < sizeof(*chunkDescPtr)) {
       	printf("%s%d) [Bad chunk length %u]", sep, chunkCount+1, chunkLength);
       	break;
       }
 
-      TCHECK2(*((u_int8_t *)chunkDescPtr), chunkLength);
+      PACKET_HAS_SPACE_OR_TRUNC(((u_int8_t *)chunkDescPtr), chunkLength);
       chunkEnd = ((const u_char*)chunkDescPtr + chunkLength);
 
       align=chunkLength % 4;

@@ -379,7 +379,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	if (!TTEST(up->uh_dport)) {
+	if (!PACKET_HAS_ELEMENT(up, uh_dport)) {
 		udpipaddr_print(ip, -1, -1);
 		(void)printf("[|udp]");
 		return;
@@ -395,7 +395,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	}
 	length -= sizeof(struct udphdr);
 
-	if (!TTEST(*up)) {
+	if (!PACKET_HAS_ONE(up)) {
 		udpipaddr_print(ip, sport, dport);
 		(void)printf("[|udp]");
 		return;
@@ -485,11 +485,12 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	}
 
 	if (!qflag) {
+		__capability struct LAP *lapp;
 		__capability const struct sunrpc_msg *rp;
 		enum sunrpc_msg_type direction;
 
 		rp = (__capability const struct sunrpc_msg *)(up + 1);
-		if (TTEST(rp->rm_direction)) {
+		if (PACKET_HAS_ELEMENT(rp, rm_direction)) {
 			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
 			if (dport == NFS_PORT && direction == SUNRPC_CALL) {
 				nfsreq_print((packetbody_t)rp, length,
@@ -509,8 +510,9 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 			}
 #endif
 		}
-		if (TTEST(((struct LAP *)cp)->type) &&
-		    ((struct LAP *)cp)->type == lapDDP &&
+		lapp = (__capability struct LAP *)cp;
+		if (PACKET_HAS_ELEMENT(lapp, type) &&
+		    lapp->type == lapDDP &&
 		    (atalk_port(sport) || atalk_port(dport))) {
 			if (vflag)
 				fputs("kip ", stdout);
@@ -532,7 +534,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 			udp_sum = EXTRACT_16BITS(&up->uh_sum);
 			if (udp_sum == 0) {
 				(void)printf("[no cksum] ");
-			} else if (TTEST2(cp[0], length)) {
+			} else if (PACKET_HAS_SPACE(cp, length)) {
 				sum = udp_cksum(ip, up, length + sizeof(struct udphdr));
 
 	                        if (sum != 0) {
@@ -546,7 +548,7 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 #ifdef INET6
 		else if (IP_V(ip) == 6 && ip6->ip6_plen) {
 			/* for IPv6, UDP checksum is mandatory */
-			if (TTEST2(cp[0], length)) {
+			if (PACKET_HAS_SPACE(cp, length)) {
 				sum = udp6_cksum(ip6, up, length + sizeof(struct udphdr));
 				udp_sum = EXTRACT_16BITS(&up->uh_sum);
 

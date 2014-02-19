@@ -75,7 +75,7 @@ mpls_print(packetbody_t bp, u_int length)
 	p = bp;
 	printf("MPLS");
 	do {
-		TCHECK2(*p, sizeof(label_entry));
+		PACKET_HAS_SPACE_OR_TRUNC(p, sizeof(label_entry));
 		label_entry = EXTRACT_32BITS(p);
 		printf("%s(label %u",
 		       (label_stack_depth && vflag) ? "\n\t" : " ",

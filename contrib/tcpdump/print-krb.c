@@ -163,7 +163,7 @@ krb4_print(packetbody_t cp)
 
 	kp = (__capability const struct krb *)cp;
 
-	if (!TTEST(kp->type)) {
+	if (!PACKET_HAS_ELEMENT(kp, type)) {
 		fputs(tstr, stdout);
 		return;
 	}
@@ -179,7 +179,7 @@ krb4_print(packetbody_t cp)
 		if ((cp = krb4_print_hdr(cp)) == NULL)
 			return;
 		cp += 4;	/* ctime */
-		TCHECK(*cp);
+		PACKET_HAS_ONE_OR_TRUNC(cp);
 		printf(" %dmin ", *cp++ * 5);
 		PRINT;
 		putchar('.');
@@ -188,12 +188,12 @@ krb4_print(packetbody_t cp)
 
 	case AUTH_MSG_APPL_REQUEST:
 		cp += 2;
-		TCHECK(*cp);
+		PACKET_HAS_ONE_OR_TRUNC(cp);
 		printf("v%d ", *cp++);
 		PRINT;
-		TCHECK(*cp);
+		PACKET_HAS_ONE_OR_TRUNC(cp);
 		printf(" (%d)", *cp++);
-		TCHECK(*cp);
+		PACKET_HAS_ONE_OR_TRUNC(cp);
 		printf(" (%d)", *cp);
 		break;
 
@@ -201,7 +201,7 @@ krb4_print(packetbody_t cp)
 		if ((cp = krb4_print_hdr(cp)) == NULL)
 			return;
 		cp += 10;	/* timestamp + n + exp + kvno */
-		TCHECK2(*cp, sizeof(short));
+		PACKET_HAS_SPACE_OR_TRUNC(cp, sizeof(short));
 		len = KTOHSP(kp, cp);
 		printf(" (%d)", len);
 		break;
@@ -210,7 +210,7 @@ krb4_print(packetbody_t cp)
 		if ((cp = krb4_print_hdr(cp)) == NULL)
 			return;
 		cp += 4; 	  /* timestamp */
-		TCHECK2(*cp, sizeof(short));
+		PACKET_HAS_SPACE_OR_TRUNC(cp, sizeof(short));
 		printf(" %s ", tok2str(kerr2str, NULL, KTOHSP(kp, cp)));
 		cp += 4;
 		PRINT;
@@ -233,7 +233,7 @@ krb_print(packetbody_t dat)
 
 	kp = (__capability const struct krb *)dat;
 
-	if (!TTEST(kp->pvno)) {
+	if (!PACKET_HAS_ELEMENT(kp, pvno)) {
 		fputs(tstr, stdout);
 		return;
 	}

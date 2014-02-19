@@ -385,7 +385,7 @@ snap_print(packetbody_t p, u_int length, u_int caplen, u_int bridge_pad)
 	register u_short et;
 	register int ret;
 
-	TCHECK2(*p, 5);
+	PACKET_HAS_SPACE_OR_TRUNC(p, 5);
 	orgcode = EXTRACT_24BITS(p);
 	et = EXTRACT_16BITS(p + 3);
 
@@ -473,7 +473,7 @@ snap_print(packetbody_t p, u_int length, u_int caplen, u_int bridge_pad)
 			/*
 			 * Skip the padding.
 			 */
-			TCHECK2(*p, bridge_pad);
+			PACKET_HAS_SPACE_OR_TRUNC(p, bridge_pad);
 			caplen -= bridge_pad;
 			length -= bridge_pad;
 			p += bridge_pad;
@@ -494,7 +494,7 @@ snap_print(packetbody_t p, u_int length, u_int caplen, u_int bridge_pad)
 			 * Skip the padding, but not the Access
 			 * Control field.
 			 */
-			TCHECK2(*p, bridge_pad);
+			PACKET_HAS_SPACE_OR_TRUNC(p, bridge_pad);
 			caplen -= bridge_pad;
 			length -= bridge_pad;
 			p += bridge_pad;
@@ -515,7 +515,7 @@ snap_print(packetbody_t p, u_int length, u_int caplen, u_int bridge_pad)
 			/*
 			 * Skip the padding.
 			 */
-			TCHECK2(*p, bridge_pad + 1);
+			PACKET_HAS_SPACE_OR_TRUNC(p, bridge_pad + 1);
 			caplen -= bridge_pad + 1;
 			length -= bridge_pad + 1;
 			p += bridge_pad + 1;

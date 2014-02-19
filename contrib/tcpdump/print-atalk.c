@@ -256,7 +256,7 @@ atp_print(__capability const struct atATP *ap, u_int length)
 	char c;
 	u_int32_t data;
 
-	if (!TTEST(*ap)) {
+	if (!PACKET_HAS_ONE(ap)) {
 		/* Just bail if we don't have the whole chunk. */
 		fputs(tstr, stdout);
 		return;
@@ -406,7 +406,7 @@ nbp_print(__capability const struct atNBP *np, u_int length, register u_short sn
 	case nbpLkUp:
 		(void)printf(i == nbpLkUp? " nbp-lkup %d:":" nbp-brRq %d:",
 			     np->id);
-		if (!TTEST(*tp)) {
+		if (!PACKET_HAS_ONE(tp)) {
 			fputs(tstr, stdout);
 			return;
 		}
@@ -476,7 +476,7 @@ nbp_tuple_print(__capability const struct atNBPtuple *tp,
 {
 	__capability const struct atNBPtuple *tpn;
 
-	if (!TTEST(*tp)) {
+	if (!PACKET_HAS_ONE(tp)) {
 		fputs(tstr, stdout);
 		return 0;
 	}

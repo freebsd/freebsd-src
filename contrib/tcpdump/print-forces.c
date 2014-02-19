@@ -49,7 +49,7 @@ prestlv_print(packetbody_t pptr, register u_int len,
 		return -1;
 	}
 
-	TCHECK(*r);
+	PACKET_HAS_ONE_OR_TRUNC(r);
 	if (r->result >= 0x18 && r->result <= 0xFE) {
 		printf("illegal reserved result code: 0x%x!\n", r->result);
 		return -1;
@@ -81,7 +81,7 @@ fdatatlv_print(packetbody_t pptr, register u_int len,
 	 * (the TLV length) >= TLV_HDRL.
 	 */
 	rlen = len - TLV_HDRL;
-	TCHECK(*tlv);
+	PACKET_HAS_ONE_OR_TRUNC(tlv);
 	type = EXTRACT_16BITS(&tlv->type);
 	if (type != F_TLV_FULD) {
 		printf("Error: expecting FULLDATA!\n");
@@ -118,7 +118,7 @@ sdatailv_print(packetbody_t pptr, register u_int len,
 	while (rlen != 0) {
 		char *ib = indent_pr(indent, 1);
 		__capability const u_char *tdp = (__capability const u_char *) ILV_DATA(ilv);
-		TCHECK(*ilv);
+		PACKET_HAS_ONE_OR_TRUNC(ilv);
 		invilv = ilv_valid(ilv, rlen);
 		if (invilv) {
 			printf("%s[", &ib[1]);
@@ -157,7 +157,7 @@ sdatatlv_print(packetbody_t pptr, register u_int len,
 	 * >= TLV_HDRL.
 	 */
 	rlen = len - TLV_HDRL;
-	TCHECK(*tlv);
+	PACKET_HAS_ONE_OR_TRUNC(tlv);
 	type = EXTRACT_16BITS(&tlv->type);
 	if (type != F_TLV_SPAD) {
 		printf("Error: expecting SPARSEDATA!\n");
@@ -184,10 +184,10 @@ pkeyitlv_print(packetbody_t pptr, register u_int len,
 	u_int16_t type, tll;
 	int invtlv;
 
-	TCHECK(*tdp);
+	PACKET_HAS_ONE_OR_TRUNC(tdp);
 	id = EXTRACT_32BITS(tdp);
 	printf("%sKeyinfo: Key 0x%x\n", ib, id);
-	TCHECK(*kdtlv);
+	PACKET_HAS_ONE_OR_TRUNC(kdtlv);
 	type = EXTRACT_16BITS(&kdtlv->type);
 	invtlv = tlv_valid(kdtlv, len);
 
@@ -220,7 +220,7 @@ pdatacnt_print(packetbody_t pptr, register u_int len,
 	char *ib = indent_pr(indent, 0);
 
 	for (i = 0; i < IDcnt; i++) {
-		TCHECK2(*pptr, 4);
+		PACKET_HAS_SPACE_OR_TRUNC(pptr, 4);
 		if (len < 4)
 			goto trunc;
 		id = EXTRACT_32BITS(pptr);
@@ -237,7 +237,7 @@ pdatacnt_print(packetbody_t pptr, register u_int len,
 		u_int aln;
 		int invtlv;
 
-		TCHECK(*pdtlv);
+		PACKET_HAS_ONE_OR_TRUNC(pdtlv);
 		type = EXTRACT_16BITS(&pdtlv->type);
 		invtlv = tlv_valid(pdtlv, len);
 		if (invtlv) {
@@ -316,7 +316,7 @@ pdata_print(packetbody_t pptr, register u_int len,
 	int more_pd = 0;
 	u_int16_t idcnt = 0;
 
-	TCHECK(*pdh);
+	PACKET_HAS_ONE_OR_TRUNC(pdh);
 	if (len < sizeof(struct pathdata_h))
 		goto trunc;
 	if (vflag >= 3) {
@@ -363,7 +363,7 @@ genoptlv_print(packetbody_t pptr, register u_int len,
 	int invtlv;
 	char *ib = indent_pr(indent, 0);
 
-	TCHECK(*pdtlv);
+	PACKET_HAS_ONE_OR_TRUNC(pdtlv);
 	type = EXTRACT_16BITS(&pdtlv->type);
 	tll = EXTRACT_16BITS(&pdtlv->length) - TLV_HDRL;
 	invtlv = tlv_valid(pdtlv, len);
@@ -410,7 +410,7 @@ recpdoptlv_print(packetbody_t pptr, register u_int len,
 	char *ib;
 
 	while (len != 0) {
-		TCHECK(*pdtlv);
+		PACKET_HAS_ONE_OR_TRUNC(pdtlv);
 		invtlv = tlv_valid(pdtlv, len);
 		if (invtlv) {
 			break;
@@ -479,7 +479,7 @@ int otlv_print(__capability const struct forces_tlv *otlv, u_int16_t op_msk _U_,
 	 * lfbselect_print() has ensured that EXTRACT_16BITS(&otlv->length)
 	 * >= TLV_HDRL.
 	 */
-	TCHECK(*otlv);
+	PACKET_HAS_ONE_OR_TRUNC(otlv);
 	type = EXTRACT_16BITS(&otlv->type);
 	tll = EXTRACT_16BITS(&otlv->length) - TLV_HDRL;
 	ops = get_forces_optlv_h(type);
@@ -530,7 +530,7 @@ asttlv_print(packetbody_t pptr, register u_int len,
 		printf("illegal ASTresult-TLV: %d bytes!\n", dlen);
 		return -1;
 	}
-	TCHECK2(*pptr, 4);
+	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4);
 	rescode = EXTRACT_32BITS(pptr);
 	if (rescode > ASTMCD) {
 		printf("illegal ASTresult result code: %d!\n", rescode);
@@ -587,7 +587,7 @@ asrtlv_print(packetbody_t pptr, register u_int len,
 		printf("illegal ASRresult-TLV: %d bytes!\n", dlen);
 		return -1;
 	}
-	TCHECK2(*pptr, 4);
+	PACKET_HAS_SPACE_OR_TRUNC(pptr, 4);
 	rescode = EXTRACT_32BITS(pptr);
 
 	if (rescode > ASRMCD) {
@@ -653,7 +653,7 @@ print_metailv(packetbody_t pptr, register u_int len,
 	 */
 	dlen = len - ILV_HDRL;
 	rlen = dlen;
-	TCHECK(*ilv);
+	PACKET_HAS_ONE_OR_TRUNC(ilv);
 	printf("\n%sMetaID 0x%x length %d\n", ib, EXTRACT_32BITS(&ilv->type),
 	       EXTRACT_32BITS(&ilv->length));
 	hex_print_with_offset("\n\t\t\t\t[", ILV_DATA(ilv), rlen, 0);
@@ -682,7 +682,7 @@ print_metatlv(packetbody_t pptr, register u_int len,
 	rlen = dlen;
 	printf("\n%s METADATA\n", ib);
 	while (rlen != 0) {
-		TCHECK(*ilv);
+		PACKET_HAS_ONE_OR_TRUNC(ilv);
 		invilv = ilv_valid(ilv, rlen);
 		if (invilv)
 			break;
@@ -728,7 +728,7 @@ print_reddata(packetbody_t pptr, register u_int len,
 	}
 
 	rlen = dlen;
-	TCHECK(*tlv);
+	PACKET_HAS_ONE_OR_TRUNC(tlv);
 	invtlv = tlv_valid(tlv, rlen);
 
 	if (invtlv) {
@@ -774,7 +774,7 @@ redirect_print(packetbody_t pptr, register u_int len,
 	rlen = dlen;
 	indent += 1;
 	while (rlen != 0) {
-		TCHECK(*tlv);
+		PACKET_HAS_ONE_OR_TRUNC(tlv);
 		invtlv = tlv_valid(tlv, rlen);
 		if (invtlv)
 			break;
@@ -842,7 +842,7 @@ lfbselect_print(packetbody_t pptr, register u_int len,
 	rlen = dlen - OP_OFF;
 
 	lfbs = (__capability const struct forces_lfbsh *)pptr;
-	TCHECK(*lfbs);
+	PACKET_HAS_ONE_OR_TRUNC(lfbs);
 	if (vflag >= 3) {
 		printf("\n%s%s(Classid %x) instance %x\n",
 		       ib, tok2str(ForCES_LFBs, NULL, EXTRACT_32BITS(&lfbs->class)),
@@ -854,7 +854,7 @@ lfbselect_print(packetbody_t pptr, register u_int len,
 
 	indent += 1;
 	while (rlen != 0) {
-		TCHECK(*otlv);
+		PACKET_HAS_ONE_OR_TRUNC(otlv);
 		invtlv = tlv_valid(otlv, rlen);
 		if (invtlv)
 			break;
@@ -931,7 +931,7 @@ forces_type_print(packetbody_t pptr, __capability const struct forcesh *fhdr _U_
 	/*XXX: 15 top level tlvs will probably be fine
 	   You are nuts if you send more ;-> */
 	while (rlen != 0) {
-		TCHECK(*tltlv);
+		PACKET_HAS_ONE_OR_TRUNC(tltlv);
 		invtlv = tlv_valid(tltlv, rlen);
 		if (invtlv)
 			break;
@@ -989,7 +989,7 @@ void forces_print(packetbody_t pptr, register u_int len)
 	int rc = 0;
 
 	fhdr = (__capability const struct forcesh *)pptr;
-	TCHECK(*fhdr);
+	PACKET_HAS_ONE_OR_TRUNC(fhdr);
 	if (!tom_valid(fhdr->fm_tom)) {
 		printf("Invalid ForCES message type %d\n", fhdr->fm_tom);
 		goto error;
@@ -1011,7 +1011,7 @@ void forces_print(packetbody_t pptr, register u_int len)
 		goto error;
 	}
 
-	TCHECK2(*(pptr + 20), 4);
+	PACKET_HAS_SPACE_OR_TRUNC(pptr, 24);
 	flg_raw = EXTRACT_32BITS(pptr + 20);
 	if (vflag >= 1) {
 		printf("\n\tForCES Version %d len %uB flags 0x%08x ",
