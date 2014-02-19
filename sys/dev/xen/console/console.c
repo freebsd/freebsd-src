@@ -358,6 +358,7 @@ xcclose(struct tty *tp)
 	xen_console_up = 0;
 }
 
+#if 0
 static inline int 
 __xencons_put_char(int ch)
 {
@@ -367,6 +368,7 @@ __xencons_put_char(int ch)
 	wbuf[WBUF_MASK(wp++)] = _ch;
 	return 1;
 }
+#endif
 
 
 static void
