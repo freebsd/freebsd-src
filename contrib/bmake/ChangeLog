@@ -1,3 +1,37 @@
+2014-01-03  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* boot-strap: ignore mksrc=none
+
+2014-01-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (DEFAULT_SYS_PATH?): use just ${prefix}/share/mk
+
+2014-01-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+	
+	* Makefile (MAKE_VERSION): 20140101
+	* configure.in: set bmake_path_max to min(_SC_PATH_MAX,1024)
+	* Makefile.config: defined BMAKE_PATH_MAX to bmake_path_max
+	* make.h: use BMAKE_PATH_MAX if MAXPATHLEN not defined (needed for
+	  Hurd) 
+	* configure.in: Add AC_PREREQ and check for
+	  sysctl; patch from Andrew Shadura andrewsh at debian.org
+
+2013-10-16  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20131010
+	* lose the const from arg to systcl to avoid problems on older BSDs.
+
+2013-10-01  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile (MAKE_VERSION): 20131001
+	  Merge with NetBSD make, pick up
+	  o main.c: for NATIVE build sysctl to get MACHINE_ARCH from
+	    hw.machine_arch if necessary.
+	  o meta.c: meta_oodate - need to look at src of Link and target
+	    of Move as well.
+	* main.c: check that CTL_HW and HW_MACHINE_ARCH exist.
+	  provide __arraycount() if needed.
+
 2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile (MAKE_VERSION): 20130904

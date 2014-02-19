@@ -6509,7 +6509,11 @@ scsi_devid_match(uint8_t *lhs, size_t lhs_len, uint8_t *rhs, size_t rhs_len)
 		while (rhs_id <= rhs_last
 		    && (rhs_id->identifier + rhs_id->length) <= rhs_end) {
 
-			if (rhs_id->length == lhs_id->length
+			if ((rhs_id->id_type &
+			     (SVPD_ID_ASSOC_MASK | SVPD_ID_TYPE_MASK)) ==
+			    (lhs_id->id_type &
+			     (SVPD_ID_ASSOC_MASK | SVPD_ID_TYPE_MASK))
+			 && rhs_id->length == lhs_id->length
 			 && memcmp(rhs_id->identifier, lhs_id->identifier,
 				   rhs_id->length) == 0)
 				return (0);

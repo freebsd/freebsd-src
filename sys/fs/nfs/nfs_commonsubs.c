@@ -2011,7 +2011,12 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 	 * First, set the bits that can be filled and get fsinfo.
 	 */
 	NFSSET_ATTRBIT(retbitp, attrbitp);
-	/* If p and cred are NULL, it is a client side call */
+	/*
+	 * If both p and cred are NULL, it is a client side setattr call.
+	 * If both p and cred are not NULL, it is a server side reply call.
+	 * If p is not NULL and cred is NULL, it is a client side callback
+	 * reply call.
+	 */
 	if (p == NULL && cred == NULL) {
 		NFSCLRNOTSETABLE_ATTRBIT(retbitp);
 		aclp = saclp;

@@ -42,6 +42,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 
 DEVICES=
 DEVICE_NAMES=
+NDEVICES=0
 
 # A "device" from sysinstall's point of view
 f_struct_define DEVICE \
@@ -76,6 +77,11 @@ setvar DEVICE_TYPE_ANY		11
 setvar DEVICE_TYPE_HTTP_PROXY	12
 setvar DEVICE_TYPE_HTTP		13
 
+# Network devices have the following flags available
+setvar IF_ETHERNET	1
+setvar IF_WIRELESS	2
+setvar IF_ACTIVE	4
+
 #
 # Default behavior is to call f_device_get_all() automatically when loaded.
 #
@@ -95,7 +101,7 @@ f_device_try()
 {
 	local name="$1" i="$2" var_path="$3" unit
 	if [ "$i" ]; then
-		unit=$( printf "$name" "$i" )
+		f_sprintf unit "$name" "$i"
 	else
 		unit="$name"
 	fi
@@ -175,38 +181,52 @@ f_device_reset()
 	DEVICES=
 }
 
+# f_device_reset_network
+#
+# Reset the registered network device chain.
+#
+f_device_reset_network()
+{
+	local dev type private pruned_list=
+	for dev in $DEVICES; do
+		device_$dev get type type
+		if [ "$type" != "$DEVICE_TYPE_NETWORK" ]; then
+			pruned_list="$pruned_list $dev"
+			continue
+		fi
+
+		#
+		# Leave the device up (don't call shutdown routine)
+		#
+
+		# Network devices may have DEVICE_INFO private member
+		device_$dev get private private
+		[ "$private" ] && f_struct_free "$private"
+
+		f_struct_free device_$dev
+	done
+	DEVICES="${pruned_list# }"
+}
+
 # f_device_get_all
 #
 # Get all device information for devices we have attached.
 #
 f_device_get_all()
 {
-	local devname desc
+	local devname desc capacity
 
 	f_dprintf "f_device_get_all: Probing devices..."
 	f_dialog_info "$msg_probing_devices_please_wait_this_can_take_a_while"
 
 	# First go for the network interfaces
-	for devname in $( ifconfig -l ); do
-		# Eliminate network devices that don't make sense
-		case "$devname" in
-		lo*) continue ;;
-		esac
-
-		# Try and find its description
-		f_device_desc "$devname" $DEVICE_TYPE_NETWORK desc
-
-		f_dprintf "Found a network device named %s" "$devname"
-		f_device_register $devname \
-			"$desc" "$devname" $DEVICE_TYPE_NETWORK 1 \
-			f_media_init_network "" f_media_shutdown_network "" -1
-	done
+	f_device_get_all_network
 
 	# Next, try to find all the types of devices one might use
 	# as a media source for content
 	#
 
-	local dev desc type max n=0
+	local dev type max n=0
 	for dev in $DEVICE_NAMES; do
 		n=$(( $n + 1 ))
 		# Get the desc, type, and max (with debugging disabled)
@@ -226,32 +246,32 @@ f_device_get_all()
 			case "$type" in
 			$DEVICE_TYPE_CDROM)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_CDROM 1 \
 					f_media_init_cdrom f_media_get_cdrom \
-					f_media_shutdown_cdrom "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_cdrom "" "$capacity"
 				f_dprintf "Found a CDROM device for %s" \
 				          "$devname"
 				;;
 			$DEVICE_TYPE_FLOPPY)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_FLOPPY 1 \
 					f_media_init_floppy \
 					f_media_get_floppy \
-					f_media_shutdown_floppy "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_floppy "" "$capacity"
 				f_dprintf "Found a floppy device for %s" \
 				          "$devname"
 				;;
 			$DEVICE_TYPE_USB)
 				f_device_try "$dev" "$i" devname || continue
+				f_device_capacity "$devname" capacity
 				f_device_register "${devname##*/}" "$desc" \
 					"$devname" $DEVICE_TYPE_USB 1 \
 					f_media_init_usb f_media_get_usb \
-					f_media_shutdown_usb "" \
-					"$( f_device_capacity "$devname" )"
+					f_media_shutdown_usb "" "$capacity"
 				f_dprintf "Found a USB disk for %s" "$devname"
 				;;
 			esac
@@ -261,11 +281,11 @@ f_device_get_all()
 	# Register ISO9660 providers as CDROM devices
 	for devname in /dev/iso9660/*; do
 		f_device_try "$devname" || continue
+		f_device_capacity "$devname" capacity
 		f_device_register "${devname##*/}" "ISO9660 file system" \
 			"$devname" $DEVICE_TYPE_CDROM 1 \
 			f_media_init_cdrom f_media_get_cdrom \
-			f_media_shutdown_cdrom "" \
-			"$( f_device_capacity "$devname" )"
+			f_media_shutdown_cdrom "" "$capacity"
 		f_dprintf "Found a CDROM device for %s" "$devname"
 	done
 
@@ -288,12 +308,12 @@ f_device_get_all()
 			' )
 		case "$filename" in
 		*.iso) # Register the device as an ISO9660 provider
+			f_device_capacity "$devname" capacity
 			f_device_register "${devname##*/}" \
 				"md(4) vnode file system" \
 				"$devname" $DEVICE_TYPE_CDROM 1 \
 				f_media_init_cdrom f_media_get_cdrom \
-				f_media_shutdown_cdrom "" \
-				"$( f_device_capacity "$devname" )"
+				f_media_shutdown_cdrom "" "$capacity"
 			f_dprintf "Found a CDROM device for %s" "$devname"
 			;;
 		esac
@@ -328,10 +348,10 @@ f_device_get_all()
 		# Try and find its description
 		f_device_desc "$diskname" $DEVICE_TYPE_DISK desc
 
+		f_device_capacity "$diskname" capacity
 		f_device_register "$diskname" "$desc" \
 		                  "/dev/$diskname" $DEVICE_TYPE_DISK 0 \
-		                  "" "" "" "" \
-		                  "$( f_device_capacity "$diskname" )"
+		                  "" "" "" "" "$capacity"
 		f_dprintf "Found a disk device named %s" "$diskname"
 
 		# Look for existing partitions to register
@@ -341,11 +361,11 @@ f_device_get_all()
 			case "$type" in
 			0x01|0x04|0x06|0x0b|0x0c|0x0e|0xef)
 				# DOS partitions to add as "DOS media devices"
+				f_device_capacity "/dev/$slice" capacity
 				f_device_register "$slice" "" \
 					"/dev/$slice" $DEVICE_TYPE_DOS 1 \
 					f_media_init_dos f_media_get_dos \
-					f_media_shutdown_dos "" \
-					"$( f_device_capacity "/dev/$slice" )"
+					f_media_shutdown_dos "" "$capacity"
 				f_dprintf "Found a DOS partition %s" "$slice"
 				;;
 			0xa5) # FreeBSD partition
@@ -360,14 +380,15 @@ f_device_get_all()
 				); do
 					f_quietly dumpfs -m /dev/$part ||
 						continue
+					f_device_capacity \
+						"$/dev/$part" capacity
 					f_device_register \
 						"$part" "" "/dev/$part" \
 						$DEVICE_TYPE_UFS 1 \
 						f_media_init_ufs \
 						f_media_get_ufs \
 						f_media_shutdown_ufs "" \
-						"$( f_device_capacity \
-							"$/dev/$part" )"
+						"$capacity"
 					f_dprintf "Found a UFS partition %s" \
 					          "$part"
 				done # parts
@@ -376,6 +397,48 @@ f_device_get_all()
 		done # slices
 
 	done # disks
+}
+
+# f_device_get_all_network
+#
+# Get all network device information for attached network devices.
+#
+f_device_get_all_network()
+{
+	local devname desc flags
+	for devname in $( ifconfig -l ); do
+		# Eliminate network devices that don't make sense
+		case "$devname" in
+		lo*) continue ;;
+		esac
+
+		# Try and find its description
+		f_device_desc "$devname" $DEVICE_TYPE_NETWORK desc
+
+		f_dprintf "Found a network device named %s" "$devname"
+		f_device_register $devname \
+			"$desc" "$devname" $DEVICE_TYPE_NETWORK 1 \
+			f_media_init_network "" f_media_shutdown_network "" -1
+
+		# Set flags based on media and status
+		flags=0
+		eval "$( ifconfig $devname 2> /dev/null | awk -v var=flags '
+		function _or(var, mask) {
+			printf "%s=$(( $%s | $%s ))\n", var, var, mask
+		}
+		BEGIN { S = "[[:space:]]+" }
+		{
+			if (!match($0, "^" S "(media|status):" S)) next
+			value = substr($0, RLENGTH + 1)
+			if ($1 == "media:") {
+				if (value ~ /Ethernet/) _or(var, "IF_ETHERNET")
+				if (value ~ /802\.11/) _or(var, "IF_WIRELESS")
+			} else if ($1 == "status:") {
+				if (value ~ /^active/) _or(var, "IF_ACTIVE")
+			}
+		}' )"
+		device_$devname set flags $flags
+	done
 }
 
 # f_device_name_get $type $name type|desc|max [$var_to_set]
@@ -571,6 +634,72 @@ f_device_desc()
 	return $FAILURE
 }
 
+# f_device_is_ethernet $device
+#
+# Returns true if $device is a wired Ethernet network interface. Otherwise
+# returns false. Example wired interfaces include: fxp0 em0 bge0 rl0 etc.
+#
+f_device_is_ethernet()
+{
+	local dev="$1" type flags
+
+	# Make sure we have an actual device by that name
+	f_struct "device_$dev" || return $FAILURE
+
+	# Make sure that the device is a network device
+	device_$dev get type type
+	[ "$type" = "$DEVICE_TYPE_NETWORK" ] || return $FAILURE
+
+	# Make sure that the media flags indicate that it is Ethernet
+	device_$dev get flags flags
+	[ $(( ${flags:-0} & $IF_ETHERNET )) -eq $IF_ETHERNET ]
+}
+
+# f_device_is_wireless $device
+#
+# Returns true if $device is a Wireless network interface. Otherwise returns
+# false. Examples of wireless interfaces include: iwn0
+#
+f_device_is_wireless()
+{
+	local dev="$1" type flags
+
+	# Make sure we have an actual device by that name
+	f_struct "device_$dev" || return $FAILURE
+
+	# Make sure that the device is a network device
+	device_$dev get type type
+	[ "$type" = "$DEVICE_TYPE_NETWORK" ] || return $FAILURE
+
+	# Make sure that the media flags indicate that it is Ethernet
+	device_$dev get flags flags
+	[ $(( ${flags:-0} & $IF_WIRELESS )) -eq $IF_WIRELESS ]
+}
+
+# f_device_is_active $device
+#
+# Returns true if $device is active. Otherwise returns false. Currently this
+# only works for network interfaces.
+#
+f_device_is_active()
+{
+	local dev="$1" type flags=0
+
+	# Make sure we have an actual device by that name
+	f_struct "device_$dev" || return $FAILURE
+
+	device_$dev get type type
+	case "$type" in
+	$DEVICE_TYPE_NETWORK)
+		# Make sure that the media flags indicate that it is active
+		device_$dev get flags flags
+		[ $(( ${flags:-0} & $IF_ACTIVE )) -eq $IF_ACTIVE ]
+		;;
+	*)
+		return $FAILURE
+	esac
+}
+
 # f_device_rescan
 #
 # Rescan all devices, after closing previous set - convenience function.
@@ -579,6 +708,16 @@ f_device_rescan()
 {
 	f_device_reset
 	f_device_get_all
+}
+
+# f_device_rescan_network
+#
+# Rescan all network devices, after closing previous set - for convenience.
+#
+f_device_rescan_network()
+{
+	f_device_reset_network
+	f_device_get_all_network
 }
 
 # f_device_find $name [$type [$var_to_set]] 
@@ -870,8 +1009,9 @@ f_network "xe"    "Xircom/Intel EtherExpress Pro100/16 Ethernet card"
 f_network "xl"    "3COM 3c90x / 3c90xB PCI Ethernet card"
 f_network "zyd"   "ZyDAS ZD1211/ZD1211B USB 802.11 wireless adapter"
 
+f_count NDEVICES $DEVICE_NAMES
 f_dprintf "%s: Initialized %u known device names/descriptions." device.subr \
-	  "$( set -- $DEVICE_NAMES; echo $# )"
+	  $NDEVICES
 
 #
 # Scan for the above devices unless requeted otherwise

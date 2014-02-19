@@ -11293,16 +11293,18 @@ hotcopy_body(void *baton, apr_pool_t *pool)
           SVN_ERR(hotcopy_remove_rev_files(dst_fs, rev,
                                            rev + max_files_per_dir,
                                            max_files_per_dir, iterpool));
-          SVN_ERR(hotcopy_remove_revprop_files(dst_fs, rev,
-                                               rev + max_files_per_dir,
-                                               max_files_per_dir, iterpool));
+          if (dst_ffd->format >= SVN_FS_FS__MIN_PACKED_REVPROP_FORMAT)
+            SVN_ERR(hotcopy_remove_revprop_files(dst_fs, rev,
+                                                 rev + max_files_per_dir,
+                                                 max_files_per_dir,
+                                                 iterpool));
         }
 
       /* Now that all revisions have moved into the pack, the original
        * rev dir can be removed. */
       SVN_ERR(remove_folder(path_rev_shard(dst_fs, rev, iterpool),
                             cancel_func, cancel_baton, iterpool));
-      if (rev > 0)
+      if (rev > 0 && dst_ffd->format >= SVN_FS_FS__MIN_PACKED_REVPROP_FORMAT)
         SVN_ERR(remove_folder(path_revprops_shard(dst_fs, rev, iterpool),
                               cancel_func, cancel_baton, iterpool));
     }

@@ -1,10 +1,57 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.2024 2013/04/19 15:01:58 ca Exp $
+      $Id: RELEASE_NOTES,v 8.2043 2014/01/23 20:27:19 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.14.8/8.14.8	2014/01/26
+	Properly initialize all OpenSSL algorithms for versions before
+		OpenSSL 0.9.8o. Without this SHA2 algorithms may not
+		work properly, causing for example failures for certs
+		that use sha256WithRSAEncryption as signature algorithm.
+	When looking up hostnames, ensure only to return those records
+		for the requested family (AF_INET or AF_INET6).
+		On system that have NEEDSGETIPNODE and NETINET6
+		this may have failed and cause delivery problems.
+		Problem noted by Kees Cook.
+	A new mailer flag '!' is available to suppress an MH hack
+		that drops an explicit From: header if it is the
+		same as what sendmail would generate.
+	Add an FFR (for future release) to use uncompressed IPv6 addresses,
+		i.e., they will not contain "::".  For example, instead
+		of ::1 it will be 0:0:0:0:0:0:0:1.  This means that
+		configuration data (including maps, files, classes,
+		custom ruleset, etc) have to use the same format.
+		This will be turned on in 8.15.  It can be enabled in 8.14
+		by compiling with:
+		APPENDDEF(`conf_sendmail_ENVDEF', `-D_FFR_IPV6_FULL')
+		in your devtools/Site/site.config.m4 file.
+	Add an additional case for the WorkAroundBrokenAAAA check when
+		dealing with broken nameservers by ignoring SERVFAIL
+		errors returned on T_AAAA (IPv6) lookups at delivery time.
+		Problem noted by Pavel Timofeev of OCS.
+	If available, pass LOGIN_SETCPUMASK and LOGIN_SETLOGINCLASS to
+		setusercontext() on deliveries as a different user.
+		Patch from Edward Tomasz Napierala from FreeBSD.
+	Avoid compiler warnings from a change in Cyrus-SASL 2.1.25.
+		Patch from Hajimu UMEMOTO from FreeBSD.
+	Add support for DHParameters 2048-bit primes.
+	CONFIG: Accept IPv6 literals when evaluating the HELO/EHLO argument
+		in FEATURE(`block_bad_helo').  Suggested by Andrey Chernov.
+	LIBSMDB: Add a missing check for malloc() in libsmdb/smndbm.c.
+		Patch from Bill Parker.
+	LIBSMDB: Fix minor memory leaks in libsmdb/ if allocations
+		fail.  Patch from John Beck of Oracle.
+	Portability:
+		Add support for Darwin 12.x and 13.x (Mac OS X 10.8 and 10.9).
+		On Linux use socklen_t as the type for the 3rd argument
+		for getsockname/getpeername if the glibc version is at
+		least 2.1.
+	Added Files:
+		devtools/OS/Darwin.12.x
+		devtools/OS/Darwin.13.x
 
 8.14.7/8.14.7	2013/04/21
 	Drop support for IPv4-mapped IPv6 addresses to prevent the MTA
@@ -80,9 +127,12 @@ summary of the changes in that release.
 		the reason for the failure in a single log line.  Suggested
 		by James Carey of Boeing.
 	Portability:
-		Add support for Darwin 11.x and 12.x (Mac OS X 10.7 and 10.8).
+		Add support for Darwin 11.x (Mac OS X 10.7).
 		Add support for SunOS 5.12 (aka Solaris 12). Patch from
 		John Beck of Oracle.
+	Added Files:
+		devtools/OS/Darwin.11.x
+		devtools/OS/SunOS.5.12
 
 8.14.5/8.14.5	2011/05/17
 	Do not cache SMTP extensions across connections as the cache

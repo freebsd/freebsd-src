@@ -48,9 +48,9 @@ DESCRIPTION
      -t type
              Specifies the type of the key to fetch from the scanned hosts.
              The possible values are ``rsa1'' for protocol version 1 and
-             ``dsa'', ``ecdsa'' or ``rsa'' for protocol version 2.  Multiple
-             values may be specified by separating them with commas.  The
-             default is to fetch ``rsa'' and ``ecdsa'' keys.
+             ``dsa'', ``ecdsa'', ``ed25519'', or ``rsa'' for protocol version
+             2.  Multiple values may be specified by separating them with
+             commas.  The default is to fetch ``rsa'' and ``ecdsa'' keys.
 
      -v      Verbose mode.  Causes ssh-keyscan to print debugging messages
              about its progress.
@@ -77,7 +77,7 @@ FILES
      host-or-namelist keytype base64-encoded-key
 
      Where keytype is either ``ecdsa-sha2-nistp256'', ``ecdsa-sha2-nistp384'',
-     ``ecdsa-sha2-nistp521'', ``ssh-dss'' or ``ssh-rsa''.
+     ``ecdsa-sha2-nistp521'', ``ssh-ed25519'', ``ssh-dss'' or ``ssh-rsa''.
 
      /etc/ssh/ssh_known_hosts
 
@@ -106,4 +106,4 @@ BUGS
      This is because it opens a connection to the ssh port, reads the public
      key, and drops the connection as soon as it gets the key.
 
-OpenBSD 5.4                      July 16, 2013                     OpenBSD 5.4
+OpenBSD 5.4                    December 7, 2013                    OpenBSD 5.4

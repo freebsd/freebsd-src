@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 extern uint32_t *bootinfo;
 
 static int bare_probe(platform_t);
-static void bare_mem_regions(platform_t, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz);
+static void bare_mem_regions(platform_t, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz);
 static u_long bare_timebase_freq(platform_t, struct cpuref *cpuref);
 
 static void bare_reset(platform_t);
@@ -80,8 +80,8 @@ bare_probe(platform_t plat)
 }
 
 void
-bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+bare_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz)
 {
 
 	ofw_mem_regions(phys, physsz, avail, availsz);

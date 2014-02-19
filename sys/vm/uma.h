@@ -33,8 +33,8 @@
  *
 */
 
-#ifndef VM_UMA_H
-#define VM_UMA_H
+#ifndef _VM_UMA_H_
+#define _VM_UMA_H_
 
 #include <sys/param.h>		/* For NULL */
 #include <sys/malloc.h>		/* For M_* */
@@ -636,6 +636,12 @@ int uma_zone_exhausted(uma_zone_t zone);
 int uma_zone_exhausted_nolock(uma_zone_t zone);
 
 /*
+ * Common UMA_ZONE_PCPU zones.
+ */
+extern uma_zone_t pcpu_zone_64;
+extern uma_zone_t pcpu_zone_ptr;
+
+/*
  * Exported statistics structures to be used by user space monitoring tools.
  * Statistics stream consists of a uma_stream_header, followed by a series of
  * alternative uma_type_header and uma_type_stat structures.
@@ -683,4 +689,4 @@ struct uma_percpu_stat {
 	uint64_t	_ups_reserved[5];	/* Reserved. */
 };
 
-#endif
+#endif	/* _VM_UMA_H_ */

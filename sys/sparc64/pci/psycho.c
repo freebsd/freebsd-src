@@ -1046,13 +1046,12 @@ psycho_route_interrupt(device_t bridge, device_t dev, int pin)
 	struct ofw_pci_register reg;
 	bus_addr_t intrmap;
 	ofw_pci_intr_t pintr, mintr;
-	uint8_t maskbuf[sizeof(reg) + sizeof(pintr)];
 
 	sc = device_get_softc(bridge);
 	pintr = pin;
 	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
 	    &reg, sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    NULL, maskbuf))
+	    NULL))
 		return (mintr);
 	/*
 	 * If this is outside of the range for an intpin, it's likely a full

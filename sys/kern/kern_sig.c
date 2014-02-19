@@ -38,10 +38,8 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "opt_kdtrace.h"
 #include "opt_ktrace.h"
 #include "opt_core.h"
-#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -93,11 +91,11 @@ __FBSDID("$FreeBSD$");
 #define	ONSIG	32		/* NSIG for osig* syscalls.  XXX. */
 
 SDT_PROVIDER_DECLARE(proc);
-SDT_PROBE_DEFINE3(proc, kernel, , signal_send, signal-send, "struct thread *",
+SDT_PROBE_DEFINE3(proc, kernel, , signal__send, "struct thread *",
     "struct proc *", "int");
-SDT_PROBE_DEFINE2(proc, kernel, , signal_clear, signal-clear, "int",
+SDT_PROBE_DEFINE2(proc, kernel, , signal__clear, "int",
     "ksiginfo_t *");
-SDT_PROBE_DEFINE3(proc, kernel, , signal_discard, signal-discard,
+SDT_PROBE_DEFINE3(proc, kernel, , signal__discard,
     "struct thread *", "struct proc *", "int");
 
 static int	coredump(struct thread *);
@@ -1254,7 +1252,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		reschedule_signals(p, new_block, 0);
 
 	if (error == 0) {
-		SDT_PROBE(proc, kernel, , signal_clear, sig, ksi, 0, 0, 0);
+		SDT_PROBE(proc, kernel, , signal__clear, sig, ksi, 0, 0, 0);
 
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
@@ -1724,7 +1722,6 @@ sys_pdkill(td, uap)
 	struct thread *td;
 	struct pdkill_args *uap;
 {
-#ifdef PROCDESC
 	struct proc *p;
 	cap_rights_t rights;
 	int error;
@@ -1744,9 +1741,6 @@ sys_pdkill(td, uap)
 		kern_psignal(p, uap->signum);
 	PROC_UNLOCK(p);
 	return (error);
-#else
-	return (ENOSYS);
-#endif
 }
 
 #if defined(COMPAT_43)
@@ -2063,7 +2057,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	} else
 		sigqueue = &td->td_sigqueue;
 
-	SDT_PROBE(proc, kernel, , signal_send, td, p, sig, 0, 0 );
+	SDT_PROBE(proc, kernel, , signal__send, td, p, sig, 0, 0 );
 
 	/*
 	 * If the signal is being ignored,
@@ -2074,7 +2068,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 */
 	mtx_lock(&ps->ps_mtx);
 	if (SIGISMEMBER(ps->ps_sigignore, sig)) {
-		SDT_PROBE(proc, kernel, , signal_discard, td, p, sig, 0, 0 );
+		SDT_PROBE(proc, kernel, , signal__discard, td, p, sig, 0, 0 );
 
 		mtx_unlock(&ps->ps_mtx);
 		if (ksi && (ksi->ksi_flags & KSI_INS))

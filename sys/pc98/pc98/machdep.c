@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_mp_watchdog.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -138,7 +137,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #ifdef DEV_APIC
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #endif
 
 #ifdef DEV_ISA
@@ -1229,7 +1228,7 @@ cpu_idle(int busy)
 	/* Call main idle method. */
 	cpu_idle_fn(sbt);
 
-	/* Switch timers mack into active mode. */
+	/* Switch timers back into active mode. */
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();
@@ -1962,7 +1961,7 @@ getmemsize(int first)
 	phys_avail[pa_indx++] = physmap[0];
 	phys_avail[pa_indx] = physmap[0];
 	dump_avail[da_indx] = physmap[0];
-	pte = CMAP1;
+	pte = CMAP3;
 
 	/*
 	 * Get dcons buffer address
@@ -1983,7 +1982,7 @@ getmemsize(int first)
 			end = trunc_page(physmap[i + 1]);
 		for (pa = round_page(physmap[i]); pa < end; pa += PAGE_SIZE) {
 			int tmp, page_bad, full;
-			int *ptr = (int *)CADDR1;
+			int *ptr = (int *)CADDR3;
 
 			full = FALSE;
 			/*

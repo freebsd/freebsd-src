@@ -28,7 +28,7 @@
 .include <bsd.init.mk>
 
 LIB=		atf-c++
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
 DPADD=		${LIBATFC}
@@ -53,20 +53,16 @@ SRCS=		application.cpp \
 		config.cpp \
 		env.cpp \
 		exceptions.cpp \
-		expand.cpp \
 		fs.cpp \
-		parser.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp \
 		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
 		config.hpp \
 		macros.hpp \
-		noncopyable.hpp \
 		tests.hpp \
 		utils.hpp
 INCSDIR=	${INCLUDEDIR}/atf-c++
@@ -76,8 +72,21 @@ INCSDIR_atf-c++.hpp= ${INCLUDEDIR}
 
 MAN=		atf-c++-api.3
 
+all: atf-c++.pc
+atf-c++.pc: atf-c++.pc.in atf-version
+	sed -e 's,__CXX__,${CXX},g' \
+	    -e 's,__INCLUDEDIR__,${INCLUDEDIR},g' \
+	    -e 's,__LIBDIR__,${LIBDIR},g' \
+	    -e "s,__ATF_VERSION__,$$(cat atf-version),g" \
+	    <${ATF}/atf-c++/atf-c++.pc.in >atf-c++.pc
+
+beforeinstall:
+	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		atf-c++.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+
 .if ${MK_TESTS} != "no"
 SUBDIR=		tests
 .endif
 
+.include "../common.mk"
 .include <bsd.lib.mk>

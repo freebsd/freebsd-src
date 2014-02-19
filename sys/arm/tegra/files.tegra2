@@ -2,6 +2,7 @@
 
 arm/arm/bus_space_asm_generic.S		standard
 arm/arm/bus_space_generic.c		standard
+arm/arm/bus_space-v6.c			standard
 arm/arm/cpufunc_asm_armv5.S		standard
 arm/arm/cpufunc_asm_arm11.S		standard
 arm/arm/cpufunc_asm_armv7.S		standard
@@ -10,7 +11,6 @@ arm/arm/irq_dispatch.S			standard
 arm/arm/gic.c				standard
 arm/arm/mpcore_timer.c			standard
 
-arm/tegra/bus_space.c			standard
 arm/tegra/common.c			standard
 arm/tegra/tegra2_machdep.c		standard
 

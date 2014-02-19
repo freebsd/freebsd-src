@@ -4853,15 +4853,15 @@ nfsrv_checkgetattr(struct nfsrv_descript *nd, vnode_t vp,
 			    nva.na_filerev > delegfilerev) ||
 			    (NFSVNO_ISSETSIZE(&nva) &&
 			     nva.na_size != nvap->na_size)) {
-				nfsvno_updfilerev(vp, nvap, cred, p);
+				error = nfsvno_updfilerev(vp, nvap, cred, p);
 				if (NFSVNO_ISSETSIZE(&nva))
 					nvap->na_size = nva.na_size;
 			}
-		}
+		} else
+			error = 0;	/* Ignore callback errors for now. */
 	} else {
 		NFSUNLOCKSTATE();
 	}
-	error = 0;
 
 out:
 	NFSEXITCODE2(error, nd);

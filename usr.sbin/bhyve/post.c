@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 
 #include "inout.h"
+#include "pci_lpc.h"
 
 static int
 post_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
@@ -49,3 +50,4 @@ post_data_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 }
 
 INOUT_PORT(post, 0x84, IOPORT_F_IN, post_data_handler);
+SYSRES_IO(0x84, 1);

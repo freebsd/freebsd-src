@@ -65,14 +65,15 @@ namespace HexagonII {
     AbsoluteSet    = 2,  // Absolute set addressing mode
     BaseImmOffset  = 3,  // Indirect with offset
     BaseLongOffset = 4,  // Indirect with long offset
-    BaseRegOffset  = 5   // Indirect with register offset
+    BaseRegOffset  = 5,  // Indirect with register offset
+    PostInc        = 6   // Post increment addressing mode
   };
 
   enum MemAccessSize {
     NoMemAccess = 0,            // Not a memory acces instruction.
     ByteAccess = 1,             // Byte access instruction (memb).
     HalfWordAccess = 2,         // Half word access instruction (memh).
-    WordAccess = 3,             // Word access instrution (memw).
+    WordAccess = 3,             // Word access instruction (memw).
     DoubleWordAccess = 4        // Double word access instruction (memd)
   };
 

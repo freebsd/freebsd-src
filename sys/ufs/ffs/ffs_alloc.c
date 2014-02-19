@@ -517,12 +517,12 @@ ffs_reallocblks_ufs1(ap)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	/*
-	 * If we are not tracking block clusters or if we have less than 2%
+	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
 	 * less than 5% free block reserve is not recommended and those that
 	 * choose to do so do not expect to have good file layout.
 	 */
-	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
@@ -744,12 +744,12 @@ ffs_reallocblks_ufs2(ap)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	/*
-	 * If we are not tracking block clusters or if we have less than 2%
+	 * If we are not tracking block clusters or if we have less than 4%
 	 * free blocks left, then do not attempt to cluster. Running with
 	 * less than 5% free block reserve is not recommended and those that
 	 * choose to do so do not expect to have good file layout.
 	 */
-	if (fs->fs_contigsumsize <= 0 || freespace(fs, 2) < 0)
+	if (fs->fs_contigsumsize <= 0 || freespace(fs, 4) < 0)
 		return (ENOSPC);
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;

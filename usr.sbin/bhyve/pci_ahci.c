@@ -165,6 +165,7 @@ struct ahci_cmd_hdr {
 struct ahci_prdt_entry {
 	uint64_t dba;
 	uint32_t reserved;
+#define	DBCMASK		0x3fffff
 	uint32_t dbc;
 };
 
@@ -250,6 +251,16 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 		p->is |= irq;
 		ahci_generate_intr(p->pr_sc);
 	}
+}
+
+static void
+ahci_write_fis_piosetup(struct ahci_port *p)
+{
+	uint8_t fis[20];
+
+	memset(fis, 0, sizeof(fis));
+	fis[0] = FIS_TYPE_PIOSETUP;
+	ahci_write_fis(p, FIS_TYPE_PIOSETUP, fis);
 }
 
 static void
@@ -461,10 +472,13 @@ ahci_handle_dma(struct ahci_port *p, int slot, uint8_t *cfis, uint32_t done,
 	 * Build up the iovec based on the prdt
 	 */
 	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-				prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	if (readop)
@@ -493,6 +507,8 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	aior->cfis = cfis;
 	aior->slot = slot;
 	aior->len = 0;
+	aior->done = 0;
+	aior->prdtl = 0;
 	breq = &aior->io_req;
 
 	err = blockif_flush(p->bctx, breq);
@@ -513,11 +529,14 @@ write_prdt(struct ahci_port *p, int slot, uint8_t *cfis,
 	from = buf;
 	prdt = (struct ahci_prdt_entry *)(cfis + 0x80);
 	for (i = 0; i < hdr->prdtl && len; i++) {
-		uint8_t *ptr = paddr_guest2host(ahci_ctx(p->pr_sc),
-				prdt->dba, prdt->dbc + 1);
-		memcpy(ptr, from, prdt->dbc + 1);
-		len -= (prdt->dbc + 1);
-		from += (prdt->dbc + 1);
+		uint8_t *ptr;
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
+		ptr = paddr_guest2host(ahci_ctx(p->pr_sc), prdt->dba, dbcsz);
+		memcpy(ptr, from, dbcsz);
+		len -= dbcsz;
+		from += dbcsz;
 		prdt++;
 	}
 	hdr->prdbc = size - len;
@@ -578,6 +597,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DP;
@@ -620,6 +640,7 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[85] = (1 << 4);
 		buf[87] = (1 << 14);
 		buf[88] = (1 << 14 | 0x7f);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DHR;
@@ -908,10 +929,13 @@ atapi_read(struct ahci_port *p, int slot, uint8_t *cfis,
 	 * Build up the iovec based on the prdt
 	 */
 	for (i = 0; i < iovcnt; i++) {
+		uint32_t dbcsz;
+
+		dbcsz = (prdt->dbc & DBCMASK) + 1;
 		breq->br_iov[i].iov_base = paddr_guest2host(ahci_ctx(sc),
-		    prdt->dba, prdt->dbc + 1);
-		breq->br_iov[i].iov_len = prdt->dbc + 1;
-		aior->done += (prdt->dbc + 1);
+		    prdt->dba, dbcsz);
+		breq->br_iov[i].iov_len = dbcsz;
+		aior->done += dbcsz;
 		prdt++;
 	}
 	err = blockif_read(p->bctx, breq);
@@ -1170,9 +1194,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 			p->tfd |= (ATA_ERROR_ABORT << 8);
 			break;
 		}
-		p->is |= AHCI_P_IX_DP;
-		p->ci &= ~(1 << slot);
-		ahci_generate_intr(p->pr_sc);
+		ahci_write_fis_d2h(p, slot, cfis, p->tfd);
 		break;
 	}
 	case ATA_SET_MULTI:

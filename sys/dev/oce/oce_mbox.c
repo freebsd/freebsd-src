@@ -935,7 +935,7 @@ oce_get_link_status(POCE_SOFTC sc, struct link_status *link)
 
 	bzero(&mbx, sizeof(struct oce_mbx));
 
-	IS_XE201(sc) ? (version = OCE_MBX_VER_V1) : (version = OCE_MBX_VER_V0);
+	IS_BE2(sc) ? (version = OCE_MBX_VER_V0) : (version = OCE_MBX_VER_V1);
 
 	fwcmd = (struct mbx_query_common_link_config *)&mbx.payload;
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
@@ -2025,7 +2025,7 @@ oce_mbox_eqd_modify_periodic(POCE_SOFTC sc, struct oce_set_eqd *set_eqd,
 }
 
 int
-oce_get_profile_config(POCE_SOFTC sc)
+oce_get_profile_config(POCE_SOFTC sc, uint32_t max_rss)
 {
 	struct oce_mbx mbx;
 	struct mbx_common_get_profile_config *fwcmd;
@@ -2050,7 +2050,7 @@ oce_get_profile_config(POCE_SOFTC sc)
 	fwcmd = OCE_DMAPTR(&dma, struct mbx_common_get_profile_config);
 	bzero(fwcmd, sizeof(struct mbx_common_get_profile_config));
 
-	if (IS_BE3(sc))
+	if (!IS_XE201(sc))
 		version = OCE_MBX_VER_V1;
 	else
 		version = OCE_MBX_VER_V0;
@@ -2102,12 +2102,19 @@ oce_get_profile_config(POCE_SOFTC sc)
 		goto error;
 	}
 	else { 
-		sc->max_vlans = nic_desc->vlan_count;
-		sc->nwqs = HOST_32(nic_desc->txq_count);
+		sc->max_vlans = HOST_16(nic_desc->vlan_count);
+		sc->nwqs = HOST_16(nic_desc->txq_count);
 		if (sc->nwqs)
 			sc->nwqs = MIN(sc->nwqs, OCE_MAX_WQ);
 		else
 			sc->nwqs = OCE_MAX_WQ;
+
+		sc->nrssqs = HOST_16(nic_desc->rssq_count);
+		if (sc->nrssqs)
+			sc->nrssqs = MIN(sc->nrssqs, max_rss);
+		else
+			sc->nrssqs = max_rss;
+		sc->nrqs =  sc->nrssqs + 1; /* 1 for def RX */;
 
 	}
 error:

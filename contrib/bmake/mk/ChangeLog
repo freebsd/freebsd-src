@@ -1,3 +1,22 @@
+2013-12-12  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): bump version
+	* meta2deps.py: convert to print function for python3 compat.
+	  we also need to open files with mode 'r' rather than 'rb'
+	  otherwise we get bytes instead of strings.
+
+2013-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* install-mk (MK_VERSION): bump version
+
+	* dirdeps.mk: when TARGET_SPEC_VARS is more than just MACHINE
+	  apply the same filtering (M_dep_qual_fixes) when setting _machines
+	  as _build_dirs.
+	  Also fix the filtering of Makefile.depend files - for reporting
+	  what we are looking for (M_dep_qual_fixes can get confused by
+	  Makefile.depend) 
+	  Add some more debug info.
+
 2013-09-04  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* gendirdeps.mk (_objtops): fix typo also

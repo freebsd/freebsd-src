@@ -68,6 +68,8 @@ pass1(void)
 	u_int8_t *cp;
 	int c, rebuildcg;
 
+	badblk = dupblk = lastino = 0;
+
 	/*
 	 * Set file system reserved blocks in used block map.
 	 */
@@ -463,6 +465,7 @@ pass1check(struct inodesc *idesc)
 				ckfini(0);
 				exit(EEXIT);
 			}
+			rerun = 1;
 			return (STOP);
 		}
 	}
@@ -483,6 +486,7 @@ pass1check(struct inodesc *idesc)
 					ckfini(0);
 					exit(EEXIT);
 				}
+				rerun = 1;
 				return (STOP);
 			}
 			new = (struct dups *)Malloc(sizeof(struct dups));
@@ -492,6 +496,7 @@ pass1check(struct inodesc *idesc)
 					ckfini(0);
 					exit(EEXIT);
 				}
+				rerun = 1;
 				return (STOP);
 			}
 			new->dup = blkno;

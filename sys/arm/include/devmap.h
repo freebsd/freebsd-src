@@ -87,4 +87,7 @@ void arm_devmap_bootstrap(vm_offset_t _l1pt,
 void *     arm_devmap_ptov(vm_paddr_t _pa, vm_size_t _sz);
 vm_paddr_t arm_devmap_vtop(void * _va, vm_size_t _sz);
 
+/* Print the static mapping table; used for bootverbose output. */
+void arm_devmap_print_table(void);
+
 #endif

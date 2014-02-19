@@ -351,9 +351,9 @@ typedef apr_status_t (*apr_brigade_flush)(apr_bucket_brigade *bb, void *ctx);
 #define APR_BRIGADE_LAST(b)	APR_RING_LAST(&(b)->list)
 
 /**
- * Insert a list of buckets at the front of a brigade
+ * Insert a single bucket at the front of a brigade
  * @param b The brigade to add to
- * @param e The first bucket in a list of buckets to insert
+ * @param e The bucket to insert
  */
 #define APR_BRIGADE_INSERT_HEAD(b, e) do {				\
 	apr_bucket *ap__b = (e);                                        \
@@ -362,9 +362,9 @@ typedef apr_status_t (*apr_brigade_flush)(apr_bucket_brigade *bb, void *ctx);
     } while (0)
 
 /**
- * Insert a list of buckets at the end of a brigade
+ * Insert a single bucket at the end of a brigade
  * @param b The brigade to add to
- * @param e The first bucket in a list of buckets to insert
+ * @param e The bucket to insert
  */
 #define APR_BRIGADE_INSERT_TAIL(b, e) do {				\
 	apr_bucket *ap__b = (e);					\
@@ -393,9 +393,9 @@ typedef apr_status_t (*apr_brigade_flush)(apr_bucket_brigade *bb, void *ctx);
     } while (0)
 
 /**
- * Insert a list of buckets before a specified bucket
+ * Insert a single bucket before a specified bucket
  * @param a The bucket to insert before
- * @param b The buckets to insert
+ * @param b The bucket to insert
  */
 #define APR_BUCKET_INSERT_BEFORE(a, b) do {				\
 	apr_bucket *ap__a = (a), *ap__b = (b);				\
@@ -404,9 +404,9 @@ typedef apr_status_t (*apr_brigade_flush)(apr_bucket_brigade *bb, void *ctx);
     } while (0)
 
 /**
- * Insert a list of buckets after a specified bucket
+ * Insert a single bucket after a specified bucket
  * @param a The bucket to insert after
- * @param b The buckets to insert
+ * @param b The bucket to insert
  */
 #define APR_BUCKET_INSERT_AFTER(a, b) do {				\
 	apr_bucket *ap__a = (a), *ap__b = (b);				\

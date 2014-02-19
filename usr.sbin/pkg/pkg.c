@@ -740,12 +740,9 @@ cleanup:
 static int
 bootstrap_pkg(bool force)
 {
-	FILE *config;
 	int fd_pkg, fd_sig;
 	int ret;
-	char *site;
 	char url[MAXPATHLEN];
-	char conf[MAXPATHLEN];
 	char tmppkg[MAXPATHLEN];
 	char tmpsig[MAXPATHLEN];
 	const char *packagesite;
@@ -754,7 +751,6 @@ bootstrap_pkg(bool force)
 
 	fd_sig = -1;
 	ret = -1;
-	config = NULL;
 
 	if (config_string(PACKAGESITE, &packagesite) != 0) {
 		warnx("No PACKAGESITE defined");
@@ -801,26 +797,6 @@ bootstrap_pkg(bool force)
 	if ((ret = extract_pkg_static(fd_pkg, pkgstatic, MAXPATHLEN)) == 0)
 		ret = install_pkg_static(pkgstatic, tmppkg, force);
 
-	snprintf(conf, MAXPATHLEN, "%s/etc/pkg.conf",
-	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
-
-	if (access(conf, R_OK) == -1) {
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-		site = strrchr(url, '/');
-		if (site == NULL)
-			goto cleanup;
-		site[0] = '\0';
-
-		config = fopen(conf, "w+");
-		if (config == NULL)
-			goto cleanup;
-		fprintf(config, "packagesite: %s\n", url);
-		fclose(config);
-	}
-
 	goto cleanup;
 
 fetchfail:
@@ -844,6 +820,11 @@ cleanup:
 static const char confirmation_message[] =
 "The package management tool is not yet installed on your system.\n"
 "Do you want to fetch and install it now? [y/N]: ";
+
+static const char non_interactive_message[] =
+"The package management tool is not yet installed on your system.\n"
+"Please set ASSUME_ALWAYS_YES=yes environment variable to be able to bootstrap "
+"in non-interactive (stdin not being a tty)\n";
 
 static int
 pkg_query_yes_no(void)
@@ -963,10 +944,12 @@ main(int argc, char *argv[])
 		 */
 		config_bool(ASSUME_ALWAYS_YES, &yes);
 		if (!yes) {
-			printf("%s", confirmation_message);
-			if (!isatty(fileno(stdin)))
+			if (!isatty(fileno(stdin))) {
+				fprintf(stderr, non_interactive_message);
 				exit(EXIT_FAILURE);
+			}
 
+			printf("%s", confirmation_message);
 			if (pkg_query_yes_no() == 0)
 				exit(EXIT_FAILURE);
 		}

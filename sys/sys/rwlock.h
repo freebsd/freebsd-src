@@ -10,9 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the author nor the names of any co-contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -112,8 +109,12 @@
 									\
 	if ((rw)->rw_recurse)						\
 		(rw)->rw_recurse--;					\
-	else if (!_rw_write_unlock((rw), _tid))				\
-		_rw_wunlock_hard((rw), _tid, (file), (line));		\
+	else {								\
+		LOCKSTAT_PROFILE_RELEASE_LOCK(LS_RW_WUNLOCK_RELEASE,	\
+		    (rw));						\
+		if (!_rw_write_unlock((rw), _tid))			\
+			_rw_wunlock_hard((rw), _tid, (file), (line));	\
+	}								\
 } while (0)
 
 /*
@@ -214,7 +215,7 @@ void	__rw_assert(const volatile uintptr_t *c, int what, const char *file,
 	_sleep((chan), &(rw)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
-#define	rw_initialized(rw)	lock_initalized(&(rw)->lock_object)
+#define	rw_initialized(rw)	lock_initialized(&(rw)->lock_object)
 
 struct rw_args {
 	void		*ra_rw;

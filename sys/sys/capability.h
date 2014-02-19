@@ -315,6 +315,8 @@
 
 #define	CAP_IOCTLS_ALL	SSIZE_MAX
 
+__BEGIN_DECLS
+
 #define	cap_rights_init(...)						\
 	__cap_rights_init(CAP_RIGHTS_VERSION, __VA_ARGS__, 0ULL)
 cap_rights_t *__cap_rights_init(int version, cap_rights_t *rights, ...);
@@ -335,6 +337,8 @@ bool cap_rights_is_valid(const cap_rights_t *rights);
 cap_rights_t *cap_rights_merge(cap_rights_t *dst, const cap_rights_t *src);
 cap_rights_t *cap_rights_remove(cap_rights_t *dst, const cap_rights_t *src);
 bool cap_rights_contains(const cap_rights_t *big, const cap_rights_t *little);
+
+__END_DECLS
 
 #ifdef _KERNEL
 

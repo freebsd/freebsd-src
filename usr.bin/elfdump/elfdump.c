@@ -255,6 +255,7 @@ e_machines(u_int mach)
 	case EM_860:	return "EM_860";
 	case EM_MIPS:	return "EM_MIPS";
 	case EM_PPC:	return "EM_PPC";
+	case EM_PPC64:	return "EM_PPC64";
 	case EM_ARM:	return "EM_ARM";
 	case EM_ALPHA:	return "EM_ALPHA (legacy)";
 	case EM_SPARCV9:return "EM_SPARCV9";

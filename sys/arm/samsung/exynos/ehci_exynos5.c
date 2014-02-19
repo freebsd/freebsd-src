@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 #define	HOST_CTRL_SUSPEND	(1 << 4)
 #define	HOST_CTRL_RESET_LINK	(1 << 1)
 #define	HOST_CTRL_RESET_PHY	(1 << 0)
-#define	HOST_CTRL_RESET_PHY_ALL	(1 << 31)
+#define	HOST_CTRL_RESET_PHY_ALL	(1U << 31)
 
 /* Forward declarations */
 static int	exynos_ehci_attach(device_t dev);
@@ -146,6 +146,9 @@ MODULE_DEPEND(ehci, usb, 1, 1, 1);
 static int
 exynos_ehci_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "exynos,usb-ehci") == 0)
 		return (ENXIO);

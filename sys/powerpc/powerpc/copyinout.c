@@ -250,21 +250,10 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 int
 copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 {
-	struct		thread *td;
-	pmap_t		pm;
-	faultbuf	env;
 	const char	*up;
 	char		*kp;
 	size_t		l;
 	int		rv, c;
-
-	td = curthread;
-	pm = &td->td_proc->p_vmspace->vm_pmap;
-
-	if (setfault(env)) {
-		td->td_pcb->pcb_onfault = NULL;
-		return (EFAULT);
-	}
 
 	kp = kaddr;
 	up = udaddr;
@@ -288,7 +277,6 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 		*done = l;
 	}
 
-	td->td_pcb->pcb_onfault = NULL;
 	return (rv);
 }
 

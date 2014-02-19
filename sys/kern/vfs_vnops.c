@@ -313,6 +313,9 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 			vn_lock(vp, lock_flags | LK_RETRY);
 			(void)VOP_CLOSE(vp, fmode, cred, td);
 			vn_finished_write(mp);
+			/* Prevent second close from fdrop()->vn_close(). */
+			if (fp != NULL)
+				fp->f_ops= &badfileops;
 			return (error);
 		}
 		fp->f_flag |= FHASLOCK;
@@ -933,9 +936,8 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	void *rl_cookie;
 	struct mount *mp;
 	vm_page_t *prev_td_ma;
-	int error, save, saveheld, prev_td_ma_cnt;
+	int error, cnt, save, saveheld, prev_td_ma_cnt;
 	vm_offset_t addr, end;
-	vm_size_t cnt;
 	vm_prot_t prot;
 	size_t len, resid;
 	ssize_t adv;
@@ -1008,21 +1010,20 @@ vn_io_fault(struct file *fp, struct uio *uio, struct ucred *active_cred,
 			uio_clone->uio_iovcnt--;
 			continue;
 		}
-
-		addr = (vm_offset_t)uio_clone->uio_iov->iov_base;
+		if (len > io_hold_cnt * PAGE_SIZE)
+			len = io_hold_cnt * PAGE_SIZE;
+		addr = (uintptr_t)uio_clone->uio_iov->iov_base;
 		end = round_page(addr + len);
-		cnt = howmany(end - trunc_page(addr), PAGE_SIZE);
+		if (end < addr) {
+			error = EFAULT;
+			break;
+		}
+		cnt = atop(end - trunc_page(addr));
 		/*
 		 * A perfectly misaligned address and length could cause
 		 * both the start and the end of the chunk to use partial
 		 * page.  +2 accounts for such a situation.
 		 */
-		if (cnt > io_hold_cnt + 2) {
-			len = io_hold_cnt * PAGE_SIZE;
-			KASSERT(howmany(round_page(addr + len) -
-			    trunc_page(addr), PAGE_SIZE) <= io_hold_cnt + 2,
-			    ("cnt overflow"));
-		}
 		cnt = vm_fault_quick_hold_pages(&td->td_proc->p_vmspace->vm_map,
 		    addr, len, prot, ma, io_hold_cnt + 2);
 		if (cnt == -1) {

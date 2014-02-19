@@ -159,7 +159,7 @@ void srcfile_push(const char *fname)
 	current_srcfile = srcfile;
 }
 
-int srcfile_pop(void)
+bool srcfile_pop(void)
 {
 	struct srcfile_state *srcfile = current_srcfile;
 
@@ -177,7 +177,7 @@ int srcfile_pop(void)
 	 * fix this we could either allocate all the files from a
 	 * table, or use a pool allocator. */
 
-	return current_srcfile ? 1 : 0;
+	return current_srcfile ? true : false;
 }
 
 void srcfile_add_search_path(const char *dirname)
@@ -290,41 +290,32 @@ srcpos_string(struct srcpos *pos)
 	return pos_str;
 }
 
-void
-srcpos_verror(struct srcpos *pos, char const *fmt, va_list va)
+void srcpos_verror(struct srcpos *pos, const char *prefix,
+		   const char *fmt, va_list va)
 {
-       const char *srcstr;
-
-       srcstr = srcpos_string(pos);
-
-       fprintf(stdout, "Error: %s ", srcstr);
-       vfprintf(stdout, fmt, va);
-       fprintf(stdout, "\n");
-}
-
-void
-srcpos_error(struct srcpos *pos, char const *fmt, ...)
-{
-	va_list va;
-
-	va_start(va, fmt);
-	srcpos_verror(pos, fmt, va);
-	va_end(va);
-}
-
-
-void
-srcpos_warn(struct srcpos *pos, char const *fmt, ...)
-{
-	const char *srcstr;
-	va_list va;
-	va_start(va, fmt);
+	char *srcstr;
 
 	srcstr = srcpos_string(pos);
 
-	fprintf(stderr, "Warning: %s ", srcstr);
+	fprintf(stderr, "%s: %s ", prefix, srcstr);
 	vfprintf(stderr, fmt, va);
 	fprintf(stderr, "\n");
 
+	free(srcstr);
+}
+
+void srcpos_error(struct srcpos *pos, const char *prefix,
+		  const char *fmt, ...)
+{
+	va_list va;
+
+	va_start(va, fmt);
+	srcpos_verror(pos, prefix, fmt, va);
 	va_end(va);
+}
+
+void srcpos_set_line(char *f, int l)
+{
+	current_srcfile->name = f;
+	current_srcfile->lineno = l;
 }

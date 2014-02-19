@@ -63,6 +63,7 @@ LIBDEPS=clangfrontendtool \
 	clangast \
 	clangbasic \
 	clanglex \
+	llvmoption \
 	llvmlinker \
 	llvmirreader \
 	llvmipo \
@@ -84,6 +85,7 @@ LIBDEPS=clangfrontendtool \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
 	llvmpowerpccodegen \
+	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \

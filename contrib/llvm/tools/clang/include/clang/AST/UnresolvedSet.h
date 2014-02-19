@@ -51,6 +51,7 @@ public:
   typedef std::iterator_traits<IteratorTy>::iterator_category iterator_category;
 
   NamedDecl *getDecl() const { return ir->getDecl(); }
+  void setDecl(NamedDecl *ND) const { return ir->setDecl(ND); }
   AccessSpecifier getAccess() const { return ir->getAccess(); }
   void setAccess(AccessSpecifier AS) { ir->setAccess(AS); }
   DeclAccessPair getPair() const { return *ir; }
@@ -88,7 +89,7 @@ public:
   bool operator>(const UnresolvedSetIterator &o) const { return ir > o.ir; }
 };
 
-/// UnresolvedSet - A set of unresolved declarations.
+/// \brief A set of unresolved declarations.
 class UnresolvedSetImpl {
   typedef SmallVectorImpl<DeclAccessPair> DeclsTy;
 
@@ -139,15 +140,9 @@ public:
     I.ir->set(New, AS);
   }
 
-  void erase(unsigned I) {
-    decls()[I] = decls().back();
-    decls().pop_back();
-  }
+  void erase(unsigned I) { decls()[I] = decls().pop_back_val(); }
 
-  void erase(iterator I) {
-    *I.ir = decls().back();
-    decls().pop_back();
-  }
+  void erase(iterator I) { *I.ir = decls().pop_back_val(); }
 
   void setAccess(iterator I, AccessSpecifier AS) {
     I.ir->setAccess(AS);
@@ -177,7 +172,7 @@ private:
   }
 };
 
-/// A set of unresolved declarations 
+/// \brief A set of unresolved declarations.
 template <unsigned InlineCapacity> class UnresolvedSet :
     public UnresolvedSetImpl {
   SmallVector<DeclAccessPair, InlineCapacity> Decls;

@@ -125,8 +125,10 @@ nvlist_destroy(nvlist_t *nvl)
 
 	NVLIST_ASSERT(nvl);
 
-	while ((nvp = nvlist_first_nvpair(nvl)) != NULL)
+	while ((nvp = nvlist_first_nvpair(nvl)) != NULL) {
 		nvlist_remove_nvpair(nvl, nvp);
+		nvpair_free(nvp);
+	}
 	nvl->nvl_magic = 0;
 	free(nvl);
 
@@ -724,11 +726,11 @@ nvlist_recv(int sock)
 {
 	struct nvlist_header nvlhdr;
 	nvlist_t *nvl, *ret;
+	unsigned char *buf;
 	size_t nfds, size;
-	void *buf;
 	int serrno, *fds;
 
-	if (msg_peek(sock, &nvlhdr, sizeof(nvlhdr)) == -1)
+	if (buf_recv(sock, &nvlhdr, sizeof(nvlhdr)) == -1)
 		return (NULL);
 
 	if (!nvlist_check_header(&nvlhdr))
@@ -741,10 +743,12 @@ nvlist_recv(int sock)
 	if (buf == NULL)
 		return (NULL);
 
+	memcpy(buf, &nvlhdr, sizeof(nvlhdr));
+
 	ret = NULL;
 	fds = NULL;
 
-	if (buf_recv(sock, buf, size) == -1)
+	if (buf_recv(sock, buf + sizeof(nvlhdr), size - sizeof(nvlhdr)) == -1)
 		goto out;
 
 	if (nfds > 0) {

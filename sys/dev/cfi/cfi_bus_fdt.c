@@ -67,6 +67,9 @@ static int
 cfi_fdt_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "cfi-flash"))
 		return (ENXIO);
 

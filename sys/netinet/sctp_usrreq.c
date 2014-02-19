@@ -2788,7 +2788,7 @@ flags_out:
 
 			if (stcb) {
 				/* simply copy out the sockaddr_storage... */
-				int len;
+				size_t len;
 
 				len = *optsize;
 				if (len > stcb->asoc.primary_destination->ro._l_addr.sa.sa_len)

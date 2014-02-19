@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# Compat
+MK_FORMAT_EXTENSIONS?=no
+
 #
 # Warning flags for compiling the kernel and components of the kernel:
 #
@@ -29,7 +32,8 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality ${NO_WFORMAT}
+		-Wno-error-parentheses-equality -Wno-unused-function \
+		${NO_WFORMAT}
 .endif
 
 # External compilers may not support our format extensions.  Allow them

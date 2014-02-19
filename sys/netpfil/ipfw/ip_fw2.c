@@ -370,7 +370,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 				return(1);
 		}
 	} else {
-#ifdef __FreeBSD__	/* and OSX too ? */
+#if !defined(USERSPACE) && defined(__FreeBSD__)	/* and OSX too ? */
 		struct ifaddr *ia;
 
 		if_addr_rlock(ifp);
@@ -413,7 +413,7 @@ iface_match(struct ifnet *ifp, ipfw_insn_if *cmd, struct ip_fw_chain *chain, uin
 static int
 verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 {
-#ifndef __FreeBSD__
+#if defined(USERSPACE) || !defined(__FreeBSD__)
 	return 0;
 #else
 	struct route ro;
@@ -664,6 +664,9 @@ static int
 check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
     struct ucred **uc)
 {
+#if defined(USERSPACE)
+	return 0;	// not supported in userspace
+#else
 #ifndef __FreeBSD__
 	/* XXX */
 	return cred_check(insn, proto, oif,
@@ -766,6 +769,7 @@ check_uidgid(ipfw_insn_u32 *insn, struct ip_fw_args *args, int *ugid_lookupp,
 		match = ((*uc)->cr_prison->pr_id == (int)insn->d[0]);
 	return (match);
 #endif /* __FreeBSD__ */
+#endif /* not supported in userspace */
 }
 
 /*
@@ -1464,6 +1468,7 @@ do {								\
 					    key = htonl(dst_port);
 					else if (v == 3)
 					    key = htonl(src_port);
+#ifndef USERSPACE
 					else if (v == 4 || v == 5) {
 					    check_uidgid(
 						(ipfw_insn_u32 *)cmd,
@@ -1483,6 +1488,7 @@ do {								\
 #endif /* !__FreeBSD__ */
 					    key = htonl(key);
 					} else
+#endif /* !USERSPACE */
 					    break;
 				    }
 				    match = ipfw_lookup_table(chain,
@@ -1946,6 +1952,7 @@ do {								\
 				break;
 
 			case O_SOCKARG:	{
+#ifndef USERSPACE	/* not supported in userspace */
 				struct inpcb *inp = args->inp;
 				struct inpcbinfo *pi;
 				
@@ -1986,6 +1993,7 @@ do {								\
 							match = 1;
 					}
 				}
+#endif /* !USERSPACE */
 				break;
 			}
 
@@ -2405,38 +2413,35 @@ do {								\
 			}
 
 			case O_NAT:
+				l = 0;          /* exit inner loop */
+				done = 1;       /* exit outer loop */
  				if (!IPFW_NAT_LOADED) {
 				    retval = IP_FW_DENY;
-				} else {
-				    struct cfg_nat *t;
-				    int nat_id;
+				    break;
+				}
 
-				    set_match(args, f_pos, chain);
-				    /* Check if this is 'global' nat rule */
-				    if (cmd->arg1 == 0) {
-					    retval = ipfw_nat_ptr(args, NULL, m);
-					    l = 0;
-					    done = 1;
-					    break;
-				    }
-				    t = ((ipfw_insn_nat *)cmd)->nat;
-				    if (t == NULL) {
+				struct cfg_nat *t;
+				int nat_id;
+
+				set_match(args, f_pos, chain);
+				/* Check if this is 'global' nat rule */
+				if (cmd->arg1 == 0) {
+					retval = ipfw_nat_ptr(args, NULL, m);
+					break;
+				}
+				t = ((ipfw_insn_nat *)cmd)->nat;
+				if (t == NULL) {
 					nat_id = IP_FW_ARG_TABLEARG(cmd->arg1);
 					t = (*lookup_nat_ptr)(&chain->nat, nat_id);
 
 					if (t == NULL) {
 					    retval = IP_FW_DENY;
-					    l = 0;	/* exit inner loop */
-					    done = 1;	/* exit outer loop */
 					    break;
 					}
 					if (cmd->arg1 != IP_FW_TABLEARG)
 					    ((ipfw_insn_nat *)cmd)->nat = t;
-				    }
-				    retval = ipfw_nat_ptr(args, t, m);
 				}
-				l = 0;          /* exit inner loop */
-				done = 1;       /* exit outer loop */
+				retval = ipfw_nat_ptr(args, t, m);
 				break;
 
 			case O_REASS: {
@@ -2661,7 +2666,7 @@ vnet_ipfw_init(const void *unused)
 	rule->set = RESVD_SET;
 	rule->cmd[0].len = 1;
 	rule->cmd[0].opcode = default_to_accept ? O_ACCEPT : O_DENY;
-	chain->rules = chain->default_rule = chain->map[0] = rule;
+	chain->default_rule = chain->map[0] = rule;
 	chain->id = rule->id = 1;
 
 	IPFW_LOCK_INIT(chain);

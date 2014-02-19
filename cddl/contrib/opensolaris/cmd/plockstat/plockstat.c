@@ -778,7 +778,8 @@ main(int argc, char **argv)
 #endif
 	int err;
 	int opt_C = 0, opt_H = 0, opt_p = 0, opt_v = 0;
-	char c, *p, *end;
+	int c;
+	char *p, *end;
 	struct sigaction act;
 	int done = 0;
 

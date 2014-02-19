@@ -77,6 +77,7 @@ LIBDEPS=\
 	clangbasic \
 	clanglex \
 	\
+	llvmoption \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvminstrumentation \
@@ -106,6 +107,7 @@ LIBDEPS=\
 	llvmmipsinstprinter \
 	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
+	llvmpowerpcasmparser \
 	llvmruntimedyld \
 	llvmvectorize \
 	llvmx86desc \

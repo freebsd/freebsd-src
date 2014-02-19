@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001-2002 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 2001-2002 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: mpeix.c,v 1.7 2007/05/11 18:51:22 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mpeix.c,v 1.8 2013/11/22 20:51:43 ca Exp $")
 
 #ifdef MPE
 /*

@@ -46,17 +46,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
-nvenetlib.o			optional	nve pci			\
-	dependency	"$S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu"	\
-	compile-with	"uudecode $S/contrib/dev/nve/i386/nvenetlib.o.bz2.uu ; bzip2 -df nvenetlib.o.bz2" \
-	no-implicit-rule
-#
-os+%DIKED-nve.h		optional	nve pci				\
-	dependency	"$S/contrib/dev/nve/os.h"			\
-	compile-with	"sed -e 's/^.*#include.*phy\.h.*$$//' $S/contrib/dev/nve/os.h > os+%DIKED-nve.h" \
-	no-implicit-rule no-obj before-depend				\
-	clean		"os+%DIKED-nve.h"
-#
 hpt27xx_lib.o			optional	hpt27xx			\
 	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
 	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
@@ -221,6 +210,18 @@ dev/hwpmc/hwpmc_piv.c		optional hwpmc
 dev/hwpmc/hwpmc_ppro.c		optional hwpmc
 dev/hwpmc/hwpmc_tsc.c		optional hwpmc
 dev/hwpmc/hwpmc_x86.c		optional hwpmc
+dev/hyperv/netvsc/hv_net_vsc.c				optional	hyperv
+dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
+dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
+dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_util.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel.c				optional	hyperv
+dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
+dev/hyperv/vmbus/hv_connection.c			optional	hyperv
+dev/hyperv/vmbus/hv_hv.c				optional	hyperv
+dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
+dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
 dev/ichwd/ichwd.c		optional ichwd
 dev/if_ndis/if_ndis.c		optional ndis
 dev/if_ndis/if_ndis_pccard.c	optional ndis pccard
@@ -237,7 +238,7 @@ dev/ipmi/ipmi_smbios.c		optional ipmi
 dev/ipmi/ipmi_ssif.c		optional ipmi smbus
 dev/ipmi/ipmi_pci.c		optional ipmi pci
 dev/ipmi/ipmi_linux.c		optional ipmi compat_linux
-dev/kbd/kbd.c			optional atkbd | sc | ukbd
+dev/kbd/kbd.c			optional atkbd | sc | ukbd | vt
 dev/le/if_le_isa.c		optional le isa
 dev/lindev/full.c		optional lindev
 dev/lindev/lindev.c		optional lindev
@@ -245,7 +246,6 @@ dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
 dev/nvd/nvd.c			optional nvd nvme
-dev/nve/if_nve.c		optional nve pci
 dev/nvme/nvme.c			optional nvme
 dev/nvme/nvme_ctrlr.c		optional nvme
 dev/nvme/nvme_ctrlr_cmd.c	optional nvme
@@ -281,6 +281,7 @@ dev/viawd/viawd.c		optional viawd
 dev/vmware/vmxnet3/if_vmx.c	optional vmx
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
+dev/vt/hw/xboxfb/xboxfb.c	optional vt_xboxfb
 dev/wbwd/wbwd.c			optional wbwd
 dev/wpi/if_wpi.c		optional wpi
 dev/isci/isci.c							optional isci
@@ -401,6 +402,7 @@ dev/virtio/network/if_vtnet.c		optional	vtnet
 dev/virtio/block/virtio_blk.c		optional	virtio_blk
 dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
 dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
+dev/virtio/random/virtio_random.c	optional	virtio_random
 i386/acpica/acpi_machdep.c	optional acpi
 acpi_wakecode.o			optional acpi				\
 	dependency	"$S/i386/acpica/acpi_wakecode.S assym.s"	\
@@ -522,8 +524,7 @@ kern/kern_clocksource.c		standard
 kern/imgact_aout.c		optional compat_aout
 kern/imgact_gzip.c		optional gzip
 libkern/divdi3.c		standard
-libkern/ffsl.c			standard
-libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/memmove.c		standard
 libkern/memset.c		standard
 libkern/moddi3.c		standard
@@ -539,6 +540,11 @@ i386/xbox/pic16l.s		optional xbox
 # x86 real mode BIOS support, required by atkbdc/dpms/vesa
 #
 compat/x86bios/x86bios.c	optional x86bios | atkbd | dpms | vesa
+#
+# bvm console
+#
+dev/bvm/bvm_console.c		optional	bvmconsole
+dev/bvm/bvm_dbg.c		optional	bvmdebug
 #
 # x86 shared code between IA32, AMD64 and PC98 architectures
 #

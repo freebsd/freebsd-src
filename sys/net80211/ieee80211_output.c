@@ -772,7 +772,7 @@ ieee80211_mgmt_output(struct ieee80211_node *ni, struct mbuf *m, int type,
 	if (params->ibp_flags & IEEE80211_BPF_CRYPTO) {
 		IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_AUTH, wh->i_addr1,
 		    "encrypting frame (%s)", __func__);
-		wh->i_fc[1] |= IEEE80211_FC1_WEP;
+		wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 	}
 	m->m_flags |= M_ENCAP;		/* mark encapsulated */
 
@@ -1497,7 +1497,7 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		     (vap->iv_opmode == IEEE80211_M_STA ?
 		      !IEEE80211_KEY_UNDEFINED(key) :
 		      !IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)))) {
-			wh->i_fc[1] |= IEEE80211_FC1_WEP;
+			wh->i_fc[1] |= IEEE80211_FC1_PROTECTED;
 			if (!ieee80211_crypto_enmic(vap, key, m, txfrag)) {
 				IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_OUTPUT,
 				    eh.ether_dhost,

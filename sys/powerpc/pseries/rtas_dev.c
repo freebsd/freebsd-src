@@ -73,7 +73,7 @@ static driver_t rtasdev_driver = {
 
 static devclass_t rtasdev_devclass;
 
-DRIVER_MODULE(rtasdev, nexus, rtasdev_driver, rtasdev_devclass, 0, 0);
+DRIVER_MODULE(rtasdev, ofwbus, rtasdev_driver, rtasdev_devclass, 0, 0);
 
 static int
 rtasdev_probe(device_t dev)

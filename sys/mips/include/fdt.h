@@ -33,17 +33,6 @@
 #define _MACHINE_FDT_H_
 
 #include <machine/bus.h>
-#include <machine/intr_machdep.h>
-
-/* Max interrupt number */
-#if defined(CPU_RMI) || defined(CPU_NLM)
-#define FDT_INTR_MAX	XLR_MAX_INTR
-#else
-#define FDT_INTR_MAX	(NHARD_IRQS + NSOFT_IRQS)
-#endif
-
-/* Map phandle/intpin pair to global IRQ number */ 
-#define	FDT_MAP_IRQ(node, pin)	(pin)
 
 /*
  * Bus space tag. XXX endianess info needs to be derived from the blob.

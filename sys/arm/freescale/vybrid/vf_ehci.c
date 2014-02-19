@@ -105,7 +105,7 @@ __FBSDID("$FreeBSD$");
 #define	USBPHY_IP_CLR		0x98	/* PHY IP Block Register */
 #define	USBPHY_IP_TOG		0x9C	/* PHY IP Block Register */
 
-#define	USBPHY_CTRL_SFTRST	(1 << 31)
+#define	USBPHY_CTRL_SFTRST	(1U << 31)
 #define	USBPHY_CTRL_CLKGATE	(1 << 30)
 #define	USBPHY_DEBUG_CLKGATE	(1 << 30)
 
@@ -175,6 +175,9 @@ MODULE_DEPEND(ehci, usb, 1, 1, 1);
 static int
 vybrid_ehci_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_is_compatible(dev, "fsl,mvf600-usb-ehci") == 0)
 		return (ENXIO);

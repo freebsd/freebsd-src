@@ -684,10 +684,47 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	return (value);
 }
 
+static __inline u_int
+atomic_swap_32(volatile u_int *p, u_int v)
+{
+	u_int prev;
+
+	__asm __volatile(
+	"1:	lwarx	%0,0,%2\n"
+	"	stwcx.	%3,0,%2\n"
+	"	bne-	1b\n"
+	: "=&r" (prev), "+m" (*(volatile u_int *)p)
+	: "r" (p), "r" (v)
+	: "cc", "memory");
+
+	return (prev);
+}
+
+#ifdef __powerpc64__
+static __inline u_long
+atomic_swap_64(volatile u_long *p, u_long v)
+{
+	u_long prev;
+
+	__asm __volatile(
+	"1:	ldarx	%0,0,%2\n"
+	"	stdcx.	%3,0,%2\n"
+	"	bne-	1b\n"
+	: "=&r" (prev), "+m" (*(volatile u_long *)p)
+	: "r" (p), "r" (v)
+	: "cc", "memory");
+
+	return (prev);
+}
+#endif
+
 #define	atomic_fetchadd_32	atomic_fetchadd_int
+#define	atomic_swap_int		atomic_swap_32
 
 #ifdef __powerpc64__
 #define	atomic_fetchadd_64	atomic_fetchadd_long
+#define	atomic_swap_long	atomic_swap_64
+#define	atomic_swap_ptr		atomic_swap_64
 #endif
 
 #undef __ATOMIC_REL

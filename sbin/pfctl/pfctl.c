@@ -38,10 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
-
-#ifdef __FreeBSD__
 #include <sys/endian.h>
-#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -53,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -234,13 +232,13 @@ usage(void)
 {
 	extern char *__progname;
 
-	fprintf(stderr, "usage: %s [-AdeghmNnOPqRrvz] ", __progname);
-	fprintf(stderr, "[-a anchor] [-D macro=value] [-F modifier]\n");
-	fprintf(stderr, "\t[-f file] [-i interface] [-K host | network]\n");
-	fprintf(stderr, "\t[-k host | network | label | id] ");
-	fprintf(stderr, "[-o level] [-p device]\n");
-	fprintf(stderr, "\t[-s modifier] ");
-	fprintf(stderr, "[-t table -T command [address ...]] [-x level]\n");
+	fprintf(stderr,
+"usage: %s [-AdeghmNnOPqRrvz] [-a anchor] [-D macro=value] [-F modifier]\n"
+	"\t[-f file] [-i interface] [-K host | network]\n"
+	"\t[-k host | network | label | id] [-o level] [-p device]\n"
+	"\t[-s modifier] [-t table -T command [address ...]] [-x level]\n",
+	    __progname);
+
 	exit(1);
 }
 
@@ -250,10 +248,8 @@ pfctl_enable(int dev, int opts)
 	if (ioctl(dev, DIOCSTART)) {
 		if (errno == EEXIST)
 			errx(1, "pf already enabled");
-#ifdef __FreeBSD__
 		else if (errno == ESRCH)
 			errx(1, "pfil registeration failed");
-#endif
 		else
 			err(1, "DIOCSTART");
 	}
@@ -796,17 +792,18 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 	}
 	if (opts & PF_OPT_VERBOSE) {
 		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
-			    "Bytes: %-10llu  States: %-6u]\n",
+			    "Bytes: %-10llu  States: %-6"PRIuPTR"]\n",
 			    (unsigned long long)rule->evaluations,
 			    (unsigned long long)(rule->packets[0] +
 			    rule->packets[1]),
 			    (unsigned long long)(rule->bytes[0] +
-			    rule->bytes[1]), rule->states_cur);
+			    rule->bytes[1]),
+			    (uintptr_t)rule->states_cur);
 		if (!(opts & PF_OPT_DEBUG))
 			printf("  [ Inserted: uid %u pid %u "
-			    "State Creations: %-6u]\n",
+			    "State Creations: %-6"PRIuPTR"]\n",
 			    (unsigned)rule->cuid, (unsigned)rule->cpid,
-			    rule->states_tot);
+			    (uintptr_t)rule->states_tot);
 	}
 }
 
@@ -908,7 +905,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 		case PFCTL_SHOW_LABELS:
 			if (pr.rule.label[0]) {
 				printf("%s %llu %llu %llu %llu"
-				    " %llu %llu %llu %llu\n",
+				    " %llu %llu %llu %"PRIuPTR"\n",
 				    pr.rule.label,
 				    (unsigned long long)pr.rule.evaluations,
 				    (unsigned long long)(pr.rule.packets[0] +
@@ -919,7 +916,7 @@ pfctl_show_rules(int dev, char *path, int opts, enum pfctl_show format,
 				    (unsigned long long)pr.rule.bytes[0],
 				    (unsigned long long)pr.rule.packets[1],
 				    (unsigned long long)pr.rule.bytes[1],
-				    (unsigned long long)pr.rule.states_tot);
+				    (uintptr_t)pr.rule.states_tot);
 			}
 			break;
 		case PFCTL_SHOW_RULES:
@@ -2185,7 +2182,7 @@ main(int argc, char *argv[])
 		/* turn off options */
 		opts &= ~ (PF_OPT_DISABLE | PF_OPT_ENABLE);
 		clearopt = showopt = debugopt = NULL;
-#if defined(__FreeBSD__) && !defined(ENABLE_ALTQ)
+#if !defined(ENABLE_ALTQ)
 		altqsupport = 0;
 #else
 		altqsupport = 1;

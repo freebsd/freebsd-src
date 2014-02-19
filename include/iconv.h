@@ -86,6 +86,8 @@ void	 iconv_set_relocation_prefix(const char *, const char *);
 #define ICONV_SET_DISCARD_ILSEQ	4
 #define ICONV_SET_HOOKS		5
 #define ICONV_SET_FALLBACKS	6
+#define ICONV_GET_ILSEQ_INVALID	128
+#define ICONV_SET_ILSEQ_INVALID	129
 
 typedef void (*iconv_unicode_char_hook) (unsigned int mbr, void *data);
 typedef void (*iconv_wide_char_hook) (wchar_t wc, void *data);

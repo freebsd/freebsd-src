@@ -27,6 +27,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <machine/_inttypes.h>
+
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm_crtc.h>
 #include <dev/drm2/drm_crtc_helper.h>
@@ -46,7 +48,7 @@ struct radeon_fbdev {
 	struct radeon_device *rdev;
 };
 
-#ifdef DUMBBELL_WIP
+#if defined(__linux__)
 static struct fb_ops radeonfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_check_var = drm_fb_helper_check_var,
@@ -60,7 +62,7 @@ static struct fb_ops radeonfb_ops = {
 	.fb_debug_enter = drm_fb_helper_debug_enter,
 	.fb_debug_leave = drm_fb_helper_debug_leave,
 };
-#endif /* DUMBBELL_WIP */
+#endif
 
 
 int radeon_align_pitch(struct radeon_device *rdev, int width, int bpp, bool tiled)
@@ -191,20 +193,13 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 			   struct drm_fb_helper_surface_size *sizes)
 {
 	struct radeon_device *rdev = rfbdev->rdev;
-#ifdef DUMBBELL_WIP
 	struct fb_info *info;
-#endif /* DUMBBELL_WIP */
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_bo *rbo = NULL;
-#ifdef DUMBBELL_WIP
-	device_t device = rdev->dev;
-#endif /* DUMBBELL_WIP */
 	int ret;
-#ifdef DUMBBELL_WIP
 	unsigned long tmp;
-#endif /* DUMBBELL_WIP */
 
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
@@ -224,16 +219,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	rbo = gem_to_radeon_bo(gobj);
 
-#ifdef DUMBBELL_WIP
-	/* okay we have an object now allocate the framebuffer */
-	info = framebuffer_alloc(0, device);
-	if (info == NULL) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
-
-	info->par = rfbdev;
-#endif /* DUMBBELL_WIP */
+	info = malloc(sizeof(*info), DRM_MEM_KMS, M_WAITOK | M_ZERO);
 
 	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
 	if (ret) {
@@ -245,61 +231,29 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	/* setup helper */
 	rfbdev->helper.fb = fb;
-#ifdef DUMBBELL_WIP
 	rfbdev->helper.fbdev = info;
 
-	memset_io(rbo->kptr, 0x0, radeon_bo_size(rbo));
-
-	strcpy(info->fix.id, "radeondrmfb");
-
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
-
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
-	info->fbops = &radeonfb_ops;
+	memset(rbo->kptr, 0x0, radeon_bo_size(rbo));
 
 	tmp = radeon_bo_gpu_offset(rbo) - rdev->mc.vram_start;
-	info->fix.smem_start = rdev->mc.aper_base + tmp;
-	info->fix.smem_len = radeon_bo_size(rbo);
-	info->screen_base = rbo->kptr;
-	info->screen_size = radeon_bo_size(rbo);
+	info->fb_size  = radeon_bo_size(rbo);
+	info->fb_bpp = sizes->surface_bpp;
+	info->fb_width = sizes->surface_width;
+	info->fb_height = sizes->surface_height;
+	info->fb_pbase = rdev->mc.aper_base + tmp;
+	info->fb_vbase = (vm_offset_t)rbo->kptr;
 
-	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
-
-	/* setup aperture base/size for vesafb takeover */
-	info->apertures = alloc_apertures(1);
-	if (!info->apertures) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
-	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
-	info->apertures->ranges[0].size = rdev->mc.aper_size;
-
-	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
-
-	if (info->screen_base == NULL) {
-		ret = -ENOSPC;
-		goto out_unref;
-	}
-
-	ret = fb_alloc_cmap(&info->cmap, 256, 0);
-	if (ret) {
-		ret = -ENOMEM;
-		goto out_unref;
-	}
-
-	DRM_INFO("fb mappable at 0x%lX\n",  info->fix.smem_start);
+	DRM_INFO("fb mappable at 0x%" PRIXPTR "\n",  info->fb_pbase);
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
 	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
-	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
-#endif /* DUMBBELL_WIP */
 	return 0;
 
 out_unref:
 	if (rbo) {
-
+		/* TODO? dumbbell@ */
 	}
 	if (fb && ret) {
 		drm_gem_object_unreference(gobj);
@@ -332,21 +286,13 @@ void radeon_fb_output_poll_changed(struct radeon_device *rdev)
 
 static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfbdev)
 {
-#ifdef DUMBBELL_WIP
 	struct fb_info *info;
-#endif /* DUMBBELL_WIP */
 	struct radeon_framebuffer *rfb = &rfbdev->rfb;
 
-#ifdef DUMBBELL_WIP
 	if (rfbdev->helper.fbdev) {
 		info = rfbdev->helper.fbdev;
-
-		unregister_framebuffer(info);
-		if (info->cmap.len)
-			fb_dealloc_cmap(&info->cmap);
-		framebuffer_release(info);
+		free(info, DRM_MEM_KMS);
 	}
-#endif /* DUMBBELL_WIP */
 
 	if (rfb->obj) {
 		DRM_UNLOCK(dev); /* Work around lock recursion. dumbbell@ */
@@ -430,4 +376,23 @@ bool radeon_fbdev_robj_is_fb(struct radeon_device *rdev, struct radeon_bo *robj)
 	if (robj == gem_to_radeon_bo(rdev->mode_info.rfbdev->rfb.obj))
 		return true;
 	return false;
+}
+
+struct fb_info *
+radeon_fb_helper_getinfo(device_t kdev)
+{
+	struct drm_device *dev;
+	struct radeon_device *rdev;
+	struct radeon_fbdev *rfbdev;
+	struct fb_info *info;
+
+	dev = device_get_softc(kdev);
+	rdev = dev->dev_private;
+	rfbdev = rdev->mode_info.rfbdev;
+	if (rfbdev == NULL)
+		return (NULL);
+
+	info = rfbdev->helper.fbdev;
+
+	return (info);
 }

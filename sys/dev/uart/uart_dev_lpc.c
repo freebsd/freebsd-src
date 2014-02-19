@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
+#include <machine/fdt.h>
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
@@ -43,16 +44,13 @@ __FBSDID("$FreeBSD$");
 #include "uart_if.h"
 
 #define	DEFAULT_RCLK		(13 * 1000 * 1000)
-#define	LPC_UART_NO(_bas)	(((_bas->bsh) - LPC_UART_BASE) >> 15)
 
-#define	lpc_ns8250_get_auxreg(_bas, _reg)	\
-    bus_space_read_4((_bas)->bst, LPC_UART_CONTROL_BASE, _reg)
-#define	lpc_ns8250_set_auxreg(_bas, _reg, _val)	\
-    bus_space_write_4((_bas)->bst, LPC_UART_CONTROL_BASE, _reg, _val);
+static bus_space_handle_t bsh_clkpwr;
+
 #define	lpc_ns8250_get_clkreg(_bas, _reg)	\
-    bus_space_read_4((_bas)->bst, LPC_CLKPWR_BASE, (_reg))
+    bus_space_read_4(fdtbus_bs_tag, bsh_clkpwr, (_reg))
 #define	lpc_ns8250_set_clkreg(_bas, _reg, _val)	\
-    bus_space_write_4((_bas)->bst, LPC_CLKPWR_BASE, (_reg), (_val))
+    bus_space_write_4(fdtbus_bs_tag, bsh_clkpwr, (_reg), (_val))
 
 /*
  * Clear pending interrupts. THRE is cleared by reading IIR. Data
@@ -293,9 +291,12 @@ lpc_ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	u_long	clkmode;
 	
 	/* Enable UART clock */
-	clkmode = lpc_ns8250_get_auxreg(bas, LPC_UART_CLKMODE);
-	lpc_ns8250_set_auxreg(bas, LPC_UART_CLKMODE,
-	    clkmode | LPC_UART_CLKMODE_UART5(1));
+	bus_space_map(fdtbus_bs_tag, LPC_CLKPWR_PHYS_BASE, LPC_CLKPWR_SIZE, 0,
+	    &bsh_clkpwr);
+	clkmode = lpc_ns8250_get_clkreg(bas, LPC_UART_CLKMODE);
+	lpc_ns8250_set_clkreg(bas, LPC_UART_CLKMODE, clkmode | 
+	    LPC_UART_CLKMODE_UART5(1));
+
 #if 0
 	/* Work around H/W bug */
 	uart_setreg(bas, REG_DATA, 0x00);
@@ -400,6 +401,8 @@ static int lpc_ns8250_bus_probe(struct uart_softc *);
 static int lpc_ns8250_bus_receive(struct uart_softc *);
 static int lpc_ns8250_bus_setsig(struct uart_softc *, int);
 static int lpc_ns8250_bus_transmit(struct uart_softc *);
+static void lpc_ns8250_bus_grab(struct uart_softc *);
+static void lpc_ns8250_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t lpc_ns8250_methods[] = {
 	KOBJMETHOD(uart_attach,		lpc_ns8250_bus_attach),
@@ -413,6 +416,8 @@ static kobj_method_t lpc_ns8250_methods[] = {
 	KOBJMETHOD(uart_receive,	lpc_ns8250_bus_receive),
 	KOBJMETHOD(uart_setsig,		lpc_ns8250_bus_setsig),
 	KOBJMETHOD(uart_transmit,	lpc_ns8250_bus_transmit),
+	KOBJMETHOD(uart_grab,		lpc_ns8250_bus_grab),
+	KOBJMETHOD(uart_ungrab,		lpc_ns8250_bus_ungrab),
 	{ 0, 0 }
 };
 
@@ -888,4 +893,35 @@ lpc_ns8250_bus_transmit(struct uart_softc *sc)
 	sc->sc_txbusy = 1;
 	uart_unlock(sc->sc_hwmtx);
 	return (0);
+}
+
+void
+lpc_ns8250_bus_grab(struct uart_softc *sc)
+{
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * turn off all interrupts to enter polling mode. Leave the
+	 * saved mask alone. We'll restore whatever it was in ungrab.
+	 * All pending interupt signals are reset when IER is set to 0.
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, 0);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+void
+lpc_ns8250_bus_ungrab(struct uart_softc *sc)
+{
+	struct lpc_ns8250_softc *lpc_ns8250 = (struct lpc_ns8250_softc*)sc;
+	struct uart_bas *bas = &sc->sc_bas;
+
+	/*
+	 * Restore previous interrupt mask
+	 */
+	uart_lock(sc->sc_hwmtx);
+	uart_setreg(bas, REG_IER, lpc_ns8250->ier);
+	uart_barrier(bas);
+	uart_unlock(sc->sc_hwmtx);
 }

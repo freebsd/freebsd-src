@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 7, 2013
+.Dd Nov 20, 2013
 .Dt SYSRC 8
 .Os
 .Sh NAME
@@ -185,7 +185,7 @@ be called repeatedly).
 .Sh ENVIRONMENT
 The following environment variables are referenced by
 .Nm :
-.Bl -tag -width ".Ev SYSRC_VERBOSE"
+.Bl -tag -width ".Ev RC_DEFAULTS"
 .It Ev RC_CONFS
 Override default
 .Ql rc_conf_files
@@ -194,9 +194,6 @@ Override default
 Location of
 .Ql /etc/defaults/rc.conf
 file.
-.It Ev SYSRC_VERBOSE
-Default verbosity.
-Set to non-NULL to enable.
 .El
 .Sh DEPENDENCIES
 The following standard commands are required by

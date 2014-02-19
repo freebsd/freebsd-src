@@ -28,6 +28,12 @@
 #
 ############################################################ INCLUDES
 
+# Prevent device.subr (included indirectly) from auto scanning; this will be
+# performed indirectly later via f_dialog_menu_netdev() -- but only after we've
+# successfully completed f_mustberoot_init().
+#
+DEVICE_SELF_SCAN_ALL=NO
+
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
 f_dprintf "%s: loading includes..." "$0"
@@ -43,8 +49,8 @@ f_include $BSDCFG_SHARE/networking/netmask.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ MAIN
 
@@ -137,8 +143,8 @@ while :; do
 	# Fill in IP address/netmask from active settings if no
 	# configuration could be extrapolated from rc.conf(5)
 	#
-	[ "$_ipaddr"  ] || _ipaddr=$( f_ifconfig_inet $interface )
-	[ "$_netmask" ] || _netmask=$( f_ifconfig_netmask $interface )
+	[ "$_ipaddr"  ] || f_ifconfig_inet $interface _ipaddr
+	[ "$_netmask" ] || f_ifconfig_netmask $interface _netmask
 
 	# Get the extra options (this always comes from rc.conf(5))
 	_options=$( f_ifconfig_options $interface )

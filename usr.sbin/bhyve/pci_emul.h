@@ -32,13 +32,13 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kernel.h>
+#include <sys/_pthreadtypes.h>
 
 #include <dev/pci/pcireg.h>
 
 #include <assert.h>
 
 #define	PCI_BARMAX	PCIR_MAX_BAR_0	/* BAR registers in a Type 0 header */
-#define	PCIY_RESERVED	0x00
 
 struct vmctx;
 struct pci_devinst;
@@ -50,6 +50,9 @@ struct pci_devemu {
 	/* instance creation */
 	int       (*pe_init)(struct vmctx *, struct pci_devinst *,
 			     char *opts);
+
+	/* ACPI DSDT enumeration */
+	void	(*pe_write_dsdt)(struct pci_devinst *);
 
 	/* config space read/write callbacks */
 	int	(*pe_cfgwrite)(struct vmctx *ctx, int vcpu,
@@ -97,31 +100,45 @@ struct msix_table_entry {
  */
 #define	MSIX_TABLE_ENTRY_SIZE	16
 #define MAX_MSIX_TABLE_ENTRIES	2048
-#define PBA_TABLE_ENTRY_SIZE	8
+#define	PBA_SIZE(msgnum)	(roundup2((msgnum), 64) / 8)
+
+enum lintr_stat {
+	IDLE,
+	ASSERTED,
+	PENDING
+};
 
 struct pci_devinst {
 	struct pci_devemu *pi_d;
 	struct vmctx *pi_vmctx;
 	uint8_t	  pi_bus, pi_slot, pi_func;
-	int8_t    pi_lintr_pin;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
+	int	  pi_prevcap;
+	int	  pi_capend;
 
 	struct {
-		int	enabled;
-		int	cpu;
-		int	vector;
-		int	msgnum;
+		int8_t    	pin;
+		enum lintr_stat	state;
+		int	  	ioapic_irq;
+		pthread_mutex_t	lock;
+	} pi_lintr;
+
+	struct {
+		int		enabled;
+		uint64_t	addr;
+		uint64_t	msg_data;
+		int		maxmsgnum;
 	} pi_msi;
 
 	struct {
 		int	enabled;
 		int	table_bar;
 		int	pba_bar;
-		size_t	table_offset;
+		uint32_t table_offset;
 		int	table_count;
-		size_t	pba_offset;
-		size_t	pba_size;
+		uint32_t pba_offset;
+		int	pba_size;
 		int	function_mask; 	
 		struct msix_table_entry *table;	/* allocated at runtime */
 	} pi_msix;
@@ -183,6 +200,8 @@ struct pciecap {
 	uint16_t	slot_status2;
 } __packed;
 
+typedef void (*pci_lintr_cb)(int b, int s, int pin, int ioapic_irq, void *arg);
+
 int	init_pci(struct vmctx *ctx);
 void	msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 	    int bytes, uint32_t val);
@@ -195,23 +214,25 @@ int	pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx,
 	    uint64_t hostbase, enum pcibar_type type, uint64_t size);
 int	pci_emul_add_msicap(struct pci_devinst *pi, int msgnum);
 int	pci_emul_add_pciecap(struct pci_devinst *pi, int pcie_device_type);
-int	pci_is_legacy(struct pci_devinst *pi);
 void	pci_generate_msi(struct pci_devinst *pi, int msgnum);
 void	pci_generate_msix(struct pci_devinst *pi, int msgnum);
 void	pci_lintr_assert(struct pci_devinst *pi);
 void	pci_lintr_deassert(struct pci_devinst *pi);
-int	pci_lintr_request(struct pci_devinst *pi, int ivec);
+int	pci_lintr_request(struct pci_devinst *pi);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msix_table_bar(struct pci_devinst *pi);
 int	pci_msix_pba_bar(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
-int	pci_parse_slot(char *opt, int legacy);
+int	pci_parse_slot(char *opt);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 int	pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum);
 int	pci_emul_msix_twrite(struct pci_devinst *pi, uint64_t offset, int size,
 			     uint64_t value);
 uint64_t pci_emul_msix_tread(struct pci_devinst *pi, uint64_t offset, int size);
+int	pci_count_lintr(int bus);
+void	pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg);
+void	pci_write_dsdt(void);
 
 static __inline void 
 pci_set_cfgdata8(struct pci_devinst *pi, int offset, uint8_t val)

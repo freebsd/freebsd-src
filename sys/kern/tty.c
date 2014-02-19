@@ -191,8 +191,10 @@ ttydev_leave(struct tty *tp)
 
 	/* Drain any output. */
 	MPASS((tp->t_flags & TF_STOPPED) == 0);
-	if (!tty_gone(tp))
-		tty_drain(tp);
+	if (!tty_gone(tp)) {
+		while (tty_drain(tp) == ERESTART)
+			;
+	}
 
 	ttydisc_close(tp);
 
@@ -287,7 +289,7 @@ ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 			goto done;
 
 		ttydisc_open(tp);
-		tty_watermarks(tp);
+		tty_watermarks(tp); /* XXXGL: drops lock */
 	}
 
 	/* Wait for Carrier Detect. */
@@ -1005,11 +1007,6 @@ tty_alloc_mutex(struct ttydevsw *tsw, void *sc, struct mtx *mutex)
 	knlist_init_mtx(&tp->t_inpoll.si_note, tp->t_mtx);
 	knlist_init_mtx(&tp->t_outpoll.si_note, tp->t_mtx);
 
-	sx_xlock(&tty_list_sx);
-	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
-	tty_list_count++;
-	sx_xunlock(&tty_list_sx);
-
 	return (tp);
 }
 
@@ -1017,11 +1014,6 @@ static void
 tty_dealloc(void *arg)
 {
 	struct tty *tp = arg;
-
-	sx_xlock(&tty_list_sx);
-	TAILQ_REMOVE(&tty_list, tp, t_list);
-	tty_list_count--;
-	sx_xunlock(&tty_list_sx);
 
 	/* Make sure we haven't leaked buffers. */
 	MPASS(ttyinq_getsize(&tp->t_inq) == 0);
@@ -1062,6 +1054,11 @@ tty_rel_free(struct tty *tp)
 	dev = tp->t_dev;
 	tp->t_dev = NULL;
 	tty_unlock(tp);
+
+	sx_xlock(&tty_list_sx);
+	TAILQ_REMOVE(&tty_list, tp, t_list);
+	tty_list_count--;
+	sx_xunlock(&tty_list_sx);
 
 	if (dev != NULL)
 		destroy_dev_sched_cb(dev, tty_dealloc, tp);
@@ -1172,16 +1169,18 @@ SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD|CTLFLAG_MPSAFE,
  * the user.
  */
 
-void
-tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
+int
+tty_makedevf(struct tty *tp, struct ucred *cred, int flags,
+    const char *fmt, ...)
 {
 	va_list ap;
-	struct cdev *dev;
+	struct cdev *dev, *init, *lock, *cua, *cinit, *clock;
 	const char *prefix = "tty";
 	char name[SPECNAMELEN - 3]; /* for "tty" and "cua". */
 	uid_t uid;
 	gid_t gid;
 	mode_t mode;
+	int error;
 
 	/* Remove "tty" prefix from devices like PTY's. */
 	if (tp->t_flags & TF_NOPREFIX)
@@ -1203,57 +1202,97 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		mode = S_IRUSR|S_IWUSR|S_IWGRP;
 	}
 
+	flags = flags & TTYMK_CLONING ? MAKEDEV_REF : 0;
+	flags |= MAKEDEV_CHECKNAME;
+
 	/* Master call-in device. */
-	dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
-	    uid, gid, mode, "%s%s", prefix, name);
+	error = make_dev_p(flags, &dev, &ttydev_cdevsw, cred, uid, gid, mode,
+	    "%s%s", prefix, name);
+	if (error)
+		return (error);
 	dev->si_drv1 = tp;
 	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
+	init = lock = cua = cinit = clock = NULL;
+
 	/* Slave call-in devices. */
 	if (tp->t_flags & TF_INITLOCK) {
-		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_INIT, cred,
-		    uid, gid, mode, "%s%s.init", prefix, name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
-		dev->si_drv2 = &tp->t_termios_init_in;
+		error = make_dev_p(flags, &init, &ttyil_cdevsw, cred, uid,
+		    gid, mode, "%s%s.init", prefix, name);
+		if (error)
+			goto fail;
+		dev_depends(dev, init);
+		dev2unit(init) = TTYUNIT_INIT;
+		init->si_drv1 = tp;
+		wakeup(&init->si_drv1);
+		init->si_drv2 = &tp->t_termios_init_in;
 
-		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_LOCK, cred,
-		    uid, gid, mode, "%s%s.lock", prefix, name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
-		dev->si_drv2 = &tp->t_termios_lock_in;
+		error = make_dev_p(flags, &lock, &ttyil_cdevsw, cred, uid,
+		    gid, mode, "%s%s.lock", prefix, name);
+		if (error)
+			goto fail;
+		dev_depends(dev, lock);
+		dev2unit(lock) = TTYUNIT_LOCK;
+		lock->si_drv1 = tp;
+		wakeup(&lock->si_drv1);
+		lock->si_drv2 = &tp->t_termios_lock_in;
 	}
 
 	/* Call-out devices. */
 	if (tp->t_flags & TF_CALLOUT) {
-		dev = make_dev_cred(&ttydev_cdevsw, TTYUNIT_CALLOUT, cred,
+		error = make_dev_p(flags, &cua, &ttydev_cdevsw, cred,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
-		dev_depends(tp->t_dev, dev);
-		dev->si_drv1 = tp;
-		wakeup(&dev->si_drv1);
+		if (error)
+			goto fail;
+		dev_depends(dev, cua);
+		dev2unit(cua) = TTYUNIT_CALLOUT;
+		cua->si_drv1 = tp;
+		wakeup(&cua->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw,
-			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
+			error = make_dev_p(flags, &cinit, &ttyil_cdevsw, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
-			dev_depends(tp->t_dev, dev);
-			dev->si_drv1 = tp;
-			wakeup(&dev->si_drv1);
-			dev->si_drv2 = &tp->t_termios_init_out;
+			if (error)
+				goto fail;
+			dev_depends(dev, cinit);
+			dev2unit(cinit) = TTYUNIT_CALLOUT | TTYUNIT_INIT;
+			cinit->si_drv1 = tp;
+			wakeup(&cinit->si_drv1);
+			cinit->si_drv2 = &tp->t_termios_init_out;
 
-			dev = make_dev_cred(&ttyil_cdevsw,
-			    TTYUNIT_CALLOUT | TTYUNIT_LOCK, cred,
+			error = make_dev_p(flags, &clock, &ttyil_cdevsw, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
-			dev_depends(tp->t_dev, dev);
-			dev->si_drv1 = tp;
-			wakeup(&dev->si_drv1);
-			dev->si_drv2 = &tp->t_termios_lock_out;
+			if (error)
+				goto fail;
+			dev_depends(dev, clock);
+			dev2unit(clock) = TTYUNIT_CALLOUT | TTYUNIT_LOCK;
+			clock->si_drv1 = tp;
+			wakeup(&clock->si_drv1);
+			clock->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
+
+	sx_xlock(&tty_list_sx);
+	TAILQ_INSERT_TAIL(&tty_list, tp, t_list);
+	tty_list_count++;
+	sx_xunlock(&tty_list_sx);
+
+	return (0);
+
+fail:
+	destroy_dev(dev);
+	if (init)
+		destroy_dev(init);
+	if (lock)
+		destroy_dev(lock);
+	if (cinit)
+		destroy_dev(cinit);
+	if (clock)
+		destroy_dev(clock);
+
+	return (error);
 }
 
 /*

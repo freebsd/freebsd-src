@@ -34,6 +34,7 @@
 
 #include <sys/queue.h>
 #include <sys/_lock.h>
+#include <sys/ktr_class.h>
 
 struct lock_list_entry;
 struct thread;
@@ -123,7 +124,7 @@ struct lock_class {
  * calling conventions for this debugging code in modules so that modules can
  * work with both debug and non-debug kernels.
  */
-#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(KTR) || defined(LOCK_PROFILING)
+#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(LOCK_PROFILING) || (defined(KTR) && (KTR_COMPILE & KTR_LOCK))
 #define	LOCK_DEBUG	1
 #else
 #define	LOCK_DEBUG	0
@@ -177,7 +178,7 @@ struct lock_class {
 
 #define	LOCK_LOG_DESTROY(lo, flags)	LOCK_LOG_INIT(lo, flags)
 
-#define	lock_initalized(lo)	((lo)->lo_flags & LO_INITIALIZED)
+#define	lock_initialized(lo)	((lo)->lo_flags & LO_INITIALIZED)
 
 /*
  * Helpful macros for quickly coming up with assertions with informative

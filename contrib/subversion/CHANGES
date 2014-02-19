@@ -1,3 +1,33 @@
+Version 1.8.5
+(25 November 2013, from /branches/1.8.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.8.5
+
+ User-visible changes:
+  - Client-side bugfixes:
+    * fix externals that point at redirected locations (issues #4428, #4429)
+    * diff: fix assertion with move inside a copy (issue #4444)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: Prevent crashes with some 3rd party modules (r1537360 et al)
+    * mod_dav_svn: canonicalize paths properly (r1542071)
+    * mod_authz_svn: fix crash of mod_authz_svn with invalid config (r1541432)
+    * hotcopy: fix hotcopy losing revprop files in packed repos (issue #4448)
+ 
+  - Other tool improvements and bugfixes:
+    * mod_dontdothat: Fix the uri parser (r1542069 et al)
+
+ Developer-visible changes:
+  - General:
+    * fix compilation with '--enable-optimize' with clang (r1534860)
+    * fix copmpilation with debug build of BDB on Windows (r1501656, r1501702)
+    * fix '--with-openssl' option when building on Windows (r1535139) 
+    * add test to fail when built against broken ZLib (r1537193 et al)
+
+  - Bindings:
+    * swig-rb: fix tests to run without installing on OS X (r1535161)
+    * ctypes-python: build with compiler selected via configure (r1536537)
+
+
 Version 1.8.4
 (29 October 2013, from /branches/1.8.x)
 http://svn.apache.org/repos/asf/subversion/tags/1.8.4
@@ -32,7 +62,7 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.4
     * allow compiling against serf 1.3 and later on Windows (r1517123)
 
   - Bindings:
-    * javahl: canonicalize path for streaFileContent method (r1524869)
+    * javahl: canonicalize path for streamFileContent method (r1524869)
 
 
 Version 1.8.3
@@ -521,6 +551,36 @@ http://svn.apache.org/repos/asf/subversion/tags/1.8.0
     * add missing API functions to Python bindings (r1392038 et al)
     * add missing API functions to JavaHL bindings (issue #4326)
     * fix some reference counting bugs in swig-py bindings (r1464899, r1466524)
+
+
+Version 1.7.14
+(25 Nov 2013, from /branches/1.7.x)
+http://svn.apache.org/repos/asf/subversion/tags/1.7.14
+
+ User-visible changes:
+  - Client- and server-side bugfixes:
+    * fix assertion on urls of the form 'file://./' (r1516806)
+
+  - Client-side bugfixes:
+    * upgrade: fix an assertion when used with pre-1.3 wcs (r1530849)
+    * ra_local: fix error with repository in Windows drive root (r1518184)
+    * fix crash on windows when piped command is interrupted (r1522892)
+    * fix externals that point at redirected locations (issues #4428, #4429)
+    * diff: fix incorrect calculation of changes in some cases (issue #4283)
+    * diff: fix errors with added/deleted targets (issues #4153, #4421)
+
+  - Server-side bugfixes:
+    * mod_dav_svn: Prevent crashes with some 3rd party modules (r1537360 et al)
+    * fix OOM on concurrent requests at threaded server start (r1527103 et al)
+    * fsfs: limit commit time of files with deep change histories (r1536790)
+    * mod_dav_svn: canonicalize paths properly (r1542071)
+
+  - Other tool improvements and bugfixes:
+    * mod_dontdothat: Fix the uri parser (r1542069 et al)
+
+ Developer-visible changes:
+  - Bindings:
+    * javahl: canonicalize path for streamFileContent method (r1524869)
 
 
 Version 1.7.13

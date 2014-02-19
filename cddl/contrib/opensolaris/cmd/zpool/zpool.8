@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 14, 2013
+.Dd December 31, 2013
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -140,6 +140,9 @@
 .Nm
 .Cm remove
 .Ar pool device ...
+.Nm
+.Cm reopen
+.Ar pool
 .Nm
 .Cm replace
 .Op Fl f
@@ -1319,7 +1322,7 @@ The
 .Ar device
 must not be part of an active pool configuration.
 .Bl -tag -width indent
-.It Fl v
+.It Fl f
 Treat exported or foreign devices as inactive.
 .El
 .It Xo
@@ -1429,6 +1432,13 @@ are part of a mirrored configuration can be removed using the
 command. Non-redundant and
 .No raidz
 devices cannot be removed from a pool.
+.It Xo
+.Nm
+.Cm reopen
+.Ar pool
+.Xc
+.Pp
+Reopen all the vdevs associated with the pool.
 .It Xo
 .Nm
 .Cm replace
@@ -1946,3 +1956,9 @@ The
 .Xr mdoc 7
 implementation of this manual page was initially written by
 .An Martin Matuska Aq mm@FreeBSD.org .
+.Sh CAVEATS
+The
+.Cm spare
+feature requires a utility to detect zpool degradation and initiate
+disk replacement within the zpool.
+FreeBSD does not provide such a utility at this time.

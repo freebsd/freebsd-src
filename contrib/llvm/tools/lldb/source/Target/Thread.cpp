@@ -496,7 +496,19 @@ Thread::ThreadStoppedForAReason (void)
 bool
 Thread::CheckpointThreadState (ThreadStateCheckpoint &saved_state)
 {
-    if (!SaveFrameZeroState(saved_state.register_backup))
+    saved_state.register_backup_sp.reset();
+    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
+    if (frame_sp)
+    {
+        lldb::RegisterCheckpointSP reg_checkpoint_sp(new RegisterCheckpoint(RegisterCheckpoint::Reason::eExpression));
+        if (reg_checkpoint_sp)
+        {
+            lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
+            if (reg_ctx_sp && reg_ctx_sp->ReadAllRegisterValues (*reg_checkpoint_sp))
+                saved_state.register_backup_sp = reg_checkpoint_sp;
+        }
+    }
+    if (!saved_state.register_backup_sp)
         return false;
 
     saved_state.stop_info_sp = GetStopInfo();
@@ -511,7 +523,26 @@ Thread::CheckpointThreadState (ThreadStateCheckpoint &saved_state)
 bool
 Thread::RestoreRegisterStateFromCheckpoint (ThreadStateCheckpoint &saved_state)
 {
-    return RestoreSaveFrameZero(saved_state.register_backup);
+    if (saved_state.register_backup_sp)
+    {
+        lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
+        if (frame_sp)
+        {
+            lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
+            if (reg_ctx_sp)
+            {
+                bool ret = reg_ctx_sp->WriteAllRegisterValues (*saved_state.register_backup_sp);
+                
+                // Clear out all stack frames as our world just changed.
+                ClearStackFrames();
+                reg_ctx_sp->InvalidateIfNeeded(true);
+                if (m_unwinder_ap.get())
+                    m_unwinder_ap->Clear();
+                return ret;
+            }
+        }
+    }
+    return false;
 }
 
 bool
@@ -1419,14 +1450,6 @@ Thread::QueueThreadPlanForStepInRange
 
 
 ThreadPlanSP
-Thread::QueueThreadPlanForStepOverBreakpointPlan (bool abort_other_plans)
-{
-    ThreadPlanSP thread_plan_sp (new ThreadPlanStepOverBreakpoint (*this));
-    QueueThreadPlan (thread_plan_sp, abort_other_plans);
-    return thread_plan_sp;
-}
-
-ThreadPlanSP
 Thread::QueueThreadPlanForStepOut 
 (
     bool abort_other_plans, 
@@ -1464,25 +1487,6 @@ Thread::QueueThreadPlanForStepThrough (StackID &return_stack_id, bool abort_othe
     if (!thread_plan_sp || !thread_plan_sp->ValidatePlan (NULL))
         return ThreadPlanSP();
 
-    QueueThreadPlan (thread_plan_sp, abort_other_plans);
-    return thread_plan_sp;
-}
-
-ThreadPlanSP
-Thread::QueueThreadPlanForCallFunction (bool abort_other_plans,
-                                        Address& function,
-                                        lldb::addr_t arg,
-                                        bool stop_other_threads,
-                                        bool unwind_on_error,
-                                        bool ignore_breakpoints)
-{
-    ThreadPlanSP thread_plan_sp (new ThreadPlanCallFunction (*this,
-                                                             function,
-                                                             ClangASTType(),
-                                                             arg,
-                                                             stop_other_threads,
-                                                             unwind_on_error,
-                                                             ignore_breakpoints));
     QueueThreadPlan (thread_plan_sp, abort_other_plans);
     return thread_plan_sp;
 }
@@ -1991,48 +1995,6 @@ Thread::GetStackFrameStatus (Stream& strm,
                                            num_frames,
                                            show_frame_info,
                                            num_frames_with_source);
-}
-
-bool
-Thread::SaveFrameZeroState (RegisterCheckpoint &checkpoint)
-{
-    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
-    if (frame_sp)
-    {
-        checkpoint.SetStackID(frame_sp->GetStackID());
-        lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
-        if (reg_ctx_sp)
-            return reg_ctx_sp->ReadAllRegisterValues (checkpoint.GetData());
-    }
-    return false;
-}
-
-bool
-Thread::RestoreSaveFrameZero (const RegisterCheckpoint &checkpoint)
-{
-    return ResetFrameZeroRegisters (checkpoint.GetData());
-}
-
-bool
-Thread::ResetFrameZeroRegisters (lldb::DataBufferSP register_data_sp)
-{
-    lldb::StackFrameSP frame_sp(GetStackFrameAtIndex (0));
-    if (frame_sp)
-    {
-        lldb::RegisterContextSP reg_ctx_sp (frame_sp->GetRegisterContext());
-        if (reg_ctx_sp)
-        {
-            bool ret = reg_ctx_sp->WriteAllRegisterValues (register_data_sp);
-
-            // Clear out all stack frames as our world just changed.
-            ClearStackFrames();
-            reg_ctx_sp->InvalidateIfNeeded(true);
-            if (m_unwinder_ap.get())
-                m_unwinder_ap->Clear();
-            return ret;
-        }
-    }
-    return false;
 }
 
 Unwind *

@@ -11,8 +11,7 @@ SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
 	COFFDump.cpp \
 	ELFDump.cpp \
-	MachODump.cpp \
-	MCFunction.cpp
+	MachODump.cpp
 
 LIBDEPS=llvmmcdisassembler \
 	llvmdebuginfo \
@@ -29,6 +28,7 @@ LIBDEPS=llvmmcdisassembler \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
 	llvmpowerpccodegen \
+	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \

@@ -1,5 +1,3 @@
-/*	$FreeBSD$	*/
-
 /*-
  * Copyright (c) 2004-2006
  *      Damien Bergamini <damien.bergamini@free.fr>. All rights reserved.
@@ -187,7 +185,7 @@ static device_method_t ipw_methods[] = {
 	DEVMETHOD(device_suspend,	ipw_suspend),
 	DEVMETHOD(device_resume,	ipw_resume),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ipw_driver = {
@@ -198,7 +196,7 @@ static driver_t ipw_driver = {
 
 static devclass_t ipw_devclass;
 
-DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, 0, 0);
+DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, NULL, NULL);
 
 MODULE_VERSION(ipw, 1);
 
@@ -211,15 +209,13 @@ ipw_probe(device_t dev)
 		if (pci_get_vendor(dev) == ident->vendor &&
 		    pci_get_device(dev) == ident->device) {
 			device_set_desc(dev, ident->name);
-			return 0;
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return ENXIO;
 }
 
 /* Base Address Register */
-#define IPW_PCI_BAR0	0x10
-
 static int
 ipw_attach(device_t dev)
 {
@@ -239,20 +235,13 @@ ipw_attach(device_t dev)
 	TASK_INIT(&sc->sc_init_task, 0, ipw_init_task, sc);
 	callout_init_mtx(&sc->sc_wdtimer, &sc->sc_mtx, 0);
 
-	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
-		device_printf(dev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(dev));
-		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
-	}
-
 	pci_write_config(dev, 0x41, 0, 1);
 
 	/* enable bus-mastering */
 	pci_enable_busmaster(dev);
 
-	sc->mem_rid = IPW_PCI_BAR0;
-	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->mem_rid,
-	    RF_ACTIVE);
+	i = PCIR_BAR(0);
+	sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &i, RF_ACTIVE);
 	if (sc->mem == NULL) {
 		device_printf(dev, "could not allocate memory resource\n");
 		goto fail;
@@ -261,8 +250,8 @@ ipw_attach(device_t dev)
 	sc->sc_st = rman_get_bustag(sc->mem);
 	sc->sc_sh = rman_get_bushandle(sc->mem);
 
-	sc->irq_rid = 0;
-	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &sc->irq_rid,
+	i = 0;
+	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq == NULL) {
 		device_printf(dev, "could not allocate interrupt resource\n");
@@ -387,9 +376,10 @@ fail4:
 fail3:
 	ipw_release(sc);
 fail2:
-	bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq), sc->irq);
 fail1:
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->mem),
+	    sc->mem);
 fail:
 	mtx_destroy(&sc->sc_mtx);
 	return ENXIO;
@@ -402,6 +392,8 @@ ipw_detach(device_t dev)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 
+	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
+
 	ieee80211_draintask(ic, &sc->sc_init_task);
 	ipw_stop(sc);
 
@@ -411,10 +403,10 @@ ipw_detach(device_t dev)
 
 	ipw_release(sc);
 
-	bus_teardown_intr(dev, sc->irq, sc->sc_ih);
-	bus_release_resource(dev, SYS_RES_IRQ, sc->irq_rid, sc->irq);
+	bus_release_resource(dev, SYS_RES_IRQ, rman_get_rid(sc->irq), sc->irq);
 
-	bus_release_resource(dev, SYS_RES_MEMORY, sc->mem_rid, sc->mem);
+	bus_release_resource(dev, SYS_RES_MEMORY, rman_get_rid(sc->mem),
+	    sc->mem);
 
 	if_free(ifp);
 
@@ -1605,7 +1597,7 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 
 	wh = mtod(m0, struct ieee80211_frame *);
 
-	if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
+	if (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) {
 		k = ieee80211_crypto_encap(ni, m0);
 		if (k == NULL) {
 			m_freem(m0);
@@ -1629,7 +1621,7 @@ ipw_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni)
 
 	shdr->hdr.type = htole32(IPW_HDR_TYPE_SEND);
 	shdr->hdr.subtype = 0;
-	shdr->hdr.encrypted = (wh->i_fc[1] & IEEE80211_FC1_WEP) ? 1 : 0;
+	shdr->hdr.encrypted = (wh->i_fc[1] & IEEE80211_FC1_PROTECTED) ? 1 : 0;
 	shdr->hdr.encrypt = 0;
 	shdr->hdr.keyidx = 0;
 	shdr->hdr.keysz = 0;

@@ -393,7 +393,7 @@ main(int argc, char *argv[])
 		if (path_dhclient_pidfile == NULL)
 			error("asprintf");
 	}
-	pidfile = pidfile_open(path_dhclient_pidfile, 0600, &otherpid);
+	pidfile = pidfile_open(path_dhclient_pidfile, 0644, &otherpid);
 	if (pidfile == NULL) {
 		if (errno == EEXIST)
 			error("dhclient already running, pid: %d.", otherpid);
@@ -494,7 +494,7 @@ main(int argc, char *argv[])
 		add_protocol("AF_ROUTE", routefd, routehandler, ifi);
 	if (shutdown(routefd, SHUT_WR) < 0)
 		error("can't shutdown route socket: %m");
-	cap_rights_init(&rights, CAP_POLL_EVENT, CAP_READ);
+	cap_rights_init(&rights, CAP_EVENT, CAP_READ);
 	if (cap_rights_limit(routefd, &rights) < 0 && errno != ENOSYS)
 		error("can't limit route socket: %m");
 

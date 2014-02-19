@@ -20,11 +20,41 @@
         ..
     ..
     tests
+        bin
+            date
+            ..
+            mv
+            ..
+            pax
+            ..
+            sh
+                builtins
+                ..
+                errors
+                ..
+                execution
+                ..
+                expansion
+                ..
+                parameters
+                ..
+                parser
+                ..
+                set-e
+                ..
+            ..
+            test
+            ..
+        ..
         lib
             atf
                 libatf-c
+                    detail
+                    ..
                 ..
                 libatf-c++
+                    detail
+                    ..
                 ..
                 test-programs
                 ..
@@ -46,6 +76,10 @@
                     plain
                     ..
                 ..
+            ..
+        ..
+        sys
+            kern
             ..
         ..
         usr.bin

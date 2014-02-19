@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.31 2013/07/16 00:07:52 schwarze Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.33 2013/12/07 11:58:46 naddy Exp $
 .\"	$FreeBSD$
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
@@ -7,7 +7,7 @@
 .\" permitted provided that due credit is given to the author and the
 .\" OpenBSD project by leaving this copyright notice intact.
 .\"
-.Dd July 16, 2013
+.Dd December 7, 2013
 .Dt SSH-KEYSCAN 1
 .Os
 .Sh NAME
@@ -90,7 +90,8 @@ The possible values are
 .Dq rsa1
 for protocol version 1 and
 .Dq dsa ,
-.Dq ecdsa
+.Dq ecdsa ,
+.Dq ed25519 ,
 or
 .Dq rsa
 for protocol version 2.
@@ -138,6 +139,7 @@ is either
 .Dq ecdsa-sha2-nistp256 ,
 .Dq ecdsa-sha2-nistp384 ,
 .Dq ecdsa-sha2-nistp521 ,
+.Dq ssh-ed25519 ,
 .Dq ssh-dss
 or
 .Dq ssh-rsa .

@@ -554,7 +554,7 @@ m_dup_pkthdr(struct mbuf *to, struct mbuf *from, int how)
 		to->m_data = to->m_pktdat;
 	to->m_pkthdr = from->m_pkthdr;
 	SLIST_INIT(&to->m_pkthdr.tags);
-	return (m_tag_copy_chain(to, from, MBTOM(how)));
+	return (m_tag_copy_chain(to, from, how));
 }
 
 /*
