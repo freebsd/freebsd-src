@@ -76,6 +76,12 @@ struct arswitch_softc {
 
 		/* Port functions */
 		void (* arswitch_port_init) (struct arswitch_softc *, int);
+
+		/* VLAN functions */
+		int (* arswitch_port_vlan_setup) (struct arswitch_softc *,
+		    etherswitch_port_t *);
+		int (* arswitch_port_vlan_get) (struct arswitch_softc *,
+		    etherswitch_port_t *);
 	} hal;
 };
 
