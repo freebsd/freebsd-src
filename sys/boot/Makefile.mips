@@ -3,5 +3,3 @@
 .if ${MK_FDT} != "no"
 SUBDIR+=		fdt
 .endif
-
-#SUBDIR+=		uboot
