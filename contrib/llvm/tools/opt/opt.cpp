@@ -136,6 +136,21 @@ UnitAtATime("funit-at-a-time",
             cl::init(true));
 
 static cl::opt<bool>
+DisableLoopUnrolling("disable-loop-unrolling",
+                     cl::desc("Disable loop unrolling in all relevant passes"),
+                     cl::init(false));
+static cl::opt<bool>
+DisableLoopVectorization("disable-loop-vectorization",
+                     cl::desc("Disable the loop vectorization pass"),
+                     cl::init(false));
+
+static cl::opt<bool>
+DisableSLPVectorization("disable-slp-vectorization",
+                        cl::desc("Disable the slp vectorization pass"),
+                        cl::init(false));
+
+
+static cl::opt<bool>
 DisableSimplifyLibCalls("disable-simplify-libcalls",
                         cl::desc("Disable simplify-libcalls"));
 
@@ -362,6 +377,7 @@ char BasicBlockPassPrinter::ID = 0;
 struct BreakpointPrinter : public ModulePass {
   raw_ostream &Out;
   static char ID;
+  DITypeIdentifierMap TypeIdentifierMap;
 
   BreakpointPrinter(raw_ostream &out)
     : ModulePass(ID), Out(out) {
@@ -377,20 +393,28 @@ struct BreakpointPrinter : public ModulePass {
     } else if (Context.isType()) {
       DIType TY(Context);
       if (!TY.getName().empty()) {
-        getContextName(TY.getContext(), N);
+        getContextName(TY.getContext().resolve(TypeIdentifierMap), N);
         N = N + TY.getName().str() + "::";
       }
     }
   }
 
   virtual bool runOnModule(Module &M) {
+    TypeIdentifierMap.clear();
+    NamedMDNode *CU_Nodes = M.getNamedMetadata("llvm.dbg.cu");
+    if (CU_Nodes)
+      TypeIdentifierMap = generateDITypeIdentifierMap(CU_Nodes);
+
     StringSet<> Processed;
     if (NamedMDNode *NMD = M.getNamedMetadata("llvm.dbg.sp"))
       for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
         std::string Name;
         DISubprogram SP(NMD->getOperand(i));
-        if (SP.Verify())
-          getContextName(SP.getContext(), Name);
+        assert((!SP || SP.isSubprogram()) &&
+          "A MDNode in llvm.dbg.sp should be null or a DISubprogram.");
+        if (!SP)
+          continue;
+        getContextName(SP.getContext().resolve(TypeIdentifierMap), Name);
         Name = Name + SP.getDisplayName().str();
         if (!Name.empty() && Processed.insert(Name)) {
           Out << Name << "\n";
@@ -403,7 +427,7 @@ struct BreakpointPrinter : public ModulePass {
     AU.setPreservesAll();
   }
 };
- 
+
 } // anonymous namespace
 
 char BreakpointPrinter::ID = 0;
@@ -444,9 +468,14 @@ static void AddOptimizationPasses(PassManagerBase &MPM,FunctionPassManager &FPM,
     Builder.Inliner = createAlwaysInlinerPass();
   }
   Builder.DisableUnitAtATime = !UnitAtATime;
-  Builder.DisableUnrollLoops = OptLevel == 0;
-  Builder.DisableSimplifyLibCalls = DisableSimplifyLibCalls;
-  
+  Builder.DisableUnrollLoops = (DisableLoopUnrolling.getNumOccurrences() > 0) ?
+                               DisableLoopUnrolling : OptLevel == 0;
+
+  Builder.LoopVectorize =
+      DisableLoopVectorization ? false : OptLevel > 1 && SizeLevel < 2;
+  Builder.SLPVectorize =
+      DisableSLPVectorization ? false : OptLevel > 1 && SizeLevel < 2;
+
   Builder.populateFunctionPassManager(FPM);
   Builder.populateModulePassManager(MPM);
 }
@@ -465,7 +494,6 @@ static void AddStandardCompilePasses(PassManagerBase &PM) {
   if (!DisableInline)
     Builder.Inliner = createFunctionInliningPass();
   Builder.OptLevel = 3;
-  Builder.DisableSimplifyLibCalls = DisableSimplifyLibCalls;
   Builder.populateModulePassManager(PM);
 }
 
@@ -490,7 +518,6 @@ static TargetOptions GetTargetOptions() {
   TargetOptions Options;
   Options.LessPreciseFPMADOption = EnableFPMAD;
   Options.NoFramePointerElim = DisableFPElim;
-  Options.NoFramePointerElimNonLeaf = DisableFPElimNonLeaf;
   Options.AllowFPOpFusion = FuseFPOps;
   Options.UnsafeFPMath = EnableUnsafeFPMath;
   Options.NoInfsFPMath = EnableNoInfsFPMath;
@@ -504,12 +531,10 @@ static TargetOptions GetTargetOptions() {
   Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
   Options.DisableTailCalls = DisableTailCalls;
   Options.StackAlignmentOverride = OverrideStackAlignment;
-  Options.RealignStack = EnableRealignStack;
   Options.TrapFuncName = TrapFuncName;
   Options.PositionIndependentExecutable = EnablePIE;
   Options.EnableSegmentedStacks = SegmentedStacks;
   Options.UseInitArray = UseInitArray;
-  Options.SSPBufferSize = SSPBufferSize;
   return Options;
 }
 
@@ -567,6 +592,7 @@ int main(int argc, char **argv) {
   // Initialize passes
   PassRegistry &Registry = *PassRegistry::getPassRegistry();
   initializeCore(Registry);
+  initializeDebugIRPass(Registry);
   initializeScalarOpts(Registry);
   initializeObjCARCOpts(Registry);
   initializeVectorization(Registry);
@@ -614,7 +640,7 @@ int main(int argc, char **argv) {
 
     std::string ErrorInfo;
     Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
-                                   raw_fd_ostream::F_Binary));
+                                   sys::fs::F_Binary));
     if (!ErrorInfo.empty()) {
       errs() << ErrorInfo << '\n';
       return 1;
@@ -667,6 +693,9 @@ int main(int argc, char **argv) {
     FPasses.reset(new FunctionPassManager(M.get()));
     if (TD)
       FPasses->add(new DataLayout(*TD));
+    if (TM.get())
+      TM->addAnalysisPasses(*FPasses);
+
   }
 
   if (PrintBreakpoints) {
@@ -677,7 +706,7 @@ int main(int argc, char **argv) {
 
       std::string ErrorInfo;
       Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
-                                     raw_fd_ostream::F_Binary));
+                                     sys::fs::F_Binary));
       if (!ErrorInfo.empty()) {
         errs() << ErrorInfo << '\n';
         return 1;

@@ -1056,10 +1056,10 @@ initarm(struct arm_boot_params *abp)
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
-		while (1);
+		panic("Cannot install FDT");
 
 	if (OF_init((void *)dtbp) != 0)
-		while (1);
+		panic("OF_init failed with the found device tree");
 
 	/* Grab physical memory regions information from device tree. */
 	if (fdt_get_mem_regions(mem_regions, &mem_regions_sz, &memsize) != 0)

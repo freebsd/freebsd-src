@@ -42,6 +42,7 @@
 #include "llvm/CodeGen/MachineMemOperand.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/SlotIndexes.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/IR/Function.h"
@@ -169,7 +170,7 @@ private:
   /// slots to use the joint slots.
   void remapInstructions(DenseMap<int, int> &SlotRemap);
 
-  /// The input program may contain intructions which are not inside lifetime
+  /// The input program may contain instructions which are not inside lifetime
   /// markers. This can happen due to a bug in the compiler or due to a bug in
   /// user code (for example, returning a reference to a local variable).
   /// This procedure checks all of the instructions in the function and
@@ -309,9 +310,9 @@ void StackColoring::calculateLocalLiveness() {
 
     SmallPtrSet<const MachineBasicBlock*, 8> NextBBSet;
 
-    for (SmallVector<const MachineBasicBlock*, 8>::iterator
-         PI = BasicBlockNumbering.begin(), PE = BasicBlockNumbering.end();
-         PI != PE; ++PI) {
+    for (SmallVectorImpl<const MachineBasicBlock *>::iterator
+           PI = BasicBlockNumbering.begin(), PE = BasicBlockNumbering.end();
+           PI != PE; ++PI) {
 
       const MachineBasicBlock *BB = *PI;
       if (!BBSet.count(BB)) continue;
@@ -428,17 +429,14 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
     }
 
     // Create the interval of the blocks that we previously found to be 'alive'.
-    BitVector Alive = BlockLiveness[MBB].LiveIn;
-    Alive |= BlockLiveness[MBB].LiveOut;
-
-    if (Alive.any()) {
-      for (int pos = Alive.find_first(); pos != -1;
-           pos = Alive.find_next(pos)) {
-        if (!Starts[pos].isValid())
-          Starts[pos] = Indexes->getMBBStartIdx(MBB);
-        if (!Finishes[pos].isValid())
-          Finishes[pos] = Indexes->getMBBEndIdx(MBB);
-      }
+    BlockLifetimeInfo &MBBLiveness = BlockLiveness[MBB];
+    for (int pos = MBBLiveness.LiveIn.find_first(); pos != -1;
+         pos = MBBLiveness.LiveIn.find_next(pos)) {
+      Starts[pos] = Indexes->getMBBStartIdx(MBB);
+    }
+    for (int pos = MBBLiveness.LiveOut.find_first(); pos != -1;
+         pos = MBBLiveness.LiveOut.find_next(pos)) {
+      Finishes[pos] = Indexes->getMBBEndIdx(MBB);
     }
 
     for (unsigned i = 0; i < NumSlots; ++i) {
@@ -452,14 +450,14 @@ void StackColoring::calculateLiveIntervals(unsigned NumSlots) {
       SlotIndex F = Finishes[i];
       if (S < F) {
         // We have a single consecutive region.
-        Intervals[i]->addRange(LiveRange(S, F, ValNum));
+        Intervals[i]->addSegment(LiveInterval::Segment(S, F, ValNum));
       } else {
         // We have two non consecutive regions. This happens when
         // LIFETIME_START appears after the LIFETIME_END marker.
         SlotIndex NewStart = Indexes->getMBBStartIdx(MBB);
         SlotIndex NewFin = Indexes->getMBBEndIdx(MBB);
-        Intervals[i]->addRange(LiveRange(NewStart, F, ValNum));
-        Intervals[i]->addRange(LiveRange(S, NewFin, ValNum));
+        Intervals[i]->addSegment(LiveInterval::Segment(NewStart, F, ValNum));
+        Intervals[i]->addSegment(LiveInterval::Segment(S, NewFin, ValNum));
       }
     }
   }
@@ -526,6 +524,10 @@ void StackColoring::remapInstructions(DenseMap<int, int> &SlotRemap) {
         const Value *V = MMO->getValue();
 
         if (!V)
+          continue;
+
+        const PseudoSourceValue *PSV = dyn_cast<const PseudoSourceValue>(V);
+        if (PSV && PSV->isConstant(MFI))
           continue;
 
         // Climb up and find the original alloca.
@@ -761,7 +763,7 @@ bool StackColoring::runOnMachineFunction(MachineFunction &Func) {
         // Merge disjoint slots.
         if (!First->overlaps(*Second)) {
           Changed = true;
-          First->MergeRangesInAsValue(*Second, First->getValNumInfo(0));
+          First->MergeSegmentsInAsValue(*Second, First->getValNumInfo(0));
           SlotRemap[SecondSlot] = FirstSlot;
           SortedSlots[J] = -1;
           DEBUG(dbgs()<<"Merging #"<<FirstSlot<<" and slots #"<<

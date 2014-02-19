@@ -154,7 +154,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
   // Ensure that the alloca array size argument has type intptr_t, so that
   // any casting is exposed early.
   if (TD) {
-    Type *IntPtrTy = TD->getIntPtrType(AI.getContext());
+    Type *IntPtrTy = TD->getIntPtrType(AI.getType());
     if (AI.getArraySize()->getType() != IntPtrTy) {
       Value *V = Builder->CreateIntCast(AI.getArraySize(),
                                         IntPtrTy, false);
@@ -180,12 +180,13 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
       // Now that I is pointing to the first non-allocation-inst in the block,
       // insert our getelementptr instruction...
       //
-      Value *NullIdx =Constant::getNullValue(Type::getInt32Ty(AI.getContext()));
-      Value *Idx[2];
-      Idx[0] = NullIdx;
-      Idx[1] = NullIdx;
+      Type *IdxTy = TD
+                  ? TD->getIntPtrType(AI.getType())
+                  : Type::getInt64Ty(AI.getContext());
+      Value *NullIdx = Constant::getNullValue(IdxTy);
+      Value *Idx[2] = { NullIdx, NullIdx };
       Instruction *GEP =
-           GetElementPtrInst::CreateInBounds(New, Idx, New->getName()+".sub");
+        GetElementPtrInst::CreateInBounds(New, Idx, New->getName() + ".sub");
       InsertNewInstBefore(GEP, *It);
 
       // Now make everything use the getelementptr instead of the original
@@ -262,9 +263,9 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
         for (unsigned i = 0, e = ToDelete.size(); i != e; ++i)
           EraseInstFromFunction(*ToDelete[i]);
         Constant *TheSrc = cast<Constant>(Copy->getSource());
-        Instruction *NewI
-          = ReplaceInstUsesWith(AI, ConstantExpr::getBitCast(TheSrc,
-                                                             AI.getType()));
+        Constant *Cast
+          = ConstantExpr::getPointerBitCastOrAddrSpaceCast(TheSrc, AI.getType());
+        Instruction *NewI = ReplaceInstUsesWith(AI, Cast);
         EraseInstFromFunction(*Copy);
         ++NumGlobalCopies;
         return NewI;
@@ -302,9 +303,11 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
       if (ArrayType *ASrcTy = dyn_cast<ArrayType>(SrcPTy))
         if (Constant *CSrc = dyn_cast<Constant>(CastOp))
           if (ASrcTy->getNumElements() != 0) {
-            Value *Idxs[2];
-            Idxs[0] = Constant::getNullValue(Type::getInt32Ty(LI.getContext()));
-            Idxs[1] = Idxs[0];
+            Type *IdxTy = TD
+                        ? TD->getIntPtrType(SrcTy)
+                        : Type::getInt64Ty(SrcTy->getContext());
+            Value *Idx = Constant::getNullValue(IdxTy);
+            Value *Idxs[2] = { Idx, Idx };
             CastOp = ConstantExpr::getGetElementPtr(CSrc, Idxs);
             SrcTy = cast<PointerType>(CastOp->getType());
             SrcPTy = SrcTy->getElementType();
@@ -315,7 +318,8 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
             SrcPTy->isVectorTy()) &&
           // Do not allow turning this into a load of an integer, which is then
           // casted to a pointer, this pessimizes pointer analysis a lot.
-          (SrcPTy->isPointerTy() == LI.getType()->isPointerTy()) &&
+          (SrcPTy->isPtrOrPtrVectorTy() ==
+           LI.getType()->isPtrOrPtrVectorTy()) &&
           IC.getDataLayout()->getTypeSizeInBits(SrcPTy) ==
                IC.getDataLayout()->getTypeSizeInBits(DestPTy)) {
 

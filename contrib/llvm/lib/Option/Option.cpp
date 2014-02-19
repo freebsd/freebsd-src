@@ -22,12 +22,17 @@ using namespace llvm::opt;
 Option::Option(const OptTable::Info *info, const OptTable *owner)
   : Info(info), Owner(owner) {
 
-  // Multi-level aliases are not supported, and alias options cannot
-  // have groups. This just simplifies option tracking, it is not an
-  // inherent limitation.
-  assert((!Info || !getAlias().isValid() || (!getAlias().getAlias().isValid() &&
-         !getGroup().isValid())) &&
-         "Multi-level aliases and aliases with groups are unsupported.");
+  // Multi-level aliases are not supported. This just simplifies option
+  // tracking, it is not an inherent limitation.
+  assert((!Info || !getAlias().isValid() || !getAlias().getAlias().isValid()) &&
+         "Multi-level aliases are not supported.");
+
+  if (Info && getAliasArgs()) {
+    assert(getAlias().isValid() && "Only alias options can have alias args.");
+    assert(getKind() == FlagClass && "Only Flag aliases can have alias args.");
+    assert(getAlias().getKind() != FlagClass &&
+           "Cannot provide alias args to a flag option.");
+  }
 }
 
 Option::~Option() {
@@ -47,14 +52,17 @@ void Option::dump() const {
     P(MultiArgClass);
     P(JoinedOrSeparateClass);
     P(JoinedAndSeparateClass);
+    P(RemainingArgsClass);
 #undef P
   }
 
-  llvm::errs() << " Prefixes:[";
-  for (const char * const *Pre = Info->Prefixes; *Pre != 0; ++Pre) {
-    llvm::errs() << '"' << *Pre << (*(Pre + 1) == 0 ? "\"" : "\", ");
+  if (Info->Prefixes) {
+    llvm::errs() << " Prefixes:[";
+    for (const char * const *Pre = Info->Prefixes; *Pre != 0; ++Pre) {
+      llvm::errs() << '"' << *Pre << (*(Pre + 1) == 0 ? "\"" : "\", ");
+    }
+    llvm::errs() << ']';
   }
-  llvm::errs() << ']';
 
   llvm::errs() << " Name:\"" << getName() << '"';
 
@@ -106,11 +114,22 @@ Arg *Option::accept(const ArgList &Args,
   }
 
   switch (getKind()) {
-  case FlagClass:
+  case FlagClass: {
     if (ArgSize != strlen(Args.getArgString(Index)))
       return 0;
 
-    return new Arg(UnaliasedOption, Spelling, Index++);
+    Arg *A = new Arg(UnaliasedOption, Spelling, Index++);
+    if (getAliasArgs()) {
+      const char *Val = getAliasArgs();
+      while (*Val != '\0') {
+        A->getValues().push_back(Val);
+
+        // Move past the '\0' to the next argument.
+        Val += strlen(Val) + 1;
+      }
+    }
+    return A;
+  }
   case JoinedClass: {
     const char *Value = Args.getArgString(Index) + ArgSize;
     return new Arg(UnaliasedOption, Spelling, Index++, Value);
@@ -196,6 +215,16 @@ Arg *Option::accept(const ArgList &Args,
     return new Arg(UnaliasedOption, Spelling, Index - 2,
                    Args.getArgString(Index - 2) + ArgSize,
                    Args.getArgString(Index - 1));
+  case RemainingArgsClass: {
+    // Matches iff this is an exact match.
+    // FIXME: Avoid strlen.
+    if (ArgSize != strlen(Args.getArgString(Index)))
+      return 0;
+    Arg *A = new Arg(UnaliasedOption, Spelling, Index++);
+    while (Index < Args.getNumInputArgStrings())
+      A->getValues().push_back(Args.getArgString(Index++));
+    return A;
+  }
   default:
     llvm_unreachable("Invalid option kind!");
   }

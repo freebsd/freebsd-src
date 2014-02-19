@@ -35,6 +35,7 @@
 #define _NET_NETMAP_KERN_H_
 
 #define WITH_VALE	// comment out to disable VALE support
+#define WITH_PIPES
 
 #if defined(__FreeBSD__)
 
@@ -267,11 +268,11 @@ struct netmap_kring {
 
 	volatile int nkr_stopped;	// XXX what for ?
 
-	/* support for adapters without native netmap support.
+	/* Support for adapters without native netmap support.
 	 * On tx rings we preallocate an array of tx buffers
 	 * (same size as the netmap ring), on rx rings we
-	 * store incoming packets in a queue.
-	 * XXX who writes to the rx queue ?
+	 * store incoming mbufs in a queue that is drained by
+	 * a rxsync.
 	 */
 	struct mbuf **tx_pool;
 	// u_int nr_ntc;		/* Emulation of a next-to-clean RX ring pointer. */
@@ -279,6 +280,13 @@ struct netmap_kring {
 
 	uint32_t	ring_id;	/* debugging */
 	char name[64];			/* diagnostic */
+
+	int (*nm_sync)(struct netmap_kring *kring, int flags);
+
+#ifdef WITH_PIPES
+	struct netmap_kring *pipe;
+	struct netmap_ring *save_ring;
+#endif /* WITH_PIPES */
 
 } __attribute__((__aligned__(64)));
 
@@ -388,6 +396,7 @@ struct netmap_adapter {
 				 * emulated. Where possible (e.g. FreeBSD)
 				 * IFCAP_NETMAP also mirrors this flag.
 				 */
+#define NAF_HOST_RINGS  64	/* the adapter supports the host rings */
 	int active_fds; /* number of user-space descriptors using this
 			 interface, which is equal to the number of
 			 struct netmap_if objs in the mapped region. */
@@ -410,6 +419,9 @@ struct netmap_adapter {
 
 
 	NM_SELINFO_T tx_si, rx_si;	/* global wait queues */
+
+	/* count users of the global wait queues */
+	int tx_si_users, rx_si_users;
 
 	/* copy of if_qflush and if_transmit pointers, to intercept
 	 * packets from the network stack when netmap is active.
@@ -438,9 +450,11 @@ struct netmap_adapter {
 	 *
 	 * nm_config() returns configuration information from the OS
 	 *
-	 * nm_krings_create() XXX
+	 * nm_krings_create() create and init the krings array
+	 * 	(the array layout must conform to the description
+	 * 	found above the definition of netmap_krings_create)
 	 *
-	 * nm_krings_delete() XXX
+	 * nm_krings_delete() cleanup and delete the kring array
 	 *
 	 * nm_notify() is used to act after data have become available.
 	 *	For hw devices this is typically a selwakeup(),
@@ -464,7 +478,6 @@ struct netmap_adapter {
 	void (*nm_krings_delete)(struct netmap_adapter *);
 	int (*nm_notify)(struct netmap_adapter *,
 		u_int ring, enum txrx, int flags);
-#define NAF_GLOBAL_NOTIFY 4
 #define NAF_DISABLE_NOTIFY 8
 
 	/* standard refcount to control the lifetime of the adapter
@@ -484,6 +497,12 @@ struct netmap_adapter {
 	 * from userspace
 	 */
 	void *na_private;
+
+#ifdef WITH_PIPES
+	struct netmap_pipe_adapter **na_pipes;
+	int na_next_pipe;
+	int na_max_pipes;
+#endif /* WITH_PIPES */
 };
 
 
@@ -514,7 +533,10 @@ struct netmap_vp_adapter {	/* VALE software port */
 	struct nm_bridge *na_bdg;
 	int retry;
 
-	u_int offset;   /* Offset of ethernet header for each packet. */
+	/* Offset of ethernet header for each packet. */
+	u_int virt_hdr_len;
+	/* Maximum Frame Size, used in bdg_mismatch_datapath() */
+	u_int mfs;
 };
 
 
@@ -524,6 +546,12 @@ struct netmap_hw_adapter {	/* physical device */
 	struct net_device_ops nm_ndo;	// XXX linux only
 };
 
+/* Mitigation support. */
+struct nm_generic_mit {
+	struct hrtimer mit_timer;
+	int mit_pending;
+	struct netmap_adapter *mit_na;  /* backpointer */
+};
 
 struct netmap_generic_adapter {	/* emulated device */
 	struct netmap_hw_adapter up;
@@ -534,17 +562,28 @@ struct netmap_generic_adapter {	/* emulated device */
 	/* generic netmap adapters support:
 	 * a net_device_ops struct overrides ndo_select_queue(),
 	 * save_if_input saves the if_input hook (FreeBSD),
-	 * mit_timer and mit_pending implement rx interrupt mitigation,
+	 * mit implements rx interrupt mitigation,
 	 */
 	struct net_device_ops generic_ndo;
 	void (*save_if_input)(struct ifnet *, struct mbuf *);
 
-	struct hrtimer mit_timer;
-	int mit_pending;
+	struct nm_generic_mit *mit;
 #ifdef linux
         netdev_tx_t (*save_start_xmit)(struct mbuf *, struct ifnet *);
 #endif
 };
+
+static __inline int
+netmap_real_tx_rings(struct netmap_adapter *na)
+{
+	return na->num_tx_rings + !!(na->na_flags & NAF_HOST_RINGS);
+}
+
+static __inline int
+netmap_real_rx_rings(struct netmap_adapter *na)
+{
+	return na->num_rx_rings + !!(na->na_flags & NAF_HOST_RINGS);
+}
 
 #ifdef WITH_VALE
 
@@ -613,6 +652,25 @@ struct netmap_bwrap_adapter {
 
 
 #endif /* WITH_VALE */
+
+#ifdef WITH_PIPES
+
+#define NM_MAXPIPES 	64	/* max number of pipes per adapter */
+
+struct netmap_pipe_adapter {
+	struct netmap_adapter up;
+
+	u_int id; 	/* pipe identifier */
+	int role;	/* either NR_REG_PIPE_MASTER or NR_REG_PIPE_SLAVE */
+
+	struct netmap_adapter *parent; /* adapter that owns the memory */
+	struct netmap_pipe_adapter *peer; /* the other end of the pipe */
+	int peer_ref;		/* 1 iff we are holding a ref to the peer */
+
+	u_int parent_slot; /* index in the parent pipe array */
+};
+
+#endif /* WITH_PIPES */
 
 
 /* return slots reserved to rx clients; used in drivers */
@@ -767,9 +825,8 @@ uint32_t nm_rxsync_prologue(struct netmap_kring *);
 static inline void
 nm_txsync_finalize(struct netmap_kring *kring)
 {
-	/* update ring head/tail to what the kernel knows */
+	/* update ring tail to what the kernel knows */
 	kring->ring->tail = kring->rtail = kring->nr_hwtail;
-	kring->ring->head = kring->rhead = kring->nr_hwcur;
 	
 	/* note, head/rhead/hwcur might be behind cur/rcur
 	 * if no carrier
@@ -819,14 +876,14 @@ nm_rxsync_finalize(struct netmap_kring *kring)
  * Support routines to be used with the VALE switch
  */
 int netmap_update_config(struct netmap_adapter *na);
-int netmap_krings_create(struct netmap_adapter *na, u_int ntx, u_int nrx, u_int tailroom);
+int netmap_krings_create(struct netmap_adapter *na, u_int tailroom);
 void netmap_krings_delete(struct netmap_adapter *na);
 int netmap_rxsync_from_host(struct netmap_adapter *na, struct thread *td, void *pwait);
 
 
 struct netmap_if *
 netmap_do_regif(struct netmap_priv_d *priv, struct netmap_adapter *na,
-	uint16_t ringid, int *err);
+	uint16_t ringid, uint32_t flags, int *err);
 
 
 
@@ -867,6 +924,20 @@ int netmap_bdg_ctl(struct nmreq *nmr, bdg_lookup_fn_t func);
 #define netmap_init_bridges(_1)
 #define	netmap_bdg_ctl(_1, _2)	EINVAL
 #endif /* !WITH_VALE */
+
+#ifdef WITH_PIPES
+/* max number of pipes per device */
+#define NM_MAXPIPES	64	/* XXX how many? */
+/* in case of no error, returns the actual number of pipes in nmr->nr_arg1 */
+int netmap_pipe_alloc(struct netmap_adapter *, struct nmreq *nmr);
+void netmap_pipe_dealloc(struct netmap_adapter *);
+int netmap_get_pipe_na(struct nmreq *nmr, struct netmap_adapter **na, int create);
+#else /* !WITH_PIPES */
+#define NM_MAXPIPES	0
+#define netmap_pipe_alloc(_1, _2) 	EOPNOTSUPP
+#define netmap_pipe_dealloc(_1)
+#define netmap_get_pipe_na(_1, _2, _3)	0
+#endif
 
 /* Various prototypes */
 int netmap_poll(struct cdev *dev, int events, struct thread *td);
@@ -938,6 +1009,7 @@ enum {                                  /* verbose flags */
 extern int netmap_txsync_retry;
 extern int netmap_generic_mit;
 extern int netmap_generic_ringsize;
+extern int netmap_generic_rings;
 
 /*
  * NA returns a pointer to the struct netmap adapter from the ifp,
@@ -1160,13 +1232,21 @@ struct netmap_priv_d {
 	struct netmap_if * volatile np_nifp;	/* netmap if descriptor. */
 
 	struct netmap_adapter	*np_na;
-	int		np_ringid;	/* from the ioctl */
-	u_int		np_qfirst, np_qlast;	/* range of rings to scan */
-	uint16_t	np_txpoll;
+	uint32_t	np_flags;	/* from the ioctl */
+	u_int		np_txqfirst, np_txqlast; /* range of tx rings to scan */
+	u_int		np_rxqfirst, np_rxqlast; /* range of rx rings to scan */
+	uint16_t	np_txpoll;	/* XXX and also np_rxpoll ? */
 
 	struct netmap_mem_d     *np_mref;	/* use with NMG_LOCK held */
 	/* np_refcount is only used on FreeBSD */
 	int		np_refcount;	/* use with NMG_LOCK held */
+
+	/* pointers to the selinfo to be used for selrecord.
+	 * Either the local or the global one depending on the
+	 * number of rings.
+	 */
+	NM_SELINFO_T *np_rxsi, *np_txsi;
+	struct thread	*np_td;		/* kqueue, just debugging */
 };
 
 
@@ -1188,10 +1268,113 @@ void generic_find_num_queues(struct ifnet *ifp, u_int *txq, u_int *rxq);
  * to reduce the number of interrupt requests/selwakeup
  * to clients on incoming packets.
  */
-void netmap_mitigation_init(struct netmap_generic_adapter *na);
-void netmap_mitigation_start(struct netmap_generic_adapter *na);
-void netmap_mitigation_restart(struct netmap_generic_adapter *na);
-int netmap_mitigation_active(struct netmap_generic_adapter *na);
-void netmap_mitigation_cleanup(struct netmap_generic_adapter *na);
+void netmap_mitigation_init(struct nm_generic_mit *mit, struct netmap_adapter *na);
+void netmap_mitigation_start(struct nm_generic_mit *mit);
+void netmap_mitigation_restart(struct nm_generic_mit *mit);
+int netmap_mitigation_active(struct nm_generic_mit *mit);
+void netmap_mitigation_cleanup(struct nm_generic_mit *mit);
+
+
+
+/* Shared declarations for the VALE switch. */
+
+/*
+ * Each transmit queue accumulates a batch of packets into
+ * a structure before forwarding. Packets to the same
+ * destination are put in a list using ft_next as a link field.
+ * ft_frags and ft_next are valid only on the first fragment.
+ */
+struct nm_bdg_fwd {	/* forwarding entry for a bridge */
+	void *ft_buf;		/* netmap or indirect buffer */
+	uint8_t ft_frags;	/* how many fragments (only on 1st frag) */
+	uint8_t _ft_port;	/* dst port (unused) */
+	uint16_t ft_flags;	/* flags, e.g. indirect */
+	uint16_t ft_len;	/* src fragment len */
+	uint16_t ft_next;	/* next packet to same destination */
+};
+
+/* struct 'virtio_net_hdr' from linux. */
+struct nm_vnet_hdr {
+#define VIRTIO_NET_HDR_F_NEEDS_CSUM     1	/* Use csum_start, csum_offset */
+#define VIRTIO_NET_HDR_F_DATA_VALID    2	/* Csum is valid */
+    uint8_t flags;
+#define VIRTIO_NET_HDR_GSO_NONE         0       /* Not a GSO frame */
+#define VIRTIO_NET_HDR_GSO_TCPV4        1       /* GSO frame, IPv4 TCP (TSO) */
+#define VIRTIO_NET_HDR_GSO_UDP          3       /* GSO frame, IPv4 UDP (UFO) */
+#define VIRTIO_NET_HDR_GSO_TCPV6        4       /* GSO frame, IPv6 TCP */
+#define VIRTIO_NET_HDR_GSO_ECN          0x80    /* TCP has ECN set */
+    uint8_t gso_type;
+    uint16_t hdr_len;
+    uint16_t gso_size;
+    uint16_t csum_start;
+    uint16_t csum_offset;
+};
+
+#define WORST_CASE_GSO_HEADER	(14+40+60)  /* IPv6 + TCP */
+
+/* Private definitions for IPv4, IPv6, UDP and TCP headers. */
+
+struct nm_iphdr {
+	uint8_t		version_ihl;
+	uint8_t		tos;
+	uint16_t	tot_len;
+	uint16_t	id;
+	uint16_t	frag_off;
+	uint8_t		ttl;
+	uint8_t		protocol;
+	uint16_t	check;
+	uint32_t	saddr;
+	uint32_t	daddr;
+	/*The options start here. */
+};
+
+struct nm_tcphdr {
+	uint16_t	source;
+	uint16_t	dest;
+	uint32_t	seq;
+	uint32_t	ack_seq;
+	uint8_t		doff;  /* Data offset + Reserved */
+	uint8_t		flags;
+	uint16_t	window;
+	uint16_t	check;
+	uint16_t	urg_ptr;
+};
+
+struct nm_udphdr {
+	uint16_t	source;
+	uint16_t	dest;
+	uint16_t	len;
+	uint16_t	check;
+};
+
+struct nm_ipv6hdr {
+	uint8_t		priority_version;
+	uint8_t		flow_lbl[3];
+
+	uint16_t	payload_len;
+	uint8_t		nexthdr;
+	uint8_t		hop_limit;
+
+	uint8_t		saddr[16];
+	uint8_t		daddr[16];
+};
+
+/* Type used to store a checksum (in host byte order) that hasn't been
+ * folded yet.
+ */
+#define rawsum_t uint32_t
+
+rawsum_t nm_csum_raw(uint8_t *data, size_t len, rawsum_t cur_sum);
+uint16_t nm_csum_ipv4(struct nm_iphdr *iph);
+void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
+		      size_t datalen, uint16_t *check);
+void nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,
+		      size_t datalen, uint16_t *check);
+uint16_t nm_csum_fold(rawsum_t cur_sum);
+
+void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
+			   struct netmap_vp_adapter *dst_na,
+			   struct nm_bdg_fwd *ft_p, struct netmap_ring *ring,
+			   u_int *j, u_int lim, u_int *howmany);
 
 #endif /* _NET_NETMAP_KERN_H_ */

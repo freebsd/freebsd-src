@@ -201,8 +201,8 @@ void CriticalAntiDepBreaker::PrescanInstruction(MachineInstr *MI) {
 
     if (MO.isUse() && Special) {
       if (!KeepRegs.test(Reg)) {
-        KeepRegs.set(Reg);
-        for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+        for (MCSubRegIterator SubRegs(Reg, TRI, /*IncludeSelf=*/true);
+             SubRegs.isValid(); ++SubRegs)
           KeepRegs.set(*SubRegs);
       }
     }
@@ -361,7 +361,7 @@ findSuitableFreeRegister(RegRefIter RegRefBegin,
                          unsigned AntiDepReg,
                          unsigned LastNewReg,
                          const TargetRegisterClass *RC,
-                         SmallVector<unsigned, 2> &Forbid)
+                         SmallVectorImpl<unsigned> &Forbid)
 {
   ArrayRef<MCPhysReg> Order = RegClassInfo.getOrder(RC);
   for (unsigned i = 0; i != Order.size(); ++i) {
@@ -388,7 +388,7 @@ findSuitableFreeRegister(RegRefIter RegRefBegin,
       continue;
     // If NewReg overlaps any of the forbidden registers, we can't use it.
     bool Forbidden = false;
-    for (SmallVector<unsigned, 2>::iterator it = Forbid.begin(),
+    for (SmallVectorImpl<unsigned>::iterator it = Forbid.begin(),
            ite = Forbid.end(); it != ite; ++it)
       if (TRI->regsOverlap(NewReg, *it)) {
         Forbidden = true;

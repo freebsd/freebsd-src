@@ -28,7 +28,7 @@
 .include <bsd.init.mk>
 
 LIB=		atf-c++
-SHLIB_MAJOR=	1
+SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
 DPADD=		${LIBATFC}
@@ -53,20 +53,16 @@ SRCS=		application.cpp \
 		config.cpp \
 		env.cpp \
 		exceptions.cpp \
-		expand.cpp \
 		fs.cpp \
-		parser.cpp \
 		process.cpp \
 		tests.cpp \
 		text.cpp \
-		ui.cpp \
 		utils.cpp
 
 INCS=		build.hpp \
 		check.hpp \
 		config.hpp \
 		macros.hpp \
-		noncopyable.hpp \
 		tests.hpp \
 		utils.hpp
 INCSDIR=	${INCLUDEDIR}/atf-c++

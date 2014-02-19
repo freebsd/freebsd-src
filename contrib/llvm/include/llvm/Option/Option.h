@@ -50,6 +50,7 @@ public:
     FlagClass,
     JoinedClass,
     SeparateClass,
+    RemainingArgsClass,
     CommaJoinedClass,
     MultiArgClass,
     JoinedOrSeparateClass,
@@ -103,6 +104,16 @@ public:
     return Owner->getOption(Info->AliasID);
   }
 
+  /// \brief Get the alias arguments as a \0 separated list.
+  /// E.g. ["foo", "bar"] would be returned as "foo\0bar\0".
+  const char *getAliasArgs() const {
+    assert(Info && "Must have a valid info!");
+    assert((!Info->AliasArgs || Info->AliasArgs[0] != 0) &&
+           "AliasArgs should be either 0 or non-empty.");
+
+    return Info->AliasArgs;
+  }
+
   /// \brief Get the default prefix for this option.
   StringRef getPrefix() const {
     const char *Prefix = *Info->Prefixes;
@@ -139,6 +150,7 @@ public:
     case SeparateClass:
     case MultiArgClass:
     case JoinedOrSeparateClass:
+    case RemainingArgsClass:
       return RenderSeparateStyle;
     }
     llvm_unreachable("Unexpected kind!");
@@ -179,9 +191,9 @@ public:
   /// Index to the position where argument parsing should resume
   /// (even if the argument is missing values).
   ///
-  /// \parm ArgSize The number of bytes taken up by the matched Option prefix
-  ///               and name. This is used to determine where joined values
-  ///               start.
+  /// \param ArgSize The number of bytes taken up by the matched Option prefix
+  ///                and name. This is used to determine where joined values
+  ///                start.
   Arg *accept(const ArgList &Args, unsigned &Index, unsigned ArgSize) const;
 
   void dump() const;

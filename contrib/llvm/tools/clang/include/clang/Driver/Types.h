@@ -34,7 +34,7 @@ namespace types {
 
   /// getTypeTempSuffix - Return the suffix to use when creating a
   /// temp file of this type, or null if unspecified.
-  const char *getTypeTempSuffix(ID Id);
+  const char *getTypeTempSuffix(ID Id, bool CLMode = false);
 
   /// onlyAssembleType - Should this type only be assembled.
   bool onlyAssembleType(ID Id);
@@ -78,7 +78,7 @@ namespace types {
   /// done for type 'Id'.
   void getCompilationPhases(
     ID Id,
-    llvm::SmallVector<phases::ID, phases::MaxNumberOfPhases> &Phases);
+    llvm::SmallVectorImpl<phases::ID> &Phases);
 
   /// lookupCXXTypeForCType - Lookup CXX input type that corresponds to given
   /// C type (used for clang++ emulation of g++ behaviour)

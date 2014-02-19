@@ -19,6 +19,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/Basic/Builtins.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -155,7 +156,7 @@ public:
       return !(*this == rhs);
     }
 
-    operator bool() const {
+    LLVM_EXPLICIT operator bool() const {
       return *this != const_iterator();
     }
 
@@ -362,6 +363,7 @@ private:
                                       AddStmtChoice asc);
   CFGBlock *VisitCXXCatchStmt(CXXCatchStmt *S);
   CFGBlock *VisitCXXConstructExpr(CXXConstructExpr *C, AddStmtChoice asc);
+  CFGBlock *VisitCXXDeleteExpr(CXXDeleteExpr *DE, AddStmtChoice asc);
   CFGBlock *VisitCXXForRangeStmt(CXXForRangeStmt *S);
   CFGBlock *VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E,
                                        AddStmtChoice asc);
@@ -468,6 +470,10 @@ private:
   }
   void appendAutomaticObjDtor(CFGBlock *B, VarDecl *VD, Stmt *S) {
     B->appendAutomaticObjDtor(VD, S, cfg->getBumpVectorContext());
+  }
+
+  void appendDeleteDtor(CFGBlock *B, CXXRecordDecl *RD, CXXDeleteExpr *DE) {
+    B->appendDeleteDtor(RD, DE, cfg->getBumpVectorContext());
   }
 
   void prependAutomaticObjDtorsWithTerminator(CFGBlock *Blk,
@@ -974,10 +980,23 @@ LocalScope* CFGBuilder::addLocalScopeForVarDecl(VarDecl *VD,
   // Check for const references bound to temporary. Set type to pointee.
   QualType QT = VD->getType();
   if (QT.getTypePtr()->isReferenceType()) {
-    if (!VD->extendsLifetimeOfTemporary())
+    // Attempt to determine whether this declaration lifetime-extends a
+    // temporary.
+    //
+    // FIXME: This is incorrect. Non-reference declarations can lifetime-extend
+    // temporaries, and a single declaration can extend multiple temporaries.
+    // We should look at the storage duration on each nested
+    // MaterializeTemporaryExpr instead.
+    const Expr *Init = VD->getInit();
+    if (!Init)
+      return Scope;
+    if (const ExprWithCleanups *EWC = dyn_cast<ExprWithCleanups>(Init))
+      Init = EWC->getSubExpr();
+    if (!isa<MaterializeTemporaryExpr>(Init))
       return Scope;
 
-    QT = getReferenceInitTemporaryType(*Context, VD->getInit());
+    // Lifetime-extending a temporary.
+    QT = getReferenceInitTemporaryType(*Context, Init);
   }
 
   // Check for constant size array. Set type to array element type.
@@ -1102,6 +1121,9 @@ CFGBlock *CFGBuilder::Visit(Stmt * S, AddStmtChoice asc) {
 
     case Stmt::CXXConstructExprClass:
       return VisitCXXConstructExpr(cast<CXXConstructExpr>(S), asc);
+
+    case Stmt::CXXDeleteExprClass:
+      return VisitCXXDeleteExpr(cast<CXXDeleteExpr>(S), asc);
 
     case Stmt::CXXFunctionalCastExprClass:
       return VisitCXXFunctionalCastExpr(cast<CXXFunctionalCastExpr>(S), asc);
@@ -1449,18 +1471,33 @@ CFGBlock *CFGBuilder::VisitCallExpr(CallExpr *C, AddStmtChoice asc) {
       AddEHEdge = true;
   }
 
+  // If this is a call to a builtin function, it might not actually evaluate
+  // its arguments. Don't add them to the CFG if this is the case.
+  bool OmitArguments = false;
+
   if (FunctionDecl *FD = C->getDirectCallee()) {
     if (FD->isNoReturn())
       NoReturn = true;
     if (FD->hasAttr<NoThrowAttr>())
       AddEHEdge = false;
+    if (FD->getBuiltinID() == Builtin::BI__builtin_object_size)
+      OmitArguments = true;
   }
 
   if (!CanThrow(C->getCallee(), *Context))
     AddEHEdge = false;
 
-  if (!NoReturn && !AddEHEdge)
+  if (OmitArguments) {
+    assert(!NoReturn && "noreturn calls with unevaluated args not implemented");
+    assert(!AddEHEdge && "EH calls with unevaluated args not implemented");
+    autoCreateBlock();
+    appendStmt(Block, C);
+    return Visit(C->getCallee());
+  }
+
+  if (!NoReturn && !AddEHEdge) {
     return VisitStmt(C, asc.withAlwaysAdd(true));
+  }
 
   if (Block) {
     Succ = Block;
@@ -1627,6 +1664,7 @@ CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
     Decl *D = *I;
     void *Mem = cfg->getAllocator().Allocate(sizeof(DeclStmt), A);
     DeclStmt *DSNew = new (Mem) DeclStmt(DG, D->getLocation(), GetEndLoc(D));
+    cfg->addSyntheticDeclStmt(DSNew, DS);
 
     // Append the fake DeclStmt to block.
     B = VisitDeclSubExpr(DSNew);
@@ -1639,19 +1677,11 @@ CFGBlock *CFGBuilder::VisitDeclStmt(DeclStmt *DS) {
 /// DeclStmts and initializers in them.
 CFGBlock *CFGBuilder::VisitDeclSubExpr(DeclStmt *DS) {
   assert(DS->isSingleDecl() && "Can handle single declarations only.");
-  Decl *D = DS->getSingleDecl();
- 
-  if (isa<StaticAssertDecl>(D)) {
-    // static_asserts aren't added to the CFG because they do not impact
-    // runtime semantics.
-    return Block;
-  }
-  
   VarDecl *VD = dyn_cast<VarDecl>(DS->getSingleDecl());
 
   if (!VD) {
-    autoCreateBlock();
-    appendStmt(Block, DS);
+    // Of everything that can be declared in a DeclStmt, only VarDecls impact
+    // runtime semantics.
     return Block;
   }
 
@@ -1869,9 +1899,12 @@ CFGBlock *CFGBuilder::VisitReturnStmt(ReturnStmt *R) {
   // Create the new block.
   Block = createBlock(false);
 
-  // The Exit block is the only successor.
   addAutomaticObjDtors(ScopePos, LocalScope::const_iterator(), R);
-  addSuccessor(Block, &cfg->getExit());
+
+  // If the one of the destructors does not return, we already have the Exit
+  // block as a successor.
+  if (!Block->hasNoReturnElement())
+    addSuccessor(Block, &cfg->getExit());
 
   // Add the return statement to the block.  This may create new blocks if R
   // contains control-flow (short-circuit operations).
@@ -2190,17 +2223,24 @@ CFGBlock *CFGBuilder::VisitObjCForCollectionStmt(ObjCForCollectionStmt *S) {
   // Now create the true branch.
   {
     // Save the current values for Succ, continue and break targets.
-    SaveAndRestore<CFGBlock*> save_Succ(Succ);
+    SaveAndRestore<CFGBlock*> save_Block(Block), save_Succ(Succ);
     SaveAndRestore<JumpTarget> save_continue(ContinueJumpTarget),
-        save_break(BreakJumpTarget);
+                               save_break(BreakJumpTarget);
 
+    // Add an intermediate block between the BodyBlock and the
+    // EntryConditionBlock to represent the "loop back" transition, for looping
+    // back to the head of the loop.
+    CFGBlock *LoopBackBlock = 0;
+    Succ = LoopBackBlock = createBlock();
+    LoopBackBlock->setLoopTarget(S);
+    
     BreakJumpTarget = JumpTarget(LoopSuccessor, ScopePos);
-    ContinueJumpTarget = JumpTarget(EntryConditionBlock, ScopePos);
+    ContinueJumpTarget = JumpTarget(Succ, ScopePos);
 
     CFGBlock *BodyBlock = addStmt(S->getBody());
 
     if (!BodyBlock)
-      BodyBlock = EntryConditionBlock; // can happen for "for (X in Y) ;"
+      BodyBlock = ContinueJumpTarget.block; // can happen for "for (X in Y) ;"
     else if (Block) {
       if (badCFG)
         return 0;
@@ -2679,9 +2719,15 @@ CFGBlock *CFGBuilder::VisitSwitchStmt(SwitchStmt *Terminator) {
   // If we have no "default:" case, the default transition is to the code
   // following the switch body.  Moreover, take into account if all the
   // cases of a switch are covered (e.g., switching on an enum value).
+  //
+  // Note: We add a successor to a switch that is considered covered yet has no
+  //       case statements if the enumeration has no enumerators.
+  bool SwitchAlwaysHasSuccessor = false;
+  SwitchAlwaysHasSuccessor |= switchExclusivelyCovered;
+  SwitchAlwaysHasSuccessor |= Terminator->isAllEnumCasesCovered() &&
+                              Terminator->getSwitchCaseList();
   addSuccessor(SwitchTerminatedBlock,
-               switchExclusivelyCovered || Terminator->isAllEnumCasesCovered()
-               ? 0 : DefaultCaseBlock);
+               SwitchAlwaysHasSuccessor ? 0 : DefaultCaseBlock);
 
   // Add the terminator and condition in the switch block.
   SwitchTerminatedBlock->setTerminator(Terminator);
@@ -3078,6 +3124,22 @@ CFGBlock *CFGBuilder::VisitCXXConstructExpr(CXXConstructExpr *C,
   return VisitChildren(C);
 }
 
+
+CFGBlock *CFGBuilder::VisitCXXDeleteExpr(CXXDeleteExpr *DE,
+                                         AddStmtChoice asc) {
+  autoCreateBlock();
+  appendStmt(Block, DE);
+  QualType DTy = DE->getDestroyedType();
+  DTy = DTy.getNonReferenceType();
+  CXXRecordDecl *RD = Context->getBaseElementType(DTy)->getAsCXXRecordDecl();
+  if (RD) {
+    if (RD->isCompleteDefinition() && !RD->hasTrivialDestructor())
+      appendDeleteDtor(Block, RD, DE);
+  }
+
+  return VisitChildren(DE);
+}
+
 CFGBlock *CFGBuilder::VisitCXXFunctionalCastExpr(CXXFunctionalCastExpr *E,
                                                  AddStmtChoice asc) {
   if (asc.alwaysAdd(*this, E)) {
@@ -3378,6 +3440,14 @@ CFGImplicitDtor::getDestructorDecl(ASTContext &astContext) const {
       cast<CXXRecordDecl>(recordType->getDecl());
       return classDecl->getDestructor();      
     }
+    case CFGElement::DeleteDtor: {
+      const CXXDeleteExpr *DE = castAs<CFGDeleteDtor>().getDeleteExpr();
+      QualType DTy = DE->getDestroyedType();
+      DTy = DTy.getNonReferenceType();
+      const CXXRecordDecl *classDecl =
+          astContext.getBaseElementType(DTy)->getAsCXXRecordDecl();
+      return classDecl->getDestructor();
+    }
     case CFGElement::TemporaryDtor: {
       const CXXBindTemporaryExpr *bindExpr =
         castAs<CFGTemporaryDtor>().getBindTemporaryExpr();
@@ -3397,113 +3467,6 @@ bool CFGImplicitDtor::isNoReturn(ASTContext &astContext) const {
   if (const CXXDestructorDecl *DD = getDestructorDecl(astContext))
     return DD->isNoReturn();
   return false;
-}
-
-//===----------------------------------------------------------------------===//
-// CFG: Queries for BlkExprs.
-//===----------------------------------------------------------------------===//
-
-namespace {
-  typedef llvm::DenseMap<const Stmt*,unsigned> BlkExprMapTy;
-}
-
-static void FindSubExprAssignments(const Stmt *S,
-                                   llvm::SmallPtrSet<const Expr*,50>& Set) {
-  if (!S)
-    return;
-
-  for (Stmt::const_child_range I = S->children(); I; ++I) {
-    const Stmt *child = *I;
-    if (!child)
-      continue;
-
-    if (const BinaryOperator* B = dyn_cast<BinaryOperator>(child))
-      if (B->isAssignmentOp()) Set.insert(B);
-
-    FindSubExprAssignments(child, Set);
-  }
-}
-
-static BlkExprMapTy* PopulateBlkExprMap(CFG& cfg) {
-  BlkExprMapTy* M = new BlkExprMapTy();
-
-  // Look for assignments that are used as subexpressions.  These are the only
-  // assignments that we want to *possibly* register as a block-level
-  // expression.  Basically, if an assignment occurs both in a subexpression and
-  // at the block-level, it is a block-level expression.
-  llvm::SmallPtrSet<const Expr*,50> SubExprAssignments;
-
-  for (CFG::iterator I=cfg.begin(), E=cfg.end(); I != E; ++I)
-    for (CFGBlock::iterator BI=(*I)->begin(), EI=(*I)->end(); BI != EI; ++BI)
-      if (Optional<CFGStmt> S = BI->getAs<CFGStmt>())
-        FindSubExprAssignments(S->getStmt(), SubExprAssignments);
-
-  for (CFG::iterator I=cfg.begin(), E=cfg.end(); I != E; ++I) {
-
-    // Iterate over the statements again on identify the Expr* and Stmt* at the
-    // block-level that are block-level expressions.
-
-    for (CFGBlock::iterator BI=(*I)->begin(), EI=(*I)->end(); BI != EI; ++BI) {
-      Optional<CFGStmt> CS = BI->getAs<CFGStmt>();
-      if (!CS)
-        continue;
-      if (const Expr *Exp = dyn_cast<Expr>(CS->getStmt())) {
-        assert((Exp->IgnoreParens() == Exp) && "No parens on block-level exps");
-
-        if (const BinaryOperator* B = dyn_cast<BinaryOperator>(Exp)) {
-          // Assignment expressions that are not nested within another
-          // expression are really "statements" whose value is never used by
-          // another expression.
-          if (B->isAssignmentOp() && !SubExprAssignments.count(Exp))
-            continue;
-        } else if (const StmtExpr *SE = dyn_cast<StmtExpr>(Exp)) {
-          // Special handling for statement expressions.  The last statement in
-          // the statement expression is also a block-level expr.
-          const CompoundStmt *C = SE->getSubStmt();
-          if (!C->body_empty()) {
-            const Stmt *Last = C->body_back();
-            if (const Expr *LastEx = dyn_cast<Expr>(Last))
-              Last = LastEx->IgnoreParens();
-            unsigned x = M->size();
-            (*M)[Last] = x;
-          }
-        }
-
-        unsigned x = M->size();
-        (*M)[Exp] = x;
-      }
-    }
-
-    // Look at terminators.  The condition is a block-level expression.
-
-    Stmt *S = (*I)->getTerminatorCondition();
-
-    if (S && M->find(S) == M->end()) {
-      unsigned x = M->size();
-      (*M)[S] = x;
-    }
-  }
-
-  return M;
-}
-
-CFG::BlkExprNumTy CFG::getBlkExprNum(const Stmt *S) {
-  assert(S != NULL);
-  if (!BlkExprMap) { BlkExprMap = (void*) PopulateBlkExprMap(*this); }
-
-  BlkExprMapTy* M = reinterpret_cast<BlkExprMapTy*>(BlkExprMap);
-  BlkExprMapTy::iterator I = M->find(S);
-  return (I == M->end()) ? CFG::BlkExprNumTy() : CFG::BlkExprNumTy(I->second);
-}
-
-unsigned CFG::getNumBlkExprs() {
-  if (const BlkExprMapTy* M = reinterpret_cast<const BlkExprMapTy*>(BlkExprMap))
-    return M->size();
-
-  // We assume callers interested in the number of BlkExprs will want
-  // the map constructed if it doesn't already exist.
-  BlkExprMap = (void*) PopulateBlkExprMap(*this);
-  return reinterpret_cast<BlkExprMapTy*>(BlkExprMap)->size();
 }
 
 //===----------------------------------------------------------------------===//
@@ -3527,14 +3490,6 @@ bool CFGBlock::FilterEdge(const CFGBlock::FilterOptions &F,
   }
 
   return false;
-}
-
-//===----------------------------------------------------------------------===//
-// Cleanup: CFG dstor.
-//===----------------------------------------------------------------------===//
-
-CFG::~CFG() {
-  delete reinterpret_cast<const BlkExprMapTy*>(BlkExprMap);
 }
 
 //===----------------------------------------------------------------------===//
@@ -3753,35 +3708,32 @@ public:
 };
 } // end anonymous namespace
 
-static void print_elem(raw_ostream &OS, StmtPrinterHelper* Helper,
+static void print_elem(raw_ostream &OS, StmtPrinterHelper &Helper,
                        const CFGElement &E) {
   if (Optional<CFGStmt> CS = E.getAs<CFGStmt>()) {
     const Stmt *S = CS->getStmt();
     
-    if (Helper) {
+    // special printing for statement-expressions.
+    if (const StmtExpr *SE = dyn_cast<StmtExpr>(S)) {
+      const CompoundStmt *Sub = SE->getSubStmt();
 
-      // special printing for statement-expressions.
-      if (const StmtExpr *SE = dyn_cast<StmtExpr>(S)) {
-        const CompoundStmt *Sub = SE->getSubStmt();
-
-        if (Sub->children()) {
-          OS << "({ ... ; ";
-          Helper->handledStmt(*SE->getSubStmt()->body_rbegin(),OS);
-          OS << " })\n";
-          return;
-        }
-      }
-      // special printing for comma expressions.
-      if (const BinaryOperator* B = dyn_cast<BinaryOperator>(S)) {
-        if (B->getOpcode() == BO_Comma) {
-          OS << "... , ";
-          Helper->handledStmt(B->getRHS(),OS);
-          OS << '\n';
-          return;
-        }
+      if (Sub->children()) {
+        OS << "({ ... ; ";
+        Helper.handledStmt(*SE->getSubStmt()->body_rbegin(),OS);
+        OS << " })\n";
+        return;
       }
     }
-    S->printPretty(OS, Helper, PrintingPolicy(Helper->getLangOpts()));
+    // special printing for comma expressions.
+    if (const BinaryOperator* B = dyn_cast<BinaryOperator>(S)) {
+      if (B->getOpcode() == BO_Comma) {
+        OS << "... , ";
+        Helper.handledStmt(B->getRHS(),OS);
+        OS << '\n';
+        return;
+      }
+    }
+    S->printPretty(OS, &Helper, PrintingPolicy(Helper.getLangOpts()));
 
     if (isa<CXXOperatorCallExpr>(S)) {
       OS << " (OperatorCall)";
@@ -3807,21 +3759,25 @@ static void print_elem(raw_ostream &OS, StmtPrinterHelper* Helper,
     const CXXCtorInitializer *I = IE->getInitializer();
     if (I->isBaseInitializer())
       OS << I->getBaseClass()->getAsCXXRecordDecl()->getName();
+    else if (I->isDelegatingInitializer())
+      OS << I->getTypeSourceInfo()->getType()->getAsCXXRecordDecl()->getName();
     else OS << I->getAnyMember()->getName();
 
     OS << "(";
     if (Expr *IE = I->getInit())
-      IE->printPretty(OS, Helper, PrintingPolicy(Helper->getLangOpts()));
+      IE->printPretty(OS, &Helper, PrintingPolicy(Helper.getLangOpts()));
     OS << ")";
 
     if (I->isBaseInitializer())
       OS << " (Base initializer)\n";
+    else if (I->isDelegatingInitializer())
+      OS << " (Delegating initializer)\n";
     else OS << " (Member initializer)\n";
 
   } else if (Optional<CFGAutomaticObjDtor> DE =
                  E.getAs<CFGAutomaticObjDtor>()) {
     const VarDecl *VD = DE->getVarDecl();
-    Helper->handleDecl(VD, OS);
+    Helper.handleDecl(VD, OS);
 
     const Type* T = VD->getType().getTypePtr();
     if (const ReferenceType* RT = T->getAs<ReferenceType>())
@@ -3831,6 +3787,15 @@ static void print_elem(raw_ostream &OS, StmtPrinterHelper* Helper,
     OS << ".~" << T->getAsCXXRecordDecl()->getName().str() << "()";
     OS << " (Implicit destructor)\n";
 
+  } else if (Optional<CFGDeleteDtor> DE = E.getAs<CFGDeleteDtor>()) {
+    const CXXRecordDecl *RD = DE->getCXXRecordDecl();
+    if (!RD)
+      return;
+    CXXDeleteExpr *DelExpr =
+        const_cast<CXXDeleteExpr*>(DE->getDeleteExpr());
+    Helper.handledStmt(cast<Stmt>(DelExpr->getArgument()), OS);
+    OS << "->~" << RD->getName().str() << "()";
+    OS << " (Implicit destructor)\n";
   } else if (Optional<CFGBaseDtor> BE = E.getAs<CFGBaseDtor>()) {
     const CXXBaseSpecifier *BS = BE->getBaseSpecifier();
     OS << "~" << BS->getType()->getAsCXXRecordDecl()->getName() << "()";
@@ -3845,18 +3810,18 @@ static void print_elem(raw_ostream &OS, StmtPrinterHelper* Helper,
 
   } else if (Optional<CFGTemporaryDtor> TE = E.getAs<CFGTemporaryDtor>()) {
     const CXXBindTemporaryExpr *BT = TE->getBindTemporaryExpr();
-    OS << "~" << BT->getType()->getAsCXXRecordDecl()->getName() << "()";
-    OS << " (Temporary object destructor)\n";
+    OS << "~";
+    BT->getType().print(OS, PrintingPolicy(Helper.getLangOpts()));
+    OS << "() (Temporary object destructor)\n";
   }
 }
 
 static void print_block(raw_ostream &OS, const CFG* cfg,
                         const CFGBlock &B,
-                        StmtPrinterHelper* Helper, bool print_edges,
+                        StmtPrinterHelper &Helper, bool print_edges,
                         bool ShowColors) {
 
-  if (Helper)
-    Helper->setBlockID(B.getBlockID());
+  Helper.setBlockID(B.getBlockID());
 
   // Print the header.
   if (ShowColors)
@@ -3886,19 +3851,19 @@ static void print_block(raw_ostream &OS, const CFG* cfg,
       OS << L->getName();
     else if (CaseStmt *C = dyn_cast<CaseStmt>(Label)) {
       OS << "case ";
-      C->getLHS()->printPretty(OS, Helper,
-                               PrintingPolicy(Helper->getLangOpts()));
+      C->getLHS()->printPretty(OS, &Helper,
+                               PrintingPolicy(Helper.getLangOpts()));
       if (C->getRHS()) {
         OS << " ... ";
-        C->getRHS()->printPretty(OS, Helper,
-                                 PrintingPolicy(Helper->getLangOpts()));
+        C->getRHS()->printPretty(OS, &Helper,
+                                 PrintingPolicy(Helper.getLangOpts()));
       }
     } else if (isa<DefaultStmt>(Label))
       OS << "default";
     else if (CXXCatchStmt *CS = dyn_cast<CXXCatchStmt>(Label)) {
       OS << "catch (";
       if (CS->getExceptionDecl())
-        CS->getExceptionDecl()->print(OS, PrintingPolicy(Helper->getLangOpts()),
+        CS->getExceptionDecl()->print(OS, PrintingPolicy(Helper.getLangOpts()),
                                       0);
       else
         OS << "...";
@@ -3922,8 +3887,7 @@ static void print_block(raw_ostream &OS, const CFG* cfg,
 
     OS << llvm::format("%3d", j) << ": ";
 
-    if (Helper)
-      Helper->setStmtID(j);
+    Helper.setStmtID(j);
 
     print_elem(OS, Helper, *I);
   }
@@ -3935,10 +3899,10 @@ static void print_block(raw_ostream &OS, const CFG* cfg,
 
     OS << "   T: ";
 
-    if (Helper) Helper->setBlockID(-1);
+    Helper.setBlockID(-1);
 
-    PrintingPolicy PP(Helper ? Helper->getLangOpts() : LangOptions());
-    CFGBlockTerminatorPrint TPrinter(OS, Helper, PP);
+    PrintingPolicy PP(Helper.getLangOpts());
+    CFGBlockTerminatorPrint TPrinter(OS, &Helper, PP);
     TPrinter.Visit(const_cast<Stmt*>(B.getTerminator().getStmt()));
     OS << '\n';
     
@@ -4020,7 +3984,7 @@ void CFG::print(raw_ostream &OS, const LangOptions &LO, bool ShowColors) const {
   StmtPrinterHelper Helper(this, LO);
 
   // Print the entry block.
-  print_block(OS, this, getEntry(), &Helper, true, ShowColors);
+  print_block(OS, this, getEntry(), Helper, true, ShowColors);
 
   // Iterate through the CFGBlocks and print them one by one.
   for (const_iterator I = Blocks.begin(), E = Blocks.end() ; I != E ; ++I) {
@@ -4028,11 +3992,11 @@ void CFG::print(raw_ostream &OS, const LangOptions &LO, bool ShowColors) const {
     if (&(**I) == &getEntry() || &(**I) == &getExit())
       continue;
 
-    print_block(OS, this, **I, &Helper, true, ShowColors);
+    print_block(OS, this, **I, Helper, true, ShowColors);
   }
 
   // Print the exit block.
-  print_block(OS, this, getExit(), &Helper, true, ShowColors);
+  print_block(OS, this, getExit(), Helper, true, ShowColors);
   OS << '\n';
   OS.flush();
 }
@@ -4048,7 +4012,7 @@ void CFGBlock::dump(const CFG* cfg, const LangOptions &LO,
 void CFGBlock::print(raw_ostream &OS, const CFG* cfg,
                      const LangOptions &LO, bool ShowColors) const {
   StmtPrinterHelper Helper(cfg, LO);
-  print_block(OS, cfg, *this, &Helper, true, ShowColors);
+  print_block(OS, cfg, *this, Helper, true, ShowColors);
   OS << '\n';
 }
 
@@ -4068,6 +4032,10 @@ Stmt *CFGBlock::getTerminatorCondition() {
 
   switch (Terminator->getStmtClass()) {
     default:
+      break;
+
+    case Stmt::CXXForRangeStmtClass:
+      E = cast<CXXForRangeStmt>(Terminator)->getCond();
       break;
 
     case Stmt::ForStmtClass:
@@ -4146,7 +4114,7 @@ struct DOTGraphTraits<const CFG*> : public DefaultDOTGraphTraits {
 #ifndef NDEBUG
     std::string OutSStr;
     llvm::raw_string_ostream Out(OutSStr);
-    print_block(Out,Graph, *Node, GraphHelper, false, false);
+    print_block(Out,Graph, *Node, *GraphHelper, false, false);
     std::string& OutStr = Out.str();
 
     if (OutStr[0] == '\n') OutStr.erase(OutStr.begin());

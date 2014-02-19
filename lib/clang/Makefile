@@ -37,7 +37,6 @@ SUBDIR=	libclanganalysis \
 	${_libclangstaticanalyzer} \
 	\
 	libllvmanalysis \
-	libllvmarchive \
 	libllvmasmparser \
 	libllvmasmprinter \
 	libllvmbitreader \
@@ -54,6 +53,7 @@ SUBDIR=	libclanganalysis \
 	libllvmmcparser \
 	libllvmobjcarcopts \
 	libllvmobject \
+	libllvmoption \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \

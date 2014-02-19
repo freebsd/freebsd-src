@@ -424,7 +424,8 @@ private:
                          StringRef isysroot, const std::string &OutputFile);
   void WriteInputFiles(SourceManager &SourceMgr,
                        HeaderSearchOptions &HSOpts,
-                       StringRef isysroot);
+                       StringRef isysroot,
+                       bool Modules);
   void WriteSourceManagerBlock(SourceManager &SourceMgr,
                                const Preprocessor &PP,
                                StringRef isysroot);
@@ -456,7 +457,8 @@ private:
   void WriteObjCCategories();
   void WriteRedeclarations();
   void WriteMergedDecls();
-                        
+  void WriteLateParsedTemplates(Sema &SemaRef);
+
   unsigned DeclParmVarAbbrev;
   unsigned DeclContextLexicalAbbrev;
   unsigned DeclContextVisibleLookupAbbrev;
@@ -574,6 +576,11 @@ public:
   /// \brief Emits a template argument location.
   void AddTemplateArgumentLoc(const TemplateArgumentLoc &Arg,
                               RecordDataImpl &Record);
+
+  /// \brief Emits an AST template argument list info.
+  void AddASTTemplateArgumentListInfo(
+                          const ASTTemplateArgumentListInfo *ASTTemplArgList,
+                          RecordDataImpl &Record);
 
   /// \brief Emit a reference to a declaration.
   void AddDeclRef(const Decl *D, RecordDataImpl &Record);
@@ -723,8 +730,12 @@ public:
   virtual void AddedCXXImplicitMember(const CXXRecordDecl *RD, const Decl *D);
   virtual void AddedCXXTemplateSpecialization(const ClassTemplateDecl *TD,
                                     const ClassTemplateSpecializationDecl *D);
+  virtual void
+  AddedCXXTemplateSpecialization(const VarTemplateDecl *TD,
+                                 const VarTemplateSpecializationDecl *D);
   virtual void AddedCXXTemplateSpecialization(const FunctionTemplateDecl *TD,
                                               const FunctionDecl *D);
+  virtual void DeducedReturnType(const FunctionDecl *FD, QualType ReturnType);
   virtual void CompletedImplicitDefinition(const FunctionDecl *D);
   virtual void StaticDataMemberInstantiated(const VarDecl *D);
   virtual void AddedObjCCategoryToInterface(const ObjCCategoryDecl *CatD,
@@ -732,6 +743,7 @@ public:
   virtual void AddedObjCPropertyInClassExtension(const ObjCPropertyDecl *Prop,
                                             const ObjCPropertyDecl *OrigProp,
                                             const ObjCCategoryDecl *ClassExt);
+  void DeclarationMarkedUsed(const Decl *D) LLVM_OVERRIDE;
 };
 
 /// \brief AST and semantic-analysis consumer that generates a
@@ -746,6 +758,8 @@ class PCHGenerator : public SemaConsumer {
   SmallVector<char, 128> Buffer;
   llvm::BitstreamWriter Stream;
   ASTWriter Writer;
+  bool AllowASTWithErrors;
+  bool HasEmittedPCH;
 
 protected:
   ASTWriter &getWriter() { return Writer; }
@@ -754,12 +768,15 @@ protected:
 public:
   PCHGenerator(const Preprocessor &PP, StringRef OutputFile,
                clang::Module *Module,
-               StringRef isysroot, raw_ostream *Out);
+               StringRef isysroot, raw_ostream *Out,
+               bool AllowASTWithErrors = false);
   ~PCHGenerator();
   virtual void InitializeSema(Sema &S) { SemaPtr = &S; }
   virtual void HandleTranslationUnit(ASTContext &Ctx);
   virtual ASTMutationListener *GetASTMutationListener();
   virtual ASTDeserializationListener *GetASTDeserializationListener();
+
+  bool hasEmittedPCH() const { return HasEmittedPCH; }
 };
 
 } // end namespace clang

@@ -313,23 +313,27 @@ initarm(struct arm_boot_params *abp)
 
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
 
-	dump_avail[0] = 0x00000000;
-	dump_avail[1] = 0x00000000 + memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-					
 	vm_max_kernel_address = 0xe0000000;
 	pmap_bootstrap(pmap_curmaxkvaddr, &kernel_l1pt);
 	msgbufp = (void*)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
-	
-	i = 0;
-	phys_avail[i++] = round_page(virtual_avail - KERNBASE + SDRAM_START);
-	phys_avail[i++] = trunc_page(0x00000000 + memsize - 1);
-	phys_avail[i++] = 0;
-	phys_avail[i] = 0;
-	
+
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel (and all the things we allocated which immediately
+	 * follow the kernel) from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(SDRAM_START, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
+
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

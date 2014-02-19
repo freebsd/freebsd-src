@@ -1572,6 +1572,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 	if (bootverbose || mmc_debug)
 		device_printf(sc->dev, "Current OCR: 0x%08x\n", mmcbr_get_ocr(dev));
 	if (mmcbr_get_ocr(dev) == 0) {
+		device_printf(sc->dev, "No compatible cards found on bus\n");
 		mmc_delete_cards(sc);
 		mmc_power_down(sc);
 		return;

@@ -43,10 +43,9 @@ void FileRemapper::clear(StringRef outputDir) {
 
 std::string FileRemapper::getRemapInfoFile(StringRef outputDir) {
   assert(!outputDir.empty());
-  llvm::sys::Path dir(outputDir);
-  llvm::sys::Path infoFile = dir;
-  infoFile.appendComponent("remap");
-  return infoFile.str();
+  SmallString<128> InfoFile = outputDir;
+  llvm::sys::path::append(InfoFile, "remap");
+  return InfoFile.str();
 }
 
 bool FileRemapper::initFromDisk(StringRef outputDir, DiagnosticsEngine &Diag,
@@ -127,7 +126,7 @@ bool FileRemapper::flushToFile(StringRef outputPath, DiagnosticsEngine &Diag) {
   std::string errMsg;
   std::string infoFile = outputPath;
   llvm::raw_fd_ostream infoOut(infoFile.c_str(), errMsg,
-                               llvm::raw_fd_ostream::F_Binary);
+                               llvm::sys::fs::F_Binary);
   if (!errMsg.empty())
     return report(errMsg, Diag);
 
@@ -147,11 +146,10 @@ bool FileRemapper::flushToFile(StringRef outputPath, DiagnosticsEngine &Diag) {
     } else {
 
       SmallString<64> tempPath;
-      tempPath = path::filename(origFE->getName());
-      tempPath += "-%%%%%%%%";
-      tempPath += path::extension(origFE->getName());
       int fd;
-      if (fs::unique_file(tempPath.str(), fd, tempPath) != llvm::errc::success)
+      if (fs::createTemporaryFile(path::filename(origFE->getName()),
+                                  path::extension(origFE->getName()), fd,
+                                  tempPath))
         return report("Could not create file: " + tempPath.str(), Diag);
 
       llvm::raw_fd_ostream newOut(fd, /*shouldClose=*/true);
@@ -176,29 +174,22 @@ bool FileRemapper::overwriteOriginal(DiagnosticsEngine &Diag,
   for (MappingsTy::iterator
          I = FromToMappings.begin(), E = FromToMappings.end(); I != E; ++I) {
     const FileEntry *origFE = I->first;
-    if (const FileEntry *newFE = I->second.dyn_cast<const FileEntry *>()) {
-      if (fs::copy_file(newFE->getName(), origFE->getName(),
-                 fs::copy_option::overwrite_if_exists) != llvm::errc::success)
-        return report(StringRef("Could not copy file '") + newFE->getName() +
-                      "' to file '" + origFE->getName() + "'", Diag);
-    } else {
+    assert(I->second.is<llvm::MemoryBuffer *>());
+    bool fileExists = false;
+    fs::exists(origFE->getName(), fileExists);
+    if (!fileExists)
+      return report(StringRef("File does not exist: ") + origFE->getName(),
+                    Diag);
 
-      bool fileExists = false;
-      fs::exists(origFE->getName(), fileExists);
-      if (!fileExists)
-        return report(StringRef("File does not exist: ") + origFE->getName(),
-                      Diag);
+    std::string errMsg;
+    llvm::raw_fd_ostream Out(origFE->getName(), errMsg,
+                             llvm::sys::fs::F_Binary);
+    if (!errMsg.empty())
+      return report(errMsg, Diag);
 
-      std::string errMsg;
-      llvm::raw_fd_ostream Out(origFE->getName(), errMsg,
-                               llvm::raw_fd_ostream::F_Binary);
-      if (!errMsg.empty())
-        return report(errMsg, Diag);
-
-      llvm::MemoryBuffer *mem = I->second.get<llvm::MemoryBuffer *>();
-      Out.write(mem->getBufferStart(), mem->getBufferSize());
-      Out.close();
-    }
+    llvm::MemoryBuffer *mem = I->second.get<llvm::MemoryBuffer *>();
+    Out.write(mem->getBufferStart(), mem->getBufferSize());
+    Out.close();
   }
 
   clear(outputDir);
@@ -237,12 +228,6 @@ void FileRemapper::transferMappingsAndClear(PreprocessorOptions &PPOpts) {
 
 void FileRemapper::remap(StringRef filePath, llvm::MemoryBuffer *memBuf) {
   remap(getOriginalFile(filePath), memBuf);
-}
-
-void FileRemapper::remap(StringRef filePath, StringRef newPath) {
-  const FileEntry *file = getOriginalFile(filePath);
-  const FileEntry *newfile = FileMgr->getFile(newPath);
-  remap(file, newfile);
 }
 
 void FileRemapper::remap(const FileEntry *file, llvm::MemoryBuffer *memBuf) {

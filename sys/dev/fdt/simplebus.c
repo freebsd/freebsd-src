@@ -401,18 +401,24 @@ simplebus_print_res(struct simplebus_devinfo *di)
 static void
 simplebus_probe_nomatch(device_t bus, device_t child)
 {
-	const char *name, *type;
+	const char *name, *type, *compat;
 
 	if (!bootverbose)
 		return;
 
 	name = ofw_bus_get_name(child);
 	type = ofw_bus_get_type(child);
+	compat = ofw_bus_get_compat(child);
 
 	device_printf(bus, "<%s>", name != NULL ? name : "unknown");
 	simplebus_print_res(device_get_ivars(child));
-	printf(" type %s (no driver attached)\n",
-	    type != NULL ? type : "unknown");
+	if (!ofw_bus_status_okay(child))
+		printf(" disabled");
+	if (type)
+		printf(" type %s", type);
+	if (compat)
+		printf(" compat %s", compat);
+	printf(" (no driver attached)\n");
 }
 
 static int
@@ -422,7 +428,8 @@ simplebus_print_child(device_t bus, device_t child)
 
 	rv = bus_print_child_header(bus, child);
 	rv += simplebus_print_res(device_get_ivars(child));
+	if (!ofw_bus_status_okay(child))
+		rv += printf(" disabled");
 	rv += bus_print_child_footer(bus, child);
 	return (rv);
 }
-

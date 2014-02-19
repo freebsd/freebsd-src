@@ -228,6 +228,27 @@ static struct uart_ops at91_usart_ops = {
 	.getc = at91_usart_getc,
 };
 
+#ifdef EARLY_PRINTF
+/*
+ * Early printf support. This assumes that we have the SoC "system" devices
+ * mapped into AT91_BASE. To use this before we adjust the boostrap tables,
+ * you'll need to define SOCDEV_VA to be 0xdc000000 and SOCDEV_PA to be
+ * 0xfc000000 in your config file where you define EARLY_PRINTF
+ */
+volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
+
+static void
+eputc(int c)
+{
+
+	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
+		continue;
+	at91_dbgu[USART_THR / 4] = c;
+}
+
+early_putc_t * early_putc = eputc;
+#endif
+
 static int
 at91_usart_probe(struct uart_bas *bas)
 {
@@ -243,6 +264,22 @@ static void
 at91_usart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
+
+#ifdef EARLY_PRINTF
+	if (early_putc != NULL) {
+		printf("Early printf yielding control to the real console.\n");
+		early_putc = NULL;
+	}
+#endif
+
+	/*
+	 * This routine is called multiple times, sometimes right after writing
+	 * some output, and the last byte is still shifting out.  If that's the
+	 * case delay briefly before resetting, but don't loop on TXRDY because
+	 * we don't want to hang here forever if the hardware is in a bad state.
+	 */
+	if (!(RD4(bas, USART_CSR) & USART_CSR_TXRDY))
+	    DELAY(1000);
 
 	at91_usart_param(bas, baudrate, databits, stopbits, parity);
 
@@ -275,28 +312,6 @@ at91_usart_putc(struct uart_bas *bas, int c)
 		continue;
 	WR4(bas, USART_THR, c);
 }
-
-#ifdef EARLY_PRINTF
-/*
- * Early printf support. This assumes that we have the SoC "system" devices
- * mapped into AT91_BASE. To use this before we adjust the boostrap tables,
- * You'll need to define SOCDEV_VA to be 0xdc000000 and SOCDEV_PA to be
- * 0xfc000000 in your config file where you define EARLY_PRINTF
- */
-volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
-
-void
-eputc(int c)
-{
-
-	if (c == '\n')
-		eputc('\r');
-
-	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
-		continue;
-	at91_dbgu[USART_THR / 4] = c;
-}
-#endif
 
 /*
  * Check for a character available.

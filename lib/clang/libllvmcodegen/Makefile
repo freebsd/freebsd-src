@@ -41,6 +41,7 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	LiveRangeCalc.cpp \
 	LiveRangeEdit.cpp \
 	LiveRegMatrix.cpp \
+	LiveRegUnits.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
 	LocalStackSlotAllocation.cpp \
@@ -94,16 +95,15 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ScheduleDAGPrinter.cpp \
 	ScoreboardHazardRecognizer.cpp \
 	ShadowStackGC.cpp \
-	ShrinkWrapping.cpp \
 	SjLjEHPrepare.cpp \
 	SlotIndexes.cpp \
 	SpillPlacement.cpp \
 	Spiller.cpp \
 	SplitKit.cpp \
 	StackColoring.cpp \
+	StackMaps.cpp \
 	StackProtector.cpp \
 	StackSlotColoring.cpp \
-	StrongPHIElimination.cpp \
 	TailDuplication.cpp \
 	TargetFrameLoweringImpl.cpp \
 	TargetInstrInfo.cpp \

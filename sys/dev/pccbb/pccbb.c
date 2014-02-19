@@ -97,6 +97,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pcib_private.h>
 
 #include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
@@ -1548,7 +1549,7 @@ cbb_read_ivar(device_t brdev, device_t child, int which, uintptr_t *result)
 		*result = sc->domain;
 		return (0);
 	case PCIB_IVAR_BUS:
-		*result = sc->secbus;
+		*result = sc->bus.sec;
 		return (0);
 	}
 	return (ENOENT);
@@ -1557,14 +1558,12 @@ cbb_read_ivar(device_t brdev, device_t child, int which, uintptr_t *result)
 int
 cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 {
-	struct cbb_softc *sc = device_get_softc(brdev);
 
 	switch (which) {
 	case PCIB_IVAR_DOMAIN:
 		return (EINVAL);
 	case PCIB_IVAR_BUS:
-		sc->secbus = value;
-		return (0);
+		return (EINVAL);
 	}
 	return (ENOENT);
 }

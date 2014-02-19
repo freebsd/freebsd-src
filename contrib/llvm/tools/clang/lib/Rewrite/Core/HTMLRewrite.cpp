@@ -164,8 +164,7 @@ void html::EscapeText(Rewriter &R, FileID FID,
   }
 }
 
-std::string html::EscapeText(const std::string& s, bool EscapeSpaces,
-                             bool ReplaceTabs) {
+std::string html::EscapeText(StringRef s, bool EscapeSpaces, bool ReplaceTabs) {
 
   unsigned len = s.size();
   std::string Str;
@@ -361,7 +360,7 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
   const SourceManager &SM = PP.getSourceManager();
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(FID);
   Lexer L(FID, FromFile, SM, PP.getLangOpts());
-  const char *BufferStart = L.getBufferStart();
+  const char *BufferStart = L.getBuffer().data();
 
   // Inform the preprocessor that we want to retain comments as tokens, so we
   // can highlight them.

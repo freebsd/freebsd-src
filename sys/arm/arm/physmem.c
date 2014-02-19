@@ -122,6 +122,16 @@ physmem_dump_tables(int (*prfunc)(const char *, ...))
 		    (flags & EXFLAG_NOALLOC) ? "NoAlloc" : "",
 		    (flags & EXFLAG_NODUMP)  ? "NoDump" : "");
 	}
+
+#ifdef DEBUG
+	prfunc("Avail lists:\n");
+	for (i = 0; phys_avail[i] != 0; ++i) {
+		prfunc("  phys_avail[%d] 0x%08x\n", i, phys_avail[i]);
+	}
+	for (i = 0; dump_avail[i] != 0; ++i) {
+		prfunc("  dump_avail[%d] 0x%08x\n", i, dump_avail[i]);
+	}
+#endif
 }
 
 /*
@@ -198,14 +208,14 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags)
 				continue;
 			}
 			/*
-			 * If excluded region partially overlaps this region,
-			 * trim the excluded portion off the appropriate end.
+			 * We know the excluded region overlaps either the start
+			 * or end of this hardware region (but not both), trim
+			 * the excluded portion off the appropriate end.
 			 */
-			if ((xstart >= start) && (xstart <= end)) {
-				end = xstart;
-			} else if ((xend >= start) && (xend <= end)) {
+			if (xstart <= start)
 				start = xend;
-			}
+			else
+				end = xstart;
 		}
 		/*
 		 * If the trimming actions above left a non-zero size, create an

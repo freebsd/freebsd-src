@@ -52,6 +52,7 @@ static cl::opt<bool> GenPPCFP128("generate-ppc-fp128",
 static cl::opt<bool> GenX86MMX("generate-x86-mmx",
   cl::desc("Generate X86 MMX floating-point values"), cl::init(false));
 
+namespace {
 /// A utility class to provide a pseudo-random number generator which is
 /// the same across all platforms. This is somewhat close to the libc
 /// implementation. Note: This is not a cryptographically secure pseudorandom
@@ -607,7 +608,9 @@ struct CmpModifier: public Modifier {
   }
 };
 
-void FillFunction(Function *F, Random &R) {
+} // end anonymous namespace
+
+static void FillFunction(Function *F, Random &R) {
   // Create a legal entry block.
   BasicBlock *BB = BasicBlock::Create(F->getContext(), "BB", F);
   ReturnInst::Create(F->getContext(), BB);
@@ -654,7 +657,7 @@ void FillFunction(Function *F, Random &R) {
   SM->ActN(5); // Throw in a few stores.
 }
 
-void IntroduceControlFlow(Function *F, Random &R) {
+static void IntroduceControlFlow(Function *F, Random &R) {
   std::vector<Instruction*> BoolInst;
   for (BasicBlock::iterator it = F->begin()->begin(),
        e = F->begin()->end(); it != e; ++it) {
@@ -702,7 +705,7 @@ int main(int argc, char **argv) {
 
   std::string ErrorInfo;
   Out.reset(new tool_output_file(OutputFilename.c_str(), ErrorInfo,
-                                 raw_fd_ostream::F_Binary));
+                                 sys::fs::F_Binary));
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;

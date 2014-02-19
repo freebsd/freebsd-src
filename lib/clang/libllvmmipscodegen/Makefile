@@ -6,6 +6,7 @@ LIB=	llvmmipscodegen
 
 SRCDIR=	lib/Target/Mips
 SRCS=	Mips16FrameLowering.cpp \
+	Mips16HardFloat.cpp \
 	Mips16ISelDAGToDAG.cpp \
 	Mips16ISelLowering.cpp \
 	Mips16InstrInfo.cpp \

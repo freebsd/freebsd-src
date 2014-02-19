@@ -14,12 +14,12 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
 #include "clang/AST/Decl.h"
+#include "clang/AST/StmtVisitor.h"
 #include "clang/Analysis/Analyses/PostOrderCFGView.h"
 #include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/DomainSpecific/ObjCNoReturn.h"
-#include "clang/Analysis/Visitors/CFGRecStmtDeclVisitor.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/PackedVector.h"
@@ -240,10 +240,9 @@ const CFGBlock *DataflowWorklist::dequeue() {
 
   // First dequeue from the worklist.  This can represent
   // updates along backedges that we want propagated as quickly as possible.
-  if (!worklist.empty()) {
-    B = worklist.back();
-    worklist.pop_back();
-  }
+  if (!worklist.empty())
+    B = worklist.pop_back_val();
+
   // Next dequeue from the initial reverse post order.  This is the
   // theoretical ideal in the presence of no back edges.
   else if (PO_I != PO_E) {
@@ -527,14 +526,29 @@ public:
     // of marking it as not being a candidate element of the frontier.
     SuccsVisited[block->getBlockID()] = block->succ_size();
     while (!Queue.empty()) {
-      const CFGBlock *B = Queue.back();
-      Queue.pop_back();
+      const CFGBlock *B = Queue.pop_back_val();
+
+      // If the use is always reached from the entry block, make a note of that.
+      if (B == &cfg.getEntry())
+        Use.setUninitAfterCall();
+
       for (CFGBlock::const_pred_iterator I = B->pred_begin(), E = B->pred_end();
            I != E; ++I) {
         const CFGBlock *Pred = *I;
-        if (vals.getValue(Pred, B, vd) == Initialized)
+        Value AtPredExit = vals.getValue(Pred, B, vd);
+        if (AtPredExit == Initialized)
           // This block initializes the variable.
           continue;
+        if (AtPredExit == MayUninitialized &&
+            vals.getValue(B, 0, vd) == Uninitialized) {
+          // This block declares the variable (uninitialized), and is reachable
+          // from a block that initializes the variable. We can't guarantee to
+          // give an earlier location for the diagnostic (and it appears that
+          // this code is intended to be reachable) so give a diagnostic here
+          // and go no further down this path.
+          Use.setUninitAfterDecl();
+          continue;
+        }
 
         unsigned &SV = SuccsVisited[Pred->getBlockID()];
         if (!SV) {

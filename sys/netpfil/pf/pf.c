@@ -172,7 +172,10 @@ struct pf_overload_entry {
 	struct pf_rule  		*rule;
 };
 
-SLIST_HEAD(pf_overload_head, pf_overload_entry);
+struct pf_overload_head {
+	SLIST_HEAD(, pf_overload_entry) head;
+	struct vnet			*vnet;
+};
 static VNET_DEFINE(struct pf_overload_head, pf_overloadqueue);
 #define V_pf_overloadqueue	VNET(pf_overloadqueue)
 static VNET_DEFINE(struct task, pf_overloadtask);
@@ -187,8 +190,7 @@ struct mtx pf_unlnkdrules_mtx;
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
-static VNET_DEFINE(uma_zone_t,	pf_mtag_z);
-#define	V_pf_mtag_z	VNET(pf_mtag_z)
+uma_zone_t pf_mtag_z;
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
@@ -335,27 +337,27 @@ enum { PF_ICMP_MULTI_NONE, PF_ICMP_MULTI_SOLICITED, PF_ICMP_MULTI_LINK };
 #define	BOUND_IFACE(r, k) \
 	((r)->rule_flag & PFRULE_IFBOUND) ? (k) : V_pfi_all
 
-#define	STATE_INC_COUNTERS(s)				\
-	do {						\
-		s->rule.ptr->states_cur++;		\
-		s->rule.ptr->states_tot++;		\
-		if (s->anchor.ptr != NULL) {		\
-			s->anchor.ptr->states_cur++;	\
-			s->anchor.ptr->states_tot++;	\
-		}					\
-		if (s->nat_rule.ptr != NULL) {		\
-			s->nat_rule.ptr->states_cur++;	\
-			s->nat_rule.ptr->states_tot++;	\
-		}					\
+#define	STATE_INC_COUNTERS(s)						\
+	do {								\
+		counter_u64_add(s->rule.ptr->states_cur, 1);		\
+		counter_u64_add(s->rule.ptr->states_tot, 1);		\
+		if (s->anchor.ptr != NULL) {				\
+			counter_u64_add(s->anchor.ptr->states_cur, 1);	\
+			counter_u64_add(s->anchor.ptr->states_tot, 1);	\
+		}							\
+		if (s->nat_rule.ptr != NULL) {				\
+			counter_u64_add(s->nat_rule.ptr->states_cur, 1);\
+			counter_u64_add(s->nat_rule.ptr->states_tot, 1);\
+		}							\
 	} while (0)
 
-#define	STATE_DEC_COUNTERS(s)				\
-	do {						\
-		if (s->nat_rule.ptr != NULL)		\
-			s->nat_rule.ptr->states_cur--;	\
-		if (s->anchor.ptr != NULL)		\
-			s->anchor.ptr->states_cur--;	\
-		s->rule.ptr->states_cur--;		\
+#define	STATE_DEC_COUNTERS(s)						\
+	do {								\
+		if (s->nat_rule.ptr != NULL)				\
+			counter_u64_add(s->nat_rule.ptr->states_cur, -1);\
+		if (s->anchor.ptr != NULL)				\
+			counter_u64_add(s->anchor.ptr->states_cur, -1);	\
+		counter_u64_add(s->rule.ptr->states_cur, -1);		\
 	} while (0)
 
 static MALLOC_DEFINE(M_PFHASH, "pf_hash", "pf(4) hash header structures");
@@ -510,7 +512,7 @@ pf_src_connlimit(struct pf_state **state)
 	pfoe->rule = (*state)->rule.ptr;
 	pfoe->dir = (*state)->direction;
 	PF_OVERLOADQ_LOCK();
-	SLIST_INSERT_HEAD(&V_pf_overloadqueue, pfoe, next);
+	SLIST_INSERT_HEAD(&V_pf_overloadqueue.head, pfoe, next);
 	PF_OVERLOADQ_UNLOCK();
 	taskqueue_enqueue(taskqueue_swi, &V_pf_overloadtask);
 
@@ -527,11 +529,13 @@ pf_overload_task(void *c, int pending)
 
 	PF_OVERLOADQ_LOCK();
 	queue = *(struct pf_overload_head *)c;
-	SLIST_INIT((struct pf_overload_head *)c);
+	SLIST_INIT(&((struct pf_overload_head *)c)->head);
 	PF_OVERLOADQ_UNLOCK();
 
+	CURVNET_SET(queue.vnet);
+
 	bzero(&p, sizeof(p));
-	SLIST_FOREACH(pfoe, &queue, next) {
+	SLIST_FOREACH(pfoe, &queue.head, next) {
 		V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("%s: blocking address ", __func__);
@@ -563,16 +567,18 @@ pf_overload_task(void *c, int pending)
 	/*
 	 * Remove those entries, that don't need flushing.
 	 */
-	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
+	SLIST_FOREACH_SAFE(pfoe, &queue.head, next, pfoe1)
 		if (pfoe->rule->flush == 0) {
-			SLIST_REMOVE(&queue, pfoe, pf_overload_entry, next);
+			SLIST_REMOVE(&queue.head, pfoe, pf_overload_entry, next);
 			free(pfoe, M_PFTEMP);
 		} else
 			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
 
 	/* If nothing to flush, return. */
-	if (SLIST_EMPTY(&queue))
+	if (SLIST_EMPTY(&queue.head)) {
+		CURVNET_RESTORE();
 		return;
+	}
 
 	for (int i = 0; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
@@ -582,7 +588,7 @@ pf_overload_task(void *c, int pending)
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
 		    sk = s->key[PF_SK_WIRE];
-		    SLIST_FOREACH(pfoe, &queue, next)
+		    SLIST_FOREACH(pfoe, &queue.head, next)
 			if (sk->af == pfoe->af &&
 			    ((pfoe->rule->flush & PF_FLUSH_GLOBAL) ||
 			    pfoe->rule == s->rule.ptr) &&
@@ -597,10 +603,12 @@ pf_overload_task(void *c, int pending)
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
-	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
+	SLIST_FOREACH_SAFE(pfoe, &queue.head, next, pfoe1)
 		free(pfoe, M_PFTEMP);
 	if (V_pf_status.debug >= PF_DEBUG_MISC)
 		printf("%s: %u states killed", __func__, killed);
+
+	CURVNET_RESTORE();
 }
 
 /*
@@ -647,7 +655,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		PF_HASHROW_ASSERT(sh);
 
 		if (!rule->max_src_nodes ||
-		    rule->src_nodes < rule->max_src_nodes)
+		    counter_u64_fetch(rule->src_nodes) < rule->max_src_nodes)
 			(*sn) = uma_zalloc(V_pf_sources_z, M_NOWAIT | M_ZERO);
 		else
 			V_pf_status.lcounters[LCNT_SRCNODES]++;
@@ -667,7 +675,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 		(*sn)->creation = time_uptime;
 		(*sn)->ruletype = rule->action;
 		if ((*sn)->rule.ptr != NULL)
-			(*sn)->rule.ptr->src_nodes++;
+			counter_u64_add((*sn)->rule.ptr->src_nodes, 1);
 		PF_HASHROW_UNLOCK(sh);
 		V_pf_status.scounters[SCNT_SRC_NODE_INSERT]++;
 		V_pf_status.src_nodes++;
@@ -692,7 +700,7 @@ pf_unlink_src_node_locked(struct pf_src_node *src)
 #endif
 	LIST_REMOVE(src, entry);
 	if (src->rule.ptr)
-		src->rule.ptr->src_nodes--;
+		counter_u64_add(src->rule.ptr->src_nodes, -1);
 	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 	V_pf_status.src_nodes--;
 }
@@ -790,14 +798,16 @@ pf_initialize()
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
 	/* Mbuf tags */
-	V_pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
-	    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
-	    UMA_ALIGN_PTR, 0);
+	if (IS_DEFAULT_VNET(curvnet))
+		pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
+		    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
+		    UMA_ALIGN_PTR, 0);
 
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
-	SLIST_INIT(&V_pf_overloadqueue);
+	SLIST_INIT(&V_pf_overloadqueue.head);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, &V_pf_overloadqueue);
+	V_pf_overloadqueue.vnet = curvnet;
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
 	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
 	    MTX_DEF);
@@ -844,7 +854,8 @@ pf_cleanup()
 	mtx_destroy(&pf_overloadqueue_mtx);
 	mtx_destroy(&pf_unlnkdrules_mtx);
 
-	uma_zdestroy(V_pf_mtag_z);
+	if (IS_DEFAULT_VNET(curvnet))
+		uma_zdestroy(pf_mtag_z);
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
@@ -868,7 +879,7 @@ static void
 pf_mtag_free(struct m_tag *t)
 {
 
-	uma_zfree(V_pf_mtag_z, t);
+	uma_zfree(pf_mtag_z, t);
 }
 
 struct pf_mtag *
@@ -879,7 +890,7 @@ pf_get_mtag(struct mbuf *m)
 	if ((mtag = m_tag_find(m, PACKET_TAG_PF, NULL)) != NULL)
 		return ((struct pf_mtag *)(mtag + 1));
 
-	mtag = uma_zalloc(V_pf_mtag_z, M_NOWAIT);
+	mtag = uma_zalloc(pf_mtag_z, M_NOWAIT);
 	if (mtag == NULL)
 		return (NULL);
 	bzero(mtag + 1, sizeof(struct pf_mtag));
@@ -1478,7 +1489,7 @@ pf_state_expires(const struct pf_state *state)
 	start = state->rule.ptr->timeout[PFTM_ADAPTIVE_START];
 	if (start) {
 		end = state->rule.ptr->timeout[PFTM_ADAPTIVE_END];
-		states = state->rule.ptr->states_cur;	/* XXXGL */
+		states = counter_u64_fetch(state->rule.ptr->states_cur);
 	} else {
 		start = V_pf_default_rule.timeout[PFTM_ADAPTIVE_START];
 		end = V_pf_default_rule.timeout[PFTM_ADAPTIVE_END];
@@ -1587,11 +1598,7 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
 
-	--s->rule.ptr->states_cur;
-	if (s->nat_rule.ptr != NULL)
-		--s->nat_rule.ptr->states_cur;
-	if (s->anchor.ptr != NULL)
-		--s->anchor.ptr->states_cur;
+	STATE_DEC_COUNTERS(s);
 
 	s->timeout = PFTM_UNLINKED;
 
@@ -1679,7 +1686,7 @@ pf_purge_unlinked_rules()
 	 * an already unlinked rule.
 	 */
 	PF_OVERLOADQ_LOCK();
-	if (!SLIST_EMPTY(&V_pf_overloadqueue)) {
+	if (!SLIST_EMPTY(&V_pf_overloadqueue.head)) {
 		PF_OVERLOADQ_UNLOCK();
 		return;
 	}
@@ -3606,7 +3613,8 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	u_short			 reason;
 
 	/* check maximums */
-	if (r->max_states && (r->states_cur >= r->max_states)) {
+	if (r->max_states &&
+	    (counter_u64_fetch(r->states_cur) >= r->max_states)) {
 		V_pf_status.lcounters[LCNT_STATES]++;
 		REASON_SET(&reason, PFRES_MAXSTATES);
 		return (PF_DROP);
