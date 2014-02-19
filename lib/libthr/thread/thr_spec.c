@@ -69,7 +69,7 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 
 			/* Unlock the key table: */
 			THR_LOCK_RELEASE(curthread, &_keytable_lock);
-			*key = i;
+			*key = i + 1;
 			return (0);
 		}
 
@@ -80,9 +80,10 @@ _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 }
 
 int
-_pthread_key_delete(pthread_key_t key)
+_pthread_key_delete(pthread_key_t userkey)
 {
 	struct pthread *curthread = _get_curthread();
+	int key = userkey - 1;
 	int ret = 0;
 
 	if ((unsigned int)key < PTHREAD_KEYS_MAX) {
@@ -177,9 +178,10 @@ pthread_key_allocate_data(void)
 }
 
 int 
-_pthread_setspecific(pthread_key_t key, const void *value)
+_pthread_setspecific(pthread_key_t userkey, const void *value)
 {
 	struct pthread	*pthread;
+	pthread_key_t	key = userkey - 1;
 	int		ret = 0;
 
 	/* Point to the running thread: */
@@ -208,9 +210,10 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 }
 
 void *
-_pthread_getspecific(pthread_key_t key)
+_pthread_getspecific(pthread_key_t userkey)
 {
 	struct pthread	*pthread;
+	pthread_key_t	key = userkey - 1;
 	const void	*data;
 
 	/* Point to the running thread: */
