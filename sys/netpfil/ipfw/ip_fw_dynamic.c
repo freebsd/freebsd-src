@@ -231,6 +231,7 @@ SYSEND
 #endif /* SYSCTL_NODE */
 
 
+#ifdef INET6
 static __inline int
 hash_packet6(struct ipfw_flow_id *id)
 {
@@ -242,6 +243,7 @@ hash_packet6(struct ipfw_flow_id *id)
 	    (id->dst_port) ^ (id->src_port);
 	return i;
 }
+#endif
 
 /*
  * IMPORTANT: the hash function for dynamic rules must be commutative
