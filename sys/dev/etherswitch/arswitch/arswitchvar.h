@@ -53,6 +53,8 @@ struct arswitch_softc {
 	int		is_mii;		/* PHY mode is MII (XXX which PHY?) */
 	int		page;
 	int		is_internal_switch;
+	int		chip_ver;
+	int		chip_rev;
 	int		mii_lo_first;
 	ar8x16_switch_type	sc_switchtype;
 	char		*ifname[AR8X16_NUM_PHYS];
