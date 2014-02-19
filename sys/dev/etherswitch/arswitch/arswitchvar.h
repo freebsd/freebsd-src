@@ -70,8 +70,12 @@ struct arswitch_softc {
 	uint32_t	vlan_mode;
 
 	struct {
+		/* Global setup */
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
+
+		/* Port functions */
+		void (* arswitch_port_init) (struct arswitch_softc *, int);
 	} hal;
 };
 
