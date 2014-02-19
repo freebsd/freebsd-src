@@ -126,7 +126,8 @@ typedef void (*uma_fini)(void *mem, int size);
 /*
  * Import new memory into a cache zone.
  */
-typedef int (*uma_import)(void *arg, void **store, int count, int flags);
+typedef int (*uma_import)(void *arg, void **store, int count, int domain,
+    int flags);
 
 /*
  * Free memory from a cache zone.
@@ -279,6 +280,11 @@ uma_zone_t uma_zcache_create(char *name, int size, uma_ctor ctor, uma_dtor dtor,
 					 * Allocates mp_ncpus slabs sized to
 					 * sizeof(struct pcpu).
 					 */
+#define	UMA_ZONE_NUMA		0x10000	/*
+					 * Zone is NUMA aware.  Implements
+					 * a best effort first-touch
+					 * allocation policy.
+					 */
 
 /*
  * These flags are shared between the keg and zone.  In zones wishing to add
@@ -365,16 +371,12 @@ uma_zfree(uma_zone_t zone, void *item)
 }
 
 /*
- * XXX The rest of the prototypes in this header are h0h0 magic for the VM.
- * If you think you need to use it for a normal zone you're probably incorrect.
- */
-
-/*
  * Backend page supplier routines
  *
  * Arguments:
  *	zone  The zone that is requesting pages.
  *	size  The number of bytes being requested.
+ *      domain The NUMA domain we prefer for this allocation.
  *	pflag Flags for these memory pages, see below.
  *	wait  Indicates our willingness to block.
  *
@@ -382,7 +384,8 @@ uma_zfree(uma_zone_t zone, void *item)
  *	A pointer to the allocated memory or NULL on failure.
  */
 
-typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
+typedef void *(*uma_alloc)(uma_zone_t zone, int size, int domain,
+    uint8_t *pflag, int wait);
 
 /*
  * Backend page free routines
@@ -396,8 +399,6 @@ typedef void *(*uma_alloc)(uma_zone_t zone, int size, uint8_t *pflag, int wait);
  *	None
  */
 typedef void (*uma_free)(void *item, int size, uint8_t pflag);
-
-
 
 /*
  * Sets up the uma allocator. (Called by vm_mem_init)

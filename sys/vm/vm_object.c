@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
@@ -2197,6 +2198,24 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
 		return;
 	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
+}
+
+int
+vm_object_domain(vm_object_t object)
+{
+#if MAXMEMDOM > 1
+	static volatile unsigned int noobj_domain;
+
+	if (object == NULL)
+		return (atomic_fetchadd_int(&noobj_domain, 1) % vm_ndomains);
+
+	object->domain = (object->domain + 1) % vm_ndomains;
+
+	return (object->domain);
+#else
+	return (0);
+#endif
+	return (0);
 }
 
 #include "opt_ddb.h"

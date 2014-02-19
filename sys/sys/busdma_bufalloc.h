@@ -111,7 +111,7 @@ struct busdma_bufzone * busdma_bufalloc_findzone(busdma_bufalloc_t ba,
  * you can probably use these when you need uncacheable buffers.
  */
 void * busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, 
-    u_int8_t *pflag, int wait);
+    int domain, u_int8_t *pflag, int wait);
 void  busdma_bufalloc_free_uncacheable(void *item, int size, u_int8_t pflag);
 
 #endif	/* _MACHINE_BUSDMA_BUFALLOC_H_ */

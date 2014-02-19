@@ -473,7 +473,8 @@ slb_insert_user(pmap_t pm, struct slb *slb)
 }
 
 static void *
-slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+slb_uma_real_alloc(uma_zone_t zone, int bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	static vm_offset_t realmax = 0;
 	void *va;

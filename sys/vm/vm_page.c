@@ -1447,6 +1447,15 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
+
+	return vm_page_alloc_domain(object, pindex, vm_object_domain(object),
+	    req);
+}
+
+vm_page_t
+vm_page_alloc_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req)
+{
 	struct vnode *vp = NULL;
 	vm_object_t m_object;
 	vm_page_t m, mpred;
@@ -1512,15 +1521,16 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 #if VM_NRESERVLEVEL > 0
 		} else if (object == NULL || (object->flags & (OBJ_COLORED |
 		    OBJ_FICTITIOUS)) != OBJ_COLORED || (m =
-		    vm_reserv_alloc_page(object, pindex, mpred)) == NULL) {
+		    vm_reserv_alloc_page(object, pindex, domain,
+		    mpred)) == NULL) {
 #else
 		} else {
 #endif
-			m = vm_phys_alloc_pages(object != NULL ?
+			m = vm_phys_alloc_pages(domain, object != NULL ?
 			    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT, 0);
 #if VM_NRESERVLEVEL > 0
-			if (m == NULL && vm_reserv_reclaim_inactive()) {
-				m = vm_phys_alloc_pages(object != NULL ?
+			if (m == NULL && vm_reserv_reclaim_inactive(domain)) {
+				m = vm_phys_alloc_pages(domain, object != NULL ?
 				    VM_FREEPOOL_DEFAULT : VM_FREEPOOL_DIRECT,
 				    0);
 			}
@@ -1696,6 +1706,16 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+	return vm_page_alloc_contig_domain(object, pindex,
+	    vm_object_domain(object), req, npages, low, high,
+	    alignment, boundary, memattr);
+}
+
+vm_page_t
+vm_page_alloc_contig_domain(vm_object_t object, vm_pindex_t pindex, int domain,
+    int req, u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
+    vm_paddr_t boundary, vm_memattr_t memattr)
+{
 	struct vnode *drop;
 	struct spglist deferred_vdrop_list;
 	vm_page_t m, m_tmp, m_ret;
@@ -1733,10 +1753,10 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 #if VM_NRESERVLEVEL > 0
 retry:
 		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
-		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
-		    low, high, alignment, boundary)) == NULL)
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, domain,
+		    npages, low, high, alignment, boundary)) == NULL)
 #endif
-			m_ret = vm_phys_alloc_contig(npages, low, high,
+			m_ret = vm_phys_alloc_contig(domain, npages, low, high,
 			    alignment, boundary);
 	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
@@ -1758,8 +1778,8 @@ retry:
 		}
 	else {
 #if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
-		    boundary))
+		if (vm_reserv_reclaim_contig(domain, npages, low, high,
+		    alignment, boundary))
 			goto retry;
 #endif
 	}
@@ -1897,7 +1917,7 @@ vm_page_alloc_init(vm_page_t m)
  *	This routine may not sleep.
  */
 vm_page_t
-vm_page_alloc_freelist(int flind, int req)
+vm_page_alloc_freelist(int domain, int flind, int req)
 {
 	struct vnode *drop;
 	vm_page_t m;
@@ -1921,7 +1941,8 @@ vm_page_alloc_freelist(int flind, int req)
 	    cnt.v_free_count + cnt.v_cache_count > cnt.v_interrupt_free_min) ||
 	    (req_class == VM_ALLOC_INTERRUPT &&
 	    cnt.v_free_count + cnt.v_cache_count > 0))
-		m = vm_phys_alloc_freelist_pages(flind, VM_FREEPOOL_DIRECT, 0);
+		m = vm_phys_alloc_freelist_pages(domain, flind,
+		    VM_FREEPOOL_DIRECT, 0);
 	else {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit,
@@ -2013,7 +2034,7 @@ struct vm_pagequeue *
 vm_page_pagequeue(vm_page_t m)
 {
 
-	return (&vm_phys_domain(m)->vmd_pagequeues[m->queue]);
+	return (&vm_page_domain(m)->vmd_pagequeues[m->queue]);
 }
 
 /*
@@ -2072,7 +2093,7 @@ vm_page_enqueue(int queue, vm_page_t m)
 	struct vm_pagequeue *pq;
 
 	vm_page_lock_assert(m, MA_OWNED);
-	pq = &vm_phys_domain(m)->vmd_pagequeues[queue];
+	pq = &vm_page_domain(m)->vmd_pagequeues[queue];
 	vm_pagequeue_lock(pq);
 	m->queue = queue;
 	TAILQ_INSERT_TAIL(&pq->pq_pl, m, plinks.q);
@@ -2404,7 +2425,7 @@ _vm_page_deactivate(vm_page_t m, int athead)
 		if (queue != PQ_NONE)
 			vm_page_dequeue(m);
 		m->flags &= ~PG_WINATCFLS;
-		pq = &vm_phys_domain(m)->vmd_pagequeues[PQ_INACTIVE];
+		pq = &vm_page_domain(m)->vmd_pagequeues[PQ_INACTIVE];
 		vm_pagequeue_lock(pq);
 		m->queue = PQ_INACTIVE;
 		if (athead)

@@ -40,7 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 void *
-uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
+uma_small_alloc(uma_zone_t zone, int bytes, int domain, u_int8_t *flags,
+    int wait)
 {
 	void *va;
 	vm_page_t m;

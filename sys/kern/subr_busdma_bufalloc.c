@@ -147,8 +147,8 @@ busdma_bufalloc_findzone(busdma_bufalloc_t ba, bus_size_t size)
 }
 
 void *
-busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, u_int8_t *pflag,
-    int wait)
+busdma_bufalloc_alloc_uncacheable(uma_zone_t zone, int size, int domain,
+    u_int8_t *pflag, int wait)
 {
 #ifdef VM_MEMATTR_UNCACHEABLE
 
