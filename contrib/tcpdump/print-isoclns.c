@@ -2722,23 +2722,21 @@ static int isis_print (packetbody_t p, u_int length)
 		tmp--;
 	    }
 	    if(tmp>sizeof(tlv_ptp_adj->extd_local_circuit_id)) {
-		if (!TTEST2(tlv_ptp_adj->extd_local_circuit_id,
-                            sizeof(tlv_ptp_adj->extd_local_circuit_id)))
+		if (!TTEST(tlv_ptp_adj->extd_local_circuit_id))
 		    goto trunctlv;
 		printf("\n\t      Extended Local circuit-ID: 0x%08x",
 		       EXTRACT_32BITS(tlv_ptp_adj->extd_local_circuit_id));
 		tmp-=sizeof(tlv_ptp_adj->extd_local_circuit_id);
 	    }
 	    if(tmp>=SYSTEM_ID_LEN) {
-		if (!TTEST2(tlv_ptp_adj->neighbor_sysid, SYSTEM_ID_LEN))
+		if (!TTEST(tlv_ptp_adj->neighbor_sysid))
 		    goto trunctlv;
 		printf("\n\t      Neighbor System-ID: %s",
 		       isis_print_id(tlv_ptp_adj->neighbor_sysid,SYSTEM_ID_LEN));
 		tmp-=SYSTEM_ID_LEN;
 	    }
 	    if(tmp>=sizeof(tlv_ptp_adj->neighbor_extd_local_circuit_id)) {
-		if (!TTEST2(tlv_ptp_adj->neighbor_extd_local_circuit_id,
-                            sizeof(tlv_ptp_adj->neighbor_extd_local_circuit_id)))
+		if (!TTEST(tlv_ptp_adj->neighbor_extd_local_circuit_id))
 		    goto trunctlv;
 		printf("\n\t      Neighbor Extended Local circuit-ID: 0x%08x",
 		       EXTRACT_32BITS(tlv_ptp_adj->neighbor_extd_local_circuit_id));
@@ -2872,13 +2870,13 @@ static int isis_print (packetbody_t p, u_int length)
 		    goto trunctlv;
 		printf("\n\t      lsp-id: %s",
                        isis_print_id(tlv_lsp->lsp_id, LSP_ID_LEN));
-		if (!TTEST2(tlv_lsp->sequence_number, 4))
+		if (!TTEST(tlv_lsp->sequence_number))
 		    goto trunctlv;
 		printf(", seq: 0x%08x",EXTRACT_32BITS(tlv_lsp->sequence_number));
-		if (!TTEST2(tlv_lsp->remaining_lifetime, 2))
+		if (!TTEST(tlv_lsp->remaining_lifetime))
 		    goto trunctlv;
 		printf(", lifetime: %5ds",EXTRACT_16BITS(tlv_lsp->remaining_lifetime));
-		if (!TTEST2(tlv_lsp->checksum, 2))
+		if (!TTEST(tlv_lsp->checksum))
 		    goto trunctlv;
 		printf(", chksum: 0x%04x",EXTRACT_16BITS(tlv_lsp->checksum));
 		tmp-=sizeof(struct isis_tlv_lsp);
