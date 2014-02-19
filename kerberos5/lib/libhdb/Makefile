@@ -84,6 +84,7 @@ GEN=	asn1_Salt.x \
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} hdb_asn1_files \
 		hdb_asn1-template.[ch]*
 
+.ORDER: ${GEN}
 ${GEN}: hdb.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} hdb_asn1
 
