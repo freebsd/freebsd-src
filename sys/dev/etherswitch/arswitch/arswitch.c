@@ -129,6 +129,11 @@ arswitch_probe(device_t dev)
 		chipname = "AR8316";
 		sc->sc_switchtype = AR8X16_SWITCH_AR8316;
 		break;
+	case 0x1202:
+		chipname = "AR8327";
+		sc->sc_switchtype = AR8X16_SWITCH_AR8327;
+		sc->mii_lo_first = 1;
+		break;
 	default:
 		chipname = NULL;
 	}
