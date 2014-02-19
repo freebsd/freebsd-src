@@ -172,10 +172,7 @@ struct pf_overload_entry {
 	struct pf_rule  		*rule;
 };
 
-struct pf_overload_head {
-	SLIST_HEAD(, pf_overload_entry) head;
-	struct vnet			*vnet;
-};
+SLIST_HEAD(pf_overload_head, pf_overload_entry);
 static VNET_DEFINE(struct pf_overload_head, pf_overloadqueue);
 #define V_pf_overloadqueue	VNET(pf_overloadqueue)
 static VNET_DEFINE(struct task, pf_overloadtask);
@@ -190,7 +187,8 @@ struct mtx pf_unlnkdrules_mtx;
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
-uma_zone_t pf_mtag_z;
+static VNET_DEFINE(uma_zone_t,	pf_mtag_z);
+#define	V_pf_mtag_z	VNET(pf_mtag_z)
 VNET_DEFINE(uma_zone_t,	 pf_state_z);
 VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
 
@@ -512,7 +510,7 @@ pf_src_connlimit(struct pf_state **state)
 	pfoe->rule = (*state)->rule.ptr;
 	pfoe->dir = (*state)->direction;
 	PF_OVERLOADQ_LOCK();
-	SLIST_INSERT_HEAD(&V_pf_overloadqueue.head, pfoe, next);
+	SLIST_INSERT_HEAD(&V_pf_overloadqueue, pfoe, next);
 	PF_OVERLOADQ_UNLOCK();
 	taskqueue_enqueue(taskqueue_swi, &V_pf_overloadtask);
 
@@ -529,13 +527,11 @@ pf_overload_task(void *c, int pending)
 
 	PF_OVERLOADQ_LOCK();
 	queue = *(struct pf_overload_head *)c;
-	SLIST_INIT(&((struct pf_overload_head *)c)->head);
+	SLIST_INIT((struct pf_overload_head *)c);
 	PF_OVERLOADQ_UNLOCK();
 
-	CURVNET_SET(queue.vnet);
-
 	bzero(&p, sizeof(p));
-	SLIST_FOREACH(pfoe, &queue.head, next) {
+	SLIST_FOREACH(pfoe, &queue, next) {
 		V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("%s: blocking address ", __func__);
@@ -567,18 +563,16 @@ pf_overload_task(void *c, int pending)
 	/*
 	 * Remove those entries, that don't need flushing.
 	 */
-	SLIST_FOREACH_SAFE(pfoe, &queue.head, next, pfoe1)
+	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
 		if (pfoe->rule->flush == 0) {
-			SLIST_REMOVE(&queue.head, pfoe, pf_overload_entry, next);
+			SLIST_REMOVE(&queue, pfoe, pf_overload_entry, next);
 			free(pfoe, M_PFTEMP);
 		} else
 			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
 
 	/* If nothing to flush, return. */
-	if (SLIST_EMPTY(&queue.head)) {
-		CURVNET_RESTORE();
+	if (SLIST_EMPTY(&queue))
 		return;
-	}
 
 	for (int i = 0; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
@@ -588,7 +582,7 @@ pf_overload_task(void *c, int pending)
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
 		    sk = s->key[PF_SK_WIRE];
-		    SLIST_FOREACH(pfoe, &queue.head, next)
+		    SLIST_FOREACH(pfoe, &queue, next)
 			if (sk->af == pfoe->af &&
 			    ((pfoe->rule->flush & PF_FLUSH_GLOBAL) ||
 			    pfoe->rule == s->rule.ptr) &&
@@ -603,12 +597,10 @@ pf_overload_task(void *c, int pending)
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
-	SLIST_FOREACH_SAFE(pfoe, &queue.head, next, pfoe1)
+	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
 		free(pfoe, M_PFTEMP);
 	if (V_pf_status.debug >= PF_DEBUG_MISC)
 		printf("%s: %u states killed", __func__, killed);
-
-	CURVNET_RESTORE();
 }
 
 /*
@@ -798,16 +790,14 @@ pf_initialize()
 	V_pf_altqs_inactive = &V_pf_altqs[1];
 
 	/* Mbuf tags */
-	if (IS_DEFAULT_VNET(curvnet))
-		pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
-		    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
-		    UMA_ALIGN_PTR, 0);
+	V_pf_mtag_z = uma_zcreate("pf mtags", sizeof(struct m_tag) +
+	    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
+	    UMA_ALIGN_PTR, 0);
 
 	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
-	SLIST_INIT(&V_pf_overloadqueue.head);
+	SLIST_INIT(&V_pf_overloadqueue);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, &V_pf_overloadqueue);
-	V_pf_overloadqueue.vnet = curvnet;
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
 	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
 	    MTX_DEF);
@@ -854,8 +844,7 @@ pf_cleanup()
 	mtx_destroy(&pf_overloadqueue_mtx);
 	mtx_destroy(&pf_unlnkdrules_mtx);
 
-	if (IS_DEFAULT_VNET(curvnet))
-		uma_zdestroy(pf_mtag_z);
+	uma_zdestroy(V_pf_mtag_z);
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
 	uma_zdestroy(V_pf_state_key_z);
@@ -879,7 +868,7 @@ static void
 pf_mtag_free(struct m_tag *t)
 {
 
-	uma_zfree(pf_mtag_z, t);
+	uma_zfree(V_pf_mtag_z, t);
 }
 
 struct pf_mtag *
@@ -890,7 +879,7 @@ pf_get_mtag(struct mbuf *m)
 	if ((mtag = m_tag_find(m, PACKET_TAG_PF, NULL)) != NULL)
 		return ((struct pf_mtag *)(mtag + 1));
 
-	mtag = uma_zalloc(pf_mtag_z, M_NOWAIT);
+	mtag = uma_zalloc(V_pf_mtag_z, M_NOWAIT);
 	if (mtag == NULL)
 		return (NULL);
 	bzero(mtag + 1, sizeof(struct pf_mtag));
@@ -1686,7 +1675,7 @@ pf_purge_unlinked_rules()
 	 * an already unlinked rule.
 	 */
 	PF_OVERLOADQ_LOCK();
-	if (!SLIST_EMPTY(&V_pf_overloadqueue.head)) {
+	if (!SLIST_EMPTY(&V_pf_overloadqueue)) {
 		PF_OVERLOADQ_UNLOCK();
 		return;
 	}
