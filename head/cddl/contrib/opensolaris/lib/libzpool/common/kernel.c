@@ -661,7 +661,7 @@ __dprintf(const char *file, const char *func, int line, const char *fmt, ...)
 		if (dprintf_find_string("pid"))
 			(void) printf("%d ", getpid());
 		if (dprintf_find_string("tid"))
-			(void) printf("%u ", thr_self());
+			(void) printf("%ul ", thr_self());
 #if 0
 		if (dprintf_find_string("cpu"))
 			(void) printf("%u ", getcpuid());
@@ -1123,5 +1123,52 @@ int
 zvol_create_minors(const char *name)
 {
 	return (0);
+}
+#endif
+
+#ifdef illumos
+void
+bioinit(buf_t *bp)
+{
+	bzero(bp, sizeof (buf_t));
+}
+
+void
+biodone(buf_t *bp)
+{
+	if (bp->b_iodone != NULL) {
+		(*(bp->b_iodone))(bp);
+		return;
+	}
+	ASSERT((bp->b_flags & B_DONE) == 0);
+	bp->b_flags |= B_DONE;
+}
+
+void
+bioerror(buf_t *bp, int error)
+{
+	ASSERT(bp != NULL);
+	ASSERT(error >= 0);
+
+	if (error != 0) {
+		bp->b_flags |= B_ERROR;
+	} else {
+		bp->b_flags &= ~B_ERROR;
+	}
+	bp->b_error = error;
+}
+
+
+int
+geterror(struct buf *bp)
+{
+	int error = 0;
+
+	if (bp->b_flags & B_ERROR) {
+		error = bp->b_error;
+		if (!error)
+			error = EIO;
+	}
+	return (error);
 }
 #endif

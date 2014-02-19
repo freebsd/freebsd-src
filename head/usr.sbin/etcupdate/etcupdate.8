@@ -1,4 +1,4 @@
-.\" Copyright (c) 2010-2012 Advanced Computing Technologies LLC
+.\" Copyright (c) 2010-2013 Advanced Computing Technologies LLC
 .\" Written by: John H. Baldwin <jhb@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2013
+.Dd December 9, 2013
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -695,6 +695,25 @@ has been removed from the
 tree,
 but it has been locally modified.
 The modified version of the file remains in the destination directory.
+.It "Needs update: /etc/localtime (required manual update via tzsetup(1))"
+The
+.Fa /var/db/zoneinfo
+file does not exist,
+so
+.Nm
+was not able to refresh
+.Fa /etc/localtime
+from its source file in
+.Fa /usr/share/zoneinfo .
+Running
+.Xr tzsetup 1
+will both refresh
+.Fa /etc/localtime
+and generate
+.Fa /var/db/zoneinfo
+permitting future updates to refresh
+.Fa /etc/localtime
+automatically.
 .It "Needs update: /etc/mail/aliases.db (required manual update via newaliases(1))"
 The file
 .Pa /etc/mail/aliases

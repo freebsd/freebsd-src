@@ -144,13 +144,14 @@ f_dialog_input_ipaddr()
 	# system may hang (if any NFS mounts are using that interface).
 	#
 	if f_nfs_mounted && ! f_jailed; then
-		local setting="$( printf "$msg_current_ipaddr" \
-		                         "$interface" "$_ipaddr" )"
+		local setting
+		f_sprintf setting "$msg_current_ipaddr" "$interface" "$_ipaddr"
 		f_noyes "$msg_nfs_mounts_may_cause_hang" "$setting" ||
 			return $DIALOG_CANCEL
 	fi
 
-	local msg="$( printf "$msg_please_enter_new_ip_addr" "$interface" )"
+	local msg
+	f_sprintf msg "$msg_please_enter_new_ip_addr" "$interface"
 
 	#
 	# Loop until the user provides taint-free input.

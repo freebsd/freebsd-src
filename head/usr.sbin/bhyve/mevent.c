@@ -135,6 +135,9 @@ mevent_kq_filter(struct mevent *mevp)
 	if (mevp->me_type == EVF_TIMER)
 		retval = EVFILT_TIMER;
 
+	if (mevp->me_type == EVF_SIGNAL)
+		retval = EVFILT_SIGNAL;
+
 	return (retval);
 }
 
@@ -437,7 +440,7 @@ mevent_dispatch(void)
 		 * Block awaiting events
 		 */
 		ret = kevent(mfd, NULL, 0, eventlist, MEVENT_MAX, NULL);
-		if (ret == -1) {
+		if (ret == -1 && errno != EINTR) {
 			perror("Error return from kevent monitor");
 		}
 		

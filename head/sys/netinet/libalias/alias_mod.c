@@ -52,201 +52,82 @@ __FBSDID("$FreeBSD$");
 #endif
 
 /* Protocol and userland module handlers chains. */
-LIST_HEAD(handler_chain, proto_handler) handler_chain = LIST_HEAD_INITIALIZER(handler_chain);
-#ifdef _KERNEL
-struct rwlock   handler_rw;
-#endif
-SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(dll_chain); 
-
-#ifdef _KERNEL
-
-#define	LIBALIAS_RWLOCK_INIT() \
-        rw_init(&handler_rw, "Libalias_modules_rwlock")
-#define	LIBALIAS_RWLOCK_DESTROY()	rw_destroy(&handler_rw)
-#define	LIBALIAS_WLOCK_ASSERT() \
-        rw_assert(&handler_rw, RA_WLOCKED)
-
-static __inline void
-LIBALIAS_RLOCK(void)
-{
-	rw_rlock(&handler_rw);
-}
-
-static __inline void
-LIBALIAS_RUNLOCK(void)
-{
-	rw_runlock(&handler_rw);
-}
-
-static __inline void
-LIBALIAS_WLOCK(void)
-{
-	rw_wlock(&handler_rw);
-}
-
-static __inline void
-LIBALIAS_WUNLOCK(void)
-{
-	rw_wunlock(&handler_rw);
-}
-
-static void
-_handler_chain_init(void)
-{
-
-	if (!rw_initialized(&handler_rw))
-		LIBALIAS_RWLOCK_INIT();
-}
-
-static void
-_handler_chain_destroy(void)
-{
-
-	if (rw_initialized(&handler_rw))
-		LIBALIAS_RWLOCK_DESTROY();
-}
-
-#else
-#define	LIBALIAS_RWLOCK_INIT() ;
-#define	LIBALIAS_RWLOCK_DESTROY()	;
-#define	LIBALIAS_WLOCK_ASSERT()	;
-#define	LIBALIAS_RLOCK() ;
-#define	LIBALIAS_RUNLOCK() ;
-#define	LIBALIAS_WLOCK() ;
-#define	LIBALIAS_WUNLOCK() ;
-#define _handler_chain_init() ;
-#define _handler_chain_destroy() ;
-#endif 
-
-void
-handler_chain_init(void)
-{
-	_handler_chain_init();
-}
-
-void
-handler_chain_destroy(void)
-{
-	_handler_chain_destroy();
-}
+static TAILQ_HEAD(handler_chain, proto_handler) handler_chain =
+    TAILQ_HEAD_INITIALIZER(handler_chain);
 
 static int
-_attach_handler(struct proto_handler *p)
+attach_handler(struct proto_handler *p)
 {
 	struct proto_handler *b;
 
-	LIBALIAS_WLOCK_ASSERT();
-	b = NULL;
-	LIST_FOREACH(b, &handler_chain, entries) {
-		if ((b->pri == p->pri) && 
+	TAILQ_FOREACH(b, &handler_chain, link) {
+		if ((b->pri == p->pri) &&
 		    (b->dir == p->dir) &&
 		    (b->proto == p->proto))
-			return (EEXIST); /* Priority conflict. */
+			return (EEXIST);
 		if (b->pri > p->pri) {
-			LIST_INSERT_BEFORE(b, p, entries);
+			TAILQ_INSERT_BEFORE(b, p, link);
 			return (0);
 		}
 	}
-	/* End of list or found right position, inserts here. */
-	if (b)
-		LIST_INSERT_AFTER(b, p, entries);
-	else
-		LIST_INSERT_HEAD(&handler_chain, p, entries);
+
+	TAILQ_INSERT_TAIL(&handler_chain, p, link);
+
 	return (0);
 }
 
-static int
-_detach_handler(struct proto_handler *p)
-{
-	struct proto_handler *b, *b_tmp;
-
-	LIBALIAS_WLOCK_ASSERT();	
-	LIST_FOREACH_SAFE(b, &handler_chain, entries, b_tmp) {
-		if (b == p) {
-			LIST_REMOVE(b, entries);
-			return (0);
-		}
-	}
-	return (ENOENT); /* Handler not found. */
-}
-
 int
-LibAliasAttachHandlers(struct proto_handler *_p)
-{
-	int i, error;
-
-	LIBALIAS_WLOCK();
-	error = -1;
-	for (i = 0; 1; i++) {
-		if (*((int *)&_p[i]) == EOH) 
-			break;
-		error = _attach_handler(&_p[i]);
-		if (error != 0) 
-			break;
-	}
-	LIBALIAS_WUNLOCK();
-	return (error);
-}
-
-int
-LibAliasDetachHandlers(struct proto_handler *_p)
-{
-	int i, error;
-
-	LIBALIAS_WLOCK();
-	error = -1;
-	for (i = 0; 1; i++) {
-		if (*((int *)&_p[i]) == EOH) 
-			break;
-		error = _detach_handler(&_p[i]);
-		if (error != 0) 
-			break;
-	}
-	LIBALIAS_WUNLOCK();
-	return (error);
-}
-
-int
-detach_handler(struct proto_handler *_p)
+LibAliasAttachHandlers(struct proto_handler *p)
 {
 	int error;
 
-	LIBALIAS_WLOCK();
-	error = -1;
-	error = _detach_handler(_p);
-	LIBALIAS_WUNLOCK();
-	return (error);
+	while (p->dir != NODIR) {
+		error = attach_handler(p);
+		if (error)
+			return (error);
+		p++;
+	}
+
+	return (0);
+}
+
+/* XXXGL: should be void, but no good reason to break ABI */
+int
+LibAliasDetachHandlers(struct proto_handler *p)
+{
+
+	while (p->dir != NODIR) {
+		TAILQ_REMOVE(&handler_chain, p, link);
+		p++;
+	}
+
+	return (0);
 }
 
 int
-find_handler(int8_t dir, int8_t proto, struct libalias *la, __unused struct ip *pip, 
+find_handler(int8_t dir, int8_t proto, struct libalias *la, struct ip *ip,
     struct alias_data *ad)
 {
 	struct proto_handler *p;
-	int error;
 
-	LIBALIAS_RLOCK();
-	error = ENOENT;
-	LIST_FOREACH(p, &handler_chain, entries) {
-		if ((p->dir & dir) && (p->proto & proto))
-			if (p->fingerprint(la, ad) == 0) {
-				error = p->protohandler(la, pip, ad);
-				break;
-			}
-	}
-	LIBALIAS_RUNLOCK();
-	return (error);	
+	TAILQ_FOREACH(p, &handler_chain, link)
+		if ((p->dir & dir) && (p->proto & proto) &&
+		    p->fingerprint(la, ad) == 0)
+			return (p->protohandler(la, ip, ad));
+
+	return (ENOENT);
 }
 
 struct proto_handler *
 first_handler(void)
 {
-	
-	return (LIST_FIRST(&handler_chain));	
+
+	return (TAILQ_FIRST(&handler_chain));
 }
 
+#ifndef _KERNEL
 /* Dll manipulation code - this code is not thread safe... */
-
+SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(dll_chain);
 int
 attach_dll(struct dll *p)
 {
@@ -270,7 +151,7 @@ detach_dll(char *p)
 	error = NULL;
 	SLIST_FOREACH_SAFE(b, &dll_chain, next, b_tmp)
 		if (!strncmp(b->name, p, DLL_LEN)) {
-			SLIST_REMOVE(&dll_chain, b, dll, next); 
+			SLIST_REMOVE(&dll_chain, b, dll, next);
 			error = b;
 			break;
 		}
@@ -288,3 +169,4 @@ walk_dll_chain(void)
 	SLIST_REMOVE_HEAD(&dll_chain, next);
 	return (t);
 }
+#endif /* !_KERNEL */

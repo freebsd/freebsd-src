@@ -308,12 +308,29 @@ bool MachineSinking::isWorthBreakingCriticalEdge(MachineInstr *MI,
   // to be sunk then it's probably worth it.
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
-    if (!MO.isReg()) continue;
-    unsigned Reg = MO.getReg();
-    if (Reg == 0 || !TargetRegisterInfo::isPhysicalRegister(Reg))
+    if (!MO.isReg() || !MO.isUse())
       continue;
-    if (MRI->hasOneNonDBGUse(Reg))
-      return true;
+    unsigned Reg = MO.getReg();
+    if (Reg == 0)
+      continue;
+
+    // We don't move live definitions of physical registers,
+    // so sinking their uses won't enable any opportunities.
+    if (TargetRegisterInfo::isPhysicalRegister(Reg))
+      continue;
+
+    // If this instruction is the only user of a virtual register,
+    // check if breaking the edge will enable sinking
+    // both this instruction and the defining instruction.
+    if (MRI->hasOneNonDBGUse(Reg)) {
+      // If the definition resides in same MBB,
+      // claim it's likely we can sink these together.
+      // If definition resides elsewhere, we aren't
+      // blocking it from being sunk so don't break the edge.
+      MachineInstr *DefMI = MRI->getVRegDef(Reg);
+      if (DefMI->getParent() == MI->getParent())
+        return true;
+    }
   }
 
   return false;
@@ -394,7 +411,7 @@ static bool AvoidsSinking(MachineInstr *MI, MachineRegisterInfo *MRI) {
 /// collectDebgValues - Scan instructions following MI and collect any
 /// matching DBG_VALUEs.
 static void collectDebugValues(MachineInstr *MI,
-                               SmallVector<MachineInstr *, 2> & DbgValues) {
+                               SmallVectorImpl<MachineInstr *> &DbgValues) {
   DbgValues.clear();
   if (!MI->getOperand(0).isReg())
     return;
@@ -537,8 +554,8 @@ MachineBasicBlock *MachineSinking::FindSuccToSinkTo(MachineInstr *MI,
       // We give successors with smaller loop depth higher priority.
       SmallVector<MachineBasicBlock*, 4> Succs(MBB->succ_begin(), MBB->succ_end());
       std::stable_sort(Succs.begin(), Succs.end(), SuccessorSorter(LI));
-      for (SmallVector<MachineBasicBlock*, 4>::iterator SI = Succs.begin(),
-           E = Succs.end(); SI != E; ++SI) {
+      for (SmallVectorImpl<MachineBasicBlock *>::iterator SI = Succs.begin(),
+             E = Succs.end(); SI != E; ++SI) {
         MachineBasicBlock *SuccBlock = *SI;
         bool LocalUse = false;
         if (AllUsesDominatedByBlock(Reg, SuccBlock, MBB,
@@ -615,9 +632,8 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
 
   DEBUG(dbgs() << "Sink instr " << *MI << "\tinto block " << *SuccToSinkTo);
 
-  // If the block has multiple predecessors, this would introduce computation on
-  // a path that it doesn't already exist.  We could split the critical edge,
-  // but for now we just punt.
+  // If the block has multiple predecessors, this is a critical edge.
+  // Decide if we can sink along it or need to break the edge.
   if (SuccToSinkTo->pred_size() > 1) {
     // We cannot sink a load across a critical edge - there may be stores in
     // other code paths.
@@ -697,7 +713,7 @@ bool MachineSinking::SinkInstruction(MachineInstr *MI, bool &SawStore) {
                        ++MachineBasicBlock::iterator(MI));
 
   // Move debug values.
-  for (SmallVector<MachineInstr *, 2>::iterator DBI = DbgValuesToSink.begin(),
+  for (SmallVectorImpl<MachineInstr *>::iterator DBI = DbgValuesToSink.begin(),
          DBE = DbgValuesToSink.end(); DBI != DBE; ++DBI) {
     MachineInstr *DbgMI = *DBI;
     SuccToSinkTo->splice(InsertPos, ParentBlock,  DbgMI,

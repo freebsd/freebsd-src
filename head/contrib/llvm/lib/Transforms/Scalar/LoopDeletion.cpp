@@ -51,8 +51,8 @@ namespace {
     }
 
   private:
-    bool isLoopDead(Loop *L, SmallVector<BasicBlock*, 4> &exitingBlocks,
-                    SmallVector<BasicBlock*, 4> &exitBlocks,
+    bool isLoopDead(Loop *L, SmallVectorImpl<BasicBlock *> &exitingBlocks,
+                    SmallVectorImpl<BasicBlock *> &exitBlocks,
                     bool &Changed, BasicBlock *Preheader);
 
   };
@@ -77,8 +77,8 @@ Pass *llvm::createLoopDeletionPass() {
 /// checked for unique exit and exiting blocks, and that the code is in LCSSA
 /// form.
 bool LoopDeletion::isLoopDead(Loop *L,
-                              SmallVector<BasicBlock*, 4> &exitingBlocks,
-                              SmallVector<BasicBlock*, 4> &exitBlocks,
+                              SmallVectorImpl<BasicBlock *> &exitingBlocks,
+                              SmallVectorImpl<BasicBlock *> &exitBlocks,
                               bool &Changed, BasicBlock *Preheader) {
   BasicBlock *exitBlock = exitBlocks[0];
 
@@ -209,7 +209,7 @@ bool LoopDeletion::runOnLoop(Loop *L, LPPassManager &LPM) {
     // Move all of the block's children to be children of the preheader, which
     // allows us to remove the domtree entry for the block.
     ChildNodes.insert(ChildNodes.begin(), DT[*LI]->begin(), DT[*LI]->end());
-    for (SmallVector<DomTreeNode*, 8>::iterator DI = ChildNodes.begin(),
+    for (SmallVectorImpl<DomTreeNode *>::iterator DI = ChildNodes.begin(),
          DE = ChildNodes.end(); DI != DE; ++DI) {
       DT.changeImmediateDominator(*DI, DT[preheader]);
     }

@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "opt_inet.h"
-#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

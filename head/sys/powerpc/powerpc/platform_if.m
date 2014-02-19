@@ -120,9 +120,9 @@ METHOD int attach {
 
 METHOD void mem_regions {
 	platform_t	    _plat;
-	struct mem_region **_memp;
+	struct mem_region  *_memp;
 	int		   *_memsz;
-	struct mem_region **_availp;
+	struct mem_region  *_availp;
 	int		   *_availsz;
 };
 
@@ -207,6 +207,13 @@ METHOD cpu_group_t smp_topo {
  * @brief Reset system
  */
 METHOD void reset {
+	platform_t	_plat;
+};
+
+/**
+ * @brief Suspend the CPU
+ */
+METHOD void sleep {
 	platform_t	_plat;
 };
 

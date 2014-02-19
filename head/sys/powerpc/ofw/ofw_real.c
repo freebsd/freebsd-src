@@ -300,7 +300,7 @@ ofw_real_init(ofw_t ofw, void *openfirm)
 {
 	openfirmware = (int (*)(void *))openfirm;
 
-	mtx_init(&of_bounce_mtx, "OF Bounce Page", MTX_DEF, 0);
+	mtx_init(&of_bounce_mtx, "OF Bounce Page", NULL, MTX_DEF);
 	of_bounce_virt = NULL;
 	return (0);
 }

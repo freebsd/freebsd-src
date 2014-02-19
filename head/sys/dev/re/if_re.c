@@ -656,6 +656,10 @@ re_set_rxmode(struct rl_softc *sc)
 	ifp = sc->rl_ifp;
 
 	rxfilt = RL_RXCFG_CONFIG | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_BROAD;
+	if ((sc->rl_flags & RL_FLAG_EARLYOFF) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFF;
+	else if ((sc->rl_flags & RL_FLAG_EARLYOFFV2) != 0)
+		rxfilt |= RL_RXCFG_EARLYOFFV2;
 
 	if (ifp->if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		if (ifp->if_flags & IFF_PROMISC)
@@ -1265,7 +1269,7 @@ re_attach(device_t dev)
 		msic = 0;
 	/* Prefer MSI-X to MSI. */
 	if (msixc > 0) {
-		msixc = 1;
+		msixc = RL_MSI_MESSAGES;
 		rid = PCIR_BAR(4);
 		sc->rl_res_pba = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 		    &rid, RF_ACTIVE);
@@ -1275,7 +1279,7 @@ re_attach(device_t dev)
 		}
 		if (sc->rl_res_pba != NULL &&
 		    pci_alloc_msix(dev, &msixc) == 0) {
-			if (msixc == 1) {
+			if (msixc == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI-X message\n",
 				    msixc);
 				sc->rl_flags |= RL_FLAG_MSIX;
@@ -1292,7 +1296,7 @@ re_attach(device_t dev)
 	}
 	/* Prefer MSI to INTx. */
 	if (msixc == 0 && msic > 0) {
-		msic = 1;
+		msic = RL_MSI_MESSAGES;
 		if (pci_alloc_msi(dev, &msic) == 0) {
 			if (msic == RL_MSI_MESSAGES) {
 				device_printf(dev, "Using %d MSI message\n",
@@ -1463,15 +1467,23 @@ re_attach(device_t dev)
 		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
-	case RL_HWREV_8168EP:
 	case RL_HWREV_8168F:
-	case RL_HWREV_8168G:
+		sc->rl_flags |= RL_FLAG_EARLYOFF;
+		/* FALLTHROUGH */
 	case RL_HWREV_8411:
-	case RL_HWREV_8411B:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
 		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168EP:
+	case RL_HWREV_8168G:
+	case RL_HWREV_8411B:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8168GU:
 		if (pci_get_device(dev) == RT_DEVICEID_8101E) {
@@ -1482,7 +1494,8 @@ re_attach(device_t dev)
 
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ;
+		    RL_FLAG_AUTOPAD | RL_FLAG_CMDSTOP_WAIT_TXQ |
+		    RL_FLAG_EARLYOFFV2 | RL_FLAG_RXDV_GATED;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -3169,6 +3182,10 @@ re_init_locked(struct rl_softc *sc)
 	    RL_ADDR_HI(sc->rl_ldata.rl_tx_list_addr));
 	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
 	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
+
+	if ((sc->rl_flags & RL_FLAG_RXDV_GATED) != 0)
+		CSR_WRITE_4(sc, RL_MISC, CSR_READ_4(sc, RL_MISC) &
+		    ~0x00080000);
 
 	/*
 	 * Enable transmit and receive.

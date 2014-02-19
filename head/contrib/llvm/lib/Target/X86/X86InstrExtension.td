@@ -14,26 +14,26 @@
 let neverHasSideEffects = 1 in {
   let Defs = [AX], Uses = [AL] in
   def CBW : I<0x98, RawFrm, (outs), (ins),
-              "{cbtw|cbw}", []>, OpSize;   // AX = signext(AL)
+              "{cbtw|cbw}", [], IIC_CBW>, OpSize;   // AX = signext(AL)
   let Defs = [EAX], Uses = [AX] in
   def CWDE : I<0x98, RawFrm, (outs), (ins),
-              "{cwtl|cwde}", []>;   // EAX = signext(AX)
+              "{cwtl|cwde}", [], IIC_CBW>;   // EAX = signext(AX)
 
   let Defs = [AX,DX], Uses = [AX] in
   def CWD : I<0x99, RawFrm, (outs), (ins),
-              "{cwtd|cwd}", []>, OpSize; // DX:AX = signext(AX)
+              "{cwtd|cwd}", [], IIC_CBW>, OpSize; // DX:AX = signext(AX)
   let Defs = [EAX,EDX], Uses = [EAX] in
   def CDQ : I<0x99, RawFrm, (outs), (ins),
-              "{cltd|cdq}", []>; // EDX:EAX = signext(EAX)
+              "{cltd|cdq}", [], IIC_CBW>; // EDX:EAX = signext(EAX)
 
 
   let Defs = [RAX], Uses = [EAX] in
   def CDQE : RI<0x98, RawFrm, (outs), (ins),
-               "{cltq|cdqe}", []>;     // RAX = signext(EAX)
+               "{cltq|cdqe}", [], IIC_CBW>;     // RAX = signext(EAX)
 
   let Defs = [RAX,RDX], Uses = [RAX] in
   def CQO  : RI<0x99, RawFrm, (outs), (ins),
-                "{cqto|cqo}", []>; // RDX:RAX = signext(RAX)
+                "{cqto|cqo}", [], IIC_CBW>; // RDX:RAX = signext(RAX)
 }
 
 
@@ -149,38 +149,24 @@ def MOVZX64rm16_Q : RI<0xB7, MRMSrcMem, (outs GR64:$dst), (ins i16mem:$src),
                        "movz{wq|x}\t{$src, $dst|$dst, $src}", [], IIC_MOVZX>,
                        TB, Sched<[WriteALULd]>;
 
-// FIXME: These should be Pat patterns.
-let isCodeGenOnly = 1 in {
+// 64-bit zero-extension patterns use SUBREG_TO_REG and an operation writing a
+// 32-bit register.
+def : Pat<(i64 (zext GR8:$src)),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rr8 GR8:$src), sub_32bit)>;
+def : Pat<(zextloadi64i8 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm8 addr:$src), sub_32bit)>;
 
-// Use movzbl instead of movzbq when the destination is a register; it's
-// equivalent due to implicit zero-extending, and it has a smaller encoding.
-def MOVZX64rr8 : I<0xB6, MRMSrcReg, (outs GR64:$dst), (ins GR8 :$src),
-                   "", [(set GR64:$dst, (zext GR8:$src))], IIC_MOVZX>, TB,
-                   Sched<[WriteALU]>;
-def MOVZX64rm8 : I<0xB6, MRMSrcMem, (outs GR64:$dst), (ins i8mem :$src),
-                   "", [(set GR64:$dst, (zextloadi64i8 addr:$src))], IIC_MOVZX>,
-                   TB, Sched<[WriteALULd]>;
-// Use movzwl instead of movzwq when the destination is a register; it's
-// equivalent due to implicit zero-extending, and it has a smaller encoding.
-def MOVZX64rr16: I<0xB7, MRMSrcReg, (outs GR64:$dst), (ins GR16:$src),
-                   "", [(set GR64:$dst, (zext GR16:$src))], IIC_MOVZX>, TB,
-                   Sched<[WriteALU]>;
-def MOVZX64rm16: I<0xB7, MRMSrcMem, (outs GR64:$dst), (ins i16mem:$src),
-                   "", [(set GR64:$dst, (zextloadi64i16 addr:$src))],
-                   IIC_MOVZX>, TB, Sched<[WriteALULd]>;
+def : Pat<(i64 (zext GR16:$src)),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rr16 GR16:$src), sub_32bit)>;
+def : Pat<(zextloadi64i16 addr:$src),
+          (SUBREG_TO_REG (i64 0), (MOVZX32rm16 addr:$src), sub_32bit)>;
 
-// There's no movzlq instruction, but movl can be used for this purpose, using
-// implicit zero-extension. The preferred way to do 32-bit-to-64-bit zero
-// extension on x86-64 is to use a SUBREG_TO_REG to utilize implicit
-// zero-extension, however this isn't possible when the 32-bit value is
-// defined by a truncate or is copied from something where the high bits aren't
-// necessarily all zero. In such cases, we fall back to these explicit zext
-// instructions.
-def MOVZX64rr32 : I<0x89, MRMDestReg, (outs GR64:$dst), (ins GR32:$src),
-                    "", [(set GR64:$dst, (zext GR32:$src))], IIC_MOVZX>,
-                    Sched<[WriteALU]>;
-def MOVZX64rm32 : I<0x8B, MRMSrcMem, (outs GR64:$dst), (ins i32mem:$src),
-                    "", [(set GR64:$dst, (zextloadi64i32 addr:$src))],
-                    IIC_MOVZX>, Sched<[WriteALULd]>;
-}
-
+// The preferred way to do 32-bit-to-64-bit zero extension on x86-64 is to use a
+// SUBREG_TO_REG to utilize implicit zero-extension, however this isn't possible
+// when the 32-bit value is defined by a truncate or is copied from something
+// where the high bits aren't necessarily all zero. In such cases, we fall back
+// to these explicit zext instructions.
+def : Pat<(i64 (zext GR32:$src)),
+          (SUBREG_TO_REG (i64 0), (MOV32rr GR32:$src), sub_32bit)>;
+def : Pat<(i64 (zextloadi64i32 addr:$src)),
+          (SUBREG_TO_REG (i64 0), (MOV32rm addr:$src), sub_32bit)>;

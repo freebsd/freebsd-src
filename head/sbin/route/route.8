@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 17, 2013
+.Dd January 11, 2014
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -62,6 +62,14 @@ programmatic interface discussed in
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl 4
+Specify
+.Cm inet
+address family as family hint for subcommands.
+.It Fl 6
+Specify
+.Cm inet
+address family as family hint for subcommands.
 .It Fl d
 Run in debug-only mode, i.e., do not actually modify the routing table.
 .It Fl n
@@ -142,6 +150,15 @@ or
 .Fl inet
 modifiers, only routes having destinations with addresses in the
 delineated family will be deleted.
+Additionally,
+.Fl 4
+or
+.Fl 6
+can be used as aliases for
+.Fl inet
+and
+.Fl inet6
+modifiers.
 When a
 .Fl fib
 option is specified, the operation will be applied to

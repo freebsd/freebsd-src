@@ -100,6 +100,9 @@ sctp_startup_iterator(void)
 		/* You only get one */
 		return;
 	}
+	/* Initialize global locks here, thus only once. */
+	SCTP_ITERATOR_LOCK_INIT();
+	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
 	kproc_create(sctp_iterator_thread,
 	    (void *)NULL,

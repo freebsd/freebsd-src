@@ -44,6 +44,7 @@ f_include $BSDCFG_SHARE/struct.subr
 ############################################################ GLOBALS
 
 KEYMAPS=
+NKEYMAPS=0
 
 # A "keymap" from kbdmap's point of view
 f_struct_define KEYMAP \
@@ -254,8 +255,8 @@ case "$KEYMAP_SELF_SCAN_ALL" in
 *) f_keymap_get_all
 esac
 
-f_dprintf "%s: Found %u keymap file(s)." keymap.subr \
-          "$( set -- $KEYMAPS; echo $# )"
+f_count NKEYMAPS $KEYMAPS
+f_dprintf "%s: Found %u keymap file(s)." keymap.subr $NKEYMAPS
 
 f_dprintf "%s: Successfully loaded." keymap.subr
 

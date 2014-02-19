@@ -207,9 +207,9 @@ aha_free(struct aha_softc *aha)
 	case 7:
 		bus_dmamap_unload(aha->ccb_dmat, aha->ccb_dmamap);
 	case 6:
-		bus_dmamap_destroy(aha->ccb_dmat, aha->ccb_dmamap);
 		bus_dmamem_free(aha->ccb_dmat, aha->aha_ccb_array,
 		    aha->ccb_dmamap);
+		bus_dmamap_destroy(aha->ccb_dmat, aha->ccb_dmamap);
 	case 5:
 		bus_dma_tag_destroy(aha->ccb_dmat);
 	case 4:

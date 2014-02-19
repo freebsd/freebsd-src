@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/startup/rcconf.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ GLOBALS
 
@@ -364,18 +364,17 @@ while :; do
 	"> $msg_delete_selected")
 		delete_vars=
 		for var in $( f_startup_rcconf_list ); do
-			[ "$( eval echo \$_${var}_delete )" ] || continue
-			delete_vars="$delete_vars${delete_vars:+ }$var"
+			f_getvar _${var}_delete _delete
+			[ "$_delete" ] || continue
+			delete_vars="$delete_vars $var"
 		done
 		if dialog_menu_confirm_delete $delete_vars; then
 			f_dialog_title "$msg_info"
 			f_dialog_info "$msg_deleting_selected_directives"
 			f_dialog_title_restore
 			for var in $delete_vars; do
-				if ! err=$( f_sysrc_delete $var 2>&1 ); then
-					f_dialog_msgbox "$err\n"
-					break
-				fi
+				f_eval_catch "$0" f_sysrc_delete \
+					'f_sysrc_delete "%s"' "$var" || break
 			done
 			dialog_create_main
 		fi

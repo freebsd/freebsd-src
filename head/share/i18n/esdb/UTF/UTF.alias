@@ -28,7 +28,6 @@
 16LE		utf16le
 
 32-INTERNAL	ucs-4-internal
-32-INTERNAL	wchar_t
 
 32-SWAPPED	ucs-4-swapped
 

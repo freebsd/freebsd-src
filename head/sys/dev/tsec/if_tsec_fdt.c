@@ -110,6 +110,9 @@ tsec_fdt_probe(device_t dev)
 	struct tsec_softc *sc;
 	uint32_t id;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_get_type(dev) == NULL ||
 	    strcmp(ofw_bus_get_type(dev), "network") != 0)
 		return (ENXIO);

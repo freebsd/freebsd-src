@@ -35,7 +35,6 @@
 .Sh SYNOPSIS
 .Cd "options CAPABILITY_MODE"
 .Cd "options CAPABILITIES"
-.Cd "options PROCDESC"
 .Sh DESCRIPTION
 .Nm
 is a lightweight OS capability and sandbox framework implementing a hybrid
@@ -105,7 +104,9 @@ associated with file descriptors; described in greater detail in
 .Xr shm_open 2 ,
 .Xr write 2 ,
 .Xr cap_rights_get 3 ,
-.Xr procdesc 4
+.Xr libcapsicum 3 ,
+.Xr procdesc 4 ,
+.Xr casperd 8
 .Sh HISTORY
 .Nm
 first appeared in

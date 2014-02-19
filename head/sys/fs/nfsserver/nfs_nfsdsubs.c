@@ -1987,47 +1987,6 @@ nfsmout:
 	return (error);
 }
 
-/*
- * Check the tcp socket sequence number has been acknowledged.
- */
-int
-nfsrv_checksockseqnum(struct socket *so, tcp_seq tcpseqval)
-{
-	tcp_seq maxseq, unaseq;
-	int error, ret;
-
-	error = nfsrv_getsocksndseq(so, &maxseq, &unaseq);
-	if (error)
-		return (0);
-	ret = SEQ_GEQ(unaseq, tcpseqval);
-	return (ret);
-}
-
-/*
- * Get the tcp sequence number to be acknowledged.
- */
-int
-nfsrv_getsockseqnum(struct socket *so, tcp_seq *tcpseqp)
-{
-	tcp_seq maxseq, unaseq;
-	u_int sbcc;
-	int error;
-
-	sbcc = so->so_snd.sb_cc;
-	error = nfsrv_getsocksndseq(so, &maxseq, &unaseq);
-	if (error)
-		return (0);
-	/*
-	 * Set the seq# to a value that will
-	 * be at least the end of the reply.
-	 * When this sequence# is acknowledged
-	 * by the client, the client has received
-	 * the reply.
-	 */
-	*tcpseqp = sbcc + maxseq;
-	return (1);
-}
-
 void
 nfsd_init(void)
 {

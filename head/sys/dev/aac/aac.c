@@ -631,9 +631,11 @@ aac_free(struct aac_softc *sc)
 	/* disconnect the interrupt handler */
 	if (sc->aac_intr)
 		bus_teardown_intr(sc->aac_dev, sc->aac_irq, sc->aac_intr);
-	if (sc->aac_irq != NULL)
+	if (sc->aac_irq != NULL) {
 		bus_release_resource(sc->aac_dev, SYS_RES_IRQ,
 		    rman_get_rid(sc->aac_irq), sc->aac_irq);
+		pci_release_msi(sc->aac_dev);
+	}
 
 	/* destroy data-transfer DMA tag */
 	if (sc->aac_buffer_dmat)

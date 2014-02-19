@@ -553,17 +553,15 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * trigger a fatal reset error or worse things further down the road.
 	 * XXX it should be possible to use this solely instead of writing
 	 * %tba in cpu_setregs().  Doing so causes a hang however.
-	 */
-	sun4u_set_traptable(tl0_base);
-
-	/*
-	 * Initialize the console.
+	 *
 	 * NB: the low-level console drivers require a working DELAY() and
 	 * some compiler optimizations may cause the curthread accesses of
 	 * mutex(9) to be factored out even if the latter aren't actually
-	 * called, both requiring PCPU_REG to be set.
+	 * called.  Both of these require PCPU_REG to be set.  However, we
+	 * can't set PCPU_REG without also taking over the trap table or the
+	 * firmware will overwrite it.
 	 */
-	cninit();
+	sun4u_set_traptable(tl0_base);
 
 	/*
 	 * Initialize the dynamic per-CPU area for the BSP and the message
@@ -576,6 +574,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize mutexes.
 	 */
 	mutex_init();
+
+	/*
+	 * Initialize console now that we have a reasonable set of system
+	 * services.
+	 */
+	cninit();
 
 	/*
 	 * Finish the interrupt initialization now that mutexes work and

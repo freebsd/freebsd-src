@@ -166,4 +166,10 @@ extern tree objcp_tsubst_copy_and_build (tree, tree, tsubst_flags_t,
 #undef LANG_HOOKS_OMP_PRIVATIZE_BY_REFERENCE
 #define LANG_HOOKS_OMP_PRIVATIZE_BY_REFERENCE cxx_omp_privatize_by_reference
 
+/* APPLE LOCAL begin radar 6353006  */
+#undef LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE
+#define LANG_HOOKS_BUILD_GENERIC_BLOCK_STRUCT_TYPE \
+     c_build_generic_block_struct_type
+/* APPLE LOCAL end radar 6353006  */
+
 #endif /* GCC_CP_OBJCP_COMMON */

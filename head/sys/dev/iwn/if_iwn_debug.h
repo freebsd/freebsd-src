@@ -42,6 +42,7 @@ enum {
 	IWN_DEBUG_CMD		= 0x00001000,	/* cmd submission */
 	IWN_DEBUG_TXRATE	= 0x00002000,	/* TX rate debugging */
 	IWN_DEBUG_PWRSAVE	= 0x00004000,	/* Power save operations */
+	IWN_DEBUG_SCAN		= 0x00008000,	/* Scan related operations */
 	IWN_DEBUG_REGISTER	= 0x20000000,	/* print chipset register */
 	IWN_DEBUG_TRACE		= 0x40000000,	/* Print begin and start driver function */
 	IWN_DEBUG_FATAL		= 0x80000000,	/* fatal errors */

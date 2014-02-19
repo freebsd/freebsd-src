@@ -45,9 +45,7 @@ __FBSDID("$FreeBSD$");
 char *suboptarg;
 
 int
-getsubopt(optionp, tokens, valuep)
-	char **optionp, **valuep;
-	char * const *tokens;
+getsubopt(char **optionp, char * const *tokens, char **valuep)
 {
 	int cnt;
 	char *p;

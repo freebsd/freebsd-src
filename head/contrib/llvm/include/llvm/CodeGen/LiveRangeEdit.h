@@ -19,19 +19,21 @@
 #define LLVM_CODEGEN_LIVERANGEEDIT_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/LiveInterval.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetMachine.h"
 
 namespace llvm {
 
 class AliasAnalysis;
 class LiveIntervals;
+class MachineBlockFrequencyInfo;
 class MachineLoopInfo;
-class MachineRegisterInfo;
 class VirtRegMap;
 
-class LiveRangeEdit {
+class LiveRangeEdit : private MachineRegisterInfo::Delegate {
 public:
   /// Callback methods for LiveRangeEdit owners.
   class Delegate {
@@ -56,7 +58,7 @@ public:
 
 private:
   LiveInterval *Parent;
-  SmallVectorImpl<LiveInterval*> &NewRegs;
+  SmallVectorImpl<unsigned> &NewRegs;
   MachineRegisterInfo &MRI;
   LiveIntervals &LIS;
   VirtRegMap *VRM;
@@ -89,6 +91,16 @@ private:
   /// a load, eliminate the register by folding the def into the use.
   bool foldAsLoad(LiveInterval *LI, SmallVectorImpl<MachineInstr*> &Dead);
 
+  typedef SetVector<LiveInterval*,
+                    SmallVector<LiveInterval*, 8>,
+                    SmallPtrSet<LiveInterval*, 8> > ToShrinkSet;
+  /// Helper for eliminateDeadDefs.
+  void eliminateDeadDef(MachineInstr *MI, ToShrinkSet &ToShrink);
+
+  /// MachineRegisterInfo callback to notify when new virtual
+  /// registers are created.
+  void MRI_NoteNewVirtualRegister(unsigned VReg);
+
 public:
   /// Create a LiveRangeEdit for breaking down parent into smaller pieces.
   /// @param parent The register being spilled or split.
@@ -100,7 +112,7 @@ public:
   ///            function.  If NULL, no virtual register map updates will
   ///            be done.  This could be the case if called before Regalloc.
   LiveRangeEdit(LiveInterval *parent,
-                SmallVectorImpl<LiveInterval*> &newRegs,
+                SmallVectorImpl<unsigned> &newRegs,
                 MachineFunction &MF,
                 LiveIntervals &lis,
                 VirtRegMap *vrm,
@@ -110,7 +122,9 @@ public:
       TII(*MF.getTarget().getInstrInfo()),
       TheDelegate(delegate),
       FirstNew(newRegs.size()),
-      ScannedRemattable(false) {}
+      ScannedRemattable(false) { MRI.setDelegate(this); }
+
+  ~LiveRangeEdit() { MRI.resetDelegate(this); }
 
   LiveInterval &getParent() const {
    assert(Parent && "No parent LiveInterval");
@@ -119,23 +133,30 @@ public:
   unsigned getReg() const { return getParent().reg; }
 
   /// Iterator for accessing the new registers added by this edit.
-  typedef SmallVectorImpl<LiveInterval*>::const_iterator iterator;
+  typedef SmallVectorImpl<unsigned>::const_iterator iterator;
   iterator begin() const { return NewRegs.begin()+FirstNew; }
   iterator end() const { return NewRegs.end(); }
   unsigned size() const { return NewRegs.size()-FirstNew; }
   bool empty() const { return size() == 0; }
-  LiveInterval *get(unsigned idx) const { return NewRegs[idx+FirstNew]; }
+  unsigned get(unsigned idx) const { return NewRegs[idx+FirstNew]; }
 
-  ArrayRef<LiveInterval*> regs() const {
+  ArrayRef<unsigned> regs() const {
     return makeArrayRef(NewRegs).slice(FirstNew);
   }
 
+  /// createEmptyIntervalFrom - Create a new empty interval based on OldReg.
+  LiveInterval &createEmptyIntervalFrom(unsigned OldReg);
+
   /// createFrom - Create a new virtual register based on OldReg.
-  LiveInterval &createFrom(unsigned OldReg);
+  unsigned createFrom(unsigned OldReg);
 
   /// create - Create a new register with the same class and original slot as
   /// parent.
-  LiveInterval &create() {
+  LiveInterval &createEmptyInterval() {
+    return createEmptyIntervalFrom(getReg());
+  }
+
+  unsigned create() {
     return createFrom(getReg());
   }
 
@@ -201,7 +222,8 @@ public:
   /// calculateRegClassAndHint - Recompute register class and hint for each new
   /// register.
   void calculateRegClassAndHint(MachineFunction&,
-                                const MachineLoopInfo&);
+                                const MachineLoopInfo&,
+                                const MachineBlockFrequencyInfo&);
 };
 
 }

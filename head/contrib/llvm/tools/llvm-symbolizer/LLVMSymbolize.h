@@ -14,7 +14,9 @@
 #define LLVM_SYMBOLIZE_H
 
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/DIContext.h"
+#include "llvm/Object/MachOUniversal.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <map>
@@ -35,14 +37,20 @@ public:
     bool PrintFunctions : 1;
     bool PrintInlining : 1;
     bool Demangle : 1;
+    std::string DefaultArch;
     Options(bool UseSymbolTable = true, bool PrintFunctions = true,
-            bool PrintInlining = true, bool Demangle = true)
+            bool PrintInlining = true, bool Demangle = true,
+            std::string DefaultArch = "")
         : UseSymbolTable(UseSymbolTable), PrintFunctions(PrintFunctions),
-          PrintInlining(PrintInlining), Demangle(Demangle) {
+          PrintInlining(PrintInlining), Demangle(Demangle),
+          DefaultArch(DefaultArch) {
     }
   };
 
   LLVMSymbolizer(const Options &Opts = Options()) : Opts(Opts) {}
+  ~LLVMSymbolizer() {
+    flush();
+  }
 
   // Returns the result of symbolization for module name/offset as
   // a string (possibly containing newlines).
@@ -51,13 +59,31 @@ public:
   std::string
   symbolizeData(const std::string &ModuleName, uint64_t ModuleOffset);
   void flush();
+  static std::string DemangleName(const std::string &Name);
 private:
-  ModuleInfo *getOrCreateModuleInfo(const std::string &ModuleName);
-  std::string printDILineInfo(DILineInfo LineInfo) const;
-  void DemangleName(std::string &Name) const;
+  typedef std::pair<Binary*, Binary*> BinaryPair;
 
+  ModuleInfo *getOrCreateModuleInfo(const std::string &ModuleName);
+  /// \brief Returns pair of pointers to binary and debug binary.
+  BinaryPair getOrCreateBinary(const std::string &Path);
+  /// \brief Returns a parsed object file for a given architecture in a
+  /// universal binary (or the binary itself if it is an object file).
+  ObjectFile *getObjectFileFromBinary(Binary *Bin, const std::string &ArchName);
+
+  std::string printDILineInfo(DILineInfo LineInfo) const;
+  static std::string DemangleGlobalName(const std::string &Name);
+
+  // Owns all the parsed binaries and object files.
+  SmallVector<Binary*, 4> ParsedBinariesAndObjects;
+  // Owns module info objects.
   typedef std::map<std::string, ModuleInfo *> ModuleMapTy;
   ModuleMapTy Modules;
+  typedef std::map<std::string, BinaryPair> BinaryMapTy;
+  BinaryMapTy BinaryForPath;
+  typedef std::map<std::pair<MachOUniversalBinary *, std::string>, ObjectFile *>
+      ObjectFileForArchMapTy;
+  ObjectFileForArchMapTy ObjectFileForArch;
+
   Options Opts;
   static const char kBadString[];
 };
@@ -77,14 +103,16 @@ private:
   bool getNameFromSymbolTable(SymbolRef::Type Type, uint64_t Address,
                               std::string &Name, uint64_t &Addr,
                               uint64_t &Size) const;
-  OwningPtr<ObjectFile> Module;
+  ObjectFile *Module;
   OwningPtr<DIContext> DebugInfoContext;
 
   struct SymbolDesc {
     uint64_t Addr;
-    uint64_t AddrEnd;
+    // If size is 0, assume that symbol occupies the whole memory range up to
+    // the following symbol.
+    uint64_t Size;
     friend bool operator<(const SymbolDesc &s1, const SymbolDesc &s2) {
-      return s1.AddrEnd <= s2.Addr;
+      return s1.Addr < s2.Addr;
     }
   };
   typedef std::map<SymbolDesc, StringRef> SymbolMapTy;

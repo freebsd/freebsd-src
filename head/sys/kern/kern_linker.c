@@ -434,6 +434,7 @@ linker_load_file(const char *filename, linker_file_t *result)
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 				return (ENOEXEC);
 			}
+			EVENTHANDLER_INVOKE(kld_load, lf);
 			*result = lf;
 			return (0);
 		}
@@ -609,6 +610,12 @@ linker_file_unload(linker_file_t file, int flags)
 		return (0);
 	}
 
+	/* Give eventhandlers a chance to prevent the unload. */
+	error = 0;
+	EVENTHANDLER_INVOKE(kld_unload_try, file, &error);
+	if (error != 0)
+		return (EBUSY);
+
 	KLD_DPF(FILE, ("linker_file_unload: file is unloading,"
 	    " informing modules\n"));
 
@@ -690,6 +697,10 @@ linker_file_unload(linker_file_t file, int flags)
 	}
 
 	LINKER_UNLOAD(file);
+
+	EVENTHANDLER_INVOKE(kld_unload, file->filename, file->address,
+	    file->size);
+
 	if (file->filename) {
 		free(file->filename, M_LINKER);
 		file->filename = NULL;
@@ -1033,10 +1044,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	lf->userrefs++;
 	if (fileid != NULL)
 		*fileid = lf->id;
-
-	sx_downgrade(&kld_sx);
-	EVENTHANDLER_INVOKE(kld_load, lf);
-	sx_sunlock(&kld_sx);
+	sx_xunlock(&kld_sx);
 
 done:
 	CURVNET_RESTORE();
@@ -1066,9 +1074,6 @@ int
 kern_kldunload(struct thread *td, int fileid, int flags)
 {
 	linker_file_t lf;
-	char *filename = NULL;
-	caddr_t address;
-	size_t size;
 	int error = 0;
 
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
@@ -1083,10 +1088,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if (lf) {
 		KLD_DPF(FILE, ("kldunload: lf->userrefs=%d\n", lf->userrefs));
 
-		EVENTHANDLER_INVOKE(kld_unload_try, lf, &error);
-		if (error != 0)
-			error = EBUSY;
-		else if (lf->userrefs == 0) {
+		if (lf->userrefs == 0) {
 			/*
 			 * XXX: maybe LINKER_UNLOAD_FORCE should override ?
 			 */
@@ -1094,11 +1096,6 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 			    " loaded by the kernel\n");
 			error = EBUSY;
 		} else {
-			/* Save data needed for the kld_unload callbacks. */
-			filename = strdup(lf->filename, M_TEMP);
-			address = lf->address;
-			size = lf->size;
-
 			lf->userrefs--;
 			error = linker_file_unload(lf, flags);
 			if (error)
@@ -1106,14 +1103,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 		}
 	} else
 		error = ENOENT;
-
-	if (error == 0) {
-		sx_downgrade(&kld_sx);
-		EVENTHANDLER_INVOKE(kld_unload, filename, address, size);
-		sx_sunlock(&kld_sx);
-	} else
-		sx_xunlock(&kld_sx);
-	free(filename, M_TEMP);
+	sx_xunlock(&kld_sx);
 
 	CURVNET_RESTORE();
 	return (error);

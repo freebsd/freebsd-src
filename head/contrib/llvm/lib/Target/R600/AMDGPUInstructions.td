@@ -35,46 +35,75 @@ class AMDGPUShaderInst <dag outs, dag ins, string asm, list<dag> pattern>
 }
 
 def InstFlag : OperandWithDefaultOps <i32, (ops (i32 0))>;
+def ADDRIndirect : ComplexPattern<iPTR, 2, "SelectADDRIndirect", [], []>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for floating-point comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_OEQ : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETOEQ || N->get() == ISD::SETEQ;}]
+>;
+
+def COND_OGT : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETOGT || N->get() == ISD::SETGT;}]
+>;
+
+def COND_OGE : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETOGE || N->get() == ISD::SETGE;}]
+>;
+
+def COND_OLT : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETOLT || N->get() == ISD::SETLT;}]
+>;
+
+def COND_OLE : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETOLE || N->get() == ISD::SETLE;}]
+>;
+
+def COND_UNE : PatLeaf <
+  (cond),
+  [{return N->get() == ISD::SETUNE || N->get() == ISD::SETNE;}]
+>;
+
+def COND_O : PatLeaf <(cond), [{return N->get() == ISD::SETO;}]>;
+def COND_UO : PatLeaf <(cond), [{return N->get() == ISD::SETUO;}]>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for unsigned comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_UGT : PatLeaf <(cond), [{return N->get() == ISD::SETUGT;}]>;
+def COND_UGE : PatLeaf <(cond), [{return N->get() == ISD::SETUGE;}]>;
+def COND_ULT : PatLeaf <(cond), [{return N->get() == ISD::SETULT;}]>;
+def COND_ULE : PatLeaf <(cond), [{return N->get() == ISD::SETULE;}]>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for signed comparisons
+//===----------------------------------------------------------------------===//
+
+def COND_SGT : PatLeaf <(cond), [{return N->get() == ISD::SETGT;}]>;
+def COND_SGE : PatLeaf <(cond), [{return N->get() == ISD::SETGE;}]>;
+def COND_SLT : PatLeaf <(cond), [{return N->get() == ISD::SETLT;}]>;
+def COND_SLE : PatLeaf <(cond), [{return N->get() == ISD::SETLE;}]>;
+
+//===----------------------------------------------------------------------===//
+// PatLeafs for integer equality
+//===----------------------------------------------------------------------===//
 
 def COND_EQ : PatLeaf <
   (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETOEQ: case ISD::SETUEQ:
-                     case ISD::SETEQ: return true;}}}]
+  [{return N->get() == ISD::SETEQ || N->get() == ISD::SETUEQ;}]
 >;
 
 def COND_NE : PatLeaf <
   (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETONE: case ISD::SETUNE:
-                     case ISD::SETNE: return true;}}}]
->;
-def COND_GT : PatLeaf <
-  (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETOGT: case ISD::SETUGT:
-                     case ISD::SETGT: return true;}}}]
->;
-
-def COND_GE : PatLeaf <
-  (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETOGE: case ISD::SETUGE:
-                     case ISD::SETGE: return true;}}}]
->;
-
-def COND_LT : PatLeaf <
-  (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETOLT: case ISD::SETULT:
-                     case ISD::SETLT: return true;}}}]
->;
-
-def COND_LE : PatLeaf <
-  (cond),
-  [{switch(N->get()){{default: return false;
-                     case ISD::SETOLE: case ISD::SETULE:
-                     case ISD::SETLE: return true;}}}]
+  [{return N->get() == ISD::SETNE || N->get() == ISD::SETUNE;}]
 >;
 
 def COND_NULL : PatLeaf <
@@ -86,15 +115,131 @@ def COND_NULL : PatLeaf <
 // Load/Store Pattern Fragments
 //===----------------------------------------------------------------------===//
 
-def zextloadi8_global : PatFrag<(ops node:$ptr), (zextloadi8 node:$ptr), [{
+def az_extload : PatFrag<(ops node:$ptr), (unindexedload node:$ptr), [{
+  LoadSDNode *L = cast<LoadSDNode>(N);
+  return L->getExtensionType() == ISD::ZEXTLOAD ||
+         L->getExtensionType() == ISD::EXTLOAD;
+}]>;
+
+def az_extloadi8 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i8;
+}]>;
+
+def az_extloadi8_global : PatFrag<(ops node:$ptr), (az_extloadi8 node:$ptr), [{
     return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi8_global : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
+    return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi8_constant : PatFrag<(ops node:$ptr), (az_extloadi8 node:$ptr), [{
+    return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
+}]>;
+
+def sextloadi8_constant : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
+    return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
+}]>;
+
+def az_extloadi8_local : PatFrag<(ops node:$ptr), (az_extloadi8 node:$ptr), [{
+    return isLocalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi8_local : PatFrag<(ops node:$ptr), (sextloadi8 node:$ptr), [{
+    return isLocalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi16 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i16;
+}]>;
+
+def az_extloadi16_global : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [{
+    return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi16_global : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
+    return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi16_constant : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [{
+    return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
+}]>;
+
+def sextloadi16_constant : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
+    return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
+}]>;
+
+def az_extloadi16_local : PatFrag<(ops node:$ptr), (az_extloadi16 node:$ptr), [{
+    return isLocalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def sextloadi16_local : PatFrag<(ops node:$ptr), (sextloadi16 node:$ptr), [{
+    return isLocalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi32 : PatFrag<(ops node:$ptr), (az_extload node:$ptr), [{
+  return cast<LoadSDNode>(N)->getMemoryVT() == MVT::i32;
+}]>;
+
+def az_extloadi32_global : PatFrag<(ops node:$ptr),
+                                   (az_extloadi32 node:$ptr), [{
+  return isGlobalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def az_extloadi32_constant : PatFrag<(ops node:$ptr),
+                                     (az_extloadi32 node:$ptr), [{
+  return isConstantLoad(dyn_cast<LoadSDNode>(N), -1);
+}]>;
+
+def truncstorei8_global : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei8 node:$val, node:$ptr), [{
+  return isGlobalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def truncstorei16_global : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei16 node:$val, node:$ptr), [{
+  return isGlobalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def local_store : PatFrag<(ops node:$val, node:$ptr),
+                             (store node:$val, node:$ptr), [{
+  return isLocalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def truncstorei8_local : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei8 node:$val, node:$ptr), [{
+  return isLocalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def truncstorei16_local : PatFrag<(ops node:$val, node:$ptr),
+                                  (truncstorei16 node:$val, node:$ptr), [{
+  return isLocalStore(dyn_cast<StoreSDNode>(N));
+}]>;
+
+def local_load : PatFrag<(ops node:$ptr), (load node:$ptr), [{
+    return isLocalLoad(dyn_cast<LoadSDNode>(N));
+}]>;
+
+def atomic_load_add_local : PatFrag<(ops node:$ptr, node:$value),
+                                    (atomic_load_add node:$ptr, node:$value), [{
+  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
+}]>;
+
+def atomic_load_sub_local : PatFrag<(ops node:$ptr, node:$value),
+                                    (atomic_load_sub node:$ptr, node:$value), [{
+  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::LOCAL_ADDRESS;
+}]>;
+
+def mskor_global : PatFrag<(ops node:$val, node:$ptr),
+                            (AMDGPUstore_mskor node:$val, node:$ptr), [{
+  return dyn_cast<MemSDNode>(N)->getAddressSpace() == AMDGPUAS::GLOBAL_ADDRESS;
 }]>;
 
 class Constants {
 int TWO_PI = 0x40c90fdb;
 int PI = 0x40490fdb;
 int TWO_PI_INV = 0x3e22f983;
-int FP_UINT_MAX_PLUS_1 = 0x4f800000;	// 1 << 32 in floating point encoding
+int FP_UINT_MAX_PLUS_1 = 0x4f800000;    // 1 << 32 in floating point encoding
 }
 def CONST : Constants;
 
@@ -107,6 +252,9 @@ def FP_ONE : PatLeaf <
   (fpimm),
   [{return N->isExactlyValue(1.0);}]
 >;
+
+def U24 : ComplexPattern<i32, 1, "SelectU24", [], []>;
+def I24 : ComplexPattern<i32, 1, "SelectI24", [], []>;
 
 let isCodeGenOnly = 1, isPseudo = 1 in {
 
@@ -137,6 +285,8 @@ class FNEG <RegisterClass rc> : AMDGPUShaderInst <
 
 multiclass RegisterLoadStore <RegisterClass dstClass, Operand addrClass,
                     ComplexPattern addrPat> {
+let UseNamedOperandTable = 1 in {
+
   def RegisterLoad : AMDGPUShaderInst <
     (outs dstClass:$dst),
     (ins addrClass:$addr, i32imm:$chan),
@@ -154,6 +304,7 @@ multiclass RegisterLoadStore <RegisterClass dstClass, Operand addrClass,
   > {
     let isRegisterStore = 1;
   }
+}
 }
 
 } // End isCodeGenOnly = 1, isPseudo = 1
@@ -186,59 +337,10 @@ class Insert_Element <ValueType elem_type, ValueType vec_type,
   (INSERT_SUBREG $vec, $elem, sub_reg)
 >;
 
-// Vector Build pattern
-class Vector1_Build <ValueType vecType, ValueType elemType,
-                     RegisterClass rc> : Pat <
-  (vecType (build_vector elemType:$src)),
-  (vecType (COPY_TO_REGCLASS $src, rc))
->;
-
-class Vector2_Build <ValueType vecType, ValueType elemType> : Pat <
-  (vecType (build_vector elemType:$sub0, elemType:$sub1)),
-  (INSERT_SUBREG (INSERT_SUBREG
-    (vecType (IMPLICIT_DEF)), $sub0, sub0), $sub1, sub1)
->;
-
 class Vector4_Build <ValueType vecType, ValueType elemType> : Pat <
   (vecType (build_vector elemType:$x, elemType:$y, elemType:$z, elemType:$w)),
   (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
     (vecType (IMPLICIT_DEF)), $x, sub0), $y, sub1), $z, sub2), $w, sub3)
->;
-
-class Vector8_Build <ValueType vecType, ValueType elemType> : Pat <
-  (vecType (build_vector elemType:$sub0, elemType:$sub1,
-                         elemType:$sub2, elemType:$sub3,
-                         elemType:$sub4, elemType:$sub5,
-                         elemType:$sub6, elemType:$sub7)),
-  (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (vecType (IMPLICIT_DEF)), $sub0, sub0), $sub1, sub1),
-                              $sub2, sub2), $sub3, sub3),
-                              $sub4, sub4), $sub5, sub5),
-                              $sub6, sub6), $sub7, sub7)
->;
-
-class Vector16_Build <ValueType vecType, ValueType elemType> : Pat <
-  (vecType (build_vector elemType:$sub0, elemType:$sub1,
-                         elemType:$sub2, elemType:$sub3,
-                         elemType:$sub4, elemType:$sub5,
-                         elemType:$sub6, elemType:$sub7,
-                         elemType:$sub8, elemType:$sub9,
-                         elemType:$sub10, elemType:$sub11,
-                         elemType:$sub12, elemType:$sub13,
-                         elemType:$sub14, elemType:$sub15)),
-  (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG (INSERT_SUBREG
-    (vecType (IMPLICIT_DEF)), $sub0, sub0), $sub1, sub1),
-                            $sub2, sub2), $sub3, sub3),
-                            $sub4, sub4), $sub5, sub5),
-                            $sub6, sub6), $sub7, sub7),
-                            $sub8, sub8), $sub9, sub9),
-                            $sub10, sub10), $sub11, sub11),
-                            $sub12, sub12), $sub13, sub13),
-                            $sub14, sub14), $sub15, sub15)
 >;
 
 // XXX: Convert to new syntax and use COPY_TO_REG, once the DFAPacketizer
@@ -294,6 +396,22 @@ class BFEPattern <Instruction BFE> : Pat <
   (and (srl i32:$x, legalshift32:$y), bfemask:$z),
   (BFE $x, $y, $z)
 >;
+
+// rotr pattern
+class ROTRPattern <Instruction BIT_ALIGN> : Pat <
+  (rotr i32:$src0, i32:$src1),
+  (BIT_ALIGN $src0, $src0, $src1)
+>;
+
+// 24-bit arithmetic patterns
+def umul24 : PatFrag <(ops node:$x, node:$y), (mul node:$x, node:$y)>;
+
+/*
+class UMUL24Pattern <Instruction UMUL24> : Pat <
+  (mul U24:$x, U24:$y),
+  (UMUL24 $x, $y)
+>;
+*/
 
 include "R600Instructions.td"
 

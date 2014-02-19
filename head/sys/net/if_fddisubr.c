@@ -729,14 +729,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		sin = (struct sockaddr_in *)sa;
 		if (!IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 			return (EADDRNOTAVAIL);
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_FDDI;
+		sdl = link_init_sdl(ifp, *llsa, IFT_FDDI);
 		sdl->sdl_nlen = 0;
 		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;
@@ -760,14 +753,7 @@ fddi_resolvemulti(ifp, llsa, sa)
 		}
 		if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
 			return (EADDRNOTAVAIL);
-		sdl = malloc(sizeof *sdl, M_IFMADDR,
-		       M_NOWAIT | M_ZERO);
-		if (sdl == NULL)
-			return (ENOMEM);
-		sdl->sdl_len = sizeof *sdl;
-		sdl->sdl_family = AF_LINK;
-		sdl->sdl_index = ifp->if_index;
-		sdl->sdl_type = IFT_FDDI;
+		sdl = link_init_sdl(ifp, *llsa, IFT_FDDI);
 		sdl->sdl_nlen = 0;
 		sdl->sdl_alen = FDDI_ADDR_LEN;
 		sdl->sdl_slen = 0;

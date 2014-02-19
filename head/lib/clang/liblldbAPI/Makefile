@@ -32,6 +32,7 @@ SRCS=	SBAddress.cpp \
 	SBListener.cpp \
 	SBModule.cpp \
 	SBModuleSpec.cpp \
+	SBPlatform.cpp \
 	SBProcess.cpp \
 	SBSection.cpp \
 	SBSourceManager.cpp \

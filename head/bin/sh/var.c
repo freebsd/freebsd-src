@@ -88,11 +88,9 @@ struct var vifs;
 struct var vmail;
 struct var vmpath;
 struct var vpath;
-struct var vppid;
 struct var vps1;
 struct var vps2;
 struct var vps4;
-struct var vvers;
 static struct var voptind;
 struct var vdisvfork;
 
@@ -111,8 +109,6 @@ static const struct varinit varinit[] = {
 	  NULL },
 	{ &vpath,	0,				"PATH=" _PATH_DEFPATH,
 	  changepath },
-	{ &vppid,	VUNSET,				"PPID=",
-	  NULL },
 	/*
 	 * vps1 depends on uid
 	 */
@@ -180,15 +176,14 @@ initvar(void)
 		vps1.text = __DECONST(char *, geteuid() ? "PS1=$ " : "PS1=# ");
 		vps1.flags = VSTRFIXED|VTEXTFIXED;
 	}
-	if ((vppid.flags & VEXPORT) == 0) {
-		fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
-		setvarsafe("PPID", ppid, 0);
-	}
+	fmtstr(ppid, sizeof(ppid), "%d", (int)getppid());
+	setvarsafe("PPID", ppid, 0);
 	for (envp = environ ; *envp ; envp++) {
 		if (strchr(*envp, '=')) {
 			setvareq(*envp, VEXPORT|VTEXTFIXED);
 		}
 	}
+	setvareq("OPTIND=1", VTEXTFIXED);
 }
 
 /*
@@ -224,8 +219,9 @@ void
 setvar(const char *name, const char *val, int flags)
 {
 	const char *p;
-	int len;
-	int namelen;
+	size_t len;
+	size_t namelen;
+	size_t vallen;
 	char *nameeq;
 	int isbad;
 
@@ -244,18 +240,20 @@ setvar(const char *name, const char *val, int flags)
 	}
 	namelen = p - name;
 	if (isbad)
-		error("%.*s: bad variable name", namelen, name);
+		error("%.*s: bad variable name", (int)namelen, name);
 	len = namelen + 2;		/* 2 is space for '=' and '\0' */
 	if (val == NULL) {
 		flags |= VUNSET;
+		vallen = 0;
 	} else {
-		len += strlen(val);
+		vallen = strlen(val);
+		len += vallen;
 	}
 	nameeq = ckmalloc(len);
 	memcpy(nameeq, name, namelen);
 	nameeq[namelen] = '=';
 	if (val)
-		scopy(val, nameeq + namelen + 1);
+		memcpy(nameeq + namelen + 1, val, vallen + 1);
 	else
 		nameeq[namelen + 1] = '\0';
 	setvareq(nameeq, flags);

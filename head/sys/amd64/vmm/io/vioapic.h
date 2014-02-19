@@ -30,9 +30,6 @@
 #ifndef _VIOAPIC_H_
 #define	_VIOAPIC_H_
 
-struct vm;
-struct vioapic;
-
 #define	VIOAPIC_BASE	0xFEC00000
 #define	VIOAPIC_SIZE	4096
 
@@ -41,9 +38,13 @@ void	vioapic_cleanup(struct vioapic *vioapic);
 
 int	vioapic_assert_irq(struct vm *vm, int irq);
 int	vioapic_deassert_irq(struct vm *vm, int irq);
+int	vioapic_pulse_irq(struct vm *vm, int irq);
 
 int	vioapic_mmio_write(void *vm, int vcpuid, uint64_t gpa,
 	    uint64_t wval, int size, void *arg);
 int	vioapic_mmio_read(void *vm, int vcpuid, uint64_t gpa,
 	    uint64_t *rval, int size, void *arg);
+
+int	vioapic_pincount(struct vm *vm);
+void	vioapic_process_eoi(struct vm *vm, int vcpuid, int vector);
 #endif

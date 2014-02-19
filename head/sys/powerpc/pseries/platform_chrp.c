@@ -65,8 +65,8 @@ static vm_offset_t realmaxaddr = VM_MAX_ADDRESS;
 
 static int chrp_probe(platform_t);
 static int chrp_attach(platform_t);
-void chrp_mem_regions(platform_t, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz);
+void chrp_mem_regions(platform_t, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz);
 static vm_offset_t chrp_real_maxaddr(platform_t);
 static u_long chrp_timebase_freq(platform_t, struct cpuref *cpuref);
 static int chrp_smp_first_cpu(platform_t, struct cpuref *cpuref);
@@ -157,11 +157,107 @@ chrp_attach(platform_t plat)
 	return (0);
 }
 
-void
-chrp_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
-    struct mem_region **avail, int *availsz)
+static int
+parse_drconf_memory(struct mem_region *ofmem, int *msz,
+		    struct mem_region *ofavail, int *asz)
 {
-	ofw_mem_regions(phys,physsz,avail,availsz);
+	phandle_t phandle;
+	vm_offset_t base;
+	int i, idx, len, lasz, lmsz, res;
+	uint32_t flags, lmb_size[2];
+	uint64_t *dmem;
+
+	lmsz = *msz;
+	lasz = *asz;
+
+	phandle = OF_finddevice("/ibm,dynamic-reconfiguration-memory");
+	if (phandle == -1)
+		/* No drconf node, return. */
+		return (0);
+
+	res = OF_getprop(phandle, "ibm,lmb-size", lmb_size, sizeof(lmb_size));
+	if (res == -1)
+		return (0);
+	printf("Logical Memory Block size: %d MB\n", lmb_size[1] >> 20);
+
+	/* Parse the /ibm,dynamic-memory.
+	   The first position gives the # of entries. The next two words
+ 	   reflect the address of the memory block. The next four words are
+	   the DRC index, reserved, list index and flags.
+	   (see PAPR C.6.6.2 ibm,dynamic-reconfiguration-memory)
+	   
+	    #el  Addr   DRC-idx  res   list-idx  flags
+	   -------------------------------------------------
+	   | 4 |   8   |   4   |   4   |   4   |   4   |....
+	   -------------------------------------------------
+	*/
+
+	len = OF_getproplen(phandle, "ibm,dynamic-memory");
+	if (len > 0) {
+
+		/* We have to use a variable length array on the stack
+		   since we have very limited stack space.
+		*/
+		cell_t arr[len/sizeof(cell_t)];
+
+		res = OF_getprop(phandle, "ibm,dynamic-memory", &arr,
+				 sizeof(arr));
+		if (res == -1)
+			return (0);
+
+		/* Number of elements */
+		idx = arr[0];
+
+		/* First address, in arr[1], arr[2]*/
+		dmem = (uint64_t*)&arr[1];
+	
+		for (i = 0; i < idx; i++) {
+			base = *dmem;
+			dmem += 2;
+			flags = *dmem;
+			/* Use region only if available and not reserved. */
+			if ((flags & 0x8) && !(flags & 0x80)) {
+				ofmem[lmsz].mr_start = base;
+				ofmem[lmsz].mr_size = (vm_size_t)lmb_size[1];
+				ofavail[lasz].mr_start = base;
+				ofavail[lasz].mr_size = (vm_size_t)lmb_size[1];
+				lmsz++;
+				lasz++;
+			}
+			dmem++;
+		}
+	}
+
+	*msz = lmsz;
+	*asz = lasz;
+
+	return (1);
+}
+
+void
+chrp_mem_regions(platform_t plat, struct mem_region *phys, int *physsz,
+    struct mem_region *avail, int *availsz)
+{
+	vm_offset_t maxphysaddr;
+	int i;
+
+	ofw_mem_regions(phys, physsz, avail, availsz);
+	parse_drconf_memory(phys, physsz, avail, availsz);
+
+	/*
+	 * On some firmwares (SLOF), some memory may be marked available that
+	 * doesn't actually exist. This manifests as an extension of the last
+	 * available segment past the end of physical memory, so truncate that
+	 * one.
+	 */
+	maxphysaddr = 0;
+	for (i = 0; i < *physsz; i++)
+		if (phys[i].mr_start + phys[i].mr_size > maxphysaddr)
+			maxphysaddr = phys[i].mr_start + phys[i].mr_size;
+
+	for (i = 0; i < *availsz; i++)
+		if (avail[i].mr_start + avail[i].mr_size > maxphysaddr)
+			avail[i].mr_size = maxphysaddr - avail[i].mr_start;
 }
 
 static vm_offset_t

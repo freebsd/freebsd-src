@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <assert.h>
 
+#include "acpi.h"
 #include "inout.h"
+#include "pci_lpc.h"
 
 #define	IO_ICU1		0x20
 #define	IO_ICU2		0xA0
@@ -65,3 +67,23 @@ INOUT_PORT(atpic, IO_ICU1, IOPORT_F_INOUT, atpic_handler);
 INOUT_PORT(atpic, IO_ICU1 + ICU_IMR_OFFSET, IOPORT_F_INOUT, atpic_handler);
 INOUT_PORT(atpic, IO_ICU2, IOPORT_F_INOUT, atpic_handler);
 INOUT_PORT(atpic, IO_ICU2 + ICU_IMR_OFFSET, IOPORT_F_INOUT, atpic_handler);
+
+static void
+atpic_dsdt(void)
+{
+
+	dsdt_line("");
+	dsdt_line("Device (PIC)");
+	dsdt_line("{");
+	dsdt_line("  Name (_HID, EisaId (\"PNP0000\"))");
+	dsdt_line("  Name (_CRS, ResourceTemplate ()");
+	dsdt_line("  {");
+	dsdt_indent(2);
+	dsdt_fixed_ioport(IO_ICU1, 2);
+	dsdt_fixed_ioport(IO_ICU2, 2);
+	dsdt_fixed_irq(2);
+	dsdt_unindent(2);
+	dsdt_line("  })");
+	dsdt_line("}");
+}
+LPC_DSDT(atpic_dsdt);

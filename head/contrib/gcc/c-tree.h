@@ -257,6 +257,10 @@ struct c_declspecs {
   BOOL_BITFIELD explicit_signed_p : 1;
   /* Whether the specifiers include a deprecated typedef.  */
   BOOL_BITFIELD deprecated_p : 1;
+  /* APPLE LOCAL begin "unavailable" attribute (radar 2809697) */
+  /* Whether the specifiers include a unavailable typedef.  */
+  BOOL_BITFIELD unavailable_p : 1;
+  /* APPLE LOCAL end "unavailable" attribute (radar 2809697) */
   /* Whether the type defaulted to "int" because there were no type
      specifiers.  */
   BOOL_BITFIELD default_int_p;
@@ -294,6 +298,8 @@ enum c_declarator_kind {
   cdk_array,
   /* A pointer.  */
   cdk_pointer,
+  /* APPLE LOCAL blocks (C++ ch) */
+  cdk_block_pointer,
   /* Parenthesized declarator with nested attributes.  */
   cdk_attrs
 };
@@ -464,6 +470,8 @@ extern tree finish_struct (tree, tree, tree);
 extern struct c_arg_info *get_parm_info (bool);
 extern tree grokfield (struct c_declarator *, struct c_declspecs *, tree);
 extern tree groktypename (struct c_type_name *);
+/* APPLE LOCAL blocks 6339747 */
+extern tree grokblockdecl (struct c_declspecs *, struct c_declarator *);
 extern tree grokparm (const struct c_parm *);
 extern tree implicitly_declare (tree);
 extern void keep_next_level (void);
@@ -497,6 +505,10 @@ extern struct c_declarator *build_function_declarator (struct c_arg_info *,
 extern struct c_declarator *build_id_declarator (tree);
 extern struct c_declarator *make_pointer_declarator (struct c_declspecs *,
 						     struct c_declarator *);
+/* APPLE LOCAL begin radar 5814025 - blocks (C++ cg) */
+extern struct c_declarator *make_block_pointer_declarator (struct c_declspecs *,
+							   struct c_declarator *);
+/* APPLE LOCAL end radar 5814025 - blocks (C++ cg) */
 extern struct c_declspecs *build_null_declspecs (void);
 extern struct c_declspecs *declspecs_add_qual (struct c_declspecs *, tree);
 extern struct c_declspecs *declspecs_add_type (struct c_declspecs *,
@@ -573,7 +585,10 @@ extern int c_types_compatible_p (tree, tree);
 extern tree c_begin_compound_stmt (bool);
 extern tree c_end_compound_stmt (tree, bool);
 extern void c_finish_if_stmt (location_t, tree, tree, tree, bool);
-extern void c_finish_loop (location_t, tree, tree, tree, tree, tree, bool);
+/* APPLE LOCAL begin for-fsf-4_4 3274130 5295549 */ \
+extern void c_finish_loop (location_t, tree, tree, tree, tree, tree, tree,
+			   bool);
+/* APPLE LOCAL end for-fsf-4_4 3274130 5295549 */ \
 extern tree c_begin_stmt_expr (void);
 extern tree c_finish_stmt_expr (tree);
 extern tree c_process_expr_stmt (tree);
@@ -620,6 +635,8 @@ extern bool c_eh_initialized_p;
 extern void c_finish_incomplete_decl (tree);
 extern void c_write_global_declarations (void);
 
+/* APPLE LOCAL radar 5741070  */
+extern tree c_return_interface_record_type (tree);
 /* In order for the format checking to accept the C frontend
    diagnostic framework extensions, you must include this file before
    toplev.h, not after.  */

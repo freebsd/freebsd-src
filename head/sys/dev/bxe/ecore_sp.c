@@ -4264,7 +4264,7 @@ void ecore_init_mac_credit_pool(struct bxe_softc *sc,
 			if (!CHIP_REV_IS_SLOW(sc))
 				cam_sz = (MAX_MAC_CREDIT_E2
 				- GET_NUM_VFS_PER_PATH(sc))
-				/ func_num 
+				/ func_num
 				+ GET_NUM_VFS_PER_PF(sc);
 			else
 				cam_sz = ECORE_CAM_SIZE_EMUL;
@@ -4443,8 +4443,11 @@ int ecore_config_rss(struct bxe_softc *sc,
 	struct ecore_raw_obj *r = &o->raw;
 
 	/* Do nothing if only driver cleanup was requested */
-	if (ECORE_TEST_BIT(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags))
+	if (ECORE_TEST_BIT(RAMROD_DRV_CLR_ONLY, &p->ramrod_flags)) {
+		ECORE_MSG(sc, "Not configuring RSS ramrod_flags=%lx\n",
+			  p->ramrod_flags);
 		return ECORE_SUCCESS;
+	}
 
 	r->set_pending(r);
 

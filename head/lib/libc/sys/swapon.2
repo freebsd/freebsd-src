@@ -28,7 +28,7 @@
 .\"     @(#)swapon.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 4, 2013
 .Dt SWAPON 2
 .Os
 .Sh NAME
@@ -98,10 +98,6 @@ Additionally,
 .Fn swapon
 can fail for the following reasons:
 .Bl -tag -width Er
-.It Bq Er EINVAL
-The system has reached the boot-time limit on the number of
-swap devices,
-.Va vm.nswapdev .
 .It Bq Er ENOTBLK
 The
 .Fa special

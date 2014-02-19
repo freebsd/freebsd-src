@@ -616,8 +616,7 @@ pfs_read(struct vop_read_args *va)
 	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error, locked;
-	off_t offset;
-	ssize_t buflen, resid;
+	off_t buflen;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);
@@ -654,16 +653,12 @@ pfs_read(struct vop_read_args *va)
 		goto ret;
 	}
 
-	resid = uio->uio_resid;
-	offset = uio->uio_offset;
-	buflen = offset + resid;
-
-	/* beaucoup sanity checks so we don't ask for bogus allocation */
-	if (resid < 0 || buflen < offset || buflen < resid ||
-	    buflen >= INT_MAX) {
+	if (uio->uio_resid < 0 || uio->uio_offset < 0 ||
+	    uio->uio_resid > OFF_MAX - uio->uio_offset) {
 		error = EINVAL;
 		goto ret;
 	}
+	buflen = uio->uio_offset + uio->uio_resid;
 	if (buflen > MAXPHYS)
 		buflen = MAXPHYS;
 

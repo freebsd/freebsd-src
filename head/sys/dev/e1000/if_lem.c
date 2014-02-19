@@ -2679,7 +2679,7 @@ lem_setup_transmit_structures(struct adapter *adapter)
 			void *addr;
 
 			addr = PNMB(slot + si, &paddr);
-			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
+			adapter->tx_desc_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
 			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}
@@ -3367,7 +3367,7 @@ lem_initialize_receive_unit(struct adapter *adapter)
 #ifdef DEV_NETMAP
 	/* preserve buffers already made available to clients */
 	if (ifp->if_capenable & IFCAP_NETMAP)
-		rctl -= NA(adapter->ifp)->rx_rings[0].nr_hwavail;
+		rctl -= nm_kr_rxspace(&NA(adapter->ifp)->rx_rings[0]);
 #endif /* DEV_NETMAP */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), rctl);
 

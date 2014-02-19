@@ -265,6 +265,7 @@ g_eli_crypto_hmac_init(struct hmac_ctx *ctx, const uint8_t *hkey,
 	/* Perform inner SHA512. */
 	SHA512_Init(&ctx->shactx);
 	SHA512_Update(&ctx->shactx, k_ipad, sizeof(k_ipad));
+	bzero(k_ipad, sizeof(k_ipad));
 }
 
 void
@@ -288,10 +289,12 @@ g_eli_crypto_hmac_final(struct hmac_ctx *ctx, uint8_t *md, size_t mdsize)
 	bzero(ctx, sizeof(*ctx));
 	SHA512_Update(&lctx, digest, sizeof(digest));
 	SHA512_Final(digest, &lctx);
+	bzero(&lctx, sizeof(lctx));
 	/* mdsize == 0 means "Give me the whole hash!" */
 	if (mdsize == 0)
 		mdsize = SHA512_MDLEN;
 	bcopy(digest, md, mdsize);
+	bzero(digest, sizeof(digest));
 }
 
 void

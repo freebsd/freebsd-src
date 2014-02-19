@@ -112,11 +112,15 @@ uart_cnterm(struct consdev *cp)
 static void
 uart_cngrab(struct consdev *cp)
 {
+
+	uart_grab(cp->cn_arg);
 }
 
 static void
 uart_cnungrab(struct consdev *cp)
 {
+
+	uart_ungrab(cp->cn_arg);
 }
 
 static void

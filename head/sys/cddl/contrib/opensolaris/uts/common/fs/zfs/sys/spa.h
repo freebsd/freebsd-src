@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012 by Delphix. All rights reserved.
+ * Copyright (c) 2013 by Delphix. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
@@ -65,20 +65,33 @@ struct dsl_dataset;
 #define	BF32_GET(x, low, len)		BF32_DECODE(x, low, len)
 #define	BF64_GET(x, low, len)		BF64_DECODE(x, low, len)
 
-#define	BF32_SET(x, low, len, val)	\
-	((x) ^= BF32_ENCODE((x >> low) ^ (val), low, len))
-#define	BF64_SET(x, low, len, val)	\
-	((x) ^= BF64_ENCODE((x >> low) ^ (val), low, len))
+#define	BF32_SET(x, low, len, val) do { \
+	ASSERT3U(val, <, 1U << (len)); \
+	ASSERT3U(low + len, <=, 32); \
+	(x) ^= BF32_ENCODE((x >> low) ^ (val), low, len); \
+_NOTE(CONSTCOND) } while (0)
+
+#define	BF64_SET(x, low, len, val) do { \
+	ASSERT3U(val, <, 1ULL << (len)); \
+	ASSERT3U(low + len, <=, 64); \
+	((x) ^= BF64_ENCODE((x >> low) ^ (val), low, len)); \
+_NOTE(CONSTCOND) } while (0)
 
 #define	BF32_GET_SB(x, low, len, shift, bias)	\
 	((BF32_GET(x, low, len) + (bias)) << (shift))
 #define	BF64_GET_SB(x, low, len, shift, bias)	\
 	((BF64_GET(x, low, len) + (bias)) << (shift))
 
-#define	BF32_SET_SB(x, low, len, shift, bias, val)	\
-	BF32_SET(x, low, len, ((val) >> (shift)) - (bias))
-#define	BF64_SET_SB(x, low, len, shift, bias, val)	\
-	BF64_SET(x, low, len, ((val) >> (shift)) - (bias))
+#define	BF32_SET_SB(x, low, len, shift, bias, val) do { \
+	ASSERT(IS_P2ALIGNED(val, 1U << shift)); \
+	ASSERT3S((val) >> (shift), >=, bias); \
+	BF32_SET(x, low, len, ((val) >> (shift)) - (bias)); \
+_NOTE(CONSTCOND) } while (0)
+#define	BF64_SET_SB(x, low, len, shift, bias, val) do { \
+	ASSERT(IS_P2ALIGNED(val, 1ULL << shift)); \
+	ASSERT3S((val) >> (shift), >=, bias); \
+	BF64_SET(x, low, len, ((val) >> (shift)) - (bias)); \
+_NOTE(CONSTCOND) } while (0)
 
 /*
  * We currently support nine block sizes, from 512 bytes to 128K.
@@ -197,6 +210,15 @@ typedef struct zio_cksum {
 #define	SPA_BLKPTRSHIFT	7		/* blkptr_t is 128 bytes	*/
 #define	SPA_DVAS_PER_BP	3		/* Number of DVAs in a bp	*/
 
+/*
+ * A block is a hole when it has either 1) never been written to, or
+ * 2) is zero-filled. In both cases, ZFS can return all zeroes for all reads
+ * without physically allocating disk space. Holes are represented in the
+ * blkptr_t structure by zeroed blk_dva. Correct checking for holes is
+ * done through the BP_IS_HOLE macro. For holes, the logical size, level,
+ * DMU object type, and birth times are all also stored for holes that
+ * were written to at some point (i.e. were punched after having been filled).
+ */
 typedef struct blkptr {
 	dva_t		blk_dva[SPA_DVAS_PER_BP]; /* Data Virtual Addresses */
 	uint64_t	blk_prop;	/* size, compression, type, etc	    */
@@ -211,9 +233,10 @@ typedef struct blkptr {
  * Macros to get and set fields in a bp or DVA.
  */
 #define	DVA_GET_ASIZE(dva)	\
-	BF64_GET_SB((dva)->dva_word[0], 0, 24, SPA_MINBLOCKSHIFT, 0)
+	BF64_GET_SB((dva)->dva_word[0], 0, SPA_ASIZEBITS, SPA_MINBLOCKSHIFT, 0)
 #define	DVA_SET_ASIZE(dva, x)	\
-	BF64_SET_SB((dva)->dva_word[0], 0, 24, SPA_MINBLOCKSHIFT, 0, x)
+	BF64_SET_SB((dva)->dva_word[0], 0, SPA_ASIZEBITS, \
+	SPA_MINBLOCKSHIFT, 0, x)
 
 #define	DVA_GET_GRID(dva)	BF64_GET((dva)->dva_word[0], 24, 8)
 #define	DVA_SET_GRID(dva, x)	BF64_SET((dva)->dva_word[0], 24, 8, x)
@@ -230,14 +253,14 @@ typedef struct blkptr {
 #define	DVA_SET_GANG(dva, x)	BF64_SET((dva)->dva_word[1], 63, 1, x)
 
 #define	BP_GET_LSIZE(bp)	\
-	BF64_GET_SB((bp)->blk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1)
+	BF64_GET_SB((bp)->blk_prop, 0, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1)
 #define	BP_SET_LSIZE(bp, x)	\
-	BF64_SET_SB((bp)->blk_prop, 0, 16, SPA_MINBLOCKSHIFT, 1, x)
+	BF64_SET_SB((bp)->blk_prop, 0, SPA_LSIZEBITS, SPA_MINBLOCKSHIFT, 1, x)
 
 #define	BP_GET_PSIZE(bp)	\
-	BF64_GET_SB((bp)->blk_prop, 16, 16, SPA_MINBLOCKSHIFT, 1)
+	BF64_GET_SB((bp)->blk_prop, 16, SPA_PSIZEBITS, SPA_MINBLOCKSHIFT, 1)
 #define	BP_SET_PSIZE(bp, x)	\
-	BF64_SET_SB((bp)->blk_prop, 16, 16, SPA_MINBLOCKSHIFT, 1, x)
+	BF64_SET_SB((bp)->blk_prop, 16, SPA_PSIZEBITS, SPA_MINBLOCKSHIFT, 1, x)
 
 #define	BP_GET_COMPRESS(bp)		BF64_GET((bp)->blk_prop, 32, 8)
 #define	BP_SET_COMPRESS(bp, x)		BF64_SET((bp)->blk_prop, 32, 8, x)
@@ -257,7 +280,7 @@ typedef struct blkptr {
 #define	BP_GET_DEDUP(bp)		BF64_GET((bp)->blk_prop, 62, 1)
 #define	BP_SET_DEDUP(bp, x)		BF64_SET((bp)->blk_prop, 62, 1, x)
 
-#define	BP_GET_BYTEORDER(bp)		(0 - BF64_GET((bp)->blk_prop, 63, 1))
+#define	BP_GET_BYTEORDER(bp)		BF64_GET((bp)->blk_prop, 63, 1)
 #define	BP_SET_BYTEORDER(bp, x)		BF64_SET((bp)->blk_prop, 63, 1, x)
 
 #define	BP_PHYSICAL_BIRTH(bp)		\
@@ -315,7 +338,9 @@ typedef struct blkptr {
 
 #define	BP_IDENTITY(bp)		(&(bp)->blk_dva[0])
 #define	BP_IS_GANG(bp)		DVA_GET_GANG(BP_IDENTITY(bp))
-#define	BP_IS_HOLE(bp)		((bp)->blk_birth == 0)
+#define	DVA_IS_EMPTY(dva)	((dva)->dva_word[0] == 0ULL &&	\
+				(dva)->dva_word[1] == 0ULL)
+#define	BP_IS_HOLE(bp)		DVA_IS_EMPTY(BP_IDENTITY(bp))
 
 /* BP_IS_RAIDZ(bp) assumes no block compression */
 #define	BP_IS_RAIDZ(bp)		(DVA_GET_ASIZE(&(bp)->blk_dva[0]) > \
@@ -338,14 +363,10 @@ typedef struct blkptr {
 	ZIO_SET_CHECKSUM(&(bp)->blk_cksum, 0, 0, 0, 0);	\
 }
 
-/*
- * Note: the byteorder is either 0 or -1, both of which are palindromes.
- * This simplifies the endianness handling a bit.
- */
 #if BYTE_ORDER == _BIG_ENDIAN
 #define	ZFS_HOST_BYTEORDER	(0ULL)
 #else
-#define	ZFS_HOST_BYTEORDER	(-1ULL)
+#define	ZFS_HOST_BYTEORDER	(1ULL)
 #endif
 
 #define	BP_SHOULD_BYTESWAP(bp)	(BP_GET_BYTEORDER(bp) != ZFS_HOST_BYTEORDER)
@@ -357,18 +378,22 @@ typedef struct blkptr {
  * 'func' is either snprintf() or mdb_snprintf().
  * 'ws' (whitespace) can be ' ' for single-line format, '\n' for multi-line.
  */
-#define	SPRINTF_BLKPTR(func, ws, buf, bp, type, checksum, compress)	\
+#define	SNPRINTF_BLKPTR(func, ws, buf, size, bp, type, checksum, compress) \
 {									\
 	static const char *copyname[] =					\
 	    { "zero", "single", "double", "triple" };			\
-	int size = BP_SPRINTF_LEN;					\
 	int len = 0;							\
 	int copies = 0;							\
 									\
 	if (bp == NULL) {						\
-		len = func(buf + len, size - len, "<NULL>");		\
+		len += func(buf + len, size - len, "<NULL>");		\
 	} else if (BP_IS_HOLE(bp)) {					\
-		len = func(buf + len, size - len, "<hole>");		\
+		len += func(buf + len, size - len, "<hole>");		\
+		if (bp->blk_birth > 0) {				\
+			len += func(buf + len, size - len,		\
+			    " birth=%lluL",				\
+			    (u_longlong_t)bp->blk_birth);		\
+		}							\
 	} else {							\
 		for (int d = 0; d < BP_GET_NDVAS(bp); d++) {		\
 			const dva_t *dva = &bp->blk_dva[d];		\
@@ -614,7 +639,8 @@ extern objset_t *spa_meta_objset(spa_t *spa);
 extern uint64_t spa_deadman_synctime(spa_t *spa);
 
 /* Miscellaneous support routines */
-extern void spa_activate_mos_feature(spa_t *spa, const char *feature);
+extern void spa_activate_mos_feature(spa_t *spa, const char *feature,
+    dmu_tx_t *tx);
 extern void spa_deactivate_mos_feature(spa_t *spa, const char *feature);
 extern int spa_rename(const char *oldname, const char *newname);
 extern spa_t *spa_by_guid(uint64_t pool_guid, uint64_t device_guid);
@@ -623,7 +649,7 @@ extern char *spa_strdup(const char *);
 extern void spa_strfree(char *);
 extern uint64_t spa_get_random(uint64_t range);
 extern uint64_t spa_generate_guid(spa_t *spa);
-extern void sprintf_blkptr(char *buf, const blkptr_t *bp);
+extern void snprintf_blkptr(char *buf, size_t buflen, const blkptr_t *bp);
 extern void spa_freeze(spa_t *spa);
 extern int spa_change_guid(spa_t *spa);
 extern void spa_upgrade(spa_t *spa, uint64_t version);
@@ -692,9 +718,9 @@ extern void spa_event_notify(spa_t *spa, vdev_t *vdev, const char *name);
 
 #ifdef ZFS_DEBUG
 #define	dprintf_bp(bp, fmt, ...) do {				\
-	if (zfs_flags & ZFS_DEBUG_DPRINTF) { 			\
+	if (zfs_flags & ZFS_DEBUG_DPRINTF) {			\
 	char *__blkbuf = kmem_alloc(BP_SPRINTF_LEN, KM_SLEEP);	\
-	sprintf_blkptr(__blkbuf, (bp));				\
+	snprintf_blkptr(__blkbuf, BP_SPRINTF_LEN, (bp));	\
 	dprintf(fmt " %s\n", __VA_ARGS__, __blkbuf);		\
 	kmem_free(__blkbuf, BP_SPRINTF_LEN);			\
 	} \

@@ -61,8 +61,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_procdesc.h"
-
 #include <sys/param.h>
 #include <sys/capability.h>
 #include <sys/fcntl.h>
@@ -84,8 +82,6 @@ __FBSDID("$FreeBSD$");
 #include <security/audit/audit.h>
 
 #include <vm/uma.h>
-
-#ifdef PROCDESC
 
 FEATURE(process_descriptors, "Process Descriptors");
 
@@ -522,14 +518,3 @@ procdesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 
 	return (EOPNOTSUPP);
 }
-
-#else /* !PROCDESC */
-
-int
-sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
-{
-
-	return (ENOSYS);
-}
-
-#endif /* PROCDESC */

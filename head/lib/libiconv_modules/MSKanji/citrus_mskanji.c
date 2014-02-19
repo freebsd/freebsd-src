@@ -130,6 +130,7 @@ _citrus_MSKanji_init_state(_MSKanjiEncodingInfo * __restrict ei __unused,
 	s->chlen = 0;
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_MSKanji_pack_state(_MSKanjiEncodingInfo * __restrict ei __unused,
@@ -147,6 +148,7 @@ _citrus_MSKanji_unpack_state(_MSKanjiEncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static int
 /*ARGSUSED*/

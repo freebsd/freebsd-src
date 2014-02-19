@@ -82,10 +82,10 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	*bpp = NULL;
 
 	/*
-	 * The EXT4_EXTENTS requires special treatment, otherwise we can
-	 * fall back to the normal path.
+	 * IN_E4EXTENTS requires special treatment as we can otherwise fall
+	 * back to the normal path.
 	 */
-	if (!(ip->i_flags & EXT4_EXTENTS))
+	if (!(ip->i_flag & IN_E4EXTENTS))
 		goto normal;
 
 	memset(&path, 0, sizeof(path));
@@ -110,7 +110,7 @@ ext2_blkatoff(struct vnode *vp, off_t offset, char **res, struct buf **bpp)
 	if (res)
 		*res = (char *)bp->b_data + blkoff(fs, offset);
 	/*
-	 * If EXT4_EXTENTS is enabled we would get a wrong offset so
+	 * If IN_E4EXTENTS is enabled we would get a wrong offset so
 	 * reset b_offset here.
 	 */
 	bp->b_offset = lbn * bsize;

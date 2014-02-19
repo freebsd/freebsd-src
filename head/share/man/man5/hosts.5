@@ -32,7 +32,7 @@
 .\"     @(#)hosts.5	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd December 25, 2013
 .Dt HOSTS 5
 .Os
 .Sh NAME
@@ -60,9 +60,7 @@ A ``#'' indicates the beginning of
 a comment; characters up to the end of the line are
 not interpreted by routines which search the file.
 .Pp
-When using the name server
-.Xr named 8 ,
-this file provides a backup used when the name server
+This file provides a backup used when the name server
 is not running.
 For the name server, it is suggested that only a few addresses
 be included in this file.
@@ -104,8 +102,7 @@ file resides in
 .Sh SEE ALSO
 .Xr gethostbyname 3 ,
 .Xr nsswitch.conf 5 ,
-.Xr ifconfig 8 ,
-.Xr named 8
+.Xr ifconfig 8
 .Rs
 .%T "Name Server Operations Guide for BIND"
 .Re

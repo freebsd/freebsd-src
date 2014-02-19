@@ -25,6 +25,8 @@
  * SUCH DAMAGE.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -61,6 +63,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/mmc/bridge.h>
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
 
 #include "mmcbr_if.h"
 
@@ -342,7 +350,10 @@ at91_mci_fini(device_t dev)
 static int
 at91_mci_probe(device_t dev)
 {
-
+#ifdef FDT
+	if (!ofw_bus_is_compatible(dev, "atmel,hsmci"))
+		return (ENXIO);
+#endif
 	device_set_desc(dev, "MCI mmc/sd host bridge");
 	return (0);
 }
@@ -1393,5 +1404,10 @@ static driver_t at91_mci_driver = {
 
 static devclass_t at91_mci_devclass;
 
+#ifdef FDT
+DRIVER_MODULE(at91_mci, simplebus, at91_mci_driver, at91_mci_devclass, NULL,
+    NULL);
+#else
 DRIVER_MODULE(at91_mci, atmelarm, at91_mci_driver, at91_mci_devclass, NULL,
     NULL);
+#endif

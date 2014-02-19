@@ -38,7 +38,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
-#include "opt_kdtrace.h"
 #if defined(__arm__)
 #include "opt_timer.h"
 #endif
@@ -69,9 +68,9 @@ DPCPU_DECLARE(sbintime_t, hardclocktime);
 #endif
 
 SDT_PROVIDER_DEFINE(callout_execute);
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout_start, callout-start,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__start,
     "struct callout *");
-SDT_PROBE_DEFINE1(callout_execute, kernel, , callout_end, callout-end,
+SDT_PROBE_DEFINE1(callout_execute, kernel, , callout__end,
     "struct callout *");
 
 #ifdef CALLOUT_PROFILING
@@ -353,12 +352,14 @@ static void
 start_softclock(void *dummy)
 {
 	struct callout_cpu *cc;
+	char name[MAXCOMLEN];
 #ifdef SMP
 	int cpu;
 #endif
 
 	cc = CC_CPU(timeout_cpu);
-	if (swi_add(&clk_intr_event, "clock", softclock, cc, SWI_CLOCK,
+	snprintf(name, sizeof(name), "clock (%d)", timeout_cpu);
+	if (swi_add(&clk_intr_event, name, softclock, cc, SWI_CLOCK,
 	    INTR_MPSAFE, &cc->cc_cookie))
 		panic("died while creating standard software ithreads");
 #ifdef SMP
@@ -368,7 +369,8 @@ start_softclock(void *dummy)
 		cc = CC_CPU(cpu);
 		cc->cc_callout = NULL;	/* Only cpu0 handles timeout(9). */
 		callout_cpu_init(cc);
-		if (swi_add(NULL, "clock", softclock, cc, SWI_CLOCK,
+		snprintf(name, sizeof(name), "clock (%d)", cpu);
+		if (swi_add(NULL, name, softclock, cc, SWI_CLOCK,
 		    INTR_MPSAFE, &cc->cc_cookie))
 			panic("died while creating standard software ithreads");
 	}
@@ -678,9 +680,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc,
 	sbt1 = sbinuptime();
 #endif
 	THREAD_NO_SLEEPING();
-	SDT_PROBE(callout_execute, kernel, , callout_start, c, 0, 0, 0, 0);
+	SDT_PROBE(callout_execute, kernel, , callout__start, c, 0, 0, 0, 0);
 	c_func(c_arg);
-	SDT_PROBE(callout_execute, kernel, , callout_end, c, 0, 0, 0, 0);
+	SDT_PROBE(callout_execute, kernel, , callout__end, c, 0, 0, 0, 0);
 	THREAD_SLEEPING_OK();
 #if defined(DIAGNOSTIC) || defined(CALLOUT_PROFILING)
 	sbt2 = sbinuptime();

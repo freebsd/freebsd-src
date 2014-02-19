@@ -58,6 +58,8 @@ static tsw_inwakeup_t	nmdm_outwakeup;
 static tsw_outwakeup_t	nmdm_inwakeup;
 static tsw_param_t	nmdm_param;
 static tsw_modem_t	nmdm_modem;
+static tsw_close_t	nmdm_close;
+static tsw_free_t	nmdm_free;
 
 static struct ttydevsw nmdm_class = {
 	.tsw_flags	= TF_NOPREFIX,
@@ -65,6 +67,8 @@ static struct ttydevsw nmdm_class = {
 	.tsw_outwakeup	= nmdm_outwakeup,
 	.tsw_param	= nmdm_param,
 	.tsw_modem	= nmdm_modem,
+	.tsw_close	= nmdm_close,
+	.tsw_free	= nmdm_free,
 };
 
 static void nmdm_task_tty(void *, int);
@@ -94,15 +98,83 @@ struct nmdmsoftc {
 
 static int nmdm_count = 0;
 
-static struct nmdmsoftc *
-nmdm_alloc(unsigned long unit)
+static void
+nmdm_close(struct tty *tp)
+{
+	struct nmdmpart *np;
+	struct nmdmpart *onp;
+	struct tty *otp;
+
+	np = tty_softc(tp);
+	onp = np->np_other;
+	otp = onp->np_tty;
+
+	/* If second part is opened, do not destroy ourselves. */
+	if (tty_opened(otp))
+		return;
+
+	/* Shut down self. */
+	tty_rel_gone(tp);
+
+	/* Shut down second part. */
+	tty_lock(tp);
+	onp = np->np_other;
+	if (onp == NULL)
+		return;
+	otp = onp->np_tty;
+	tty_rel_gone(otp);
+	tty_lock(tp);
+}
+
+static void
+nmdm_free(void *softc)
+{
+	struct nmdmpart *np = (struct nmdmpart *)softc;
+	struct nmdmsoftc *ns = np->np_pair;
+
+	callout_drain(&np->np_callout);
+	taskqueue_drain(taskqueue_swi, &np->np_task);
+
+	/*
+	 * The function is called on both parts simultaneously.  We serialize
+	 * with help of ns_mtx.  The first invocation should return and
+	 * delegate freeing of resources to the second.
+	 */
+	mtx_lock(&ns->ns_mtx);
+	if (np->np_other != NULL) {
+		np->np_other->np_other = NULL;
+		mtx_unlock(&ns->ns_mtx);
+		return;
+	}
+	mtx_destroy(&ns->ns_mtx);
+	free(ns, M_NMDM);
+	atomic_subtract_int(&nmdm_count, 1);
+}
+
+static void
+nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
+    struct cdev **dev)
 {
 	struct nmdmsoftc *ns;
 	struct tty *tp;
+	unsigned long unit;
+	char *end;
+	int error;
 
-	atomic_add_int(&nmdm_count, 1);
+	if (*dev != NULL)
+		return;
+	if (strncmp(name, "nmdm", 4) != 0)
+		return;
 
-	ns = malloc(sizeof(*ns), M_NMDM, M_WAITOK|M_ZERO);
+	/* Device name must be "nmdm%lu%c", where %c is 'A' or 'B'. */
+	name += 4;
+	unit = strtoul(name, &end, 10);
+	if (unit == ULONG_MAX || name == end)
+		return;
+	if ((end[0] != 'A' && end[0] != 'B') || end[1] != '\0')
+		return;
+
+	ns = malloc(sizeof(*ns), M_NMDM, M_WAITOK | M_ZERO);
 	mtx_init(&ns->ns_mtx, "nmdm", NULL, MTX_DEF);
 
 	/* Hook the pairs together. */
@@ -119,43 +191,33 @@ nmdm_alloc(unsigned long unit)
 	/* Create device nodes. */
 	tp = ns->ns_part1.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part1,
 	    &ns->ns_mtx);
-	tty_makedev(tp, NULL, "nmdm%luA", unit);
+	error = tty_makedevf(tp, NULL, end[0] == 'A' ? TTYMK_CLONING : 0,
+	    "nmdm%luA", unit);
+	if (error) {
+		mtx_destroy(&ns->ns_mtx);
+		free(ns, M_NMDM);
+		return;
+	}
 
 	tp = ns->ns_part2.np_tty = tty_alloc_mutex(&nmdm_class, &ns->ns_part2,
 	    &ns->ns_mtx);
-	tty_makedev(tp, NULL, "nmdm%luB", unit);
-
-	return (ns);
-}
-
-static void
-nmdm_clone(void *arg, struct ucred *cred, char *name, int nameen,
-    struct cdev **dev)
-{
-	unsigned long unit;
-	char *end;
-	struct nmdmsoftc *ns;
-
-	if (*dev != NULL)
+	error = tty_makedevf(tp, NULL, end[0] == 'B' ? TTYMK_CLONING : 0,
+	    "nmdm%luB", unit);
+	if (error) {
+		mtx_lock(&ns->ns_mtx);
+		/* see nmdm_free() */
+		ns->ns_part1.np_other = NULL;
+		atomic_add_int(&nmdm_count, 1);
+		tty_rel_gone(ns->ns_part1.np_tty);
 		return;
-	if (strncmp(name, "nmdm", 4) != 0)
-		return;
-
-	/* Device name must be "nmdm%lu%c", where %c is 'A' or 'B'. */
-	name += 4;
-	unit = strtoul(name, &end, 10);
-	if (unit == ULONG_MAX || name == end)
-		return;
-	if ((end[0] != 'A' && end[0] != 'B') || end[1] != '\0')
-		return;
-
-	/* XXX: pass privileges? */
-	ns = nmdm_alloc(unit);
+	}
 
 	if (end[0] == 'A')
 		*dev = ns->ns_part1.np_tty->t_dev;
 	else
 		*dev = ns->ns_part2.np_tty->t_dev;
+
+	atomic_add_int(&nmdm_count, 1);
 }
 
 static void
@@ -187,6 +249,10 @@ nmdm_task_tty(void *arg, int pending __unused)
 
 	tp = np->np_tty;
 	tty_lock(tp);
+	if (tty_gone(tp)) {
+		tty_unlock(tp);
+		return;
+	}
 
 	otp = np->np_other->np_tty;
 	KASSERT(otp != NULL, ("NULL otp in nmdmstart"));
@@ -201,6 +267,12 @@ nmdm_task_tty(void *arg, int pending __unused)
 			np->np_other->np_dcd = 1;
 			ttydisc_modem(otp, 1);
 		}
+	}
+
+	/* This may happen when we are in detach process. */
+	if (tty_gone(otp)) {
+		tty_unlock(otp);
+		return;
 	}
 
 	while (ttydisc_rint_poll(otp) > 0) {

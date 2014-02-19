@@ -6,6 +6,7 @@
 SUBDIR=	${_atf} \
 	${_atrun} \
 	bootpd \
+	${_casper} \
 	${_comsat} \
 	fingerd \
 	ftpd \
@@ -36,6 +37,10 @@ SUBDIR=	${_atf} \
 
 .if ${MK_AT} != "no"
 _atrun=		atrun
+.endif
+
+.if ${MK_CASPER} != "no"
+_casper=	casper
 .endif
 
 .if ${MK_MAIL} != "no"

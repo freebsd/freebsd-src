@@ -145,6 +145,10 @@ ti_pruss_reg_write(struct ti_pruss_softc *sc, uint32_t reg, uint32_t val)
 static int
 ti_pruss_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "ti,pruss-v1") ||
 	    ofw_bus_is_compatible(dev, "ti,pruss-v2")) {
 		device_set_desc(dev, "TI Programmable Realtime Unit Subsystem");
@@ -166,7 +170,7 @@ ti_pruss_attach(device_t dev)
 	}
 	sc = device_get_softc(dev);
 	rid = 0;
-	mtx_init(&sc->sc_mtx, "TI PRUSS", MTX_DEF, 0);
+	mtx_init(&sc->sc_mtx, "TI PRUSS", NULL, MTX_DEF);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {

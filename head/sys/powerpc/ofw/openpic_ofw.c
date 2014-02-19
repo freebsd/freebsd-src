@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
+#include <machine/openpicreg.h>
 #include <machine/openpicvar.h>
 
 #include "pic_if.h"
@@ -68,6 +69,8 @@ static device_method_t  openpic_ofw_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		openpic_ofw_probe),
 	DEVMETHOD(device_attach,	openpic_ofw_attach),
+	DEVMETHOD(device_suspend,	openpic_suspend),
+	DEVMETHOD(device_resume,	openpic_resume),
 
 	/* PIC interface */
 	DEVMETHOD(pic_bind,		openpic_bind),
@@ -90,7 +93,7 @@ static driver_t openpic_ofw_driver = {
 	sizeof(struct openpic_softc),
 };
 
-DRIVER_MODULE(openpic, nexus, openpic_ofw_driver, openpic_devclass, 0, 0);
+DRIVER_MODULE(openpic, ofwbus, openpic_ofw_driver, openpic_devclass, 0, 0);
 DRIVER_MODULE(openpic, simplebus, openpic_ofw_driver, openpic_devclass, 0, 0);
 DRIVER_MODULE(openpic, macio, openpic_ofw_driver, openpic_devclass, 0, 0);
 

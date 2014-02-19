@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 26, 2013
+.Dd November 30, 2013
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -122,6 +122,8 @@ Using
 backing is generally preferred instead of using
 .Cm malloc
 backing.
+.It Cm null
+Bitsink; all writes do nothing, all reads return zeroes.
 .El
 .It Fl f Ar file
 Filename to use for the vnode type memory disk.

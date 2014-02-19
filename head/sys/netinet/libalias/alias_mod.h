@@ -45,102 +45,92 @@ MALLOC_DECLARE(M_ALIAS);
 #endif
 #endif
 
-/* Protocol handlers struct & function. */
+/* Packet flow direction flags. */
+#define IN	0x0001
+#define OUT	0x0002
+#define	NODIR	0x4000
 
-/* Packet flow direction. */
-#define IN                              1 
-#define OUT                             2 
+/* Working protocol flags. */
+#define IP	0x01
+#define TCP	0x02
+#define UDP	0x04
 
-/* Working protocol. */
-#define IP                              1
-#define TCP                             2
-#define UDP                             4
-
-/* 
+/*
  * Data passed to protocol handler module, it must be filled
  * right before calling find_handler() to determine which
  * module is elegible to be called.
  */
+struct alias_data {
+	struct alias_link	*lnk;
+	struct in_addr		*oaddr;		/* Original address. */
+	struct in_addr		*aaddr;		/* Alias address. */
+	uint16_t		*aport;		/* Alias port. */
+	uint16_t		*sport, *dport;	/* Source & destination port */
+	uint16_t		maxpktsize;	/* Max packet size. */
+};
 
-struct alias_data {	
-	struct alias_link       *lnk;            
-	struct in_addr          *oaddr;         /* Original address. */
-	struct in_addr          *aaddr;         /* Alias address. */ 
-	uint16_t                *aport;         /* Alias port. */
-	uint16_t                *sport, *dport;	/* Source & destination port */
-	uint16_t                maxpktsize;     /* Max packet size. */
-}; 
-
-/* 
+/*
  * This structure contains all the information necessary to make
  * a protocol handler correctly work.
  */
-
 struct proto_handler {
-	u_int pri;                                              /* Handler priority. */
-        int16_t dir;                                            /* Flow direction. */
-	uint8_t proto;                                          /* Working protocol. */	
-	int (*fingerprint)(struct libalias *,                   /* Fingerprint * function. */
-	    struct alias_data *);                
-	int (*protohandler)(struct libalias *,                  /* Aliasing * function. */
-	    struct ip *, struct alias_data *);                 
-	LIST_ENTRY(proto_handler) entries;
+	u_int pri;		/* Handler priority. */
+	int16_t dir;		/* Flow direction. */
+	uint8_t proto;		/* Working protocol. */
+	/* Fingerprint * function. */
+	int (*fingerprint)(struct libalias *, struct alias_data *);
+	/* Aliasing * function. */
+	int (*protohandler)(struct libalias *, struct ip *,
+	    struct alias_data *);
+	TAILQ_ENTRY(proto_handler) link;
 };
 
+/* End of handlers. */
+#define EOH	.dir = NODIR
 
-/* 
+/* Functions used with protocol handlers. */
+int LibAliasAttachHandlers(struct proto_handler *);
+int LibAliasDetachHandlers(struct proto_handler *);
+int find_handler(int8_t, int8_t, struct libalias *, struct ip *,
+    struct alias_data *);
+struct proto_handler *first_handler(void);
+
+#ifndef _KERNEL
+/*
  * Used only in userland when libalias needs to keep track of all
  * module loaded. In kernel land (kld mode) we don't need to care
  * care about libalias modules cause it's kld to do it for us.
  */
-
-#define DLL_LEN         32
-struct dll {	
-	char            name[DLL_LEN];  /* Name of module. */
-	void            *handle;        /* 
-					 * Ptr to shared obj obtained through
-					 * dlopen() - use this ptr to get access
-					 * to any symbols from a loaded module 					 
-					 * via dlsym(). 
-					 */
-	SLIST_ENTRY(dll)        next;
+#define DLL_LEN	 32
+struct dll {
+	char	name[DLL_LEN];	/* Name of module. */
+	void	*handle;	/*
+				 * Ptr to shared obj obtained through
+				 * dlopen() - use this ptr to get access
+				 * to any symbols from a loaded module
+				 * via dlsym().
+				 */
+	SLIST_ENTRY(dll)	next;
 };
 
-/* Functions used with protocol handlers. */
-
-void            handler_chain_init(void);
-void            handler_chain_destroy(void);
-int             LibAliasAttachHandlers(struct proto_handler *);
-int             LibAliasDetachHandlers(struct proto_handler *);
-int             detach_handler(struct proto_handler *);
-int             find_handler(int8_t, int8_t, struct libalias *, 
-			   struct ip *, struct alias_data *);
-struct proto_handler *first_handler(void);
-
 /* Functions used with dll module. */
+void dll_chain_init(void);
+void dll_chain_destroy(void);
+int attach_dll(struct dll *);
+void *detach_dll(char *);
+struct dll *walk_dll_chain(void);
 
-void            dll_chain_init(void);
-void            dll_chain_destroy(void);
-int             attach_dll(struct dll *);
-void            *detach_dll(char *);
-struct dll      *walk_dll_chain(void);
-
-/* End of handlers. */
-#define EOH     -1
-
-/* 
+/*
  * Some defines borrowed from sys/module.h used to compile a kld
  * in userland as a shared lib.
  */
-
-#ifndef _KERNEL
 typedef enum modeventtype {
-        MOD_LOAD,
-        MOD_UNLOAD,
-        MOD_SHUTDOWN,
-        MOD_QUIESCE
+	MOD_LOAD,
+	MOD_UNLOAD,
+	MOD_SHUTDOWN,
+	MOD_QUIESCE
 } modeventtype_t;
-        
+
 typedef struct module *module_t;
 typedef int (*modeventhand_t)(module_t, int /* modeventtype_t */, void *);
 
@@ -148,10 +138,10 @@ typedef int (*modeventhand_t)(module_t, int /* modeventtype_t */, void *);
  * Struct for registering modules statically via SYSINIT.
  */
 typedef struct moduledata {
-        const char      *name;          /* module name */
-        modeventhand_t  evhand;         /* event handler */
-        void            *priv;          /* extra data */
+	const char	*name;	/* module name */
+	modeventhand_t	evhand;	/* event handler */
+	void		*priv;	/* extra data */
 } moduledata_t;
-#endif
+#endif /* !_KERNEL */
 
-#endif				/* !_ALIAS_MOD_H_ */
+#endif /* !_ALIAS_MOD_H_ */

@@ -791,21 +791,19 @@ teken_subr_do_putchar(teken_t *t, const teken_pos_t *tp, teken_char_t c,
 		teken_funcs_copy(t, &ctr, &ctp);
 	}
 
+	teken_funcs_putchar(t, tp, c, &t->t_curattr);
+
 	if (width == 2 && tp->tp_col + 1 < t->t_winsize.tp_col) {
 		teken_pos_t tp2;
+		teken_attr_t attr;
 
-		/*
-		 * Store a space behind double width characters before
-		 * actually printing them. This prevents artifacts when
-		 * the consumer doesn't render it using double width
-		 * glyphs.
-		 */
+		/* Print second half of CJK fullwidth character. */
 		tp2.tp_row = tp->tp_row;
 		tp2.tp_col = tp->tp_col + 1;
-		teken_funcs_putchar(t, &tp2, BLANK, &t->t_curattr);
+		attr = t->t_curattr;
+		attr.ta_format |= TF_CJK_RIGHT;
+		teken_funcs_putchar(t, &tp2, c, &attr);
 	}
-
-	teken_funcs_putchar(t, tp, c, &t->t_curattr);
 }
 
 static void
@@ -842,13 +840,18 @@ teken_subr_regular_character(teken_t *t, teken_char_t c)
 			}
 			t->t_cursor.tp_col = 0;
 		}
-	} else if (t->t_cursor.tp_col == t->t_winsize.tp_col - 1 &&
-	    (t->t_stateflags & (TS_WRAPPED|TS_AUTOWRAP)) ==
-	    (TS_WRAPPED|TS_AUTOWRAP)) {
+	} else if (t->t_stateflags & TS_AUTOWRAP &&
+	    ((t->t_stateflags & TS_WRAPPED &&
+	    t->t_cursor.tp_col + 1 == t->t_winsize.tp_col) ||
+	    t->t_cursor.tp_col + width > t->t_winsize.tp_col)) {
 		teken_pos_t tp;
 
-		/* Perform line wrapping. */
-
+		/*
+		 * Perform line wrapping, if:
+		 * - Autowrapping is enabled, and
+		 *   - We're in the wrapped state at the last column, or
+		 *   - The character to be printed does not fit anymore.
+		 */
 		if (t->t_cursor.tp_row == t->t_scrollreg.ts_end - 1) {
 			/* Perform scrolling. */
 			teken_subr_do_scroll(t, 1);
@@ -953,6 +956,15 @@ teken_subr_reset_mode(teken_t *t, unsigned int cmd)
 	default:
 		teken_printf("Unknown reset mode: %u\n", cmd);
 	}
+}
+
+static void
+teken_subr_do_resize(teken_t *t)
+{
+
+	t->t_scrollreg.ts_begin = 0;
+	t->t_scrollreg.ts_end = t->t_winsize.tp_row;
+	t->t_originreg = t->t_scrollreg;
 }
 
 static void

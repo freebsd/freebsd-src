@@ -391,7 +391,7 @@ diff_status_callback(void *baton,
           }
       }
 
-    if (local_only)
+    if (local_only && (db_status != svn_wc__db_status_deleted))
       {
         if (db_kind == svn_node_file)
           SVN_ERR(svn_wc__diff_local_only_file(db, child_abspath,

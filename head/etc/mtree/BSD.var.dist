@@ -28,7 +28,7 @@
 /set gname=wheel
     backups
     ..
-    cache
+    cache		mode=0755
     ..
     crash
     ..

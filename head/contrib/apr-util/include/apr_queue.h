@@ -22,7 +22,7 @@
  * @brief Thread Safe FIFO bounded queue
  * @note Since most implementations of the queue are backed by a condition
  * variable implementation, it isn't available on systems without threads.
- * Although condition variables are some times available without threads.
+ * Although condition variables are sometimes available without threads.
  */
 
 #include "apu.h"

@@ -302,6 +302,8 @@ struct cgraph_node *cgraph_master_clone (struct cgraph_node *);
 void cgraph_add_new_function (tree);
 
 /* In cgraphunit.c  */
+/* APPLE LOCAL radar 6305545 */
+void lower_if_nested_functions (tree);
 bool cgraph_assemble_pending_functions (void);
 bool cgraph_varpool_assemble_pending_decls (void);
 void cgraph_finalize_function (tree, bool);
