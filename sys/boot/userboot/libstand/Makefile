@@ -57,6 +57,7 @@ SRCS+= ntoh.c
 
 # string functions from libc
 .PATH: ${LIBC}/string
+CFLAGS+=	-I${LIBC}/include
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc" || \
 	${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "amd64" || \
 	${MACHINE_CPUARCH} == "arm"
