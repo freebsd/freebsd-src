@@ -224,7 +224,7 @@ arswitch_set_vlan_mode(struct arswitch_softc *sc, uint32_t mode)
 }
 
 static void
-arswitch_port_init(struct arswitch_softc *sc, int port)
+arswitch_port_init_8xxx(struct arswitch_softc *sc, int port)
 {
 
 	/* Port0 - CPU */
@@ -265,6 +265,9 @@ arswitch_attach(device_t dev)
 	sc->page = -1;
 	strlcpy(sc->info.es_name, device_get_desc(dev),
 	    sizeof(sc->info.es_name));
+
+	/* Default HAL methods */
+	sc->hal.arswitch_port_init = arswitch_port_init_8xxx;
 
 	/*
 	 * Attach switch related functions
@@ -320,7 +323,7 @@ arswitch_attach(device_t dev)
 
 	/* Initialize the switch ports. */
 	for (port = 0; port <= sc->numphys; port++) {
-		arswitch_port_init(sc, port);
+		sc->hal.arswitch_port_init(sc, port);
 	}
 
 	/*
@@ -459,8 +462,15 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 		if (sc->miibus[i] == NULL)
 			continue;
 		mii = device_get_softc(sc->miibus[i]);
-		portstatus = arswitch_readreg(sc->sc_dev,
-		    AR8X16_REG_PORT_STS(arswitch_portforphy(i)));
+		/* XXX This would be nice to have abstracted out to be per-chip */
+		/* AR8327/AR8337 has a different register base */
+		if (AR8X16_IS_SWITCH(sc, AR8327))
+			portstatus = arswitch_readreg(sc->sc_dev,
+			    AR8327_REG_PORT_STATUS(arswitch_portforphy(i)));
+		else
+			portstatus = arswitch_readreg(sc->sc_dev,
+			    AR8X16_REG_PORT_STS(arswitch_portforphy(i)));
+
 #if 0
 		DPRINTF(sc->sc_dev, "p[%d]=%b\n",
 		    i,
