@@ -457,7 +457,7 @@ rx_print(const u_char *bp, int length, int sport, int dport,
 	int i;
 	int32_t opcode;
 
-	if (!TTEST2(bp, sizeof(struct rx_header))) {
+	if (!TTEST2(*bp, sizeof(struct rx_header))) {
 		printf(" [|rx] (%d)", length);
 		return;
 	}
@@ -608,7 +608,7 @@ rx_cache_insert(const u_char *bp, const struct ip *ip, int dport)
 	struct rx_cache_entry *rxent;
 	const struct rx_header *rxh = (const struct rx_header *) bp;
 
-	if (!TTEST2(bp, (int)(sizeof(struct rx_header) + sizeof(int32_t) + 1)))
+	if (!TTEST2(*bp, (int)(sizeof(struct rx_header) + sizeof(int32_t) + 1)))
 		return;
 
 	rxent = &rx_cache[rx_cache_next];
