@@ -383,7 +383,7 @@ update_internal(svn_revnum_t *result_rev,
       SVN_ERR(svn_ra_get_repos_root2(ra_session, &new_repos_root_url, pool));
 
       /* svn_client_relocate2() will check the uuid */
-      SVN_ERR(svn_client_relocate2(anchor_abspath, anchor_url,
+      SVN_ERR(svn_client_relocate2(anchor_abspath, repos_root_url,
                                    new_repos_root_url, ignore_externals,
                                    ctx, pool));
 
@@ -701,7 +701,23 @@ svn_client_update4(apr_array_header_t **result_revs,
 
  cleanup:
   if (sleep)
-    svn_io_sleep_for_timestamps((paths->nelts == 1) ? path : NULL, pool);
+    {
+      const char *wcroot_abspath;
+
+      if (paths->nelts == 1)
+        {
+          const char *abspath;
+
+          /* PATH iteslf may have been removed by the update. */
+          SVN_ERR(svn_dirent_get_absolute(&abspath, path, pool));
+          SVN_ERR(svn_wc__get_wcroot(&wcroot_abspath, ctx->wc_ctx, abspath,
+                                     pool, pool));
+        }
+      else
+        wcroot_abspath = NULL;
+
+      svn_io_sleep_for_timestamps(wcroot_abspath, pool);
+    }
 
   return svn_error_trace(err);
 }

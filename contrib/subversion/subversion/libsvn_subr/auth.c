@@ -35,7 +35,9 @@
 #include "svn_private_config.h"
 #include "svn_dso.h"
 #include "svn_version.h"
+#include "private/svn_auth_private.h"
 #include "private/svn_dep_compat.h"
+#include "private/svn_subr_private.h"
 
 #include "auth.h"
 
@@ -478,7 +480,8 @@ svn_auth_get_platform_specific_provider(svn_auth_provider_object_t **provider,
               check_list[0].version_query = version_function;
               check_list[1].label = NULL;
               check_list[1].version_query = NULL;
-              SVN_ERR(svn_ver_check_list(svn_subr_version(), check_list));
+              SVN_ERR(svn_ver_check_list2(svn_subr_version(), check_list,
+                                          svn_ver_equal));
             }
           if (apr_dso_sym(&provider_function_symbol,
                           dso,
@@ -537,6 +540,11 @@ svn_auth_get_platform_specific_provider(svn_auth_provider_object_t **provider,
                strcmp(provider_type, "ssl_server_trust") == 0)
         {
           svn_auth_get_windows_ssl_server_trust_provider(provider, pool);
+        }
+      else if (strcmp(provider_name, "windows") == 0 &&
+          strcmp(provider_type, "ssl_server_authority") == 0)
+        {
+          svn_auth__get_windows_ssl_server_authority_provider(provider, pool);
         }
 #endif
     }

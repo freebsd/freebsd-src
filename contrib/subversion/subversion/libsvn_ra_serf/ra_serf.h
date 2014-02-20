@@ -57,13 +57,6 @@ extern "C" {
 /** Use this to silence compiler warnings about unused parameters. */
 #define UNUSED_CTX(x) ((void)(x))
 
-/** Our User-Agent string. */
-#define USER_AGENT "SVN/" SVN_VER_NUMBER " (" SVN_BUILD_TARGET ")" \
-                   " serf/" \
-                   APR_STRINGIFY(SERF_MAJOR_VERSION) "." \
-                   APR_STRINGIFY(SERF_MINOR_VERSION) "." \
-                   APR_STRINGIFY(SERF_PATCH_VERSION)
-
 /** Wait duration (in microseconds) used in calls to serf_context_run() */
 #define SVN_RA_SERF__CONTEXT_RUN_DURATION 500000
 
@@ -658,11 +651,6 @@ struct svn_ra_serf__xml_parser_t {
 
      See libsvn_ra_serf/util.c  */
   struct svn_ra_serf__pending_t *pending;
-
-  /* Response restart support */
-  const void *headers_baton; /* Last pointer to headers */
-  apr_off_t skip_size; /* Number of bytes to skip */
-  apr_off_t read_size; /* Number of bytes read from response */
 };
 
 
