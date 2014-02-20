@@ -166,6 +166,13 @@ svn_client_commit_item3_dup(const svn_client_commit_item3_t *item,
     new_item->outgoing_prop_changes =
       svn_prop_array_dup(new_item->outgoing_prop_changes, pool);
 
+  if (new_item->session_relpath)
+    new_item->session_relpath = apr_pstrdup(pool, new_item->session_relpath);
+
+  if (new_item->moved_from_abspath)
+    new_item->moved_from_abspath = apr_pstrdup(pool,
+                                               new_item->moved_from_abspath);
+
   return new_item;
 }
 
