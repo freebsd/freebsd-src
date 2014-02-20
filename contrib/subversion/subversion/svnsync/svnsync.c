@@ -38,6 +38,7 @@
 #include "private/svn_opt_private.h"
 #include "private/svn_ra_private.h"
 #include "private/svn_cmdline_private.h"
+#include "private/svn_subr_private.h"
 
 #include "sync.h"
 
@@ -312,7 +313,7 @@ check_lib_versions(void)
     };
   SVN_VERSION_DEFINE(my_version);
 
-  return svn_ver_check_list(&my_version, checklist);
+  return svn_ver_check_list2(&my_version, checklist, svn_ver_equal);
 }
 
 
@@ -1297,7 +1298,7 @@ replay_rev_finished(svn_revnum_t revision,
   if (rb->sb->committed_rev != revision)
     return svn_error_createf
              (APR_EINVAL, NULL,
-              _("Commit created rev %ld but should have created %ld"),
+              _("Commit created r%ld but should have created r%ld"),
               rb->sb->committed_rev, revision);
 
   SVN_ERR(svn_ra_rev_proplist(rb->to_session, revision, &existing_props,

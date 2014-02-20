@@ -1436,7 +1436,7 @@ svn_ra_print_modules(svn_stringbuf_t *output,
              built with SASL. */
           line = apr_psprintf(iterpool, "* ra_%s : %s\n",
                               defn->ra_name,
-                              vtable->get_description());
+                              vtable->get_description(iterpool));
           svn_stringbuf_appendcstr(output, line);
 
           for (schemes = vtable->get_schemes(iterpool); *schemes != NULL;

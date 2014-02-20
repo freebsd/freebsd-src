@@ -75,8 +75,10 @@ svn_boolean_t svn_ver_equal(const svn_version_t *my_version,
 
 
 svn_error_t *
-svn_ver_check_list(const svn_version_t *my_version,
-                   const svn_version_checklist_t *checklist)
+svn_ver__check_list2(const svn_version_t *my_version,
+                     const svn_version_checklist_t *checklist,
+                     svn_boolean_t (*comparator)(const svn_version_t *,
+                                                 const svn_version_t *))
 {
   svn_error_t *err = SVN_NO_ERROR;
   int i;
@@ -84,12 +86,17 @@ svn_ver_check_list(const svn_version_t *my_version,
   for (i = 0; checklist[i].label != NULL; ++i)
     {
       const svn_version_t *lib_version = checklist[i].version_query();
-      if (!svn_ver_compatible(my_version, lib_version))
+      if (!comparator(my_version, lib_version))
         err = svn_error_createf(SVN_ERR_VERSION_MISMATCH, err,
-                                _("Version mismatch in '%s':"
+                                _("Version mismatch in '%s'%s:"
                                   " found %d.%d.%d%s,"
                                   " expected %d.%d.%d%s"),
                                 checklist[i].label,
+                                comparator == svn_ver_equal
+                                ? _(" (expecting equality)")
+                                : comparator == svn_ver_compatible
+                                ? _(" (expecting compatibility)")
+                                : "",
                                 lib_version->major, lib_version->minor,
                                 lib_version->patch, lib_version->tag,
                                 my_version->major, my_version->minor,
