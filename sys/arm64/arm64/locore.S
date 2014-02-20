@@ -29,6 +29,10 @@
 #include "assym.s"
 #include <machine/armreg.h>
 #include <machine/hypervisor.h>
+#include <machine/param.h>
+#include <machine/pte.h>
+
+#define	VIRT_BITS	38
 
 	.globl	kernbase
 	.set	kernbase, KERNBASE
@@ -48,6 +52,21 @@
 _start:
 	/* Drop to EL1 */
 	bl	drop_to_el1
+
+	/* Get the virt -> phys offset */
+	bl	get_virt_delta
+
+	/*
+	 * At this point:
+	 * x29 = PA - VA
+	 * x28 = Our physical load address
+	 */
+
+	/* Create the page tables */
+	bl	create_pagetables
+
+	/* Enable the mmu */
+	bl	start_mmu
 
 	/* Load the address of the fvp UART */
 	mov	x0, 0x1c090000
@@ -103,8 +122,10 @@ drop_to_el1:
 	msr	elr_el2, x30
 
 	eret
+
+	.align 3
 .Lsctlr_res1:
-	.word SCTLR_RES1
+	.quad SCTLR_RES1
 
 #define	VECT_EMPTY	\
     .align 7;		\
@@ -135,6 +156,184 @@ hyp_vectors:
 hyp_trap_invalid:
 	b	hyp_trap_invalid
 
+/*
+ * Get the delta between the physical address we were loaded to and the
+ * virtual address we expect to run from. This is used when building the
+ * initial page table.
+ */
+get_virt_delta:
+	/* Load the physical address of virt_map */
+	adr	x29, virt_map
+	/* Load the virtual address of virt_map stored in virt_map */
+	ldr	x28, [x29]
+	/* Find PA - VA as PA' = VA' - VA + PA = VA' + (PA - VA) = VA' + x29 */
+	sub	x29, x29, x28
+	/* Find the load address for the kernel */
+	mov	x28, #(KERNBASE)
+	add	x28, x28, x29
+	ret
+
+	.align 3
+virt_map:
+	.quad	virt_map
+
+/*
+ * This builds the page tables containing the identity map, and the kernel
+ * virtual map.
+ *
+ * It relys on:
+ *  We were loaded to an address that is on a 2MiB boundary
+ *  All the memory must not cross a 1GiB boundaty
+ *  x28 contains the physical address we were loaded from
+ *
+ * TODO: This is out of date.
+ *  There are at least 5 pages before that address for the page tables
+ *   The pages used are:
+ *    - The identity (PA = VA) table (TTBR0)
+ *    - The Kernel L1 table          (TTBR1)(not yet)
+ *    -  The PA != VA L2 table to jump into (not yet)
+ *    -  The FDT L2 table                   (not yet)
+ */
+create_pagetables:
+	/* Save the Link register */
+	mov	x5, x30
+
+	mov	x15, #(PAGE_SIZE * 3)
+
+	/* Clean the page table */
+	adr	x6, pagetable
+	mov	x26, x6
+	add	x27, x6, x15
+1:
+	stp	xzr, xzr, [x6], #16
+	stp	xzr, xzr, [x6], #16
+	stp	xzr, xzr, [x6], #16
+	stp	xzr, xzr, [x6], #16
+	cmp	x6, x27
+	b.lo	1b
+
+	/*
+	 * Build the TTBR0 maps.
+	 */
+	add	x27, x26, #1, lsl #PAGE_SHIFT
+
+	/* Create the VA = PA map */
+	mov	x6, x27		/* The initial page table */
+	mov	x7, #1
+	mov	x9, x27
+	mov	x8, x9		/* VA start (== PA start) */
+	bl	build_section_pagetable
+
+	/* Create a table for the UART (TODO: Remove) */
+	mov	x7, #0
+	mov	x8, #0x10000000		/* VA start (== PA start) */
+	mov	x9, #0x10000000		/* PA start */
+	bl	build_section_pagetable
+
+	/* Restore the Link register */
+	mov	x30, x5
+	ret
+
+/*
+ * Builds a 1 GiB page table entry
+ *  x6 = L1 table
+ *  x7 = Type (0 = Device, 1 = Normal)
+ *  x8 = VA start
+ *  x9 = PA start (trashed)
+ *  x11, x12 and x13 are trashed
+ */
+build_section_pagetable:
+	/*
+	 * Build the L1 table entry.
+	 */
+	/* Find the table index */
+	lsr	x11, x8, #L1_SHIFT
+	and	x11, x11, #Ln_ADDR_MASK
+
+	/* Build the L1 block entry */
+	lsl	x12, x7, #2
+	orr	x12, x12, #L1_BLOCK
+	orr	x12, x12, #(ATTR_AF)
+
+	/* Only use the output address bits */
+	lsr	x9, x9, #L1_SHIFT
+	orr	x12, x12, x9, lsl #L1_SHIFT
+
+	/* Store the entry */
+	str	x12, [x6, x11, lsl #3]
+
+	ret
+
+/*
+ * Builds an L1 -> L2 table descriptor
+ *
+ * This is a link for a 1GiB block of memory with up to 2MiB regions mapped
+ * within it by build_block_pagetable.
+ *
+ *  x6  = L1 table
+ *  x8  = Virtual Address
+ *  x9  = L2 PA
+ *  x11, x12 and x13 are trashed
+ */
+link_l1_pagetable:
+	/*
+	 * Link an L1 -> L2 table entry.
+	 */
+	ret
+
+start_mmu:
+	dsb	sy
+
+	/* Load ttbr0 and ttbr1 */
+	msr	ttbr0_el1, x27
+	msr	ttbr1_el1, x26
+	isb
+
+	/* Clear the Monitor Debug System control register */
+	msr	mdscr_el1, xzr
+
+	/* Invalidate the TLB */
+	tlbi	vmalle1is
+
+	ldr	x2, mair
+	msr	mair_el1, x2
+
+	/* Setup TCR */
+	ldr	x2, tcr
+	msr	tcr_el1, x2
+
+	/* Setup SCTLR */
+	ldr	x2, sctlr_set
+	ldr	x3, sctlr_clear
+	mrs	x1, sctlr_el1
+	bic	x1, x1, x3	/* Clear the required bits */
+	orr	x1, x1, x2	/* Set the required bits */
+	msr	sctlr_el1, x1
+	isb
+
+	ret
+
+	.align 3
+mair:
+	.quad	MAIR(0x00, 0) |	MAIR(0x44, 1) |	MAIR(0xff, 2)
+tcr:
+	.quad (TCR_TxSZ(63 - VIRT_BITS) | TCR_ASID_16 | TCR_IPS_40BIT | \
+	    TCR_TG1_4K)
+sctlr_set:
+	/* Bits to set */
+	.quad (SCTLR_UCI | SCTLR_nTWE | SCTLR_nTWI | SCTLR_UCT | SCTLR_DZE | \
+	    SCTLR_I | SCTLR_SED | SCTLR_M)
+sctlr_clear:
+	/* Bits to clear */
+	.quad (SCTLR_EE | SCTLR_EOE | SCTLR_WXN | SCTLR_UMA | SCTLR_ITD | \
+	    SCTLR_THEE | SCTLR_CP15BEN | SCTLR_SA0 | SCTLR_SA | SCTLR_C | \
+	    SCTLR_A)
+
 	.globl abort
 abort:
 	b abort
+
+	//.section .init_pagetable
+	.align 12 /* 4KiB aligned */
+pagetable:
+	.space	(PAGE_SIZE * 3) /* 3 tables */
