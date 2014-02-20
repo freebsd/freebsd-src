@@ -42,6 +42,43 @@ typedef	uint64_t	pd_entry_t;		/* page directory entry */
 typedef	uint64_t	pt_entry_t;		/* page table entry */
 #endif
 
+/* Block and Page attributes */
+/* TODO: Add the upper attributes */
+#define	ATTR_nG		(1 << 11)
+#define	ATTR_AF		(1 << 10)
+#define	ATTR_SH(x)	((x) << 8)
+#define	ATTR_AP(x)	((x) << 6)
+#define	ATTR_NS		(1 << 5)
+#define	ATTR_IDX(x)	((x) << 3)
+
+/* Level 0 table, 512GiB per entry */
+#define	L0_SHIFT	39
+#define	L0_INVAL	0x0 /* An invalid address */
+#define	L0_BLOCK	0x1 /* A block */
+	/* 0x2 also marks an invalid address */
+#define	L0_TABLE	0x3 /* A next-level table */
+
+/* Level 1 table, 1GiB per entry */
+#define	L1_SHIFT	30
+#define	L1_INVAL	L0_INVAL
+#define	L1_BLOCK	L0_BLOCK
+#define	L1_TABLE	L0_TABLE
+
+/* Level 2 table, 2MiB per entry */
+#define	L2_SHIFT	21
+#define	L2_INVAL	L0_INVAL
+#define	L2_BLOCK	L0_BLOCK
+#define	L2_TABLE	L0_TABLE
+
+/* Level 3 table, 4KiB per entry */
+#define	L3_SHIFT	12
+#define	L3_INVAL	0x0
+	/* 0x1 is reserved */
+	/* 0x2 also marks an invalid address */
+#define	L3_TABLE	0x3
+
+#define	Ln_ADDR_MASK	((1 << 9) - 1)
+
 #endif /* !_MACHINE_PTE_H_ */
 
 /* End of pte.h */
