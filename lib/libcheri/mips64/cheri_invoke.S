@@ -125,7 +125,7 @@ cheri_invoke:
 	csc	$c24, $sp, 224($c0)
 
 	#
-	# Scrub caller-save non-argument general-purpose registers.
+	# Scrub callee-save non-argument general-purpose registers.
 	#
 	# Don't scrub $sp as CCall will do that for us ... right?
 	#
