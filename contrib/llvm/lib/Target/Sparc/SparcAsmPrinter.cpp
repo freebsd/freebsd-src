@@ -16,12 +16,18 @@
 #include "Sparc.h"
 #include "SparcInstrInfo.h"
 #include "SparcTargetMachine.h"
-#include "MCTargetDesc/SparcBaseInfo.h"
+#include "SparcTargetStreamer.h"
+#include "InstPrinter/SparcInstPrinter.h"
+#include "MCTargetDesc/SparcMCExpr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineInstr.h"
+#include "llvm/CodeGen/MachineModuleInfoImpls.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
+#include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -31,6 +37,9 @@ using namespace llvm;
 
 namespace {
   class SparcAsmPrinter : public AsmPrinter {
+    SparcTargetStreamer &getTargetStreamer() {
+      return static_cast<SparcTargetStreamer&>(OutStreamer.getTargetStreamer());
+    }
   public:
     explicit SparcAsmPrinter(TargetMachine &TM, MCStreamer &Streamer)
       : AsmPrinter(TM, Streamer) {}
@@ -45,14 +54,12 @@ namespace {
     void printCCOperand(const MachineInstr *MI, int opNum, raw_ostream &OS);
 
     virtual void EmitFunctionBodyStart();
-    virtual void EmitInstruction(const MachineInstr *MI) {
-      SmallString<128> Str;
-      raw_svector_ostream OS(Str);
-      printInstruction(MI, OS);
-      OutStreamer.EmitRawText(OS.str());
+    virtual void EmitInstruction(const MachineInstr *MI);
+    virtual void EmitEndOfAsmFile(Module &M);
+
+    static const char *getRegisterName(unsigned RegNo) {
+      return SparcInstPrinter::getRegisterName(RegNo);
     }
-    void printInstruction(const MachineInstr *MI, raw_ostream &OS);// autogen'd.
-    static const char *getRegisterName(unsigned RegNo);
 
     bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                          unsigned AsmVariant, const char *ExtraCode,
@@ -61,24 +68,202 @@ namespace {
                                unsigned AsmVariant, const char *ExtraCode,
                                raw_ostream &O);
 
-    bool printGetPCX(const MachineInstr *MI, unsigned OpNo, raw_ostream &OS);
-
-    virtual bool isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB)
-                       const;
-    void EmitGlobalRegisterDecl(unsigned reg) {
-      SmallString<128> Str;
-      raw_svector_ostream OS(Str);
-      OS << "\t.register "
-         << "%" << StringRef(getRegisterName(reg)).lower()
-         << ", "
-         << ((reg == SP::G6 || reg == SP::G7)? "#ignore" : "#scratch");
-      OutStreamer.EmitRawText(OS.str());
-    }
+    void LowerGETPCXAndEmitMCInsts(const MachineInstr *MI);
 
   };
 } // end of anonymous namespace
 
-#include "SparcGenAsmWriter.inc"
+static MCOperand createSparcMCOperand(SparcMCExpr::VariantKind Kind,
+                                      MCSymbol *Sym, MCContext &OutContext) {
+  const MCSymbolRefExpr *MCSym = MCSymbolRefExpr::Create(Sym,
+                                                         OutContext);
+  const SparcMCExpr *expr = SparcMCExpr::Create(Kind, MCSym, OutContext);
+  return MCOperand::CreateExpr(expr);
+
+}
+static MCOperand createPCXCallOP(MCSymbol *Label,
+                                 MCContext &OutContext) {
+  return createSparcMCOperand(SparcMCExpr::VK_Sparc_None, Label, OutContext);
+}
+
+static MCOperand createPCXRelExprOp(SparcMCExpr::VariantKind Kind,
+                                    MCSymbol *GOTLabel, MCSymbol *StartLabel,
+                                    MCSymbol *CurLabel,
+                                    MCContext &OutContext)
+{
+  const MCSymbolRefExpr *GOT = MCSymbolRefExpr::Create(GOTLabel, OutContext);
+  const MCSymbolRefExpr *Start = MCSymbolRefExpr::Create(StartLabel,
+                                                         OutContext);
+  const MCSymbolRefExpr *Cur = MCSymbolRefExpr::Create(CurLabel,
+                                                       OutContext);
+
+  const MCBinaryExpr *Sub = MCBinaryExpr::CreateSub(Cur, Start, OutContext);
+  const MCBinaryExpr *Add = MCBinaryExpr::CreateAdd(GOT, Sub, OutContext);
+  const SparcMCExpr *expr = SparcMCExpr::Create(Kind,
+                                                Add, OutContext);
+  return MCOperand::CreateExpr(expr);
+}
+
+static void EmitCall(MCStreamer &OutStreamer,
+                     MCOperand &Callee)
+{
+  MCInst CallInst;
+  CallInst.setOpcode(SP::CALL);
+  CallInst.addOperand(Callee);
+  OutStreamer.EmitInstruction(CallInst);
+}
+
+static void EmitSETHI(MCStreamer &OutStreamer,
+                      MCOperand &Imm, MCOperand &RD)
+{
+  MCInst SETHIInst;
+  SETHIInst.setOpcode(SP::SETHIi);
+  SETHIInst.addOperand(RD);
+  SETHIInst.addOperand(Imm);
+  OutStreamer.EmitInstruction(SETHIInst);
+}
+
+static void EmitBinary(MCStreamer &OutStreamer, unsigned Opcode,
+                       MCOperand &RS1, MCOperand &Src2, MCOperand &RD)
+{
+  MCInst Inst;
+  Inst.setOpcode(Opcode);
+  Inst.addOperand(RD);
+  Inst.addOperand(RS1);
+  Inst.addOperand(Src2);
+  OutStreamer.EmitInstruction(Inst);
+}
+
+static void EmitOR(MCStreamer &OutStreamer,
+                   MCOperand &RS1, MCOperand &Imm, MCOperand &RD) {
+  EmitBinary(OutStreamer, SP::ORri, RS1, Imm, RD);
+}
+
+static void EmitADD(MCStreamer &OutStreamer,
+                    MCOperand &RS1, MCOperand &RS2, MCOperand &RD) {
+  EmitBinary(OutStreamer, SP::ADDrr, RS1, RS2, RD);
+}
+
+static void EmitSHL(MCStreamer &OutStreamer,
+                    MCOperand &RS1, MCOperand &Imm, MCOperand &RD) {
+  EmitBinary(OutStreamer, SP::SLLri, RS1, Imm, RD);
+}
+
+
+static void EmitHiLo(MCStreamer &OutStreamer,  MCSymbol *GOTSym,
+                     SparcMCExpr::VariantKind HiKind,
+                     SparcMCExpr::VariantKind LoKind,
+                     MCOperand &RD,
+                     MCContext &OutContext) {
+
+  MCOperand hi = createSparcMCOperand(HiKind, GOTSym, OutContext);
+  MCOperand lo = createSparcMCOperand(LoKind, GOTSym, OutContext);
+  EmitSETHI(OutStreamer, hi, RD);
+  EmitOR(OutStreamer, RD, lo, RD);
+}
+
+void SparcAsmPrinter::LowerGETPCXAndEmitMCInsts(const MachineInstr *MI)
+{
+  MCSymbol *GOTLabel   =
+    OutContext.GetOrCreateSymbol(Twine("_GLOBAL_OFFSET_TABLE_"));
+
+  const MachineOperand &MO = MI->getOperand(0);
+  assert(MO.getReg() != SP::O7 &&
+         "%o7 is assigned as destination for getpcx!");
+
+  MCOperand MCRegOP = MCOperand::CreateReg(MO.getReg());
+
+
+  if (TM.getRelocationModel() != Reloc::PIC_) {
+    // Just load the address of GOT to MCRegOP.
+    switch(TM.getCodeModel()) {
+    default:
+      llvm_unreachable("Unsupported absolute code model");
+    case CodeModel::Small:
+      EmitHiLo(OutStreamer, GOTLabel,
+               SparcMCExpr::VK_Sparc_HI, SparcMCExpr::VK_Sparc_LO,
+               MCRegOP, OutContext);
+      break;
+    case CodeModel::Medium: {
+      EmitHiLo(OutStreamer, GOTLabel,
+               SparcMCExpr::VK_Sparc_H44, SparcMCExpr::VK_Sparc_M44,
+               MCRegOP, OutContext);
+      MCOperand imm = MCOperand::CreateExpr(MCConstantExpr::Create(12,
+                                                                   OutContext));
+      EmitSHL(OutStreamer, MCRegOP, imm, MCRegOP);
+      MCOperand lo = createSparcMCOperand(SparcMCExpr::VK_Sparc_L44,
+                                          GOTLabel, OutContext);
+      EmitOR(OutStreamer, MCRegOP, lo, MCRegOP);
+      break;
+    }
+    case CodeModel::Large: {
+      EmitHiLo(OutStreamer, GOTLabel,
+               SparcMCExpr::VK_Sparc_HH, SparcMCExpr::VK_Sparc_HM,
+               MCRegOP, OutContext);
+      MCOperand imm = MCOperand::CreateExpr(MCConstantExpr::Create(32,
+                                                                   OutContext));
+      EmitSHL(OutStreamer, MCRegOP, imm, MCRegOP);
+      // Use register %o7 to load the lower 32 bits.
+      MCOperand RegO7 = MCOperand::CreateReg(SP::O7);
+      EmitHiLo(OutStreamer, GOTLabel,
+               SparcMCExpr::VK_Sparc_HI, SparcMCExpr::VK_Sparc_LO,
+               RegO7, OutContext);
+      EmitADD(OutStreamer, MCRegOP, RegO7, MCRegOP);
+    }
+    }
+    return;
+  }
+
+  MCSymbol *StartLabel = OutContext.CreateTempSymbol();
+  MCSymbol *EndLabel   = OutContext.CreateTempSymbol();
+  MCSymbol *SethiLabel = OutContext.CreateTempSymbol();
+
+  MCOperand RegO7   = MCOperand::CreateReg(SP::O7);
+
+  // <StartLabel>:
+  //   call <EndLabel>
+  // <SethiLabel>:
+  //     sethi %hi(_GLOBAL_OFFSET_TABLE_+(<SethiLabel>-<StartLabel>)), <MO>
+  // <EndLabel>:
+  //   or  <MO>, %lo(_GLOBAL_OFFSET_TABLE_+(<EndLabel>-<StartLabel>))), <MO>
+  //   add <MO>, %o7, <MO>
+
+  OutStreamer.EmitLabel(StartLabel);
+  MCOperand Callee =  createPCXCallOP(EndLabel, OutContext);
+  EmitCall(OutStreamer, Callee);
+  OutStreamer.EmitLabel(SethiLabel);
+  MCOperand hiImm = createPCXRelExprOp(SparcMCExpr::VK_Sparc_PC22,
+                                       GOTLabel, StartLabel, SethiLabel,
+                                       OutContext);
+  EmitSETHI(OutStreamer, hiImm, MCRegOP);
+  OutStreamer.EmitLabel(EndLabel);
+  MCOperand loImm = createPCXRelExprOp(SparcMCExpr::VK_Sparc_PC10,
+                                       GOTLabel, StartLabel, EndLabel,
+                                       OutContext);
+  EmitOR(OutStreamer, MCRegOP, loImm, MCRegOP);
+  EmitADD(OutStreamer, MCRegOP, RegO7, MCRegOP);
+}
+
+void SparcAsmPrinter::EmitInstruction(const MachineInstr *MI)
+{
+
+  switch (MI->getOpcode()) {
+  default: break;
+  case TargetOpcode::DBG_VALUE:
+    // FIXME: Debug Value.
+    return;
+  case SP::GETPCX:
+    LowerGETPCXAndEmitMCInsts(MI);
+    return;
+  }
+  MachineBasicBlock::const_instr_iterator I = MI;
+  MachineBasicBlock::const_instr_iterator E = MI->getParent()->instr_end();
+  do {
+    MCInst TmpInst;
+    LowerSparcMachineInstrToMCInst(I, TmpInst, *this);
+    OutStreamer.EmitInstruction(TmpInst);
+  } while ((++I != E) && I->isInsideBundle()); // Delay slot check.
+}
 
 void SparcAsmPrinter::EmitFunctionBodyStart() {
   if (!TM.getSubtarget<SparcSubtarget>().is64Bit())
@@ -90,89 +275,70 @@ void SparcAsmPrinter::EmitFunctionBodyStart() {
     unsigned reg = globalRegs[i];
     if (MRI.use_empty(reg))
       continue;
-    EmitGlobalRegisterDecl(reg);
+
+    if  (reg == SP::G6 || reg == SP::G7)
+      getTargetStreamer().emitSparcRegisterIgnore(reg);
+    else
+      getTargetStreamer().emitSparcRegisterScratch(reg);
   }
 }
 
 void SparcAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
                                    raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand (opNum);
-  unsigned TF = MO.getTargetFlags();
+  SparcMCExpr::VariantKind TF = (SparcMCExpr::VariantKind) MO.getTargetFlags();
+
 #ifndef NDEBUG
   // Verify the target flags.
   if (MO.isGlobal() || MO.isSymbol() || MO.isCPI()) {
     if (MI->getOpcode() == SP::CALL)
-      assert(TF == SPII::MO_NO_FLAG &&
+      assert(TF == SparcMCExpr::VK_Sparc_None &&
              "Cannot handle target flags on call address");
-    else if (MI->getOpcode() == SP::SETHIi)
-      assert((TF == SPII::MO_HI || TF == SPII::MO_H44 || TF == SPII::MO_HH
-              || TF == SPII::MO_TLS_GD_HI22
-              || TF == SPII::MO_TLS_LDM_HI22
-              || TF == SPII::MO_TLS_LDO_HIX22
-              || TF == SPII::MO_TLS_IE_HI22
-              || TF == SPII::MO_TLS_LE_HIX22) &&
+    else if (MI->getOpcode() == SP::SETHIi || MI->getOpcode() == SP::SETHIXi)
+      assert((TF == SparcMCExpr::VK_Sparc_HI
+              || TF == SparcMCExpr::VK_Sparc_H44
+              || TF == SparcMCExpr::VK_Sparc_HH
+              || TF == SparcMCExpr::VK_Sparc_TLS_GD_HI22
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_HI22
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDO_HIX22
+              || TF == SparcMCExpr::VK_Sparc_TLS_IE_HI22
+              || TF == SparcMCExpr::VK_Sparc_TLS_LE_HIX22) &&
              "Invalid target flags for address operand on sethi");
     else if (MI->getOpcode() == SP::TLS_CALL)
-      assert((TF == SPII::MO_NO_FLAG
-              || TF == SPII::MO_TLS_GD_CALL
-              || TF == SPII::MO_TLS_LDM_CALL) &&
+      assert((TF == SparcMCExpr::VK_Sparc_None
+              || TF == SparcMCExpr::VK_Sparc_TLS_GD_CALL
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_CALL) &&
              "Cannot handle target flags on tls call address");
     else if (MI->getOpcode() == SP::TLS_ADDrr)
-      assert((TF == SPII::MO_TLS_GD_ADD || TF == SPII::MO_TLS_LDM_ADD
-              || TF == SPII::MO_TLS_LDO_ADD || TF == SPII::MO_TLS_IE_ADD) &&
+      assert((TF == SparcMCExpr::VK_Sparc_TLS_GD_ADD
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_ADD
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDO_ADD
+              || TF == SparcMCExpr::VK_Sparc_TLS_IE_ADD) &&
              "Cannot handle target flags on add for TLS");
     else if (MI->getOpcode() == SP::TLS_LDrr)
-      assert(TF == SPII::MO_TLS_IE_LD &&
+      assert(TF == SparcMCExpr::VK_Sparc_TLS_IE_LD &&
              "Cannot handle target flags on ld for TLS");
     else if (MI->getOpcode() == SP::TLS_LDXrr)
-      assert(TF == SPII::MO_TLS_IE_LDX &&
+      assert(TF == SparcMCExpr::VK_Sparc_TLS_IE_LDX &&
              "Cannot handle target flags on ldx for TLS");
-    else if (MI->getOpcode() == SP::XORri)
-      assert((TF == SPII::MO_TLS_LDO_LOX10 || TF == SPII::MO_TLS_LE_LOX10) &&
+    else if (MI->getOpcode() == SP::XORri || MI->getOpcode() == SP::XORXri)
+      assert((TF == SparcMCExpr::VK_Sparc_TLS_LDO_LOX10
+              || TF == SparcMCExpr::VK_Sparc_TLS_LE_LOX10) &&
              "Cannot handle target flags on xor for TLS");
     else
-      assert((TF == SPII::MO_LO || TF == SPII::MO_M44 || TF == SPII::MO_L44
-              || TF == SPII::MO_HM
-              || TF == SPII::MO_TLS_GD_LO10
-              || TF == SPII::MO_TLS_LDM_LO10
-              || TF == SPII::MO_TLS_IE_LO10 ) &&
+      assert((TF == SparcMCExpr::VK_Sparc_LO
+              || TF == SparcMCExpr::VK_Sparc_M44
+              || TF == SparcMCExpr::VK_Sparc_L44
+              || TF == SparcMCExpr::VK_Sparc_HM
+              || TF == SparcMCExpr::VK_Sparc_TLS_GD_LO10
+              || TF == SparcMCExpr::VK_Sparc_TLS_LDM_LO10
+              || TF == SparcMCExpr::VK_Sparc_TLS_IE_LO10 ) &&
              "Invalid target flags for small address operand");
   }
 #endif
 
-  bool CloseParen = true;
-  switch (TF) {
-  default:
-      llvm_unreachable("Unknown target flags on operand");
-  case SPII::MO_NO_FLAG:
-    CloseParen = false;
-    break;
-  case SPII::MO_LO:  O << "%lo(";  break;
-  case SPII::MO_HI:  O << "%hi(";  break;
-  case SPII::MO_H44: O << "%h44("; break;
-  case SPII::MO_M44: O << "%m44("; break;
-  case SPII::MO_L44: O << "%l44("; break;
-  case SPII::MO_HH:  O << "%hh(";  break;
-  case SPII::MO_HM:  O << "%hm(";  break;
-  case SPII::MO_TLS_GD_HI22:   O << "%tgd_hi22(";   break;
-  case SPII::MO_TLS_GD_LO10:   O << "%tgd_lo10(";   break;
-  case SPII::MO_TLS_GD_ADD:    O << "%tgd_add(";    break;
-  case SPII::MO_TLS_GD_CALL:   O << "%tgd_call(";   break;
-  case SPII::MO_TLS_LDM_HI22:  O << "%tldm_hi22(";  break;
-  case SPII::MO_TLS_LDM_LO10:  O << "%tldm_lo10(";  break;
-  case SPII::MO_TLS_LDM_ADD:   O << "%tldm_add(";   break;
-  case SPII::MO_TLS_LDM_CALL:  O << "%tldm_call(";  break;
-  case SPII::MO_TLS_LDO_HIX22: O << "%tldo_hix22("; break;
-  case SPII::MO_TLS_LDO_LOX10: O << "%tldo_lox10("; break;
-  case SPII::MO_TLS_LDO_ADD:   O << "%tldo_add(";   break;
-  case SPII::MO_TLS_IE_HI22:   O << "%tie_hi22(";   break;
-  case SPII::MO_TLS_IE_LO10:   O << "%tie_lo10(";   break;
-  case SPII::MO_TLS_IE_LD:     O << "%tie_ld(";     break;
-  case SPII::MO_TLS_IE_LDX:    O << "%tie_ldx(";    break;
-  case SPII::MO_TLS_IE_ADD:    O << "%tie_add(";    break;
-  case SPII::MO_TLS_LE_HIX22:  O << "%tle_hix22(";  break;
-  case SPII::MO_TLS_LE_LOX10:  O << "%tle_lox10(";   break;
-  }
+
+  bool CloseParen = SparcMCExpr::printVariantKind(O, TF);
 
   switch (MO.getType()) {
   case MachineOperand::MO_Register:
@@ -226,46 +392,6 @@ void SparcAsmPrinter::printMemOperand(const MachineInstr *MI, int opNum,
   printOperand(MI, opNum+1, O);
 }
 
-bool SparcAsmPrinter::printGetPCX(const MachineInstr *MI, unsigned opNum,
-                                  raw_ostream &O) {
-  std::string operand = "";
-  const MachineOperand &MO = MI->getOperand(opNum);
-  switch (MO.getType()) {
-  default: llvm_unreachable("Operand is not a register");
-  case MachineOperand::MO_Register:
-    assert(TargetRegisterInfo::isPhysicalRegister(MO.getReg()) &&
-           "Operand is not a physical register ");
-    assert(MO.getReg() != SP::O7 &&
-           "%o7 is assigned as destination for getpcx!");
-    operand = "%" + StringRef(getRegisterName(MO.getReg())).lower();
-    break;
-  }
-
-  unsigned mfNum = MI->getParent()->getParent()->getFunctionNumber();
-  unsigned bbNum = MI->getParent()->getNumber();
-
-  O << '\n' << ".LLGETPCH" << mfNum << '_' << bbNum << ":\n";
-  O << "\tcall\t.LLGETPC" << mfNum << '_' << bbNum << '\n' ;
-
-  O << "\t  sethi\t"
-    << "%hi(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << mfNum << '_' << bbNum
-    << ")), "  << operand << '\n' ;
-
-  O << ".LLGETPC" << mfNum << '_' << bbNum << ":\n" ;
-  O << "\tor\t" << operand
-    << ", %lo(_GLOBAL_OFFSET_TABLE_+(.-.LLGETPCH" << mfNum << '_' << bbNum
-    << ")), " << operand << '\n';
-  O << "\tadd\t" << operand << ", %o7, " << operand << '\n';
-
-  return true;
-}
-
-void SparcAsmPrinter::printCCOperand(const MachineInstr *MI, int opNum,
-                                     raw_ostream &O) {
-  int CC = (int)MI->getOperand(opNum).getImm();
-  O << SPARCCondCodeToString((SPCC::CondCodes)CC);
-}
-
 /// PrintAsmOperand - Print out an operand for an inline asm expression.
 ///
 bool SparcAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
@@ -303,35 +429,21 @@ bool SparcAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
   return false;
 }
 
-/// isBlockOnlyReachableByFallthough - Return true if the basic block has
-/// exactly one predecessor and the control transfer mechanism between
-/// the predecessor and this block is a fall-through.
-///
-/// This overrides AsmPrinter's implementation to handle delay slots.
-bool SparcAsmPrinter::
-isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
-  // If this is a landing pad, it isn't a fall through.  If it has no preds,
-  // then nothing falls through to it.
-  if (MBB->isLandingPad() || MBB->pred_empty())
-    return false;
+void SparcAsmPrinter::EmitEndOfAsmFile(Module &M) {
+  const TargetLoweringObjectFileELF &TLOFELF =
+    static_cast<const TargetLoweringObjectFileELF &>(getObjFileLowering());
+  MachineModuleInfoELF &MMIELF = MMI->getObjFileInfo<MachineModuleInfoELF>();
 
-  // If there isn't exactly one predecessor, it can't be a fall through.
-  MachineBasicBlock::const_pred_iterator PI = MBB->pred_begin(), PI2 = PI;
-  ++PI2;
-  if (PI2 != MBB->pred_end())
-    return false;
-
-  // The predecessor has to be immediately before this block.
-  const MachineBasicBlock *Pred = *PI;
-
-  if (!Pred->isLayoutSuccessor(MBB))
-    return false;
-
-  // Check if the last terminator is an unconditional branch.
-  MachineBasicBlock::const_iterator I = Pred->end();
-  while (I != Pred->begin() && !(--I)->isTerminator())
-    ; // Noop
-  return I == Pred->end() || !I->isBarrier();
+  // Generate stubs for global variables.
+  MachineModuleInfoELF::SymbolListTy Stubs = MMIELF.GetGVStubList();
+  if (!Stubs.empty()) {
+    OutStreamer.SwitchSection(TLOFELF.getDataSection());
+    unsigned PtrSize = TM.getDataLayout()->getPointerSize(0);
+    for (unsigned i = 0, e = Stubs.size(); i != e; ++i) {
+      OutStreamer.EmitLabel(Stubs[i].first);
+      OutStreamer.EmitSymbolValue(Stubs[i].second.getPointer(), PtrSize);
+    }
+  }
 }
 
 // Force static initialization.
