@@ -29,6 +29,10 @@
 #ifndef _MACHINE_ARMREG_H_
 #define	_MACHINE_ARMREG_H_
 
+/* Memory Attribute Indirection register */
+/* TODO: Should this be in a pte header? */
+#define	MAIR(attr, idx) ((attr) << ((idx) * 8))
+
 /*
  * The various *PSR registers, e.g. cpsr or cpsr.
  *
@@ -80,5 +84,25 @@
 #define	SCTLR_EOE	0x01000000
 #define	SCTLR_EE	0x02000000
 #define	SCTLR_UCI	0x04000000
+
+/* Translation Control Register */
+#define	TCR_ASID_16	(1 << 36)
+
+#define	TCR_IPS_SHIFT	32
+#define	TCR_IPS_32BIT	(0 << TCR_IPS_SHIFT)
+#define	TCR_IPS_36BIT	(1 << TCR_IPS_SHIFT)
+#define	TCR_IPS_40BIT	(2 << TCR_IPS_SHIFT)
+#define	TCR_IPS_42BIT	(3 << TCR_IPS_SHIFT)
+#define	TCR_IPS_44BIT	(4 << TCR_IPS_SHIFT)
+#define	TCR_IPS_48BIT	(5 << TCR_IPS_SHIFT)
+
+#define	TCR_TG1_SHIFT	30
+#define	TCR_TG1_16K	(1 << TCR_TG1_SHIFT)
+#define	TCR_TG1_4K	(2 << TCR_TG1_SHIFT)
+#define	TCR_TG1_64K	(3 << TCR_TG1_SHIFT)
+
+#define	TCR_T1SZ_SHIFT	16
+#define	TCR_T0SZ_SHIFT	0
+#define	TCR_TxSZ(x)	(((x) << TCR_T1SZ_SHIFT) | ((x) << TCR_T0SZ_SHIFT))
 
 #endif
