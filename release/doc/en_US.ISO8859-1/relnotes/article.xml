@@ -237,6 +237,13 @@
       which provides access to functionality that is not available in
       the <quote>capability mode</quote> sandbox.</para>
 
+    <para revision="261498">&man.ping.8; protects against malicious
+      network packets using the Capsicum framework to drop
+      privileges.</para>
+
+    <para revision="261504">&os;/&arch.i386; guests can be run under
+      bhyve.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -273,6 +280,13 @@
 
     <para revision="261283"><application>libc++</application> has been
       updated to version 3.4.</para>
+
+    <para revision="261344"><application>mdocml</application> has been
+      updated to version 1.12.3.</para>
+
+    <para revision="261991"><application>LLVM</application> and
+      <application>Clang</application> have been updated to
+      version 3.4.</para>
   </sect2>
 
   <sect2 xml:id="ports">
