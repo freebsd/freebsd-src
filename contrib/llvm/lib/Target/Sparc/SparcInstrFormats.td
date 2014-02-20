@@ -12,6 +12,7 @@ class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern>
   field bits<32> Inst;
 
   let Namespace = "SP";
+  let Size = 4;
 
   bits<2> op;
   let Inst{31-30} = op;               // Top two bits are the 'op' field
@@ -20,6 +21,9 @@ class InstSP<dag outs, dag ins, string asmstr, list<dag> pattern>
   dag InOperandList = ins;
   let AsmString   = asmstr;
   let Pattern = pattern;
+
+  let DecoderNamespace = "Sparc";
+  field bits<32> SoftFail = 0;
 }
 
 //===----------------------------------------------------------------------===//
@@ -58,6 +62,27 @@ class F2_2<bits<3> op2Val, dag outs, dag ins, string asmstr,
   let Inst{28-25} = cond;
 }
 
+class F2_3<bits<3> op2Val, bits<2> ccVal, dag outs, dag ins, string asmstr,
+           list<dag> pattern>
+   : InstSP<outs, ins, asmstr, pattern> {
+  bit      annul;
+  bits<4>  cond;
+  bit      pred;
+  bits<19> imm19;
+
+  let op          = 0;    // op = 0
+
+  bit annul       = 0;    // currently unused
+  let pred        = 1;    // default is predict taken
+
+  let Inst{29}    = annul;
+  let Inst{28-25} = cond;
+  let Inst{24-22} = op2Val;
+  let Inst{21-20} = ccVal;
+  let Inst{19}    = pred;
+  let Inst{18-0}  = imm19;
+}
+
 //===----------------------------------------------------------------------===//
 // Format #3 instruction classes in the Sparc
 //===----------------------------------------------------------------------===//
@@ -75,9 +100,8 @@ class F3<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 // Specific F3 classes: SparcV8 manual, page 44
 //
-class F3_1<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
+class F3_1_asi<bits<2> opVal, bits<6> op3val, bits<8> asi, dag outs, dag ins,
            string asmstr, list<dag> pattern> : F3<outs, ins, asmstr, pattern> {
-  bits<8> asi = 0; // asi not currently used
   bits<5> rs2;
 
   let op         = opVal;
@@ -87,6 +111,10 @@ class F3_1<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
   let Inst{12-5} = asi;   // address space identifier
   let Inst{4-0}  = rs2;
 }
+
+class F3_1<bits<2> opVal, bits<6> op3val, dag outs, dag ins, string asmstr,
+       list<dag> pattern> : F3_1_asi<opVal, op3val, 0, outs, ins,
+                                                     asmstr, pattern>;
 
 class F3_2<bits<2> opVal, bits<6> op3val, dag outs, dag ins,
            string asmstr, list<dag> pattern> : F3<outs, ins, asmstr, pattern> {
@@ -168,12 +196,12 @@ class F3_Si<bits<2> opVal, bits<6> op3val, bit xVal, dag outs, dag ins,
 // Define rr and ri shift instructions with patterns.
 multiclass F3_S<string OpcStr, bits<6> Op3Val, bit XVal, SDNode OpNode,
                 ValueType VT, RegisterClass RC> {
-  def rr : F3_Sr<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs, IntRegs:$rs2),
-                 !strconcat(OpcStr, " $rs, $rs2, $rd"),
-                 [(set VT:$rd, (OpNode VT:$rs, i32:$rs2))]>;
-  def ri : F3_Si<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs, i32imm:$shcnt),
-                 !strconcat(OpcStr, " $rs, $shcnt, $rd"),
-                 [(set VT:$rd, (OpNode VT:$rs, (i32 imm:$shcnt)))]>;
+  def rr : F3_Sr<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs1, IntRegs:$rs2),
+                 !strconcat(OpcStr, " $rs1, $rs2, $rd"),
+                 [(set VT:$rd, (OpNode VT:$rs1, i32:$rs2))]>;
+  def ri : F3_Si<2, Op3Val, XVal, (outs RC:$rd), (ins RC:$rs1, i32imm:$shcnt),
+                 !strconcat(OpcStr, " $rs1, $shcnt, $rd"),
+                 [(set VT:$rd, (OpNode VT:$rs1, (i32 imm:$shcnt)))]>;
 }
 
 class F4<bits<6> op3, dag outs, dag ins, string asmstr, list<dag> pattern>
