@@ -31,43 +31,53 @@
 .Nm gpioiic
 .Nd GPIO I2C bit-banging device driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device gpio"
 .Cd "device gpioiic"
 .Cd "device iic"
 .Cd "device iicbb"
 .Cd "device iicbus"
+.Ed
 .Sh DESCRIPTION
 The
-.Em gpioiic
+.Nm
 driver provides an IIC bit-banging interface using two GPIO pins for the
 SCL and SDA on the
-.Em gpiobus .
+.Nm gpiobus .
 .Nm
-implements an open colector kind of output, as recommended by the standard,
+implements an open collector kind of output, as recommended by the standard,
 when driving the pins on the
-.Em gpiobus ,
+.Nm gpiobus ,
 i.e, they are never switched to the logical value of '1',
 or they are '0' or simply open (Hi-Z/tri-state).
 So the pullup resistors are required so
 .Nm
 can work.
 .Pp
-On a hint based system, like
-.Li MIPS , these values are configureable for the
-.Nm gpioiic :
+On a
+.Xr device.hints 5
+based system, like
+.Li MIPS ,
+these values are configurable for the
+.Nm :
 .Bl -tag -width ".Va hint.gpioiic.%d.atXXX"
 .It Va hint.gpioiic.%d.at
-The gpiobus you are attaching to.
+The
+.Nm gpiobus
+you are attaching to.
 Normally just gpiobus0.
 .It Va hint.gpioiic.%d.pins
 This is a bitmask of the pins on the
-.Em gpiobus
+.Nm gpiobus
 that are to be used for SCLOCK and SDATA from the GPIO IIC
 bit-banging bus.
 To configure pin 0 and 7, use the bitmask of
 0b10000001 and convert it to a hexadecimal value of 0x0081.
 Please note that this mask should only ever have two bits set
-(any others bits - i.e., pins - will be ignored).
+(any other bits - i.e., pins - will be ignored).
 .It Va hint.gpioiic.%d.scl
 Indicates which bit in the
 .Va hint.gpioiic.%d.pins
@@ -85,7 +95,8 @@ Optional, defaults to 1.
 On a
 .Xr FDT 4
 based system, like
-.Li ARM , the dts part for a
+.Li ARM ,
+the DTS part for a
 .Nm gpioiic
 device usually looks like:
 .Bd -literal
