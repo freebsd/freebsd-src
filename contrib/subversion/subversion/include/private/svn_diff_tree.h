@@ -20,13 +20,13 @@
  * ====================================================================
  * @endcopyright
  *
- * @file svn_wc.h
+ * @file svn_diff_tree.h
  * @brief Generic diff handler. Replacing the old svn_wc_diff_callbacks4_t
  * infrastructure
  */
 
-#ifndef SVN_DIFF_PROCESSOR_H
-#define SVN_DIFF_PROCESSOR_H
+#ifndef SVN_DIFF_TREE_H
+#define SVN_DIFF_TREE_H
 
 #include "svn_types.h"
 
@@ -353,5 +353,5 @@ svn_diff__source_create(svn_revnum_t revision,
 }
 #endif /* __cplusplus */
 
-#endif  /* SVN_DIFF_PROCESSOR_H */
+#endif  /* SVN_DIFF_TREE_H */
 

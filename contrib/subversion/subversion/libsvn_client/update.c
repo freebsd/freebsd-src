@@ -383,7 +383,7 @@ update_internal(svn_revnum_t *result_rev,
       SVN_ERR(svn_ra_get_repos_root2(ra_session, &new_repos_root_url, pool));
 
       /* svn_client_relocate2() will check the uuid */
-      SVN_ERR(svn_client_relocate2(anchor_abspath, anchor_url,
+      SVN_ERR(svn_client_relocate2(anchor_abspath, repos_root_url,
                                    new_repos_root_url, ignore_externals,
                                    ctx, pool));
 
