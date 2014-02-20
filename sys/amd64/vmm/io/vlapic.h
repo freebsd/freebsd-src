@@ -32,10 +32,10 @@
 struct vm;
 enum x2apic_state;
 
-int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data,
-    bool *retu);
-int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data,
-    bool *retu);
+int vlapic_write(struct vlapic *vlapic, int mmio_access, uint64_t offset,
+    uint64_t data, bool *retu);
+int vlapic_read(struct vlapic *vlapic, int mmio_access, uint64_t offset,
+    uint64_t *data, bool *retu);
 
 /*
  * Returns 0 if there is no eligible vector that can be delivered to the
@@ -74,7 +74,7 @@ void vlapic_fire_cmci(struct vlapic *vlapic);
 int vlapic_trigger_lvt(struct vlapic *vlapic, int vector);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
-void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
+int vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
 bool vlapic_enabled(struct vlapic *vlapic);
 
