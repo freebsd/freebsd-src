@@ -135,7 +135,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
@@ -812,7 +812,7 @@ void
 pmap_bootstrap(vm_paddr_t *firstaddr)
 {
 	vm_offset_t va;
-	pt_entry_t *pte, *unused;
+	pt_entry_t *pte;
 
 	/*
 	 * Create an initial set of page tables to run the kernel in.
@@ -858,14 +858,11 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	pte = vtopte(va);
 
 	/*
-	 * CMAP1 is only used for the memory test.
+	 * Crashdump maps.  The first page is reused as CMAP1 for the
+	 * memory test.
 	 */
-	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
-
-	/*
-	 * Crashdump maps.
-	 */
-	SYSMAP(caddr_t, unused, crashdumpmap, MAXDUMPPGS)
+	SYSMAP(caddr_t, CMAP1, crashdumpmap, MAXDUMPPGS)
+	CADDR1 = crashdumpmap;
 
 	virtual_avail = va;
 
@@ -5575,7 +5572,7 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 	KASSERT(pmap->pm_type == PT_EPT, ("invalid pm_type %d", pmap->pm_type));
 
 	/*
-	 * RWX = 010 or 110 will cause an unconditional EPT misconfiguration
+	 * XWR = 010 or 110 will cause an unconditional EPT misconfiguration
 	 * so we don't let the referenced (aka EPT_PG_READ) bit to be cleared
 	 * if the EPT_PG_WRITE bit is set.
 	 */
@@ -5583,7 +5580,7 @@ safe_to_clear_referenced(pmap_t pmap, pt_entry_t pte)
 		return (FALSE);
 
 	/*
-	 * RWX = 100 is allowed only if the PMAP_SUPPORTS_EXEC_ONLY is set.
+	 * XWR = 100 is allowed only if the PMAP_SUPPORTS_EXEC_ONLY is set.
 	 */
 	if ((pte & EPT_PG_EXECUTE) == 0 ||
 	    ((pmap->pm_flags & PMAP_SUPPORTS_EXEC_ONLY) != 0))

@@ -123,7 +123,7 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, const MDNode *LocMDNode,
                                              TM.getTargetCPU(),
                                              TM.getTargetFeatureString()));
   OwningPtr<MCTargetAsmParser>
-    TAP(TM.getTarget().createMCAsmParser(*STI, *Parser));
+    TAP(TM.getTarget().createMCAsmParser(*STI, *Parser, *MII));
   if (!TAP)
     report_fatal_error("Inline asm not supported by this streamer because"
                        " we don't have an asm parser for this target\n");
@@ -213,7 +213,7 @@ static void EmitMSInlineAsmStr(const char *AsmStr, const MachineInstr *MI,
       } else {
         unsigned OpFlags = MI->getOperand(OpNo).getImm();
         ++OpNo;  // Skip over the ID number.
-        
+
         if (InlineAsm::isMemKind(OpFlags)) {
           Error = AP->PrintAsmMemoryOperand(MI, OpNo, InlineAsmVariant,
                                             /*Modifier*/ 0, OS);

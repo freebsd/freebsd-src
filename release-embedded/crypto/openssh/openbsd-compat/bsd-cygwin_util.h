@@ -1,4 +1,4 @@
-/* $Id: bsd-cygwin_util.h,v 1.16 2013/04/01 01:40:49 dtucker Exp $ */
+/* $Id: bsd-cygwin_util.h,v 1.17 2014/01/18 10:04:00 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000, 2001, 2011, 2013 Corinna Vinschen <vinschen@redhat.com>
@@ -40,8 +40,14 @@
 typedef void *HANDLE;
 #define INVALID_HANDLE_VALUE ((HANDLE) -1)
 
+/* Cygwin functions for which declarations are only available when including
+   windows headers, so we have to define them here explicitely. */
+extern HANDLE cygwin_logon_user (const struct passwd *, const char *);
+extern void cygwin_set_impersonation_token (const HANDLE);
+
 #include <sys/cygwin.h>
 #include <io.h>
+
 
 int binary_open(const char *, int , ...);
 int check_ntsec(const char *);

@@ -250,20 +250,20 @@ struct data data_add_marker(struct data d, enum markertype type, char *ref)
 	return data_append_markers(d, m);
 }
 
-int data_is_one_string(struct data d)
+bool data_is_one_string(struct data d)
 {
 	int i;
 	int len = d.len;
 
 	if (len == 0)
-		return 0;
+		return false;
 
 	for (i = 0; i < len-1; i++)
 		if (d.val[i] == '\0')
-			return 0;
+			return false;
 
 	if (d.val[len-1] != '\0')
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }

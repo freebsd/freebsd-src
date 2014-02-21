@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.24 2013/06/03 00:03:18 dtucker Exp $ */
+/* $OpenBSD: mac.c,v 1.26 2014/01/04 17:50:55 tedu Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -91,9 +91,9 @@ static const struct macalg macs[] = {
 	{ NULL,					0, NULL, 0, 0, 0, 0 }
 };
 
-/* Returns a comma-separated list of supported MACs. */
+/* Returns a list of supported MACs separated by the specified char. */
 char *
-mac_alg_list(void)
+mac_alg_list(char sep)
 {
 	char *ret = NULL;
 	size_t nlen, rlen = 0;
@@ -101,7 +101,7 @@ mac_alg_list(void)
 
 	for (m = macs; m->name != NULL; m++) {
 		if (ret != NULL)
-			ret[rlen++] = '\n';
+			ret[rlen++] = sep;
 		nlen = strlen(m->name);
 		ret = xrealloc(ret, 1, rlen + nlen + 2);
 		memcpy(ret + rlen, m->name, nlen + 1);
@@ -181,8 +181,8 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 	u_char b[4], nonce[8];
 
 	if (mac->mac_len > sizeof(u))
-		fatal("mac_compute: mac too long %u %lu",
-		    mac->mac_len, (u_long)sizeof(u));
+		fatal("mac_compute: mac too long %u %zu",
+		    mac->mac_len, sizeof(u));
 
 	switch (mac->type) {
 	case SSH_EVP:

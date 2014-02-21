@@ -140,6 +140,12 @@ bool AnalyzerOptions::mayInlineCXXContainerCtorsAndDtors() {
                           /*Default=*/false);
 }
 
+bool AnalyzerOptions::mayInlineCXXSharedPtrDtor() {
+  return getBooleanOption(InlineCXXSharedPtrDtor,
+                          "c++-shared_ptr-inlining",
+                          /*Default=*/false);
+}
+
 
 bool AnalyzerOptions::mayInlineObjCMethod() {
   return getBooleanOption(ObjCInliningMode,
@@ -168,6 +174,12 @@ bool AnalyzerOptions::shouldSuppressInlinedDefensiveChecks() {
 bool AnalyzerOptions::shouldSuppressFromCXXStandardLibrary() {
   return getBooleanOption(SuppressFromCXXStandardLibrary,
                           "suppress-c++-stdlib",
+                          /* Default = */ false);
+}
+
+bool AnalyzerOptions::shouldReportIssuesInMainSourceFile() {
+  return getBooleanOption(ReportIssuesInMainSourceFile,
+                          "report-in-main-source-file",
                           /* Default = */ false);
 }
 

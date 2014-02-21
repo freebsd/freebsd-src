@@ -226,7 +226,7 @@ wd_timeout_cb(void *arg)
 #ifdef DDB
 	if ((wd_pretimeout_act & WD_SOFT_DDB)) {
 		char kdb_why[80];
-		snprintf(kdb_why, sizeof(buf), "watchdog %s timeout", type);
+		snprintf(kdb_why, sizeof(kdb_why), "watchdog %s timeout", type);
 		kdb_backtrace();
 		kdb_enter(KDB_WHY_WATCHDOG, kdb_why);
 	}

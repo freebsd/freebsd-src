@@ -137,48 +137,32 @@ typedef ArrayRef<SVal> ValueList;
 
 ProgramStateRef 
 ProgramState::invalidateRegions(RegionList Regions,
-                                const Expr *E, unsigned Count,
-                                const LocationContext *LCtx,
-                                bool CausedByPointerEscape,
-                                InvalidatedSymbols *IS,
-                                const CallEvent *Call,
-                                RegionList ConstRegions) const {
+                             const Expr *E, unsigned Count,
+                             const LocationContext *LCtx,
+                             bool CausedByPointerEscape,
+                             InvalidatedSymbols *IS,
+                             const CallEvent *Call,
+                             RegionAndSymbolInvalidationTraits *ITraits) const {
   SmallVector<SVal, 8> Values;
   for (RegionList::const_iterator I = Regions.begin(),
                                   End = Regions.end(); I != End; ++I)
     Values.push_back(loc::MemRegionVal(*I));
 
-  SmallVector<SVal, 8> ConstValues;
-  for (RegionList::const_iterator I = ConstRegions.begin(),
-                                  End = ConstRegions.end(); I != End; ++I)
-    ConstValues.push_back(loc::MemRegionVal(*I));
-
-  if (!IS) {
-    InvalidatedSymbols invalidated;
-    return invalidateRegionsImpl(Values, E, Count, LCtx,
-                                 CausedByPointerEscape,
-                                 invalidated, Call, ConstValues);
-  }
   return invalidateRegionsImpl(Values, E, Count, LCtx, CausedByPointerEscape,
-                               *IS, Call, ConstValues);
+                               IS, ITraits, Call);
 }
 
 ProgramStateRef
 ProgramState::invalidateRegions(ValueList Values,
-                                const Expr *E, unsigned Count,
-                                const LocationContext *LCtx,
-                                bool CausedByPointerEscape,
-                                InvalidatedSymbols *IS,
-                                const CallEvent *Call,
-                                ValueList ConstValues) const {
-  if (!IS) {
-    InvalidatedSymbols invalidated;
-    return invalidateRegionsImpl(Values, E, Count, LCtx,
-                                 CausedByPointerEscape,
-                                 invalidated, Call, ConstValues);
-  }
+                             const Expr *E, unsigned Count,
+                             const LocationContext *LCtx,
+                             bool CausedByPointerEscape,
+                             InvalidatedSymbols *IS,
+                             const CallEvent *Call,
+                             RegionAndSymbolInvalidationTraits *ITraits) const {
+
   return invalidateRegionsImpl(Values, E, Count, LCtx, CausedByPointerEscape,
-                               *IS, Call, ConstValues);
+                               IS, ITraits, Call);
 }
 
 ProgramStateRef
@@ -186,49 +170,45 @@ ProgramState::invalidateRegionsImpl(ValueList Values,
                                     const Expr *E, unsigned Count,
                                     const LocationContext *LCtx,
                                     bool CausedByPointerEscape,
-                                    InvalidatedSymbols &IS,
-                                    const CallEvent *Call,
-                                    ValueList ConstValues) const {
+                                    InvalidatedSymbols *IS,
+                                    RegionAndSymbolInvalidationTraits *ITraits,
+                                    const CallEvent *Call) const {
   ProgramStateManager &Mgr = getStateManager();
   SubEngine* Eng = Mgr.getOwningEngine();
   InvalidatedSymbols ConstIS;
 
+  InvalidatedSymbols Invalidated;
+  if (!IS)
+    IS = &Invalidated;
+
+  RegionAndSymbolInvalidationTraits ITraitsLocal;
+  if (!ITraits)
+    ITraits = &ITraitsLocal;
+
   if (Eng) {
     StoreManager::InvalidatedRegions TopLevelInvalidated;
-    StoreManager::InvalidatedRegions TopLevelConstInvalidated;
     StoreManager::InvalidatedRegions Invalidated;
     const StoreRef &newStore
-    = Mgr.StoreMgr->invalidateRegions(getStore(), Values, ConstValues,
-                                      E, Count, LCtx, Call,
-                                      IS, ConstIS,
-                                      &TopLevelInvalidated,
-                                      &TopLevelConstInvalidated,
+    = Mgr.StoreMgr->invalidateRegions(getStore(), Values, E, Count, LCtx, Call,
+                                      *IS, *ITraits, &TopLevelInvalidated,
                                       &Invalidated);
 
     ProgramStateRef newState = makeWithStore(newStore);
 
     if (CausedByPointerEscape) {
-      newState = Eng->notifyCheckersOfPointerEscape(newState, &IS,
+      newState = Eng->notifyCheckersOfPointerEscape(newState, IS,
                                                     TopLevelInvalidated,
-                                                    Invalidated, Call);
-      if (!ConstValues.empty()) {
-        StoreManager::InvalidatedRegions Empty;
-        newState = Eng->notifyCheckersOfPointerEscape(newState, &ConstIS,
-                                                      TopLevelConstInvalidated,
-                                                      Empty, Call,
-                                                      true);
-      }
+                                                    Invalidated, Call, 
+                                                    *ITraits);
     }
 
-    return Eng->processRegionChanges(newState, &IS,
-                                     TopLevelInvalidated, Invalidated,
-                                     Call);
+    return Eng->processRegionChanges(newState, IS, TopLevelInvalidated, 
+                                     Invalidated, Call);
   }
 
   const StoreRef &newStore =
-  Mgr.StoreMgr->invalidateRegions(getStore(), Values, ConstValues,
-                                  E, Count, LCtx, Call,
-                                  IS, ConstIS, NULL, NULL, NULL);
+  Mgr.StoreMgr->invalidateRegions(getStore(), Values, E, Count, LCtx, Call,
+                                  *IS, *ITraits, NULL, NULL);
   return makeWithStore(newStore);
 }
 
@@ -526,6 +506,19 @@ ProgramStateRef ProgramStateManager::removeGDM(ProgramStateRef state, void *Key)
   return getPersistentState(NewState);
 }
 
+bool ScanReachableSymbols::scan(nonloc::LazyCompoundVal val) {
+  bool wasVisited = !visited.insert(val.getCVData()).second;
+  if (wasVisited)
+    return true;
+
+  StoreManager &StoreMgr = state->getStateManager().getStoreManager();
+  // FIXME: We don't really want to use getBaseRegion() here because pointer
+  // arithmetic doesn't apply, but scanReachableSymbols only accepts base
+  // regions right now.
+  const MemRegion *R = val.getRegion()->getBaseRegion();
+  return StoreMgr.scanReachableSymbols(val.getStore(), R, *this);
+}
+
 bool ScanReachableSymbols::scan(nonloc::CompoundVal val) {
   for (nonloc::CompoundVal::iterator I=val.begin(), E=val.end(); I!=E; ++I)
     if (!scan(*I))
@@ -535,10 +528,9 @@ bool ScanReachableSymbols::scan(nonloc::CompoundVal val) {
 }
 
 bool ScanReachableSymbols::scan(const SymExpr *sym) {
-  unsigned &isVisited = visited[sym];
-  if (isVisited)
+  bool wasVisited = !visited.insert(sym).second;
+  if (wasVisited)
     return true;
-  isVisited = 1;
   
   if (!visitor.VisitSymbol(sym))
     return false;
@@ -570,16 +562,8 @@ bool ScanReachableSymbols::scan(SVal val) {
     return scan(X->getRegion());
 
   if (Optional<nonloc::LazyCompoundVal> X =
-          val.getAs<nonloc::LazyCompoundVal>()) {
-    StoreManager &StoreMgr = state->getStateManager().getStoreManager();
-    // FIXME: We don't really want to use getBaseRegion() here because pointer
-    // arithmetic doesn't apply, but scanReachableSymbols only accepts base
-    // regions right now.
-    if (!StoreMgr.scanReachableSymbols(X->getStore(),
-                                       X->getRegion()->getBaseRegion(),
-                                       *this))
-      return false;
-  }
+          val.getAs<nonloc::LazyCompoundVal>())
+    return scan(*X);
 
   if (Optional<nonloc::LocAsInteger> X = val.getAs<nonloc::LocAsInteger>())
     return scan(X->getLoc());
@@ -600,11 +584,9 @@ bool ScanReachableSymbols::scan(const MemRegion *R) {
   if (isa<MemSpaceRegion>(R))
     return true;
   
-  unsigned &isVisited = visited[R];
-  if (isVisited)
+  bool wasVisited = !visited.insert(R).second;
+  if (wasVisited)
     return true;
-  isVisited = 1;
-  
   
   if (!visitor.VisitMemRegion(R))
     return false;

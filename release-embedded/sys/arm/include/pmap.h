@@ -527,6 +527,7 @@ extern int pmap_needs_pte_sync;
 #define	L1_S_PROT_MASK		(L1_S_PROT_W|L1_S_PROT_U)
 #define	L1_S_REF		(L1_S_AP(AP_REF))	/* Reference flag */
 #define	L1_S_WRITABLE(pd)	(!((pd) & L1_S_PROT_W))
+#define	L1_S_EXECUTABLE(pd)	(!((pd) & L1_S_XN))
 #define	L1_S_REFERENCED(pd)	((pd) & L1_S_REF)
 
 #define	L1_S_PROT(ku, pr)	(((((ku) == PTE_KERNEL) ? 0 : L1_S_PROT_U) | \
@@ -707,17 +708,6 @@ void	pmap_kenter_supersection(vm_offset_t, uint64_t, int flags);
 extern char *_tmppt;
 
 void	pmap_postinit(void);
-
-#ifdef ARM_USE_SMALL_ALLOC
-void	arm_add_smallalloc_pages(void *, void *, int, int);
-vm_offset_t arm_ptovirt(vm_paddr_t);
-void arm_init_smallalloc(void);
-struct arm_small_page {
-	void *addr;
-	TAILQ_ENTRY(arm_small_page) pg_list;
-};
-
-#endif
 
 extern vm_paddr_t dump_avail[];
 #endif	/* _KERNEL */

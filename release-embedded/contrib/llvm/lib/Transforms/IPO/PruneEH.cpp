@@ -51,7 +51,7 @@ namespace {
 char PruneEH::ID = 0;
 INITIALIZE_PASS_BEGIN(PruneEH, "prune-eh",
                 "Remove unused exception handling info", false, false)
-INITIALIZE_AG_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_DEPENDENCY(CallGraph)
 INITIALIZE_PASS_END(PruneEH, "prune-eh",
                 "Remove unused exception handling info", false, false)
 
@@ -145,15 +145,13 @@ bool PruneEH::runOnSCC(CallGraphSCC &SCC) {
         NewAttributes.addAttribute(Attribute::NoReturn);
 
       Function *F = (*I)->getFunction();
-      const AttributeSet &PAL = F->getAttributes();
-      const AttributeSet &NPAL =
-        PAL.addAttributes(F->getContext(), AttributeSet::FunctionIndex,
-                          AttributeSet::get(F->getContext(),
-                                            AttributeSet::FunctionIndex,
-                                            NewAttributes));
+      const AttributeSet &PAL = F->getAttributes().getFnAttributes();
+      const AttributeSet &NPAL = AttributeSet::get(
+          F->getContext(), AttributeSet::FunctionIndex, NewAttributes);
+
       if (PAL != NPAL) {
         MadeChange = true;
-        F->setAttributes(NPAL);
+        F->addAttributes(AttributeSet::FunctionIndex, NPAL);
       }
     }
 

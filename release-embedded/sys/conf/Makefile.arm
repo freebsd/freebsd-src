@@ -17,7 +17,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	600004
+%VERSREQ=	600012
 
 STD8X16FONT?=	iso
 
@@ -54,6 +54,9 @@ CFLAGS += -funwind-tables
 CFLAGS += -mllvm -arm-enable-ehabi
 .endif
 .endif
+
+# hack because genassym.c includes sys/bus.h which includes these.
+genassym.o: bus_if.h device_if.h
 
 SYSTEM_LD_ = ${LD} -Bdynamic -T ldscript.$M.noheader ${LDFLAGS} \
 	  -warn-common -export-dynamic -dynamic-linker /red/herring -o \
@@ -122,8 +125,6 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    ${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
 	    inflate-tramp.o tmphack.S
-
-MKMODULESENV+=	MACHINE=${MACHINE}
 
 %BEFORE_DEPEND
 

@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 
 #include <ctype.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include "bhyverun.h"
 #include "inout.h"
-#include "legacy_irq.h"
+#include "ioapic.h"
 #include "mem.h"
 #include "pci_emul.h"
 #include "pci_lpc.h"
@@ -68,15 +69,34 @@ do {									\
 	}								\
 } while (0)
 
+#define	MAXBUSES	(PCI_BUSMAX + 1)
 #define MAXSLOTS	(PCI_SLOTMAX + 1)
 #define	MAXFUNCS	(PCI_FUNCMAX + 1)
 
-static struct slotinfo {
-	char	*si_name;
-	char	*si_param;
-	struct pci_devinst *si_devi;
-	int	si_legacy;
-} pci_slotinfo[MAXSLOTS][MAXFUNCS];
+struct funcinfo {
+	char	*fi_name;
+	char	*fi_param;
+	struct pci_devinst *fi_devi;
+};
+
+struct intxinfo {
+	int	ii_count;
+	int	ii_ioapic_irq;
+};
+
+struct slotinfo {
+	struct intxinfo si_intpins[4];
+	struct funcinfo si_funcs[MAXFUNCS];
+};
+
+struct businfo {
+	uint16_t iobase, iolimit;		/* I/O window */
+	uint32_t membase32, memlimit32;		/* mmio window below 4GB */
+	uint64_t membase64, memlimit64;		/* mmio window above 4GB */
+	struct slotinfo slotinfo[MAXSLOTS];
+};
+
+static struct businfo *pci_businfo[MAXBUSES];
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
@@ -87,14 +107,14 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_IOBASE		0x2000
 #define	PCI_EMUL_IOLIMIT	0x10000
 
-#define	PCI_EMUL_MEMLIMIT32	0xE0000000		/* 3.5GB */
+#define	PCI_EMUL_MEMLIMIT32	0xE0000000	/* 3.5GB */
 
 #define	PCI_EMUL_MEMBASE64	0xD000000000UL
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
 
 static struct pci_devemu *pci_emul_finddev(char *name);
+static void	pci_lintr_update(struct pci_devinst *pi);
 
-static int pci_emul_devices;
 static struct mem_range pci_mem_hole;
 
 /*
@@ -104,6 +124,7 @@ static struct mem_range pci_mem_hole;
 /*
  * Slot options are in the form:
  *
+ *  <bus>:<slot>:<func>,<emul>[,<config>]
  *  <slot>[:<func>],<emul>[,<config>]
  *
  *  slot is 0..31
@@ -123,39 +144,55 @@ pci_parse_slot_usage(char *aopt)
 }
 
 int
-pci_parse_slot(char *opt, int legacy)
+pci_parse_slot(char *opt)
 {
-	char *slot, *func, *emul, *config;
-	char *str, *cpy;
-	int error, snum, fnum;
+	struct businfo *bi;
+	struct slotinfo *si;
+	char *emul, *config, *str, *cp;
+	int error, bnum, snum, fnum;
 
 	error = -1;
-	str = cpy = strdup(opt);
+	str = strdup(opt);
 
-        slot = strsep(&str, ",");
-        func = NULL;
-        if (strchr(slot, ':') != NULL) {
-		func = cpy;
-		(void) strsep(&func, ":");
-        }
-	
-	emul = strsep(&str, ",");
-	config = str;
-
-	if (emul == NULL) {
+	emul = config = NULL;
+	if ((cp = strchr(str, ',')) != NULL) {
+		*cp = '\0';
+		emul = cp + 1;
+		if ((cp = strchr(emul, ',')) != NULL) {
+			*cp = '\0';
+			config = cp + 1;
+		}
+	} else {
 		pci_parse_slot_usage(opt);
 		goto done;
 	}
 
-	snum = atoi(slot);
-	fnum = func ? atoi(func) : 0;
+	/* <bus>:<slot>:<func> */
+	if (sscanf(str, "%d:%d:%d", &bnum, &snum, &fnum) != 3) {
+		bnum = 0;
+		/* <slot>:<func> */
+		if (sscanf(str, "%d:%d", &snum, &fnum) != 2) {
+			fnum = 0;
+			/* <slot> */
+			if (sscanf(str, "%d", &snum) != 1) {
+				snum = -1;
+			}
+		}
+	}
 
-	if (snum < 0 || snum >= MAXSLOTS || fnum < 0 || fnum >= MAXFUNCS) {
+	if (bnum < 0 || bnum >= MAXBUSES || snum < 0 || snum >= MAXSLOTS ||
+	    fnum < 0 || fnum >= MAXFUNCS) {
 		pci_parse_slot_usage(opt);
 		goto done;
 	}
 
-	if (pci_slotinfo[snum][fnum].si_name != NULL) {
+	if (pci_businfo[bnum] == NULL)
+		pci_businfo[bnum] = calloc(1, sizeof(struct businfo));
+
+	bi = pci_businfo[bnum];
+	si = &bi->slotinfo[snum];
+
+	if (si->si_funcs[fnum].fi_name != NULL) {
 		fprintf(stderr, "pci slot %d:%d already occupied!\n",
 			snum, fnum);
 		goto done;
@@ -168,13 +205,12 @@ pci_parse_slot(char *opt, int legacy)
 	}
 
 	error = 0;
-	pci_slotinfo[snum][fnum].si_name = emul;
-	pci_slotinfo[snum][fnum].si_param = config;
-	pci_slotinfo[snum][fnum].si_legacy = legacy;
+	si->si_funcs[fnum].fi_name = emul;
+	si->si_funcs[fnum].fi_param = config;
 
 done:
 	if (error)
-		free(cpy);
+		free(str);
 
 	return (error);
 }
@@ -521,13 +557,7 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 		addr = mask = lobits = 0;
 		break;
 	case PCIBAR_IO:
-		if (hostbase &&
-		    pci_slotinfo[pdi->pi_slot][pdi->pi_func].si_legacy) {
-			assert(hostbase < PCI_EMUL_IOBASE);
-			baseptr = &hostbase;
-		} else {
-			baseptr = &pci_emul_iobase;
-		}
+		baseptr = &pci_emul_iobase;
 		limit = PCI_EMUL_IOLIMIT;
 		mask = PCIM_BAR_IO_BASE;
 		lobits = PCIM_BAR_IO_SPACE;
@@ -600,48 +630,39 @@ pci_emul_alloc_pbar(struct pci_devinst *pdi, int idx, uint64_t hostbase,
 static int
 pci_emul_add_capability(struct pci_devinst *pi, u_char *capdata, int caplen)
 {
-	int i, capoff, capid, reallen;
+	int i, capoff, reallen;
 	uint16_t sts;
 
-	static u_char endofcap[4] = {
-		PCIY_RESERVED, 0, 0, 0
-	};
-
-	assert(caplen > 0 && capdata[0] != PCIY_RESERVED);
+	assert(caplen > 0);
 
 	reallen = roundup2(caplen, 4);		/* dword aligned */
 
 	sts = pci_get_cfgdata16(pi, PCIR_STATUS);
-	if ((sts & PCIM_STATUS_CAPPRESENT) == 0) {
+	if ((sts & PCIM_STATUS_CAPPRESENT) == 0)
 		capoff = CAP_START_OFFSET;
-		pci_set_cfgdata8(pi, PCIR_CAP_PTR, capoff);
-		pci_set_cfgdata16(pi, PCIR_STATUS, sts|PCIM_STATUS_CAPPRESENT);
-	} else {
-		capoff = pci_get_cfgdata8(pi, PCIR_CAP_PTR);
-		while (1) {
-			assert((capoff & 0x3) == 0);
-			capid = pci_get_cfgdata8(pi, capoff);
-			if (capid == PCIY_RESERVED)
-				break;
-			capoff = pci_get_cfgdata8(pi, capoff + 1);
-		}
-	}
+	else
+		capoff = pi->pi_capend + 1;
 
 	/* Check if we have enough space */
-	if (capoff + reallen + sizeof(endofcap) > PCI_REGMAX + 1)
+	if (capoff + reallen > PCI_REGMAX + 1)
 		return (-1);
+
+	/* Set the previous capability pointer */
+	if ((sts & PCIM_STATUS_CAPPRESENT) == 0) {
+		pci_set_cfgdata8(pi, PCIR_CAP_PTR, capoff);
+		pci_set_cfgdata16(pi, PCIR_STATUS, sts|PCIM_STATUS_CAPPRESENT);
+	} else
+		pci_set_cfgdata8(pi, pi->pi_prevcap + 1, capoff);
 
 	/* Copy the capability */
 	for (i = 0; i < caplen; i++)
 		pci_set_cfgdata8(pi, capoff + i, capdata[i]);
 
 	/* Set the next capability pointer */
-	pci_set_cfgdata8(pi, capoff + 1, capoff + reallen);
+	pci_set_cfgdata8(pi, capoff + 1, 0);
 
-	/* Copy of the reserved capability which serves as the end marker */
-	for (i = 0; i < sizeof(endofcap); i++)
-		pci_set_cfgdata8(pi, capoff + reallen + i, endofcap[i]);
-
+	pi->pi_prevcap = capoff;
+	pi->pi_capend = capoff + reallen - 1;
 	return (0);
 }
 
@@ -661,8 +682,8 @@ pci_emul_finddev(char *name)
 }
 
 static int
-pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
-	      char *params)
+pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int bus, int slot,
+    int func, struct funcinfo *fi)
 {
 	struct pci_devinst *pdi;
 	int err;
@@ -671,10 +692,13 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	bzero(pdi, sizeof(*pdi));
 
 	pdi->pi_vmctx = ctx;
-	pdi->pi_bus = 0;
+	pdi->pi_bus = bus;
 	pdi->pi_slot = slot;
 	pdi->pi_func = func;
-	pdi->pi_lintr_pin = -1;
+	pthread_mutex_init(&pdi->pi_lintr.lock, NULL);
+	pdi->pi_lintr.pin = 0;
+	pdi->pi_lintr.state = IDLE;
+	pdi->pi_lintr.ioapic_irq = 0;
 	pdi->pi_d = pde;
 	snprintf(pdi->pi_name, PI_NAMESZ, "%s-pci-%d", pde->pe_emu, slot);
 
@@ -685,13 +709,11 @@ pci_emul_init(struct vmctx *ctx, struct pci_devemu *pde, int slot, int func,
 	pci_set_cfgdata8(pdi, PCIR_COMMAND,
 		    PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 
-	err = (*pde->pe_init)(ctx, pdi, params);
-	if (err != 0) {
+	err = (*pde->pe_init)(ctx, pdi, fi->fi_param);
+	if (err == 0)
+		fi->fi_devi = pdi;
+	else
 		free(pdi);
-	} else {
-		pci_emul_devices++;
-		pci_slotinfo[slot][func].si_devi = pdi;
-	}
 
 	return (err);
 }
@@ -725,7 +747,7 @@ pci_emul_add_msicap(struct pci_devinst *pi, int msgnum)
 
 static void
 pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
-		     uint32_t msix_tab_size, int nextptr)
+		     uint32_t msix_tab_size)
 {
 	CTASSERT(sizeof(struct msixcap) == 12);
 
@@ -733,7 +755,6 @@ pci_populate_msixcap(struct msixcap *msixcap, int msgnum, int barnum,
 
 	bzero(msixcap, sizeof(struct msixcap));
 	msixcap->capid = PCIY_MSIX;
-	msixcap->nextptr = nextptr;
 
 	/*
 	 * Message Control Register, all fields set to
@@ -771,7 +792,6 @@ pci_msix_table_init(struct pci_devinst *pi, int table_entries)
 int
 pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 {
-	uint16_t pba_index;
 	uint32_t tab_size;
 	struct msixcap msixcap;
 
@@ -788,14 +808,11 @@ pci_emul_add_msixcap(struct pci_devinst *pi, int msgnum, int barnum)
 	pi->pi_msix.table_offset = 0;
 	pi->pi_msix.table_count = msgnum;
 	pi->pi_msix.pba_offset = tab_size;
-
-	/* calculate the MMIO size required for MSI-X PBA */
-	pba_index = (msgnum - 1) / (PBA_TABLE_ENTRY_SIZE * 8);
-	pi->pi_msix.pba_size = (pba_index + 1) * PBA_TABLE_ENTRY_SIZE;
+	pi->pi_msix.pba_size = PBA_SIZE(msgnum);
 
 	pci_msix_table_init(pi, msgnum);
 
-	pci_populate_msixcap(&msixcap, msgnum, barnum, tab_size, 0);
+	pci_populate_msixcap(&msixcap, msgnum, barnum, tab_size);
 
 	/* allocate memory for MSI-X Table and PBA */
 	pci_emul_alloc_bar(pi, barnum, PCIBAR_MEM32,
@@ -824,6 +841,7 @@ msixcap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 
 		pi->pi_msix.enabled = val & PCIM_MSIXCTRL_MSIX_ENABLE;
 		pi->pi_msix.function_mask = val & PCIM_MSIXCTRL_FUNCTION_MASK;
+		pci_lintr_update(pi);
 	} 
 	
 	CFGWRITE(pi, offset, val, bytes);
@@ -862,6 +880,7 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		} else {
 			pi->pi_msi.maxmsgnum = 0;
 		}
+		pci_lintr_update(pi);
 	}
 
 	CFGWRITE(pi, offset, val, bytes);
@@ -916,11 +935,9 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 	/* Find the capability that we want to update */
 	capoff = CAP_START_OFFSET;
 	while (1) {
-		capid = pci_get_cfgdata8(pi, capoff);
-		if (capid == PCIY_RESERVED)
-			break;
-
 		nextoff = pci_get_cfgdata8(pi, capoff + 1);
+		if (nextoff == 0)
+			break;
 		if (offset >= capoff && offset < nextoff)
 			break;
 
@@ -943,6 +960,7 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 			return;
 	}
 
+	capid = pci_get_cfgdata8(pi, capoff);
 	switch (capid) {
 	case PCIY_MSI:
 		msicap_cfgwrite(pi, capoff, offset, bytes, val);
@@ -961,25 +979,14 @@ pci_emul_capwrite(struct pci_devinst *pi, int offset, int bytes, uint32_t val)
 static int
 pci_emul_iscap(struct pci_devinst *pi, int offset)
 {
-	int found;
 	uint16_t sts;
-	uint8_t capid, lastoff;
 
-	found = 0;
 	sts = pci_get_cfgdata16(pi, PCIR_STATUS);
 	if ((sts & PCIM_STATUS_CAPPRESENT) != 0) {
-		lastoff = pci_get_cfgdata8(pi, PCIR_CAP_PTR);
-		while (1) {
-			assert((lastoff & 0x3) == 0);
-			capid = pci_get_cfgdata8(pi, lastoff);
-			if (capid == PCIY_RESERVED)
-				break;
-			lastoff = pci_get_cfgdata8(pi, lastoff + 1);
-		}
-		if (offset >= CAP_START_OFFSET && offset <= lastoff)
-			found = 1;
+		if (offset >= CAP_START_OFFSET && offset <= pi->pi_capend)
+			return (1);
 	}
-	return (found);
+	return (0);
 }
 
 static int
@@ -997,31 +1004,68 @@ pci_emul_fallback_handler(struct vmctx *ctx, int vcpu, int dir, uint64_t addr,
 	return (0);
 }
 
+#define	BUSIO_ROUNDUP		32
+#define	BUSMEM_ROUNDUP		(1024 * 1024)
+
 int
 init_pci(struct vmctx *ctx)
 {
 	struct pci_devemu *pde;
+	struct businfo *bi;
 	struct slotinfo *si;
+	struct funcinfo *fi;
 	size_t lowmem;
-	int slot, func;
+	int bus, slot, func;
 	int error;
 
 	pci_emul_iobase = PCI_EMUL_IOBASE;
 	pci_emul_membase32 = vm_get_lowmem_limit(ctx);
 	pci_emul_membase64 = PCI_EMUL_MEMBASE64;
 
-	for (slot = 0; slot < MAXSLOTS; slot++) {
-		for (func = 0; func < MAXFUNCS; func++) {
-			si = &pci_slotinfo[slot][func];
-			if (si->si_name != NULL) {
-				pde = pci_emul_finddev(si->si_name);
+	for (bus = 0; bus < MAXBUSES; bus++) {
+		if ((bi = pci_businfo[bus]) == NULL)
+			continue;
+		/* 
+		 * Keep track of the i/o and memory resources allocated to
+		 * this bus.
+		 */
+		bi->iobase = pci_emul_iobase;
+		bi->membase32 = pci_emul_membase32;
+		bi->membase64 = pci_emul_membase64;
+
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			si = &bi->slotinfo[slot];
+			for (func = 0; func < MAXFUNCS; func++) {
+				fi = &si->si_funcs[func];
+				if (fi->fi_name == NULL)
+					continue;
+				pde = pci_emul_finddev(fi->fi_name);
 				assert(pde != NULL);
-				error = pci_emul_init(ctx, pde, slot, func,
-					    si->si_param);
+				error = pci_emul_init(ctx, pde, bus, slot,
+				    func, fi);
 				if (error)
 					return (error);
 			}
 		}
+
+		/*
+		 * Add some slop to the I/O and memory resources decoded by
+		 * this bus to give a guest some flexibility if it wants to
+		 * reprogram the BARs.
+		 */
+		pci_emul_iobase += BUSIO_ROUNDUP;
+		pci_emul_iobase = roundup2(pci_emul_iobase, BUSIO_ROUNDUP);
+		bi->iolimit = pci_emul_iobase;
+
+		pci_emul_membase32 += BUSMEM_ROUNDUP;
+		pci_emul_membase32 = roundup2(pci_emul_membase32,
+		    BUSMEM_ROUNDUP);
+		bi->memlimit32 = pci_emul_membase32;
+
+		pci_emul_membase64 += BUSMEM_ROUNDUP;
+		pci_emul_membase64 = roundup2(pci_emul_membase64,
+		    BUSMEM_ROUNDUP);
+		bi->memlimit64 = pci_emul_membase64;
 	}
 
 	/*
@@ -1050,85 +1094,172 @@ init_pci(struct vmctx *ctx)
 	return (0);
 }
 
-void
-pci_write_dsdt(void)
+static void
+pci_prt_entry(int bus, int slot, int pin, int ioapic_irq, void *arg)
 {
+	int *count;
+
+	count = arg;
+	dsdt_line("  Package (0x04)");
+	dsdt_line("  {");
+	dsdt_line("    0x%X,", slot << 16 | 0xffff);
+	dsdt_line("    0x%02X,", pin - 1);
+	dsdt_line("    Zero,");
+	dsdt_line("    0x%X", ioapic_irq);
+	dsdt_line("  }%s", *count == 1 ? "" : ",");
+	(*count)--;
+}
+
+/*
+ * A bhyve virtual machine has a flat PCI hierarchy with a root port
+ * corresponding to each PCI bus.
+ */
+static void
+pci_bus_write_dsdt(int bus)
+{
+	struct businfo *bi;
+	struct slotinfo *si;
 	struct pci_devinst *pi;
-	int slot, func;
+	int count, slot, func;
+
+	/*
+	 * If there are no devices on this 'bus' then just return.
+	 */
+	if ((bi = pci_businfo[bus]) == NULL) {
+		/*
+		 * Bus 0 is special because it decodes the I/O ports used
+		 * for PCI config space access even if there are no devices
+		 * on it.
+		 */
+		if (bus != 0)
+			return;
+	}
 
 	dsdt_indent(1);
 	dsdt_line("Scope (_SB)");
 	dsdt_line("{");
-	dsdt_line("  Device (PCI0)");
+	dsdt_line("  Device (PC%02X)", bus);
 	dsdt_line("  {");
 	dsdt_line("    Name (_HID, EisaId (\"PNP0A03\"))");
 	dsdt_line("    Name (_ADR, Zero)");
+
+	dsdt_line("    Method (_BBN, 0, NotSerialized)");
+	dsdt_line("    {");
+	dsdt_line("        Return (0x%08X)", bus);
+	dsdt_line("    }");
 	dsdt_line("    Name (_CRS, ResourceTemplate ()");
 	dsdt_line("    {");
 	dsdt_line("      WordBusNumber (ResourceProducer, MinFixed, "
 	    "MaxFixed, PosDecode,");
 	dsdt_line("        0x0000,             // Granularity");
-	dsdt_line("        0x0000,             // Range Minimum");
-	dsdt_line("        0x00FF,             // Range Maximum");
+	dsdt_line("        0x%04X,             // Range Minimum", bus);
+	dsdt_line("        0x%04X,             // Range Maximum", bus);
 	dsdt_line("        0x0000,             // Translation Offset");
-	dsdt_line("        0x0100,             // Length");
+	dsdt_line("        0x0001,             // Length");
 	dsdt_line("        ,, )");
-	dsdt_indent(3);
-	dsdt_fixed_ioport(0xCF8, 8);
-	dsdt_unindent(3);
+
+	if (bus == 0) {
+		dsdt_indent(3);
+		dsdt_fixed_ioport(0xCF8, 8);
+		dsdt_unindent(3);
+
+		dsdt_line("      WordIO (ResourceProducer, MinFixed, MaxFixed, "
+		    "PosDecode, EntireRange,");
+		dsdt_line("        0x0000,             // Granularity");
+		dsdt_line("        0x0000,             // Range Minimum");
+		dsdt_line("        0x0CF7,             // Range Maximum");
+		dsdt_line("        0x0000,             // Translation Offset");
+		dsdt_line("        0x0CF8,             // Length");
+		dsdt_line("        ,, , TypeStatic)");
+
+		dsdt_line("      WordIO (ResourceProducer, MinFixed, MaxFixed, "
+		    "PosDecode, EntireRange,");
+		dsdt_line("        0x0000,             // Granularity");
+		dsdt_line("        0x0D00,             // Range Minimum");
+		dsdt_line("        0x%04X,             // Range Maximum",
+		    PCI_EMUL_IOBASE - 1);
+		dsdt_line("        0x0000,             // Translation Offset");
+		dsdt_line("        0x%04X,             // Length",
+		    PCI_EMUL_IOBASE - 0x0D00);
+		dsdt_line("        ,, , TypeStatic)");
+
+		if (bi == NULL) {
+			dsdt_line("    })");
+			goto done;
+		}
+	}
+	assert(bi != NULL);
+
+	/* i/o window */
 	dsdt_line("      WordIO (ResourceProducer, MinFixed, MaxFixed, "
 	    "PosDecode, EntireRange,");
 	dsdt_line("        0x0000,             // Granularity");
-	dsdt_line("        0x0000,             // Range Minimum");
-	dsdt_line("        0x0CF7,             // Range Maximum");
+	dsdt_line("        0x%04X,             // Range Minimum", bi->iobase);
+	dsdt_line("        0x%04X,             // Range Maximum",
+	    bi->iolimit - 1);
 	dsdt_line("        0x0000,             // Translation Offset");
-	dsdt_line("        0x0CF8,             // Length");
+	dsdt_line("        0x%04X,             // Length",
+	    bi->iolimit - bi->iobase);
 	dsdt_line("        ,, , TypeStatic)");
-	dsdt_line("      WordIO (ResourceProducer, MinFixed, MaxFixed, "
-	    "PosDecode, EntireRange,");
-	dsdt_line("        0x0000,             // Granularity");
-	dsdt_line("        0x0D00,             // Range Minimum");
-	dsdt_line("        0xFFFF,             // Range Maximum");
-	dsdt_line("        0x0000,             // Translation Offset");
-	dsdt_line("        0xF300,             // Length");
-	dsdt_line("        ,, , TypeStatic)");
+
+	/* mmio window (32-bit) */
 	dsdt_line("      DWordMemory (ResourceProducer, PosDecode, "
 	    "MinFixed, MaxFixed, NonCacheable, ReadWrite,");
 	dsdt_line("        0x00000000,         // Granularity");
-	dsdt_line("        0x%08lX,         // Range Minimum\n",
-	    pci_mem_hole.base);
+	dsdt_line("        0x%08X,         // Range Minimum\n", bi->membase32);
 	dsdt_line("        0x%08X,         // Range Maximum\n",
-	    PCI_EMUL_MEMLIMIT32 - 1);
+	    bi->memlimit32 - 1);
 	dsdt_line("        0x00000000,         // Translation Offset");
-	dsdt_line("        0x%08lX,         // Length\n",
-	    PCI_EMUL_MEMLIMIT32 - pci_mem_hole.base);
+	dsdt_line("        0x%08X,         // Length\n",
+	    bi->memlimit32 - bi->membase32);
 	dsdt_line("        ,, , AddressRangeMemory, TypeStatic)");
+
+	/* mmio window (64-bit) */
 	dsdt_line("      QWordMemory (ResourceProducer, PosDecode, "
 	    "MinFixed, MaxFixed, NonCacheable, ReadWrite,");
 	dsdt_line("        0x0000000000000000, // Granularity");
-	dsdt_line("        0x%016lX, // Range Minimum\n",
-	    PCI_EMUL_MEMBASE64);
+	dsdt_line("        0x%016lX, // Range Minimum\n", bi->membase64);
 	dsdt_line("        0x%016lX, // Range Maximum\n",
-	    PCI_EMUL_MEMLIMIT64 - 1);
+	    bi->memlimit64 - 1);
 	dsdt_line("        0x0000000000000000, // Translation Offset");
 	dsdt_line("        0x%016lX, // Length\n",
-	    PCI_EMUL_MEMLIMIT64 - PCI_EMUL_MEMBASE64);
+	    bi->memlimit64 - bi->membase64);
 	dsdt_line("        ,, , AddressRangeMemory, TypeStatic)");
 	dsdt_line("    })");
 
+	count = pci_count_lintr(bus);
+	if (count != 0) {
+		dsdt_indent(2);
+		dsdt_line("Name (_PRT, Package (0x%02X)", count);
+		dsdt_line("{");
+		pci_walk_lintr(bus, pci_prt_entry, &count);
+		dsdt_line("})");
+		dsdt_unindent(2);
+	}
+
 	dsdt_indent(2);
 	for (slot = 0; slot < MAXSLOTS; slot++) {
+		si = &bi->slotinfo[slot];
 		for (func = 0; func < MAXFUNCS; func++) {
-			pi = pci_slotinfo[slot][func].si_devi;
+			pi = si->si_funcs[func].fi_devi;
 			if (pi != NULL && pi->pi_d->pe_write_dsdt != NULL)
 				pi->pi_d->pe_write_dsdt(pi);
 		}
 	}
 	dsdt_unindent(2);
-
+done:
 	dsdt_line("  }");
 	dsdt_line("}");
 	dsdt_unindent(1);
+}
+
+void
+pci_write_dsdt(void)
+{
+	int bus;
+
+	for (bus = 0; bus < MAXBUSES; bus++)
+		pci_bus_write_dsdt(bus);
 }
 
 int
@@ -1184,25 +1315,58 @@ pci_generate_msi(struct pci_devinst *pi, int index)
 	}
 }
 
-int
-pci_is_legacy(struct pci_devinst *pi)
+static bool
+pci_lintr_permitted(struct pci_devinst *pi)
 {
+	uint16_t cmd;
 
-	return (pci_slotinfo[pi->pi_slot][pi->pi_func].si_legacy);
+	cmd = pci_get_cfgdata16(pi, PCIR_COMMAND);
+	return (!(pi->pi_msi.enabled || pi->pi_msix.enabled ||
+		(cmd & PCIM_CMD_INTxDIS)));
 }
 
 int
-pci_lintr_request(struct pci_devinst *pi, int req)
+pci_lintr_request(struct pci_devinst *pi)
 {
-	int irq;
+	struct businfo *bi;
+	struct slotinfo *si;
+	int bestpin, bestcount, irq, pin;
 
-	irq = legacy_irq_alloc(req);
-	if (irq < 0)
-		return (-1);
+	bi = pci_businfo[pi->pi_bus];
+	assert(bi != NULL);
 
-	pi->pi_lintr_pin = irq;
+	/*
+	 * First, allocate a pin from our slot.
+	 */
+	si = &bi->slotinfo[pi->pi_slot];
+	bestpin = 0;
+	bestcount = si->si_intpins[0].ii_count;
+	for (pin = 1; pin < 4; pin++) {
+		if (si->si_intpins[pin].ii_count < bestcount) {
+			bestpin = pin;
+			bestcount = si->si_intpins[pin].ii_count;
+		}
+	}
+
+	/*
+	 * Attempt to allocate an I/O APIC pin for this intpin.  If
+	 * 8259A support is added we will need a separate field to
+	 * assign the intpin to an input pin on the PCI interrupt
+	 * router.
+	 */
+	if (si->si_intpins[bestpin].ii_count == 0) {
+		irq = ioapic_pci_alloc_irq();
+		if (irq < 0)
+			return (-1);		
+		si->si_intpins[bestpin].ii_ioapic_irq = irq;
+	} else
+		irq = si->si_intpins[bestpin].ii_ioapic_irq;
+	si->si_intpins[bestpin].ii_count++;
+
+	pi->pi_lintr.pin = bestpin + 1;
+	pi->pi_lintr.ioapic_irq = irq;
 	pci_set_cfgdata8(pi, PCIR_INTLINE, irq);
-	pci_set_cfgdata8(pi, PCIR_INTPIN, 1);
+	pci_set_cfgdata8(pi, PCIR_INTPIN, bestpin + 1);
 	return (0);
 }
 
@@ -1210,23 +1374,87 @@ void
 pci_lintr_assert(struct pci_devinst *pi)
 {
 
-	assert(pi->pi_lintr_pin >= 0);
+	assert(pi->pi_lintr.pin > 0);
 
-	if (pi->pi_lintr_state == 0) {
-		pi->pi_lintr_state = 1;
-		vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	pthread_mutex_lock(&pi->pi_lintr.lock);
+	if (pi->pi_lintr.state == IDLE) {
+		if (pci_lintr_permitted(pi)) {
+			pi->pi_lintr.state = ASSERTED;
+			vm_ioapic_assert_irq(pi->pi_vmctx,
+			    pi->pi_lintr.ioapic_irq);
+		} else
+			pi->pi_lintr.state = PENDING;
 	}
+	pthread_mutex_unlock(&pi->pi_lintr.lock);
 }
 
 void
 pci_lintr_deassert(struct pci_devinst *pi)
 {
 
-	assert(pi->pi_lintr_pin >= 0);
+	assert(pi->pi_lintr.pin > 0);
 
-	if (pi->pi_lintr_state == 1) {
-		pi->pi_lintr_state = 0;
-		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr_pin);
+	pthread_mutex_lock(&pi->pi_lintr.lock);
+	if (pi->pi_lintr.state == ASSERTED) {
+		pi->pi_lintr.state = IDLE;
+		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+	} else if (pi->pi_lintr.state == PENDING)
+		pi->pi_lintr.state = IDLE;
+	pthread_mutex_unlock(&pi->pi_lintr.lock);
+}
+
+static void
+pci_lintr_update(struct pci_devinst *pi)
+{
+
+	pthread_mutex_lock(&pi->pi_lintr.lock);
+	if (pi->pi_lintr.state == ASSERTED && !pci_lintr_permitted(pi)) {
+		vm_ioapic_deassert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+		pi->pi_lintr.state = PENDING;
+	} else if (pi->pi_lintr.state == PENDING && pci_lintr_permitted(pi)) {
+		pi->pi_lintr.state = ASSERTED;
+		vm_ioapic_assert_irq(pi->pi_vmctx, pi->pi_lintr.ioapic_irq);
+	}
+	pthread_mutex_unlock(&pi->pi_lintr.lock);
+}
+
+int
+pci_count_lintr(int bus)
+{
+	int count, slot, pin;
+	struct slotinfo *slotinfo;
+
+	count = 0;
+	if (pci_businfo[bus] != NULL) {
+		for (slot = 0; slot < MAXSLOTS; slot++) {
+			slotinfo = &pci_businfo[bus]->slotinfo[slot];
+			for (pin = 0; pin < 4; pin++) {
+				if (slotinfo->si_intpins[pin].ii_count != 0)
+					count++;
+			}
+		}
+	}
+	return (count);
+}
+
+void
+pci_walk_lintr(int bus, pci_lintr_cb cb, void *arg)
+{
+	struct businfo *bi;
+	struct slotinfo *si;
+	struct intxinfo *ii;
+	int slot, pin;
+
+	if ((bi = pci_businfo[bus]) == NULL)
+		return;
+
+	for (slot = 0; slot < MAXSLOTS; slot++) {
+		si = &bi->slotinfo[slot];
+		for (pin = 0; pin < 4; pin++) {
+			ii = &si->si_intpins[pin];
+			if (ii->ii_count != 0)
+				cb(bus, slot, pin + 1, ii->ii_ioapic_irq, arg);
+		}
 	}
 }
 
@@ -1235,14 +1463,19 @@ pci_lintr_deassert(struct pci_devinst *pi)
  * Return 0 otherwise.
  */
 static int
-pci_emul_is_mfdev(int slot)
+pci_emul_is_mfdev(int bus, int slot)
 {
+	struct businfo *bi;
+	struct slotinfo *si;
 	int f, numfuncs;
 
 	numfuncs = 0;
-	for (f = 0; f < MAXFUNCS; f++) {
-		if (pci_slotinfo[slot][f].si_devi != NULL) {
-			numfuncs++;
+	if ((bi = pci_businfo[bus]) != NULL) {
+		si = &bi->slotinfo[slot];
+		for (f = 0; f < MAXFUNCS; f++) {
+			if (si->si_funcs[f].fi_devi != NULL) {
+				numfuncs++;
+			}
 		}
 	}
 	return (numfuncs > 1);
@@ -1253,12 +1486,12 @@ pci_emul_is_mfdev(int slot)
  * whether or not is a multi-function being emulated in the pci 'slot'.
  */
 static void
-pci_emul_hdrtype_fixup(int slot, int off, int bytes, uint32_t *rv)
+pci_emul_hdrtype_fixup(int bus, int slot, int off, int bytes, uint32_t *rv)
 {
 	int mfdev;
 
 	if (off <= PCIR_HDRTYPE && off + bytes > PCIR_HDRTYPE) {
-		mfdev = pci_emul_is_mfdev(slot);
+		mfdev = pci_emul_is_mfdev(bus, slot);
 		switch (bytes) {
 		case 1:
 		case 2:
@@ -1363,22 +1596,31 @@ pci_emul_cmdwrite(struct pci_devinst *pi, uint32_t new, int bytes)
 				assert(0); 
 		}
 	}
+
+	/*
+	 * If INTx has been unmasked and is pending, assert the
+	 * interrupt.
+	 */
+	pci_lintr_update(pi);
 }	
 
 static int
 pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 		 uint32_t *eax, void *arg)
 {
+	struct businfo *bi;
+	struct slotinfo *si;
 	struct pci_devinst *pi;
 	struct pci_devemu *pe;
 	int coff, idx, needcfg;
 	uint64_t addr, bar, mask;
 
 	assert(bytes == 1 || bytes == 2 || bytes == 4);
-	
-	if (cfgbus == 0)
-		pi = pci_slotinfo[cfgslot][cfgfunc].si_devi;
-	else
+
+	if ((bi = pci_businfo[cfgbus]) != NULL) {
+		si = &bi->slotinfo[cfgslot];
+		pi = si->si_funcs[cfgfunc].fi_devi;
+	} else
 		pi = NULL;
 
 	coff = cfgoff + (port - CONF1_DATA_PORT);
@@ -1421,7 +1663,7 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 				*eax = pci_get_cfgdata32(pi, coff);
 		}
 
-		pci_emul_hdrtype_fixup(cfgslot, coff, bytes, eax);
+		pci_emul_hdrtype_fixup(cfgbus, cfgslot, coff, bytes, eax);
 	} else {
 		/* Let the device emulation override the default handler */
 		if (pe->pe_cfgwrite != NULL &&
@@ -1523,7 +1765,7 @@ SYSRES_IO(0xC00, 2);
 /*
  * Define a dummy test device
  */
-#define DIOSZ	20
+#define DIOSZ	8
 #define DMEMSZ	4096
 struct pci_emul_dsoftc {
 	uint8_t   ioregs[DIOSZ];

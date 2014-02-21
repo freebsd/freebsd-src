@@ -16,7 +16,7 @@
 //===----------------------------------------------------------------------===//
 
 def CC_Sparc32 : CallingConv<[
-  //Custom assign SRet to [sp+64].
+  // Custom assign SRet to [sp+64].
   CCIfSRet<CCCustom<"CC_Sparc_Assign_SRet">>,
   // i32 f32 arguments get passed in integer registers if there is space.
   CCIfType<[i32, f32], CCAssignToReg<[I0, I1, I2, I3, I4, I5]>>,
@@ -117,3 +117,14 @@ def CC_Sparc64 : CallingConv<[
   // arguments whether they are passed in registers or not.
   CCCustom<"CC_Sparc64_Full">
 ]>;
+
+// Callee-saved registers are handled by the register window mechanism.
+def CSR : CalleeSavedRegs<(add)> {
+  let OtherPreserved = (add (sequence "I%u", 0, 7),
+                            (sequence "L%u", 0, 7));
+}
+
+// Callee-saved registers for calls with ReturnsTwice attribute.
+def RTCSR : CalleeSavedRegs<(add)> {
+  let OtherPreserved = (add I6, I7);
+}

@@ -488,38 +488,41 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/include/clang/3.3/__wmmintrin_aes.h
-OLD_FILES+=usr/include/clang/3.3/__wmmintrin_pclmul.h
-OLD_FILES+=usr/include/clang/3.3/altivec.h
-OLD_FILES+=usr/include/clang/3.3/ammintrin.h
-OLD_FILES+=usr/include/clang/3.3/avx2intrin.h
-OLD_FILES+=usr/include/clang/3.3/avxintrin.h
-OLD_FILES+=usr/include/clang/3.3/bmi2intrin.h
-OLD_FILES+=usr/include/clang/3.3/bmiintrin.h
-OLD_FILES+=usr/include/clang/3.3/cpuid.h
-OLD_FILES+=usr/include/clang/3.3/emmintrin.h
-OLD_FILES+=usr/include/clang/3.3/f16cintrin.h
-OLD_FILES+=usr/include/clang/3.3/fma4intrin.h
-OLD_FILES+=usr/include/clang/3.3/fmaintrin.h
-OLD_FILES+=usr/include/clang/3.3/immintrin.h
-OLD_FILES+=usr/include/clang/3.3/lzcntintrin.h
-OLD_FILES+=usr/include/clang/3.3/mm3dnow.h
-OLD_FILES+=usr/include/clang/3.3/mm_malloc.h
-OLD_FILES+=usr/include/clang/3.3/mmintrin.h
-OLD_FILES+=usr/include/clang/3.3/module.map
-OLD_FILES+=usr/include/clang/3.3/nmmintrin.h
-OLD_FILES+=usr/include/clang/3.3/pmmintrin.h
-OLD_FILES+=usr/include/clang/3.3/popcntintrin.h
-OLD_FILES+=usr/include/clang/3.3/prfchwintrin.h
-OLD_FILES+=usr/include/clang/3.3/rdseedintrin.h
-OLD_FILES+=usr/include/clang/3.3/rtmintrin.h
-OLD_FILES+=usr/include/clang/3.3/smmintrin.h
-OLD_FILES+=usr/include/clang/3.3/tmmintrin.h
-OLD_FILES+=usr/include/clang/3.3/wmmintrin.h
-OLD_FILES+=usr/include/clang/3.3/x86intrin.h
-OLD_FILES+=usr/include/clang/3.3/xmmintrin.h
-OLD_FILES+=usr/include/clang/3.3/xopintrin.h
-OLD_DIRS+=usr/include/clang/3.3
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4/altivec.h
+OLD_FILES+=usr/include/clang/3.4/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4/cpuid.h
+OLD_FILES+=usr/include/clang/3.4/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4/immintrin.h
+OLD_FILES+=usr/include/clang/3.4/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4/module.map
+OLD_FILES+=usr/include/clang/3.4/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4
 OLD_DIRS+=usr/include/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
@@ -547,8 +550,6 @@ OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
-OLD_FILES+=usr/bin/llvm-prof
-OLD_FILES+=usr/bin/llvm-ranlib
 OLD_FILES+=usr/bin/llvm-rtdyld
 OLD_FILES+=usr/bin/llvm-stub
 OLD_FILES+=usr/bin/macho-dump
@@ -565,8 +566,6 @@ OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -598,6 +597,11 @@ OLD_FILES+=usr/bin/c++
 OLD_FILES+=usr/bin/c++filt
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
+.endif
+
+.if ${MK_FMTREE} == no
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
 .endif
 
 .if ${MK_GNUCXX} == no
@@ -3156,6 +3160,8 @@ OLD_FILES+=usr/include/c++/v1/cwctype
 OLD_FILES+=usr/include/c++/v1/cxxabi.h
 OLD_FILES+=usr/include/c++/v1/deque
 OLD_FILES+=usr/include/c++/v1/exception
+OLD_FILES+=usr/include/c++/v1/experimental/dynarray
+OLD_FILES+=usr/include/c++/v1/experimental/optional
 OLD_FILES+=usr/include/c++/v1/ext/__hash
 OLD_FILES+=usr/include/c++/v1/ext/hash_map
 OLD_FILES+=usr/include/c++/v1/ext/hash_set
@@ -3206,6 +3212,7 @@ OLD_FILES+=usr/include/c++/v1/unwind.h
 OLD_FILES+=usr/include/c++/v1/utility
 OLD_FILES+=usr/include/c++/v1/valarray
 OLD_FILES+=usr/include/c++/v1/vector
+OLD_DIRS+=usr/include/c++/v1/experimental
 OLD_DIRS+=usr/include/c++/v1/ext
 OLD_DIRS+=usr/include/c++/v1
 .endif
@@ -3313,9 +3320,60 @@ OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
 .endif
 
-#.if ${MK_NIS} == no
-# to be filled in
-#.endif
+.if ${MK_NIS} == no
+OLD_FILES+=usr/bin/ypcat
+OLD_FILES+=usr/bin/ypchfn
+OLD_FILES+=usr/bin/ypchpass
+OLD_FILES+=usr/bin/ypchsh
+OLD_FILES+=usr/bin/ypmatch
+OLD_FILES+=usr/bin/yppasswd
+OLD_FILES+=usr/bin/ypwhich
+OLD_FILES+=usr/include/ypclnt.h
+OLD_FILES+=usr/lib/libypclnt.a
+OLD_FILES+=usr/lib/libypclnt.so
+OLD_LIBS+=usr/lib/libypclnt.so.4
+OLD_FILES+=usr/lib/libypclnt_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libypclnt.a
+OLD_FILES+=usr/lib32/libypclnt.so
+OLD_LIBS+=usr/lib32/libypclnt.so.4
+OLD_FILES+=usr/lib32/libypclnt_p.a
+.endif
+OLD_FILES+=usr/libexec/mknetid
+OLD_FILES+=usr/libexec/yppwupdate
+OLD_FILES+=usr/libexec/ypxfr
+OLD_FILES+=usr/sbin/rpc.yppasswdd
+OLD_FILES+=usr/sbin/rpc.ypupdated
+OLD_FILES+=usr/sbin/rpc.ypxfrd
+OLD_FILES+=usr/sbin/yp_mkdb
+OLD_FILES+=usr/sbin/ypbind
+OLD_FILES+=usr/sbin/ypinit
+OLD_FILES+=usr/sbin/yppoll
+OLD_FILES+=usr/sbin/yppush
+OLD_FILES+=usr/sbin/ypserv
+OLD_FILES+=usr/sbin/ypset
+OLD_FILES+=usr/share/man/man1/ypcat.1.gz
+OLD_FILES+=usr/share/man/man1/ypchfn.1.gz
+OLD_FILES+=usr/share/man/man1/ypchpass.1.gz
+OLD_FILES+=usr/share/man/man1/ypchsh.1.gz
+OLD_FILES+=usr/share/man/man1/ypmatch.1.gz
+OLD_FILES+=usr/share/man/man1/yppasswd.1.gz
+OLD_FILES+=usr/share/man/man1/ypwhich.1.gz
+OLD_FILES+=usr/share/man/man5/netid.5.gz
+OLD_FILES+=usr/share/man/man8/mknetid.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.yppasswdd.8.gz
+OLD_FILES+=usr/share/man/man8/rpc.ypxfrd.8.gz
+OLD_FILES+=usr/share/man/man8/yp_mkdb.8.gz
+OLD_FILES+=usr/share/man/man8/ypbind.8.gz
+OLD_FILES+=usr/share/man/man8/ypinit.8.gz
+OLD_FILES+=usr/share/man/man8/yppoll.8.gz
+OLD_FILES+=usr/share/man/man8/yppush.8.gz
+OLD_FILES+=usr/share/man/man8/ypserv.8.gz
+OLD_FILES+=usr/share/man/man8/ypset.8.gz
+OLD_FILES+=usr/share/man/man8/ypxfr.8.gz
+OLD_FILES+=var/yp/Makefile
+OLD_FILES+=var/yp/Makefile.dist
+.endif
 
 #.if ${MK_NLS} == no
 # to be filled in
@@ -4064,9 +4122,13 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
 .if ${MK_TESTS} == yes
+OLD_LIBS+=usr/lib/libatf-c++.so.1
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/ui_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/expand_test

@@ -629,18 +629,14 @@ void
 uart_grab(struct uart_devinfo *di)
 {
 
-	uart_lock(di->hwmtx);
 	if (di->sc)
 		UART_GRAB(di->sc);
-	uart_unlock(di->hwmtx);
 }
 
 void
 uart_ungrab(struct uart_devinfo *di)
 {
 
-	uart_lock(di->hwmtx);
 	if (di->sc)
 		UART_UNGRAB(di->sc);
-	uart_unlock(di->hwmtx);
 }

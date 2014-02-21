@@ -17,6 +17,8 @@
 #include "clang/Analysis/CallGraph.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "llvm/Support/Process.h"
 
 using namespace clang;
@@ -152,25 +154,29 @@ void ento::registerCallGraphDumper(CheckerManager &mgr) {
 
 namespace {
 class ConfigDumper : public Checker< check::EndOfTranslationUnit > {
+  typedef AnalyzerOptions::ConfigTable Table;
+
+  static int compareEntry(const Table::MapEntryTy *const *LHS,
+                          const Table::MapEntryTy *const *RHS) {
+    return (*LHS)->getKey().compare((*RHS)->getKey());
+  }
+
 public:
   void checkEndOfTranslationUnit(const TranslationUnitDecl *TU,
                                  AnalysisManager& mgr,
                                  BugReporter &BR) const {
+    const Table &Config = mgr.options.Config;
 
-    const AnalyzerOptions::ConfigTable &Config = mgr.options.Config;
-    AnalyzerOptions::ConfigTable::const_iterator I =
-      Config.begin(), E = Config.end();
+    SmallVector<const Table::MapEntryTy *, 32> Keys;
+    for (Table::const_iterator I = Config.begin(), E = Config.end(); I != E;
+         ++I)
+      Keys.push_back(&*I);
+    llvm::array_pod_sort(Keys.begin(), Keys.end(), compareEntry);
 
-    std::vector<StringRef> Keys;
-    for (; I != E ; ++I) { Keys.push_back(I->getKey()); }
-    sort(Keys.begin(), Keys.end());
-    
     llvm::errs() << "[config]\n";
-    for (unsigned i = 0, n = Keys.size(); i < n ; ++i) {
-      StringRef Key = Keys[i];
-      I = Config.find(Key);
-      llvm::errs() << Key << " = " << I->second << '\n';
-    }
+    for (unsigned I = 0, E = Keys.size(); I != E; ++I)
+      llvm::errs() << Keys[I]->getKey() << " = " << Keys[I]->second << '\n';
+
     llvm::errs() << "[stats]\n" << "num-entries = " << Keys.size() << '\n';
   }
 };
@@ -178,4 +184,23 @@ public:
 
 void ento::registerConfigDumper(CheckerManager &mgr) {
   mgr.registerChecker<ConfigDumper>();
+}
+
+//===----------------------------------------------------------------------===//
+// ExplodedGraph Viewer
+//===----------------------------------------------------------------------===//
+
+namespace {
+class ExplodedGraphViewer : public Checker< check::EndAnalysis > {
+public:
+  ExplodedGraphViewer() {}
+  void checkEndAnalysis(ExplodedGraph &G, BugReporter &B,ExprEngine &Eng) const {
+    Eng.ViewGraph(0);
+  }
+};
+
+}
+
+void ento::registerExplodedGraphViewer(CheckerManager &mgr) {
+  mgr.registerChecker<ExplodedGraphViewer>();
 }

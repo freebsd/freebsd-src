@@ -57,7 +57,7 @@ extern void	yyrestart(FILE *);
 
 %token AUTH_METHOD HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
 %token INITIATOR_NAME INITIATOR_ADDRESS INITIATOR_ALIAS USER SECRET
-%token MUTUAL_USER MUTUAL_SECRET SESSION_TYPE PROTOCOL IGNORED
+%token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL IGNORED
 %token EQUALS OPENING_BRACKET CLOSING_BRACKET
 
 %union
@@ -69,12 +69,12 @@ extern void	yyrestart(FILE *);
 
 %%
 
-statements:
+targets:
 	|
-	statements target_statement
+	targets target
 	;
 
-target_statement:	STR OPENING_BRACKET target_entries CLOSING_BRACKET
+target:		STR OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
 		if (target_find(conf, $1) != NULL)
 			errx(1, "duplicated target %s", $1);
@@ -86,185 +86,187 @@ target_statement:	STR OPENING_BRACKET target_entries CLOSING_BRACKET
 target_entries:
 	|
 	target_entries target_entry
+	|
+	target_entries target_entry SEMICOLON
 	;
 
 target_entry:
-	target_name_statement
+	target_name
 	|
-	target_address_statement
+	target_address
 	|
-	initiator_name_statement
+	initiator_name
 	|
-	initiator_address_statement
+	initiator_address
 	|
-	initiator_alias_statement
+	initiator_alias
 	|
-	user_statement
+	user
 	|
-	secret_statement
+	secret
 	|
-	mutual_user_statement
+	mutual_user
 	|
-	mutual_secret_statement
+	mutual_secret
 	|
-	auth_method_statement
+	auth_method
 	|
-	header_digest_statement
+	header_digest
 	|
-	data_digest_statement
+	data_digest
 	|
-	session_type_statement
+	session_type
 	|
-	protocol_statement
+	protocol
 	|
-	ignored_statement
+	ignored
 	;
 
-target_name_statement:	TARGET_NAME EQUALS STR
+target_name:	TARGET_NAME EQUALS STR
 	{
 		if (target->t_name != NULL)
-			errx(1, "duplicated TargetName at line %d", lineno + 1);
+			errx(1, "duplicated TargetName at line %d", lineno);
 		target->t_name = $3;
 	}
 	;
 
-target_address_statement:	TARGET_ADDRESS EQUALS STR
+target_address:	TARGET_ADDRESS EQUALS STR
 	{
 		if (target->t_address != NULL)
-			errx(1, "duplicated TargetAddress at line %d", lineno + 1);
+			errx(1, "duplicated TargetAddress at line %d", lineno);
 		target->t_address = $3;
 	}
 	;
 
-initiator_name_statement:	INITIATOR_NAME EQUALS STR
+initiator_name:	INITIATOR_NAME EQUALS STR
 	{
 		if (target->t_initiator_name != NULL)
-			errx(1, "duplicated InitiatorName at line %d", lineno + 1);
+			errx(1, "duplicated InitiatorName at line %d", lineno);
 		target->t_initiator_name = $3;
 	}
 	;
 
-initiator_address_statement:	INITIATOR_ADDRESS EQUALS STR
+initiator_address:	INITIATOR_ADDRESS EQUALS STR
 	{
 		if (target->t_initiator_address != NULL)
-			errx(1, "duplicated InitiatorAddress at line %d", lineno + 1);
+			errx(1, "duplicated InitiatorAddress at line %d", lineno);
 		target->t_initiator_address = $3;
 	}
 	;
 
-initiator_alias_statement:	INITIATOR_ALIAS EQUALS STR
+initiator_alias:	INITIATOR_ALIAS EQUALS STR
 	{
 		if (target->t_initiator_alias != NULL)
-			errx(1, "duplicated InitiatorAlias at line %d", lineno + 1);
+			errx(1, "duplicated InitiatorAlias at line %d", lineno);
 		target->t_initiator_alias = $3;
 	}
 	;
 
-user_statement:		USER EQUALS STR
+user:		USER EQUALS STR
 	{
 		if (target->t_user != NULL)
-			errx(1, "duplicated chapIName at line %d", lineno + 1);
+			errx(1, "duplicated chapIName at line %d", lineno);
 		target->t_user = $3;
 	}
 	;
 
-secret_statement:	SECRET EQUALS STR
+secret:		SECRET EQUALS STR
 	{
 		if (target->t_secret != NULL)
-			errx(1, "duplicated chapSecret at line %d", lineno + 1);
+			errx(1, "duplicated chapSecret at line %d", lineno);
 		target->t_secret = $3;
 	}
 	;
 
-mutual_user_statement:	MUTUAL_USER EQUALS STR
+mutual_user:	MUTUAL_USER EQUALS STR
 	{
 		if (target->t_mutual_user != NULL)
-			errx(1, "duplicated tgtChapName at line %d", lineno + 1);
+			errx(1, "duplicated tgtChapName at line %d", lineno);
 		target->t_mutual_user = $3;
 	}
 	;
 
-mutual_secret_statement:MUTUAL_SECRET EQUALS STR
+mutual_secret:	MUTUAL_SECRET EQUALS STR
 	{
 		if (target->t_mutual_secret != NULL)
-			errx(1, "duplicated tgtChapSecret at line %d", lineno + 1);
+			errx(1, "duplicated tgtChapSecret at line %d", lineno);
 		target->t_mutual_secret = $3;
 	}
 	;
 
-auth_method_statement:	AUTH_METHOD EQUALS STR
+auth_method:	AUTH_METHOD EQUALS STR
 	{
 		if (target->t_auth_method != AUTH_METHOD_UNSPECIFIED)
-			errx(1, "duplicated AuthMethod at line %d", lineno + 1);
+			errx(1, "duplicated AuthMethod at line %d", lineno);
 		if (strcasecmp($3, "none") == 0)
 			target->t_auth_method = AUTH_METHOD_NONE;
 		else if (strcasecmp($3, "chap") == 0)
 			target->t_auth_method = AUTH_METHOD_CHAP;
 		else
 			errx(1, "invalid AuthMethod at line %d; "
-			    "must be either \"none\" or \"CHAP\"", lineno + 1);
+			    "must be either \"none\" or \"CHAP\"", lineno);
 	}
 	;
 
-header_digest_statement:	HEADER_DIGEST EQUALS STR
+header_digest:	HEADER_DIGEST EQUALS STR
 	{
 		if (target->t_header_digest != DIGEST_UNSPECIFIED)
-			errx(1, "duplicated HeaderDigest at line %d", lineno + 1);
+			errx(1, "duplicated HeaderDigest at line %d", lineno);
 		if (strcasecmp($3, "none") == 0)
 			target->t_header_digest = DIGEST_NONE;
 		else if (strcasecmp($3, "CRC32C") == 0)
 			target->t_header_digest = DIGEST_CRC32C;
 		else
 			errx(1, "invalid HeaderDigest at line %d; "
-			    "must be either \"none\" or \"CRC32C\"", lineno + 1);
+			    "must be either \"none\" or \"CRC32C\"", lineno);
 	}
 	;
 
-data_digest_statement:	DATA_DIGEST EQUALS STR
+data_digest:	DATA_DIGEST EQUALS STR
 	{
 		if (target->t_data_digest != DIGEST_UNSPECIFIED)
-			errx(1, "duplicated DataDigest at line %d", lineno + 1);
+			errx(1, "duplicated DataDigest at line %d", lineno);
 		if (strcasecmp($3, "none") == 0)
 			target->t_data_digest = DIGEST_NONE;
 		else if (strcasecmp($3, "CRC32C") == 0)
 			target->t_data_digest = DIGEST_CRC32C;
 		else
 			errx(1, "invalid DataDigest at line %d; "
-			    "must be either \"none\" or \"CRC32C\"", lineno + 1);
+			    "must be either \"none\" or \"CRC32C\"", lineno);
 	}
 	;
 
-session_type_statement:	SESSION_TYPE EQUALS STR
+session_type:	SESSION_TYPE EQUALS STR
 	{
 		if (target->t_session_type != SESSION_TYPE_UNSPECIFIED)
-			errx(1, "duplicated SessionType at line %d", lineno + 1);
+			errx(1, "duplicated SessionType at line %d", lineno);
 		if (strcasecmp($3, "normal") == 0)
 			target->t_session_type = SESSION_TYPE_NORMAL;
 		else if (strcasecmp($3, "discovery") == 0)
 			target->t_session_type = SESSION_TYPE_DISCOVERY;
 		else
 			errx(1, "invalid SessionType at line %d; "
-			    "must be either \"normal\" or \"discovery\"", lineno + 1);
+			    "must be either \"normal\" or \"discovery\"", lineno);
 	}
 	;
 
-protocol_statement:	PROTOCOL EQUALS STR
+protocol:	PROTOCOL EQUALS STR
 	{
 		if (target->t_protocol != PROTOCOL_UNSPECIFIED)
-			errx(1, "duplicated protocol at line %d", lineno + 1);
+			errx(1, "duplicated protocol at line %d", lineno);
 		if (strcasecmp($3, "iscsi") == 0)
 			target->t_protocol = PROTOCOL_ISCSI;
 		else if (strcasecmp($3, "iser") == 0)
 			target->t_protocol = PROTOCOL_ISER;
 		else
 			errx(1, "invalid protocol at line %d; "
-			    "must be either \"iscsi\" or \"iser\"", lineno + 1);
+			    "must be either \"iscsi\" or \"iser\"", lineno);
 	}
 	;
 
-ignored_statement: IGNORED EQUALS STR
+ignored:	IGNORED EQUALS STR
 	{
-		warnx("obsolete statement ignored at line %d", lineno + 1);
+		warnx("obsolete statement ignored at line %d", lineno);
 	}
 	;
 
@@ -275,7 +277,7 @@ yyerror(const char *str)
 {
 
 	errx(1, "error in configuration file at line %d near '%s': %s",
-	    lineno + 1, yytext, str);
+	    lineno, yytext, str);
 }
 
 static void
@@ -318,7 +320,7 @@ conf_new_from_file(const char *path)
 	if (yyin == NULL)
 		err(1, "unable to open configuration file %s", path);
 	check_perms(path);
-	lineno = 0;
+	lineno = 1;
 	yyrestart(yyin);
 	error = yyparse();
 	assert(error == 0);

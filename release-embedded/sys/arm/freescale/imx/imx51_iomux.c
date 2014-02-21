@@ -106,6 +106,9 @@ static int
 iomux_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,imx51-iomux") &&
 	    !ofw_bus_is_compatible(dev, "fsl,imx53-iomux"))
 		return (ENXIO);

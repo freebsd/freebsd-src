@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/smp.h>
@@ -199,7 +199,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 	case APIC_LVT_DM_SMI:
 	case APIC_LVT_DM_INIT:
 	case APIC_LVT_DM_EXTINT:
-		if (!lvt->lvt_edgetrigger) {
+		if (!lvt->lvt_edgetrigger && bootverbose) {
 			printf("lapic%u: Forcing LINT%u to edge trigger\n",
 			    la->la_id, pin);
 			value |= APIC_LVT_TM;

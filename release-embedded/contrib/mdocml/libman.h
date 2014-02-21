@@ -1,4 +1,4 @@
-/*	$Id: libman.h,v 1.55 2011/11/07 01:24:40 schwarze Exp $ */
+/*	$Id: libman.h,v 1.56 2012/11/17 00:26:33 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -39,7 +39,7 @@ struct	man {
 	struct roff	*roff;
 };
 
-#define	MACRO_PROT_ARGS	  struct man *m, \
+#define	MACRO_PROT_ARGS	  struct man *man, \
 			  enum mant tok, \
 			  int line, \
 			  int ppos, \
@@ -61,10 +61,10 @@ extern	const struct man_macro *const man_macros;
 
 __BEGIN_DECLS
 
-#define		  man_pmsg(m, l, p, t) \
-		  mandoc_msg((t), (m)->parse, (l), (p), NULL)
-#define		  man_nmsg(m, n, t) \
-		  mandoc_msg((t), (m)->parse, (n)->line, (n)->pos, NULL)
+#define		  man_pmsg(man, l, p, t) \
+		  mandoc_msg((t), (man)->parse, (l), (p), NULL)
+#define		  man_nmsg(man, n, t) \
+		  mandoc_msg((t), (man)->parse, (n)->line, (n)->pos, NULL)
 int		  man_word_alloc(struct man *, int, int, const char *);
 int		  man_block_alloc(struct man *, int, int, enum mant);
 int		  man_head_alloc(struct man *, int, int, enum mant);

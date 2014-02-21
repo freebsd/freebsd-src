@@ -124,11 +124,14 @@ public:
 
   unsigned getVectorInstrCost(unsigned Opcode, Type *Val, unsigned Index) const;
 
-  unsigned getAddressComputationCost(Type *Val) const;
+  unsigned getAddressComputationCost(Type *Val, bool IsComplex) const;
 
   unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
                                   OperandValueKind Op1Info = OK_AnyValue,
                                   OperandValueKind Op2Info = OK_AnyValue) const;
+
+  unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                           unsigned AddressSpace) const;
   /// @}
 };
 
@@ -182,7 +185,7 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   assert(ISD && "Invalid opcode");
 
   // Single to/from double precision conversions.
-  static const CostTblEntry<MVT> NEONFltDblTbl[] = {
+  static const CostTblEntry<MVT::SimpleValueType> NEONFltDblTbl[] = {
     // Vector fptrunc/fpext conversions.
     { ISD::FP_ROUND,   MVT::v2f64, 2 },
     { ISD::FP_EXTEND,  MVT::v2f32, 2 },
@@ -192,8 +195,7 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   if (Src->isVectorTy() && ST->hasNEON() && (ISD == ISD::FP_ROUND ||
                                           ISD == ISD::FP_EXTEND)) {
     std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Src);
-    int Idx = CostTableLookup<MVT>(NEONFltDblTbl, array_lengthof(NEONFltDblTbl),
-                                ISD, LT.second);
+    int Idx = CostTableLookup(NEONFltDblTbl, ISD, LT.second);
     if (Idx != -1)
       return LT.first * NEONFltDblTbl[Idx].Cost;
   }
@@ -207,7 +209,8 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   // Some arithmetic, load and store operations have specific instructions
   // to cast up/down their types automatically at no extra cost.
   // TODO: Get these tables to know at least what the related operations are.
-  static const TypeConversionCostTblEntry<MVT> NEONVectorConversionTbl[] = {
+  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
+  NEONVectorConversionTbl[] = {
     { ISD::SIGN_EXTEND, MVT::v4i32, MVT::v4i16, 0 },
     { ISD::ZERO_EXTEND, MVT::v4i32, MVT::v4i16, 0 },
     { ISD::SIGN_EXTEND, MVT::v2i64, MVT::v2i32, 1 },
@@ -283,15 +286,15 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isVector() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup<MVT>(NEONVectorConversionTbl,
-                                array_lengthof(NEONVectorConversionTbl),
-                                ISD, DstTy.getSimpleVT(), SrcTy.getSimpleVT());
+    int Idx = ConvertCostTableLookup(NEONVectorConversionTbl, ISD,
+                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
     if (Idx != -1)
       return NEONVectorConversionTbl[Idx].Cost;
   }
 
   // Scalar float to integer conversions.
-  static const TypeConversionCostTblEntry<MVT> NEONFloatConversionTbl[] = {
+  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
+  NEONFloatConversionTbl[] = {
     { ISD::FP_TO_SINT,  MVT::i1, MVT::f32, 2 },
     { ISD::FP_TO_UINT,  MVT::i1, MVT::f32, 2 },
     { ISD::FP_TO_SINT,  MVT::i1, MVT::f64, 2 },
@@ -314,16 +317,15 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
     { ISD::FP_TO_UINT,  MVT::i64, MVT::f64, 10 }
   };
   if (SrcTy.isFloatingPoint() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup<MVT>(NEONFloatConversionTbl,
-                                        array_lengthof(NEONFloatConversionTbl),
-                                        ISD, DstTy.getSimpleVT(),
-                                        SrcTy.getSimpleVT());
+    int Idx = ConvertCostTableLookup(NEONFloatConversionTbl, ISD,
+                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
     if (Idx != -1)
         return NEONFloatConversionTbl[Idx].Cost;
   }
 
   // Scalar integer to float conversions.
-  static const TypeConversionCostTblEntry<MVT> NEONIntegerConversionTbl[] = {
+  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
+  NEONIntegerConversionTbl[] = {
     { ISD::SINT_TO_FP,  MVT::f32, MVT::i1, 2 },
     { ISD::UINT_TO_FP,  MVT::f32, MVT::i1, 2 },
     { ISD::SINT_TO_FP,  MVT::f64, MVT::i1, 2 },
@@ -347,16 +349,15 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isInteger() && ST->hasNEON()) {
-    int Idx = ConvertCostTableLookup<MVT>(NEONIntegerConversionTbl,
-                                       array_lengthof(NEONIntegerConversionTbl),
-                                       ISD, DstTy.getSimpleVT(),
-                                       SrcTy.getSimpleVT());
+    int Idx = ConvertCostTableLookup(NEONIntegerConversionTbl, ISD,
+                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
     if (Idx != -1)
       return NEONIntegerConversionTbl[Idx].Cost;
   }
 
   // Scalar integer conversion costs.
-  static const TypeConversionCostTblEntry<MVT> ARMIntegerConversionTbl[] = {
+  static const TypeConversionCostTblEntry<MVT::SimpleValueType>
+  ARMIntegerConversionTbl[] = {
     // i16 -> i64 requires two dependent operations.
     { ISD::SIGN_EXTEND, MVT::i64, MVT::i16, 2 },
 
@@ -368,11 +369,8 @@ unsigned ARMTTI::getCastInstrCost(unsigned Opcode, Type *Dst,
   };
 
   if (SrcTy.isInteger()) {
-    int Idx =
-      ConvertCostTableLookup<MVT>(ARMIntegerConversionTbl,
-                                  array_lengthof(ARMIntegerConversionTbl),
-                                  ISD, DstTy.getSimpleVT(),
-                                  SrcTy.getSimpleVT());
+    int Idx = ConvertCostTableLookup(ARMIntegerConversionTbl, ISD,
+                                     DstTy.getSimpleVT(), SrcTy.getSimpleVT());
     if (Idx != -1)
       return ARMIntegerConversionTbl[Idx].Cost;
   }
@@ -400,7 +398,8 @@ unsigned ARMTTI::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
   // On NEON a a vector select gets lowered to vbsl.
   if (ST->hasNEON() && ValTy->isVectorTy() && ISD == ISD::SELECT) {
     // Lowering of some vector selects is currently far from perfect.
-    static const TypeConversionCostTblEntry<MVT> NEONVectorSelectTbl[] = {
+    static const TypeConversionCostTblEntry<MVT::SimpleValueType>
+    NEONVectorSelectTbl[] = {
       { ISD::SELECT, MVT::v16i1, MVT::v16i16, 2*16 + 1 + 3*1 + 4*1 },
       { ISD::SELECT, MVT::v8i1, MVT::v8i32, 4*8 + 1*3 + 1*4 + 1*2 },
       { ISD::SELECT, MVT::v16i1, MVT::v16i32, 4*16 + 1*6 + 1*8 + 1*4 },
@@ -411,12 +410,13 @@ unsigned ARMTTI::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
 
     EVT SelCondTy = TLI->getValueType(CondTy);
     EVT SelValTy = TLI->getValueType(ValTy);
-    int Idx = ConvertCostTableLookup<MVT>(NEONVectorSelectTbl,
-                                          array_lengthof(NEONVectorSelectTbl),
-                                          ISD, SelCondTy.getSimpleVT(),
-                                          SelValTy.getSimpleVT());
-    if (Idx != -1)
-      return NEONVectorSelectTbl[Idx].Cost;
+    if (SelCondTy.isSimple() && SelValTy.isSimple()) {
+      int Idx = ConvertCostTableLookup(NEONVectorSelectTbl, ISD,
+                                       SelCondTy.getSimpleVT(),
+                                       SelValTy.getSimpleVT());
+      if (Idx != -1)
+        return NEONVectorSelectTbl[Idx].Cost;
+    }
 
     std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(ValTy);
     return LT.first;
@@ -425,7 +425,16 @@ unsigned ARMTTI::getCmpSelInstrCost(unsigned Opcode, Type *ValTy,
   return TargetTransformInfo::getCmpSelInstrCost(Opcode, ValTy, CondTy);
 }
 
-unsigned ARMTTI::getAddressComputationCost(Type *Ty) const {
+unsigned ARMTTI::getAddressComputationCost(Type *Ty, bool IsComplex) const {
+  // Address computations in vectorized code with non-consecutive addresses will
+  // likely result in more instructions compared to scalar code where the
+  // computation can more often be merged into the index mode. The resulting
+  // extra micro-ops can significantly decrease throughput.
+  unsigned NumVectorInstToHideOverhead = 10;
+
+  if (Ty->isVectorTy() && IsComplex)
+    return NumVectorInstToHideOverhead;
+
   // In many cases the address computation is not merged into the instruction
   // addressing mode.
   return 1;
@@ -437,7 +446,7 @@ unsigned ARMTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,
   if (Kind != SK_Reverse)
     return TargetTransformInfo::getShuffleCost(Kind, Tp, Index, SubTp);
 
-  static const CostTblEntry<MVT> NEONShuffleTbl[] = {
+  static const CostTblEntry<MVT::SimpleValueType> NEONShuffleTbl[] = {
     // Reverse shuffle cost one instruction if we are shuffling within a double
     // word (vrev) or two if we shuffle a quad word (vrev, vext).
     { ISD::VECTOR_SHUFFLE, MVT::v2i32, 1 },
@@ -453,8 +462,7 @@ unsigned ARMTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,
 
   std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Tp);
 
-  int Idx = CostTableLookup<MVT>(NEONShuffleTbl, array_lengthof(NEONShuffleTbl),
-                                 ISD::VECTOR_SHUFFLE, LT.second);
+  int Idx = CostTableLookup(NEONShuffleTbl, ISD::VECTOR_SHUFFLE, LT.second);
   if (Idx == -1)
     return TargetTransformInfo::getShuffleCost(Kind, Tp, Index, SubTp);
 
@@ -469,7 +477,7 @@ unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueK
 
   const unsigned FunctionCallDivCost = 20;
   const unsigned ReciprocalDivCost = 10;
-  static const CostTblEntry<MVT> CostTbl[] = {
+  static const CostTblEntry<MVT::SimpleValueType> CostTbl[] = {
     // Division.
     // These costs are somewhat random. Choose a cost of 20 to indicate that
     // vectorizing devision (added function call) is going to be very expensive.
@@ -513,14 +521,37 @@ unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueK
   int Idx = -1;
 
   if (ST->hasNEON())
-    Idx = CostTableLookup<MVT>(CostTbl, array_lengthof(CostTbl), ISDOpcode,
-                               LT.second);
+    Idx = CostTableLookup(CostTbl, ISDOpcode, LT.second);
 
   if (Idx != -1)
     return LT.first * CostTbl[Idx].Cost;
 
+  unsigned Cost =
+      TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info);
 
-  return TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info,
-                                                     Op2Info);
+  // This is somewhat of a hack. The problem that we are facing is that SROA
+  // creates a sequence of shift, and, or instructions to construct values.
+  // These sequences are recognized by the ISel and have zero-cost. Not so for
+  // the vectorized code. Because we have support for v2i64 but not i64 those
+  // sequences look particularily beneficial to vectorize.
+  // To work around this we increase the cost of v2i64 operations to make them
+  // seem less beneficial.
+  if (LT.second == MVT::v2i64 &&
+      Op2Info == TargetTransformInfo::OK_UniformConstantValue)
+    Cost += 4;
+
+  return Cost;
 }
 
+unsigned ARMTTI::getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
+                                 unsigned AddressSpace) const {
+  std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Src);
+
+  if (Src->isVectorTy() && Alignment != 16 &&
+      Src->getVectorElementType()->isDoubleTy()) {
+    // Unaligned loads/stores are extremely inefficient.
+    // We need 4 uops for vst.1/vld.1 vs 1uop for vldr/vstr.
+    return LT.first * 4;
+  }
+  return LT.first;
+}

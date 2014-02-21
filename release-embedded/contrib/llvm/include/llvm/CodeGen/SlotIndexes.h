@@ -59,7 +59,7 @@ namespace llvm {
     // poisoned, so that dangling SlotIndex access can be reliably detected.
     void setPoison() {
       intptr_t tmp = reinterpret_cast<intptr_t>(mi);
-      assert(((tmp & 0x1) == 0x0) && "Pointer already poisoned?");  
+      assert(((tmp & 0x1) == 0x0) && "Pointer already poisoned?");
       tmp |= 0x1;
       mi = reinterpret_cast<MachineInstr*>(tmp);
     }
@@ -162,7 +162,7 @@ namespace llvm {
     }
 
     /// Return true for a valid index.
-    operator bool() const { return isValid(); }
+    LLVM_EXPLICIT operator bool() const { return isValid(); }
 
     /// Print this index to the given raw_ostream.
     void print(raw_ostream &os) const;
@@ -216,6 +216,13 @@ namespace llvm {
     /// Return the distance from this index to the given one.
     int distance(SlotIndex other) const {
       return other.getIndex() - getIndex();
+    }
+
+    /// Return the scaled distance from this index to the given one, where all
+    /// slots on the same instruction have zero distance.
+    int getInstrDistance(SlotIndex other) const {
+      return (other.listEntry()->getIndex() - listEntry()->getIndex())
+        / Slot_Count;
     }
 
     /// isBlock - Returns true if this is a block boundary slot.
@@ -672,7 +679,7 @@ namespace llvm {
     /// performance. Any remaining SlotIndex objects that point to the same
     /// index are left 'dangling' (much the same as a dangling pointer to a
     /// freed object) and should not be accessed, except to destruct them.
-    /// 
+    ///
     /// Like dangling pointers, access to dangling SlotIndexes can cause
     /// painful-to-track-down bugs, especially if the memory for the index
     /// previously pointed to has been re-used. To detect dangling SlotIndex

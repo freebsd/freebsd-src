@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2013-2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,3 +38,6 @@
 	bus_space_read_1(_sc->bst, _sc->bsh, _reg)
 #define	WRITE1(_sc, _reg, _val)	\
 	bus_space_write_1(_sc->bst, _sc->bsh, _reg, _val)
+
+uint32_t pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd);
+uint32_t tcon_bypass(void);

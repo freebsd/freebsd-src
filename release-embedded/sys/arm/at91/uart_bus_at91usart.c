@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 
 static int usart_at91_probe(device_t dev);
 
-extern struct uart_class at91_usart_class;
-
 static device_method_t usart_at91_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		usart_at91_probe),

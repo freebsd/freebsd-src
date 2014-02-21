@@ -265,9 +265,8 @@ enum vm_cap_type {
 };
 
 enum x2apic_state {
-	X2APIC_ENABLED,
-	X2APIC_AVAILABLE,
 	X2APIC_DISABLED,
+	X2APIC_ENABLED,
 	X2APIC_STATE_LAST
 };
 
@@ -298,6 +297,7 @@ enum vm_exitcode {
 	VM_EXITCODE_SPINUP_AP,
 	VM_EXITCODE_SPINDOWN_CPU,
 	VM_EXITCODE_RENDEZVOUS,
+	VM_EXITCODE_IOAPIC_EOI,
 	VM_EXITCODE_MAX
 };
 
@@ -322,6 +322,8 @@ struct vm_exit {
 			uint64_t	gpa;
 			uint64_t	gla;
 			uint64_t	cr3;
+			enum vie_cpu_mode cpu_mode;
+			enum vie_paging_mode paging_mode;
 			struct vie	vie;
 		} inst_emul;
 		/*
@@ -354,6 +356,9 @@ struct vm_exit {
 		struct {
 			uint64_t	rflags;
 		} hlt;
+		struct {
+			int		vector;
+		} ioapic_eoi;
 	} u;
 };
 

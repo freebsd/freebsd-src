@@ -251,7 +251,6 @@ __DEFAULT_YES_OPTIONS = \
     ARM_EABI \
     ASSERT_DEBUG \
     AT \
-    ATF \
     ATM \
     AUDIT \
     AUTHPF \
@@ -276,6 +275,7 @@ __DEFAULT_YES_OPTIONS = \
     ED_CRYPTO \
     EXAMPLES \
     FLOPPY \
+    FMTREE \
     FORMAT_EXTENSIONS \
     FORTH \
     FP_LIBC \
@@ -315,13 +315,13 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
+    NCURSESW \
     NDIS \
     NETCAT \
     NETGRAPH \
     NIS \
     NLS \
     NLS_CATALOGS \
-    NMTREE \
     NS_CACHING \
     NTP \
     OPENSSH \

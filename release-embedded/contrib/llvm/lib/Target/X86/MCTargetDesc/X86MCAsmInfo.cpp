@@ -59,10 +59,8 @@ X86MCAsmInfoDarwin::X86MCAsmInfoDarwin(const Triple &T) {
   // for .S files on other systems.  Perhaps this is because the file system
   // wasn't always case preserving or something.
   CommentString = "##";
-  PCSymbol = ".";
 
   SupportsDebugInformation = true;
-  DwarfUsesInlineInfoSection = true;
   UseDataRegionDirectives = MarkedJTDataRegions;
 
   // Exceptions handling
@@ -92,8 +90,6 @@ X86ELFMCAsmInfo::X86ELFMCAsmInfo(const Triple &T) {
   TextAlignFillValue = 0x90;
 
   PrivateGlobalPrefix = ".L";
-  WeakRefDirective = "\t.weak\t";
-  PCSymbol = ".";
 
   // Set up DWARF directives
   HasLEB128 = true;  // Target asm supports leb128 directives (little-endian)
@@ -139,6 +135,8 @@ X86MCAsmInfoMicrosoft::X86MCAsmInfoMicrosoft(const Triple &Triple) {
   AssemblerDialect = AsmWriterFlavor;
 
   TextAlignFillValue = 0x90;
+
+  AllowAtInName = true;
 }
 
 void X86MCAsmInfoGNUCOFF::anchor() { }

@@ -15,7 +15,7 @@ SRCS=	eqn_html.c eqn_term.c html.c main.c man_html.c man_term.c mdoc_html.c \
 	term_ascii.c term_ps.c tree.c
 
 WARNS?=	3
-CFLAGS+= -DHAVE_CONFIG_H -DVERSION="\"1.12.1\""
+CFLAGS+= -DHAVE_CONFIG_H
 DPADD=	${LIBMANDOC}
 LDADD=	${LIBMANDOC}
 

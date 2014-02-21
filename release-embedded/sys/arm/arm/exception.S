@@ -173,8 +173,8 @@ END(data_abort_entry)
  *	it like a Data Abort.
  */
 ASENTRY_NP(address_exception_entry)
-	mrs	r1, cpsr_all
-	mrs	r2, spsr_all
+	mrs	r1, cpsr
+	mrs	r2, spsr
 	mov	r3, lr
 	adr	r0, Laddress_exception_msg
 	bl	_C_LABEL(printf)	/* XXX CLOBBERS LR!! */

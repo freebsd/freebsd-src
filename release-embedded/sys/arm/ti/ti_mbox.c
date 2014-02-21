@@ -119,6 +119,10 @@ ti_mbox_reg_write(struct ti_mbox_softc *sc, uint16_t reg, uint32_t val)
 static int
 ti_mbox_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "ti,system-mbox")) {
 		device_set_desc(dev, "TI System Mailbox");
 		return (BUS_PROBE_DEFAULT);
@@ -140,7 +144,7 @@ ti_mbox_attach(device_t dev)
 	}
 	sc = device_get_softc(dev);
 	rid = 0;
-	mtx_init(&sc->sc_mtx, "TI mbox", MTX_DEF, 0);
+	mtx_init(&sc->sc_mtx, "TI mbox", NULL, MTX_DEF);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {

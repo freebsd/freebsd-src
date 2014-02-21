@@ -1491,7 +1491,10 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 #endif
 	oid->oid_running++;
 	SYSCTL_XUNLOCK();
-
+#ifdef VIMAGE
+	if ((oid->oid_kind & CTLFLAG_VNET) && arg1 != NULL)
+		arg1 = (void *)(curvnet->vnet_data_base + (uintptr_t)arg1);
+#endif
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
 		mtx_lock(&Giant);
 	error = oid->oid_handler(oid, arg1, arg2, req);

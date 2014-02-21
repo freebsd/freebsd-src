@@ -49,7 +49,7 @@ bool trans::canApplyWeak(ASTContext &Ctx, QualType type,
     return false;
 
   // iOS is always safe to use 'weak'.
-  if (Ctx.getTargetInfo().getTriple().getOS() == llvm::Triple::IOS)
+  if (Ctx.getTargetInfo().getTriple().isiOS())
     AllowOnUnknownClass = true;
 
   while (const PointerType *ptr = T->getAs<PointerType>())
@@ -94,7 +94,7 @@ bool trans::isPlusOne(const Expr *E) {
       if (FD->isGlobal() &&
           FD->getIdentifier() &&
           FD->getParent()->isTranslationUnit() &&
-          FD->hasExternalLinkage() &&
+          FD->isExternallyVisible() &&
           ento::cocoa::isRefType(callE->getType(), "CF",
                                  FD->getIdentifier()->getName())) {
         StringRef fname = FD->getIdentifier()->getName();
@@ -122,8 +122,8 @@ bool trans::isPlusOne(const Expr *E) {
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
 SourceLocation trans::findLocationAfterSemi(SourceLocation loc,
-                                            ASTContext &Ctx) {
-  SourceLocation SemiLoc = findSemiAfterLocation(loc, Ctx);
+                                            ASTContext &Ctx, bool IsDecl) {
+  SourceLocation SemiLoc = findSemiAfterLocation(loc, Ctx, IsDecl);
   if (SemiLoc.isInvalid())
     return SourceLocation();
   return SemiLoc.getLocWithOffset(1);
@@ -134,7 +134,8 @@ SourceLocation trans::findLocationAfterSemi(SourceLocation loc,
 /// If no semicolon is found or the location is inside a macro, the returned
 /// source location will be invalid.
 SourceLocation trans::findSemiAfterLocation(SourceLocation loc,
-                                            ASTContext &Ctx) {
+                                            ASTContext &Ctx,
+                                            bool IsDecl) {
   SourceManager &SM = Ctx.getSourceManager();
   if (loc.isMacroID()) {
     if (!Lexer::isAtEndOfMacroExpansion(loc, SM, Ctx.getLangOpts(), &loc))
@@ -159,8 +160,13 @@ SourceLocation trans::findSemiAfterLocation(SourceLocation loc,
               file.begin(), tokenBegin, file.end());
   Token tok;
   lexer.LexFromRawLexer(tok);
-  if (tok.isNot(tok::semi))
-    return SourceLocation();
+  if (tok.isNot(tok::semi)) {
+    if (!IsDecl)
+      return SourceLocation();
+    // Declaration may be followed with other tokens; such as an __attribute,
+    // before ending with a semicolon.
+    return findSemiAfterLocation(tok.getLocation(), Ctx, /*IsDecl*/true);
+  }
 
   return tok.getLocation();
 }
@@ -198,7 +204,7 @@ bool trans::isGlobalVar(Expr *E) {
   E = E->IgnoreParenCasts();
   if (DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(E))
     return DRE->getDecl()->getDeclContext()->isFileContext() &&
-           DRE->getDecl()->hasExternalLinkage();
+           DRE->getDecl()->isExternallyVisible();
   if (ConditionalOperator *condOp = dyn_cast<ConditionalOperator>(E))
     return isGlobalVar(condOp->getTrueExpr()) &&
            isGlobalVar(condOp->getFalseExpr());

@@ -14,6 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
+#include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
@@ -176,8 +177,8 @@ Value *SCEVExpander::InsertBinop(Instruction::BinaryOps Opcode,
   }
 
   // Save the original insertion point so we can restore it when we're done.
-  BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-  BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+  DebugLoc Loc = Builder.GetInsertPoint()->getDebugLoc();
+  BuilderType::InsertPointGuard Guard(Builder);
 
   // Move the insertion point out of as many loops as we can.
   while (const Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock())) {
@@ -191,12 +192,8 @@ Value *SCEVExpander::InsertBinop(Instruction::BinaryOps Opcode,
 
   // If we haven't found this binop, insert it.
   Instruction *BO = cast<Instruction>(Builder.CreateBinOp(Opcode, LHS, RHS));
-  BO->setDebugLoc(SaveInsertPt->getDebugLoc());
+  BO->setDebugLoc(Loc);
   rememberInstruction(BO);
-
-  // Restore the original insert point.
-  if (SaveInsertBB)
-    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
 
   return BO;
 }
@@ -294,8 +291,8 @@ static bool FactorOutConstant(const SCEV *&S,
     const SCEV *Start = A->getStart();
     if (!FactorOutConstant(Start, Remainder, Factor, SE, TD))
       return false;
-    // FIXME: can use A->getNoWrapFlags(FlagNW)
-    S = SE.getAddRecExpr(Start, Step, A->getLoop(), SCEV::FlagAnyWrap);
+    S = SE.getAddRecExpr(Start, Step, A->getLoop(),
+                         A->getNoWrapFlags(SCEV::FlagNW));
     return true;
   }
 
@@ -348,8 +345,7 @@ static void SplitAddRecs(SmallVectorImpl<const SCEV *> &Ops,
       AddRecs.push_back(SE.getAddRecExpr(Zero,
                                          A->getStepRecurrence(SE),
                                          A->getLoop(),
-                                         // FIXME: A->getNoWrapFlags(FlagNW)
-                                         SCEV::FlagAnyWrap));
+                                         A->getNoWrapFlags(SCEV::FlagNW)));
       if (const SCEVAddExpr *Add = dyn_cast<SCEVAddExpr>(Start)) {
         Ops[i] = Zero;
         Ops.append(Add->op_begin(), Add->op_end());
@@ -407,6 +403,10 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
   // without the other.
   SplitAddRecs(Ops, Ty, SE);
 
+  Type *IntPtrTy = SE.TD
+                 ? SE.TD->getIntPtrType(PTy)
+                 : Type::getInt64Ty(PTy->getContext());
+
   // Descend down the pointer's type and attempt to convert the other
   // operands into GEP indices, at each level. The first index in a GEP
   // indexes into the array implied by the pointer operand; the rest of
@@ -417,7 +417,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
     // array indexing.
     SmallVector<const SCEV *, 8> ScaledOps;
     if (ElTy->isSized()) {
-      const SCEV *ElSize = SE.getSizeOfExpr(ElTy);
+      const SCEV *ElSize = SE.getSizeOfExpr(IntPtrTy, ElTy);
       if (!ElSize->isZero()) {
         SmallVector<const SCEV *, 8> NewOps;
         for (unsigned i = 0, e = Ops.size(); i != e; ++i) {
@@ -549,8 +549,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
     }
 
     // Save the original insertion point so we can restore it when we're done.
-    BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-    BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+    BuilderType::InsertPointGuard Guard(Builder);
 
     // Move the insertion point out of as many loops as we can.
     while (const Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock())) {
@@ -566,16 +565,11 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
     Value *GEP = Builder.CreateGEP(V, Idx, "uglygep");
     rememberInstruction(GEP);
 
-    // Restore the original insert point.
-    if (SaveInsertBB)
-      restoreInsertPoint(SaveInsertBB, SaveInsertPt);
-
     return GEP;
   }
 
   // Save the original insertion point so we can restore it when we're done.
-  BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-  BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+  BuilderType::InsertPoint SaveInsertPt = Builder.saveIP();
 
   // Move the insertion point out of as many loops as we can.
   while (const Loop *L = SE.LI->getLoopFor(Builder.GetInsertBlock())) {
@@ -611,8 +605,7 @@ Value *SCEVExpander::expandAddToGEP(const SCEV *const *op_begin,
   rememberInstruction(GEP);
 
   // Restore the original insert point.
-  if (SaveInsertBB)
-    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
+  Builder.restoreIP(SaveInsertPt);
 
   return expand(SE.getAddExpr(Ops));
 }
@@ -846,8 +839,7 @@ static void ExposePointerBase(const SCEV *&Base, const SCEV *&Rest,
                          SE.getAddRecExpr(SE.getConstant(A->getType(), 0),
                                           A->getStepRecurrence(SE),
                                           A->getLoop(),
-                                          // FIXME: A->getNoWrapFlags(FlagNW)
-                                          SCEV::FlagAnyWrap));
+                                          A->getNoWrapFlags(SCEV::FlagNW)));
   }
   if (const SCEVAddExpr *A = dyn_cast<SCEVAddExpr>(Base)) {
     Base = A->getOperand(A->getNumOperands()-1);
@@ -1078,8 +1070,7 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
   }
 
   // Save the original insertion point so we can restore it when we're done.
-  BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-  BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+  BuilderType::InsertPointGuard Guard(Builder);
 
   // Another AddRec may need to be recursively expanded below. For example, if
   // this AddRec is quadratic, the StepV may itself be an AddRec in this
@@ -1137,13 +1128,14 @@ SCEVExpander::getAddRecExprPHILiterally(const SCEVAddRecExpr *Normalized,
       IVIncInsertPos : Pred->getTerminator();
     Builder.SetInsertPoint(InsertPos);
     Value *IncV = expandIVInc(PN, StepV, L, ExpandTy, IntTy, useSubtract);
-
+    if (isa<OverflowingBinaryOperator>(IncV)) {
+      if (Normalized->getNoWrapFlags(SCEV::FlagNUW))
+        cast<BinaryOperator>(IncV)->setHasNoUnsignedWrap();
+      if (Normalized->getNoWrapFlags(SCEV::FlagNSW))
+        cast<BinaryOperator>(IncV)->setHasNoSignedWrap();
+    }
     PN->addIncoming(IncV, Pred);
   }
-
-  // Restore the original insert point.
-  if (SaveInsertBB)
-    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
 
   // After expanding subexpressions, restore the PostIncLoops set so the caller
   // can ensure that IVIncrement dominates the current uses.
@@ -1180,8 +1172,7 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
     Normalized = cast<SCEVAddRecExpr>(
       SE.getAddRecExpr(Start, Normalized->getStepRecurrence(SE),
                        Normalized->getLoop(),
-                       // FIXME: Normalized->getNoWrapFlags(FlagNW)
-                       SCEV::FlagAnyWrap));
+                       Normalized->getNoWrapFlags(SCEV::FlagNW)));
   }
 
   // Strip off any non-loop-dominating component from the addrec step.
@@ -1191,11 +1182,9 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
     PostLoopScale = Step;
     Step = SE.getConstant(Normalized->getType(), 1);
     Normalized =
-      cast<SCEVAddRecExpr>(SE.getAddRecExpr(Start, Step,
-                                            Normalized->getLoop(),
-                                            // FIXME: Normalized
-                                            // ->getNoWrapFlags(FlagNW)
-                                            SCEV::FlagAnyWrap));
+      cast<SCEVAddRecExpr>(SE.getAddRecExpr(
+                             Start, Step, Normalized->getLoop(),
+                             Normalized->getNoWrapFlags(SCEV::FlagNW)));
   }
 
   // Expand the core addrec. If we need post-loop scaling, force it to
@@ -1232,19 +1221,19 @@ Value *SCEVExpander::expandAddRecExprLiterally(const SCEVAddRecExpr *S) {
         !ExpandTy->isPointerTy() && Step->isNonConstantNegative();
       if (useSubtract)
         Step = SE.getNegativeSCEV(Step);
-      // Expand the step somewhere that dominates the loop header.
-      BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-      BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
-      Value *StepV = expandCodeFor(Step, IntTy, L->getHeader()->begin());
-      // Restore the insertion point to the place where the caller has
-      // determined dominates all uses.
-      restoreInsertPoint(SaveInsertBB, SaveInsertPt);
+      Value *StepV;
+      {
+        // Expand the step somewhere that dominates the loop header.
+        BuilderType::InsertPointGuard Guard(Builder);
+        StepV = expandCodeFor(Step, IntTy, L->getHeader()->begin());
+      }
       Result = expandIVInc(PN, StepV, L, ExpandTy, IntTy, useSubtract);
     }
   }
 
   // Re-apply any non-loop-dominating scale.
   if (PostLoopScale) {
+    assert(S->isAffine() && "Can't linearly scale non-affine recurrences.");
     Result = InsertNoopCastOfTo(Result, IntTy);
     Result = Builder.CreateMul(Result,
                                expandCodeFor(PostLoopScale, IntTy));
@@ -1288,18 +1277,15 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
     for (unsigned i = 0, e = S->getNumOperands(); i != e; ++i)
       NewOps[i] = SE.getAnyExtendExpr(S->op_begin()[i], CanonicalIV->getType());
     Value *V = expand(SE.getAddRecExpr(NewOps, S->getLoop(),
-                                       // FIXME: S->getNoWrapFlags(FlagNW)
-                                       SCEV::FlagAnyWrap));
-    BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-    BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+                                       S->getNoWrapFlags(SCEV::FlagNW)));
     BasicBlock::iterator NewInsertPt =
       llvm::next(BasicBlock::iterator(cast<Instruction>(V)));
+    BuilderType::InsertPointGuard Guard(Builder);
     while (isa<PHINode>(NewInsertPt) || isa<DbgInfoIntrinsic>(NewInsertPt) ||
            isa<LandingPadInst>(NewInsertPt))
       ++NewInsertPt;
     V = expandCodeFor(SE.getTruncateExpr(SE.getUnknown(V), Ty), 0,
                       NewInsertPt);
-    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
     return V;
   }
 
@@ -1307,8 +1293,8 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
   if (!S->getStart()->isZero()) {
     SmallVector<const SCEV *, 4> NewOps(S->op_begin(), S->op_end());
     NewOps[0] = SE.getConstant(Ty, 0);
-    // FIXME: can use S->getNoWrapFlags()
-    const SCEV *Rest = SE.getAddRecExpr(NewOps, L, SCEV::FlagAnyWrap);
+    const SCEV *Rest = SE.getAddRecExpr(NewOps, L,
+                                        S->getNoWrapFlags(SCEV::FlagNW));
 
     // Turn things like ptrtoint+arithmetic+inttoptr into GEP. See the
     // comments on expandAddToGEP for details.
@@ -1343,9 +1329,13 @@ Value *SCEVExpander::visitAddRecExpr(const SCEVAddRecExpr *S) {
                                   Header->begin());
     rememberInstruction(CanonicalIV);
 
+    SmallSet<BasicBlock *, 4> PredSeen;
     Constant *One = ConstantInt::get(Ty, 1);
     for (pred_iterator HPI = HPB; HPI != HPE; ++HPI) {
       BasicBlock *HP = *HPI;
+      if (!PredSeen.insert(HP))
+        continue;
+
       if (L->contains(HP)) {
         // Insert a unit add instruction right before the terminator
         // corresponding to the back-edge.
@@ -1528,8 +1518,7 @@ Value *SCEVExpander::expand(const SCEV *S) {
   if (I != InsertedExpressions.end())
     return I->second;
 
-  BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-  BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+  BuilderType::InsertPointGuard Guard(Builder);
   Builder.SetInsertPoint(InsertPt->getParent(), InsertPt);
 
   // Expand the expression into instructions.
@@ -1542,8 +1531,6 @@ Value *SCEVExpander::expand(const SCEV *S) {
   // a postinc expansion, it could be reused by a non postinc user, but only if
   // its insertion point was already at the head of the loop.
   InsertedExpressions[std::make_pair(S, InsertPt)] = V;
-
-  restoreInsertPoint(SaveInsertBB, SaveInsertPt);
   return V;
 }
 
@@ -1552,10 +1539,6 @@ void SCEVExpander::rememberInstruction(Value *I) {
     InsertedPostIncValues.insert(I);
   else
     InsertedValues.insert(I);
-}
-
-void SCEVExpander::restoreInsertPoint(BasicBlock *BB, BasicBlock::iterator I) {
-  Builder.SetInsertPoint(BB, I);
 }
 
 /// getOrInsertCanonicalInductionVariable - This method returns the
@@ -1573,11 +1556,8 @@ SCEVExpander::getOrInsertCanonicalInductionVariable(const Loop *L,
                                    SE.getConstant(Ty, 1), L, SCEV::FlagAnyWrap);
 
   // Emit code for it.
-  BasicBlock *SaveInsertBB = Builder.GetInsertBlock();
-  BasicBlock::iterator SaveInsertPt = Builder.GetInsertPoint();
+  BuilderType::InsertPointGuard Guard(Builder);
   PHINode *V = cast<PHINode>(expandCodeFor(H, 0, L->getHeader()->begin()));
-  if (SaveInsertBB)
-    restoreInsertPoint(SaveInsertBB, SaveInsertPt);
 
   return V;
 }
@@ -1725,28 +1705,43 @@ namespace {
 // Currently, we only allow division by a nonzero constant here. If this is
 // inadequate, we could easily allow division by SCEVUnknown by using
 // ValueTracking to check isKnownNonZero().
+//
+// We cannot generally expand recurrences unless the step dominates the loop
+// header. The expander handles the special case of affine recurrences by
+// scaling the recurrence outside the loop, but this technique isn't generally
+// applicable. Expanding a nested recurrence outside a loop requires computing
+// binomial coefficients. This could be done, but the recurrence has to be in a
+// perfectly reduced form, which can't be guaranteed.
 struct SCEVFindUnsafe {
+  ScalarEvolution &SE;
   bool IsUnsafe;
 
-  SCEVFindUnsafe(): IsUnsafe(false) {}
+  SCEVFindUnsafe(ScalarEvolution &se): SE(se), IsUnsafe(false) {}
 
   bool follow(const SCEV *S) {
-    const SCEVUDivExpr *D = dyn_cast<SCEVUDivExpr>(S);
-    if (!D)
-      return true;
-    const SCEVConstant *SC = dyn_cast<SCEVConstant>(D->getRHS());
-    if (SC && !SC->getValue()->isZero())
-      return true;
-    IsUnsafe = true;
-    return false;
+    if (const SCEVUDivExpr *D = dyn_cast<SCEVUDivExpr>(S)) {
+      const SCEVConstant *SC = dyn_cast<SCEVConstant>(D->getRHS());
+      if (!SC || SC->getValue()->isZero()) {
+        IsUnsafe = true;
+        return false;
+      }
+    }
+    if (const SCEVAddRecExpr *AR = dyn_cast<SCEVAddRecExpr>(S)) {
+      const SCEV *Step = AR->getStepRecurrence(SE);
+      if (!AR->isAffine() && !SE.dominates(Step, AR->getLoop()->getHeader())) {
+        IsUnsafe = true;
+        return false;
+      }
+    }
+    return true;
   }
   bool isDone() const { return IsUnsafe; }
 };
 }
 
 namespace llvm {
-bool isSafeToExpand(const SCEV *S) {
-  SCEVFindUnsafe Search;
+bool isSafeToExpand(const SCEV *S, ScalarEvolution &SE) {
+  SCEVFindUnsafe Search(SE);
   visitAll(S, Search);
   return !Search.IsUnsafe;
 }
