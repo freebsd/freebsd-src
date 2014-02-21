@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
+#include <sys/bus.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -139,3 +140,4 @@ ASSYM(TRAPFRAMESIZE, sizeof(struct trapframe));
 
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(NIRQ, NIRQ);
+ASSYM(PCPU_SIZE, sizeof(struct pcpu));

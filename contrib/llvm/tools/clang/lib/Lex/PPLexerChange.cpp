@@ -21,7 +21,7 @@
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/PathV2.h"
+#include "llvm/Support/Path.h"
 using namespace clang;
 
 PPCallbacks::~PPCallbacks() {}
@@ -70,7 +70,7 @@ PreprocessorLexer *Preprocessor::getCurrentFileLexer() const {
 /// start lexing tokens from it instead of the current buffer.
 void Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
                                    SourceLocation Loc) {
-  assert(CurTokenLexer == 0 && "Cannot #include a file inside a macro!");
+  assert(!CurTokenLexer && "Cannot #include a file inside a macro!");
   ++NumEnteredSourceFiles;
 
   if (MaxIncludeStackDepth < IncludeMacroStack.size())
@@ -231,6 +231,19 @@ static void computeRelativePath(FileManager &FM, const DirectoryEntry *Dir,
   Result = File->getName();
 }
 
+void Preprocessor::PropagateLineStartLeadingSpaceInfo(Token &Result) {
+  if (CurTokenLexer) {
+    CurTokenLexer->PropagateLineStartLeadingSpaceInfo(Result);
+    return;
+  }
+  if (CurLexer) {
+    CurLexer->PropagateLineStartLeadingSpaceInfo(Result);
+    return;
+  }
+  // FIXME: Handle other kinds of lexers?  It generally shouldn't matter,
+  // but it might if they're empty?
+}
+
 /// HandleEndOfFile - This callback is invoked when the lexer hits the end of
 /// the current file.  This either returns the EOF token or pops a level off
 /// the include stack and keeps going.
@@ -244,8 +257,42 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
           CurPPLexer->MIOpt.GetControllingMacroAtEndOfFile()) {
       // Okay, this has a controlling macro, remember in HeaderFileInfo.
       if (const FileEntry *FE =
-            SourceMgr.getFileEntryForID(CurPPLexer->getFileID()))
+            SourceMgr.getFileEntryForID(CurPPLexer->getFileID())) {
         HeaderInfo.SetFileControllingMacro(FE, ControllingMacro);
+        if (const IdentifierInfo *DefinedMacro =
+              CurPPLexer->MIOpt.GetDefinedMacro()) {
+          if (!ControllingMacro->hasMacroDefinition() &&
+              DefinedMacro != ControllingMacro &&
+              HeaderInfo.FirstTimeLexingFile(FE)) {
+
+            // If the edit distance between the two macros is more than 50%,
+            // DefinedMacro may not be header guard, or can be header guard of
+            // another header file. Therefore, it maybe defining something
+            // completely different. This can be observed in the wild when
+            // handling feature macros or header guards in different files.
+
+            const StringRef ControllingMacroName = ControllingMacro->getName();
+            const StringRef DefinedMacroName = DefinedMacro->getName();
+            const size_t MaxHalfLength = std::max(ControllingMacroName.size(),
+                                                  DefinedMacroName.size()) / 2;
+            const unsigned ED = ControllingMacroName.edit_distance(
+                DefinedMacroName, true, MaxHalfLength);
+            if (ED <= MaxHalfLength) {
+              // Emit a warning for a bad header guard.
+              Diag(CurPPLexer->MIOpt.GetMacroLocation(),
+                   diag::warn_header_guard)
+                  << CurPPLexer->MIOpt.GetMacroLocation() << ControllingMacro;
+              Diag(CurPPLexer->MIOpt.GetDefinedLocation(),
+                   diag::note_header_guard)
+                  << CurPPLexer->MIOpt.GetDefinedLocation() << DefinedMacro
+                  << ControllingMacro
+                  << FixItHint::CreateReplacement(
+                         CurPPLexer->MIOpt.GetDefinedLocation(),
+                         ControllingMacro->getName());
+            }
+          }
+        }
+      }
     }
   }
 
@@ -298,6 +345,9 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
     
     // We're done with the #included file.
     RemoveTopOfLexerStack();
+
+    // Propagate info about start-of-line/leading white-space/etc.
+    PropagateLineStartLeadingSpaceInfo(Result);
 
     // Notify the client, if desired, that we are in a new source file.
     if (Callbacks && !isEndOfMacro && CurPPLexer) {
@@ -401,8 +451,36 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
         }
       }
     }
+
+    // Check whether there are any headers that were included, but not
+    // mentioned at all in the module map. Such headers 
+    SourceLocation StartLoc
+      = SourceMgr.getLocForStartOfFile(SourceMgr.getMainFileID());
+    if (getDiagnostics().getDiagnosticLevel(diag::warn_forgotten_module_header,
+                                            StartLoc)
+          != DiagnosticsEngine::Ignored) {
+      ModuleMap &ModMap = getHeaderSearchInfo().getModuleMap();
+      for (unsigned I = 0, N = SourceMgr.local_sloc_entry_size(); I != N; ++I) {
+        // We only care about file entries.
+        const SrcMgr::SLocEntry &Entry = SourceMgr.getLocalSLocEntry(I);
+        if (!Entry.isFile())
+          continue;
+
+        // Dig out the actual file.
+        const FileEntry *File = Entry.getFile().getContentCache()->OrigEntry;
+        if (!File)
+          continue;
+
+        // If it's not part of a module and not unknown, complain.
+        if (!ModMap.findModuleForHeader(File) &&
+            !ModMap.isHeaderInUnavailableModule(File)) {
+          Diag(StartLoc, diag::warn_forgotten_module_header)
+            << File->getName() << Mod->getFullModuleName();
+        }
+      }
+    }
   }
-  
+
   return true;
 }
 

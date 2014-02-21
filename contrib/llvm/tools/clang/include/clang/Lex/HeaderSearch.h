@@ -53,6 +53,13 @@ struct HeaderFileInfo {
 
   /// \brief Whether this header is part of a module.
   unsigned isModuleHeader : 1;
+
+  /// \brief Whether this header is part of the module that we are building.
+  unsigned isCompilingModuleHeader : 1;
+
+  /// \brief Whether this header is part of the module that we are building.
+  /// This is an instance of ModuleMap::ModuleHeaderRole.
+  unsigned HeaderRole : 2;
   
   /// \brief Whether this structure is considered to already have been
   /// "resolved", meaning that it was loaded from the external source.
@@ -93,8 +100,9 @@ struct HeaderFileInfo {
   
   HeaderFileInfo()
     : isImport(false), isPragmaOnce(false), DirInfo(SrcMgr::C_User), 
-      External(false), isModuleHeader(false), Resolved(false),
-      IndexHeaderMapHeader(false),
+      External(false), isModuleHeader(false), isCompilingModuleHeader(false),
+      HeaderRole(ModuleMap::NormalHeader),
+      Resolved(false), IndexHeaderMapHeader(false),
       NumIncludes(0), ControllingMacroID(0), ControllingMacro(0)  {}
 
   /// \brief Retrieve the controlling macro for this header file, if
@@ -106,6 +114,16 @@ struct HeaderFileInfo {
   bool isNonDefault() const {
     return isImport || isPragmaOnce || NumIncludes || ControllingMacro || 
       ControllingMacroID;
+  }
+
+  /// \brief Get the HeaderRole properly typed.
+  ModuleMap::ModuleHeaderRole getHeaderRole() const {
+    return static_cast<ModuleMap::ModuleHeaderRole>(HeaderRole);
+  }
+
+  /// \brief Set the HeaderRole properly typed.
+  void setHeaderRole(ModuleMap::ModuleHeaderRole Role) {
+    HeaderRole = Role;
   }
 };
 
@@ -222,7 +240,7 @@ class HeaderSearch {
   
 public:
   HeaderSearch(IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts,
-               FileManager &FM, DiagnosticsEngine &Diags,
+               SourceManager &SourceMgr, DiagnosticsEngine &Diags,
                const LangOptions &LangOpts, const TargetInfo *Target);
   ~HeaderSearch();
 
@@ -261,7 +279,7 @@ public:
 
   /// \brief Checks whether the map exists or not.
   bool HasIncludeAliasMap() const {
-    return IncludeAliases;
+    return IncludeAliases.isValid();
   }
 
   /// \brief Map the source include name to the dest include name.
@@ -354,7 +372,7 @@ public:
                               const FileEntry *CurFileEnt,
                               SmallVectorImpl<char> *SearchPath,
                               SmallVectorImpl<char> *RelativePath,
-                              Module **SuggestedModule,
+                              ModuleMap::KnownHeader *SuggestedModule,
                               bool SkipCache = false);
 
   /// \brief Look up a subframework for the specified \#include file.
@@ -368,7 +386,7 @@ public:
       const FileEntry *RelativeFileEnt,
       SmallVectorImpl<char> *SearchPath,
       SmallVectorImpl<char> *RelativePath,
-      Module **SuggestedModule);
+      ModuleMap::KnownHeader *SuggestedModule);
 
   /// \brief Look up the specified framework name in our framework cache.
   /// \returns The DirectoryEntry it is in if we know, null otherwise.
@@ -405,7 +423,9 @@ public:
   }
 
   /// \brief Mark the specified file as part of a module.
-  void MarkFileModuleHeader(const FileEntry *File);
+  void MarkFileModuleHeader(const FileEntry *File,
+                            ModuleMap::ModuleHeaderRole Role,
+                            bool IsCompiledModuleHeader);
 
   /// \brief Increment the count for the number of times the specified
   /// FileEntry has been entered.
@@ -420,6 +440,11 @@ public:
   void SetFileControllingMacro(const FileEntry *File,
                                const IdentifierInfo *ControllingMacro) {
     getFileInfo(File).ControllingMacro = ControllingMacro;
+  }
+
+  /// \brief Return true if this is the first time encountering this header.
+  bool FirstTimeLexingFile(const FileEntry *File) {
+    return getFileInfo(File).NumIncludes == 1;
   }
 
   /// \brief Determine whether this file is intended to be safe from
@@ -471,25 +496,33 @@ public:
   ///
   /// \param Root The "root" directory, at which we should stop looking for
   /// module maps.
-  bool hasModuleMap(StringRef Filename, const DirectoryEntry *Root);
+  ///
+  /// \param IsSystem Whether the directories we're looking at are system
+  /// header directories.
+  bool hasModuleMap(StringRef Filename, const DirectoryEntry *Root,
+                    bool IsSystem);
   
   /// \brief Retrieve the module that corresponds to the given file, if any.
   ///
   /// \param File The header that we wish to map to a module.
-  Module *findModuleForHeader(const FileEntry *File) const;
+  ModuleMap::KnownHeader findModuleForHeader(const FileEntry *File) const;
   
   /// \brief Read the contents of the given module map file.
   ///
   /// \param File The module map file.
+  /// \param IsSystem Whether this file is in a system header directory.
   ///
   /// \returns true if an error occurred, false otherwise.
-  bool loadModuleMapFile(const FileEntry *File);
+  bool loadModuleMapFile(const FileEntry *File, bool IsSystem);
 
   /// \brief Collect the set of all known, top-level modules.
   ///
   /// \param Modules Will be filled with the set of known, top-level modules.
   void collectAllModules(SmallVectorImpl<Module *> &Modules);
-                         
+
+  /// \brief Load all known, top-level system modules.
+  void loadTopLevelSystemModules();
+
 private:
   /// \brief Retrieve a module with the given name, which may be part of the
   /// given framework.
@@ -515,9 +548,6 @@ public:
   ModuleMap &getModuleMap() { return ModMap; }
   
   unsigned header_file_size() const { return FileInfo.size(); }
-
-  // Used by ASTReader.
-  void setHeaderFileInfoForUID(HeaderFileInfo HFI, unsigned UID);
 
   /// \brief Return the HeaderFileInfo structure for the specified FileEntry.
   const HeaderFileInfo &getFileInfo(const FileEntry *FE) const {
@@ -577,18 +607,21 @@ private:
   ///
   /// \param DirName The name of the directory where we will look for a module
   /// map file.
+  /// \param IsSystem Whether this is a system header directory.
   ///
   /// \returns The result of attempting to load the module map file from the
   /// named directory.
-  LoadModuleMapResult loadModuleMapFile(StringRef DirName);
+  LoadModuleMapResult loadModuleMapFile(StringRef DirName, bool IsSystem);
 
   /// \brief Try to load the module map file in the given directory.
   ///
   /// \param Dir The directory where we will look for a module map file.
+  /// \param IsSystem Whether this is a system header directory.
   ///
   /// \returns The result of attempting to load the module map file from the
   /// named directory.
-  LoadModuleMapResult loadModuleMapFile(const DirectoryEntry *Dir);
+  LoadModuleMapResult loadModuleMapFile(const DirectoryEntry *Dir,
+                                        bool IsSystem);
 
   /// \brief Return the HeaderFileInfo structure for the specified FileEntry.
   HeaderFileInfo &getFileInfo(const FileEntry *FE);

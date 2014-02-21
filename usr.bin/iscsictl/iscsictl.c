@@ -381,7 +381,6 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 	struct iscsi_session_list isl;
 	unsigned int i, nentries = 1;
 	int error;
-	bool show_periphs;
 
 	for (;;) {
 		states = realloc(states,
@@ -455,7 +454,6 @@ kernel_list(int iscsi_fd, const struct target *targ __unused,
 		for (i = 0; i < isl.isl_nentries; i++) {
 			state = &states[i];
 			conf = &state->iss_conf;
-			show_periphs = false;
 
 			printf("%-36s %-16s ",
 			    conf->isc_target, conf->isc_target_addr);

@@ -39,8 +39,10 @@
 #ifndef _NET_NETMAP_H_
 #define _NET_NETMAP_H_
 
-#define	NETMAP_API	10		/* current API version */
+#define	NETMAP_API	11		/* current API version */
 
+#define	NETMAP_MIN_API	11		/* min and max versions accepted */
+#define	NETMAP_MAX_API	15
 /*
  * Some fields should be cache-aligned to reduce contention.
  * The alignment is architecture and OS dependent, but rather than
@@ -73,20 +75,21 @@
     +===============+                 /        | buf_idx, len  | slot[1]
     | txring_ofs[0] | (rel.to nifp)--'         | flags, ptr    |
     | txring_ofs[1] |                          +---------------+
-  (tx+1+extra_tx entries)                     (num_slots entries)
+     (tx+1 entries)                           (num_slots entries)
     | txring_ofs[t] |                          | buf_idx, len  | slot[n-1]
     +---------------+                          | flags, ptr    |
     | rxring_ofs[0] |                          +---------------+
     | rxring_ofs[1] |
-  (rx+1+extra_rx entries)
+     (rx+1 entries)
     | rxring_ofs[r] |
     +---------------+
 
- * For each "interface" (NIC, host stack, VALE switch port) attached to a
- * file descriptor, the mmap()ed region contains a (logically readonly)
+ * For each "interface" (NIC, host stack, PIPE, VALE switch port) bound to
+ * a file descriptor, the mmap()ed region contains a (logically readonly)
  * struct netmap_if pointing to struct netmap_ring's.
+ *
  * There is one netmap_ring per physical NIC ring, plus one tx/rx ring
- * pair attached to the host stack (this pair is unused for VALE ports).
+ * pair attached to the host stack (this pair is unused for non-NIC ports).
  *
  * All physical/host stack ports share the same memory region,
  * so that zero-copy can be implemented between them.
@@ -98,7 +101,42 @@
  * is provided for user-supplied buffers in the tx path.
  *
  * In user space, the buffer address is computed as
- *	(char *)ring + buf_ofs + index*NETMAP_BUF_SIZE
+ *	(char *)ring + buf_ofs + index * NETMAP_BUF_SIZE
+ *
+ * Added in NETMAP_API 11:
+ *
+ * + NIOCREGIF can request the allocation of extra spare buffers from
+ *   the same memory pool. The desired number of buffers must be in
+ *   nr_arg3. The ioctl may return fewer buffers, depending on memory
+ *   availability. nr_arg3 will return the actual value, and, once
+ *   mapped, nifp->ni_bufs_head will be the index of the first buffer.
+ *
+ *   The buffers are linked to each other using the first uint32_t
+ *   as the index. On close, ni_bufs_head must point to the list of
+ *   buffers to be released.
+ *
+ * + NIOCREGIF can request space for extra rings (and buffers)
+ *   allocated in the same memory space. The number of extra rings
+ *   is in nr_arg1, and is advisory. This is a no-op on NICs where
+ *   the size of the memory space is fixed.
+ *
+ * + NIOCREGIF can attach to PIPE rings sharing the same memory
+ *   space with a parent device. The ifname indicates the parent device,
+ *   which must already exist. Flags in nr_flags indicate if we want to
+ *   bind the master or slave side, the index (from nr_ringid)
+ *   is just a cookie and does need to be sequential.
+ *
+ * + NIOCREGIF can also attach to 'monitor' rings that replicate
+ *   the content of specific rings, also from the same memory space.
+ *
+ *   Extra flags in nr_flags support the above functions.
+ *   Application libraries may use the following naming scheme:
+ *	netmap:foo			all NIC ring pairs
+ *	netmap:foo^			only host ring pair
+ *	netmap:foo+			all NIC ring + host ring pairs
+ *	netmap:foo-k			the k-th NIC ring pair
+ *	netmap:foo{k			PIPE ring pair k, master side
+ *	netmap:foo}k			PIPE ring pair k, slave side
  */
 
 /*
@@ -284,8 +322,8 @@ struct netmap_if {
 	const uint32_t	ni_tx_rings;	/* number of HW tx rings */
 	const uint32_t	ni_rx_rings;	/* number of HW rx rings */
 
-	const uint32_t	ni_extra_tx_rings;
-	const uint32_t	ni_extra_rx_rings;
+	uint32_t	ni_bufs_head;	/* head index for extra bufs */
+	uint32_t	ni_spare1[5];
 	/*
 	 * The following array contains the offset of each netmap ring
 	 * from this structure, in the following order:
@@ -321,6 +359,7 @@ struct netmap_if {
  *
  * The actual argument (struct nmreq) has a number of options to request
  * different functions.
+ * The following are used in NIOCREGIF when nr_cmd == 0:
  *
  * nr_name	(in)
  *	The name of the port (em0, valeXXX:YYY, etc.)
@@ -337,6 +376,13 @@ struct netmap_if {
  *
  * nr_ringid (in)
  *	Indicates how rings should be bound to the file descriptors.
+ *	If nr_flags != 0, then the low bits (in NETMAP_RING_MASK)
+ *	are used to indicate the ring number, and nr_flags specifies
+ *	the actual rings to bind. NETMAP_NO_TX_POLL is unaffected.
+ *
+ *	NOTE: THE FOLLOWING (nr_flags == 0) IS DEPRECATED:
+ *	If nr_flags == 0, NETMAP_HW_RING and NETMAP_SW_RING control
+ *	the binding as follows:
  *	0 (default)			binds all physical rings
  *	NETMAP_HW_RING | ring number	binds a single ring pair
  *	NETMAP_SW_RING			binds only the host tx/rx rings
@@ -345,8 +391,41 @@ struct netmap_if {
  *		packets on tx rings only if POLLOUT is set.
  *		The default is to push any pending packet.
  *
- *	NETMAP_PRIV_MEM is set on return for ports that use private
- *		memory regions and cannot use buffer swapping.
+ *	NETMAP_DO_RX_POLL can be OR-ed to make select()/poll() release
+ *		packets on rx rings also when POLLIN is NOT set.
+ *		The default is to touch the rx ring only with POLLIN.
+ *		Note that this is the opposite of TX because it
+ *		reflects the common usage.
+ *
+ *	NOTE: NETMAP_PRIV_MEM IS DEPRECATED, use nr_arg2 instead.
+ *	NETMAP_PRIV_MEM is set on return for ports that do not use
+ *		the global memory allocator.
+ *		This information is not significant and applications
+ *		should look at the region id in nr_arg2
+ *
+ * nr_flags	is the recommended mode to indicate which rings should
+ *		be bound to a file descriptor. Values are NR_REG_*
+ *
+ * nr_arg1 (in)	The number of extra rings to be reserved.
+ *		Especially when allocating a VALE port the system only
+ *		allocates the amount of memory needed for the port.
+ *		If more shared memory rings are desired (e.g. for pipes),
+ *		the first invocation for the same basename/allocator
+ *		should specify a suitable number. Memory cannot be
+ *		extended after the first allocation without closing
+ *		all ports on the same region.
+ *
+ * nr_arg2 (in/out) The identity of the memory region used.
+ *		On input, 0 means the system decides autonomously,
+ *		other values may try to select a specific region.
+ *		On return the actual value is reported.
+ *		Region '1' is the global allocator, normally shared
+ *		by all interfaces. Other values are private regions.
+ *		If two ports the same region zero-copy is possible.
+ *
+ * nr_arg3 (in/out)	number of extra buffers to be allocated.
+ *
+ *
  *
  * nr_cmd (in)	if non-zero indicates a special command:
  *	NETMAP_BDG_ATTACH	 and nr_name = vale*:ifname
@@ -362,17 +441,33 @@ struct netmap_if {
  *	NETMAP_BDG_LIST
  *		list the configuration of VALE switches.
  *
- *	NETMAP_BDG_OFFSET	XXX ?
- *		Set the offset of data in packets. Used with VALE
- *		switches where the clients use the vhost header.
+ *	NETMAP_BDG_VNET_HDR
+ *		Set the virtio-net header length used by the client
+ *		of a VALE switch port.
  *
- * nr_arg1, nr_arg2 (in/out)		command specific
+ * nr_arg1, nr_arg2, nr_arg3  (in/out)		command specific
+ *
+ *	
  *
  */
 
 
 /*
- * struct nmreq overlays a struct ifreq
+ * struct nmreq overlays a struct ifreq (just the name)
+ *
+ * On input, nr_ringid indicates which rings we are requesting,
+ * with the low flags for the specific ring number.
+ * selection			FLAGS	RING INDEX
+ *
+ *	all the NIC rings	0x0000	-
+ *	only HOST ring		0x2000	ring index
+ *	single NIC ring		0x4000	-
+ *	all the NIC+HOST rings	0x6000	-
+ *	one pipe ring, master	0x8000	ring index
+ *	*** INVALID		0xA000
+ *	one pipe ring, slave	0xC000	ring index
+ *	*** INVALID		0xE000
+ * 
  */
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
@@ -383,27 +478,47 @@ struct nmreq {
 	uint32_t	nr_rx_slots;	/* slots in rx rings */
 	uint16_t	nr_tx_rings;	/* number of tx rings */
 	uint16_t	nr_rx_rings;	/* number of rx rings */
+
 	uint16_t	nr_ringid;	/* ring(s) we care about */
-#define NETMAP_PRIV_MEM	0x8000		/* rings use private memory */
-#define NETMAP_HW_RING	0x4000		/* low bits indicate one hw ring */
-#define NETMAP_SW_RING	0x2000		/* process the sw ring */
+#define NETMAP_HW_RING		0x4000	/* single NIC ring pair */
+#define NETMAP_SW_RING		0x2000	/* only host ring pair */
+
+#define NETMAP_RING_MASK	0x0fff	/* the ring number */
+
 #define NETMAP_NO_TX_POLL	0x1000	/* no automatic txsync on poll */
-#define NETMAP_RING_MASK 0xfff		/* the ring number */
+
+#define NETMAP_DO_RX_POLL	0x8000	/* DO automatic rxsync on poll */
 
 	uint16_t	nr_cmd;
 #define NETMAP_BDG_ATTACH	1	/* attach the NIC */
 #define NETMAP_BDG_DETACH	2	/* detach the NIC */
 #define NETMAP_BDG_LOOKUP_REG	3	/* register lookup function */
 #define NETMAP_BDG_LIST		4	/* get bridge's info */
-#define NETMAP_BDG_OFFSET       5       /* set the port offset */
+#define NETMAP_BDG_VNET_HDR     5       /* set the port virtio-net-hdr length */
+#define NETMAP_BDG_OFFSET	NETMAP_BDG_VNET_HDR	/* deprecated alias */
 
-	uint16_t	nr_arg1;
+	uint16_t	nr_arg1;	/* reserve extra rings in NIOCREGIF */
 #define NETMAP_BDG_HOST		1	/* attach the host stack on ATTACH */
-#define NETMAP_BDG_MAX_OFFSET	12
 
 	uint16_t	nr_arg2;
-	uint32_t	spare2[3];
+	uint32_t	nr_arg3;	/* req. extra buffers in NIOCREGIF */
+	uint32_t	nr_flags;
+	/* various modes, extends nr_ringid */
+	uint32_t	spare2[1];
 };
+
+#define NR_REG_MASK		0xf /* values for nr_flags */
+enum {	NR_REG_DEFAULT	= 0,	/* backward compat, should not be used. */
+	NR_REG_ALL_NIC	= 1,
+	NR_REG_SW	= 2,
+	NR_REG_NIC_SW	= 3,
+	NR_REG_ONE_NIC	= 4,
+	NR_REG_PIPE_MASTER = 5,
+	NR_REG_PIPE_SLAVE = 6,
+};
+/* monitor uses the NR_REG to select the rings to monitor */
+#define NR_MONITOR_TX	0x100
+#define NR_MONITOR_RX	0x200
 
 
 /*

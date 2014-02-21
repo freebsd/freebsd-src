@@ -277,8 +277,20 @@ pci_lpc_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	/*
 	 * Do not allow more than one LPC bridge to be configured.
 	 */
-	if (lpc_bridge != NULL)
+	if (lpc_bridge != NULL) {
+		fprintf(stderr, "Only one LPC bridge is allowed.\n");
 		return (-1);
+	}
+
+	/*
+	 * Enforce that the LPC can only be configured on bus 0. This
+	 * simplifies the ACPI DSDT because it can provide a decode for
+	 * all legacy i/o ports behind bus 0.
+	 */
+	if (pi->pi_bus != 0) {
+		fprintf(stderr, "LPC bridge can be present only on bus 0.\n");
+		return (-1);
+	}
 
 	if (lpc_init() != 0)
 		return (-1);

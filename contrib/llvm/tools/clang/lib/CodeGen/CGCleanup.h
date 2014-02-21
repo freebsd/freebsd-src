@@ -14,13 +14,15 @@
 #ifndef CLANG_CODEGEN_CGCLEANUP_H
 #define CLANG_CODEGEN_CGCLEANUP_H
 
-/// EHScopeStack is defined in CodeGenFunction.h, but its
-/// implementation is in this file and in CGCleanup.cpp.
-#include "CodeGenFunction.h"
+#include "EHScopeStack.h"
+#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
-  class Value;
-  class BasicBlock;
+class BasicBlock;
+class Value;
+class ConstantInt;
+class AllocaInst;
 }
 
 namespace clang {

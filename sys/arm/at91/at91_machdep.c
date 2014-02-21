@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/kdb.h>
 #include <sys/msgbuf.h>
+#include <machine/physmem.h>
 #include <machine/reg.h>
 #include <machine/cpu.h>
 #include <machine/board.h>
@@ -116,36 +117,22 @@ extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
-/* Physical and virtual addresses for some global pages */
-
-vm_paddr_t phys_avail[10];
-vm_paddr_t dump_avail[4];
-
-struct pv_addr systempage;
-struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-struct pv_addr kernelstack;
-
 /* Static device mappings. */
 const struct arm_devmap_entry at91_devmap[] = {
 	/*
-	 * Map the on-board devices VA == PA so that we can access them
-	 * with the MMU on or off.
+	 * Map the critical on-board devices. The interrupt vector at
+	 * 0xffff0000 makes it impossible to map them PA == VA, so we map all
+	 * 0xfffxxxxx addresses to 0xdffxxxxx. This covers all critical devices
+	 * on all members of the AT91SAM9 and AT91RM9200 families.
 	 */
 	{
-		/*
-		 * This at least maps the interrupt controller, the UART
-		 * and the timer. Other devices should use newbus to
-		 * map their memory anyway.
-		 */
 		0xdff00000,
 		0xfff00000,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/* There's a notion that we should do the rest of these lazily. */
 	/*
 	 * We can't just map the OHCI registers VA == PA, because
 	 * AT91xx_xxx_BASE belongs to the userland address space.
@@ -163,16 +150,16 @@ const struct arm_devmap_entry at91_devmap[] = {
 		 * on this chip select for a VA/PA mapping.
 		 */
 		/* Internal Memory 1MB  */
+		AT91RM92_OHCI_VA_BASE,
 		AT91RM92_OHCI_BASE,
-		AT91RM92_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* CompactFlash controller. Portion of EBI CS4 1MB */
+		AT91RM92_CF_VA_BASE,
 		AT91RM92_CF_BASE,
-		AT91RM92_CF_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -183,16 +170,16 @@ const struct arm_devmap_entry at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G20_OHCI_VA_BASE,
 		AT91SAM9G20_OHCI_BASE,
-		AT91SAM9G20_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{
 		/* EBI CS3 256MB */
+		AT91SAM9G20_NAND_VA_BASE,
 		AT91SAM9G20_NAND_BASE,
-		AT91SAM9G20_NAND_PA_BASE,
 		AT91SAM9G20_NAND_SIZE,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
@@ -202,14 +189,23 @@ const struct arm_devmap_entry at91_devmap[] = {
 	 */
 	{
 		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_VA_BASE,
 		AT91SAM9G45_OHCI_BASE,
-		AT91SAM9G45_OHCI_PA_BASE,
 		0x00100000,
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
 	{ 0, 0, 0, 0, 0, }
 };
+
+/* Physical and virtual addresses for some global pages */
+
+struct pv_addr systempage;
+struct pv_addr msgbufpv;
+struct pv_addr irqstack;
+struct pv_addr undstack;
+struct pv_addr abtstack;
+struct pv_addr kernelstack;
 
 #ifdef LINUX_BOOT_ABI
 extern int membanks;
@@ -465,6 +461,7 @@ initarm(struct arm_boot_params *abp)
 	vm_offset_t lastaddr;
 
 	lastaddr = parse_boot_param(abp);
+	arm_physmem_kernaddr = abp->abp_physaddr;
 	set_cpufuncs();
 	pcpu0_init();
 
@@ -475,7 +472,7 @@ initarm(struct arm_boot_params *abp)
 	/* Define a macro to simplify memory allocation */
 #define valloc_pages(var, np)						\
 	alloc_pages((var).pv_va, (np));					\
-	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
+	(var).pv_pa = (var).pv_va + (abp->abp_physaddr - KERNVIRTADDR);
 
 #define alloc_pages(var, np)						\
 	(var) = freemempos;						\
@@ -495,7 +492,7 @@ initarm(struct arm_boot_params *abp)
 			    L2_TABLE_SIZE_REAL;
 			kernel_pt_table[i].pv_pa =
 			    kernel_pt_table[i].pv_va - KERNVIRTADDR +
-			    KERNPHYSADDR;
+			    abp->abp_physaddr;
 		}
 	}
 	/*
@@ -593,7 +590,11 @@ initarm(struct arm_boot_params *abp)
 		printf("Warning: No soc support for %s found.\n", soc_info.name);
 
 	memsize = board_init();
-	physmem = memsize / PAGE_SIZE;
+	if (memsize == -1) {
+		printf("board_init() failed, cannot determine ram size; "
+		    "assuming 16MB\n");
+		memsize = 16 * 1024 * 1024;
+	}
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -632,7 +633,6 @@ initarm(struct arm_boot_params *abp)
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 
 	pmap_curmaxkvaddr = afterkern + L1_S_SIZE * (KERNEL_PT_KERN_NUM - 1);
-	arm_dump_avail_init(memsize, sizeof(dump_avail)/sizeof(dump_avail[0]));
 	/* Always use the 256MB of KVA we have available between the kernel and devices */
 	vm_max_kernel_address = KERNVIRTADDR + (256 << 20);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
@@ -640,15 +640,21 @@ initarm(struct arm_boot_params *abp)
 	msgbufinit(msgbufp, msgbufsize);
 	mutex_init();
 
-	i = 0;
-#if PHYSADDR != KERNPHYSADDR
-	phys_avail[i++] = PHYSADDR;
-	phys_avail[i++] = KERNPHYSADDR;
-#endif
-	phys_avail[i++] = virtual_avail - KERNVIRTADDR + KERNPHYSADDR;
-	phys_avail[i++] = PHYSADDR + memsize;
-	phys_avail[i++] = 0;
-	phys_avail[i++] = 0;
+	/*
+	 * Add the physical ram we have available.
+	 *
+	 * Exclude the kernel, and all the things we allocated which immediately
+	 * follow the kernel, from the VM allocation pool but not from crash
+	 * dumps.  virtual_avail is a global variable which tracks the kva we've
+	 * "allocated" while setting up pmaps.
+	 *
+	 * Prepare the list of physical memory available to the vm subsystem.
+	 */
+	arm_physmem_hardware_region(PHYSADDR, memsize);
+	arm_physmem_exclude_region(abp->abp_physaddr, 
+	    virtual_avail - KERNVIRTADDR, EXFLAG_NOALLOC);
+	arm_physmem_init_kernel_globals();
+
 	init_param2(physmem);
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -

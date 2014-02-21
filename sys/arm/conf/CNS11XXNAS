@@ -25,7 +25,6 @@ ident		CNS11XXNAS
 #options 	KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
 #options 	FLASHADDR=0x50000000
 #options 	LOADERRAMADDR=0x00000000
-#options 	STARTUP_PAGETABLE_ADDR=0x10000000
 
 include		"../econa/std.econa"
 
@@ -103,10 +102,8 @@ device		loop
 device		md
 device          random          # Entropy device
 
-#options 	ARM_USE_SMALL_ALLOC
 
 device		usb
-options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 #options 	USB_DEBUG
 device		ohci
 device		ehci

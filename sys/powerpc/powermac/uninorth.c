@@ -143,7 +143,7 @@ static devclass_t	unin_chip_devclass;
  */
 static device_t		unin_chip;
 
-DRIVER_MODULE(unin, nexus, unin_chip_driver, unin_chip_devclass, 0, 0);
+DRIVER_MODULE(unin, ofwbus, unin_chip_driver, unin_chip_devclass, 0, 0);
 
 /*
  * Add an interrupt to the dev's resource list if present

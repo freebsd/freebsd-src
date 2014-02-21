@@ -66,7 +66,7 @@ namespace {
     ///
     bool EliminatePHINodes(MachineFunction &MF, MachineBasicBlock &MBB);
     void LowerPHINode(MachineBasicBlock &MBB,
-                      MachineBasicBlock::iterator AfterPHIsIt);
+                      MachineBasicBlock::iterator LastPHIIt);
 
     /// analyzePHINodes - Gather information about the PHI nodes in
     /// here. In particular, we want to map the number of uses of a virtual
@@ -185,10 +185,11 @@ bool PHIElimination::EliminatePHINodes(MachineFunction &MF,
 
   // Get an iterator to the first instruction after the last PHI node (this may
   // also be the end of the basic block).
-  MachineBasicBlock::iterator AfterPHIsIt = MBB.SkipPHIsAndLabels(MBB.begin());
+  MachineBasicBlock::iterator LastPHIIt =
+    prior(MBB.SkipPHIsAndLabels(MBB.begin()));
 
   while (MBB.front().isPHI())
-    LowerPHINode(MBB, AfterPHIsIt);
+    LowerPHINode(MBB, LastPHIIt);
 
   return true;
 }
@@ -218,8 +219,11 @@ static bool isSourceDefinedByImplicitDef(const MachineInstr *MPhi,
 /// LowerPHINode - Lower the PHI node at the top of the specified block,
 ///
 void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
-                                  MachineBasicBlock::iterator AfterPHIsIt) {
+                                  MachineBasicBlock::iterator LastPHIIt) {
   ++NumLowered;
+
+  MachineBasicBlock::iterator AfterPHIsIt = llvm::next(LastPHIIt);
+
   // Unlink the PHI node from the basic block, but don't delete the PHI yet.
   MachineInstr *MPhi = MBB.remove(MBB.begin());
 
@@ -309,14 +313,14 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
     if (IncomingReg) {
       // Add the region from the beginning of MBB to the copy instruction to
       // IncomingReg's live interval.
-      LiveInterval &IncomingLI = LIS->getOrCreateInterval(IncomingReg);
+      LiveInterval &IncomingLI = LIS->createEmptyInterval(IncomingReg);
       VNInfo *IncomingVNI = IncomingLI.getVNInfoAt(MBBStartIndex);
       if (!IncomingVNI)
         IncomingVNI = IncomingLI.getNextValue(MBBStartIndex,
                                               LIS->getVNInfoAllocator());
-      IncomingLI.addRange(LiveRange(MBBStartIndex,
-                                    DestCopyIndex.getRegSlot(),
-                                    IncomingVNI));
+      IncomingLI.addSegment(LiveInterval::Segment(MBBStartIndex,
+                                                  DestCopyIndex.getRegSlot(),
+                                                  IncomingVNI));
     }
 
     LiveInterval &DestLI = LIS->getInterval(DestReg);
@@ -328,14 +332,14 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
       // the copy instruction.
       VNInfo *OrigDestVNI = DestLI.getVNInfoAt(MBBStartIndex);
       assert(OrigDestVNI && "PHI destination should be live at block entry.");
-      DestLI.removeRange(MBBStartIndex, MBBStartIndex.getDeadSlot());
+      DestLI.removeSegment(MBBStartIndex, MBBStartIndex.getDeadSlot());
       DestLI.createDeadDef(DestCopyIndex.getRegSlot(),
                            LIS->getVNInfoAllocator());
       DestLI.removeValNo(OrigDestVNI);
     } else {
       // Otherwise, remove the region from the beginning of MBB to the copy
       // instruction from DestReg's live interval.
-      DestLI.removeRange(MBBStartIndex, DestCopyIndex.getRegSlot());
+      DestLI.removeSegment(MBBStartIndex, DestCopyIndex.getRegSlot());
       VNInfo *DestVNI = DestLI.getVNInfoAt(DestCopyIndex.getRegSlot());
       assert(DestVNI && "PHI destination should be live at its definition.");
       DestVNI->def = DestCopyIndex.getRegSlot();
@@ -456,7 +460,7 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
     if (LIS) {
       if (NewSrcInstr) {
         LIS->InsertMachineInstrInMaps(NewSrcInstr);
-        LIS->addLiveRangeToEndOfBlock(IncomingReg, NewSrcInstr);
+        LIS->addSegmentToEndOfBlock(IncomingReg, NewSrcInstr);
       }
 
       if (!SrcUndef &&
@@ -507,8 +511,8 @@ void PHIElimination::LowerPHINode(MachineBasicBlock &MBB,
                  "Cannot find kill instruction");
 
           SlotIndex LastUseIndex = LIS->getInstructionIndex(KillInst);
-          SrcLI.removeRange(LastUseIndex.getRegSlot(),
-                            LIS->getMBBEndIdx(&opBlock));
+          SrcLI.removeSegment(LastUseIndex.getRegSlot(),
+                              LIS->getMBBEndIdx(&opBlock));
         }
       }
     }

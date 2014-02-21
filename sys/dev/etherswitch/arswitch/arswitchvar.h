@@ -35,6 +35,8 @@ typedef enum {
 	AR8X16_SWITCH_AR8226,
 	AR8X16_SWITCH_AR8316,
 	AR8X16_SWITCH_AR9340,
+	AR8X16_SWITCH_AR8327,
+	AR8X16_SWITCH_AR8337,
 } ar8x16_switch_type;
 
 /*
@@ -53,6 +55,9 @@ struct arswitch_softc {
 	int		is_mii;		/* PHY mode is MII (XXX which PHY?) */
 	int		page;
 	int		is_internal_switch;
+	int		chip_ver;
+	int		chip_rev;
+	int		mii_lo_first;
 	ar8x16_switch_type	sc_switchtype;
 	char		*ifname[AR8X16_NUM_PHYS];
 	device_t	miibus[AR8X16_NUM_PHYS];
@@ -65,8 +70,18 @@ struct arswitch_softc {
 	uint32_t	vlan_mode;
 
 	struct {
+		/* Global setup */
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
+
+		/* Port functions */
+		void (* arswitch_port_init) (struct arswitch_softc *, int);
+
+		/* VLAN functions */
+		int (* arswitch_port_vlan_setup) (struct arswitch_softc *,
+		    etherswitch_port_t *);
+		int (* arswitch_port_vlan_get) (struct arswitch_softc *,
+		    etherswitch_port_t *);
 	} hal;
 };
 

@@ -66,7 +66,7 @@ static struct bootinfo  bi;
     COPY32(strlen(s) + 1, a, c);		\
     if (c)					\
         CALLBACK(copyin, s, a, strlen(s) + 1);  \
-    a += roundup(strlen(s) + 1, sizeof(u_long));\
+    a += roundup(strlen(s) + 1, sizeof(uint32_t));\
 }
 
 #define MOD_NAME(a, s, c)	MOD_STR(MODINFO_NAME, a, s, c)
@@ -78,7 +78,7 @@ static struct bootinfo  bi;
     COPY32(sizeof(s), a, c);			\
     if (c)					\
         CALLBACK(copyin, &s, a, sizeof(s));	\
-    a += roundup(sizeof(s), sizeof(u_long));	\
+    a += roundup(sizeof(s), sizeof(uint32_t));	\
 }
 
 #define MOD_ADDR(a, s, c)	MOD_VAR(MODINFO_ADDR, a, s, c)
@@ -89,7 +89,7 @@ static struct bootinfo  bi;
     COPY32(mm->md_size, a, c);			\
     if (c)					\
         CALLBACK(copyin, mm->md_data, a, mm->md_size);    \
-    a += roundup(mm->md_size, sizeof(u_long));\
+    a += roundup(mm->md_size, sizeof(uint32_t));\
 }
 
 #define MOD_END(a, c) {				\
@@ -146,6 +146,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     int				bootdevnr, howto;
     char			*kernelname;
     const char			*kernelpath;
+    uint64_t			lowmem, highmem;
 
     howto = bi_getboothowto(args);
 
@@ -198,9 +199,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
     file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
-#if 0
     bios_addsmapdata(kfp);
-#endif
 
     /* Figure out the size and location of the metadata */
     *modulep = addr;
@@ -237,11 +236,10 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
         bi.bi_bios_geom[i] = bd_getbigeom(i);
 #endif
     bi.bi_size = sizeof(bi);
+    CALLBACK(getmem, &lowmem, &highmem);
     bi.bi_memsizes_valid = 1;
-#if 0
-    bi.bi_basemem = bios_basemem / 1024;
-    bi.bi_extmem = bios_extmem / 1024;
-#endif
+    bi.bi_basemem = 640;
+    bi.bi_extmem = (lowmem - 0x100000) / 1024;
     bi.bi_envp = envp;
     bi.bi_modulep = *modulep;
     bi.bi_kernend = kernend;
@@ -251,7 +249,7 @@ bi_load32(char *args, int *howtop, int *bootdevp, vm_offset_t *bip, vm_offset_t 
     /*
      * Copy the legacy bootinfo and kernel name to the guest at 0x2000
      */
-    bi.bi_kernelname = (char *) (0x2000 + sizeof(bi));
+    bi.bi_kernelname = 0x2000 + sizeof(bi);
     CALLBACK(copyin, &bi, 0x2000, sizeof(bi));
     CALLBACK(copyin, kernelname, 0x2000 + sizeof(bi), strlen(kernelname) + 1);
 

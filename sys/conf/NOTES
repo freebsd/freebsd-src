@@ -446,6 +446,15 @@ options 	DEBUG_MEMGUARD
 options 	DEBUG_REDZONE
 
 #
+# EARLY_PRINTF enables support for calling a special printf (eprintf)
+# very early in the kernel (before cn_init() has been called).  This
+# should only be used for debugging purposes early in boot.  Normally,
+# it is not defined.  It is commented out here because this feature
+# isn't generally available. And the required eputc() isn't defined.
+#
+#options	EARLY_PRINTF
+
+#
 # KTRACE enables the system-call tracing facility ktrace(2).  To be more
 # SMP-friendly, KTRACE uses a worker thread to process most trace events
 # asynchronously to the thread generating the event.  This requires a
@@ -2651,6 +2660,9 @@ device		umct
 device		umodem
 # USB mouse
 device		ums
+# USB touchpad(s)
+device		atp
+device		wsp
 # eGalax USB touch screen
 device		uep
 # Diamond Rio 500 MP3 player
@@ -2734,6 +2746,8 @@ device		upgt
 # Ralink Technology RT2500USB wireless driver
 device		ural
 #
+# RNDIS USB ethernet driver
+device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
 #

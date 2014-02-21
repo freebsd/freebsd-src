@@ -1,6 +1,7 @@
-/*	$Id: term.h,v 1.90 2011/12/04 23:10:52 schwarze Exp $ */
+/*	$Id: term.h,v 1.97 2013/12/25 00:39:31 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -37,6 +38,7 @@ enum	termfont {
 	TERMFONT_NONE = 0,
 	TERMFONT_BOLD,
 	TERMFONT_UNDER,
+	TERMFONT_BI,
 	TERMFONT__MAX
 };
 
@@ -57,26 +59,28 @@ struct	termp {
 	size_t		  defrmargin;	/* Right margin of the device. */
 	size_t		  rmargin;	/* Current right margin. */
 	size_t		  maxrmargin;	/* Max right margin. */
-	int		  maxcols;	/* Max size of buf. */
+	size_t		  maxcols;	/* Max size of buf. */
 	size_t		  offset;	/* Margin offest. */
 	size_t		  tabwidth;	/* Distance of tab positions. */
-	int		  col;		/* Bytes in buf. */
+	size_t		  col;		/* Bytes in buf. */
 	size_t		  viscol;	/* Chars on current line. */
+	size_t		  trailspace;	/* See termp_flushln(). */
 	int		  overstep;	/* See termp_flushln(). */
+	int		  skipvsp;	/* Vertical space to skip. */
 	int		  flags;
 #define	TERMP_SENTENCE	 (1 << 1)	/* Space before a sentence. */
 #define	TERMP_NOSPACE	 (1 << 2)	/* No space before words. */
-#define	TERMP_NOBREAK	 (1 << 4)	/* See term_flushln(). */
-#define	TERMP_IGNDELIM	 (1 << 6)	/* Delims like regulars. */
-#define	TERMP_NONOSPACE	 (1 << 7)	/* No space (no autounset). */
-#define	TERMP_DANGLE	 (1 << 8)	/* See term_flushln(). */
-#define	TERMP_HANG	 (1 << 9)	/* See term_flushln(). */
-#define	TERMP_TWOSPACE	 (1 << 10)	/* See term_flushln(). */
+#define	TERMP_NONOSPACE	 (1 << 3)	/* No space (no autounset). */
+#define	TERMP_NBRWORD	 (1 << 4)	/* Make next word nonbreaking. */
+#define	TERMP_KEEP	 (1 << 5)	/* Keep words together. */
+#define	TERMP_PREKEEP	 (1 << 6)	/* ...starting with the next one. */
+#define	TERMP_SKIPCHAR	 (1 << 7)	/* Skip the next character. */
+#define	TERMP_NOBREAK	 (1 << 8)	/* See term_flushln(). */
+#define	TERMP_DANGLE	 (1 << 9)	/* See term_flushln(). */
+#define	TERMP_HANG	 (1 << 10)	/* See term_flushln(). */
 #define	TERMP_NOSPLIT	 (1 << 11)	/* See termp_an_pre/post(). */
 #define	TERMP_SPLIT	 (1 << 12)	/* See termp_an_pre/post(). */
 #define	TERMP_ANPREC	 (1 << 13)	/* See termp_an_pre(). */
-#define	TERMP_KEEP	 (1 << 14)	/* Keep words together. */
-#define	TERMP_PREKEEP	 (1 << 15)	/* ...starting with the next one. */
 	int		 *buf;		/* Output buffer. */
 	enum termenc	  enc;		/* Type of encoding. */
 	struct mchars	 *symtab;	/* Encoded-symbol table. */

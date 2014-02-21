@@ -883,8 +883,6 @@
 
       &hwlist.nge;
 
-      &hwlist.nve;
-
       &hwlist.nxge;
 
       &hwlist.oce;
@@ -892,6 +890,10 @@
       &hwlist.pcn;
 
       &hwlist.qlxgb;
+
+      &hwlist.qlxgbe;
+
+      &hwlist.qlxge;
 
       &hwlist.re;
 

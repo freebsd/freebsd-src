@@ -88,17 +88,23 @@ __FBSDID("$FreeBSD$");
 
 #define DOMAIN_CLIENT	0x01
 
-#ifdef _ARM_ARCH_6
-#define GET_PCPU(tmp) \
-	mrc p15, 0, tmp, c13, c0, 4;
+#if defined(_ARM_ARCH_6) && defined(SMP)
+#define GET_PCPU(tmp, tmp2) \
+	mrc 	p15, 0, tmp, c0, c0, 5;	\
+	and	tmp, tmp, #0xf;		\
+	ldr 	tmp2, .Lcurpcpu+4;	\
+	mul 	tmp, tmp, tmp2;		\
+	ldr	tmp2, .Lcurpcpu;	\
+	add	tmp, tmp, tmp2;
 #else
-.Lcurpcpu:
-	.word	_C_LABEL(__pcpu)
 
-#define GET_PCPU(tmp) \
+#define GET_PCPU(tmp, tmp2) \
 	ldr	tmp, .Lcurpcpu
 #endif
 
+.Lcurpcpu:
+        .word   _C_LABEL(__pcpu)
+	.word	PCPU_SIZE
 .Lcpufuncs:	
 	.word	_C_LABEL(cpufuncs)
 .Lblocked_lock:
@@ -112,7 +118,7 @@ ENTRY(cpu_throw)
 	 * r5 = newtd
 	 */
 
-	GET_PCPU(r7)
+	GET_PCPU(r7, r9)
 
 #ifdef VFP
 	/*
@@ -191,10 +197,15 @@ ENTRY(cpu_throw)
 	ldr	r13, [r7, #(PCB_SP)]
 #endif
 
+	GET_PCPU(r6, r4)
+	/* Hook in a new pcb */
+	str	r7, [r6, #PC_CURPCB]
 	/* We have a new curthread now so make a note it */
-	GET_CURTHREAD_PTR(r6)
+	add	r6, r6, #PC_CURTHREAD
 	str	r5, [r6]
-
+#ifndef ARM_TP_ADDRESS
+	mcr	p15, 0, r5, c13, c0, 4
+#endif
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
 #ifdef ARM_TP_ADDRESS
@@ -207,9 +218,6 @@ ENTRY(cpu_throw)
 #else
 	mcr p15, 0, r6, c13, c0, 3
 #endif
-	/* Hook in a new pcb */
-	GET_PCPU(r6)
-	str	r7, [r6, #PC_CURPCB]
 
 	add	sp, sp, #4;
 	ldmfd	sp!, {r4-r7, pc}
@@ -231,11 +239,13 @@ ENTRY(cpu_switch)
 
 	/* Process is now on a processor. */
 	/* We have a new curthread now so make a note it */
-	GET_CURTHREAD_PTR(r7)
-	str	r1, [r7]
+	GET_PCPU(r7, r2)
+	str	r1, [r7, #PC_CURTHREAD]
+#ifndef ARM_TP_ADDRESS
+	mcr	p15, 0, r1, c13, c0, 4
+#endif
 
 	/* Hook in a new pcb */
-	GET_PCPU(r7)
 	ldr	r2, [r1, #TD_PCB]
 	str	r2, [r7, #PC_CURPCB]
 
@@ -315,7 +325,7 @@ ENTRY(cpu_switch)
 	 * a future exception will bounce the backup settings in the fp unit.
 	 * XXX vfp_store can't change r4
 	 */
-	GET_PCPU(r7)
+	GET_PCPU(r7, r8)
 	ldr	r8, [r7, #(PC_VFPCTHREAD)]
 	cmp	r4, r8				/* old thread used vfp? */
 	bne	1f				/* no, don't save */
@@ -440,7 +450,6 @@ ENTRY(cpu_switch)
 #if defined(SCHED_ULE) && defined(SMP)
 	ldr	r6, .Lblocked_lock
 	GET_CURTHREAD_PTR(r3)
-
 1:
 	ldr	r4, [r3, #TD_LOCK]
 	cmp	r4, r6
@@ -516,7 +525,7 @@ ENTRY(savectx)
 	 * registers and state, and modify the control as needed.
 	 * a future exception will bounce the backup settings in the fp unit.
 	 */
-	GET_PCPU(r7)
+	GET_PCPU(r7, r4)
 	ldr	r4, [r7, #(PC_VFPCTHREAD)]      /* vfp thread */
 	ldr	r2, [r7, #(PC_CURTHREAD)]       /* current thread */
 	cmp	r4, r2

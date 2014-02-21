@@ -11486,6 +11486,10 @@ start_function (cp_decl_specifier_seq *declspecs,
     gcc_assert (same_type_p (TREE_TYPE (TREE_TYPE (decl1)),
 			     integer_type_node));
 
+  /* APPLE LOCAL begin warn missing prototype 6261539 */
+  check_missing_prototype (decl1);
+  /* APPLE LOCAL end warn missing prototype 6261539 */
+
   start_preparsed_function (decl1, attrs, /*flags=*/SF_DEFAULT);
 
   return 1;

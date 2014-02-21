@@ -15,9 +15,6 @@
 // Mips Operand, Complex Patterns and Transformations Definitions.
 //===----------------------------------------------------------------------===//
 
-// Instruction operand types
-def shamt_64       : Operand<i64>;
-
 // Unsigned Operand
 def uimm16_64      : Operand<i64> {
   let PrintMethod = "printUnsignedImm";
@@ -34,42 +31,21 @@ def immZExt6 : ImmLeaf<i32, [{return Imm == (Imm & 0x3f);}]>;
 //===----------------------------------------------------------------------===//
 // Instructions specific format
 //===----------------------------------------------------------------------===//
-let DecoderNamespace = "Mips64" in {
-
-multiclass Atomic2Ops64<PatFrag Op> {
-  def NAME : Atomic2Ops<Op, CPU64Regs, CPURegs>,
-             Requires<[NotN64, HasStdEnc]>;
-  def _P8  : Atomic2Ops<Op, CPU64Regs, CPU64Regs>,
-             Requires<[IsN64, HasStdEnc]> {
-    let isCodeGenOnly = 1;
-  }
-}
-
-multiclass AtomicCmpSwap64<PatFrag Op>  {
-  def NAME : AtomicCmpSwap<Op, CPU64Regs, CPURegs>,
-             Requires<[NotN64, HasStdEnc]>;
-  def _P8  : AtomicCmpSwap<Op, CPU64Regs, CPU64Regs>,
-             Requires<[IsN64, HasStdEnc]> {
-    let isCodeGenOnly = 1;
-  }
-}
-}
-let usesCustomInserter = 1, Predicates = [HasStdEnc],
-  DecoderNamespace = "Mips64" in {
-  defm ATOMIC_LOAD_ADD_I64  : Atomic2Ops64<atomic_load_add_64>;
-  defm ATOMIC_LOAD_SUB_I64  : Atomic2Ops64<atomic_load_sub_64>;
-  defm ATOMIC_LOAD_AND_I64  : Atomic2Ops64<atomic_load_and_64>;
-  defm ATOMIC_LOAD_OR_I64   : Atomic2Ops64<atomic_load_or_64>;
-  defm ATOMIC_LOAD_XOR_I64  : Atomic2Ops64<atomic_load_xor_64>;
-  defm ATOMIC_LOAD_NAND_I64 : Atomic2Ops64<atomic_load_nand_64>;
-  defm ATOMIC_SWAP_I64      : Atomic2Ops64<atomic_swap_64>;
-  defm ATOMIC_CMP_SWAP_I64  : AtomicCmpSwap64<atomic_cmp_swap_64>;
+let usesCustomInserter = 1 in {
+  def ATOMIC_LOAD_ADD_I64  : Atomic2Ops<atomic_load_add_64, GPR64>;
+  def ATOMIC_LOAD_SUB_I64  : Atomic2Ops<atomic_load_sub_64, GPR64>;
+  def ATOMIC_LOAD_AND_I64  : Atomic2Ops<atomic_load_and_64, GPR64>;
+  def ATOMIC_LOAD_OR_I64   : Atomic2Ops<atomic_load_or_64, GPR64>;
+  def ATOMIC_LOAD_XOR_I64  : Atomic2Ops<atomic_load_xor_64, GPR64>;
+  def ATOMIC_LOAD_NAND_I64 : Atomic2Ops<atomic_load_nand_64, GPR64>;
+  def ATOMIC_SWAP_I64      : Atomic2Ops<atomic_swap_64, GPR64>;
+  def ATOMIC_CMP_SWAP_I64  : AtomicCmpSwap<atomic_cmp_swap_64, GPR64>;
 }
 
 /// Pseudo instructions for loading and storing accumulator registers.
-let isPseudo = 1 in {
-  defm LOAD_AC128  : LoadM<"load_ac128", ACRegs128>;
-  defm STORE_AC128 : StoreM<"store_ac128", ACRegs128>;
+let isPseudo = 1, isCodeGenOnly = 1 in {
+  def LOAD_ACC128  : Load<"", ACC128>;
+  def STORE_ACC128 : Store<"", ACC128>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -77,166 +53,174 @@ let isPseudo = 1 in {
 //===----------------------------------------------------------------------===//
 let DecoderNamespace = "Mips64" in {
 /// Arithmetic Instructions (ALU Immediate)
-def DADDi   : ArithLogicI<"daddi", simm16_64, CPU64RegsOpnd>, ADDI_FM<0x18>;
-def DADDiu  : ArithLogicI<"daddiu", simm16_64, CPU64RegsOpnd, immSExt16, add>,
+def DADDi   : ArithLogicI<"daddi", simm16_64, GPR64Opnd>, ADDI_FM<0x18>;
+def DADDiu  : ArithLogicI<"daddiu", simm16_64, GPR64Opnd, IIArith,
+                          immSExt16, add>,
               ADDI_FM<0x19>, IsAsCheapAsAMove;
-def DANDi   : ArithLogicI<"andi", uimm16_64, CPU64RegsOpnd, immZExt16, and>,
-              ADDI_FM<0xc>;
-def SLTi64  : SetCC_I<"slti", setlt, simm16_64, immSExt16, CPU64Regs>,
+
+let isCodeGenOnly = 1 in {
+def SLTi64  : SetCC_I<"slti", setlt, simm16_64, immSExt16, GPR64Opnd>,
               SLTI_FM<0xa>;
-def SLTiu64 : SetCC_I<"sltiu", setult, simm16_64, immSExt16, CPU64Regs>,
+def SLTiu64 : SetCC_I<"sltiu", setult, simm16_64, immSExt16, GPR64Opnd>,
               SLTI_FM<0xb>;
-def ORi64   : ArithLogicI<"ori", uimm16_64, CPU64RegsOpnd, immZExt16, or>,
+def ANDi64 : ArithLogicI<"andi", uimm16_64, GPR64Opnd, IILogic, immZExt16,
+                         and>,
+             ADDI_FM<0xc>;
+def ORi64   : ArithLogicI<"ori", uimm16_64, GPR64Opnd, IILogic, immZExt16,
+                          or>,
               ADDI_FM<0xd>;
-def XORi64  : ArithLogicI<"xori", uimm16_64, CPU64RegsOpnd, immZExt16, xor>,
+def XORi64  : ArithLogicI<"xori", uimm16_64, GPR64Opnd, IILogic, immZExt16,
+                          xor>,
               ADDI_FM<0xe>;
-def LUi64   : LoadUpper<"lui", CPU64Regs, uimm16_64>, LUI_FM;
+def LUi64   : LoadUpper<"lui", GPR64Opnd, uimm16_64>, LUI_FM;
+}
 
 /// Arithmetic Instructions (3-Operand, R-Type)
-def DADD   : ArithLogicR<"dadd", CPU64RegsOpnd>, ADD_FM<0, 0x2c>;
-def DADDu  : ArithLogicR<"daddu", CPU64RegsOpnd, 1, IIAlu, add>,
+def DADD   : ArithLogicR<"dadd", GPR64Opnd>, ADD_FM<0, 0x2c>;
+def DADDu  : ArithLogicR<"daddu", GPR64Opnd, 1, IIArith, add>,
                               ADD_FM<0, 0x2d>;
-def DSUBu  : ArithLogicR<"dsubu", CPU64RegsOpnd, 0, IIAlu, sub>,
+def DSUBu  : ArithLogicR<"dsubu", GPR64Opnd, 0, IIArith, sub>,
                               ADD_FM<0, 0x2f>;
-def SLT64  : SetCC_R<"slt", setlt, CPU64Regs>, ADD_FM<0, 0x2a>;
-def SLTu64 : SetCC_R<"sltu", setult, CPU64Regs>, ADD_FM<0, 0x2b>;
-def AND64  : ArithLogicR<"and", CPU64RegsOpnd, 1, IIAlu, and>, ADD_FM<0, 0x24>;
-def OR64   : ArithLogicR<"or", CPU64RegsOpnd, 1, IIAlu, or>, ADD_FM<0, 0x25>;
-def XOR64  : ArithLogicR<"xor", CPU64RegsOpnd, 1, IIAlu, xor>, ADD_FM<0, 0x26>;
-def NOR64  : LogicNOR<"nor", CPU64RegsOpnd>, ADD_FM<0, 0x27>;
+
+let isCodeGenOnly = 1 in {
+def SLT64  : SetCC_R<"slt", setlt, GPR64Opnd>, ADD_FM<0, 0x2a>;
+def SLTu64 : SetCC_R<"sltu", setult, GPR64Opnd>, ADD_FM<0, 0x2b>;
+def AND64  : ArithLogicR<"and", GPR64Opnd, 1, IIArith, and>, ADD_FM<0, 0x24>;
+def OR64   : ArithLogicR<"or", GPR64Opnd, 1, IIArith, or>, ADD_FM<0, 0x25>;
+def XOR64  : ArithLogicR<"xor", GPR64Opnd, 1, IIArith, xor>, ADD_FM<0, 0x26>;
+def NOR64  : LogicNOR<"nor", GPR64Opnd>, ADD_FM<0, 0x27>;
+}
 
 /// Shift Instructions
-def DSLL   : shift_rotate_imm<"dsll", shamt, CPU64RegsOpnd, shl, immZExt6>,
+def DSLL   : shift_rotate_imm<"dsll", uimm6, GPR64Opnd, shl, immZExt6>,
              SRA_FM<0x38, 0>;
-def DSRL   : shift_rotate_imm<"dsrl", shamt, CPU64RegsOpnd, srl, immZExt6>,
+def DSRL   : shift_rotate_imm<"dsrl", uimm6, GPR64Opnd, srl, immZExt6>,
              SRA_FM<0x3a, 0>;
-def DSRA   : shift_rotate_imm<"dsra", shamt, CPU64RegsOpnd, sra, immZExt6>,
+def DSRA   : shift_rotate_imm<"dsra", uimm6, GPR64Opnd, sra, immZExt6>,
              SRA_FM<0x3b, 0>;
-def DSLLV  : shift_rotate_reg<"dsllv", CPU64RegsOpnd, shl>, SRLV_FM<0x14, 0>;
-def DSRLV  : shift_rotate_reg<"dsrlv", CPU64RegsOpnd, srl>, SRLV_FM<0x16, 0>;
-def DSRAV  : shift_rotate_reg<"dsrav", CPU64RegsOpnd, sra>, SRLV_FM<0x17, 0>;
-def DSLL32 : shift_rotate_imm<"dsll32", shamt, CPU64RegsOpnd>, SRA_FM<0x3c, 0>;
-def DSRL32 : shift_rotate_imm<"dsrl32", shamt, CPU64RegsOpnd>, SRA_FM<0x3e, 0>;
-def DSRA32 : shift_rotate_imm<"dsra32", shamt, CPU64RegsOpnd>, SRA_FM<0x3f, 0>;
-}
+def DSLLV  : shift_rotate_reg<"dsllv", GPR64Opnd, shl>, SRLV_FM<0x14, 0>;
+def DSRLV  : shift_rotate_reg<"dsrlv", GPR64Opnd, srl>, SRLV_FM<0x16, 0>;
+def DSRAV  : shift_rotate_reg<"dsrav", GPR64Opnd, sra>, SRLV_FM<0x17, 0>;
+def DSLL32 : shift_rotate_imm<"dsll32", uimm5, GPR64Opnd>, SRA_FM<0x3c, 0>;
+def DSRL32 : shift_rotate_imm<"dsrl32", uimm5, GPR64Opnd>, SRA_FM<0x3e, 0>;
+def DSRA32 : shift_rotate_imm<"dsra32", uimm5, GPR64Opnd>, SRA_FM<0x3f, 0>;
+
 // Rotate Instructions
-let Predicates = [HasMips64r2, HasStdEnc],
-    DecoderNamespace = "Mips64" in {
-  def DROTR  : shift_rotate_imm<"drotr", shamt, CPU64RegsOpnd, rotr, immZExt6>,
+let Predicates = [HasMips64r2, HasStdEnc] in {
+  def DROTR  : shift_rotate_imm<"drotr", uimm6, GPR64Opnd, rotr, immZExt6>,
                SRA_FM<0x3a, 1>;
-  def DROTRV : shift_rotate_reg<"drotrv", CPU64RegsOpnd, rotr>,
+  def DROTRV : shift_rotate_reg<"drotrv", GPR64Opnd, rotr>,
                SRLV_FM<0x16, 1>;
+  def DROTR32 : shift_rotate_imm<"drotr32", uimm5, GPR64Opnd>, SRA_FM<0x3e, 1>;
 }
 
-let DecoderNamespace = "Mips64" in {
 /// Load and Store Instructions
 ///  aligned
-defm LB64  : LoadM<"lb", CPU64Regs, sextloadi8>, LW_FM<0x20>;
-defm LBu64 : LoadM<"lbu", CPU64Regs, zextloadi8>, LW_FM<0x24>;
-defm LH64  : LoadM<"lh", CPU64Regs, sextloadi16>, LW_FM<0x21>;
-defm LHu64 : LoadM<"lhu", CPU64Regs, zextloadi16>, LW_FM<0x25>;
-defm LW64  : LoadM<"lw", CPU64Regs, sextloadi32>, LW_FM<0x23>;
-defm LWu64 : LoadM<"lwu", CPU64Regs, zextloadi32>, LW_FM<0x27>;
-defm SB64  : StoreM<"sb", CPU64Regs, truncstorei8>, LW_FM<0x28>;
-defm SH64  : StoreM<"sh", CPU64Regs, truncstorei16>, LW_FM<0x29>;
-defm SW64  : StoreM<"sw", CPU64Regs, truncstorei32>, LW_FM<0x2b>;
-defm LD    : LoadM<"ld", CPU64Regs, load>, LW_FM<0x37>;
-defm SD    : StoreM<"sd", CPU64Regs, store>, LW_FM<0x3f>;
+let isCodeGenOnly = 1 in {
+def LB64  : Load<"lb", GPR64Opnd, sextloadi8, IILoad>, LW_FM<0x20>;
+def LBu64 : Load<"lbu", GPR64Opnd, zextloadi8, IILoad>, LW_FM<0x24>;
+def LH64  : Load<"lh", GPR64Opnd, sextloadi16, IILoad>, LW_FM<0x21>;
+def LHu64 : Load<"lhu", GPR64Opnd, zextloadi16, IILoad>, LW_FM<0x25>;
+def LW64  : Load<"lw", GPR64Opnd, sextloadi32, IILoad>, LW_FM<0x23>;
+def SB64  : Store<"sb", GPR64Opnd, truncstorei8, IIStore>, LW_FM<0x28>;
+def SH64  : Store<"sh", GPR64Opnd, truncstorei16, IIStore>, LW_FM<0x29>;
+def SW64  : Store<"sw", GPR64Opnd, truncstorei32, IIStore>, LW_FM<0x2b>;
+}
+
+def LWu   : Load<"lwu", GPR64Opnd, zextloadi32, IILoad>, LW_FM<0x27>;
+def LD    : Load<"ld", GPR64Opnd, load, IILoad>, LW_FM<0x37>;
+def SD    : Store<"sd", GPR64Opnd, store, IIStore>, LW_FM<0x3f>;
 
 /// load/store left/right
-defm LWL64 : LoadLeftRightM<"lwl", MipsLWL, CPU64Regs>, LW_FM<0x22>;
-defm LWR64 : LoadLeftRightM<"lwr", MipsLWR, CPU64Regs>, LW_FM<0x26>;
-defm SWL64 : StoreLeftRightM<"swl", MipsSWL, CPU64Regs>, LW_FM<0x2a>;
-defm SWR64 : StoreLeftRightM<"swr", MipsSWR, CPU64Regs>, LW_FM<0x2e>;
+let isCodeGenOnly = 1 in {
+def LWL64 : LoadLeftRight<"lwl", MipsLWL, GPR64Opnd, IILoad>, LW_FM<0x22>;
+def LWR64 : LoadLeftRight<"lwr", MipsLWR, GPR64Opnd, IILoad>, LW_FM<0x26>;
+def SWL64 : StoreLeftRight<"swl", MipsSWL, GPR64Opnd, IIStore>, LW_FM<0x2a>;
+def SWR64 : StoreLeftRight<"swr", MipsSWR, GPR64Opnd, IIStore>, LW_FM<0x2e>;
+}
 
-defm LDL   : LoadLeftRightM<"ldl", MipsLDL, CPU64Regs>, LW_FM<0x1a>;
-defm LDR   : LoadLeftRightM<"ldr", MipsLDR, CPU64Regs>, LW_FM<0x1b>;
-defm SDL   : StoreLeftRightM<"sdl", MipsSDL, CPU64Regs>, LW_FM<0x2c>;
-defm SDR   : StoreLeftRightM<"sdr", MipsSDR, CPU64Regs>, LW_FM<0x2d>;
+def LDL   : LoadLeftRight<"ldl", MipsLDL, GPR64Opnd, IILoad>, LW_FM<0x1a>;
+def LDR   : LoadLeftRight<"ldr", MipsLDR, GPR64Opnd, IILoad>, LW_FM<0x1b>;
+def SDL   : StoreLeftRight<"sdl", MipsSDL, GPR64Opnd, IIStore>, LW_FM<0x2c>;
+def SDR   : StoreLeftRight<"sdr", MipsSDR, GPR64Opnd, IIStore>, LW_FM<0x2d>;
 
 /// Load-linked, Store-conditional
-let Predicates = [NotN64, HasStdEnc] in {
-  def LLD : LLBase<"lld", CPU64RegsOpnd, mem>, LW_FM<0x34>;
-  def SCD : SCBase<"scd", CPU64RegsOpnd, mem>, LW_FM<0x3c>;
-}
-
-let Predicates = [IsN64, HasStdEnc], isCodeGenOnly = 1 in {
-  def LLD_P8 : LLBase<"lld", CPU64RegsOpnd, mem64>, LW_FM<0x34>;
-  def SCD_P8 : SCBase<"scd", CPU64RegsOpnd, mem64>, LW_FM<0x3c>;
-}
+def LLD : LLBase<"lld", GPR64Opnd>, LW_FM<0x34>;
+def SCD : SCBase<"scd", GPR64Opnd>, LW_FM<0x3c>;
 
 /// Jump and Branch Instructions
-def JR64   : IndirectBranch<CPU64Regs>, MTLO_FM<8>;
-def BEQ64  : CBranch<"beq", seteq, CPU64Regs>, BEQ_FM<4>;
-def BNE64  : CBranch<"bne", setne, CPU64Regs>, BEQ_FM<5>;
-def BGEZ64 : CBranchZero<"bgez", setge, CPU64Regs>, BGEZ_FM<1, 1>;
-def BGTZ64 : CBranchZero<"bgtz", setgt, CPU64Regs>, BGEZ_FM<7, 0>;
-def BLEZ64 : CBranchZero<"blez", setle, CPU64Regs>, BGEZ_FM<6, 0>;
-def BLTZ64 : CBranchZero<"bltz", setlt, CPU64Regs>, BGEZ_FM<1, 0>;
+let isCodeGenOnly = 1 in {
+def JR64   : IndirectBranch<"jr", GPR64Opnd>, MTLO_FM<8>;
+def BEQ64  : CBranch<"beq", brtarget, seteq, GPR64Opnd>, BEQ_FM<4>;
+def BNE64  : CBranch<"bne", brtarget, setne, GPR64Opnd>, BEQ_FM<5>;
+def BGEZ64 : CBranchZero<"bgez", brtarget, setge, GPR64Opnd>, BGEZ_FM<1, 1>;
+def BGTZ64 : CBranchZero<"bgtz", brtarget, setgt, GPR64Opnd>, BGEZ_FM<7, 0>;
+def BLEZ64 : CBranchZero<"blez", brtarget, setle, GPR64Opnd>, BGEZ_FM<6, 0>;
+def BLTZ64 : CBranchZero<"bltz", brtarget, setlt, GPR64Opnd>, BGEZ_FM<1, 0>;
+def JALR64 : JumpLinkReg<"jalr", GPR64Opnd>, JALR_FM;
+def JALR64Pseudo : JumpLinkRegPseudo<GPR64Opnd, JALR, RA, GPR32Opnd>;
+def TAILCALL64_R : JumpFR<"tcallr", GPR64Opnd, MipsTailCall>,
+                   MTLO_FM<8>, IsTailCall;
 }
-let DecoderNamespace = "Mips64" in
-def JALR64 : JumpLinkReg<"jalr", CPU64Regs>, JALR_FM;
-def JALR64Pseudo : JumpLinkRegPseudo<CPU64Regs, JALR64, RA_64>;
-def TAILCALL64_R : JumpFR<CPU64Regs, MipsTailCall>, MTLO_FM<8>, IsTailCall;
 
-let DecoderNamespace = "Mips64" in {
 /// Multiply and Divide Instructions.
-def DMULT  : Mult<"dmult", IIImul, CPU64RegsOpnd, [HI64, LO64]>,
+def DMULT  : Mult<"dmult", IIImult, GPR64Opnd, [HI0_64, LO0_64]>,
              MULT_FM<0, 0x1c>;
-def DMULTu : Mult<"dmultu", IIImul, CPU64RegsOpnd, [HI64, LO64]>,
+def DMULTu : Mult<"dmultu", IIImult, GPR64Opnd, [HI0_64, LO0_64]>,
              MULT_FM<0, 0x1d>;
-def PseudoDMULT  : MultDivPseudo<DMULT, ACRegs128, CPU64RegsOpnd, MipsMult,
-                                 IIImul>;
-def PseudoDMULTu : MultDivPseudo<DMULTu, ACRegs128, CPU64RegsOpnd, MipsMultu,
-                                 IIImul>;
-def DSDIV : Div<"ddiv", IIIdiv, CPU64RegsOpnd, [HI64, LO64]>, MULT_FM<0, 0x1e>;
-def DUDIV : Div<"ddivu", IIIdiv, CPU64RegsOpnd, [HI64, LO64]>, MULT_FM<0, 0x1f>;
-def PseudoDSDIV : MultDivPseudo<DSDIV, ACRegs128, CPU64RegsOpnd, MipsDivRem,
-                                IIIdiv, 0>;
-def PseudoDUDIV : MultDivPseudo<DUDIV, ACRegs128, CPU64RegsOpnd, MipsDivRemU,
-                                IIIdiv, 0>;
+def PseudoDMULT  : MultDivPseudo<DMULT, ACC128, GPR64Opnd, MipsMult,
+                                 IIImult>;
+def PseudoDMULTu : MultDivPseudo<DMULTu, ACC128, GPR64Opnd, MipsMultu,
+                                 IIImult>;
+def DSDIV : Div<"ddiv", IIIdiv, GPR64Opnd, [HI0_64, LO0_64]>, MULT_FM<0, 0x1e>;
+def DUDIV : Div<"ddivu", IIIdiv, GPR64Opnd, [HI0_64, LO0_64]>, MULT_FM<0, 0x1f>;
+def PseudoDSDIV : MultDivPseudo<DSDIV, ACC128, GPR64Opnd, MipsDivRem,
+                                IIIdiv, 0, 1, 1>;
+def PseudoDUDIV : MultDivPseudo<DUDIV, ACC128, GPR64Opnd, MipsDivRemU,
+                                IIIdiv, 0, 1, 1>;
 
-def MTHI64 : MoveToLOHI<"mthi", CPU64Regs, [HI64]>, MTLO_FM<0x11>;
-def MTLO64 : MoveToLOHI<"mtlo", CPU64Regs, [LO64]>, MTLO_FM<0x13>;
-def MFHI64 : MoveFromLOHI<"mfhi", CPU64Regs, [HI64]>, MFLO_FM<0x10>;
-def MFLO64 : MoveFromLOHI<"mflo", CPU64Regs, [LO64]>, MFLO_FM<0x12>;
+let isCodeGenOnly = 1 in {
+def MTHI64 : MoveToLOHI<"mthi", GPR64Opnd, [HI0_64]>, MTLO_FM<0x11>;
+def MTLO64 : MoveToLOHI<"mtlo", GPR64Opnd, [LO0_64]>, MTLO_FM<0x13>;
+def MFHI64 : MoveFromLOHI<"mfhi", GPR64Opnd, AC0_64>, MFLO_FM<0x10>;
+def MFLO64 : MoveFromLOHI<"mflo", GPR64Opnd, AC0_64>, MFLO_FM<0x12>;
+def PseudoMFHI64 : PseudoMFLOHI<GPR64, ACC128, MipsMFHI>;
+def PseudoMFLO64 : PseudoMFLOHI<GPR64, ACC128, MipsMFLO>;
+def PseudoMTLOHI64 : PseudoMTLOHI<ACC128, GPR64>;
 
 /// Sign Ext In Register Instructions.
-def SEB64 : SignExtInReg<"seb", i8, CPU64Regs>, SEB_FM<0x10, 0x20>;
-def SEH64 : SignExtInReg<"seh", i16, CPU64Regs>, SEB_FM<0x18, 0x20>;
+def SEB64 : SignExtInReg<"seb", i8, GPR64Opnd>, SEB_FM<0x10, 0x20>;
+def SEH64 : SignExtInReg<"seh", i16, GPR64Opnd>, SEB_FM<0x18, 0x20>;
+}
 
 /// Count Leading
-def DCLZ : CountLeading0<"dclz", CPU64RegsOpnd>, CLO_FM<0x24>;
-def DCLO : CountLeading1<"dclo", CPU64RegsOpnd>, CLO_FM<0x25>;
+def DCLZ : CountLeading0<"dclz", GPR64Opnd>, CLO_FM<0x24>;
+def DCLO : CountLeading1<"dclo", GPR64Opnd>, CLO_FM<0x25>;
 
 /// Double Word Swap Bytes/HalfWords
-def DSBH : SubwordSwap<"dsbh", CPU64RegsOpnd>, SEB_FM<2, 0x24>;
-def DSHD : SubwordSwap<"dshd", CPU64RegsOpnd>, SEB_FM<5, 0x24>;
+def DSBH : SubwordSwap<"dsbh", GPR64Opnd>, SEB_FM<2, 0x24>;
+def DSHD : SubwordSwap<"dshd", GPR64Opnd>, SEB_FM<5, 0x24>;
 
-def LEA_ADDiu64 : EffectiveAddress<"daddiu", CPU64Regs, mem_ea_64>, LW_FM<0x19>;
+def LEA_ADDiu64 : EffectiveAddress<"daddiu", GPR64Opnd>, LW_FM<0x19>;
 
-}
-let DecoderNamespace = "Mips64" in {
-def RDHWR64 : ReadHardware<CPU64Regs, HW64RegsOpnd>, RDHWR_FM;
+let isCodeGenOnly = 1 in
+def RDHWR64 : ReadHardware<GPR64Opnd, HWRegsOpnd>, RDHWR_FM;
 
-def DEXT : ExtBase<"dext", CPU64RegsOpnd>, EXT_FM<3>;
-let Pattern = []<dag> in {
-  def DEXTU : ExtBase<"dextu", CPU64RegsOpnd>, EXT_FM<2>;
-  def DEXTM : ExtBase<"dextm", CPU64RegsOpnd>, EXT_FM<1>;
-}
-def DINS : InsBase<"dins", CPU64RegsOpnd>, EXT_FM<7>;
-let Pattern = []<dag> in {
-  def DINSU : InsBase<"dinsu", CPU64RegsOpnd>, EXT_FM<6>;
-  def DINSM : InsBase<"dinsm", CPU64RegsOpnd>, EXT_FM<5>;
-}
+def DEXT : ExtBase<"dext", GPR64Opnd, uimm6, MipsExt>, EXT_FM<3>;
+def DEXTU : ExtBase<"dextu", GPR64Opnd, uimm6>, EXT_FM<2>;
+def DEXTM : ExtBase<"dextm", GPR64Opnd, uimm5>, EXT_FM<1>;
+
+def DINS : InsBase<"dins", GPR64Opnd, uimm6, MipsIns>, EXT_FM<7>;
+def DINSU : InsBase<"dinsu", GPR64Opnd, uimm6>, EXT_FM<6>;
+def DINSM : InsBase<"dinsm", GPR64Opnd, uimm5>, EXT_FM<5>;
 
 let isCodeGenOnly = 1, rs = 0, shamt = 0 in {
-  def DSLL64_32 : FR<0x00, 0x3c, (outs CPU64Regs:$rd), (ins CPURegs:$rt),
-                     "dsll\t$rd, $rt, 32", [], IIAlu>;
-  def SLL64_32 : FR<0x0, 0x00, (outs CPU64Regs:$rd), (ins CPURegs:$rt),
-                    "sll\t$rd, $rt, 0", [], IIAlu>;
-  def SLL64_64 : FR<0x0, 0x00, (outs CPU64Regs:$rd), (ins CPU64Regs:$rt),
-                    "sll\t$rd, $rt, 0", [], IIAlu>;
+  def DSLL64_32 : FR<0x00, 0x3c, (outs GPR64:$rd), (ins GPR32:$rt),
+                     "dsll\t$rd, $rt, 32", [], IIArith>;
+  def SLL64_32 : FR<0x0, 0x00, (outs GPR64:$rd), (ins GPR32:$rt),
+                    "sll\t$rd, $rt, 0", [], IIArith>;
+  def SLL64_64 : FR<0x0, 0x00, (outs GPR64:$rd), (ins GPR64:$rt),
+                    "sll\t$rd, $rt, 0", [], IIArith>;
 }
 }
 //===----------------------------------------------------------------------===//
@@ -244,17 +228,11 @@ let isCodeGenOnly = 1, rs = 0, shamt = 0 in {
 //===----------------------------------------------------------------------===//
 
 // extended loads
-let Predicates = [NotN64, HasStdEnc] in {
+let Predicates = [HasStdEnc] in {
   def : MipsPat<(i64 (extloadi1  addr:$src)), (LB64 addr:$src)>;
   def : MipsPat<(i64 (extloadi8  addr:$src)), (LB64 addr:$src)>;
   def : MipsPat<(i64 (extloadi16 addr:$src)), (LH64 addr:$src)>;
   def : MipsPat<(i64 (extloadi32 addr:$src)), (LW64 addr:$src)>;
-}
-let Predicates = [IsN64, HasStdEnc] in {
-  def : MipsPat<(i64 (extloadi1  addr:$src)), (LB64_P8 addr:$src)>;
-  def : MipsPat<(i64 (extloadi8  addr:$src)), (LB64_P8 addr:$src)>;
-  def : MipsPat<(i64 (extloadi16 addr:$src)), (LH64_P8 addr:$src)>;
-  def : MipsPat<(i64 (extloadi32 addr:$src)), (LW64_P8 addr:$src)>;
 }
 
 // hi/lo relocs
@@ -273,118 +251,80 @@ def : MipsPat<(MipsLo tglobaltlsaddr:$in),
               (DADDiu ZERO_64, tglobaltlsaddr:$in)>;
 def : MipsPat<(MipsLo texternalsym:$in), (DADDiu ZERO_64, texternalsym:$in)>;
 
-def : MipsPat<(add CPU64Regs:$hi, (MipsLo tglobaladdr:$lo)),
-              (DADDiu CPU64Regs:$hi, tglobaladdr:$lo)>;
-def : MipsPat<(add CPU64Regs:$hi, (MipsLo tblockaddress:$lo)),
-              (DADDiu CPU64Regs:$hi, tblockaddress:$lo)>;
-def : MipsPat<(add CPU64Regs:$hi, (MipsLo tjumptable:$lo)),
-              (DADDiu CPU64Regs:$hi, tjumptable:$lo)>;
-def : MipsPat<(add CPU64Regs:$hi, (MipsLo tconstpool:$lo)),
-              (DADDiu CPU64Regs:$hi, tconstpool:$lo)>;
-def : MipsPat<(add CPU64Regs:$hi, (MipsLo tglobaltlsaddr:$lo)),
-              (DADDiu CPU64Regs:$hi, tglobaltlsaddr:$lo)>;
+def : MipsPat<(add GPR64:$hi, (MipsLo tglobaladdr:$lo)),
+              (DADDiu GPR64:$hi, tglobaladdr:$lo)>;
+def : MipsPat<(add GPR64:$hi, (MipsLo tblockaddress:$lo)),
+              (DADDiu GPR64:$hi, tblockaddress:$lo)>;
+def : MipsPat<(add GPR64:$hi, (MipsLo tjumptable:$lo)),
+              (DADDiu GPR64:$hi, tjumptable:$lo)>;
+def : MipsPat<(add GPR64:$hi, (MipsLo tconstpool:$lo)),
+              (DADDiu GPR64:$hi, tconstpool:$lo)>;
+def : MipsPat<(add GPR64:$hi, (MipsLo tglobaltlsaddr:$lo)),
+              (DADDiu GPR64:$hi, tglobaltlsaddr:$lo)>;
 
-def : WrapperPat<tglobaladdr, DADDiu, CPU64Regs>;
-def : WrapperPat<tconstpool, DADDiu, CPU64Regs>;
-def : WrapperPat<texternalsym, DADDiu, CPU64Regs>;
-def : WrapperPat<tblockaddress, DADDiu, CPU64Regs>;
-def : WrapperPat<tjumptable, DADDiu, CPU64Regs>;
-def : WrapperPat<tglobaltlsaddr, DADDiu, CPU64Regs>;
+def : WrapperPat<tglobaladdr, DADDiu, GPR64>;
+def : WrapperPat<tconstpool, DADDiu, GPR64>;
+def : WrapperPat<texternalsym, DADDiu, GPR64>;
+def : WrapperPat<tblockaddress, DADDiu, GPR64>;
+def : WrapperPat<tjumptable, DADDiu, GPR64>;
+def : WrapperPat<tglobaltlsaddr, DADDiu, GPR64>;
 
-defm : BrcondPats<CPU64Regs, BEQ64, BNE64, SLT64, SLTu64, SLTi64, SLTiu64,
+defm : BrcondPats<GPR64, BEQ64, BNE64, SLT64, SLTu64, SLTi64, SLTiu64,
                   ZERO_64>;
 
+def : MipsPat<(brcond (i32 (setlt i64:$lhs, 1)), bb:$dst),
+              (BLEZ64 i64:$lhs, bb:$dst)>;
+def : MipsPat<(brcond (i32 (setgt i64:$lhs, -1)), bb:$dst),
+              (BGEZ64 i64:$lhs, bb:$dst)>;
+
 // setcc patterns
-defm : SeteqPats<CPU64Regs, SLTiu64, XOR64, SLTu64, ZERO_64>;
-defm : SetlePats<CPU64Regs, SLT64, SLTu64>;
-defm : SetgtPats<CPU64Regs, SLT64, SLTu64>;
-defm : SetgePats<CPU64Regs, SLT64, SLTu64>;
-defm : SetgeImmPats<CPU64Regs, SLTi64, SLTiu64>;
+defm : SeteqPats<GPR64, SLTiu64, XOR64, SLTu64, ZERO_64>;
+defm : SetlePats<GPR64, SLT64, SLTu64>;
+defm : SetgtPats<GPR64, SLT64, SLTu64>;
+defm : SetgePats<GPR64, SLT64, SLTu64>;
+defm : SetgeImmPats<GPR64, SLTi64, SLTiu64>;
 
 // truncate
-def : MipsPat<(i32 (trunc CPU64Regs:$src)),
-              (SLL (EXTRACT_SUBREG CPU64Regs:$src, sub_32), 0)>,
-      Requires<[IsN64, HasStdEnc]>;
+def : MipsPat<(i32 (trunc GPR64:$src)),
+              (SLL (EXTRACT_SUBREG GPR64:$src, sub_32), 0)>,
+      Requires<[HasStdEnc]>;
 
 // 32-to-64-bit extension
-def : MipsPat<(i64 (anyext CPURegs:$src)), (SLL64_32 CPURegs:$src)>;
-def : MipsPat<(i64 (zext CPURegs:$src)), (DSRL (DSLL64_32 CPURegs:$src), 32)>;
-def : MipsPat<(i64 (sext CPURegs:$src)), (SLL64_32 CPURegs:$src)>;
+def : MipsPat<(i64 (anyext GPR32:$src)), (SLL64_32 GPR32:$src)>;
+def : MipsPat<(i64 (zext GPR32:$src)), (DSRL (DSLL64_32 GPR32:$src), 32)>;
+def : MipsPat<(i64 (sext GPR32:$src)), (SLL64_32 GPR32:$src)>;
 
 // Sign extend in register
-def : MipsPat<(i64 (sext_inreg CPU64Regs:$src, i32)),
-              (SLL64_64 CPU64Regs:$src)>;
+def : MipsPat<(i64 (sext_inreg GPR64:$src, i32)),
+              (SLL64_64 GPR64:$src)>;
 
 // bswap MipsPattern
-def : MipsPat<(bswap CPU64Regs:$rt), (DSHD (DSBH CPU64Regs:$rt))>;
-
-// mflo/hi patterns.
-def : MipsPat<(i64 (ExtractLOHI ACRegs128:$ac, imm:$lohi_idx)),
-              (EXTRACT_SUBREG ACRegs128:$ac, imm:$lohi_idx)>;
+def : MipsPat<(bswap GPR64:$rt), (DSHD (DSBH GPR64:$rt))>;
 
 //===----------------------------------------------------------------------===//
 // Instruction aliases
 //===----------------------------------------------------------------------===//
 def : InstAlias<"move $dst, $src",
-                (DADDu CPU64RegsOpnd:$dst,  CPU64RegsOpnd:$src, ZERO_64), 1>,
+                (DADDu GPR64Opnd:$dst,  GPR64Opnd:$src, ZERO_64), 1>,
       Requires<[HasMips64]>;
-def : InstAlias<"move $dst, $src",
-                (OR64 CPU64RegsOpnd:$dst, CPU64RegsOpnd:$src, ZERO_64), 1>,
-      Requires<[HasMips64]>;
-def : InstAlias<"and $rs, $rt, $imm",
-                (DANDi CPU64RegsOpnd:$rs, CPU64RegsOpnd:$rt, uimm16_64:$imm),
-                1>,
-      Requires<[HasMips64]>;
-def : InstAlias<"slt $rs, $rt, $imm",
-                (SLTi64 CPURegsOpnd:$rs, CPU64Regs:$rt, simm16_64:$imm), 1>,
-      Requires<[HasMips64]>;
-def : InstAlias<"xor $rs, $rt, $imm",
-                (XORi64 CPU64RegsOpnd:$rs, CPU64RegsOpnd:$rt, uimm16_64:$imm),
-                1>,
-      Requires<[HasMips64]>;
-def : InstAlias<"not $rt, $rs",
-                (NOR64 CPU64RegsOpnd:$rt, CPU64RegsOpnd:$rs, ZERO_64), 1>,
-      Requires<[HasMips64]>;
-def : InstAlias<"j $rs", (JR64 CPU64Regs:$rs), 0>, Requires<[HasMips64]>;
-def : InstAlias<"jalr $rs", (JALR64 RA_64, CPU64Regs:$rs)>,
-      Requires<[HasMips64]>;
-def : InstAlias<"jal $rs", (JALR64 RA_64, CPU64Regs:$rs), 0>,
-                 Requires<[HasMips64]>;
-def : InstAlias<"jal $rd,$rs", (JALR64 CPU64Regs:$rd, CPU64Regs:$rs), 0>,
-                 Requires<[HasMips64]>;
 def : InstAlias<"daddu $rs, $rt, $imm",
-                (DADDiu CPU64RegsOpnd:$rs, CPU64RegsOpnd:$rt, simm16_64:$imm),
-                1>;
+                (DADDiu GPR64Opnd:$rs, GPR64Opnd:$rt, simm16_64:$imm),
+                0>;
 def : InstAlias<"dadd $rs, $rt, $imm",
-                (DADDi CPU64RegsOpnd:$rs, CPU64RegsOpnd:$rt, simm16_64:$imm),
-                1>;
-def : InstAlias<"or $rs, $rt, $imm",
-                (ORi64 CPU64RegsOpnd:$rs, CPU64RegsOpnd:$rt, uimm16_64:$imm),
-                1>, Requires<[HasMips64]>;
-/// Move between CPU and coprocessor registers
+                (DADDi GPR64Opnd:$rs, GPR64Opnd:$rt, simm16_64:$imm),
+                0>;
 
-let DecoderNamespace = "Mips64" in {
-def DMFC0_3OP64 : MFC3OP<(outs CPU64RegsOpnd:$rt),
-                         (ins CPU64RegsOpnd:$rd, uimm16:$sel),
-                         "dmfc0\t$rt, $rd, $sel">, MFC3OP_FM<0x10, 1>;
-def DMTC0_3OP64 : MFC3OP<(outs CPU64RegsOpnd:$rd, uimm16:$sel),
-                         (ins CPU64RegsOpnd:$rt),
-                         "dmtc0\t$rt, $rd, $sel">, MFC3OP_FM<0x10, 5>;
-def DMFC2_3OP64 : MFC3OP<(outs CPU64RegsOpnd:$rt),
-                         (ins CPU64RegsOpnd:$rd, uimm16:$sel),
-                         "dmfc2\t$rt, $rd, $sel">, MFC3OP_FM<0x12, 1>;
-def DMTC2_3OP64 : MFC3OP<(outs CPU64RegsOpnd:$rd, uimm16:$sel),
-                         (ins CPU64RegsOpnd:$rt),
-                         "dmtc2\t$rt, $rd, $sel">, MFC3OP_FM<0x12, 5>;
+/// Move between CPU and coprocessor registers
+let DecoderNamespace = "Mips64", Predicates = [HasMips64] in {
+def DMFC0 : MFC3OP<"dmfc0", GPR64Opnd>, MFC3OP_FM<0x10, 1>;
+def DMTC0 : MFC3OP<"dmtc0", GPR64Opnd>, MFC3OP_FM<0x10, 5>;
+def DMFC2 : MFC3OP<"dmfc2", GPR64Opnd>, MFC3OP_FM<0x12, 1>;
+def DMTC2 : MFC3OP<"dmtc2", GPR64Opnd>, MFC3OP_FM<0x12, 5>;
 }
 
 // Two operand (implicit 0 selector) versions:
-def : InstAlias<"dmfc0 $rt, $rd",
-                (DMFC0_3OP64 CPU64RegsOpnd:$rt, CPU64RegsOpnd:$rd, 0), 0>;
-def : InstAlias<"dmtc0 $rt, $rd",
-                (DMTC0_3OP64 CPU64RegsOpnd:$rd, 0, CPU64RegsOpnd:$rt), 0>;
-def : InstAlias<"dmfc2 $rt, $rd",
-                (DMFC2_3OP64 CPU64RegsOpnd:$rt, CPU64RegsOpnd:$rd, 0), 0>;
-def : InstAlias<"dmtc2 $rt, $rd",
-                (DMTC2_3OP64 CPU64RegsOpnd:$rd, 0, CPU64RegsOpnd:$rt), 0>;
+def : InstAlias<"dmfc0 $rt, $rd", (DMFC0 GPR64Opnd:$rt, GPR64Opnd:$rd, 0), 0>;
+def : InstAlias<"dmtc0 $rt, $rd", (DMTC0 GPR64Opnd:$rt, GPR64Opnd:$rd, 0), 0>;
+def : InstAlias<"dmfc2 $rt, $rd", (DMFC2 GPR64Opnd:$rt, GPR64Opnd:$rd, 0), 0>;
+def : InstAlias<"dmtc2 $rt, $rd", (DMTC2 GPR64Opnd:$rt, GPR64Opnd:$rd, 0), 0>;
 

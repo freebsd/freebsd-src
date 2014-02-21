@@ -21,13 +21,12 @@
 namespace llvm {
 
 class R600TargetMachine;
-class TargetInstrInfo;
 
 struct R600RegisterInfo : public AMDGPURegisterInfo {
   AMDGPUTargetMachine &TM;
-  const TargetInstrInfo &TII;
+  RegClassWeight RCW;
 
-  R600RegisterInfo(AMDGPUTargetMachine &tm, const TargetInstrInfo &tii);
+  R600RegisterInfo(AMDGPUTargetMachine &tm);
 
   virtual BitVector getReservedRegs(const MachineFunction &MF) const;
 
@@ -40,14 +39,16 @@ struct R600RegisterInfo : public AMDGPURegisterInfo {
   /// \brief get the HW encoding for a register's channel.
   unsigned getHWRegChan(unsigned reg) const;
 
+  virtual unsigned getHWRegIndex(unsigned Reg) const;
+
   /// \brief get the register class of the specified type to use in the
   /// CFGStructurizer
   virtual const TargetRegisterClass * getCFGStructurizerRegClass(MVT VT) const;
 
-  /// \returns the sub reg enum value for the given \p Channel
-  /// (e.g. getSubRegFromChannel(0) -> AMDGPU::sel_x)
-  unsigned getSubRegFromChannel(unsigned Channel) const;
+  virtual const RegClassWeight &getRegClassWeight(const TargetRegisterClass *RC) const;
 
+  // \returns true if \p Reg can be defined in one ALU caluse and used in another.
+  virtual bool isPhysRegLiveAcrossClauses(unsigned Reg) const;
 };
 
 } // End namespace llvm

@@ -1,5 +1,7 @@
 .\" $FreeBSD$
-.TH "LLVM-NM" "1" "2013-04-11" "3.3" "LLVM"
+.\" Man page generated from reStructuredText.
+.
+.TH "LLVM-NM" "1" "2014-01-01" "3.4" "LLVM"
 .SH NAME
 llvm-nm \- list LLVM bitcode and object file's symbol table
 .
@@ -29,8 +31,6 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.\" Man page generated from reStructuredText.
-.
 .SH SYNOPSIS
 .sp
 \fBllvm\-nm\fP [\fIoptions\fP] [\fIfilenames...\fP]
@@ -38,8 +38,8 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .sp
 The \fBllvm\-nm\fP utility lists the names of symbols from the LLVM bitcode
 files, object files, or \fBar\fP archives containing them, named on the
-command line. Each symbol is listed along with some simple information about its
-provenance. If no file name is specified, or \fI\-\fP is used as a file name,
+command line.  Each symbol is listed along with some simple information about
+its provenance.  If no file name is specified, or \fI\-\fP is used as a file name,
 \fBllvm\-nm\fP will process a file on its standard input stream.
 .sp
 \fBllvm\-nm\fP\(aqs default output format is the traditional BSD \fBnm\fP
@@ -109,18 +109,18 @@ Something unrecognizable
 Because LLVM bitcode files typically contain objects that are not considered to
 have addresses until they are linked into an executable image or dynamically
 compiled "just\-in\-time", \fBllvm\-nm\fP does not print an address for any
-symbol in a LLVM bitcode file, even symbols which are defined in the bitcode
+symbol in an LLVM bitcode file, even symbols which are defined in the bitcode
 file.
 .SH OPTIONS
 .INDENT 0.0
 .TP
 .B \-B    (default)
-Use BSD output format. Alias for \fI\-\-format=bsd\fP.
+Use BSD output format.  Alias for \fI\-\-format=bsd\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
 .B \-P
-Use POSIX.2 output format. Alias for \fI\-\-format=posix\fP.
+Use POSIX.2 output format.  Alias for \fI\-\-format=posix\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -148,8 +148,8 @@ from other files.
 .INDENT 0.0
 .TP
 .B \-\-format=format, \-f format
-Select an output format; \fIformat\fP may be \fIsysv\fP, \fIposix\fP, or \fIbsd\fP. The default
-is \fIbsd\fP.
+Select an output format; \fIformat\fP may be \fIsysv\fP, \fIposix\fP, or \fIbsd\fP\&.  The default
+is \fIbsd\fP\&.
 .UNINDENT
 .INDENT 0.0
 .TP
@@ -204,7 +204,7 @@ can.
 \fBllvm\-nm\fP exits with an exit code of zero.
 .SH SEE ALSO
 .sp
-llvm\-dis|llvm\-dis, ar(1), nm(1)
+llvm\-dis, ar(1), nm(1)
 .SH AUTHOR
 Maintained by The LLVM Team (http://llvm.org/).
 .SH COPYRIGHT

@@ -72,6 +72,7 @@ int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);
 int	vm_ioapic_assert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_deassert_irq(struct vmctx *ctx, int irq);
 int	vm_ioapic_pulse_irq(struct vmctx *ctx, int irq);
+int	vm_ioapic_pincount(struct vmctx *ctx, int *pincount);
 int	vm_inject_nmi(struct vmctx *ctx, int vcpu);
 int	vm_capability_name2type(const char *capname);
 const char *vm_capability_type2name(int type);
@@ -110,5 +111,8 @@ int	vcpu_reset(struct vmctx *ctx, int vcpu);
 int	vm_setup_freebsd_registers(struct vmctx *ctx, int vcpu,
 				uint64_t rip, uint64_t cr3, uint64_t gdtbase,
 				uint64_t rsp);
+int	vm_setup_freebsd_registers_i386(struct vmctx *vmctx, int vcpu,
+					uint32_t eip, uint32_t gdtbase,
+					uint32_t esp);
 void	vm_setup_freebsd_gdt(uint64_t *gdtr);
 #endif	/* _VMMAPI_H_ */

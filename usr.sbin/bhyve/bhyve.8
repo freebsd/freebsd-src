@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2013
+.Dd January 27, 2014
 .Dt BHYVE 8
 .Os
 .Sh NAME
@@ -37,7 +37,6 @@
 .Op Fl g Ar gdbport
 .Op Fl p Ar pinnedcpu
 .Op Fl s Ar slot,emulation Ns Op , Ns Ar conf
-.Op Fl S Ar slot,emulation Ns Op , Ns Ar conf
 .Op Fl l Ar lpcdev Ns Op , Ns Ar conf
 .Ar vmname
 .Sh DESCRIPTION
@@ -99,12 +98,17 @@ There are 32 available slots, with the option of providing up to 8 functions
 per slot.
 .Bl -tag -width 10n
 .It Ar slot
-.Ar pcislot Ns Op Ar :function
+.Ar pcislot[:function]
+
+.Ar bus:pcislot:function
 .Pp
 The
 .Ar pcislot
-value is 0 to 31 and the optional function value is 0 to 7.
+value is 0 to 31. The optional function value is 0 to 7. The optional
+.Ar bus
+value is 0 to 255.
 If not specified, the function value defaults to 0.
+If not specified, the bus value defaults to 0.
 .It Ar emulation
 .Bl -tag -width 10n
 .It Li hostbridge | Li amd_hostbridge
@@ -129,7 +133,8 @@ AHCI controller attached to a SATA hard-drive.
 .It Li uart
 PCI 16550 serial device.
 .It Li lpc
-LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports.
+LPC PCI-ISA bridge with COM1 and COM2 16550 serial ports. The LPC bridge
+emulation can only be configured on bus 0.
 .El
 .It Op Ar conf
 This optional parameter describes the backend for device emulations.
@@ -202,13 +207,6 @@ The host device must have been reserved at boot-time using the
 loader variable as described in
 .Xr vmm 4 .
 .El
-.It Fl S Ar slot , Ns Ar emulation Ns Op , Ns Ar conf
-Identical to the -s option except the device is instructed to use legacy
-ISA addresses if possible.
-Currently this only has an effect with the
-.Li uart
-device emulation.
-This option will be deprecated in a future version.
 .It Fl l Ar lpcdev Ns Op , Ns Ar conf
 Allow devices behind the LPC PCI-ISA bridge to be configured.
 The only supported devices are the TTY-class devices,

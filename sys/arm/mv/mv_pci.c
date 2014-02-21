@@ -398,7 +398,7 @@ static driver_t mv_pcib_driver = {
 
 devclass_t pcib_devclass;
 
-DRIVER_MODULE(pcib, nexus, mv_pcib_driver, pcib_devclass, 0, 0);
+DRIVER_MODULE(pcib, ofwbus, mv_pcib_driver, pcib_devclass, 0, 0);
 
 static struct mtx pcicfg_mtx;
 
@@ -1050,7 +1050,8 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 {
 	struct mv_pcib_softc *sc;
 	struct ofw_pci_register reg;
-	uint32_t pintr, mintr;
+	uint32_t pintr, mintr[4];
+	int icells;
 	phandle_t iparent;
 
 	sc = device_get_softc(bus);
@@ -1062,10 +1063,11 @@ mv_pcib_route_interrupt(device_t bus, device_t dev, int pin)
 	    (pci_get_slot(dev) << OFW_PCI_PHYS_HI_DEVICESHIFT) |
 	    (pci_get_function(dev) << OFW_PCI_PHYS_HI_FUNCTIONSHIFT);
 
-	if (ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo, &reg,
-	    sizeof(reg), &pintr, sizeof(pintr), &mintr, sizeof(mintr),
-	    &iparent))
-		return (ofw_bus_map_intr(dev, iparent, mintr));
+	icells = ofw_bus_lookup_imap(ofw_bus_get_node(dev), &sc->sc_pci_iinfo,
+	    &reg, sizeof(reg), &pintr, sizeof(pintr), mintr, sizeof(mintr),
+	    &iparent);
+	if (icells > 0)
+		return (ofw_bus_map_intr(dev, iparent, icells, mintr));
 
 	/* Maybe it's a real interrupt, not an intpin */
 	if (pin > 4)

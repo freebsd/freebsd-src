@@ -84,6 +84,9 @@ static int
 rk30_wd_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "rockchip,rk30xx-wdt")) {
 		device_set_desc(dev, "Rockchip RK30XX Watchdog");
 		return (BUS_PROBE_DEFAULT);

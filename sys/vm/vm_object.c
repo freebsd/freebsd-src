@@ -676,8 +676,7 @@ vm_object_destroy(vm_object_t object)
 	if (object->cred != NULL) {
 		KASSERT(object->type == OBJT_DEFAULT ||
 		    object->type == OBJT_SWAP,
-		    ("vm_object_terminate: non-swap obj %p has cred",
-		     object));
+		    ("%s: non-swap obj %p has cred", __func__, object));
 		swap_release_by_cred(object->charge, object->cred);
 		object->charge = 0;
 		crfree(object->cred);
@@ -1628,9 +1627,11 @@ vm_object_backing_scan(vm_object_t object, int op)
 				p = TAILQ_FIRST(&backing_object->memq);
 				continue;
 			}
+
+			/* Use the old pindex to free the right page. */
 			if (backing_object->type == OBJT_SWAP)
-				swap_pager_freespace(backing_object, p->pindex,
-				    1);
+				swap_pager_freespace(backing_object,
+				    new_pindex + backing_offset_index, 1);
 
 #if VM_NRESERVLEVEL > 0
 			/*

@@ -38,10 +38,6 @@ std::string getNVPTXRegClassName(TargetRegisterClass const *RC) {
     return ".s32";
   } else if (RC == &NVPTX::Int16RegsRegClass) {
     return ".s16";
-  }
-      // Int8Regs become 16-bit registers in PTX
-      else if (RC == &NVPTX::Int8RegsRegClass) {
-    return ".s16";
   } else if (RC == &NVPTX::Int1RegsRegClass) {
     return ".pred";
   } else if (RC == &NVPTX::SpecialRegsRegClass) {
@@ -57,15 +53,13 @@ std::string getNVPTXRegClassStr(TargetRegisterClass const *RC) {
     return "%f";
   }
   if (RC == &NVPTX::Float64RegsRegClass) {
-    return "%fd";
+    return "%fl";
   } else if (RC == &NVPTX::Int64RegsRegClass) {
-    return "%rd";
+    return "%rl";
   } else if (RC == &NVPTX::Int32RegsRegClass) {
     return "%r";
   } else if (RC == &NVPTX::Int16RegsRegClass) {
     return "%rs";
-  } else if (RC == &NVPTX::Int8RegsRegClass) {
-    return "%rc";
   } else if (RC == &NVPTX::Int1RegsRegClass) {
     return "%p";
   } else if (RC == &NVPTX::SpecialRegsRegClass) {
@@ -77,8 +71,7 @@ std::string getNVPTXRegClassStr(TargetRegisterClass const *RC) {
 }
 }
 
-NVPTXRegisterInfo::NVPTXRegisterInfo(const TargetInstrInfo &tii,
-                                     const NVPTXSubtarget &st)
+NVPTXRegisterInfo::NVPTXRegisterInfo(const NVPTXSubtarget &st)
     : NVPTXGenRegisterInfo(0), Is64Bit(st.is64Bit()) {}
 
 #define GET_REGINFO_TARGET_DESC

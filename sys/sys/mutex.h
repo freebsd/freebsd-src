@@ -382,7 +382,7 @@ extern struct mtx_pool *mtxpool_sleep;
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
 	    tick_sbt * (timo), 0, C_HARDCLOCK)
 
-#define	mtx_initialized(m)	lock_initalized(&(m)->lock_object)
+#define	mtx_initialized(m)	lock_initialized(&(m)->lock_object)
 
 #define mtx_owned(m)	(((m)->mtx_lock & ~MTX_FLAGMASK) == (uintptr_t)curthread)
 

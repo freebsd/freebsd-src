@@ -571,9 +571,10 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (rflag) {
-		if (sflag)
+		if (sflag) {
 			rt_stats();
-		else
+			flowtable_stats();
+		} else
 			routepr(fib, af);
 		exit(0);
 	}

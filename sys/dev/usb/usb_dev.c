@@ -930,7 +930,7 @@ usb_close(void *arg)
 	err = usb_ref_device(cpd, &refs,
 	    2 /* uref and allow detached state */);
 	if (err) {
-		DPRINTFN(0, "Cannot grab USB reference when "
+		DPRINTFN(2, "Cannot grab USB reference when "
 		    "closing USB file handle\n");
 		goto done;
 	}

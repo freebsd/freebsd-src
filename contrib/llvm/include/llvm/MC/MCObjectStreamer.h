@@ -40,10 +40,11 @@ class MCObjectStreamer : public MCStreamer {
   virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame);
 
 protected:
-  MCObjectStreamer(StreamerKind Kind, MCContext &Context, MCAsmBackend &TAB,
-                   raw_ostream &_OS, MCCodeEmitter *_Emitter);
-  MCObjectStreamer(StreamerKind Kind, MCContext &Context, MCAsmBackend &TAB,
-                   raw_ostream &_OS, MCCodeEmitter *_Emitter,
+  MCObjectStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
+                   MCAsmBackend &TAB, raw_ostream &_OS,
+                   MCCodeEmitter *_Emitter);
+  MCObjectStreamer(MCContext &Context, MCTargetStreamer *TargetStreamer,
+                   MCAsmBackend &TAB, raw_ostream &_OS, MCCodeEmitter *_Emitter,
                    MCAssembler *_Assembler);
   ~MCObjectStreamer();
 
@@ -78,8 +79,7 @@ public:
   virtual void EmitLabel(MCSymbol *Symbol);
   virtual void EmitDebugLabel(MCSymbol *Symbol);
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
-  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                             unsigned AddrSpace);
+  virtual void EmitValueImpl(const MCExpr *Value, unsigned Size);
   virtual void EmitULEB128Value(const MCExpr *Value);
   virtual void EmitSLEB128Value(const MCExpr *Value);
   virtual void EmitWeakReference(MCSymbol *Alias, const MCSymbol *Symbol);
@@ -94,7 +94,7 @@ public:
   virtual void EmitBundleAlignMode(unsigned AlignPow2);
   virtual void EmitBundleLock(bool AlignToEnd);
   virtual void EmitBundleUnlock();
-  virtual void EmitBytes(StringRef Data, unsigned AddrSpace = 0);
+  virtual void EmitBytes(StringRef Data);
   virtual void EmitValueToAlignment(unsigned ByteAlignment,
                                     int64_t Value = 0,
                                     unsigned ValueSize = 1,
@@ -102,6 +102,10 @@ public:
   virtual void EmitCodeAlignment(unsigned ByteAlignment,
                                  unsigned MaxBytesToEmit = 0);
   virtual bool EmitValueToOffset(const MCExpr *Offset, unsigned char Value);
+  virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
+                                     unsigned Column, unsigned Flags,
+                                     unsigned Isa, unsigned Discriminator,
+                                     StringRef FileName);
   virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                         const MCSymbol *LastLabel,
                                         const MCSymbol *Label,
@@ -110,15 +114,9 @@ public:
                                          const MCSymbol *Label);
   virtual void EmitGPRel32Value(const MCExpr *Value);
   virtual void EmitGPRel64Value(const MCExpr *Value);
-  virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue,
-                        unsigned AddrSpace = 0);
+  virtual void EmitFill(uint64_t NumBytes, uint8_t FillValue);
+  virtual void EmitZeros(uint64_t NumBytes);
   virtual void FinishImpl();
-
-  /// @}
-
-  static bool classof(const MCStreamer *S) {
-    return S->getKind() >= SK_ELFStreamer && S->getKind() <= SK_WinCOFFStreamer;
-  }
 };
 
 } // end namespace llvm

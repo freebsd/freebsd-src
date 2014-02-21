@@ -18,68 +18,65 @@ namespace clang {
 namespace ast_matchers {
 namespace internal {
 
-void BoundNodesMap::copyTo(BoundNodesTreeBuilder *Builder) const {
-  for (IDToNodeMap::const_iterator It = NodeMap.begin();
-       It != NodeMap.end();
-       ++It) {
-    Builder->setBinding(It->first, It->second);
+void BoundNodesTreeBuilder::visitMatches(Visitor *ResultVisitor) {
+  if (Bindings.empty())
+    Bindings.push_back(BoundNodesMap());
+  for (unsigned i = 0, e = Bindings.size(); i != e; ++i) {
+    ResultVisitor->visitMatch(BoundNodes(Bindings[i]));
   }
 }
 
-void BoundNodesMap::copyTo(BoundNodesMap *Other) const {
-  for (IDToNodeMap::const_iterator I = NodeMap.begin(),
-                                   E = NodeMap.end();
-       I != E; ++I) {
-    Other->NodeMap[I->first] = I->second;
+DynTypedMatcher::MatcherStorage::~MatcherStorage() {}
+
+void BoundNodesTreeBuilder::addMatch(const BoundNodesTreeBuilder &Other) {
+  for (unsigned i = 0, e = Other.Bindings.size(); i != e; ++i) {
+    Bindings.push_back(Other.Bindings[i]);
   }
 }
 
-BoundNodesTree::BoundNodesTree() {}
-
-BoundNodesTree::BoundNodesTree(
-  const BoundNodesMap& Bindings,
-  const std::vector<BoundNodesTree> RecursiveBindings)
-  : Bindings(Bindings),
-    RecursiveBindings(RecursiveBindings) {}
-
-void BoundNodesTree::copyTo(BoundNodesTreeBuilder* Builder) const {
-  Bindings.copyTo(Builder);
-  for (std::vector<BoundNodesTree>::const_iterator
-         I = RecursiveBindings.begin(),
-         E = RecursiveBindings.end();
-       I != E; ++I) {
-    Builder->addMatch(*I);
+bool AllOfVariadicOperator(const ast_type_traits::DynTypedNode DynNode,
+                           ASTMatchFinder *Finder,
+                           BoundNodesTreeBuilder *Builder,
+                           ArrayRef<DynTypedMatcher> InnerMatchers) {
+  // allOf leads to one matcher for each alternative in the first
+  // matcher combined with each alternative in the second matcher.
+  // Thus, we can reuse the same Builder.
+  for (size_t i = 0, e = InnerMatchers.size(); i != e; ++i) {
+    if (!InnerMatchers[i].matches(DynNode, Finder, Builder))
+      return false;
   }
+  return true;
 }
 
-void BoundNodesTree::visitMatches(Visitor* ResultVisitor) {
-  BoundNodesMap AggregatedBindings;
-  visitMatchesRecursively(ResultVisitor, AggregatedBindings);
-}
-
-void BoundNodesTree::
-visitMatchesRecursively(Visitor* ResultVisitor,
-                        const BoundNodesMap& AggregatedBindings) {
-  BoundNodesMap CombinedBindings(AggregatedBindings);
-  Bindings.copyTo(&CombinedBindings);
-  if (RecursiveBindings.empty()) {
-    ResultVisitor->visitMatch(BoundNodes(CombinedBindings));
-  } else {
-    for (unsigned I = 0; I < RecursiveBindings.size(); ++I) {
-      RecursiveBindings[I].visitMatchesRecursively(ResultVisitor,
-                                                   CombinedBindings);
+bool EachOfVariadicOperator(const ast_type_traits::DynTypedNode DynNode,
+                            ASTMatchFinder *Finder,
+                            BoundNodesTreeBuilder *Builder,
+                            ArrayRef<DynTypedMatcher> InnerMatchers) {
+  BoundNodesTreeBuilder Result;
+  bool Matched = false;
+  for (size_t i = 0, e = InnerMatchers.size(); i != e; ++i) {
+    BoundNodesTreeBuilder BuilderInner(*Builder);
+    if (InnerMatchers[i].matches(DynNode, Finder, &BuilderInner)) {
+      Matched = true;
+      Result.addMatch(BuilderInner);
     }
   }
+  *Builder = Result;
+  return Matched;
 }
 
-BoundNodesTreeBuilder::BoundNodesTreeBuilder() {}
-
-void BoundNodesTreeBuilder::addMatch(const BoundNodesTree& Bindings) {
-  RecursiveBindings.push_back(Bindings);
-}
-
-BoundNodesTree BoundNodesTreeBuilder::build() const {
-  return BoundNodesTree(Bindings, RecursiveBindings);
+bool AnyOfVariadicOperator(const ast_type_traits::DynTypedNode DynNode,
+                           ASTMatchFinder *Finder,
+                           BoundNodesTreeBuilder *Builder,
+                           ArrayRef<DynTypedMatcher> InnerMatchers) {
+  for (size_t i = 0, e = InnerMatchers.size(); i != e; ++i) {
+    BoundNodesTreeBuilder Result = *Builder;
+    if (InnerMatchers[i].matches(DynNode, Finder, &Result)) {
+      *Builder = Result;
+      return true;
+    }
+  }
+  return false;
 }
 
 } // end namespace internal
