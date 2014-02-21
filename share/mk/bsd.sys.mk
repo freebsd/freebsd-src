@@ -120,6 +120,10 @@ CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
 CFLAGS+=	 -Qunused-arguments
+.if ${MACHINE_CPUARCH} == "sparc64"
+# Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
+CFLAGS+=	 -fno-dwarf2-cfi-asm
+.endif # SPARC64
 CFLAGS+=	 ${CFLAGS.clang}
 CXXFLAGS+=	 ${CXXFLAGS.clang}
 .else # !CLANG
