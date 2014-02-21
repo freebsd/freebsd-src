@@ -18,6 +18,9 @@ SRCS=	tcpdump-helper.c			\
 
 INCS=	tcpdump-helper.h
 
+# Temporarily required (hopefully)
+NO_WERROR=	yes
+
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-DTCPDUMP_PRINT_ONLY \
 		-DTCPDUMP_HELPER \
