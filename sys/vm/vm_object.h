@@ -73,6 +73,7 @@
 #include <sys/_rwlock.h>
 
 #include <vm/_vm_radix.h>
+#include <vm/_vm_domain.h>
 
 /*
  *	Types defined:
@@ -106,7 +107,7 @@ struct vm_object {
 	struct vm_radix rtree;		/* root of the resident page radix trie*/
 	vm_pindex_t size;		/* Object size */
 #if MAXMEMDOM > 1
-	int domain;			/* Last selected NUMA domain. */
+	struct vm_domain_select selector; /* NUMA domain policy. */
 #endif
 	int generation;			/* generation ID */
 	int ref_count;			/* How many refs?? */
@@ -293,7 +294,6 @@ void vm_object_shadow (vm_object_t *, vm_ooffset_t *, vm_size_t);
 void vm_object_split(vm_map_entry_t);
 boolean_t vm_object_sync(vm_object_t, vm_ooffset_t, vm_size_t, boolean_t,
     boolean_t);
-int  vm_object_domain(vm_object_t);
 
 #endif				/* _KERNEL */
 

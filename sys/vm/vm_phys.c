@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -71,6 +72,12 @@ _Static_assert(sizeof(long) * NBBY >= VM_PHYSSEG_MAX,
 struct mem_affinity *mem_affinity;
 
 int vm_ndomains = 1;
+vm_domainset_t vm_alldomains;
+vm_domainset_t vm_domset[MAXMEMDOM];
+struct vm_domain_select vm_sel_def;
+struct vm_domain_select vm_sel_rr;
+struct vm_domain_select vm_sel_ft;
+struct vm_domain_select vm_sel_dom[MAXMEMDOM];
 
 struct vm_phys_seg vm_phys_segs[VM_PHYSSEG_MAX];
 int vm_phys_nsegs;
@@ -327,6 +334,11 @@ vm_phys_init(void)
 		    VM_FREELIST_DEFAULT);
 	}
 	for (dom = 0; dom < vm_ndomains; dom++) {
+		VM_DOMAIN_SET(dom, &vm_alldomains);
+		VM_DOMAIN_SET(dom, &vm_domset[dom]);
+		vm_sel_dom[dom].ds_mask = vm_domset[dom];
+		vm_sel_dom[dom].ds_policy = ROUNDROBIN;
+		vm_sel_dom[dom].ds_count = 1;
 		for (flind = 0; flind < vm_nfreelists; flind++) {
 			for (pind = 0; pind < VM_NFREEPOOL; pind++) {
 				fl = vm_phys_free_queues[dom][flind][pind];
@@ -335,6 +347,15 @@ vm_phys_init(void)
 			}
 		}
 	}
+	vm_sel_def.ds_mask = vm_alldomains;
+	vm_sel_def.ds_policy = ROUNDROBIN;
+	vm_sel_def.ds_count = vm_ndomains;
+	vm_sel_rr.ds_mask = vm_alldomains;
+	vm_sel_rr.ds_policy = ROUNDROBIN;
+	vm_sel_rr.ds_count = vm_ndomains;
+	vm_sel_ft.ds_mask = vm_alldomains;
+	vm_sel_ft.ds_policy = FIRSTTOUCH;
+	vm_sel_ft.ds_count = vm_ndomains;
 	mtx_init(&vm_phys_fictitious_reg_mtx, "vmfctr", NULL, MTX_DEF);
 }
 

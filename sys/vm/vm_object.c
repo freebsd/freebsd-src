@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -243,6 +244,9 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 		panic("_vm_object_allocate: type %d is undefined", type);
 	}
 	object->size = size;
+#if MAXMEMDOM > 1
+	object->selector = vm_sel_def;
+#endif
 	object->generation = 1;
 	object->ref_count = 1;
 	object->memattr = VM_MEMATTR_DEFAULT;
@@ -254,7 +258,6 @@ _vm_object_allocate(objtype_t type, vm_pindex_t size, vm_object_t object)
 #if VM_NRESERVLEVEL > 0
 	LIST_INIT(&object->rvq);
 #endif
-
 	mtx_lock(&vm_object_list_mtx);
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
 	mtx_unlock(&vm_object_list_mtx);
@@ -1254,6 +1257,9 @@ vm_object_shadow(
 		result->pg_color = (source->pg_color + OFF_TO_IDX(*offset)) &
 		    ((1 << (VM_NFREEORDER - 1)) - 1);
 #endif
+#if MAXMEMDOM > 0
+		result->selector = source->selector;
+#endif
 		VM_OBJECT_WUNLOCK(source);
 	}
 
@@ -1295,6 +1301,9 @@ vm_object_split(vm_map_entry_t entry)
 	 * into a swap object.
 	 */
 	new_object = vm_object_allocate(OBJT_DEFAULT, size);
+#if MAXMEMDOM > 0
+	new_object->selector = orig_object->selector;
+#endif
 
 	/*
 	 * At this point, the new object is still private, so the order in
@@ -2198,24 +2207,6 @@ vm_object_set_writeable_dirty(vm_object_t object)
 	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
 		return;
 	vm_object_set_flag(object, OBJ_MIGHTBEDIRTY);
-}
-
-int
-vm_object_domain(vm_object_t object)
-{
-#if MAXMEMDOM > 1
-	static volatile unsigned int noobj_domain;
-
-	if (object == NULL)
-		return (atomic_fetchadd_int(&noobj_domain, 1) % vm_ndomains);
-
-	object->domain = (object->domain + 1) % vm_ndomains;
-
-	return (object->domain);
-#else
-	return (0);
-#endif
-	return (0);
 }
 
 #include "opt_ddb.h"

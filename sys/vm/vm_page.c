@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_param.h>
+#include <vm/vm_domain.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -1447,9 +1448,26 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 vm_page_t
 vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 {
+#if MAXMEMDOM > 1
+	struct vm_domain_select *sel;
+	vm_page_t m;
+	int i, dom;
 
-	return vm_page_alloc_domain(object, pindex, vm_object_domain(object),
-	    req);
+	if (object == NULL)
+		sel = &vm_sel_def;
+	else
+		sel = &object->selector;
+
+	for (i = 0, dom = vm_domain_select_first(sel);
+	    i < sel->ds_count; i++, dom = vm_domain_select_next(sel, dom)) {
+		if ((m = vm_page_alloc_domain(object, pindex, dom,
+		    req)) != NULL)
+			return (m);
+	}
+	return (NULL);
+#else
+	return vm_page_alloc_domain(object, pindex, 0, req);
+#endif
 }
 
 vm_page_t
@@ -1706,9 +1724,28 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
     u_long npages, vm_paddr_t low, vm_paddr_t high, u_long alignment,
     vm_paddr_t boundary, vm_memattr_t memattr)
 {
+#if MAXMEMDOM > 1
+	struct vm_domain_select *sel;
+	vm_page_t m;
+	int i, dom;
+
+	if (object == NULL)
+		sel = &vm_sel_def;
+	else
+		sel = &object->selector;
+
+	for (i = 0, dom = vm_domain_select_first(sel);
+	    i < sel->ds_count; i++, dom = vm_domain_select_next(sel, dom)) {
+		if ((m = vm_page_alloc_contig_domain(object, pindex,
+		    dom, req, npages, low, high,
+		    alignment, boundary, memattr)) != NULL)
+			return (m);
+	}
+	return (NULL);
+#else
 	return vm_page_alloc_contig_domain(object, pindex,
-	    vm_object_domain(object), req, npages, low, high,
-	    alignment, boundary, memattr);
+	    0, req, npages, low, high, alignment, boundary, memattr);
+#endif
 }
 
 vm_page_t
