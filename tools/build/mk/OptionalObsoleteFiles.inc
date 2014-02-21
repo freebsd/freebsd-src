@@ -4306,3 +4306,9 @@ OLD_FILES+=usr/bin/svnserve
 OLD_FILES+=usr/bin/svnsync
 OLD_FILES+=usr/bin/svnversion
 .endif
+
+.if ${MK_DMA} == no
+OLD_FILES+=usr/libexec/dma
+OLD_FILES+=usr/libexec/dma-mbox-create
+OLD_FILES+=usr/share/man/man8/dma.8.gz
+.endif
