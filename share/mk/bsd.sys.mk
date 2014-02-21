@@ -124,6 +124,12 @@ CFLAGS+=	 -Qunused-arguments
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
 CFLAGS+=	 -fno-dwarf2-cfi-asm
 .endif # SPARC64
+# The libc++ headers use c++11 extensions.  These are normally silenced because
+# they are treated as system headers, but we explicitly disable that warning
+# suppression when building the base system to catch bugs in our headers.
+# Eventually we'll want to start building the base system C++ code as C++11,
+# but not yet.
+CXXFLAGS+=	 -Wno-c++11-extensions
 CFLAGS+=	 ${CFLAGS.clang}
 CXXFLAGS+=	 ${CXXFLAGS.clang}
 .else # !CLANG
