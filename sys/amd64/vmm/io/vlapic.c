@@ -999,10 +999,12 @@ vlapic_icrlo_write_handler(struct vlapic *vlapic, bool *retu)
 	return (1);
 }
 
-static void
+void
 vlapic_self_ipi_handler(struct vlapic *vlapic, uint64_t val)
 {
 	int vec;
+
+	KASSERT(x2apic(vlapic), ("SELF_IPI does not exist in xAPIC mode"));
 
 	vec = val & 0xff;
 	lapic_intr_edge(vlapic->vm, vlapic->vcpuid, vec);
@@ -1456,6 +1458,11 @@ vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 	} else {
 		lapic->ldr = 0;
 		lapic->dfr = 0xffffffff;
+	}
+
+	if (state == X2APIC_ENABLED) {
+		if (vlapic->ops.enable_x2apic_mode)
+			(*vlapic->ops.enable_x2apic_mode)(vlapic);
 	}
 }
 
