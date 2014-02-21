@@ -420,15 +420,6 @@ __DEFAULT_YES_OPTIONS+=GCC
 .else
 __DEFAULT_NO_OPTIONS+=GCC GNUCXX
 .endif
-# The libc++ headers use c++11 extensions.  These are normally silenced because
-# they are treated as system headers, but we explicitly disable that warning
-# suppression when building the base system to catch bugs in our headers.
-# Eventually we'll want to start building the base system C++ code as C++11,
-# but not yet.
-_COMPVERSION!= ${CC} --version
-.if ${_COMPVERSION:Mclang}
-CXXFLAGS+=	-Wno-c++11-extensions
-.endif
 .else
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC
