@@ -1628,9 +1628,11 @@ vm_object_backing_scan(vm_object_t object, int op)
 				p = TAILQ_FIRST(&backing_object->memq);
 				continue;
 			}
+
+			/* Use the old pindex to free the right page. */
 			if (backing_object->type == OBJT_SWAP)
-				swap_pager_freespace(backing_object, p->pindex,
-				    1);
+				swap_pager_freespace(backing_object,
+				    new_pindex + backing_offset_index, 1);
 
 #if VM_NRESERVLEVEL > 0
 			/*
