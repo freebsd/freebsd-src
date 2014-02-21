@@ -464,7 +464,7 @@ main(int argc, char **argv)
 		goto skipopts;
 	} else if (strcmp(argv[0], "newaliases") == 0) {
 		logident_base = "dma";
-		setlogident(NULL);
+		setlogident("%s", logident_base);
 
 		if (read_aliases() != 0)
 			errx(1, "could not parse aliases file `%s'", config.aliases);
@@ -563,7 +563,7 @@ main(int argc, char **argv)
 skipopts:
 	if (logident_base == NULL)
 		logident_base = "dma";
-	setlogident(NULL);
+	setlogident("%s", logident_base);
 
 	act.sa_handler = sighup_handler;
 	act.sa_flags = 0;
@@ -595,7 +595,7 @@ skipopts:
 		errlog(1, "could not parse aliases file `%s'", config.aliases);
 
 	if ((sender = set_from(&queue, sender)) == NULL)
-		errlog(1, NULL);
+		errlog(1, "set_from failed");
 
 	if (newspoolf(&queue) != 0)
 		errlog(1, "can not create temp file in `%s'", config.spooldir);
