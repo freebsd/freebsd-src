@@ -332,7 +332,7 @@ newaddr:
 	ps->pos = 0;
 	addr = strdup(ps->addr);
 	if (addr == NULL)
-		errlog(1, NULL);
+		errlog(1, "strdup failed");
 
 	if (add_recp(queue, addr, EXPAND_WILDCARD) != 0)
 		errlogx(1, "invalid recipient `%s'", addr);
