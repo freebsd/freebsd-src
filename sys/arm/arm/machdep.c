@@ -1167,7 +1167,6 @@ initarm(struct arm_boot_params *abp)
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-
 	/* Map L1 directory and allocated L2 page tables */
 	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,
 	    L1_TABLE_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);

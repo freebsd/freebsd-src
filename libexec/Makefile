@@ -8,6 +8,8 @@ SUBDIR=	${_atf} \
 	bootpd \
 	${_casper} \
 	${_comsat} \
+	${_dma} \
+	${_dma-mbox-create} \
 	fingerd \
 	ftpd \
 	getty \
@@ -45,6 +47,11 @@ _casper=	casper
 
 .if ${MK_MAIL} != "no"
 _comsat=	comsat
+.endif
+
+.if ${MK_DMA} != "no"
+_dma=		dma
+_dma-mbox-create=	dma-mbox-create
 .endif
 
 .if ${MK_NIS} != "no"
