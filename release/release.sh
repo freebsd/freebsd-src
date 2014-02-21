@@ -37,6 +37,7 @@ export PATH
 
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
+RELENGDIR="$(realpath $(dirname $(basename ${0})))"
 
 # The default svn checkout server, and svn branches for src/, doc/,
 # and ports/.
@@ -44,6 +45,9 @@ SVNROOT="svn://svn.freebsd.org"
 SRCBRANCH="base/head@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
+
+# Set for embedded device builds.
+EMBEDDEDBUILD=
 
 # Sometimes one needs to checkout src with --force svn option.
 # If custom kernel configs copied to src tree before checkout, e.g.
@@ -97,6 +101,11 @@ while getopts c: opt; do
 	esac
 done
 shift $(($OPTIND - 1))
+
+if [ "x${EMBEDDEDBUILD}" != "x" ]; then
+	WITH_DVD=
+	NODOC=yes
+fi
 
 # If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
 # is required to build the documentation set.
@@ -182,6 +191,29 @@ fi
 if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 	mkdir -p ${CHROOTDIR}/$(dirname ${SRC_CONF})
 	cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
+fi
+
+# Embedded builds do not use the 'make release' target.
+if [ "X${EMBEDDEDBUILD}" != "X" ]; then
+	# If a crochet configuration file exists in *this* checkout of
+	# release/, copy it to the /tmp/external directory within the chroot.
+	# This allows building embedded releases without relying on updated
+	# scripts and/or configurations to exist in the branch being built.
+	if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
+		[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
+			mkdir -p ${CHROOTDIR}/tmp/external/${XDEV}/
+			cp ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf \
+				${CHROOTDIR}/tmp/external/${XDEV}/crochet-${KERNEL}.conf
+			/bin/sh ${RELENGDIR}/${XDEV}/release.sh
+	fi
+	# If the script does not exist for this architecture, exit.
+	# This probably should be checked earlier, but allowing the rest
+	# of the build process to get this far will at least set up the
+	# chroot environment for testing.
+	exit 0
+else
+	# Not embedded.
+	continue
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then

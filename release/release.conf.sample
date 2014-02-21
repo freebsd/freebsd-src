@@ -40,3 +40,11 @@ PORTBRANCH="ports/head@rHEAD"
 #NOPORTS=
 #RELSTRING=
 #WITH_DVD=
+
+## Set when building embedded images.
+#EMBEDDEDBUILD=
+
+## Set to specify userland-specific make(1) flags that affect the
+## build chroot environment.
+#EMBEDDED_WORLD_FLAGS=""
+
