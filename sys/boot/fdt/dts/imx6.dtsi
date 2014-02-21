@@ -97,6 +97,8 @@
 			anatop: anatop@020c8000 {
 				compatible = "fsl,imx6q-anatop";
 				reg = <0x020c8000 0x1000>;
+				interrupt-parent = <&gic>;
+				interrupts = <49>;
 			}
 
 			gpt: timer@02098000 {
