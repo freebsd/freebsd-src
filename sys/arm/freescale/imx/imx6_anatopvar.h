@@ -40,4 +40,6 @@
 uint32_t imx6_anatop_read_4(bus_size_t _offset);
 void imx6_anatop_write_4(bus_size_t _offset, uint32_t _value);
 
+uint32_t imx6_get_cpu_clock(void);
+
 #endif
