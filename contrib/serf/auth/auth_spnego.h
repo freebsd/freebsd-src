@@ -88,14 +88,15 @@ serf__spnego_create_sec_context(serf__spnego_context_t **ctx_p,
  * Other returns values indicates error.
  */
 apr_status_t
-serf__spnego_init_sec_context(serf__spnego_context_t *ctx,
-                             const char *service,
-                             const char *hostname,
-                             serf__spnego_buffer_t *input_buf,
-                             serf__spnego_buffer_t *output_buf,
-                             apr_pool_t *result_pool,
-                             apr_pool_t *scratch_pool
-                             );
+serf__spnego_init_sec_context(serf_connection_t *conn,
+                              serf__spnego_context_t *ctx,
+                              const char *service,
+                              const char *hostname,
+                              serf__spnego_buffer_t *input_buf,
+                              serf__spnego_buffer_t *output_buf,
+                              apr_pool_t *result_pool,
+                              apr_pool_t *scratch_pool
+                              );
 
 /*
  * Reset a previously created security context so we can start with a new one.
