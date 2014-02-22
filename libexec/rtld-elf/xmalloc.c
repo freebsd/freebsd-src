@@ -73,10 +73,8 @@ malloc_aligned(size_t size, size_t align)
 {
 	void *mem, *res;
 
-	if (align & (sizeof(void *) -1)) {
-		rtld_fdputstr(STDERR_FILENO, "Invalid alignment\n");
-		_exit(1);
-	}
+	if (align < sizeof(void *))
+		align = sizeof(void *);
 
 	mem = xmalloc(size + sizeof(void *) + align - 1);
 	res = (void *)round((uintptr_t)mem + sizeof(void *), align);
