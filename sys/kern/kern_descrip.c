@@ -1533,9 +1533,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	memcpy(ntable, otable, onfiles * sizeof(*otable));
 	fdp->fd_ofiles = ntable;
 
-	/* Allocate a new map only if the old is not large enough.  It will
+	/*
+	 * Allocate a new map only if the old is not large enough.  It will
 	 * grow at a slower rate than the table as it can map more
-	 * entries than the table can hold. */
+	 * entries than the table can hold.
+	 */
 	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
 		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
 		    M_ZERO | M_WAITOK);
@@ -1568,9 +1570,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
 	}
-	/* The map does not have the same possibility of threads still
+	/*
+	 * The map does not have the same possibility of threads still
 	 * holding references to it.  So always free it as long as it
-	 * does not reference the original static allocation. */
+	 * does not reference the original static allocation.
+	 */
 	if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
 		free(omap, M_FILEDESC);
 }
