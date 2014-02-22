@@ -874,7 +874,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		ip6s = (pr_flags & PR_IP6_DISABLE) ? 0 : -1;
 	else if (error != 0)
 		goto done_free;
-	else if (ip6s & (sizeof(*ip6) - 1)) {
+	else if (ip6s % sizeof(*ip6)) {
 		error = EINVAL;
 		goto done_free;
 	} else {
