@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <machine/segments.h>
-#include <machine/pmap.h>
-
 #include <machine/vmm.h>
 #include "vmm_host.h"
 #include "vmcs.h"
