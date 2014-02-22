@@ -254,11 +254,36 @@ fdt_load_dtb_addr(struct fdt_header *header)
 }
 
 static int
+fdt_load_dtb_file(const char * filename)
+{
+	struct preloaded_file *bfp, *oldbfp;
+	int err;
+
+	debugf("fdt_load_dtb_file(%s)\n", filename);
+
+	oldbfp = file_findfile(NULL, "dtb");
+
+	/* Attempt to load and validate a new dtb from a file. */
+	if ((bfp = file_loadraw(filename, "dtb")) == NULL) {
+		sprintf(command_errbuf, "failed to load file '%s'", filename);
+		return (1);
+	}
+	if ((err = fdt_load_dtb(bfp->f_addr)) != 0) {
+		file_discard(bfp);
+		return (err);
+	}
+
+	/* A new dtb was validated, discard any previous file. */
+	if (oldbfp)
+		file_discard(oldbfp);
+	return (0);
+}
+
+static int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
 	struct fdt_header *hdr;
-	int err;
 	const char *s;
 	char *p;
 	vm_offset_t va;
@@ -268,7 +293,8 @@ fdt_setup_fdtp()
 	/* If we already loaded a file, use it. */
 	if ((bfp = file_findfile(NULL, "dtb")) != NULL) {
 		if (fdt_load_dtb(bfp->f_addr) == 0) {
-			printf("Using DTB from loaded file.\n");
+			printf("Using DTB from loaded file '%s'.\n", 
+			    bfp->f_name);
 			return (0);
 		}
 	}
@@ -295,9 +321,23 @@ fdt_setup_fdtp()
 		if (*p == '\0') {
 			if (fdt_load_dtb_addr(hdr) == 0) {
 				printf("Using DTB provided by U-Boot at "
-				    "address 0x%08X.\n", hdr);
+				    "address 0x%p.\n", hdr);
 				return (0);
 			}
+		}
+	}
+
+	/*
+	 * If the U-boot environment contains a variable giving the name of a
+	 * file, use it if we can load and validate it.
+	 */
+	s = ub_env_get("fdtfile");
+	if (s == NULL)
+		s = ub_env_get("fdt_file");
+	if (s != NULL && *s != '\0') {
+		if (fdt_load_dtb_file(s) == 0) {
+			printf("Loaded DTB from file '%s'.\n", s);
+			return (0);
 		}
 	}
 
