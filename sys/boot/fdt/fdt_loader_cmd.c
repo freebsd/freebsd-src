@@ -267,7 +267,7 @@ fdt_setup_fdtp()
 		return fdt_load_dtb_addr(fdt_to_load);
 	}
 
-	/* Board vendors use both fdtaddr and fdt_addr.  Grrrr. */
+	/* Board vendors use both fdtaddr and fdt_addr names.  Grrrr. */
 	s = ub_env_get("fdtaddr");
 	if (s == NULL)
 		s = ub_env_get("fdt_addr");
