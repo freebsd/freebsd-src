@@ -88,9 +88,12 @@ __FBSDID("$FreeBSD$");
 #define	GB	(1024 * 1024 * 1024UL)
 #define	BSP	0
 
+#define	NDISKS	32
+
 static char *host_base;
 static struct termios term, oldterm;
-static int disk_fd = -1;
+static int disk_fd[NDISKS];
+static int ndisks;
 static int consin_fd, consout_fd;
 
 static char *vmname, *progname;
@@ -287,9 +290,9 @@ cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
 {
 	ssize_t n;
 
-	if (unit != 0 || disk_fd == -1)
+	if (unit < 0 || unit >= ndisks )
 		return (EIO);
-	n = pread(disk_fd, to, size, from);
+	n = pread(disk_fd[unit], to, size, from);
 	if (n < 0)
 		return (errno);
 	*resid = size - n;
@@ -301,7 +304,7 @@ cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
 {
 	struct stat sb;
 
-	if (unit != 0 || disk_fd == -1)
+	if (unit < 0 || unit >= ndisks)
 		return (EBADF);
 
 	switch (cmd) {
@@ -309,7 +312,7 @@ cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
 		*(u_int *)data = 512;
 		break;
 	case DIOCGMEDIASIZE:
-		if (fstat(disk_fd, &sb) == 0)
+		if (fstat(disk_fd[unit], &sb) == 0)
 			*(off_t *)data = sb.st_size;
 		else
 			return (ENOTTY);
@@ -601,6 +604,26 @@ altcons_open(char *path)
 	return (err);
 }
 
+static int
+disk_open(char *path)
+{
+	int err, fd;
+
+	if (ndisks > NDISKS)
+		return (ERANGE);
+
+	err = 0;
+	fd = open(path, O_RDONLY);
+
+	if (fd > 0) {
+		disk_fd[ndisks] = fd;
+		ndisks++;
+	} else 
+		err = errno;
+
+	return (err);
+}
+
 static void
 usage(void)
 {
@@ -620,12 +643,10 @@ main(int argc, char** argv)
 	void (*func)(struct loader_callbacks *, void *, int, int);
 	uint64_t mem_size;
 	int opt, error;
-	char *disk_image;
 
 	progname = basename(argv[0]);
 
 	mem_size = 256 * MB;
-	disk_image = NULL;
 
 	consin_fd = STDIN_FILENO;
 	consout_fd = STDOUT_FILENO;
@@ -637,8 +658,11 @@ main(int argc, char** argv)
 			if (error != 0)
 				errx(EX_USAGE, "Could not open '%s'", optarg);
 			break;
+
 		case 'd':
-			disk_image = optarg;
+			error = disk_open(optarg);
+			if (error != 0)
+				errx(EX_USAGE, "Could not open '%s'", optarg);
 			break;
 
 		case 'e':
@@ -704,12 +728,8 @@ main(int argc, char** argv)
 		return (1);
 	}
 
-	if (disk_image) {
-		disk_fd = open(disk_image, O_RDONLY);
-	}
-
 	addenv("smbios.bios.vendor=BHYVE");
 	addenv("boot_serial=1");
 
-	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
+	func(&cb, NULL, USERBOOT_VERSION_3, ndisks);
 }
