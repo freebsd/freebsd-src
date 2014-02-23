@@ -163,7 +163,6 @@
 #define	RL_LOOPTEST_ON_CPLUS	0x00060000
 
 /* Known revision codes. */
-
 #define	RL_HWREV_8169		0x00000000
 #define	RL_HWREV_8169S		0x00800000
 #define	RL_HWREV_8110S		0x04000000
@@ -329,8 +328,8 @@
 #define	RL_RXSTAT_INDIV		0x00004000
 #define	RL_RXSTAT_MULTI		0x00008000
 #define	RL_RXSTAT_LENMASK	0xFFFF0000
+#define	RL_RXSTAT_UNFINISHED	0x0000FFF0	/* DMA still in progress */
 
-#define	RL_RXSTAT_UNFINISHED	0xFFF0		/* DMA still in progress */
 /*
  * Command register.
  */
@@ -361,6 +360,7 @@
 #define	RL_PARA7C		0x7C
 #define	RL_PARA7C_DEF		0xcb38de43
 #define	RL_PARA7C_RETUNE	0xfb38de03
+
 /*
  * EEPROM control register
  */
@@ -473,11 +473,9 @@
  */
 
 /* RL_DUMPSTATS_LO register */
-
 #define	RL_DUMPSTATS_START	0x00000008
 
 /* Transmit start register */
-
 #define	RL_TXSTART_SWI		0x01	/* generate TX interrupt */
 #define	RL_TXSTART_START	0x40	/* start normal queue transmit */
 #define	RL_TXSTART_HPRIO_START	0x80	/* start hi prio queue transmit */
@@ -496,7 +494,6 @@
 #define	RL_BUSWIDTH_64BITS	0x08
 
 /* C+ mode command register */
-
 #define	RL_CPLUSCMD_TXENB	0x0001	/* enable C+ transmit mode */
 #define	RL_CPLUSCMD_RXENB	0x0002	/* enable C+ receive mode */
 #define	RL_CPLUSCMD_PCI_MRW	0x0008	/* enable PCI multi-read/write */
@@ -514,7 +511,6 @@
 #define	RL_CPLUSCMD_BIST_ENB	0x8000	/* 8168C/CP */
 
 /* C+ early transmit threshold */
-
 #define	RL_EARLYTXTHRESH_CNT	0x003F	/* byte count times 8 */
 
 /* Timer interrupt register */
@@ -528,7 +524,6 @@
 /*
  * Gigabit PHY access register (8169 only)
  */
-
 #define	RL_PHYAR_PHYDATA	0x0000FFFF
 #define	RL_PHYAR_PHYREG		0x001F0000
 #define	RL_PHYAR_BUSY		0x80000000
@@ -559,7 +554,6 @@
  * For reception, there's just one large buffer where the chip stores
  * all received packets.
  */
-
 #define	RL_RX_BUF_SZ		RL_RXBUF_64
 #define	RL_RXBUFLEN		(1 << ((RL_RX_BUF_SZ >> 11) + 13))
 #define	RL_TX_LIST_CNT		4
@@ -642,11 +636,10 @@ struct rl_hwrev {
 
 /*
  * RX/TX descriptor definition. When large send mode is enabled, the
- * lower 11 bits of the TX rl_cmd word are used to hold the MSS, and
+ * lower 11 bits of the TX rl_cmdstat word are used to hold the MSS, and
  * the checksum offload bits are disabled. The structure layout is
  * the same for RX and TX descriptors
  */
-
 struct rl_desc {
 	uint32_t		rl_cmdstat;
 	uint32_t		rl_vlanctl;
@@ -679,7 +672,6 @@ struct rl_desc {
  * Error bits are valid only on the last descriptor of a frame
  * (i.e. RL_TDESC_CMD_EOF == 1)
  */
-
 #define	RL_TDESC_STAT_COLCNT	0x000F0000	/* collision count */
 #define	RL_TDESC_STAT_EXCESSCOL	0x00100000	/* excessive collisions */
 #define	RL_TDESC_STAT_LINKFAIL	0x00200000	/* link faulure */
@@ -691,7 +683,6 @@ struct rl_desc {
 /*
  * RX descriptor cmd/vlan definitions
  */
-
 #define	RL_RDESC_CMD_EOR	0x40000000
 #define	RL_RDESC_CMD_OWN	0x80000000
 #define	RL_RDESC_CMD_BUFLEN	0x00001FFF
