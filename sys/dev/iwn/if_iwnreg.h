@@ -1610,7 +1610,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_INIT_DATA		4
 #define IWN_FW_TLV_BOOT_TEXT		5
 #define IWN_FW_TLV_PBREQ_MAXLEN		6
-#define	IWN_FW_TLV_PAN				7
+#define	IWN_FW_TLV_PAN			7
 #define	IWN_FW_TLV_RUNT_EVTLOG_PTR	8
 #define	IWN_FW_TLV_RUNT_EVTLOG_SIZE	9
 #define	IWN_FW_TLV_RUNT_ERRLOG_PTR	10
@@ -1621,7 +1621,7 @@ struct iwn_fw_tlv {
 #define IWN_FW_TLV_PHY_CALIB		15
 #define	IWN_FW_TLV_WOWLAN_INST		16
 #define	IWN_FW_TLV_WOWLAN_DATA		17
-#define	IWN_FW_TLV_FLAGS			18
+#define	IWN_FW_TLV_FLAGS		18
 
 	uint16_t	alt;
 	uint32_t	len;
