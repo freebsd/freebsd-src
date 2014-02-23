@@ -1,6 +1,6 @@
 /*-
+ * Copyright (c) 2013-2014 Mark R V Murray
  * Copyright (c) 2013 Arthur Mesh <arthurmesh@gmail.com>
- * Copyright (c) 2013 Mark R V Murray
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@ struct harvest_event {
 	u_int				he_bits;		/* stats about the entropy */
 	u_int				he_destination;		/* destination pool of this entropy */
 	enum random_entropy_source	he_source;		/* origin of the entropy */
-	STAILQ_ENTRY(harvest_event)	he_next;		/* next item on the list */
 };
 
 void random_harvestq_init(void (*)(struct harvest_event *), int);
