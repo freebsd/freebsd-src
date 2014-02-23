@@ -234,7 +234,7 @@ struct vmxnet3_softc {
 	struct vmxnet3_interrupt	 vmx_intrs[VMXNET3_MAX_INTRS];
 
 	struct mtx			 vmx_mtx;
-#ifndef VMXNET_LEGACY_TX
+#ifndef VMXNET3_LEGACY_TX
 	struct taskqueue		*vmx_tq;
 #endif
 	uint8_t				*vmx_mcast;

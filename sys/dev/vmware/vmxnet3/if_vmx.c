@@ -175,6 +175,7 @@ static int	vmxnet3_txq_mq_start(struct ifnet *, struct mbuf *);
 static void	vmxnet3_txq_tq_deferred(void *, int);
 #endif
 static void	vmxnet3_txq_start(struct vmxnet3_txqueue *);
+static void	vmxnet3_tx_start_all(struct vmxnet3_softc *);
 
 static void	vmxnet3_update_vlan_filter(struct vmxnet3_softc *, int,
 		    uint16_t);
@@ -663,10 +664,6 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_softc *sc)
 	return (0);
 }
 
-/*
- * NOTE: We only support the simple case of each Rx and Tx queue on its
- * own MSIX vector. This is good enough until we support mulitqueue.
- */
 static int
 vmxnet3_setup_msix_interrupts(struct vmxnet3_softc *sc)
 {
@@ -861,29 +858,37 @@ static int
 vmxnet3_alloc_taskqueue(struct vmxnet3_softc *sc)
 {
 #ifndef VMXNET3_LEGACY_TX
-	device_t dev = sc->vmx_dev;
+	device_t dev;
+
+	dev = sc->vmx_dev;
 
 	sc->vmx_tq = taskqueue_create(device_get_nameunit(dev), M_NOWAIT,
 	    taskqueue_thread_enqueue, &sc->vmx_tq);
-
-	return (sc->vmx_tq != NULL ? 0 : ENOMEM);
-#else
-	return (0);
+	if (sc->vmx_tq == NULL)
+		return (ENOMEM);
 #endif
+	return (0);
 }
 
 static void
 vmxnet3_start_taskqueue(struct vmxnet3_softc *sc)
 {
 #ifndef VMXNET3_LEGACY_TX
-	device_t dev = sc->vmx_dev;
+	device_t dev;
 	int nthreads, error;
 
-	nthreads = sc->vmx_ntxqueues;
+	dev = sc->vmx_dev;
+
+	/*
+	 * The taskqueue is typically not frequently used, so a dedicated
+	 * thread for each queue is unnecessary.
+	 */
+	nthreads = MAX(1, sc->vmx_ntxqueues / 2);
 
 	/*
 	 * Most drivers just ignore the return value - it only fails
-	 * with ENOMEM so an error is not likely.
+	 * with ENOMEM so an error is not likely. It is hard for us
+	 * to recover from an error here.
 	 */
 	error = taskqueue_start_threads(&sc->vmx_tq, nthreads, PI_NET,
 	    "%s taskq", device_get_nameunit(dev));
@@ -992,7 +997,11 @@ vmxnet3_alloc_rxtx_queues(struct vmxnet3_softc *sc)
 	int i, error;
 
 	/*
-	 * If we don't have MSIX available, there's no point in multiqueue.
+	 * Only attempt to create multiple queues if MSIX is available. MSIX is
+	 * disabled by default because its apparently broken for devices passed
+	 * through by at least ESXi 5.1. The hw.pci.honor_msi_blacklist tunable
+	 * must be set to zero for MSIX. This check prevents us from allocating
+	 * queue structures that we will not use.
 	 */
 	if (sc->vmx_flags & VMXNET3_FLAG_NO_MSIX) {
 		sc->vmx_max_nrxqueues = 1;
@@ -1128,7 +1137,7 @@ vmxnet3_alloc_shared_data(struct vmxnet3_softc *sc)
 
 	if (sc->vmx_flags & VMXNET3_FLAG_RSS) {
 		size = sizeof(struct vmxnet3_rss_shared);
-		error = vmxnet3_dma_malloc(sc, size, 512, &sc->vmx_rss_dma);
+		error = vmxnet3_dma_malloc(sc, size, 128, &sc->vmx_rss_dma);
 		if (error) {
 			device_printf(dev, "cannot alloc rss shared memory\n");
 			return (error);
@@ -1576,9 +1585,9 @@ vmxnet3_reinit_interface(struct vmxnet3_softc *sc)
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= VMXNET3_CSUM_OFFLOAD_IPV6;
 	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
+		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+		ifp->if_hwassist |= CSUM_IP6_TSO;
 }
 
 static void
@@ -1758,8 +1767,11 @@ vmxnet3_evintr(struct vmxnet3_softc *sc)
 	event = sc->vmx_ds->event;
 	vmxnet3_write_bar1(sc, VMXNET3_BAR1_EVENT, event);
 
-	if (event & VMXNET3_EVENT_LINK)
+	if (event & VMXNET3_EVENT_LINK) {
 		vmxnet3_link_status(sc);
+		if (sc->vmx_link_active != 0)
+			vmxnet3_tx_start_all(sc);
+	}
 
 	if (event & (VMXNET3_EVENT_TQERROR | VMXNET3_EVENT_RQERROR)) {
 		reset = 1;
@@ -2317,6 +2329,7 @@ vmxnet3_rxstop(struct vmxnet3_softc *sc, struct vmxnet3_rxqueue *rxq)
 
 			if (rxb->vrxb_m == NULL)
 				continue;
+
 			bus_dmamap_sync(rxr->vxrxr_rxtag, rxb->vrxb_dmamap,
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(rxr->vxrxr_rxtag, rxb->vrxb_dmamap);
@@ -2604,7 +2617,7 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 			    (caddr_t) &iphdr);
 			ip = &iphdr;
 		} else
-			ip = (struct ip *)(m->m_data + offset);
+			ip = mtodo(m, offset);
 		*proto = ip->ip_p;
 		*start = offset + (ip->ip_hl << 2);
 		break;
@@ -2634,17 +2647,16 @@ vmxnet3_txq_offload_ctx(struct vmxnet3_txqueue *txq, struct mbuf *m,
 
 		txq->vxtxq_stats.vmtxs_tso++;
 
+		/*
+		 * For TSO, the size of the protocol header is also
+		 * included in the descriptor header size.
+		 */
 		if (m->m_len < *start + sizeof(struct tcphdr)) {
 			m_copydata(m, offset, sizeof(struct tcphdr),
 			    (caddr_t) &tcphdr);
 			tcp = &tcphdr;
 		} else
-			tcp = (struct tcphdr *)(m->m_data + *start);
-
-		/*
-		 * For TSO, the size of the protocol header is also
-		 * included in the descriptor header size.
-		 */
+			tcp = mtodo(m, *start);
 		*start += (tcp->th_off << 2);
 	} else
 		txq->vxtxq_stats.vmtxs_csum++;
@@ -2855,7 +2867,7 @@ vmxnet3_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (tx != 0) {
+	if (tx > 0) {
 		vmxnet3_txq_update_pending(txq);
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
 	}
@@ -2934,7 +2946,7 @@ vmxnet3_txq_mq_start_locked(struct vmxnet3_txqueue *txq, struct mbuf *m)
 		ETHER_BPF_MTAP(ifp, m);
 	}
 
-	if (tx != 0) {
+	if (tx > 0) {
 		vmxnet3_txq_update_pending(txq);
 		txq->vxtxq_watchdog = VMXNET3_WATCHDOG_TIMEOUT;
 	}
@@ -3006,6 +3018,23 @@ vmxnet3_txq_start(struct vmxnet3_txqueue *txq)
 }
 
 static void
+vmxnet3_tx_start_all(struct vmxnet3_softc *sc)
+{
+	struct vmxnet3_txqueue *txq;
+	int i;
+
+	VMXNET3_CORE_LOCK_ASSERT(sc);
+
+	for (i = 0; i < sc->vmx_ntxqueues; i++) {
+		txq = &sc->vmx_txq[i];
+
+		VMXNET3_TXQ_LOCK(txq);
+		vmxnet3_txq_start(txq);
+		VMXNET3_TXQ_UNLOCK(txq);
+	}
+}
+
+static void
 vmxnet3_update_vlan_filter(struct vmxnet3_softc *sc, int add, uint16_t tag)
 {
 	struct ifnet *ifp;
@@ -3064,9 +3093,7 @@ vmxnet3_set_rxfilter(struct vmxnet3_softc *sc)
 	ifp = sc->vmx_ifp;
 	ds = sc->vmx_ds;
 
-	mode = VMXNET3_RXMODE_UCAST;
-	if (ifp->if_flags & IFF_BROADCAST)
-		mode |= VMXNET3_RXMODE_BCAST;
+	mode = VMXNET3_RXMODE_UCAST | VMXNET3_RXMODE_BCAST;
 	if (ifp->if_flags & IFF_PROMISC)
 		mode |= VMXNET3_RXMODE_PROMISC;
 	if (ifp->if_flags & IFF_ALLMULTI)
@@ -3340,7 +3367,7 @@ vmxnet3_accumulate_stats(struct vmxnet3_softc *sc)
 	ifp->if_iqdrops = rxaccum.vmrxs_iqdrops;
 	ifp->if_ierrors = rxaccum.vmrxs_ierrors;
 	ifp->if_opackets = txaccum.vmtxs_opackets;
-#ifndef VTNET_LEGACY_TX
+#ifndef VMXNET3_LEGACY_TX
 	ifp->if_obytes = txaccum.vmtxs_obytes;
 	ifp->if_omcasts = txaccum.vmtxs_omcasts;
 #endif
