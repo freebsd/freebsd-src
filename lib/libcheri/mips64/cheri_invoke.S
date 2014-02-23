@@ -125,7 +125,7 @@ cheri_invoke:
 	csc	$c24, $sp, 224($c0)
 
 	#
-	# Scrub caller-save non-argument general-purpose registers.
+	# Scrub callee-save non-argument general-purpose registers.
 	#
 	# Don't scrub $sp as CCall will do that for us ... right?
 	#
@@ -143,7 +143,7 @@ cheri_invoke:
 
 	#
 	# Scrub unpreserved general-purpose registers: $at, $v0, $v1,
-	# temporaries, and exception-handling registers.
+	# temporaries, hi/lo, and exception-handling registers.
 	#
 	li	$at, 0
 	li	$v0, 0
@@ -156,6 +156,8 @@ cheri_invoke:
 	li	$t9, 0
 	li	$k0, 0		# Is this really necessary?
 	li	$k1, 0		# Is this really necessary?
+	mtlo	$0
+	mthi    $0
 
 	#
 	# Scrub non-{invoked, argument} capabilities; we do this after
@@ -264,6 +266,8 @@ cheri_invoke:
 	li	$t9, 0
 	li	$k0, 0		# Is this really necessary?
 	li	$k1, 0		# Is this really necessary?
+	mtlo	$0
+	mthi	$0
 
 	#
 	# Return to C-language caller.
