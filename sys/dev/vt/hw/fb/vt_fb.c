@@ -45,11 +45,16 @@ static int vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data,
     struct thread *td);
 static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
     vm_paddr_t *paddr, int prot, vm_memattr_t *memattr);
+void vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2,
+    int fill, term_color_t color);
+void vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color);
 
 static struct vt_driver vt_fb_driver = {
 	.vd_init = vt_fb_init,
 	.vd_blank = vt_fb_blank,
 	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_drawrect = vt_fb_drawrect,
+	.vd_setpixel = vt_fb_setpixel,
 	.vd_postswitch = vt_fb_postswitch,
 	.vd_priority = VD_PRIORITY_GENERIC+10,
 	.vd_fb_ioctl = vt_fb_ioctl,
@@ -69,8 +74,9 @@ vt_fb_ioctl(struct vt_device *vd, u_long cmd, caddr_t data, struct thread *td)
 	return (info->fb_ioctl(info->fb_cdev, cmd, data, 0, td));
 }
 
-static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
-    vm_paddr_t *paddr, int prot, vm_memattr_t *memattr)
+static int
+vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset, vm_paddr_t *paddr,
+    int prot, vm_memattr_t *memattr)
 {
 	struct fb_info *info;
 
@@ -80,6 +86,56 @@ static int vt_fb_mmap(struct vt_device *vd, vm_ooffset_t offset,
 		return (ENXIO);
 
 	return (info->fb_mmap(info->fb_cdev, offset, paddr, prot, memattr));
+}
+
+void
+vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
+{
+	struct fb_info *info;
+	uint32_t c;
+	u_int o;
+
+	info = vd->vd_softc;
+	c = info->fb_cmap[color];
+	o = info->fb_stride * y + x * FBTYPE_GET_BYTESPP(info);
+
+	switch (FBTYPE_GET_BYTESPP(info)) {
+	case 1:
+		info->wr1(info, o, c);
+		break;
+	case 2:
+		info->wr2(info, o, c);
+		break;
+	case 3:
+		info->wr1(info, o, (c >> 16) & 0xff);
+		info->wr1(info, o + 1, (c >> 8) & 0xff);
+		info->wr1(info, o + 2, c & 0xff);
+		break;
+	case 4:
+		info->wr4(info, o, c);
+		break;
+	default:
+		/* panic? */
+		return;
+	}
+
+}
+
+void
+vt_fb_drawrect(struct vt_device *vd, int x1, int y1, int x2, int y2, int fill,
+    term_color_t color)
+{
+	int x, y;
+
+	for (y = y1; y <= y2; y++) {
+		if (fill || (y == y1) || (y == y2)) {
+			for (x = x1; x <= x2; x++)
+				vt_fb_setpixel(vd, x, y, color);
+		} else {
+			vt_fb_setpixel(vd, x1, y, color);
+			vt_fb_setpixel(vd, x2, y, color);
+		}
+	}
 }
 
 void

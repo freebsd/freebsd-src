@@ -407,6 +407,89 @@ pci_conf_match_old32(struct pci_match_conf_old32 *matches, int num_matches,
 #endif	/* PRE7_COMPAT */
 
 static int
+pci_list_vpd(device_t dev, struct pci_list_vpd_io *lvio)
+{
+	struct pci_vpd_element vpd_element, *vpd_user;
+	struct pcicfg_vpd *vpd;
+	size_t len;
+	int error, i;
+
+	vpd = pci_fetch_vpd_list(dev);
+	if (vpd->vpd_reg == 0 || vpd->vpd_ident == NULL)
+		return (ENXIO);
+
+	/*
+	 * Calculate the amount of space needed in the data buffer.  An
+	 * identifier element is always present followed by the read-only
+	 * and read-write keywords.
+	 */
+	len = sizeof(struct pci_vpd_element) + strlen(vpd->vpd_ident);
+	for (i = 0; i < vpd->vpd_rocnt; i++)
+		len += sizeof(struct pci_vpd_element) + vpd->vpd_ros[i].len;
+	for (i = 0; i < vpd->vpd_wcnt; i++)
+		len += sizeof(struct pci_vpd_element) + vpd->vpd_w[i].len;
+
+	if (lvio->plvi_len == 0) {
+		lvio->plvi_len = len;
+		return (0);
+	}
+	if (lvio->plvi_len < len) {
+		lvio->plvi_len = len;
+		return (ENOMEM);
+	}
+
+	/*
+	 * Copyout the identifier string followed by each keyword and
+	 * value.
+	 */
+	vpd_user = lvio->plvi_data;
+	vpd_element.pve_keyword[0] = '\0';
+	vpd_element.pve_keyword[1] = '\0';
+	vpd_element.pve_flags = PVE_FLAG_IDENT;
+	vpd_element.pve_datalen = strlen(vpd->vpd_ident);
+	error = copyout(&vpd_element, vpd_user, sizeof(vpd_element));
+	if (error)
+		return (error);
+	error = copyout(vpd->vpd_ident, vpd_user->pve_data,
+	    strlen(vpd->vpd_ident));
+	if (error)
+		return (error);
+	vpd_user = PVE_NEXT(vpd_user);
+	vpd_element.pve_flags = 0;
+	for (i = 0; i < vpd->vpd_rocnt; i++) {
+		vpd_element.pve_keyword[0] = vpd->vpd_ros[i].keyword[0];
+		vpd_element.pve_keyword[1] = vpd->vpd_ros[i].keyword[1];
+		vpd_element.pve_datalen = vpd->vpd_ros[i].len;
+		error = copyout(&vpd_element, vpd_user, sizeof(vpd_element));
+		if (error)
+			return (error);
+		error = copyout(vpd->vpd_ros[i].value, vpd_user->pve_data,
+		    vpd->vpd_ros[i].len);
+		if (error)
+			return (error);
+		vpd_user = PVE_NEXT(vpd_user);
+	}
+	vpd_element.pve_flags = PVE_FLAG_RW;
+	for (i = 0; i < vpd->vpd_wcnt; i++) {
+		vpd_element.pve_keyword[0] = vpd->vpd_w[i].keyword[0];
+		vpd_element.pve_keyword[1] = vpd->vpd_w[i].keyword[1];
+		vpd_element.pve_datalen = vpd->vpd_w[i].len;
+		error = copyout(&vpd_element, vpd_user, sizeof(vpd_element));
+		if (error)
+			return (error);
+		error = copyout(vpd->vpd_w[i].value, vpd_user->pve_data,
+		    vpd->vpd_w[i].len);
+		if (error)
+			return (error);
+		vpd_user = PVE_NEXT(vpd_user);
+	}
+	KASSERT((char *)vpd_user - (char *)lvio->plvi_data == len,
+	    ("length mismatch"));
+	lvio->plvi_len = len;
+	return (0);
+}
+
+static int
 pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 {
 	device_t pcidev, brdev;
@@ -417,6 +500,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_devinfo *dinfo;
 	struct pci_io *io;
 	struct pci_bar_io *bio;
+	struct pci_list_vpd_io *lvio;
 	struct pci_match_conf *pattern_buf;
 	struct pci_map *pm;
 	size_t confsz, iolen, pbufsz;
@@ -433,19 +517,29 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	struct pci_match_conf_old *pattern_buf_old = NULL;
 
 	io_old = NULL;
-
-	if (!(flag & FWRITE) && cmd != PCIOCGETBAR &&
-	    cmd != PCIOCGETCONF && cmd != PCIOCGETCONF_OLD)
-		return EPERM;
-#else
-	if (!(flag & FWRITE) && cmd != PCIOCGETBAR && cmd != PCIOCGETCONF)
-		return EPERM;
 #endif
 
-	switch(cmd) {
+	if (!(flag & FWRITE)) {
+		switch (cmd) {
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
-       case PCIOCGETCONF_OLD32:
+		case PCIOCGETCONF_OLD32:
+#endif
+		case PCIOCGETCONF_OLD:
+#endif
+		case PCIOCGETCONF:
+		case PCIOCGETBAR:
+		case PCIOCLISTVPD:
+			break;
+		default:
+			return (EPERM);
+		}
+	}
+
+	switch (cmd) {
+#ifdef PRE7_COMPAT
+#ifdef COMPAT_FREEBSD32
+	case PCIOCGETCONF_OLD32:
                cio32 = (struct pci_conf_io32 *)data;
                cio = malloc(sizeof(struct pci_conf_io), M_TEMP, M_WAITOK);
                cio->pat_buf_len = cio32->pat_buf_len;
@@ -466,7 +560,7 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 		cio = (struct pci_conf_io *)data;
 	}
 
-	switch(cmd) {
+	switch (cmd) {
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
 	case PCIOCGETCONF_OLD32:
@@ -911,6 +1005,22 @@ getconfexit:
 			io->pi_data = device_is_attached(pcidev);
 		else
 			error = ENODEV;
+		break;
+	case PCIOCLISTVPD:
+		lvio = (struct pci_list_vpd_io *)data;
+
+		/*
+		 * Assume that the user-level bus number is
+		 * in fact the physical PCI bus number.
+		 */
+		pcidev = pci_find_dbsf(lvio->plvi_sel.pc_domain,
+		    lvio->plvi_sel.pc_bus, lvio->plvi_sel.pc_dev,
+		    lvio->plvi_sel.pc_func);
+		if (pcidev == NULL) {
+			error = ENODEV;
+			break;
+		}
+		error = pci_list_vpd(pcidev, lvio);
 		break;
 	default:
 		error = ENOTTY;

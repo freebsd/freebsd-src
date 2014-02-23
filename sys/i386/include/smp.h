@@ -22,7 +22,7 @@
 #include <sys/bus.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/apicvar.h>
+#include <x86/apicvar.h>
 #include <machine/pcb.h>
 
 /* global data in mpboot.s */

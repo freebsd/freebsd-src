@@ -160,6 +160,10 @@ static struct lpc_gpio_softc *lpc_gpio_sc = NULL;
 static int
 lpc_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "lpc,gpio"))
 		return (ENXIO);
 

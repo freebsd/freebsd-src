@@ -95,10 +95,11 @@ CFLAGS+= -Wa,-mppc64bridge
 #.include	"${.CURDIR}/../../ofw/common/Makefile.inc"
 
 # where to get libstand from
+LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
 DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} -lstand
+LDADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
 
 SC_DFLT_FONT=cp437
 

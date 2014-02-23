@@ -50,6 +50,7 @@ inline void RemoveFromVector(std::vector<T*> &V, T *N) {
 class DominatorTree;
 class LoopInfo;
 class Loop;
+class MDNode;
 class PHINode;
 class raw_ostream;
 template<class N, class M> class LoopInfoBase;
@@ -67,6 +68,8 @@ class LoopBase {
 
   // Blocks - The list of blocks in this loop.  First entry is the header node.
   std::vector<BlockT*> Blocks;
+
+  SmallPtrSet<const BlockT*, 8> DenseBlockSet;
 
   LoopBase(const LoopBase<BlockT, LoopT> &) LLVM_DELETED_FUNCTION;
   const LoopBase<BlockT, LoopT>&
@@ -107,7 +110,7 @@ public:
   /// contains - Return true if the specified basic block is in this loop.
   ///
   bool contains(const BlockT *BB) const {
-    return std::find(block_begin(), block_end(), BB) != block_end();
+    return DenseBlockSet.count(BB);
   }
 
   /// contains - Return true if the specified instruction is in this loop.
@@ -133,7 +136,6 @@ public:
   /// getBlocks - Get a list of the basic blocks which make up this loop.
   ///
   const std::vector<BlockT*> &getBlocks() const { return Blocks; }
-  std::vector<BlockT*> &getBlocksVector() { return Blocks; }
   typedef typename std::vector<BlockT*>::const_iterator block_iterator;
   block_iterator block_begin() const { return Blocks.begin(); }
   block_iterator block_end() const { return Blocks.end(); }
@@ -270,6 +272,17 @@ public:
   /// transformations should use addBasicBlockToLoop.
   void addBlockEntry(BlockT *BB) {
     Blocks.push_back(BB);
+    DenseBlockSet.insert(BB);
+  }
+
+  /// reverseBlocks - interface to reverse Blocks[from, end of loop] in this loop
+  void reverseBlock(unsigned from) {
+    std::reverse(Blocks.begin() + from, Blocks.end());
+  }
+
+  /// reserveBlocks- interface to do reserve() for Blocks
+  void reserveBlocks(unsigned size) {
+    Blocks.reserve(size);
   }
 
   /// moveToHeader - This method is used to move BB (which must be part of this
@@ -292,6 +305,7 @@ public:
   /// the mapping in the LoopInfo class.
   void removeBlockFromLoop(BlockT *BB) {
     RemoveFromVector(Blocks, BB);
+    DenseBlockSet.erase(BB);
   }
 
   /// verifyLoop - Verify loop structure
@@ -306,6 +320,7 @@ protected:
   friend class LoopInfoBase<BlockT, LoopT>;
   explicit LoopBase(BlockT *BB) : ParentLoop(0) {
     Blocks.push_back(BB);
+    DenseBlockSet.insert(BB);
   }
 };
 
@@ -390,6 +405,22 @@ public:
   /// implement actual concurrent execution of instructions across multiple
   /// iterations.
   bool isAnnotatedParallel() const;
+
+  /// Return the llvm.loop loop id metadata node for this loop if it is present.
+  ///
+  /// If this loop contains the same llvm.loop metadata on each branch to the
+  /// header then the node is returned. If any latch instruction does not
+  /// contain llvm.loop or or if multiple latches contain different nodes then
+  /// 0 is returned.
+  MDNode *getLoopID() const;
+  /// Set the llvm.loop loop id metadata for this loop.
+  ///
+  /// The LoopID metadata node will be added to each terminator instruction in
+  /// the loop that branches to the loop header.
+  ///
+  /// The LoopID metadata node should have one or more operands and the first
+  /// operand should should be the node itself.
+  void setLoopID(MDNode *LoopID) const;
 
   /// hasDedicatedExits - Return true if no exit block for the loop
   /// has a predecessor that is outside the loop.

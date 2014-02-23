@@ -211,7 +211,7 @@ struct da_softc {
 	int	 delete_running;
 	int	 delete_available;	/* Delete methods possibly available */
 	uint32_t		unmap_max_ranges;
-	uint32_t		unmap_max_lba; /* Max LBAs in a single range */
+	uint32_t		unmap_max_lba; /* Max LBAs in UNMAP req */
 	uint64_t		ws_max_blks;
 	da_delete_methods	delete_method;
 	da_delete_func_t	*delete_func;
@@ -1854,7 +1854,7 @@ dadeletemaxsize(struct da_softc *softc, da_delete_methods delete_method)
 
 	switch(delete_method) {
 	case DA_DELETE_UNMAP:
-		sectors = (off_t)softc->unmap_max_lba * softc->unmap_max_ranges;
+		sectors = (off_t)softc->unmap_max_lba;
 		break;
 	case DA_DELETE_ATA_TRIM:
 		sectors = (off_t)ATA_DSM_RANGE_MAX * softc->trim_max_ranges;
@@ -2526,6 +2526,7 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 	struct bio *bp1;
 	uint8_t *buf = softc->unmap_buf;
 	uint64_t lba, lastlba = (uint64_t)-1;
+	uint64_t totalcount = 0;
 	uint64_t count;
 	uint32_t lastcount = 0, c;
 	uint32_t off, ranges = 0;
@@ -2552,41 +2553,42 @@ da_delete_unmap(struct cam_periph *periph, union ccb *ccb, struct bio *bp)
 
 		/* Try to extend the previous range. */
 		if (lba == lastlba) {
-			c = min(count, softc->unmap_max_lba - lastcount);
+			c = omin(count, UNMAP_RANGE_MAX - lastcount);
 			lastcount += c;
 			off = ((ranges - 1) * UNMAP_RANGE_SIZE) +
 			      UNMAP_HEAD_SIZE;
 			scsi_ulto4b(lastcount, &buf[off + 8]);
 			count -= c;
 			lba +=c;
+			totalcount += c;
 		}
 
 		while (count > 0) {
-			if (ranges > softc->unmap_max_ranges) {
+			c = omin(count, UNMAP_RANGE_MAX);
+			if (totalcount + c > softc->unmap_max_lba ||
+			    ranges >= softc->unmap_max_ranges) {
 				xpt_print(periph->path,
-				    "%s issuing short delete %d > %d\n",
+				    "%s issuing short delete %ld > %ld"
+				    "|| %d >= %d",
 				    da_delete_method_desc[softc->delete_method],
+				    totalcount + c, softc->unmap_max_lba,
 				    ranges, softc->unmap_max_ranges);
 				break;
 			}
-			c = min(count, softc->unmap_max_lba);
 			off = (ranges * UNMAP_RANGE_SIZE) + UNMAP_HEAD_SIZE;
 			scsi_u64to8b(lba, &buf[off + 0]);
 			scsi_ulto4b(c, &buf[off + 8]);
 			lba += c;
+			totalcount += c;
 			ranges++;
 			count -= c;
 			lastcount = c;
 		}
 		lastlba = lba;
 		bp1 = bioq_first(&softc->delete_queue);
-		/*
-		 * Assume no range extension on the next loop iteration to
-		 * avoid issuing a short delete.
-		 */
 		if (bp1 == NULL || ranges >= softc->unmap_max_ranges ||
-		    bp1->bio_bcount / softc->params.secsize >
-		    softc->unmap_max_lba * (softc->unmap_max_ranges - ranges))
+		    totalcount + bp1->bio_bcount /
+		    softc->params.secsize > softc->unmap_max_lba)
 			break;
 	} while (1);
 	scsi_ulto2b(ranges * 16 + 6, &buf[0]);

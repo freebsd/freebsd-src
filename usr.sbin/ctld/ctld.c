@@ -149,57 +149,6 @@ auth_find(struct auth_group *ag, const char *user)
 	return (NULL);
 }
 
-struct auth_group *
-auth_group_new(struct conf *conf, const char *name)
-{
-	struct auth_group *ag;
-
-	if (name != NULL) {
-		ag = auth_group_find(conf, name);
-		if (ag != NULL) {
-			log_warnx("duplicated auth-group \"%s\"", name);
-			return (NULL);
-		}
-	}
-
-	ag = calloc(1, sizeof(*ag));
-	if (ag == NULL)
-		log_err(1, "calloc");
-	if (name != NULL)
-		ag->ag_name = checked_strdup(name);
-	TAILQ_INIT(&ag->ag_auths);
-	ag->ag_conf = conf;
-	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
-
-	return (ag);
-}
-
-void
-auth_group_delete(struct auth_group *ag)
-{
-	struct auth *auth, *tmp;
-
-	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
-
-	TAILQ_FOREACH_SAFE(auth, &ag->ag_auths, a_next, tmp)
-		auth_delete(auth);
-	free(ag->ag_name);
-	free(ag);
-}
-
-struct auth_group *
-auth_group_find(struct conf *conf, const char *name)
-{
-	struct auth_group *ag;
-
-	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
-		if (ag->ag_name != NULL && strcmp(ag->ag_name, name) == 0)
-			return (ag);
-	}
-
-	return (NULL);
-}
-
 static void
 auth_check_secret_length(struct auth *auth)
 {
@@ -215,7 +164,7 @@ auth_check_secret_length(struct auth *auth)
 			log_warnx("secret for user \"%s\", target \"%s\", "
 			    "is too long; it should be at most 16 characters "
 			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_iqn);
+			    auth->a_auth_group->ag_target->t_name);
 	}
 	if (len < 12) {
 		if (auth->a_auth_group->ag_name != NULL)
@@ -227,7 +176,7 @@ auth_check_secret_length(struct auth *auth)
 			log_warnx("secret for user \"%s\", target \"%s\", "
 			    "is too short; it should be at least 16 characters "
 			    "long", auth->a_user,
-			    auth->a_auth_group->ag_target->t_iqn);
+			    auth->a_auth_group->ag_target->t_name);
 	}
 
 	if (auth->a_mutual_secret != NULL) {
@@ -243,7 +192,7 @@ auth_check_secret_length(struct auth *auth)
 				    "target \"%s\", is too long; it should "
 				    "be at most 16 characters long",
 				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_iqn);
+				    auth->a_auth_group->ag_target->t_name);
 		}
 		if (len < 12) {
 			if (auth->a_auth_group->ag_name != NULL)
@@ -256,7 +205,7 @@ auth_check_secret_length(struct auth *auth)
 				    "target \"%s\", is too short; it should be "
 				    "at least 16 characters long",
 				    auth->a_user,
-				    auth->a_auth_group->ag_target->t_iqn);
+				    auth->a_auth_group->ag_target->t_name);
 		}
 	}
 }
@@ -276,7 +225,7 @@ auth_new_chap(struct auth_group *ag, const char *user,
 		else
 			log_warnx("cannot mix \"chap\" authentication with "
 			    "other types for target \"%s\"",
-			    ag->ag_target->t_iqn);
+			    ag->ag_target->t_name);
 		return (NULL);
 	}
 
@@ -305,7 +254,7 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 		else
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for target \"%s\"",
-			    ag->ag_target->t_iqn);
+			    ag->ag_target->t_name);
 		return (NULL);
 	}
 
@@ -318,6 +267,208 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 	auth_check_secret_length(auth);
 
 	return (auth);
+}
+
+const struct auth_name *
+auth_name_new(struct auth_group *ag, const char *name)
+{
+	struct auth_name *an;
+
+	an = calloc(1, sizeof(*an));
+	if (an == NULL)
+		log_err(1, "calloc");
+	an->an_auth_group = ag;
+	an->an_initator_name = checked_strdup(name);
+	TAILQ_INSERT_TAIL(&ag->ag_names, an, an_next);
+	return (an);
+}
+
+static void
+auth_name_delete(struct auth_name *an)
+{
+	TAILQ_REMOVE(&an->an_auth_group->ag_names, an, an_next);
+
+	free(an->an_initator_name);
+	free(an);
+}
+
+bool
+auth_name_defined(const struct auth_group *ag)
+{
+	if (TAILQ_EMPTY(&ag->ag_names))
+		return (false);
+	return (true);
+}
+
+const struct auth_name *
+auth_name_find(const struct auth_group *ag, const char *name)
+{
+	const struct auth_name *auth_name;
+
+	TAILQ_FOREACH(auth_name, &ag->ag_names, an_next) {
+		if (strcmp(auth_name->an_initator_name, name) == 0)
+			return (auth_name);
+	}
+
+	return (NULL);
+}
+
+const struct auth_portal *
+auth_portal_new(struct auth_group *ag, const char *portal)
+{
+	struct auth_portal *ap;
+
+	ap = calloc(1, sizeof(*ap));
+	if (ap == NULL)
+		log_err(1, "calloc");
+	ap->ap_auth_group = ag;
+	ap->ap_initator_portal = checked_strdup(portal);
+	TAILQ_INSERT_TAIL(&ag->ag_portals, ap, ap_next);
+	return (ap);
+}
+
+static void
+auth_portal_delete(struct auth_portal *ap)
+{
+	TAILQ_REMOVE(&ap->ap_auth_group->ag_portals, ap, ap_next);
+
+	free(ap->ap_initator_portal);
+	free(ap);
+}
+
+bool
+auth_portal_defined(const struct auth_group *ag)
+{
+	if (TAILQ_EMPTY(&ag->ag_portals))
+		return (false);
+	return (true);
+}
+
+const struct auth_portal *
+auth_portal_find(const struct auth_group *ag, const char *portal)
+{
+	const struct auth_portal *auth_portal;
+
+	TAILQ_FOREACH(auth_portal, &ag->ag_portals, ap_next) {
+		if (strcmp(auth_portal->ap_initator_portal, portal) == 0)
+			return (auth_portal);
+	}
+
+	return (NULL);
+}
+
+struct auth_group *
+auth_group_new(struct conf *conf, const char *name)
+{
+	struct auth_group *ag;
+
+	if (name != NULL) {
+		ag = auth_group_find(conf, name);
+		if (ag != NULL) {
+			log_warnx("duplicated auth-group \"%s\"", name);
+			return (NULL);
+		}
+	}
+
+	ag = calloc(1, sizeof(*ag));
+	if (ag == NULL)
+		log_err(1, "calloc");
+	if (name != NULL)
+		ag->ag_name = checked_strdup(name);
+	TAILQ_INIT(&ag->ag_auths);
+	TAILQ_INIT(&ag->ag_names);
+	TAILQ_INIT(&ag->ag_portals);
+	ag->ag_conf = conf;
+	TAILQ_INSERT_TAIL(&conf->conf_auth_groups, ag, ag_next);
+
+	return (ag);
+}
+
+void
+auth_group_delete(struct auth_group *ag)
+{
+	struct auth *auth, *auth_tmp;
+	struct auth_name *auth_name, *auth_name_tmp;
+	struct auth_portal *auth_portal, *auth_portal_tmp;
+
+	TAILQ_REMOVE(&ag->ag_conf->conf_auth_groups, ag, ag_next);
+
+	TAILQ_FOREACH_SAFE(auth, &ag->ag_auths, a_next, auth_tmp)
+		auth_delete(auth);
+	TAILQ_FOREACH_SAFE(auth_name, &ag->ag_names, an_next, auth_name_tmp)
+		auth_name_delete(auth_name);
+	TAILQ_FOREACH_SAFE(auth_portal, &ag->ag_portals, ap_next,
+	    auth_portal_tmp)
+		auth_portal_delete(auth_portal);
+	free(ag->ag_name);
+	free(ag);
+}
+
+struct auth_group *
+auth_group_find(struct conf *conf, const char *name)
+{
+	struct auth_group *ag;
+
+	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
+		if (ag->ag_name != NULL && strcmp(ag->ag_name, name) == 0)
+			return (ag);
+	}
+
+	return (NULL);
+}
+
+static int
+auth_group_set_type(struct auth_group *ag, int type)
+{
+
+	if (ag->ag_type == AG_TYPE_UNKNOWN) {
+		ag->ag_type = type;
+		return (0);
+	}
+
+	if (ag->ag_type == type)
+		return (0);
+
+	return (1);
+}
+
+int
+auth_group_set_type_str(struct auth_group *ag, const char *str)
+{
+	int error, type;
+
+	if (strcmp(str, "none") == 0) {
+		type = AG_TYPE_NO_AUTHENTICATION;
+	} else if (strcmp(str, "deny") == 0) {
+		type = AG_TYPE_DENY;
+	} else if (strcmp(str, "chap") == 0) {
+		type = AG_TYPE_CHAP;
+	} else if (strcmp(str, "chap-mutual") == 0) {
+		type = AG_TYPE_CHAP_MUTUAL;
+	} else {
+		if (ag->ag_name != NULL)
+			log_warnx("invalid auth-type \"%s\" for auth-group "
+			    "\"%s\"", str, ag->ag_name);
+		else
+			log_warnx("invalid auth-type \"%s\" for target "
+			    "\"%s\"", str, ag->ag_target->t_name);
+		return (1);
+	}
+
+	error = auth_group_set_type(ag, type);
+	if (error != 0) {
+		if (ag->ag_name != NULL)
+			log_warnx("cannot set auth-type to \"%s\" for "
+			    "auth-group \"%s\"; already has a different "
+			    "type", str, ag->ag_name);
+		else
+			log_warnx("cannot set auth-type to \"%s\" for target "
+			    "\"%s\"; already has a different type",
+			    str, ag->ag_target->t_name);
+		return (1);
+	}
+
+	return (error);
 }
 
 static struct portal *
@@ -589,31 +740,31 @@ valid_iscsi_name(const char *name)
 }
 
 struct target *
-target_new(struct conf *conf, const char *iqn)
+target_new(struct conf *conf, const char *name)
 {
 	struct target *targ;
 	int i, len;
 
-	targ = target_find(conf, iqn);
+	targ = target_find(conf, name);
 	if (targ != NULL) {
-		log_warnx("duplicated target \"%s\"", iqn);
+		log_warnx("duplicated target \"%s\"", name);
 		return (NULL);
 	}
-	if (valid_iscsi_name(iqn) == false) {
-		log_warnx("target name \"%s\" is invalid", iqn);
+	if (valid_iscsi_name(name) == false) {
+		log_warnx("target name \"%s\" is invalid", name);
 		return (NULL);
 	}
 	targ = calloc(1, sizeof(*targ));
 	if (targ == NULL)
 		log_err(1, "calloc");
-	targ->t_iqn = checked_strdup(iqn);
+	targ->t_name = checked_strdup(name);
 
 	/*
 	 * RFC 3722 requires us to normalize the name to lowercase.
 	 */
-	len = strlen(iqn);
+	len = strlen(name);
 	for (i = 0; i < len; i++)
-		targ->t_iqn[i] = tolower(targ->t_iqn[i]);
+		targ->t_name[i] = tolower(targ->t_name[i]);
 
 	TAILQ_INIT(&targ->t_luns);
 	targ->t_conf = conf;
@@ -631,17 +782,17 @@ target_delete(struct target *targ)
 
 	TAILQ_FOREACH_SAFE(lun, &targ->t_luns, l_next, tmp)
 		lun_delete(lun);
-	free(targ->t_iqn);
+	free(targ->t_name);
 	free(targ);
 }
 
 struct target *
-target_find(struct conf *conf, const char *iqn)
+target_find(struct conf *conf, const char *name)
 {
 	struct target *targ;
 
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-		if (strcasecmp(targ->t_iqn, iqn) == 0)
+		if (strcasecmp(targ->t_name, name) == 0)
 			return (targ);
 	}
 
@@ -656,7 +807,7 @@ lun_new(struct target *targ, int lun_id)
 	lun = lun_find(targ, lun_id);
 	if (lun != NULL) {
 		log_warnx("duplicated lun %d for target \"%s\"",
-		    lun_id, targ->t_iqn);
+		    lun_id, targ->t_name);
 		return (NULL);
 	}
 
@@ -757,7 +908,7 @@ lun_option_new(struct lun *lun, const char *name, const char *value)
 	lo = lun_option_find(lun, name);
 	if (lo != NULL) {
 		log_warnx("duplicated lun option %s for lun %d, target \"%s\"",
-		    name, lun->l_lun, lun->l_target->t_iqn);
+		    name, lun->l_lun, lun->l_target->t_name);
 		return (NULL);
 	}
 
@@ -832,6 +983,8 @@ conf_print(struct conf *conf)
 {
 	struct auth_group *ag;
 	struct auth *auth;
+	struct auth_name *auth_name;
+	struct auth_portal *auth_portal;
 	struct portal_group *pg;
 	struct portal *portal;
 	struct target *targ;
@@ -844,6 +997,12 @@ conf_print(struct conf *conf)
 			fprintf(stderr, "\t chap-mutual %s %s %s %s\n",
 			    auth->a_user, auth->a_secret,
 			    auth->a_mutual_user, auth->a_mutual_secret);
+		TAILQ_FOREACH(auth_name, &ag->ag_names, an_next)
+			fprintf(stderr, "\t initiator-name %s\n",
+			    auth_name->an_initator_name);
+		TAILQ_FOREACH(auth_portal, &ag->ag_portals, an_next)
+			fprintf(stderr, "\t initiator-portal %s\n",
+			    auth_portal->an_initator_portal);
 		fprintf(stderr, "}\n");
 	}
 	TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
@@ -853,7 +1012,7 @@ conf_print(struct conf *conf)
 		fprintf(stderr, "}\n");
 	}
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-		fprintf(stderr, "target %s {\n", targ->t_iqn);
+		fprintf(stderr, "target %s {\n", targ->t_name);
 		if (targ->t_alias != NULL)
 			fprintf(stderr, "\t alias %s\n", targ->t_alias);
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
@@ -869,24 +1028,88 @@ conf_print(struct conf *conf)
 }
 #endif
 
+static int
+conf_verify_lun(struct lun *lun)
+{
+	const struct lun *lun2;
+	const struct target *targ2;
+
+	if (lun->l_backend == NULL)
+		lun_set_backend(lun, "block");
+	if (strcmp(lun->l_backend, "block") == 0) {
+		if (lun->l_path == NULL) {
+			log_warnx("missing path for lun %d, target \"%s\"",
+			    lun->l_lun, lun->l_target->t_name);
+			return (1);
+		}
+	} else if (strcmp(lun->l_backend, "ramdisk") == 0) {
+		if (lun->l_size == 0) {
+			log_warnx("missing size for ramdisk-backed lun %d, "
+			    "target \"%s\"", lun->l_lun, lun->l_target->t_name);
+			return (1);
+		}
+		if (lun->l_path != NULL) {
+			log_warnx("path must not be specified "
+			    "for ramdisk-backed lun %d, target \"%s\"",
+			    lun->l_lun, lun->l_target->t_name);
+			return (1);
+		}
+	}
+	if (lun->l_lun < 0 || lun->l_lun > 255) {
+		log_warnx("invalid lun number for lun %d, target \"%s\"; "
+		    "must be between 0 and 255", lun->l_lun,
+		    lun->l_target->t_name);
+		return (1);
+	}
+	if (lun->l_blocksize == 0) {
+		lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
+	} else if (lun->l_blocksize < 0) {
+		log_warnx("invalid blocksize for lun %d, target \"%s\"; "
+		    "must be larger than 0", lun->l_lun, lun->l_target->t_name);
+		return (1);
+	}
+	if (lun->l_size != 0 && lun->l_size % lun->l_blocksize != 0) {
+		log_warnx("invalid size for lun %d, target \"%s\"; "
+		    "must be multiple of blocksize", lun->l_lun,
+		    lun->l_target->t_name);
+		return (1);
+	}
+	TAILQ_FOREACH(targ2, &lun->l_target->t_conf->conf_targets, t_next) {
+		TAILQ_FOREACH(lun2, &targ2->t_luns, l_next) {
+			if (lun == lun2)
+				continue;
+			if (lun->l_path != NULL && lun2->l_path != NULL &&
+			    strcmp(lun->l_path, lun2->l_path) == 0) {
+				log_debugx("WARNING: path \"%s\" duplicated "
+				    "between lun %d, target \"%s\", and "
+				    "lun %d, target \"%s\"", lun->l_path,
+				    lun->l_lun, lun->l_target->t_name,
+				    lun2->l_lun, lun2->l_target->t_name);
+			}
+		}
+	}
+
+	return (0);
+}
+
 int
 conf_verify(struct conf *conf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
 	struct target *targ;
-	struct lun *lun, *lun2;
+	struct lun *lun;
 	bool found_lun0;
+	int error;
 
 	if (conf->conf_pidfile_path == NULL)
 		conf->conf_pidfile_path = checked_strdup(DEFAULT_PIDFILE);
 
 	TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 		if (targ->t_auth_group == NULL) {
-			log_warnx("missing authentication for target \"%s\"; "
-			    "must specify either \"auth-group\", \"chap\", "
-			    "or \"chap-mutual\"", targ->t_iqn);
-			return (1);
+			targ->t_auth_group = auth_group_find(conf,
+			    "default");
+			assert(targ->t_auth_group != NULL);
 		}
 		if (targ->t_portal_group == NULL) {
 			targ->t_portal_group = portal_group_find(conf,
@@ -895,69 +1118,15 @@ conf_verify(struct conf *conf)
 		}
 		found_lun0 = false;
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
+			error = conf_verify_lun(lun);
+			if (error != 0)
+				return (error);
 			if (lun->l_lun == 0)
 				found_lun0 = true;
-			if (lun->l_backend == NULL)
-				lun_set_backend(lun, "block");
-			if (strcmp(lun->l_backend, "block") == 0 &&
-			    lun->l_path == NULL) {
-				log_warnx("missing path for lun %d, "
-				    "target \"%s\"", lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-			if (strcmp(lun->l_backend, "ramdisk") == 0) {
-				if (lun->l_size == 0) {
-					log_warnx("missing size for "
-					    "ramdisk-backed lun %d, "
-					    "target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-					return (1);
-				}
-				if (lun->l_path != NULL) {
-					log_warnx("path must not be specified "
-					    "for ramdisk-backed lun %d, "
-					    "target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-					return (1);
-				}
-			}
-			if (lun->l_lun < 0 || lun->l_lun > 255) {
-				log_warnx("invalid lun number for lun %d, "
-				    "target \"%s\"; must be between 0 and 255",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-#if 1 /* Should we? */
-			TAILQ_FOREACH(lun2, &targ->t_luns, l_next) {
-				if (lun == lun2)
-					continue;
-				if (lun->l_path != NULL &&
-				    lun2->l_path != NULL &&
-				    strcmp(lun->l_path, lun2->l_path) == 0)
-					log_debugx("WARNING: duplicate path "
-					    "for lun %d, target \"%s\"",
-					    lun->l_lun, targ->t_iqn);
-			}
-#endif
-			if (lun->l_blocksize == 0) {
-				lun_set_blocksize(lun, DEFAULT_BLOCKSIZE);
-			} else if (lun->l_blocksize <= 0) {
-				log_warnx("invalid blocksize for lun %d, "
-				    "target \"%s\"; must be larger than 0",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
-			if (lun->l_size != 0 &&
-			    lun->l_size % lun->l_blocksize != 0) {
-				log_warnx("invalid size for lun %d, target "
-				    "\"%s\"; must be multiple of blocksize",
-				    lun->l_lun, targ->t_iqn);
-				return (1);
-			}
 		}
 		if (!found_lun0) {
 			log_warnx("mandatory LUN 0 not configured "
-			    "for target \"%s\"", targ->t_iqn);
+			    "for target \"%s\"", targ->t_name);
 			return (1);
 		}
 	}
@@ -965,7 +1134,7 @@ conf_verify(struct conf *conf)
 		assert(pg->pg_name != NULL);
 		if (pg->pg_discovery_auth_group == NULL) {
 			pg->pg_discovery_auth_group =
-			    auth_group_find(conf, "no-access");
+			    auth_group_find(conf, "default");
 			assert(pg->pg_discovery_auth_group != NULL);
 		}
 
@@ -992,6 +1161,7 @@ conf_verify(struct conf *conf)
 				break;
 		}
 		if (targ == NULL && ag->ag_name != NULL &&
+		    strcmp(ag->ag_name, "default") != 0 &&
 		    strcmp(ag->ag_name, "no-authentication") != 0 &&
 		    strcmp(ag->ag_name, "no-access") != 0) {
 			log_warnx("auth-group \"%s\" not assigned "
@@ -1053,20 +1223,20 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		 * First, remove any targets present in the old configuration
 		 * and missing in the new one.
 		 */
-		newtarg = target_find(newconf, oldtarg->t_iqn);
+		newtarg = target_find(newconf, oldtarg->t_name);
 		if (newtarg == NULL) {
 			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
 			    tmplun) {
-				log_debugx("target %s not found in the "
-				    "configuration file; removing its lun %d, "
+				log_debugx("target %s not found in new "
+				    "configuration; removing its lun %d, "
 				    "backed by CTL lun %d",
-				    oldtarg->t_iqn, oldlun->l_lun,
+				    oldtarg->t_name, oldlun->l_lun,
 				    oldlun->l_ctl_lun);
 				error = kernel_lun_remove(oldlun);
 				if (error != 0) {
 					log_warnx("failed to remove lun %d, "
 					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_iqn,
+					    oldlun->l_lun, oldtarg->t_name,
 					    oldlun->l_ctl_lun);
 					cumulated_error++;
 				}
@@ -1084,14 +1254,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			newlun = lun_find(newtarg, oldlun->l_lun);
 			if (newlun == NULL) {
 				log_debugx("lun %d, target %s, CTL lun %d "
-				    "not found in the configuration file; "
-				    "removing", oldlun->l_lun, oldtarg->t_iqn,
+				    "not found in new configuration; "
+				    "removing", oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				error = kernel_lun_remove(oldlun);
 				if (error != 0) {
 					log_warnx("failed to remove lun %d, "
 					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_iqn,
+					    oldlun->l_lun, oldtarg->t_name,
 					    oldlun->l_ctl_lun);
 					cumulated_error++;
 				}
@@ -1108,14 +1278,14 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			if (strcmp(newlun->l_backend, oldlun->l_backend) != 0) {
 				log_debugx("backend for lun %d, target %s, "
 				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_iqn,
+				    oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				changed = 1;
 			}
 			if (oldlun->l_blocksize != newlun->l_blocksize) {
 				log_debugx("blocksize for lun %d, target %s, "
 				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_iqn,
+				    oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				changed = 1;
 			}
@@ -1125,7 +1295,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			     0)) {
 				log_debugx("device-id for lun %d, target %s, "
 				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_iqn,
+				    oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				changed = 1;
 			}
@@ -1134,7 +1304,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			     strcmp(oldlun->l_path, newlun->l_path) != 0)) {
 				log_debugx("path for lun %d, target %s, "
 				    "CTL lun %d, changed; removing",
-				    oldlun->l_lun, oldtarg->t_iqn,
+				    oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				changed = 1;
 			}
@@ -1143,7 +1313,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			     strcmp(oldlun->l_serial, newlun->l_serial) != 0)) {
 				log_debugx("serial for lun %d, target %s, "
 				    "CTL lun %d changed; removing",
-				    oldlun->l_lun, oldtarg->t_iqn,
+				    oldlun->l_lun, oldtarg->t_name,
 				    oldlun->l_ctl_lun);
 				changed = 1;
 			}
@@ -1152,7 +1322,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				if (error != 0) {
 					log_warnx("failed to remove lun %d, "
 					    "target %s, CTL lun %d",
-					    oldlun->l_lun, oldtarg->t_iqn,
+					    oldlun->l_lun, oldtarg->t_name,
 					    oldlun->l_ctl_lun);
 					cumulated_error++;
 				}
@@ -1168,7 +1338,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	 * Now add new targets or modify existing ones.
 	 */
 	TAILQ_FOREACH(newtarg, &newconf->conf_targets, t_next) {
-		oldtarg = target_find(oldconf, newtarg->t_iqn);
+		oldtarg = target_find(oldconf, newtarg->t_name);
 
 		TAILQ_FOREACH(newlun, &newtarg->t_luns, l_next) {
 			if (oldtarg != NULL) {
@@ -1178,7 +1348,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 						log_debugx("resizing lun %d, "
 						    "target %s, CTL lun %d",
 						    newlun->l_lun,
-						    newtarg->t_iqn,
+						    newtarg->t_name,
 						    newlun->l_ctl_lun);
 						error =
 						    kernel_lun_resize(newlun);
@@ -1188,7 +1358,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 							    "target %s, "
 							    "CTL lun %d",
 							    newlun->l_lun,
-							    newtarg->t_iqn,
+							    newtarg->t_name,
 							    newlun->l_lun);
 							cumulated_error++;
 						}
@@ -1197,11 +1367,11 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				}
 			}
 			log_debugx("adding lun %d, target %s",
-			    newlun->l_lun, newtarg->t_iqn);
+			    newlun->l_lun, newtarg->t_name);
 			error = kernel_lun_add(newlun);
 			if (error != 0) {
 				log_warnx("failed to add lun %d, target %s",
-				    newlun->l_lun, newtarg->t_iqn);
+				    newlun->l_lun, newtarg->t_name);
 				cumulated_error++;
 			}
 		}
@@ -1572,6 +1742,17 @@ sigterm_handler(int dummy __unused)
 }
 
 static void
+sigchld_handler(int dummy __unused)
+{
+
+	/*
+	 * The only purpose of this handler is to make SIGCHLD
+	 * interrupt the ISCSIDWAIT ioctl(2), so we can call
+	 * wait_for_children().
+	 */
+}
+
+static void
 register_signals(void)
 {
 	struct sigaction sa;
@@ -1591,6 +1772,11 @@ register_signals(void)
 
 	sa.sa_handler = sigterm_handler;
 	error = sigaction(SIGINT, &sa, NULL);
+	if (error != 0)
+		log_err(1, "sigaction");
+
+	sa.sa_handler = sigchld_handler;
+	error = sigaction(SIGCHLD, &sa, NULL);
 	if (error != 0)
 		log_err(1, "sigaction");
 }
@@ -1633,14 +1819,6 @@ main(int argc, char **argv)
 		newconf->conf_debug = debug;
 	}
 
-	if (dont_daemonize == false) {
-		if (daemon(0, 0) == -1) {
-			log_warn("cannot daemonize");
-			pidfile_remove(newconf->conf_pidfh);
-			exit(1);
-		}
-	}
-
 #ifdef ICL_KERNEL_PROXY
 	log_debugx("enabling CTL iSCSI port");
 	error = kernel_port_on();
@@ -1662,6 +1840,15 @@ main(int argc, char **argv)
 	if (error != 0)
 		log_errx(1, "failed to enable CTL iSCSI port, exiting");
 #endif
+
+	if (dont_daemonize == false) {
+		log_debugx("daemonizing");
+		if (daemon(0, 0) == -1) {
+			log_warn("cannot daemonize");
+			pidfile_remove(newconf->conf_pidfh);
+			exit(1);
+		}
+	}
 
 	for (;;) {
 		main_loop(newconf, dont_daemonize);

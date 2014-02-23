@@ -45,6 +45,8 @@ public:
     this->MCAsmParserExtension::Initialize(Parser);
 
     addDirectiveHandler<&DarwinAsmParser::ParseDirectiveDesc>(".desc");
+    addDirectiveHandler<&DarwinAsmParser::ParseDirectiveIndirectSymbol>(
+      ".indirect_symbol");
     addDirectiveHandler<&DarwinAsmParser::ParseDirectiveLsym>(".lsym");
     addDirectiveHandler<&DarwinAsmParser::ParseDirectiveSubsectionsViaSymbols>(
       ".subsections_via_symbols");
@@ -69,6 +71,7 @@ public:
       ".end_data_region");
 
     // Special section directives.
+    addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveBss>(".bss");
     addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConst>(".const");
     addDirectiveHandler<&DarwinAsmParser::ParseSectionDirectiveConstData>(
       ".const_data");
@@ -163,6 +166,7 @@ public:
   }
 
   bool ParseDirectiveDesc(StringRef, SMLoc);
+  bool ParseDirectiveIndirectSymbol(StringRef, SMLoc);
   bool ParseDirectiveDumpOrLoad(StringRef, SMLoc);
   bool ParseDirectiveLsym(StringRef, SMLoc);
   bool ParseDirectiveLinkerOption(StringRef, SMLoc);
@@ -179,6 +183,10 @@ public:
   bool ParseDirectiveDataRegionEnd(StringRef, SMLoc);
 
   // Named Section Directive
+  bool ParseSectionDirectiveBss(StringRef, SMLoc) {
+    return ParseSectionSwitch("__DATA", "__bss");
+  }
+
   bool ParseSectionDirectiveConst(StringRef, SMLoc) {
     return ParseSectionSwitch("__TEXT", "__const");
   }
@@ -415,6 +423,39 @@ bool DarwinAsmParser::ParseDirectiveDesc(StringRef, SMLoc) {
   return false;
 }
 
+/// ParseDirectiveIndirectSymbol
+///  ::= .indirect_symbol identifier
+bool DarwinAsmParser::ParseDirectiveIndirectSymbol(StringRef, SMLoc Loc) {
+  const MCSectionMachO *Current = static_cast<const MCSectionMachO*>(
+                                       getStreamer().getCurrentSection().first);
+  unsigned SectionType = Current->getType();
+  if (SectionType != MCSectionMachO::S_NON_LAZY_SYMBOL_POINTERS &&
+      SectionType != MCSectionMachO::S_LAZY_SYMBOL_POINTERS &&
+      SectionType != MCSectionMachO::S_SYMBOL_STUBS)
+    return Error(Loc, "indirect symbol not in a symbol pointer or stub "
+                      "section");
+
+  StringRef Name;
+  if (getParser().parseIdentifier(Name))
+    return TokError("expected identifier in .indirect_symbol directive");
+
+  MCSymbol *Sym = getContext().GetOrCreateSymbol(Name);
+
+  // Assembler local symbols don't make any sense here. Complain loudly.
+  if (Sym->isTemporary())
+    return TokError("non-local symbol required in directive");
+
+  if (!getStreamer().EmitSymbolAttribute(Sym, MCSA_IndirectSymbol))
+    return TokError("unable to emit indirect symbol attribute for: " + Name);
+
+  if (getLexer().isNot(AsmToken::EndOfStatement))
+    return TokError("unexpected token in '.indirect_symbol' directive");
+
+  Lex();
+
+  return false;
+}
+
 /// ParseDirectiveDumpOrLoad
 ///  ::= ( .dump | .load ) "filename"
 bool DarwinAsmParser::ParseDirectiveDumpOrLoad(StringRef Directive,
@@ -593,7 +634,7 @@ bool DarwinAsmParser::ParseDirectiveSecureLogUnique(StringRef, SMLoc IDLoc) {
   raw_ostream *OS = getContext().getSecureLog();
   if (OS == NULL) {
     std::string Err;
-    OS = new raw_fd_ostream(SecureLogFile, Err, raw_fd_ostream::F_Append);
+    OS = new raw_fd_ostream(SecureLogFile, Err, sys::fs::F_Append);
     if (!Err.empty()) {
        delete OS;
        return Error(IDLoc, Twine("can't open secure log file: ") +

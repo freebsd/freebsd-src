@@ -122,9 +122,9 @@ static driver_t xics_driver = {
 static devclass_t xicp_devclass;
 static devclass_t xics_devclass;
 
-EARLY_DRIVER_MODULE(xicp, nexus, xicp_driver, xicp_devclass, 0, 0,
+EARLY_DRIVER_MODULE(xicp, ofwbus, xicp_driver, xicp_devclass, 0, 0,
     BUS_PASS_INTERRUPT-1);
-EARLY_DRIVER_MODULE(xics, nexus, xics_driver, xics_devclass, 0, 0,
+EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, xics_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
 
 static int

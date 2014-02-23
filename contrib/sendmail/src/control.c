@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2004, 2006 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2004, 2006 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -10,7 +10,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: control.c,v 8.129 2013/03/12 15:24:52 ca Exp $")
+SM_RCSID("@(#)$Id: control.c,v 8.130 2013/11/22 20:51:55 ca Exp $")
 
 #include <sm/fdset.h>
 

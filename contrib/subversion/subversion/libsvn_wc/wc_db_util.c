@@ -136,22 +136,6 @@ svn_wc__db_util_open_db(svn_sqlite__db_t **sdb,
                                  svn_dirent_local_style(sdb_abspath,
                                                         scratch_pool));
     }
-#ifndef WIN32
-  else
-    {
-      apr_file_t *f;
-
-      /* A standard SQLite build creates a DB with mode 644 ^ !umask
-         which means the file doesn't have group/world write access
-         even when umask allows it. By ensuring the file exists before
-         SQLite gets involved we give it the permissions allowed by
-         umask. */
-      SVN_ERR(svn_io_file_open(&f, sdb_abspath,
-                               (APR_READ | APR_WRITE | APR_CREATE),
-                               APR_OS_DEFAULT, scratch_pool));
-      SVN_ERR(svn_io_file_close(f, scratch_pool));
-    }
-#endif
 
   SVN_ERR(svn_sqlite__open(sdb, sdb_abspath, smode,
                            my_statements ? my_statements : statements,

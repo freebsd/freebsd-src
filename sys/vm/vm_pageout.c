@@ -1121,7 +1121,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 		} else if ((m->flags & PG_WINATCFLS) == 0 && pass < 2) {
 			/*
 			 * Dirty pages need to be paged out, but flushing
-			 * a page is extremely expensive verses freeing
+			 * a page is extremely expensive versus freeing
 			 * a clean page.  Rather then artificially limiting
 			 * the number of pages we can flush, we instead give
 			 * dirty pages extra priority on the inactive queue
@@ -1183,7 +1183,7 @@ vm_pageout_scan(struct vm_domain *vmd, int pass)
 			 * to be freed and dirty pages to be moved to the end
 			 * of the queue.  Since dirty pages are also moved to
 			 * the end of the queue once-cleaned, this gives
-			 * way too large a weighting to defering the freeing
+			 * way too large a weighting to deferring the freeing
 			 * of dirty pages.
 			 *
 			 * We can't wait forever for the vnode lock, we might

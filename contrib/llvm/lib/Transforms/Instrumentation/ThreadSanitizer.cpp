@@ -41,8 +41,8 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/BlackList.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
+#include "llvm/Transforms/Utils/SpecialCaseList.h"
 
 using namespace llvm;
 
@@ -99,7 +99,7 @@ struct ThreadSanitizer : public FunctionPass {
   DataLayout *TD;
   Type *IntptrTy;
   SmallString<64> BlacklistFile;
-  OwningPtr<BlackList> BL;
+  OwningPtr<SpecialCaseList> BL;
   IntegerType *OrdTy;
   // Callbacks to run-time library are computed in doInitialization.
   Function *TsanFuncEntry;
@@ -227,7 +227,7 @@ bool ThreadSanitizer::doInitialization(Module &M) {
   TD = getAnalysisIfAvailable<DataLayout>();
   if (!TD)
     return false;
-  BL.reset(new BlackList(BlacklistFile));
+  BL.reset(SpecialCaseList::createOrDie(BlacklistFile));
 
   // Always insert a call to __tsan_init into the module's CTORs.
   IRBuilder<> IRB(M.getContext());
@@ -240,12 +240,8 @@ bool ThreadSanitizer::doInitialization(Module &M) {
 }
 
 static bool isVtableAccess(Instruction *I) {
-  if (MDNode *Tag = I->getMetadata(LLVMContext::MD_tbaa)) {
-    if (Tag->getNumOperands() < 1) return false;
-    if (MDString *Tag1 = dyn_cast<MDString>(Tag->getOperand(0))) {
-      if (Tag1->getString() == "vtable pointer") return true;
-    }
-  }
+  if (MDNode *Tag = I->getMetadata(LLVMContext::MD_tbaa))
+    return Tag->isTBAAVtableAccess();
   return false;
 }
 
@@ -362,7 +358,7 @@ bool ThreadSanitizer::runOnFunction(Function &F) {
   // (e.g. variables that do not escape, etc).
 
   // Instrument memory accesses.
-  if (ClInstrumentMemoryAccesses)
+  if (ClInstrumentMemoryAccesses && F.hasFnAttribute(Attribute::SanitizeThread))
     for (size_t i = 0, n = AllLoadsAndStores.size(); i < n; ++i) {
       Res |= instrumentLoadOrStore(AllLoadsAndStores[i]);
     }
@@ -579,7 +575,7 @@ int ThreadSanitizer::getMemoryAccessFuncIndex(Value *Addr) {
     // Ignore all unusual sizes.
     return -1;
   }
-  size_t Idx = CountTrailingZeros_32(TypeSize / 8);
+  size_t Idx = countTrailingZeros(TypeSize / 8);
   assert(Idx < kNumberOfAccessSizes);
   return Idx;
 }

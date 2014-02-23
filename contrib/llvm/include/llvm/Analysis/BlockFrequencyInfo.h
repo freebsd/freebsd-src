@@ -1,4 +1,4 @@
-//========-------- BlockFrequencyInfo.h - Block Frequency Analysis -------========//
+//===------- BlockFrequencyInfo.h - Block Frequency Analysis --*- C++ -*---===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -41,12 +41,14 @@ public:
 
   bool runOnFunction(Function &F);
   void print(raw_ostream &O, const Module *M) const;
+  const Function *getFunction() const;
+  void view() const;
 
   /// getblockFreq - Return block frequency. Return 0 if we don't have the
-  /// information. Please note that initial frequency is equal to 1024. It means
-  /// that we should not rely on the value itself, but only on the comparison to
-  /// the other block frequencies. We do this to avoid using of floating points.
-  ///
+  /// information. Please note that initial frequency is equal to ENTRY_FREQ. It
+  /// means that we should not rely on the value itself, but only on the
+  /// comparison to the other block frequencies. We do this to avoid using of
+  /// floating points.
   BlockFrequency getBlockFreq(const BasicBlock *BB) const;
 };
 

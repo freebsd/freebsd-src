@@ -69,6 +69,9 @@ imx_ata_probe(device_t dev)
 {
 	struct ata_pci_controller *ctrl;
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ata"))
 		return (ENXIO);
 

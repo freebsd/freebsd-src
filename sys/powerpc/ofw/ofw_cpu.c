@@ -74,7 +74,7 @@ static driver_t ofw_cpulist_driver = {
 
 static devclass_t ofw_cpulist_devclass;
 
-DRIVER_MODULE(ofw_cpulist, nexus, ofw_cpulist_driver, ofw_cpulist_devclass,
+DRIVER_MODULE(ofw_cpulist, ofwbus, ofw_cpulist_driver, ofw_cpulist_devclass,
     0, 0);
 
 static int 

@@ -136,6 +136,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_EOI_EXIT1			0x0000201E
 #define	VMCS_EOI_EXIT2			0x00002020
 #define	VMCS_EOI_EXIT3			0x00002022
+#define	VMCS_EOI_EXIT(vector)		(VMCS_EOI_EXIT0 + ((vector) / 64) * 2)
 
 /* 64-bit read-only fields */
 #define	VMCS_GUEST_PHYSICAL_ADDRESS	0x00002400
@@ -318,6 +319,7 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define EXIT_REASON_MCE			41
 #define EXIT_REASON_TPR			43
 #define EXIT_REASON_APIC_ACCESS		44
+#define	EXIT_REASON_VIRTUALIZED_EOI	45
 #define EXIT_REASON_GDTR_IDTR		46
 #define EXIT_REASON_LDTR_TR		47
 #define EXIT_REASON_EPT_FAULT		48
@@ -343,6 +345,8 @@ vmcs_write(uint32_t encoding, uint64_t val)
 #define	VMCS_INTR_T_MASK	0x700		/* Interruption-info type */
 #define	VMCS_INTR_T_HWINTR	(0 << 8)
 #define	VMCS_INTR_T_NMI		(2 << 8)
+#define	VMCS_INTR_T_HWEXCEPTION	(3 << 8)
+#define	VMCS_INTR_DEL_ERRCODE	(1 << 11)
 
 /*
  * VMCS IDT-Vectoring information fields

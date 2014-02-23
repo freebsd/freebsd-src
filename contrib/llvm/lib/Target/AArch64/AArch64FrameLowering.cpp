@@ -54,7 +54,7 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
   DebugLoc DL = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   MachineModuleInfo &MMI = MF.getMMI();
-  std::vector<MachineMove> &Moves = MMI.getFrameMoves();
+  const MCRegisterInfo *MRI = MMI.getContext().getRegisterInfo();
   bool NeedsFrameMoves = MMI.hasDebugInfo()
     || MF.getFunction()->needsUnwindTableEntry();
 
@@ -97,8 +97,9 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
       .addSym(SPLabel);
 
     MachineLocation Dst(MachineLocation::VirtualFP);
-    MachineLocation Src(AArch64::XSP, NumInitialBytes);
-    Moves.push_back(MachineMove(SPLabel, Dst, Src));
+    unsigned Reg = MRI->getDwarfRegNum(AArch64::XSP, true);
+    MMI.addFrameInst(
+        MCCFIInstruction::createDefCfa(SPLabel, Reg, -NumInitialBytes));
   }
 
   // Otherwise we need to set the frame pointer and/or add a second stack
@@ -131,9 +132,9 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
         MCSymbol *FPLabel = MMI.getContext().CreateTempSymbol();
         BuildMI(MBB, MBBI, DL, TII.get(TargetOpcode::PROLOG_LABEL))
           .addSym(FPLabel);
-        MachineLocation Dst(MachineLocation::VirtualFP);
-        MachineLocation Src(AArch64::X29, -MFI->getObjectOffset(X29FrameIdx));
-        Moves.push_back(MachineMove(FPLabel, Dst, Src));
+        unsigned Reg = MRI->getDwarfRegNum(AArch64::X29, true);
+        unsigned Offset = MFI->getObjectOffset(X29FrameIdx);
+        MMI.addFrameInst(MCCFIInstruction::createDefCfa(FPLabel, Reg, Offset));
       }
 
       FPNeedsSetting = false;
@@ -164,8 +165,9 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
       .addSym(CSLabel);
 
     MachineLocation Dst(MachineLocation::VirtualFP);
-    MachineLocation Src(AArch64::XSP, NumResidualBytes + NumInitialBytes);
-    Moves.push_back(MachineMove(CSLabel, Dst, Src));
+    unsigned Reg = MRI->getDwarfRegNum(AArch64::XSP, true);
+    unsigned Offset = NumResidualBytes + NumInitialBytes;
+    MMI.addFrameInst(MCCFIInstruction::createDefCfa(CSLabel, Reg, -Offset));
   }
 
   // And any callee-saved registers (it's fine to leave them to the end here,
@@ -180,10 +182,9 @@ void AArch64FrameLowering::emitPrologue(MachineFunction &MF) const {
 
     for (std::vector<CalleeSavedInfo>::const_iterator I = CSI.begin(),
            E = CSI.end(); I != E; ++I) {
-      MachineLocation Dst(MachineLocation::VirtualFP,
-                          MFI->getObjectOffset(I->getFrameIdx()));
-      MachineLocation Src(I->getReg());
-      Moves.push_back(MachineMove(CSLabel, Dst, Src));
+      unsigned Offset = MFI->getObjectOffset(I->getFrameIdx());
+      unsigned Reg = MRI->getDwarfRegNum(I->getReg(), true);
+      MMI.addFrameInst(MCCFIInstruction::createOffset(CSLabel, Reg, Offset));
     }
   }
 }
@@ -424,7 +425,7 @@ AArch64FrameLowering::emitFrameMemOps(bool isPrologue, MachineBasicBlock &MBB,
                                       MachineBasicBlock::iterator MBBI,
                                       const std::vector<CalleeSavedInfo> &CSI,
                                       const TargetRegisterInfo *TRI,
-                                      LoadStoreMethod PossClasses[],
+                                      const LoadStoreMethod PossClasses[],
                                       unsigned NumClasses) const {
   DebugLoc DL = MBB.findDebugLoc(MBBI);
   MachineFunction &MF = *MBB.getParent();
@@ -527,11 +528,11 @@ AArch64FrameLowering::spillCalleeSavedRegisters(MachineBasicBlock &MBB,
   if (CSI.empty())
     return false;
 
-  static LoadStoreMethod PossibleClasses[] = {
+  static const LoadStoreMethod PossibleClasses[] = {
     {&AArch64::GPR64RegClass, AArch64::LSPair64_STR, AArch64::LS64_STR},
     {&AArch64::FPR64RegClass, AArch64::LSFPPair64_STR, AArch64::LSFP64_STR},
   };
-  unsigned NumClasses = llvm::array_lengthof(PossibleClasses);
+  const unsigned NumClasses = llvm::array_lengthof(PossibleClasses);
 
   emitFrameMemOps(/* isPrologue = */ true, MBB, MBBI, CSI, TRI,
                   PossibleClasses, NumClasses);
@@ -548,11 +549,11 @@ AArch64FrameLowering::restoreCalleeSavedRegisters(MachineBasicBlock &MBB,
   if (CSI.empty())
     return false;
 
-  static LoadStoreMethod PossibleClasses[] = {
+  static const LoadStoreMethod PossibleClasses[] = {
     {&AArch64::GPR64RegClass, AArch64::LSPair64_LDR, AArch64::LS64_LDR},
     {&AArch64::FPR64RegClass, AArch64::LSFPPair64_LDR, AArch64::LSFP64_LDR},
   };
-  unsigned NumClasses = llvm::array_lengthof(PossibleClasses);
+  const unsigned NumClasses = llvm::array_lengthof(PossibleClasses);
 
   emitFrameMemOps(/* isPrologue = */ false, MBB, MBBI, CSI, TRI,
                   PossibleClasses, NumClasses);

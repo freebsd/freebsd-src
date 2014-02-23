@@ -71,6 +71,10 @@ static struct resource_spec arm_tmr_spec[] = {
 static int
 arm_tmr_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "exynos,mct"))
 		return (ENXIO);
 

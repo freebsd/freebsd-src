@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pciio.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
@@ -100,7 +101,12 @@ static struct pptdev {
 	} msix;
 } pptdevs[64];
 
+SYSCTL_DECL(_hw_vmm);
+SYSCTL_NODE(_hw_vmm, OID_AUTO, ppt, CTLFLAG_RW, 0, "bhyve passthru devices");
+
 static int num_pptdevs;
+SYSCTL_INT(_hw_vmm_ppt, OID_AUTO, devices, CTLFLAG_RD, &num_pptdevs, 0,
+    "number of pci passthru devices");
 
 static int
 ppt_probe(device_t dev)
@@ -282,7 +288,14 @@ ppt_teardown_msix(struct pptdev *ppt)
 }
 
 int
-ppt_num_devices(struct vm *vm)
+ppt_avail_devices(void)
+{
+
+	return (num_pptdevs);
+}
+
+int
+ppt_assigned_devices(struct vm *vm)
 {
 	int i, num;
 

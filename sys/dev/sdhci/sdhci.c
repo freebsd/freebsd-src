@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -609,6 +610,7 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	
 	TASK_INIT(&slot->card_task, 0, sdhci_card_task, slot);
 	callout_init(&slot->card_callout, 1);
+	callout_init_mtx(&slot->timeout_callout, &slot->mtx, 0);
 	return (0);
 }
 
@@ -623,6 +625,7 @@ sdhci_cleanup_slot(struct sdhci_slot *slot)
 {
 	device_t d;
 
+	callout_drain(&slot->timeout_callout);
 	callout_drain(&slot->card_callout);
 	taskqueue_drain(taskqueue_swi_giant, &slot->card_task);
 
@@ -702,6 +705,32 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 	return (0);
 }
 
+static void 
+sdhci_req_done(struct sdhci_slot *slot)
+{
+	struct mmc_request *req;
+
+	if (slot->req != NULL && slot->curcmd != NULL) {
+		callout_stop(&slot->timeout_callout);
+		req = slot->req;
+		slot->req = NULL;
+		slot->curcmd = NULL;
+		req->done(req);
+	}
+}
+ 
+static void 
+sdhci_timeout(void *arg)
+{
+	struct sdhci_slot *slot = arg;
+
+	if (slot->curcmd != NULL) {
+		sdhci_reset(slot, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
+		slot->curcmd->error = MMC_ERR_TIMEOUT;
+		sdhci_req_done(slot);
+	}
+}
+ 
 static void
 sdhci_set_transfer_mode(struct sdhci_slot *slot,
 	struct mmc_data *data)
@@ -727,7 +756,6 @@ sdhci_set_transfer_mode(struct sdhci_slot *slot,
 static void
 sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 {
-	struct mmc_request *req = slot->req;
 	int flags, timeout;
 	uint32_t mask, state;
 
@@ -740,9 +768,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	if ((cmd->flags & MMC_RSP_136) && (cmd->flags & MMC_RSP_BUSY)) {
 		slot_printf(slot, "Unsupported response type!\n");
 		cmd->error = MMC_ERR_FAILED;
-		slot->req = NULL;
-		slot->curcmd = NULL;
-		req->done(req);
+		sdhci_req_done(slot);
 		return;
 	}
 
@@ -754,9 +780,7 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	    slot->power == 0 ||
 	    slot->clock == 0) {
 		cmd->error = MMC_ERR_FAILED;
-		slot->req = NULL;
-		slot->curcmd = NULL;
-		req->done(req);
+		sdhci_req_done(slot);
 		return;
 	}
 	/* Always wait for free CMD bus. */
@@ -767,17 +791,24 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	/* We shouldn't wait for DAT for stop commands. */
 	if (cmd == slot->req->stop)
 		mask &= ~SDHCI_DAT_INHIBIT;
-	/* Wait for bus no more then 10 ms. */
-	timeout = 10;
+	/*
+	 *  Wait for bus no more then 250 ms.  Typically there will be no wait
+	 *  here at all, but when writing a crash dump we may be bypassing the
+	 *  host platform's interrupt handler, and in some cases that handler
+	 *  may be working around hardware quirks such as not respecting r1b
+	 *  busy indications.  In those cases, this wait-loop serves the purpose
+	 *  of waiting for the prior command and data transfers to be done, and
+	 *  SD cards are allowed to take up to 250ms for write and erase ops.
+	 *  (It's usually more like 20-30ms in the real world.)
+	 */
+	timeout = 250;
 	while (state & mask) {
 		if (timeout == 0) {
 			slot_printf(slot, "Controller never released "
 			    "inhibit bit(s).\n");
 			sdhci_dumpregs(slot);
 			cmd->error = MMC_ERR_FAILED;
-			slot->req = NULL;
-			slot->curcmd = NULL;
-			req->done(req);
+			sdhci_req_done(slot);
 			return;
 		}
 		timeout--;
@@ -819,6 +850,8 @@ sdhci_start_command(struct sdhci_slot *slot, struct mmc_command *cmd)
 	sdhci_set_transfer_mode(slot, cmd->data);
 	/* Start command. */
 	WR2(slot, SDHCI_COMMAND_FLAGS, (cmd->opcode << 8) | (flags & 0xff));
+	/* Start timeout callout. */
+	callout_reset(&slot->timeout_callout, 2*hz, sdhci_timeout, slot);
 }
 
 static void
@@ -1004,10 +1037,7 @@ sdhci_start(struct sdhci_slot *slot)
 		sdhci_reset(slot, SDHCI_RESET_DATA);
 	}
 
-	/* We must be done -- bad idea to do this while locked? */
-	slot->req = NULL;
-	slot->curcmd = NULL;
-	req->done(req);
+	sdhci_req_done(slot);
 }
 
 int

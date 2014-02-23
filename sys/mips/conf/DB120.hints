@@ -50,6 +50,23 @@ hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 hint.arge.1.miimode=1		# GMII
 
+# ath0: Where the ART is - last 64k in the flash
+hint.ath.0.eepromaddr=0x1fff0000
+hint.ath.0.eepromsize=16384
+
+# ath1: it's different; it's a PCIe attached device, so
+# we instead need to teach the PCIe bridge code about it
+# (ie, the 'early pci fixup' stuff that programs the PCIe
+# host registers on the NIC) and then we teach ath where
+# to find it.
+
+# ath1 hint - pcie slot 0
+hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff4000
+hint.pcib.0.bus.0.0.0.ath_fixup_size=16384
+
+# ath0 - eeprom comes from here
+hint.ath.1.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
+
 # flash layout:
 #
 # bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init mtdparts=ath-nor0:256k(u-boot),64k(u-boot-env),6336k(rootfs),1408k(uImage),64k(mib0),64k(ART)

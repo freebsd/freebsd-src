@@ -132,8 +132,13 @@ zygote_main(int sock)
 
 	for (;;) {
 		nvlin = nvlist_recv(sock);
-		if (nvlin == NULL)
+		if (nvlin == NULL) {
+			if (errno == ENOTCONN) {
+				/* Casperd exited. */
+				exit(0);
+			}
 			continue;
+		}
 		func = (zygote_func_t *)(uintptr_t)nvlist_get_number(nvlin,
 		    "func");
 		flags = (int)nvlist_get_number(nvlin, "flags");

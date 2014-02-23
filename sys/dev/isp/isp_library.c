@@ -146,7 +146,9 @@ isp_send_cmd(ispsoftc_t *isp, void *fqe, busdma_md_t md, uint32_t totalcnt, isp_
 	while (seg < nsegs) {
 		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
 		if (nxtnxt == isp->isp_reqodx) {
-			return (CMD_EAGAIN);
+			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+			if (nxtnxt == isp->isp_reqodx)
+				return (CMD_EAGAIN);
 		}
 		ISP_MEMZERO(storage, QENTRY_LEN);
 		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);
@@ -2215,7 +2217,9 @@ isp_send_tgt_cmd(ispsoftc_t *isp, void *fqe, busdma_md_t md, uint32_t totalcnt,
 	while (seg < nsegs) {
 		nxtnxt = ISP_NXT_QENTRY(nxt, RQUEST_QUEUE_LEN(isp));
 		if (nxtnxt == isp->isp_reqodx) {
-			return (CMD_EAGAIN);
+			isp->isp_reqodx = ISP_READ(isp, isp->isp_rqstoutrp);
+			if (nxtnxt == isp->isp_reqodx)
+				return (CMD_EAGAIN);
 		}
 		ISP_MEMZERO(storage, QENTRY_LEN);
 		qe1 = ISP_QUEUE_ENTRY(isp->isp_rquest, nxt);

@@ -31,6 +31,27 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140216:
+	Clang and llvm have been upgraded to 3.4 release.
+
+20140216:
+	The nve(4) driver has been removed.  Please use the nfe(4) driver
+	for NVIDIA nForce MCP Ethernet adapters instead.
+
+20140212:
+	An ABI incompatibility crept into the libc++ 3.4 import in r261283.
+	This could cause certain C++ applications using shared libraries built
+	against the previous version of libc++ to crash.  The incompatibility
+	has now been fixed, but any C++ applications or shared libraries built
+	between r261283 and r261801 should be recompiled.
+
+20140128:
+	The libelf and libdwarf libraries have been updated to newer
+	versions from upstream. Shared library version numbers for
+	these two libraries were bumped. Any ports or binaries
+	requiring these two libraries should be recompiled.
+	__FreeBSD_version is bumped to 1100006.
+
 20140110:
 	If a Makefile in a tests/ directory was auto-generating a Kyuafile
 	instead of providing an explicit one, this would prevent such

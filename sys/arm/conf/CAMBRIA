@@ -24,7 +24,6 @@ include		"../xscale/ixp425/std.ixp435"
 # NB: memory mapping is defined in std.avila
 include		"../xscale/ixp425/std.avila"
 options 	XSCALE_CACHE_READ_WRITE_ALLOCATE
-#options 	ARM_USE_SMALL_ALLOC
 #To statically compile in device wiring instead of /boot/device.hints
 hints		"CAMBRIA.hints"		# Default places to look for devices.
 
@@ -136,7 +135,6 @@ options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
 device		ath_hal
 
 # NB: 2 USB 2.0 ports standard
-options 	USB_HOST_ALIGN=32	# Align usb buffers to cache line size.
 device		usb
 options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options 	USB_DEBUG

@@ -22,9 +22,13 @@ ATF_TESTS_C+=	${_T}
 SRCS.${_T}=	${_T}.c test_helpers.c
 .endfor
 
-PROGS+=		process_helpers
-SRCS.process_helpers=	process_helpers.c
-MAN.process_helpers=	# defined
-BINDIR.process_helpers=	${TESTSDIR}
+.for p in process_helpers version_helper
+PROGS+=		${p}
+SRCS.${p}=	${p}.c
+MAN.${p}=	# defined
+BINDIR.${p}=	${TESTSDIR}
+.endfor
+version_helper.o: atf-version
 
+.include "../../../common.mk"
 .include <atf.test.mk>

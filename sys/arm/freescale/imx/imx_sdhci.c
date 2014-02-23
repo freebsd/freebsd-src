@@ -35,13 +35,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/types.h>
 #include <sys/bus.h>
+#include <sys/callout.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/taskqueue.h>
+#include <sys/time.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -65,12 +70,15 @@ struct imx_sdhci_softc {
 	struct resource *	irq_res;
 	void *			intr_cookie;
 	struct sdhci_slot	slot;
+	struct callout		r1bfix_callout;
+	sbintime_t		r1bfix_timeout_at;
 	uint32_t		baseclk_hz;
 	uint32_t		sdclockreg_freq_bits;
 	uint32_t		cmd_and_mode;
 	uint32_t		r1bfix_intmask;
 	uint8_t			r1bfix_type;
 	uint8_t			hwtype;
+	boolean_t		force_card_present;
 };
 
 #define	R1BFIX_NONE	0	/* No fix needed at next interrupt. */
@@ -88,6 +96,27 @@ struct imx_sdhci_softc {
 #define	 SDHC_VEND_IPGEN	(1 << 11)
 #define	 SDHC_VEND_HCKEN	(1 << 12)
 #define	 SDHC_VEND_PEREN	(1 << 13)
+
+#define	SDHC_PRES_STATE		0x24
+#define	  SDHC_PRES_CIHB	  (1 <<  0)
+#define	  SDHC_PRES_CDIHB	  (1 <<  1)
+#define	  SDHC_PRES_DLA		  (1 <<  2)
+#define	  SDHC_PRES_SDSTB	  (1 <<  3)
+#define	  SDHC_PRES_IPGOFF	  (1 <<  4)
+#define	  SDHC_PRES_HCKOFF	  (1 <<  5)
+#define	  SDHC_PRES_PEROFF	  (1 <<  6)
+#define	  SDHC_PRES_SDOFF	  (1 <<  7)
+#define	  SDHC_PRES_WTA		  (1 <<  8)
+#define	  SDHC_PRES_RTA		  (1 <<  9)
+#define	  SDHC_PRES_BWEN	  (1 << 10)
+#define	  SDHC_PRES_BREN	  (1 << 11)
+#define	  SDHC_PRES_RTR		  (1 << 12)
+#define	  SDHC_PRES_CINST	  (1 << 16)
+#define	  SDHC_PRES_CDPL	  (1 << 18)
+#define	  SDHC_PRES_WPSPL	  (1 << 19)
+#define	  SDHC_PRES_CLSL	  (1 << 23)
+#define	  SDHC_PRES_DLSL_SHIFT	  24
+#define	  SDHC_PRES_DLSL_MASK	  (0xffU << SDHC_PRES_DLSL_SHIFT)
 
 #define	SDHC_PROT_CTRL		0x28
 #define	 SDHC_PROT_LED		(1 << 0)
@@ -108,6 +137,8 @@ struct imx_sdhci_softc {
 #define	 SDHC_PROT_CDTL		(1 << 6)
 #define	 SDHC_PROT_CDSS		(1 << 7)
 
+#define	SDHC_INT_STATUS		0x30
+
 #define	SDHC_CLK_IPGEN		(1 << 0)
 #define	SDHC_CLK_HCKEN		(1 << 1)
 #define	SDHC_CLK_PEREN		(1 << 2)
@@ -125,6 +156,7 @@ static struct ofw_compat_data compat_data[] = {
 };;
 
 static void imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable);
+static void imx_sdhci_r1bfix_func(void *arg);
 
 static inline uint32_t
 RD4(struct imx_sdhci_softc *sc, bus_size_t off)
@@ -254,8 +286,8 @@ imx_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		wrk32 = RD4(sc, SDHC_VEND_SPEC);
 		if (wrk32 & SDHC_VEND_FRC_SDCLK_ON)
 			val32 |= SDHCI_CLOCK_INT_EN | SDHCI_CLOCK_CARD_EN;
-		wrk32 = RD4(sc, SDHCI_PRESENT_STATE);
-		if (wrk32 & 0x08)
+		wrk32 = RD4(sc, SDHC_PRES_STATE);
+		if (wrk32 & SDHC_PRES_SDSTB)
 			val32 |= SDHCI_CLOCK_INT_STABLE;
 		val32 |= sc->sdclockreg_freq_bits;
 		return (val32);
@@ -268,7 +300,9 @@ static uint32_t
 imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
-	uint32_t val32;
+	uint32_t val32, wrk32;
+
+	val32 = RD4(sc, off);
 
 	/*
 	 * The hardware leaves the base clock frequency out of the capabilities
@@ -280,7 +314,6 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	 * doesn't yet handle (1.8v, suspend/resume, etc).
 	 */
 	if (off == SDHCI_CAPABILITIES) {
-		val32 = RD4(sc, off);
 		val32 &= ~SDHCI_CAN_VDD_180;
 		val32 &= ~SDHCI_CAN_DO_SUSPEND;
 		val32 |= SDHCI_CAN_DO_8BITBUS;
@@ -288,14 +321,30 @@ imx_sdhci_read_4(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 		return (val32);
 	}
 	
-	val32 = RD4(sc, off);
+	/*
+	 * The hardware moves bits around in the present state register to make
+	 * room for all 8 data line state bits.  To translate, mask out all the
+	 * bits which are not in the same position in both registers (this also
+	 * masks out some freescale-specific bits in locations defined as
+	 * reserved by sdhci), then shift the data line and retune request bits
+	 * down to their standard locations.
+	 */
+	if (off == SDHCI_PRESENT_STATE) {
+		wrk32 = val32;
+		val32 &= 0x000F0F07;
+		val32 |= (wrk32 >> 4) & SDHCI_STATE_DAT_MASK;
+		val32 |= (wrk32 >> 9) & SDHCI_RETUNE_REQUEST;
+		if (sc->force_card_present)
+			val32 |= SDHCI_CARD_PRESENT;
+		return (val32);
+	}
 
 	/*
 	 * imx_sdhci_intr() can synthesize a DATA_END interrupt following a
 	 * command with an R1B response, mix it into the hardware status.
 	 */
 	if (off == SDHCI_INT_STATUS) {
-		val32 |= sc->r1bfix_intmask;
+		return (val32 | sc->r1bfix_intmask);
 	}
 
 	return val32;
@@ -493,46 +542,107 @@ imx_sdhc_set_clock(struct imx_sdhci_softc *sc, int enable)
 	    RD4(sc, SDHC_VEND_SPEC) | SDHC_VEND_FRC_SDCLK_ON);
 }
 
+static boolean_t
+imx_sdhci_r1bfix_is_wait_done(struct imx_sdhci_softc *sc)
+{
+	uint32_t inhibit;
+
+	mtx_assert(&sc->slot.mtx, MA_OWNED);
+
+	/*
+	 * Check the DAT0 line status using both the DLA (data line active) and
+	 * CDIHB (data inhibit) bits in the present state register.  In theory
+	 * just DLA should do the trick,  but in practice it takes both.  If the
+	 * DAT0 line is still being held and we're not yet beyond the timeout
+	 * point, just schedule another callout to check again later.
+	 */
+	inhibit = RD4(sc, SDHC_PRES_STATE) & (SDHC_PRES_DLA | SDHC_PRES_CDIHB);
+
+	if (inhibit && getsbinuptime() < sc->r1bfix_timeout_at) {
+		callout_reset_sbt(&sc->r1bfix_callout, SBT_1MS, 0, 
+		    imx_sdhci_r1bfix_func, sc, 0);
+		return (false);
+	}
+
+	/*
+	 * If we reach this point with the inhibit bits still set, we've got a
+	 * timeout, synthesize a DATA_TIMEOUT interrupt.  Otherwise the DAT0
+	 * line has been released, and we synthesize a DATA_END, and if the type
+	 * of fix needed was on a command-without-data we also now add in the
+	 * original INT_RESPONSE that we suppressed earlier.
+	 */
+	if (inhibit)
+		sc->r1bfix_intmask |= SDHCI_INT_DATA_TIMEOUT;
+	else {
+		sc->r1bfix_intmask |= SDHCI_INT_DATA_END;
+		if (sc->r1bfix_type == R1BFIX_NODATA)
+			sc->r1bfix_intmask |= SDHCI_INT_RESPONSE;
+	}
+
+	sc->r1bfix_type = R1BFIX_NONE;
+	return (true);
+}
+
+static void
+imx_sdhci_r1bfix_func(void * arg)
+{
+	struct imx_sdhci_softc *sc = arg;
+	boolean_t r1bwait_done;
+
+	mtx_lock(&sc->slot.mtx);
+	r1bwait_done = imx_sdhci_r1bfix_is_wait_done(sc);
+	mtx_unlock(&sc->slot.mtx);
+	if (r1bwait_done)
+		sdhci_generic_intr(&sc->slot);
+}
+
 static void
 imx_sdhci_intr(void *arg)
 {
 	struct imx_sdhci_softc *sc = arg;
 	uint32_t intmask;
 
-	intmask = RD4(sc, SDHCI_INT_STATUS);
+	mtx_lock(&sc->slot.mtx);
 
 	/*
 	 * Manually check the DAT0 line for R1B response types that the
-	 * controller fails to handle properly.
+	 * controller fails to handle properly.  The controller asserts the done
+	 * interrupt while the card is still asserting busy with the DAT0 line.
 	 *
-	 * To do the NODATA fix, when the RESPONSE (COMMAND_COMPLETE) interrupt
-	 * occurs, we have to wait for the DAT0 line to be released, then
-	 * synthesize a DATA_END (TRANSFER_COMPLETE) interrupt, which we do by
-	 * storing SDHCI_INT_DATA_END into a variable that gets ORed into the
-	 * return value when the SDHCI_INT_STATUS register is read.
+	 * We check DAT0 immediately because most of the time, especially on a
+	 * read, the card will actually be done by time we get here.  If it's
+	 * not, then the wait_done routine will schedule a callout to re-check
+	 * periodically until it is done.  In that case we clear the interrupt
+	 * out of the hardware now so that we can present it later when the DAT0
+	 * line is released.
 	 *
-	 * For the AC12 fix, when the DATA_END interrupt occurs we wait for the
-	 * DAT0 line to be released, and the waiting is all the fix we need.
+	 * If we need to wait for the the DAT0 line to be released, we set up a
+	 * timeout point 250ms in the future.  This number comes from the SD
+	 * spec, which allows a command to take that long.  In the real world,
+	 * cards tend to take 10-20ms for a long-running command such as a write
+	 * or erase that spans two pages.
 	 */
-	if ((sc->r1bfix_type == R1BFIX_NODATA && 
-	    (intmask & SDHCI_INT_RESPONSE)) || 
-	    (sc->r1bfix_type == R1BFIX_AC12 && 
-	    (intmask & SDHCI_INT_DATA_END))) {
-		uint32_t count;
-		count = 0;
-		/* XXX use a callout or something instead of busy-waiting. */
-		while (count < 250000 && 
-		       (RD4(sc, SDHCI_PRESENT_STATE) & SDHCI_DAT_ACTIVE)) {
-			++count;
-			DELAY(1);
+	switch (sc->r1bfix_type) {
+	case R1BFIX_NODATA:
+		intmask = RD4(sc, SDHC_INT_STATUS) & SDHCI_INT_RESPONSE;
+		break;
+	case R1BFIX_AC12:
+		intmask = RD4(sc, SDHC_INT_STATUS) & SDHCI_INT_DATA_END;
+		break;
+	default:
+		intmask = 0;
+		break;
+	}
+	if (intmask) {
+		sc->r1bfix_timeout_at = getsbinuptime() + 250 * SBT_1MS;
+		if (!imx_sdhci_r1bfix_is_wait_done(sc)) {
+			WR4(sc, SDHC_INT_STATUS, intmask);
+			bus_barrier(sc->mem_res, SDHC_INT_STATUS, 4, 
+			    BUS_SPACE_BARRIER_WRITE);
 		}
-		if (count >= 250000)
-			sc->r1bfix_intmask = SDHCI_INT_DATA_TIMEOUT;
-		else if (sc->r1bfix_type == R1BFIX_NODATA)
-			sc->r1bfix_intmask = SDHCI_INT_DATA_END;
-		sc->r1bfix_type = R1BFIX_NONE;
 	}
 
+	mtx_unlock(&sc->slot.mtx);
 	sdhci_generic_intr(&sc->slot);
 }
 
@@ -555,6 +665,7 @@ imx_sdhci_attach(device_t dev)
 {
 	struct imx_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
+	phandle_t node;
 
 	sc->dev = dev;
 
@@ -620,6 +731,26 @@ imx_sdhci_attach(device_t dev)
 	}
 
 	sdhci_init_slot(dev, &sc->slot, 0);
+	callout_init(&sc->r1bfix_callout, true);
+
+	/*
+	 * If the slot is flagged with the non-removable property, set our flag
+	 * to always force the SDHCI_CARD_PRESENT bit on.
+	 *
+	 * XXX Workaround for gpio-based card detect...
+	 *
+	 * We don't have gpio support yet.  If there's a cd-gpios property just
+	 * force the SDHCI_CARD_PRESENT bit on for now.  If there isn't really a
+	 * card there it will fail to probe at the mmc layer and nothing bad
+	 * happens except instantiating an mmcN device for an empty slot.
+	 */
+	node = ofw_bus_get_node(dev);
+	if (OF_hasprop(node, "non-removable"))
+		sc->force_card_present = true;
+	else if (OF_hasprop(node, "cd-gpios")) {
+		/* XXX put real gpio hookup here. */
+		sc->force_card_present = true;
+	}
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -642,6 +773,9 @@ fail:
 static int
 imx_sdhci_probe(device_t dev)
 {
+
+        if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	switch (ofw_bus_search_compatible(dev, compat_data)->ocd_data) {
 	case HWTYPE_ESDHC:

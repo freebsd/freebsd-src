@@ -121,12 +121,12 @@ __FBSDID("$FreeBSD$");
 #ifdef CACHE_CLEAN_BLOCK_INTR
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
 	stmfd	sp!, {r4}					;	\
-	mrs	r4, cpsr_all					;	\
+	mrs	r4, cpsr					;	\
 	orr	r0, r4, #(I32_bit | F32_bit)			;	\
-	msr	cpsr_all, r0
+	msr	cpsr_fsxc, r0
 
 #define	XSCALE_CACHE_CLEAN_UNBLOCK					\
-	msr	cpsr_all, r4					;	\
+	msr	cpsr_fsxc, r4					;	\
 	ldmfd	sp!, {r4}
 #else
 #define	XSCALE_CACHE_CLEAN_BLOCK					\
@@ -348,9 +348,9 @@ END(xscalec3_l2cache_flush_rng)
  */
 ENTRY(xscalec3_setttb)
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	mrs	r3, cpsr_all
+	mrs	r3, cpsr
 	orr	r1, r3, #(I32_bit | F32_bit)
-	msr	cpsr_all, r1
+	msr	cpsr_fsxc, r1
 #else
 	ldr	r3, .Lblock_userspace_access
 	ldr	r2, [r3]
@@ -378,7 +378,7 @@ ENTRY(xscalec3_setttb)
 	CPWAIT(r0)
 
 #ifdef CACHE_CLEAN_BLOCK_INTR
-	msr	cpsr_all, r3
+	msr	cpsr_fsxc, r3
 #else
 	str	r2, [r3]
 #endif
