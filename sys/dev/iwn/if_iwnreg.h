@@ -1530,7 +1530,7 @@ struct iwn_tx_stats {
 	uint32_t	exp_ack;
 	uint32_t	ack;
 	uint32_t	msdu;
-	uint32_t	busrt_err1;
+	uint32_t	burst_err1;
 	uint32_t	burst_err2;
 	uint32_t	cts_collision;
 	uint32_t	ack_collision;
