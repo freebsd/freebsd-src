@@ -13,7 +13,7 @@ SRCS=		ucl_emitter.c \
 
 .PATH:		${LIBUCL}/src
 
-WARNS=		2
+WARNS=		1
 CFLAGS+=	-I${LIBUCL}/include \
 		-I${LIBUCL}/src \
 		-I${LIBUCL}/uthash
