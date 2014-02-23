@@ -27,6 +27,7 @@
  */
 
 #include "assym.s"
+#include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/hypervisor.h>
 #include <machine/param.h>
@@ -68,14 +69,22 @@ _start:
 	/* Enable the mmu */
 	bl	start_mmu
 
+	ldr	x29, .Lvirtdone
+	br	x29
+
+virtdone:
 	/* Load the address of the fvp UART */
 	mov	x0, 0x1c090000
-	/* Load 'A' */
-	mov	x1, 0x41
-	/* Print 'A' */
+	/* Load 'B' */
+	mov	x1, 0x42
+	/* Print 'B' */
 	str	x1, [x0]
 
 1:	b	1b
+
+	.align 3
+.Lvirtdone:
+	.quad	virtdone
 
 /*
  * If we are started in EL2, configure the required hypervisor
@@ -118,7 +127,7 @@ drop_to_el1:
 	mov	x2, #(PSR_F | PSR_I | PSR_A | PSR_D | PSR_M_EL1h)
 	msr	spsr_el2, x2
 
-	/* Set the address to return to */
+	/* Set the address to return to our return address */
 	msr	elr_el2, x30
 
 	eret
@@ -152,9 +161,6 @@ hyp_vectors:
 	VECT_EMPTY	/* IRQ 32-bit EL1 */
 	VECT_EMPTY	/* FIQ 32-bit EL1 */
 	VECT_EMPTY	/* Error 32-bit EL1 */
-
-hyp_trap_invalid:
-	b	hyp_trap_invalid
 
 /*
  * Get the delta between the physical address we were loaded to and the
@@ -211,6 +217,26 @@ create_pagetables:
 	stp	xzr, xzr, [x6], #16
 	cmp	x6, x27
 	b.lo	1b
+
+	/*
+	 * Build the TTBR1 maps.
+	 */
+
+	/* Create the kernel space L2 table */
+	mov	x6, x26
+	mov	x7, #1
+	mov	x8, #(KERNBASE & L2_BLOCK_MASK)
+	mov	x9, x28
+	bl	build_block_pagetable
+
+	/* Move to the l1 table */
+	add	x26, x26, #1, lsl #PAGE_SHIFT
+
+	/* Link the l1 -> l2 table */
+	mov	x9, x6
+	mov	x6, x26
+	bl	link_l1_pagetable
+
 
 	/*
 	 * Build the TTBR0 maps.
@@ -272,13 +298,58 @@ build_section_pagetable:
  *
  *  x6  = L1 table
  *  x8  = Virtual Address
- *  x9  = L2 PA
+ *  x9  = L2 PA (trashed)
  *  x11, x12 and x13 are trashed
  */
 link_l1_pagetable:
 	/*
 	 * Link an L1 -> L2 table entry.
 	 */
+	/* Find the table index */
+	lsr	x11, x8, #L1_SHIFT
+	and	x11, x11, #Ln_ADDR_MASK
+
+	/* Build the L1 block entry */
+	mov	x12, #L1_TABLE
+
+	/* Only use the output address bits */
+	lsr	x9, x9, #12
+	orr	x12, x12, x9, lsl #12
+
+	/* Store the entry */
+	str	x12, [x6, x11, lsl #3]
+
+	ret
+
+/*
+ * Builds count 2 MiB page table entry
+ *  x6  = L2 table
+ *  x7  = Type (0 = Device, 1 = Normal)
+ *  x8  = VA start
+ *  x9  = PA start (trashed)
+ *  x10 = Entry count (TODO)
+ *  x11, x12 and x13 are trashed
+ */
+build_block_pagetable:
+	/*
+	 * Build the L2 table entry.
+	 */
+	/* Find the table index */
+	lsr	x11, x8, #L2_SHIFT
+	and	x11, x11, #Ln_ADDR_MASK
+
+	/* Build the L2 block entry */
+	lsl	x12, x7, #2
+	orr	x12, x12, #L2_BLOCK
+	orr	x12, x12, #(ATTR_AF)
+
+	/* Only use the output address bits */
+	lsr	x9, x9, #L2_SHIFT
+	orr	x12, x12, x9, lsl #L2_SHIFT
+
+	/* Store the entry */
+	str	x12, [x6, x11, lsl #3]
+
 	ret
 
 start_mmu:

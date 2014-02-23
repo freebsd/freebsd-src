@@ -70,6 +70,8 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 #define	L2_BLOCK	L0_BLOCK
 #define	L2_TABLE	L0_TABLE
 
+#define	L2_BLOCK_MASK	UINT64_C(0xffffffe00000)
+
 /* Level 3 table, 4KiB per entry */
 #define	L3_SHIFT	12
 #define	L3_INVAL	0x0
