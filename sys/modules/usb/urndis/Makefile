@@ -1,7 +1,7 @@
 #
 # $FreeBSD$
 #
-# Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
+# Copyright (c) 2014 Hans Petter Selasky. All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -25,44 +25,13 @@
 # SUCH DAMAGE.
 #
 
-.include <bsd.own.mk>
+S=     ${.CURDIR}/../../..
 
-# Modules that include binary-only blobs of microcode should be selectable by
-# MK_SOURCELESS_UCODE option (see below).
+.PATH: $S/dev/usb/net
 
-SUBDIR = usb
-SUBDIR += ehci musb ohci uhci xhci uss820dci ${_at91dci} ${_atmegadci} ${_avr32dci}
-SUBDIR += ${_rum} run ${_uath} upgt usie ural ${_zyd} ${_urtw}
-SUBDIR += atp uhid ukbd ums udbp ufm uep wsp
-SUBDIR += ucom u3g uark ubsa ubser uchcom ucycom ufoma uftdi ugensa uipaq ulpt \
-	  umct umcs umodem umoscom uplcom uslcom uvisor uvscom
-SUBDIR += uether aue axe axge cdce cue ${_kue} mos rue udav uhso ipheth
-SUBDIR += urndis
-SUBDIR += usfs umass urio
-SUBDIR += quirk template
+KMOD=	if_urndis
+SRCS=	opt_bus.h opt_usb.h device_if.h bus_if.h usb_if.h usbdevs.h \
+	miibus_if.h opt_inet.h \
+	if_urndis.c
 
-.if ${MK_SOURCELESS_UCODE} != "no"
-_rum=		rum
-_uath=		uath
-_zyd=		zyd
-_kue=		kue
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-_urtw=		urtw
-.endif
-
-.if ${MACHINE_CPUARCH} == "arm"
-_at91dci=	at91dci
-_atmegadci=	atmegadci
-.endif
-
-.if ${MACHINE_CPUARCH} == "i386"
-_urtw=		urtw
-.endif
-
-.if ${MACHINE_CPUARCH} == "avr32"
-_avr32dci=	avr32dci
-.endif
-
-.include <bsd.subdir.mk>
+.include <bsd.kmod.mk>
