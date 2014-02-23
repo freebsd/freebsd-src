@@ -137,12 +137,7 @@ section_table:
 
 	.globl	_start
 _start:
-	/* Set up the stack */
-	adr	x29, init_stack
-	mov	x28, INIT_STACK_SIZE
-	add	x29, x29, x28
-	mov	sp, x29
-
+	/* Save the boot params to the stack */
 	stp	x0, x1, [sp, #-16]!
 
 	adr	x0, __bss_start
