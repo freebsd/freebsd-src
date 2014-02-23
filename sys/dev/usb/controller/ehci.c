@@ -2261,10 +2261,26 @@ ehci_device_bulk_enter(struct usb_xfer *xfer)
 }
 
 static void
+ehci_doorbell_async(struct ehci_softc *sc)
+{
+	uint32_t temp;
+
+	/*
+	 * XXX Performance quirk: Some Host Controllers have a too low
+	 * interrupt rate. Issue an IAAD to stimulate the Host
+	 * Controller after queueing the BULK transfer.
+	 *
+	 * XXX Force the host controller to refresh any QH caches.
+	 */
+	temp = EOREAD4(sc, EHCI_USBCMD);
+	if (!(temp & EHCI_CMD_IAAD))
+		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
+}
+
+static void
 ehci_device_bulk_start(struct usb_xfer *xfer)
 {
 	ehci_softc_t *sc = EHCI_BUS2SC(xfer->xroot->bus);
-	uint32_t temp;
 
 	/* setup TD's and QH */
 	ehci_setup_standard_chain(xfer, &sc->sc_async_p_last);
@@ -2279,13 +2295,7 @@ ehci_device_bulk_start(struct usb_xfer *xfer)
 	if (sc->sc_flags & EHCI_SCFLG_IAADBUG)
 		return;
 
-	/* XXX Performance quirk: Some Host Controllers have a too low
-	 * interrupt rate. Issue an IAAD to stimulate the Host
-	 * Controller after queueing the BULK transfer.
-	 */
-	temp = EOREAD4(sc, EHCI_USBCMD);
-	if (!(temp & EHCI_CMD_IAAD))
-		EOWRITE4(sc, EHCI_USBCMD, temp | EHCI_CMD_IAAD);
+	ehci_doorbell_async(sc);
 }
 
 struct usb_pipe_methods ehci_device_bulk_methods =
@@ -3902,6 +3912,41 @@ ehci_set_hw_power(struct usb_bus *bus)
 	return;
 }
 
+static void
+ehci_start_dma_delay_second(struct usb_xfer *xfer)
+{
+	struct ehci_softc *sc = EHCI_BUS2SC(xfer->xroot->bus);
+
+	DPRINTF("\n");
+
+	/* trigger doorbell */
+	ehci_doorbell_async(sc);
+
+	/* give the doorbell 4ms */
+	usbd_transfer_timeout_ms(xfer,
+	    (void (*)(void *))&usb_dma_delay_done_cb, 4);
+}
+
+/*
+ * Ring the doorbell twice before freeing any DMA descriptors. Some host
+ * controllers apparently cache the QH descriptors and need a message
+ * that the cache needs to be discarded.
+ */
+static void
+ehci_start_dma_delay(struct usb_xfer *xfer)
+{
+	struct ehci_softc *sc = EHCI_BUS2SC(xfer->xroot->bus);
+
+	DPRINTF("\n");
+
+	/* trigger doorbell */
+	ehci_doorbell_async(sc);
+
+	/* give the doorbell 4ms */
+	usbd_transfer_timeout_ms(xfer,
+	    (void (*)(void *))&ehci_start_dma_delay_second, 4);
+}
+
 struct usb_bus_methods ehci_bus_methods =
 {
 	.endpoint_init = ehci_ep_init,
@@ -3914,4 +3959,5 @@ struct usb_bus_methods ehci_bus_methods =
 	.set_hw_power_sleep = ehci_set_hw_power_sleep,
 	.roothub_exec = ehci_roothub_exec,
 	.xfer_poll = ehci_do_poll,
+	.start_dma_delay = ehci_start_dma_delay,
 };
