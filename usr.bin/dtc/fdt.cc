@@ -1059,6 +1059,7 @@ device_tree::parse_roots(input_buffer &input, std::vector<node*> &roots)
 		{
 			valid = false;
 		}
+		input.next_token();
 	}
 }
 
