@@ -1,7 +1,7 @@
-.\"	$Id: roff.7,v 1.37 2011/12/11 00:38:11 schwarze Exp $
+.\"	$Id: roff.7,v 1.46 2013/12/26 02:43:18 schwarze Exp $
 .\"
-.\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2010, 2011 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 11 2011 $
+.Dd $Mdocdate: December 26 2013 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -32,7 +32,7 @@ and
 manual formatting languages are based on it,
 many real-world manuals use small numbers of
 .Nm
-requests intermixed with their
+requests and escape sequences intermixed with their
 .Xr mdoc 7
 or
 .Xr man 7
@@ -41,8 +41,8 @@ To properly format such manuals, the
 .Xr mandoc 1
 utility supports a tiny subset of
 .Nm
-requests.
-Only these requests supported by
+requests and escapes.
+Only these requests and escapes supported by
 .Xr mandoc 1
 are documented in the present manual,
 together with the basic language syntax shared by
@@ -83,9 +83,9 @@ depends on the respective processing context.
 .Nm
 documents may contain only graphable 7-bit ASCII characters, the space
 character, and, in certain circumstances, the tab character.
-The back-space character
+The backslash character
 .Sq \e
-indicates the start of an escape sequence for
+indicates the start of an escape sequence, used for example for
 .Sx Comments ,
 .Sx Special Characters ,
 .Sx Predefined Strings ,
@@ -93,6 +93,9 @@ and
 user-defined strings defined using the
 .Sx ds
 request.
+For a listing of escape sequences, consult the
+.Sx ESCAPE SEQUENCE REFERENCE
+below.
 .Ss Comments
 Text following an escaped double-quote
 .Sq \e\(dq ,
@@ -146,12 +149,19 @@ respectively) may be used instead.
 The indicator or numerical representative may be preceded by C
 (constant-width), which is ignored.
 .Pp
+The two-character indicator
+.Sq BI
+requests a font that is both bold and italic.
+It may not be portable to old roff implementations.
+.Pp
 Examples:
 .Bl -tag -width Ds -offset indent -compact
 .It Li \efBbold\efR
-Write in bold, then switch to regular font mode.
+Write in \fBbold\fP, then switch to regular font mode.
 .It Li \efIitalic\efP
-Write in italic, then return to previous font mode.
+Write in \fIitalic\fP, then return to previous font mode.
+.It Li \ef(BIbold italic\efP
+Write in \f(BIbold italic\fP, then return to previous font mode.
 .El
 .Pp
 Text decoration is
@@ -417,6 +427,18 @@ The syntax of this request is the same as that of
 It is currently ignored by
 .Xr mandoc 1 ,
 as are its children.
+.Ss \&cc
+Changes the control character.
+Its syntax is as follows:
+.Bd -literal -offset indent
+.Pf . Cm \&cc Op Ar c
+.Ed
+.Pp
+If
+.Ar c
+is not specified, the control character is reset to
+.Sq \&. .
+Trailing characters are ignored.
 .Ss \&de
 Define a
 .Nm
@@ -619,6 +641,15 @@ Begin an equation block.
 See
 .Xr eqn 7
 for a description of the equation language.
+.Ss \&fam
+Change the font family.
+This line-scoped request is intended to have one argument specifying
+the font family to be selected.
+It is a groff extension, and currently, it is ignored including its
+arguments, and the number of arguments is not checked.
+.Ss \&hw
+Specify hyphenation points in words.
+This line-scoped request is currently ignored.
 .Ss \&hy
 Set automatic hyphenation mode.
 This line-scoped request is currently ignored.
@@ -786,19 +817,22 @@ the name of the request, macro or string to be undefined.
 Currently, it is ignored including its arguments,
 and the number of arguments is not checked.
 .Ss \&nr
-Define a register.
+Define or change a register.
 A register is an arbitrary string value that defines some sort of state,
 which influences parsing and/or formatting.
 Its syntax is as follows:
 .Pp
-.D1 Pf \. Cm \&nr Ar name Ar value
+.D1 Pf \. Cm \&nr Ar name Oo +|- Oc Ns Ar value
 .Pp
 The
 .Ar value
 may, at the moment, only be an integer.
-So far, only the following register
+If it is prefixed by a sign, the register will be
+incremented or decremented instead of assigned to.
+.Pp
+The following register
 .Ar name
-is recognised:
+is handled specially:
 .Bl -tag -width Ds
 .It Cm nS
 If set to a positive integer value, certain
@@ -895,8 +929,251 @@ Begin a table, which formats input in aligned rows and columns.
 See
 .Xr tbl 7
 for a description of the tbl language.
+.Sh ESCAPE SEQUENCE REFERENCE
+The
+.Xr mandoc 1
+.Nm
+parser recognises the following escape sequences.
+Note that the
+.Nm
+language defines more escape sequences not implemented in
+.Xr mandoc 1 .
+In
+.Xr mdoc 7
+and
+.Xr man 7
+documents, using escape sequences is discouraged except for those
+described in the
+.Sx LANGUAGE SYNTAX
+section above.
+.Pp
+A backslash followed by any character not listed here
+simply prints that character itself.
+.Ss \e<newline>
+A backslash at the end of an input line can be used to continue the
+logical input line on the next physical input line, joining the text
+on both lines together as if it were on a single input line.
+.Ss \e<space>
+The escape sequence backslash-space
+.Pq Sq \e\ \&
+is an unpaddable space-sized non-breaking space character; see
+.Sx Whitespace .
+.Ss \e\(dq
+The rest of the input line is treated as
+.Sx Comments .
+.Ss \e%
+Hyphenation allowed at this point of the word; ignored by
+.Xr mandoc 1 .
+.Ss \e&
+Non-printing zero-width character; see
+.Sx Whitespace .
+.Ss \e\(aq
+Acute accent special character; use
+.Sq \e(aa
+instead.
+.Ss \e( Ns Ar cc
+.Sx Special Characters
+with two-letter names, see
+.Xr mandoc_char 7 .
+.Ss \e*[ Ns Ar name ]
+Interpolate the string with the
+.Ar name ;
+see
+.Sx Predefined Strings
+and
+.Sx ds .
+For short names, there are variants
+.No \e* Ns Ar c
+and
+.No \e*( Ns Ar cc .
+.Ss \e-
+Special character
+.Dq mathematical minus sign .
+.Ss \e[ Ns Ar name ]
+.Sx Special Characters
+with names of arbitrary length, see
+.Xr mandoc_char 7 .
+.Ss \e^
+One-twelfth em half-narrow space character, effectively zero-width in
+.Xr mandoc 1 .
+.Ss \e`
+Grave accent special character; use
+.Sq \e(ga
+instead.
+.Ss \e{
+Begin conditional input; see
+.Sx if .
+.Ss \e\(ba
+One-sixth em narrow space character, effectively zero-width in
+.Xr mandoc 1 .
+.Ss \e}
+End conditional input; see
+.Sx if .
+.Ss \e~
+Paddable non-breaking space character.
+.Ss \e0
+Digit width space character.
+.Ss \eA\(aq Ns Ar string Ns \(aq
+Anchor definition; ignored by
+.Xr mandoc 1 .
+.Ss \eB\(aq Ns Ar string Ns \(aq
+Test whether
+.Ar string
+is a numerical expession; ignored by
+.Xr mandoc 1 .
+.Ss \eb\(aq Ns Ar string Ns \(aq
+Bracket building function; ignored by
+.Xr mandoc 1 .
+.Ss \eC\(aq Ns Ar name Ns \(aq
+.Sx Special Characters
+with names of arbitrary length.
+.Ss \ec
+Interrupt text processing to insert requests or macros; ignored by
+.Xr mandoc 1 .
+.Ss \eD\(aq Ns Ar string Ns \(aq
+Draw graphics function; ignored by
+.Xr mandoc 1 .
+.Ss \ed
+Move down by half a line; ignored by
+.Xr mandoc 1 .
+.Ss \ee
+Backslash special character.
+.Ss \eF[ Ns Ar name ]
+Switch font family (groff extension); ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \eF Ns Ar c
+and
+.No \eF( Ns Ar cc .
+.Ss \ef[ Ns Ar name ]
+Switch to the font
+.Ar name ,
+see
+.Sx Text Decoration .
+For short names, there are variants
+.No \ef Ns Ar c
+and
+.No \ef( Ns Ar cc .
+.Ss \eg[ Ns Ar name ]
+Interpolate the format of a number register; ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \eg Ns Ar c
+and
+.No \eg( Ns Ar cc .
+.Ss \eH\(aq Ns Oo +|- Oc Ns Ar number Ns \(aq
+Set the height of the current font; ignored by
+.Xr mandoc 1 .
+.Ss \eh\(aq Ns Ar number Ns \(aq
+Horizontal motion; ignored by
+.Xr mandoc 1 .
+.Ss \ek[ Ns Ar name ]
+Mark horizontal input place in register; ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \ek Ns Ar c
+and
+.No \ek( Ns Ar cc .
+.Ss \eL\(aq Ns Ar number Ns Oo Ar c Oc Ns \(aq
+Vertical line drawing function; ignored by
+.Xr mandoc 1 .
+.Ss \el\(aq Ns Ar number Ns Oo Ar c Oc Ns \(aq
+Horizontal line drawing function; ignored by
+.Xr mandoc 1 .
+.Ss \eM[ Ns Ar name ]
+Set fill (background) color (groff extension); ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \eM Ns Ar c
+and
+.No \eM( Ns Ar cc .
+.Ss \em[ Ns Ar name ]
+Set glyph drawing color (groff extension); ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \em Ns Ar c
+and
+.No \em( Ns Ar cc .
+.Ss \eN\(aq Ns Ar number Ns \(aq
+Character
+.Ar number
+on the current font.
+.Ss \en[ Ns Ar name ]
+Interpolate the number register
+.Ar name .
+For short names, there are variants
+.No \en Ns Ar c
+and
+.No \en( Ns Ar cc .
+.Ss \eo\(aq Ns Ar string Ns \(aq
+Overstrike
+.Ar string ;
+ignored by
+.Xr mandoc 1 .
+.Ss \eR\(aq Ns Ar name Oo +|- Oc Ns Ar number Ns \(aq
+Set number register; ignored by
+.Xr mandoc 1 .
+.Ss \eS\(aq Ns Ar number Ns \(aq
+Slant output; ignored by
+.Xr mandoc 1 .
+.Ss \es\(aq Ns Oo +|- Oc Ns Ar number Ns \(aq
+Change point size; ignored by
+.Xr mandoc 1 .
+Alternative forms
+.No \es Ns Oo +|- Oc Ns Ar n ,
+.No \es Ns Oo +|- Oc Ns \(aq Ns Ar number Ns \(aq ,
+.No \es Ns [ Oo +|- Oc Ns Ar number ] ,
+and
+.No \es Ns Oo +|- Oc Ns [ Ar number Ns ]
+are also parsed and ignored.
+.Ss \et
+Horizontal tab; ignored by
+.Xr mandoc 1 .
+.Ss \eu
+Move up by half a line; ignored by
+.Xr mandoc 1 .
+.Ss \eV[ Ns Ar name ]
+Interpolate an environment variable; ignored by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \eV Ns Ar c
+and
+.No \eV( Ns Ar cc .
+.Ss \ev\(aq Ns Ar number Ns \(aq
+Vertical motion; ignored by
+.Xr mandoc 1 .
+.Ss \ew\(aq Ns Ar string Ns \(aq
+Interpolate the width of the
+.Ar string ;
+ignored by
+.Xr mandoc 1 .
+.Ss \eX\(aq Ns Ar string Ns \(aq
+Output
+.Ar string
+as device control function; ignored in nroff mode and by
+.Xr mandoc 1 .
+.Ss \ex\(aq Ns Ar number Ns \(aq
+Extra line space function; ignored by
+.Xr mandoc 1 .
+.Ss \eY[ Ns Ar name ]
+Output a string as a device control function; ignored in nroff mode and by
+.Xr mandoc 1 .
+For short names, there are variants
+.No \eY Ns Ar c
+and
+.No \eY( Ns Ar cc .
+.Ss \eZ\(aq Ns Ar string Ns \(aq
+Print
+.Ar string
+with zero width and height; ignored by
+.Xr mandoc 1 .
+.Ss \ez
+Output the next character without advancing the cursor position;
+approximated in
+.Xr mandoc 1
+by simply skipping the next character.
 .Sh COMPATIBILITY
-This section documents compatibility between mandoc and other other
+This section documents compatibility between mandoc and other
 .Nm
 implementations, at this time limited to GNU troff
 .Pq Qq groff .
@@ -982,8 +1259,6 @@ In 1989, James Clarke re-implemented troff in C++, naming it groff.
 This
 .Nm
 reference was written by
-.An Kristaps Dzonsons ,
-.Mt kristaps@bsd.lv ;
+.An Kristaps Dzonsons Aq Mt kristaps@bsd.lv
 and
-.An Ingo Schwarze ,
-.Mt schwarze@openbsd.org .
+.An Ingo Schwarze Aq Mt schwarze@openbsd.org .

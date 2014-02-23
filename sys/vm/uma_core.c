@@ -151,9 +151,6 @@ static int booted = 0;
 #define	UMA_STARTUP	1
 #define	UMA_STARTUP2	2
 
-/* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
-static const u_int uma_max_ipers = SLAB_SETSIZE;
-
 /*
  * Only mbuf clusters use ref zones.  Just provide enough references
  * to support the one user.  New code should not use the ref facility.
@@ -268,6 +265,7 @@ static uma_keg_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
     uma_fini fini, int align, uint32_t flags);
 static int zone_import(uma_zone_t zone, void **bucket, int max, int flags);
 static void zone_release(uma_zone_t zone, void **bucket, int cnt);
+static void uma_zero_item(void *item, uma_zone_t zone);
 
 void uma_print_zone(uma_zone_t);
 void uma_print_stats(void);
@@ -1389,7 +1387,7 @@ keg_cachespread_init(uma_keg_t keg)
 	keg->uk_slabsize = UMA_SLAB_SIZE;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
-	KASSERT(keg->uk_ipers <= uma_max_ipers,
+	KASSERT(keg->uk_ipers <= SLAB_SETSIZE,
 	    ("%s: keg->uk_ipers too high(%d) increase max_ipers", __func__,
 	    keg->uk_ipers));
 }
@@ -2174,7 +2172,7 @@ zalloc_start:
 		uma_dbg_alloc(zone, NULL, item);
 #endif
 		if (flags & M_ZERO)
-			bzero(item, zone->uz_size);
+			uma_zero_item(item, zone);
 		random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
 		return (item);
 	}
@@ -2626,7 +2624,7 @@ zone_alloc_item(uma_zone_t zone, void *udata, int flags)
 	uma_dbg_alloc(zone, NULL, item);
 #endif
 	if (flags & M_ZERO)
-		bzero(item, zone->uz_size);
+		uma_zero_item(item, zone);
 
 	return (item);
 
@@ -3251,6 +3249,17 @@ uma_large_free(uma_slab_t slab)
 	zone_free_item(slabzone, slab, NULL, SKIP_NONE);
 }
 
+static void
+uma_zero_item(void *item, uma_zone_t zone)
+{
+
+	if (zone->uz_flags & UMA_ZONE_PCPU) {
+		for (int i = 0; i < mp_ncpus; i++)
+			bzero(zpcpu_get_cpu(item, i), zone->uz_size);
+	} else
+		bzero(item, zone->uz_size);
+}
+
 void
 uma_print_stats(void)
 {
@@ -3477,6 +3486,35 @@ skip:
 	error = sbuf_finish(&sbuf);
 	sbuf_delete(&sbuf);
 	return (error);
+}
+
+int
+sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS)
+{
+	uma_zone_t zone = *(uma_zone_t *)arg1;
+	int error, max, old;
+
+	old = max = uma_zone_get_max(zone);
+	error = sysctl_handle_int(oidp, &max, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (max < old)
+		return (EINVAL);
+
+	uma_zone_set_max(zone, max);
+
+	return (0);
+}
+
+int
+sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS)
+{
+	uma_zone_t zone = *(uma_zone_t *)arg1;
+	int cur;
+
+	cur = uma_zone_get_cur(zone);
+	return (sysctl_handle_int(oidp, &cur, 0, req));
 }
 
 #ifdef DDB

@@ -77,6 +77,7 @@ LIBDEPS=\
 	clangbasic \
 	clanglex \
 	\
+	llvmoption \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvminstrumentation \

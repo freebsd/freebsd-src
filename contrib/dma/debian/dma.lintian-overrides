@@ -1,0 +1,8 @@
+dma: manpage-has-errors-from-man *Unknown DragonFly version*
+dma: non-standard-dir-in-var var/mail/
+dma: non-standard-dir-perm var/spool/dma/ 0770 != 0755
+dma: non-standard-dir-perm var/spool/dma/ 2775 != 0755
+dma: non-standard-file-perm etc/dma/auth.conf 0640 != 0644
+dma: no-upstream-changelog
+dma: setgid-binary usr/sbin/dma 2755 root/mail
+dma: setuid-binary usr/lib/dma-mbox-create 4754 root/mail

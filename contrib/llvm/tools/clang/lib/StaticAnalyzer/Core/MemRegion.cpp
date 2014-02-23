@@ -186,7 +186,7 @@ DefinedOrUnknownSVal TypedValueRegion::getExtent(SValBuilder &svalBuilder) const
 
   if (isa<VariableArrayType>(T))
     return nonloc::SymbolVal(svalBuilder.getSymbolManager().getExtentSymbol(this));
-  if (isa<IncompleteArrayType>(T))
+  if (T->isIncompleteType())
     return UnknownVal();
 
   CharUnits size = Ctx.getTypeSizeInChars(T);
@@ -383,15 +383,17 @@ void BlockTextRegion::Profile(llvm::FoldingSetNodeID& ID) const {
 void BlockDataRegion::ProfileRegion(llvm::FoldingSetNodeID& ID,
                                     const BlockTextRegion *BC,
                                     const LocationContext *LC,
+                                    unsigned BlkCount,
                                     const MemRegion *sReg) {
   ID.AddInteger(MemRegion::BlockDataRegionKind);
   ID.AddPointer(BC);
   ID.AddPointer(LC);
+  ID.AddInteger(BlkCount);
   ID.AddPointer(sReg);
 }
 
 void BlockDataRegion::Profile(llvm::FoldingSetNodeID& ID) const {
-  BlockDataRegion::ProfileRegion(ID, BC, LC, getSuperRegion());
+  BlockDataRegion::ProfileRegion(ID, BC, LC, BlockCount, getSuperRegion());
 }
 
 void CXXTempObjectRegion::ProfileRegion(llvm::FoldingSetNodeID &ID,
@@ -464,7 +466,14 @@ void BlockTextRegion::dumpToStream(raw_ostream &os) const {
 }
 
 void BlockDataRegion::dumpToStream(raw_ostream &os) const {
-  os << "block_data{" << BC << '}';
+  os << "block_data{" << BC;
+  os << "; ";
+  for (BlockDataRegion::referenced_vars_iterator
+         I = referenced_vars_begin(),
+         E = referenced_vars_end(); I != E; ++I)
+    os << "(" << I.getCapturedRegion() << "," <<
+                 I.getOriginalRegion() << ") ";
+  os << '}';
 }
 
 void CompoundLiteralRegion::dumpToStream(raw_ostream &os) const {
@@ -806,10 +815,19 @@ const VarRegion* MemRegionManager::getVarRegion(const VarDecl *D,
           sReg = getGlobalsRegion(MemRegion::StaticGlobalSpaceRegionKind,
                                   getFunctionTextRegion(cast<NamedDecl>(STCD)));
         else if (const BlockDecl *BD = dyn_cast<BlockDecl>(STCD)) {
+          // FIXME: The fallback type here is totally bogus -- though it should
+          // never be queried, it will prevent uniquing with the real
+          // BlockTextRegion. Ideally we'd fix the AST so that we always had a
+          // signature.
+          QualType T;
+          if (const TypeSourceInfo *TSI = BD->getSignatureAsWritten())
+            T = TSI->getType();
+          else
+            T = getContext().getFunctionNoProtoType(getContext().VoidTy);
+          
           const BlockTextRegion *BTR =
-            getBlockTextRegion(BD,
-                     C.getCanonicalType(BD->getSignatureAsWritten()->getType()),
-                     STC->getAnalysisDeclContext());
+            getBlockTextRegion(BD, C.getCanonicalType(T),
+                               STC->getAnalysisDeclContext());
           sReg = getGlobalsRegion(MemRegion::StaticGlobalSpaceRegionKind,
                                   BTR);
         }
@@ -830,7 +848,8 @@ const VarRegion *MemRegionManager::getVarRegion(const VarDecl *D,
 
 const BlockDataRegion *
 MemRegionManager::getBlockDataRegion(const BlockTextRegion *BC,
-                                     const LocationContext *LC) {
+                                     const LocationContext *LC,
+                                     unsigned blockCount) {
   const MemRegion *sReg = 0;
   const BlockDecl *BD = BC->getDecl();
   if (!BD->hasCaptures()) {
@@ -852,7 +871,13 @@ MemRegionManager::getBlockDataRegion(const BlockTextRegion *BC,
     }
   }
 
-  return getSubRegion<BlockDataRegion>(BC, LC, sReg);
+  return getSubRegion<BlockDataRegion>(BC, LC, blockCount, sReg);
+}
+
+const CXXTempObjectRegion *
+MemRegionManager::getCXXStaticTempObjectRegion(const Expr *Ex) {
+  return getSubRegion<CXXTempObjectRegion>(
+      Ex, getGlobalsRegion(MemRegion::GlobalInternalSpaceRegionKind, NULL));
 }
 
 const CompoundLiteralRegion*
@@ -966,7 +991,7 @@ MemRegionManager::getCXXBaseObjectRegion(const CXXRecordDecl *RD,
                                          bool IsVirtual) {
   if (isa<TypedValueRegion>(Super)) {
     assert(isValidBaseClass(RD, dyn_cast<TypedValueRegion>(Super), IsVirtual));
-    (void)isValidBaseClass;
+    (void)&isValidBaseClass;
 
     if (IsVirtual) {
       // Virtual base regions should not be layered, since the layout rules
@@ -1434,4 +1459,46 @@ const VarRegion *BlockDataRegion::getOriginalRegion(const VarRegion *R) const {
       return I.getOriginalRegion();
   }
   return 0;
+}
+
+//===----------------------------------------------------------------------===//
+// RegionAndSymbolInvalidationTraits
+//===----------------------------------------------------------------------===//
+
+void RegionAndSymbolInvalidationTraits::setTrait(SymbolRef Sym, 
+                                                 InvalidationKinds IK) {
+  SymTraitsMap[Sym] |= IK;
+}
+
+void RegionAndSymbolInvalidationTraits::setTrait(const MemRegion *MR, 
+                                                 InvalidationKinds IK) {
+  assert(MR);
+  if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(MR))
+    setTrait(SR->getSymbol(), IK);
+  else
+    MRTraitsMap[MR] |= IK;
+}
+
+bool RegionAndSymbolInvalidationTraits::hasTrait(SymbolRef Sym, 
+                                                 InvalidationKinds IK) {
+  const_symbol_iterator I = SymTraitsMap.find(Sym);
+  if (I != SymTraitsMap.end())
+    return I->second & IK;
+
+  return false;    
+}
+
+bool RegionAndSymbolInvalidationTraits::hasTrait(const MemRegion *MR,
+                                                 InvalidationKinds IK) {
+  if (!MR)
+    return false;
+
+  if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(MR))
+    return hasTrait(SR->getSymbol(), IK);
+
+  const_region_iterator I = MRTraitsMap.find(MR);
+  if (I != MRTraitsMap.end())
+    return I->second & IK;
+
+  return false;
 }

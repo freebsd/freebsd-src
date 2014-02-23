@@ -516,6 +516,7 @@ extern void	svc_unreg(const rpcprog_t, const rpcvers_t);
 #endif
 __END_DECLS
 
+#ifdef _KERNEL
 /*
  * Service connection loss registration
  *
@@ -539,6 +540,7 @@ __END_DECLS
 __BEGIN_DECLS
 extern void	svc_loss_unreg(SVCPOOL *, void (*)(SVCXPRT *));
 __END_DECLS
+#endif
 
 /*
  * Transport registration.

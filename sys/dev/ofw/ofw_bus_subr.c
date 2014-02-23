@@ -55,6 +55,7 @@ ofw_bus_gen_setup_devinfo(struct ofw_bus_devinfo *obd, phandle_t node)
 	OF_getprop_alloc(node, "compatible", 1, (void **)&obd->obd_compat);
 	OF_getprop_alloc(node, "device_type", 1, (void **)&obd->obd_type);
 	OF_getprop_alloc(node, "model", 1, (void **)&obd->obd_model);
+	OF_getprop_alloc(node, "status", 1, (void **)&obd->obd_status);
 	obd->obd_node = node;
 	return (0);
 }
@@ -73,6 +74,8 @@ ofw_bus_gen_destroy_devinfo(struct ofw_bus_devinfo *obd)
 		free(obd->obd_name, M_OFWPROP);
 	if (obd->obd_type != NULL)
 		free(obd->obd_type, M_OFWPROP);
+	if (obd->obd_status != NULL)
+		free(obd->obd_status, M_OFWPROP);
 }
 
 int
@@ -145,6 +148,30 @@ ofw_bus_gen_get_type(device_t bus, device_t dev)
 	if (obd == NULL)
 		return (NULL);
 	return (obd->obd_type);
+}
+
+const char *
+ofw_bus_get_status(device_t dev)
+{
+	const struct ofw_bus_devinfo *obd;
+
+	obd = OFW_BUS_GET_DEVINFO(device_get_parent(dev), dev);
+	if (obd == NULL)
+		return (NULL);
+
+	return (obd->obd_status);
+}
+
+int
+ofw_bus_status_okay(device_t dev)
+{
+	const char *status;
+
+	status = ofw_bus_get_status(dev);
+	if (status == NULL || strcmp(status, "okay") == 0)
+		return (1);
+	
+	return (0);
 }
 
 int

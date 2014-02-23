@@ -273,9 +273,7 @@ ofw_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	    &sc->sc_pci_iinfo, &reg, sizeof(reg), &pintr, sizeof(pintr),
 	    mintr, sizeof(mintr), &iparent);
 	if (intrcells) {
-		pintr = ofw_bus_map_intr(dev, iparent, mintr[0]);
-		if (intrcells == 2)
-			ofw_bus_config_intr(dev, pintr, mintr[1]);
+		pintr = ofw_bus_map_intr(dev, iparent, intrcells, mintr);
 		return (pintr);
 	}
 

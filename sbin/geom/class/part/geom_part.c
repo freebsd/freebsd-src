@@ -454,8 +454,19 @@ gpart_autofill(struct gctl_req *req)
 	if (s == NULL)
 		abort();
 	gp = find_geom(cp, s);
-	if (gp == NULL)
-		errx(EXIT_FAILURE, "No such geom: %s.", s);
+	if (gp == NULL) {
+		if (g_device_path(s) == NULL) {
+			errx(EXIT_FAILURE, "No such geom %s.", s);
+		} else {
+			/*
+			 * We don't free memory allocated by g_device_path() as
+			 * we are about to exit.
+			 */
+			errx(EXIT_FAILURE,
+			    "No partitioning scheme found on geom %s. Create one first using 'gpart create'.",
+			    s);
+		}
+	}
 	pp = LIST_FIRST(&gp->lg_consumer)->lg_provider;
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);

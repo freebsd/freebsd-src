@@ -95,7 +95,11 @@ fi
 # Make partitions
 rm -f $PATH_FSTAB
 touch $PATH_FSTAB
-bsdinstall scriptedpart "$PARTITIONS"
+if [ "$ZFSBOOT_DISKS" ]; then
+	bsdinstall zfsboot
+else
+	bsdinstall scriptedpart "$PARTITIONS"
+fi
 bsdinstall mount
 
 # Unpack distributions

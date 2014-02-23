@@ -28,7 +28,7 @@ using namespace llvm;
 /// ScalarOpts library.
 void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeADCEPass(Registry);
-  initializeBlockPlacementPass(Registry);
+  initializeSampleProfileLoaderPass(Registry);
   initializeCodeGenPreparePass(Registry);
   initializeConstantPropagationPass(Registry);
   initializeCorrelatedValuePropagationPass(Registry);
@@ -44,12 +44,14 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLoopInstSimplifyPass(Registry);
   initializeLoopRotatePass(Registry);
   initializeLoopStrengthReducePass(Registry);
+  initializeLoopRerollPass(Registry);
   initializeLoopUnrollPass(Registry);
   initializeLoopUnswitchPass(Registry);
   initializeLoopIdiomRecognizePass(Registry);
   initializeLowerAtomicPass(Registry);
   initializeLowerExpectIntrinsicPass(Registry);
   initializeMemCpyOptPass(Registry);
+  initializePartiallyInlineLibCallsPass(Registry);
   initializeReassociatePass(Registry);
   initializeRegToMemPass(Registry);
   initializeSCCPPass(Registry);
@@ -58,7 +60,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeSROA_DTPass(Registry);
   initializeSROA_SSAUpPass(Registry);
   initializeCFGSimplifyPassPass(Registry);
-  initializeSimplifyLibCallsPass(Registry);
+  initializeStructurizeCFGPass(Registry);
   initializeSinkingPass(Registry);
   initializeTailCallElimPass(Registry);
 }
@@ -111,6 +113,10 @@ void LLVMAddLoopRotatePass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createLoopRotatePass());
 }
 
+void LLVMAddLoopRerollPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createLoopRerollPass());
+}
+
 void LLVMAddLoopUnrollPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createLoopUnrollPass());
 }
@@ -121,6 +127,10 @@ void LLVMAddLoopUnswitchPass(LLVMPassManagerRef PM) {
 
 void LLVMAddMemCpyOptPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createMemCpyOptPass());
+}
+
+void LLVMAddPartiallyInlineLibCallsPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(createPartiallyInlineLibCallsPass());
 }
 
 void LLVMAddPromoteMemoryToRegisterPass(LLVMPassManagerRef PM) {
@@ -149,7 +159,7 @@ void LLVMAddScalarReplAggregatesPassWithThreshold(LLVMPassManagerRef PM,
 }
 
 void LLVMAddSimplifyLibCallsPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createSimplifyLibCallsPass());
+  // NOTE: The simplify-libcalls pass has been removed.
 }
 
 void LLVMAddTailCallEliminationPass(LLVMPassManagerRef PM) {

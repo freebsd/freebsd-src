@@ -1,6 +1,11 @@
 <?xml version="1.0"?>
 <!-- $FreeBSD$ -->
 <catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <rewriteSystem systemIdStartString="http://www.FreeBSD.org/release/XML/"
+                 rewritePrefix="../../"/>
+  <rewriteURI uriStartString="http://www.FreeBSD.org/release/XML/"
+              rewritePrefix="../../"/>
+
   <public publicId="-//FreeBSD//ENTITIES Release Specification//EN" uri="release.ent"/>
   <public publicId="-//FreeBSD//ENTITIES Auto Generated Device Lists//EN" uri="dev-auto.ent"/>
 </catalog>

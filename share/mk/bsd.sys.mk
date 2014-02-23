@@ -69,7 +69,7 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
-CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
+CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
@@ -120,6 +120,12 @@ CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
 CFLAGS+=	 -Qunused-arguments
+# The libc++ headers use c++11 extensions.  These are normally silenced because
+# they are treated as system headers, but we explicitly disable that warning
+# suppression when building the base system to catch bugs in our headers.
+# Eventually we'll want to start building the base system C++ code as C++11,
+# but not yet.
+CXXFLAGS+=	 -Wno-c++11-extensions
 CFLAGS+=	 ${CFLAGS.clang}
 CXXFLAGS+=	 ${CXXFLAGS.clang}
 .else # !CLANG

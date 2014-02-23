@@ -27,7 +27,7 @@ X86SelectionDAGInfo::~X86SelectionDAGInfo() {
 }
 
 SDValue
-X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
+X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                                              SDValue Chain,
                                              SDValue Dst, SDValue Src,
                                              SDValue Size, unsigned Align,
@@ -46,8 +46,6 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
       !ConstantSize ||
       ConstantSize->getZExtValue() >
         Subtarget->getMaxInlineSizeThreshold()) {
-    SDValue InFlag(0, 0);
-
     // Check to see if there is a specialized entry-point for memory zeroing.
     ConstantSDNode *V = dyn_cast<ConstantSDNode>(Src);
 
@@ -175,7 +173,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
 }
 
 SDValue
-X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, DebugLoc dl,
+X86SelectionDAGInfo::EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                         SDValue Chain, SDValue Dst, SDValue Src,
                                         SDValue Size, unsigned Align,
                                         bool isVolatile, bool AlwaysInline,

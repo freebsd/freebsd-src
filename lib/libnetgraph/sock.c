@@ -111,9 +111,12 @@ gotNode:
 		/* Save node name */
 		strlcpy(namebuf, name, sizeof(namebuf));
 	} else if (dsp != NULL) {
-		u_char rbuf[sizeof(struct ng_mesg) + sizeof(struct nodeinfo)];
-		struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
-		struct nodeinfo *const ni = (struct nodeinfo *) resp->data;
+		union {
+			u_char rbuf[sizeof(struct ng_mesg) +
+			    sizeof(struct nodeinfo)];
+			struct ng_mesg res;
+		} res;
+		struct nodeinfo *const ni = (struct nodeinfo *) res.res.data;
 
 		/* Find out the node ID */
 		if (NgSendMsg(cs, ".", NGM_GENERIC_COOKIE,
@@ -123,7 +126,7 @@ gotNode:
 				NGLOG("send nodeinfo");
 			goto errout;
 		}
-		if (NgRecvMsg(cs, resp, sizeof(rbuf), NULL) < 0) {
+		if (NgRecvMsg(cs, &res.res, sizeof(res.rbuf), NULL) < 0) {
 			errnosv = errno;
 			if (_gNgDebugLevel >= 1)
 				NGLOG("recv nodeinfo");

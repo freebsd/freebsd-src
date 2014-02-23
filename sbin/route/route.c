@@ -154,7 +154,7 @@ usage(const char *cp)
 {
 	if (cp != NULL)
 		warnx("bad keyword: %s", cp);
-	errx(EX_USAGE, "usage: route [-dnqtv] command [[modifiers] args]");
+	errx(EX_USAGE, "usage: route [-46dnqtv] command [[modifiers] args]");
 	/* NOTREACHED */
 }
 
@@ -167,8 +167,24 @@ main(int argc, char **argv)
 	if (argc < 2)
 		usage(NULL);
 
-	while ((ch = getopt(argc, argv, "nqdtv")) != -1)
+	while ((ch = getopt(argc, argv, "46nqdtv")) != -1)
 		switch(ch) {
+		case '4':
+#ifdef INET
+			af = AF_INET;
+			aflen = sizeof(struct sockaddr_in);
+#else
+			errx(1, "IPv4 support is not compiled in");
+#endif
+			break;
+		case '6':
+#ifdef INET6
+			af = AF_INET6;
+			aflen = sizeof(struct sockaddr_in6);
+#else
+			errx(1, "IPv6 support is not compiled in");
+#endif
+			break;
 		case 'n':
 			nflag = 1;
 			break;
@@ -382,11 +398,13 @@ flushroutes(int argc, char *argv[])
 			usage(*argv);
 		switch (keyword(*argv + 1)) {
 #ifdef INET
+		case K_4:
 		case K_INET:
 			af = AF_INET;
 			break;
 #endif
 #ifdef INET6
+		case K_6:
 		case K_INET6:
 			af = AF_INET6;
 			break;
@@ -807,12 +825,14 @@ newroute(int argc, char **argv)
 				aflen = sizeof(struct sockaddr_dl);
 				break;
 #ifdef INET
+			case K_4:
 			case K_INET:
 				af = AF_INET;
 				aflen = sizeof(struct sockaddr_in);
 				break;
 #endif
 #ifdef INET6
+			case K_6:
 			case K_INET6:
 				af = AF_INET6;
 				aflen = sizeof(struct sockaddr_in6);
@@ -958,8 +978,15 @@ newroute(int argc, char **argv)
 		}
 	}
 
+	/* Do some sanity checks on resulting request */
 	if (so[RTAX_DST].ss_len == 0) {
 		warnx("destination parameter required");
+		usage(NULL);
+	}
+
+	if (so[RTAX_NETMASK].ss_len != 0 &&
+	    so[RTAX_DST].ss_family != so[RTAX_NETMASK].ss_family) {
+		warnx("destination and netmask family need to be the same");
 		usage(NULL);
 	}
 

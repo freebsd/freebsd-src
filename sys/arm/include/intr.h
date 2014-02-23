@@ -67,8 +67,6 @@
 #define NIRQ		32
 #endif
 
-#include <machine/psl.h>
-#include <sys/bus.h>
 
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);

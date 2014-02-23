@@ -1552,7 +1552,12 @@ c_sparse(OPTION *option, char ***argvp __unused)
 int
 f_type(PLAN *plan, FTSENT *entry)
 {
-	return (entry->fts_statp->st_mode & S_IFMT) == plan->m_data;
+	if (plan->m_data == S_IFDIR)
+		return (entry->fts_info == FTS_D || entry->fts_info == FTS_DC ||
+		    entry->fts_info == FTS_DNR || entry->fts_info == FTS_DOT ||
+		    entry->fts_info == FTS_DP);
+	else
+		return (entry->fts_statp->st_mode & S_IFMT) == plan->m_data;
 }
 
 PLAN *
@@ -1563,7 +1568,8 @@ c_type(OPTION *option, char ***argvp)
 	mode_t  mask;
 
 	typestring = nextarg(option, argvp);
-	ftsoptions &= ~FTS_NOSTAT;
+	if (typestring[0] != 'd')
+		ftsoptions &= ~FTS_NOSTAT;
 
 	switch (typestring[0]) {
 	case 'b':

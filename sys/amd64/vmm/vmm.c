@@ -89,6 +89,7 @@ struct vcpu {
 	struct vlapic	*vlapic;
 	int		 vcpuid;
 	struct savefpu	*guestfpu;	/* guest fpu state */
+	uint64_t	guest_xcr0;
 	void		*stats;
 	struct vm_exit	exitinfo;
 	enum x2apic_state x2apic_state;
@@ -125,18 +126,24 @@ struct vm {
 	 * explicitly (AP) by sending it a startup ipi.
 	 */
 	cpuset_t	active_cpus;
+
+	struct mtx	rendezvous_mtx;
+	cpuset_t	rendezvous_req_cpus;
+	cpuset_t	rendezvous_done_cpus;
+	void		*rendezvous_arg;
+	vm_rendezvous_func_t rendezvous_func;
 };
 
 static int vmm_initialized;
 
 static struct vmm_ops *ops;
-#define	VMM_INIT()	(ops != NULL ? (*ops->init)() : 0)
+#define	VMM_INIT(num)	(ops != NULL ? (*ops->init)(num) : 0)
 #define	VMM_CLEANUP()	(ops != NULL ? (*ops->cleanup)() : 0)
 #define	VMM_RESUME()	(ops != NULL ? (*ops->resume)() : 0)
 
 #define	VMINIT(vm, pmap) (ops != NULL ? (*ops->vminit)(vm, pmap): NULL)
-#define	VMRUN(vmi, vcpu, rip, pmap) \
-	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap) : ENXIO)
+#define	VMRUN(vmi, vcpu, rip, pmap, rptr) \
+	(ops != NULL ? (*ops->vmrun)(vmi, vcpu, rip, pmap, rptr) : ENXIO)
 #define	VMCLEANUP(vmi)	(ops != NULL ? (*ops->vmcleanup)(vmi) : NULL)
 #define	VMSPACE_ALLOC(min, max) \
 	(ops != NULL ? (*ops->vmspace_alloc)(min, max) : NULL)
@@ -170,6 +177,14 @@ CTASSERT(VMM_MSR_NUM <= 64);	/* msr_mask can keep track of up to 64 msrs */
 /* statistics */
 static VMM_STAT(VCPU_TOTAL_RUNTIME, "vcpu total runtime");
 
+SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
+
+static int vmm_ipinum;
+SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
+    "IPI vector used for vcpu notifications");
+
+static void vm_deactivate_cpu(struct vm *vm, int vcpuid);
+
 static void
 vcpu_cleanup(struct vm *vm, int i)
 {
@@ -191,7 +206,8 @@ vcpu_init(struct vm *vm, uint32_t vcpu_id)
 	vcpu->hostcpu = NOCPU;
 	vcpu->vcpuid = vcpu_id;
 	vcpu->vlapic = VLAPIC_INIT(vm->cookie, vcpu_id);
-	vm_set_x2apic_state(vm, vcpu_id, X2APIC_ENABLED);
+	vm_set_x2apic_state(vm, vcpu_id, X2APIC_DISABLED);
+	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	vcpu->guestfpu = fpu_save_area_alloc();
 	fpu_save_area_reset(vcpu->guestfpu);
 	vcpu->stats = vmm_stat_alloc();
@@ -222,7 +238,10 @@ vmm_init(void)
 	int error;
 
 	vmm_host_state_init();
-	vmm_ipi_init();
+
+	vmm_ipinum = vmm_ipi_alloc();
+	if (vmm_ipinum == 0)
+		vmm_ipinum = IPI_AST;
 
 	error = vmm_mem_init();
 	if (error)
@@ -238,7 +257,7 @@ vmm_init(void)
 	vmm_msr_init();
 	vmm_resume_p = vmm_resume;
 
-	return (VMM_INIT());
+	return (VMM_INIT(vmm_ipinum));
 }
 
 static int
@@ -249,7 +268,8 @@ vmm_handler(module_t mod, int what, void *arg)
 	switch (what) {
 	case MOD_LOAD:
 		vmmdev_init();
-		iommu_init();
+		if (ppt_avail_devices() > 0)
+			iommu_init();
 		error = vmm_init();
 		if (error == 0)
 			vmm_initialized = 1;
@@ -259,7 +279,8 @@ vmm_handler(module_t mod, int what, void *arg)
 		if (error == 0) {
 			vmm_resume_p = NULL;
 			iommu_cleanup();
-			vmm_ipi_cleanup();
+			if (vmm_ipinum != IPI_AST)
+				vmm_ipi_free(vmm_ipinum);
 			error = VMM_CLEANUP();
 			/*
 			 * Something bad happened - prevent new
@@ -294,8 +315,6 @@ static moduledata_t vmm_kmod = {
 DECLARE_MODULE(vmm, vmm_kmod, SI_SUB_SMP + 1, SI_ORDER_ANY);
 MODULE_VERSION(vmm, 1);
 
-SYSCTL_NODE(_hw, OID_AUTO, vmm, CTLFLAG_RW, NULL, NULL);
-
 int
 vm_create(const char *name, struct vm **retvm)
 {
@@ -321,6 +340,8 @@ vm_create(const char *name, struct vm **retvm)
 
 	vm = malloc(sizeof(struct vm), M_VM, M_WAITOK | M_ZERO);
 	strcpy(vm->name, name);
+	vm->vmspace = vmspace;
+	mtx_init(&vm->rendezvous_mtx, "vm rendezvous lock", 0, MTX_DEF);
 	vm->cookie = VMINIT(vm, vmspace_pmap(vmspace));
 	vm->vioapic = vioapic_init(vm);
 	vm->vhpet = vhpet_init(vm);
@@ -331,7 +352,6 @@ vm_create(const char *name, struct vm **retvm)
 	}
 
 	vm_activate_cpu(vm, BSP);
-	vm->vmspace = vmspace;
 
 	*retvm = vm;
 	return (0);
@@ -587,7 +607,7 @@ vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func)
 	if (error)
 		return (error);
 
-	if (ppt_num_devices(vm) == 0) {
+	if (ppt_assigned_devices(vm) == 0) {
 		vm_iommu_unmap(vm);
 		vm_gpa_unwire(vm);
 	}
@@ -607,7 +627,7 @@ vm_assign_pptdev(struct vm *vm, int bus, int slot, int func)
 	 *
 	 * We need to do this before the first pci passthru device is attached.
 	 */
-	if (ppt_num_devices(vm) == 0) {
+	if (ppt_assigned_devices(vm) == 0) {
 		KASSERT(vm->iommu == NULL,
 		    ("vm_assign_pptdev: iommu must be NULL"));
 		maxaddr = vmm_mem_maxaddr();
@@ -797,6 +817,10 @@ restore_guest_fpustate(struct vcpu *vcpu)
 	fpu_stop_emulating();
 	fpurestore(vcpu->guestfpu);
 
+	/* restore guest XCR0 if XSAVE is enabled in the host */
+	if (rcr4() & CR4_XSAVE)
+		load_xcr(0, vcpu->guest_xcr0);
+
 	/*
 	 * The FPU is now "dirty" with the guest's state so turn on emulation
 	 * to trap any access to the FPU by the host.
@@ -810,6 +834,12 @@ save_guest_fpustate(struct vcpu *vcpu)
 
 	if ((rcr0() & CR0_TS) == 0)
 		panic("fpu emulation not enabled in host!");
+
+	/* save guest XCR0 and restore host XCR0 */
+	if (rcr4() & CR4_XSAVE) {
+		vcpu->guest_xcr0 = rxcr(0);
+		load_xcr(0, vmm_get_host_xcr0());
+	}
 
 	/* save guest FPU state */
 	fpu_stop_emulating();
@@ -888,6 +918,59 @@ vcpu_require_state_locked(struct vcpu *vcpu, enum vcpu_state newstate)
 		panic("Error %d setting state to %d", error, newstate);
 }
 
+static void
+vm_set_rendezvous_func(struct vm *vm, vm_rendezvous_func_t func)
+{
+
+	KASSERT(mtx_owned(&vm->rendezvous_mtx), ("rendezvous_mtx not locked"));
+
+	/*
+	 * Update 'rendezvous_func' and execute a write memory barrier to
+	 * ensure that it is visible across all host cpus. This is not needed
+	 * for correctness but it does ensure that all the vcpus will notice
+	 * that the rendezvous is requested immediately.
+	 */
+	vm->rendezvous_func = func;
+	wmb();
+}
+
+#define	RENDEZVOUS_CTR0(vm, vcpuid, fmt)				\
+	do {								\
+		if (vcpuid >= 0)					\
+			VCPU_CTR0(vm, vcpuid, fmt);			\
+		else							\
+			VM_CTR0(vm, fmt);				\
+	} while (0)
+
+static void
+vm_handle_rendezvous(struct vm *vm, int vcpuid)
+{
+
+	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < VM_MAXCPU),
+	    ("vm_handle_rendezvous: invalid vcpuid %d", vcpuid));
+
+	mtx_lock(&vm->rendezvous_mtx);
+	while (vm->rendezvous_func != NULL) {
+		if (vcpuid != -1 &&
+		    CPU_ISSET(vcpuid, &vm->rendezvous_req_cpus)) {
+			VCPU_CTR0(vm, vcpuid, "Calling rendezvous func");
+			(*vm->rendezvous_func)(vm, vcpuid, vm->rendezvous_arg);
+			CPU_SET(vcpuid, &vm->rendezvous_done_cpus);
+		}
+		if (CPU_CMP(&vm->rendezvous_req_cpus,
+		    &vm->rendezvous_done_cpus) == 0) {
+			VCPU_CTR0(vm, vcpuid, "Rendezvous completed");
+			vm_set_rendezvous_func(vm, NULL);
+			wakeup(&vm->rendezvous_func);
+			break;
+		}
+		RENDEZVOUS_CTR0(vm, vcpuid, "Wait for rendezvous completion");
+		mtx_sleep(&vm->rendezvous_func, &vm->rendezvous_mtx, 0,
+		    "vmrndv", 0);
+	}
+	mtx_unlock(&vm->rendezvous_mtx);
+}
+
 /*
  * Emulate a guest 'hlt' by sleeping until the vcpu is ready to run.
  */
@@ -910,7 +993,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 	 * returned from VMRUN() and before we grabbed the vcpu lock.
 	 */
 	if (!vm_nmi_pending(vm, vcpuid) &&
-	    (intr_disabled || vlapic_pending_intr(vcpu->vlapic) < 0)) {
+	    (intr_disabled || !vlapic_pending_intr(vcpu->vlapic, NULL))) {
 		t = ticks;
 		vcpu_require_state_locked(vcpu, VCPU_SLEEPING);
 		if (vlapic_enabled(vcpu->vlapic)) {
@@ -928,6 +1011,7 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 			*retu = true;
 			vmexit = vm_exitinfo(vm, vcpuid);
 			vmexit->exitcode = VM_EXITCODE_SPINDOWN_CPU;
+			vm_deactivate_cpu(vm, vcpuid);
 			VCPU_CTR0(vm, vcpuid, "spinning down cpu");
 		}
 		vcpu_require_state_locked(vcpu, VCPU_FROZEN);
@@ -984,6 +1068,8 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	struct vm_exit *vme;
 	int error, inst_length;
 	uint64_t rip, gla, gpa, cr3;
+	enum vie_cpu_mode cpu_mode;
+	enum vie_paging_mode paging_mode;
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 
@@ -996,15 +1082,18 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	gla = vme->u.inst_emul.gla;
 	gpa = vme->u.inst_emul.gpa;
 	cr3 = vme->u.inst_emul.cr3;
+	cpu_mode = vme->u.inst_emul.cpu_mode;
+	paging_mode = vme->u.inst_emul.paging_mode;
 	vie = &vme->u.inst_emul.vie;
 
 	vie_init(vie);
 
 	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3, vie) != 0)
+	if (vmm_fetch_instruction(vm, vcpuid, rip, inst_length, cr3,
+	    paging_mode, vie) != 0)
 		return (EFAULT);
 
-	if (vmm_decode_instruction(vm, vcpuid, gla, vie) != 0)
+	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, vie) != 0)
 		return (EFAULT);
 
 	/* return to userland unless this is an in-kernel emulated device */
@@ -1064,7 +1153,7 @@ restart:
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
 	vcpu->hostcpu = curcpu;
-	error = VMRUN(vm->cookie, vcpuid, rip, pmap);
+	error = VMRUN(vm->cookie, vcpuid, rip, pmap, &vm->rendezvous_func);
 	vcpu->hostcpu = NOCPU;
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
@@ -1078,6 +1167,14 @@ restart:
 	if (error == 0) {
 		retu = false;
 		switch (vme->exitcode) {
+		case VM_EXITCODE_IOAPIC_EOI:
+			vioapic_process_eoi(vm, vcpuid,
+			    vme->u.ioapic_eoi.vector);
+			break;
+		case VM_EXITCODE_RENDEZVOUS:
+			vm_handle_rendezvous(vm, vcpuid);
+			error = 0;
+			break;
 		case VM_EXITCODE_HLT:
 			intr_disabled = ((vme->u.hlt.rflags & PSL_I) == 0);
 			error = vm_handle_hlt(vm, vcpuid, intr_disabled, &retu);
@@ -1313,6 +1410,14 @@ vm_activate_cpu(struct vm *vm, int vcpuid)
 		CPU_SET(vcpuid, &vm->active_cpus);
 }
 
+static void
+vm_deactivate_cpu(struct vm *vm, int vcpuid)
+{
+
+	if (vcpuid >= 0 && vcpuid < VM_MAXCPU)
+		CPU_CLR(vcpuid, &vm->active_cpus);
+}
+
 cpuset_t
 vm_active_cpus(struct vm *vm)
 {
@@ -1379,7 +1484,8 @@ vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr)
 			panic("invalid vcpu state %d", vcpu->state);
 		if (hostcpu != curcpu) {
 			if (lapic_intr)
-				vlapic_post_intr(vcpu->vlapic, hostcpu);
+				vlapic_post_intr(vcpu->vlapic, hostcpu,
+				    vmm_ipinum);
 			else
 				ipi_cpu(hostcpu, vmm_ipinum);
 		}
@@ -1401,4 +1507,41 @@ vm_apicid2vcpuid(struct vm *vm, int apicid)
 	 * XXX apic id is assumed to be numerically identical to vcpu id
 	 */
 	return (apicid);
+}
+
+void
+vm_smp_rendezvous(struct vm *vm, int vcpuid, cpuset_t dest,
+    vm_rendezvous_func_t func, void *arg)
+{
+	/*
+	 * Enforce that this function is called without any locks
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "vm_smp_rendezvous");
+	KASSERT(vcpuid == -1 || (vcpuid >= 0 && vcpuid < VM_MAXCPU),
+	    ("vm_smp_rendezvous: invalid vcpuid %d", vcpuid));
+
+restart:
+	mtx_lock(&vm->rendezvous_mtx);
+	if (vm->rendezvous_func != NULL) {
+		/*
+		 * If a rendezvous is already in progress then we need to
+		 * call the rendezvous handler in case this 'vcpuid' is one
+		 * of the targets of the rendezvous.
+		 */
+		RENDEZVOUS_CTR0(vm, vcpuid, "Rendezvous already in progress");
+		mtx_unlock(&vm->rendezvous_mtx);
+		vm_handle_rendezvous(vm, vcpuid);
+		goto restart;
+	}
+	KASSERT(vm->rendezvous_func == NULL, ("vm_smp_rendezvous: previous "
+	    "rendezvous is still in progress"));
+
+	RENDEZVOUS_CTR0(vm, vcpuid, "Initiating rendezvous");
+	vm->rendezvous_req_cpus = dest;
+	CPU_ZERO(&vm->rendezvous_done_cpus);
+	vm->rendezvous_arg = arg;
+	vm_set_rendezvous_func(vm, func);
+	mtx_unlock(&vm->rendezvous_mtx);
+
+	vm_handle_rendezvous(vm, vcpuid);
 }

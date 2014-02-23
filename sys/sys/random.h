@@ -64,6 +64,7 @@ enum random_entropy_source {
 	RANDOM_PURE_RDRAND,
 	RANDOM_PURE_NEHEMIAH,
 	RANDOM_PURE_RNDTEST,
+	RANDOM_PURE_VIRTIO,
 	ENTROPYSOURCE
 };
 void random_harvest(const void *, u_int, u_int, enum random_entropy_source);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2013 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2013 Proofpoint, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -52,7 +52,7 @@
 
 #ifdef _DEFINE
 # ifndef lint
-SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1101 2013/03/15 17:54:12 ca Exp $";
+SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1104 2013/11/22 20:51:56 ca Exp $";
 # endif /* ! lint */
 #endif /* _DEFINE */
 
@@ -141,7 +141,7 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1101 2013/03/15 17:5
 #  include <sasl/saslutil.h>
 #  if SASL_VERSION_FULL < 0x020119
 typedef int (*sasl_callback_ft)(void);
-#  endif
+#  endif /* SASL_VERSION_FULL < 0x020119 */
 # else /* SASL == 2 || SASL >= 20000 */
 #  include <sasl.h>
 #  include <saslutil.h>
@@ -483,6 +483,7 @@ struct mailer
 #define M_HOLD		'%'	/* Hold delivery until ETRN/-qI/-qR/-qS */
 #define M_PLUS		'+'	/* Reserved: Used in mc for adding new flags */
 #define M_MINUS		'-'	/* Reserved: Used in mc for removing flags */
+#define M_NOMHHACK	'!'	/* Don't perform HM hack dropping explicit from */
 
 /* functions */
 extern void	initerrmailers __P((void));
@@ -1846,7 +1847,7 @@ extern void	setup_daemon_milters __P((void));
 #define VENDOR_SUN	2	/* Sun-native configuration file */
 #define VENDOR_HP	3	/* Hewlett-Packard specific config syntax */
 #define VENDOR_IBM	4	/* IBM specific config syntax */
-#define VENDOR_SENDMAIL	5	/* Sendmail, Inc. specific config syntax */
+#define VENDOR_SENDMAIL	5	/* Proofpoint, Inc. specific config syntax */
 #define VENDOR_DEC	6	/* Compaq, DEC, Digital */
 
 /* prototypes for vendor-specific hook routines */

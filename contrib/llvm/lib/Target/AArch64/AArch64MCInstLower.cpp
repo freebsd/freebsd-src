@@ -109,6 +109,11 @@ bool AArch64AsmPrinter::lowerOperand(const MachineOperand &MO,
   case MachineOperand::MO_Immediate:
     MCOp = MCOperand::CreateImm(MO.getImm());
     break;
+  case MachineOperand::MO_FPImmediate: {
+    assert(MO.getFPImm()->isZero() && "Only fp imm 0.0 is supported");
+    MCOp = MCOperand::CreateFPImm(0.0);
+    break;
+  }
   case MachineOperand::MO_BlockAddress:
     MCOp = lowerSymbolOperand(MO, GetBlockAddressSymbol(MO.getBlockAddress()));
     break;
@@ -116,7 +121,7 @@ bool AArch64AsmPrinter::lowerOperand(const MachineOperand &MO,
     MCOp = lowerSymbolOperand(MO, GetExternalSymbolSymbol(MO.getSymbolName()));
     break;
   case MachineOperand::MO_GlobalAddress:
-    MCOp = lowerSymbolOperand(MO, Mang->getSymbol(MO.getGlobal()));
+    MCOp = lowerSymbolOperand(MO, getSymbol(MO.getGlobal()));
     break;
   case MachineOperand::MO_MachineBasicBlock:
     MCOp = MCOperand::CreateExpr(MCSymbolRefExpr::Create(

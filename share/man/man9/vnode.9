@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2010
+.Dd February 12, 2014
 .Dt VNODE 9
 .Os
 .Sh NAME
@@ -69,11 +69,8 @@ and the
 .Va v_holdcnt
 of a vnode reaches zero then the vnode will be put on the freelist
 and may be reused for another file, possibly in another file system.
-The transition to and from the freelist is handled by
-.Xr getnewvnode 9 ,
-.Xr vfree 9
-and
-.Xr vbusy 9 .
+The transition from the freelist is handled by
+.Xr getnewvnode 9 .
 The third is a count of the number of clients which are writing into
 the file.
 It is maintained by the
@@ -82,9 +79,9 @@ and
 .Xr close 2
 system calls.
 .Pp
-Any call which returns a vnode (e.g.\&
+Any call which returns a vnode (e.g.,\&
 .Xr vget 9 ,
-.Xr VOP_LOOKUP 9
+.Xr VOP_LOOKUP 9 ,
 etc.)
 will increase the
 .Va v_usecount

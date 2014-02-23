@@ -1,3 +1,48 @@
+2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* yacc.1: document %token-table, improve presentation of double-quotes
+
+	* VERSION, package/byacc.spec, package/debian/changelog: bump
+
+	* test/calc.tab.c, test/calc1.tab.c, test/calc2.tab.c, test/calc3.tab.c, test/code_calc.code.c, test/code_calc.tab.c, test/code_error.code.c, test/code_error.tab.c, test/error.tab.c, test/ftp.tab.c, test/grammar.tab.c, test/pure_calc.tab.c, test/pure_error.tab.c, test/quote_calc-s.tab.c, test/quote_calc.tab.c, test/quote_calc2-s.tab.c, test/quote_calc2.tab.c, test/quote_calc3-s.tab.c, test/quote_calc3.tab.c, test/quote_calc4-s.tab.c, test/quote_calc4.tab.c:
+	regen
+
+	* output.c, skeleton.c:
+	amend the last change so that yytname is #define'd as needed rather than
+	permanent - to avoid breaking cproto for instance.
+
+2014-01-01  Christos.Zoulas
+
+	* output.c, defs.h, main.c, reader.c, skeleton.c:
+	changes to build ntpd using byacc:
+	- rename yyname[] to yytname[]
+	- add YYTRANSLATE() macro
+	- recognize bison's %token-table declaration
+
+2014-01-01  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* configure: regen
+
+	* yacc.1: s/EE/XE/ to work around groff bug on Debian 6
+
+	* makefile.in: use CF_MAKE_DOCS
+
+	* aclocal.m4: add CF_MAKE_DOCS
+
+	* configure.in: use CF_MAKE_DOCS
+
+2013-12-26  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.guess: 2013-11-29
+
+2013-11-19  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* aclocal.m4: resync with my-autoconf (fixes for clang and mingw)
+
+2013-10-25  Thomas E. Dickey  <tom@invisible-island.net>
+
+	* config.sub: 2013-10-01
+
 2013-09-25  Thomas E. Dickey  <tom@invisible-island.net>
 
 	* reader.c: fix two loop-limits found by clang 3.3 --analyze

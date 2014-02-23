@@ -220,7 +220,7 @@ void nfsrvd_dorpc(struct nfsrv_descript *, int, NFSPROC_T *);
 void nfsrvd_initcache(void);
 int nfsrvd_getcache(struct nfsrv_descript *);
 struct nfsrvcache *nfsrvd_updatecache(struct nfsrv_descript *);
-void nfsrvd_sentcache(struct nfsrvcache *, uint32_t);
+void nfsrvd_sentcache(struct nfsrvcache *, int, uint32_t);
 void nfsrvd_cleancache(void);
 void nfsrvd_refcache(struct nfsrvcache *);
 void nfsrvd_derefcache(struct nfsrvcache *);

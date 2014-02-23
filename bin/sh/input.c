@@ -162,20 +162,16 @@ preadfd(void)
 	int nr;
 	parsenextc = parsefile->buf;
 
-#ifndef NO_HISTORY
-	if (el != NULL && gotwinch) {
-		gotwinch = 0;
-		el_resize(el);
-	}
-#endif
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
 		static const char *rl_cp;
 		static int el_len;
 
-		if (rl_cp == NULL)
+		if (rl_cp == NULL) {
+			el_resize(el);
 			rl_cp = el_gets(el, &el_len);
+		}
 		if (rl_cp == NULL)
 			nr = el_len == 0 ? 0 : -1;
 		else {
@@ -230,7 +226,14 @@ preadbuffer(void)
 	int more;
 	char savec;
 
-	if (parsefile->strpush) {
+	while (parsefile->strpush) {
+		/*
+		 * Add a space to the end of an alias to ensure that the
+		 * alias remains in use while parsing its last word.
+		 * This avoids alias recursions.
+		 */
+		if (parsenleft == -1 && parsefile->strpush->ap != NULL)
+			return ' ';
 		popstring();
 		if (--parsenleft >= 0)
 			return (*parsenextc++);
@@ -364,12 +367,16 @@ popstring(void)
 	struct strpush *sp = parsefile->strpush;
 
 	INTOFF;
+	if (sp->ap) {
+		if (parsenextc != sp->ap->val &&
+		    (parsenextc[-1] == ' ' || parsenextc[-1] == '\t'))
+			forcealias();
+		sp->ap->flag &= ~ALIASINUSE;
+	}
 	parsenextc = sp->prevstring;
 	parsenleft = sp->prevnleft;
 	parselleft = sp->prevlleft;
 /*out2fmt_flush("*** calling popstring: restoring to '%s'\n", parsenextc);*/
-	if (sp->ap)
-		sp->ap->flag &= ~ALIASINUSE;
 	parsefile->strpush = sp->prev;
 	if (sp != &(parsefile->basestrpush))
 		ckfree(sp);

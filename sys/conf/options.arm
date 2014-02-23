@@ -4,7 +4,6 @@ ARM_CACHE_LOCK_ENABLE	opt_global.h
 ARM_KERN_DIRECTMAP	opt_vm.h
 ARM_L2_PIPT		opt_global.h
 ARM_MANY_BOARD		opt_global.h
-ARM_USE_SMALL_ALLOC	opt_global.h
 ARM_WANT_TP_ADDRESS	opt_global.h
 COUNTS_PER_SEC		opt_timer.h
 CPU_ARM9		opt_global.h
@@ -35,6 +34,8 @@ LINUX_BOOT_ABI		opt_global.h
 LOADERRAMADDR		opt_global.h
 NO_EVENTTIMERS		opt_timer.h
 PHYSADDR		opt_global.h
+SOCDEV_PA		opt_global.h
+SOCDEV_VA		opt_global.h
 PV_STATS		opt_pmap.h
 QEMU_WORKAROUNDS	opt_global.h
 SOC_MV_ARMADAXP		opt_global.h
@@ -48,7 +49,6 @@ SOC_OMAP3		opt_global.h
 SOC_OMAP4		opt_global.h
 SOC_TI_AM335X		opt_global.h
 SOC_TEGRA2		opt_global.h
-STARTUP_PAGETABLE_ADDR	opt_global.h
 XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h
 XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h

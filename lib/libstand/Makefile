@@ -21,17 +21,19 @@ CFLAGS+= -ffreestanding -Wformat
 CFLAGS+= -I${.CURDIR}
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
+.endif
+.if ${MACHINE_CPUARCH} == "i386"
+CFLAGS.gcc+=	-mpreferred-stack-boundary=2
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-fPIC
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os
 .endif
 .if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+=	-msoft-float -D_STANDALONE -DNETIF_DEBUG
-.endif
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
-CFLAGS+=	-m32 -I.
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
 CFLAGS+=	-msoft-float -D_STANDALONE
@@ -103,9 +105,7 @@ SRCS+=	syncicache.c
 SRCS+= uuid_equal.c uuid_is_nil.c
 
 # _setjmp/_longjmp
-.if ${MACHINE_CPUARCH} == "amd64"
-.PATH: ${.CURDIR}/i386
-.elif ${MACHINE_ARCH} == "powerpc64"
+.if ${MACHINE_ARCH} == "powerpc64"
 .PATH: ${.CURDIR}/powerpc
 .else
 .PATH: ${.CURDIR}/${MACHINE_CPUARCH}
@@ -179,12 +179,3 @@ SRCS+=	nandfs.c
 
 .include <bsd.lib.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-beforedepend ${OBJS}: machine
-cleandepend: cleanmachine
-cleanmachine:
-	rm -f machine
-
-machine:
-	ln -s ${.CURDIR}/../../sys/i386/include machine
-.endif

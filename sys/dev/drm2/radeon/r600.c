@@ -3012,6 +3012,12 @@ int r600_init(struct radeon_device *rdev)
 		rdev->accel_working = false;
 	}
 
+	/* Don't start up if the ucode is missing. */
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+		DRM_ERROR("radeon: ucode required for R600+.\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

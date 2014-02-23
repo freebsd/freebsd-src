@@ -490,11 +490,12 @@ IRExecutionUnit::MemoryManager::allocateSpace(intptr_t Size, unsigned Alignment)
 uint8_t *
 IRExecutionUnit::MemoryManager::allocateCodeSection(uintptr_t Size,
                                                     unsigned Alignment,
-                                                    unsigned SectionID)
+                                                    unsigned SectionID,
+                                                    llvm::StringRef SectionName)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
     
-    uint8_t *return_value = m_default_mm_ap->allocateCodeSection(Size, Alignment, SectionID);
+    uint8_t *return_value = m_default_mm_ap->allocateCodeSection(Size, Alignment, SectionID, SectionName);
     
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
                                                   lldb::ePermissionsReadable | lldb::ePermissionsExecutable,
@@ -515,11 +516,12 @@ uint8_t *
 IRExecutionUnit::MemoryManager::allocateDataSection(uintptr_t Size,
                                                     unsigned Alignment,
                                                     unsigned SectionID,
+                                                    llvm::StringRef SectionName,
                                                     bool IsReadOnly)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
 
-    uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, IsReadOnly);
+    uint8_t *return_value = m_default_mm_ap->allocateDataSection(Size, Alignment, SectionID, SectionName, IsReadOnly);
     
     m_parent.m_records.push_back(AllocationRecord((uintptr_t)return_value,
                                                   lldb::ePermissionsReadable | lldb::ePermissionsWritable,
@@ -561,28 +563,6 @@ void
 IRExecutionUnit::MemoryManager::deallocateFunctionBody(void *Body)
 {
     m_default_mm_ap->deallocateFunctionBody(Body);
-}
-
-uint8_t*
-IRExecutionUnit::MemoryManager::startExceptionTable(const llvm::Function* F,
-                                                    uintptr_t &ActualSize)
-{
-    return m_default_mm_ap->startExceptionTable(F, ActualSize);
-}
-
-void
-IRExecutionUnit::MemoryManager::endExceptionTable(const llvm::Function *F,
-                                                  uint8_t *TableStart,
-                                                  uint8_t *TableEnd,
-                                                  uint8_t* FrameRegister)
-{
-    m_default_mm_ap->endExceptionTable(F, TableStart, TableEnd, FrameRegister);
-}
-
-void
-IRExecutionUnit::MemoryManager::deallocateExceptionTable(void *ET)
-{
-    m_default_mm_ap->deallocateExceptionTable (ET);
 }
 
 lldb::addr_t

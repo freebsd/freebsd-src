@@ -122,7 +122,7 @@ const char* atf_sh::m_description =
     "system sh(1) with the atf-sh library.";
 
 atf_sh::atf_sh(void) :
-    app(m_description, "atf-sh(1)", "atf(7)")
+    app(m_description, "atf-sh(1)")
 {
 }
 

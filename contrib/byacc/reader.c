@@ -1,4 +1,4 @@
-/* $Id: reader.c,v 1.37 2013/09/25 23:46:18 tom Exp $ */
+/* $Id: reader.c,v 1.38 2014/01/01 14:23:27 Christos.Zoulas Exp $ */
 
 #include "defs.h"
 
@@ -317,6 +317,8 @@ keyword(void)
 	    return (PARSE_PARAM);
 	if (matchec("lex-param"))
 	    return (LEX_PARAM);
+	if (matchec("token-table"))
+	    return (TOKEN_TABLE);
 	if (matchec("yacc"))
 	    return (POSIX_YACC);
     }
@@ -1300,6 +1302,10 @@ read_declarations(void)
 	case PARSE_PARAM:
 	case LEX_PARAM:
 	    copy_param(k);
+	    break;
+
+	case TOKEN_TABLE:
+	    token_table = 1;
 	    break;
 
 	case POSIX_YACC:

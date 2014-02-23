@@ -18,6 +18,7 @@ SRCS=	APSIntType.cpp \
 	CheckerHelpers.cpp \
 	CheckerManager.cpp \
 	CheckerRegistry.cpp \
+	CommonBugCategories.cpp \
 	ConstraintManager.cpp \
 	CoreEngine.cpp \
 	Environment.cpp \
@@ -41,8 +42,7 @@ SRCS=	APSIntType.cpp \
 	SimpleSValBuilder.cpp \
 	Store.cpp \
 	SubEngine.cpp \
-	SymbolManager.cpp \
-	TextPathDiagnostics.cpp
+	SymbolManager.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

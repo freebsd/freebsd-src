@@ -55,21 +55,19 @@ static bool isUsedOutsideOfDefiningBlock(const Instruction *I) {
   return false;
 }
 
-FunctionLoweringInfo::FunctionLoweringInfo(const TargetLowering &tli)
-  : TLI(tli) {
-}
-
 void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
+  const TargetLowering *TLI = TM.getTargetLowering();
+
   Fn = &fn;
   MF = &mf;
   RegInfo = &MF->getRegInfo();
 
   // Check whether the function can return without sret-demotion.
   SmallVector<ISD::OutputArg, 4> Outs;
-  GetReturnInfo(Fn->getReturnType(), Fn->getAttributes(), Outs, TLI);
-  CanLowerReturn = TLI.CanLowerReturn(Fn->getCallingConv(), *MF,
-                                      Fn->isVarArg(),
-                                      Outs, Fn->getContext());
+  GetReturnInfo(Fn->getReturnType(), Fn->getAttributes(), Outs, *TLI);
+  CanLowerReturn = TLI->CanLowerReturn(Fn->getCallingConv(), *MF,
+                                       Fn->isVarArg(),
+                                       Outs, Fn->getContext());
 
   // Initialize the mapping of values to registers.  This is only set up for
   // instruction values that are used outside of the block that defines
@@ -79,9 +77,9 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
     if (const AllocaInst *AI = dyn_cast<AllocaInst>(I))
       if (const ConstantInt *CUI = dyn_cast<ConstantInt>(AI->getArraySize())) {
         Type *Ty = AI->getAllocatedType();
-        uint64_t TySize = TLI.getDataLayout()->getTypeAllocSize(Ty);
+        uint64_t TySize = TLI->getDataLayout()->getTypeAllocSize(Ty);
         unsigned Align =
-          std::max((unsigned)TLI.getDataLayout()->getPrefTypeAlignment(Ty),
+          std::max((unsigned)TLI->getDataLayout()->getPrefTypeAlignment(Ty),
                    AI->getAlignment());
 
         TySize *= CUI->getZExtValue();   // Get total allocated size.
@@ -114,8 +112,11 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
       // in a predictable order.
       if (const DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(I)) {
         MachineModuleInfo &MMI = MF->getMMI();
+        DIVariable DIVar(DI->getVariable());
+        assert((!DIVar || DIVar.isVariable()) &&
+          "Variable in DbgDeclareInst should be either null or a DIVariable.");
         if (MMI.hasDebugInfo() &&
-            DIVariable(DI->getVariable()).Verify() &&
+            DIVar &&
             !DI->getDebugLoc().isUnknown()) {
           // Don't handle byval struct arguments or VLAs, for example.
           // Non-byval arguments are handled here (they refer to the stack
@@ -167,10 +168,10 @@ void FunctionLoweringInfo::set(const Function &fn, MachineFunction &mf) {
       assert(PHIReg && "PHI node does not have an assigned virtual register!");
 
       SmallVector<EVT, 4> ValueVTs;
-      ComputeValueVTs(TLI, PN->getType(), ValueVTs);
+      ComputeValueVTs(*TLI, PN->getType(), ValueVTs);
       for (unsigned vti = 0, vte = ValueVTs.size(); vti != vte; ++vti) {
         EVT VT = ValueVTs[vti];
-        unsigned NumRegisters = TLI.getNumRegisters(Fn->getContext(), VT);
+        unsigned NumRegisters = TLI->getNumRegisters(Fn->getContext(), VT);
         const TargetInstrInfo *TII = MF->getTarget().getInstrInfo();
         for (unsigned i = 0; i != NumRegisters; ++i)
           BuildMI(MBB, DL, TII->get(TargetOpcode::PHI), PHIReg + i);
@@ -208,7 +209,8 @@ void FunctionLoweringInfo::clear() {
 
 /// CreateReg - Allocate a single virtual register for the given type.
 unsigned FunctionLoweringInfo::CreateReg(MVT VT) {
-  return RegInfo->createVirtualRegister(TLI.getRegClassFor(VT));
+  return RegInfo->
+    createVirtualRegister(TM.getTargetLowering()->getRegClassFor(VT));
 }
 
 /// CreateRegs - Allocate the appropriate number of virtual registers of
@@ -219,15 +221,17 @@ unsigned FunctionLoweringInfo::CreateReg(MVT VT) {
 /// will assign registers for each member or element.
 ///
 unsigned FunctionLoweringInfo::CreateRegs(Type *Ty) {
+  const TargetLowering *TLI = TM.getTargetLowering();
+
   SmallVector<EVT, 4> ValueVTs;
-  ComputeValueVTs(TLI, Ty, ValueVTs);
+  ComputeValueVTs(*TLI, Ty, ValueVTs);
 
   unsigned FirstReg = 0;
   for (unsigned Value = 0, e = ValueVTs.size(); Value != e; ++Value) {
     EVT ValueVT = ValueVTs[Value];
-    MVT RegisterVT = TLI.getRegisterType(Ty->getContext(), ValueVT);
+    MVT RegisterVT = TLI->getRegisterType(Ty->getContext(), ValueVT);
 
-    unsigned NumRegs = TLI.getNumRegisters(Ty->getContext(), ValueVT);
+    unsigned NumRegs = TLI->getNumRegisters(Ty->getContext(), ValueVT);
     for (unsigned i = 0; i != NumRegs; ++i) {
       unsigned R = CreateReg(RegisterVT);
       if (!FirstReg) FirstReg = R;
@@ -266,15 +270,17 @@ void FunctionLoweringInfo::ComputePHILiveOutRegInfo(const PHINode *PN) {
   if (!Ty->isIntegerTy() || Ty->isVectorTy())
     return;
 
+  const TargetLowering *TLI = TM.getTargetLowering();
+
   SmallVector<EVT, 1> ValueVTs;
-  ComputeValueVTs(TLI, Ty, ValueVTs);
+  ComputeValueVTs(*TLI, Ty, ValueVTs);
   assert(ValueVTs.size() == 1 &&
          "PHIs with non-vector integer types should have a single VT.");
   EVT IntVT = ValueVTs[0];
 
-  if (TLI.getNumRegisters(PN->getContext(), IntVT) != 1)
+  if (TLI->getNumRegisters(PN->getContext(), IntVT) != 1)
     return;
-  IntVT = TLI.getTypeToTransformTo(PN->getContext(), IntVT);
+  IntVT = TLI->getTypeToTransformTo(PN->getContext(), IntVT);
   unsigned BitWidth = IntVT.getSizeInBits();
 
   unsigned DestReg = ValueMap[PN];

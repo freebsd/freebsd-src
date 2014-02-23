@@ -1214,12 +1214,8 @@ lagg_ether_cmdmulti(struct lagg_port *lp, int set)
 
 	LAGG_WLOCK_ASSERT(sc);
 
-	bzero((char *)&sdl, sizeof(sdl));
-	sdl.sdl_len = sizeof(sdl);
-	sdl.sdl_family = AF_LINK;
-	sdl.sdl_type = IFT_ETHER;
+	link_init_sdl(ifp, (struct sockaddr *)&sdl, IFT_ETHER);
 	sdl.sdl_alen = ETHER_ADDR_LEN;
-	sdl.sdl_index = ifp->if_index;
 
 	if (set) {
 		TAILQ_FOREACH(ifma, &scifp->if_multiaddrs, ifma_link) {

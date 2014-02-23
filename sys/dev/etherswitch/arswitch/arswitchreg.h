@@ -39,6 +39,8 @@
 #define	MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
 
 /* Atheros specific MII registers */
+#define	MII_ATH_MMD_ADDR		0x0d
+#define	MII_ATH_MMD_DATA		0x0e
 #define	MII_ATH_DBG_ADDR		0x1d
 #define	MII_ATH_DBG_DATA		0x1e
 
@@ -392,6 +394,8 @@
 
 #define	AR8327_REG_MIB_FUNC		0x034
 #define		AR8327_MIB_CPU_KEEP		(1 << 20)
+
+#define	AR8327_REG_MDIO_CTRL		0x03c
 
 #define	AR8327_REG_SERVICE_TAG		0x048
 #define	AR8327_REG_LED_CTRL0		0x050

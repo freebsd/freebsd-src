@@ -81,6 +81,47 @@
 #define APIC_OFFSET_TIMER_ICR	0x380	/* Timer's Initial Count	*/
 #define APIC_OFFSET_TIMER_CCR	0x390	/* Timer's Current Count	*/
 #define APIC_OFFSET_TIMER_DCR	0x3E0	/* Timer's Divide Configuration	*/
+#define	APIC_OFFSET_SELF_IPI	0x3F0	/* Self IPI register */
+
+#define	VLAPIC_CTR0(vlapic, format)					\
+	VCPU_CTR0((vlapic)->vm, (vlapic)->vcpuid, format)
+
+#define	VLAPIC_CTR1(vlapic, format, p1)					\
+	VCPU_CTR1((vlapic)->vm, (vlapic)->vcpuid, format, p1)
+
+#define	VLAPIC_CTR2(vlapic, format, p1, p2)				\
+	VCPU_CTR2((vlapic)->vm, (vlapic)->vcpuid, format, p1, p2)
+
+#define	VLAPIC_CTR3(vlapic, format, p1, p2, p3)				\
+	VCPU_CTR3((vlapic)->vm, (vlapic)->vcpuid, format, p1, p2, p3)
+
+#define	VLAPIC_CTR_IRR(vlapic, msg)					\
+do {									\
+	uint32_t *irrptr = &(vlapic)->apic_page->irr0;			\
+	irrptr[0] = irrptr[0];	/* silence compiler */			\
+	VLAPIC_CTR1((vlapic), msg " irr0 0x%08x", irrptr[0 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr1 0x%08x", irrptr[1 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr2 0x%08x", irrptr[2 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr3 0x%08x", irrptr[3 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr4 0x%08x", irrptr[4 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr5 0x%08x", irrptr[5 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr6 0x%08x", irrptr[6 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " irr7 0x%08x", irrptr[7 << 2]);	\
+} while (0)
+
+#define	VLAPIC_CTR_ISR(vlapic, msg)					\
+do {									\
+	uint32_t *isrptr = &(vlapic)->apic_page->isr0;			\
+	isrptr[0] = isrptr[0];	/* silence compiler */			\
+	VLAPIC_CTR1((vlapic), msg " isr0 0x%08x", isrptr[0 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr1 0x%08x", isrptr[1 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr2 0x%08x", isrptr[2 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr3 0x%08x", isrptr[3 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr4 0x%08x", isrptr[4 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr5 0x%08x", isrptr[5 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr6 0x%08x", isrptr[6 << 2]);	\
+	VLAPIC_CTR1((vlapic), msg " isr7 0x%08x", isrptr[7 << 2]);	\
+} while (0)
 
 enum boot_state {
 	BS_INIT,
@@ -95,10 +136,22 @@ enum boot_state {
 
 #define VLAPIC_MAXLVT_INDEX	APIC_LVT_CMCI
 
+struct vlapic;
+
+struct vlapic_ops {
+	int (*set_intr_ready)(struct vlapic *vlapic, int vector, bool level);
+	int (*pending_intr)(struct vlapic *vlapic, int *vecptr);
+	void (*intr_accepted)(struct vlapic *vlapic, int vector);
+	void (*post_intr)(struct vlapic *vlapic, int hostcpu);
+	void (*set_tmr)(struct vlapic *vlapic, int vector, bool level);
+	void (*enable_x2apic_mode)(struct vlapic *vlapic);
+};
+
 struct vlapic {
 	struct vm		*vm;
 	int			vcpuid;
 	struct LAPIC		*apic_page;
+	struct vlapic_ops	ops;
 
 	uint32_t		esr_pending;
 	int			esr_firing;

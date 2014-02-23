@@ -147,6 +147,9 @@ static int
 exynos_ehci_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (ofw_bus_is_compatible(dev, "exynos,usb-ehci") == 0)
 		return (ENXIO);
 

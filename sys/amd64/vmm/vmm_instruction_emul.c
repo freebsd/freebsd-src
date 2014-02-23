@@ -49,17 +49,14 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 #endif	/* _KERNEL */
 
-enum cpu_mode {
-	CPU_MODE_COMPATIBILITY,		/* IA-32E mode (CS.L = 0) */
-	CPU_MODE_64BIT,			/* IA-32E mode (CS.L = 1) */
-};
-
 /* struct vie_op.op_type */
 enum {
 	VIE_OP_TYPE_NONE = 0,
 	VIE_OP_TYPE_MOV,
+	VIE_OP_TYPE_MOVZX,
 	VIE_OP_TYPE_AND,
 	VIE_OP_TYPE_OR,
+	VIE_OP_TYPE_TWO_BYTE,
 	VIE_OP_TYPE_LAST
 };
 
@@ -67,7 +64,18 @@ enum {
 #define	VIE_OP_F_IMM		(1 << 0)	/* immediate operand present */
 #define	VIE_OP_F_IMM8		(1 << 1)	/* 8-bit immediate operand */
 
+static const struct vie_op two_byte_opcodes[256] = {
+	[0xB6] = {
+		.op_byte = 0xB6,
+		.op_type = VIE_OP_TYPE_MOVZX,
+	},
+};
+
 static const struct vie_op one_byte_opcodes[256] = {
+	[0x0F] = {
+		.op_byte = 0x0F,
+		.op_type = VIE_OP_TYPE_TWO_BYTE
+	},
 	[0x88] = {
 		.op_byte = 0x88,
 		.op_type = VIE_OP_TYPE_MOV,
@@ -313,6 +321,59 @@ emulate_mov(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	return (error);
 }
 
+/*
+ * The following simplifying assumptions are made during emulation:
+ *
+ * - guest is in 64-bit mode
+ *   - default address size is 64-bits
+ *   - default operand size is 32-bits
+ *
+ * - operand size override is not supported
+ *
+ * - address size override is not supported
+ */
+static int
+emulate_movzx(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
+	      mem_region_read_t memread, mem_region_write_t memwrite,
+	      void *arg)
+{
+	int error, size;
+	enum vm_reg_name reg;
+	uint64_t val;
+
+	size = 4;
+	error = EINVAL;
+
+	switch (vie->op.op_byte) {
+	case 0xB6:
+		/*
+		 * MOV and zero extend byte from mem (ModRM:r/m) to
+		 * reg (ModRM:reg).
+		 *
+		 * 0F B6/r		movzx r/m8, r32
+		 * REX.W + 0F B6/r	movzx r/m8, r64
+		 */
+
+		/* get the first operand */
+		error = memread(vm, vcpuid, gpa, &val, 1, arg);
+		if (error)
+			break;
+
+		/* get the second operand */
+		reg = gpr_map[vie->reg];
+
+		if (vie->rex_w)
+			size = 8;
+
+		/* write the result */
+		error = vie_update_register(vm, vcpuid, reg, val, size);
+		break;
+	default:
+		break;
+	}
+	return (error);
+}
+
 static int
 emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 	    mem_region_read_t memread, mem_region_write_t memwrite, void *arg)
@@ -447,6 +508,10 @@ vmm_emulate_instruction(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = emulate_mov(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
 		break;
+	case VIE_OP_TYPE_MOVZX:
+		error = emulate_movzx(vm, vcpuid, gpa, vie,
+				      memread, memwrite, memarg);
+		break;
 	case VIE_OP_TYPE_AND:
 		error = emulate_and(vm, vcpuid, gpa, vie,
 				    memread, memwrite, memarg);
@@ -476,16 +541,76 @@ vie_init(struct vie *vie)
 
 static int
 gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
-	uint64_t *gpa, uint64_t *gpaend)
+	uint64_t *gpa, enum vie_paging_mode paging_mode)
 {
 	int nlevels, ptpshift, ptpindex;
 	uint64_t *ptpbase, pte, pgsize;
+	uint32_t *ptpbase32, pte32;
 	void *cookie;
 
-	/*
-	 * XXX assumes 64-bit guest with 4 page walk levels
-	 */
-	nlevels = 4;
+	if (paging_mode == PAGING_MODE_FLAT) {
+		*gpa = gla;
+		return (0);
+	}
+
+	if (paging_mode == PAGING_MODE_32) {
+		nlevels = 2;
+		while (--nlevels >= 0) {
+			/* Zero out the lower 12 bits. */
+			ptpphys &= ~0xfff;
+
+			ptpbase32 = vm_gpa_hold(vm, ptpphys, PAGE_SIZE,
+						VM_PROT_READ, &cookie);
+			
+			if (ptpbase32 == NULL)
+				goto error;
+
+			ptpshift = PAGE_SHIFT + nlevels * 10;
+			ptpindex = (gla >> ptpshift) & 0x3FF;
+			pgsize = 1UL << ptpshift;
+
+			pte32 = ptpbase32[ptpindex];
+
+			vm_gpa_release(cookie);
+
+			if ((pte32 & PG_V) == 0)
+				goto error;
+
+			if (pte32 & PG_PS)
+				break;
+
+			ptpphys = pte32;
+		}
+
+		/* Zero out the lower 'ptpshift' bits */
+		pte32 >>= ptpshift; pte32 <<= ptpshift;
+		*gpa = pte32 | (gla & (pgsize - 1));
+		return (0);
+	}
+
+	if (paging_mode == PAGING_MODE_PAE) {
+		/* Zero out the lower 5 bits and the upper 12 bits */
+		ptpphys >>= 5; ptpphys <<= 17; ptpphys >>= 12;
+
+		ptpbase = vm_gpa_hold(vm, ptpphys, sizeof(*ptpbase) * 4,
+				      VM_PROT_READ, &cookie);
+		if (ptpbase == NULL)
+			goto error;
+
+		ptpindex = (gla >> 30) & 0x3;
+
+		pte = ptpbase[ptpindex];
+
+		vm_gpa_release(cookie);
+
+		if ((pte & PG_V) == 0)
+			goto error;
+
+		ptpphys = pte;
+
+		nlevels = 2;
+	} else
+		nlevels = 4;
 	while (--nlevels >= 0) {
 		/* Zero out the lower 12 bits and the upper 12 bits */
 		ptpphys >>= 12; ptpphys <<= 24; ptpphys >>= 12;
@@ -519,7 +644,6 @@ gla2gpa(struct vm *vm, uint64_t gla, uint64_t ptpphys,
 	/* Zero out the lower 'ptpshift' bits and the upper 12 bits */
 	pte >>= ptpshift; pte <<= (ptpshift + 12); pte >>= 12;
 	*gpa = pte | (gla & (pgsize - 1));
-	*gpaend = pte + pgsize;
 	return (0);
 
 error:
@@ -528,10 +652,11 @@ error:
 
 int
 vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
-		      uint64_t cr3, struct vie *vie)
+		      uint64_t cr3, enum vie_paging_mode paging_mode,
+		      struct vie *vie)
 {
 	int n, err, prot;
-	uint64_t gpa, gpaend, off;
+	uint64_t gpa, off;
 	void *hpa, *cookie;
 
 	/*
@@ -544,7 +669,7 @@ vmm_fetch_instruction(struct vm *vm, int cpuid, uint64_t rip, int inst_length,
 
 	/* Copy the instruction into 'vie' */
 	while (vie->num_valid < inst_length) {
-		err = gla2gpa(vm, rip, cr3, &gpa, &gpaend);
+		err = gla2gpa(vm, rip, cr3, &gpa, paging_mode);
 		if (err)
 			break;
 
@@ -609,6 +734,23 @@ decode_rex(struct vie *vie)
 }
 
 static int
+decode_two_byte_opcode(struct vie *vie)
+{
+	uint8_t x;
+
+	if (vie_peek(vie, &x))
+		return (-1);
+
+	vie->op = two_byte_opcodes[x];
+
+	if (vie->op.op_type == VIE_OP_TYPE_NONE)
+		return (-1);
+
+	vie_advance(vie);
+	return (0);
+}
+
+static int
 decode_opcode(struct vie *vie)
 {
 	uint8_t x;
@@ -622,19 +764,17 @@ decode_opcode(struct vie *vie)
 		return (-1);
 
 	vie_advance(vie);
+
+	if (vie->op.op_type == VIE_OP_TYPE_TWO_BYTE)
+		return (decode_two_byte_opcode(vie));
+
 	return (0);
 }
 
 static int
-decode_modrm(struct vie *vie)
+decode_modrm(struct vie *vie, enum vie_cpu_mode cpu_mode)
 {
 	uint8_t x;
-	enum cpu_mode cpu_mode;
-
-	/*
-	 * XXX assuming that guest is in IA-32E 64-bit mode
-	 */
-	cpu_mode = CPU_MODE_64BIT;
 
 	if (vie_peek(vie, &x))
 		return (-1);
@@ -911,16 +1051,19 @@ verify_gla(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
 }
 
 int
-vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla, struct vie *vie)
+vmm_decode_instruction(struct vm *vm, int cpuid, uint64_t gla,
+		       enum vie_cpu_mode cpu_mode, struct vie *vie)
 {
 
-	if (decode_rex(vie))
-		return (-1);
+	if (cpu_mode == CPU_MODE_64BIT) {
+		if (decode_rex(vie))
+			return (-1);
+	}
 
 	if (decode_opcode(vie))
 		return (-1);
 
-	if (decode_modrm(vie))
+	if (decode_modrm(vie, cpu_mode))
 		return (-1);
 
 	if (decode_sib(vie))

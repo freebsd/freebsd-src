@@ -133,6 +133,11 @@ device		scc
 device		uart
 device		uart_z8530
 
+# FireWire support
+device		firewire	# FireWire bus code
+device		sbp		# SCSI over FireWire (Requires scbus and da)
+device		fwe		# Ethernet over FireWire (non-standard!)
+
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
 device		bge		# Broadcom BCM570xx Gigabit Ethernet
@@ -187,6 +192,7 @@ options		AH_SUPPORT_AR5416
 device		iicbus		# I2C bus code
 device		kiic		# Keywest I2C
 device		ad7417		# PowerMac7,2 temperature sensor
+device		adt746x		# PowerBook5,8 temperature sensor
 device		ds1631		# PowerMac11,2 temperature sensor
 device		ds1775		# PowerMac7,2 temperature sensor
 device		fcu		# Apple Fan Control Unit

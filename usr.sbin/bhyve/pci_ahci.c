@@ -254,6 +254,16 @@ ahci_write_fis(struct ahci_port *p, enum sata_fis_type ft, uint8_t *fis)
 }
 
 static void
+ahci_write_fis_piosetup(struct ahci_port *p)
+{
+	uint8_t fis[20];
+
+	memset(fis, 0, sizeof(fis));
+	fis[0] = FIS_TYPE_PIOSETUP;
+	ahci_write_fis(p, FIS_TYPE_PIOSETUP, fis);
+}
+
+static void
 ahci_write_fis_sdb(struct ahci_port *p, int slot, uint32_t tfd)
 {
 	uint8_t fis[8];
@@ -497,6 +507,8 @@ ahci_handle_flush(struct ahci_port *p, int slot, uint8_t *cfis)
 	aior->cfis = cfis;
 	aior->slot = slot;
 	aior->len = 0;
+	aior->done = 0;
+	aior->prdtl = 0;
 	breq = &aior->io_req;
 
 	err = blockif_flush(p->bctx, breq);
@@ -585,6 +597,7 @@ handle_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[101] = (sectors >> 16);
 		buf[102] = (sectors >> 32);
 		buf[103] = (sectors >> 48);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DP;
@@ -627,6 +640,7 @@ handle_atapi_identify(struct ahci_port *p, int slot, uint8_t *cfis)
 		buf[85] = (1 << 4);
 		buf[87] = (1 << 14);
 		buf[88] = (1 << 14 | 0x7f);
+		ahci_write_fis_piosetup(p);
 		write_prdt(p, slot, cfis, (void *)buf, sizeof(buf));
 		p->tfd = ATA_S_DSC | ATA_S_READY;
 		p->is |= AHCI_P_IX_DHR;
@@ -1180,9 +1194,7 @@ ahci_handle_cmd(struct ahci_port *p, int slot, uint8_t *cfis)
 			p->tfd |= (ATA_ERROR_ABORT << 8);
 			break;
 		}
-		p->is |= AHCI_P_IX_DP;
-		p->ci &= ~(1 << slot);
-		ahci_generate_intr(p->pr_sc);
+		ahci_write_fis_d2h(p, slot, cfis, p->tfd);
 		break;
 	}
 	case ATA_SET_MULTI:

@@ -12,6 +12,7 @@ arm/at91/at91_pit.c		optional	at91sam9
 arm/at91/at91_reset.S		optional	at91sam9
 arm/at91/at91_rst.c		optional	at91sam9
 arm/at91/at91_rtc.c		optional	at91_rtc
+arm/at91/at91_smc.c		standard
 arm/at91/at91_spi.c		optional	at91_spi		\
 	dependency	"spibus_if.h"
 arm/at91/at91_ssc.c		optional	at91_ssc

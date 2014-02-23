@@ -65,7 +65,7 @@ public:
 
   virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
-  virtual unsigned GetOppositeBranchOpc(unsigned Opc) const;
+  virtual unsigned getOppositeBranchOpc(unsigned Opc) const;
 
   /// Adjust SP by Amount bytes.
   void adjustStackPtr(unsigned SP, int64_t Amount, MachineBasicBlock &MBB,
@@ -79,15 +79,39 @@ public:
                          unsigned *NewImm) const;
 
 private:
-  virtual unsigned GetAnalyzableBrOpc(unsigned Opc) const;
+  virtual unsigned getAnalyzableBrOpc(unsigned Opc) const;
 
-  void ExpandRetRA(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+  void expandRetRA(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
                    unsigned Opc) const;
-  void ExpandExtractElementF64(MachineBasicBlock &MBB,
-                               MachineBasicBlock::iterator I) const;
-  void ExpandBuildPairF64(MachineBasicBlock &MBB,
-                          MachineBasicBlock::iterator I) const;
-  void ExpandEhReturn(MachineBasicBlock &MBB,
+
+  std::pair<bool, bool> compareOpndSize(unsigned Opc,
+                                        const MachineFunction &MF) const;
+
+  void expandPseudoMFHiLo(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                          unsigned NewOpc) const;
+
+  void expandPseudoMTLoHi(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                          unsigned LoOpc, unsigned HiOpc,
+                          bool HasExplicitDef) const;
+
+  /// Expand pseudo Int-to-FP conversion instructions.
+  ///
+  /// For example, the following pseudo instruction
+  ///  PseudoCVT_D32_W D2, A5
+  /// gets expanded into these two instructions:
+  ///  MTC1 F4, A5
+  ///  CVT_D32_W D2, F4
+  ///
+  /// We do this expansion post-RA to avoid inserting a floating point copy
+  /// instruction between MTC1 and CVT_D32_W.
+  void expandCvtFPInt(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
+                      unsigned CvtOpc, unsigned MovOpc, bool IsI64) const;
+
+  void expandExtractElementF64(MachineBasicBlock &MBB,
+                               MachineBasicBlock::iterator I, bool FP64) const;
+  void expandBuildPairF64(MachineBasicBlock &MBB,
+                          MachineBasicBlock::iterator I, bool FP64) const;
+  void expandEhReturn(MachineBasicBlock &MBB,
                       MachineBasicBlock::iterator I) const;
 };
 

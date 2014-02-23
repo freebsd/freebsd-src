@@ -19,9 +19,9 @@
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/CFG.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
-#include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
@@ -44,7 +44,6 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<DominatorTree>();
       AU.addPreserved<LoopInfo>();
-      AU.addPreserved<ProfileInfo>();
 
       // No loop canonicalization guarantees are broken by this pass.
       AU.addPreservedID(LoopSimplifyID);
@@ -83,39 +82,6 @@ bool BreakCriticalEdges::runOnFunction(Function &F) {
 //===----------------------------------------------------------------------===//
 //    Implementation of the external critical edge manipulation functions
 //===----------------------------------------------------------------------===//
-
-// isCriticalEdge - Return true if the specified edge is a critical edge.
-// Critical edges are edges from a block with multiple successors to a block
-// with multiple predecessors.
-//
-bool llvm::isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
-                          bool AllowIdenticalEdges) {
-  assert(SuccNum < TI->getNumSuccessors() && "Illegal edge specification!");
-  if (TI->getNumSuccessors() == 1) return false;
-
-  const BasicBlock *Dest = TI->getSuccessor(SuccNum);
-  const_pred_iterator I = pred_begin(Dest), E = pred_end(Dest);
-
-  // If there is more than one predecessor, this is a critical edge...
-  assert(I != E && "No preds, but we have an edge to the block?");
-  const BasicBlock *FirstPred = *I;
-  ++I;        // Skip one edge due to the incoming arc from TI.
-  if (!AllowIdenticalEdges)
-    return I != E;
-
-  // If AllowIdenticalEdges is true, then we allow this edge to be considered
-  // non-critical iff all preds come from TI's block.
-  while (I != E) {
-    const BasicBlock *P = *I;
-    if (P != FirstPred)
-      return true;
-    // Note: leave this as is until no one ever compiles with either gcc 4.0.1
-    // or Xcode 2. This seems to work around the pred_iterator assert in PR 2207
-    E = pred_end(P);
-    ++I;
-  }
-  return false;
-}
 
 /// createPHIsForSplitLoopExit - When a loop exit edge is split, LCSSA form
 /// may require new PHIs in the new exit block. This function inserts the
@@ -245,10 +211,9 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
 
   DominatorTree *DT = P->getAnalysisIfAvailable<DominatorTree>();
   LoopInfo *LI = P->getAnalysisIfAvailable<LoopInfo>();
-  ProfileInfo *PI = P->getAnalysisIfAvailable<ProfileInfo>();
 
   // If we have nothing to update, just return.
-  if (DT == 0 && LI == 0 && PI == 0)
+  if (DT == 0 && LI == 0)
     return NewBB;
 
   // Now update analysis information.  Since the only predecessor of NewBB is
@@ -400,10 +365,6 @@ BasicBlock *llvm::SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
              "without LoopSimplify!");
     }
   }
-
-  // Update ProfileInfo if it is around.
-  if (PI)
-    PI->splitEdge(TIBB, DestBB, NewBB, MergeIdenticalEdges);
 
   return NewBB;
 }

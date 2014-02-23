@@ -409,6 +409,12 @@ struct	in6_rrenumreq {
 	(((d)->s6_addr32[1] ^ (a)->s6_addr32[1]) & (m)->s6_addr32[1]) == 0 && \
 	(((d)->s6_addr32[2] ^ (a)->s6_addr32[2]) & (m)->s6_addr32[2]) == 0 && \
 	(((d)->s6_addr32[3] ^ (a)->s6_addr32[3]) & (m)->s6_addr32[3]) == 0 )
+#define IN6_MASK_ADDR(a, m)	do { \
+	(a)->s6_addr32[0] &= (m)->s6_addr32[0]; \
+	(a)->s6_addr32[1] &= (m)->s6_addr32[1]; \
+	(a)->s6_addr32[2] &= (m)->s6_addr32[2]; \
+	(a)->s6_addr32[3] &= (m)->s6_addr32[3]; \
+} while (0)
 #endif
 
 #define SIOCSIFADDR_IN6		 _IOW('i', 12, struct in6_ifreq)
@@ -793,6 +799,8 @@ int	in6_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	struct thread *);
 int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
 	struct in6_ifaddr *, int);
+void	in6_prepare_ifra(struct in6_aliasreq *, const struct in6_addr *,
+	const struct in6_addr *);
 void	in6_purgeaddr(struct ifaddr *);
 int	in6if_do_dad(struct ifnet *);
 void	in6_purgeif(struct ifnet *);
@@ -814,12 +822,11 @@ int	in6_prefix_ioctl(struct socket *, u_long, caddr_t,
 int	in6_prefix_add_ifid(int, struct in6_ifaddr *);
 void	in6_prefix_remove_ifid(int, struct in6_ifaddr *);
 void	in6_purgeprefix(struct ifnet *);
-void	in6_ifremloop(struct ifaddr *);
-void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated(struct sockaddr_in6 *);
 int	in6_src_ioctl(u_long, caddr_t);
 
+void	in6_newaddrmsg(struct in6_ifaddr *, int);
 /*
  * Extended API for IPv6 FIB support.
  */

@@ -8,9 +8,9 @@
 .\"
 .\" Created: Sun May  7 00:14:37 1995 ylo
 .\"
-.\" $OpenBSD: scp.1,v 1.59 2013/07/16 00:07:52 schwarze Exp $
+.\" $OpenBSD: scp.1,v 1.61 2013/10/20 09:51:26 djm Exp $
 .\"
-.Dd July 16, 2013
+.Dd October 20, 2013
 .Dt SCP 1
 .Os
 .Sh NAME
@@ -130,6 +130,11 @@ For full details of the options listed below, and their possible values, see
 .It AddressFamily
 .It BatchMode
 .It BindAddress
+.It CanonicalDomains
+.It CanonicalizeFallbackLocal
+.It CanonicalizeHostname
+.It CanonicalizeMaxDots
+.It CanonicalizePermittedCNAMEs
 .It ChallengeResponseAuthentication
 .It CheckHostIP
 .It Cipher
@@ -232,8 +237,9 @@ debugging connection, authentication, and configuration problems.
 .Nm
 is based on the
 .Xr rcp 1
-program in BSD source code from the Regents of the University of
-California.
+program in
+.Bx
+source code from the Regents of the University of California.
 .Sh AUTHORS
 .An Timo Rinne Aq Mt tri@iki.fi
 .An Tatu Ylonen Aq Mt ylo@cs.hut.fi

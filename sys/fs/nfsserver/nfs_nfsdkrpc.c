@@ -287,8 +287,8 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 		svcerr_systemerr(rqst);
 	}
 	if (rp != NULL) {
-		if (rqst->rq_reply_seq != 0 || SVC_ACK(xprt, NULL))
-			nfsrvd_sentcache(rp, rqst->rq_reply_seq);
+		nfsrvd_sentcache(rp, (rqst->rq_reply_seq != 0 ||
+		    SVC_ACK(xprt, NULL)), rqst->rq_reply_seq);
 	}
 	svc_freereq(rqst);
 

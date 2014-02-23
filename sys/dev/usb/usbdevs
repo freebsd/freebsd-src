@@ -643,6 +643,7 @@ vendor ABOCOM2		0x1482	AboCom Systems
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
+vendor ATP		0x14af	ATP Electronics
 vendor CONCEPTRONIC2	0x14b2	Conceptronic
 vendor SUPERTOP		0x14cd	Super Top
 vendor PLANEX3		0x14ea	Planex Communications
@@ -1076,12 +1077,54 @@ product APPLE DUMMY		0x0000	Dummy product
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
-product APPLE KBD_TP_ANSI	0x0223	Apple Internal Keyboard/Trackpad (Wellspring/ANSI)
-product APPLE KBD_TP_ISO	0x0224	Apple Internal Keyboard/Trackpad (Wellspring/ISO)
-product APPLE KBD_TP_JIS	0x0225	Apple Internal Keyboard/Trackpad (Wellspring/JIS)
-product APPLE KBD_TP_ANSI2	0x0230	Apple Internal Keyboard/Trackpad (Wellspring2/ANSI)
-product APPLE KBD_TP_ISO2	0x0231	Apple Internal Keyboard/Trackpad (Wellspring2/ISO)
-product APPLE KBD_TP_JIS2	0x0232	Apple Internal Keyboard/Trackpad (Wellspring2/JIS)
+/* MacbookAir, aka wellspring */
+product APPLE WELLSPRING_ANSI	0x0223	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING_ISO	0x0224	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING_JIS	0x0225	Apple Internal Keyboard/Trackpad
+/* MacbookProPenryn, aka wellspring2 */
+product APPLE WELLSPRING2_ANSI	0x0230	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING2_ISO	0x0231	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING2_JIS	0x0232	Apple Internal Keyboard/Trackpad
+/* Macbook5,1 (unibody), aka wellspring3 */
+product APPLE WELLSPRING3_ANSI	0x0236	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING3_ISO	0x0237	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING3_JIS	0x0238	Apple Internal Keyboard/Trackpad
+/* MacbookAir3,2 (unibody), aka wellspring4 */
+product APPLE WELLSPRING4_ANSI	0x023f	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING4_ISO	0x0240	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING4_JIS	0x0241	Apple Internal Keyboard/Trackpad
+/* MacbookAir3,1 (unibody), aka wellspring4 */
+product APPLE WELLSPRING4A_ANSI	0x0242	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING4A_ISO	0x0243	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING4A_JIS	0x0244	Apple Internal Keyboard/Trackpad
+/* Macbook8 (unibody, March 2011) */
+product APPLE WELLSPRING5_ANSI	0x0245	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING5_ISO	0x0246	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING5_JIS	0x0247	Apple Internal Keyboard/Trackpad
+/* MacbookAir4,1 (unibody, July 2011) */
+product APPLE WELLSPRING6A_ANSI	0x0249	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING6A_ISO	0x024a	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING6A_JIS	0x024b	Apple Internal Keyboard/Trackpad
+/* MacbookAir4,2 (unibody, July 2011) */
+product APPLE WELLSPRING6_ANSI	0x024c	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING6_ISO	0x024d	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING6_JIS	0x024e	Apple Internal Keyboard/Trackpad
+/* Macbook8,2 (unibody) */
+product APPLE WELLSPRING5A_ANSI	0x0252	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING5A_ISO	0x0253	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING5A_JIS	0x0254	Apple Internal Keyboard/Trackpad
+/* MacbookPro10,1 (unibody, June 2012) */
+product APPLE WELLSPRING7_ANSI	0x0262	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING7_ISO	0x0263	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING7_JIS	0x0264	Apple Internal Keyboard/Trackpad
+/* MacbookPro10,2 (unibody, October 2012) */
+product APPLE WELLSPRING7A_ANSI	0x0259	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING7A_ISO	0x025a	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING7A_JIS	0x025b	Apple Internal Keyboard/Trackpad
+/* MacbookAir6,2 (unibody, June 2013) */
+product APPLE WELLSPRING8_ANSI	0x0290	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING8_ISO	0x0291	Apple Internal Keyboard/Trackpad
+product APPLE WELLSPRING8_JIS	0x0292	Apple Internal Keyboard/Trackpad
 product APPLE MOUSE		0x0301	Mouse M4848
 product APPLE OPTMOUSE		0x0302	Optical mouse
 product APPLE MIGHTYMOUSE	0x0304	Mighty Mouse
@@ -1161,6 +1204,9 @@ product ATEN UC110T		0x2007	UC-110T Ethernet
 product ATEN UC232A		0x2008	Serial
 product ATEN UC210T		0x2009	UC-210T Ethernet
 product ATEN DSB650C		0x4000	DSB-650C
+
+/* ATP Electronics products */
+product ATP EUSB		0xaf01	ATP IG eUSB SSD
 
 /* Atheros Communications products */
 product ATHEROS AR5523		0x0001	AR5523
@@ -3115,6 +3161,7 @@ product NETCHIP TURBOCONNECT	0x1080	Turbo-Connect
 product NETCHIP CLIK_40		0xa140	USB Clik! 40
 product NETCHIP GADGETZERO	0xa4a0	Linux Gadget Zero
 product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/26x
+product NETCHIP POCKETBOOK	0xa4a5	PocketBook
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet

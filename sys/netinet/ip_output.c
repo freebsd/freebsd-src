@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_mbuf_stress_test.h"
@@ -123,9 +124,6 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int mtu;
-#if 0
-	int n;	/* scratchpad */
-#endif
 	int error = 0;
 	struct sockaddr_in *dst;
 	const struct sockaddr_in *gw;
@@ -156,19 +154,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 #ifdef FLOWTABLE
-	if (ro->ro_rt == NULL) {
-		struct flentry *fle;
-			
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt. The
-		 * flow ID assignment must have happened before this point.
-		 */
-		fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET);
-		if (fle != NULL)
-			flow_to_route(fle, ro);
-	}
+	if (ro->ro_rt == NULL)
+		(void )flowtable_lookup(AF_INET, m, ro);
 #endif
 
 	if (opt) {
@@ -202,15 +189,21 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 		hlen = ip->ip_hl << 2;
 	}
 
+	/*
+	 * dst/gw handling:
+	 *
+	 * dst can be rewritten but always points to &ro->ro_dst.
+	 * gw is readonly but can point either to dst OR rt_gateway,
+	 * therefore we need restore gw if we're redoing lookup.
+	 */
 	gw = dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
 	ia = NULL;
 	/*
-	 * If there is a cached route,
-	 * check that it is to the same destination
-	 * and is still up.  If not, free it and try again.
-	 * The address family should also be checked in case of sharing the
-	 * cache with IPv6.
+	 * If there is a cached route, check that it is to the same
+	 * destination and is still up.  If not, free it and try again.
+	 * The address family should also be checked in case of sharing
+	 * the cache with IPv6.
 	 */
 	rte = ro->ro_rt;
 	if (rte && ((rte->rt_flags & RTF_UP) == 0 ||
@@ -221,6 +214,7 @@ again:
 		RO_RTFREE(ro);
 		ro->ro_lle = NULL;
 		rte = NULL;
+		gw = dst;
 	}
 	if (rte == NULL && fwd_tag == NULL) {
 		bzero(dst, sizeof(*dst));
@@ -762,10 +756,10 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	}
 #endif
 	if (len > PAGE_SIZE) {
-		/* 
-		 * Fragment large datagrams such that each segment 
-		 * contains a multiple of PAGE_SIZE amount of data, 
-		 * plus headers. This enables a receiver to perform 
+		/*
+		 * Fragment large datagrams such that each segment
+		 * contains a multiple of PAGE_SIZE amount of data,
+		 * plus headers. This enables a receiver to perform
 		 * page-flipping zero-copy optimizations.
 		 *
 		 * XXX When does this help given that sender and receiver
@@ -779,7 +773,7 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 			off += m->m_len;
 
 		/*
-		 * firstlen (off - hlen) must be aligned on an 
+		 * firstlen (off - hlen) must be aligned on an
 		 * 8-byte boundary
 		 */
 		if (off < hlen)
@@ -1164,7 +1158,7 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_OPTIONS:
 		case IP_RETOPTS:
 			if (inp->inp_options)
-				error = sooptcopyout(sopt, 
+				error = sooptcopyout(sopt,
 						     mtod(inp->inp_options,
 							  char *),
 						     inp->inp_options->m_len);

@@ -29,17 +29,36 @@
 #ifndef _SYS_SF_SYNC_H_
 #define _SYS_SF_SYNC_H_
 
+typedef enum {
+	SF_STATE_NONE,
+	SF_STATE_SETUP,
+	SF_STATE_RUNNING,
+	SF_STATE_COMPLETED,
+	SF_STATE_FREEING
+} sendfile_sync_state_t;
+
 struct sendfile_sync {
-	uint32_t	flags;
 	struct mtx	mtx;
 	struct cv	cv;
-	unsigned	count;
+	struct knlist	klist;
+	uint32_t	flags;
+	uint32_t	count;
+	int32_t		xerrno;		/* Completion errno, if retval < 0 */
+	off_t		retval;		/* Completion retval (eg written bytes) */
+	sendfile_sync_state_t	state;
 };
+
+/* XXX pollution */
+struct sf_hdtr_kq;
 
 extern	struct sendfile_sync * sf_sync_alloc(uint32_t flags);
 extern	void sf_sync_syscall_wait(struct sendfile_sync *);
 extern	void sf_sync_free(struct sendfile_sync *);
+extern	void sf_sync_try_free(struct sendfile_sync *);
 extern	void sf_sync_ref(struct sendfile_sync *);
 extern	void sf_sync_deref(struct sendfile_sync *);
+extern	int sf_sync_kqueue_setup(struct sendfile_sync *, struct sf_hdtr_kq *);
+extern	void sf_sync_set_state(struct sendfile_sync *, sendfile_sync_state_t, int);
+extern	void sf_sync_set_retval(struct sendfile_sync *, off_t, int);
 
 #endif /* !_SYS_SF_BUF_H_ */

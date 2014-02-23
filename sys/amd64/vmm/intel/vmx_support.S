@@ -97,7 +97,8 @@
 /*
  * vmx_enter_guest(struct vmxctx *vmxctx, int launched)
  * %rdi: pointer to the 'vmxctx'
- * %esi: launch state of the VMCS
+ * %rsi: pointer to the 'vmx'
+ * %edx: launch state of the VMCS
  * Interrupts must be disabled on entry.
  */
 ENTRY(vmx_enter_guest)
@@ -114,19 +115,19 @@ ENTRY(vmx_enter_guest)
 	LK btsl	%eax, PM_ACTIVE(%r11)
 
 	/*
-	 * If 'vmxctx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
+	 * If 'vmx->eptgen[curcpu]' is not identical to 'pmap->pm_eptgen'
 	 * then we must invalidate all mappings associated with this EPTP.
 	 */
 	movq	PM_EPTGEN(%r11), %r10
-	cmpq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	cmpq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 	je	guest_restore
 
-	/* Refresh 'vmxctx->eptgen[curcpu]' */
-	movq	%r10, VMXCTX_EPTGEN(%rdi, %rax, 8)
+	/* Refresh 'vmx->eptgen[curcpu]' */
+	movq	%r10, VMX_EPTGEN(%rsi, %rax, 8)
 
 	/* Setup the invept descriptor on the host stack */
 	mov	%rsp, %r11
-	movq	VMXCTX_EPTP(%rdi), %rax
+	movq	VMX_EPTP(%rsi), %rax
 	movq	%rax, -16(%r11)
 	movq	$0x0, -8(%r11)
 	mov	$0x1, %eax		/* Single context invalidate */
@@ -134,7 +135,7 @@ ENTRY(vmx_enter_guest)
 	jbe	invept_error		/* Check invept instruction error */
 
 guest_restore:
-	cmpl	$0, %esi
+	cmpl	$0, %edx
 	je	do_launch
 
 	VMX_GUEST_RESTORE
@@ -234,3 +235,21 @@ ENTRY(vmx_exit_guest)
 	movl	$VMX_GUEST_VMEXIT, %eax
 	ret
 END(vmx_exit_guest)
+
+/*
+ * %rdi = interrupt handler entry point
+ *
+ * Calling sequence described in the "Instruction Set Reference" for the "INT"
+ * instruction in Intel SDM, Vol 2.
+ */
+ENTRY(vmx_call_isr)
+	mov	%rsp, %r11			/* save %rsp */
+	and	$~0xf, %rsp			/* align on 16-byte boundary */
+	pushq	$KERNEL_SS			/* %ss */
+	pushq	%r11				/* %rsp */
+	pushfq					/* %rflags */
+	pushq	$KERNEL_CS			/* %cs */
+	cli					/* disable interrupts */
+	callq	*%rdi				/* push %rip and call isr */
+	ret
+END(vmx_call_isr)

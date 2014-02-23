@@ -1,45 +1,24 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook XML V5.0-Based Extension//EN"
-        "../../../share/xml/freebsd50.dtd" [
-<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN" "release.ent">
+        "http://www.FreeBSD.org/XML/share/xml/freebsd50.dtd" [
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN"
+        "http://www.FreeBSD.org/release/XML/release.ent">
 %release;
 ]>
-<!--
-	FreeBSD errata document.  Unlike some of the other RELNOTESng
-	files, this file should remain as a single SGML file, so that
-	the dollar FreeBSD dollar header has a meaningful modification
-	time.  This file is all but useless without a datestamp on it,
-	so we'll take some extra care to make sure it has one.
 
-	(If we didn't do this, then the file with the datestamp might
-	not be the one that received the last change in the document.)
+<article xmlns="http://docbook.org/ns/docbook"
+	 xmlns:xlink="http://www.w3.org/1999/xlink"
+	 version="5.0">
+  <info>
+    <title>&os; &release; Errata </title>
 
--->
-<article xmlns="http://docbook.org/ns/docbook" xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
-  <info><title>&os; &release; Errata </title>
-    
-
-    <author><orgname>
-    The &os; Project
-    </orgname></author>
+    <author><orgname>The &os; Project</orgname></author>
 
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2006</year>
-      <year>2007</year>
-      <year>2008</year>
-      <year>2009</year>
-      <year>2010</year>
-      <year>2011</year>
-      <year>2012</year>
-      <year>2013</year>
+      <year>2014</year>
+
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -50,20 +29,20 @@
       &tm-attrib.general;
     </legalnotice>
 
-  <abstract>
-    <para>This document lists errata items for &os; &release;,
-      containing significant information discovered after the release
-      or too late in the release cycle to be otherwise included in the
-      release documentation.
-      This information includes security advisories, as well as news
-      relating to the software or documentation that could affect its
-      operation or usability.  An up-to-date version of this document
-      should always be consulted before installing this version of
-      &os;.</para>
+    <abstract>
+      <para>This document lists errata items for &os; &release;,
+	containing significant information discovered after the release
+	or too late in the release cycle to be otherwise included in the
+	release documentation.
+	This information includes security advisories, as well as news
+	relating to the software or documentation that could affect its
+	operation or usability.  An up-to-date version of this document
+	should always be consulted before installing this version of
+	&os;.</para>
 
-    <para>This errata document for &os; &release;
-      will be maintained until the release of &os; &release.next;.</para>
-  </abstract>
+      <para>This errata document for &os; &release;
+	will be maintained until the release of &os; &release.next;.</para>
+    </abstract>
   </info>
 
   <sect1 xml:id="intro">
@@ -80,44 +59,35 @@
       out of date by definition, but other copies are kept updated on
       the Internet and should be consulted as the <quote>current
       errata</quote> for this release.  These other copies of the
-      errata are located at <uri xlink:href="http://www.FreeBSD.org/releases/">http://www.FreeBSD.org/releases/</uri>, plus any sites
+      errata are located at
+      <link xlink:href="http://www.FreeBSD.org/releases/" />,
+      plus any sites
       which keep up-to-date mirrors of this location.</para>
 
     <para>Source and binary snapshots of &os; &release.branch; also
       contain up-to-date copies of this document (as of the time of
       the snapshot).</para>
 
-    <para>For a list of all &os; CERT security advisories, see <uri xlink:href="http://www.FreeBSD.org/security/">http://www.FreeBSD.org/security/</uri> or <uri xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/">ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/</uri>.</para>
-
+    <para>For a list of all &os; CERT security advisories, see
+      <link xlink:href="http://www.FreeBSD.org/security/" />
+      or <link xlink:href="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/" />.</para>
   </sect1>
 
   <sect1 xml:id="security">
     <title>Security Advisories</title>
 
-    <para releasetype="current">No advisories.</para>
-
-    <para releasetype="release">No advisories.</para>
-
-    <para releasetype="snapshot">No advisories.</para>
+    <para>No advisory.</para>
   </sect1>
 
   <sect1 xml:id="open-issues">
     <title>Open Issues</title>
 
-    <para releasetype="current">No open issues.</para>
-
-    <para releasetype="release">No open issues.</para>
-
-    <para releasetype="snapshot">No open issues.</para>
+    <para>No open issues.</para>
   </sect1>
 
   <sect1 xml:id="late-news">
     <title>Late-Breaking News</title>
 
-    <para releasetype="current">No news.</para>
-
-    <para releasetype="release">No news.</para>
-
-    <para releasetype="snapshot">No news.</para>
+    <para>No news.</para>
   </sect1>
 </article>

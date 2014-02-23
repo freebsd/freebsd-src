@@ -635,12 +635,14 @@ class BlockDataRegion : public TypedRegion {
   friend class MemRegionManager;
   const BlockTextRegion *BC;
   const LocationContext *LC; // Can be null */
+  unsigned BlockCount;
   void *ReferencedVars;
   void *OriginalVars;
 
   BlockDataRegion(const BlockTextRegion *bc, const LocationContext *lc,
-                  const MemRegion *sreg)
+                  unsigned count, const MemRegion *sreg)
   : TypedRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc),
+     BlockCount(count),
     ReferencedVars(0), OriginalVars(0) {}
 
 public:
@@ -692,7 +694,8 @@ public:
   void Profile(llvm::FoldingSetNodeID& ID) const;
     
   static void ProfileRegion(llvm::FoldingSetNodeID&, const BlockTextRegion *,
-                            const LocationContext *, const MemRegion *);
+                            const LocationContext *, unsigned,
+                            const MemRegion *);
     
   static bool classof(const MemRegion* R) {
     return R->getKind() == BlockDataRegionKind;
@@ -1270,7 +1273,13 @@ public:
   ///  argument is allowed to be NULL for cases where we have no known
   ///  context.
   const BlockDataRegion *getBlockDataRegion(const BlockTextRegion *bc,
-                                            const LocationContext *lc = NULL);
+                                            const LocationContext *lc,
+                                            unsigned blockCount);
+
+  /// Create a CXXTempObjectRegion for temporaries which are lifetime-extended
+  /// by static references. This differs from getCXXTempObjectRegion in the
+  /// super-region used.
+  const CXXTempObjectRegion *getCXXStaticTempObjectRegion(const Expr *Ex);
 
 private:
   template <typename RegionTy, typename A1>
@@ -1304,6 +1313,39 @@ private:
 inline ASTContext &MemRegion::getContext() const {
   return getMemRegionManager()->getContext();
 }
+
+//===----------------------------------------------------------------------===//
+// Means for storing region/symbol handling traits.
+//===----------------------------------------------------------------------===//
+
+/// Information about invalidation for a particular region/symbol.
+class RegionAndSymbolInvalidationTraits {
+  typedef unsigned char StorageTypeForKinds;
+  llvm::DenseMap<const MemRegion *, StorageTypeForKinds> MRTraitsMap;
+  llvm::DenseMap<SymbolRef, StorageTypeForKinds> SymTraitsMap;
+
+  typedef llvm::DenseMap<const MemRegion *, StorageTypeForKinds>::const_iterator
+      const_region_iterator;
+  typedef llvm::DenseMap<SymbolRef, StorageTypeForKinds>::const_iterator
+      const_symbol_iterator;
+
+public:
+  /// \brief Describes different invalidation traits.
+  enum InvalidationKinds {
+    /// Tells that a region's contents is not changed.
+    TK_PreserveContents = 0x1,
+    /// Suppress pointer-escaping of a region.
+    TK_SuppressEscape = 0x2
+
+    // Do not forget to extend StorageTypeForKinds if number of traits exceed 
+    // the number of bits StorageTypeForKinds can store.
+  };
+
+  void setTrait(SymbolRef Sym, InvalidationKinds IK);
+  void setTrait(const MemRegion *MR, InvalidationKinds IK);
+  bool hasTrait(SymbolRef Sym, InvalidationKinds IK);
+  bool hasTrait(const MemRegion *MR, InvalidationKinds IK);
+};
   
 } // end GR namespace
 

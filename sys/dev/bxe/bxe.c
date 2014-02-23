@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#define BXE_DRIVER_VERSION "1.78.76"
+#define BXE_DRIVER_VERSION "1.78.77"
 
 #include "bxe.h"
 #include "ecore_sp.h"
@@ -5443,7 +5443,7 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
         } else if (error == EFBIG) {
             /* possibly recoverable with defragmentation */
             fp->eth_q_stats.mbuf_defrag_attempts++;
-            m0 = m_defrag(*m_head, M_DONTWAIT);
+            m0 = m_defrag(*m_head, M_NOWAIT);
             if (m0 == NULL) {
                 fp->eth_q_stats.mbuf_defrag_failures++;
                 rc = ENOBUFS;
@@ -5501,10 +5501,31 @@ bxe_tx_encap(struct bxe_fastpath *fp, struct mbuf **m_head)
             fp->eth_q_stats.tx_window_violation_std++;
         }
 
-        /* XXX I don't like this, change to double copy packet */
+        /* lets try to defragment this mbuf */
+        fp->eth_q_stats.mbuf_defrag_attempts++;
 
-        /* no sense trying to defrag again, just drop the frame */
-        rc = ENODEV;
+        m0 = m_defrag(*m_head, M_NOWAIT);
+        if (m0 == NULL) {
+            fp->eth_q_stats.mbuf_defrag_failures++;
+            /* Ugh, just drop the frame... :( */
+            rc = ENOBUFS;
+        } else {
+            /* defrag successful, try mapping again */
+            *m_head = m0;
+            error = bus_dmamap_load_mbuf_sg(fp->tx_mbuf_tag,
+                                            tx_buf->m_map, m0,
+                                            segs, &nsegs, BUS_DMA_NOWAIT);
+            if (error) {
+                fp->eth_q_stats.tx_dma_mapping_failure++;
+                /* No sense in trying to defrag/copy chain, drop it. :( */
+                rc = error;
+            }
+
+            /* if the chain is still too long then drop it */
+            if (__predict_false(nsegs > 12)) {
+                rc = ENODEV;
+            }
+        }
     }
 
 bxe_tx_encap_continue:
@@ -6543,7 +6564,7 @@ bxe_alloc_rx_bd_mbuf(struct bxe_fastpath *fp,
     rc = 0;
 
     /* allocate the new RX BD mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_bd_alloc_failed++;
         return (ENOBUFS);
@@ -6624,7 +6645,7 @@ bxe_alloc_rx_tpa_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate the new TPA mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, fp->mbuf_alloc_size);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_tpa_alloc_failed++;
         return (ENOBUFS);
@@ -6686,7 +6707,7 @@ bxe_alloc_rx_sge_mbuf(struct bxe_fastpath *fp,
     int rc = 0;
 
     /* allocate a new SGE mbuf */
-    m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
+    m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, SGE_PAGE_SIZE);
     if (__predict_false(m == NULL)) {
         fp->eth_q_stats.mbuf_rx_sge_alloc_failed++;
         return (ENOMEM);
@@ -6748,7 +6769,7 @@ bxe_alloc_fp_buffers(struct bxe_softc *sc)
 
 #if __FreeBSD_version >= 800000
         fp->tx_br = buf_ring_alloc(BXE_BR_SIZE, M_DEVBUF,
-                                   M_DONTWAIT, &fp->tx_mtx);
+                                   M_NOWAIT, &fp->tx_mtx);
         if (fp->tx_br == NULL) {
             BLOGE(sc, "buf_ring alloc fail for fp[%02d]\n", i);
             goto bxe_alloc_fp_buffers_error;

@@ -541,6 +541,7 @@ main_loop(const char *sockpath, struct pidfh *pfh)
 	struct casper_service *casserv;
 	struct service_connection *sconn, *sconntmp;
 	int lsock, sock, maxfd, ret;
+	mode_t oldumask;
 
 	lsock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (lsock == -1)
@@ -554,8 +555,10 @@ main_loop(const char *sockpath, struct pidfh *pfh)
 	    sizeof(sun.sun_path));
 	sun.sun_len = SUN_LEN(&sun);
 
+	oldumask = umask(S_IXUSR | S_IXGRP | S_IXOTH);
 	if (bind(lsock, (struct sockaddr *)&sun, sizeof(sun)) == -1)
 		pjdlog_exit(1, "Unable to bind to %s", sockpath);
+	(void)umask(oldumask);
 	if (listen(lsock, 8) == -1)
 		pjdlog_exit(1, "Unable to listen on %s", sockpath);
 

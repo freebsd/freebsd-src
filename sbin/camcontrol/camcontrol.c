@@ -264,11 +264,12 @@ static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int camxferrate(struct cam_device *device);
 #endif /* MINIMALISTIC */
-static int parse_btl(char *tstr, int *bus, int *target, int *lun,
-		     cam_argmask *arglst);
+static int parse_btl(char *tstr, path_id_t *bus, target_id_t *target,
+		     lun_id_t *lun, cam_argmask *arglst);
 static int dorescan_or_reset(int argc, char **argv, int rescan);
-static int rescan_or_reset_bus(int bus, int rescan);
-static int scanlun_or_reset_dev(int bus, int target, int lun, int scan);
+static int rescan_or_reset_bus(path_id_t bus, int rescan);
+static int scanlun_or_reset_dev(path_id_t bus, target_id_t target,
+    lun_id_t lun, int scan);
 #ifndef MINIMALISTIC
 static int readdefects(struct cam_device *device, int argc, char **argv,
 		       char *combinedopt, int retry_count, int timeout);
@@ -3019,7 +3020,8 @@ atasecurity(struct cam_device *device, int retry_count, int timeout,
  * Returns the number of parsed components, or 0.
  */
 static int
-parse_btl(char *tstr, int *bus, int *target, int *lun, cam_argmask *arglst)
+parse_btl(char *tstr, path_id_t *bus, target_id_t *target, lun_id_t *lun,
+    cam_argmask *arglst)
 {
 	char *tmpstr;
 	int convs = 0;
@@ -3055,7 +3057,9 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 	static const char must[] =
 		"you must specify \"all\", a bus, or a bus:target:lun to %s";
 	int rv, error = 0;
-	int bus = -1, target = -1, lun = -1;
+	path_id_t bus = CAM_BUS_WILDCARD;
+	target_id_t target = CAM_TARGET_WILDCARD;
+	lun_id_t lun = CAM_LUN_WILDCARD;
 	char *tstr;
 
 	if (argc < 3) {
@@ -3087,7 +3091,7 @@ dorescan_or_reset(int argc, char **argv, int rescan)
 }
 
 static int
-rescan_or_reset_bus(int bus, int rescan)
+rescan_or_reset_bus(path_id_t bus, int rescan)
 {
 	union ccb ccb, matchccb;
 	int fd, retval;
@@ -3101,7 +3105,7 @@ rescan_or_reset_bus(int bus, int rescan)
 		return(1);
 	}
 
-	if (bus != -1) {
+	if (bus != CAM_BUS_WILDCARD) {
 		ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS : XPT_RESET_BUS;
 		ccb.ccb_h.path_id = bus;
 		ccb.ccb_h.target_id = CAM_TARGET_WILDCARD;
@@ -3201,7 +3205,7 @@ rescan_or_reset_bus(int bus, int rescan)
 			 * We don't want to rescan or reset the xpt bus.
 			 * See above.
 			 */
-			if ((int)bus_result->path_id == -1)
+			if (bus_result->path_id == CAM_XPT_PATH_ID)
 				continue;
 
 			ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS :
@@ -3254,7 +3258,7 @@ bailout:
 }
 
 static int
-scanlun_or_reset_dev(int bus, int target, int lun, int scan)
+scanlun_or_reset_dev(path_id_t bus, target_id_t target, lun_id_t lun, int scan)
 {
 	union ccb ccb;
 	struct cam_device *device;
@@ -3262,18 +3266,18 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 
 	device = NULL;
 
-	if (bus < 0) {
+	if (bus == CAM_BUS_WILDCARD) {
 		warnx("invalid bus number %d", bus);
 		return(1);
 	}
 
-	if (target < 0) {
+	if (target == CAM_TARGET_WILDCARD) {
 		warnx("invalid target number %d", target);
 		return(1);
 	}
 
-	if (lun < 0) {
-		warnx("invalid lun number %d", lun);
+	if (lun == CAM_LUN_WILDCARD) {
+		warnx("invalid lun number %jx", (uintmax_t)lun);
 		return(1);
 	}
 
@@ -3331,12 +3335,12 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 	if (((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
 	 || ((!scan)
 	  && ((ccb.ccb_h.status & CAM_STATUS_MASK) == CAM_BDR_SENT))) {
-		fprintf(stdout, "%s of %d:%d:%d was successful\n",
-		    scan? "Re-scan" : "Reset", bus, target, lun);
+		fprintf(stdout, "%s of %d:%d:%jx was successful\n",
+		    scan? "Re-scan" : "Reset", bus, target, (uintmax_t)lun);
 		return(0);
 	} else {
-		fprintf(stdout, "%s of %d:%d:%d returned error %#x\n",
-		    scan? "Re-scan" : "Reset", bus, target, lun,
+		fprintf(stdout, "%s of %d:%d:%jx returned error %#x\n",
+		    scan? "Re-scan" : "Reset", bus, target, (uintmax_t)lun,
 		    ccb.ccb_h.status & CAM_STATUS_MASK);
 		return(1);
 	}
@@ -4218,7 +4222,9 @@ static int
 camdebug(int argc, char **argv, char *combinedopt)
 {
 	int c, fd;
-	int bus = -1, target = -1, lun = -1;
+	path_id_t bus = CAM_BUS_WILDCARD;
+	target_id_t target = CAM_TARGET_WILDCARD;
+	lun_id_t lun = CAM_LUN_WILDCARD;
 	char *tstr, *tmpstr = NULL;
 	union ccb ccb;
 	int error = 0;
@@ -4338,8 +4344,8 @@ camdebug(int argc, char **argv, char *combinedopt)
 				} else {
 					fprintf(stderr,
 						"Debugging enabled for "
-						"%d:%d:%d\n",
-						bus, target, lun);
+						"%d:%d:%jx\n",
+						bus, target, (uintmax_t)lun);
 				}
 			}
 		}
@@ -7986,7 +7992,9 @@ main(int argc, char **argv)
 	int error = 0, optstart = 2;
 	int devopen = 1;
 #ifndef MINIMALISTIC
-	int bus, target, lun;
+	path_id_t bus;
+	target_id_t target;
+	lun_id_t lun;
 #endif /* MINIMALISTIC */
 
 	cmdlist = CAM_CMD_NONE;

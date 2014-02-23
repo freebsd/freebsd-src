@@ -152,6 +152,7 @@ cam_status cam_periph_alloc(periph_ctor_t *periph_ctor,
 struct cam_periph *cam_periph_find(struct cam_path *path, char *name);
 int		cam_periph_list(struct cam_path *, struct sbuf *);
 cam_status	cam_periph_acquire(struct cam_periph *periph);
+void		cam_periph_doacquire(struct cam_periph *periph);
 void		cam_periph_release(struct cam_periph *periph);
 void		cam_periph_release_locked(struct cam_periph *periph);
 void		cam_periph_release_locked_buses(struct cam_periph *periph);
