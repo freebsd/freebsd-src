@@ -56,6 +56,9 @@ arm64_efi_copy_init(void)
 		    status & EFI_ERROR_MASK);
 		return (status);
 	}
+	/* Round the kernel load address to a 2MiB value */
+	staging = roundup2(staging, 2 * 1024 * 1024);
+
 
 	return (0);
 }
@@ -92,6 +95,6 @@ ssize_t
 arm64_efi_readin(const int fd, vm_offset_t dest, const size_t len)
 {
 
-	return (read(fd, (void *)(dest + stage_offset), len));
+	return (read(fd, arm64_efi_translate(dest), len));
 }
 
