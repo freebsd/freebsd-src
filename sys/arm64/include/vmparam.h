@@ -122,17 +122,19 @@
 /**
  * Address space layout.
  *
- * ARMv8 implements a 47 bit virtual address space.  The address space is
+ * ARMv8 implements up to a 47 bit virtual address space. The address space is
  * split into 2 regions at each end of the 64 bit address space, with an
  * out of range "hole" in the middle.
  *
+ * We limit the size of the two spaces to 39 bits each.
+ *
  * Upper region:	0xffffffffffffffff
- *			0xffff800000000000
+ *			0xffffff8000000000
  *
- * Hole:		0xffff7fffffffffff
- *			0x0000800000000000
+ * Hole:		0xffffff7fffffffff
+ *			0x0000008000000000
  *
- * Lower region:	0x00007fffffffffff
+ * Lower region:	0x0000007fffffffff
  *			0x0000000000000000
  *
  * We use the upper region for the kernel, and the lower region for userland.
@@ -161,11 +163,11 @@
 #define	VM_MIN_ADDRESS		(0x0000000000000000UL)
 #define	VM_MAX_ADDRESS		(0xffffffffffffffffUL)
 
-#define	VM_MIN_KERNEL_ADDRESS	(0xffff800000000000UL)
+#define	VM_MIN_KERNEL_ADDRESS	(0xffffff8000000000UL)
 #define	VM_MAX_KERNEL_ADDRESS	(vm_max_kernel_address)
 
 #define	VM_MIN_USER_ADDRESS	(0x0000000000000000UL)
-#define	VM_MAX_USER_ADDRESS	(0x0000800000000000UL)
+#define	VM_MAX_USER_ADDRESS	(0x0000008000000000UL)
 
 #define	VM_MINUSER_ADDRESS	(VM_MIN_USER_ADDRESS)
 #define	VM_MAXUSER_ADDRESS	(VM_MAX_USER_ADDRESS)
