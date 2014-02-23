@@ -2648,6 +2648,36 @@ vmoff(int i, off_t off)
 	return (trunc_page(off + i * PAGE_SIZE));
 }
 
+/*
+ * Pretend as if we don't have enough space, subtract xfsize() of
+ * all pages that failed.
+ */
+static inline void
+fixspace(int old, int new, off_t off, int *space)
+{
+
+	KASSERT(old > new, ("%s: old %d new %d", __func__, old, new));
+
+	/* Subtract last one. */
+	*space -= xfsize(old - 1, old, off, *space);
+	old--;
+
+	if (new == old)
+		/* There was only one page. */
+		return;
+
+	/* Subtract first one. */
+	if (new == 0) {
+		*space -= xfsize(0, old, off, *space);
+		new++;
+	}
+
+	/* Rest of pages are full sized. */
+	*space -= (old - new) * PAGE_SIZE;
+
+	KASSERT(*space >= 0, ("%s: space went backwards", __func__));
+}
+
 struct sf_io {
 	u_int		nios;
 	int		npages;
@@ -2862,7 +2892,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 
 	obj = NULL;
 	so = NULL;
-	m = NULL;
+	m = mh = NULL;
 	sbytes = 0;
 
 	error = sendfile_getobj(td, fp, &obj, &vp, &shmfd, &obj_size, &bsize);
@@ -2915,10 +2945,8 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			goto out;
 		}
 		hdrlen = m_length(mh, &mhtail);
-	} else {
-		mh = NULL;
+	} else
 		hdrlen = 0;
-	}
 
 	rem = nbytes ? omin(nbytes, obj_size - offset) : obj_size - offset;
 
@@ -3043,6 +3071,8 @@ retry_space:
 		sfio = malloc(sizeof(struct sf_io) +
 		    npages * sizeof(vm_page_t), M_TEMP, mwait);
 		if (sfio == NULL) {
+			if (vp != NULL)
+				VOP_UNLOCK(vp, 0);
 			error = merror;
 			goto done;
 		}
@@ -3079,6 +3109,7 @@ retry_space:
 				}
 				if (m == NULL)
 					error = merror;
+				fixspace(npages, i, off, &space);
 				break;
 			}
 
@@ -3088,21 +3119,28 @@ retry_space:
 			 */
 			m0 = m_get(mwait, MT_DATA);
 			if (m0 == NULL) {
-				error = merror;
+				for (int j = i; j < npages; j++) {
+					vm_page_lock(pa[j]);
+					vm_page_unwire(pa[j], 0);
+					vm_page_unlock(pa[j]);
+				}
 				(void)sf_buf_mext(NULL, NULL, sf);
+				error = merror;
+				fixspace(npages, i, off, &space);
 				break;
 			}
 			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
 			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF, mwait)
 			    != 0) {
-				for (int j = i + 1; j < npages; j++) {
+				for (int j = i; j < npages; j++) {
 					vm_page_lock(pa[j]);
 					vm_page_unwire(pa[j], 0);
 					vm_page_unlock(pa[j]);
 				}
-				error = merror;
 				(void)sf_buf_mext(NULL, NULL, sf);
 				m_freem(m0);
+				error = merror;
+				fixspace(npages, i, off, &space);
 				break;
 			}
 			m0->m_data = (char *)sf_buf_kva(sf) +
@@ -3139,6 +3177,7 @@ retry_space:
 		if (hdrlen) {
 			mhtail->m_next = m;
 			m = mh;
+			mh = NULL;
 		}
 
 		if (error) {
@@ -3208,6 +3247,8 @@ out:
 		fdrop(sock_fp, td);
 	if (m)
 		m_freem(m);
+	if (mh)
+		m_freem(mh);
 
 	if (error == ERESTART)
 		error = EINTR;
