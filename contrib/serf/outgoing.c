@@ -81,6 +81,46 @@ static apr_status_t clean_conn(void *data)
     return APR_SUCCESS;
 }
 
+/* Check if there is data waiting to be sent over the socket. This can happen
+   in two situations:
+   - The connection queue has atleast one request with unwritten data.
+   - All requests are written and the ssl layer wrote some data while reading
+     the response. This can happen when the server triggers a renegotiation,
+     e.g. after the first and only request on that connection was received.
+   Returns 1 if data is pending on CONN, NULL if not.
+   If NEXT_REQ is not NULL, it will be filled in with the next available request
+   with unwritten data. */
+static int
+request_or_data_pending(serf_request_t **next_req, serf_connection_t *conn)
+{
+    serf_request_t *request = conn->requests;
+
+    while (request != NULL && request->req_bkt == NULL &&
+           request->writing_started)
+        request = request->next;
+
+    if (next_req)
+        *next_req = request;
+
+    if (request != NULL) {
+        return 1;
+    } else if (conn->ostream_head) {
+        const char *dummy;
+        apr_size_t len;
+        apr_status_t status;
+
+        status = serf_bucket_peek(conn->ostream_head, &dummy,
+                                  &len);
+        if (!SERF_BUCKET_READ_ERROR(status) && len) {
+            serf__log_skt(CONN_VERBOSE, __FILE__, conn->skt,
+                          "All requests written but still data pending.\n");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /* Update the pollset for this connection. We tweak the pollset based on
  * whether we want to read and/or write, given conditions within the
  * connection. If the connection is not (yet) in the pollset, then it
@@ -126,7 +166,6 @@ apr_status_t serf__conn_update_pollset(serf_connection_t *conn)
                 conn->state != SERF_CONN_CLOSING)
                 desc.reqevents |= APR_POLLOUT;
             else {
-                serf_request_t *request = conn->requests;
 
                 if ((conn->probable_keepalive_limit &&
                      conn->completed_requests > conn->probable_keepalive_limit) ||
@@ -134,13 +173,9 @@ apr_status_t serf__conn_update_pollset(serf_connection_t *conn)
                      conn->completed_requests - conn->completed_responses >=
                      conn->max_outstanding_requests)) {
                         /* we wouldn't try to write any way right now. */
-                    }
-                else {
-                    while (request != NULL && request->req_bkt == NULL &&
-                           request->written)
-                        request = request->next;
-                    if (request != NULL)
-                        desc.reqevents |= APR_POLLOUT;
+                }
+                else if (request_or_data_pending(NULL, conn)) {
+                    desc.reqevents |= APR_POLLOUT;
                 }
             }
         }
@@ -393,13 +428,12 @@ apr_status_t serf__open_connections(serf_context_t *ctx)
     return APR_SUCCESS;
 }
 
-static apr_status_t no_more_writes(serf_connection_t *conn,
-                                   serf_request_t *request)
+static apr_status_t no_more_writes(serf_connection_t *conn)
 {
     /* Note that we should hold new requests until we open our new socket. */
     conn->state = SERF_CONN_CLOSING;
-    serf__log(CONN_VERBOSE, __FILE__, "stop writing on conn 0x%x\n",
-              conn);
+    serf__log_skt(CONN_VERBOSE, __FILE__, conn->skt,
+                  "stop writing on conn 0x%x\n", conn);
 
     /* Clear our iovec. */
     conn->vec_len = 0;
@@ -544,8 +578,12 @@ static apr_status_t reset_connection(serf_connection_t *conn,
     while (old_reqs) {
         /* If we haven't started to write the connection, bring it over
          * unchanged to our new socket.
+         * Do not copy a CONNECT request to the new connection, the ssl tunnel
+         * setup code will create a new CONNECT request already.
          */
-        if (requeue_requests && !old_reqs->written) {
+        if (requeue_requests && !old_reqs->writing_started &&
+            !old_reqs->ssltunnel) {
+
             serf_request_t *req = old_reqs;
             old_reqs = old_reqs->next;
             req->next = NULL;
@@ -672,8 +710,6 @@ static apr_status_t setup_request(serf_request_t *request)
 /* write data out to the connection */
 static apr_status_t write_to_connection(serf_connection_t *conn)
 {
-    serf_request_t *request = conn->requests;
-
     if (conn->probable_keepalive_limit &&
         conn->completed_requests > conn->probable_keepalive_limit) {
 
@@ -684,21 +720,16 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
         return APR_SUCCESS;
     }
 
-    /* Find a request that has data which needs to be delivered. */
-    while (request != NULL &&
-           request->req_bkt == NULL && request->written)
-        request = request->next;
-
-    /* assert: request != NULL || conn->vec_len */
-
     /* Keep reading and sending until we run out of stuff to read, or
      * writing would block.
      */
     while (1) {
+        serf_request_t *request;
         int stop_reading = 0;
         apr_status_t status;
         apr_status_t read_status;
-        serf_bucket_t *ostreamt, *ostreamh;
+        serf_bucket_t *ostreamt;
+        serf_bucket_t *ostreamh;
         int max_outstanding_requests = conn->max_outstanding_requests;
 
         /* If we're setting up an ssl tunnel, we can't send real requests
@@ -727,7 +758,7 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
             if (APR_STATUS_IS_EPIPE(status) ||
                 APR_STATUS_IS_ECONNRESET(status) ||
                 APR_STATUS_IS_ECONNABORTED(status))
-                return no_more_writes(conn, request);
+                return no_more_writes(conn);
             if (status)
                 return status;
         }
@@ -738,14 +769,11 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
         /* We may need to move forward to a request which has something
          * to write.
          */
-        while (request != NULL &&
-               request->req_bkt == NULL && request->written)
-            request = request->next;
-
-        if (request == NULL) {
+        if (!request_or_data_pending(&request, conn)) {
             /* No more requests (with data) are registered with the
-             * connection. Let's update the pollset so that we don't
-             * try to write to this socket again.
+             * connection, and no data is pending on the outgoing stream.
+             * Let's update the pollset so that we don't try to write to this
+             * socket again.
              */
             conn->dirty_conn = 1;
             conn->ctx->dirty_pollset = 1;
@@ -757,17 +785,19 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
             return status;
         }
 
-        if (request->req_bkt == NULL) {
-            read_status = setup_request(request);
-            if (read_status) {
-                /* Something bad happened. Propagate any errors. */
-                return read_status;
+        if (request) {
+            if (request->req_bkt == NULL) {
+                read_status = setup_request(request);
+                if (read_status) {
+                    /* Something bad happened. Propagate any errors. */
+                    return read_status;
+                }
             }
-        }
 
-        if (!request->written) {
-            request->written = 1;
-            serf_bucket_aggregate_append(ostreamt, request->req_bkt);
+            if (!request->writing_started) {
+                request->writing_started = 1;
+                serf_bucket_aggregate_append(ostreamt, request->req_bkt);
+            }
         }
 
         /* ### optimize at some point by using read_for_sendfile */
@@ -818,10 +848,10 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
             if (APR_STATUS_IS_EAGAIN(status))
                 return APR_SUCCESS;
             if (APR_STATUS_IS_EPIPE(status))
-                return no_more_writes(conn, request);
+                return no_more_writes(conn);
             if (APR_STATUS_IS_ECONNRESET(status) ||
                 APR_STATUS_IS_ECONNABORTED(status)) {
-                return no_more_writes(conn, request);
+                return no_more_writes(conn);
             }
             if (status)
                 return status;
@@ -833,7 +863,8 @@ static apr_status_t write_to_connection(serf_connection_t *conn)
             conn->dirty_conn = 1;
             conn->ctx->dirty_pollset = 1;
         }
-        else if (read_status && conn->hit_eof && conn->vec_len == 0) {
+        else if (request && read_status && conn->hit_eof &&
+                 conn->vec_len == 0) {
             /* If we hit the end of the request bucket and all of its data has
              * been written, then clear it out to signify that we're done
              * sending the request. On the next iteration through this loop:
@@ -897,8 +928,7 @@ static apr_status_t handle_response(serf_request_t *request,
 
          If the authentication was tried, but failed, pass the response
          to the application, maybe it can do better. */
-      if (APR_STATUS_IS_EOF(status) ||
-          APR_STATUS_IS_EAGAIN(status)) {
+      if (status) {
           return status;
       }
     }
@@ -1060,7 +1090,7 @@ static apr_status_t read_from_connection(serf_connection_t *conn)
          * sending the SSL 'close notify' shutdown alert), we'll reset the
          * connection and open a new one.
          */
-        if (request->req_bkt || !request->written) {
+        if (request->req_bkt || !request->writing_started) {
             const char *data;
             apr_size_t len;
 
@@ -1118,6 +1148,14 @@ static apr_status_t read_from_connection(serf_connection_t *conn)
          * treat that as a success.
          */
         if (APR_STATUS_IS_EAGAIN(status)) {
+            /* It is possible that while reading the response, the ssl layer
+               has prepared some data to send. If this was the last request,
+               serf will not check for socket writability, so force this here.
+             */
+            if (request_or_data_pending(&request, conn) && !request) {
+                conn->dirty_conn = 1;
+                conn->ctx->dirty_pollset = 1;
+            }
             status = APR_SUCCESS;
             goto error;
         }
@@ -1182,7 +1220,7 @@ static apr_status_t read_from_connection(serf_connection_t *conn)
          * update the pollset. We don't want to read from this socket any
          * more. We are definitely done with this loop, too.
          */
-        if (request == NULL || !request->written) {
+        if (request == NULL || !request->writing_started) {
             conn->dirty_conn = 1;
             conn->ctx->dirty_pollset = 1;
             status = APR_SUCCESS;
@@ -1247,8 +1285,29 @@ apr_status_t serf__process_connection(serf_connection_t *conn,
                 int error;
                 apr_socklen_t l = sizeof(error);
 
-                if (!getsockopt(osskt, SOL_SOCKET, SO_ERROR, (char*)&error, &l))
-                    return APR_FROM_OS_ERROR(error);
+                if (!getsockopt(osskt, SOL_SOCKET, SO_ERROR, (char*)&error,
+                                &l)) {
+                    status = APR_FROM_OS_ERROR(error);
+
+                    /* Handle fallback for multi-homed servers.
+                     
+                       ### Improve algorithm to find better than just 'next'?
+
+                       Current Windows versions already handle re-ordering for
+                       api users by using statistics on the recently failed
+                       connections to order the list of addresses. */
+                    if (conn->completed_requests == 0
+                        && conn->address->next != NULL
+                        && (APR_STATUS_IS_ECONNREFUSED(status)
+                            || APR_STATUS_IS_TIMEUP(status)
+                            || APR_STATUS_IS_ENETUNREACH(status))) {
+
+                        conn->address = conn->address->next;
+                        return reset_connection(conn, 1);
+                    }
+
+                    return status;
+                  }
             }
         }
 #endif
@@ -1342,7 +1401,8 @@ apr_status_t serf_connection_create2(
     /* We're not interested in the path following the hostname. */
     c->host_url = apr_uri_unparse(c->pool,
                                   &host_info,
-                                  APR_URI_UNP_OMITPATHINFO);
+                                  APR_URI_UNP_OMITPATHINFO |
+                                  APR_URI_UNP_OMITUSERINFO);
 
     /* Store the host info without the path on the connection. */
     (void)apr_uri_parse(c->pool, c->host_url, &(c->host_info));
@@ -1469,9 +1529,10 @@ create_request(serf_connection_t *conn,
     request->req_bkt = NULL;
     request->resp_bkt = NULL;
     request->priority = priority;
-    request->written = 0;
+    request->writing_started = 0;
     request->ssltunnel = ssltunnel;
     request->next = NULL;
+    request->auth_baton = NULL;
 
     return request;
 }
@@ -1515,7 +1576,7 @@ priority_request_create(serf_connection_t *conn,
     prev = NULL;
 
     /* Find a request that has data which needs to be delivered. */
-    while (iter != NULL && iter->req_bkt == NULL && iter->written) {
+    while (iter != NULL && iter->req_bkt == NULL && iter->writing_started) {
         prev = iter;
         iter = iter->next;
     }
@@ -1574,7 +1635,7 @@ apr_status_t serf_request_cancel(serf_request_t *request)
 
 apr_status_t serf_request_is_written(serf_request_t *request)
 {
-    if (request->written && !request->req_bkt)
+    if (request->writing_started && !request->req_bkt)
         return APR_SUCCESS;
 
     return APR_EBUSY;

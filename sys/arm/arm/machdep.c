@@ -410,7 +410,11 @@ cpu_flush_dcache(void *ptr, size_t len)
 {
 
 	cpu_dcache_wb_range((uintptr_t)ptr, len);
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
+#else
 	cpu_l2cache_wb_range((uintptr_t)ptr, len);
+#endif
 }
 
 /* Get current clock frequency for the given cpu id. */

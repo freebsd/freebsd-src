@@ -271,7 +271,7 @@ __DEFAULT_YES_OPTIONS = \
     CTM \
     CXX \
     DICT \
-    DMA \
+    DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
     EXAMPLES \
@@ -512,7 +512,7 @@ MK_GROFF:=	no
 .if ${MK_MAIL} == "no"
 MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
-MK_DMA:=	no
+MK_DMAGENT:=	no
 .endif
 
 .if ${MK_NETGRAPH} == "no"

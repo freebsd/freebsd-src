@@ -226,7 +226,7 @@ distribution:
 .endif
 	${_+_}cd ${.CURDIR}/defaults; ${MAKE} install
 	${_+_}cd ${.CURDIR}/devd; ${MAKE} install
-.if ${MK_DMA} != "no"
+.if ${MK_DMAGENT} != "no"
 	${_+_}cd ${.CURDIR}/dma; ${MAKE} install
 .endif
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install

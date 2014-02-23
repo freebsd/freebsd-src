@@ -48,7 +48,7 @@ serf__handle_basic_auth(int code,
     apr_status_t status;
     apr_pool_t *cred_pool;
     char *username, *password, *realm_name;
-    const char *eq, *realm;
+    const char *eq, *realm = NULL;
 
     /* Can't do Basic authentication if there's no callback to get
        username & password. */

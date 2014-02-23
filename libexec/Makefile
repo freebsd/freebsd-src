@@ -49,7 +49,7 @@ _casper=	casper
 _comsat=	comsat
 .endif
 
-.if ${MK_DMA} != "no"
+.if ${MK_DMAGENT} != "no"
 _dma=		dma
 _dma-mbox-create=	dma-mbox-create
 .endif

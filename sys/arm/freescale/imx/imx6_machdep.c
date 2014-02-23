@@ -55,9 +55,6 @@ void
 initarm_early_init(void)
 {
 
-	/* XXX - Get rid of this stuff soon. */
-	boothowto |= RB_VERBOSE|RB_MULTIPLE;
-	bootverbose = 1;
 }
 
 void
