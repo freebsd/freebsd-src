@@ -69,6 +69,7 @@ struct vm;
 #define APIC_OFFSET_IRR6 	0x260   // IRR  192-223                    	R
 #define APIC_OFFSET_IRR7 	0x270   // IRR  224-255                    	R
 #define APIC_OFFSET_ESR		0x280   // Error Status Register           	R
+#define APIC_OFFSET_CMCI_LVT 	0x2F0   // Local Vector Table (CMCI)      	R/W
 #define APIC_OFFSET_ICR_LOW 	0x300   // Interrupt Command Reg. (0-31)   	R/W
 #define APIC_OFFSET_ICR_HI 	0x310   // Interrupt Command Reg. (32-63)  	R/W
 #define APIC_OFFSET_TIMER_LVT 	0x320   // Local Vector Table (Timer)      	R/W
@@ -90,15 +91,22 @@ enum x2apic_state;
 
 struct vlapic *vlapic_init(struct vm *vm, int vcpuid);
 void vlapic_cleanup(struct vlapic *vlapic);
-int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data);
-int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data);
+int vlapic_write(struct vlapic *vlapic, uint64_t offset, uint64_t data,
+    bool *retu);
+int vlapic_read(struct vlapic *vlapic, uint64_t offset, uint64_t *data,
+    bool *retu);
 int vlapic_pending_intr(struct vlapic *vlapic);
 void vlapic_intr_accepted(struct vlapic *vlapic, int vector);
 void vlapic_set_intr_ready(struct vlapic *vlapic, int vector, bool level);
-int vlapic_timer_tick(struct vlapic *vlapic);
+void vlapic_set_error(struct vlapic *vlapic, uint32_t mask);
+void vlapic_fire_cmci(struct vlapic *vlapic);
+int vlapic_trigger_lvt(struct vlapic *vlapic, int vector);
 
 uint64_t vlapic_get_apicbase(struct vlapic *vlapic);
 void vlapic_set_apicbase(struct vlapic *vlapic, uint64_t val);
 void vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state s);
+bool vlapic_enabled(struct vlapic *vlapic);
 
+void vlapic_deliver_intr(struct vm *vm, bool level, uint32_t dest, bool phys,
+    int delmode, int vec);
 #endif	/* _VLAPIC_H_ */

@@ -1359,7 +1359,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
-	uint64_t qual, gpa;
+	uint64_t qual, gpa, rflags;
+	bool retu;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1405,31 +1406,46 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_RDMSR:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_RDMSR, 1);
+		retu = false;
 		ecx = vmxctx->guest_rcx;
-		error = emulate_rdmsr(vmx->vm, vcpu, ecx);
+		error = emulate_rdmsr(vmx->vm, vcpu, ecx, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
 			vmexit->u.msr.code = ecx;
-		} else
+		} else if (!retu) {
 			handled = 1;
+		} else {
+			/* Return to userspace with a valid exitcode */
+			KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
+			    ("emulate_wrmsr retu with bogus exitcode"));
+		}
 		break;
 	case EXIT_REASON_WRMSR:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_WRMSR, 1);
+		retu = false;
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
 		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
-					(uint64_t)edx << 32 | eax);
+		    (uint64_t)edx << 32 | eax, &retu);
 		if (error) {
 			vmexit->exitcode = VM_EXITCODE_WRMSR;
 			vmexit->u.msr.code = ecx;
 			vmexit->u.msr.wval = (uint64_t)edx << 32 | eax;
-		} else
+		} else if (!retu) {
 			handled = 1;
+		} else {
+			/* Return to userspace with a valid exitcode */
+			KASSERT(vmexit->exitcode != VM_EXITCODE_BOGUS,
+			    ("emulate_wrmsr retu with bogus exitcode"));
+		}
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
+		if ((error = vmread(VMCS_GUEST_RFLAGS, &rflags)) != 0)
+			panic("vmx_exit_process: vmread(rflags) %d", error);
 		vmexit->exitcode = VM_EXITCODE_HLT;
+		vmexit->u.hlt.rflags = rflags;
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -1584,7 +1600,6 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 		panic("vmx_run: error %d setting up pcpu defaults", error);
 
 	do {
-		lapic_timer_tick(vmx->vm, vcpu);
 		vmx_inject_interrupts(vmx, vcpu);
 		vmx_run_trace(vmx, vcpu);
 		rc = vmx_setjmp(vmxctx);
