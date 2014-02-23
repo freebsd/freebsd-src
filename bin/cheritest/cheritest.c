@@ -122,7 +122,7 @@ cheritest_overrun(void)
 {
 #define	ARRAY_LEN	2
 	char array[ARRAY_LEN];
-	__capability char *arrayp = (__capability char *)array;
+	__capability char *arrayp = cheri_ptr(array, sizeof(array));
 	int i;
 
 	for (i = 0; i < ARRAY_LEN; i++)
