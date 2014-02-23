@@ -5,6 +5,8 @@ FICLDIR?=	${.CURDIR}
 
 .if !defined(FICL64)
 .PATH: ${FICLDIR}/${MACHINE_CPUARCH:S/amd64/i386/}
+.elif ${MACHINE_ARCH} == "mips64"
+.PATH: ${FICLDIR}/${MACHINE_ARCH}
 .else
 .PATH: ${FICLDIR}/${MACHINE_CPUARCH}
 .endif
@@ -21,11 +23,14 @@ CFLAGS.gcc+=	-mpreferred-stack-boundary=2
 .endif
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
-.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm"
+.if ${MACHINE_CPUARCH} == "powerpc" || ${MACHINE_CPUARCH} == "arm" || ${MACHINE_CPUARCH} == "mips"
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-Os -DPC98
+.endif
+.if ${MACHINE_CPUARCH} == "mips"
+CFLAGS+=	-G0 -fno-pic -mno-abicalls
 .endif
 .if HAVE_PNP
 CFLAGS+=	-DHAVE_PNP
