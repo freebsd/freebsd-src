@@ -2742,6 +2742,8 @@ device		upgt
 # Ralink Technology RT2500USB wireless driver
 device		ural
 #
+# RNDIS USB ethernet driver
+device		urndis
 # Realtek RTL8187B/L wireless driver
 device		urtw
 #
