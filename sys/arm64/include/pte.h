@@ -44,6 +44,7 @@ typedef	uint64_t	pt_entry_t;		/* page table entry */
 
 /* Block and Page attributes */
 /* TODO: Add the upper attributes */
+#define	ATTR_MASK_L	0xfff
 #define	ATTR_nG		(1 << 11)
 #define	ATTR_AF		(1 << 10)
 #define	ATTR_SH(x)	((x) << 8)

@@ -252,3 +252,19 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	panic("sendsig");
 }
+
+void initarm(void);
+
+void
+initarm(void)
+{
+	const char str[] = "FreeBSD\r\n";
+	volatile uint32_t *uart;
+	int i;
+
+	uart = (uint32_t*)0x1c090000;
+	for (i = 0; i < sizeof(str); i++) {
+		*uart = str[i];
+	}
+}
+

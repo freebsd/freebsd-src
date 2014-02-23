@@ -73,12 +73,12 @@ _start:
 	br	x29
 
 virtdone:
-	/* Load the address of the fvp UART */
-	mov	x0, 0x1c090000
-	/* Load 'B' */
-	mov	x1, 0x42
-	/* Print 'B' */
-	str	x1, [x0]
+	/* Set up the stack */
+	adr	x29, initstack
+	mov	sp, x29
+
+	/* Branch to C code */
+	bl	initarm
 
 1:	b	1b
 
@@ -227,6 +227,7 @@ create_pagetables:
 	mov	x7, #1
 	mov	x8, #(KERNBASE & L2_BLOCK_MASK)
 	mov	x9, x28
+	mov	x10, #16 /* 32MiB. TODO: Make this depend on the kernel size */
 	bl	build_block_pagetable
 
 	/* Move to the l1 table */
@@ -345,12 +346,22 @@ build_block_pagetable:
 
 	/* Only use the output address bits */
 	lsr	x9, x9, #L2_SHIFT
-	orr	x12, x12, x9, lsl #L2_SHIFT
+
+	/* Set the physical address for this virtual address */
+1:	orr	x12, x12, x9, lsl #L2_SHIFT
 
 	/* Store the entry */
 	str	x12, [x6, x11, lsl #3]
 
-	ret
+	/* Clear the address bits */
+	and	x12, x12, #ATTR_MASK_L
+
+	sub	x10, x10, #1
+	add	x11, x11, #1
+	add	x9, x9, #1
+	cbnz	x10, 1b
+
+2:	ret
 
 start_mmu:
 	dsb	sy
@@ -408,3 +419,6 @@ abort:
 	.align 12 /* 4KiB aligned */
 pagetable:
 	.space	(PAGE_SIZE * 3) /* 3 tables */
+
+initstack:
+	.space	(PAGE_SIZE * 4)
