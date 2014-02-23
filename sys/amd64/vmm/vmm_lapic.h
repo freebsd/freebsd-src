@@ -32,15 +32,15 @@
 struct vm;
 
 boolean_t lapic_msr(u_int num);
-int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval);
-int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval);
+int	lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval,
+	    bool *retu);
+int	lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t wval,
+	    bool *retu);
 
 int	lapic_mmio_read(void *vm, int cpu, uint64_t gpa,
 			uint64_t *rval, int size, void *arg);
 int	lapic_mmio_write(void *vm, int cpu, uint64_t gpa,
 			 uint64_t wval, int size, void *arg);
-
-int	lapic_timer_tick(struct vm *vm, int cpu);
 
 /*
  * Returns a vector between 32 and 255 if an interrupt is pending in the
@@ -83,5 +83,13 @@ lapic_intr_edge(struct vm *vm, int cpu, int vector)
 
 	return (lapic_set_intr(vm, cpu, vector, LAPIC_TRIG_EDGE));
 }
+
+/*
+ * Triggers the LAPIC local interrupt (LVT) 'vector' on 'cpu'.  'cpu' can
+ * be set to -1 to trigger the interrupt on all CPUs.
+ */
+int	lapic_set_local_intr(struct vm *vm, int cpu, int vector);
+
+int	lapic_intr_msi(struct vm *vm, uint64_t addr, uint64_t msg);
 
 #endif
