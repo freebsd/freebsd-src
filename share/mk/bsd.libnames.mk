@@ -169,7 +169,6 @@ LIBWIND?=	${DESTDIR}${LIBDIR}/libwind.a
 LIBWRAP?=	${DESTDIR}${LIBDIR}/libwrap.a
 LIBXPG4?=	${DESTDIR}${LIBDIR}/libxpg4.a
 LIBY?=		${DESTDIR}${LIBDIR}/liby.a
-LIBYAML?=	${DESTDIR}${LIBPRIVATEDIR}/libyaml.a
 LIBYPCLNT?=	${DESTDIR}${LIBDIR}/libypclnt.a
 LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
 LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
