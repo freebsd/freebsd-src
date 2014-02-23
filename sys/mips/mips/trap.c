@@ -1554,7 +1554,9 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 {
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
+#ifndef CPU_CHERI
 	unsigned int *addr;
+#endif
 	struct thread *td;
 	struct proc *p;
 	register_t pc;
@@ -1577,9 +1579,16 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 
 	get_mapping_info((vm_offset_t)pc, &pdep, &ptep);
 
+#ifndef CPU_CHERI
 	/*
 	 * Dump a few words around faulting instruction, if the addres is
 	 * valid.
+	 *
+	 * XXXRW: Temporarily disabled in CHERI as this doesn't properly
+	 * indirect through $c0 / $pcc.
+	 *
+	 * XXXRW: Arguably, this is also incorrect for non-CHERI: it should be
+	 * using copyin() to access user addresses!
 	 */
 	if (!(pc & 3) &&
 	    useracc((caddr_t)(intptr_t)pc, sizeof(int) * 4, VM_PROT_READ)) {
@@ -1596,6 +1605,7 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#jx\n",
 		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 	}
+#endif
 }
 
 static void
@@ -1603,7 +1613,9 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 {
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
+#ifndef CPU_CHERI
 	unsigned int *addr;
+#endif
 	struct thread *td;
 	struct proc *p;
 	char *read_or_write;
@@ -1647,9 +1659,16 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 
 	get_mapping_info((vm_offset_t)pc, &pdep, &ptep);
 
+#ifndef CPU_CHERI
 	/*
-	 * Dump a few words around faulting instruction, if the addres is
+	 * Dump a few words around faulting instruction, if the address is
 	 * valid.
+	 *
+	 * XXXRW: Temporarily disabled in CHERI as this doesn't properly
+	 * indirect through $c0 / $pcc.
+	 *
+	 * XXXRW: Arguably, this is also incorrect for non-CHERI: it should be
+	 * using copyin() to access user addresses!
 	 */
 	if (!(pc & 3) && (pc != frame->badvaddr) &&
 	    (trap_type != T_BUS_ERR_IFETCH) &&
@@ -1667,6 +1686,7 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 		log(LOG_ERR, "pc address %#jx is inaccessible, pde = %p, pte = %#jx\n",
 		    (intmax_t)pc, (void *)(intptr_t)*pdep, (uintmax_t)(ptep ? *ptep : 0));
 	}
+#endif
 
 	get_mapping_info((vm_offset_t)frame->badvaddr, &pdep, &ptep);
 	log(LOG_ERR, "Page table info for bad address %#jx: pde = %p, pte = %#jx\n",
@@ -1716,6 +1736,9 @@ mips_unaligned_load_store(struct trapframe *frame, int mode, register_t addr, re
 	 *
 	 * XXXRW: Especially, we need to be prepared for the possibility that
 	 * $pcc ($epcc) is not readable or unaligned.
+	 *
+	 * XXXRW: Arguably, this is also incorrect for non-CHERI: it should be
+	 * using copyin() to access user addresses!
 	 */
 	CHERI_CLW(inst, pc, 0, CHERI_CR_EPCC);
 	CHERI_CGETBASE(c0_base, CHERI_CR_C0);
