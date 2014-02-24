@@ -17,9 +17,6 @@ CFLAGS+=	-DHAS_snprintf -DHAS_vsnprintf -I${.CURDIR}
 
 WARNS?=		3
 
-# Temporarily required (hopefully)
-NO_WERROR=	yes
-
 CLEANFILES+=	example.o example foo.gz minigzip.o minigzip
 
 SRCS+=		adler32.c
