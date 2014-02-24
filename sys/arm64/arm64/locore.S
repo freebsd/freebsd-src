@@ -77,14 +77,28 @@ virtdone:
 	adr	x29, initstack
 	mov	sp, x29
 
+	/* Zero the BSS */
+	ldr	x29, .Lbss
+	ldr	x28, .Lend
+	b	2f
+1:
+	str	xzr, [x29], #8
+	cmp	x29, x28
+	b.lo	1b
+2:
+
 	/* Branch to C code */
 	bl	initarm
 
-1:	b	1b
+3:	b	3b
 
 	.align 3
 .Lvirtdone:
 	.quad	virtdone
+.Lbss:
+	.quad	__bss_start
+.Lend:
+	.quad	_end
 
 /*
  * If we are started in EL2, configure the required hypervisor

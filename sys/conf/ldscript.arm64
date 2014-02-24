@@ -97,6 +97,7 @@ SECTIONS
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
+  . = ALIGN(8);
   .sdata     : { *(.sdata) }
   _edata  =  .;
   PROVIDE (edata = .);
@@ -108,7 +109,7 @@ SECTIONS
    *(.bss)
    *(COMMON)
   }
-  . = ALIGN(32 / 8);
+  . = ALIGN(8);
   _end = . ;
   PROVIDE (end = .);
   /* Stabs debugging sections.  */
