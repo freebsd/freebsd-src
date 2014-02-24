@@ -65,8 +65,8 @@ typedef enum {
 } charset_t;
 
 typedef struct {
-	int	 end;
 	int	 start;
+	int	 end;
 	int	 width;
 } range_t;
 
