@@ -29,10 +29,10 @@
 #ifndef	__ARSWITCH_VLANS_H__
 #define	__ARSWITCH_VLANS_H__
 
-void arswitch_reset_vlans(struct arswitch_softc *);
-int arswitch_getvgroup(device_t, etherswitch_vlangroup_t *);
-int arswitch_setvgroup(device_t, etherswitch_vlangroup_t *);
-int arswitch_get_pvid(struct arswitch_softc *, int, int *);
-int arswitch_set_pvid(struct arswitch_softc *, int, int);
+void ar8xxx_reset_vlans(struct arswitch_softc *);
+int ar8xxx_getvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
+int ar8xxx_setvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
+int ar8xxx_get_pvid(struct arswitch_softc *, int, int *);
+int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
 
 #endif	/* __ARSWITCH_VLANS_H__ */
