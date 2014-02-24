@@ -1568,7 +1568,7 @@ ZEXTERN void ZEXPORT gzclearerr OF((gzFile file));
 */
 
 ZEXTERN uLong ZEXPORT adler32 OF((uLong adler, const Bytef *buf, uInt len));
-ZEXTERN uLong ZEXPORT c_adler32 OF((uLong adler, __capability const Bytef *buf,
+ZEXTERN uLong ZEXPORT adler32_c OF((uLong adler, __capability const Bytef *buf,
                                     uInt len));
 /*
      Update a running Adler-32 checksum with the bytes buf[0..len-1] and
@@ -1602,7 +1602,7 @@ ZEXTERN uLong ZEXPORT adler32_combine OF((uLong adler1, uLong adler2,
 
 ZEXTERN uLong ZEXPORT crc32   OF((uLong crc, const Bytef *buf,
                                   uInt len));
-ZEXTERN uLong ZEXPORT c_crc32   OF((uLong crc, __capability const Bytef *buf,
+ZEXTERN uLong ZEXPORT crc32_c   OF((uLong crc, __capability const Bytef *buf,
                                   uInt len));
 /*
      Update a running CRC-32 with the bytes buf[0..len-1] and return the

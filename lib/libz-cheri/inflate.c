@@ -431,9 +431,9 @@ unsigned copy;
 /* check function to use adler32() for zlib or crc32() for gzip */
 #ifdef GUNZIP
 #  define UPDATE(check, buf, len) \
-    (state->flags ? c_crc32(check, buf, len) : c_adler32(check, buf, len))
+    (state->flags ? crc32_(check, buf, len) : adler32_c(check, buf, len))
 #else
-#  define UPDATE(check, buf, len) adler32(check, buf, len)
+#  define UPDATE(check, buf, len) adler32_c(check, buf, len)
 #endif
 
 /* check macros for header crc */
@@ -743,7 +743,7 @@ int flush;
                                 state->head->extra_max - len : copy);
                     }
                     if (state->flags & 0x0200)
-                        state->check = c_crc32(state->check, next, copy);
+                        state->check = crc32_c(state->check, next, copy);
                     have -= copy;
                     next += copy;
                     state->length -= copy;
@@ -764,7 +764,7 @@ int flush;
                         state->head->name[state->length++] = len;
                 } while (len && copy < have);
                 if (state->flags & 0x0200)
-                    state->check = c_crc32(state->check, next, copy);
+                    state->check = crc32_c(state->check, next, copy);
                 have -= copy;
                 next += copy;
                 if (len) goto inf_leave;
@@ -785,7 +785,7 @@ int flush;
                         state->head->comment[state->length++] = len;
                 } while (len && copy < have);
                 if (state->flags & 0x0200)
-                    state->check = c_crc32(state->check, next, copy);
+                    state->check = crc32_c(state->check, next, copy);
                 have -= copy;
                 next += copy;
                 if (len) goto inf_leave;
@@ -1307,7 +1307,7 @@ uInt dictLength;
     /* check for correct dictionary identifier */
     if (state->mode == DICT) {
         dictid = adler32(0L, Z_NULL, 0);
-        dictid = adler32(dictid, dictionary, dictLength);
+        dictid = adler32_c(dictid, dictionary, dictLength);
         if (dictid != state->check)
             return Z_DATA_ERROR;
     }
