@@ -96,6 +96,12 @@ struct arswitch_softc {
 		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
 		    int);
 	} hal;
+
+	struct {
+		uint32_t port0_status;
+		uint32_t port5_status;
+		uint32_t port6_status;
+	} ar8327;
 };
 
 #define	ARSWITCH_LOCK(_sc)			\
