@@ -794,11 +794,6 @@ static void	     atp_convert_to_slide(struct atp_softc *, atp_stroke_t *);
 static void	     atp_reset_buf(struct atp_softc *);
 static void	     atp_add_to_queue(struct atp_softc *, int, int, int, uint32_t);
 
-static const sensor_data_interpreter_t atp_sensor_data_interpreters[TRACKPAD_FAMILY_MAX] = {
-	[TRACKPAD_FAMILY_FOUNTAIN_GEYSER] = fg_interpret_sensor_data,
-	[TRACKPAD_FAMILY_WELLSPRING]      = wsp_interpret_sensor_data,
-};
-
 /* Device methods. */
 static device_probe_t  atp_probe;
 static device_attach_t atp_attach;
