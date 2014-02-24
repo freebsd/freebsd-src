@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2014
+.Dd February 24, 2014
 .Dt ATP 4
 .Os
 .Sh NAME
@@ -58,8 +58,9 @@ Single finger tap generates a left\-button click; two\-finger tap maps to the
 middle button; whereas a three\-finger tap gets treated as a right button
 click.
 .Pp
-There is support for 2-finger horizontal scrolling, which translates to
-page\-back/forward events.
+There is support for 2\-finger horizontal scrolling, which translates to
+page\-back/forward events; vertical multi\-finger scrolling emulates the mouse
+wheel.
 .Pp
 A double\-tap followed by a drag is treated as a selection gesture; a
 virtual left\-button click is assumed for the lifespan of the drag.
