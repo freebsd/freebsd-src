@@ -123,7 +123,7 @@ ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 		t = AR8327_PAD_SGMII_EN;
 
 		/*
-		 * WAR for the QUalcomm Atheros AP136 board.
+		 * WAR for the Qualcomm Atheros AP136 board.
 		 * It seems that RGMII TX/RX delay settings needs to be
 		 * applied for SGMII mode as well, The ethernet is not
 		 * reliable without this.
@@ -183,54 +183,7 @@ ar8327_get_pad_cfg(struct ar8327_pad_cfg *cfg)
 
 	return (t);
 }
-/*
- * Initialise the ar8327 specific hardware features from
- * the hints provided in the boot environment.
- */
-static int
-ar8327_init_pdata(struct arswitch_softc *sc)
-{
-	struct ar8327_pad_cfg pc;
-	uint32_t t;
 
-	/* XXX hard-coded DB120 defaults for now! */
-
-	/* Port 0 - rgmii; 1000/full */
-
-	/* Port 6 - ignore */
-
-	/* Pad 0 */
-	bzero(&pc, sizeof(pc));
-	pc.mode = AR8327_PAD_MAC_RGMII,
-	pc.txclk_delay_en = true,
-	pc.rxclk_delay_en = true,
-	pc.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
-	pc.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
-
-	t = ar8327_get_pad_cfg(&pc);
-#if 0
-	if (AR8X16_IS_SWITCH(sc, AR8337))
-		t |= AR8337_PAD_MAC06_EXCHANGE_EN;
-#endif
-	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD0_MODE, t);
-
-	/* Pad 5 */
-	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
-	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD5_MODE, t);
-
-	/* Pad 6 */
-	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
-	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD6_MODE, t);
-
-	/* LED config */
-
-	/* SGMII config */
-	return (0);
-}
-
-#if 0
 /*
  * Map the hard-coded port config from the switch setup to
  * the chipset port config (status, duplex, flow, etc.)
@@ -262,7 +215,64 @@ ar8327_get_port_init_status(struct ar8327_port_cfg *cfg)
 
 	return (t);
 }
+
+/*
+ * Initialise the ar8327 specific hardware features from
+ * the hints provided in the boot environment.
+ */
+static int
+ar8327_init_pdata(struct arswitch_softc *sc)
+{
+	struct ar8327_pad_cfg pc;
+	struct ar8327_port_cfg port_cfg;
+	uint32_t t;
+
+	/* XXX hard-coded DB120 defaults for now! */
+
+	/* Port 0 - rgmii; 1000/full */
+	bzero(&port_cfg, sizeof(port_cfg));
+	port_cfg.speed = AR8327_PORT_SPEED_1000;
+	port_cfg.duplex = 1;
+	port_cfg.rxpause = 1;
+	port_cfg.txpause = 1;
+	port_cfg.force_link = 1;
+	sc->ar8327.port0_status = ar8327_get_port_init_status(&port_cfg);
+
+	/* Port 6 - ignore */
+	bzero(&port_cfg, sizeof(port_cfg));
+	sc->ar8327.port6_status = ar8327_get_port_init_status(&port_cfg);
+
+	/* Pad 0 */
+	bzero(&pc, sizeof(pc));
+	pc.mode = AR8327_PAD_MAC_RGMII,
+	pc.txclk_delay_en = true,
+	pc.rxclk_delay_en = true,
+	pc.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+	pc.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+
+	t = ar8327_get_pad_cfg(&pc);
+#if 0
+	if (AR8X16_IS_SWITCH(sc, AR8337))
+		t |= AR8337_PAD_MAC06_EXCHANGE_EN;
 #endif
+	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD0_MODE, t);
+
+	/* Pad 5 */
+	bzero(&pc, sizeof(pc));
+	t = ar8327_get_pad_cfg(&pc);
+	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD5_MODE, t);
+
+	/* Pad 6 */
+	bzero(&pc, sizeof(pc));
+	t = ar8327_get_pad_cfg(&pc);
+	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD6_MODE, t);
+
+	/* XXX LED config */
+
+	/* XXX SGMII config */
+
+	return (0);
+}
 
 static int
 ar8327_hw_setup(struct arswitch_softc *sc)
@@ -331,15 +341,12 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 {
 	uint32_t t;
 
-	/* XXX TODO: need to initialise port0/port6 status in pdata */
-
-#if 0
-        if (port == AR8216_PORT_CPU)
-                t = sc->chip_data.ar8327.port0_status;
-        else if (port == 6)
-                t = sc->chip_data.ar8327.port6_status;
+	if (port == AR8X16_PORT_CPU)
+		t = sc->ar8327.port0_status;
+	else if (port == 6)
+		t = sc->ar8327.port6_status;
         else
-#endif
+#if 0
 	/* XXX DB120 - hard-code port0 to 1000/full */
 	if (port == 0) {
 		t = AR8X16_PORT_STS_SPEED_1000;
@@ -348,6 +355,7 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 		t |= AR8X16_PORT_STS_RXFLOW;
 		t |= AR8X16_PORT_STS_TXFLOW;
 	} else
+#endif
 		t = AR8X16_PORT_STS_LINK_AUTO;
 
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_STATUS(port), t);
