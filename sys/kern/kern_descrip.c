@@ -3052,7 +3052,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (fdp->fd_jdir != NULL)
 		export_vnode_for_osysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
 				fdp, req);
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
@@ -3422,7 +3422,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
 		    FREAD, -1, -1, NULL, efbuf);
 	}
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
