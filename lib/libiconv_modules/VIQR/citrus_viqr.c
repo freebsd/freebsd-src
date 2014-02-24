@@ -458,18 +458,18 @@ _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
 		}
 	}
 	if (mnemonic_ext > 0) {
-	for (i = 0; i < mnemonic_ext_size; ++i) {
-		p = &mnemonic_ext[i];
-		n = strlen(p->name);
-		if (ei->mb_cur_max < n)
-			ei->mb_cur_max = n;
-		errnum = mnemonic_append_child(ei->mroot,
-		    p->name, p->value, ei->invalid);
-		if (errnum != 0) {
-			_citrus_VIQR_encoding_module_uninit(ei);
-			return (errnum);
+		for (i = 0; i < mnemonic_ext_size; ++i) {
+			p = &mnemonic_ext[i];
+			n = strlen(p->name);
+			if (ei->mb_cur_max < n)
+				ei->mb_cur_max = n;
+			errnum = mnemonic_append_child(ei->mroot,
+			    p->name, p->value, ei->invalid);
+			if (errnum != 0) {
+				_citrus_VIQR_encoding_module_uninit(ei);
+				return (errnum);
+			}
 		}
-	}
 	}
 
 	return (0);
