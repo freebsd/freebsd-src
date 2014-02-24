@@ -294,7 +294,8 @@ fr_print(packetbody_t p, u_int length)
 	case NLPID_CLNP:
 	case NLPID_ESIS:
 	case NLPID_ISIS:
-                isoclns_print(p-1, length+1, length+1); /* OSI printers need the NLPID field */
+		/* OSI printers need the NLPID field */
+                isoclns_print(PACKET_SUBTRACT(p, 1), length+1, length+1);
 		break;
 
 	case NLPID_SNAP:
@@ -304,7 +305,8 @@ fr_print(packetbody_t p, u_int length)
                             fr_hdr_print(length + hdr_len, hdr_len,
                                          dlci, flags, nlpid);
 			if (!suppress_default_print)
-                            default_print(p - hdr_len, length + hdr_len);
+                            default_print(PACKET_SUBTRACT(p, hdr_len),
+			 		  length + hdr_len);
 		}
 		break;
 
