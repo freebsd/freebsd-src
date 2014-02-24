@@ -222,7 +222,7 @@ arswitch_set_vlan_mode(struct arswitch_softc *sc, uint32_t mode)
 	};
 
 	/* Reset VLANs. */
-	arswitch_reset_vlans(sc);
+	sc->hal.arswitch_vlan_init_hw(sc);
 
 	return (0);
 }
@@ -274,6 +274,11 @@ arswitch_attach(device_t dev)
 	sc->hal.arswitch_port_init = ar8xxx_port_init;
 	sc->hal.arswitch_port_vlan_setup = ar8xxx_port_vlan_setup;
 	sc->hal.arswitch_port_vlan_get = ar8xxx_port_vlan_get;
+	sc->hal.arswitch_vlan_init_hw = ar8xxx_reset_vlans;
+	sc->hal.arswitch_vlan_getvgroup = ar8xxx_getvgroup;
+	sc->hal.arswitch_vlan_setvgroup = ar8xxx_setvgroup;
+	sc->hal.arswitch_vlan_get_pvid = ar8xxx_get_pvid;
+	sc->hal.arswitch_vlan_set_pvid = ar8xxx_set_pvid;
 
 	/*
 	 * Attach switch related functions
@@ -538,7 +543,7 @@ ar8xxx_port_vlan_get(struct arswitch_softc *sc, etherswitch_port_t *p)
 	ARSWITCH_LOCK(sc);
 
 	/* Retrieve the PVID. */
-	arswitch_get_pvid(sc, p->es_port, &p->es_pvid);
+	sc->hal.arswitch_vlan_get_pvid(sc, p->es_port, &p->es_pvid);
 
 	/* Port flags. */
 	reg = arswitch_readreg(sc->sc_dev, AR8X16_REG_PORT_CTRL(p->es_port));
@@ -602,7 +607,7 @@ ar8xxx_port_vlan_setup(struct arswitch_softc *sc, etherswitch_port_t *p)
 
 	/* Set the PVID. */
 	if (p->es_pvid != 0)
-		arswitch_set_pvid(sc, p->es_port, p->es_pvid);
+		sc->hal.arswitch_vlan_set_pvid(sc, p->es_port, p->es_pvid);
 
 	/* Mutually exclusive. */
 	if (p->es_flags & ETHERSWITCH_PORT_ADDTAG &&
@@ -728,6 +733,22 @@ arswitch_setconf(device_t dev, etherswitch_conf_t *conf)
 	}
 
 	return (0);
+}
+
+static int
+arswitch_getvgroup(device_t dev, etherswitch_vlangroup_t *e)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.arswitch_vlan_getvgroup(sc, e));
+}
+
+static int
+arswitch_setvgroup(device_t dev, etherswitch_vlangroup_t *e)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	return (sc->hal.arswitch_vlan_setvgroup(sc, e));
 }
 
 static device_method_t arswitch_methods[] = {
