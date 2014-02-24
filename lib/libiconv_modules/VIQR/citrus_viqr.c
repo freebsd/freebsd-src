@@ -457,7 +457,7 @@ _citrus_VIQR_encoding_module_init(_VIQREncodingInfo * __restrict ei,
 			return (errnum);
 		}
 	}
-	for (i = 0;; ++i) {
+	for (i = 0; i < mnemonic_ext_size; ++i) {
 		p = &mnemonic_ext[i];
 		n = strlen(p->name);
 		if (ei->mb_cur_max < n)
