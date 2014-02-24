@@ -66,6 +66,7 @@
 #include <dev/etherswitch/arswitch/arswitch_8216.h>
 #include <dev/etherswitch/arswitch/arswitch_8226.h>
 #include <dev/etherswitch/arswitch/arswitch_8316.h>
+#include <dev/etherswitch/arswitch/arswitch_8327.h>
 #include <dev/etherswitch/arswitch/arswitch_9340.h>
 
 #include "mdio_if.h"
@@ -293,6 +294,8 @@ arswitch_attach(device_t dev)
 		ar8226_attach(sc);
 	else if (AR8X16_IS_SWITCH(sc, AR8316))
 		ar8316_attach(sc);
+	else if (AR8X16_IS_SWITCH(sc, AR8327))
+		ar8327_attach(sc);
 	else
 		return (ENXIO);
 
