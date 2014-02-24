@@ -255,6 +255,19 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 void initarm(void);
 
+#ifdef EARLY_PRINTF
+static void 
+foundation_early_putc(int c)
+{
+	volatile uint32_t *uart = (uint32_t*)0x1c090000;
+
+	/* TODO: Wait for space in the fifo */
+	uart[0] = c;
+}
+
+early_putc_t *early_putc = foundation_early_putc;
+#endif
+
 void
 initarm(void)
 {
@@ -266,5 +279,7 @@ initarm(void)
 	for (i = 0; i < sizeof(str); i++) {
 		*uart = str[i];
 	}
+
+	printf("In initarm on arm64\n");
 }
 
