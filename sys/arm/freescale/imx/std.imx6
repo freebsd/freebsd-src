@@ -10,5 +10,8 @@ options		KERNPHYSADDR		= 0x12000000
 makeoptions	KERNPHYSADDR		= 0x12000000
 options		PHYSADDR		= 0x10000000
 
+options		IPI_IRQ_START=0
+options		IPI_IRQ_END=15
+
 files "../freescale/imx/files.imx6"
 
