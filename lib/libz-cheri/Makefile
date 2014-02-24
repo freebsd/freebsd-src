@@ -59,6 +59,9 @@ CFLAGS+=	-DSYMBOL_VERSIONING
 
 INCS=		zconf-cheri.h zlib-cheri.h
 
+.include <bsd.own.mk>
+CFLAGS+=	-DPOSTINC
+
 minigzip:	all minigzip.o
 	$(CC) -o minigzip minigzip.o -L. -lz
 

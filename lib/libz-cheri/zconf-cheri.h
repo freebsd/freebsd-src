@@ -520,11 +520,11 @@ typedef uLong FAR uLongf;
 #include <sys/cdefs.h>
 #if __has_feature(capabilities)
 #include <machine/cheric.h>
+#include <machine/cherireg.h>
 #else
 #define __capability
-#define cheri_ptr(a, b) (a)
-#define cheri_setlen(a, b) (a)
-#define cheri_getbase(a) (a)
+#define cheri_ptrperm(a, b)	(a)
+#define	cheri_ptr(a, b)		(a)
 #endif
 #endif
 

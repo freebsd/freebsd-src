@@ -200,7 +200,14 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #  define HAVE_MEMCPY
 #endif
 #ifdef HAVE_MEMCPY
-#  ifdef SMALL_MEDIUM /* MSDOS small or medium model */
+#  if __has_feature(capabilities)
+#    define zmemcpy memcpy
+#    define zmemcpy_c memcpy_c
+#    define zmemcpy_c_fromcap memcpy_c_fromcap
+#    define zmemcpy_c_tocap memcpy_c_tocap
+#    define zmemcmp memcmp
+#    define zmemzero(dest, len) memset(dest, 0, len)
+#  elif SMALL_MEDIUM /* MSDOS small or medium model */
 #    define zmemcpy _fmemcpy
 #    define zmemcmp _fmemcmp
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
@@ -213,6 +220,11 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
    void ZLIB_INTERNAL zmemcpy OF((Bytef* dest, const Bytef* source, uInt len));
    int ZLIB_INTERNAL zmemcmp OF((const Bytef* s1, const Bytef* s2, uInt len));
    void ZLIB_INTERNAL zmemzero OF((Bytef* dest, uInt len));
+#endif
+#if !__has_feature(capabilities)
+#  define zmemcpy_c zmemcpy
+#  define zmemcpy_c_fromcap zmemcpy
+#  define zmemcpy_c_tocap zmemcpy
 #endif
 
 /* Diagnostic functions */

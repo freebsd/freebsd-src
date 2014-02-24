@@ -586,6 +586,10 @@ void	*valloc(size_t);			/* obsoleted by malloc() */
 #define	_OPTRESET_DECLARED
 extern int optreset;			/* getopt(3) external variable */
 #endif
+
+#if __has_feature(capabilities)
+ssize_t	 write_c(int, __capability const void *, size_t);
+#endif
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 

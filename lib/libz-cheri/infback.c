@@ -210,7 +210,7 @@ struct inflate_state FAR *state;
 #define ROOM() \
     do { \
         if (left == 0) { \
-            put = state->window; \
+            sput = put = state->window; \
             left = state->wsize; \
             state->whave = left; \
             if (out(out_desc, put, left)) { \
@@ -257,11 +257,12 @@ void FAR *out_desc;
     struct inflate_state FAR *state;
     __capability z_const unsigned char FAR *next;    /* next input */
     __capability unsigned char FAR *put;     /* next output */
+    __capability unsigned char FAR *sput;     /* saved next output */
     unsigned have, left;        /* available input and output */
     unsigned long hold;         /* bit buffer */
     unsigned bits;              /* bits in bit buffer */
     unsigned copy;              /* number of stored or match bytes to copy */
-    unsigned char FAR *from;    /* where to copy match bytes from */
+    __capability unsigned char FAR *from; /* where to copy match bytes from */
     code here;                  /* current decoding table entry */
     code last;                  /* parent table entry */
     unsigned len;               /* length to copy for repeats, bits to drop */
@@ -283,7 +284,7 @@ void FAR *out_desc;
     have = next != Z_NULL ? strm->avail_in : 0;
     hold = 0;
     bits = 0;
-    put = state->window;
+    sput = put = state->window;
     left = state->wsize;
 
     /* Inflate until end of block marked as last */
@@ -344,7 +345,7 @@ void FAR *out_desc;
                 ROOM();
                 if (copy > have) copy = have;
                 if (copy > left) copy = left;
-                zmemcpy(cheri_getbase(put), cheri_getbase(next), copy);
+                zmemcpy_c(put, next, copy);
                 have -= copy;
                 next += copy;
                 left -= copy;
@@ -484,7 +485,7 @@ void FAR *out_desc;
                 RESTORE();
                 if (state->whave < state->wsize)
                     state->whave = state->wsize - left;
-                inflate_fast(strm, state->wsize);
+                inflate_fast(strm, sput + ((strm->next_out - sput) - (state->wsize - strm->avail_out)));
                 LOAD();
                 break;
             }
@@ -587,11 +588,11 @@ void FAR *out_desc;
                 ROOM();
                 copy = state->wsize - state->offset;
                 if (copy < left) {
-                    from = cheri_getbase(put + copy);
+                    from = put + copy;
                     copy = left - copy;
                 }
                 else {
-                    from = cheri_getbase(put - state->offset);
+                    from = sput + ((put - sput) - state->offset);
                     copy = left;
                 }
                 if (copy > state->length) copy = state->length;

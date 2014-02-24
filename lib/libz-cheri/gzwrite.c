@@ -8,6 +8,25 @@
 #include "gzguts.h"
 #include <unistd.h>
 
+#if __FreeBSD__
+#include <sys/cdefs.h>
+#if __has_feature(capabilities)
+#define HAS_CHERI_CAPABILITIES
+#endif
+#endif
+
+#ifdef HAS_CHERI_CAPABILITIES
+#define	zmemcpy_c		memcpy_c
+#define	zmemcpy_c_tocap		memcpy_c_tocap
+#define	zmemset_c		memset_c
+#define zwrite_c		write_c
+#else
+#define	zmemcpy_c		memcpy
+#define	zmemcpy_c_tocap		memcpy
+#define	zmemset_c		memset
+#define zwrite_c		write
+#endif
+
 /* Local functions */
 local int gz_init OF((gz_statep));
 local int gz_comp OF((gz_statep, int));
@@ -84,8 +103,7 @@ local int gz_comp(state, flush)
 
     /* write directly if requested */
     if (state->direct) {
-	/* XXX CHERI: need cwrite() call gate in sandbox */
-        got = write(state->fd, cheri_getbase(strm->next_in), strm->avail_in);
+        got = zwrite_c(state->fd, strm->next_in, strm->avail_in);
         if (got < 0 || (unsigned)got != strm->avail_in) {
             gz_error(state, Z_ERRNO, zstrerror());
             return -1;
@@ -103,7 +121,7 @@ local int gz_comp(state, flush)
             (flush != Z_FINISH || ret == Z_STREAM_END))) {
             have = (unsigned)(strm->next_out - state->x.next);
 	    /* XXX CHERI: need cwrite() callgate for sandbox */
-            if (have && ((got = write(state->fd, cheri_getbase(state->x.next),
+            if (have && ((got = zwrite_c(state->fd, state->x.next,
 			 have)) < 0 || (unsigned)got != have)) {
                 gz_error(state, Z_ERRNO, zstrerror());
                 return -1;
@@ -153,7 +171,7 @@ local int gz_zero(state, len)
         n = GT_OFF(state->size) || (z_off64_t)state->size > len ?
             (unsigned)len : state->size;
         if (first) {
-            memset(cheri_getbase(state->in), 0, n);
+            zmemset_c(state->in, 0, n);
             first = 0;
         }
         strm->avail_in = n;
@@ -220,7 +238,7 @@ int ZEXPORT gzwrite(file, buf, len)
             copy = state->size - have;
             if (copy > len)
                 copy = len;
-            memcpy((unsigned char *)cheri_getbase(state->in) + have, buf, copy);
+            zmemcpy_c_tocap(state->in + have, buf, copy);
             strm->avail_in += copy;
             state->x.pos += copy;
             buf = (const char *)buf + copy;
@@ -236,7 +254,7 @@ int ZEXPORT gzwrite(file, buf, len)
 
         /* directly compress user buffer to file */
         strm->avail_in = len;
-        strm->next_in = cheri_setlen((__capability void*)buf, len);
+        strm->next_in = cheri_ptr((void*)buf, len);
         state->x.pos += len;
         if (gz_comp(state, Z_NO_FLUSH) == -1)
             return 0;

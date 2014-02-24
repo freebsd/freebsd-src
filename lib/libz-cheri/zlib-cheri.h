@@ -819,6 +819,9 @@ ZEXTERN int ZEXPORT inflateInit2 OF((z_streamp strm,
 ZEXTERN int ZEXPORT inflateSetDictionary OF((z_streamp strm,
                                              const Bytef *dictionary,
                                              uInt  dictLength));
+ZEXTERN int ZEXPORT inflateSetDictionary_c OF((z_streamp strm,
+                                             __capability const Bytef *dictionary,
+                                             uInt  dictLength));
 /*
      Initializes the decompression dictionary from the given uncompressed byte
    sequence.  This function must be called immediately after a call of inflate,

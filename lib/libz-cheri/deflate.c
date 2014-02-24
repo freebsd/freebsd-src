@@ -359,7 +359,8 @@ int ZEXPORT deflateSetDictionary (strm, dictionary, dictLength)
     avail = strm->avail_in;
     next = strm->next_in;
     strm->avail_in = dictLength;
-    strm->next_in = cheri_setlen((__capability Bytef *)dictionary, dictLength);
+    strm->next_in = cheri_ptrperm((void *)dictionary, dictLength,
+	CHERI_PERM_LOAD);
     fill_window(s);
     while (s->lookahead >= MIN_MATCH) {
         str = s->strstart;
@@ -651,7 +652,7 @@ local void flush_pending(strm)
     if (len == 0) return;
 
     /* XXX CHERI: cmemcpy for sandbox */
-    zmemcpy(cheri_getbase(strm->next_out), s->pending_out, len);
+    zmemcpy_c_tocap(strm->next_out, s->pending_out, len);
     strm->next_out  += len;
     s->pending_out  += len;
     strm->total_out += len;
@@ -1086,8 +1087,7 @@ local int read_buf(strm, buf, size)
 
     strm->avail_in  -= len;
 
-   /* XXX CHERI: cmemcpy for sandbox */
-    zmemcpy(buf, cheri_getbase(strm->next_in), len);
+    zmemcpy_c_fromcap(buf, strm->next_in, len);
     if (strm->state->wrap == 1) {
         strm->adler = adler32(strm->adler, buf, len);
     }

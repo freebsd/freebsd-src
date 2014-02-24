@@ -135,6 +135,8 @@ void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
 #if __has_feature(capabilities)
+const void *
+	 memchr_c_const(__capability const void *, int, size_t) __pure;
 __capability void
 	*memchr_c(__capability const void *, int, size_t) __pure;
 int	 memcmp_c(__capability const void *, __capability const void *, size_t)
@@ -147,6 +149,7 @@ void	*memcpy_c_fromcap(void * __restrict,
 __capability void
 	*memcpy_c_tocap(__capability void * __restrict,
 	    const void * __restrict, size_t);
+void	*memset_c(__capability void *, int, size_t);
 
 __capability char
 	*strchr_c(__capability const char *, int) __pure;
