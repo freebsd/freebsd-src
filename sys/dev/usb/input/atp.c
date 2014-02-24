@@ -2075,18 +2075,16 @@ atp_reap_sibling_zombies(void *arg)
 			break;
 		default:
 			/* we handle taps of only up to 3 fingers */
-			break;
+			return;
 		}
 		atp_add_to_queue(sc, 0, 0, 0, 0); /* button release */
 
-	} else if (n_slides_reaped == 2) {
-		if (n_horizontal_scrolls == 2) {
-			if (horizontal_scroll < 0)
-				atp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON4DOWN);
-			else
-				atp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON5DOWN);
-			atp_add_to_queue(sc, 0, 0, 0, 0); /* button release */
-		}
+	} else if ((n_slides_reaped == 2) && (n_horizontal_scrolls == 2)) {
+		if (horizontal_scroll < 0)
+			atp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON4DOWN);
+		else
+			atp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON5DOWN);
+		atp_add_to_queue(sc, 0, 0, 0, 0); /* button release */
 	}
 }
 
@@ -2369,8 +2367,12 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 			u_int8_t n_movements = 0;
 			int dx = 0;
 			int dy = 0;
+			int dz = 0;
 
 			TAILQ_FOREACH(strokep, &sc->sc_stroke_used, entry) {
+				if (strokep->flags & ATSF_ZOMBIE)
+					continue;
+
 				dx += strokep->movement_dx;
 				dy += strokep->movement_dy;
 				if (strokep->movement_dx ||
@@ -2384,9 +2386,26 @@ atp_intr(struct usb_xfer *xfer, usb_error_t error)
 				dy /= (int)n_movements;
 			}
 
+			/* detect multi-finger vertical scrolls */
+			if (n_movements >= 2) {
+				boolean_t all_vertical_scrolls = true;
+				TAILQ_FOREACH(strokep, &sc->sc_stroke_used, entry) {
+					if (strokep->flags & ATSF_ZOMBIE)
+						continue;
+
+					if (!atp_is_vertical_scroll(strokep))
+						all_vertical_scrolls = false;
+				}
+				if (all_vertical_scrolls) {
+					dz = dy;
+					dy = dx = 0;
+				}
+			}
+
 			sc->sc_status.dx += dx;
 			sc->sc_status.dy += dy;
-			atp_add_to_queue(sc, dx, -dy, 0, sc->sc_status.button);
+			sc->sc_status.dz += dz;
+			atp_add_to_queue(sc, dx, -dy, -dz, sc->sc_status.button);
 		}
 
 	case USB_ST_SETUP:
