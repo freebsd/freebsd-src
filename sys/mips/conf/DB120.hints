@@ -14,13 +14,37 @@ hint.argemdio.0.order=0
 hint.ar934x_gmac.0.gmac_cfg=0x41
 
 # GMAC0 here - connected to an AR8327
-#hint.arswitch.0.at="mdio0"
-#hint.arswitch.0.is_7240=0
-#hint.arswitch.0.is_9340=0	# not the internal switch!
-#hint.arswitch.0.numphys=5
-#hint.arswitch.0.phy4cpu=0
-#hint.arswitch.0.is_rgmii=1
-#hint.arswitch.0.is_gmii=0
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0
+hint.arswitch.0.is_9340=0	# not the internal switch!
+hint.arswitch.0.numphys=5
+hint.arswitch.0.phy4cpu=0
+hint.arswitch.0.is_rgmii=1
+hint.arswitch.0.is_gmii=0
+# XXX other AR8327 configuration parameters
+
+# pad0 cfg:
+# .mode = AR8327_PAD_MAC_RGMII,
+# .txclk_delay_en = true,
+# .rxclk_delay_en = true,
+# .txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
+# .rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
+
+# .led_ctrl0 = 0x00000000,
+# .led_ctrl1 = 0xc737c737,
+# .led_ctrl2 = 0x00000000,
+# .led_ctrl3 = 0x00c30c00,
+# .open_drain = true,
+
+# .port0_cfg = {
+# .force_link = 1,
+# .speed = AR8327_PORT_SPEED_1000,
+# .duplex = 1,
+# .txpause = 1,
+# .rxpause = 1,
+# },
+
+# port6 cfg?
 
 # XXX OpenWRT DB120 BSP doesn't have media/duplex set?
 hint.arge.0.phymask=0x0
@@ -36,7 +60,9 @@ hint.argemdio.1.msize=0x1000
 hint.argemdio.1.order=0
 
 # Embedded switch on the AR9344
-hint.arswitch.1.at="mdio1"
+# mdio1 is actually created as the AR8327 internal bus; so
+# this pops up as mdio2.
+hint.arswitch.1.at="mdio2"
 hint.arswitch.1.is_7240=0
 hint.arswitch.1.is_9340=1
 hint.arswitch.1.numphys=4
