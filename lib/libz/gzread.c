@@ -453,7 +453,7 @@ int ZEXPORT gzungetc(c, file)
     /* if output buffer empty, put byte at end (allows more pushing) */
     if (state->x.have == 0) {
         state->x.have = 1;
-        state->x.next = state->out + (state->size << 1) - 1;
+        state->x.next = state->out + ((state->size << 1) - 1);
         state->x.next[0] = c;
         state->x.pos--;
         state->past = 0;
