@@ -94,8 +94,8 @@ static struct wsp_tuning {
 	.z_factor = 5,
 	.pressure_touch_threshold = 50,
 	.pressure_untouch_threshold = 10,
-	.pressure_tap_threshold = 120,
-	.scr_hor_threshold = 50,
+	.pressure_tap_threshold = 100,
+	.scr_hor_threshold = 10,
 };
 
 static void
@@ -791,9 +791,13 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 					}
 					break;
 				case 2:
-					if (sc->distance < MAX_DISTANCE)
+					DPRINTFN(WSP_LLEVEL_INFO, "sum_x=%5d, sum_y=%5d\n",
+					    sc->dx_sum, sc->dy_sum);
+					if (sc->distance < MAX_DISTANCE && abs(sc->dx_sum) < 5 &&
+					    abs(sc->dy_sum) < 5) {
 						wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON3DOWN);
-					DPRINTFN(WSP_LLEVEL_INFO, "RIGHT CLICK!\n");
+						DPRINTFN(WSP_LLEVEL_INFO, "RIGHT CLICK!\n");
+					}
 					break;
 				case 3:
 					wsp_add_to_queue(sc, 0, 0, 0, MOUSE_BUTTON2DOWN);
@@ -804,8 +808,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				}
 				wsp_add_to_queue(sc, 0, 0, 0, 0);	/* button release */
 			}
-			if (sc->intr_count >= WSP_TAP_MAX_COUNT &&
-			    (sc->dt_sum / tun.scr_hor_threshold) != 0 &&
+			if ((sc->dt_sum / tun.scr_hor_threshold) != 0 &&
 			    sc->ntaps == 2 && sc->scr_mode == WSP_SCR_HOR) {
 
 				/*
@@ -903,7 +906,7 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			if (ntouch == 2 && sc->sc_status.button == 0) {
 				if (sc->scr_mode == WSP_SCR_NONE &&
-				    abs(sc->dx_sum) + abs(sc->dy_sum) > 50)
+				    abs(sc->dx_sum) + abs(sc->dy_sum) > tun.scr_hor_threshold)
 					sc->scr_mode = abs(sc->dx_sum) >
 					    abs(sc->dy_sum) ? WSP_SCR_HOR :
 					    WSP_SCR_VER;
@@ -918,9 +921,15 @@ wsp_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 				dy = 0;
 				if (sc->dz_count == 0)
 					dz = sc->dz_sum / tun.z_factor;
-				if (abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
+				if (sc->scr_mode == WSP_SCR_HOR || 
+				    abs(sc->pos_x[0] - sc->pos_x[1]) > MAX_DISTANCE ||
 				    abs(sc->pos_y[0] - sc->pos_y[1]) > MAX_DISTANCE)
 					dz = 0;
+			}
+			if (ntouch == 3) {
+				dx = 0;
+				dy = 0;
+				dz = 0;
 			}
 			if (sc->intr_count < WSP_TAP_MAX_COUNT &&
 			    abs(dx) < 3 && abs(dy) < 3 && abs(dz) < 3) {
