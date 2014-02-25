@@ -51,11 +51,11 @@ LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 .endif
 
-.if ${MK_CDDL} != "no"
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFS=		${.OBJDIR}/../zfs/libzfsboot.a
-.endif
+DPADD=		${LIBZFS}
+LDADD=		${LIBZFS}
 .endif
 
 # Always add MI sources 
@@ -63,7 +63,7 @@ LIBZFS=		${.OBJDIR}/../zfs/libzfsboot.a
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
-DPADD=		${LIBFICL} ${LIBZFS} ${LIBSTAND} 
-LDADD=		${LIBFICL} ${LIBZFS} ${LIBSTAND}
+DPADD+=		${LIBFICL} ${LIBSTAND} 
+LDADD+=		${LIBFICL} ${LIBSTAND}
 
 .include <bsd.lib.mk>
