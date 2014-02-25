@@ -51,9 +51,11 @@ LIBFICL=	${.OBJDIR}/../ficl/libficl.a
 LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 .endif
 
+.if ${MK_CDDL} != "no"
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
 LIBZFS=		${.OBJDIR}/../zfs/libzfsboot.a
+.endif
 .endif
 
 # Always add MI sources 
