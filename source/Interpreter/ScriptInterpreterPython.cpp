@@ -781,7 +781,13 @@ public:
     {
         
     }
-    
+
+    virtual void
+    Cancel ()
+    {
+        
+    }
+
     virtual void
     Interrupt ()
     {
@@ -2278,7 +2284,6 @@ ScriptInterpreterPython::LoadScriptingModule (const char* pathname,
         command_stream.Clear();
         command_stream.Printf("sys.modules.__contains__('%s')",basename.c_str());
         bool does_contain = false;
-        int refcount = 0;
         // this call will succeed if the module was ever imported in any Debugger in the lifetime of the process
         // in which this LLDB framework is living
         bool was_imported_globally = (ExecuteOneLineWithReturn(command_stream.GetData(),
@@ -2288,10 +2293,7 @@ ScriptInterpreterPython::LoadScriptingModule (const char* pathname,
         // this call will fail if the module was not imported in this Debugger before
         command_stream.Clear();
         command_stream.Printf("sys.getrefcount(%s)",basename.c_str());
-        bool was_imported_locally = (ExecuteOneLineWithReturn(command_stream.GetData(),
-                                                              ScriptInterpreterPython::eScriptReturnTypeInt,
-                                                              &refcount,
-                                                              ScriptInterpreter::ExecuteScriptOptions().SetEnableIO(false).SetSetLLDBGlobals(false)) && refcount > 0);
+        bool was_imported_locally = !(GetSessionDictionary().GetItemForKey(basename.c_str()).IsNULLOrNone());
         
         bool was_imported = (was_imported_globally || was_imported_locally);
         
@@ -2546,8 +2548,8 @@ ScriptInterpreterPython::InitializePrivate ()
     Py_InitializeEx (0);
 
     // Initialize SWIG after setting up python
-    assert (g_swig_init_callback != NULL);
-    g_swig_init_callback ();
+    if (g_swig_init_callback)
+        g_swig_init_callback ();
 
     // Update the path python uses to search for modules to include the current directory.
 
