@@ -45,6 +45,9 @@ typedef enum {
 #define	AR8X16_IS_SWITCH(_sc, _type) \
 	    (!!((_sc)->sc_switchtype == AR8X16_SWITCH_ ## _type))
 
+#define ARSWITCH_NUM_PORTS	MAX(AR8327_NUM_PORTS, AR8X16_NUM_PORTS)
+#define ARSWITCH_NUM_PHYS	MAX(AR8327_NUM_PHYS, AR8X16_NUM_PHYS)
+
 struct arswitch_softc {
 	struct mtx	sc_mtx;		/* serialize access to softc */
 	device_t	sc_dev;
@@ -59,9 +62,10 @@ struct arswitch_softc {
 	int		chip_rev;
 	int		mii_lo_first;
 	ar8x16_switch_type	sc_switchtype;
-	char		*ifname[AR8X16_NUM_PHYS];
-	device_t	miibus[AR8X16_NUM_PHYS];
-	struct ifnet	*ifp[AR8X16_NUM_PHYS];
+	/* should be the max of both pre-AR8327 and AR8327 ports */
+	char		*ifname[ARSWITCH_NUM_PHYS];
+	device_t	miibus[ARSWITCH_NUM_PHYS];
+	struct ifnet	*ifp[ARSWITCH_NUM_PHYS];
 	struct callout	callout_tick;
 	etherswitch_info_t info;
 
@@ -82,7 +86,22 @@ struct arswitch_softc {
 		    etherswitch_port_t *);
 		int (* arswitch_port_vlan_get) (struct arswitch_softc *,
 		    etherswitch_port_t *);
+		void (* arswitch_vlan_init_hw) (struct arswitch_softc *);
+		int (* arswitch_vlan_getvgroup) (struct arswitch_softc *,
+		    etherswitch_vlangroup_t *);
+		int (* arswitch_vlan_setvgroup) (struct arswitch_softc *,
+		    etherswitch_vlangroup_t *);
+		int (* arswitch_vlan_get_pvid) (struct arswitch_softc *, int,
+		    int *);
+		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
+		    int);
 	} hal;
+
+	struct {
+		uint32_t port0_status;
+		uint32_t port5_status;
+		uint32_t port6_status;
+	} ar8327;
 };
 
 #define	ARSWITCH_LOCK(_sc)			\
