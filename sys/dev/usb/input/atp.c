@@ -509,7 +509,8 @@ static const struct wsp_dev_params wsp_dev_params[WELLSPRING_PRODUCT_MAX] = {
 
 #define ATP_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 
-static const STRUCT_USB_HOST_ID wsp_devs[] = {
+/* TODO: STRUCT_USB_HOST_ID */
+static const struct usb_device_id wsp_devs[] = {
 	/* MacbookAir1.1 */
 	ATP_DEV(APPLE, WELLSPRING_ANSI, WELLSPRING_DRIVER_INFO(WELLSPRING1)),
 	ATP_DEV(APPLE, WELLSPRING_ISO,  WELLSPRING_DRIVER_INFO(WELLSPRING1)),
