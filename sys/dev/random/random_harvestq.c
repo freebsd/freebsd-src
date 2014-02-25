@@ -76,6 +76,14 @@ static struct mtx harvest_mtx;
  *     the buffer is empty.
  * If (ring_in + 1) == ring_out (MOD RANDOM_FIFO_MAX),
  *     the buffer is full.
+ *
+ * The ring_in variable needs locking as there are multiple
+ * sources to the ring. Only the sources may change ring_in,
+ * but the consumer may examine it.
+ *
+ * The ring_out variable does not need locking as there is
+ * only one consumer. Only the consumer may change ring_out,
+ * but the sources may examine it.
  */
 static struct entropyfifo {
 	struct harvest_event ring[RANDOM_FIFO_MAX];
@@ -111,40 +119,44 @@ random_kthread(void *arg __unused)
 {
         u_int maxloop;
 
-	/* Process until told to stop */
-	mtx_lock_spin(&harvest_mtx);
-	for (; random_kthread_control >= 0;) {
+	/*
+	 * Process until told to stop.
+	 *
+	 * Locking is not needed as this is the only place we modify ring_out, and
+	 * we only examine ring_in without changing it. Both of these are volatile,
+	 * and this is a unique thread.
+	 */
+	while (random_kthread_control >= 0) {
 
 		/* Deal with events, if any. Restrict the number we do in one go. */
 		maxloop = RANDOM_FIFO_MAX;
-		while ((entropyfifo.ring_out != entropyfifo.ring_in) && maxloop--) {
+		while (entropyfifo.ring_out != entropyfifo.ring_in) {
+			/* Modifying ring_out here ONLY. */
 			entropyfifo.ring_out = (entropyfifo.ring_out + 1)%RANDOM_FIFO_MAX;
-			mtx_unlock_spin(&harvest_mtx);
 			harvest_process_event(entropyfifo.ring + entropyfifo.ring_out);
-			mtx_lock_spin(&harvest_mtx);
+			/* The ring may be filled quickly so don't loop forever.  */
+			if (--maxloop)
+				break;
 		}
 
 		/*
 		 * Give the fast hardware sources a go
 		 */
-		mtx_unlock_spin(&harvest_mtx);
 		live_entropy_sources_feed();
-		mtx_lock_spin(&harvest_mtx);
 
 		/*
 		 * If a queue flush was commanded, it has now happened,
 		 * and we can mark this by resetting the command.
+		 * A negative value, however, terminates the thread.
 		 */
 
 		if (random_kthread_control == 1)
 			random_kthread_control = 0;
 
 		/* Work done, so don't belabour the issue */
-		msleep_spin_sbt(&random_kthread_control, &harvest_mtx,
-		    "-", SBT_1S/10, 0, C_PREL(1));
+		tsleep_sbt(&random_kthread_control, 0, "-", SBT_1S/10, 0, C_PREL(1));
 
 	}
-	mtx_unlock_spin(&harvest_mtx);
 
 	randomdev_set_wakeup_exit(&random_kthread_control);
 	/* NOTREACHED */
@@ -334,7 +346,6 @@ random_harvestq_internal(const void *entropy, u_int count, u_int bits,
     enum random_entropy_source origin)
 {
 	struct harvest_event *event;
-	size_t c;
 	u_int ring_in;
 
 	KASSERT(origin >= RANDOM_START && origin < ENTROPYSOURCE,
@@ -344,24 +355,26 @@ random_harvestq_internal(const void *entropy, u_int count, u_int bits,
 	if (!(harvest_source_mask & (1U << origin)))
 		return;
 
-	/* Lockless check to avoid lock operations if queue is full. */
-	ring_in = (entropyfifo.ring_in + 1)%RANDOM_FIFO_MAX;
-	if (ring_in == entropyfifo.ring_out)
-		return;
-
+	/* Lock ring_in against multi-thread contention */
+	/* XXX: Fix? Go critical instead of locking? */
 	mtx_lock_spin(&harvest_mtx);
-
+	ring_in = (entropyfifo.ring_in + 1)%RANDOM_FIFO_MAX;
+	if (ring_in == entropyfifo.ring_out) {
+		/* The ring is full; unlock and leave. */
+		mtx_unlock_spin(&harvest_mtx);
+		return;
+	}
 	entropyfifo.ring_in = ring_in;
-	event = entropyfifo.ring + entropyfifo.ring_in;
+	event = entropyfifo.ring + ring_in;
+	mtx_unlock_spin(&harvest_mtx);
 
+	/* Stash the harvested stuff in the *event buffer */
+	count = MIN(count, HARVESTSIZE);
 	event->he_somecounter = get_cyclecount();
 	event->he_size = count;
 	event->he_bits = bits;
 	event->he_source = origin;
 	event->he_destination = harvest_destination[origin]++;
-	c = MIN(count, HARVESTSIZE);
-	memcpy(event->he_entropy, entropy, c);
-	memset(event->he_entropy + c, 0, HARVESTSIZE - c);
-
-	mtx_unlock_spin(&harvest_mtx);
+	memcpy(event->he_entropy, entropy, count);
+	memset(event->he_entropy + count, 0, HARVESTSIZE - count);
 }
