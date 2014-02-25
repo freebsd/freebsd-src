@@ -153,3 +153,5 @@ device  	mmcsd		# SDCard disk device
 
 device  	ffec		# Freescale Fast Ethernet Controller
 
+options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
+

@@ -1877,7 +1877,7 @@ ktrcapfail(struct ktr_cap_fail *ktr)
 		/* operation on fd with insufficient capabilities */
 		printf("operation requires ");
 		capname(&ktr->cap_needed);
-		printf(", process holds ");
+		printf(", descriptor holds ");
 		capname(&ktr->cap_held);
 		break;
 	case CAPFAIL_INCREASE:

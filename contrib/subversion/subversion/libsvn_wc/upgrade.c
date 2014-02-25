@@ -1958,6 +1958,10 @@ svn_wc__upgrade_sdb(int *result_format,
       case SVN_WC__VERSION:
         /* already upgraded */
         *result_format = SVN_WC__VERSION;
+
+        SVN_SQLITE__WITH_LOCK(
+            svn_wc__db_install_schema_statistics(sdb, scratch_pool),
+            sdb);
     }
 
 #ifdef SVN_DEBUG

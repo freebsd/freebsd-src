@@ -76,6 +76,7 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	struct arswitch_softc *sc;
 	uint32_t data = 0, ctrl;
 	int err, timeout;
+	uint32_t a;
 
 	sc = device_get_softc(dev);
 	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -85,8 +86,13 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
 
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+		a = AR8327_REG_MDIO_CTRL;
+	else
+		a = AR8X16_REG_MDIO_CTRL;
+
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg_msb(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg_msb(dev, a,
 	    AR8X16_MDIO_CTRL_BUSY | AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_READ |
 	    (phy << AR8X16_MDIO_CTRL_PHY_ADDR_SHIFT) |
@@ -95,13 +101,13 @@ arswitch_readphy(device_t dev, int phy, int reg)
 	if (err != 0)
 		goto fail;
 	for (timeout = 100; timeout--; ) {
-		ctrl = arswitch_readreg_msb(dev, AR8X16_REG_MDIO_CTRL);
+		ctrl = arswitch_readreg_msb(dev, a);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}
 	if (timeout < 0)
 		goto fail;
-	data = arswitch_readreg_lsb(dev, AR8X16_REG_MDIO_CTRL) &
+	data = arswitch_readreg_lsb(dev, a) &
 	    AR8X16_MDIO_CTRL_DATA_MASK;
 	ARSWITCH_UNLOCK(sc);
 	return (data);
@@ -117,6 +123,7 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 	struct arswitch_softc *sc;
 	uint32_t ctrl;
 	int err, timeout;
+	uint32_t a;
 
 	sc = device_get_softc(dev);
 	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
@@ -124,8 +131,13 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 	if (reg < 0 || reg >= 32)
 		return (ENXIO);
 
+	if (AR8X16_IS_SWITCH(sc, AR8327))
+		a = AR8327_REG_MDIO_CTRL;
+	else
+		a = AR8X16_REG_MDIO_CTRL;
+
 	ARSWITCH_LOCK(sc);
-	err = arswitch_writereg(dev, AR8X16_REG_MDIO_CTRL,
+	err = arswitch_writereg(dev, a,
 	    AR8X16_MDIO_CTRL_BUSY |
 	    AR8X16_MDIO_CTRL_MASTER_EN |
 	    AR8X16_MDIO_CTRL_CMD_WRITE |
@@ -135,7 +147,7 @@ arswitch_writephy(device_t dev, int phy, int reg, int data)
 	if (err != 0)
 		goto out;
 	for (timeout = 100; timeout--; ) {
-		ctrl = arswitch_readreg(dev, AR8X16_REG_MDIO_CTRL);
+		ctrl = arswitch_readreg(dev, a);
 		if ((ctrl & AR8X16_MDIO_CTRL_BUSY) == 0)
 			break;
 	}

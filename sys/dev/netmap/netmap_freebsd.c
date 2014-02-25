@@ -101,6 +101,7 @@ uint16_t nm_csum_ipv4(struct nm_iphdr *iph)
 void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 					size_t datalen, uint16_t *check)
 {
+#ifdef INET
 	uint16_t pseudolen = datalen + iph->protocol;
 
 	/* Compute and insert the pseudo-header cheksum. */
@@ -110,6 +111,13 @@ void nm_csum_tcpudp_ipv4(struct nm_iphdr *iph, void *data,
 	 * (includes the pseudo-header).
 	 */
 	*check = nm_csum_fold(nm_csum_raw(data, datalen, 0));
+#else
+	static int notsupported = 0;
+	if (!notsupported) {
+		notsupported = 1;
+		D("inet4 segmentation not supported");
+	}
+#endif
 }
 
 void nm_csum_tcpudp_ipv6(struct nm_ipv6hdr *ip6h, void *data,

@@ -410,7 +410,11 @@ cpu_flush_dcache(void *ptr, size_t len)
 {
 
 	cpu_dcache_wb_range((uintptr_t)ptr, len);
+#ifdef ARM_L2_PIPT
+	cpu_l2cache_wb_range((uintptr_t)vtophys(ptr), len);
+#else
 	cpu_l2cache_wb_range((uintptr_t)ptr, len);
+#endif
 }
 
 /* Get current clock frequency for the given cpu id. */
@@ -1166,7 +1170,6 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, abp->abp_physaddr,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
-
 
 	/* Map L1 directory and allocated L2 page tables */
 	pmap_map_chunk(l1pagetable, kernel_l1pt.pv_va, kernel_l1pt.pv_pa,

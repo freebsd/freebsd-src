@@ -210,6 +210,26 @@
 			i2c-device-id = <0>;
 		};
 
+		i2c1: i2c@4802a000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,i2c";
+			reg =<  0x4802a000 0x1000 >;
+			interrupts = <71>;
+			interrupt-parent = <&AINTC>;
+			i2c-device-id = <1>;
+		};
+
+		i2c2: i2c@4819c000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,i2c";
+			reg =<  0x4819c000 0x1000 >;
+			interrupts = <30>;
+			interrupt-parent = <&AINTC>;
+			i2c-device-id = <2>;
+		};
+
 		pwm@48300000 {
 			compatible = "ti,am335x-pwm";
 			#address-cells = <1>;

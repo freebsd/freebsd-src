@@ -119,6 +119,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
+	libucl \
 	libufs \
 	libugidfw \
 	libulog \
@@ -129,7 +130,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvmmapi} \
 	libwrap \
 	liby \
-	libyaml \
 	libz \
 	${_atf} \
 	${_clang} \

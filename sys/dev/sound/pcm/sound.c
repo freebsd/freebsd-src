@@ -448,8 +448,10 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 /* XXX: do we need a way to let the user change the default unit? */
-SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_snd_default_unit, "I", "default sound device");
+SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit,
+	    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY,
+	    0, sizeof(int), sysctl_hw_snd_default_unit, "I",
+	    "default sound device");
 
 static int
 sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)

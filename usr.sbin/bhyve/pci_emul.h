@@ -39,7 +39,6 @@
 #include <assert.h>
 
 #define	PCI_BARMAX	PCIR_MAX_BAR_0	/* BAR registers in a Type 0 header */
-#define	PCIY_RESERVED	0x00
 
 struct vmctx;
 struct pci_devinst;
@@ -101,7 +100,7 @@ struct msix_table_entry {
  */
 #define	MSIX_TABLE_ENTRY_SIZE	16
 #define MAX_MSIX_TABLE_ENTRIES	2048
-#define PBA_TABLE_ENTRY_SIZE	8
+#define	PBA_SIZE(msgnum)	(roundup2((msgnum), 64) / 8)
 
 enum lintr_stat {
 	IDLE,
@@ -115,6 +114,8 @@ struct pci_devinst {
 	uint8_t	  pi_bus, pi_slot, pi_func;
 	char	  pi_name[PI_NAMESZ];
 	int	  pi_bar_getsize;
+	int	  pi_prevcap;
+	int	  pi_capend;
 
 	struct {
 		int8_t    	pin;
@@ -134,10 +135,10 @@ struct pci_devinst {
 		int	enabled;
 		int	table_bar;
 		int	pba_bar;
-		size_t	table_offset;
+		uint32_t table_offset;
 		int	table_count;
-		size_t	pba_offset;
-		size_t	pba_size;
+		uint32_t pba_offset;
+		int	pba_size;
 		int	function_mask; 	
 		struct msix_table_entry *table;	/* allocated at runtime */
 	} pi_msix;

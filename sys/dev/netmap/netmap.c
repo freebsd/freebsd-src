@@ -137,6 +137,7 @@ ports attached to the switch)
 #include <sys/param.h>	/* defines used in kernel.h */
 #include <sys/kernel.h>	/* types used in module initialization */
 #include <sys/conf.h>	/* cdevsw struct, UID, GID */
+#include <sys/filio.h>	/* FIONBIO */
 #include <sys/sockio.h>
 #include <sys/socketvar.h>	/* struct socket */
 #include <sys/malloc.h>
@@ -1827,6 +1828,11 @@ netmap_ioctl(struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 
 #ifdef __FreeBSD__
+	case FIONBIO:
+	case FIOASYNC:
+		ND("FIONBIO/FIOASYNC are no-ops");
+		break;
+
 	case BIOCIMMEDIATE:
 	case BIOCGHDRCMPLT:
 	case BIOCSHDRCMPLT:
@@ -2002,7 +2008,9 @@ flush_tx:
 				continue;
 			/* only one thread does txsync */
 			if (nm_kr_tryget(kring)) {
-				D("%p lost race on txring %d, ok", priv, i);
+				if (netmap_verbose)
+					RD(2, "%p lost race on txring %d, ok",
+					    priv, i);
 				continue;
 			}
 			if (nm_txsync_prologue(kring) >= kring->nkr_num_slots) {
@@ -2049,7 +2057,9 @@ do_retry_rx:
 			kring = &na->rx_rings[i];
 
 			if (nm_kr_tryget(kring)) {
-				D("%p lost race on rxring %d, ok", priv, i);
+				if (netmap_verbose)
+					RD(2, "%p lost race on rxring %d, ok",
+					    priv, i);
 				continue;
 			}
 

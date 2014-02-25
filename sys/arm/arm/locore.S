@@ -425,7 +425,7 @@ Ltag:
 	orr	r0, r0, #PHYSADDR
 	ldr	r0, [r0]
 #if defined(SMP)
-	orr 	r0, r0, #0		/* Set TTB shared memory flag */
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
 #endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */

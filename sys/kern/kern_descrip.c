@@ -1533,9 +1533,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	memcpy(ntable, otable, onfiles * sizeof(*otable));
 	fdp->fd_ofiles = ntable;
 
-	/* Allocate a new map only if the old is not large enough.  It will
+	/*
+	 * Allocate a new map only if the old is not large enough.  It will
 	 * grow at a slower rate than the table as it can map more
-	 * entries than the table can hold. */
+	 * entries than the table can hold.
+	 */
 	if (NDSLOTS(nnfiles) > NDSLOTS(onfiles)) {
 		nmap = malloc(NDSLOTS(nnfiles) * NDSLOTSIZE, M_FILEDESC,
 		    M_ZERO | M_WAITOK);
@@ -1568,9 +1570,11 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 		ft->ft_table = otable;
 		SLIST_INSERT_HEAD(&fdp0->fd_free, ft, ft_next);
 	}
-	/* The map does not have the same possibility of threads still
+	/*
+	 * The map does not have the same possibility of threads still
 	 * holding references to it.  So always free it as long as it
-	 * does not reference the original static allocation. */
+	 * does not reference the original static allocation.
+	 */
 	if (NDSLOTS(onfiles) > NDSLOTS(NDFILE))
 		free(omap, M_FILEDESC);
 }
@@ -3056,7 +3060,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	if (fdp->fd_jdir != NULL)
 		export_vnode_for_osysctl(fdp->fd_jdir, KF_FD_TYPE_JAIL, kif,
 				fdp, req);
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		bzero(kif, sizeof(*kif));
@@ -3424,7 +3428,7 @@ kern_proc_filedesc_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
 		export_fd_to_sb(data, KF_TYPE_VNODE, KF_FD_TYPE_JAIL,
 		    FREAD, -1, -1, NULL, efbuf);
 	}
-	for (i = 0; i < fdp->fd_nfiles; i++) {
+	for (i = 0; fdp->fd_refcnt > 0 && i < fdp->fd_nfiles; i++) {
 		if ((fp = fdp->fd_ofiles[i].fde_file) == NULL)
 			continue;
 		data = NULL;
