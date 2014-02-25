@@ -64,15 +64,14 @@
       requires strm->avail_out >= 258 for each loop to avoid checking for
       output space.
  */
-void ZLIB_INTERNAL inflate_fast(strm, start)
+void ZLIB_INTERNAL inflate_fast(strm, beg)
 z_streamp strm;
-unsigned start;         /* inflate()'s starting value for strm->avail_out */
+unsigned char FAR *beg; /* inflate()'s initial strm->next_out */
 {
     struct inflate_state FAR *state;
     z_const unsigned char FAR *in;      /* local strm->next_in */
     z_const unsigned char FAR *last;    /* have enough input while in < last */
     unsigned char FAR *out;     /* local strm->next_out */
-    unsigned char FAR *beg;     /* inflate()'s initial strm->next_out */
     unsigned char FAR *end;     /* while out < end, enough space available */
 #ifdef INFLATE_STRICT
     unsigned dmax;              /* maximum distance from zlib header */
@@ -99,7 +98,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
     in = strm->next_in - OFF;
     last = in + (strm->avail_in - 5);
     out = strm->next_out - OFF;
-    beg = out - (start - strm->avail_out);
+    beg -= OFF;
     end = out + (strm->avail_out - 257);
 #ifdef INFLATE_STRICT
     dmax = state->dmax;
@@ -205,7 +204,7 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                             PUP(out) = 0;
                         } while (--op > whave);
                         if (op == 0) {
-                            from = out - dist;
+                            from = beg + ((out - beg) - dist);
                             do {
                                 PUP(out) = PUP(from);
                             } while (--len);
@@ -221,7 +220,8 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                             do {
                                 PUP(out) = PUP(from);
                             } while (--op);
-                            from = out - dist;  /* rest from output */
+                            /* rest from output */
+                            from = beg + ((out - beg) - dist);
                         }
                     }
                     else if (wnext < op) {      /* wrap around window */
@@ -239,7 +239,8 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                                 do {
                                     PUP(out) = PUP(from);
                                 } while (--op);
-                                from = out - dist;      /* rest from output */
+                                /* rest from output */
+                                from = beg + ((out - beg) - dist);
                             }
                         }
                     }
@@ -250,7 +251,8 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                             do {
                                 PUP(out) = PUP(from);
                             } while (--op);
-                            from = out - dist;  /* rest from output */
+                            /* rest from output */
+                            from = beg + ((out - beg) - dist);
                         }
                     }
                     while (len > 2) {
@@ -266,7 +268,8 @@ unsigned start;         /* inflate()'s starting value for strm->avail_out */
                     }
                 }
                 else {
-                    from = out - dist;          /* copy direct from output */
+                    /* copy direct from output */
+                    from = beg + ((out - beg) - dist);
                     do {                        /* minimum length is three */
                         PUP(out) = PUP(from);
                         PUP(out) = PUP(from);

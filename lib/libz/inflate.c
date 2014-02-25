@@ -609,6 +609,7 @@ int flush;
     struct inflate_state FAR *state;
     z_const unsigned char FAR *next;    /* next input */
     unsigned char FAR *put;     /* next output */
+    unsigned char FAR *saved_next_out;
     unsigned have, left;        /* available input and output */
     unsigned long hold;         /* bit buffer */
     unsigned bits;              /* bits in bit buffer */
@@ -632,6 +633,7 @@ int flush;
     state = (struct inflate_state FAR *)strm->state;
     if (state->mode == TYPE) state->mode = TYPEDO;      /* skip check */
     LOAD();
+    saved_next_out = put;
     in = have;
     out = left;
     ret = Z_OK;
@@ -1021,7 +1023,9 @@ int flush;
         case LEN:
             if (have >= 6 && left >= 258) {
                 RESTORE();
-                inflate_fast(strm, out);
+                inflate_fast(strm, saved_next_out +
+			((strm->next_out - saved_next_out) -
+			 (out - strm->avail_out)));
                 LOAD();
                 if (state->mode == TYPE)
                     state->back = -1;

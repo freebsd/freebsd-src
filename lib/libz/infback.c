@@ -257,6 +257,7 @@ void FAR *out_desc;
     struct inflate_state FAR *state;
     z_const unsigned char FAR *next;    /* next input */
     unsigned char FAR *put;     /* next output */
+    unsigned char FAR *saved_next_out;
     unsigned have, left;        /* available input and output */
     unsigned long hold;         /* bit buffer */
     unsigned bits;              /* bits in bit buffer */
@@ -283,7 +284,7 @@ void FAR *out_desc;
     have = next != Z_NULL ? strm->avail_in : 0;
     hold = 0;
     bits = 0;
-    put = state->window;
+    saved_next_out = put = state->window;
     left = state->wsize;
 
     /* Inflate until end of block marked as last */
@@ -484,7 +485,9 @@ void FAR *out_desc;
                 RESTORE();
                 if (state->whave < state->wsize)
                     state->whave = state->wsize - left;
-                inflate_fast(strm, state->wsize);
+                inflate_fast(strm, saved_next_out +
+		    ((strm->next_out - saved_next_out) -
+		     (state->wsize - strm->avail_out)));
                 LOAD();
                 break;
             }
