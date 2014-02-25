@@ -789,6 +789,13 @@ EXTRA_DISTRIBUTIONS+=	games
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
 
+DEBUG_DISTRIBUTIONS=
+.if ${MK_DEBUG_FILES} != "no"
+. for dist in base ${EXTRA_DISTRIBUTIONS:S,doc,,}
+DEBUG_DISTRIBUTIONS+=	${dist}
+. endfor
+.endif
+
 MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: _installcheck_world
@@ -862,7 +869,7 @@ distributeworld installworld: _installcheck_world
 	${DESTDIR}/${DISTDIR}/${dist}.meta
 .endfor
 .if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
+. for dist in ${DEBUG_DISTRIBUTIONS}
 	@# For each file that exists in this dist, print the corresponding
 	@# line from the METALOG.  This relies on the fact that
 	@# a line containing only the filename will sort immediatly before
@@ -891,7 +898,7 @@ packageworld:
 .endfor
 
 .if ${MK_DEBUG_FILES} != "no"
-. for dist in base ${EXTRA_DISTRIBUTIONS}
+. for dist in ${DEBUG_DISTRIBUTIONS}
 .  if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
