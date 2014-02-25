@@ -1644,6 +1644,21 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                 }
             }
 
+            // If the response is old style 'S' packet which does not provide us with thread information
+            // then update the thread list and choose the first one.
+            if (!thread_sp)
+            {
+                UpdateThreadIDList ();
+
+                if (!m_thread_ids.empty ())
+                {
+                    Mutex::Locker locker (m_thread_list_real.GetMutex ());
+                    thread_sp = m_thread_list_real.FindThreadByProtocolID (m_thread_ids.front (), false);
+                    if (thread_sp)
+                        gdb_thread = static_cast<ThreadGDBRemote *> (thread_sp.get ());
+                }
+            }
+
             if (thread_sp)
             {
                 // Clear the stop info just in case we don't set it to anything
@@ -1719,7 +1734,7 @@ ProcessGDBRemote::SetThreadStopInfo (StringExtractor& stop_packet)
                         }
                     }
                     
-                    if (signo && did_exec == false)
+                    if (!handled && signo && did_exec == false)
                     {
                         if (signo == SIGTRAP)
                         {
@@ -2008,6 +2023,24 @@ ProcessGDBRemote::DoDestroy ()
 
                 if (packet_cmd == 'W' || packet_cmd == 'X')
                 {
+#if defined(__APPLE__)
+                    // For Native processes on Mac OS X, we launch through the Host Platform, then hand the process off
+                    // to debugserver, which becomes the parent process through "PT_ATTACH".  Then when we go to kill
+                    // the process on Mac OS X we call ptrace(PT_KILL) to kill it, then we call waitpid which returns
+                    // with no error and the correct status.  But amusingly enough that doesn't seem to actually reap
+                    // the process, but instead it is left around as a Zombie.  Probably the kernel is in the process of
+                    // switching ownership back to lldb which was the original parent, and gets confused in the handoff.
+                    // Anyway, so call waitpid here to finally reap it.
+                    PlatformSP platform_sp(GetTarget().GetPlatform());
+                    if (platform_sp && platform_sp->IsHost())
+                    {
+                        int status;
+                        ::pid_t reap_pid;
+                        reap_pid = waitpid (GetID(), &status, WNOHANG);
+                        if (log)
+                            log->Printf ("Reaped pid: %d, status: %d.\n", reap_pid, status);
+                    }
+#endif
                     SetLastStopPacket (response);
                     ClearThreadIDList ();
                     exit_status = response.GetHexU8();
@@ -2278,70 +2311,106 @@ Error
 ProcessGDBRemote::EnableBreakpointSite (BreakpointSite *bp_site)
 {
     Error error;
-    assert (bp_site != NULL);
+    assert(bp_site != NULL);
 
-    Log *log (ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_BREAKPOINTS));
+    // Get logging info
+    Log *log(ProcessGDBRemoteLog::GetLogIfAllCategoriesSet(GDBR_LOG_BREAKPOINTS));
     user_id_t site_id = bp_site->GetID();
-    const addr_t addr = bp_site->GetLoadAddress();
-    if (log)
-        log->Printf ("ProcessGDBRemote::EnableBreakpointSite (size_id = %" PRIu64 ") address = 0x%" PRIx64, site_id, (uint64_t)addr);
 
+    // Get the breakpoint address
+    const addr_t addr = bp_site->GetLoadAddress();
+
+    // Log that a breakpoint was requested
+    if (log)
+        log->Printf("ProcessGDBRemote::EnableBreakpointSite (size_id = %" PRIu64 ") address = 0x%" PRIx64, site_id, (uint64_t)addr);
+
+    // Breakpoint already exists and is enabled
     if (bp_site->IsEnabled())
     {
         if (log)
-            log->Printf ("ProcessGDBRemote::EnableBreakpointSite (size_id = %" PRIu64 ") address = 0x%" PRIx64 " -- SUCCESS (already enabled)", site_id, (uint64_t)addr);
+            log->Printf("ProcessGDBRemote::EnableBreakpointSite (size_id = %" PRIu64 ") address = 0x%" PRIx64 " -- SUCCESS (already enabled)", site_id, (uint64_t)addr);
         return error;
     }
-    else
-    {
-        const size_t bp_op_size = GetSoftwareBreakpointTrapOpcode (bp_site);
 
-        if (bp_site->HardwareRequired())
+    // Get the software breakpoint trap opcode size
+    const size_t bp_op_size = GetSoftwareBreakpointTrapOpcode(bp_site);
+
+    // SupportsGDBStoppointPacket() simply checks a boolean, indicating if this breakpoint type
+    // is supported by the remote stub. These are set to true by default, and later set to false
+    // only after we receive an unimplemented response when sending a breakpoint packet. This means
+    // initially that unless we were specifically instructed to use a hardware breakpoint, LLDB will
+    // attempt to set a software breakpoint. HardwareRequired() also queries a boolean variable which
+    // indicates if the user specifically asked for hardware breakpoints.  If true then we will
+    // skip over software breakpoints.
+    if (m_gdb_comm.SupportsGDBStoppointPacket(eBreakpointSoftware) && (!bp_site->HardwareRequired()))
+    {
+        // Try to send off a software breakpoint packet ($Z0)
+        if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointSoftware, true, addr, bp_op_size) == 0)
         {
-            // Try and set hardware breakpoint, and if that fails, fall through
-            // and set a software breakpoint?
-            if (m_gdb_comm.SupportsGDBStoppointPacket (eBreakpointHardware))
-            {
-                if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointHardware, true, addr, bp_op_size) == 0)
-                {
-                    bp_site->SetEnabled(true);
-                    bp_site->SetType (BreakpointSite::eHardware);
-                }
-                else
-                {
-                    error.SetErrorString("failed to set hardware breakpoint (hardware breakpoint resources might be exhausted or unavailable)");
-                }
-            }
-            else
-            {
-                error.SetErrorString("hardware breakpoints are not supported");
-            }
+            // The breakpoint was placed successfully
+            bp_site->SetEnabled(true);
+            bp_site->SetType(BreakpointSite::eExternal);
             return error;
         }
-        else if (m_gdb_comm.SupportsGDBStoppointPacket (eBreakpointSoftware))
+
+        // SendGDBStoppointTypePacket() will return an error if it was unable to set this
+        // breakpoint. We need to differentiate between a error specific to placing this breakpoint
+        // or if we have learned that this breakpoint type is unsupported. To do this, we
+        // must test the support boolean for this breakpoint type to see if it now indicates that
+        // this breakpoint type is unsupported.  If they are still supported then we should return
+        // with the error code.  If they are now unsupported, then we would like to fall through
+        // and try another form of breakpoint.
+        if (m_gdb_comm.SupportsGDBStoppointPacket(eBreakpointSoftware))
+            return error;
+
+        // We reach here when software breakpoints have been found to be unsupported. For future
+        // calls to set a breakpoint, we will not attempt to set a breakpoint with a type that is
+        // known not to be supported.
+        if (log)
+            log->Printf("Software breakpoints are unsupported");
+
+        // So we will fall through and try a hardware breakpoint
+    }
+
+    // The process of setting a hardware breakpoint is much the same as above.  We check the
+    // supported boolean for this breakpoint type, and if it is thought to be supported then we
+    // will try to set this breakpoint with a hardware breakpoint.
+    if (m_gdb_comm.SupportsGDBStoppointPacket(eBreakpointHardware))
+    {
+        // Try to send off a hardware breakpoint packet ($Z1)
+        if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointHardware, true, addr, bp_op_size) == 0)
         {
-            if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointSoftware, true, addr, bp_op_size) == 0)
-            {
-                bp_site->SetEnabled(true);
-                bp_site->SetType (BreakpointSite::eExternal);
-                return error;
-            }
+            // The breakpoint was placed successfully
+            bp_site->SetEnabled(true);
+            bp_site->SetType(BreakpointSite::eHardware);
+            return error;
         }
 
-        return EnableSoftwareBreakpoint (bp_site);
+        // Check if the error was something other then an unsupported breakpoint type
+        if (m_gdb_comm.SupportsGDBStoppointPacket(eBreakpointHardware))
+        {
+            // Unable to set this hardware breakpoint
+            error.SetErrorString("failed to set hardware breakpoint (hardware breakpoint resources might be exhausted or unavailable)");
+            return error;
+        }
+
+        // We will reach here when the stub gives an unsported response to a hardware breakpoint
+        if (log)
+            log->Printf("Hardware breakpoints are unsupported");
+
+        // Finally we will falling through to a #trap style breakpoint
     }
 
-    if (log)
+    // Don't fall through when hardware breakpoints were specifically requested
+    if (bp_site->HardwareRequired())
     {
-        const char *err_string = error.AsCString();
-        log->Printf ("ProcessGDBRemote::EnableBreakpointSite () error for breakpoint at 0x%8.8" PRIx64 ": %s",
-                     bp_site->GetLoadAddress(),
-                     err_string ? err_string : "NULL");
+        error.SetErrorString("hardware breakpoints are not supported");
+        return error;
     }
-    // We shouldn't reach here on a successful breakpoint enable...
-    if (error.Success())
-        error.SetErrorToGenericError();
-    return error;
+
+    // As a last resort we want to place a manual breakpoint. An instruction
+    // is placed into the process memory using memory write packets.
+    return EnableSoftwareBreakpoint(bp_site);
 }
 
 Error
@@ -2367,7 +2436,7 @@ ProcessGDBRemote::DisableBreakpointSite (BreakpointSite *bp_site)
             break;
 
         case BreakpointSite::eHardware:
-            if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointSoftware, false, addr, bp_op_size))
+            if (m_gdb_comm.SendGDBStoppointTypePacket(eBreakpointHardware, false, addr, bp_op_size))
                 error.SetErrorToGenericError();
             break;
 
