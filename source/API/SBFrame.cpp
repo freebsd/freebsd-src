@@ -845,6 +845,8 @@ SBFrame::FindValue (const char *name, ValueType value_type, lldb::DynamicValueTy
             frame = exe_ctx.GetFramePtr();
             if (frame)
             {
+                VariableList variable_list;
+                
                 switch (value_type)
                 {
                 case eValueTypeVariableGlobal:      // global variable
@@ -852,8 +854,7 @@ SBFrame::FindValue (const char *name, ValueType value_type, lldb::DynamicValueTy
                 case eValueTypeVariableArgument:    // function argument variables
                 case eValueTypeVariableLocal:       // function local variables
                     {
-                        VariableList *variable_list = frame->GetVariableList(true);
-
+                        
                         SymbolContext sc (frame->GetSymbolContext (eSymbolContextBlock));
 
                         const bool can_create = true;
@@ -863,21 +864,22 @@ SBFrame::FindValue (const char *name, ValueType value_type, lldb::DynamicValueTy
                         if (sc.block && sc.block->AppendVariables (can_create, 
                                                                    get_parent_variables,
                                                                    stop_if_block_is_inlined_function,
-                                                                   variable_list))
+                                                                   &variable_list))
                         {
-                            ConstString const_name(name);
-                            const uint32_t num_variables = variable_list->GetSize();
-                            for (uint32_t i = 0; i < num_variables; ++i)
+                            if (value_type == eValueTypeVariableGlobal)
                             {
-                                VariableSP variable_sp (variable_list->GetVariableAtIndex(i));
-                                if (variable_sp && 
-                                    variable_sp->GetScope() == value_type &&
-                                    variable_sp->GetName() == const_name)
-                                {
-                                    value_sp = frame->GetValueObjectForFrameVariable (variable_sp, eNoDynamicValues);
-                                    sb_value.SetSP (value_sp, use_dynamic);
-                                    break;
-                                }
+                                const bool get_file_globals = true;
+                                VariableList* frame_vars = frame->GetVariableList(get_file_globals);
+                                if (frame_vars)
+                                    frame_vars->AppendVariablesIfUnique(variable_list);
+                            }
+                            ConstString const_name(name);
+                            VariableSP variable_sp(variable_list.FindVariable(const_name,value_type));
+                            if (variable_sp)
+                            {
+                                value_sp = frame->GetValueObjectForFrameVariable (variable_sp, eNoDynamicValues);
+                                sb_value.SetSP (value_sp, use_dynamic);
+                                break;
                             }
                         }
                     }
