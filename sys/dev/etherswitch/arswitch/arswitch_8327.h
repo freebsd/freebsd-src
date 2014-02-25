@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013 Luiz Otavio O Souza.
- * Copyright (c) 2011-2012 Stefan Bethke.
+ * Copyright (c) 2014 Adrian Chadd <adrian@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,13 +25,67 @@
  *
  * $FreeBSD$
  */
-#ifndef	__ARSWITCH_VLANS_H__
-#define	__ARSWITCH_VLANS_H__
+#ifndef	__ARSWITCH_8327_H__
+#define	__ARSWITCH_8327_H__
 
-void ar8xxx_reset_vlans(struct arswitch_softc *);
-int ar8xxx_getvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_setvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_get_pvid(struct arswitch_softc *, int, int *);
-int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
+enum ar8327_pad_mode {
+	AR8327_PAD_NC = 0,
+	AR8327_PAD_MAC2MAC_MII,
+	AR8327_PAD_MAC2MAC_GMII,
+	AR8327_PAD_MAC_SGMII,
+	AR8327_PAD_MAC2PHY_MII,
+	AR8327_PAD_MAC2PHY_GMII,
+	AR8327_PAD_MAC_RGMII,
+	AR8327_PAD_PHY_GMII,
+	AR8327_PAD_PHY_RGMII,
+	AR8327_PAD_PHY_MII,
+};
 
-#endif	/* __ARSWITCH_VLANS_H__ */
+enum ar8327_clk_delay_sel {
+	AR8327_CLK_DELAY_SEL0 = 0,
+	AR8327_CLK_DELAY_SEL1,
+	AR8327_CLK_DELAY_SEL2,
+	AR8327_CLK_DELAY_SEL3,
+};
+
+/* XXX update the field types */
+struct ar8327_pad_cfg {
+	uint32_t mode;
+	uint32_t rxclk_sel;
+	uint32_t txclk_sel;
+	uint32_t txclk_delay_sel;
+	uint32_t rxclk_delay_sel;
+	uint32_t txclk_delay_en;
+	uint32_t rxclk_delay_en;
+	uint32_t sgmii_delay_en;
+	uint32_t pipe_rxclk_sel;
+};
+
+struct ar8327_sgmii_cfg {
+	uint32_t sgmii_ctrl;
+	uint32_t serdes_aen;
+};
+
+struct ar8327_led_cfg {
+	uint32_t led_ctrl0;
+	uint32_t led_ctrl1;
+	uint32_t led_ctrl2;
+	uint32_t led_ctrl3;
+	uint32_t open_drain;
+};
+
+struct ar8327_port_cfg {
+#define	AR8327_PORT_SPEED_10		1
+#define	AR8327_PORT_SPEED_100		2
+#define	AR8327_PORT_SPEED_1000		3
+	uint32_t speed;
+	uint32_t force_link;
+	uint32_t duplex;
+	uint32_t txpause;
+	uint32_t rxpause;
+};
+
+extern	void ar8327_attach(struct arswitch_softc *sc);
+
+#endif	/* __ARSWITCH_8327_H__ */
+

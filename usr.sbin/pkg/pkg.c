@@ -299,7 +299,7 @@ parse_fingerprint(ucl_object_t *obj)
 		fct = HASH_SHA256;
 
 	if (fct == HASH_UNKNOWN) {
-		warnx("Unsupported hashing function: %s\n", function);
+		warnx("Unsupported hashing function: %s", function);
 		return (NULL);
 	}
 
