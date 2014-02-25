@@ -1,7 +1,11 @@
 /*-
- * Copyright (c) 2013 Luiz Otavio O Souza.
- * Copyright (c) 2011-2012 Stefan Bethke.
+ * Copyright (c) 2005-2007, Joseph Koshy
+ * Copyright (c) 2007 The FreeBSD Foundation
+ * Copyright (c) 2014, Adrian Chadd, Netflix Inc.
  * All rights reserved.
+ *
+ * Portions of this software were developed by A. Joseph Koshy under
+ * sponsorship from the FreeBSD Foundation and Google, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -26,13 +30,13 @@
  *
  * $FreeBSD$
  */
-#ifndef	__ARSWITCH_VLANS_H__
-#define	__ARSWITCH_VLANS_H__
 
-void ar8xxx_reset_vlans(struct arswitch_softc *);
-int ar8xxx_getvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_setvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_get_pvid(struct arswitch_softc *, int, int *);
-int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
+#ifndef	_PMCSTAT_PL_ANNOTATE_CG_H_
+#define	_PMCSTAT_PL_ANNOTATE_CG_H_
 
-#endif	/* __ARSWITCH_VLANS_H__ */
+/* Function prototypes */
+void pmcpl_annotate_cg_process(
+    struct pmcstat_process *pp, struct pmcstat_pmcrecord *pmcr,
+    uint32_t nsamples, uintfptr_t *cc, int usermode, uint32_t cpu);
+
+#endif	/* _PMCSTAT_PL_ANNOTATE_CG_H_ */

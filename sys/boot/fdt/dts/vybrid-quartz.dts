@@ -1,6 +1,5 @@
 /*-
- * Copyright (c) 2013 Luiz Otavio O Souza.
- * Copyright (c) 2011-2012 Stefan Bethke.
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,13 +25,41 @@
  *
  * $FreeBSD$
  */
-#ifndef	__ARSWITCH_VLANS_H__
-#define	__ARSWITCH_VLANS_H__
 
-void ar8xxx_reset_vlans(struct arswitch_softc *);
-int ar8xxx_getvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_setvgroup(struct arswitch_softc *, etherswitch_vlangroup_t *);
-int ar8xxx_get_pvid(struct arswitch_softc *, int, int *);
-int ar8xxx_set_pvid(struct arswitch_softc *, int, int);
+/dts-v1/;
 
-#endif	/* __ARSWITCH_VLANS_H__ */
+/include/ "vybrid.dtsi"
+
+/ {
+	model = "Device Solutions Quartz Module";
+
+	memory {
+		device_type = "memory";
+		reg = < 0x80000000 0x10000000 >;	/* 256MB RAM */
+	};
+
+	SOC: vybrid {
+		serial0: serial@40027000 {
+			status = "okay";
+		};
+
+		fec1: ethernet@400D1000 {
+			status = "okay";
+			iomux_config = < 54 0x1 55 0x1
+					 56 0x1 57 0x1
+					 58 0x1 59 0x1
+					 60 0x1 61 0x1
+					 62 0x1  0 0x2 >;
+		};
+
+		edma1: edma@40098000 {
+			status = "okay";
+		};
+	};
+
+	chosen {
+		bootargs = "-v";
+		stdin = "serial0";
+		stdout = "serial0";
+	};
+};

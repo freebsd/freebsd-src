@@ -104,6 +104,12 @@ struct cpu_functions {
 	 *
 	 * There are some rules that must be followed:
 	 *
+	 *	ID-cache Invalidate All:
+	 *		Unlike other functions, this one must never write back.
+	 *		It is used to intialize the MMU when it is in an unknown
+	 *		state (such as when it may have lines tagged as valid
+	 *		that belong to a previous set of mappings).
+	 *                                          
 	 *	I-cache Synch (all or range):
 	 *		The goal is to synchronize the instruction stream,
 	 *		so you may beed to write-back dirty D-cache blocks
@@ -138,6 +144,7 @@ struct cpu_functions {
 	void	(*cf_dcache_inv_range)	(vm_offset_t, vm_size_t);
 	void	(*cf_dcache_wb_range)	(vm_offset_t, vm_size_t);
 
+	void	(*cf_idcache_inv_all)	(void);
 	void	(*cf_idcache_wbinv_all)	(void);
 	void	(*cf_idcache_wbinv_range) (vm_offset_t, vm_size_t);
 	void	(*cf_l2cache_wbinv_all) (void);
@@ -238,6 +245,7 @@ void tlb_broadcast(int);
 #define	cpu_dcache_inv_range(a, s) cpufuncs.cf_dcache_inv_range((a), (s))
 #define	cpu_dcache_wb_range(a, s) cpufuncs.cf_dcache_wb_range((a), (s))
 
+#define	cpu_idcache_inv_all()	cpufuncs.cf_idcache_inv_all()
 #define	cpu_idcache_wbinv_all()	cpufuncs.cf_idcache_wbinv_all()
 #define	cpu_idcache_wbinv_range(a, s) cpufuncs.cf_idcache_wbinv_range((a), (s))
 #define cpu_l2cache_wbinv_all()	cpufuncs.cf_l2cache_wbinv_all()
@@ -495,6 +503,7 @@ void	armv6_dcache_wbinv_range	(vm_offset_t, vm_size_t);
 void	armv6_dcache_inv_range		(vm_offset_t, vm_size_t);
 void	armv6_dcache_wb_range		(vm_offset_t, vm_size_t);
 
+void	armv6_idcache_inv_all		(void);
 void	armv6_idcache_wbinv_all		(void);
 void	armv6_idcache_wbinv_range	(vm_offset_t, vm_size_t);
 
@@ -503,6 +512,7 @@ void	armv7_tlb_flushID		(void);
 void	armv7_tlb_flushID_SE		(u_int);
 void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
 void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv7_idcache_inv_all		(void);
 void	armv7_dcache_wbinv_all		(void);
 void	armv7_idcache_wbinv_all		(void);
 void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
@@ -587,6 +597,7 @@ void	armv4_tlb_flushD	(void);
 void	armv4_tlb_flushD_SE	(u_int va);
 
 void	armv4_drain_writebuf	(void);
+void	armv4_idcache_inv_all	(void);
 #endif
 
 #if defined(CPU_IXP12X0)

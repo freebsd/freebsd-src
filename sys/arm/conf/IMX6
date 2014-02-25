@@ -17,6 +17,7 @@
 #
 # $FreeBSD$
 
+ident		IMX6
 include 	"../freescale/imx/std.imx6"
 
 options  	HZ=250			# Scheduling quantum is 4 milliseconds.
