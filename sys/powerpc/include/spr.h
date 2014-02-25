@@ -519,6 +519,8 @@
 #define	  MSSCR0_EMODE		  0x00200000 /* 10: MPX bus mode (read-only) */
 #define	  MSSCR0_ABD		  0x00100000 /* 11: address bus driven (read-only) */
 #define	  MSSCR0_MBZ		  0x000fffff /* 12-31: must be zero */
+#define	  MSSCR0_L2PFE		  0x00000003 /* 30-31: L2 prefetch enable */
+#define	SPR_LDSTCR		0x3f8	/* .6. Load/Store Control Register */
 #define	SPR_L2PM		0x3f8	/* .6. L2 Private Memory Control Register */
 #define	SPR_L2CR		0x3f9	/* .6. L2 Control Register */
 #define	  L2CR_L2E		  0x80000000 /* 0: L2 enable */
@@ -543,12 +545,14 @@
 				      Setting this bit disables instruction
 				      caching. */
 #define	  L2CR_L2I		  0x00200000 /* 10: L2 global invalidate. */
+#define	  L2CR_L2IO_7450	  0x00010000 /* 11: L2 instruction-only (MPC745x). */
 #define	  L2CR_L2CTL		  0x00100000 /* 11: L2 RAM control (ZZ enable).
 				      Enables automatic operation of the
 				      L2ZZ (low-power mode) signal. */
 #define	  L2CR_L2WT		  0x00080000 /* 12: L2 write-through. */
 #define	  L2CR_L2TS		  0x00040000 /* 13: L2 test support. */
 #define	  L2CR_L2OH		  0x00030000 /* 14-15: L2 output hold. */
+#define	  L2CR_L2DO_7450	  0x00010000 /* 15: L2 data-only (MPC745x). */
 #define	  L2CR_L2SL		  0x00008000 /* 16: L2 DLL slow. */
 #define	  L2CR_L2DF		  0x00004000 /* 17: L2 differential clock. */
 #define	  L2CR_L2BYP		  0x00002000 /* 18: L2 DLL bypass. */

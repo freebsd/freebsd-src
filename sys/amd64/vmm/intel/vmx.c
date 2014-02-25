@@ -324,9 +324,8 @@ vmx_setjmp_trace(struct vmx *vmx, int vcpu, struct vmxctx *vmxctx, int rc)
 	VCPU_CTR2((vmx)->vm, (vcpu), "setjmp return code %s(%d)",
 		 vmx_setjmp_rc2str(rc), rc);
 
-	host_rsp = host_rip = ~0;
-	vmread(VMCS_HOST_RIP, &host_rip);
-	vmread(VMCS_HOST_RSP, &host_rsp);
+	host_rip = vmcs_read(VMCS_HOST_RIP);
+	host_rsp = vmcs_read(VMCS_HOST_RSP);
 	VCPU_CTR2((vmx)->vm, (vcpu), "vmcs host_rip 0x%016lx, host_rsp %#lx",
 		 host_rip, host_rsp);
 
@@ -909,10 +908,10 @@ vmx_astpending_trace(struct vmx *vmx, int vcpu, uint64_t rip)
 #endif
 }
 
-static int
+static void
 vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 {
-	int error, lastcpu;
+	int lastcpu;
 	struct vmxstate *vmxstate;
 	struct invvpid_desc invvpid_desc = { 0 };
 
@@ -920,24 +919,14 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 	lastcpu = vmxstate->lastcpu;
 	vmxstate->lastcpu = curcpu;
 
-	if (lastcpu == curcpu) {
-		error = 0;
-		goto done;
-	}
+	if (lastcpu == curcpu)
+		return;
 
 	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
 
-	error = vmwrite(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
-	if (error != 0)
-		goto done;
-
-	error = vmwrite(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
-	if (error != 0)
-		goto done;
-
-	error = vmwrite(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
-	if (error != 0)
-		goto done;
+	vmcs_write(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
+	vmcs_write(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
+	vmcs_write(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
 
 	/*
 	 * If we are using VPIDs then invalidate all mappings tagged with 'vpid'
@@ -958,18 +947,6 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 		invvpid_desc.vpid = vmxstate->vpid;
 		invvpid(INVVPID_TYPE_SINGLE_CONTEXT, invvpid_desc);
 	}
-done:
-	return (error);
-}
-
-static void 
-vm_exit_update_rip(struct vm_exit *vmexit)
-{
-	int error;
-
-	error = vmwrite(VMCS_GUEST_RIP, vmexit->rip + vmexit->inst_length);
-	if (error)
-		panic("vmx_run: error %d writing to VMCS_GUEST_RIP", error);
 }
 
 /*
@@ -980,66 +957,45 @@ CTASSERT((PROCBASED_CTLS_ONE_SETTING & PROCBASED_INT_WINDOW_EXITING) != 0);
 static void __inline
 vmx_set_int_window_exiting(struct vmx *vmx, int vcpu)
 {
-	int error;
 
 	vmx->cap[vcpu].proc_ctls |= PROCBASED_INT_WINDOW_EXITING;
-
-	error = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-	if (error)
-		panic("vmx_set_int_window_exiting: vmwrite error %d", error);
+	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
 }
 
 static void __inline
 vmx_clear_int_window_exiting(struct vmx *vmx, int vcpu)
 {
-	int error;
 
 	vmx->cap[vcpu].proc_ctls &= ~PROCBASED_INT_WINDOW_EXITING;
-
-	error = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-	if (error)
-		panic("vmx_clear_int_window_exiting: vmwrite error %d", error);
+	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
 }
 
 static void __inline
 vmx_set_nmi_window_exiting(struct vmx *vmx, int vcpu)
 {
-	int error;
 
 	vmx->cap[vcpu].proc_ctls |= PROCBASED_NMI_WINDOW_EXITING;
-
-	error = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-	if (error)
-		panic("vmx_set_nmi_window_exiting: vmwrite error %d", error);
+	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
 }
 
 static void __inline
 vmx_clear_nmi_window_exiting(struct vmx *vmx, int vcpu)
 {
-	int error;
 
 	vmx->cap[vcpu].proc_ctls &= ~PROCBASED_NMI_WINDOW_EXITING;
-
-	error = vmwrite(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
-	if (error)
-		panic("vmx_clear_nmi_window_exiting: vmwrite error %d", error);
+	vmcs_write(VMCS_PRI_PROC_BASED_CTLS, vmx->cap[vcpu].proc_ctls);
 }
 
 static int
 vmx_inject_nmi(struct vmx *vmx, int vcpu)
 {
-	int error;
 	uint64_t info, interruptibility;
 
 	/* Bail out if no NMI requested */
 	if (!vm_nmi_pending(vmx->vm, vcpu))
 		return (0);
 
-	error = vmread(VMCS_GUEST_INTERRUPTIBILITY, &interruptibility);
-	if (error) {
-		panic("vmx_inject_nmi: vmread(interruptibility) %d",
-			error);
-	}
+	interruptibility = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	if (interruptibility & nmi_blocking_bits)
 		goto nmiblocked;
 
@@ -1049,10 +1005,7 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 	 */
 	info = VMCS_INTERRUPTION_INFO_NMI | VMCS_INTERRUPTION_INFO_VALID;
 	info |= IDT_NMI;
-
-	error = vmwrite(VMCS_ENTRY_INTR_INFO, info);
-	if (error)
-		panic("vmx_inject_nmi: vmwrite(intrinfo) %d", error);
+	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
 	VCPU_CTR0(vmx->vm, vcpu, "Injecting vNMI");
 
@@ -1074,7 +1027,7 @@ nmiblocked:
 static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 {
-	int error, vector;
+	int vector;
 	uint64_t info, rflags, interruptibility;
 
 	const int HWINTR_BLOCKED = VMCS_INTERRUPTIBILITY_STI_BLOCKING |
@@ -1087,9 +1040,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 	 * VM entry but the actual entry into guest mode was aborted
 	 * because of a pending AST.
 	 */
-	error = vmread(VMCS_ENTRY_INTR_INFO, &info);
-	if (error)
-		panic("vmx_inject_interrupts: vmread(intrinfo) %d", error);
+	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
 	if (info & VMCS_INTERRUPTION_INFO_VALID)
 		return;
 
@@ -1108,27 +1059,18 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu)
 		panic("vmx_inject_interrupts: invalid vector %d\n", vector);
 
 	/* Check RFLAGS.IF and the interruptibility state of the guest */
-	error = vmread(VMCS_GUEST_RFLAGS, &rflags);
-	if (error)
-		panic("vmx_inject_interrupts: vmread(rflags) %d", error);
-
+	rflags = vmcs_read(VMCS_GUEST_RFLAGS);
 	if ((rflags & PSL_I) == 0)
 		goto cantinject;
 
-	error = vmread(VMCS_GUEST_INTERRUPTIBILITY, &interruptibility);
-	if (error) {
-		panic("vmx_inject_interrupts: vmread(interruptibility) %d",
-			error);
-	}
+	interruptibility = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
 	if (interruptibility & HWINTR_BLOCKED)
 		goto cantinject;
 
 	/* Inject the interrupt */
 	info = VMCS_INTERRUPTION_INFO_HW_INTR | VMCS_INTERRUPTION_INFO_VALID;
 	info |= vector;
-	error = vmwrite(VMCS_ENTRY_INTR_INFO, info);
-	if (error)
-		panic("vmx_inject_interrupts: vmwrite(intrinfo) %d", error);
+	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
 
 	/* Update the Local APIC ISR */
 	lapic_intr_accepted(vmx->vm, vcpu, vector);
@@ -1150,7 +1092,7 @@ cantinject:
 static int
 vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 {
-	int error, cr, vmcs_guest_cr, vmcs_shadow_cr;
+	int cr, vmcs_guest_cr, vmcs_shadow_cr;
 	uint64_t crval, regval, ones_mask, zeros_mask;
 	const struct vmxctx *vmxctx;
 
@@ -1165,7 +1107,7 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 	vmxctx = &vmx->ctx[vcpu];
 
 	/*
-	 * We must use vmwrite() directly here because vmcs_setreg() will
+	 * We must use vmcs_write() directly here because vmcs_setreg() will
 	 * call vmclear(vmcs) as a side-effect which we certainly don't want.
 	 */
 	switch ((exitqual >> 8) & 0xf) {
@@ -1182,11 +1124,7 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		regval = vmxctx->guest_rbx;
 		break;
 	case 4:
-		error = vmread(VMCS_GUEST_RSP, &regval);
-		if (error) {
-			panic("vmx_emulate_cr_access: "
-			      "error %d reading guest rsp", error);
-		}
+		regval = vmcs_read(VMCS_GUEST_RSP);
 		break;
 	case 5:
 		regval = vmxctx->guest_rbp;
@@ -1234,20 +1172,11 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		vmcs_guest_cr = VMCS_GUEST_CR4;
 		vmcs_shadow_cr = VMCS_CR4_SHADOW;
 	}
-
-	error = vmwrite(vmcs_shadow_cr, regval);
-	if (error) {
-		panic("vmx_emulate_cr_access: error %d writing cr%d shadow",
-		      error, cr);
-	}
+	vmcs_write(vmcs_shadow_cr, regval);
 
 	crval = regval | ones_mask;
 	crval &= ~zeros_mask;
-	error = vmwrite(vmcs_guest_cr, crval);
-	if (error) {
-		panic("vmx_emulate_cr_access: error %d writing cr%d",
-		      error, cr);
-	}
+	vmcs_write(vmcs_guest_cr, crval);
 
 	if (cr == 0 && regval & CR0_PG) {
 		uint64_t efer, entry_ctls;
@@ -1257,29 +1186,13 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 		 * the "IA-32e mode guest" bit in VM-entry control must be
 		 * equal.
 		 */
-		error = vmread(VMCS_GUEST_IA32_EFER, &efer);
-		if (error) {
-		  panic("vmx_emulate_cr_access: error %d efer read",
-			error);			
-		}
+		efer = vmcs_read(VMCS_GUEST_IA32_EFER);
 		if (efer & EFER_LME) {
 			efer |= EFER_LMA;
-			error = vmwrite(VMCS_GUEST_IA32_EFER, efer);
-			if (error) {
-				panic("vmx_emulate_cr_access: error %d"
-				      " efer write", error);
-			}
-			error = vmread(VMCS_ENTRY_CTLS, &entry_ctls);
-			if (error) {
-				panic("vmx_emulate_cr_access: error %d"
-				      " entry ctls read", error);
-			}
+			vmcs_write(VMCS_GUEST_IA32_EFER, efer);
+			entry_ctls = vmcs_read(VMCS_ENTRY_CTLS);
 			entry_ctls |= VM_ENTRY_GUEST_LMA;
-			error = vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
-			if (error) {
-				panic("vmx_emulate_cr_access: error %d"
-				      " entry ctls write", error);
-			}
+			vmcs_write(VMCS_ENTRY_CTLS, entry_ctls);
 		}
 	}
 
@@ -1336,7 +1249,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, reason;
-	uint64_t qual, gpa, rflags;
+	uint64_t qual, gpa;
 	bool retu;
 
 	handled = 0;
@@ -1365,12 +1278,13 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		idtvec_info = vmcs_idt_vectoring_info();
 		if (idtvec_info & VMCS_IDT_VEC_VALID) {
 			idtvec_info &= ~(1 << 12); /* clear undefined bit */
-			vmwrite(VMCS_ENTRY_INTR_INFO, idtvec_info);
+			vmcs_write(VMCS_ENTRY_INTR_INFO, idtvec_info);
 			if (idtvec_info & VMCS_IDT_VEC_ERRCODE_VALID) {
 				idtvec_err = vmcs_idt_vectoring_err();
-				vmwrite(VMCS_ENTRY_EXCEPTION_ERROR, idtvec_err);
+				vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR,
+				    idtvec_err);
 			}
-			vmwrite(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
+			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 		}
 	default:
 		break;
@@ -1419,10 +1333,8 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
-		if ((error = vmread(VMCS_GUEST_RFLAGS, &rflags)) != 0)
-			panic("vmx_exit_process: vmread(rflags) %d", error);
 		vmexit->exitcode = VM_EXITCODE_HLT;
-		vmexit->u.hlt.rflags = rflags;
+		vmexit->u.hlt.rflags = vmcs_read(VMCS_GUEST_RFLAGS);
 		break;
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
@@ -1509,9 +1421,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * the one we just processed. Therefore we update the
 		 * guest rip in the VMCS and in 'vmexit'.
 		 */
-		vm_exit_update_rip(vmexit);
 		vmexit->rip += vmexit->inst_length;
 		vmexit->inst_length = 0;
+		vmcs_write(VMCS_GUEST_RIP, vmexit->rip);
 	} else {
 		if (vmexit->exitcode == VM_EXITCODE_BOGUS) {
 			/*
@@ -1533,7 +1445,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 static int
 vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 {
-	int error, vie, rc, handled, astpending;
+	int vie, rc, handled, astpending;
 	uint32_t exit_reason;
 	struct vmx *vmx;
 	struct vmxctx *vmxctx;
@@ -1566,14 +1478,9 @@ vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap)
 	 * If the life of a virtual machine was spent entirely in the context
 	 * of a single process we could do this once in vmcs_set_defaults().
 	 */
-	if ((error = vmwrite(VMCS_HOST_CR3, rcr3())) != 0)
-		panic("vmx_run: error %d writing to VMCS_HOST_CR3", error);
-
-	if ((error = vmwrite(VMCS_GUEST_RIP, rip)) != 0)
-		panic("vmx_run: error %d writing to VMCS_GUEST_RIP", error);
-
-	if ((error = vmx_set_pcpu_defaults(vmx, vcpu)) != 0)
-		panic("vmx_run: error %d setting up pcpu defaults", error);
+	vmcs_write(VMCS_HOST_CR3, rcr3());
+	vmcs_write(VMCS_GUEST_RIP, rip);
+	vmx_set_pcpu_defaults(vmx, vcpu);
 
 	do {
 		vmx_inject_interrupts(vmx, vcpu);

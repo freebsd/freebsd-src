@@ -154,6 +154,7 @@ mat [label="Mathieu Arnold\nmat@FreeBSD.org\n2003/08/15"]
 matthew [label="Matthew Seaman\nmatthew@FreeBSD.org\n2012/02/07"]
 mezz [label="Jeremy Messenger\nmezz@FreeBSD.org\n2004/04/30"]
 mharo [label="Michael Haro\nmharo@FreeBSD.org\n1999/04/13"]
+milki [label="Jonathan Chu\nmilki@FreeBSD.org\n2013/12/15"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2006/06/04"]
 mm [label="Martin Matuska\nmm@FreeBSD.org\n2007/04/04"]
 mnag [label="Marcus Alves Grando\nmnag@FreeBSD.org\n2005/09/15"]
@@ -301,6 +302,7 @@ eadler -> antoine
 eadler -> dbn
 eadler -> bdrewery
 eadler -> gjb
+eadler -> milki
 eadler -> tj
 eadler -> vg
 
@@ -510,6 +512,7 @@ stas -> araujo
 steve -> netchild
 
 swills -> feld
+swills -> milki
 swills -> pclin
 
 tabthorpe -> ashish

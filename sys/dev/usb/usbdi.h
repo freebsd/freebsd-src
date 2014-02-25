@@ -140,7 +140,7 @@ struct usb_endpoint {
 
 	struct usb_endpoint_descriptor *edesc;
 	struct usb_endpoint_ss_comp_descriptor *ecomp;
-	struct usb_pipe_methods *methods;	/* set by HC driver */
+	const struct usb_pipe_methods *methods;	/* set by HC driver */
 
 	uint16_t isoc_next;
 

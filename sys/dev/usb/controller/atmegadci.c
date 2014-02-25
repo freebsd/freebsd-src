@@ -96,9 +96,9 @@ SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods atmegadci_bus_methods;
-struct usb_pipe_methods atmegadci_device_non_isoc_methods;
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
+static const struct usb_bus_methods atmegadci_bus_methods;
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods;
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods;
 
 static atmegadci_cmd_t atmegadci_setup_rx;
 static atmegadci_cmd_t atmegadci_data_rx;
@@ -1410,7 +1410,7 @@ atmegadci_device_non_isoc_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_non_isoc_methods =
+static const struct usb_pipe_methods atmegadci_device_non_isoc_methods =
 {
 	.open = atmegadci_device_non_isoc_open,
 	.close = atmegadci_device_non_isoc_close,
@@ -1496,7 +1496,7 @@ atmegadci_device_isoc_fs_start(struct usb_xfer *xfer)
 	atmegadci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
+static const struct usb_pipe_methods atmegadci_device_isoc_fs_methods =
 {
 	.open = atmegadci_device_isoc_fs_open,
 	.close = atmegadci_device_isoc_fs_close,
@@ -2140,7 +2140,7 @@ atmegadci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods atmegadci_bus_methods =
+static const struct usb_bus_methods atmegadci_bus_methods =
 {
 	.endpoint_init = &atmegadci_ep_init,
 	.xfer_setup = &atmegadci_xfer_setup,

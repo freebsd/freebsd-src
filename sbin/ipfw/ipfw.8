@@ -2933,6 +2933,11 @@ and
 must be strictly lower than 5 seconds, the period of
 repetition of keepalives.
 The firewall enforces that.
+.It Va net.inet.ip.fw.dyn_keep_states: No 0
+Keep dynamic states on rule/set deletion.
+States are relinked to default rule (65535).
+This can be handly for ruleset reload.
+Turned off by default.
 .It Va net.inet.ip.fw.enable : No 1
 Enables the firewall.
 Setting this variable to 0 lets you run your machine without

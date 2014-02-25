@@ -240,8 +240,7 @@ vhpet_timer_edge_trig(struct vhpet *vhpet, int n)
 static void
 vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 {
-	int apicid, vector, vcpuid, pin;
-	cpuset_t dmask;
+	int pin;
 
 	/* If interrupts are not enabled for this timer then just return. */
 	if (!vhpet_timer_interrupt_enabled(vhpet, n))
@@ -256,26 +255,8 @@ vhpet_timer_interrupt(struct vhpet *vhpet, int n)
 	}
 
 	if (vhpet_timer_msi_enabled(vhpet, n)) {
-		/*
-		 * XXX should have an API 'vlapic_deliver_msi(vm, addr, data)'
-		 * - assuming physical delivery mode
-		 * - no need to interpret contents of 'msireg' here
-		 */
-		vector = vhpet->timer[n].msireg & 0xff;
-		apicid = (vhpet->timer[n].msireg >> (32 + 12)) & 0xff;
-		if (apicid != 0xff) {
-			/* unicast */
-			vcpuid = vm_apicid2vcpuid(vhpet->vm, apicid);
-			lapic_intr_edge(vhpet->vm, vcpuid, vector);
-		} else {
-			/* broadcast */
-			dmask = vm_active_cpus(vhpet->vm);
-			while ((vcpuid = CPU_FFS(&dmask)) != 0) {
-				vcpuid--;
-				CPU_CLR(vcpuid, &dmask);
-				lapic_intr_edge(vhpet->vm, vcpuid, vector);
-			}
-		}
+		lapic_intr_msi(vhpet->vm, vhpet->timer[n].msireg >> 32,
+		    vhpet->timer[n].msireg & 0xffffffff);
 		return;
 	}	
 

@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include "vmm_ktr.h"
 #include "vmm_lapic.h"
+#include "vlapic.h"
 #include "vioapic.h"
 
 #define	IOREGSEL	0x00
@@ -91,25 +92,14 @@ pinstate_str(bool asserted)
 	else
 		return ("deasserted");
 }
-
-static const char *
-trigger_str(bool level)
-{
-
-	if (level)
-		return ("level");
-	else
-		return ("edge");
-}
 #endif
 
 static void
 vioapic_send_intr(struct vioapic *vioapic, int pin)
 {
-	int vector, apicid, vcpuid;
-	uint32_t low, high;
-	cpuset_t dmask;
-	bool level;
+	int vector, delmode;
+	uint32_t low, high, dest;
+	bool level, phys;
 
 	KASSERT(pin >= 0 && pin < REDIR_ENTRIES,
 	    ("vioapic_set_pinstate: invalid pin number %d", pin));
@@ -120,52 +110,20 @@ vioapic_send_intr(struct vioapic *vioapic, int pin)
 	low = vioapic->rtbl[pin].reg;
 	high = vioapic->rtbl[pin].reg >> 32;
 
-	/*
-	 * XXX We only deal with:
-	 * - physical destination
-	 * - fixed delivery mode
-	 */
-	if ((low & IOART_DESTMOD) != IOART_DESTPHY) {
-		VIOAPIC_CTR2(vioapic, "ioapic pin%d: unsupported dest mode "
-		    "0x%08x", pin, low);
-		return;
-	}
-
-	if ((low & IOART_DELMOD) != IOART_DELFIXED) {
-		VIOAPIC_CTR2(vioapic, "ioapic pin%d: unsupported delivery mode "
-		    "0x%08x", pin, low);
-		return;
-	}
-
 	if ((low & IOART_INTMASK) == IOART_INTMSET) {
 		VIOAPIC_CTR1(vioapic, "ioapic pin%d: masked", pin);
 		return;
 	}
 
+	phys = ((low & IOART_DESTMOD) == IOART_DESTPHY);
+	delmode = low & IOART_DELMOD;
 	level = low & IOART_TRGRLVL ? true : false;
 	if (level)
 		vioapic->rtbl[pin].reg |= IOART_REM_IRR;
 
 	vector = low & IOART_INTVEC;
-	apicid = high >> APIC_ID_SHIFT;
-	if (apicid != 0xff) {
-		/* unicast */
-		vcpuid = vm_apicid2vcpuid(vioapic->vm, apicid);
-		VIOAPIC_CTR4(vioapic, "ioapic pin%d: %s triggered intr "
-		    "vector %d on vcpuid %d", pin, trigger_str(level),
-		    vector, vcpuid);
-		lapic_set_intr(vioapic->vm, vcpuid, vector, level);
-	} else {
-		/* broadcast */
-		VIOAPIC_CTR3(vioapic, "ioapic pin%d: %s triggered intr "
-		    "vector %d on all vcpus", pin, trigger_str(level), vector);
-		dmask = vm_active_cpus(vioapic->vm);
-		while ((vcpuid = CPU_FFS(&dmask)) != 0) {
-			vcpuid--;
-			CPU_CLR(vcpuid, &dmask);
-			lapic_set_intr(vioapic->vm, vcpuid, vector, level);
-		}
-	}
+	dest = high >> APIC_ID_SHIFT;
+	vlapic_deliver_intr(vioapic->vm, level, dest, phys, delmode, vector);
 }
 
 static void

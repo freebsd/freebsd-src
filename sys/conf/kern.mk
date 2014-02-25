@@ -148,12 +148,6 @@ INLINE_LIMIT?=	8000
 CFLAGS+=	-ffreestanding
 
 #
-# Do not allow a compiler to optimize out overflow checks for signed
-# types.
-#
-CFLAGS+=	-fno-strict-overflow
-
-#
 # GCC SSP support
 #
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \

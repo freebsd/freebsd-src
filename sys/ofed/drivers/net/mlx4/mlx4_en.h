@@ -493,7 +493,6 @@ struct mlx4_en_priv {
 	spinlock_t vlan_lock;
 	struct mlx4_en_port_state port_state;
 	spinlock_t stats_lock;
-	spinlock_t ioctl_lock;
 
 	unsigned long last_moder_packets[MAX_RX_RINGS];
 	unsigned long last_moder_tx_packets;
@@ -546,6 +545,8 @@ struct mlx4_en_priv {
 	struct mlx4_en_cq rx_cq[MAX_RX_RINGS];
 	struct mlx4_en_tx_hash_entry tx_hash[MLX4_EN_TX_HASH_SIZE];
 	struct work_struct mcast_task;
+	struct work_struct start_port_task;
+	struct work_struct stop_port_task;
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
@@ -580,8 +581,8 @@ void mlx4_en_destroy_netdev(struct net_device *dev);
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 			struct mlx4_en_port_profile *prof);
 
-int mlx4_en_start_port(struct net_device *dev);
-void mlx4_en_stop_port(struct net_device *dev);
+int mlx4_en_do_start_port(struct net_device *dev);
+void mlx4_en_do_stop_port(struct net_device *dev);
 
 void mlx4_en_free_resources(struct mlx4_en_priv *priv);
 int mlx4_en_alloc_resources(struct mlx4_en_priv *priv);

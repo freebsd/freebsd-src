@@ -30,47 +30,50 @@
 
 enum busTypes {
     NOBUS = 0,
+    CBUS = 1,
+    CBUSII = 2,
     EISA = 3,
     ISA = 6,
     MCA = 9,
     PCI = 13,
+    XPRESS = 18,
     MAX_BUSTYPE = 18,
     UNKNOWN_BUSTYPE = 0xff
 };
 
 /* MP Floating Pointer Structure */
 typedef struct MPFPS {
-	char    signature[4];
-	u_int32_t pap;
-	u_char  length;
-	u_char  spec_rev;
-	u_char  checksum;
-	u_char  config_type;
-	u_char  mpfb2;
-	u_char  mpfb3;
-	u_char  mpfb4;
-	u_char  mpfb5;
-}      *mpfps_t;
+	uint8_t	signature[4];
+	uint32_t pap;
+	uint8_t	length;
+	uint8_t	spec_rev;
+	uint8_t	checksum;
+	uint8_t	config_type;
+	uint8_t	mpfb2;
+	uint8_t	mpfb3;
+	uint8_t	mpfb4;
+	uint8_t	mpfb5;
+} __packed *mpfps_t;
 
 #define	MPFB2_IMCR_PRESENT	0x80
 #define	MPFB2_MUL_CLK_SRCS	0x40
 
 /* MP Configuration Table Header */
 typedef struct MPCTH {
-	char    signature[4];
-	u_short base_table_length;
-	u_char  spec_rev;
-	u_char  checksum;
-	u_char  oem_id[8];
-	u_char  product_id[12];
-	u_int32_t oem_table_pointer;
-	u_short oem_table_size;
-	u_short entry_count;
-	u_int32_t apic_address;
-	u_short extended_table_length;
-	u_char  extended_table_checksum;
-	u_char  reserved;
-}      *mpcth_t;
+	uint8_t	signature[4];
+	uint16_t base_table_length;
+	uint8_t	spec_rev;
+	uint8_t	checksum;
+	uint8_t	oem_id[8];
+	uint8_t	product_id[12];
+	uint32_t oem_table_pointer;
+	uint16_t oem_table_size;
+	uint16_t entry_count;
+	uint32_t apic_address;
+	uint16_t extended_table_length;
+	uint8_t	extended_table_checksum;
+	uint8_t	reserved;
+} __packed *mpcth_t;
 
 /* Base table entries */
 
@@ -81,44 +84,44 @@ typedef struct MPCTH {
 #define	MPCT_ENTRY_LOCAL_INT	4
 
 typedef struct PROCENTRY {
-	u_char  type;
-	u_char  apic_id;
-	u_char  apic_version;
-	u_char  cpu_flags;
-	u_int32_t cpu_signature;
-	u_int32_t feature_flags;
-	u_int32_t reserved1;
-	u_int32_t reserved2;
-}      *proc_entry_ptr;
+	uint8_t	type;
+	uint8_t	apic_id;
+	uint8_t	apic_version;
+	uint8_t	cpu_flags;
+	uint32_t cpu_signature;
+	uint32_t feature_flags;
+	uint32_t reserved1;
+	uint32_t reserved2;
+} __packed *proc_entry_ptr;
 
 #define PROCENTRY_FLAG_EN	0x01
 #define PROCENTRY_FLAG_BP	0x02
 
 typedef struct BUSENTRY {
-	u_char  type;
-	u_char  bus_id;
-	char    bus_type[6];
-}      *bus_entry_ptr;
+	uint8_t	type;
+	uint8_t	bus_id;
+	uint8_t	bus_type[6];
+} __packed *bus_entry_ptr;
 
 typedef struct IOAPICENTRY {
-	u_char  type;
-	u_char  apic_id;
-	u_char  apic_version;
-	u_char  apic_flags;
-	u_int32_t apic_address;
-}      *io_apic_entry_ptr;
+	uint8_t	type;
+	uint8_t	apic_id;
+	uint8_t	apic_version;
+	uint8_t	apic_flags;
+	uint32_t apic_address;
+} __packed *io_apic_entry_ptr;
 
 #define IOAPICENTRY_FLAG_EN	0x01
 
 typedef struct INTENTRY {
-	u_char  type;
-	u_char  int_type;
-	u_short int_flags;
-	u_char  src_bus_id;
-	u_char  src_bus_irq;
-	u_char  dst_apic_id;
-	u_char  dst_apic_int;
-}      *int_entry_ptr;
+	uint8_t	type;
+	uint8_t	int_type;
+	uint16_t int_flags;
+	uint8_t	src_bus_id;
+	uint8_t	src_bus_irq;
+	uint8_t	dst_apic_id;
+	uint8_t	dst_apic_int;
+} __packed *int_entry_ptr;
 
 #define	INTENTRY_TYPE_INT  	0
 #define	INTENTRY_TYPE_NMI	1
@@ -137,58 +140,51 @@ typedef struct INTENTRY {
 /* Extended table entries */
 
 typedef	struct EXTENTRY {
-	u_char	type;
-	u_char	length;
-}      *ext_entry_ptr;
+	uint8_t	type;
+	uint8_t	length;
+} __packed *ext_entry_ptr;
 
 #define	MPCT_EXTENTRY_SAS	0x80
 #define	MPCT_EXTENTRY_BHD	0x81
 #define	MPCT_EXTENTRY_CBASM	0x82
 
 typedef struct SASENTRY {
-	u_char	type;
-	u_char	length;
-	u_char	bus_id;
-	u_char	address_type;
+	uint8_t	type;
+	uint8_t	length;
+	uint8_t	bus_id;
+	uint8_t	address_type;
 	uint64_t address_base;
 	uint64_t address_length;
-} __attribute__((__packed__)) *sas_entry_ptr;
+} __packed *sas_entry_ptr;
 
 #define	SASENTRY_TYPE_IO	0
 #define	SASENTRY_TYPE_MEMORY	1
 #define	SASENTRY_TYPE_PREFETCH	2
 
 typedef struct BHDENTRY {
-	u_char	type;
-	u_char	length;
-	u_char	bus_id;
-	u_char	bus_info;
-	u_char	parent_bus;
-	u_char	reserved[3];
-}      *bhd_entry_ptr;
+	uint8_t	type;
+	uint8_t	length;
+	uint8_t	bus_id;
+	uint8_t	bus_info;
+	uint8_t	parent_bus;
+	uint8_t	reserved[3];
+} __packed *bhd_entry_ptr;
 
 #define	BHDENTRY_INFO_SUBTRACTIVE_DECODE	0x1
 
 typedef struct CBASMENTRY {
-	u_char	type;
-	u_char	length;
-	u_char	bus_id;
-	u_char	address_mod;
-	u_int	predefined_range;
-}      *cbasm_entry_ptr;
+	uint8_t	type;
+	uint8_t	length;
+	uint8_t	bus_id;
+	uint8_t	address_mod;
+	uint32_t predefined_range;
+} __packed *cbasm_entry_ptr;
 
 #define	CBASMENTRY_ADDRESS_MOD_ADD		0x0
 #define	CBASMENTRY_ADDRESS_MOD_SUBTRACT		0x1
 
 #define	CBASMENTRY_RANGE_ISA_IO		0
 #define	CBASMENTRY_RANGE_VGA_IO		1
-
-/* descriptions of MP table entries */
-typedef struct BASETABLE_ENTRY {
-	u_char  type;
-	u_char  length;
-	char    name[16];
-}       basetable_entry;
 
 #ifdef _KERNEL
 struct mptable_hostb_softc {

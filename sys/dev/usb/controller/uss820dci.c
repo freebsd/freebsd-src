@@ -94,11 +94,11 @@ SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RW,
 
 /* prototypes */
 
-struct usb_bus_methods uss820dci_bus_methods;
-struct usb_pipe_methods uss820dci_device_bulk_methods;
-struct usb_pipe_methods uss820dci_device_ctrl_methods;
-struct usb_pipe_methods uss820dci_device_intr_methods;
-struct usb_pipe_methods uss820dci_device_isoc_fs_methods;
+static const struct usb_bus_methods uss820dci_bus_methods;
+static const struct usb_pipe_methods uss820dci_device_bulk_methods;
+static const struct usb_pipe_methods uss820dci_device_ctrl_methods;
+static const struct usb_pipe_methods uss820dci_device_intr_methods;
+static const struct usb_pipe_methods uss820dci_device_isoc_fs_methods;
 
 static uss820dci_cmd_t uss820dci_setup_rx;
 static uss820dci_cmd_t uss820dci_data_rx;
@@ -1571,7 +1571,7 @@ uss820dci_device_bulk_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_bulk_methods =
+static const struct usb_pipe_methods uss820dci_device_bulk_methods =
 {
 	.open = uss820dci_device_bulk_open,
 	.close = uss820dci_device_bulk_close,
@@ -1608,7 +1608,7 @@ uss820dci_device_ctrl_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_ctrl_methods =
+static const struct usb_pipe_methods uss820dci_device_ctrl_methods =
 {
 	.open = uss820dci_device_ctrl_open,
 	.close = uss820dci_device_ctrl_close,
@@ -1645,7 +1645,7 @@ uss820dci_device_intr_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_intr_methods =
+static const struct usb_pipe_methods uss820dci_device_intr_methods =
 {
 	.open = uss820dci_device_intr_open,
 	.close = uss820dci_device_intr_close,
@@ -1727,7 +1727,7 @@ uss820dci_device_isoc_fs_start(struct usb_xfer *xfer)
 	uss820dci_start_standard_chain(xfer);
 }
 
-struct usb_pipe_methods uss820dci_device_isoc_fs_methods =
+static const struct usb_pipe_methods uss820dci_device_isoc_fs_methods =
 {
 	.open = uss820dci_device_isoc_fs_open,
 	.close = uss820dci_device_isoc_fs_close,
@@ -2376,7 +2376,7 @@ uss820dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 	}
 }
 
-struct usb_bus_methods uss820dci_bus_methods =
+static const struct usb_bus_methods uss820dci_bus_methods =
 {
 	.endpoint_init = &uss820dci_ep_init,
 	.xfer_setup = &uss820dci_xfer_setup,

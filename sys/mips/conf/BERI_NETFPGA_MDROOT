@@ -1,0 +1,28 @@
+#
+# BERI_NETFPGA_MDROOT -- Kernel for the SRI/Cambridge "BERI" (Bluespec Extensible
+# RISC Implementation) FPGA soft core, as configured in its NetFPGA reference
+# configuration.
+#
+# $FreeBSD$
+#
+
+include "BERI_TEMPLATE"
+
+ident		BERI_NETFPGA_MDROOT
+
+options 	FDT
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=beri-netfpga.dts
+
+device		uart
+
+#
+# This kernel configuration uses an embedded memory root file system.
+# Adjust the following path and size based on local requirements.
+#
+options 	MD_ROOT			# MD is a potential root device
+options 	MD_ROOT_SIZE=26112	# 25.5MB
+options 	ROOTDEVNAME=\"ufs:md0\"
+#makeoptions	MFS_IMAGE=/foo/baz/baz/mdroot.img
+
+# end

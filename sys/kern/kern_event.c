@@ -523,10 +523,14 @@ knote_fork(struct knlist *list, int pid)
  * XXX: EVFILT_TIMER should perhaps live in kern_time.c beside the
  * interval timer support code.
  */
-static __inline sbintime_t 
+static __inline sbintime_t
 timer2sbintime(intptr_t data)
 {
 
+#ifdef __LP64__
+	if (data > INT64_MAX / SBT_1MS)
+		return INT64_MAX;
+#endif
 	return (SBT_1MS * data);
 }
 

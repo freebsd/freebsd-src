@@ -160,7 +160,7 @@ usbd_update_max_frame_size(struct usb_xfer *xfer)
 usb_timeout_t
 usbd_get_dma_delay(struct usb_device *udev)
 {
-	struct usb_bus_methods *mtod;
+	const struct usb_bus_methods *mtod;
 	uint32_t temp;
 
 	mtod = udev->bus->methods;
