@@ -100,7 +100,8 @@ SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
 static const STRUCT_USB_HOST_ID run_devs[] = {
 #define	RUN_DEV(v,p)	{ USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 #define	RUN_DEV_EJECT(v,p)	\
-	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, 0) }
+	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, RUN_EJECT) }
+#define	RUN_EJECT	1
     RUN_DEV(ABOCOM,		RT2770),
     RUN_DEV(ABOCOM,		RT2870),
     RUN_DEV(ABOCOM,		RT3070),
@@ -315,7 +316,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(ZINWELL,		RT3072_2),
     RUN_DEV(ZYXEL,		RT2870_1),
     RUN_DEV(ZYXEL,		RT2870_2),
-    RUN_DEV(ZYXEL,		NWD2705),
+    RUN_DEV_EJECT(ZYXEL,	NWD2705),
     RUN_DEV_EJECT(RALINK,	RT_STOR),
 #undef RUN_DEV_EJECT
 #undef RUN_DEV
@@ -707,6 +708,8 @@ run_attach(device_t self)
 	device_set_usb_desc(self);
 	sc->sc_udev = uaa->device;
 	sc->sc_dev = self;
+	if (USB_GET_DRIVER_INFO(uaa) != RUN_EJECT)
+		sc->sc_flags |= RUN_FLAG_FWLOAD_NEEDED;
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->sc_dev),
 	    MTX_NETWORK_LOCK, MTX_DEF);
@@ -1151,7 +1154,7 @@ run_load_microcode(struct run_softc *sc)
 	}
 
 	/* write microcode image */
-	if (sc->mac_ver != 0x3593) {
+	if (sc->sc_flags & RUN_FLAG_FWLOAD_NEEDED) {
 		run_write_region_1(sc, RT2870_FW_BASE, base, 4096);
 		run_write(sc, RT2860_H2M_MAILBOX_CID, 0xffffffff);
 		run_write(sc, RT2860_H2M_MAILBOX_STATUS, 0xffffffff);
