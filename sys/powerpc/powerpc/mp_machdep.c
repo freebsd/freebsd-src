@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/platform.h>
 #include <machine/md_var.h>
+#include <machine/setjmp.h>
 #include <machine/smp.h>
 
 #include "pic_if.h"
@@ -66,10 +67,21 @@ volatile static u_quad_t ap_timebase;
 static u_int ipi_msg_cnt[32];
 static struct mtx ap_boot_mtx;
 struct pcb stoppcbs[MAXCPU];
+int longfault(faultbuf, int);
 
 void
 machdep_ap_bootstrap(void)
 {
+	jmp_buf *restore;
+
+	/* The following is needed for restoring from sleep. */
+#ifdef __powerpc64__
+	/* Writing to the time base register is hypervisor-privileged */
+	if (mfmsr() & PSL_HV)
+		mttb(0);
+#else
+	mttb(0);
+#endif
 	/* Set up important bits on the CPU (HID registers, etc.) */
 	cpudep_ap_setup();
 
@@ -77,6 +89,11 @@ machdep_ap_bootstrap(void)
 	PCPU_SET(pir, mfspr(SPR_PIR));
 	PCPU_SET(awake, 1);
 	__asm __volatile("msync; isync");
+
+	restore = PCPU_GET(restore);
+	if (restore != NULL) {
+		longjmp(*restore, 1);
+	}
 
 	while (ap_letgo == 0)
 		;

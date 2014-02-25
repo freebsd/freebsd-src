@@ -73,7 +73,7 @@ UPDATE_DEPENDFILE = NO
 # handle being called [bsd.]progs.mk
 .include <bsd.prog.mk>
 
-.ifndef PROG
+.ifndef _RECURSING_PROGS
 # tell progs.mk we might want to install things
 PROGS_TARGETS+= cleandepend cleandir cleanobj depend install
 
@@ -84,16 +84,32 @@ x.$p= PROG_CXX=$p
 .endif
 
 $p ${p}_p: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} PROG=$p ${x.$p})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
-	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} PROG=$p ${x.$p} ${@:E})
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= PROG=$p ${x.$p} ${@:E})
 .endfor
 .endfor
 
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
+.endfor
+
+SCRIPTS_TARGETS+= cleandepend cleandir cleanobj depend install
+
+.for p in ${SCRIPTS}
+.for t in ${SCRIPTS_TARGETS:O:u}
+$p.$t: .PHONY .MAKE
+	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
+	    SUBDIR= SCRIPT=$p ${x.$p} ${@:E})
+.endfor
+.endfor
+
+.for t in ${SCRIPTS_TARGETS:O:u}
+$t: ${SCRIPTS:%=%.$t}
 .endfor
 
 .endif

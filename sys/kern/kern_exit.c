@@ -385,10 +385,8 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Release our limits structure.
 	 */
-	PROC_LOCK(p);
 	plim = p->p_limit;
 	p->p_limit = NULL;
-	PROC_UNLOCK(p);
 	lim_free(plim);
 
 	tidhash_remove(td);

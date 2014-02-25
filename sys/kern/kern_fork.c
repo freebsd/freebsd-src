@@ -676,12 +676,12 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 
 #ifdef KDTRACE_HOOKS
 	/*
-	 * Tell the DTrace fasttrap provider about the new process
-	 * if it has registered an interest. We have to do this only after
-	 * p_state is PRS_NORMAL since the fasttrap module will use pfind()
-	 * later on.
+	 * Tell the DTrace fasttrap provider about the new process so that any
+	 * tracepoints inherited from the parent can be removed. We have to do
+	 * this only after p_state is PRS_NORMAL since the fasttrap module will
+	 * use pfind() later on.
 	 */
-	if (dtrace_fasttrap_fork)
+	if ((flags & RFMEM) == 0 && dtrace_fasttrap_fork)
 		dtrace_fasttrap_fork(p1, p2);
 #endif
 	if ((p1->p_flag & (P_TRACED | P_FOLLOWFORK)) == (P_TRACED |

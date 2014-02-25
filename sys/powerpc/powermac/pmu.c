@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/clock.h>
+#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sysctl.h>
 
@@ -43,11 +44,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/led/led.h>
 
+#include <machine/_inttypes.h>
+#include <machine/altivec.h>	/* For save_vec() */
 #include <machine/bus.h>
+#include <machine/cpu.h>
+#include <machine/fpu.h>	/* For save_fpu() */
+#include <machine/hid.h>
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
+#include <machine/pcb.h>
 #include <machine/pio.h>
 #include <machine/resource.h>
+#include <machine/setjmp.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -59,6 +67,11 @@ __FBSDID("$FreeBSD$");
 #include "clock_if.h"
 #include "pmuvar.h"
 #include "viareg.h"
+#include "uninorthvar.h"	/* For unin_chip_sleep()/unin_chip_wake() */
+
+#define PMU_DEFAULTS	PMU_INT_TICK | PMU_INT_ADB | \
+	PMU_INT_PCEJECT | PMU_INT_SNDBRT | \
+	PMU_INT_BATTERY | PMU_INT_ENVIRONMENT
 
 /*
  * Bus interface
@@ -93,6 +106,7 @@ static int	pmu_acline_state(SYSCTL_HANDLER_ARGS);
 static int	pmu_query_battery(struct pmu_softc *sc, int batt, 
 		    struct pmu_battstate *info);
 static int	pmu_battquery_sysctl(SYSCTL_HANDLER_ARGS);
+static void	pmu_sleep_int(void);
 
 /*
  * List of battery-related sysctls we might ask for
@@ -115,8 +129,6 @@ static device_method_t  pmu_methods[] = {
 	DEVMETHOD(device_attach,	pmu_attach),
         DEVMETHOD(device_detach,        pmu_detach),
         DEVMETHOD(device_shutdown,      bus_generic_shutdown),
-        DEVMETHOD(device_suspend,       bus_generic_suspend),
-        DEVMETHOD(device_resume,        bus_generic_resume),
 
 	/* ADB bus interface */
 	DEVMETHOD(adb_hb_send_raw_packet,   pmu_adb_send),
@@ -193,7 +205,7 @@ static signed char pm_send_cmd_type[] = {
 	0x02,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00,   -1,   -1,
 	0x01, 0x01, 0x01,   -1,   -1,   -1,   -1,   -1,
-	0x00, 0x00,   -1,   -1,   -1,   -1, 0x04, 0x04,
+	0x00, 0x00,   -1,   -1,   -1, 0x05, 0x04, 0x04,
 	0x04,   -1, 0x00,   -1,   -1,   -1,   -1,   -1,
 	0x00,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x01, 0x02,   -1,   -1,   -1,   -1,   -1,   -1,
@@ -229,7 +241,7 @@ static signed char pm_receive_cmd_type[] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x04, 0x04, 0x03, 0x09,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	  -1,   -1,   -1,   -1,   -1,   -1, 0x01, 0x01,
+	  -1,   -1,   -1,   -1,   -1, 0x01, 0x01, 0x01,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x06,   -1,   -1,   -1,   -1,   -1,   -1,   -1,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -357,12 +369,13 @@ pmu_attach(device_t dev)
 
 	/* Init PMU */
 
-	reg = PMU_INT_TICK | PMU_INT_ADB | PMU_INT_PCEJECT | PMU_INT_SNDBRT;
-	reg |= PMU_INT_BATTERY;
-	reg |= PMU_INT_ENVIRONMENT;
+	pmu_write_reg(sc, vBufB, pmu_read_reg(sc, vBufB) | vPB4);
+	pmu_write_reg(sc, vDirB, (pmu_read_reg(sc, vDirB) | vPB4) & ~vPB3);
+
+	reg = PMU_DEFAULTS;
 	pmu_send(sc, PMU_SET_IMASK, 1, &reg, 16, resp);
 
-	pmu_write_reg(sc, vIER, 0x90); /* make sure VIA interrupts are on */
+	pmu_write_reg(sc, vIER, 0x94); /* make sure VIA interrupts are on */
 
 	pmu_send(sc, PMU_SYSTEM_READY, 1, cmd, 16, resp);
 	pmu_send(sc, PMU_GET_VERSION, 1, cmd, 16, resp);
@@ -1018,3 +1031,95 @@ pmu_settime(device_t dev, struct timespec *ts)
 	return (0);
 }
 
+static register_t sprgs[4];
+static register_t srrs[2];
+extern void *ap_pcpu;
+
+void pmu_sleep_int(void)
+{
+	static u_quad_t timebase = 0;
+	jmp_buf resetjb;
+	struct thread *fputd;
+	struct thread *vectd;
+	register_t hid0;
+	register_t msr;
+	register_t saved_msr;
+
+	ap_pcpu = pcpup;
+
+	PCPU_SET(restore, &resetjb);
+
+	*(unsigned long *)0x80 = 0x100;
+	saved_msr = mfmsr();
+	fputd = PCPU_GET(fputhread);
+	vectd = PCPU_GET(vecthread);
+	if (fputd != NULL)
+		save_fpu(fputd);
+	if (vectd != NULL)
+		save_vec(vectd);
+	if (setjmp(resetjb) == 0) {
+		sprgs[0] = mfspr(SPR_SPRG0);
+		sprgs[1] = mfspr(SPR_SPRG1);
+		sprgs[2] = mfspr(SPR_SPRG2);
+		sprgs[3] = mfspr(SPR_SPRG3);
+		srrs[0] = mfspr(SPR_SRR0);
+		srrs[1] = mfspr(SPR_SRR1);
+		timebase = mftb();
+		powerpc_sync();
+		flush_disable_caches();
+		hid0 = mfspr(SPR_HID0);
+		hid0 = (hid0 & ~(HID0_DOZE | HID0_NAP)) | HID0_SLEEP;
+		powerpc_sync();
+		isync();
+		msr = mfmsr() | PSL_POW;
+		mtspr(SPR_HID0, hid0);
+		powerpc_sync();
+
+		while (1)
+			mtmsr(msr);
+	}
+	mttb(timebase);
+	PCPU_SET(curthread, curthread);
+	PCPU_SET(curpcb, curthread->td_pcb);
+	pmap_activate(curthread);
+	powerpc_sync();
+	mtspr(SPR_SPRG0, sprgs[0]);
+	mtspr(SPR_SPRG1, sprgs[1]);
+	mtspr(SPR_SPRG2, sprgs[2]);
+	mtspr(SPR_SPRG3, sprgs[3]);
+	mtspr(SPR_SRR0, srrs[0]);
+	mtspr(SPR_SRR1, srrs[1]);
+	mtmsr(saved_msr);
+	if (fputd == curthread)
+		enable_fpu(curthread);
+	if (vectd == curthread)
+		enable_vec(curthread);
+	powerpc_sync();
+}
+
+int
+pmu_set_speed(int low_speed)
+{
+	struct pmu_softc *sc;
+	uint8_t sleepcmd[] = {'W', 'O', 'O', 'F', 0};
+	uint8_t resp[16];
+
+	sc = device_get_softc(pmu);
+	pmu_write_reg(sc, vIER, 0x10);
+	spinlock_enter();
+	mtdec(0x7fffffff);
+	mb();
+	mtdec(0x7fffffff);
+
+	sleepcmd[4] = low_speed;
+	pmu_send(sc, PMU_CPU_SPEED, 5, sleepcmd, 16, resp);
+	unin_chip_sleep(NULL, 1);
+	pmu_sleep_int();
+	unin_chip_wake(NULL);
+
+	mtdec(1);	/* Force a decrementer exception */
+	spinlock_exit();
+	pmu_write_reg(sc, vIER, 0x90);
+
+	return (0);
+}

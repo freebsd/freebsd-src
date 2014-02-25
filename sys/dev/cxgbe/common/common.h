@@ -267,8 +267,10 @@ struct adapter_params {
 	unsigned short a_wnd[NCCTRL_WIN];
 	unsigned short b_wnd[NCCTRL_WIN];
 
-	unsigned int mc_size;		/* MC memory size */
-	unsigned int nfilters;		/* size of filter region */
+	u_int ftid_min;
+	u_int ftid_max;
+	u_int etid_min;
+	u_int netids;
 
 	unsigned int cim_la_size;
 
@@ -280,8 +282,10 @@ struct adapter_params {
 	unsigned int offload:1;	/* hw is TOE capable, fw has divvied up card
 				   resources for TOE operation. */
 	unsigned int bypass:1;	/* this is a bypass card */
+	unsigned int ethoffload:1;
 
 	unsigned int ofldq_wr_cred;
+	unsigned int eo_wr_cred;
 };
 
 #define CHELSIO_T4		0x4
@@ -318,9 +322,26 @@ struct link_config {
 #define for_each_port(adapter, iter) \
 	for (iter = 0; iter < (adapter)->params.nports; ++iter)
 
+static inline int is_ftid(const struct adapter *sc, u_int tid)
+{
+
+	return (tid >= sc->params.ftid_min && tid <= sc->params.ftid_max);
+}
+
+static inline int is_etid(const struct adapter *sc, u_int tid)
+{
+
+	return (tid >= sc->params.etid_min);
+}
+
 static inline int is_offload(const struct adapter *adap)
 {
 	return adap->params.offload;
+}
+
+static inline int is_ethoffload(const struct adapter *adap)
+{
+	return adap->params.ethoffload;
 }
 
 static inline int chip_id(struct adapter *adap)

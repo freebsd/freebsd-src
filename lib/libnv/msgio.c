@@ -113,30 +113,6 @@ fd_wait(int fd, bool doread)
 	    NULL, NULL);
 }
 
-int
-msg_peek(int sock, void *buf, size_t size)
-{
-	ssize_t done;
-
-	PJDLOG_ASSERT(sock >= 0);
-	PJDLOG_ASSERT(size > 0);
-
-	do {
-		fd_wait(sock, true);
-		done = recv(sock, buf, size, MSG_PEEK | MSG_WAITALL);
-		if (done == -1) {
-			if (errno == EAGAIN || errno == EINTR)
-				continue;
-			return (-1);
-		} else if (done == 0) {
-			errno = ENOTCONN;
-			return (-1);
-		}
-	} while (done != (ssize_t)size);
-
-	return (0);
-}
-
 static int
 msg_recv(int sock, struct msghdr *msg)
 {

@@ -7,8 +7,8 @@
 #ifndef _MACHINE_PMC_MDEP_H_
 #define	_MACHINE_PMC_MDEP_H_
 
-#define PMC_MDEP_CLASS_INDEX_PPC7450	0
-#define PMC_MDEP_CLASS_INDEX_PPC970	0
+#define PMC_MDEP_CLASS_INDEX_PPC7450	1
+#define PMC_MDEP_CLASS_INDEX_PPC970	1
 
 union pmc_md_op_pmcallocate {
 	uint64_t		__pad[4];

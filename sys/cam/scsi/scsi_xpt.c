@@ -101,10 +101,8 @@ SYSCTL_PROC(_kern_cam, OID_AUTO, cam_srch_hi, CTLTYPE_INT|CTLFLAG_RW, 0, 0,
 		(lval) |=  (lp)->luns[(i)].lundata[1];			\
 	}
 #define	CAM_GET_LUN(lp, i, lval)					\
-	(lval) = scsi_4btoul((lp)->luns[(i)].lundata);			\
-	(lval) = ((lval) >> 16) | ((lval) << 16);
-#define CAM_LUN_ONLY_32BITS(lp, i)				\
-	(scsi_4btoul(&((lp)->luns[(i)].lundata[4])) == 0)
+	(lval) = scsi_8btou64((lp)->luns[(i)].lundata);			\
+	(lval) = CAM_EXTLUN_BYTE_SWIZZLE(lval);
 
 /*
  * If we're not quirked to search <= the first 8 luns
@@ -1766,8 +1764,6 @@ probe_purge_old(struct cam_path *path, struct scsi_report_luns_data *new,
 				continue;
 			CAM_GET_SIMPLE_LUN(old, idx1, this_lun);
 		}
-		if (!CAM_LUN_ONLY_32BITS(old, idx1))
-			continue;
 
 		if (xpt_create_path(&tp, NULL, xpt_path_path_id(path),
 		    xpt_path_target_id(path), this_lun) == CAM_REQ_CMP) {
@@ -2038,10 +2034,6 @@ scsi_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 					break;
 				}
 
-				/* XXX print warning? */
-				if (!CAM_LUN_ONLY_32BITS(target->luns,
-				    scan_info->lunindex[target_id]))
-					continue;
 				if (CAM_CAN_GET_SIMPLE_LUN(target->luns,
 				    scan_info->lunindex[target_id])) {
 					CAM_GET_SIMPLE_LUN(target->luns,

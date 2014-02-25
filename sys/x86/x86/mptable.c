@@ -78,6 +78,13 @@ __FBSDID("$FreeBSD$");
 typedef	void mptable_entry_handler(u_char *entry, void *arg);
 typedef	void mptable_extended_entry_handler(ext_entry_ptr entry, void *arg);
 
+/* descriptions of MP table entries */
+typedef struct BASETABLE_ENTRY {
+	uint8_t	type;
+	uint8_t	length;
+	uint8_t	name[16];
+}       basetable_entry;
+
 static basetable_entry basetable_entry_types[] =
 {
 	{0, 20, "Processor"},

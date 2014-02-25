@@ -43,9 +43,12 @@ static const char rcsid[] =
 #define OEM_PROCESSING_READY_NOT
 
 #include <sys/param.h>
+#include <sys/mman.h>
+#include <x86/mptable.h>
 #include <err.h>
 #include <fcntl.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,22 +77,7 @@ static const char rcsid[] =
 #define GROPE_AREA2		0x90000
 #define GROPE_SIZE		0x10000
 
-#define PROCENTRY_FLAG_EN	0x01
-#define PROCENTRY_FLAG_BP	0x02
-#define IOAPICENTRY_FLAG_EN	0x01
-
 #define MAXPNSTR		132
-
-enum busTypes {
-    CBUS = 1,
-    CBUSII = 2,
-    EISA = 3,
-    ISA = 6,
-    PCI = 13,
-    XPRESS = 18,
-    MAX_BUSTYPE = 18,
-    UNKNOWN_BUSTYPE = 0xff
-};
 
 typedef struct BUSTYPENAME {
     u_char	type;
@@ -129,140 +117,25 @@ static const char *whereStrings[] = {
     "GROPE AREA #2"
 };
 
-typedef struct TABLE_ENTRY {
-    u_char	type;
-    u_char	length;
-    char	name[ 32 ];
-} tableEntry;
-
-static const tableEntry extendedtableEntryTypes[] =
-{
-    { 128, 20, "System Address Space" },
-    { 129,  8, "Bus Hierarchy" },
-    { 130,  8, "Compatibility Bus Address" }
-};
-
-/* MP Floating Pointer Structure */
-typedef struct MPFPS {
-    char	signature[ 4 ];
-    u_int32_t	pap;
-    u_char	length;
-    u_char	spec_rev;
-    u_char	checksum;
-    u_char	mpfb1;
-    u_char	mpfb2;
-    u_char	mpfb3;
-    u_char	mpfb4;
-    u_char	mpfb5;
-} mpfps_t;
-
-/* MP Configuration Table Header */
-typedef struct MPCTH {
-    char	signature[ 4 ];
-    u_short	base_table_length;
-    u_char	spec_rev;
-    u_char	checksum;
-    u_char	oem_id[ 8 ];
-    u_char	product_id[ 12 ];
-    u_int32_t	oem_table_pointer;
-    u_short	oem_table_size;
-    u_short	entry_count;
-    u_int32_t	apic_address;
-    u_short	extended_table_length;
-    u_char	extended_table_checksum;
-    u_char	reserved;
-} mpcth_t;
-
-
-typedef struct PROCENTRY {
-    u_char	type;
-    u_char	apicID;
-    u_char	apicVersion;
-    u_char	cpuFlags;
-    u_int32_t	cpuSignature;
-    u_int32_t	featureFlags;
-    u_int32_t	reserved1;
-    u_int32_t	reserved2;
-} ProcEntry;
-
-typedef struct BUSENTRY {
-    u_char	type;
-    u_char	busID;
-    char	busType[ 6 ];
-} BusEntry;
-
-typedef struct IOAPICENTRY {
-    u_char	type;
-    u_char	apicID;
-    u_char	apicVersion;
-    u_char	apicFlags;
-    u_int32_t	apicAddress;
-} IOApicEntry;
-
-typedef struct INTENTRY {
-    u_char	type;
-    u_char	intType;
-    u_short	intFlags;
-    u_char	srcBusID;
-    u_char	srcBusIRQ;
-    u_char	dstApicID;
-    u_char	dstApicINT;
-} IntEntry;
-
-
-/*
- * extended entry type structures
- */
-
-typedef struct SASENTRY {
-    u_char	type;
-    u_char	length;
-    u_char	busID;
-    u_char	addressType;
-    u_int64_t	addressBase;
-    u_int64_t	addressLength;
-} __attribute__((__packed__)) SasEntry;
-
-
-typedef struct BHDENTRY {
-    u_char	type;
-    u_char	length;
-    u_char	busID;
-    u_char	busInfo;
-    u_char	busParent;
-    u_char	reserved[ 3 ];
-} BhdEntry;
-
-
-typedef struct CBASMENTRY {
-    u_char	type;
-    u_char	length;
-    u_char	busID;
-    u_char	addressMod;
-    u_int	predefinedRange;
-} CbasmEntry;
-
-
-
 static void apic_probe( u_int32_t* paddr, int* where );
 
 static void MPConfigDefault( int featureByte );
 
-static void MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfps );
+static void MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfpsp );
 static void MPConfigTableHeader( u_int32_t pap );
 
-static int readType( void );
 static void seekEntry( u_int32_t addr );
 static void readEntry( void* entry, int size );
+static void *mapEntry( u_int32_t addr, int size );
 
-static void processorEntry( void );
-static void busEntry( void );
-static void ioApicEntry( void );
-static void intEntry( void );
+static void processorEntry( proc_entry_ptr entry );
+static void busEntry( bus_entry_ptr entry );
+static void ioApicEntry( io_apic_entry_ptr entry );
+static void intEntry( int_entry_ptr entry );
 
-static void sasEntry( void );
-static void bhdEntry( void );
-static void cbasmEntry( void );
+static void sasEntry( sas_entry_ptr entry );
+static void bhdEntry( bhd_entry_ptr entry );
+static void cbasmEntry( cbasm_entry_ptr entry );
 
 static void doDmesg( void );
 static void pnstr( char* s, int c );
@@ -360,10 +233,10 @@ main( int argc, char *argv[] )
     puts( SEP_LINE );
 
     /* check whether an MP config table exists */
-    if ( (defaultConfig = mpfps.mpfb1) )
+    if ( (defaultConfig = mpfps->config_type) )
         MPConfigDefault( defaultConfig );
     else
-	MPConfigTableHeader( mpfps.pap );
+	MPConfigTableHeader( mpfps->pap );
 
     /* do a dmesg output */
     if ( dmesg )
@@ -524,12 +397,12 @@ apic_probe( u_int32_t* paddr, int* where )
  * 
  */
 static void
-MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfps )
+MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfpsp )
 {
-
-    /* read in mpfps structure*/
-    seekEntry( paddr );
-    readEntry( mpfps, sizeof( mpfps_t ) );
+    mpfps_t mpfps;
+	
+    /* map in mpfps structure*/
+    *mpfpsp = mpfps = mapEntry( paddr, sizeof( mpfps ) );
 
     /* show its contents */
     printf( "MP Floating Pointer Structure:\n\n" );
@@ -576,7 +449,7 @@ MPFloatingPointer( u_int32_t paddr, int where, mpfps_t* mpfps )
     }
 
     /* bit 7 is IMCRP */
-    printf( "  mode:\t\t\t\t%s\n", (mpfps->mpfb2 & 0x80) ?
+    printf( "  mode:\t\t\t\t%s\n", (mpfps->mpfb2 & MPFB2_IMCR_PRESENT) ?
             "PIC" : "Virtual Wire" );
 
     /* MP feature bytes 3-5 are expected to be ZERO */
@@ -652,59 +525,53 @@ MPConfigDefault( int featureByte )
 static void
 MPConfigTableHeader( u_int32_t pap )
 {
-    u_int32_t	paddr;
     mpcth_t	cth;
     int		x;
     int		totalSize;
-    int		count, c;
-    int		type;
+    int		c;
     int		oldtype, entrytype;
+    u_int8_t	*entry;
 
     if ( pap == 0 ) {
 	printf( "MP Configuration Table Header MISSING!\n" );
         exit( 1 );
     }
 
-    /* convert physical address to virtual address */
-    paddr = pap;
-
-    /* read in cth structure */
-    seekEntry( paddr );
-    readEntry( &cth, sizeof( cth ) );
+    /* map in cth structure */
+    cth = mapEntry( pap, sizeof( *cth ) );
 
     printf( "MP Config Table Header:\n\n" );
 
     printf( "  physical address:\t\t0x%08x\n", pap );
 
     printf( "  signature:\t\t\t'" );
-    pnstr( cth.signature, 4 );
+    pnstr( cth->signature, 4 );
     printf( "'\n" );
 
-    printf( "  base table length:\t\t%d\n", cth.base_table_length );
+    printf( "  base table length:\t\t%d\n", cth->base_table_length );
 
-    printf( "  version:\t\t\t1.%1d\n", cth.spec_rev );
-    printf( "  checksum:\t\t\t0x%02x\n", cth.checksum );
+    printf( "  version:\t\t\t1.%1d\n", cth->spec_rev );
+    printf( "  checksum:\t\t\t0x%02x\n", cth->checksum );
 
     printf( "  OEM ID:\t\t\t'" );
-    pnstr( cth.oem_id, 8 );
+    pnstr( cth->oem_id, 8 );
     printf( "'\n" );
 
     printf( "  Product ID:\t\t\t'" );
-    pnstr( cth.product_id, 12 );
+    pnstr( cth->product_id, 12 );
     printf( "'\n" );
 
-    printf( "  OEM table pointer:\t\t0x%08x\n", cth.oem_table_pointer );
-    printf( "  OEM table size:\t\t%d\n", cth.oem_table_size );
+    printf( "  OEM table pointer:\t\t0x%08x\n", cth->oem_table_pointer );
+    printf( "  OEM table size:\t\t%d\n", cth->oem_table_size );
 
-    printf( "  entry count:\t\t\t%d\n", cth.entry_count );
+    printf( "  entry count:\t\t\t%d\n", cth->entry_count );
 
-    printf( "  local APIC address:\t\t0x%08x\n", cth.apic_address );
+    printf( "  local APIC address:\t\t0x%08x\n", cth->apic_address );
 
-    printf( "  extended table length:\t%d\n", cth.extended_table_length );
-    printf( "  extended table checksum:\t%d\n", cth.extended_table_checksum );
+    printf( "  extended table length:\t%d\n", cth->extended_table_length );
+    printf( "  extended table checksum:\t%d\n", cth->extended_table_checksum );
 
-    totalSize = cth.base_table_length - sizeof( struct MPCTH );
-    count = cth.entry_count;
+    totalSize = cth->base_table_length - sizeof( struct MPCTH );
 
     puts( SEP_LINE );
 
@@ -723,101 +590,99 @@ MPConfigTableHeader( u_int32_t pap )
     nintr = 0;
 
     oldtype = -1;
-    for (c = count; c; c--) {
-	entrytype = readType();
+    entry = mapEntry(pap + sizeof(*cth), cth->base_table_length);
+    for (c = cth->entry_count; c; c--) {
+	entrytype = *entry;
 	if (entrytype != oldtype)
 	    printf("--\n");
 	if (entrytype < oldtype)
 	    printf("MPTABLE OUT OF ORDER!\n");
 	switch (entrytype) {
-	case 0:
-	    if (oldtype != 0)
+	case MPCT_ENTRY_PROCESSOR:
+	    if (oldtype != MPCT_ENTRY_PROCESSOR)
 		printf( "Processors:\tAPIC ID\tVersion\tState"
 			"\t\tFamily\tModel\tStep\tFlags\n" );
-	    oldtype = 0;
-	    processorEntry();
+	    processorEntry((proc_entry_ptr)entry);
+	    entry += sizeof(struct PROCENTRY);
 	    break;
 
-	case 1:
-	    if (oldtype != 1)
+	case MPCT_ENTRY_BUS:
+	    if (oldtype != MPCT_ENTRY_BUS)
 		printf( "Bus:\t\tBus ID\tType\n" );
-	    oldtype = 1;
-	    busEntry();
+	    busEntry((bus_entry_ptr)entry);
+	    entry += sizeof(struct BUSENTRY);
 	    break;
 
-	case 2:
-	    if (oldtype != 2)
+	case MPCT_ENTRY_IOAPIC:
+	    if (oldtype != MPCT_ENTRY_IOAPIC)
 		printf( "I/O APICs:\tAPIC ID\tVersion\tState\t\tAddress\n" );
-	    oldtype = 2;
-	    ioApicEntry();
+	    ioApicEntry((io_apic_entry_ptr)entry);
+	    entry += sizeof(struct IOAPICENTRY);
 	    break;
 
-	case 3:
-	    if (oldtype != 3)
+	case MPCT_ENTRY_INT:
+	    if (oldtype != MPCT_ENTRY_INT)
 		printf( "I/O Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
-	    oldtype = 3;
-	    intEntry();
+	    intEntry((int_entry_ptr)entry);
+	    entry += sizeof(struct INTENTRY);
 	    break;
 
-	case 4:
-	    if (oldtype != 4)
+	case MPCT_ENTRY_LOCAL_INT:
+	    if (oldtype != MPCT_ENTRY_LOCAL_INT)
 		printf( "Local Ints:\tType\tPolarity    Trigger\tBus ID\t IRQ\tAPIC ID\tPIN#\n" );
-	    oldtype = 4;
-	    intEntry();
+	    intEntry((int_entry_ptr)entry);
+	    entry += sizeof(struct INTENTRY);
 	    break;
 
 	default:
 	    printf("MPTABLE HOSED! record type = %d\n", entrytype);
 	    exit(1);
 	}
+	oldtype = entrytype;
     }
 
 
 #if defined( EXTENDED_PROCESSING_READY )
     /* process any extended data */
-    if ( (totalSize = cth.extended_table_length) ) {
+    if ( cth->extended_table_length ) {
+	ext_entry_ptr ext_entry, end;
+
 	puts( SEP_LINE );
 
         printf( "MP Config Extended Table Entries:\n\n" );
 
-        while ( totalSize > 0 ) {
-            switch ( type = readType() ) {
-            case 128:
-		sasEntry();
+	ext_entry = mapEntry(pap + cth->base_table_length,
+	    cth->extended_table_length);
+	end = (ext_entry_ptr)((char *)ext_entry + cth->extended_table_length);
+	while (ext_entry < end) {
+	    switch (ext_entry->type) {
+            case MPCT_EXTENTRY_SAS:
+		sasEntry((sas_entry_ptr)ext_entry);
 		break;
-            case 129:
-		bhdEntry();
+            case MPCT_EXTENTRY_BHD:
+		bhdEntry((bhd_entry_ptr)ext_entry);
 		break;
-            case 130:
-		cbasmEntry();
+            case MPCT_EXTENTRY_CBASM:
+		cbasmEntry((cbasm_entry_ptr)ext_entry);
 		break;
             default:
                 printf( "Extended Table HOSED!\n" );
                 exit( 1 );
             }
 
-            totalSize -= extendedtableEntryTypes[ type-128 ].length;
+	    ext_entry = (ext_entry_ptr)((char *)ext_entry + ext_entry->length);
         }
     }
 #endif  /* EXTENDED_PROCESSING_READY */
 
     /* process any OEM data */
-    if ( cth.oem_table_pointer && (cth.oem_table_size > 0) ) {
+    if ( cth->oem_table_pointer && (cth->oem_table_size > 0) ) {
 #if defined( OEM_PROCESSING_READY )
 # error your on your own here!
-        /* convert OEM table pointer to virtual address */
-        poemtp = (u_int32_t)cth.oem_table_pointer;
-
-        /* read in oem table structure */
-        if ( (oemdata = (void*)malloc( cth.oem_table_size )) == NULL )
-            err( 1, "oem malloc" );
-
-        seekEntry( poemtp );
-        readEntry( oemdata, cth.oem_table_size );
+        /* map in oem table structure */
+	oemdata = mapEntry( cth->oem_table_pointer, cth->oem_table_size);
 
         /** process it */
-
-        free( oemdata );
 #else
         printf( "\nyou need to modify the source to handle OEM data!\n\n" );
 #endif  /* OEM_PROCESSING_READY */
@@ -828,33 +693,15 @@ MPConfigTableHeader( u_int32_t pap )
 #if defined( RAW_DUMP )
 {
     int		ofd;
-    u_char	dumpbuf[ 4096 ];
+    void	*dumpbuf;
 
     ofd = open( "/tmp/mpdump", O_CREAT | O_RDWR, 0666 );
-    seekEntry( paddr );
-    readEntry( dumpbuf, 1024 );
+    
+    dumpbuf = mapEntry( paddr, 1024 );
     write( ofd, dumpbuf, 1024 );
     close( ofd );
 }
 #endif /* RAW_DUMP */
-}
-
-
-/*
- * 
- */
-static int
-readType( void )
-{
-    u_char	type;
-
-    if ( read( pfd, &type, sizeof( u_char ) ) != sizeof( u_char ) )
-        err( 1, "type read; pfd: %d", pfd );
-
-    if ( lseek( pfd, -1, SEEK_CUR ) < 0 )
-        err( 1, "type seek" );
-
-    return (int)type;
 }
 
 
@@ -879,31 +726,37 @@ readEntry( void* entry, int size )
         err( 1, "readEntry" );
 }
 
+static void *
+mapEntry( u_int32_t addr, int size )
+{
+    void	*p;
+
+    p = mmap( NULL, size, PROT_READ, MAP_SHARED, pfd, addr );
+    if (p == MAP_FAILED)
+	err( 1, "mapEntry" );
+    return (p);
+}
 
 static void
-processorEntry( void )
+processorEntry( proc_entry_ptr entry )
 {
-    ProcEntry	entry;
-
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
 
     /* count it */
     ++ncpu;
 
-    printf( "\t\t%2d", entry.apicID );
-    printf( "\t 0x%2x", entry.apicVersion );
+    printf( "\t\t%2d", entry->apic_id );
+    printf( "\t 0x%2x", entry->apic_version );
 
     printf( "\t %s, %s",
-            (entry.cpuFlags & PROCENTRY_FLAG_BP) ? "BSP" : "AP",
-            (entry.cpuFlags & PROCENTRY_FLAG_EN) ? "usable" : "unusable" );
+            (entry->cpu_flags & PROCENTRY_FLAG_BP) ? "BSP" : "AP",
+            (entry->cpu_flags & PROCENTRY_FLAG_EN) ? "usable" : "unusable" );
 
     printf( "\t %d\t %d\t %d",
-            (entry.cpuSignature >> 8) & 0x0f,
-            (entry.cpuSignature >> 4) & 0x0f,
-            entry.cpuSignature & 0x0f );
+            (entry->cpu_signature >> 8) & 0x0f,
+            (entry->cpu_signature >> 4) & 0x0f,
+            entry->cpu_signature & 0x0f );
 
-    printf( "\t 0x%04x\n", entry.featureFlags );
+    printf( "\t 0x%04x\n", entry->feature_flags );
 }
 
 
@@ -924,50 +777,42 @@ lookupBusType( char* name )
 
 
 static void
-busEntry( void )
+busEntry( bus_entry_ptr entry )
 {
     int		x;
     char	name[ 8 ];
     char	c;
-    BusEntry	entry;
-
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
 
     /* count it */
     ++nbus;
 
-    printf( "\t\t%2d", entry.busID );
-    printf( "\t " ); pnstr( entry.busType, 6 ); printf( "\n" );
+    printf( "\t\t%2d", entry->bus_id );
+    printf( "\t " ); pnstr( entry->bus_type, 6 ); printf( "\n" );
 
     for ( x = 0; x < 6; ++x ) {
-	if ( (c = entry.busType[ x ]) == ' ' )
+	if ( (c = entry->bus_type[ x ]) == ' ' )
 	    break;
 	name[ x ] = c;
     }
     name[ x ] = '\0';
-    busses[ entry.busID ] = lookupBusType( name );
+    busses[ entry->bus_id ] = lookupBusType( name );
 }
 
 
 static void
-ioApicEntry( void )
+ioApicEntry( io_apic_entry_ptr entry )
 {
-    IOApicEntry	entry;
-
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
 
     /* count it */
     ++napic;
 
-    printf( "\t\t%2d", entry.apicID );
-    printf( "\t 0x%02x", entry.apicVersion );
+    printf( "\t\t%2d", entry->apic_id );
+    printf( "\t 0x%02x", entry->apic_version );
     printf( "\t %s",
-            (entry.apicFlags & IOAPICENTRY_FLAG_EN) ? "usable" : "unusable" );
-    printf( "\t\t 0x%x\n", entry.apicAddress );
+            (entry->apic_flags & IOAPICENTRY_FLAG_EN) ? "usable" : "unusable" );
+    printf( "\t\t 0x%x\n", entry->apic_address );
 
-    apics[ entry.apicID ] = entry.apicID;
+    apics[ entry->apic_id ] = entry->apic_id;
 }
 
 
@@ -983,53 +828,45 @@ static const char *triggerMode[] = {
 };
 
 static void
-intEntry( void )
+intEntry( int_entry_ptr entry )
 {
-    IntEntry	entry;
-
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
 
     /* count it */
-    if ( (int)entry.type == 3 )
+    if ( entry->type == MPCT_ENTRY_INT )
 	++nintr;
 
-    printf( "\t\t%s", intTypes[ (int)entry.intType ] );
+    printf( "\t\t%s", intTypes[ entry->int_type ] );
 
-    printf( "\t%9s", polarityMode[ (int)entry.intFlags & 0x03 ] );
-    printf( "%12s", triggerMode[ ((int)entry.intFlags >> 2) & 0x03 ] );
+    printf( "\t%9s", polarityMode[ entry->int_flags & INTENTRY_FLAGS_POLARITY ] );
+    printf( "%12s", triggerMode[ (entry->int_flags & INTENTRY_FLAGS_TRIGGER) >> 2 ] );
 
-    printf( "\t %5d", (int)entry.srcBusID );
-    if ( busses[ (int)entry.srcBusID ] == PCI )
+    printf( "\t %5d", entry->src_bus_id );
+    if ( busses[ entry->src_bus_id ] == PCI )
 	printf( "\t%2d:%c", 
-	        ((int)entry.srcBusIRQ >> 2) & 0x1f,
-	        ((int)entry.srcBusIRQ & 0x03) + 'A' );
+	        (entry->src_bus_irq >> 2) & 0x1f,
+	        (entry->src_bus_irq & 0x03) + 'A' );
     else
-	printf( "\t %3d", (int)entry.srcBusIRQ );
-    printf( "\t %6d", (int)entry.dstApicID );
-    printf( "\t %3d\n", (int)entry.dstApicINT );
+	printf( "\t %3d", entry->src_bus_irq );
+    printf( "\t %6d", entry->dst_apic_id );
+    printf( "\t %3d\n", entry->dst_apic_int );
 }
 
 
 static void
-sasEntry( void )
+sasEntry( sas_entry_ptr entry )
 {
-    SasEntry	entry;
 
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
-
-    printf( "--\n%s\n", extendedtableEntryTypes[entry.type - 128].name );
-    printf( " bus ID: %d", entry.busID );
+    printf( "--\nSystem Address Space\n");
+    printf( " bus ID: %d", entry->bus_id );
     printf( " address type: " );
-    switch ( entry.addressType ) {
-    case 0:
+    switch ( entry->address_type ) {
+    case SASENTRY_TYPE_IO:
 	printf( "I/O address\n" );
 	break;
-    case 1:
+    case SASENTRY_TYPE_MEMORY:
 	printf( "memory address\n" );
 	break;
-    case 2:
+    case SASENTRY_TYPE_PREFETCH:
 	printf( "prefetch address\n" );
 	break;
     default:
@@ -1037,39 +874,32 @@ sasEntry( void )
 	break;
     }
 
-    printf( " address base: 0x%llx\n", (long long)entry.addressBase );
-    printf( " address range: 0x%llx\n", (long long)entry.addressLength );
+    printf( " address base: 0x%jx\n", (uintmax_t)entry->address_base );
+    printf( " address range: 0x%jx\n", (uintmax_t)entry->address_length );
 }
 
 
 static void
-bhdEntry( void )
+bhdEntry( bhd_entry_ptr entry )
 {
-    BhdEntry	entry;
 
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
-
-    printf( "--\n%s\n", extendedtableEntryTypes[entry.type - 128].name );
-    printf( " bus ID: %d", entry.busID );
-    printf( " bus info: 0x%02x", entry.busInfo );
-    printf( " parent bus ID: %d\n", entry.busParent );
+    printf( "--\nBus Hierarchy\n" );
+    printf( " bus ID: %d", entry->bus_id );
+    printf( " bus info: 0x%02x", entry->bus_info );
+    printf( " parent bus ID: %d\n", entry->parent_bus );
 }
 
 
 static void
-cbasmEntry( void )
+cbasmEntry( cbasm_entry_ptr entry )
 {
-    CbasmEntry	entry;
 
-    /* read it into local memory */
-    readEntry( &entry, sizeof( entry ) );
-
-    printf( "--\n%s\n", extendedtableEntryTypes[entry.type - 128].name );
-    printf( " bus ID: %d", entry.busID );
-    printf( " address modifier: %s\n", (entry.addressMod & 0x01) ?
-                                        "subtract" : "add" );
-    printf( " predefined range: 0x%08x\n", entry.predefinedRange );
+    printf( "--\nCompatibility Bus Address\n" );
+    printf( " bus ID: %d", entry->bus_id );
+    printf( " address modifier: %s\n",
+	(entry->address_mod & CBASMENTRY_ADDRESS_MOD_SUBTRACT) ?
+	"subtract" : "add" );
+    printf( " predefined range: 0x%08x\n", entry->predefined_range );
 }
 
 

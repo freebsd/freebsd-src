@@ -484,13 +484,13 @@ on1:
 struct radix_node *
 rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 {
-	caddr_t netmask = (caddr_t)n_arg;
-	register struct radix_node *x;
-	register caddr_t cp, cplim;
-	register int b = 0, mlen, j;
+	unsigned char *netmask = n_arg;
+	unsigned char *cp, *cplim;
+	struct radix_node *x;
+	int b = 0, mlen, j;
 	int maskduplicated, isnormal;
 	struct radix_node *saved_x;
-	char addmask_key[RADIX_MAX_KEY_LEN];
+	unsigned char addmask_key[RADIX_MAX_KEY_LEN];
 
 	if ((mlen = LEN(netmask)) > RADIX_MAX_KEY_LEN)
 		mlen = RADIX_MAX_KEY_LEN;
@@ -532,20 +532,18 @@ rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 	 * Calculate index of mask, and check for normalcy.
 	 * First find the first byte with a 0 bit, then if there are
 	 * more bits left (remember we already trimmed the trailing 0's),
-	 * the pattern must be one of those in normal_chars[], or we have
+	 * the bits should be contiguous, otherwise we have got
 	 * a non-contiguous mask.
 	 */
+#define	CONTIG(_c)	(((~(_c) + 1) & (_c)) == (unsigned char)(~(_c) + 1))
 	cplim = netmask + mlen;
 	isnormal = 1;
 	for (cp = netmask + skip; (cp < cplim) && *(u_char *)cp == 0xff;)
 		cp++;
 	if (cp != cplim) {
-		static char normal_chars[] = {
-			0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};
-
 		for (j = 0x80; (j & *cp) != 0; j >>= 1)
 			b++;
-		if (*cp != normal_chars[b] || cp != (cplim - 1))
+		if (!CONTIG(*cp) || cp != (cplim - 1))
 			isnormal = 0;
 	}
 	b += (cp - netmask) << 3;

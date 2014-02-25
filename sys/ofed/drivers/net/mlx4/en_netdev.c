@@ -153,6 +153,19 @@ restart:
 	return (i);
 }
 
+static void mlx4_en_stop_port(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+ 
+	queue_work(priv->mdev->workqueue, &priv->stop_port_task);
+}
+
+static void mlx4_en_start_port(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	queue_work(priv->mdev->workqueue, &priv->start_port_task);
+}
 
 static void mlx4_en_set_multicast(struct net_device *dev)
 {
@@ -473,6 +486,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
+	mlx4_en_QUERY_PORT(priv->mdev, priv->port);
 	mutex_unlock(&mdev->state_lock);
 }
 
@@ -498,8 +512,31 @@ static void mlx4_en_linkstate(struct work_struct *work)
 	mutex_unlock(&mdev->state_lock);
 }
 
+static void mlx4_en_lock_and_stop_port(struct work_struct *work)
+{
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 stop_port_task);
+	struct net_device *dev = priv->dev;
+	struct mlx4_en_dev *mdev = priv->mdev;
+ 
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_do_stop_port(dev);
+	mutex_unlock(&mdev->state_lock);
+}
 
-int mlx4_en_start_port(struct net_device *dev)
+static void mlx4_en_lock_and_start_port(struct work_struct *work)
+{
+	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
+						 start_port_task);
+	struct net_device *dev = priv->dev;
+	struct mlx4_en_dev *mdev = priv->mdev;
+
+	mutex_lock(&mdev->state_lock);
+	mlx4_en_do_start_port(dev);
+	mutex_unlock(&mdev->state_lock);
+}
+
+int mlx4_en_do_start_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -691,7 +728,7 @@ cq_err:
 }
 
 
-void mlx4_en_stop_port(struct net_device *dev)
+void mlx4_en_do_stop_port(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
@@ -761,8 +798,8 @@ reset:
 
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
-		mlx4_en_stop_port(dev);
-		if (mlx4_en_start_port(dev))
+		mlx4_en_do_stop_port(dev);
+		if (mlx4_en_do_start_port(dev))
 			en_err(priv, "Failed restarting port %d\n", priv->port);
 	}
 	mutex_unlock(&mdev->state_lock);
@@ -793,7 +830,7 @@ mlx4_en_init_locked(struct mlx4_en_priv *priv)
 	dev = priv->dev;
 	mdev = priv->mdev;
 	if (dev->if_drv_flags & IFF_DRV_RUNNING)
-		mlx4_en_stop_port(dev);
+		mlx4_en_do_stop_port(dev);
 
 	if (!mdev->device_up) {
 		en_err(priv, "Cannot open - device down/disabled\n");
@@ -816,7 +853,7 @@ mlx4_en_init_locked(struct mlx4_en_priv *priv)
 	}
 
 	mlx4_en_set_default_moderation(priv);
-	if (mlx4_en_start_port(dev))
+	if (mlx4_en_do_start_port(dev))
 		en_err(priv, "Failed starting port:%d\n", priv->port);
 }
 
@@ -905,7 +942,7 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 		mlx4_free_hwq_res(mdev->dev, &priv->res, MLX4_EN_PAGE_SIZE);
 
 	mutex_lock(&mdev->state_lock);
-	mlx4_en_stop_port(dev);
+	mlx4_en_do_stop_port(dev);
 	mutex_unlock(&mdev->state_lock);
 
 	cancel_delayed_work(&priv->stats_task);
@@ -925,7 +962,6 @@ void mlx4_en_destroy_netdev(struct net_device *dev)
 
 	mtx_destroy(&priv->stats_lock.m);
 	mtx_destroy(&priv->vlan_lock.m);
-	mtx_destroy(&priv->ioctl_lock.m);
 	kfree(priv);
 	if_free(dev);
 }
@@ -951,9 +987,9 @@ static int mlx4_en_change_mtu(struct net_device *dev, int new_mtu)
 			 * the port */
 			en_dbg(DRV, priv, "Change MTU called with card down!?\n");
 		} else {
-			mlx4_en_stop_port(dev);
+			mlx4_en_do_stop_port(dev);
 			mlx4_en_set_default_moderation(priv);
-			err = mlx4_en_start_port(dev);
+			err = mlx4_en_do_start_port(dev);
 			if (err) {
 				en_err(priv, "Failed restarting port:%d\n",
 					 priv->port);
@@ -973,8 +1009,13 @@ static int mlx4_en_calc_media(struct mlx4_en_priv *priv)
 	active = IFM_ETHER;
 	if (priv->last_link_state == MLX4_DEV_EVENT_PORT_DOWN)
 		return (active);
-	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
-		return (active);
+	/*
+	 * [ShaharK] mlx4_en_QUERY_PORT sleeps and cannot be called under a
+	 * non-sleepable lock.
+	 * I moved it to the periodic mlx4_en_do_get_stats.
+ 	if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
+ 		return (active);
+	*/
 	active |= IFM_FDX;
 	trans_type = priv->port_state.transciver;
 	/* XXX I don't know all of the transceiver values. */
@@ -1078,7 +1119,6 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		error = -mlx4_en_change_mtu(dev, ifr->ifr_mtu);
 		break;
 	case SIOCSIFFLAGS:
-		mutex_lock(&mdev->state_lock);
 		if (dev->if_flags & IFF_UP) {
 			if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)
 				mlx4_en_start_port(dev);
@@ -1087,16 +1127,24 @@ static int mlx4_en_ioctl(struct ifnet *dev, u_long command, caddr_t data)
 		} else {
 			if (dev->if_drv_flags & IFF_DRV_RUNNING) {
 				mlx4_en_stop_port(dev);
-				if_link_state_change(dev, LINK_STATE_DOWN);
+                                if_link_state_change(dev, LINK_STATE_DOWN);
+                                /*
+				 * Since mlx4_en_stop_port is defered we
+				 * have to wait till it's finished.
+				 */
+                                for (int count=0; count<10; count++) {
+                                        if (dev->if_drv_flags & IFF_DRV_RUNNING) {
+                                                DELAY(20000);
+                                        } else {
+                                                break;
+                                        }
+                                }
 			}
 		}
-		mutex_unlock(&mdev->state_lock);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-                spin_lock(&priv->ioctl_lock);
 		mlx4_en_set_multicast(dev);
-                spin_unlock(&priv->ioctl_lock);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -1153,7 +1201,7 @@ static int mlx4_en_set_ring_size(struct net_device *dev,
 	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		port_up = 1;
-		mlx4_en_stop_port(dev);
+		mlx4_en_do_stop_port(dev);
 	}
 	mlx4_en_free_resources(priv);
 	priv->prof->tx_ring_size = tx_size;
@@ -1164,7 +1212,7 @@ static int mlx4_en_set_ring_size(struct net_device *dev,
 		goto out;
 	}
 	if (port_up) {
-		err = mlx4_en_start_port(dev);
+		err = mlx4_en_do_start_port(dev);
 		if (err)
 			en_err(priv, "Failed starting port\n");
 	}
@@ -1256,7 +1304,7 @@ static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
 		mutex_lock(&mdev->state_lock);
 		if (priv->port_up) {
 			port_up = 1;
-			mlx4_en_stop_port(priv->dev);
+			mlx4_en_do_stop_port(priv->dev);
 		}
 		mlx4_en_free_resources(priv);
 		priv->tx_ring_num = tx_ring_num;
@@ -1265,7 +1313,7 @@ static int mlx4_en_set_rx_ppp(SYSCTL_HANDLER_ARGS)
 		if (error)
 			en_err(priv, "Failed reallocating port resources\n");
 		if (error == 0 && port_up) {
-			error = -mlx4_en_start_port(priv->dev);
+			error = -mlx4_en_do_start_port(priv->dev);
 			if (error)
 				en_err(priv, "Failed starting port\n");
 		}
@@ -1517,8 +1565,9 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	priv->ip_reasm = priv->mdev->profile.ip_reasm;
 	mtx_init(&priv->stats_lock.m, "mlx4 stats", NULL, MTX_DEF);
-	mtx_init(&priv->ioctl_lock.m, "mlx4 ioctl", NULL, MTX_DEF);
 	mtx_init(&priv->vlan_lock.m, "mlx4 vlan", NULL, MTX_DEF);
+	INIT_WORK(&priv->start_port_task, mlx4_en_lock_and_start_port);
+	INIT_WORK(&priv->stop_port_task, mlx4_en_lock_and_stop_port);
 	INIT_WORK(&priv->mcast_task, mlx4_en_do_set_multicast);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);

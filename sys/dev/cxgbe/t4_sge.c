@@ -2901,7 +2901,6 @@ alloc_wrq(struct adapter *sc, struct port_info *pi, struct sge_wrq *wrq,
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "unstalled", CTLFLAG_RD,
 	    &wrq->eq.unstalled, 0, "# of times queue recovered after stall");
 
-
 	return (rc);
 }
 

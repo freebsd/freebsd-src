@@ -45,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #define INKERNEL(x)	(((vm_offset_t)(x)) <= VM_MAX_KERNEL_ADDRESS && \
 		((vm_offset_t)(x)) >= VM_MIN_KERNEL_ADDRESS)
+#define INUSER(x)	(((vm_offset_t)(x)) <= VM_MAXUSER_ADDRESS && \
+		((vm_offset_t)(x)) >= VM_MIN_ADDRESS)
 
 struct powerpc_cpu **powerpc_pcpu;
 
@@ -55,13 +57,13 @@ pmc_save_kernel_callchain(uintptr_t *cc, int maxsamples,
 	int frames = 0;
 	uintptr_t *sp;
 
-	cc[frames++] = tf->srr0;
-	sp = (uintptr_t *)tf->fixreg[1];
+	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
+	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
 
 	for (frames = 1; frames < maxsamples; frames++) {
 		if (!INKERNEL(sp))
 			break;
-		cc[frames++] = *(sp + 1);
+		cc[frames++] = sp[1];
 		sp = (uintptr_t *)*sp;
 	}
 	return (frames);
@@ -172,8 +174,17 @@ int
 pmc_save_user_callchain(uintptr_t *cc, int maxsamples,
     struct trapframe *tf)
 {
-	(void) cc;
-	(void) maxsamples;
-	(void) tf;
-	return (0);
+	uintptr_t *sp;
+	int frames = 0;
+
+	cc[frames++] = PMC_TRAPFRAME_TO_PC(tf);
+	sp = (uintptr_t *)PMC_TRAPFRAME_TO_FP(tf);
+
+	for (frames = 1; frames < maxsamples; frames++) {
+		if (!INUSER(sp))
+			break;
+		cc[frames++] = fuword(sp + 1);
+		sp = (uintptr_t *)fuword(sp);
+	}
+	return (frames);
 }

@@ -487,7 +487,7 @@ g_dev_done(struct bio *bp2)
 	bp = bp2->bio_parent;
 	bp->bio_error = bp2->bio_error;
 	bp->bio_completed = bp2->bio_completed;
-	bp->bio_resid = bp2->bio_resid;
+	bp->bio_resid = bp->bio_length - bp2->bio_completed;
 	if (bp2->bio_error != 0) {
 		g_trace(G_T_BIO, "g_dev_done(%p) had error %d",
 		    bp2, bp2->bio_error);

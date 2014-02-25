@@ -850,19 +850,14 @@ msicap_cfgwrite(struct pci_devinst *pi, int capoff, int offset,
 		else
 			msgdata = pci_get_cfgdata16(pi, capoff + 8);
 
-		/*
-		 * XXX check delivery mode, destination mode etc
-		 */
 		mme = msgctrl & PCIM_MSICTRL_MME_MASK;
 		pi->pi_msi.enabled = msgctrl & PCIM_MSICTRL_MSI_ENABLE ? 1 : 0;
 		if (pi->pi_msi.enabled) {
-			pi->pi_msi.cpu = (addrlo >> 12) & 0xff;
-			pi->pi_msi.vector = msgdata & 0xff;
-			pi->pi_msi.msgnum = 1 << (mme >> 4);
+			pi->pi_msi.addr = addrlo;
+			pi->pi_msi.msg_data = msgdata;
+			pi->pi_msi.maxmsgnum = 1 << (mme >> 4);
 		} else {
-			pi->pi_msi.cpu = 0;
-			pi->pi_msi.vector = 0;
-			pi->pi_msi.msgnum = 0;
+			pi->pi_msi.maxmsgnum = 0;
 		}
 	}
 
@@ -1060,10 +1055,10 @@ pci_msi_enabled(struct pci_devinst *pi)
 }
 
 int
-pci_msi_msgnum(struct pci_devinst *pi)
+pci_msi_maxmsgnum(struct pci_devinst *pi)
 {
 	if (pi->pi_msi.enabled)
-		return (pi->pi_msi.msgnum);
+		return (pi->pi_msi.maxmsgnum);
 	else
 		return (0);
 }
@@ -1092,19 +1087,17 @@ pci_generate_msix(struct pci_devinst *pi, int index)
 	mte = &pi->pi_msix.table[index];
 	if ((mte->vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
 		/* XXX Set PBA bit if interrupt is disabled */
-		vm_lapic_irq(pi->pi_vmctx,
-			     (mte->addr >> 12) & 0xff, mte->msg_data & 0xff);
+		vm_lapic_msi(pi->pi_vmctx, mte->addr, mte->msg_data);
 	}
 }
 
 void
-pci_generate_msi(struct pci_devinst *pi, int msg)
+pci_generate_msi(struct pci_devinst *pi, int index)
 {
 
-	if (pci_msi_enabled(pi) && msg < pci_msi_msgnum(pi)) {
-		vm_lapic_irq(pi->pi_vmctx,
-			     pi->pi_msi.cpu,
-			     pi->pi_msi.vector + msg);
+	if (pci_msi_enabled(pi) && index < pci_msi_maxmsgnum(pi)) {
+		vm_lapic_msi(pi->pi_vmctx, pi->pi_msi.addr,
+			     pi->pi_msi.msg_data + index);
 	}
 }
 
@@ -1511,10 +1504,10 @@ pci_emul_diow(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 		 * Special magic value to generate an interrupt
 		 */
 		if (offset == 4 && size == 4 && pci_msi_enabled(pi))
-			pci_generate_msi(pi, value % pci_msi_msgnum(pi));
+			pci_generate_msi(pi, value % pci_msi_maxmsgnum(pi));
 
 		if (value == 0xabcdef) {
-			for (i = 0; i < pci_msi_msgnum(pi); i++)
+			for (i = 0; i < pci_msi_maxmsgnum(pi); i++)
 				pci_generate_msi(pi, i);
 		}
 	}

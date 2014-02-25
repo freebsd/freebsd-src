@@ -724,11 +724,11 @@ nvlist_recv(int sock)
 {
 	struct nvlist_header nvlhdr;
 	nvlist_t *nvl, *ret;
+	unsigned char *buf;
 	size_t nfds, size;
-	void *buf;
 	int serrno, *fds;
 
-	if (msg_peek(sock, &nvlhdr, sizeof(nvlhdr)) == -1)
+	if (buf_recv(sock, &nvlhdr, sizeof(nvlhdr)) == -1)
 		return (NULL);
 
 	if (!nvlist_check_header(&nvlhdr))
@@ -741,10 +741,12 @@ nvlist_recv(int sock)
 	if (buf == NULL)
 		return (NULL);
 
+	memcpy(buf, &nvlhdr, sizeof(nvlhdr));
+
 	ret = NULL;
 	fds = NULL;
 
-	if (buf_recv(sock, buf, size) == -1)
+	if (buf_recv(sock, buf + sizeof(nvlhdr), size - sizeof(nvlhdr)) == -1)
 		goto out;
 
 	if (nfds > 0) {

@@ -32,8 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/sbuf.h>
 #include <sys/elf_common.h>
 #include <sys/endian.h>
+#include <sys/types.h>
 
 #include <assert.h>
+#include <dirent.h>
 #include <yaml.h>
 #include <ctype.h>
 #include <err.h>
@@ -51,11 +53,17 @@ __FBSDID("$FreeBSD$");
 
 #define roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 
+struct config_value {
+       char *value;
+       STAILQ_ENTRY(config_value) next;
+};
+
 struct config_entry {
 	uint8_t type;
 	const char *key;
 	const char *val;
 	char *value;
+	STAILQ_HEAD(, config_value) *list;
 	bool envset;
 };
 
@@ -65,11 +73,13 @@ static struct config_entry c[] = {
 		"PACKAGESITE",
 		URL_SCHEME_PREFIX "http://pkg.FreeBSD.org/${ABI}/latest",
 		NULL,
+		NULL,
 		false,
 	},
 	[ABI] = {
 		PKG_CONFIG_STRING,
 		"ABI",
+		NULL,
 		NULL,
 		NULL,
 		false,
@@ -79,12 +89,14 @@ static struct config_entry c[] = {
 		"MIRROR_TYPE",
 		"SRV",
 		NULL,
+		NULL,
 		false,
 	},
 	[ASSUME_ALWAYS_YES] = {
 		PKG_CONFIG_BOOL,
 		"ASSUME_ALWAYS_YES",
 		"NO",
+		NULL,
 		NULL,
 		false,
 	},
@@ -93,11 +105,21 @@ static struct config_entry c[] = {
 		"SIGNATURE_TYPE",
 		NULL,
 		NULL,
+		NULL,
 		false,
 	},
 	[FINGERPRINTS] = {
 		PKG_CONFIG_STRING,
 		"FINGERPRINTS",
+		NULL,
+		NULL,
+		NULL,
+		false,
+	},
+	[REPOS_DIR] = {
+		PKG_CONFIG_LIST,
+		"REPOS_DIR",
+		NULL,
 		NULL,
 		NULL,
 		false,
@@ -474,16 +496,33 @@ subst_packagesite(const char *abi)
 	c[PACKAGESITE].value = strdup(sbuf_data(newval));
 }
 
+static int
+boolstr_to_bool(const char *str)
+{
+	if (str != NULL && (strcasecmp(str, "true") == 0 ||
+	    strcasecmp(str, "yes") == 0 || strcasecmp(str, "on") == 0 ||
+	    str[0] == '1'))
+		return (true);
+
+	return (false);
+}
+
 static void
 config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 {
+	yaml_node_item_t *item;
 	yaml_node_pair_t *pair;
-	yaml_node_t *key, *val;
+	yaml_node_t *key, *val, *item_val;
 	struct sbuf *buf = sbuf_new_auto();
+	struct config_entry *temp_config;
+	struct config_value *cv;
 	int i;
 	size_t j;
 
 	pair = node->data.mapping.pairs.start;
+
+	/* Temporary config for configs that may be disabled. */
+	temp_config = calloc(CONFIG_SIZE, sizeof(struct config_entry));
 
 	while (pair < node->data.mapping.pairs.top) {
 		key = yaml_document_get_node(doc, pair->key);
@@ -530,7 +569,12 @@ config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 			else if (strcasecmp(key->data.scalar.value,
 			    "fingerprints") == 0)
 				sbuf_cpy(buf, "FINGERPRINTS");
-			else { /* Skip unknown entries for future use. */
+			else if (strcasecmp(key->data.scalar.value,
+			    "enabled") == 0) {
+				/* Skip disabled repos. */
+				if (!boolstr_to_bool(val->data.scalar.value))
+					goto cleanup;
+			} else { /* Skip unknown entries for future use. */
 				++pair;
 				continue;
 			}
@@ -554,10 +598,58 @@ config_parse(yaml_document_t *doc, yaml_node_t *node, pkg_conf_file_t conftype)
 			continue;
 		}
 
-		c[i].value = strdup(val->data.scalar.value);
+		/* Parse sequence value ["item1", "item2"] */
+		switch (c[i].type) {
+		case PKG_CONFIG_LIST:
+			if (val->type != YAML_SEQUENCE_NODE) {
+				fprintf(stderr, "Skipping invalid array "
+				    "value for %s.\n", c[i].key);
+				++pair;
+				continue;
+			}
+			item = val->data.sequence.items.start;
+			temp_config[i].list =
+			    malloc(sizeof(*temp_config[i].list));
+			STAILQ_INIT(temp_config[i].list);
+
+			while (item < val->data.sequence.items.top) {
+				item_val = yaml_document_get_node(doc, *item);
+				if (item_val->type != YAML_SCALAR_NODE) {
+					++item;
+					continue;
+				}
+				cv = malloc(sizeof(struct config_value));
+				cv->value =
+				    strdup(item_val->data.scalar.value);
+				STAILQ_INSERT_TAIL(temp_config[i].list, cv,
+				    next);
+				++item;
+			}
+			break;
+		default:
+			/* Normal string value. */
+			temp_config[i].value = strdup(val->data.scalar.value);
+			break;
+		}
 		++pair;
 	}
 
+	/* Repo is enabled, copy over all settings from temp_config. */
+	for (i = 0; i < CONFIG_SIZE; i++) {
+		if (c[i].envset)
+			continue;
+		switch (c[i].type) {
+		case PKG_CONFIG_LIST:
+			c[i].list = temp_config[i].list;
+			break;
+		default:
+			c[i].value = temp_config[i].value;
+			break;
+		}
+	}
+
+cleanup:
+	free(temp_config);
 	sbuf_delete(buf);
 }
 
@@ -632,23 +724,84 @@ read_conf_file(const char *confpath, pkg_conf_file_t conftype)
 	return (0);
 }
 
+static int
+load_repositories(const char *repodir)
+{
+	struct dirent *ent;
+	DIR *d;
+	char *p;
+	size_t n;
+	char path[MAXPATHLEN];
+	int ret;
+
+	ret = 0;
+
+	if ((d = opendir(repodir)) == NULL)
+		return (1);
+
+	while ((ent = readdir(d))) {
+		/* Trim out 'repos'. */
+		if ((n = strlen(ent->d_name)) <= 5)
+			continue;
+		p = &ent->d_name[n - 5];
+		if (strcmp(p, ".conf") == 0) {
+			snprintf(path, sizeof(path), "%s%s%s",
+			    repodir,
+			    repodir[strlen(repodir) - 1] == '/' ? "" : "/",
+			    ent->d_name);
+			if (access(path, F_OK) == 0 &&
+			    read_conf_file(path, CONFFILE_REPO)) {
+				ret = 1;
+				goto cleanup;
+			}
+		}
+	}
+
+cleanup:
+	closedir(d);
+
+	return (ret);
+}
+
 int
 config_init(void)
 {
-	const char *val;
+	char *val;
 	int i;
 	const char *localbase;
+	char *env_list_item;
 	char confpath[MAXPATHLEN];
+	struct config_value *cv;
 	char abi[BUFSIZ];
 
 	for (i = 0; i < CONFIG_SIZE; i++) {
 		val = getenv(c[i].key);
 		if (val != NULL) {
-			c[i].val = val;
 			c[i].envset = true;
+			switch (c[i].type) {
+			case PKG_CONFIG_LIST:
+				/* Split up comma-separated items from env. */
+				c[i].list = malloc(sizeof(*c[i].list));
+				STAILQ_INIT(c[i].list);
+				for (env_list_item = strtok(val, ",");
+				    env_list_item != NULL;
+				    env_list_item = strtok(NULL, ",")) {
+					cv =
+					    malloc(sizeof(struct config_value));
+					cv->value =
+					    strdup(env_list_item);
+					STAILQ_INSERT_TAIL(c[i].list, cv,
+					    next);
+				}
+				break;
+			default:
+				c[i].val = val;
+				break;
+			}
 		}
 	}
 
+	/* Read LOCALBASE/etc/pkg.conf first. */
 	localbase = getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE;
 	snprintf(confpath, sizeof(confpath), "%s/etc/pkg.conf",
 	    localbase);
@@ -657,10 +810,22 @@ config_init(void)
 	    CONFFILE_PKG))
 		goto finalize;
 
-	snprintf(confpath, sizeof(confpath), "/etc/pkg/FreeBSD.conf");
-	if (access(confpath, F_OK) == 0 && read_conf_file(confpath,
-	    CONFFILE_REPO))
-		goto finalize;
+	/* Then read in all repos from REPOS_DIR list of directories. */
+	if (c[REPOS_DIR].list == NULL) {
+		c[REPOS_DIR].list = malloc(sizeof(*c[REPOS_DIR].list));
+		STAILQ_INIT(c[REPOS_DIR].list);
+		cv = malloc(sizeof(struct config_value));
+		cv->value = strdup("/etc/pkg");
+		STAILQ_INSERT_TAIL(c[REPOS_DIR].list, cv, next);
+		cv = malloc(sizeof(struct config_value));
+		if (asprintf(&cv->value, "%s/etc/pkg/repos", localbase) < 0)
+			goto finalize;
+		STAILQ_INSERT_TAIL(c[REPOS_DIR].list, cv, next);
+	}
+
+	STAILQ_FOREACH(cv, c[REPOS_DIR].list, next)
+		if (load_repositories(cv->value))
+			goto finalize;
 
 finalize:
 	if (c[ABI].val == NULL && c[ABI].value == NULL) {
@@ -704,10 +869,7 @@ config_bool(pkg_config_key k, bool *val)
 	else
 		value = c[k].val;
 
-	if (strcasecmp(value, "true") == 0 ||
-	    strcasecmp(value, "yes") == 0 ||
-	    strcasecmp(value, "on") == 0 ||
-	    *value == '1')
+	if (boolstr_to_bool(value))
 		*val = true;
 
 	return (0);

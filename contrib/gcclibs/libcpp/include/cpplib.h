@@ -320,6 +320,11 @@ struct cpp_options
   /* Nonzero means warn if there are any trigraphs.  */
   unsigned char warn_trigraphs;
 
+  /* APPLE LOCAL begin -Wnewline-eof 2001-08-23 --sts */
+  /* Nonzero means warn if no newline at end of file.  */
+  unsigned char warn_newline_at_eof;
+  /* APPLE LOCAL end -Wnewline-eof 2001-08-23 --sts */
+
   /* Nonzero means warn about multicharacter charconsts.  */
   unsigned char warn_multichar;
 

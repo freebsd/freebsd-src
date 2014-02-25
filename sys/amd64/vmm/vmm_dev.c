@@ -152,6 +152,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	struct vm_run *vmrun;
 	struct vm_event *vmevent;
 	struct vm_lapic_irq *vmirq;
+	struct vm_lapic_msi *vmmsi;
 	struct vm_ioapic_irq *ioapic_irq;
 	struct vm_capability *vmcap;
 	struct vm_pptdev *pptdev;
@@ -254,7 +255,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		pptmsi = (struct vm_pptdev_msi *)data;
 		error = ppt_setup_msi(sc->vm, pptmsi->vcpu,
 				      pptmsi->bus, pptmsi->slot, pptmsi->func,
-				      pptmsi->destcpu, pptmsi->vector,
+				      pptmsi->addr, pptmsi->msg,
 				      pptmsi->numvec);
 		break;
 	case VM_PPTDEV_MSIX:
@@ -262,8 +263,8 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = ppt_setup_msix(sc->vm, pptmsix->vcpu,
 				       pptmsix->bus, pptmsix->slot, 
 				       pptmsix->func, pptmsix->idx,
-				       pptmsix->msg, pptmsix->vector_control,
-				       pptmsix->addr);
+				       pptmsix->addr, pptmsix->msg,
+				       pptmsix->vector_control);
 		break;
 	case VM_MAP_PPTDEV_MMIO:
 		pptmmio = (struct vm_pptdev_mmio *)data;
@@ -295,6 +296,10 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_LAPIC_IRQ:
 		vmirq = (struct vm_lapic_irq *)data;
 		error = lapic_intr_edge(sc->vm, vmirq->cpuid, vmirq->vector);
+		break;
+	case VM_LAPIC_MSI:
+		vmmsi = (struct vm_lapic_msi *)data;
+		error = lapic_intr_msi(sc->vm, vmmsi->addr, vmmsi->msg);
 		break;
 	case VM_IOAPIC_ASSERT_IRQ:
 		ioapic_irq = (struct vm_ioapic_irq *)data;

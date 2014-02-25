@@ -87,6 +87,7 @@ static int guest_vmexit_on_hlt, guest_vmexit_on_pause, disable_x2apic;
 static int virtio_msix = 1;
 
 static int strictio;
+static int strictmsr = 1;
 
 static int acpi;
 
@@ -122,7 +123,7 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
+                "Usage: %s [-aehwAHIPW] [-g <gdb port>] [-s <pci>] [-S <pci>]\n"
 		"       %*s [-c vcpus] [-p pincpu] [-m mem] [-l <lpc>] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
 		"       -A: create an ACPI table\n"
@@ -137,7 +138,8 @@ usage(int code)
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
 		"       -l: LPC device configuration\n"
-		"       -m: memory size in MB\n",
+		"       -m: memory size in MB\n"
+		"       -w: ignore unimplemented MSRs\n",
 		progname, (int)strlen(progname), "");
 
 	exit(code);
@@ -310,20 +312,43 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 static int
 vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
-	fprintf(stderr, "vm exit rdmsr 0x%x, cpu %d\n", vme->u.msr.code,
-	    *pvcpu);
-	return (VMEXIT_ABORT);
+	uint64_t val;
+	uint32_t eax, edx;
+	int error;
+
+	val = 0;
+	error = emulate_rdmsr(ctx, *pvcpu, vme->u.msr.code, &val);
+	if (error != 0) {
+		fprintf(stderr, "rdmsr to register %#x on vcpu %d\n",
+		    vme->u.msr.code, *pvcpu);
+		if (strictmsr)
+			return (VMEXIT_ABORT);
+	}
+
+	eax = val;
+	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RAX, eax);
+	assert(error == 0);
+
+	edx = val >> 32;
+	error = vm_set_register(ctx, *pvcpu, VM_REG_GUEST_RDX, edx);
+	assert(error == 0);
+
+	return (VMEXIT_CONTINUE);
 }
 
 static int
 vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
-	int newcpu;
-	int retval = VMEXIT_CONTINUE;
+	int error;
 
-	newcpu = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code,vme->u.msr.wval);
-
-        return (retval);
+	error = emulate_wrmsr(ctx, *pvcpu, vme->u.msr.code, vme->u.msr.wval);
+	if (error != 0) {
+		fprintf(stderr, "wrmsr to register %#x(%#lx) on vcpu %d\n",
+		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
+		if (strictmsr)
+			return (VMEXIT_ABORT);
+	}
+	return (VMEXIT_CONTINUE);
 }
 
 static int
@@ -577,7 +602,7 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	memsize = 256 * MB;
 
-	while ((c = getopt(argc, argv, "abehAHIPWp:g:c:s:S:m:l:")) != -1) {
+	while ((c = getopt(argc, argv, "abehwAHIPWp:g:c:s:S:m:l:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
@@ -635,6 +660,9 @@ main(int argc, char *argv[])
 			break;
 		case 'e':
 			strictio = 1;
+			break;
+		case 'w':
+			strictmsr = 0;
 			break;
 		case 'W':
 			virtio_msix = 0;

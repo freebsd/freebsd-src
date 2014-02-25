@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 .if (${MACHINE_ARCH} == "amd64")
 SFX=		32
 .endif
@@ -11,6 +13,12 @@ PROG=		kdump
 SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
 DPSRCS=		kdump_subr.h 
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
+
+.if ${MK_CASPER} != "no"
+DPADD+=	${LIBCAPSICUM} ${LIBNV}
+LDADD+=	-lcapsicum -lnv
+CFLAGS+=-DHAVE_LIBCAPSICUM
+.endif
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 SRCS+=		linux_syscalls.c

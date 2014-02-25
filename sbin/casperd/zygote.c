@@ -122,6 +122,8 @@ zygote_main(int sock)
 
 	assert(sock > STDERR_FILENO);
 
+	setproctitle("zygote");
+
 	if (pjdlog_mode_get() != PJDLOG_MODE_STD)
 		stdnull();
 	for (fd = STDERR_FILENO + 1; fd < sock; fd++)
