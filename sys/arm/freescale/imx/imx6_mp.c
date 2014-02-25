@@ -113,11 +113,11 @@ platform_mp_start_ap(void)
 		panic("Couldn't map the system reset controller (SRC)\n");
 
 	/*
-	 * Invalidate SCU cache tags.  The 0x0000fff0 constant invalidates all
-	 * ways on all cores 1-3 (leaving core 0 alone).  Per the ARM docs, it's
-	 * harmless to write to the bits for cores that are not present.
+	 * Invalidate SCU cache tags.  The 0x0000ffff constant invalidates all
+	 * ways on all cores 0-3.  Per the ARM docs, it's harmless to write to
+	 * the bits for cores that are not present.
 	 */
-	bus_space_write_4(fdtbus_bs_tag, scu, SCU_INV_TAGS_REG, 0x0000fff0);
+	bus_space_write_4(fdtbus_bs_tag, scu, SCU_INV_TAGS_REG, 0x0000ffff);
 
 	/*
 	 * Erratum ARM/MP: 764369 (problems with cache maintenance).
@@ -128,13 +128,17 @@ platform_mp_start_ap(void)
 	bus_space_write_4(fdtbus_bs_tag, scu, SCU_DIAG_CONTROL, 
 	    val | SCU_DIAG_DISABLE_MIGBIT);
 
-	/* Enable the SCU. */
+	/*
+	 * Enable the SCU, then clean the cache on this core.  After these two
+	 * operations the cache tag ram in the SCU is coherent with the contents
+	 * of the cache on this core.  The other cores aren't running yet so
+	 * their caches can't contain valid data yet, but we've initialized
+	 * their SCU tag ram above, so they will be coherent from startup.
+	 */
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG);
 	bus_space_write_4(fdtbus_bs_tag, scu, SCU_CONTROL_REG, 
 	    val | SCU_CONTROL_ENABLE);
-
 	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 
 	/*
 	 * For each AP core, set the entry point address and argument registers,
