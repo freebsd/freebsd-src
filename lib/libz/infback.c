@@ -594,7 +594,8 @@ void FAR *out_desc;
                     copy = left - copy;
                 }
                 else {
-                    from = put - state->offset;
+                    from = saved_next_out +
+			((put - saved_next_out) - state->offset);
                     copy = left;
                 }
                 if (copy > state->length) copy = state->length;
