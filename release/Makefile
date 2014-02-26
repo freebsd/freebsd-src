@@ -160,6 +160,10 @@ system: packagesystem
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
+# Apply a hammer to remove *.debug files, if they exist.
+.if defined(WITH_DEBUG_FILES)
+	find ${.OBJDIR}/release -mindepth 1 -name \*.debug -delete
+.endif
 
 bootonly: packagesystem
 # Install system
@@ -183,6 +187,10 @@ bootonly: packagesystem
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
+# Apply a hammer to remove *.debug files, if they exist.
+.if defined(WITH_DEBUG_FILES)
+	find ${.OBJDIR}/${.TARGET} -mindepth 1 -name \*.debug -delete
+.endif
 
 dvd:
 # Install system
@@ -204,6 +212,10 @@ dvd:
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
+# Apply a hammer to remove *.debug files, if they exist.
+.if defined(WITH_DEBUG_FILES)
+	find ${.OBJDIR}/${.TARGET} -mindepth 1 -name \*.debug -delete
+.endif
 
 release.iso: disc1.iso
 disc1.iso: system
