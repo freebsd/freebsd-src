@@ -95,7 +95,7 @@ GetFamilyLength (sa_family_t family)
 socklen_t
 SocketAddress::GetLength () const
 {
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     return m_socket_addr.sa.sa_len;
 #else
     return GetFamilyLength (GetFamily());
@@ -118,24 +118,24 @@ void
 SocketAddress::SetFamily (sa_family_t family)
 {
     m_socket_addr.sa.sa_family = family;
-#if defined(__APPLE__)
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__NetBSD__)
     m_socket_addr.sa.sa_len = GetFamilyLength (family);
 #endif
 }
 
-in_port_t
+uint16_t
 SocketAddress::GetPort () const
 {
     switch (GetFamily())
     {
-        case AF_INET:   return m_socket_addr.sa_ipv4.sin_port;
-        case AF_INET6:  return m_socket_addr.sa_ipv6.sin6_port;
+        case AF_INET:   return ntohs(m_socket_addr.sa_ipv4.sin_port);
+        case AF_INET6:  return ntohs(m_socket_addr.sa_ipv6.sin6_port);
     }
     return 0;
 }
 
 bool
-SocketAddress::SetPort (in_port_t port)
+SocketAddress::SetPort (uint16_t port)
 {
     switch (GetFamily())
     {
@@ -206,36 +206,34 @@ SocketAddress::operator=(const struct sockaddr_storage &s)
 }
 
 bool
-SocketAddress::SetAddress (const struct addrinfo *hints_ptr,
-                           const char *host, 
-                           const char *service,
-                           struct addrinfo *addr_info_ptr)
+SocketAddress::getaddrinfo (const char *host,
+                            const char *service,
+                            int ai_family,
+                            int ai_socktype,
+                            int ai_protocol,
+                            int ai_flags)
 {
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = ai_family;
+    hints.ai_socktype = ai_socktype;
+    hints.ai_protocol = ai_protocol;
+    hints.ai_flags = ai_flags;
+
     struct addrinfo *service_info_list = NULL;
-    int err = ::getaddrinfo (host, service, hints_ptr, &service_info_list);
+    int err = ::getaddrinfo (host, service, &hints, &service_info_list);
     if (err == 0 && service_info_list)
-    {
-        if (addr_info_ptr)
-            *addr_info_ptr = *service_info_list;
         *this = service_info_list;
-    }
     else
         Clear();
     
     :: freeaddrinfo (service_info_list);
-    
-    const bool is_valid = IsValid();
-    if (!is_valid)
-    {
-        if (addr_info_ptr)
-            ::memset (addr_info_ptr, 0, sizeof(struct addrinfo));
-    }
-    return is_valid;
+    return IsValid();
 }
 
 
 bool
-SocketAddress::SetToLocalhost (sa_family_t family, in_port_t port)
+SocketAddress::SetToLocalhost (sa_family_t family, uint16_t port)
 {
     switch (family)
     {
@@ -243,7 +241,7 @@ SocketAddress::SetToLocalhost (sa_family_t family, in_port_t port)
             SetFamily (AF_INET);
             if (SetPort (port))
             {
-                m_socket_addr.sa_ipv4.sin_addr.s_addr = htonl (INADDR_ANY);
+                m_socket_addr.sa_ipv4.sin_addr.s_addr = htonl (INADDR_LOOPBACK);
                 return true;
             }
             break;
@@ -252,11 +250,39 @@ SocketAddress::SetToLocalhost (sa_family_t family, in_port_t port)
             SetFamily (AF_INET6);
             if (SetPort (port))
             {
-                m_socket_addr.sa_ipv6.sin6_addr = in6addr_any;
+                m_socket_addr.sa_ipv6.sin6_addr = in6addr_loopback;
                 return true;
             }            
             break;
 
+    }
+    Clear();
+    return false;
+}
+
+bool
+SocketAddress::SetToAnyAddress (sa_family_t family, uint16_t port)
+{
+    switch (family)
+    {
+        case AF_INET:
+            SetFamily (AF_INET);
+            if (SetPort (port))
+            {
+                m_socket_addr.sa_ipv4.sin_addr.s_addr = htonl (INADDR_ANY);
+                return true;
+            }
+            break;
+            
+        case AF_INET6:
+            SetFamily (AF_INET6);
+            if (SetPort (port))
+            {
+                m_socket_addr.sa_ipv6.sin6_addr = in6addr_any;
+                return true;
+            }
+            break;
+            
     }
     Clear();
     return false;

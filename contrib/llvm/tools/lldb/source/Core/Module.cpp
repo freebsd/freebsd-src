@@ -33,6 +33,7 @@
 #include "lldb/Target/CPPLanguageRuntime.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Symbol/SymbolFile.h"
 
@@ -1499,30 +1500,19 @@ Module::SetArchitecture (const ArchSpec &new_arch)
 }
 
 bool 
-Module::SetLoadAddress (Target &target, lldb::addr_t offset, bool &changed)
+Module::SetLoadAddress (Target &target, lldb::addr_t value, bool value_is_offset, bool &changed)
 {
-    size_t num_loaded_sections = 0;
-    SectionList *section_list = GetSectionList ();
-    if (section_list)
+    ObjectFile *object_file = GetObjectFile();
+    if (object_file)
     {
-        const size_t num_sections = section_list->GetSize();
-        size_t sect_idx = 0;
-        for (sect_idx = 0; sect_idx < num_sections; ++sect_idx)
-        {
-            // Iterate through the object file sections to find the
-            // first section that starts of file offset zero and that
-            // has bytes in the file...
-            SectionSP section_sp (section_list->GetSectionAtIndex (sect_idx));
-            // Only load non-thread specific sections when given a slide
-            if (section_sp && !section_sp->IsThreadSpecific())
-            {
-                if (target.GetSectionLoadList().SetSectionLoadAddress (section_sp, section_sp->GetFileAddress() + offset))
-                    ++num_loaded_sections;
-            }
-        }
+        changed = object_file->SetLoadAddress(target, value, value_is_offset);
+        return true;
     }
-    changed = num_loaded_sections > 0;
-    return num_loaded_sections > 0;
+    else
+    {
+        changed = false;
+    }
+    return false;
 }
 
 
