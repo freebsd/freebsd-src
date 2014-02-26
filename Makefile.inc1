@@ -901,11 +901,11 @@ packageworld:
 . for dist in ${DEBUG_DISTRIBUTIONS}
 .  if defined(NO_ROOT)
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/${dist}_debug.txz \
 	    @${DESTDIR}/${DISTDIR}/${dist}.debug.meta
 .  else
 	${_+_}cd ${DESTDIR}/${DISTDIR}/${dist}; \
-	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}.debug.txz \
+	    tar cvJfL ${DESTDIR}/${DISTDIR}/${dist}_debug.txz \
 	    usr/lib/debug
 .  endif
 . endfor
