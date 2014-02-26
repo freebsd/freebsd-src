@@ -224,13 +224,6 @@ mv_timer_get_timecount(struct timecounter *tc)
 }
 
 void
-cpu_initclocks(void)
-{
-
-	cpu_initclocks_bsp();
-}
-
-void
 DELAY(int usec)
 {
 	uint32_t	val, val_temp;

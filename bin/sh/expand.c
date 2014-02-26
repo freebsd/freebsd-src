@@ -100,6 +100,7 @@ static struct arglist exparg;		/* holds expanded arg list */
 
 static void argstr(char *, int);
 static char *exptilde(char *, int);
+static void expari(int);
 static void expbackq(union node *, int, int);
 static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
@@ -390,7 +391,7 @@ removerecordregions(int endoff)
  * Expand arithmetic expression.  Backup to start of expression,
  * evaluate, place result in (backed up) result, adjust string position.
  */
-void
+static void
 expari(int flag)
 {
 	char *p, *q, *start;

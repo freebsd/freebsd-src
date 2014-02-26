@@ -662,12 +662,6 @@ DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_d
 MODULE_DEPEND(am335x_dmtimer, am335x_prcm, 1, 1, 1);
 
 void
-cpu_initclocks(void)
-{
-	cpu_initclocks_bsp();
-}
-
-void
 DELAY(int usec)
 {
 	struct am335x_dmtimer_softc *sc;

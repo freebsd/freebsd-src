@@ -69,7 +69,7 @@ SBModule::SBModule (lldb::SBProcess &process, lldb::addr_t header_addr) :
         {
             Target &target = process_sp->GetTarget();
             bool changed = false;
-            m_opaque_sp->SetLoadAddress(target, 0, changed);
+            m_opaque_sp->SetLoadAddress(target, 0, true, changed);
             target.GetImages().Append(m_opaque_sp);
         }
     }
@@ -577,6 +577,23 @@ SBModule::FindTypes (const char *type)
     }
 
     return retval;
+}
+
+lldb::SBType
+SBModule::GetTypeByID (lldb::user_id_t uid)
+{
+    ModuleSP module_sp (GetSP ());
+    if (module_sp)
+    {
+        SymbolVendor* vendor = module_sp->GetSymbolVendor();
+        if (vendor)
+        {
+            Type *type_ptr = vendor->ResolveTypeUID(uid);
+            if (type_ptr)
+                return SBType(type_ptr->shared_from_this());
+        }
+    }
+    return SBType();
 }
 
 lldb::SBTypeList

@@ -58,9 +58,8 @@ struct vm_run {
 	struct vm_exit	vm_exit;
 };
 
-struct vm_event {
+struct vm_exception {
 	int		cpuid;
-	enum vm_event_type type;
 	int		vector;
 	uint32_t	error_code;
 	int		error_code_valid;
@@ -174,7 +173,7 @@ enum {
 	IOCNUM_GET_SEGMENT_DESCRIPTOR = 23,
 
 	/* interrupt injection */
-	IOCNUM_INJECT_EVENT = 30,
+	IOCNUM_INJECT_EXCEPTION = 30,
 	IOCNUM_LAPIC_IRQ = 31,
 	IOCNUM_INJECT_NMI = 32,
 	IOCNUM_IOAPIC_ASSERT_IRQ = 33,
@@ -215,8 +214,8 @@ enum {
 	_IOW('v', IOCNUM_SET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
 #define	VM_GET_SEGMENT_DESCRIPTOR \
 	_IOWR('v', IOCNUM_GET_SEGMENT_DESCRIPTOR, struct vm_seg_desc)
-#define	VM_INJECT_EVENT	\
-	_IOW('v', IOCNUM_INJECT_EVENT, struct vm_event)
+#define	VM_INJECT_EXCEPTION	\
+	_IOW('v', IOCNUM_INJECT_EXCEPTION, struct vm_exception)
 #define	VM_LAPIC_IRQ 		\
 	_IOW('v', IOCNUM_LAPIC_IRQ, struct vm_lapic_irq)
 #define	VM_LAPIC_LOCAL_IRQ 	\
