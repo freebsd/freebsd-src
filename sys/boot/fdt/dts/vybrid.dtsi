@@ -205,9 +205,12 @@
 			clock-frequency = <50000000>;
 			status = "disabled";
 			clock_names = "esdhc1";
-			iomux_config = < 14 0x5 15 0x5
-					 16 0x5 17 0x5
-					 18 0x5 19 0x5 >;
+			iomux_config = < 14 0x500060
+					 15 0x500060
+					 16 0x500060
+					 17 0x500060
+					 18 0x500060
+					 19 0x500060 >;
 		};
 
 		serial0: serial@40027000 {
@@ -237,6 +240,8 @@
 			      < 0x40050800 0x100 >; /* phy */
 			interrupts = < 107 >;
 			interrupt-parent = <&GIC>;
+			iomux_config = < 134 0x0001be
+					   7 0x200060 >;
 		};
 
 		usb@400b4000 {
@@ -246,6 +251,8 @@
 			      < 0x40050C00 0x100 >; /* phy */
 			interrupts = < 108 >;
 			interrupt-parent = <&GIC>;
+			iomux_config = < 134 0x0001be
+					   7 0x200060 >;
 		};
 
 		fec0: ethernet@400D0000 {
@@ -257,11 +264,15 @@
 			phy-disable-preamble;
 			status = "disabled";
 			clock_names = "enet";
-			iomux_config = < 45 0x1 46 0x1
-					 47 0x1 48 0x1
-					 49 0x1 50 0x1
-					 51 0x1 52 0x1
-					 53 0x1 >;
+			iomux_config = < 45 0x100061
+					 46 0x100061
+					 47 0x100061
+					 48 0x100060
+					 49 0x100060
+					 50 0x100060
+					 51 0x100060
+					 52 0x100060
+					 53 0x100060 >;
 		};
 
 		fec1: ethernet@400D1000 {
@@ -273,11 +284,15 @@
 			phy-disable-preamble;
 			status = "disabled";
 			clock_names = "enet";
-			iomux_config = < 54 0x1 55 0x1
-					 56 0x1 57 0x1
-					 58 0x1 59 0x1
-					 60 0x1 61 0x1
-					 62 0x1 >;
+			iomux_config = < 54 0x103192
+					 55 0x103193
+					 56 0x103191
+					 57 0x103191
+					 58 0x103191
+					 59 0x103191
+					 60 0x103192
+					 61 0x103192
+					 62 0x103192 >;
 		};
 
 		sai0: sai@4002F000 {
@@ -315,10 +330,10 @@
 			edma-src-transmit = < 9 >;
 			edma-mux-group = < 1 >;
 			clock_names = "sai3", "cko1";
-			iomux_config = < 16 0x2
-					 19 0x2
-					 21 0x2
-					 40 0x4 >; /* CKO1 */
+			iomux_config = < 16 0x200060
+					 19 0x200060
+					 21 0x200060
+					 40 0x400061 >; /* CKO1 */
 		};
 
 		esai: esai@40062000 {
@@ -328,11 +343,16 @@
 			interrupt-parent = <&GIC>;
 			status = "disabled";
 			clock_names = "esai";
-			iomux_config = < 45 0x4 46 0x4
-					 47 0x4 48 0x4
-					 49 0x4 50 0x4
-					 51 0x4 52 0x4
-					 78 0x3 40 0x4>;
+			iomux_config = < 45 0x400061
+					 46 0x400061
+					 47 0x400061
+					 48 0x400060
+					 49 0x400060
+					 50 0x400060
+					 51 0x400060
+					 52 0x400060
+					 78 0x3038df
+					 40 0x400061 >;
 		};
 
 		spi0: spi@4002C000 {
@@ -341,9 +361,11 @@
 			interrupts = < 99 >;
 			interrupt-parent = <&GIC>;
 			status = "disabled";
-			iomux_config = < 40 0x1 41 0x1
-					 42 0x1 43 0x1
-					 44 0x1 >;
+			iomux_config = < 40 0x100061
+					 41 0x100061
+					 42 0x100060
+					 43 0x100060
+					 44 0x100061 >;
 		};
 
 		spi1: spi@4002D000 {
@@ -366,6 +388,43 @@
 			compatible = "fsl,mvf600-spi";
 			reg = <0x400AD000 0x1000>;
 			interrupts = < 102 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@40066000 {
+			compatible = "fsl,mvf600-i2c";
+			reg = <0x40066000 0x1000>;
+			interrupts = < 103 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+			clock_names = "ipg";
+			iomux_config = <  36 0x2034d3
+					  37 0x2034d3
+					 207 0x1
+					 208 0x1 >;
+		};
+
+		i2c1: i2c@40067000 {
+			compatible = "fsl,mvf600-i2c";
+			reg = <0x40067000 0x1000>;
+			interrupts = < 104 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		i2c2: i2c@400E6000 {
+			compatible = "fsl,mvf600-i2c";
+			reg = <0x400E6000 0x1000>;
+			interrupts = < 105 >;
+			interrupt-parent = <&GIC>;
+			status = "disabled";
+		};
+
+		i2c3: i2c@400E7000 {
+			compatible = "fsl,mvf600-i2c";
+			reg = <0x400E7000 0x1000>;
+			interrupts = < 106 >;
 			interrupt-parent = <&GIC>;
 			status = "disabled";
 		};
@@ -399,21 +458,35 @@
 			interrupt-parent = <&GIC>;
 			status = "disabled";
 			clock_names = "dcu0";
-			iomux_config = < 105 0x1 106 0x1
-					 107 0x1 108 0x1
-					 109 0x1 110 0x1
-					 111 0x1 112 0x1
-					 113 0x1 114 0x1
-					 115 0x1 116 0x1
-					 117 0x1 118 0x1
-					 119 0x1 120 0x1
-					 121 0x1 122 0x1
-					 123 0x1 124 0x1
-					 125 0x1 126 0x1
-					 127 0x1 128 0x1
-					 129 0x1 130 0x1
-					 131 0x1 132 0x1
-					 133 0x1 >;
+			iomux_config = < 105 0x100044
+					 106 0x100044
+					 107 0x100060
+					 108 0x100060
+					 109 0x100060
+					 110 0x100060
+					 111 0x100060
+					 112 0x100060
+					 113 0x100060
+					 114 0x100060
+					 115 0x100060
+					 116 0x100060
+					 117 0x100060
+					 118 0x100060
+					 119 0x100060
+					 120 0x100060
+					 121 0x100060
+					 122 0x100060
+					 123 0x100060
+					 124 0x100060
+					 125 0x100060
+					 126 0x100060
+					 127 0x100060
+					 128 0x100060
+					 129 0x100060
+					 130 0x100060
+					 131 0x100060
+					 132 0x100060
+					 133 0x100060 >;
 		};
 	};
 };

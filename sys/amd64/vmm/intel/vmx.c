@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
+#include <machine/vmm_dev.h>
 #include "vmm_host.h"
 #include "vmm_ipi.h"
 #include "vmm_msr.h"
@@ -935,7 +936,6 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 
 		vmx->state[i].lastcpu = -1;
 		vmx->state[i].vpid = vpid[i];
-		vmx->state[i].user_event.intr_info = 0;
 
 		msr_save_area_init(vmx->guest_msrs[i], &guest_msr_count);
 
@@ -1114,66 +1114,6 @@ vmx_clear_nmi_window_exiting(struct vmx *vmx, int vcpu)
 			 VMCS_INTERRUPTIBILITY_MOVSS_BLOCKING)
 
 static void
-vmx_inject_user_event(struct vmx *vmx, int vcpu)
-{
-	struct vmxevent *user_event;
-	uint32_t info;
-
-	user_event = &vmx->state[vcpu].user_event;
-	
-	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	KASSERT((info & VMCS_INTR_VALID) == 0, ("vmx_inject_user_event: invalid "
-	    "VM-entry interruption information %#x", info));
-
-	vmcs_write(VMCS_ENTRY_INTR_INFO, user_event->intr_info);
-	if (user_event->intr_info & VMCS_INTR_DEL_ERRCODE)
-		vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, user_event->error_code);
-	user_event->intr_info = 0;
-}
-
-static void
-vmx_inject_exception(struct vmx *vmx, int vcpu, struct vm_exit *vmexit,
-    int fault, int errvalid, int errcode)
-{
-	uint32_t info;
-
-	info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-	KASSERT((info & VMCS_INTR_VALID) == 0, ("vmx_inject_exception: invalid "
-	    "VM-entry interruption information %#x", info));
-
-	/*
-	 * Although INTR_T_HWEXCEPTION does not advance %rip, vmx_run()
-	 * always advances it, so we clear the instruction length to zero
-	 * explicitly.
-	 */
-	vmexit->inst_length = 0;
-	info = fault | VMCS_INTR_T_HWEXCEPTION | VMCS_INTR_VALID;
-	if (errvalid) {
-		info |= VMCS_INTR_DEL_ERRCODE;
-		vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, errcode);
-	}
-	vmcs_write(VMCS_ENTRY_INTR_INFO, info);
-
-	VCPU_CTR2(vmx->vm, vcpu, "Injecting fault %d (errcode %d)", fault,
-	    errcode);
-}
-
-/* All GP# faults VMM injects use an error code of 0. */
-static void
-vmx_inject_gp(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmx_inject_exception(vmx, vcpu, vmexit, IDT_GP, 1, 0);
-}
-
-static void
-vmx_inject_ud(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
-{
-
-	vmx_inject_exception(vmx, vcpu, vmexit, IDT_UD, 0, 0);
-}
-
-static void
 vmx_inject_nmi(struct vmx *vmx, int vcpu)
 {
 	uint32_t gi, info;
@@ -1202,9 +1142,26 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 static void
 vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 {
+	struct vm_exception exc;
 	int vector, need_nmi_exiting;
 	uint64_t rflags;
 	uint32_t gi, info;
+
+	if (vm_exception_pending(vmx->vm, vcpu, &exc)) {
+		KASSERT(exc.vector >= 0 && exc.vector < 32,
+		    ("%s: invalid exception vector %d", __func__, exc.vector));
+
+		info = vmcs_read(VMCS_ENTRY_INTR_INFO);
+		KASSERT((info & VMCS_INTR_VALID) == 0, ("%s: cannot inject "
+		     "pending exception %d: %#x", __func__, exc.vector, info));
+
+		info = exc.vector | VMCS_INTR_T_HWEXCEPTION | VMCS_INTR_VALID;
+		if (exc.error_code_valid) {
+			info |= VMCS_INTR_DEL_ERRCODE;
+			vmcs_write(VMCS_ENTRY_EXCEPTION_ERROR, exc.error_code);
+		}
+		vmcs_write(VMCS_ENTRY_INTR_INFO, info);
+	}
 
 	if (vm_nmi_pending(vmx->vm, vcpu)) {
 		/*
@@ -1238,24 +1195,6 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 			vmx_set_nmi_window_exiting(vmx, vcpu);
 	}
 
-	/*
-	 * If there is a user injection event pending and there isn't
-	 * an interrupt queued already, inject the user event.
-	 */
-	if (vmx->state[vcpu].user_event.intr_info & VMCS_INTR_VALID) {
-		info = vmcs_read(VMCS_ENTRY_INTR_INFO);
-		if ((info & VMCS_INTR_VALID) == 0) {
-			vmx_inject_user_event(vmx, vcpu);
-		} else {
-			/*
-			 * XXX: Do we need to force an exit so this can
-			 * be injected?
-			 */
-			VCPU_CTR1(vmx->vm, vcpu, "Cannot inject user event "
-			    "due to VM-entry intr info %#x", info);
-		}
-	}
-	 
 	if (virtual_interrupt_delivery) {
 		vmx_inject_pir(vlapic);
 		return;
@@ -1299,6 +1238,7 @@ vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
 		 * This is expected and could happen for multiple reasons:
 		 * - A vectoring VM-entry was aborted due to astpending
 		 * - A VM-exit happened during event injection.
+		 * - An exception was injected above.
 		 * - An NMI was injected above or after "NMI window exiting"
 		 */
 		VCPU_CTR2(vmx->vm, vcpu, "Cannot inject vector %d due to "
@@ -1375,30 +1315,30 @@ vmx_emulate_xsetbv(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 
 	/* Only xcr0 is supported. */
 	if (vmxctx->guest_rcx != 0) {
-		vmx_inject_gp(vmx, vcpu, vmexit);
+		vm_inject_gp(vmx->vm, vcpu);
 		return (HANDLED);
 	}
 
 	/* We only handle xcr0 if both the host and guest have XSAVE enabled. */
 	if (!limits->xsave_enabled || !(vmcs_read(VMCS_GUEST_CR4) & CR4_XSAVE)) {
-		vmx_inject_ud(vmx, vcpu, vmexit);
+		vm_inject_ud(vmx->vm, vcpu);
 		return (HANDLED);
 	}
 
 	xcrval = vmxctx->guest_rdx << 32 | (vmxctx->guest_rax & 0xffffffff);
 	if ((xcrval & ~limits->xcr0_allowed) != 0) {
-		vmx_inject_gp(vmx, vcpu, vmexit);
+		vm_inject_gp(vmx->vm, vcpu);
 		return (HANDLED);
 	}
 
 	if (!(xcrval & XFEATURE_ENABLED_X87)) {
-		vmx_inject_gp(vmx, vcpu, vmexit);
+		vm_inject_gp(vmx->vm, vcpu);
 		return (HANDLED);
 	}
 
 	if ((xcrval & (XFEATURE_ENABLED_AVX | XFEATURE_ENABLED_SSE)) ==
 	    XFEATURE_ENABLED_AVX) {
-		vmx_inject_gp(vmx, vcpu, vmexit);
+		vm_inject_gp(vmx->vm, vcpu);
 		return (HANDLED);
 	}
 
@@ -2423,38 +2363,6 @@ vmx_setdesc(void *arg, int vcpu, int reg, struct seg_desc *desc)
 }
 
 static int
-vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
-	   int code_valid)
-{
-	struct vmx *vmx = arg;
-	struct vmxevent *user_event = &vmx->state[vcpu].user_event;
-
-	static uint32_t type_map[VM_EVENT_MAX] = {
-		0x1,		/* VM_EVENT_NONE */
-		0x0,		/* VM_HW_INTR */
-		0x2,		/* VM_NMI */
-		0x3,		/* VM_HW_EXCEPTION */
-		0x4,		/* VM_SW_INTR */
-		0x5,		/* VM_PRIV_SW_EXCEPTION */
-		0x6,		/* VM_SW_EXCEPTION */
-	};
-
-	/*
-	 * If there is already an exception pending to be delivered to the
-	 * vcpu then just return.
-	 */
-	if (user_event->intr_info & VMCS_INTR_VALID)
-		return (EAGAIN);
-
-	user_event->intr_info = vector | (type_map[type] << 8) | VMCS_INTR_VALID;
-	if (code_valid) {
-		user_event->intr_info |= VMCS_INTR_DEL_ERRCODE;
-		user_event->error_code = code;
-	}
-	return (0);
-}
-
-static int
 vmx_getcap(void *arg, int vcpu, int type, int *retval)
 {
 	struct vmx *vmx = arg;
@@ -2900,7 +2808,6 @@ struct vmm_ops vmm_ops_intel = {
 	vmx_setreg,
 	vmx_getdesc,
 	vmx_setdesc,
-	vmx_inject,
 	vmx_getcap,
 	vmx_setcap,
 	ept_vmspace_alloc,

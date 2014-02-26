@@ -244,9 +244,6 @@ struct ipsecstat {
 /*
  * Definitions for IPsec & Key sysctl operations.
  */
-/*
- * Names for IPsec & Key sysctl objects
- */
 #define IPSECCTL_STATS			1	/* stats */
 #define IPSECCTL_DEF_POLICY		2
 #define IPSECCTL_DEF_ESP_TRANSLEV	3	/* int; ESP transport mode */
@@ -262,7 +259,6 @@ struct ipsecstat {
 #define	IPSECCTL_ECN			11
 #define	IPSECCTL_DEBUG			12
 #define	IPSECCTL_ESP_RANDPAD		13
-#define IPSECCTL_MAXID			14
 
 #ifdef _KERNEL
 #include <sys/counter.h>

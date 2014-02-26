@@ -62,10 +62,8 @@ int	vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *retval);
 int	vm_run(struct vmctx *ctx, int vcpu, uint64_t rip,
 	       struct vm_exit *ret_vmexit);
 int	vm_apicid2vcpu(struct vmctx *ctx, int apicid);
-int	vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-			int vector);
-int	vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-			 int vector, int error_code);
+int	vm_inject_exception(struct vmctx *ctx, int vcpu, int vec);
+int	vm_inject_exception2(struct vmctx *ctx, int vcpu, int vec, int errcode);
 int	vm_lapic_irq(struct vmctx *ctx, int vcpu, int vector);
 int	vm_lapic_local_irq(struct vmctx *ctx, int vcpu, int vector);
 int	vm_lapic_msi(struct vmctx *ctx, uint64_t addr, uint64_t msg);

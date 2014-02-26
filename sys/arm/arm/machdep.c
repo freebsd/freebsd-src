@@ -456,6 +456,30 @@ cpu_idle_wakeup(int cpu)
 	return (0);
 }
 
+/*
+ * Most ARM platforms don't need to do anything special to init their clocks
+ * (they get intialized during normal device attachment), and by not defining a
+ * cpu_initclocks() function they get this generic one.  Any platform that needs
+ * to do something special can just provide their own implementation, which will
+ * override this one due to the weak linkage.
+ */
+void
+arm_generic_initclocks(void)
+{
+
+#ifndef NO_EVENTTIMERS
+#ifdef SMP
+	if (PCPU_GET(cpuid) == 0)
+		cpu_initclocks_bsp();
+	else
+		cpu_initclocks_ap();
+#else
+	cpu_initclocks_bsp();
+#endif
+#endif
+}
+__weak_reference(arm_generic_initclocks, cpu_initclocks);
+
 int
 fill_regs(struct thread *td, struct reg *regs)
 {
