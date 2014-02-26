@@ -64,11 +64,9 @@ SRC_CONF="/dev/null"
 
 # The number of make(1) jobs, defaults to the number of CPUs available for
 # buildworld, and half of number of CPUs available for buildkernel.
-NCPU=$(sysctl -n hw.ncpu)
-if [ ${NCPU} -gt 1 ]; then
-	WORLD_FLAGS="-j${NCPU}"
-	KERNEL_FLAGS="-j$(expr ${NCPU} / 2)"
-fi
+WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
+KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
+
 MAKE_FLAGS="-s"
 
 # The name of the kernel to build, defaults to GENERIC.
