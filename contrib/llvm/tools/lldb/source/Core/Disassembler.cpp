@@ -35,6 +35,7 @@
 #include "lldb/Symbol/ObjectFile.h"
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Target.h"
 
@@ -1044,10 +1045,8 @@ InstructionList::GetIndexOfNextBranchInstruction(uint32_t start) const
 }
 
 uint32_t
-InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target)
+InstructionList::GetIndexOfInstructionAtAddress (const Address &address)
 {
-    Address address;
-    address.SetLoadAddress(load_addr, &target);
     size_t num_instructions = m_instructions.size();
     uint32_t index = UINT32_MAX;
     for (size_t i = 0; i < num_instructions; i++)
@@ -1059,6 +1058,15 @@ InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Tar
         }
     }
     return index;
+}
+
+
+uint32_t
+InstructionList::GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target)
+{
+    Address address;
+    address.SetLoadAddress(load_addr, &target);
+    return GetIndexOfInstructionAtAddress(address);
 }
 
 size_t
@@ -1235,25 +1243,25 @@ PseudoInstruction::SetOpcode (size_t opcode_size, void *opcode_data)
         case 8:
         {
             uint8_t value8 = *((uint8_t *) opcode_data);
-            m_opcode.SetOpcode8 (value8);
+            m_opcode.SetOpcode8 (value8, eByteOrderInvalid);
             break;
          }   
         case 16:
         {
             uint16_t value16 = *((uint16_t *) opcode_data);
-            m_opcode.SetOpcode16 (value16);
+            m_opcode.SetOpcode16 (value16, eByteOrderInvalid);
             break;
          }   
         case 32:
         {
             uint32_t value32 = *((uint32_t *) opcode_data);
-            m_opcode.SetOpcode32 (value32);
+            m_opcode.SetOpcode32 (value32, eByteOrderInvalid);
             break;
          }   
         case 64:
         {
             uint64_t value64 = *((uint64_t *) opcode_data);
-            m_opcode.SetOpcode64 (value64);
+            m_opcode.SetOpcode64 (value64, eByteOrderInvalid);
             break;
          }   
         default:

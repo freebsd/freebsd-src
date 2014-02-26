@@ -52,6 +52,7 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/LanguageRuntime.h"
 #include "lldb/Target/Process.h"
+
 #include "lldb/Target/Target.h"
 #include "lldb/Target/TargetList.h"
 
@@ -688,57 +689,26 @@ SBTarget::Launch
                 return sb_process;
             }
         }
+
+        if (getenv("LLDB_LAUNCH_FLAG_DISABLE_STDIO"))
+            launch_flags |= eLaunchFlagDisableSTDIO;
+
+        ProcessLaunchInfo launch_info (stdin_path, stdout_path, stderr_path, working_directory, launch_flags);
+        
+        Module *exe_module = target_sp->GetExecutableModulePointer();
+        if (exe_module)
+            launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
+        if (argv)
+            launch_info.GetArguments().AppendArguments (argv);
+        if (envp)
+            launch_info.GetEnvironmentEntries ().SetArguments (envp);
+
+        if (listener.IsValid())
+            error.SetError (target_sp->Launch(listener.ref(), launch_info));
         else
-        {
-            if (listener.IsValid())
-                process_sp = target_sp->CreateProcess (listener.ref(), NULL, NULL);
-            else
-                process_sp = target_sp->CreateProcess (target_sp->GetDebugger().GetListener(), NULL, NULL);
-        }
+            error.SetError (target_sp->Launch(target_sp->GetDebugger().GetListener(), launch_info));
 
-        if (process_sp)
-        {
-            sb_process.SetSP (process_sp);
-            if (getenv("LLDB_LAUNCH_FLAG_DISABLE_STDIO"))
-                launch_flags |= eLaunchFlagDisableSTDIO;
-
-            ProcessLaunchInfo launch_info (stdin_path, stdout_path, stderr_path, working_directory, launch_flags);
-            
-            Module *exe_module = target_sp->GetExecutableModulePointer();
-            if (exe_module)
-                launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
-            if (argv)
-                launch_info.GetArguments().AppendArguments (argv);
-            if (envp)
-                launch_info.GetEnvironmentEntries ().SetArguments (envp);
-
-            error.SetError (process_sp->Launch (launch_info));
-            if (error.Success())
-            {
-                // We we are stopping at the entry point, we can return now!
-                if (stop_at_entry)
-                    return sb_process;
-                
-                // Make sure we are stopped at the entry
-                StateType state = process_sp->WaitForProcessToStop (NULL);
-                if (state == eStateStopped)
-                {
-                    // resume the process to skip the entry point
-                    error.SetError (process_sp->Resume());
-                    if (error.Success())
-                    {
-                        // If we are doing synchronous mode, then wait for the
-                        // process to stop yet again!
-                        if (target_sp->GetDebugger().GetAsyncExecution () == false)
-                            process_sp->WaitForProcessToStop (NULL);
-                    }
-                }
-            }
-        }
-        else
-        {
-            error.SetErrorString ("unable to create lldb_private::Process");
-        }
+        sb_process.SetSP(target_sp->GetProcessSP());
     }
     else
     {
@@ -749,7 +719,7 @@ SBTarget::Launch
     if (log)
     {
         log->Printf ("SBTarget(%p)::Launch (...) => SBProcess(%p)", 
-                     target_sp.get(), process_sp.get());
+                     target_sp.get(), sb_process.GetSP().get());
     }
 
     return sb_process;
@@ -761,7 +731,6 @@ SBTarget::Launch (SBLaunchInfo &sb_launch_info, SBError& error)
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     
     SBProcess sb_process;
-    ProcessSP process_sp;
     TargetSP target_sp(GetSP());
     
     if (log)
@@ -773,7 +742,8 @@ SBTarget::Launch (SBLaunchInfo &sb_launch_info, SBError& error)
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
         StateType state = eStateInvalid;
-        process_sp = target_sp->GetProcessSP();
+        {
+        ProcessSP process_sp = target_sp->GetProcessSP();
         if (process_sp)
         {
             state = process_sp->GetState();
@@ -787,58 +757,20 @@ SBTarget::Launch (SBLaunchInfo &sb_launch_info, SBError& error)
                 return sb_process;
             }            
         }
-        
-        if (state != eStateConnected)
-            process_sp = target_sp->CreateProcess (target_sp->GetDebugger().GetListener(), NULL, NULL);
-        
-        if (process_sp)
-        {
-            sb_process.SetSP (process_sp);
-            lldb_private::ProcessLaunchInfo &launch_info = sb_launch_info.ref();
-
-            Module *exe_module = target_sp->GetExecutableModulePointer();
-            if (exe_module)
-                launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
-
-            const ArchSpec &arch_spec = target_sp->GetArchitecture();
-            if (arch_spec.IsValid())
-                launch_info.GetArchitecture () = arch_spec;
-    
-            error.SetError (process_sp->Launch (launch_info));
-            const bool synchronous_execution = target_sp->GetDebugger().GetAsyncExecution () == false;
-            if (error.Success())
-            {
-                if (launch_info.GetFlags().Test(eLaunchFlagStopAtEntry))
-                {
-                    // If we are doing synchronous mode, then wait for the initial
-                    // stop to happen, else, return and let the caller watch for
-                    // the stop
-                    if (synchronous_execution)
-                         process_sp->WaitForProcessToStop (NULL);
-                    // We we are stopping at the entry point, we can return now!
-                    return sb_process;
-                }
-                
-                // Make sure we are stopped at the entry
-                StateType state = process_sp->WaitForProcessToStop (NULL);
-                if (state == eStateStopped)
-                {
-                    // resume the process to skip the entry point
-                    error.SetError (process_sp->Resume());
-                    if (error.Success())
-                    {
-                        // If we are doing synchronous mode, then wait for the
-                        // process to stop yet again!
-                        if (synchronous_execution)
-                            process_sp->WaitForProcessToStop (NULL);
-                    }
-                }
-            }
         }
-        else
-        {
-            error.SetErrorString ("unable to create lldb_private::Process");
-        }
+
+        lldb_private::ProcessLaunchInfo &launch_info = sb_launch_info.ref();
+
+        Module *exe_module = target_sp->GetExecutableModulePointer();
+        if (exe_module)
+            launch_info.SetExecutableFile(exe_module->GetPlatformFileSpec(), true);
+
+        const ArchSpec &arch_spec = target_sp->GetArchitecture();
+        if (arch_spec.IsValid())
+            launch_info.GetArchitecture () = arch_spec;
+        
+        error.SetError (target_sp->Launch (target_sp->GetDebugger().GetListener(), launch_info));
+        sb_process.SetSP(target_sp->GetProcessSP());
     }
     else
     {
@@ -848,8 +780,8 @@ SBTarget::Launch (SBLaunchInfo &sb_launch_info, SBError& error)
     log = lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API);
     if (log)
     {
-        log->Printf ("SBTarget(%p)::Launch (...) => SBProcess(%p)", 
-                     target_sp.get(), process_sp.get());
+        log->Printf ("SBTarget(%p)::Launch (...) => SBProcess(%p)",
+                     target_sp.get(), sb_process.GetSP().get());
     }
     
     return sb_process;
@@ -1263,10 +1195,30 @@ SBTarget::ResolveLoadAddress (lldb::addr_t vm_addr)
     if (target_sp)
     {
         Mutex::Locker api_locker (target_sp->GetAPIMutex());
-        if (target_sp->GetSectionLoadList().ResolveLoadAddress (vm_addr, addr))
+        if (target_sp->ResolveLoadAddress (vm_addr, addr))
             return sb_addr;
     }
 
+    // We have a load address that isn't in a section, just return an address
+    // with the offset filled in (the address) and the section set to NULL
+    addr.SetRawAddress(vm_addr);
+    return sb_addr;
+}
+
+
+lldb::SBAddress
+SBTarget::ResolvePastLoadAddress (uint32_t stop_id, lldb::addr_t vm_addr)
+{
+    lldb::SBAddress sb_addr;
+    Address &addr = sb_addr.ref();
+    TargetSP target_sp(GetSP());
+    if (target_sp)
+    {
+        Mutex::Locker api_locker (target_sp->GetAPIMutex());
+        if (target_sp->ResolveLoadAddress (vm_addr, addr))
+            return sb_addr;
+    }
+    
     // We have a load address that isn't in a section, just return an address
     // with the offset filled in (the address) and the section set to NULL
     addr.SetRawAddress(vm_addr);
@@ -2479,10 +2431,14 @@ SBTarget::SetSectionLoadAddress (lldb::SBSection section,
                 }
                 else
                 {
-                    if (target_sp->GetSectionLoadList().SetSectionLoadAddress (section_sp, section_base_addr))
+                    ProcessSP process_sp (target_sp->GetProcessSP());
+                    uint32_t stop_id = 0;
+                    if (process_sp)
+                        stop_id = process_sp->GetStopID();
+
+                    if (target_sp->SetSectionLoadAddress (section_sp, section_base_addr))
                     {
                         // Flush info in the process (stack frames, etc)
-                        ProcessSP process_sp (target_sp->GetProcessSP());
                         if (process_sp)
                             process_sp->Flush();
                     }
@@ -2511,10 +2467,14 @@ SBTarget::ClearSectionLoadAddress (lldb::SBSection section)
         }
         else
         {
-            if (target_sp->GetSectionLoadList().SetSectionUnloaded (section.GetSP()))
+            ProcessSP process_sp (target_sp->GetProcessSP());
+            uint32_t stop_id = 0;
+            if (process_sp)
+                stop_id = process_sp->GetStopID();
+
+            if (target_sp->SetSectionUnloaded (section.GetSP()))
             {
                 // Flush info in the process (stack frames, etc)
-                ProcessSP process_sp (target_sp->GetProcessSP());
                 if (process_sp)
                     process_sp->Flush();                
             }
@@ -2539,7 +2499,7 @@ SBTarget::SetModuleLoadAddress (lldb::SBModule module, int64_t slide_offset)
         if (module_sp)
         {
             bool changed = false;
-            if (module_sp->SetLoadAddress (*target_sp, slide_offset, changed))
+            if (module_sp->SetLoadAddress (*target_sp, slide_offset, true, changed))
             {
                 // The load was successful, make sure that at least some sections
                 // changed before we notify that our module was loaded.
@@ -2586,13 +2546,18 @@ SBTarget::ClearModuleLoadAddress (lldb::SBModule module)
                 SectionList *section_list = objfile->GetSectionList();
                 if (section_list)
                 {
+                    ProcessSP process_sp (target_sp->GetProcessSP());
+                    uint32_t stop_id = 0;
+                    if (process_sp)
+                        stop_id = process_sp->GetStopID();
+
                     bool changed = false;
                     const size_t num_sections = section_list->GetSize();
                     for (size_t sect_idx = 0; sect_idx < num_sections; ++sect_idx)
                     {
                         SectionSP section_sp (section_list->GetSectionAtIndex(sect_idx));
                         if (section_sp)
-                            changed |= target_sp->GetSectionLoadList().SetSectionUnloaded (section_sp) > 0;
+                            changed |= target_sp->SetSectionUnloaded (section_sp) > 0;
                     }
                     if (changed)
                     {
