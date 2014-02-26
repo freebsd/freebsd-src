@@ -407,6 +407,34 @@ ar8327_fetch_pdata_pad(struct arswitch_softc *sc,
 }
 
 /*
+ * Fetch the SGMII configuration block from the boot hints.
+ */
+static int
+ar8327_fetch_pdata_sgmii(struct arswitch_softc *sc,
+    struct ar8327_sgmii_cfg *scfg)
+{
+	int val;
+
+	/* sgmii_ctrl */
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "sgmii.ctrl", &val) != 0)
+		return (0);
+	scfg->sgmii_ctrl = val;
+
+	/* serdes_aen */
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "sgmii.serdes_aen", &val) != 0)
+		return (0);
+	scfg->serdes_aen = val;
+
+	return (1);
+}
+
+/*
  * Initialise the ar8327 specific hardware features from
  * the hints provided in the boot environment.
  */
@@ -415,7 +443,8 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 {
 	struct ar8327_pad_cfg pc;
 	struct ar8327_port_cfg port_cfg;
-	uint32_t t;
+	struct ar8327_sgmii_cfg scfg;
+	uint32_t t, new_pos, pos;
 
 	/* Port 0 */
 	bzero(&port_cfg, sizeof(port_cfg));
@@ -454,9 +483,33 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 		t = ar8327_get_pad_cfg(&pc);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD6_MODE, t);
 
+	pos = arswitch_readreg(sc->sc_dev, AR8327_REG_POWER_ON_STRIP);
+	new_pos = pos;
+
 	/* XXX LED config */
 
-	/* XXX SGMII config */
+	/* SGMII config */
+	bzero(&scfg, sizeof(scfg));
+	if (ar8327_fetch_pdata_sgmii(sc, &scfg)) {
+		t = scfg.sgmii_ctrl;
+		if (sc->chip_rev == 1)
+			t |= AR8327_SGMII_CTRL_EN_PLL |
+			    AR8327_SGMII_CTRL_EN_RX |
+			    AR8327_SGMII_CTRL_EN_TX;
+		else
+			t &= ~(AR8327_SGMII_CTRL_EN_PLL |
+			    AR8327_SGMII_CTRL_EN_RX |
+			    AR8327_SGMII_CTRL_EN_TX);
+
+		arswitch_writereg(sc->sc_dev, AR8327_REG_SGMII_CTRL, t);
+
+		if (scfg.serdes_aen)
+			new_pos &= ~AR8327_POWER_ON_STRIP_SERDES_AEN;
+		else
+			new_pos |= AR8327_POWER_ON_STRIP_SERDES_AEN;
+	}
+
+	arswitch_writereg(sc->sc_dev, AR8327_REG_POWER_ON_STRIP, new_pos);
 
 	return (0);
 }
