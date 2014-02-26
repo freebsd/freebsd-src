@@ -217,6 +217,196 @@ ar8327_get_port_init_status(struct ar8327_port_cfg *cfg)
 }
 
 /*
+ * Fetch the port data for the given port.
+ *
+ * This goes and does dirty things with the hints space
+ * to determine what the configuration parameters should be.
+ *
+ * Returns 1 if the structure was successfully parsed and
+ * the contents are valid; 0 otherwise.
+ */
+static int
+ar8327_fetch_pdata_port(struct arswitch_softc *sc,
+    struct ar8327_port_cfg *pcfg,
+    int port)
+{
+	int val;
+	char sbuf[128];
+
+	/* Check if force_link exists */
+	val = 0;
+	snprintf(sbuf, 128, "port.%d.force_link", port);
+	(void) resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val);
+	if (val != 1)
+		return (0);
+	pcfg->force_link = 1;
+
+	/* force_link is set; let's parse the rest of the fields */
+	snprintf(sbuf, 128, "port.%d.speed", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0) {
+		switch (val) {
+		case 10:
+			pcfg->speed = AR8327_PORT_SPEED_10;
+			break;
+		case 100:
+			pcfg->speed = AR8327_PORT_SPEED_100;
+			break;
+		case 1000:
+			pcfg->speed = AR8327_PORT_SPEED_1000;
+			break;
+		default:
+			device_printf(sc->sc_dev,
+			    "%s: invalid port %d duplex value (%d)\n",
+			    __func__,
+			    port,
+			    val);
+			return (0);
+		}
+	}
+
+	snprintf(sbuf, 128, "port.%d.duplex", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->duplex = val;
+
+	snprintf(sbuf, 128, "port.%d.txpause", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->txpause = val;
+
+	snprintf(sbuf, 128, "port.%d.rxpause", port);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pcfg->rxpause = val;
+
+#if 0
+	device_printf(sc->sc_dev,
+	    "%s: port %d: speed=%d, duplex=%d, txpause=%d, rxpause=%d\n",
+	    __func__,
+	    port,
+	    pcfg->speed,
+	    pcfg->duplex,
+	    pcfg->txpause,
+	    pcfg->rxpause);
+#endif
+
+	return (1);
+}
+
+/*
+ * Parse the pad configuration from the boot hints.
+ *
+ * The (mostly optional) fields are:
+ *
+ * uint32_t mode;
+ * uint32_t rxclk_sel;
+ * uint32_t txclk_sel;
+ * uint32_t txclk_delay_sel;
+ * uint32_t rxclk_delay_sel;
+ * uint32_t txclk_delay_en;
+ * uint32_t rxclk_delay_en;
+ * uint32_t sgmii_delay_en;
+ * uint32_t pipe_rxclk_sel;
+ *
+ * If mode isn't in the hints, 0 is returned.
+ * Else the structure is fleshed out and 1 is returned.
+ */
+static int
+ar8327_fetch_pdata_pad(struct arswitch_softc *sc,
+    struct ar8327_pad_cfg *pc,
+    int pad)
+{
+	int val;
+	char sbuf[128];
+
+	/* Check if mode exists */
+	val = 0;
+	snprintf(sbuf, 128, "pad.%d.mode", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) != 0)
+		return (0);
+
+	/* assume that 'mode' exists and was found */
+	pc->mode = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_delay_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_delay_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_delay_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_delay_sel = val;
+
+	snprintf(sbuf, 128, "pad.%d.txclk_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->txclk_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.rxclk_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->rxclk_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.sgmii_delay_en", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->sgmii_delay_en = val;
+
+	snprintf(sbuf, 128, "pad.%d.pipe_rxclk_sel", pad);
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    sbuf, &val) == 0)
+		pc->pipe_rxclk_sel = val;
+
+#if 0
+	device_printf(sc->sc_dev,
+	    "%s: pad %d: mode=%d, rxclk_sel=%d, txclk_sel=%d, "
+	    "txclk_delay_sel=%d, rxclk_delay_sel=%d, txclk_delay_en=%d, "
+	    "rxclk_enable_en=%d, sgmii_delay_en=%d, pipe_rxclk_sel=%d\n",
+	    __func__,
+	    pad,
+	    pc->mode,
+	    pc->rxclk_sel,
+	    pc->txclk_sel,
+	    pc->txclk_delay_sel,
+	    pc->rxclk_delay_sel,
+	    pc->txclk_delay_en,
+	    pc->rxclk_delay_en,
+	    pc->sgmii_delay_en,
+	    pc->pipe_rxclk_sel);
+#endif
+
+	return (1);
+}
+
+/*
  * Initialise the ar8327 specific hardware features from
  * the hints provided in the boot environment.
  */
@@ -227,44 +417,41 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 	struct ar8327_port_cfg port_cfg;
 	uint32_t t;
 
-	/* XXX hard-coded DB120 defaults for now! */
-
-	/* Port 0 - rgmii; 1000/full */
+	/* Port 0 */
 	bzero(&port_cfg, sizeof(port_cfg));
-	port_cfg.speed = AR8327_PORT_SPEED_1000;
-	port_cfg.duplex = 1;
-	port_cfg.rxpause = 1;
-	port_cfg.txpause = 1;
-	port_cfg.force_link = 1;
-	sc->ar8327.port0_status = ar8327_get_port_init_status(&port_cfg);
+	sc->ar8327.port0_status = 0;
+	if (ar8327_fetch_pdata_port(sc, &port_cfg, 0))
+		sc->ar8327.port0_status = ar8327_get_port_init_status(&port_cfg);
 
-	/* Port 6 - ignore */
+	/* Port 6 */
 	bzero(&port_cfg, sizeof(port_cfg));
-	sc->ar8327.port6_status = ar8327_get_port_init_status(&port_cfg);
+	sc->ar8327.port6_status = 0;
+	if (ar8327_fetch_pdata_port(sc, &port_cfg, 6))
+		sc->ar8327.port6_status = ar8327_get_port_init_status(&port_cfg);
 
 	/* Pad 0 */
 	bzero(&pc, sizeof(pc));
-	pc.mode = AR8327_PAD_MAC_RGMII,
-	pc.txclk_delay_en = true,
-	pc.rxclk_delay_en = true,
-	pc.txclk_delay_sel = AR8327_CLK_DELAY_SEL1,
-	pc.rxclk_delay_sel = AR8327_CLK_DELAY_SEL2,
-
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 0))
+		t = ar8327_get_pad_cfg(&pc);
 #if 0
-	if (AR8X16_IS_SWITCH(sc, AR8337))
-		t |= AR8337_PAD_MAC06_EXCHANGE_EN;
+		if (AR8X16_IS_SWITCH(sc, AR8337))
+			t |= AR8337_PAD_MAC06_EXCHANGE_EN;
 #endif
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD0_MODE, t);
 
 	/* Pad 5 */
 	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 5))
+		t = ar8327_get_pad_cfg(&pc);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD5_MODE, t);
 
 	/* Pad 6 */
 	bzero(&pc, sizeof(pc));
-	t = ar8327_get_pad_cfg(&pc);
+	t = 0;
+	if (ar8327_fetch_pdata_pad(sc, &pc, 6))
+		t = ar8327_get_pad_cfg(&pc);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PAD6_MODE, t);
 
 	/* XXX LED config */
