@@ -34,6 +34,7 @@
 #define	VM_MAX_NAMELEN	32
 
 struct vm;
+struct vm_exception;
 struct vm_memory_segment;
 struct seg_desc;
 struct vm_exit;
@@ -62,9 +63,6 @@ typedef int	(*vmi_get_desc_t)(void *vmi, int vcpu, int num,
 				  struct seg_desc *desc);
 typedef int	(*vmi_set_desc_t)(void *vmi, int vcpu, int num,
 				  struct seg_desc *desc);
-typedef int	(*vmi_inject_event_t)(void *vmi, int vcpu,
-				      int type, int vector,
-				      uint32_t code, int code_valid);
 typedef int	(*vmi_get_cap_t)(void *vmi, int vcpu, int num, int *retval);
 typedef int	(*vmi_set_cap_t)(void *vmi, int vcpu, int num, int val);
 typedef struct vmspace * (*vmi_vmspace_alloc)(vm_offset_t min, vm_offset_t max);
@@ -84,7 +82,6 @@ struct vmm_ops {
 	vmi_set_register_t	vmsetreg;
 	vmi_get_desc_t		vmgetdesc;
 	vmi_set_desc_t		vmsetdesc;
-	vmi_inject_event_t	vminject;
 	vmi_get_cap_t		vmgetcap;
 	vmi_set_cap_t		vmsetcap;
 	vmi_vmspace_alloc	vmspace_alloc;
@@ -117,8 +114,6 @@ int vm_get_seg_desc(struct vm *vm, int vcpu, int reg,
 int vm_set_seg_desc(struct vm *vm, int vcpu, int reg,
 		    struct seg_desc *desc);
 int vm_run(struct vm *vm, struct vm_run *vmrun);
-int vm_inject_event(struct vm *vm, int vcpu, int type,
-		    int vector, uint32_t error_code, int error_code_valid);
 int vm_inject_nmi(struct vm *vm, int vcpu);
 int vm_nmi_pending(struct vm *vm, int vcpuid);
 void vm_nmi_clear(struct vm *vm, int vcpuid);
@@ -192,25 +187,38 @@ void vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr);
 struct vmspace *vm_get_vmspace(struct vm *vm);
 int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
+
+/*
+ * Inject exception 'vme' into the guest vcpu. This function returns 0 on
+ * success and non-zero on failure.
+ *
+ * Wrapper functions like 'vm_inject_gp()' should be preferred to calling
+ * this function directly because they enforce the trap-like or fault-like
+ * behavior of an exception.
+ *
+ * This function should only be called in the context of the thread that is
+ * executing this vcpu.
+ */
+int vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *vme);
+
+/*
+ * Returns 0 if there is no exception pending for this vcpu. Returns 1 if an
+ * exception is pending and also updates 'vme'. The pending exception is
+ * cleared when this function returns.
+ *
+ * This function should only be called in the context of the thread that is
+ * executing this vcpu.
+ */
+int vm_exception_pending(struct vm *vm, int vcpuid, struct vm_exception *vme);
+
+void vm_inject_gp(struct vm *vm, int vcpuid); /* general protection fault */
+void vm_inject_ud(struct vm *vm, int vcpuid); /* undefined instruction fault */
+
 #endif	/* KERNEL */
 
 #include <machine/vmm_instruction_emul.h>
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
-
-/*
- * Identifiers for events that can be injected into the VM
- */
-enum vm_event_type {
-	VM_EVENT_NONE,
-	VM_HW_INTR,
-	VM_NMI,
-	VM_HW_EXCEPTION,
-	VM_SW_INTR,
-	VM_PRIV_SW_EXCEPTION,
-	VM_SW_EXCEPTION,
-	VM_EVENT_MAX
-};
 
 /*
  * Identifiers for architecturally defined registers.
