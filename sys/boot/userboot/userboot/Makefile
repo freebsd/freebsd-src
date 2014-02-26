@@ -53,9 +53,7 @@ LIBSTAND=	${.OBJDIR}/../libstand/libstand.a
 
 .if ${MK_ZFS} != "no"
 CFLAGS+=	-DUSERBOOT_ZFS_SUPPORT
-LIBZFS=		${.OBJDIR}/../zfs/libzfsboot.a
-DPADD=		${LIBZFS}
-LDADD=		${LIBZFS}
+LIBZFSBOOT=	${.OBJDIR}/../zfs/libzfsboot.a
 .endif
 
 # Always add MI sources 
@@ -63,7 +61,7 @@ LDADD=		${LIBZFS}
 .include	"${.CURDIR}/../../common/Makefile.inc"
 CFLAGS+=	-I${.CURDIR}/../../common
 CFLAGS+=	-I.
-DPADD+=		${LIBFICL} ${LIBSTAND} 
-LDADD+=		${LIBFICL} ${LIBSTAND}
+DPADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND} 
+LDADD+=		${LIBFICL} ${LIBZFSBOOT} ${LIBSTAND}
 
 .include <bsd.lib.mk>
