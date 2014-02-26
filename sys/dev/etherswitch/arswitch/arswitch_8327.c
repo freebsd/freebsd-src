@@ -435,6 +435,53 @@ ar8327_fetch_pdata_sgmii(struct arswitch_softc *sc,
 }
 
 /*
+ * Fetch the LED configuration from the boot hints.
+ */
+static int
+ar8327_fetch_pdata_led(struct arswitch_softc *sc,
+    struct ar8327_led_cfg *lcfg)
+{
+	int val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl0", &val) != 0)
+		return (0);
+	lcfg->led_ctrl0 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl1", &val) != 0)
+		return (0);
+	lcfg->led_ctrl1 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl2", &val) != 0)
+		return (0);
+	lcfg->led_ctrl2 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.ctrl3", &val) != 0)
+		return (0);
+	lcfg->led_ctrl3 = val;
+
+	val = 0;
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev),
+	    "led.open_drain", &val) != 0)
+		return (0);
+	lcfg->open_drain = val;
+
+	return (1);
+}
+
+/*
  * Initialise the ar8327 specific hardware features from
  * the hints provided in the boot environment.
  */
@@ -444,6 +491,7 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 	struct ar8327_pad_cfg pc;
 	struct ar8327_port_cfg port_cfg;
 	struct ar8327_sgmii_cfg scfg;
+	struct ar8327_led_cfg lcfg;
 	uint32_t t, new_pos, pos;
 
 	/* Port 0 */
@@ -487,6 +535,25 @@ ar8327_init_pdata(struct arswitch_softc *sc)
 	new_pos = pos;
 
 	/* XXX LED config */
+	bzero(&lcfg, sizeof(lcfg));
+	if (ar8327_fetch_pdata_led(sc, &lcfg)) {
+		if (lcfg.open_drain)
+			new_pos |= AR8327_POWER_ON_STRIP_LED_OPEN_EN;
+		else
+			new_pos &= ~AR8327_POWER_ON_STRIP_LED_OPEN_EN;
+
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL0,
+		    lcfg.led_ctrl0);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL1,
+		    lcfg.led_ctrl1);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL2,
+		    lcfg.led_ctrl2);
+		arswitch_writereg(sc->sc_dev, AR8327_REG_LED_CTRL3,
+		    lcfg.led_ctrl3);
+
+		if (new_pos != pos)
+			new_pos |= AR8327_POWER_ON_STRIP_POWER_ON_SEL;
+	}
 
 	/* SGMII config */
 	bzero(&scfg, sizeof(scfg));
