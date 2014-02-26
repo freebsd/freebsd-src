@@ -461,7 +461,7 @@ MK_${var}:=	yes
 # MK_* options which default to "no".
 #
 .for var in ${__DEFAULT_NO_OPTIONS}
-.if defined(WITH_${var}) && defined(WITHOUT_${var}) && ${var} != "DEBUG_FILES"
+.if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
 .if defined(MK_${var})
