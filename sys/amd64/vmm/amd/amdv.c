@@ -115,15 +115,6 @@ amdv_setdesc(void *vmi, int vcpu, int num, struct seg_desc *desc)
 }
 
 static int
-amdv_inject_event(void *vmi, int vcpu, int type, int vector,
-		  uint32_t error_code, int error_code_valid)
-{
-
-	printf("amdv_inject_event: not implemented\n");
-	return (EINVAL);
-}
-
-static int
 amdv_getcap(void *arg, int vcpu, int type, int *retval)
 {
 
@@ -180,7 +171,6 @@ struct vmm_ops vmm_ops_amd = {
 	amdv_setreg,
 	amdv_getdesc,
 	amdv_setdesc,
-	amdv_inject_event,
 	amdv_getcap,
 	amdv_setcap,
 	amdv_vmspace_alloc,
