@@ -359,25 +359,6 @@ static devclass_t arm_tmr_devclass;
 DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
 
 /**
- *	cpu_initclocks - called by system to initialise the cpu clocks
- *
- *	This is a boilerplat function, most of the setup has already been done
- *	when the driver was attached.  Therefore this function must only be called
- *	after the driver is attached.
- *
- *	RETURNS
- *	nothing
- */
-void
-cpu_initclocks(void)
-{
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
-
-/**
  *	DELAY - Delay for at least usec microseconds.
  *	@usec: number of microseconds to delay by
  *
