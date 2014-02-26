@@ -93,7 +93,7 @@
 
 /* function prototypes */
 local void fixedtables OF((struct inflate_state FAR *state));
-local int updatewindow OF((z_streamp strm, const unsigned char FAR *end,
+local int updatewindow OF((z_streamp strm, const unsigned char FAR *data,
                            unsigned copy));
 #ifdef BUILDFIXED
    void makefixed OF((void));
@@ -376,9 +376,9 @@ void makefixed()
    output will fall in the output data, making match copies simpler and faster.
    The advantage may be dependent on the size of the processor's data caches.
  */
-local int updatewindow(strm, end, copy)
+local int updatewindow(strm, data, copy)
 z_streamp strm;
-const Bytef *end;
+const Bytef *data;
 unsigned copy;
 {
     struct inflate_state FAR *state;
@@ -403,17 +403,17 @@ unsigned copy;
 
     /* copy state->wsize or less output bytes into the circular window */
     if (copy >= state->wsize) {
-        zmemcpy(state->window, end - state->wsize, state->wsize);
+        zmemcpy(state->window, data + (copy - state->wsize), state->wsize);
         state->wnext = 0;
         state->whave = state->wsize;
     }
     else {
         dist = state->wsize - state->wnext;
         if (dist > copy) dist = copy;
-        zmemcpy(state->window + state->wnext, end - copy, dist);
+        zmemcpy(state->window + state->wnext, data + (copy - dist), dist);
         copy -= dist;
         if (copy) {
-            zmemcpy(state->window, end - copy, copy);
+            zmemcpy(state->window, data, copy);
             state->wnext = copy;
             state->whave = state->wsize;
         }
@@ -1235,7 +1235,10 @@ int flush;
     RESTORE();
     if (state->wsize || (out != strm->avail_out && state->mode < BAD &&
             (state->mode < CHECK || flush != Z_FINISH)))
-        if (updatewindow(strm, strm->next_out, out - strm->avail_out)) {
+        if (updatewindow(strm,
+	    saved_next_out +
+	    ((strm->next_out - saved_next_out) - (out - strm->avail_out)),
+	    out - strm->avail_out)) {
             state->mode = MEM;
             return Z_MEM_ERROR;
         }
@@ -1246,7 +1249,8 @@ int flush;
     state->total += out;
     if (state->wrap && out)
         strm->adler = state->check =
-            UPDATE(state->check, strm->next_out - out, out);
+            UPDATE(state->check,
+	    saved_next_out + ((strm->next_out - saved_next_out) - out), out);
     strm->data_type = state->bits + (state->last ? 64 : 0) +
                       (state->mode == TYPE ? 128 : 0) +
                       (state->mode == LEN_ || state->mode == COPY_ ? 256 : 0);
@@ -1317,7 +1321,7 @@ uInt dictLength;
 
     /* copy dictionary to window using updatewindow(), which will amend the
        existing dictionary if appropriate */
-    ret = updatewindow(strm, dictionary + dictLength, dictLength);
+    ret = updatewindow(strm, dictionary, dictLength);
     if (ret) {
         state->mode = MEM;
         return Z_MEM_ERROR;
