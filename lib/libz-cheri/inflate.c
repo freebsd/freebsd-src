@@ -433,7 +433,7 @@ unsigned copy;
 /* check function to use adler32() for zlib or crc32() for gzip */
 #ifdef GUNZIP
 #  define UPDATE(check, buf, len) \
-    (state->flags ? crc32_(check, buf, len) : adler32_c(check, buf, len))
+    (state->flags ? crc32_c(check, buf, len) : adler32_c(check, buf, len))
 #else
 #  define UPDATE(check, buf, len) adler32_c(check, buf, len)
 #endif
