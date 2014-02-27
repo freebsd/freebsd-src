@@ -135,7 +135,7 @@ void	 swab(const void * __restrict, void * __restrict, ssize_t);
 #endif /* _SWAB_DECLARED */
 
 #if __has_feature(capabilities)
-const void *
+__capability const void *
 	 memchr_c_const(__capability const void *, int, size_t) __pure;
 __capability void
 	*memchr_c(__capability const void *, int, size_t) __pure;
