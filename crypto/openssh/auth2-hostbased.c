@@ -1,4 +1,4 @@
-/* $OpenBSD: auth2-hostbased.c,v 1.16 2013/06/21 00:34:49 djm Exp $ */
+/* $OpenBSD: auth2-hostbased.c,v 1.17 2013/12/30 23:52:27 djm Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -98,6 +98,12 @@ userauth_hostbased(Authctxt *authctxt)
 	if (key->type != pktype) {
 		error("userauth_hostbased: type mismatch for decoded key "
 		    "(received %d, expected %d)", key->type, pktype);
+		goto done;
+	}
+	if (key_type_plain(key->type) == KEY_RSA &&
+	    (datafellows & SSH_BUG_RSASIGMD5) != 0) {
+		error("Refusing RSA key because peer uses unsafe "
+		    "signature format");
 		goto done;
 	}
 	service = datafellows & SSH_BUG_HBSERVICE ? "ssh-userauth" :
