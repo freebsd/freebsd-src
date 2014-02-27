@@ -1,4 +1,4 @@
-/* $OpenBSD: bufbn.c,v 1.7 2013/05/17 00:13:13 djm Exp $*/
+/* $OpenBSD: bufbn.c,v 1.8 2013/11/08 11:15:19 dtucker Exp $*/
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -45,6 +45,7 @@
 
 #include <string.h>
 #include <stdarg.h>
+#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "buffer.h"

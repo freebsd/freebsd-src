@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.168 2013/07/12 00:19:59 djm Exp $ */
+/* $OpenBSD: serverloop.c,v 1.169 2013/12/19 00:19:12 dtucker Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -305,7 +305,8 @@ wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
 	if (compat20 &&
 	    max_time_milliseconds == 0 && options.client_alive_interval) {
 		client_alive_scheduled = 1;
-		max_time_milliseconds = options.client_alive_interval * 1000;
+		max_time_milliseconds =
+		    (u_int64_t)options.client_alive_interval * 1000;
 	}
 
 	if (compat20) {

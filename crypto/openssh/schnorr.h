@@ -1,4 +1,4 @@
-/* $OpenBSD: schnorr.h,v 1.1 2009/03/05 07:18:19 djm Exp $ */
+/* $OpenBSD: schnorr.h,v 1.2 2014/01/09 23:20:00 djm Exp $ */
 /*
  * Copyright (c) 2009 Damien Miller.  All rights reserved.
  *
@@ -27,7 +27,7 @@ struct modp_group {
 };
 
 BIGNUM *bn_rand_range_gt_one(const BIGNUM *high);
-int hash_buffer(const u_char *, u_int, const EVP_MD *, u_char **, u_int *);
+int hash_buffer(const u_char *, u_int, int, u_char **, u_int *);
 void debug3_bn(const BIGNUM *, const char *, ...)
     __attribute__((__nonnull__ (2)))
     __attribute__((format(printf, 2, 3)));
@@ -40,7 +40,7 @@ void modp_group_free(struct modp_group *);
 /* Signature and verification functions */
 int
 schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const EVP_MD *evp_md, const BIGNUM *x, const BIGNUM *g_x,
+    int hash_alg, const BIGNUM *x, const BIGNUM *g_x,
     const u_char *id, u_int idlen, BIGNUM **r_p, BIGNUM **e_p);
 int
 schnorr_sign_buf(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
@@ -48,7 +48,7 @@ schnorr_sign_buf(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
     u_char **sig, u_int *siglen);
 int
 schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const EVP_MD *evp_md, const BIGNUM *g_x, const u_char *id, u_int idlen,
+    int hash_alg, const BIGNUM *g_x, const u_char *id, u_int idlen,
     const BIGNUM *r, const BIGNUM *e);
 int
 schnorr_verify_buf(const BIGNUM *grp_p, const BIGNUM *grp_q,
