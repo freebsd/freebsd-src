@@ -622,6 +622,8 @@ usb_fifo_free(struct usb_fifo *f)
 	cv_destroy(&f->cv_io);
 	cv_destroy(&f->cv_drain);
 
+	knlist_clear(&f->selinfo.si_note, 0);
+	seldrain(&f->selinfo);
 	knlist_destroy(&f->selinfo.si_note);
 
 	free(f, M_USBDEV);
