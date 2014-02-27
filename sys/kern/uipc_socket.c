@@ -486,6 +486,10 @@ SYSCTL_INT(_regression, OID_AUTO, sonewconn_earlytest, CTLFLAG_RW,
 struct socket *
 sonewconn(struct socket *head, int connstatus)
 {
+	static struct timeval lastover;
+	static struct timeval overinterval = { 60, 0 };
+	static int overcount;
+
 	struct socket *so;
 	int over;
 
@@ -497,9 +501,17 @@ sonewconn(struct socket *head, int connstatus)
 #else
 	if (over) {
 #endif
-		log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
-		    "%i already in queue awaiting acceptance\n",
-		    __func__, head->so_pcb, head->so_qlen);
+		overcount++;
+
+		if (ratecheck(&lastover, &overinterval)) {
+			log(LOG_DEBUG, "%s: pcb %p: Listen queue overflow: "
+			    "%i already in queue awaiting acceptance "
+			    "(%d occurrences)\n",
+			    __func__, head->so_pcb, head->so_qlen, overcount);
+
+			overcount = 0;
+		}
+
 		return (NULL);
 	}
 	VNET_ASSERT(head->so_vnet != NULL, ("%s:%d so_vnet is NULL, head=%p",
