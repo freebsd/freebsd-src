@@ -104,11 +104,9 @@ struct i2c_softc {
 	struct resource		*res[2];
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-	void			*ih;
 	device_t		dev;
 	device_t		iicbus;
 	struct mtx		mutex;
-	int			ibif;
 };
 
 static struct resource_spec i2c_spec[] = {
@@ -116,19 +114,6 @@ static struct resource_spec i2c_spec[] = {
 	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
 	{ -1, 0 }
 };
-
-static void
-i2c_intr(void *arg)
-{
-	struct i2c_softc *sc;
-
-	sc = arg;
-
-	if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
-		WRITE1(sc, I2C_IBSR, IBSR_IBIF);
-		sc->ibif = 1;
-	}
-}
 
 static int
 i2c_probe(device_t dev)
@@ -148,7 +133,6 @@ static int
 i2c_attach(device_t dev)
 {
 	struct i2c_softc *sc;
-	int err;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
@@ -163,14 +147,6 @@ i2c_attach(device_t dev)
 	/* Memory interface */
 	sc->bst = rman_get_bustag(sc->res[0]);
 	sc->bsh = rman_get_bushandle(sc->res[0]);
-
-	/* Setup interrupt handler */
-	err = bus_setup_intr(dev, sc->res[1], INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, i2c_intr, sc, &sc->ih);
-	if (err) {
-		device_printf(dev, "Unable to alloc interrupt resource.\n");
-		return (ENXIO);
-	}
 
 	WRITE1(sc, I2C_IBIC, IBIC_BIIE);
 
@@ -194,8 +170,10 @@ wait_for_iif(struct i2c_softc *sc)
 
 	retry = 1000;
 	while (retry --) {
-		if (sc->ibif == 1)
+		if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
+			WRITE1(sc, I2C_IBSR, IBSR_IBIF);
 			return (IIC_NOERR);
+		}
 		DELAY(10);
 	}
 
@@ -227,8 +205,10 @@ wait_for_icf(struct i2c_softc *sc)
 	retry = 1000;
 	while (retry --) {
 		if (READ1(sc, I2C_IBSR) & IBSR_TCF) {
-			if (sc->ibif == 1)
+			if (READ1(sc, I2C_IBSR) & IBSR_IBIF) {
+				WRITE1(sc, I2C_IBSR, IBSR_IBIF);
 				return (IIC_NOERR);
+			}
 		}
 		DELAY(10);
 	}
@@ -264,8 +244,6 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 	WRITE1(sc, I2C_IBCR, reg);
 
 	DELAY(10);
-
-	sc->ibif = 0;
 
 	/* Write target address - LSB is R/W bit */
 	WRITE1(sc, I2C_IBDR, slave);
@@ -309,8 +287,6 @@ i2c_start(device_t dev, u_char slave, int timeout)
 
 	reg |= (IBCR_TXRX);
 	WRITE1(sc, I2C_IBCR, reg);
-
-	sc->ibif = 0;
 
 	/* Write target address - LSB is R/W bit */
 	WRITE1(sc, I2C_IBDR, slave);
@@ -407,7 +383,6 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_MSSL);
 
 		/* dummy read */
-		sc->ibif = 0;
 		READ1(sc, I2C_IBDR);
 		DELAY(1000);
 	}
@@ -430,7 +405,6 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			WRITE1(sc, I2C_IBCR, IBCR_IBIE | IBCR_NOACK);
 		}
 
-		sc->ibif = 0;
 		*buf++ = READ1(sc, I2C_IBDR);
 		(*read)++;
 	}
@@ -453,7 +427,6 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 
 	mtx_lock(&sc->mutex);
 	while (*sent < len) {
-		sc->ibif = 0;
 
 		WRITE1(sc, I2C_IBDR, *buf++);
 
