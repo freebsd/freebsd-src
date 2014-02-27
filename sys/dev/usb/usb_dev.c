@@ -109,7 +109,7 @@ static void	usb_dev_uninit(void *);
 static int	usb_fifo_uiomove(struct usb_fifo *, void *, int,
 		    struct uio *);
 static void	usb_fifo_check_methods(struct usb_fifo_methods *);
-static struct	usb_fifo *usb_fifo_alloc(void);
+static struct	usb_fifo *usb_fifo_alloc(struct mtx *);
 static struct	usb_endpoint *usb_dev_get_ep(struct usb_device *, uint8_t,
 		    uint8_t);
 static void	usb_loc_fill(struct usb_fs_privdata *,
@@ -370,15 +370,17 @@ usb_unref_device(struct usb_cdev_privdata *cpd,
 }
 
 static struct usb_fifo *
-usb_fifo_alloc(void)
+usb_fifo_alloc(struct mtx *mtx)
 {
 	struct usb_fifo *f;
 
 	f = malloc(sizeof(*f), M_USBDEV, M_WAITOK | M_ZERO);
-	if (f) {
+	if (f != NULL) {
 		cv_init(&f->cv_io, "FIFO-IO");
 		cv_init(&f->cv_drain, "FIFO-DRAIN");
+		f->priv_mtx = mtx;
 		f->refcount = 1;
+		knlist_init_mtx(&f->selinfo.si_note, mtx);
 	}
 	return (f);
 }
@@ -502,7 +504,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
-		f = usb_fifo_alloc();
+		f = usb_fifo_alloc(&udev->device_mtx);
 		if (f == NULL) {
 			DPRINTFN(5, "could not alloc tx fifo\n");
 			return (ENOMEM);
@@ -510,8 +512,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_TX;
 		f->dev_ep_index = e;
-		f->priv_mtx = &udev->device_mtx;
-		knlist_init_mtx(&f->selinfo.si_note, f->priv_mtx);
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -530,7 +530,7 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 			DPRINTFN(5, "dev_get_endpoint returned NULL\n");
 			return (EINVAL);
 		}
-		f = usb_fifo_alloc();
+		f = usb_fifo_alloc(&udev->device_mtx);
 		if (f == NULL) {
 			DPRINTFN(5, "could not alloc rx fifo\n");
 			return (ENOMEM);
@@ -538,8 +538,6 @@ usb_fifo_create(struct usb_cdev_privdata *cpd,
 		/* update some fields */
 		f->fifo_index = n + USB_FIFO_RX;
 		f->dev_ep_index = e;
-		f->priv_mtx = &udev->device_mtx;
-		knlist_init_mtx(&f->selinfo.si_note, f->priv_mtx);
 		f->priv_sc0 = ep;
 		f->methods = &usb_ugen_methods;
 		f->iface_index = ep->iface_index;
@@ -623,6 +621,8 @@ usb_fifo_free(struct usb_fifo *f)
 
 	cv_destroy(&f->cv_io);
 	cv_destroy(&f->cv_drain);
+
+	knlist_destroy(&f->selinfo.si_note);
 
 	free(f, M_USBDEV);
 }
@@ -1863,8 +1863,8 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 		break;
 	}
 
-	f_tx = usb_fifo_alloc();
-	f_rx = usb_fifo_alloc();
+	f_tx = usb_fifo_alloc(priv_mtx);
+	f_rx = usb_fifo_alloc(priv_mtx);
 
 	if ((f_tx == NULL) || (f_rx == NULL)) {
 		usb_fifo_free(f_tx);
@@ -1875,8 +1875,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 	f_tx->fifo_index = n + USB_FIFO_TX;
 	f_tx->dev_ep_index = -1;
-	f_tx->priv_mtx = priv_mtx;
-	knlist_init_mtx(&f_tx->selinfo.si_note, priv_mtx);
 	f_tx->priv_sc0 = priv_sc;
 	f_tx->methods = pm;
 	f_tx->iface_index = iface_index;
@@ -1884,8 +1882,6 @@ usb_fifo_attach(struct usb_device *udev, void *priv_sc,
 
 	f_rx->fifo_index = n + USB_FIFO_RX;
 	f_rx->dev_ep_index = -1;
-	f_rx->priv_mtx = priv_mtx;
-	knlist_init_mtx(&f_rx->selinfo.si_note, priv_mtx);
 	f_rx->priv_sc0 = priv_sc;
 	f_rx->methods = pm;
 	f_rx->iface_index = iface_index;
