@@ -200,19 +200,26 @@ struct csum {
  * We support the following REV1 features:
  * - EXT2F_ROCOMPAT_SPARSESUPER
  * - EXT2F_ROCOMPAT_LARGEFILE
+ * - EXT2F_ROCOMPAT_EXTRA_ISIZE
  * - EXT2F_INCOMPAT_FTYPE
  *
- * We partially (read-only) support the following EXT4 features:
+ * We partially support (read-only) the following EXT4 features:
  * - EXT2F_ROCOMPAT_HUGE_FILE
- * - EXT2F_ROCOMPAT_EXTRA_ISIZE
  * - EXT2F_INCOMPAT_EXTENTS
+ *
+ * We do not support these EXT4 features but they are irrelevant
+ * for read-only support:
+ * - EXT2F_INCOMPAT_FLEX_BG
+ * - EXT2F_INCOMPAT_META_BG
  */
-#define EXT2F_COMPAT_SUPP		0x0000
+#define EXT2F_COMPAT_SUPP		EXT2F_COMPAT_DIRHASHINDEX
 #define EXT2F_ROCOMPAT_SUPP		(EXT2F_ROCOMPAT_SPARSESUPER | \
 					 EXT2F_ROCOMPAT_LARGEFILE | \
 					 EXT2F_ROCOMPAT_EXTRA_ISIZE)
-#define EXT2F_INCOMPAT_SUPP		(EXT2F_INCOMPAT_FTYPE |	\
-					 EXT2F_INCOMPAT_EXTENTS)
+#define EXT2F_INCOMPAT_SUPP		EXT2F_INCOMPAT_FTYPE
+#define EXT4F_RO_INCOMPAT_SUPP		(EXT2F_INCOMPAT_EXTENTS | \
+					 EXT2F_INCOMPAT_FLEX_BG | \
+					 EXT2F_INCOMPAT_META_BG )
 
 /* Assume that user mode programs are passing in an ext2fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
