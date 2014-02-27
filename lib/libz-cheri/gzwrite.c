@@ -52,7 +52,7 @@ local int gz_init(state)
         /* allocate output buffer */
         state->out = (__capability unsigned char *)malloc(state->want);
         if (state->out == NULL) {
-            free(cheri_getbase(state->in));
+            free((void *)state->in);
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -64,8 +64,8 @@ local int gz_init(state)
         ret = deflateInit2(strm, state->level, Z_DEFLATED,
                            MAX_WBITS + 16, DEF_MEM_LEVEL, state->strategy);
         if (ret != Z_OK) {
-            free(cheri_getbase(state->out));
-            free(cheri_getbase(state->in));
+            free((void *)state->out);
+            free((void *)state->in);
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -587,9 +587,9 @@ int ZEXPORT gzclose_w(file)
     if (state->size) {
         if (!state->direct) {
             (void)deflateEnd((z_streamp)&(state->strm));
-            free(cheri_getbase(state->out));
+            free((void *)state->out);
         }
-        free(cheri_getbase(state->in));
+        free((void *)state->in);
     }
     gz_error(state, Z_OK, NULL);
     free(state->path);

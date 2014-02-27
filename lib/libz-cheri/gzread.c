@@ -116,9 +116,9 @@ local int gz_look(state)
         state->out = (__capability unsigned char *)malloc(state->want << 1);
         if (state->in == NULL || state->out == NULL) {
             if (state->out != NULL)
-                free(cheri_getbase(state->out));
+                free((void *)state->out);
             if (state->in != NULL)
-                free(cheri_getbase(state->in));
+                free((void *)state->in);
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
         }
@@ -131,8 +131,8 @@ local int gz_look(state)
         state->strm.avail_in = 0;
         state->strm.next_in = Z_NULL;
         if (inflateInit2((z_streamp)&(state->strm), 15 + 16) != Z_OK) {    /* gunzip */
-            free(cheri_getbase(state->out));
-            free(cheri_getbase(state->in));
+            free((void *)state->out);
+            free((void *)state->in);
             state->size = 0;
             gz_error(state, Z_MEM_ERROR, "out of memory");
             return -1;
@@ -605,8 +605,8 @@ int ZEXPORT gzclose_r(file)
     /* free memory and close file */
     if (state->size) {
         inflateEnd((z_streamp)&(state->strm));
-        free(cheri_getbase(state->out));
-        free(cheri_getbase(state->in));
+        free((void *)state->out);
+        free((void *)state->in);
     }
     err = state->err == Z_BUF_ERROR ? Z_BUF_ERROR : Z_OK;
     gz_error(state, Z_OK, NULL);
