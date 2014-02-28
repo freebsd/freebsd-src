@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_slk.3x,v 1.16 2007/06/02 20:40:07 tom Exp $
+.\" $Id: curs_slk.3x,v 1.22 2010/12/04 18:38:55 tom Exp $
 .TH curs_slk 3X ""
 .na
 .hy 0
 .SH NAME
 \fBslk_init\fR,
 \fBslk_set\fR,
+\fBslk_wset\fR,
 \fBslk_refresh\fR,
 \fBslk_noutrefresh\fR,
 \fBslk_label\fR,
@@ -46,7 +47,7 @@
 \fBslk_attr_set\fR,
 \fBslk_attr_off\fR,
 \fBslk_attr\fR,
-\fBslk_color\fR - \fBcurses\fR soft label routines
+\fBslk_color\fR \- \fBcurses\fR soft label routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -78,42 +79,76 @@
 .br
 \fBint slk_attr_off(const attr_t attrs, void * opts);\fR
 .br
-\fBint slk_attr_set(const attr_t attrs,\fR
-.br
-	\fBshort color_pair_number, void* opts);\fR
+\fBint slk_attr_set(const attr_t attrs, short color_pair, void* opts);\fR
 .br
 \fBattr_t slk_attr(void);\fR
 .br
-\fBint slk_color(short color_pair_number);\fR
+\fBint slk_color(short color_pair);\fR
+.br
+\fBint slk_wset(int labnum, const wchar_t *label, int fmt);\fR
 .br
 .SH DESCRIPTION
 The slk* functions manipulate the set of soft function-key labels that exist on
-many terminals.  For those terminals that do not have soft labels,
+many terminals.
+For those terminals that do not have soft labels,
 \fBcurses\fR takes over the bottom line of \fBstdscr\fR, reducing the size of
-\fBstdscr\fR and the variable \fBLINES\fR.  \fBcurses\fR standardizes on eight
-labels of up to eight characters each. In addition to this, the ncurses
+\fBstdscr\fR and the variable \fBLINES\fR.
+\fBcurses\fR standardizes on eight
+labels of up to eight characters each.
+In addition to this, the ncurses
 implementation supports a mode where it simulates 12 labels of up to five
-characters each. This is most common for todays PC like enduser devices.
-Please note that ncurses simulates this mode by taking over up to two lines at
-the bottom of the screen, it does not try to use any hardware support for this
+characters each.
+This is useful for today's PC-like enduser devices.
+ncurses simulates this mode by taking over up to two lines at
+the bottom of the screen;
+it does not try to use any hardware support for this
 mode.
 .PP
 The \fBslk_init\fR routine must be called before \fBinitscr\fR or \fBnewterm\fR
-is called.  If \fBinitscr\fR eventually uses a line from \fBstdscr\fR to
-emulate the soft labels, then \fIfmt\fR determines how the labels are arranged
-on the screen.  Setting \fIfmt\fR to \fB0\fR indicates a 3-2-3 arrangement of
-the labels, \fB1\fR indicates a 4-4 arrangement and \fB2\fR indicates the
-PC like 4-4-4 mode. If \fBfmt\fR is set to \fB3\fR, it is again the PC like
-4-4-4 mode, but in addition an index line is generated, helping the user to
+is called.
+If \fBinitscr\fR eventually uses a line from \fBstdscr\fR to
+emulate the soft labels,
+then \fIfmt\fR determines how the labels are arranged on the screen:
+.RS
+.TP 3
+.B 0
+indicates a 3\-2\-3 arrangement of
+the labels.
+.TP 3
+.B 1
+indicates a 4\-4 arrangement
+.TP 3
+.B 2
+indicates the PC-like 4\-4\-4 mode.
+.TP 3
+.B 3
+is again the PC-like 4\-4\-4 mode,
+but in addition an index line is generated, helping the user to
 identify the key numbers easily.
+.RE
 .PP
-The \fBslk_set\fR routine requires \fIlabnum\fR to be a label number,
-from \fB1\fR to \fB8\fR (resp. \fB12\fR); \fIlabel\fR must be the string
-to be put on the label, up to eight (resp. five) characters in length.
-A null string or a null pointer sets up a blank label. \fIfmt\fR is either
-\fB0\fR, \fB1\fR, or \fB2\fR, indicating whether the label is  to be
+The \fBslk_set\fR routine
+(and the \fBslk_wset\fR routine for the wide-character library)
+has three parameters:
+.RS
+.TP 5
+.I labnum
+is the label number, from \fB1\fR to \fB8\fR
+(12 for \fIfmt\fP in \fBslk_init\fP is \fB2\fP or \fB3\fP);
+.TP
+.I label
+is be the string to put on the label,
+up to eight
+(five for \fIfmt\fP in \fBslk_init\fP is \fB2\fP or \fB3\fP)
+characters in length.
+A null string or a null pointer sets up a blank label.
+.TP
+.I fmt
+is either
+\fB0\fR, \fB1\fR, or \fB2\fR, indicating whether the label is to be
 left-justified, centered, or right-justified, respectively, within the
 label.
+.RE
 .PP
 The \fBslk_refresh\fR and \fBslk_noutrefresh\fR routines correspond to
 the \fBwrefresh\fR and \fBwnoutrefresh\fR routines.
@@ -132,10 +167,12 @@ the next time a \fBslk_noutrefresh\fR is performed.
 The \fBslk_attron\fR, \fBslk_attrset\fR, \fBslk_attroff\fR and \fBslk_attr\fR
 routines correspond to \fBattron\fR, \fBattrset\fR, \fBattroff\fR and \fBattr_get\fR.
 They have an effect only if soft labels are simulated on the bottom line of
-the screen.  The default highlight for soft keys is A_STANDOUT (as in
+the screen.
+The default highlight for soft keys is A_STANDOUT (as in
 System V curses, which does not document this fact).
 .PP
-The \fBslk_color\fR routine corresponds to \fBcolor_set\fR. It has an effect only
+The \fBslk_color\fR routine corresponds to \fBcolor_set\fR.
+It has an effect only
 if soft labels are simulated on the bottom line of the screen.
 .
 .SH RETURN VALUE
@@ -164,13 +201,13 @@ if the terminal or the softkeys were not initialized.
 \fBslk_attr_set\fP
 returns an error
 if the terminal or the softkeys were not initialized, or
-the color pair is outside the range 0..COLOR_PAIRS-1,
+the color pair is outside the range 0..COLOR_PAIRS\-1,
 or opts is not null.
 .TP 5
 \fBslk_color\fP
 returns an error
 if the terminal or the softkeys were not initialized, or
-the color pair is outside the range 0..COLOR_PAIRS-1.
+the color pair is outside the range 0..COLOR_PAIRS\-1.
 .TP 5
 \fBslk_init\fR
 returns an error
@@ -190,16 +227,16 @@ memory for the labels cannot be allocated.
 Most applications would use \fBslk_noutrefresh\fR because a
 \fBwrefresh\fR is likely to follow soon.
 .SH PORTABILITY
-The XSI Curses standard, Issue 4, describes these functions.  It changes the
+The XSI Curses standard, Issue 4, describes these functions.
+It changes the
 argument type of the attribute-manipulation functions \fBslk_attron\fR,
 \fBslk_attroff\fR, \fBslk_attrset\fR to be \fBattr_t\fR, and adds \fBconst\fR
-qualifiers. The format codes \fB2\fR and \fB3\fR for \fBslk_init()\fR and the
+qualifiers.
+The format codes \fB2\fR and \fB3\fR for \fBslk_init()\fR and the
 function \fBslk_attr\fR are specific to ncurses.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_attr\fR(3X), \fBcurs_initscr\fR(3X), \fBcurs_refresh\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_attr\fR(3X),
+\fBcurs_initscr\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X).

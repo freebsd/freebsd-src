@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,6 +28,7 @@
 
 /****************************************************************************
  *  Author: Thomas E. Dickey                                                *
+ *     and: Juergen Pfeifer                                                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
@@ -35,9 +36,8 @@
 #include <ctype.h>
 
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: entries.c,v 1.8 2008/09/27 13:11:10 tom Exp $")
+MODULE_ID("$Id: entries.c,v 1.17 2010/01/23 17:57:43 tom Exp $")
 
 /****************************************************************************
  *
@@ -119,6 +119,12 @@ _nc_leaks_tinfo(void)
 #if NO_LEAKS
     _nc_free_tparm();
     _nc_tgetent_leaks();
+
+    if (TerminalOf(CURRENT_SCREEN) != 0) {
+	del_curterm(TerminalOf(CURRENT_SCREEN));
+    }
+
+    _nc_comp_captab_leaks();
     _nc_free_entries(_nc_head);
     _nc_get_type(0);
     _nc_first_name(0);
@@ -131,6 +137,12 @@ _nc_leaks_tinfo(void)
 
     if ((s = _nc_home_terminfo()) != 0)
 	free(s);
+
+#ifdef TRACE
+    trace(0);
+    _nc_trace_buf(-1, 0);
+#endif
+
 #endif /* NO_LEAKS */
     returnVoid;
 }

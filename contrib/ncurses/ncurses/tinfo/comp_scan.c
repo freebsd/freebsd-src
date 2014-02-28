@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -50,10 +50,9 @@
 #include <curses.priv.h>
 
 #include <ctype.h>
-#include <term_entry.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_scan.c,v 1.83 2008/08/16 19:22:55 tom Exp $")
+MODULE_ID("$Id: comp_scan.c,v 1.89 2010/12/25 23:06:37 tom Exp $")
 
 /*
  * Maximum length of string capability we'll accept before raising an error.
@@ -63,19 +62,13 @@ MODULE_ID("$Id: comp_scan.c,v 1.83 2008/08/16 19:22:55 tom Exp $")
 
 #define iswhite(ch)	(ch == ' '  ||  ch == '\t')
 
-NCURSES_EXPORT_VAR(int)
-_nc_syntax = 0;			/* termcap or terminfo? */
-NCURSES_EXPORT_VAR(long)
-_nc_curr_file_pos = 0;		/* file offset of current line */
-NCURSES_EXPORT_VAR(long)
-_nc_comment_start = 0;		/* start of comment range before name */
-NCURSES_EXPORT_VAR(long)
-_nc_comment_end = 0;		/* end of comment range before name */
-NCURSES_EXPORT_VAR(long)
-_nc_start_line = 0;		/* start line of current entry */
+NCURSES_EXPORT_VAR (int) _nc_syntax = 0;         /* termcap or terminfo? */
+NCURSES_EXPORT_VAR (long) _nc_curr_file_pos = 0; /* file offset of current line */
+NCURSES_EXPORT_VAR (long) _nc_comment_start = 0; /* start of comment range before name */
+NCURSES_EXPORT_VAR (long) _nc_comment_end = 0;   /* end of comment range before name */
+NCURSES_EXPORT_VAR (long) _nc_start_line = 0;    /* start line of current entry */
 
-NCURSES_EXPORT_VAR(struct token)
-_nc_curr_token =
+NCURSES_EXPORT_VAR (struct token) _nc_curr_token =
 {
     0, 0, 0
 };
@@ -93,8 +86,7 @@ static int pushtype;		/* type of pushback token */
 static char *pushname;
 
 #if NCURSES_EXT_FUNCS
-NCURSES_EXPORT_VAR(bool)
-_nc_disable_period = FALSE;	/* used by tic -a option */
+NCURSES_EXPORT_VAR (bool) _nc_disable_period = FALSE; /* used by tic -a option */
 #endif
 
 /*****************************************************************************
@@ -213,6 +205,10 @@ next_char(void)
 		if (fgets(result + used, (int) (allocated - used), yyin) != 0) {
 		    bufstart = result;
 		    if (used == 0) {
+			if (_nc_curr_line == 0
+			    && IS_TIC_MAGIC(result)) {
+			    _nc_err_abort("This is a compiled terminal description, not a source");
+			}
 			_nc_curr_line++;
 			_nc_curr_col = 0;
 		    }
@@ -433,7 +429,7 @@ _nc_get_token(bool silent)
 	    && !strchr(terminfo_punct, (char) ch)) {
 	    if (!silent)
 		_nc_warning("Illegal character (expected alphanumeric or %s) - '%s'",
-			    terminfo_punct, unctrl((chtype) ch));
+			    terminfo_punct, unctrl(UChar(ch)));
 	    _nc_panic_mode(separator);
 	    goto start_token;
 	}
@@ -489,7 +485,6 @@ _nc_get_token(bool silent)
 		if (OkToAdd()) {
 		    AddCh(ch);
 		} else {
-		    ch = EOF;
 		    break;
 		}
 	    }
@@ -600,7 +595,7 @@ _nc_get_token(bool silent)
 	    case '@':
 		if ((ch = next_char()) != separator && !silent)
 		    _nc_warning("Missing separator after `%s', have %s",
-				tok_buf, unctrl((chtype) ch));
+				tok_buf, unctrl(UChar(ch)));
 		_nc_curr_token.tk_name = tok_buf;
 		type = CANCEL;
 		break;
@@ -621,7 +616,7 @@ _nc_get_token(bool silent)
 			_nc_warning("Missing separator");
 		}
 		_nc_curr_token.tk_name = tok_buf;
-		_nc_curr_token.tk_valnumber = number;
+		_nc_curr_token.tk_valnumber = (int) number;
 		type = NUMBER;
 		break;
 
@@ -641,7 +636,7 @@ _nc_get_token(bool silent)
 		/* just to get rid of the compiler warning */
 		type = UNDEF;
 		if (!silent)
-		    _nc_warning("Illegal character - '%s'", unctrl((chtype) ch));
+		    _nc_warning("Illegal character - '%s'", unctrl(UChar(ch)));
 	    }
 	}			/* end else (first_column == FALSE) */
     }				/* end else (ch != EOF) */
@@ -734,48 +729,47 @@ _nc_trans_string(char *ptr, char *last)
     int count = 0;
     int number = 0;
     int i, c;
-    chtype ch, last_ch = '\0';
+    int last_ch = '\0';
     bool ignored = FALSE;
     bool long_warning = FALSE;
 
-    while ((ch = c = next_char()) != (chtype) separator && c != EOF) {
+    while ((c = next_char()) != separator && c != EOF) {
 	if (ptr >= (last - 1)) {
 	    if (c != EOF) {
 		while ((c = next_char()) != separator && c != EOF) {
 		    ;
 		}
-		ch = c;
 	    }
 	    break;
 	}
 	if ((_nc_syntax == SYN_TERMCAP) && c == '\n')
 	    break;
-	if (ch == '^' && last_ch != '%') {
-	    ch = c = next_char();
+	if (c == '^' && last_ch != '%') {
+	    c = next_char();
 	    if (c == EOF)
 		_nc_err_abort(MSG_NO_INPUTS);
 
-	    if (!(is7bits(ch) && isprint(ch))) {
-		_nc_warning("Illegal ^ character - '%s'", unctrl(ch));
+	    if (!(is7bits(c) && isprint(c))) {
+		_nc_warning("Illegal ^ character - '%s'", unctrl(UChar(c)));
 	    }
-	    if (ch == '?') {
+	    if (c == '?') {
 		*(ptr++) = '\177';
 		if (_nc_tracing)
 		    _nc_warning("Allow ^? as synonym for \\177");
 	    } else {
-		if ((ch &= 037) == 0)
-		    ch = 128;
-		*(ptr++) = (char) (ch);
+		if ((c &= 037) == 0)
+		    c = 128;
+		*(ptr++) = (char) (c);
 	    }
-	} else if (ch == '\\') {
-	    ch = c = next_char();
+	} else if (c == '\\') {
+	    c = next_char();
 	    if (c == EOF)
 		_nc_err_abort(MSG_NO_INPUTS);
 
-	    if (ch >= '0' && ch <= '7') {
-		number = ch - '0';
+	    if (c >= '0' && c <= '7') {
+		number = c - '0';
 		for (i = 0; i < 2; i++) {
-		    ch = c = next_char();
+		    c = next_char();
 		    if (c == EOF)
 			_nc_err_abort(MSG_NO_INPUTS);
 
@@ -852,31 +846,31 @@ _nc_trans_string(char *ptr, char *last)
 
 		default:
 		    _nc_warning("Illegal character '%s' in \\ sequence",
-				unctrl(ch));
+				unctrl(UChar(c)));
 		    /* FALLTHRU */
 		case '|':
-		    *(ptr++) = (char) ch;
-		}		/* endswitch (ch) */
-	    }			/* endelse (ch < '0' ||  ch > '7') */
+		    *(ptr++) = (char) c;
+		}		/* endswitch (c) */
+	    }			/* endelse (c < '0' ||  c > '7') */
 	}
-	/* end else if (ch == '\\') */
-	else if (ch == '\n' && (_nc_syntax == SYN_TERMINFO)) {
+	/* end else if (c == '\\') */
+	else if (c == '\n' && (_nc_syntax == SYN_TERMINFO)) {
 	    /*
 	     * Newlines embedded in a terminfo string are ignored, provided
 	     * that the next line begins with whitespace.
 	     */
 	    ignored = TRUE;
 	} else {
-	    *(ptr++) = (char) ch;
+	    *(ptr++) = (char) c;
 	}
 
 	if (!ignored) {
 	    if (_nc_curr_col <= 1) {
-		push_back((char) ch);
-		ch = '\n';
+		push_back((char) c);
+		c = '\n';
 		break;
 	    }
-	    last_ch = ch;
+	    last_ch = c;
 	    count++;
 	}
 	ignored = FALSE;
@@ -889,7 +883,7 @@ _nc_trans_string(char *ptr, char *last)
 
     *ptr = '\0';
 
-    return (ch);
+    return (c);
 }
 
 /*

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey                        1996 on                 *
+ *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -63,11 +64,16 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>
 
-MODULE_ID("$Id: lib_vidattr.c,v 1.49 2007/06/30 21:58:04 tom Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
 
-#define doPut(mode) TPUTS_TRACE(#mode); tputs(mode, 1, outc)
+MODULE_ID("$Id: lib_vidattr.c,v 1.61 2010/06/05 22:22:04 tom Exp $")
+
+#define doPut(mode) \
+	TPUTS_TRACE(#mode); \
+	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx mode, 1, outc)
 
 #define TurnOn(mask,mode) \
 	if ((turn_on & mask) && mode) { doPut(mode); }
@@ -78,40 +84,49 @@ MODULE_ID("$Id: lib_vidattr.c,v 1.49 2007/06/30 21:58:04 tom Exp $")
 	/* if there is no current screen, assume we *can* do color */
 #define SetColorsIf(why,old_attr) \
 	if (can_color && (why)) { \
-		int old_pair = PAIR_NUMBER(old_attr); \
+		int old_pair = PairNumber(old_attr); \
 		TR(TRACE_ATTRS, ("old pair = %d -- new pair = %d", old_pair, pair)); \
 		if ((pair != old_pair) \
 		 || (fix_pair0 && (pair == 0)) \
 		 || (reverse ^ ((old_attr & A_REVERSE) != 0))) { \
-			_nc_do_color(old_pair, pair, reverse, outc); \
+		     NCURSES_SP_NAME(_nc_do_color)(NCURSES_SP_ARGx \
+				     (short) old_pair, \
+				     (short) pair, \
+				     reverse, outc); \
 		} \
 	}
 
 #define PreviousAttr _nc_prescreen.previous_attr
 
 NCURSES_EXPORT(int)
-vidputs(chtype newmode, int (*outc) (int))
+NCURSES_SP_NAME(vidputs) (NCURSES_SP_DCLx
+			  chtype newmode,
+			  NCURSES_SP_OUTC outc)
 {
     attr_t turn_on, turn_off;
     int pair;
     bool reverse = FALSE;
-    bool can_color = (SP == 0 || SP->_coloron);
+    bool can_color = (SP_PARM == 0 || SP_PARM->_coloron);
 #if NCURSES_EXT_FUNCS
-    bool fix_pair0 = (SP != 0 && SP->_coloron && !SP->_default_color);
+    bool fix_pair0 = (SP_PARM != 0 && SP_PARM->_coloron && !SP_PARM->_default_color);
 #else
 #define fix_pair0 FALSE
 #endif
 
     newmode &= A_ATTRIBUTES;
-    T((T_CALLED("vidputs(%s)"), _traceattr(newmode)));
+
+    T((T_CALLED("vidputs(%p,%s)"), (void *) SP_PARM, _traceattr(newmode)));
+
+    if (!IsTermInfo(SP_PARM))
+	returnCode(ERR);
 
     /* this allows us to go on whether or not newterm() has been called */
-    if (SP)
-	PreviousAttr = AttrOf(SCREEN_ATTRS(SP));
+    if (SP_PARM)
+	PreviousAttr = AttrOf(SCREEN_ATTRS(SP_PARM));
 
     TR(TRACE_ATTRS, ("previous attribute was %s", _traceattr(PreviousAttr)));
 
-    if ((SP != 0)
+    if ((SP_PARM != 0)
 	&& (magic_cookie_glitch > 0)) {
 #if USE_XMC_SUPPORT
 	static const chtype table[] =
@@ -135,7 +150,7 @@ vidputs(chtype newmode, int (*outc) (int))
 	 * the terminfo max_attributes value.
 	 */
 	for (n = 0; n < SIZEOF(table); ++n) {
-	    if ((table[n] & SP->_ok_attributes) == 0) {
+	    if ((table[n] & SP_PARM->_ok_attributes) == 0) {
 		newmode &= ~table[n];
 	    } else if ((table[n] & newmode) != 0) {
 		if (used++ >= limit) {
@@ -148,7 +163,7 @@ vidputs(chtype newmode, int (*outc) (int))
 	    }
 	}
 #else
-	newmode &= ~(SP->_xmc_suppress);
+	newmode &= ~(SP_PARM->_xmc_suppress);
 #endif
 	TR(TRACE_ATTRS, ("suppressed attribute is %s", _traceattr(newmode)));
     }
@@ -172,7 +187,7 @@ vidputs(chtype newmode, int (*outc) (int))
 	 * A_ALTCHARSET (256) down 2 to line up.  We use the NCURSES_BITS
 	 * macro so this will work properly for the wide-character layout.
 	 */
-	unsigned value = no_color_video;
+	unsigned value = (unsigned) no_color_video;
 	attr_t mask = NCURSES_BITS((value & 63)
 				   | ((value & 192) << 1)
 				   | ((value & 256) >> 2), 8);
@@ -188,7 +203,7 @@ vidputs(chtype newmode, int (*outc) (int))
     if (newmode == PreviousAttr)
 	returnCode(OK);
 
-    pair = PAIR_NUMBER(newmode);
+    pair = PairNumber(newmode);
 
     if (reverse) {
 	newmode &= ~A_REVERSE;
@@ -208,10 +223,10 @@ vidputs(chtype newmode, int (*outc) (int))
 	    if (exit_attribute_mode) {
 		doPut(exit_attribute_mode);
 	    } else {
-		if (!SP || SP->_use_rmul) {
+		if (!SP_PARM || SP_PARM->_use_rmul) {
 		    TurnOff(A_UNDERLINE, exit_underline_mode);
 		}
-		if (!SP || SP->_use_rmso) {
+		if (!SP_PARM || SP_PARM->_use_rmso) {
 		    TurnOff(A_STANDOUT, exit_standout_mode);
 		}
 	    }
@@ -222,16 +237,18 @@ vidputs(chtype newmode, int (*outc) (int))
     } else if (set_attributes) {
 	if (turn_on || turn_off) {
 	    TPUTS_TRACE("set_attributes");
-	    tputs(tparm(set_attributes,
-			(newmode & A_STANDOUT) != 0,
-			(newmode & A_UNDERLINE) != 0,
-			(newmode & A_REVERSE) != 0,
-			(newmode & A_BLINK) != 0,
-			(newmode & A_DIM) != 0,
-			(newmode & A_BOLD) != 0,
-			(newmode & A_INVIS) != 0,
-			(newmode & A_PROTECT) != 0,
-			(newmode & A_ALTCHARSET) != 0), 1, outc);
+	    NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
+				    tparm(set_attributes,
+					  (newmode & A_STANDOUT) != 0,
+					  (newmode & A_UNDERLINE) != 0,
+					  (newmode & A_REVERSE) != 0,
+					  (newmode & A_BLINK) != 0,
+					  (newmode & A_DIM) != 0,
+					  (newmode & A_BOLD) != 0,
+					  (newmode & A_INVIS) != 0,
+					  (newmode & A_PROTECT) != 0,
+					  (newmode & A_ALTCHARSET) != 0),
+				    1, outc);
 	    PreviousAttr &= ALL_BUT_COLOR;
 	}
 	SetColorsIf((pair != 0) || fix_pair0, PreviousAttr);
@@ -241,11 +258,11 @@ vidputs(chtype newmode, int (*outc) (int))
 
 	TurnOff(A_ALTCHARSET, exit_alt_charset_mode);
 
-	if (!SP || SP->_use_rmul) {
+	if (!SP_PARM || SP_PARM->_use_rmul) {
 	    TurnOff(A_UNDERLINE, exit_underline_mode);
 	}
 
-	if (!SP || SP->_use_rmso) {
+	if (!SP_PARM || SP_PARM->_use_rmso) {
 	    TurnOff(A_STANDOUT, exit_standout_mode);
 	}
 
@@ -282,28 +299,53 @@ vidputs(chtype newmode, int (*outc) (int))
     if (reverse)
 	newmode |= A_REVERSE;
 
-    if (SP)
-	SetAttr(SCREEN_ATTRS(SP), newmode);
+    if (SP_PARM)
+	SetAttr(SCREEN_ATTRS(SP_PARM), newmode);
     else
 	PreviousAttr = newmode;
 
     returnCode(OK);
 }
 
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+vidputs(chtype newmode, NCURSES_OUTC outc)
+{
+    SetSafeOutcWrapper(outc);
+    return NCURSES_SP_NAME(vidputs) (CURRENT_SCREEN,
+				     newmode,
+				     _nc_outc_wrapper);
+}
+#endif
+
+NCURSES_EXPORT(int)
+NCURSES_SP_NAME(vidattr) (NCURSES_SP_DCLx chtype newmode)
+{
+    T((T_CALLED("vidattr(%p,%s)"), (void *) SP_PARM, _traceattr(newmode)));
+    returnCode(NCURSES_SP_NAME(vidputs) (NCURSES_SP_ARGx
+					 newmode,
+					 NCURSES_SP_NAME(_nc_outch)));
+}
+
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
 vidattr(chtype newmode)
 {
-    T((T_CALLED("vidattr(%s)"), _traceattr(newmode)));
-
-    returnCode(vidputs(newmode, _nc_outch));
+    return NCURSES_SP_NAME(vidattr) (CURRENT_SCREEN, newmode);
 }
+#endif
 
 NCURSES_EXPORT(chtype)
-termattrs(void)
+NCURSES_SP_NAME(termattrs) (NCURSES_SP_DCL0)
 {
     chtype attrs = A_NORMAL;
 
-    T((T_CALLED("termattrs()")));
+    T((T_CALLED("termattrs(%p)"), (void *) SP_PARM));
+#ifdef USE_TERM_DRIVER
+    if (HasTerminal(SP_PARM))
+	attrs = CallDriver(SP_PARM, conattr);
+#else
+
     if (enter_alt_charset_mode)
 	attrs |= A_ALTCHARSET;
 
@@ -331,8 +373,17 @@ termattrs(void)
     if (enter_underline_mode)
 	attrs |= A_UNDERLINE;
 
-    if (SP->_coloron)
+    if (SP_PARM->_coloron)
 	attrs |= A_COLOR;
 
-    returnChar(attrs);
+#endif
+    returnChtype(attrs);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(chtype)
+termattrs(void)
+{
+    return NCURSES_SP_NAME(termattrs) (CURRENT_SCREEN);
+}
+#endif

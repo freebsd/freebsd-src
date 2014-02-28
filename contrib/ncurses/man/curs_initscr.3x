@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_initscr.3x,v 1.14 2005/05/15 16:18:01 tom Exp $
+.\" $Id: curs_initscr.3x,v 1.17 2010/12/04 18:36:58 tom Exp $
 .TH curs_initscr 3X ""
 .na
 .hy 0
@@ -36,7 +36,7 @@
 \fBendwin\fR,
 \fBisendwin\fR,
 \fBset_term\fR,
-\fBdelscreen\fR - \fBcurses\fR screen initialization and manipulation routines
+\fBdelscreen\fR \- \fBcurses\fR screen initialization and manipulation routines
 .ad
 .hy
 .SH SYNOPSIS
@@ -122,11 +122,9 @@ from \fBinitscr\fR when an error is detected, rather than exiting.
 It is safe but redundant to check the return value of \fBinitscr\fR
 in XSI Curses.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_kernel\fR(3X), \fBcurs_refresh\fR(3X),
-\fBcurs_slk\fR(3X), \fBcurs_util\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_kernel\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_slk\fR(3X),
+\fBcurs_util\fR(3X),
+\fBcurs_variables\fR(3X).

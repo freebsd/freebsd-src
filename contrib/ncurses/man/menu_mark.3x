@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_mark.3x,v 1.9 2006/11/04 18:33:18 tom Exp $
+.\" $Id: menu_mark.3x,v 1.11 2010/12/04 18:40:45 tom Exp $
 .TH menu_mark 3X ""
 .SH NAME
-\fBmenu_mark\fR - get and set the menu mark string
+\fBmenu_mark\fR \- get and set the menu mark string
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -48,7 +48,7 @@ Calling \fBset_menu_mark\fR with a null menu item will abolish the mark string.
 Note that changing the length of the mark string for a menu while the
 menu is posted is likely to produce unhelpful behavior.
 .PP
-The default string is "-" (a dash). Calling \fBset_menu_mark\fR with
+The default string is "\-" (a dash). Calling \fBset_menu_mark\fR with
 a non-\fBNULL\fR menu argument will change this default.
 .PP
 The function \fBmenu_mark\fR returns the menu's mark string (or \fBNULL\fR if
@@ -78,9 +78,3 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -25,62 +25,45 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
-/* $Id: ncurses_dll.h,v 1.6 2007/03/10 19:21:49 tom Exp $ */
 
-#ifndef NCURSES_DLL_H_incl
-#define NCURSES_DLL_H_incl 1
+/****************************************************************************
+ * Author: Thomas Dickey, 2008-on                                           * 
+ *                                                                          *
+ ****************************************************************************/
 
-/* no longer needed on cygwin or mingw, thanks to auto-import       */
-/* but this structure may be useful at some point for an MSVC build */
-/* so, for now unconditionally define the important flags           */
-/* "the right way" for proper static and dll+auto-import behavior   */
-#undef NCURSES_DLL
-#define NCURSES_STATIC
+/* $Id: nc_mingw.h,v 1.3 2010/09/25 22:16:12 juergen Exp $ */
 
-#if defined(__CYGWIN__)
-#  if defined(NCURSES_DLL)
-#    if defined(NCURSES_STATIC)
-#      undef NCURSES_STATIC
-#    endif
-#  endif
-#  undef NCURSES_IMPEXP
-#  undef NCURSES_API
-#  undef NCURSES_EXPORT
-#  undef NCURSES_EXPORT_VAR
-#  if defined(NCURSES_DLL)
-/* building a DLL */
-#    define NCURSES_IMPEXP __declspec(dllexport)
-#  elif defined(NCURSES_STATIC)
-/* building or linking to a static library */
-#    define NCURSES_IMPEXP /* nothing */
-#  else
-/* linking to the DLL */
-#    define NCURSES_IMPEXP __declspec(dllimport)
-#  endif
-#  define NCURSES_API __cdecl
-#  define NCURSES_EXPORT(type) NCURSES_IMPEXP type NCURSES_API
-#  define NCURSES_EXPORT_VAR(type) NCURSES_IMPEXP type
+#ifndef NC_MINGW_H
+#define NC_MINGW_H 1
+
+#ifdef WINVER
+#  if WINVER < 0x0501
+#    error WINVER must at least be 0x0501
+#  endif  
+#else
+#  define WINVER 0x0501
 #endif
+#include <windows.h>
 
-/* Take care of non-cygwin platforms */
-#if !defined(NCURSES_IMPEXP)
-#  define NCURSES_IMPEXP /* nothing */
-#endif
-#if !defined(NCURSES_API)
-#  define NCURSES_API /* nothing */
-#endif
-#if !defined(NCURSES_EXPORT)
-#  define NCURSES_EXPORT(type) NCURSES_IMPEXP type NCURSES_API
-#endif
-#if !defined(NCURSES_EXPORT_VAR)
-#  define NCURSES_EXPORT_VAR(type) NCURSES_IMPEXP type
-#endif
+#undef sleep
+#define sleep(n) Sleep((n) * 1000)
 
-/*
- * For reentrant code, we map the various global variables into SCREEN by
- * using functions to access them.
- */
-#define NCURSES_PUBLIC_VAR(name) _nc_##name
-#define NCURSES_WRAPPED_VAR(type,name) extern type NCURSES_PUBLIC_VAR(name)(void)
+#undef gettimeofday
+#define gettimeofday(tv,tz) _nc_gettimeofday(tv,tz)
 
-#endif /* NCURSES_DLL_H_incl */
+#include <sys/time.h>	/* for struct timeval */
+
+extern int _nc_gettimeofday(struct timeval *, void *);
+
+#undef HAVE_GETTIMEOFDAY
+#define HAVE_GETTIMEOFDAY 1
+
+#define SIGHUP  1
+#define SIGKILL 9
+#define getlogin() "username"
+
+#undef wcwidth
+#define wcwidth(ucs) _nc_wcwidth(ucs)
+extern int _nc_wcwidth(wchar_t);
+
+#endif /* NC_MINGW_H */

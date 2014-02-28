@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.41 2007/03/31 15:54:06 tom Exp $
+# $Id: Makefile.in,v 1.45 2010/11/27 21:45:27 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -35,6 +35,7 @@
 # the top-level MANIFEST and any man/*.renames files!
 
 SHELL		= /bin/sh
+VPATH		= @srcdir@
 
 DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
@@ -52,9 +53,9 @@ depend :
 tags :
 
 $(DESTDIR)$(mandir) :
-	sh $(srcdir)/../mkdirs.sh $@
+	mkdir -p $@
 
-EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 $(srcdir)/*.[0-9]*
+EDITARGS = $(DESTDIR)$(mandir) $(srcdir) terminfo.5 *-config.1 $(srcdir)/*.[0-9]*
 
 install install.man : terminfo.5 $(DESTDIR)$(mandir)
 	sh ../edit_man.sh normal installing $(EDITARGS)
@@ -77,4 +78,4 @@ clean:	mostlyclean
 	sh $(srcdir)/make_sed.sh @MANPAGE_RENAMES@ >../edit_man.sed
 
 distclean realclean: clean
-	rm -f Makefile ../edit_man.* ../man_alias.*
+	rm -f Makefile *-config.1 ../edit_man.* ../man_alias.*

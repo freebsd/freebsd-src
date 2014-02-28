@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_cchar.c,v 1.12 2007/05/12 19:03:06 tom Exp $")
+MODULE_ID("$Id: lib_cchar.c,v 1.20 2010/12/25 23:46:26 tom Exp $")
 
 /* 
  * The SuSv2 description leaves some room for interpretation.  We'll assume wch
@@ -50,15 +50,15 @@ setcchar(cchar_t *wcval,
 	 short color_pair,
 	 const void *opts)
 {
-    int i;
-    int len;
+    unsigned i;
+    unsigned len;
     int code = OK;
 
     TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,%lu,%d,%p)"),
-		      wcval, _nc_viswbuf(wch),
+		      (void *) wcval, _nc_viswbuf(wch),
 		      (unsigned long) attrs, color_pair, opts));
 
-    len = wcslen(wch);
+    len = (unsigned) wcslen(wch);
     if (opts != NULL
 	|| (len > 1 && wcwidth(wch[0]) < 0)) {
 	code = ERR;
@@ -80,7 +80,7 @@ setcchar(cchar_t *wcval,
 	memset(wcval, 0, sizeof(*wcval));
 
 	if (len != 0) {
-	    SetAttr(*wcval, attrs | COLOR_PAIR(color_pair));
+	    SetAttr(*wcval, attrs | (attr_t) ColorPair(color_pair));
 	    SetPair(CHDEREF(wcval), color_pair);
 	    memcpy(&wcval->chars, wch, len * sizeof(wchar_t));
 	    TR(TRACE_CCALLS, ("copy %d wchars, first is %s", len,
@@ -104,20 +104,28 @@ getcchar(const cchar_t *wcval,
     int code = ERR;
 
     TR(TRACE_CCALLS, (T_CALLED("getcchar(%p,%p,%p,%p,%p)"),
-		      wcval, wch, attrs, color_pair, opts));
+		      (const void *) wcval,
+		      (void *) wch,
+		      (void *) attrs,
+		      (void *) color_pair,
+		      opts));
 
     if (opts == NULL) {
-	len = (wp = wmemchr(wcval->chars, L'\0', CCHARW_MAX))
-	    ? wp - wcval->chars
-	    : CCHARW_MAX;
+	len = ((wp = wmemchr(wcval->chars, L'\0', CCHARW_MAX))
+	       ? (int) (wp - wcval->chars)
+	       : CCHARW_MAX);
 
 	if (wch == NULL) {
-	    code = len;
+	    /*
+	     * If the value is a null, set the length to 1.
+	     * If the value is not a null, return the length plus 1 for null.
+	     */
+	    code = (len < CCHARW_MAX) ? (len + 1) : CCHARW_MAX;
 	} else if (attrs == 0 || color_pair == 0) {
 	    code = ERR;
 	} else if (len >= 0) {
 	    *attrs = AttrOf(*wcval) & A_ATTRIBUTES;
-	    *color_pair = GetPair(*wcval);
+	    *color_pair = (short) GetPair(*wcval);
 	    wmemcpy(wch, wcval->chars, (unsigned) len);
 	    wch[len] = L'\0';
 	    code = OK;

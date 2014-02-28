@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2008-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 2008                                           *
+ *  Author: Thomas E. Dickey 2008-on                                        *
  ****************************************************************************/
 /* LINTLIBRARY */
 
@@ -38,8 +38,18 @@
 #undef _nc_oldnums
 int	*_nc_oldnums;
 
+#undef _nc_scroll_optimize_sp
+void	_nc_scroll_optimize_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_scroll_optimize
 void	_nc_scroll_optimize(void)
+		{ /* void */ }
+
+#undef _nc_linedump_sp
+void	_nc_linedump_sp(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef _nc_linedump
@@ -48,15 +58,32 @@ void	_nc_linedump(void)
 
 /* ./tty/hashmap.c */
 
-#include <term.h>
+#undef _nc_hash_map_sp
+void	_nc_hash_map_sp(
+		SCREEN	*sp)
+		{ /* void */ }
 
 #undef _nc_hash_map
 void	_nc_hash_map(void)
 		{ /* void */ }
 
+#undef _nc_make_oldhash_sp
+void	_nc_make_oldhash_sp(
+		SCREEN	*sp, 
+		int	i)
+		{ /* void */ }
+
 #undef _nc_make_oldhash
 void	_nc_make_oldhash(
 		int	i)
+		{ /* void */ }
+
+#undef _nc_scroll_oldhash_sp
+void	_nc_scroll_oldhash_sp(
+		SCREEN	*sp, 
+		int	n, 
+		int	top, 
+		int	bot)
 		{ /* void */ }
 
 #undef _nc_scroll_oldhash
@@ -111,6 +138,11 @@ int	waddchnstr(
 		{ return(*(int *)0); }
 
 /* ./base/lib_beep.c */
+
+#undef beep_sp
+int	beep_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
 
 #undef beep
 int	beep(void)
@@ -197,18 +229,45 @@ int	_nc_COLOR_PAIRS(void)
 int	_nc_COLORS(void)
 		{ return(*(int *)0); }
 
+#undef _nc_reset_colors_sp
+NCURSES_BOOL _nc_reset_colors_sp(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef _nc_reset_colors
 NCURSES_BOOL _nc_reset_colors(void)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef start_color_sp
+int	start_color_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef start_color
 int	start_color(void)
+		{ return(*(int *)0); }
+
+#undef init_pair_sp
+int	init_pair_sp(
+		SCREEN	*sp, 
+		short	pair, 
+		short	f, 
+		short	b)
 		{ return(*(int *)0); }
 
 #undef init_pair
 int	init_pair(
 		short	pair, 
 		short	f, 
+		short	b)
+		{ return(*(int *)0); }
+
+#undef init_color_sp
+int	init_color_sp(
+		SCREEN	*sp, 
+		short	color, 
+		short	r, 
+		short	g, 
 		short	b)
 		{ return(*(int *)0); }
 
@@ -220,19 +279,46 @@ int	init_color(
 		short	b)
 		{ return(*(int *)0); }
 
+#undef can_change_color_sp
+NCURSES_BOOL can_change_color_sp(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef can_change_color
 NCURSES_BOOL can_change_color(void)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef has_colors_sp
+NCURSES_BOOL has_colors_sp(
+		SCREEN	*sp)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef has_colors
 NCURSES_BOOL has_colors(void)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef color_content_sp
+int	color_content_sp(
+		SCREEN	*sp, 
+		short	color, 
+		short	*r, 
+		short	*g, 
+		short	*b)
+		{ return(*(int *)0); }
+
 #undef color_content
 int	color_content(
 		short	color, 
 		short	*r, 
 		short	*g, 
+		short	*b)
+		{ return(*(int *)0); }
+
+#undef pair_content_sp
+int	pair_content_sp(
+		SCREEN	*sp, 
+		short	pair, 
+		short	*f, 
 		short	*b)
 		{ return(*(int *)0); }
 
@@ -243,13 +329,21 @@ int	pair_content(
 		short	*b)
 		{ return(*(int *)0); }
 
+#undef _nc_do_color_sp
+void	_nc_do_color_sp(
+		SCREEN	*sp, 
+		short	old_pair, 
+		short	pair, 
+		NCURSES_BOOL reverse, 
+		NCURSES_OUTC_sp outc)
+		{ /* void */ }
+
 #undef _nc_do_color
 void	_nc_do_color(
 		short	old_pair, 
 		short	pair, 
 		NCURSES_BOOL reverse, 
-		int	(*outc)(
-		int	p1))
+		NCURSES_OUTC outc)
 		{ /* void */ }
 
 /* ./base/lib_colorset.c */
@@ -277,8 +371,18 @@ int	delwin(
 
 /* ./base/lib_echo.c */
 
+#undef echo_sp
+int	echo_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef echo
 int	echo(void)
+		{ return(*(int *)0); }
+
+#undef noecho_sp
+int	noecho_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef noecho
@@ -286,6 +390,11 @@ int	noecho(void)
 		{ return(*(int *)0); }
 
 /* ./base/lib_endwin.c */
+
+#undef endwin_sp
+int	endwin_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
 
 #undef endwin
 int	endwin(void)
@@ -299,6 +408,11 @@ int	werase(
 		{ return(*(int *)0); }
 
 /* ./base/lib_flash.c */
+
+#undef flash_sp
+int	flash_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
 
 #undef flash
 int	flash(void)
@@ -1110,8 +1224,18 @@ NCURSES_BOOL is_notimeout(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef is_pad
+NCURSES_BOOL is_pad(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef is_scrollok
 NCURSES_BOOL is_scrollok(
+		const WINDOW *z)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef is_subwin
+NCURSES_BOOL is_subwin(
 		const WINDOW *z)
 		{ return(*(NCURSES_BOOL *)0); }
 
@@ -1142,15 +1266,35 @@ NCURSES_BOOL mouse_trafo(
 int	_nc_ESCDELAY(void)
 		{ return(*(int *)0); }
 
+#undef _nc_ptr_Escdelay
+int	*_nc_ptr_Escdelay(
+		SCREEN	*sp)
+		{ return(*(int **)0); }
+
+#undef set_escdelay_sp
+int	set_escdelay_sp(
+		SCREEN	*sp, 
+		int	value)
+		{ return(*(int *)0); }
+
 #undef set_escdelay
 int	set_escdelay(
 		int	value)
 		{ return(*(int *)0); }
 
+#undef get_escdelay_sp
+int	get_escdelay_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
+#undef get_escdelay
+int	get_escdelay(void)
+		{ return(*(int *)0); }
+
 #undef _nc_wgetch
 int	_nc_wgetch(
 		WINDOW	*win, 
-		unsigned long *result, 
+		int	*result, 
 		int	use_meta)
 		{ return(*(int *)0); }
 
@@ -1204,6 +1348,7 @@ WINDOW	*initscr(void)
 
 #undef _nc_insert_ch
 int	_nc_insert_ch(
+		SCREEN	*sp, 
 		WINDOW	*win, 
 		chtype	ch)
 		{ return(*(int *)0); }
@@ -1242,6 +1387,11 @@ int	winnstr(
 
 /* ./base/lib_isendwin.c */
 
+#undef isendwin_sp
+NCURSES_BOOL isendwin_sp(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef isendwin
 NCURSES_BOOL isendwin(void)
 		{ return(*(NCURSES_BOOL *)0); }
@@ -1256,8 +1406,20 @@ int	leaveok(
 
 /* ./base/lib_mouse.c */
 
+#undef getmouse_sp
+int	getmouse_sp(
+		SCREEN	*sp, 
+		MEVENT	*aevent)
+		{ return(*(int *)0); }
+
 #undef getmouse
 int	getmouse(
+		MEVENT	*aevent)
+		{ return(*(int *)0); }
+
+#undef ungetmouse_sp
+int	ungetmouse_sp(
+		SCREEN	*sp, 
 		MEVENT	*aevent)
 		{ return(*(int *)0); }
 
@@ -1265,6 +1427,13 @@ int	getmouse(
 int	ungetmouse(
 		MEVENT	*aevent)
 		{ return(*(int *)0); }
+
+#undef mousemask_sp
+mmask_t	mousemask_sp(
+		SCREEN	*sp, 
+		mmask_t	newmask, 
+		mmask_t	*oldmask)
+		{ return(*(mmask_t *)0); }
 
 #undef mousemask
 mmask_t	mousemask(
@@ -1279,14 +1448,30 @@ NCURSES_BOOL wenclose(
 		int	x)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef mouseinterval_sp
+int	mouseinterval_sp(
+		SCREEN	*sp, 
+		int	maxclick)
+		{ return(*(int *)0); }
+
 #undef mouseinterval
 int	mouseinterval(
 		int	maxclick)
 		{ return(*(int *)0); }
 
 #undef _nc_has_mouse
-int	_nc_has_mouse(void)
-		{ return(*(int *)0); }
+NCURSES_BOOL _nc_has_mouse(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef has_mouse_sp
+NCURSES_BOOL has_mouse_sp(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef has_mouse
+NCURSES_BOOL has_mouse(void)
+		{ return(*(NCURSES_BOOL *)0); }
 
 #undef wmouse_trafo
 NCURSES_BOOL wmouse_trafo(
@@ -1307,23 +1492,54 @@ int	wmove(
 
 /* ./tty/lib_mvcur.c */
 
+#undef _nc_msec_cost_sp
+int	_nc_msec_cost_sp(
+		SCREEN	*sp, 
+		const char *const cap, 
+		int	affcnt)
+		{ return(*(int *)0); }
+
 #undef _nc_msec_cost
 int	_nc_msec_cost(
 		const char *const cap, 
 		int	affcnt)
 		{ return(*(int *)0); }
 
+#undef _nc_mvcur_resume_sp
+void	_nc_mvcur_resume_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_mvcur_resume
 void	_nc_mvcur_resume(void)
+		{ /* void */ }
+
+#undef _nc_mvcur_init_sp
+void	_nc_mvcur_init_sp(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef _nc_mvcur_init
 void	_nc_mvcur_init(void)
 		{ /* void */ }
 
+#undef _nc_mvcur_wrap_sp
+void	_nc_mvcur_wrap_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_mvcur_wrap
 void	_nc_mvcur_wrap(void)
 		{ /* void */ }
+
+#undef mvcur_sp
+int	mvcur_sp(
+		SCREEN	*sp, 
+		int	yold, 
+		int	xold, 
+		int	ynew, 
+		int	xnew)
+		{ return(*(int *)0); }
 
 #undef mvcur
 int	mvcur(
@@ -1347,13 +1563,31 @@ int	mvwin(
 
 /* ./base/lib_newterm.c */
 
+#undef filter_sp
+void	filter_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef filter
 void	filter(void)
+		{ /* void */ }
+
+#undef nofilter_sp
+void	nofilter_sp(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef nofilter
 void	nofilter(void)
 		{ /* void */ }
+
+#undef newterm_sp
+SCREEN	*newterm_sp(
+		SCREEN	*sp, 
+		char	*name, 
+		FILE	*ofp, 
+		FILE	*ifp)
+		{ return(*(SCREEN **)0); }
 
 #undef newterm
 SCREEN	*newterm(
@@ -1368,6 +1602,15 @@ SCREEN	*newterm(
 int	_nc_freewin(
 		WINDOW	*win)
 		{ return(*(int *)0); }
+
+#undef newwin_sp
+WINDOW	*newwin_sp(
+		SCREEN	*sp, 
+		int	num_lines, 
+		int	num_columns, 
+		int	begy, 
+		int	begx)
+		{ return(*(WINDOW **)0); }
 
 #undef newwin
 WINDOW	*newwin(
@@ -1395,8 +1638,9 @@ WINDOW	*subwin(
 		int	x)
 		{ return(*(WINDOW **)0); }
 
-#undef _nc_makenew
-WINDOW	*_nc_makenew(
+#undef _nc_makenew_sp
+WINDOW	*_nc_makenew_sp(
+		SCREEN	*sp, 
 		int	num_lines, 
 		int	num_columns, 
 		int	begy, 
@@ -1404,15 +1648,35 @@ WINDOW	*_nc_makenew(
 		int	flags)
 		{ return(*(WINDOW **)0); }
 
-#undef _nc_screen_of
-SCREEN	*_nc_screen_of(
-		WINDOW	*win)
-		{ return(*(SCREEN **)0); }
+#undef _nc_curscr_of
+WINDOW	*_nc_curscr_of(
+		SCREEN	*sp)
+		{ return(*(WINDOW **)0); }
+
+#undef _nc_newscr_of
+WINDOW	*_nc_newscr_of(
+		SCREEN	*sp)
+		{ return(*(WINDOW **)0); }
+
+#undef _nc_stdscr_of
+WINDOW	*_nc_stdscr_of(
+		SCREEN	*sp)
+		{ return(*(WINDOW **)0); }
 
 /* ./base/lib_nl.c */
 
+#undef nl_sp
+int	nl_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef nl
 int	nl(void)
+		{ return(*(int *)0); }
+
+#undef nonl_sp
+int	nonl_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef nonl
@@ -1447,6 +1711,13 @@ int	copywin(
 		{ return(*(int *)0); }
 
 /* ./base/lib_pad.c */
+
+#undef newpad_sp
+WINDOW	*newpad_sp(
+		SCREEN	*sp, 
+		int	l, 
+		int	c)
+		{ return(*(WINDOW **)0); }
 
 #undef newpad
 WINDOW	*newpad(
@@ -1553,6 +1824,14 @@ int	wnoutrefresh(
 
 /* ./base/lib_restart.c */
 
+#undef restartterm_sp
+int	restartterm_sp(
+		SCREEN	*sp, 
+		char	*termp, 
+		int	filenum, 
+		int	*errret)
+		{ return(*(int *)0); }
+
 #undef restartterm
 int	restartterm(
 		char	*termp, 
@@ -1601,6 +1880,12 @@ int	mvwscanw(
 
 /* ./base/lib_screen.c */
 
+#undef getwin_sp
+WINDOW	*getwin_sp(
+		SCREEN	*sp, 
+		FILE	*filep)
+		{ return(*(WINDOW **)0); }
+
 #undef getwin
 WINDOW	*getwin(
 		FILE	*filep)
@@ -1610,6 +1895,12 @@ WINDOW	*getwin(
 int	putwin(
 		WINDOW	*win, 
 		FILE	*filep)
+		{ return(*(int *)0); }
+
+#undef scr_restore_sp
+int	scr_restore_sp(
+		SCREEN	*sp, 
+		const char *file)
 		{ return(*(int *)0); }
 
 #undef scr_restore
@@ -1622,8 +1913,20 @@ int	scr_dump(
 		const char *file)
 		{ return(*(int *)0); }
 
+#undef scr_init_sp
+int	scr_init_sp(
+		SCREEN	*sp, 
+		const char *file)
+		{ return(*(int *)0); }
+
 #undef scr_init
 int	scr_init(
+		const char *file)
+		{ return(*(int *)0); }
+
+#undef scr_set_sp
+int	scr_set_sp(
+		SCREEN	*sp, 
 		const char *file)
 		{ return(*(int *)0); }
 
@@ -1678,6 +1981,16 @@ void	delscreen(
 		SCREEN	*sp)
 		{ /* void */ }
 
+#undef _nc_setupscreen_sp
+int	_nc_setupscreen_sp(
+		SCREEN	**spp, 
+		int	slines, 
+		int	scolumns, 
+		FILE	*output, 
+		NCURSES_BOOL filtered, 
+		int	slk_format)
+		{ return(*(int *)0); }
+
 #undef _nc_setupscreen
 int	_nc_setupscreen(
 		int	slines, 
@@ -1687,8 +2000,26 @@ int	_nc_setupscreen(
 		int	slk_format)
 		{ return(*(int *)0); }
 
+#undef _nc_ripoffline_sp
+int	_nc_ripoffline_sp(
+		SCREEN	*sp, 
+		int	line, 
+		int	(*init)(
+		WINDOW	*p1, 
+		int	p2))
+		{ return(*(int *)0); }
+
 #undef _nc_ripoffline
 int	_nc_ripoffline(
+		int	line, 
+		int	(*init)(
+		WINDOW	*p1, 
+		int	p2))
+		{ return(*(int *)0); }
+
+#undef ripoffline_sp
+int	ripoffline_sp(
+		SCREEN	*sp, 
 		int	line, 
 		int	(*init)(
 		WINDOW	*p1, 
@@ -1705,10 +2036,21 @@ int	ripoffline(
 
 /* ./base/lib_slk.c */
 
+#undef _nc_format_slks
+int	_nc_format_slks(
+		SCREEN	*sp, 
+		int	cols)
+		{ return(*(int *)0); }
+
 #undef _nc_slk_initialize
 int	_nc_slk_initialize(
 		WINDOW	*stwin, 
 		int	cols)
+		{ return(*(int *)0); }
+
+#undef slk_restore_sp
+int	slk_restore_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef slk_restore
@@ -1716,6 +2058,14 @@ int	slk_restore(void)
 		{ return(*(int *)0); }
 
 /* ./base/lib_slkatr_set.c */
+
+#undef slk_attr_set_sp
+int	slk_attr_set_sp(
+		SCREEN	*sp, 
+		const attr_t attr, 
+		short	color_pair_number, 
+		void	*opts)
+		{ return(*(int *)0); }
 
 #undef slk_attr_set
 int	slk_attr_set(
@@ -1726,12 +2076,24 @@ int	slk_attr_set(
 
 /* ./base/lib_slkatrof.c */
 
+#undef slk_attroff_sp
+int	slk_attroff_sp(
+		SCREEN	*sp, 
+		const chtype attr)
+		{ return(*(int *)0); }
+
 #undef slk_attroff
 int	slk_attroff(
 		const chtype attr)
 		{ return(*(int *)0); }
 
 /* ./base/lib_slkatron.c */
+
+#undef slk_attron_sp
+int	slk_attron_sp(
+		SCREEN	*sp, 
+		const chtype attr)
+		{ return(*(int *)0); }
 
 #undef slk_attron
 int	slk_attron(
@@ -1740,6 +2102,12 @@ int	slk_attron(
 
 /* ./base/lib_slkatrset.c */
 
+#undef slk_attrset_sp
+int	slk_attrset_sp(
+		SCREEN	*sp, 
+		const chtype attr)
+		{ return(*(int *)0); }
+
 #undef slk_attrset
 int	slk_attrset(
 		const chtype attr)
@@ -1747,17 +2115,33 @@ int	slk_attrset(
 
 /* ./base/lib_slkattr.c */
 
+#undef slk_attr_sp
+attr_t	slk_attr_sp(
+		SCREEN	*sp)
+		{ return(*(attr_t *)0); }
+
 #undef slk_attr
 attr_t	slk_attr(void)
 		{ return(*(attr_t *)0); }
 
 /* ./base/lib_slkclear.c */
 
+#undef slk_clear_sp
+int	slk_clear_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef slk_clear
 int	slk_clear(void)
 		{ return(*(int *)0); }
 
 /* ./base/lib_slkcolor.c */
+
+#undef slk_color_sp
+int	slk_color_sp(
+		SCREEN	*sp, 
+		short	color_pair_number)
+		{ return(*(int *)0); }
 
 #undef slk_color
 int	slk_color(
@@ -1766,12 +2150,24 @@ int	slk_color(
 
 /* ./base/lib_slkinit.c */
 
+#undef slk_init_sp
+int	slk_init_sp(
+		SCREEN	*sp, 
+		int	format)
+		{ return(*(int *)0); }
+
 #undef slk_init
 int	slk_init(
 		int	format)
 		{ return(*(int *)0); }
 
 /* ./base/lib_slklab.c */
+
+#undef slk_label_sp
+char	*slk_label_sp(
+		SCREEN	*sp, 
+		int	n)
+		{ return(*(char **)0); }
 
 #undef slk_label
 char	*slk_label(
@@ -1780,8 +2176,18 @@ char	*slk_label(
 
 /* ./base/lib_slkrefr.c */
 
+#undef slk_noutrefresh_sp
+int	slk_noutrefresh_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef slk_noutrefresh
 int	slk_noutrefresh(void)
+		{ return(*(int *)0); }
+
+#undef slk_refresh_sp
+int	slk_refresh_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef slk_refresh
@@ -1789,6 +2195,14 @@ int	slk_refresh(void)
 		{ return(*(int *)0); }
 
 /* ./base/lib_slkset.c */
+
+#undef slk_set_sp
+int	slk_set_sp(
+		SCREEN	*sp, 
+		int	i, 
+		const char *astr, 
+		int	format)
+		{ return(*(int *)0); }
 
 #undef slk_set
 int	slk_set(
@@ -1798,6 +2212,11 @@ int	slk_set(
 		{ return(*(int *)0); }
 
 /* ./base/lib_slktouch.c */
+
+#undef slk_touch_sp
+int	slk_touch_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
 
 #undef slk_touch
 int	slk_touch(void)
@@ -1840,6 +2259,12 @@ char	*_nc_tracemouse(
 		MEVENT const *ep)
 		{ return(*(char **)0); }
 
+#undef _nc_retrace_mmask_t
+mmask_t	_nc_retrace_mmask_t(
+		SCREEN	*sp, 
+		mmask_t	code)
+		{ return(*(mmask_t *)0); }
+
 #undef _tracemouse
 char	*_tracemouse(
 		MEVENT const *ep)
@@ -1861,8 +2286,8 @@ void	_nc_fifo_dump(
 		SCREEN	*sp)
 		{ /* void */ }
 
-#undef _nc_ungetch
-int	_nc_ungetch(
+#undef ungetch_sp
+int	ungetch_sp(
 		SCREEN	*sp, 
 		int	ch)
 		{ return(*(int *)0); }
@@ -1874,17 +2299,34 @@ int	ungetch(
 
 /* ./tty/lib_vidattr.c */
 
+#undef vidputs_sp
+int	vidputs_sp(
+		SCREEN	*sp, 
+		chtype	newmode, 
+		NCURSES_OUTC_sp outc)
+		{ return(*(int *)0); }
+
 #undef vidputs
 int	vidputs(
 		chtype	newmode, 
-		int	(*outc)(
-		int	p1))
+		NCURSES_OUTC outc)
+		{ return(*(int *)0); }
+
+#undef vidattr_sp
+int	vidattr_sp(
+		SCREEN	*sp, 
+		chtype	newmode)
 		{ return(*(int *)0); }
 
 #undef vidattr
 int	vidattr(
 		chtype	newmode)
 		{ return(*(int *)0); }
+
+#undef termattrs_sp
+chtype	termattrs_sp(
+		SCREEN	*sp)
+		{ return(*(chtype *)0); }
 
 #undef termattrs
 chtype	termattrs(void)
@@ -1966,11 +2408,23 @@ WINDOW	*dupwin(
 
 /* ./base/nc_panel.c */
 
+#undef _nc_panelhook_sp
+struct panelhook *_nc_panelhook_sp(
+		SCREEN	*sp)
+		{ return(*(struct panelhook **)0); }
+
 #undef _nc_panelhook
 struct panelhook *_nc_panelhook(void)
 		{ return(*(struct panelhook **)0); }
 
 /* ./base/safe_sprintf.c */
+
+#undef _nc_printf_string_sp
+char	*_nc_printf_string_sp(
+		SCREEN	*sp, 
+		const char *fmt, 
+		va_list	ap)
+		{ return(*(char **)0); }
 
 #undef _nc_printf_string
 char	*_nc_printf_string(
@@ -1983,8 +2437,22 @@ char	*_nc_printf_string(
 #include <sys/time.h>
 #include <sys/times.h>
 
+#undef doupdate_sp
+int	doupdate_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef doupdate
 int	doupdate(void)
+		{ return(*(int *)0); }
+
+#undef _nc_scrolln_sp
+int	_nc_scrolln_sp(
+		SCREEN	*sp, 
+		int	n, 
+		int	top, 
+		int	bot, 
+		int	maxy)
 		{ return(*(int *)0); }
 
 #undef _nc_scrolln
@@ -1995,16 +2463,37 @@ int	_nc_scrolln(
 		int	maxy)
 		{ return(*(int *)0); }
 
+#undef _nc_screen_resume_sp
+void	_nc_screen_resume_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_screen_resume
 void	_nc_screen_resume(void)
+		{ /* void */ }
+
+#undef _nc_screen_init_sp
+void	_nc_screen_init_sp(
+		SCREEN	*sp)
 		{ /* void */ }
 
 #undef _nc_screen_init
 void	_nc_screen_init(void)
 		{ /* void */ }
 
+#undef _nc_screen_wrap_sp
+void	_nc_screen_wrap_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_screen_wrap
 void	_nc_screen_wrap(void)
+		{ /* void */ }
+
+#undef _nc_do_xmc_glitch_sp
+void	_nc_do_xmc_glitch_sp(
+		SCREEN	*sp, 
+		attr_t	previous)
 		{ /* void */ }
 
 #undef _nc_do_xmc_glitch
@@ -2038,10 +2527,14 @@ void	_nc_vsscanf(void)
 
 /* ./base/lib_freeall.c */
 
-#include <term_entry.h>
-
 #undef _nc_freeall
 void	_nc_freeall(void)
+		{ /* void */ }
+
+#undef _nc_free_and_exit_sp
+void	_nc_free_and_exit_sp(
+		SCREEN	*sp, 
+		int	code)
 		{ /* void */ }
 
 #undef _nc_free_and_exit
@@ -2063,6 +2556,24 @@ void	_nc_toggle_attr_off(
 		attr_t	at)
 		{ /* void */ }
 
+#undef _nc_DelCharCost_sp
+int	_nc_DelCharCost_sp(
+		SCREEN	*sp, 
+		int	count)
+		{ return(*(int *)0); }
+
+#undef _nc_InsCharCost_sp
+int	_nc_InsCharCost_sp(
+		SCREEN	*sp, 
+		int	count)
+		{ return(*(int *)0); }
+
+#undef _nc_UpdateAttrs_sp
+void	_nc_UpdateAttrs_sp(
+		SCREEN	*sp, 
+		chtype	c)
+		{ /* void */ }
+
 #undef _nc_DelCharCost
 int	_nc_DelCharCost(
 		int	count)
@@ -2080,6 +2591,12 @@ void	_nc_UpdateAttrs(
 
 /* ./base/legacy_coding.c */
 
+#undef use_legacy_coding_sp
+int	use_legacy_coding_sp(
+		SCREEN	*sp, 
+		int	level)
+		{ return(*(int *)0); }
+
 #undef use_legacy_coding
 int	use_legacy_coding(
 		int	level)
@@ -2087,8 +2604,20 @@ int	use_legacy_coding(
 
 /* ./base/lib_dft_fgbg.c */
 
+#undef use_default_colors_sp
+int	use_default_colors_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef use_default_colors
 int	use_default_colors(void)
+		{ return(*(int *)0); }
+
+#undef assume_default_colors_sp
+int	assume_default_colors_sp(
+		SCREEN	*sp, 
+		int	fg, 
+		int	bg)
 		{ return(*(int *)0); }
 
 #undef assume_default_colors
@@ -2099,6 +2628,13 @@ int	assume_default_colors(
 
 /* ./tinfo/lib_print.c */
 
+#undef mcprint_sp
+int	mcprint_sp(
+		SCREEN	*sp, 
+		char	*data, 
+		int	len)
+		{ return(*(int *)0); }
+
 #undef mcprint
 int	mcprint(
 		char	*data, 
@@ -2107,14 +2643,35 @@ int	mcprint(
 
 /* ./base/resizeterm.c */
 
+#undef is_term_resized_sp
+NCURSES_BOOL is_term_resized_sp(
+		SCREEN	*sp, 
+		int	ToLines, 
+		int	ToCols)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef is_term_resized
 NCURSES_BOOL is_term_resized(
 		int	ToLines, 
 		int	ToCols)
 		{ return(*(NCURSES_BOOL *)0); }
 
+#undef resize_term_sp
+int	resize_term_sp(
+		SCREEN	*sp, 
+		int	ToLines, 
+		int	ToCols)
+		{ return(*(int *)0); }
+
 #undef resize_term
 int	resize_term(
+		int	ToLines, 
+		int	ToCols)
+		{ return(*(int *)0); }
+
+#undef resizeterm_sp
+int	resizeterm_sp(
+		SCREEN	*sp, 
 		int	ToLines, 
 		int	ToCols)
 		{ return(*(int *)0); }
@@ -2160,9 +2717,6 @@ int	wresize(
 		{ return(*(int *)0); }
 
 /* ./tinfo/access.c */
-
-#include <sys/stat.h>
-#include <nc_alloc.h>
 
 #undef _nc_rootname
 char	*_nc_rootname(
@@ -2241,6 +2795,30 @@ char	*const *_nc_numcodes(void)
 char	*const *_nc_strcodes(void)
 		{ return(*(char **)0); }
 
+/* ./comp_captab.c */
+
+#include <hashsize.h>
+
+#undef _nc_get_table
+const struct name_table_entry *_nc_get_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const struct name_table_entry **)0); }
+
+#undef _nc_get_hash_table
+const HashValue *_nc_get_hash_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const HashValue **)0); }
+
+#undef _nc_get_alias_table
+const struct alias *_nc_get_alias_table(
+		NCURSES_BOOL termcap)
+		{ return(*(const struct alias **)0); }
+
+#undef _nc_get_hash_info
+const HashData *_nc_get_hash_info(
+		NCURSES_BOOL termcap)
+		{ return(*(const HashData **)0); }
+
 /* ./tinfo/comp_error.c */
 
 #undef _nc_suppress_warnings
@@ -2286,6 +2864,21 @@ void	_nc_syserr_abort(
 		const char *const fmt, 
 		...)
 		{ /* void */ }
+
+/* ./tinfo/comp_hash.c */
+
+#undef _nc_find_entry
+struct name_table_entry const *_nc_find_entry(
+		const char *string, 
+		const HashValue *hash_table)
+		{ return(*(struct name_table_entry const **)0); }
+
+#undef _nc_find_type_entry
+struct name_table_entry const *_nc_find_type_entry(
+		const char *string, 
+		int	type, 
+		NCURSES_BOOL termcap)
+		{ return(*(struct name_table_entry const **)0); }
 
 /* ./tinfo/db_iterator.c */
 
@@ -2408,6 +3001,11 @@ void	_nc_init_keytry(
 chtype	*_nc_acs_map(void)
 		{ return(*(chtype **)0); }
 
+#undef _nc_init_acs_sp
+void	_nc_init_acs_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_init_acs
 void	_nc_init_acs(void)
 		{ /* void */ }
@@ -2431,20 +3029,46 @@ int	_nc_ospeed(
 		int	BaudRate)
 		{ return(*(int *)0); }
 
+#undef baudrate_sp
+int	baudrate_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef baudrate
 int	baudrate(void)
 		{ return(*(int *)0); }
 
 /* ./tinfo/lib_cur_term.c */
 
+#undef _nc_get_cur_term_sp
+TERMINAL *_nc_get_cur_term_sp(
+		SCREEN	*sp)
+		{ return(*(TERMINAL **)0); }
+
+#undef _nc_get_cur_term
+TERMINAL *_nc_get_cur_term(void)
+		{ return(*(TERMINAL **)0); }
+
 #undef _nc_cur_term
 TERMINAL *_nc_cur_term(void)
+		{ return(*(TERMINAL **)0); }
+
+#undef set_curterm_sp
+TERMINAL *set_curterm_sp(
+		SCREEN	*sp, 
+		TERMINAL *termp)
 		{ return(*(TERMINAL **)0); }
 
 #undef set_curterm
 TERMINAL *set_curterm(
 		TERMINAL *termp)
 		{ return(*(TERMINAL **)0); }
+
+#undef del_curterm_sp
+int	del_curterm_sp(
+		SCREEN	*sp, 
+		TERMINAL *termp)
+		{ return(*(int *)0); }
 
 #undef del_curterm
 int	del_curterm(
@@ -2474,6 +3098,11 @@ NCURSES_GLOBALS _nc_globals;
 #undef _nc_prescreen
 NCURSES_PRESCREEN _nc_prescreen;
 
+#undef _nc_screen_of
+SCREEN	*_nc_screen_of(
+		WINDOW	*win)
+		{ return(*(SCREEN **)0); }
+
 #undef _nc_init_pthreads
 void	_nc_init_pthreads(void)
 		{ /* void */ }
@@ -2500,8 +3129,18 @@ int	_nc_mutex_unlock(
 
 /* ./tinfo/lib_has_cap.c */
 
+#undef has_ic_sp
+NCURSES_BOOL has_ic_sp(
+		SCREEN	*sp)
+		{ return(*(NCURSES_BOOL *)0); }
+
 #undef has_ic
 NCURSES_BOOL has_ic(void)
+		{ return(*(NCURSES_BOOL *)0); }
+
+#undef has_il_sp
+NCURSES_BOOL has_il_sp(
+		SCREEN	*sp)
 		{ return(*(NCURSES_BOOL *)0); }
 
 #undef has_il
@@ -2510,13 +3149,28 @@ NCURSES_BOOL has_il(void)
 
 /* ./tinfo/lib_kernel.c */
 
+#undef erasechar_sp
+char	erasechar_sp(
+		SCREEN	*sp)
+		{ return(*(char *)0); }
+
 #undef erasechar
 char	erasechar(void)
+		{ return(*(char *)0); }
+
+#undef killchar_sp
+char	killchar_sp(
+		SCREEN	*sp)
 		{ return(*(char *)0); }
 
 #undef killchar
 char	killchar(void)
 		{ return(*(char *)0); }
+
+#undef flushinp_sp
+int	flushinp_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
 
 #undef flushinp
 int	flushinp(void)
@@ -2526,8 +3180,8 @@ int	flushinp(void)
 
 struct kn { short offset; int code; };
 
-#undef _nc_keyname
-char	*_nc_keyname(
+#undef keyname_sp
+char	*keyname_sp(
 		SCREEN	*sp, 
 		int	c)
 		{ return(*(char **)0); }
@@ -2539,11 +3193,22 @@ char	*keyname(
 
 /* ./tinfo/lib_longname.c */
 
+#undef longname_sp
+char	*longname_sp(
+		SCREEN	*sp)
+		{ return(*(char **)0); }
+
 #undef longname
 char	*longname(void)
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_napms.c */
+
+#undef napms_sp
+int	napms_sp(
+		SCREEN	*sp, 
+		int	ms)
+		{ return(*(int *)0); }
 
 #undef napms
 int	napms(
@@ -2563,6 +3228,12 @@ void	idcok(
 		WINDOW	*win, 
 		NCURSES_BOOL flag)
 		{ /* void */ }
+
+#undef halfdelay_sp
+int	halfdelay_sp(
+		SCREEN	*sp, 
+		int	t)
+		{ return(*(int *)0); }
 
 #undef halfdelay
 int	halfdelay(
@@ -2599,9 +3270,21 @@ int	meta(
 		NCURSES_BOOL flag)
 		{ return(*(int *)0); }
 
+#undef curs_set_sp
+int	curs_set_sp(
+		SCREEN	*sp, 
+		int	vis)
+		{ return(*(int *)0); }
+
 #undef curs_set
 int	curs_set(
 		int	vis)
+		{ return(*(int *)0); }
+
+#undef typeahead_sp
+int	typeahead_sp(
+		SCREEN	*sp, 
+		int	fd)
 		{ return(*(int *)0); }
 
 #undef typeahead
@@ -2609,9 +3292,22 @@ int	typeahead(
 		int	fd)
 		{ return(*(int *)0); }
 
+#undef has_key_sp
+int	has_key_sp(
+		SCREEN	*sp, 
+		int	keycode)
+		{ return(*(int *)0); }
+
 #undef has_key
 int	has_key(
 		int	keycode)
+		{ return(*(int *)0); }
+
+#undef _nc_putp_flush_sp
+int	_nc_putp_flush_sp(
+		SCREEN	*sp, 
+		const char *name, 
+		const char *value)
 		{ return(*(int *)0); }
 
 #undef _nc_keypad
@@ -2622,29 +3318,66 @@ int	_nc_keypad(
 
 /* ./tinfo/lib_raw.c */
 
+#undef raw_sp
+int	raw_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef raw
 int	raw(void)
+		{ return(*(int *)0); }
+
+#undef cbreak_sp
+int	cbreak_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef cbreak
 int	cbreak(void)
 		{ return(*(int *)0); }
 
+#undef qiflush_sp
+void	qiflush_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef qiflush
 void	qiflush(void)
 		{ /* void */ }
 
+#undef noraw_sp
+int	noraw_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef noraw
 int	noraw(void)
+		{ return(*(int *)0); }
+
+#undef nocbreak_sp
+int	nocbreak_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef nocbreak
 int	nocbreak(void)
 		{ return(*(int *)0); }
 
+#undef noqiflush_sp
+void	noqiflush_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef noqiflush
 void	noqiflush(void)
 		{ /* void */ }
+
+#undef intrflush_sp
+int	intrflush_sp(
+		SCREEN	*sp, 
+		WINDOW	*win, 
+		NCURSES_BOOL flag)
+		{ return(*(int *)0); }
 
 #undef intrflush
 int	intrflush(
@@ -2663,7 +3396,8 @@ char	*_nc_ttytype(void)
 		{ return(*(char **)0); }
 
 #undef _nc_ptr_Lines
-int	*_nc_ptr_Lines(void)
+int	*_nc_ptr_Lines(
+		SCREEN	*sp)
 		{ return(*(int **)0); }
 
 #undef _nc_LINES
@@ -2671,15 +3405,27 @@ int	_nc_LINES(void)
 		{ return(*(int *)0); }
 
 #undef _nc_ptr_Cols
-int	*_nc_ptr_Cols(void)
+int	*_nc_ptr_Cols(
+		SCREEN	*sp)
 		{ return(*(int **)0); }
 
 #undef _nc_COLS
 int	_nc_COLS(void)
 		{ return(*(int *)0); }
 
+#undef _nc_ptr_Tabsize
+int	*_nc_ptr_Tabsize(
+		SCREEN	*sp)
+		{ return(*(int **)0); }
+
 #undef _nc_TABSIZE
 int	_nc_TABSIZE(void)
+		{ return(*(int *)0); }
+
+#undef set_tabsize_sp
+int	set_tabsize_sp(
+		SCREEN	*sp, 
+		int	value)
 		{ return(*(int *)0); }
 
 #undef set_tabsize
@@ -2691,6 +3437,12 @@ int	set_tabsize(
 int	_nc_handle_sigwinch(
 		SCREEN	*sp)
 		{ return(*(int *)0); }
+
+#undef use_env_sp
+void	use_env_sp(
+		SCREEN	*sp, 
+		NCURSES_BOOL f)
+		{ /* void */ }
 
 #undef use_env
 void	use_env(
@@ -2707,6 +3459,18 @@ void	_nc_get_screensize(
 #undef _nc_update_screensize
 void	_nc_update_screensize(
 		SCREEN	*sp)
+		{ /* void */ }
+
+#undef _nc_setup_tinfo
+int	_nc_setup_tinfo(
+		const char *const tn, 
+		TERMTYPE *const tp)
+		{ return(*(int *)0); }
+
+#undef _nc_tinfo_cmdch
+void	_nc_tinfo_cmdch(
+		TERMINAL *termp, 
+		char	proto)
 		{ /* void */ }
 
 #undef _nc_get_locale
@@ -2730,6 +3494,10 @@ int	_nc_setupterm(
 		NCURSES_BOOL reuse)
 		{ return(*(int *)0); }
 
+#undef new_prescr
+SCREEN	*new_prescr(void)
+		{ return(*(SCREEN **)0); }
+
 #undef setupterm
 int	setupterm(
 		char	*tname, 
@@ -2744,8 +3512,9 @@ char	*UP;
 #undef BC
 char	*BC;
 
-#undef tgetent
-int	tgetent(
+#undef tgetent_sp
+int	tgetent_sp(
+		SCREEN	*sp, 
 		char	*bufp, 
 		const char *name)
 		{ return(*(int *)0); }
@@ -2756,8 +3525,26 @@ int	tgetent(
 
 #endif
 
+#undef tgetent
+int	tgetent(
+		char	*bufp, 
+		const char *name)
+		{ return(*(int *)0); }
+
+#undef tgetflag_sp
+int	tgetflag_sp(
+		SCREEN	*sp, 
+		char	*id)
+		{ return(*(int *)0); }
+
 #undef tgetflag
 int	tgetflag(
+		char	*id)
+		{ return(*(int *)0); }
+
+#undef tgetnum_sp
+int	tgetnum_sp(
+		SCREEN	*sp, 
 		char	*id)
 		{ return(*(int *)0); }
 
@@ -2766,6 +3553,13 @@ int	tgetnum(
 		char	*id)
 		{ return(*(int *)0); }
 
+#undef tgetstr_sp
+char	*tgetstr_sp(
+		SCREEN	*sp, 
+		char	*id, 
+		char	**area)
+		{ return(*(char **)0); }
+
 #undef tgetstr
 char	*tgetstr(
 		char	*id, 
@@ -2773,6 +3567,11 @@ char	*tgetstr(
 		{ return(*(char **)0); }
 
 /* ./tinfo/lib_termname.c */
+
+#undef termname_sp
+char	*termname_sp(
+		SCREEN	*sp)
+		{ return(*(char **)0); }
 
 #undef termname
 char	*termname(void)
@@ -2789,8 +3588,20 @@ char	*tgoto(
 
 /* ./tinfo/lib_ti.c */
 
+#undef tigetflag_sp
+int	tigetflag_sp(
+		SCREEN	*sp, 
+		char	*str)
+		{ return(*(int *)0); }
+
 #undef tigetflag
 int	tigetflag(
+		char	*str)
+		{ return(*(int *)0); }
+
+#undef tigetnum_sp
+int	tigetnum_sp(
+		SCREEN	*sp, 
 		char	*str)
 		{ return(*(int *)0); }
 
@@ -2798,6 +3609,12 @@ int	tigetflag(
 int	tigetnum(
 		char	*str)
 		{ return(*(int *)0); }
+
+#undef tigetstr_sp
+char	*tigetstr_sp(
+		SCREEN	*sp, 
+		char	*str)
+		{ return(*(char **)0); }
 
 #undef tigetstr
 char	*tigetstr(
@@ -2822,6 +3639,12 @@ char	*tparm(
 		...)
 		{ return(*(char **)0); }
 
+#undef tiparm
+char	*tiparm(
+		const char *string, 
+		...)
+		{ return(*(char **)0); }
+
 /* ./tinfo/lib_tputs.c */
 
 #undef PC
@@ -2836,23 +3659,73 @@ void	_nc_set_no_padding(
 		SCREEN	*sp)
 		{ /* void */ }
 
+#undef delay_output_sp
+int	delay_output_sp(
+		SCREEN	*sp, 
+		int	ms)
+		{ return(*(int *)0); }
+
 #undef delay_output
 int	delay_output(
 		int	ms)
 		{ return(*(int *)0); }
 
+#undef _nc_flush_sp
+void	_nc_flush_sp(
+		SCREEN	*sp)
+		{ /* void */ }
+
 #undef _nc_flush
 void	_nc_flush(void)
 		{ /* void */ }
+
+#undef _nc_outch_sp
+int	_nc_outch_sp(
+		SCREEN	*sp, 
+		int	ch)
+		{ return(*(int *)0); }
 
 #undef _nc_outch
 int	_nc_outch(
 		int	ch)
 		{ return(*(int *)0); }
 
+#undef putp_sp
+int	putp_sp(
+		SCREEN	*sp, 
+		const char *string)
+		{ return(*(int *)0); }
+
+#undef _nc_putp_sp
+int	_nc_putp_sp(
+		SCREEN	*sp, 
+		const char *name, 
+		const char *string)
+		{ return(*(int *)0); }
+
 #undef putp
 int	putp(
 		const char *string)
+		{ return(*(int *)0); }
+
+#undef _nc_putp
+int	_nc_putp(
+		const char *name, 
+		const char *string)
+		{ return(*(int *)0); }
+
+#undef tputs_sp
+int	tputs_sp(
+		SCREEN	*sp, 
+		const char *string, 
+		int	affcnt, 
+		NCURSES_OUTC_sp outc)
+		{ return(*(int *)0); }
+
+#undef _nc_outc_wrapper
+int	_nc_outc_wrapper(
+		SCREEN	*sp, 
+		int	c)
 		{ return(*(int *)0); }
 
 #undef tputs
@@ -2901,6 +3774,11 @@ void	_tracef(
 NCURSES_BOOL _nc_retrace_bool(
 		NCURSES_BOOL code)
 		{ return(*(NCURSES_BOOL *)0); }
+
+#undef _nc_retrace_char
+char	_nc_retrace_char(
+		char	code)
+		{ return(*(char *)0); }
 
 #undef _nc_retrace_int
 int	_nc_retrace_int(
@@ -2966,6 +3844,11 @@ char	*_traceattr(
 		attr_t	newmode)
 		{ return(*(char **)0); }
 
+#undef _nc_retrace_int_attr_t
+int	_nc_retrace_int_attr_t(
+		attr_t	code)
+		{ return(*(int *)0); }
+
 #undef _nc_retrace_attr_t
 attr_t	_nc_retrace_attr_t(
 		attr_t	code)
@@ -3024,8 +3907,20 @@ char	*_tracechar(
 
 /* ./tinfo/lib_ttyflags.c */
 
+#undef _nc_get_tty_mode_sp
+int	_nc_get_tty_mode_sp(
+		SCREEN	*sp, 
+		struct termios *buf)
+		{ return(*(int *)0); }
+
 #undef _nc_get_tty_mode
 int	_nc_get_tty_mode(
+		struct termios *buf)
+		{ return(*(int *)0); }
+
+#undef _nc_set_tty_mode_sp
+int	_nc_set_tty_mode_sp(
+		SCREEN	*sp, 
 		struct termios *buf)
 		{ return(*(int *)0); }
 
@@ -3034,24 +3929,54 @@ int	_nc_set_tty_mode(
 		struct termios *buf)
 		{ return(*(int *)0); }
 
+#undef def_shell_mode_sp
+int	def_shell_mode_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef def_shell_mode
 int	def_shell_mode(void)
+		{ return(*(int *)0); }
+
+#undef def_prog_mode_sp
+int	def_prog_mode_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef def_prog_mode
 int	def_prog_mode(void)
 		{ return(*(int *)0); }
 
+#undef reset_prog_mode_sp
+int	reset_prog_mode_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef reset_prog_mode
 int	reset_prog_mode(void)
+		{ return(*(int *)0); }
+
+#undef reset_shell_mode_sp
+int	reset_shell_mode_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef reset_shell_mode
 int	reset_shell_mode(void)
 		{ return(*(int *)0); }
 
+#undef savetty_sp
+int	savetty_sp(
+		SCREEN	*sp)
+		{ return(*(int *)0); }
+
 #undef savetty
 int	savetty(void)
+		{ return(*(int *)0); }
+
+#undef resetty_sp
+int	resetty_sp(
+		SCREEN	*sp)
 		{ return(*(int *)0); }
 
 #undef resetty
@@ -3144,6 +4069,13 @@ int	_nc_read_termcap_entry(
 
 /* ./tinfo/setbuf.c */
 
+#undef _nc_set_buffer_sp
+void	_nc_set_buffer_sp(
+		SCREEN	*sp, 
+		FILE	*ofp, 
+		NCURSES_BOOL buffered)
+		{ /* void */ }
+
 #undef _nc_set_buffer
 void	_nc_set_buffer(
 		FILE	*ofp, 
@@ -3235,8 +4167,8 @@ char	*_nc_trim_sgr0(
 
 /* ./unctrl.c */
 
-#undef _nc_unctrl
-char	*_nc_unctrl(
+#undef unctrl_sp
+char	*unctrl_sp(
 		SCREEN	*sp, 
 		chtype	ch)
 		{ return(*(char **)0); }
@@ -3323,25 +4255,6 @@ char	*_nc_infotocap(
 		int const parameterized)
 		{ return(*(char **)0); }
 
-/* ./comp_captab.c */
-
-#include <hashsize.h>
-
-#undef _nc_get_table
-const struct name_table_entry *_nc_get_table(
-		NCURSES_BOOL termcap)
-		{ return(*(const struct name_table_entry **)0); }
-
-#undef _nc_get_hash_table
-const short *_nc_get_hash_table(
-		NCURSES_BOOL termcap)
-		{ return(*(const short **)0); }
-
-#undef _nc_get_alias_table
-const struct alias *_nc_get_alias_table(
-		NCURSES_BOOL termcap)
-		{ return(*(const struct alias **)0); }
-
 /* ./tinfo/comp_expand.c */
 
 #undef _nc_tic_expand
@@ -3350,21 +4263,6 @@ char	*_nc_tic_expand(
 		NCURSES_BOOL tic_format, 
 		int	numbers)
 		{ return(*(char **)0); }
-
-/* ./tinfo/comp_hash.c */
-
-#undef _nc_find_entry
-struct name_table_entry const *_nc_find_entry(
-		const char *string, 
-		const short *hash_table)
-		{ return(*(struct name_table_entry const **)0); }
-
-#undef _nc_find_type_entry
-struct name_table_entry const *_nc_find_type_entry(
-		const char *string, 
-		int	type, 
-		const struct name_table_entry *table)
-		{ return(*(struct name_table_entry const **)0); }
 
 /* ./tinfo/comp_parse.c */
 
@@ -3485,6 +4383,13 @@ int	_nc_tic_written(void)
 
 /* ./base/define_key.c */
 
+#undef define_key_sp
+int	define_key_sp(
+		SCREEN	*sp, 
+		const char *str, 
+		int	keycode)
+		{ return(*(int *)0); }
+
 #undef define_key
 int	define_key(
 		const char *str, 
@@ -3499,12 +4404,25 @@ void	_nc_hashed_db(void)
 
 /* ./base/key_defined.c */
 
+#undef key_defined_sp
+int	key_defined_sp(
+		SCREEN	*sp, 
+		const char *str)
+		{ return(*(int *)0); }
+
 #undef key_defined
 int	key_defined(
 		const char *str)
 		{ return(*(int *)0); }
 
 /* ./base/keybound.c */
+
+#undef keybound_sp
+char	*keybound_sp(
+		SCREEN	*sp, 
+		int	code, 
+		int	count)
+		{ return(*(char **)0); }
 
 #undef keybound
 char	*keybound(
@@ -3513,6 +4431,13 @@ char	*keybound(
 		{ return(*(char **)0); }
 
 /* ./base/keyok.c */
+
+#undef keyok_sp
+int	keyok_sp(
+		SCREEN	*sp, 
+		int	c, 
+		NCURSES_BOOL flag)
+		{ return(*(int *)0); }
 
 #undef keyok
 int	keyok(

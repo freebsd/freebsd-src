@@ -1,6 +1,6 @@
-# $Id: mk-hdr.awk,v 1.2 2007/03/31 15:48:45 tom Exp $
+# $Id: mk-hdr.awk,v 1.3 2010/05/15 20:10:42 tom Exp $
 ##############################################################################
-# Copyright (c) 2007 Free Software Foundation, Inc.                          #
+# Copyright (c) 2007,2010 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -74,7 +74,7 @@ END	{
 		if ( count > 0 )
 		{
 			print "${DESTDIR}${includedir} :"
-			print "	sh ${srcdir}/../mkdirs.sh $@"
+			print "	mkdir -p $@"
 			print ""
 			print "install \\"
 			print "install.libs \\"
