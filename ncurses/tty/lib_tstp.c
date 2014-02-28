@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 #define _POSIX_SOURCE
 #endif
 
-MODULE_ID("$Id: lib_tstp.c,v 1.41 2010/05/15 21:31:12 tom Exp $")
+MODULE_ID("$Id: lib_tstp.c,v 1.37 2008/05/03 16:24:56 tom Exp $")
 
 #if defined(SIGTSTP) && (HAVE_SIGACTION || HAVE_SIGVEC)
 #define USE_SIGTSTP 1
@@ -59,20 +59,16 @@ static const char *
 signal_name(int sig)
 {
     switch (sig) {
-#ifdef SIGALRM
     case SIGALRM:
 	return "SIGALRM";
-#endif
 #ifdef SIGCONT
     case SIGCONT:
 	return "SIGCONT";
 #endif
     case SIGINT:
 	return "SIGINT";
-#ifdef SIGQUIT
     case SIGQUIT:
 	return "SIGQUIT";
-#endif
     case SIGTERM:
 	return "SIGTERM";
 #ifdef SIGTSTP
@@ -140,7 +136,6 @@ signal_name(int sig)
 static void
 tstp(int dummy GCC_UNUSED)
 {
-    SCREEN *sp = CURRENT_SCREEN;
     sigset_t mask, omask;
     sigaction_t act, oact;
 
@@ -159,11 +154,11 @@ tstp(int dummy GCC_UNUSED)
      * parent was stopped before us, and we would likely pick up the
      * settings already modified by the shell.
      */
-    if (sp != 0 && !sp->_endwin)	/* don't do this if we're not in curses */
+    if (SP != 0 && !SP->_endwin)	/* don't do this if we're not in curses */
 #if HAVE_TCGETPGRP
 	if (tcgetpgrp(STDIN_FILENO) == getpgrp())
 #endif
-	    NCURSES_SP_NAME(def_prog_mode) (NCURSES_SP_ARG);
+	    def_prog_mode();
 
     /*
      * Block window change and timer signals.  The latter
@@ -171,9 +166,7 @@ tstp(int dummy GCC_UNUSED)
      * to repaint the screen.
      */
     (void) sigemptyset(&mask);
-#ifdef SIGALRM
     (void) sigaddset(&mask, SIGALRM);
-#endif
 #if USE_SIGWINCH
     (void) sigaddset(&mask, SIGWINCH);
 #endif
@@ -192,7 +185,7 @@ tstp(int dummy GCC_UNUSED)
      * End window mode, which also resets the terminal state to the
      * original (pre-curses) modes.
      */
-    NCURSES_SP_NAME(endwin) (NCURSES_SP_ARG);
+    endwin();
 
     /* Unblock SIGTSTP. */
     (void) sigemptyset(&mask);
@@ -219,19 +212,19 @@ tstp(int dummy GCC_UNUSED)
 
     T(("SIGCONT received"));
     sigaction(SIGTSTP, &oact, NULL);
-    NCURSES_SP_NAME(flushinp) (NCURSES_SP_ARG);
+    flushinp();
 
     /*
      * If the user modified the tty state while suspended, he wants
      * those changes to stick.  So save the new "default" terminal state.
      */
-    NCURSES_SP_NAME(def_shell_mode) (NCURSES_SP_ARG);
+    def_shell_mode();
 
     /*
      * This relies on the fact that doupdate() will restore the
      * program-mode tty state, and issue enter_ca_mode if need be.
      */
-    NCURSES_SP_NAME(doupdate) (NCURSES_SP_ARG);
+    doupdate();
 
     /* Reset the signals. */
     (void) sigprocmask(SIG_SETMASK, &omask, NULL);
@@ -241,8 +234,6 @@ tstp(int dummy GCC_UNUSED)
 static void
 cleanup(int sig)
 {
-    SCREEN *sp = CURRENT_SCREEN;
-
     /*
      * Actually, doing any sort of I/O from within an signal handler is
      * "unsafe".  But we'll _try_ to clean up the screen and terminal
@@ -250,10 +241,7 @@ cleanup(int sig)
      */
     if (!_nc_globals.cleanup_nested++
 	&& (sig == SIGINT
-#ifdef SIGQUIT
-	    || sig == SIGQUIT
-#endif
-	)) {
+	    || sig == SIGQUIT)) {
 #if HAVE_SIGACTION || HAVE_SIGVEC
 	sigaction_t act;
 	sigemptyset(&act.sa_mask);
@@ -269,12 +257,12 @@ cleanup(int sig)
 		if (scan->_ofp != 0
 		    && isatty(fileno(scan->_ofp))) {
 		    scan->_cleanup = TRUE;
-		    scan->_outch = NCURSES_SP_NAME(_nc_outch);
+		    scan->_outch = _nc_outch;
 		}
 		set_term(scan);
-		NCURSES_SP_NAME(endwin) (NCURSES_SP_ARG);
-		if (sp)
-		    sp->_endwin = FALSE;	/* in case we have an atexit! */
+		endwin();
+		if (SP)
+		    SP->_endwin = FALSE;	/* in case we have an atexit! */
 	    }
 	}
     }
@@ -286,13 +274,6 @@ static void
 sigwinch(int sig GCC_UNUSED)
 {
     _nc_globals.have_sigwinch = 1;
-# if USE_PTHREADS_EINTR
-    if (_nc_globals.read_thread) {
-	if (!pthread_equal(pthread_self(), _nc_globals.read_thread))
-	    pthread_kill(_nc_globals.read_thread, SIGWINCH);
-	_nc_globals.read_thread = 0;
-    }
-# endif
 }
 #endif /* USE_SIGWINCH */
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,8 +29,6 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey                        1996-on                 *
- *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -41,12 +39,9 @@
  */
 
 #include <curses.priv.h>
+#include <term.h>		/* beep, flash */
 
-#ifndef CUR
-#define CUR SP_TERMTYPE
-#endif
-
-MODULE_ID("$Id: lib_flash.c,v 1.11 2009/10/24 22:02:14 tom Exp $")
+MODULE_ID("$Id: lib_flash.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
 
 /*
  *	flash()
@@ -57,15 +52,12 @@ MODULE_ID("$Id: lib_flash.c,v 1.11 2009/10/24 22:02:14 tom Exp $")
  */
 
 NCURSES_EXPORT(int)
-NCURSES_SP_NAME(flash) (NCURSES_SP_DCL0)
+flash(void)
 {
     int res = ERR;
 
-    T((T_CALLED("flash(%p)"), (void *) SP_PARM));
-#ifdef USE_TERM_DRIVER
-    if (SP_PARM != 0)
-	res = CallDriver_1(SP_PARM, doBeepOrFlash, FALSE);
-#else
+    T((T_CALLED("flash()")));
+
     /* FIXME: should make sure that we are not in altchar mode */
     if (flash_screen) {
 	TPUTS_TRACE("flash_screen");
@@ -76,14 +68,6 @@ NCURSES_SP_NAME(flash) (NCURSES_SP_DCL0)
 	res = putp(bell);
 	_nc_flush();
     }
-#endif
+
     returnCode(res);
 }
-
-#if NCURSES_SP_FUNCS
-NCURSES_EXPORT(int)
-flash(void)
-{
-    return NCURSES_SP_NAME(flash) (CURRENT_SCREEN);
-}
-#endif

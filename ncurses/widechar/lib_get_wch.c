@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,22 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.22 2010/08/28 21:00:35 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.17 2008/08/16 19:22:55 tom Exp $")
+
+#if HAVE_MBTOWC && HAVE_MBLEN
+#define reset_mbytes(state) mblen(NULL, 0), mbtowc(NULL, NULL, 0)
+#define count_mbytes(buffer,length,state) mblen(buffer,length)
+#define check_mbytes(wch,buffer,length,state) \
+	(int) mbtowc(&wch, buffer, length)
+#define state_unused
+#elif HAVE_MBRTOWC && HAVE_MBRLEN
+#define reset_mbytes(state) init_mb(state)
+#define count_mbytes(buffer,length,state) mbrlen(buffer,length,&state)
+#define check_mbytes(wch,buffer,length,state) \
+	(int) mbrtowc(&wch, buffer, length, &state)
+#else
+make an error
+#endif
 
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)
@@ -50,13 +65,13 @@ wget_wch(WINDOW *win, wint_t *result)
     char buffer[(MB_LEN_MAX * 9) + 1];	/* allow some redundant shifts */
     int status;
     size_t count = 0;
-    int value = 0;
+    unsigned long value;
     wchar_t wch;
 #ifndef state_unused
     mbstate_t state;
 #endif
 
-    T((T_CALLED("wget_wch(%p)"), (void *) win));
+    T((T_CALLED("wget_wch(%p)"), win));
 
     /*
      * We can get a stream of single-byte characters and KEY_xxx codes from
@@ -80,12 +95,12 @@ wget_wch(WINDOW *win, wint_t *result)
 		 * whether the improvement would be worth the effort.
 		 */
 		if (count != 0) {
-		    safe_ungetch(SP_PARM, value);
+		    _nc_ungetch(sp, (int) value);
 		    code = ERR;
 		}
 		break;
 	    } else if (count + 1 >= sizeof(buffer)) {
-		safe_ungetch(SP_PARM, value);
+		_nc_ungetch(sp, (int) value);
 		code = ERR;
 		break;
 	    } else {
@@ -96,7 +111,7 @@ wget_wch(WINDOW *win, wint_t *result)
 		    reset_mbytes(state);
 		    if (check_mbytes(wch, buffer, count, state) != status) {
 			code = ERR;	/* the two calls should match */
-			safe_ungetch(SP_PARM, value);
+			_nc_ungetch(sp, (int) value);
 		    }
 		    value = wch;
 		    break;
@@ -106,8 +121,8 @@ wget_wch(WINDOW *win, wint_t *result)
     } else {
 	code = ERR;
     }
-    *result = (wint_t) value;
+    *result = value;
     _nc_unlock_global(curses);
-    T(("result %#o", value));
+    T(("result %#lo", value));
     returnCode(code);
 }

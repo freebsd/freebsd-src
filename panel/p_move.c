@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,6 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1995                    *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Juergen Pfeifer                         1997-1999,2009          *
  ****************************************************************************/
 
 /* p_move.c
@@ -37,24 +36,21 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_move.c,v 1.11 2010/01/23 21:22:15 tom Exp $")
+MODULE_ID("$Id: p_move.c,v 1.9 2005/02/19 16:46:49 tom Exp $")
 
 NCURSES_EXPORT(int)
 move_panel(PANEL * pan, int starty, int startx)
 {
-  int rc = ERR;
+  T((T_CALLED("move_panel(%p,%d,%d)"), pan, starty, startx));
 
-  T((T_CALLED("move_panel(%p,%d,%d)"), (void *)pan, starty, startx));
+  if (!pan)
+    returnCode(ERR);
 
-  if (pan)
+  if (IS_LINKED(pan))
     {
-      GetHook(pan);
-      if (IS_LINKED(pan))
-	{
-	  Touchpan(pan);
-	  PANEL_UPDATE(pan, (PANEL *) 0);
-	}
-      rc = mvwin(pan->win, starty, startx);
+      Touchpan(pan);
+      PANEL_UPDATE(pan, (PANEL *) 0);
     }
-  returnCode(rc);
+
+  returnCode(mvwin(pan->win, starty, startx));
 }
