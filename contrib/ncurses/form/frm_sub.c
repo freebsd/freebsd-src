@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,12 +27,12 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author:  Juergen Pfeifer, 1995,1997                                    *
+ *   Author:  Juergen Pfeifer, 1995-1997,2009                               *
  ****************************************************************************/
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_sub.c,v 1.9 2004/12/11 22:13:39 tom Exp $")
+MODULE_ID("$Id: frm_sub.c,v 1.12 2010/01/23 21:14:36 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -46,13 +46,22 @@ MODULE_ID("$Id: frm_sub.c,v 1.9 2004/12/11 22:13:39 tom Exp $")
 NCURSES_EXPORT(int)
 set_form_sub(FORM *form, WINDOW *win)
 {
-  T((T_CALLED("set_form_sub(%p,%p)"), form, win));
+  T((T_CALLED("set_form_sub(%p,%p)"), (void *)form, (void *)win));
 
   if (form && (form->status & _POSTED))
     RETURN(E_POSTED);
+  else
+    {
+#if NCURSES_SP_FUNCS
+      FORM *f = Normalize_Form(form);
 
-  Normalize_Form(form)->sub = win;
-  RETURN(E_OK);
+      f->sub = win ? win : StdScreen(Get_Form_Screen(f));
+      RETURN(E_OK);
+#else
+      Normalize_Form(form)->sub = win;
+      RETURN(E_OK);
+#endif
+    }
 }
 
 /*---------------------------------------------------------------------------
@@ -68,7 +77,7 @@ form_sub(const FORM *form)
 {
   const FORM *f;
 
-  T((T_CALLED("form_sub(%p)"), form));
+  T((T_CALLED("form_sub(%p)"), (const void *)form));
 
   f = Normalize_Form(form);
   returnWin(Get_Form_Window(f));

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: toe.c,v 1.51 2008/08/16 21:53:25 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.52 2010/05/01 22:04:08 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
@@ -60,6 +60,13 @@ ExitProgram(int code)
     _nc_free_tic(code);
 }
 #endif
+
+static void
+failed(const char *msg)
+{
+    perror(msg);
+    ExitProgram(EXIT_FAILURE);
+}
 
 #if USE_HASHED_DB
 static bool
@@ -184,10 +191,10 @@ typelist(int eargc, char *eargv[],
 		DIRENT *entry;
 
 		cwd_buf = typeRealloc(char, cwd_len, cwd_buf);
-		if (cwd_buf == 0) {
-		    perror("realloc cwd_buf");
-		    continue;
-		}
+		if (cwd_buf == 0)
+		    failed("realloc cwd_buf");
+
+		assert(cwd_buf != 0);
 
 		strncpy(name_1, subdir->d_name, len)[len] = '\0';
 		if (isDotname(name_1))
@@ -480,6 +487,10 @@ main(int argc, char *argv[])
 	    }
 	    if (!pass) {
 		eargv = typeCalloc(char *, count + 1);
+		if (eargv == 0)
+		    failed("realloc eargv");
+
+		assert(eargv != 0);
 	    } else {
 		code = typelist((int) count, eargv, header, deschook);
 		while (count-- > 0)

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2002,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey       1996,1997,2002,2005                      *
+ *  Author: Thomas E. Dickey       1996-2005,2010                           *
  ****************************************************************************/
 /* LINTLIBRARY */
 
 /* ./f_trace.c */
 
-#include "form.priv.h"
+#include <form.priv.h>
 
 #undef _nc_retrace_field_ptr
 FIELD	**_nc_retrace_field_ptr(
@@ -264,7 +264,7 @@ int	move_field(
 /* ./fld_newftyp.c */
 
 #undef _nc_Default_FieldType
-const FIELDTYPE *_nc_Default_FieldType = {0};
+FIELDTYPE *_nc_Default_FieldType;
 
 #undef new_fieldtype
 FIELDTYPE *new_fieldtype(
@@ -396,6 +396,12 @@ NCURSES_BOOL data_ahead(
 #undef _nc_Default_Form
 FORM	*_nc_Default_Form;
 
+#undef new_form_sp
+FORM	*new_form_sp(
+		SCREEN	*sp, 
+		FIELD	**fields)
+		{ return(*(FORM **)0); }
+
 #undef new_form
 FORM	*new_form(
 		FIELD	**fields)
@@ -423,6 +429,13 @@ int	field_count(
 		{ return(*(int *)0); }
 
 /* ./frm_driver.c */
+
+#undef _nc_get_fieldbuffer
+void	_nc_get_fieldbuffer(
+		FORM	*form, 
+		FIELD	*field, 
+		char	*buf)
+		{ /* void */ }
 
 #undef _nc_Position_Form_Cursor
 int	_nc_Position_Form_Cursor(
@@ -683,8 +696,22 @@ typedef struct
   }
 enumARG;
 
+typedef struct
+  {
+    char **kwds;
+    int ccase;
+    int cunique;
+  }
+enumParams;
+
 #undef TYPE_ENUM
 FIELDTYPE *TYPE_ENUM;
+
+/* ./fty_generic.c */
+
+#undef _nc_fty_generic
+void	_nc_fty_generic(void)
+		{ /* void */ }
 
 /* ./fty_int.c */
 
@@ -695,6 +722,14 @@ typedef struct
     long high;
   }
 integerARG;
+
+typedef struct
+  {
+    int precision;
+    long low;
+    long high;
+  }
+integerPARM;
 
 #undef TYPE_INTEGER
 FIELDTYPE *TYPE_INTEGER;
@@ -715,6 +750,14 @@ typedef struct
     struct lconv *L;
   }
 numericARG;
+
+typedef struct
+  {
+    int precision;
+    double low;
+    double high;
+  }
+thisPARM;
 
 #undef TYPE_NUMERIC
 FIELDTYPE *TYPE_NUMERIC;

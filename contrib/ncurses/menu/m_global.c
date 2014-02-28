@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_global.c,v 1.23 2005/12/31 21:51:52 tom Exp $")
+MODULE_ID("$Id: m_global.c,v 1.25 2010/01/23 21:20:10 tom Exp $")
 
 static char mark[] = "-";
 /* *INDENT-OFF* */
@@ -253,7 +253,7 @@ _nc_Calculate_Text_Width(const TEXT * item /*FIXME: limit length */ )
 #if USE_WIDEC_SUPPORT
   int result = item->length;
 
-  T((T_CALLED("_nc_menu_text_width(%p)"), item));
+  T((T_CALLED("_nc_menu_text_width(%p)"), (const void *)item));
   if (result != 0 && item->str != 0)
     {
       int count = mbstowcs(0, item->str, 0);
@@ -496,7 +496,7 @@ _nc_Link_Items(MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
-|   Function      :  void _nc_Show_Menu(const MENU *menu)
+|   Function      :  void _nc_Show_Menu(const MENU* menu)
 |   
 |   Description   :  Update the window that is associated with the menu
 |
@@ -543,8 +543,10 @@ _nc_Show_Menu(const MENU * menu)
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void)
-  _nc_New_TopRow_and_CurrentItem
-  (MENU * menu, int new_toprow, ITEM * new_current_item)
+_nc_New_TopRow_and_CurrentItem(
+				MENU * menu,
+				int new_toprow,
+				ITEM * new_current_item)
 {
   ITEM *cur_item;
   bool mterm_called = FALSE;

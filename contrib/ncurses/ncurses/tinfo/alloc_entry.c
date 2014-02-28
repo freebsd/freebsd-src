@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,9 +46,8 @@
 #include <curses.priv.h>
 
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.48 2008/08/16 16:25:31 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.51 2010/12/25 23:06:01 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
@@ -65,8 +64,10 @@ _nc_init_entry(TERMTYPE *const tp)
     unsigned i;
 
 #if NO_LEAKS
-    if (tp == 0 && stringbuf != 0) {
-	FreeAndNull(stringbuf);
+    if (tp == 0) {
+	if (stringbuf != 0) {
+	    FreeAndNull(stringbuf);
+	}
 	return;
     }
 #endif
@@ -181,7 +182,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	    } else if (tp->Strings[i] == CANCELLED_STRING) {
 		offsets[i] = CANCELLED_OFFSET;
 	    } else {
-		offsets[i] = tp->Strings[i] - stringbuf;
+		offsets[i] = (int) (tp->Strings[i] - stringbuf);
 	    }
 	}
     }
@@ -190,7 +191,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	if (ep->uses[i].name == 0)
 	    useoffsets[i] = ABSENT_OFFSET;
 	else
-	    useoffsets[i] = ep->uses[i].name - stringbuf;
+	    useoffsets[i] = (int) (ep->uses[i].name - stringbuf);
     }
 
     if ((tp->str_table = typeMalloc(char, next_free)) == (char *) 0)
@@ -214,10 +215,10 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
     if (!copy_strings) {
 	if ((n = (unsigned) NUM_EXT_NAMES(tp)) != 0) {
 	    if (n < SIZEOF(offsets)) {
-		unsigned length = 0;
+		size_t length = 0;
 		for (i = 0; i < n; i++) {
 		    length += strlen(tp->ext_Names[i]) + 1;
-		    offsets[i] = tp->ext_Names[i] - stringbuf;
+		    offsets[i] = (int) (tp->ext_Names[i] - stringbuf);
 		}
 		if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
 		      _nc_err_abort(MSG_NO_MEMORY);

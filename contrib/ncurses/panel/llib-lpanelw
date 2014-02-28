@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002,2005 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2002-2005,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey                    2002,2005                   *
+ *  Author: Thomas E. Dickey                    2002-2005,2010              *
  ****************************************************************************/
 /* LINTLIBRARY */
 
 /* ./panel.c */
 
-#include "panel.priv.h"
+#include <panel.priv.h>
 
 #undef _nc_retrace_panel
 PANEL	*_nc_retrace_panel(
@@ -77,12 +77,22 @@ void	_nc_Touchline(
 
 /* ./p_above.c */
 
+#undef ground_panel
+PANEL	*ground_panel(
+		SCREEN	*sp)
+		{ return(*(PANEL **)0); }
+
 #undef panel_above
 PANEL	*panel_above(
 		const PANEL *pan)
 		{ return(*(PANEL **)0); }
 
 /* ./p_below.c */
+
+#undef ceiling_panel
+PANEL	*ceiling_panel(
+		SCREEN	*sp)
+		{ return(*(PANEL **)0); }
 
 #undef panel_below
 PANEL	*panel_below(
@@ -156,6 +166,11 @@ int	top_panel(
 		{ return(*(int *)0); }
 
 /* ./p_update.c */
+
+#undef update_panels_sp
+void	update_panels_sp(
+		SCREEN	*sp)
+		{ /* void */ }
 
 #undef update_panels
 void	update_panels(void)

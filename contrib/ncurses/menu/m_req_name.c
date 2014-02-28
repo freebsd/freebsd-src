@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_req_name.c,v 1.20 2008/09/13 18:59:17 tom Exp $")
+MODULE_ID("$Id: m_req_name.c,v 1.21 2009/10/10 16:17:23 tom Exp $")
 
 static const char *request_names[MAX_MENU_COMMAND - MIN_MENU_COMMAND + 1] =
 {
@@ -109,7 +109,7 @@ menu_request_by_name(const char *str)
       strncpy(buf, str, sizeof(buf));
       while ((i < sizeof(buf)) && (buf[i] != '\0'))
 	{
-	  buf[i] = toupper(UChar(buf[i]));
+	  buf[i] = (char)toupper(UChar(buf[i]));
 	  i++;
 	}
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006,2007 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2006-2007,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: db_iterator.c,v 1.6 2007/04/22 00:00:26 tom Exp $")
+MODULE_ID("$Id: db_iterator.c,v 1.9 2010/12/25 23:00:25 tom Exp $")
 
 #define HaveTicDirectory _nc_globals.have_tic_directory
 #define KeepTicDirectory _nc_globals.keep_tic_directory
@@ -104,7 +104,7 @@ next_list_item(const char *source, int *offset)
     if (source != 0) {
 	FreeIfNeeded(ThisDbList);
 	ThisDbList = strdup(source);
-	ThisDbSize = strlen(source);
+	ThisDbSize = (int) strlen(source);
     }
 
     if (ThisDbList != 0 && ThisDbSize && *offset < ThisDbSize) {
@@ -118,11 +118,10 @@ next_list_item(const char *source, int *offset)
 	 * again, using the data at the offset.
 	 */
 	if (marker == 0) {
-	    *offset += strlen(result) + 1;
-	    marker = result + *offset;
+	    *offset += (int) strlen(result);
 	} else {
 	    *marker++ = 0;
-	    *offset = marker - ThisDbList;
+	    *offset = (int) (marker - ThisDbList);
 	}
 	if (*result == 0 && result != (ThisDbList + ThisDbSize))
 	    result = system_db;

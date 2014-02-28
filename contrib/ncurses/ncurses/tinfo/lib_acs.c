@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,17 +30,21 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2008                    *
  ****************************************************************************/
 
 #include <curses.priv.h>
-#include <term.h>		/* ena_acs, acs_chars */
 
-MODULE_ID("$Id: lib_acs.c,v 1.36 2008/08/16 19:22:55 tom Exp $")
+#ifndef CUR
+#define CUR SP_TERMTYPE
+#endif
+
+MODULE_ID("$Id: lib_acs.c,v 1.43 2010/12/25 23:00:45 tom Exp $")
 
 #if BROKEN_LINKER || USE_REENTRANT
 #define MyBuffer _nc_prescreen.real_acs_map
-NCURSES_EXPORT_VAR(chtype *)
-_nc_acs_map(void)
+NCURSES_EXPORT(chtype *)
+NCURSES_PUBLIC_VAR(acs_map) (void)
 {
     if (MyBuffer == 0)
 	MyBuffer = typeCalloc(chtype, ACS_LEN);
@@ -48,17 +52,35 @@ _nc_acs_map(void)
 }
 #undef MyBuffer
 #else
-NCURSES_EXPORT_VAR(chtype) acs_map[ACS_LEN] =
+NCURSES_EXPORT_VAR (chtype) acs_map[ACS_LEN] =
 {
     0
 };
 #endif
 
+#ifdef USE_TERM_DRIVER
+NCURSES_EXPORT(chtype)
+NCURSES_SP_NAME(_nc_acs_char) (NCURSES_SP_DCLx int c)
+{
+    chtype *map;
+    if (c < 0 || c >= ACS_LEN)
+	return (chtype) 0;
+    map = (SP_PARM != 0) ? SP_PARM->_acs_map :
+#if BROKEN_LINKER || USE_REENTRANT
+	_nc_prescreen.real_acs_map
+#else
+	acs_map
+#endif
+	;
+    return map[c];
+}
+#endif /* USE_TERM_DRIVER */
+
 NCURSES_EXPORT(void)
-_nc_init_acs(void)
+NCURSES_SP_NAME(_nc_init_acs) (NCURSES_SP_DCL0)
 {
     chtype *fake_map = acs_map;
-    chtype *real_map = SP != 0 ? SP->_acs_map : fake_map;
+    chtype *real_map = SP_PARM != 0 ? SP_PARM->_acs_map : fake_map;
     int j;
 
     T(("initializing ACS map"));
@@ -71,9 +93,9 @@ _nc_init_acs(void)
     if (real_map != fake_map) {
 	for (j = 1; j < ACS_LEN; ++j) {
 	    real_map[j] = 0;
-	    fake_map[j] = A_ALTCHARSET | j;
-	    if (SP)
-		SP->_screen_acs_map[j] = FALSE;
+	    fake_map[j] = A_ALTCHARSET | (chtype) j;
+	    if (SP_PARM)
+		SP_PARM->_screen_acs_map[j] = FALSE;
 	}
     } else {
 	for (j = 1; j < ACS_LEN; ++j) {
@@ -118,7 +140,34 @@ _nc_init_acs(void)
     real_map['{'] = '*';	/* should be greek pi */
     real_map['|'] = '!';	/* should be not-equal */
     real_map['}'] = 'f';	/* should be pound-sterling symbol */
+    /* thick-line-drawing */
+    real_map['L'] = '+';	/* upper left corner */
+    real_map['M'] = '+';	/* lower left corner */
+    real_map['K'] = '+';	/* upper right corner */
+    real_map['J'] = '+';	/* lower right corner */
+    real_map['T'] = '+';	/* tee pointing left */
+    real_map['U'] = '+';	/* tee pointing right */
+    real_map['V'] = '+';	/* tee pointing up */
+    real_map['W'] = '+';	/* tee pointing down */
+    real_map['Q'] = '-';	/* horizontal line */
+    real_map['X'] = '|';	/* vertical line */
+    real_map['N'] = '+';	/* large plus or crossover */
+    /* double-line-drawing */
+    real_map['C'] = '+';	/* upper left corner */
+    real_map['D'] = '+';	/* lower left corner */
+    real_map['B'] = '+';	/* upper right corner */
+    real_map['A'] = '+';	/* lower right corner */
+    real_map['G'] = '+';	/* tee pointing left */
+    real_map['F'] = '+';	/* tee pointing right */
+    real_map['H'] = '+';	/* tee pointing up */
+    real_map['I'] = '+';	/* tee pointing down */
+    real_map['R'] = '-';	/* horizontal line */
+    real_map['Y'] = '|';	/* vertical line */
+    real_map['E'] = '+';	/* large plus or crossover */
 
+#ifdef USE_TERM_DRIVER
+    CallDriver_2(SP_PARM, initacs, real_map, fake_map);
+#else
     if (ena_acs != NULL) {
 	TPUTS_TRACE("ena_acs");
 	putp(ena_acs);
@@ -140,7 +189,7 @@ _nc_init_acs(void)
 	size_t i;
 	for (i = 1; i < ACS_LEN; ++i) {
 	    if (real_map[i] == 0) {
-		real_map[i] = i;
+		real_map[i] = (chtype) i;
 		if (real_map != fake_map) {
 		    if (SP != 0)
 			SP->_screen_acs_map[i] = TRUE;
@@ -191,4 +240,13 @@ _nc_init_acs(void)
 	_nc_unlock_global(tracef);
     }
 #endif /* TRACE */
+#endif
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(void)
+_nc_init_acs(void)
+{
+    NCURSES_SP_NAME(_nc_init_acs) (CURRENT_SCREEN);
+}
+#endif

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,10 +40,9 @@
 #include <curses.priv.h>
 
 #include <ctype.h>
-#include <term.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.76 2008/08/16 19:22:55 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.82 2011/01/15 22:19:12 tom Exp $")
 
 /*
  *	char *
@@ -140,7 +139,7 @@ save_text(const char *fmt, const char *s, int len)
 {
     size_t s_len = strlen(s);
     if (len > (int) s_len)
-	s_len = len;
+	s_len = (size_t) len;
 
     get_space(s_len + 1);
 
@@ -451,12 +450,13 @@ _nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
 }
 
 static NCURSES_INLINE char *
-tparam_internal(const char *string, va_list ap)
+tparam_internal(bool use_TPARM_ARG, const char *string, va_list ap)
 {
     char *p_is_s[NUM_PARM];
     TPARM_ARG param[NUM_PARM];
-    int popcount;
+    int popcount = 0;
     int number;
+    int num_args;
     int len;
     int level;
     int x, y;
@@ -479,7 +479,13 @@ tparam_internal(const char *string, va_list ap)
     if (TPS(fmt_buff) == 0)
 	return NULL;
 
-    for (i = 0; i < max(popcount, number); i++) {
+    if (number > NUM_PARM)
+	number = NUM_PARM;
+    if (popcount > NUM_PARM)
+	popcount = NUM_PARM;
+    num_args = max(popcount, number);
+
+    for (i = 0; i < num_args; i++) {
 	/*
 	 * A few caps (such as plab_norm) have string-valued parms.
 	 * We'll have to assume that the caller knows the difference, since
@@ -489,8 +495,11 @@ tparam_internal(const char *string, va_list ap)
 	 */
 	if (p_is_s[i] != 0) {
 	    p_is_s[i] = va_arg(ap, char *);
-	} else {
+	    param[i] = 0;
+	} else if (use_TPARM_ARG) {
 	    param[i] = va_arg(ap, TPARM_ARG);
+	} else {
+	    param[i] = (TPARM_ARG) va_arg(ap, int);
 	}
     }
 
@@ -508,7 +517,7 @@ tparam_internal(const char *string, va_list ap)
 	    if (p_is_s[i])
 		spush(p_is_s[i]);
 	    else
-		npush(param[i]);
+		npush((int) param[i]);
 	}
     }
 #ifdef TRACE
@@ -517,7 +526,7 @@ tparam_internal(const char *string, va_list ap)
 	    if (p_is_s[i] != 0)
 		save_text(", %s", _nc_visbuf(p_is_s[i]), 0);
 	    else
-		save_number(", %d", param[i], 0);
+		save_number(", %d", (int) param[i], 0);
 	}
 	_tracef(T_CALLED("%s(%s%s)"), TPS(tname), _nc_visbuf(cp), TPS(out_buff));
 	TPS(out_used) = 0;
@@ -564,7 +573,7 @@ tparam_internal(const char *string, va_list ap)
 		    if (p_is_s[i])
 			spush(p_is_s[i]);
 		    else
-			npush(param[i]);
+			npush((int) param[i]);
 		}
 		break;
 
@@ -772,7 +781,7 @@ tparm_varargs(NCURSES_CONST char *string,...)
 #ifdef TRACE
     TPS(tname) = "tparm";
 #endif /* TRACE */
-    result = tparam_internal(string, ap);
+    result = tparam_internal(TRUE, string, ap);
     va_end(ap);
     return result;
 }
@@ -793,3 +802,19 @@ tparm_proto(NCURSES_CONST char *string,
     return tparm_varargs(string, a1, a2, a3, a4, a5, a6, a7, a8, a9);
 }
 #endif /* NCURSES_TPARM_VARARGS */
+
+NCURSES_EXPORT(char *)
+tiparm(const char *string,...)
+{
+    va_list ap;
+    char *result;
+
+    _nc_tparm_err = 0;
+    va_start(ap, string);
+#ifdef TRACE
+    TPS(tname) = "tiparm";
+#endif /* TRACE */
+    result = tparam_internal(FALSE, string, ap);
+    va_end(ap);
+    return result;
+}
