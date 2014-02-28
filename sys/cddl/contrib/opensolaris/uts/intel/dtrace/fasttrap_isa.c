@@ -47,7 +47,7 @@
 #include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/dtrace_bsd.h>
-#include <cddl/dev/dtrace/i386/regset.h>
+#include <cddl/dev/dtrace/x86/regset.h>
 #include <machine/segments.h>
 #include <machine/reg.h>
 #include <machine/pcb.h>
