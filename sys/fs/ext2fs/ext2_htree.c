@@ -60,7 +60,7 @@ static int	ext2_htree_check_next(struct inode *ip, uint32_t hash,
 		    const char *name, struct ext2fs_htree_lookup_info *info);
 static int	ext2_htree_cmp_sort_entry(const void *e1, const void *e2);
 static int	ext2_htree_find_leaf(struct inode *ip, const char *name,
-		    int namelen, uint32_t *hash, uint8_t *hash_verion,
+		    int namelen, uint32_t *hash, uint8_t *hash_version,
 		    struct ext2fs_htree_lookup_info *info);
 static uint32_t ext2_htree_get_block(struct ext2fs_htree_entry *ep);
 static uint16_t	ext2_htree_get_count(struct ext2fs_htree_entry *ep);
