@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,8 +29,6 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
- *     and: Thomas E. Dickey                        1996-on                 *
- *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -44,52 +42,38 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_nl.c,v 1.12 2009/10/24 22:05:55 tom Exp $")
+MODULE_ID("$Id: lib_nl.c,v 1.8 2000/12/10 02:43:27 tom Exp $")
 
 #ifdef __EMX__
 #include <io.h>
 #endif
 
 NCURSES_EXPORT(int)
-NCURSES_SP_NAME(nl) (NCURSES_SP_DCL0)
-{
-    T((T_CALLED("nl(%p)"), (void *) SP_PARM));
-    if (0 == SP_PARM)
-	returnCode(ERR);
-    SP_PARM->_nl = TRUE;
-#ifdef __EMX__
-    _nc_flush();
-    _fsetmode(NC_OUTPUT(SP_PARM), "t");
-#endif
-    returnCode(OK);
-}
-
-#if NCURSES_SP_FUNCS
-NCURSES_EXPORT(int)
 nl(void)
 {
-    return NCURSES_SP_NAME(nl) (CURRENT_SCREEN);
-}
-#endif
+    T((T_CALLED("nl()")));
 
-NCURSES_EXPORT(int)
-NCURSES_SP_NAME(nonl) (NCURSES_SP_DCL0)
-{
-    T((T_CALLED("nonl(%p)"), (void *) SP_PARM));
-    if (0 == SP_PARM)
-	returnCode(ERR);
-    SP_PARM->_nl = FALSE;
+    SP->_nl = TRUE;
+
 #ifdef __EMX__
     _nc_flush();
-    _fsetmode(NC_OUTPUT(SP_PARM), "b");
+    _fsetmode(NC_OUTPUT, "t");
 #endif
+
     returnCode(OK);
 }
 
-#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
 nonl(void)
 {
-    return NCURSES_SP_NAME(nonl) (CURRENT_SCREEN);
-}
+    T((T_CALLED("nonl()")));
+
+    SP->_nl = FALSE;
+
+#ifdef __EMX__
+    _nc_flush();
+    _fsetmode(NC_OUTPUT, "b");
 #endif
+
+    returnCode(OK);
+}

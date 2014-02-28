@@ -2,10 +2,10 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.43 2011/01/22 19:47:29 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.34 2008/08/30 19:20:50 tom Exp $)
 #
 ##############################################################################
-# Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -51,7 +51,7 @@
 #         them.
 # 5. cpp: macro-expand the file so the macro calls turn into C calls
 # 6. awk: strip the expansion junk off the front and add the new header
-# 7. sed: squeeze spaces, strip off gen_ prefix.
+# 7. sed: squeeze spaces, strip off gen_ prefix, create needed #undef
 #
 
 # keep the editing independent of locale:
@@ -81,8 +81,6 @@ if test "$USE" = implemented ; then
 	CALL="call_"
 	cat >$ED1 <<EOF1
 /^extern.*implemented/{
-	h
-	s/NCURSES_SP_NAME(\([^)]*\))/NCURSES_SP_NAME___\1/
 	h
 	s/^.*implemented:\([^ 	*]*\).*/P_POUNDCif_USE_\1_SUPPORT/p
 	g
@@ -153,13 +151,14 @@ cat >$ED3 <<EOF3
 	s/( /(/g
 	s/ )/)/g
 	s/ gen_/ /
+	s/^M_/#undef /
 	s/^[ 	]*@[ 	]*@[ 	]*/	/
 :done
 EOF3
 
 if test "$USE" = generated ; then
 cat >$ED4 <<EOF
-	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) (\2) (\3)/
+	s/^\(.*\) \(.*\) (\(.*\))\$/NCURSES_EXPORT(\1) \2 (\3)/
 EOF
 else
 cat >$ED4 <<EOF
@@ -170,7 +169,6 @@ cat >$ED4 <<EOF
 	g
 	s/^\(.*\) \(.*\) (\(.*\))\$/\1 call_\2 (\3)/
 	}
-s/\([^_]\)NCURSES_SP_NAME___\([a-zA-Z][a-zA-Z_]*\)/\1NCURSES_SP_NAME(\2)/g
 EOF
 fi
 
@@ -200,16 +198,14 @@ $0 !~ /^P_/ {
 		}
 	}
 	second = first + 1;
-	returnCast = "";
 	if ( $first == "chtype" ) {
-		returnType = "Chtype";
+		returnType = "Char";
 	} else if ( $first == "SCREEN" ) {
 		returnType = "SP";
 	} else if ( $first == "WINDOW" ) {
 		returnType = "Win";
 	} else if ( $first == "attr_t" || $second == "attrset" || $second == "standout" || $second == "standend" || $second == "wattrset" || $second == "wstandout" || $second == "wstandend" ) {
-		returnType = "IntAttr";
-		returnCast = "(attr_t)";
+		returnType = "Attr";
 	} else if ( $first == "bool" || $first == "NCURSES_BOOL" ) {
 		returnType = "Bool";
 	} else if ( $second == "*" ) {
@@ -223,6 +219,9 @@ $0 !~ /^P_/ {
 			myfunc = i;
 			break;
 		}
+	}
+	if (using == "generated") {
+		print "M_" $myfunc
 	}
 	print $0;
 	print "{";
@@ -248,9 +247,6 @@ $0 !~ /^P_/ {
 	if ($myfunc ~ /ripoffline/) {
 		dotrace = 0;
 		argcount = 2;
-		if ($myfunc ~ /NCURSES_SP_NAME/) {
-			argcount = 3;
-		}
 	}
 	if ($myfunc ~ /wunctrl/) {
 		dotrace = 0;
@@ -266,26 +262,24 @@ $0 !~ /^P_/ {
 	argtype = ""
 	for (i = myfunc; i <= NF; i++) {
 		ch = $i;
-		if ( ch == "*" ) {
+		if ( ch == "*" )
 			pointer = 1;
-		} else if ( ch == "va_list" ) {
+		else if ( ch == "va_list" )
 			va_list = 1;
-		} else if ( ch == "..." ) {
+		else if ( ch == "..." )
 			varargs = 1;
-		} else if ( ch == "char" ) {
+		else if ( ch == "char" )
 			argtype = "char";
-		} else if ( ch == "int" ) {
+		else if ( ch == "int" )
 			argtype = "int";
-		} else if ( ch == "short" ) {
+		else if ( ch == "short" )
 			argtype = "short";
-		} else if ( ch == "chtype" ) {
+		else if ( ch == "chtype" )
 			argtype = "chtype";
-		} else if ( ch == "attr_t" || ch == "NCURSES_ATTR_T" ) {
+		else if ( ch == "attr_t" || ch == "NCURSES_ATTR_T" )
 			argtype = "attr";
-		}
 
 		if ( ch == "," || ch == ")" ) {
-			argcast = "";
 			if (va_list) {
 				call = call "%s"
 			} else if (varargs) {
@@ -295,10 +289,8 @@ $0 !~ /^P_/ {
 					call = call "%s"
 					comma = comma "_nc_visbuf2(" num ","
 					pointer = 0;
-				} else {
+				} else
 					call = call "%p"
-					comma = comma "(const void *)"
-				}
 			} else if (argcount != 0) {
 				if ( argtype == "int" || argtype == "short" ) {
 					call = call "%d"
@@ -306,9 +298,6 @@ $0 !~ /^P_/ {
 				} else if ( argtype != "" ) {
 					call = call "%s"
 					comma = comma "_trace" argtype "2(" num ","
-					if (argtype == "attr") {
-						argcast = "(chtype)";
-					}
 				} else {
 					call = call "%#lx"
 					comma = comma "(long)"
@@ -322,7 +311,7 @@ $0 !~ /^P_/ {
 				} else if ( varargs ) {
 					args = args comma "\"...\""
 				} else {
-					args = args comma argcast "z"
+					args = args comma "z"
 				}
 			}
 			call = call ch
@@ -333,7 +322,7 @@ $0 !~ /^P_/ {
 			pointer = 0;
 			argtype = ""
 		}
-		if ( i == myfunc || ch == "(" )
+		if ( i == 2 || ch == "(" )
 			call = call ch
 	}
 	call = call "\")"
@@ -344,16 +333,12 @@ $0 !~ /^P_/ {
 	if (dotrace)
 		printf "%s", call
 
-	if (match($0, "^void")) {
+	if (match($0, "^void"))
 		call = ""
-	} else if (dotrace) {
+	else if (dotrace)
 		call = sprintf("return%s( ", returnType);
-		if (returnCast != "") {
-			call = call returnCast;
-		}
-	} else {
+	else
 		call = "@@return ";
-	}
 
 	call = call $myfunc "(";
 	for (i = 1; i < argcount; i++) {
@@ -368,9 +353,8 @@ $0 !~ /^P_/ {
 	}
 	if (!match($0, "^void"))
 		call = call ") ";
-	if (dotrace) {
+	if (dotrace)
 		call = call ")";
-	}
 	print call ";"
 
 	if (match($0, "^void"))
@@ -397,17 +381,8 @@ BEGIN		{
 		}
 		print " */"
 		print "#define NCURSES_ATTR_T int"
-		print "#include <ncurses_cfg.h>"
-		print ""
-		print "#undef NCURSES_NOMACROS	/* _this_ file uses macros */"
-		print ""
 		print "#include <curses.priv.h>"
 		print ""
-		print "#undef vw_scanw"
-		print "#undef vwscanw"
-		print ""
-		print "#undef vw_printw"
-		print "#undef vwprintw"
 		}
 /^DECLARATIONS/	{start = 1; next;}
 		{if (start) print \$0;}

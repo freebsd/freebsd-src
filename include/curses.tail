@@ -1,4 +1,4 @@
-/* $Id: curses.tail,v 1.20 2010/03/28 19:10:55 tom Exp $ */
+/* $Id: curses.tail,v 1.16 2008/07/05 20:20:38 tom Exp $ */
 /*
  * vile:cmode:
  * This file is part of ncurses, designed to be appended after curses.h.in
@@ -94,22 +94,13 @@ typedef struct
 }
 MEVENT;
 
-extern NCURSES_EXPORT(bool)    has_mouse(void);
-extern NCURSES_EXPORT(int)     getmouse (MEVENT *);
-extern NCURSES_EXPORT(int)     ungetmouse (MEVENT *);
+extern NCURSES_EXPORT(int) getmouse (MEVENT *);
+extern NCURSES_EXPORT(int) ungetmouse (MEVENT *);
 extern NCURSES_EXPORT(mmask_t) mousemask (mmask_t, mmask_t *);
-extern NCURSES_EXPORT(bool)    wenclose (const WINDOW *, int, int);
-extern NCURSES_EXPORT(int)     mouseinterval (int);
-extern NCURSES_EXPORT(bool)    wmouse_trafo (const WINDOW*, int*, int*, bool);
-extern NCURSES_EXPORT(bool)    mouse_trafo (int*, int*, bool);              /* generated */
-
-#if NCURSES_SP_FUNCS
-extern NCURSES_EXPORT(bool)    NCURSES_SP_NAME(has_mouse) (SCREEN*);
-extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(getmouse) (SCREEN*, MEVENT *);
-extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(ungetmouse) (SCREEN*,MEVENT *);
-extern NCURSES_EXPORT(mmask_t) NCURSES_SP_NAME(mousemask) (SCREEN*, mmask_t, mmask_t *);
-extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(mouseinterval) (SCREEN*, int);
-#endif
+extern NCURSES_EXPORT(bool) wenclose (const WINDOW *, int, int);
+extern NCURSES_EXPORT(int) mouseinterval (int);
+extern NCURSES_EXPORT(bool) wmouse_trafo (const WINDOW*, int*, int*, bool);
+extern NCURSES_EXPORT(bool) mouse_trafo (int*, int*, bool);              /* generated */
 
 #define mouse_trafo(y,x,to_screen) wmouse_trafo(stdscr,y,x,to_screen)
 
@@ -117,11 +108,6 @@ extern NCURSES_EXPORT(int)     NCURSES_SP_NAME(mouseinterval) (SCREEN*, int);
 
 extern NCURSES_EXPORT(int) mcprint (char *, int);	/* direct data to printer */
 extern NCURSES_EXPORT(int) has_key (int);		/* do we have given key? */
-
-#if NCURSES_SP_FUNCS
-extern NCURSES_EXPORT(int) NCURSES_SP_NAME(has_key) (SCREEN*, int);    /* do we have given key? */
-extern NCURSES_EXPORT(int) NCURSES_SP_NAME(mcprint) (SCREEN*, char *, int);	/* direct data to printer */
-#endif
 
 /* Debugging : use with libncurses_g.a */
 
@@ -133,7 +119,7 @@ extern NCURSES_EXPORT(char *) _nc_tracebits (void);
 extern NCURSES_EXPORT(char *) _tracechar (int);
 extern NCURSES_EXPORT(char *) _tracechtype (chtype);
 extern NCURSES_EXPORT(char *) _tracechtype2 (int, chtype);
-#ifdef NCURSES_WIDECHAR
+#ifdef _XOPEN_SOURCE_EXTENDED
 #define _tracech_t		_tracecchar_t
 extern NCURSES_EXPORT(char *) _tracecchar_t (const cchar_t *);
 #define _tracech_t2		_tracecchar_t2
@@ -173,8 +159,6 @@ extern NCURSES_EXPORT(const char *) _nc_visbuf (const char *);
 #define OPTIMIZE_SCROLL		0x04	/* scroll optimization */
 #define OPTIMIZE_ALL		0xff	/* enable all optimizations (dflt) */
 #endif
-
-#include <unctrl.h>
 
 #ifdef __cplusplus
 

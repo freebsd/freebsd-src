@@ -1,6 +1,6 @@
-# $Id: mk-1st.awk,v 1.85 2010/08/07 20:42:30 Gabriele.Balducci Exp $
+# $Id: mk-1st.awk,v 1.78 2007/03/24 22:10:55 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -40,9 +40,8 @@
 #	subset		  ("none", "base", "base+ext_funcs" or "termlib", etc.)
 #	ShlibVer	  ("rel", "abi" or "auto", to augment DoLinks variable)
 #	ShlibVerInfix ("yes" or "no", determines location of version #)
-#	SymLink		  ("ln -s", etc)
-#	TermlibRoot	  ("tinfo" or other root for libterm.so)
-#	TermlibSuffix (".so" or other suffix for libterm.so)
+#   TermlibRoot   ("tinfo" or other root for libterm.so)
+#   TermlibSuffix (".so" or other suffix for libterm.so)
 #	ReLink		  ("yes", or "no", flag to rebuild shared libs on install)
 #	DoLinks		  ("yes", "reverse" or "no", flag to add symbolic links)
 #	rmSoLocs	  ("yes" or "no", flag to add extra clean target)
@@ -50,7 +49,6 @@
 #	overwrite	  ("yes" or "no", flag to add link to libcurses.a
 #	depend		  (optional dependencies for all objects, e.g, ncurses_cfg.h)
 #	host		  (cross-compile host, if any)
-#	libtool_version (libtool "-version-info" or "-version-number")
 #
 # Notes:
 #	CLIXs nawk does not like underscores in command-line variable names.
@@ -61,7 +59,7 @@ function is_ticlib() {
 		return ( subset ~ /^ticlib$/ );
 	}
 function is_termlib() {
-		return ( subset ~ /^(ticlib\+)?termlib((\+[^+ ]+)*\+[a-z_]+_tinfo)?$/ );
+		return ( subset ~ /^(ticlib\+)?termlib(\+ext_tinfo)?$/ );
 	}
 # see lib_name
 function lib_name_of(a_name) {
@@ -117,9 +115,7 @@ function end_name_of(a_name) {
 	}
 function symlink(src,dst) {
 		if ( src != dst ) {
-			if ( SymLink !~ /.*-f.*/ ) {
-				printf "rm -f %s; ", dst
-			}
+			printf "rm -f %s; ", dst
 			printf "$(LN_S) %s %s; ", src, dst
 		}
 	}
@@ -244,7 +240,6 @@ BEGIN	{
 					printf "#  subset:        %s\n", subset 
 					printf "#  ShlibVer:      %s\n", ShlibVer 
 					printf "#  ShlibVerInfix: %s\n", ShlibVerInfix 
-					printf "#  SymLink:       %s\n", SymLink 
 					printf "#  TermlibRoot:   %s\n", TermlibRoot 
 					printf "#  TermlibSuffix: %s\n", TermlibSuffix 
 					printf "#  ReLink:        %s\n", ReLink 
@@ -340,15 +335,11 @@ END	{
 					if ( ShlibVer == "cygdll" ) {
 						ovr_name = sprintf("libcurses%s.a", suffix)
 						printf "\t@echo linking %s to %s\n", imp_name, ovr_name
-						printf "\tcd $(DESTDIR)$(libdir) && ("
-						symlink(imp_name, ovr_name)
-						printf ")\n"
+						printf "\tcd $(DESTDIR)$(libdir) && (rm -f %s; $(LN_S) %s %s; )\n", ovr_name, imp_name, ovr_name
 					} else {
 						ovr_name = sprintf("libcurses%s", suffix)
 						printf "\t@echo linking %s to %s\n", end_name, ovr_name
-						printf "\tcd $(DESTDIR)$(libdir) && ("
-						symlink(end_name, ovr_name)
-						printf ")\n"
+						printf "\tcd $(DESTDIR)$(libdir) && (rm -f %s; $(LN_S) %s %s; )\n", ovr_name, end_name, ovr_name
 					}
 				}
 				if ( ldconfig != "" && ldconfig != ":" ) {
@@ -395,13 +386,7 @@ END	{
 				}
 				end_name = lib_name;
 				printf "../lib/%s : $(%s_OBJS)\n", lib_name, OBJS
-				if ( is_ticlib() ) {
-					printf "\tcd ../lib && $(LIBTOOL_LINK) $(%s) -o %s $(%s_OBJS:$o=.lo) -rpath $(DESTDIR)$(libdir) %s $(NCURSES_MAJOR):$(NCURSES_MINOR) $(LT_UNDEF) $(TICS_LIST)\n", compile, lib_name, OBJS, libtool_version
-				} else if ( is_termlib() ) {
-					printf "\tcd ../lib && $(LIBTOOL_LINK) $(%s) -o %s $(%s_OBJS:$o=.lo) -rpath $(DESTDIR)$(libdir) %s $(NCURSES_MAJOR):$(NCURSES_MINOR) $(LT_UNDEF) $(TINFO_LIST)\n", compile, lib_name, OBJS, libtool_version
-				} else {
-					printf "\tcd ../lib && $(LIBTOOL_LINK) $(%s) -o %s $(%s_OBJS:$o=.lo) -rpath $(DESTDIR)$(libdir) %s $(NCURSES_MAJOR):$(NCURSES_MINOR) $(LT_UNDEF) $(SHLIB_LIST)\n", compile, lib_name, OBJS, libtool_version
-				}
+				printf "\tcd ../lib && $(LIBTOOL_LINK) $(%s) -o %s $(%s_OBJS:$o=.lo) -rpath $(DESTDIR)$(libdir) -version-info $(NCURSES_MAJOR):$(NCURSES_MINOR) $(SHLIB_LIST)\n", compile, lib_name, OBJS
 				print  ""
 				print  "install \\"
 				print  "install.libs \\"
@@ -419,7 +404,7 @@ END	{
 			{
 				end_name = lib_name;
 				printf "../lib/%s : $(%s_OBJS)\n", lib_name, OBJS
-				printf "\t$(AR) $(ARFLAGS) $@ $?\n"
+				printf "\t$(AR) $(AR_OPTS) $@ $?\n"
 				printf "\t$(RANLIB) $@\n"
 				if ( host == "vxworks" )
 				{
@@ -435,9 +420,7 @@ END	{
 				{
 					printf "\t@echo linking libcurses.a to libncurses.a\n"
 					printf "\t-@rm -f $(DESTDIR)$(libdir)/libcurses.a\n"
-					printf "\t(cd $(DESTDIR)$(libdir) && "
-					symlink("libncurses.a", "libcurses.a")
-					printf ")\n"
+					printf "\t(cd $(DESTDIR)$(libdir) && $(LN_S) libncurses.a libcurses.a)\n"
 				}
 				printf "\t$(RANLIB) $(DESTDIR)$(libdir)/%s\n", lib_name
 				if ( host == "vxworks" )

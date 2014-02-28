@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,7 +38,7 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_new.c,v 1.16 2010/01/23 21:22:16 tom Exp $")
+MODULE_ID("$Id: p_new.c,v 1.10 2008/08/04 18:25:48 tom Exp $")
 
 #ifdef TRACE
 static char *stdscr_id;
@@ -50,27 +50,20 @@ static char *new_id;
   Establish the pseudo panel for stdscr if necessary.
 --------------------------------------------------------------------------*/
 static PANEL *
-root_panel(NCURSES_SP_DCL0)
+root_panel(void)
 {
-#if NCURSES_SP_FUNCS
-  struct panelhook *ph = NCURSES_SP_NAME(_nc_panelhook) (sp);
-
-#elif NO_LEAKS
-  struct panelhook *ph = _nc_panelhook();
-#endif
-
   if (_nc_stdscr_pseudo_panel == (PANEL *) 0)
     {
 
-      assert(SP_PARM && SP_PARM->_stdscr && !_nc_bottom_panel && !_nc_top_panel);
+      assert(stdscr && !_nc_bottom_panel && !_nc_top_panel);
 #if NO_LEAKS
-      ph->destroy = del_panel;
+      _nc_panelhook()->destroy = del_panel;
 #endif
-      _nc_stdscr_pseudo_panel = typeMalloc(PANEL, 1);
+      _nc_stdscr_pseudo_panel = (PANEL *) malloc(sizeof(PANEL));
       if (_nc_stdscr_pseudo_panel != 0)
 	{
 	  PANEL *pan = _nc_stdscr_pseudo_panel;
-	  WINDOW *win = SP_PARM->_stdscr;
+	  WINDOW *win = stdscr;
 
 	  pan->win = win;
 	  pan->below = (PANEL *) 0;
@@ -93,18 +86,16 @@ new_panel(WINDOW *win)
 {
   PANEL *pan = (PANEL *) 0;
 
-  GetWindowHook(win);
-
-  T((T_CALLED("new_panel(%p)"), (void *)win));
+  T((T_CALLED("new_panel(%p)"), win));
 
   if (!win)
     returnPanel(pan);
 
   if (!_nc_stdscr_pseudo_panel)
-    (void)root_panel(NCURSES_SP_ARG);
+    (void)root_panel();
   assert(_nc_stdscr_pseudo_panel);
 
-  if (!(win->_flags & _ISPAD) && (pan = typeMalloc(PANEL, 1)))
+  if (!(win->_flags & _ISPAD) && (pan = (PANEL *) malloc(sizeof(PANEL))))
     {
       pan->win = win;
       pan->above = (PANEL *) 0;

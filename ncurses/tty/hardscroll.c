@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -147,98 +147,90 @@ AUTHOR
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: hardscroll.c,v 1.47 2010/04/24 23:46:47 tom Exp $")
+MODULE_ID("$Id: hardscroll.c,v 1.42 2008/08/03 23:49:30 tom Exp $")
 
 #if defined(SCROLLDEBUG) || defined(HASHDEBUG)
 
 # undef screen_lines
-# define screen_lines(sp) MAXLINES
-NCURSES_EXPORT_VAR (int)
-  oldnums[MAXLINES];
-# define OLDNUM(sp,n)	oldnums[n]
+# define screen_lines MAXLINES
+NCURSES_EXPORT_VAR(int)
+oldnums[MAXLINES];
+# define OLDNUM(n)	oldnums[n]
 # define _tracef	printf
 # undef TR
 # define TR(n, a)	if (_nc_tracing & (n)) { _tracef a ; putchar('\n'); }
 
-extern				NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
+extern NCURSES_EXPORT_VAR(unsigned) _nc_tracing;
 
 #else /* no debug */
 
 /* OLDNUM(n) indicates which line will be shifted to the position n.
    if OLDNUM(n) == _NEWINDEX, then the line n in new, not shifted from
    somewhere. */
-NCURSES_EXPORT_VAR (int *)
-  _nc_oldnums = 0;		/* obsolete: keep for ABI compat */
+NCURSES_EXPORT_VAR(int *)
+_nc_oldnums = 0;		/* obsolete: keep for ABI compat */
 
 # if USE_HASHMAP
-#  define oldnums(sp)   (sp)->_oldnum_list
-#  define OLDNUM(sp,n)	oldnums(sp)[n]
+#  define oldnums       SP->_oldnum_list
+#  define OLDNUM(n)	oldnums[n]
 # else				/* !USE_HASHMAP */
-#  define OLDNUM(sp,n)	NewScreen(sp)->_line[n].oldindex
+#  define OLDNUM(n)	newscr->_line[n].oldindex
 # endif				/* !USE_HASHMAP */
 
-#define OLDNUM_SIZE(sp) (sp)->_oldnum_size
+#define OLDNUM_SIZE     SP->_oldnum_size
 
 #endif /* defined(SCROLLDEBUG) || defined(HASHDEBUG) */
 
 NCURSES_EXPORT(void)
-NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_DCL0)
+_nc_scroll_optimize(void)
 /* scroll optimization to transform curscr to newscr */
 {
     int i;
     int start, end, shift;
 
-    TR(TRACE_ICALLS, (T_CALLED("_nc_scroll_optimize(%p)"), (void *) SP_PARM));
+    TR(TRACE_ICALLS, (T_CALLED("_nc_scroll_optimize")));
 
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
 #if USE_HASHMAP
     /* get enough storage */
-    if (OLDNUM_SIZE(SP_PARM) < screen_lines(SP_PARM)) {
-	int *new_oldnums = typeRealloc(int,
-				       (size_t) screen_lines(SP_PARM),
-				       oldnums(SP_PARM));
+    if (OLDNUM_SIZE < screen_lines) {
+	int *new_oldnums = typeRealloc(int, screen_lines, oldnums);
 	if (!new_oldnums)
 	    return;
-	oldnums(SP_PARM) = new_oldnums;
-	OLDNUM_SIZE(SP_PARM) = screen_lines(SP_PARM);
+	oldnums = new_oldnums;
+	OLDNUM_SIZE = screen_lines;
     }
     /* calculate the indices */
-    NCURSES_SP_NAME(_nc_hash_map) (NCURSES_SP_ARG);
+    _nc_hash_map();
 #endif
 #endif /* !defined(SCROLLDEBUG) && !defined(HASHDEBUG) */
 
 #ifdef TRACE
     if (USE_TRACEF(TRACE_UPDATE | TRACE_MOVE)) {
-	NCURSES_SP_NAME(_nc_linedump) (NCURSES_SP_ARG);
+	_nc_linedump();
 	_nc_unlock_global(tracef);
     }
 #endif /* TRACE */
 
     /* pass 1 - from top to bottom scrolling up */
-    for (i = 0; i < screen_lines(SP_PARM);) {
-	while (i < screen_lines(SP_PARM)
-	       && (OLDNUM(SP_PARM, i) == _NEWINDEX || OLDNUM(SP_PARM, i) <= i))
+    for (i = 0; i < screen_lines;) {
+	while (i < screen_lines && (OLDNUM(i) == _NEWINDEX || OLDNUM(i) <= i))
 	    i++;
-	if (i >= screen_lines(SP_PARM))
+	if (i >= screen_lines)
 	    break;
 
-	shift = OLDNUM(SP_PARM, i) - i;		/* shift > 0 */
+	shift = OLDNUM(i) - i;	/* shift > 0 */
 	start = i;
 
 	i++;
-	while (i < screen_lines(SP_PARM)
-	       && OLDNUM(SP_PARM, i) != _NEWINDEX
-	       && OLDNUM(SP_PARM, i) - i == shift)
+	while (i < screen_lines && OLDNUM(i) != _NEWINDEX && OLDNUM(i) - i
+	       == shift)
 	    i++;
 	end = i - 1 + shift;
 
 	TR(TRACE_UPDATE | TRACE_MOVE, ("scroll [%d, %d] by %d", start, end, shift));
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
-	if (NCURSES_SP_NAME(_nc_scrolln) (NCURSES_SP_ARGx
-					  shift,
-					  start,
-					  end,
-					  screen_lines(SP_PARM) - 1) == ERR) {
+	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR) {
 	    TR(TRACE_UPDATE | TRACE_MOVE, ("unable to scroll"));
 	    continue;
 	}
@@ -246,33 +238,23 @@ NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_DCL0)
     }
 
     /* pass 2 - from bottom to top scrolling down */
-    for (i = screen_lines(SP_PARM) - 1; i >= 0;) {
-	while (i >= 0
-	       && (OLDNUM(SP_PARM, i) == _NEWINDEX
-		   || OLDNUM(SP_PARM, i) >= i)) {
+    for (i = screen_lines - 1; i >= 0;) {
+	while (i >= 0 && (OLDNUM(i) == _NEWINDEX || OLDNUM(i) >= i))
 	    i--;
-	}
 	if (i < 0)
 	    break;
 
-	shift = OLDNUM(SP_PARM, i) - i;		/* shift < 0 */
+	shift = OLDNUM(i) - i;	/* shift < 0 */
 	end = i;
 
 	i--;
-	while (i >= 0
-	       && OLDNUM(SP_PARM, i) != _NEWINDEX
-	       && OLDNUM(SP_PARM, i) - i == shift) {
+	while (i >= 0 && OLDNUM(i) != _NEWINDEX && OLDNUM(i) - i == shift)
 	    i--;
-	}
 	start = i + 1 - (-shift);
 
 	TR(TRACE_UPDATE | TRACE_MOVE, ("scroll [%d, %d] by %d", start, end, shift));
 #if !defined(SCROLLDEBUG) && !defined(HASHDEBUG)
-	if (NCURSES_SP_NAME(_nc_scrolln) (NCURSES_SP_ARGx
-					  shift,
-					  start,
-					  end,
-					  screen_lines(SP_PARM) - 1) == ERR) {
+	if (_nc_scrolln(shift, start, end, screen_lines - 1) == ERR) {
 	    TR(TRACE_UPDATE | TRACE_MOVE, ("unable to scroll"));
 	    continue;
 	}
@@ -281,41 +263,24 @@ NCURSES_SP_NAME(_nc_scroll_optimize) (NCURSES_SP_DCL0)
     TR(TRACE_ICALLS, (T_RETURN("")));
 }
 
-#if NCURSES_SP_FUNCS
-NCURSES_EXPORT(void)
-_nc_scroll_optimize(void)
-{
-    NCURSES_SP_NAME(_nc_scroll_optimize) (CURRENT_SCREEN);
-}
-#endif
-
 #if defined(TRACE) || defined(SCROLLDEBUG) || defined(HASHDEBUG)
 NCURSES_EXPORT(void)
-NCURSES_SP_NAME(_nc_linedump) (NCURSES_SP_DCL0)
+_nc_linedump(void)
 /* dump the state of the real and virtual oldnum fields */
 {
     int n;
     char *buf = 0;
-    size_t want = ((size_t) screen_lines(SP_PARM) + 1) * 4;
+    size_t want = (screen_lines + 1) * 4;
 
     if ((buf = typeMalloc(char, want)) != 0) {
 
-	*buf = '\0';
-	for (n = 0; n < screen_lines(SP_PARM); n++)
-	    (void) sprintf(buf + strlen(buf), " %02d", OLDNUM(SP_PARM, n));
-	TR(TRACE_UPDATE | TRACE_MOVE, ("virt %s", buf));
+	(void) strcpy(buf, "virt");
+	for (n = 0; n < screen_lines; n++)
+	    (void) sprintf(buf + strlen(buf), " %02d", OLDNUM(n));
+	TR(TRACE_UPDATE | TRACE_MOVE, (buf));
 	free(buf);
     }
 }
-
-#if NCURSES_SP_FUNCS
-NCURSES_EXPORT(void)
-_nc_linedump(void)
-{
-    NCURSES_SP_NAME(_nc_linedump) (CURRENT_SCREEN);
-}
-#endif
-
 #endif /* defined(TRACE) || defined(SCROLLDEBUG) */
 
 #ifdef SCROLLDEBUG
