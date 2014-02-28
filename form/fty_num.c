@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.25 2007/10/13 19:32:54 tom Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.28 2010/01/23 21:14:36 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -63,6 +63,49 @@ typedef struct
   }
 thisARG;
 
+typedef struct
+  {
+    int precision;
+    double low;
+    double high;
+  }
+thisPARM;
+
+/*---------------------------------------------------------------------------
+|   Facility      :  libnform
+|   Function      :  static void *Generic_This_Type(void * arg)
+|
+|   Description   :  Allocate structure for numeric type argument.
+|
+|   Return Values :  Pointer to argument structure or NULL on error
++--------------------------------------------------------------------------*/
+static void *
+Generic_This_Type(void *arg)
+{
+  thisARG *argn = (thisARG *) 0;
+  thisPARM *args = (thisPARM *) arg;
+
+  if (args)
+    {
+      argn = typeMalloc(thisARG, 1);
+
+      if (argn)
+	{
+	  T((T_CREATE("thisARG %p"), (void *)argn));
+	  argn->precision = args->precision;
+	  argn->low = args->low;
+	  argn->high = args->high;
+
+#if HAVE_LOCALE_H
+	  argn->L = localeconv();
+#else
+	  argn->L = NULL;
+#endif
+	}
+    }
+  return (void *)argn;
+}
+
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
 |   Function      :  static void *Make_This_Type(va_list * ap)
@@ -74,22 +117,13 @@ thisARG;
 static void *
 Make_This_Type(va_list *ap)
 {
-  thisARG *argn = typeMalloc(thisARG, 1);
+  thisPARM arg;
 
-  if (argn)
-    {
-      T((T_CREATE("thisARG %p"), argn));
-      argn->precision = va_arg(*ap, int);
-      argn->low = va_arg(*ap, double);
-      argn->high = va_arg(*ap, double);
+  arg.precision = va_arg(*ap, int);
+  arg.low = va_arg(*ap, double);
+  arg.high = va_arg(*ap, double);
 
-#if HAVE_LOCALE_H
-      argn->L = localeconv();
-#else
-      argn->L = NULL;
-#endif
-    }
-  return (void *)argn;
+  return Generic_This_Type((void *)&arg);
 }
 
 /*---------------------------------------------------------------------------
@@ -111,7 +145,7 @@ Copy_This_Type(const void *argp)
       result = typeMalloc(thisARG, 1);
       if (result)
 	{
-	  T((T_CREATE("thisARG %p"), result));
+	  T((T_CREATE("thisARG %p"), (void *)result));
 	  *result = *ap;
 	}
     }
@@ -279,12 +313,27 @@ static FIELDTYPE typeTHIS =
   Make_This_Type,
   Copy_This_Type,
   Free_This_Type,
-  Check_This_Field,
-  Check_This_Character,
-  NULL,
-  NULL
+  INIT_FT_FUNC(Check_This_Field),
+  INIT_FT_FUNC(Check_This_Character),
+  INIT_FT_FUNC(NULL),
+  INIT_FT_FUNC(NULL),
+#if NCURSES_INTEROP_FUNCS
+  Generic_This_Type
+#endif
 };
 
 NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_NUMERIC = &typeTHIS;
+
+#if NCURSES_INTEROP_FUNCS
+/* The next routines are to simplify the use of ncurses from
+   programming languages with restictions on interop with C level
+   constructs (e.g. variable access or va_list + ellipsis constructs)
+*/
+NCURSES_EXPORT(FIELDTYPE *)
+_nc_TYPE_NUMERIC(void)
+{
+  return TYPE_NUMERIC;
+}
+#endif
 
 /* fty_num.c ends here */

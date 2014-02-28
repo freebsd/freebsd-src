@@ -34,7 +34,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.7 2008/08/03 15:42:49 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.8 2008/11/16 00:19:59 juergen Exp $")
 
 #ifdef TRACE
 
@@ -44,7 +44,7 @@ typedef enum {
     atUnknown = 0, atInteger, atFloat, atPoint, atString
 } ARGTYPE;
 
-#define VA_INT(type) ival = va_arg(ap, type)
+#define VA_INT(type) ival = (int) va_arg(ap, type)
 #define VA_FLT(type) fval = va_arg(ap, type)
 #define VA_PTR(type) pval = (char *)va_arg(ap, type)
 #define VA_STR(type) sval = va_arg(ap, type)

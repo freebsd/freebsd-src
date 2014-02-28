@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_items.3x,v 1.7 2006/11/04 18:35:31 tom Exp $
+.\" $Id: menu_items.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
 .TH menu_items 3X ""
 .SH NAME
-\fBmenu_items\fR - make and break connections between items and menus
+\fBmenu_items\fR \- make and break connections between items and menus
 .SH SYNOPSIS
 \fB#include <menu.h>\fR
 .br
@@ -81,13 +81,7 @@ These routines emulate the System V menu library.  They were not supported on
 Version 7 or BSD versions.
 .PP
 The SVr4 menu library documentation specifies the \fBitem_count\fR error value
-as -1 (which is the value of \fBERR\fR).
+as \-1 (which is the value of \fBERR\fR).
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

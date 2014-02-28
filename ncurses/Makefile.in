@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.113 2008/10/18 14:11:54 tom Exp $
+# $Id: Makefile.in,v 1.130 2010/11/27 21:45:27 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -46,6 +46,7 @@
 .SUFFIXES:
 
 SHELL		= /bin/sh
+VPATH		= @srcdir@
 THIS		= Makefile
 
 CF_MFLAGS 	= @cf_cv_makeflags@
@@ -71,6 +72,7 @@ LIBTOOL_COMPILE	= @LIB_COMPILE@
 LIBTOOL_LINK	= @LIB_LINK@
 LIBTOOL_INSTALL	= @LIB_INSTALL@
 LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LT_UNDEF	= @LT_UNDEF@
 
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
@@ -78,10 +80,13 @@ INSTALL_PROG	= @INSTALL_PROGRAM@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
-AR_OPTS		= @AR_OPTS@
+ARFLAGS		= @ARFLAGS@
 AWK		= @AWK@
 LD		= @LD@
 LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
 
 CC		= @CC@
 CPP		= @CPP@
@@ -92,7 +97,7 @@ CPPFLAGS	= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) @CPPFLAGS@
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
-BUILD_CPPFLAGS	= -I../include @BUILD_CPPFLAGS@
+BUILD_CPPFLAGS	= -I../include -DUSE_BUILD_CC @BUILD_CPPFLAGS@
 BUILD_CC	= @BUILD_CC@
 BUILD_CCFLAGS	= -DHAVE_CONFIG_H -I../ncurses -I$(srcdir) -I$(INCDIR) $(BUILD_CPPFLAGS) @BUILD_CFLAGS@
 BUILD_LDFLAGS	= @BUILD_LDFLAGS@
@@ -140,6 +145,10 @@ FALLBACK_LIST	= @FALLBACK_LIST@
 USE_BIG_STRINGS	= @USE_BIG_STRINGS@
 TERMINFO_CAPS	= $(top_srcdir)/include/@TERMINFO_CAPS@
 
+TERMINFO	= @TERMINFO@
+TERMINFO_SRC	= @TERMINFO_SRC@
+TIC_PATH	= @TIC_PATH@
+
 AUTO_SRC = \
 	./codes.c \
 	./comp_captab.c \
@@ -153,6 +162,18 @@ AUTO_SRC = \
 	init_keytry.h \
 	keys.list
 
+HEADER_DEPS	= \
+	$(srcdir)/curses.priv.h \
+	../include/ncurses_dll.h \
+	../include/ncurses_cfg.h \
+	../include/curses.h \
+	$(INCDIR)/nc_panel.h \
+	../include/term.h \
+	$(INCDIR)/term_entry.h \
+	$(INCDIR)/nc_tparm.h \
+	$(INCDIR)/nc_alloc.h \
+	$(INCDIR)/nc_mingw.h
+
 TEST_DEPS	= ../lib/@LIB_PREFIX@ncurses@DFT_DEP_SUFFIX@
 TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@ 
 TEST_LDFLAGS	= @LD_MODEL@ $(TEST_ARGS) @LIBS@ @LOCAL_LDFLAGS@ @LDFLAGS@
@@ -164,11 +185,12 @@ TEST_PROGS = \
 	hashmap$x \
 	lib_mvcur$x
 
-base	= $(srcdir)/base
-serial	= $(srcdir)/tty
-tinfo	= $(srcdir)/tinfo
-trace	= $(srcdir)/trace
-wide	= $(srcdir)/widechar
+base	 = $(srcdir)/base
+serial	 = $(srcdir)/tty
+tinfo	 = $(srcdir)/tinfo
+trace	 = $(srcdir)/trace
+wide	 = $(srcdir)/widechar
+win32con = $(srcdir)/win32con
 
 ################################################################################
 all \
@@ -178,12 +200,12 @@ sources:	$(AUTO_SRC)
 
 $(DESTDIR)$(bindir) \
 $(DESTDIR)$(libdir) :
-	sh $(srcdir)/../mkdirs.sh $@
+	mkdir -p $@
 
 ../lib : ; mkdir $@
 
 ./fallback.c : $(tinfo)/MKfallback.sh
-	sh -e $(tinfo)/MKfallback.sh @TERMINFO@ @TERMINFO_SRC@ $(FALLBACK_LIST) >$@
+	sh -e $(tinfo)/MKfallback.sh $(TERMINFO) $(TERMINFO_SRC) $(TIC_PATH) $(FALLBACK_LIST) >$@
 
 ./lib_gen.c : $(base)/MKlib_gen.sh ../include/curses.h
 	sh -e $(base)/MKlib_gen.sh "$(CPP) $(CPPFLAGS)" "$(AWK)" generated <../include/curses.h >$@
@@ -200,11 +222,11 @@ make_keys$(BUILD_EXEEXT) : \
 	$(BUILD_CC) -o $@ $(BUILD_CCFLAGS) $(tinfo)/make_keys.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
 
 make_hash$(BUILD_EXEEXT) : \
-		$(tinfo)/comp_hash.c \
+		$(tinfo)/make_hash.c \
 		../include/hashsize.h
-	$(BUILD_CC) -o $@ $(BUILD_CCFLAGS) -DMAIN_PROGRAM $(tinfo)/comp_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
+	$(BUILD_CC) -o $@ $(BUILD_CCFLAGS) $(tinfo)/make_hash.c $(BUILD_LDFLAGS) $(BUILD_LIBS)
 
-./expanded.c : $(serial)/MKexpanded.sh
+./expanded.c : $(srcdir)/curses.priv.h $(serial)/MKexpanded.sh
 	sh -e $(serial)/MKexpanded.sh "$(CPP)" $(CPPFLAGS) > $@
 
 ./comp_captab.c: \
@@ -227,10 +249,10 @@ make_hash$(BUILD_EXEEXT) : \
 	echo | $(AWK) -f $(base)/MKunctrl.awk bigstrings=$(USE_BIG_STRINGS) >$@
 
 tags:
-	ctags *.[ch] */*.[ch]
+	$(CTAGS) *.[ch] */*.[ch]
 
 @MAKE_UPPER_TAGS@TAGS:
-@MAKE_UPPER_TAGS@	etags *.[ch] */*.[ch]
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch] */*.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace

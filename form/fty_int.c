@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_int.c,v 1.22 2007/10/13 19:32:40 tom Exp $")
+MODULE_ID("$Id: fty_int.c,v 1.25 2010/01/23 21:14:36 tom Exp $")
 
 #if USE_WIDEC_SUPPORT
 #define isDigit(c) (iswdigit((wint_t)(c)) || isdigit(UChar(c)))
@@ -52,6 +52,41 @@ typedef struct
   }
 thisARG;
 
+typedef struct
+  {
+    int precision;
+    long low;
+    long high;
+  }
+integerPARM;
+
+/*---------------------------------------------------------------------------
+|   Facility      :  libnform  
+|   Function      :  static void *Generic_This_Type( void * arg )
+|   
+|   Description   :  Allocate structure for integer type argument.
+|
+|   Return Values :  Pointer to argument structure or NULL on error
++--------------------------------------------------------------------------*/
+static void *
+Generic_This_Type(void *arg)
+{
+  thisARG *argp = (thisARG *) 0;
+  thisARG *param = (thisARG *) arg;
+
+  if (param)
+    {
+      argp = typeMalloc(thisARG, 1);
+
+      if (argp)
+	{
+	  T((T_CREATE("thisARG %p"), (void *)argp));
+	  *argp = *param;
+	}
+    }
+  return (void *)argp;
+}
+
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
 |   Function      :  static void *Make_This_Type( va_list * ap )
@@ -63,16 +98,13 @@ thisARG;
 static void *
 Make_This_Type(va_list *ap)
 {
-  thisARG *argp = typeMalloc(thisARG, 1);
+  thisARG arg;
 
-  if (argp)
-    {
-      T((T_CREATE("thisARG %p"), argp));
-      argp->precision = va_arg(*ap, int);
-      argp->low = va_arg(*ap, long);
-      argp->high = va_arg(*ap, long);
-    }
-  return (void *)argp;
+  arg.precision = va_arg(*ap, int);
+  arg.low = va_arg(*ap, long);
+  arg.high = va_arg(*ap, long);
+
+  return Generic_This_Type((void *)&arg);
 }
 
 /*---------------------------------------------------------------------------
@@ -94,7 +126,7 @@ Copy_This_Type(const void *argp)
       result = typeMalloc(thisARG, 1);
       if (result)
 	{
-	  T((T_CREATE("thisARG %p"), result));
+	  T((T_CREATE("thisARG %p"), (void *)result));
 	  *result = *ap;
 	}
     }
@@ -235,12 +267,27 @@ static FIELDTYPE typeTHIS =
   Make_This_Type,
   Copy_This_Type,
   Free_This_Type,
-  Check_This_Field,
-  Check_This_Character,
-  NULL,
-  NULL
+  INIT_FT_FUNC(Check_This_Field),
+  INIT_FT_FUNC(Check_This_Character),
+  INIT_FT_FUNC(NULL),
+  INIT_FT_FUNC(NULL),
+#if NCURSES_INTEROP_FUNCS
+  Generic_This_Type
+#endif
 };
 
 NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_INTEGER = &typeTHIS;
+
+#if NCURSES_INTEROP_FUNCS
+/* The next routines are to simplify the use of ncurses from
+   programming languages with restictions on interop with C level
+   constructs (e.g. variable access or va_list + ellipsis constructs)
+*/
+NCURSES_EXPORT(FIELDTYPE *)
+_nc_TYPE_INTEGER(void)
+{
+  return TYPE_INTEGER;
+}
+#endif
 
 /* fty_int.c ends here */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,6 +30,7 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -41,40 +42,80 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.99 2008/09/20 19:46:13 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.121 2010/12/25 23:24:04 tom Exp $")
 
 #include <fifo_defs.h>
 
 #if USE_REENTRANT
-#define GetEscdelay(sp) (sp)->_ESCDELAY
+#define GetEscdelay(sp) *_nc_ptr_Escdelay(sp)
 NCURSES_EXPORT(int)
 NCURSES_PUBLIC_VAR(ESCDELAY) (void)
 {
-    return SP ? GetEscdelay(SP) : 1000;
+    return *(_nc_ptr_Escdelay(CURRENT_SCREEN));
+}
+
+NCURSES_EXPORT(int *)
+_nc_ptr_Escdelay(SCREEN *sp)
+{
+    return ptrEscdelay(sp);
 }
 #else
 #define GetEscdelay(sp) ESCDELAY
-NCURSES_EXPORT_VAR(int)
-ESCDELAY = 1000;		/* max interval betw. chars in funkeys, in millisecs */
+NCURSES_EXPORT_VAR(int) ESCDELAY = 1000;
 #endif
 
 #if NCURSES_EXT_FUNCS
 NCURSES_EXPORT(int)
-set_escdelay(int value)
+NCURSES_SP_NAME(set_escdelay) (NCURSES_SP_DCLx int value)
 {
     int code = OK;
 #if USE_REENTRANT
-    if (SP) {
-	SP->_ESCDELAY = value;
+    if (SP_PARM) {
+	SET_ESCDELAY(value);
     } else {
 	code = ERR;
     }
 #else
+    (void) SP_PARM;
     ESCDELAY = value;
 #endif
     return code;
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+set_escdelay(int value)
+{
+    int code;
+#if USE_REENTRANT
+    code = NCURSES_SP_NAME(set_escdelay) (CURRENT_SCREEN, value);
+#else
+    ESCDELAY = value;
+    code = OK;
 #endif
+    return code;
+}
+#endif
+#endif /* NCURSES_EXT_FUNCS */
+
+#if NCURSES_EXT_FUNCS
+NCURSES_EXPORT(int)
+NCURSES_SP_NAME(get_escdelay) (NCURSES_SP_DCL0)
+{
+#if !USE_REENTRANT
+    (void) SP_PARM;
+#endif
+    return GetEscdelay(SP_PARM);
+}
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+get_escdelay(void)
+{
+    return NCURSES_SP_NAME(get_escdelay) (CURRENT_SCREEN);
+}
+#endif
+#endif /* NCURSES_EXT_FUNCS */
 
 static int
 _nc_use_meta(WINDOW *win)
@@ -82,12 +123,6 @@ _nc_use_meta(WINDOW *win)
     SCREEN *sp = _nc_screen_of(win);
     return (sp ? sp->_use_meta : 0);
 }
-
-#ifdef NCURSES_WGETCH_EVENTS
-#define TWAIT_MASK 7
-#else
-#define TWAIT_MASK 3
-#endif
 
 /*
  * Check for mouse activity, returning nonzero if we find any.
@@ -97,19 +132,29 @@ check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
 {
     int rc;
 
+#ifdef USE_TERM_DRIVER
+    rc = TCBOf(sp)->drv->testmouse(TCBOf(sp), delay);
+#else
 #if USE_SYSMOUSE
     if ((sp->_mouse_type == M_SYSMOUSE)
 	&& (sp->_sysmouse_head < sp->_sysmouse_tail)) {
-	return 2;
-    }
+	rc = TW_MOUSE;
+    } else
 #endif
-    rc = _nc_timed_wait(sp, TWAIT_MASK, delay, (int *) 0 EVENTLIST_2nd(evl));
+    {
+	rc = _nc_timed_wait(sp,
+			    TWAIT_MASK,
+			    delay,
+			    (int *) 0
+			    EVENTLIST_2nd(evl));
 #if USE_SYSMOUSE
-    if ((sp->_mouse_type == M_SYSMOUSE)
-	&& (sp->_sysmouse_head < sp->_sysmouse_tail)
-	&& (rc == 0)
-	&& (errno == EINTR)) {
-	rc |= 2;
+	if ((sp->_mouse_type == M_SYSMOUSE)
+	    && (sp->_sysmouse_head < sp->_sysmouse_tail)
+	    && (rc == 0)
+	    && (errno == EINTR)) {
+	    rc |= TW_MOUSE;
+	}
+#endif
     }
 #endif
     return rc;
@@ -173,9 +218,9 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
     } else
 	mask = 0;
 
-    if (mask & 4) {
+    if (mask & TW_EVENT) {
 	T(("fifo_push: ungetch KEY_EVENT"));
-	_nc_ungetch(sp, KEY_EVENT);
+	safe_ungetch(sp, KEY_EVENT);
 	return KEY_EVENT;
     }
 #elif USE_GPM_SUPPORT || USE_EMX_MOUSE || USE_SYSMOUSE
@@ -185,7 +230,7 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 #endif
 
 #if USE_GPM_SUPPORT || USE_EMX_MOUSE
-    if ((sp->_mouse_fd >= 0) && (mask & 2)) {
+    if ((sp->_mouse_fd >= 0) && (mask & TW_MOUSE)) {
 	sp->_mouse_event(sp);
 	ch = KEY_MOUSE;
 	n = 1;
@@ -204,10 +249,33 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 	n = 1;
     } else
 #endif
+#ifdef USE_TERM_DRIVER
+	if ((sp->_mouse_type == M_TERM_DRIVER)
+	    && (sp->_drv_mouse_head < sp->_drv_mouse_tail)) {
+	sp->_mouse_event(sp);
+	ch = KEY_MOUSE;
+	n = 1;
+    } else
+#endif
     {				/* Can block... */
+#ifdef USE_TERM_DRIVER
+	int buf;
+	n = CallDriver_1(sp, read, &buf);
+	ch = buf;
+#else
 	unsigned char c2 = 0;
-	n = read(sp->_ifd, &c2, 1);
+# if USE_PTHREADS_EINTR
+#  if USE_WEAK_SYMBOLS
+	if ((pthread_self) && (pthread_kill) && (pthread_equal))
+#  endif
+	    _nc_globals.read_thread = pthread_self();
+# endif
+	n = (int) read(sp->_ifd, &c2, 1);
+#if USE_PTHREADS_EINTR
+	_nc_globals.read_thread = 0;
+#endif
 	ch = c2;
+#endif
     }
 
 #ifdef HIDE_EINTR
@@ -220,7 +288,11 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
      * We don't want this difference to show.  This piece of code
      * tries to make it look like we always have restarting signals.
      */
-    if (n <= 0 && errno == EINTR)
+    if (n <= 0 && errno == EINTR
+# if USE_PTHREADS_EINTR
+	&& (_nc_globals.have_sigwinch == 0)
+# endif
+	)
 	goto again;
 #endif
 
@@ -260,12 +332,12 @@ recur_wrefresh(WINDOW *win)
 {
 #ifdef USE_PTHREADS
     SCREEN *sp = _nc_screen_of(win);
-    if (_nc_use_pthreads && sp != SP) {
+    if (_nc_use_pthreads && sp != CURRENT_SCREEN) {
 	SCREEN *save_SP;
 
 	/* temporarily switch to the window's screen to check/refresh */
 	_nc_lock_global(curses);
-	save_SP = SP;
+	save_SP = CURRENT_SCREEN;
 	_nc_set_screen(sp);
 	recur_wrefresh(win);
 	_nc_set_screen(save_SP);
@@ -286,12 +358,12 @@ recur_wgetnstr(WINDOW *win, char *buf)
 
     if (sp != 0) {
 #ifdef USE_PTHREADS
-	if (_nc_use_pthreads && sp != SP) {
+	if (_nc_use_pthreads && sp != CURRENT_SCREEN) {
 	    SCREEN *save_SP;
 
 	    /* temporarily switch to the window's screen to get cooked input */
 	    _nc_lock_global(curses);
-	    save_SP = SP;
+	    save_SP = CURRENT_SCREEN;
 	    _nc_set_screen(sp);
 	    rc = recur_wgetnstr(win, buf);
 	    _nc_set_screen(save_SP);
@@ -311,17 +383,18 @@ recur_wgetnstr(WINDOW *win, char *buf)
 
 NCURSES_EXPORT(int)
 _nc_wgetch(WINDOW *win,
-	   unsigned long *result,
+	   int *result,
 	   int use_meta
 	   EVENTLIST_2nd(_nc_eventlist * evl))
 {
     SCREEN *sp;
     int ch;
+    int rc = 0;
 #ifdef NCURSES_WGETCH_EVENTS
     long event_delay = -1;
 #endif
 
-    T((T_CALLED("_nc_wgetch(%p)"), win));
+    T((T_CALLED("_nc_wgetch(%p)"), (void *) win));
 
     *result = 0;
 
@@ -352,19 +425,20 @@ _nc_wgetch(WINDOW *win,
 	!sp->_cbreak &&
 	!sp->_called_wgetch) {
 	char buf[MAXCOLUMNS], *bufp;
-	int rc;
 
 	TR(TRACE_IEVENT, ("filling queue in cooked mode"));
 
-	rc = recur_wgetnstr(win, buf);
-
 	/* ungetch in reverse order */
 #ifdef NCURSES_WGETCH_EVENTS
+	rc = recur_wgetnstr(win, buf);
 	if (rc != KEY_EVENT)
+	    safe_ungetch(sp, '\n');
+#else
+	(void) recur_wgetnstr(win, buf);
+	safe_ungetch(sp, '\n');
 #endif
-	    _nc_ungetch(sp, '\n');
 	for (bufp = buf + strlen(buf); bufp > buf; bufp--)
-	    _nc_ungetch(sp, bufp[-1]);
+	    safe_ungetch(sp, bufp[-1]);
 
 #ifdef NCURSES_WGETCH_EVENTS
 	/* Return it first */
@@ -384,7 +458,6 @@ _nc_wgetch(WINDOW *win,
     if (win->_notimeout || (win->_delay >= 0) || (sp->_cbreak > 1)) {
 	if (head == -1) {	/* fifo is empty */
 	    int delay;
-	    int rc;
 
 	    TR(TRACE_IEVENT, ("timed delay in wgetch()"));
 	    if (sp->_cbreak > 1)
@@ -402,13 +475,13 @@ _nc_wgetch(WINDOW *win,
 	    rc = check_mouse_activity(sp, delay EVENTLIST_2nd(evl));
 
 #ifdef NCURSES_WGETCH_EVENTS
-	    if (rc & 4) {
+	    if (rc & TW_EVENT) {
 		*result = KEY_EVENT;
 		returnCode(KEY_CODE_YES);
 	    }
 #endif
 	    if (!rc) {
-		returnCode(ERR);
+		goto check_sigwinch;
 	    }
 	}
 	/* else go on to read data available */
@@ -427,7 +500,6 @@ _nc_wgetch(WINDOW *win,
 	 * increase the wait with mouseinterval().
 	 */
 	int runcount = 0;
-	int rc;
 
 	do {
 	    ch = kgetch(sp EVENTLIST_2nd(evl));
@@ -442,11 +514,11 @@ _nc_wgetch(WINDOW *win,
 	    (ch == KEY_MOUSE
 	     && (((rc = check_mouse_activity(sp, sp->_maxclick
 					     EVENTLIST_2nd(evl))) != 0
-		  && !(rc & 4))
+		  && !(rc & TW_EVENT))
 		 || !sp->_mouse_parse(sp, runcount)));
 #ifdef NCURSES_WGETCH_EVENTS
-	if ((rc & 4) && !ch == KEY_EVENT) {
-	    _nc_ungetch(sp, ch);
+	if ((rc & TW_EVENT) && !(ch == KEY_EVENT)) {
+	    safe_ungetch(sp, ch);
 	    ch = KEY_EVENT;
 	}
 #endif
@@ -454,12 +526,12 @@ _nc_wgetch(WINDOW *win,
 #ifdef NCURSES_WGETCH_EVENTS
 	    /* mouse event sequence ended by an event, report event */
 	    if (ch == KEY_EVENT) {
-		_nc_ungetch(sp, KEY_MOUSE);	/* FIXME This interrupts a gesture... */
+		safe_ungetch(sp, KEY_MOUSE);	/* FIXME This interrupts a gesture... */
 	    } else
 #endif
 	    {
 		/* mouse event sequence ended by keystroke, store keystroke */
-		_nc_ungetch(sp, ch);
+		safe_ungetch(sp, ch);
 		ch = KEY_MOUSE;
 	    }
 	}
@@ -470,6 +542,7 @@ _nc_wgetch(WINDOW *win,
     }
 
     if (ch == ERR) {
+      check_sigwinch:
 #if USE_SIZECHANGE
 	if (_nc_handle_sigwinch(sp)) {
 	    _nc_update_screensize(sp);
@@ -508,7 +581,7 @@ _nc_wgetch(WINDOW *win,
      * cursor to the left.
      */
     if (sp->_echo && !(win->_flags & _ISPAD)) {
-	chtype backup = (ch == KEY_BACKSPACE) ? '\b' : ch;
+	chtype backup = (chtype) ((ch == KEY_BACKSPACE) ? '\b' : ch);
 	if (backup < KEY_MIN)
 	    wechochar(win, backup);
     }
@@ -539,7 +612,7 @@ NCURSES_EXPORT(int)
 wgetch_events(WINDOW *win, _nc_eventlist * evl)
 {
     int code;
-    unsigned long value;
+    int value;
 
     T((T_CALLED("wgetch_events(%p,%p)"), win, evl));
     code = _nc_wgetch(win,
@@ -556,9 +629,9 @@ NCURSES_EXPORT(int)
 wgetch(WINDOW *win)
 {
     int code;
-    unsigned long value;
+    int value;
 
-    T((T_CALLED("wgetch(%p)"), win));
+    T((T_CALLED("wgetch(%p)"), (void *) win));
     code = _nc_wgetch(win,
 		      &value,
 		      _nc_use_meta(win)
@@ -632,7 +705,7 @@ kgetch(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 	    break;
 	}
 	TR(TRACE_IEVENT, ("ptr=%p, ch=%d, value=%d",
-			  ptr, ptr->ch, ptr->value));
+			  (void *) ptr, ptr->ch, ptr->value));
 
 	if (ptr->value != 0) {	/* sequence terminated */
 	    TR(TRACE_IEVENT, ("end of sequence"));
@@ -651,7 +724,7 @@ kgetch(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 	    TR(TRACE_IEVENT, ("waiting for rest of sequence"));
 	    rc = check_mouse_activity(sp, timeleft EVENTLIST_2nd(evl));
 #ifdef NCURSES_WGETCH_EVENTS
-	    if (rc & 4) {
+	    if (rc & TW_EVENT) {
 		TR(TRACE_IEVENT, ("interrupted by a user event"));
 		/* FIXME Should have preserved remainder timeleft for reuse... */
 		peek = head;	/* Restart interpreting later */

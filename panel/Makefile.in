@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.52 2007/04/28 14:56:11 tom Exp $
+# $Id: Makefile.in,v 1.58 2010/11/27 21:45:27 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -43,6 +43,7 @@
 .SUFFIXES:
 
 SHELL		= /bin/sh
+VPATH		= @srcdir@
 THIS		= Makefile
 
 x		= @EXEEXT@
@@ -64,6 +65,7 @@ LIBTOOL_COMPILE	= @LIB_COMPILE@
 LIBTOOL_LINK	= @LIB_LINK@
 LIBTOOL_INSTALL	= @LIB_INSTALL@
 LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
+LT_UNDEF	= @LT_UNDEF@
 
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
@@ -71,10 +73,13 @@ INSTALL_PROG	= @INSTALL_PROGRAM@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
-AR_OPTS		= @AR_OPTS@
+ARFLAGS		= @ARFLAGS@
 AWK		= @AWK@
 LD		= @LD@
 LN_S		= @LN_S@
+
+CTAGS		= @CTAGS@
+ETAGS		= @ETAGS@
 
 CC		= @CC@
 CPP		= @CPP@
@@ -125,7 +130,7 @@ sources:	$(AUTO_SRC)
 
 $(DESTDIR)$(bindir) \
 $(DESTDIR)$(libdir) :
-	sh $(srcdir)/../mkdirs.sh $@
+	mkdir -p $@
 
 # make a copy to simplify include-paths while still keeping panel's include
 # file in this directory.
@@ -133,15 +138,15 @@ $(DESTDIR)$(libdir) :
 	-rm -f $@
 	cp $(srcdir)/panel.h $@
 
-PANEL_PRIV_H = \
+HEADER_DEPS = \
 	$(srcdir)/panel.priv.h \
 	$(srcdir)/panel.h
 
 tags:
-	ctags *.[ch]
+	$(CTAGS) *.[ch]
 
 @MAKE_UPPER_TAGS@TAGS:
-@MAKE_UPPER_TAGS@	etags *.[ch]
+@MAKE_UPPER_TAGS@	$(ETAGS) *.[ch]
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ln *.atac trace

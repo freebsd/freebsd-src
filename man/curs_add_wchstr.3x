@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2004,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_add_wchstr.3x,v 1.6 2005/01/02 01:28:49 tom Exp $
+.\" $Id: curs_add_wchstr.3x,v 1.9 2010/12/04 18:36:44 tom Exp $
 .TH curs_add_wchstr 3X ""
 .SH NAME
 \fBadd_wchstr\fR,
@@ -62,7 +62,7 @@ These routines copy the array of complex characters \fIwchstr\fR
 into the window image structure at and after the current cursor position.
 The four routines with \fIn\fR as the last
 argument copy at most \fIn\fR elements, but no more than will fit on the line.
-If \fBn\fR=\fB-1\fR then the whole array is copied,
+If \fBn\fR=\fB\-1\fR then the whole array is copied,
 to the maximum number of characters that will fit on the line.
 .PP
 The window cursor is \fInot\fR advanced.
@@ -83,15 +83,13 @@ the remaining columns are filled with the background character and rendition.
 All functions except \fBwadd_wchnstr\fR may be macros.
 .SH RETURN VALUES
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH PORTABILITY
 All these entry points are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_addchstr\fR(3X),
 \fBcurs_addwstr\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

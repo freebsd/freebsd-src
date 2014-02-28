@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999-2004,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1999-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 .\"
 .\" Author: Thomas E. Dickey 1999-on
 .\"
-.\" $Id: curs_extend.3x,v 1.17 2006/12/24 18:01:48 tom Exp $
+.\" $Id: curs_extend.3x,v 1.19 2010/12/04 18:36:44 tom Exp $
 .TH curs_extend 3X ""
 .SH NAME
 \fBcurses_version\fP,
@@ -56,7 +56,7 @@ is able to use user-defined or nonstandard names
 which may be compiled into the terminfo
 description, i.e., via the terminfo or termcap interfaces.
 Normally these names are available for use, since the essential decision
-is made by using the \fB-x\fP option of \fB@TIC@\fP to compile
+is made by using the \fB\-x\fP option of \fB@TIC@\fP to compile
 extended terminal definitions.
 However you can disable this feature
 to ensure compatibility with other implementations of curses.
@@ -77,9 +77,3 @@ any code depending on them be conditioned using NCURSES_VERSION.
 \fBwresize\fR(3X).
 .SH AUTHOR
 Thomas Dickey.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
