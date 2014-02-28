@@ -13,7 +13,7 @@ acpi_quirks.h			optional acpi				   \
 # The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
 #
-fdt_dtb_file			optional fdt \
+fdt_dtb_file			optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtb.sh $S ${FDT_DTS_FILE} ${.CURDIR}/${FDT_DTS_FILE:R}.dtb" \
 	no-obj no-implicit-rule before-depend	\
 	clean		"${FDT_DTS_FILE:R}.dtb"
