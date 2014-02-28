@@ -1830,7 +1830,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 
 		/*
 		 * XXX: Ignore this exit if VMCS_INTR_VALID is not set.
-		 * This appears to be a bug in VMWare Fusion?
+		 * This appears to be a bug in VMware Fusion?
 		 */
 		if (!(intr_info & VMCS_INTR_VALID))
 			return (1);
