@@ -1953,9 +1953,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 
@@ -1990,9 +1990,9 @@ COMMON ITEMS:
 	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
 							[1]
 	<reboot in single user>				[3]
-	mergemaster -p					[5]
+	mergemaster -Fp					[5]
 	make installworld
-	mergemaster -i					[4]
+	mergemaster -Fi					[4]
 	make delete-old					[6]
 	<reboot>
 
