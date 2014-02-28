@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2002,2006 Free Software Foundation, Inc.                     #
+# Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.osf1r5,v 1.4 2006/05/27 15:33:04 tom Exp $
+# $Id: Caps.osf1r5,v 1.5 2010/12/04 18:47:13 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with OSF/1 version 5 (Tru64) terminfo.
@@ -1266,9 +1266,3 @@ infoalias	ksel	kslt	IBM	key_select
 # kcmd, kend, khlp, and kf11...kf63.
 #
 #############################################################################
-#
-# The following sets edit modes for GNU EMACS
-# Local Variables:
-# case-fold-search:nil
-# truncate-lines:t
-# End:

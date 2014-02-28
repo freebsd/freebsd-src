@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,12 +40,12 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clearok.c,v 1.4 2000/12/10 02:43:26 tom Exp $")
+MODULE_ID("$Id: lib_clearok.c,v 1.5 2009/10/24 22:34:53 tom Exp $")
 
 NCURSES_EXPORT(int)
 clearok(WINDOW *win, bool flag)
 {
-    T((T_CALLED("clearok(%p,%d)"), win, flag));
+    T((T_CALLED("clearok(%p,%d)"), (void *) win, flag));
 
     if (win) {
 	win->_clear = flag;

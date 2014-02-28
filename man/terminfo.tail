@@ -1,4 +1,4 @@
-.\" $Id: terminfo.tail,v 1.49 2008/02/16 20:57:43 tom Exp $
+.\" $Id: terminfo.tail,v 1.53 2010/12/04 18:38:55 tom Exp $
 .\" Beginning of terminfo.tail file
 .\" This file is part of ncurses.
 .\" See "terminfo.head" for copyright.
@@ -25,7 +25,7 @@ of what a \fBterminfo\fR entry for a modern terminal typically looks like.
         kf11=\\E[W, kf12=\\E[X, kf2=\\E[N, kf3=\\E[O, kf4=\\E[P,
         kf5=\\E[Q, kf6=\\E[R, kf7=\\E[S, kf8=\\E[T, kf9=\\E[U,
         kich1=\\E[L, mc4=\\E[4i, mc5=\\E[5i, nel=\\r\\E[S,
-        op=\\E[37;40m, rep=%p1%c\\E[%p2%{1}%-%db,
+        op=\\E[37;40m, rep=%p1%c\\E[%p2%{1}%\-%db,
         rin=\\E[%p1%dT, s0ds=\\E(B, s1ds=\\E)B, s2ds=\\E*B,
         s3ds=\\E+B, setab=\\E[4%p1%dm, setaf=\\E[3%p1%dm,
         setb=\\E[4%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}%=%t3%e%p1%d%;m,
@@ -325,9 +325,9 @@ The \fB%\fR encodings have the following meanings:
 outputs `%'
 .TP
 %\fI[[\fP:\fI]flags][width[.precision]][\fPdoxXs\fI]\fP
-as in \fBprintf\fP, flags are [-+#] and space.
-Use a `:' to allow the next character to be a `-' flag,
-avoiding interpreting "%-" as an operator.
+as in \fBprintf\fP, flags are [\-+#] and space.
+Use a `:' to allow the next character to be a `\-' flag,
+avoiding interpreting "%\-" as an operator.
 .TP
 %c
 print pop() like %c in \fBprintf\fP
@@ -335,20 +335,20 @@ print pop() like %c in \fBprintf\fP
 %s
 print pop() like %s in \fBprintf\fP
 .TP
-%p[1-9]
+%p[1\-9]
 push \fIi\fP'th parameter
 .TP
-%P[a-z]
-set dynamic variable [a-z] to pop()
+%P[a\-z]
+set dynamic variable [a\-z] to pop()
 .TP
-%g[a-z]
-get dynamic variable [a-z] and push it
+%g[a\-z]
+get dynamic variable [a\-z] and push it
 .TP
-%P[A-Z]
-set static variable [a-z] to pop()
+%P[A\-Z]
+set static variable [a\-z] to pop()
 .TP
-%g[A-Z]
-get static variable [a-z] and push it
+%g[A\-Z]
+get static variable [a\-z] and push it
 .IP
 The terms "static" and "dynamic" are misleading.
 Historically, these are simply two different sets of variables,
@@ -365,7 +365,7 @@ integer constant \fInn\fP
 %l
 push strlen(pop)
 .TP
-%+ %- %* %/ %m
+%+ %\- %* %/ %m
 arithmetic (%m is mod): push(pop() op pop())
 .TP
 %& %| %^
@@ -397,14 +397,14 @@ It is possible to form else-if's a la Algol 68:
 .IP
 where c\di\u are conditions, b\di\u are bodies.
 .IP
-Use the \fB-f\fP option of \fBtic\fP or \fB@INFOCMP@\fP to see
-the structure of if-the-else's.
+Use the \fB\-f\fP option of \fBtic\fP or \fB@INFOCMP@\fP to see
+the structure of if-then-else's.
 Some strings, e.g., \fBsgr\fP can be very complicated when written
 on one line.
-The \fB-f\fP option splits the string into lines with the parts indented.
+The \fB\-f\fP option splits the string into lines with the parts indented.
 .PP
 Binary operations are in postfix form with the operands in the usual order.
-That is, to get x-5 one would use "%gx%{5}%-".
+That is, to get x\-5 one would use "%gx%{5}%-".
 %P and %g variables are
 persistent across escape-string evaluations.
 .PP
@@ -542,7 +542,7 @@ automatically, so you need not compose insert/delete strings for
 an entry with \fBcsr\fR).
 .PP
 Yet another way to construct insert and delete might be to use a combination of
-index with the memory-lock feature found on some terminals (like the HP-700/90
+index with the memory-lock feature found on some terminals (like the HP\-700/90
 series, which however also has insert/delete).
 .PP
 Inserting lines at the top or bottom of the screen can also be
@@ -759,9 +759,9 @@ For example, the DEC vt220 supports most of the modes:
 .PP
 .TS
 center;
-l c c
-l c c
-lw28 lw6 lw2 lw20.
+l l l
+l l l
+lw18 lw14 lw18.
 \fBtparm parameter	attribute	escape sequence\fP
 
 none	none	\\E[0m
@@ -794,9 +794,9 @@ Writing out the above sequences, along with their dependencies yields
 .PP
 .TS
 center;
-l c c
-l c c
-lw28 lw6 lw2 lw20.
+l l l
+l l l
+lw18 lw14 lw18.
 \fBsequence	when to output	terminfo translation\fP
 
 \\E[0	always	\\E[0
@@ -1174,9 +1174,9 @@ This alternate character set may be specified by the \fBacsc\fR capability.
 .PP
 .TS H
 center expand;
-c l l c
-c l l c
-lw28 lw6 lw2 lw20.
+l l l l
+l l l l
+lw25 lw10 lw6 lw6.
 .\".TH
 \fBGlyph	ACS	Ascii	VT100\fR
 \fBName	Name	Default	Name\fR
@@ -1184,7 +1184,7 @@ UK pound sign        	ACS_STERLING	f	}
 arrow pointing down	ACS_DARROW	v	.
 arrow pointing left	ACS_LARROW	<	,
 arrow pointing right	ACS_RARROW	>	+
-arrow pointing up	ACS_UARROW	^	-
+arrow pointing up	ACS_UARROW	^	\-
 board of squares	ACS_BOARD	#	h
 bullet          	ACS_BULLET	o	~
 checker board (stipple)	ACS_CKBOARD	:	a
@@ -1192,7 +1192,7 @@ degree symbol   	ACS_DEGREE	\e	f
 diamond         	ACS_DIAMOND	+	`
 greater-than-or-equal-to	ACS_GEQUAL	>	z
 greek pi        	ACS_PI	*	{
-horizontal line 	ACS_HLINE	-	q
+horizontal line 	ACS_HLINE	\-	q
 lantern symbol  	ACS_LANTERN	#	i
 large plus or crossover	ACS_PLUS	+	n
 less-than-or-equal-to	ACS_LEQUAL	<	y
@@ -1201,8 +1201,8 @@ lower right corner	ACS_LRCORNER	+	j
 not-equal       	ACS_NEQUAL	!	|
 plus/minus      	ACS_PLMINUS	#	g
 scan line 1     	ACS_S1  	~	o
-scan line 3     	ACS_S3  	-	p
-scan line 7     	ACS_S7  	-	r
+scan line 3     	ACS_S3  	\-	p
+scan line 7     	ACS_S7  	\-	r
 scan line 9     	ACS_S9  	\&_	s
 solid square block	ACS_BLOCK	#	0
 tee pointing down	ACS_TTEE	+	w
@@ -1227,7 +1227,7 @@ Most color terminals are either `Tektronix-like' or `HP-like'.
 Tektronix-like
 terminals have a predefined set of N colors (where N usually 8), and can set
 character-cell foreground and background characters independently, mixing them
-into N * N color-pairs.
+into N\ *\ N color-pairs.
 On HP-like terminals, the use must set each color
 pair up separately (foreground and background are not independently settable).
 Up to M color-pairs may be set up from 2*M different colors.
@@ -1312,7 +1312,7 @@ which color pair is current.
 On a Tektronix-like terminal, the capability \fBccc\fR may be present to
 indicate that colors can be modified.
 If so, the \fBinitc\fR capability will
-take a color number (0 to \fBcolors\fR - 1)and three more parameters which
+take a color number (0 to \fBcolors\fR \- 1)and three more parameters which
 describe the color.
 These three parameters default to being interpreted as RGB
 (Red, Green, Blue) values.
@@ -1324,7 +1324,7 @@ terminal-dependent.
 On an HP-like terminal, \fBinitp\fR may give a capability for changing a
 color-pair value.
 It will take seven parameters; a color-pair number (0 to
-\fBmax_pairs\fR - 1), and two triples describing first background and then
+\fBmax_pairs\fR \- 1), and two triples describing first background and then
 foreground colors.
 These parameters must be (Red, Green, Blue) or
 (Hue, Lightness, Saturation) depending on \fBhls\fR.
@@ -1525,9 +1525,9 @@ A capability can be canceled by placing \fBxx@\fR to the left of the
 use reference that imports it, where \fIxx\fP is the capability.
 For example, the entry
 .PP
-	2621-nl, smkx@, rmkx@, use=2621,
+	2621\-nl, smkx@, rmkx@, use=2621,
 .PP
-defines a 2621-nl that does not have the \fBsmkx\fR or \fBrmkx\fR capabilities,
+defines a 2621\-nl that does not have the \fBsmkx\fR or \fBrmkx\fR capabilities,
 and hence does not turn on the function key labels when in visual mode.
 This is useful for different modes for a terminal, or for different
 user preferences.
@@ -1544,7 +1544,7 @@ The man pages for 4.3BSD and older versions of \fBtgetent()\fP instruct the user
 allocate a 1024-byte buffer for the termcap entry.
 The entry gets null-terminated by
 the termcap library, so that makes the maximum safe length for a termcap entry
-1k-1 (1023) bytes.
+1k\-1 (1023) bytes.
 Depending on what the application and the termcap library
 being used does, and where in the termcap file the terminal type that \fBtgetent()\fP
 is searching for is, several bad things can happen.
@@ -1612,16 +1612,16 @@ If it is too long even before
 terminal types and users whose TERM variable does not have a termcap
 entry.
 .PP
-When in -C (translate to termcap) mode, the \fBncurses\fR implementation of
+When in \-C (translate to termcap) mode, the \fBncurses\fR implementation of
 \fB@TIC@\fR(1M) issues warning messages when the pre-tc length of a termcap
 translation is too long.
-The -c (check) option also checks resolved (after tc
+The \-c (check) option also checks resolved (after tc
 expansion) lengths.
 .SS Binary Compatibility
 It is not wise to count on portability of binary terminfo entries between
 commercial UNIX versions.
 The problem is that there are at least two versions
-of terminfo (under HP-UX and AIX) which diverged from System V terminfo after
+of terminfo (under HP\-UX and AIX) which diverged from System V terminfo after
 SVr1, and have added extension capabilities to the string table that (in the
 binary format) collide with System V and XSI Curses extensions.
 .SH EXTENSIONS
@@ -1657,30 +1657,30 @@ the XSI Curses standard and (in some cases) different extension sets.
 Here
 is a summary, accurate as of October 1995:
 .PP
-\fBSVR4, Solaris, ncurses\fR --
+\fBSVR4, Solaris, ncurses\fR \-\-
 These support all SVr4 capabilities.
 .PP
-\fBSGI\fR --
+\fBSGI\fR \-\-
 Supports the SVr4 set, adds one undocumented extended string
 capability (\fBset_pglen\fR).
 .PP
-\fBSVr1, Ultrix\fR --
+\fBSVr1, Ultrix\fR \-\-
 These support a restricted subset of terminfo capabilities.
 The booleans
 end with \fBxon_xoff\fR; the numerics with \fBwidth_status_line\fR; and the
 strings with \fBprtr_non\fR.
 .PP
-\fBHP/UX\fR --
+\fBHP/UX\fR \-\-
 Supports the SVr1 subset, plus the SVr[234] numerics \fBnum_labels\fR,
 \fBlabel_height\fR, \fBlabel_width\fR, plus function keys 11 through 63, plus
 \fBplab_norm\fR, \fBlabel_on\fR, and \fBlabel_off\fR, plus some incompatible
 extensions in the string table.
 .PP
-\fBAIX\fR --
+\fBAIX\fR \-\-
 Supports the SVr1 subset, plus function keys 11 through 63, plus a number
 of incompatible string table extensions.
 .PP
-\fBOSF\fR --
+\fBOSF\fR \-\-
 Supports both the SVr4 set and the AIX extensions.
 .SH FILES
 .TP 25
@@ -1692,12 +1692,7 @@ files containing terminal descriptions
 \fBcurses\fR(3X),
 \fBprintf\fR(3),
 \fBterm\fR(\*n).
+\fBterm_variables\fR(3X).
 .SH AUTHORS
 Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.
 Based on pcurses by Pavel Curtis.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

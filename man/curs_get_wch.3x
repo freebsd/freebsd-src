@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2003,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_get_wch.3x,v 1.6 2006/02/25 21:47:06 tom Exp $
+.\" $Id: curs_get_wch.3x,v 1.7 2010/08/14 23:31:42 tom Exp $
 .TH curs_get_wch 3X ""
 .SH NAME
 \fBget_wch\fR,
@@ -152,6 +152,10 @@ returns
 \fBOK\fR.
 Otherwise, the function returns
 \fBERR\fR.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_getch\fR(3X),

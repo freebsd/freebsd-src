@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,12 +27,15 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addch.3x,v 1.27 2007/06/02 20:40:07 tom Exp $
+.\" $Id: curs_addch.3x,v 1.32 2011/01/15 14:15:10 tom Exp $
 .TH curs_addch 3X ""
 .SH NAME
-\fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR,
+\fBaddch\fR,
+\fBwaddch\fR,
+\fBmvaddch\fR,
+\fBmvwaddch\fR,
 \fBechochar\fR,
-\fBwechochar\fR - add a character (with attributes) to a \fBcurses\fR window, then advance the cursor
+\fBwechochar\fR \- add a character (with attributes) to a \fBcurses\fR window, then advance the cursor
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .PP
@@ -105,7 +108,7 @@ ACS_DARROW	v	arrow pointing down
 ACS_DEGREE	'	degree symbol
 ACS_DIAMOND	+	diamond
 ACS_GEQUAL	>	greater-than-or-equal-to
-ACS_HLINE	-	horizontal line
+ACS_HLINE	\-	horizontal line
 ACS_LANTERN	#	lantern symbol
 ACS_LARROW	<	arrow pointing left
 ACS_LEQUAL	<	less-than-or-equal-to
@@ -118,9 +121,9 @@ ACS_PLMINUS	#	plus/minus
 ACS_PLUS	+	plus
 ACS_RARROW	>	arrow pointing right
 ACS_RTEE	+	right tee
-ACS_S1	-	scan line 1
-ACS_S3	-	scan line 3
-ACS_S7	-	scan line 7
+ACS_S1	\-	scan line 1
+ACS_S3	\-	scan line 3
+ACS_S7	\-	scan line 7
 ACS_S9	\&_	scan line 9
 ACS_STERLING	f	pound-sterling symbol
 ACS_TTEE	+	top tee
@@ -134,12 +137,20 @@ All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success
 (the SVr4 manuals specify only "an integer value other than \fBERR\fR") upon
 successful completion, unless otherwise noted in the preceding routine
 descriptions.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that \fBaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR, and
 \fBechochar\fR may be macros.
 .SH PORTABILITY
 All these functions are described in the XSI Curses standard, Issue 4.
 The defaults specified for forms-drawing characters apply in the POSIX locale.
+.LP
+X/Open Curses states that the \fIACS_\fP definitions are \fBchar\fP constants.
+For the wide-character implementation (see \fBcurs_add_wch\fP),
+there are analogous \fIWACS_\fP definitions which are \fBcchar_t\fP constants.
 .LP
 Some ACS symbols
 (ACS_S3,
@@ -168,14 +179,9 @@ This is true of other implementations, but is not documented.
 \fBcurs_inch\fR(3X),
 \fBcurs_outopts\fR(3X),
 \fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X),
 \fBputc\fR(3).
 .PP
 Comparable functions in the wide-character (ncursesw) library are
 described in
 \fBcurs_add_wch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

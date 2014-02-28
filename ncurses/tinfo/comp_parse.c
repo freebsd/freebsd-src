@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -51,9 +51,8 @@
 #include <ctype.h>
 
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: comp_parse.c,v 1.69 2008/08/16 21:58:16 tom Exp $")
+MODULE_ID("$Id: comp_parse.c,v 1.73 2010/12/25 23:06:37 tom Exp $")
 
 static void sanity_check2(TERMTYPE *, bool);
 NCURSES_IMPEXP void NCURSES_API(*_nc_check_termtype2) (TERMTYPE *, bool) = sanity_check2;
@@ -92,16 +91,18 @@ force_bar(char *dst, char *src)
     }
     return src;
 }
+#define ForceBar(dst, src) ((strchr(src, '|') == 0) ? force_bar(dst, src) : src)
 
 NCURSES_EXPORT(bool)
 _nc_entry_match(char *n1, char *n2)
 /* do any of the aliases in a pair of terminal names match? */
 {
     char *pstart, *qstart, *pend, *qend;
-    char nc1[MAX_NAME_SIZE + 2], nc2[MAX_NAME_SIZE + 2];
+    char nc1[MAX_NAME_SIZE + 2];
+    char nc2[MAX_NAME_SIZE + 2];
 
-    n1 = force_bar(nc1, n1);
-    n2 = force_bar(nc2, n2);
+    n1 = ForceBar(nc1, n1);
+    n2 = ForceBar(nc2, n2);
 
     for (pstart = n1; (pend = strchr(pstart, '|')); pstart = pend + 1)
 	for (qstart = n2; (qend = strchr(qstart, '|')); qstart = qend + 1)
@@ -273,7 +274,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 		unresolved++;
 		total_unresolved++;
 
-		_nc_curr_line = lookline;
+		_nc_curr_line = (int) lookline;
 		_nc_warning("resolution of use=%s failed", lookfor);
 		qp->uses[i].link = 0;
 	    }
@@ -375,7 +376,7 @@ _nc_resolve_uses2(bool fullresolve, bool literal)
 	if (_nc_check_termtype != 0) {
 	    _nc_curr_col = -1;
 	    for_entry_list(qp) {
-		_nc_curr_line = qp->startline;
+		_nc_curr_line = (int) qp->startline;
 		_nc_set_type(_nc_first_name(qp->tterm.term_names));
 		_nc_check_termtype2(&qp->tterm, literal);
 	    }
@@ -473,7 +474,6 @@ _nc_leaks_tic(void)
 {
     _nc_alloc_entry_leaks();
     _nc_captoinfo_leaks();
-    _nc_comp_captab_leaks();
     _nc_comp_scan_leaks();
 #if BROKEN_LINKER || USE_REENTRANT
     _nc_names_leaks();

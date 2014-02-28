@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
 
 /****************************************************************************
  *  Author: Juergen Pfeifer,  1998                                          *
- *     and: Thomas E. Dickey, 2005                                          *
+ *     and: Thomas E. Dickey, 2005-on                                       *
  ****************************************************************************/
 
 /*
@@ -41,20 +41,23 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_colorset.c,v 1.11 2005/01/29 21:40:51 tom Exp $")
+MODULE_ID("$Id: lib_colorset.c,v 1.13 2009/10/24 22:02:14 tom Exp $")
 
 NCURSES_EXPORT(int)
 wcolor_set(WINDOW *win, short color_pair_number, void *opts)
 {
-    T((T_CALLED("wcolor_set(%p,%d)"), win, color_pair_number));
+    int code = ERR;
+
+    T((T_CALLED("wcolor_set(%p,%d)"), (void *) win, color_pair_number));
     if (win
 	&& !opts
+	&& (SP != 0)
 	&& (color_pair_number >= 0)
-	&& (color_pair_number < COLOR_PAIRS)) {
+	&& (color_pair_number < SP->_pair_limit)) {
 	TR(TRACE_ATTRS, ("... current %ld", (long) GET_WINDOW_PAIR(win)));
 	SET_WINDOW_PAIR(win, color_pair_number);
 	if_EXT_COLORS(win->_color = color_pair_number);
-	returnCode(OK);
-    } else
-	returnCode(ERR);
+	code = OK;
+    }
+    returnCode(code);
 }

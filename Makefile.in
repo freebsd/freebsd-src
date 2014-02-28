@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.24 2005/01/29 19:30:06 tom Exp $
+# $Id: Makefile.in,v 1.30 2010/11/27 21:45:27 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -32,6 +32,7 @@
 # Master Makefile for ncurses library.
 
 SHELL = /bin/sh
+VPATH		= @srcdir@
 
 DESTDIR=@DESTDIR@
 CF_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)"
@@ -41,6 +42,9 @@ CF_MFLAGS = @cf_cv_makeflags@ DESTDIR="$(DESTDIR)"
 NCURSES_MAJOR	= @NCURSES_MAJOR@
 NCURSES_MINOR	= @NCURSES_MINOR@
 NCURSES_PATCH	= @NCURSES_PATCH@
+
+top_srcdir	= @top_srcdir@
+srcdir		= @srcdir@
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
@@ -82,6 +86,13 @@ preinstall :
 	@ test ! -f $(includedir)/curses.h || \
 		fgrep NCURSES_VERSION $(includedir)/curses.h >/dev/null || \
 		echo '** Will overwrite non-ncurses curses.h'
+
+dlls:	libs
+	$(SHELL) $(srcdir)/mk-dlls.sh
+
+distclean \
+realclean ::
+	-rm -f mk-dlls.sh mingw_arch
 
 # Put the common rules here so that we can easily construct the list of
 # directories to visit.

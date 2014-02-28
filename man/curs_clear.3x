@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2005,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_clear.3x,v 1.11 2007/12/29 15:58:38 tom Exp $
+.\" $Id: curs_clear.3x,v 1.14 2010/12/04 18:36:44 tom Exp $
 .TH curs_clear 3X ""
 .na
 .hy 0
@@ -38,7 +38,7 @@
 \fBclrtobot\fR,
 \fBwclrtobot\fR,
 \fBclrtoeol\fR,
-\fBwclrtoeol\fR - clear all or part of a \fBcurses\fR window
+\fBwclrtoeol\fR \- clear all or part of a \fBcurses\fR window
 .ad
 .hy
 .SH SYNOPSIS
@@ -112,10 +112,7 @@ even for a subwindow or derived window.
 If you do not want to clear the screen during the next \fBwrefresh\fP,
 use \fBwerase\fP instead.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:
+\fBcurses\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_refresh\fR(3X),
+\fBcurs_variables\fR(3X)

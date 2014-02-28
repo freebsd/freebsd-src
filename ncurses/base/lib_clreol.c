@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2001,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,14 +40,14 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_clreol.c,v 1.21 2001/12/19 01:06:04 tom Exp $")
+MODULE_ID("$Id: lib_clreol.c,v 1.22 2009/10/24 22:33:06 tom Exp $")
 
 NCURSES_EXPORT(int)
 wclrtoeol(WINDOW *win)
 {
     int code = ERR;
 
-    T((T_CALLED("wclrtoeol(%p)"), win));
+    T((T_CALLED("wclrtoeol(%p)"), (void *) win));
 
     if (win) {
 	NCURSES_CH_T blank;

@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2007,2008 Free Software Foundation, Inc.                     #
+# Copyright (c) 2007-2008,2009 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -25,7 +25,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKnames.awk,v 1.20 2008/10/11 21:07:56 tom Exp $
+# $Id: MKnames.awk,v 1.22 2009/03/21 21:03:39 tom Exp $
 function large_item(value) {
 	result = sprintf("%d,", offset);
 	offset = offset + length(value) + 1;
@@ -107,8 +107,6 @@ END	{
 		print  ""
 		print  "#if BROKEN_LINKER || USE_REENTRANT"
 		print  ""
-		print  "#include <term.h>"
-		print  ""
 		if (bigstrings) {
 			printf "static const char _nc_name_blob[] = \n"
 			printf "%s;\n", bigstr;
@@ -133,7 +131,7 @@ END	{
 			print  "	return *value;"
 			print  "}"
 			print  ""
-			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API _nc_##it(void) { return alloc_array(&ptr_##it, _nc_offset_##it, SIZEOF(_nc_offset_##it)); }"
+			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API NCURSES_PUBLIC_VAR(it)(void) { return alloc_array(&ptr_##it, _nc_offset_##it, SIZEOF(_nc_offset_##it)); }"
 		} else {
 			print  "#define DCL(it) static IT data##it[]"
 			print  ""
@@ -143,9 +141,18 @@ END	{
 			print_strings("numfnames", small_numfnames);
 			print_strings("strnames", small_strnames);
 			print_strings("strfnames", small_strfnames);
-			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API _nc_##it(void) { return data##it; }"
+			print  "#define FIX(it) NCURSES_IMPEXP IT * NCURSES_API NCURSES_PUBLIC_VAR(it)(void) { return data##it; }"
 		}
 		print  ""
+		print  "/* remove public definition which conflicts with FIX() */"
+		print  "#undef boolnames"
+		print  "#undef boolfnames"
+		print  "#undef numnames"
+		print  "#undef numfnames"
+		print  "#undef strnames"
+		print  "#undef strfnames"
+		print  ""
+		print  "/* add local definition */"
 		print  "FIX(boolnames)"
 		print  "FIX(boolfnames)"
 		print  "FIX(numnames)"
@@ -153,6 +160,13 @@ END	{
 		print  "FIX(strnames)"
 		print  "FIX(strfnames)"
 		print  ""
+		print  "/* restore the public definition */"
+		print  "#define boolnames  NCURSES_PUBLIC_VAR(boolnames())"
+		print  "#define boolfnames NCURSES_PUBLIC_VAR(boolfnames())"
+		print  "#define numnames   NCURSES_PUBLIC_VAR(numnames())"
+		print  "#define numfnames  NCURSES_PUBLIC_VAR(numfnames())"
+		print  "#define strnames   NCURSES_PUBLIC_VAR(strnames())"
+		print  "#define strfnames  NCURSES_PUBLIC_VAR(strfnames())"
 		print  ""
 		print  "#define FREE_FIX(it) if (ptr_##it) { FreeAndNull(ptr_##it); }"
 		print  ""
