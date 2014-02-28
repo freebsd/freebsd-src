@@ -1,6 +1,6 @@
-# $Id: mk-0th.awk,v 1.17 2005/01/22 16:31:40 tom Exp $
+# $Id: mk-0th.awk,v 1.18 2010/01/09 21:45:41 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -27,7 +27,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+# Author: Thomas E. Dickey 1996-on
 #
 # Generate list of sources for a library, together with lint/lintlib rules
 #
@@ -36,8 +36,12 @@
 #	subsets (is used here to decide if wide-character code is used)
 #
 BEGIN	{
+		which = libname;
 		using = 0;
 		found = 0;
+	}
+	/^@/ {
+		which = $0;
 	}
 	!/^[@#]/ {
 		if (using == 0)
@@ -57,7 +61,11 @@ BEGIN	{
 			print  ""
 			using = 1;
 		}
-		if ( $0 != "" && $1 != "link_test" )
+		if (which ~ /port_/ )
+		{
+			# skip win32 source
+		}
+		else if ( $0 != "" && $1 != "link_test" )
 		{
 			if ( found == 0 )
 			{

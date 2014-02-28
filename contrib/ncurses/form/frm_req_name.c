@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_req_name.c,v 1.16 2008/07/05 23:22:08 tom Exp $")
+MODULE_ID("$Id: frm_req_name.c,v 1.17 2009/10/10 16:17:01 tom Exp $")
 
 static const char *request_names[MAX_FORM_COMMAND - MIN_FORM_COMMAND + 1] =
 {
@@ -154,14 +154,14 @@ form_request_by_name(const char *str)
       strncpy(buf, str, sizeof(buf));
       while ((i < sizeof(buf)) && (buf[i] != '\0'))
 	{
-	  buf[i] = toupper(UChar(buf[i]));
+	  buf[i] = (char)toupper(UChar(buf[i]));
 	  i++;
 	}
 
       for (i = 0; i < A_SIZE; i++)
 	{
 	  if (strncmp(request_names[i], buf, sizeof(buf)) == 0)
-	    returnCode(MIN_FORM_COMMAND + (int) i);
+	    returnCode(MIN_FORM_COMMAND + (int)i);
 	}
     }
   RETURN(E_NO_MATCH);

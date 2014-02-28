@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2005,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addwstr.3x,v 1.7 2006/02/25 20:59:08 tom Exp $
+.\" $Id: curs_addwstr.3x,v 1.10 2010/12/04 18:36:44 tom Exp $
 .TH curs_addwstr 3X ""
 .na
 .hy 0
@@ -74,11 +74,15 @@ Thereafter, the cursor is advanced as a side-effect of writing to the window.
 .PP
 The four routines with \fIn\fR as the last argument
 write at most \fIn\fR \fBwchar_t\fR characters.
-If \fIn\fR is -1, then the entire string will be added,
+If \fIn\fR is \-1, then the entire string will be added,
 up to the maximum number of characters that will fit on the line,
 or until a terminating null is reached.
 .SH RETURN VALUES
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that all of these routines except \fBwaddnwstr\fR may be macros.
 .SH PORTABILITY
@@ -86,9 +90,3 @@ All these entry points are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_add_wch\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

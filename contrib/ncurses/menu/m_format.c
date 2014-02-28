@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_format.c,v 1.15 2004/12/11 23:11:21 tom Exp $")
+MODULE_ID("$Id: m_format.c,v 1.16 2010/01/23 21:20:10 tom Exp $")
 
 #define minimum(a,b) ((a)<(b) ? (a): (b))
 
@@ -60,7 +60,7 @@ set_menu_format(MENU * menu, int rows, int cols)
 {
   int total_rows, total_cols;
 
-  T((T_CALLED("set_menu_format(%p,%d,%d)"), menu, rows, cols));
+  T((T_CALLED("set_menu_format(%p,%d,%d)"), (void *)menu, rows, cols));
 
   if (rows < 0 || cols < 0)
     RETURN(E_BAD_ARGUMENT);

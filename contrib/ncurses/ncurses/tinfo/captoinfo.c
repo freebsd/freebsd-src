@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -93,7 +93,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.52 2008/08/16 19:24:51 tom Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.58 2010/12/04 20:08:19 tom Exp $")
 
 #define MAX_PUSHED	16	/* max # args we can push onto the stack */
 
@@ -125,10 +125,10 @@ init_string(void)
 static char *
 save_string(char *d, const char *const s)
 {
-    size_t have = (d - my_string);
+    size_t have = (size_t) (d - my_string);
     size_t need = have + strlen(s) + 2;
     if (need > my_length) {
-	my_string = (char *) realloc(my_string, my_length = (need + need));
+	my_string = (char *) _nc_doalloc(my_string, my_length = (need + need));
 	if (my_string == 0)
 	    _nc_err_abort(MSG_NO_MEMORY);
 	d = my_string + have;
@@ -196,7 +196,7 @@ cvtchar(register const char *sp)
 	case '3':
 	    len = 1;
 	    while (isdigit(UChar(*sp))) {
-		c = 8 * c + (*sp++ - '0');
+		c = (unsigned char) (8 * c + (*sp++ - '0'));
 		len++;
 	    }
 	    break;
@@ -207,7 +207,7 @@ cvtchar(register const char *sp)
 	}
 	break;
     case '^':
-	c = (*++sp & 0x1f);
+	c = (unsigned char) (*++sp & 0x1f);
 	len = 2;
 	break;
     default:
@@ -643,6 +643,7 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
     int seenone = 0, seentwo = 0, saw_m = 0, saw_n = 0;
     const char *padding;
     const char *trimmed = 0;
+    int in0, in1, in2;
     char ch1 = 0, ch2 = 0;
     char *bufptr = init_string();
     int len;
@@ -666,8 +667,27 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 	int c1, c2;
 	char *cp = 0;
 
-	if (str[0] == '\\' && (str[1] == '^' || str[1] == ',')) {
-	    bufptr = save_char(bufptr, *++str);
+	if (str[0] == '^') {
+	    if (str[1] == '\0' || (str + 1) == trimmed) {
+		bufptr = save_string(bufptr, "\\136");
+		++str;
+	    } else {
+		bufptr = save_char(bufptr, *str++);
+		bufptr = save_char(bufptr, *str);
+	    }
+	} else if (str[0] == '\\') {
+	    if (str[1] == '\0' || (str + 1) == trimmed) {
+		bufptr = save_string(bufptr, "\\134");
+		++str;
+	    } else if (str[1] == '^') {
+		bufptr = save_string(bufptr, "\\136");
+		++str;
+	    } else if (str[1] == ',') {
+		bufptr = save_char(bufptr, *++str);
+	    } else {
+		bufptr = save_char(bufptr, *str++);
+		bufptr = save_char(bufptr, *str);
+	    }
 	} else if (str[0] == '$' && str[1] == '<') {	/* discard padding */
 	    str += 2;
 	    while (isdigit(UChar(*str))
@@ -677,6 +697,19 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameteriz
 		   || *str == '>')
 		str++;
 	    --str;
+	} else if (sscanf(str,
+			  "[%%?%%p1%%{8}%%<%%t%d%%p1%%d%%e%%p1%%{16}%%<%%t%d%%p1%%{8}%%-%%d%%e%d;5;%%p1%%d%%;m",
+			  &in0, &in1, &in2) == 3
+		   && ((in0 == 4 && in1 == 10 && in2 == 48)
+		       || (in0 == 3 && in1 == 9 && in2 == 38))) {
+	    /* dumb-down an optimized case from xterm-256color for termcap */
+	    str = strstr(str, ";m");
+	    ++str;
+	    if (in2 == 48) {
+		bufptr = save_string(bufptr, "[48;5;%dm");
+	    } else {
+		bufptr = save_string(bufptr, "[38;5;%dm");
+	    }
 	} else if (str[0] == '%' && str[1] == '%') {	/* escaped '%' */
 	    bufptr = save_string(bufptr, "%%");
 	    ++str;

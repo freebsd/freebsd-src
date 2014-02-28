@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,6 +30,7 @@
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                                                 *
  ****************************************************************************/
 
 /*
@@ -46,7 +47,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.71 2008/08/23 18:04:29 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.76 2010/12/19 01:21:19 tom Exp $")
 
 NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
@@ -56,26 +57,26 @@ NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 NCURSES_EXPORT(const char *)
 NCURSES_PUBLIC_VAR(_nc_tputs_trace) (void)
 {
-    return SP ? SP->_tputs_trace : _nc_prescreen._tputs_trace;
+    return CURRENT_SCREEN ? CURRENT_SCREEN->_tputs_trace : _nc_prescreen._tputs_trace;
 }
 NCURSES_EXPORT(long)
 NCURSES_PUBLIC_VAR(_nc_outchars) (void)
 {
-    return SP ? SP->_outchars : _nc_prescreen._outchars;
+    return CURRENT_SCREEN ? CURRENT_SCREEN->_outchars : _nc_prescreen._outchars;
 }
 NCURSES_EXPORT(void)
 _nc_set_tputs_trace(const char *s)
 {
-    if (SP)
-	SP->_tputs_trace = s;
+    if (CURRENT_SCREEN)
+	CURRENT_SCREEN->_tputs_trace = s;
     else
 	_nc_prescreen._tputs_trace = s;
 }
 NCURSES_EXPORT(void)
 _nc_count_outchars(long increment)
 {
-    if (SP)
-	SP->_outchars += increment;
+    if (CURRENT_SCREEN)
+	CURRENT_SCREEN->_outchars += increment;
     else
 	_nc_prescreen._outchars += increment;
 }
@@ -95,7 +96,7 @@ trace(const unsigned int tracelevel)
 	const char *mode = _nc_globals.init_trace ? "ab" : "wb";
 
 	if (TracePath[0] == '\0') {
-	    int size = sizeof(TracePath) - 12;
+	    size_t size = sizeof(TracePath) - 12;
 	    if (getcwd(TracePath, size) == 0) {
 		perror("curses: Can't get working directory");
 		exit(EXIT_FAILURE);
@@ -121,7 +122,7 @@ trace(const unsigned int tracelevel)
 	 */
 #if HAVE_SETVBUF		/* ANSI */
 	(void) setvbuf(TraceFP, (char *) 0, _IOLBF, 0);
-#elif HAVE_SETBUF		/* POSIX */
+#elif HAVE_SETBUF /* POSIX */
 	(void) setbuffer(TraceFP, (char *) 0);
 #endif
 	_tracef("TRACING NCURSES version %s.%d (tracelevel=%#x)",
@@ -183,7 +184,11 @@ _nc_va_tracef(const char *fmt, va_list ap)
 # if USE_WEAK_SYMBOLS
 	if ((pthread_self))
 # endif
+#ifdef __MINGW32__
+	    fprintf(TraceFP, "%#lx:", (long) (void *) pthread_self().p);
+#else
 	    fprintf(TraceFP, "%#lx:", (long) (void *) pthread_self());
+#endif
 #endif
 	if (before || after) {
 	    int n;
@@ -216,6 +221,14 @@ NCURSES_EXPORT(NCURSES_BOOL)
 _nc_retrace_bool(NCURSES_BOOL code)
 {
     T((T_RETURN("%s"), code ? "TRUE" : "FALSE"));
+    return code;
+}
+
+/* Trace 'char' return-values */
+NCURSES_EXPORT(char)
+_nc_retrace_char(char code)
+{
+    T((T_RETURN("%c"), code));
     return code;
 }
 
@@ -271,7 +284,7 @@ _nc_retrace_void_ptr(void *code)
 NCURSES_EXPORT(SCREEN *)
 _nc_retrace_sp(SCREEN *code)
 {
-    T((T_RETURN("%p"), code));
+    T((T_RETURN("%p"), (void *) code));
     return code;
 }
 
@@ -279,7 +292,7 @@ _nc_retrace_sp(SCREEN *code)
 NCURSES_EXPORT(WINDOW *)
 _nc_retrace_win(WINDOW *code)
 {
-    T((T_RETURN("%p"), code));
+    T((T_RETURN("%p"), (void *) code));
     return code;
 }
 

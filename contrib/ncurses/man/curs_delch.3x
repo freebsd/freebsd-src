@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2000,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,13 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_delch.3x,v 1.8 2006/02/25 21:42:57 tom Exp $
+.\" $Id: curs_delch.3x,v 1.11 2010/12/04 18:36:44 tom Exp $
 .TH curs_delch 3X ""
 .SH NAME
 \fBdelch\fR,
 \fBwdelch\fR,
 \fBmvdelch\fR,
-\fBmvwdelch\fR - delete character under the cursor in a \fBcurses\fR window
+\fBmvwdelch\fR \- delete character under the cursor in a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -54,6 +54,10 @@ imply use of the hardware delete character feature.)
 All routines return the integer \fBERR\fR upon failure and an \fBOK\fR (SVr4
 specifies only "an integer value other than \fBERR\fR") upon successful
 completion.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH NOTES
 Note that \fBdelch\fR, \fBmvdelch\fR, and \fBmvwdelch\fR may be macros.
 .SH PORTABILITY
@@ -62,9 +66,3 @@ standard specifies that they return \fBERR\fR on failure, but specifies no
 error conditions.
 .SH SEE ALSO
 \fBcurses\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

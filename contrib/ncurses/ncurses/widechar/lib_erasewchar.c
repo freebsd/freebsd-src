@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002,2010 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_erasewchar.c,v 1.1 2002/05/11 20:38:06 tom Exp $")
+MODULE_ID("$Id: lib_erasewchar.c,v 1.2 2010/07/24 11:35:12 tom Exp $")
 
 /*
  *	erasewchar()
@@ -42,7 +42,7 @@ MODULE_ID("$Id: lib_erasewchar.c,v 1.1 2002/05/11 20:38:06 tom Exp $")
  */
 
 NCURSES_EXPORT(int)
-erasewchar(wchar_t * wch)
+erasewchar(wchar_t *wch)
 {
     int value;
     int result = ERR;
@@ -63,7 +63,7 @@ erasewchar(wchar_t * wch)
  */
 
 NCURSES_EXPORT(int)
-killwchar(wchar_t * wch)
+killwchar(wchar_t *wch)
 {
     int value;
     int result = ERR;

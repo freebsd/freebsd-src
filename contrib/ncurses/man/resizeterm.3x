@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -28,12 +28,12 @@
 .\"
 .\" Author: Thomas E. Dickey 1996-2005
 .\"
-.\" $Id: resizeterm.3x,v 1.11 2005/06/25 22:19:42 tom Exp $
+.\" $Id: resizeterm.3x,v 1.14 2010/12/04 18:38:55 tom Exp $
 .TH resizeterm 3X ""
 .SH NAME
 \fBis_term_resized\fR,
 \fBresize_term\fR,
-\fBresizeterm\fR - change the curses terminal size
+\fBresizeterm\fR \- change the curses terminal size
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -89,12 +89,7 @@ no screen size change may be recorded.
 In that case, no \fBKEY_RESIZE\fP is queued for the next call to \fBgetch\fP;
 an \fBERR\fP will be returned instead.
 .SH SEE ALSO
+\fBcurs_variables\fR(3X),
 \fBwresize\fR(3X).
 .SH AUTHOR
 Thomas Dickey (from an equivalent function written in 1988 for BSD curses).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

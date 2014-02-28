@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,19 +37,19 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_pad.c,v 1.10 2004/12/25 21:40:58 tom Exp $")
+MODULE_ID("$Id: m_pad.c,v 1.12 2010/01/23 21:20:10 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
    if ( (menu) && ((menu)->status & _POSTED) )\
    {\
       _nc_Draw_Menu( menu );\
-      _nc_Show_Menu( menu );\
+      _nc_Show_Menu( menu ); \
    }
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
-|   Function      :  int set_menu_pad(MENU *menu, int pad)
+|   Function      :  int set_menu_pad(MENU* menu, int pad)
 |   
 |   Description   :  Set the character to be used to separate the item name
 |                    from its description. This must be a printable 
@@ -63,7 +63,7 @@ set_menu_pad(MENU * menu, int pad)
 {
   bool do_refresh = (menu != (MENU *) 0);
 
-  T((T_CALLED("set_menu_pad(%p,%d)"), menu, pad));
+  T((T_CALLED("set_menu_pad(%p,%d)"), (void *)menu, pad));
 
   if (!isprint(UChar(pad)))
     RETURN(E_BAD_ARGUMENT);
@@ -88,7 +88,7 @@ set_menu_pad(MENU * menu, int pad)
 NCURSES_EXPORT(int)
 menu_pad(const MENU * menu)
 {
-  T((T_CALLED("menu_pad(%p)"), menu));
+  T((T_CALLED("menu_pad(%p)"), (const void *)menu));
   returnCode(Normalize_Menu(menu)->pad);
 }
 
