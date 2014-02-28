@@ -167,7 +167,7 @@ bcm_mbox_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	mtx_init(&sc->lock, "vcio mbox", MTX_DEF, 0);
+	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
 		sc->valid[0] = 0;
 		sc->msg[0] = 0;
