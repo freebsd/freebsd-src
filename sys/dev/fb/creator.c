@@ -97,7 +97,7 @@ struct creator_softc {
 	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
 
 #define	C(r, g, b)	((b << 16) | (g << 8) | (r))
-static const uint32_t const creator_cmap[] = {
+static const uint32_t creator_cmap[] = {
 	C(0x00, 0x00, 0x00),		/* black */
 	C(0x00, 0x00, 0xff),		/* blue */
 	C(0x00, 0xff, 0x00),		/* green */
@@ -121,7 +121,7 @@ static const struct {
 	vm_offset_t virt;
 	vm_paddr_t phys;
 	vm_size_t size;
-} const creator_fb_map[] = {
+} creator_fb_map[] = {
 	{ FFB_VIRT_SFB8R,	FFB_PHYS_SFB8R,		FFB_SIZE_SFB8R },
 	{ FFB_VIRT_SFB8G,	FFB_PHYS_SFB8G,		FFB_SIZE_SFB8G },
 	{ FFB_VIRT_SFB8B,	FFB_PHYS_SFB8B,		FFB_SIZE_SFB8B },
@@ -270,7 +270,7 @@ RENDERER(creator, 0, txtrndrsw, gfb_set);
 
 RENDERER_MODULE(creator, gfb_set);
 
-static const u_char const creator_mouse_pointer[64][8] __aligned(8) = {
+static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
 	{ 0xc0, 0x00, },	/* **.......... */

@@ -683,7 +683,9 @@ kmem_reclaim(vmem_t *vm, int flags)
 	pagedaemon_wakeup();
 }
 
+#ifndef __sparc64__
 CTASSERT(VM_KMEM_SIZE_SCALE >= 1);
+#endif
 
 /*
  * Initialize the kernel memory (kmem) arena.
