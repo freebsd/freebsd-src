@@ -18,7 +18,7 @@
 #
 # This script should take care of all that the first time...
 
-s=svn+ssh://svn.freebsd.org/base/vendor/device-tree/
+s=svn+ssh://svn.freebsd.org/base/vendor/device-tree/dist/
 
 args=$(grep -v ^# FreeBSD-list | sed -e"s=^=$s=")
 svn cp -m "Initial import of DTS files from Linux" ${args} svn+ssh://svn.freebsd.org/base/head/sys/contrib/dts/arm
