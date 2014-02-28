@@ -31,20 +31,20 @@ SparcSubtarget::SparcSubtarget(const std::string &TT, const std::string &CPU,
   V8DeprecatedInsts(false),
   IsVIS(false),
   Is64Bit(is64Bit),
-  HasHardQuad(false) {
+  HasHardQuad(false),
+  UsePopc(false) {
 
   // Determine default and user specified characteristics
   std::string CPUName = CPU;
-  if (CPUName.empty()) {
-    if (is64Bit)
-      CPUName = "v9";
-    else
-      CPUName = "v8";
-  }
-  IsV9 = CPUName == "v9";
+  if (CPUName.empty())
+    CPUName = (is64Bit) ? "v9" : "v8";
 
   // Parse features string.
   ParseSubtargetFeatures(CPUName, FS);
+
+  // Popc is a v9-only instruction.
+  if (!IsV9)
+    UsePopc = false;
 }
 
 
