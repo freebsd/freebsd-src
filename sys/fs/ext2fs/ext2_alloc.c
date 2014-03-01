@@ -934,7 +934,7 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 			panic("ext2fs_nodealloccg: map corrupted");
 			/* NOTREACHED */
 		}
-	} 
+	}
 	ipref = (loc - ibp) * NBBY + ffs(~*loc) - 1;
 gotit:
 	setbit(ibp, ipref);
