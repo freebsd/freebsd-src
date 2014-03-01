@@ -41,10 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "glue.h"
 
-#if defined(LOADER_FDT_SUPPORT)
-extern int fdt_copy(vm_offset_t);
-#endif
-
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
  * (kargs) and any relevant environment variables.
