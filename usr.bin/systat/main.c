@@ -84,7 +84,11 @@ main(int argc, char **argv)
 	size_t	size;
 	double t;
 
+#ifdef USE_WIDECHAR
 	(void) setlocale(LC_ALL, "");
+#else
+	(void) setlocale(LC_TIME, "");
+#endif
 
 	argc--, argv++;
 	while (argc > 0) {
