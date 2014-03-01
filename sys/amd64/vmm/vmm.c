@@ -870,6 +870,14 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
 		    "vcpu idle state"));
 	}
 
+	if (vcpu->state == VCPU_RUNNING) {
+		KASSERT(vcpu->hostcpu == curcpu, ("curcpu %d and hostcpu %d "
+		    "mismatch for running vcpu", curcpu, vcpu->hostcpu));
+	} else {
+		KASSERT(vcpu->hostcpu == NOCPU, ("Invalid hostcpu %d for a "
+		    "vcpu that is not running", vcpu->hostcpu));
+	}
+
 	/*
 	 * The following state transitions are allowed:
 	 * IDLE -> FROZEN -> IDLE
@@ -894,6 +902,11 @@ vcpu_set_state_locked(struct vcpu *vcpu, enum vcpu_state newstate,
 		return (EBUSY);
 
 	vcpu->state = newstate;
+	if (newstate == VCPU_RUNNING)
+		vcpu->hostcpu = curcpu;
+	else
+		vcpu->hostcpu = NOCPU;
+
 	if (newstate == VCPU_IDLE)
 		wakeup(&vcpu->state);
 
@@ -1152,9 +1165,7 @@ restart:
 	restore_guest_fpustate(vcpu);
 
 	vcpu_require_state(vm, vcpuid, VCPU_RUNNING);
-	vcpu->hostcpu = curcpu;
 	error = VMRUN(vm->cookie, vcpuid, rip, pmap, &vm->rendezvous_func);
-	vcpu->hostcpu = NOCPU;
 	vcpu_require_state(vm, vcpuid, VCPU_FROZEN);
 
 	save_guest_fpustate(vcpu);
@@ -1548,19 +1559,28 @@ vcpu_notify_event(struct vm *vm, int vcpuid, bool lapic_intr)
 
 	vcpu_lock(vcpu);
 	hostcpu = vcpu->hostcpu;
-	if (hostcpu == NOCPU) {
-		if (vcpu->state == VCPU_SLEEPING)
-			wakeup_one(vcpu);
-	} else {
-		if (vcpu->state != VCPU_RUNNING)
-			panic("invalid vcpu state %d", vcpu->state);
+	if (vcpu->state == VCPU_RUNNING) {
+		KASSERT(hostcpu != NOCPU, ("vcpu running on invalid hostcpu"));
 		if (hostcpu != curcpu) {
-			if (lapic_intr)
+			if (lapic_intr) {
 				vlapic_post_intr(vcpu->vlapic, hostcpu,
 				    vmm_ipinum);
-			else
+			} else {
 				ipi_cpu(hostcpu, vmm_ipinum);
+			}
+		} else {
+			/*
+			 * If the 'vcpu' is running on 'curcpu' then it must
+			 * be sending a notification to itself (e.g. SELF_IPI).
+			 * The pending event will be picked up when the vcpu
+			 * transitions back to guest context.
+			 */
 		}
+	} else {
+		KASSERT(hostcpu == NOCPU, ("vcpu state %d not consistent "
+		    "with hostcpu %d", vcpu->state, hostcpu));
+		if (vcpu->state == VCPU_SLEEPING)
+			wakeup_one(vcpu);
 	}
 	vcpu_unlock(vcpu);
 }
