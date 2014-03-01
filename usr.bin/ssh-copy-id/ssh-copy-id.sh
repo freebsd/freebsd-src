@@ -46,6 +46,9 @@ sendkey() {
 				printf "$alg $key $comment\n" >> "$keyfile" ; \
 			fi ; \
 		done \
+		if [ -x /sbin/restorecon ]; then \
+			/sbin/restorecon -F "$HOME/.ssh/" "$keyfile" >/dev/null 2>&1 || true ; \
+		fi
 	'\' 
 }
 
