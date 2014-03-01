@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   * t
   ****************************************************************************
@@ -70,7 +70,7 @@
        The  <STRONG>addch</STRONG>,  <STRONG>waddch</STRONG>, <STRONG>mvaddch</STRONG> and <STRONG>mvwaddch</STRONG> routines put the
        character <EM>ch</EM> into the given window at its  current  window
        position,  which  is then advanced.  They are analogous to
-       <STRONG>putchar</STRONG> in <STRONG><A HREF="stdio.3.html">stdio(3)</A></STRONG>.  If the advance is at the right  mar-
+       <STRONG>putchar</STRONG> in <STRONG>stdio(3)</STRONG>.  If the advance is at the right  mar-
        gin,  the  cursor  automatically wraps to the beginning of
        the next line.  At the bottom  of  the  current  scrolling
        region,  if  <STRONG>scrollok</STRONG>  is enabled, the scrolling region is
@@ -112,9 +112,8 @@
        characters to the screen with routines of the  <STRONG>addch</STRONG>  fam-
        ily.   The  default  character listed below is used if the
        <STRONG>acsc</STRONG>  capability  does  not  define  a   terminal-specific
-       replacement  for  it.   The  names  are  taken  from VT100
-       nomenclature.
-
+       replacement for it.  The names are taken from VT100 nomen-
+       clature.
 
        <EM>Name</EM>           <EM>Default</EM>   <EM>Description</EM>
        --------------------------------------------------
@@ -202,7 +201,7 @@
 <H2>SEE ALSO</H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>, <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>,
        <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>,  <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,   <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
-       <STRONG><A HREF="putc.3.html">putc(3)</A></STRONG>.
+       <STRONG>putc(3)</STRONG>.
 
        Comparable  functions  in  the  wide-character  (ncursesw)
        library are described in <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>.

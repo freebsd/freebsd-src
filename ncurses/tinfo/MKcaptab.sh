@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 2007-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 2007-2010,2011 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKcaptab.sh,v 1.13 2010/12/25 23:43:58 tom Exp $
+# $Id: MKcaptab.sh,v 1.14 2011/10/22 16:34:50 tom Exp $
 AWK=${1-awk}
 OPT1=${2-0}
 OPT2=${3-tinfo/MKcaptab.awk}
@@ -99,12 +99,12 @@ static const struct alias *
 _nc_build_alias(struct alias **actual,
 		const alias_table_data *source,
 		const char *strings,
-		unsigned tablesize)
+		size_t tablesize)
 {
     if (*actual == 0) {
 	*actual = typeCalloc(struct alias, tablesize + 1);
 	if (*actual != 0) {
-	    unsigned n;
+	    size_t n;
 	    for (n = 0; n < tablesize; ++n) {
 		add_alias(from);
 		add_alias(to);
@@ -178,7 +178,7 @@ tcap_hash(const char *string)
 static int
 compare_tcap_names(const char *a, const char *b)
 {
-    return !strncmp(a, b, TCAP_LEN);
+    return !strncmp(a, b, (size_t) TCAP_LEN);
 }
 
 static int

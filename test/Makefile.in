@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.108 2010/11/28 16:39:40 tom Exp $
+# $Id: Makefile.in,v 1.111 2013/10/05 23:46:10 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -47,13 +47,16 @@ MODEL		= ../@DFT_OBJ_SUBDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
+datarootdir	= @datarootdir@
+
 bindir		= @bindir@
 libdir		= @libdir@
 includedir	= @includedir@
+includesubdir	= @includesubdir@
 
 BINDIR		= $(DESTDIR)$(bindir)
 LIBDIR		= $(DESTDIR)$(libdir)
-INCLUDEDIR	= $(DESTDIR)$(includedir)
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
 LIBTOOL		= @LIBTOOL@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
@@ -102,7 +105,7 @@ LDFLAGS_DEBUG	= $(LDFLAGS) $(CFLAGS_DEBUG)
 LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
 LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
 
-TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@ 
+TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@
 
 # use these for linking with all of the libraries
 LIBS_DEFAULT	= $(TEST_ARGS) @LIBS@ $(TEST_LIBS) $(MATH_LIB)
@@ -117,8 +120,8 @@ LIBS_CURSES	= `echo "$(TEST_ARGS) @LIBS@" | sed -e 's/-lform.*-lpanel[^ ]*//'` $
 LDFLAGS_CURSES	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_CURSES)
 
 # use these for linking with the tinfo library if we have it, or curses library if not
-LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_ARGS@ @LDFLAGS_SHARED@ @LIBS@ $(TEST_LIBS) $(MATH_LIB)
-LDFLAGS_TINFO	= $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
+LIBS_TINFO	= @LDFLAGS_STATIC@ @TINFO_LIBS@ @LDFLAGS_SHARED@ @LIBS@ $(TEST_LIBS) $(MATH_LIB)
+LDFLAGS_TINFO	= @TINFO_LDFLAGS@ $(LDFLAGS_@DFT_UPR_MODEL@) $(LIBS_TINFO)
 
 LINT		= @LINT@
 LINT_OPTS	= @LINT_OPTS@

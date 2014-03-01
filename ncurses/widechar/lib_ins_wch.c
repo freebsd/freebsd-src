@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_ins_wch.c,v 1.16 2010/12/19 01:34:04 tom Exp $")
+MODULE_ID("$Id: lib_ins_wch.c,v 1.17 2011/10/22 16:34:50 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -132,7 +132,7 @@ wins_nwstr(WINDOW *win, const wchar_t *wstr, int n)
 		    (void) setcchar(&tmp_cchar,
 				    &tmp_wchar,
 				    WA_NORMAL,
-				    0,
+				    (short) 0,
 				    (void *) 0);
 		    code = _nc_insert_wch(win, &tmp_cchar);
 		} else {

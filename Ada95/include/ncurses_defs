@@ -1,6 +1,6 @@
-# $Id: ncurses_defs,v 1.41 2008/11/16 00:19:59 juergen Exp $
+# $Id: ncurses_defs,v 1.44 2013/04/27 19:50:17 tom Exp $
 ##############################################################################
-# Copyright (c) 2000-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 2000-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -33,7 +33,6 @@
 
 BROKEN_LINKER
 BSD_TPUTS
-CC_HAS_PROTOS
 CPP_HAS_PARAM_INIT
 CURSES_ACS_ARRAY	acs_map
 CURSES_WACS_ARRAY	_nc_wacs
@@ -120,7 +119,6 @@ HAVE_SIGVEC
 HAVE_SIZECHANGE
 HAVE_SLK_COLOR
 HAVE_SLK_INIT	1
-HAVE_STRDUP
 HAVE_STRSTR
 HAVE_SYMLINK
 HAVE_SYS_BSDTYPES_H
@@ -174,7 +172,6 @@ NCURSES_PATHSEP	':'
 NEED_PTEM_H
 NO_LEAKS
 PURE_TERMINFO
-RETSIGTYPE
 STDC_HEADERS
 SVR4_ACTION
 SVR4_TERMIO

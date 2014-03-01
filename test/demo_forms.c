@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: demo_forms.c,v 1.38 2011/01/15 18:15:11 tom Exp $
+ * $Id: demo_forms.c,v 1.46 2013/09/28 21:55:54 tom Exp $
  *
  * Demonstrate a variety of functions from the form library.
  * Thomas Dickey - 2003/4/26
@@ -70,14 +70,115 @@ set_max_field			-
 
 #include <edit_field.h>
 
+typedef struct {
+    char *name;
+    char *value;
+} MY_DATA;
+
+static MY_DATA *my_data;
+
 static int d_option = 0;
 static int j_value = 0;
 static int m_value = 0;
 static int o_value = 0;
 static char *t_value = 0;
 
+static void
+failed(const char *s)
+{
+    perror(s);
+    ExitProgram(EXIT_FAILURE);
+}
+
+static void
+chomp(char *value)
+{
+    size_t have = strlen(value);
+    while (have != 0 && (value[have - 1] == '\n' || value[have - 1] == '\r')) {
+	value[--have] = '\0';
+    }
+}
+
+static int
+trimmed(const char *value)
+{
+    int result = (int) strlen(value);
+    while (result > 0 && isspace(UChar(value[result - 1]))) {
+	--result;
+    }
+    return result;
+}
+
+static char *
+get_data(const char *name)
+{
+    char *result = t_value;
+    if (my_data != 0) {
+	int n;
+	for (n = 0; my_data[n].name != 0; ++n) {
+	    if (!strcmp(name, my_data[n].name)) {
+		result = my_data[n].value;
+		break;
+	    }
+	}
+    }
+    return result;
+}
+
+/*
+ * Read (possibly) multi-line data with name+value pairs.
+ */
+static void
+read_data(const char *filename)
+{
+    FILE *fp = fopen(filename, "r");
+
+    if (fp != 0) {
+	char buffer[BUFSIZ];
+	char *colon;
+	int more = 0;
+	int item = 0;
+
+	my_data = typeCalloc(MY_DATA, (size_t) 100);	/* FIXME */
+	while (fgets(buffer, sizeof(buffer), fp) != 0) {
+	    chomp(buffer);
+	    if (more) {
+		if (strcmp(buffer, ".")) {
+		    char *prior = my_data[more - 1].value;
+		    size_t need = strlen(buffer) + 2 + strlen(prior);
+		    char *value = typeRealloc(char, need, prior);
+		    if (value == 0)
+			failed("realloc");
+		    strcat(value, "\n");
+		    strcat(value, buffer);
+		    my_data[more - 1].value = value;
+		} else {
+		    more = 0;
+		}
+	    } else if (*buffer == '#') {
+		continue;
+	    } else if ((colon = strchr(buffer, ':')) != 0) {
+		char *name;
+		char *value;
+		*colon++ = '\0';
+		name = strdup(buffer);
+		value = strdup(colon);
+		if (name == 0 || value == 0)
+		    failed("strdup");
+		my_data[item].name = name;
+		my_data[item].value = value;
+		more = ++item;
+	    } else {
+		failed("expected a colon");
+	    }
+	}
+    } else {
+	failed(filename);
+    }
+}
+
 static FIELD *
-make_label(int frow, int fcol, NCURSES_CONST char *label)
+make_label(const char *label, int frow, int fcol)
 {
     FIELD *f = new_field(1, (int) strlen(label), frow, fcol, 0, 0);
 
@@ -92,13 +193,11 @@ make_label(int frow, int fcol, NCURSES_CONST char *label)
  * Define each field with an extra one, for reflecting "actual" text.
  */
 static FIELD *
-make_field(int frow, int fcol, int rows, int cols)
+make_field(const char *label, int frow, int fcol, int rows, int cols)
 {
     FIELD *f = new_field(rows, cols, frow, fcol, o_value, 1);
 
     if (f) {
-	FieldAttrs *ptr;
-
 	set_field_back(f, A_UNDERLINE);
 	/*
 	 * If -j and -d options are combined, -j loses.  It is documented in
@@ -108,7 +207,7 @@ make_field(int frow, int fcol, int rows, int cols)
 	set_field_just(f, j_value);
 	if (d_option) {
 	    if (has_colors()) {
-		set_field_fore(f, COLOR_PAIR(2));
+		set_field_fore(f, (chtype) COLOR_PAIR(2));
 		set_field_back(f, A_UNDERLINE | COLOR_PAIR(3));
 	    } else {
 		set_field_fore(f, A_BOLD);
@@ -121,17 +220,7 @@ make_field(int frow, int fcol, int rows, int cols)
 	    set_max_field(f, m_value);
 	}
 
-	/*
-	 * The userptr is used in edit_field.c's inactive_field().
-	 */
-	ptr = (FieldAttrs *) field_userptr(f);
-	if (ptr == 0) {
-	    ptr = typeCalloc(FieldAttrs, 1);
-	    ptr->background = field_back(f);
-	}
-	set_field_userptr(f, (void *) ptr);
-	if (t_value)
-	    set_field_buffer(f, 0, t_value);
+	init_edit_field(f, get_data(label));
     }
     return (f);
 }
@@ -153,10 +242,10 @@ display_form(FORM * f)
 	set_form_sub(f, derwin(w, rows, cols, 1, 2));
 	box(w, 0, 0);
 	keypad(w, TRUE);
-    }
 
-    if (post_form(f) != E_OK)
-	wrefresh(w);
+	if (post_form(f) != E_OK)
+	    wrefresh(w);
+    }
 }
 
 static void
@@ -257,7 +346,7 @@ show_current_field(WINDOW *win, FORM * form)
     int currow, curcol;
 
     if (has_colors()) {
-	wbkgd(win, COLOR_PAIR(1));
+	wbkgd(win, (chtype) COLOR_PAIR(1));
     }
     werase(win);
     form_getyx(form, currow, curcol);
@@ -309,25 +398,28 @@ show_current_field(WINDOW *win, FORM * form)
 	}
 
 	waddch(win, ' ');
-	(void) wattrset(win, field_fore(field));
+	(void) wattrset(win, (int) field_fore(field));
 	waddstr(win, "fore");
-	wattroff(win, field_fore(field));
+	wattroff(win, (int) field_fore(field));
 
 	waddch(win, '/');
 
-	(void) wattrset(win, field_back(field));
+	(void) wattrset(win, (int) field_back(field));
 	waddstr(win, "back");
-	wattroff(win, field_back(field));
+	wattroff(win, (int) field_back(field));
 
-	wprintw(win, ", pad '%c'",
-		field_pad(field));
+	wprintw(win, ", pad '%c'", field_pad(field));
 
 	waddstr(win, "\n");
 	for (nbuf = 0; nbuf <= 2; ++nbuf) {
 	    if ((buffer = field_buffer(field, nbuf)) != 0) {
 		wprintw(win, "buffer %d:", nbuf);
 		(void) wattrset(win, A_REVERSE);
-		waddstr(win, buffer);
+		if (nbuf) {
+		    waddnstr(win, buffer, trimmed(buffer));
+		} else {
+		    waddstr(win, buffer);
+		}
 		wattroff(win, A_REVERSE);
 		waddstr(win, "\n");
 	    }
@@ -341,11 +433,12 @@ demo_forms(void)
 {
     WINDOW *w;
     FORM *form;
-    FIELD *f[100];		/* FIXME memset to zero */
+    FIELD *f[100];		/* will memset to zero */
     int finished = 0, c;
     unsigned n = 0;
     int pg;
     WINDOW *also;
+    const char *fname;
 
 #ifdef NCURSES_MOUSE_VERSION
     mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
@@ -363,66 +456,76 @@ demo_forms(void)
     for (pg = 0; pg < 4; ++pg) {
 	char label[80];
 	sprintf(label, "Sample Form Page %d", pg + 1);
-	f[n++] = make_label(0, 15, label);
+	f[n++] = make_label(label, 0, 15);
 	set_new_page(f[n - 1], TRUE);
 
 	switch (pg) {
 	default:
-	    f[n++] = make_label(2, 0, "Last Name");
-	    f[n++] = make_field(3, 0, 1, 18);
+	    fname = "Last Name";
+	    f[n++] = make_label(fname, 2, 0);
+	    f[n++] = make_field(fname, 3, 0, 1, 18);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
-	    f[n++] = make_label(2, 20, "First Name");
-	    f[n++] = make_field(3, 20, 1, 12);
+	    fname = "First Name";
+	    f[n++] = make_label(fname, 2, 20);
+	    f[n++] = make_field(fname, 3, 20, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
-	    f[n++] = make_label(2, 34, "Middle Name");
-	    f[n++] = make_field(3, 34, 1, 12);
+	    fname = "Middle Name";
+	    f[n++] = make_label(fname, 2, 34);
+	    f[n++] = make_field(fname, 3, 34, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 	    break;
 	case 1:
-	    f[n++] = make_label(2, 0, "Last Name");
-	    f[n++] = make_field(3, 0, 1, 18);
+	    fname = "Last Name";
+	    f[n++] = make_label(fname, 2, 0);
+	    f[n++] = make_field(fname, 3, 0, 1, 18);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
-	    f[n++] = make_label(2, 20, "First Name");
-	    f[n++] = make_field(3, 20, 1, 12);
+	    fname = "First Name";
+	    f[n++] = make_label(fname, 2, 20);
+	    f[n++] = make_field(fname, 3, 20, 1, 12);
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 
-	    f[n++] = make_label(2, 34, "MI");
-	    f[n++] = make_field(3, 34, 1, 1);
+	    fname = "MI";
+	    f[n++] = make_label(fname, 2, 34);
+	    f[n++] = make_field(fname, 3, 34, 1, 1);
 	    set_field_pad(f[n - 1], '?');
 	    set_field_type(f[n - 1], TYPE_ALPHA, 1);
 	    break;
 	case 2:
-	    f[n++] = make_label(2, 0, "Host Name");
-	    f[n++] = make_field(3, 0, 1, 18);
+	    fname = "Host Name";
+	    f[n++] = make_label(fname, 2, 0);
+	    f[n++] = make_field(fname, 3, 0, 1, 24);
 	    set_field_type(f[n - 1], TYPE_ALNUM, 1);
 
 #ifdef NCURSES_VERSION
-	    f[n++] = make_label(2, 20, "IP Address");
-	    f[n++] = make_field(3, 20, 1, 12);
+	    fname = "IP Address";
+	    f[n++] = make_label(fname, 2, 26);
+	    f[n++] = make_field(fname, 3, 26, 1, 16);
 	    set_field_type(f[n - 1], TYPE_IPV4, 1);
 #endif
 
 	    break;
 
 	case 3:
-	    f[n++] = make_label(2, 0, "Four digits");
-	    f[n++] = make_field(3, 0, 1, 18);
+	    fname = "Four digits";
+	    f[n++] = make_label(fname, 2, 0);
+	    f[n++] = make_field(fname, 3, 0, 1, 18);
 	    set_field_type(f[n - 1], TYPE_INTEGER, 4, 0, 0);
 
-	    f[n++] = make_label(2, 20, "Numeric");
-	    f[n++] = make_field(3, 20, 1, 12);
+	    fname = "Numeric";
+	    f[n++] = make_label(fname, 2, 20);
+	    f[n++] = make_field(fname, 3, 20, 1, 12);
 	    set_field_type(f[n - 1], TYPE_NUMERIC, 3, -10000.0, 100000000.0);
 
 	    break;
 	}
 
-	f[n++] = make_label(5, 0, "Comments");
-	f[n++] = make_field(6, 0, 4, 46);
-	set_field_buffer(f[n - 1], 0, "HELLO\nWORLD!");
-	set_field_buffer(f[n - 1], 1, "Hello\nWorld!");
+	fname = "Comments";
+	f[n++] = make_label(fname, 5, 0);
+	f[n++] = make_field(fname, 6, 0, 4, 46);
+	init_edit_field(f[n - 1], get_data(fname));
     }
 
     f[n] = (FIELD *) 0;
@@ -471,7 +574,7 @@ usage(void)
 {
     static const char *tbl[] =
     {
-	"Usage: demo_forms [options]"
+	"Usage: demo_forms [options] [data file]"
 	,""
 	," -d        make fields dynamic"
 	," -j value  justify (1=left, 2=center, 3=right)"
@@ -517,6 +620,9 @@ main(int argc, char *argv[])
 
 	}
     }
+    while (optind < argc) {
+	read_data(argv[optind++]);
+    }
 
     initscr();
     cbreak();
@@ -531,7 +637,7 @@ main(int argc, char *argv[])
 	init_pair(1, COLOR_WHITE, COLOR_BLUE);
 	init_pair(2, COLOR_GREEN, COLOR_BLACK);
 	init_pair(3, COLOR_CYAN, COLOR_BLACK);
-	bkgd(COLOR_PAIR(1));
+	bkgd((chtype) COLOR_PAIR(1));
 	refresh();
     }
 
@@ -540,6 +646,7 @@ main(int argc, char *argv[])
     endwin();
     ExitProgram(EXIT_SUCCESS);
 }
+
 #else
 int
 main(void)

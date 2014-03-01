@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: tset.1,v 1.25 2010/12/04 18:38:55 tom Exp @
+  * @Id: tset.1,v 1.28 2013/07/20 19:40:55 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -74,14 +74,14 @@
        tion, <EM>getty</EM> does this job by setting <STRONG>TERM</STRONG> according to the
        type passed to it by <EM>/etc/inittab</EM>.)
 
-       4. The default terminal type, ``unknown''.
+       4. The default terminal type, "unknown".
 
        If  the  terminal  type  was not specified on the command-
        line, the <STRONG>-m</STRONG> option mappings are  then  applied  (see  the
        section  <STRONG>TERMINAL</STRONG>  <STRONG>TYPE</STRONG>  <STRONG>MAPPING</STRONG>  for  more  information).
        Then, if the terminal type begins  with  a  question  mark
-       (``?''), the user is prompted for confirmation of the ter-
-       minal type.  An empty  response  confirms  the  type,  or,
+       ("?"), the user is prompted for confirmation of the termi-
+       nal type.   An  empty  response  confirms  the  type,  or,
        another  type  can be entered to specify a new type.  Once
        the terminal type has been determined, the terminfo  entry
        for  the  terminal  is retrieved.  If no terminfo entry is
@@ -116,8 +116,9 @@
 
        The options are as follows:
 
-       <STRONG>-c</STRONG>   Set  control  characters and modes.  <STRONG>-e</STRONG> Set the erase
-            character to <EM>ch</EM>.
+       <STRONG>-c</STRONG>   Set control characters and modes.
+
+       <STRONG>-e</STRONG>   Set the erase character to <EM>ch</EM>.
 
        <STRONG>-I</STRONG>   Do  not  send  the  terminal  or  tab  initialization
             strings to the terminal.
@@ -126,36 +127,35 @@
 
        <STRONG>-k</STRONG>   Set the line kill character to <EM>ch</EM>.
 
-       <STRONG>-m</STRONG>   Specify  a  mapping  from  a port type to a terminal.
+       <STRONG>-m</STRONG>   Specify a mapping from a port  type  to  a  terminal.
             See the section <STRONG>TERMINAL</STRONG> <STRONG>TYPE</STRONG> <STRONG>MAPPING</STRONG> for more infor-
             mation.
 
-       <STRONG>-Q</STRONG>   Do  not  display  any values for the erase, interrupt
+       <STRONG>-Q</STRONG>   Do not display any values for  the  erase,  interrupt
             and line kill characters.  Normally <STRONG>tset</STRONG> displays the
-            values  for  control characters which differ from the
+            values for control characters which differ  from  the
             system's default values.
 
-       <STRONG>-q</STRONG>   The terminal type is displayed to the  standard  out-
-            put,  and the terminal is not initialized in any way.
+       <STRONG>-q</STRONG>   The  terminal  type is displayed to the standard out-
+            put, and the terminal is not initialized in any  way.
             The option `-' by itself is equivalent but archaic.
 
        <STRONG>-r</STRONG>   Print the terminal type to the standard error output.
 
        <STRONG>-s</STRONG>   Print  the  sequence  of shell commands to initialize
             the environment variable <STRONG>TERM</STRONG> to the standard output.
-            See  the section <STRONG>SETTING</STRONG> <STRONG>THE</STRONG> <STRONG>ENVIRONMENT</STRONG> for details.
+            See the section <STRONG>SETTING</STRONG> <STRONG>THE</STRONG> <STRONG>ENVIRONMENT</STRONG> for details.
 
        <STRONG>-V</STRONG>   reports the version of ncurses which was used in this
             program, and exits.
 
-       <STRONG>-w</STRONG>   Resize  the  window  to  match  the  size deduced via
+       <STRONG>-w</STRONG>   Resize the window  to  match  the  size  deduced  via
             <STRONG>setupterm</STRONG>.   Normally  this  has  no  effect,  unless
             <STRONG>setupterm</STRONG> is not able to detect the window size.
 
        The arguments for the <STRONG>-e</STRONG>, <STRONG>-i</STRONG>, and <STRONG>-k</STRONG> options may either be
-       entered as actual characters or by using the  `hat'  nota-
-       tion,  i.e.,  control-h  may  be  specified  as  ``^H'' or
-       ``^h''.
+       entered  as  actual characters or by using the `hat' nota-
+       tion, i.e., control-h may be specified as "^H" or "^h".
 
 
 </PRE>
@@ -167,7 +167,7 @@
        When the <STRONG>-s</STRONG> option is specified, the commands to enter the
        information  into  the  shell's environment are written to
        the standard output.  If the <STRONG>SHELL</STRONG> environmental  variable
-       ends in ``csh'', the commands are for <STRONG>csh</STRONG>, otherwise, they
+       ends  in  "csh", the commands are for <STRONG>csh</STRONG>, otherwise, they
        are for <STRONG>sh</STRONG>.  Note, the <STRONG>csh</STRONG>  commands  set  and  unset  the
        shell  variable  <STRONG>noglob</STRONG>,  leaving it unset.  The following
        line in the <STRONG>.login</STRONG> or <STRONG>.profile</STRONG> files will  initialize  the
@@ -187,21 +187,21 @@
        terminal used on such ports.
 
        The  purpose  of  the <STRONG>-m</STRONG> option is to map from some set of
-       conditions to a terminal type, that is, to tell <STRONG>tset</STRONG>  ``If
+       conditions to a terminal type, that is, to tell  <STRONG>tset</STRONG>  "If
        I'm  on this port at a particular speed, guess that I'm on
-       that kind of terminal''.
+       that kind of terminal".
 
        The argument to the <STRONG>-m</STRONG> option consists of an optional port
        type, an optional operator, an optional baud rate specifi-
-       cation, an optional colon (``:'') character and a terminal
+       cation, an optional colon (":") character and  a  terminal
        type.   The port type is a string (delimited by either the
        operator or the colon character).  The operator may be any
-       combination of ``&gt;'', ``&lt;'', ``@'', and ``!''; ``&gt;'' means
-       greater than, ``&lt;'' means less than, ``@'' means equal  to
-       and ``!'' inverts the sense of the test.  The baud rate is
-       specified as a number and is compared with  the  speed  of
-       the  standard  error  output  (which should be the control
-       terminal).  The terminal type is a string.
+       combination  of  "&gt;", "&lt;", "@", and "!"; "&gt;" means greater
+       than, "&lt;" means less than, "@"  means  equal  to  and  "!"
+       inverts the sense of the test.  The baud rate is specified
+       as a number and is compared with the speed of the standard
+       error  output (which should be the control terminal).  The
+       terminal type is a string.
 
        If the terminal type is not specified on the command line,
        the  <STRONG>-m</STRONG> mappings are applied to the terminal type.  If the
@@ -232,8 +232,8 @@
        argument.  Also, to avoid problems  with  meta-characters,
        it  is  suggested  that  the  entire <STRONG>-m</STRONG> option argument be
        placed within single quote characters, and that <STRONG>csh</STRONG>  users
-       insert  a  backslash character (``\'') before any exclama-
-       tion marks (``!'').
+       insert  a backslash character ("\") before any exclamation
+       marks ("!").
 
 
 </PRE>
@@ -248,14 +248,14 @@
 <H2>COMPATIBILITY</H2><PRE>
        The  <STRONG>tset</STRONG>  utility has been provided for backward-compati-
        bility with BSD environments (under  most  modern  UNIXes,
-       <STRONG>/etc/inittab</STRONG>  and  <STRONG><A HREF="getty.1.html">getty(1)</A></STRONG> can set <STRONG>TERM</STRONG> appropriately for
+       <STRONG>/etc/inittab</STRONG>  and  <STRONG>getty(1)</STRONG> can set <STRONG>TERM</STRONG> appropriately for
        each dial-up line; this  obviates  what  was  <STRONG>tset</STRONG>'s  most
        important  use).   This implementation behaves like 4.4BSD
        tset, with a few exceptions specified here.
 
        The <STRONG>-S</STRONG> option of BSD tset no longer works;  it  prints  an
        error message to stderr and dies.  The <STRONG>-s</STRONG> option only sets
-       <STRONG>TERM</STRONG>, not <STRONG>TERMCAP</STRONG>.  Both these  changes  are  because  the
+       <STRONG>TERM</STRONG>, not <STRONG>TERMCAP</STRONG>.  Both of these changes are because  the
        <STRONG>TERMCAP</STRONG>  variable  is  no longer supported under terminfo-
        based <STRONG>ncurses</STRONG>, which makes <STRONG>tset</STRONG> <STRONG>-S</STRONG> useless (we made it die
        noisily rather than silently induce lossage).
@@ -316,10 +316,10 @@
 
 </PRE>
 <H2>SEE ALSO</H2><PRE>
-       <STRONG><A HREF="csh.1.html">csh(1)</A></STRONG>, <STRONG><A HREF="sh.1.html">sh(1)</A></STRONG>, <STRONG><A HREF="stty.1.html">stty(1)</A></STRONG>,  <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,  <STRONG><A HREF="tty.4.html">tty(4)</A></STRONG>,  ter-
-       <STRONG><A HREF="minfo.5.html">minfo(5)</A></STRONG>, <STRONG><A HREF="ttys.5.html">ttys(5)</A></STRONG>, <STRONG><A HREF="environ.7.html">environ(7)</A></STRONG>
+       <STRONG>csh(1)</STRONG>,   <STRONG>sh(1)</STRONG>,   <STRONG>stty(1)</STRONG>,   <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,   <STRONG>tty(4)</STRONG>,
+       <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>, <STRONG>ttys(5)</STRONG>, <STRONG>environ(7)</STRONG>
 
-       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20131221).
 
 
 

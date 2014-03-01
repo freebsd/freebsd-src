@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: clip_printw.c,v 1.7 2010/11/13 20:48:48 tom Exp $
+ * $Id: clip_printw.c,v 1.9 2012/11/18 00:39:48 tom Exp $
  *
  * demonstrate how to use printw without wrapping.
  */
@@ -207,6 +207,8 @@ do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
 	delwin(win1);
 	touchwin(win);
     } else {
+	if (win1)
+	    delwin(win1);
 	beep();
     }
 }
@@ -329,7 +331,7 @@ test_clipping(WINDOW *win)
     do {
 	switch (st.ch) {
 	case '.':		/* change from current position */
-	    (void) wattrset(win, st.attr | (chtype) COLOR_PAIR(st.pair));
+	    (void) wattrset(win, (int) (st.attr | (chtype) COLOR_PAIR(st.pair)));
 	    if (st.count > 0) {
 		need = (unsigned) st.count + 1;
 		sprintf(fmt, "%%c%%%ds%%c", st.count);
@@ -337,12 +339,13 @@ test_clipping(WINDOW *win)
 		need = (unsigned) getmaxx(win) - 1;
 		strcpy(fmt, "%c%s%c");
 	    }
-	    if ((buffer = typeMalloc(char, need)) != 0) {
+	    if ((buffer = typeMalloc(char, need + 1)) != 0) {
 		for (j = 0; j < need; ++j) {
 		    buffer[j] = (char) ('A' + (j % 26));
 		}
 		buffer[need - 1] = '\0';
 		st.status = clip_wprintw(win, fmt, '[', buffer, ']');
+		free(buffer);
 	    }
 	    break;
 	case 'w':

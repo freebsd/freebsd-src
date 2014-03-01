@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: clear.1,v 1.8 2010/12/04 18:36:44 tom Exp @
+  * @Id: clear.1,v 1.10 2013/06/22 22:22:11 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -57,9 +57,11 @@
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       <STRONG>clear</STRONG> clears your screen if this is possible.  It looks in
-       the environment for the terminal type and then in the <STRONG>ter-</STRONG>
-       <STRONG>minfo</STRONG> database to figure out how to clear the screen.
+       <STRONG>clear</STRONG>  clears  your  screen if this is possible, including
+       its scrollback buffer (if the extended "E3" capability  is
+       defined).  <STRONG>clear</STRONG> looks in the environment for the terminal
+       type and then in the <STRONG>terminfo</STRONG> database to determine how to
+       clear the screen.
 
        <STRONG>clear</STRONG>  ignores  any  command-line  parameters  that may be
        present.
@@ -69,7 +71,7 @@
 <H2>SEE ALSO</H2><PRE>
        <STRONG><A HREF="tput.1.html">tput(1)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>
 
-       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20131221).
 
 
 

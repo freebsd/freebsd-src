@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_addwstr.3x,v 1.10 2010/12/04 18:36:44 tom Exp @
+  * @Id: curs_addwstr.3x,v 1.11 2012/11/03 22:57:31 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -68,43 +68,51 @@
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       These routines write the characters of the (null-terminat-
-       ed) <STRONG>wchar_t</STRONG> character string <EM>wstr</EM> on the given window.  It
-       is  similar  to constructing a <STRONG>cchar_t</STRONG> for each wchar_t in
-       the  string,  then  calling  <STRONG>wadd_wch</STRONG>  for  the  resulting
+       These  functions  write the characters of the (null-termi-
+       nated) <STRONG>wchar_t</STRONG> character string <EM>wstr</EM> on the given  window.
+       It  is  similar to constructing a <STRONG>cchar_t</STRONG> for each wchar_t
+       in the string, then calling  <STRONG>wadd_wch</STRONG>  for  the  resulting
        <STRONG>cchar_t</STRONG>.
 
-       The <EM>mv</EM> routines perform cursor movement once, before writ-
-       ing any characters.  Thereafter, the cursor is advanced as
-       a side-effect of writing to the window.
+       The  <EM>mv</EM>  functions  perform  cursor  movement once, before
+       writing any characters.  Thereafter,  the  cursor  is  ad-
+       vanced as a side-effect of writing to the window.
 
-       The  four  routines  with  <EM>n</EM> as the last argument write at
-       most <EM>n</EM> <STRONG>wchar_t</STRONG> characters.  If <EM>n</EM> is -1,  then  the  entire
-       string  will be added, up to the maximum number of charac-
-       ters that will fit on the line,  or  until  a  terminating
-       null is reached.
+       The  four  functions  with <EM>n</EM> as the last argument write at
+       most <EM>n</EM> <STRONG>wchar_t</STRONG> characters, or until a terminating null  is
+       reached.   If  <EM>n</EM>  is  -1,  then  the entire string will be
+       added.
 
 
 </PRE>
-<H2>RETURN VALUES</H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on
-       success.
+<H2>RETURN VALUE</H2><PRE>
+       All functions return the integer <STRONG>ERR</STRONG> upon failure  and  <STRONG>OK</STRONG>
+       on success.
 
-       Functions with a "mv" prefix first perform a cursor  move-
-       ment  using  <STRONG>wmove</STRONG>, and return an error if the position is
+       X/Open  does not define any error conditions.  This imple-
+       mentation returns an error
+
+       <STRONG>o</STRONG>   if the window pointer is null or
+
+       <STRONG>o</STRONG>   if the string pointer is null or
+
+       <STRONG>o</STRONG>   if the corresponding calls to <STRONG>wadd_wch</STRONG> return  an  er-
+           ror.
+
+       Functions  with a "mv" prefix first perform a cursor move-
+       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
        outside the window, or if the window pointer is null.
 
 
 </PRE>
 <H2>NOTES</H2><PRE>
-       Note that all of these routines except  <STRONG>waddnwstr</STRONG>  may  be
-       macros.
+       All of these functions except <STRONG>waddnwstr</STRONG> may be macros.
 
 
 </PRE>
 <H2>PORTABILITY</H2><PRE>
-       All  these  entry  points  are described in the XSI Curses
-       standard, Issue 4.
+       These  functions are described in the XSI Curses standard,
+       Issue 4.
 
 
 </PRE>

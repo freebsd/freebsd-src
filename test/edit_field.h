@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2003-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2003-2008,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: edit_field.h,v 1.6 2008/12/20 19:23:18 tom Exp $
+ * $Id: edit_field.h,v 1.9 2013/06/08 15:46:01 tom Exp $
  *
  * Interface of edit_field.c
  */
@@ -45,8 +45,12 @@
 
 typedef struct {
     chtype background;
+    int row_count;
+    int *row_lengths;
 } FieldAttrs;
 
+extern FieldAttrs *field_attrs(FIELD * field);
+extern void init_edit_field(FIELD * field, char *value);
 extern void help_edit_field(void);
 extern int edit_field(FORM * form, int *result);
 

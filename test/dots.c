@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2011,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.22 2010/11/14 01:00:02 tom Exp $
+ * $Id: dots.c,v 1.25 2013/09/28 22:12:09 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -46,23 +46,23 @@ static bool interrupted = FALSE;
 static long total_chars = 0;
 static time_t started;
 
-static int
-outc(TPUTS_ARG c)
+static
+TPUTS_PROTO(outc, c)
 {
     int rc = c;
 
     if (interrupted) {
 	char tmp = (char) c;
-	if (write(STDOUT_FILENO, &tmp, 1) == -1)
+	if (write(STDOUT_FILENO, &tmp, (size_t) 1) == -1)
 	    rc = EOF;
     } else {
 	rc = putc(c, stdout);
     }
-    return rc;
+    TPUTS_RETURN(rc);
 }
 
 static bool
-outs(char *s)
+outs(const char *s)
 {
     if (valid(s)) {
 	tputs(s, 1, outc);
@@ -105,6 +105,7 @@ main(int argc GCC_UNUSED,
     int x, y, z, p;
     double r;
     double c;
+    int my_colors;
 
     CATCHALL(onsig);
 
@@ -112,11 +113,12 @@ main(int argc GCC_UNUSED,
     setupterm((char *) 0, 1, (int *) 0);
     outs(clear_screen);
     outs(cursor_invisible);
-    if (max_colors > 1) {
+    my_colors = max_colors;
+    if (my_colors > 1) {
 	if (!valid(set_a_foreground)
 	    || !valid(set_a_background)
 	    || (!valid(orig_colors) && !valid(orig_pair)))
-	    max_colors = -1;
+	    my_colors = -1;
     }
 
     r = (double) (lines - 4);
@@ -129,8 +131,8 @@ main(int argc GCC_UNUSED,
 	p = (ranf() > 0.9) ? '*' : ' ';
 
 	tputs(tparm3(cursor_address, y, x), 1, outc);
-	if (max_colors > 0) {
-	    z = (int) (ranf() * max_colors);
+	if (my_colors > 0) {
+	    z = (int) (ranf() * my_colors);
 	    if (ranf() > 0.01) {
 		tputs(tparm2(set_a_foreground, z), 1, outc);
 	    } else {

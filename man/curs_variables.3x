@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2010 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_variables.3x,v 1.4 2010/12/04 18:38:55 tom Exp $
+.\" $Id: curs_variables.3x,v 1.6 2013/12/21 18:41:32 tom Exp $
 .TH curs_variables 3X ""
 .de bP
 .IP \(bu 4
@@ -74,7 +74,7 @@ This page summarizes variables provided by the \fBcurses\fP library.
 A more complete description is given in the \fBcurses\fP(3X) manual page.
 .PP
 Depending on the configuration, these may be actual variables,
-or macros (see \fBcurs_threads\fR(3X))
+or macros (see \fBcurs_threads\fR(3X) and \fBcurs_opaque\fR(3X))
 which provide read-only access to \fIcurses\fP's state.
 In either case, applications should treat them as read-only to avoid
 confusing the library.
@@ -129,7 +129,8 @@ ESCDELAY and TABSIZE are extensions,
 not provided in most other implementations of curses.
 .SH SEE ALSO
 \fBcurses\fR(3X),
+\fBcurs_opaque\fR(3X),
+\fBcurs_terminfo\fR(3X),
 \fBcurs_threads\fR(3X),
 \fBterm_variables\fR(3X),
-\fBterminfo\fR(3X),
 \fBterminfo\fR(\*n).

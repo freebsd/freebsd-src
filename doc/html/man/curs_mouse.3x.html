@@ -1,8 +1,8 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   * t
   ****************************************************************************
-  * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_mouse.3x,v 1.38 2010/12/04 18:38:55 tom Exp @
+  * @Id: curs_mouse.3x,v 1.39 2013/06/22 18:09:42 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -59,13 +59,12 @@
 
        <STRONG>typedef</STRONG> <STRONG>unsigned</STRONG> <STRONG>long</STRONG> <STRONG>mmask_t;</STRONG>
 
-       typedef struct
-       {
-           short id;         <EM>/*</EM> <EM>ID</EM> <EM>to</EM> <EM>distinguish</EM> <EM>multiple</EM> <EM>devices</EM> <EM>*/</EM>
+       <STRONG>typedef</STRONG> <STRONG>struct</STRONG> <STRONG>{</STRONG>
+           <STRONG>short</STRONG> <STRONG>id;</STRONG>         <EM>/*</EM> <EM>ID</EM> <EM>to</EM> <EM>distinguish</EM> <EM>multiple</EM> <EM>devices</EM> <EM>*/</EM>
            <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>y,</STRONG> <STRONG>z;</STRONG>      <EM>/*</EM> <EM>event</EM> <EM>coordinates</EM> <EM>*/</EM>
            <STRONG>mmask_t</STRONG> <STRONG>bstate;</STRONG>   <EM>/*</EM> <EM>button</EM> <EM>state</EM> <EM>bits</EM> <EM>*/</EM>
-       <STRONG>}</STRONG>
-       <STRONG>MEVENT;</STRONG>
+       <STRONG>}</STRONG> <STRONG>MEVENT;</STRONG>
+
        <STRONG>bool</STRONG> <STRONG>has_mouse(void);</STRONG>
        <STRONG>int</STRONG> <STRONG>getmouse(MEVENT</STRONG> <STRONG>*event);</STRONG>
        <STRONG>int</STRONG> <STRONG>ungetmouse(MEVENT</STRONG> <STRONG>*event);</STRONG>
@@ -98,7 +97,6 @@
 
        Here are the mouse event type masks which may be defined:
 
-
        <EM>Name</EM>                     <EM>Description</EM>
        ---------------------------------------------------------------------
        BUTTON1_PRESSED          mouse button 1 down
@@ -111,11 +109,10 @@
        BUTTON2_RELEASED         mouse button 2 up
        BUTTON2_CLICKED          mouse button 2 clicked
        BUTTON2_DOUBLE_CLICKED   mouse button 2 double clicked
-
-
        BUTTON2_TRIPLE_CLICKED   mouse button 2 triple clicked
        ---------------------------------------------------------------------
        BUTTON3_PRESSED          mouse button 3 down
+
        BUTTON3_RELEASED         mouse button 3 up
        BUTTON3_CLICKED          mouse button 3 clicked
        BUTTON3_DOUBLE_CLICKED   mouse button 3 double clicked

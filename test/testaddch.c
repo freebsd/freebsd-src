@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
  * This is an example written by Alexander V. Lukyanov <lav@yars.free.net>,
  * to demonstrate an inconsistency between ncurses and SVr4 curses.
  *
- * $Id: testaddch.c,v 1.7 2009/08/29 19:02:25 tom Exp $
+ * $Id: testaddch.c,v 1.9 2013/01/13 01:02:41 tom Exp $
  */
 #include <test.priv.h>
 
@@ -63,7 +63,7 @@ main(
     for (i = 0; i < 8; i++) {
 	back = (i & 1) ? A_BOLD | 'B' : ' ';
 	set = (i & 2) ? A_REVERSE : 0;
-	attr = (i & 4) ? COLOR_PAIR(4) : 0;
+	attr = (chtype) ((i & 4) ? COLOR_PAIR(4) : 0);
 
 	bkgdset(back);
 	(void) attrset(set);
@@ -72,9 +72,9 @@ main(
     }
     addch('\n');
     for (i = 0; i < 8; i++) {
-	back = (i & 1) ? A_BOLD | 'B' | COLOR_PAIR(1) : ' ';
-	set = (i & 2) ? A_REVERSE | COLOR_PAIR(2) : 0;
-	attr = (i & 4) ? COLOR_PAIR(4) : 0;
+	back = (i & 1) ? (A_BOLD | 'B' | COLOR_PAIR(1)) : ' ';
+	set = (i & 2) ? (A_REVERSE | COLOR_PAIR(2)) : 0;
+	attr = (chtype) ((i & 4) ? COLOR_PAIR(4) : 0);
 
 	bkgdset(back);
 	(void) attrset(set);

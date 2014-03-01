@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2007,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,13 +35,15 @@
 #include "cursesapp.h"
 
 #if CPP_HAS_TRY_CATCH && HAVE_IOSTREAM
+#pragma GCC diagnostic ignored "-Weffc++"
 #include <iostream>
+#pragma GCC diagnostic warning "-Weffc++"
 #else
 #undef CPP_HAS_TRY_CATCH
 #define CPP_HAS_TRY_CATCH 0
 #endif
 
-MODULE_ID("$Id: cursesmain.cc,v 1.14 2007/04/07 17:10:11 tom Exp $")
+MODULE_ID("$Id: cursesmain.cc,v 1.15 2013/09/28 20:56:47 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>

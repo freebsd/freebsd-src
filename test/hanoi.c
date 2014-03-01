@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,10 +41,11 @@
  *
  *	Date: 05.Nov.90
  *
- * $Id: hanoi.c,v 1.31 2010/11/14 01:01:07 tom Exp $
+ * $Id: hanoi.c,v 1.35 2013/09/28 22:02:17 tom Exp $
  */
 
 #include <test.priv.h>
+#include <math.h>
 
 #define NPEGS			3	/* This is not configurable !! */
 #define MINTILES		3
@@ -57,7 +58,7 @@
 #define MIDPEG			39
 #define RIGHTPEG		59
 
-#define LENTOIND(x)		(((x)-1)/2)
+#define LENTOIND(x)		(((int)(x)-1)/2)
 #define OTHER(a,b)		(3-((a)+(b)))
 
 struct Peg {
@@ -84,10 +85,11 @@ static short TileColour[] =
     COLOR_MAGENTA,		/* Length 17 */
     COLOR_RED,			/* Length 19 */
 };
+static int NTiles = 0;
 static int NMoves = 0;
 static bool AutoFlag = FALSE;
 
-static void InitTiles(int NTiles);
+static void InitTiles(void);
 static void DisplayTiles(void);
 static void MakeMove(int From, int To);
 static void AutoMove(int From, int To, int Num);
@@ -99,7 +101,7 @@ static int InvalidMove(int From, int To);
 int
 main(int argc, char **argv)
 {
-    int NTiles, FromCol, ToCol;
+    int FromCol, ToCol;
 
     setlocale(LC_ALL, "");
 
@@ -130,9 +132,6 @@ main(int argc, char **argv)
 	Usage();
 	ExitProgram(EXIT_FAILURE);
     }
-#ifdef TRACE
-    trace(TRACE_MAXIMUM);
-#endif
     initscr();
     if (has_colors()) {
 	int i;
@@ -155,7 +154,7 @@ main(int argc, char **argv)
 	curs_set(0);
 	leaveok(stdscr, TRUE);	/* Attempt to remove cursor */
     }
-    InitTiles(NTiles);
+    InitTiles();
     DisplayTiles();
     if (AutoFlag) {
 	do {
@@ -211,7 +210,7 @@ InvalidMove(int From, int To)
 }
 
 static void
-InitTiles(int NTiles)
+InitTiles(void)
 {
     int Size, SlotNo;
 
@@ -232,7 +231,7 @@ DisplayTiles(void)
     erase();
     MvAddStr(1, 24, "T O W E R S   O F   H A N O I");
     MvAddStr(3, 34, "SJR 1990");
-    MvPrintw(19, 5, "Moves : %d", NMoves);
+    MvPrintw(19, 5, "Moves : %d of %.0f", NMoves, pow(2.0, (float) NTiles) - 1);
     (void) attrset(A_REVERSE);
     MvAddStr(BASELINE, 8,
 	     "                                                               ");
@@ -255,7 +254,7 @@ DisplayTiles(void)
 		memset(TileBuf, ' ', len);
 		TileBuf[len] = '\0';
 		if (has_colors())
-		    (void) attrset(COLOR_PAIR(LENTOIND(len)));
+		    (void) attrset((attr_t) COLOR_PAIR(LENTOIND(len)));
 		else
 		    (void) attrset(A_REVERSE);
 		MvAddStr(BASELINE - (SlotNo + 1),
@@ -310,12 +309,12 @@ AutoMove(int From, int To, int Num)
     if (Num == 1) {
 	MakeMove(From, To);
 	napms(500);
-	return;
+    } else {
+	AutoMove(From, OTHER(From, To), Num - 1);
+	MakeMove(From, To);
+	napms(500);
+	AutoMove(OTHER(From, To), To, Num - 1);
     }
-    AutoMove(From, OTHER(From, To), Num - 1);
-    MakeMove(From, To);
-    napms(500);
-    AutoMove(OTHER(From, To), To, Num - 1);
 }
 
 static int

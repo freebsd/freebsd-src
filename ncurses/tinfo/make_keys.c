@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #define USE_TERMLIB 1
 #include <build.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.19 2010/06/05 22:08:00 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.20 2011/10/22 16:34:50 tom Exp $")
 
 #include <names.c>
 
@@ -76,7 +76,7 @@ make_keys(FILE *ifp, FILE *ofp)
     unsigned maxlen = 16;
     int scanned;
 
-    while (fgets(buffer, sizeof(buffer), ifp) != 0) {
+    while (fgets(buffer, (int) sizeof(buffer), ifp) != 0) {
 	if (*buffer == '#')
 	    continue;
 

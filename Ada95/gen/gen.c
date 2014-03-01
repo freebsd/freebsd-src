@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 /*
     Version Control
-    $Id: gen.c,v 1.59 2011/03/31 23:50:24 tom Exp $
+    $Id: gen.c,v 1.64 2014/02/01 19:52:47 tom Exp $
   --------------------------------------------------------------------------*/
 /*
   This program generates various record structures and constants from the
@@ -57,8 +57,13 @@
 #include <menu.h>
 #include <form.h>
 
-#define UChar(c)	((unsigned char)(c))
+#undef UCHAR
+#undef UINT
+#define UChar(c)	((UCHAR)(c))
 #define RES_NAME "Reserved"
+
+typedef unsigned char UCHAR;
+typedef unsigned int UINT;
 
 static const char *model = "";
 static int little_endian = 0;
@@ -70,45 +75,43 @@ typedef struct
   }
 name_attribute_pair;
 
-static int
-find_pos(char *s, unsigned len, int *low, int *high)
+static UCHAR
+bit_is_set(const UCHAR * const data,
+	   const UINT offset)
 {
-  unsigned int i, j;
-  int l = 0;
+  const UCHAR byte = data[offset >> 3];
+  UINT bit;
 
-  *high = -1;
-  *low = (int)(8 * len);
+  if (little_endian)
+    bit = offset;		/* offset */
+  else				/* or */
+    bit = ~offset;		/* 7 - offset */
+  bit &= 7;			/* modulo 8 */
+  return byte & (UCHAR) (1 << bit);
+}
 
-  for (i = 0; i < len; i++, s++)
+/* Find lowest and highest used offset in a byte array. */
+/* Returns 0 if and only if all bits are unset. */
+static int
+find_pos(const UCHAR * const data,
+	 const UINT sizeof_data,
+	 UINT * const low,
+	 UINT * const high)
+{
+  const UINT last = (sizeof_data << 3) - 1;
+  UINT offset;
+
+  for (offset = last; !bit_is_set(data, offset); offset--)
+    if (!offset)		/* All bits are 0. */
+      return 0;
+  *high = offset;
+
+  for (offset = 0; !bit_is_set(data, offset); offset++)
     {
-      if (*s)
-	{
-	  for (j = 0; j < 8 * sizeof(char); j++)
-
-	    {
-	      if (((little_endian && ((*s) & 0x01)) ||
-		   (!little_endian && ((*s) & 0x80))))
-		{
-		  if (l > *high)
-		    *high = l;
-		  if (l < *low)
-		    *low = l;
-		}
-	      l++;
-	      if (little_endian)
-		{
-		  *s >>= 1;
-		}
-	      else
-		{
-		  *s = (char)(*s << 1);
-		}
-	    }
-	}
-      else
-	l += 8;
     }
-  return (*high >= 0 && (*low <= *high)) ? *low : -1;
+  *low = offset;
+
+  return -1;
 }
 
 /*
@@ -116,63 +119,38 @@ find_pos(char *s, unsigned len, int *low, int *high)
  * record type defined in the binding.
  * We are only dealing with record types which are of 32 or 16
  * bit size, i.e. they fit into an (u)int or a (u)short.
+ * Any pair with a 0 attr field will be ignored.
  */
 static void
 gen_reps(
 	  const name_attribute_pair * nap,	/* array of name_attribute_pair records */
 	  const char *name,	/* name of the represented record type  */
-	  int len,		/* size of the record in bytes          */
-	  int bias)
+	  const UINT len,	/* size of the record in bytes          */
+	  const UINT bias)
 {
-  const char *unused_name = "Unused";
-  int long_bits = (8 * (int)sizeof(unsigned long));
-  int len_bits = (8 * len);
-  int i, j, n, l, cnt = 0, low, high;
+  const UINT len_bits = len << 3;
+  int i, l;
+  UINT low, high;
   int width = strlen(RES_NAME) + 3;
-  unsigned long a;
-  unsigned long mask = 0;
 
   assert(nap != NULL);
 
   for (i = 0; nap[i].name != (char *)0; i++)
-    {
-      cnt++;
-      l = (int)strlen(nap[i].name);
-      if (l > width)
-	width = l;
-    }
+    if (nap[i].attr)
+      {
+	l = (int)strlen(nap[i].name);
+	if (l > width)
+	  width = l;
+      }
   assert(width > 0);
 
   printf("   type %s is\n", name);
   printf("      record\n");
   for (i = 0; nap[i].name != (char *)0; i++)
-    {
-      mask |= nap[i].attr;
-      printf("         %-*s : Boolean;\n", width, nap[i].name);
-    }
-
-  /*
-   * Compute a mask for the unused bits in this target.
-   */
-  mask = ~mask;
-  /*
-   * Bits in the biased area are unused by the target.
-   */
-  for (j = 0; j < bias; ++j)
-    {
-      mask &= (unsigned long)(~(1L << j));
-    }
-  /*
-   * Bits past the target's size are really unused.
-   */
-  for (j = len_bits + bias; j < long_bits; ++j)
-    {
-      mask &= (unsigned long)(~(1L << j));
-    }
-  if (mask != 0)
-    {
-      printf("         %-*s : Boolean;\n", width, unused_name);
-    }
+    if (nap[i].attr)
+      {
+	printf("         %-*s : Boolean;\n", width, nap[i].name);
+      }
   printf("      end record;\n");
   printf("   pragma Convention (C, %s);\n\n", name);
 
@@ -180,24 +158,16 @@ gen_reps(
   printf("      record\n");
 
   for (i = 0; nap[i].name != (char *)0; i++)
-    {
-      a = nap[i].attr;
-      l = find_pos((char *)&a, sizeof(a), &low, &high);
-      if (l >= 0)
-	printf("         %-*s at 0 range %2d .. %2d;\n", width, nap[i].name,
-	       low - bias, high - bias);
-    }
-  if (mask != 0)
-    {
-      l = find_pos((char *)&mask, sizeof(mask), &low, &high);
-      if (l >= 0)
-	printf("         %-*s at 0 range %2d .. %2d;\n", width, unused_name,
-	       low - bias, high - bias);
-    }
-  i = 1;
-  n = cnt;
+    if (nap[i].attr)
+      {
+	if (find_pos((const UCHAR *)(&(nap[i].attr)) + bias, len, &low, &high))
+	  printf("         %-*s at 0 range %2d .. %2d;\n", width, nap[i].name,
+		 low, high);
+      }
   printf("      end record;\n");
+  printf("   pragma Warnings (Off);");
   printf("   for %s'Size use %d;\n", name, len_bits);
+  printf("   pragma Warnings (On);\n");
   printf("   --  Please note: this rep. clause is generated and may be\n");
   printf("   --               different on your system.");
 }
@@ -207,10 +177,9 @@ chtype_rep(const char *name, attr_t mask)
 {
   attr_t x = (attr_t)-1;
   attr_t t = x & mask;
-  int low, high;
-  int l = find_pos((char *)&t, sizeof(t), &low, &high);
+  UINT low, high;
 
-  if (l >= 0)
+  if (find_pos((const UCHAR *)(&t), sizeof(t), &low, &high))
     printf("         %-5s at 0 range %2d .. %2d;\n", name, low, high);
 }
 
@@ -231,10 +200,9 @@ gen_chtype_rep(const char *name)
 static void
 mrep_rep(const char *name, void *rec)
 {
-  int low, high;
-  int l = find_pos((char *)rec, sizeof(MEVENT), &low, &high);
+  UINT low, high;
 
-  if (l >= 0)
+  if (find_pos((const UCHAR *)rec, sizeof(MEVENT), &low, &high))
     printf("         %-7s at 0 range %3d .. %3d;\n", name, low, high);
 }
 
@@ -278,54 +246,26 @@ gen_attr_set(const char *name)
    * 1999-2000), the ifdef's also were needed since the proposed bit-layout
    * for wide characters allocated 16-bits for A_CHARTEXT, leaving too few
    * bits for a few of the A_xxx symbols.
+   * Some preprocessors are not able to test the values because they
+   * now (2014) contain an explicit cast to chtype, so we avoid ifdef.
    */
   static const name_attribute_pair nap[] =
   {
-#if A_STANDOUT
     {"Stand_Out", A_STANDOUT},
-#endif
-#if A_UNDERLINE
     {"Under_Line", A_UNDERLINE},
-#endif
-#if A_REVERSE
     {"Reverse_Video", A_REVERSE},
-#endif
-#if A_BLINK
     {"Blink", A_BLINK},
-#endif
-#if A_DIM
     {"Dim_Character", A_DIM},
-#endif
-#if A_BOLD
     {"Bold_Character", A_BOLD},
-#endif
-#if A_ALTCHARSET
     {"Alternate_Character_Set", A_ALTCHARSET},
-#endif
-#if A_INVIS
     {"Invisible_Character", A_INVIS},
-#endif
-#if A_PROTECT
     {"Protected_Character", A_PROTECT},
-#endif
-#if A_HORIZONTAL
     {"Horizontal", A_HORIZONTAL},
-#endif
-#if A_LEFT
     {"Left", A_LEFT},
-#endif
-#if A_LOW
     {"Low", A_LOW},
-#endif
-#if A_RIGHT
     {"Right", A_RIGHT},
-#endif
-#if A_TOP
     {"Top", A_TOP},
-#endif
-#if A_VERTICAL
     {"Vertical", A_VERTICAL},
-#endif
     {(char *)0, 0}
   };
   chtype attr = A_ATTRIBUTES & ~A_COLOR;
@@ -348,7 +288,9 @@ gen_attr_set(const char *name)
 	}
       attr = attr >> 1;
     }
-  gen_reps(nap, name, (len + 7) / 8, little_endian ? start : 0);
+  gen_reps(nap, name,
+	   (UINT) ((len + 7) / 8),
+	   (UINT) (little_endian ? start >> 3 : 0));
 }
 
 static void
@@ -371,7 +313,9 @@ gen_trace(const char *name)
     {"Attributes_And_Colors", TRACE_ATTRS},
     {(char *)0, 0}
   };
-  gen_reps(nap, name, sizeof(int), 0);
+
+  gen_reps(nap, name, sizeof(UINT),
+	   little_endian ? 0 : sizeof(nap[0].attr) - sizeof(UINT));
 }
 
 static void
@@ -399,7 +343,9 @@ gen_menu_opt_rep(const char *name)
 #endif
     {(char *)0, 0}
   };
-  gen_reps(nap, name, sizeof(int), 0);
+
+  gen_reps(nap, name, sizeof(Menu_Options),
+	   little_endian ? 0 : sizeof(nap[0].attr) - sizeof(Menu_Options));
 }
 
 static void
@@ -412,7 +358,9 @@ gen_item_opt_rep(const char *name)
 #endif
     {(char *)0, 0}
   };
-  gen_reps(nap, name, sizeof(int), 0);
+
+  gen_reps(nap, name, sizeof(Item_Options),
+	   little_endian ? 0 : sizeof(nap[0].attr) - sizeof(Item_Options));
 }
 
 static void
@@ -428,7 +376,9 @@ gen_form_opt_rep(const char *name)
 #endif
     {(char *)0, 0}
   };
-  gen_reps(nap, name, sizeof(int), 0);
+
+  gen_reps(nap, name, sizeof(Form_Options),
+	   little_endian ? 0 : sizeof(nap[0].attr) - sizeof(Form_Options));
 }
 
 /*
@@ -471,7 +421,9 @@ gen_field_opt_rep(const char *name)
 #endif
     {(char *)0, 0}
   };
-  gen_reps(nap, name, sizeof(int), 0);
+
+  gen_reps(nap, name, sizeof(Field_Options),
+	   little_endian ? 0 : sizeof(nap[0].attr) - sizeof(Field_Options));
 }
 
 /*

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2008,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.8 2008/11/16 00:19:59 juergen Exp $")
+MODULE_ID("$Id: varargs.c,v 1.11 2012/10/27 21:03:28 tom Exp $")
 
 #ifdef TRACE
 
@@ -149,25 +149,32 @@ _nc_varargs(const char *fmt, va_list ap)
 			param = buffer;
 			switch (used) {
 			case atInteger:
-			    sprintf(buffer, "%d", ival);
+			    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer))
+					"%d", ival);
 			    break;
 			case atFloat:
-			    sprintf(buffer, "%f", fval);
+			    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer))
+					"%f", fval);
 			    break;
 			case atPoint:
-			    sprintf(buffer, "%p", pval);
+			    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer))
+					"%p", pval);
 			    break;
 			case atString:
 			    param = _nc_visbuf2(1, sval);
 			    break;
 			case atUnknown:
 			default:
-			    strcpy(buffer, "?");
+			    _nc_STRCPY(buffer, "?", sizeof(buffer));
 			    break;
 			}
 			MyLength += strlen(param) + 2;
 			MyBuffer = typeRealloc(char, MyLength, MyBuffer);
-			sprintf(MyBuffer + strlen(MyBuffer), ", %s", param);
+			if (MyBuffer != 0) {
+			    _nc_SPRINTF(MyBuffer + strlen(MyBuffer),
+					_nc_SLIMIT(MyLength - strlen(MyBuffer))
+					", %s", param);
+			}
 		    }
 		}
 		used = atUnknown;
@@ -177,7 +184,7 @@ _nc_varargs(const char *fmt, va_list ap)
 	}
     }
 
-    return (MyBuffer);
+    return (MyBuffer ? MyBuffer : dummy);
 }
 #else
 EMPTY_MODULE(_nc_varargs)

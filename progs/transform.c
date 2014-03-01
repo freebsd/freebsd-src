@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2009-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,21 +34,21 @@
 
 #include <transform.h>
 
-MODULE_ID("$Id: transform.c,v 1.2 2010/09/04 21:16:17 tom Exp $")
+MODULE_ID("$Id: transform.c,v 1.3 2011/05/14 22:41:17 tom Exp $")
 
 #ifdef SUFFIX_IGNORED
 static void
-trim_suffix(const char *a, unsigned *len)
+trim_suffix(const char *a, size_t *len)
 {
     const char ignore[] = SUFFIX_IGNORED;
 
     if (sizeof(ignore) != 0) {
 	bool trim = FALSE;
-	unsigned need = (sizeof(ignore) - 1);
+	size_t need = (sizeof(ignore) - 1);
 
 	if (*len > need) {
-	    unsigned first = *len - need;
-	    unsigned n;
+	    size_t first = *len - need;
+	    size_t n;
 	    trim = TRUE;
 	    for (n = first; n < *len; ++n) {
 		if (tolower(UChar(a[n])) != tolower(UChar(ignore[n - first]))) {
@@ -69,8 +69,8 @@ trim_suffix(const char *a, unsigned *len)
 bool
 same_program(const char *a, const char *b)
 {
-    unsigned len_a = strlen(a);
-    unsigned len_b = strlen(b);
+    size_t len_a = strlen(a);
+    size_t len_b = strlen(b);
 
     trim_suffix(a, &len_a);
     trim_suffix(b, &len_b);

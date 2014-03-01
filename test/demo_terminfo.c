@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2009-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,20 +29,19 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_terminfo.c,v 1.9 2010/11/28 00:15:27 tom Exp $
+ * $Id: demo_terminfo.c,v 1.19 2013/09/28 21:50:01 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
 #define USE_TINFO
 #include <test.priv.h>
 
-#ifdef NCURSES_VERSION
-#if !(defined(HAVE_TERM_ENTRY_H) && HAVE_TERM_ENTRY_H)
+#if NCURSES_XNAMES
+#if HAVE_TERM_ENTRY_H
+#include <term_entry.h>
+#else
 #undef NCURSES_XNAMES
 #define NCURSES_XNAMES 0
-#endif
-#if NCURSES_XNAMES
-#include <term_entry.h>
 #endif
 #endif
 
@@ -52,12 +51,90 @@
 static bool b_opt = FALSE;
 static bool f_opt = FALSE;
 static bool n_opt = FALSE;
+static bool q_opt = FALSE;
 static bool s_opt = FALSE;
 static bool x_opt = FALSE;
+
+static char *d_opt;
+static char *e_opt;
+static char **db_list;
+static int db_item;
+
+static long total_values;
 
 #define FCOLS 8
 #define FNAME(type) "%s %-*s = ", #type, FCOLS
 
+static char *
+make_dbitem(char *p, char *q)
+{
+    char *result = malloc(strlen(e_opt) + 2 + (size_t) (p - q));
+    sprintf(result, "%s=%.*s", e_opt, (int) (p - q), q);
+    return result;
+}
+
+static void
+make_dblist(void)
+{
+    if (d_opt && e_opt) {
+	int pass;
+
+	for (pass = 0; pass < 2; ++pass) {
+	    char *p, *q;
+	    size_t count = 0;
+
+	    for (p = q = d_opt; *p != '\0'; ++p) {
+		if (*p == ':') {
+		    if (p != q + 1) {
+			if (pass) {
+			    db_list[count] = make_dbitem(p, q);
+			}
+			count++;
+		    }
+		    q = p + 1;
+		}
+	    }
+	    if (p != q + 1) {
+		if (pass) {
+		    db_list[count] = make_dbitem(p, q);
+		}
+		count++;
+	    }
+	    if (!pass) {
+		db_list = typeCalloc(char *, count + 1);
+	    }
+	}
+    }
+}
+
+static char *
+next_dbitem(void)
+{
+    char *result = 0;
+
+    if (db_list) {
+	if ((result = db_list[db_item]) == 0) {
+	    db_item = 0;
+	    result = db_list[0];
+	} else {
+	    db_item++;
+	}
+    }
+    printf("** %s\n", result);
+    return result;
+}
+
+static void
+free_dblist(void)
+{
+    if (db_list) {
+	int n;
+	for (n = 0; db_list[n]; ++n)
+	    free(db_list[n]);
+	free(db_list);
+	db_list = 0;
+    }
+}
 static void
 dumpit(NCURSES_CONST char *cap)
 {
@@ -72,66 +149,77 @@ dumpit(NCURSES_CONST char *cap)
     int num;
 
     if ((str = tigetstr(cap)) != 0 && (str != (char *) -1)) {
-	/*
-	 * Note that the strings returned are mostly terminfo format, since
-	 * ncurses does not convert except for a handful of special cases.
-	 */
-	printf(FNAME(str), cap);
-	while (*str != 0) {
-	    int ch = UChar(*str++);
-	    switch (ch) {
-	    case '\177':
-		fputs("^?", stdout);
-		break;
-	    case '\033':
-		fputs("\\E", stdout);
-		break;
-	    case '\b':
-		fputs("\\b", stdout);
-		break;
-	    case '\f':
-		fputs("\\f", stdout);
-		break;
-	    case '\n':
-		fputs("\\n", stdout);
-		break;
-	    case '\r':
-		fputs("\\r", stdout);
-		break;
-	    case ' ':
-		fputs("\\s", stdout);
-		break;
-	    case '\t':
-		fputs("\\t", stdout);
-		break;
-	    case '^':
-		fputs("\\^", stdout);
-		break;
-	    case ':':
-		fputs("\\072", stdout);
-		break;
-	    case '\\':
-		fputs("\\\\", stdout);
-		break;
-	    default:
-		if (isgraph(ch))
-		    fputc(ch, stdout);
-		else if (ch < 32)
-		    printf("^%c", ch + '@');
-		else
-		    printf("\\%03o", ch);
-		break;
+	total_values++;
+	if (!q_opt) {
+	    /*
+	     * Note that the strings returned are mostly terminfo format, since
+	     * ncurses does not convert except for a handful of special cases.
+	     */
+	    printf(FNAME(str), cap);
+	    while (*str != 0) {
+		int ch = UChar(*str++);
+		switch (ch) {
+		case '\177':
+		    fputs("^?", stdout);
+		    break;
+		case '\033':
+		    fputs("\\E", stdout);
+		    break;
+		case '\b':
+		    fputs("\\b", stdout);
+		    break;
+		case '\f':
+		    fputs("\\f", stdout);
+		    break;
+		case '\n':
+		    fputs("\\n", stdout);
+		    break;
+		case '\r':
+		    fputs("\\r", stdout);
+		    break;
+		case ' ':
+		    fputs("\\s", stdout);
+		    break;
+		case '\t':
+		    fputs("\\t", stdout);
+		    break;
+		case '^':
+		    fputs("\\^", stdout);
+		    break;
+		case ':':
+		    fputs("\\072", stdout);
+		    break;
+		case '\\':
+		    fputs("\\\\", stdout);
+		    break;
+		default:
+		    if (isgraph(ch))
+			fputc(ch, stdout);
+		    else if (ch < 32)
+			printf("^%c", ch + '@');
+		    else
+			printf("\\%03o", ch);
+		    break;
+		}
 	    }
+	    printf("\n");
 	}
-	printf("\n");
     } else if ((num = tigetnum(cap)) >= 0) {
-	printf(FNAME(num), cap);
-	printf(" %d\n", num);
+	total_values++;
+	if (!q_opt) {
+	    printf(FNAME(num), cap);
+	    printf(" %d\n", num);
+	}
     } else if ((num = tigetflag(cap)) >= 0) {
-	printf(FNAME(flg), cap);
-	printf("%s\n", num ? "true" : "false");
+	total_values++;
+	if (!q_opt) {
+	    printf(FNAME(flg), cap);
+	    printf("%s\n", num ? "true" : "false");
+	}
     }
-    fflush(stdout);
+
+    if (!q_opt)
+	fflush(stdout);
 }
 
 static void
@@ -140,6 +228,9 @@ demo_terminfo(char *name)
     unsigned n;
     NCURSES_CONST char *cap;
 
+    if (db_list) {
+	putenv(next_dbitem());
+    }
     printf("Terminal type \"%s\"\n", name);
     setupterm(name, 1, (int *) 0);
 
@@ -191,7 +282,7 @@ demo_terminfo(char *name)
 	    }
 #endif
 	} else {
-	    char temp[10];
+	    char temp[80];
 	    static const char *xterm_keys[] =
 	    {
 		"kDC", "kDN", "kEND", "kHOM", "kIC",
@@ -200,9 +291,9 @@ demo_terminfo(char *name)
 	    for (n = 0; n < SIZEOF(xterm_keys); ++n) {
 		for (mod = 0; mod < 8; ++mod) {
 		    if (mod == 0)
-			strcpy(temp, xterm_keys[n]);
+			sprintf(temp, "%.*s", 8, xterm_keys[n]);
 		    else
-			sprintf(temp, "%s%d", xterm_keys[n], mod);
+			sprintf(temp, "%.*s%d", 8, xterm_keys[n], mod);
 		    dumpit(temp);
 		}
 	    }
@@ -224,12 +315,16 @@ usage(void)
 	"",
 	"Options:",
 	" -b       print boolean-capabilities",
+	" -d LIST  colon-separated list of databases to use",
+	" -e NAME  environment variable to set with -d option",
 	" -f       print full names",
 	" -n       print numeric-capabilities",
+	" -q       quiet (prints only counts)",
 	" -r COUNT repeat for given count",
 	" -s       print string-capabilities",
 #ifdef NCURSES_VERSION
 	" -x       print extended capabilities",
+	" -y       disable extended capabilities",
 #endif
     };
     unsigned n;
@@ -246,17 +341,29 @@ main(int argc, char *argv[])
     int repeat;
     char *name;
     int r_opt = 1;
+#ifdef NCURSES_VERSION
+    bool xy_opt = TRUE;		/* by default, use_extended_names is true */
+#endif
 
-    while ((n = getopt(argc, argv, "bfnr:sx")) != -1) {
+    while ((n = getopt(argc, argv, "bd:e:fnqr:sxy")) != -1) {
 	switch (n) {
 	case 'b':
 	    b_opt = TRUE;
+	    break;
+	case 'd':
+	    d_opt = optarg;
+	    break;
+	case 'e':
+	    e_opt = optarg;
 	    break;
 	case 'f':
 	    f_opt = TRUE;
 	    break;
 	case 'n':
 	    n_opt = TRUE;
+	    break;
+	case 'q':
+	    q_opt = TRUE;
 	    break;
 	case 'r':
 	    if ((r_opt = atoi(optarg)) <= 0)
@@ -268,7 +375,10 @@ main(int argc, char *argv[])
 #ifdef NCURSES_VERSION
 	case 'x':
 	    x_opt = TRUE;
-	    use_extended_names(TRUE);
+	    xy_opt = TRUE;
+	    break;
+	case 'y':
+	    xy_opt = FALSE;
 	    break;
 #endif
 	default:
@@ -277,11 +387,17 @@ main(int argc, char *argv[])
 	}
     }
 
+#if NCURSES_XNAMES
+    use_extended_names(xy_opt);
+#endif
+
     if (!(b_opt || n_opt || s_opt || x_opt)) {
 	b_opt = TRUE;
 	n_opt = TRUE;
 	s_opt = TRUE;
     }
+
+    make_dblist();
 
     for (repeat = 0; repeat < r_opt; ++repeat) {
 	if (optind < argc) {
@@ -295,6 +411,10 @@ main(int argc, char *argv[])
 	    demo_terminfo(dumb);
 	}
     }
+
+    printf("%ld values\n", total_values);
+
+    free_dblist();
 
     ExitProgram(EXIT_SUCCESS);
 }

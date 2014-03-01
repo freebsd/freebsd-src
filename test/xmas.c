@@ -92,7 +92,7 @@
 /******************************************************************************/
 
 /*
- * $Id: xmas.c,v 1.27 2010/11/13 20:24:10 tom Exp $
+ * $Id: xmas.c,v 1.28 2013/04/27 19:46:53 tom Exp $
  */
 #include <test.priv.h>
 
@@ -148,7 +148,7 @@ static int strng5(void);
 static int reindeer(void);
 static int blinkit(void);
 
-static RETSIGTYPE done(int sig) GCC_NORETURN;
+static void done(int sig) GCC_NORETURN;
 
 static void
 set_color(WINDOW *win, chtype color)
@@ -1143,7 +1143,7 @@ reindeer(void)
     return (0);
 }
 
-static RETSIGTYPE
+static void
 done(int sig GCC_UNUSED)
 {
     CATCHALL(done);

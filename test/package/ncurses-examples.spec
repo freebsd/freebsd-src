@@ -2,7 +2,7 @@ Summary: ncurses-examples - example/test programs from ncurses
 %define AppProgram ncurses-examples
 %define AppVersion MAJOR.MINOR
 %define AppRelease YYYYMMDD
-# $Id: ncurses-examples.spec,v 1.2 2011/03/25 17:46:44 tom Exp $
+# $Id: ncurses-examples.spec,v 1.3 2013/10/05 23:44:19 tom Exp $
 Name: %{AppProgram}
 Version: %{AppVersion}
 Release: %{AppRelease}
@@ -51,5 +51,5 @@ strip $RPM_BUILD_ROOT%{_bindir}/%{AppProgram}/*
 %changelog
 # each patch should add its ChangeLog entries here
 
-* Fri Mar 25 2010 Thomas Dickey
+* Thu Mar 25 2010 Thomas Dickey
 - initial version

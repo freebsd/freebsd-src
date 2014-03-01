@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
  * v2.0 featuring strict ANSI/POSIX conformance, November 1993.
  * v2.1 with ncurses mouse support, September 1995
  *
- * $Id: bs.c,v 1.52 2010/11/13 20:07:52 tom Exp $
+ * $Id: bs.c,v 1.62 2013/11/16 19:57:56 tom Exp $
  */
 
 #include <test.priv.h>
@@ -110,7 +110,7 @@ static char sub[] = "Submarine";
 static char destroy[] = "Destroyer";
 static char ptboat[] = "PT Boat";
 
-static char name[40];
+static char *your_name;
 static char dftname[] = "stranger";
 
 /* direction constants */
@@ -174,9 +174,9 @@ static int salvo, blitz, closepack;
 
 #define	PR	(void)addstr
 
-static RETSIGTYPE uninitgame(int sig) GCC_NORETURN;
+static void uninitgame(int sig) GCC_NORETURN;
 
-static RETSIGTYPE
+static void
 uninitgame(int sig GCC_UNUSED)
 /* end the game, either normally or due to signal */
 {
@@ -220,11 +220,12 @@ intro(void)
 
     CATCHALL(uninitgame);
 
-    if ((tmpname = getlogin()) != 0) {
-	(void) strcpy(name, tmpname);
-	name[0] = (char) toupper(UChar(name[0]));
-    } else
-	(void) strcpy(name, dftname);
+    if ((tmpname = getlogin()) != 0 &&
+	(your_name = strdup(tmpname)) != 0) {
+	your_name[0] = (char) toupper(UChar(your_name[0]));
+    } else {
+	your_name = dftname;
+    }
 
     (void) initscr();
     keypad(stdscr, TRUE);
@@ -368,7 +369,7 @@ initgame(void)
 	MvAddCh(PYBASE + i, PXBASE - 3, (chtype) (i + 'A'));
 #ifdef A_COLOR
 	if (has_colors())
-	    attron(COLOR_PAIR(COLOR_BLUE));
+	    attron((attr_t) COLOR_PAIR(COLOR_BLUE));
 #endif /* A_COLOR */
 	(void) addch(' ');
 	for (j = 0; j < BWIDTH; j++)
@@ -386,7 +387,7 @@ initgame(void)
 	MvAddCh(CYBASE + i, CXBASE - 3, (chtype) (i + 'A'));
 #ifdef A_COLOR
 	if (has_colors())
-	    attron(COLOR_PAIR(COLOR_BLUE));
+	    attron((attr_t) COLOR_PAIR(COLOR_BLUE));
 #endif /* A_COLOR */
 	(void) addch(' ');
 	for (j = 0; j < BWIDTH; j++)
@@ -426,9 +427,10 @@ initgame(void)
 	placeship(COMPUTER, ss, FALSE);
     }
 
-    ss = (ship_t *) NULL;
     do {
 	char c, docked[SHIPTYPES + 2], *cp = docked;
+
+	ss = (ship_t *) NULL;
 
 	/* figure which ships still wait to be placed */
 	*cp++ = 'R';
@@ -442,7 +444,7 @@ initgame(void)
 	do {
 	    c = (char) getcoord(PLAYER);
 	} while
-	    (!strchr(docked, c));
+	    (!(strchr) (docked, c));
 
 	if (c == 'R')
 	    (void) ungetch('R');
@@ -459,13 +461,14 @@ initgame(void)
 	do {
 	    c = (char) getch();
 	} while
-	    (!(strchr("hjklrR", c) || c == FF));
+	    (!(strchr("hjkl8462rR", c) || c == FF));
 
 	if (c == FF) {
 	    (void) clearok(stdscr, TRUE);
 	    (void) refresh();
+	} else if (ss == 0) {
+	    beep();		/* simple to verify, unlikely to happen */
 	} else if (c == 'r') {
-	    assert(ss != 0);
 	    prompt(1, "Random-placing your %s", ss->name);
 	    randomplace(PLAYER, ss);
 	    placeship(PLAYER, ss, TRUE);
@@ -481,7 +484,6 @@ initgame(void)
 		}
 	    error((char *) NULL);
 	} else if (strchr("hjkl8462", c)) {
-	    assert(ss != 0);
 	    ss->x = curx;
 	    ss->y = cury;
 
@@ -769,7 +771,7 @@ hitship(int x, int y)
 				    cgoto(y1, x1);
 #ifdef A_COLOR
 				    if (has_colors())
-					attron(COLOR_PAIR(COLOR_GREEN));
+					attron((attr_t) COLOR_PAIR(COLOR_GREEN));
 #endif /* A_COLOR */
 				    (void) addch(MARK_MISS);
 #ifdef A_COLOR
@@ -795,7 +797,7 @@ hitship(int x, int y)
 			pgoto(y1, x1);
 #ifdef A_COLOR
 			if (has_colors())
-			    attron(COLOR_PAIR(COLOR_RED));
+			    attron((attr_t) COLOR_PAIR(COLOR_RED));
 #endif /* A_COLOR */
 			(void) addch(SHOWHIT);
 #ifdef A_COLOR
@@ -834,9 +836,9 @@ plyturn(void)
 #ifdef A_COLOR
     if (has_colors()) {
 	if (hit)
-	    attron(COLOR_PAIR(COLOR_RED));
+	    attron((attr_t) COLOR_PAIR(COLOR_RED));
 	else
-	    attron(COLOR_PAIR(COLOR_GREEN));
+	    attron((attr_t) COLOR_PAIR(COLOR_GREEN));
     }
 #endif /* A_COLOR */
     (void) addch((chtype) hits[PLAYER][curx][cury]);
@@ -863,7 +865,9 @@ plyturn(void)
 	    m = " You'll pick up survivors from my %s, I hope...!";
 	    break;
 	}
-	(void) printw(m, ss->name);
+	if (m != 0) {
+	    (void) printw(m, ss->name);
+	}
 	(void) beep();
     }
     return (hit);
@@ -952,8 +956,8 @@ cpufire(int x, int y)
     bool hit, sunk;
     ship_t *ss = NULL;
 
-    hit = board[PLAYER][x][y] ? MARK_HIT : MARK_MISS;
-    hits[COMPUTER][x][y] = (char) hit;
+    hit = (bool) board[PLAYER][x][y];
+    hits[COMPUTER][x][y] = (hit ? MARK_HIT : MARK_MISS);
     MvPrintw(PROMPTLINE, 0,
 	     "I shoot at %c%d. I %s!", y + 'A', x, hit ? "hit" :
 	     "miss");
@@ -965,9 +969,9 @@ cpufire(int x, int y)
 #ifdef A_COLOR
     if (has_colors()) {
 	if (hit)
-	    attron(COLOR_PAIR(COLOR_RED));
+	    attron((attr_t) COLOR_PAIR(COLOR_RED));
 	else
-	    attron(COLOR_PAIR(COLOR_GREEN));
+	    attron((attr_t) COLOR_PAIR(COLOR_GREEN));
     }
 #endif /* A_COLOR */
     (void) addch((chtype) (hit ? SHOWHIT : SHOWSPLASH));
@@ -1130,16 +1134,16 @@ playagain(void)
 	++cpuwon;
     else
 	++plywon;
-    j = 18 + (int) strlen(name);
+    j = 18 + (int) strlen(your_name);
     if (plywon >= 10)
 	++j;
     if (cpuwon >= 10)
 	++j;
     MvPrintw(1, (COLWIDTH - j) / 2,
-	     "%s: %d     Computer: %d", name, plywon, cpuwon);
+	     "%s: %d     Computer: %d", your_name, plywon, cpuwon);
 
     prompt(2, (awinna())? "Want to be humiliated again, %s [yn]? "
-	   : "Going to give me a chance for revenge, %s [yn]? ", name);
+	   : "Going to give me a chance for revenge, %s [yn]? ", your_name);
     return (sgetc("YN") == 'Y');
 }
 

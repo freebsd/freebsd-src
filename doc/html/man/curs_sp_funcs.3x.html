@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+  * Copyright (c) 2010,2013 Free Software Foundation, Inc.                   *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_sp_funcs.3x,v 1.5 2010/12/04 18:38:55 tom Exp @
+  * @Id: curs_sp_funcs.3x,v 1.6 2013/06/22 17:53:59 tom Exp @
   * ***************************************************************************
   * ***************************************************************************
   * ***************************************************************************
@@ -131,7 +131,7 @@
        <STRONG>int</STRONG> <STRONG>slk_attron_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>chtype);</STRONG>
        <STRONG>int</STRONG> <STRONG>slk_attr_set_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>attr_t,</STRONG> <STRONG>short,</STRONG> <STRONG>void*);</STRONG>
        <STRONG>int</STRONG> <STRONG>slk_attrset_sp(SCREEN*,</STRONG> <STRONG>const</STRONG> <STRONG>chtype);</STRONG>
-       <STRONG>int</STRONG> <STRONG>slk_attr_sp((SCREEN*);</STRONG>
+       <STRONG>int</STRONG> <STRONG>slk_attr_sp(SCREEN*);</STRONG>
        <STRONG>int</STRONG> <STRONG>slk_clear_sp(SCREEN*);</STRONG>
        <STRONG>int</STRONG> <STRONG>slk_color_sp(SCREEN*,</STRONG> <STRONG>short);</STRONG>
        <STRONG>int</STRONG> <STRONG>slk_init_sp(SCREEN*,</STRONG> <STRONG>int);</STRONG>
@@ -193,16 +193,15 @@
        functions which improve the  ability  to  manage  multiple
        screens.  This feature can be added to any of the configu-
        rations supported by  ncurses;  it  adds  new  entrypoints
-       without  changing the meaning of any of the existing ones.
-
+       without changing the meaning of any of the existing ones.
 
    <STRONG>IMPROVED</STRONG> <STRONG>FUNCTIONS</STRONG>
-       Most of the functions are new versions of  existing  func-
+       Most  of  the functions are new versions of existing func-
        tions.  A parameter is added at the front of the parameter
        list.  It is a SCREEN pointer.
 
-       The existing functions all use the current  screen,  which
-       is  a  static  variable.   The  extended functions use the
+       The  existing  functions all use the current screen, which
+       is a static variable.   The  extended  functions  use  the
        specified screen, thereby reducing the number of variables
        which must be modified to update multiple screens.
 
@@ -210,22 +209,22 @@
        Here are the new functions:
 
        ceiling_panel
-            this  returns  a  pointer to the topmost panel in the
+            this returns a pointer to the topmost  panel  in  the
             given screen.
 
        ground_panel
-            this returns a pointer to the  lowest  panel  in  the
+            this  returns  a  pointer  to the lowest panel in the
             given screen.
 
        new_prescr
-            when  creating  a new screen, the library uses static
-            variables  which   have   been   preset,   e.g.,   by
-            <STRONG><A HREF="use_env.3x.html">use_env(3x)</A></STRONG>, <STRONG><A HREF="filter.3x.html">filter(3x)</A></STRONG>, etc.  With the screen-point-
+            when creating a new screen, the library  uses  static
+            variables   which   have   been   preset,   e.g.,  by
+            <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>, etc.  With the screen-point-
             er extension, there are situations where it must cre-
-            ate  a  current  screen before the unextended library
-            does.  The <STRONG>new_prescr</STRONG> function is used internally  to
+            ate a current screen before  the  unextended  library
+            does.   The <STRONG>new_prescr</STRONG> function is used internally to
             handle these cases.  It is also provided as an entry-
-            point to allow applications to customize the  library
+            point  to allow applications to customize the library
             initialization.
 
 
@@ -234,37 +233,36 @@
        This extension introduces some new names:
 
        NCURSES_SP_FUNCS
-            This  is  set  to the library patch-level number.  In
-            the unextended library, this is zero (0), to make  it
+            This is set to the library  patch-level  number.   In
+            the  unextended library, this is zero (0), to make it
             useful for checking if the extension is provided.
 
        NCURSES_SP_NAME
-            The  new  functions  are named using the macro <EM>NCURS-</EM>
-            <EM>ES</EM><STRONG>_</STRONG><EM>SP</EM><STRONG>_</STRONG><EM>NAME</EM>, which hides  the  actual  implementation.
+            The new functions are named using  the  macro  <EM>NCURS-</EM>
+            <EM>ES</EM><STRONG>_</STRONG><EM>SP</EM><STRONG>_</STRONG><EM>NAME</EM>,  which  hides  the actual implementation.
             Currently this adds a "_sp" suffix to the name of the
-            unextended function.  This manual  page  indexes  the
+            unextended  function.   This  manual page indexes the
             extensions showing the full name.  However the proper
-            usage of these functions uses the macro,  to  provide
+            usage  of  these functions uses the macro, to provide
             for the possibility of changing the naming convention
             for specific library configurations.
 
        NCURSES_SP_OUTC
-            This is a new function-pointer type  to  use  in  the
-            screen-pointer  functions  where  an  <EM>NCURSES</EM><STRONG>_</STRONG><EM>OUTC</EM> is
+            This  is  a  new  function-pointer type to use in the
+            screen-pointer functions  where  an  <EM>NCURSES</EM><STRONG>_</STRONG><EM>OUTC</EM>  is
             used in the unextended library.
 
        NCURSES_OUTC
-            This is a function-pointer type used  for  the  cases
-            where  a  function  passes  characters  to the output
-            stream, e.g., <STRONG><A HREF="vidputs.3x.html">vidputs(3x)</A></STRONG>.
-
+            This  is  a  function-pointer type used for the cases
+            where a function  passes  characters  to  the  output
+            stream, e.g., <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>.
 
 
 </PRE>
 <H2>PORTABILITY</H2><PRE>
-       These routines are specific to  ncurses.   They  were  not
-       supported  on  Version 7, BSD or System V implementations.
-       It is recommended that any code depending on  ncurses  ex-
+       These  routines  are  specific  to ncurses.  They were not
+       supported on Version 7, BSD or System  V  implementations.
+       It  is  recommended that any code depending on ncurses ex-
        tensions be conditioned using <EM>NCURSES</EM><STRONG>_</STRONG><EM>SP</EM><STRONG>_</STRONG><EM>FUNCS</EM>.
 
 

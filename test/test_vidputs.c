@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2013 Free Software Foundation, Inc.                        *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -25,45 +25,124 @@
  * sale, use or other dealings in this Software without prior written       *
  * authorization.                                                           *
  ****************************************************************************/
+/*
+ * $Id: test_vidputs.c,v 1.4 2013/09/28 22:45:21 tom Exp $
+ *
+ * Demonstrate the vidputs and vidattr functions.
+ * Thomas Dickey - 2013/01/12
+ */
 
-#include <curses.priv.h>
+#define USE_TINFO
+#include <test.priv.h>
 
-MODULE_ID("$Id: memmove.c,v 1.5 2007/08/11 17:12:43 tom Exp $")
+#if HAVE_SETUPTERM
 
-/****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
- ****************************************************************************/
+#define valid(s) ((s != 0) && s != (char *)-1)
 
-#if USE_MY_MEMMOVE
-#define DST ((char *)s1)
-#define SRC ((const char *)s2)
-NCURSES_EXPORT(void *)
-_nc_memmove(void *s1, const void *s2, size_t n)
+static FILE *my_fp;
+static bool p_opt = FALSE;
+
+static
+TPUTS_PROTO(outc, c)
 {
-    if (n != 0) {
-	if ((DST + n > SRC) && (SRC + n > DST)) {
-	    static char *bfr;
-	    static size_t length;
-	    register size_t j;
-	    if (length < n) {
-		length = (n * 3) / 2;
-		bfr = typeRealloc(char, length, bfr);
-	    }
-	    for (j = 0; j < n; j++)
-		bfr[j] = SRC[j];
-	    s2 = bfr;
-	}
-	while (n-- != 0)
-	    DST[n] = SRC[n];
+    int rc = c;
+
+    rc = putc(c, my_fp);
+    TPUTS_RETURN(rc);
+}
+
+static bool
+outs(const char *s)
+{
+    if (valid(s)) {
+	tputs(s, 1, outc);
+	return TRUE;
     }
-    return s1;
+    return FALSE;
+}
+
+static void
+cleanup(void)
+{
+    outs(exit_attribute_mode);
+    if (!outs(orig_colors))
+	outs(orig_pair);
+    outs(cursor_normal);
+}
+
+static void
+change_attr(chtype attr)
+{
+    if (p_opt) {
+	vidputs(attr, outc);
+    } else {
+	vidattr(attr);
+    }
+}
+
+static void
+test_vidputs(void)
+{
+    fprintf(my_fp, "Name: ");
+    change_attr(A_BOLD);
+    fputs("Bold", my_fp);
+    change_attr(A_REVERSE);
+    fputs(" Reverse", my_fp);
+    change_attr(A_NORMAL);
+    fputs("\n", my_fp);
+}
+
+static void
+usage(void)
+{
+    static const char *tbl[] =
+    {
+	"Usage: test_vidputs [options]"
+	,""
+	,"Options:"
+	,"  -e      use stderr (default stdout)"
+	,"  -p      use vidputs (default vidattr)"
+    };
+    unsigned n;
+    for (n = 0; n < SIZEOF(tbl); ++n)
+	fprintf(stderr, "%s\n", tbl[n]);
+    ExitProgram(EXIT_FAILURE);
+}
+
+int
+main(int argc GCC_UNUSED, char *argv[]GCC_UNUSED)
+{
+    int ch;
+
+    my_fp = stdout;
+
+    while ((ch = getopt(argc, argv, "ep")) != -1) {
+	switch (ch) {
+	case 'e':
+	    my_fp = stderr;
+	    break;
+	case 'p':
+	    p_opt = TRUE;
+	    break;
+	default:
+	    usage();
+	    break;
+	}
+    }
+    if (optind < argc)
+	usage();
+
+    setupterm((char *) 0, 1, (int *) 0);
+    test_vidputs();
+    cleanup();
+    ExitProgram(EXIT_SUCCESS);
 }
 #else
-extern
-NCURSES_EXPORT(void)
-_nc_memmove(void);		/* quiet's gcc warning */
-NCURSES_EXPORT(void)
-_nc_memmove(void)
+int
+main(int argc GCC_UNUSED,
+     char *argv[]GCC_UNUSED)
 {
-}				/* nonempty for strict ANSI compilers */
-#endif /* USE_MY_MEMMOVE */
+    fprintf(stderr, "This program requires terminfo\n");
+    exit(EXIT_FAILURE);
+}
+#endif

@@ -1,8 +1,8 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   * t
   ****************************************************************************
-  * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_getch.3x,v 1.36 2011/01/22 19:38:51 tom Exp @
+  * @Id: curs_getch.3x,v 1.37 2012/07/07 20:04:56 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -110,7 +110,6 @@
        be returned by the next call to <STRONG>wgetch</STRONG>.  There is just one
        input queue for all windows.
 
-
    <STRONG>Function</STRONG> <STRONG>Keys</STRONG>
        The following function keys, defined in <STRONG>&lt;curses.h&gt;</STRONG>,  might
        be  returned  by  <STRONG>getch</STRONG>  if <STRONG>keypad</STRONG> has been enabled.  Note
@@ -179,8 +178,8 @@
             KEY_REPLACE     Replace key
             KEY_RESIZE      Screen resized
             KEY_RESTART     Restart key
-            KEY_RESUME      Resume key
 
+            KEY_RESUME      Resume key
             KEY_SAVE        Save key
             KEY_SBEG        Shifted beginning key
             KEY_SCANCEL     Shifted cancel key
@@ -233,21 +232,18 @@
        sion of <STRONG>KEY_MOUSE</STRONG>.
 
 
-
 </PRE>
 <H2>RETURN VALUE</H2><PRE>
        All routines return the integer <STRONG>ERR</STRONG> upon  failure  and  an
        integer value other than <STRONG>ERR</STRONG> (<STRONG>OK</STRONG> in the case of ungetch())
        upon successful completion.
 
-              <STRONG>ungetch</STRONG>
-                   returns an error if there is no more  room  in
-                   the FIFO.
+          <STRONG>ungetch</STRONG>
+               returns ERR if there is no more room in the FIFO.
 
-              <STRONG>wgetch</STRONG>
-                   returns  an  error  if  the  window pointer is
-                   null, or if its timeout expires without having
-                   any data.
+          <STRONG>wgetch</STRONG>
+               returns ERR if the window pointer is null,  or  if
+               its timeout expires without having any data.
 
        Functions  with a "mv" prefix first perform a cursor move-
        ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
@@ -321,7 +317,7 @@
        documentation.  Under historical  curses  implementations,
        it  varied depending on whether the operating system's im-
        plementation  of  handled  signal  receipt  interrupts   a
-       <STRONG><A HREF="read.2.html">read(2)</A></STRONG>  call in progress or not, and also (in some imple-
+       <STRONG>read(2)</STRONG>  call in progress or not, and also (in some imple-
        mentations) depending on whether an input timeout or  non-
        blocking mode has been set.
 

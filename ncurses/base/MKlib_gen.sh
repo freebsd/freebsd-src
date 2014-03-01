@@ -2,7 +2,7 @@
 #
 # MKlib_gen.sh -- generate sources from curses.h macro definitions
 #
-# ($Id: MKlib_gen.sh,v 1.43 2011/01/22 19:47:29 tom Exp $)
+# ($Id: MKlib_gen.sh,v 1.46 2011/06/04 19:14:08 tom Exp $)
 #
 ##############################################################################
 # Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.                #
@@ -410,10 +410,45 @@ BEGIN		{
 		print "#undef vwprintw"
 		}
 /^DECLARATIONS/	{start = 1; next;}
-		{if (start) print \$0;}
+		{
+		if (start) {
+			if ( "$USE" == "generated" ) {
+				print \$0;
+			} else if ( \$0 ~ /^[{}]?\$/ ) {
+				print \$0;
+			} else if ( \$0 ~ /;/ ) {
+				print \$0;
+			} else {
+				calls[start] = \$0;
+				print \$0;
+				start++;
+			}
+		}
+		}
 END		{
 		if ( "$USE" != "generated" ) {
-			print "int main(void) { return 0; }"
+			print "int main(void)"
+			print "{"
+			for (n = 1; n < start; ++n) {
+				value = calls[n];
+				if ( value !~ /P_POUNDC/ ) {
+					gsub(/[[:blank:]]+/," ",value);
+					sub(/^[[:alnum:]_]+ /,"",value);
+					sub(/^\* /,"",value);
+					gsub(/[[:alnum:]_]+ \* /,"",value);
+					gsub(/ (const) /," ",value);
+					gsub(/ (int|short|attr_t|chtype|wchar_t|NCURSES_BOOL|NCURSES_OUTC|NCURSES_OUTC_sp|va_list) /," ",value);
+					gsub(/ void /,"",value);
+					sub(/^/,"call_",value);
+					gsub(/ (a[[:digit:]]|z) /, " 0 ", value);
+					gsub(/ int[[:blank:]]*[(][^)]+[)][(][^)]+[)]/, "0", value);
+					printf "\t%s;\n", value;
+				} else {
+					print value;
+				}
+			}
+			print "	return 0;"
+			print "}"
 		}
 		}
 EOF1
@@ -422,6 +457,8 @@ cat >$TMP <<EOF
 #include <ncurses_cfg.h>
 #undef NCURSES_NOMACROS
 #include <curses.h>
+#include <term.h>
+#include <unctrl.h>
 
 DECLARATIONS
 

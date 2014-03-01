@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: toe.1m,v 1.23 2010/12/04 18:40:45 tom Exp @
+  * @Id: toe.1m,v 1.26 2012/01/01 00:40:51 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -52,7 +52,7 @@
 
 </PRE>
 <H2>SYNOPSIS</H2><PRE>
-       <STRONG>toe</STRONG> [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-ahuUV</STRONG>] <EM>file...</EM>
+       <STRONG>toe</STRONG> [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-ahsuUV</STRONG>] <EM>file...</EM>
 
 
 </PRE>
@@ -70,6 +70,14 @@
        <STRONG>-a</STRONG>     report  on  all  of  the  terminal  databases which
               ncurses would search, rather than  only  the  first
               one that it finds.
+
+              If  the  <STRONG>-s</STRONG> is also given, <STRONG>toe</STRONG> adds a column to the
+              report, showing (like  <STRONG>conflict(1)</STRONG>)  which  entries
+              which  belong to a given terminal database.  An "*"
+              marks entries which differ, and "+"  marks  equiva-
+              lent entries.
+
+       <STRONG>-s</STRONG>     sort the output by the entry names.
 
        <STRONG>-u</STRONG> <EM>file</EM>
               says  to  write  a  report  to the standard output,
@@ -111,7 +119,7 @@
        <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>,    <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>,   <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>,   <STRONG><A HREF="infotocap.1m.html">infotocap(1m)</A></STRONG>,
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
-       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20131221).
 
 
 

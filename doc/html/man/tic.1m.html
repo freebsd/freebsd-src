@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: tic.1m,v 1.47 2010/12/04 18:38:55 tom Exp @
+  * @Id: tic.1m,v 1.58 2013/07/20 19:31:25 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -52,83 +52,140 @@
 
 </PRE>
 <H2>SYNOPSIS</H2><PRE>
-       <STRONG>tic</STRONG>  [<STRONG>-1CGILNTUVacfgrstx</STRONG>]  [<STRONG>-e</STRONG> <EM>names</EM>] [<STRONG>-o</STRONG> <EM>dir</EM>] [<STRONG>-R</STRONG> <EM>subset</EM>]
-       [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-w</STRONG>[<EM>n</EM>]] <EM>file</EM>
+       <STRONG>tic</STRONG>  [<STRONG>-01CDGIKLNTUVacfgrstx</STRONG>]  [<STRONG>-e</STRONG> <EM>names</EM>] [<STRONG>-o</STRONG> <EM>dir</EM>] [<STRONG>-R</STRONG> <EM>sub-</EM>
+       <EM>set</EM>] [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-w</STRONG>[<EM>n</EM>]] <EM>file</EM>
 
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       The command <STRONG>tic</STRONG> translates a  <STRONG>terminfo</STRONG>  file  from  source
+       The <STRONG>tic</STRONG> command translates a  <STRONG>terminfo</STRONG>  file  from  source
        format  into compiled format.  The compiled format is nec-
        essary for use with the library routines in <STRONG><A HREF="ncurses.3x.html">ncurses(3x)</A></STRONG>.
 
+       As described in <STRONG><A HREF="term.5.html">term(5)</A></STRONG>, the  database  may  be  either  a
+       directory  tree  (one file per terminal entry) or a hashed
+       database (one record per entry).  The <STRONG>tic</STRONG>  command  writes
+       only one type of entry, depending on how it was built:
+
+       <STRONG>o</STRONG>   For  directory  trees,  the top-level directory, e.g.,
+           /usr/share/terminfo, specifies  the  location  of  the
+           database.
+
+       <STRONG>o</STRONG>   For  hashed  databases,  a filename is needed.  If the
+           given file is not found by that name, but can be found
+           by adding the suffix ".db", then that is used.
+
+           The  default  name for the hashed database is the same
+           as the default directory name  (only  adding  a  ".db"
+           suffix).
+
+       In  either  case  (directory or hashed database), <STRONG>tic</STRONG> will
+       create the container if it does not exist.  For  a  direc-
+       tory,  this  would  be the "terminfo" leaf, versus a "ter-
+       minfo.db" file.
+
        The results are normally placed  in  the  system  terminfo
-       directory  <STRONG>/usr/share/terminfo</STRONG>.   There  are  two  ways to
-       change this behavior.
+       database   <STRONG>/usr/share/terminfo</STRONG>.    The  compiled  terminal
+       description can be placed in a  different  terminfo  data-
+       base.  There are two ways to achieve this:
 
-       First, you may override the system default by setting  the
-       variable  <STRONG>TERMINFO</STRONG>  in  your  shell environment to a valid
-       (existing) directory name.
+       <STRONG>o</STRONG>   First,  you  may override the system default either by
+           using the <STRONG>-o</STRONG> option, or by setting the  variable  <STRONG>TER-</STRONG>
+           <STRONG>MINFO</STRONG>  in  your  shell environment to a valid database
+           location.
 
-       Secondly, if <STRONG>tic</STRONG> cannot get access to  <EM>/usr/share/terminfo</EM>
-       or  your  TERMINFO  directory,  it looks for the directory
-       <EM>$HOME/.terminfo</EM>; if that directory exists,  the  entry  is
-       placed there.
+       <STRONG>o</STRONG>   Secondly, if <STRONG>tic</STRONG> cannot write  in  <EM>/usr/share/terminfo</EM>
+           or  the  location  specified using your TERMINFO vari-
+           able, it looks for the directory  <EM>$HOME/.terminfo</EM>  (or
+           hashed  database <EM>$HOME/.terminfo.db)</EM>; if that location
+           exists, the entry is placed there.
 
        Libraries that read terminfo entries are expected to check
-       for a TERMINFO directory first, look at <EM>$HOME/.terminfo</EM> if
-       TERMINFO  is  not set, and finally look in <EM>/usr/share/ter-</EM>
-       <EM>minfo</EM>.
+       in succession
+
+       <STRONG>o</STRONG>   a  location  specified  with  the TERMINFO environment
+           variable,
+
+       <STRONG>o</STRONG>   <EM>$HOME/.terminfo</EM>,
+
+       <STRONG>o</STRONG>   directories listed in  the  TERMINFO_DIRS  environment
+           variable,
+
+       <STRONG>o</STRONG>   a       compiled-in      list      of      directories
+           (/usr/local/ncurses/share/terminfo:/usr/share/ter-
+           minfo), and
+
+       <STRONG>o</STRONG>   the system terminfo database (<EM>/usr/share/terminfo</EM>).
+
+   <STRONG>OPTIONS</STRONG>
+       <STRONG>-0</STRONG>     restricts the output to a single line
 
        <STRONG>-1</STRONG>     restricts the output to a single column
 
        <STRONG>-a</STRONG>     tells  <STRONG>tic</STRONG>  to  retain  commented-out  capabilities
               rather than discarding them.  Capabilities are com-
-              mented by prefixing them with a period.  This  sets
-              the  <STRONG>-x</STRONG> option, because it treats the commented-out
-              entries as user-defined names.  If  the  source  is
-              termcap,  accept  the 2-character names required by
+              mented  by prefixing them with a period.  This sets
+              the <STRONG>-x</STRONG> option, because it treats the  commented-out
+              entries  as  user-defined  names.  If the source is
+              termcap, accept the 2-character names  required  by
               version 6.  Otherwise these are ignored.
 
-       <STRONG>-C</STRONG>     Force source translation to termcap format.   Note:
-              this  differs  from the <STRONG>-C</STRONG> option of <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG> in
+       <STRONG>-C</STRONG>     Force  source translation to termcap format.  Note:
+              this differs from the <STRONG>-C</STRONG> option of  <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>  in
               that it does not merely translate capability names,
-              but  also  translates  terminfo  strings to termcap
+              but also translates  terminfo  strings  to  termcap
               format.  Capabilities that are not translatable are
-              left  in  the  entry under their terminfo names but
-              commented out with two preceding dots.
+              left in the entry under their  terminfo  names  but
+              commented  out with two preceding dots.  The actual
+              format  used  incorporates  some  improvements  for
+              escaped  characters  from  terminfo  format.  For a
+              stricter BSD-compatible  translation,  add  the  <STRONG>-K</STRONG>
+              option.
 
-       <STRONG>-c</STRONG>     tells <STRONG>tic</STRONG> to only check <EM>file</EM> for errors,  including
-              syntax  problems and bad use links.  If you specify
+       <STRONG>-c</STRONG>     tells  <STRONG>tic</STRONG> to only check <EM>file</EM> for errors, including
+              syntax problems and bad use links.  If you  specify
               <STRONG>-C</STRONG> (<STRONG>-I</STRONG>) with this option, the code will print warn-
               ings about entries which, after use resolution, are
-              more than 1023 (4096) bytes long.  Due to  a  fixed
-              buffer  length  in  older  termcap libraries (and a
-              documented limit in terminfo),  these  entries  may
-              cause core dumps.
+              more  than  1023 (4096) bytes long.  Due to a fixed
+              buffer length in older termcap libraries,  as  well
+              as buggy checking for the buffer length (and a doc-
+              umented limit in terminfo), these entries may cause
+              core dumps with other implementations.
+
+       <STRONG>-D</STRONG>     tells  <STRONG>tic</STRONG>  to print the database locations that it
+              knows about, and exit.  The first location shown is
+              the  one  to which it would write compiled terminal
+              descriptions.   If  <STRONG>tic</STRONG>  is  not  able  to  find  a
+              writable  database  location according to the rules
+              summarized above, it will print  a  diagnostic  and
+              exit  with  an error rather than printing a list of
+              database locations.
 
        <STRONG>-e</STRONG> <EM>names</EM>
-              Limit  writes  and  translations  to  the following
-              comma-separated list of terminals.  If any name  or
+              Limit writes  and  translations  to  the  following
+              comma-separated  list of terminals.  If any name or
               alias of a terminal matches one of the names in the
-              list, the entry will be written  or  translated  as
-              normal.   Otherwise no output will be generated for
+              list,  the  entry  will be written or translated as
+              normal.  Otherwise no output will be generated  for
               it.  The option value is interpreted as a file con-
-              taining  the  list  if  it  contains a '/'.  (Note:
-              depending on how tic was compiled, this option  may
+              taining the list if  it  contains  a  '/'.   (Note:
+              depending  on how tic was compiled, this option may
               require <STRONG>-I</STRONG> or <STRONG>-C</STRONG>.)
 
        <STRONG>-f</STRONG>     Display  complex  terminfo  strings  which  contain
-              if/then/else/endif expressions indented  for  read-
+              if/then/else/endif  expressions  indented for read-
               ability.
 
-       <STRONG>-G</STRONG>     Display  constant  literals  in decimal form rather
+       <STRONG>-G</STRONG>     Display constant literals in  decimal  form  rather
               than their character equivalents.
 
-       <STRONG>-g</STRONG>     Display constant character literals in quoted  form
+       <STRONG>-g</STRONG>     Display  constant character literals in quoted form
               rather than their decimal equivalents.
 
        <STRONG>-I</STRONG>     Force source translation to terminfo format.
+
+       <STRONG>-K</STRONG>     Suppress some longstanding  ncurses  extensions  to
+              termcap format, e.g., "\s" for space.
 
        <STRONG>-L</STRONG>     Force  source  translation to terminfo format using
               the long C variable names listed in &lt;<STRONG>term.h</STRONG>&gt;
@@ -145,8 +202,8 @@
               This  option forces a more literal translation that
               also preserves the obsolete capabilities.
 
-       <STRONG>-o</STRONG><EM>dir</EM>  Write compiled entries to given  directory.   Over-
-              rides the TERMINFO environment variable.
+       <STRONG>-o</STRONG><EM>dir</EM>  Write compiled entries to given database  location.
+              Overrides the TERMINFO environment variable.
 
        <STRONG>-R</STRONG><EM>subset</EM>
               Restrict  output to a given subset.  This option is
@@ -160,15 +217,15 @@
 
        <STRONG>-r</STRONG>     Force entry resolution (so there are  no  remaining
               tc  capabilities)  even  when  doing translation to
-              termcap format.  This may  be  needed  if  you  are
-              preparing  a  termcap  file  for  a termcap library
-              (such as GNU termcap through  version  1.3  or  BSD
-              termcap through 4.3BSD) that does not handle multi-
-              ple tc capabilities per entry.
+              termcap format.  This may be needed if you are pre-
+              paring  a  termcap file for a termcap library (such
+              as GNU termcap through version 1.3 or  BSD  termcap
+              through  4.3BSD)  that  does not handle multiple tc
+              capabilities per entry.
 
-       <STRONG>-s</STRONG>     Summarize the compile by showing the directory into
-              which  entries  are  written,  and  the  number  of
-              entries which are compiled.
+       <STRONG>-s</STRONG>     Summarize the compile by showing the database loca-
+              tion into which entries are written, and the number
+              of entries which are compiled.
 
        <STRONG>-T</STRONG>     eliminates size-restrictions on the generated text.
               This  is  mainly  useful  for testing and analysis,
@@ -195,6 +252,26 @@
             1.  If <EM>n</EM> is specified and greater than 1,  the  level
             of detail is increased.
 
+            The debug flag levels are as follows:
+
+            1      Names of files created and linked
+
+            2      Information related to the "use" facility
+
+            3      Statistics from the hashing algorithm
+
+            5      String-table memory allocations
+
+            7      Entries into the string-table
+
+            8      List of tokens encountered by scanner
+
+            9      All  values  computed  in  construction of the
+                   hash table
+
+            If the debug level <EM>n</EM> is not given, it is taken to  be
+            one.
+
        <STRONG>-w</STRONG><EM>n</EM>  specifies  the width of the output.  The parameter is
             optional.  If it is omitted, it defaults to 60.
 
@@ -203,33 +280,20 @@
             recognize, it will infer its type (boolean, number or
             string)  from  the  syntax and make an extended table
             entry  for  that.   User-defined  capability  strings
-            whose  name begins with ``k'' are treated as function
+            whose  name  begins  with "k" are treated as function
             keys.
 
-       <EM>file</EM> contains one or more <STRONG>terminfo</STRONG>  terminal  descriptions
-            in source format [see <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>].  Each description
-            in the file describes the capabilities of a  particu-
-            lar terminal.
+   <STRONG>PARAMETERS</STRONG>
+       <EM>file</EM>   contains one or more <STRONG>terminfo</STRONG> terminal descriptions
+              in  source format [see <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>].  Each descrip-
+              tion in the file describes the  capabilities  of  a
+              particular terminal.
 
-       The debug flag levels are as follows:
+              If  <EM>file</EM>  is  "-",  then  the data is read from the
+              standard input.  The <EM>file</EM> parameter may also be the
+              path of a character-device.
 
-       1      Names of files created and linked
-
-       2      Information related to the ``use'' facility
-
-       3      Statistics from the hashing algorithm
-
-       5      String-table memory allocations
-
-       7      Entries into the string-table
-
-       8      List of tokens encountered by scanner
-
-       9      All values computed in construction of the hash ta-
-              ble
-
-       If the debug level <EM>n</EM> is not given, it is taken to be  one.
-
+   <STRONG>PROCESSING</STRONG>
        All but one of the capabilities recognized by <STRONG>tic</STRONG> are doc-
        umented in <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.  The exception is the <STRONG>use</STRONG> capabil-
        ity.
@@ -237,10 +301,8 @@
        When  a  <STRONG>use</STRONG>=<EM>entry</EM>-<EM>name</EM>  field is discovered in a terminal
        entry currently being compiled, <STRONG>tic</STRONG> reads  in  the  binary
        from  <STRONG>/usr/share/terminfo</STRONG> to complete the entry.  (Entries
-       created from <EM>file</EM> will be used first.  If the  environment
-       variable  <STRONG>TERMINFO</STRONG>  is  set,  that  directory  is searched
-       instead of <STRONG>/usr/share/terminfo</STRONG>.)  <STRONG>tic</STRONG> duplicates the capa-
-       bilities  in  <EM>entry</EM>-<EM>name</EM>  for  the current entry, with the
+       created from <EM>file</EM> will be used first.  <STRONG>tic</STRONG> duplicates  the
+       capabilities in <EM>entry</EM>-<EM>name</EM> for the current entry, with the
        exception  of  those  capabilities  that  explicitly   are
        defined in the current entry.
 
@@ -249,52 +311,49 @@
        <EM>entry</EM>_<EM>name</EM>_<EM>2</EM>  must also appear in <STRONG>entry_name_1</STRONG> before <STRONG>use=</STRONG>
        for these capabilities to be canceled in <STRONG>entry_name_1</STRONG>.
 
-       If the environment variable <STRONG>TERMINFO</STRONG> is set, the  compiled
-       results are placed there instead of <STRONG>/usr/share/terminfo</STRONG>.
-
        Total compiled entries cannot exceed 4096 bytes.  The name
-       field cannot exceed 512 bytes.  Terminal  names  exceeding
-       the  maximum  alias  length (32 characters on systems with
+       field  cannot  exceed 512 bytes.  Terminal names exceeding
+       the maximum alias length (32 characters  on  systems  with
        long filenames, 14 characters otherwise) will be truncated
-       to  the maximum alias length and a warning message will be
+       to the maximum alias length and a warning message will  be
        printed.
 
 
 </PRE>
 <H2>COMPATIBILITY</H2><PRE>
-       There is some evidence that historic  <STRONG>tic</STRONG>  implementations
-       treated  description  fields with no whitespace in them as
-       additional aliases or short names.  This <STRONG>tic</STRONG> does  not  do
-       that,  but  it  does  warn  when description fields may be
-       treated that way and check them for dangerous  characters.
+       There  is  some evidence that historic <STRONG>tic</STRONG> implementations
+       treated description fields with no whitespace in  them  as
+       additional  aliases  or short names.  This <STRONG>tic</STRONG> does not do
+       that, but it does warn  when  description  fields  may  be
+       treated that way and check them for dangerous characters.
 
 
 </PRE>
 <H2>EXTENSIONS</H2><PRE>
-       Unlike the stock SVr4 <STRONG>tic</STRONG> command, this implementation can
-       actually compile termcap sources.   In  fact,  entries  in
-       terminfo  and  termcap  syntax  can  be  mixed in a single
-       source file.  See <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>  for  the  list  of  termcap
-       names taken to be equivalent to terminfo names.
+       Unlike the SVr4 <STRONG>tic</STRONG> command, this implementation can actu-
+       ally compile termcap sources.  In fact,  entries  in  ter-
+       minfo  and  termcap syntax can be mixed in a single source
+       file.  See <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG> for the list of termcap names taken
+       to be equivalent to terminfo names.
 
        The  SVr4  manual  pages  are  not clear on the resolution
        rules for <STRONG>use</STRONG> capabilities.  This  implementation  of  <STRONG>tic</STRONG>
        will find <STRONG>use</STRONG> targets anywhere in the source file, or any-
        where in the file tree rooted at <STRONG>TERMINFO</STRONG> (if <STRONG>TERMINFO</STRONG>  is
-       defined),  or  in the user's <EM>$HOME/.terminfo</EM> directory (if
-       it exists), or (finally) anywhere  in  the  system's  file
-       tree of compiled entries.
+       defined), or in the user's <EM>$HOME/.terminfo</EM> database (if it
+       exists), or (finally) anywhere in the system's  file  tree
+       of compiled entries.
 
        The  error  messages from this <STRONG>tic</STRONG> have the same format as
        GNU C error messages, and can be  parsed  by  GNU  Emacs's
        compile facility.
 
-       The  <STRONG>-C</STRONG>,  <STRONG>-G</STRONG>,  <STRONG>-I</STRONG>, <STRONG>-N</STRONG>, <STRONG>-R</STRONG>, <STRONG>-T</STRONG>, <STRONG>-V</STRONG>, <STRONG>-a</STRONG>, <STRONG>-e</STRONG>, <STRONG>-f</STRONG>, <STRONG>-g</STRONG>, <STRONG>-o</STRONG>, <STRONG>-r</STRONG>,
-       <STRONG>-s</STRONG>, <STRONG>-t</STRONG> and <STRONG>-x</STRONG> options are not supported under  SVr4.   The
-       SVr4 <STRONG>-c</STRONG> mode does not report bad use links.
+       The  <STRONG>-0</STRONG>,  <STRONG>-1</STRONG>,  <STRONG>-C</STRONG>, <STRONG>-G</STRONG>, <STRONG>-I</STRONG>, <STRONG>-N</STRONG>, <STRONG>-R</STRONG>, <STRONG>-T</STRONG>, <STRONG>-V</STRONG>, <STRONG>-a</STRONG>, <STRONG>-e</STRONG>, <STRONG>-f</STRONG>, <STRONG>-g</STRONG>,
+       <STRONG>-o</STRONG>, <STRONG>-r</STRONG>, <STRONG>-s</STRONG>, <STRONG>-t</STRONG> and <STRONG>-x</STRONG>  options  are  not  supported  under
+       SVr4.  The SVr4 <STRONG>-c</STRONG> mode does not report bad use links.
 
        System  V does not compile entries to or read entries from
-       your <EM>$HOME/.terminfo</EM> directory unless TERMINFO is  explic-
+       your <EM>$HOME/.terminfo</EM> database unless TERMINFO  is  explic-
        itly set to it.
 
 
@@ -307,9 +366,9 @@
 </PRE>
 <H2>SEE ALSO</H2><PRE>
        <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>,    <STRONG><A HREF="captoinfo.1m.html">captoinfo(1m)</A></STRONG>,   <STRONG><A HREF="infotocap.1m.html">infotocap(1m)</A></STRONG>,   <STRONG><A HREF="toe.1m.html">toe(1m)</A></STRONG>,
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="term.5.html">term(5)</A></STRONG>.  <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
-       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20131221).
 
 
 </PRE>

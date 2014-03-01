@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: entries.c,v 1.17 2010/01/23 17:57:43 tom Exp $")
+MODULE_ID("$Id: entries.c,v 1.21 2012/05/05 20:33:44 tom Exp $")
 
 /****************************************************************************
  *
@@ -96,6 +96,9 @@ _nc_delink_entry(ENTRY * headp, TERMTYPE *tterm)
 	    if (last != 0) {
 		last->next = ep->next;
 	    }
+	    if (ep->next != 0) {
+		ep->next->last = last;
+	    }
 	    if (ep == _nc_head) {
 		_nc_head = ep->next;
 	    }
@@ -128,19 +131,21 @@ _nc_leaks_tinfo(void)
     _nc_free_entries(_nc_head);
     _nc_get_type(0);
     _nc_first_name(0);
+    _nc_db_iterator_leaks();
     _nc_keyname_leaks();
 #if BROKEN_LINKER || USE_REENTRANT
     _nc_names_leaks();
     _nc_codes_leaks();
     FreeIfNeeded(_nc_prescreen.real_acs_map);
 #endif
+    _nc_comp_error_leaks();
 
     if ((s = _nc_home_terminfo()) != 0)
 	free(s);
 
 #ifdef TRACE
     trace(0);
-    _nc_trace_buf(-1, 0);
+    _nc_trace_buf(-1, (size_t) 0);
 #endif
 
 #endif /* NO_LEAKS */

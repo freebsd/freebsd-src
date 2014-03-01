@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey (1998-on)
  *
- * $Id: ditto.c,v 1.40 2010/11/14 01:06:47 tom Exp $
+ * $Id: ditto.c,v 1.42 2012/11/24 20:16:18 tom Exp $
  *
  * The program illustrates how to set up multiple screens from a single
  * program.
@@ -80,6 +80,7 @@ typedef struct {
     int which1;			/* this screen's index in DITTO[] array */
     int length;			/* length of windows[] and peeks[] */
     char **titles;		/* per-window titles */
+    WINDOW **parents;		/* display boxes around each screen's data */
     WINDOW **windows;		/* display data from each screen */
     PEEK *peeks;		/* indices for each screen's fifo */
     FIFO fifo;			/* fifo for this screen */
@@ -97,6 +98,9 @@ typedef struct {
     int target;			/* which screen is character going to */
     DITTO *ditto;		/* data for all screens */
 } DDATA;
+
+static void failed(const char *) GCC_NORETURN;
+static void usage(void) GCC_NORETURN;
 
 static void
 failed(const char *s)
@@ -201,6 +205,7 @@ init_screen(
     scrollok(stdscr, TRUE);
     box(stdscr, 0, 0);
 
+    target->parents = typeCalloc(WINDOW *, (size_t) target->length);
     target->windows = typeCalloc(WINDOW *, (size_t) target->length);
     target->peeks = typeCalloc(PEEK, (size_t) target->length);
 
@@ -220,6 +225,7 @@ init_screen(
 	nodelay(inner, TRUE);
 #endif
 
+	target->parents[k] = outer;
 	target->windows[k] = inner;
     }
     doupdate();

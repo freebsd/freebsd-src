@@ -1,8 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <!--
-  $Id: announce.html.in,v 1.85 2011/04/04 00:05:34 tom Exp $
+  $Id: announce.html.in,v 1.89 2013/05/18 10:12:25 tom Exp $
   ****************************************************************************
-  * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -29,11 +28,12 @@
   * authorization.                                                           *
   ****************************************************************************
 -->
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 
 <html>
 <head>
   <meta name="generator" content=
-  "HTML Tidy for Linux/x86 (vers 6 November 2007), see www.w3.org">
+  "HTML Tidy for Linux (vers 25 March 2009), see www.w3.org">
 
   <title>Announcing ncurses @VERSION@</title>
   <link rev="made" href="mailto:bug-ncurses@gnu.org">
@@ -42,12 +42,13 @@
 </head>
 
 <body>
-  <h1>Announcing ncurses @VERSION@</h1>The ncurses (new curses)
-  library is a free software emulation of curses in System V
-  Release 4.0, and more. It uses terminfo format, supports pads and
-  color and multiple highlights and forms characters and
-  function-key mapping, and has all the other SYSV-curses
-  enhancements over BSD curses.
+  <h1>Announcing ncurses @VERSION@</h1>
+
+  <p>The ncurses (new curses) library is a free software emulation
+  of curses in System V Release 4.0, and more. It uses terminfo
+  format, supports pads and color and multiple highlights and forms
+  characters and function-key mapping, and has all the other
+  SYSV-curses enhancements over BSD curses.</p>
 
   <p>In mid-June 1995, the maintainer of 4.4BSD curses declared
   that he considered 4.4BSD curses obsolete, and encouraged the
@@ -73,38 +74,50 @@
   It is also available at <a href=
   "ftp://invisible-island.net/ncurses/">ftp://invisible-island.net/ncurses/</a>&nbsp;.</p>
 
-  <h1>Release Notes</h1>This release is designed to be upward
-  compatible from ncurses 5.0 through 5.8; very few applications
-  will require recompilation, depending on the platform. These are
-  the highlights from the change-log since ncurses 5.8 release.
-  <p>
-  This is a bug-fix release, correcting a small number of urgent problems
-  in the ncurses library from the 5.8 release.
-  <p>
-  It also improves the Ada95 binding:
+  <h1>Release Notes</h1>
+
+  <p>This release is designed to be upward compatible from ncurses
+  5.0 through 5.8; very few applications will require
+  recompilation, depending on the platform. These are the
+  highlights from the change-log since ncurses 5.8 release.</p>
+
+  <p>This is a bug-fix release, correcting a small number of urgent
+  problems in the ncurses library from the 5.8 release.</p>
+
+  <p>It also improves the Ada95 binding:</p>
+
   <ul>
-  <li>fixes a longstanding portability problem with its use of the
-      <a href="http://invisible-island.net/ncurses/man/form_fieldtype.3x">set_field_type</a>
-      function.  Because that function uses variable-length argument lists,
-      its interface with gnat does not work with certain platforms.
-  <li>improves configurability and portability, particularly when built
-      separately from the main ncurses tree.  The 5.8 release introduced
-      scripts which can be used to construct separate tarballs for the
-      Ada95 and ncurses examples.
-      <p>Those were a proof of concept.  For the 5.9 release, those
-      scripts are augmented with rpm- and dpkg-scripts used in test builds
-      against a variety of gnat- and system ncurses versions as old as
-      gnat 3.15 and ncurses 5.4 (see snapshots and systems tested
-      <a href="http://invisible-island.net/ncurses/ncurses-Ada95.html">here</a>.
-  <li>additional improvements were made for portability of the
-      ncurses examples, adding rpm- and dpkg-scripts for test-builds.
-      See 
-      <a href="http://invisible-island.net/ncurses/ncurses-examples.html">this page</a>
-      for snapshots and other information.
+    <li>fixes a longstanding portability problem with its use of
+    the <a href=
+    "http://invisible-island.net/ncurses/man/form_fieldtype.3x">set_field_type</a>
+    function. Because that function uses variable-length argument
+    lists, its interface with gnat does not work with certain
+    platforms.</li>
+
+    <li>improves configurability and portability, particularly when
+    built separately from the main ncurses tree. The 5.8 release
+    introduced scripts which can be used to construct separate
+    tarballs for the Ada95 and ncurses examples.
+
+      <p>Those were a proof of concept. For the 5.9 release, those
+      scripts are augmented with rpm- and dpkg-scripts used in test
+      builds against a variety of gnat- and system ncurses versions
+      as old as gnat 3.15 and ncurses 5.4 (see snapshots and
+      systems tested <a href=
+      "http://invisible-island.net/ncurses/ncurses-Ada95.html">here</a>.</p>
+    </li>
+
+    <li>additional improvements were made for portability of the
+    ncurses examples, adding rpm- and dpkg-scripts for test-builds.
+    See <a href=
+    "http://invisible-island.net/ncurses/ncurses-examples.html">this
+    page</a> for snapshots and other information.</li>
   </ul>
 
-  <h1>Features of Ncurses</h1>The ncurses package is fully
-  compatible with SVr4 (System V Release 4) curses:
+  <h1>Features of Ncurses</h1>
+
+  <p>The ncurses package is fully compatible with SVr4 (System V
+  Release 4) curses:</p>
 
   <ul>
     <li>All 257 of the SVr4 calls have been implemented (and are
@@ -132,8 +145,10 @@
     entries for use with less capable
     <strong>curses</strong>/<strong>terminfo</strong> versions such
     as the HP/UX and AIX ports.</li>
-  </ul>The ncurses package also has many useful extensions over
-  SVr4:
+  </ul>
+
+  <p>The ncurses package also has many useful extensions over
+  SVr4:</p>
 
   <ul>
     <li>The API is 8-bit clean and base-level conformant with the
@@ -249,12 +264,14 @@
     interface.</li>
   </ul>
 
-  <h1>State of the Package</h1>Numerous bugs present in earlier
-  versions have been fixed; the library is far more reliable than
-  it used to be. Bounds checking in many `dangerous' entry points
-  has been improved. The code is now type-safe according to gcc
-  -Wall. The library has been checked for malloc leaks and arena
-  corruption by the Purify memory-allocation tester.
+  <h1>State of the Package</h1>
+
+  <p>Numerous bugs present in earlier versions have been fixed; the
+  library is far more reliable than it used to be. Bounds checking
+  in many `dangerous' entry points has been improved. The code is
+  now type-safe according to gcc -Wall. The library has been
+  checked for malloc leaks and arena corruption by the Purify
+  memory-allocation tester.</p>
 
   <p>The ncurses code has been tested with a wide variety of
   applications including (versions starting with those noted):</p>
@@ -321,8 +338,10 @@
 
     <dd>newsreader, supporting color, MIME <a href=
     "http://www.tin.org/">http://www.tin.org/</a></dd>
-  </dl>as well as some that use ncurses for the terminfo support
-  alone:
+  </dl>
+
+  <p>as well as some that use ncurses for the terminfo support
+  alone:</p>
 
   <dl>
     <dt>minicom</dt>
@@ -341,15 +360,17 @@
   <p>The ncurses distribution includes a selection of test programs
   (including a few games).</p>
 
-  <h2>Who's Who and What's What</h2>Zeyd Ben-Halim started it from
-  a previous package pcurses, written by Pavel Curtis. Eric S.
-  Raymond continued development. J&uuml;rgen Pfeifer wrote most of
-  the form and menu libraries. Ongoing work is being done by
-  <a href="mailto:dickey@invisible-island.net">Thomas Dickey</a>.
-  Thomas Dickey acts as the maintainer for the Free Software
-  Foundation, which holds the copyright on ncurses. Contact the
-  current maintainers at <a href=
-  "mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</a>.
+  <h2>Who's Who and What's What</h2>
+
+  <p>Zeyd Ben-Halim started it from a previous package pcurses,
+  written by Pavel Curtis. Eric S. Raymond continued development.
+  J&uuml;rgen Pfeifer wrote most of the form and menu libraries.
+  Ongoing work is being done by <a href=
+  "mailto:dickey@invisible-island.net">Thomas Dickey</a>. Thomas
+  Dickey acts as the maintainer for the Free Software Foundation,
+  which holds the copyright on ncurses. Contact the current
+  maintainers at <a href=
+  "mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</a>.</p>
 
   <p>To join the ncurses mailing list, please write email to
   <code>bug-ncurses-request@gnu.org</code> containing the line:</p>
@@ -364,6 +385,13 @@
   are made available at <a href=
   "ftp://invisible-island.net/ncurses/">ftp://invisible-island.net/ncurses/</a>&nbsp;.</p>
 
+  <p>There is an archive of the mailing list here:</p>
+
+  <p><a href=
+  "http://lists.gnu.org/archive/html/bug-ncurses">http://lists.gnu.org/archive/html/bug-ncurses</a>
+  (also <a href=
+  "https://lists.gnu.org/archive/html/bug-ncurses">https</a>)</p>
+
   <h2>Future Plans</h2>
 
   <ul>
@@ -371,15 +399,19 @@
     support.</li>
 
     <li>Ports to more systems, including DOS and Windows.</li>
-  </ul>We need people to help with these projects. If you are
-  interested in working on them, please join the ncurses list.
+  </ul>
 
-  <h2>Other Related Resources</h2>The distribution provides a newer
-  version of the terminfo-format terminal description file once
-  maintained by <a href="http://www.catb.org/~esr/terminfo/">Eric
+  <p>We need people to help with these projects. If you are
+  interested in working on them, please join the ncurses list.</p>
+
+  <h2>Other Related Resources</h2>
+
+  <p>The distribution provides a newer version of the
+  terminfo-format terminal description file once maintained by
+  <a href="http://www.catb.org/~esr/terminfo/">Eric
   Raymond</a>&nbsp;. Unlike the older version, the termcap and
   terminfo data are provided in the same file, and provides several
-  user-definable extensions beyond the X/Open specification.
+  user-definable extensions beyond the X/Open specification.</p>
 
   <p>You can find lots of information on terminal-related topics
   not covered in the terminfo file at <a href=

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: echochar.c,v 1.8 2010/11/14 01:00:44 tom Exp $
+ * $Id: echochar.c,v 1.9 2012/06/09 20:30:32 tom Exp $
  *
  * Demonstrate the echochar function (compare to dots.c).
  * Thomas Dickey - 2006/11/4
@@ -74,7 +74,7 @@ set_color(char *my_pairs, int fg, int bg)
 		  (short) fg,
 		  (short) bg);
     }
-    attron(COLOR_PAIR(pair));
+    attron((attr_t) COLOR_PAIR(pair));
 }
 
 int

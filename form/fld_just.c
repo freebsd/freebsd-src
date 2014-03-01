@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_just.c,v 1.12 2010/01/23 21:14:35 tom Exp $")
+MODULE_ID("$Id: fld_just.c,v 1.13 2012/03/11 00:37:16 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -59,7 +59,7 @@ set_field_just(FIELD *field, int just)
       Normalize_Field(field);
       if (field->just != just)
 	{
-	  field->just = just;
+	  field->just = (short) just;
 	  res = _nc_Synchronize_Attributes(field);
 	}
       else

@@ -1,53 +1,65 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<HTML><HEAD><TITLE>terminal_interface.ads</TITLE></HEAD>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
+<HTML>
+<HEAD>
+<TITLE>terminal_interface.ads</TITLE>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style type="text/css">
+*.comment {
+	color: green;
+}
+*.symbol {
+	color: red;
+}
+</style>
+</HEAD>
 <BODY>
-<HR><DIV ALIGN="center"><H1> File : terminal_interface.ads </H1></DIV><HR>
+<HR><DIV style="text-align:center"><H1> File : terminal_interface.ads </H1></DIV><HR>
 <PRE>
-<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>--                            Terminal_Interface                            --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>-- Copyright (c) 1998,2006 Free Software Foundation, Inc.                   --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
-<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
-<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
-<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
-<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
-<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
-<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
-<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
-<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
-<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
-<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
-<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
-<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
-<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
-<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
-<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
-<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
-<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
-<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
-<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
-<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
-<FONT COLOR=green><EM>--  @Revision: 1.14 @</EM></FONT>
-<FONT COLOR=green><EM>--  @Date: 2006/06/25 14:30:22 @</EM></FONT>
-<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
-<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
-<b>package</b> <FONT COLOR=red><A NAME="ref_42_9">Terminal_Interface</A></FONT> <b>is</b>
+<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>--                            Terminal_Interface                            --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>--                                 S P E C                                  --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
+<span class="comment"><EM>-- Copyright (c) 1998,2006 Free Software Foundation, Inc.                   --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></span>
+<span class="comment"><EM>-- copy of this software and associated documentation files (the            --</EM></span>
+<span class="comment"><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></span>
+<span class="comment"><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></span>
+<span class="comment"><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></span>
+<span class="comment"><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></span>
+<span class="comment"><EM>-- furnished to do so, subject to the following conditions:                 --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>-- The above copyright notice and this permission notice shall be included  --</EM></span>
+<span class="comment"><EM>-- in all copies or substantial portions of the Software.                   --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></span>
+<span class="comment"><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></span>
+<span class="comment"><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></span>
+<span class="comment"><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></span>
+<span class="comment"><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></span>
+<span class="comment"><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></span>
+<span class="comment"><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></span>
+<span class="comment"><EM>--                                                                          --</EM></span>
+<span class="comment"><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></span>
+<span class="comment"><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></span>
+<span class="comment"><EM>-- sale, use or other dealings in this Software without prior written       --</EM></span>
+<span class="comment"><EM>-- authorization.                                                           --</EM></span>
+<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
+<span class="comment"><EM>--  Author:  Juergen Pfeifer, 1996</EM></span>
+<span class="comment"><EM>--  Version Control:</EM></span>
+<span class="comment"><EM>--  @Revision: 1.14 @</EM></span>
+<span class="comment"><EM>--  @Date: 2006/06/25 14:30:22 @</EM></span>
+<span class="comment"><EM>--  Binding Version 01.00</EM></span>
+<span class="comment"><EM>------------------------------------------------------------------------------</EM></span>
+<b>package</b> <span class="symbol"><A NAME="ref_42_9">Terminal_Interface</A></span> <b>is</b>
    <b>pragma</b> Pure (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>);
-<FONT COLOR=green><EM>--</EM></FONT>
-<FONT COLOR=green><EM>--  Everything is in the child units</EM></FONT>
-<FONT COLOR=green><EM>--</EM></FONT>
+<span class="comment"><EM>--</EM></span>
+<span class="comment"><EM>--  Everything is in the child units</EM></span>
+<span class="comment"><EM>--</EM></span>
 <b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>;
 </PRE></BODY></HTML>

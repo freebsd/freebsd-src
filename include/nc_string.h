@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2012,2013 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,36 +26,52 @@
  * authorization.                                                           *
  ****************************************************************************/
 
+/****************************************************************************
+ *  Author: Thomas E. Dickey                        2012                    *
+ ****************************************************************************/
+
+#ifndef STRING_HACKS_H
+#define STRING_HACKS_H 1
+
+#include <ncurses_cfg.h>
+
 /*
- * $Id: tty_input.h,v 1.2 2000/12/10 02:26:51 tom Exp $
+ * $Id: nc_string.h,v 1.4 2013/12/15 01:09:19 tom Exp $
+ *
+ * String-hacks.  Use these macros to stifle warnings on (presumably) correct
+ * uses of strcat, strcpy and sprintf.
+ *
+ * By the way -
+ * A fundamental limitation of the interfaces (and frequent issue in bug
+ * reports using these functions) is that sizes are passed as unsigned values
+ * (with associated sign-extension problems), limiting their effectiveness
+ * when checking for buffer overflow.
  */
 
-#ifndef TTY_INPUT_H
-#define TTY_INPUT_H 1
+#ifdef __cplusplus
+#define NCURSES_VOID		/* nothing */
+#else
+#define NCURSES_VOID (void)
+#endif
 
-extern NCURSES_EXPORT(bool) _nc_tty_mouse_mask (mmask_t);
-extern NCURSES_EXPORT(bool) _nc_tty_pending (void);
-extern NCURSES_EXPORT(int)  _nc_tty_next_event (int);
-extern NCURSES_EXPORT(void) _nc_tty_flags_changed (void);
-extern NCURSES_EXPORT(void) _nc_tty_flush (void);
-extern NCURSES_EXPORT(void) _nc_tty_input_resume (void);
-extern NCURSES_EXPORT(void) _nc_tty_input_suspend (void);
+#if USE_STRING_HACKS && HAVE_STRLCAT
+#define _nc_STRCAT(d,s,n)	NCURSES_VOID strlcat((d),(s),NCURSES_CAST(size_t,n))
+#else
+#define _nc_STRCAT(d,s,n)	NCURSES_VOID strcat((d),(s))
+#endif
 
-struct tty_input_data {
-	int             _ifd;           /* input file ptr for screen        */
-	int             _keypad_xmit;   /* current terminal state           */
-	int             _meta_on;       /* current terminal state           */
+#if USE_STRING_HACKS && HAVE_STRLCPY
+#define _nc_STRCPY(d,s,n)	NCURSES_VOID strlcpy((d),(s),NCURSES_CAST(size_t,n))
+#else
+#define _nc_STRCPY(d,s,n)	NCURSES_VOID strcpy((d),(s))
+#endif
 
-	/*
-	 * These are the data that support the mouse interface.
-	 */
-	bool            (*_mouse_event) (SCREEN *);
-	bool            (*_mouse_inline)(SCREEN *);
-	bool            (*_mouse_parse) (int);
-	void            (*_mouse_resume)(SCREEN *);
-	void            (*_mouse_wrap)  (SCREEN *);
-	int             _mouse_fd;      /* file-descriptor, if any */
-	int             mousetype;
-};
+#if USE_STRING_HACKS && HAVE_SNPRINTF
+#define _nc_SPRINTF             NCURSES_VOID snprintf
+#define _nc_SLIMIT(n)           NCURSES_CAST(size_t,n),
+#else
+#define _nc_SPRINTF             NCURSES_VOID sprintf
+#define _nc_SLIMIT(n)		/* nothing */
+#endif
 
-#endif /* TTY_INPUT_H */
+#endif /* STRING_HACKS_H */

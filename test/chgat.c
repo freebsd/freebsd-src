@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2006-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2006-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: chgat.c,v 1.11 2010/05/01 19:12:26 tom Exp $
+ * $Id: chgat.c,v 1.12 2012/11/18 01:55:35 tom Exp $
  *
  * test-driver for chgat/wchgat/mvchgat/mvwchgat
  */
@@ -176,6 +176,8 @@ do_subwindow(WINDOW *win, STATUS * sp, void func(WINDOW *))
 	delwin(win1);
 	touchwin(win);
     } else {
+	if (win1 != 0)
+	    delwin(win1);
 	beep();
     }
 }

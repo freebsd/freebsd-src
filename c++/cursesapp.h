@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesapp.h,v 1.11 2005/05/28 21:57:44 tom Exp $
+// $Id: cursesapp.h,v 1.12 2011/09/17 22:12:10 tom Exp $
 
 #ifndef NCURSES_CURSESAPP_H_incl
 #define NCURSES_CURSESAPP_H_incl
@@ -80,6 +80,7 @@ protected:
   // This method is called to initialize the SLKs. Default is nothing.
   // You may rewrite this in your derived class
   virtual void init_labels(Soft_Label_Key_Set& S) const {
+    (void) S;
   }
 
   // Your derived class must implement this method. The return value must
@@ -118,6 +119,8 @@ public:
   // Process the commandline arguments. The default implementation simply
   // ignores them. Your derived class may rewrite this.
   virtual void handleArgs(int argc, char* argv[]) {
+    (void) argc;
+    (void) argv;
   }
 
   // Does this application use colors?
@@ -138,37 +141,37 @@ public:
 
   // Attributes to use for menu and forms foregrounds
   virtual chtype foregrounds() const {
-    return b_Colors ? COLOR_PAIR(1) : A_BOLD;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(1)) : A_BOLD;
   }
 
   // Attributes to use for menu and forms backgrounds
   virtual chtype backgrounds() const {
-    return b_Colors ? COLOR_PAIR(2) : A_NORMAL;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(2)) : A_NORMAL;
   }
 
   // Attributes to use for inactive (menu) elements
   virtual chtype inactives() const {
-    return b_Colors ? (COLOR_PAIR(3)|A_DIM) : A_DIM;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(3)|A_DIM) : A_DIM;
   }
 
   // Attributes to use for (form) labels and SLKs
   virtual chtype labels() const {
-    return b_Colors ? COLOR_PAIR(4) : A_NORMAL;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(4)) : A_NORMAL;
   }
 
   // Attributes to use for form backgrounds
   virtual chtype dialog_backgrounds() const {
-    return b_Colors ? COLOR_PAIR(4) : A_NORMAL;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(4)) : A_NORMAL;
   }
 
   // Attributes to use as default for (form) window backgrounds
   virtual chtype window_backgrounds() const {
-    return b_Colors ? COLOR_PAIR(5) : A_NORMAL;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(5)) : A_NORMAL;
   }
 
   // Attributes to use for the title window
   virtual chtype screen_titles() const {
-    return b_Colors ? COLOR_PAIR(6) : A_BOLD;
+    return b_Colors ? static_cast<chtype>(COLOR_PAIR(6)) : A_BOLD;
   }
 
 };

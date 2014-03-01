@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: frm_def.c,v 1.25 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: frm_def.c,v 1.26 2012/03/11 00:37:16 tom Exp $")
 
 /* this can't be readonly */
 static FORM default_form =
@@ -199,14 +199,14 @@ Connect_Fields(FORM *form, FIELD **fields)
   for (j = 0; j < field_cnt; j++)
     {
       if (j == 0)
-	pg->pmin = j;
+	pg->pmin = (short) j;
       else
 	{
 	  if (fields[j]->status & _NEWPAGE)
 	    {
-	      pg->pmax = j - 1;
+	      pg->pmax = (short) (j - 1);
 	      pg++;
-	      pg->pmin = j;
+	      pg->pmin = (short) j;
 	    }
 	}
 
@@ -214,14 +214,14 @@ Connect_Fields(FORM *form, FIELD **fields)
       maximum_col_in_field = fields[j]->fcol + fields[j]->cols;
 
       if (form->rows < maximum_row_in_field)
-	form->rows = maximum_row_in_field;
+	form->rows = (short) maximum_row_in_field;
       if (form->cols < maximum_col_in_field)
-	form->cols = maximum_col_in_field;
+	form->cols = (short) maximum_col_in_field;
     }
 
-  pg->pmax = field_cnt - 1;
-  form->maxfield = field_cnt;
-  form->maxpage = page_nr;
+  pg->pmax = (short) (field_cnt - 1);
+  form->maxfield = (short) field_cnt;
+  form->maxpage = (short) page_nr;
 
   /* Sort fields on form pages */
   for (page_nr = 0; page_nr < form->maxpage; page_nr++)
@@ -230,8 +230,8 @@ Connect_Fields(FORM *form, FIELD **fields)
 
       for (j = form->page[page_nr].pmin; j <= form->page[page_nr].pmax; j++)
 	{
-	  fields[j]->index = j;
-	  fields[j]->page = page_nr;
+	  fields[j]->index = (short) j;
+	  fields[j]->page = (short) page_nr;
 	  fld = Insert_Field_By_Position(fields[j], fld);
 	}
       if (fld)

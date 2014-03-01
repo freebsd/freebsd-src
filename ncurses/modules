@@ -1,6 +1,6 @@
-# $Id: modules,v 1.117 2010/08/07 18:41:02 tom Exp $
+# $Id: modules,v 1.120 2013/01/26 22:17:55 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -115,7 +115,6 @@ tty_update	lib		$(serial)	$(HEADER_DEPS)
 varargs		lib		$(trace)	$(HEADER_DEPS)
 
 # Modules for porting
-memmove		lib		$(base)		$(HEADER_DEPS)
 vsscanf 	lib		$(base)		$(HEADER_DEPS)
 
 # actually an extension, but with its own configure option (--disable-leaks)
@@ -199,9 +198,9 @@ lib_ttyflags	lib		$(tinfo)	$(HEADER_DEPS)
 lib_twait	lib		$(serial)	$(HEADER_DEPS)
 name_match	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
 names		lib		.		$(HEADER_DEPS)
+obsolete	lib		$(tinfo)	$(HEADER_DEPS)
 read_entry	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h $(INCDIR)/hashed_db.h
 read_termcap	lib		$(tinfo)	$(HEADER_DEPS)	$(INCDIR)/tic.h
-setbuf		lib		$(tinfo)	$(HEADER_DEPS)
 strings		lib		$(tinfo)	$(HEADER_DEPS)
 trace_buf	lib		$(trace)	$(HEADER_DEPS)
 trace_tries	lib		$(trace)	$(HEADER_DEPS)
@@ -236,6 +235,7 @@ lib_driver      lib             $(base)		$(HEADER_DEPS)
 @ port_win32con
 gettimeofday	lib		$(win32con)	$(HEADER_DEPS)
 wcwidth		lib             $(win32con)	$(HEADER_DEPS)
+widechars	lib             $(wide)		$(HEADER_DEPS)
 win_driver	lib             $(win32con)	$(HEADER_DEPS)
 
 @ port_tinfo

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009,2010,2011 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2010-2011,2012 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_add_wchstr.c,v 1.15 2011/01/15 18:15:11 tom Exp $
+ * $Id: test_add_wchstr.c,v 1.20 2012/12/16 00:12:04 tom Exp $
  *
  * Demonstrate the waddwchstr() and wadd_wch functions.
  * Thomas Dickey - 2009/9/12
@@ -90,6 +90,8 @@ static size_t temp_length;
 	if (need > temp_length) { \
 	    temp_length = need * 2; \
 	    temp_buffer = typeRealloc(cchar_t, temp_length, temp_buffer); \
+	    if (!temp_buffer) \
+		failed("TempBuffer"); \
 	} \
 	have[0] = 0; \
 	have[1] = 0; \
@@ -317,6 +319,15 @@ test_add_wchstr(int level)
 	(void) cbreak();	/* take input chars one at a time, no wait for \n */
 	(void) noecho();	/* don't echo input */
 	keypad(stdscr, TRUE);
+
+	/*
+	 * Show the characters added in color, to distinguish from those that
+	 * are shifted.
+	 */
+	if (has_colors()) {
+	    start_color();
+	    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+	}
     }
 
     limit = LINES - 5;
@@ -350,14 +361,8 @@ test_add_wchstr(int level)
 
     doupdate();
 
-    /*
-     * Show the characters added in color, to distinguish from those that
-     * are shifted.
-     */
     if (has_colors()) {
-	start_color();
-	init_pair(1, COLOR_WHITE, COLOR_BLUE);
-	wbkgdset(work, COLOR_PAIR(1) | ' ');
+	wbkgdset(work, (chtype) (COLOR_PAIR(1) | ' '));
     }
 
     while ((ch = read_linedata(work)) != ERR && !isQUIT(ch)) {
@@ -366,11 +371,13 @@ test_add_wchstr(int level)
 	case key_RECUR:
 	    test_add_wchstr(level + 1);
 
-	    touchwin(look);
+	    if (look)
+		touchwin(look);
 	    touchwin(work);
 	    touchwin(show);
 
-	    wnoutrefresh(look);
+	    if (look)
+		wnoutrefresh(look);
 	    wnoutrefresh(work);
 	    wnoutrefresh(show);
 
@@ -514,8 +521,8 @@ test_add_wchstr(int level)
 	    break;
 	}
     }
+    delwin(show);
     if (level > 0) {
-	delwin(show);
 	delwin(work);
 	delwin(look);
     }

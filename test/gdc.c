@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 /*
  * Grand digital clock for curses compatible terminals
- * Usage: gdc [-s] [n]   -- run for n seconds (default infinity)
+ * Usage: gdc [-s] [-t hh:mm:ss] [n] -- run for n seconds (default infinity)
  * Flags: -s: scroll
  *
  * modified 10-18-89 for curses (jrl)
  * 10-18-89 added signal handling
  *
- * $Id: gdc.c,v 1.34 2010/11/13 21:01:23 tom Exp $
+ * $Id: gdc.c,v 1.40 2014/02/15 17:34:36 tom Exp $
  */
 
 #include <test.priv.h>
@@ -60,7 +60,7 @@ static int sigtermed = 0;
 static bool redirected = FALSE;
 static bool hascolor = FALSE;
 
-static RETSIGTYPE
+static void
 sighndl(int signo)
 {
     signal(signo, sighndl);
@@ -72,13 +72,24 @@ sighndl(int signo)
 }
 
 static void
+check_term(void)
+{
+    if (sigtermed) {
+	(void) standend();
+	endwin();
+	fprintf(stderr, "gdc terminated by signal %d\n", sigtermed);
+	ExitProgram(EXIT_FAILURE);
+    }
+}
+
+static void
 drawbox(bool scrolling)
 {
     chtype bottom[XLENGTH + 1];
     int n;
 
     if (hascolor)
-	(void) attrset(COLOR_PAIR(PAIR_FRAMES));
+	(void) attrset((attr_t) COLOR_PAIR(PAIR_FRAMES));
 
     MvAddCh(YBASE - 1, XBASE - 1, ACS_ULCORNER);
     hline(ACS_HLINE, XLENGTH);
@@ -102,7 +113,7 @@ drawbox(bool scrolling)
     vline(ACS_VLINE, YDEPTH);
 
     if (hascolor)
-	(void) attrset(COLOR_PAIR(PAIR_OTHERS));
+	(void) attrset((attr_t) COLOR_PAIR(PAIR_OTHERS));
 }
 
 static void
@@ -110,13 +121,13 @@ standt(int on)
 {
     if (on) {
 	if (hascolor) {
-	    attron(COLOR_PAIR(PAIR_DIGITS));
+	    attron((attr_t) COLOR_PAIR(PAIR_DIGITS));
 	} else {
 	    attron(A_STANDOUT);
 	}
     } else {
 	if (hascolor) {
-	    attron(COLOR_PAIR(PAIR_OTHERS));
+	    attron((attr_t) COLOR_PAIR(PAIR_OTHERS));
 	} else {
 	    attroff(A_STANDOUT);
 	}
@@ -147,6 +158,7 @@ usage(void)
 	,"Options:"
 	,"  -n  redirect input to /dev/null"
 	,"  -s  scroll each number into place, rather than flipping"
+	,"  -t hh:mm:ss specify starting time (default is ``now'')"
 	,""
 	,"If you specify a count, gdc runs for that number of seconds"
     };
@@ -154,6 +166,43 @@ usage(void)
     for (j = 0; j < SIZEOF(msg); j++)
 	fprintf(stderr, "%s\n", msg[j]);
     ExitProgram(EXIT_FAILURE);
+}
+
+static time_t
+parse_time(const char *value)
+{
+    int hh, mm, ss;
+    int check;
+    time_t result;
+    char c;
+    struct tm *tm;
+
+    if (sscanf(value, "%d:%d:%d%c", &hh, &mm, &ss, &c) != 3) {
+	if (sscanf(value, "%02d%02d%02d%c", &hh, &mm, &ss, &c) != 3) {
+	    usage();
+	}
+    }
+
+    if ((hh < 0) || (hh >= 24) ||
+	(mm < 0) || (mm >= 60) ||
+	(ss < 0) || (ss >= 60)) {
+	usage();
+    }
+
+    /* adjust so that the localtime in the main loop will give usable time */
+    result = (hh * 3600) + ((mm * 60) + ss);
+    for (check = 0; check < 24; ++check) {
+	tm = localtime(&result);
+	if (tm->tm_hour == hh)
+	    break;
+	result += 3600;
+    }
+
+    if (tm->tm_hour != hh) {
+	fprintf(stderr, "Cannot find local time for %s!\n", value);
+	usage();
+    }
+    return result;
 }
 
 int
@@ -166,20 +215,25 @@ main(int argc, char *argv[])
     int count = 0;
     FILE *ofp = stdout;
     FILE *ifp = stdin;
-    bool scrol = FALSE;
+    bool smooth = FALSE;
+    bool stages = FALSE;
+    time_t starts = 0;
 
     setlocale(LC_ALL, "");
 
     CATCHALL(sighndl);
 
-    while ((k = getopt(argc, argv, "sn")) != -1) {
+    while ((k = getopt(argc, argv, "nst:")) != -1) {
 	switch (k) {
-	case 's':
-	    scrol = TRUE;
-	    break;
 	case 'n':
 	    ifp = fopen("/dev/null", "r");
 	    redirected = TRUE;
+	    break;
+	case 's':
+	    smooth = TRUE;
+	    break;
+	case 't':
+	    starts = parse_time(optarg);
 	    break;
 	default:
 	    usage();
@@ -220,7 +274,7 @@ main(int argc, char *argv[])
 	init_pair(PAIR_DIGITS, COLOR_BLACK, COLOR_RED);
 	init_pair(PAIR_OTHERS, COLOR_RED, bg);
 	init_pair(PAIR_FRAMES, COLOR_WHITE, bg);
-	(void) attrset(COLOR_PAIR(PAIR_OTHERS));
+	(void) attrset((attr_t) COLOR_PAIR(PAIR_OTHERS));
     }
 
   restart:
@@ -231,9 +285,13 @@ main(int argc, char *argv[])
     drawbox(FALSE);
 
     do {
-	char buf[30];
+	char buf[40];
 
-	time(&now);
+	if (starts != 0) {
+	    now = ++starts;
+	} else {
+	    time(&now);
+	}
 	tm = localtime(&now);
 
 	mask = 0;
@@ -247,12 +305,13 @@ main(int argc, char *argv[])
 	set(10, 17);
 
 	for (k = 0; k < 6; k++) {
-	    if (scrol) {
+	    if (smooth) {
 		for (i = 0; i < 5; i++)
 		    newer[i] = (newer[i] & ~mask) | (newer[i + 1] & mask);
 		newer[5] = (newer[5] & ~mask) | (next[k] & mask);
-	    } else
+	    } else {
 		newer[k] = (newer[k] & ~mask) | (next[k] & mask);
+	    }
 	    next[k] = 0;
 	    for (s = 1; s >= 0; s--) {
 		standt(s);
@@ -273,7 +332,7 @@ main(int argc, char *argv[])
 		    }
 		}
 		if (!s) {
-		    if (scrol)
+		    if (smooth)
 			drawbox(TRUE);
 		    refresh();
 		    /*
@@ -286,14 +345,41 @@ main(int argc, char *argv[])
 		     * a lot of time when asking what time it is, at the top of
 		     * this loop -T.Dickey
 		     */
-		    if (scrol)
+		    if (smooth)
 			napms(85);
+		    if (stages) {
+			stages = FALSE;
+			switch (wgetch(stdscr)) {
+			case 'q':
+			    count = 1;
+			    break;
+			case 'S':
+			    stages = TRUE;
+			    /* FALLTHRU */
+			case 's':
+			    nodelay(stdscr, FALSE);
+			    break;
+			case ' ':
+			    nodelay(stdscr, TRUE);
+			    break;
+#ifdef KEY_RESIZE
+			case KEY_RESIZE:
+#endif
+			case '?':
+			    goto restart;
+			case ERR:
+			    check_term();
+			    /* FALLTHRU */
+			default:
+			    continue;
+			}
+		    }
 		}
 	    }
 	}
 
 	/* this depends on the detailed format of ctime(3) */
-	(void) strcpy(buf, ctime(&now));
+	(void) strncpy(buf, ctime(&now), (size_t) 30);
 	(void) strcpy(buf + 10, buf + 19);
 	MvAddStr(16, 30, buf);
 
@@ -302,11 +388,11 @@ main(int argc, char *argv[])
 	refresh();
 
 	/*
-	 * If we're not scrolling, wait 1000 msec (1 sec).  Use napms() rather
-	 * than sleep() because the latter does odd things on some systems,
-	 * e.g., suspending output as well.
+	 * If we're not smooth-scrolling, wait 1000 msec (1 sec).  Use napms()
+	 * rather than sleep() because the latter does odd things on some
+	 * systems, e.g., suspending output as well.
 	 */
-	if (scrol)
+	if (smooth)
 	    napms(500);
 	else
 	    napms(1000);
@@ -318,10 +404,14 @@ main(int argc, char *argv[])
 	 * will return an error if interrupted.  This works only if we can
 	 * read from the input, of course.
 	 */
+	stages = FALSE;
 	switch (wgetch(stdscr)) {
 	case 'q':
 	    count = 1;
 	    break;
+	case 'S':
+	    stages = TRUE;
+	    /* FALLTHRU */
 	case 's':
 	    nodelay(stdscr, FALSE);
 	    break;
@@ -334,12 +424,7 @@ main(int argc, char *argv[])
 	case '?':
 	    goto restart;
 	case ERR:
-	    if (sigtermed) {
-		(void) standend();
-		endwin();
-		fprintf(stderr, "gdc terminated by signal %d\n", sigtermed);
-		ExitProgram(EXIT_FAILURE);
-	    }
+	    check_term();
 	    /* FALLTHRU */
 	default:
 	    continue;
