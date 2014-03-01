@@ -296,7 +296,7 @@
  */
 
 /* XXX Linux define compatibility stuff */
-#define	BITM(_count)			((1 << _count) - 1)
+#define	BITM(_count)			((1UL << _count) - 1)
 #define	BITS(_shift, _count)		(BITM(_count) << _shift)
 
 #define	AR934X_REG_OPER_MODE0		0x04
