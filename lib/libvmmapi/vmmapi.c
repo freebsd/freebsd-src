@@ -343,35 +343,32 @@ vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
 }
 
 static int
-vm_inject_event_real(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		     int vector, int error_code, int error_code_valid)
+vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
+    int error_code, int error_code_valid)
 {
-	struct vm_event ev;
+	struct vm_exception exc;
 
-	bzero(&ev, sizeof(ev));
-	ev.cpuid = vcpu;
-	ev.type = type;
-	ev.vector = vector;
-	ev.error_code = error_code;
-	ev.error_code_valid = error_code_valid;
+	bzero(&exc, sizeof(exc));
+	exc.cpuid = vcpu;
+	exc.vector = vector;
+	exc.error_code = error_code;
+	exc.error_code_valid = error_code_valid;
 
-	return (ioctl(ctx->fd, VM_INJECT_EVENT, &ev));
+	return (ioctl(ctx->fd, VM_INJECT_EXCEPTION, &exc));
 }
 
 int
-vm_inject_event(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		int vector)
+vm_inject_exception(struct vmctx *ctx, int vcpu, int vector)
 {
 
-	return (vm_inject_event_real(ctx, vcpu, type, vector, 0, 0));
+	return (vm_inject_exception_real(ctx, vcpu, vector, 0, 0));
 }
 
 int
-vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
-		 int vector, int error_code)
+vm_inject_exception2(struct vmctx *ctx, int vcpu, int vector, int errcode)
 {
 
-	return (vm_inject_event_real(ctx, vcpu, type, vector, error_code, 1));
+	return (vm_inject_exception_real(ctx, vcpu, vector, errcode, 1));
 }
 
 int

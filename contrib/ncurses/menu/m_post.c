@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_post.c,v 1.26 2004/12/25 23:57:04 tom Exp $")
+MODULE_ID("$Id: m_post.c,v 1.29 2010/05/01 19:18:27 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
@@ -171,7 +171,7 @@ _nc_Post_Item(const MENU * menu, const ITEM * item)
 		    waddch(menu->win, ' ');
 		}
 	      if ((cy + j) < getmaxy(menu->win))
-		mvwaddch(menu->win, cy + j, cx - 1, menu->pad);
+		(void)mvwaddch(menu->win, cy + j, cx - 1, menu->pad);
 	    }
 	  wmove(menu->win, ncy, ncx);
 	  if (!isback)
@@ -255,7 +255,7 @@ _nc_Draw_Menu(const MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
-|   Function      :  int post_menu(MENU *)
+|   Function      :  int post_menu(MENU* menu)
 |
 |   Description   :  Post a menu to the screen. This makes it visible.
 |
@@ -269,7 +269,7 @@ _nc_Draw_Menu(const MENU * menu)
 NCURSES_EXPORT(int)
 post_menu(MENU * menu)
 {
-  T((T_CALLED("post_menu(%p)"), menu));
+  T((T_CALLED("post_menu(%p)"), (void *)menu));
 
   if (!menu)
     RETURN(E_BAD_ARGUMENT);
@@ -329,7 +329,7 @@ post_menu(MENU * menu)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu
-|   Function      :  int unpost_menu(MENU *)
+|   Function      :  int unpost_menu(MENU*)
 |
 |   Description   :  Detach menu from screen
 |
@@ -343,7 +343,7 @@ unpost_menu(MENU * menu)
 {
   WINDOW *win;
 
-  T((T_CALLED("unpost_menu(%p)"), menu));
+  T((T_CALLED("unpost_menu(%p)"), (void *)menu));
 
   if (!menu)
     RETURN(E_BAD_ARGUMENT);

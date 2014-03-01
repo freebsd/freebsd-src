@@ -73,9 +73,13 @@ API for registering NVMe namespace consumers such as
 API for submitting NVM commands to namespaces
 .It
 Ioctls for controller and namespace configuration and management
+.Pp
 .Nm
-creates controller devices in the format /dev/nvmeX and namespace devices in
-the format /dev/nvmeXnsY.
+creates controller devices in the format
+.Pa /dev/nvmeX
+and namespace devices in
+the format
+.Pa /dev/nvmeXnsY .
 Note that the NVM Express specification starts numbering namespaces at 1,
 not 0, and this driver follows that convention.
 .El
@@ -104,7 +108,8 @@ Note that use of INTx implies disabling of per-CPU I/O queue pairs.
 The following controller-level sysctls are currently implemented:
 .Bl -tag -width indent
 .It Va dev.nvme.0.int_coal_time
-(R/W) Interrupt coalescing timer period in microseconds.  Set to 0 to disable.
+(R/W) Interrupt coalescing timer period in microseconds.
+Set to 0 to disable.
 .It Va dev.nvme.0.int_coal_threshold
 (R/W) Interrupt coalescing threshold in number of command completions.
 Set to 0 to disable.
@@ -146,7 +151,7 @@ and completion queues to the console.
 .Xr nvd 4 ,
 .Xr pci 4 ,
 .Xr nvmecontrol 8 ,
-.Xr disk 9 .
+.Xr disk 9
 .Sh HISTORY
 The
 .Nm

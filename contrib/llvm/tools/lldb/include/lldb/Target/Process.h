@@ -43,6 +43,7 @@
 #include "lldb/Interpreter/Options.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/Memory.h"
+#include "lldb/Target/QueueList.h"
 #include "lldb/Target/ThreadList.h"
 #include "lldb/Target/UnixSignals.h"
 #include "lldb/Utility/PseudoTerminal.h"
@@ -534,7 +535,8 @@ public:
         m_resume_count (0),
         m_monitor_callback (NULL),
         m_monitor_callback_baton (NULL),
-        m_monitor_signals (false)
+        m_monitor_signals (false),
+        m_hijack_listener_sp ()
     {
     }
 
@@ -553,7 +555,8 @@ public:
         m_resume_count (0),
         m_monitor_callback (NULL),
         m_monitor_callback_baton (NULL),
-        m_monitor_signals (false)
+        m_monitor_signals (false),
+        m_hijack_listener_sp ()
     {
         if (stdin_path)
         {
@@ -780,6 +783,7 @@ public:
         m_flags.Clear();
         m_file_actions.clear();
         m_resume_count = 0;
+        m_hijack_listener_sp.reset();
     }
 
     bool
@@ -799,9 +803,28 @@ public:
         m_monitor_signals = monitor_signals;
     }
 
+    Host::MonitorChildProcessCallback
+    GetMonitorProcessCallback ()
+    {
+        return m_monitor_callback;
+    }
+
+    const void*
+    GetMonitorProcessBaton () const
+    {
+        return m_monitor_callback_baton;
+    }
+
+    // If the LaunchInfo has a monitor callback, then arrange to monitor the process.
+    // Return true if the LaunchInfo has taken care of monitoring the process, and false if the
+    // caller might want to monitor the process themselves.
+    
     bool
     MonitorProcess () const
     {
+        if (GetFlags().Test(lldb::eLaunchFlagsDontMonitorProcess))
+            return true;
+        
         if (m_monitor_callback && ProcessIDIsValid())
         {
             Host::StartMonitoringChildProcess (m_monitor_callback,
@@ -818,6 +841,19 @@ public:
     {
         return m_pty;
     }
+    
+    lldb::ListenerSP
+    GetHijackListener () const
+    {
+        return m_hijack_listener_sp;
+    }
+    
+    void
+    SetHijackListener (const lldb::ListenerSP &listener_sp)
+    {
+        m_hijack_listener_sp = listener_sp;
+    }
+
 
 protected:
     std::string m_working_dir;
@@ -830,7 +866,7 @@ protected:
     Host::MonitorChildProcessCallback m_monitor_callback;
     void *m_monitor_callback_baton;
     bool m_monitor_signals;
-
+    lldb::ListenerSP m_hijack_listener_sp;
 };
 
 //----------------------------------------------------------------------
@@ -863,6 +899,7 @@ public:
         ProcessInfo::operator= (launch_info);
         SetProcessPluginName (launch_info.GetProcessPluginName());
         SetResumeCount (launch_info.GetResumeCount());
+        SetHijackListener(launch_info.GetHijackListener());
     }
     
     bool
@@ -952,7 +989,22 @@ public:
             return true;
         return false;
     }
+    
+    lldb::ListenerSP
+    GetHijackListener () const
+    {
+        return m_hijack_listener_sp;
+    }
+    
+    void
+    SetHijackListener (const lldb::ListenerSP &listener_sp)
+    {
+        m_hijack_listener_sp = listener_sp;
+    }
+    
+
 protected:
+    lldb::ListenerSP m_hijack_listener_sp;
     std::string m_plugin_name;
     uint32_t m_resume_count; // How many times do we resume after launching
     bool m_wait_for_launch;
@@ -1366,10 +1418,11 @@ class Process :
     public ExecutionContextScope,
     public PluginInterface
 {
-friend class ThreadList;
-friend class ClangFunction; // For WaitForStateChangeEventsPrivate
-friend class ProcessEventData;
-friend class StopInfo;
+    friend class ClangFunction; // For WaitForStateChangeEventsPrivate
+    friend class ProcessEventData;
+    friend class StopInfo;
+    friend class Target;
+    friend class ThreadList;
 
 public:
 
@@ -2112,21 +2165,15 @@ public:
     /// @param[in] process_name
     ///     The name of the process to attach to.
     ///
-    /// @param[in] wait_for_launch
-    ///     If \b true, wait for the process to be launched and attach
-    ///     as soon as possible after it does launch. If \b false, then
-    ///     search for a matching process the currently exists.
-    ///
     /// @param[in] attach_info
     ///     Information on how to do the attach. For example, GetUserID()
     ///     will return the uid to attach as.
     ///
     /// @return
-    ///     Returns \a pid if attaching was successful, or
-    ///     LLDB_INVALID_PROCESS_ID if attaching fails.
+    ///     Returns an error object.
     //------------------------------------------------------------------
     virtual Error
-    DoAttachToProcessWithName (const char *process_name, bool wait_for_launch, const ProcessAttachInfo &attach_info) 
+    DoAttachToProcessWithName (const char *process_name, const ProcessAttachInfo &attach_info)
     {
         Error error;
         error.SetErrorString("attach by name is not supported");
@@ -2225,7 +2272,7 @@ public:
     //------------------------------------------------------------------
     virtual Error
     DoLaunch (Module *exe_module,
-              const ProcessLaunchInfo &launch_info)
+              ProcessLaunchInfo &launch_info)
     {
         Error error;
         error.SetErrorStringWithFormat("error: %s does not support launching processes", GetPluginName().GetCString());
@@ -2991,15 +3038,11 @@ public:
     //------------------------------------------------------------------
 
     virtual lldb::addr_t
-    ResolveIndirectFunction(const Address *address, Error &error)
-    {
-        error.SetErrorStringWithFormat("error: %s does not support indirect functions in the debug process", GetPluginName().GetCString());
-        return LLDB_INVALID_ADDRESS;
-    }
+    ResolveIndirectFunction(const Address *address, Error &error);
 
     virtual Error
-    GetMemoryRegionInfo (lldb::addr_t load_addr, 
-                        MemoryRegionInfo &range_info)
+    GetMemoryRegionInfo (lldb::addr_t load_addr,
+                         MemoryRegionInfo &range_info)
     {
         Error error;
         error.SetErrorString ("Process::GetMemoryRegionInfo() not supported");
@@ -3317,10 +3360,10 @@ public:
     {
         return m_thread_list.Threads();
     }
-    
+
     uint32_t
     GetNextThreadIndexID (uint64_t thread_id);
-    
+
     lldb::ThreadSP
     CreateOSPluginThread (lldb::tid_t tid, lldb::addr_t context);
     
@@ -3334,6 +3377,27 @@ public:
     AssignIndexIDToThread(uint64_t thread_id);
 
     //------------------------------------------------------------------
+    // Queue Queries
+    //------------------------------------------------------------------
+
+    void
+    UpdateQueueListIfNeeded ();
+
+    QueueList &
+    GetQueueList ()
+    {
+        UpdateQueueListIfNeeded();
+        return m_queue_list;
+    }
+
+    QueueList::QueueIterable
+    Queues ()
+    {
+        UpdateQueueListIfNeeded();
+        return m_queue_list.Queues();
+    }
+
+    //------------------------------------------------------------------
     // Event Handling
     //------------------------------------------------------------------
     lldb::StateType
@@ -3343,10 +3407,15 @@ public:
     // is set to the event which triggered the stop. If wait_always = false,
     // and the process is already stopped, this function returns immediately.
     lldb::StateType
-    WaitForProcessToStop (const TimeValue *timeout, lldb::EventSP *event_sp_ptr = NULL, bool wait_always = true);
+    WaitForProcessToStop (const TimeValue *timeout,
+                          lldb::EventSP *event_sp_ptr = NULL,
+                          bool wait_always = true,
+                          Listener *hijack_listener = NULL);
 
     lldb::StateType
-    WaitForStateChangedEvents (const TimeValue *timeout, lldb::EventSP &event_sp);
+    WaitForStateChangedEvents (const TimeValue *timeout,
+                               lldb::EventSP &event_sp,
+                               Listener *hijack_listener); // Pass NULL to use builtin listener
     
     Event *
     PeekAtStateChangedEvents ();
@@ -3513,6 +3582,12 @@ public:
     void
     SetSTDIOFileDescriptor (int file_descriptor);
 
+    void
+    WatchForSTDIN (IOHandler &io_handler);
+    
+    void
+    CancelWatchForSTDIN (bool exited);
+    
     //------------------------------------------------------------------
     // Add a permanent region of memory that should never be read or 
     // written to. This can be used to ensure that memory reads or writes
@@ -3645,6 +3720,12 @@ protected:
     {
         return IS_VALID_LLDB_HOST_THREAD(m_private_state_thread);
     }
+    
+    void
+    ForceNextEventDelivery()
+    {
+        m_force_next_event_delivery = true;
+    }
 
     //------------------------------------------------------------------
     // Type definitions
@@ -3685,6 +3766,8 @@ protected:
                                                         ///< m_thread_list_real, but might be different if there is an OS plug-in creating memory threads
     ThreadList                  m_extended_thread_list; ///< Owner for extended threads that may be generated, cleared on natural stops
     uint32_t                    m_extended_thread_stop_id; ///< The natural stop id when extended_thread_list was last updated
+    QueueList                   m_queue_list;           ///< The list of libdispatch queues at a given stop point
+    uint32_t                    m_queue_list_stop_id;   ///< The natural stop id when queue list was last fetched
     std::vector<Notifications>  m_notifications;        ///< The list of notifications that this process can deliver.
     std::vector<lldb::addr_t>   m_image_tokens;
     Listener                    &m_listener;
@@ -3695,7 +3778,7 @@ protected:
     std::unique_ptr<SystemRuntime> m_system_runtime_ap;
     UnixSignals                 m_unix_signals;         /// This is the current signal set for this process.
     lldb::ABISP                 m_abi_sp;
-    lldb::InputReaderSP         m_process_input_reader;
+    lldb::IOHandlerSP           m_process_input_reader;
     Communication               m_stdio_communication;
     Mutex                       m_stdio_communication_mutex;
     std::string                 m_stdout_data;
@@ -3715,7 +3798,9 @@ protected:
     bool                        m_resume_requested;         // If m_currently_handling_event or m_currently_handling_do_on_removals are true, Resume will only request a resume, using this flag to check.
     bool                        m_finalize_called;
     bool                        m_clear_thread_plans_on_stop;
+    bool                        m_force_next_event_delivery;
     lldb::StateType             m_last_broadcast_state;   /// This helps with the Public event coalescing in ShouldBroadcastEvent.
+    std::map<lldb::addr_t,lldb::addr_t> m_resolved_indirect_addresses;
     bool m_destroy_in_process;
     
     enum {
@@ -3790,21 +3875,14 @@ protected:
     STDIOReadThreadBytesReceived (void *baton, const void *src, size_t src_len);
     
     void
-    PushProcessInputReader ();
+    PushProcessIOHandler ();
     
     void 
-    PopProcessInputReader ();
+    PopProcessIOHandler ();
     
     void
-    ResetProcessInputReader ();
-    
-    static size_t
-    ProcessInputReaderCallback (void *baton,
-                                InputReader &reader,
-                                lldb::InputReaderAction notification,
-                                const char *bytes,
-                                size_t bytes_len);
-    
+    ResetProcessIOHandler ();
+        
     Error
     HaltForDestroyOrDetach(lldb::EventSP &exit_event_sp);
     

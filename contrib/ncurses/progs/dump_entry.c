@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 #include "termsort.c"		/* this C file is generated */
 #include <parametrized.h>	/* so is this */
 
-MODULE_ID("$Id: dump_entry.c,v 1.88 2008/08/04 12:36:12 tom Exp $")
+MODULE_ID("$Id: dump_entry.c,v 1.89 2010/05/01 22:04:08 tom Exp $")
 
 #define INDENT			8
 #define DISCARD(string) string = ABSENT_STRING
@@ -1040,7 +1040,7 @@ dump_entry(TERMTYPE *tterm,
 
     save_sgr = set_attributes;
 
-    if (((len = FMT_ENTRY()) > critlen)
+    if ((FMT_ENTRY() > critlen)
 	&& limited) {
 
 	save_tterm = *tterm;
@@ -1049,7 +1049,7 @@ dump_entry(TERMTYPE *tterm,
 		     critlen);
 	    suppress_untranslatable = TRUE;
 	}
-	if ((len = FMT_ENTRY()) > critlen) {
+	if (FMT_ENTRY() > critlen) {
 	    /*
 	     * We pick on sgr because it's a nice long string capability that
 	     * is really just an optimization hack.  Another good candidate is
@@ -1075,7 +1075,7 @@ dump_entry(TERMTYPE *tterm,
 				 critlen);
 		    }
 		    changed = TRUE;
-		    if ((len = FMT_ENTRY()) <= critlen)
+		    if (FMT_ENTRY() <= critlen)
 			break;
 		}
 	    }
@@ -1086,7 +1086,7 @@ dump_entry(TERMTYPE *tterm,
 			 critlen);
 		changed = TRUE;
 	    }
-	    if (!changed || ((len = FMT_ENTRY()) > critlen)) {
+	    if (!changed || (FMT_ENTRY() > critlen)) {
 		if (purged_acs(tterm)) {
 		    acs_chars = ABSENT_STRING;
 		    SHOW_WHY("# (acsc removed to fit entry within %d bytes)\n",
@@ -1094,7 +1094,7 @@ dump_entry(TERMTYPE *tterm,
 		    changed = TRUE;
 		}
 	    }
-	    if (!changed || ((len = FMT_ENTRY()) > critlen)) {
+	    if (!changed || (FMT_ENTRY() > critlen)) {
 		int oldversion = tversion;
 
 		tversion = V_BSD;
@@ -1130,7 +1130,7 @@ dump_entry(TERMTYPE *tterm,
     } else if (!version_filter(STRING, STR_IDX(acs_chars))) {
 	save_tterm = *tterm;
 	if (purged_acs(tterm)) {
-	    len = FMT_ENTRY();
+	    (void) FMT_ENTRY();
 	}
 	*tterm = save_tterm;
     }

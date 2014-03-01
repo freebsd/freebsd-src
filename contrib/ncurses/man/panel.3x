@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2007 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,16 +26,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: panel.3x,v 1.14 2007/05/12 20:45:20 tom Exp $
+.\" $Id: panel.3x,v 1.17 2010/10/02 23:22:44 tom Exp $
 .TH panel 3X ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-panel - panel stack extension for curses
+panel \- panel stack extension for curses
 .SH SYNOPSIS
 \fB#include <panel.h>\fR
 .P
-\fBcc [flags] sourcefiles -lpanel -lncurses\fR
+\fBcc [flags] sourcefiles \-lpanel \-lncurses\fR
 .P
 \fBPANEL *new_panel(WINDOW *win)\fR
 .br
@@ -93,8 +93,10 @@ pointer to the new panel.
 .B update_panels()
 refreshes the virtual screen to reflect the relations between the
 panels in the stack, but does not call doupdate() to refresh the
-physical screen.  Use this function and not wrefresh or wnoutrefresh.
-update_panels() may be called more than once before a call to
+physical screen.
+Use this function and not \fBwrefresh\fP or \fBwnoutrefresh\fP.
+.B update_panels
+may be called more than once before a call to
 doupdate(), but doupdate() is the function responsible for updating
 the physical screen.
 .TP
@@ -170,7 +172,7 @@ move to the top of the stack. You are cautioned to use the correct
 function to ensure compatibility with native panel libraries.
 .SH NOTE
 In your library list, libpanel.a should be before libncurses.a; that is,
-you want to say `-lpanel -lncurses', not the other way around (which would
+you want to say `\-lpanel \-lncurses', not the other way around (which would
 usually give a link-error).
 .SH FILES
 .P
@@ -180,7 +182,8 @@ interface for the panels library
 libpanel.a
 the panels library itself
 .SH SEE ALSO
-\fBcurses\fR(3X)
+\fBcurses\fR(3X),
+\fBcurs_variables\fR(3X),
 .PP
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

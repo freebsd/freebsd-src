@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2001-2006,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2001-2009,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_getcchar.3x,v 1.11 2008/05/17 19:37:05 tom Exp $
+.\" $Id: curs_getcchar.3x,v 1.15 2010/12/04 18:36:44 tom Exp $
 .TH curs_getcchar 3X ""
+.de bP
+.IP \(bu 4
+..
 .SH NAME
 \fBgetcchar\fP,
 \fBsetcchar\fP \- Get a wide character string and rendition from a \fBcchar_t\fP or set a \fBcchar_t\fP from a wide-character string
@@ -63,17 +66,13 @@ The \fBgetcchar\fP function gets a wide-character string
 and rendition from a \fBcchar_t\fP argument.
 When \fIwch\fP is not a null pointer,
 the \fBgetcchar\fP function does the following:
-.TP 5
--
+.bP
 Extracts information from a \fBcchar_t\fP value \fIwcval\fP
-.TP 5
--
+.bP
 Stores the character attributes in the location pointed to by \fIattrs\fP
-.TP 5
--
+.bP
 Stores the color-pair in the location pointed to by \fIcolor_pair\fP
-.TP 5
--
+.bP
 Stores the wide-character string,
 characters referenced by \fIwcval\fP, into the array pointed to by \fIwch\fP.
 .PP
@@ -82,11 +81,9 @@ When
 is a null pointer, the
 \fBgetcchar\fP
 function does the following:
-.TP 5
--
+.bP
 Obtains the number of wide characters pointed to by \fIwcval\fP
-.TP 5
--
+.bP
 Does not change the data referenced by
 \fIattrs\fP
 or
@@ -94,22 +91,19 @@ or
 .PP
 The \fBsetcchar\fP function initializes the location pointed to by \fIwcval\fP
 by using:
-.TP 5
--
+.bP
 The character attributes in
 \fIattrs\fP
-.TP 5
--
+.bP
 The color pair in
 \fIcolor_pair\fP
-.TP 5
--
+.bP
 The wide-character string pointed to by \fIwch\fP.
 The string must be L'\\0' terminated,
 contain at most one spacing character,
 which must be the first.
 .IP
-Up to \fBCCHARW_MAX\fP-1 nonspacing characters may follow.
+Up to \fBCCHARW_MAX\fP\-1 nonspacing characters may follow.
 Additional nonspacing characters are ignored.
 .IP
 The string may contain a single control character instead.
@@ -126,7 +120,8 @@ If \fIwcval\fP is constructed by any other means, the effect is unspecified.
 .PP
 When \fIwch\fP is a null pointer,
 \fBgetcchar\fP returns the number of wide characters referenced by
-\fIwcval\fP.
+\fIwcval\fP,
+including one for a trailing null.
 .PP
 When \fIwch\fP is not a null pointer,
 \fBgetcchar\fP returns \fBOK\fP upon successful completion,
@@ -141,9 +136,3 @@ Functions:
 \fBcurs_color\fR(3X),
 \fBcurses\fR(3X),
 \fBwcwidth\fR(3).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

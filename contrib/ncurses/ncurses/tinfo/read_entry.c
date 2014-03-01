@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,9 +40,8 @@
 #include <hashed_db.h>
 
 #include <tic.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: read_entry.c,v 1.102 2008/08/03 19:33:04 tom Exp $")
+MODULE_ID("$Id: read_entry.c,v 1.108 2011/02/26 15:36:06 tom Exp $")
 
 #define TYPE_CALLOC(type,elts) typeCalloc(type, (unsigned)(elts))
 
@@ -57,7 +56,7 @@ convert_shorts(char *buf, short *Numbers, int count)
 	else if (IS_NEG2(buf + 2 * i))
 	    Numbers[i] = CANCELLED_NUMERIC;
 	else
-	    Numbers[i] = LOW_MSB(buf + 2 * i);
+	    Numbers[i] = (short) LOW_MSB(buf + 2 * i);
 	TR(TRACE_DATABASE, ("get Numbers[%d]=%d", i, Numbers[i]));
     }
 }
@@ -99,9 +98,9 @@ fake_read(char *src, int *offset, int limit, char *dst, unsigned want)
 
     if (have > 0) {
 	if ((int) want > have)
-	    want = have;
+	    want = (unsigned) have;
 	memcpy(dst, src + *offset, want);
-	*offset += want;
+	*offset += (int) want;
     } else {
 	want = 0;
     }
@@ -155,7 +154,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 	return (TGETENT_NO);
     }
 
-    want = str_size + name_size + 1;
+    want = (unsigned) (str_size + name_size + 1);
     if (str_size) {
 	/* try to allocate space for the string table */
 	if (str_count * 2 >= (int) sizeof(buf)
@@ -173,14 +172,14 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
     want = min(MAX_NAME_SIZE, (unsigned) name_size);
     ptr->str_table = string_table;
     ptr->term_names = string_table;
-    if ((have = Read(ptr->term_names, want)) != want) {
+    if ((have = (unsigned) Read(ptr->term_names, want)) != want) {
 	memset(ptr->term_names + have, 0, want - have);
     }
     ptr->term_names[want] = '\0';
     string_table += (want + 1);
 
     if (have > MAX_NAME_SIZE)
-	offset = (have - MAX_NAME_SIZE);
+	offset = (int) (have - MAX_NAME_SIZE);
 
     /* grab the booleans */
     if ((ptr->Booleans = TYPE_CALLOC(NCURSES_SBOOL,
@@ -234,7 +233,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 	int ext_str_count = LOW_MSB(buf + 4);
 	int ext_str_size = LOW_MSB(buf + 6);
 	int ext_str_limit = LOW_MSB(buf + 8);
-	unsigned need = (ext_bool_count + ext_num_count + ext_str_count);
+	unsigned need = (unsigned) (ext_bool_count + ext_num_count + ext_str_count);
 	int base = 0;
 
 	if (need >= sizeof(buf)
@@ -247,9 +246,9 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 	    || ext_str_limit < 0)
 	    return (TGETENT_NO);
 
-	ptr->num_Booleans = BOOLCOUNT + ext_bool_count;
-	ptr->num_Numbers = NUMCOUNT + ext_num_count;
-	ptr->num_Strings = STRCOUNT + ext_str_count;
+	ptr->num_Booleans = UShort(BOOLCOUNT + ext_bool_count);
+	ptr->num_Numbers = UShort(NUMCOUNT + ext_num_count);
+	ptr->num_Strings = UShort(STRCOUNT + ext_str_count);
 
 	ptr->Booleans = typeRealloc(NCURSES_SBOOL, ptr->num_Booleans, ptr->Booleans);
 	ptr->Numbers = typeRealloc(short, ptr->num_Numbers, ptr->Numbers);
@@ -261,7 +260,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 
 	TR(TRACE_DATABASE, ("READ %d extended-booleans @%d",
 			    ext_bool_count, offset));
-	if ((ptr->ext_Booleans = ext_bool_count) != 0) {
+	if ((ptr->ext_Booleans = UShort(ext_bool_count)) != 0) {
 	    if (Read(ptr->Booleans + BOOLCOUNT, (unsigned)
 		     ext_bool_count) != ext_bool_count)
 		return (TGETENT_NO);
@@ -270,7 +269,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 
 	TR(TRACE_DATABASE, ("READ %d extended-numbers @%d",
 			    ext_num_count, offset));
-	if ((ptr->ext_Numbers = ext_num_count) != 0) {
+	if ((ptr->ext_Numbers = UShort(ext_num_count)) != 0) {
 	    if (!read_shorts(buf, ext_num_count))
 		return (TGETENT_NO);
 	    TR(TRACE_DATABASE, ("Before converting extended-numbers"));
@@ -279,21 +278,22 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 
 	TR(TRACE_DATABASE, ("READ extended-offsets @%d", offset));
 	if ((ext_str_count || need)
-	    && !read_shorts(buf, ext_str_count + need))
+	    && !read_shorts(buf, ext_str_count + (int) need))
 	    return (TGETENT_NO);
 
 	TR(TRACE_DATABASE, ("READ %d bytes of extended-strings @%d",
 			    ext_str_limit, offset));
 
 	if (ext_str_limit) {
-	    if ((ptr->ext_str_table = typeMalloc(char, ext_str_limit)) == 0)
-		  return (TGETENT_NO);
+	    ptr->ext_str_table = typeMalloc(char, (size_t) ext_str_limit);
+	    if (ptr->ext_str_table == 0)
+		return (TGETENT_NO);
 	    if (Read(ptr->ext_str_table, (unsigned) ext_str_limit) != ext_str_limit)
 		return (TGETENT_NO);
 	    TR(TRACE_DATABASE, ("first extended-string is %s", _nc_visbuf(ptr->ext_str_table)));
 	}
 
-	if ((ptr->ext_Strings = ext_str_count) != 0) {
+	if ((ptr->ext_Strings = UShort(ext_str_count)) != 0) {
 	    TR(TRACE_DATABASE,
 	       ("Before computing extended-string capabilities str_count=%d, ext_str_count=%d",
 		str_count, ext_str_count));
@@ -305,7 +305,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 				    _nc_visbuf(ptr->Strings[i + str_count])));
 		ptr->Strings[i + STRCOUNT] = ptr->Strings[i + str_count];
 		if (VALID_STRING(ptr->Strings[i + STRCOUNT]))
-		    base += (strlen(ptr->Strings[i + STRCOUNT]) + 1);
+		    base += (int) (strlen(ptr->Strings[i + STRCOUNT]) + 1);
 		TR(TRACE_DATABASE, ("... to    [%d] %s",
 				    i + STRCOUNT,
 				    _nc_visbuf(ptr->Strings[i + STRCOUNT])));
@@ -314,7 +314,7 @@ _nc_read_termtype(TERMTYPE *ptr, char *buffer, int limit)
 
 	if (need) {
 	    if (ext_str_count >= (MAX_ENTRY_SIZE * 2))
-		  return (TGETENT_NO);
+		return (TGETENT_NO);
 	    if ((ptr->ext_Names = TYPE_CALLOC(char *, need)) == 0)
 		  return (TGETENT_NO);
 	    TR(TRACE_DATABASE,
@@ -364,16 +364,18 @@ NCURSES_EXPORT(int)
 _nc_read_file_entry(const char *const filename, TERMTYPE *ptr)
 /* return 1 if read, 0 if not found or garbled */
 {
-    int code, fd = -1;
+    FILE *fp = 0;
+    int code;
     int limit;
     char buffer[MAX_ENTRY_SIZE + 1];
 
     if (_nc_access(filename, R_OK) < 0
-	|| (fd = open(filename, O_RDONLY | O_BINARY)) < 0) {
+	|| (fp = fopen(filename, "rb")) == 0) {
 	T(("cannot open terminfo %s (errno=%d)", filename, errno));
 	code = TGETENT_NO;
     } else {
-	if ((limit = read(fd, buffer, sizeof(buffer))) > 0) {
+	if ((limit = (int) fread(buffer, sizeof(char), sizeof(buffer), fp))
+	    > 0) {
 
 	    T(("read terminfo %s", filename));
 	    if ((code = _nc_read_termtype(ptr, buffer, limit)) == TGETENT_NO) {
@@ -382,7 +384,7 @@ _nc_read_file_entry(const char *const filename, TERMTYPE *ptr)
 	} else {
 	    code = TGETENT_NO;
 	}
-	close(fd);
+	fclose(fp);
     }
 
     return (code);
@@ -404,26 +406,22 @@ _nc_read_tic_entry(char *filename,
     /*
      * If we are looking in a directory, assume the entry is a file under that,
      * according to the normal rules.
-     *
-     * FIXME - add caseless-filename fixup.
      */
-    if (_nc_is_dir_path(path)) {
-	unsigned need = 4 + strlen(path) + strlen(name);
+    unsigned need = (unsigned) (LEAF_LEN + 3 + strlen(path) + strlen(name));
+    if (need <= limit)
+	(void) sprintf(filename, "%s/" LEAF_FMT "/%s", path, *name, name);
 
-	if (need <= limit) {
-	    (void) sprintf(filename, "%s/" LEAF_FMT "/%s", path, *name, name);
-	    result = _nc_read_file_entry(filename, tp);
-	}
-    }
+    if (_nc_is_dir_path(path))
+	result = _nc_read_file_entry(filename, tp);
 #if USE_HASHED_DB
     else {
 	static const char suffix[] = DBM_SUFFIX;
 	DB *capdbp;
 	unsigned lens = sizeof(suffix) - 1;
 	unsigned size = strlen(path);
-	unsigned need = lens + size;
+	unsigned test = lens + size;
 
-	if (need <= limit) {
+	if (test < limit) {
 	    if (size >= lens
 		&& !strcmp(path + size - lens, suffix))
 		(void) strcpy(filename, path);
@@ -515,6 +513,7 @@ _nc_read_entry(const char *const name, char *const filename, TERMTYPE *const tp)
 {
     int code = TGETENT_NO;
 
+    sprintf(filename, "%.*s", PATH_MAX - 1, name);
     if (strlen(name) == 0
 	|| strcmp(name, ".") == 0
 	|| strcmp(name, "..") == 0

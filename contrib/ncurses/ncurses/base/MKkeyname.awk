@@ -1,6 +1,6 @@
-# $Id: MKkeyname.awk,v 1.40 2008/07/12 18:40:00 tom Exp $
+# $Id: MKkeyname.awk,v 1.45 2010/12/19 01:36:14 tom Exp $
 ##############################################################################
-# Copyright (c) 1999-2007,2008 Free Software Foundation, Inc.                #
+# Copyright (c) 1999-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -31,7 +31,6 @@ BEGIN {
 	print ""
 	print "#include <curses.priv.h>"
 	print "#include <tic.h>"
-	print "#include <term_entry.h>"
 	print ""
 	first = 1;
 }
@@ -67,7 +66,8 @@ END {
 	print "#define SIZEOF_TABLE 256"
 	print "#define MyTable _nc_globals.keyname_table"
 	print ""
-	print "NCURSES_EXPORT(NCURSES_CONST char *) _nc_keyname (SCREEN *sp, int c)"
+	print "NCURSES_EXPORT(NCURSES_CONST char *)"
+	print "safe_keyname (SCREEN *sp, int c)"
 	print "{"
 	print "	int i;"
 	print "	char name[20];"
@@ -116,14 +116,14 @@ END {
 	print "				result = MyTable[c];"
 	print "			}"
 	print "#if NCURSES_EXT_FUNCS && NCURSES_XNAMES"
-	print "		} else if (result == 0 && cur_term != 0) {"
+	print "		} else if (result == 0 && HasTerminal(sp)) {"
 	print "			int j, k;"
 	print "			char * bound;"
-	print "			TERMTYPE *tp = &(cur_term->type);"
-	print "			int save_trace = _nc_tracing;"
+	print "			TERMTYPE *tp = &(TerminalOf(sp)->type);"
+	print "			unsigned save_trace = _nc_tracing;"
 	print ""
 	print "			_nc_tracing = 0;	/* prevent recursion via keybound() */"
-	print "			for (j = 0; (bound = keybound(c, j)) != 0; ++j) {"
+	print "			for (j = 0; (bound = NCURSES_SP_NAME(keybound)(NCURSES_SP_ARGx c, j)) != 0; ++j) {"
 	print "				for(k = STRCOUNT; k < (int) NUM_STRINGS(tp);  k++) {"
 	print "					if (tp->Strings[k] != 0 && !strcmp(bound, tp->Strings[k])) {"
 	print "						result = ExtStrname(tp, k, strnames);"
@@ -141,9 +141,10 @@ END {
 	print "	return result;"
 	print "}"
 	print ""
-	print "NCURSES_EXPORT(NCURSES_CONST char *) keyname (int c)"
+	print "NCURSES_EXPORT(NCURSES_CONST char *)"
+	print "keyname (int c)"
 	print "{"
-	print "\treturn _nc_keyname(SP, c);"
+	print "	return safe_keyname (CURRENT_SCREEN, c);"
 	print "}"
 	print ""
 	print "#if NO_LEAKS"

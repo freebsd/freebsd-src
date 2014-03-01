@@ -100,6 +100,7 @@ static struct arglist exparg;		/* holds expanded arg list */
 
 static void argstr(char *, int);
 static char *exptilde(char *, int);
+static void expari(int);
 static void expbackq(union node *, int, int);
 static int subevalvar(char *, char *, int, int, int, int, int);
 static char *evalvar(char *, int);
@@ -390,7 +391,7 @@ removerecordregions(int endoff)
  * Expand arithmetic expression.  Backup to start of expression,
  * evaluate, place result in (backed up) result, adjust string position.
  */
-void
+static void
 expari(int flag)
 {
 	char *p, *q, *start;
@@ -671,10 +672,8 @@ evalvar(char *p, int flag)
 again: /* jump here after setting a variable with ${var=text} */
 	if (varflags & VSLINENO) {
 		set = 1;
-		special = 0;
-		val = var;
-		p[-1] = '\0';	/* temporarily overwrite '=' to have \0
-				   terminated string */
+		special = 1;
+		val = NULL;
 	} else if (special) {
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
@@ -703,7 +702,10 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			varvalue(var, varflags & VSQUOTE, subtype, flag);
+			if (varflags & VSLINENO)
+				STPUTBIN(var, p - var - 1, expdest);
+			else
+				varvalue(var, varflags & VSQUOTE, subtype, flag);
 			if (subtype == VSLENGTH) {
 				varlenb = expdest - stackblock() - startloc;
 				varlen = varlenb;
@@ -815,7 +817,6 @@ record:
 	default:
 		abort();
 	}
-	p[-1] = '=';	/* recover overwritten '=' */
 
 	if (subtype != VSNORMAL) {	/* skip to end of alternative */
 		int nesting = 1;
