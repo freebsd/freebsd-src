@@ -653,16 +653,6 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	else if (port == 6)
 		t = sc->ar8327.port6_status;
         else
-#if 0
-	/* XXX DB120 - hard-code port0 to 1000/full */
-	if (port == 0) {
-		t = AR8X16_PORT_STS_SPEED_1000;
-		t |= AR8X16_PORT_STS_TXMAC | AR8X16_PORT_STS_RXMAC;
-		t |= AR8X16_PORT_STS_DUPLEX;
-		t |= AR8X16_PORT_STS_RXFLOW;
-		t |= AR8X16_PORT_STS_TXFLOW;
-	} else
-#endif
 		t = AR8X16_PORT_STS_LINK_AUTO;
 
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_STATUS(port), t);
