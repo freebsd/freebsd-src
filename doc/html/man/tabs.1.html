@@ -1,0 +1,171 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: tabs.1,v 1.8 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>tabs 1</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>tabs 1</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>                                                         <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>tabs</STRONG> - set tabs on a terminal
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>tabs</STRONG> [<STRONG>-v</STRONG>[<EM>n</EM>]] [<STRONG>-ahuUV</STRONG>] <EM>file...</EM>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>tabs</STRONG>  program clears and sets tab-stops on the termi-
+       nal.  This uses the terminfo  <EM>clear</EM><STRONG>_</STRONG><EM>all</EM><STRONG>_</STRONG><EM>tabs</EM>  and  <EM>set</EM><STRONG>_</STRONG><EM>tab</EM>
+       capabilities.   If  either  is  absent,  <STRONG>tabs</STRONG> is unable to
+       clear/set tab-stops.  The terminal should be configured to
+       use hard tabs, e.g.,
+
+              stty tab0
+
+
+</PRE>
+<H2>OPTIONS</H2><PRE>
+   <STRONG>General</STRONG> <STRONG>Options</STRONG>
+       <STRONG>-T</STRONG><EM>name</EM>
+            Tell <STRONG>tabs</STRONG> which terminal type to use.  If this option
+            is not given, <STRONG>tabs</STRONG> will  use  the  <STRONG>$TERM</STRONG>  environment
+            variable.   If  that  is  not  set,  it  will use the
+            <EM>ansi+tabs</EM> entry.
+
+       <STRONG>-d</STRONG>   The debugging option shows a ruler line, followed  by
+            two  data  lines.   The  first  data  line  shows the
+            expected tab-stops marked with asterisks.  The second
+            data  line  shows  the  actual tab-stops, marked with
+            asterisks.
+
+       <STRONG>-n</STRONG>   This option tells <STRONG>tabs</STRONG> to check the options  and  run
+            any  debugging option, but not to modify the terminal
+            settings.
+
+       The <STRONG>tabs</STRONG> program processes a single  list  of  tab  stops.
+       The  last  option  to be processed which defines a list is
+       the one that determines the list to be processed.
+
+   <STRONG>Implicit</STRONG> <STRONG>Lists</STRONG>
+       Use a single number as an option, e.g., "<STRONG>-5</STRONG>" to  set  tabs
+       at  the  given  interval  (in  this case 1, 6, 11, 16, 21,
+       etc.).  Tabs are repeated up to the right  margin  of  the
+       screen.
+
+       Use "<STRONG>-0</STRONG>" to clear all tabs.
+
+       Use "<STRONG>-8</STRONG>" to set tabs to the standard interval.
+
+   <STRONG>Explicit</STRONG> <STRONG>Lists</STRONG>
+       An  explicit  list  can be defined after the options (this
+       does not use a "-").  The values in the list  must  be  in
+       increasing numeric order, and greater than zero.  They are
+       separated by a comma or a blank, for example,
+
+              tabs 1,6,11,16,21
+              tabs 1 6 11 16 21
+       Use a '+' to treat a number as an  increment  relative  to
+       the previous value, e.g.,
+
+              tabs 1,+5,+5,+5,+5
+       which is equivalent to the 1,6,11,16,21 example.
+
+   <STRONG>Predefined</STRONG> <STRONG>Tab-Stops</STRONG>
+       X/Open defines several predefined lists of tab stops.
+
+       <STRONG>-a</STRONG>   Assembler, IBM S/370, first format
+
+       <STRONG>-a2</STRONG>  Assembler, IBM S/370, second format
+
+       <STRONG>-c</STRONG>   COBOL, normal format
+
+       <STRONG>-c2</STRONG>  COBOL compact format
+
+       <STRONG>-c3</STRONG>  COBOL compact format extended
+
+       <STRONG>-f</STRONG>   FORTRAN
+
+       <STRONG>-p</STRONG>   PL/I
+
+       <STRONG>-s</STRONG>   SNOBOL
+
+       <STRONG>-u</STRONG>   UNIVAC 1100 Assembler
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       X/Open  describes  a  <STRONG>+m</STRONG> option, to set a terminal's left-
+       margin.  Very few of the entries in the terminal  database
+       provide this capability.
+
+       The  <STRONG>-d</STRONG>  (debug) and <STRONG>-n</STRONG> (no-op) options are extensions not
+       provided by other implementations.
+
+       Documentation for other implementations states that  there
+       is  a limit on the number of tab stops.  While some termi-
+       nals may not accept an arbitrary number of tab stops, this
+       implementation  will  attempt  to  set tab stops up to the
+       right margin of the screen, if the given list  happens  to
+       be that long.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>, <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+
+
+
+                                                                <STRONG><A HREF="tabs.1.html">tabs(1)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

@@ -1,0 +1,138 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: menu_post.3x,v 1.11 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>menu_post 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>menu_post 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="menu_post.3x.html">menu_post(3x)</A></STRONG>                                             <STRONG><A HREF="menu_post.3x.html">menu_post(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>menu_post</STRONG>  -  write or erase menus from associated subwin-
+       dows
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
+       int post_menu(MENU *menu);
+       int unpost_menu(MENU *menu);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The function <STRONG>post_menu</STRONG> displays a menu to  its  associated
+       subwindow.   To trigger physical display of the subwindow,
+       use  <STRONG>refresh</STRONG>  or  some  equivalent  <STRONG>curses</STRONG>  routine   (the
+       implicit  <STRONG>doupdate</STRONG>  triggered  by  an <STRONG>curses</STRONG> input request
+       will do). <STRONG>post_menu</STRONG> resets the  selection  status  of  all
+       items.
+
+       The  function  <STRONG>unpost_menu</STRONG> erases menu from its associated
+       subwindow.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       These routines return one of the following:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine detected an incorrect or  out-of-range  argu-
+            ment.
+
+       <STRONG>E_POSTED</STRONG>
+            The menu has already been posted.
+
+       <STRONG>E_BAD_STATE</STRONG>
+            Routine was called from an initialization or termina-
+            tion function.
+
+       <STRONG>E_NO_ROOM</STRONG>
+            Menu is too large for its window. You should consider
+            to use <STRONG>set_menu_format()</STRONG> to solve the problem.
+
+       <STRONG>E_NOT_POSTED</STRONG>
+            The menu has not been posted.
+
+       <STRONG>E_NOT_CONNECTED</STRONG>
+            No items are connected to the menu.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;menu.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines emulate the System V  menu  library.   They
+       were not supported on Version 7 or BSD versions.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen  Pfeifer.   Manual  pages  and  adaptation for new
+       curses by Eric S. Raymond.
+
+
+
+                                                          <STRONG><A HREF="menu_post.3x.html">menu_post(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

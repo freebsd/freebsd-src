@@ -1,0 +1,129 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: menu_spacing.3x,v 1.12 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>menu_spacing 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>menu_spacing 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="menu_spacing.3x.html">menu_spacing(3x)</A></STRONG>                                       <STRONG><A HREF="menu_spacing.3x.html">menu_spacing(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>menu_spacing</STRONG> - Control spacing between menu items.
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
+       int set_menu_spacing(MENU *menu,
+                            int spc_description,
+                            int spc_rows,
+                            int spc_columns);
+       int menu_spacing(const MENU *menu,
+                        int* spc_description,
+                        int* spc_rows,
+                        int* spc_columns);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The function <STRONG>set_menu_spacing</STRONG> sets the spacing information
+       for the menu.  Its parameter <STRONG>spc_description</STRONG> controls  the
+       number of spaces between an item name and an item descrip-
+       tion.  It must not be larger than <STRONG>TABSIZE</STRONG>.  The menu  sys-
+       tem  puts in the middle of this spacing area the pad char-
+       acter.  The remaining parts are filled with  spaces.   The
+       <STRONG>spc_rows</STRONG>  parameter  controls  the number of rows that are
+       used for an item.  It must not be larger than 3.  The menu
+       system  inserts  the  blank lines between item rows, these
+       lines will contain the pad character  in  the  appropriate
+       positions.   The <STRONG>spc_columns</STRONG> parameter controls the number
+       of blanks between columns of items.  It must not be larger
+       than  TABSIZE.   A  value  of 0 for all the spacing values
+       resets them to the default, which is 1 for all of them.
+       The function <STRONG>menu_spacing</STRONG> passes back the spacing info for
+       the  menu.   If  a  pointer is NULL, this specific info is
+       simply not returned.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Both routines return <STRONG>E_OK</STRONG>  on  success.   <STRONG>set_menu_spacing</STRONG>
+       may  return <STRONG>E_POSTED</STRONG> if the menu is posted, or <STRONG>E_BAD_ARGU-</STRONG>
+       <STRONG>MENT</STRONG> if one of the spacing values is out of range.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;menu.h&gt;</STRONG> automatically includes the header
+       file <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  routines  are  specific  to ncurses.  They were not
+       supported on Version 7, BSD or System  V  implementations.
+       It  is recommended that any code depending on them be con-
+       ditioned using NCURSES_VERSION.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen Pfeifer.  Manual  pages  and  adaptation  for  new
+       curses by Eric S. Raymond.
+
+
+
+                                                       <STRONG><A HREF="menu_spacing.3x.html">menu_spacing(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

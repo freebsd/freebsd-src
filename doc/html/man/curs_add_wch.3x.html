@@ -1,0 +1,232 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2001-2010,2011 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_add_wch.3x,v 1.14 2011/01/15 15:27:43 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_add_wch 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_add_wch 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>                                       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>add_wch</STRONG>,   <STRONG>wadd_wch</STRONG>,  <STRONG>mvadd_wch</STRONG>,  <STRONG>mvwadd_wch</STRONG>,  <STRONG>echo_wchar</STRONG>,
+       <STRONG>wecho_wchar</STRONG> - add a complex character and rendition  to  a
+       <STRONG>curses</STRONG> window, then advance the cursor
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>add_wch(</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wadd_wch(</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvadd_wch(</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+       <STRONG>int</STRONG>  <STRONG>mvwadd_wch(</STRONG>  <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>y</EM><STRONG>,</STRONG> <STRONG>int</STRONG> <EM>x</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG>
+       <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>echo_wchar(</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wecho_wchar(</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*</STRONG><EM>win</EM><STRONG>,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM> <STRONG>);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>add_wch</STRONG>, <STRONG>wadd_wch</STRONG>, <STRONG>mvadd_wch</STRONG>, and <STRONG>mvwadd_wch</STRONG> functions
+       put the complex character <EM>wch</EM> into the given window at its
+       current position, which is then advanced.  These functions
+       perform  wrapping and special-character processing as fol-
+       lows:
+
+       <STRONG>o</STRONG>   If <EM>wch</EM> refers to a spacing character, then any  previ-
+           ous  character  at  that  location  is removed.  A new
+           character specified by <EM>wch</EM> is placed at that  location
+           with  rendition  specified  by  <EM>wch</EM>.   The cursor then
+           advances to the next spacing character on the  screen.
+
+       <STRONG>o</STRONG>   If <EM>wch</EM> refers to a non-spacing character, all previous
+           characters at that location are preserved.   The  non-
+           spacing  characters  of  <EM>wch</EM>  are added to the spacing
+           complex character, and the rendition specified by  <EM>wch</EM>
+           is ignored.
+
+       <STRONG>o</STRONG>   If  the  character  part  of  <EM>wch</EM>  is  a tab, newline,
+           backspace or other control character,  the  window  is
+           updated  and the cursor moves as if <STRONG>addch</STRONG> were called.
+
+       The <STRONG>echo_wchar</STRONG> function is functionally  equivalent  to  a
+       call to <STRONG>add_wch</STRONG> followed by a call to <STRONG>refresh</STRONG>.  Similarly,
+       the <STRONG>wecho_wchar</STRONG> is functionally equivalent to  a  call  to
+       <STRONG>wadd_wch</STRONG>  followed  by  a call to <STRONG>wrefresh</STRONG>.  The knowledge
+       that only a single character is being output is taken into
+       consideration and, for non-control characters, a consider-
+       able performance gain might be seen by  using  the  *<STRONG>echo</STRONG>*
+       functions instead of their equivalents.
+
+   <STRONG>Line</STRONG> <STRONG>Graphics</STRONG>
+       Like  <STRONG><A HREF="addch.3x.html">addch(3x)</A></STRONG>,  <STRONG>addch_wch</STRONG>  accepts symbols which make it
+       simple to draw lines and  other  frequently  used  special
+       characters.   These  symbols  correspond to the same VT100
+       line-drawing set as <STRONG><A HREF="addch.3x.html">addch(3x)</A></STRONG>.
+
+
+       <EM>Name</EM>              <EM>Unicode</EM>    <EM>Default</EM>   <EM>Description</EM>
+       ----------------------------------------------------------------
+       WACS_BLOCK        0x25ae     #         solid square block
+       WACS_BOARD        0x2592     #         board of squares
+       WACS_BTEE         0x2534     +         bottom tee
+       WACS_BULLET       0x00b7     o         bullet
+
+       WACS_CKBOARD      0x2592     :         checker board (stipple)
+       WACS_DARROW       0x2193     v         arrow pointing down
+       WACS_DEGREE       0x00b0     '         degree symbol
+       WACS_DIAMOND      0x25c6     +         diamond
+       WACS_GEQUAL       0x2265     &gt;         greater-than-or-equal-to
+       WACS_HLINE        0x2500     -         horizontal line
+       WACS_LANTERN      0x2603     #         lantern symbol
+       WACS_LARROW       0x2190     &lt;         arrow pointing left
+       WACS_LEQUAL       0x2264     &lt;         less-than-or-equal-to
+       WACS_LLCORNER     0x2514     +         lower left-hand corner
+       WACS_LRCORNER     0x2518     +         lower right-hand corner
+       WACS_LTEE         0x2524     +         left tee
+       WACS_NEQUAL       0x2260     !         not-equal
+       WACS_PI           0x03c0     *         greek pi
+       WACS_PLMINUS      0x00b1     #         plus/minus
+       WACS_PLUS         0x253c     +         plus
+       WACS_RARROW       0x2192     &gt;         arrow pointing right
+       WACS_RTEE         0x251c     +         right tee
+       WACS_S1           0x23ba     -         scan line 1
+       WACS_S3           0x23bb     -         scan line 3
+       WACS_S7           0x23bc     -         scan line 7
+       WACS_S9           0x23bd     _         scan line 9
+       WACS_STERLING     0x00a3     f         pound-sterling symbol
+       WACS_TTEE         0x252c     +         top tee
+       WACS_UARROW       0x2191     ^         arrow pointing up
+       WACS_ULCORNER     0x250c     +         upper left-hand corner
+       WACS_URCORNER     0x2510     +         upper right-hand corner
+       WACS_VLINE        0x2502     |         vertical line
+
+       The wide-character configuration of ncurses  also  defines
+       symbols for thick- and double-lines:
+
+
+       <EM>Name</EM>              <EM>Unicode</EM>   <EM>Default</EM>   <EM>Description</EM>
+       ---------------------------------------------------------------------
+       WACS_T_ULCORNER   0x250f    +         thick upper left corner
+       WACS_T_LLCORNER   0x2517    +         thick lower left corner
+       WACS_T_URCORNER   0x2513    +         thick upper right corner
+       WACS_T_LRCORNER   0x251b    +         thick lower right corner
+       WACS_T_LTEE       0x252b    +         thick tee pointing right
+       WACS_T_RTEE       0x2523    +         thick tee pointing left
+       WACS_T_BTEE       0x253b    +         thick tee pointing up
+       WACS_T_TTEE       0x2533    +         thick tee pointing down
+       WACS_T_HLINE      0x2501    -         thick horizontal line
+       WACS_T_VLINE      0x2503    |         thick vertical line
+       WACS_T_PLUS       0x254b    +         thick large plus or crossover
+       WACS_D_ULCORNER   0x2554    +         double upper left corner
+       WACS_D_LLCORNER   0x255a    +         double lower left corner
+       WACS_D_URCORNER   0x2557    +         double upper right corner
+       WACS_D_LRCORNER   0x255d    +         double lower right corner
+       WACS_D_RTEE       0x2563    +         double tee pointing left
+       WACS_D_LTEE       0x2560    +         double tee pointing right
+       WACS_D_BTEE       0x2569    +         double tee pointing up
+       WACS_D_TTEE       0x2566    +         double tee pointing down
+       WACS_D_HLINE      0x2550    -         double horizontal line
+       WACS_D_VLINE      0x2551    |         double vertical line
+       WACS_D_PLUS       0x256c    +         double large plus or crossover
+
+
+</PRE>
+<H2>RETURN VALUES</H2><PRE>
+       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on
+       success.
+
+       Functions with a "mv" prefix first perform a cursor  move-
+       ment  using  <STRONG>wmove</STRONG>, and return an error if the position is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>add_wch</STRONG>, <STRONG>mvadd_wch</STRONG>, <STRONG>mvwadd_wch</STRONG>,  and  <STRONG>echo_wchar</STRONG>
+       may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       All  of  these  functions  are described in the XSI Curses
+       standard, Issue 4.  The defaults specified for  line-draw-
+       ing characters apply in the POSIX locale.
+
+       X/Open Curses makes it clear that the WACS_ symbols should
+       be defined as a pointer to <STRONG>cchar_t</STRONG> data, e.g., in the dis-
+       cussion of <STRONG>border_set</STRONG>.  A few implementations are problem-
+       atic:
+
+       <STRONG>o</STRONG>   NetBSD curses defines the symbols as a <STRONG>wchar_t</STRONG>  within
+           a <STRONG>cchar_t</STRONG>.
+
+       <STRONG>o</STRONG>   HPUX  curses  equates  some of the <EM>ACS</EM><STRONG>_</STRONG> symbols to the
+           analogous <EM>WACS</EM><STRONG>_</STRONG> symbols as if the  <EM>ACS</EM><STRONG>_</STRONG>  symbols  were
+           wide  characters.   The  misdefined  symbols  are  the
+           arrows and other symbols which are not used for  line-
+           drawing.
+
+       X/Open  Curses  does not define symbols for thick- or dou-
+       ble-lines.   SVr4  curses  implementations  defined  their
+       line-drawing  symbols  in  terms  of intermediate symbols.
+       This implementation extends those symbols,  providing  new
+       definitions which are not in the SVr4 implementations.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_addch.3x.html">curs_addch(3x)</A></STRONG>, <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>, <STRONG><A HREF="curs_clear.3x.html">curs_clear(3x)</A></STRONG>,
+       <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>, <STRONG><A HREF="putwc.3.html">putwc(3)</A></STRONG>
+
+
+
+                                                       <STRONG><A HREF="curs_add_wch.3x.html">curs_add_wch(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

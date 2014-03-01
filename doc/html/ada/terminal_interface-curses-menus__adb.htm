@@ -1,0 +1,1028 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-menus.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-menus.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                      Terminal_Interface.Curses.Menus                     --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.28 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2011/03/22 23:38:12 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>with</b> Ada.Unchecked_Deallocation;
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Pointers;
+
+<b>with</b> Ada.Unchecked_Conversion;
+
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_51_40" HREF="terminal_interface-curses-menus__ads.htm#ref_49_35">Menus</A></FONT> <b>is</b>
+
+   <b>type</b> C_Item_Array <b>is</b> <b>array</b> (Natural <b>range</b> &lt;&gt;) <b>of</b> <b>aliased</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+   <b>package</b> I_Array <b>is</b> <b>new</b>
+     <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Pointers (Natural, <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>, C_Item_Array, <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>);
+
+   <b>use</b> <b>type</b> System.Bit_Order;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_58_12">chars_ptr</A></FONT> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.chars_ptr;
+
+   <b>function</b> MOS_2_CInt <b>is</b> <b>new</b>
+     Ada.Unchecked_Conversion (<A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>,
+                               <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>);
+
+   <b>function</b> CInt_2_MOS <b>is</b> <b>new</b>
+     Ada.Unchecked_Conversion (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>,
+                               <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>);
+
+   <b>function</b> IOS_2_CInt <b>is</b> <b>new</b>
+     Ada.Unchecked_Conversion (<A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>,
+                               <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>);
+
+   <b>function</b> CInt_2_IOS <b>is</b> <b>new</b>
+     Ada.Unchecked_Conversion (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>,
+                               <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>);
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_77_14" HREF="terminal_interface-curses-menus__ads.htm#ref_106_14">Request_Name</A></FONT> (<FONT COLOR=red><A NAME="ref_77_28" HREF="terminal_interface-curses-menus__ads.htm#ref_106_28">Key</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_65_12">Menu_Request_Code</A>;
+                           <FONT COLOR=red><A NAME="ref_78_28" HREF="terminal_interface-curses-menus__ads.htm#ref_107_28">Name</A></FONT> : <b>out</b> String)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_80_16">Request_Name</A></FONT> (<FONT COLOR=red><A NAME="ref_80_30" HREF="terminal_interface-curses-menus__adb.htm#ref_80_16">Key</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Request_Name, "menu_request_name");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_116_14">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_80_16">Request_Name</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_106_28">Key</A>)), <A HREF="terminal_interface-curses-menus__ads.htm#ref_107_28">Name</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_106_14">Request_Name</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_86_13" HREF="terminal_interface-curses-menus__ads.htm#ref_109_14">Request_Name</A></FONT> (<FONT COLOR=red><A NAME="ref_86_27" HREF="terminal_interface-curses-menus__ads.htm#ref_109_28">Key</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_65_12">Menu_Request_Code</A>) <b>return</b> String
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_88_16">Request_Name</A></FONT> (<FONT COLOR=red><A NAME="ref_88_30" HREF="terminal_interface-curses-menus__adb.htm#ref_88_16">Key</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Request_Name, "menu_request_name");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_88_16">Request_Name</A> (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_109_28">Key</A>)));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_109_14">Request_Name</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_94_13" HREF="terminal_interface-curses-menus__ads.htm#ref_195_13">Create</A></FONT> (<FONT COLOR=red><A NAME="ref_94_21" HREF="terminal_interface-curses-menus__ads.htm#ref_195_21">Name</A></FONT>        : String;
+                    <FONT COLOR=red><A NAME="ref_95_21" HREF="terminal_interface-curses-menus__ads.htm#ref_196_21">Description</A></FONT> : String := "") <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_97_12">Char_Ptr</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.char;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_98_16">Newitem</A></FONT> (<FONT COLOR=red><A NAME="ref_98_25" HREF="terminal_interface-curses-menus__adb.htm#ref_98_16">Name</A></FONT>, <FONT COLOR=red><A NAME="ref_98_31" HREF="terminal_interface-curses-menus__adb.htm#ref_98_16">Desc</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_97_12">Char_Ptr</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+      <b>pragma</b> Import (C, Newitem, "new_item");
+
+      <b>type</b> Name_String <b>is</b> <b>new</b> char_array (0 .. <A HREF="terminal_interface-curses-menus__ads.htm#ref_195_21">Name</A>'Length);
+      <b>type</b> <FONT COLOR=red><A NAME="ref_102_12">Name_String_Ptr</A></FONT> <b>is</b> <b>access</b> Name_String;
+      <b>pragma</b> Controlled (<A HREF="terminal_interface-curses-menus__adb.htm#ref_102_12">Name_String_Ptr</A>);
+
+      <b>type</b> Desc_String <b>is</b> <b>new</b> char_array (0 .. <A HREF="terminal_interface-curses-menus__ads.htm#ref_196_21">Description</A>'Length);
+      <b>type</b> <FONT COLOR=red><A NAME="ref_106_12">Desc_String_Ptr</A></FONT> <b>is</b> <b>access</b> Desc_String;
+      <b>pragma</b> Controlled (<A HREF="terminal_interface-curses-menus__adb.htm#ref_106_12">Desc_String_Ptr</A>);
+
+      <FONT COLOR=red><A NAME="ref_109_7">Name_Str</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_102_12">Name_String_Ptr</A> := <b>new</b> Name_String;
+      <FONT COLOR=red><A NAME="ref_110_7">Desc_Str</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_106_12">Desc_String_Ptr</A> := <b>new</b> Desc_String;
+      <FONT COLOR=red><A NAME="ref_111_7">Name_Len</A></FONT>, <FONT COLOR=red><A NAME="ref_111_17">Desc_Len</A></FONT> : size_t;
+      <FONT COLOR=red><A NAME="ref_112_7">Result</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-menus__ads.htm#ref_195_21">Name</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_109_7">Name_Str</A>.<b>all</b>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_111_7">Name_Len</A>);
+      To_C (<A HREF="terminal_interface-curses-menus__ads.htm#ref_196_21">Description</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_110_7">Desc_Str</A>.<b>all</b>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_111_17">Desc_Len</A>);
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_112_7">Result</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_98_16">Newitem</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_109_7">Name_Str</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_109_7">Name_Str</A>.<b>all</b>'First)'<b>Access</b>,
+                         <A HREF="terminal_interface-curses-menus__adb.htm#ref_110_7">Desc_Str</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_110_7">Desc_Str</A>.<b>all</b>'First)'<b>Access</b>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_112_7">Result</A> = <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_391_4">Eti_System_Error</A>;
+      <b>end</b> <b>if</b>;
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_112_7">Result</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_195_13">Create</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_124_14" HREF="terminal_interface-curses-menus__ads.htm#ref_207_14">Delete</A></FONT> (<FONT COLOR=red><A NAME="ref_124_22" HREF="terminal_interface-curses-menus__ads.htm#ref_207_22">Itm</A></FONT> : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_126_16">Descname</A></FONT> (<FONT COLOR=red><A NAME="ref_126_26" HREF="terminal_interface-curses-menus__adb.htm#ref_126_16">Itm</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Descname, "item_description");
+      <b>function</b> <FONT COLOR=red><A NAME="ref_128_16">Itemname</A></FONT> (<FONT COLOR=red><A NAME="ref_128_26" HREF="terminal_interface-curses-menus__adb.htm#ref_128_16">Itm</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Itemname, "item_name");
+
+      <b>function</b> <FONT COLOR=red><A NAME="ref_131_16">Freeitem</A></FONT> (<FONT COLOR=red><A NAME="ref_131_26" HREF="terminal_interface-curses-menus__adb.htm#ref_131_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Freeitem, "free_item");
+
+      <FONT COLOR=red><A NAME="ref_134_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+      <FONT COLOR=red><A NAME="ref_135_7">Ptr</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_126_16">Descname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_207_22">Itm</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A> /= Null_Ptr <b>then</b>
+         <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.Free (<A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_128_16">Itemname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_207_22">Itm</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A> /= Null_Ptr <b>then</b>
+         <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.Free (<A HREF="terminal_interface-curses-menus__adb.htm#ref_135_7">Ptr</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_134_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_131_16">Freeitem</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_207_22">Itm</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_134_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_134_7">Res</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_207_22">Itm</A> := <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_207_14">Delete</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_152_14" HREF="terminal_interface-curses-menus__ads.htm#ref_216_14">Set_Value</A></FONT> (<FONT COLOR=red><A NAME="ref_152_25" HREF="terminal_interface-curses-menus__ads.htm#ref_216_25">Itm</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                        <FONT COLOR=red><A NAME="ref_153_25" HREF="terminal_interface-curses-menus__ads.htm#ref_217_25">Value</A></FONT> : Boolean := True)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_155_16">Set_Item_Val</A></FONT> (<FONT COLOR=red><A NAME="ref_155_30" HREF="terminal_interface-curses-menus__adb.htm#ref_155_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                             <FONT COLOR=red><A NAME="ref_156_30" HREF="terminal_interface-curses-menus__adb.htm#ref_155_16">Val</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Item_Val, "set_item_value");
+
+      <FONT COLOR=red><A NAME="ref_159_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_155_16">Set_Item_Val</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_216_25">Itm</A>, Boolean'Pos (<A HREF="terminal_interface-curses-menus__ads.htm#ref_217_25">Value</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_159_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_159_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_216_14">Set_Value</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_166_13" HREF="terminal_interface-curses-menus__ads.htm#ref_222_13">Value</A></FONT> (<FONT COLOR=red><A NAME="ref_166_20" HREF="terminal_interface-curses-menus__ads.htm#ref_222_20">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> Boolean
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_168_16">Item_Val</A></FONT> (<FONT COLOR=red><A NAME="ref_168_26" HREF="terminal_interface-curses-menus__adb.htm#ref_168_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Item_Val, "item_value");
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_168_16">Item_Val</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_222_20">Itm</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_75_4">Curses_False</A> <b>then</b>
+         <b>return</b> False;
+      <b>else</b>
+         <b>return</b> True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_222_13">Value</A>;
+
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_179_13" HREF="terminal_interface-curses-menus__ads.htm#ref_231_13">Visible</A></FONT> (<FONT COLOR=red><A NAME="ref_179_22" HREF="terminal_interface-curses-menus__ads.htm#ref_231_22">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> Boolean
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_181_16">Item_Vis</A></FONT> (<FONT COLOR=red><A NAME="ref_181_26" HREF="terminal_interface-curses-menus__adb.htm#ref_181_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Item_Vis, "item_visible");
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_181_16">Item_Vis</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_231_22">Itm</A>) = <A HREF="terminal_interface-curses-aux__ads.htm#ref_75_4">Curses_False</A> <b>then</b>
+         <b>return</b> False;
+      <b>else</b>
+         <b>return</b> True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_231_13">Visible</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_191_14" HREF="terminal_interface-curses-menus__ads.htm#ref_240_14">Set_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_191_27" HREF="terminal_interface-curses-menus__ads.htm#ref_240_27">Itm</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                          <FONT COLOR=red><A NAME="ref_192_27" HREF="terminal_interface-curses-menus__ads.htm#ref_241_27">Options</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_194_16">Set_Item_Opts</A></FONT> (<FONT COLOR=red><A NAME="ref_194_31" HREF="terminal_interface-curses-menus__adb.htm#ref_194_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                              <FONT COLOR=red><A NAME="ref_195_31" HREF="terminal_interface-curses-menus__adb.htm#ref_194_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Item_Opts, "set_item_opts");
+
+      <FONT COLOR=red><A NAME="ref_198_7">Opt</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := IOS_2_CInt (<A HREF="terminal_interface-curses-menus__ads.htm#ref_241_27">Options</A>);
+      <FONT COLOR=red><A NAME="ref_199_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_199_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_194_16">Set_Item_Opts</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_240_27">Itm</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_198_7">Opt</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_199_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_199_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_240_14">Set_Options</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_207_14" HREF="terminal_interface-curses-menus__ads.htm#ref_246_14">Switch_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_207_30" HREF="terminal_interface-curses-menus__ads.htm#ref_246_30">Itm</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                             <FONT COLOR=red><A NAME="ref_208_30" HREF="terminal_interface-curses-menus__ads.htm#ref_247_30">Options</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>;
+                             <FONT COLOR=red><A NAME="ref_209_30" HREF="terminal_interface-curses-menus__ads.htm#ref_248_30">On</A></FONT>      : Boolean := True)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_211_16">Item_Opts_On</A></FONT> (<FONT COLOR=red><A NAME="ref_211_30" HREF="terminal_interface-curses-menus__adb.htm#ref_211_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                             <FONT COLOR=red><A NAME="ref_212_30" HREF="terminal_interface-curses-menus__adb.htm#ref_211_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Item_Opts_On, "item_opts_on");
+      <b>function</b> <FONT COLOR=red><A NAME="ref_214_16">Item_Opts_Off</A></FONT> (<FONT COLOR=red><A NAME="ref_214_31" HREF="terminal_interface-curses-menus__adb.htm#ref_214_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                              <FONT COLOR=red><A NAME="ref_215_31" HREF="terminal_interface-curses-menus__adb.htm#ref_214_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Item_Opts_Off, "item_opts_off");
+
+      <FONT COLOR=red><A NAME="ref_218_7">Opt</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := IOS_2_CInt (<A HREF="terminal_interface-curses-menus__ads.htm#ref_247_30">Options</A>);
+      <FONT COLOR=red><A NAME="ref_219_7">Err</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_248_30">On</A> <b>then</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_219_7">Err</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_211_16">Item_Opts_On</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_246_30">Itm</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_218_7">Opt</A>);
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_219_7">Err</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_214_16">Item_Opts_Off</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_246_30">Itm</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_218_7">Opt</A>);
+      <b>end</b> <b>if</b>;
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_219_7">Err</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_219_7">Err</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_246_14">Switch_Options</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_231_14" HREF="terminal_interface-curses-menus__ads.htm#ref_255_14">Get_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_231_27" HREF="terminal_interface-curses-menus__ads.htm#ref_255_27">Itm</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                          <FONT COLOR=red><A NAME="ref_232_27" HREF="terminal_interface-curses-menus__ads.htm#ref_256_27">Options</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_234_16">Item_Opts</A></FONT> (<FONT COLOR=red><A NAME="ref_234_27" HREF="terminal_interface-curses-menus__adb.htm#ref_234_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Item_Opts, "item_opts");
+
+      <FONT COLOR=red><A NAME="ref_237_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_234_16">Item_Opts</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_255_27">Itm</A>);
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_256_27">Options</A> := CInt_2_IOS (<A HREF="terminal_interface-curses-menus__adb.htm#ref_237_7">Res</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_255_14">Get_Options</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_242_13" HREF="terminal_interface-curses-menus__ads.htm#ref_260_13">Get_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_242_26" HREF="terminal_interface-curses-menus__ads.htm#ref_260_26">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A> := <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_244_7">Ios</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_255_14">Get_Options</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_260_26">Itm</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_244_7">Ios</A>);
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_244_7">Ios</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_260_13">Get_Options</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_250_14" HREF="terminal_interface-curses-menus__ads.htm#ref_269_14">Name</A></FONT> (<FONT COLOR=red><A NAME="ref_250_20" HREF="terminal_interface-curses-menus__ads.htm#ref_269_20">Itm</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                   <FONT COLOR=red><A NAME="ref_251_20" HREF="terminal_interface-curses-menus__ads.htm#ref_270_20">Name</A></FONT> : <b>out</b> String)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_253_16">Itemname</A></FONT> (<FONT COLOR=red><A NAME="ref_253_26" HREF="terminal_interface-curses-menus__adb.htm#ref_253_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Itemname, "item_name");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_116_14">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_253_16">Itemname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_269_20">Itm</A>), <A HREF="terminal_interface-curses-menus__ads.htm#ref_270_20">Name</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_269_14">Name</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_259_13" HREF="terminal_interface-curses-menus__ads.htm#ref_272_14">Name</A></FONT> (<FONT COLOR=red><A NAME="ref_259_19" HREF="terminal_interface-curses-menus__ads.htm#ref_272_20">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> String
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_261_16">Itemname</A></FONT> (<FONT COLOR=red><A NAME="ref_261_26" HREF="terminal_interface-curses-menus__adb.htm#ref_261_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Itemname, "item_name");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_261_16">Itemname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_272_20">Itm</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_272_14">Name</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_267_14" HREF="terminal_interface-curses-menus__ads.htm#ref_278_14">Description</A></FONT> (<FONT COLOR=red><A NAME="ref_267_27" HREF="terminal_interface-curses-menus__ads.htm#ref_278_27">Itm</A></FONT>         : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+                          <FONT COLOR=red><A NAME="ref_268_27" HREF="terminal_interface-curses-menus__ads.htm#ref_279_27">Description</A></FONT> : <b>out</b> String)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_270_16">Descname</A></FONT> (<FONT COLOR=red><A NAME="ref_270_26" HREF="terminal_interface-curses-menus__adb.htm#ref_270_16">Itm</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Descname, "item_description");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_116_14">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_270_16">Descname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_278_27">Itm</A>), <A HREF="terminal_interface-curses-menus__ads.htm#ref_279_27">Description</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_278_14">Description</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_276_13" HREF="terminal_interface-curses-menus__ads.htm#ref_282_14">Description</A></FONT> (<FONT COLOR=red><A NAME="ref_276_26" HREF="terminal_interface-curses-menus__ads.htm#ref_282_27">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> String
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_278_16">Descname</A></FONT> (<FONT COLOR=red><A NAME="ref_278_26" HREF="terminal_interface-curses-menus__adb.htm#ref_278_16">Itm</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Descname, "item_description");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_278_16">Descname</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_282_27">Itm</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_282_14">Description</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_284_14" HREF="terminal_interface-curses-menus__ads.htm#ref_292_14">Set_Current</A></FONT> (<FONT COLOR=red><A NAME="ref_284_27" HREF="terminal_interface-curses-menus__ads.htm#ref_292_27">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_285_27" HREF="terminal_interface-curses-menus__ads.htm#ref_293_27">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_287_16">Set_Curr_Item</A></FONT> (<FONT COLOR=red><A NAME="ref_287_31" HREF="terminal_interface-curses-menus__adb.htm#ref_287_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_288_31" HREF="terminal_interface-curses-menus__adb.htm#ref_287_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Curr_Item, "set_current_item");
+
+      <FONT COLOR=red><A NAME="ref_291_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_287_16">Set_Curr_Item</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_292_27">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_293_27">Itm</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_291_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_291_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_292_14">Set_Current</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_298_13" HREF="terminal_interface-curses-menus__ads.htm#ref_298_13">Current</A></FONT> (<FONT COLOR=red><A NAME="ref_298_22" HREF="terminal_interface-curses-menus__ads.htm#ref_298_22">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_300_16">Curr_Item</A></FONT> (<FONT COLOR=red><A NAME="ref_300_27" HREF="terminal_interface-curses-menus__adb.htm#ref_300_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>;
+      <b>pragma</b> Import (C, Curr_Item, "current_item");
+
+      <FONT COLOR=red><A NAME="ref_303_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_300_16">Curr_Item</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_298_22">Men</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_303_7">Res</A> = <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>end</b> <b>if</b>;
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_303_7">Res</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_298_13">Current</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_311_14" HREF="terminal_interface-curses-menus__ads.htm#ref_303_14">Set_Top_Row</A></FONT> (<FONT COLOR=red><A NAME="ref_311_27" HREF="terminal_interface-curses-menus__ads.htm#ref_303_27">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_312_27" HREF="terminal_interface-curses-menus__ads.htm#ref_304_27">Line</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_314_16">Set_Toprow</A></FONT> (<FONT COLOR=red><A NAME="ref_314_28" HREF="terminal_interface-curses-menus__adb.htm#ref_314_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                           <FONT COLOR=red><A NAME="ref_315_28" HREF="terminal_interface-curses-menus__adb.htm#ref_314_16">Line</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Toprow, "set_top_row");
+
+      <FONT COLOR=red><A NAME="ref_318_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_314_16">Set_Toprow</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_303_27">Men</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_304_27">Line</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_318_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_318_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_303_14">Set_Top_Row</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_325_13" HREF="terminal_interface-curses-menus__ads.htm#ref_309_13">Top_Row</A></FONT> (<FONT COLOR=red><A NAME="ref_325_22" HREF="terminal_interface-curses-menus__ads.htm#ref_309_22">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_327_16">Toprow</A></FONT> (<FONT COLOR=red><A NAME="ref_327_24" HREF="terminal_interface-curses-menus__adb.htm#ref_327_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Toprow, "top_row");
+
+      <FONT COLOR=red><A NAME="ref_330_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_327_16">Toprow</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_309_22">Men</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_330_7">Res</A> = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>end</b> <b>if</b>;
+      <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_330_7">Res</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_309_13">Top_Row</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_338_13" HREF="terminal_interface-curses-menus__ads.htm#ref_314_13">Get_Index</A></FONT> (<FONT COLOR=red><A NAME="ref_338_24" HREF="terminal_interface-curses-menus__ads.htm#ref_314_24">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> Positive
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_340_16">Get_Itemindex</A></FONT> (<FONT COLOR=red><A NAME="ref_340_31" HREF="terminal_interface-curses-menus__adb.htm#ref_340_16">Itm</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Get_Itemindex, "item_index");
+
+      <FONT COLOR=red><A NAME="ref_343_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_340_16">Get_Itemindex</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_314_24">Itm</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_343_7">Res</A> = <A HREF="terminal_interface-curses-aux__ads.htm#ref_72_4">Curses_Err</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>end</b> <b>if</b>;
+      <b>return</b> Positive (Natural (<A HREF="terminal_interface-curses-menus__adb.htm#ref_343_7">Res</A>) + Positive'First);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_314_13">Get_Index</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_351_14" HREF="terminal_interface-curses-menus__ads.htm#ref_326_14">Post</A></FONT> (<FONT COLOR=red><A NAME="ref_351_20" HREF="terminal_interface-curses-menus__ads.htm#ref_326_20">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                   <FONT COLOR=red><A NAME="ref_352_20" HREF="terminal_interface-curses-menus__ads.htm#ref_327_20">Post</A></FONT> : Boolean := True)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_354_16">M_Post</A></FONT> (<FONT COLOR=red><A NAME="ref_354_24" HREF="terminal_interface-curses-menus__adb.htm#ref_354_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, M_Post, "post_menu");
+      <b>function</b> <FONT COLOR=red><A NAME="ref_356_16">M_Unpost</A></FONT> (<FONT COLOR=red><A NAME="ref_356_26" HREF="terminal_interface-curses-menus__adb.htm#ref_356_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, M_Unpost, "unpost_menu");
+
+      <FONT COLOR=red><A NAME="ref_359_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_327_20">Post</A> <b>then</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_359_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_354_16">M_Post</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_326_20">Men</A>);
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_359_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_356_16">M_Unpost</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_326_20">Men</A>);
+      <b>end</b> <b>if</b>;
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_359_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_359_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_326_14">Post</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_371_14" HREF="terminal_interface-curses-menus__ads.htm#ref_337_14">Set_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_371_27" HREF="terminal_interface-curses-menus__ads.htm#ref_337_27">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_372_27" HREF="terminal_interface-curses-menus__ads.htm#ref_338_27">Options</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_374_16">Set_Menu_Opts</A></FONT> (<FONT COLOR=red><A NAME="ref_374_31" HREF="terminal_interface-curses-menus__adb.htm#ref_374_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_375_31" HREF="terminal_interface-curses-menus__adb.htm#ref_374_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Opts, "set_menu_opts");
+
+      <FONT COLOR=red><A NAME="ref_378_7">Opt</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := MOS_2_CInt (<A HREF="terminal_interface-curses-menus__ads.htm#ref_338_27">Options</A>);
+      <FONT COLOR=red><A NAME="ref_379_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_379_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_374_16">Set_Menu_Opts</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_337_27">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_378_7">Opt</A>);
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_379_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_379_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_337_14">Set_Options</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_387_14" HREF="terminal_interface-curses-menus__ads.htm#ref_343_14">Switch_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_387_30" HREF="terminal_interface-curses-menus__ads.htm#ref_343_30">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_388_30" HREF="terminal_interface-curses-menus__ads.htm#ref_344_30">Options</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>;
+                             <FONT COLOR=red><A NAME="ref_389_30" HREF="terminal_interface-curses-menus__ads.htm#ref_345_30">On</A></FONT>      : Boolean := True)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_391_16">Menu_Opts_On</A></FONT> (<FONT COLOR=red><A NAME="ref_391_30" HREF="terminal_interface-curses-menus__adb.htm#ref_391_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_392_30" HREF="terminal_interface-curses-menus__adb.htm#ref_391_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Menu_Opts_On, "menu_opts_on");
+      <b>function</b> <FONT COLOR=red><A NAME="ref_394_16">Menu_Opts_Off</A></FONT> (<FONT COLOR=red><A NAME="ref_394_31" HREF="terminal_interface-curses-menus__adb.htm#ref_394_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_395_31" HREF="terminal_interface-curses-menus__adb.htm#ref_394_16">Opt</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Menu_Opts_Off, "menu_opts_off");
+
+      <FONT COLOR=red><A NAME="ref_398_7">Opt</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := MOS_2_CInt (<A HREF="terminal_interface-curses-menus__ads.htm#ref_344_30">Options</A>);
+      <FONT COLOR=red><A NAME="ref_399_7">Err</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_345_30">On</A> <b>then</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_399_7">Err</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_391_16">Menu_Opts_On</A>  (<A HREF="terminal_interface-curses-menus__ads.htm#ref_343_30">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_398_7">Opt</A>);
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_399_7">Err</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_394_16">Menu_Opts_Off</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_343_30">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_398_7">Opt</A>);
+      <b>end</b> <b>if</b>;
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_399_7">Err</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_399_7">Err</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_343_14">Switch_Options</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_411_14" HREF="terminal_interface-curses-menus__ads.htm#ref_351_14">Get_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_411_27" HREF="terminal_interface-curses-menus__ads.htm#ref_351_27">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_412_27" HREF="terminal_interface-curses-menus__ads.htm#ref_352_27">Options</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_414_16">Menu_Opts</A></FONT> (<FONT COLOR=red><A NAME="ref_414_27" HREF="terminal_interface-curses-menus__adb.htm#ref_414_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Menu_Opts, "menu_opts");
+
+      <FONT COLOR=red><A NAME="ref_417_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_414_16">Menu_Opts</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_351_27">Men</A>);
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_352_27">Options</A> := CInt_2_MOS (<A HREF="terminal_interface-curses-menus__adb.htm#ref_417_7">Res</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_351_14">Get_Options</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_422_13" HREF="terminal_interface-curses-menus__ads.htm#ref_356_13">Get_Options</A></FONT> (<FONT COLOR=red><A NAME="ref_422_26" HREF="terminal_interface-curses-menus__ads.htm#ref_356_26">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A> := <A HREF="terminal_interface-curses-menus__ads.htm#ref_63_4">Null_Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>
+   <b>is</b>
+      <FONT COLOR=red><A NAME="ref_424_7">Mos</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>;
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_351_14">Get_Options</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_356_26">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_424_7">Mos</A>);
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_424_7">Mos</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_356_13">Get_Options</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_430_14" HREF="terminal_interface-curses-menus__ads.htm#ref_365_14">Set_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_430_26" HREF="terminal_interface-curses-menus__ads.htm#ref_365_26">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_431_26" HREF="terminal_interface-curses-menus__ads.htm#ref_366_26">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_433_16">Set_Menu_Win</A></FONT> (<FONT COLOR=red><A NAME="ref_433_30" HREF="terminal_interface-curses-menus__adb.htm#ref_433_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_434_30" HREF="terminal_interface-curses-menus__adb.htm#ref_433_16">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Win, "set_menu_win");
+
+      <FONT COLOR=red><A NAME="ref_437_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_433_16">Set_Menu_Win</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_365_26">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_366_26">Win</A>);
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_437_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_437_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_365_14">Set_Window</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_444_13" HREF="terminal_interface-curses-menus__ads.htm#ref_371_13">Get_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_444_25" HREF="terminal_interface-curses-menus__ads.htm#ref_371_25">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_446_16">Menu_Win</A></FONT> (<FONT COLOR=red><A NAME="ref_446_26" HREF="terminal_interface-curses-menus__adb.htm#ref_446_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+      <b>pragma</b> Import (C, Menu_Win, "menu_win");
+
+      <FONT COLOR=red><A NAME="ref_449_7">W</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_446_16">Menu_Win</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_371_25">Men</A>);
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_449_7">W</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_371_13">Get_Window</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_454_14" HREF="terminal_interface-curses-menus__ads.htm#ref_376_14">Set_Sub_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_454_30" HREF="terminal_interface-curses-menus__ads.htm#ref_376_30">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_455_30" HREF="terminal_interface-curses-menus__ads.htm#ref_377_30">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_457_16">Set_Menu_Sub</A></FONT> (<FONT COLOR=red><A NAME="ref_457_30" HREF="terminal_interface-curses-menus__adb.htm#ref_457_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_458_30" HREF="terminal_interface-curses-menus__adb.htm#ref_457_16">Win</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Sub, "set_menu_sub");
+
+      <FONT COLOR=red><A NAME="ref_461_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_457_16">Set_Menu_Sub</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_376_30">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_377_30">Win</A>);
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_461_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_461_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_376_14">Set_Sub_Window</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_468_13" HREF="terminal_interface-curses-menus__ads.htm#ref_382_13">Get_Sub_Window</A></FONT> (<FONT COLOR=red><A NAME="ref_468_29" HREF="terminal_interface-curses-menus__ads.htm#ref_382_29">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_470_16">Menu_Sub</A></FONT> (<FONT COLOR=red><A NAME="ref_470_26" HREF="terminal_interface-curses-menus__adb.htm#ref_470_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A>;
+      <b>pragma</b> Import (C, Menu_Sub, "menu_sub");
+
+      <FONT COLOR=red><A NAME="ref_473_7">W</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_57_9">Window</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_470_16">Menu_Sub</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_382_29">Men</A>);
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_473_7">W</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_382_13">Get_Sub_Window</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_478_14" HREF="terminal_interface-curses-menus__ads.htm#ref_387_14">Scale</A></FONT> (<FONT COLOR=red><A NAME="ref_478_21" HREF="terminal_interface-curses-menus__ads.htm#ref_387_21">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                    <FONT COLOR=red><A NAME="ref_479_21" HREF="terminal_interface-curses-menus__ads.htm#ref_388_21">Lines</A></FONT>   : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+                    <FONT COLOR=red><A NAME="ref_480_21" HREF="terminal_interface-curses-menus__ads.htm#ref_389_21">Columns</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>)
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_482_12">C_Int_Access</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_483_16">M_Scale</A></FONT> (<FONT COLOR=red><A NAME="ref_483_25" HREF="terminal_interface-curses-menus__adb.htm#ref_483_16">Men</A></FONT>    : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                        <FONT COLOR=red><A NAME="ref_484_25" HREF="terminal_interface-curses-menus__adb.htm#ref_483_16">Yp</A></FONT>, <FONT COLOR=red><A NAME="ref_484_29" HREF="terminal_interface-curses-menus__adb.htm#ref_483_16">Xp</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_482_12">C_Int_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, M_Scale, "scale_menu");
+
+      <FONT COLOR=red><A NAME="ref_487_7">X</A></FONT>, <FONT COLOR=red><A NAME="ref_487_10">Y</A></FONT> : <b>aliased</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <FONT COLOR=red><A NAME="ref_488_7">Res</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_483_16">M_Scale</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_387_21">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_487_10">Y</A>'<b>Access</b>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_487_7">X</A>'<b>Access</b>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_488_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_488_7">Res</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_388_21">Lines</A> := <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_487_10">Y</A>);
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_389_21">Columns</A> := <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_487_7">X</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_387_14">Scale</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_497_14" HREF="terminal_interface-curses-menus__ads.htm#ref_398_14">Position_Cursor</A></FONT> (<FONT COLOR=red><A NAME="ref_497_31" HREF="terminal_interface-curses-menus__ads.htm#ref_398_31">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_499_16">Pos_Menu_Cursor</A></FONT> (<FONT COLOR=red><A NAME="ref_499_33" HREF="terminal_interface-curses-menus__adb.htm#ref_499_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Pos_Menu_Cursor, "pos_menu_cursor");
+
+      <FONT COLOR=red><A NAME="ref_502_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_499_16">Pos_Menu_Cursor</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_398_31">Men</A>);
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_502_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_502_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_398_14">Position_Cursor</A>;
+
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_510_14" HREF="terminal_interface-curses-menus__ads.htm#ref_407_14">Set_Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_510_24" HREF="terminal_interface-curses-menus__ads.htm#ref_407_24">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                       <FONT COLOR=red><A NAME="ref_511_24" HREF="terminal_interface-curses-menus__ads.htm#ref_408_24">Mark</A></FONT> : String)
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_513_12">Char_Ptr</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.char;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_514_16">Set_Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_514_26" HREF="terminal_interface-curses-menus__adb.htm#ref_514_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_515_26" HREF="terminal_interface-curses-menus__adb.htm#ref_514_16">Mark</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_513_12">Char_Ptr</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Mark, "set_menu_mark");
+
+      <FONT COLOR=red><A NAME="ref_518_7">Txt</A></FONT> : char_array (0 .. <A HREF="terminal_interface-curses-menus__ads.htm#ref_408_24">Mark</A>'Length);
+      <FONT COLOR=red><A NAME="ref_519_7">Len</A></FONT> : size_t;
+      <FONT COLOR=red><A NAME="ref_520_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-menus__ads.htm#ref_408_24">Mark</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_518_7">Txt</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_519_7">Len</A>);
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_520_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_514_16">Set_Mark</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_407_24">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_518_7">Txt</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_518_7">Txt</A>'First)'<b>Access</b>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_520_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_520_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_407_14">Set_Mark</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_529_14" HREF="terminal_interface-curses-menus__ads.htm#ref_413_14">Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_529_20" HREF="terminal_interface-curses-menus__ads.htm#ref_413_20">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                   <FONT COLOR=red><A NAME="ref_530_20" HREF="terminal_interface-curses-menus__ads.htm#ref_414_20">Mark</A></FONT> : <b>out</b> String)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_532_16">Get_Menu_Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_532_31" HREF="terminal_interface-curses-menus__adb.htm#ref_532_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Get_Menu_Mark, "menu_mark");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_116_14">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_532_16">Get_Menu_Mark</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_413_20">Men</A>), <A HREF="terminal_interface-curses-menus__ads.htm#ref_414_20">Mark</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_413_14">Mark</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_538_13" HREF="terminal_interface-curses-menus__ads.htm#ref_417_14">Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_538_19" HREF="terminal_interface-curses-menus__ads.htm#ref_417_20">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> String
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_540_16">Get_Menu_Mark</A></FONT> (<FONT COLOR=red><A NAME="ref_540_31" HREF="terminal_interface-curses-menus__adb.htm#ref_540_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Get_Menu_Mark, "menu_mark");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_540_16">Get_Menu_Mark</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_417_20">Men</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_417_14">Mark</A>;
+
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_547_14" HREF="terminal_interface-curses-menus__ads.htm#ref_427_14">Set_Foreground</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_548_7" HREF="terminal_interface-curses-menus__ads.htm#ref_428_7">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+      <FONT COLOR=red><A NAME="ref_549_7" HREF="terminal_interface-curses-menus__ads.htm#ref_429_7">Fore</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A> := <A HREF="terminal_interface-curses__ads.htm#ref_352_4">Normal_Video</A>;
+      <FONT COLOR=red><A NAME="ref_550_7" HREF="terminal_interface-curses-menus__ads.htm#ref_430_7">Color</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A> := <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>'First)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_552_16">Set_Menu_Fore</A></FONT> (<FONT COLOR=red><A NAME="ref_552_31" HREF="terminal_interface-curses-menus__adb.htm#ref_552_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_553_31" HREF="terminal_interface-curses-menus__adb.htm#ref_552_16">Attr</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Fore, "set_menu_fore");
+
+      <FONT COLOR=red><A NAME="ref_556_7">Ch</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A> := (<A HREF="terminal_interface-curses__ads.htm#ref_358_10">Ch</A>    =&gt; Character'First,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A> =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_430_7">Color</A>,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>  =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_429_7">Fore</A>);
+      <FONT COLOR=red><A NAME="ref_559_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_552_16">Set_Menu_Fore</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_428_7">Men</A>, AttrChar_To_Chtype (<A HREF="terminal_interface-curses-menus__adb.htm#ref_556_7">Ch</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_559_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_559_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_427_14">Set_Foreground</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_566_14" HREF="terminal_interface-curses-menus__ads.htm#ref_435_14">Foreground</A></FONT> (<FONT COLOR=red><A NAME="ref_566_26" HREF="terminal_interface-curses-menus__ads.htm#ref_435_26">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_567_26" HREF="terminal_interface-curses-menus__ads.htm#ref_436_26">Fore</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_569_16">Menu_Fore</A></FONT> (<FONT COLOR=red><A NAME="ref_569_27" HREF="terminal_interface-curses-menus__adb.htm#ref_569_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Fore, "menu_fore");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_436_26">Fore</A> := Chtype_To_AttrChar (<A HREF="terminal_interface-curses-menus__adb.htm#ref_569_16">Menu_Fore</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_435_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_435_14">Foreground</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_575_14" HREF="terminal_interface-curses-menus__ads.htm#ref_440_14">Foreground</A></FONT> (<FONT COLOR=red><A NAME="ref_575_26" HREF="terminal_interface-curses-menus__ads.htm#ref_440_26">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_576_26" HREF="terminal_interface-curses-menus__ads.htm#ref_441_26">Fore</A></FONT>  : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>;
+                         <FONT COLOR=red><A NAME="ref_577_26" HREF="terminal_interface-curses-menus__ads.htm#ref_442_26">Color</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_579_16">Menu_Fore</A></FONT> (<FONT COLOR=red><A NAME="ref_579_27" HREF="terminal_interface-curses-menus__adb.htm#ref_579_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Fore, "menu_fore");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_441_26">Fore</A>  := Chtype_To_AttrChar (<A HREF="terminal_interface-curses-menus__adb.htm#ref_579_16">Menu_Fore</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_440_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_442_26">Color</A> := Chtype_To_AttrChar (<A HREF="terminal_interface-curses-menus__adb.htm#ref_579_16">Menu_Fore</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_440_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_440_14">Foreground</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_586_14" HREF="terminal_interface-curses-menus__ads.htm#ref_447_14">Set_Background</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_587_7" HREF="terminal_interface-curses-menus__ads.htm#ref_448_7">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+      <FONT COLOR=red><A NAME="ref_588_7" HREF="terminal_interface-curses-menus__ads.htm#ref_449_7">Back</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A> := <A HREF="terminal_interface-curses__ads.htm#ref_352_4">Normal_Video</A>;
+      <FONT COLOR=red><A NAME="ref_589_7" HREF="terminal_interface-curses-menus__ads.htm#ref_450_7">Color</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A> := <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>'First)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_591_16">Set_Menu_Back</A></FONT> (<FONT COLOR=red><A NAME="ref_591_31" HREF="terminal_interface-curses-menus__adb.htm#ref_591_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_592_31" HREF="terminal_interface-curses-menus__adb.htm#ref_591_16">Attr</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Back, "set_menu_back");
+
+      <FONT COLOR=red><A NAME="ref_595_7">Ch</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A> := (<A HREF="terminal_interface-curses__ads.htm#ref_358_10">Ch</A>    =&gt; Character'First,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A> =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_450_7">Color</A>,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>  =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_449_7">Back</A>);
+      <FONT COLOR=red><A NAME="ref_598_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_591_16">Set_Menu_Back</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_448_7">Men</A>, AttrChar_To_Chtype (<A HREF="terminal_interface-curses-menus__adb.htm#ref_595_7">Ch</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_598_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_598_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_447_14">Set_Background</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_605_14" HREF="terminal_interface-curses-menus__ads.htm#ref_455_14">Background</A></FONT> (<FONT COLOR=red><A NAME="ref_605_26" HREF="terminal_interface-curses-menus__ads.htm#ref_455_26">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_606_26" HREF="terminal_interface-curses-menus__ads.htm#ref_456_26">Back</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_608_16">Menu_Back</A></FONT> (<FONT COLOR=red><A NAME="ref_608_27" HREF="terminal_interface-curses-menus__adb.htm#ref_608_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Back, "menu_back");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_456_26">Back</A> := Chtype_To_AttrChar (<A HREF="terminal_interface-curses-menus__adb.htm#ref_608_16">Menu_Back</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_455_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_455_14">Background</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_614_14" HREF="terminal_interface-curses-menus__ads.htm#ref_460_14">Background</A></FONT> (<FONT COLOR=red><A NAME="ref_614_26" HREF="terminal_interface-curses-menus__ads.htm#ref_460_26">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_615_26" HREF="terminal_interface-curses-menus__ads.htm#ref_461_26">Back</A></FONT>  : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>;
+                         <FONT COLOR=red><A NAME="ref_616_26" HREF="terminal_interface-curses-menus__ads.htm#ref_462_26">Color</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_618_16">Menu_Back</A></FONT> (<FONT COLOR=red><A NAME="ref_618_27" HREF="terminal_interface-curses-menus__adb.htm#ref_618_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Back, "menu_back");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_461_26">Back</A>  := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Chtype_To_AttrChar</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_618_16">Menu_Back</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_460_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_462_26">Color</A> := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Chtype_To_AttrChar</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_618_16">Menu_Back</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_460_26">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_460_14">Background</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_625_14" HREF="terminal_interface-curses-menus__ads.htm#ref_467_14">Set_Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_625_24" HREF="terminal_interface-curses-menus__ads.htm#ref_468_7">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                       <FONT COLOR=red><A NAME="ref_626_24" HREF="terminal_interface-curses-menus__ads.htm#ref_469_7">Grey</A></FONT>  : <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A> := <A HREF="terminal_interface-curses__ads.htm#ref_352_4">Normal_Video</A>;
+                       <FONT COLOR=red><A NAME="ref_627_24" HREF="terminal_interface-curses-menus__ads.htm#ref_470_7">Color</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A> := <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>'First)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_629_16">Set_Menu_Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_629_31" HREF="terminal_interface-curses-menus__adb.htm#ref_629_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_630_31" HREF="terminal_interface-curses-menus__adb.htm#ref_629_16">Attr</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Grey, "set_menu_grey");
+
+      <FONT COLOR=red><A NAME="ref_633_7">Ch</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A> := (<A HREF="terminal_interface-curses__ads.htm#ref_358_10">Ch</A>    =&gt; Character'First,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A> =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_470_7">Color</A>,
+                                             <A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>  =&gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_469_7">Grey</A>);
+
+      <FONT COLOR=red><A NAME="ref_637_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_629_16">Set_Menu_Grey</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_468_7">Men</A>, AttrChar_To_Chtype (<A HREF="terminal_interface-curses-menus__adb.htm#ref_633_7">Ch</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_637_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_637_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_467_14">Set_Grey</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_644_14" HREF="terminal_interface-curses-menus__ads.htm#ref_475_14">Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_644_20" HREF="terminal_interface-curses-menus__ads.htm#ref_475_20">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                   <FONT COLOR=red><A NAME="ref_645_20" HREF="terminal_interface-curses-menus__ads.htm#ref_476_20">Grey</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_647_16">Menu_Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_647_27" HREF="terminal_interface-curses-menus__adb.htm#ref_647_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Grey, "menu_grey");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_476_20">Grey</A> := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Chtype_To_AttrChar</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_647_16">Menu_Grey</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_475_20">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_475_14">Grey</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_653_14" HREF="terminal_interface-curses-menus__ads.htm#ref_480_14">Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_653_20" HREF="terminal_interface-curses-menus__ads.htm#ref_481_7">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                   <FONT COLOR=red><A NAME="ref_654_20" HREF="terminal_interface-curses-menus__ads.htm#ref_482_7">Grey</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_307_9">Character_Attribute_Set</A>;
+                   <FONT COLOR=red><A NAME="ref_655_20" HREF="terminal_interface-curses-menus__ads.htm#ref_483_7">Color</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_299_9">Color_Pair</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_657_16">Menu_Grey</A></FONT> (<FONT COLOR=red><A NAME="ref_657_27" HREF="terminal_interface-curses-menus__adb.htm#ref_657_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>;
+      <b>pragma</b> Import (C, Menu_Grey, "menu_grey");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_482_7">Grey</A>  := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Chtype_To_AttrChar</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_657_16">Menu_Grey</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_481_7">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_356_10">Attr</A>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_483_7">Color</A> := <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Chtype_To_AttrChar</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_657_16">Menu_Grey</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_481_7">Men</A>)).<A HREF="terminal_interface-curses__ads.htm#ref_357_10">Color</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_480_14">Grey</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_664_14" HREF="terminal_interface-curses-menus__ads.htm#ref_488_14">Set_Pad_Character</A></FONT> (<FONT COLOR=red><A NAME="ref_664_33" HREF="terminal_interface-curses-menus__ads.htm#ref_488_33">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                                <FONT COLOR=red><A NAME="ref_665_33" HREF="terminal_interface-curses-menus__ads.htm#ref_489_33">Pad</A></FONT> : Character := Space)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_667_16">Set_Menu_Pad</A></FONT> (<FONT COLOR=red><A NAME="ref_667_30" HREF="terminal_interface-curses-menus__adb.htm#ref_667_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_668_30" HREF="terminal_interface-curses-menus__adb.htm#ref_667_16">Ch</A></FONT>  : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Pad, "set_menu_pad");
+
+      <FONT COLOR=red><A NAME="ref_671_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_667_16">Set_Menu_Pad</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_488_33">Men</A>,
+                                                <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (Character'Pos (<A HREF="terminal_interface-curses-menus__ads.htm#ref_489_33">Pad</A>)));
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_671_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_671_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_488_14">Set_Pad_Character</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_679_14" HREF="terminal_interface-curses-menus__ads.htm#ref_494_14">Pad_Character</A></FONT> (<FONT COLOR=red><A NAME="ref_679_29" HREF="terminal_interface-curses-menus__ads.htm#ref_494_29">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                            <FONT COLOR=red><A NAME="ref_680_29" HREF="terminal_interface-curses-menus__ads.htm#ref_495_29">Pad</A></FONT> : <b>out</b> Character)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_682_16">Menu_Pad</A></FONT> (<FONT COLOR=red><A NAME="ref_682_26" HREF="terminal_interface-curses-menus__adb.htm#ref_682_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Menu_Pad, "menu_pad");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_495_29">Pad</A> := Character'Val (<A HREF="terminal_interface-curses-menus__adb.htm#ref_682_16">Menu_Pad</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_494_29">Men</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_494_14">Pad_Character</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_688_14" HREF="terminal_interface-curses-menus__ads.htm#ref_504_14">Set_Spacing</A></FONT> (<FONT COLOR=red><A NAME="ref_688_27" HREF="terminal_interface-curses-menus__ads.htm#ref_504_27">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_689_27" HREF="terminal_interface-curses-menus__ads.htm#ref_505_27">Descr</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> := 0;
+                          <FONT COLOR=red><A NAME="ref_690_27" HREF="terminal_interface-curses-menus__ads.htm#ref_506_27">Row</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>   := 0;
+                          <FONT COLOR=red><A NAME="ref_691_27" HREF="terminal_interface-curses-menus__ads.htm#ref_507_27">Col</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> := 0)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_693_16">Set_Spacing</A></FONT> (<FONT COLOR=red><A NAME="ref_693_29" HREF="terminal_interface-curses-menus__adb.htm#ref_693_16">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                            <FONT COLOR=red><A NAME="ref_694_29" HREF="terminal_interface-curses-menus__adb.htm#ref_693_16">D</A></FONT>, <FONT COLOR=red><A NAME="ref_694_32" HREF="terminal_interface-curses-menus__adb.htm#ref_693_16">R</A></FONT>, <FONT COLOR=red><A NAME="ref_694_35" HREF="terminal_interface-curses-menus__adb.htm#ref_693_16">C</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Spacing, "set_menu_spacing");
+
+      <FONT COLOR=red><A NAME="ref_697_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_693_16">Set_Spacing</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_504_27">Men</A>,
+                                               <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_505_27">Descr</A>),
+                                               <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_506_27">Row</A>),
+                                               <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_507_27">Col</A>));
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_697_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_697_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_504_14">Set_Spacing</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_707_14" HREF="terminal_interface-curses-menus__ads.htm#ref_512_14">Spacing</A></FONT> (<FONT COLOR=red><A NAME="ref_707_23" HREF="terminal_interface-curses-menus__ads.htm#ref_512_23">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                      <FONT COLOR=red><A NAME="ref_708_23" HREF="terminal_interface-curses-menus__ads.htm#ref_513_23">Descr</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+                      <FONT COLOR=red><A NAME="ref_709_23" HREF="terminal_interface-curses-menus__ads.htm#ref_514_23">Row</A></FONT>   : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>;
+                      <FONT COLOR=red><A NAME="ref_710_23" HREF="terminal_interface-curses-menus__ads.htm#ref_515_23">Col</A></FONT>   : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>)
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_712_12">C_Int_Access</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_713_16">Get_Spacing</A></FONT> (<FONT COLOR=red><A NAME="ref_713_29" HREF="terminal_interface-curses-menus__adb.htm#ref_713_16">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                            <FONT COLOR=red><A NAME="ref_714_29" HREF="terminal_interface-curses-menus__adb.htm#ref_713_16">D</A></FONT>, <FONT COLOR=red><A NAME="ref_714_32" HREF="terminal_interface-curses-menus__adb.htm#ref_713_16">R</A></FONT>, <FONT COLOR=red><A NAME="ref_714_35" HREF="terminal_interface-curses-menus__adb.htm#ref_713_16">C</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_712_12">C_Int_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Get_Spacing, "menu_spacing");
+
+      <FONT COLOR=red><A NAME="ref_717_7">D</A></FONT>, <FONT COLOR=red><A NAME="ref_717_10">R</A></FONT>, <FONT COLOR=red><A NAME="ref_717_13">C</A></FONT> : <b>aliased</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <FONT COLOR=red><A NAME="ref_718_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_713_16">Get_Spacing</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_512_23">Men</A>,
+                                               <A HREF="terminal_interface-curses-menus__adb.htm#ref_717_7">D</A>'<b>Access</b>,
+                                               <A HREF="terminal_interface-curses-menus__adb.htm#ref_717_10">R</A>'<b>Access</b>,
+                                               <A HREF="terminal_interface-curses-menus__adb.htm#ref_717_13">C</A>'<b>Access</b>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_718_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_718_7">Res</A>);
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__ads.htm#ref_513_23">Descr</A> := <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_717_7">D</A>);
+         <A HREF="terminal_interface-curses-menus__ads.htm#ref_514_23">Row</A>   := <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_717_10">R</A>);
+         <A HREF="terminal_interface-curses-menus__ads.htm#ref_515_23">Col</A>   := <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_717_13">C</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_512_14">Spacing</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_732_13" HREF="terminal_interface-curses-menus__ads.htm#ref_524_13">Set_Pattern</A></FONT> (<FONT COLOR=red><A NAME="ref_732_26" HREF="terminal_interface-curses-menus__ads.htm#ref_524_26">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_733_26" HREF="terminal_interface-curses-menus__ads.htm#ref_525_26">Text</A></FONT> : String) <b>return</b> Boolean
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_735_12">Char_Ptr</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.char;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_736_16">Set_Pattern</A></FONT> (<FONT COLOR=red><A NAME="ref_736_29" HREF="terminal_interface-curses-menus__adb.htm#ref_736_16">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                            <FONT COLOR=red><A NAME="ref_737_29" HREF="terminal_interface-curses-menus__adb.htm#ref_736_16">Pattern</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_735_12">Char_Ptr</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Pattern, "set_menu_pattern");
+
+      <FONT COLOR=red><A NAME="ref_740_7">S</A></FONT>   : char_array (0 .. <A HREF="terminal_interface-curses-menus__ads.htm#ref_525_26">Text</A>'Length);
+      <FONT COLOR=red><A NAME="ref_741_7">L</A></FONT>   : size_t;
+      <FONT COLOR=red><A NAME="ref_742_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-menus__ads.htm#ref_525_26">Text</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_740_7">S</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_741_7">L</A>);
+      <A HREF="terminal_interface-curses-menus__adb.htm#ref_742_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_736_16">Set_Pattern</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_524_26">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_740_7">S</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_740_7">S</A>'First)'<b>Access</b>);
+      <b>case</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_742_7">Res</A> <b>is</b>
+         <b>when</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_89_4">E_No_Match</A> =&gt; <b>return</b> False;
+         <b>when</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A>       =&gt; <b>return</b> True;
+         <b>when</b> <b>others</b> =&gt;
+            <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_742_7">Res</A>);
+            <b>return</b> False;
+      <b>end</b> <b>case</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_524_13">Set_Pattern</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_755_14" HREF="terminal_interface-curses-menus__ads.htm#ref_531_14">Pattern</A></FONT> (<FONT COLOR=red><A NAME="ref_755_23" HREF="terminal_interface-curses-menus__ads.htm#ref_531_23">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                      <FONT COLOR=red><A NAME="ref_756_23" HREF="terminal_interface-curses-menus__ads.htm#ref_532_23">Text</A></FONT> : <b>out</b> String)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_758_16">Get_Pattern</A></FONT> (<FONT COLOR=red><A NAME="ref_758_29" HREF="terminal_interface-curses-menus__adb.htm#ref_758_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_58_12">chars_ptr</A>;
+      <b>pragma</b> Import (C, Get_Pattern, "menu_pattern");
+   <b>begin</b>
+      <A HREF="terminal_interface-curses-aux__ads.htm#ref_116_14">Fill_String</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_758_16">Get_Pattern</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_531_23">Men</A>), <A HREF="terminal_interface-curses-menus__ads.htm#ref_532_23">Text</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_531_14">Pattern</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_764_14" HREF="terminal_interface-curses-menus__ads.htm#ref_541_14">Set_Format</A></FONT> (<FONT COLOR=red><A NAME="ref_764_26" HREF="terminal_interface-curses-menus__ads.htm#ref_541_26">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_765_26" HREF="terminal_interface-curses-menus__ads.htm#ref_542_26">Lines</A></FONT>   : <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+                         <FONT COLOR=red><A NAME="ref_766_26" HREF="terminal_interface-curses-menus__ads.htm#ref_543_26">Columns</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_768_16">Set_Menu_Fmt</A></FONT> (<FONT COLOR=red><A NAME="ref_768_30" HREF="terminal_interface-curses-menus__adb.htm#ref_768_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                             <FONT COLOR=red><A NAME="ref_769_30" HREF="terminal_interface-curses-menus__adb.htm#ref_768_16">Lin</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+                             <FONT COLOR=red><A NAME="ref_770_30" HREF="terminal_interface-curses-menus__adb.htm#ref_768_16">Col</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Fmt, "set_menu_format");
+
+      <FONT COLOR=red><A NAME="ref_773_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_768_16">Set_Menu_Fmt</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_541_26">Men</A>,
+                                                <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_542_26">Lines</A>),
+                                                <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_543_26">Columns</A>));
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_773_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_773_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_541_14">Set_Format</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_782_14" HREF="terminal_interface-curses-menus__ads.htm#ref_555_14">Format</A></FONT> (<FONT COLOR=red><A NAME="ref_782_22" HREF="terminal_interface-curses-menus__ads.htm#ref_555_22">Men</A></FONT>     : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                     <FONT COLOR=red><A NAME="ref_783_22" HREF="terminal_interface-curses-menus__ads.htm#ref_556_22">Lines</A></FONT>   : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A>;
+                     <FONT COLOR=red><A NAME="ref_784_22" HREF="terminal_interface-curses-menus__ads.htm#ref_557_22">Columns</A></FONT> : <b>out</b> <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A>)
+   <b>is</b>
+      <b>type</b> <FONT COLOR=red><A NAME="ref_786_12">C_Int_Access</A></FONT> <b>is</b> <b>access</b> <b>all</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>function</b> <FONT COLOR=red><A NAME="ref_787_16">Menu_Fmt</A></FONT> (<FONT COLOR=red><A NAME="ref_787_26" HREF="terminal_interface-curses-menus__adb.htm#ref_787_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                         <FONT COLOR=red><A NAME="ref_788_26" HREF="terminal_interface-curses-menus__adb.htm#ref_787_16">Y</A></FONT>, <FONT COLOR=red><A NAME="ref_788_29" HREF="terminal_interface-curses-menus__adb.htm#ref_787_16">X</A></FONT> : <A HREF="terminal_interface-curses-menus__adb.htm#ref_786_12">C_Int_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Menu_Fmt, "menu_format");
+
+      <FONT COLOR=red><A NAME="ref_791_7">L</A></FONT>, <FONT COLOR=red><A NAME="ref_791_10">C</A></FONT> : <b>aliased</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <FONT COLOR=red><A NAME="ref_792_7">Res</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_787_16">Menu_Fmt</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_555_22">Men</A>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_791_7">L</A>'<b>Access</b>, <A HREF="terminal_interface-curses-menus__adb.htm#ref_791_10">C</A>'<b>Access</b>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_792_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_792_7">Res</A>);
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__ads.htm#ref_556_22">Lines</A>   := <A HREF="terminal_interface-curses__ads.htm#ref_63_12">Line_Count</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_791_7">L</A>);
+         <A HREF="terminal_interface-curses-menus__ads.htm#ref_557_22">Columns</A> := <A HREF="terminal_interface-curses__ads.htm#ref_65_12">Column_Count</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_791_10">C</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_555_14">Format</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_802_14" HREF="terminal_interface-curses-menus__ads.htm#ref_569_14">Set_Item_Init_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_802_34" HREF="terminal_interface-curses-menus__ads.htm#ref_569_34">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                                 <FONT COLOR=red><A NAME="ref_803_34" HREF="terminal_interface-curses-menus__ads.htm#ref_570_34">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_805_16">Set_Item_Init</A></FONT> (<FONT COLOR=red><A NAME="ref_805_31" HREF="terminal_interface-curses-menus__adb.htm#ref_805_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_806_31" HREF="terminal_interface-curses-menus__adb.htm#ref_805_16">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Item_Init, "set_item_init");
+
+      <FONT COLOR=red><A NAME="ref_809_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_805_16">Set_Item_Init</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_569_34">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_570_34">Proc</A>);
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_809_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_809_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_569_14">Set_Item_Init_Hook</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_816_14" HREF="terminal_interface-curses-menus__ads.htm#ref_575_14">Set_Item_Term_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_816_34" HREF="terminal_interface-curses-menus__ads.htm#ref_575_34">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                                 <FONT COLOR=red><A NAME="ref_817_34" HREF="terminal_interface-curses-menus__ads.htm#ref_576_34">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_819_16">Set_Item_Term</A></FONT> (<FONT COLOR=red><A NAME="ref_819_31" HREF="terminal_interface-curses-menus__adb.htm#ref_819_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_820_31" HREF="terminal_interface-curses-menus__adb.htm#ref_819_16">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Item_Term, "set_item_term");
+
+      <FONT COLOR=red><A NAME="ref_823_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_819_16">Set_Item_Term</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_575_34">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_576_34">Proc</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_823_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_823_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_575_14">Set_Item_Term_Hook</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_830_14" HREF="terminal_interface-curses-menus__ads.htm#ref_581_14">Set_Menu_Init_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_830_34" HREF="terminal_interface-curses-menus__ads.htm#ref_581_34">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                                 <FONT COLOR=red><A NAME="ref_831_34" HREF="terminal_interface-curses-menus__ads.htm#ref_582_34">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_833_16">Set_Menu_Init</A></FONT> (<FONT COLOR=red><A NAME="ref_833_31" HREF="terminal_interface-curses-menus__adb.htm#ref_833_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_834_31" HREF="terminal_interface-curses-menus__adb.htm#ref_833_16">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Init, "set_menu_init");
+
+      <FONT COLOR=red><A NAME="ref_837_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_833_16">Set_Menu_Init</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_581_34">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_582_34">Proc</A>);
+   <b>begin</b>
+      <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_837_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_837_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_581_14">Set_Menu_Init_Hook</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_844_14" HREF="terminal_interface-curses-menus__ads.htm#ref_587_14">Set_Menu_Term_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_844_34" HREF="terminal_interface-curses-menus__ads.htm#ref_587_34">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                                 <FONT COLOR=red><A NAME="ref_845_34" HREF="terminal_interface-curses-menus__ads.htm#ref_588_34">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_847_16">Set_Menu_Term</A></FONT> (<FONT COLOR=red><A NAME="ref_847_31" HREF="terminal_interface-curses-menus__adb.htm#ref_847_16">Men</A></FONT>  : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                              <FONT COLOR=red><A NAME="ref_848_31" HREF="terminal_interface-curses-menus__adb.htm#ref_847_16">Proc</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Menu_Term, "set_menu_term");
+
+      <FONT COLOR=red><A NAME="ref_851_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_847_16">Set_Menu_Term</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_587_34">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_588_34">Proc</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_851_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_851_7">Res</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_587_14">Set_Menu_Term_Hook</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_858_13" HREF="terminal_interface-curses-menus__ads.htm#ref_593_13">Get_Item_Init_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_858_33" HREF="terminal_interface-curses-menus__ads.htm#ref_593_33">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_860_16">Item_Init</A></FONT> (<FONT COLOR=red><A NAME="ref_860_27" HREF="terminal_interface-curses-menus__adb.htm#ref_860_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>;
+      <b>pragma</b> Import (C, Item_Init, "item_init");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_860_16">Item_Init</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_593_33">Men</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_593_13">Get_Item_Init_Hook</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_866_13" HREF="terminal_interface-curses-menus__ads.htm#ref_598_13">Get_Item_Term_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_866_33" HREF="terminal_interface-curses-menus__ads.htm#ref_598_33">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_868_16">Item_Term</A></FONT> (<FONT COLOR=red><A NAME="ref_868_27" HREF="terminal_interface-curses-menus__adb.htm#ref_868_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>;
+      <b>pragma</b> Import (C, Item_Term, "item_term");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_868_16">Item_Term</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_598_33">Men</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_598_13">Get_Item_Term_Hook</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_874_13" HREF="terminal_interface-curses-menus__ads.htm#ref_603_13">Get_Menu_Init_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_874_33" HREF="terminal_interface-curses-menus__ads.htm#ref_603_33">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_876_16">Menu_Init</A></FONT> (<FONT COLOR=red><A NAME="ref_876_27" HREF="terminal_interface-curses-menus__adb.htm#ref_876_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>;
+      <b>pragma</b> Import (C, Menu_Init, "menu_init");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_876_16">Menu_Init</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_603_33">Men</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_603_13">Get_Menu_Init_Hook</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_882_13" HREF="terminal_interface-curses-menus__ads.htm#ref_608_13">Get_Menu_Term_Hook</A></FONT> (<FONT COLOR=red><A NAME="ref_882_33" HREF="terminal_interface-curses-menus__ads.htm#ref_608_33">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_884_16">Menu_Term</A></FONT> (<FONT COLOR=red><A NAME="ref_884_27" HREF="terminal_interface-curses-menus__adb.htm#ref_884_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_565_9">Menu_Hook_Function</A>;
+      <b>pragma</b> Import (C, Menu_Term, "menu_term");
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_884_16">Menu_Term</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_608_33">Men</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_608_13">Get_Menu_Term_Hook</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_890_14" HREF="terminal_interface-curses-menus__ads.htm#ref_617_14">Redefine</A></FONT> (<FONT COLOR=red><A NAME="ref_890_24" HREF="terminal_interface-curses-menus__ads.htm#ref_617_24">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                       <FONT COLOR=red><A NAME="ref_891_24" HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_182_9">Item_Array_Access</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_893_16">Set_Items</A></FONT> (<FONT COLOR=red><A NAME="ref_893_27" HREF="terminal_interface-curses-menus__adb.htm#ref_893_16">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                          <FONT COLOR=red><A NAME="ref_894_27" HREF="terminal_interface-curses-menus__adb.htm#ref_893_16">Items</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Set_Items, "set_menu_items");
+
+      <FONT COLOR=red><A NAME="ref_897_7">Res</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>;
+   <b>begin</b>
+      <b>pragma</b> Assert (<A HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A>'Last) = <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A>'Last) /= <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_897_7">Res</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_893_16">Set_Items</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_617_24">Men</A>, <A HREF="terminal_interface-curses-menus__ads.htm#ref_618_24">Items</A>.<b>all</b>'Address);
+         <b>if</b>  <A HREF="terminal_interface-curses-menus__adb.htm#ref_897_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+            <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_897_7">Res</A>);
+         <b>end</b> <b>if</b>;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_617_14">Redefine</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_910_13" HREF="terminal_interface-curses-menus__ads.htm#ref_633_13">Item_Count</A></FONT> (<FONT COLOR=red><A NAME="ref_910_25" HREF="terminal_interface-curses-menus__ads.htm#ref_633_25">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> Natural
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_912_16">Count</A></FONT> (<FONT COLOR=red><A NAME="ref_912_23" HREF="terminal_interface-curses-menus__adb.htm#ref_912_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Count, "item_count");
+   <b>begin</b>
+      <b>return</b> Natural (<A HREF="terminal_interface-curses-menus__adb.htm#ref_912_16">Count</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_633_25">Men</A>));
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_633_13">Item_Count</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_918_13" HREF="terminal_interface-curses-menus__ads.htm#ref_627_13">Items</A></FONT> (<FONT COLOR=red><A NAME="ref_918_20" HREF="terminal_interface-curses-menus__ads.htm#ref_627_20">Men</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                   <FONT COLOR=red><A NAME="ref_919_20" HREF="terminal_interface-curses-menus__ads.htm#ref_628_20">Index</A></FONT> : Positive) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_56_9">Item</A>
+   <b>is</b>
+      <b>use</b> I_Array;
+
+      <b>function</b> C_Mitems (<FONT COLOR=red><A NAME="ref_923_26">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> Pointer;
+      <b>pragma</b> Import (C, C_Mitems, "menu_items");
+
+      P : Pointer := C_Mitems (<A HREF="terminal_interface-curses-menus__ads.htm#ref_627_20">Men</A>);
+   <b>begin</b>
+      <b>if</b> P = <b>null</b> <b>or</b> <b>else</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_628_20">Index</A> &gt; <A HREF="terminal_interface-curses-menus__ads.htm#ref_633_13">Item_Count</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_627_20">Men</A>) <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>else</b>
+         P := P + ptrdiff_t (<A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_628_20">Index</A>) - 1);
+         <b>return</b> P.<b>all</b>;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_627_13">Items</A>;
+
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_937_13" HREF="terminal_interface-curses-menus__ads.htm#ref_642_13">Create</A></FONT> (<FONT COLOR=red><A NAME="ref_937_21" HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_182_9">Item_Array_Access</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_939_16">Newmenu</A></FONT> (<FONT COLOR=red><A NAME="ref_939_25" HREF="terminal_interface-curses-menus__adb.htm#ref_939_16">Items</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+      <b>pragma</b> Import (C, Newmenu, "new_menu");
+
+      <FONT COLOR=red><A NAME="ref_942_7">M</A></FONT>   : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+   <b>begin</b>
+      <b>pragma</b> Assert (<A HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A>'Last) = <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A>'Last) /= <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A> <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+      <b>else</b>
+         <A HREF="terminal_interface-curses-menus__adb.htm#ref_942_7">M</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_939_16">Newmenu</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_642_21">Items</A>.<b>all</b>'Address);
+         <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_942_7">M</A> = <A HREF="terminal_interface-curses-menus__ads.htm#ref_63_4">Null_Menu</A> <b>then</b>
+            <b>raise</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_116_4">Menu_Exception</A>;
+         <b>end</b> <b>if</b>;
+         <b>return</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_942_7">M</A>;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_642_13">Create</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_956_14" HREF="terminal_interface-curses-menus__ads.htm#ref_649_14">Delete</A></FONT> (<FONT COLOR=red><A NAME="ref_956_22" HREF="terminal_interface-curses-menus__ads.htm#ref_649_22">Men</A></FONT> : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_958_16">Free</A></FONT> (<FONT COLOR=red><A NAME="ref_958_22" HREF="terminal_interface-curses-menus__adb.htm#ref_958_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Free, "free_menu");
+
+      <FONT COLOR=red><A NAME="ref_961_7">Res</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_958_16">Free</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_649_22">Men</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_961_7">Res</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_961_7">Res</A>);
+      <b>end</b> <b>if</b>;
+      <A HREF="terminal_interface-curses-menus__ads.htm#ref_649_22">Men</A> := <A HREF="terminal_interface-curses-menus__ads.htm#ref_63_4">Null_Menu</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_649_14">Delete</A>;
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_970_13" HREF="terminal_interface-curses-menus__ads.htm#ref_664_13">Driver</A></FONT> (<FONT COLOR=red><A NAME="ref_970_21" HREF="terminal_interface-curses-menus__ads.htm#ref_664_21">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                    <FONT COLOR=red><A NAME="ref_971_21" HREF="terminal_interface-curses-menus__ads.htm#ref_665_21">Key</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_68_9">Key_Code</A>) <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_658_9">Driver_Result</A>
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_973_16">Driver</A></FONT> (<FONT COLOR=red><A NAME="ref_973_24" HREF="terminal_interface-curses-menus__adb.htm#ref_973_16">Men</A></FONT> : <A HREF="terminal_interface-curses-menus__ads.htm#ref_57_9">Menu</A>;
+                       <FONT COLOR=red><A NAME="ref_974_24" HREF="terminal_interface-curses-menus__adb.htm#ref_973_16">Key</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, Driver, "menu_driver");
+
+      <FONT COLOR=red><A NAME="ref_977_7">R</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := <A HREF="terminal_interface-curses-menus__adb.htm#ref_973_16">Driver</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_664_21">Men</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_665_21">Key</A>));
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_977_7">R</A> /= <A HREF="terminal_interface-curses-aux__ads.htm#ref_80_4">E_Ok</A> <b>then</b>
+         <b>case</b> <A HREF="terminal_interface-curses-menus__adb.htm#ref_977_7">R</A> <b>is</b>
+            <b>when</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_88_4">E_Unknown_Command</A>  =&gt; <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_660_27">Unknown_Request</A>;
+            <b>when</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_89_4">E_No_Match</A>         =&gt; <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_661_27">No_Match</A>;
+            <b>when</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_92_4">E_Request_Denied</A> |
+                 <A HREF="terminal_interface-curses-aux__ads.htm#ref_90_4">E_Not_Selectable</A>   =&gt; <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_659_27">Request_Denied</A>;
+            <b>when</b> <b>others</b> =&gt;
+               <A HREF="terminal_interface-curses-aux__ads.htm#ref_96_14">Eti_Exception</A> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_977_7">R</A>);
+         <b>end</b> <b>case</b>;
+      <b>end</b> <b>if</b>;
+      <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_658_27">Menu_Ok</A>;
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_664_13">Driver</A>;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_992_14" HREF="terminal_interface-curses-menus__ads.htm#ref_184_14">Free</A></FONT> (<FONT COLOR=red><A NAME="ref_992_20" HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A></FONT>         : <b>in</b> <b>out</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_182_9">Item_Array_Access</A>;
+                   <FONT COLOR=red><A NAME="ref_993_20" HREF="terminal_interface-curses-menus__ads.htm#ref_185_20">Free_Items</A></FONT> : Boolean := False)
+   <b>is</b>
+      <b>procedure</b> Release <b>is</b> <b>new</b> Ada.Unchecked_Deallocation
+        (Item_Array, <A HREF="terminal_interface-curses-menus__ads.htm#ref_182_9">Item_Array_Access</A>);
+   <b>begin</b>
+      <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A> /= <b>null</b> <b>and</b> <b>then</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_185_20">Free_Items</A> <b>then</b>
+         <b>for</b> <FONT COLOR=red><A NAME="ref_999_14">I</A></FONT> <b>in</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A>'First .. (<A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A>'Last - 1) <b>loop</b>
+            <b>if</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_999_14">I</A>) /= <A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A> <b>then</b>
+               <A HREF="terminal_interface-curses-menus__ads.htm#ref_207_14">Delete</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A>.<b>all</b> (<A HREF="terminal_interface-curses-menus__adb.htm#ref_999_14">I</A>));
+            <b>end</b> <b>if</b>;
+         <b>end</b> <b>loop</b>;
+      <b>end</b> <b>if</b>;
+      Release (<A HREF="terminal_interface-curses-menus__ads.htm#ref_184_20">IA</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_184_14">Free</A>;
+
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_1009_13" HREF="terminal_interface-curses-menus__ads.htm#ref_148_13">Default_Menu_Options</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_121_9">Menu_Option_Set</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_356_13">Get_Options</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_63_4">Null_Menu</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_148_13">Default_Menu_Options</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_1015_13" HREF="terminal_interface-curses-menus__ads.htm#ref_172_13">Default_Item_Options</A></FONT> <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_155_9">Item_Option_Set</A>
+   <b>is</b>
+   <b>begin</b>
+      <b>return</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_260_13">Get_Options</A> (<A HREF="terminal_interface-curses-menus__ads.htm#ref_62_4">Null_Item</A>);
+   <b>end</b> <A HREF="terminal_interface-curses-menus__ads.htm#ref_172_13">Default_Item_Options</A>;
+<FONT COLOR=green><EM>-------------------------------------------------------------------------------</EM></FONT>
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-menus__ads.htm#ref_49_35">Menus</A>;
+</PRE></BODY></HTML>

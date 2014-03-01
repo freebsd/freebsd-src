@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_border.3x,v 1.22 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_border 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_border 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>                                         <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>border</STRONG>, <STRONG>wborder</STRONG>, <STRONG>box</STRONG>, <STRONG>hline</STRONG>, <STRONG>whline</STRONG>, <STRONG>vline</STRONG>, <STRONG>wvline</STRONG>,
+       <STRONG>mvhline</STRONG>, <STRONG>mvwhline</STRONG>, <STRONG>mvvline</STRONG>, <STRONG>mvwvline</STRONG> - create <STRONG>curses</STRONG>
+       borders, horizontal and vertical lines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+       <STRONG>int</STRONG> <STRONG>border(chtype</STRONG> <STRONG>ls,</STRONG> <STRONG>chtype</STRONG> <STRONG>rs,</STRONG> <STRONG>chtype</STRONG> <STRONG>ts,</STRONG> <STRONG>chtype</STRONG> <STRONG>bs,</STRONG>
+          <STRONG>chtype</STRONG> <STRONG>tl,</STRONG> <STRONG>chtype</STRONG> <STRONG>tr,</STRONG> <STRONG>chtype</STRONG> <STRONG>bl,</STRONG> <STRONG>chtype</STRONG> <STRONG>br);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wborder(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>ls,</STRONG> <STRONG>chtype</STRONG> <STRONG>rs,</STRONG>
+          <STRONG>chtype</STRONG> <STRONG>ts,</STRONG> <STRONG>chtype</STRONG> <STRONG>bs,</STRONG> <STRONG>chtype</STRONG> <STRONG>tl,</STRONG> <STRONG>chtype</STRONG> <STRONG>tr,</STRONG>
+          <STRONG>chtype</STRONG> <STRONG>bl,</STRONG> <STRONG>chtype</STRONG> <STRONG>br);</STRONG>
+       <STRONG>int</STRONG> <STRONG>box(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>verch,</STRONG> <STRONG>chtype</STRONG> <STRONG>horch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>hline(chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>whline(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>vline(chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wvline(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvhline(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwhline(WINDOW</STRONG> <STRONG>*,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvvline(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwvline(WINDOW</STRONG> <STRONG>*,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>border</STRONG>, <STRONG>wborder</STRONG> and <STRONG>box</STRONG> routines draw a box around the
+       edges of a window.  Other than the window,  each  argument
+       is a character with attributes:
+
+              <EM>ls</EM> - left side,
+              <EM>rs</EM> - right side,
+              <EM>ts</EM> - top side,
+              <EM>bs</EM> - bottom side,
+              <EM>tl</EM> - top left-hand corner,
+              <EM>tr</EM> - top right-hand corner,
+              <EM>bl</EM> - bottom left-hand corner, and
+              <EM>br</EM> - bottom right-hand corner.
+
+       If  any of these arguments is zero, then the corresponding
+       default values (defined in <STRONG>curses.h</STRONG>) are used instead:
+
+              <STRONG>ACS_VLINE</STRONG>,
+              <STRONG>ACS_VLINE</STRONG>,
+              <STRONG>ACS_HLINE</STRONG>,
+              <STRONG>ACS_HLINE</STRONG>,
+              <STRONG>ACS_ULCORNER</STRONG>,
+              <STRONG>ACS_URCORNER</STRONG>,
+              <STRONG>ACS_LLCORNER</STRONG>,
+              <STRONG>ACS_LRCORNER</STRONG>.
+
+       <STRONG>box(</STRONG><EM>win</EM><STRONG>,</STRONG> <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>)</STRONG> is a shorthand  for  the  following
+       call:  <STRONG>wborder(</STRONG><EM>win</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG>  <EM>verch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <EM>horch</EM><STRONG>,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG> <STRONG>0,</STRONG>
+       <STRONG>0)</STRONG>.
+
+       The <STRONG>hline</STRONG> and <STRONG>whline</STRONG> functions draw a horizontal (left  to
+       right)  line using <EM>ch</EM> starting at the current cursor posi-
+       tion in the window.  The current cursor  position  is  not
+       changed.   The  line  is  at most <EM>n</EM> characters long, or as
+       many as fit into the window.
+
+       The <STRONG>vline</STRONG> and <STRONG>wvline</STRONG> functions draw  a  vertical  (top  to
+       bottom) line using <EM>ch</EM> starting at the current cursor posi-
+       tion in the window.  The current cursor  position  is  not
+       changed.   The  line  is  at most <EM>n</EM> characters long, or as
+       many as fit into the window.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       All routines return the integer  <STRONG>OK</STRONG>.   The  SVr4.0  manual
+       says  "or  a  non-negative integer if <STRONG>immedok</STRONG> is set", but
+       this appears to be an error.
+
+       X/Open does not define any error conditions.  This  imple-
+       mentation returns an error if the window pointer is null.
+
+       Functions  with a "mv" prefix first perform a cursor move-
+       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The  borders  generated by these functions are <EM>inside</EM> bor-
+       ders (this is also true of SVr4 curses, though the fact is
+       not documented).
+
+       Note that <STRONG>border</STRONG> and <STRONG>box</STRONG> may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These  functions are described in the XSI Curses standard,
+       Issue 4.  The standard specifies that they return  <STRONG>ERR</STRONG>  on
+       failure, but specifies no error conditions.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>.
+
+
+
+                                                        <STRONG><A HREF="curs_border.3x.html">curs_border(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

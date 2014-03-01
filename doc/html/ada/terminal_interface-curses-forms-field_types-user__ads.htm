@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-forms-field_types-user.ads</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-forms-field_types-user.ads </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--               Terminal_Interface.Curses.Forms.Field_Types.User           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.15 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2011/03/19 12:27:21 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<FONT COLOR=red><A NAME="ref_44_53" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_45_58">User</A></FONT> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>);
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_46_12">C_Int</A></FONT> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
+
+   <b>type</b> <FONT COLOR=red><A NAME="ref_48_9">User_Defined_Field_Type</A></FONT> <b>is</b> <b>abstract</b> <b>new</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_52_9">Field_Type</A> <b>with</b> <b>null</b> <b>record</b>;
+   <FONT COLOR=green><EM>--  This is the root of the mechanism we use to create field types in</EM></FONT>
+   <FONT COLOR=green><EM>--  Ada95. You should your own type derive from this one and implement</EM></FONT>
+   <FONT COLOR=green><EM>--  the Field_Check and Character_Check functions for your own type.</EM></FONT>
+
+   <b>type</b> <FONT COLOR=red><A NAME="ref_53_9">User_Defined_Field_Type_Access</A></FONT> <b>is</b> <b>access</b> <b>all</b>
+     <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>'Class;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_56_13">Field_Check</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_57_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+      <FONT COLOR=red><A NAME="ref_58_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_56_13">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
+      <b>is</b> <b>abstract</b>;
+   <FONT COLOR=green><EM>--  If True is returned, the field is considered valid, otherwise it is</EM></FONT>
+   <FONT COLOR=green><EM>--  invalid.</EM></FONT>
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_63_13">Character_Check</A></FONT>
+     (<FONT COLOR=red><A NAME="ref_64_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Ch</A></FONT>  : Character;
+      <FONT COLOR=red><A NAME="ref_65_7" HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_63_13">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>) <b>return</b> Boolean
+      <b>is</b> <b>abstract</b>;
+   <FONT COLOR=green><EM>--  If True is returned, the character is considered as valid for the</EM></FONT>
+   <FONT COLOR=green><EM>--  field, otherwise as invalid.</EM></FONT>
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_70_14" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_47_14">Set_Field_Type</A></FONT> (<FONT COLOR=red><A NAME="ref_70_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_47_30">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                             <FONT COLOR=red><A NAME="ref_71_30" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_48_30">Typ</A></FONT> : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_48_9">User_Defined_Field_Type</A>);
+   <FONT COLOR=green><EM>--  This should work for all types derived from User_Defined_Field_Type.</EM></FONT>
+   <FONT COLOR=green><EM>--  No need to reimplement it for your derived type.</EM></FONT>
+
+   <FONT COLOR=green><EM>--  +----------------------------------------------------------------------</EM></FONT>
+   <FONT COLOR=green><EM>--  | Private Part.</EM></FONT>
+   <FONT COLOR=green><EM>--  | Used by the Choice child package.</EM></FONT>
+<b>private</b>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_79_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_108_13">C_Generic_Type</A></FONT>   <b>return</b> <A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_132_9">C_Field_Type</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_81_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_82_13">Generic_Field_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_81_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_82_34">Fld</A></FONT> : <A HREF="terminal_interface-curses-forms__ads.htm#ref_56_9">Field</A>;
+                                 <FONT COLOR=red><A NAME="ref_82_34" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_83_34">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_81_13">Generic_Field_Check</A>);
+   <FONT COLOR=green><EM>--  This is the generic Field_Check_Function for the low-level fieldtype</EM></FONT>
+   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></FONT>
+   <FONT COLOR=green><EM>--  the call to the Field_Check implementation for the type.</EM></FONT>
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_88_13" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_94_13">Generic_Char_Check</A></FONT> (<FONT COLOR=red><A NAME="ref_88_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_94_33">Ch</A></FONT>  : <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_46_12">C_Int</A>;
+                                <FONT COLOR=red><A NAME="ref_89_33" HREF="terminal_interface-curses-forms-field_types-user__adb.htm#ref_95_33">Usr</A></FONT> : System.Address) <b>return</b> <A HREF="terminal_interface-curses__ads.htm#ref_1926_9">Curses_Bool</A>;
+   <b>pragma</b> Convention (C, <A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_88_13">Generic_Char_Check</A>);
+   <FONT COLOR=green><EM>--  This is the generic Char_Check_Function for the low-level fieldtype</EM></FONT>
+   <FONT COLOR=green><EM>--  representing all the User_Defined_Field_Type derivatives. It routes</EM></FONT>
+   <FONT COLOR=green><EM>--  the call to the Character_Check implementation for the type.</EM></FONT>
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-forms__ads.htm#ref_49_35">Forms</A>.<A HREF="terminal_interface-curses-forms-field_types__ads.htm#ref_43_41">Field_Types</A>.<A HREF="terminal_interface-curses-forms-field_types-user__ads.htm#ref_44_53">User</A>;
+</PRE></BODY></HTML>

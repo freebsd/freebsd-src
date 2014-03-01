@@ -1,0 +1,334 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: tset.1,v 1.25 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>tset 1</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>tset 1</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>                                                         <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>tset</STRONG>, <STRONG>reset</STRONG> - terminal initialization
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>tset</STRONG>  [<STRONG>-IQVcqrsw</STRONG>] [<STRONG>-</STRONG>] [<STRONG>-e</STRONG> <EM>ch</EM>] [<STRONG>-i</STRONG> <EM>ch</EM>] [<STRONG>-k</STRONG> <EM>ch</EM>] [<STRONG>-m</STRONG> <EM>mapping</EM>]
+       [<EM>terminal</EM>]
+       <STRONG>reset</STRONG> [<STRONG>-IQVcqrsw</STRONG>] [<STRONG>-</STRONG>] [<STRONG>-e</STRONG> <EM>ch</EM>] [<STRONG>-i</STRONG> <EM>ch</EM>] [<STRONG>-k</STRONG> <EM>ch</EM>] [<STRONG>-m</STRONG> <EM>mapping</EM>]
+       [<EM>terminal</EM>]
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       <STRONG>Tset</STRONG>  initializes  terminals.   <STRONG>Tset</STRONG>  first determines the
+       type of terminal that you are using.   This  determination
+       is done as follows, using the first terminal type found.
+
+       1. The <STRONG>terminal</STRONG> argument specified on the command line.
+
+       2. The value of the <STRONG>TERM</STRONG> environmental variable.
+
+       3.  (BSD  systems only.) The terminal type associated with
+       the standard error output device in  the  <EM>/etc/ttys</EM>  file.
+       (On  System-V-like  UNIXes  and systems using that conven-
+       tion, <EM>getty</EM> does this job by setting <STRONG>TERM</STRONG> according to the
+       type passed to it by <EM>/etc/inittab</EM>.)
+
+       4. The default terminal type, ``unknown''.
+
+       If  the  terminal  type  was not specified on the command-
+       line, the <STRONG>-m</STRONG> option mappings are  then  applied  (see  the
+       section  <STRONG>TERMINAL</STRONG>  <STRONG>TYPE</STRONG>  <STRONG>MAPPING</STRONG>  for  more  information).
+       Then, if the terminal type begins  with  a  question  mark
+       (``?''), the user is prompted for confirmation of the ter-
+       minal type.  An empty  response  confirms  the  type,  or,
+       another  type  can be entered to specify a new type.  Once
+       the terminal type has been determined, the terminfo  entry
+       for  the  terminal  is retrieved.  If no terminfo entry is
+       found for the type, the user is prompted for another  ter-
+       minal type.
+
+       Once  the  terminfo  entry  is retrieved, the window size,
+       backspace, interrupt and line kill characters (among  many
+       other things) are set and the terminal and tab initializa-
+       tion strings  are  sent  to  the  standard  error  output.
+       Finally,  if the erase, interrupt and line kill characters
+       have changed, or are not  set  to  their  default  values,
+       their  values  are displayed to the standard error output.
+       Use the <STRONG>-c</STRONG> or <STRONG>-w</STRONG> option to select only the  window  sizing
+       versus  the  other  initialization.   If neither option is
+       given, both are assumed.
+
+       When invoked as <STRONG>reset</STRONG>, <STRONG>tset</STRONG> sets cooked  and  echo  modes,
+       turns  off cbreak and raw modes, turns on newline transla-
+       tion and resets any  unset  special  characters  to  their
+       default  values  before  doing the terminal initialization
+       described above.  This is  useful  after  a  program  dies
+       leaving  a  terminal  in an abnormal state.  Note, you may
+       have to type
+
+           <STRONG>&lt;LF&gt;reset&lt;LF&gt;</STRONG>
+
+       (the line-feed character is normally control-J) to get the
+       terminal to work, as carriage-return may no longer work in
+       the abnormal state.  Also, the  terminal  will  often  not
+       echo the command.
+
+       The options are as follows:
+
+       <STRONG>-c</STRONG>   Set  control  characters and modes.  <STRONG>-e</STRONG> Set the erase
+            character to <EM>ch</EM>.
+
+       <STRONG>-I</STRONG>   Do  not  send  the  terminal  or  tab  initialization
+            strings to the terminal.
+
+       <STRONG>-i</STRONG>   Set the interrupt character to <EM>ch</EM>.
+
+       <STRONG>-k</STRONG>   Set the line kill character to <EM>ch</EM>.
+
+       <STRONG>-m</STRONG>   Specify  a  mapping  from  a port type to a terminal.
+            See the section <STRONG>TERMINAL</STRONG> <STRONG>TYPE</STRONG> <STRONG>MAPPING</STRONG> for more infor-
+            mation.
+
+       <STRONG>-Q</STRONG>   Do  not  display  any values for the erase, interrupt
+            and line kill characters.  Normally <STRONG>tset</STRONG> displays the
+            values  for  control characters which differ from the
+            system's default values.
+
+       <STRONG>-q</STRONG>   The terminal type is displayed to the  standard  out-
+            put,  and the terminal is not initialized in any way.
+            The option `-' by itself is equivalent but archaic.
+
+       <STRONG>-r</STRONG>   Print the terminal type to the standard error output.
+
+       <STRONG>-s</STRONG>   Print  the  sequence  of shell commands to initialize
+            the environment variable <STRONG>TERM</STRONG> to the standard output.
+            See  the section <STRONG>SETTING</STRONG> <STRONG>THE</STRONG> <STRONG>ENVIRONMENT</STRONG> for details.
+
+       <STRONG>-V</STRONG>   reports the version of ncurses which was used in this
+            program, and exits.
+
+       <STRONG>-w</STRONG>   Resize  the  window  to  match  the  size deduced via
+            <STRONG>setupterm</STRONG>.   Normally  this  has  no  effect,  unless
+            <STRONG>setupterm</STRONG> is not able to detect the window size.
+
+       The arguments for the <STRONG>-e</STRONG>, <STRONG>-i</STRONG>, and <STRONG>-k</STRONG> options may either be
+       entered as actual characters or by using the  `hat'  nota-
+       tion,  i.e.,  control-h  may  be  specified  as  ``^H'' or
+       ``^h''.
+
+
+</PRE>
+<H2>SETTING THE ENVIRONMENT</H2><PRE>
+       It is often desirable  to  enter  the  terminal  type  and
+       information  about  the  terminal's  capabilities into the
+       shell's environment.  This is done using the <STRONG>-s</STRONG> option.
+
+       When the <STRONG>-s</STRONG> option is specified, the commands to enter the
+       information  into  the  shell's environment are written to
+       the standard output.  If the <STRONG>SHELL</STRONG> environmental  variable
+       ends in ``csh'', the commands are for <STRONG>csh</STRONG>, otherwise, they
+       are for <STRONG>sh</STRONG>.  Note, the <STRONG>csh</STRONG>  commands  set  and  unset  the
+       shell  variable  <STRONG>noglob</STRONG>,  leaving it unset.  The following
+       line in the <STRONG>.login</STRONG> or <STRONG>.profile</STRONG> files will  initialize  the
+       environment correctly:
+
+           eval `tset -s options ... `
+
+
+</PRE>
+<H2>TERMINAL TYPE MAPPING</H2><PRE>
+       When the terminal is not hardwired into the system (or the
+       current system information is incorrect) the terminal type
+       derived  from the <EM>/etc/ttys</EM> file or the <STRONG>TERM</STRONG> environmental
+       variable is often something generic like <STRONG>network</STRONG>,  <STRONG>dialup</STRONG>,
+       or  <STRONG>unknown</STRONG>.   When <STRONG>tset</STRONG> is used in a startup script it is
+       often desirable to provide information about the  type  of
+       terminal used on such ports.
+
+       The  purpose  of  the <STRONG>-m</STRONG> option is to map from some set of
+       conditions to a terminal type, that is, to tell <STRONG>tset</STRONG>  ``If
+       I'm  on this port at a particular speed, guess that I'm on
+       that kind of terminal''.
+
+       The argument to the <STRONG>-m</STRONG> option consists of an optional port
+       type, an optional operator, an optional baud rate specifi-
+       cation, an optional colon (``:'') character and a terminal
+       type.   The port type is a string (delimited by either the
+       operator or the colon character).  The operator may be any
+       combination of ``&gt;'', ``&lt;'', ``@'', and ``!''; ``&gt;'' means
+       greater than, ``&lt;'' means less than, ``@'' means equal  to
+       and ``!'' inverts the sense of the test.  The baud rate is
+       specified as a number and is compared with  the  speed  of
+       the  standard  error  output  (which should be the control
+       terminal).  The terminal type is a string.
+
+       If the terminal type is not specified on the command line,
+       the  <STRONG>-m</STRONG> mappings are applied to the terminal type.  If the
+       port type and baud rate match the  mapping,  the  terminal
+       type  specified  in the mapping replaces the current type.
+       If more than one mapping is specified, the first  applica-
+       ble mapping is used.
+
+       For    example,    consider    the    following   mapping:
+       <STRONG>dialup&gt;9600:vt100</STRONG>.  The port type is dialup , the operator
+       is  &gt;, the baud rate specification is 9600, and the termi-
+       nal type is vt100.  The result of this mapping is to spec-
+       ify that if the terminal type is <STRONG>dialup</STRONG>, and the baud rate
+       is greater than 9600 baud, a terminal type of  <STRONG>vt100</STRONG>  will
+       be used.
+
+       If no baud rate is specified, the terminal type will match
+       any baud rate.  If no port type is specified, the terminal
+       type   will   match   any  port  type.   For  example,  <STRONG>-m</STRONG>
+       <STRONG>dialup:vt100</STRONG>  <STRONG>-m</STRONG>  <STRONG>:?xterm</STRONG>  will  cause  any  dialup  port,
+       regardless of baud rate, to match the terminal type vt100,
+       and any non-dialup port type to match  the  terminal  type
+       ?xterm.   Note,  because of the leading question mark, the
+       user will be queried on a default port as to whether  they
+       are actually using an xterm terminal.
+
+       No  whitespace  characters  are permitted in the <STRONG>-m</STRONG> option
+       argument.  Also, to avoid problems  with  meta-characters,
+       it  is  suggested  that  the  entire <STRONG>-m</STRONG> option argument be
+       placed within single quote characters, and that <STRONG>csh</STRONG>  users
+       insert  a  backslash character (``\'') before any exclama-
+       tion marks (``!'').
+
+
+</PRE>
+<H2>HISTORY</H2><PRE>
+       The <STRONG>tset</STRONG> command appeared in BSD 3.0.  The <STRONG>ncurses</STRONG>  imple-
+       mentation  was lightly adapted from the 4.4BSD sources for
+       a terminfo environment by Eric S. Raymond &lt;esr@snark.thyr-
+       sus.com&gt;.
+
+
+</PRE>
+<H2>COMPATIBILITY</H2><PRE>
+       The  <STRONG>tset</STRONG>  utility has been provided for backward-compati-
+       bility with BSD environments (under  most  modern  UNIXes,
+       <STRONG>/etc/inittab</STRONG>  and  <STRONG><A HREF="getty.1.html">getty(1)</A></STRONG> can set <STRONG>TERM</STRONG> appropriately for
+       each dial-up line; this  obviates  what  was  <STRONG>tset</STRONG>'s  most
+       important  use).   This implementation behaves like 4.4BSD
+       tset, with a few exceptions specified here.
+
+       The <STRONG>-S</STRONG> option of BSD tset no longer works;  it  prints  an
+       error message to stderr and dies.  The <STRONG>-s</STRONG> option only sets
+       <STRONG>TERM</STRONG>, not <STRONG>TERMCAP</STRONG>.  Both these  changes  are  because  the
+       <STRONG>TERMCAP</STRONG>  variable  is  no longer supported under terminfo-
+       based <STRONG>ncurses</STRONG>, which makes <STRONG>tset</STRONG> <STRONG>-S</STRONG> useless (we made it die
+       noisily rather than silently induce lossage).
+
+       There  was  an  undocumented  4.4BSD feature that invoking
+       tset via a link named `TSET` (or via any other name begin-
+       ning  with  an  upper-case letter) set the terminal to use
+       upper-case only.  This feature has been omitted.
+
+       The <STRONG>-A</STRONG>, <STRONG>-E</STRONG>, <STRONG>-h</STRONG>, <STRONG>-u</STRONG> and <STRONG>-v</STRONG> options were  deleted  from  the
+       <STRONG>tset</STRONG>  utility  in 4.4BSD.  None of them were documented in
+       4.3BSD and all are of limited utility at  best.   The  <STRONG>-a</STRONG>,
+       <STRONG>-d</STRONG>, and <STRONG>-p</STRONG> options are similarly not documented or useful,
+       but were retained as they appear to be in widespread  use.
+       It  is  strongly recommended that any usage of these three
+       options be changed to use the <STRONG>-m</STRONG> option instead.   The  <STRONG>-n</STRONG>
+       option  remains, but has no effect.  The <STRONG>-adnp</STRONG> options are
+       therefore omitted from the usage summary above.
+
+       It is still permissible to specify  the  <STRONG>-e</STRONG>,  <STRONG>-i</STRONG>,  and  <STRONG>-k</STRONG>
+       options  without arguments, although it is strongly recom-
+       mended that such usage be fixed to explicitly specify  the
+       character.
+
+       As  of  4.4BSD,  executing <STRONG>tset</STRONG> as <STRONG>reset</STRONG> no longer implies
+       the <STRONG>-Q</STRONG> option.  Also, the interaction between the - option
+       and the <EM>terminal</EM> argument in some historic implementations
+       of <STRONG>tset</STRONG> has been removed.
+
+
+</PRE>
+<H2>ENVIRONMENT</H2><PRE>
+       The <STRONG>tset</STRONG> command uses these environment variables:
+
+       SHELL
+            tells <STRONG>tset</STRONG> whether to initialize <STRONG>TERM</STRONG> using <STRONG>sh</STRONG> or <STRONG>csh</STRONG>
+            syntax.
+
+       TERM Denotes  your  terminal  type.  Each terminal type is
+            distinct, though many are similar.
+
+       TERMCAP
+            may denote the location of a termcap database.  If it
+            is not an absolute pathname, e.g., begins with a `/',
+            <STRONG>tset</STRONG> removes the variable from the environment before
+            looking for the terminal description.
+
+
+</PRE>
+<H2>FILES</H2><PRE>
+       /etc/ttys
+            system  port  name  to terminal type mapping database
+            (BSD versions only).
+
+       /usr/share/terminfo
+            terminal capability database
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="csh.1.html">csh(1)</A></STRONG>, <STRONG><A HREF="sh.1.html">sh(1)</A></STRONG>, <STRONG><A HREF="stty.1.html">stty(1)</A></STRONG>,  <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,  <STRONG><A HREF="tty.4.html">tty(4)</A></STRONG>,  ter-
+       <STRONG><A HREF="minfo.5.html">minfo(5)</A></STRONG>, <STRONG><A HREF="ttys.5.html">ttys(5)</A></STRONG>, <STRONG><A HREF="environ.7.html">environ(7)</A></STRONG>
+
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+
+
+
+                                                                <STRONG><A HREF="tset.1.html">tset(1)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

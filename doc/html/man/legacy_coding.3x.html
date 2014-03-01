@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2005-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * Author: Thomas E. Dickey
+  * @Id: legacy_coding.3x,v 1.4 2010/12/04 18:49:20 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>legacy_coding 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>legacy_coding 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>                                     <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>use_legacy_coding</STRONG> - use terminal's default colors
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>use_legacy_coding(int</STRONG> <STRONG>level);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <EM>use</EM><STRONG>_</STRONG><EM>legacy</EM><STRONG>_</STRONG><EM>coding()</EM>  function  is an extension to the
+       curses library.  It allows the caller to change the result
+       of  <STRONG>unctrl</STRONG>, and suppress related checks within the library
+       that would normally cause  nonprinting  characters  to  be
+       rendered in visible form.  This affects only 8-bit charac-
+       ters.
+
+       The <EM>level</EM> parameter controls the result:
+
+              0    the library functions normally, rendering non-
+                   printing characters as described in <STRONG>unctrl</STRONG>.
+
+              1    the  library ignores <STRONG>isprintf</STRONG> for codes in the
+                   range 160-255.
+
+              2    the library ignores <STRONG>isprintf</STRONG> for codes in  the
+                   range 128-255.  It also modifies the output of
+                   <STRONG>unctrl</STRONG>, showing codes in the range 128-159  as
+                   is.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       If  the  screen  has  not  been  initialized, or the <EM>level</EM>
+       parameter is out of range, the function returns <STRONG>ERR</STRONG>.  Oth-
+       erwise, it returns the previous level: <STRONG>0</STRONG>, <STRONG>1</STRONG> or <STRONG>2</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       This routine is specific to ncurses.  It was not supported
+       on Version 7, BSD or System V implementations.  It is rec-
+       ommended  that any code depending on ncurses extensions be
+       conditioned using NCURSES_VERSION.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG>unctrl</STRONG>.
+
+
+</PRE>
+<H2>AUTHOR</H2><PRE>
+       Thomas Dickey (to support lynx's font-switching feature).
+
+
+
+                                                      <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

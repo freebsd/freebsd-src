@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_pad.3x,v 1.17 2010/12/04 18:41:07 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_pad 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_pad 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>                                               <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>newpad</STRONG>, <STRONG>subpad</STRONG>, <STRONG>prefresh</STRONG>, <STRONG>pnoutrefresh</STRONG>, <STRONG>pechochar</STRONG>,
+       <STRONG>pecho_wchar</STRONG> - create and display <STRONG>curses</STRONG> pads
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>WINDOW</STRONG> <STRONG>*newpad(int</STRONG> <STRONG>nlines,</STRONG> <STRONG>int</STRONG> <STRONG>ncols);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*subpad(WINDOW</STRONG> <STRONG>*orig,</STRONG> <STRONG>int</STRONG> <STRONG>nlines,</STRONG> <STRONG>int</STRONG> <STRONG>ncols,</STRONG>
+             <STRONG>int</STRONG> <STRONG>begin_y,</STRONG> <STRONG>int</STRONG> <STRONG>begin_x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>prefresh(WINDOW</STRONG> <STRONG>*pad,</STRONG> <STRONG>int</STRONG> <STRONG>pminrow,</STRONG> <STRONG>int</STRONG> <STRONG>pmincol,</STRONG>
+             <STRONG>int</STRONG> <STRONG>sminrow,</STRONG> <STRONG>int</STRONG> <STRONG>smincol,</STRONG> <STRONG>int</STRONG> <STRONG>smaxrow,</STRONG> <STRONG>int</STRONG> <STRONG>smaxcol);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pnoutrefresh(WINDOW</STRONG> <STRONG>*pad,</STRONG> <STRONG>int</STRONG> <STRONG>pminrow,</STRONG> <STRONG>int</STRONG> <STRONG>pmincol,</STRONG>
+             <STRONG>int</STRONG> <STRONG>sminrow,</STRONG> <STRONG>int</STRONG> <STRONG>smincol,</STRONG> <STRONG>int</STRONG> <STRONG>smaxrow,</STRONG> <STRONG>int</STRONG> <STRONG>smaxcol);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pechochar(WINDOW</STRONG> <STRONG>*pad,</STRONG> <STRONG>chtype</STRONG> <STRONG>ch);</STRONG>
+       <STRONG>int</STRONG> <STRONG>pecho_wchar(WINDOW</STRONG> <STRONG>*pad,</STRONG> <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*wch);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>newpad</STRONG> routine creates and returns a pointer to a  new
+       pad data structure with the given number of lines, <EM>nlines</EM>,
+       and columns, <EM>ncols</EM>.  A pad is like a window,  except  that
+       it is not restricted by the screen size, and is not neces-
+       sarily associated with a particular part  of  the  screen.
+       Pads can be used when a large window is needed, and only a
+       part of the window will be on the screen at one time.  Au-
+       tomatic refreshes of pads (e.g., from scrolling or echoing
+       of input) do not occur.  It is not legal to call  <STRONG>wrefresh</STRONG>
+       with  a  <EM>pad</EM>  as  an  argument;  the  routines <STRONG>prefresh</STRONG> or
+       <STRONG>pnoutrefresh</STRONG> should be called instead.   Note  that  these
+       routines require additional parameters to specify the part
+       of the pad to be displayed and the location on the  screen
+       to be used for the display.
+
+       The <STRONG>subpad</STRONG> routine creates and returns a pointer to a sub-
+       window within a  pad  with  the  given  number  of  lines,
+       <EM>nlines</EM>,  and  columns,  <EM>ncols</EM>.   Unlike <STRONG>subwin</STRONG>, which uses
+       screen coordinates, the window is  at  position  (<EM>begin</EM>_<EM>x</EM><STRONG>,</STRONG>
+       <EM>begin</EM>_<EM>y</EM>)  on the pad.  The window is made in the middle of
+       the window <EM>orig</EM>, so that changes made to one window affect
+       both windows.  During the use of this routine, it will of-
+       ten be necessary to call <STRONG>touchwin</STRONG> or <STRONG>touchline</STRONG> on <EM>orig</EM> be-
+       fore calling <STRONG>prefresh</STRONG>.
+
+       The  <STRONG>prefresh</STRONG>  and  <STRONG>pnoutrefresh</STRONG> routines are analogous to
+       <STRONG>wrefresh</STRONG> and <STRONG>wnoutrefresh</STRONG> except that they relate to  pads
+       instead  of windows.  The additional parameters are needed
+       to indicate what part of the pad and screen are  involved.
+       The <EM>pminrow</EM> and <EM>pmincol</EM> parameters specify the upper left-
+       hand corner of the rectangle to be displayed in  the  pad.
+       The  <EM>sminrow</EM>,  <EM>smincol</EM>,  <EM>smaxrow</EM>,  and  <EM>smaxcol</EM> parameters
+       specify the edges of the rectangle to be displayed on  the
+       screen.   The  lower right-hand corner of the rectangle to
+       be displayed in the pad is calculated from the screen  co-
+       ordinates,  since  the  rectangles  must be the same size.
+       Both rectangles must be entirely  contained  within  their
+       respective  structures.  Negative values of <EM>pminrow</EM>, <EM>pmin-</EM>
+       <EM>col</EM>, <EM>sminrow</EM>, or <EM>smincol</EM> are treated as if they were zero.
+
+       The <STRONG>pechochar</STRONG> routine is functionally equivalent to a call
+       to  <STRONG>addch</STRONG>  followed by a call to <STRONG>refresh</STRONG>, a call to <STRONG>waddch</STRONG>
+       followed by a call to <STRONG>wrefresh</STRONG>, or a call to  <STRONG>waddch</STRONG>  fol-
+       lowed  by  a  call to <STRONG>prefresh</STRONG>.  The knowledge that only a
+       single character is being output is taken into  considera-
+       tion  and, for non-control characters, a considerable per-
+       formance gain might be seen by using  these  routines  in-
+       stead of their equivalents.  In the case of <STRONG>pechochar</STRONG>, the
+       last location of the pad on the screen is reused  for  the
+       arguments to <STRONG>prefresh</STRONG>.
+
+       The  <STRONG>pecho_wchar</STRONG>  function is the analogous wide-character
+       form of <STRONG>pechochar</STRONG>.  It outputs one character to a pad  and
+       immediately  refreshes the pad.  It does this by a call to
+       <STRONG>wadd_wch</STRONG> followed by a call to <STRONG>prefresh</STRONG>.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines that return an integer return  <STRONG>ERR</STRONG>  upon  failure
+       and  <STRONG>OK</STRONG>  (SVr4 only specifies "an integer value other than
+       <STRONG>ERR</STRONG>") upon successful completion.
+
+       Routines that return pointers return <STRONG>NULL</STRONG>  on  error,  and
+       set <STRONG>errno</STRONG> to <STRONG>ENOMEM</STRONG>.
+
+       X/Open  does not define any error conditions.  In this im-
+       plementation
+
+              <STRONG>prefresh</STRONG> and <STRONG>pnoutrefresh</STRONG>
+                   return an error if the window pointer is null,
+                   or if the window is not really a pad or if the
+                   area to refresh extends off-screen or  if  the
+                   minimum coordinates are greater than the maxi-
+                   mum.
+
+              <STRONG>pechochar</STRONG>
+                   returns an error if the window is not really a
+                   pad,  and the associated call to <STRONG>wechochar</STRONG> re-
+                   turns an error.
+
+              <STRONG>pecho_wchar</STRONG>
+                   returns an error if the window is not really a
+                   pad,  and  the  associated call to <STRONG>wecho_wchar</STRONG>
+                   returns an error.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>pechochar</STRONG> may be a macro.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The XSI Curses standard, Issue  4  describes  these  func-
+       tions.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,  <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>,  <STRONG>curs_add-</STRONG>
+       <STRONG><A HREF="curs_addch.3x.html">ch(3x)</A></STRONG>.
+
+
+
+                                                           <STRONG><A HREF="curs_pad.3x.html">curs_pad(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

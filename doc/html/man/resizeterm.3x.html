@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * Author: Thomas E. Dickey 1996-2005
+  * @Id: resizeterm.3x,v 1.14 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>resizeterm 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>resizeterm 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>                                           <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>is_term_resized</STRONG>,  <STRONG>resize_term</STRONG>,  <STRONG>resizeterm</STRONG>  -  change  the
+       curses terminal size
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>bool</STRONG> <STRONG>is_term_resized(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resize_term(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resizeterm(int</STRONG> <STRONG>lines,</STRONG> <STRONG>int</STRONG> <STRONG>columns);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       This is an extension to the curses library.   It  provides
+       callers  with  a hook into the <STRONG>ncurses</STRONG> data to resize win-
+       dows, primarily for use by programs running in an X Window
+       terminal  (e.g.,  xterm).  The function <STRONG>resizeterm</STRONG> resizes
+       the standard and current windows to the  specified  dimen-
+       sions,  and  adjusts  other  bookkeeping  data used by the
+       <STRONG>ncurses</STRONG> library that record the window dimensions.
+
+       Most  of  the  work  is  done  by   the   inner   function
+       <STRONG>resize_term</STRONG>.  The outer function <STRONG>resizeterm</STRONG> adds bookkeep-
+       ing for the SIGWINCH handler.  When resizing the  windows,
+       <STRONG>resize_term</STRONG>  blank-fills the areas that are extended.  The
+       calling application should fill in these areas with appro-
+       priate  data.  The <STRONG>resize_term</STRONG> function attempts to resize
+       all windows.  However, due to the  calling  convention  of
+       pads,  it  is  not  possible to resize these without addi-
+       tional interaction with the application.
+
+       A support function <STRONG>is_term_resized</STRONG>  is  provided  so  that
+       applications  can  check if the <STRONG>resize_term</STRONG> function would
+       modify the window structures.  It returns TRUE if the win-
+       dows would be modified, and FALSE otherwise.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Except  as  notes,  these  function return the integer <STRONG>ERR</STRONG>
+       upon failure and <STRONG>OK</STRONG> on success.  They will fail if  either
+       of the dimensions are less than or equal to zero, or if an
+       error occurs while (re)allocating memory for the windows.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       While these functions are intended to be used to support a
+       signal  handler (i.e., for SIGWINCH), care should be taken
+       to avoid invoking them in a context where <STRONG>malloc</STRONG> or  <STRONG>real-</STRONG>
+       <STRONG>loc</STRONG>  may  have been interrupted, since it uses those func-
+       tions.
+
+       If ncurses is configured to supply its own  SIGWINCH  han-
+       dler, the <STRONG>resizeterm</STRONG> function ungetch's a <STRONG>KEY_RESIZE</STRONG> which
+       will be read on the next call to <STRONG>getch</STRONG>.  This is  used  to
+       alert an application that the screen size has changed, and
+       that it should repaint special features such as pads  that
+       cannot be done automatically.
+
+       If  the  environment  variables  <STRONG>LINES</STRONG> or <STRONG>COLUMNS</STRONG> are set,
+       this overrides  the  library's  use  of  the  window  size
+       obtained  from the operating system.  Thus, even if a SIG-
+       WINCH is received, no screen size change may be  recorded.
+       In that case, no <STRONG>KEY_RESIZE</STRONG> is queued for the next call to
+       <STRONG>getch</STRONG>; an <STRONG>ERR</STRONG> will be returned instead.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>AUTHOR</H2><PRE>
+       Thomas Dickey (from an equivalent function written in 1988
+       for BSD curses).
+
+
+
+                                                         <STRONG><A HREF="resizeterm.3x.html">resizeterm(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

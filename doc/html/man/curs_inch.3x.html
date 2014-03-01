@@ -1,0 +1,118 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  * t
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_inch.3x,v 1.17 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_inch 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_inch 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>                                             <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>inch</STRONG>,  <STRONG>winch</STRONG>,  <STRONG>mvinch</STRONG>,  <STRONG>mvwinch</STRONG>  -  get  a  character  and
+       attributes from a <STRONG>curses</STRONG> window
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>chtype</STRONG> <STRONG>inch(void);</STRONG>
+       <STRONG>chtype</STRONG> <STRONG>winch(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>chtype</STRONG> <STRONG>mvinch(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>chtype</STRONG> <STRONG>mvwinch(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       These routines return the character, of  type  <STRONG>chtype</STRONG>,  at
+       the   current  position  in  the  named  window.   If  any
+       attributes are set for that  position,  their  values  are
+       OR'ed  into  the  value  returned.   Constants  defined in
+       <STRONG>&lt;curses.h&gt;</STRONG> can be used with the <STRONG>&amp;</STRONG> (logical  AND)  operator
+       to extract the character or attributes alone.
+
+   <STRONG>Attributes</STRONG>
+       The  following  bit-masks  may  be  AND-ed with characters
+       returned by <STRONG>winch</STRONG>.
+
+       <STRONG>A_CHARTEXT</STRONG>     Bit-mask to extract character
+       <STRONG>A_ATTRIBUTES</STRONG>   Bit-mask to extract attributes
+       <STRONG>A_COLOR</STRONG>        Bit-mask to extract color-pair field information
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Functions with a "mv" prefix first perform a cursor  move-
+       ment  using  <STRONG>wmove</STRONG>, and return an error if the position is
+       outside the window, or if the window pointer is null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that all of these routines may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These functions are described in the XSI Curses  standard,
+       Issue 4.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
+
+       Comparable  functions  in  the  wide-character  (ncursesw)
+       library are described in <STRONG><A HREF="curs_in_wch.3x.html">curs_in_wch(3x)</A></STRONG>.
+
+
+
+                                                          <STRONG><A HREF="curs_inch.3x.html">curs_inch(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

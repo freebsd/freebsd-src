@@ -1,0 +1,266 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_util.3x,v 1.32 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_util 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_util 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>                                             <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>delay_output</STRONG>, <STRONG>filter</STRONG>, <STRONG>flushinp</STRONG>, <STRONG>getwin</STRONG>, <STRONG>key_name</STRONG>, <STRONG>keyname</STRONG>,
+       <STRONG>nofilter</STRONG>, <STRONG>putwin</STRONG>, <STRONG>unctrl</STRONG>, <STRONG>use_env</STRONG>, <STRONG>wunctrl</STRONG> - miscellaneous
+       <STRONG>curses</STRONG> utility routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>char</STRONG> <STRONG>*unctrl(chtype</STRONG> <STRONG>c);</STRONG>
+       <STRONG>wchar_t</STRONG> <STRONG>*wunctrl(cchar_t</STRONG> <STRONG>*c);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*keyname(int</STRONG> <STRONG>c);</STRONG>
+       <STRONG>char</STRONG> <STRONG>*key_name(wchar_t</STRONG> <STRONG>w);</STRONG>
+       <STRONG>void</STRONG> <STRONG>filter(void);</STRONG>
+       <STRONG>void</STRONG> <STRONG>nofilter(void);</STRONG>
+       <STRONG>void</STRONG> <STRONG>use_env(bool</STRONG> <STRONG>f);</STRONG>
+       <STRONG>int</STRONG> <STRONG>putwin(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>FILE</STRONG> <STRONG>*filep);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*getwin(FILE</STRONG> <STRONG>*filep);</STRONG>
+       <STRONG>int</STRONG> <STRONG>delay_output(int</STRONG> <STRONG>ms);</STRONG>
+       <STRONG>int</STRONG> <STRONG>flushinp(void);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>unctrl</STRONG>  routine returns a character string which is a
+       printable representation of the character <EM>c</EM>, ignoring  at-
+       tributes.   Control characters are displayed in the <STRONG>^</STRONG><EM>X</EM> no-
+       tation.  Printing characters are  displayed  as  is.   The
+       corresponding  <STRONG>wunctrl</STRONG>  returns a printable representation
+       of a wide character.
+
+       The <STRONG>keyname</STRONG> routine returns a character string correspond-
+       ing to the key <EM>c</EM>:
+
+          <STRONG>o</STRONG>   Printable  characters  are displayed as themselves,
+              e.g., a one-character string containing the key.
+
+          <STRONG>o</STRONG>   Control characters are displayed in  the  <STRONG>^</STRONG><EM>X</EM>  nota-
+              tion.
+
+          <STRONG>o</STRONG>   DEL (character 127) is displayed as <STRONG>^?</STRONG>.
+
+          <STRONG>o</STRONG>   Values above 128 are either meta characters (if the
+              screen has not been initialized,  or  if  <STRONG>meta</STRONG>  has
+              been  called  with  a TRUE parameter), shown in the
+              <STRONG>M-</STRONG><EM>X</EM> notation, or are displayed as  themselves.   In
+              the  latter  case, the values may not be printable;
+              this follows the X/Open specification.
+
+          <STRONG>o</STRONG>   Values above 256 may be the names of the  names  of
+              function keys.
+
+          <STRONG>o</STRONG>   Otherwise  (if  there is no corresponding name) the
+              function returns null, to denote an error.   X/Open
+              also  lists  an  "UNKNOWN  KEY" return value, which
+              some implementations return rather than null.
+
+       The corresponding <STRONG>key_name</STRONG> returns a character string cor-
+       responding  to  the wide-character value <EM>w</EM>.  The two func-
+       tions do not return the same set of  strings;  the  latter
+       returns null where the former would display a meta charac-
+       ter.
+
+       The <STRONG>filter</STRONG> routine, if used, must be called before <STRONG>initscr</STRONG>
+       or  <STRONG>newterm</STRONG>  are called.  The effect is that, during those
+       calls, <STRONG>LINES</STRONG> is set to 1;  the  capabilities  <STRONG>clear</STRONG>,  <STRONG>cup</STRONG>,
+       <STRONG>cud</STRONG>,  <STRONG>cud1</STRONG>,  <STRONG>cuu1</STRONG>,  <STRONG>cuu</STRONG>,  <STRONG>vpa</STRONG>  are  disabled; and the <STRONG>home</STRONG>
+       string is set to the value of <STRONG>cr</STRONG>.
+
+       The <STRONG>nofilter</STRONG> routine cancels the  effect  of  a  preceding
+       <STRONG>filter</STRONG>  call.   That  allows  the  caller  to initialize a
+       screen on a different device, using a different  value  of
+       <STRONG>$TERM</STRONG>.   The  limitation arises because the <STRONG>filter</STRONG> routine
+       modifies the in-memory copy of the terminal information.
+
+       The <STRONG>use_env</STRONG> routine, if used, is called before <STRONG>initscr</STRONG>  or
+       <STRONG>newterm</STRONG>  are  called.   When called with <STRONG>FALSE</STRONG> as an argu-
+       ment, the values of <STRONG>lines</STRONG> and  <STRONG>columns</STRONG>  specified  in  the
+       <EM>terminfo</EM>  database will be used, even if environment vari-
+       ables <STRONG>LINES</STRONG> and <STRONG>COLUMNS</STRONG> (used by default) are set,  or  if
+       <STRONG>curses</STRONG>  is  running in a window (in which case default be-
+       havior would be to  use  the  window  size  if  <STRONG>LINES</STRONG>  and
+       <STRONG>COLUMNS</STRONG>  are not set).  Note that setting <STRONG>LINES</STRONG> or <STRONG>COLUMNS</STRONG>
+       overrides the corresponding size  which  may  be  obtained
+       from the operating system.
+
+       The  <STRONG>putwin</STRONG> routine writes all data associated with window
+       <EM>win</EM> into the file to which <EM>filep</EM> points.  This information
+       can be later retrieved using the <STRONG>getwin</STRONG> function.
+
+       The <STRONG>getwin</STRONG> routine reads window related data stored in the
+       file by <STRONG>putwin</STRONG>.  The routine then creates and  initializes
+       a new window using that data.  It returns a pointer to the
+       new window.
+
+       The <STRONG>delay_output</STRONG> routine inserts an <EM>ms</EM>  millisecond  pause
+       in  output.   This  routine should not be used extensively
+       because padding characters are  used  rather  than  a  CPU
+       pause.   If  no  padding character is specified, this uses
+       <STRONG>napms</STRONG> to perform the delay.
+
+       The <STRONG>flushinp</STRONG> routine throws away any  typeahead  that  has
+       been  typed  by  the user and has not yet been read by the
+       program.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Except for <STRONG>flushinp</STRONG>, routines that return an  integer  re-
+       turn  <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> (SVr4 specifies only "an in-
+       teger value other than <STRONG>ERR</STRONG>") upon successful completion.
+
+       Routines that return pointers return <STRONG>NULL</STRONG> on error.
+
+       X/Open does not define any error conditions.  In this  im-
+       plementation
+
+          <STRONG>flushinp</STRONG>
+               returns  an error if the terminal was not initial-
+               ized.
+
+          <STRONG>meta</STRONG> returns an error if the terminal was not  initial-
+               ized.
+
+          <STRONG>putwin</STRONG>
+               returns  an  error  if the associated <STRONG>fwrite</STRONG> calls
+               return an error.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The XSI Curses standard, Issue  4  describes  these  func-
+       tions.   It  states  that <STRONG>unctrl</STRONG> and <STRONG>wunctrl</STRONG> will return a
+       null pointer if unsuccessful, but does not define any  er-
+       ror conditions.  This implementation checks for three cas-
+       es:
+
+          <STRONG>o</STRONG>   the parameter is a 7-bit US-ASCII  code.   This  is
+              the case that X/Open Curses documented.
+
+          <STRONG>o</STRONG>   the  parameter  is in the range 128-159, i.e., a C1
+              control code.  If <STRONG>use_legacy_coding</STRONG> has been called
+              with  a  <STRONG>2</STRONG> parameter, <STRONG>unctrl</STRONG> returns the parameter,
+              i.e., a one-character string with the parameter  as
+              the first character.  Otherwise, it returns ``~@'',
+              ``~A'', etc., analogous to ``^@'', ``^A'', C0  con-
+              trols.
+
+              X/Open  Curses does not document whether <STRONG>unctrl</STRONG> can
+              be called before initializing curses.  This  imple-
+              mentation  permits  that,  and  returns the ``~@'',
+              etc., values in that case.
+
+          <STRONG>o</STRONG>   parameter values outside the 0 to 255 range.   <STRONG>unc-</STRONG>
+              <STRONG>trl</STRONG> returns a null pointer.
+
+       The SVr4 documentation describes the action of <STRONG>filter</STRONG> only
+       in the vaguest terms.  The  description  here  is  adapted
+       from  the  XSI Curses standard (which erroneously fails to
+       describe the disabling of <STRONG>cuu</STRONG>).
+
+       The strings returned by <STRONG>unctrl</STRONG> in this implementation  are
+       determined  at  compile time, showing C1 controls from the
+       upper-128 codes with a `~' prefix rather than `^'.   Other
+       implementations  have different conventions.  For example,
+       they may show both sets of control  characters  with  `^',
+       and  strip the parameter to 7 bits.  Or they may ignore C1
+       controls and treat all of the upper-128  codes  as  print-
+       able.  This implementation uses 8 bits but does not modify
+       the string to reflect locale.  The <STRONG>use_legacy_coding</STRONG> func-
+       tion allows the caller to change the output of <STRONG>unctrl</STRONG>.
+
+       Likewise,  the  <STRONG>meta</STRONG>  function allows the caller to change
+       the output of <STRONG>keyname</STRONG>, i.e., it determines whether to  use
+       the  `M-' prefix for ``meta'' keys (codes in the range 128
+       to 255).  Both <STRONG>use_legacy_coding</STRONG> and <STRONG>meta</STRONG> succeed only af-
+       ter  curses  is initialized.  X/Open Curses does not docu-
+       ment the treatment of codes 128  to  159.   When  treating
+       them as ``meta'' keys (or if <STRONG>keyname</STRONG> is called before ini-
+       tializing curses),  this  implementation  returns  strings
+       ``M-^@'', ``M-^A'', etc.
+
+       The  <STRONG>keyname</STRONG> function may return the names of user-defined
+       string capabilities which are defined in the terminfo  en-
+       try  via  the <STRONG>-x</STRONG> option of <STRONG>tic</STRONG>.  This implementation auto-
+       matically assigns at  run-time  keycodes  to  user-defined
+       strings  which  begin  with  "k".   The  keycodes start at
+       KEY_MAX, but are not guaranteed to be the same  value  for
+       different  runs because user-defined codes are merged from
+       all terminal descriptions which  have  been  loaded.   The
+       <STRONG>use_extended_names</STRONG>  function controls whether this data is
+       loaded when the terminal description is read  by  the  li-
+       brary.
+
+       The  <STRONG>nofilter</STRONG>  routine is specific to ncurses.  It was not
+       supported on Version 7, BSD or System  V  implementations.
+       It  is  recommended that any code depending on ncurses ex-
+       tensions be conditioned using NCURSES_VERSION.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="legacy_coding.3x.html">legacy_coding(3x)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>, <STRONG>curs_ker-</STRONG>
+       <STRONG><A HREF="curs_kernel.3x.html">nel(3x)</A></STRONG>,   <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>,   <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,  <STRONG>lega-</STRONG>
+       <STRONG><A HREF="legacy_coding.3x.html">cy_coding(3x)</A></STRONG>.
+
+
+
+                                                          <STRONG><A HREF="curs_util.3x.html">curs_util(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

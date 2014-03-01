@@ -1,0 +1,678 @@
+dnl***************************************************************************
+dnl Copyright (c) 2010,2011 Free Software Foundation, Inc.                   *
+dnl                                                                          *
+dnl Permission is hereby granted, free of charge, to any person obtaining a  *
+dnl copy of this software and associated documentation files (the            *
+dnl "Software"), to deal in the Software without restriction, including      *
+dnl without limitation the rights to use, copy, modify, merge, publish,      *
+dnl distribute, distribute with modifications, sublicense, and/or sell       *
+dnl copies of the Software, and to permit persons to whom the Software is    *
+dnl furnished to do so, subject to the following conditions:                 *
+dnl                                                                          *
+dnl The above copyright notice and this permission notice shall be included  *
+dnl in all copies or substantial portions of the Software.                   *
+dnl                                                                          *
+dnl THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+dnl OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+dnl MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+dnl IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+dnl DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+dnl OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+dnl THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+dnl                                                                          *
+dnl Except as contained in this notice, the name(s) of the above copyright   *
+dnl holders shall not be used in advertising or otherwise to promote the     *
+dnl sale, use or other dealings in this Software without prior written       *
+dnl authorization.                                                           *
+dnl***************************************************************************
+dnl
+dnl Author: Thomas E. Dickey
+dnl
+dnl $Id: configure.in,v 1.30 2011/03/31 22:49:22 tom Exp $
+dnl Process this file with autoconf to produce a configure script.
+dnl
+dnl See http://invisible-island.net/autoconf/ for additional information.
+dnl
+dnl ---------------------------------------------------------------------------
+AC_PREREQ(2.13.20020210)
+AC_REVISION($Revision: 1.30 $)
+AC_INIT(gen/gen.c)
+AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
+
+CF_TOP_BUILDDIR
+
+CF_CHECK_CACHE([AC_CANONICAL_SYSTEM])
+AC_ARG_WITH(system-type,
+[  --with-system-type=XXX  test: override derived host system-type],
+[AC_MSG_WARN(overriding system type to $withval)
+ cf_cv_system_name=$withval])
+
+###	Save the given $CFLAGS to allow user-override.
+cf_user_CFLAGS="$CFLAGS"
+
+###	Default install-location
+CF_CFG_DEFAULTS
+
+###	Checks for programs.
+AC_PROG_CC
+CF_GCC_VERSION
+
+AC_PROG_CPP
+AC_PROG_GCC_TRADITIONAL
+CF_PROG_CC_C_O(CC)
+AC_ISC_POSIX
+CF_ANSI_CC_REQD
+CF_PROG_EXT
+
+AC_ARG_PROGRAM
+
+CF_PROG_AWK
+CF_PROG_EGREP
+AC_PROG_INSTALL
+CF_PROG_LN_S
+
+AC_SYS_LONG_FILE_NAMES
+
+# if we find pkg-config, check if we should install the ".pc" files.
+CF_PKG_CONFIG
+
+if test "$PKG_CONFIG" != none ; then
+	AC_MSG_CHECKING(if we should install .pc files for $PKG_CONFIG)
+
+	# Leave this as something that can be overridden in the environment.
+	if test -z "$PKG_CONFIG_LIBDIR" ; then
+		PKG_CONFIG_LIBDIR=`echo "$PKG_CONFIG" | sed -e 's,/[[^/]]*/[[^/]]*$,,'`/lib/pkgconfig
+	fi
+	PKG_CONFIG_LIBDIR=`echo "$PKG_CONFIG_LIBDIR" | sed -e 's/^://' -e 's/:.*//'`
+	if test -n "$PKG_CONFIG_LIBDIR" && test -d "$PKG_CONFIG_LIBDIR" ; then
+		AC_ARG_ENABLE(pc-files,
+			[  --enable-pc-files       generate and install .pc files for pkg-config],
+			[enable_pc_files=$enableval],
+			[enable_pc_files=no])
+		AC_MSG_RESULT($enable_pc_files)
+	else
+		AC_MSG_RESULT(no)
+		AC_MSG_WARN(did not find library $PKG_CONFIG_LIBDIR)
+		enable_pc_files=no
+	fi
+fi
+AC_SUBST(PKG_CONFIG_LIBDIR)
+
+AC_MSG_CHECKING(if you want to build test-programs)
+AC_ARG_WITH(tests,
+	[  --without-tests         suppress build with test-programs],
+	[cf_with_tests=$withval],
+	[cf_with_tests=yes])
+AC_MSG_RESULT($cf_with_tests)
+
+AC_MSG_CHECKING(if we should assume mixed-case filenames)
+AC_ARG_ENABLE(mixed-case,
+	[  --enable-mixed-case     tic should assume mixed-case filenames],
+	[enable_mixedcase=$enableval],
+	[enable_mixedcase=auto])
+AC_MSG_RESULT($enable_mixedcase)
+if test "$enable_mixedcase" = "auto" ; then
+    CF_MIXEDCASE_FILENAMES
+else
+    cf_cv_mixedcase=$enable_mixedcase
+    if test "$enable_mixedcase" = "yes" ; then
+        AC_DEFINE(MIXEDCASE_FILENAMES)
+    fi
+fi
+
+# do this after mixed-case option (tags/TAGS is not as important as tic).
+AC_PROG_MAKE_SET
+CF_MAKE_TAGS
+CF_MAKEFLAGS
+
+dnl These are standard among *NIX systems, but not when cross-compiling
+AC_CHECK_TOOL(RANLIB, ranlib, ':')
+AC_CHECK_TOOL(LD, ld, ld)
+AC_CHECK_TOOL(AR, ar, ar)
+CF_AR_FLAGS
+
+dnl Special option for use by system-builders: the install-prefix is used to
+dnl adjust the location into which the actual install is done, so that an
+dnl archive can be built without modifying the host system's configuration.
+AC_MSG_CHECKING(if you have specified an install-prefix)
+AC_ARG_WITH(install-prefix,
+	[  --with-install-prefix   prefixes actual install-location ($DESTDIR)],
+	[case "$withval" in #(vi
+	yes|no) #(vi
+		;;
+	*)	DESTDIR="$withval"
+		;;
+	esac])
+AC_MSG_RESULT($DESTDIR)
+AC_SUBST(DESTDIR)
+
+###############################################################################
+CF_HELP_MESSAGE(Build-Tools Needed to Compile Temporary Applications for Cross-compiling:)
+# If we're cross-compiling, allow the user to override the tools and their
+# options.  The configure script is oriented toward identifying the host
+# compiler, etc., but we need a build compiler to generate parts of the source.
+CF_BUILD_CC
+
+###############################################################################
+CF_HELP_MESSAGE(Options to Specify the Libraries Built/Used:)
+
+### Options to allow the user to specify the set of libraries which are used.
+### Use "--without-normal --with-shared" to allow the default model to be
+### shared, for example.
+cf_list_models=""
+
+AC_MSG_CHECKING(if you want to build shared C-objects)
+AC_ARG_WITH(shared,
+	[  --with-shared           generate shared C-objects (needed for --with-ada-sharedlib)],
+	[with_shared=$withval],
+	[with_shared=no])
+AC_MSG_RESULT($with_shared)
+test "$with_shared" = "yes" && cf_list_models="$cf_list_models shared"
+
+AC_MSG_CHECKING(for specified models)
+test -z "$cf_list_models" && cf_list_models=normal
+AC_MSG_RESULT($cf_list_models)
+
+### Use the first model as the default, and save its suffix for use in building
+### up test-applications.
+AC_MSG_CHECKING(for default model)
+DFT_LWR_MODEL=`echo "$cf_list_models" | $AWK '{print $1}'`
+AC_MSG_RESULT($DFT_LWR_MODEL)
+
+CF_UPPER(DFT_UPR_MODEL,$DFT_LWR_MODEL)dnl
+
+AC_SUBST(DFT_LWR_MODEL)dnl	the default model ("normal")
+AC_SUBST(DFT_UPR_MODEL)dnl	the default model ("NORMAL")
+
+CF_NCURSES_ADDON
+
+CF_LIB_PREFIX(cf_prefix)
+LIB_PREFIX=$cf_prefix
+AC_SUBST(LIB_PREFIX)
+
+LIB_SUFFIX=
+AC_SUBST(LIB_SUFFIX)
+
+###############################################################################
+
+dnl Not all ports of gcc support the -g option
+
+if test X"$CC_G_OPT" = X"" ; then
+	CC_G_OPT='-g'
+	test -n "$GCC" && test "${ac_cv_prog_cc_g}" != yes && CC_G_OPT=''
+fi
+AC_SUBST(CC_G_OPT)
+
+AC_MSG_CHECKING(for default loader flags)
+case $DFT_LWR_MODEL in
+normal)  LD_MODEL=''   ;;
+debug)   LD_MODEL=$CC_G_OPT ;;
+profile) LD_MODEL='-pg';;
+shared)  LD_MODEL=''   ;;
+esac
+AC_SUBST(LD_MODEL)dnl		the type of link (e.g., -g or -pg)
+AC_MSG_RESULT($LD_MODEL)
+
+CF_SHARED_OPTS
+
+# The test/sample programs in the original tree link using rpath option.
+# Make it optional for packagers.
+if test -n "$LOCAL_LDFLAGS"
+then
+	AC_MSG_CHECKING(if you want to link sample programs with rpath option)
+	AC_ARG_ENABLE(rpath-link,
+		[  --enable-rpath-link     link sample programs with rpath option],
+		[with_rpath_link=$enableval],
+		[with_rpath_link=yes])
+	AC_MSG_RESULT($with_rpath_link)
+	if test "$with_rpath_link" = no
+	then
+		LOCAL_LDFLAGS=
+		LOCAL_LDFLAGS2=
+	fi
+fi
+
+###############################################################################
+CF_HELP_MESSAGE(Fine-Tuning Your Configuration:)
+
+CF_PATHSEP
+
+###   use option --enable-broken-linker to force on use of broken-linker support
+AC_MSG_CHECKING(if you want broken-linker support code)
+AC_ARG_ENABLE(broken_linker,
+	[  --enable-broken_linker  compile with broken-linker support code],
+	[with_broken_linker=$enableval],
+	[with_broken_linker=${BROKEN_LINKER:-no}])
+AC_MSG_RESULT($with_broken_linker)
+
+BROKEN_LINKER=0
+if test "$with_broken_linker" = yes ; then
+	AC_DEFINE(BROKEN_LINKER)
+	BROKEN_LINKER=1
+elif test "$DFT_LWR_MODEL" = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*)
+		AC_DEFINE(BROKEN_LINKER)
+		BROKEN_LINKER=1
+		CF_VERBOSE(cygwin linker is broken anyway)
+		;;
+	esac
+fi
+AC_SUBST(BROKEN_LINKER)
+
+# Check to define _XOPEN_SOURCE "automatically"
+CF_XOPEN_SOURCE
+
+CF_LARGEFILE
+
+### Enable compiling-in rcs id's
+AC_MSG_CHECKING(if RCS identifiers should be compiled-in)
+AC_ARG_WITH(rcs-ids,
+	[  --with-rcs-ids          compile-in RCS identifiers],
+	[with_rcs_ids=$withval],
+	[with_rcs_ids=no])
+AC_MSG_RESULT($with_rcs_ids)
+test "$with_rcs_ids" = yes && AC_DEFINE(USE_RCS_IDS)
+
+###############################################################################
+CF_HELP_MESSAGE(Extensions:)
+
+### Note that some functions (such as const) are normally disabled anyway.
+AC_MSG_CHECKING(if you want to build with function extensions)
+AC_ARG_ENABLE(ext-funcs,
+	[  --disable-ext-funcs     disable function-extensions],
+	[with_ext_funcs=$enableval],
+	[with_ext_funcs=yes])
+AC_MSG_RESULT($with_ext_funcs)
+if test "$with_ext_funcs" = yes ; then
+	NCURSES_EXT_FUNCS=1
+	AC_DEFINE(HAVE_USE_DEFAULT_COLORS)
+	AC_DEFINE(NCURSES_EXT_FUNCS)
+else
+	NCURSES_EXT_FUNCS=0
+fi
+AC_SUBST(NCURSES_EXT_FUNCS)
+
+###   use option --enable-const to turn on use of const beyond that in XSI.
+AC_MSG_CHECKING(for extended use of const keyword)
+AC_ARG_ENABLE(const,
+	[  --enable-const          compile with extra/non-standard const],
+	[with_ext_const=$enableval],
+	[with_ext_const=no])
+AC_MSG_RESULT($with_ext_const)
+NCURSES_CONST='/*nothing*/'
+if test "$with_ext_const" = yes ; then
+	NCURSES_CONST=const
+fi
+AC_SUBST(NCURSES_CONST)
+
+###############################################################################
+# These options are relatively safe to experiment with.
+CF_HELP_MESSAGE(Development Code:)
+AC_MSG_CHECKING(if you want all development code)
+AC_ARG_WITH(develop,
+	[  --without-develop       disable development options],
+	[with_develop=$withval],
+	[with_develop=no])
+AC_MSG_RESULT($with_develop)
+
+###############################################################################
+# These are just experimental, probably should not be in a package:
+CF_HELP_MESSAGE(Experimental Code:)
+
+# This is still experimental (20080329), but should ultimately be moved to
+# the script-block --with-normal, etc.
+CF_WITH_PTHREAD
+
+AC_MSG_CHECKING(if you want to use weak-symbols for pthreads)
+AC_ARG_ENABLE(weak-symbols,
+    [  --enable-weak-symbols   enable weak-symbols for pthreads],
+    [use_weak_symbols=$withval],
+    [use_weak_symbols=no])
+AC_MSG_RESULT($use_weak_symbols)
+if test "$use_weak_symbols" = yes ; then
+    CF_WEAK_SYMBOLS
+else
+    cf_cv_weak_symbols=no
+fi
+
+if test $cf_cv_weak_symbols = yes ; then
+    AC_DEFINE(USE_WEAK_SYMBOLS)
+fi
+
+PTHREAD=
+if test "$with_pthread" = "yes" ; then
+    AC_DEFINE(USE_PTHREADS)
+    enable_reentrant=yes
+    if test $cf_cv_weak_symbols = yes ; then
+        PTHREAD=-lpthread
+    fi
+fi
+AC_SUBST(PTHREAD)
+
+# OpenSUSE is installing ncurses6, using reentrant option.
+AC_CHECK_FUNC(_nc_TABSIZE,[assume_reentrant=yes], [assume_reentrant=no])
+
+# Reentrant code has to be opaque; there's little advantage to making ncurses
+# opaque outside of that, so there is no --enable-opaque option.  We can use
+# this option without --with-pthreads, but this will be always set for
+# pthreads.
+AC_MSG_CHECKING(if you want experimental reentrant code)
+AC_ARG_ENABLE(reentrant,
+	[  --enable-reentrant      compile with experimental reentrant code],
+	[with_reentrant=$enableval],
+	[with_reentrant=$assume_reentrant])
+AC_MSG_RESULT($with_reentrant)
+if test "$with_reentrant" = yes ; then
+	cf_cv_enable_reentrant=1
+	if test $cf_cv_weak_symbols = yes ; then
+		CF_REMOVE_LIB(LIBS,$LIBS,pthread)
+	elif test "$assume_reentrant" = no ; then
+		LIB_SUFFIX="t${LIB_SUFFIX}"
+	fi
+	AC_DEFINE(USE_REENTRANT)
+else
+	cf_cv_enable_reentrant=0
+fi
+AC_SUBST(cf_cv_enable_reentrant)
+
+### Allow using a different wrap-prefix
+if test "$cf_cv_enable_reentrant" != 0 || test "$BROKEN_LINKER" = 1 ; then
+	AC_MSG_CHECKING(for prefix used to wrap public variables)
+	AC_ARG_WITH(wrap-prefix,
+		[  --with-wrap-prefix=XXX  override prefix used for public variables],
+		[NCURSES_WRAP_PREFIX=$withval],
+		[NCURSES_WRAP_PREFIX=_nc_])
+	AC_MSG_RESULT($NCURSES_WRAP_PREFIX)
+else
+	NCURSES_WRAP_PREFIX=_nc_
+fi
+AC_SUBST(NCURSES_WRAP_PREFIX)
+AC_DEFINE_UNQUOTED(NCURSES_WRAP_PREFIX,"$NCURSES_WRAP_PREFIX")
+
+###############################################################################
+CF_HELP_MESSAGE(Testing/development Options:)
+
+###	use option --disable-echo to suppress full display compiling commands
+AC_MSG_CHECKING(if you want to display full commands during build)
+AC_ARG_ENABLE(echo,
+	[  --enable-echo           build: display "compiling" commands (default)],
+	[with_echo=$enableval],
+	[with_echo=yes])
+if test "$with_echo" = yes; then
+	ECHO_LINK=
+else
+	ECHO_LINK='@ echo linking $@ ... ;'
+fi
+AC_MSG_RESULT($with_echo)
+AC_SUBST(ECHO_LINK)
+
+###	use option --enable-warnings to turn on all gcc warnings
+AC_MSG_CHECKING(if you want to see compiler warnings)
+AC_ARG_ENABLE(warnings,
+	[  --enable-warnings       build: turn on GCC compiler warnings],
+	[with_warnings=$enableval])
+AC_MSG_RESULT($with_warnings)
+
+if test "x$with_warnings" = "xyes"; then
+ 	CF_ADD_ADAFLAGS(-gnatg)
+	CF_GCC_WARNINGS(Wdeclaration-after-statement Wextra Wno-unknown-pragmas Wswitch-enum)
+fi
+CF_GCC_ATTRIBUTES
+
+###	use option --enable-assertions to turn on generation of assertion code
+AC_MSG_CHECKING(if you want to enable runtime assertions)
+AC_ARG_ENABLE(assertions,
+	[  --enable-assertions     test: turn on generation of assertion code],
+	[with_assertions=$enableval],
+	[with_assertions=no])
+AC_MSG_RESULT($with_assertions)
+if test -n "$GCC"
+then
+	if test "$with_assertions" = no
+	then
+		AC_DEFINE(NDEBUG)
+		CPPFLAGS="$CPPFLAGS -DNDEBUG"
+	else
+		CF_ADD_ADAFLAGS(-gnata)
+	fi
+fi
+
+###	use option --disable-leaks to suppress "permanent" leaks, for testing
+AC_DEFINE(HAVE_NC_ALLOC_H)
+
+###	use option --enable-expanded to generate certain macros as functions
+AC_ARG_ENABLE(expanded,
+	[  --enable-expanded       test: generate functions for certain macros],
+	[test "$enableval" = yes && AC_DEFINE(NCURSES_EXPANDED)])
+
+###	use option --disable-macros to suppress macros in favor of functions
+AC_ARG_ENABLE(macros,
+	[  --disable-macros        test: use functions rather than macros],
+	[test "$enableval" = no && AC_DEFINE(NCURSES_NOMACROS)])
+
+# Normally we only add trace() to the debug-library.  Allow this to be
+# extended to all models of the ncurses library:
+cf_all_traces=no
+case "$CFLAGS $CPPFLAGS" in
+*-DTRACE*)
+	cf_all_traces=yes
+	;;
+esac
+
+AC_MSG_CHECKING(whether to add trace feature to all models)
+AC_ARG_WITH(trace,
+[  --with-trace            test: add trace() function to all models of ncurses],
+[cf_with_trace=$withval],
+[cf_with_trace=$cf_all_traces])
+AC_MSG_RESULT($cf_with_trace)
+
+if test "$cf_with_trace" = yes ; then
+	ADA_TRACE=TRUE
+	CF_ADD_CFLAGS(-DTRACE)
+else
+	ADA_TRACE=FALSE
+fi
+
+AC_SUBST(ADA_TRACE)
+
+###	Checks for libraries.
+case $cf_cv_system_name in #(vi
+*mingw32*) #(vi
+	;;
+*)
+AC_CHECK_FUNC(gettimeofday,
+	AC_DEFINE(HAVE_GETTIMEOFDAY),[
+
+AC_CHECK_LIB(bsd, gettimeofday,
+	AC_DEFINE(HAVE_GETTIMEOFDAY)
+	LIBS="$LIBS -lbsd")])dnl CLIX: bzero, select, gettimeofday
+	;;
+esac
+
+###	Checks for header files.
+AC_STDC_HEADERS
+AC_HEADER_DIRENT
+AC_HEADER_TIME
+
+###	checks for compiler characteristics
+AC_LANG_C
+AC_C_CONST
+
+###	Checks for external-data
+CF_LINK_DATAONLY
+
+###	Checks for library functions.
+CF_MKSTEMP
+
+AC_TYPE_SIGNAL
+
+dnl We'll do our own -g libraries, unless the user's overridden via $CFLAGS
+if test -z "$cf_user_CFLAGS" && test "$with_no_leaks" = no ; then
+	CF_STRIP_G_OPT(CFLAGS)
+	CF_STRIP_G_OPT(CXXFLAGS)
+fi
+
+CF_HELP_MESSAGE(Ada95 Binding Options:)
+
+dnl Check for availability of GNU Ada Translator (GNAT).
+dnl At the moment we support no other Ada95 compiler.
+if test "$cf_with_ada" != "no" ; then
+	CF_PROG_GNAT
+	if test	"$cf_cv_prog_gnat_correct" = yes; then
+
+		# make ADAFLAGS consistent with CFLAGS
+		case "$CFLAGS" in
+		*-g*)
+			CF_ADD_ADAFLAGS(-g)
+			;;
+		esac
+		case "$CFLAGS" in
+		*-O*)
+			CF_ADD_ADAFLAGS(-O3)
+			;;
+		esac
+
+		CF_GNAT_GENERICS
+		CF_GNAT_SIGINT
+		CF_GNAT_PRAGMA_UNREF
+		CF_GNAT_PROJECTS
+
+		CF_WITH_ADA_COMPILER
+
+		cf_ada_package=terminal_interface
+		AC_SUBST(cf_ada_package)
+
+		CF_WITH_ADA_INCLUDE
+		CF_WITH_ADA_OBJECTS
+		CF_WITH_ADA_SHAREDLIB
+	else
+		AC_MSG_ERROR(No usable Ada compiler found)
+	fi
+else
+	AC_MSG_ERROR(The Ada compiler is needed for this package)
+fi
+
+################################################################################
+
+# not needed
+TINFO_ARGS2=
+AC_SUBST(TINFO_ARGS2)
+
+### Construct the list of include-directories to be generated
+CF_INCLUDE_DIRS
+CF_ADA_INCLUDE_DIRS
+
+### Build up pieces for makefile rules
+AC_MSG_CHECKING(default library suffix)
+CF_LIB_TYPE($DFT_LWR_MODEL,DFT_ARG_SUFFIX)dnl
+AC_SUBST(DFT_ARG_SUFFIX)dnl the string to append to "-lncurses" ("")
+AC_MSG_RESULT($DFT_ARG_SUFFIX)
+
+AC_MSG_CHECKING(default library-dependency suffix)
+CF_LIB_SUFFIX($DFT_LWR_MODEL,DFT_LIB_SUFFIX,DFT_DEP_SUFFIX)dnl
+AC_SUBST(DFT_DEP_SUFFIX)dnl the corresponding library-suffix (".a")
+AC_MSG_RESULT($DFT_DEP_SUFFIX)
+
+AC_MSG_CHECKING(default object directory)
+CF_OBJ_SUBDIR($DFT_LWR_MODEL,DFT_OBJ_SUBDIR)dnl
+AC_SUBST(DFT_OBJ_SUBDIR)dnl the default object-directory ("obj")
+AC_MSG_RESULT($DFT_OBJ_SUBDIR)
+
+### Set up low-level terminfo dependencies for makefiles.
+
+if test "$DFT_LWR_MODEL" = shared ; then
+	case $cf_cv_system_name in #(vi
+	cygwin*)
+		# "lib" files have ".dll.a" suffix, "cyg" files have ".dll"
+		;;
+	esac
+fi
+
+### Construct the list of subdirectories for which we'll customize makefiles
+### with the appropriate compile-rules.
+
+SUB_MAKEFILES="gen/adacurses${DFT_ARG_SUFFIX}-config:gen/adacurses-config.in"
+
+AC_DEFINE_UNQUOTED(NCURSES_PATHSEP,'$PATH_SEPARATOR')
+
+### Now that we're done running tests, add the compiler-warnings, if any
+CF_ADD_CFLAGS($EXTRA_CFLAGS)
+
+################################################################################
+
+if test x"$enable_pc_files" = xyes ; then \
+SUB_MAKEFILES="$SUB_MAKEFILES misc/gen-pkgconfig:misc/gen-pkgconfig.in"
+MAKE_PC_FILES=
+else
+MAKE_PC_FILES="#"
+fi
+AC_SUBST(MAKE_PC_FILES)
+AC_SUBST(cross_compiling)
+
+################################################################################
+
+TEST_ARG2=
+AC_SUBST(TEST_ARG2)
+
+TEST_LIBS2=
+AC_SUBST(TEST_LIBS2)
+
+dnl for separate build, this is good enough for "sh $(top_srcdir)/misc/shlib"
+NCURSES_SHLIB2="sh -c"
+AC_SUBST(NCURSES_SHLIB2)
+
+ADA_SUBDIRS="include gen src doc"
+if test "x$cf_with_tests" != "xno" ; then
+	ADA_SUBDIRS="$ADA_SUBDIRS samples"
+fi
+for cf_dir in $ADA_SUBDIRS
+do
+	SUB_MAKEFILES="$SUB_MAKEFILES $cf_dir/Makefile"
+done
+AC_SUBST(ADA_SUBDIRS)
+
+NCURSES_TREE="#"
+AC_SUBST(NCURSES_TREE)
+
+EXTERNAL_TREE=
+AC_SUBST(EXTERNAL_TREE)
+
+# match layout used by make-tar.sh
+ADAHTML_DIR=../doc/ada
+AC_SUBST(ADAHTML_DIR)
+
+AC_OUTPUT( \
+	$SUB_MAKEFILES \
+	doc/adacurses${DFT_ARG_SUFFIX}-config.1:doc/MKada_config.in \
+	Makefile,[
+if test -z "$USE_OLD_MAKERULES" ; then
+	$AWK -f $srcdir/mk-1st.awk <$srcdir/src/modules >>src/Makefile
+fi
+],[
+### Special initialization commands, used to pass information from the
+### configuration-run into config.status
+
+AWK="$AWK"
+DFT_ARG_SUFFIX="$DFT_ARG_SUFFIX"
+DFT_LWR_MODEL="$DFT_LWR_MODEL"
+ECHO_LINK="$ECHO_LINK"
+LIB_NAME="$LIB_NAME"
+LIB_SUFFIX="$LIB_SUFFIX"
+LN_S="$LN_S"
+NCURSES_MAJOR="$NCURSES_MAJOR"
+NCURSES_MINOR="$NCURSES_MINOR"
+NCURSES_PATCH="$NCURSES_PATCH"
+USE_OLD_MAKERULES="$USE_OLD_MAKERULES"
+cf_cv_abi_version="$cf_cv_abi_version"
+cf_cv_rel_version="$cf_cv_rel_version"
+cf_cv_rm_so_locs="$cf_cv_rm_so_locs"
+cf_cv_shared_soname='$cf_cv_shared_soname'
+cf_cv_shlib_version="$cf_cv_shlib_version"
+cf_cv_shlib_version_infix="$cf_cv_shlib_version_infix"
+cf_cv_system_name="$cf_cv_system_name"
+host="$host"
+target="$target"
+
+],cat)dnl
+${MAKE:-make} preinstall

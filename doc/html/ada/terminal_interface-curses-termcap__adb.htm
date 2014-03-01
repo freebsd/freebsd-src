@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-termcap.adb</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-termcap.adb </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                    Terminal_Interface.Curses.Termcap                     --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 B O D Y                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 2000-2006,2009 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.12 @</EM></FONT>
+<FONT COLOR=green><EM>--  @Date: 2009/12/26 17:38:58 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+
+<b>with</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>; <b>use</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
+
+<b>package</b> <b>body</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_47_40" HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A></FONT> <b>is</b>
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_49_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_59_13">Get_Entry</A></FONT> (<FONT COLOR=red><A NAME="ref_49_24" HREF="terminal_interface-curses-termcap__ads.htm#ref_59_24">Name</A></FONT> : String) <b>return</b> Boolean
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_51_16">tgetent</A></FONT> (<FONT COLOR=red><A NAME="ref_51_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_51_16">name</A></FONT> : char_array; <FONT COLOR=red><A NAME="ref_51_44" HREF="terminal_interface-curses-termcap__adb.htm#ref_51_16">val</A></FONT> : char_array)
+                        <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, tgetent, "tgetent");
+      <FONT COLOR=red><A NAME="ref_54_7">NameTxt</A></FONT> : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_59_24">Name</A>'Length);
+      <FONT COLOR=red><A NAME="ref_55_7">Length</A></FONT>  : size_t;
+      <FONT COLOR=red><A NAME="ref_56_7">ignored</A></FONT> : <b>constant</b> char_array (0 .. 0) := (0 =&gt; nul);
+      <FONT COLOR=red><A NAME="ref_57_7">result</A></FONT>  : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_59_24">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_54_7">NameTxt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_55_7">Length</A>);
+      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_51_16">tgetent</A> (char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_56_7">ignored</A>), <A HREF="terminal_interface-curses-termcap__adb.htm#ref_54_7">NameTxt</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A> = -1 <b>then</b>
+         <b>raise</b> <A HREF="terminal_interface-curses__ads.htm#ref_385_4">Curses_Exception</A>;
+      <b>else</b>
+         <b>return</b> Boolean'Val (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_57_7">result</A>);
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_59_13">Get_Entry</A>;
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_69_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_63_13">Get_Flag</A></FONT> (<FONT COLOR=red><A NAME="ref_69_23" HREF="terminal_interface-curses-termcap__ads.htm#ref_63_23">Name</A></FONT> : String) <b>return</b> Boolean
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_71_16">tgetflag</A></FONT> (<FONT COLOR=red><A NAME="ref_71_26" HREF="terminal_interface-curses-termcap__adb.htm#ref_71_16">id</A></FONT> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, tgetflag, "tgetflag");
+      <FONT COLOR=red><A NAME="ref_73_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_63_23">Name</A>'Length);
+      <FONT COLOR=red><A NAME="ref_74_7">Length</A></FONT> : size_t;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_63_23">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_73_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_74_7">Length</A>);
+      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_71_16">tgetflag</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_73_7">Txt</A>) = 0 <b>then</b>
+         <b>return</b> False;
+      <b>else</b>
+         <b>return</b> True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_63_13">Get_Flag</A>;
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_85_14" HREF="terminal_interface-curses-termcap__ads.htm#ref_67_14">Get_Number</A></FONT> (<FONT COLOR=red><A NAME="ref_85_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_67_26">Name</A></FONT>   : String;
+                         <FONT COLOR=red><A NAME="ref_86_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Value</A></FONT>  : <b>out</b> Integer;
+                         <FONT COLOR=red><A NAME="ref_87_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Result</A></FONT> : <b>out</b> Boolean)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_89_16">tgetnum</A></FONT> (<FONT COLOR=red><A NAME="ref_89_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_89_16">id</A></FONT> : char_array) <b>return</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+      <b>pragma</b> Import (C, tgetnum, "tgetnum");
+      <FONT COLOR=red><A NAME="ref_91_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_67_26">Name</A>'Length);
+      <FONT COLOR=red><A NAME="ref_92_7">Length</A></FONT> : size_t;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_67_26">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_91_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_92_7">Length</A>);
+      <A HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Value</A> := Integer (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_89_16">tgetnum</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_91_7">Txt</A>));
+      <b>if</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_68_26">Value</A> = -1 <b>then</b>
+         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Result</A> := False;
+      <b>else</b>
+         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_69_26">Result</A> :=  True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_67_14">Get_Number</A>;
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_104_14" HREF="terminal_interface-curses-termcap__ads.htm#ref_73_14">Get_String</A></FONT> (<FONT COLOR=red><A NAME="ref_104_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_73_26">Name</A></FONT>   : String;
+                         <FONT COLOR=red><A NAME="ref_105_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_74_26">Value</A></FONT>  : <b>out</b> String;
+                         <FONT COLOR=red><A NAME="ref_106_26" HREF="terminal_interface-curses-termcap__ads.htm#ref_75_26">Result</A></FONT> : <b>out</b> Boolean)
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_108_16">tgetstr</A></FONT> (<FONT COLOR=red><A NAME="ref_108_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_108_16">id</A></FONT>  : char_array;
+                        <FONT COLOR=red><A NAME="ref_109_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_108_16">buf</A></FONT> : char_array) <b>return</b> chars_ptr;
+      <b>pragma</b> Import (C, tgetstr, "tgetstr");
+      <FONT COLOR=red><A NAME="ref_111_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_73_26">Name</A>'Length);
+      <FONT COLOR=red><A NAME="ref_112_7">Length</A></FONT> : size_t;
+      <FONT COLOR=red><A NAME="ref_113_7">Txt2</A></FONT>   : chars_ptr;
+      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <FONT COLOR=green><EM>--  does it need to be 1024?</EM></FONT>
+      <FONT COLOR=red><A NAME="ref_115_7">Return_Buffer</A></FONT> : <b>constant</b> t := (<b>others</b> =&gt; nul);
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_73_26">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_111_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_112_7">Length</A>);
+      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_113_7">Txt2</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_108_16">tgetstr</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_111_7">Txt</A>, char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_115_7">Return_Buffer</A>));
+      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_113_7">Txt2</A> = Null_Ptr <b>then</b>
+         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_75_26">Result</A> := False;
+      <b>else</b>
+         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_74_26">Value</A> := <A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_113_7">Txt2</A>);
+         <A HREF="terminal_interface-curses-termcap__ads.htm#ref_75_26">Result</A> := True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_73_14">Get_String</A>;
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_127_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_76_13">Get_String</A></FONT> (<FONT COLOR=red><A NAME="ref_127_25" HREF="terminal_interface-curses-termcap__ads.htm#ref_76_25">Name</A></FONT> : String) <b>return</b> Boolean
+   <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_129_16">tgetstr</A></FONT> (<FONT COLOR=red><A NAME="ref_129_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_129_16">Id</A></FONT>  : char_array;
+                        <FONT COLOR=red><A NAME="ref_130_25" HREF="terminal_interface-curses-termcap__adb.htm#ref_129_16">buf</A></FONT> : char_array) <b>return</b> chars_ptr;
+      <b>pragma</b> Import (C, tgetstr, "tgetstr");
+      <FONT COLOR=red><A NAME="ref_132_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_76_25">Name</A>'Length);
+      <FONT COLOR=red><A NAME="ref_133_7">Length</A></FONT> : size_t;
+      <FONT COLOR=red><A NAME="ref_134_7">Txt2</A></FONT>   : chars_ptr;
+      <b>type</b> t <b>is</b> <b>new</b> char_array (0 .. 1024); <FONT COLOR=green><EM>--  does it need to be 1024?</EM></FONT>
+      <FONT COLOR=red><A NAME="ref_136_7">Phony_Txt</A></FONT> : <b>constant</b> t := (<b>others</b> =&gt; nul);
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_76_25">Name</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_132_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_133_7">Length</A>);
+      <A HREF="terminal_interface-curses-termcap__adb.htm#ref_134_7">Txt2</A> := <A HREF="terminal_interface-curses-termcap__adb.htm#ref_129_16">tgetstr</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_132_7">Txt</A>, char_array (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_136_7">Phony_Txt</A>));
+      <b>if</b> <A HREF="terminal_interface-curses-termcap__adb.htm#ref_134_7">Txt2</A> = Null_Ptr <b>then</b>
+         <b>return</b> False;
+      <b>else</b>
+         <b>return</b> True;
+      <b>end</b> <b>if</b>;
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_76_13">Get_String</A>;
+
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+   <b>function</b> <FONT COLOR=red><A NAME="ref_148_13" HREF="terminal_interface-curses-termcap__ads.htm#ref_53_13">TGoto</A></FONT> (<FONT COLOR=red><A NAME="ref_148_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_53_20">Cap</A></FONT> : String;
+                   <FONT COLOR=red><A NAME="ref_149_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_54_20">Col</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_61_9">Column_Position</A>;
+                   <FONT COLOR=red><A NAME="ref_150_20" HREF="terminal_interface-curses-termcap__ads.htm#ref_55_20">Row</A></FONT> : <A HREF="terminal_interface-curses__ads.htm#ref_60_9">Line_Position</A>) <b>return</b> Termcap_String <b>is</b>
+      <b>function</b> <FONT COLOR=red><A NAME="ref_151_16">tgoto</A></FONT> (<FONT COLOR=red><A NAME="ref_151_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_151_16">cap</A></FONT> : char_array;
+                      <FONT COLOR=red><A NAME="ref_152_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_151_16">col</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>;
+                      <FONT COLOR=red><A NAME="ref_153_23" HREF="terminal_interface-curses-termcap__adb.htm#ref_151_16">row</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A>) <b>return</b> chars_ptr;
+      <b>pragma</b> Import (C, tgoto);
+      <FONT COLOR=red><A NAME="ref_155_7">Txt</A></FONT>    : char_array (0 .. <A HREF="terminal_interface-curses-termcap__ads.htm#ref_53_20">Cap</A>'Length);
+      <FONT COLOR=red><A NAME="ref_156_7">Length</A></FONT> : size_t;
+   <b>begin</b>
+      To_C (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_53_20">Cap</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_155_7">Txt</A>, <A HREF="terminal_interface-curses-termcap__adb.htm#ref_156_7">Length</A>);
+      <b>return</b> Termcap_String (<A HREF="terminal_interface-curses-aux__ads.htm#ref_121_13">Fill_String</A>
+                             (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_151_16">tgoto</A> (<A HREF="terminal_interface-curses-termcap__adb.htm#ref_155_7">Txt</A>, <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_54_20">Col</A>), <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> (<A HREF="terminal_interface-curses-termcap__ads.htm#ref_55_20">Row</A>))));
+   <b>end</b> <A HREF="terminal_interface-curses-termcap__ads.htm#ref_53_13">TGoto</A>;
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-termcap__ads.htm#ref_42_35">Termcap</A>;
+</PRE></BODY></HTML>

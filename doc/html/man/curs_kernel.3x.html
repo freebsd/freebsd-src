@@ -1,0 +1,206 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.                        *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_kernel.3x,v 1.19 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_kernel 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_kernel 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>                                         <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>def_prog_mode</STRONG>, <STRONG>def_shell_mode</STRONG>, <STRONG>reset_prog_mode</STRONG>,
+       <STRONG>reset_shell_mode</STRONG>, <STRONG>resetty</STRONG>, <STRONG>savetty</STRONG>, <STRONG>getsyx</STRONG>, <STRONG>setsyx</STRONG>,
+       <STRONG>ripoffline</STRONG>, <STRONG>curs_set</STRONG>, <STRONG>napms</STRONG> - low-level <STRONG>curses</STRONG> routines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>def_prog_mode(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>def_shell_mode(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>reset_prog_mode(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>reset_shell_mode(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>resetty(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>savetty(void);</STRONG>
+       <STRONG>void</STRONG> <STRONG>getsyx(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>void</STRONG> <STRONG>setsyx(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>ripoffline(int</STRONG> <STRONG>line,</STRONG> <STRONG>int</STRONG> <STRONG>(*init)(WINDOW</STRONG> <STRONG>*,</STRONG> <STRONG>int));</STRONG>
+       <STRONG>int</STRONG> <STRONG>curs_set(int</STRONG> <STRONG>visibility);</STRONG>
+       <STRONG>int</STRONG> <STRONG>napms(int</STRONG> <STRONG>ms);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  following  routines  give low-level access to various
+       <STRONG>curses</STRONG> capabilities.  These routines  typically  are  used
+       inside library routines.
+
+       The  <STRONG>def_prog_mode</STRONG>  and  <STRONG>def_shell_mode</STRONG>  routines save the
+       current terminal modes as the  "program"  (in  <STRONG>curses</STRONG>)  or
+       "shell"   (not  in  <STRONG>curses</STRONG>)  state  for  use  by  the  <STRONG>re-</STRONG>
+       <STRONG>set_prog_mode</STRONG> and <STRONG>reset_shell_mode</STRONG> routines.  This is done
+       automatically by <STRONG>initscr</STRONG>.  There is one such save area for
+       each screen context allocated by <STRONG>newterm()</STRONG>.
+
+       The <STRONG>reset_prog_mode</STRONG> and <STRONG>reset_shell_mode</STRONG> routines  restore
+       the  terminal  to "program" (in <STRONG>curses</STRONG>) or "shell" (out of
+       <STRONG>curses</STRONG>) state.  These are  done  automatically  by  <STRONG>endwin</STRONG>
+       and,  after  an  <STRONG>endwin</STRONG>, by <STRONG>doupdate</STRONG>, so they normally are
+       not called.
+
+       The <STRONG>resetty</STRONG> and <STRONG>savetty</STRONG>  routines  save  and  restore  the
+       state  of  the  terminal modes.  <STRONG>savetty</STRONG> saves the current
+       state in a buffer and <STRONG>resetty</STRONG> restores the state  to  what
+       it was at the last call to <STRONG>savetty</STRONG>.
+
+       The  <STRONG>getsyx</STRONG> routine returns the current coordinates of the
+       virtual screen cursor in <EM>y</EM> and <EM>x</EM>.  If <STRONG>leaveok</STRONG> is currently
+       <STRONG>TRUE</STRONG>,  then <STRONG>-1</STRONG>,<STRONG>-1</STRONG> is returned.  If lines have been removed
+       from the top of the screen, using <STRONG>ripoffline</STRONG>, <EM>y</EM> and <EM>x</EM>  in-
+       clude  these lines; therefore, <EM>y</EM> and <EM>x</EM> should be used only
+       as arguments for <STRONG>setsyx</STRONG>.
+
+       The <STRONG>setsyx</STRONG> routine sets the virtual screen cursor to <EM>y</EM>, <EM>x</EM>.
+       If <EM>y</EM> and <EM>x</EM> are both <STRONG>-1</STRONG>, then <STRONG>leaveok</STRONG> is set.  The two rou-
+       tines <STRONG>getsyx</STRONG> and <STRONG>setsyx</STRONG> are designed to be used by  a  li-
+       brary  routine,  which manipulates <STRONG>curses</STRONG> windows but does
+       not want to change the current position of  the  program's
+       cursor.   The library routine would call <STRONG>getsyx</STRONG> at the be-
+       ginning, do its manipulation of  its  own  windows,  do  a
+       <STRONG>wnoutrefresh</STRONG>  on  its  windows, call <STRONG>setsyx</STRONG>, and then call
+       <STRONG>doupdate</STRONG>.
+
+       The <STRONG>ripoffline</STRONG> routine provides access to the same facili-
+       ty  that  <STRONG>slk_init</STRONG>  [see  <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>] uses to reduce the
+       size of the screen.   <STRONG>ripoffline</STRONG>  must  be  called  before
+       <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG> is called.  If <EM>line</EM> is positive, a line
+       is removed from the top of <STRONG>stdscr</STRONG>; if <EM>line</EM> is negative,  a
+       line is removed from the bottom.  When this is done inside
+       <STRONG>initscr</STRONG>, the routine <STRONG>init</STRONG> (supplied by the user) is called
+       with  two arguments: a window pointer to the one-line win-
+       dow that has been allocated and an integer with the number
+       of columns in the window.  Inside this initialization rou-
+       tine, the integer variables <STRONG>LINES</STRONG>  and  <STRONG>COLS</STRONG>  (defined  in
+       <STRONG>&lt;curses.h&gt;</STRONG>) are not guaranteed to be accurate and <STRONG>wrefresh</STRONG>
+       or <STRONG>doupdate</STRONG> must not be called.  It is allowable  to  call
+       <STRONG>wnoutrefresh</STRONG> during the initialization routine.
+
+       <STRONG>ripoffline</STRONG>  can  be called up to five times before calling
+       <STRONG>initscr</STRONG> or <STRONG>newterm</STRONG>.
+
+       The <STRONG>curs_set</STRONG> routine sets the cursor state  to  invisible,
+       normal, or very visible for <STRONG>visibility</STRONG> equal to <STRONG>0</STRONG>, <STRONG>1</STRONG>, or <STRONG>2</STRONG>
+       respectively.  If the terminal supports the <EM>visibility</EM> re-
+       quested, the previous <EM>cursor</EM> state is returned; otherwise,
+       <STRONG>ERR</STRONG> is returned.
+
+       The <STRONG>napms</STRONG> routine is used to sleep for <EM>ms</EM> milliseconds.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Except for <STRONG>curs_set</STRONG>, these routines always return <STRONG>OK</STRONG>.
+
+       <STRONG>curs_set</STRONG> returns the previous cursor state, or <STRONG>ERR</STRONG> if  the
+       requested <EM>visibility</EM> is not supported.
+
+       X/Open  defines  no error conditions.  In this implementa-
+       tion
+
+              <STRONG>def_prog_mode</STRONG>, <STRONG>def_shell_mode</STRONG>, <STRONG>reset_prog_mode</STRONG>, <STRONG>re-</STRONG>
+              <STRONG>set_shell_mode</STRONG>
+                   return  an  error if the terminal was not ini-
+                   tialized, or if the I/O  call  to  obtain  the
+                   terminal settings fails.
+
+              <STRONG>ripoffline</STRONG>
+                   returns  an  error  if  the  maximum number of
+                   ripped-off lines exceeds the maximum (NRIPS  =
+                   5).
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note  that <STRONG>getsyx</STRONG> is a macro, so <STRONG>&amp;</STRONG> is not necessary before
+       the variables <EM>y</EM> and <EM>x</EM>.
+
+       Older SVr4  man  pages  warn  that  the  return  value  of
+       <STRONG>curs_set</STRONG>  "is  currently  incorrect".  This implementation
+       gets it right, but it may be unwise to count on  the  cor-
+       rectness of the return value anywhere else.
+
+       Both  ncurses  and  SVr4  will  call <STRONG>curs_set</STRONG> in <STRONG>endwin</STRONG> if
+       <STRONG>curs_set</STRONG> has been called to make  the  cursor  other  than
+       normal,  i.e., either invisible or very visible.  There is
+       no way for ncurses to determine the initial  cursor  state
+       to restore that.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  functions  <STRONG>setsyx</STRONG> and <STRONG>getsyx</STRONG> are not described in the
+       XSI Curses standard, Issue 4.  All other functions are  as
+       described in XSI Curses.
+
+       The SVr4 documentation describes <STRONG>setsyx</STRONG> and <STRONG>getsyx</STRONG> as hav-
+       ing return type int.  This  is  misleading,  as  they  are
+       macros with no documented semantics for the return value.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,  <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>,  <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>, <STRONG>curs_re-</STRONG>
+       <STRONG><A HREF="curs_refresh.3x.html">fresh(3x)</A></STRONG>,  <STRONG><A HREF="curs_scr_dump.3x.html">curs_scr_dump(3x)</A></STRONG>,  <STRONG><A HREF="curs_slk.3x.html">curs_slk(3x)</A></STRONG>,   <STRONG>curs_vari-</STRONG>
+       <STRONG><A HREF="curs_variables.3x.html">ables(3x)</A></STRONG>.
+
+
+
+                                                        <STRONG><A HREF="curs_kernel.3x.html">curs_kernel(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>
