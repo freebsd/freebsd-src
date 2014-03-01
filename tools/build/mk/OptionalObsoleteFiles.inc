@@ -630,6 +630,11 @@ OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/libexec/cc1plus
 .endif
 
+.if ${MK_FMTREE} == no
+OLD_FILES+=usr/sbin/fmtree
+OLD_FILES+=usr/share/man/man8/fmtree.8.gz
+.endif
+
 .if ${MK_GNUCXX} == no
 OLD_FILES+=usr/bin/g++
 OLD_FILES+=usr/include/c++/4.2/algorithm
