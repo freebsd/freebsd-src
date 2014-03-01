@@ -665,8 +665,19 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	t = AR8327_PORT_VLAN1_OUT_MODE_UNTOUCH << AR8327_PORT_VLAN1_OUT_MODE_S;
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(port), t);
 
+	/*
+	 * This doesn't configure any ports which this port can "see".
+	 * bits 0-6 control which ports a frame coming into this port
+	 * can be sent out to.
+	 *
+	 * So by doing this, we're making it impossible to send frames out
+	 * to that port.
+	 */
 	t = AR8327_PORT_LOOKUP_LEARN;
 	t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
+
+	/* So this allows traffic to any port except ourselves */
+	t |= (0x3f & ~(1 << port));
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(port), t);
 }
 
@@ -695,6 +706,13 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	uint32_t mode, t;
 
 	/*
+	 * Disable mirroring.
+	 */
+	arswitch_modifyreg(sc->sc_dev, AR8327_REG_FWD_CTRL0,
+	    AR8327_FWD_CTRL0_MIRROR_PORT,
+	    (0xF << AR8327_FWD_CTRL0_MIRROR_PORT_S));
+
+	/*
 	 * For now, let's default to one portgroup, just so traffic
 	 * flows.  All ports can see other ports.
 	 */
@@ -713,13 +731,25 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 
 		/* Set ingress = out_keep; members = 0x3f for all ports */
 
-		t = 0x3f;	/* all ports */
+		t = (0x3f & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
 		/* in_port_only, forward */
 		t |= AR8X16_PORT_VLAN_MODE_PORT_ONLY << AR8327_PORT_LOOKUP_IN_MODE_S;
 		t |= AR8X16_PORT_CTRL_STATE_FORWARD << AR8327_PORT_LOOKUP_STATE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_LOOKUP(i), t);
+
+		/*
+		 * Disable port mirroring entirely.
+		 */
+		arswitch_modifyreg(sc->sc_dev,
+		    AR8327_REG_PORT_LOOKUP(i),
+		    AR8327_PORT_LOOKUP_ING_MIRROR_EN,
+		    0);
+		arswitch_modifyreg(sc->sc_dev,
+		    AR8327_REG_PORT_HOL_CTRL1(i),
+		    AR8327_PORT_HOL_CTRL1_EG_MIRROR_EN,
+		    0);
 	}
 }
 
