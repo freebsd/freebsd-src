@@ -1,0 +1,170 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_refresh.3x,v 1.15 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_refresh 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_refresh 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>                                       <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>doupdate</STRONG>, <STRONG>redrawwin</STRONG>, <STRONG>refresh</STRONG>, <STRONG>wnoutrefresh</STRONG>, <STRONG>wredrawln</STRONG>,
+       <STRONG>wrefresh</STRONG> - refresh <STRONG>curses</STRONG> windows and lines
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>refresh(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wrefresh(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wnoutrefresh(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>doupdate(void);</STRONG>
+       <STRONG>int</STRONG> <STRONG>redrawwin(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wredrawln(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>beg_line,</STRONG> <STRONG>int</STRONG> <STRONG>num_lines);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>refresh</STRONG> and <STRONG>wrefresh</STRONG>  routines  (or  <STRONG>wnoutrefresh</STRONG>  and
+       <STRONG>doupdate</STRONG>)  must be called to get actual output to the ter-
+       minal, as other routines  merely  manipulate  data  struc-
+       tures.   The  routine  <STRONG>wrefresh</STRONG> copies the named window to
+       the physical terminal screen, taking into account what  is
+       already there to do optimizations.  The <STRONG>refresh</STRONG> routine is
+       the same, using <STRONG>stdscr</STRONG>  as  the  default  window.   Unless
+       <STRONG>leaveok</STRONG>  has been enabled, the physical cursor of the ter-
+       minal is left at the location of the cursor for that  win-
+       dow.
+
+       The  <STRONG>wnoutrefresh</STRONG> and <STRONG>doupdate</STRONG> routines allow multiple up-
+       dates with more efficiency than <STRONG>wrefresh</STRONG> alone.  In  addi-
+       tion  to  all the window structures, <STRONG>curses</STRONG> keeps two data
+       structures representing the terminal  screen:  a  physical
+       screen,  describing  what is actually on the screen, and a
+       virtual screen, describing what the  programmer  wants  to
+       have on the screen.
+
+       The  routine <STRONG>wrefresh</STRONG> works by first calling <STRONG>wnoutrefresh</STRONG>,
+       which copies the named window to the virtual  screen,  and
+       then  calling  <STRONG>doupdate</STRONG>, which compares the virtual screen
+       to the physical screen and does the actual update.  If the
+       programmer wishes to output several windows at once, a se-
+       ries of calls to <STRONG>wrefresh</STRONG> results in alternating calls  to
+       <STRONG>wnoutrefresh</STRONG>  and <STRONG>doupdate</STRONG>, causing several bursts of out-
+       put to the screen.  By first calling <STRONG>wnoutrefresh</STRONG> for each
+       window, it is then possible to call <STRONG>doupdate</STRONG> once, result-
+       ing in only one burst of output, with fewer total  charac-
+       ters transmitted and less CPU time used.  If the <EM>win</EM> argu-
+       ment to <STRONG>wrefresh</STRONG> is the global variable <STRONG>curscr</STRONG>, the screen
+       is immediately cleared and repainted from scratch.
+
+       The phrase "copies the named window to the virtual screen"
+       above is ambiguous.  What actually  happens  is  that  all
+       <EM>touched</EM>  (changed)  lines  in the window are copied to the
+       virtual screen.  This affects programs that  use  overlap-
+       ping  windows;  it  means that if two windows overlap, you
+       can refresh them in either order and  the  overlap  region
+       will be modified only when it is explicitly changed.  (But
+       see the section on <STRONG>PORTABILITY</STRONG> below for a  warning  about
+       exploiting this behavior.)
+
+       The <STRONG>wredrawln</STRONG> routine indicates to <STRONG>curses</STRONG> that some screen
+       lines are corrupted and should be thrown away before  any-
+       thing  is  written  over  them.   It touches the indicated
+       lines (marking them  changed).   The  routine  <STRONG>redrawwin</STRONG>()
+       touches the entire window.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines  that  return an integer return <STRONG>ERR</STRONG> upon failure,
+       and <STRONG>OK</STRONG> (SVr4 only specifies "an integer value  other  than
+       <STRONG>ERR</STRONG>") upon successful completion.
+
+       X/Open  does not define any error conditions.  In this im-
+       plementation
+
+              <STRONG>wnoutrefresh</STRONG>
+                   returns an error  if  the  window  pointer  is
+                   null, or if the window is really a pad.
+
+              <STRONG>wredrawln</STRONG>
+                   returns  an  error  if  the associated call to
+                   <STRONG>touchln</STRONG> returns an error.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>refresh</STRONG> and <STRONG>redrawwin</STRONG> may be macros.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The XSI Curses standard, Issue  4  describes  these  func-
+       tions.
+
+       Whether  <STRONG>wnoutrefresh()</STRONG>  copies  to the virtual screen the
+       entire contents of a window or just its  changed  portions
+       has never been well-documented in historic curses versions
+       (including SVr4).  It might be unwise to  rely  on  either
+       behavior  in  programs  that  might have to be linked with
+       other curses implementations.  Instead, you can do an  ex-
+       plicit  <STRONG>touchwin()</STRONG> before the <STRONG>wnoutrefresh()</STRONG> call to guar-
+       antee an entire-contents copy anywhere.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG> <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>.
+
+
+
+                                                       <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

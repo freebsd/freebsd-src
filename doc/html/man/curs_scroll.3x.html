@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_scroll.3x,v 1.15 2010/12/04 18:40:45 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_scroll 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_scroll 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>                                         <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>scroll</STRONG>, <STRONG>scrl</STRONG>, <STRONG>wscrl</STRONG> - scroll a <STRONG>curses</STRONG> window
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>scroll(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>scrl(int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>wscrl(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>scroll</STRONG>  routine scrolls the window up one line.  This
+       involves moving the lines in the  window  data  structure.
+       As  an optimization, if the scrolling region of the window
+       is the entire screen, the physical screen may be  scrolled
+       at the same time.
+
+       For  positive  <EM>n</EM>,  the  <STRONG>scrl</STRONG> and <STRONG>wscrl</STRONG> routines scroll the
+       window up <EM>n</EM> lines (line <EM>i</EM>+<EM>n</EM> becomes <EM>i</EM>);  otherwise  scroll
+       the  window  down <EM>n</EM> lines.  This involves moving the lines
+       in the window character image structure.  The current cur-
+       sor position is not changed.
+
+       For these functions to work, scrolling must be enabled via
+       <STRONG>scrollok</STRONG>.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       These routines return <STRONG>ERR</STRONG> upon failure, and <STRONG>OK</STRONG> (SVr4  only
+       specifies "an integer value other than <STRONG>ERR</STRONG>") upon success-
+       ful completion.
+
+       X/Open defines no error conditions.
+
+       This implementation returns an error if the window pointer
+       is  null,  or  if  scrolling is not enabled in the window,
+       e.g., with <STRONG>scrollok</STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       Note that <STRONG>scrl</STRONG> and <STRONG>scroll</STRONG> may be macros.
+
+       The SVr4 documentation says that the optimization of phys-
+       ically  scrolling  immediately if the scroll region is the
+       entire screen "is"  performed,  not  "may  be"  performed.
+       This  implementation  deliberately does not guarantee that
+       this will occur, to leave open the possibility of  smarter
+       optimization  of  multiple  scroll actions on the next up-
+       date.
+
+       Neither the SVr4 nor the XSI documentation specify whether
+       the current attribute or current color-pair of blanks gen-
+       erated by the scroll function is zeroed.  Under  this  im-
+       plementation it is.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  XSI  Curses  standard,  Issue 4 describes these func-
+       tions.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_outopts.3x.html">curs_outopts(3x)</A></STRONG>
+
+
+
+                                                        <STRONG><A HREF="curs_scroll.3x.html">curs_scroll(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

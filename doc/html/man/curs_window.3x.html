@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_window.3x,v 1.17 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_window 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_window 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>                                         <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>newwin</STRONG>, <STRONG>delwin</STRONG>, <STRONG>mvwin</STRONG>, <STRONG>subwin</STRONG>, <STRONG>derwin</STRONG>, <STRONG>mvderwin</STRONG>, <STRONG>dupwin</STRONG>,
+       <STRONG>wsyncup</STRONG>, <STRONG>syncok</STRONG>, <STRONG>wcursyncup</STRONG>, <STRONG>wsyncdown</STRONG> - create <STRONG>curses</STRONG>
+       windows
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>WINDOW</STRONG> <STRONG>*newwin(int</STRONG> <STRONG>nlines,</STRONG> <STRONG>int</STRONG> <STRONG>ncols,</STRONG> <STRONG>int</STRONG> <STRONG>begin_y,</STRONG>
+             <STRONG>int</STRONG> <STRONG>begin_x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>delwin(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwin(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*subwin(WINDOW</STRONG> <STRONG>*orig,</STRONG> <STRONG>int</STRONG> <STRONG>nlines,</STRONG> <STRONG>int</STRONG> <STRONG>ncols,</STRONG>
+             <STRONG>int</STRONG> <STRONG>begin_y,</STRONG> <STRONG>int</STRONG> <STRONG>begin_x);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*derwin(WINDOW</STRONG> <STRONG>*orig,</STRONG> <STRONG>int</STRONG> <STRONG>nlines,</STRONG> <STRONG>int</STRONG> <STRONG>ncols,</STRONG>
+             <STRONG>int</STRONG> <STRONG>begin_y,</STRONG> <STRONG>int</STRONG> <STRONG>begin_x);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvderwin(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>par_y,</STRONG> <STRONG>int</STRONG> <STRONG>par_x);</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*dupwin(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>void</STRONG> <STRONG>wsyncup(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>int</STRONG> <STRONG>syncok(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>bool</STRONG> <STRONG>bf);</STRONG>
+       <STRONG>void</STRONG> <STRONG>wcursyncup(WINDOW</STRONG> <STRONG>*win);</STRONG>
+       <STRONG>void</STRONG> <STRONG>wsyncdown(WINDOW</STRONG> <STRONG>*win);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       Calling <STRONG>newwin</STRONG> creates and returns a pointer to a new win-
+       dow with the given number of lines and columns.  The upper
+       left-hand  corner of the window is at line <EM>begin</EM>_<EM>y</EM>, column
+       <EM>begin</EM>_<EM>x</EM>.  If either <EM>nlines</EM> or <EM>ncols</EM> is zero, they  default
+       to  <STRONG>LINES</STRONG> <STRONG>-</STRONG> <EM>begin</EM>_<EM>y</EM> and <STRONG>COLS</STRONG> <STRONG>-</STRONG> <EM>begin</EM>_<EM>x</EM>.  A new full-screen
+       window is created by calling <STRONG>newwin(0,0,0,0)</STRONG>.
+
+       Calling <STRONG>delwin</STRONG> deletes the named window, freeing all memo-
+       ry associated with it (it does not actually erase the win-
+       dow's screen image).  Subwindows must  be  deleted  before
+       the main window can be deleted.
+
+       Calling <STRONG>mvwin</STRONG> moves the window so that the upper left-hand
+       corner is at position (<EM>x</EM>, <EM>y</EM>).  If the move would cause the
+       window to be off the screen, it is an error and the window
+       is not moved.  Moving subwindows is allowed, but should be
+       avoided.
+
+       Calling <STRONG>subwin</STRONG> creates and returns a pointer to a new win-
+       dow with the given number of lines, <EM>nlines</EM>,  and  columns,
+       <EM>ncols</EM>.   The  window  is at position (<EM>begin</EM>_<EM>y</EM>, <EM>begin</EM>_<EM>x</EM>) on
+       the screen.  (This position is relative to the screen, and
+       not to the window <EM>orig</EM>.)  The window is made in the middle
+       of the window <EM>orig</EM>, so that changes  made  to  one  window
+       will  affect  both  windows.   The subwindow shares memory
+       with the window <EM>orig</EM>.  When using this routine, it is nec-
+       essary  to call <STRONG>touchwin</STRONG> or <STRONG>touchline</STRONG> on <EM>orig</EM> before call-
+       ing <STRONG>wrefresh</STRONG> on the subwindow.
+
+       Calling <STRONG>derwin</STRONG> is the same as calling <STRONG>subwin,</STRONG> except  that
+       <EM>begin</EM>_<EM>y</EM> and <EM>begin</EM>_<EM>x</EM> are relative to the origin of the win-
+       dow <EM>orig</EM> rather than the screen.  There is  no  difference
+       between the subwindows and the derived windows.
+
+       Calling <STRONG>mvderwin</STRONG> moves a derived window (or subwindow) in-
+       side its parent window.  The screen-relative parameters of
+       the  window are not changed.  This routine is used to dis-
+       play different parts of the  parent  window  at  the  same
+       physical position on the screen.
+
+       Calling  <STRONG>dupwin</STRONG>  creates  an exact duplicate of the window
+       <EM>win</EM>.
+
+       Calling <STRONG>wsyncup</STRONG> touches all locations in ancestors of  <EM>win</EM>
+       that  are changed in <EM>win</EM>.  If <STRONG>syncok</STRONG> is called with second
+       argument <STRONG>TRUE</STRONG> then <STRONG>wsyncup</STRONG> is called automatically whenev-
+       er there is a change in the window.
+
+       The  <STRONG>wsyncdown</STRONG>  routine  touches each location in <EM>win</EM> that
+       has been touched in any of  its  ancestor  windows.   This
+       routine  is  called by <STRONG>wrefresh</STRONG>, so it should almost never
+       be necessary to call it manually.
+
+       The routine <STRONG>wcursyncup</STRONG> updates the current cursor position
+       of  all the ancestors of the window to reflect the current
+       cursor position of the window.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       Routines that return an integer return the integer <STRONG>ERR</STRONG> up-
+       on  failure  and <STRONG>OK</STRONG> (SVr4 only specifies "an integer value
+       other than <STRONG>ERR</STRONG>") upon successful completion.
+
+       Routines that return pointers return <STRONG>NULL</STRONG> on error.
+
+       X/Open defines no error conditions.  In  this  implementa-
+       tion
+
+              <STRONG>delwin</STRONG>
+                   returns  an  error  if  the  window pointer is
+                   null, or if the window is the parent of anoth-
+                   er window.
+
+                   This  implementation  also maintains a list of
+                   windows, and checks that the pointer passed to
+                   <STRONG>delwin</STRONG>  is  one  that it created, returning an
+                   error if it was not..
+
+              <STRONG>mvderwin</STRONG>
+                   returns an error  if  the  window  pointer  is
+                   null,  or  if some part of the window would be
+                   placed off-screen.
+
+              <STRONG>mvwin</STRONG>
+                   returns an error  if  the  window  pointer  is
+                   null,  or if the window is really a pad, or if
+                   some part of the window would be  placed  off-
+                   screen.
+
+              <STRONG>syncok</STRONG>
+                   returns  an  error  if  the  window pointer is
+                   null.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       If many small changes are made to the window, the  <STRONG>wsyncup</STRONG>
+       option could degrade performance.
+
+       Note that <STRONG>syncok</STRONG> may be a macro.
+
+
+</PRE>
+<H2>BUGS</H2><PRE>
+       The  subwindow  functions (<EM>subwin</EM>, <EM>derwin</EM>, <EM>mvderwin</EM>, <STRONG>wsyn-</STRONG>
+       <STRONG>cup</STRONG>, <STRONG>wsyncdown</STRONG>, <STRONG>wcursyncup</STRONG>, <STRONG>syncok</STRONG>) are flaky, incomplete-
+       ly implemented, and not well tested.
+
+       The  System  V  curses documentation is very unclear about
+       what <STRONG>wsyncup</STRONG> and <STRONG>wsyncdown</STRONG> actually do.  It seems to imply
+       that  they  are only supposed to touch exactly those lines
+       that are affected by ancestor changes.  The language here,
+       and  the  behavior  of  the <STRONG>curses</STRONG> implementation, is pat-
+       terned on the XPG4 curses standard.  The weaker XPG4  spec
+       may result in slower updates.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  XSI  Curses  standard,  Issue 4 describes these func-
+       tions.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_refresh.3x.html">curs_refresh(3x)</A></STRONG>,  <STRONG><A HREF="curs_touch.3x.html">curs_touch(3x)</A></STRONG>,  <STRONG>curs_vari-</STRONG>
+       <STRONG><A HREF="curs_variables.3x.html">ables(3x)</A></STRONG>
+
+
+
+                                                        <STRONG><A HREF="curs_window.3x.html">curs_window(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

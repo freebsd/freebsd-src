@@ -1,0 +1,184 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!--
+  $Id: Ada95.html,v 1.8 2010/12/04 16:42:54 tom Exp $
+  ****************************************************************************
+  * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+-->
+<HTML>
+<HEAD>
+<TITLE>Ada95 Binding for ncurses</Title>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>Ada95 Binding for ncurses</H1>
+by J&uuml;rgen Pfeifer.
+
+<HR SIZE=3 NOSHADE>
+<H2>General Remarks</H2>
+<UL>
+<LI>This document describes Version 01.00 of the binding.</LI>
+<LI>The functionality is modeled to be compatible with the ncurses
+package, a clone of the SVr4 curses model.<BR>
+I did the development on an Intel box running the latest stable release of
+<A HREF="http://www.linux.org">Linux</A>, ncurses and the most recent released
+<A HREF="http://www.gnat.com">GNU Ada Translator</A>
+gnat versions. For any older versions of ncurses and gnat
+it is not guaranteed to work.</LI>
+<LI>You must have the m4 macroprocessor to build this package.
+If you don't have this program, you can get the FSF version
+<A HREF="ftp://ftp.gnu.org/pub/gnu/">here</A>.</LI>
+<LI>Ada programs are supposed to be readable. One of my
+favorite methods to make code readable is to use expressive
+names for the identifiers. You can find a list of a mapping
+of the cryptic curses names to the Ada names in this <A HREF="ada/table.html">table</A>.</LI>
+<LI>This is not a typical one-to-one interface mapping. It is
+close to one-to-one on the functional level. Each (n)curses function
+has it's counterpart with a more or less similar formal parameter list
+in the binding. It is not one-to-one with respect to the datatypes.
+I tried to make records out of the flat chtype and similar structures,
+so you don't have to do bit operations to mark an attributed character
+as bold. Just make the boolean member <STRONG>bold</STRONG> of the record
+true. The binding also hides the structures like WINDOW, PANEL, MENU, FORM
+etc. ! It's a pure functional API.</LI>
+<LI>I try to do as much error checking as possible and feasible
+in the binding. I will raise an Ada exception when something
+went wrong in the low-level curses. This has the effect that - at least
+first time in my life - (n)curses programs have now a very rigid error
+checking, but - thanks to Ada - you don't have to code the orgiastic
+error checking style of C.</LI>
+<LI>Support for wide characters is currently not in the binding, as it
+is not really in ncurses at this point in time.</LI>
+</UL>
+
+<H2>Limitations</H2>
+<UL>
+<LI>I provide no SCREEN datatype and functions to set a new screen.
+If you need this (mostly for debugging I guess), write a small
+C routine doing all this and import it into your Ada program.</LI>
+<LI>I provide no functions to switch on/off curses tracing options.
+Same suggestion as above.</LI>
+<LI>Although Ada95 is an OO Language, this binding doesn't provide
+an OO abstraction of the (n)curses functionality. As mentioned above
+it's a thin binding for the (n)curses functions. But without any
+doubt it would be nice to build on top of this an OO abstraction
+of (n)curses functionality.<BR>
+The only exception is the method how fieldtypes are represented in
+this Binding. We provide an abstract tagged type Field_Type from
+which the various fieldtypes are derived.</LI>
+<LI>I currently do not support the link_fieldtype functionality of the
+forms subsystem.</LI>
+<LI>The *_IO packages are currently output only.</LI>
+</UL>
+
+<H2>Hierarchy of packages</H2>
+<UL>
+<LI><A HREF="ada/terminal_interface__ads.htm">Terminal_Interface</A>
+    <UL><LI><A HREF="ada/terminal_interface-curses__ads.htm">Curses</A>
+	<UL><LI><A HREF="ada/terminal_interface-curses-mouse__ads.htm">Mouse</A>
+            <LI><A HREF="ada/terminal_interface-curses-panels__ads.htm">Panels</A>
+            <UL><LI><A HREF="ada/terminal_interface-curses-panels-user_data__ads.htm">User_Data</A>
+            </UL>
+	    <LI><A HREF="ada/terminal_interface-curses-menus__ads.htm">Menus</A>
+	        <UL><LI><A HREF="ada/terminal_interface-curses-menus-menu_user_data__ads.htm">Menu_User_Data</A>
+		    <LI><A HREF="ada/terminal_interface-curses-menus-item_user_data__ads.htm">Item_User_Data</A>
+		</UL>
+	    <LI><A HREF="ada/terminal_interface-curses-forms__ads.htm">Forms</A>
+		<UL><LI><A HREF="ada/terminal_interface-curses-forms-form_user_data__ads.htm">Form_User_Data</A>
+		    <LI><A HREF="ada/terminal_interface-curses-forms-field_user_data__ads.htm">Field_User_Data</A>
+		    <LI><A HREF="ada/terminal_interface-curses-forms-field_types__ads.htm">Field_Types</A>
+		    <UL><LI><A HREF="ada/terminal_interface-curses-forms-field_types-alpha__ads.htm">Alpha</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-alphanumeric__ads.htm">AlphaNumeric</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-intfield__ads.htm">IntField</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-numeric__ads.htm">Numeric</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-regexp__ads.htm">RegExp</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-ipv4_address__ads.htm">IPV4_Address</A>
+		        <LI><A HREF="ada/terminal_interface-curses-forms-field_types-enumeration__ads.htm">Enumeration</A>
+		        <UL><LI><A HREF="ada/terminal_interface-curses-forms-field_types-enumeration-ada__ads.htm">Ada</A>
+			</UL>
+			<LI><A HREF="ada/terminal_interface-curses-forms-field_types-user__ads.htm">User</A>
+		        <UL><LI><A HREF="ada/terminal_interface-curses-forms-field_types-user-choice__ads.htm">Choice</A>
+                        </UL>
+                     </UL>
+		</UL>
+	    <LI><A HREF="ada/terminal_interface-curses-text_io__ads.htm">Text_IO</A>
+		<UL><LI><A HREF="ada/terminal_interface-curses-text_io-integer_io__ads.htm">Integer_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-float_io__ads.htm">Float_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-fixed_io__ads.htm">Fixed_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-decimal_io__ads.htm">Decimal_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-modular_io__ads.htm">Modular_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-enumeration_io__ads.htm">Enumeration_IO</A>
+		    <LI><A HREF="ada/terminal_interface-curses-text_io-complex_io__ads.htm">Complex_IO</A>
+		</UL>
+         </UL>
+     </UL>
+</UL>
+If you want to navigate through the html pages of the package specs, click <A HREF="ada/index.htm">here</A>.
+<H2>Implementation Details</H2>
+<H4>Behind the abstraction</H4>
+All the new types like <STRONG>Window</STRONG>, <STRONG>Panel</STRONG>,
+<STRONG>Menu</STRONG>, <STRONG>Form</STRONG> etc. are just
+opaque representations of the pointers to the corresponding
+low level (n)curses structures like
+<STRONG>WINDOW *</STRONG>, <STRONG>PANEL *</STRONG>,
+<STRONG>MENU *</STRONG> or <STRONG>FORM *</STRONG>.
+So you can safely pass them to C routines that expect a pointer
+to one of those structures.
+<H4>Extended ripoffline() usage</H4>
+The official documentation of (n)curses says, that the line parameter
+determines only whether or not exactly <STRONG>one</STRONG> line is
+stolen from the top or bottom of the screen. So essentially only the
+sign of the parameter is evaluated. ncurses has internally implemented
+it in a way, that uses the line parameter also to control the amount of
+lines to steal. This mechanism is used in the <STRONG>Rip_Off_Lines</STRONG>
+routine of the binding.
+<H4><A NAME="userpointer">How user defined field types work</A></H4>
+TBD
+<H4>Enumeration fields handling</H4>
+The (n)curses documentation says, that the String arrays to be passed to
+an TYPE_ENUM fieldtype must not be automatic variables. This is not true
+in this binding, because it is internally arranged to safely copy these
+values.
+<H4><A NAME="compiler">Using other Ada compilers</A></H4>
+This should basically not be a problem.
+<H4>Port to other curses implementations</H4>
+Basically it should not be too hard to make all this run on a regular SVr4
+implementation of curses. The problems are probably these:<BR>
+<UL>
+<LI>ncurses has some additional features which are presented in this binding. You
+have two choices to deal with this:
+<UL>
+<LI>Emulate the feature in this binding</LI>
+<LI>Raise an exception for non implemented features</LI>
+</UL>
+Most likely you will follow a mixed approach. Some features are easy to simulate,
+others will be hard if not impossible.</LI>
+</UL>
+I'm quite sure I forgot something.
+</BODY>
+</HTML>

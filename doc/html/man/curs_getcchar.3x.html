@@ -1,0 +1,158 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 2001-2009,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_getcchar.3x,v 1.15 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_getcchar 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_getcchar 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>                                     <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>getcchar</STRONG>,  <STRONG>setcchar</STRONG> - Get a wide character string and ren-
+       dition from a <STRONG>cchar_t</STRONG> or set a <STRONG>cchar_t</STRONG> from a wide-charac-
+       ter string
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>getcchar(</STRONG>
+               <STRONG>const</STRONG> <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>,</STRONG>
+               <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG>
+               <STRONG>attr_t</STRONG> <STRONG>*</STRONG><EM>attrs</EM><STRONG>,</STRONG>
+               <STRONG>short</STRONG> <STRONG>*</STRONG><EM>color</EM><STRONG>_</STRONG><EM>pair</EM><STRONG>,</STRONG>
+               <STRONG>void</STRONG> <STRONG>*</STRONG><EM>opts</EM> <STRONG>);</STRONG>
+
+       <STRONG>int</STRONG> <STRONG>setcchar(</STRONG>
+               <STRONG>cchar_t</STRONG> <STRONG>*</STRONG><EM>wcval</EM><STRONG>,</STRONG>
+               <STRONG>const</STRONG> <STRONG>wchar_t</STRONG> <STRONG>*</STRONG><EM>wch</EM><STRONG>,</STRONG>
+               <STRONG>const</STRONG> <STRONG>attr_t</STRONG> <EM>attrs</EM><STRONG>,</STRONG>
+               <STRONG>short</STRONG> <EM>color</EM><STRONG>_</STRONG><EM>pair</EM><STRONG>,</STRONG>
+               <STRONG>void</STRONG> <STRONG>*</STRONG><EM>opts</EM> <STRONG>);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The  <STRONG>getcchar</STRONG>  function  gets  a wide-character string and
+       rendition from a <STRONG>cchar_t</STRONG> argument.  When <EM>wch</EM> is not a null
+       pointer, the <STRONG>getcchar</STRONG> function does the following:
+
+       <STRONG>o</STRONG>   Extracts information from a <STRONG>cchar_t</STRONG> value <EM>wcval</EM>
+
+       <STRONG>o</STRONG>   Stores   the  character  attributes  in  the  location
+           pointed to by <EM>attrs</EM>
+
+       <STRONG>o</STRONG>   Stores the color-pair in the location  pointed  to  by
+           <EM>color</EM><STRONG>_</STRONG><EM>pair</EM>
+
+       <STRONG>o</STRONG>   Stores  the  wide-character  string, characters refer-
+           enced by <EM>wcval</EM>, into the array pointed to by <EM>wch</EM>.
+
+       When <EM>wch</EM> is a null pointer, the <STRONG>getcchar</STRONG> function does the
+       following:
+
+       <STRONG>o</STRONG>   Obtains  the  number  of wide characters pointed to by
+           <EM>wcval</EM>
+
+       <STRONG>o</STRONG>   Does not  change  the  data  referenced  by  <EM>attrs</EM>  or
+           <EM>color</EM><STRONG>_</STRONG><EM>pair</EM>
+
+       The  <STRONG>setcchar</STRONG> function initializes the location pointed to
+       by <EM>wcval</EM> by using:
+
+       <STRONG>o</STRONG>   The character attributes in <EM>attrs</EM>
+
+       <STRONG>o</STRONG>   The color pair in <EM>color</EM><STRONG>_</STRONG><EM>pair</EM>
+
+       <STRONG>o</STRONG>   The wide-character string  pointed  to  by  <EM>wch</EM>.   The
+           string  must  be L'\0' terminated, contain at most one
+           spacing character, which must be the first.
+
+           Up to <STRONG>CCHARW_MAX</STRONG>-1 nonspacing characters  may  follow.
+           Additional nonspacing characters are ignored.
+
+           The  string  may  contain  a  single control character
+           instead.  In that case, no nonspacing  characters  are
+           allowed.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The  <EM>opts</EM> argument is reserved for future use.  Currently,
+       an application must provide a null pointer as <EM>opts</EM>.
+
+       The <EM>wcval</EM> argument may be a value generated by a  call  to
+       <STRONG>setcchar</STRONG>  or by a function that has a <STRONG>cchar_t</STRONG> output argu-
+       ment.  If <EM>wcval</EM> is constructed by  any  other  means,  the
+       effect is unspecified.
+
+
+</PRE>
+<H2>RETURN VALUES</H2><PRE>
+       When <EM>wch</EM> is a null pointer, <STRONG>getcchar</STRONG> returns the number of
+       wide characters referenced by <EM>wcval</EM>, including one  for  a
+       trailing null.
+
+       When  <EM>wch</EM>  is not a null pointer, <STRONG>getcchar</STRONG> returns <STRONG>OK</STRONG> upon
+       successful completion, and <STRONG>ERR</STRONG> otherwise.
+
+       Upon successful completion, <STRONG>setcchar</STRONG> returns  <STRONG>OK</STRONG>.   Other-
+       wise, it returns <STRONG>ERR</STRONG>.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       Functions:   <STRONG><A HREF="curs_attr.3x.html">curs_attr(3x)</A></STRONG>,   <STRONG><A HREF="curs_color.3x.html">curs_color(3x)</A></STRONG>,  <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,
+       <STRONG><A HREF="wcwidth.3.html">wcwidth(3)</A></STRONG>.
+
+
+
+                                                      <STRONG><A HREF="curs_getcchar.3x.html">curs_getcchar(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

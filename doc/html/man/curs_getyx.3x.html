@@ -1,0 +1,131 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: curs_getyx.3x,v 1.18 2010/12/04 18:36:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>curs_getyx 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>curs_getyx 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>                                           <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>getyx</STRONG>,  <STRONG>getparyx</STRONG>,  <STRONG>getbegyx</STRONG>,  <STRONG>getmaxyx</STRONG> - get <STRONG>curses</STRONG> cursor
+       and window coordinates
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;curses.h&gt;</STRONG>
+
+       <STRONG>void</STRONG> <STRONG>getyx(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>void</STRONG> <STRONG>getparyx(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>void</STRONG> <STRONG>getbegyx(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+       <STRONG>void</STRONG> <STRONG>getmaxyx(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x);</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       The <STRONG>getyx</STRONG> macro places the current cursor position of  the
+       given window in the two integer variables <EM>y</EM> and <EM>x</EM>.
+
+       If  <EM>win</EM>  is  a  subwindow,  the  <STRONG>getparyx</STRONG> macro places the
+       beginning coordinates of the  subwindow  relative  to  the
+       parent  window into two integer variables <EM>y</EM> and <EM>x</EM>.  Other-
+       wise, <STRONG>-1</STRONG> is placed into <EM>y</EM> and <EM>x</EM>.
+
+       Like <STRONG>getyx</STRONG>, the <STRONG>getbegyx</STRONG> and  <STRONG>getmaxyx</STRONG>  macros  store  the
+       current  beginning  coordinates  and size of the specified
+       window.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       The return values of these  macros  are  undefined  (i.e.,
+       they  should not be used as the right-hand side of assign-
+       ment statements).
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       All of these interfaces are macros.  A "<STRONG>&amp;</STRONG>" is  not  neces-
+       sary before the variables <EM>y</EM> and <EM>x</EM>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       The  <STRONG>getyx</STRONG>,  <STRONG>getparyx</STRONG>,  <STRONG>getbegyx</STRONG>  and  <STRONG>getmaxyx</STRONG> macros are
+       described in the XSI Curses standard, Issue 4.
+
+       This implementation also provides functions <STRONG>getbegx</STRONG>, <STRONG>getb-</STRONG>
+       <STRONG>egy</STRONG>,  <STRONG>getcurx</STRONG>, <STRONG>getcury</STRONG>, <STRONG>getmaxx</STRONG>, <STRONG>getmaxy</STRONG>, <STRONG>getparx</STRONG> and <STRONG>get-</STRONG>
+       <STRONG>pary</STRONG> for compatibility with older versions of curses.
+
+       Although X/Open Curses does not address this, many  imple-
+       mentations  provide  members  of the WINDOW structure con-
+       taining values corresponding to these  macros.   For  best
+       portability,  do  not  rely  on  using the data in WINDOW,
+       since some implementations  make  WINDOW  opaque  (do  not
+       allow direct use of its members).
+
+       Besides  the problem of opaque structures, the data stored
+       in like-named members may not have like-values in  differ-
+       ent  implementations.   For  example, the WINDOW._maxx and
+       WINDOW._maxy  values  in  ncurses  have  (at  least  since
+       release 1.8.1) differed by one from some other implementa-
+       tions.  The difference is hidden by  means  of  the  macro
+       <STRONG>getmaxyx</STRONG>.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_legacy.3x.html">curs_legacy(3x)</A></STRONG>, <STRONG><A HREF="curs_opaque.3x.html">curs_opaque(3x)</A></STRONG>
+
+
+
+                                                         <STRONG><A HREF="curs_getyx.3x.html">curs_getyx(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

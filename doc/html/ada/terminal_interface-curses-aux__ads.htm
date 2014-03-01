@@ -1,0 +1,130 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<HTML><HEAD><TITLE>terminal_interface-curses-aux.ads</TITLE></HEAD>
+<BODY>
+<HR><DIV ALIGN="center"><H1> File : terminal_interface-curses-aux.ads </H1></DIV><HR>
+<PRE>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                           <A HREF="http://www.gnat.com">GNAT</A> ncurses Binding                           --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                       Terminal_Interface.Curses.Aux                      --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>--                                 S P E C                                  --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>-- Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Permission is hereby granted, free of charge, to any person obtaining a  --</EM></FONT>
+<FONT COLOR=green><EM>-- copy of this software and associated documentation files (the            --</EM></FONT>
+<FONT COLOR=green><EM>-- "Software"), to deal in the Software without restriction, including      --</EM></FONT>
+<FONT COLOR=green><EM>-- without limitation the rights to use, copy, modify, merge, publish,      --</EM></FONT>
+<FONT COLOR=green><EM>-- distribute, distribute with modifications, sublicense, and/or sell       --</EM></FONT>
+<FONT COLOR=green><EM>-- copies of the Software, and to permit persons to whom the Software is    --</EM></FONT>
+<FONT COLOR=green><EM>-- furnished to do so, subject to the following conditions:                 --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- The above copyright notice and this permission notice shall be included  --</EM></FONT>
+<FONT COLOR=green><EM>-- in all copies or substantial portions of the Software.                   --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  --</EM></FONT>
+<FONT COLOR=green><EM>-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               --</EM></FONT>
+<FONT COLOR=green><EM>-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   --</EM></FONT>
+<FONT COLOR=green><EM>-- IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   --</EM></FONT>
+<FONT COLOR=green><EM>-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    --</EM></FONT>
+<FONT COLOR=green><EM>-- THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               --</EM></FONT>
+<FONT COLOR=green><EM>--                                                                          --</EM></FONT>
+<FONT COLOR=green><EM>-- Except as contained in this notice, the name(s) of the above copyright   --</EM></FONT>
+<FONT COLOR=green><EM>-- holders shall not be used in advertising or otherwise to promote the     --</EM></FONT>
+<FONT COLOR=green><EM>-- sale, use or other dealings in this Software without prior written       --</EM></FONT>
+<FONT COLOR=green><EM>-- authorization.                                                           --</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  Author:  Juergen Pfeifer, 1996</EM></FONT>
+<FONT COLOR=green><EM>--  Version Control:</EM></FONT>
+<FONT COLOR=green><EM>--  @Revision: 1.18 @</EM></FONT>
+<FONT COLOR=green><EM>--  Binding Version 01.00</EM></FONT>
+<FONT COLOR=green><EM>------------------------------------------------------------------------------</EM></FONT>
+<FONT COLOR=green><EM>--  curses binding.</EM></FONT>
+<FONT COLOR=green><EM>--  This module is generated. Please don't change it manually!</EM></FONT>
+<FONT COLOR=green><EM>--  Run the generator instead.</EM></FONT>
+<FONT COLOR=green><EM>--  |</EM></FONT>
+<b>with</b> System;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C;
+<b>with</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings; <b>use</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings;
+<b>with</b> <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A>;
+
+<b>package</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<FONT COLOR=red><A NAME="ref_50_35" HREF="terminal_interface-curses-aux__adb.htm#ref_41_40">Aux</A></FONT> <b>is</b>
+   <b>pragma</b> Preelaborate (<A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>);
+
+   <b>use</b> <b>type</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
+
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_55_12">C_Int</A></FONT>      <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.int;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_56_12">C_Short</A></FONT>    <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.short;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_57_12">C_Long_Int</A></FONT> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.long;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_58_12">C_Size_T</A></FONT>   <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.size_t;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_59_12">C_UInt</A></FONT>     <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.unsigned;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_60_12">C_ULong</A></FONT>    <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.unsigned_long;
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_61_12">C_Char_Ptr</A></FONT> <b>is</b> <A HREF="interfac__ads.htm#ref_38_9">Interfaces</A>.C.Strings.chars_ptr;
+   <b>type</b>    <FONT COLOR=red><A NAME="ref_62_12">C_Void_Ptr</A></FONT> <b>is</b> <b>new</b> System.Address;
+   <b>type</b>    <FONT COLOR=red><A NAME="ref_63_12">C_Chtype</A></FONT>   <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_60_12">C_ULong</A>;
+   <b>type</b>    <FONT COLOR=red><A NAME="ref_64_12">C_AttrType</A></FONT> <b>is</b> <b>new</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_60_12">C_ULong</A>;
+
+   <FONT COLOR=green><EM>--  This is how those constants are defined in ncurses. I see them also</EM></FONT>
+   <FONT COLOR=green><EM>--  exactly like this in all ETI implementations I ever tested. So it</EM></FONT>
+   <FONT COLOR=green><EM>--  could be that this is quite general, but please check with your curses.</EM></FONT>
+   <FONT COLOR=green><EM>--  This is critical, because curses sometime mixes Boolean returns with</EM></FONT>
+   <FONT COLOR=green><EM>--  returning an error status.</EM></FONT>
+   <FONT COLOR=red><A NAME="ref_71_4">Curses_Ok</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 0;
+   <FONT COLOR=red><A NAME="ref_72_4">Curses_Err</A></FONT>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := -1;
+
+   <FONT COLOR=red><A NAME="ref_74_4">Curses_True</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 1;
+   <FONT COLOR=red><A NAME="ref_75_4">Curses_False</A></FONT> : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> := 0;
+
+   <FONT COLOR=green><EM>--  Eti_Error: type for error codes returned by the menu and form subsystem</EM></FONT>
+   <b>subtype</b> <FONT COLOR=red><A NAME="ref_78_12">Eti_Error</A></FONT> <b>is</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_55_12">C_Int</A> <b>range</b> -14 .. 0;
+
+   <FONT COLOR=red><A NAME="ref_80_4">E_Ok</A></FONT>               : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := 0;
+   <FONT COLOR=red><A NAME="ref_81_4">E_System_Error</A></FONT>     : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -1;
+   <FONT COLOR=red><A NAME="ref_82_4">E_Bad_Argument</A></FONT>     : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -2;
+   <FONT COLOR=red><A NAME="ref_83_4">E_Posted</A></FONT>           : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -3;
+   <FONT COLOR=red><A NAME="ref_84_4">E_Connected</A></FONT>        : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -4;
+   <FONT COLOR=red><A NAME="ref_85_4">E_Bad_State</A></FONT>        : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -5;
+   <FONT COLOR=red><A NAME="ref_86_4">E_No_Room</A></FONT>          : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -6;
+   <FONT COLOR=red><A NAME="ref_87_4">E_Not_Posted</A></FONT>       : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -7;
+   <FONT COLOR=red><A NAME="ref_88_4">E_Unknown_Command</A></FONT>  : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -8;
+   <FONT COLOR=red><A NAME="ref_89_4">E_No_Match</A></FONT>         : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -9;
+   <FONT COLOR=red><A NAME="ref_90_4">E_Not_Selectable</A></FONT>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -10;
+   <FONT COLOR=red><A NAME="ref_91_4">E_Not_Connected</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -11;
+   <FONT COLOR=red><A NAME="ref_92_4">E_Request_Denied</A></FONT>   : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -12;
+   <FONT COLOR=red><A NAME="ref_93_4">E_Invalid_Field</A></FONT>    : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -13;
+   <FONT COLOR=red><A NAME="ref_94_4">E_Current</A></FONT>          : <b>constant</b> <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A> := -14;
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_96_14" HREF="terminal_interface-curses-aux__adb.htm#ref_94_14">Eti_Exception</A></FONT> (<FONT COLOR=red><A NAME="ref_96_29" HREF="terminal_interface-curses-aux__adb.htm#ref_94_29">Code</A></FONT> : <A HREF="terminal_interface-curses-aux__ads.htm#ref_78_12">Eti_Error</A>);
+   <FONT COLOR=green><EM>--  Dispatch the error code and raise the appropriate exception</EM></FONT>
+   <FONT COLOR=green><EM>--</EM></FONT>
+   <FONT COLOR=green><EM>--</EM></FONT>
+   <FONT COLOR=green><EM>--  Some helpers</EM></FONT>
+   <b>function</b> Chtype_To_AttrChar <b>is</b> <b>new</b>
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>,
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>);
+   <b>function</b> AttrChar_To_Chtype <b>is</b> <b>new</b>
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>,
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_63_12">C_Chtype</A>);
+
+   <b>function</b> AttrChar_To_AttrType <b>is</b> <b>new</b>
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>,
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>);
+
+   <b>function</b> AttrType_To_AttrChar <b>is</b> <b>new</b>
+     <A HREF="unchconv__ads.htm#ref_20_10">Unchecked_Conversion</A> (<A HREF="unchconv__ads.htm#ref_17_9">Source</A> =&gt; <A HREF="terminal_interface-curses-aux__ads.htm#ref_64_12">C_AttrType</A>,
+                           <A HREF="unchconv__ads.htm#ref_18_9">Target</A> =&gt; <A HREF="terminal_interface-curses__ads.htm#ref_354_9">Attributed_Character</A>);
+
+   <b>procedure</b> <FONT COLOR=red><A NAME="ref_116_14" HREF="terminal_interface-curses-aux__adb.htm#ref_44_14">Fill_String</A></FONT> (<FONT COLOR=red><A NAME="ref_116_27" HREF="terminal_interface-curses-aux__adb.htm#ref_44_27">Cp</A></FONT>  : chars_ptr;
+                          <FONT COLOR=red><A NAME="ref_117_27" HREF="terminal_interface-curses-aux__adb.htm#ref_45_27">Str</A></FONT> : <b>out</b> String);
+   <FONT COLOR=green><EM>--  Fill the Str parameter with the string denoted by the chars_ptr</EM></FONT>
+   <FONT COLOR=green><EM>--  C-Style string.</EM></FONT>
+
+   <b>function</b> <FONT COLOR=red><A NAME="ref_121_13" HREF="terminal_interface-curses-aux__adb.htm#ref_73_13">Fill_String</A></FONT> (<FONT COLOR=red><A NAME="ref_121_26" HREF="terminal_interface-curses-aux__adb.htm#ref_73_26">Cp</A></FONT> : chars_ptr) <b>return</b> String;
+   <FONT COLOR=green><EM>--  Same but as function.</EM></FONT>
+
+<b>end</b> <A HREF="terminal_interface__ads.htm#ref_42_9">Terminal_Interface</A>.<A HREF="terminal_interface-curses__ads.htm#ref_49_28">Curses</A>.<A HREF="terminal_interface-curses-aux__ads.htm#ref_50_35">Aux</A>;
+</PRE></BODY></HTML>

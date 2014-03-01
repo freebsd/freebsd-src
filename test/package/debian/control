@@ -1,0 +1,16 @@
+Source: ncurses-examples
+Maintainer: Thomas E. Dickey <dickey@invisible-island.net>
+Section: misc
+Priority: optional
+Standards-Version: 3.8.4
+Build-Depends: debhelper (>= 5)
+Homepage: http://invisible-island.net/ncurses/ncurses-examples.html
+
+Package: ncurses-examples
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: ncurses-examples - example/test programs from ncurses
+ These are the example/test programs from the ncurses distribution.
+ .
+ This package installs in "bin/ncurses-examples" to avoid conflict with other
+ packages.

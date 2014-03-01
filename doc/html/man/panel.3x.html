@@ -1,0 +1,241 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: panel.3x,v 1.17 2010/10/02 23:22:44 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>panel 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>panel 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>                                                     <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       panel - panel stack extension for curses
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;panel.h&gt;</STRONG>
+
+       <STRONG>cc</STRONG> <STRONG>[flags]</STRONG> <STRONG>sourcefiles</STRONG> <STRONG>-lpanel</STRONG> <STRONG>-lncurses</STRONG>
+
+       <STRONG>PANEL</STRONG> <STRONG>*new_panel(WINDOW</STRONG> <STRONG>*win)</STRONG>
+       <STRONG>int</STRONG> <STRONG>bottom_panel(PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>int</STRONG> <STRONG>top_panel(PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>int</STRONG> <STRONG>show_panel(PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>void</STRONG> <STRONG>update_panels();</STRONG>
+       <STRONG>int</STRONG> <STRONG>hide_panel(PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>WINDOW</STRONG> <STRONG>*panel_window(const</STRONG> <STRONG>PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>int</STRONG> <STRONG>replace_panel(PANEL</STRONG> <STRONG>*pan,</STRONG> <STRONG>WINDOW</STRONG> <STRONG>*window)</STRONG>
+       <STRONG>int</STRONG> <STRONG>move_panel(PANEL</STRONG> <STRONG>*pan,</STRONG> <STRONG>int</STRONG> <STRONG>starty,</STRONG> <STRONG>int</STRONG> <STRONG>startx)</STRONG>
+       <STRONG>int</STRONG> <STRONG>panel_hidden(const</STRONG> <STRONG>PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>PANEL</STRONG> <STRONG>*panel_above(const</STRONG> <STRONG>PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>PANEL</STRONG> <STRONG>*panel_below(const</STRONG> <STRONG>PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>int</STRONG> <STRONG>set_panel_userptr(PANEL</STRONG> <STRONG>*pan,</STRONG> <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*ptr)</STRONG>
+       <STRONG>const</STRONG> <STRONG>void</STRONG> <STRONG>*panel_userptr(const</STRONG> <STRONG>PANEL</STRONG> <STRONG>*pan)</STRONG>
+       <STRONG>int</STRONG> <STRONG>del_panel(PANEL</STRONG> <STRONG>*pan)</STRONG>
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       Panels  are  <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>  windows with the added feature of
+       depth.  Panel functions allow the use of  stacked  windows
+       and  ensure  the  proper  portions  of each window and the
+       curses <STRONG>stdscr</STRONG> window are hidden or displayed  when  panels
+       are  added,  moved,  modified or removed.  The set of cur-
+       rently visible panels is the stack of panels.  The  <STRONG>stdscr</STRONG>
+       window  is  beneath all panels, and is not considered part
+       of the stack.
+
+       A window is associated with every panel.  The  panel  rou-
+       tines  enable  you to create, move, hide, and show panels,
+       as well as position a panel at any desired location in the
+       stack.
+
+       Panel routines are a functional layer added to <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,
+       make only high-level curses calls, and work anywhere  ter-
+       minfo curses does.
+
+
+</PRE>
+<H2>FUNCTIONS</H2><PRE>
+       <STRONG>new_panel(win)</STRONG>
+              allocates   a   <STRONG>PANEL</STRONG> structure, associates it with
+              <STRONG>win</STRONG>, places the panel  on  the  top  of  the  stack
+              (causes   it  to   be   displayed  above  any other
+              panel) and returns a pointer to the new panel.
+
+       <STRONG>update_panels()</STRONG>
+              refreshes the virtual screen to reflect  the  rela-
+              tions between the panels in the stack, but does not
+              call doupdate() to  refresh  the  physical  screen.
+              Use this function and not <STRONG>wrefresh</STRONG> or <STRONG>wnoutrefresh</STRONG>.
+              <STRONG>update_panels</STRONG> may be called more than once before a
+              call  to doupdate(), but doupdate() is the function
+              responsible for updating the physical screen.
+
+       <STRONG>del_panel(pan)</STRONG>
+              removes the given panel from the  stack and deallo-
+              cates  the  <STRONG>PANEL</STRONG> structure (but not its associated
+              window).
+
+       <STRONG>hide_panel(pan)</STRONG>
+              removes the given panel from the  panel  stack  and
+              thus hides it from view. The <STRONG>PANEL</STRONG> structure is not
+              lost, merely removed from the stack.
+
+       <STRONG>panel_hidden(pan)</STRONG>
+              returns TRUE if the panel is in  the  panel  stack,
+              FALSE  if  it  is  not.   If  the  panel  is a null
+              pointer, return ERR.
+
+       <STRONG>show_panel(pan)</STRONG>
+              makes a hidden panel visible by placing it  on  top
+              of the panels in the panel stack. See COMPATIBILITY
+              below.
+
+       <STRONG>top_panel(pan)</STRONG>
+              puts the given visible panel on top of  all  panels
+              in the stack.  See COMPATIBILITY below.
+
+       <STRONG>bottom_panel(pan)</STRONG>
+              puts panel at the bottom of all panels.
+
+       <STRONG>move_panel(pan,starty,startx)</STRONG>
+              moves the given panel window so that its upper-left
+              corner is at <STRONG>starty</STRONG>, <STRONG>startx</STRONG>.  It  does  not  change
+              the position of the panel in the stack.  Be sure to
+              use this function, not <STRONG>mvwin()</STRONG>,  to  move  a  panel
+              window.
+
+       <STRONG>replace_panel(pan,window)</STRONG>
+              replaces  the  current  window of panel with <STRONG>window</STRONG>
+              (useful, for example if you want to resize a panel;
+              if you're using <STRONG>ncurses</STRONG>, you can call <STRONG>replace_panel</STRONG>
+              on the output of <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>).  It does not  change
+              the position of the panel in the stack.
+
+       <STRONG>panel_above(pan)</STRONG>
+              returns  a  pointer to the panel above pan.  If the
+              panel argument is <STRONG>(PANEL</STRONG> <STRONG>*)0</STRONG>, it returns a  pointer
+              to the bottom panel in the stack.
+
+       <STRONG>panel_below(pan)</STRONG>
+              returns  a pointer to the panel just below pan.  If
+              the panel argument is  <STRONG>(PANEL</STRONG>  <STRONG>*)0</STRONG>,  it  returns  a
+              pointer to the top panel in the stack.
+
+       <STRONG>set_panel_userptr(pan,ptr)</STRONG>
+              sets the panel's user pointer.
+
+       <STRONG>panel_userptr(pan)</STRONG>
+              returns the user pointer for a given panel.
+
+       <STRONG>panel_window(pan)</STRONG>
+              returns a pointer to the window of the given panel.
+
+
+</PRE>
+<H2>DIAGNOSTICS</H2><PRE>
+       Each routine that returns a pointer  returns  <STRONG>NULL</STRONG>  if  an
+       error  occurs.  Each  routine  that  returns  an int value
+       returns <STRONG>OK</STRONG> if it executes successfully and <STRONG>ERR</STRONG> if not.
+
+
+</PRE>
+<H2>COMPATIBILITY</H2><PRE>
+       Reasonable care has been taken to   ensure   compatibility
+       with   the   native   panel  facility introduced in SVr3.2
+       (inspection  of  the  SVr4  manual  pages   suggests   the
+       programming  interface  is  unchanged).   The  <STRONG>PANEL</STRONG>  data
+       structures are merely  similar. The   programmer  is  cau-
+       tioned not to directly use <STRONG>PANEL</STRONG> fields.
+
+       The  functions  <STRONG>show_panel()</STRONG> and <STRONG>top_panel()</STRONG> are identical
+       in this implementation, and work equally  well  with  dis-
+       played or hidden panels.  In the native System V implemen-
+       tation, <STRONG>show_panel()</STRONG> is intended for making a hidden panel
+       visible  (at  the  top  of  the  stack) and <STRONG>top_panel()</STRONG> is
+       intended for making an already-visible panel move  to  the
+       top  of  the  stack.  You are cautioned to use the correct
+       function  to  ensure  compatibility  with   native   panel
+       libraries.
+
+
+</PRE>
+<H2>NOTE</H2><PRE>
+       In  your  library  list, libpanel.a should be before libn-
+       curses.a; that is, you want to  say  `-lpanel  -lncurses',
+       not the other way around (which would usually give a link-
+       error).
+
+
+</PRE>
+<H2>FILES</H2><PRE>
+       panel.h interface for the panels library
+
+       libpanel.a the panels library itself
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
+
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+
+
+</PRE>
+<H2>AUTHOR</H2><PRE>
+       Originally  written  by   Warren   Tucker   &lt;wht@n4hgf.mt-
+       park.ga.us&gt;,  primarily  to  assist  in porting u386mon to
+       systems without a native panels library.   Repackaged  for
+       ncurses by Zeyd ben-Halim.
+
+
+
+                                                              <STRONG><A HREF="panel.3x.html">panel(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>

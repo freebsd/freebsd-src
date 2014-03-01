@@ -1,0 +1,255 @@
+<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!-- 
+  ****************************************************************************
+  * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
+  * @Id: menu_driver.3x,v 1.20 2010/12/04 18:38:55 tom Exp @
+-->
+<HTML>
+<HEAD>
+<TITLE>menu_driver 3x</TITLE>
+<link rev=made href="mailto:bug-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+</HEAD>
+<BODY>
+<H1>menu_driver 3x</H1>
+<HR>
+<PRE>
+<!-- Manpage converted by man2html 3.0.1 -->
+<STRONG><A HREF="menu_driver.3x.html">menu_driver(3x)</A></STRONG>                                         <STRONG><A HREF="menu_driver.3x.html">menu_driver(3x)</A></STRONG>
+
+
+
+
+</PRE>
+<H2>NAME</H2><PRE>
+       <STRONG>menu_driver</STRONG> - command-processing loop of the menu system
+
+
+</PRE>
+<H2>SYNOPSIS</H2><PRE>
+       <STRONG>#include</STRONG> <STRONG>&lt;menu.h&gt;</STRONG>
+       int menu_driver(MENU *menu, int c);
+
+
+</PRE>
+<H2>DESCRIPTION</H2><PRE>
+       Once a menu has been posted (displayed), you should funnel
+       input events to it through <STRONG>menu_driver</STRONG>.  This routine  has
+       three major input cases:
+
+       <STRONG>o</STRONG>   The  input  is  a form navigation request.  Navigation
+           request codes are constants defined in <STRONG>&lt;form.h&gt;</STRONG>, which
+           are   distinct  from  the  key-  and  character  codes
+           returned by <STRONG>wgetch</STRONG>.
+
+       <STRONG>o</STRONG>   The input is a printable character.  Printable charac-
+           ters  (which  must  be  positive,  less  than 256) are
+           checked according to the program's locale settings.
+
+       <STRONG>o</STRONG>   The input is the KEY_MOUSE special key associated with
+           an mouse event.
+
+       The menu driver requests are as follows:
+
+       REQ_LEFT_ITEM
+            Move left to an item.
+
+       REQ_RIGHT_ITEM
+            Move right to an item.
+
+       REQ_UP_ITEM
+            Move up to an item.
+
+       REQ_DOWN_ITEM
+            Move down to an item.
+
+       REQ_SCR_ULINE
+            Scroll up a line.
+
+       REQ_SCR_DLINE
+            Scroll down a line.
+
+       REQ_SCR_DPAGE
+            Scroll down a page.
+
+       REQ_SCR_UPAGE
+            Scroll up a page.
+
+       REQ_FIRST_ITEM
+            Move to the first item.
+
+       REQ_LAST_ITEM
+            Move to the last item.
+
+       REQ_NEXT_ITEM
+            Move to the next item.
+
+       REQ_PREV_ITEM
+            Move to the previous item.
+
+       REQ_TOGGLE_ITEM
+            Select/deselect an item.
+
+       REQ_CLEAR_PATTERN
+            Clear the menu pattern buffer.
+
+       REQ_BACK_PATTERN
+            Delete   the  previous  character  from  the  pattern
+            buffer.
+
+       REQ_NEXT_MATCH
+            Move to the next item matching the pattern match.
+
+       REQ_PREV_MATCH
+            Move to the previous item matching the pattern match.
+
+       If  the second argument is a printable character, the code
+       appends it to the pattern buffer and attempts to  move  to
+       the  next  item  matching the new pattern.  If there is no
+       such match, <STRONG>menu_driver</STRONG> returns <STRONG>E_NO_MATCH</STRONG> and deletes the
+       appended character from the buffer.
+
+       If  the  second  argument  is one of the above pre-defined
+       requests, the corresponding action is performed.
+
+   <STRONG>MOUSE</STRONG> <STRONG>HANDLING</STRONG>
+       If the second argument is the KEY_MOUSE special  key,  the
+       associated mouse event is translated into one of the above
+       pre-defined requests.  Currently only clicks in  the  user
+       window  (e.g., inside the menu display area or the decora-
+       tion window) are handled.
+
+       If you click above the display region of the menu:
+
+       <STRONG>o</STRONG>   a REQ_SCR_ULINE is generated for a single click,
+
+       <STRONG>o</STRONG>   a REQ_SCR_UPAGE is generated for a double-click and
+
+       <STRONG>o</STRONG>   a REQ_FIRST_ITEM is generated for a triple-click.
+
+       If you click below the display region of the menu:
+
+       <STRONG>o</STRONG>   a REQ_SCR_DLINE is generated for a single click,
+
+       <STRONG>o</STRONG>   a REQ_SCR_DPAGE is generated for a double-click and
+
+       <STRONG>o</STRONG>   a REQ_LAST_ITEM is generated for a triple-click.
+
+       If you click at an item inside the  display  area  of  the
+       menu:
+
+       <STRONG>o</STRONG>   the menu cursor is positioned to that item.
+
+       <STRONG>o</STRONG>   If  you double-click an item a REQ_TOGGLE_ITEM is gen-
+           erated and <STRONG>E_UNKNOWN_COMMAND</STRONG> is returned.  This return
+           value  makes  sense,  because  a  double click usually
+           means that an item-specific action should be returned.
+           It is exactly the purpose of this return value to sig-
+           nal that an application  specific  command  should  be
+           executed.
+
+       <STRONG>o</STRONG>   If  a translation into a request was done, <STRONG>menu_driver</STRONG>
+           returns the result of this request.
+
+       If you clicked outside the user window or the mouse  event
+       could   not   be   translated   into  a  menu  request  an
+       <STRONG>E_REQUEST_DENIED</STRONG> is returned.
+
+   <STRONG>APPLICATION-DEFINED</STRONG> <STRONG>COMMANDS</STRONG>
+       If the second argument is neither printable nor one of the
+       above  pre-defined  menu  requests or KEY_MOUSE, the drive
+       assumes it is an application-specific command and  returns
+       <STRONG>E_UNKNOWN_COMMAND</STRONG>.  Application-defined commands should be
+       defined relative to  <STRONG>MAX_COMMAND</STRONG>,  the  maximum  value  of
+       these pre-defined requests.
+
+
+</PRE>
+<H2>RETURN VALUE</H2><PRE>
+       <STRONG>menu_driver</STRONG> return one of the following error codes:
+
+       <STRONG>E_OK</STRONG> The routine succeeded.
+
+       <STRONG>E_SYSTEM_ERROR</STRONG>
+            System error occurred (see <STRONG>errno</STRONG>).
+
+       <STRONG>E_BAD_ARGUMENT</STRONG>
+            Routine  detected  an incorrect or out-of-range argu-
+            ment.
+
+       <STRONG>E_BAD_STATE</STRONG>
+            Routine was called from an initialization or termina-
+            tion function.
+
+       <STRONG>E_NOT_POSTED</STRONG>
+            The menu has not been posted.
+
+       <STRONG>E_UNKNOWN_COMMAND</STRONG>
+            The menu driver code saw an unknown request code.
+
+       <STRONG>E_NO_MATCH</STRONG>
+            Character failed to match.
+
+       <STRONG>E_REQUEST_DENIED</STRONG>
+            The menu driver could not process the request.
+
+
+</PRE>
+<H2>SEE ALSO</H2><PRE>
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="menu.3x.html">menu(3x)</A></STRONG>, <STRONG><A HREF="getch.3x.html">getch(3x)</A></STRONG>.
+
+
+</PRE>
+<H2>NOTES</H2><PRE>
+       The header file <STRONG>&lt;menu.h&gt;</STRONG> automatically includes the header
+       files <STRONG>&lt;curses.h&gt;</STRONG>.
+
+
+</PRE>
+<H2>PORTABILITY</H2><PRE>
+       These routines emulate the System V  menu  library.   They
+       were  not supported on Version 7 or BSD versions. The sup-
+       port for mouse events is ncurses specific.
+
+
+</PRE>
+<H2>AUTHORS</H2><PRE>
+       Juergen Pfeifer.  Manual  pages  and  adaptation  for  new
+       curses by Eric S. Raymond.
+
+
+
+                                                        <STRONG><A HREF="menu_driver.3x.html">menu_driver(3x)</A></STRONG>
+</PRE>
+<HR>
+<ADDRESS>
+Man(1) output converted with
+<a href="http://www.oac.uci.edu/indiv/ehood/man2html.html">man2html</a>
+</ADDRESS>
+</BODY>
+</HTML>
