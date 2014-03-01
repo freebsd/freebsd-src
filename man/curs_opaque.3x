@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2007-2009,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2007-2010,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,12 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_opaque.3x,v 1.9 2010/12/04 18:40:45 tom Exp $
+.\" $Id: curs_opaque.3x,v 1.10 2013/07/20 19:42:29 tom Exp $
 .TH curs_opaque 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
 .na
 .hy 0
 .SH NAME
@@ -78,7 +82,7 @@
 .br
 .SH DESCRIPTION
 This implementation provides functions which return properties
-set in the WINDOW structure, allowing it to be ``opaque'' if
+set in the WINDOW structure, allowing it to be \*(``opaque\*('' if
 the symbol \fBNCURSES_OPAQUE\fR is defined:
 .TP 5
 \fBis_cleared\fR
@@ -124,7 +128,8 @@ returns the parent WINDOW pointer for subwindows,
 or NULL for windows having no parent.
 .TP 5
 \fBwgetscrreg\fR
-returns the top and bottom rows for the scrolling margin as set in \fBwsetscrreg\fP.
+returns the top and bottom rows for the scrolling margin
+as set in \fBwsetscrreg\fP.
 .SH RETURN VALUE
 These functions all return TRUE or FALSE, except as noted.
 .SH NOTES

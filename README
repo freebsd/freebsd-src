@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------------
--- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.               --
+-- Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.               --
 --                                                                           --
 -- Permission is hereby granted, free of charge, to any person obtaining a   --
 -- copy of this software and associated documentation files (the             --
@@ -25,7 +25,7 @@
 -- sale, use or other dealings in this Software without prior written        --
 -- authorization.                                                            --
 -------------------------------------------------------------------------------
--- $Id: README,v 1.23 2006/04/22 22:19:37 tom Exp $
+-- $Id: README,v 1.25 2012/08/11 20:11:26 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -78,6 +78,10 @@ features are provided by ifdef's in the header files.  The wide-character
 library interfaces are not binary-compatible with the non-wide-character
 version.
 
+If you configure using the --enable-reentrant option, a "t" is appended to the
+library names (e.g., libncursest.a) and the resulting libraries have a
+different binary interface which makes the ncurses interface more "opaque".
+
 The ncurses libraries implement the curses API.  The panel, menu and forms
 libraries implement clones of the SVr4 panel, menu and forms APIs.  The source
 code for these lives in the `ncurses', `panel', `menu', and `form' directories
@@ -122,8 +126,9 @@ The utilities are as follows:
 	tic             -- terminfo source to binary compiler
 	infocmp         -- terminfo binary to source decompiler/comparator
 	clear           -- emits clear-screen for current terminal
+	tabs            -- set tabs on a terminal
 	tput            -- shell-script access to terminal capabilities.
-	toe		-- table of entries utility
+	toe             -- table of entries utility
 	tset            -- terminal-initialization utility
 
 The first two (tic and infocmp) are used for manipulating terminfo
@@ -153,8 +158,10 @@ Thomas Dickey (maintainer for 1.9.9g through 4.1, resuming with FSF's 5.0):
 	configuration scripts, porting, mods to adhere to XSI Curses in the
 	areas of background color, terminal modes.  Also memory leak testing,
 	the wresize, default colors and key definition extensions and numerous
-	bug fixes (more than half of those enumerated in NEWS beginning with
-	the internal release 1.8.9).
+	bug fixes -- more than half of those enumerated in NEWS beginning with
+	the internal release 1.8.9, see
+
+		http://invisible-island.net/personal/changelogs.html
 
 Florian La Roche (official maintainer for FSF's ncurses 4.2)
 	Beginning with release 4.2, ncurses is distributed under an MIT-style

@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include "cursesm.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesm.cc,v 1.22 2005/04/02 20:39:05 tom Exp $")
+MODULE_ID("$Id: cursesm.cc,v 1.23 2011/09/17 22:11:32 tom Exp $")
 
 NCursesMenuItem::~NCursesMenuItem()
 {
@@ -375,33 +375,39 @@ NCursesMenu::On_Menu_Termination()
 void
 NCursesMenu::On_Item_Init(NCursesMenuItem& item)
 {
+  (void) item;
 }
 
 void
 NCursesMenu::On_Item_Termination(NCursesMenuItem& item)
 {
+  (void) item;
 }
 
 void
 NCursesMenu::On_Request_Denied(int c) const
 {
+  (void) c;
   ::beep();
 }
 
 void
 NCursesMenu::On_Not_Selectable(int c) const
 {
+  (void) c;
   ::beep();
 }
 
 void
 NCursesMenu::On_No_Match(int c) const
 {
+  (void) c;
   ::beep();
 }
 
 void
 NCursesMenu::On_Unknown_Command(int c) const
 {
+  (void) c;
   ::beep();
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,17 +42,13 @@
 
 #include <curses.priv.h>
 
-#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
-#define _POSIX_SOURCE
-#endif
-
 #ifndef CUR
 #define CUR SP_TERMTYPE
 #endif
 
 #include <tic.h>
 
-MODULE_ID("$Id: lib_newterm.c,v 1.86 2010/05/20 23:25:18 tom Exp $")
+MODULE_ID("$Id: lib_newterm.c,v 1.90 2013/09/28 21:02:56 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define NumLabels      InfoOf(SP_PARM).numlabels
@@ -185,7 +181,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
     START_TRACE();
     T((T_CALLED("newterm(%p, \"%s\", %p,%p)"),
        (void *) SP_PARM,
-       name,
+       (name ? name : ""),
        (void *) ofp,
        (void *) ifp));
 
@@ -283,7 +279,8 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	    NCURSES_SP_NAME(typeahead) (NCURSES_SP_ARGx fileno(_ifp));
 #ifdef TERMIOS
 	    SP_PARM->_use_meta = ((new_term->Ottyb.c_cflag & CSIZE) == CS8 &&
-				  !(new_term->Ottyb.c_iflag & ISTRIP));
+				  !(new_term->Ottyb.c_iflag & ISTRIP)) ||
+		USE_KLIBC_KBD;
 #else
 	    SP_PARM->_use_meta = FALSE;
 #endif
@@ -310,7 +307,7 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 	    /* compute movement costs so we can do better move optimization */
 #ifdef USE_TERM_DRIVER
 	    TCBOf(SP_PARM)->drv->scinit(SP_PARM);
-#else
+#else /* ! USE_TERM_DRIVER */
 	    /*
 	     * Check for mismatched graphic-rendition capabilities.  Most SVr4
 	     * terminfo trees contain entries that have rmul or rmso equated to
@@ -323,13 +320,16 @@ NCURSES_SP_NAME(newterm) (NCURSES_SP_DCLx
 #define SGR0_TEST(mode) (mode != 0) && (exit_attribute_mode == 0 || strcmp(mode, exit_attribute_mode))
 	    SP_PARM->_use_rmso = SGR0_TEST(exit_standout_mode);
 	    SP_PARM->_use_rmul = SGR0_TEST(exit_underline_mode);
+#if USE_ITALIC
+	    SP_PARM->_use_ritm = SGR0_TEST(exit_italics_mode);
+#endif
 
 	    /* compute movement costs so we can do better move optimization */
 	    _nc_mvcur_init();
 
 	    /* initialize terminal to a sane state */
 	    _nc_screen_init();
-#endif
+#endif /* USE_TERM_DRIVER */
 
 	    /* Initialize the terminal line settings. */
 	    _nc_initscr(NCURSES_SP_ARG);

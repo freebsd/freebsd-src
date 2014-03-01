@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: firework.c,v 1.27 2010/11/13 20:58:25 tom Exp $
+ * $Id: firework.c,v 1.29 2013/04/27 19:46:53 tom Exp $
  */
 #include <test.priv.h>
 
@@ -41,7 +41,7 @@ cleanup(void)
     endwin();
 }
 
-static RETSIGTYPE
+static void
 onsig(int n GCC_UNUSED)
 {
     cleanup();
@@ -94,14 +94,14 @@ explode(int row, int col)
     showit();
 
     init_pair(1, get_colour(&bold), my_bg);
-    (void) attrset(COLOR_PAIR(1) | bold);
+    (void) attrset((chtype) COLOR_PAIR(1) | bold);
     MvPrintw(row - 1, col - 1, " - ");
     MvPrintw(row + 0, col - 1, "-+-");
     MvPrintw(row + 1, col - 1, " - ");
     showit();
 
     init_pair(1, get_colour(&bold), my_bg);
-    (void) attrset(COLOR_PAIR(1) | bold);
+    (void) attrset((chtype) COLOR_PAIR(1) | bold);
     MvPrintw(row - 2, col - 2, " --- ");
     MvPrintw(row - 1, col - 2, "-+++-");
     MvPrintw(row + 0, col - 2, "-+#+-");
@@ -110,7 +110,7 @@ explode(int row, int col)
     showit();
 
     init_pair(1, get_colour(&bold), my_bg);
-    (void) attrset(COLOR_PAIR(1) | bold);
+    (void) attrset((chtype) COLOR_PAIR(1) | bold);
     MvPrintw(row - 2, col - 2, " +++ ");
     MvPrintw(row - 1, col - 2, "++#++");
     MvPrintw(row + 0, col - 2, "+# #+");
@@ -119,7 +119,7 @@ explode(int row, int col)
     showit();
 
     init_pair(1, get_colour(&bold), my_bg);
-    (void) attrset(COLOR_PAIR(1) | bold);
+    (void) attrset((chtype) COLOR_PAIR(1) | bold);
     MvPrintw(row - 2, col - 2, "  #  ");
     MvPrintw(row - 1, col - 2, "## ##");
     MvPrintw(row + 0, col - 2, "#   #");
@@ -128,7 +128,7 @@ explode(int row, int col)
     showit();
 
     init_pair(1, get_colour(&bold), my_bg);
-    (void) attrset(COLOR_PAIR(1) | bold);
+    (void) attrset((chtype) COLOR_PAIR(1) | bold);
     MvPrintw(row - 2, col - 2, " # # ");
     MvPrintw(row - 1, col - 2, "#   #");
     MvPrintw(row + 0, col - 2, "     ");

@@ -1,6 +1,6 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
  *   Author: Juergen Pfeifer, 1997                                          *
  ****************************************************************************/
 
-// $Id: cursesm.h,v 1.25 2005/08/13 18:10:36 tom Exp $
+// $Id: cursesm.h,v 1.29 2012/12/29 21:48:33 tom Exp $
 
 #ifndef NCURSES_CURSESM_H_incl
 #define NCURSES_CURSESM_H_incl 1
@@ -53,7 +53,7 @@ class NCURSES_IMPEXP NCursesMenuItem
 protected:
   ITEM *item;
 
-  inline void OnError (int err) const THROWS(NCursesMenuException) {
+  inline void OnError (int err) const THROW2(NCursesException const, NCursesMenuException) {
     if (err != E_OK)
       THROW(new NCursesMenuException (err));
   }
@@ -82,6 +82,7 @@ public:
   NCursesMenuItem(const NCursesMenuItem& rhs)
     : item(0)
   {
+    (void) rhs;
   }
 
   virtual ~NCursesMenuItem ();
@@ -252,7 +253,7 @@ protected:
 		 bool with_frame,
 		 bool autoDeleteItems);
 
-  inline void OnError (int err) const THROWS(NCursesMenuException) {
+  inline void OnError (int err) const THROW2(NCursesException const, NCursesMenuException) {
     if (err != E_OK)
       THROW(new NCursesMenuException (this, err));
   }
@@ -635,7 +636,7 @@ protected:
   }
 
 public:
-  NCursesUserMenu (NCursesMenuItem Items[],
+  NCursesUserMenu (NCursesMenuItem* Items[],
 		   const T* p_UserData = STATIC_CAST(T*)(0),
 		   bool with_frame=FALSE,
 		   bool autoDelete_Items=FALSE)
@@ -644,7 +645,7 @@ public:
 	set_user (const_cast<void *>(p_UserData));
   };
 
-  NCursesUserMenu (NCursesMenuItem Items[],
+  NCursesUserMenu (NCursesMenuItem* Items[],
 		   int nlines,
 		   int ncols,
 		   int begin_y = 0,

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,14 +38,14 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkcolor.c,v 1.16 2009/10/24 22:12:21 tom Exp $")
+MODULE_ID("$Id: lib_slkcolor.c,v 1.17 2014/02/01 22:10:42 tom Exp $")
 
 NCURSES_EXPORT(int)
-NCURSES_SP_NAME(slk_color) (NCURSES_SP_DCLx short color_pair_number)
+NCURSES_SP_NAME(slk_color) (NCURSES_SP_DCLx NCURSES_PAIRS_T color_pair_number)
 {
     int code = ERR;
 
-    T((T_CALLED("slk_color(%p,%d)"), (void *) SP_PARM, color_pair_number));
+    T((T_CALLED("slk_color(%p,%d)"), (void *) SP_PARM, (int) color_pair_number));
 
     if (SP_PARM != 0
 	&& SP_PARM->_slk != 0
@@ -61,7 +61,7 @@ NCURSES_SP_NAME(slk_color) (NCURSES_SP_DCLx short color_pair_number)
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-slk_color(short color_pair_number)
+slk_color(NCURSES_PAIRS_T color_pair_number)
 {
     return NCURSES_SP_NAME(slk_color) (CURRENT_SCREEN, color_pair_number);
 }

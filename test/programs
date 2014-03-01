@@ -1,6 +1,6 @@
-# $Id: programs,v 1.19 2009/09/12 19:44:01 tom Exp $
+# $Id: programs,v 1.24 2013/12/07 18:06:24 tom Exp $
 ##############################################################################
-# Copyright (c) 2006-2008,2009 Free Software Foundation, Inc.                #
+# Copyright (c) 2006-2009,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -48,11 +48,13 @@ demo_terminfo	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	demo_terminfo
 ditto		$(LDFLAGS_THREADS)	$(LOCAL_LIBS)	ditto
 dots		$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	dots
 dots_mvcur	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	dots_mvcur
+dots_termcap	$(LDFLAGS_TINFO)	$(LOCAL_LIBS)	dots_termcap
 echochar	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	echochar
 filter		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	filter
 firework	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	firework
 firstlast	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	firstlast
 foldkeys	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	foldkeys
+form_driver_w	$(LDFLAGS_DEFAULT)	$(LOCAL_LIBS)	form_driver_w
 gdc		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	gdc
 hanoi		$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	hanoi
 hashtest	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	hashtest
@@ -83,6 +85,8 @@ test_getstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_getstr
 test_instr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_instr
 test_inwstr	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_inwstr
 test_opaque	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_opaque
+test_vid_puts	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vid_puts
+test_vidputs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	test_vidputs
 testaddch	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	testaddch
 testcurs	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	testcurs
 testscanw	$(LDFLAGS_CURSES)	$(LOCAL_LIBS)	testscanw

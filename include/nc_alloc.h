@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,10 +29,11 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: nc_alloc.h,v 1.18 2010/11/20 22:59:49 tom Exp $ */
+/* $Id: nc_alloc.h,v 1.22 2013/01/26 21:56:51 tom Exp $ */
 
 #ifndef NC_ALLOC_included
 #define NC_ALLOC_included 1
+/* *INDENT-OFF* */
 
 #ifdef __cplusplus
 extern "C" {
@@ -94,6 +95,7 @@ extern NCURSES_EXPORT(void) NCURSES_SP_NAME(_nc_free_and_exit)(SCREEN*, int) GCC
 /* doalloc.c */
 extern NCURSES_EXPORT(void *) _nc_doalloc(void *, size_t);
 #if !HAVE_STRDUP
+#undef strdup
 #define strdup _nc_strdup
 extern NCURSES_EXPORT(char *) _nc_strdup(const char *);
 #endif
@@ -101,12 +103,14 @@ extern NCURSES_EXPORT(char *) _nc_strdup(const char *);
 /* entries.c */
 extern NCURSES_EXPORT(void) _nc_leaks_tinfo(void);
 
-#define typeMalloc(type,elts) (type *)malloc((elts)*sizeof(type))
-#define typeCalloc(type,elts) (type *)calloc((elts),sizeof(type))
-#define typeRealloc(type,elts,ptr) (type *)_nc_doalloc(ptr, (elts)*sizeof(type))
+#define typeMalloc(type,elts) (type *)malloc((size_t)(elts)*sizeof(type))
+#define typeCalloc(type,elts) (type *)calloc((size_t)(elts),sizeof(type))
+#define typeRealloc(type,elts,ptr) (type *)_nc_doalloc(ptr, (size_t)(elts)*sizeof(type))
 
 #ifdef __cplusplus
 }
 #endif
+
+/* *INDENT-ON* */
 
 #endif /* NC_ALLOC_included */

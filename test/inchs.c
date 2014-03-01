@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2007-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: inchs.c,v 1.11 2010/11/13 23:41:23 tom Exp $
+ * $Id: inchs.c,v 1.12 2012/11/18 01:58:15 tom Exp $
  *
  * Author: Thomas E Dickey
  */
@@ -49,6 +49,16 @@
 
 #define BASE_Y 7
 #define MAX_COLS 1024
+
+static void
+failed(const char *s)
+{
+    int save = errno;
+    endwin();
+    errno = save;
+    perror(s);
+    ExitProgram(EXIT_FAILURE);
+}
 
 static bool
 Quit(int ch)
@@ -87,6 +97,8 @@ test_inchs(int level, char **argv, WINDOW *chrwin, WINDOW *strwin)
 	txtwin = stdscr;
 	base_y = BASE_Y;
     }
+    if (txtwin == 0)
+	failed("cannot create txtwin");
 
     keypad(txtwin, TRUE);	/* enable keyboard mapping */
     (void) cbreak();		/* take input chars one at a time, no wait for \n */

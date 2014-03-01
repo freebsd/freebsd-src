@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,14 +35,15 @@
 #include "cursslk.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursslk.cc,v 1.15 2005/08/06 22:12:36 tom Exp $")
+MODULE_ID("$Id: cursslk.cc,v 1.16 2012/02/23 10:41:56 tom Exp $")
 
 Soft_Label_Key_Set::Soft_Label_Key&
   Soft_Label_Key_Set::Soft_Label_Key::operator=(char *text)
 {
   delete[] label;
-  label = new char[1 + ::strlen(text)];
-  (::strcpy)(label,text);
+  size_t need = 1 + ::strlen(text);
+  label = new char[need];
+  ::_nc_STRCPY(label,text,need);
   return *this;
 }
 

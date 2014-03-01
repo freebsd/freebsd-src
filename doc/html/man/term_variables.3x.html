@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+  * Copyright (c) 2011,2013 Free Software Foundation, Inc.                   *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: term_variables.3x,v 1.2 2010/12/04 18:38:55 tom Exp @
+  * @Id: term_variables.3x,v 1.3 2011/12/17 23:31:50 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -99,8 +99,8 @@
    <STRONG>Current</STRONG> <STRONG>Terminal</STRONG> <STRONG>Data</STRONG>
        After  initializing the curses or terminfo interfaces, the
        <STRONG>cur_term</STRONG> contains data describing  the  current  terminal.
-       This variable is also set as a side-effect of <STRONG><A HREF="set_term.3x.html">set_term(3x)</A></STRONG>
-       and <STRONG><A HREF="delscreen.3x.html">delscreen(3x)</A></STRONG>.
+       This variable is also set as a side-effect of <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>
+       and <STRONG><A HREF="curs_initscr.3x.html">curs_initscr(3x)</A></STRONG>.
 
        It is possible to save a value of <STRONG>cur_term</STRONG> for  subsequent
        use  as  a  parameter  to  <STRONG>set_term</STRONG>, for switching between
@@ -108,7 +108,7 @@
        from <STRONG>newterm</STRONG> or <STRONG>setupterm</STRONG> to reuse in <STRONG>set_term</STRONG>.
 
    <STRONG>Terminfo</STRONG> <STRONG>Names</STRONG>
-       The  <STRONG><A HREF="tic.1.html">tic(1)</A></STRONG>  and <STRONG><A HREF="infocmp.1.html">infocmp(1)</A></STRONG> programs use lookup tables for
+       The  <STRONG><A HREF="tic.1m.html">tic(1m)</A></STRONG>  and <STRONG><A HREF="infocmp.1m.html">infocmp(1m)</A></STRONG> programs use lookup tables for
        the long and short names of terminfo capabilities, as well
        as  the  corresponding  names  for  termcap  capabilities.
        These are available  to  other  applications,  though  the
@@ -130,8 +130,8 @@
 
 </PRE>
 <H2>NOTES</H2><PRE>
-       The  low-level terminfo interface is initialized using <STRONG>se-</STRONG>
-       <STRONG><A HREF="setupterm.3x.html">tupterm(3x)</A></STRONG>.  The upper-level curses  interface  uses  the
+       The  low-level  terminfo  interface  is  initialized using
+       <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>.  The upper-level curses interface uses  the
        low-level terminfo interface, internally.
 
 
@@ -149,8 +149,8 @@
 
 </PRE>
 <H2>SEE ALSO</H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,  <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>,  <STRONG>termin-</STRONG>
-       <STRONG><A HREF="terminfo.3x.html">fo(3x)</A></STRONG>, <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
+       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>,      <STRONG><A HREF="curs_terminfo.3x.html">curs_terminfo(3x)</A></STRONG>,      <STRONG><A HREF="curs_threads.3x.html">curs_threads(3x)</A></STRONG>,
+       <STRONG><A HREF="terminfo.5.html">terminfo(5)</A></STRONG>.
 
 
 

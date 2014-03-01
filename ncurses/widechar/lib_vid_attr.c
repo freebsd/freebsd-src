@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,14 +36,16 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_vid_attr.c,v 1.14 2010/12/19 01:44:24 tom Exp $")
+MODULE_ID("$Id: lib_vid_attr.c,v 1.22 2014/02/01 22:09:27 tom Exp $")
 
-#define doPut(mode) TPUTS_TRACE(#mode); NCURSES_SP_NAME(tputs)(NCURSES_SP_ARGx mode, 1, outc)
+#define doPut(mode) \
+	TPUTS_TRACE(#mode); \
+	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx mode, 1, outc)
 
-#define TurnOn(mask,mode) \
+#define TurnOn(mask, mode) \
 	if ((turn_on & mask) && mode) { doPut(mode); }
 
-#define TurnOff(mask,mode) \
+#define TurnOff(mask, mode) \
 	if ((turn_off & mask) && mode) { doPut(mode); turn_off &= ~mask; }
 
 	/* if there is no current screen, assume we *can* do color */
@@ -66,7 +68,7 @@ MODULE_ID("$Id: lib_vid_attr.c,v 1.14 2010/12/19 01:44:24 tom Exp $")
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 			   attr_t newmode,
-			   short pair,
+			   NCURSES_PAIRS_T pair,
 			   void *opts GCC_UNUSED,
 			   NCURSES_SP_OUTC outc)
 {
@@ -120,7 +122,7 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	 * A_ALTCHARSET (256) down 2 to line up.  We use the NCURSES_BITS
 	 * macro so this will work properly for the wide-character layout.
 	 */
-	unsigned value = no_color_video;
+	unsigned value = (unsigned) no_color_video;
 	attr_t mask = NCURSES_BITS((value & 63)
 				   | ((value & 192) << 1)
 				   | ((value & 256) >> 2), 8);
@@ -161,6 +163,11 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 		if (!SP_PARM || SP_PARM->_use_rmso) {
 		    TurnOff(A_STANDOUT, exit_standout_mode);
 		}
+#if USE_ITALIC
+		if (!SP_PARM || SP_PARM->_use_ritm) {
+		    TurnOff(A_ITALIC, exit_italics_mode);
+		}
+#endif
 	    }
 	    previous_attr &= ALL_BUT_COLOR;
 	    previous_pair = 0;
@@ -185,6 +192,15 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	    previous_attr &= ALL_BUT_COLOR;
 	    previous_pair = 0;
 	}
+#if USE_ITALIC
+	if (!SP_PARM || SP_PARM->_use_ritm) {
+	    if (turn_on & A_ITALIC) {
+		TurnOn(A_ITALIC, enter_italics_mode);
+	    } else if (turn_off & A_ITALIC) {
+		TurnOff(A_ITALIC, exit_italics_mode);
+	    }
+	}
+#endif
 	SetColorsIf((pair != 0) || fix_pair0, previous_attr, previous_pair);
     } else {
 
@@ -199,7 +215,11 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	if (!SP_PARM || SP_PARM->_use_rmso) {
 	    TurnOff(A_STANDOUT, exit_standout_mode);
 	}
-
+#if USE_ITALIC
+	if (!SP_PARM || SP_PARM->_use_ritm) {
+	    TurnOff(A_ITALIC, exit_italics_mode);
+	}
+#endif
 	if (turn_off && exit_attribute_mode) {
 	    doPut(exit_attribute_mode);
 	    turn_on |= (newmode & ALL_BUT_COLOR);
@@ -219,6 +239,9 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 	TurnOn(A_PROTECT,	enter_protected_mode);
 	TurnOn(A_INVIS,		enter_secure_mode);
 	TurnOn(A_UNDERLINE,	enter_underline_mode);
+#if USE_ITALIC
+	TurnOn(A_ITALIC,	enter_italics_mode);
+#endif
 #if USE_WIDEC_SUPPORT
 	TurnOn(A_HORIZONTAL,	enter_horizontal_hl_mode);
 	TurnOn(A_LEFT,		enter_left_hl_mode);
@@ -244,7 +267,7 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 
     returnCode(OK);
 #else
-    T((T_CALLED("vid_puts(%s,%d)"), _traceattr(newmode), pair));
+    T((T_CALLED("vid_puts(%s,%d)"), _traceattr(newmode), (int) pair));
     set_color(newmode, pair);
     returnCode(NCURSES_SP_NAME(vidputs) (NCURSES_SP_ARGx newmode, outc));
 #endif
@@ -253,7 +276,7 @@ NCURSES_SP_NAME(vid_puts) (NCURSES_SP_DCLx
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
 vid_puts(attr_t newmode,
-	 short pair,
+	 NCURSES_PAIRS_T pair,
 	 void *opts GCC_UNUSED,
 	 NCURSES_OUTC outc)
 {
@@ -270,20 +293,20 @@ vid_puts(attr_t newmode,
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(vid_attr) (NCURSES_SP_DCLx
 			   attr_t newmode,
-			   short pair,
+			   NCURSES_PAIRS_T pair,
 			   void *opts)
 {
-    T((T_CALLED("vid_attr(%s,%d)"), _traceattr(newmode), pair));
+    T((T_CALLED("vid_attr(%s,%d)"), _traceattr(newmode), (int) pair));
     returnCode(NCURSES_SP_NAME(vid_puts) (NCURSES_SP_ARGx
 					  newmode,
 					  pair,
 					  opts,
-					  NCURSES_SP_NAME(_nc_outch)));
+					  NCURSES_SP_NAME(_nc_putchar)));
 }
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
-vid_attr(attr_t newmode, short pair, void *opts)
+vid_attr(attr_t newmode, NCURSES_PAIRS_T pair, void *opts)
 {
     return NCURSES_SP_NAME(vid_attr) (CURRENT_SCREEN, newmode, pair, opts);
 }
@@ -296,24 +319,26 @@ vid_attr(attr_t newmode, short pair, void *opts)
 NCURSES_EXPORT(attr_t)
 NCURSES_SP_NAME(term_attrs) (NCURSES_SP_DCL0)
 {
-    attr_t attrs;
+    attr_t attrs = 0;
 
     T((T_CALLED("term_attrs()")));
-    attrs = SP_PARM ? NCURSES_SP_NAME(termattrs) (NCURSES_SP_ARG) : 0;
+    if (SP_PARM) {
+	attrs = NCURSES_SP_NAME(termattrs) (NCURSES_SP_ARG);
 
-    /* these are only supported for wide-character mode */
-    if (enter_horizontal_hl_mode)
-	attrs |= WA_HORIZONTAL;
-    if (enter_left_hl_mode)
-	attrs |= WA_LEFT;
-    if (enter_low_hl_mode)
-	attrs |= WA_LOW;
-    if (enter_right_hl_mode)
-	attrs |= WA_RIGHT;
-    if (enter_top_hl_mode)
-	attrs |= WA_TOP;
-    if (enter_vertical_hl_mode)
-	attrs |= WA_VERTICAL;
+	/* these are only supported for wide-character mode */
+	if (enter_horizontal_hl_mode)
+	    attrs |= WA_HORIZONTAL;
+	if (enter_left_hl_mode)
+	    attrs |= WA_LEFT;
+	if (enter_low_hl_mode)
+	    attrs |= WA_LOW;
+	if (enter_right_hl_mode)
+	    attrs |= WA_RIGHT;
+	if (enter_top_hl_mode)
+	    attrs |= WA_TOP;
+	if (enter_vertical_hl_mode)
+	    attrs |= WA_VERTICAL;
+    }
 
     returnAttr(attrs);
 }

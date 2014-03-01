@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include "cursesf.h"
 #include "cursesapp.h"
 
-MODULE_ID("$Id: cursesf.cc,v 1.21 2005/08/13 18:09:06 tom Exp $")
+MODULE_ID("$Id: cursesf.cc,v 1.22 2011/09/17 22:12:10 tom Exp $")
 
 NCursesFormField::~NCursesFormField ()
 {
@@ -234,11 +234,13 @@ NCursesForm::On_Form_Termination()
 void
 NCursesForm::On_Field_Init(NCursesFormField& field)
 {
+  (void) field;
 }
 
 void
 NCursesForm::On_Field_Termination(NCursesFormField& field)
 {
+  (void) field;
 }
 
 // call the form driver and do basic error checking.
@@ -260,16 +262,19 @@ NCursesForm::driver (int c)
 
 void NCursesForm::On_Request_Denied(int c) const
 {
+  (void) c;
   ::beep();
 }
 
 void NCursesForm::On_Invalid_Field(int c) const
 {
+  (void) c;
   ::beep();
 }
 
 void NCursesForm::On_Unknown_Command(int c) const
 {
+  (void) c;
   ::beep();
 }
 
@@ -373,6 +378,7 @@ NCursesForm::virtualize(int c)
 //
 bool _nc_xx_fld_fcheck(FIELD *f, const void *u)
 {
+  (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
   assert(F != 0);
   UserDefinedFieldType* udf = reinterpret_cast<UserDefinedFieldType*>(F->fieldtype());
@@ -405,6 +411,7 @@ FIELDTYPE* UserDefinedFieldType_With_Choice::generic_fieldtype_with_choice =
 
 bool _nc_xx_next_choice(FIELD *f, const void *u)
 {
+  (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
   assert(F != 0);
   UserDefinedFieldType_With_Choice* udf =
@@ -415,6 +422,7 @@ bool _nc_xx_next_choice(FIELD *f, const void *u)
 
 bool _nc_xx_prev_choice(FIELD *f, const void *u)
 {
+  (void) f;
   NCursesFormField* F = reinterpret_cast<NCursesFormField*>(const_cast<void *>(u));
   assert(F != 0);
   UserDefinedFieldType_With_Choice* udf =

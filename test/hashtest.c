@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *
  * Generate timing statistics for vertical-motion optimization.
  *
- * $Id: hashtest.c,v 1.31 2010/11/13 23:43:15 tom Exp $
+ * $Id: hashtest.c,v 1.32 2013/04/27 19:50:17 tom Exp $
  */
 
 #include <test.priv.h>
@@ -54,7 +54,7 @@ cleanup(void)
     endwin();
 }
 
-static RETSIGTYPE
+static void
 finish(int sig GCC_UNUSED)
 {
     cleanup();

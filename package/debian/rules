@@ -1,0 +1,123 @@
+#!/usr/bin/make -f
+# MAde with the aid of dh_make, by Craig Small
+# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
+# Some lines taken from debmake, by Cristoph Lameter.
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+# These are used for cross-compiling and for saving the configure script
+# from having to guess our platform (since we know it already)
+DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
+DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+CC_NORMAL = -Wall -Wstrict-prototypes -Wmissing-prototypes -Wshadow -Wconversion
+CC_STRICT = $(CC_NORMAL) -W -Wbad-function-cast -Wcast-align -Wcast-qual -Wmissing-declarations -Wnested-externs -Wpointer-arith -Wwrite-strings -ansi -pedantic
+
+MY_DIR=/usr/local/ncurses6
+MYDATA=/usr/local/ncurses/share/terminfo
+BUILD_DIR=$(CURDIR)/debian/ncurses6
+
+CFLAGS = $(CC_NORMAL)
+
+ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+        CFLAGS += -O0
+else
+        CFLAGS += -O2
+endif
+ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
+        INSTALL_PROGRAM += -s
+endif
+
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+
+	RPATH_LIST=../lib:$(MY_DIR)/lib \
+	CFLAGS="$(CFLAGS)" ./configure \
+		--host=$(DEB_HOST_GNU_TYPE) \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--prefix=$(MY_DIR) \
+		--with-default-terminfo-dir=$(MYDATA) \
+		--with-terminfo-dirs=$(MYDATA):/usr/share/terminfo \
+		--disable-echo \
+		--disable-getcap \
+		--disable-leaks \
+		--disable-macros  \
+		--disable-termcap \
+		--enable-const \
+		--enable-ext-colors \
+		--enable-ext-mouse \
+		--enable-hard-tabs \
+		--enable-interop \
+		--enable-rpath \
+		--enable-sp-funcs \
+		--enable-warnings \
+		--enable-widec \
+		--verbose \
+		--with-develop \
+		--with-shared \
+		--with-termlib \
+		--with-ticlib \
+		--with-trace \
+		--with-cxx-shared \
+		--with-xterm-kbs=DEL \
+		--without-ada \
+		--without-debug \
+		--without-normal
+
+	touch configure-stamp
+
+build: build-stamp
+build-stamp: configure-stamp
+	dh_testdir
+
+	$(MAKE)
+
+	touch build-stamp
+
+clean:
+	dh_testdir
+	dh_testroot
+
+	[ ! -f makefile ] || $(MAKE) distclean
+
+	rm -f configure-stamp build-stamp install-stamp
+
+	dh_clean
+
+install: install-stamp
+install-stamp: build-stamp
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+
+	$(MAKE) install.libs install.progs DESTDIR=$(BUILD_DIR)
+
+	( cd test && make ncurses LOCAL_LIBDIR=$(MY_DIR)/lib )
+	mv test/ncurses $(BUILD_DIR)$(MY_DIR)/bin/ncurses6
+
+	touch install-stamp
+
+# Build architecture-independent files here.
+binary-indep: build install
+# No binary-indep target.
+
+# Build architecture-dependent files here.
+binary-arch: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs NEWS
+	dh_strip
+	dh_compress
+	dh_fixperms
+	dh_installdeb
+	dh_shlibdeps
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install install-stamp

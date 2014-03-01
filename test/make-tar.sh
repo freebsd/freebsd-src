@@ -1,7 +1,7 @@
 #!/bin/sh
-# $Id: make-tar.sh,v 1.10 2011/03/26 20:46:51 tom Exp $
+# $Id: make-tar.sh,v 1.12 2013/10/26 23:11:43 tom Exp $
 ##############################################################################
-# Copyright (c) 2010,2011 Free Software Foundation, Inc.                     #
+# Copyright (c) 2010-2011,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -66,11 +66,11 @@ edit_specfile() {
 make_changelog() {
 	test -f $1 && chmod u+w $1
 	cat >$1 <<EOF
-`echo $PKG_NAME|tr '[A-Z]' '[a-z]'` ($NCURSES_PATCH) unstable; urgency=low
+`echo $PKG_NAME|tr '[A-Z]' '[a-z]'` ($NCURSES_MAJOR.$NCURSES_MINOR-$NCURSES_PATCH) unstable; urgency=low
 
   * snapshot of ncurses subpackage for $PKG_NAME.
 
- -- `head -1 $HOME/.signature`  `date -R`
+ -- `head -n 1 $HOME/.signature`  `date -R`
 EOF
 }
 
@@ -108,7 +108,10 @@ for spec in $BUILD/$ROOTNAME/package/*.spec
 do
 	edit_specfile $spec
 done
-make_changelog $BUILD/$ROOTNAME/package/debian/changelog
+for spec in $BUILD/$ROOTNAME/package/debian*
+do
+	make_changelog $spec/changelog
+done
 
 cp -p $SOURCE/NEWS $BUILD/$ROOTNAME
 

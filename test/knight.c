@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
  * Eric S. Raymond <esr@snark.thyrsus.com> July 22 1995.  Mouse support
  * added September 20th 1995.
  *
- * $Id: knight.c,v 1.31 2010/11/13 20:44:21 tom Exp $
+ * $Id: knight.c,v 1.36 2013/02/16 19:53:08 tom Exp $
  */
 
 #include <test.priv.h>
@@ -123,13 +123,16 @@ init_program(void)
 	(void) init_pair(PLUS_COLOR, (short) COLOR_RED, (short) bg);
 	(void) init_pair(MINUS_COLOR, (short) COLOR_GREEN, (short) bg);
 
-	trail |= COLOR_PAIR(TRAIL_COLOR);
-	plus |= COLOR_PAIR(PLUS_COLOR);
-	minus |= COLOR_PAIR(MINUS_COLOR);
+	trail |= (chtype) COLOR_PAIR(TRAIL_COLOR);
+	plus |= (chtype) COLOR_PAIR(PLUS_COLOR);
+	minus |= (chtype) COLOR_PAIR(MINUS_COLOR);
     }
 #ifdef NCURSES_MOUSE_VERSION
     (void) mousemask(BUTTON1_CLICKED, (mmask_t *) NULL);
 #endif /* NCURSES_MOUSE_VERSION */
+#if defined(PDCURSES)
+    mouse_set(BUTTON1_RELEASED);
+#endif
 
     oldch = minus;
 }
@@ -300,15 +303,16 @@ mark_possibles(int prow, int pcol, chtype mark)
     }
 }
 
-static void
+static bool
 find_next_move(int *y, int *x)
 {
     unsigned j, k;
     int found = -1;
     int first = -1;
-    int next = 0;
+    int next = -1;
     int oldy, oldx;
     int newy, newx;
+    bool result = FALSE;
 
     if (movecount > 1) {
 	oldy = history[movecount - 1].y;
@@ -335,9 +339,27 @@ find_next_move(int *y, int *x)
 	    *y = oldy + offsets[next].y;
 	    *x = oldx + offsets[next].x;
 	}
-    } else {
-	beep();
+	result = TRUE;
     }
+    return result;
+}
+
+static void
+count_next_moves(int y, int x)
+{
+    int count = 0;
+    unsigned j;
+
+    wprintw(msgwin, "\nMove %d", movecount);
+    for (j = 0; j < SIZEOF(offsets); j++) {
+	int newy = y + offsets[j].y;
+	int newx = x + offsets[j].x;
+	if (chksqr(newy, newx)) {
+	    ++count;
+	}
+    }
+    wprintw(msgwin, ", gives %d choices", count);
+    wclrtoeol(msgwin);
 }
 
 static void
@@ -558,8 +580,9 @@ play(void)
 		nx = col + 1;
 		break;
 
-#ifdef NCURSES_MOUSE_VERSION
+#ifdef KEY_MOUSE
 	    case KEY_MOUSE:
+#ifdef NCURSES_MOUSE_VERSION
 		{
 		    MEVENT myevent;
 
@@ -576,6 +599,24 @@ play(void)
 		    }
 		}
 #endif /* NCURSES_MOUSE_VERSION */
+#ifdef PDCURSES
+		{
+		    int test_y, test_x;
+		    request_mouse_pos();
+		    test_y = MOUSE_Y_POS + 0;
+		    test_x = MOUSE_X_POS + 1;
+		    if (test_y >= CY(0) && test_y <= CY(BDEPTH)
+			&& test_x >= CX(0) && test_x <= CX(BWIDTH)) {
+			ny = CYINV(test_y);
+			nx = CXINV(test_x);
+			wmove(helpwin, 0, 0);
+			wrefresh(helpwin);
+			ungetch('\n');
+		    }
+		    break;
+		}
+#endif /* PDCURSES */
+#endif /* KEY_MOUSE */
 
 	    case KEY_B2:
 	    case '\n':
@@ -614,8 +655,8 @@ play(void)
 		    ny = history[movecount].y;
 		    nx = history[movecount].x;
 		    if (nx < 0 || ny < 0) {
-			ny = lastrow;
-			nx = lastcol;
+			ny = (lastrow >= 0) ? lastrow : 0;
+			nx = (lastcol >= 0) ? lastcol : 0;
 		    }
 		    movecount = 0;
 		    board[ny][nx] = FALSE;
@@ -652,7 +693,10 @@ play(void)
 	    case 'a':
 		nx = col;
 		ny = rw;
-		find_next_move(&ny, &nx);
+		if (find_next_move(&ny, &nx))
+		    count_next_moves(ny, nx);
+		else
+		    beep();
 		break;
 
 	    case 'F':

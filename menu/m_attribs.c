@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_attribs.c,v 1.16 2010/01/23 21:16:54 tom Exp $")
+MODULE_ID("$Id: m_attribs.c,v 1.17 2012/03/10 23:43:41 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
@@ -51,7 +51,7 @@ MODULE_ID("$Id: m_attribs.c,v 1.16 2010/01/23 21:16:54 tom Exp $")
 #define GEN_MENU_ATTR_SET_FCT( name ) \
 NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU* menu, chtype attr) \
 {\
-  T((T_CALLED("set_menu_" #name "(%p,%s)"), menu, _traceattr(attr))); \
+  T((T_CALLED("set_menu_" #name "(%p,%s)"), (void *) menu, _traceattr(attr))); \
    if (!(attr==A_NORMAL || (attr & A_ATTRIBUTES)==attr))\
       RETURN(E_BAD_ARGUMENT);\
    if (menu && ( menu -> name != attr))\

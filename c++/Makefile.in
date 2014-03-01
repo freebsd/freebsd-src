@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.93 2010/11/27 21:45:27 tom Exp $
+# $Id: Makefile.in,v 1.106 2013/08/04 20:20:45 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -47,8 +47,12 @@ DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
+bindir		= @bindir@
 libdir		= @libdir@
 includedir	= @includedir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
 LIBTOOL		= @LIBTOOL_CXX@
 LIBTOOL_CLEAN	= @LIB_CLEAN@
@@ -65,6 +69,9 @@ INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
 ARFLAGS		= @ARFLAGS@
+AWK		= @AWK@
+LD		= @LD@
+LN_S		= @LN_S@
 
 CXX_AR		= @CXX_AR@
 CXX_ARFLAGS	= @CXX_ARFLAGS@
@@ -109,35 +116,41 @@ LIBNAME_LIBTOOL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.la
 LIBNAME_NORMAL	= @LIB_PREFIX@$(LIBROOT)@LIB_SUFFIX@.a
 LIBNAME		= @LIB_PREFIX@$(LIBROOT)@CXX_LIB_SUFFIX@
 
-MY_LIBRARY	= ../lib/$(LIBNAME)
+LIBRARIES	= @Libs_To_Make@
 
 LINK_FLAGS	= @EXTRA_LDFLAGS@ -L../lib -l$(LIBROOT)@LIB_SUFFIX@
+RPATH_LIST	= @RPATH_LIST@
+MK_SHARED_LIB	= @MK_SHARED_LIB@
 
-LINK_LIBTOOL	= @EXTRA_LDFLAGS@ -L../lib $(MY_LIBRARY)
+LINK_LIBTOOL	= @EXTRA_LDFLAGS@ -L../lib $(LIBRARIES)
 LINK_NORMAL	= $(LINK_FLAGS)
 LINK_DEBUG	= $(LINK_FLAGS)
 LINK_PROFILE	= $(LINK_FLAGS)
 LINK_SHARED	= $(LINK_FLAGS)
 
+# flags for test-programs
 TEST_LIBS	= @TEST_LIBS@
 TEST_ARGS	= @LDFLAGS_STATIC@ @TEST_ARGS@ @LDFLAGS_SHARED@ 
-
-LDFLAGS		= $(TEST_ARGS) @LDFLAGS@ \
+TEST_LDFLAGS	= $(TEST_ARGS) @LDFLAGS@ \
 	@LD_MODEL@ $(TEST_LIBS) @LIBS@ @LOCAL_LDFLAGS@ $(CXXLIBS)
 
-LDFLAGS_LIBTOOL	= $(LDFLAGS) $(CFLAGS_LIBTOOL)
-LDFLAGS_NORMAL	= $(LDFLAGS) $(CFLAGS_NORMAL)
-LDFLAGS_DEBUG	= $(LDFLAGS) $(CFLAGS_DEBUG)
-LDFLAGS_PROFILE	= $(LDFLAGS) $(CFLAGS_PROFILE)
-LDFLAGS_SHARED	= $(LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
+LDFLAGS_LIBTOOL	= $(TEST_LDFLAGS) $(CFLAGS_LIBTOOL)
+LDFLAGS_NORMAL	= $(TEST_LDFLAGS) $(CFLAGS_NORMAL)
+LDFLAGS_DEBUG	= $(TEST_LDFLAGS) $(CFLAGS_DEBUG)
+LDFLAGS_PROFILE	= $(TEST_LDFLAGS) $(CFLAGS_PROFILE)
+LDFLAGS_SHARED	= $(TEST_LDFLAGS) $(CFLAGS_SHARED) @LD_SHARED_OPTS@
 
 LDFLAGS_DEFAULT	= $(LINK_@DFT_UPR_MODEL@) $(LDFLAGS_@DFT_UPR_MODEL@)
+
+# flags for library built by this makefile
+LDFLAGS		= $(TEST_ARGS) @LDFLAGS@ \
+	@LD_MODEL@ $(TEST_LIBS) @LIBS@ $(CXXLIBS)
 
 AUTO_SRC	= \
 		etip.h
 
 all \
-libs ::		$(AUTO_SRC) $(MY_LIBRARY)
+libs ::		$(AUTO_SRC) $(LIBRARIES)
 
 @MAKE_TESTS@all ::		demo$x
 
@@ -148,53 +161,8 @@ depend :
 tags:
 	$(CTAGS) *.[h] *.cc
 
-# Build a conventional library for installing, since a shared library would
-# pull in all of the ncurses libraries (panel, menu, form, ncurses) as direct
-# dependencies.
-LIB_OBJS = \
-	$(MODEL)/cursesf$o \
-	$(MODEL)/cursesm$o \
-	$(MODEL)/cursesw$o \
-	$(MODEL)/cursespad$o \
-	$(MODEL)/cursesp$o \
-	$(MODEL)/cursslk$o \
-	$(MODEL)/cursesapp$o \
-	$(MODEL)/cursesmain$o
-
-../lib/$(LIBNAME_NORMAL) : $(LIB_OBJS)
-	$(CXX_AR) $(CXX_ARFLAGS) $@ $?
-	$(RANLIB) $@
-
-../lib/$(LIBNAME_LIBTOOL) : $(LIB_OBJS)
-	cd ../lib && $(LIBTOOL_LINK) $(CXX) $(CXXFLAGS) \
-		-o $(LIBNAME) $(LIB_OBJS:$o=.lo) \
-		-rpath $(INSTALL_PREFIX)$(libdir) \
-		$(LIBTOOL_VERSION) $(NCURSES_MAJOR):$(NCURSES_MINOR) $(LT_UNDEF) $(SHLIB_LIST)
-
-OBJS_DEMO = $(MODEL)/demo$o
-
-$(MODEL)/demo$o : $(srcdir)/demo.cc \
-	$(cursesf_h) $(cursesm_h) $(cursesapp_h)
-
-demo$x:	$(OBJS_DEMO) \
-	$(MY_LIBRARY)  \
-	@TEST_DEPS@
-	@ECHO_LINK@ $(LINK) -o $@ $(OBJS_DEMO) $(LDFLAGS_DEFAULT)
-
-etip.h:	$(srcdir)/etip.h.in $(srcdir)/edit_cfg.sh
-	cp $(srcdir)/etip.h.in $@
-	sh $(srcdir)/edit_cfg.sh ../include/ncurses_cfg.h $@
-
 $(DESTDIR)$(libdir) :
 	mkdir -p $@
-
-install \
-install.libs:: $(MY_LIBRARY) $(DESTDIR)$(libdir)
-	$(LIBTOOL_INSTALL) $(INSTALL_LIB) $(MY_LIBRARY) $(DESTDIR)$(libdir)/$(LIBNAME)
-
-uninstall \
-uninstall.libs::
-	-$(LIBTOOL_UNINSTALL) rm -f $(DESTDIR)$(libdir)/$(LIBNAME)
 
 mostlyclean ::
 	-rm -f core tags TAGS *~ *.bak *.i *.ii *.ln *.atac trace
@@ -202,7 +170,7 @@ mostlyclean ::
 clean :: mostlyclean
 	-sh -c "if test -n '$x' ; then $(MAKE) clean x=''; fi"
 	-rm -rf $(MODEL)/SunWS_cache
-	-$(LIBTOOL_CLEAN) rm -f demo$x $(AUTO_SRC) $(MY_LIBRARY) $(LIB_OBJS) $(OBJS_DEMO)
+	-$(LIBTOOL_CLEAN) rm -f demo$x $(AUTO_SRC) $(LIBRARIES) $(OBJS_DEMO)
 	-rm -rf .libs
 
 distclean :: clean
@@ -212,8 +180,16 @@ realclean :: distclean
 
 ###############################################################################
 
+internal_h	= $(srcdir)/internal.h \
+		  $(INCDIR)/ncurses_cfg.h \
+		  $(INCDIR)/nc_mingw.h \
+		  $(INCDIR)/nc_string.h
+
+etip_h		= etip.h \
+		  $(INCDIR)/ncurses_dll.h
+
 cursesw_h	= $(srcdir)/cursesw.h \
-		  etip.h \
+		  $(etip_h) \
 		  $(INCDIR)/curses.h
 
 cursesp_h	= $(srcdir)/cursesp.h \
@@ -242,6 +218,27 @@ $(INCDIR)/menu.h :
 
 $(INCDIR)/panel.h :
 	cd ../panel && $(MAKE) $@
+
+###############################################################################
+
+OBJS_DEMO = $(MODEL)/demo$o
+
+$(MODEL)/demo$o : $(srcdir)/demo.cc \
+		$(internal_h) \
+		$(cursesf_h) \
+		$(cursesm_h) \
+		$(cursesapp_h)
+	@echo 'compiling demo (obj_s)'
+	@$(LIBTOOL_COMPILE) $(CXX) $(CFLAGS_DEFAULT) -c $(srcdir)/demo.cc -o $@
+
+demo$x:	$(OBJS_DEMO) \
+	$(LIBRARIES)  \
+	@TEST_DEPS@
+	@ECHO_LD@ $(LINK) -o $@ $(OBJS_DEMO) $(LDFLAGS_DEFAULT)
+
+etip.h:	$(srcdir)/etip.h.in $(srcdir)/edit_cfg.sh
+	cp $(srcdir)/etip.h.in $@
+	sh $(srcdir)/edit_cfg.sh ../include/ncurses_cfg.h $@
 
 ###############################################################################
 # The remainder of this file is automatically generated during configuration

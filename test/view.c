@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -50,10 +50,11 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view.c,v 1.81 2010/11/14 01:06:02 tom Exp $
+ * $Id: view.c,v 1.94 2013/09/28 21:58:42 tom Exp $
  */
 
 #include <test.priv.h>
+#include <widechars.h>
 
 #include <time.h>
 
@@ -81,24 +82,10 @@
 #include <sys/ptem.h>
 #endif
 
-#if USE_WIDEC_SUPPORT
-#if HAVE_MBTOWC && HAVE_MBLEN
-#define reset_mbytes(state) IGNORE_RC(mblen(NULL, 0)), IGNORE_RC(mbtowc(NULL, NULL, 0))
-#define count_mbytes(buffer,length,state) mblen(buffer,length)
-#define check_mbytes(wch,buffer,length,state) \
-	(int) mbtowc(&wch, buffer, length)
-#define state_unused
-#elif HAVE_MBRTOWC && HAVE_MBRLEN
-#define reset_mbytes(state) init_mb(state)
-#define count_mbytes(buffer,length,state) mbrlen(buffer,length,&state)
-#define check_mbytes(wch,buffer,length,state) \
-	(int) mbrtowc(&wch, buffer, length, &state)
-#else
-make an error
-#endif
-#endif				/* USE_WIDEC_SUPPORT */
+#undef CTRL
+#define CTRL(x)	((x) & 0x1f)
 
-static RETSIGTYPE finish(int sig) GCC_NORETURN;
+static void finish(int sig) GCC_NORETURN;
 static void show_all(const char *tag);
 
 #if defined(SIGWINCH) && defined(TIOCGWINSZ) && HAVE_RESIZE_TERM
@@ -108,11 +95,11 @@ static void show_all(const char *tag);
 #endif
 
 #if CAN_RESIZE
-static RETSIGTYPE adjust(int sig);
+static void adjust(int sig);
 static int interrupted;
+static bool waiting = FALSE;
 #endif
 
-static bool waiting = FALSE;
 static int shift = 0;
 static bool try_color = FALSE;
 
@@ -120,6 +107,8 @@ static char *fname;
 static NCURSES_CH_T **vec_lines;
 static NCURSES_CH_T **lptr;
 static int num_lines;
+
+static void usage(void) GCC_NORETURN;
 
 static void
 usage(void)
@@ -135,6 +124,7 @@ usage(void)
 #if defined(KEY_RESIZE)
 	," -r       use old-style sigwinch handler rather than KEY_RESIZE"
 #endif
+	," -s       start in single-step mode, waiting for input"
 #ifdef TRACE
 	," -t       trace screen updates"
 	," -T NUM   specify trace mask"
@@ -180,7 +170,7 @@ ch_dup(char *src)
 {
     unsigned len = (unsigned) strlen(src);
     NCURSES_CH_T *dst = typeMalloc(NCURSES_CH_T, len + 1);
-    unsigned j, k;
+    size_t j, k;
 #if USE_WIDEC_SUPPORT
     wchar_t wstr[CCHARW_MAX + 1];
     wchar_t wch;
@@ -243,6 +233,7 @@ main(int argc, char *argv[])
     int value = 0;
     bool done = FALSE;
     bool got_number = FALSE;
+    bool single_step = FALSE;
 #if CAN_RESIZE
     bool nonposix_resize = FALSE;
 #endif
@@ -258,7 +249,7 @@ main(int argc, char *argv[])
     (void) signal(SIGINT, finish);	/* arrange interrupts to terminate */
 #endif
 
-    while ((i = getopt(argc, argv, "cin:rtT:")) != -1) {
+    while ((i = getopt(argc, argv, "cin:rstT:")) != -1) {
 	switch (i) {
 	case 'c':
 	    try_color = TRUE;
@@ -276,9 +267,18 @@ main(int argc, char *argv[])
 	    nonposix_resize = TRUE;
 	    break;
 #endif
+	case 's':
+	    single_step = TRUE;
+	    break;
 #ifdef TRACE
 	case 'T':
-	    trace((unsigned) atoi(optarg));
+	    {
+		char *next = 0;
+		int tvalue = (int) strtol(optarg, &next, 0);
+		if (tvalue < 0 || (next != 0 && *next != 0))
+		    usage();
+		trace((unsigned) tvalue);
+	    }
 	    break;
 	case 't':
 	    trace(TRACE_CALLS);
@@ -306,7 +306,7 @@ main(int argc, char *argv[])
 	(void) signal(SIGWINCH, adjust);	/* arrange interrupts to resize */
 #endif
 
-    /* slurp the file */
+    Trace(("slurp the file"));
     for (lptr = &vec_lines[0]; (lptr - vec_lines) < MAXLINES; lptr++) {
 	char temp[BUFSIZ], *s, *d;
 	int col;
@@ -314,8 +314,26 @@ main(int argc, char *argv[])
 	if (fgets(buf, sizeof(buf), fp) == 0)
 	    break;
 
-	/* convert tabs so that shift will work properly */
+#if USE_WIDEC_SUPPORT
+	if (lptr == vec_lines) {
+	    if (!memcmp("﻿", buf, 3)) {
+		Trace(("trim BOM"));
+		s = buf + 3;
+		d = buf;
+		do {
+		} while ((*d++ = *s++) != '\0');
+	    }
+	}
+#endif
+
+	/* convert tabs and nonprinting chars so that shift will work properly */
 	for (s = buf, d = temp, col = 0; (*d = *s) != '\0'; s++) {
+	    if (*d == '\r') {
+		if (s[1] == '\n')
+		    continue;
+		else
+		    break;
+	    }
 	    if (*d == '\n') {
 		*d = '\0';
 		break;
@@ -347,14 +365,15 @@ main(int argc, char *argv[])
     (void) nonl();		/* tell curses not to do NL->CR/NL on output */
     (void) cbreak();		/* take input chars one at a time, no wait for \n */
     (void) noecho();		/* don't echo input */
-    nodelay(stdscr, TRUE);
+    if (!single_step)
+	nodelay(stdscr, TRUE);
     idlok(stdscr, TRUE);	/* allow use of insert/delete line */
 
     if (try_color) {
 	if (has_colors()) {
 	    start_color();
 	    init_pair(my_pair, COLOR_WHITE, COLOR_BLUE);
-	    bkgd(COLOR_PAIR(my_pair));
+	    bkgd((chtype) COLOR_PAIR(my_pair));
 	} else {
 	    try_color = FALSE;
 	}
@@ -373,10 +392,12 @@ main(int argc, char *argv[])
 		adjust(0);
 		my_label = "interrupt";
 	    }
-#endif
 	    waiting = TRUE;
 	    c = getch();
 	    waiting = FALSE;
+#else
+	    c = getch();
+#endif
 	    if ((c < 127) && isdigit(c)) {
 		if (!got_number) {
 		    MvPrintw(0, 0, "Count: ");
@@ -466,6 +487,9 @@ main(int argc, char *argv[])
 	    nodelay(stdscr, TRUE);
 	    my_delay = 0;
 	    break;
+	case CTRL('L'):
+	    redrawwin(stdscr);
+	    break;
 	case ERR:
 	    if (!my_delay)
 		napms(50);
@@ -483,7 +507,7 @@ main(int argc, char *argv[])
     finish(0);			/* we're done */
 }
 
-static RETSIGTYPE
+static void
 finish(int sig)
 {
     endwin();
@@ -510,7 +534,7 @@ finish(int sig)
  * The 'wrefresh(curscr)' is needed to force the refresh to start from the top
  * of the screen -- some xterms mangle the bitmap while resizing.
  */
-static RETSIGTYPE
+static void
 adjust(int sig)
 {
     if (waiting || sig == 0) {
@@ -553,7 +577,7 @@ show_all(const char *tag)
     printw("%.*s", COLS, temp);
     clrtoeol();
     this_time = time((time_t *) 0);
-    strcpy(temp, ctime(&this_time));
+    strncpy(temp, ctime(&this_time), (size_t) 30);
     if ((i = (int) strlen(temp)) != 0) {
 	temp[--i] = 0;
 	if (move(0, COLS - i - 2) != ERR)

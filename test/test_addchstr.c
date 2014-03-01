@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2009,2010 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2009-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_addchstr.c,v 1.13 2010/12/12 01:28:24 tom Exp $
+ * $Id: test_addchstr.c,v 1.18 2012/12/16 00:36:27 tom Exp $
  *
  * Demonstrate the waddchstr() and waddch functions.
  * Thomas Dickey - 2009/9/12
@@ -101,6 +101,8 @@ ChStr(const char *source)
 	if (need > temp_length) {
 	    temp_length = need * 2;
 	    temp_buffer = typeRealloc(chtype, temp_length, temp_buffer);
+	    if (!temp_buffer)
+		failed("TempBuffer");
 	}
 	do {
 	    const char *s;
@@ -237,6 +239,15 @@ test_adds(int level)
 	(void) cbreak();	/* take input chars one at a time, no wait for \n */
 	(void) noecho();	/* don't echo input */
 	keypad(stdscr, TRUE);
+
+	/*
+	 * Show the characters added in color, to distinguish from those that
+	 * are shifted.
+	 */
+	if (has_colors()) {
+	    start_color();
+	    init_pair(1, COLOR_WHITE, COLOR_BLUE);
+	}
     }
 
     limit = LINES - 5;
@@ -270,14 +281,8 @@ test_adds(int level)
 
     doupdate();
 
-    /*
-     * Show the characters added in color, to distinguish from those that
-     * are shifted.
-     */
     if (has_colors()) {
-	start_color();
-	init_pair(1, COLOR_WHITE, COLOR_BLUE);
-	show_attr = COLOR_PAIR(1);
+	show_attr = (attr_t) COLOR_PAIR(1);
 	wbkgdset(work, show_attr | ' ');
     } else {
 	show_attr = A_STANDOUT;
@@ -289,11 +294,13 @@ test_adds(int level)
 	case key_RECUR:
 	    test_adds(level + 1);
 
-	    touchwin(look);
+	    if (look)
+		touchwin(look);
 	    touchwin(work);
 	    touchwin(show);
 
-	    wnoutrefresh(look);
+	    if (look)
+		wnoutrefresh(look);
 	    wnoutrefresh(work);
 	    wnoutrefresh(show);
 
@@ -445,10 +452,10 @@ test_adds(int level)
 	}
     }
     if (level > 0) {
-	delwin(show);
 	delwin(work);
 	delwin(look);
     }
+    delwin(show);
 }
 
 static void

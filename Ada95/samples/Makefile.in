@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 #
 #  Author:  Juergen Pfeifer, 1996
 #
-#  $Id: Makefile.in,v 1.46 2011/03/28 23:45:08 tom Exp $
+#  $Id: Makefile.in,v 1.48 2012/10/06 19:00:42 tom Exp $
 #
 .SUFFIXES:
 
@@ -36,12 +36,13 @@ SHELL		= /bin/sh
 VPATH		= @srcdir@
 THIS		= Makefile
 
-x		= @PROG_EXT@
+x		= @EXEEXT@
 
 srcdir		= @srcdir@
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 bindir		= @bindir@
+datarootdir	= @datarootdir@
 datadir		= @datadir@
 libdir		= @libdir@
 includedir	= @includedir@

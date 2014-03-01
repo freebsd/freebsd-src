@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_addstr.3x,v 1.16 2010/12/04 18:36:44 tom Exp @
+  * @Id: curs_addstr.3x,v 1.17 2012/11/03 22:57:31 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -68,26 +68,32 @@
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       These routines write the characters of the (null-terminat-
-       ed) character string <EM>str</EM> on the given window.  It is simi-
-       lar  to  calling  <STRONG>waddch</STRONG>  once  for  each character in the
-       string.  The four routines with <EM>n</EM>  as  the  last  argument
-       write  at  most <EM>n</EM> characters.  If <EM>n</EM> is -1, then the entire
-       string will be added, up to the maximum number of  charac-
-       ters  that  will  fit  on the line, or until a terminating
-       null is reached.
+       These  functions  write  the  (null-terminated)  character
+       string <EM>str</EM> on the given window.  It is similar to  calling
+       <STRONG>waddch</STRONG> once for each character in the string.
+
+       The  <EM>mv</EM>  functions  perform  cursor  movement once, before
+       writing any characters.  Thereafter,  the  cursor  is  ad-
+       vanced as a side-effect of writing to the window.
+
+       The  four  functions  with <EM>n</EM> as the last argument write at
+       most <EM>n</EM> characters, or until a terminating null is reached.
+       If <EM>n</EM> is -1, then the entire string will be added.
 
 
 </PRE>
 <H2>RETURN VALUE</H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on
-       success  (the  SVr4 manuals specify only "an integer value
-       other than <STRONG>ERR</STRONG>") upon successful completion.
+       All  functions  return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG>
+       on success.
 
        X/Open does not define any error conditions.  This  imple-
-       mentation  returns  an error if the window pointer is null
-       or if the string pointer is null or if  the  corresponding
-       calls to <STRONG>waddch</STRONG> return an error.
+       mentation returns an error
+
+       <STRONG>o</STRONG>   if the window pointer is null or
+
+       <STRONG>o</STRONG>   if the string pointer is null or
+
+       <STRONG>o</STRONG>   if the corresponding calls to <STRONG>waddch</STRONG> return an error.
 
        Functions  with a "mv" prefix first perform a cursor move-
        ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
@@ -96,16 +102,13 @@
 
 </PRE>
 <H2>NOTES</H2><PRE>
-       Note  that  all  of  these  routines  except  <STRONG>waddstr</STRONG>  and
-       <STRONG>waddnstr</STRONG> may be macros.
+       All of these functions except <STRONG>waddnstr</STRONG> may be macros.
 
 
 </PRE>
 <H2>PORTABILITY</H2><PRE>
-       All these entry points are described  in  the  XSI  Curses
-       standard,  Issue  4.  The XSI errors EILSEQ and EOVERFLOW,
-       associated with extended-level conformance,  are  not  yet
-       detected.
+       These  functions are described in the XSI Curses standard,
+       Issue 4.
 
 
 </PRE>

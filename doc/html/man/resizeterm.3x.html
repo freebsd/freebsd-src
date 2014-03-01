@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,8 +27,8 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * Author: Thomas E. Dickey 1996-2005
-  * @Id: resizeterm.3x,v 1.14 2010/12/04 18:38:55 tom Exp @
+  * Author: Thomas E. Dickey 1996-on
+  * @Id: resizeterm.3x,v 1.17 2013/06/22 20:41:54 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -69,28 +69,29 @@
        terminal  (e.g.,  xterm).  The function <STRONG>resizeterm</STRONG> resizes
        the standard and current windows to the  specified  dimen-
        sions,  and  adjusts  other  bookkeeping  data used by the
-       <STRONG>ncurses</STRONG> library that record the window dimensions.
+       <STRONG>ncurses</STRONG> library that record the window dimensions such  as
+       the <STRONG>LINES</STRONG> and <STRONG>COLS</STRONG> variables.
 
-       Most  of  the  work  is  done  by   the   inner   function
+       Most   of   the   work  is  done  by  the  inner  function
        <STRONG>resize_term</STRONG>.  The outer function <STRONG>resizeterm</STRONG> adds bookkeep-
-       ing for the SIGWINCH handler.  When resizing the  windows,
-       <STRONG>resize_term</STRONG>  blank-fills the areas that are extended.  The
+       ing  for the SIGWINCH handler.  When resizing the windows,
+       <STRONG>resize_term</STRONG> blank-fills the areas that are extended.   The
        calling application should fill in these areas with appro-
-       priate  data.  The <STRONG>resize_term</STRONG> function attempts to resize
-       all windows.  However, due to the  calling  convention  of
-       pads,  it  is  not  possible to resize these without addi-
+       priate data.  The <STRONG>resize_term</STRONG> function attempts to  resize
+       all  windows.   However,  due to the calling convention of
+       pads, it is not possible to  resize  these  without  addi-
        tional interaction with the application.
 
-       A support function <STRONG>is_term_resized</STRONG>  is  provided  so  that
-       applications  can  check if the <STRONG>resize_term</STRONG> function would
+       A  support  function  <STRONG>is_term_resized</STRONG>  is provided so that
+       applications can check if the <STRONG>resize_term</STRONG>  function  would
        modify the window structures.  It returns TRUE if the win-
        dows would be modified, and FALSE otherwise.
 
 
 </PRE>
 <H2>RETURN VALUE</H2><PRE>
-       Except  as  notes,  these  function return the integer <STRONG>ERR</STRONG>
-       upon failure and <STRONG>OK</STRONG> on success.  They will fail if  either
+       Except as noted, these functions return  the  integer  <STRONG>ERR</STRONG>
+       upon  failure and <STRONG>OK</STRONG> on success.  They will fail if either
        of the dimensions are less than or equal to zero, or if an
        error occurs while (re)allocating memory for the windows.
 
@@ -98,29 +99,27 @@
 </PRE>
 <H2>NOTES</H2><PRE>
        While these functions are intended to be used to support a
-       signal  handler (i.e., for SIGWINCH), care should be taken
-       to avoid invoking them in a context where <STRONG>malloc</STRONG> or  <STRONG>real-</STRONG>
-       <STRONG>loc</STRONG>  may  have been interrupted, since it uses those func-
+       signal handler (i.e., for SIGWINCH), care should be  taken
+       to  avoid invoking them in a context where <STRONG>malloc</STRONG> or <STRONG>real-</STRONG>
+       <STRONG>loc</STRONG> may have been interrupted, since it uses  those  func-
        tions.
 
-       If ncurses is configured to supply its own  SIGWINCH  han-
-       dler, the <STRONG>resizeterm</STRONG> function ungetch's a <STRONG>KEY_RESIZE</STRONG> which
-       will be read on the next call to <STRONG>getch</STRONG>.  This is  used  to
+       If  ncurses  is configured to supply its own SIGWINCH han-
+       dler, the <STRONG>resizeterm</STRONG> function <STRONG>ungetch</STRONG>'s a <STRONG>KEY_RESIZE</STRONG> which
+       will  be  read on the next call to <STRONG>getch</STRONG>.  This is used to
        alert an application that the screen size has changed, and
-       that it should repaint special features such as pads  that
+       that  it should repaint special features such as pads that
        cannot be done automatically.
 
-       If  the  environment  variables  <STRONG>LINES</STRONG> or <STRONG>COLUMNS</STRONG> are set,
-       this overrides  the  library's  use  of  the  window  size
-       obtained  from the operating system.  Thus, even if a SIG-
-       WINCH is received, no screen size change may be  recorded.
-       In that case, no <STRONG>KEY_RESIZE</STRONG> is queued for the next call to
-       <STRONG>getch</STRONG>; an <STRONG>ERR</STRONG> will be returned instead.
+       If the environment variables <STRONG>LINES</STRONG>  or  <STRONG>COLUMNS</STRONG>  are  set,
+       this  overrides  the  library's  use  of  the  window size
+       obtained from the operating system.  Thus, even if a  SIG-
+       WINCH is received, no screen size change may be recorded.
 
 
 </PRE>
 <H2>SEE ALSO</H2><PRE>
-       <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_getch.3x.html">curs_getch(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>, <STRONG><A HREF="wresize.3x.html">wresize(3x)</A></STRONG>.
 
 
 </PRE>

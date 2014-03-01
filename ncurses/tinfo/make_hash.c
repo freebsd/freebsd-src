@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,7 +44,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: make_hash.c,v 1.3 2010/05/22 18:02:50 tom Exp $")
+MODULE_ID("$Id: make_hash.c,v 1.13 2013/09/28 20:55:47 tom Exp $")
 
 /*
  *	_nc_make_hash_table()
@@ -58,6 +58,24 @@ MODULE_ID("$Id: make_hash.c,v 1.3 2010/05/22 18:02:50 tom Exp $")
 #undef MODULE_ID
 #define MODULE_ID(id)		/*nothing */
 #include <tinfo/doalloc.c>
+
+static void
+failed(const char *s)
+{
+    perror(s);
+    exit(EXIT_FAILURE);
+}
+
+static char *
+strmalloc(char *s)
+{
+    size_t need = strlen(s) + 1;
+    char *result = malloc(need);
+    if (result == 0)
+	failed("strmalloc");
+    _nc_STRCPY(result, s, need);
+    return result;
+}
 
 /*
  *	int hash_function(string)
@@ -119,6 +137,18 @@ _nc_make_hash_table(struct name_table_entry *table,
 
 #define MAX_COLUMNS BUFSIZ	/* this _has_ to be worst-case */
 
+static int
+count_columns(char **list)
+{
+    int result = 0;
+    if (list != 0) {
+	while (*list++) {
+	    ++result;
+	}
+    }
+    return result;
+}
+
 static char **
 parse_columns(char *buffer)
 {
@@ -126,7 +156,7 @@ parse_columns(char *buffer)
 
     int col = 0;
 
-    if (list == 0 && (list = typeCalloc(char *, MAX_COLUMNS)) == 0)
+    if (list == 0 && (list = typeCalloc(char *, (MAX_COLUMNS + 1))) == 0)
 	  return (0);
 
     if (*buffer != '#') {
@@ -201,8 +231,15 @@ main(int argc, char **argv)
 	list = parse_columns(buffer);
 	if (list == 0)		/* blank or comment */
 	    continue;
+	if (column > count_columns(list)) {
+	    fprintf(stderr, "expected %d columns, have %d:\n%s\n",
+		    column,
+		    count_columns(list),
+		    buffer);
+	    exit(EXIT_FAILURE);
+	}
 	name_table[n].nte_link = -1;	/* end-of-hash */
-	name_table[n].nte_name = strdup(list[column]);
+	name_table[n].nte_name = strmalloc(list[column]);
 	if (!strcmp(list[2], "bool")) {
 	    name_table[n].nte_type = BOOLEAN;
 	    name_table[n].nte_index = BoolCount++;
@@ -256,13 +293,12 @@ main(int argc, char **argv)
 	printf("static struct name_table_entry *_nc_%s_table = 0;\n\n", root_name);
     } else {
 
-	printf("static struct name_table_entry %s _nc_%s_table[] =\n",
-	       bigstring ? "" : "const",
+	printf("static struct name_table_entry const _nc_%s_table[] =\n",
 	       root_name);
 	printf("{\n");
 	for (n = 0; n < CAPTABSIZE; n++) {
-	    sprintf(buffer, "\"%s\"",
-		    name_table[n].nte_name);
+	    _nc_SPRINTF(buffer, _nc_SLIMIT(sizeof(buffer)) "\"%s\"",
+			name_table[n].nte_name);
 	    printf("\t{ %15s,\t%10s,\t%3d, %3d }%c\n",
 		   buffer,
 		   typenames[name_table[n].nte_type],

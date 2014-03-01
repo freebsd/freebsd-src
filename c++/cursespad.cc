@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,10 +33,9 @@
 
 #include "internal.h"
 
-#include <etip.h>
 #include <cursesw.h>
 
-MODULE_ID("$Id: cursespad.cc,v 1.13 2008/08/04 18:59:22 tom Exp $")
+MODULE_ID("$Id: cursespad.cc,v 1.17 2013/03/30 19:45:36 tom Exp $")
 
 NCursesPad::NCursesPad(int nlines, int ncols)
   : NCursesWindow(),
@@ -220,6 +219,7 @@ void NCursesPad::setSubWindow(NCursesWindow& sub)
 
 void NCursesFramedPad::OnOperation(int pad_req)
 {
+  (void) pad_req;
   NCursesWindow* W = Win();
   NCursesWindow* W2 = getWindow();
 
@@ -228,25 +228,45 @@ void NCursesFramedPad::OnOperation(int pad_req)
     int Height = W->height();
     int i, row, col, h_len, v_len;
 
-    h_len = (Width*Width + width() - 1)/width();
-    if (h_len==0)
+    int my_width = width();
+
+    if (my_width != 0) {
+      h_len = (Width*Width + my_width - 1) / my_width;
+      if (h_len==0)
+	h_len = 1;
+      if (h_len > Width)
+	h_len = Width;
+    } else {
       h_len = 1;
-    if (h_len > Width)
-      h_len = Width;
+    }
 
-    v_len = (Height*Height + height() - 1)/height();
-    if (v_len==0)
+    int my_height = height();
+
+    if (my_height != 0) {
+      v_len = (Height*Height + my_height - 1) / my_height;
+      if (v_len==0)
+	v_len = 1;
+      if (v_len > Height)
+	v_len = Height;
+    } else {
       v_len = 1;
-    if (v_len > Height)
-      v_len = Height;
+    }
 
-    col  = (min_col * Width + width() - 1)  / width();
-    if (col + h_len > Width)
-      col = Width - h_len;
+    if (my_width != 0) {
+      col  = (min_col * Width + my_width - 1) / my_width;
+      if (col + h_len > Width)
+        col = Width - h_len;
+    } else {
+      col = 0;
+    }
 
-    row  = (min_row * Height + height() - 1) / height();
-    if (row + v_len > Height)
-      row = Height - v_len;
+    if (my_height != 0) {
+      row  = (min_row * Height + my_height - 1) / my_height;
+      if (row + v_len > Height)
+        row = Height - v_len;
+    } else {
+      row = 0;
+    }
 
     W2->vline(1,Width+1,Height);
     W2->attron(A_REVERSE);

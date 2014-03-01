@@ -1,7 +1,7 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
-  * Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_addchstr.3x,v 1.15 2010/12/04 18:36:44 tom Exp @
+  * @Id: curs_addchstr.3x,v 1.16 2012/11/03 22:54:43 tom Exp @
 -->
 <HTML>
 <HEAD>
@@ -62,62 +62,63 @@
        <STRONG>int</STRONG> <STRONG>waddchnstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>*chstr,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvaddchstr(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>*chstr);</STRONG>
        <STRONG>int</STRONG> <STRONG>mvaddchnstr(int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>*chstr,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
-       <STRONG>int</STRONG>  <STRONG>mvwaddchstr(WINDOW</STRONG>  <STRONG>*win,</STRONG>  <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG>
-       <STRONG>*chstr);</STRONG>
-       <STRONG>int</STRONG> <STRONG>mvwaddchnstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG>  <STRONG>const</STRONG>  <STRONG>chtype</STRONG>
-       <STRONG>*chstr,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwaddchstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>*chstr);</STRONG>
+       <STRONG>int</STRONG> <STRONG>mvwaddchnstr(WINDOW</STRONG> <STRONG>*win,</STRONG> <STRONG>int</STRONG> <STRONG>y,</STRONG> <STRONG>int</STRONG> <STRONG>x,</STRONG> <STRONG>const</STRONG> <STRONG>chtype</STRONG> <STRONG>*chstr,</STRONG> <STRONG>int</STRONG> <STRONG>n);</STRONG>
 
 
 </PRE>
 <H2>DESCRIPTION</H2><PRE>
-       These  routines copy <EM>chstr</EM> into the window image structure
-       at and after the current cursor position.  The  four  rou-
-       tines with <EM>n</EM> as the last argument copy at most <EM>n</EM> elements,
-       but no more than will fit on the line.  If <STRONG>n</STRONG>=<STRONG>-1</STRONG>  then  the
-       whole  string  is copied, to the maximum number of charac-
-       ters that will fit on the line.
+       These functions copy the (null-terminated) <EM>chstr</EM> array in-
+       to the window image structure starting at the current cur-
+       sor position.  The four functions with <EM>n</EM> as the last argu-
+       ment copy at most <EM>n</EM> elements, but no more than will fit on
+       the  line.  If <STRONG>n</STRONG>=<STRONG>-1</STRONG> then the whole array is copied, to the
+       maximum number of characters that will fit on the line.
 
-       The window cursor is <EM>not</EM> advanced, and these routines work
-       faster than <STRONG>waddnstr</STRONG>.  On the other hand, they do not per-
-       form any kind  of  checking  (such  as  for  the  newline,
-       backspace, or carriage return characters), they do not ad-
-       vance the current cursor position, they do not expand oth-
-       er  control characters to ^-escapes, and they truncate the
-       string if it crosses the right margin, rather  than  wrap-
-       ping it around to the new line.
+       The window cursor is <EM>not</EM> advanced.  These  functions  work
+       faster than <STRONG>waddnstr</STRONG>.  On the other hand:
+
+       <STRONG>o</STRONG>   they do not perform checking (such as for the newline,
+           backspace, or carriage return characters),
+
+       <STRONG>o</STRONG>   they do not advance the current cursor position,
+
+       <STRONG>o</STRONG>   they do not expand other control characters  to  ^-es-
+           capes, and
+
+       <STRONG>o</STRONG>   they  truncate the string if it crosses the right mar-
+           gin, rather than wrapping it around to the new line.
 
 
 </PRE>
-<H2>RETURN VALUES</H2><PRE>
-       All routines return the integer <STRONG>ERR</STRONG> upon failure and <STRONG>OK</STRONG> on
-       success (the SVr4 manuals specify only "an  integer  value
-       other than <STRONG>ERR</STRONG>") upon successful completion, unless other-
-       wise noted in the preceding routine descriptions.
+<H2>RETURN VALUE</H2><PRE>
+       All functions return the integer <STRONG>ERR</STRONG> upon failure  and  <STRONG>OK</STRONG>
+       on success.
 
-       X/Open does not define any error conditions.  This  imple-
+       X/Open  does not define any error conditions.  This imple-
        mentation returns an error if the window pointer is null.
 
-       Functions  with a "mv" prefix first perform a cursor move-
-       ment using <STRONG>wmove</STRONG>, and return an error if the  position  is
+       Functions with a "mv" prefix first perform a cursor  move-
+       ment  using  <STRONG>wmove</STRONG>, and return an error if the position is
        outside the window, or if the window pointer is null.
 
 
 </PRE>
 <H2>NOTES</H2><PRE>
-       Note that all routines except <STRONG>waddchnstr</STRONG> may be macros.
+       All functions except <STRONG>waddchnstr</STRONG> may be macros.
 
 
 </PRE>
 <H2>PORTABILITY</H2><PRE>
-       These  entry  points are described in the XSI Curses stan-
+       These entry points are described in the XSI  Curses  stan-
        dard, Issue 4.
 
 
 </PRE>
 <H2>SEE ALSO</H2><PRE>
-       <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
+       <STRONG><A HREF="curs_addstr.3x.html">curs_addstr(3x)</A></STRONG>, <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>.
 
-       Comparable functions in the wide-character (ncursesw)  li-
+       Comparable  functions in the wide-character (ncursesw) li-
        brary are described in <STRONG><A HREF="curs_add_wchstr.3x.html">curs_add_wchstr(3x)</A></STRONG>.
 
 

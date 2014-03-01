@@ -1,7 +1,7 @@
 # Program modules
-# $Id: modules,v 1.7 2006/12/24 00:53:08 tom Exp $
+# $Id: modules,v 1.11 2013/03/30 19:41:11 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,2006 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2006,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -32,14 +32,13 @@
 #
 
 @ base
-cursesf		c++		$(srcdir)	$(cursesf_h) $(cursesapp_h)
-cursesm		c++		$(srcdir)	$(cursesm_h) $(cursesapp_h)
-cursesp		c++		$(srcdir)	$(cursesp_h)
-cursesw		c++		$(srcdir)	$(cursesw_h)
-cursespad	c++		$(srcdir)	$(cursesw_h)
-cursslk		c++		$(srcdir)	$(cursslk_h) $(cursesapp_h)
-cursesapp	c++		$(srcdir)	$(cursesapp_h)
-cursesmain	c++		$(srcdir)	$(cursesapp_h)
-demo		c++		$(srcdir)	$(cursesf_h) $(cursesm_h) $(cursesapp_h)
+cursesf		c++		$(srcdir)	$(internal_h) $(cursesf_h) $(cursesapp_h)
+cursesm		c++		$(srcdir)	$(internal_h) $(cursesm_h) $(cursesapp_h)
+cursesw		c++		$(srcdir)	$(internal_h) $(cursesw_h)
+cursespad	c++		$(srcdir)	$(internal_h) $(cursesw_h)
+cursesp		c++		$(srcdir)	$(internal_h) $(cursesp_h)
+cursslk		c++		$(srcdir)	$(internal_h) $(cursesapp_h)
+cursesapp	c++		$(srcdir)	$(internal_h) $(cursesapp_h)
+cursesmain	c++		$(srcdir)	$(internal_h) $(cursesapp_h) $(INCDIR)/nc_alloc.h
 
 # vile:makemode

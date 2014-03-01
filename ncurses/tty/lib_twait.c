@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -53,6 +53,11 @@
 #include <OS.h>
 #endif
 
+#if USE_KLIBC_KBD
+#define INCL_KBD
+#include <os2.h>
+#endif
+
 #if USE_FUNC_POLL
 # if HAVE_SYS_TIME_H
 #  include <sys/time.h>
@@ -70,10 +75,10 @@
 #endif
 #undef CUR
 
-MODULE_ID("$Id: lib_twait.c,v 1.61 2010/12/25 23:43:58 tom Exp $")
+MODULE_ID("$Id: lib_twait.c,v 1.67 2013/02/18 09:22:27 tom Exp $")
 
 static long
-_nc_gettime(TimeType * t0, bool first)
+_nc_gettime(TimeType * t0, int first)
 {
     long res;
 
@@ -184,6 +189,12 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     fd_set set;
 #endif
 
+#if USE_KLIBC_KBD
+    fd_set saved_set;
+    KBDKEYINFO ki;
+    struct timeval tv;
+#endif
+
     long starttime, returntime;
 
     TR(TRACE_IEVENT, ("start twait: %d milliseconds, mode: %d",
@@ -207,6 +218,7 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     starttime = _nc_gettime(&t0, TRUE);
 
     count = 0;
+    (void) count;
 
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl)
@@ -217,8 +229,11 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     memset(fd_list, 0, sizeof(fd_list));
 
 #ifdef NCURSES_WGETCH_EVENTS
-    if ((mode & TW_EVENT) && evl)
+    if ((mode & TW_EVENT) && evl) {
 	fds = typeMalloc(struct pollfd, MIN_FDS + evl->count);
+	if (fds == 0)
+	    return TW_NONE;
+    }
 #endif
 
     if (mode & TW_INPUT) {
@@ -247,7 +262,7 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     }
 #endif
 
-    result = poll(fds, (unsigned) count, milliseconds);
+    result = poll(fds, (size_t) count, milliseconds);
 
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl) {
@@ -274,10 +289,6 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
 	    }
 	}
     }
-
-    if (fds != fd_list)
-	free((char *) fds);
-
 #endif
 
 #elif defined(__BEOS__)
@@ -329,10 +340,12 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
      */
     FD_ZERO(&set);
 
+#if !USE_KLIBC_KBD
     if (mode & TW_INPUT) {
 	FD_SET(sp->_ifd, &set);
 	count = sp->_ifd + 1;
     }
+#endif
     if ((mode & TW_MOUSE)
 	&& (fd = sp->_mouse_fd) >= 0) {
 	FD_SET(fd, &set);
@@ -352,6 +365,31 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     }
 #endif
 
+#if USE_KLIBC_KBD
+    for (saved_set = set;; set = saved_set) {
+	if ((mode & TW_INPUT)
+	    && (sp->_extended_key
+		|| (KbdPeek(&ki, 0) == 0
+		    && (ki.fbStatus & KBDTRF_FINAL_CHAR_IN)))) {
+	    FD_ZERO(&set);
+	    FD_SET(sp->_ifd, &set);
+	    result = 1;
+	    break;
+	}
+
+	tv.tv_sec = 0;
+	tv.tv_usec = (milliseconds == 0) ? 0 : (10 * 1000);
+
+	if ((result = select(count, &set, NULL, NULL, &tv)) != 0)
+	    break;
+
+	/* Time out ? */
+	if (milliseconds >= 0 && _nc_gettime(&t0, FALSE) >= milliseconds) {
+	    result = 0;
+	    break;
+	}
+    }
+#else
     if (milliseconds >= 0) {
 	struct timeval ntimeout;
 	ntimeout.tv_sec = milliseconds / 1000;
@@ -360,6 +398,7 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
     } else {
 	result = select(count, &set, NULL, NULL, NULL);
     }
+#endif
 
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl) {
@@ -460,6 +499,13 @@ _nc_timed_wait(SCREEN *sp MAYBE_UNUSED,
 #ifdef NCURSES_WGETCH_EVENTS
     if ((mode & TW_EVENT) && evl && evl->result_flags)
 	result |= TW_EVENT;
+#endif
+
+#if USE_FUNC_POLL
+#ifdef NCURSES_WGETCH_EVENTS
+    if (fds != fd_list)
+	free((char *) fds);
+#endif
 #endif
 
     return (result);

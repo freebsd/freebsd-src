@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.46 2010/01/09 16:53:24 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.49 2013/09/28 20:57:25 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)
@@ -94,9 +94,6 @@ check_aliases(const char *name)
  * Lookup the type of call we should make to tparm().  This ignores the actual
  * terminfo capability (bad, because it is not extensible), but makes this
  * code portable to platforms where sizeof(int) != sizeof(char *).
- *
- * FIXME: If we want extensibility, analyze the capability string as we do
- * in tparm() to decide how to parse the varargs list.
  */
 static TParams
 tparm_type(const char *name)
@@ -306,7 +303,7 @@ tput(int argc, char *argv[])
     } else if (s != ABSENT_STRING) {
 	if (argc > 1) {
 	    int k;
-	    int popcount;
+	    int ignored;
 	    long numbers[1 + NUM_PARM];
 	    char *strings[1 + NUM_PARM];
 	    char *p_is_s[NUM_PARM];
@@ -337,8 +334,8 @@ tput(int argc, char *argv[])
 		break;
 	    case Numbers:
 	    default:
-		(void) _nc_tparm_analyze(s, p_is_s, &popcount);
-#define myParam(n) (p_is_s[n - 1] != 0 ? ((long) strings[n]) : numbers[n])
+		(void) _nc_tparm_analyze(s, p_is_s, &ignored);
+#define myParam(n) (p_is_s[n - 1] != 0 ? ((TPARM_ARG) strings[n]) : numbers[n])
 		s = TPARM_9(s,
 			    myParam(1),
 			    myParam(2),

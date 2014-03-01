@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_options.c,v 1.71 2009/10/24 21:56:15 tom Exp $")
+MODULE_ID("$Id: lib_options.c,v 1.76 2013/12/14 22:23:58 tom Exp $")
 
 NCURSES_EXPORT(int)
 idlok(WINDOW *win, bool flag)
@@ -56,7 +56,11 @@ idlok(WINDOW *win, bool flag)
 
     if (win) {
 	SCREEN *sp = _nc_screen_of(win);
-	if (sp && IsTermInfo(sp)) {
+	if (sp != 0
+#ifdef USE_TERM_DRIVER
+	    && IsTermInfo(sp)
+#endif
+	    ) {
 	    sp->_nc_sp_idlok =
 		win->_idlok = (flag && (NCURSES_SP_NAME(has_il) (NCURSES_SP_ARG)
 					|| change_scroll_region));
@@ -165,16 +169,16 @@ meta(WINDOW *win GCC_UNUSED, bool flag)
 #ifdef USE_TERM_DRIVER
 	if (IsTermInfo(sp)) {
 	    if (flag) {
-		NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx "meta_on", meta_on);
+		NCURSES_PUTP2("meta_on", meta_on);
 	    } else {
-		NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx "meta_off", meta_off);
+		NCURSES_PUTP2("meta_off", meta_off);
 	    }
 	}
 #else
 	if (flag) {
-	    NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx "meta_on", meta_on);
+	    NCURSES_PUTP2("meta_on", meta_on);
 	} else {
-	    NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx "meta_off", meta_off);
+	    NCURSES_PUTP2("meta_off", meta_off);
 	}
 #endif
 	result = OK;
@@ -199,19 +203,16 @@ NCURSES_SP_NAME(curs_set) (NCURSES_SP_DCLx int vis)
 	    if (!bBuiltIn) {
 		switch (vis) {
 		case 2:
-		    code = NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_ARGx
-							    "cursor_visible",
-							    cursor_visible);
+		    code = NCURSES_PUTP2_FLUSH("cursor_visible",
+					       cursor_visible);
 		    break;
 		case 1:
-		    code = NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_ARGx
-							    "cursor_normal",
-							    cursor_normal);
+		    code = NCURSES_PUTP2_FLUSH("cursor_normal",
+					       cursor_normal);
 		    break;
 		case 0:
-		    code = NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_ARGx
-							    "cursor_invisible",
-							    cursor_invisible);
+		    code = NCURSES_PUTP2_FLUSH("cursor_invisible",
+					       cursor_invisible);
 		    break;
 		}
 	    } else
@@ -301,7 +302,7 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_DCLx
 				 const char *name, const char *value)
 {
-    int rc = NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx name, value);
+    int rc = NCURSES_PUTP2(name, value);
     if (rc != ERR) {
 	_nc_flush();
     }
@@ -324,7 +325,7 @@ _nc_putp_flush(const char *name, const char *value)
  * the terminal state _before_ switching modes.
  */
 NCURSES_EXPORT(int)
-_nc_keypad(SCREEN *sp, bool flag)
+_nc_keypad(SCREEN *sp, int flag)
 {
     int rc = ERR;
 
@@ -354,13 +355,9 @@ _nc_keypad(SCREEN *sp, bool flag)
 		sp->_keypad_on = flag;
 #else
 	    if (flag) {
-		(void) NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_ARGx
-							"keypad_xmit",
-							keypad_xmit);
+		(void) NCURSES_PUTP2_FLUSH("keypad_xmit", keypad_xmit);
 	    } else if (!flag && keypad_local) {
-		(void) NCURSES_SP_NAME(_nc_putp_flush) (NCURSES_SP_ARGx
-							"keypad_local",
-							keypad_local);
+		(void) NCURSES_PUTP2_FLUSH("keypad_local", keypad_local);
 	    }
 
 	    if (flag && !sp->_tried) {

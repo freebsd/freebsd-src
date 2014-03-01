@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,14 +41,14 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_colorset.c,v 1.13 2009/10/24 22:02:14 tom Exp $")
+MODULE_ID("$Id: lib_colorset.c,v 1.14 2014/02/01 22:10:42 tom Exp $")
 
 NCURSES_EXPORT(int)
-wcolor_set(WINDOW *win, short color_pair_number, void *opts)
+wcolor_set(WINDOW *win, NCURSES_PAIRS_T color_pair_number, void *opts)
 {
     int code = ERR;
 
-    T((T_CALLED("wcolor_set(%p,%d)"), (void *) win, color_pair_number));
+    T((T_CALLED("wcolor_set(%p,%d)"), (void *) win, (int) color_pair_number));
     if (win
 	&& !opts
 	&& (SP != 0)

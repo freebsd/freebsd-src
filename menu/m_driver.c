@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_driver.c,v 1.29 2010/01/23 21:20:10 tom Exp $")
+MODULE_ID("$Id: m_driver.c,v 1.31 2012/03/10 23:43:41 tom Exp $")
 
 /* Macros */
 
@@ -47,7 +47,7 @@ MODULE_ID("$Id: m_driver.c,v 1.29 2010/01/23 21:20:10 tom Exp $")
 
 /* Add a new character to the match pattern buffer */
 #define Add_Character_To_Pattern(menu,ch) \
-  { (menu)->pattern[((menu)->pindex)++] = (ch);\
+  { (menu)->pattern[((menu)->pindex)++] = (char) (ch);\
     (menu)->pattern[(menu)->pindex] = '\0'; }
 
 /*---------------------------------------------------------------------------
@@ -537,7 +537,11 @@ menu_driver(MENU * menu, int c)
 	result = E_UNKNOWN_COMMAND;
     }
 
-  if (E_OK == result)
+  if (item == 0)
+    {
+      result = E_BAD_STATE;
+    }
+  else if (E_OK == result)
     {
       /* Adjust the top row if it turns out that the current item unfortunately
          doesn't appear in the menu window */

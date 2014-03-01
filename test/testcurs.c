@@ -6,7 +6,7 @@
  *  wrs(5/28/93) -- modified to be consistent (perform identically) with either
  *                  PDCurses or under Unix System V, R4
  *
- * $Id: testcurs.c,v 1.43 2010/11/13 21:02:28 tom Exp $
+ * $Id: testcurs.c,v 1.48 2013/05/18 22:05:06 tom Exp $
  */
 
 #include <test.priv.h>
@@ -45,18 +45,6 @@ static const COMMAND command[] =
 };
 #define MAX_OPTIONS (int) SIZEOF(command)
 
-#if !HAVE_STRDUP
-#define strdup my_strdup
-static char *
-strdup(char *s)
-{
-    char *p = typeMalloc(char, strlen(s) + 1);
-    if (p)
-	strcpy(p, s);
-    return (p);
-}
-#endif /* not HAVE_STRDUP */
-
 static int width, height;
 
 int
@@ -85,7 +73,7 @@ main(
 #ifdef A_COLOR
 	if (has_colors()) {
 	    init_pair(1, COLOR_WHITE, COLOR_BLUE);
-	    wbkgd(win, COLOR_PAIR(1));
+	    wbkgd(win, (chtype) COLOR_PAIR(1));
 	} else
 	    wbkgd(win, A_REVERSE);
 #else
@@ -353,6 +341,9 @@ inputTest(WINDOW *win)
     typeahead(-1);
 #endif
 
+#ifdef NCURSES_MOUSE_VERSION
+    mousemask(ALL_MOUSE_EVENTS, (mmask_t *) 0);
+#endif
 #if defined(PDCURSES)
     mouse_set(ALL_MOUSE_EVENTS);
 #endif
@@ -367,8 +358,38 @@ inputTest(WINDOW *win)
 	    wprintw(win, "Key Pressed: %c", c);
 	else
 	    wprintw(win, "Key Pressed: %s", unctrl(UChar(c)));
-#if defined(PDCURSES)
+#ifdef KEY_MOUSE
 	if (c == KEY_MOUSE) {
+#if defined(NCURSES_MOUSE_VERSION)
+#define ButtonChanged(n) ((event.bstate) & NCURSES_MOUSE_MASK(1, 037))
+#define ButtonPressed(n) ((event.bstate) & NCURSES_MOUSE_MASK(1, NCURSES_BUTTON_PRESSED))
+#define ButtonDouble(n)  ((event.bstate) & NCURSES_MOUSE_MASK(1, NCURSES_DOUBLE_CLICKED))
+#define ButtonTriple(n)  ((event.bstate) & NCURSES_MOUSE_MASK(1, NCURSES_TRIPLE_CLICKED))
+#define ButtonRelease(n) ((event.bstate) & NCURSES_MOUSE_MASK(1, NCURSES_BUTTON_RELEASED))
+	    MEVENT event;
+	    int button = 0;
+
+	    getmouse(&event);
+	    if (ButtonChanged(1))
+		button = 1;
+	    else if (ButtonChanged(2))
+		button = 2;
+	    else if (ButtonChanged(3))
+		button = 3;
+	    else
+		button = 0;
+	    wmove(win, 4, 18);
+	    wprintw(win, "Button %d: ", button);
+	    if (ButtonPressed(button))
+		wprintw(win, "pressed: ");
+	    else if (ButtonDouble(button))
+		wprintw(win, "double: ");
+	    else if (ButtonTriple(button))
+		wprintw(win, "triple: ");
+	    else
+		wprintw(win, "released: ");
+	    wprintw(win, " Position: Y: %d X: %d", event.y, event.x);
+#elif defined(PDCURSES)
 	    int button = 0;
 	    request_mouse_pos();
 	    if (BUTTON_CHANGED(1))
@@ -390,8 +411,9 @@ inputTest(WINDOW *win)
 	    else
 		wprintw(win, "released: ");
 	    wprintw(win, " Position: Y: %d X: %d", MOUSE_Y_POS, MOUSE_X_POS);
+#endif /* NCURSES_VERSION vs PDCURSES */
 	}
-#endif
+#endif /* KEY_MOUSE */
 	wrefresh(win);
 	if (c == ' ')
 	    break;
@@ -491,7 +513,7 @@ outputTest(WINDOW *win)
 #ifdef A_COLOR
 	if (has_colors()) {
 	    init_pair(3, COLOR_BLUE, COLOR_WHITE);
-	    wbkgd(win1, COLOR_PAIR(3));
+	    wbkgd(win1, (chtype) COLOR_PAIR(3));
 	} else
 	    wbkgd(win1, A_NORMAL);
 #else
@@ -693,9 +715,11 @@ padTest(WINDOW *dummy GCC_UNUSED)
 	raw();
 	wgetch(pad);
 
-	spad = subpad(pad, 12, 25, 6, 52);
-	MvWAddStr(spad, 2, 2, "This is a new subpad");
-	box(spad, 0, 0);
+	if ((spad = subpad(pad, 12, 25, 6, 52)) != 0) {
+	    MvWAddStr(spad, 2, 2, "This is a new subpad");
+	    box(spad, 0, 0);
+	    delwin(spad);
+	}
 	prefresh(pad, 0, 0, 0, 0, 15, 75);
 	keypad(pad, TRUE);
 	raw();

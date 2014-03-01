@@ -1,0 +1,4 @@
+version=3
+
+opts=passive ftp://invisible-island.net/ncurses/current/ncurses\.tar.gz \
+ debian  uupdate

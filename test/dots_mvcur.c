@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 2007-2009,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey - 2007
  *
- * $Id: dots_mvcur.c,v 1.6 2010/11/14 01:00:44 tom Exp $
+ * $Id: dots_mvcur.c,v 1.10 2013/09/28 22:44:18 tom Exp $
  *
  * A simple demo of the terminfo interface, and mvcur.
  */
@@ -46,24 +46,24 @@ static bool interrupted = FALSE;
 static long total_chars = 0;
 static time_t started;
 
-static int
-outc(TPUTS_ARG c)
+static
+TPUTS_PROTO(outc, c)
 {
     int rc = c;
 
     if (interrupted) {
 	char tmp = (char) c;
-	if (write(STDOUT_FILENO, &tmp, 1) == -1)
+	if (write(STDOUT_FILENO, &tmp, (size_t) 1) == -1)
 	    rc = EOF;
     } else {
 	if (putc(c, stdout) == EOF)
 	    rc = EOF;
     }
-    return rc;
+    TPUTS_RETURN(rc);
 }
 
 static bool
-outs(char *s)
+outs(const char *s)
 {
     if (valid(s)) {
 	tputs(s, 1, outc);
@@ -108,6 +108,7 @@ main(int argc GCC_UNUSED,
     double r;
     double c;
     SCREEN *sp;
+    int my_colors;
 
     CATCHALL(onsig);
 
@@ -116,11 +117,12 @@ main(int argc GCC_UNUSED,
     outs(clear_screen);
     outs(cursor_home);
     outs(cursor_invisible);
-    if (max_colors > 1) {
+    my_colors = max_colors;
+    if (my_colors > 1) {
 	if (!valid(set_a_foreground)
 	    || !valid(set_a_background)
 	    || (!valid(orig_colors) && !valid(orig_pair)))
-	    max_colors = -1;
+	    my_colors = -1;
     }
 
     r = (double) (lines - 4);
@@ -137,8 +139,8 @@ main(int argc GCC_UNUSED,
 	    y0 = y;
 	}
 
-	if (max_colors > 0) {
-	    z = (int) (ranf() * max_colors);
+	if (my_colors > 0) {
+	    z = (int) (ranf() * my_colors);
 	    if (ranf() > 0.01) {
 		tputs(tparm2(set_a_foreground, z), 1, outc);
 	    } else {
@@ -155,6 +157,7 @@ main(int argc GCC_UNUSED,
 	    }
 	}
 	outc(p);
+	++x0;
 	fflush(stdout);
 	++total_chars;
     }

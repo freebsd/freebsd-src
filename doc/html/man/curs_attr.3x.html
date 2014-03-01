@@ -1,8 +1,8 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   * t
   ****************************************************************************
-  * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+  * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
   *                                                                          *
   * Permission is hereby granted, free of charge, to any person obtaining a  *
   * copy of this software and associated documentation files (the            *
@@ -28,7 +28,7 @@
   * sale, use or other dealings in this Software without prior written       *
   * authorization.                                                           *
   ****************************************************************************
-  * @Id: curs_attr.3x,v 1.36 2010/12/04 18:36:44 tom Exp @
+  * @Id: curs_attr.3x,v 1.39 2013/09/21 20:39:49 Sven.Joachim Exp @
 -->
 <HTML>
 <HEAD>
@@ -148,19 +148,36 @@
        be passed to the routines <STRONG>attron</STRONG>, <STRONG>attroff</STRONG>, and <STRONG>attrset</STRONG>, or
        OR'd with the characters passed to <STRONG>addch</STRONG>.
 
+              <EM>Name</EM>            <EM>Description</EM>
+              ------------------------------------------------------------
+              <STRONG>A_NORMAL</STRONG>        Normal display (no highlight)
+              <STRONG>A_STANDOUT</STRONG>      Best highlighting mode of the terminal.
+              <STRONG>A_UNDERLINE</STRONG>     Underlining
+              <STRONG>A_REVERSE</STRONG>       Reverse video
+              <STRONG>A_BLINK</STRONG>         Blinking
+              <STRONG>A_DIM</STRONG>           Half bright
+              <STRONG>A_BOLD</STRONG>          Extra bright or bold
+              <STRONG>A_PROTECT</STRONG>       Protected mode
+              <STRONG>A_INVIS</STRONG>         Invisible or blank mode
+              <STRONG>A_ALTCHARSET</STRONG>    Alternate character set
+              <STRONG>A_ITALIC</STRONG>        Italics (non-X/Open extension)
+              <STRONG>A_CHARTEXT</STRONG>      Bit-mask to extract a character
+              <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG>   Color-pair number <EM>n</EM>
 
-        <STRONG>A_NORMAL</STRONG>        Normal display (no highlight)
-        <STRONG>A_STANDOUT</STRONG>      Best highlighting mode of the terminal.
-        <STRONG>A_UNDERLINE</STRONG>     Underlining
-        <STRONG>A_REVERSE</STRONG>       Reverse video
-        <STRONG>A_BLINK</STRONG>         Blinking
-        <STRONG>A_DIM</STRONG>           Half bright
-        <STRONG>A_BOLD</STRONG>          Extra bright or bold
-        <STRONG>A_PROTECT</STRONG>       Protected mode
-        <STRONG>A_INVIS</STRONG>         Invisible or blank mode
-        <STRONG>A_ALTCHARSET</STRONG>    Alternate character set
-        <STRONG>A_CHARTEXT</STRONG>      Bit-mask to extract a character
-        <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG>   Color-pair number <EM>n</EM>
+       These video attributes are supported by <STRONG>attr_on</STRONG> and relat-
+       ed functions (which also support the attributes recognized
+       by <STRONG>attron</STRONG>, etc.):
+
+              <EM>Name</EM>            <EM>Description</EM>
+              -----------------------------------------
+              <STRONG>WA_HORIZONTAL</STRONG>   Horizontal highlight
+              <STRONG>WA_LEFT</STRONG>         Left highlight
+              <STRONG>WA_LOW</STRONG>          Low highlight
+              <STRONG>WA_RIGHT</STRONG>        Right highlight
+              <STRONG>WA_TOP</STRONG>          Top highlight
+              <STRONG>WA_VERTICAL</STRONG>     Vertical highlight
+
+       For consistency
 
        The following macro is the reverse of <STRONG>COLOR_PAIR(</STRONG><EM>n</EM><STRONG>)</STRONG>:
 
@@ -202,33 +219,44 @@
        correctly manipulate all other  highlights  (specifically,
        <STRONG>A_ALTCHARSET</STRONG>, <STRONG>A_PROTECT</STRONG>, and <STRONG>A_INVIS</STRONG>).
 
+       This  implementation  provides  the <STRONG>A_ITALIC</STRONG> attribute for
+       terminals which have the <EM>enter</EM><STRONG>_</STRONG><EM>italics</EM><STRONG>_</STRONG><EM>mode</EM> (sitm) and <EM>ex-</EM>
+       <EM>it</EM><STRONG>_</STRONG><EM>italics</EM><STRONG>_</STRONG><EM>mode</EM> (ritm) capabilities.  Italics are not men-
+       tioned in X/Open  Curses.   Unlike  the  other  video  at-
+       tributes,  <STRONG>I_ITALIC</STRONG> is unrelated to the <EM>set</EM><STRONG>_</STRONG><EM>attributes</EM> ca-
+       pabilities.  This implementation makes the assumption that
+       <EM>exit</EM><STRONG>_</STRONG><EM>attribute</EM><STRONG>_</STRONG><EM>mode</EM> may also reset italics.
+
        XSI  Curses added the new entry points, <STRONG>attr_get</STRONG>, <STRONG>attr_on</STRONG>,
        <STRONG>attr_off</STRONG>, <STRONG>attr_set</STRONG>, <STRONG>wattr_on</STRONG>, <STRONG>wattr_off</STRONG>,  <STRONG>wattr_get</STRONG>,  <STRONG>wat-</STRONG>
        <STRONG>tr_set</STRONG>.   These  are intended to work with a new series of
-       highlight macros prefixed with <STRONG>WA_</STRONG>.
+       highlight macros prefixed with <STRONG>WA_</STRONG>.  The older macros have
+       direct counterparts in the newer set of names:
 
-       Older versions of this library did not force an update  of
-       the  screen when changing the attributes.  Use <STRONG>touchwin</STRONG> to
+              <EM>Name</EM>            <EM>Description</EM>
+              ------------------------------------------------------------
+              <STRONG>WA_NORMAL</STRONG>       Normal display (no highlight)
+              <STRONG>WA_STANDOUT</STRONG>     Best highlighting mode of the terminal.
+              <STRONG>WA_UNDERLINE</STRONG>    Underlining
+              <STRONG>WA_REVERSE</STRONG>      Reverse video
+              <STRONG>WA_BLINK</STRONG>        Blinking
+              <STRONG>WA_DIM</STRONG>          Half bright
+              <STRONG>WA_BOLD</STRONG>         Extra bright or bold
+              <STRONG>WA_ALTCHARSET</STRONG>   Alternate character set
+
+       Older  versions of this library did not force an update of
+       the screen when changing the attributes.  Use <STRONG>touchwin</STRONG>  to
        force the screen to match the updated attributes.
 
-
-        <STRONG>WA_NORMAL</STRONG>       Normal display (no highlight)
-        <STRONG>WA_STANDOUT</STRONG>     Best highlighting mode of the terminal.
-        <STRONG>WA_UNDERLINE</STRONG>    Underlining
-        <STRONG>WA_REVERSE</STRONG>      Reverse video
-        <STRONG>WA_BLINK</STRONG>        Blinking
-        <STRONG>WA_DIM</STRONG>          Half bright
-        <STRONG>WA_BOLD</STRONG>         Extra bright or bold
-        <STRONG>WA_ALTCHARSET</STRONG>   Alternate character set
-
        The XSI curses standard specifies that each pair of corre-
-       sponding  <STRONG>A_</STRONG>  and <STRONG>WA_</STRONG>-using functions operates on the same
+       sponding <STRONG>A_</STRONG> and <STRONG>WA_</STRONG>-using functions operates on  the  same
        current-highlight information.
 
        The XSI standard extended conformance level adds new high-
        lights <STRONG>A_HORIZONTAL</STRONG>, <STRONG>A_LEFT</STRONG>, <STRONG>A_LOW</STRONG>, <STRONG>A_RIGHT</STRONG>, <STRONG>A_TOP</STRONG>, <STRONG>A_VER-</STRONG>
-       <STRONG>TICAL</STRONG> (and corresponding <STRONG>WA_</STRONG> macros for each)  which  this
-       implementation does not yet support.
+       <STRONG>TICAL</STRONG>  (and corresponding <STRONG>WA_</STRONG> macros for each).  As of Au-
+       gust 2013, no known  terminal  provides  these  highlights
+       (i.e., via the <STRONG>sgr1</STRONG> capability).
 
 
 </PRE>

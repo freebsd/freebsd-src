@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_stat.c,v 1.12 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: fld_stat.c,v 1.14 2012/06/10 00:13:09 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform  
@@ -51,9 +51,9 @@ set_field_status(FIELD *field, bool status)
   Normalize_Field(field);
 
   if (status)
-    field->status |= _CHANGED;
+    SetStatus(field, _CHANGED);
   else
-    field->status &= ~_CHANGED;
+    ClrStatus(field, _CHANGED);
 
   RETURN(E_OK);
 }

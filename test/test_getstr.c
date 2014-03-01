@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2007-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 2007-2009,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test_getstr.c,v 1.9 2009/08/29 19:02:25 tom Exp $
+ * $Id: test_getstr.c,v 1.10 2012/07/07 18:22:49 tom Exp $
  *
  * Author: Thomas E Dickey
  *
@@ -57,6 +57,15 @@ typedef enum {
     eMvGetNStr,
     eMaxFlavor
 } Flavors;
+
+/*
+ * Return-code is OK/ERR or a keyname.
+ */
+static const char *
+ok_keyname(int code)
+{
+    return ((code == OK) ? "OK" : ((code == ERR) ? "ERR" : keyname(code)));
+}
 
 static bool
 Quit(int ch)
@@ -310,7 +319,7 @@ test_getstr(int level, char **argv, WINDOW *strwin)
 	    }
 	    noecho();
 	    (void) wattrset(txtwin, A_NORMAL);
-	    wprintw(strwin, "%d:%s", rc, buffer);
+	    wprintw(strwin, "%s:%s", ok_keyname(rc), buffer);
 	    wnoutrefresh(strwin);
 	    break;
 	default:

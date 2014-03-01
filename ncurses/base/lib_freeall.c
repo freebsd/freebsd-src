@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,7 +39,7 @@
 extern int malloc_errfd;	/* FIXME */
 #endif
 
-MODULE_ID("$Id: lib_freeall.c,v 1.59 2010/01/23 17:57:43 tom Exp $")
+MODULE_ID("$Id: lib_freeall.c,v 1.62 2012/11/17 23:53:03 tom Exp $")
 
 /*
  * Free all ncurses data.  This is used for testing only (there's no practical
@@ -70,19 +70,21 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 
 	    /* Delete only windows that're not a parent */
 	    for (each_window(SP_PARM, p)) {
+		WINDOW *p_win = &(p->win);
 		bool found = FALSE;
 
 		for (each_window(SP_PARM, q)) {
+		    WINDOW *q_win = &(q->win);
 		    if ((p != q)
-			&& (q->win._flags & _SUBWIN)
-			&& (&(p->win) == q->win._parent)) {
+			&& (q_win->_flags & _SUBWIN)
+			&& (p_win == q_win->_parent)) {
 			found = TRUE;
 			break;
 		    }
 		}
 
 		if (!found) {
-		    if (delwin(&(p->win)) != ERR)
+		    if (delwin(p_win) != ERR)
 			deleted = TRUE;
 		    break;
 		}
@@ -100,7 +102,7 @@ NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_DCL0)
 
     (void) _nc_printf_string(0, empty_va);
 #ifdef TRACE
-    (void) _nc_trace_buf(-1, 0);
+    (void) _nc_trace_buf(-1, (size_t) 0);
 #endif
 #if USE_WIDEC_SUPPORT
     FreeIfNeeded(_nc_wacs);
@@ -129,8 +131,9 @@ _nc_freeall(void)
 NCURSES_EXPORT(void)
 NCURSES_SP_NAME(_nc_free_and_exit) (NCURSES_SP_DCLx int code)
 {
-    char *last_setbuf = (SP_PARM != 0) ? SP_PARM->_setbuf : 0;
+    char *last_buffer = (SP_PARM != 0) ? SP_PARM->out_buffer : 0;
 
+    NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
     NCURSES_SP_NAME(_nc_freeall) (NCURSES_SP_ARG);
 #ifdef TRACE
     trace(0);			/* close trace file, freeing its setbuf */
@@ -139,8 +142,7 @@ NCURSES_SP_NAME(_nc_free_and_exit) (NCURSES_SP_DCLx int code)
 	free(_nc_varargs("?", fake));
     }
 #endif
-    fclose(stdout);
-    FreeIfNeeded(last_setbuf);
+    FreeIfNeeded(last_buffer);
     exit(code);
 }
 

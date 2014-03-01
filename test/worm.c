@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -61,7 +61,7 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.60 2010/11/13 20:21:21 tom Exp $
+  $Id: worm.c,v 1.65 2013/06/22 20:01:41 tom Exp $
 */
 
 #include <test.priv.h>
@@ -202,6 +202,14 @@ static const struct options {
 /* *INDENT-ON* */
 
 static void
+failed(const char *s)
+{
+    perror(s);
+    endwin();
+    ExitProgram(EXIT_FAILURE);
+}
+
+static void
 cleanup(void)
 {
     USING_WINDOW(stdscr, wrefresh);
@@ -209,7 +217,7 @@ cleanup(void)
     endwin();
 }
 
-static RETSIGTYPE
+static void
 onsig(int sig GCC_UNUSED)
 {
     cleanup();
@@ -354,8 +362,7 @@ draw_all_worms(void)
     if (first) {
 	first = FALSE;
 	for (n = 0, w = &worm[0]; n < number; n++, w++) {
-	    int rc;
-	    rc = pthread_create(&(w->thread), NULL, start_worm, w);
+	    (void) pthread_create(&(w->thread), NULL, start_worm, w);
 	}
     }
 #else
@@ -391,6 +398,8 @@ update_refs(WINDOW *win)
     if (last_x != COLS - 1) {
 	for (y = 0; y <= last_y; y++) {
 	    refs[y] = typeRealloc(int, (size_t) COLS, refs[y]);
+	    if (!refs[y])
+		failed("update_refs");
 	    for (x = last_x + 1; x < COLS; x++)
 		refs[y][x] = 0;
 	}
@@ -402,6 +411,8 @@ update_refs(WINDOW *win)
 	refs = typeRealloc(int *, (size_t) LINES, refs);
 	for (y = last_y + 1; y < LINES; y++) {
 	    refs[y] = typeMalloc(int, (size_t) COLS);
+	    if (!refs[y])
+		failed("update_refs");
 	    for (x = 0; x < COLS; x++)
 		refs[y][x] = 0;
 	}
@@ -419,6 +430,7 @@ main(int argc, char *argv[])
     struct worm *w;
     int *ip;
     bool done = FALSE;
+    int max_refs;
 
     setlocale(LC_ALL, "");
 
@@ -489,7 +501,7 @@ main(int argc, char *argv[])
 
 #define SET_COLOR(num, fg) \
 	    init_pair(num+1, (short) fg, (short) bg); \
-	    flavor[num] |= COLOR_PAIR(num+1) | A_BOLD
+	    flavor[num] |= (chtype) COLOR_PAIR(num+1) | A_BOLD
 
 	SET_COLOR(0, COLOR_GREEN);
 	SET_COLOR(1, COLOR_RED);
@@ -501,8 +513,9 @@ main(int argc, char *argv[])
     }
 #endif /* A_COLOR */
 
-    refs = typeMalloc(int *, (size_t) LINES);
-    for (y = 0; y < LINES; y++) {
+    max_refs = LINES;
+    refs = typeMalloc(int *, (size_t) max_refs);
+    for (y = 0; y < max_refs; y++) {
 	refs[y] = typeMalloc(int, (size_t) COLS);
 	for (x = 0; x < COLS; x++) {
 	    refs[y][x] = 0;
@@ -596,7 +609,7 @@ main(int argc, char *argv[])
     Trace(("Cleanup"));
     cleanup();
 #ifdef NO_LEAKS
-    for (y = 0; y < LINES; y++) {
+    for (y = 0; y < max_refs; y++) {
 	free(refs[y]);
     }
     free(refs);

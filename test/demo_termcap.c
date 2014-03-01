@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2005-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 2005-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: demo_termcap.c,v 1.14 2011/01/15 21:41:27 tom Exp $
+ * $Id: demo_termcap.c,v 1.24 2013/06/08 16:58:49 tom Exp $
  *
  * A simple demo of the termcap interface.
  */
@@ -50,10 +50,89 @@
 #if USE_CODE_LISTS
 static bool b_opt = FALSE;
 static bool n_opt = FALSE;
+static bool q_opt = FALSE;
 static bool s_opt = FALSE;
 #endif
 
+static char *d_opt;
+static char *e_opt;
+static char **db_list;
+static int db_item;
+
+static long total_values;
+
 #define isCapName(c) (isgraph(c) && strchr("^#=:\\", c) == 0)
+
+static char *
+make_dbitem(char *p, char *q)
+{
+    char *result = malloc(strlen(e_opt) + 2 + (size_t) (p - q));
+    sprintf(result, "%s=%.*s", e_opt, (int) (p - q), q);
+    return result;
+}
+
+static void
+make_dblist(void)
+{
+    if (d_opt && e_opt) {
+	int pass;
+
+	for (pass = 0; pass < 2; ++pass) {
+	    char *p, *q;
+	    size_t count = 0;
+
+	    for (p = q = d_opt; *p != '\0'; ++p) {
+		if (*p == ':') {
+		    if (p != q + 1) {
+			if (pass) {
+			    db_list[count] = make_dbitem(p, q);
+			}
+			count++;
+		    }
+		    q = p + 1;
+		}
+	    }
+	    if (p != q + 1) {
+		if (pass) {
+		    db_list[count] = make_dbitem(p, q);
+		}
+		count++;
+	    }
+	    if (!pass) {
+		db_list = typeCalloc(char *, count + 1);
+	    }
+	}
+    }
+}
+
+static char *
+next_dbitem(void)
+{
+    char *result = 0;
+
+    if (db_list) {
+	if ((result = db_list[db_item]) == 0) {
+	    db_item = 0;
+	    result = db_list[0];
+	} else {
+	    db_item++;
+	}
+    }
+    printf("** %s\n", result);
+    return result;
+}
+
+static void
+free_dblist(void)
+{
+    if (db_list) {
+	int n;
+	for (n = 0; db_list[n]; ++n)
+	    free(db_list[n]);
+	free(db_list);
+	db_list = 0;
+    }
+}
 
 static void
 dumpit(NCURSES_CONST char *cap)
@@ -70,66 +149,77 @@ dumpit(NCURSES_CONST char *cap)
     int num;
 
     if ((str = tgetstr(cap, &ap)) != 0) {
-	/*
-	 * Note that the strings returned are mostly terminfo format, since
-	 * ncurses does not convert except for a handful of special cases.
-	 */
-	printf(FNAME(str), cap);
-	while (*str != 0) {
-	    int ch = UChar(*str++);
-	    switch (ch) {
-	    case '\177':
-		fputs("^?", stdout);
-		break;
-	    case '\033':
-		fputs("\\E", stdout);
-		break;
-	    case '\b':
-		fputs("\\b", stdout);
-		break;
-	    case '\f':
-		fputs("\\f", stdout);
-		break;
-	    case '\n':
-		fputs("\\n", stdout);
-		break;
-	    case '\r':
-		fputs("\\r", stdout);
-		break;
-	    case ' ':
-		fputs("\\s", stdout);
-		break;
-	    case '\t':
-		fputs("\\t", stdout);
-		break;
-	    case '^':
-		fputs("\\^", stdout);
-		break;
-	    case ':':
-		fputs("\\072", stdout);
-		break;
-	    case '\\':
-		fputs("\\\\", stdout);
-		break;
-	    default:
-		if (isgraph(ch))
-		    fputc(ch, stdout);
-		else if (ch < 32)
-		    printf("^%c", ch + '@');
-		else
-		    printf("\\%03o", ch);
-		break;
+	total_values++;
+	if (!q_opt) {
+	    /*
+	     * Note that the strings returned are mostly terminfo format, since
+	     * ncurses does not convert except for a handful of special cases.
+	     */
+	    printf(FNAME(str), cap);
+	    while (*str != 0) {
+		int ch = UChar(*str++);
+		switch (ch) {
+		case '\177':
+		    fputs("^?", stdout);
+		    break;
+		case '\033':
+		    fputs("\\E", stdout);
+		    break;
+		case '\b':
+		    fputs("\\b", stdout);
+		    break;
+		case '\f':
+		    fputs("\\f", stdout);
+		    break;
+		case '\n':
+		    fputs("\\n", stdout);
+		    break;
+		case '\r':
+		    fputs("\\r", stdout);
+		    break;
+		case ' ':
+		    fputs("\\s", stdout);
+		    break;
+		case '\t':
+		    fputs("\\t", stdout);
+		    break;
+		case '^':
+		    fputs("\\^", stdout);
+		    break;
+		case ':':
+		    fputs("\\072", stdout);
+		    break;
+		case '\\':
+		    fputs("\\\\", stdout);
+		    break;
+		default:
+		    if (isgraph(ch))
+			fputc(ch, stdout);
+		    else if (ch < 32)
+			printf("^%c", ch + '@');
+		    else
+			printf("\\%03o", ch);
+		    break;
+		}
 	    }
+	    printf("\n");
 	}
-	printf("\n");
     } else if ((num = tgetnum(cap)) >= 0) {
-	printf(FNAME(num), cap);
-	printf(" %d\n", num);
+	total_values++;
+	if (!q_opt) {
+	    printf(FNAME(num), cap);
+	    printf(" %d\n", num);
+	}
     } else if (tgetflag(cap) > 0) {
-	printf(FNAME(flg), cap);
-	printf("%s\n", "true");
+	++total_values;
+	if (!q_opt) {
+	    printf(FNAME(flg), cap);
+	    printf("%s\n", "true");
+	}
     }
-    fflush(stdout);
+
+    if (!q_opt)
+	fflush(stdout);
 }
 
 static void
@@ -137,6 +227,9 @@ brute_force(const char *name)
 {
     char buffer[1024];
 
+    if (db_list) {
+	putenv(next_dbitem());
+    }
     printf("Terminal type %s\n", name);
     if (tgetent(buffer, name) >= 0) {
 	char cap[3];
@@ -159,42 +252,43 @@ brute_force(const char *name)
 
 #if USE_CODE_LISTS
 static void
-demo_terminfo(NCURSES_CONST char *name)
+demo_termcap(NCURSES_CONST char *name)
 {
     unsigned n;
     NCURSES_CONST char *cap;
+    char buffer[1024];
 
+    if (db_list) {
+	putenv(next_dbitem());
+    }
     printf("Terminal type \"%s\"\n", name);
-#if HAVE_SETUPTERM
-    setupterm(name, 1, (int *) 0);
-#else
-    setterm(name);
-#endif
+    if (tgetent(buffer, name) >= 0) {
 
-    if (b_opt) {
-	for (n = 0;; ++n) {
-	    cap = boolcodes[n];
-	    if (cap == 0)
-		break;
-	    dumpit(cap);
+	if (b_opt) {
+	    for (n = 0;; ++n) {
+		cap = boolcodes[n];
+		if (cap == 0)
+		    break;
+		dumpit(cap);
+	    }
 	}
-    }
 
-    if (n_opt) {
-	for (n = 0;; ++n) {
-	    cap = numcodes[n];
-	    if (cap == 0)
-		break;
-	    dumpit(cap);
+	if (n_opt) {
+	    for (n = 0;; ++n) {
+		cap = numcodes[n];
+		if (cap == 0)
+		    break;
+		dumpit(cap);
+	    }
 	}
-    }
 
-    if (s_opt) {
-	for (n = 0;; ++n) {
-	    cap = strcodes[n];
-	    if (cap == 0)
-		break;
-	    dumpit(cap);
+	if (s_opt) {
+	    for (n = 0;; ++n) {
+		cap = strcodes[n];
+		if (cap == 0)
+		    break;
+		dumpit(cap);
+	    }
 	}
     }
 }
@@ -204,7 +298,7 @@ usage(void)
 {
     static const char *msg[] =
     {
-	"Usage: demo_terminfo [options] [terminal]",
+	"Usage: demo_termcap [options] [terminal]",
 	"",
 	"If no options are given, print all (boolean, numeric, string)",
 	"capabilities for the given terminal, using short names.",
@@ -212,9 +306,15 @@ usage(void)
 	"Options:",
 	" -a       try all names, print capabilities found",
 	" -b       print boolean-capabilities",
+	" -d LIST  colon-separated list of databases to use",
+	" -e NAME  environment variable to set with -d option",
 	" -n       print numeric-capabilities",
+	" -q       quiet (prints only counts)",
 	" -r COUNT repeat for given count",
 	" -s       print string-capabilities",
+#ifdef NCURSES_VERSION
+	" -y       disable extended capabilities",
+#endif
     };
     unsigned n;
     for (n = 0; n < SIZEOF(msg); ++n) {
@@ -235,7 +335,7 @@ main(int argc, char *argv[])
     int repeat;
     int r_opt = 1;
 
-    while ((n = getopt(argc, argv, "abnr:s")) != -1) {
+    while ((n = getopt(argc, argv, "abd:e:nqr:sy")) != -1) {
 	switch (n) {
 	case 'a':
 	    a_opt = TRUE;
@@ -243,8 +343,17 @@ main(int argc, char *argv[])
 	case 'b':
 	    b_opt = TRUE;
 	    break;
+	case 'd':
+	    d_opt = optarg;
+	    break;
+	case 'e':
+	    e_opt = optarg;
+	    break;
 	case 'n':
 	    n_opt = TRUE;
+	    break;
+	case 'q':
+	    q_opt = TRUE;
 	    break;
 	case 'r':
 	    if ((r_opt = atoi(optarg)) <= 0)
@@ -253,6 +362,11 @@ main(int argc, char *argv[])
 	case 's':
 	    s_opt = TRUE;
 	    break;
+#if NCURSES_XNAMES
+	case 'y':
+	    use_extended_names(FALSE);
+	    break;
+#endif
 	default:
 	    usage();
 	    break;
@@ -267,6 +381,8 @@ main(int argc, char *argv[])
 #else
     a_opt = TRUE;
 #endif
+
+    make_dblist();
 
     if (a_opt) {
 	if (optind < argc) {
@@ -285,17 +401,21 @@ main(int argc, char *argv[])
 	for (repeat = 0; repeat < r_opt; ++repeat) {
 	    if (optind < argc) {
 		for (n = optind; n < argc; ++n) {
-		    demo_terminfo(argv[n]);
+		    demo_termcap(argv[n]);
 		}
 	    } else if ((name = getenv("TERM")) != 0) {
-		demo_terminfo(name);
+		demo_termcap(name);
 	    } else {
 		static char dumb[] = "dumb";
-		demo_terminfo(dumb);
+		demo_termcap(dumb);
 	    }
 	}
     }
-#endif
+#endif /* USE_CODE_LISTS */
+
+    printf("%ld values\n", total_values);
+
+    free_dblist();
 
     ExitProgram(EXIT_SUCCESS);
 }
@@ -306,6 +426,6 @@ main(int argc GCC_UNUSED,
      char *argv[]GCC_UNUSED)
 {
     printf("This program requires termcap\n");
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 #endif

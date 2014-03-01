@@ -1,7 +1,7 @@
 // * This makes emacs happy -*-Mode: C++;-*-
 // vile:cppmode
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,7 @@
 #ifndef NCURSES_CURSESW_H_incl
 #define NCURSES_CURSESW_H_incl 1
 
-// $Id: cursesw.h,v 1.48 2008/01/19 21:09:10 tom Exp $
+// $Id: cursesw.h,v 1.50 2014/02/01 22:17:37 tom Exp $
 
 #include <etip.h>
 
@@ -118,7 +118,7 @@ inline int UNDEF(box)(WINDOW *win, int v, int h) { return box(win, v, h); }
 #endif
 
 #ifdef chgat
-inline int UNDEF(chgat)(int n, attr_t attr, short color, const void *opts) {
+inline int UNDEF(chgat)(int n, attr_t attr, NCURSES_PAIRS_T color, const void *opts) {
   return chgat(n, attr, color, opts); }
 #undef chgat
 #define chgat UNDEF(chgat)
@@ -151,7 +151,7 @@ inline int UNDEF(clrtoeol)()  { return clrtoeol(); }
 #endif
 
 #ifdef color_set
-inline chtype UNDEF(color_set)(short p, void* opts) { return color_set(p, opts); }
+inline chtype UNDEF(color_set)(NCURSES_PAIRS_T p, void* opts) { return color_set(p, opts); }
 #undef color_set
 #define color_set UNDEF(color_set)
 #endif
@@ -361,7 +361,7 @@ inline int UNDEF(mvaddstr)(int y, int x, const char * str)
 
 #ifdef mvchgat
 inline int UNDEF(mvchgat)(int y, int x, int n,
-			  attr_t attr, short color, const void *opts) {
+			  attr_t attr, NCURSES_PAIRS_T color, const void *opts) {
   return mvchgat(y, x, n, attr, color, opts); }
 #undef mvchgat
 #define mvchgat UNDEF(mvchgat)
@@ -463,7 +463,7 @@ inline int UNDEF(mvwaddstr)(WINDOW *win, int y, int x, const char * str)
 
 #ifdef mvwchgat
 inline int UNDEF(mvwchgat)(WINDOW *win, int y, int x, int n,
-			   attr_t attr, short color, const void *opts) {
+			   attr_t attr, NCURSES_PAIRS_T color, const void *opts) {
   return mvwchgat(win, y, x, n, attr, color, opts); }
 #undef mvwchgat
 #define mvwchgat UNDEF(mvwchgat)
@@ -763,10 +763,10 @@ private:
 
   void           set_keyboard();
 
-  short          getcolor(int getback) const;
-  short          getPair() const;
+  NCURSES_COLOR_T getcolor(int getback) const;
+  NCURSES_PAIRS_T getPair() const;
 
-  static int     setpalette(short fore, short back, short pair);
+  static int     setpalette(NCURSES_COLOR_T fore, NCURSES_COLOR_T back, NCURSES_PAIRS_T pair);
   static int     colorInitialized;
 
   // This private constructor is only used during the initialization
@@ -896,19 +896,19 @@ public:
   int            maxy() const { return getmaxy(w) == ERR ? ERR : getmaxy(w)-1; }
   // Largest y coord in window
 
-  short          getcolor() const;
+  NCURSES_PAIRS_T getcolor() const;
   // Actual color pair
 
-  short          foreground() const { return getcolor(0); }
+  NCURSES_COLOR_T foreground() const { return getcolor(0); }
   // Actual foreground color
 
-  short          background() const { return getcolor(1); }
+  NCURSES_COLOR_T background() const { return getcolor(1); }
   // Actual background color
 
-  int            setpalette(short fore, short back);
+  int            setpalette(NCURSES_COLOR_T fore, NCURSES_COLOR_T back);
   // Set color palette entry
 
-  int            setcolor(short pair);
+  int            setcolor(NCURSES_PAIRS_T pair);
   // Set actually used palette entry
 
   // -------------------------------------------------------------------------
@@ -1107,18 +1107,18 @@ public:
   chtype         attrget() { return ::getattrs(w); }
   // Get the window attributes;
 
-  int            color_set(short color_pair_number, void* opts=NULL) {
+  int            color_set(NCURSES_PAIRS_T color_pair_number, void* opts=NULL) {
     return ::wcolor_set(w, color_pair_number, opts); }
   // Set the window color attribute;
 
-  int            chgat(int n, attr_t attr, short color, const void *opts=NULL) {
+  int            chgat(int n, attr_t attr, NCURSES_PAIRS_T color, const void *opts=NULL) {
     return ::wchgat(w, n, attr, color, opts); }
   // Change the attributes of the next n characters in the current line. If
   // n is negative or greater than the number of remaining characters in the
   // line, the attributes will be changed up to the end of the line.
 
   int            chgat(int y, int x,
-		       int n, attr_t attr, short color, const void *opts=NULL) {
+		       int n, attr_t attr, NCURSES_PAIRS_T color, const void *opts=NULL) {
     return ::mvwchgat(w, y, x, n, attr, color, opts); }
   // Move the cursor to the requested position and then perform chgat() as
   // described above.
@@ -1438,16 +1438,19 @@ protected:
   // The driver translates the keystroke c into an Pad_Request
 
   virtual void OnUnknownOperation(int pad_req) {
+    (void) pad_req;
     ::beep();
   }
   // This is called if the driver returns an unknown op-code
 
   virtual void OnNavigationError(int pad_req) {
+    (void) pad_req;
     ::beep();
   }
   // This is called if a navigation request couldn't be satisfied
 
   virtual void OnOperation(int pad_req) {
+    (void) pad_req;
   };
   // OnOperation is called if a Pad_Operation was executed and just before
   // the refresh() operation is done.
@@ -1542,11 +1545,15 @@ public:
   }
 
   void setWindow(NCursesWindow& view, int v_grid = 1, int h_grid = 1) {
+    (void) view;
+    (void) v_grid;
+    (void) h_grid;
     err_handler("Operation not allowed");
   }
   // Disable this call; the viewport is already defined
 
   void setSubWindow(NCursesWindow& sub) {
+    (void) sub;
     err_handler("Operation not allowed");
   }
   // Disable this call; the viewport subwindow is already defined

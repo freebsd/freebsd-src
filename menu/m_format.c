@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_format.c,v 1.16 2010/01/23 21:20:10 tom Exp $")
+MODULE_ID("$Id: m_format.c,v 1.18 2012/06/09 23:54:02 tom Exp $")
 
 #define minimum(a,b) ((a)<(b) ? (a): (b))
 
@@ -81,8 +81,8 @@ set_menu_format(MENU * menu, int rows, int cols)
       if (menu->pattern)
 	Reset_Pattern(menu);
 
-      menu->frows = rows;
-      menu->fcols = cols;
+      menu->frows = (short)rows;
+      menu->fcols = (short)cols;
 
       assert(rows > 0 && cols > 0);
       total_rows = (menu->nitems - 1) / cols + 1;
@@ -90,21 +90,21 @@ set_menu_format(MENU * menu, int rows, int cols)
 	minimum(menu->nitems, cols) :
 	(menu->nitems - 1) / total_rows + 1;
 
-      menu->rows = total_rows;
-      menu->cols = total_cols;
-      menu->arows = minimum(total_rows, rows);
+      menu->rows = (short)total_rows;
+      menu->cols = (short)total_cols;
+      menu->arows = (short)minimum(total_rows, rows);
       menu->toprow = 0;
       menu->curitem = *(menu->items);
       assert(menu->curitem);
-      menu->status |= _LINK_NEEDED;
+      SetStatus(menu, _LINK_NEEDED);
       _nc_Calculate_Item_Length_and_Width(menu);
     }
   else
     {
       if (rows > 0)
-	_nc_Default_Menu.frows = rows;
+	_nc_Default_Menu.frows = (short)rows;
       if (cols > 0)
-	_nc_Default_Menu.fcols = cols;
+	_nc_Default_Menu.fcols = (short)cols;
     }
 
   RETURN(E_OK);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /****************************************************************************
  *  Author: Thomas E. Dickey                    1996-on                     *
  ****************************************************************************/
-/* $Id: test.priv.h,v 1.103 2011/03/22 09:15:45 tom Exp $ */
+/* $Id: test.priv.h,v 1.123 2014/02/01 22:09:27 tom Exp $ */
 
 #ifndef __TEST_PRIV_H
 #define __TEST_PRIV_H 1
@@ -58,6 +58,10 @@
 /*
  * Fallback definitions to accommodate broken compilers.
  */
+#ifndef HAVE_ASSUME_DEFAULT_COLORS
+#define HAVE_ASSUME_DEFAULT_COLORS 0
+#endif
+
 #ifndef HAVE_CURSES_VERSION
 #define HAVE_CURSES_VERSION 0
 #endif
@@ -158,6 +162,10 @@
 #define HAVE_RIPOFFLINE 0
 #endif
 
+#ifndef HAVE_SCR_DUMP
+#define HAVE_SCR_DUMP 0
+#endif
+
 #ifndef HAVE_SETUPTERM
 #define HAVE_SETUPTERM 0
 #endif
@@ -170,12 +178,28 @@
 #define HAVE_SLK_INIT 0
 #endif
 
+#ifndef HAVE_SYS_IOCTL_H
+#define HAVE_SYS_IOCTL_H 0
+#endif
+
+#ifndef HAVE_SYS_SELECT_H
+#define HAVE_SYS_SELECT_H 0
+#endif
+
 #ifndef HAVE_TERMATTRS
 #define HAVE_TERMATTRS 0
 #endif
 
+#ifndef HAVE_TERMIOS_H
+#define HAVE_TERMIOS_H 0
+#endif
+
 #ifndef HAVE_TERMNAME
 #define HAVE_TERMNAME 0
+#endif
+
+#ifndef HAVE_TERM_ENTRY_H
+#define HAVE_TERM_ENTRY_H 0
 #endif
 
 #ifndef HAVE_TGETENT
@@ -202,6 +226,14 @@
 #define HAVE_USE_DEFAULT_COLORS 0
 #endif
 
+#ifndef HAVE_USE_SCREEN
+#define HAVE_USE_SCREEN 0
+#endif
+
+#ifndef HAVE_USE_WINDOW
+#define HAVE_USE_WINDOW 0
+#endif
+
 #ifndef HAVE_WRESIZE
 #define HAVE_WRESIZE 0
 #endif
@@ -220,6 +252,13 @@
 
 #ifndef NO_LEAKS
 #define NO_LEAKS 0
+#endif
+
+/*
+ * Workaround for HPUX
+ */
+#if defined(__hpux) && !defined(NCURSES_VERSION)
+#define _ACS_COMPAT_CODE	/* needed for acs_map vs __acs_map */
 #endif
 
 #include <stdlib.h>
@@ -269,21 +308,18 @@
 
 /*
  * Not all curses.h implementations include unctrl.h,
- * Solaris 10 xpg4 for example.
  */
-#if defined(NCURSES_VERSION) || defined(_XOPEN_CURSES)
-#if defined(HAVE_NCURSESW_NCURSES_H)
+#if defined(HAVE_NCURSESW_UNCTRL_H)
 #include <ncursesw/unctrl.h>
-#elif defined(HAVE_NCURSES_NCURSES_H)
+#elif defined(HAVE_NCURSES_UNCTRL_H)
 #include <ncurses/unctrl.h>
-#else
+#elif defined(HAVE_UNCTRL_H)
 #include <unctrl.h>
-#endif
 #endif
 
 #if HAVE_GETOPT_H
 #include <getopt.h>
-#else
+#elif !defined(HAVE_GETOPT_HEADER)
 /* 'getopt()' may be prototyped in <stdlib.h>, but declaring its variables
  * doesn't hurt.
  */
@@ -323,17 +359,20 @@ extern int optind;
 #endif
 
 #if !USE_SOFTKEYS
-#define slk_init() /* nothing */
-#define slk_restore() /* nothing */
-#define slk_clear() /* nothing */
+#define slk_init()		/* nothing */
+#define slk_restore()		/* nothing */
+#define slk_clear()		/* nothing */
 #endif
 
 #ifndef HAVE_WSYNCDOWN
-#define wsyncdown(win) /* nothing */
+#define wsyncdown(win)		/* nothing */
 #endif
 
 #ifndef USE_WIDEC_SUPPORT
-#if (defined(_XOPEN_SOURCE_EXTENDED) || defined(_XPG5)) && defined(WACS_ULCORNER)
+#if (defined(_XOPEN_SOURCE_EXTENDED) \
+  || (defined(_XOPEN_SOURCE) && (_XOPEN_SOURCE - 0 >= 500)) \
+  || (defined(NCURSES_WIDECHAR) && (NCURSES_WIDECHAR - 0 < 1))) \
+  && defined(WACS_ULCORNER)
 #define USE_WIDEC_SUPPORT 1
 #else
 #define USE_WIDEC_SUPPORT 0
@@ -383,6 +422,14 @@ extern int optind;
 #define NCURSES_CH_T chtype
 #else
 #define NCURSES_CH_T cchar_t
+#endif
+
+#ifndef NCURSES_COLOR_T
+#define NCURSES_COLOR_T short
+#endif
+
+#ifndef NCURSES_PAIRS_T
+#define NCURSES_PAIRS_T short
 #endif
 
 #ifndef NCURSES_OPAQUE
@@ -507,7 +554,7 @@ extern char *strnames[], *strcodes[], *strfnames[];
 	if ((count = getcchar(s, NULL, NULL, NULL, NULL)) > 0) { \
 	    wchar_t test_wch[CCHARW_MAX + 2]; \
 	    attr_t test_attrs; \
-	    short test_pair; \
+	    NCURSES_PAIRS_T test_pair; \
 	    \
 	    if (getcchar( s, test_wch, &test_attrs, &test_pair, NULL) == OK \
 		&& test_wch[0] != L'\0') { \
@@ -576,6 +623,17 @@ extern char *strnames[], *strcodes[], *strfnames[];
 #define TIGETSTR(ti,tc) tgetstr(tc,&area_pointer)
 #endif
 
+/*
+ * So far (2013 - more than ten years), only ncurses implements
+ * use_extended_names().
+ */
+#if defined(NCURSES_XNAMES)
+#elif defined(NCURSES_VERSION) && defined(HAVE_TERM_ENTRY_H) && HAVE_TERM_ENTRY_H
+#define NCURSES_XNAMES 1
+#else
+#define NCURSES_XNAMES 0
+#endif
+
 /* ncurses implements tparm() with varargs, X/Open with a fixed-parameter list
  * (which is incompatible with legacy usage, doesn't solve any problems).
  */
@@ -609,8 +667,32 @@ extern char *strnames[], *strcodes[], *strfnames[];
 #define EXIT_FAILURE 1
 #endif
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__)
+
+#if defined(PDCURSES)
+#ifdef WINVER
+#  if WINVER < 0x0501
+#    error WINVER must at least be 0x0501
+#  endif
+#else
+#  define WINVER 0x0501
+#endif
+#include <windows.h>
+#include <sys/time.h>		/* for struct timeval */
+#undef sleep
+#define sleep(n) Sleep((n) * 1000)
+#define SIGHUP  1
+#define SIGKILL 9
+#define getlogin() "username"
+
+#elif defined(HAVE_NCURSESW_NCURSES_H)
+#include <ncursesw/nc_mingw.h>
+#elif defined(HAVE_NCURSES_NCURSES_H)
+#include <ncurses/nc_mingw.h>
+#else
 #include <nc_mingw.h>
+#endif
+
 /* conflicts in test/firstlast.c */
 #undef large
 #undef small
@@ -653,24 +735,31 @@ extern char *strnames[], *strcodes[], *strfnames[];
  * The same would be needed for HPUX 10.20
  */
 #ifndef TPUTS_ARG
-#if defined(sun) && !defined(_XOPEN_CURSES) && !defined(NCURSES_VERSION_PATCH)
-#define TPUTS_ARG char
-extern char *tgoto(char *, int, int);	/* available, but not prototyped */
-#else
 #define TPUTS_ARG int
 #endif
+
+#if defined(sun) && !defined(_XOPEN_CURSES) && !defined(NCURSES_VERSION_PATCH)
+#undef TPUTS_ARG
+#define TPUTS_ARG char
+extern char *tgoto(char *, int, int);	/* available, but not prototyped */
+#endif
+
+#ifndef TPUTS_PROTO
+#define TPUTS_PROTO(func,value) int func(TPUTS_ARG value)
+#endif
+
+#ifndef TPUTS_RETURN
+#define TPUTS_RETURN(value) return value
 #endif
 
 /*
  * Workarounds for Solaris's X/Open curses
  */
-#if defined(sun) && defined(_XOPEN_CURSES) && !defined(NCURSES_VERSION_PATCH)
 #if !defined(KEY_MIN) && defined(__KEY_MIN)
 #define KEY_MIN __KEY_MIN
 #endif
 #if !defined(KEY_MAX) && defined(__KEY_MIN)
 #define KEY_MAX __KEY_MAX
-#endif
 #endif
 
 /*
@@ -702,22 +791,9 @@ extern char *tgoto(char *, int, int);	/* available, but not prototyped */
 #define CONST_MENUS		/* nothing */
 #endif
 
-#ifndef HAVE_USE_WINDOW
-#if !defined(NCURSES_VERSION_PATCH) || (NCURSES_VERSION_PATCH < 20070915) || !NCURSES_EXT_FUNCS
-#define HAVE_USE_WINDOW 0
-#else
-#define HAVE_USE_WINDOW 1
-#endif
-#endif
-
 /*
  * Simplify setting up demo of threading with these macros.
  */
-
-#if !HAVE_USE_WINDOW
-typedef int (*NCURSES_WINDOW_CB) (WINDOW *, void *);
-typedef int (*NCURSES_SCREEN_CB) (SCREEN *, void *);
-#endif
 
 #if HAVE_USE_WINDOW
 #define USING_WINDOW(w,func) use_window(w, (NCURSES_WINDOW_CB) func, w)
@@ -744,6 +820,8 @@ typedef int (*NCURSES_SCREEN_CB) (SCREEN *, void *);
 #define Trace(p)		/* nothing */
 #define USE_TRACE 0
 #endif
+
+#define Trace2(p)		/* nothing */
 
 #define MvAddCh         (void) mvaddch
 #define MvWAddCh        (void) mvwaddch

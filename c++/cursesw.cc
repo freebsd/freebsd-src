@@ -1,6 +1,6 @@
 // * this is for making emacs happy: -*-Mode: C++;-*-
 /****************************************************************************
- * Copyright (c) 2007-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 2007-2012,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 #include "internal.h"
 #include "cursesw.h"
 
-MODULE_ID("$Id: cursesw.cc,v 1.51 2009/03/28 21:31:37 tom Exp $")
+MODULE_ID("$Id: cursesw.cc,v 1.54 2014/02/01 22:10:42 tom Exp $")
 
 #define COLORS_NEED_INITIALIZATION  -1
 #define COLORS_NOT_INITIALIZED       0
@@ -192,7 +192,6 @@ NCursesWindow::NCursesWindow()
     constructing();
 
     w = static_cast<WINDOW *>(0);
-    set_keyboard();
 }
 
 NCursesWindow::NCursesWindow(int nlines, int ncols, int begin_y, int begin_x)
@@ -285,12 +284,14 @@ static RIPOFFINIT* prip = R_INIT;
 NCursesWindow::NCursesWindow(WINDOW *win, int ncols)
   : w(0), alloced(FALSE), par(0), subwins(0), sib(0)
 {
+    (void) ncols;
     initialize();
     w = win;
 }
 
 int _nc_xx_ripoff_init(WINDOW *w, int ncols)
 {
+    (void) ncols;
     int res = ERR;
 
     RIPOFFINIT init = *prip++;
@@ -400,16 +401,16 @@ NCursesWindow::useColors(void)
     }
 }
 
-short
+NCURSES_PAIRS_T
 NCursesWindow::getPair() const
 {
-    return static_cast<short>(PAIR_NUMBER(getattrs(w)));
+    return static_cast<NCURSES_PAIRS_T>(PAIR_NUMBER(getattrs(w)));
 }
 
-short
+NCURSES_COLOR_T
 NCursesWindow::getcolor(int getback) const
 {
-    short fore, back;
+    NCURSES_COLOR_T fore, back;
 
     if (HaveColors()) {
 	if (::pair_content(getPair(), &fore, &back) == ERR)
@@ -427,27 +428,27 @@ int NCursesWindow::NumberOfColors()
     return (HaveColors()) ? COLORS : 1;
 }
 
-short
+NCURSES_PAIRS_T
 NCursesWindow::getcolor() const
 {
     return (HaveColors()) ? getPair() : 0;
 }
 
 int
-NCursesWindow::setpalette(short fore, short back, short pair)
+NCursesWindow::setpalette(NCURSES_COLOR_T fore, NCURSES_COLOR_T back, NCURSES_PAIRS_T pair)
 {
     return (HaveColors()) ? ::init_pair(pair, fore, back) : OK;
 }
 
 int
-NCursesWindow::setpalette(short fore, short back)
+NCursesWindow::setpalette(NCURSES_COLOR_T fore, NCURSES_COLOR_T back)
 {
     return setpalette(fore, back, getPair());
 }
 
 
 int
-NCursesWindow::setcolor(short pair)
+NCursesWindow::setcolor(NCURSES_PAIRS_T pair)
 {
     if (HaveColors()) {
 	if ((pair < 1) || (pair > COLOR_PAIRS))

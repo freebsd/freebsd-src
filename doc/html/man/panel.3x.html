@@ -1,4 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <!-- 
   ****************************************************************************
   * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
@@ -174,35 +174,35 @@
 
 </PRE>
 <H2>DIAGNOSTICS</H2><PRE>
-       Each routine that returns a pointer  returns  <STRONG>NULL</STRONG>  if  an
-       error  occurs.  Each  routine  that  returns  an int value
+       Each  routine  that  returns  a pointer returns <STRONG>NULL</STRONG> if an
+       error occurs. Each  routine  that  returns  an  int  value
        returns <STRONG>OK</STRONG> if it executes successfully and <STRONG>ERR</STRONG> if not.
 
 
 </PRE>
 <H2>COMPATIBILITY</H2><PRE>
-       Reasonable care has been taken to   ensure   compatibility
-       with   the   native   panel  facility introduced in SVr3.2
-       (inspection  of  the  SVr4  manual  pages   suggests   the
-       programming  interface  is  unchanged).   The  <STRONG>PANEL</STRONG>  data
-       structures are merely  similar. The   programmer  is  cau-
-       tioned not to directly use <STRONG>PANEL</STRONG> fields.
+       Reasonable  care  has been taken to  ensure  compatibility
+       with  the  native  panel  facility  introduced  in  SVr3.2
+       (inspection of the SVr4 manual pages suggests the program-
+       ming interface is unchanged).  The <STRONG>PANEL</STRONG>  data  structures
+       are  merely   similar. The  programmer is cautioned not to
+       directly use <STRONG>PANEL</STRONG> fields.
 
-       The  functions  <STRONG>show_panel()</STRONG> and <STRONG>top_panel()</STRONG> are identical
-       in this implementation, and work equally  well  with  dis-
+       The functions <STRONG>show_panel()</STRONG> and <STRONG>top_panel()</STRONG>  are  identical
+       in  this  implementation,  and work equally well with dis-
        played or hidden panels.  In the native System V implemen-
        tation, <STRONG>show_panel()</STRONG> is intended for making a hidden panel
-       visible  (at  the  top  of  the  stack) and <STRONG>top_panel()</STRONG> is
-       intended for making an already-visible panel move  to  the
-       top  of  the  stack.  You are cautioned to use the correct
-       function  to  ensure  compatibility  with   native   panel
+       visible (at the top  of  the  stack)  and  <STRONG>top_panel()</STRONG>  is
+       intended  for  making an already-visible panel move to the
+       top of the stack. You are cautioned  to  use  the  correct
+       function   to   ensure  compatibility  with  native  panel
        libraries.
 
 
 </PRE>
 <H2>NOTE</H2><PRE>
-       In  your  library  list, libpanel.a should be before libn-
-       curses.a; that is, you want to  say  `-lpanel  -lncurses',
+       In your library list, libpanel.a should  be  before  libn-
+       curses.a;  that  is,  you want to say `-lpanel -lncurses',
        not the other way around (which would usually give a link-
        error).
 
@@ -218,14 +218,14 @@
 <H2>SEE ALSO</H2><PRE>
        <STRONG><A HREF="ncurses.3x.html">curses(3x)</A></STRONG>, <STRONG><A HREF="curs_variables.3x.html">curs_variables(3x)</A></STRONG>,
 
-       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20110404).
+       This describes <STRONG>ncurses</STRONG> version 5.9 (patch 20131221).
 
 
 </PRE>
 <H2>AUTHOR</H2><PRE>
-       Originally  written  by   Warren   Tucker   &lt;wht@n4hgf.mt-
-       park.ga.us&gt;,  primarily  to  assist  in porting u386mon to
-       systems without a native panels library.   Repackaged  for
+       Originally   written   by   Warren  Tucker  &lt;wht@n4hgf.mt-
+       park.ga.us&gt;, primarily to assist  in  porting  u386mon  to
+       systems  without  a native panels library.  Repackaged for
        ncurses by Zeyd ben-Halim.
 
 

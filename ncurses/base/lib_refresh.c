@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_refresh.c,v 1.44 2010/12/19 01:22:58 tom Exp $")
+MODULE_ID("$Id: lib_refresh.c,v 1.45 2011/06/25 19:02:22 Vassili.Courzakis Exp $")
 
 NCURSES_EXPORT(int)
 wrefresh(WINDOW *win)
@@ -90,12 +90,6 @@ wnoutrefresh(WINDOW *win)
 #endif
 
     T((T_CALLED("wnoutrefresh(%p)"), (void *) win));
-#ifdef TRACE
-    if (USE_TRACEF(TRACE_UPDATE)) {
-	_tracedump("...win", win);
-	_nc_unlock_global(tracef);
-    }
-#endif /* TRACE */
 
     /*
      * This function will break badly if we try to refresh a pad.
@@ -103,6 +97,13 @@ wnoutrefresh(WINDOW *win)
     if ((win == 0)
 	|| (win->_flags & _ISPAD))
 	returnCode(ERR);
+
+#ifdef TRACE
+    if (USE_TRACEF(TRACE_UPDATE)) {
+	_tracedump("...win", win);
+	_nc_unlock_global(tracef);
+    }
+#endif /* TRACE */
 
     /* put them here so "win == 0" won't break our code */
     begx = win->_begx;
