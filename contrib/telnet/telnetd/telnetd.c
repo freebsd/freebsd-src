@@ -926,14 +926,15 @@ telnet(int f, int p, char *host)
 	if (hostinfo && *IM)
 		putf(IM, ptyibuf2);
 	if (IF && if_fd != -1) {
-	    if(fstat (if_fd, &statbuf)!=-1) {
-		if (statbuf.st_size > 0) {
-		    if_buf = (char *) mmap (0, statbuf.st_size, PROT_READ, 0, if_fd, 0);
-		    putf(if_buf, ptyibuf2);
-		    munmap (if_buf, statbuf.st_size);
+		if (fstat(if_fd, &statbuf) != -1 && statbuf.st_size > 0) {
+			if_buf = (char *) mmap (0, statbuf.st_size,
+			    PROT_READ, 0, if_fd, 0);
+			if (if_buf != MAP_FAILED) {
+				putf(if_buf, ptyibuf2);
+				munmap(if_buf, statbuf.st_size);
+			}
 		}
 		close (if_fd);
-	    }
 	}
 
 	if (pcc)
