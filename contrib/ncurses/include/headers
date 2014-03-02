@@ -1,6 +1,6 @@
-# $Id: headers,v 1.10 2009/09/05 17:46:30 tom Exp $
+# $Id: headers,v 1.13 2013/10/20 00:32:21 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,14 +29,24 @@
 #
 # Author: Thomas E. Dickey	1996-on
 #
-term.h
 curses.h
 unctrl.h
-termcap.h
 ncurses_dll.h
+
+# Support for termcap (and tic, etc.), which can be a separate library
+@ termlib
+term.h
+termcap.h
+
+# Headers used only for tic, other programs using internal interfaces
 @ ticlib
 $(srcdir)/tic.h
 $(srcdir)/term_entry.h
 $(srcdir)/nc_tparm.h
+
+# Porting
+@ port_win32con
+$(srcdir)/ncurses_mingw.h
+$(srcdir)/nc_mingw.h
 
 # vile:makemode

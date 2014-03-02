@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_regex.c,v 1.24 2010/01/23 21:14:37 tom Exp $")
+MODULE_ID("$Id: fty_regex.c,v 1.25 2012/10/27 20:12:53 tom Exp $")
 
 #if HAVE_REGEX_H_FUNCS		/* We prefer POSIX regex */
 #include <regex.h>
@@ -123,9 +123,8 @@ Generic_RegularExpression_Type(void *arg MAYBE_UNUSED)
 			  (REG_EXTENDED | REG_NOSUB | REG_NEWLINE)))
 	    {
 	      T((T_CREATE("regex_t %p"), (void *)preg->pRegExp));
-	      preg->refCount = typeMalloc(unsigned long, 1);
-
-	      *(preg->refCount) = 1;
+	      if ((preg->refCount = typeMalloc(unsigned long, 1)) != 0)
+		 *(preg->refCount) = 1;
 	    }
 	  else
 	    {
@@ -151,9 +150,8 @@ Generic_RegularExpression_Type(void *arg MAYBE_UNUSED)
 
 	  T((T_CREATE("RegExp_Arg %p"), pArg));
 	  pArg->compiled_expression = NULL;
-	  pArg->refCount = typeMalloc(unsigned long, 1);
-
-	  *(pArg->refCount) = 1;
+	  if ((pArg->refCount = typeMalloc(unsigned long, 1)) != 0)
+	     *(pArg->refCount) = 1;
 
 	  do
 	    {

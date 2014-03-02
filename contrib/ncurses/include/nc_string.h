@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2012,2013 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,44 +26,52 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-#include <curses.priv.h>
-
-MODULE_ID("$Id: memmove.c,v 1.5 2007/08/11 17:12:43 tom Exp $")
-
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998                        *
+ *  Author: Thomas E. Dickey                        2012                    *
  ****************************************************************************/
 
-#if USE_MY_MEMMOVE
-#define DST ((char *)s1)
-#define SRC ((const char *)s2)
-NCURSES_EXPORT(void *)
-_nc_memmove(void *s1, const void *s2, size_t n)
-{
-    if (n != 0) {
-	if ((DST + n > SRC) && (SRC + n > DST)) {
-	    static char *bfr;
-	    static size_t length;
-	    register size_t j;
-	    if (length < n) {
-		length = (n * 3) / 2;
-		bfr = typeRealloc(char, length, bfr);
-	    }
-	    for (j = 0; j < n; j++)
-		bfr[j] = SRC[j];
-	    s2 = bfr;
-	}
-	while (n-- != 0)
-	    DST[n] = SRC[n];
-    }
-    return s1;
-}
+#ifndef STRING_HACKS_H
+#define STRING_HACKS_H 1
+
+#include <ncurses_cfg.h>
+
+/*
+ * $Id: nc_string.h,v 1.4 2013/12/15 01:09:19 tom Exp $
+ *
+ * String-hacks.  Use these macros to stifle warnings on (presumably) correct
+ * uses of strcat, strcpy and sprintf.
+ *
+ * By the way -
+ * A fundamental limitation of the interfaces (and frequent issue in bug
+ * reports using these functions) is that sizes are passed as unsigned values
+ * (with associated sign-extension problems), limiting their effectiveness
+ * when checking for buffer overflow.
+ */
+
+#ifdef __cplusplus
+#define NCURSES_VOID		/* nothing */
 #else
-extern
-NCURSES_EXPORT(void)
-_nc_memmove(void);		/* quiet's gcc warning */
-NCURSES_EXPORT(void)
-_nc_memmove(void)
-{
-}				/* nonempty for strict ANSI compilers */
-#endif /* USE_MY_MEMMOVE */
+#define NCURSES_VOID (void)
+#endif
+
+#if USE_STRING_HACKS && HAVE_STRLCAT
+#define _nc_STRCAT(d,s,n)	NCURSES_VOID strlcat((d),(s),NCURSES_CAST(size_t,n))
+#else
+#define _nc_STRCAT(d,s,n)	NCURSES_VOID strcat((d),(s))
+#endif
+
+#if USE_STRING_HACKS && HAVE_STRLCPY
+#define _nc_STRCPY(d,s,n)	NCURSES_VOID strlcpy((d),(s),NCURSES_CAST(size_t,n))
+#else
+#define _nc_STRCPY(d,s,n)	NCURSES_VOID strcpy((d),(s))
+#endif
+
+#if USE_STRING_HACKS && HAVE_SNPRINTF
+#define _nc_SPRINTF             NCURSES_VOID snprintf
+#define _nc_SLIMIT(n)           NCURSES_CAST(size_t,n),
+#else
+#define _nc_SPRINTF             NCURSES_VOID sprintf
+#define _nc_SLIMIT(n)		/* nothing */
+#endif
+
+#endif /* STRING_HACKS_H */

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_spacing.c,v 1.18 2010/01/23 21:20:10 tom Exp $")
+MODULE_ID("$Id: m_spacing.c,v 1.19 2012/03/10 23:43:41 tom Exp $")
 
 #define MAX_SPC_DESC ((TABSIZE) ? (TABSIZE) : 8)
 #define MAX_SPC_COLS ((TABSIZE) ? (TABSIZE) : 8)
@@ -70,9 +70,9 @@ set_menu_spacing(MENU * menu, int s_desc, int s_row, int s_col)
       ((s_col < 0) || (s_col > MAX_SPC_COLS)))
     RETURN(E_BAD_ARGUMENT);
 
-  m->spc_desc = s_desc ? s_desc : 1;
-  m->spc_rows = s_row ? s_row : 1;
-  m->spc_cols = s_col ? s_col : 1;
+  m->spc_desc = (short)(s_desc ? s_desc : 1);
+  m->spc_rows = (short)(s_row ? s_row : 1);
+  m->spc_cols = (short)(s_col ? s_col : 1);
   _nc_Calculate_Item_Length_and_Width(m);
 
   RETURN(E_OK);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -159,7 +159,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_mvcur.c,v 1.126 2011/01/22 19:48:21 tom Exp $")
+MODULE_ID("$Id: lib_mvcur.c,v 1.133 2013/05/25 23:59:41 tom Exp $")
 
 #define WANT_CHAR(sp, y, x) NewScreen(sp)->_line[y].text[x]	/* desired state */
 
@@ -175,6 +175,9 @@ MODULE_ID("$Id: lib_mvcur.c,v 1.126 2011/01/22 19:48:21 tom Exp $")
 static bool profiling = FALSE;
 static float diff;
 #endif /* MAIN */
+
+#undef NCURSES_OUTC_FUNC
+#define NCURSES_OUTC_FUNC myOutCh
 
 #define OPT_SIZE 512
 
@@ -274,10 +277,9 @@ reset_scroll_region(NCURSES_SP_DCL0)
 /* Set the scroll-region to a known state (the default) */
 {
     if (change_scroll_region) {
-	NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx
-				   "change_scroll_region",
-				   TPARM_2(change_scroll_region,
-					   0, screen_lines(SP_PARM) - 1));
+	NCURSES_PUTP2("change_scroll_region",
+		      TPARM_2(change_scroll_region,
+			      0, screen_lines(SP_PARM) - 1));
     }
 }
 
@@ -285,14 +287,12 @@ NCURSES_EXPORT(void)
 NCURSES_SP_NAME(_nc_mvcur_resume) (NCURSES_SP_DCL0)
 /* what to do at initialization time and after each shellout */
 {
-    if (SP_PARM && !IsTermInfo(SP_PARM))
+    if (!SP_PARM || !IsTermInfo(SP_PARM))
 	return;
 
     /* initialize screen for cursor access */
     if (enter_ca_mode) {
-	NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx
-				   "enter_ca_mode",
-				   enter_ca_mode);
+	NCURSES_PUTP2("enter_ca_mode", enter_ca_mode);
     }
 
     /*
@@ -327,13 +327,14 @@ NCURSES_EXPORT(void)
 NCURSES_SP_NAME(_nc_mvcur_init) (NCURSES_SP_DCL0)
 /* initialize the cost structure */
 {
-    if (SP_PARM->_ofp && isatty(fileno(SP_PARM->_ofp)))
+    if (SP_PARM->_ofp && isatty(fileno(SP_PARM->_ofp))) {
 	SP_PARM->_char_padding = ((BAUDBYTE * 1000 * 10)
 				  / (BAUDRATE(SP_PARM) > 0
 				     ? BAUDRATE(SP_PARM)
 				     : 9600));
-    else
+    } else {
 	SP_PARM->_char_padding = 1;	/* must be nonzero */
+    }
     if (SP_PARM->_char_padding <= 0)
 	SP_PARM->_char_padding = 1;	/* must be nonzero */
     TR(TRACE_CHARPUT | TRACE_MOVE, ("char_padding %d msecs", SP_PARM->_char_padding));
@@ -481,9 +482,7 @@ NCURSES_SP_NAME(_nc_mvcur_wrap) (NCURSES_SP_DCL0)
     }
 
     if (exit_ca_mode) {
-	NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx
-				   "exit_ca_mode",
-				   exit_ca_mode);
+	NCURSES_PUTP2("exit_ca_mode", exit_ca_mode);
     }
     /*
      * Reset terminal's tab counter.  There's a long-time bug that
@@ -549,7 +548,7 @@ relative_move(NCURSES_SP_DCLx
 	      int from_x,
 	      int to_y,
 	      int to_x,
-	      bool ovw)
+	      int ovw)
 /* move via local motions (cuu/cuu1/cud/cud1/cub1/cub/cuf1/cuf/vpa/hpa) */
 {
     string_desc save;
@@ -770,7 +769,10 @@ relative_move(NCURSES_SP_DCLx
  */
 
 static NCURSES_INLINE int
-onscreen_mvcur(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew, bool ovw)
+onscreen_mvcur(NCURSES_SP_DCLx
+	       int yold, int xold,
+	       int ynew, int xnew, int ovw,
+	       NCURSES_SP_OUTC myOutCh)
 /* onscreen move from (yold, xold) to (ynew, xnew) */
 {
     string_desc result;
@@ -935,7 +937,7 @@ onscreen_mvcur(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew, bool ovw)
     if (usecost != INFINITY) {
 	TPUTS_TRACE("mvcur");
 	NCURSES_SP_NAME(tputs) (NCURSES_SP_ARGx
-				buffer, 1, NCURSES_SP_NAME(_nc_outch));
+				buffer, 1, myOutCh);
 	SP_PARM->_cursrow = ynew;
 	SP_PARM->_curscol = xnew;
 	return (OK);
@@ -943,9 +945,15 @@ onscreen_mvcur(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew, bool ovw)
 	return (ERR);
 }
 
-NCURSES_EXPORT(int)
-TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
-/* optimized cursor move from (yold, xold) to (ynew, xnew) */
+/*
+ * optimized cursor move from (yold, xold) to (ynew, xnew)
+ */
+static int
+_nc_real_mvcur(NCURSES_SP_DCLx
+	       int yold, int xold,
+	       int ynew, int xnew,
+	       NCURSES_SP_OUTC myOutCh,
+	       int ovw)
 {
     NCURSES_CH_T oldattr;
     int code;
@@ -994,20 +1002,18 @@ TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
 
 		if (l > 0) {
 		    if (carriage_return) {
-			NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx
-						   "carriage_return",
-						   carriage_return);
-		    } else
-			NCURSES_SP_NAME(_nc_outch) (NCURSES_SP_ARGx '\r');
+			NCURSES_PUTP2("carriage_return", carriage_return);
+		    } else {
+			myOutCh(NCURSES_SP_ARGx '\r');
+		    }
 		    xold = 0;
 
 		    while (l > 0) {
 			if (newline) {
-			    NCURSES_SP_NAME(_nc_putp) (NCURSES_SP_ARGx
-						       "newline",
-						       newline);
-			} else
-			    NCURSES_SP_NAME(_nc_outch) (NCURSES_SP_ARGx '\n');
+			    NCURSES_PUTP2("newline", newline);
+			} else {
+			    myOutCh(NCURSES_SP_ARGx '\n');
+			}
 			l--;
 		    }
 		}
@@ -1027,7 +1033,7 @@ TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
 	    ynew = screen_lines(SP_PARM) - 1;
 
 	/* destination location is on screen now */
-	code = onscreen_mvcur(NCURSES_SP_ARGx yold, xold, ynew, xnew, TRUE);
+	code = onscreen_mvcur(NCURSES_SP_ARGx yold, xold, ynew, xnew, ovw, myOutCh);
 
 	/*
 	 * Restore attributes if we disabled them before moving.
@@ -1042,13 +1048,66 @@ TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
     returnCode(code);
 }
 
-#if NCURSES_SP_FUNCS && !defined(USE_TERM_DRIVER)
+/*
+ * These entrypoints are used within the library.
+ */
+NCURSES_EXPORT(int)
+NCURSES_SP_NAME(_nc_mvcur) (NCURSES_SP_DCLx
+			    int yold, int xold,
+			    int ynew, int xnew)
+{
+    return _nc_real_mvcur(NCURSES_SP_ARGx yold, xold, ynew, xnew,
+			  NCURSES_SP_NAME(_nc_outch),
+			  TRUE);
+}
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+_nc_mvcur(int yold, int xold,
+	  int ynew, int xnew)
+{
+    return NCURSES_SP_NAME(_nc_mvcur) (CURRENT_SCREEN, yold, xold, ynew, xnew);
+}
+#endif
+
+#if defined(USE_TERM_DRIVER)
+/*
+ * The terminal driver does not support the external "mvcur()".
+ */
+NCURSES_EXPORT(int)
+TINFO_MVCUR(NCURSES_SP_DCLx int yold, int xold, int ynew, int xnew)
+{
+    return _nc_real_mvcur(NCURSES_SP_ARGx
+			  yold, xold,
+			  ynew, xnew,
+			  NCURSES_SP_NAME(_nc_outch),
+			  TRUE);
+}
+
+#else /* !USE_TERM_DRIVER */
+
+/*
+ * These entrypoints support users of the library.
+ */
+NCURSES_EXPORT(int)
+NCURSES_SP_NAME(mvcur) (NCURSES_SP_DCLx int yold, int xold, int ynew,
+			int xnew)
+{
+    return _nc_real_mvcur(NCURSES_SP_ARGx
+			  yold, xold,
+			  ynew, xnew,
+			  NCURSES_SP_NAME(_nc_putchar),
+			  FALSE);
+}
+
+#if NCURSES_SP_FUNCS
 NCURSES_EXPORT(int)
 mvcur(int yold, int xold, int ynew, int xnew)
 {
     return NCURSES_SP_NAME(mvcur) (CURRENT_SCREEN, yold, xold, ynew, xnew);
 }
 #endif
+#endif /* USE_TERM_DRIVER */
 
 #if defined(TRACE) || defined(NCURSES_TEST)
 NCURSES_EXPORT_VAR(int) _nc_optimize_enable = OPTIMIZE_ALL;

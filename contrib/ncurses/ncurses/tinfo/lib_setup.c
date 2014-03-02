@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,21 +37,18 @@
  * Terminal setup routines common to termcap and terminfo:
  *
  *		use_env(bool)
+ *		use_tioctl(bool)
  *		setupterm(char *, int, int *)
  */
 
 #include <curses.priv.h>
 #include <tic.h>		/* for MAX_NAME_SIZE */
 
-#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
-#define _POSIX_SOURCE
-#endif
-
 #if HAVE_LOCALE_H
 #include <locale.h>
 #endif
 
-MODULE_ID("$Id: lib_setup.c,v 1.135 2011/02/06 01:04:21 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.158 2013/06/22 19:59:08 tom Exp $")
 
 /****************************************************************************
  *
@@ -225,6 +222,7 @@ NCURSES_SP_NAME(use_env) (NCURSES_SP_DCLx bool f)
 {
     T((T_CALLED("use_env(%p,%d)"), (void *) SP_PARM, (int) f));
 #if NCURSES_SP_FUNCS
+    START_TRACE();
     if (IsPreScreen(SP_PARM)) {
 	SP_PARM->_use_env = f;
     }
@@ -234,12 +232,37 @@ NCURSES_SP_NAME(use_env) (NCURSES_SP_DCLx bool f)
     returnVoid;
 }
 
+NCURSES_EXPORT(void)
+NCURSES_SP_NAME(use_tioctl) (NCURSES_SP_DCLx bool f)
+{
+    T((T_CALLED("use_tioctl(%p,%d)"), (void *) SP_PARM, (int) f));
+#if NCURSES_SP_FUNCS
+    START_TRACE();
+    if (IsPreScreen(SP_PARM)) {
+	SP_PARM->_use_tioctl = f;
+    }
+#else
+    _nc_prescreen.use_tioctl = f;
+#endif
+    returnVoid;
+}
+
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(void)
 use_env(bool f)
 {
     T((T_CALLED("use_env(%d)"), (int) f));
+    START_TRACE();
     _nc_prescreen.use_env = f;
+    returnVoid;
+}
+
+NCURSES_EXPORT(void)
+use_tioctl(bool f)
+{
+    T((T_CALLED("use_tioctl(%d)"), (int) f));
+    START_TRACE();
+    _nc_prescreen.use_tioctl = f;
     returnVoid;
 }
 #endif
@@ -281,7 +304,7 @@ _nc_get_screensize(SCREEN *sp,
     *linep = (int) lines;
     *colp = (int) columns;
 
-    if (_nc_prescreen.use_env) {
+    if (_nc_prescreen.use_env || _nc_prescreen.use_tioctl) {
 	int value;
 
 #ifdef __EMX__
@@ -289,7 +312,9 @@ _nc_get_screensize(SCREEN *sp,
 	    int screendata[2];
 	    _scrsize(screendata);
 	    *colp = screendata[0];
-	    *linep = screendata[1];
+	    *linep = ((sp != 0 && sp->_filtered)
+		      ? 1
+		      : screendata[1]);
 	    T(("EMX screen size: environment LINES = %d COLUMNS = %d",
 	       *linep, *colp));
 	}
@@ -315,19 +340,33 @@ _nc_get_screensize(SCREEN *sp,
 	}
 #endif /* HAVE_SIZECHANGE */
 
-	/*
-	 * Finally, look for environment variables.
-	 *
-	 * Solaris lets users override either dimension with an environment
-	 * variable.
-	 */
-	if ((value = _nc_getenv_num("LINES")) > 0) {
-	    *linep = value;
-	    T(("screen size: environment LINES = %d", *linep));
-	}
-	if ((value = _nc_getenv_num("COLUMNS")) > 0) {
-	    *colp = value;
-	    T(("screen size: environment COLUMNS = %d", *colp));
+	if (_nc_prescreen.use_env) {
+	    if (_nc_prescreen.use_tioctl) {
+		/*
+		 * If environment variables are used, update them.
+		 */
+		if ((sp == 0 || !sp->_filtered) && _nc_getenv_num("LINES") > 0) {
+		    _nc_setenv_num("LINES", *linep);
+		}
+		if (_nc_getenv_num("COLUMNS") > 0) {
+		    _nc_setenv_num("COLUMNS", *colp);
+		}
+	    }
+
+	    /*
+	     * Finally, look for environment variables.
+	     *
+	     * Solaris lets users override either dimension with an environment
+	     * variable.
+	     */
+	    if ((value = _nc_getenv_num("LINES")) > 0) {
+		*linep = value;
+		T(("screen size: environment LINES = %d", *linep));
+	    }
+	    if ((value = _nc_getenv_num("COLUMNS")) > 0) {
+		*colp = value;
+		T(("screen size: environment COLUMNS = %d", *colp));
+	    }
 	}
 
 	/* if we can't get dynamic info about the size, use static */
@@ -399,10 +438,12 @@ _nc_update_screensize(SCREEN *sp)
      * We're doing it this way because those functions belong to the upper
      * ncurses library, while this resides in the lower terminfo library.
      */
-    if (sp != 0
-	&& sp->_resize != 0) {
-	if ((new_lines != old_lines) || (new_cols != old_cols))
+    if (sp != 0 && sp->_resize != 0) {
+	if ((new_lines != old_lines) || (new_cols != old_cols)) {
 	    sp->_resize(NCURSES_SP_ARGx new_lines, new_cols);
+	} else if (sp->_sig_winch && (sp->_ungetch != 0)) {
+	    sp->_ungetch(SP_PARM, KEY_RESIZE);	/* so application can know this */
+	}
 	sp->_sig_winch = FALSE;
     }
 }
@@ -414,23 +455,7 @@ _nc_update_screensize(SCREEN *sp)
  *
  ****************************************************************************/
 
-#define ret_error(code, fmt, arg)	if (errret) {\
-					    *errret = code;\
-					    returnCode(ERR);\
-					} else {\
-					    fprintf(stderr, fmt, arg);\
-					    exit(EXIT_FAILURE);\
-					}
-
-#define ret_error0(code, msg)		if (errret) {\
-					    *errret = code;\
-					    returnCode(ERR);\
-					} else {\
-					    fprintf(stderr, msg);\
-					    exit(EXIT_FAILURE);\
-					}
-
-#if USE_DATABASE || USE_TERMCAP
+#if NCURSES_USE_DATABASE || NCURSES_USE_TERMCAP
 /*
  * Return 1 if entry found, 0 if not found, -1 if database not accessible,
  * just like tgetent().
@@ -467,7 +492,7 @@ _nc_setup_tinfo(const char *const tn, TERMTYPE *const tp)
 **	and substitute it in for the prototype given in 'command_character'.
 */
 void
-_nc_tinfo_cmdch(TERMINAL * termp, char proto)
+_nc_tinfo_cmdch(TERMINAL * termp, int proto)
 {
     unsigned i;
     char CC;
@@ -481,8 +506,8 @@ _nc_tinfo_cmdch(TERMINAL * termp, char proto)
     if ((tmp = getenv("CC")) != 0 && strlen(tmp) == 1) {
 	CC = *tmp;
 	for_each_string(i, &(termp->type)) {
-	    for (tmp = termp->type.Strings[i]; *tmp; tmp++) {
-		if (*tmp == proto)
+	    for (tmp = termp->type.Strings[i]; tmp && *tmp; tmp++) {
+		if (UChar(*tmp) == proto)
 		    *tmp = CC;
 	    }
 	}
@@ -520,7 +545,9 @@ NCURSES_EXPORT(int)
 _nc_unicode_locale(void)
 {
     int result = 0;
-#if HAVE_LANGINFO_CODESET
+#if defined(__MINGW32__) && USE_WIDEC_SUPPORT
+    result = 1;
+#elif HAVE_LANGINFO_CODESET
     char *env = nl_langinfo(CODESET);
     result = !strcmp(env, "UTF-8");
     T(("_nc_unicode_locale(%s) ->%d", env, result));
@@ -551,7 +578,7 @@ _nc_locale_breaks_acs(TERMINAL * termp)
     int value;
     int result = 0;
 
-    if ((env = getenv(env_name)) != 0) {
+    if (getenv(env_name) != 0) {
 	result = _nc_getenv_num(env_name);
     } else if ((value = tigetnum("U8")) >= 0) {
 	result = value;		/* use extension feature */
@@ -578,7 +605,7 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 		 NCURSES_CONST char *tname,
 		 int Filedes,
 		 int *errret,
-		 bool reuse)
+		 int reuse)
 {
 #ifdef USE_TERM_DRIVER
     TERMINAL_CONTROL_BLOCK *TCB = 0;
@@ -608,7 +635,11 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
     if (tname == 0) {
 	tname = getenv("TERM");
 	if (tname == 0 || *tname == '\0') {
+#ifdef USE_TERM_DRIVER
+	    tname = "unknown";
+#else
 	    ret_error0(TGETENT_ERR, "TERM environment variable not set.\n");
+#endif
 	}
     }
 
@@ -651,9 +682,14 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 	&& _nc_name_match(termp->type.term_names, tname, "|")) {
 	T(("reusing existing terminal information and mode-settings"));
 	code = OK;
+#ifdef USE_TERM_DRIVER
+	TCB = (TERMINAL_CONTROL_BLOCK *) termp;
+#endif
     } else {
 #ifdef USE_TERM_DRIVER
-	termp = (TERMINAL *) typeCalloc(TERMINAL_CONTROL_BLOCK, 1);
+	TERMINAL_CONTROL_BLOCK *my_tcb;
+	my_tcb = typeCalloc(TERMINAL_CONTROL_BLOCK, 1);
+	termp = &(my_tcb->term);
 #else
 	termp = typeCalloc(TERMINAL, 1);
 #endif
@@ -673,7 +709,7 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 		       "Could not find any driver to handle this terminal.\n");
 	}
 #else
-#if USE_DATABASE || USE_TERMCAP
+#if NCURSES_USE_DATABASE || NCURSES_USE_TERMCAP
 	status = _nc_setup_tinfo(tname, &termp->type);
 #else
 	status = TGETENT_NO;
@@ -684,7 +720,7 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 	    const TERMTYPE *fallback = _nc_fallback(tname);
 
 	    if (fallback) {
-		termp->type = *fallback;
+		_nc_copy_termtype(&(termp->type), fallback);
 		status = TGETENT_YES;
 	    }
 	}
@@ -694,11 +730,11 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 	    if (status == TGETENT_ERR) {
 		ret_error0(status, "terminals database is inaccessible\n");
 	    } else if (status == TGETENT_NO) {
-		ret_error(status, "'%s': unknown terminal type.\n", tname);
+		ret_error1(status, "unknown terminal type.\n", tname);
 	    }
 	}
 #if !USE_REENTRANT
-	strncpy(ttytype, termp->type.term_names, NAMESIZE - 1);
+	strncpy(ttytype, termp->type.term_names, (size_t) (NAMESIZE - 1));
 	ttytype[NAMESIZE - 1] = '\0';
 #endif
 
@@ -708,7 +744,7 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 	set_curterm(termp);
 
 	if (command_character)
-	    _nc_tinfo_cmdch(termp, *command_character);
+	    _nc_tinfo_cmdch(termp, UChar(*command_character));
 
 	/*
 	 * If an application calls setupterm() rather than initscr() or
@@ -742,10 +778,20 @@ TINFO_SETUP_TERM(TERMINAL ** tp,
 
 #ifndef USE_TERM_DRIVER
     if (generic_type) {
-	ret_error(TGETENT_NO, "'%s': I need something more specific.\n", tname);
-    }
-    if (hard_copy) {
-	ret_error(TGETENT_YES, "'%s': I can't handle hardcopy terminals.\n", tname);
+	/*
+	 * BSD 4.3's termcap contains mis-typed "gn" for wy99.  Do a sanity
+	 * check before giving up.
+	 */
+	if ((VALID_STRING(cursor_address)
+	     || (VALID_STRING(cursor_down) && VALID_STRING(cursor_home)))
+	    && VALID_STRING(clear_screen)) {
+	    ret_error1(TGETENT_YES, "terminal is not really generic.\n", tname);
+	} else {
+	    del_curterm(termp);
+	    ret_error1(TGETENT_NO, "I need something more specific.\n", tname);
+	}
+    } else if (hard_copy) {
+	ret_error1(TGETENT_YES, "I can't handle hardcopy terminals.\n", tname);
     }
 #endif
     returnCode(code);
@@ -798,10 +844,10 @@ NCURSES_EXPORT(int)
 _nc_setupterm(NCURSES_CONST char *tname,
 	      int Filedes,
 	      int *errret,
-	      bool reuse)
+	      int reuse)
 {
     int res;
-    TERMINAL *termp;
+    TERMINAL *termp = 0;
     res = TINFO_SETUP_TERM(&termp, tname, Filedes, errret, reuse);
     if (ERR != res)
 	NCURSES_SP_NAME(set_curterm) (CURRENT_SCREEN_PRE, termp);

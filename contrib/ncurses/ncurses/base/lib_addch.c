@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_addch.c,v 1.124 2010/04/24 22:41:05 tom Exp $")
+MODULE_ID("$Id: lib_addch.c,v 1.128 2014/02/23 01:21:08 tom Exp $")
 
 static const NCURSES_CH_T blankchar = NewChar(BLANK_TEXT);
 
@@ -209,7 +209,8 @@ _nc_build_wch(WINDOW *win, ARG_CH_T ch)
     buffer[WINDOW_EXT(win, addch_used)] = '\0';
     if ((len = (int) mbrtowc(&result,
 			     buffer,
-			     WINDOW_EXT(win, addch_used), &state)) > 0) {
+			     (size_t) WINDOW_EXT(win, addch_used),
+			     &state)) > 0) {
 	attr_t attrs = AttrOf(CHDEREF(ch));
 	if_EXT_COLORS(int pair = GetPair(CHDEREF(ch)));
 	SetChar(CHDEREF(ch), result, attrs);
@@ -411,10 +412,12 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
 #endif
     const char *s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx t);
     int tabsize = 8;
+
     /*
      * If we are using the alternate character set, forget about locale.
      * Otherwise, if unctrl() returns a single-character or the locale
-     * claims the code is printable, treat it that way.
+     * claims the code is printable (and not also a control character),
+     * treat it that way.
      */
     if ((AttrOf(ch) & A_ALTCHARSET)
 	|| (
@@ -424,14 +427,15 @@ waddch_nosync(WINDOW *win, const NCURSES_CH_T ch)
 	       s[1] == 0
 	)
 	|| (
-	       isprint(t)
+	       (isprint((int)t) && !iscntrl((int)t))
 #if USE_WIDEC_SUPPORT
 	       || ((sp == 0 || !sp->_legacy_coding) &&
 		   (WINDOW_EXT(win, addch_used)
 		    || !_nc_is_charable(CharOf(ch))))
 #endif
-	))
+	)) {
 	return waddch_literal(win, ch);
+    }
 
     /*
      * Handle carriage control and other codes that are not printable, or are

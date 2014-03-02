@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 2013 Free Software Foundation, Inc.                        *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,36 +26,77 @@
  * authorization.                                                           *
  ****************************************************************************/
 
+/****************************************************************************
+ *  Author: Thomas E. Dickey                        2013                    *
+ ****************************************************************************/
+
 /*
- * $Id: tty_input.h,v 1.2 2000/12/10 02:26:51 tom Exp $
+**	Support for obsolete features.
+*/
+
+#include <curses.priv.h>
+
+MODULE_ID("$Id: obsolete.c,v 1.1 2013/01/26 22:07:51 tom Exp $")
+
+/*
+ * Obsolete entrypoint retained for binary compatbility.
  */
+NCURSES_EXPORT(void)
+NCURSES_SP_NAME(_nc_set_buffer) (NCURSES_SP_DCLx FILE *ofp, int buffered)
+{
+#if NCURSES_SP_FUNCS
+    (void) SP_PARM;
+#endif
+    (void) ofp;
+    (void) buffered;
+}
 
-#ifndef TTY_INPUT_H
-#define TTY_INPUT_H 1
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(void)
+_nc_set_buffer(FILE *ofp, int buffered)
+{
+    NCURSES_SP_NAME(_nc_set_buffer) (CURRENT_SCREEN, ofp, buffered);
+}
+#endif
 
-extern NCURSES_EXPORT(bool) _nc_tty_mouse_mask (mmask_t);
-extern NCURSES_EXPORT(bool) _nc_tty_pending (void);
-extern NCURSES_EXPORT(int)  _nc_tty_next_event (int);
-extern NCURSES_EXPORT(void) _nc_tty_flags_changed (void);
-extern NCURSES_EXPORT(void) _nc_tty_flush (void);
-extern NCURSES_EXPORT(void) _nc_tty_input_resume (void);
-extern NCURSES_EXPORT(void) _nc_tty_input_suspend (void);
+#if !HAVE_STRDUP
+NCURSES_EXPORT(char *)
+_nc_strdup(const char *s)
+{
+    char *result = 0;
+    if (s != 0) {
+	size_t need = strlen(s);
+	result = malloc(need + 1);
+	if (result != 0) {
+	    strcpy(result, s);
+	}
+    }
+    return result;
+}
+#endif
 
-struct tty_input_data {
-	int             _ifd;           /* input file ptr for screen        */
-	int             _keypad_xmit;   /* current terminal state           */
-	int             _meta_on;       /* current terminal state           */
-
-	/*
-	 * These are the data that support the mouse interface.
-	 */
-	bool            (*_mouse_event) (SCREEN *);
-	bool            (*_mouse_inline)(SCREEN *);
-	bool            (*_mouse_parse) (int);
-	void            (*_mouse_resume)(SCREEN *);
-	void            (*_mouse_wrap)  (SCREEN *);
-	int             _mouse_fd;      /* file-descriptor, if any */
-	int             mousetype;
-};
-
-#endif /* TTY_INPUT_H */
+#if USE_MY_MEMMOVE
+#define DST ((char *)s1)
+#define SRC ((const char *)s2)
+NCURSES_EXPORT(void *)
+_nc_memmove(void *s1, const void *s2, size_t n)
+{
+    if (n != 0) {
+	if ((DST + n > SRC) && (SRC + n > DST)) {
+	    static char *bfr;
+	    static size_t length;
+	    register size_t j;
+	    if (length < n) {
+		length = (n * 3) / 2;
+		bfr = typeRealloc(char, length, bfr);
+	    }
+	    for (j = 0; j < n; j++)
+		bfr[j] = SRC[j];
+	    s2 = bfr;
+	}
+	while (n-- != 0)
+	    DST[n] = SRC[n];
+    }
+    return s1;
+}
+#endif /* USE_MY_MEMMOVE */

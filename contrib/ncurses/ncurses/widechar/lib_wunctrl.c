@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,14 +35,17 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_wunctrl.c,v 1.14 2010/12/19 01:42:15 tom Exp $")
+MODULE_ID("$Id: lib_wunctrl.c,v 1.16 2012/12/15 20:53:42 tom Exp $")
 
 NCURSES_EXPORT(wchar_t *)
 NCURSES_SP_NAME(wunctrl) (NCURSES_SP_DCLx cchar_t *wc)
 {
     static wchar_t str[CCHARW_MAX + 1], *wsp;
+    wchar_t *result;
 
-    if (Charable(*wc)) {
+    if (wc == 0) {
+	result = 0;
+    } else if (SP_PARM != 0 && Charable(*wc)) {
 	const char *p =
 	NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx
 				 (unsigned) _nc_to_char((wint_t)CharOf(*wc)));
@@ -51,9 +54,11 @@ NCURSES_SP_NAME(wunctrl) (NCURSES_SP_DCLx cchar_t *wc)
 	    *wsp++ = (wchar_t) _nc_to_widechar(*p);
 	}
 	*wsp = 0;
-	return str;
-    } else
-	return wc->chars;
+	result = str;
+    } else {
+	result = wc->chars;
+    }
+    return result;
 }
 
 #if NCURSES_SP_FUNCS

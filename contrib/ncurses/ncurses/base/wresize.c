@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,7 +33,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.34 2010/06/05 22:36:26 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.35 2011/05/21 18:55:07 tom Exp $")
 
 static int
 cleanup_lines(struct ldat *data, int length)
@@ -175,9 +175,10 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 		for (col = 0; col <= ToCols; ++col)
 		    s[col] = win->_nc_bkgd;
 	    }
-	} else {
-	    assert(pline != 0);
+	} else if (pline != 0 && pline[win->_pary + row].text != 0) {
 	    s = &pline[win->_pary + row].text[win->_parx];
+	} else {
+	    s = 0;
 	}
 
 	if_USE_SCROLL_HINTS(new_lines[row].oldindex = row);

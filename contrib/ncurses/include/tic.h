@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -33,14 +33,14 @@
  ****************************************************************************/
 
 /*
- * $Id: tic.h,v 1.65 2009/08/08 17:52:46 tom Exp $
+ * $Id: tic.h,v 1.69 2012/03/17 18:22:10 tom Exp $
  *	tic.h - Global variables and structures for the terminfo
  *			compiler.
  */
 
 #ifndef __TIC_H
 #define __TIC_H
-
+/* *INDENT-OFF* */
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -224,6 +224,12 @@ extern NCURSES_EXPORT(const struct alias *) _nc_get_alias_table (bool);
 
 #define NOTFOUND	((struct name_table_entry *) 0)
 
+/*
+ * The casts are required for correct sign-propagation with systems such as
+ * AIX, IRIX64, Solaris which default to unsigned characters.  The C standard
+ * leaves this detail unspecified.
+ */
+
 /* out-of-band values for representing absent capabilities */
 #define ABSENT_BOOLEAN		((signed char)-1)	/* 255 */
 #define ABSENT_NUMERIC		(-1)
@@ -248,6 +254,8 @@ extern NCURSES_EXPORT(const struct alias *) _nc_get_alias_table (bool);
 #define TERMINFO "/usr/share/terminfo"
 #endif
 
+#ifdef NCURSES_TERM_ENTRY_H_incl
+
 /* access.c */
 extern NCURSES_EXPORT(unsigned) _nc_pathlast (const char *);
 extern NCURSES_EXPORT(bool) _nc_is_abs_path (const char *);
@@ -270,6 +278,7 @@ extern NCURSES_EXPORT(void) _nc_reset_input (FILE *, char *);
 extern NCURSES_EXPORT_VAR(int) _nc_curr_col;
 extern NCURSES_EXPORT_VAR(int) _nc_curr_line;
 extern NCURSES_EXPORT_VAR(int) _nc_syntax;
+extern NCURSES_EXPORT_VAR(int) _nc_strict_bsd;
 extern NCURSES_EXPORT_VAR(long) _nc_comment_end;
 extern NCURSES_EXPORT_VAR(long) _nc_comment_start;
 extern NCURSES_EXPORT_VAR(long) _nc_curr_file_pos;
@@ -314,23 +323,6 @@ extern NCURSES_EXPORT_VAR(int) _nc_nulls_sent;		/* Add one for every null sent *
 extern const char * _nc_progname;
 
 /* db_iterator.c */
-typedef enum {
-    dbdTIC = 0,
-#if USE_DATABASE
-    dbdEnvOnce,
-    dbdHome,
-    dbdEnvList,
-    dbdCfgList,
-    dbdCfgOnce,
-#endif
-#if USE_TERMCAP
-    dbdEnvOnce2,
-    dbdEnvList2,
-    dbdCfgList2,
-#endif
-    dbdLAST
-} DBDIRS;
-
 extern NCURSES_EXPORT(const char *) _nc_next_db(DBDIRS *, int *);
 extern NCURSES_EXPORT(const char *) _nc_tic_dir (const char *);
 extern NCURSES_EXPORT(void) _nc_first_db(DBDIRS *, int *);
@@ -339,8 +331,11 @@ extern NCURSES_EXPORT(void) _nc_last_db(void);
 /* write_entry.c */
 extern NCURSES_EXPORT(int) _nc_tic_written (void);
 
+#endif /* NCURSES_TERM_ENTRY_H_incl */
+
 #ifdef __cplusplus
 }
 #endif
 
+/* *INDENT-ON* */
 #endif /* __TIC_H */

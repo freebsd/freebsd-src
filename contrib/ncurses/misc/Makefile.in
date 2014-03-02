@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.56 2011/02/21 01:09:31 tom Exp $
+# $Id: Makefile.in,v 1.61 2013/08/04 20:23:20 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -56,7 +56,11 @@ prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 bindir		= @bindir@
 libdir		= @libdir@
+datarootdir	= @datarootdir@
 datadir		= @datadir@
+includesubdir	= @includesubdir@
+
+INCLUDEDIR	= $(DESTDIR)$(includedir)$(includesubdir)
 
 tabsetdir	= $(datadir)/tabset
 ticdir		= @TERMINFO@
@@ -120,7 +124,8 @@ terminfo.tmp : run_tic.sed $(source)
 
 run_tic.sed :
 	WHICH_XTERM=@WHICH_XTERM@ \
-	ticdir=${ticdir} \
+	XTERM_KBS=@XTERM_KBS@ \
+	datadir=${datadir} \
 	$(SHELL) $(srcdir)/gen_edit.sh >$@
 
 $(DESTDIR)$(bindir) \
@@ -139,7 +144,7 @@ uninstall.data :
 
 uninstall.libs :
 	-rm -f $(DESTDIR)$(bindir)/$(NCURSES_CONFIG)
-@MAKE_PC_FILES@	$(SHELL) 'for name in *.pc; do rm -f $(DESTDIR)$(PKG_CONFIG_LIBDIR)/$$name; done'
+@MAKE_PC_FILES@	$(SHELL) -c 'for name in *.pc; do rm -f $(DESTDIR)$(PKG_CONFIG_LIBDIR)/$$name; done'
 
 tags :
 

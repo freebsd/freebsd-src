@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1999-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: alloc_ttype.c,v 1.22 2010/12/19 00:24:09 tom Exp $")
+MODULE_ID("$Id: alloc_ttype.c,v 1.27 2013/06/08 16:54:50 tom Exp $")
 
 #if NCURSES_XNAMES
 /*
@@ -104,7 +104,7 @@ realign_data(TERMTYPE *to, char **ext_Names,
 
     if (to->ext_Booleans != ext_Booleans) {
 	EXTEND_NUM(num_Booleans, ext_Booleans);
-	to->Booleans = typeRealloc(NCURSES_SBOOL, to->num_Booleans, to->Booleans);
+	TYPE_REALLOC(NCURSES_SBOOL, to->num_Booleans, to->Booleans);
 	for (n = to->ext_Booleans - 1,
 	     m = ext_Booleans - 1,
 	     base = to->num_Booleans - (m + 1); m >= 0; m--) {
@@ -116,9 +116,10 @@ realign_data(TERMTYPE *to, char **ext_Names,
 	}
 	to->ext_Booleans = UShort(ext_Booleans);
     }
+
     if (to->ext_Numbers != ext_Numbers) {
 	EXTEND_NUM(num_Numbers, ext_Numbers);
-	to->Numbers = typeRealloc(short, to->num_Numbers, to->Numbers);
+	TYPE_REALLOC(short, to->num_Numbers, to->Numbers);
 	for (n = to->ext_Numbers - 1,
 	     m = ext_Numbers - 1,
 	     base = to->num_Numbers - (m + 1); m >= 0; m--) {
@@ -132,7 +133,7 @@ realign_data(TERMTYPE *to, char **ext_Names,
     }
     if (to->ext_Strings != ext_Strings) {
 	EXTEND_NUM(num_Strings, ext_Strings);
-	to->Strings = typeRealloc(char *, to->num_Strings, to->Strings);
+	TYPE_REALLOC(char *, to->num_Strings, to->Strings);
 	for (n = to->ext_Strings - 1,
 	     m = ext_Strings - 1,
 	     base = to->num_Strings - (m + 1); m >= 0; m--) {
@@ -301,7 +302,7 @@ _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
 	}
     }
 
-    tp->ext_Names = typeRealloc(char *, total, tp->ext_Names);
+    TYPE_REALLOC(char *, total, tp->ext_Names);
     for (k = total - 1; k > j; k--)
 	tp->ext_Names[k] = tp->ext_Names[k - 1];
     tp->ext_Names[j] = name;
@@ -311,21 +312,21 @@ _nc_ins_ext_name(TERMTYPE *tp, char *name, int token_type)
     case BOOLEAN:
 	tp->ext_Booleans++;
 	tp->num_Booleans++;
-	tp->Booleans = typeRealloc(NCURSES_SBOOL, tp->num_Booleans, tp->Booleans);
+	TYPE_REALLOC(NCURSES_SBOOL, tp->num_Booleans, tp->Booleans);
 	for (k = (unsigned) (tp->num_Booleans - 1); k > j; k--)
 	    tp->Booleans[k] = tp->Booleans[k - 1];
 	break;
     case NUMBER:
 	tp->ext_Numbers++;
 	tp->num_Numbers++;
-	tp->Numbers = typeRealloc(short, tp->num_Numbers, tp->Numbers);
+	TYPE_REALLOC(short, tp->num_Numbers, tp->Numbers);
 	for (k = (unsigned) (tp->num_Numbers - 1); k > j; k--)
 	    tp->Numbers[k] = tp->Numbers[k - 1];
 	break;
     case STRING:
 	tp->ext_Strings++;
 	tp->num_Strings++;
-	tp->Strings = typeRealloc(char *, tp->num_Strings, tp->Strings);
+	TYPE_REALLOC(char *, tp->num_Strings, tp->Strings);
 	for (k = (unsigned) (tp->num_Strings - 1); k > j; k--)
 	    tp->Strings[k] = tp->Strings[k - 1];
 	break;
@@ -417,7 +418,7 @@ _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
 	 * into it, updating to's counts for booleans, etc.  Fortunately we do
 	 * this only for the terminfo compiler (tic) and comparer (infocmp).
 	 */
-	ext_Names = typeMalloc(char *, (size_t)(na + nb));
+	TYPE_MALLOC(char *, (size_t)(na + nb), ext_Names);
 
 	if (to->ext_Strings && (from->ext_Booleans + from->ext_Numbers))
 	    adjust_cancels(to, from);
@@ -461,7 +462,7 @@ _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
 	if (nb != (ext_Booleans + ext_Numbers + ext_Strings)) {
 	    nb = (ext_Booleans + ext_Numbers + ext_Strings);
 	    realign_data(from, ext_Names, ext_Booleans, ext_Numbers, ext_Strings);
-	    from->ext_Names = typeRealloc(char *, (size_t) nb, from->ext_Names);
+	    TYPE_REALLOC(char *, (size_t) nb, from->ext_Names);
 	    memcpy(from->ext_Names, ext_Names, sizeof(char *) * (size_t) nb);
 	    DEBUG(2, ("realigned %d extended names for '%s' (from)",
 		      NUM_EXT_NAMES(from), from->term_names));
@@ -473,22 +474,27 @@ _nc_align_termtype(TERMTYPE *to, TERMTYPE *from)
 #endif
 
 NCURSES_EXPORT(void)
-_nc_copy_termtype(TERMTYPE *dst, TERMTYPE *src)
+_nc_copy_termtype(TERMTYPE *dst, const TERMTYPE *src)
 {
+#if NCURSES_XNAMES
     unsigned i;
+#endif
 
     *dst = *src;		/* ...to copy the sizes and string-tables */
-    dst->Booleans = typeMalloc(NCURSES_SBOOL, NUM_BOOLEANS(dst));
-    dst->Numbers = typeMalloc(short, NUM_NUMBERS(dst));
-    dst->Strings = typeMalloc(char *, NUM_STRINGS(dst));
 
-    /* FIXME: use memcpy for these and similar loops */
-    for_each_boolean(i, dst)
-	dst->Booleans[i] = src->Booleans[i];
-    for_each_number(i, dst)
-	dst->Numbers[i] = src->Numbers[i];
-    for_each_string(i, dst)
-	dst->Strings[i] = src->Strings[i];
+    TYPE_MALLOC(NCURSES_SBOOL, NUM_BOOLEANS(dst), dst->Booleans);
+    TYPE_MALLOC(short, NUM_NUMBERS(dst), dst->Numbers);
+    TYPE_MALLOC(char *, NUM_STRINGS(dst), dst->Strings);
+
+    memcpy(dst->Booleans,
+	   src->Booleans,
+	   NUM_BOOLEANS(dst) * sizeof(dst->Booleans[0]));
+    memcpy(dst->Numbers,
+	   src->Numbers,
+	   NUM_NUMBERS(dst) * sizeof(dst->Numbers[0]));
+    memcpy(dst->Strings,
+	   src->Strings,
+	   NUM_STRINGS(dst) * sizeof(dst->Strings[0]));
 
     /* FIXME: we probably should also copy str_table and ext_str_table,
      * but tic and infocmp are not written to exploit that (yet).
@@ -496,11 +502,10 @@ _nc_copy_termtype(TERMTYPE *dst, TERMTYPE *src)
 
 #if NCURSES_XNAMES
     if ((i = NUM_EXT_NAMES(src)) != 0) {
-	dst->ext_Names = typeMalloc(char *, i);
+	TYPE_MALLOC(char *, i, dst->ext_Names);
 	memcpy(dst->ext_Names, src->ext_Names, i * sizeof(char *));
     } else {
 	dst->ext_Names = 0;
     }
 #endif
-
 }

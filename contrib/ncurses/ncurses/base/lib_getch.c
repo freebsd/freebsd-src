@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_getch.c,v 1.121 2010/12/25 23:24:04 tom Exp $")
+MODULE_ID("$Id: lib_getch.c,v 1.126 2013/02/16 18:30:37 tom Exp $")
 
 #include <fifo_defs.h>
 
@@ -133,7 +133,7 @@ check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
     int rc;
 
 #ifdef USE_TERM_DRIVER
-    rc = TCBOf(sp)->drv->testmouse(TCBOf(sp), delay);
+    rc = TCBOf(sp)->drv->testmouse(TCBOf(sp), delay EVENTLIST_2nd(evl));
 #else
 #if USE_SYSMOUSE
     if ((sp->_mouse_type == M_SYSMOUSE)
@@ -163,7 +163,7 @@ check_mouse_activity(SCREEN *sp, int delay EVENTLIST_2nd(_nc_eventlist * evl))
 static NCURSES_INLINE int
 fifo_peek(SCREEN *sp)
 {
-    int ch = sp->_fifo[peek];
+    int ch = (peek >= 0) ? sp->_fifo[peek] : ERR;
     TR(TRACE_IEVENT, ("peeking at %d", peek));
 
     p_inc();
@@ -173,15 +173,16 @@ fifo_peek(SCREEN *sp)
 static NCURSES_INLINE int
 fifo_pull(SCREEN *sp)
 {
-    int ch;
-    ch = sp->_fifo[head];
+    int ch = (head >= 0) ? sp->_fifo[head] : ERR;
+
     TR(TRACE_IEVENT, ("pulling %s from %d", _nc_tracechar(sp, ch), head));
 
     if (peek == head) {
 	h_inc();
 	peek = head;
-    } else
+    } else {
 	h_inc();
+    }
 
 #ifdef TRACE
     if (USE_TRACEF(TRACE_IEVENT)) {
@@ -200,7 +201,7 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
     int mask = 0;
 
     (void) mask;
-    if (tail == -1)
+    if (tail < 0)
 	return ERR;
 
 #ifdef HIDE_EINTR
@@ -257,6 +258,13 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 	n = 1;
     } else
 #endif
+#if USE_KLIBC_KBD
+    if (isatty(sp->_ifd) && sp->_cbreak) {
+	ch = _read_kbd(0, 1, !sp->_raw);
+	n = (ch == -1) ? -1 : 1;
+	sp->_extended_key = (ch == 0);
+    } else
+#endif
     {				/* Can block... */
 #ifdef USE_TERM_DRIVER
 	int buf;
@@ -270,7 +278,7 @@ fifo_push(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 #  endif
 	    _nc_globals.read_thread = pthread_self();
 # endif
-	n = (int) read(sp->_ifd, &c2, 1);
+	n = (int) read(sp->_ifd, &c2, (size_t) 1);
 #if USE_PTHREADS_EINTR
 	_nc_globals.read_thread = 0;
 #endif
@@ -431,11 +439,11 @@ _nc_wgetch(WINDOW *win,
 	/* ungetch in reverse order */
 #ifdef NCURSES_WGETCH_EVENTS
 	rc = recur_wgetnstr(win, buf);
-	if (rc != KEY_EVENT)
+	if (rc != KEY_EVENT && rc != ERR)
 	    safe_ungetch(sp, '\n');
 #else
-	(void) recur_wgetnstr(win, buf);
-	safe_ungetch(sp, '\n');
+	if (recur_wgetnstr(win, buf) != ERR)
+	    safe_ungetch(sp, '\n');
 #endif
 	for (bufp = buf + strlen(buf); bufp > buf; bufp--)
 	    safe_ungetch(sp, bufp[-1]);
@@ -569,7 +577,7 @@ _nc_wgetch(WINDOW *win,
      *
      * If carriage return is defined as a function key in the
      * terminfo, e.g., kent, then Solaris may return either ^J (or ^M
-     * if nonl() is set) or KEY_ENTER depending on the echo() mode. 
+     * if nonl() is set) or KEY_ENTER depending on the echo() mode.
      * We echo before translating carriage return based on nonl(),
      * since the visual result simply moves the cursor to column 0.
      *
@@ -709,10 +717,11 @@ kgetch(SCREEN *sp EVENTLIST_2nd(_nc_eventlist * evl))
 
 	if (ptr->value != 0) {	/* sequence terminated */
 	    TR(TRACE_IEVENT, ("end of sequence"));
-	    if (peek == tail)
+	    if (peek == tail) {
 		fifo_clear(sp);
-	    else
+	    } else {
 		head = peek;
+	    }
 	    return (ptr->value);
 	}
 

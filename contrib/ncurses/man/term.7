@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.7,v 1.22 2010/12/04 18:41:07 tom Exp $
+.\" $Id: term.7,v 1.23 2011/12/17 23:32:17 tom Exp $
 .TH term 7
 .ds n 5
 .ds d @TERMINFO@
@@ -55,7 +55,7 @@ can almost always be avoided by explicitly exporting `vt100' (assuming you
 are in fact using a VT100-superset console, terminal, or terminal emulator.)
 .PP
 In any case, you are free to override the system \fBTERM\fR setting to your
-taste in your shell profile.  The \fBtset\fP(1) utility may be of assistance;
+taste in your shell profile.  The \fB@TSET@\fP(1) utility may be of assistance;
 you can give it a set of rules for deducing or requesting a terminal type based
 on the tty device and baud rate.
 .PP

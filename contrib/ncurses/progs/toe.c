@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -44,11 +44,22 @@
 #include <hashed_db.h>
 #endif
 
-MODULE_ID("$Id: toe.c,v 1.52 2010/05/01 22:04:08 tom Exp $")
+MODULE_ID("$Id: toe.c,v 1.74 2013/12/15 01:08:28 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
+typedef struct {
+    int db_index;
+    unsigned long checksum;
+    char *term_name;
+    char *description;
+} TERMDATA;
+
 const char *_nc_progname;
+
+static TERMDATA *ptr_termdata;	/* array of terminal data */
+static size_t use_termdata;	/* actual usage in ptr_termdata[] */
+static size_t len_termdata;	/* allocated size of ptr_termdata[] */
 
 #if NO_LEAKS
 #undef ExitProgram
@@ -61,11 +72,157 @@ ExitProgram(int code)
 }
 #endif
 
+static void failed(const char *) GCC_NORETURN;
+
 static void
 failed(const char *msg)
 {
     perror(msg);
     ExitProgram(EXIT_FAILURE);
+}
+
+static char *
+strmalloc(const char *value)
+{
+    char *result = strdup(value);
+    if (result == 0) {
+	failed("strmalloc");
+    }
+    return result;
+}
+
+static TERMDATA *
+new_termdata(void)
+{
+    size_t want = use_termdata + 1;
+
+    if (want >= len_termdata) {
+	len_termdata = (2 * want) + 10;
+	ptr_termdata = typeRealloc(TERMDATA, len_termdata, ptr_termdata);
+	if (ptr_termdata == 0)
+	    failed("ptr_termdata");
+    }
+
+    return ptr_termdata + use_termdata++;
+}
+
+static int
+compare_termdata(const void *a, const void *b)
+{
+    const TERMDATA *p = (const TERMDATA *) a;
+    const TERMDATA *q = (const TERMDATA *) b;
+    int result = strcmp(p->term_name, q->term_name);
+
+    if (result == 0) {
+	result = (p->db_index - q->db_index);
+    }
+    return result;
+}
+
+/*
+ * Sort the array of TERMDATA and print it.  If more than one database is being
+ * reported, add a column to show which database has a given entry.
+ */
+static void
+show_termdata(int eargc, char **eargv)
+{
+    int j, k;
+    size_t n;
+
+    if (use_termdata) {
+	if (eargc > 1) {
+	    for (j = 0; j < eargc; ++j) {
+		for (k = 0; k <= j; ++k) {
+		    printf("--");
+		}
+		printf("> ");
+		printf("%s\n", eargv[j]);
+	    }
+	}
+	if (use_termdata > 1)
+	    qsort(ptr_termdata, use_termdata, sizeof(TERMDATA), compare_termdata);
+	for (n = 0; n < use_termdata; ++n) {
+
+	    /*
+	     * If there is more than one database, show how they differ.
+	     */
+	    if (eargc > 1) {
+		unsigned long check = 0;
+		k = 0;
+		for (;;) {
+		    for (; k < ptr_termdata[n].db_index; ++k) {
+			printf("--");
+		    }
+
+		    /*
+		     * If this is the first entry, or its checksum differs
+		     * from the first entry's checksum, print "*". Otherwise
+		     * it looks enough like a duplicate to print "+".
+		     */
+		    printf("%c-", ((check == 0
+				    || (check != ptr_termdata[n].checksum))
+				   ? '*'
+				   : '+'));
+		    check = ptr_termdata[n].checksum;
+
+		    ++k;
+		    if ((n + 1) >= use_termdata
+			|| strcmp(ptr_termdata[n].term_name,
+				  ptr_termdata[n + 1].term_name)) {
+			break;
+		    }
+		    ++n;
+		}
+		for (; k < eargc; ++k) {
+		    printf("--");
+		}
+		printf(":\t");
+	    }
+
+	    (void) printf("%-10s\t%s\n",
+			  ptr_termdata[n].term_name,
+			  ptr_termdata[n].description);
+	}
+    }
+}
+
+static void
+free_termdata(void)
+{
+    if (ptr_termdata != 0) {
+	while (use_termdata != 0) {
+	    --use_termdata;
+	    free(ptr_termdata[use_termdata].term_name);
+	    free(ptr_termdata[use_termdata].description);
+	}
+	free(ptr_termdata);
+	ptr_termdata = 0;
+    }
+    use_termdata = 0;
+    len_termdata = 0;
+}
+
+static char **
+allocArgv(size_t count)
+{
+    char **result = typeCalloc(char *, count + 1);
+    if (result == 0)
+	failed("realloc eargv");
+
+    assert(result != 0);
+    return result;
+}
+
+static void
+freeArgv(char **argv)
+{
+    if (argv) {
+	int count = 0;
+	while (argv[count]) {
+	    free(argv[count++]);
+	}
+	free(argv);
+    }
 }
 
 #if USE_HASHED_DB
@@ -75,67 +232,100 @@ make_db_name(char *dst, const char *src, unsigned limit)
     static const char suffix[] = DBM_SUFFIX;
 
     bool result = FALSE;
-    unsigned lens = sizeof(suffix) - 1;
-    unsigned size = strlen(src);
-    unsigned need = lens + size;
+    size_t lens = sizeof(suffix) - 1;
+    size_t size = strlen(src);
+    size_t need = lens + size;
 
     if (need <= limit) {
 	if (size >= lens
-	    && !strcmp(src + size - lens, suffix))
-	    (void) strcpy(dst, src);
-	else
-	    (void) sprintf(dst, "%s%s", src, suffix);
-	result = TRUE;
-    }
-    return result;
-}
-#endif
-
-static bool
-is_database(const char *path)
-{
-    bool result = FALSE;
-#if USE_DATABASE
-    if (_nc_is_dir_path(path) && access(path, R_OK | X_OK) == 0) {
-	result = TRUE;
-    }
-#endif
-#if USE_TERMCAP
-    if (_nc_is_file_path(path) && access(path, R_OK) == 0) {
-	result = TRUE;
-    }
-#endif
-#if USE_HASHED_DB
-    if (!result) {
-	char filename[PATH_MAX];
-	if (_nc_is_file_path(path) && access(path, R_OK) == 0) {
-	    result = TRUE;
-	} else if (make_db_name(filename, path, sizeof(filename))) {
-	    if (_nc_is_file_path(filename) && access(filename, R_OK) == 0) {
-		result = TRUE;
-	    }
+	    && !strcmp(src + size - lens, suffix)) {
+	    _nc_STRCPY(dst, src, PATH_MAX);
+	} else {
+	    _nc_SPRINTF(dst, _nc_SLIMIT(PATH_MAX) "%s%s", src, suffix);
 	}
+	result = TRUE;
     }
-#endif
     return result;
 }
+#endif
 
-static void
-deschook(const char *cn, TERMTYPE *tp)
-/* display a description for the type */
+typedef void (DescHook) (int /* db_index */ ,
+			 int /* db_limit */ ,
+			 const char * /* term_name */ ,
+			 TERMTYPE * /* term */ );
+
+static const char *
+term_description(TERMTYPE *tp)
 {
     const char *desc;
 
-    if ((desc = strrchr(tp->term_names, '|')) == 0 || *++desc == '\0')
+    if (tp->term_names == 0
+	|| (desc = strrchr(tp->term_names, '|')) == 0
+	|| (*++desc == '\0')) {
 	desc = "(No description)";
+    }
 
-    (void) printf("%-10s\t%s\n", cn, desc);
+    return desc;
 }
 
-#if USE_TERMCAP
+/* display a description for the type */
 static void
-show_termcap(char *buffer,
-	     void (*hook) (const char *, TERMTYPE *tp))
+deschook(int db_index, int db_limit, const char *term_name, TERMTYPE *tp)
+{
+    (void) db_index;
+    (void) db_limit;
+    (void) printf("%-10s\t%s\n", term_name, term_description(tp));
+}
+
+static unsigned long
+string_sum(const char *value)
+{
+    unsigned long result = 0;
+
+    if ((intptr_t) value == (intptr_t) (-1)) {
+	result = ~result;
+    } else if (value) {
+	while (*value) {
+	    result += UChar(*value);
+	    ++value;
+	}
+    }
+    return result;
+}
+
+static unsigned long
+checksum_of(TERMTYPE *tp)
+{
+    unsigned long result = string_sum(tp->term_names);
+    unsigned i;
+
+    for (i = 0; i < NUM_BOOLEANS(tp); i++) {
+	result += (unsigned long) (tp->Booleans[i]);
+    }
+    for (i = 0; i < NUM_NUMBERS(tp); i++) {
+	result += (unsigned long) (tp->Numbers[i]);
+    }
+    for (i = 0; i < NUM_STRINGS(tp); i++) {
+	result += string_sum(tp->Strings[i]);
+    }
+    return result;
+}
+
+/* collect data, to sort before display */
+static void
+sorthook(int db_index, int db_limit, const char *term_name, TERMTYPE *tp)
+{
+    TERMDATA *data = new_termdata();
+
+    data->db_index = db_index;
+    data->checksum = ((db_limit > 1) ? checksum_of(tp) : 0);
+    data->term_name = strmalloc(term_name);
+    data->description = strmalloc(term_description(tp));
+}
+
+#if NCURSES_USE_TERMCAP
+static void
+show_termcap(int db_index, int db_limit, char *buffer, DescHook hook)
 {
     TERMTYPE data;
     char *next = strchr(buffer, ':');
@@ -149,26 +339,42 @@ show_termcap(char *buffer,
     if (last)
 	++last;
 
-    data.term_names = strdup(buffer);
+    memset(&data, 0, sizeof(data));
+    data.term_names = strmalloc(buffer);
     while ((next = strtok(list, "|")) != 0) {
 	if (next != last)
-	    hook(next, &data);
+	    hook(db_index, db_limit, next, &data);
 	list = 0;
     }
     free(data.term_names);
 }
 #endif
 
+#if NCURSES_USE_DATABASE
+static char *
+copy_entryname(DIRENT * src)
+{
+    size_t len = NAMLEN(src);
+    char *result = malloc(len + 1);
+    if (result == 0)
+	failed("copy entryname");
+    memcpy(result, src->d_name, len);
+    result[len] = '\0';
+
+    return result;
+}
+#endif
+
 static int
 typelist(int eargc, char *eargv[],
-	 bool verbosity,
-	 void (*hook) (const char *, TERMTYPE *tp))
+	 int verbosity,
+	 DescHook hook)
 /* apply a function to each entry in given terminfo directories */
 {
     int i;
 
     for (i = 0; i < eargc; i++) {
-#if USE_DATABASE
+#if NCURSES_USE_DATABASE
 	if (_nc_is_dir_path(eargv[i])) {
 	    char *cwd_buf = 0;
 	    DIR *termdir;
@@ -179,28 +385,35 @@ typelist(int eargc, char *eargv[],
 		(void) fprintf(stderr,
 			       "%s: can't open terminfo directory %s\n",
 			       _nc_progname, eargv[i]);
-		return (EXIT_FAILURE);
-	    } else if (verbosity)
+		continue;
+	    }
+
+	    if (verbosity)
 		(void) printf("#\n#%s:\n#\n", eargv[i]);
 
 	    while ((subdir = readdir(termdir)) != 0) {
-		size_t len = NAMLEN(subdir);
-		size_t cwd_len = len + strlen(eargv[i]) + 3;
-		char name_1[PATH_MAX];
+		size_t cwd_len;
+		char *name_1;
 		DIR *entrydir;
 		DIRENT *entry;
 
+		name_1 = copy_entryname(subdir);
+		if (isDotname(name_1)) {
+		    free(name_1);
+		    continue;
+		}
+
+		cwd_len = NAMLEN(subdir) + strlen(eargv[i]) + 3;
 		cwd_buf = typeRealloc(char, cwd_len, cwd_buf);
 		if (cwd_buf == 0)
 		    failed("realloc cwd_buf");
 
 		assert(cwd_buf != 0);
 
-		strncpy(name_1, subdir->d_name, len)[len] = '\0';
-		if (isDotname(name_1))
-		    continue;
+		_nc_SPRINTF(cwd_buf, _nc_SLIMIT(cwd_len)
+			    "%s/%s/", eargv[i], name_1);
+		free(name_1);
 
-		(void) sprintf(cwd_buf, "%s/%.*s/", eargv[i], (int) len, name_1);
 		if (chdir(cwd_buf) != 0)
 		    continue;
 
@@ -210,15 +423,16 @@ typelist(int eargc, char *eargv[],
 		    continue;
 		}
 		while ((entry = readdir(entrydir)) != 0) {
-		    char name_2[PATH_MAX];
+		    char *name_2;
 		    TERMTYPE lterm;
 		    char *cn;
 		    int status;
 
-		    len = NAMLEN(entry);
-		    strncpy(name_2, entry->d_name, len)[len] = '\0';
-		    if (isDotname(name_2) || !_nc_is_file_path(name_2))
+		    name_2 = copy_entryname(entry);
+		    if (isDotname(name_2) || !_nc_is_file_path(name_2)) {
+			free(name_2);
 			continue;
+		    }
 
 		    status = _nc_read_file_entry(name_2, &lterm);
 		    if (status <= 0) {
@@ -226,6 +440,10 @@ typelist(int eargc, char *eargv[],
 			(void) fprintf(stderr,
 				       "%s: couldn't open terminfo file %s.\n",
 				       _nc_progname, name_2);
+			free(cwd_buf);
+			free(name_2);
+			closedir(entrydir);
+			closedir(termdir);
 			return (EXIT_FAILURE);
 		    }
 
@@ -233,20 +451,25 @@ typelist(int eargc, char *eargv[],
 		    cn = _nc_first_name(lterm.term_names);
 		    if (!strcmp(cn, name_2)) {
 			/* apply the selected hook function */
-			(*hook) (cn, &lterm);
+			hook(i, eargc, cn, &lterm);
 		    }
 		    _nc_free_termtype(&lterm);
+		    free(name_2);
 		}
 		closedir(entrydir);
 	    }
 	    closedir(termdir);
 	    if (cwd_buf != 0)
 		free(cwd_buf);
+	    continue;
 	}
 #if USE_HASHED_DB
 	else {
 	    DB *capdbp;
 	    char filename[PATH_MAX];
+
+	    if (verbosity)
+		(void) printf("#\n#%s:\n#\n", eargv[i]);
 
 	    if (make_db_name(filename, eargv[i], sizeof(filename))) {
 		if ((capdbp = _nc_db_open(filename, FALSE)) != 0) {
@@ -265,7 +488,7 @@ typelist(int eargc, char *eargv[],
 				/* only visit things once, by primary name */
 				cn = _nc_first_name(lterm.term_names);
 				/* apply the selected hook function */
-				(*hook) (cn, &lterm);
+				hook(i, eargc, cn, &lterm);
 				_nc_free_termtype(&lterm);
 			    }
 			}
@@ -273,36 +496,43 @@ typelist(int eargc, char *eargv[],
 		    }
 
 		    _nc_db_close(capdbp);
+		    continue;
 		}
 	    }
 	}
 #endif
 #endif
-#if USE_TERMCAP
+#if NCURSES_USE_TERMCAP
 #if HAVE_BSD_CGETENT
-	char *db_array[2];
-	char *buffer = 0;
+	{
+	    CGETENT_CONST char *db_array[2];
+	    char *buffer = 0;
 
-	if (verbosity)
-	    (void) printf("#\n#%s:\n#\n", eargv[i]);
+	    if (verbosity)
+		(void) printf("#\n#%s:\n#\n", eargv[i]);
 
-	db_array[0] = eargv[i];
-	db_array[1] = 0;
+	    db_array[0] = eargv[i];
+	    db_array[1] = 0;
 
-	if (cgetfirst(&buffer, db_array)) {
-	    show_termcap(buffer, hook);
-	    free(buffer);
-	    while (cgetnext(&buffer, db_array)) {
-		show_termcap(buffer, hook);
+	    if (cgetfirst(&buffer, db_array) > 0) {
+		show_termcap(i, eargc, buffer, hook);
 		free(buffer);
+		while (cgetnext(&buffer, db_array) > 0) {
+		    show_termcap(i, eargc, buffer, hook);
+		    free(buffer);
+		}
+		cgetclose();
+		continue;
 	    }
 	}
-	cgetclose();
 #else
 	/* scan termcap text-file only */
 	if (_nc_is_file_path(eargv[i])) {
 	    char buffer[2048];
 	    FILE *fp;
+
+	    if (verbosity)
+		(void) printf("#\n#%s:\n#\n", eargv[i]);
 
 	    if ((fp = fopen(eargv[i], "r")) != 0) {
 		while (fgets(buffer, sizeof(buffer), fp) != 0) {
@@ -310,7 +540,7 @@ typelist(int eargc, char *eargv[],
 			continue;
 		    if (isspace(*buffer))
 			continue;
-		    show_termcap(buffer, hook);
+		    show_termcap(i, eargc, buffer, hook);
 		}
 		fclose(fp);
 	    }
@@ -319,13 +549,18 @@ typelist(int eargc, char *eargv[],
 #endif
     }
 
+    if (hook == sorthook) {
+	show_termdata(eargc, eargv);
+	free_termdata();
+    }
+
     return (EXIT_SUCCESS);
 }
 
 static void
 usage(void)
 {
-    (void) fprintf(stderr, "usage: %s [-ahuUV] [-v n] [file...]\n", _nc_progname);
+    (void) fprintf(stderr, "usage: %s [-ahsuUV] [-v n] [file...]\n", _nc_progname);
     ExitProgram(EXIT_FAILURE);
 }
 
@@ -340,23 +575,24 @@ main(int argc, char *argv[])
     unsigned i;
     int code;
     int this_opt, last_opt = '?';
-    int v_opt = 0;
+    unsigned v_opt = 0;
+    DescHook *hook = deschook;
 
     _nc_progname = _nc_rootname(argv[0]);
 
-    while ((this_opt = getopt(argc, argv, "0123456789ahu:vU:V")) != -1) {
+    while ((this_opt = getopt(argc, argv, "0123456789ahsu:vU:V")) != -1) {
 	/* handle optional parameter */
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
 	    case 'v':
-		v_opt = (this_opt - '0');
+		v_opt = (unsigned) (this_opt - '0');
 		break;
 	    default:
 		if (isdigit(last_opt))
 		    v_opt *= 10;
 		else
 		    v_opt = 0;
-		v_opt += (this_opt - '0');
+		v_opt += (unsigned) (this_opt - '0');
 		last_opt = this_opt;
 	    }
 	    continue;
@@ -367,6 +603,9 @@ main(int argc, char *argv[])
 	    break;
 	case 'h':
 	    header = TRUE;
+	    break;
+	case 's':
+	    hook = sorthook;
 	    break;
 	case 'u':
 	    direct_dependencies = TRUE;
@@ -450,7 +689,7 @@ main(int argc, char *argv[])
      * If we get this far, user wants a simple terminal type listing.
      */
     if (optind < argc) {
-	code = typelist(argc - optind, argv + optind, header, deschook);
+	code = typelist(argc - optind, argv + optind, header, hook);
     } else if (all_dirs) {
 	DBDIRS state;
 	int offset;
@@ -460,64 +699,41 @@ main(int argc, char *argv[])
 
 	code = EXIT_FAILURE;
 	for (pass = 0; pass < 2; ++pass) {
-	    unsigned count = 0;
+	    size_t count = 0;
 
 	    _nc_first_db(&state, &offset);
 	    while ((path = _nc_next_db(&state, &offset)) != 0) {
-		if (!is_database(path)) {
-		    ;
-		} else if (eargv != 0) {
-		    unsigned n;
-		    int found = FALSE;
-
-		    /* eliminate duplicates */
-		    for (n = 0; n < count; ++n) {
-			if (!strcmp(path, eargv[n])) {
-			    found = TRUE;
-			    break;
-			}
-		    }
-		    if (!found) {
-			eargv[count] = strdup(path);
-			++count;
-		    }
-		} else {
-		    ++count;
+		if (pass) {
+		    eargv[count] = strmalloc(path);
 		}
+		++count;
 	    }
 	    if (!pass) {
-		eargv = typeCalloc(char *, count + 1);
+		eargv = allocArgv(count);
 		if (eargv == 0)
-		    failed("realloc eargv");
-
-		assert(eargv != 0);
+		    failed("eargv");
 	    } else {
-		code = typelist((int) count, eargv, header, deschook);
-		while (count-- > 0)
-		    free(eargv[count]);
-		free(eargv);
+		code = typelist((int) count, eargv, header, hook);
+		freeArgv(eargv);
 	    }
 	}
     } else {
 	DBDIRS state;
 	int offset;
 	const char *path;
-	char *eargv[3];
-	int count = 0;
+	char **eargv = allocArgv((size_t) 2);
+	size_t count = 0;
 
+	if (eargv == 0)
+	    failed("eargv");
 	_nc_first_db(&state, &offset);
-	while ((path = _nc_next_db(&state, &offset)) != 0) {
-	    if (is_database(path)) {
-		eargv[count++] = strdup(path);
-		break;
-	    }
+	if ((path = _nc_next_db(&state, &offset)) != 0) {
+	    eargv[count++] = strmalloc(path);
 	}
-	eargv[count] = 0;
 
-	code = typelist(count, eargv, header, deschook);
+	code = typelist((int) count, eargv, header, hook);
 
-	while (count-- > 0)
-	    free(eargv[count]);
+	freeArgv(eargv);
     }
     _nc_last_db();
 

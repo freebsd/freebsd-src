@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.76 2010/12/19 01:21:19 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.82 2013/07/06 19:42:09 tom Exp $")
 
 NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
@@ -103,9 +103,9 @@ trace(const unsigned int tracelevel)
 	    }
 	    TracePath[size] = '\0';
 	    assert(strlen(TracePath) <= size);
-	    strcat(TracePath, "/trace");
+	    _nc_STRCAT(TracePath, "/trace", sizeof(TracePath));
 	    if (_nc_is_dir_path(TracePath)) {
-		strcat(TracePath, ".log");
+		_nc_STRCAT(TracePath, ".log", sizeof(TracePath));
 	    }
 	}
 
@@ -121,7 +121,7 @@ trace(const unsigned int tracelevel)
 	 * end of each line.  This is useful in case the program dies. 
 	 */
 #if HAVE_SETVBUF		/* ANSI */
-	(void) setvbuf(TraceFP, (char *) 0, _IOLBF, 0);
+	(void) setvbuf(TraceFP, (char *) 0, _IOLBF, (size_t) 0);
 #elif HAVE_SETBUF /* POSIX */
 	(void) setbuffer(TraceFP, (char *) 0);
 #endif
@@ -185,9 +185,9 @@ _nc_va_tracef(const char *fmt, va_list ap)
 	if ((pthread_self))
 # endif
 #ifdef __MINGW32__
-	    fprintf(TraceFP, "%#lx:", (long) (void *) pthread_self().p);
+	    fprintf(TraceFP, "%#lx:", (long) (intptr_t) pthread_self().p);
 #else
-	    fprintf(TraceFP, "%#lx:", (long) (void *) pthread_self());
+	    fprintf(TraceFP, "%#lx:", (long) (intptr_t) pthread_self());
 #endif
 #endif
 	if (before || after) {
@@ -218,7 +218,7 @@ _tracef(const char *fmt,...)
 
 /* Trace 'bool' return-values */
 NCURSES_EXPORT(NCURSES_BOOL)
-_nc_retrace_bool(NCURSES_BOOL code)
+_nc_retrace_bool(int code)
 {
     T((T_RETURN("%s"), code ? "TRUE" : "FALSE"));
     return code;
@@ -226,10 +226,10 @@ _nc_retrace_bool(NCURSES_BOOL code)
 
 /* Trace 'char' return-values */
 NCURSES_EXPORT(char)
-_nc_retrace_char(char code)
+_nc_retrace_char(int code)
 {
     T((T_RETURN("%c"), code));
-    return code;
+    return (char) code;
 }
 
 /* Trace 'int' return-values */
@@ -339,8 +339,9 @@ _nc_locked_tracef(const char *fmt,...)
     _nc_va_tracef(fmt, ap);
     va_end(ap);
 
-    if (--(_nc_globals.nested_tracef) == 0)
+    if (--(_nc_globals.nested_tracef) == 0) {
 	_nc_unlock_global(tracef);
+    }
 }
 #endif /* USE_REENTRANT */
 

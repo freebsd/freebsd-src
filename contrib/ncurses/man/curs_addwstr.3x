@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,11 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addwstr.3x,v 1.10 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_addwstr.3x,v 1.11 2012/11/03 22:57:31 tom Exp $
 .TH curs_addwstr 3X ""
+.de bP
+.IP \(bu 4
+..
 .na
 .hy 0
 .SH NAME
@@ -62,31 +65,39 @@
 \fBint mvwaddnwstr(WINDOW *\fR\fIwin\fR\fB, int \fR\fIy\fR\fB, int \fR\fIx\fR\fB, const wchar_t *\fR\fIwstr\fR\fB, int \fR\fIn\fR\fB);\fR
 .fi
 .SH DESCRIPTION
-These routines write the characters of the
+These functions write the characters of the
 (null-terminated) \fBwchar_t\fR character string
 \fIwstr\fR on the given window.
 It is similar to constructing a \fBcchar_t\fR for each wchar_t in the string,
 then calling \fBwadd_wch\fR for the resulting \fBcchar_t\fR.
 .PP
-The \fImv\fR routines perform cursor movement once, before writing any
+The \fImv\fR functions perform cursor movement once, before writing any
 characters.
 Thereafter, the cursor is advanced as a side-effect of writing to the window.
 .PP
-The four routines with \fIn\fR as the last argument
-write at most \fIn\fR \fBwchar_t\fR characters.
-If \fIn\fR is \-1, then the entire string will be added,
-up to the maximum number of characters that will fit on the line,
+The four functions with \fIn\fR as the last argument
+write at most \fIn\fR \fBwchar_t\fR characters,
 or until a terminating null is reached.
-.SH RETURN VALUES
-All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+If \fIn\fR is \-1, then the entire string will be added.
+.SH RETURN VALUE
+All functions return the integer \fBERR\fR upon failure and \fBOK\fR on success.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+.bP
+if the window pointer is null or
+.bP
+if the string pointer is null or
+.bP
+if the corresponding calls to \fBwadd_wch\fP return an error.
 .PP
 Functions with a "mv" prefix first perform a cursor movement using
 \fBwmove\fP, and return an error if the position is outside the window,
 or if the window pointer is null.
 .SH NOTES
-Note that all of these routines except \fBwaddnwstr\fR may be macros.
+All of these functions except \fBwaddnwstr\fR may be macros.
 .SH PORTABILITY
-All these entry points are described in the XSI Curses standard, Issue 4.
+These functions are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
 \fBcurses\fR(3X),
 \fBcurs_add_wch\fR(3X)

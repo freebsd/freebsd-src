@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2003,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -46,7 +46,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_has_cap.c,v 1.9 2009/10/24 22:15:47 tom Exp $")
+MODULE_ID("$Id: lib_has_cap.c,v 1.10 2013/11/16 19:57:22 tom Exp $")
 
 NCURSES_EXPORT(bool)
 NCURSES_SP_NAME(has_ic) (NCURSES_SP_DCL0)
@@ -55,7 +55,7 @@ NCURSES_SP_NAME(has_ic) (NCURSES_SP_DCL0)
 
     T((T_CALLED("has_ic(%p)"), (void *) SP_PARM));
 
-    if (IsValidTIScreen(SP_PARM) && IsTermInfo(SP_PARM)) {
+    if (HasTInfoTerminal(SP_PARM)) {
 	code = ((insert_character || parm_ich
 		 || (enter_insert_mode && exit_insert_mode))
 		&& (delete_character || parm_dch)) ? TRUE : FALSE;
@@ -77,7 +77,7 @@ NCURSES_SP_NAME(has_il) (NCURSES_SP_DCL0)
 {
     bool code = FALSE;
     T((T_CALLED("has_il(%p)"), (void *) SP_PARM));
-    if (IsValidTIScreen(SP_PARM) && IsTermInfo(SP_PARM)) {
+    if (HasTInfoTerminal(SP_PARM)) {
 	code = ((insert_line || parm_insert_line)
 		&& (delete_line || parm_delete_line)) ? TRUE : FALSE;
     }

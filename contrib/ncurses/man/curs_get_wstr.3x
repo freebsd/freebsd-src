@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2010,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_get_wstr.3x,v 1.8 2010/12/04 18:36:44 tom Exp $
+.\" $Id: curs_get_wstr.3x,v 1.9 2012/11/03 23:03:59 tom Exp $
 .TH curs_get_wstr 3X ""
 .na
 .hy 0
@@ -144,7 +144,7 @@ These functions cannot return \fBKEY_\fR values because there
 is no way to distinguish a \fBKEY_\fR value from a valid \fBwchar_t\fR value.
 .PP
 All of these routines except \fBwgetn_wstr\fR may be macros.
-.SH RETURN VALUES
+.SH RETURN VALUE
 All of these functions return \fBOK\fR upon successful completion.
 Otherwise, they return \fBERR\fR.
 .PP
