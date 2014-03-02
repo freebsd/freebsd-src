@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: lib_ti.c,v 1.29 2010/01/23 17:57:43 tom Exp $")
+MODULE_ID("$Id: lib_ti.c,v 1.30 2013/06/08 16:55:05 tom Exp $")
 
 #if 0
 static bool
@@ -53,7 +53,7 @@ NCURSES_EXPORT(int)
 NCURSES_SP_NAME(tigetflag) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 {
     int result = ABSENT_BOOLEAN;
-    int i, j;
+    int j = -1;
 
     T((T_CALLED("tigetflag(%p, %s)"), (void *) SP_PARM, str));
 
@@ -67,7 +67,7 @@ NCURSES_SP_NAME(tigetflag) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 	}
 #if NCURSES_XNAMES
 	else {
-	    j = -1;
+	    int i;
 	    for_each_ext_boolean(i, tp) {
 		const char *capname = ExtBoolname(tp, i, boolnames);
 		if (same_name(str, capname)) {
@@ -97,7 +97,7 @@ tigetflag(NCURSES_CONST char *str)
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(tigetnum) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 {
-    int i, j;
+    int j = -1;
     int result = CANCELLED_NUMERIC;	/* Solaris returns a -1 on error */
 
     T((T_CALLED("tigetnum(%p, %s)"), (void *) SP_PARM, str));
@@ -112,7 +112,7 @@ NCURSES_SP_NAME(tigetnum) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 	}
 #if NCURSES_XNAMES
 	else {
-	    j = -1;
+	    int i;
 	    for_each_ext_number(i, tp) {
 		const char *capname = ExtNumname(tp, i, numnames);
 		if (same_name(str, capname)) {
@@ -145,7 +145,7 @@ NCURSES_EXPORT(char *)
 NCURSES_SP_NAME(tigetstr) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 {
     char *result = CANCELLED_STRING;
-    int i, j;
+    int j = -1;
 
     T((T_CALLED("tigetstr(%p, %s)"), (void *) SP_PARM, str));
 
@@ -159,7 +159,7 @@ NCURSES_SP_NAME(tigetstr) (NCURSES_SP_DCLx NCURSES_CONST char *str)
 	}
 #if NCURSES_XNAMES
 	else {
-	    j = -1;
+	    int i;
 	    for_each_ext_string(i, tp) {
 		const char *capname = ExtStrname(tp, i, strnames);
 		if (same_name(str, capname)) {

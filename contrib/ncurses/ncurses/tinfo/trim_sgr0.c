@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2005-2007,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2005-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: trim_sgr0.c,v 1.12 2010/12/25 23:03:57 tom Exp $")
+MODULE_ID("$Id: trim_sgr0.c,v 1.15 2012/12/15 20:57:17 tom Exp $")
 
 #undef CUR
 #define CUR tp->
@@ -48,21 +48,28 @@ MODULE_ID("$Id: trim_sgr0.c,v 1.12 2010/12/25 23:03:57 tom Exp $")
 static char *
 set_attribute_9(TERMTYPE *tp, int flag)
 {
-    const char *result;
+    const char *value;
+    char *result;
 
-    if ((result = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag)) == 0)
-	result = "";
-    return strdup(result);
+    value = tparm(set_attributes, 0, 0, 0, 0, 0, 0, 0, 0, flag);
+    if (PRESENT(value))
+	result = strdup(value);
+    else
+	result = 0;
+    return result;
 }
 
 static int
 is_csi(const char *s)
 {
-    if (UChar(s[0]) == CSI)
-	return 1;
-    else if (s[0] == ESC && s[1] == L_BRACK)
-	return 2;
-    return 0;
+    int result = 0;
+    if (s != 0) {
+	if (UChar(s[0]) == CSI)
+	    result = 1;
+	else if (s[0] == ESC && s[1] == L_BRACK)
+	    result = 2;
+    }
+    return result;
 }
 
 static char *
@@ -97,7 +104,7 @@ skip_delay(const char *s)
 static bool
 rewrite_sgr(char *s, char *attr)
 {
-    if (PRESENT(s)) {
+    if (s != 0) {
 	if (PRESENT(attr)) {
 	    size_t len_s = strlen(s);
 	    size_t len_a = strlen(attr);
@@ -108,7 +115,7 @@ rewrite_sgr(char *s, char *attr)
 		for (n = 0; n < len_s - len_a; ++n) {
 		    s[n] = s[n + len_a];
 		}
-		strcpy(s + n, attr);
+		_nc_STRCPY(s + n, attr, strlen(s) + 1);
 		TR(TRACE_DATABASE, ("to:\n\t%s", s));
 	    }
 	}
@@ -121,33 +128,35 @@ static bool
 similar_sgr(char *a, char *b)
 {
     bool result = FALSE;
-    int csi_a = is_csi(a);
-    int csi_b = is_csi(b);
-    size_t len_a;
-    size_t len_b;
+    if (a != 0 && b != 0) {
+	int csi_a = is_csi(a);
+	int csi_b = is_csi(b);
+	size_t len_a;
+	size_t len_b;
 
-    TR(TRACE_DATABASE, ("similar_sgr:\n\t%s\n\t%s",
-			_nc_visbuf2(1, a),
-			_nc_visbuf2(2, b)));
-    if (csi_a != 0 && csi_b != 0 && csi_a == csi_b) {
-	a += csi_a;
-	b += csi_b;
-	if (*a != *b) {
-	    a = skip_zero(a);
-	    b = skip_zero(b);
+	TR(TRACE_DATABASE, ("similar_sgr:\n\t%s\n\t%s",
+			    _nc_visbuf2(1, a),
+			    _nc_visbuf2(2, b)));
+	if (csi_a != 0 && csi_b != 0 && csi_a == csi_b) {
+	    a += csi_a;
+	    b += csi_b;
+	    if (*a != *b) {
+		a = skip_zero(a);
+		b = skip_zero(b);
+	    }
 	}
+	len_a = strlen(a);
+	len_b = strlen(b);
+	if (len_a && len_b) {
+	    if (len_a > len_b)
+		result = (strncmp(a, b, len_b) == 0);
+	    else
+		result = (strncmp(a, b, len_a) == 0);
+	}
+	TR(TRACE_DATABASE, ("...similar_sgr: %d\n\t%s\n\t%s", result,
+			    _nc_visbuf2(1, a),
+			    _nc_visbuf2(2, b)));
     }
-    len_a = strlen(a);
-    len_b = strlen(b);
-    if (len_a && len_b) {
-	if (len_a > len_b)
-	    result = (strncmp(a, b, len_b) == 0);
-	else
-	    result = (strncmp(a, b, len_a) == 0);
-    }
-    TR(TRACE_DATABASE, ("...similar_sgr: %d\n\t%s\n\t%s", result,
-			_nc_visbuf2(1, a),
-			_nc_visbuf2(2, b)));
     return result;
 }
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_insch.c,v 1.32 2009/10/24 22:04:35 tom Exp $")
+MODULE_ID("$Id: lib_insch.c,v 1.35 2013/05/18 21:58:56 tom Exp $")
 
 /*
  * Insert the given character, updating the current location to simplify
@@ -53,6 +53,7 @@ NCURSES_EXPORT(int)
 _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 {
     int code = OK;
+    int ch8 = (int) ChCharOf(ch);
     NCURSES_CH_T wch;
     int count;
     NCURSES_CONST char *s;
@@ -82,10 +83,9 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 #if USE_WIDEC_SUPPORT
 	       WINDOW_EXT(win, addch_used) == 0 &&
 #endif
-	       is8bits(ChCharOf(ch)) &&
-	       (isprint(ChCharOf(ch)) ||
+	       (isprint(ch8) ||
 		(ChAttrOf(ch) & A_ALTCHARSET) ||
-		(sp != 0 && sp->_legacy_coding && !iscntrl(ChCharOf(ch))))) {
+		(sp != 0 && sp->_legacy_coding && !iscntrl(ch8)))) {
 	    if (win->_curx <= win->_maxx) {
 		struct ldat *line = &(win->_line[win->_cury]);
 		NCURSES_CH_T *end = &(line->text[win->_curx]);
@@ -101,8 +101,8 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 		*temp1 = _nc_render(win, wch);
 		win->_curx++;
 	    }
-	} else if (is8bits(ChCharOf(ch)) && iscntrl(ChCharOf(ch))) {
-	    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx ChCharOf(ch));
+	} else if (iscntrl(ch8)) {
+	    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx (chtype) ch8);
 	    while (*s != '\0') {
 		code = _nc_insert_ch(sp, win, ChAttrOf(ch) | UChar(*s));
 		if (code != OK)
@@ -122,18 +122,14 @@ _nc_insert_ch(SCREEN *sp, WINDOW *win, chtype ch)
 		code = _nc_insert_wch(win, &wch);
 	    } else if (count == -1) {
 		/* handle EILSEQ */
-		if (is8bits(ch)) {
-		    s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx ChCharOf(ch));
-		    if (strlen(s) > 1) {
-			while (*s != '\0') {
-			    code = _nc_insert_ch(sp, win,
-						 ChAttrOf(ch) | UChar(*s));
-			    if (code != OK)
-				break;
-			    ++s;
-			}
-		    } else {
-			code = ERR;
+		s = NCURSES_SP_NAME(unctrl) (NCURSES_SP_ARGx (chtype) ch8);
+		if (strlen(s) > 1) {
+		    while (*s != '\0') {
+			code = _nc_insert_ch(sp, win,
+					     ChAttrOf(ch) | UChar(*s));
+			if (code != OK)
+			    break;
+			++s;
 		    }
 		} else {
 		    code = ERR;

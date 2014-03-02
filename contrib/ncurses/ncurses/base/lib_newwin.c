@@ -43,7 +43,7 @@
 #include <curses.priv.h>
 #include <stddef.h>
 
-MODULE_ID("$Id: lib_newwin.c,v 1.69 2011/03/07 21:58:17 tom Exp $")
+MODULE_ID("$Id: lib_newwin.c,v 1.71 2011/05/28 21:32:51 tom Exp $")
 
 #define window_is(name) ((sp)->_##name == win)
 
@@ -141,7 +141,11 @@ NCURSES_SP_NAME(newwin) (NCURSES_SP_DCLx
     T((T_CALLED("newwin(%p, %d,%d,%d,%d)"), (void *) SP_PARM, num_lines, num_columns,
        begy, begx));
 
-    if (begy < 0 || begx < 0 || num_lines < 0 || num_columns < 0)
+    if (begy < 0
+	|| begx < 0
+	|| num_lines < 0
+	|| num_columns < 0
+	|| SP_PARM == 0)
 	returnWin(0);
 
     if (num_lines == 0)
@@ -235,10 +239,15 @@ derwin(WINDOW *orig, int num_lines, int num_columns, int begy, int begx)
 NCURSES_EXPORT(WINDOW *)
 subwin(WINDOW *w, int l, int c, int y, int x)
 {
-    T((T_CALLED("subwin(%p, %d, %d, %d, %d)"), (void *) w, l, c, y, x));
-    T(("parent has begy = %ld, begx = %ld", (long) w->_begy, (long) w->_begx));
+    WINDOW *result = 0;
 
-    returnWin(derwin(w, l, c, y - w->_begy, x - w->_begx));
+    T((T_CALLED("subwin(%p, %d, %d, %d, %d)"), (void *) w, l, c, y, x));
+    if (w != 0) {
+	T(("parent has begy = %ld, begx = %ld", (long) w->_begy, (long) w->_begx));
+
+	result = derwin(w, l, c, y - w->_begy, x - w->_begx);
+    }
+    returnWin(result);
 }
 
 static bool

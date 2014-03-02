@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2010,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_get_wch.c,v 1.22 2010/08/28 21:00:35 tom Exp $")
+MODULE_ID("$Id: lib_get_wch.c,v 1.23 2011/05/28 23:00:29 tom Exp $")
 
 NCURSES_EXPORT(int)
 wget_wch(WINDOW *win, wint_t *result)
@@ -106,7 +106,10 @@ wget_wch(WINDOW *win, wint_t *result)
     } else {
 	code = ERR;
     }
-    *result = (wint_t) value;
+
+    if (result != 0)
+	*result = (wint_t) value;
+
     _nc_unlock_global(curses);
     T(("result %#o", value));
     returnCode(code);

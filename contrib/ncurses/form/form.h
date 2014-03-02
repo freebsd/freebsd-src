@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2004,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
-/* $Id: form.h,v 0.21 2009/11/07 19:31:11 tom Exp $ */
+/* $Id: form.h,v 0.23 2013/12/07 17:57:32 tom Exp $ */
 
 #ifndef FORM_H
 #define FORM_H
@@ -396,6 +396,9 @@ extern NCURSES_EXPORT(int)	post_form (FORM *);
 extern NCURSES_EXPORT(int)	unpost_form (FORM *);
 extern NCURSES_EXPORT(int)	pos_form_cursor (FORM *);
 extern NCURSES_EXPORT(int)	form_driver (FORM *,int);
+# if NCURSES_WIDECHAR
+extern NCURSES_EXPORT(int)	form_driver_w (FORM *,int,wchar_t);
+# endif
 extern NCURSES_EXPORT(int)	set_form_userptr (FORM *,void *);
 extern NCURSES_EXPORT(int)	set_form_opts (FORM *,Form_Options);
 extern NCURSES_EXPORT(int)	form_opts_on (FORM *,Form_Options);

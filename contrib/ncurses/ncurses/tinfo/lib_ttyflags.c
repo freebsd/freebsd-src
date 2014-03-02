@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -41,7 +41,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_ttyflags.c,v 1.27 2010/12/25 23:43:58 tom Exp $")
+MODULE_ID("$Id: lib_ttyflags.c,v 1.28 2012/01/21 19:21:29 KO.Myung-Hun Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(_nc_get_tty_mode) (NCURSES_SP_DCLx TTY * buf)
@@ -105,7 +105,11 @@ NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_DCLx TTY * buf)
 	    result = CallDriver_2(SP_PARM, sgmode, TRUE, buf);
 #else
 	    for (;;) {
-		if (SET_TTY(termp->Filedes, buf) != 0) {
+		if ((SET_TTY(termp->Filedes, buf) != 0)
+#if USE_KLIBC_KBD
+		    && !isatty(termp->Filedes)
+#endif
+		    ) {
 		    if (errno == EINTR)
 			continue;
 		    if ((errno == ENOTTY) && (SP_PARM != 0))

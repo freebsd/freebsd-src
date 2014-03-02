@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 
 #include <tic.h>
 
-MODULE_ID("$Id: alloc_entry.c,v 1.51 2010/12/25 23:06:01 tom Exp $")
+MODULE_ID("$Id: alloc_entry.c,v 1.58 2013/08/17 19:20:38 tom Exp $")
 
 #define ABSENT_OFFSET    -1
 #define CANCELLED_OFFSET -2
@@ -61,8 +61,6 @@ NCURSES_EXPORT(void)
 _nc_init_entry(TERMTYPE *const tp)
 /* initialize a terminal type data block */
 {
-    unsigned i;
-
 #if NO_LEAKS
     if (tp == 0) {
 	if (stringbuf != 0) {
@@ -73,33 +71,11 @@ _nc_init_entry(TERMTYPE *const tp)
 #endif
 
     if (stringbuf == 0)
-	stringbuf = (char *) malloc(MAX_STRTAB);
-
-#if NCURSES_XNAMES
-    tp->num_Booleans = BOOLCOUNT;
-    tp->num_Numbers = NUMCOUNT;
-    tp->num_Strings = STRCOUNT;
-    tp->ext_Booleans = 0;
-    tp->ext_Numbers = 0;
-    tp->ext_Strings = 0;
-#endif
-    if (tp->Booleans == 0)
-	tp->Booleans = typeMalloc(NCURSES_SBOOL, BOOLCOUNT);
-    if (tp->Numbers == 0)
-	tp->Numbers = typeMalloc(short, NUMCOUNT);
-    if (tp->Strings == 0)
-	tp->Strings = typeMalloc(char *, STRCOUNT);
-
-    for_each_boolean(i, tp)
-	tp->Booleans[i] = FALSE;
-
-    for_each_number(i, tp)
-	tp->Numbers[i] = ABSENT_NUMERIC;
-
-    for_each_string(i, tp)
-	tp->Strings[i] = ABSENT_STRING;
+	TYPE_MALLOC(char, (size_t) MAX_STRTAB, stringbuf);
 
     next_free = 0;
+
+    _nc_init_termtype(tp);
 }
 
 NCURSES_EXPORT(ENTRY *)
@@ -131,13 +107,13 @@ _nc_save_str(const char *const string)
 	    result = (stringbuf + next_free - 1);
 	}
     } else if (next_free + len < MAX_STRTAB) {
-	strcpy(&stringbuf[next_free], string);
+	_nc_STRCPY(&stringbuf[next_free], string, MAX_STRTAB);
 	DEBUG(7, ("Saved string %s", _nc_visbuf(string)));
 	DEBUG(7, ("at location %d", (int) next_free));
 	next_free += len;
 	result = (stringbuf + old_next_free);
     } else {
-	_nc_warning("Too much data, some is lost");
+	_nc_warning("Too much data, some is lost: %s", string);
     }
     return result;
 }
@@ -194,8 +170,7 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	    useoffsets[i] = (int) (ep->uses[i].name - stringbuf);
     }
 
-    if ((tp->str_table = typeMalloc(char, next_free)) == (char *) 0)
-	  _nc_err_abort(MSG_NO_MEMORY);
+    TYPE_MALLOC(char, next_free, tp->str_table);
     (void) memcpy(tp->str_table, stringbuf, next_free);
 
     tp->term_names = tp->str_table + n;
@@ -216,16 +191,18 @@ _nc_wrap_entry(ENTRY * const ep, bool copy_strings)
 	if ((n = (unsigned) NUM_EXT_NAMES(tp)) != 0) {
 	    if (n < SIZEOF(offsets)) {
 		size_t length = 0;
+		size_t offset;
 		for (i = 0; i < n; i++) {
 		    length += strlen(tp->ext_Names[i]) + 1;
 		    offsets[i] = (int) (tp->ext_Names[i] - stringbuf);
 		}
-		if ((tp->ext_str_table = typeMalloc(char, length)) == 0)
-		      _nc_err_abort(MSG_NO_MEMORY);
-		for (i = 0, length = 0; i < n; i++) {
-		    tp->ext_Names[i] = tp->ext_str_table + length;
-		    strcpy(tp->ext_Names[i], stringbuf + offsets[i]);
-		    length += strlen(tp->ext_Names[i]) + 1;
+		TYPE_MALLOC(char, length, tp->ext_str_table);
+		for (i = 0, offset = 0; i < n; i++) {
+		    tp->ext_Names[i] = tp->ext_str_table + offset;
+		    _nc_STRCPY(tp->ext_Names[i],
+			       stringbuf + offsets[i],
+			       length - offset);
+		    offset += strlen(tp->ext_Names[i]) + 1;
 		}
 	    }
 	}

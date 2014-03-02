@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -47,7 +47,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_set_term.c,v 1.138 2010/12/20 00:42:20 tom Exp $")
+MODULE_ID("$Id: lib_set_term.c,v 1.148 2013/08/31 13:33:06 tom Exp $")
 
 #ifdef USE_TERM_DRIVER
 #define MaxColors      InfoOf(sp).maxcolors
@@ -188,18 +188,7 @@ delscreen(SCREEN *sp)
 	FreeIfNeeded(sp->_acs_map);
 	FreeIfNeeded(sp->_screen_acs_map);
 
-	/*
-	 * If the associated output stream has been closed, we can discard the
-	 * set-buffer.  Limit the error check to EBADF, since fflush may fail
-	 * for other reasons than trying to operate upon a closed stream.
-	 */
-	if (sp->_ofp != 0
-	    && sp->_setbuf != 0
-	    && fflush(sp->_ofp) != 0
-	    && errno == EBADF) {
-	    free(sp->_setbuf);
-	}
-
+	NCURSES_SP_NAME(_nc_flush) (NCURSES_SP_ARG);
 	NCURSES_SP_NAME(del_curterm) (NCURSES_SP_ARGx sp->_term);
 	free(sp);
 
@@ -272,8 +261,8 @@ extract_fgbg(char *src, int *result)
 }
 #endif
 
-#define ReturnScreenError() _nc_set_screen(0); \
-                            returnCode(ERR)
+#define ReturnScreenError() { _nc_set_screen(0); \
+                            returnCode(ERR); } while (0)
 
 /* OS-independent screen initializations */
 NCURSES_EXPORT(int)
@@ -284,7 +273,7 @@ NCURSES_SP_NAME(_nc_setupscreen) (
 				     int slines,
 				     int scolumns,
 				     FILE *output,
-				     bool filtered,
+				     int filtered,
 				     int slk_format)
 {
     char *env;
@@ -383,7 +372,15 @@ NCURSES_SP_NAME(_nc_setupscreen) (
     sp->_lines = (NCURSES_SIZE_T) slines;
     sp->_lines_avail = (NCURSES_SIZE_T) slines;
     sp->_columns = (NCURSES_SIZE_T) scolumns;
+
+    fflush(output);
+    sp->_ofd = output ? fileno(output) : -1;
     sp->_ofp = output;
+    sp->out_limit = (size_t) ((2 + slines) * (6 + scolumns));
+    if ((sp->out_buffer = malloc(sp->out_limit)) == 0)
+	sp->out_limit = 0;
+    sp->out_inuse = 0;
+
     SP_PRE_INIT(sp);
     SetNoPadding(sp);
 
@@ -510,16 +507,7 @@ NCURSES_SP_NAME(_nc_setupscreen) (
 
     if (magic_cookie_glitch > 0) {	/* tvi, wyse */
 
-	sp->_xmc_triggers = sp->_ok_attributes & (
-						     A_STANDOUT |
-						     A_UNDERLINE |
-						     A_REVERSE |
-						     A_BLINK |
-						     A_DIM |
-						     A_BOLD |
-						     A_INVIS |
-						     A_PROTECT
-	    );
+	sp->_xmc_triggers = sp->_ok_attributes & XMC_CONFLICT;
 #if 0
 	/*
 	 * We "should" treat colors as an attribute.  The wyse350 (and its
@@ -584,9 +572,13 @@ NCURSES_SP_NAME(_nc_setupscreen) (
 
     NCURSES_SP_NAME(_nc_init_acs) (NCURSES_SP_ARG);
 #if USE_WIDEC_SUPPORT
+    sp->_screen_unicode = _nc_unicode_locale();
     _nc_init_wacs();
+    if (_nc_wacs == 0) {
+	ReturnScreenError();
+    }
 
-    sp->_screen_acs_fix = (_nc_unicode_locale()
+    sp->_screen_acs_fix = (sp->_screen_unicode
 			   && _nc_locale_breaks_acs(sp->_term));
 #endif
     env = _nc_get_locale();
@@ -619,6 +611,7 @@ NCURSES_SP_NAME(_nc_setupscreen) (
 #endif
 #if USE_SIZECHANGE
     sp->_resize = NCURSES_SP_NAME(resizeterm);
+    sp->_ungetch = safe_ungetch;
 #endif
 
     NewScreen(sp)->_clear = TRUE;
@@ -695,7 +688,7 @@ NCURSES_EXPORT(int)
 _nc_setupscreen(int slines GCC_UNUSED,
 		int scolumns GCC_UNUSED,
 		FILE *output,
-		bool filtered,
+		int filtered,
 		int slk_format)
 {
     SCREEN *sp = 0;
@@ -759,6 +752,7 @@ NCURSES_SP_NAME(ripoffline) (NCURSES_SP_DCLx
 			     int line,
 			     int (*init) (WINDOW *, int))
 {
+    START_TRACE();
     return NCURSES_SP_NAME(_nc_ripoffline) (NCURSES_SP_ARGx
 					    (line < 0) ? -1 : 1,
 					    init);

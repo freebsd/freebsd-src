@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.23 2009/04/11 20:33:55 tom Exp $ */
+/* $Id: panel.priv.h,v 1.25 2012/12/15 23:57:43 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -89,7 +89,7 @@ struct screen;              /* forward declaration */
 #define GetScreenHook(sp) \
 			struct panelhook* ph = NCURSES_SP_NAME(_nc_panelhook)(sp)
 #define GetPanelHook(pan) \
-			GetScreenHook(_nc_screen_of((pan)->win))
+			GetScreenHook(pan ? _nc_screen_of((pan)->win) : 0)
 #define GetWindowHook(win) \
 			SCREEN* sp = _nc_screen_of(win); \
 			GetScreenHook(sp)
@@ -160,7 +160,7 @@ struct screen;              /* forward declaration */
 ---------------------------------------------------------------------------*/
 #define PANEL_UPDATE(pan,panstart)\
 {  PANEL* pan2 = ((panstart) ? (panstart) : _nc_bottom_panel);\
-   while(pan2) {\
+   while(pan2 && pan2->win) {\
       if ((pan2 != pan) && PANELS_OVERLAPPED(pan,pan2)) {\
         int y, ix1, ix2, iy1, iy2;\
         COMPUTE_INTERSECTION(pan, pan2, ix1, ix2, iy1, iy2);\

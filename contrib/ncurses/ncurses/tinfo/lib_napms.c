@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2008,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -51,17 +51,21 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.20 2009/11/07 20:37:30 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.23 2012/06/30 22:08:24 tom Exp $")
 
 NCURSES_EXPORT(int)
 NCURSES_SP_NAME(napms) (NCURSES_SP_DCLx int ms)
 {
-    (void) SP_PARM;
     T((T_CALLED("napms(%d)"), ms));
 
 #ifdef USE_TERM_DRIVER
-    CallDriver_1(SP_PARM, nap, ms);
+    if (HasTerminal(SP_PARM)) {
+	CallDriver_1(SP_PARM, nap, ms);
+    }
 #else /* !USE_TERM_DRIVER */
+#if NCURSES_SP_FUNCS
+    (void) sp;
+#endif
 #if HAVE_NANOSLEEP
     {
 	struct timespec request, remaining;

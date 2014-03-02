@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2008-2011,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,19 +26,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tabs.1,v 1.8 2010/12/04 18:40:45 tom Exp $
+.\" $Id: tabs.1,v 1.11 2013/06/22 18:11:57 tom Exp $
 .TH @TABS@ 1 ""
 .ds n 5
 .SH NAME
-\fBtabs\fR \- set tabs on a terminal
+\fB@TABS@\fR \- set tabs on a terminal
 .SH SYNOPSIS
-\fBtabs\fR [\fB\-v\fR[\fIn\fR]] [\fB\-ahuUV\fR] \fIfile...\fR
-.br
+\fB@TABS@\fR [\fIoptions\fR]] \fI[tabstop-list]\fR
 .SH DESCRIPTION
 .PP
-The \fBtabs\fP program clears and sets tab-stops on the terminal.
+The \fB@TABS@\fP program clears and sets tab-stops on the terminal.
 This uses the terminfo \fIclear_all_tabs\fP and \fIset_tab\fP capabilities.
-If either is absent, \fBtabs\fP is unable to clear/set tab-stops.
+If either is absent, \fB@TABS@\fP is unable to clear/set tab-stops.
 The terminal should be configured to use hard tabs, e.g.,
 .sp
 .RS
@@ -48,8 +47,8 @@ stty tab0
 .SS General Options
 .TP 5
 .BI \-T "name"
-Tell \fBtabs\fP which terminal type to use.
-If this option is not given, \fBtabs\fP will use the \fB$TERM\fP
+Tell \fB@TABS@\fP which terminal type to use.
+If this option is not given, \fB@TABS@\fP will use the \fB$TERM\fP
 environment variable.
 If that is not set, it will use the \fIansi+tabs\fP entry.
 .TP 5
@@ -59,10 +58,13 @@ The first data line shows the expected tab-stops marked with asterisks.
 The second data line shows the actual tab-stops, marked with asterisks.
 .TP 5
 .B \-n
-This option tells \fBtabs\fP to check the options and run any debugging
+This option tells \fB@TABS@\fP to check the options and run any debugging
 option, but not to modify the terminal settings.
+.TP
+\fB\-V\fR
+reports the version of ncurses which was used in this program, and exits.
 .PP
-The \fBtabs\fP program processes a single list of tab stops.
+The \fB@TABS@\fP program processes a single list of tab stops.
 The last option to be processed which defines a list is the one that
 determines the list to be processed.
 .SS Implicit Lists
