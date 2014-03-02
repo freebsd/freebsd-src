@@ -720,9 +720,9 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 	 * flows.  All ports can see other ports.
 	 */
 	for (i = 0; i < AR8327_NUM_PORTS; i++) {
-		/* set pvid = i */
-		t = i << AR8327_PORT_VLAN0_DEF_SVID_S;
-		t |= i << AR8327_PORT_VLAN0_DEF_CVID_S;
+		/* set pvid = 1; there's only one vlangroup */
+		t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
+		t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN0(i), t);
 
 		/* set egress == out_keep */
@@ -732,8 +732,7 @@ ar8327_reset_vlans(struct arswitch_softc *sc)
 		t |= mode << AR8327_PORT_VLAN1_OUT_MODE_S;
 		arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN1(i), t);
 
-		/* Set ingress = out_keep; members = 0x3f for all ports */
-
+		/* Ports can see other ports */
 		t = (0x3f & ~(1 << i));	/* all ports besides us */
 		t |= AR8327_PORT_LOOKUP_LEARN;
 
