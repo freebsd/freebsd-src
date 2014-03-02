@@ -661,6 +661,9 @@ ar8327_port_init(struct arswitch_softc *sc, int port)
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_STATUS(port), t);
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_HEADER(port), 0);
 
+	/*
+	 * Default to 1 port group.
+	 */
 	t = 1 << AR8327_PORT_VLAN0_DEF_SVID_S;
 	t |= 1 << AR8327_PORT_VLAN0_DEF_CVID_S;
 	arswitch_writereg(sc->sc_dev, AR8327_REG_PORT_VLAN0(port), t);
