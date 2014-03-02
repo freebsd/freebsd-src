@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tparm.c,v 1.82 2011/01/15 22:19:12 tom Exp $")
+MODULE_ID("$Id: lib_tparm.c,v 1.90 2013/11/09 14:53:05 tom Exp $")
 
 /*
  *	char *
@@ -53,7 +53,7 @@ MODULE_ID("$Id: lib_tparm.c,v 1.82 2011/01/15 22:19:12 tom Exp $")
  *
  *	     Cursor addressing and other strings  requiring  parame-
  *	ters in the terminal are described by a parameterized string
- *	capability, with like escapes %x in  it.   For  example,  to
+ *	capability, with escapes like %x in  it.   For  example,  to
  *	address  the  cursor, the cup capability is given, using two
  *	parameters: the row and column to  address  to.   (Rows  and
  *	columns  are  numbered  from  zero and refer to the physical
@@ -107,6 +107,7 @@ MODULE_ID("$Id: lib_tparm.c,v 1.82 2011/01/15 22:19:12 tom Exp $")
 NCURSES_EXPORT_VAR(int) _nc_tparm_err = 0;
 
 #define TPS(var) _nc_prescreen.tparm_state.var
+#define popcount _nc_popcount	/* workaround for NetBSD 6.0 defect */
 
 #if NO_LEAKS
 NCURSES_EXPORT(void)
@@ -128,9 +129,7 @@ get_space(size_t need)
     need += TPS(out_used);
     if (need > TPS(out_size)) {
 	TPS(out_size) = need * 2;
-	TPS(out_buff) = typeRealloc(char, TPS(out_size), TPS(out_buff));
-	if (TPS(out_buff) == 0)
-	    _nc_err_abort(MSG_NO_MEMORY);
+	TYPE_REALLOC(char, TPS(out_size), TPS(out_buff));
     }
 }
 
@@ -143,7 +142,9 @@ save_text(const char *fmt, const char *s, int len)
 
     get_space(s_len + 1);
 
-    (void) sprintf(TPS(out_buff) + TPS(out_used), fmt, s);
+    _nc_SPRINTF(TPS(out_buff) + TPS(out_used),
+		_nc_SLIMIT(TPS(out_size) - TPS(out_used))
+		fmt, s);
     TPS(out_used) += strlen(TPS(out_buff) + TPS(out_used));
 }
 
@@ -153,9 +154,11 @@ save_number(const char *fmt, int number, int len)
     if (len < 30)
 	len = 30;		/* actually log10(MAX_INT)+1 */
 
-    get_space((unsigned) len + 1);
+    get_space((size_t) len + 1);
 
-    (void) sprintf(TPS(out_buff) + TPS(out_used), fmt, number);
+    _nc_SPRINTF(TPS(out_buff) + TPS(out_used),
+		_nc_SLIMIT(TPS(out_size) - TPS(out_used))
+		fmt, number);
     TPS(out_used) += strlen(TPS(out_buff) + TPS(out_used));
 }
 
@@ -164,7 +167,7 @@ save_char(int c)
 {
     if (c == 0)
 	c = 0200;
-    get_space(1);
+    get_space((size_t) 1);
     TPS(out_buff)[TPS(out_used)++] = (char) c;
 }
 
@@ -450,7 +453,7 @@ _nc_tparm_analyze(const char *string, char *p_is_s[NUM_PARM], int *popcount)
 }
 
 static NCURSES_INLINE char *
-tparam_internal(bool use_TPARM_ARG, const char *string, va_list ap)
+tparam_internal(int use_TPARM_ARG, const char *string, va_list ap)
 {
     char *p_is_s[NUM_PARM];
     TPARM_ARG param[NUM_PARM];
@@ -522,7 +525,7 @@ tparam_internal(bool use_TPARM_ARG, const char *string, va_list ap)
     }
 #ifdef TRACE
     if (USE_TRACEF(TRACE_CALLS)) {
-	for (i = 0; i < popcount; i++) {
+	for (i = 0; i < num_args; i++) {
 	    if (p_is_s[i] != 0)
 		save_text(", %s", _nc_visbuf(p_is_s[i]), 0);
 	    else
@@ -559,7 +562,7 @@ tparam_internal(bool use_TPARM_ARG, const char *string, va_list ap)
 		break;
 
 	    case 'l':
-		save_number("%d", (int) strlen(spop()), 0);
+		npush((int) strlen(spop()));
 		break;
 
 	    case 's':
@@ -757,7 +760,7 @@ tparam_internal(bool use_TPARM_ARG, const char *string, va_list ap)
 	cp++;
     }				/* endwhile (*cp) */
 
-    get_space(1);
+    get_space((size_t) 1);
     TPS(out_buff)[TPS(out_used)] = '\0';
 
     T((T_RETURN("%s"), _nc_visbuf(TPS(out_buff))));

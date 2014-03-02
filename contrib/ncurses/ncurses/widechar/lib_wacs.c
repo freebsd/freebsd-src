@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2002-2013,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_wacs.c,v 1.10 2010/12/19 01:43:19 tom Exp $")
+MODULE_ID("$Id: lib_wacs.c,v 1.14 2014/02/23 01:21:08 tom Exp $")
 
 NCURSES_EXPORT_VAR(cchar_t) * _nc_wacs = 0;
 
@@ -119,22 +119,24 @@ _nc_init_wacs(void)
     T(("initializing WIDE-ACS map (Unicode is%s active)",
        active ? "" : " not"));
 
-    _nc_wacs = typeCalloc(cchar_t, ACS_LEN);
-    for (n = 0; n < SIZEOF(table); ++n) {
-	int wide = wcwidth(table[n].value[active]);
+    if ((_nc_wacs = typeCalloc(cchar_t, ACS_LEN)) != 0) {
 
-	m = table[n].map;
-	if (active && (wide == 1)) {
-	    SetChar(_nc_wacs[m], table[n].value[active], A_NORMAL);
-	} else if (acs_map[m] & A_ALTCHARSET) {
-	    SetChar(_nc_wacs[m], m, A_ALTCHARSET);
-	} else {
-	    SetChar(_nc_wacs[m], table[n].value[0], A_NORMAL);
+	for (n = 0; n < SIZEOF(table); ++n) {
+	    int wide = wcwidth((wchar_t) table[n].value[active]);
+
+	    m = table[n].map;
+	    if (active && (wide == 1)) {
+		SetChar(_nc_wacs[m], table[n].value[1], A_NORMAL);
+	    } else if (acs_map[m] & A_ALTCHARSET) {
+		SetChar(_nc_wacs[m], m, A_ALTCHARSET);
+	    } else {
+		SetChar(_nc_wacs[m], table[n].value[0], A_NORMAL);
+	    }
+
+	    T(("#%d, SetChar(%c, %#04x) = %s",
+	       n, m,
+	       table[n].value[active],
+	       _tracecchar_t(&_nc_wacs[m])));
 	}
-
-	T(("#%d, SetChar(%c, %#04x) = %s",
-	   n, m,
-	   table[n].value[active],
-	   _tracecchar_t(&_nc_wacs[m])));
     }
 }

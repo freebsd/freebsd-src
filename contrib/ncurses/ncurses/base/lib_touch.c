@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -43,7 +43,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_touch.c,v 1.11 2010/12/19 01:22:58 tom Exp $")
+MODULE_ID("$Id: lib_touch.c,v 1.12 2012/06/09 20:29:33 tom Exp $")
 
 NCURSES_EXPORT(bool)
 is_linetouched(WINDOW *win, int line)
@@ -84,7 +84,7 @@ wtouchln(WINDOW *win, int y, int n, int changed)
     for (i = y; i < y + n; i++) {
 	if (i > win->_maxy)
 	    break;
-	win->_line[i].firstchar = changed ? 0 : _NOCHANGE;
+	win->_line[i].firstchar = (NCURSES_SIZE_T) (changed ? 0 : _NOCHANGE);
 	win->_line[i].lastchar = (NCURSES_SIZE_T) (changed
 						   ? win->_maxx
 						   : _NOCHANGE);

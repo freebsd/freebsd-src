@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,6 +35,7 @@
 /*
  *	tic.c --- Main program for terminfo compiler
  *			by Eric S. Raymond
+ *			and Thomas E Dickey
  *
  */
 
@@ -42,9 +43,12 @@
 #include <sys/stat.h>
 
 #include <dump_entry.h>
+#include <hashed_db.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tic.c,v 1.147 2011/02/12 18:39:08 tom Exp $")
+MODULE_ID("$Id: tic.c,v 1.189 2013/11/16 19:58:09 tom Exp $")
+
+#define STDIN_NAME "<stdin>"
 
 const char *_nc_progname = "tic";
 
@@ -53,6 +57,7 @@ static FILE *tmp_fp;
 static bool capdump = FALSE;	/* running as infotocap? */
 static bool infodump = FALSE;	/* running as captoinfo? */
 static bool showsummary = FALSE;
+static char **namelst = 0;
 static const char *to_remove;
 
 static void (*save_check_termtype) (TERMTYPE *, bool);
@@ -69,11 +74,13 @@ static const char usage_string[] = "\
 1\
 a\
 C\
+D\
 c\
 f\
 G\
 g\
 I\
+K\
 L\
 N\
 r\
@@ -99,8 +106,10 @@ free_namelist(char **src)
 #endif
 
 static void
-cleanup(char **namelst GCC_UNUSED)
+cleanup(void)
 {
+    int rc;
+
 #if NO_LEAKS
     free_namelist(namelst);
 #endif
@@ -108,10 +117,12 @@ cleanup(char **namelst GCC_UNUSED)
 	fclose(tmp_fp);
     if (to_remove != 0) {
 #if HAVE_REMOVE
-	remove(to_remove);
+	rc = remove(to_remove);
 #else
-	unlink(to_remove);
+	rc = unlink(to_remove);
 #endif
+	if (rc != 0)
+	    perror(to_remove);
     }
 }
 
@@ -119,7 +130,6 @@ static void
 failed(const char *msg)
 {
     perror(msg);
-    cleanup((char **) 0);
     ExitProgram(EXIT_FAILURE);
 }
 
@@ -133,7 +143,9 @@ usage(void)
 #if NCURSES_XNAMES
 	"  -a         retain commented-out capabilities (sets -x also)",
 #endif
+	"  -K         translate entries to termcap source form with BSD syntax",
 	"  -C         translate entries to termcap source form",
+	"  -D         print list of tic's database locations (first must be writable)",
 	"  -c         check only, validate input without compiling or translating",
 	"  -e<names>  translate/compile only entries named by comma-separated list",
 	"  -f         format complex strings for readability",
@@ -173,7 +185,7 @@ usage(void)
 
 #define L_BRACE '{'
 #define R_BRACE '}'
-#define S_QUOTE '\'';
+#define S_QUOTE '\''
 
 static void
 write_it(ENTRY * ep)
@@ -216,12 +228,12 @@ write_it(ENTRY * ep)
 	    }
 	    *d = 0;
 	    if (strlen(result) < strlen(s))
-		strcpy(s, result);
+		_nc_STRCPY(s, result, strlen(s) + 1);
 	}
     }
 
     _nc_set_type(_nc_first_name(ep->tterm.term_names));
-    _nc_curr_line = ep->startline;
+    _nc_curr_line = (int) ep->startline;
     _nc_write_entry(&ep->tterm);
 }
 
@@ -286,8 +298,10 @@ put_translate(int c)
     if (in_name) {
 	if (used + 1 >= have) {
 	    have += 132;
-	    namebuf = typeRealloc(char, have, namebuf);
-	    suffix = typeRealloc(char, have, suffix);
+	    if ((namebuf = typeRealloc(char, have, namebuf)) == 0)
+		  failed("put_translate namebuf");
+	    if ((suffix = typeRealloc(char, have, suffix)) == 0)
+		  failed("put_translate suffix");
 	}
 	if (c == '\n' || c == '@') {
 	    namebuf[used++] = '\0';
@@ -308,7 +322,7 @@ put_translate(int c)
 	    if ((up = strchr(namebuf, '#')) != 0
 		|| (up = strchr(namebuf, '=')) != 0
 		|| ((up = strchr(namebuf, '@')) != 0 && up[1] == '>')) {
-		(void) strcpy(suffix, up);
+		_nc_STRCPY(suffix, up, have);
 		*up = '\0';
 	    }
 
@@ -339,39 +353,122 @@ put_translate(int c)
 static char *
 stripped(char *src)
 {
+    char *dst = 0;
+
     while (isspace(UChar(*src)))
 	src++;
+
     if (*src != '\0') {
-	char *dst;
 	size_t len;
 
-	if ((dst = strdup(src)) == NULL)
+	if ((dst = strdup(src)) == NULL) {
 	    failed("strdup");
-
-	assert(dst != 0);
-
-	len = strlen(dst);
-	while (--len != 0 && isspace(UChar(dst[len])))
-	    dst[len] = '\0';
-	return dst;
+	} else {
+	    len = strlen(dst);
+	    while (--len != 0 && isspace(UChar(dst[len])))
+		dst[len] = '\0';
+	}
     }
-    return 0;
+    return dst;
 }
 
 static FILE *
-open_input(const char *filename)
+open_tempfile(char *filename)
 {
-    FILE *fp = fopen(filename, "r");
-    struct stat sb;
+    FILE *result = 0;
 
-    if (fp == 0) {
-	fprintf(stderr, "%s: Can't open %s\n", _nc_progname, filename);
-	ExitProgram(EXIT_FAILURE);
+    _nc_STRCPY(filename, "/tmp/XXXXXX", PATH_MAX);
+#if HAVE_MKSTEMP
+    {
+	int oldmask = (int) umask(077);
+	int fd = mkstemp(filename);
+	if (fd >= 0)
+	    result = fdopen(fd, "w");
+	umask((mode_t) oldmask);
     }
-    if (fstat(fileno(fp), &sb) < 0
-	|| (sb.st_mode & S_IFMT) != S_IFREG) {
+#else
+    if (tmpnam(filename) != 0)
+	result = fopen(filename, "w");
+#endif
+    return result;
+}
+
+static FILE *
+copy_input(FILE *source, const char *filename, char *alt_file)
+{
+    char my_altfile[PATH_MAX];
+    FILE *result = 0;
+    FILE *target = 0;
+    int ch;
+
+    if (alt_file == 0)
+	alt_file = my_altfile;
+
+    if (source == 0) {
+	failed("copy_input (source)");
+    } else if ((target = open_tempfile(alt_file)) == 0) {
+	failed("copy_input (target)");
+    } else {
+	clearerr(source);
+	for (;;) {
+	    ch = fgetc(source);
+	    if (feof(source)) {
+		break;
+	    } else if (ferror(source)) {
+		failed(filename);
+	    } else if (ch == 0) {
+		/* don't loop in case someone wants to convert /dev/zero */
+		fprintf(stderr, "%s: %s is not a text-file\n", _nc_progname, filename);
+		ExitProgram(EXIT_FAILURE);
+	    }
+	    fputc(ch, target);
+	}
+	fclose(source);
+	/*
+	 * rewind() does not force the target file's data to disk (not does
+	 * fflush()...).  So open a second stream on the data and then close
+	 * the one that we were writing on before starting to read from the
+	 * second stream.
+	 */
+	result = fopen(alt_file, "r+");
+	fclose(target);
+	to_remove = strdup(alt_file);
+    }
+    return result;
+}
+
+static FILE *
+open_input(const char *filename, char *alt_file)
+{
+    FILE *fp;
+    struct stat sb;
+    int mode;
+
+    if (!strcmp(filename, "-")) {
+	fp = copy_input(stdin, STDIN_NAME, alt_file);
+    } else if (stat(filename, &sb) < 0) {
+	fprintf(stderr, "%s: %s %s\n", _nc_progname, filename, strerror(errno));
+	ExitProgram(EXIT_FAILURE);
+    } else if ((mode = (sb.st_mode & S_IFMT)) == S_IFDIR
+	       || (mode != S_IFREG && mode != S_IFCHR)) {
 	fprintf(stderr, "%s: %s is not a file\n", _nc_progname, filename);
 	ExitProgram(EXIT_FAILURE);
+    } else {
+	fp = fopen(filename, "r");
+
+	if (fp == 0) {
+	    fprintf(stderr, "%s: Can't open %s\n", _nc_progname, filename);
+	    ExitProgram(EXIT_FAILURE);
+	}
+	if (mode != S_IFREG) {
+	    if (alt_file != 0) {
+		FILE *fp2 = copy_input(fp, filename, alt_file);
+		fp = fp2;
+	    } else {
+		fprintf(stderr, "%s: %s is not a file\n", _nc_progname, filename);
+		ExitProgram(EXIT_FAILURE);
+	    }
+	}
     }
     return fp;
 }
@@ -389,7 +486,7 @@ make_namelist(char *src)
     if (src == 0) {
 	/* EMPTY */ ;
     } else if (strchr(src, '/') != 0) {		/* a filename */
-	FILE *fp = open_input(src);
+	FILE *fp = open_input(src, (char *) 0);
 
 	for (pass = 1; pass <= 2; pass++) {
 	    nn = 0;
@@ -403,7 +500,8 @@ make_namelist(char *src)
 		}
 	    }
 	    if (pass == 1) {
-		dst = typeCalloc(char *, nn + 1);
+		if ((dst = typeCalloc(char *, nn + 1)) == 0)
+		      failed("make_namelist");
 		rewind(fp);
 	    }
 	}
@@ -425,8 +523,10 @@ make_namelist(char *src)
 		if (mark == '\0')
 		    break;
 	    }
-	    if (pass == 1)
-		dst = typeCalloc(char *, nn + 1);
+	    if (pass == 1) {
+		if ((dst = typeCalloc(char *, nn + 1)) == 0)
+		      failed("make_namelist");
+	    }
 	}
     }
     if (showsummary && (dst != 0)) {
@@ -456,26 +556,118 @@ matches(char **needle, const char *haystack)
     return (code);
 }
 
-static FILE *
-open_tempfile(char *name)
+static char *
+valid_db_path(const char *nominal)
 {
-    FILE *result = 0;
-#if HAVE_MKSTEMP
-    int fd = mkstemp(name);
-    if (fd >= 0)
-	result = fdopen(fd, "w");
+    struct stat sb;
+#if USE_HASHED_DB
+    char suffix[] = DBM_SUFFIX;
+    size_t need = strlen(nominal) + sizeof(suffix);
+    char *result = malloc(need);
+
+    if (result == 0)
+	failed("valid_db_path");
+    _nc_STRCPY(result, nominal, need);
+    if (strcmp(result + need - sizeof(suffix), suffix)) {
+	_nc_STRCAT(result, suffix, need);
+    }
 #else
-    if (tmpnam(name) != 0)
-	result = fopen(name, "w");
+    char *result = strdup(nominal);
 #endif
+
+    DEBUG(1, ("** stat(%s)", result));
+    if (stat(result, &sb) >= 0) {
+#if USE_HASHED_DB
+	if (!S_ISREG(sb.st_mode)
+	    || access(result, R_OK | W_OK) != 0) {
+	    DEBUG(1, ("...not a writable file"));
+	    free(result);
+	    result = 0;
+	}
+#else
+	if (!S_ISDIR(sb.st_mode)
+	    || access(result, R_OK | W_OK | X_OK) != 0) {
+	    DEBUG(1, ("...not a writable directory"));
+	    free(result);
+	    result = 0;
+	}
+#endif
+    } else {
+	/* check if parent is directory and is writable */
+	unsigned leaf = _nc_pathlast(result);
+
+	DEBUG(1, ("...not found"));
+	if (leaf) {
+	    char save = result[leaf];
+	    result[leaf] = 0;
+	    if (stat(result, &sb) >= 0
+		&& S_ISDIR(sb.st_mode)
+		&& access(result, R_OK | W_OK | X_OK) == 0) {
+		result[leaf] = save;
+	    } else {
+		DEBUG(1, ("...parent directory %s is not writable", result));
+		free(result);
+		result = 0;
+	    }
+	} else {
+	    DEBUG(1, ("... no parent directory"));
+	    free(result);
+	    result = 0;
+	}
+    }
     return result;
 }
+
+/*
+ * Show the databases to which tic could write.  The location to which it
+ * writes is always the first one.  If none are writable, print an error
+ * message.
+ */
+static void
+show_databases(const char *outdir)
+{
+    bool specific = (outdir != 0) || getenv("TERMINFO") != 0;
+    char *result;
+    const char *tried = 0;
+
+    if (outdir == 0) {
+	outdir = _nc_tic_dir(0);
+    }
+    if ((result = valid_db_path(outdir)) != 0) {
+	printf("%s\n", result);
+	free(result);
+    } else {
+	tried = outdir;
+    }
+
+    if ((outdir = _nc_home_terminfo())) {
+	if ((result = valid_db_path(outdir)) != 0) {
+	    printf("%s\n", result);
+	    free(result);
+	} else if (!specific) {
+	    tried = outdir;
+	}
+    }
+
+    /*
+     * If we can write in neither location, give an error message.
+     */
+    if (tried) {
+	fflush(stdout);
+	fprintf(stderr, "%s: %s (no permission)\n", _nc_progname, tried);
+	ExitProgram(EXIT_FAILURE);
+    }
+}
+
+#define VtoTrace(opt) (unsigned) ((opt > 0) ? opt : (opt == 0))
 
 int
 main(int argc, char *argv[])
 {
     char my_tmpname[PATH_MAX];
-    int v_opt = -1, debug_level;
+    char my_altfile[PATH_MAX];
+    int v_opt = -1;
+    unsigned debug_level;
     int smart_defaults = TRUE;
     char *termcap;
     ENTRY *qp;
@@ -486,6 +678,7 @@ main(int argc, char *argv[])
     int sortmode = S_TERMINFO;	/* sort_mode */
 
     int width = 60;
+    int height = 65535;
     bool formatted = FALSE;	/* reformat complex strings? */
     bool literal = FALSE;	/* suppress post-processing? */
     int numbers = 0;		/* format "%'char'" to/from "%{number}" */
@@ -493,7 +686,6 @@ main(int argc, char *argv[])
     bool limited = TRUE;
     char *tversion = (char *) NULL;
     const char *source_file = "terminfo";
-    char **namelst = 0;
     char *outdir = (char *) NULL;
     bool check_only = FALSE;
     bool suppress_untranslatable = FALSE;
@@ -501,6 +693,7 @@ main(int argc, char *argv[])
     log_fp = stderr;
 
     _nc_progname = _nc_rootname(argv[0]);
+    atexit(cleanup);
 
     if ((infodump = same_program(_nc_progname, PROG_CAPTOINFO)) != FALSE) {
 	outform = F_TERMINFO;
@@ -513,6 +706,7 @@ main(int argc, char *argv[])
 #if NCURSES_XNAMES
     use_extended_names(FALSE);
 #endif
+    _nc_strict_bsd = 0;
 
     /*
      * Processing arguments is a little complicated, since someone made a
@@ -520,7 +714,7 @@ main(int argc, char *argv[])
      * be optional.
      */
     while ((this_opt = getopt(argc, argv,
-			      "0123456789CILNR:TUVace:fGgo:rstvwx")) != -1) {
+			      "0123456789CDIKLNR:TUVace:fGgo:rstvwx")) != -1) {
 	if (isdigit(this_opt)) {
 	    switch (last_opt) {
 	    case 'v':
@@ -530,18 +724,39 @@ main(int argc, char *argv[])
 		width = (width * 10) + (this_opt - '0');
 		break;
 	    default:
-		if (this_opt != '1')
+		switch (this_opt) {
+		case '0':
+		    last_opt = this_opt;
+		    width = 65535;
+		    height = 1;
+		    break;
+		case '1':
+		    last_opt = this_opt;
+		    width = 0;
+		    break;
+		default:
 		    usage();
-		last_opt = this_opt;
-		width = 0;
+		}
 	    }
 	    continue;
 	}
 	switch (this_opt) {
+	case 'K':
+	    _nc_strict_bsd = 1;
+	    /* the initial version of -K in 20110730 fell-thru here, but the
+	     * same flag is useful when reading sources -TD
+	     */
+	    break;
 	case 'C':
 	    capdump = TRUE;
 	    outform = F_TERMCAP;
 	    sortmode = S_TERMCAP;
+	    break;
+	case 'D':
+	    debug_level = VtoTrace(v_opt);
+	    set_trace_level(debug_level);
+	    show_databases(outdir);
+	    ExitProgram(EXIT_SUCCESS);
 	    break;
 	case 'I':
 	    infodump = TRUE;
@@ -568,7 +783,6 @@ main(int argc, char *argv[])
 	    break;
 	case 'V':
 	    puts(curses_version());
-	    cleanup(namelst);
 	    ExitProgram(EXIT_SUCCESS);
 	case 'c':
 	    check_only = TRUE;
@@ -618,7 +832,7 @@ main(int argc, char *argv[])
 	last_opt = this_opt;
     }
 
-    debug_level = (v_opt > 0) ? v_opt : (v_opt == 0);
+    debug_level = VtoTrace(v_opt);
     set_trace_level(debug_level);
 
     if (_nc_tracing) {
@@ -638,8 +852,8 @@ main(int argc, char *argv[])
      */
     if (namelst && (!infodump && !capdump)) {
 	(void) fprintf(stderr,
-		       "Sorry, -e can't be used without -I or -C\n");
-	cleanup(namelst);
+		       "%s: Sorry, -e can't be used without -I or -C\n",
+		       _nc_progname);
 	ExitProgram(EXIT_FAILURE);
     }
 #endif /* HAVE_BIG_CORE */
@@ -663,16 +877,16 @@ main(int argc, char *argv[])
 		if (access(termcap, F_OK) == 0) {
 		    /* file exists */
 		    source_file = termcap;
-		} else if ((tmp_fp = open_tempfile(strcpy(my_tmpname,
-							  "/tmp/XXXXXX")))
-			   != 0) {
-		    source_file = my_tmpname;
-		    fprintf(tmp_fp, "%s\n", termcap);
-		    fclose(tmp_fp);
-		    tmp_fp = open_input(source_file);
-		    to_remove = source_file;
 		} else {
-		    failed("tmpnam");
+		    if ((tmp_fp = open_tempfile(my_tmpname)) != 0) {
+			source_file = my_tmpname;
+			fprintf(tmp_fp, "%s\n", termcap);
+			fclose(tmp_fp);
+			tmp_fp = open_input(source_file, (char *) 0);
+			to_remove = source_file;
+		    } else {
+			failed("tmpnam");
+		    }
 		}
 	    }
 	} else {
@@ -682,24 +896,28 @@ main(int argc, char *argv[])
 		    _nc_progname,
 		    _nc_progname,
 		    usage_string);
-	    cleanup(namelst);
 	    ExitProgram(EXIT_FAILURE);
 	}
     }
 
-    if (tmp_fp == 0)
-	tmp_fp = open_input(source_file);
+    if (tmp_fp == 0) {
+	tmp_fp = open_input(source_file, my_altfile);
+	if (!strcmp(source_file, "-")) {
+	    source_file = STDIN_NAME;
+	}
+    }
 
-    if (infodump)
+    if (infodump) {
 	dump_init(tversion,
 		  smart_defaults
 		  ? outform
 		  : F_LITERAL,
-		  sortmode, width, debug_level, formatted);
-    else if (capdump)
+		  sortmode, width, height, debug_level, formatted);
+    } else if (capdump) {
 	dump_init(tversion,
 		  outform,
-		  sortmode, width, debug_level, FALSE);
+		  sortmode, width, height, debug_level, FALSE);
+    }
 
     /* parse entries out of the source file */
     _nc_set_source(source_file);
@@ -716,7 +934,6 @@ main(int argc, char *argv[])
     /* do use resolution */
     if (check_only || (!infodump && !capdump) || forceresolve) {
 	if (!_nc_resolve_uses2(TRUE, literal) && !check_only) {
-	    cleanup(namelst);
 	    ExitProgram(EXIT_FAILURE);
 	}
     }
@@ -750,7 +967,7 @@ main(int argc, char *argv[])
 
 	    for_entry_list(qp) {
 		if (matches(namelst, qp->tterm.term_names)) {
-		    int j = qp->cend - qp->cstart;
+		    long j = qp->cend - qp->cstart;
 		    int len = 0;
 
 		    /* this is in case infotocap() generates warnings */
@@ -767,7 +984,7 @@ main(int argc, char *argv[])
 		    repair_acsc(&qp->tterm);
 		    dump_entry(&qp->tterm, suppress_untranslatable,
 			       limited, numbers, NULL);
-		    for (j = 0; j < (int) qp->nuses; j++)
+		    for (j = 0; j < (long) qp->nuses; j++)
 			dump_uses(qp->uses[j].name, !capdump);
 		    len = show_entry();
 		    if (debug_level != 0 && !limited)
@@ -811,7 +1028,6 @@ main(int argc, char *argv[])
 	else
 	    fprintf(log_fp, "No entries written\n");
     }
-    cleanup(namelst);
     ExitProgram(EXIT_SUCCESS);
 }
 
@@ -915,18 +1131,18 @@ keypad_final(const char *string)
     return result;
 }
 
-static int
+static long
 keypad_index(const char *string)
 {
     char *test;
     const char *list = "PQRSwxymtuvlqrsPpn";	/* app-keypad except "Enter" */
     int ch;
-    int result = -1;
+    long result = -1;
 
     if ((ch = keypad_final(string)) != '\0') {
-	test = strchr(list, ch);
+	test = (strchr) (list, ch);
 	if (test != 0)
-	    result = (test - list);
+	    result = (long) (test - list);
     }
     return result;
 }
@@ -1008,6 +1224,19 @@ check_ansi_cursor(char *list[4])
 }
 
 #define EXPECTED(name) if (!PRESENT(name)) _nc_warning("expected " #name)
+#define UNEXPECTED(name) if (PRESENT(name)) _nc_warning("unexpected " #name ", for %s", why)
+
+static void
+check_noaddress(TERMTYPE *tp, const char *why)
+{
+    UNEXPECTED(column_address);
+    UNEXPECTED(cursor_address);
+    UNEXPECTED(cursor_home);
+    UNEXPECTED(cursor_mem_address);
+    UNEXPECTED(cursor_to_ll);
+    UNEXPECTED(row_address);
+    UNEXPECTED(row_address);
+}
 
 static void
 check_cursor(TERMTYPE *tp)
@@ -1015,13 +1244,55 @@ check_cursor(TERMTYPE *tp)
     int count;
     char *list[4];
 
+    if (hard_copy) {
+	check_noaddress(tp, "hard_copy");
+    } else if (generic_type) {
+	check_noaddress(tp, "generic_type");
+    } else if (strchr(tp->term_names, '+') == 0) {
+	int y = 0;
+	int x = 0;
+	if (PRESENT(column_address))
+	    ++y;
+	if (PRESENT(cursor_address))
+	    y = x = 10;
+	if (PRESENT(cursor_home))
+	    ++y, ++x;
+	if (PRESENT(cursor_mem_address))
+	    y = x = 10;
+	if (PRESENT(cursor_to_ll))
+	    ++y, ++x;
+	if (PRESENT(row_address))
+	    ++x;
+	if (PRESENT(cursor_down))
+	    ++y;
+	if (PRESENT(cursor_up))
+	    ++y;
+	if (PRESENT(cursor_left))
+	    ++x;
+	if (PRESENT(cursor_right))
+	    ++x;
+	if (x < 2 && y < 2) {
+	    _nc_warning("terminal lacks cursor addressing");
+	} else {
+	    if (x < 2)
+		_nc_warning("terminal lacks cursor column-addressing");
+	    if (y < 2)
+		_nc_warning("terminal lacks cursor row-addressing");
+	}
+    }
+
+    /* it is rare to have an insert-line feature without a matching delete */
+    ANDMISSING(parm_insert_line, insert_line);
+    ANDMISSING(parm_delete_line, delete_line);
+    ANDMISSING(parm_insert_line, parm_delete_line);
+
     /* if we have a parameterized form, then the non-parameterized is easy */
     ANDMISSING(parm_down_cursor, cursor_down);
     ANDMISSING(parm_up_cursor, cursor_up);
     ANDMISSING(parm_left_cursor, cursor_left);
     ANDMISSING(parm_right_cursor, cursor_right);
 
-    /* Given any of a set of cursor movement, the whole set should be present. 
+    /* Given any of a set of cursor movement, the whole set should be present.
      * Technically this is not true (we could use cursor_address to fill in
      * unsupported controls), but it is likely.
      */
@@ -1097,11 +1368,11 @@ check_keypad(TERMTYPE *tp)
 	VALID_STRING(key_c1) &&
 	VALID_STRING(key_c3)) {
 	char final[MAX_KP + 1];
-	int list[MAX_KP];
+	long list[MAX_KP];
 	int increase = 0;
 	int j, k, kk;
-	int last;
-	int test;
+	long last;
+	long test;
 
 	final[0] = keypad_final(key_a1);
 	final[1] = keypad_final(key_a3);
@@ -1149,19 +1420,19 @@ check_keypad(TERMTYPE *tp)
 		assert(strlen(show) < (MAX_KP * 4));
 		switch (kk) {
 		case 0:
-		    strcat(show, " ka1");
+		    _nc_STRCAT(show, " ka1", sizeof(show));
 		    break;
 		case 1:
-		    strcat(show, " ka3");
+		    _nc_STRCAT(show, " ka3", sizeof(show));
 		    break;
 		case 2:
-		    strcat(show, " kb2");
+		    _nc_STRCAT(show, " kb2", sizeof(show));
 		    break;
 		case 3:
-		    strcat(show, " kc1");
+		    _nc_STRCAT(show, " kc1", sizeof(show));
 		    break;
 		case 4:
-		    strcat(show, " kc3");
+		    _nc_STRCAT(show, " kc3", sizeof(show));
 		    break;
 		}
 	    }
@@ -1176,18 +1447,24 @@ check_keypad(TERMTYPE *tp)
 	       VALID_STRING(key_c3)) {
 	show[0] = '\0';
 	if (keypad_index(key_a1) >= 0)
-	    strcat(show, " ka1");
+	    _nc_STRCAT(show, " ka1", sizeof(show));
 	if (keypad_index(key_a3) >= 0)
-	    strcat(show, " ka3");
+	    _nc_STRCAT(show, " ka3", sizeof(show));
 	if (keypad_index(key_b2) >= 0)
-	    strcat(show, " kb2");
+	    _nc_STRCAT(show, " kb2", sizeof(show));
 	if (keypad_index(key_c1) >= 0)
-	    strcat(show, " kc1");
+	    _nc_STRCAT(show, " kc1", sizeof(show));
 	if (keypad_index(key_c3) >= 0)
-	    strcat(show, " kc3");
+	    _nc_STRCAT(show, " kc3", sizeof(show));
 	if (*show != '\0')
 	    _nc_warning("vt100 keypad map incomplete:%s", show);
     }
+
+    /*
+     * These warnings are useful for consistency checks - it is possible that
+     * there are real terminals with mismatches in these
+     */
+    ANDMISSING(key_ic, key_dc);
 }
 
 static void
@@ -1214,6 +1491,74 @@ check_printer(TERMTYPE *tp)
     ANDMISSING(parm_left_micro, micro_left);
     ANDMISSING(parm_right_micro, micro_right);
     ANDMISSING(parm_up_micro, micro_up);
+}
+
+static bool
+uses_SGR_39_49(const char *value)
+{
+    return (strstr(value, "39;49") != 0
+	    || strstr(value, "49;39") != 0);
+}
+
+/*
+ * Check consistency of termcap extensions related to "screen".
+ */
+static void
+check_screen(TERMTYPE *tp)
+{
+#if NCURSES_XNAMES
+    if (_nc_user_definable) {
+	int have_XT = tigetflag("XT");
+	int have_XM = tigetflag("XM");
+	int have_bce = back_color_erase;
+	bool have_kmouse = FALSE;
+	bool use_sgr_39_49 = FALSE;
+	char *name = _nc_first_name(tp->term_names);
+
+	if (!VALID_BOOLEAN(have_bce)) {
+	    have_bce = FALSE;
+	}
+	if (!VALID_BOOLEAN(have_XM)) {
+	    have_XM = FALSE;
+	}
+	if (!VALID_BOOLEAN(have_XT)) {
+	    have_XT = FALSE;
+	}
+	if (VALID_STRING(key_mouse)) {
+	    have_kmouse = !strcmp("\033[M", key_mouse);
+	}
+	if (VALID_STRING(orig_colors)) {
+	    use_sgr_39_49 = uses_SGR_39_49(orig_colors);
+	} else if (VALID_STRING(orig_pair)) {
+	    use_sgr_39_49 = uses_SGR_39_49(orig_pair);
+	}
+
+	if (have_XM && have_XT) {
+	    _nc_warning("Screen's XT capability conflicts with XM");
+	} else if (have_XT
+		   && strstr(name, "screen") != 0
+		   && strchr(name, '.') != 0) {
+	    _nc_warning("Screen's \"screen\" entries should not have XT set");
+	} else if (have_XT) {
+	    if (!have_kmouse && have_bce) {
+		if (VALID_STRING(key_mouse)) {
+		    _nc_warning("Value of kmous inconsistent with screen's usage");
+		} else {
+		    _nc_warning("Expected kmous capability with XT");
+		}
+	    }
+	    if (!have_bce && max_colors > 0)
+		_nc_warning("Expected bce capability with XT");
+	    if (!use_sgr_39_49 && have_bce && max_colors > 0)
+		_nc_warning("Expected orig_colors capability with XT to have 39/49 parameters");
+	    if (VALID_STRING(to_status_line))
+		_nc_warning("\"tsl\" capability is redundant, given XT");
+	} else {
+	    if (have_kmouse && !have_XM)
+		_nc_warning("Expected XT to be set, given kmous");
+	}
+    }
+#endif
 }
 
 /*
@@ -1527,7 +1872,7 @@ static void
 show_where(unsigned level)
 {
     if (_nc_tracing >= DEBUG_LEVEL(level)) {
-	char my_name[256];
+	char my_name[MAX_NAME_SIZE];
 	_nc_get_type(my_name);
 	_tracef("\"%s\", line %d, '%s'",
 		_nc_get_source(),
@@ -1539,6 +1884,58 @@ show_where(unsigned level)
 #define show_where(level)	/* nothing */
 #endif
 
+typedef struct {
+    int keycode;
+    const char *name;
+    const char *value;
+} NAME_VALUE;
+
+static NAME_VALUE *
+get_fkey_list(TERMTYPE *tp)
+{
+    NAME_VALUE *result = typeMalloc(NAME_VALUE, NUM_STRINGS(tp) + 1);
+    const struct tinfo_fkeys *all_fkeys = _nc_tinfo_fkeys;
+    int used = 0;
+    int j;
+
+    if (result == 0)
+	failed("get_fkey_list");
+
+    for (j = 0; all_fkeys[j].code; j++) {
+	char *a = tp->Strings[all_fkeys[j].offset];
+	if (VALID_STRING(a)) {
+	    result[used].keycode = (int) all_fkeys[j].code;
+	    result[used].name = strnames[all_fkeys[j].offset];
+	    result[used].value = a;
+	    ++used;
+	}
+    }
+#if NCURSES_XNAMES
+    for (j = STRCOUNT; j < NUM_STRINGS(tp); ++j) {
+	const char *name = ExtStrname(tp, j, strnames);
+	if (*name == 'k') {
+	    result[used].keycode = -1;
+	    result[used].name = name;
+	    result[used].value = tp->Strings[j];
+	    ++used;
+	}
+    }
+#endif
+    result[used].keycode = 0;
+    return result;
+}
+
+static void
+show_fkey_name(NAME_VALUE * data)
+{
+    if (data->keycode > 0) {
+	fprintf(stderr, " %s", keyname(data->keycode));
+	fprintf(stderr, " (capability \"%s\")", data->name);
+    } else {
+	fprintf(stderr, " capability \"%s\"", data->name);
+    }
+}
+
 /* other sanity-checks (things that we don't want in the normal
  * logic that reads a terminfo entry)
  */
@@ -1547,7 +1944,6 @@ check_termtype(TERMTYPE *tp, bool literal)
 {
     bool conflict = FALSE;
     unsigned j, k;
-    char fkeys[STRCOUNT];
 
     /*
      * A terminal entry may contain more than one keycode assigned to
@@ -1555,44 +1951,50 @@ check_termtype(TERMTYPE *tp, bool literal)
      * return one (the last one assigned).
      */
     if (!(_nc_syntax == SYN_TERMCAP && capdump)) {
-	memset(fkeys, 0, sizeof(fkeys));
-	for (j = 0; _nc_tinfo_fkeys[j].code; j++) {
-	    char *a = tp->Strings[_nc_tinfo_fkeys[j].offset];
+	char *check = calloc((size_t) (NUM_STRINGS(tp) + 1), sizeof(char));
+	NAME_VALUE *given = get_fkey_list(tp);
+
+	if (check == 0)
+	    failed("check_termtype");
+
+	for (j = 0; given[j].keycode; ++j) {
+	    const char *a = given[j].value;
 	    bool first = TRUE;
-	    if (!VALID_STRING(a))
-		continue;
-	    for (k = j + 1; _nc_tinfo_fkeys[k].code; k++) {
-		char *b = tp->Strings[_nc_tinfo_fkeys[k].offset];
-		if (!VALID_STRING(b)
-		    || fkeys[k])
+
+	    for (k = j + 1; given[k].keycode; k++) {
+		const char *b = given[k].value;
+		if (check[k])
 		    continue;
 		if (!_nc_capcmp(a, b)) {
-		    fkeys[j] = 1;
-		    fkeys[k] = 1;
+		    check[j] = 1;
+		    check[k] = 1;
 		    if (first) {
 			if (!conflict) {
 			    _nc_warning("Conflicting key definitions (using the last)");
 			    conflict = TRUE;
 			}
-			fprintf(stderr, "... %s is the same as %s",
-				keyname((int) _nc_tinfo_fkeys[j].code),
-				keyname((int) _nc_tinfo_fkeys[k].code));
+			fprintf(stderr, "...");
+			show_fkey_name(given + j);
+			fprintf(stderr, " is the same as");
+			show_fkey_name(given + k);
 			first = FALSE;
 		    } else {
-			fprintf(stderr, ", %s",
-				keyname((int) _nc_tinfo_fkeys[k].code));
+			fprintf(stderr, ", ");
+			show_fkey_name(given + k);
 		    }
 		}
 	    }
 	    if (!first)
 		fprintf(stderr, "\n");
 	}
+	free(given);
+	free(check);
     }
 
-    for (j = 0; j < NUM_STRINGS(tp); j++) {
+    for_each_string(j, tp) {
 	char *a = tp->Strings[j];
 	if (VALID_STRING(a))
-	    check_params(tp, ExtStrname(tp, j, strnames), a);
+	    check_params(tp, ExtStrname(tp, (int) j, strnames), a);
     }
 
     check_acs(tp);
@@ -1600,6 +2002,7 @@ check_termtype(TERMTYPE *tp, bool literal)
     check_cursor(tp);
     check_keypad(tp);
     check_printer(tp);
+    check_screen(tp);
 
     /*
      * These may be mismatched because the terminal description relies on

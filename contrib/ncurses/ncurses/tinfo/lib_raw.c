@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -49,11 +49,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_raw.c,v 1.19 2010/04/24 23:49:12 tom Exp $")
-
-#if SVR4_TERMIO && !defined(_POSIX_SOURCE)
-#define _POSIX_SOURCE
-#endif
+MODULE_ID("$Id: lib_raw.c,v 1.21 2012/01/21 19:21:29 KO.Myung-Hun Exp $")
 
 #if HAVE_SYS_TERMIO_H
 #include <sys/termio.h>		/* needed for ISC */
@@ -64,6 +60,11 @@ MODULE_ID("$Id: lib_raw.c,v 1.19 2010/04/24 23:49:12 tom Exp $")
 #define _nc_setmode(mode) setmode(SP_PARM->_ifd, mode)
 #else
 #define _nc_setmode(mode)	/* nothing */
+#endif
+
+#if USE_KLIBC_KBD
+#define INCL_KBD
+#include <os2.h>
 #endif
 
 #define COOKED_INPUT	(IXON|BRKINT|PARMRK)
@@ -100,6 +101,17 @@ NCURSES_SP_NAME(raw) (NCURSES_SP_DCL0)
 #endif
 	result = NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_ARGx &buf);
 	if (result == OK) {
+#if USE_KLIBC_KBD
+	    KBDINFO kbdinfo;
+
+	    kbdinfo.cb = sizeof(kbdinfo);
+	    KbdGetStatus(&kbdinfo, 0);
+
+	    kbdinfo.cb = sizeof(kbdinfo);
+	    kbdinfo.fsMask &= ~KEYBOARD_ASCII_MODE;
+	    kbdinfo.fsMask |= KEYBOARD_BINARY_MODE;
+	    KbdSetStatus(&kbdinfo, 0);
+#endif
 	    SP_PARM->_raw = TRUE;
 	    SP_PARM->_cbreak = 1;
 	    termp->Nttyb = buf;
@@ -218,6 +230,17 @@ NCURSES_SP_NAME(noraw) (NCURSES_SP_DCL0)
 #endif
 	result = NCURSES_SP_NAME(_nc_set_tty_mode) (NCURSES_SP_ARGx &buf);
 	if (result == OK) {
+#if USE_KLIBC_KBD
+	    KBDINFO kbdinfo;
+
+	    kbdinfo.cb = sizeof(kbdinfo);
+	    KbdGetStatus(&kbdinfo, 0);
+
+	    kbdinfo.cb = sizeof(kbdinfo);
+	    kbdinfo.fsMask &= ~KEYBOARD_BINARY_MODE;
+	    kbdinfo.fsMask |= KEYBOARD_ASCII_MODE;
+	    KbdSetStatus(&kbdinfo, 0);
+#endif
 	    SP_PARM->_raw = FALSE;
 	    SP_PARM->_cbreak = 0;
 	    termp->Nttyb = buf;

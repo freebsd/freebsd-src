@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2009 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2009,2011 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 #define CUR SP_TERMTYPE
 #endif
 
-MODULE_ID("$Id: lib_dft_fgbg.c,v 1.25 2009/10/24 22:15:00 tom Exp $")
+MODULE_ID("$Id: lib_dft_fgbg.c,v 1.26 2011/04/23 18:28:18 tom Exp $")
 
 /*
  * Modify the behavior of color-pair 0 so that the library doesn't assume that
@@ -80,6 +80,7 @@ NCURSES_SP_NAME(assume_default_colors) (NCURSES_SP_DCLx int fg, int bg)
 	SP_PARM->_default_bg = isDefaultColor(bg) ? COLOR_DEFAULT : (bg & C_MASK);
 	if (SP_PARM->_color_pairs != 0) {
 	    bool save = SP_PARM->_default_color;
+	    SP_PARM->_assumed_color = TRUE;
 	    SP_PARM->_default_color = TRUE;
 	    init_pair(0, (short) fg, (short) bg);
 	    SP_PARM->_default_color = save;

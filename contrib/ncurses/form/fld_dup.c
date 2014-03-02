@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -32,7 +32,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_dup.c,v 1.13 2010/01/23 21:14:35 tom Exp $")
+MODULE_ID("$Id: fld_dup.c,v 1.14 2012/03/11 00:37:16 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnform
@@ -60,8 +60,8 @@ dup_field(FIELD *field, int frow, int fcol)
     {
       T((T_CREATE("field %p"), (void *)New_Field));
       *New_Field = *_nc_Default_Field;
-      New_Field->frow = frow;
-      New_Field->fcol = fcol;
+      New_Field->frow = (short) frow;
+      New_Field->fcol = (short) fcol;
       New_Field->link = New_Field;
       New_Field->rows = field->rows;
       New_Field->cols = field->cols;

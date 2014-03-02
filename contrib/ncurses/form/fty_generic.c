@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2008-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 2008-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,7 +34,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_generic.c,v 1.5 2010/01/23 21:14:36 tom Exp $")
+MODULE_ID("$Id: fty_generic.c,v 1.6 2012/06/10 00:27:49 tom Exp $")
 
 /*
  * This is not a full implementation of a field type, but adds some
@@ -119,7 +119,7 @@ _nc_generic_fieldtype(bool (*const field_check) (FORM *, FIELD *, const void *),
       if (res)
 	{
 	  *res = *_nc_Default_FieldType;
-	  res->status |= (_HAS_ARGS | _GENERIC);
+	  SetStatus(res, (_HAS_ARGS | _GENERIC));
 	  res->fieldcheck.gfcheck = field_check;
 	  res->charcheck.gccheck = char_check;
 	  res->genericarg = Generic_This_Type;

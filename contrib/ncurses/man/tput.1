@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: tput.1,v 1.29 2010/12/04 18:41:07 tom Exp $
+.\" $Id: tput.1,v 1.32 2012/07/14 21:06:45 tom Exp $
 .TH @TPUT@ 1 ""
 .ds d @TERMINFO@
 .ds n 1
@@ -77,11 +77,12 @@ For a complete list of capabilities
 and the \fIcapname\fR associated with each, see \fBterminfo\fR(5).
 .TP
 \fB\-T\fR\fItype\fR
-indicates the \fItype\fR of terminal.  Normally this option is
+indicates the \fItype\fR of terminal.
+Normally this option is
 unnecessary, because the default is taken from the environment
-variable \fBTERM\fR.  If \fB\-T\fR is specified, then the shell
-variables \fBLINES\fR and \fBCOLUMNS\fR will be ignored,and the
-operating system will not be queried for the actual screen size.
+variable \fBTERM\fR.
+If \fB\-T\fR is specified, then the shell
+variables \fBLINES\fR and \fBCOLUMNS\fR will also be ignored.
 .TP
 \fIcapname\fR
 indicates the capability from the \fBterminfo\fR database.  When
@@ -159,7 +160,7 @@ name in the first line of the terminal's description in the
 .PP
 If \fB@TPUT@\fR is invoked by a link named \fBreset\fR, this has the
 same effect as \fB@TPUT@ reset\fR.
-See \fBtset\fR for comparison, which has similar behavior.
+See \fB@TSET@\fR for comparison, which has similar behavior.
 .SH EXAMPLES
 .TP 5
 \fB@TPUT@ init\fR
@@ -275,7 +276,7 @@ In that case, the exit code is set to 4 + \fBerrno\fR.
 .PP
 Any other exit code indicates an error; see the DIAGNOSTICS section.
 .SH DIAGNOSTICS
-\fBtput\fR prints the following error messages and sets the corresponding exit
+\fB@TPUT@\fR prints the following error messages and sets the corresponding exit
 codes.
 .PP
 .ne 15
@@ -303,17 +304,29 @@ AT&T/USL curses before SVr4.
 .PP
 X/Open documents only the operands for \fBclear\fP, \fBinit\fP and \fBreset\fP.
 In this implementation, \fBclear\fP is part of the \fIcapname\fR support.
-Other implementations of \fBtput\fP on
+Other implementations of \fB@TPUT@\fP on
 SVr4-based systems such as Solaris, IRIX64 and HPUX
 as well as others such as AIX and Tru64
 provide support for \fIcapname\fR operands.
+.PP
 A few platforms such as FreeBSD and NetBSD recognize termcap names rather
-than terminfo capability names in their respective \fBtput\fP commands.
+than terminfo capability names in their respective \fB@TPUT@\fP commands.
+.PP
+Most implementations which provide support for \fIcapname\fR operands
+use the \fItparm\fP function to expand parameters in it.
+That function expects a mixture of numeric and string parameters,
+requiring \fB@TPUT@\fP to know which type to use.
+This implementation uses a table to determine that for
+the standard \fIcapname\fR operands, and an internal library
+function to analyze nonstandard \fIcapname\fR operands.
+Other implementations may simply guess that an operand containing only digits
+is intended to be a number.
 .SH SEE ALSO
 \fB@CLEAR@\fR(1),
 \fBstty\fR(1),
 \fBtabs\fR(\*n),
-\fBterminfo\fR(5).
+\fBterminfo\fR(5),
+\fBcurs_termcap\fR(3X).
 .PP
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).

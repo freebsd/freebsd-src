@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2010 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2010,2012 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,9 +30,8 @@
  *  Author: Thomas E. Dickey                        2010                    *
  ****************************************************************************/
 
-
 /*
- * $Id: build.priv.h,v 1.6 2010/05/22 20:30:35 tom Exp $
+ * $Id: build.priv.h,v 1.9 2012/02/22 22:17:02 tom Exp $
  *
  *	build.priv.h
  *
@@ -83,6 +82,7 @@ extern "C" {
 #define SIZEOF(v)        (sizeof(v) / sizeof(v[0]))
 
 #include <nc_alloc.h>
+#include <nc_string.h>
 
 /* declare these, to avoid needing term.h */
 #if BROKEN_LINKER || USE_REENTRANT

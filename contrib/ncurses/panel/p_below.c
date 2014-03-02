@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2010,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,13 +36,13 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_below.c,v 1.8 2010/01/23 21:22:15 tom Exp $")
+MODULE_ID("$Id: p_below.c,v 1.9 2012/03/10 23:43:41 tom Exp $")
 
 #if NCURSES_SP_FUNCS
 NCURSES_EXPORT(PANEL *)
 ceiling_panel(SCREEN * sp)
 {
-  T((T_CALLED("ceiling_panel(%p)"), sp));
+  T((T_CALLED("ceiling_panel(%p)"), (void *)sp));
   if (sp)
     {
       struct panelhook *ph = NCURSES_SP_NAME(_nc_panelhook) (sp);

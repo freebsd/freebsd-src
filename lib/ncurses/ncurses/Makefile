@@ -161,7 +161,6 @@ SRCS+=	\
 	lib_wattron.c \
 	lib_winch.c \
 	lib_window.c \
-	memmove.c \
 	nc_panel.c \
 	resizeterm.c \
 	safe_sprintf.c \
@@ -211,9 +210,9 @@ SRCS+=	\
 	lib_tputs.c \
 	lib_ttyflags.c \
 	name_match.c \
+	obsolete.c \
 	parse_entry.c \
 	read_entry.c \
-	setbuf.c \
 	strings.c \
 	trim_sgr0.c \
 	write_entry.c
@@ -397,6 +396,8 @@ make_hash: make_hash.c hashsize.h ncurses_def.h ${HEADERS}
 MKterm.h.awk: MKterm.h.awk.in
 	sed <${NCURSES_DIR}/include/MKterm.h.awk.in >$@ \
 	    -e "/@BROKEN_LINKER@/s%%${BROKEN_LINKER}%" \
+	    -e "s%@NCURSES_USE_DATABASE@%0%g" \
+	    -e "s%@NCURSES_USE_TERMCAP@%1%g" \
 	    -e "/@NCURSES_MAJOR@/s%%${NCURSES_MAJOR}%" \
 	    -e "/@NCURSES_MINOR@/s%%${NCURSES_MINOR}%" \
 	    -e "/@NCURSES_CONST@/s%%${NCURSES_CONST}%" \
@@ -446,6 +447,7 @@ curses.head: curses.h.in
 	    -e "s%@NCURSES_SP_FUNCS@%0%g" \
 	    -e "s%@NCURSES_INTEROP_FUNCS@%0%g" \
 	    -e "s%@NCURSES_CCHARW_MAX@%5%g" \
+	    -e "s%@NCURSES_TPARM_ARG@%long%g" \
 	    -e "s%@cf_cv_1UL@%${ONEUL}%g" \
 	    -e "s%@cf_cv_builtin_bool@%${BUILTIN_BOOL}%g" \
 	    -e "s%@cf_cv_enable_lp64@%${ENABLE_LP64}%g" \

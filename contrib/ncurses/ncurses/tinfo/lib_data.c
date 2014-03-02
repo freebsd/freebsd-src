@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -42,7 +42,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_data.c,v 1.61 2010/05/15 22:06:56 tom Exp $")
+MODULE_ID("$Id: lib_data.c,v 1.66 2013/08/24 17:28:24 tom Exp $")
 
 /*
  * OS/2's native linker complains if we don't initialize public data when
@@ -114,6 +114,7 @@ NCURSES_EXPORT_VAR(SCREEN *) SP = NULL; /* Some linkers require initialized data
 #define TGETENT_0s { TGETENT_0, TGETENT_0, TGETENT_0, TGETENT_0 }
 
 NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
+    0,				/* have_sigtstp */
     0,				/* have_sigwinch */
     0,				/* cleanup_nested */
 
@@ -125,13 +126,14 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
 
     FALSE,			/* have_tic_directory */
     FALSE,			/* keep_tic_directory */
-    TERMINFO,			/* tic_directory */
+    0,				/* tic_directory */
 
     NULL,			/* dbi_list */
     0,				/* dbi_size */
 
     NULL,			/* first_name */
     NULL,			/* keyname_table */
+    0,				/* init_keyname */
 
     0,				/* slk_format */
 
@@ -141,6 +143,12 @@ NCURSES_EXPORT_VAR(NCURSES_GLOBALS) _nc_globals = {
     TGETENT_0s,			/* tgetent_cache */
     0,				/* tgetent_index */
     0,				/* tgetent_sequence */
+
+    0,				/* dbd_blob */
+    0,				/* dbd_list */
+    0,				/* dbd_size */
+    0,				/* dbd_time */
+    { { 0, 0 } },		/* dbd_vars */
 
 #ifndef USE_SP_WINDOWLIST
     0,				/* _nc_windowlist */
@@ -249,6 +257,7 @@ NCURSES_EXPORT_VAR(NCURSES_PRESCREEN) _nc_prescreen = {
     NULL,			/* _tputs_trace */
 #endif
 #endif
+    FALSE,			/* use_tioctl */
 };
 /* *INDENT-ON* */
 

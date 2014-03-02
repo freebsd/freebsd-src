@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,13 +27,13 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
+ *  Author: Thomas E. Dickey        1997-on                                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: safe_sprintf.c,v 1.24 2010/06/05 22:22:27 tom Exp $")
+MODULE_ID("$Id: safe_sprintf.c,v 1.27 2013/01/20 01:04:32 tom Exp $")
 
 #if USE_SAFE_SPRINTF
 
@@ -109,12 +109,16 @@ _nc_printf_length(const char *fmt, va_list ap)
 		    } else if (state == Prec) {
 			prec = ival;
 		    }
-		    sprintf(fmt_arg, "%d", ival);
+		    _nc_SPRINTF(fmt_arg,
+				_nc_SLIMIT(sizeof(fmt_arg))
+				"%d", ival);
 		    fmt_len += strlen(fmt_arg);
 		    if ((format = _nc_doalloc(format, fmt_len)) == 0) {
+			free(buffer);
 			return -1;
 		    }
-		    strcpy(&format[--f], fmt_arg);
+		    --f;
+		    _nc_STRCPY(&format[f], fmt_arg, fmt_len - f);
 		    f = strlen(format);
 		} else if (isalpha(UChar(*fmt))) {
 		    done = TRUE;
@@ -185,13 +189,13 @@ _nc_printf_length(const char *fmt, va_list ap)
 	    format[f] = '\0';
 	    switch (used) {
 	    case 'i':
-		sprintf(buffer, format, ival);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, ival);
 		break;
 	    case 'f':
-		sprintf(buffer, format, fval);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, fval);
 		break;
 	    default:
-		sprintf(buffer, format, pval);
+		_nc_SPRINTF(buffer, _nc_SLIMIT(length) format, pval);
 		break;
 	    }
 	    len += (int) strlen(buffer);

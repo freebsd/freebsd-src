@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2011 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,19 +26,19 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: toe.1m,v 1.23 2010/12/04 18:40:45 tom Exp $
+.\" $Id: toe.1m,v 1.26 2012/01/01 00:40:51 tom Exp $
 .TH @TOE@ 1M ""
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fBtoe\fR \- table of (terminfo) entries
+\fB@TOE@\fR \- table of (terminfo) entries
 .SH SYNOPSIS
-\fBtoe\fR [\fB\-v\fR[\fIn\fR]] [\fB\-ahuUV\fR] \fIfile...\fR
+\fB@TOE@\fR [\fB\-v\fR[\fIn\fR]] [\fB\-ahsuUV\fR] \fIfile...\fR
 .br
 .SH DESCRIPTION
 .PP
 With no options,
-\fBtoe\fR lists all available terminal types by primary name
+\fB@TOE@\fR lists all available terminal types by primary name
 with descriptions.
 File arguments specify the directories to be scanned; if no
 such arguments are given,
@@ -52,6 +52,15 @@ There are other options intended for use by terminfo file maintainers:
 \fB\-a\fR
 report on all of the terminal databases which ncurses would search,
 rather than only the first one that it finds.
+.IP
+If the \fB\-s\fR is also given, \fB@TOE@\fR
+adds a column to the report,
+showing (like \fBconflict\fP(1)) which entries which 
+belong to a given terminal database.
+An "*" marks entries which differ, and "+" marks equivalent entries.
+.TP
+\fB\-s\fR
+sort the output by the entry names.
 .TP
 \fB\-u\fR \fIfile\fR
 says to write a report to the standard output,
@@ -78,7 +87,7 @@ followed by a newline.
 .TP
 \fB\-v\fR\fIn\fR
 specifies that (verbose) output be written to standard error,
-showing \fBtoe\fR's progress.
+showing \fB@TOE@\fR's progress.
 The optional parameter \fIn\fR is a number from 1 to 10,
 interpreted as for \fB@TIC@\fR(1M).
 .TP

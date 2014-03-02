@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2010,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: clear.1,v 1.8 2010/12/04 18:36:44 tom Exp $
+.\" $Id: clear.1,v 1.10 2013/06/22 22:22:11 tom Exp $
 .TH @CLEAR@ 1 ""
 .ds n 5
 .SH NAME
@@ -35,9 +35,10 @@
 \fB@CLEAR@\fR
 .br
 .SH DESCRIPTION
-\fB@CLEAR@\fR clears your screen if this is possible.  It looks in the
-environment for the terminal type and then in the \fBterminfo\fR database to
-figure out how to clear the screen.
+\fB@CLEAR@\fR clears your screen if this is possible,
+including its scrollback buffer (if the extended "E3" capability is defined).
+\fB@CLEAR@\fR looks in the environment for the terminal type and then in the
+\fBterminfo\fR database to determine how to clear the screen.
 .PP
 \fB@CLEAR@\fR ignores any command-line parameters that may be present.
 .SH SEE ALSO
