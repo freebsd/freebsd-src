@@ -130,3 +130,5 @@ sh(1)		jilles		Pre-commit review requested. This also applies
 nvme(4)		jimharris	Pre-commit review requested.
 nvd(4)		jimharris	Pre-commit review requested.
 nvmecontrol(8)	jimharris	Pre-commit review requested.
+release/release.sh	gjb	Pre-commit review and regression tests
+				requested.
