@@ -637,6 +637,9 @@ ar8327_hw_global_setup(struct arswitch_softc *sc)
 	arswitch_modifyreg(sc->sc_dev, AR8327_REG_MODULE_EN,
 	    AR8327_MODULE_EN_MIB, AR8327_MODULE_EN_MIB);
 
+	/* Set the right number of ports */
+	sc->info.es_nports = 6;
+
 	return (0);
 }
 
@@ -784,6 +787,28 @@ ar8327_set_pvid(struct arswitch_softc *sc, int port, int pvid)
 	return (0);
 }
 
+static int
+ar8327_atu_flush(struct arswitch_softc *sc)
+{
+
+	int ret;
+
+	ret = arswitch_waitreg(sc->sc_dev,
+	    AR8327_REG_ATU_FUNC,
+	    AR8327_ATU_FUNC_BUSY,
+	    0,
+	    1000);
+
+	if (ret)
+		device_printf(sc->sc_dev, "%s: waitreg failed\n", __func__);
+
+	if (!ret)
+		arswitch_writereg(sc->sc_dev,
+		    AR8327_REG_ATU_FUNC,
+		    AR8327_ATU_FUNC_OP_FLUSH);
+	return (ret);
+}
+
 void
 ar8327_attach(struct arswitch_softc *sc)
 {
@@ -800,6 +825,8 @@ ar8327_attach(struct arswitch_softc *sc)
 	sc->hal.arswitch_vlan_setvgroup = ar8327_vlan_setvgroup;
 	sc->hal.arswitch_vlan_get_pvid = ar8327_get_pvid;
 	sc->hal.arswitch_vlan_set_pvid = ar8327_set_pvid;
+
+	sc->hal.arswitch_atu_flush = ar8327_atu_flush;
 
 	/* Set the switch vlan capabilities. */
 	sc->info.es_vlan_caps = ETHERSWITCH_VLAN_DOT1Q |
