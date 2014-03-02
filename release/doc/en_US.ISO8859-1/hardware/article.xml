@@ -758,6 +758,8 @@
 
       &hwlist.twe;
 
+      &hwlist.tws;
+
       &hwlist.vpo;
 
       <para>[&arch.i386;] The wds(4) driver supports the WD7000 SCSI
