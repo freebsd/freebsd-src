@@ -1538,7 +1538,6 @@ fdgrowtable(struct filedesc *fdp, int nfd)
 	memcpy(nmap, omap, NDSLOTS(onfiles) * sizeof(*omap));
 
 	/* update the pointers and counters */
-	memcpy(ntable, otable, onfiles * sizeof(ntable[0]));
 	fdp->fd_ofiles = ntable;
 	fdp->fd_map = nmap;
 
