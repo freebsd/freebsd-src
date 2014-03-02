@@ -117,6 +117,15 @@ platform_timebase_freq(struct cpuref *cpu)
 	return (PLATFORM_TIMEBASE_FREQ(plat_obj, cpu));
 }
 
+/*
+ * Put the current CPU, as last step in suspend, to sleep
+ */
+void
+platform_sleep()
+{
+        PLATFORM_SLEEP(plat_obj);
+}
+
 int
 platform_smp_first_cpu(struct cpuref *cpu)
 {
