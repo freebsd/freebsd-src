@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -181,7 +181,11 @@ lwres_context_create(lwres_context_t **contextp, void *arg,
 	ctx->sock = -1;
 
 	ctx->timeout = LWRES_DEFAULT_TIMEOUT;
+#ifndef WIN32
 	ctx->serial = time(NULL); /* XXXMLG or BEW */
+#else
+	ctx->serial = _time32(NULL);
+#endif
 
 	ctx->use_ipv4 = 1;
 	ctx->use_ipv6 = 1;
@@ -286,7 +290,11 @@ lwres_free(void *arg, void *mem, size_t len) {
 
 static lwres_result_t
 context_connect(lwres_context_t *ctx) {
+#ifndef WIN32
 	int s;
+#else
+	SOCKET s;
+#endif
 	int ret;
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
@@ -295,8 +303,8 @@ context_connect(lwres_context_t *ctx) {
 	int domain;
 
 	if (ctx->confdata.lwnext != 0) {
-		memcpy(&ctx->address, &ctx->confdata.lwservers[0],
-		       sizeof(lwres_addr_t));
+		memmove(&ctx->address, &ctx->confdata.lwservers[0],
+			sizeof(lwres_addr_t));
 		LWRES_LINK_INIT(&ctx->address, link);
 	} else {
 		/* The default is the IPv4 loopback address 127.0.0.1. */
@@ -310,16 +318,16 @@ context_connect(lwres_context_t *ctx) {
 	}
 
 	if (ctx->address.family == LWRES_ADDRTYPE_V4) {
-		memcpy(&sin.sin_addr, ctx->address.address,
-		       sizeof(sin.sin_addr));
+		memmove(&sin.sin_addr, ctx->address.address,
+			sizeof(sin.sin_addr));
 		sin.sin_port = htons(lwres_udp_port);
 		sin.sin_family = AF_INET;
 		sa = (struct sockaddr *)&sin;
 		salen = sizeof(sin);
 		domain = PF_INET;
 	} else if (ctx->address.family == LWRES_ADDRTYPE_V6) {
-		memcpy(&sin6.sin6_addr, ctx->address.address,
-		       sizeof(sin6.sin6_addr));
+		memmove(&sin6.sin6_addr, ctx->address.address,
+			sizeof(sin6.sin6_addr));
 		sin6.sin6_port = htons(lwres_udp_port);
 		sin6.sin6_family = AF_INET6;
 		sa = (struct sockaddr *)&sin6;
@@ -332,12 +340,16 @@ context_connect(lwres_context_t *ctx) {
 	InitSockets();
 #endif
 	s = socket(domain, SOCK_DGRAM, IPPROTO_UDP);
+#ifndef WIN32
 	if (s < 0) {
-#ifdef WIN32
-		DestroySockets();
-#endif
 		return (LWRES_R_IOERROR);
 	}
+#else
+	if (s == INVALID_SOCKET) {
+		DestroySockets();
+		return (LWRES_R_IOERROR);
+	}
+#endif
 
 	ret = connect(s, sa, salen);
 	if (ret != 0) {
@@ -357,7 +369,7 @@ context_connect(lwres_context_t *ctx) {
 		return (LWRES_R_IOERROR);
 	}
 
-	ctx->sock = s;
+	ctx->sock = (int)s;
 
 	return (LWRES_R_SUCCESS);
 }

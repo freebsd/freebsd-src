@@ -201,7 +201,7 @@ dns_rootns_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 {
 	isc_result_t result, eresult;
 	isc_buffer_t source;
-	size_t len;
+	unsigned int len;
 	dns_rdatacallbacks_t callbacks;
 	dns_db_t *db = NULL;
 

@@ -229,7 +229,7 @@ encode_MechTypeList(unsigned char *p, size_t len, const MechTypeList * data, siz
 	int i, e;
 
 	for (i = (data)->len - 1; i >= 0; --i) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_MechType(p, len, &(data)->val[i], &l);
 		BACK;
@@ -257,7 +257,7 @@ decode_MechTypeList(const unsigned char *p, size_t len, MechTypeList * data, siz
 	len = reallen;
 	{
 		size_t origlen = len;
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		(data)->len = 0;
 		(data)->val = NULL;
@@ -418,7 +418,7 @@ encode_NegTokenInit(unsigned char *p, size_t len, const NegTokenInit * data, siz
 	int e;
 
 	if ((data)->mechListMIC) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_octet_string(p, len, (data)->mechListMIC, &l);
 		BACK;
@@ -427,7 +427,7 @@ encode_NegTokenInit(unsigned char *p, size_t len, const NegTokenInit * data, siz
 		ret += oldret;
 	}
 	if ((data)->mechToken) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_octet_string(p, len, (data)->mechToken, &l);
 		BACK;
@@ -436,7 +436,7 @@ encode_NegTokenInit(unsigned char *p, size_t len, const NegTokenInit * data, siz
 		ret += oldret;
 	}
 	if ((data)->reqFlags) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_ContextFlags(p, len, (data)->reqFlags, &l);
 		BACK;
@@ -444,7 +444,7 @@ encode_NegTokenInit(unsigned char *p, size_t len, const NegTokenInit * data, siz
 		BACK;
 		ret += oldret;
 	} {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_MechTypeList(p, len, &(data)->mechTypes, &l);
 		BACK;
@@ -641,7 +641,7 @@ encode_NegTokenResp(unsigned char *p, size_t len, const NegTokenResp * data, siz
 	int e;
 
 	if ((data)->mechListMIC) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_octet_string(p, len, (data)->mechListMIC, &l);
 		BACK;
@@ -650,7 +650,7 @@ encode_NegTokenResp(unsigned char *p, size_t len, const NegTokenResp * data, siz
 		ret += oldret;
 	}
 	if ((data)->responseToken) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_octet_string(p, len, (data)->responseToken, &l);
 		BACK;
@@ -659,7 +659,7 @@ encode_NegTokenResp(unsigned char *p, size_t len, const NegTokenResp * data, siz
 		ret += oldret;
 	}
 	if ((data)->supportedMech) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_MechType(p, len, (data)->supportedMech, &l);
 		BACK;
@@ -668,7 +668,7 @@ encode_NegTokenResp(unsigned char *p, size_t len, const NegTokenResp * data, siz
 		ret += oldret;
 	}
 	if ((data)->negState) {
-		int oldret = ret;
+		size_t oldret = ret;
 		ret = 0;
 		e = encode_enumerated(p, len, (data)->negState, &l);
 		BACK;

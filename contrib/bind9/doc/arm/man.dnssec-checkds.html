@@ -1,0 +1,122 @@
+<!--
+ - Copyright (C) 2004-2013 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id$ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>dnssec-checkds</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.ch10.html" title="Manual pages">
+<link rel="prev" href="man.host.html" title="host">
+<link rel="next" href="man.dnssec-coverage.html" title="dnssec-coverage">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center"><span class="application">dnssec-checkds</span></th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="man.host.html">Prev</a> </td>
+<th width="60%" align="center">Manual pages</th>
+<td width="20%" align="right"> <a accesskey="n" href="man.dnssec-coverage.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="refentry" lang="en">
+<a name="man.dnssec-checkds"></a><div class="titlepage"></div>
+<div class="refnamediv">
+<h2>Name</h2>
+<p><span class="application">dnssec-checkds</span> &#8212; A DNSSEC delegation consistency checking tool.</p>
+</div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<div class="cmdsynopsis"><p><code class="command">dnssec-checkds</code>  [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-f <em class="replaceable"><code>file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>dig path</code></em></code>] [<code class="option">-D <em class="replaceable"><code>dsfromkey path</code></em></code>] {zone}</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-dsfromkey</code>  [<code class="option">-l <em class="replaceable"><code>domain</code></em></code>] [<code class="option">-f <em class="replaceable"><code>file</code></em></code>] [<code class="option">-d <em class="replaceable"><code>dig path</code></em></code>] [<code class="option">-D <em class="replaceable"><code>dsfromkey path</code></em></code>] {zone}</p></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2612723"></a><h2>DESCRIPTION</h2>
+<p><span><strong class="command">dnssec-checkds</strong></span>
+      verifies the correctness of Delegation Signer (DS) or DNSSEC
+      Lookaside Validation (DLV) resource records for keys in a specified
+      zone.
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2612737"></a><h2>OPTIONS</h2>
+<div class="variablelist"><dl>
+<dt><span class="term">-f <em class="replaceable"><code>file</code></em></span></dt>
+<dd><p>
+            If a <code class="option">file</code> is specified, then the zone is
+            read from that file to find the DNSKEY records.  If not,
+            then the DNSKEY records for the zone are looked up in the DNS.
+          </p></dd>
+<dt><span class="term">-l <em class="replaceable"><code>domain</code></em></span></dt>
+<dd><p>
+            Check for a DLV record in the specified lookaside domain, 
+            instead of checking for a DS record in the zone's parent.
+            For example, to check for DLV records for "example.com"
+            in ISC's DLV zone, use:
+            <span><strong class="command">dnssec-checkds -l dlv.isc.org example.com</strong></span>
+          </p></dd>
+<dt><span class="term">-d <em class="replaceable"><code>dig path</code></em></span></dt>
+<dd><p>
+            Specifies a path to a <span><strong class="command">dig</strong></span> binary.  Used
+            for testing.
+          </p></dd>
+<dt><span class="term">-D <em class="replaceable"><code>dsfromkey path</code></em></span></dt>
+<dd><p>
+            Specifies a path to a <span><strong class="command">dnssec-dsfromkey</strong></span> binary.
+            Used for testing.
+          </p></dd>
+</dl></div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2612839"></a><h2>SEE ALSO</h2>
+<p><span class="citerefentry"><span class="refentrytitle">dnssec-dsfromkey</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
+      <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
+    </p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2612873"></a><h2>AUTHOR</h2>
+<p><span class="corpauthor">Internet Systems Consortium</span>
+    </p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="man.host.html">Prev</a> </td>
+<td width="20%" align="center"><a accesskey="u" href="Bv9ARM.ch10.html">Up</a></td>
+<td width="40%" align="right"> <a accesskey="n" href="man.dnssec-coverage.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">host </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> <span class="application">dnssec-coverage</span>
+</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

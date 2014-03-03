@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -107,6 +107,11 @@ ISC_APPFUNC_SCOPE void isc__appctx_setsocketmgr(isc_appctx_t *ctx,
 						isc_socketmgr_t *socketmgr);
 ISC_APPFUNC_SCOPE void isc__appctx_settimermgr(isc_appctx_t *ctx,
 					       isc_timermgr_t *timermgr);
+ISC_APPFUNC_SCOPE isc_result_t isc__app_ctxonrun(isc_appctx_t *ctx,
+						 isc_mem_t *mctx,
+						 isc_task_t *task,
+						 isc_taskaction_t action,
+						 void *arg);
 
 /*
  * The application context of this module.  This implementation actually
@@ -148,8 +153,8 @@ static struct {
 	 * The following are defined just for avoiding unused static functions.
 	 */
 #ifndef BIND9
-	void *run, *shutdown, *start, *onrun, *reload, *finish,
-		*block, *unblock;
+	void *run, *shutdown, *start, *onrun,
+	     *reload, *finish, *block, *unblock;
 #endif
 } appmethods = {
 	{
@@ -161,7 +166,8 @@ static struct {
 		isc__app_ctxfinish,
 		isc__appctx_settaskmgr,
 		isc__appctx_setsocketmgr,
-		isc__appctx_settimermgr
+		isc__appctx_settimermgr,
+		isc__app_ctxonrun
 	}
 #ifndef BIND9
 	,
@@ -387,13 +393,22 @@ ISC_APPFUNC_SCOPE isc_result_t
 isc__app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
 	      void *arg)
 {
+	return (isc__app_ctxonrun((isc_appctx_t *)&isc_g_appctx, mctx,
+				  task, action, arg));
+}
+
+isc_result_t
+isc__app_ctxonrun(isc_appctx_t *ctx0, isc_mem_t *mctx, isc_task_t *task,
+		  isc_taskaction_t action, void *arg)
+{
+	isc__appctx_t *ctx = (isc__appctx_t *)ctx0;
 	isc_event_t *event;
 	isc_task_t *cloned_task = NULL;
 	isc_result_t result;
 
-	LOCK(&isc_g_appctx.lock);
+	LOCK(&ctx->lock);
 
-	if (isc_g_appctx.running) {
+	if (ctx->running) {
 		result = ISC_R_ALREADYRUNNING;
 		goto unlock;
 	}
@@ -410,12 +425,12 @@ isc__app_onrun(isc_mem_t *mctx, isc_task_t *task, isc_taskaction_t action,
 		goto unlock;
 	}
 
-	ISC_LIST_APPEND(isc_g_appctx.on_run, event, ev_link);
+	ISC_LIST_APPEND(ctx->on_run, event, ev_link);
 
 	result = ISC_R_SUCCESS;
 
  unlock:
-	UNLOCK(&isc_g_appctx.lock);
+	UNLOCK(&ctx->lock);
 
 	return (result);
 }

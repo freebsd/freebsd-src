@@ -1,4 +1,4 @@
-# Copyright (C) 2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -39,6 +39,8 @@ install:: installdirs
 	done
 	${INSTALL_DATA} netdb.h ${DESTDIR}${includedir}/irs
 	${INSTALL_DATA} platform.h ${DESTDIR}${includedir}/irs
+	${INSTALL_DATA} resconf.h ${DESTDIR}${includedir}/irs
+	${INSTALL_DATA} types.h ${DESTDIR}${includedir}/irs
 
 distclean::
 	rm -f netdb.h platform.h

@@ -21,6 +21,10 @@
 
 #include <config.h>
 
+#if defined(HAVE_SCHED_H)
+#include <sched.h>
+#endif
+
 #include <isc/thread.h>
 #include <isc/util.h>
 
@@ -72,5 +76,16 @@ isc_thread_setconcurrency(unsigned int level) {
 	(void)pthread_setconcurrency(level);
 #else
 	UNUSED(level);
+#endif
+}
+
+void
+isc_thread_yield(void) {
+#if defined(HAVE_SCHED_YIELD)
+	sched_yield();
+#elif defined( HAVE_PTHREAD_YIELD)
+	pthread_yield();
+#elif defined( HAVE_PTHREAD_YIELD_NP)
+	pthread_yield_np();
 #endif
 }

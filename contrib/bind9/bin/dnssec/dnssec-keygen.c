@@ -655,9 +655,9 @@ main(int argc, char **argv) {
 					    mctx, &prevkey);
 		if (ret != ISC_R_SUCCESS)
 			fatal("Invalid keyfile %s: %s",
-			      filename, isc_result_totext(ret));
+			      predecessor, isc_result_totext(ret));
 		if (!dst_key_isprivate(prevkey))
-			fatal("%s is not a private key", filename);
+			fatal("%s is not a private key", predecessor);
 
 		name = dst_key_name(prevkey);
 		alg = dst_key_alg(prevkey);

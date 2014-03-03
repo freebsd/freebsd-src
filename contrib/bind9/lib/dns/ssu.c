@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010, 2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -217,7 +217,7 @@ dns_ssutable_addrule(dns_ssutable_t *table, isc_boolean_t grant,
 			result = ISC_R_NOMEMORY;
 			goto failure;
 		}
-		memcpy(rule->types, types, ntypes * sizeof(dns_rdatatype_t));
+		memmove(rule->types, types, ntypes * sizeof(dns_rdatatype_t));
 	} else
 		rule->types = NULL;
 

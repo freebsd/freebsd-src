@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2013 Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014 Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003 Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -1985,6 +1985,5 @@
 	case 255: return (str_totext("ANY", target)); \
 	case 256: return (str_totext("URI", target)); \
 	case 32769: return (str_totext("DLV", target)); \
-	case 65533: return (str_totext("KEYDATA", target)); \
 	}
 #endif /* DNS_CODE_H */

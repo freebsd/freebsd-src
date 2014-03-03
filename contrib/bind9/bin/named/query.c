@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -193,7 +193,7 @@ inc_stats(ns_client_t *client, isc_statscounter_t counter) {
 #ifdef NEWSTATS
 	/* Do query type statistics
 	 *
-	 * We only increment per-type if we're using the authoriative
+	 * We only increment per-type if we're using the authoritative
 	 * answer counter, preventing double-counting.
 	 */
 	if (counter == dns_nsstatscounter_authans) {
@@ -800,7 +800,7 @@ query_validatezonedb(ns_client_t *client, dns_name_t *name,
 		if (queryonacl == NULL)
 			queryonacl = client->view->queryonacl;
 
-		result = ns_client_checkaclsilent(client, NULL,
+		result = ns_client_checkaclsilent(client, &client->destaddr,
 						  queryonacl, ISC_TRUE);
 		if ((options & DNS_GETDB_NOLOG) == 0 &&
 		    result != ISC_R_SUCCESS)
@@ -4601,6 +4601,7 @@ rpz_rewrite(ns_client_t *client, dns_rdatatype_t qtype, isc_result_t qresult,
 		memset(&st->m, 0, sizeof(st->m));
 		st->m.type = DNS_RPZ_TYPE_BAD;
 		st->m.policy = DNS_RPZ_POLICY_MISS;
+		st->m.ttl = ~0;
 		memset(&st->r, 0, sizeof(st->r));
 		memset(&st->q, 0, sizeof(st->q));
 		dns_fixedname_init(&st->_qnamef);
@@ -4982,12 +4983,12 @@ rdata_tonetaddr(const dns_rdata_t *rdata, isc_netaddr_t *netaddr) {
 	switch (rdata->type) {
 	case dns_rdatatype_a:
 		INSIST(rdata->length == 4);
-		memcpy(&ina.s_addr, rdata->data, 4);
+		memmove(&ina.s_addr, rdata->data, 4);
 		isc_netaddr_fromin(netaddr, &ina);
 		return (ISC_R_SUCCESS);
 	case dns_rdatatype_aaaa:
 		INSIST(rdata->length == 16);
-		memcpy(in6a.s6_addr, rdata->data, 16);
+		memmove(in6a.s6_addr, rdata->data, 16);
 		isc_netaddr_fromin6(netaddr, &in6a);
 		return (ISC_R_SUCCESS);
 	default:
@@ -5869,6 +5870,133 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 
  resume:
 	CTRACE("query_find: resume");
+
+#ifdef USE_RRL
+	/*
+	 * Rate limit these responses to this client.
+	 * Do not delay counting and handling obvious referrals,
+	 *	since those won't come here again.
+	 * Delay handling delegations for which we are certain to recurse and
+	 *	return here (DNS_R_DELEGATION, not a child of one of our
+	 *	own zones, and recursion enabled)
+	 * Don't mess with responses rewritten by RPZ
+	 * Count each response at most once.
+	 */
+	if (client->view->rrl != NULL &&
+	    ((fname != NULL && dns_name_isabsolute(fname)) ||
+	     (result == ISC_R_NOTFOUND && !RECURSIONOK(client))) &&
+	    !(result == DNS_R_DELEGATION && !is_zone && RECURSIONOK(client)) &&
+	    (client->query.rpz_st == NULL ||
+	     (client->query.rpz_st->state & DNS_RPZ_REWRITTEN) == 0)&&
+	    (client->query.attributes & NS_QUERYATTR_RRL_CHECKED) == 0) {
+		dns_rdataset_t nc_rdataset;
+		isc_boolean_t wouldlog;
+		char log_buf[DNS_RRL_LOG_BUF_LEN];
+		isc_result_t nc_result, resp_result;
+		dns_rrl_result_t rrl_result;
+
+		client->query.attributes |= NS_QUERYATTR_RRL_CHECKED;
+
+		wouldlog = isc_log_wouldlog(ns_g_lctx, DNS_RRL_LOG_DROP);
+		tname = fname;
+		if (result == DNS_R_NXDOMAIN) {
+			/*
+			 * Use the database origin name to rate limit NXDOMAIN
+			 */
+			if (db != NULL)
+				tname = dns_db_origin(db);
+			resp_result = result;
+		} else if (result == DNS_R_NCACHENXDOMAIN &&
+			   rdataset != NULL &&
+			   dns_rdataset_isassociated(rdataset) &&
+			   (rdataset->attributes &
+			    DNS_RDATASETATTR_NEGATIVE) != 0) {
+			/*
+			 * Try to use owner name in the negative cache SOA.
+			 */
+			dns_fixedname_init(&fixed);
+			dns_rdataset_init(&nc_rdataset);
+			for (nc_result = dns_rdataset_first(rdataset);
+			     nc_result == ISC_R_SUCCESS;
+			     nc_result = dns_rdataset_next(rdataset)) {
+				dns_ncache_current(rdataset,
+						   dns_fixedname_name(&fixed),
+						   &nc_rdataset);
+				if (nc_rdataset.type == dns_rdatatype_soa) {
+					dns_rdataset_disassociate(&nc_rdataset);
+					tname = dns_fixedname_name(&fixed);
+					break;
+				}
+				dns_rdataset_disassociate(&nc_rdataset);
+			}
+			resp_result = DNS_R_NXDOMAIN;
+		} else if (result == DNS_R_NXRRSET ||
+			   result == DNS_R_EMPTYNAME) {
+			resp_result = DNS_R_NXRRSET;
+		} else if (result == DNS_R_DELEGATION) {
+			resp_result = result;
+		} else if (result == ISC_R_NOTFOUND) {
+			/*
+			 * Handle referral to ".", including when recursion
+			 * is off or not requested and the hints have not
+			 * been loaded or we have "additional-from-cache no".
+			 */
+			tname = dns_rootname;
+			resp_result = DNS_R_DELEGATION;
+		} else {
+			resp_result = ISC_R_SUCCESS;
+		}
+		rrl_result = dns_rrl(client->view, &client->peeraddr,
+				     ISC_TF((client->attributes
+					     & NS_CLIENTATTR_TCP) != 0),
+				     client->message->rdclass, qtype, tname,
+				     resp_result, client->now,
+				     wouldlog, log_buf, sizeof(log_buf));
+		if (rrl_result != DNS_RRL_RESULT_OK) {
+			/*
+			 * Log dropped or slipped responses in the query
+			 * category so that requests are not silently lost.
+			 * Starts of rate-limited bursts are logged in
+			 * DNS_LOGCATEGORY_RRL.
+			 *
+			 * Dropped responses are counted with dropped queries
+			 * in QryDropped while slipped responses are counted
+			 * with other truncated responses in RespTruncated.
+			 */
+			if (wouldlog) {
+				ns_client_log(client,
+					      NS_LOGCATEGORY_QUERY_EERRORS,
+					      NS_LOGMODULE_QUERY,
+					      DNS_RRL_LOG_DROP,
+					      "%s", log_buf);
+			}
+			if (!client->view->rrl->log_only) {
+				if (rrl_result == DNS_RRL_RESULT_DROP) {
+					/*
+					 * These will also be counted in
+					 * dns_nsstatscounter_dropped
+					 */
+					inc_stats(client,
+						dns_nsstatscounter_ratedropped);
+					QUERY_ERROR(DNS_R_DROP);
+				} else {
+					/*
+					 * These will also be counted in
+					 * dns_nsstatscounter_truncatedresp
+					 */
+					inc_stats(client,
+						dns_nsstatscounter_rateslipped);
+					client->message->flags |=
+						DNS_MESSAGEFLAG_TC;
+					if (resp_result == DNS_R_NXDOMAIN)
+						client->message->rcode =
+							dns_rcode_nxdomain;
+				}
+				goto cleanup;
+			}
+		}
+	}
+#endif /* USE_RRL */
 
 	if (!ISC_LIST_EMPTY(client->view->rpz_zones) &&
 	    (RECURSIONOK(client) || !client->view->rpz_recursive_only) &&
@@ -7033,7 +7161,8 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 					goto addauth;
 				}
 
-				if (dns_db_issecure(db)) {
+				if (qtype == dns_rdatatype_rrsig &&
+				    dns_db_issecure(db)) {
 					char namebuf[DNS_NAME_FORMATSIZE];
 					dns_name_format(client->query.qname,
 							namebuf,
@@ -7322,13 +7451,21 @@ query_find(ns_client_t *client, dns_fetchevent_t *event, dns_rdatatype_t qtype)
 		goto restart;
 	}
 
+#ifdef USE_RRL
 	if (eresult != ISC_R_SUCCESS &&
-	    (!PARTIALANSWER(client) || WANTRECURSION(client))) {
+	    (!PARTIALANSWER(client) || WANTRECURSION(client)
+	     || eresult == DNS_R_DROP))
+#else /* USE_RRL */
+	if (eresult != ISC_R_SUCCESS &&
+	    (!PARTIALANSWER(client) || WANTRECURSION(client)))
+#endif /* USE_RRL */
+	{
 		if (eresult == DNS_R_DUPLICATE || eresult == DNS_R_DROP) {
 			/*
 			 * This was a duplicate query that we are
-			 * recursing on.  Don't send a response now.
-			 * The original query will still cause a response.
+			 * recursing on or the result of rate limiting.
+			 * Don't send a response now for a duplicate query,
+			 * because the original will still cause a response.
 			 */
 			query_next(client, eresult);
 		} else {

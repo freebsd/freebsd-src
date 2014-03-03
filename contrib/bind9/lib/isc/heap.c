@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -32,7 +32,7 @@
 #include <isc/heap.h>
 #include <isc/magic.h>
 #include <isc/mem.h>
-#include <isc/string.h>		/* Required for memcpy. */
+#include <isc/string.h>		/* Required for memmove. */
 #include <isc/util.h>
 
 /*@{*/
@@ -123,7 +123,7 @@ isc_heap_destroy(isc_heap_t **heapp) {
 static isc_boolean_t
 resize(isc_heap_t *heap) {
 	void **new_array;
-	size_t new_size;
+	unsigned int new_size;
 
 	REQUIRE(VALID_HEAP(heap));
 
@@ -132,7 +132,7 @@ resize(isc_heap_t *heap) {
 	if (new_array == NULL)
 		return (ISC_FALSE);
 	if (heap->array != NULL) {
-		memcpy(new_array, heap->array, heap->size * sizeof(void *));
+		memmove(new_array, heap->array, heap->size * sizeof(void *));
 		isc_mem_put(heap->mctx, heap->array,
 			    heap->size * sizeof(void *));
 	}

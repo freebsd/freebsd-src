@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -463,7 +463,7 @@ code_NegTokenArg(OM_uint32 * minor_status,
 		free(buf);
 		return (GSS_S_FAILURE);
 	}
-	memcpy(*outbuf, buf + buf_size - buf_len, buf_len);
+	memmove(*outbuf, buf + buf_size - buf_len, buf_len);
 	*outbuf_size = buf_len;
 
 	free(buf);
@@ -856,7 +856,7 @@ der_get_octet_string(const unsigned char *p, size_t len,
 		data->data = malloc(len);
 		if (data->data == NULL)
 			return (ENOMEM);
-		memcpy(data->data, p, len);
+		memmove(data->data, p, len);
 	} else
 		data->data = NULL;
 	if (size)
@@ -1107,7 +1107,7 @@ length_len(size_t len)
 	if (len < 128U)
 		return (1);
 	else
-		return (len_unsigned(len) + 1);
+		return (len_unsigned((unsigned int)len) + 1);
 }
 
 
@@ -1191,18 +1191,18 @@ der_put_length(unsigned char *p, size_t len, size_t val, size_t *size)
 	if (len < 1U)
 		return (ASN1_OVERFLOW);
 	if (val < 128U) {
-		*p = val;
+		*p = (unsigned char)val;
 		*size = 1;
 		return (0);
 	} else {
 		size_t l;
 		int e;
 
-		e = der_put_unsigned(p, len - 1, val, &l);
+		e = der_put_unsigned(p, len - 1, (unsigned int)val, &l);
 		if (e)
 			return (e);
 		p -= l;
-		*p = 0x80 | l;
+		*p = 0x80 | (unsigned char)l;
 		*size = l + 1;
 		return (0);
 	}
@@ -1217,7 +1217,7 @@ der_put_octet_string(unsigned char *p, size_t len,
 	p -= data->length;
 	len -= data->length;
 	POST(len);
-	memcpy(p + 1, data->data, data->length);
+	memmove(p + 1, data->data, data->length);
 	*size = data->length;
 	return (0);
 }
@@ -1227,10 +1227,10 @@ der_put_oid(unsigned char *p, size_t len,
 	    const oid *data, size_t *size)
 {
 	unsigned char *base = p;
-	int n;
+	size_t n;
 
-	for (n = data->length - 1; n >= 2; --n) {
-		unsigned	u = data->components[n];
+	for (n = data->length; n >= 3u; --n) {
+		unsigned	u = data->components[n - 1];
 
 		if (len < 1U)
 			return (ASN1_OVERFLOW);
@@ -1397,7 +1397,7 @@ gssapi_mech_make_header(u_char *p,
 	p += len_len;
 	*p++ = 0x06;
 	*p++ = mech->length;
-	memcpy(p, mech->elements, mech->length);
+	memmove(p, mech->elements, mech->length);
 	p += mech->length;
 	return (p);
 }
@@ -1430,7 +1430,7 @@ gssapi_spnego_encapsulate(OM_uint32 * minor_status,
 			gss_release_buffer(minor_status, output_token);
 		return (GSS_S_FAILURE);
 	}
-	memcpy(p, buf, buf_size);
+	memmove(p, buf, buf_size);
 	return (GSS_S_COMPLETE);
 }
 

@@ -22,7 +22,7 @@
 <refentry id="man.dig">
 
   <refentryinfo>
-    <date>Jun 30, 2000</date>
+    <date>June 30, 2000</date>
   </refentryinfo>
 
   <refmeta>
@@ -119,7 +119,7 @@
     <para>
       Unless it is told to query a specific name server,
       <command>dig</command> will try each of the servers listed in
-      <filename>/etc/resolv.conf</filename>. If no usable server addreses
+      <filename>/etc/resolv.conf</filename>. If no usable server addresses
       are found, <command>dig</command> will send the query to the local
       host.
     </para>
@@ -897,6 +897,16 @@
           </listitem>
         </varlistentry>
 
+        <varlistentry>
+          <term><option>+[no]keepopen</option></term>
+          <listitem>
+            <para>
+              Keep the TCP socket open between queries and reuse it rather
+	      than creating a new TCP socket for each lookup.  The default
+	      is <option>+nokeepopen</option>.
+            </para>
+          </listitem>
+        </varlistentry>
 
       </variablelist>
 

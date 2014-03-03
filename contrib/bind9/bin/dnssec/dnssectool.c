@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -319,11 +319,35 @@ strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 	isc_result_t result;
 	const char *orig = str;
 	char *endp;
+	int n;
 
 	if ((str[0] == '0' || str[0] == '-') && str[1] == '\0')
 		return ((isc_stdtime_t) 0);
 
-	if (strncmp(str, "now", 3) == 0) {
+	/*
+	 * We accept times in the following formats:
+	 *   now([+-]offset)
+	 *   YYYYMMDD([+-]offset)
+	 *   YYYYMMDDhhmmss([+-]offset)
+	 *   [+-]offset
+	 */
+	n = strspn(str, "0123456789");
+	if ((n == 8 || n == 14) &&
+	    (str[n] == '\0' || str[n] == '-' || str[n] == '+'))
+	{
+		char timestr[15];
+
+		strlcpy(timestr, str, sizeof(timestr));
+		timestr[n] = 0;
+		if (n == 8)
+			strlcat(timestr, "000000", sizeof(timestr));
+		result = dns_time64_fromtext(timestr, &val);
+		if (result != ISC_R_SUCCESS)
+			fatal("time value %s is invalid: %s", orig,
+			      isc_result_totext(result));
+		base = val;
+		str += n;
+	} else if (strncmp(str, "now", 3) == 0) {
 		base = now;
 		str += 3;
 	}
@@ -338,21 +362,8 @@ strtotime(const char *str, isc_int64_t now, isc_int64_t base) {
 		offset = strtol(str + 1, &endp, 0);
 		offset = time_units((isc_stdtime_t) offset, endp, orig);
 		val = base - offset;
-	} else if (strlen(str) == 8U) {
-		char timestr[15];
-		sprintf(timestr, "%s000000", str);
-		result = dns_time64_fromtext(timestr, &val);
-		if (result != ISC_R_SUCCESS)
-			fatal("time value %s is invalid: %s", orig,
-			      isc_result_totext(result));
-	} else if (strlen(str) > 14U) {
+	} else
 		fatal("time value %s is invalid", orig);
-	} else {
-		result = dns_time64_fromtext(str, &val);
-		if (result != ISC_R_SUCCESS)
-			fatal("time value %s is invalid: %s", orig,
-			      isc_result_totext(result));
-	}
 
 	return ((isc_stdtime_t) val);
 }
@@ -714,11 +725,11 @@ record_nsec3(const unsigned char *rawhash, const dns_rdata_nsec3_t *nsec3,
 	element->next_length = nsec3->next_length;
 	element->iterations = nsec3->iterations;
 	cp = (unsigned char *)(element + 1);
-	memcpy(cp, nsec3->salt, nsec3->salt_length);
+	memmove(cp, nsec3->salt, nsec3->salt_length);
 	cp += nsec3->salt_length;
-	memcpy(cp, rawhash, nsec3->next_length);
+	memmove(cp, rawhash, nsec3->next_length);
 	cp += nsec3->next_length;
-	memcpy(cp, nsec3->next, nsec3->next_length);
+	memmove(cp, nsec3->next, nsec3->next_length);
 	result = isc_heap_insert(chains, element);
 	if (result != ISC_R_SUCCESS) {
 		fprintf(stderr, "isc_heap_insert failed: %s\n",

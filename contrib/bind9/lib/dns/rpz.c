@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1115,7 +1115,7 @@ dns_rpz_cidr_find(dns_rpz_cidr_t *cidr, const isc_netaddr_t *netaddr,
 		 * one could cast netaddr->type.in6 to dns_rpz_cidr_key_t *,
 		 * but there are objections.
 		 */
-		memcpy(src_ip6.w, &netaddr->type.in6, sizeof(src_ip6.w));
+		memmove(src_ip6.w, &netaddr->type.in6, sizeof(src_ip6.w));
 		for (i = 0; i < 4; i++) {
 			tgt_ip.w[i] = ntohl(src_ip6.w[i]);
 		}

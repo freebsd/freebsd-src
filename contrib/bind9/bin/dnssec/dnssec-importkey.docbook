@@ -1,0 +1,225 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
+               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+               [<!ENTITY mdash "&#8212;">]>
+<!--
+ - Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ -
+ - Permission to use, copy, modify, and/or distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ -
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+
+<!-- $Id: dnssec-importkey.docbook,v 1.15 2011/11/03 20:21:37 each Exp $ -->
+<refentry id="man.dnssec-importkey">
+  <refentryinfo>
+    <date>August 30, 2013</date>
+  </refentryinfo>
+
+  <refmeta>
+    <refentrytitle><application>dnssec-importkey</application></refentrytitle>
+    <manvolnum>8</manvolnum>
+    <refmiscinfo>BIND9</refmiscinfo>
+  </refmeta>
+
+  <refnamediv>
+    <refname><application>dnssec-importkey</application></refname>
+    <refpurpose>Import DNSKEY records from external systems so they can be managed.</refpurpose>
+  </refnamediv>
+
+  <docinfo>
+    <copyright>
+      <year>2013</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+  </docinfo>
+
+  <refsynopsisdiv>
+    <cmdsynopsis>
+      <command>dnssec-importkey</command>
+      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
+      <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-h</option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg choice="req"><option>keyfile</option></arg>
+    </cmdsynopsis>
+    <cmdsynopsis>
+      <command>dnssec-importkey</command>
+      <arg choice="req"><option>-f <replaceable class="parameter">filename</replaceable></option></arg>
+      <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
+      <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
+      <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-h</option></arg>
+      <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>dnsname</option></arg>
+    </cmdsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>DESCRIPTION</title>
+    <para><command>dnssec-importkey</command>
+      reads a public DNSKEY record and generates a pair of
+      .key/.private files.  The DNSKEY record may be read from an
+      existing .key file, in which case a corresponding .private file
+      will be generated, or it may be read from any other file or
+      from the standard input, in which case both .key and .private
+      files will be generated.
+    </para>
+    <para>
+      The newly-created .private file does <emphasis>not</command>
+      contain private key data, and cannot be used for signing.
+      However, having a .private file makes it possible to set
+      publication (<option>-P</option>) and deletion
+      (<option>-D</option>) times for the key, which means the
+      public key can be added to and removed from the DNSKEY RRset
+      on schedule even if the true private key is stored offline.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>OPTIONS</title>
+
+    <variablelist>
+      <varlistentry>
+	<term>-f <replaceable class="parameter">filename</replaceable></term>
+        <listitem>
+          <para>
+            Zone file mode: instead of a public keyfile name, the argument
+	    is the DNS domain name of a zone master file, which can be read
+            from <option>file</option>.  If the domain name is the same as
+            <option>file</option>, then it may be omitted.
+          </para>
+          <para>
+            If <option>file</option> is set to <literal>"-"</literal>, then
+            the zone data is read from the standard input.
+          </para>
+        </listitem>
+      </varlistentry>
+  
+      <varlistentry>
+        <term>-K <replaceable class="parameter">directory</replaceable></term>
+        <listitem>
+          <para>
+            Sets the directory in which the key files are to reside.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-L <replaceable class="parameter">ttl</replaceable></term>
+        <listitem>
+          <para>
+            Sets the default TTL to use for this key when it is converted
+            into a DNSKEY RR.  If the key is imported into a zone,
+            this is the TTL that will be used for it, unless there was
+            already a DNSKEY RRset in place, in which case the existing TTL
+            would take precedence.  Setting the default TTL to
+            <literal>0</literal> or <literal>none</literal> removes it.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-h</term>
+        <listitem>
+	  <para>
+	    Emit usage message and exit.
+	  </para>
+        </listitem>
+      </varlistentry>
+  
+      <varlistentry>
+        <term>-v <replaceable class="parameter">level</replaceable></term>
+        <listitem>
+          <para>
+            Sets the debugging level.
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>TIMING OPTIONS</title>
+    <para>
+      Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
+      If the argument begins with a '+' or '-', it is interpreted as
+      an offset from the present time.  For convenience, if such an offset
+      is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi',
+      then the offset is computed in years (defined as 365 24-hour days,
+      ignoring leap years), months (defined as 30 24-hour days), weeks,
+      days, hours, or minutes, respectively.  Without a suffix, the offset
+      is computed in seconds.  To unset a date, use 'none'.
+    </para>
+
+    <variablelist>
+      <varlistentry>
+        <term>-P <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which a key is to be published to the zone.
+            After that date, the key will be included in the zone but will
+            not be used to sign it.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-D <replaceable class="parameter">date/offset</replaceable></term>
+        <listitem>
+          <para>
+            Sets the date on which the key is to be deleted.  After that
+            date, the key will no longer be included in the zone.  (It
+            may remain in the key repository, however.)
+          </para>
+        </listitem>
+      </varlistentry>
+
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>FILES</title>
+    <para>
+      A keyfile can be designed by the key identification
+      <filename>Knnnn.+aaa+iiiii</filename> or the full file name
+      <filename>Knnnn.+aaa+iiiii.key</filename> as generated by
+      <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>SEE ALSO</title>
+    <para><citerefentry>
+        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>dnssec-signzone</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
+      <citetitle>RFC 5011</citetitle>.
+    </para>
+  </refsect1>
+
+  <refsect1>
+    <title>AUTHOR</title>
+    <para><corpauthor>Internet Systems Consortium</corpauthor>
+    </para>
+  </refsect1>
+
+</refentry><!--
+ - Local variables:
+ - mode: sgml
+ - End:
+-->

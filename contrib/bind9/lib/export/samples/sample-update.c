@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2010, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -188,7 +188,7 @@ main(int argc, char *argv[]) {
 			exit(1);
 		}
 		INSIST(res->ai_addrlen <= sizeof(sa_auth.type));
-		memcpy(&sa_auth.type, res->ai_addr, res->ai_addrlen);
+		memmove(&sa_auth.type, res->ai_addr, res->ai_addrlen);
 		freeaddrinfo(res);
 		sa_auth.length = res->ai_addrlen;
 		ISC_LINK_INIT(&sa_auth, link);
@@ -210,7 +210,7 @@ main(int argc, char *argv[]) {
 			exit(1);
 		}
 		INSIST(res->ai_addrlen <= sizeof(sa_recursive.type));
-		memcpy(&sa_recursive.type, res->ai_addr, res->ai_addrlen);
+		memmove(&sa_recursive.type, res->ai_addr, res->ai_addrlen);
 		freeaddrinfo(res);
 		sa_recursive.length = res->ai_addrlen;
 		ISC_LINK_INIT(&sa_recursive, link);

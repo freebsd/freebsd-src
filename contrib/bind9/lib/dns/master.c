@@ -578,9 +578,9 @@ loadctx_create(dns_masterformat_t format, isc_mem_t *mctx,
 		isc_lex_setcomments(lctx->lex, ISC_LEXCOMMENT_DNSMASTERFILE);
 	}
 
-	lctx->ttl_known = ISC_FALSE;
+	lctx->ttl_known = ISC_TF((options & DNS_MASTER_NOTTL) != 0);
 	lctx->ttl = 0;
-	lctx->default_ttl_known = ISC_FALSE;
+	lctx->default_ttl_known = lctx->ttl_known;
 	lctx->default_ttl = 0;
 	lctx->warn_1035 = ISC_TRUE;	/* XXX Argument? */
 	lctx->warn_tcr = ISC_TRUE;	/* XXX Argument? */
@@ -686,7 +686,7 @@ genname(char *name, int it, char *buffer, size_t length) {
 	isc_boolean_t nibblemode;
 
 	r.base = buffer;
-	r.length = length;
+	r.length = (unsigned int)length;
 
 	while (*name != '\0') {
 		if (*name == '$') {
@@ -2083,7 +2083,7 @@ read_and_check(isc_boolean_t do_read, isc_buffer_t *buffer,
 					f, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (result);
-		isc_buffer_add(buffer, len);
+		isc_buffer_add(buffer, (unsigned int)len);
 	} else if (isc_buffer_remaininglength(buffer) < len)
 		return (ISC_R_RANGE);
 
@@ -2267,7 +2267,7 @@ load_raw(dns_loadctx_t *lctx) {
 					lctx->f, NULL);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup;
-		isc_buffer_add(&target, readlen);
+		isc_buffer_add(&target, (unsigned int)readlen);
 
 		/* Construct RRset headers */
 		rdatalist.rdclass = isc_buffer_getuint16(&target);

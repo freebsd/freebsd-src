@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -923,6 +923,29 @@ dst_key_restore(dns_name_t *name, unsigned int alg, unsigned int flags,
 		unsigned int protocol, dns_rdataclass_t rdclass,
 		isc_mem_t *mctx, const char *keystr, dst_key_t **keyp);
 
+isc_boolean_t
+dst_key_inactive(const dst_key_t *key);
+/*%<
+ * Determines if the private key is missing due the key being deemed inactive.
+ *
+ * Requires:
+ *	'key' to be valid.
+ */
+
+void
+dst_key_setinactive(dst_key_t *key, isc_boolean_t inactive);
+/*%<
+ * Set key inactive state.
+ *
+ * Requires:
+ *	'key' to be valid.
+ */
+
+void
+dst_key_setexternal(dst_key_t *key, isc_boolean_t value);
+
+isc_boolean_t
+dst_key_isexternal(dst_key_t *key);
 
 ISC_LANG_ENDDECLS
 

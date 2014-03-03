@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2009 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -33,7 +33,7 @@
 named\-checkconf \- named configuration file syntax checking tool
 .SH "SYNOPSIS"
 .HP 16
-\fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-p\fR] [\fB\-z\fR]
+\fBnamed\-checkconf\fR [\fB\-h\fR] [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-p\fR] [\fB\-x\fR] [\fB\-z\fR]
 .SH "DESCRIPTION"
 .PP
 \fBnamed\-checkconf\fR
@@ -84,6 +84,14 @@ Print out the
 and included files in canonical form if no errors were detected.
 .RE
 .PP
+\-x
+.RS 4
+When printing the configuration files in canonical form, obscure shared secrets by replacing them with strings of question marks ('?'). This allows the contents of
+\fInamed.conf\fR
+and related files to be shared \(em for example, when submitting bug reports \(em without compromising private data. This option cannot be used without
+\fB\-p\fR.
+.RE
+.PP
 \-z
 .RS 4
 Perform a test load of all master zones found in
@@ -113,7 +121,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2009 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

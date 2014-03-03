@@ -45,6 +45,7 @@ SRCS+=		builtin.c client.c config.c control.c \
 CFLAGS+=	-DCONFIGARGS="\"${CONFIGARGS}\"" \
 		-DPRODUCT=\"${PRODUCT}\" \
 		-DDESCRIPTION=\"${DESCRIPTION}\" \
+		-DBUILDER="\"make\"" \
 		-DSRCID=\"${SRCID}\"
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}

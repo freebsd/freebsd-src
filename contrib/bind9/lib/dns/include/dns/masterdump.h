@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -147,6 +147,11 @@ LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_simple;
  * The style used for debugging, "dig" output, etc.
  */
 LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_debug;
+
+/*%
+ * The style used for dumping "key" zones.
+ */
+LIBDNS_EXTERNAL_DATA extern const dns_master_style_t dns_master_style_keyzone;
 
 /***
  ***	Functions

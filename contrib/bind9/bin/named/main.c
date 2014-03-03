@@ -390,7 +390,7 @@ set_flags(const char *arg, struct flag_def *defs, unsigned int *ret) {
 		int arglen;
 		if (end == NULL)
 			end = arg + strlen(arg);
-		arglen = end - arg;
+		arglen = (int)(end - arg);
 		for (def = defs; def->name != NULL; def++) {
 			if (arglen == (int)strlen(def->name) &&
 			    memcmp(arg, def->name, arglen) == 0) {
@@ -415,6 +415,7 @@ parse_command_line(int argc, char *argv[]) {
 
 	save_command_line(argc, argv);
 
+	/* PLEASE keep options synchronized when main is hooked! */
 	isc_commandline_errprint = ISC_FALSE;
 	while ((ch = isc_commandline_parse(argc, argv,
 					   "46c:C:d:E:fFgi:lm:n:N:p:P:"
@@ -549,8 +550,25 @@ parse_command_line(int argc, char *argv[]) {
 			printf("%s %s", ns_g_product, ns_g_version);
 			if (*ns_g_description != 0)
 				printf(" %s", ns_g_description);
-			printf(" <id:%s> built with %s\n", ns_g_srcid,
-				ns_g_configargs);
+			printf(" <id:%s> built by %s with %s\n", ns_g_srcid,
+			       ns_g_builder, ns_g_configargs);
+#ifdef __clang__
+			printf("compiled by CLANG %s\n", __VERSION__);
+#else
+#if defined(__ICC) || defined(__INTEL_COMPILER)
+			printf("compiled by ICC %s\n", __VERSION__);
+#else
+#ifdef __GNUC__
+			printf("compiled by GCC %s\n", __VERSION__);
+#endif
+#endif
+#endif
+#ifdef _MSC_VER
+			printf("compiled by MSVC %d\n", _MSC_VER);
+#endif
+#ifdef __SUNPRO_C
+			printf("compiled by Solaris Studio %x\n", __SUNPRO_C);
+#endif
 #ifdef OPENSSL
 			printf("using OpenSSL version: %s\n",
 			       OPENSSL_VERSION_TEXT);
@@ -1042,6 +1060,8 @@ ns_smf_get_instance(char **ins_name, int debug, isc_mem_t *mctx) {
 	return (ISC_R_SUCCESS);
 }
 #endif /* HAVE_LIBSCF */
+
+/* main entry point, possibly hooked */
 
 int
 main(int argc, char *argv[]) {

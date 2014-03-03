@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2009, 2014 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-h</code>] [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-p</code>] [<code class="option">-z</code>]</p></div>
+<div class="cmdsynopsis"><p><code class="command">named-checkconf</code>  [<code class="option">-h</code>] [<code class="option">-v</code>] [<code class="option">-j</code>] [<code class="option">-t <em class="replaceable"><code>directory</code></em></code>] {filename} [<code class="option">-p</code>] [<code class="option">-x</code>] [<code class="option">-z</code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543396"></a><h2>DESCRIPTION</h2>
+<a name="id2543403"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       checks the syntax, but not the semantics, of a
       <span><strong class="command">named</strong></span> configuration file.  The file is parsed
@@ -52,7 +52,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543445"></a><h2>OPTIONS</h2>
+<a name="id2543452"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-h</span></dt>
 <dd><p>
@@ -74,6 +74,16 @@
 	    Print out the <code class="filename">named.conf</code> and included files
 	    in canonical form if no errors were detected.
           </p></dd>
+<dt><span class="term">-x</span></dt>
+<dd><p>
+	    When printing the configuration files in canonical
+            form, obscure shared secrets by replacing them with
+            strings of question marks ('?'). This allows the
+            contents of <code class="filename">named.conf</code> and related
+            files to be shared &#8212; for example, when submitting
+            bug reports &#8212; without compromising private data.
+            This option cannot be used without <code class="option">-p</code>.
+          </p></dd>
 <dt><span class="term">-z</span></dt>
 <dd><p>
 	    Perform a test load of all master zones found in
@@ -91,21 +101,21 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543569"></a><h2>RETURN VALUES</h2>
+<a name="id2543596"></a><h2>RETURN VALUES</h2>
 <p><span><strong class="command">named-checkconf</strong></span>
       returns an exit status of 1 if
       errors were detected and 0 otherwise.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543580"></a><h2>SEE ALSO</h2>
+<a name="id2543608"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named-checkzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543610"></a><h2>AUTHOR</h2>
+<a name="id2543638"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

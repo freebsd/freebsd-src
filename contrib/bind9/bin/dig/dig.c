@@ -229,6 +229,7 @@ help(void) {
 "                 +[no]split=##       (Split hex/base64 fields into chunks)\n"
 "                 +[no]multiline      (Print records in an expanded format)\n"
 "                 +[no]onesoa         (AXFR prints only one soa record)\n"
+"                 +[no]keepopen       (Keep the TCP socket open between queries)\n"
 "        global d-opts and servers (before host name) affect all queries.\n"
 "        local d-opts and servers (after host name) affect only that lookup.\n"
 "        -h                           (print help and exit)\n"
@@ -552,10 +553,11 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 		    (msg->rcode == dns_rcode_formerr ||
 		     msg->rcode == dns_rcode_notimp))
 			printf("\n;; WARNING: EDNS query returned status "
-			       "%s - retry with '+noedns'\n",
-			       rcode_totext(msg->rcode));
+			       "%s - retry with '%s+noedns'\n",
+			       rcode_totext(msg->rcode),
+			       query->lookup->dnssec ? "+nodnssec ": "");
 		if (msg != query->lookup->sendmsg && extrabytes != 0U)
-			printf(";; WARNING: Messages has %u extra byte%s at "
+			printf(";; WARNING: Message has %u extra byte%s at "
 			       "end\n", extrabytes, extrabytes != 0 ? "s" : "");
 	}
 
@@ -909,6 +911,10 @@ plus_option(char *option, isc_boolean_t is_batchfile,
 			FULLCHECK("ignore");
 			lookup->ignore = ISC_TRUE;
 		}
+		break;
+	case 'k':
+		FULLCHECK("keepopen");
+		keep_open = state;
 		break;
 	case 'm': /* multiline */
 		FULLCHECK("multiline");

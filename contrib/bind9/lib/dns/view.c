@@ -49,6 +49,7 @@
 #include <dns/masterdump.h>
 #include <dns/order.h>
 #include <dns/peer.h>
+#include <dns/rrl.h>
 #include <dns/rbt.h>
 #include <dns/rdataset.h>
 #include <dns/request.h>
@@ -184,6 +185,7 @@ dns_view_create(isc_mem_t *mctx, dns_rdataclass_t rdclass,
 	view->answeracl_exclude = NULL;
 	view->denyanswernames = NULL;
 	view->answernames_exclude = NULL;
+	view->rrl = NULL;
 	view->provideixfr = ISC_TRUE;
 	view->maxcachettl = 7 * 24 * 3600;
 	view->maxncachettl = 3 * 3600;
@@ -335,10 +337,16 @@ destroy(dns_view_t *view) {
 		dns_acache_detach(&view->acache);
 	}
 	dns_rpz_view_destroy(view);
-#else
+#ifdef USE_RRL
+	dns_rrl_view_destroy(view);
+#else /* USE_RRL */
+	INSIST(view->rrl == NULL);
+#endif /* USE_RRL */
+#else /* BIND9 */
 	INSIST(view->acache == NULL);
 	INSIST(ISC_LIST_EMPTY(view->rpz_zones));
-#endif
+	INSIST(view->rrl == NULL);
+#endif /* BIND9 */
 	if (view->requestmgr != NULL)
 		dns_requestmgr_detach(&view->requestmgr);
 	if (view->task != NULL)
@@ -560,6 +568,8 @@ dialup(dns_zone_t *zone, void *dummy) {
 void
 dns_view_dialup(dns_view_t *view) {
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
+
 	(void)dns_zt_apply(view->zonetable, ISC_FALSE, dialup, NULL);
 }
 #endif
@@ -868,6 +878,7 @@ dns_view_addzone(dns_view_t *view, dns_zone_t *zone) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
+	REQUIRE(view->zonetable != NULL);
 
 	result = dns_zt_mount(view->zonetable, zone);
 
@@ -882,6 +893,7 @@ dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zonep) {
 
 	REQUIRE(DNS_VIEW_VALID(view));
 
+	LOCK(&view->lock);
 	if (view->zonetable != NULL) {
 		result = dns_zt_find(view->zonetable, name, 0, NULL, zonep);
 		if (result == DNS_R_PARTIALMATCH) {
@@ -890,6 +902,7 @@ dns_view_findzone(dns_view_t *view, dns_name_t *name, dns_zone_t **zonep) {
 		}
 	} else
 		result = ISC_R_NOTFOUND;
+	UNLOCK(&view->lock);
 
 	return (result);
 }
@@ -952,7 +965,12 @@ dns_view_find2(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
 	is_staticstub_zone = ISC_FALSE;
 #ifdef BIND9
 	zone = NULL;
-	result = dns_zt_find(view->zonetable, name, 0, NULL, &zone);
+	LOCK(&view->lock);
+	if (view->zonetable != NULL)
+		result = dns_zt_find(view->zonetable, name, 0, NULL, &zone);
+	else
+		result = ISC_R_NOTFOUND;
+	UNLOCK(&view->lock);
 	if (zone != NULL && dns_zone_gettype(zone) == dns_zone_staticstub &&
 	    !use_static_stub) {
 		result = ISC_R_NOTFOUND;
@@ -1223,9 +1241,14 @@ dns_view_findzonecut2(dns_view_t *view, dns_name_t *name, dns_name_t *fname,
 	 */
 #ifdef BIND9
 	zone = NULL;
-	result = dns_zt_find(view->zonetable, name, 0, NULL, &zone);
+	LOCK(&view->lock);
+	if (view->zonetable != NULL)
+		result = dns_zt_find(view->zonetable, name, 0, NULL, &zone);
+	else
+		result = ISC_R_NOTFOUND;
 	if (result == ISC_R_SUCCESS || result == DNS_R_PARTIALMATCH)
 		result = dns_zone_getdb(zone, &db);
+	UNLOCK(&view->lock);
 #else
 	result = ISC_R_NOTFOUND;
 #endif
@@ -1404,6 +1427,8 @@ dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name,
 	dns_zone_t **zp = NULL;;
 
 	REQUIRE(list != NULL);
+	REQUIRE(zonep != NULL && *zonep == NULL);
+
 	for (view = ISC_LIST_HEAD(*list);
 	     view != NULL;
 	     view = ISC_LIST_NEXT(view, link)) {
@@ -1415,7 +1440,13 @@ dns_viewlist_findzone(dns_viewlist_t *list, dns_name_t *name,
 		 * treat it as not found.
 		 */
 		zp = (zone1 == NULL) ? &zone1 : &zone2;
-		result = dns_zt_find(view->zonetable, name, 0, NULL, zp);
+		LOCK(&view->lock);
+		if (view->zonetable != NULL)
+			result = dns_zt_find(view->zonetable, name, 0,
+					     NULL, zp);
+		else
+			result = ISC_R_NOTFOUND;
+		UNLOCK(&view->lock);
 		INSIST(result == ISC_R_SUCCESS ||
 		       result == ISC_R_NOTFOUND ||
 		       result == DNS_R_PARTIALMATCH);
@@ -1706,13 +1737,17 @@ dns_view_getrootdelonly(dns_view_t *view) {
 #ifdef BIND9
 isc_result_t
 dns_view_freezezones(dns_view_t *view, isc_boolean_t value) {
+
 	REQUIRE(DNS_VIEW_VALID(view));
+	REQUIRE(view->zonetable != NULL);
+
 	return (dns_zt_freezezones(view->zonetable, value));
 }
 #endif
 
 void
 dns_view_setresstats(dns_view_t *view, isc_stats_t *stats) {
+
 	REQUIRE(DNS_VIEW_VALID(view));
 	REQUIRE(!view->frozen);
 	REQUIRE(view->resstats == NULL);

@@ -30,7 +30,7 @@ SRCS+=		acache.c acl.c adb.c byaddr.c \
 		order.c peer.c portlist.c private.c \
 		rbt.c rbtdb.c rbtdb64.c rcode.c rdata.c rdatalist.c \
 		rdataset.c rdatasetiter.c rdataslab.c request.c \
-		resolver.c result.c rootns.c rpz.c rriterator.c \
+		resolver.c result.c rootns.c rpz.c rriterator.c rrl.c \
 		sdb.c sdlz.c soa.c ssu.c ssu_external.c \
 		stats.c tcpmsg.c time.c timer.c tkey.c \
 		tsec.c tsig.c ttl.c update.c validator.c \
@@ -98,6 +98,7 @@ DNSINCS=	${SRCDIR}/include/dns/acache.h \
 		${SRCDIR}/include/dns/resolver.h \
 		${SRCDIR}/include/dns/result.h \
 		${SRCDIR}/include/dns/rootns.h \
+		${SRCDIR}/include/dns/rrl.h \
 		${SRCDIR}/include/dns/sdb.h \
 		${SRCDIR}/include/dns/sdlz.h \
 		${SRCDIR}/include/dns/secalg.h \

@@ -1,0 +1,112 @@
+.\" Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+.\"
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id$
+.\"
+.hy 0
+.ad l
+'\" t
+.\"     Title: dnssec-importkey
+.\"    Author: [see the "AUTHOR" section]
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: August 30, 2013
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"  Language: English
+.\"
+.TH "DNSSEC\-IMPORTKEY" "8" "August 30, 2013" "BIND9" "BIND9"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+dnssec-importkey \- Import DNSKEY records from external systems so they can be managed\&.
+.SH "SYNOPSIS"
+.HP 17
+\fBdnssec\-importkey\fR [\fB\-f\ \fR\fB\fIfilename\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-h\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fBkeyname\fR]
+.SH "DESCRIPTION"
+.PP
+\fBdnssec\-importkey\fR
+read a DNSKEY record and generated a \&.key/\&.private key pair\&. Publication (\fB\-P\fR) and deletions (\fB\-D\fR) times can be set for the key\&.
+.SH "OPTIONS"
+.PP
+\-f \fIfilename\fR
+.RS 4
+Filename to read the key from\&.
+.RE
+.PP
+\-K \fIdirectory\fR
+.RS 4
+Sets the directory in which the key files are to reside\&.
+.RE
+.PP
+\-L \fIttl\fR
+.RS 4
+Sets the default TTL to use for this key when it is converted into a DNSKEY RR\&. If the key is imported into a zone, this is the TTL that will be used for it, unless there was already a DNSKEY RRset in place, in which case the existing TTL would take precedence\&. importkey the default TTL to
+0
+or
+none
+removes it\&.
+.RE
+.PP
+\-h
+.RS 4
+Emit usage message and exit\&.
+.RE
+.PP
+\-v \fIlevel\fR
+.RS 4
+Sets the debugging level\&.
+.RE
+.SH "TIMING OPTIONS"
+.PP
+Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS\&. If the argument begins with a \*(Aq+\*(Aq or \*(Aq\-\*(Aq, it is interpreted as an offset from the present time\&. For convenience, if such an offset is followed by one of the suffixes \*(Aqy\*(Aq, \*(Aqmo\*(Aq, \*(Aqw\*(Aq, \*(Aqd\*(Aq, \*(Aqh\*(Aq, or \*(Aqmi\*(Aq, then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively\&. Without a suffix, the offset is computed in seconds\&. To unset a date, use \*(Aqnone\*(Aq\&.
+.PP
+\-P \fIdate/offset\fR
+.RS 4
+Sets the date on which a key is to be published to the zone\&. After that date, the key will be included in the zone but will not be used to sign it\&.
+.RE
+.PP
+\-D \fIdate/offset\fR
+.RS 4
+Sets the date on which the key is to be deleted\&. After that date, the key will no longer be included in the zone\&. (It may remain in the key repository, however\&.)
+.RE
+.SH "SEE ALSO"
+.PP
+\fBdnssec-keygen\fR(8),
+\fBdnssec-signzone\fR(8),
+BIND 9 Administrator Reference Manual,
+RFC 5011\&.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium
+.SH "COPYRIGHT"
+.br
+Copyright \(co 2013 Internet Systems Consortium, Inc. ("ISC")
+.br

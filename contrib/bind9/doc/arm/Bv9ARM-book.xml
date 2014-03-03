@@ -1124,544 +1124,14 @@ zone "eng.example.com" {
                   <arg choice="plain"><replaceable>command</replaceable></arg>
                   <arg rep="repeat"><replaceable>command</replaceable></arg>
                 </cmdsynopsis>
-                <para>The <command>command</command>
-		  is one of the following:
+
+                <para>See <xref linkend="man.rndc"/> for details of
+                  the available <command>rndc</command> commands.
                 </para>
 
-                <variablelist>
-
-                  <varlistentry>
-                    <term><userinput>reload</userinput></term>
-                    <listitem>
-                      <para>
-                        Reload configuration file and zones.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>reload <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Reload the given zone.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>refresh <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Schedule zone maintenance for the given zone.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>retransfer <replaceable>zone</replaceable>
-
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Retransfer the given zone from the master.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>sign <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Fetch all DNSSEC keys for the given zone
-                        from the key directory (see
-                        <command>key-directory</command> in
-                        <xref linkend="options"/>).  If they are within
-                        their publication period, merge them into the
-                        zone's DNSKEY RRset.  If the DNSKEY RRset
-                        is changed, then the zone is automatically
-                        re-signed with the new key set.
-                      </para>
-                      <para>
-                        This command requires that the
-                        <command>auto-dnssec</command> zone option be set
-                        to <literal>allow</literal> or
-                        <literal>maintain</literal>,
-                        and also requires the zone to be configured to
-                        allow dynamic DNS.
-                        See <xref linkend="dynamic_update_policies"/> for
-                        more details.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>loadkeys <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Fetch all DNSSEC keys for the given zone
-                        from the key directory (see
-                        <command>key-directory</command> in
-                        <xref linkend="options"/>).  If they are within
-                        their publication period, merge them into the
-                        zone's DNSKEY RRset.  Unlike <command>rndc
-                        sign</command>, however, the zone is not
-                        immediately re-signed by the new keys, but is
-                        allowed to incrementally re-sign over time.
-                      </para>
-                      <para>
-                        This command requires that the
-                        <command>auto-dnssec</command> zone option
-                        be set to <literal>maintain</literal>,
-                        and also requires the zone to be configured to
-                        allow dynamic DNS.
-                        See <xref linkend="dynamic_update_policies"/> for
-                        more details.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>freeze
-                        <optional><replaceable>zone</replaceable>
-       <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Suspend updates to a dynamic zone.  If no zone is
-                        specified, then all zones are suspended.  This allows
-                        manual edits to be made to a zone normally updated by
-                        dynamic update.  It also causes changes in the
-                        journal file to be synced into the master file.
-                        All dynamic update attempts will be refused while
-                        the zone is frozen.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>thaw
-                        <optional><replaceable>zone</replaceable>
-       <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Enable updates to a frozen dynamic zone.  If no
-                        zone is specified, then all frozen zones are
-                        enabled.  This causes the server to reload the zone
-                        from disk, and re-enables dynamic updates after the
-                        load has completed.  After a zone is thawed,
-                        dynamic updates will no longer be refused.  If
-                        the zone has changed and the
-                        <command>ixfr-from-differences</command> option is
-                        in use, then the journal file will be updated to
-                        reflect changes in the zone.  Otherwise, if the
-                        zone has changed, any existing journal file will be
-                        removed.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>sync
-                        <optional>-clean</optional>
-                        <optional><replaceable>zone</replaceable>
-       <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Sync changes in the journal file for a dynamic zone
-                        to the master file.  If the "-clean" option is
-                        specified, the journal file is also removed.  If
-                        no zone is specified, then all zones are synced.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>notify <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-           <optional><replaceable>view</replaceable></optional></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Resend NOTIFY messages for the zone.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>reconfig</userinput></term>
-                    <listitem>
-                      <para>
-                        Reload the configuration file and load new zones,
-                        but do not reload existing zone files even if they
-                        have changed.
-                        This is faster than a full <command>reload</command> when there
-                        is a large number of zones because it avoids the need
-                        to examine the
-                        modification times of the zones files.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>stats</userinput></term>
-                    <listitem>
-                      <para>
-                        Write server statistics to the statistics file.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-		    <term><userinput>querylog</userinput>
-			  <optional>on|off</optional>
-		    </term>
-                    <listitem>
-                      <para>
-                        Enable or disable query logging.  (For backward
-                        compatibility, this command can also be used without
-                        an argument to toggle query logging on and off.)
-                      </para>
-                      <para>
-                        Query logging can also be enabled
-                        by explicitly directing the <command>queries</command>
-                        <command>category</command> to a
-		        <command>channel</command> in the
-                        <command>logging</command> section of
-                        <filename>named.conf</filename> or by specifying
-			<command>querylog yes;</command> in the
-			<command>options</command> section of
-			<filename>named.conf</filename>.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>dumpdb
-                        <optional>-all|-cache|-zone</optional>
-                        <optional><replaceable>view ...</replaceable></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Dump the server's caches (default) and/or zones to
-                        the
-                        dump file for the specified views.  If no view is
-                        specified, all
-                        views are dumped.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>secroots
-                        <optional><replaceable>view ...</replaceable></optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Dump the server's security roots to the secroots
-                        file for the specified views.  If no view is
-                        specified, security roots for all
-                        views are dumped.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>stop <optional>-p</optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Stop the server, making sure any recent changes
-                        made through dynamic update or IXFR are first saved to
-                        the master files of the updated zones.
-			If <option>-p</option> is specified <command>named</command>'s process id is returned.
-			This allows an external process to determine when <command>named</command>
-			had completed stopping.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>halt <optional>-p</optional></userinput></term>
-                    <listitem>
-                      <para>
-                        Stop the server immediately.  Recent changes
-                        made through dynamic update or IXFR are not saved to
-                        the master files, but will be rolled forward from the
-			journal files when the server is restarted.
-			If <option>-p</option> is specified <command>named</command>'s process id is returned.
-			This allows an external process to determine when <command>named</command>
-			had completed halting.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>trace</userinput></term>
-                    <listitem>
-                      <para>
-                        Increment the servers debugging level by one.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>trace <replaceable>level</replaceable></userinput></term>
-                    <listitem>
-                      <para>
-                        Sets the server's debugging level to an explicit
-                        value.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>notrace</userinput></term>
-                    <listitem>
-                      <para>
-                        Sets the server's debugging level to 0.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>flush</userinput></term>
-                    <listitem>
-                      <para>
-                        Flushes the server's cache.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>flushname</userinput>
-                       <replaceable>name</replaceable>
-                       <optional><replaceable>view</replaceable></optional>
-                       </term>
-                    <listitem>
-                      <para>
-                        Flushes the given name from the server's DNS cache,
-                        and from the server's nameserver address database
-                        if applicable.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>flushtree</userinput>
-                       <replaceable>name</replaceable>
-                       <optional><replaceable>view</replaceable></optional>
-                       </term>
-                    <listitem>
-                      <para>
-                        Flushes the given name, and all of its subdomains,
-                        from the server's DNS cache.  (The server's
-                        nameserver address database is not affected.)
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>status</userinput></term>
-                    <listitem>
-                      <para>
-                        Display status of the server.
-                        Note that the number of zones includes the internal <command>bind/CH</command> zone
-                        and the default <command>./IN</command>
-                        hint zone if there is not an
-                        explicit root zone configured.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>recursing</userinput></term>
-                    <listitem>
-                      <para>
-                        Dump the list of queries <command>named</command> is currently recursing
-                        on.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>validation
-                        <optional>on|off</optional>
-                        <optional><replaceable>view ...</replaceable></optional>
-                    </userinput></term>
-                    <listitem>
-                      <para>
-                        Enable or disable DNSSEC validation.
-                        Note <command>dnssec-enable</command> also needs to be
-                        set to <userinput>yes</userinput> to be effective.
-                        It defaults to enabled.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>tsig-list</userinput></term>
-                    <listitem>
-                      <para>
-                        List the names of all TSIG keys currently configured
-                        for use by <command>named</command> in each view.  The
-                        list both statically configured keys and dynamic
-                        TKEY-negotiated keys.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>tsig-delete</userinput>
-                     <replaceable>keyname</replaceable>
-                     <optional><replaceable>view</replaceable></optional></term>
-                    <listitem>
-                      <para>
-                        Delete a given TKEY-negotiated key from the server.
-                        (This does not apply to statically configured TSIG
-                        keys.)
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>addzone
-                        <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-                        <optional><replaceable>view</replaceable></optional></optional>
-                        <replaceable>configuration</replaceable>
-                    </userinput></term>
-                    <listitem>
-                      <para>
-                        Add a zone while the server is running.  This
-                        command requires the
-                        <command>allow-new-zones</command> option to be set
-                        to <userinput>yes</userinput>.  The
-                        <replaceable>configuration</replaceable> string
-                        specified on the command line is the zone
-                        configuration text that would ordinarily be
-                        placed in <filename>named.conf</filename>.
-                      </para>
-                      <para>
-                        The configuration is saved in a file called
-                       <filename><replaceable>hash</replaceable>.nzf</filename>,
-                        where <replaceable>hash</replaceable> is a
-                        cryptographic hash generated from the name of
-                        the view.  When <command>named</command> is
-                        restarted, the file will be loaded into the view
-                        configuration, so that zones that were added
-                        can persist after a restart.
-                      </para>
-                      <para>
-                        This sample <command>addzone</command> command
-                        would add the zone <literal>example.com</literal>
-                        to the default view:
-                      </para>
-                      <para>
-<prompt>$ </prompt><userinput>rndc addzone example.com '{ type master; file "example.com.db"; };'</userinput>
-                      </para>
-                      <para>
-                        (Note the brackets and semi-colon around the zone
-                        configuration text.)
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>delzone
-                        <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-                        <optional><replaceable>view</replaceable></optional></optional>
-                    </userinput></term>
-                    <listitem>
-                      <para>
-                        Delete a zone while the server is running.
-                        Only zones that were originally added via
-                        <command>rndc addzone</command> can be deleted
-                        in this matter.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                  <varlistentry>
-                    <term><userinput>signing
-                        <optional>( -list | -clear <replaceable>keyid/algorithm</replaceable> | -clear <literal>all</literal> | -nsec3param ( <replaceable>parameters</replaceable> | <literal>none</literal> ) ) </optional>
-                        <replaceable>zone</replaceable>
-                        <optional><replaceable>class</replaceable>
-                        <optional><replaceable>view</replaceable></optional></optional>
-                    </userinput></term>
-                    <listitem>
-                      <para>
-                        List, edit, or remove the DNSSEC signing state for 
-                        the specified zone.  The status of ongoing DNSSEC
-                        operations (such as signing or generating
-                        NSEC3 chains) is stored in the zone in the form
-                        of DNS resource records of type
-                        <command>sig-signing-type</command>. 
-                        <command>rndc signing -list</command> converts
-                        these records into a human-readable form,
-                        indicating which keys are currently signing
-                        or have finished signing the zone, and which NSEC3
-                        NSEC3 chains are being created or removed.
-                      </para>
-                      <para>
-                        <command>rndc signing -clear</command> can remove
-                        a single key (specified in the same format that
-                        <command>rndc signing -list</command> uses to
-                        display it), or all keys.  In either case, only
-                        completed keys are removed; any record indicating
-                        that a key has not yet finished signing the zone
-                        will be retained.
-                      </para>
-                      <para>
-                        <command>rndc signing -nsec3param</command> sets
-                        the NSEC3 parameters for a zone.  This is the
-                        only supported mechanism for using NSEC3 with
-                        <command>inline-signing</command> zones.
-                        Parameters are specified in the same format as
-                        an NSEC3PARAM resource record: hash algorithm,
-                        flags, iterations, and salt, in that order.
-                      </para>
-                      <para>
-                        Currently, the only defined value for hash algorithm 
-                        is <literal>1</literal>, representing SHA-1.
-                        The <option>flags</option> may be set to
-                        <literal>0</literal> or <literal>1</literal>,
-                        depending on whether you wish to set the opt-out
-                        bit in the NSEC3 chain.  <option>iterations</option>
-                        defines the number of additional times to apply
-                        the algorithm when generating an NSEC3 hash.  The
-                        <option>salt</option> is a string of data expressed
-                        in hexidecimal, or a hyphen (`-') if no salt is
-                        to be used.
-                      </para>
-                      <para>
-                        So, for example, to create an NSEC3 chain using
-                        the SHA-1 hash algorithm, no opt-out flag,
-                        10 iterations, and a salt value of "FFFF", use:
-                        <command>rndc signing -nsec3param 1 0 10 FFFF &lt;zone&gt;</command>.
-                        To set the opt-out flag, 15 iterations, and no
-                        salt, use:
-                        <command>rndc signing -nsec3param 1 1 15 - &lt;zone&gt;</command>.
-                      </para>
-                      <para>
-                        <command>rndc signing -nsec3param none</command>
-                        removes an existing NSEC3 chain and replaces it
-                        with NSEC.
-                      </para>
-                    </listitem>
-                  </varlistentry>
-
-                </variablelist>
-
                 <para>
-                  A configuration file is required, since all
+                  <command>rndc</command> requires a configuration file,
+                  since all
                   communication with the server is authenticated with
                   digital signatures that rely on a shared secret, and
                   there is no way to provide that secret other than with a
@@ -4324,6 +3794,9 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
             then this clause is silently ignored.
           </para>
           <para>
+	    On Windows machines syslog messages are directed to the EventViewer.
+          </para>
+          <para>
             The <command>severity</command> clause works like <command>syslog</command>'s
             "priorities", except that they can also be used if you are writing
             straight to a file rather than using <command>syslog</command>.
@@ -4815,6 +4288,37 @@ category notify { null; };
 		      rewritten responses, and at the highest
 		      <command>debug</command> levels, mere rewriting
 		      attempts.
+		    </para>
+		  </entry>
+		</row>
+                <row rowsep="0">
+                  <entry colname="1">
+                    <para><command>rate-limit</command></para>
+                  </entry>
+		  <entry colname="2">
+		    <para>
+                      (Only available when <acronym>BIND</acronym> 9 is
+                      configured with the <userinput>--enable-rrl</userinput>
+                      option at compile time.)
+                    </para>
+		    <para>
+		      The start, periodic, and final notices of the
+		      rate limiting of a stream of responses are logged at
+		      <command>info</command> severity in this category.
+		      These messages include a hash value of the domain name
+		      of the response and the name itself,
+		      except when there is insufficient memory to record
+		      the name for the final notice
+		      The final notice is normally delayed until about one
+		      minute after rate limit stops.
+		      A lack of memory can hurry the final notice,
+		      in which case it starts with an asterisk (*).
+		      Various internal events are logged at debug 1 level
+		      and higher.
+		    </para>
+		    <para>
+		      Rate limiting of individual requests
+		      is logged in the <command>query-errors</command> category.
 		    </para>
 		  </entry>
 		</row>
@@ -5318,7 +4822,7 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> match-mapped-addresses <replaceable>yes_or_no</replaceable>; </optional>
     <optional> filter-aaaa-on-v4 ( <replaceable>yes_or_no</replaceable> | <replaceable>break-dnssec</replaceable> ); </optional>
     <optional> filter-aaaa { <replaceable>address_match_list</replaceable> }; </optional>
-    <optional> dns64 <replaceable>IPv6-prefix</replaceable> {
+    <optional> dns64 <replaceable>ipv6-prefix</replaceable> {
 	<optional> clients { <replaceable>address_match_list</replaceable> }; </optional>
 	<optional> mapped { <replaceable>address_match_list</replaceable> }; </optional>
         <optional> exclude { <replaceable>address_match_list</replaceable> }; </optional>
@@ -5351,6 +4855,23 @@ badresp:1,adberr:0,findfail:0,valfail:0]
     <optional> resolver-query-timeout <replaceable>number</replaceable> ; </optional>
     <optional> deny-answer-addresses { <replaceable>address_match_list</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
     <optional> deny-answer-aliases { <replaceable>namelist</replaceable> } <optional> except-from { <replaceable>namelist</replaceable> } </optional>;</optional>
+    <optional> rate-limit {
+	<optional> responses-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> referrals-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> nodata-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> nxdomains-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> errors-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> all-per-second <replaceable>number</replaceable> ; </optional>
+	<optional> window <replaceable>number</replaceable> ; </optional>
+	<optional> log-only <replaceable>yes_or_no</replaceable> ; </optional>
+	<optional> qps-scale <replaceable>number</replaceable> ; </optional>
+	<optional> ipv4-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> ipv6-prefix-length <replaceable>number</replaceable> ; </optional>
+	<optional> slip <replaceable>number</replaceable> ; </optional>
+	<optional> exempt-clients  { <replaceable>address_match_list</replaceable> } ; </optional>
+	<optional> max-table-size <replaceable>number</replaceable> ; </optional>
+	<optional> min-table-size <replaceable>number</replaceable> ; </optional>
+      } ; </optional>
     <optional> response-policy { <replaceable>zone_name</replaceable>
 	<optional> policy given | disabled | passthru | nxdomain | nodata | cname <replaceable>domain</replaceable> </optional>
 	<optional> recursive-only <replaceable>yes_or_no</replaceable> </optional> <optional> max-policy-ttl <replaceable>number</replaceable> </optional> ;
@@ -6056,7 +5577,7 @@ options {
                   <command>named</command>.  (A planned third option,
                   <literal>external</literal>, will disable all automatic
                   signing and allow DNSSEC data to be submitted into a zone
-                  via dyanmic update; this is not yet implemented.)
+                  via dynamic update; this is not yet implemented.)
 		</para>
 	    </listitem>
 	  </varlistentry>
@@ -7160,7 +6681,7 @@ options {
                   (see <xref linkend="man.dnssec-keygen"/> and
                   <xref linkend="man.dnssec-settime"/>).  The
                   <command>dnssec-loadkeys-interval</command> option
-                  sets the frequency of autoatic repository checks, in
+                  sets the frequency of automatic repository checks, in
                   minutes.  The default is <literal>60</literal> (1 hour),
                   the minimum is <literal>1</literal> (1 minute), and the
                   maximum is <literal>1440</literal> (24 hours); any higher
@@ -8396,14 +7917,15 @@ avoid-v6-udp-ports { 40000; range 50000 60000; };
               <term><command>tcp-listen-queue</command></term>
               <listitem>
                 <para>
-                  The listen queue depth.  The default and minimum is 3.
+                  The listen queue depth.  The default and minimum is 10.
                   If the kernel supports the accept filter "dataready" this
                   also controls how
                   many TCP connections that will be queued in kernel space
                   waiting for
-                  some data before being passed to accept.  Values less than 3
-                  will be
-                  silently raised.
+                  some data before being passed to accept.  Nonzero values
+                  less than 10 will be silently raised. A value of 0 may also
+                  be used; on most platforms this sets the listen queue 
+                  length to a system-defined default value.
                 </para>
               </listitem>
             </varlistentry>
@@ -9897,6 +9419,246 @@ ns.domain.com.rpz-nsdname   CNAME   .
             <command>RPZRewrites</command> statistics.
           </para>
         </sect3>
+
+	<sect3>
+	  <title>Response Rate Limiting</title>
+	  <para>
+            This feature is only available when <acronym>BIND</acronym> 9
+            is compiled with the <userinput>--enable-rrl</userinput>
+            option on the "configure" command line.
+          </para>
+	  <para>
+	    Excessive almost identical UDP <emphasis>responses</emphasis>
+	    can be controlled by configuring a
+	    <command>rate-limit</command> clause in an
+	    <command>options</command> or <command>view</command> statement.
+	    This mechanism keeps authoritative BIND 9 from being used
+	    in amplifying reflection denial of service (DoS) attacks.
+	    Short truncated (TC=1) responses can be sent to provide
+	    rate-limited responses to legitimate clients within
+	    a range of forged, attacked IP addresses.
+	    Legitimate clients react to dropped or truncated response
+	    by retrying with UDP or with TCP respectively.
+	  </para>
+
+	  <para>
+	    This mechanism is intended for authoritative DNS servers.
+	    It can be used on recursive servers but can slow
+	    applications such as SMTP servers (mail receivers) and
+	    HTTP clients (web browsers) that repeatedly request the
+	    same domains.
+	    When possible, closing "open" recursive servers is better.
+	  </para>
+
+	  <para>
+	    Response rate limiting uses a "credit" or "token bucket" scheme.
+	    Each combination of identical response and client
+	    has a conceptual account that earns a specified number
+	    of credits every second.
+	    A prospective response debits its account by one.
+	    Responses are dropped or truncated
+	    while the account is negative.
+            Responses are tracked within a rolling window of time
+            which defaults to 15 seconds, but can be configured with
+            the <command>window</command> option to any value from
+            1 to 3600 seconds (1 hour).
+	    The account cannot become more positive than
+	    the per-second limit
+	    or more negative than <command>window</command>
+	    times the per-second limit.
+            When the specified number of credits for a class of
+            responses is set to 0, those responses are not rate limited.
+	  </para>
+
+	  <para>
+	    The notions of "identical response" and "DNS client"
+	    for rate limiting are not simplistic.
+	    All responses to an address block are counted as if to a
+	    single client.
+	    The prefix lengths of addresses blocks are
+	    specified with <command>ipv4-prefix-length</command> (default 24)
+	    and <command>ipv6-prefix-length</command> (default 56).
+	  </para>
+
+	  <para>
+	    All non-empty responses for a valid domain name (qname)
+	    and record type (qtype) are identical and have a limit specified
+	    with <command>responses-per-second</command>
+	    (default 0 or no limit).
+	    All empty (NODATA) responses for a valid domain,
+	    regardless of query type, are identical.
+	    Responses in the NODATA class are limited by
+	    <command>nodata-per-second</command>
+	    (default <command>responses-per-second</command>).
+	    Requests for any and all undefined subdomains of a given
+            valid domain result in NXDOMAIN errors, and are identical
+            regardless of query type.
+	    They are limited by <command>nxdomain-per-second</command>
+	    (default <command>responses-per-second</command>).
+	    This controls some attacks using random names, but
+	    can be relaxed or turned off (set to 0)
+	    on servers that expect many legitimate
+	    NXDOMAIN responses, such as from anti-spam blacklists.
+	    Referrals or delegations to the server of a given
+	    domain are identical and are limited by
+	    <command>referrals-per-second</command>
+	    (default <command>responses-per-second</command>).
+	  </para>
+
+	  <para>
+	    Responses generated from local wildcards are counted and limited
+	    as if they were for the parent domain name.
+	    This controls flooding using random.wild.example.com.
+	  </para>
+
+	  <para>
+            All requests that result in DNS errors other
+	    than NXDOMAIN, such as SERVFAIL and FORMERR, are identical
+            regardless of requested name (qname) or record type (qtype).
+	    This controls attacks using invalid requests or distant,
+	    broken authoritative servers.
+	    By default the limit on errors is the same as the
+	    <command>responses-per-second</command> value,
+	    but it can be set separately with
+	    <command>errors-per-second</command>.
+	  </para>
+
+	  <para>
+	    Many attacks using DNS involve UDP requests with forged source
+	    addresses.
+	    Rate limiting prevents the use of BIND 9 to flood a network
+	    with responses to requests with forged source addresses,
+	    but could let a third party block responses to legitimate requests.
+	    There is a mechanism that can answer some legitimate
+	    requests from a client whose address is being forged in a flood.
+	    Setting <command>slip</command> to 2 (its default) causes every
+	    other UDP request to be answered with a small truncated (TC=1)
+	    response.
+	    The small size and reduced frequency, and so lack of
+	    amplification, of "slipped" responses make them unattractive
+	    for reflection DoS attacks.
+	    <command>slip</command> must be between 0 and 10.
+	    A value of 0 does not "slip":
+	    no truncated responses are sent due to rate limiting,
+	    all responses are dropped.
+	    A value of 1 causes every response to slip;
+	    values between 2 and 10 cause every n'th response to slip.
+	    Some error responses including REFUSED and SERVFAIL
+	    cannot be replaced with truncated responses and are instead
+	    leaked at the <command>slip</command> rate.
+	  </para>
+
+	  <para>
+	    (NOTE: Dropped responses from an authoritative server may
+	    reduce the difficulty of a third party successfully forging
+	    a response to a recursive resolver. The best security
+	    against forged responses is for authoritative operators
+	    to sign their zones using DNSSEC and for resolver operators
+	    to validate the responses. When this is not an option,
+	    operators who are more concerned with response integrity
+	    than with flood mitigation may consider setting
+	    <command>slip</command> to 1, causing all rate-limited
+	    responses to be truncated rather than dropped.  This reduces
+	    the effectiveness of rate-limiting against reflection attacks.)
+	  </para>
+
+	  <para>
+	    When the approximate query per second rate exceeds
+	    the <command>qps-scale</command> value,
+	    then the <command>responses-per-second</command>,
+	    <command>errors-per-second</command>,
+	    <command>nxdomains-per-second</command> and
+	    <command>all-per-second</command> values are reduced by the
+	    ratio of the current rate to the <command>qps-scale</command> value.
+	    This feature can tighten defenses during attacks.
+	    For example, with
+	    <command>qps-scale 250; responses-per-second 20;</command> and
+	    a total query rate of 1000 queries/second for all queries from
+	    all DNS clients including via TCP,
+	    then the effective responses/second limit changes to
+	    (250/1000)*20 or 5.
+	    Responses sent via TCP are not limited
+	    but are counted to compute the query per second rate.
+	  </para>
+
+	  <para>
+	    Communities of DNS clients can be given their own parameters or no
+	    rate limiting by putting
+	    <command>rate-limit</command> statements in <command>view</command>
+	    statements instead of the global <command>option</command>
+	    statement.
+	    A <command>rate-limit</command> statement in a view replaces,
+	    rather than supplementing, a <command>rate-limit</command>
+	    statement among the main options.
+	    DNS clients within a view can be exempted from rate limits
+	    with the <command>exempt-clients</command> clause.
+	  </para>
+
+	  <para>
+	    UDP responses of all kinds can be limited with the
+	    <command>all-per-second</command> phrase.
+	    This rate limiting is unlike the rate limiting provided by
+	    <command>responses-per-second</command>,
+	    <command>errors-per-second</command>, and
+	    <command>nxdomains-per-second</command> on a DNS server
+	    which are often invisible to the victim of a DNS reflection attack.
+	    Unless the forged requests of the attack are the same as the
+	    legitimate requests of the victim, the victim's requests are
+	    not affected.
+	    Responses affected by an <command>all-per-second</command> limit
+	    are always dropped; the <command>slip</command> value has no
+	    effect.
+	    An <command>all-per-second</command> limit should be
+	    at least 4 times as large as the other limits,
+	    because single DNS clients often send bursts of legitimate
+	    requests.
+	    For example, the receipt of a single mail message can prompt
+	    requests from an SMTP server for NS, PTR, A, and AAAA records
+	    as the incoming SMTP/TCP/IP connection is considered.
+	    The SMTP server can need additional NS, A, AAAA, MX, TXT, and SPF
+	    records as it considers the STMP <command>Mail From</command>
+	    command.
+	    Web browsers often repeatedly resolve the same names that
+	    are repeated in HTML &lt;IMG&gt; tags in a page.
+	    <command>All-per-second</command> is similar to the
+	    rate limiting offered by firewalls but often inferior.
+	    Attacks that justify ignoring the
+	    contents of DNS responses are likely to be attacks on the
+	    DNS server itself.
+	    They usually should be discarded before the DNS server
+	    spends resources making TCP connections or parsing DNS requests,
+	    but that rate limiting must be done before the
+	    DNS server sees the requests.
+	  </para>
+
+	  <para>
+	    The maximum size of the table used to track requests and
+	    rate limit responses is set with <command>max-table-size</command>.
+	    Each entry in the table is between 40 and 80 bytes.
+	    The table needs approximately as many entries as the number
+	    of requests received per second.
+	    The default is 20,000.
+	    To reduce the cold start of growing the table,
+	    <command>min-table-size</command> (default 500)
+	    can set the minimum table size.
+	    Enable <command>rate-limit</command> category logging to monitor
+	    expansions of the table and inform
+	    choices for the initial and maximum table size.
+	  </para>
+
+	  <para>
+	    Use <command>log-only yes</command> to test rate limiting parameters
+	    without actually dropping any requests.
+	  </para>
+
+	  <para>
+	    Responses dropped by rate limits are included in the
+	    <command>RateDropped</command> and <command>QryDropped</command>
+	    statistics.
+	    Responses that truncated by rate limits are included in
+	    <command>RateSlipped</command> and <command>RespTruncated</command>.
+	  </para>
+	</sect3>
       </sect2>
 
       <sect2 id="server_statement_grammar">
@@ -14646,6 +14408,32 @@ HOST-127.EXAMPLE. MX 0 .
 		    <entry colname="3">
 		      <para>
 			Response policy zone rewrites.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>RateDropped</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Responses dropped by rate limits.
+		      </para>
+		    </entry>
+		  </row>
+		  <row rowsep="0">
+		    <entry colname="1">
+		      <para><command>RateSlipped</command></para>
+		    </entry>
+		    <entry colname="2">
+		      <para><command></command></para>
+		    </entry>
+		    <entry colname="3">
+		      <para>
+			Responses truncated by rate limits.
 		      </para>
 		    </entry>
 		  </row>

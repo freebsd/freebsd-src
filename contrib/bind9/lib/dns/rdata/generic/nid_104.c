@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -155,7 +155,7 @@ tostruct_nid(ARGS_TOSTRUCT) {
 
 	dns_rdata_toregion(rdata, &region);
 	nid->pref = uint16_fromregion(&region);
-	memcpy(nid->nid, region.base, region.length);
+	memmove(nid->nid, region.base, region.length);
 	return (ISC_R_SUCCESS);
 }
 
