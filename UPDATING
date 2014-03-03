@@ -17,6 +17,16 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 
+20140303:
+	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
+	capability mode support.  Please note that enabling the feature in
+	kernel is still highly recommended.
+
+20140227:
+	OpenSSH is now built with sandbox support, and will use sandbox as
+	the default privilege separation method.  This requires Capsicum
+	capability mode support in kernel.
+
 20140216:
 	The nve(4) driver for NVIDIA nForce MCP Ethernet adapters has
 	been deprecated and will not be part of FreeBSD 11.0 and later
