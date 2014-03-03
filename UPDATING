@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140226:
+	Switched back to the GPL dtc compiler due to updates in the upstream
+	dts files not being supported by the BSDL dtc compiler. You will need
+	to rebuild your kernel toolchain to pick up the new compiler. Core dumps
+	may result while building dtb files during a kernel build if you fail
+	to do so. Set WITHOUT_GPL_DTC if you require the BSDL compiler.
+
 20140216:
 	Clang and llvm have been upgraded to 3.4 release.
 
