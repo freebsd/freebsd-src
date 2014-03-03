@@ -249,13 +249,14 @@ static isc_result_t send_update(updatectx_t *uctx);
 static isc_result_t
 getudpdispatch(int family, dns_dispatchmgr_t *dispatchmgr,
 	       isc_socketmgr_t *socketmgr, isc_taskmgr_t *taskmgr,
-	       isc_boolean_t is_shared, dns_dispatch_t **dispp)
+	       isc_boolean_t is_shared, dns_dispatch_t **dispp,
+	       isc_sockaddr_t *localaddr)
 {
 	unsigned int attrs, attrmask;
-	isc_sockaddr_t sa;
 	dns_dispatch_t *disp;
 	unsigned buffersize, maxbuffers, maxrequests, buckets, increment;
 	isc_result_t result;
+	isc_sockaddr_t anyaddr;
 
 	attrs = 0;
 	attrs |= DNS_DISPATCHATTR_UDP;
@@ -275,7 +276,10 @@ getudpdispatch(int family, dns_dispatchmgr_t *dispatchmgr,
 	attrmask |= DNS_DISPATCHATTR_IPV4;
 	attrmask |= DNS_DISPATCHATTR_IPV6;
 
-	isc_sockaddr_anyofpf(&sa, family);
+	if (localaddr == NULL) {
+		localaddr = &anyaddr;
+		isc_sockaddr_anyofpf(localaddr, family);
+	}
 
 	buffersize = 4096;
 	maxbuffers = is_shared ? 1000 : 8;
@@ -285,7 +289,7 @@ getudpdispatch(int family, dns_dispatchmgr_t *dispatchmgr,
 
 	disp = NULL;
 	result = dns_dispatch_getudp(dispatchmgr, socketmgr,
-				     taskmgr, &sa,
+				     taskmgr, localaddr,
 				     buffersize, maxbuffers, maxrequests,
 				     buckets, increment,
 				     attrs, attrmask, &disp);
@@ -422,6 +426,19 @@ dns_client_createx(isc_mem_t *mctx, isc_appctx_t *actx, isc_taskmgr_t *taskmgr,
 		   isc_socketmgr_t *socketmgr, isc_timermgr_t *timermgr,
 		   unsigned int options, dns_client_t **clientp)
 {
+	isc_result_t result;
+	result = dns_client_createx2(mctx, actx, taskmgr, socketmgr, timermgr,
+				     options, clientp, NULL, NULL);
+	return (result);
+}
+
+isc_result_t
+dns_client_createx2(isc_mem_t *mctx, isc_appctx_t *actx,
+		    isc_taskmgr_t *taskmgr, isc_socketmgr_t *socketmgr,
+		    isc_timermgr_t *timermgr, unsigned int options,
+		    dns_client_t **clientp, isc_sockaddr_t *localaddr4,
+		    isc_sockaddr_t *localaddr6)
+{
 	dns_client_t *client;
 	isc_result_t result;
 	dns_dispatchmgr_t *dispatchmgr = NULL;
@@ -460,17 +477,27 @@ dns_client_createx(isc_mem_t *mctx, isc_appctx_t *actx, isc_taskmgr_t *taskmgr,
 		goto cleanup;
 	client->dispatchmgr = dispatchmgr;
 
-	/* TODO: whether to use dispatch v4 or v6 should be configurable */
+	/*
+	 * If only one address family is specified, use it.
+	 * If neither family is specified, or if both are, use both.
+	 */
 	client->dispatchv4 = NULL;
+	if (localaddr4 != NULL || localaddr6 == NULL) {
+		result = getudpdispatch(AF_INET, dispatchmgr, socketmgr,
+					taskmgr, ISC_TRUE,
+					&dispatchv4, localaddr4);
+		if (result == ISC_R_SUCCESS)
+			client->dispatchv4 = dispatchv4;
+	}
+
 	client->dispatchv6 = NULL;
-	result = getudpdispatch(AF_INET, dispatchmgr, socketmgr,
-				taskmgr, ISC_TRUE, &dispatchv4);
-	if (result == ISC_R_SUCCESS)
-		client->dispatchv4 = dispatchv4;
-	result = getudpdispatch(AF_INET6, dispatchmgr, socketmgr,
-				taskmgr, ISC_TRUE, &dispatchv6);
-	if (result == ISC_R_SUCCESS)
-		client->dispatchv6 = dispatchv6;
+	if (localaddr6 != NULL || localaddr4 == NULL) {
+		result = getudpdispatch(AF_INET6, dispatchmgr, socketmgr,
+					taskmgr, ISC_TRUE,
+					&dispatchv6, localaddr6);
+		if (result == ISC_R_SUCCESS)
+			client->dispatchv6 = dispatchv6;
+	}
 
 	/* We need at least one of the dispatchers */
 	if (dispatchv4 == NULL && dispatchv6 == NULL) {
@@ -1094,11 +1121,23 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 	UNLOCK(&rctx->lock);
 }
 
+
+static void
+suspend(isc_task_t *task, isc_event_t *event) {
+	isc_appctx_t *actx = event->ev_arg;
+
+	UNUSED(task);
+
+	isc_app_ctxsuspend(actx);
+	isc_event_free(&event);
+}
+
 static void
 resolve_done(isc_task_t *task, isc_event_t *event) {
 	resarg_t *resarg = event->ev_arg;
 	dns_clientresevent_t *rev = (dns_clientresevent_t *)event;
 	dns_name_t *name;
+	isc_result_t result;
 
 	UNUSED(task);
 
@@ -1117,8 +1156,16 @@ resolve_done(isc_task_t *task, isc_event_t *event) {
 	if (!resarg->canceled) {
 		UNLOCK(&resarg->lock);
 
-		/* Exit from the internal event loop */
-		isc_app_ctxsuspend(resarg->actx);
+		/*
+		 * We may or may not be running.  isc__appctx_onrun will
+		 * fail if we are currently running otherwise we post a
+		 * action to call isc_app_ctxsuspend when we do start
+		 * running.
+		 */
+		result = isc_app_ctxonrun(resarg->actx, resarg->client->mctx,
+					   task, suspend, resarg->actx);
+		if (result == ISC_R_ALREADYRUNNING)
+			isc_app_ctxsuspend(resarg->actx);
 	} else {
 		/*
 		 * We have already exited from the loop (due to some
@@ -1310,9 +1357,8 @@ dns_client_startresolve(dns_client_t *client, dns_name_t *name,
 	ISC_LIST_APPEND(client->resctxs, rctx, link);
 	UNLOCK(&client->lock);
 
-	client_resfind(rctx, NULL);
-
 	*transp = (dns_clientrestrans_t *)rctx;
+	client_resfind(rctx, NULL);
 
 	return (ISC_R_SUCCESS);
 

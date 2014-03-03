@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2007, 2010 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2010, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">nslookup</code>  [<code class="option">-option</code>] [name | -] [server]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543361"></a><h2>DESCRIPTION</h2>
+<a name="id2543435"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">Nslookup</strong></span>
       is a program to query Internet domain name servers.  <span><strong class="command">Nslookup</strong></span>
       has two modes: interactive and non-interactive.  Interactive mode allows
@@ -43,7 +43,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543377"></a><h2>ARGUMENTS</h2>
+<a name="id2543451"></a><h2>ARGUMENTS</h2>
 <p>
       Interactive mode is entered in the following cases:
       </p>
@@ -78,7 +78,7 @@ nslookup -query=hinfo  -timeout=10
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543420"></a><h2>INTERACTIVE COMMANDS</h2>
+<a name="id2543495"></a><h2>INTERACTIVE COMMANDS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">host</code> [<span class="optional">server</span>]</span></dt>
 <dd>
@@ -249,6 +249,12 @@ nslookup -query=hinfo  -timeout=10
                     (Default = recurse; abbreviation = [no]rec)
                   </p>
 </dd>
+<dt><span class="term"><code class="constant">ndots=</code><em class="replaceable"><code>number</code></em></span></dt>
+<dd><p>
+		    Set the number of dots (label separators) in a domain
+		    that will disable searching.  Absolute names always
+		    stop searching.
+                  </p></dd>
 <dt><span class="term"><code class="constant">retry=</code><em class="replaceable"><code>number</code></em></span></dt>
 <dd><p>
                     Set the number of retries to number.
@@ -288,19 +294,19 @@ nslookup -query=hinfo  -timeout=10
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546286"></a><h2>FILES</h2>
+<a name="id2546309"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546298"></a><h2>SEE ALSO</h2>
+<a name="id2546321"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546332"></a><h2>Author</h2>
+<a name="id2546355"></a><h2>Author</h2>
 <p>
       Andrew Cherenson
     </p>

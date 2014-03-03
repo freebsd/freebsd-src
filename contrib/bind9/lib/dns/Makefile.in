@@ -55,6 +55,8 @@ DSTOBJS =	@DST_EXTRA_OBJS@ @OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
 		gssapi_link.@O@ gssapictx.@O@ hmac_link.@O@ key.@O@ 
 
+RRLOBJS =	rrl.@O@
+
 # Alphabetically
 DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		cache.@O@ callbacks.@O@ clientinfo.@O@ compress.@O@ \
@@ -67,14 +69,14 @@ DNSOBJS =	acache.@O@ acl.@O@ adb.@O@ byaddr.@O@ \
 		portlist.@O@ private.@O@ \
 		rbt.@O@ rbtdb.@O@ rbtdb64.@O@ rcode.@O@ rdata.@O@ \
 		rdatalist.@O@ rdataset.@O@ rdatasetiter.@O@ rdataslab.@O@ \
-		request.@O@ resolver.@O@ result.@O@ rootns.@O@ rpz.@O@ \
-		rriterator.@O@ sdb.@O@ \
+		request.@O@ resolver.@O@ result.@O@ rootns.@O@ \
+		rpz.@O@ rriterator.@O@ sdb.@O@ \
 		sdlz.@O@ soa.@O@ ssu.@O@ ssu_external.@O@ \
 		stats.@O@ tcpmsg.@O@ time.@O@ timer.@O@ tkey.@O@ \
 		tsec.@O@ tsig.@O@ ttl.@O@ update.@O@ validator.@O@ \
 		version.@O@ view.@O@ xfrin.@O@ zone.@O@ zonekey.@O@ zt.@O@
 
-OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS}
+OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS} @RRLLINKOBJS@
 
 # Alphabetically
 OPENSSLGOSTLINKSRCS = opensslgost_link.c
@@ -101,7 +103,9 @@ DNSSRCS =	acache.c acl.c adb.c byaddr.c \
 		tsec.c tsig.c ttl.c update.c validator.c \
 		version.c view.c xfrin.c zone.c zonekey.c zt.c ${OTHERSRCS}
 
-SRCS = ${DSTSRCS} ${DNSSRCS}
+RRLSRCS =	rrl.c
+
+SRCS = ${DSTSRCS} ${DNSSRCS} @RRLLINKSRCS@
 
 SUBDIRS =	include
 TARGETS =	include/dns/enumtype.h include/dns/enumclass.h \

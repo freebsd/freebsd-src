@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -99,6 +99,21 @@ typedef struct dns_totext_ctx {
 	isc_uint32_t 		current_ttl;
 	isc_boolean_t 		current_ttl_valid;
 } dns_totext_ctx_t;
+
+LIBDNS_EXTERNAL_DATA const dns_master_style_t
+dns_master_style_keyzone = {
+	DNS_STYLEFLAG_OMIT_OWNER |
+	DNS_STYLEFLAG_OMIT_CLASS |
+	DNS_STYLEFLAG_REL_OWNER |
+	DNS_STYLEFLAG_REL_DATA |
+	DNS_STYLEFLAG_OMIT_TTL |
+	DNS_STYLEFLAG_TTL |
+	DNS_STYLEFLAG_COMMENT |
+	DNS_STYLEFLAG_RRCOMMENT |
+	DNS_STYLEFLAG_MULTILINE |
+	DNS_STYLEFLAG_KEYDATA,
+	24, 24, 24, 32, 80, 8, UINT_MAX
+};
 
 LIBDNS_EXTERNAL_DATA const dns_master_style_t
 dns_master_style_default = {
@@ -232,7 +247,7 @@ indent(unsigned int *current, unsigned int to, int tabwidth,
 			int n = t;
 			if (n > N_TABS)
 				n = N_TABS;
-			memcpy(p, tabs, n);
+			memmove(p, tabs, n);
 			p += n;
 			t -= n;
 		}
@@ -253,7 +268,7 @@ indent(unsigned int *current, unsigned int to, int tabwidth,
 		int n = t;
 		if (n > N_SPACES)
 			n = N_SPACES;
-		memcpy(p, spaces, n);
+		memmove(p, spaces, n);
 		p += n;
 		t -= n;
 	}
@@ -343,7 +358,7 @@ str_totext(const char *source, isc_buffer_t *target) {
 	if (l > region.length)
 		return (ISC_R_NOSPACE);
 
-	memcpy(region.base, source, l);
+	memmove(region.base, source, l);
 	isc_buffer_add(target, l);
 	return (ISC_R_SUCCESS);
 }
@@ -460,7 +475,7 @@ rdataset_totext(dns_rdataset_t *rdataset,
 			isc_buffer_availableregion(target, &r);
 			if (r.length < length)
 				return (ISC_R_NOSPACE);
-			memcpy(r.base, ttlbuf, length);
+			memmove(r.base, ttlbuf, length);
 			isc_buffer_add(target, length);
 			column += length;
 
@@ -505,9 +520,22 @@ rdataset_totext(dns_rdataset_t *rdataset,
 		type_start = target->used;
 		if ((rdataset->attributes & DNS_RDATASETATTR_NEGATIVE) != 0)
 			RETERR(str_totext("\\-", target));
-		result = dns_rdatatype_totext(type, target);
-		if (result != ISC_R_SUCCESS)
-			return (result);
+		switch (type) {
+		case dns_rdatatype_keydata:
+#define KEYDATA "KEYDATA"
+			if ((ctx->style.flags & DNS_STYLEFLAG_KEYDATA) != 0) {
+				if (isc_buffer_availablelength(target) <
+				    (sizeof(KEYDATA) - 1))
+					return (ISC_R_NOSPACE);
+				isc_buffer_putstr(target, KEYDATA);
+				break;
+			}
+			/* FALLTHROUGH */
+		default:
+			result = dns_rdatatype_totext(type, target);
+			if (result != ISC_R_SUCCESS)
+				return (result);
+		}
 		column += (target->used - type_start);
 
 		/*

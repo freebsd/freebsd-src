@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -523,6 +523,11 @@ openssldsa_tofile(const dst_key_t *key, const char *directory) {
 	if (key->keydata.dsa == NULL)
 		return (DST_R_NULLKEY);
 
+	if (key->external) {
+		priv.nelements = 0;
+		return (dst__privstruct_writefile(key, &priv, directory));
+	}
+
 	dsa = key->keydata.dsa;
 
 	priv.elements[cnt].tag = TAG_DSA_PRIME;
@@ -569,6 +574,7 @@ openssldsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 #define DST_RET(a) {ret = a; goto err;}
 
 	UNUSED(pub);
+
 	/* read private key file */
 	ret = dst__privstruct_parse(key, DST_ALG_DSA, lexer, mctx, &priv);
 	if (ret != ISC_R_SUCCESS)
@@ -606,6 +612,19 @@ openssldsa_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 		}
 	}
 	dst__privstruct_free(&priv, mctx);
+
+	if (key->external) {
+		if (pub == NULL)
+			DST_RET(DST_R_INVALIDPRIVATEKEY);
+		dsa->q = pub->keydata.dsa->q;
+		pub->keydata.dsa->q = NULL;
+		dsa->p = pub->keydata.dsa->p;
+		pub->keydata.dsa->p = NULL;
+		dsa->g = pub->keydata.dsa->g;
+		pub->keydata.dsa->g =  NULL;
+		dsa->pub_key = pub->keydata.dsa->pub_key;
+		pub->keydata.dsa->pub_key = NULL;
+	}
 
 	key->key_size = BN_num_bits(dsa->p);
 

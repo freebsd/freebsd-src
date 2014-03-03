@@ -41,8 +41,9 @@ SRCS+=		inet_pton.c \
 		print.c \
 		quota.c radix.c random.c \
 		ratelimiter.c refcount.c region.c regex.c result.c rwlock.c \
+		safe.c \
 		serial.c sha1.c sha2.c sockaddr.c stats.c string.c strtoul.c \
-		symtab.c task.c taskpool.c timer.c version.c
+		symtab.c task.c taskpool.c tm.c timer.c version.c
 
 .PATH:		${.CURDIR}
 SRCS+=		backtrace-emptytbl.c
@@ -114,6 +115,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/result.h \
 		${SRCDIR}/include/isc/resultclass.h \
 		${SRCDIR}/include/isc/rwlock.h \
+		${SRCDIR}/include/isc/safe.h \
 		${SRCDIR}/include/isc/serial.h \
 		${SRCDIR}/include/isc/sha1.h \
 		${SRCDIR}/include/isc/sha2.h \
@@ -127,6 +129,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/task.h \
 		${SRCDIR}/include/isc/taskpool.h \
 		${SRCDIR}/include/isc/timer.h \
+		${SRCDIR}/include/isc/tm.h \
 		${SRCDIR}/include/isc/types.h \
 		${SRCDIR}/include/isc/util.h \
 		${SRCDIR}/include/isc/version.h \

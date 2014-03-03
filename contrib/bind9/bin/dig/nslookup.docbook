@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -30,11 +30,7 @@
  - 2. Redistributions in binary form must reproduce the above copyright
  -    notice, this list of conditions and the following disclaimer in the
  -    documentation and/or other materials provided with the distribution.
- - 3. All advertising materials mentioning features or use of this software
- -    must display the following acknowledgement:
- -     This product includes software developed by the University of
- -     California, Berkeley and its contributors.
- - 4. Neither the name of the University nor the names of its contributors
+ - 3. Neither the name of the University nor the names of its contributors
  -    may be used to endorse or promote products derived from this software
  -    without specific prior written permission.
  -
@@ -74,6 +70,8 @@
       <year>2006</year>
       <year>2007</year>
       <year>2010</year>
+      <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -405,6 +403,17 @@ nslookup -query=hinfo  -timeout=10
                   </para>
 		  <para>
                     (Default = recurse; abbreviation = [no]rec)
+                  </para>
+                </listitem>
+              </varlistentry>
+
+              <varlistentry>
+                <term><constant>ndots=</constant><replaceable>number</replaceable></term>
+                <listitem>
+                  <para>
+		    Set the number of dots (label separators) in a domain
+		    that will disable searching.  Absolute names always
+		    stop searching.
                   </para>
                 </listitem>
               </varlistentry>

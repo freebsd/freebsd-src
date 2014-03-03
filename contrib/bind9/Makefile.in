@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -54,7 +54,11 @@ installdirs:
 
 install:: isc-config.sh installdirs
 	${INSTALL_SCRIPT} isc-config.sh ${DESTDIR}${bindir}
+	rm -f ${DESTDIR}${bindir}/bind9-config
+	@LN@ ${DESTDIR}${bindir}/isc-config.sh ${DESTDIR}${bindir}/bind9-config
 	${INSTALL_DATA} ${top_srcdir}/isc-config.sh.1 ${DESTDIR}${mandir}/man1
+	rm -f ${DESTDIR}${mandir}/man1/bind9-config.1
+	@LN@ ${DESTDIR}${mandir}/man1/isc-config.sh.1 ${DESTDIR}${mandir}/man1/bind9-config.1
 	${INSTALL_DATA} ${top_srcdir}/bind.keys ${DESTDIR}${sysconfdir}
 
 tags:
@@ -85,6 +89,9 @@ FAQ: FAQ.xml
 	${XSLTPROC} doc/xsl/isc-docbook-text.xsl FAQ.xml | \
 	LC_ALL=C ${W3M} -T text/html -dump -cols 72 >$@.tmp
 	mv $@.tmp $@
+
+unit::
+	sh ${top_srcdir}/unit/unittest.sh
 
 clean::
 	rm -f FAQ.tmp

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005-2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005-2007, 2009, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -560,8 +560,8 @@ isc_sha224_init(isc_sha224_t *context) {
 	if (context == (isc_sha256_t *)0) {
 		return;
 	}
-	memcpy(context->state, sha224_initial_hash_value,
-	       ISC_SHA256_DIGESTLENGTH);
+	memmove(context->state, sha224_initial_hash_value,
+		ISC_SHA256_DIGESTLENGTH);
 	memset(context->buffer, 0, ISC_SHA256_BLOCK_LENGTH);
 	context->bitcount = 0;
 }
@@ -580,7 +580,7 @@ void
 isc_sha224_final(isc_uint8_t digest[], isc_sha224_t *context) {
 	isc_uint8_t sha256_digest[ISC_SHA256_DIGESTLENGTH];
 	isc_sha256_final(sha256_digest, (isc_sha256_t *)context);
-	memcpy(digest, sha256_digest, ISC_SHA224_DIGESTLENGTH);
+	memmove(digest, sha256_digest, ISC_SHA224_DIGESTLENGTH);
 	memset(sha256_digest, 0, ISC_SHA256_DIGESTLENGTH);
 }
 
@@ -590,7 +590,7 @@ isc_sha256_init(isc_sha256_t *context) {
 	if (context == (isc_sha256_t *)0) {
 		return;
 	}
-	memcpy(context->state, sha256_initial_hash_value,
+	memmove(context->state, sha256_initial_hash_value,
 	       ISC_SHA256_DIGESTLENGTH);
 	memset(context->buffer, 0, ISC_SHA256_BLOCK_LENGTH);
 	context->bitcount = 0;
@@ -803,7 +803,7 @@ isc_sha256_update(isc_sha256_t *context, const isc_uint8_t *data, size_t len) {
 
 		if (len >= freespace) {
 			/* Fill the buffer completely and process it */
-			memcpy(&context->buffer[usedspace], data, freespace);
+			memmove(&context->buffer[usedspace], data, freespace);
 			context->bitcount += freespace << 3;
 			len -= freespace;
 			data += freespace;
@@ -811,7 +811,7 @@ isc_sha256_update(isc_sha256_t *context, const isc_uint8_t *data, size_t len) {
 					     (isc_uint32_t*)context->buffer);
 		} else {
 			/* The buffer is not yet full */
-			memcpy(&context->buffer[usedspace], data, len);
+			memmove(&context->buffer[usedspace], data, len);
 			context->bitcount += len << 3;
 			/* Clean up: */
 			usedspace = freespace = 0;
@@ -822,7 +822,7 @@ isc_sha256_update(isc_sha256_t *context, const isc_uint8_t *data, size_t len) {
 	}
 	while (len >= ISC_SHA256_BLOCK_LENGTH) {
 		/* Process as many complete blocks as we can */
-		memcpy(context->buffer, data, ISC_SHA256_BLOCK_LENGTH);
+		memmove(context->buffer, data, ISC_SHA256_BLOCK_LENGTH);
 		isc_sha256_transform(context, (isc_uint32_t*)context->buffer);
 		context->bitcount += ISC_SHA256_BLOCK_LENGTH << 3;
 		len -= ISC_SHA256_BLOCK_LENGTH;
@@ -830,7 +830,7 @@ isc_sha256_update(isc_sha256_t *context, const isc_uint8_t *data, size_t len) {
 	}
 	if (len > 0U) {
 		/* There's left-overs, so save 'em */
-		memcpy(context->buffer, data, len);
+		memmove(context->buffer, data, len);
 		context->bitcount += len << 3;
 	}
 	/* Clean up: */
@@ -900,7 +900,7 @@ isc_sha256_final(isc_uint8_t digest[], isc_sha256_t *context) {
 			}
 		}
 #else
-		memcpy(d, context->state, ISC_SHA256_DIGESTLENGTH);
+		memmove(d, context->state, ISC_SHA256_DIGESTLENGTH);
 #endif
 	}
 
@@ -916,8 +916,8 @@ isc_sha512_init(isc_sha512_t *context) {
 	if (context == (isc_sha512_t *)0) {
 		return;
 	}
-	memcpy(context->state, sha512_initial_hash_value,
-	       ISC_SHA512_DIGESTLENGTH);
+	memmove(context->state, sha512_initial_hash_value,
+		ISC_SHA512_DIGESTLENGTH);
 	memset(context->buffer, 0, ISC_SHA512_BLOCK_LENGTH);
 	context->bitcount[0] = context->bitcount[1] =  0;
 }
@@ -1122,7 +1122,7 @@ void isc_sha512_update(isc_sha512_t *context, const isc_uint8_t *data, size_t le
 
 		if (len >= freespace) {
 			/* Fill the buffer completely and process it */
-			memcpy(&context->buffer[usedspace], data, freespace);
+			memmove(&context->buffer[usedspace], data, freespace);
 			ADDINC128(context->bitcount, freespace << 3);
 			len -= freespace;
 			data += freespace;
@@ -1130,7 +1130,7 @@ void isc_sha512_update(isc_sha512_t *context, const isc_uint8_t *data, size_t le
 					     (isc_uint64_t*)context->buffer);
 		} else {
 			/* The buffer is not yet full */
-			memcpy(&context->buffer[usedspace], data, len);
+			memmove(&context->buffer[usedspace], data, len);
 			ADDINC128(context->bitcount, len << 3);
 			/* Clean up: */
 			usedspace = freespace = 0;
@@ -1141,7 +1141,7 @@ void isc_sha512_update(isc_sha512_t *context, const isc_uint8_t *data, size_t le
 	}
 	while (len >= ISC_SHA512_BLOCK_LENGTH) {
 		/* Process as many complete blocks as we can */
-		memcpy(context->buffer, data, ISC_SHA512_BLOCK_LENGTH);
+		memmove(context->buffer, data, ISC_SHA512_BLOCK_LENGTH);
 		isc_sha512_transform(context, (isc_uint64_t*)context->buffer);
 		ADDINC128(context->bitcount, ISC_SHA512_BLOCK_LENGTH << 3);
 		len -= ISC_SHA512_BLOCK_LENGTH;
@@ -1149,7 +1149,7 @@ void isc_sha512_update(isc_sha512_t *context, const isc_uint8_t *data, size_t le
 	}
 	if (len > 0U) {
 		/* There's left-overs, so save 'em */
-		memcpy(context->buffer, data, len);
+		memmove(context->buffer, data, len);
 		ADDINC128(context->bitcount, len << 3);
 	}
 	/* Clean up: */
@@ -1224,7 +1224,7 @@ void isc_sha512_final(isc_uint8_t digest[], isc_sha512_t *context) {
 			}
 		}
 #else
-		memcpy(d, context->state, ISC_SHA512_DIGESTLENGTH);
+		memmove(d, context->state, ISC_SHA512_DIGESTLENGTH);
 #endif
 	}
 
@@ -1239,8 +1239,8 @@ isc_sha384_init(isc_sha384_t *context) {
 	if (context == (isc_sha384_t *)0) {
 		return;
 	}
-	memcpy(context->state, sha384_initial_hash_value,
-	       ISC_SHA512_DIGESTLENGTH);
+	memmove(context->state, sha384_initial_hash_value,
+		ISC_SHA512_DIGESTLENGTH);
 	memset(context->buffer, 0, ISC_SHA384_BLOCK_LENGTH);
 	context->bitcount[0] = context->bitcount[1] = 0;
 }
@@ -1277,7 +1277,7 @@ isc_sha384_final(isc_uint8_t digest[], isc_sha384_t *context) {
 			}
 		}
 #else
-		memcpy(d, context->state, ISC_SHA384_DIGESTLENGTH);
+		memmove(d, context->state, ISC_SHA384_DIGESTLENGTH);
 #endif
 	}
 

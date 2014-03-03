@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -307,7 +307,7 @@ struct dns_journal {
 	unsigned int		magic;		/*%< JOUR */
 	isc_mem_t		*mctx;		/*%< Memory context */
 	journal_state_t		state;
-	const char 		*filename;	/*%< Journal file name */
+	char 			*filename;	/*%< Journal file name */
 	FILE *			fp;		/*%< File handle */
 	isc_offset_t		offset;		/*%< Current file offset */
 	journal_header_t 	header;		/*%< In-core journal header */
@@ -357,7 +357,7 @@ journal_pos_encode(journal_rawpos_t *raw, journal_pos_t *cooked) {
 static void
 journal_header_decode(journal_rawheader_t *raw, journal_header_t *cooked) {
 	INSIST(sizeof(cooked->format) == sizeof(raw->h.format));
-	memcpy(cooked->format, raw->h.format, sizeof(cooked->format));
+	memmove(cooked->format, raw->h.format, sizeof(cooked->format));
 	journal_pos_decode(&raw->h.begin, &cooked->begin);
 	journal_pos_decode(&raw->h.end, &cooked->end);
 	cooked->index_size = decode_uint32(raw->h.index_size);
@@ -371,7 +371,7 @@ journal_header_encode(journal_header_t *cooked, journal_rawheader_t *raw) {
 
 	INSIST(sizeof(cooked->format) == sizeof(raw->h.format));
 	memset(raw->pad, 0, sizeof(raw->pad));
-	memcpy(raw->h.format, cooked->format, sizeof(raw->h.format));
+	memmove(raw->h.format, cooked->format, sizeof(raw->h.format));
 	journal_pos_encode(&raw->h.begin, &cooked->begin);
 	journal_pos_encode(&raw->h.end, &cooked->end);
 	encode_uint32(cooked->index_size, raw->h.index_size);
@@ -411,7 +411,7 @@ journal_read(dns_journal_t *j, void *mem, size_t nbytes) {
 			      j->filename, isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
-	j->offset += nbytes;
+	j->offset += (isc_offset_t)nbytes;
 	return (ISC_R_SUCCESS);
 }
 
@@ -426,7 +426,7 @@ journal_write(dns_journal_t *j, void *mem, size_t nbytes) {
 			      j->filename, isc_result_totext(result));
 		return (ISC_R_UNEXPECTED);
 	}
-	j->offset += nbytes;
+	j->offset += (isc_offset_t)nbytes;
 	return (ISC_R_SUCCESS);
 }
 
@@ -528,7 +528,7 @@ journal_file_create(isc_mem_t *mctx, const char *filename) {
 		return (ISC_R_NOMEMORY);
 	}
 	memset(mem, 0, size);
-	memcpy(mem, &rawheader, sizeof(rawheader));
+	memmove(mem, &rawheader, sizeof(rawheader));
 
 	result = isc_stdio_write(mem, 1, (size_t) size, fp, NULL);
 	if (result != ISC_R_SUCCESS) {
@@ -572,9 +572,12 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 	isc_mem_attach(mctx, &j->mctx);
 	j->state = JOURNAL_STATE_INVALID;
 	j->fp = NULL;
-	j->filename = filename;
+	j->filename = isc_mem_strdup(mctx, filename);
 	j->index = NULL;
 	j->rawindex = NULL;
+
+	if (j->filename == NULL)
+		FAIL(ISC_R_NOMEMORY);
 
 	result = isc_stdio_open(j->filename, write ? "rb+" : "rb", &fp);
 
@@ -678,6 +681,8 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 			    sizeof(journal_rawpos_t));
 		j->index = NULL;
 	}
+	if (j->filename != NULL)
+		isc_mem_free(j->mctx, j->filename);
 	if (j->fp != NULL)
 		(void)isc_stdio_close(j->fp);
 	isc_mem_putanddetach(&j->mctx, j, sizeof(*j));
@@ -689,7 +694,7 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, unsigned int mode,
 		 dns_journal_t **journalp)
 {
 	isc_result_t result;
-	int namelen;
+	size_t namelen;
 	char backup[1024];
 	isc_boolean_t write, create;
 
@@ -699,11 +704,11 @@ dns_journal_open(isc_mem_t *mctx, const char *filename, unsigned int mode,
 	result = journal_open(mctx, filename, write, create, journalp);
 	if (result == ISC_R_NOTFOUND) {
 		namelen = strlen(filename);
-		if (namelen > 4 && strcmp(filename + namelen - 4, ".jnl") == 0)
+		if (namelen > 4U && strcmp(filename + namelen - 4, ".jnl") == 0)
 			namelen -= 4;
 
 		result = isc_string_printf(backup, sizeof(backup), "%.*s.jbk",
-					   namelen, filename);
+					   (int)namelen, filename);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 		result = journal_open(mctx, backup, write, write, journalp);
@@ -1241,7 +1246,8 @@ dns_journal_destroy(dns_journal_t **journalp) {
 		isc_mem_put(j->mctx, j->it.target.base, j->it.target.length);
 	if (j->it.source.base != NULL)
 		isc_mem_put(j->mctx, j->it.source.base, j->it.source.length);
-
+	if (j->filename != NULL)
+		isc_mem_free(j->mctx, j->filename);
 	if (j->fp != NULL)
 		(void)isc_stdio_close(j->fp);
 	j->magic = 0;
@@ -1257,9 +1263,7 @@ dns_journal_destroy(dns_journal_t **journalp) {
 /* XXX Share code with incoming IXFR? */
 
 static isc_result_t
-roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options,
-	     isc_uint32_t resign)
-{
+roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options) {
 	isc_buffer_t source;		/* Transaction data from disk */
 	isc_buffer_t target;		/* Ditto after _fromwire check */
 	isc_uint32_t db_serial;		/* Database SOA serial */
@@ -1276,7 +1280,6 @@ roll_forward(dns_journal_t *j, dns_db_t *db, unsigned int options,
 	REQUIRE(DNS_DB_VALID(db));
 
 	dns_diff_init(j->mctx, &diff);
-	diff.resign = resign;
 
 	/*
 	 * Set up empty initial buffers for unchecked and checked
@@ -1409,6 +1412,8 @@ dns_journal_rollforward2(isc_mem_t *mctx, dns_db_t *db, unsigned int options,
 	REQUIRE(DNS_DB_VALID(db));
 	REQUIRE(filename != NULL);
 
+	UNUSED(resign);
+
 	j = NULL;
 	result = dns_journal_open(mctx, filename, DNS_JOURNAL_READ, &j);
 	if (result == ISC_R_NOTFOUND) {
@@ -1421,7 +1426,7 @@ dns_journal_rollforward2(isc_mem_t *mctx, dns_db_t *db, unsigned int options,
 	if (JOURNAL_EMPTY(&j->header))
 		result = DNS_R_UPTODATE;
 	else
-		result = roll_forward(j, db, options, resign);
+		result = roll_forward(j, db, options);
 
 	dns_journal_destroy(&j);
 
@@ -2094,7 +2099,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 	dns_journal_t *new = NULL;
 	journal_rawheader_t rawheader;
 	unsigned int copy_length;
-	int namelen;
+	size_t namelen;
 	char *buf = NULL;
 	unsigned int size = 0;
 	isc_result_t result;
@@ -2104,16 +2109,16 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 	isc_boolean_t is_backup = ISC_FALSE;
 
 	namelen = strlen(filename);
-	if (namelen > 4 && strcmp(filename + namelen - 4, ".jnl") == 0)
+	if (namelen > 4U && strcmp(filename + namelen - 4, ".jnl") == 0)
 		namelen -= 4;
 
 	result = isc_string_printf(newname, sizeof(newname), "%.*s.jnw",
-				   namelen, filename);
+				   (int)namelen, filename);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 
 	result = isc_string_printf(backup, sizeof(backup), "%.*s.jbk",
-				   namelen, filename);
+				   (int)namelen, filename);
 	if (result != ISC_R_SUCCESS)
 		return (result);
 

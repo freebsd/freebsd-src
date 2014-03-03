@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -39,10 +39,13 @@
 
 #include <bind9/check.h>
 
+#include <dns/db.h>
 #include <dns/fixedname.h>
 #include <dns/log.h>
 #include <dns/name.h>
+#include <dns/rdataclass.h>
 #include <dns/result.h>
+#include <dns/rootns.h>
 #include <dns/zone.h>
 
 #include "check-tool.h"
@@ -151,6 +154,30 @@ config_get(const cfg_obj_t **maps, const char *name, const cfg_obj_t **obj) {
 	}
 }
 
+static isc_result_t
+configure_hint(const char *zfile, const char *zclass, isc_mem_t *mctx) {
+	isc_result_t result;
+	dns_db_t *db = NULL;
+	dns_rdataclass_t rdclass;
+	isc_textregion_t r;
+
+	if (zfile == NULL)
+		return (ISC_R_FAILURE);
+
+	DE_CONST(zclass, r.base);
+	r.length = strlen(zclass);
+	result = dns_rdataclass_fromtext(&rdclass, &r);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	result = dns_rootns_create(mctx, rdclass, zfile, &db);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	dns_db_detach(&db);
+	return (ISC_R_SUCCESS);
+}
+
 /*% configure the zone */
 static isc_result_t
 configure_zone(const char *vclass, const char *view,
@@ -161,7 +188,7 @@ configure_zone(const char *vclass, const char *view,
 	isc_result_t result;
 	const char *zclass;
 	const char *zname;
-	const char *zfile;
+	const char *zfile = NULL;
 	const cfg_obj_t *maps[4];
 	const cfg_obj_t *zoptions = NULL;
 	const cfg_obj_t *classobj = NULL;
@@ -195,15 +222,28 @@ configure_zone(const char *vclass, const char *view,
 	cfg_map_get(zoptions, "type", &typeobj);
 	if (typeobj == NULL)
 		return (ISC_R_FAILURE);
-	if (strcasecmp(cfg_obj_asstring(typeobj), "master") != 0)
+
+	cfg_map_get(zoptions, "file", &fileobj);
+	if (fileobj != NULL)
+		zfile = cfg_obj_asstring(fileobj);
+
+	/*
+	 * Check hints files for hint zones.
+	 * Skip loading checks for any type other than
+	 * master and redirect
+	 */
+	if (strcasecmp(cfg_obj_asstring(typeobj), "hint") == 0)
+		return (configure_hint(zfile, zclass, mctx));
+	else if ((strcasecmp(cfg_obj_asstring(typeobj), "master") != 0) &&
+		  (strcasecmp(cfg_obj_asstring(typeobj), "redirect") != 0))
 		return (ISC_R_SUCCESS);
+
+	if (zfile == NULL)
+		return (ISC_R_FAILURE);
+
 	cfg_map_get(zoptions, "database", &dbobj);
 	if (dbobj != NULL)
 		return (ISC_R_SUCCESS);
-	cfg_map_get(zoptions, "file", &fileobj);
-	if (fileobj == NULL)
-		return (ISC_R_FAILURE);
-	zfile = cfg_obj_asstring(fileobj);
 
 	obj = NULL;
 	if (get_maps(maps, "check-dup-records", &obj)) {
@@ -341,7 +381,7 @@ configure_zone(const char *vclass, const char *view,
 	if (result != ISC_R_SUCCESS)
 		fprintf(stderr, "%s/%s/%s: %s\n", view, zname, zclass,
 			dns_result_totext(result));
-	return(result);
+	return (result);
 }
 
 /*% configure a view */
@@ -442,10 +482,11 @@ main(int argc, char **argv) {
 	isc_entropy_t *ectx = NULL;
 	isc_boolean_t load_zones = ISC_FALSE;
 	isc_boolean_t print = ISC_FALSE;
+	unsigned int flags = 0;
 
 	isc_commandline_errprint = ISC_FALSE;
 
-	while ((c = isc_commandline_parse(argc, argv, "dhjt:pvz")) != EOF) {
+	while ((c = isc_commandline_parse(argc, argv, "dhjt:pvxz")) != EOF) {
 		switch (c) {
 		case 'd':
 			debug++;
@@ -472,6 +513,10 @@ main(int argc, char **argv) {
 			printf(VERSION "\n");
 			exit(0);
 
+		case 'x':
+			flags |= CFG_PRINTER_XKEY;
+			break;
+
 		case 'z':
 			load_zones = ISC_TRUE;
 			docheckmx = ISC_FALSE;
@@ -492,6 +537,11 @@ main(int argc, char **argv) {
 				program, isc_commandline_option);
 			exit(1);
 		}
+	}
+
+	if (((flags & CFG_PRINTER_XKEY) != 0) && !print) {
+		fprintf(stderr, "%s: -x cannot be used without -p\n", program);
+		exit(1);
 	}
 
 	if (isc_commandline_index + 1 < argc)
@@ -534,7 +584,7 @@ main(int argc, char **argv) {
 	}
 
 	if (print && exit_status == 0)
-		cfg_print(config, output, NULL);
+		cfg_printx(config, flags, output, NULL);
 	cfg_obj_destroy(parser, &config);
 
 	cfg_parser_destroy(&parser);

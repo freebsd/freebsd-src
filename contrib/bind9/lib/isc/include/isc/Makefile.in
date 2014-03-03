@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -29,18 +29,16 @@ top_srcdir =	@top_srcdir@
 HEADERS =	app.h assertions.h base64.h bind9.h bitstring.h boolean.h \
 		buffer.h bufferlist.h commandline.h entropy.h error.h event.h \
 		eventclass.h file.h formatcheck.h fsaccess.h \
-		hash.h heap.h hex.h hmacmd5.h hmacsha.h \
-		httpd.h \
-		interfaceiter.h @ISC_IPV6_H@ iterated_hash.h lang.h lex.h \
-		lfsr.h lib.h list.h log.h \
+		hash.h heap.h hex.h hmacmd5.h hmacsha.h httpd.h \
+		interfaceiter.h @ISC_IPV6_H@ iterated_hash.h \
+		lang.h lex.h lfsr.h lib.h list.h log.h \
 		magic.h md5.h mem.h msgcat.h msgs.h mutexblock.h \
 		namespace.h netaddr.h ondestroy.h os.h parseint.h \
 		print.h quota.h radix.h random.h ratelimiter.h \
 		refcount.h regex.h region.h resource.h \
-		result.h resultclass.h rwlock.h serial.h sha1.h sha2.h \
-		sockaddr.h socket.h stdio.h stdlib.h string.h \
-		symtab.h \
-	        task.h taskpool.h timer.h types.h util.h version.h \
+		result.h resultclass.h rwlock.h safe.h serial.h sha1.h sha2.h \
+		sockaddr.h socket.h stdio.h stdlib.h string.h symtab.h \
+	        task.h taskpool.h timer.h tm.h types.h util.h version.h \
 		xml.h
 
 SUBDIRS =

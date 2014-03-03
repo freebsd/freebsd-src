@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1101,7 +1101,7 @@ main(int argc, char *argv[]) {
 			(long)res->ai_addrlen);
 		exit(1);
 	}
-	memcpy(&sa.type.sa, res->ai_addr, res->ai_addrlen);
+	memmove(&sa.type.sa, res->ai_addr, res->ai_addrlen);
 	sa.length = res->ai_addrlen;
 	freeaddrinfo(res);
 	ISC_LINK_INIT(&sa, link);

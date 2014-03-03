@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -36,6 +36,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2009</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -60,6 +61,7 @@
       <arg><option>-t <replaceable class="parameter">directory</replaceable></option></arg>
       <arg choice="req">filename</arg>
       <arg><option>-p</option></arg>
+      <arg><option>-x</option></arg>
       <arg><option>-z</option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -125,6 +127,21 @@
           <para>
 	    Print out the <filename>named.conf</filename> and included files
 	    in canonical form if no errors were detected.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term>-x</term>
+        <listitem>
+          <para>
+	    When printing the configuration files in canonical
+            form, obscure shared secrets by replacing them with
+            strings of question marks ('?'). This allows the
+            contents of <filename>named.conf</filename> and related
+            files to be shared &mdash; for example, when submitting
+            bug reports &mdash; without compromising private data.
+            This option cannot be used without <option>-p</option>.
           </para>
         </listitem>
       </varlistentry>

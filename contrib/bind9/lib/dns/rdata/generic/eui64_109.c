@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -147,7 +147,7 @@ tostruct_eui64(ARGS_TOSTRUCT) {
 	eui64->common.rdtype = rdata->type;
 	ISC_LINK_INIT(&eui64->common, link);
 
-	memcpy(eui64->eui64, rdata->data, rdata->length);
+	memmove(eui64->eui64, rdata->data, rdata->length);
 	return (ISC_R_SUCCESS);
 }
 

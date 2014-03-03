@@ -1,13 +1,395 @@
-	--- 9.9.3-P2 released ---
+	--- 9.9.5 released ---
+
+	--- 9.9.5rc2 released ---
+
+3710.	[bug]		Address double dns_zone_detach when switching to
+			using automatic empty zones from regular zones.
+			[RT #35177]
+
+3709.	[port]		Use built-in versions of strptime() and timegm()
+			on all platforms to avoid portability issues.
+			[RT #35183]
+
+3708.	[bug]		Address a portentry locking issue in dispatch.c.
+			[RT #35128]
+
+3707.	[bug]		irs_resconf_load now returns ISC_R_FILENOTFOUND
+			on a missing resolv.conf file and initializes the
+			structure as if it had been configured with:
+
+				nameserver ::1
+				nameserver 127.0.0.1
+
+			Note: Callers will need to be updated to treat
+			ISC_R_FILENOTFOUND as a qualified success or else
+			they will leak memory. The following code fragment
+			will work with both old and new versions without
+			changing the behaviour of the existing code.
+
+			resconf = NULL;
+			result = irs_resconf_load(mctx, "/etc/resolv.conf",
+						  &resconf);
+			if (result != ISC_SUCCESS) {
+				if (resconf != NULL)
+					irs_resconf_destroy(&resconf);
+				....
+			}
+
+			[RT #35194]
+
+3706.	[contrib]	queryperf: Fixed a possible integer overflow when
+			printing results. [RT #35182]
+
+3704.	[protocol]	Accept integer timestamps in RRSIG records. [RT #35185]
+
+	--- 9.9.5rc1 released ---
+
+3701.	[func]		named-checkconf can now obscure shared secrets
+			when printing by specifying '-x'. [RT #34465]
+
+3699.	[bug]		Improvements to statistics channel XSL stylesheet:
+			the stylesheet can now be cached by the browser;
+			section headers are omitted from the stats display
+			when there is no data in those sections to be
+			displayed; counters are now right-justified for
+			easier readability. (Only available with
+			configure --enable-newstats.) [RT #35117]
+
+3698.	[cleanup]	Replaced all uses of memcpy() with memmove().
+			[RT #35120]
+
+3697.	[bug]		Handle "." as a search list element when IDN support
+			is enabled. [RT #35133]
+
+3696.	[bug]		dig failed to handle AXFR style IXFR responses which
+			span multiple messages. [RT #35137]
+
+3695.	[bug]		Address a possible race in dispatch.c. [RT #35107]
+
+3694.	[bug]		Warn when a key-directory is configured for a zone,
+			but does not exist or is not a directory. [RT #35108]
+
+3693.	[security]	memcpy was incorrectly called with overlapping
+			ranges resulting in malformed names being generated
+			on some platforms.  This could cause INSIST failures
+			when serving NSEC3 signed zones (CVE-2014-0591).
+			[RT #35120]
+
+3692.	[bug]		Two calls to dns_db_getoriginnode were fatal if there
+			was no data at the node. [RT #35080]
+
+3690.	[bug]		Iterative responses could be missed when the source
+			port for an upstream query was the same as the
+			listener port (53). [RT #34925]
+
+3689.	[bug]		Fixed a bug causing an insecure delegation from one
+			static-stub zone to another to fail with a broken
+			trust chain. [RT #35081]
+
+	--- 9.9.5b1 released ---
+
+3688.	[bug]		loadnode could return a freed node on out of memory.
+			[RT #35106]
+
+3687.	[bug]		Address null pointer dereference in zone_xfrdone.
+			[RT #35042]
+
+3686.	[func]		"dnssec-signzone -Q" drops signatures from keys
+			that are still published but no longer active.
+			[RT #34990]
+
+3685.	[bug]		"rndc refresh" didn't work correctly with slave
+			zones using inline-signing. [RT #35105]
+
+3683.	[cleanup]	Add a more detailed "not found" message to rndc
+			commands which specify a zone name. [RT #35059]
+
+3682.	[bug]		Correct the behavior of rndc retransfer to allow
+			inline-signing slave zones to retain NSEC3 parameters
+			instead of reverting to NSEC. [RT #34745]
+
+3681.	[port]		Update the Windows build system to support feature
+			selection and WIN64 builds.  This is a work in
+			progress. [RT #34160]
+
+3679.	[bug]		dig could fail to clean up TCP sockets still
+			waiting on connect(). [RT #35074]
+
+3678.	[port]		Update config.guess and config.sub. [RT #35060]
+
+3677.	[bug]		'nsupdate' leaked memory if 'realm' was used multiple
+			times.  [RT #35073]
+
+3676.	[bug]		"named-checkconf -z" now checks zones of type
+			hint and redirect as well as master. [RT #35046]
+
+3675.	[misc]		Provide a place for third parties to add version
+			information for their extensions in the version
+			file by setting the EXTENSIONS variable.
+
+3674.	[bug]		RPZ zeroed ttls if the query type was '*'. [RT #35026]
+
+3672.	[func]		Local address can now be specified when using
+			dns_client API. [RT #34811]
+
+3671.	[bug]		Don't allow dnssec-importkey overwrite a existing
+			non-imported private key.
+
+3670.	[bug]		Address read after free in server side of
+			lwres_getrrsetbyname. [RT #29075]
+
+3669.	[port]		freebsd: --with-gssapi needs -lhx509. [RT #35001]
+
+3668.	[bug]		Fix cast in lex.c which could see 0xff treated as eof.
+			[RT #34993]
+
+3667.	[test]		dig: add support to keep the TCP socket open between
+			successive queries (+[no]keepopen).  [RT #34918]
+
+3665.	[bug]		Failure to release lock on error in receive_secure_db.
+			[RT #34944]
+
+3664.	[bug]		Updated OpenSSL PKCS#11 patches to fix active list
+			locking and other bugs. [RT #34855]
+
+3663.	[bug]		Address bugs in dns_rdata_fromstruct and
+			dns_rdata_tostruct for WKS and ISDN types. [RT #34910]
+
+3662.	[bug]		'host' could die if a UDP query timed out. [RT #34870]
+
+3661.	[bug]		Address lock order reversal deadlock with inline zones.
+			[RT #34856]
+
+3660.	[cleanup]	Changed the name of "isc-config.sh" to "bind9-config".
+			[RT #23825]
+
+3659.	[port]		solaris: don't add explict dependancies/rules for
+			python programs as make won't use the implicit rules.
+			[RT #34835]
+
+3658.	[port]		linux: Address platform specific compilation issue
+			when libcap-devel is installed. [RT #34838]
+
+3657.	[port]		Some readline clones don't accept NULL pointers when
+			calling add_history. [RT #34842]
+
+3656.	[security]	Treat an all zero netmask as invalid when generating
+			the localnets acl. (The prior behavior could
+			allow unexpected matches when using some versions
+			of Winsock: CVE-2013-6320.) [RT #34687]
+
+3655.	[cleanup]	Simplify TCP message processing when requesting a
+			zone transfer.  [RT #34825]
+
+3654.	[bug]		Address race condition with manual notify requests.
+			[RT #34806]
+
+3653.	[func]		Create delegations for all "children" of empty zones
+			except "forward first". [RT #34826]
+
+3651.	[tuning]	Adjust when a master server is deemed unreachable.
+			[RT #27075]
+
+3650.	[tuning]	Use separate rate limiting queues for refresh and
+			notify requests. [RT #30589]
+
+3649.	[cleanup]	Include a comment in .nzf files, giving the name of
+			the associated view. [RT #34765]
+
+3648.	[test]		Updated the ATF test framework to version 0.17.
+			[RT #25627]
+
+3647.	[bug]		Address a race condition when shutting down a zone.
+			[RT #34750]
+
+3646.	[bug]		Journal filename string could be set incorrectly,
+			causing garbage in log messages. [RT #34738]
+
+3645.	[protocol]	Use case sensitive compression when responding to
+			queries. [RT #34737]
+
+3644.	[protocol]	Check that EDNS subnet client options are well formed.
+			[RT #34718]
+
+3642.	[func]		Allow externally generated DNSKEY to be imported
+			into the DNSKEY management framework.  A new tool
+			dnssec-importkey is used to do this. [RT #34698]
+
+3641.	[bug]		Handle changes to sig-validity-interval settings
+			better. [RT #34625]
+
+3640.	[bug]		ndots was not being checked when searching.  Only
+			continue searching on NXDOMAIN responses.  Add the
+			ability to specify ndots to nslookup. [RT #34711]
+
+3639.	[bug]		Treat type 65533 (KEYDATA) as opaque except when used
+			in a key zone. [RT #34238]
+
+	--- 9.9.4 released ---
+
+3643.	[doc]		Clarify RRL "slip" documentation.
+
+3638.	[cleanup]	Add the ability to handle ENOPROTOOPT in case it is
+			encountered. [RT #34668]
+
+	--- 9.9.4rc2 released ---
+
+3637.	[bug]		'allow-query-on' was checking the source address
+			rather than the destination address. [RT #34590]
+
+3636.	[bug]		Automatic empty zones now behave better with
+			forward only "zones" beneath them. [RT #34583]
+
+3635.	[bug]		Signatures were not being removed from a zone with
+			only KSK keys for a algorithm. [RT #34439]
+
+3634.	[func]		Report build-id in rndc status. Report build-id
+			when building from a git repository. [RT #20422]
+
+3633.	[cleanup]	Refactor OPT processing in named to make it easier
+			to support new EDNS options. [RT #34414]
+
+3632.	[bug]		Signature from newly inactive keys were not being
+			removed. [RT #32178]
+
+3631.	[bug]		Remove spurious warning about missing signatures when
+			qtype is SIG. [RT #34600]
+
+3630.	[bug]		Ensure correct ID computation for MD5 keys. [RT #33033]
+
+3627.	[bug]		RPZ changes were not effective on slaves. [RT #34450]
+
+3625.	[bug]		Don't send notify messages to machines outside of the
+			test setup.
+
+3623.	[bug]		zone-statistics was only effective in new statistics.
+			[RT #34466]
+
+	--- 9.9.4rc1 released ---
 
 3621.	[security]	Incorrect bounds checking on private type 'keydata'
 			can lead to a remotely triggerable REQUIRE failure
 			(CVE-2013-4854). [RT #34238]
 
-	--- 9.9.3-P1 released ---
+3617.	[bug]		Named was failing to answer queries during
+			"rndc reload" [RT #34098]
+
+3616.	[bug]		Change #3613 was incomplete. [RT #34177]
+
+3615.	[cleanup]	"configure" now finishes by printing a summary
+			of optional BIND features and whether they are
+			active or inactive. ("configure --enable-full-report"
+			increases the verbosity of the summary.) [RT #31777]
+
+3614.	[port]		Check for <linux/types.h>. [RT #34162]
+
+3613.	[bug]		named could crash when deleting inline-signing
+			zones with "rndc delzone". [RT #34066]
+
+3611.	[bug]		Improved resistance to a theoretical authentication
+			attack based on differential timing.  [RT #33939]
+
+3610.	[cleanup]	win32: Some executables had been omitted from the
+			installer. [RT #34116]
+
+3608.	[port]		win32: added todos.pl script to ensure all text files
+			the win32 build depends on are converted to DOS
+			newline format. [RT #22067]
+
+3607.	[bug]		dnssec-keygen had broken 'Invalid keyfile' error
+			message. [RT #34045]
+
+	--- 9.9.4b1 released ---
+
+3605.	[port]		win32: Addressed several compatibility issues
+			with newer versions of Visual Studio. [RT #33916]
+
+3603.	[bug]		Install <isc/stat.h>. [RT #33956]
+
+3601.	[bug]		Added to PKCS#11 openssl patches a value len
+			attribute in DH derive key. [RT #33928]
+
+3600.	[cleanup]	dig: Fixed a typo in the warning output when receiving
+			an oversized response. [RT #33910]
+
+3599.	[tuning]	Check for pointer equivalence in name comparisons.
+			[RT #18125]
+
+3596.	[port]		Updated win32 build documentation, added
+			dnssec-verify. [RT #22067]
+
+3594.	[maint]		Update config.guess and config.sub. [RT #33816]
+
+3592.	[doc]		Moved documentation of rndc command options to the
+			rndc man page. [RT #33506]
+
+3590.	[bug]		When using RRL on recursive servers, defer
+			rate-limiting until after recursion is complete;
+			also, use correct rcode for slipped NXDOMAIN
+			responses.  [RT #33604]
+
+3588.	[bug]		dig: addressed a memory leak in the sigchase code
+			that could cause a shutdown crash.  [RT #33733]
+
+3587.	[func]		'named -g' now checks the logging configuration but
+			does not use it. [RT #33473]
+
+3586.	[bug]		Handle errors in xmlDocDumpFormatMemoryEnc. [RT #33706]
 
 3584.	[security]	Caching data from an incompletely signed zone could
-			trigger an assertion failure in resolver.c [RT #33690]
+			trigger an assertion failure in resolver.c
+			(CVE-2013-3919). [RT #33690]
+
+3583.	[bug]		Address memory leak in GSS-API processing [RT #33574]
+
+3582.	[bug]		Silence false positive warning regarding missing file
+			directive for inline slave zones.  [RT #33662]
+
+3581.	[bug]		Changed the tcp-listen-queue default to 10. [RT #33029]
+
+3580.	[bug]		Addressed a possible race in acache.c [RT #33602]
+
+3579.	[maint]		Updates to PKCS#11 openssl patches, supporting
+			versions 0.9.8y, 1.0.0k, 1.0.1e [RT #33463]
+
+3578.	[bug]		'rndc -c file' now fails if 'file' does not exist.
+			[RT #33571]
+
+3577.	[bug]		Handle zero TTL values better. [RT #33411]
+
+3576.	[bug]		Address a shutdown race when validating. [RT #33573]
+
+3575.	[func]		Changed the logging category for RRL events from
+			'queries' to 'query-errors'. [RT #33540]
+
+3574.	[doc]		The 'hostname' keyword was missing from server-id
+			description in the named.conf man page. [RT #33476]
+
+3573.	[bug]		"rndc addzone" and "rndc delzone" incorrectly handled
+			zone names containing punctuation marks and other
+			nonstandard characters. [RT #33419]
+
+3571.	[bug]		Address race condition in dns_client_startresolve().
+			[RT #33234]
+
+3566.	[func]		Log when forwarding updates to master. [RT #33240]
+
+3554.	[bug]		RRL failed to correctly rate-limit upward
+			referrals and failed to count dropped error
+			responses in the statistics. [RT #33225]
+
+3545.	[bug]		RRL slip behavior was incorrect when set to 1.
+			[RT #33111]
+
+3518.	[bug]		Increase the size of dns_rrl_key.s.rtype by one bit
+			so that all dns_rrl_rtype_t enum values fit regardless
+			of whether it is teated as signed or unsigned by
+			the compiler. [RT #32792]
+
+3494.	[func]		DNS RRL: Blunt the impact of DNS reflection and
+			amplification attacks by rate-limiting substantially-
+			identical responses. To enable, use "configure
+			--enable-rrl". [RT #28130]
 
 	--- 9.9.3 released ---
 

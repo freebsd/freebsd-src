@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -45,13 +45,13 @@ NOSYMLIBS =	${DNSLIBS} ${ISCNOSYMLIBS} @LIBS@
 TARGETS =	dnssec-keygen@EXEEXT@ dnssec-signzone@EXEEXT@ \
 		dnssec-keyfromlabel@EXEEXT@ dnssec-dsfromkey@EXEEXT@ \
 		dnssec-revoke@EXEEXT@ dnssec-settime@EXEEXT@ \
-		dnssec-verify@EXEEXT@
+		dnssec-verify@EXEEXT@ dnssec-importkey@EXEEXT@
 
 OBJS =		dnssectool.@O@
 
 SRCS =		dnssec-dsfromkey.c dnssec-keyfromlabel.c dnssec-keygen.c \
 		dnssec-revoke.c dnssec-settime.c dnssec-signzone.c \
-		dnssec-verify.c dnssectool.c
+		dnssec-verify.c dnssec-importkey.c dnssectool.c 
 
 MANPAGES =	dnssec-dsfromkey.8 dnssec-keyfromlabel.8 dnssec-keygen.8 \
 		dnssec-revoke.8 dnssec-settime.8 dnssec-signzone.8 \
@@ -101,6 +101,10 @@ dnssec-revoke@EXEEXT@: dnssec-revoke.@O@ ${OBJS} ${DEPLIBS}
 dnssec-settime@EXEEXT@: dnssec-settime.@O@ ${OBJS} ${DEPLIBS}
 	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
 	dnssec-settime.@O@ ${OBJS} ${LIBS}
+
+dnssec-importkey@EXEEXT@: dnssec-importkey.@O@ ${OBJS} ${DEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ \
+	dnssec-importkey.@O@ ${OBJS} ${LIBS}
 
 doc man:: ${MANOBJS}
 

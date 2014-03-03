@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -265,9 +265,10 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 			progname, isc_result_totext(result));
 
 	result = isccc_cc_lookupstring(data, "text", &textmsg);
-	if (result == ISC_R_SUCCESS)
-		printf("%s\n", textmsg);
-	else if (result != ISC_R_NOTFOUND)
+	if (result == ISC_R_SUCCESS) {
+		if (strlen(textmsg) != 0U)
+			printf("%s\n", textmsg);
+	} else if (result != ISC_R_NOTFOUND)
 		fprintf(stderr, "%s: parsing response failed: %s\n",
 			progname, isc_result_totext(result));
 
@@ -490,6 +491,9 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	if (! isc_file_exists(conffile)) {
 		conffile = admin_keyfile;
 		conftype = &cfg_type_rndckey;
+
+		if (c_flag)
+			fatal("%s does not exist", admin_conffile);
 
 		if (! isc_file_exists(conffile))
 			fatal("neither %s nor %s was found",
@@ -721,7 +725,7 @@ main(int argc, char **argv) {
 
 	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)
-		memcpy(program, "rndc", 5);
+		memmove(program, "rndc", 5);
 	progname = program;
 
 	admin_conffile = RNDC_CONFFILE;
@@ -853,7 +857,7 @@ main(int argc, char **argv) {
 	p = args;
 	for (i = 0; i < argc; i++) {
 		size_t len = strlen(argv[i]);
-		memcpy(p, argv[i], len);
+		memmove(p, argv[i], len);
 		p += len;
 		*p++ = ' ';
 	}

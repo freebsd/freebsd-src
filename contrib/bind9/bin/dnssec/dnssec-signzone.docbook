@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -44,6 +44,7 @@
       <year>2008</year>
       <year>2009</year>
       <year>2011</year>
+      <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -489,10 +490,10 @@
       </varlistentry>
 
       <varlistentry>
-        <term>-R</term>
+        <term>-Q</term>
         <listitem>
           <para>
-	    Remove signatures from keys that no longer exist.
+	    Remove signatures from keys that are no longer active.
           </para>
           <para>
             Normally, when a previously-signed zone is passed as input
@@ -500,9 +501,26 @@
             replaced with a new one, signatures from the old key 
             that are still within their validity period are retained.
 	    This allows the zone to continue to validate with cached
-	    copies of the old DNSKEY RRset.  The <option>-R</option> forces
-            <command>dnssec-signzone</command> to remove all orphaned
-            signatures.
+	    copies of the old DNSKEY RRset.  The <option>-Q</option>
+            forces <command>dnssec-signzone</command> to remove
+            signatures from keys that are no longer active. This
+            enables ZSK rollover using the procedure described in
+            RFC 4641, section 4.2.1.1 ("Pre-Publish Key Rollover").
+          </para>
+        </listitem>
+      </varlistentry>
+      <varlistentry>
+        <term>-R</term>
+        <listitem>
+          <para>
+	    Remove signatures from keys that are no longer published.
+          </para>
+          <para>
+            This option is similar to <option>-Q</option>, except it
+            forces <command>dnssec-signzone</command> to signatures from
+            keys that are no longer published. This enables ZSK rollover
+            using the procedure described in RFC 4641, section 4.2.1.2
+            ("Double Signature Zone Signing Key Rollover").
           </para>
         </listitem>
       </varlistentry>
@@ -680,7 +698,7 @@
         <term>-H <replaceable class="parameter">iterations</replaceable></term>
         <listitem>
           <para>
-	    When generating an NSEC3 chain, use this many interations.  The
+	    When generating an NSEC3 chain, use this many iterations.  The
 	    default is 10.
           </para>
         </listitem>
@@ -765,7 +783,7 @@ db.example.com.signed
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>BIND 9 Administrator Reference Manual</citetitle>,
-      <citetitle>RFC 4033</citetitle>.
+      <citetitle>RFC 4033</citetitle>, <citetitle>RFC 4641</citetitle>.
     </para>
   </refsect1>
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -183,13 +183,21 @@ cfg_print(const cfg_obj_t *obj,
 	  void (*f)(void *closure, const char *text, int textlen),
 	  void *closure)
 {
+	cfg_printx(obj, 0, f, closure);
+}
+
+void
+cfg_printx(const cfg_obj_t *obj, unsigned int flags,
+	     void (*f)(void *closure, const char *text, int textlen),
+	     void *closure)
+{
 	cfg_printer_t pctx;
 	pctx.f = f;
 	pctx.closure = closure;
 	pctx.indent = 0;
+	pctx.flags = flags;
 	obj->type->print(&pctx, obj);
 }
-
 
 /* Tuples. */
 
@@ -702,7 +710,7 @@ create_string(cfg_parser_t *pctx, const char *contents, const cfg_type_t *type,
 		isc_mem_put(pctx->mctx, obj, sizeof(*obj));
 		return (ISC_R_NOMEMORY);
 	}
-	memcpy(obj->value.string.base, contents, len);
+	memmove(obj->value.string.base, contents, len);
 	obj->value.string.base[len] = '\0';
 
 	*ret = obj;
@@ -757,6 +765,22 @@ cfg_parse_astring(cfg_parser_t *pctx, const cfg_type_t *type,
 	return (create_string(pctx,
 			      TOKEN_STRING(pctx),
 			      &cfg_type_qstring,
+			      ret));
+ cleanup:
+	return (result);
+}
+
+isc_result_t
+cfg_parse_sstring(cfg_parser_t *pctx, const cfg_type_t *type,
+		  cfg_obj_t **ret)
+{
+	isc_result_t result;
+	UNUSED(type);
+
+	CHECK(cfg_getstringtoken(pctx));
+	return (create_string(pctx,
+			      TOKEN_STRING(pctx),
+			      &cfg_type_sstring,
 			      ret));
  cleanup:
 	return (result);
@@ -819,6 +843,18 @@ print_qstring(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 }
 
 static void
+print_sstring(cfg_printer_t *pctx, const cfg_obj_t *obj) {
+	cfg_print_chars(pctx, "\"", 1);
+	if ((pctx->flags & CFG_PRINTER_XKEY) != 0) {
+		unsigned int len = obj->value.string.length;
+		while (len-- > 0)
+			cfg_print_chars(pctx, "?", 1);
+	} else
+		cfg_print_ustring(pctx, obj);
+	cfg_print_chars(pctx, "\"", 1);
+}
+
+static void
 free_string(cfg_parser_t *pctx, cfg_obj_t *obj) {
 	isc_mem_put(pctx->mctx, obj->value.string.base,
 		    obj->value.string.length + 1);
@@ -851,6 +887,15 @@ cfg_type_t cfg_type_ustring = {
 /* Any string (quoted or unquoted); printed with quotes */
 cfg_type_t cfg_type_astring = {
 	"string", cfg_parse_astring, print_qstring, cfg_doc_terminal,
+	&cfg_rep_string, NULL
+};
+
+/*
+ * Any string (quoted or unquoted); printed with quotes.
+ * If CFG_PRINTER_XKEY is set when printing the string will be '?' out.
+ */
+cfg_type_t cfg_type_sstring = {
+	"string", cfg_parse_sstring, print_sstring, cfg_doc_terminal,
 	&cfg_rep_string, NULL
 };
 
@@ -1631,7 +1676,7 @@ parse_token(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 		goto cleanup;
 	}
 	obj->value.string.length = r.length;
-	memcpy(obj->value.string.base, r.base, r.length);
+	memmove(obj->value.string.base, r.base, r.length);
 	obj->value.string.base[r.length] = '\0';
 	*ret = obj;
 	return (result);
@@ -2480,5 +2525,6 @@ cfg_print_grammar(const cfg_type_t *type,
 	pctx.f = f;
 	pctx.closure = closure;
 	pctx.indent = 0;
+	pctx.flags = 0;
 	cfg_doc_obj(&pctx, type);
 }

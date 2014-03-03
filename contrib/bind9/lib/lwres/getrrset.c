@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -228,8 +228,8 @@ lwres_getrrsetbyname(const char *hostname, unsigned int rdclass,
 			result = ERRSET_NOMEMORY;
 			goto fail;
 		}
-		memcpy(rrset->rri_rdatas[i].rdi_data, response->rdatas[i],
-		       rrset->rri_rdatas[i].rdi_length);
+		memmove(rrset->rri_rdatas[i].rdi_data, response->rdatas[i],
+			rrset->rri_rdatas[i].rdi_length);
 	}
 	rrset->rri_nsigs = response->nsigs;
 	rrset->rri_sigs = sane_calloc(rrset->rri_nsigs,
@@ -246,8 +246,8 @@ lwres_getrrsetbyname(const char *hostname, unsigned int rdclass,
 			result = ERRSET_NOMEMORY;
 			goto fail;
 		}
-		memcpy(rrset->rri_sigs[i].rdi_data, response->sigs[i],
-		       rrset->rri_sigs[i].rdi_length);
+		memmove(rrset->rri_sigs[i].rdi_data, response->sigs[i],
+			rrset->rri_sigs[i].rdi_length);
 	}
 
 	lwres_grbnresponse_free(lwrctx, &response);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -46,7 +46,12 @@ isc_result_t
 irs_resconf_load(isc_mem_t *mctx, const char *filename, irs_resconf_t **confp);
 /*%<
  * Load the resolver configuration file 'filename' in the "resolv.conf" format,
- * and create a new irs_resconf_t object from the configuration.
+ * and create a new irs_resconf_t object from the configuration.  If the file
+ * is not found ISC_R_FILENOTFOUND is returned with the structure initialized
+ * as if file contained only:
+ *
+ *	nameserver ::1
+ *	nameserver 127.0.0.1
  *
  * Notes:
  *
@@ -54,6 +59,11 @@ irs_resconf_load(isc_mem_t *mctx, const char *filename, irs_resconf_t **confp);
  *	nameserver, domain, search, sortlist, ndots, and options.
  *	In addition, 'sortlist' is not actually effective; it's parsed, but
  *	the application cannot use the configuration.
+ *
+ * Returns:
+ * \li	ISC_R_SUCCESS on success
+ * \li  ISC_R_FILENOTFOUND if the file was not found. *confp will be valid.
+ * \li  other on error.
  *
  * Requires:
  *

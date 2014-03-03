@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -409,7 +409,7 @@ getaddrinfo(const char *hostname, const char *servname,
 				 * Convert to a V4 mapped address.
 				 */
 				struct in6_addr *a6 = (struct in6_addr *)abuf;
-				memcpy(&a6->s6_addr[12], &a6->s6_addr[0], 4);
+				memmove(&a6->s6_addr[12], &a6->s6_addr[0], 4);
 				memset(&a6->s6_addr[10], 0xff, 2);
 				memset(&a6->s6_addr[0], 0, 10);
 				goto inet6_addr;
@@ -446,7 +446,7 @@ getaddrinfo(const char *hostname, const char *servname,
 			ai_list = ai;
 			ai->ai_socktype = socktype;
 			SIN(ai->ai_addr)->sin_port = port;
-			memcpy((char *)ai->ai_addr + addroff, abuf, addrsize);
+			memmove((char *)ai->ai_addr + addroff, abuf, addrsize);
 			if ((flags & AI_CANONNAME) != 0) {
 #ifdef IRS_HAVE_SIN6_SCOPE_ID
 				if (ai->ai_family == AF_INET6)
@@ -789,8 +789,8 @@ process_answer(isc_task_t *task, isc_event_t *event) {
 					RUNTIME_CHECK(result == ISC_R_SUCCESS);
 					SIN(ai->ai_addr)->sin_port =
 						resstate->head->ai_port;
-					memcpy(&SIN(ai->ai_addr)->sin_addr,
-					       &rdata_a.in_addr, 4);
+					memmove(&SIN(ai->ai_addr)->sin_addr,
+						&rdata_a.in_addr, 4);
 					dns_rdata_freestruct(&rdata_a);
 					break;
 				case AF_INET6:
@@ -800,8 +800,8 @@ process_answer(isc_task_t *task, isc_event_t *event) {
 					RUNTIME_CHECK(result == ISC_R_SUCCESS);
 					SIN6(ai->ai_addr)->sin6_port =
 						resstate->head->ai_port;
-					memcpy(&SIN6(ai->ai_addr)->sin6_addr,
-					       &rdata_aaaa.in6_addr, 16);
+					memmove(&SIN6(ai->ai_addr)->sin6_addr,
+						&rdata_aaaa.in6_addr, 16);
 					dns_rdata_freestruct(&rdata_aaaa);
 					break;
 				}
@@ -1130,7 +1130,7 @@ add_ipv4(const char *hostname, int flags, struct addrinfo **aip,
 	*aip = ai;
 	ai->ai_socktype = socktype;
 	SIN(ai->ai_addr)->sin_port = port;
-	memcpy(&SIN(ai->ai_addr)->sin_addr, v4_loop, 4);
+	memmove(&SIN(ai->ai_addr)->sin_addr, v4_loop, 4);
 
 	return (0);
 }
@@ -1153,7 +1153,7 @@ add_ipv6(const char *hostname, int flags, struct addrinfo **aip,
 	*aip = ai;
 	ai->ai_socktype = socktype;
 	SIN6(ai->ai_addr)->sin6_port = port;
-	memcpy(&SIN6(ai->ai_addr)->sin6_addr, v6_loop, 16);
+	memmove(&SIN6(ai->ai_addr)->sin6_addr, v6_loop, 16);
 
 	return (0);
 }

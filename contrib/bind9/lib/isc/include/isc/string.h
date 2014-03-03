@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -224,6 +224,13 @@ isc_string_strlcat(char *dst, const char *src, size_t size);
 
 #ifdef ISC_PLATFORM_NEEDSTRLCAT
 #define strlcat isc_string_strlcat
+#endif
+
+char *
+isc_string_strcasestr(const char *big, const char *little);
+
+#ifdef ISC_PLATFORM_NEEDSTRCASESTR
+#define strcasestr isc_string_strcasestr
 #endif
 
 ISC_LANG_ENDDECLS

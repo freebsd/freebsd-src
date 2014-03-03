@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -209,7 +209,7 @@ transform(isc_uint32_t state[5], const unsigned char buffer[64]) {
 	INSIST(state != NULL);
 
 	block = &workspace;
-	(void)memcpy(block, buffer, 64);
+	(void)memmove(block, buffer, 64);
 
 	/* Copy context->state[] to working vars */
 	a = state[0];
@@ -301,7 +301,7 @@ isc_sha1_update(isc_sha1_t *context, const unsigned char *data,
 		context->count[1] += (len >> 29) + 1;
 	j = (j >> 3) & 63;
 	if ((j + len) > 63) {
-		(void)memcpy(&context->buffer[j], data, (i = 64 - j));
+		(void)memmove(&context->buffer[j], data, (i = 64 - j));
 		transform(context->state, context->buffer);
 		for (; i + 63 < len; i += 64)
 			transform(context->state, &data[i]);
@@ -310,7 +310,7 @@ isc_sha1_update(isc_sha1_t *context, const unsigned char *data,
 		i = 0;
 	}
 
-	(void)memcpy(&context->buffer[j], &data[i], len - i);
+	(void)memmove(&context->buffer[j], &data[i], len - i);
 }
 
 

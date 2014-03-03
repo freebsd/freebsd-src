@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -120,6 +120,9 @@ static isc_boolean_t non_root_caps = ISC_FALSE;
 #ifdef HAVE_SYS_CAPABILITY_H
 #include <sys/capability.h>
 #else
+#ifdef HAVE_LINUX_TYPES_H
+#include <linux/types.h>
+#endif
 /*%
  * We define _LINUX_FS_H to prevent it from being included.  We don't need
  * anything from it, and the files it includes cause warnings with 2.2

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -462,7 +462,7 @@ configure_staticstub_serveraddrs(const cfg_obj_t *zconfig, dns_zone_t *zone,
 		if (rdata == NULL)
 			return (ISC_R_NOMEMORY);
 		region.base = (unsigned char *)(rdata + 1);
-		memcpy(region.base, &na.type, region.length);
+		memmove(region.base, &na.type, region.length);
 		dns_rdata_init(rdata);
 		dns_rdata_fromregion(rdata, dns_zone_getclass(zone),
 				     rdatalist->type, &region);
@@ -490,7 +490,7 @@ configure_staticstub_serveraddrs(const cfg_obj_t *zconfig, dns_zone_t *zone,
 	}
 	region.length = sregion.length;
 	region.base = (unsigned char *)(rdata + 1);
-	memcpy(region.base, sregion.base, region.length);
+	memmove(region.base, sregion.base, region.length);
 	dns_rdata_init(rdata);
 	dns_rdata_fromregion(rdata, dns_zone_getclass(zone),
 			     dns_rdatatype_ns, &region);
@@ -554,7 +554,7 @@ configure_staticstub_servernames(const cfg_obj_t *zconfig, dns_zone_t *zone,
 			return (ISC_R_NOMEMORY);
 		region.length = sregion.length;
 		region.base = (unsigned char *)(rdata + 1);
-		memcpy(region.base, sregion.base, region.length);
+		memmove(region.base, sregion.base, region.length);
 		dns_rdata_init(rdata);
 		dns_rdata_fromregion(rdata, dns_zone_getclass(zone),
 				     dns_rdatatype_ns, &region);

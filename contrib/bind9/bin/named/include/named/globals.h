@@ -71,6 +71,7 @@ EXTERN const char *		ns_g_product		INIT(PRODUCT);
 EXTERN const char *		ns_g_description	INIT(DESCRIPTION);
 EXTERN const char *		ns_g_srcid		INIT(SRCID);
 EXTERN const char *		ns_g_configargs		INIT(CONFIGARGS);
+EXTERN const char *		ns_g_builder		INIT(BUILDER);
 EXTERN in_port_t		ns_g_port		INIT(0);
 EXTERN in_port_t		lwresd_g_listenport	INIT(0);
 

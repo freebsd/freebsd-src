@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2010-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -253,7 +253,7 @@ opensslgost_todns(const dst_key_t *key, isc_buffer_t *data) {
 	len = i2d_PUBKEY(pkey, &p);
 	INSIST(len == sizeof(der));
 	INSIST(memcmp(gost_prefix, der, 37) == 0);
-	memcpy(r.base, der + 37, 64);
+	memmove(r.base, der + 37, 64);
 	isc_buffer_add(data, 64);
 
 	return (ISC_R_SUCCESS);
@@ -272,8 +272,8 @@ opensslgost_fromdns(dst_key_t *key, isc_buffer_t *data) {
 
 	if (r.length != 64)
 		return (DST_R_INVALIDPUBLICKEY);
-	memcpy(der, gost_prefix, 37);
-	memcpy(der + 37, r.base, 64);
+	memmove(der, gost_prefix, 37);
+	memmove(der + 37, r.base, 64);
 	isc_buffer_forward(data, 64);
 
 	p = der;
@@ -295,6 +295,11 @@ opensslgost_tofile(const dst_key_t *key, const char *directory) {
 
 	if (key->keydata.pkey == NULL)
 		return (DST_R_NULLKEY);
+
+	if (key->external) {
+		priv.nelements = 0;
+		return (dst__privstruct_writefile(key, &priv, directory));
+	}
 
 	pkey = key->keydata.pkey;
 
@@ -337,13 +342,21 @@ opensslgost_parse(dst_key_t *key, isc_lex_t *lexer, dst_key_t *pub) {
 	if (ret != ISC_R_SUCCESS)
 		return (ret);
 
-	INSIST(priv.elements[0].tag == TAG_GOST_PRIVASN1);
-	p = priv.elements[0].data;
-	if (d2i_PrivateKey(NID_id_GostR3410_2001, &pkey, &p,
-			   (long) priv.elements[0].length) == NULL)
-		DST_RET(dst__openssl_toresult2("d2i_PrivateKey",
-					       DST_R_INVALIDPRIVATEKEY));
-	key->keydata.pkey = pkey;
+	if (key->external) {
+		INSIST(priv.nelements == 0);
+		if (pub == NULL)
+			DST_RET(DST_R_INVALIDPRIVATEKEY);
+		key->keydata.pkey = pub->keydata.pkey;
+		pub->keydata.pkey = NULL;
+	} else {
+		INSIST(priv.elements[0].tag == TAG_GOST_PRIVASN1);
+		p = priv.elements[0].data;
+		if (d2i_PrivateKey(NID_id_GostR3410_2001, &pkey, &p,
+				   (long) priv.elements[0].length) == NULL)
+			DST_RET(dst__openssl_toresult2("d2i_PrivateKey",
+						     DST_R_INVALIDPRIVATEKEY));
+		key->keydata.pkey = pkey;
+	}
 	key->key_size = EVP_PKEY_bits(pkey);
 	dst__privstruct_free(&priv, mctx);
 	memset(&priv, 0, sizeof(priv));

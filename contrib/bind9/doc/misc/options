@@ -199,7 +199,6 @@ options {
         recursion <boolean>;
         recursive-clients <integer>;
         request-ixfr <boolean>;
-        request-ixfr <boolean>;
         request-nsid <boolean>;
         reserved-sockets <integer>;
         resolver-query-timeout <integer>;
@@ -411,7 +410,6 @@ view <string> <optional_class> {
         queryport-pool-ports <integer>; // obsolete
         queryport-pool-updateinterval <integer>; // obsolete
         recursion <boolean>;
-        request-ixfr <boolean>;
         request-ixfr <boolean>;
         request-nsid <boolean>;
         resolver-query-timeout <integer>;

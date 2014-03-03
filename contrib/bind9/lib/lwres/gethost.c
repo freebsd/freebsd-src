@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -24,7 +24,7 @@
  *    lookups by means of the lightweight resolver. They are similar to the
  *    standard gethostent(3) functions provided by most operating systems.
  *    They use a struct hostent which is usually defined in <namedb.h>.
- * 
+ *
  * \code
  * struct  hostent {
  *         char    *h_name;        // official name of host
@@ -35,36 +35,36 @@
  * };
  * #define h_addr  h_addr_list[0]  // address, for backward compatibility
  * \endcode
- * 
+ *
  *    The members of this structure are:
- * 
+ *
  * \li   h_name:
  *           The official (canonical) name of the host.
- * 
+ *
  * \li   h_aliases:
  *           A NULL-terminated array of alternate names (nicknames) for the
  *           host.
- * 
+ *
  * \li   h_addrtype:
  *           The type of address being returned -- PF_INET or PF_INET6.
- * 
+ *
  * \li   h_length:
  *           The length of the address in bytes.
- * 
+ *
  * \li   h_addr_list:
  *           A NULL terminated array of network addresses for the host. Host
  *           addresses are returned in network byte order.
- * 
+ *
  *    For backward compatibility with very old software, h_addr is the first
  *    address in h_addr_list.
- * 
+ *
  *    lwres_gethostent(), lwres_sethostent(), lwres_endhostent(),
  *    lwres_gethostent_r(), lwres_sethostent_r() and lwres_endhostent_r()
  *    provide iteration over the known host entries on systems that provide
  *    such functionality through facilities like /etc/hosts or NIS. The
  *    lightweight resolver does not currently implement these functions; it
  *    only provides them as stub functions that always return failure.
- * 
+ *
  *    lwres_gethostbyname() and lwres_gethostbyname2() look up the hostname
  *    name. lwres_gethostbyname() always looks for an IPv4 address while
  *    lwres_gethostbyname2() looks for an address of protocol family af:
@@ -72,7 +72,7 @@
  *    Successful calls of the functions return a struct hostent for the name
  *    that was looked up. NULL is returned if the lookups by
  *    lwres_gethostbyname() or lwres_gethostbyname2() fail.
- * 
+ *
  *    Reverse lookups of addresses are performed by lwres_gethostbyaddr().
  *    addr is an address of length len bytes and protocol family type --
  *    PF_INET or PF_INET6. lwres_gethostbyname_r() is a thread-safe function
@@ -83,7 +83,7 @@
  *    h_addr_list elements of the struct hostent returned in resbuf.
  *    Successful calls to lwres_gethostbyname_r() return resbuf, which is a
  *    pointer to the struct hostent it created.
- * 
+ *
  *    lwres_gethostbyaddr_r() is a thread-safe function that performs a
  *    reverse lookup of address addr which is len bytes long and is of
  *    protocol family type -- PF_INET or PF_INET6. If an error occurs, the
@@ -95,35 +95,35 @@
  *    struct hostent returned in resbuf. Successful calls to
  *    lwres_gethostbyaddr_r() return resbuf, which is a pointer to the
  *    struct hostent it created.
- * 
+ *
  * \section gethost_return Return Values
- * 
+ *
  *    The functions lwres_gethostbyname(), lwres_gethostbyname2(),
  *    lwres_gethostbyaddr(), and lwres_gethostent() return NULL to indicate
  *    an error. In this case the global variable lwres_h_errno will contain
  *    one of the following error codes defined in \link netdb.h <lwres/netdb.h>:\endlink
- * 
+ *
  * \li #HOST_NOT_FOUND:
  *           The host or address was not found.
- * 
+ *
  * \li #TRY_AGAIN:
  *           A recoverable error occurred, e.g., a timeout. Retrying the
  *           lookup may succeed.
- * 
+ *
  * \li #NO_RECOVERY:
  *           A non-recoverable error occurred.
- * 
+ *
  * \li #NO_DATA:
  *           The name exists, but has no address information associated with
  *           it (or vice versa in the case of a reverse lookup). The code
  *           NO_ADDRESS is accepted as a synonym for NO_DATA for backwards
  *           compatibility.
- * 
+ *
  *    lwres_hstrerror() translates these error codes to suitable error
  *    messages.
- * 
+ *
  *    lwres_gethostent() and lwres_gethostent_r() always return NULL.
- * 
+ *
  *    Successful calls to lwres_gethostbyname_r() and
  *    lwres_gethostbyaddr_r() return resbuf, a pointer to the struct hostent
  *    that was initialised by these functions. They return NULL if the
@@ -131,19 +131,19 @@
  *    names referenced by the h_name, h_aliases, and h_addr_list elements of
  *    the struct hostent. If buf was too small, both lwres_gethostbyname_r()
  *    and lwres_gethostbyaddr_r() set the global variable errno to ERANGE.
- * 
+ *
  * \section gethost_see See Also
- * 
+ *
  *    gethostent(), \link getipnode.c getipnode\endlink, lwres_hstrerror()
- * 
+ *
  * \section gethost_bugs Bugs
- * 
+ *
  *    lwres_gethostbyname(), lwres_gethostbyname2(), lwres_gethostbyaddr()
  *    and lwres_endhostent() are not thread safe; they return pointers to
  *    static data and provide error codes through a global variable.
  *    Thread-safe versions for name and address lookup are provided by
  *    lwres_gethostbyname_r(), and lwres_gethostbyaddr_r() respectively.
- * 
+ *
  *    The resolver daemon does not currently support any non-DNS name
  *    services such as /etc/hosts or NIS, consequently the above functions
  *    don't, either.
@@ -161,7 +161,7 @@
 
 #define LWRES_ALIGNBYTES (sizeof(char *) - 1)
 #define LWRES_ALIGN(p) \
-	(((unsigned long)(p) + LWRES_ALIGNBYTES) &~ LWRES_ALIGNBYTES)
+	(((uintptr_t)(p) + LWRES_ALIGNBYTES) &~ LWRES_ALIGNBYTES)
 
 static struct hostent *he = NULL;
 static int copytobuf(struct hostent *, struct hostent *, char *, int);
@@ -294,69 +294,69 @@ lwres_endhostent_r(void) {
 
 static int
 copytobuf(struct hostent *he, struct hostent *hptr, char *buf, int buflen) {
-        char *cp;
-        char **ptr;
-        int i, n;
-        int nptr, len;
+	char *cp;
+	char **ptr;
+	int i, n;
+	int nptr, len;
 
-        /*
+	/*
 	 * Find out the amount of space required to store the answer.
 	 */
-        nptr = 2; /* NULL ptrs */
-        len = (char *)LWRES_ALIGN(buf) - buf;
-        for (i = 0; he->h_addr_list[i]; i++, nptr++) {
-                len += he->h_length;
-        }
-        for (i = 0; he->h_aliases[i]; i++, nptr++) {
-                len += strlen(he->h_aliases[i]) + 1;
-        }
-        len += strlen(he->h_name) + 1;
-        len += nptr * sizeof(char*);
+	nptr = 2; /* NULL ptrs */
+	len = (int)((char *)LWRES_ALIGN(buf) - buf);
+	for (i = 0; he->h_addr_list[i]; i++, nptr++) {
+		len += he->h_length;
+	}
+	for (i = 0; he->h_aliases[i]; i++, nptr++) {
+		len += strlen(he->h_aliases[i]) + 1;
+	}
+	len += strlen(he->h_name) + 1;
+	len += nptr * sizeof(char*);
 
-        if (len > buflen) {
-                return (-1);
-        }
+	if (len > buflen) {
+		return (-1);
+	}
 
-        /*
+	/*
 	 * Copy address size and type.
 	 */
-        hptr->h_addrtype = he->h_addrtype;
-        n = hptr->h_length = he->h_length;
+	hptr->h_addrtype = he->h_addrtype;
+	n = hptr->h_length = he->h_length;
 
-        ptr = (char **)LWRES_ALIGN(buf);
-        cp = (char *)LWRES_ALIGN(buf) + nptr * sizeof(char *);
+	ptr = (char **)LWRES_ALIGN(buf);
+	cp = (char *)LWRES_ALIGN(buf) + nptr * sizeof(char *);
 
-        /*
+	/*
 	 * Copy address list.
 	 */
-        hptr->h_addr_list = ptr;
-        for (i = 0; he->h_addr_list[i]; i++, ptr++) {
-                memcpy(cp, he->h_addr_list[i], n);
-                hptr->h_addr_list[i] = cp;
-                cp += n;
-        }
-        hptr->h_addr_list[i] = NULL;
-        ptr++;
+	hptr->h_addr_list = ptr;
+	for (i = 0; he->h_addr_list[i]; i++, ptr++) {
+		memmove(cp, he->h_addr_list[i], n);
+		hptr->h_addr_list[i] = cp;
+		cp += n;
+	}
+	hptr->h_addr_list[i] = NULL;
+	ptr++;
 
-        /*
+	/*
 	 * Copy official name.
 	 */
-        n = strlen(he->h_name) + 1;
-        strcpy(cp, he->h_name);
-        hptr->h_name = cp;
-        cp += n;
+	n = strlen(he->h_name) + 1;
+	strcpy(cp, he->h_name);
+	hptr->h_name = cp;
+	cp += n;
 
-        /*
+	/*
 	 * Copy aliases.
 	 */
-        hptr->h_aliases = ptr;
-        for (i = 0; he->h_aliases[i]; i++) {
-                n = strlen(he->h_aliases[i]) + 1;
-                strcpy(cp, he->h_aliases[i]);
-                hptr->h_aliases[i] = cp;
-                cp += n;
-        }
-        hptr->h_aliases[i] = NULL;
+	hptr->h_aliases = ptr;
+	for (i = 0; he->h_aliases[i]; i++) {
+		n = strlen(he->h_aliases[i]) + 1;
+		strcpy(cp, he->h_aliases[i]);
+		hptr->h_aliases[i] = cp;
+		cp += n;
+	}
+	hptr->h_aliases[i] = NULL;
 
-        return (0);
+	return (0);
 }

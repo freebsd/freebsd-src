@@ -2086,6 +2086,12 @@ dns_zone_rpz_enable(dns_zone_t *zone);
  * Set the response policy associated with a zone.
  */
 
+isc_result_t
+dns_zone_rpz_enable_db(dns_zone_t *zone, dns_db_t *db);
+/*%
+ * If a zone is a response policy zone, mark its new database.
+ */
+
 isc_boolean_t
 dns_zone_get_rpz(dns_zone_t *zone);
 

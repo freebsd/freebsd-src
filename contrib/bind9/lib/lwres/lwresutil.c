@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -27,7 +27,7 @@
  *    given by *len. The buffer's current pointer is advanced to point at
  *    the character following the string length, the encoded string, and
  *    the trailing NULL character.
- * 
+ *
  *    lwres_addr_parse() extracts an address from the buffer b. The
  *    buffer's current pointer b->current is presumed to point at an
  *    encoded address: the address preceded by a 32-bit protocol family
@@ -36,10 +36,10 @@
  *    the address that was copied. b->current is advanced to point at the
  *  next byte of available data in the buffer following the encoded
  *    address.
- * 
+ *
  *    lwres_getaddrsbyname() and lwres_getnamebyaddr() use the
  *    lwres_gnbaresponse_t structure defined below:
- * 
+ *
  * \code
  * typedef struct {
  *         lwres_uint32_t          flags;
@@ -54,45 +54,45 @@
  *         size_t                  baselen;
  * } lwres_gabnresponse_t;
  * \endcode
- * 
+ *
  *    The contents of this structure are not manipulated directly but
- *    they are controlled through the \link lwres_gabn.c lwres_gabn*\endlink functions.  
- * 
+ *    they are controlled through the \link lwres_gabn.c lwres_gabn*\endlink functions.
+ *
  *    The lightweight resolver uses lwres_getaddrsbyname() to perform
  *    foward lookups. Hostname name is looked up using the resolver
- *    context ctx for memory allocation. addrtypes is a bitmask      
+ *    context ctx for memory allocation. addrtypes is a bitmask
  *    indicating which type of addresses are to be looked up. Current
  *    values for this bitmask are #LWRES_ADDRTYPE_V4 for IPv4 addresses
  *    and #LWRES_ADDRTYPE_V6 for IPv6 addresses. Results of the lookup are
  *    returned in *structp.
- * 
- *    lwres_getnamebyaddr() performs reverse lookups. Resolver context  
+ *
+ *    lwres_getnamebyaddr() performs reverse lookups. Resolver context
  *    ctx is used for memory allocation. The address type is indicated by
  *    addrtype: #LWRES_ADDRTYPE_V4 or #LWRES_ADDRTYPE_V6. The address to be
- *    looked up is given by addr and its length is addrlen bytes. The    
- *    result of the function call is made available through *structp.   
- * 
+ *    looked up is given by addr and its length is addrlen bytes. The
+ *    result of the function call is made available through *structp.
+ *
  * \section lwresutil_return Return Values
- * 
+ *
  *    Successful calls to lwres_string_parse() and lwres_addr_parse()
- *    return #LWRES_R_SUCCESS. Both functions return #LWRES_R_FAILURE if 
- *    the buffer is corrupt or #LWRES_R_UNEXPECTEDEND if the buffer has   
+ *    return #LWRES_R_SUCCESS. Both functions return #LWRES_R_FAILURE if
+ *    the buffer is corrupt or #LWRES_R_UNEXPECTEDEND if the buffer has
  *    less space than expected for the components of the encoded string
  *    or address.
- * 
+ *
  * lwres_getaddrsbyname() returns #LWRES_R_SUCCESS on success and it
  *    returns #LWRES_R_NOTFOUND if the hostname name could not be found.
- * 
+ *
  *    #LWRES_R_SUCCESS is returned by a successful call to
  *    lwres_getnamebyaddr().
- * 
+ *
  *    Both lwres_getaddrsbyname() and lwres_getnamebyaddr() return
  *    #LWRES_R_NOMEMORY when memory allocation requests fail and
  *    #LWRES_R_UNEXPECTEDEND if the buffers used for sending queries and
- *    receiving replies are too small.     
- * 
+ *    receiving replies are too small.
+ *
  * \section lwresutil_see See Also
- * 
+ *
  *    lwbuffer.c, lwres_gabn.c
  */
 
@@ -390,7 +390,7 @@ lwres_getnamebyaddr(lwres_context_t *ctx, lwres_uint32_t addrtype,
 	request.flags = 0;
 	request.addr.family = addrtype;
 	request.addr.length = addrlen;
-	memcpy(request.addr.address, addr, addrlen);
+	memmove(request.addr.address, addr, addrlen);
 	pkt.pktflags = 0;
 	pkt.serial = serial;
 	pkt.result = 0;

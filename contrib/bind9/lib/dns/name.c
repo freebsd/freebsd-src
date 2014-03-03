@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -578,6 +578,11 @@ dns_name_fullcompare(const dns_name_t *name1, const dns_name_t *name2,
 	REQUIRE((name1->attributes & DNS_NAMEATTR_ABSOLUTE) ==
 		(name2->attributes & DNS_NAMEATTR_ABSOLUTE));
 
+	if (name1 == name2) {
+		*orderp = 0;
+		return (dns_namereln_equal);
+	}
+
 	SETUP_OFFSETS(name1, offsets1, odata1);
 	SETUP_OFFSETS(name2, offsets2, odata2);
 
@@ -690,6 +695,9 @@ dns_name_equal(const dns_name_t *name1, const dns_name_t *name2) {
 	 */
 	REQUIRE((name1->attributes & DNS_NAMEATTR_ABSOLUTE) ==
 		(name2->attributes & DNS_NAMEATTR_ABSOLUTE));
+
+	if (name1 == name2)
+		return (ISC_TRUE);
 
 	if (name1->length != name2->length)
 		return (ISC_FALSE);
@@ -963,8 +971,8 @@ dns_name_clone(const dns_name_t *source, dns_name_t *target) {
 				DNS_NAMEATTR_DYNOFFSETS);
 	if (target->offsets != NULL && source->labels > 0) {
 		if (source->offsets != NULL)
-			memcpy(target->offsets, source->offsets,
-			       source->labels);
+			memmove(target->offsets, source->offsets,
+				source->labels);
 		else
 			set_offsets(target, target->offsets, NULL);
 	}
@@ -993,7 +1001,7 @@ dns_name_fromregion(dns_name_t *name, const isc_region_t *r) {
 		len = (r->length < r2.length) ? r->length : r2.length;
 		if (len > DNS_NAME_MAXWIRE)
 			len = DNS_NAME_MAXWIRE;
-		memcpy(r2.base, r->base, len);
+		memmove(r2.base, r->base, len);
 		name->ndata = r2.base;
 		name->length = len;
 	} else {
@@ -1977,8 +1985,8 @@ dns_name_towire(const dns_name_t *name, dns_compress_t *cctx,
 	if (gf) {
 		if (target->length - target->used < gp.length)
 			return (ISC_R_NOSPACE);
-		(void)memcpy((unsigned char *)target->base + target->used,
-			     gp.ndata, (size_t)gp.length);
+		(void)memmove((unsigned char *)target->base + target->used,
+			      gp.ndata, (size_t)gp.length);
 		isc_buffer_add(target, gp.length);
 		go |= 0xc000;
 		if (target->length - target->used < 2)
@@ -1989,8 +1997,8 @@ dns_name_towire(const dns_name_t *name, dns_compress_t *cctx,
 	} else {
 		if (target->length - target->used < name->length)
 			return (ISC_R_NOSPACE);
-		(void)memcpy((unsigned char *)target->base + target->used,
-			     name->ndata, (size_t)name->length);
+		(void)memmove((unsigned char *)target->base + target->used,
+			      name->ndata, (size_t)name->length);
 		isc_buffer_add(target, name->length);
 		dns_compress_add(cctx, name, name, offset);
 	}
@@ -2070,12 +2078,7 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix, dns_name_t *name,
 	if (copy_suffix) {
 		if ((suffix->attributes & DNS_NAMEATTR_ABSOLUTE) != 0)
 			absolute = ISC_TRUE;
-		if (suffix == name && suffix->buffer == target)
-			memmove(ndata + prefix_length, suffix->ndata,
-				suffix->length);
-		else
-			memcpy(ndata + prefix_length, suffix->ndata,
-			       suffix->length);
+		memmove(ndata + prefix_length, suffix->ndata, suffix->length);
 	}
 
 	/*
@@ -2084,7 +2087,7 @@ dns_name_concatenate(dns_name_t *prefix, dns_name_t *suffix, dns_name_t *name,
 	 * copy anything.
 	 */
 	if (copy_prefix && (prefix != name || prefix->buffer != target))
-		memcpy(ndata, prefix->ndata, prefix_length);
+		memmove(ndata, prefix->ndata, prefix_length);
 
 	name->ndata = ndata;
 	name->labels = labels;
@@ -2158,7 +2161,7 @@ dns_name_dup(const dns_name_t *source, isc_mem_t *mctx,
 	if (target->ndata == NULL)
 		return (ISC_R_NOMEMORY);
 
-	memcpy(target->ndata, source->ndata, source->length);
+	memmove(target->ndata, source->ndata, source->length);
 
 	target->length = source->length;
 	target->labels = source->labels;
@@ -2167,8 +2170,8 @@ dns_name_dup(const dns_name_t *source, isc_mem_t *mctx,
 		target->attributes |= DNS_NAMEATTR_ABSOLUTE;
 	if (target->offsets != NULL) {
 		if (source->offsets != NULL)
-			memcpy(target->offsets, source->offsets,
-			       source->labels);
+			memmove(target->offsets, source->offsets,
+				source->labels);
 		else
 			set_offsets(target, target->offsets, NULL);
 	}
@@ -2200,7 +2203,7 @@ dns_name_dupwithoffsets(dns_name_t *source, isc_mem_t *mctx,
 	if (target->ndata == NULL)
 		return (ISC_R_NOMEMORY);
 
-	memcpy(target->ndata, source->ndata, source->length);
+	memmove(target->ndata, source->ndata, source->length);
 
 	target->length = source->length;
 	target->labels = source->labels;
@@ -2210,7 +2213,7 @@ dns_name_dupwithoffsets(dns_name_t *source, isc_mem_t *mctx,
 		target->attributes |= DNS_NAMEATTR_ABSOLUTE;
 	target->offsets = target->ndata + source->length;
 	if (source->offsets != NULL)
-		memcpy(target->offsets, source->offsets, source->labels);
+		memmove(target->offsets, source->offsets, source->labels);
 	else
 		set_offsets(target, target->offsets, NULL);
 
@@ -2390,7 +2393,7 @@ dns_name_tostring(dns_name_t *name, char **target, isc_mem_t *mctx) {
 
 	isc_buffer_usedregion(&buf, &reg);
 	p = isc_mem_allocate(mctx, reg.length + 1);
-	memcpy(p, (char *) reg.base, (int) reg.length);
+	memmove(p, (char *) reg.base, (int) reg.length);
 	p[reg.length] = '\0';
 
 	*target = p;
@@ -2466,7 +2469,7 @@ dns_name_copy(dns_name_t *source, dns_name_t *dest, isc_buffer_t *target) {
 	ndata = (unsigned char *)target->base + target->used;
 	dest->ndata = target->base;
 
-	memcpy(ndata, source->ndata, source->length);
+	memmove(ndata, source->ndata, source->length);
 
 	dest->ndata = ndata;
 	dest->labels = source->labels;
@@ -2478,7 +2481,7 @@ dns_name_copy(dns_name_t *source, dns_name_t *dest, isc_buffer_t *target) {
 
 	if (dest->labels > 0 && dest->offsets != NULL) {
 		if (source->offsets != NULL)
-			memcpy(dest->offsets, source->offsets, source->labels);
+			memmove(dest->offsets, source->offsets, source->labels);
 		else
 			set_offsets(dest, dest->offsets, NULL);
 	}

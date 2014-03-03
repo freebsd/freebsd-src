@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -380,10 +380,20 @@ void
 cfg_print(const cfg_obj_t *obj,
 	  void (*f)(void *closure, const char *text, int textlen),
 	  void *closure);
+void
+cfg_printx(const cfg_obj_t *obj, unsigned int flags,
+	   void (*f)(void *closure, const char *text, int textlen),
+	   void *closure);
+
+#define CFG_PRINTER_XKEY        0x1     /* '?' out shared keys. */
+
 /*%<
  * Print the configuration object 'obj' by repeatedly calling the
  * function 'f', passing 'closure' and a region of text starting
  * at 'text' and comprising 'textlen' characters.
+ *
+ * If CFG_PRINTER_XKEY the contents of shared keys will be obscured
+ * by replacing them with question marks ('?')
  */
 
 void

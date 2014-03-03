@@ -48,8 +48,34 @@ BIND 9
 	For a detailed list of user-visible changes from
 	previous releases, see the CHANGES file.
 
-        For up-to-date release notes and errata, see
-        http://www.isc.org/software/bind9/releasenotes
+	For up-to-date release notes and errata, see
+	http://www.isc.org/software/bind9/releasenotes
+
+BIND 9.9.5
+
+	BIND 9.9.5 is a maintenance release, and patches the security
+	flaws described in CVE-2013-6320 and CVE-2014-0591.  It also
+	includes the following functional enhancements:
+
+	 - "named" now preserves the capitalization of names when
+	   responding to queries.
+	 - new "dnssec-importkey" command allows the use of offline
+	   DNSSEC keys with automatic DNSKEY management.
+	 - When re-signing a zone, the new "dnssec-signzone -Q" option
+	   drops signatures from keys that are still published but are
+	   no longer active.
+	 - "named-checkconf -px" will print the contents of configuration
+	   files with the shared secrets obscured, making it easier to
+	   share configuration (e.g. when submitting a bug report)
+	   without revealing private information.
+
+BIND 9.9.4
+
+	BIND 9.9.4 is a maintenance release, and patches the security
+	flaws described in CVE-2013-3919 and CVE-2013-4854. It also
+	introduces DNS Response Rate Limiting (DNS RRL) as a
+	compile-time option. To use this feature, configure with
+	the "--enable-rrl" option.
 
 BIND 9.9.3
 
@@ -70,45 +96,45 @@ BIND 9.9.0
 	BIND 9.9.0 includes a number of changes from BIND 9.8 and earlier
 	releases.  New features include:
 
-        - Inline signing, allowing automatic DNSSEC signing of
-          master zones without modification of the zonefile, or 
-          "bump in the wire" signing in slaves.
-        - NXDOMAIN redirection.
-        - New 'rndc flushtree' command clears all data under a given
-          name from the DNS cache.
-        - New 'rndc sync' command dumps pending changes in a dynamic
-          zone to disk without a freeze/thaw cycle.
-        - New 'rndc signing' command displays or clears signing status
-          records in 'auto-dnssec' zones.
-        - NSEC3 parameters for 'auto-dnssec' zones can now be set prior
-          to signing, eliminating the need to initially sign with NSEC.
-        - Startup time improvements on large authoritative servers.
-        - Slave zones are now saved in raw format by default.
-        - Several improvements to response policy zones (RPZ).
-        - Improved hardware scalability by using multiple threads
-          to listen for queries and using finer-grained client locking
-        - The 'also-notify' option now takes the same syntax as
-          'masters', so it can used named masterlists and TSIG keys.
-        - 'dnssec-signzone -D' writes an output file containing only DNSSEC
-          data, which can be included by the primary zone file.
-        - 'dnssec-signzone -R' forces removal of signatures that are
-          not expired but were created by a key which no longer exists.
-        - 'dnssec-signzone -X' allows a separate expiration date to
-          be specified for DNSKEY signatures from other signatures.
-        - New '-L' option to dnssec-keygen, dnssec-settime, and
-          dnssec-keyfromlabel sets the default TTL for the key.
-        - dnssec-dsfromkey now supports reading from standard input,
-          to make it easier to convert DNSKEY to DS.
-        - RFC 1918 reverse zones have been added to the empty-zones
-          table per RFC 6303.
-        - Dynamic updates can now optionally set the zone's SOA serial
-          number to the current UNIX time.
-        - DLZ modules can now retrieve the source IP address of
-          the querying client.
-        - 'request-ixfr' option can now be set at the per-zone level.
-        - 'dig +rrcomments' turns on comments about DNSKEY records,
-          indicating their key ID, algorithm and function
-        - Simplified nsupdate syntax and added readline support
+	- Inline signing, allowing automatic DNSSEC signing of
+	  master zones without modification of the zonefile, or 
+	  "bump in the wire" signing in slaves.
+	- NXDOMAIN redirection.
+	- New 'rndc flushtree' command clears all data under a given
+	  name from the DNS cache.
+	- New 'rndc sync' command dumps pending changes in a dynamic
+	  zone to disk without a freeze/thaw cycle.
+	- New 'rndc signing' command displays or clears signing status
+	  records in 'auto-dnssec' zones.
+	- NSEC3 parameters for 'auto-dnssec' zones can now be set prior
+	  to signing, eliminating the need to initially sign with NSEC.
+	- Startup time improvements on large authoritative servers.
+	- Slave zones are now saved in raw format by default.
+	- Several improvements to response policy zones (RPZ).
+	- Improved hardware scalability by using multiple threads
+	  to listen for queries and using finer-grained client locking
+	- The 'also-notify' option now takes the same syntax as
+	  'masters', so it can used named masterlists and TSIG keys.
+	- 'dnssec-signzone -D' writes an output file containing only DNSSEC
+	  data, which can be included by the primary zone file.
+	- 'dnssec-signzone -R' forces removal of signatures that are
+	  not expired but were created by a key which no longer exists.
+	- 'dnssec-signzone -X' allows a separate expiration date to
+	  be specified for DNSKEY signatures from other signatures.
+	- New '-L' option to dnssec-keygen, dnssec-settime, and
+	  dnssec-keyfromlabel sets the default TTL for the key.
+	- dnssec-dsfromkey now supports reading from standard input,
+	  to make it easier to convert DNSKEY to DS.
+	- RFC 1918 reverse zones have been added to the empty-zones
+	  table per RFC 6303.
+	- Dynamic updates can now optionally set the zone's SOA serial
+	  number to the current UNIX time.
+	- DLZ modules can now retrieve the source IP address of
+	  the querying client.
+	- 'request-ixfr' option can now be set at the per-zone level.
+	- 'dig +rrcomments' turns on comments about DNSKEY records,
+	  indicating their key ID, algorithm and function
+	- Simplified nsupdate syntax and added readline support
 
 Building
 
@@ -128,9 +154,9 @@ Building
 		Ubuntu 7.04, 7.10
 		Windows XP/2003/2008
 
-        NOTE:  As of BIND 9.5.1, 9.4.3, and 9.3.6, older versions of
-        Windows, including Windows NT and Windows 2000, are no longer
-        supported.
+	NOTE:  As of BIND 9.5.1, 9.4.3, and 9.3.6, older versions of
+	Windows, including Windows NT and Windows 2000, are no longer
+	supported.
 
 	We have recent reports from the user community that a supported
 	version of BIND will build and run on the following systems:
@@ -231,10 +257,10 @@ Building
 	on the configure command line.  The default is operating
 	system dependent.
 
-        Support for the "fixed" rrset-order option can be enabled
-        or disabled by specifying "--enable-fixed-rrset" or
-        "--disable-fixed-rrset" on the configure command line.
-        The default is "disabled", to reduce memory footprint.
+	Support for the "fixed" rrset-order option can be enabled
+	or disabled by specifying "--enable-fixed-rrset" or
+	"--disable-fixed-rrset" on the configure command line.
+	The default is "disabled", to reduce memory footprint.
 
 	If your operating system has integrated support for IPv6, it
 	will be used automatically.  If you have installed KAME IPv6
@@ -305,8 +331,8 @@ Documentation
 	Frequently asked questions and their answers can be found in
 	FAQ.
 
-        Additional information on various subjects can be found
-        in the other README files.
+	Additional information on various subjects can be found
+	in the other README files.
 
 
 Change Log
@@ -337,10 +363,10 @@ Change Log
 	   [protocol]	  Updates to the DNS protocol such as new
 			  RR types
 
-           [test]         Changes to the automatic tests, not
-                          affecting server functionality
+	   [test]         Changes to the automatic tests, not
+			  affecting server functionality
 
-           [cleanup]      Minor corrections and refactoring
+	   [cleanup]      Minor corrections and refactoring
 
 	   [doc]	  Documentation
 

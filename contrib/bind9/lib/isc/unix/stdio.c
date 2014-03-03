@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -24,6 +24,7 @@
 
 #include <isc/stdio.h>
 #include <isc/stat.h>
+#include <isc/util.h>
 
 #include "errno2result.h"
 
@@ -50,13 +51,27 @@ isc_stdio_close(FILE *f) {
 }
 
 isc_result_t
-isc_stdio_seek(FILE *f, long offset, int whence) {
+isc_stdio_seek(FILE *f, off_t offset, int whence) {
 	int r;
 
-	r = fseek(f, offset, whence);
+	r = fseeko(f, offset, whence);
 	if (r == 0)
 		return (ISC_R_SUCCESS);
 	else
+		return (isc__errno2result(errno));
+}
+
+isc_result_t
+isc_stdio_tell(FILE *f, off_t *offsetp) {
+	off_t r;
+
+	REQUIRE(offsetp != NULL);
+
+	r = ftello(f);
+	if (r >= 0) {
+		*offsetp = r;
+		return (ISC_R_SUCCESS);
+	} else
 		return (isc__errno2result(errno));
 }
 
