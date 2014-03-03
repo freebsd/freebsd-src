@@ -52,6 +52,16 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	has now been fixed, but any C++ applications or shared libraries built
 	between r261283 and r261801 should be recompiled.
 
+20140204:
+	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
+	capability mode support.  Please note that enabling the feature in
+	kernel is still highly recommended.
+
+20140131:
+	OpenSSH is now built with sandbox support, and will use sandbox as
+	the default privilege separation method.  This requires Capsicum
+	capability mode support in kernel.
+
 20140128:
 	The libelf and libdwarf libraries have been updated to newer
 	versions from upstream. Shared library version numbers for
