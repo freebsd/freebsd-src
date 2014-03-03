@@ -125,6 +125,8 @@ device		smscphy
 #device 	cpsw
 device		bpf
 
+device		emac
+
 # USB ethernet support, requires miibus
 device		miibus
 

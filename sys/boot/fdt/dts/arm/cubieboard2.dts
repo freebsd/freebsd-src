@@ -61,6 +61,13 @@
 			#interrupt-cells = <1>;
 		};
 
+		sramc@01c00000 {
+			compatible = "allwinner,sun4i-sramc";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = < 0x01c00000 0x1000 >;
+		};
+
 		cpu-cfg@01c25c00 {
 			compatible = "allwinner,sun7i-cpu-cfg";
 			#address-cells = <1>;
@@ -129,6 +136,13 @@
 			clock-frequency = < 24000000 >;
 			busy-detect = <1>;
 			broken-txfifo = <1>;
+		};
+
+		emac@01c0b000 {
+			compatible = "allwinner,sun4i-emac";
+			reg = <0x01c0b000 0x1000>;
+			interrupts = <55>;
+			interrupt-parent = <&GIC>;
 		};
 	};
 
