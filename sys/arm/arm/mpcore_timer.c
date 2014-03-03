@@ -369,8 +369,7 @@ DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
  *	RETURNS:
  *	nothing
  */
-static void
-__attribute__((used)) /* Must emit function code for the weak ref below. */
+static void __used /* Must emit function code for the weak ref below. */
 arm_tmr_DELAY(int usec)
 {
 	int32_t counts_per_usec;
