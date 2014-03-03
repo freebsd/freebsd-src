@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2008-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,6 +22,7 @@
 #include <isc/buffer.h>
 #include <isc/hex.h>
 #include <isc/iterated_hash.h>
+#include <isc/log.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
@@ -119,15 +120,15 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 	*p++ = iterations >> 8;
 	*p++ = iterations;
 
-	*p++ = salt_length;
-	memcpy(p, salt, salt_length);
+	*p++ = (unsigned char)salt_length;
+	memmove(p, salt, salt_length);
 	p += salt_length;
 
-	*p++ = hash_length;
-	memcpy(p, nexthash, hash_length);
+	*p++ = (unsigned char)hash_length;
+	memmove(p, nexthash, hash_length);
 	p += hash_length;
 
-	r.length = p - buffer;
+	r.length = (unsigned int)(p - buffer);
 	r.base = buffer;
 
 	/*
@@ -214,7 +215,7 @@ dns_nsec3_buildrdata(dns_db_t *db, dns_dbversion_t *version,
 		memmove(&nsec_bits[2], &bm[window * 32], octet + 1);
 		nsec_bits += 3 + octet;
 	}
-	r.length = nsec_bits - r.base;
+	r.length = (unsigned int)(nsec_bits - r.base);
 	INSIST(r.length <= DNS_NSEC3_BUFFERSIZE);
 	dns_rdata_fromregion(rdata, dns_db_class(db), dns_rdatatype_nsec3, &r);
 
@@ -281,7 +282,8 @@ dns_nsec3_hashname(dns_fixedname_t *result,
 	dns_name_downcase(name, downcased, NULL);
 
 	/* hash the node name */
-	len = isc_iterated_hash(rethash, hashalg, iterations, salt, saltlength,
+	len = isc_iterated_hash(rethash, hashalg, iterations,
+				salt, (int)saltlength,
 				downcased->ndata, downcased->length);
 	if (len == 0U)
 		return (DNS_R_BADALG);
@@ -291,7 +293,7 @@ dns_nsec3_hashname(dns_fixedname_t *result,
 
 	/* convert the hash to base32hex */
 	region.base = rethash;
-	region.length = len;
+	region.length = (unsigned int)len;
 	isc_buffer_init(&namebuffer, nametext, sizeof nametext);
 	isc_base32hex_totext(&region, 1, "", &namebuffer);
 
@@ -337,7 +339,6 @@ do_one_tuple(dns_difftuple_t **tuple, dns_db_t *db, dns_dbversion_t *ver,
 	 * Create a singleton diff.
 	 */
 	dns_diff_init(diff->mctx, &temp_diff);
-	temp_diff.resign = diff->resign;
 	ISC_LIST_APPEND(temp_diff.tuples, *tuple, link);
 
 	/*
@@ -628,7 +629,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 				flags = nsec3.flags;
 			next_length = nsec3.next_length;
 			INSIST(next_length <= sizeof(nexthash));
-			memcpy(nexthash, nsec3.next, next_length);
+			memmove(nexthash, nsec3.next, next_length);
 			dns_rdataset_disassociate(&rdataset);
 			/*
 			 * If the NSEC3 is not for a unsecure delegation then
@@ -716,7 +717,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 		 * Fixup the previous NSEC3.
 		 */
 		nsec3.next = nexthash;
-		nsec3.next_length = next_length;
+		nsec3.next_length = (unsigned char)next_length;
 		isc_buffer_init(&buffer, nsec3buf, sizeof(nsec3buf));
 		CHECK(dns_rdata_fromstruct(&rdata, rdataset.rdclass,
 					   dns_rdatatype_nsec3, &nsec3,
@@ -725,7 +726,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 					   rdataset.ttl, &rdata, &tuple));
 		CHECK(do_one_tuple(&tuple, db, version, diff));
 		INSIST(old_length <= sizeof(nexthash));
-		memcpy(nexthash, old_next, old_length);
+		memmove(nexthash, old_next, old_length);
 		if (!CREATE(nsec3param->flags))
 			flags = nsec3.flags;
 		dns_rdata_reset(&rdata);
@@ -835,7 +836,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 			 * Fixup the previous NSEC3.
 			 */
 			nsec3.next = nexthash;
-			nsec3.next_length = next_length;
+			nsec3.next_length = (unsigned char)next_length;
 			isc_buffer_init(&buffer, nsec3buf,
 					sizeof(nsec3buf));
 			CHECK(dns_rdata_fromstruct(&rdata, rdataset.rdclass,
@@ -846,7 +847,7 @@ dns_nsec3_addnsec3(dns_db_t *db, dns_dbversion_t *version,
 						   &tuple));
 			CHECK(do_one_tuple(&tuple, db, version, diff));
 			INSIST(old_length <= sizeof(nexthash));
-			memcpy(nexthash, old_next, old_length);
+			memmove(nexthash, old_next, old_length);
 			if (!CREATE(nsec3param->flags))
 				flags = nsec3.flags;
 			dns_rdata_reset(&rdata);
@@ -976,7 +977,7 @@ dns_nsec3param_fromprivate(dns_rdata_t *src, dns_rdata_t *target,
 	isc_buffer_init(&buf1, src->data + 1, src->length - 1);
 	isc_buffer_add(&buf1, src->length - 1);
 	isc_buffer_setactive(&buf1, src->length - 1);
-	isc_buffer_init(&buf2, buf, buflen);
+	isc_buffer_init(&buf2, buf, (unsigned int)buflen);
 	dns_decompress_init(&dctx, -1, DNS_DECOMPRESS_NONE);
 	result = dns_rdata_fromwire(target, src->rdclass,
 				    dns_rdatatype_nsec3param,
@@ -995,7 +996,7 @@ dns_nsec3param_toprivate(dns_rdata_t *src, dns_rdata_t *target,
 
 	REQUIRE(DNS_RDATA_INITIALIZED(target));
 
-	memcpy(buf + 1, src->data, src->length);
+	memmove(buf + 1, src->data, src->length);
 	buf[0] = 0;
 	target->data = buf;
 	target->length = src->length + 1;
@@ -1130,9 +1131,13 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
 	     result = dns_rdataset_next(&rdataset)) {
 		dns_rdataset_current(&rdataset, &rdata);
 		INSIST(rdata.length <= sizeof(buf));
-		memcpy(buf, rdata.data, rdata.length);
+		memmove(buf, rdata.data, rdata.length);
 
-		if (buf[0] != 0 ||
+		/*
+		 * Private NSEC3 record length >= 6.
+		 * <0(1), hash(1), flags(1), iterations(2), saltlen(1)>
+		 */
+		if (rdata.length < 6 || buf[0] != 0 ||
 		    buf[2] == (DNS_NSEC3FLAG_REMOVE | DNS_NSEC3FLAG_NONSEC)) {
 			dns_rdata_reset(&rdata);
 			continue;
@@ -1390,7 +1395,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 	if (result == ISC_R_SUCCESS) {
 		next_length = nsec3.next_length;
 		INSIST(next_length <= sizeof(nexthash));
-		memcpy(nexthash, nsec3.next, next_length);
+		memmove(nexthash, nsec3.next, next_length);
 	}
 	dns_rdataset_disassociate(&rdataset);
 	if (result == ISC_R_NOMORE)
@@ -1434,7 +1439,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		 * Fixup the previous NSEC3.
 		 */
 		nsec3.next = nexthash;
-		nsec3.next_length = next_length;
+		nsec3.next_length = (unsigned char)next_length;
 		if (CREATE(nsec3param->flags))
 			nsec3.flags = nsec3param->flags & DNS_NSEC3FLAG_OPTOUT;
 		isc_buffer_init(&buffer, nsec3buf, sizeof(nsec3buf));
@@ -1493,7 +1498,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 		if (result == ISC_R_SUCCESS) {
 			next_length = nsec3.next_length;
 			INSIST(next_length <= sizeof(nexthash));
-			memcpy(nexthash, nsec3.next, next_length);
+			memmove(nexthash, nsec3.next, next_length);
 		}
 		dns_rdataset_disassociate(&rdataset);
 		if (result == ISC_R_NOMORE)
@@ -1534,7 +1539,7 @@ dns_nsec3_delnsec3(dns_db_t *db, dns_dbversion_t *version, dns_name_t *name,
 			 * Fixup the previous NSEC3.
 			 */
 			nsec3.next = nexthash;
-			nsec3.next_length = next_length;
+			nsec3.next_length = (unsigned char)next_length;
 			isc_buffer_init(&buffer, nsec3buf,
 					sizeof(nsec3buf));
 			CHECK(dns_rdata_fromstruct(&rdata, rdataset.rdclass,
@@ -1831,4 +1836,286 @@ dns_nsec3_maxiterations(dns_db_t *db, dns_dbversion_t *version,
 	if (dns_rdataset_isassociated(&rdataset))
 		dns_rdataset_disassociate(&rdataset);
 	return (result);
+}
+
+isc_result_t
+dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
+			dns_name_t *nsec3name, dns_rdataset_t *nsec3set,
+			dns_name_t *zonename, isc_boolean_t *exists,
+			isc_boolean_t *data, isc_boolean_t *optout,
+			isc_boolean_t *unknown, isc_boolean_t *setclosest,
+			isc_boolean_t *setnearest, dns_name_t *closest,
+			dns_name_t *nearest, dns_nseclog_t logit, void *arg)
+{
+	char namebuf[DNS_NAME_FORMATSIZE];
+	dns_fixedname_t fzone;
+	dns_fixedname_t qfixed;
+	dns_label_t hashlabel;
+	dns_name_t *qname;
+	dns_name_t *zone;
+	dns_rdata_nsec3_t nsec3;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	int order;
+	int scope;
+	isc_boolean_t atparent;
+	isc_boolean_t first;
+	isc_boolean_t ns;
+	isc_boolean_t soa;
+	isc_buffer_t buffer;
+	isc_result_t answer = ISC_R_IGNORE;
+	isc_result_t result;
+	unsigned char hash[NSEC3_MAX_HASH_LENGTH];
+	unsigned char owner[NSEC3_MAX_HASH_LENGTH];
+	unsigned int length;
+	unsigned int qlabels;
+	unsigned int zlabels;
+
+	REQUIRE((exists == NULL && data == NULL) ||
+		(exists != NULL && data != NULL));
+	REQUIRE(nsec3set != NULL && nsec3set->type == dns_rdatatype_nsec3);
+	REQUIRE((setclosest == NULL && closest == NULL) ||
+		(setclosest != NULL && closest != NULL));
+	REQUIRE((setnearest == NULL && nearest == NULL) ||
+		(setnearest != NULL && nearest != NULL));
+
+	result = dns_rdataset_first(nsec3set);
+	if (result != ISC_R_SUCCESS) {
+		(*logit)(arg, ISC_LOG_DEBUG(3), "failure processing NSEC3 set");
+		return (result);
+	}
+
+	dns_rdataset_current(nsec3set, &rdata);
+
+	result = dns_rdata_tostruct(&rdata, &nsec3, NULL);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	(*logit)(arg, ISC_LOG_DEBUG(3), "looking for relevant NSEC3");
+
+	dns_fixedname_init(&fzone);
+	zone = dns_fixedname_name(&fzone);
+	zlabels = dns_name_countlabels(nsec3name);
+
+	/*
+	 * NSEC3 records must have two or more labels to be valid.
+	 */
+	if (zlabels < 2)
+		return (ISC_R_IGNORE);
+
+	/*
+	 * Strip off the NSEC3 hash to get the zone.
+	 */
+	zlabels--;
+	dns_name_split(nsec3name, zlabels, NULL, zone);
+
+	/*
+	 * If not below the zone name we can ignore this record.
+	 */
+	if (!dns_name_issubdomain(name, zone))
+		return (ISC_R_IGNORE);
+
+	/*
+	 * Is this zone the same or deeper than the current zone?
+	 */
+	if (dns_name_countlabels(zonename) == 0 ||
+	    dns_name_issubdomain(zone, zonename))
+		dns_name_copy(zone, zonename, NULL);
+
+	if (!dns_name_equal(zone, zonename))
+		return (ISC_R_IGNORE);
+
+	/*
+	 * Are we only looking for the most enclosing zone?
+	 */
+	if (exists == NULL || data == NULL)
+		return (ISC_R_SUCCESS);
+
+	/*
+	 * Only set unknown once we are sure that this NSEC3 is from
+	 * the deepest covering zone.
+	 */
+	if (!dns_nsec3_supportedhash(nsec3.hash)) {
+		if (unknown != NULL)
+			*unknown = ISC_TRUE;
+		return (ISC_R_IGNORE);
+	}
+
+	/*
+	 * Recover the hash from the first label.
+	 */
+	dns_name_getlabel(nsec3name, 0, &hashlabel);
+	isc_region_consume(&hashlabel, 1);
+	isc_buffer_init(&buffer, owner, sizeof(owner));
+	result = isc_base32hex_decoderegion(&hashlabel, &buffer);
+	if (result != ISC_R_SUCCESS)
+		return (result);
+
+	/*
+	 * The hash lengths should match.  If not ignore the record.
+	 */
+	if (isc_buffer_usedlength(&buffer) != nsec3.next_length)
+		return (ISC_R_IGNORE);
+
+	/*
+	 * Work out what this NSEC3 covers.
+	 * Inside (<0) or outside (>=0).
+	 */
+	scope = memcmp(owner, nsec3.next, nsec3.next_length);
+
+	/*
+	 * Prepare to compute all the hashes.
+	 */
+	dns_fixedname_init(&qfixed);
+	qname = dns_fixedname_name(&qfixed);
+	dns_name_downcase(name, qname, NULL);
+	qlabels = dns_name_countlabels(qname);
+	first = ISC_TRUE;
+
+	while (qlabels >= zlabels) {
+		length = isc_iterated_hash(hash, nsec3.hash, nsec3.iterations,
+					   nsec3.salt, nsec3.salt_length,
+					   qname->ndata, qname->length);
+		/*
+		 * The computed hash length should match.
+		 */
+		if (length != nsec3.next_length) {
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				 "ignoring NSEC bad length %u vs %u",
+				 length, nsec3.next_length);
+			return (ISC_R_IGNORE);
+		}
+
+		order = memcmp(hash, owner, length);
+		if (first && order == 0) {
+			/*
+			 * The hashes are the same.
+			 */
+			atparent = dns_rdatatype_atparent(type);
+			ns = dns_nsec3_typepresent(&rdata, dns_rdatatype_ns);
+			soa = dns_nsec3_typepresent(&rdata, dns_rdatatype_soa);
+			if (ns && !soa) {
+				if (!atparent) {
+					/*
+					 * This NSEC3 record is from somewhere
+					 * higher in the DNS, and at the
+					 * parent of a delegation. It can not
+					 * be legitimately used here.
+					 */
+					(*logit)(arg, ISC_LOG_DEBUG(3),
+						 "ignoring parent NSEC3");
+					return (ISC_R_IGNORE);
+				}
+			} else if (atparent && ns && soa) {
+				/*
+				 * This NSEC3 record is from the child.
+				 * It can not be legitimately used here.
+				 */
+				(*logit)(arg, ISC_LOG_DEBUG(3),
+					 "ignoring child NSEC3");
+				return (ISC_R_IGNORE);
+			}
+			if (type == dns_rdatatype_cname ||
+			    type == dns_rdatatype_nxt ||
+			    type == dns_rdatatype_nsec ||
+			    type == dns_rdatatype_key ||
+			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_cname)) {
+				*exists = ISC_TRUE;
+				*data = dns_nsec3_typepresent(&rdata, type);
+				(*logit)(arg, ISC_LOG_DEBUG(3),
+					 "NSEC3 proves name exists (owner) "
+					 "data=%d", *data);
+				return (ISC_R_SUCCESS);
+			}
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				 "NSEC3 proves CNAME exists");
+			return (ISC_R_IGNORE);
+		}
+
+		if (order == 0 &&
+		    dns_nsec3_typepresent(&rdata, dns_rdatatype_ns) &&
+		    !dns_nsec3_typepresent(&rdata, dns_rdatatype_soa))
+		{
+			/*
+			 * This NSEC3 record is from somewhere higher in
+			 * the DNS, and at the parent of a delegation.
+			 * It can not be legitimately used here.
+			 */
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				 "ignoring parent NSEC3");
+			return (ISC_R_IGNORE);
+		}
+
+		/*
+		 * Potential closest encloser.
+		 */
+		if (order == 0) {
+			if (closest != NULL &&
+			    (dns_name_countlabels(closest) == 0 ||
+			     dns_name_issubdomain(qname, closest)) &&
+			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_ds) &&
+			    !dns_nsec3_typepresent(&rdata, dns_rdatatype_dname) &&
+			    (dns_nsec3_typepresent(&rdata, dns_rdatatype_soa) ||
+			     !dns_nsec3_typepresent(&rdata, dns_rdatatype_ns)))
+			{
+
+				dns_name_format(qname, namebuf,
+						sizeof(namebuf));
+				(*logit)(arg, ISC_LOG_DEBUG(3),
+					 "NSEC3 indicates potential closest "
+					 "encloser: '%s'", namebuf);
+				dns_name_copy(qname, closest, NULL);
+				*setclosest = ISC_TRUE;
+			}
+			dns_name_format(qname, namebuf, sizeof(namebuf));
+			(*logit)(arg, ISC_LOG_DEBUG(3),
+				 "NSEC3 at super-domain %s", namebuf);
+			return (answer);
+		}
+
+		/*
+		 * Find if the name does not exist.
+		 *
+		 * We continue as we need to find the name closest to the
+		 * closest encloser that doesn't exist.
+		 *
+		 * We also need to continue to ensure that we are not
+		 * proving the non-existence of a record in a sub-zone.
+		 * If that would be the case we will return ISC_R_IGNORE
+		 * above.
+		 */
+		if ((scope < 0 && order > 0 &&
+		     memcmp(hash, nsec3.next, length) < 0) ||
+		    (scope >= 0 && (order > 0 ||
+				    memcmp(hash, nsec3.next, length) < 0)))
+		{
+			char namebuf[DNS_NAME_FORMATSIZE];
+
+			dns_name_format(qname, namebuf, sizeof(namebuf));
+			(*logit)(arg, ISC_LOG_DEBUG(3), "NSEC3 proves "
+				 "name does not exist: '%s'", namebuf);
+			if (nearest != NULL &&
+			    (dns_name_countlabels(nearest) == 0 ||
+			     dns_name_issubdomain(nearest, qname))) {
+				dns_name_copy(qname, nearest, NULL);
+				*setnearest = ISC_TRUE;
+			}
+
+			*exists = ISC_FALSE;
+			*data = ISC_FALSE;
+			if (optout != NULL) {
+				if ((nsec3.flags & DNS_NSEC3FLAG_OPTOUT) != 0)
+					(*logit)(arg, ISC_LOG_DEBUG(3),
+						 "NSEC3 indicates optout");
+				*optout =
+				    ISC_TF(nsec3.flags & DNS_NSEC3FLAG_OPTOUT);
+			}
+			answer = ISC_R_SUCCESS;
+		}
+
+		qlabels--;
+		if (qlabels > 0)
+			dns_name_split(qname, qlabels, NULL, qname);
+		first = ISC_FALSE;
+	}
+	return (answer);
 }

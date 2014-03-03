@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -126,13 +126,17 @@ generate_key(isc_mem_t *mctx, const char *randomfile, dns_secalg_t alg,
 
 	switch (alg) {
 	    case DST_ALG_HMACMD5:
+	    case DST_ALG_HMACSHA1:
+	    case DST_ALG_HMACSHA224:
+	    case DST_ALG_HMACSHA256:
 		if (keysize < 1 || keysize > 512)
 			fatal("keysize %d out of range (must be 1-512)\n",
 			      keysize);
 		break;
-	    case DST_ALG_HMACSHA256:
-		if (keysize < 1 || keysize > 256)
-			fatal("keysize %d out of range (must be 1-256)\n",
+	    case DST_ALG_HMACSHA384:
+	    case DST_ALG_HMACSHA512:
+		if (keysize < 1 || keysize > 1024)
+			fatal("keysize %d out of range (must be 1-1024)\n",
 			      keysize);
 		break;
 	    default:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -1478,8 +1478,8 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 	OLDOFFSETLEN(node) = OFFSETLEN(node) = labels;
 	ATTRS(node) = name->attributes;
 
-	memcpy(NAME(node), region.base, region.length);
-	memcpy(OFFSETS(node), name->offsets, labels);
+	memmove(NAME(node), region.base, region.length);
+	memmove(OFFSETS(node), name->offsets, labels);
 
 #if DNS_RBT_USEMAGIC
 	node->magic = DNS_RBTNODE_MAGIC;
@@ -1536,6 +1536,8 @@ rehash(dns_rbt_t *rbt) {
 		rbt->hashsize = oldsize;
 		return;
 	}
+
+	INSIST(rbt->hashsize > 0);
 
 	for (i = 0; i < rbt->hashsize; i++)
 		rbt->hashtable[i] = NULL;
@@ -1838,7 +1840,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 		 * information, which will be needed when linking up
 		 * delete to the successor's old location.
 		 */
-		memcpy(tmp, successor, sizeof(dns_rbtnode_t));
+		memmove(tmp, successor, sizeof(dns_rbtnode_t));
 
 		if (IS_ROOT(delete)) {
 			*rootp = successor;
@@ -1947,6 +1949,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 
 					COLOR(sibling) = COLOR(parent);
 					MAKE_BLACK(parent);
+					INSIST(RIGHT(sibling) != NULL);
 					MAKE_BLACK(RIGHT(sibling));
 					rotate_left(parent, rootp);
 					child = *rootp;
@@ -1984,6 +1987,7 @@ dns_rbt_deletefromlevel(dns_rbtnode_t *delete, dns_rbtnode_t **rootp) {
 
 					COLOR(sibling) = COLOR(parent);
 					MAKE_BLACK(parent);
+					INSIST(LEFT(sibling) != NULL);
 					MAKE_BLACK(LEFT(sibling));
 					rotate_right(parent, rootp);
 					child = *rootp;

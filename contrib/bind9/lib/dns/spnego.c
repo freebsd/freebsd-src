@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -463,7 +463,7 @@ code_NegTokenArg(OM_uint32 * minor_status,
 		free(buf);
 		return (GSS_S_FAILURE);
 	}
-	memcpy(*outbuf, buf + buf_size - buf_len, buf_len);
+	memmove(*outbuf, buf + buf_size - buf_len, buf_len);
 	*outbuf_size = buf_len;
 
 	free(buf);
@@ -630,8 +630,10 @@ gss_accept_sec_context_spnego(OM_uint32 *minor_status,
 				  sizeof(mechbuf),
 				  &init_token.mechTypes.val[i],
 				  &mech_len);
-		if (ret)
+		if (ret) {
+			free_NegTokenInit(&init_token);
 			return (GSS_S_DEFECTIVE_TOKEN);
+		}
 		if (mech_len == GSS_KRB5_MECH->length &&
 		    memcmp(GSS_KRB5_MECH->elements,
 			   mechbuf + sizeof(mechbuf) - mech_len,
@@ -650,8 +652,10 @@ gss_accept_sec_context_spnego(OM_uint32 *minor_status,
 		}
 	}
 
-	if (!found)
+	if (!found) {
+		free_NegTokenInit(&init_token);
 		return (send_reject(minor_status, output_token));
+	}
 
 	if (i == 0 && init_token.mechToken != NULL) {
 		ibuf.length = init_token.mechToken->length;
@@ -669,12 +673,14 @@ gss_accept_sec_context_spnego(OM_uint32 *minor_status,
 						      time_rec,
 						      delegated_cred_handle);
 		if (GSS_ERROR(major_status)) {
+			free_NegTokenInit(&init_token);
 			send_reject(&minor_status2, output_token);
 			return (major_status);
 		}
 		ot = &obuf;
 	}
 	ret = send_accept(&minor_status2, output_token, ot, pref);
+	free_NegTokenInit(&init_token);
 	if (ot != NULL && ot->length != 0U)
 		gss_release_buffer(&minor_status2, ot);
 
@@ -846,10 +852,13 @@ der_get_octet_string(const unsigned char *p, size_t len,
 		     octet_string *data, size_t *size)
 {
 	data->length = len;
-	data->data = malloc(len);
-	if (data->data == NULL && data->length != 0U)
-		return (ENOMEM);
-	memcpy(data->data, p, len);
+	if (len != 0U) {
+		data->data = malloc(len);
+		if (data->data == NULL)
+			return (ENOMEM);
+		memmove(data->data, p, len);
+	} else
+		data->data = NULL;
 	if (size)
 		*size = len;
 	return (0);
@@ -862,6 +871,8 @@ der_get_oid(const unsigned char *p, size_t len,
 	int n;
 	size_t oldlen = len;
 
+	data->components = NULL;
+	data->length = 0;
 	if (len < 1U)
 		return (ASN1_OVERRUN);
 
@@ -997,6 +1008,9 @@ decode_octet_string(const unsigned char *p, size_t len,
 	int e;
 	size_t slen;
 
+	k->data = NULL;
+	k->length = 0;
+
 	e = der_match_tag(p, len, ASN1_C_UNIV, PRIM, UT_OctetString, &l);
 	if (e)
 		return (e);
@@ -1093,7 +1107,7 @@ length_len(size_t len)
 	if (len < 128U)
 		return (1);
 	else
-		return (len_unsigned(len) + 1);
+		return (len_unsigned((unsigned int)len) + 1);
 }
 
 
@@ -1177,18 +1191,18 @@ der_put_length(unsigned char *p, size_t len, size_t val, size_t *size)
 	if (len < 1U)
 		return (ASN1_OVERFLOW);
 	if (val < 128U) {
-		*p = val;
+		*p = (unsigned char)val;
 		*size = 1;
 		return (0);
 	} else {
 		size_t l;
 		int e;
 
-		e = der_put_unsigned(p, len - 1, val, &l);
+		e = der_put_unsigned(p, len - 1, (unsigned int)val, &l);
 		if (e)
 			return (e);
 		p -= l;
-		*p = 0x80 | l;
+		*p = 0x80 | (unsigned char)l;
 		*size = l + 1;
 		return (0);
 	}
@@ -1203,7 +1217,7 @@ der_put_octet_string(unsigned char *p, size_t len,
 	p -= data->length;
 	len -= data->length;
 	POST(len);
-	memcpy(p + 1, data->data, data->length);
+	memmove(p + 1, data->data, data->length);
 	*size = data->length;
 	return (0);
 }
@@ -1213,10 +1227,10 @@ der_put_oid(unsigned char *p, size_t len,
 	    const oid *data, size_t *size)
 {
 	unsigned char *base = p;
-	int n;
+	size_t n;
 
-	for (n = data->length - 1; n >= 2; --n) {
-		unsigned	u = data->components[n];
+	for (n = data->length; n >= 3u; --n) {
+		unsigned	u = data->components[n - 1];
 
 		if (len < 1U)
 			return (ASN1_OVERFLOW);
@@ -1383,7 +1397,7 @@ gssapi_mech_make_header(u_char *p,
 	p += len_len;
 	*p++ = 0x06;
 	*p++ = mech->length;
-	memcpy(p, mech->elements, mech->length);
+	memmove(p, mech->elements, mech->length);
 	p += mech->length;
 	return (p);
 }
@@ -1416,7 +1430,7 @@ gssapi_spnego_encapsulate(OM_uint32 * minor_status,
 			gss_release_buffer(minor_status, output_token);
 		return (GSS_S_FAILURE);
 	}
-	memcpy(p, buf, buf_size);
+	memmove(p, buf, buf_size);
 	return (GSS_S_COMPLETE);
 }
 
@@ -1547,6 +1561,11 @@ spnego_initial(OM_uint32 *minor_status,
 
 	buf_size = 1024;
 	buf = malloc(buf_size);
+	if (buf == NULL) {
+		*minor_status = ENOMEM;
+		ret = GSS_S_FAILURE;
+		goto end;
+	}
 
 	do {
 		ret = encode_NegTokenInit(buf + buf_size - 1,
@@ -1685,6 +1704,7 @@ spnego_reply(OM_uint32 *minor_status,
 
 	ret = decode_NegTokenResp(buf + taglen, len, &resp, NULL);
 	if (ret) {
+		free_NegTokenResp(&resp);
 		*minor_status = ENOMEM;
 		return (GSS_S_FAILURE);
 	}

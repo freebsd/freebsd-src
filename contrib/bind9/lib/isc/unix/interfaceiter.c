@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -79,14 +79,14 @@ get_addr(unsigned int family, isc_netaddr_t *dst, struct sockaddr *src,
 	dst->family = family;
 	switch (family) {
 	case AF_INET:
-		memcpy(&dst->type.in,
-		       &((struct sockaddr_in *) src)->sin_addr,
-		       sizeof(struct in_addr));
+		memmove(&dst->type.in,
+			&((struct sockaddr_in *) src)->sin_addr,
+			sizeof(struct in_addr));
 		break;
 	case AF_INET6:
 		sa6 = (struct sockaddr_in6 *)src;
-		memcpy(&dst->type.in6, &sa6->sin6_addr,
-		       sizeof(struct in6_addr));
+		memmove(&dst->type.in6, &sa6->sin6_addr,
+			sizeof(struct in6_addr));
 #ifdef ISC_PLATFORM_HAVESCOPEID
 		if (sa6->sin6_scope_id != 0)
 			isc_netaddr_setzone(dst, sa6->sin6_scope_id);
@@ -105,8 +105,8 @@ get_addr(unsigned int family, isc_netaddr_t *dst, struct sockaddr *src,
 			if (IN6_IS_ADDR_LINKLOCAL(&sa6->sin6_addr)) {
 				isc_uint16_t zone16;
 
-				memcpy(&zone16, &sa6->sin6_addr.s6_addr[2],
-				       sizeof(zone16));
+				memmove(&zone16, &sa6->sin6_addr.s6_addr[2],
+					sizeof(zone16));
 				zone16 = ntohs(zone16);
 				if (zone16 != 0) {
 					/* the zone ID is embedded */
@@ -252,7 +252,7 @@ isc_interfaceiter_current(isc_interfaceiter_t *iter,
 			  isc_interface_t *ifdata)
 {
 	REQUIRE(iter->result == ISC_R_SUCCESS);
-	memcpy(ifdata, &iter->current, sizeof(*ifdata));
+	memmove(ifdata, &iter->current, sizeof(*ifdata));
 	return (ISC_R_SUCCESS);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -79,7 +79,7 @@ ux_socket_connect(const char *path) {
 
 	memset(&addr, 0, sizeof(addr));
 	addr.sun_family = AF_UNIX;
-	strncpy(addr.sun_path, path, sizeof(addr.sun_path));
+	strlcpy(addr.sun_path, path, sizeof(addr.sun_path));
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd == -1) {
@@ -131,7 +131,7 @@ dns_ssu_external_match(dns_name_t *identity,
 	isc_buffer_t *tkey_token = NULL;
 	int fd;
 	const char *sock_path;
-	size_t req_len;
+	unsigned int req_len;
 	isc_region_t token_region;
 	unsigned char *data;
 	isc_buffer_t buf;

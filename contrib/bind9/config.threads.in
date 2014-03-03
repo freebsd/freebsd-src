@@ -60,7 +60,7 @@ case $host in
 esac
 
 AC_ARG_ENABLE(threads,
-	[  --enable-threads	enable multithreading])
+	[  --enable-threads        enable multithreading])
 case "$enable_threads" in
 	yes)
 		use_threads=true

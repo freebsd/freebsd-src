@@ -168,7 +168,8 @@ openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	if (!EVP_SignFinal(evp_md_ctx, sigbuf, &siglen, pkey)) {
 		EVP_PKEY_free(pkey);
 		free(sigbuf);
-		return (dst__openssl_toresult2("EVP_SignFinal",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_SignFinal",
 					       ISC_R_FAILURE));
 	}
 	INSIST(EVP_PKEY_size(pkey) >= (int) siglen);
@@ -182,25 +183,30 @@ openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	sb = sigbuf;
 	if (d2i_DSA_SIG(&dsasig, &sb, (long) siglen) == NULL) {
 		free(sigbuf);
-		return (dst__openssl_toresult2("d2i_DSA_SIG", ISC_R_FAILURE));
+		return (dst__openssl_toresult3(dctx->category,
+					       "d2i_DSA_SIG",
+					       ISC_R_FAILURE));
 	}
 	free(sigbuf);
 #elif 0
 	/* Only use EVP for the Digest */
 	if (!EVP_DigestFinal_ex(evp_md_ctx, digest, &siglen)) {
-		return (dst__openssl_toresult2("EVP_DigestFinal_ex",
+		return (dst__openssl_toresult3(dctx->category,
+					       "EVP_DigestFinal_ex",
 					       ISC_R_FAILURE));
 	}
 	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
 	if (dsasig == NULL)
-		return (dst__openssl_toresult2("DSA_do_sign",
+		return (dst__openssl_toresult3(dctx->category,
+					       "DSA_do_sign",
 					       DST_R_SIGNFAILURE));
 #else
 	isc_sha1_final(sha1ctx, digest);
 
 	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
 	if (dsasig == NULL)
-		return (dst__openssl_toresult2("DSA_do_sign",
+		return (dst__openssl_toresult3(dctx->category,
+					       "DSA_do_sign",
 					       DST_R_SIGNFAILURE));
 #endif
 	*r.base++ = (key->key_size - 512)/64;
@@ -286,7 +292,8 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	case 0:
 		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
 	default:
-		return (dst__openssl_toresult2("DSA_do_verify",
+		return (dst__openssl_toresult3(dctx->category,
+					       "DSA_do_verify",
 					       DST_R_VERIFYFAILURE));
 	}
 }

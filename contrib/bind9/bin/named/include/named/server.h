@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -165,7 +165,9 @@ enum {
 	dns_nsstatscounter_updatefail = 34,
 	dns_nsstatscounter_updatebadprereq = 35,
 
-	dns_nsstatscounter_max = 36
+	dns_nsstatscounter_rpz_rewrites = 36,
+
+	dns_nsstatscounter_max = 37
 };
 
 void
@@ -222,7 +224,8 @@ ns_server_refreshcommand(ns_server_t *server, char *args, isc_buffer_t *text);
  */
 
 isc_result_t
-ns_server_retransfercommand(ns_server_t *server, char *args);
+ns_server_retransfercommand(ns_server_t *server, char *args,
+			    isc_buffer_t *text);
 /*%<
  * Act on a "retransfer" command from the command channel.
  */
@@ -302,7 +305,7 @@ ns_server_freeze(ns_server_t *server, isc_boolean_t freeze, char *args,
  * take place incrementally.
  */
 isc_result_t
-ns_server_rekey(ns_server_t *server, char *args);
+ns_server_rekey(ns_server_t *server, char *args, isc_buffer_t *text);
 
 /*%
  * Dump the current recursive queries.
@@ -332,6 +335,6 @@ ns_server_add_zone(ns_server_t *server, char *args);
  * Deletes a zone from a running process
  */
 isc_result_t
-ns_server_del_zone(ns_server_t *server, char *args);
+ns_server_del_zone(ns_server_t *server, char *args, isc_buffer_t *text);
 
 #endif /* NAMED_SERVER_H */

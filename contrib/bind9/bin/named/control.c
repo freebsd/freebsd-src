@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009, 2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -61,7 +61,7 @@ command_compare(const char *text, const char *command) {
 isc_result_t
 ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 	isccc_sexpr_t *data;
-	char *command;
+	char *command = NULL;
 	isc_result_t result;
 	int log_level;
 #ifdef HAVE_LIBSCF
@@ -105,7 +105,8 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 	} else if (command_compare(command, NS_COMMAND_REFRESH)) {
 		result = ns_server_refreshcommand(ns_g_server, command, text);
 	} else if (command_compare(command, NS_COMMAND_RETRANSFER)) {
-		result = ns_server_retransfercommand(ns_g_server, command);
+		result = ns_server_retransfercommand(ns_g_server,
+						     command, text);
 	} else if (command_compare(command, NS_COMMAND_HALT)) {
 #ifdef HAVE_LIBSCF
 		/*
@@ -196,11 +197,11 @@ ns_control_docommand(isccc_sexpr_t *message, isc_buffer_t *text) {
 		result = ns_server_validation(ns_g_server, command);
 	} else if (command_compare(command, NS_COMMAND_SIGN) ||
 		   command_compare(command, NS_COMMAND_LOADKEYS)) {
-		result = ns_server_rekey(ns_g_server, command);
+		result = ns_server_rekey(ns_g_server, command, text);
 	} else if (command_compare(command, NS_COMMAND_ADDZONE)) {
 		result = ns_server_add_zone(ns_g_server, command);
 	} else if (command_compare(command, NS_COMMAND_DELZONE)) {
-		result = ns_server_del_zone(ns_g_server, command);
+		result = ns_server_del_zone(ns_g_server, command, text);
 	} else {
 		isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL,
 			      NS_LOGMODULE_CONTROL, ISC_LOG_WARNING,

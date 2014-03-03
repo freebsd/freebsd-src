@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -54,16 +54,32 @@ installdirs:
 
 install:: isc-config.sh installdirs
 	${INSTALL_SCRIPT} isc-config.sh ${DESTDIR}${bindir}
+	rm -f ${DESTDIR}${bindir}/bind9-config
+	@LN@ ${DESTDIR}${bindir}/isc-config.sh ${DESTDIR}${bindir}/bind9-config
 	${INSTALL_DATA} ${top_srcdir}/isc-config.sh.1 ${DESTDIR}${mandir}/man1
+	rm -f ${DESTDIR}${mandir}/man1/bind9-config.1
+	@LN@ ${DESTDIR}${mandir}/man1/isc-config.sh.1 ${DESTDIR}${mandir}/man1/bind9-config.1
 	${INSTALL_DATA} ${top_srcdir}/bind.keys ${DESTDIR}${sysconfdir}
 
 tags:
 	rm -f TAGS
 	find lib bin -name "*.[ch]" -print | @ETAGS@ -
 
-check: test
+test check:
+	@if test -n "`${PERL} ${top_srcdir}/bin/tests/system/testsock.pl 2>&- || echo fail`"; then \
+	echo I: NOTE: The tests were not run because they require that; \
+	echo I:	the IP addresses 10.53.0.1 through 10.53.0.8 are configured; \
+	echo I:	as alias addresses on the loopback interface.  Please run; \
+	echo I:	\'bin/tests/system/ifconfig.sh up\' as root to configure; \
+	echo I:	them, then rerun the tests. Run make force-test to run the; \
+	echo I:	tests anyway.; \
+	exit 1; \
+	fi
+	${MAKE} test-force
 
-test:
+force-test: test-force
+
+test-force:
 	status=0; \
 	(cd bin/tests && ${MAKE} ${MAKEDEFS} test) || status=1; \
 	(test -f unit/unittest.sh && $(SHELL) unit/unittest.sh) || status=1; \
@@ -73,6 +89,9 @@ FAQ: FAQ.xml
 	${XSLTPROC} doc/xsl/isc-docbook-text.xsl FAQ.xml | \
 	LC_ALL=C ${W3M} -T text/html -dump -cols 72 >$@.tmp
 	mv $@.tmp $@
+
+unit::
+	sh ${top_srcdir}/unit/unittest.sh
 
 clean::
 	rm -f FAQ.tmp

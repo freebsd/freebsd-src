@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -219,13 +219,12 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 		break;
 	case AF_INET6:
 		in6 = &sockaddr->type.sin6.sin6_addr;
+		s = (const unsigned char *)in6;
 		if (IN6_IS_ADDR_V4MAPPED(in6)) {
-			s = (const unsigned char *)&in6[12];
+			s += 12;
 			length = sizeof(sockaddr->type.sin.sin_addr.s_addr);
-		} else {
-			s = (const unsigned char *)in6;
+		} else
 			length = sizeof(sockaddr->type.sin6.sin6_addr);
-		}
 		p = ntohs(sockaddr->type.sin6.sin6_port);
 		break;
 	default:
@@ -333,7 +332,7 @@ isc_sockaddr_v6fromin(isc_sockaddr_t *sockaddr, const struct in_addr *ina,
 #endif
 	sockaddr->type.sin6.sin6_addr.s6_addr[10] = 0xff;
 	sockaddr->type.sin6.sin6_addr.s6_addr[11] = 0xff;
-	memcpy(&sockaddr->type.sin6.sin6_addr.s6_addr[12], ina, 4);
+	memmove(&sockaddr->type.sin6.sin6_addr.s6_addr[12], ina, 4);
 	sockaddr->type.sin6.sin6_port = htons(port);
 	sockaddr->length = sizeof(sockaddr->type.sin6);
 	ISC_LINK_INIT(sockaddr, link);
@@ -387,7 +386,7 @@ isc_sockaddr_fromnetaddr(isc_sockaddr_t *sockaddr, const isc_netaddr_t *na,
 #ifdef ISC_PLATFORM_HAVESALEN
 		sockaddr->type.sin6.sin6_len = sizeof(sockaddr->type.sin6);
 #endif
-		memcpy(&sockaddr->type.sin6.sin6_addr, &na->type.in6, 16);
+		memmove(&sockaddr->type.sin6.sin6_addr, &na->type.in6, 16);
 #ifdef ISC_PLATFORM_HAVESCOPEID
 		sockaddr->type.sin6.sin6_scope_id = isc_netaddr_getzone(na);
 #endif

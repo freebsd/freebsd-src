@@ -1,4 +1,4 @@
-# Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
 #
 # Permission to use, copy, modify, and/or distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -43,8 +43,9 @@ LIBS =		@LIBS@
 
 # Alphabetically
 
+OPENSSLGOSTLINKOBJS = opensslgost_link.@O@
 OPENSSLLINKOBJS = openssl_link.@O@ openssldh_link.@O@ openssldsa_link.@O@ \
-		opensslecdsa_link.@O@ opensslgost_link.@O@ opensslrsa_link.@O@
+		opensslecdsa_link.@O@ @OPENSSLGOSTLINKOBJS@ opensslrsa_link.@O@
 
 DSTOBJS =	@OPENSSLLINKOBJS@ \
 		dst_api.@O@ dst_lib.@O@ dst_parse.@O@ dst_result.@O@ \
@@ -71,8 +72,9 @@ OBJS=		${DNSOBJS} ${OTHEROBJS} ${DSTOBJS} ${PORTDNSOBJS}
 
 # Alphabetically
 
+OPENSSLGOSTLINKSRCS = opensslgost_link.c
 OPENSSLLINKSRCS = openssl_link.c openssldh_link.c openssldsa_link.c \
-		opensslecdsa_link.c opensslgost_link.c opensslrsa_link.c
+		opensslecdsa_link.c @OPENSSLGOSTLINKSRCS@ opensslrsa_link.c
 
 DSTSRCS =	@OPENSSLLINKSRCS@ \
 		dst_api.c dst_lib.c dst_parse.c \

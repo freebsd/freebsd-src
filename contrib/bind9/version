@@ -3,8 +3,11 @@
 # This file must follow /bin/sh rules.  It is imported directly via
 # configure.
 #
+PRODUCT=BIND
+DESCRIPTION=
 MAJORVER=9
 MINORVER=8
-PATCHVER=4
-RELEASETYPE=-P
-RELEASEVER=2
+PATCHVER=7
+RELEASETYPE=
+RELEASEVER=
+EXTENSIONS=

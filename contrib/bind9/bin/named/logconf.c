@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -41,10 +41,10 @@
 
 /*%
  * Set up a logging category according to the named.conf data
- * in 'ccat' and add it to 'lctx'.
+ * in 'ccat' and add it to 'logconfig'.
  */
 static isc_result_t
-category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *lctx) {
+category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *logconfig) {
 	isc_result_t result;
 	const char *catname;
 	isc_logcategory_t *category;
@@ -64,6 +64,9 @@ category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *lctx) {
 		return (ISC_R_SUCCESS);
 	}
 
+	if (logconfig == NULL)
+		return (ISC_R_SUCCESS);
+
 	module = NULL;
 
 	destinations = cfg_tuple_get(ccat, "destinations");
@@ -74,7 +77,7 @@ category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *lctx) {
 		const cfg_obj_t *channel = cfg_listelt_value(element);
 		const char *channelname = cfg_obj_asstring(channel);
 
-		result = isc_log_usechannel(lctx, channelname, category,
+		result = isc_log_usechannel(logconfig, channelname, category,
 					    module);
 		if (result != ISC_R_SUCCESS) {
 			isc_log_write(ns_g_lctx, CFG_LOGCATEGORY_CONFIG,
@@ -89,10 +92,11 @@ category_fromconf(const cfg_obj_t *ccat, isc_logconfig_t *lctx) {
 
 /*%
  * Set up a logging channel according to the named.conf data
- * in 'cchan' and add it to 'lctx'.
+ * in 'cchan' and add it to 'logconfig'.
  */
 static isc_result_t
-channel_fromconf(const cfg_obj_t *channel, isc_logconfig_t *lctx) {
+channel_fromconf(const cfg_obj_t *channel, isc_logconfig_t *logconfig)
+{
 	isc_result_t result;
 	isc_logdestination_t dest;
 	unsigned int type;
@@ -215,8 +219,11 @@ channel_fromconf(const cfg_obj_t *channel, isc_logconfig_t *lctx) {
 			level = cfg_obj_asuint32(severity);
 	}
 
-	result = isc_log_createchannel(lctx, channelname,
-				       type, level, &dest, flags);
+	if (logconfig == NULL)
+		result = ISC_R_SUCCESS;
+	else
+		result = isc_log_createchannel(logconfig, channelname,
+					       type, level, &dest, flags);
 
 	if (result == ISC_R_SUCCESS && type == ISC_LOG_TOFILE) {
 		FILE *fp;
@@ -226,39 +233,40 @@ channel_fromconf(const cfg_obj_t *channel, isc_logconfig_t *lctx) {
 		 * Fix defect #22771
 		*/
 		result = isc_file_isplainfile(dest.file.name);
-		if (result == ISC_R_SUCCESS ||
-		    result == ISC_R_FILENOTFOUND) {
+		if (result == ISC_R_SUCCESS || result == ISC_R_FILENOTFOUND) {
 			/*
 			 * Test that the file can be opened, since
 			 * isc_log_open() can't effectively report
-			 * failures when called in
-			 * isc_log_doit().
+			 * failures when called in isc_log_doit().
 			 */
 			result = isc_stdio_open(dest.file.name, "a", &fp);
 			if (result != ISC_R_SUCCESS) {
-				syslog(LOG_ERR,
-					"isc_stdio_open '%s' failed: %s",
-					dest.file.name,
-					isc_result_totext(result));
+				if (logconfig != NULL && !ns_g_nosyslog)
+					syslog(LOG_ERR,
+						"isc_stdio_open '%s' failed: "
+						"%s", dest.file.name,
+						isc_result_totext(result));
 				fprintf(stderr,
-					"isc_stdio_open '%s' failed: %s",
+					"isc_stdio_open '%s' failed: %s\n",
 					dest.file.name,
 					isc_result_totext(result));
 			} else
 				(void)isc_stdio_close(fp);
-		} else {
-			syslog(LOG_ERR, "isc_file_isplainfile '%s' failed: %s",
-				dest.file.name, isc_result_totext(result));
-			fprintf(stderr, "isc_file_isplainfile '%s' failed: %s",
-				dest.file.name, isc_result_totext(result));
+			goto done;
 		}
+		if (logconfig != NULL && !ns_g_nosyslog)
+			syslog(LOG_ERR, "isc_file_isplainfile '%s' failed: %s",
+			       dest.file.name, isc_result_totext(result));
+		fprintf(stderr, "isc_file_isplainfile '%s' failed: %s\n",
+			dest.file.name, isc_result_totext(result));
 	}
 
+ done:
 	return (result);
 }
 
 isc_result_t
-ns_log_configure(isc_logconfig_t *logconf, const cfg_obj_t *logstmt) {
+ns_log_configure(isc_logconfig_t *logconfig, const cfg_obj_t *logstmt) {
 	isc_result_t result;
 	const cfg_obj_t *channels = NULL;
 	const cfg_obj_t *categories = NULL;
@@ -267,7 +275,8 @@ ns_log_configure(isc_logconfig_t *logconf, const cfg_obj_t *logstmt) {
 	isc_boolean_t unmatched_set = ISC_FALSE;
 	const cfg_obj_t *catname;
 
-	CHECK(ns_log_setdefaultchannels(logconf));
+	if (logconfig != NULL)
+		CHECK(ns_log_setdefaultchannels(logconfig));
 
 	(void)cfg_map_get(logstmt, "channel", &channels);
 	for (element = cfg_list_first(channels);
@@ -275,7 +284,7 @@ ns_log_configure(isc_logconfig_t *logconf, const cfg_obj_t *logstmt) {
 	     element = cfg_list_next(element))
 	{
 		const cfg_obj_t *channel = cfg_listelt_value(element);
-		CHECK(channel_fromconf(channel, logconf));
+		CHECK(channel_fromconf(channel, logconfig));
 	}
 
 	(void)cfg_map_get(logstmt, "category", &categories);
@@ -284,7 +293,7 @@ ns_log_configure(isc_logconfig_t *logconf, const cfg_obj_t *logstmt) {
 	     element = cfg_list_next(element))
 	{
 		const cfg_obj_t *category = cfg_listelt_value(element);
-		CHECK(category_fromconf(category, logconf));
+		CHECK(category_fromconf(category, logconfig));
 		if (!default_set) {
 			catname = cfg_tuple_get(category, "name");
 			if (strcmp(cfg_obj_asstring(catname), "default") == 0)
@@ -297,16 +306,14 @@ ns_log_configure(isc_logconfig_t *logconf, const cfg_obj_t *logstmt) {
 		}
 	}
 
-	if (!default_set)
-		CHECK(ns_log_setdefaultcategory(logconf));
+	if (logconfig != NULL && !default_set)
+		CHECK(ns_log_setdefaultcategory(logconfig));
 
-	if (!unmatched_set)
-		CHECK(ns_log_setunmatchedcategory(logconf));
+	if (logconfig != NULL && !unmatched_set)
+		CHECK(ns_log_setunmatchedcategory(logconfig));
 
 	return (ISC_R_SUCCESS);
 
  cleanup:
-	if (logconf != NULL)
-		isc_logconfig_destroy(&logconf);
 	return (result);
 }

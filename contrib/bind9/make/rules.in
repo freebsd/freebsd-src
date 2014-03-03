@@ -193,24 +193,24 @@ MKDEP = ${SHELL} ${top_builddir}/make/mkdep
 ### See bin/check/Makefile.in for a complete example of the use of LIBS0.
 ###
 FINALBUILDCMD = if [ X"${MKSYMTBL_PROGRAM}" = X -o X"$${MAKE_SYMTABLE:-${ALWAYS_MAKE_SYMTABLE}}" = X ] ; then \
-		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${ALL_CFLAGS} ${LDFLAGS} \
 		-o $@ $${BASEOBJS} $${LIBS0} ${LIBS}; \
 	else \
 		rm -f $@tmp0; \
-		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${ALL_CFLAGS} ${LDFLAGS} \
 		-o $@tmp0 $${BASEOBJS} $${LIBS0} ${LIBS} || exit 1; \
 		rm -f $@-symtbl.c $@-symtbl.@O@; \
 		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
 		-o $@-symtbl.c $@tmp0 || exit 1; \
 		$(MAKE) $@-symtbl.@O@ || exit 1; \
 		rm -f $@tmp1; \
-		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${ALL_CFLAGS} ${LDFLAGS} \
 		-o $@tmp1 $${BASEOBJS} $@-symtbl.@O@ $${LIBS0} ${NOSYMLIBS} || exit 1; \
 		rm -f $@-symtbl.c $@-symtbl.@O@; \
 		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
 		-o $@-symtbl.c $@tmp1 || exit 1; \
 		$(MAKE) $@-symtbl.@O@ || exit 1; \
-		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} \
+		${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${ALL_CFLAGS} ${LDFLAGS} \
 		-o $@tmp2 $${BASEOBJS} $@-symtbl.@O@ $${LIBS0} ${NOSYMLIBS}; \
 		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
 		-o $@-symtbl2.c $@tmp2; \
@@ -223,7 +223,7 @@ FINALBUILDCMD = if [ X"${MKSYMTBL_PROGRAM}" = X -o X"$${MAKE_SYMTABLE:-${ALWAYS_
 			${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
 			-o $@-symtbl.c $@tmp2 || exit 1; \
 			$(MAKE) $@-symtbl.@O@ || exit 1; \
-			${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} \
+			${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${ALL_CFLAGS} \
 			${LDFLAGS} -o $@tmp2 $${BASEOBJS} $@-symtbl.@O@ \
 			$${LIBS0} ${NOSYMLIBS}; \
 			${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \

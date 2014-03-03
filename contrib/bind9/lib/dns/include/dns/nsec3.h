@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2010, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,7 +43,7 @@
 /*
  * Test "unknown" algorithm.  Is mapped to dns_hash_sha1.
  */
-#define DNS_NSEC3_UNKNOWNALG 245U
+#define DNS_NSEC3_UNKNOWNALG ((dns_hash_t)245U)
 
 ISC_LANG_BEGINDECLS
 
@@ -247,6 +247,14 @@ dns_nsec3param_deletechains(dns_db_t *db, dns_dbversion_t *ver,
  * Mark NSEC3PARAM for deletion.
  */
 
+isc_result_t
+dns_nsec3_noexistnodata(dns_rdatatype_t type, dns_name_t* name,
+			dns_name_t *nsec3name, dns_rdataset_t *nsec3set,
+			dns_name_t *zonename, isc_boolean_t *exists,
+			isc_boolean_t *data, isc_boolean_t *optout,
+			isc_boolean_t *unknown, isc_boolean_t *setclosest,
+			isc_boolean_t *setnearest, dns_name_t *closest,
+			dns_name_t *nearest, dns_nseclog_t logit, void *arg);
 
 ISC_LANG_ENDDECLS
 

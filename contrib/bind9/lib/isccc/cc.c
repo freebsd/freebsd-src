@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2007, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -42,6 +42,7 @@
 #include <isc/assertions.h>
 #include <isc/hmacmd5.h>
 #include <isc/print.h>
+#include <isc/safe.h>
 #include <isc/stdlib.h>
 
 #include <isccc/alist.h>
@@ -86,7 +87,7 @@ list_towire(isccc_sexpr_t *alist, isccc_region_t *target);
 static isc_result_t
 value_towire(isccc_sexpr_t *elt, isccc_region_t *target)
 {
-	size_t len;
+	unsigned int len;
 	unsigned char *lenp;
 	isccc_region_t *vr;
 	isc_result_t result;
@@ -116,7 +117,7 @@ value_towire(isccc_sexpr_t *elt, isccc_region_t *target)
 		result = table_towire(elt, target);
 		if (result != ISC_R_SUCCESS)
 			return (result);
-		len = (size_t)(target->rstart - lenp);
+		len = (unsigned int)(target->rstart - lenp);
 		/*
 		 * 'len' is 4 bytes too big, since it counts
 		 * the placeholder length too.  Adjust and
@@ -140,7 +141,7 @@ value_towire(isccc_sexpr_t *elt, isccc_region_t *target)
 		result = list_towire(elt, target);
 		if (result != ISC_R_SUCCESS)
 			return (result);
-		len = (size_t)(target->rstart - lenp);
+		len = (unsigned int)(target->rstart - lenp);
 		/*
 		 * 'len' is 4 bytes too big, since it counts
 		 * the placeholder length.  Adjust and emit.
@@ -264,7 +265,8 @@ isccc_cc_towire(isccc_sexpr_t *alist, isccc_region_t *target,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	if (secret != NULL)
-		return (sign(signed_rstart, (target->rstart - signed_rstart),
+		return (sign(signed_rstart,
+			     (unsigned int)(target->rstart - signed_rstart),
 			     hmd5_rstart, secret));
 	return (ISC_R_SUCCESS);
 }
@@ -311,7 +313,8 @@ verify(isccc_sexpr_t *alist, unsigned char *data, unsigned int length,
 	/*
 	 * Verify.
 	 */
-	if (strcmp((char *)digestb64, isccc_sexpr_tostring(hmd5)) != 0)
+	if (!isc_safe_memcmp((unsigned char *) isccc_sexpr_tostring(hmd5),
+			     digestb64, HMD5_LENGTH))
 		return (ISCCC_R_BADAUTH);
 
 	return (ISC_R_SUCCESS);
@@ -402,6 +405,7 @@ table_fromwire(isccc_region_t *source, isccc_region_t *secret,
 	if (secret != NULL) {
 		if (checksum_rstart != NULL)
 			result = verify(alist, checksum_rstart,
+					(unsigned int)
 					(source->rend - checksum_rstart),
 					secret);
 		else
@@ -561,8 +565,10 @@ isccc_cc_createack(isccc_sexpr_t *message, isc_boolean_t ok,
 		return (result);
 
 	_ctrl = isccc_alist_lookup(ack, "_ctrl");
-	if (_ctrl == NULL)
-		return (ISC_R_FAILURE);
+	if (_ctrl == NULL) {
+		result = ISC_R_FAILURE;
+		goto bad;
+	}
 	if (isccc_cc_definestring(ack, "_ack", (ok) ? "1" : "0") == NULL) {
 		result = ISC_R_NOMEMORY;
 		goto bad;
@@ -608,7 +614,7 @@ isc_result_t
 isccc_cc_createresponse(isccc_sexpr_t *message, isccc_time_t now,
 		      isccc_time_t expires, isccc_sexpr_t **alistp)
 {
-	char *_frm, *_to, *type;
+	char *_frm, *_to, *type = NULL;
 	isc_uint32_t serial;
 	isccc_sexpr_t *alist, *_ctrl, *_data;
 	isc_result_t result;
@@ -617,8 +623,7 @@ isccc_cc_createresponse(isccc_sexpr_t *message, isccc_time_t now,
 
 	_ctrl = isccc_alist_lookup(message, "_ctrl");
 	_data = isccc_alist_lookup(message, "_data");
-	if (_ctrl == NULL ||
-	    _data == NULL ||
+	if (_ctrl == NULL || _data == NULL ||
 	    isccc_cc_lookupuint32(_ctrl, "_ser", &serial) != ISC_R_SUCCESS ||
 	    isccc_cc_lookupstring(_data, "type", &type) != ISC_R_SUCCESS)
 		return (ISC_R_FAILURE);
@@ -637,21 +642,33 @@ isccc_cc_createresponse(isccc_sexpr_t *message, isccc_time_t now,
 					 &alist);
 	if (result != ISC_R_SUCCESS)
 		return (result);
+
 	_ctrl = isccc_alist_lookup(alist, "_ctrl");
-	if (_ctrl == NULL)
-		return (ISC_R_FAILURE);
+	if (_ctrl == NULL) {
+		result = ISC_R_FAILURE;
+		goto bad;
+	}
+
 	_data = isccc_alist_lookup(alist, "_data");
-	if (_data == NULL)
-		return (ISC_R_FAILURE);
+	if (_data == NULL) {
+		result = ISC_R_FAILURE;
+		goto bad;
+	}
+
 	if (isccc_cc_definestring(_ctrl, "_rpl", "1") == NULL ||
-	    isccc_cc_definestring(_data, "type", type) == NULL) {
-		isccc_sexpr_free(&alist);
-		return (ISC_R_NOMEMORY);
+	    isccc_cc_definestring(_data, "type", type) == NULL)
+	{
+		result = ISC_R_NOMEMORY;
+		goto bad;
 	}
 
 	*alistp = alist;
 
 	return (ISC_R_SUCCESS);
+
+ bad:
+	isccc_sexpr_free(&alist);
+	return (result);
 }
 
 isccc_sexpr_t *
@@ -686,6 +703,8 @@ isc_result_t
 isccc_cc_lookupstring(isccc_sexpr_t *alist, const char *key, char **strp)
 {
 	isccc_sexpr_t *kv, *v;
+
+	REQUIRE(strp == NULL || *strp == NULL);
 
 	kv = isccc_alist_assq(alist, key);
 	if (kv != NULL) {
@@ -785,7 +804,7 @@ isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
 {
 	const char *_frm;
 	const char *_to;
-	char *_ser, *_tim, *tmp;
+	char *_ser = NULL, *_tim = NULL, *tmp;
 	isc_result_t result;
 	char *key;
 	size_t len;
@@ -797,13 +816,19 @@ isccc_cc_checkdup(isccc_symtab_t *symtab, isccc_sexpr_t *message,
 	    isccc_cc_lookupstring(_ctrl, "_ser", &_ser) != ISC_R_SUCCESS ||
 	    isccc_cc_lookupstring(_ctrl, "_tim", &_tim) != ISC_R_SUCCESS)
 		return (ISC_R_FAILURE);
+
+	INSIST(_ser != NULL);
+	INSIST(_tim != NULL);
+
 	/*
 	 * _frm and _to are optional.
 	 */
+	tmp = NULL;
 	if (isccc_cc_lookupstring(_ctrl, "_frm", &tmp) != ISC_R_SUCCESS)
 		_frm = "";
 	else
 		_frm = tmp;
+	tmp = NULL;
 	if (isccc_cc_lookupstring(_ctrl, "_to", &tmp) != ISC_R_SUCCESS)
 		_to = "";
 	else

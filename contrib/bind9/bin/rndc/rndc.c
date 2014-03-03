@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -469,6 +469,9 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 		conffile = admin_keyfile;
 		conftype = &cfg_type_rndckey;
 
+		if (c_flag)
+			fatal("%s does not exist", admin_conffile);
+
 		if (! isc_file_exists(conffile))
 			fatal("neither %s nor %s was found",
 			      admin_conffile, admin_keyfile);
@@ -699,7 +702,7 @@ main(int argc, char **argv) {
 
 	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)
-		memcpy(program, "rndc", 5);
+		memmove(program, "rndc", 5);
 	progname = program;
 
 	admin_conffile = RNDC_CONFFILE;
@@ -771,6 +774,7 @@ main(int argc, char **argv) {
 					program, isc_commandline_option);
 				usage(1);
 			}
+			/* FALLTHROUGH */
 		case 'h':
 			usage(0);
 			break;
@@ -830,7 +834,7 @@ main(int argc, char **argv) {
 	p = args;
 	for (i = 0; i < argc; i++) {
 		size_t len = strlen(argv[i]);
-		memcpy(p, argv[i], len);
+		memmove(p, argv[i], len);
 		p += len;
 		*p++ = ' ';
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -354,6 +354,12 @@ dns_client_create(dns_client_t **clientp, unsigned int options) {
 	isc_taskmgr_t *taskmgr = NULL;
 	isc_socketmgr_t *socketmgr = NULL;
 	isc_timermgr_t *timermgr = NULL;
+#if 0
+	/* XXXMPA add debug logging support */
+	isc_log_t *lctx = NULL;
+	isc_logconfig_t *logconfig = NULL;
+	unsigned int logdebuglevel = 0;
+#endif
 
 	result = isc_mem_create(0, 0, &mctx);
 	if (result != ISC_R_SUCCESS)
@@ -373,7 +379,18 @@ dns_client_create(dns_client_t **clientp, unsigned int options) {
 	result = isc_timermgr_createinctx(mctx, actx, &timermgr);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-
+#if 0
+	result = isc_log_create(mctx, &lctx, &logconfig);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	isc_log_setcontext(lctx);
+	dns_log_init(lctx);
+	dns_log_setcontext(lctx);
+	result = isc_log_usechannel(logconfig, "default_debug", NULL, NULL);
+	if (result != ISC_R_SUCCESS)
+		goto cleanup;
+	isc_log_setdebuglevel(lctx, logdebuglevel);
+#endif
 	result = dns_client_createx(mctx, actx, taskmgr, socketmgr, timermgr,
 				    options, clientp);
 	if (result != ISC_R_SUCCESS)
@@ -485,6 +502,7 @@ dns_client_createx(isc_mem_t *mctx, isc_appctx_t *actx, isc_taskmgr_t *taskmgr,
 	client->update_udpretries = DEF_UPDATE_UDPRETRIES;
 	client->find_timeout = DEF_FIND_TIMEOUT;
 	client->find_udpretries = DEF_FIND_UDPRETRIES;
+	client->attributes = 0;
 
 	client->references = 1;
 	client->magic = DNS_CLIENT_MAGIC;
@@ -1076,11 +1094,23 @@ client_resfind(resctx_t *rctx, dns_fetchevent_t *event) {
 	UNLOCK(&rctx->lock);
 }
 
+
+static void
+suspend(isc_task_t *task, isc_event_t *event) {
+	isc_appctx_t *actx = event->ev_arg;
+
+	UNUSED(task);
+
+	isc_app_ctxsuspend(actx);
+	isc_event_free(&event);
+}
+
 static void
 resolve_done(isc_task_t *task, isc_event_t *event) {
 	resarg_t *resarg = event->ev_arg;
 	dns_clientresevent_t *rev = (dns_clientresevent_t *)event;
 	dns_name_t *name;
+	isc_result_t result;
 
 	UNUSED(task);
 
@@ -1099,8 +1129,16 @@ resolve_done(isc_task_t *task, isc_event_t *event) {
 	if (!resarg->canceled) {
 		UNLOCK(&resarg->lock);
 
-		/* Exit from the internal event loop */
-		isc_app_ctxsuspend(resarg->actx);
+		/*
+		 * We may or may not be running.  isc__appctx_onrun will
+		 * fail if we are currently running otherwise we post a
+		 * action to call isc_app_ctxsuspend when we do start
+		 * running.
+		 */
+		result = isc_app_ctxonrun(resarg->actx, resarg->client->mctx,
+					   task, suspend, resarg->actx);
+		if (result == ISC_R_ALREADYRUNNING)
+			isc_app_ctxsuspend(resarg->actx);
 	} else {
 		/*
 		 * We have already exited from the loop (due to some
@@ -1292,9 +1330,8 @@ dns_client_startresolve(dns_client_t *client, dns_name_t *name,
 	ISC_LIST_APPEND(client->resctxs, rctx, link);
 	UNLOCK(&client->lock);
 
-	client_resfind(rctx, NULL);
-
 	*transp = (dns_clientrestrans_t *)rctx;
+	client_resfind(rctx, NULL);
 
 	return (ISC_R_SUCCESS);
 
@@ -2000,8 +2037,9 @@ resolveaddr_done(isc_task_t *task, isc_event_t *event) {
 				switch (family) {
 				case AF_INET:
 					dns_rdataset_current(rdataset, &rdata);
-					dns_rdata_tostruct(&rdata, &rdata_a,
-							   NULL);
+					result = dns_rdata_tostruct(&rdata, &rdata_a,
+								    NULL);
+					RUNTIME_CHECK(result == ISC_R_SUCCESS);
 					isc_sockaddr_fromin(sa,
 							    &rdata_a.in_addr,
 							    53);
@@ -2009,8 +2047,9 @@ resolveaddr_done(isc_task_t *task, isc_event_t *event) {
 					break;
 				case AF_INET6:
 					dns_rdataset_current(rdataset, &rdata);
-					dns_rdata_tostruct(&rdata, &rdata_aaaa,
-							   NULL);
+					result = dns_rdata_tostruct(&rdata, &rdata_aaaa,
+								    NULL);
+					RUNTIME_CHECK(result == ISC_R_SUCCESS);
 					isc_sockaddr_fromin6(sa,
 							     &rdata_aaaa.in6_addr,
 							     53);

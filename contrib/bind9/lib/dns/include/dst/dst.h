@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -26,6 +26,7 @@
 #include <isc/stdtime.h>
 
 #include <dns/types.h>
+#include <dns/log.h>
 #include <dns/name.h>
 #include <dns/secalg.h>
 
@@ -169,6 +170,11 @@ dst_algorithm_supported(unsigned int alg);
 
 isc_result_t
 dst_context_create(dst_key_t *key, isc_mem_t *mctx, dst_context_t **dctxp);
+
+isc_result_t
+dst_context_create2(dst_key_t *key, isc_mem_t *mctx,
+		    isc_logcategory_t *category, dst_context_t **dctxp);
+
 /*%<
  * Creates a context to be used for a sign or verify operation.
  *
@@ -881,6 +887,23 @@ dst_key_restore(dns_name_t *name, unsigned int alg, unsigned int flags,
 		unsigned int protocol, dns_rdataclass_t rdclass,
 		isc_mem_t *mctx, const char *keystr, dst_key_t **keyp);
 
+isc_boolean_t
+dst_key_inactive(const dst_key_t *key);
+/*%<
+ * Determines if the private key is missing due the key being deemed inactive.
+ *
+ * Requires:
+ *	'key' to be valid.
+ */
+
+void
+dst_key_setinactive(dst_key_t *key, isc_boolean_t inactive);
+/*%<
+ * Set key inactive state.
+ *
+ * Requires:
+ *	'key' to be valid.
+ */
 
 ISC_LANG_ENDDECLS
 

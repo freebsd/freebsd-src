@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2010-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -83,10 +83,10 @@ dns_dns64_create(isc_mem_t *mctx, isc_netaddr_t *prefix,
 	if (new == NULL)
 		return (ISC_R_NOMEMORY);
 	memset(new->bits, 0, sizeof(new->bits));
-	memcpy(new->bits, prefix->type.in6.s6_addr, prefixlen / 8);
+	memmove(new->bits, prefix->type.in6.s6_addr, prefixlen / 8);
 	if (suffix != NULL)
-		memcpy(new->bits + nbytes, suffix->type.in6.s6_addr + nbytes,
-		       16 - nbytes);
+		memmove(new->bits + nbytes, suffix->type.in6.s6_addr + nbytes,
+			16 - nbytes);
 	new->clients = NULL;
 	if (clients != NULL)
 		dns_acl_attach(clients, &new->clients);
@@ -155,7 +155,7 @@ dns_dns64_aaaafroma(const dns_dns64_t *dns64, const isc_netaddr_t *reqaddr,
 		struct in_addr ina;
 		isc_netaddr_t netaddr;
 
-		memcpy(&ina.s_addr, a, 4);
+		memmove(&ina.s_addr, a, 4);
 		isc_netaddr_fromin(&netaddr, &ina);
 		result = dns_acl_match(&netaddr, NULL, dns64->mapped, env,
 				       &match, NULL);
@@ -168,7 +168,7 @@ dns_dns64_aaaafroma(const dns_dns64_t *dns64, const isc_netaddr_t *reqaddr,
 	nbytes = dns64->prefixlen / 8;
 	INSIST(nbytes <= 12);
 	/* Copy prefix. */
-	memcpy(aaaa, dns64->bits, nbytes);
+	memmove(aaaa, dns64->bits, nbytes);
 	/* Bits 64-71 are zeros. draft-ietf-behave-address-format-04 */
 	if (nbytes == 8)
 		aaaa[nbytes++] = 0;
@@ -180,7 +180,7 @@ dns_dns64_aaaafroma(const dns_dns64_t *dns64, const isc_netaddr_t *reqaddr,
 			aaaa[nbytes++] = 0;
 	}
 	/* Copy suffix. */
-	memcpy(aaaa + nbytes, dns64->bits + nbytes, 16 - nbytes);
+	memmove(aaaa + nbytes, dns64->bits + nbytes, 16 - nbytes);
 	return (ISC_R_SUCCESS);
 }
 
@@ -268,7 +268,7 @@ dns_dns64_aaaaok(const dns_dns64_t *dns64, const isc_netaddr_t *reqaddr,
 			if (aaaaok == NULL || !aaaaok[i]) {
 
 				dns_rdataset_current(rdataset, &rdata);
-				memcpy(&in6.s6_addr, rdata.data, 16);
+				memmove(&in6.s6_addr, rdata.data, 16);
 				isc_netaddr_fromin6(&netaddr, &in6);
 
 				result = dns_acl_match(&netaddr, NULL,

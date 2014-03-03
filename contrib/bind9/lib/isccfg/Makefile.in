@@ -68,7 +68,8 @@ libisccfg.la: ${OBJS}
 	 ${LIBTOOL_MODE_LINK} \
 		${CC} ${ALL_CFLAGS} ${LDFLAGS} -o libisccfg.la -rpath ${libdir} \
 		-version-info ${LIBINTERFACE}:${LIBREVISION}:${LIBAGE} \
-		${OBJS} ${DNSLIBS} ${ISCCCLIBS} ${ISCLIBS} ${LIBS}
+		${OBJS} ${DNSLIBS} ${ISCCCLIBS} ${ISCLIBS} @DNS_CRYPTO_LIBS@ \
+		${LIBS}
 
 timestamp: libisccfg.@A@
 	touch timestamp

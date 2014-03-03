@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -164,6 +164,7 @@ struct dns_view {
 	ISC_LIST(dns_rpz_zone_t)	rpz_zones;
 	isc_boolean_t			rpz_recursive_only;
 	isc_boolean_t			rpz_break_dnssec;
+	unsigned int			rpz_min_ns_labels;
 
 	/*
 	 * Configurable data for server use only,

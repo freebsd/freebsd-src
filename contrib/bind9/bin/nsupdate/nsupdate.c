@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -81,7 +81,11 @@
 
 #ifdef GSSAPI
 #include <dst/gssapi.h>
+#ifdef WIN32
+#include <krb5/krb5.h>
+#else
 #include ISC_PLATFORM_KRB5HEADER
+#endif
 #endif
 #include <bind9/getaddresses.h>
 
@@ -539,8 +543,8 @@ setup_keystr(void) {
 		n = s;
 	}
 
-	isc_buffer_init(&keynamesrc, name, n - name);
-	isc_buffer_add(&keynamesrc, n - name);
+	isc_buffer_init(&keynamesrc, name, (unsigned int)(n - name));
+	isc_buffer_add(&keynamesrc, (unsigned int)(n - name));
 
 	debug("namefromtext");
 	result = dns_name_fromtext(keyname, &keynamesrc, dns_rootname, 0, NULL);
@@ -832,13 +836,16 @@ setup_system(void) {
 		if (servers == NULL)
 			fatal("out of memory");
 		for (i = 0; i < ns_total; i++) {
-			if (lwconf->nameservers[i].family == LWRES_ADDRTYPE_V4) {
+			if (lwconf->nameservers[i].family == LWRES_ADDRTYPE_V4)
+			{
 				struct in_addr in4;
-				memcpy(&in4, lwconf->nameservers[i].address, 4);
+				memmove(&in4,
+					lwconf->nameservers[i].address, 4);
 				isc_sockaddr_fromin(&servers[i], &in4, dnsport);
 			} else {
 				struct in6_addr in6;
-				memcpy(&in6, lwconf->nameservers[i].address, 16);
+				memmove(&in6,
+					lwconf->nameservers[i].address, 16);
 				isc_sockaddr_fromin6(&servers[i], &in6,
 						     dnsport);
 			}
@@ -930,7 +937,7 @@ get_address(char *host, in_port_t port, isc_sockaddr_t *sockaddr) {
 	INSIST(count == 1);
 }
 
-#define PARSE_ARGS_FMT "dDML:y:ghlovk:p:rR::t:u:"
+#define PARSE_ARGS_FMT "dDML:y:ghlovk:p:r:R::t:u:"
 
 static void
 pre_parse_args(int argc, char **argv) {
@@ -1535,16 +1542,20 @@ evaluate_realm(char *cmdline) {
 #ifdef GSSAPI
 	char *word;
 	char buf[1024];
+	int n;
 
-	word = nsu_strsep(&cmdline, " \t\r\n");
-	if (word == NULL || *word == 0) {
-		if (realm != NULL)
-			isc_mem_free(mctx, realm);
+	if (realm != NULL) {
+		isc_mem_free(mctx, realm);
 		realm = NULL;
-		return (STATUS_MORE);
 	}
 
-	snprintf(buf, sizeof(buf), "@%s", word);
+	word = nsu_strsep(&cmdline, " \t\r\n");
+	if (word == NULL || *word == 0)
+		return (STATUS_MORE);
+
+	n = snprintf(buf, sizeof(buf), "@%s", word);
+	if (n < 0 || (size_t)n >= sizeof(buf))
+		fatal("realm is too long");
 	realm = isc_mem_strdup(mctx, buf);
 	if (realm == NULL)
 		fatal("out of memory");
@@ -2536,7 +2547,7 @@ start_gssrequest(dns_name_t *master) {
 	if (userserver == NULL)
 		get_address(namestr, dnsport, kserver);
 	else
-		(void)memcpy(kserver, userserver, sizeof(isc_sockaddr_t));
+		(void)memmove(kserver, userserver, sizeof(isc_sockaddr_t));
 
 	dns_fixedname_init(&fname);
 	servname = dns_fixedname_name(&fname);

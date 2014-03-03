@@ -1539,10 +1539,12 @@ isc_task_exiting(isc_task_t *t) {
 
 
 #if defined(HAVE_LIBXML2) && defined(BIND9)
-void
+#define TRY0(a) do { xmlrc = (a); if (xmlrc < 0) goto error; } while(0)
+int
 isc_taskmgr_renderxml(isc_taskmgr_t *mgr0, xmlTextWriterPtr writer) {
 	isc__taskmgr_t *mgr = (isc__taskmgr_t *)mgr0;
-	isc__task_t *task;
+	isc__task_t *task = NULL;
+	int xmlrc;
 
 	LOCK(&mgr->lock);
 
@@ -1550,72 +1552,82 @@ isc_taskmgr_renderxml(isc_taskmgr_t *mgr0, xmlTextWriterPtr writer) {
 	 * Write out the thread-model, and some details about each depending
 	 * on which type is enabled.
 	 */
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "thread-model");
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "thread-model"));
 #ifdef ISC_PLATFORM_USETHREADS
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "type");
-	xmlTextWriterWriteString(writer, ISC_XMLCHAR "threaded");
-	xmlTextWriterEndElement(writer); /* type */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "type"));
+	TRY0(xmlTextWriterWriteString(writer, ISC_XMLCHAR "threaded"));
+	TRY0(xmlTextWriterEndElement(writer)); /* type */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "worker-threads");
-	xmlTextWriterWriteFormatString(writer, "%d", mgr->workers);
-	xmlTextWriterEndElement(writer); /* worker-threads */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "worker-threads"));
+	TRY0(xmlTextWriterWriteFormatString(writer, "%d", mgr->workers));
+	TRY0(xmlTextWriterEndElement(writer)); /* worker-threads */
 #else /* ISC_PLATFORM_USETHREADS */
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "type");
-	xmlTextWriterWriteString(writer, ISC_XMLCHAR "non-threaded");
-	xmlTextWriterEndElement(writer); /* type */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "type"));
+	TRY0(xmlTextWriterWriteString(writer, ISC_XMLCHAR "non-threaded"));
+	TRY0(xmlTextWriterEndElement(writer)); /* type */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
-	xmlTextWriterWriteFormatString(writer, "%d", mgr->refs);
-	xmlTextWriterEndElement(writer); /* references */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "references"));
+	TRY0(xmlTextWriterWriteFormatString(writer, "%d", mgr->refs));
+	TRY0(xmlTextWriterEndElement(writer)); /* references */
 #endif /* ISC_PLATFORM_USETHREADS */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "default-quantum");
-	xmlTextWriterWriteFormatString(writer, "%d", mgr->default_quantum);
-	xmlTextWriterEndElement(writer); /* default-quantum */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "default-quantum"));
+	TRY0(xmlTextWriterWriteFormatString(writer, "%d",
+					    mgr->default_quantum));
+	TRY0(xmlTextWriterEndElement(writer)); /* default-quantum */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks-running");
-	xmlTextWriterWriteFormatString(writer, "%d", mgr->tasks_running);
-	xmlTextWriterEndElement(writer); /* tasks-running */
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks-running"));
+	TRY0(xmlTextWriterWriteFormatString(writer, "%d", mgr->tasks_running));
+	TRY0(xmlTextWriterEndElement(writer)); /* tasks-running */
 
-	xmlTextWriterEndElement(writer); /* thread-model */
+	TRY0(xmlTextWriterEndElement(writer)); /* thread-model */
 
-	xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks");
+	TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "tasks"));
 	task = ISC_LIST_HEAD(mgr->tasks);
 	while (task != NULL) {
 		LOCK(&task->lock);
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "task");
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "task"));
 
 		if (task->name[0] != 0) {
-			xmlTextWriterStartElement(writer, ISC_XMLCHAR "name");
-			xmlTextWriterWriteFormatString(writer, "%s",
-						       task->name);
-			xmlTextWriterEndElement(writer); /* name */
+			TRY0(xmlTextWriterStartElement(writer,
+						       ISC_XMLCHAR "name"));
+			TRY0(xmlTextWriterWriteFormatString(writer, "%s",
+						       task->name));
+			TRY0(xmlTextWriterEndElement(writer)); /* name */
 		}
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "references");
-		xmlTextWriterWriteFormatString(writer, "%d", task->references);
-		xmlTextWriterEndElement(writer); /* references */
+		TRY0(xmlTextWriterStartElement(writer,
+					       ISC_XMLCHAR "references"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%d",
+						    task->references));
+		TRY0(xmlTextWriterEndElement(writer)); /* references */
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "id");
-		xmlTextWriterWriteFormatString(writer, "%p", task);
-		xmlTextWriterEndElement(writer); /* id */
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "id"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%p", task));
+		TRY0(xmlTextWriterEndElement(writer)); /* id */
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "state");
-		xmlTextWriterWriteFormatString(writer, "%s",
-					       statenames[task->state]);
-		xmlTextWriterEndElement(writer); /* state */
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "state"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%s",
+					       statenames[task->state]));
+		TRY0(xmlTextWriterEndElement(writer)); /* state */
 
-		xmlTextWriterStartElement(writer, ISC_XMLCHAR "quantum");
-		xmlTextWriterWriteFormatString(writer, "%d", task->quantum);
-		xmlTextWriterEndElement(writer); /* quantum */
+		TRY0(xmlTextWriterStartElement(writer, ISC_XMLCHAR "quantum"));
+		TRY0(xmlTextWriterWriteFormatString(writer, "%d",
+						    task->quantum));
+		TRY0(xmlTextWriterEndElement(writer)); /* quantum */
 
-		xmlTextWriterEndElement(writer);
+		TRY0(xmlTextWriterEndElement(writer));
 
 		UNLOCK(&task->lock);
 		task = ISC_LIST_NEXT(task, link);
 	}
-	xmlTextWriterEndElement(writer); /* tasks */
+	TRY0(xmlTextWriterEndElement(writer)); /* tasks */
 
+ error:
+	if (task != NULL)
+		UNLOCK(&task->lock);
 	UNLOCK(&mgr->lock);
+
+	return (xmlrc);
 }
 #endif /* HAVE_LIBXML2 && BIND9 */

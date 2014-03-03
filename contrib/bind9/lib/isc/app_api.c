@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -88,6 +88,16 @@ isc_app_ctxrun(isc_appctx_t *ctx) {
 	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
 
 	return (ctx->methods->ctxrun(ctx));
+}
+
+isc_result_t
+isc_app_ctxonrun(isc_appctx_t *ctx, isc_mem_t *mctx,
+		 isc_task_t *task, isc_taskaction_t action,
+		 void *arg)
+{
+	REQUIRE(ISCAPI_APPCTX_VALID(ctx));
+
+	return (ctx->methods->ctxonrun(ctx, mctx, task, action, arg));
 }
 
 isc_result_t

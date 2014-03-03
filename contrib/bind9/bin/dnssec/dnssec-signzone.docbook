@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2013  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -43,6 +43,7 @@
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2013</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -593,7 +594,7 @@
         <term>-H <replaceable class="parameter">iterations</replaceable></term>
         <listitem>
           <para>
-	    When generating an NSEC3 chain, use this many interations.  The
+	    When generating an NSEC3 chain, use this many iterations.  The
 	    default is 10.
           </para>
         </listitem>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -695,8 +695,8 @@ destroy_disp_ok(dns_dispatch_t *disp)
 /*
  * Called when refcount reaches 0 (and safe to destroy).
  *
- * The dispatcher must not be locked.
- * The manager must be locked.
+ * The dispatcher must be locked.
+ * The manager must not be locked.
  */
 static void
 destroy_disp(isc_task_t *task, isc_event_t *event) {
@@ -813,6 +813,7 @@ socket_search(dns_qid_t *qid, isc_sockaddr_t *dest, in_port_t port,
 {
 	dispsocket_t *dispsock;
 
+	REQUIRE(VALID_QID(qid));
 	REQUIRE(bucket < qid->qid_nbuckets);
 
 	dispsock = ISC_LIST_HEAD(qid->sock_table[bucket]);
@@ -1046,6 +1047,7 @@ entry_search(dns_qid_t *qid, isc_sockaddr_t *dest, dns_messageid_t id,
 {
 	dns_dispentry_t *res;
 
+	REQUIRE(VALID_QID(qid));
 	REQUIRE(bucket < qid->qid_nbuckets);
 
 	res = ISC_LIST_HEAD(qid->qid_table[bucket]);
@@ -2507,8 +2509,7 @@ dispatch_allocate(dns_dispatchmgr_t *mgr, unsigned int maxrequests,
  * MUST be unlocked, and not used by anything.
  */
 static void
-dispatch_free(dns_dispatch_t **dispp)
-{
+dispatch_free(dns_dispatch_t **dispp) {
 	dns_dispatch_t *disp;
 	dns_dispatchmgr_t *mgr;
 	int i;
@@ -2756,7 +2757,7 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 		 * If no port is specified, we first try to pick up a random
 		 * port by ourselves.
 		 */
-		if (isc_sockaddr_pf(&disp->local) == AF_INET) {
+		if (isc_sockaddr_pf(localaddr) == AF_INET) {
 			nports = disp->mgr->nv4ports;
 			ports = disp->mgr->v4ports;
 		} else {
@@ -2775,12 +2776,16 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 			isc_sockaddr_setport(&localaddr_bound, prt);
 			result = open_socket(sockmgr, &localaddr_bound,
 					     0, &sock);
-			if (result == ISC_R_SUCCESS ||
-			    result != ISC_R_ADDRINUSE) {
-				disp->localport = prt;
-				*sockp = sock;
-				return (result);
-			}
+			/*
+			 * Continue if the port choosen is already in use
+			 * or the OS has reserved it.
+			 */
+			if (result == ISC_R_NOPERM ||
+			    result == ISC_R_ADDRINUSE)
+				continue;
+			disp->localport = prt;
+			*sockp = sock;
+			return (result);
 		}
 
 		/*
@@ -2805,8 +2810,6 @@ get_udpsocket(dns_dispatchmgr_t *mgr, dns_dispatch_t *disp,
 		result = open_socket(sockmgr, localaddr, 0, &sock);
 		if (result != ISC_R_SUCCESS)
 			goto end;
-		else if (!anyport)
-			break;
 		else if (portavailable(mgr, sock, NULL))
 			break;
 		if (held[i] != NULL)
@@ -3108,17 +3111,17 @@ dns_dispatch_addresponse2(dns_dispatch_t *disp, isc_sockaddr_t *dest,
 	 * Try somewhat hard to find an unique ID.
 	 */
 	id = (dns_messageid_t)dispatch_random(DISP_ARC4CTX(disp));
-	bucket = dns_hash(qid, dest, id, localport);
 	ok = ISC_FALSE;
-	for (i = 0; i < 64; i++) {
+	i = 0;
+	do {
+		bucket = dns_hash(qid, dest, id, localport);
 		if (entry_search(qid, dest, id, localport, bucket) == NULL) {
 			ok = ISC_TRUE;
 			break;
 		}
 		id += qid->qid_increment;
 		id &= 0x0000ffff;
-		bucket = dns_hash(qid, dest, id, localport);
-	}
+	} while (i++ < 64);
 
 	if (!ok) {
 		UNLOCK(&qid->lock);
@@ -3129,9 +3132,9 @@ dns_dispatch_addresponse2(dns_dispatch_t *disp, isc_sockaddr_t *dest,
 	res = isc_mempool_get(disp->mgr->rpool);
 	if (res == NULL) {
 		UNLOCK(&qid->lock);
-		UNLOCK(&disp->lock);
 		if (dispsocket != NULL)
 			destroy_dispsocket(disp, &dispsocket);
+		UNLOCK(&disp->lock);
 		return (ISC_R_NOMEMORY);
 	}
 
@@ -3504,7 +3507,7 @@ dns_dispatch_importrecv(dns_dispatch_t *disp, isc_event_t *event) {
 		isc_event_free(ISC_EVENT_PTR(&newsevent));
 		return;
 	}
-	memcpy(buf, sevent->region.base, sevent->n);
+	memmove(buf, sevent->region.base, sevent->n);
 	newsevent->region.base = buf;
 	newsevent->region.length = disp->mgr->buffersize;
 	newsevent->n = sevent->n;

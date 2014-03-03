@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2005, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -117,7 +117,7 @@ fromwire_ch_a(ARGS_FROMWIRE) {
 	if (tregion.length < 2)
 		return (ISC_R_NOSPACE);
 
-	memcpy(tregion.base, sregion.base, 2);
+	memmove(tregion.base, sregion.base, 2);
 	isc_buffer_forward(source, 2);
 	isc_buffer_add(target, 2);
 
@@ -149,7 +149,7 @@ towire_ch_a(ARGS_TOWIRE) {
 	if (tregion.length < 2)
 		return (ISC_R_NOSPACE);
 
-	memcpy(tregion.base, sregion.base, 2);
+	memmove(tregion.base, sregion.base, 2);
 	isc_buffer_add(target, 2);
 	return (ISC_R_SUCCESS);
 }
