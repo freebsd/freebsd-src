@@ -4503,7 +4503,7 @@ form_driver_w(FORM *form, int type, wchar_t c)
 
   assert(form->page);
 
-  if (c == FIRST_ACTIVE_MAGIC)
+  if (c == (wchar_t)FIRST_ACTIVE_MAGIC)
     {
       form->current = _nc_First_Active_Field(form);
       RETURN(E_OK);
