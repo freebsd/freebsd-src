@@ -3462,6 +3462,35 @@ skip:
 	return (error);
 }
 
+int
+sysctl_handle_uma_zone_max(SYSCTL_HANDLER_ARGS)
+{
+	uma_zone_t zone = *(uma_zone_t *)arg1;
+	int error, max, old;
+
+	old = max = uma_zone_get_max(zone);
+	error = sysctl_handle_int(oidp, &max, 0, req);
+	if (error || !req->newptr)
+		return (error);
+
+	if (max < old)
+		return (EINVAL);
+
+	uma_zone_set_max(zone, max);
+
+	return (0);
+}
+
+int
+sysctl_handle_uma_zone_cur(SYSCTL_HANDLER_ARGS)
+{
+	uma_zone_t zone = *(uma_zone_t *)arg1;
+	int cur;
+
+	cur = uma_zone_get_cur(zone);
+	return (sysctl_handle_int(oidp, &cur, 0, req));
+}
+
 #ifdef DDB
 DB_SHOW_COMMAND(uma, db_show_uma)
 {
