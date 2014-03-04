@@ -66,7 +66,7 @@
 			device-type = "cpu";
 			compatible = "sri-cambridge,beri";
 
-			reg = <0>;
+			reg = <0 1>;
 			status = "okay";
 		};
 
@@ -75,7 +75,7 @@
 			device-type = "cpu";
 			compatible = "sri-cambridge,beri";
 
-			reg = <1>;
+			reg = <1 1>;
 			// XXX: should we need cached prefix?
 			cpu-release-addr = <0xffffffff 0x800fffe0>;
 		};
