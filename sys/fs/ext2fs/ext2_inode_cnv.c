@@ -82,7 +82,7 @@ ext2_print_inode(struct inode *in)
 void
 ext2_ei2i(struct ext2fs_dinode *ei, struct inode *ip)
 {
-        int i;
+	int i;
 
 	ip->i_nlink = ei->e2di_nlink;
 	/* Godmar thinks - if the link count is zero, then the inode is
