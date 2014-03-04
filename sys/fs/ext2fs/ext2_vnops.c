@@ -781,10 +781,10 @@ abortit:
 	dp = VTOI(fdvp);
 	ip = VTOI(fvp);
 	if (ip->i_nlink >= EXT2_LINK_MAX) {
- 		VOP_UNLOCK(fvp, 0);
- 		error = EMLINK;
- 		goto abortit;
- 	}
+		VOP_UNLOCK(fvp, 0);
+		error = EMLINK;
+		goto abortit;
+	}
 	if ((ip->i_flags & (NOUNLINK | IMMUTABLE | APPEND))
 	    || (dp->i_flags & APPEND)) {
 		VOP_UNLOCK(fvp, 0);
@@ -948,8 +948,8 @@ abortit:
 		 * of the target directory.
 		 */
 		if (doingdirectory && !newparent) {
-		       dp->i_nlink--;
-		       dp->i_flag |= IN_CHANGE;
+			dp->i_nlink--;
+			dp->i_flag |= IN_CHANGE;
 		}
 		vput(tdvp);
 		/*
@@ -1629,7 +1629,6 @@ ext2_read(struct vop_read_args *ap)
 	return (error);
 }
 
-
 /*
  * Vnode op for reading.
  */
@@ -1728,7 +1727,7 @@ ext2_ind_read(struct vop_read_args *ap)
 			xfersize = size;
 		}
 		error = uiomove((char *)bp->b_data + blkoffset,
-  			(int)xfersize, uio);
+			(int)xfersize, uio);
 		if (error)
 			break;
 
@@ -1965,10 +1964,10 @@ ext2_write(struct vop_write_args *ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-                /*
+		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->e2fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -2062,9 +2061,9 @@ ext2_write(struct vop_write_args *ap)
 		}
 	}
 	if (uio->uio_resid != resid) {
-               ip->i_flag |= IN_CHANGE | IN_UPDATE;
-               if (ioflag & IO_SYNC)
-                       error = ext2_update(vp, 1);
-       }
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		if (ioflag & IO_SYNC)
+			error = ext2_update(vp, 1);
+	}
 	return (error);
 }
