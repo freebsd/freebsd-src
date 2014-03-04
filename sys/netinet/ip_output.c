@@ -32,6 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
 #include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_kdtrace.h"
@@ -154,19 +155,8 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	}
 
 #ifdef FLOWTABLE
-	if (ro->ro_rt == NULL) {
-		struct flentry *fle;
-			
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt. The
-		 * flow ID assignment must have happened before this point.
-		 */
-		fle = flowtable_lookup_mbuf(V_ip_ft, m, AF_INET);
-		if (fle != NULL)
-			flow_to_route(fle, ro);
-	}
+	if (ro->ro_rt == NULL)
+		(void )flowtable_lookup(AF_INET, m, ro);
 #endif
 
 	if (opt) {

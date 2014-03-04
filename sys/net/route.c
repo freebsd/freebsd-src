@@ -1298,18 +1298,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		} 
 #ifdef FLOWTABLE
 		else if (rt0 != NULL) {
-			switch (dst->sa_family) {
-#ifdef INET6
-			case AF_INET6:
-				flowtable_route_flush(V_ip6_ft, rt0);
-				break;
-#endif
-#ifdef INET
-			case AF_INET:
-				flowtable_route_flush(V_ip_ft, rt0);
-				break;
-#endif
-			}
+			flowtable_route_flush(dst->sa_family, rt0);
 			RTFREE(rt0);
 		}
 #endif

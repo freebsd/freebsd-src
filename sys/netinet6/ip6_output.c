@@ -521,19 +521,8 @@ skip_ipsec2:;
 		ro = &opt->ip6po_route;
 	dst = (struct sockaddr_in6 *)&ro->ro_dst;
 #ifdef FLOWTABLE
-	if (ro->ro_rt == NULL) {
-		struct flentry *fle;
-
-		/*
-		 * The flow table returns route entries valid for up to 30
-		 * seconds; we rely on the remainder of ip_output() taking no
-		 * longer than that long for the stability of ro_rt.  The
-		 * flow ID assignment must have happened before this point.
-		 */
-		fle = flowtable_lookup_mbuf(V_ip6_ft, m, AF_INET6);
-		if (fle != NULL)
-			flow_to_route_in6(fle, ro);
-	}
+	if (ro->ro_rt == NULL)
+		(void )flowtable_lookup(AF_INET6, m, (struct route *)ro);
 #endif
 again:
 	/*
