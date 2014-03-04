@@ -556,9 +556,10 @@ main(int argc, char *argv[])
 		exit(0);
 	}
 	if (rflag) {
-		if (sflag)
+		if (sflag) {
 			rt_stats(nl[N_RTSTAT].n_value, nl[N_RTTRASH].n_value);
-		else
+			flowtable_stats();
+		} else
 			routepr(nl[N_RTREE].n_value, fib);
 		exit(0);
 	}

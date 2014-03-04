@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
-#include <net/flowtable.h>
 
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
@@ -198,16 +197,6 @@ SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 
-#ifdef FLOWTABLE
-static VNET_DEFINE(int, ip_output_flowtable_size) = 2048;
-VNET_DEFINE(struct flowtable *, ip_ft);
-#define	V_ip_output_flowtable_size	VNET(ip_output_flowtable_size)
-
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, output_flowtable_size, CTLFLAG_RDTUN,
-    &VNET_NAME(ip_output_flowtable_size), 2048,
-    "number of entries in the per-cpu output flow caches");
-#endif
-
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
 /*
@@ -308,24 +297,6 @@ ip_init(void)
 	if ((i = pfil_head_register(&V_inet_pfil_hook)) != 0)
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
-
-#ifdef FLOWTABLE
-	if (TUNABLE_INT_FETCH("net.inet.ip.output_flowtable_size",
-		&V_ip_output_flowtable_size)) {
-		if (V_ip_output_flowtable_size < 256)
-			V_ip_output_flowtable_size = 256;
-		if (!powerof2(V_ip_output_flowtable_size)) {
-			printf("flowtable must be power of 2 size\n");
-			V_ip_output_flowtable_size = 2048;
-		}
-	} else {
-		/*
-		 * round up to the next power of 2
-		 */
-		V_ip_output_flowtable_size = 1 << fls((1024 + maxusers * 64)-1);
-	}
-	V_ip_ft = flowtable_alloc("ipv4", V_ip_output_flowtable_size, FL_PCPU);
-#endif
 
 	/* Skip initialization of globals for non-default instances. */
 	if (!IS_DEFAULT_VNET(curvnet))
