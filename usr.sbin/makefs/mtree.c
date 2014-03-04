@@ -348,6 +348,13 @@ read_word(FILE *fp, char *buf, size_t bufsz)
 			if (error == -1)
 				mtree_error("unexpected end of file");
 			return (error);
+		case '#':		/* comment -- skip to end of line. */
+			if (!esc) {
+				error = skip_to(fp, "\n");
+				if (!error)
+					continue;
+			}
+			break;
 		case '\\':
 			esc++;
 			if (esc == 1)
