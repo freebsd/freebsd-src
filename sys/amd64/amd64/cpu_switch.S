@@ -546,16 +546,3 @@ ENTRY(resumectx)
 	xorl	%eax,%eax
 	ret
 END(resumectx)
-
-/*
- * Wrapper around fpusave to care about CR0_TS.
- */
-ENTRY(ctx_fpusave)
-	movq	%cr0,%rax
-	pushq	%rax
-	clts
-	call	fpusave
-	popq	%rax
-	movq	%rax,%cr0
-	ret
-END(ctx_fpusave)
