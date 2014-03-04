@@ -381,7 +381,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		RADIX_NODE_HEAD_RLOCK(rnh);
 #ifdef INVARIANTS	
 	else
-		RADIX_NODE_HEAD_RLOCK_ASSERT(rnh);
+		RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 #endif
 	rn = rnh->rnh_matchaddr(dst, rnh);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
@@ -1000,10 +1000,9 @@ rn_mpath_update(int req, struct rt_addrinfo *info,
 	 * a matching RTAX_GATEWAY.
 	 */
 	struct rtentry *rt, *rto = NULL;
-	struct radix_node *rn;
+	register struct radix_node *rn;
 	int error = 0;
 
-	RADIX_NODE_HEAD_LOCK_ASSERT(rnh);
 	rn = rnh->rnh_lookup(dst, netmask, rnh);
 	if (rn == NULL)
 		return (ESRCH);
