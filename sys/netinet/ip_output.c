@@ -293,7 +293,6 @@ again:
 			goto bad;
 		}
 		ia = ifatoia(rte->rt_ifa);
-		ifa_ref(&ia->ia_ifa);
 		ifp = rte->rt_ifp;
 		rte->rt_rmx.rmx_pksent++;
 		if (rte->rt_flags & RTF_GATEWAY)
@@ -550,11 +549,8 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else {
-			if (ia != NULL)
-				ifa_free(&ia->ia_ifa);
+		} else
 			goto again;	/* Redo the routing table lookup. */
-		}
 	}
 
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
@@ -583,8 +579,6 @@ sendit:
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
-		if (ia != NULL)
-			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
 
@@ -697,8 +691,6 @@ passout:
 done:
 	if (ro == &iproute)
 		RO_RTFREE(ro);
-	if (ia != NULL)
-		ifa_free(&ia->ia_ifa);
 	return (error);
 bad:
 	m_freem(m);
