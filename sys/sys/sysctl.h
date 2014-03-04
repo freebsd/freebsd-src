@@ -393,11 +393,11 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 	    sysctl_handle_64, "QU", __DESCR(descr))
 
 /* Oid for a 64-bit unsigned counter(9).  The pointer must be non NULL. */
-#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, val, descr)	\
+#define	SYSCTL_COUNTER_U64(parent, nbr, name, access, ptr, descr)	\
 	SYSCTL_ASSERT_TYPE(UINT64, ptr, parent, name);			\
 	SYSCTL_OID(parent, nbr, name,					\
 	    CTLTYPE_U64 | CTLFLAG_MPSAFE | (access),			\
-	    ptr, val, sysctl_handle_counter_u64, "QU", descr)
+	    ptr, 0, sysctl_handle_counter_u64, "QU", descr)
 
 #define	SYSCTL_ADD_COUNTER_U64(ctx, parent, nbr, name, access, ptr, descr)\
 	sysctl_add_oid(ctx, parent, nbr, name,				\
