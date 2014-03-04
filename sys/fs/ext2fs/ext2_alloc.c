@@ -122,7 +122,7 @@ ext2_alloc(struct inode *ip, daddr_t lbn, e4fs_daddr_t bpref, int size,
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bnp = bno;
 		return (0);
-        }
+	}
 nospace:
 	EXT2_UNLOCK(ump);
 	ext2_fserr(fs, cred->cr_uid, "filesystem full");
@@ -397,11 +397,11 @@ ext2_valloc(struct vnode *pvp, int mode, struct ucred *cred, struct vnode **vpp)
 	ip->i_blocks = 0;
 	ip->i_mode = 0;
 	ip->i_flags = 0;
-        /* now we want to make sure that the block pointers are zeroed out */
-        for (i = 0; i < NDADDR; i++)
-                ip->i_db[i] = 0;
-        for (i = 0; i < NIADDR; i++)
-                ip->i_ib[i] = 0;
+	/* now we want to make sure that the block pointers are zeroed out */
+	for (i = 0; i < NDADDR; i++)
+		ip->i_db[i] = 0;
+	for (i = 0; i < NIADDR; i++)
+		ip->i_ib[i] = 0;
 
 	/*
 	 * Set up a new generation number for this inode.
@@ -443,7 +443,7 @@ static u_long
 ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
-        int cg, prefcg, dirsize, cgsize;
+	int cg, prefcg, dirsize, cgsize;
 	u_int avgifree, avgbfree, avgndir, curdirsize;
 	u_int minifree, minbfree, maxndir;
 	u_int mincg, minndir;
@@ -452,7 +452,7 @@ ext2_dirpref(struct inode *pip)
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
 
- 	avgifree = fs->e2fs->e2fs_ficount / fs->e2fs_gcount;
+	avgifree = fs->e2fs->e2fs_ficount / fs->e2fs_gcount;
 	avgbfree = fs->e2fs->e2fs_fbcount / fs->e2fs_gcount;
 	avgndir  = fs->e2fs_total_dir / fs->e2fs_gcount;
 
@@ -473,11 +473,11 @@ ext2_dirpref(struct inode *pip)
 			}
 		for (cg = 0; cg < prefcg; cg++)
 			if (fs->e2fs_gd[cg].ext2bgd_ndirs < minndir &&
-                            fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree &&
-                            fs->e2fs_gd[cg].ext2bgd_nbfree >= avgbfree) {
-                                mincg = cg;
-                                minndir = fs->e2fs_gd[cg].ext2bgd_ndirs;
-                        }
+			    fs->e2fs_gd[cg].ext2bgd_nifree >= avgifree &&
+			    fs->e2fs_gd[cg].ext2bgd_nbfree >= avgbfree) {
+				mincg = cg;
+				minndir = fs->e2fs_gd[cg].ext2bgd_ndirs;
+			}
 
 		return (mincg);
 	}
@@ -515,14 +515,14 @@ ext2_dirpref(struct inode *pip)
 	for (cg = prefcg; cg < fs->e2fs_gcount; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_ndirs < maxndir &&
 		    fs->e2fs_gd[cg].ext2bgd_nifree >= minifree &&
-	    	    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
+		    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
 			if (fs->e2fs_contigdirs[cg] < maxcontigdirs)
 				return (cg);
 		}
 	for (cg = 0; cg < prefcg; cg++)
 		if (fs->e2fs_gd[cg].ext2bgd_ndirs < maxndir &&
 		    fs->e2fs_gd[cg].ext2bgd_nifree >= minifree &&
-	    	    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
+		    fs->e2fs_gd[cg].ext2bgd_nbfree >= minbfree) {
 			if (fs->e2fs_contigdirs[cg] < maxcontigdirs)
 				return (cg);
 		}
@@ -567,8 +567,8 @@ ext2_blkpref(struct inode *ip, e2fs_lbn_t lbn, int indx, e2fs_daddr_t *bap,
 	/* now check whether we were provided with an array that basically
 	   tells us previous blocks to which we want to stay closeby
 	*/
-	if (bap) 
-                for (tmp = indx - 1; tmp >= 0; tmp--) 
+	if (bap)
+		for (tmp = indx - 1; tmp >= 0; tmp--) 
 			if (bap[tmp]) 
 				return bap[tmp];
 
@@ -936,7 +936,7 @@ ext2_nodealloccg(struct inode *ip, int cg, daddr_t ipref, int mode)
 			panic("ext2fs_nodealloccg: map corrupted");
 			/* NOTREACHED */
 		}
-	} 
+	}
 	i = start + len - loc;
 	map = ibp[i] ^ 0xff;
 	if (map == 0) {
@@ -976,33 +976,33 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->e2fs->e2fs_bcount) {
-                printf("bad block %lld, ino %llu\n", (long long)bno,
-                    (unsigned long long)ip->i_number);
-                ext2_fserr(fs, ip->i_uid, "bad block");
-                return;
-        }
-        error = bread(ip->i_devvp,
-                fsbtodb(fs, fs->e2fs_gd[cg].ext2bgd_b_bitmap),
-                (int)fs->e2fs_bsize, NOCRED, &bp);
-        if (error) {
-                brelse(bp);
-                return;
-        }
-        bbp = (char *)bp->b_data;
-        bno = dtogd(fs, bno);
-        if (isclr(bbp, bno)) {
-                printf("block = %lld, fs = %s\n",
-                     (long long)bno, fs->e2fs_fsmnt);
-                panic("ext2_blkfree: freeing free block");
-        }
-        clrbit(bbp, bno);
+		printf("bad block %lld, ino %llu\n", (long long)bno,
+		    (unsigned long long)ip->i_number);
+		ext2_fserr(fs, ip->i_uid, "bad block");
+		return;
+	}
+	error = bread(ip->i_devvp,
+		fsbtodb(fs, fs->e2fs_gd[cg].ext2bgd_b_bitmap),
+		(int)fs->e2fs_bsize, NOCRED, &bp);
+	if (error) {
+		brelse(bp);
+		return;
+	}
+	bbp = (char *)bp->b_data;
+	bno = dtogd(fs, bno);
+	if (isclr(bbp, bno)) {
+		printf("block = %lld, fs = %s\n",
+		     (long long)bno, fs->e2fs_fsmnt);
+		panic("ext2_blkfree: freeing free block");
+	}
+	clrbit(bbp, bno);
 	EXT2_LOCK(ump);
 	ext2_clusteracct(fs, bbp, cg, bno, 1);
-        fs->e2fs->e2fs_fbcount++;
-        fs->e2fs_gd[cg].ext2bgd_nbfree++;
-        fs->e2fs_fmod = 1;
+	fs->e2fs->e2fs_fbcount++;
+	fs->e2fs_gd[cg].ext2bgd_nbfree++;
+	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
-        bdwrite(bp);
+	bdwrite(bp);
 }
 
 /*
@@ -1113,14 +1113,14 @@ ext2_fserr(struct m_ext2fs *fs, uid_t uid, char *cp)
 int
 cg_has_sb(int i)
 {
-        int a3, a5, a7;
+	int a3, a5, a7;
 
-        if (i == 0 || i == 1)
-                return 1;
-        for (a3 = 3, a5 = 5, a7 = 7;
-            a3 <= i || a5 <= i || a7 <= i;
-            a3 *= 3, a5 *= 5, a7 *= 7)
-                if (i == a3 || i == a5 || i == a7)
-                        return 1;
-        return 0;
+	if (i == 0 || i == 1)
+		return 1;
+	for (a3 = 3, a5 = 5, a7 = 7;
+	    a3 <= i || a5 <= i || a7 <= i;
+	    a3 *= 3, a5 *= 5, a7 *= 7)
+		if (i == a3 || i == a5 || i == a7)
+			return 1;
+	return 0;
 }
