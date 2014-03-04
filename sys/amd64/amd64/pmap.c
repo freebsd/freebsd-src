@@ -146,6 +146,13 @@ __FBSDID("$FreeBSD$");
 #endif
 
 static __inline boolean_t
+pmap_type_guest(pmap_t pmap)
+{
+
+	return ((pmap->pm_type == PT_EPT) || (pmap->pm_type == PT_RVI));
+}
+
+static __inline boolean_t
 pmap_emulate_ad_bits(pmap_t pmap)
 {
 
@@ -159,6 +166,7 @@ pmap_valid_bit(pmap_t pmap)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		mask = X86_PG_V;
 		break;
 	case PT_EPT:
@@ -181,6 +189,7 @@ pmap_rw_bit(pmap_t pmap)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		mask = X86_PG_RW;
 		break;
 	case PT_EPT:
@@ -205,6 +214,7 @@ pmap_global_bit(pmap_t pmap)
 	case PT_X86:
 		mask = X86_PG_G;
 		break;
+	case PT_RVI:
 	case PT_EPT:
 		mask = 0;
 		break;
@@ -222,6 +232,7 @@ pmap_accessed_bit(pmap_t pmap)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		mask = X86_PG_A;
 		break;
 	case PT_EPT:
@@ -244,6 +255,7 @@ pmap_modified_bit(pmap_t pmap)
 
 	switch (pmap->pm_type) {
 	case PT_X86:
+	case PT_RVI:
 		mask = X86_PG_M;
 		break;
 	case PT_EPT:
@@ -1102,6 +1114,9 @@ pmap_swap_pat(pmap_t pmap, pt_entry_t entry)
 		if ((entry & x86_pat_bits) != 0)
 			entry ^= x86_pat_bits;
 		break;
+	case PT_RVI:
+		/* XXX: PAT support. */
+		break;
 	case PT_EPT:
 		/*
 		 * Nothing to do - the memory attributes are represented
@@ -1145,6 +1160,11 @@ pmap_cache_bits(pmap_t pmap, int mode, boolean_t is_pde)
 			cache_bits |= PG_NC_PWT;
 		break;
 
+	case PT_RVI:
+		/* XXX: PAT support. */
+		cache_bits = 0;
+		break;
+
 	case PT_EPT:
 		cache_bits = EPT_PG_IGNORE_PAT | EPT_PG_MEMORY_TYPE(mode);
 		break;
@@ -1164,6 +1184,10 @@ pmap_cache_mask(pmap_t pmap, boolean_t is_pde)
 	switch (pmap->pm_type) {
 	case PT_X86:
 		mask = is_pde ? X86_PG_PDE_CACHE : X86_PG_PTE_CACHE;
+		break;
+	case PT_RVI:
+		/* XXX: PAT support. */
+		mask = 0;
 		break;
 	case PT_EPT:
 		mask = EPT_PG_IGNORE_PAT | EPT_PG_MEMORY_TYPE(0x7);
@@ -1189,6 +1213,7 @@ pmap_update_pde_store(pmap_t pmap, pd_entry_t *pde, pd_entry_t newpde)
 	switch (pmap->pm_type) {
 	case PT_X86:
 		break;
+	case PT_RVI:
 	case PT_EPT:
 		/*
 		 * XXX
@@ -1224,7 +1249,7 @@ pmap_update_pde_invalidate(pmap_t pmap, vm_offset_t va, pd_entry_t newpde)
 {
 	pt_entry_t PG_G;
 
-	if (pmap->pm_type == PT_EPT)
+	if (pmap_type_guest(pmap))
 		return;
 
 	KASSERT(pmap->pm_type == PT_X86,
@@ -1338,7 +1363,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	cpuset_t other_cpus;
 	u_int cpuid;
 
-	if (pmap->pm_type == PT_EPT) {
+	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
 		return;
 	}
@@ -1416,7 +1441,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	vm_offset_t addr;
 	u_int cpuid;
 
-	if (pmap->pm_type == PT_EPT) {
+	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
 		return;
 	}
@@ -1475,7 +1500,7 @@ pmap_invalidate_all(pmap_t pmap)
 	uint64_t cr3;
 	u_int cpuid;
 
-	if (pmap->pm_type == PT_EPT) {
+	if (pmap_type_guest(pmap)) {
 		pmap_invalidate_ept(pmap);
 		return;
 	}
@@ -1595,7 +1620,7 @@ pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde, pd_entry_t newpde)
 	cpuid = PCPU_GET(cpuid);
 	other_cpus = all_cpus;
 	CPU_CLR(cpuid, &other_cpus);
-	if (pmap == kernel_pmap || pmap->pm_type == PT_EPT)
+	if (pmap == kernel_pmap || pmap_type_guest(pmap))
 		active = all_cpus;
 	else {
 		active = pmap->pm_active;
@@ -1633,6 +1658,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 			invlpg(va);
 		break;
+	case PT_RVI:
 	case PT_EPT:
 		pmap->pm_eptgen++;
 		break;
@@ -1652,6 +1678,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
 		break;
+	case PT_RVI:
 	case PT_EPT:
 		pmap->pm_eptgen++;
 		break;
@@ -1669,6 +1696,7 @@ pmap_invalidate_all(pmap_t pmap)
 		if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 			invltlb();
 		break;
+	case PT_RVI:
 	case PT_EPT:
 		pmap->pm_eptgen++;
 		break;
