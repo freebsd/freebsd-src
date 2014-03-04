@@ -36,7 +36,6 @@
 	.p2align 4,0
 	.globl	mptramp_start
 mptramp_start:
-#ifndef	__clang__
 	.code16
 	/*
 	 * The AP enters here in response to the startup IPI.
@@ -66,43 +65,6 @@ mptramp_start:
 	/* Enable protected mode */
 	movl	$CR0_PE, %eax
 	mov	%eax, %cr0 
-#else
-	/*
-	 * The AP enters here in response to the startup IPI.
-	 * We are in real mode. %cs is the only segment register set.
-	 */
-	cli				/* make sure no interrupts */
-	mov	%cs, %eax		/* copy %cs to %ds.  Remember these */
-	mov	%eax, %ds		/* are offsets rather than selectors */
-	mov	%eax, %ss
-
-	/*
-	 * Find relocation base and patch the gdt descript and ljmp targets
-	 */
-	.byte	0x66
-	xorl	%ebx, %ebx
-	mov	%cs, %ebx
-	.byte	0x66
-	sall	$4, %ebx		/* %ebx is now our relocation base */
-	.byte	0x66, 0x09, 0x1e
-	.word	lgdt_desc-mptramp_start+2
-	.byte	0x66, 0x09, 0x1e
-	.word	jmp_32-mptramp_start+2
-	.byte	0x66, 0x09, 0x1e
-	.word	jmp_64-mptramp_start+1
-
-	/*
-	 * Load the descriptor table pointer.  We'll need it when running
-	 * in 16 bit protected mode.
-	 */
-	.byte	0x0f, 0x01, 0x16
-	.word	lgdt_desc-mptramp_start
-
-	/* Enable protected mode */
-	.byte	0x66
-	movl	$CR0_PE, %eax
-	mov	%eax, %cr0 
-#endif
 
 	/*
 	 * Now execute a far jump to turn on protected mode.  This
@@ -126,7 +88,7 @@ jmp_32:
 	.code32
 protmode:
 	mov	$bootdata-gdt, %eax
-	mov	%eax, %ds
+	mov	%ax, %ds
 
 	/* Turn on the PAE, PSE and PGE bits for when paging is enabled */
 	mov	%cr4, %eax
