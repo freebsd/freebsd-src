@@ -144,11 +144,7 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-#ifdef VIMAGE
-	error = vnet_sysctl_handle_int(oidp, arg1, arg2, req);
-#else
 	error = sysctl_handle_int(oidp, arg1, arg2, req);
-#endif
 	if (error == 0) {
 		RANGECHK(V_ipport_lowfirstauto, 1, IPPORT_RESERVED - 1);
 		RANGECHK(V_ipport_lowlastauto, 1, IPPORT_RESERVED - 1);
