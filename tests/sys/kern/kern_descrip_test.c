@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2013 EMC Corp.
+ * Copyright (c) 2014 EMC Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,14 +52,12 @@ ATF_TC_BODY(dup2_simple, tc)
 	ATF_REQUIRE(bcmp(&sb1, &sb2, sizeof(sb1)) == 0);
 }
 
-/*
-   Regression test for r234131:
-   Return EBADF instead of EMFILE from dup2 when the second argument is
-   outside the range of valid file descriptors
- */
-
-ATF_TC_WITHOUT_HEAD(dup2_r234131);
-ATF_TC_BODY(dup2_r234131, tc)
+ATF_TC(dup2__ebadf_when_2nd_arg_out_of_range);
+ATF_TC_HEAD(dup2__ebadf_when_2nd_arg_out_of_range, tc)
+{
+	atf_tc_set_md_var(tc, "descr", "Regression test for r234131");
+}
+ATF_TC_BODY(dup2__ebadf_when_2nd_arg_out_of_range, tc)
 {
 	int fd1, fd2, ret;
 
@@ -74,7 +72,7 @@ ATF_TP_ADD_TCS(tp)
 {
 
         ATF_TP_ADD_TC(tp, dup2_simple);
-        ATF_TP_ADD_TC(tp, dup2_r234131);
+        ATF_TP_ADD_TC(tp, dup2__ebadf_when_2nd_arg_out_of_range);
 
         return atf_no_error();
 }
