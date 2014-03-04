@@ -552,8 +552,10 @@ END(resumectx)
  */
 ENTRY(ctx_fpusave)
 	movq	%cr0,%rax
+	pushq	%rax
 	clts
 	call	fpusave
+	popq	%rax
 	movq	%rax,%cr0
 	ret
 END(ctx_fpusave)
