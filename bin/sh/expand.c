@@ -98,7 +98,7 @@ static struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
 static struct ifsregion *ifslastp;	/* last struct in list */
 static struct arglist exparg;		/* holds expanded arg list */
 
-static void argstr(char *, int);
+static char *argstr(char *, int);
 static char *exptilde(char *, int);
 static char *expari(char *);
 static void expbackq(union node *, int, int);
@@ -213,7 +213,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * characters to allow for further processing.
  * If EXP_FULL is set, also preserve CTLQUOTEMARK characters.
  */
-static void
+static char *
 argstr(char *p, int flag)
 {
 	char c;
@@ -231,9 +231,10 @@ argstr(char *p, int flag)
 		CHECKSTRSPACE(2, expdest);
 		switch (c = *p++) {
 		case '\0':
+			return (p - 1);
 		case CTLENDVAR:
 		case CTLENDARI:
-			goto breakloop;
+			return (p);
 		case CTLQUOTEMARK:
 			lit_quoted = 1;
 			/* "$@" syntax adherence hack */
@@ -290,7 +291,6 @@ argstr(char *p, int flag)
 				    expdest - stackblock(), 0);
 		}
 	}
-breakloop:;
 }
 
 /*
@@ -399,13 +399,11 @@ expari(char *p)
 	arith_t result;
 	int begoff;
 	int quoted;
-	int c;
-	int nesting;
 	int adj;
 
 	quoted = *p++ == '"';
 	begoff = expdest - stackblock();
-	argstr(p, 0);
+	p = argstr(p, 0);
 	removerecordregions(begoff);
 	STPUTC('\0', expdest);
 	start = stackblock() + begoff;
@@ -424,20 +422,6 @@ expari(char *p)
 	STADJUST(adj, expdest);
 	if (!quoted)
 		recordregion(begoff, expdest - stackblock(), 0);
-	nesting = 1;
-	while (nesting > 0) {
-		c = *p++;
-		if (c == CTLESC)
-			p++;
-		else if (c == CTLARI)
-			nesting++;
-		else if (c == CTLENDARI)
-			nesting--;
-		else if (c == CTLVAR)
-			p++; /* ignore variable substitution byte */
-		else if (c == '\0')
-			return p - 1;
-	}
 	return p;
 }
 
