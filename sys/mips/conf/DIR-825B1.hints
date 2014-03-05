@@ -32,7 +32,7 @@ hint.ath.1.eeprom_firmware="pcib.0.bus.0.18.0.eeprom_firmware"
 
 # Geom MAP
 
-# The DIR-825 has an 8MB flash part - HOWEVER, the 64k caldata isn't
+# The DIR-825B1 has an 8MB flash part - HOWEVER, the 64k caldata isn't
 # at the end of the flash. It's ~ 6MB into the flash image.
 
 # mtdparts=ar7100-nor0:256k(uboot),64k(Config),1024k(vmlinux),5184k(rootfs),64k(caldata)
