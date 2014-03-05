@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 2, 2013
+.Dd February 25, 2014
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -245,6 +245,10 @@ Setting this also sets
 Set to a non-empty value to include the
 .Cm dvdrom
 target.
+.It Va VCSCMD
+The command run to obtain the source trees.
+Defaults to
+.Qq Cm svn checkout .
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
