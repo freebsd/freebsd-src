@@ -1,8 +1,12 @@
 #!/bin/sh
 #-
+# Copyright (c) 2013, 2014 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
+#
+# Portions of this software were developed by Glen Barber
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -38,9 +42,12 @@ export PATH
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
 
+# The default version control system command to obtain the sources.
+VCSCMD="svn checkout"
+
 # The default svn checkout server, and svn branches for src/, doc/,
 # and ports/.
-SVNROOT="svn://svn.freebsd.org"
+SVNROOT="svn://svn.FreeBSD.org/"
 SRCBRANCH="base/head@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
@@ -57,11 +64,9 @@ SRC_CONF="/dev/null"
 
 # The number of make(1) jobs, defaults to the number of CPUs available for
 # buildworld, and half of number of CPUs available for buildkernel.
-NCPU=$(sysctl -n hw.ncpu)
-if [ ${NCPU} -gt 1 ]; then
-	WORLD_FLAGS="-j${NCPU}"
-	KERNEL_FLAGS="-j$(expr ${NCPU} / 2)"
-fi
+WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
+KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
+
 MAKE_FLAGS="-s"
 
 # The name of the kernel to build, defaults to GENERIC.
@@ -97,6 +102,11 @@ while getopts c: opt; do
 	esac
 done
 shift $(($OPTIND - 1))
+
+# Prefix the branches with the SVNROOT for the full checkout URL.
+SRCBRANCH="${SVNROOT}${SRCBRANCH}"
+DOCBRANCH="${SVNROOT}${DOCBRANCH}"
+PORTBRANCH="${SVNROOT}${PORTBRANCH}"
 
 # If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
 # is required to build the documentation set.
@@ -155,12 +165,12 @@ set -e # Everything must succeed
 
 mkdir -p ${CHROOTDIR}/usr
 
-svn co ${FORCE_SRC_KEY} ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src
+${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
 if [ "x${NODOC}" = "x" ]; then
-	svn co ${SVNROOT}/${DOCBRANCH} ${CHROOTDIR}/usr/doc
+	${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 fi
 if [ "x${NOPORTS}" = "x" ]; then
-	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
+	${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
 cd ${CHROOTDIR}/usr/src
