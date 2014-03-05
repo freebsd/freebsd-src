@@ -40,7 +40,7 @@ PORTBRANCH="ports/head@rHEAD"
 
 ## Set to use world- and kernel-specific make(1) flags.
 #WORLD_FLAGS="-j $(sysctl -n hw.ncpu)"
-#KERNEL_FLAGS="-j $(expr $(sysctl -n hw.ncpu) / 2)"
+#KERNEL_FLAGS="-j $(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2 ))"
 
 ## Set miscellaneous 'make release' settings.
 #NODOC=
