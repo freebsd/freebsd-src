@@ -580,6 +580,10 @@ struct pf_rule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+
+	uint64_t		 u_states_cur;
+	uint64_t		 u_states_tot;
+	uint64_t		 u_src_nodes;
 };
 
 /* rule flags */
