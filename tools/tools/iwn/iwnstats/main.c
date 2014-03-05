@@ -29,6 +29,7 @@
  * $FreeBSD$
  */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -267,6 +268,7 @@ main(int argc, char *argv[])
 	struct iwnstats *is;
 	int ch;
 	char *ifname;
+	bool first;
 
 	ifname = strdup(IWN_DEFAULT_IF);
 
@@ -296,9 +298,12 @@ main(int argc, char *argv[])
 	}
 
 	/* begin fetching data */
+	first = true;
 	while (1) {
 		if (iwn_collect(is) != 0) {
 			fprintf(stderr, "%s: fetch failed\n", argv[0]);
+			if (first)
+				return 1;
 			goto next;
 		}
 
@@ -306,6 +311,7 @@ main(int argc, char *argv[])
 
 	next:
 		usleep(100 * 1000);
+		first = false;
 	}
 
 	exit(0);
