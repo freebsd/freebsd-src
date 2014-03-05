@@ -105,6 +105,8 @@ struct mbuf;
 #include <net/radix_mpath.h>
 #endif
 #endif
+
+#if defined(_KERNEL) || defined(_WANT_RTENTRY)
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*
@@ -127,6 +129,7 @@ struct rtentry {
 	counter_u64_t	rt_pksent;	/* packets sent using this route */
 	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
+#endif /* _KERNEL || _WANT_RTENTRY */
 
 /*
  * Following structure necessary for 4.3 compatibility;
