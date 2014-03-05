@@ -309,6 +309,10 @@ struct rt_addrinfo {
 #define	RT_UNLOCK(_rt)		mtx_unlock(&(_rt)->rt_mtx)
 #define	RT_LOCK_DESTROY(_rt)	mtx_destroy(&(_rt)->rt_mtx)
 #define	RT_LOCK_ASSERT(_rt)	mtx_assert(&(_rt)->rt_mtx, MA_OWNED)
+#define	RT_UNLOCK_COND(_rt)	do {				\
+	if (mtx_owned(&(_rt)->rt_mtx))				\
+		mtx_unlock(&(_rt)->rt_mtx);			\
+} while (0)
 
 #define	RT_ADDREF(_rt)	do {					\
 	RT_LOCK_ASSERT(_rt);					\
