@@ -237,6 +237,14 @@ rtentry_ctor(void *mem, int size, void *arg, int how)
 }
 
 static void
+rtentry_dtor(void *mem, int size, void *arg)
+{
+	struct rtentry *rt = mem;
+
+	RT_UNLOCK_COND(rt);
+}
+
+static void
 vnet_route_init(const void *unused __unused)
 {
 	struct domain *dom;
@@ -248,7 +256,7 @@ vnet_route_init(const void *unused __unused)
 	    sizeof(struct radix_node_head *), M_RTABLE, M_WAITOK|M_ZERO);
 
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry),
-	    rtentry_ctor, NULL,
+	    rtentry_ctor, rtentry_dtor,
 	    rtentry_zinit, rtentry_zfini, UMA_ALIGN_PTR, 0);
 	for (dom = domains; dom; dom = dom->dom_next) {
 		if (dom->dom_rtattach == NULL)
