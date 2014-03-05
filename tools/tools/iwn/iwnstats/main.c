@@ -252,12 +252,42 @@ iwn_print(struct iwnstats *is)
 	printf("--\n");
 }
 
+static void
+usage(void)
+{
+	printf("Usage: iwnstats [-h] [-i ifname]\n");
+	printf("    -h:			Help\n");
+	printf("    -i <ifname>:	Use ifname (default %s)\n",
+	    IWN_DEFAULT_IF);
+}
+
 int
-main(int argc, const char *argv[])
+main(int argc, char *argv[])
 {
 	struct iwnstats *is;
+	int ch;
+	char *ifname;
 
-	is = iwnstats_new(IWN_DEFAULT_IF);
+	ifname = strdup(IWN_DEFAULT_IF);
+
+	/* Parse command line arguments */
+	while ((ch = getopt(argc, argv,
+	    "hi:")) != -1) {
+		switch (ch) {
+		case 'i':
+			if (ifname)
+				free(ifname);
+			ifname = strdup(optarg);
+			break;
+		default:
+		case '?':
+		case 'h':
+			usage();
+			exit(1);
+		}
+	}
+
+	is = iwnstats_new(ifname);
 
 	if (is == NULL) {
 		fprintf(stderr, "%s: couldn't allocate new stats structure\n",
