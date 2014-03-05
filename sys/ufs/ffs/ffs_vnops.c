@@ -719,10 +719,10 @@ ffs_write(ap)
 		if (uio->uio_offset + xfersize > ip->i_size)
 			vnode_pager_setsize(vp, uio->uio_offset + xfersize);
 
-                /*
+		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else
@@ -1082,7 +1082,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 		/*
 		 * We must perform a read-before-write if the transfer size
 		 * does not cover the entire buffer.
-                 */
+		 */
 		if (fs->fs_bsize > xfersize)
 			flags |= BA_CLRBUF;
 		else

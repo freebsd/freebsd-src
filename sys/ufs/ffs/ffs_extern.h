@@ -167,10 +167,10 @@ void	softdep_freework(struct workhead *);
 /*
  * Things to request flushing in softdep_request_cleanup()
  */
-#define FLUSH_INODES		1
-#define FLUSH_INODES_WAIT	2
-#define FLUSH_BLOCKS		3
-#define FLUSH_BLOCKS_WAIT	4
+#define	FLUSH_INODES		1
+#define	FLUSH_INODES_WAIT	2
+#define	FLUSH_BLOCKS		3
+#define	FLUSH_BLOCKS_WAIT	4
 /*
  * Flag to ffs_syncvnode() to request flushing of data only,
  * but skip the ffs_update() on the inode itself. Used to avoid

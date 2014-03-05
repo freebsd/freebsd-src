@@ -31,7 +31,7 @@
  */
 
 #ifndef _UFS_UFS_UFSMOUNT_H_
-#define _UFS_UFS_UFSMOUNT_H_
+#define	_UFS_UFS_UFSMOUNT_H_
 
 #include <sys/buf.h>	/* XXX For struct workhead. */
 
@@ -127,25 +127,25 @@ struct ufsmount {
 /*
  * Filesystem types
  */
-#define UFS1	1
-#define UFS2	2
+#define	UFS1	1
+#define	UFS2	2
 
 /*
  * Flags describing the state of quotas.
  */
 #define	QTF_OPENING	0x01			/* Q_QUOTAON in progress */
 #define	QTF_CLOSING	0x02			/* Q_QUOTAOFF in progress */
-#define QTF_64BIT	0x04			/* 64-bit quota file */
+#define	QTF_64BIT	0x04			/* 64-bit quota file */
 
 /* Convert mount ptr to ufsmount ptr. */
-#define VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
+#define	VFSTOUFS(mp)	((struct ufsmount *)((mp)->mnt_data))
 #define	UFSTOVFS(ump)	(ump)->um_mountp
 
 /*
  * Macros to access filesystem parameters in the ufsmount structure.
  * Used by ufs_bmap.
  */
-#define MNINDIR(ump)			((ump)->um_nindir)
+#define	MNINDIR(ump)			((ump)->um_nindir)
 #define	blkptrtodb(ump, b)		((b) << (ump)->um_bptrtodb)
 #define	is_sequential(ump, a, b)	((b) == (a) + ump->um_seqinc)
 #endif /* _KERNEL */
