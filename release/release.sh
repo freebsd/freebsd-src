@@ -41,6 +41,7 @@ export PATH
 
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
+RELENGDIR="$(realpath $(dirname $(basename ${0})))"
 
 # The default version control system command to obtain the sources.
 VCSCMD="svn checkout"
@@ -51,6 +52,9 @@ SVNROOT="svn://svn.FreeBSD.org/"
 SRCBRANCH="base/head@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
+
+# Set for embedded device builds.
+EMBEDDEDBUILD=
 
 # Sometimes one needs to checkout src with --force svn option.
 # If custom kernel configs copied to src tree before checkout, e.g.
@@ -108,9 +112,18 @@ SRCBRANCH="${SVNROOT}${SRCBRANCH}"
 DOCBRANCH="${SVNROOT}${DOCBRANCH}"
 PORTBRANCH="${SVNROOT}${PORTBRANCH}"
 
+if [ -n "${EMBEDDEDBUILD}" ]; then
+	if [ -z "${XDEV}" ] || [ -z "${XDEV_ARCH}" ]; then
+		echo "ERROR: XDEV and XDEV_ARCH must be set in ${RELEASECONF}."
+		exit 1
+	fi
+	WITH_DVD=
+	NODOC=yes
+fi
+
 # If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
 # is required to build the documentation set.
-if [ "x${NOPORTS}" != "x" ] && [ "x${NODOC}" = "x" ]; then
+if [ -n "${NOPORTS}" ] && [ -z "${NODOC}" ]; then
 	echo "*** NOTICE: Setting NODOC=1 since ports tree is required"
 	echo "            and NOPORTS is set."
 	NODOC=yes
@@ -120,10 +133,10 @@ fi
 # The release makefile verifies definedness of NOPORTS/NODOC variables
 # instead of their values.
 DOCPORTS=
-if [ "x${NOPORTS}" != "x" ]; then
+if [ -n "${NOPORTS}" ]; then
 	DOCPORTS="NOPORTS=yes "
 fi
-if [ "x${NODOC}" != "x" ]; then
+if [ -n "${NODOC}" ]; then
 	DOCPORTS="${DOCPORTS}NODOC=yes"
 fi
 
@@ -131,12 +144,12 @@ fi
 # this file, unless overridden by release.conf.  In most cases, these
 # will not need to be changed.
 CONF_FILES="__MAKE_CONF=${MAKE_CONF} SRCCONF=${SRC_CONF}"
-if [ "x${TARGET}" != "x" ] && [ "x${TARGET_ARCH}" != "x" ]; then
+if [ -n "${TARGET}" ] && [ -n "${TARGET_ARCH}" ]; then
 	ARCH_FLAGS="TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH}"
 else
 	ARCH_FLAGS=
 fi
-CHROOT_MAKEENV="MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
+CHROOT_MAKEENV="${CHROOT_MAKEENV} MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
 CHROOT_DMAKEFLAGS="${CONF_FILES}"
@@ -147,11 +160,11 @@ RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
 
 # Force src checkout if configured
 FORCE_SRC_KEY=
-if [ "x${SRC_FORCE_CHECKOUT}" != "x" ]; then
+if [ -n "${SRC_FORCE_CHECKOUT}" ]; then
 	FORCE_SRC_KEY="--force"
 fi
 
-if [ ! ${CHROOTDIR} ]; then
+if [ -z "${CHROOTDIR}" ]; then
 	echo "Please set CHROOTDIR."
 	exit 1
 fi
@@ -166,19 +179,21 @@ set -e # Everything must succeed
 mkdir -p ${CHROOTDIR}/usr
 
 ${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
-if [ "x${NODOC}" = "x" ]; then
+if [ -z "${NODOC}" ]; then
 	${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 fi
-if [ "x${NOPORTS}" = "x" ]; then
+if [ -z "${NOPORTS}" ]; then
 	${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
-cd ${CHROOTDIR}/usr/src
-env ${CHROOT_MAKEENV} make ${CHROOT_WMAKEFLAGS} buildworld
-env ${CHROOT_MAKEENV} make ${CHROOT_IMAKEFLAGS} installworld \
-	DESTDIR=${CHROOTDIR}
-env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
-	DESTDIR=${CHROOTDIR}
+if [ -z "${CHROOTBUILD_SKIP}" ]; then
+	cd ${CHROOTDIR}/usr/src
+	env ${CHROOT_MAKEENV} make ${CHROOT_WMAKEFLAGS} buildworld
+	env ${CHROOT_MAKEENV} make ${CHROOT_IMAKEFLAGS} installworld \
+		DESTDIR=${CHROOTDIR}
+	env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
+		DESTDIR=${CHROOTDIR}
+fi
 mount -t devfs devfs ${CHROOTDIR}/dev
 cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
@@ -194,6 +209,29 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 	cp ${SRC_CONF} ${CHROOTDIR}/${SRC_CONF}
 fi
 
+# Embedded builds do not use the 'make release' target.
+if [ -n "${EMBEDDEDBUILD}" ]; then
+	# If a crochet configuration file exists in *this* checkout of
+	# release/, copy it to the /tmp/external directory within the chroot.
+	# This allows building embedded releases without relying on updated
+	# scripts and/or configurations to exist in the branch being built.
+	if [ -e ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf ] && \
+		[ -e ${RELENGDIR}/${XDEV}/release.sh ]; then
+			mkdir -p ${CHROOTDIR}/tmp/external/${XDEV}/
+			cp ${RELENGDIR}/tools/${XDEV}/crochet-${KERNEL}.conf \
+				${CHROOTDIR}/tmp/external/${XDEV}/crochet-${KERNEL}.conf
+			/bin/sh ${RELENGDIR}/${XDEV}/release.sh
+	fi
+	# If the script does not exist for this architecture, exit.
+	# This probably should be checked earlier, but allowing the rest
+	# of the build process to get this far will at least set up the
+	# chroot environment for testing.
+	exit 0
+else
+	# Not embedded.
+	continue
+fi
+
 if [ -d ${CHROOTDIR}/usr/ports ]; then
 	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
 	# is created.  This is needed by ports-mgmt/pkg.
@@ -201,7 +239,7 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 
 	## Trick the ports 'run-autotools-fixup' target to do the right thing.
 	_OSVERSION=$(sysctl -n kern.osreldate)
-	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
+	if [ -d ${CHROOTDIR}/usr/doc ] && [ -z "${NODOC}" ]; then
 		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
 		PBUILD_FLAGS="${PBUILD_FLAGS}"
 		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
@@ -209,13 +247,9 @@ if [ -d ${CHROOTDIR}/usr/ports ]; then
 	fi
 fi
 
-if [ "x${RELSTRING}" = "x" ]; then
-	RELSTRING="$(chroot ${CHROOTDIR} uname -s)-${OSRELEASE}-${TARGET_ARCH}"
-fi
-
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_WMAKEFLAGS} buildworld
 eval chroot ${CHROOTDIR} make -C /usr/src ${RELEASE_KMAKEFLAGS} buildkernel
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	release RELSTRING=${RELSTRING}
+	release
 eval chroot ${CHROOTDIR} make -C /usr/src/release ${RELEASE_RMAKEFLAGS} \
-	install DESTDIR=/R RELSTRING=${RELSTRING}
+	install DESTDIR=/R
