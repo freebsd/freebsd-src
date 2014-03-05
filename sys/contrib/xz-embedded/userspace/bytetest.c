@@ -1,5 +1,5 @@
 /*
- * Simple XZ decoder command line tool
+ * Lazy test for the case when the output size is known
  *
  * Author: Lasse Collin <lasse.collin@tukaani.org>
  *
@@ -7,19 +7,13 @@
  * You can do whatever you want with this file.
  */
 
-/*
- * This is really limited: Not all filters from .xz format are supported,
- * only CRC32 is supported as the integrity check, and decoding of
- * concatenated .xz streams is not supported. Thus, you may want to look
- * at xzdec from XZ Utils if a few KiB bigger tool is not a problem.
- */
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include "xz.h"
 
-static uint8_t in[BUFSIZ];
+static uint8_t in[1];
 static uint8_t out[BUFSIZ];
 
 int main(int argc, char **argv)
@@ -28,18 +22,16 @@ int main(int argc, char **argv)
 	struct xz_dec *s;
 	enum xz_ret ret;
 	const char *msg;
+	size_t uncomp_size;
 
-	if (argc >= 2 && strcmp(argv[1], "--help") == 0) {
-		fputs("Uncompress a .xz file from stdin to stdout.\n"
-				"Arguments other than `--help' are ignored.\n",
-				stdout);
-		return 0;
+	if (argc != 2) {
+		fputs("Give uncompressed size as the argument", stderr);
+		return 1;
 	}
 
+	uncomp_size = atoi(argv[1]);
+
 	xz_crc32_init();
-#ifdef XZ_USE_CRC64
-	xz_crc64_init();
-#endif
 
 	/*
 	 * Support up to 64 MiB dictionary. The actually needed memory
@@ -56,7 +48,7 @@ int main(int argc, char **argv)
 	b.in_size = 0;
 	b.out = out;
 	b.out_pos = 0;
-	b.out_size = BUFSIZ;
+	b.out_size = uncomp_size < BUFSIZ ? uncomp_size : BUFSIZ;
 
 	while (true) {
 		if (b.in_pos == b.in_size) {
@@ -72,7 +64,10 @@ int main(int argc, char **argv)
 				goto error;
 			}
 
+			uncomp_size -= b.out_pos;
 			b.out_pos = 0;
+			b.out_size = uncomp_size < BUFSIZ
+					? uncomp_size : BUFSIZ;
 		}
 
 		if (ret == XZ_OK)
@@ -87,6 +82,11 @@ int main(int argc, char **argv)
 			continue;
 		}
 #endif
+
+		if (uncomp_size != b.out_pos) {
+			msg = "Uncompressed size doesn't match\n";
+			goto error;
+		}
 
 		if (fwrite(out, 1, b.out_pos, stdout) != b.out_pos
 				|| fclose(stdout)) {
