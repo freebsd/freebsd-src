@@ -49,7 +49,7 @@
 
 #define	IWN_DEFAULT_IF		"iwn0"
 
-struct iwnstats *
+static struct iwnstats *
 iwnstats_new(const char *ifname)
 {
 	struct iwnstats *is;
