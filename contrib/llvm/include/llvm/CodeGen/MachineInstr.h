@@ -397,8 +397,8 @@ public:
     return isBranch(Type) & isBarrier(Type) & !isIndirectBranch(Type);
   }
 
-  // isPredicable - Return true if this instruction has a predicate operand that
-  // controls execution.  It may be set to 'always', or may be set to other
+  /// Return true if this instruction has a predicate operand that
+  /// controls execution.  It may be set to 'always', or may be set to other
   /// values.   There are various methods in TargetInstrInfo that can be used to
   /// control and modify the predicate in this instruction.
   bool isPredicable(QueryType Type = AllInBundle) const {
@@ -637,6 +637,13 @@ public:
   bool isEHLabel() const { return getOpcode() == TargetOpcode::EH_LABEL; }
   bool isGCLabel() const { return getOpcode() == TargetOpcode::GC_LABEL; }
   bool isDebugValue() const { return getOpcode() == TargetOpcode::DBG_VALUE; }
+  /// A DBG_VALUE is indirect iff the first operand is a register and
+  /// the second operand is an immediate.
+  bool isIndirectDebugValue() const {
+    return isDebugValue()
+      && getOperand(0).isReg()
+      && getOperand(1).isImm();
+  }
 
   bool isPHI() const { return getOpcode() == TargetOpcode::PHI; }
   bool isKill() const { return getOpcode() == TargetOpcode::KILL; }
@@ -886,13 +893,12 @@ public:
   /// Look for the operand that defines it and mark it as IsDead. If
   /// AddIfNotFound is true, add a implicit operand if it's not found. Returns
   /// true if the operand exists / is added.
-  bool addRegisterDead(unsigned IncomingReg, const TargetRegisterInfo *RegInfo,
+  bool addRegisterDead(unsigned Reg, const TargetRegisterInfo *RegInfo,
                        bool AddIfNotFound = false);
 
   /// addRegisterDefined - We have determined MI defines a register. Make sure
   /// there is an operand defining Reg.
-  void addRegisterDefined(unsigned IncomingReg,
-                          const TargetRegisterInfo *RegInfo = 0);
+  void addRegisterDefined(unsigned Reg, const TargetRegisterInfo *RegInfo = 0);
 
   /// setPhysRegsDeadExcept - Mark every physreg used by this instruction as
   /// dead except those in the UsedRegs list.
@@ -907,11 +913,6 @@ public:
   /// the instruction's location and its intended destination.
   bool isSafeToMove(const TargetInstrInfo *TII, AliasAnalysis *AA,
                     bool &SawStore) const;
-
-  /// isSafeToReMat - Return true if it's safe to rematerialize the specified
-  /// instruction which defined the specified register instead of copying it.
-  bool isSafeToReMat(const TargetInstrInfo *TII, AliasAnalysis *AA,
-                     unsigned DstReg) const;
 
   /// hasOrderedMemoryRef - Return true if this instruction may have an ordered
   /// or volatile memory reference, or if the information describing the memory

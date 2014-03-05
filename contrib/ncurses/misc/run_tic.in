@@ -1,7 +1,7 @@
 #!@SHELL@
-# $Id: run_tic.in,v 1.23 2006/10/28 19:43:30 tom Exp $
+# $Id: run_tic.in,v 1.34 2012/10/06 19:00:51 tom Exp $
 ##############################################################################
-# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 # authorization.                                                             #
 ##############################################################################
 #
-# Author: Thomas E. Dickey 1996,2000
+# Author: Thomas E. Dickey 1996-on
 #
 # This script is used to install terminfo.src using tic.  We use a script
 # because the path checking is too awkward to do in a makefile.
@@ -41,38 +41,57 @@ echo '** Building terminfo database, please wait...'
 # The script is designed to be run from the misc/Makefile as
 #	make install.data
 
-: ${suffix=@PROG_EXT@}
-: ${DESTDIR=@DESTDIR@}
-: ${prefix=@prefix@}
-: ${exec_prefix=@exec_prefix@}
-: ${bindir=@bindir@}
-: ${top_srcdir=@top_srcdir@}
-: ${srcdir=@srcdir@}
-: ${datadir=@datadir@}
-: ${ticdir=@TERMINFO@}
-: ${source=@TERMINFO_SRC@}
-: ${LN_S="@LN_S@"}
-: ${THAT_CC=cc}
-: ${THIS_CC=cc}
-: ${ext_funcs=@NCURSES_EXT_FUNCS@}
+: ${suffix:=@EXEEXT@}
+: ${DESTDIR:=@DESTDIR@}
+: ${prefix:=@prefix@}
+: ${exec_prefix:=@exec_prefix@}
+: ${bindir:=@bindir@}
+: ${top_srcdir:=@top_srcdir@}
+: ${srcdir:=@srcdir@}
+: ${datarootdir:=@datarootdir@}
+: ${datadir:=@datadir@}
+: ${TIC_PATH:=@TIC_PATH@}
+: ${ticdir:=@TERMINFO@}
+: ${source:=@TERMINFO_SRC@}
+: ${LN_S:="@LN_S@"}
+: ${cross_compiling:=no}
+: ${ext_funcs:=@NCURSES_EXT_FUNCS@}
 
 test -z "${DESTDIR}" && DESTDIR=
 
 # Allow tic to run either from the install-path, or from the build-directory.
 # Do not do this if we appear to be cross-compiling.  In that case, we rely
 # on the host's copy of tic to compile the terminfo database.
-if test "$THAT_CC" = "$THIS_CC" ; then
-case "$PATH" in
-:*) PATH=../progs:../lib:${DESTDIR}$bindir$PATH ;;
-*) PATH=../progs:../lib:${DESTDIR}$bindir:$PATH ;;
-esac
-export PATH
-SHLIB="sh $srcdir/shlib"
+if test "x$cross_compiling" = "xno"
+then
+	if test -f ../progs/tic$suffix
+	then
+		case "$PATH" in
+		\@PATH_SEPARATOR@*)
+			PATH="../progs@PATH_SEPARATOR@../lib@PATH_SEPARATOR@${DESTDIR}$bindir$PATH"
+			;;
+		*)
+			PATH="../progs@PATH_SEPARATOR@../lib@PATH_SEPARATOR@${DESTDIR}$bindir@PATH_SEPARATOR@$PATH"
+			;;
+		esac
+		export PATH
+		if test @DFT_LWR_MODEL@ = shared
+		then
+			SHLIB="sh $srcdir/shlib"
+			TIC_PATH="$SHLIB tic"
+		else
+			TIC_PATH="tic"
+		fi
+	elif test "$TIC_PATH" = unknown
+	then
+		echo '? no tic program found'
+		exit 1
+	fi
 else
-# Cross-compiling, so don't set PATH or run shlib.
-SHLIB=
-# reset $suffix, since it applies to the target, not the build platform.
-suffix=
+	# Cross-compiling, so don't set PATH or run shlib.
+	SHLIB=
+	# reset $suffix, since it applies to the target, not the build platform.
+	suffix=
 fi
 
 
@@ -92,6 +111,14 @@ umask 022
 # Construct the name of the old (obsolete) pathname, e.g., /usr/lib/terminfo.
 TICDIR=`echo $TERMINFO | sed -e 's%/share/\([^/]*\)$%/lib/\1%'`
 
+# Parent directory may not exist, which would confuse the install for hashed
+# database.  Fix.
+PARENT=`echo "$TERMINFO" | sed -e 's%/[^/]*$%%'`
+if test -n "$PARENT"
+then
+	test -d $PARENT || mkdir -p $PARENT
+fi
+
 # Remove the old terminfo stuff; we don't care if it existed before, and it
 # would generate a lot of confusing error messages if we tried to overwrite it.
 # We explicitly remove its contents rather than the directory itself, in case
@@ -100,7 +127,7 @@ TICDIR=`echo $TERMINFO | sed -e 's%/share/\([^/]*\)$%/lib/\1%'`
 
 if test "$ext_funcs" = 1 ; then
 cat <<EOF
-Running tic to install $TERMINFO ...
+Running $TIC_PATH to install $TERMINFO ...
 
 	You may see messages regarding extended capabilities, e.g., AX.
 	These are extended terminal capabilities which are compiled
@@ -110,7 +137,7 @@ Running tic to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
-if ( $SHLIB tic$suffix -x -s -o $TERMINFO $source )
+if ( $TIC_PATH -x -s -o $TERMINFO $source )
 then
 	echo '** built new '$TERMINFO
 else
@@ -119,7 +146,7 @@ else
 fi
 else
 cat <<EOF
-Running tic to install $TERMINFO ...
+Running $TIC_PATH to install $TERMINFO ...
 
 	You may see messages regarding unknown capabilities, e.g., AX.
 	These are extended terminal capabilities which may be compiled
@@ -129,7 +156,7 @@ Running tic to install $TERMINFO ...
 	document, and install the terminfo without the -x option.
 
 EOF
-if ( $SHLIB tic$suffix -s -o $TERMINFO $source )
+if ( $TIC_PATH -s -o $TERMINFO $source )
 then
 	echo '** built new '$TERMINFO
 else

@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 
+#include <arm/rockchip/rk30xx_wdog.h>
+
 /* Start of address space used for bootstrap map */
 #define DEVMAP_BOOTSTRAP_MAP_START	0xF0000000
 
@@ -122,6 +124,7 @@ void
 cpu_reset()
 {
 
-	printf("No cpu_reset implementation!\n");
+	rk30_wd_watchdog_reset();
+	printf("Reset failed!\n");
 	while (1);
 }

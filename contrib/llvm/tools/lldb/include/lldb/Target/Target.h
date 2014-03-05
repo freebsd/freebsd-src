@@ -35,7 +35,7 @@
 #include "lldb/Target/ABI.h"
 #include "lldb/Target/ExecutionContextScope.h"
 #include "lldb/Target/PathMappingList.h"
-#include "lldb/Target/SectionLoadList.h"
+#include "lldb/Target/SectionLoadHistory.h"
 
 namespace lldb_private {
 
@@ -164,6 +164,9 @@ public:
 
     bool
     GetUseFastStepping() const;
+    
+    bool
+    GetDisplayExpressionsInCrashlogs () const;
 
     LoadScriptFromSymFile
     GetLoadScriptFromSymbolFile() const;
@@ -174,6 +177,11 @@ public:
     MemoryModuleLoadLevel
     GetMemoryModuleLoadLevel() const;
 
+    bool
+    GetUserSpecifiedTrapHandlerNames (Args &args) const;
+
+    void
+    SetUserSpecifiedTrapHandlerNames (const Args &args);
 };
 
 typedef std::shared_ptr<TargetProperties> TargetPropertiesSP;
@@ -184,11 +192,15 @@ public:
     static const uint32_t default_timeout = 500000;
     EvaluateExpressionOptions() :
         m_execution_policy(eExecutionPolicyOnlyWhenNeeded),
+        m_language (lldb::eLanguageTypeUnknown),
         m_coerce_to_id(false),
         m_unwind_on_error(true),
         m_ignore_breakpoints (false),
         m_keep_in_memory(false),
-        m_run_others(true),
+        m_try_others(true),
+        m_stop_others(true),
+        m_debug(false),
+        m_trap_exceptions(true),
         m_use_dynamic(lldb::eNoDynamicValues),
         m_timeout_usec(default_timeout)
     {}
@@ -199,11 +211,22 @@ public:
         return m_execution_policy;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetExecutionPolicy (ExecutionPolicy policy = eExecutionPolicyAlways)
     {
         m_execution_policy = policy;
-        return *this;
+    }
+    
+    lldb::LanguageType
+    GetLanguage() const
+    {
+        return m_language;
+    }
+    
+    void
+    SetLanguage(lldb::LanguageType language)
+    {
+        m_language = language;
     }
     
     bool
@@ -212,11 +235,10 @@ public:
         return m_coerce_to_id;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetCoerceToId (bool coerce = true)
     {
         m_coerce_to_id = coerce;
-        return *this;
     }
     
     bool
@@ -225,11 +247,10 @@ public:
         return m_unwind_on_error;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetUnwindOnError (bool unwind = false)
     {
         m_unwind_on_error = unwind;
-        return *this;
     }
     
     bool
@@ -238,11 +259,10 @@ public:
         return m_ignore_breakpoints;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetIgnoreBreakpoints (bool ignore = false)
     {
         m_ignore_breakpoints = ignore;
-        return *this;
     }
     
     bool
@@ -251,11 +271,10 @@ public:
         return m_keep_in_memory;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetKeepInMemory (bool keep = true)
     {
         m_keep_in_memory = keep;
-        return *this;
     }
     
     lldb::DynamicValueType
@@ -264,11 +283,10 @@ public:
         return m_use_dynamic;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetUseDynamic (lldb::DynamicValueType dynamic = lldb::eDynamicCanRunTarget)
     {
         m_use_dynamic = dynamic;
-        return *this;
     }
     
     uint32_t
@@ -277,33 +295,71 @@ public:
         return m_timeout_usec;
     }
     
-    EvaluateExpressionOptions&
+    void
     SetTimeoutUsec (uint32_t timeout = 0)
     {
         m_timeout_usec = timeout;
-        return *this;
     }
     
     bool
-    GetRunOthers () const
+    GetTryAllThreads () const
     {
-        return m_run_others;
+        return m_try_others;
     }
     
-    EvaluateExpressionOptions&
-    SetRunOthers (bool run_others = true)
+    void
+    SetTryAllThreads (bool try_others = true)
     {
-        m_run_others = run_others;
-        return *this;
+        m_try_others = try_others;
     }
     
+    bool
+    GetStopOthers () const
+    {
+        return m_stop_others;
+    }
+    
+    void
+    SetStopOthers (bool stop_others = true)
+    {
+        m_stop_others = stop_others;
+    }
+    
+    bool
+    GetDebug() const
+    {
+        return m_debug;
+    }
+    
+    void
+    SetDebug(bool b)
+    {
+        m_debug = b;
+    }
+    
+    bool
+    GetTrapExceptions() const
+    {
+        return m_trap_exceptions;
+    }
+    
+    void
+    SetTrapExceptions (bool b)
+    {
+        m_trap_exceptions = b;
+    }
+
 private:
     ExecutionPolicy m_execution_policy;
+    lldb::LanguageType m_language;
     bool m_coerce_to_id;
     bool m_unwind_on_error;
     bool m_ignore_breakpoints;
     bool m_keep_in_memory;
-    bool m_run_others;
+    bool m_try_others;
+    bool m_stop_others;
+    bool m_debug;
+    bool m_trap_exceptions;
     lldb::DynamicValueType m_use_dynamic;
     uint32_t m_timeout_usec;
 };
@@ -478,6 +534,10 @@ public:
 
     void
     Destroy();
+    
+    Error
+    Launch (Listener &listener,
+            ProcessLaunchInfo &launch_info);
 
     //------------------------------------------------------------------
     // This part handles the breakpoints.
@@ -503,26 +563,30 @@ public:
     CreateBreakpoint (const FileSpecList *containingModules,
                       const FileSpec &file,
                       uint32_t line_no,
-                      LazyBool check_inlines = eLazyBoolCalculate,
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool check_inlines,
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create breakpoint that matches regex against the source lines in files given in source_file_list:
     lldb::BreakpointSP
     CreateSourceRegexBreakpoint (const FileSpecList *containingModules,
                                  const FileSpecList *source_file_list,
                                  RegularExpression &source_regex,
-                                 bool internal = false);
+                                 bool internal,
+                                 bool request_hardware);
 
     // Use this to create a breakpoint from a load address
     lldb::BreakpointSP
     CreateBreakpoint (lldb::addr_t load_addr,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create Address breakpoints:
     lldb::BreakpointSP
     CreateBreakpoint (Address &addr,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware);
 
     // Use this to create a function breakpoint by regexp in containingModule/containingSourceFiles, or all modules if it is NULL
     // When "skip_prologue is set to eLazyBoolCalculate, we use the current target 
@@ -531,8 +595,9 @@ public:
     CreateFuncRegexBreakpoint (const FileSpecList *containingModules,
                                const FileSpecList *containingSourceFiles,
                                RegularExpression &func_regexp,
-                               LazyBool skip_prologue = eLazyBoolCalculate,
-                               bool internal = false);
+                               LazyBool skip_prologue,
+                               bool internal,
+                               bool request_hardware);
 
     // Use this to create a function breakpoint by name in containingModule, or all modules if it is NULL
     // When "skip_prologue is set to eLazyBoolCalculate, we use the current target 
@@ -542,11 +607,12 @@ public:
                       const FileSpecList *containingSourceFiles,
                       const char *func_name,
                       uint32_t func_name_type_mask, 
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
                       
     lldb::BreakpointSP
-    CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_bp, bool throw_bp, bool internal = false);
+    CreateExceptionBreakpoint (enum lldb::LanguageType language, bool catch_bp, bool throw_bp, bool internal);
     
     // This is the same as the func_name breakpoint except that you can specify a vector of names.  This is cheaper
     // than a regular expression breakpoint in the case where you just want to set a breakpoint on a set of names
@@ -557,23 +623,27 @@ public:
                       const char *func_names[],
                       size_t num_names, 
                       uint32_t func_name_type_mask, 
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
     lldb::BreakpointSP
     CreateBreakpoint (const FileSpecList *containingModules,
                       const FileSpecList *containingSourceFiles,
                       const std::vector<std::string> &func_names,
                       uint32_t func_name_type_mask,
-                      LazyBool skip_prologue = eLazyBoolCalculate,
-                      bool internal = false);
+                      LazyBool skip_prologue,
+                      bool internal,
+                      bool request_hardware);
 
 
     // Use this to create a general breakpoint:
     lldb::BreakpointSP
     CreateBreakpoint (lldb::SearchFilterSP &filter_sp,
                       lldb::BreakpointResolverSP &resolver_sp,
-                      bool internal = false);
+                      bool internal,
+                      bool request_hardware,
+                      bool resolve_indirect_symbols);
 
     // Use this to create a watchpoint:
     lldb::WatchpointSP
@@ -696,10 +766,27 @@ public:
     ModulesDidLoad (ModuleList &module_list);
 
     void
-    ModulesDidUnload (ModuleList &module_list);
+    ModulesDidUnload (ModuleList &module_list, bool delete_locations);
     
     void
     SymbolsDidLoad (ModuleList &module_list);
+    
+    void
+    ClearModules(bool delete_locations);
+
+    //------------------------------------------------------------------
+    /// Called as the last function in Process::DidExec().
+    ///
+    /// Process::DidExec() will clear a lot of state in the process,
+    /// then try to reload a dynamic loader plugin to discover what
+    /// binaries are currently available and then this function should
+    /// be called to allow the target to do any cleanup after everything
+    /// has been figured out. It can remove breakpoints that no longer
+    /// make sense as the exec might have changed the target
+    /// architecture, and unloaded some modules that might get deleted.
+    //------------------------------------------------------------------
+    void
+    DidExec ();
     
     //------------------------------------------------------------------
     /// Gets the module for the main executable.
@@ -927,14 +1014,14 @@ public:
     SectionLoadList&
     GetSectionLoadList()
     {
-        return m_section_load_list;
+        return m_section_load_history.GetCurrentSectionLoadList();
     }
 
-    const SectionLoadList&
-    GetSectionLoadList() const
-    {
-        return m_section_load_list;
-    }
+//    const SectionLoadList&
+//    GetSectionLoadList() const
+//    {
+//        return const_cast<SectionLoadHistory *>(&m_section_load_history)->GetCurrentSectionLoadList();
+//    }
 
     static Target *
     GetTargetFromContexts (const ExecutionContext *exe_ctx_ptr, 
@@ -967,7 +1054,33 @@ public:
     ClangASTImporter *
     GetClangASTImporter();
     
+    //----------------------------------------------------------------------
+    // Install any files through the platform that need be to installed
+    // prior to launching or attaching.
+    //----------------------------------------------------------------------
+    Error
+    Install(ProcessLaunchInfo *launch_info);
     
+    
+    bool
+    ResolveLoadAddress (lldb::addr_t load_addr,
+                        Address &so_addr,
+                        uint32_t stop_id = SectionLoadHistory::eStopIDNow);
+    
+    bool
+    SetSectionLoadAddress (const lldb::SectionSP &section,
+                           lldb::addr_t load_addr,
+                           bool warn_multiple = false);
+
+    bool
+    SetSectionUnloaded (const lldb::SectionSP &section_sp);
+
+    bool
+    SetSectionUnloaded (const lldb::SectionSP &section_sp, lldb::addr_t load_addr);
+    
+    void
+    ClearAllLoadedSections ();
+
     // Since expressions results can persist beyond the lifetime of a process,
     // and the const expression results are available after a process is gone,
     // we provide a way for expressions to be evaluated from the Target itself.
@@ -1064,7 +1177,7 @@ public:
         std::unique_ptr<ThreadSpec> m_thread_spec_ap;
         bool m_active;
         
-        // Use AddStopHook to make a new empty stop hook.  The GetCommandPointer and fill it with commands,
+        // Use CreateStopHook to make a new empty stop hook. The GetCommandPointer and fill it with commands,
         // and SetSpecifier to set the specifier shared pointer (can be null, that will match anything.)
         StopHook (lldb::TargetSP target_sp, lldb::user_id_t uid);
         friend class Target;
@@ -1073,8 +1186,8 @@ public:
     
     // Add an empty stop hook to the Target's stop hook list, and returns a shared pointer to it in new_hook.  
     // Returns the id of the new hook.        
-    lldb::user_id_t
-    AddStopHook (StopHookSP &new_hook);
+    StopHookSP
+    CreateStopHook ();
     
     void
     RunStopHooks ();
@@ -1095,21 +1208,7 @@ public:
     {
         return m_suppress_stop_hooks;
     }
-    
-    bool
-    SetSuppressSyntheticValue (bool suppress)
-    {
-        bool old_value = m_suppress_synthetic_value;
-        m_suppress_synthetic_value = suppress;
-        return old_value;
-    }
-    
-    bool
-    GetSuppressSyntheticValue ()
-    {
-        return m_suppress_synthetic_value;
-    }
-    
+
 //    StopHookSP &
 //    GetStopHookByIndex (size_t index);
 //    
@@ -1184,7 +1283,7 @@ protected:
     Mutex           m_mutex;            ///< An API mutex that is used by the lldb::SB* classes make the SB interface thread safe
     ArchSpec        m_arch;
     ModuleList      m_images;           ///< The list of images for this process (shared libraries and anything dynamically loaded).
-    SectionLoadList m_section_load_list;
+    SectionLoadHistory m_section_load_history;
     BreakpointList  m_breakpoint_list;
     BreakpointList  m_internal_breakpoint_list;
     lldb::BreakpointSP m_last_created_breakpoint;
@@ -1194,7 +1293,6 @@ protected:
     // we can correctly tear down everything that we need to, so the only
     // class that knows about the process lifespan is this target class.
     lldb::ProcessSP m_process_sp;
-    bool m_valid;
     lldb::SearchFilterSP  m_search_filter_sp;
     PathMappingList m_image_search_paths;
     std::unique_ptr<ClangASTContext> m_scratch_ast_context_ap;
@@ -1207,8 +1305,8 @@ protected:
     typedef std::map<lldb::user_id_t, StopHookSP> StopHookCollection;
     StopHookCollection      m_stop_hooks;
     lldb::user_id_t         m_stop_hook_next_id;
+    bool                    m_valid;
     bool                    m_suppress_stop_hooks;
-    bool                    m_suppress_synthetic_value;
     
     static void
     ImageSearchPathsChanged (const PathMappingList &path_list,

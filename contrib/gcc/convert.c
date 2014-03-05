@@ -64,16 +64,65 @@ convert_to_pointer (tree type, tree expr)
     case BOOLEAN_TYPE:
       if (TYPE_PRECISION (TREE_TYPE (expr)) != POINTER_SIZE)
 	expr = fold_build1 (NOP_EXPR,
-                            lang_hooks.types.type_for_size (POINTER_SIZE, 0),
+			     lang_hooks.types.type_for_size (POINTER_SIZE, 0),
 			    expr);
       return fold_build1 (CONVERT_EXPR, type, expr);
 
-
-    default:
-      error ("cannot convert to a pointer type");
-      return convert_to_pointer (type, integer_zero_node);
+	/* APPLE LOCAL begin blocks (C++ ck) */
+    case BLOCK_POINTER_TYPE:
+	/* APPLE LOCAL begin radar 5809099 */
+	if (objc_is_id (type)
+		|| (TREE_CODE (type) == POINTER_TYPE && VOID_TYPE_P (TREE_TYPE (type))))
+	/* APPLE LOCAL end radar 5809099 */
+		return fold_build1 (NOP_EXPR, type, expr);
+	/* APPLE LOCAL end blocks (C++ ck) */
+      default:
+	error ("cannot convert to a pointer type");
+	return convert_to_pointer (type, integer_zero_node);
     }
 }
+
+/* APPLE LOCAL begin blocks (C++ ck) */
+tree
+convert_to_block_pointer (tree type, tree expr)
+{
+  if (TREE_TYPE (expr) == type)
+      return expr;
+  
+  if (integer_zerop (expr))
+    {
+      tree t = build_int_cst (type, 0);
+      if (TREE_OVERFLOW (expr) || TREE_CONSTANT_OVERFLOW (expr))
+	t = force_fit_type (t, 0, TREE_OVERFLOW (expr),
+						TREE_CONSTANT_OVERFLOW (expr));
+      return t;
+    }
+  
+  switch (TREE_CODE (TREE_TYPE (expr)))
+    {
+    case BLOCK_POINTER_TYPE:
+	return fold_build1 (NOP_EXPR, type, expr);
+	
+    case INTEGER_TYPE:
+	if (TYPE_PRECISION (TREE_TYPE (expr)) != POINTER_SIZE)
+		expr = fold_build1 (NOP_EXPR,
+					lang_hooks.types.type_for_size (POINTER_SIZE, 0),
+					expr);
+	return fold_build1 (CONVERT_EXPR, type, expr);
+	
+    case POINTER_TYPE:
+	/* APPLE LOCAL radar 5809099 */
+	if (objc_is_id (TREE_TYPE (expr)) || VOID_TYPE_P (TREE_TYPE (TREE_TYPE (expr))))
+		return build1 (NOP_EXPR, type, expr);
+	/* fall thru */
+	
+      default:
+	error ("cannot convert to a block pointer type");
+	return convert_to_block_pointer (type, integer_zero_node);
+    }
+}
+
+/* APPLE LOCAL end blocks (C++ ck) */
 
 /* Avoid any floating point extensions from EXP.  */
 tree
@@ -459,6 +508,8 @@ convert_to_integer (tree type, tree expr)
     {
     case POINTER_TYPE:
     case REFERENCE_TYPE:
+    /* APPLE LOCAL radar 6035389 */
+    case BLOCK_POINTER_TYPE:
       if (integer_zerop (expr))
 	return build_int_cst (type, 0);
 

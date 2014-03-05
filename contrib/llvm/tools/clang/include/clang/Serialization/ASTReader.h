@@ -88,7 +88,7 @@ class TypeLocReader;
 struct HeaderFileInfo;
 class VersionTuple;
 class TargetOptions;
-class ASTUnresolvedSet;
+class LazyASTUnresolvedSet;
 
 /// \brief Abstract interface for callback invocations by the ASTReader.
 ///
@@ -166,9 +166,6 @@ public:
     return false;
   }
 
-  /// \brief Receives a HeaderFileInfo entry.
-  virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI, unsigned ID) {}
-
   /// \brief Receives __COUNTER__ value.
   virtual void ReadCounter(const serialization::ModuleFile &M,
                            unsigned Value) {}
@@ -190,11 +187,9 @@ class PCHValidator : public ASTReaderListener {
   Preprocessor &PP;
   ASTReader &Reader;
 
-  unsigned NumHeaderInfos;
-
 public:
   PCHValidator(Preprocessor &PP, ASTReader &Reader)
-    : PP(PP), Reader(Reader), NumHeaderInfos(0) {}
+    : PP(PP), Reader(Reader) {}
 
   virtual bool ReadLanguageOptions(const LangOptions &LangOpts,
                                    bool Complain);
@@ -203,7 +198,6 @@ public:
   virtual bool ReadPreprocessorOptions(const PreprocessorOptions &PPOpts,
                                        bool Complain,
                                        std::string &SuggestedPredefines);
-  virtual void ReadHeaderFileInfo(const HeaderFileInfo &HFI, unsigned ID);
   virtual void ReadCounter(const serialization::ModuleFile &M, unsigned Value);
 
 private:
@@ -246,6 +240,7 @@ class ASTReader
 {
 public:
   typedef SmallVector<uint64_t, 64> RecordData;
+  typedef SmallVectorImpl<uint64_t> RecordDataImpl;
 
   /// \brief The result of reading the control block of an AST file, which
   /// can fail for various reasons.
@@ -314,6 +309,10 @@ private:
 
   /// \brief The module manager which manages modules and their dependencies
   ModuleManager ModuleMgr;
+
+  /// \brief The location where the module file will be considered as
+  /// imported from. For non-module AST types it should be invalid.
+  SourceLocation CurrentImportLoc;
 
   /// \brief The global module index, if loaded.
   llvm::OwningPtr<GlobalModuleIndex> GlobalIndex;
@@ -712,6 +711,9 @@ private:
   /// SourceLocation of a matching ODR-use.
   SmallVector<uint64_t, 8> UndefinedButUsed;
 
+  // \brief A list of late parsed template function data.
+  SmallVector<uint64_t, 1> LateParsedTemplates;
+
   /// \brief A list of modules that were imported by precompiled headers or
   /// any other non-module AST file.
   SmallVector<serialization::SubmoduleID, 2> ImportedModules;
@@ -873,6 +875,14 @@ private:
   /// been completed.
   std::deque<PendingDeclContextInfo> PendingDeclContextInfos;
 
+  /// \brief The set of NamedDecls that have been loaded, but are members of a
+  /// context that has been merged into another context where the corresponding
+  /// declaration is either missing or has not yet been loaded.
+  ///
+  /// We will check whether the corresponding declaration is in fact missing
+  /// once recursing loading has been completed.
+  llvm::SmallVector<NamedDecl *, 16> PendingOdrMergeChecks;
+
   /// \brief The set of Objective-C categories that have been deserialized
   /// since the last time the declaration chains were linked.
   llvm::SmallPtrSet<ObjCCategoryDecl *, 16> CategoriesDeserialized;
@@ -909,16 +919,22 @@ private:
   /// the given canonical declaration.
   MergedDeclsMap::iterator
   combineStoredMergedDecls(Decl *Canon, serialization::GlobalDeclID CanonID);
-  
-  /// \brief Ready to load the previous declaration of the given Decl.
-  void loadAndAttachPreviousDecl(Decl *D, serialization::DeclID ID);
+
+  /// \brief A mapping from DeclContexts to the semantic DeclContext that we
+  /// are treating as the definition of the entity. This is used, for instance,
+  /// when merging implicit instantiations of class templates across modules.
+  llvm::DenseMap<DeclContext *, DeclContext *> MergedDeclContexts;
+
+  /// \brief A mapping from canonical declarations of enums to their canonical
+  /// definitions. Only populated when using modules in C++.
+  llvm::DenseMap<EnumDecl *, EnumDecl *> EnumDefinitions;
 
   /// \brief When reading a Stmt tree, Stmt operands are placed in this stack.
   SmallVector<Stmt *, 16> StmtStack;
 
   /// \brief What kind of records we are reading.
   enum ReadingKind {
-    Read_Decl, Read_Type, Read_Stmt
+    Read_None, Read_Decl, Read_Type, Read_Stmt
   };
 
   /// \brief What kind of records we are reading.
@@ -1238,7 +1254,7 @@ public:
   void setDeserializationListener(ASTDeserializationListener *Listener);
 
   /// \brief Determine whether this AST reader has a global index.
-  bool hasGlobalIndex() const { return GlobalIndex; }
+  bool hasGlobalIndex() const { return GlobalIndex.isValid(); }
 
   /// \brief Attempts to load the global index.
   ///
@@ -1251,6 +1267,9 @@ public:
   
   /// \brief Initializes the ASTContext
   void InitializeContext();
+
+  /// \brief Update the state of Sema after loading some additional modules.
+  void UpdateSema();
 
   /// \brief Add in-memory (virtual file) buffer.
   void addInMemoryBuffer(StringRef &FileName, llvm::MemoryBuffer *Buffer) {
@@ -1385,6 +1404,10 @@ public:
   TemplateArgumentLoc
   ReadTemplateArgumentLoc(ModuleFile &F,
                           const RecordData &Record, unsigned &Idx);
+
+  const ASTTemplateArgumentListInfo*
+  ReadASTTemplateArgumentListInfo(ModuleFile &F,
+                                  const RecordData &Record, unsigned &Index);
 
   /// \brief Reads a declarator info from the given record.
   TypeSourceInfo *GetTypeSourceInfo(ModuleFile &F,
@@ -1612,6 +1635,9 @@ public:
                  SmallVectorImpl<std::pair<ValueDecl *,
                                            SourceLocation> > &Pending);
 
+  virtual void ReadLateParsedTemplates(
+      llvm::DenseMap<const FunctionDecl *, LateParsedTemplate *> &LPTMap);
+
   /// \brief Load a selector from disk, registering its ID if it exists.
   void LoadSelector(Selector Sel);
 
@@ -1734,12 +1760,12 @@ public:
 
   /// \brief Read a template argument array.
   void
-  ReadTemplateArgumentList(SmallVector<TemplateArgument, 8> &TemplArgs,
+  ReadTemplateArgumentList(SmallVectorImpl<TemplateArgument> &TemplArgs,
                            ModuleFile &F, const RecordData &Record,
                            unsigned &Idx);
 
   /// \brief Read a UnresolvedSet structure.
-  void ReadUnresolvedSet(ModuleFile &F, ASTUnresolvedSet &Set,
+  void ReadUnresolvedSet(ModuleFile &F, LazyASTUnresolvedSet &Set,
                          const RecordData &Record, unsigned &Idx);
 
   /// \brief Read a C++ base specifier.
@@ -1762,7 +1788,8 @@ public:
 
   /// \brief Read a source location.
   SourceLocation ReadSourceLocation(ModuleFile &ModuleFile,
-                                    const RecordData &Record, unsigned &Idx) {
+                                    const RecordDataImpl &Record,
+                                    unsigned &Idx) {
     return ReadSourceLocation(ModuleFile, Record[Idx++]);
   }
 
@@ -1813,7 +1840,7 @@ public:
   Expr *ReadSubExpr();
 
   /// \brief Reads a token out of a record.
-  Token ReadToken(ModuleFile &M, const RecordData &Record, unsigned &Idx);
+  Token ReadToken(ModuleFile &M, const RecordDataImpl &Record, unsigned &Idx);
 
   /// \brief Reads the macro record located at the given offset.
   MacroInfo *ReadMacroRecord(ModuleFile &F, uint64_t Offset);

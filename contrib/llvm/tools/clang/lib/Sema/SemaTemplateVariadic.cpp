@@ -18,6 +18,7 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Template.h"
+#include "TypeLocBuilder.h"
 
 using namespace clang;
 
@@ -179,10 +180,14 @@ namespace {
       // If any capture names a function parameter pack, that pack is expanded
       // when the lambda is expanded.
       for (LambdaExpr::capture_iterator I = Lambda->capture_begin(),
-                                        E = Lambda->capture_end(); I != E; ++I)
-        if (VarDecl *VD = I->getCapturedVar())
+                                        E = Lambda->capture_end();
+           I != E; ++I) {
+        if (I->capturesVariable()) {
+          VarDecl *VD = I->getCapturedVar();
           if (VD->isParameterPack())
             Unexpanded.push_back(std::make_pair(VD, I->getLocation()));
+        }
+      }
 
       inherited::TraverseLambdaExpr(Lambda);
 
@@ -459,17 +464,13 @@ Sema::CheckPackExpansion(TypeSourceInfo *Pattern, SourceLocation EllipsisLoc,
                                        EllipsisLoc, NumExpansions);
   if (Result.isNull())
     return 0;
-  
-  TypeSourceInfo *TSResult = Context.CreateTypeSourceInfo(Result);
-  PackExpansionTypeLoc TL =
-      TSResult->getTypeLoc().castAs<PackExpansionTypeLoc>();
+
+  TypeLocBuilder TLB;
+  TLB.pushFullCopy(Pattern->getTypeLoc());
+  PackExpansionTypeLoc TL = TLB.push<PackExpansionTypeLoc>(Result);
   TL.setEllipsisLoc(EllipsisLoc);
-  
-  // Copy over the source-location information from the type.
-  memcpy(TL.getNextTypeLoc().getOpaqueData(),
-         Pattern->getTypeLoc().getOpaqueData(),
-         Pattern->getTypeLoc().getFullDataSize());
-  return TSResult;
+
+  return TLB.getTypeSourceInfo(Context, Result);
 }
 
 QualType Sema::CheckPackExpansion(QualType Pattern, SourceRange PatternRange,
@@ -818,16 +819,12 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
     if (TypoCorrection Corrected = CorrectTypo(R.getLookupNameInfo(),
                                                R.getLookupKind(), S, 0,
                                                Validator)) {
-      std::string CorrectedQuotedStr(Corrected.getQuoted(getLangOpts()));
+      diagnoseTypo(Corrected,
+                   PDiag(diag::err_sizeof_pack_no_pack_name_suggest) << &Name,
+                   PDiag(diag::note_parameter_pack_here));
       ParameterPack = Corrected.getCorrectionDecl();
-      Diag(NameLoc, diag::err_sizeof_pack_no_pack_name_suggest)
-        << &Name << CorrectedQuotedStr
-        << FixItHint::CreateReplacement(
-            NameLoc, Corrected.getAsString(getLangOpts()));
-      Diag(ParameterPack->getLocation(), diag::note_parameter_pack_here)
-        << CorrectedQuotedStr;
     }
-      
+
   case LookupResult::FoundOverloaded:
   case LookupResult::FoundUnresolvedValue:
     break;
@@ -847,4 +844,64 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
 
   return new (Context) SizeOfPackExpr(Context.getSizeType(), OpLoc, 
                                       ParameterPack, NameLoc, RParenLoc);
+}
+
+TemplateArgumentLoc
+Sema::getTemplateArgumentPackExpansionPattern(
+      TemplateArgumentLoc OrigLoc,
+      SourceLocation &Ellipsis, Optional<unsigned> &NumExpansions) const {
+  const TemplateArgument &Argument = OrigLoc.getArgument();
+  assert(Argument.isPackExpansion());
+  switch (Argument.getKind()) {
+  case TemplateArgument::Type: {
+    // FIXME: We shouldn't ever have to worry about missing
+    // type-source info!
+    TypeSourceInfo *ExpansionTSInfo = OrigLoc.getTypeSourceInfo();
+    if (!ExpansionTSInfo)
+      ExpansionTSInfo = Context.getTrivialTypeSourceInfo(Argument.getAsType(),
+                                                         Ellipsis);
+    PackExpansionTypeLoc Expansion =
+        ExpansionTSInfo->getTypeLoc().castAs<PackExpansionTypeLoc>();
+    Ellipsis = Expansion.getEllipsisLoc();
+
+    TypeLoc Pattern = Expansion.getPatternLoc();
+    NumExpansions = Expansion.getTypePtr()->getNumExpansions();
+
+    // We need to copy the TypeLoc because TemplateArgumentLocs store a
+    // TypeSourceInfo.
+    // FIXME: Find some way to avoid the copy?
+    TypeLocBuilder TLB;
+    TLB.pushFullCopy(Pattern);
+    TypeSourceInfo *PatternTSInfo =
+        TLB.getTypeSourceInfo(Context, Pattern.getType());
+    return TemplateArgumentLoc(TemplateArgument(Pattern.getType()),
+                               PatternTSInfo);
+  }
+
+  case TemplateArgument::Expression: {
+    PackExpansionExpr *Expansion
+      = cast<PackExpansionExpr>(Argument.getAsExpr());
+    Expr *Pattern = Expansion->getPattern();
+    Ellipsis = Expansion->getEllipsisLoc();
+    NumExpansions = Expansion->getNumExpansions();
+    return TemplateArgumentLoc(Pattern, Pattern);
+  }
+
+  case TemplateArgument::TemplateExpansion:
+    Ellipsis = OrigLoc.getTemplateEllipsisLoc();
+    NumExpansions = Argument.getNumTemplateExpansions();
+    return TemplateArgumentLoc(Argument.getPackExpansionPattern(),
+                               OrigLoc.getTemplateQualifierLoc(),
+                               OrigLoc.getTemplateNameLoc());
+
+  case TemplateArgument::Declaration:
+  case TemplateArgument::NullPtr:
+  case TemplateArgument::Template:
+  case TemplateArgument::Integral:
+  case TemplateArgument::Pack:
+  case TemplateArgument::Null:
+    return TemplateArgumentLoc();
+  }
+
+  llvm_unreachable("Invalid TemplateArgument Kind!");
 }

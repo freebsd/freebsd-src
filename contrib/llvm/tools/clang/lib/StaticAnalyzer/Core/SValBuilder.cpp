@@ -202,10 +202,12 @@ DefinedSVal SValBuilder::getFunctionPointer(const FunctionDecl *func) {
 
 DefinedSVal SValBuilder::getBlockPointer(const BlockDecl *block,
                                          CanQualType locTy,
-                                         const LocationContext *locContext) {
+                                         const LocationContext *locContext,
+                                         unsigned blockCount) {
   const BlockTextRegion *BC =
     MemMgr.getBlockTextRegion(block, locTy, locContext->getAnalysisDeclContext());
-  const BlockDataRegion *BD = MemMgr.getBlockDataRegion(BC, locContext);
+  const BlockDataRegion *BD = MemMgr.getBlockDataRegion(BC, locContext,
+                                                        blockCount);
   return loc::MemRegionVal(BD);
 }
 
@@ -265,6 +267,17 @@ Optional<SVal> SValBuilder::getConstantVal(const Expr *E) {
 
   case Stmt::CXXNullPtrLiteralExprClass:
     return makeNull();
+
+  case Stmt::ImplicitCastExprClass: {
+    const CastExpr *CE = cast<CastExpr>(E);
+    if (CE->getCastKind() == CK_ArrayToPointerDecay) {
+      Optional<SVal> ArrayVal = getConstantVal(CE->getSubExpr());
+      if (!ArrayVal)
+        return None;
+      return evalCast(*ArrayVal, CE->getType(), CE->getSubExpr()->getType());
+    }
+    // FALLTHROUGH
+  }
 
   // If we don't have a special case, fall back to the AST's constant evaluator.
   default: {
@@ -394,15 +407,22 @@ SVal SValBuilder::evalCast(SVal val, QualType castTy, QualType originalTy) {
       return val;
     if (val.isConstant())
       return makeTruthVal(!val.isZeroConstant(), castTy);
-    if (SymbolRef Sym = val.getAsSymbol()) {
+    if (!Loc::isLocType(originalTy) &&
+        !originalTy->isIntegralOrEnumerationType() &&
+        !originalTy->isMemberPointerType())
+      return UnknownVal();
+    if (SymbolRef Sym = val.getAsSymbol(true)) {
       BasicValueFactory &BVF = getBasicValueFactory();
       // FIXME: If we had a state here, we could see if the symbol is known to
       // be zero, but we don't.
       return makeNonLoc(Sym, BO_NE, BVF.getValue(0, Sym->getType()), castTy);
     }
+    // Loc values are not always true, they could be weakly linked functions.
+    if (Optional<Loc> L = val.getAs<Loc>())
+      return evalCastFromLoc(*L, castTy);
 
-    assert(val.getAs<Loc>());
-    return makeTruthVal(true, castTy);
+    Loc L = val.castAs<nonloc::LocAsInteger>().getLoc();
+    return evalCastFromLoc(L, castTy);
   }
 
   // For const casts, casts to void, just propagate the value.
@@ -435,9 +455,11 @@ SVal SValBuilder::evalCast(SVal val, QualType castTy, QualType originalTy) {
   }
 
   // Check for casts from array type to another type.
-  if (originalTy->isArrayType()) {
+  if (const ArrayType *arrayT =
+                      dyn_cast<ArrayType>(originalTy.getCanonicalType())) {
     // We will always decay to a pointer.
-    val = StateMgr.ArrayToPointer(val.castAs<Loc>());
+    QualType elemTy = arrayT->getElementType();
+    val = StateMgr.ArrayToPointer(val.castAs<Loc>(), elemTy);
 
     // Are we casting from an array to a pointer?  If so just pass on
     // the decayed value.

@@ -31,3 +31,10 @@ opt_ddb.h:
 .endif
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ieee80211_adhoc.c=	-Wno-unused-function
+CWARNFLAGS.ieee80211_crypto.c=	-Wno-unused-function
+CWARNFLAGS.ieee80211_hostap.c=	-Wno-unused-function
+CWARNFLAGS.ieee80211_mesh.c=	-Wno-unused-function
+CWARNFLAGS.ieee80211_sta.c=	-Wno-unused-function
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

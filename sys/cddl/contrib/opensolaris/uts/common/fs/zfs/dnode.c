@@ -1339,7 +1339,7 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 	rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 
 	/* Check for any allocated blocks beyond the first */
-	if (dn->dn_phys->dn_maxblkid != 0)
+	if (dn->dn_maxblkid != 0)
 		goto fail;
 
 	mutex_enter(&dn->dn_dbufs_mtx);
@@ -1549,7 +1549,13 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	} else {
 		ASSERT(dn->dn_maxblkid == 0);
 		if (off == 0 && len >= blksz) {
-			/* Freeing the whole block; fast-track this request */
+			/*
+			 * Freeing the whole block; fast-track this request.
+			 * Note that we won't dirty any indirect blocks,
+			 * which is fine because we will be freeing the entire
+			 * file and thus all indirect blocks will be freed
+			 * by free_children().
+			 */
 			blkid = 0;
 			nblks = 1;
 			goto done;
@@ -1576,7 +1582,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 			if (db->db_last_dirty ||
 			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr))) {
 				rw_exit(&dn->dn_struct_rwlock);
-				dbuf_will_dirty(db, tx);
+				dmu_buf_will_dirty(&db->db, tx);
 				rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 				data = db->db.db_data;
 				bzero(data + blkoff, head);
@@ -1612,7 +1618,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 			if (db->db_last_dirty ||
 			    (db->db_blkptr && !BP_IS_HOLE(db->db_blkptr))) {
 				rw_exit(&dn->dn_struct_rwlock);
-				dbuf_will_dirty(db, tx);
+				dmu_buf_will_dirty(&db->db, tx);
 				rw_enter(&dn->dn_struct_rwlock, RW_WRITER);
 				bzero(db->db.db_data, tail);
 			}
@@ -1633,18 +1639,18 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		nblks += 1;
 
 	/*
-	 * Read in and mark all the level-1 indirects dirty,
-	 * so that they will stay in memory until syncing phase.
-	 * Always dirty the first and last indirect to make sure
-	 * we dirty all the partial indirects.
+	 * Dirty the first and last indirect blocks, as they (and/or their
+	 * parents) will need to be written out if they were only
+	 * partially freed.  Interior indirect blocks will be themselves freed,
+	 * by free_children(), so they need not be dirtied.  Note that these
+	 * interior blocks have already been prefetched by dmu_tx_hold_free().
 	 */
 	if (dn->dn_nlevels > 1) {
-		uint64_t i, first, last;
-		int shift = epbs + dn->dn_datablkshift;
+		uint64_t first, last;
 
 		first = blkid >> epbs;
 		if (db = dbuf_hold_level(dn, 1, first, FTAG)) {
-			dbuf_will_dirty(db, tx);
+			dmu_buf_will_dirty(&db->db, tx);
 			dbuf_rele(db, FTAG);
 		}
 		if (trunc)
@@ -1652,26 +1658,11 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 		else
 			last = (blkid + nblks - 1) >> epbs;
 		if (last > first && (db = dbuf_hold_level(dn, 1, last, FTAG))) {
-			dbuf_will_dirty(db, tx);
+			dmu_buf_will_dirty(&db->db, tx);
 			dbuf_rele(db, FTAG);
 		}
-		for (i = first + 1; i < last; i++) {
-			uint64_t ibyte = i << shift;
-			int err;
-
-			err = dnode_next_offset(dn,
-			    DNODE_FIND_HAVELOCK, &ibyte, 1, 1, 0);
-			i = ibyte >> shift;
-			if (err == ESRCH || i >= last)
-				break;
-			ASSERT(err == 0);
-			db = dbuf_hold_level(dn, 1, i, FTAG);
-			if (db) {
-				dbuf_will_dirty(db, tx);
-				dbuf_rele(db, FTAG);
-			}
-		}
 	}
+
 done:
 	/*
 	 * Add this range to the dnode range list.
@@ -1699,8 +1690,6 @@ done:
 	dbuf_free_range(dn, blkid, blkid + nblks - 1, tx);
 	dnode_setdirty(dn, tx);
 out:
-	if (trunc && dn->dn_maxblkid >= (off >> blkshift))
-		dn->dn_maxblkid = (off >> blkshift ? (off >> blkshift) - 1 : 0);
 
 	rw_exit(&dn->dn_struct_rwlock);
 }
@@ -1793,23 +1782,22 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 }
 
 /*
- * Call when we think we're going to write/free space in open context.
- * Be conservative (ie. OK to write less than this or free more than
- * this, but don't write more or free less).
+ * Call when we think we're going to write/free space in open context to track
+ * the amount of memory in use by the currently open txg.
  */
 void
 dnode_willuse_space(dnode_t *dn, int64_t space, dmu_tx_t *tx)
 {
 	objset_t *os = dn->dn_objset;
 	dsl_dataset_t *ds = os->os_dsl_dataset;
+	int64_t aspace = spa_get_asize(os->os_spa, space);
 
-	if (space > 0)
-		space = spa_get_asize(os->os_spa, space);
+	if (ds != NULL) {
+		dsl_dir_willuse_space(ds->ds_dir, aspace, tx);
+		dsl_pool_dirty_space(dmu_tx_pool(tx), space, tx);
+	}
 
-	if (ds)
-		dsl_dir_willuse_space(ds->ds_dir, space, tx);
-
-	dmu_tx_willuse_space(tx, space);
+	dmu_tx_willuse_space(tx, aspace);
 }
 
 /*
@@ -1878,8 +1866,10 @@ dnode_next_offset_level(dnode_t *dn, int flags, uint64_t *offset,
 		data = db->db.db_data;
 	}
 
-	if (db && txg &&
-	    (db->db_blkptr == NULL || db->db_blkptr->blk_birth <= txg)) {
+
+	if (db != NULL && txg != 0 && (db->db_blkptr == NULL ||
+	    db->db_blkptr->blk_birth <= txg ||
+	    BP_IS_HOLE(db->db_blkptr))) {
 		/*
 		 * This can only happen when we are searching up the tree
 		 * and these conditions mean that we need to keep climbing.

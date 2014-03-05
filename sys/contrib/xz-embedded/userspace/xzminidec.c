@@ -37,6 +37,9 @@ int main(int argc, char **argv)
 	}
 
 	xz_crc32_init();
+#ifdef XZ_USE_CRC64
+	xz_crc64_init();
+#endif
 
 	/*
 	 * Support up to 64 MiB dictionary. The actually needed memory

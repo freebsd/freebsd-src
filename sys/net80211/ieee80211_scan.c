@@ -860,6 +860,7 @@ scan_task(void *arg, int pending)
 	if (ss->ss_next == ss->ss_last) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
 			"%s: no channels to scan\n", __func__);
+		scandone = 1;
 		goto done;
 	}
 

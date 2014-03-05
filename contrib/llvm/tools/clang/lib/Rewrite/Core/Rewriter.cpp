@@ -433,8 +433,7 @@ public:
     TempFilename = Filename;
     TempFilename += "-%%%%%%%%";
     int FD;
-    if (llvm::sys::fs::unique_file(TempFilename.str(), FD, TempFilename,
-                                    /*makeAbsolute=*/true, 0664)) {
+    if (llvm::sys::fs::createUniqueFile(TempFilename.str(), FD, TempFilename)) {
       AllWritten = false;
       Diagnostics.Report(clang::diag::err_unable_to_make_temp)
         << TempFilename;
@@ -463,7 +462,7 @@ public:
     }
   }
 
-  bool ok() { return FileStream; }
+  bool ok() { return FileStream.isValid(); }
   raw_ostream &getStream() { return *FileStream; }
 
 private:

@@ -362,8 +362,21 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
-#define	MNT_SHARED_WRITES(mp) (((mp) != NULL) && 	\
-				((mp)->mnt_kern_flag & MNTK_SHARED_WRITES))
+#ifdef _KERNEL
+static inline int
+MNT_SHARED_WRITES(struct mount *mp)
+{
+
+	return (mp != NULL && (mp->mnt_kern_flag & MNTK_SHARED_WRITES) != 0);
+}
+
+static inline int
+MNT_EXTENDED_SHARED(struct mount *mp)
+{
+
+	return (mp != NULL && (mp->mnt_kern_flag & MNTK_EXTENDED_SHARED) != 0);
+}
+#endif
 
 /*
  * Sysctl CTL_VFS definitions.
@@ -636,10 +649,12 @@ struct vfsops {
 vfs_statfs_t	__vfs_statfs;
 
 #define	VFS_PROLOGUE(MP)	do {					\
+	struct mount *mp__;						\
 	int _enable_stops;						\
 									\
-	_enable_stops = ((MP) != NULL &&				\
-	    ((MP)->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
+	mp__ = (MP);							\
+	_enable_stops = (mp__ != NULL &&				\
+	    (mp__->mnt_vfc->vfc_flags & VFCF_SBDRY) && sigdeferstop())
 
 #define	VFS_EPILOGUE(MP)						\
 	if (_enable_stops)						\

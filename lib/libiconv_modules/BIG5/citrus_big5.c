@@ -123,6 +123,7 @@ _citrus_BIG5_init_state(_BIG5EncodingInfo * __restrict ei __unused,
 	memset(s, 0, sizeof(*s));
 }
 
+#if 0
 static __inline void
 /*ARGSUSED*/
 _citrus_BIG5_pack_state(_BIG5EncodingInfo * __restrict ei __unused,
@@ -142,6 +143,7 @@ _citrus_BIG5_unpack_state(_BIG5EncodingInfo * __restrict ei __unused,
 
 	memcpy((void *)s, pspriv, sizeof(*s));
 }
+#endif
 
 static __inline int
 _citrus_BIG5_check(_BIG5EncodingInfo *ei, unsigned int c)
@@ -170,7 +172,7 @@ _citrus_BIG5_check_excludes(_BIG5EncodingInfo *ei, wint_t c)
 }
 
 static int
-_citrus_BIG5_fill_rowcol(void ** __restrict ctx, const char * __restrict s,
+_citrus_BIG5_fill_rowcol(void * __restrict ctx, const char * __restrict s,
     uint64_t start, uint64_t end)
 {
 	_BIG5EncodingInfo *ei;
@@ -189,7 +191,7 @@ _citrus_BIG5_fill_rowcol(void ** __restrict ctx, const char * __restrict s,
 
 static int
 /*ARGSUSED*/
-_citrus_BIG5_fill_excludes(void ** __restrict ctx,
+_citrus_BIG5_fill_excludes(void * __restrict ctx,
     const char * __restrict s __unused, uint64_t start, uint64_t end)
 {
 	_BIG5EncodingInfo *ei;
@@ -235,7 +237,6 @@ static int
 _citrus_BIG5_encoding_module_init(_BIG5EncodingInfo * __restrict ei,
     const void * __restrict var, size_t lenvar)
 {
-	void *ctx = (void *)ei;
 	const char *s;
 	int err;
 
@@ -257,9 +258,9 @@ _citrus_BIG5_encoding_module_init(_BIG5EncodingInfo * __restrict ei,
 	}
 
 	/* fallback Big5-1984, for backward compatibility. */
-	_citrus_BIG5_fill_rowcol((void **)&ctx, "row", 0xA1, 0xFE);
-	_citrus_BIG5_fill_rowcol((void **)&ctx, "col", 0x40, 0x7E);
-	_citrus_BIG5_fill_rowcol((void **)&ctx, "col", 0xA1, 0xFE);
+	_citrus_BIG5_fill_rowcol(ei, "row", 0xA1, 0xFE);
+	_citrus_BIG5_fill_rowcol(ei, "col", 0x40, 0x7E);
+	_citrus_BIG5_fill_rowcol(ei, "col", 0xA1, 0xFE);
 
 	return (0);
 }

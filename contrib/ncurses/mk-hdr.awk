@@ -1,6 +1,6 @@
-# $Id: mk-hdr.awk,v 1.2 2007/03/31 15:48:45 tom Exp $
+# $Id: mk-hdr.awk,v 1.4 2013/08/03 23:09:42 tom Exp $
 ##############################################################################
-# Copyright (c) 2007 Free Software Foundation, Inc.                          #
+# Copyright (c) 2007-2010,2013 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -73,12 +73,12 @@ BEGIN	{
 END	{
 		if ( count > 0 )
 		{
-			print "${DESTDIR}${includedir} :"
-			print "	sh ${srcdir}/../mkdirs.sh $@"
+			print "${INCLUDEDIR} :"
+			print "	mkdir -p $@"
 			print ""
 			print "install \\"
 			print "install.libs \\"
-			print "install.includes :: ${AUTO_SRC} ${DESTDIR}${includedir} \\"
+			print "install.includes :: ${AUTO_SRC} ${INCLUDEDIR} \\"
 
 			for (i = 0; i < count - 1; ++i) {
 				printf "		%s \\\n", data[i]
@@ -86,9 +86,9 @@ END	{
 			printf "		%s\n", data[count - 1]
 
 			for (i = 0; i < count; ++i) {
-				printf "	@ (cd ${DESTDIR}${includedir} && rm -f %s) ; ../headers.sh ${INSTALL_DATA} ${DESTDIR}${includedir} ${srcdir} %s\n", basename(data[i]), data[i]
+				printf "	@ (cd ${INCLUDEDIR} && rm -f %s) ; ../headers.sh ${INSTALL_DATA} ${INCLUDEDIR} ${srcdir} %s\n", basename(data[i]), data[i]
 				if (data[i] == "curses.h" && compat == "yes") {
-					printf "	@ (cd ${DESTDIR}${includedir} && rm -f ncurses.h && ${LN_S} %s ncurses.h)\n", data[i]
+					printf "	@ (cd ${INCLUDEDIR} && rm -f ncurses.h && ${LN_S} %s ncurses.h)\n", data[i]
 				}
 			}
 			print ""
@@ -97,9 +97,9 @@ END	{
 			print "uninstall.includes ::"
 
 			for (i = 0; i < count; ++i) {
-				printf "	-@ (cd ${DESTDIR}${includedir} && rm -f %s)\n", basename(data[i])
+				printf "	-@ (cd ${INCLUDEDIR} && rm -f %s)\n", basename(data[i])
 				if (data[i] == "curses.h" && compat == "yes") {
-					printf "	-@ (cd ${DESTDIR}${includedir} && rm -f ncurses.h)\n"
+					printf "	-@ (cd ${INCLUDEDIR} && rm -f ncurses.h)\n"
 				}
 			}
 		}

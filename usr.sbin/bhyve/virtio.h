@@ -33,7 +33,7 @@
  * These are derived from several virtio specifications.
  *
  * Some useful links:
- *    https://github.com/rustyrussel/virtio-spec
+ *    https://github.com/rustyrussell/virtio-spec
  *    http://people.redhat.com/pbonzini/virtio-spec.pdf
  */
 
@@ -328,6 +328,18 @@ struct virtio_softc {
 	uint16_t vs_msix_cfg_idx;	/* MSI-X vector for config event */
 };
 
+#define	VS_LOCK(vs)							\
+do {									\
+	if (vs->vs_mtx)							\
+		pthread_mutex_lock(vs->vs_mtx);				\
+} while (0)
+
+#define	VS_UNLOCK(vs)							\
+do {									\
+	if (vs->vs_mtx)							\
+		pthread_mutex_unlock(vs->vs_mtx);			\
+} while (0)
+
 struct virtio_consts {
 	const char *vc_name;		/* name of driver (for diagnostics) */
 	int	vc_nvq;			/* number of virtual queues */
@@ -431,11 +443,14 @@ static inline void
 vq_interrupt(struct virtio_softc *vs, struct vqueue_info *vq)
 {
 
-	if (vs->vs_flags & VIRTIO_USE_MSIX)
+	if (pci_msix_enabled(vs->vs_pi))
 		pci_generate_msix(vs->vs_pi, vq->vq_msix_idx);
 	else {
+		VS_LOCK(vs);
 		vs->vs_isr |= VTCFG_ISR_QUEUES;
 		pci_generate_msi(vs->vs_pi, 0);
+		pci_lintr_assert(vs->vs_pi);
+		VS_UNLOCK(vs);
 	}
 }
 

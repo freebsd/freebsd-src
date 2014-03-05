@@ -35,7 +35,7 @@ Software Foundation, 51 Franklin Street, Fifth Floor, Boston, MA
 #endif
 
 extern int __gcc_bcmp (const unsigned char *, const unsigned char *, size_t);
-extern void __clear_cache (char *, char *);
+extern void __clear_cache (void *, void *);
 extern void __eprintf (const char *, const char *, unsigned int, const char *)
   __attribute__ ((__noreturn__));
 
@@ -345,11 +345,13 @@ extern Wtype __addvSI3 (Wtype, Wtype);
 extern Wtype __subvSI3 (Wtype, Wtype);
 extern Wtype __mulvSI3 (Wtype, Wtype);
 extern Wtype __negvSI2 (Wtype);
+extern UWtype __bswapsi2 (UWtype);
 extern DWtype __absvDI2 (DWtype);
 extern DWtype __addvDI3 (DWtype, DWtype);
 extern DWtype __subvDI3 (DWtype, DWtype);
 extern DWtype __mulvDI3 (DWtype, DWtype);
 extern DWtype __negvDI2 (DWtype);
+extern UDWtype __bswapdi2 (UDWtype);
 
 #ifdef COMPAT_SIMODE_TRAPPING_ARITHMETIC
 extern SItype __absvsi2 (SItype);

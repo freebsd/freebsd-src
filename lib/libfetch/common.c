@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2011 Dag-Erling Smørgrav
+ * Copyright (c) 1998-2014 Dag-Erling Smørgrav
  * Copyright (c) 2013 Michael Gmelin <freebsd@grem.de>
  * All rights reserved.
  *
@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
+#include <poll.h>
 #include <pwd.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -641,7 +642,7 @@ fetch_ssl_verify_hname(X509 *cert, const char *host)
 	struct addrinfo *ip;
 	STACK_OF(GENERAL_NAME) *altnames;
 	X509_NAME *subject;
-	int ret;	
+	int ret;
 
 	ret = 0;
 	ip = fetch_ssl_get_numeric_addrinfo(host, strlen(host));
@@ -679,7 +680,7 @@ fetch_ssl_setup_transport_layer(SSL_CTX *ctx, int verbose)
 	if (getenv("SSL_NO_TLS1") != NULL)
 		ssl_ctx_options |= SSL_OP_NO_TLSv1;
 	if (verbose)
-		fetch_info("SSL options: %x", ssl_ctx_options);
+		fetch_info("SSL options: %lx", ssl_ctx_options);
 	SSL_CTX_set_options(ctx, ssl_ctx_options);
 }
 
@@ -829,6 +830,16 @@ fetch_ssl(conn_t *conn, const struct url *URL, int verbose)
 		return (-1);
 	}
 	SSL_set_fd(conn->ssl, conn->sd);
+
+#if OPENSSL_VERSION_NUMBER >= 0x0090806fL && !defined(OPENSSL_NO_TLSEXT)
+	if (!SSL_set_tlsext_host_name(conn->ssl,
+	    __DECONST(struct url *, URL)->host)) {
+		fprintf(stderr,
+		    "TLS server name indication extension failed for host %s\n",
+		    URL->host);
+		return (-1);
+	}
+#endif
 	while ((ret = SSL_connect(conn->ssl)) == -1) {
 		ssl_err = SSL_get_error(conn->ssl, ret);
 		if (ssl_err != SSL_ERROR_WANT_READ &&
@@ -903,33 +914,6 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 }
 #endif
 
-/*
- * Cache some data that was read from a socket but cannot be immediately
- * returned because of an interrupted system call.
- */
-static int
-fetch_cache_data(conn_t *conn, char *src, size_t nbytes)
-{
-	char *tmp;
-
-	if (conn->cache.size < nbytes) {
-		tmp = realloc(conn->cache.buf, nbytes);
-		if (tmp == NULL) {
-			fetch_syserr();
-			return (-1);
-		}
-		conn->cache.buf = tmp;
-		conn->cache.size = nbytes;
-	}
-
-	memcpy(conn->cache.buf, src, nbytes);
-	conn->cache.len = nbytes;
-	conn->cache.pos = 0;
-
-	return (0);
-}
-
-
 static ssize_t
 fetch_socket_read(int sd, char *buf, size_t len)
 {
@@ -952,46 +936,31 @@ ssize_t
 fetch_read(conn_t *conn, char *buf, size_t len)
 {
 	struct timeval now, timeout, delta;
-	fd_set readfds;
-	ssize_t rlen, total;
-	char *start;
+	struct pollfd pfd;
+	ssize_t rlen;
+	int deltams;
 
 	if (fetchTimeout > 0) {
 		gettimeofday(&timeout, NULL);
 		timeout.tv_sec += fetchTimeout;
 	}
 
-	total = 0;
-	start = buf;
+	deltams = INFTIM;
+	memset(&pfd, 0, sizeof pfd);
+	pfd.fd = conn->sd;
+	pfd.events = POLLIN | POLLERR;
 
-	if (conn->cache.len > 0) {
-		/*
-		 * The last invocation of fetch_read was interrupted by a
-		 * signal after some data had been read from the socket. Copy
-		 * the cached data into the supplied buffer before trying to
-		 * read from the socket again.
-		 */
-		total = (conn->cache.len < len) ? conn->cache.len : len;
-		memcpy(buf, conn->cache.buf, total);
-
-		conn->cache.len -= total;
-		conn->cache.pos += total;
-		len -= total;
-		buf += total;
-	}
-
-	while (len > 0) {
+	for (;;) {
 		/*
 		 * The socket is non-blocking.  Instead of the canonical
-		 * select() -> read(), we do the following:
+		 * poll() -> read(), we do the following:
 		 *
 		 * 1) call read() or SSL_read().
-		 * 2) if an error occurred, return -1.
-		 * 3) if we received data but we still expect more,
-		 *    update our counters and loop.
+		 * 2) if we received some data, return it.
+		 * 3) if an error occurred, return -1.
 		 * 4) if read() or SSL_read() signaled EOF, return.
 		 * 5) if we did not receive any data but we're not at EOF,
-		 *    call select().
+		 *    call poll().
 		 *
 		 * In the SSL case, this is necessary because if we
 		 * receive a close notification, we have to call
@@ -1007,46 +976,34 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 		else
 #endif
 			rlen = fetch_socket_read(conn->sd, buf, len);
-		if (rlen == 0) {
+		if (rlen >= 0) {
 			break;
-		} else if (rlen > 0) {
-			len -= rlen;
-			buf += rlen;
-			total += rlen;
-			continue;
 		} else if (rlen == FETCH_READ_ERROR) {
-			if (errno == EINTR)
-				fetch_cache_data(conn, start, total);
+			fetch_syserr();
 			return (-1);
 		}
 		// assert(rlen == FETCH_READ_WAIT);
-		FD_ZERO(&readfds);
-		while (!FD_ISSET(conn->sd, &readfds)) {
-			FD_SET(conn->sd, &readfds);
-			if (fetchTimeout > 0) {
-				gettimeofday(&now, NULL);
-				if (!timercmp(&timeout, &now, >)) {
-					errno = ETIMEDOUT;
-					fetch_syserr();
-					return (-1);
-				}
-				timersub(&timeout, &now, &delta);
-			}
-			errno = 0;
-			if (select(conn->sd + 1, &readfds, NULL, NULL,
-				fetchTimeout > 0 ? &delta : NULL) < 0) {
-				if (errno == EINTR) {
-					if (fetchRestartCalls)
-						continue;
-					/* Save anything that was read. */
-					fetch_cache_data(conn, start, total);
-				}
+		if (fetchTimeout > 0) {
+			gettimeofday(&now, NULL);
+			if (!timercmp(&timeout, &now, >)) {
+				errno = ETIMEDOUT;
 				fetch_syserr();
 				return (-1);
 			}
+			timersub(&timeout, &now, &delta);
+			deltams = delta.tv_sec * 1000 +
+			    delta.tv_usec / 1000;;
+		}
+		errno = 0;
+		pfd.revents = 0;
+		if (poll(&pfd, 1, deltams) < 0) {
+			if (errno == EINTR && fetchRestartCalls)
+				continue;
+			fetch_syserr();
+			return (-1);
 		}
 	}
-	return (total);
+	return (rlen);
 }
 
 
@@ -1120,35 +1077,33 @@ ssize_t
 fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 {
 	struct timeval now, timeout, delta;
-	fd_set writefds;
+	struct pollfd pfd;
 	ssize_t wlen, total;
-	int r;
+	int deltams;
 
+	memset(&pfd, 0, sizeof pfd);
 	if (fetchTimeout) {
-		FD_ZERO(&writefds);
+		pfd.fd = conn->sd;
+		pfd.events = POLLOUT | POLLERR;
 		gettimeofday(&timeout, NULL);
 		timeout.tv_sec += fetchTimeout;
 	}
 
 	total = 0;
 	while (iovcnt > 0) {
-		while (fetchTimeout && !FD_ISSET(conn->sd, &writefds)) {
-			FD_SET(conn->sd, &writefds);
+		while (fetchTimeout && pfd.revents == 0) {
 			gettimeofday(&now, NULL);
-			delta.tv_sec = timeout.tv_sec - now.tv_sec;
-			delta.tv_usec = timeout.tv_usec - now.tv_usec;
-			if (delta.tv_usec < 0) {
-				delta.tv_usec += 1000000;
-				delta.tv_sec--;
-			}
-			if (delta.tv_sec < 0) {
+			if (!timercmp(&timeout, &now, >)) {
 				errno = ETIMEDOUT;
 				fetch_syserr();
 				return (-1);
 			}
+			timersub(&timeout, &now, &delta);
+			deltams = delta.tv_sec * 1000 +
+			    delta.tv_usec / 1000;
 			errno = 0;
-			r = select(conn->sd + 1, NULL, &writefds, NULL, &delta);
-			if (r == -1) {
+			pfd.revents = 0;
+			if (poll(&pfd, 1, deltams) < 0) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
 				return (-1);
@@ -1240,7 +1195,6 @@ fetch_close(conn_t *conn)
 	}
 #endif
 	ret = close(conn->sd);
-	free(conn->cache.buf);
 	free(conn->buf);
 	free(conn);
 	return (ret);

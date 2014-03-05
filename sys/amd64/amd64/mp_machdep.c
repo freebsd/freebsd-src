@@ -1464,7 +1464,7 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 	if (savectx(susppcbs[cpu])) {
-		ctx_fpusave(susppcbs[cpu]->pcb_fpususpend);
+		fpususpend(susppcbs[cpu]->pcb_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
@@ -1483,6 +1483,8 @@ cpususpend_handler(void)
 
 	if (cpu_ops.cpu_resume)
 		cpu_ops.cpu_resume();
+	if (vmm_resume_p)
+		vmm_resume_p();
 
 	/* Resume MCA and local APIC */
 	mca_resume();

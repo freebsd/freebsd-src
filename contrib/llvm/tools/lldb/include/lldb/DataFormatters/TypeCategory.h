@@ -18,111 +18,167 @@
 #include "lldb/lldb-public.h"
 #include "lldb/lldb-enumerations.h"
 
-#include "lldb/DataFormatters/FormatNavigator.h"
+#include "lldb/DataFormatters/FormatClasses.h"
+#include "lldb/DataFormatters/FormattersContainer.h"
 
-namespace lldb_private {    
+namespace lldb_private {
+    
+    template <typename FormatterImpl>
+    class FormatterContainerPair
+    {
+    public:
+        typedef FormattersContainer<ConstString, FormatterImpl> ExactMatchContainer;
+        typedef FormattersContainer<lldb::RegularExpressionSP, FormatterImpl> RegexMatchContainer;
+        
+        typedef typename ExactMatchContainer::MapType ExactMatchMap;
+        typedef typename RegexMatchContainer::MapType RegexMatchMap;
+
+        typedef typename ExactMatchContainer::MapValueType MapValueType;
+        
+        typedef typename ExactMatchContainer::SharedPointer ExactMatchContainerSP;
+        typedef typename RegexMatchContainer::SharedPointer RegexMatchContainerSP;
+        
+        FormatterContainerPair (const char* exact_name,
+                                const char* regex_name,
+                                IFormatChangeListener* clist) :
+            m_exact_sp(new ExactMatchContainer(std::string(exact_name),clist)),
+            m_regex_sp(new RegexMatchContainer(std::string(regex_name),clist))
+        {
+        }
+        
+        ~FormatterContainerPair () = default;
+        
+        ExactMatchContainerSP
+        GetExactMatch () const
+        {
+            return m_exact_sp;
+        }
+        
+        RegexMatchContainerSP
+        GetRegexMatch () const
+        {
+            return m_regex_sp;
+        }
+        
+    private:
+        ExactMatchContainerSP m_exact_sp;
+        RegexMatchContainerSP m_regex_sp;
+    };
+
     class TypeCategoryImpl
     {
     private:
-        
-        typedef FormatNavigator<ConstString, TypeSummaryImpl> SummaryNavigator;
-        typedef FormatNavigator<lldb::RegularExpressionSP, TypeSummaryImpl> RegexSummaryNavigator;
-        
-        typedef FormatNavigator<ConstString, TypeFilterImpl> FilterNavigator;
-        typedef FormatNavigator<lldb::RegularExpressionSP, TypeFilterImpl> RegexFilterNavigator;
+        typedef FormatterContainerPair<TypeFormatImpl> FormatContainer;
+        typedef FormatterContainerPair<TypeSummaryImpl> SummaryContainer;
+        typedef FormatterContainerPair<TypeFilterImpl> FilterContainer;
         
 #ifndef LLDB_DISABLE_PYTHON
-        typedef FormatNavigator<ConstString, ScriptedSyntheticChildren> SynthNavigator;
-        typedef FormatNavigator<lldb::RegularExpressionSP, ScriptedSyntheticChildren> RegexSynthNavigator;
+        typedef FormatterContainerPair<ScriptedSyntheticChildren> SynthContainer;
 #endif // #ifndef LLDB_DISABLE_PYTHON
-        
-        typedef SummaryNavigator::MapType SummaryMap;
-        typedef RegexSummaryNavigator::MapType RegexSummaryMap;
-        typedef FilterNavigator::MapType FilterMap;
-        typedef RegexFilterNavigator::MapType RegexFilterMap;
-#ifndef LLDB_DISABLE_PYTHON
-        typedef SynthNavigator::MapType SynthMap;
-        typedef RegexSynthNavigator::MapType RegexSynthMap;
-#endif // #ifndef LLDB_DISABLE_PYTHON
-        
+
     public:
         
         typedef uint16_t FormatCategoryItems;
         static const uint16_t ALL_ITEM_TYPES = UINT16_MAX;
+
+        typedef FormatContainer::ExactMatchContainerSP FormatContainerSP;
+        typedef FormatContainer::RegexMatchContainerSP RegexFormatContainerSP;
         
-        typedef SummaryNavigator::SharedPointer SummaryNavigatorSP;
-        typedef RegexSummaryNavigator::SharedPointer RegexSummaryNavigatorSP;
-        typedef FilterNavigator::SharedPointer FilterNavigatorSP;
-        typedef RegexFilterNavigator::SharedPointer RegexFilterNavigatorSP;
+        typedef SummaryContainer::ExactMatchContainerSP SummaryContainerSP;
+        typedef SummaryContainer::RegexMatchContainerSP RegexSummaryContainerSP;
+
+        typedef FilterContainer::ExactMatchContainerSP FilterContainerSP;
+        typedef FilterContainer::RegexMatchContainerSP RegexFilterContainerSP;
 #ifndef LLDB_DISABLE_PYTHON
-        typedef SynthNavigator::SharedPointer SynthNavigatorSP;
-        typedef RegexSynthNavigator::SharedPointer RegexSynthNavigatorSP;
+        typedef SynthContainer::ExactMatchContainerSP SynthContainerSP;
+        typedef SynthContainer::RegexMatchContainerSP RegexSynthContainerSP;
 #endif // #ifndef LLDB_DISABLE_PYTHON
         
         TypeCategoryImpl (IFormatChangeListener* clist,
                           ConstString name);
         
-        SummaryNavigatorSP
-        GetSummaryNavigator ()
+        FormatContainerSP
+        GetTypeFormatsContainer ()
         {
-            return SummaryNavigatorSP(m_summary_nav);
+            return m_format_cont.GetExactMatch();
         }
         
-        RegexSummaryNavigatorSP
-        GetRegexSummaryNavigator ()
+        RegexFormatContainerSP
+        GetRegexTypeFormatsContainer ()
         {
-            return RegexSummaryNavigatorSP(m_regex_summary_nav);
+            return m_format_cont.GetRegexMatch();
         }
         
-        FilterNavigatorSP
-        GetFilterNavigator ()
+        SummaryContainerSP
+        GetTypeSummariesContainer ()
         {
-            return FilterNavigatorSP(m_filter_nav);
+            return m_summary_cont.GetExactMatch();
         }
         
-        RegexFilterNavigatorSP
-        GetRegexFilterNavigator ()
+        RegexSummaryContainerSP
+        GetRegexTypeSummariesContainer ()
         {
-            return RegexFilterNavigatorSP(m_regex_filter_nav);
+            return m_summary_cont.GetRegexMatch();
         }
         
-        SummaryNavigator::MapValueType
+        FilterContainerSP
+        GetTypeFiltersContainer ()
+        {
+            return m_filter_cont.GetExactMatch();
+        }
+        
+        RegexFilterContainerSP
+        GetRegexTypeFiltersContainer ()
+        {
+            return m_filter_cont.GetRegexMatch();
+        }
+
+        FormatContainer::MapValueType
+        GetFormatForType (lldb::TypeNameSpecifierImplSP type_sp);
+        
+        SummaryContainer::MapValueType
         GetSummaryForType (lldb::TypeNameSpecifierImplSP type_sp);
         
-        FilterNavigator::MapValueType
+        FilterContainer::MapValueType
         GetFilterForType (lldb::TypeNameSpecifierImplSP type_sp);
         
 #ifndef LLDB_DISABLE_PYTHON
-        SynthNavigator::MapValueType
+        SynthContainer::MapValueType
         GetSyntheticForType (lldb::TypeNameSpecifierImplSP type_sp);
 #endif
         
         lldb::TypeNameSpecifierImplSP
-        GetTypeNameSpecifierForSummaryAtIndex (size_t index);
+        GetTypeNameSpecifierForFormatAtIndex (size_t index);
         
-        SummaryNavigator::MapValueType
+        lldb::TypeNameSpecifierImplSP
+        GetTypeNameSpecifierForSummaryAtIndex (size_t index);
+
+        FormatContainer::MapValueType
+        GetFormatAtIndex (size_t index);
+        
+        SummaryContainer::MapValueType
         GetSummaryAtIndex (size_t index);
         
-        FilterNavigator::MapValueType
+        FilterContainer::MapValueType
         GetFilterAtIndex (size_t index);
         
         lldb::TypeNameSpecifierImplSP
         GetTypeNameSpecifierForFilterAtIndex (size_t index);
         
 #ifndef LLDB_DISABLE_PYTHON
-        SynthNavigatorSP
-        GetSyntheticNavigator ()
+        SynthContainerSP
+        GetTypeSyntheticsContainer ()
         {
-            return SynthNavigatorSP(m_synth_nav);
+            return m_synth_cont.GetExactMatch();
         }
         
-        RegexSynthNavigatorSP
-        GetRegexSyntheticNavigator ()
+        RegexSynthContainerSP
+        GetRegexTypeSyntheticsContainer ()
         {
-            return RegexSynthNavigatorSP(m_regex_synth_nav);
+            return m_synth_cont.GetRegexMatch();
         }
         
-        SynthNavigator::MapValueType
+        SynthContainer::MapValueType
         GetSyntheticAtIndex (size_t index);
         
         lldb::TypeNameSpecifierImplSP
@@ -147,14 +203,20 @@ namespace lldb_private {
         
         bool
         Get (ValueObject& valobj,
-             lldb::TypeSummaryImplSP& entry,
-             lldb::DynamicValueType use_dynamic,
+             const FormattersMatchVector& candidates,
+             lldb::TypeFormatImplSP& entry,
              uint32_t* reason = NULL);
         
         bool
         Get (ValueObject& valobj,
+             const FormattersMatchVector& candidates,
+             lldb::TypeSummaryImplSP& entry,
+             uint32_t* reason = NULL);
+        
+        bool
+        Get (ValueObject& valobj,
+             const FormattersMatchVector& candidates,
              lldb::SyntheticChildrenSP& entry,
-             lldb::DynamicValueType use_dynamic,
              uint32_t* reason = NULL);
         
         void
@@ -183,13 +245,14 @@ namespace lldb_private {
         typedef std::shared_ptr<TypeCategoryImpl> SharedPointer;
         
     private:
-        SummaryNavigator::SharedPointer m_summary_nav;
-        RegexSummaryNavigator::SharedPointer m_regex_summary_nav;
-        FilterNavigator::SharedPointer m_filter_nav;
-        RegexFilterNavigator::SharedPointer m_regex_filter_nav;
+        FormatContainer m_format_cont;
+        
+        SummaryContainer m_summary_cont;
+
+        FilterContainer m_filter_cont;
+
 #ifndef LLDB_DISABLE_PYTHON
-        SynthNavigator::SharedPointer m_synth_nav;
-        RegexSynthNavigator::SharedPointer m_regex_synth_nav;
+        SynthContainer m_synth_cont;
 #endif // #ifndef LLDB_DISABLE_PYTHON
         
         bool m_enabled;
@@ -213,15 +276,18 @@ namespace lldb_private {
         
         friend class TypeCategoryMap;
         
-        friend class FormatNavigator<ConstString, TypeSummaryImpl>;
-        friend class FormatNavigator<lldb::RegularExpressionSP, TypeSummaryImpl>;
+        friend class FormattersContainer<ConstString, TypeFormatImpl>;
+        friend class FormattersContainer<lldb::RegularExpressionSP, TypeFormatImpl>;
         
-        friend class FormatNavigator<ConstString, TypeFilterImpl>;
-        friend class FormatNavigator<lldb::RegularExpressionSP, TypeFilterImpl>;
+        friend class FormattersContainer<ConstString, TypeSummaryImpl>;
+        friend class FormattersContainer<lldb::RegularExpressionSP, TypeSummaryImpl>;
+        
+        friend class FormattersContainer<ConstString, TypeFilterImpl>;
+        friend class FormattersContainer<lldb::RegularExpressionSP, TypeFilterImpl>;
         
 #ifndef LLDB_DISABLE_PYTHON
-        friend class FormatNavigator<ConstString, ScriptedSyntheticChildren>;
-        friend class FormatNavigator<lldb::RegularExpressionSP, ScriptedSyntheticChildren>;
+        friend class FormattersContainer<ConstString, ScriptedSyntheticChildren>;
+        friend class FormattersContainer<lldb::RegularExpressionSP, ScriptedSyntheticChildren>;
 #endif // #ifndef LLDB_DISABLE_PYTHON
     };
     

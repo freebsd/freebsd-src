@@ -1148,6 +1148,9 @@ enum {
 	ECORE_RSS_IPV6_UDP,
 
 	ECORE_RSS_TUNNELING,
+#if defined(__VMKLNX__) && (VMWARE_ESX_DDK_VERSION < 55000) /* ! BNX2X_UPSTREAM */
+	ECORE_RSS_MODE_ESX51,
+#endif
 };
 
 struct ecore_config_rss_params {
@@ -1857,6 +1860,9 @@ int ecore_config_rss(struct bxe_softc *sc,
 void ecore_get_rss_ind_table(struct ecore_rss_config_obj *rss_obj,
 			     uint8_t *ind_table);
 
+/* set as inline so printout will show the offending function */
+int validate_vlan_mac(struct bxe_softc *sc,
+		      struct ecore_vlan_mac_obj *vlan_mac);
 
 #endif /* ECORE_SP_H */
 

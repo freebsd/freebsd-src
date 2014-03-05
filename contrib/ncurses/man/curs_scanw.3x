@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2000,2006 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2006,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,14 +26,14 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_scanw.3x,v 1.14 2006/12/24 16:05:49 tom Exp $
+.\" $Id: curs_scanw.3x,v 1.17 2010/12/04 18:40:45 tom Exp $
 .TH curs_scanw 3X ""
 .SH NAME
 \fBscanw\fR,
 \fBwscanw\fR,
 \fBmvscanw\fR,
 \fBmvwscanw\fR,
-\fBvwscanw\fR, \fBvw_scanw\fR - convert formatted input from a \fBcurses\fR window
+\fBvwscanw\fR, \fBvw_scanw\fR \- convert formatted input from a \fBcurses\fR window
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .sp
@@ -66,6 +66,10 @@ number of fields scanned on success.
 Applications may use the return value from the \fBscanw\fR, \fBwscanw\fR,
 \fBmvscanw\fR and \fBmvwscanw\fR routines to determine the number of fields
 which were mapped in the call.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.  The function
 \fBvwscanw\fR is marked TO BE WITHDRAWN, and is to be replaced by a function
@@ -89,9 +93,3 @@ One possible way to get useful results would be to use a "%n" conversion
 at the end of the format string to ensure that something was processed.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_getstr\fR(3X), \fBcurs_printw\fR(3X), \fBscanf\fR(3)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,8 +1,12 @@
 #!/bin/sh
 #-
+# Copyright (c) 2013, 2014 The FreeBSD Foundation
 # Copyright (c) 2013 Glen Barber
 # Copyright (c) 2011 Nathan Whitehorn
 # All rights reserved.
+#
+# Portions of this software were developed by Glen Barber
+# under sponsorship from the FreeBSD Foundation.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -38,9 +42,12 @@ export PATH
 # The directory within which the release will be built.
 CHROOTDIR="/scratch"
 
+# The default version control system command to obtain the sources.
+VCSCMD="svn checkout"
+
 # The default svn checkout server, and svn branches for src/, doc/,
 # and ports/.
-SVNROOT="svn://svn.freebsd.org"
+SVNROOT="svn://svn.FreeBSD.org/"
 SRCBRANCH="base/head@rHEAD"
 DOCBRANCH="doc/head@rHEAD"
 PORTBRANCH="ports/head@rHEAD"
@@ -57,11 +64,9 @@ SRC_CONF="/dev/null"
 
 # The number of make(1) jobs, defaults to the number of CPUs available for
 # buildworld, and half of number of CPUs available for buildkernel.
-NCPU=$(sysctl -n hw.ncpu)
-if [ ${NCPU} -gt 1 ]; then
-	WORLD_FLAGS="-j${NCPU}"
-	KERNEL_FLAGS="-j$(expr ${NCPU} / 2)"
-fi
+WORLD_FLAGS="-j$(sysctl -n hw.ncpu)"
+KERNEL_FLAGS="-j$(( $(( $(sysctl -n hw.ncpu) + 1 )) / 2))"
+
 MAKE_FLAGS="-s"
 
 # The name of the kernel to build, defaults to GENERIC.
@@ -71,6 +76,9 @@ KERNEL="GENERIC"
 # ports/ checkout also forces NODOC to be set.
 NODOC=
 NOPORTS=
+
+# Set to non-empty value to build dvd1.iso as part of the release.
+WITH_DVD=
 
 usage() {
 	echo "Usage: $0 [-c release.conf]"
@@ -95,6 +103,11 @@ while getopts c: opt; do
 done
 shift $(($OPTIND - 1))
 
+# Prefix the branches with the SVNROOT for the full checkout URL.
+SRCBRANCH="${SVNROOT}${SRCBRANCH}"
+DOCBRANCH="${SVNROOT}${DOCBRANCH}"
+PORTBRANCH="${SVNROOT}${PORTBRANCH}"
+
 # If PORTS is set and NODOC is unset, force NODOC=yes because the ports tree
 # is required to build the documentation set.
 if [ "x${NOPORTS}" != "x" ] && [ "x${NODOC}" = "x" ]; then
@@ -108,10 +121,10 @@ fi
 # instead of their values.
 DOCPORTS=
 if [ "x${NOPORTS}" != "x" ]; then
- DOCPORTS="NOPORTS=yes "
+	DOCPORTS="NOPORTS=yes "
 fi
 if [ "x${NODOC}" != "x" ]; then
- DOCPORTS="${DOCPORTS}NODOC=yes"
+	DOCPORTS="${DOCPORTS}NODOC=yes"
 fi
 
 # The aggregated build-time flags based upon variables defined within
@@ -123,18 +136,19 @@ if [ "x${TARGET}" != "x" ] && [ "x${TARGET_ARCH}" != "x" ]; then
 else
 	ARCH_FLAGS=
 fi
+CHROOT_MAKEENV="MAKEOBJDIRPREFIX=${CHROOTDIR}/tmp/obj"
 CHROOT_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${CONF_FILES}"
 CHROOT_IMAKEFLAGS="${CONF_FILES}"
 CHROOT_DMAKEFLAGS="${CONF_FILES}"
 RELEASE_WMAKEFLAGS="${MAKE_FLAGS} ${WORLD_FLAGS} ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_KMAKEFLAGS="${MAKE_FLAGS} ${KERNEL_FLAGS} KERNCONF=\"${KERNEL}\" ${ARCH_FLAGS} ${CONF_FILES}"
 RELEASE_RMAKEFLAGS="${ARCH_FLAGS} KERNCONF=\"${KERNEL}\" ${CONF_FILES} \
-	${DOCPORTS}"
+	${DOCPORTS} WITH_DVD=${WITH_DVD}"
 
 # Force src checkout if configured
 FORCE_SRC_KEY=
 if [ "x${SRC_FORCE_CHECKOUT}" != "x" ]; then
- FORCE_SRC_KEY="--force"
+	FORCE_SRC_KEY="--force"
 fi
 
 if [ ! ${CHROOTDIR} ]; then
@@ -151,34 +165,23 @@ set -e # Everything must succeed
 
 mkdir -p ${CHROOTDIR}/usr
 
-svn co ${FORCE_SRC_KEY} ${SVNROOT}/${SRCBRANCH} ${CHROOTDIR}/usr/src
+${VCSCMD} ${FORCE_SRC_KEY} ${SRCBRANCH} ${CHROOTDIR}/usr/src
 if [ "x${NODOC}" = "x" ]; then
-	svn co ${SVNROOT}/${DOCBRANCH} ${CHROOTDIR}/usr/doc
+	${VCSCMD} ${DOCBRANCH} ${CHROOTDIR}/usr/doc
 fi
 if [ "x${NOPORTS}" = "x" ]; then
-	svn co ${SVNROOT}/${PORTBRANCH} ${CHROOTDIR}/usr/ports
+	${VCSCMD} ${PORTBRANCH} ${CHROOTDIR}/usr/ports
 fi
 
 cd ${CHROOTDIR}/usr/src
-make ${CHROOT_WMAKEFLAGS} buildworld
-make ${CHROOT_IMAKEFLAGS} installworld DESTDIR=${CHROOTDIR}
-make ${CHROOT_DMAKEFLAGS} distribution DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_WMAKEFLAGS} buildworld
+env ${CHROOT_MAKEENV} make ${CHROOT_IMAKEFLAGS} installworld \
+	DESTDIR=${CHROOTDIR}
+env ${CHROOT_MAKEENV} make ${CHROOT_DMAKEFLAGS} distribution \
+	DESTDIR=${CHROOTDIR}
 mount -t devfs devfs ${CHROOTDIR}/dev
+cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
 trap "umount ${CHROOTDIR}/dev" EXIT # Clean up devfs mount on exit
-
-build_doc_ports() {
-	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
-	# is created.  This is needed by ports-mgmt/pkg.
-	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
-
-	## Trick the ports 'run-autotools-fixup' target to do the right thing.
-	_OSVERSION=$(sysctl -n kern.osreldate)
-	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
-		PBUILD_FLAGS="OSVERSION=${_OSVERSION} WITHOUT_JADETEX=yes WITHOUT_X11=yes BATCH=yes"
-		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
-			${PBUILD_FLAGS} install clean distclean
-	fi
-}
 
 # If MAKE_CONF and/or SRC_CONF are set and not character devices (/dev/null),
 # copy them to the chroot.
@@ -192,8 +195,18 @@ if [ -e ${SRC_CONF} ] && [ ! -c ${SRC_CONF} ]; then
 fi
 
 if [ -d ${CHROOTDIR}/usr/ports ]; then
-	cp /etc/resolv.conf ${CHROOTDIR}/etc/resolv.conf
-	build_doc_ports ${CHROOTDIR}
+	# Run ldconfig(8) in the chroot directory so /var/run/ld-elf*.so.hints
+	# is created.  This is needed by ports-mgmt/pkg.
+	chroot ${CHROOTDIR} /etc/rc.d/ldconfig forcerestart
+
+	## Trick the ports 'run-autotools-fixup' target to do the right thing.
+	_OSVERSION=$(sysctl -n kern.osreldate)
+	if [ -d ${CHROOTDIR}/usr/doc ] && [ "x${NODOC}" = "x" ]; then
+		PBUILD_FLAGS="OSVERSION=${_OSVERSION} BATCH=yes"
+		PBUILD_FLAGS="${PBUILD_FLAGS}"
+		chroot ${CHROOTDIR} make -C /usr/ports/textproc/docproj \
+			${PBUILD_FLAGS} OPTIONS_UNSET="FOP IGOR" install clean distclean
+	fi
 fi
 
 if [ "x${RELSTRING}" = "x" ]; then

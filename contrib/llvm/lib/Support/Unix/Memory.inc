@@ -32,7 +32,11 @@
 #  endif
 #endif
 
+#ifdef __APPLE__
 extern "C" void sys_icache_invalidate(const void *Addr, size_t len);
+#else
+extern "C" void __clear_cache(void *, void*);
+#endif
 
 namespace {
 
@@ -267,6 +271,9 @@ bool Memory::setExecutable (MemoryBlock &M, std::string *ErrMsg) {
   kern_return_t kr = vm_protect(mach_task_self(), (vm_address_t)M.Address,
     (vm_size_t)M.Size, 0, VM_PROT_READ | VM_PROT_EXECUTE | VM_PROT_COPY);
   return KERN_SUCCESS == kr;
+#elif defined(__arm__) || defined(__aarch64__)
+  Memory::InvalidateInstructionCache(M.Address, M.Size);
+  return true;
 #else
   return true;
 #endif

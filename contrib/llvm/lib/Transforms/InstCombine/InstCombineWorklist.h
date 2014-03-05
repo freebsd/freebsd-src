@@ -1,4 +1,4 @@
-//===- InstCombineWorklist.h - Worklist for the InstCombine pass ----------===//
+//===- InstCombineWorklist.h - Worklist for InstCombine pass ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -37,7 +37,7 @@ public:
   /// in it.
   void Add(Instruction *I) {
     if (WorklistMap.insert(std::make_pair(I, Worklist.size())).second) {
-      DEBUG(errs() << "IC: ADD: " << *I << '\n');
+      DEBUG(dbgs() << "IC: ADD: " << *I << '\n');
       Worklist.push_back(I);
     }
   }
@@ -54,7 +54,7 @@ public:
     assert(Worklist.empty() && "Worklist must be empty to add initial group");
     Worklist.reserve(NumEntries+16);
     WorklistMap.resize(NumEntries);
-    DEBUG(errs() << "IC: ADDING: " << NumEntries << " instrs to worklist\n");
+    DEBUG(dbgs() << "IC: ADDING: " << NumEntries << " instrs to worklist\n");
     for (unsigned Idx = 0; NumEntries; --NumEntries) {
       Instruction *I = List[NumEntries-1];
       WorklistMap.insert(std::make_pair(I, Idx++));
@@ -74,8 +74,7 @@ public:
   }
 
   Instruction *RemoveOne() {
-    Instruction *I = Worklist.back();
-    Worklist.pop_back();
+    Instruction *I = Worklist.pop_back_val();
     WorklistMap.erase(I);
     return I;
   }

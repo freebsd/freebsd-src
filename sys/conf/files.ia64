@@ -52,7 +52,7 @@ dev/fb/fb.c			optional	fb | vga
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
 dev/io/iodev.c			optional	io
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
 dev/syscons/scvtb.c		optional	sc
@@ -120,6 +120,7 @@ libkern/bcmp.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
+libkern/flsll.c			standard
 libkern/ia64/__divdi3.S		standard
 libkern/ia64/__divsi3.S		standard
 libkern/ia64/__moddi3.S		standard

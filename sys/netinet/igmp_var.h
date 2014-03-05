@@ -213,9 +213,8 @@ SYSCTL_DECL(_net_inet_igmp);
 #endif /* _KERNEL */
 
 /*
- * Names for IGMP sysctl objects
+ * Identifiers for IGMP sysctl nodes
  */
 #define IGMPCTL_STATS		1	/* statistics (read-only) */
-#define IGMPCTL_MAXID		2
 
 #endif

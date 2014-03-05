@@ -65,7 +65,7 @@ struct ccb_hdr_0x17 {
 	struct		cam_path *path;	/* Compiled path for this ccb */
 	path_id_t	path_id;	/* Path ID for the request */
 	target_id_t	target_id;	/* Target device ID */
-	lun_id_t	target_lun;	/* Target LUN number */
+	u_int		target_lun;	/* Target LUN number */
 	u_int32_t	flags;		/* ccb_flags */
 	ccb_ppriv_area	periph_priv;
 	ccb_spriv_area	sim_priv;
@@ -115,6 +115,65 @@ struct ccb_pathinq_0x17 {
 
 #define	CAMIOCOMMAND_0x17	_IOC(IOC_INOUT, CAM_VERSION_0x17, 2, CAM_0X17_LEN)
 #define CAMGETPASSTHRU_0x17	_IOC(IOC_INOUT, CAM_VERSION_0x17, 3, CAM_0X17_LEN)
+
+/* Version 0x18 compatibility */
+#define CAM_VERSION_0x18	0x18
+
+struct ccb_hdr_0x18 {
+	cam_pinfo	pinfo;		/* Info for priority scheduling */
+	camq_entry	xpt_links;	/* For chaining in the XPT layer */	
+	camq_entry	sim_links;	/* For chaining in the SIM layer */	
+	camq_entry	periph_links;	/* For chaining in the type driver */
+	u_int32_t	retry_count;
+	void		(*cbfcnp)(struct cam_periph *, union ccb *);
+	xpt_opcode	func_code;	/* XPT function code */
+	u_int32_t	status;		/* Status returned by CAM subsystem */
+	struct		cam_path *path;	/* Compiled path for this ccb */
+	path_id_t	path_id;	/* Path ID for the request */
+	target_id_t	target_id;	/* Target device ID */
+	u_int		target_lun;	/* Target LUN number */
+	u_int64_t	ext_lun;	/* 64-bit LUN, more or less */
+	u_int32_t	flags;		/* ccb_flags */
+	u_int32_t	xflags;		/* extended ccb_flags */
+	ccb_ppriv_area	periph_priv;
+	ccb_spriv_area	sim_priv;
+	ccb_qos_area	qos;
+	u_int32_t	timeout;	/* Hard timeout value in seconds */
+	struct timeval	softtimeout;	/* Soft timeout value in sec + usec */
+};
+
+typedef enum {
+	CAM_EXTLUN_VALID_0x18	= 0x00000001,/* 64bit lun field is valid      */
+} ccb_xflags_0x18;
+
+struct dev_match_result_0x18 {
+        dev_match_type          type;
+        union {
+		struct {
+			char periph_name[DEV_IDLEN];
+			u_int32_t unit_number;
+			path_id_t path_id;
+			target_id_t target_id;
+			u_int target_lun;
+		} periph_result;
+		struct {
+			path_id_t	path_id;
+			target_id_t	target_id;
+			u_int		target_lun;
+			cam_proto	protocol;
+			struct scsi_inquiry_data inq_data;
+			struct ata_params ident_data;
+			dev_result_flags flags;
+		} device_result;
+		struct bus_match_result	bus_result;
+	} result;
+};
+
+#define CAM_0X18_LEN	(sizeof(union ccb) - sizeof(struct ccb_hdr) + sizeof(struct ccb_hdr_0x18))
+#define CAM_0X18_DATA_LEN (sizeof(union ccb) - sizeof(struct ccb_hdr_0x18))
+
+#define	CAMIOCOMMAND_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 2, CAM_0X18_LEN)
+#define CAMGETPASSTHRU_0x18	_IOC(IOC_INOUT, CAM_VERSION_0x18, 3, CAM_0X18_LEN)
 
 #endif
 #endif

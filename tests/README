@@ -44,13 +44,12 @@ tree-- the top-level Kyuafile does not know which subdirectories may
 exist upfront.  Instead, such Kyuafile automatically detects, at
 run-time, which */Kyuafile files exist and uses those directly.
 
-Similarly, every category subdirectory within src/tests/ provides the
-same Kyuafile with auto-discovery features.  For example: src/tests/lib/
-holds a generic Makefile to install test-suite related material but such
-directory does not know upfront which libraries within src/lib/ will
-install tests.  For this reason, the Kyuafile in src/tests/lib/ has to
-also use the auto-discovery features.  The same applies for any other
-category subdirectory (e.g. bin, usr.sbin, etc.).
+Similarly, every directory in src/ that wants to install a Kyuafile to
+just recurse into other subdirectories reuses this Kyuafile with
+auto-discovery features.  As an example, take a look at src/lib/tests/
+whose sole purpose is to install a Kyuafile into /usr/tests/lib/.
+The goal in this specific case is for /usr/tests/lib/ to be generated
+entirely from src/lib/.
 
 -- 
 $FreeBSD$

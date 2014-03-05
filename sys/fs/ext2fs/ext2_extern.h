@@ -72,8 +72,8 @@ int	ext2_update(struct vnode *, int);
 int	ext2_valloc(struct vnode *, int, struct ucred *, struct vnode **);
 int	ext2_vfree(struct vnode *, ino_t, int);
 int	ext2_vinit(struct mount *, struct vop_vector *, struct vnode **vpp);
-int 	ext2_lookup(struct vop_cachedlookup_args *);
-int 	ext2_readdir(struct vop_readdir_args *);
+int	ext2_lookup(struct vop_cachedlookup_args *);
+int	ext2_readdir(struct vop_readdir_args *);
 void	ext2_print_inode(struct inode *);
 int	ext2_direnter(struct inode *, 
 		struct vnode *, struct componentname *);

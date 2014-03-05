@@ -73,8 +73,9 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 {
 	device_t p;
 	phandle_t node;
-	cell_t dma_acells, dma_scells, dmawindow[5];
+	cell_t dma_acells, dma_scells, dmawindow[6];
 	struct iommu_map *i;
+	int cell;
 
 	for (p = dev; device_get_parent(p) != NULL; p = device_get_parent(p)) {
 		if (ofw_bus_has_prop(p, "ibm,my-dma-window"))
@@ -104,17 +105,20 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 
 	struct dma_window *window = malloc(sizeof(struct dma_window),
 	    M_PHYPIOMMU, M_WAITOK);
-	if (dma_acells == 1)
-		window->start = dmawindow[1];
-	else
-		window->start = ((uint64_t)(dmawindow[1]) << 32) | dmawindow[2];
-	if (dma_scells == 1)
-		window->end = window->start + dmawindow[dma_acells + 1];
-	else
-		window->end = window->start +
-		    (((uint64_t)(dmawindow[dma_acells + 1]) << 32) |
-		    dmawindow[dma_acells + 2]);
+	window->start = 0;
+	for (cell = 1; cell < 1 + dma_acells; cell++) {
+		window->start <<= 32;
+		window->start |= dmawindow[cell];
+	}
+	window->end = 0;
+	for (; cell < 1 + dma_acells + dma_scells; cell++) {
+		window->end <<= 32;
+		window->end |= dmawindow[cell];
+	}
+	window->end += window->start;
 
+	if (bootverbose)
+		device_printf(dev, "Mapping IOMMU domain %#x\n", dmawindow[0]);
 	window->map = NULL;
 	SLIST_FOREACH(i, &iommu_map_head, entries) {
 		if (i->iobn == dmawindow[0]) {
@@ -134,6 +138,7 @@ phyp_iommu_set_dma_tag(device_t bus, device_t dev, bus_dma_tag_t tag)
 		window->map->vmem = vmem_create("IOMMU mappings", PAGE_SIZE,
 		    trunc_page(VMEM_ADDR_MAX) - PAGE_SIZE, PAGE_SIZE, 0,
 		    M_BESTFIT | M_NOWAIT);
+		SLIST_INSERT_HEAD(&iommu_map_head, window->map, entries);
 	}
 
 	/*

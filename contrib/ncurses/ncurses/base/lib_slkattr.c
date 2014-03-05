@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -38,19 +38,27 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkattr.c,v 1.6 2005/01/08 21:44:28 tom Exp $")
+MODULE_ID("$Id: lib_slkattr.c,v 1.11 2010/12/20 01:41:25 tom Exp $")
 
 NCURSES_EXPORT(attr_t)
-slk_attr(void)
+NCURSES_SP_NAME(slk_attr) (NCURSES_SP_DCL0)
 {
-    T((T_CALLED("slk_attr()")));
+    T((T_CALLED("slk_attr(%p)"), (void *) SP_PARM));
 
-    if (SP != 0 && SP->_slk != 0) {
-	attr_t result = AttrOf(SP->_slk->attr) & ALL_BUT_COLOR;
-	int pair = GetPair(SP->_slk->attr);
+    if (SP_PARM != 0 && SP_PARM->_slk != 0) {
+	attr_t result = AttrOf(SP_PARM->_slk->attr) & ALL_BUT_COLOR;
+	int pair = GetPair(SP_PARM->_slk->attr);
 
-	result |= COLOR_PAIR(pair);
+	result |= (attr_t) ColorPair(pair);
 	returnAttr(result);
     } else
 	returnAttr(0);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(attr_t)
+slk_attr(void)
+{
+    return NCURSES_SP_NAME(slk_attr) (CURRENT_SCREEN);
+}
+#endif

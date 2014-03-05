@@ -84,6 +84,16 @@ typedef	__uid_t		uid_t;
 #endif
 #endif
 
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t	uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef _UINTPTR_T_DECLARED
+typedef	__uintptr_t	uintptr_t;
+#define	_UINTPTR_T_DECLARED
+#endif
+
 /*
  * Types
  */
@@ -366,9 +376,8 @@ struct sockproto {
  * Second level is protocol family.
  * Third level is protocol number.
  *
- * Further levels are defined by the individual families below.
+ * Further levels are defined by the individual families.
  */
-#define NET_MAXID	AF_MAX
 
 /*
  * PF_ROUTE - Routing table
@@ -384,8 +393,6 @@ struct sockproto {
 #define	NET_RT_IFMALIST	4		/* return multicast address list */
 #define	NET_RT_IFLISTL	5		/* Survey interface list, using 'l'en
 					 * versions of msghdr structs. */
-#define	NET_RT_MAXID	6
-
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -577,11 +584,27 @@ struct sf_hdtr {
 };
 
 /*
+ * sendfile(2) kqueue information
+ */
+struct sf_hdtr_kq {
+	uintptr_t kq_ident;	/* ident (from userland?) */
+	void	*kq_udata;	/* user data pointer */
+	uint32_t kq_flags;	/* extra flags to pass in */
+	int	kq_fd;	/* kq fd to post completion events on */
+};
+
+struct sf_hdtr_all {
+	struct sf_hdtr hdtr;
+	struct sf_hdtr_kq kq;
+};
+
+/*
  * Sendfile-specific flag(s)
  */
 #define	SF_NODISKIO     0x00000001
 #define	SF_MNOWAIT	0x00000002
 #define	SF_SYNC		0x00000004
+#define	SF_KQUEUE	0x00000008
 
 #ifdef _KERNEL
 #define	SFK_COMPAT	0x00000001

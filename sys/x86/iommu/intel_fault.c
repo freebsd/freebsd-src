@@ -215,7 +215,7 @@ dmar_fault_task(void *arg, int pending __unused)
 			ctx->flags |= DMAR_CTX_FAULTED;
 			ctx->last_fault_rec[0] = fault_rec[0];
 			ctx->last_fault_rec[1] = fault_rec[1];
-			device_printf(ctx->ctx_tag.owner, "");
+			device_print_prettyname(ctx->ctx_tag.owner);
 		}
 		DMAR_UNLOCK(unit);
 		printf(

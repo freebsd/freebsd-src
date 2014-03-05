@@ -134,7 +134,7 @@ typedef struct dmar_pte {
 
 /* Global Command register */
 #define	DMAR_GCMD_REG	0x18
-#define	DMAR_GCMD_TE	(1 << 31)	/* Translation Enable */
+#define	DMAR_GCMD_TE	(1U << 31)	/* Translation Enable */
 #define	DMAR_GCMD_SRTP	(1 << 30)	/* Set Root Table Pointer */
 #define	DMAR_GCMD_SFL	(1 << 29)	/* Set Fault Log */
 #define	DMAR_GCMD_EAFL	(1 << 28)	/* Enable Advanced Fault Logging */
@@ -146,7 +146,7 @@ typedef struct dmar_pte {
 
 /* Global Status register */
 #define	DMAR_GSTS_REG	0x1c
-#define	DMAR_GSTS_TES	(1 << 31)	/* Translation Enable Status */
+#define	DMAR_GSTS_TES	(1U << 31)	/* Translation Enable Status */
 #define	DMAR_GSTS_RTPS	(1 << 30)	/* Root Table Pointer Status */
 #define	DMAR_GSTS_FLS	(1 << 29)	/* Fault Log Status */
 #define	DMAR_GSTS_AFLS	(1 << 28)	/* Advanced Fault Logging Status */
@@ -164,7 +164,7 @@ typedef struct dmar_pte {
 /* Context Command register */
 #define	DMAR_CCMD_REG	0x28
 #define	DMAR_CCMD_ICC	(1ULL << 63)	/* Invalidate Context-Cache */
-#define	DMAR_CCMD_ICC32	(1 << 31)
+#define	DMAR_CCMD_ICC32	(1U << 31)
 #define	DMAR_CCMD_CIRG_MASK	(0x3ULL << 61)	/* Context Invalidation
 						   Request Granularity */
 #define	DMAR_CCMD_CIRG_GLOB	(0x1ULL << 61)	/* Global */
@@ -188,7 +188,7 @@ typedef struct dmar_pte {
 /* IOTLB Invalidate register */
 #define	DMAR_IOTLB_REG_OFF	0x8
 #define	DMAR_IOTLB_IVT		(1ULL << 63)	/* Invalidate IOTLB */
-#define	DMAR_IOTLB_IVT32	(1 << 31)
+#define	DMAR_IOTLB_IVT32	(1U << 31)
 #define	DMAR_IOTLB_IIRG_MASK	(0x3ULL << 60)	/* Invalidation Request
 						   Granularity */
 #define	DMAR_IOTLB_IIRG_GLB	(0x1ULL << 60)	/* Global */
@@ -217,7 +217,7 @@ typedef struct dmar_pte {
 
 /* Fault Event Control register */
 #define	DMAR_FECTL_REG		0x38
-#define	DMAR_FECTL_IM		(1 << 31)	/* Interrupt Mask */
+#define	DMAR_FECTL_IM		(1U << 31)	/* Interrupt Mask */
 #define	DMAR_FECTL_IP		(1 << 30)	/* Interrupt Pending */
 
 /* Fault Event Data register */
@@ -234,7 +234,7 @@ typedef struct dmar_pte {
 
 /* Fault Recording Register, also usable for Advanced Fault Log records */
 #define	DMAR_FRCD2_F		(1ULL << 63)	/* Fault */
-#define	DMAR_FRCD2_F32		(1 << 31)
+#define	DMAR_FRCD2_F32		(1U << 31)
 #define	DMAR_FRCD2_T(x)		((int)((x >> 62) & 1))	/* Type */
 #define	DMAR_FRCD2_T_W		0		/* Write request */
 #define	DMAR_FRCD2_T_R		1		/* Read or AtomicOp */
@@ -245,7 +245,7 @@ typedef struct dmar_pte {
 
 /* Protected Memory Enable register */
 #define	DMAR_PMEN_REG		0x64
-#define	DMAR_PMEN_EPM		(1 << 31)	/* Enable Protected Memory */
+#define	DMAR_PMEN_EPM		(1U << 31)	/* Enable Protected Memory */
 #define	DMAR_PMEN_PRS		1		/* Protected Region Status */
 
 /* Protected Low-Memory Base register */
@@ -312,7 +312,7 @@ typedef struct dmar_pte {
 
 /* Invalidation Event Control register */
 #define	DMAR_IECTL_REG		0xa0
-#define	DMAR_IECTL_IM		(1 << 31)	/* Interrupt Mask */
+#define	DMAR_IECTL_IM		(1U << 31)	/* Interrupt Mask */
 #define	DMAR_IECTL_IP		(1 << 30)	/* Interrupt Pending */
 
 /* Invalidation Event Data register */

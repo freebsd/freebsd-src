@@ -25,7 +25,7 @@
 #include "Utility/ARM_DWARF_Registers.h"
 
 #include "llvm/Support/MathExtras.h" // for SignExtend32 template function
-                                     // and CountTrailingZeros_32 function
+                                     // and countTrailingZeros function
 
 using namespace lldb;
 using namespace lldb_private;
@@ -47,7 +47,7 @@ using namespace lldb_private;
 static uint32_t
 CountITSize (uint32_t ITMask) {
     // First count the trailing zeros of the IT mask.
-    uint32_t TZ = llvm::CountTrailingZeros_32(ITMask);
+    uint32_t TZ = llvm::countTrailingZeros(ITMask);
     if (TZ > 3)
     {
 #ifdef LLDB_CONFIGURATION_DEBUG
@@ -196,7 +196,7 @@ EmulateInstructionARM::GetPluginDescriptionStatic ()
 EmulateInstruction *
 EmulateInstructionARM::CreateInstance (const ArchSpec &arch, InstructionType inst_type)
 {
-    if (EmulateInstructionARM::SupportsEmulatingIntructionsOfTypeStatic(inst_type))
+    if (EmulateInstructionARM::SupportsEmulatingInstructionsOfTypeStatic(inst_type))
     {
         if (arch.GetTriple().getArch() == llvm::Triple::arm)
         {
@@ -289,37 +289,65 @@ EmulateInstructionARM::GetRegisterInfo (uint32_t reg_kind, uint32_t reg_num, Reg
 uint32_t
 EmulateInstructionARM::GetFramePointerRegisterNumber () const
 {
-    if (m_opcode_mode == eModeThumb)
+    bool is_apple = false;
+    if (m_arch.GetTriple().getVendor() == llvm::Triple::Apple)
+        is_apple = true;
+    switch (m_arch.GetTriple().getOS())
     {
-        switch (m_arch.GetTriple().getOS())
-        {
             case llvm::Triple::Darwin:
             case llvm::Triple::MacOSX:
             case llvm::Triple::IOS:
-                return 7;
+                is_apple = true;
+                break;
             default:
                 break;
-        }
     }
-    return 11;
+
+    /* On Apple iOS et al, the frame pointer register is always r7.
+     * Typically on other ARM systems, thumb code uses r7; arm code uses r11. 
+     */
+
+    uint32_t fp_regnum = 11;
+
+    if (is_apple)
+        fp_regnum = 7;
+
+    if (m_opcode_mode == eModeThumb)
+        fp_regnum = 7;
+
+    return fp_regnum;
 }
 
 uint32_t
 EmulateInstructionARM::GetFramePointerDWARFRegisterNumber () const
 {
-    if (m_opcode_mode == eModeThumb)
+    bool is_apple = false;
+    if (m_arch.GetTriple().getVendor() == llvm::Triple::Apple)
+        is_apple = true;
+    switch (m_arch.GetTriple().getOS())
     {
-        switch (m_arch.GetTriple().getOS())
-        {
             case llvm::Triple::Darwin:
             case llvm::Triple::MacOSX:
             case llvm::Triple::IOS:
-                return dwarf_r7;
+                is_apple = true;
+                break;
             default:
                 break;
-        }
     }
-    return dwarf_r11;
+
+    /* On Apple iOS et al, the frame pointer register is always r7.
+     * Typically on other ARM systems, thumb code uses r7; arm code uses r11. 
+     */
+
+    uint32_t fp_regnum = dwarf_r11;
+
+    if (is_apple)
+        fp_regnum = dwarf_r7;
+
+    if (m_opcode_mode == eModeThumb)
+        fp_regnum = dwarf_r7;
+
+    return fp_regnum; 
 }
 
 // Push Multiple Registers stores multiple registers to the stack, storing to
@@ -12889,18 +12917,18 @@ EmulateInstructionARM::ReadInstruction ()
                 {
                     if ((thumb_opcode & 0xe000) != 0xe000 || ((thumb_opcode & 0x1800u) == 0))
                     {
-                        m_opcode.SetOpcode16 (thumb_opcode);
+                        m_opcode.SetOpcode16 (thumb_opcode, GetByteOrder());
                     }
                     else
                     {
-                        m_opcode.SetOpcode32 ((thumb_opcode << 16) | MemARead(read_inst_context, pc + 2, 2, 0, &success));
+                        m_opcode.SetOpcode32 ((thumb_opcode << 16) | MemARead(read_inst_context, pc + 2, 2, 0, &success), GetByteOrder());
                     }
                 }
             }
             else
             {
                 m_opcode_mode = eModeARM;
-                m_opcode.SetOpcode32 (MemARead(read_inst_context, pc, 4, 0, &success));
+                m_opcode.SetOpcode32 (MemARead(read_inst_context, pc, 4, 0, &success), GetByteOrder());
             }
         }
     }
@@ -13510,15 +13538,15 @@ EmulateInstructionARM::TestEmulation (Stream *out_stream, ArchSpec &arch, Option
     if (arch.GetTriple().getArch() == llvm::Triple::arm)
     {
         m_opcode_mode = eModeARM;
-        m_opcode.SetOpcode32 (test_opcode);
+        m_opcode.SetOpcode32 (test_opcode, GetByteOrder());
     }
     else if (arch.GetTriple().getArch() == llvm::Triple::thumb)
     {
         m_opcode_mode = eModeThumb;
         if (test_opcode < 0x10000)
-            m_opcode.SetOpcode16 (test_opcode);
+            m_opcode.SetOpcode16 (test_opcode, GetByteOrder());
         else
-            m_opcode.SetOpcode32 (test_opcode);
+            m_opcode.SetOpcode32 (test_opcode, GetByteOrder());
 
     }
     else

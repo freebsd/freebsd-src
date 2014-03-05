@@ -187,10 +187,14 @@ uintptr_t moea64_get_unique_vsid(void);
 struct ofw_map {
 	cell_t	om_va;
 	cell_t	om_len;
-	cell_t	om_pa_hi;
-	cell_t	om_pa_lo;
+	uint64_t om_pa;
 	cell_t	om_mode;
 };
+
+extern unsigned char _etext[];
+extern unsigned char _end[];
+
+extern int dumpsys_minidump;
 
 /*
  * Map of physical memory regions.
@@ -329,6 +333,9 @@ void moea64_kenter_attr(mmu_t, vm_offset_t, vm_offset_t, vm_memattr_t ma);
 void moea64_kenter(mmu_t, vm_offset_t, vm_paddr_t);
 boolean_t moea64_dev_direct_mapped(mmu_t, vm_paddr_t, vm_size_t);
 static void moea64_sync_icache(mmu_t, pmap_t, vm_offset_t, vm_size_t);
+vm_offset_t moea64_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
+    vm_size_t *sz);
+struct pmap_md * moea64_scan_md(mmu_t mmu, struct pmap_md *prev);
 
 static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea64_change_wiring),
@@ -374,6 +381,8 @@ static mmu_method_t moea64_methods[] = {
 	MMUMETHOD(mmu_kenter,		moea64_kenter),
 	MMUMETHOD(mmu_kenter_attr,	moea64_kenter_attr),
 	MMUMETHOD(mmu_dev_direct_mapped,moea64_dev_direct_mapped),
+	MMUMETHOD(mmu_scan_md,		moea64_scan_md),
+	MMUMETHOD(mmu_dumpsys_map,	moea64_dumpsys_map),
 
 	{ 0, 0 }
 };
@@ -468,13 +477,9 @@ om_cmp(const void *a, const void *b)
 
 	mapa = a;
 	mapb = b;
-	if (mapa->om_pa_hi < mapb->om_pa_hi)
+	if (mapa->om_pa < mapb->om_pa)
 		return (-1);
-	else if (mapa->om_pa_hi > mapb->om_pa_hi)
-		return (1);
-	else if (mapa->om_pa_lo < mapb->om_pa_lo)
-		return (-1);
-	else if (mapa->om_pa_lo > mapb->om_pa_lo)
+	else if (mapa->om_pa > mapb->om_pa)
 		return (1);
 	else
 		return (0);
@@ -483,26 +488,41 @@ om_cmp(const void *a, const void *b)
 static void
 moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 {
-	struct ofw_map	translations[sz/sizeof(struct ofw_map)];
+	struct ofw_map	translations[sz/(4*sizeof(cell_t))]; /*>= 4 cells per */
+	pcell_t		acells, trans_cells[sz/sizeof(cell_t)];
 	register_t	msr;
 	vm_offset_t	off;
 	vm_paddr_t	pa_base;
-	int		i;
+	int		i, j;
 
 	bzero(translations, sz);
-	if (OF_getprop(mmu, "translations", translations, sz) == -1)
+	OF_getprop(OF_finddevice("/"), "#address-cells", &acells,
+	    sizeof(acells));
+	if (OF_getprop(mmu, "translations", trans_cells, sz) == -1)
 		panic("moea64_bootstrap: can't get ofw translations");
 
 	CTR0(KTR_PMAP, "moea64_add_ofw_mappings: translations");
-	sz /= sizeof(*translations);
+	sz /= sizeof(cell_t);
+	for (i = 0, j = 0; i < sz; j++) {
+		translations[j].om_va = trans_cells[i++];
+		translations[j].om_len = trans_cells[i++];
+		translations[j].om_pa = trans_cells[i++];
+		if (acells == 2) {
+			translations[j].om_pa <<= 32;
+			translations[j].om_pa |= trans_cells[i++];
+		}
+		translations[j].om_mode = trans_cells[i++];
+	}
+	KASSERT(i == sz, ("Translations map has incorrect cell count (%d/%zd)",
+	    i, sz));
+
+	sz = j;
 	qsort(translations, sz, sizeof (*translations), om_cmp);
 
 	for (i = 0; i < sz; i++) {
-		pa_base = translations[i].om_pa_lo;
-	      #ifdef __powerpc64__
-		pa_base += (vm_offset_t)translations[i].om_pa_hi << 32;
-	      #else
-		if (translations[i].om_pa_hi)
+		pa_base = translations[i].om_pa;
+	      #ifndef __powerpc64__
+		if ((translations[i].om_pa >> 32) != 0)
 			panic("OFW translations above 32-bit boundary!");
 	      #endif
 
@@ -2583,4 +2603,99 @@ moea64_sync_icache(mmu_t mmu, pmap_t pm, vm_offset_t va, vm_size_t sz)
 		sz -= len;
 	}
 	PMAP_UNLOCK(pm);
+}
+
+vm_offset_t
+moea64_dumpsys_map(mmu_t mmu, struct pmap_md *md, vm_size_t ofs,
+    vm_size_t *sz)
+{
+	if (md->md_vaddr == ~0UL)
+	    return (md->md_paddr + ofs);
+	else
+	    return (md->md_vaddr + ofs);
+}
+
+struct pmap_md *
+moea64_scan_md(mmu_t mmu, struct pmap_md *prev)
+{
+	static struct pmap_md md;
+	struct pvo_entry *pvo;
+	vm_offset_t va;
+ 
+	if (dumpsys_minidump) {
+		md.md_paddr = ~0UL;	/* Minidumps use virtual addresses. */
+		if (prev == NULL) {
+			/* 1st: kernel .data and .bss. */
+			md.md_index = 1;
+			md.md_vaddr = trunc_page((uintptr_t)_etext);
+			md.md_size = round_page((uintptr_t)_end) - md.md_vaddr;
+			return (&md);
+		}
+		switch (prev->md_index) {
+		case 1:
+			/* 2nd: msgbuf and tables (see pmap_bootstrap()). */
+			md.md_index = 2;
+			md.md_vaddr = (vm_offset_t)msgbufp->msg_ptr;
+			md.md_size = round_page(msgbufp->msg_size);
+			break;
+		case 2:
+			/* 3rd: kernel VM. */
+			va = prev->md_vaddr + prev->md_size;
+			/* Find start of next chunk (from va). */
+			while (va < virtual_end) {
+				/* Don't dump the buffer cache. */
+				if (va >= kmi.buffer_sva &&
+				    va < kmi.buffer_eva) {
+					va = kmi.buffer_eva;
+					continue;
+				}
+				pvo = moea64_pvo_find_va(kernel_pmap,
+				    va & ~ADDR_POFF);
+				if (pvo != NULL &&
+				    (pvo->pvo_pte.lpte.pte_hi & LPTE_VALID))
+					break;
+				va += PAGE_SIZE;
+			}
+			if (va < virtual_end) {
+				md.md_vaddr = va;
+				va += PAGE_SIZE;
+				/* Find last page in chunk. */
+				while (va < virtual_end) {
+					/* Don't run into the buffer cache. */
+					if (va == kmi.buffer_sva)
+						break;
+					pvo = moea64_pvo_find_va(kernel_pmap,
+					    va & ~ADDR_POFF);
+					if (pvo == NULL ||
+					    !(pvo->pvo_pte.lpte.pte_hi & LPTE_VALID))
+						break;
+					va += PAGE_SIZE;
+				}
+				md.md_size = va - md.md_vaddr;
+				break;
+			}
+			md.md_index = 3;
+			/* FALLTHROUGH */
+		default:
+			return (NULL);
+		}
+	} else { /* minidumps */
+		if (prev == NULL) {
+			/* first physical chunk. */
+			md.md_paddr = pregions[0].mr_start;
+			md.md_size = pregions[0].mr_size;
+			md.md_vaddr = ~0UL;
+			md.md_index = 1;
+		} else if (md.md_index < pregions_sz) {
+			md.md_paddr = pregions[md.md_index].mr_start;
+			md.md_size = pregions[md.md_index].mr_size;
+			md.md_vaddr = ~0UL;
+			md.md_index++;
+		} else {
+			/* There's no next physical chunk. */
+			return (NULL);
+		}
+	}
+
+	return (&md);
 }

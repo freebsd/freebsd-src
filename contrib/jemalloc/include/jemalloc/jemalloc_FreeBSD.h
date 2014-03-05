@@ -74,6 +74,12 @@ extern int __isthreaded;
 #undef je_free
 #undef je_posix_memalign
 #undef je_malloc_usable_size
+#undef je_mallocx
+#undef je_rallocx
+#undef je_xallocx
+#undef je_sallocx
+#undef je_dallocx
+#undef je_nallocx
 #undef je_allocm
 #undef je_rallocm
 #undef je_sallocm
@@ -85,6 +91,12 @@ extern int __isthreaded;
 #define	je_free			__free
 #define	je_posix_memalign	__posix_memalign
 #define	je_malloc_usable_size	__malloc_usable_size
+#define	je_mallocx		__mallocx
+#define	je_rallocx		__rallocx
+#define	je_xallocx		__xallocx
+#define	je_sallocx		__sallocx
+#define	je_dallocx		__dallocx
+#define	je_nallocx		__nallocx
 #define	je_allocm		__allocm
 #define	je_rallocm		__rallocm
 #define	je_sallocm		__sallocm
@@ -108,10 +120,15 @@ __weak_reference(__realloc, realloc);
 __weak_reference(__free, free);
 __weak_reference(__posix_memalign, posix_memalign);
 __weak_reference(__malloc_usable_size, malloc_usable_size);
+__weak_reference(__mallocx, mallocx);
+__weak_reference(__rallocx, rallocx);
+__weak_reference(__xallocx, xallocx);
+__weak_reference(__sallocx, sallocx);
+__weak_reference(__dallocx, dallocx);
+__weak_reference(__nallocx, nallocx);
 __weak_reference(__allocm, allocm);
 __weak_reference(__rallocm, rallocm);
 __weak_reference(__sallocm, sallocm);
 __weak_reference(__dallocm, dallocm);
 __weak_reference(__nallocm, nallocm);
 #endif
-

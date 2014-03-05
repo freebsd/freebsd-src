@@ -17,7 +17,7 @@ printname () {
 }
 
 # Discard all but last argument.  We use arg later.
-while test "$1" != ""; do
+while test "x$1" != "x"; do
 	arg="$1"
 	shift
 done
@@ -52,6 +52,8 @@ badserver_4)
 	echo "X"
 	;;
 *)
-	exec $arg
+	set -- $arg
+	shift
+	exec $SCP "$@"
 	;;
 esac

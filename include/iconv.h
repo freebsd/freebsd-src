@@ -69,17 +69,12 @@ size_t	__iconv(iconv_t, const char **, size_t *, char **,
 /*
  * GNU interfaces for iconv
  */
-/* We have iconvctl() */
-#define _ICONV_VERSION	0x0108
-extern int _iconv_version;
-
 typedef struct {
 	void	*spaceholder[64];
 } iconv_allocation_t;
 
 int	 iconv_open_into(const char *, const char *, iconv_allocation_t *);
-void	 iconv_set_relocation_prefix(const char *orig_prefix,
-	     const char *curr_prefix);
+void	 iconv_set_relocation_prefix(const char *, const char *);
 
 /*
  * iconvctl() request macros
@@ -91,6 +86,8 @@ void	 iconv_set_relocation_prefix(const char *orig_prefix,
 #define ICONV_SET_DISCARD_ILSEQ	4
 #define ICONV_SET_HOOKS		5
 #define ICONV_SET_FALLBACKS	6
+#define ICONV_GET_ILSEQ_INVALID	128
+#define ICONV_SET_ILSEQ_INVALID	129
 
 typedef void (*iconv_unicode_char_hook) (unsigned int mbr, void *data);
 typedef void (*iconv_wide_char_hook) (wchar_t wc, void *data);

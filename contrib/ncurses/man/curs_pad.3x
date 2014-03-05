@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_pad.3x,v 1.14 2005/05/15 16:18:43 tom Exp $
+.\" $Id: curs_pad.3x,v 1.17 2010/12/04 18:41:07 tom Exp $
 .TH curs_pad 3X ""
 .na
 .hy 0
@@ -36,7 +36,7 @@
 \fBprefresh\fR,
 \fBpnoutrefresh\fR,
 \fBpechochar\fR,
-\fBpecho_wchar\fR - create and display \fBcurses\fR pads
+\fBpecho_wchar\fR \- create and display \fBcurses\fR pads
 .ad
 .hy
 .SH SYNOPSIS
@@ -90,10 +90,11 @@ The \fBprefresh\fR and \fBpnoutrefresh\fR routines are analogous to
 of windows.
 The additional parameters are needed to indicate what part of the
 pad and screen are involved.
-\fIpminrow\fR and \fIpmincol\fR specify the upper
+The \fIpminrow\fR and \fIpmincol\fR parameters specify the upper
 left-hand corner of the rectangle to be displayed in the pad.
-\fIsminrow\fR,
-\fIsmincol\fR, \fIsmaxrow\fR, and \fIsmaxcol\fR specify the edges of the
+The \fIsminrow\fR,
+\fIsmincol\fR, \fIsmaxrow\fR, and \fIsmaxcol\fR
+parameters specify the edges of the
 rectangle to be displayed on the screen.
 The lower right-hand corner of the
 rectangle to be displayed in the pad is calculated from the screen coordinates,
@@ -154,9 +155,3 @@ Note that \fBpechochar\fR may be a macro.
 The XSI Curses standard, Issue 4 describes these functions.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_refresh\fR(3X), \fBcurs_touch\fR(3X), \fBcurs_addch\fR(3X).
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

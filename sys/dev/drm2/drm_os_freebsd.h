@@ -6,6 +6,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/fbio.h>
+
 #if _BYTE_ORDER == _BIG_ENDIAN
 #define	__BIG_ENDIAN 4321
 #else

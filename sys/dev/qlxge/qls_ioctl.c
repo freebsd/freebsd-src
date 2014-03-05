@@ -100,13 +100,16 @@ qls_eioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
 		if (mpi_dump->size == 0) {
 			mpi_dump->size = sizeof (qls_mpi_coredump_t);
 		} else {
-			if (mpi_dump->size < sizeof (qls_mpi_coredump_t))
+			if ((mpi_dump->size != sizeof (qls_mpi_coredump_t)) ||
+				(mpi_dump->dbuf == NULL))
 				rval = EINVAL;
 			else {
-				qls_mpi_core_dump(ha);
-				rval = copyout( &ql_mpi_coredump,
-						mpi_dump->dbuf,
-						mpi_dump->size);
+				if (qls_mpi_core_dump(ha) == 0) {
+					rval = copyout(&ql_mpi_coredump,
+							mpi_dump->dbuf,
+							mpi_dump->size);
+				} else 
+					rval = ENXIO;
 
 				if (rval) {
 					device_printf(ha->pci_dev,

@@ -236,7 +236,7 @@ main(int ac, char **av)
 next:			if ((c = *p++) == '\0')
 				break;
 			if (parm == KTR_PARMS)
-				errx(1, "too many parameters");
+				errx(1, "too many parameters in \"%s\"", desc);
 			switch (c) {
 			case '0': case '1': case '2': case '3': case '4':
 			case '5': case '6': case '7': case '8': case '9':

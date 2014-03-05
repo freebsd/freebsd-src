@@ -10,16 +10,18 @@
 
 #include "ThreadGDBRemote.h"
 
+#include "lldb/Breakpoint/Watchpoint.h"
 #include "lldb/Core/ArchSpec.h"
 #include "lldb/Core/DataExtractor.h"
-#include "lldb/Core/StreamString.h"
 #include "lldb/Core/State.h"
+#include "lldb/Core/StreamString.h"
+#include "lldb/Target/Platform.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
 #include "lldb/Target/StopInfo.h"
+#include "lldb/Target/SystemRuntime.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Unwind.h"
-#include "lldb/Breakpoint/Watchpoint.h"
 
 #include "ProcessGDBRemote.h"
 #include "ProcessGDBRemoteLog.h"
@@ -73,11 +75,36 @@ ThreadGDBRemote::GetQueueName ()
         ProcessSP process_sp (GetProcess());
         if (process_sp)
         {
-            ProcessGDBRemote *gdb_process = static_cast<ProcessGDBRemote *>(process_sp.get());
-            return gdb_process->GetDispatchQueueNameForThread (m_thread_dispatch_qaddr, m_dispatch_queue_name);
+            SystemRuntime *runtime = process_sp->GetSystemRuntime ();
+            if (runtime)
+            {
+                m_dispatch_queue_name = runtime->GetQueueNameFromThreadQAddress (m_thread_dispatch_qaddr);
+            }
+            if (m_dispatch_queue_name.length() > 0)
+            {
+                return m_dispatch_queue_name.c_str();
+            }
         }
     }
     return NULL;
+}
+
+queue_id_t
+ThreadGDBRemote::GetQueueID ()
+{
+    if (m_thread_dispatch_qaddr != 0 || m_thread_dispatch_qaddr != LLDB_INVALID_ADDRESS)
+    {
+        ProcessSP process_sp (GetProcess());
+        if (process_sp)
+        {
+            SystemRuntime *runtime = process_sp->GetSystemRuntime ();
+            if (runtime)
+            {
+                return runtime->GetQueueIDFromThreadQAddress (m_thread_dispatch_qaddr);
+            }
+        }
+    }
+    return LLDB_INVALID_QUEUE_ID;
 }
 
 void
@@ -164,7 +191,6 @@ lldb::RegisterContextSP
 ThreadGDBRemote::CreateRegisterContextForFrame (StackFrame *frame)
 {
     lldb::RegisterContextSP reg_ctx_sp;
-    const bool read_all_registers_at_once = false;
     uint32_t concrete_frame_idx = 0;
     
     if (frame)
@@ -177,6 +203,8 @@ ThreadGDBRemote::CreateRegisterContextForFrame (StackFrame *frame)
         if (process_sp)
         {
             ProcessGDBRemote *gdb_process = static_cast<ProcessGDBRemote *>(process_sp.get());
+            // read_all_registers_at_once will be true if 'p' packet is not supported.
+            bool read_all_registers_at_once = !gdb_process->GetGDBRemote().GetpPacketSupported (GetID());
             reg_ctx_sp.reset (new GDBRemoteRegisterContext (*this, concrete_frame_idx, gdb_process->m_register_info, read_all_registers_at_once));
         }
     }

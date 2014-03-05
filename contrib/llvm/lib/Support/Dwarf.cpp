@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Dwarf.h"
+#include "llvm/Support/ErrorHandling.h"
+
 using namespace llvm;
 using namespace dwarf;
 
@@ -59,8 +61,8 @@ const char *llvm::dwarf::TagString(unsigned Tag) {
   case DW_TAG_namelist_item:             return "DW_TAG_namelist_item";
   case DW_TAG_packed_type:               return "DW_TAG_packed_type";
   case DW_TAG_subprogram:                return "DW_TAG_subprogram";
-  case DW_TAG_template_type_parameter:  return "DW_TAG_template_type_parameter";
-  case DW_TAG_template_value_parameter:return "DW_TAG_template_value_parameter";
+  case DW_TAG_template_type_parameter:   return "DW_TAG_template_type_parameter";
+  case DW_TAG_template_value_parameter:  return "DW_TAG_template_value_parameter";
   case DW_TAG_thrown_type:               return "DW_TAG_thrown_type";
   case DW_TAG_try_block:                 return "DW_TAG_try_block";
   case DW_TAG_variant_part:              return "DW_TAG_variant_part";
@@ -230,6 +232,7 @@ const char *llvm::dwarf::AttributeString(unsigned Attribute) {
   case DW_AT_body_end:                   return "DW_AT_body_end";
   case DW_AT_GNU_vector:                 return "DW_AT_GNU_vector";
   case DW_AT_GNU_template_name:          return "DW_AT_GNU_template_name";
+  case DW_AT_GNU_odr_signature:          return "DW_AT_GNU_odr_signature";
   case DW_AT_MIPS_assumed_size:          return "DW_AT_MIPS_assumed_size";
   case DW_AT_lo_user:                    return "DW_AT_lo_user";
   case DW_AT_hi_user:                    return "DW_AT_hi_user";
@@ -453,10 +456,11 @@ const char *llvm::dwarf::OperationEncodingString(unsigned Encoding) {
   case DW_OP_bit_piece:                  return "DW_OP_bit_piece";
   case DW_OP_implicit_value:             return "DW_OP_implicit_value";
   case DW_OP_stack_value:                return "DW_OP_stack_value";
-  case DW_OP_lo_user:                    return "DW_OP_lo_user";
-  case DW_OP_hi_user:                    return "DW_OP_hi_user";
 
-    // DWARF5 Fission Proposal Op Extensions
+  // GNU thread-local storage
+  case DW_OP_GNU_push_tls_address:       return "DW_OP_GNU_push_tls_address";
+
+  // DWARF5 Fission Proposal Op Extensions
   case DW_OP_GNU_addr_index:             return "DW_OP_GNU_addr_index";
   case DW_OP_GNU_const_index:            return "DW_OP_GNU_const_index";
   }
@@ -721,4 +725,52 @@ const char *llvm::dwarf::CallFrameString(unsigned Encoding) {
   case DW_CFA_hi_user:                   return "DW_CFA_hi_user";
   }
   return 0;
+}
+
+const char *llvm::dwarf::AtomTypeString(unsigned AT) {
+  switch (AT) {
+  case dwarf::DW_ATOM_null:
+    return "DW_ATOM_null";
+  case dwarf::DW_ATOM_die_offset:
+    return "DW_ATOM_die_offset";
+  case DW_ATOM_cu_offset:
+    return "DW_ATOM_cu_offset";
+  case DW_ATOM_die_tag:
+    return "DW_ATOM_die_tag";
+  case DW_ATOM_type_flags:
+    return "DW_ATOM_type_flags";
+  }
+  return 0;
+}
+
+const char *llvm::dwarf::GDBIndexEntryKindString(GDBIndexEntryKind Kind) {
+  switch (Kind) {
+  case GIEK_NONE:
+    return "NONE";
+  case GIEK_TYPE:
+    return "TYPE";
+  case GIEK_VARIABLE:
+    return "VARIABLE";
+  case GIEK_FUNCTION:
+    return "FUNCTION";
+  case GIEK_OTHER:
+    return "OTHER";
+  case GIEK_UNUSED5:
+    return "UNUSED5";
+  case GIEK_UNUSED6:
+    return "UNUSED6";
+  case GIEK_UNUSED7:
+    return "UNUSED7";
+  }
+  llvm_unreachable("Unknown GDBIndexEntryKind value");
+}
+
+const char *llvm::dwarf::GDBIndexEntryLinkageString(GDBIndexEntryLinkage Linkage) {
+  switch (Linkage) {
+  case GIEL_EXTERNAL:
+    return "EXTERNAL";
+  case GIEL_STATIC:
+    return "STATIC";
+  }
+  llvm_unreachable("Unknown GDBIndexEntryLinkage value");
 }

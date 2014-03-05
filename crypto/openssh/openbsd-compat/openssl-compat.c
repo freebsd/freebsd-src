@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.c,v 1.14 2011/05/10 01:13:38 dtucker Exp $ */
+/* $Id: openssl-compat.c,v 1.16 2014/01/17 07:00:41 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -56,6 +56,34 @@ ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *evp)
 {
 	EVP_CIPHER_CTX_cleanup(evp);
 	return 1;
+}
+#endif
+
+#ifndef HAVE_EVP_DIGESTINIT_EX
+int
+EVP_DigestInit_ex(EVP_MD_CTX *ctx, const EVP_MD *md, void *engine)
+{
+	if (engine != NULL)
+		fatal("%s: ENGINE is not supported", __func__);
+# ifdef OPENSSL_EVP_DIGESTUPDATE_VOID
+	EVP_DigestInit(ctx, md);
+	return 1;
+# else
+	return EVP_DigestInit(ctx, md);
+# endif
+}
+#endif
+
+#ifndef HAVE_EVP_DIGESTFINAL_EX
+int
+EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *s)
+{
+# ifdef OPENSSL_EVP_DIGESTUPDATE_VOID
+	EVP_DigestFinal(ctx, md, s);
+	return 1;
+# else
+	return EVP_DigestFinal(ctx, md, s);
+# endif
 }
 #endif
 

@@ -16,6 +16,7 @@
 #include "lldb/Core/Debugger.h"
 #include "lldb/Core/Disassembler.h"
 #include "lldb/Core/Stream.h"
+#include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Expression/ClangASTSource.h"
 #include "lldb/Expression/ClangExpression.h"
@@ -35,7 +36,6 @@
 #include "clang/Basic/Version.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/CodeGen/ModuleBuilder.h"
-#include "clang/Driver/CC1Options.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendActions.h"
@@ -52,12 +52,8 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/PathV1.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/TargetSelect.h"
-
-#if defined(__FreeBSD__)
-#define USE_STANDARD_JIT
-#endif
 
 #if defined (USE_STANDARD_JIT)
 #include "llvm/ExecutionEngine/JIT.h"
@@ -81,19 +77,16 @@ using namespace lldb_private;
 //===----------------------------------------------------------------------===//
 
 std::string GetBuiltinIncludePath(const char *Argv0) {
-    llvm::sys::Path P =
-    llvm::sys::Path::GetMainExecutable(Argv0,
-                                       (void*)(intptr_t) GetBuiltinIncludePath);
-    
-    if (!P.isEmpty()) {
-        P.eraseComponent();  // Remove /clang from foo/bin/clang
-        P.eraseComponent();  // Remove /bin   from foo/bin
-        
+    SmallString<128> P(llvm::sys::fs::getMainExecutable(
+        Argv0, (void *)(intptr_t) GetBuiltinIncludePath));
+
+    if (!P.empty()) {
+        llvm::sys::path::remove_filename(P); // Remove /clang from foo/bin/clang
+        llvm::sys::path::remove_filename(P); // Remove /bin   from foo/bin
+
         // Get foo/lib/clang/<version>/include
-        P.appendComponent("lib");
-        P.appendComponent("clang");
-        P.appendComponent(CLANG_VERSION_STRING);
-        P.appendComponent("include");
+        llvm::sys::path::append(P, "lib", "clang", CLANG_VERSION_STRING,
+                                "include");
     }
     
     return P.str();
@@ -122,7 +115,6 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
             
         case ASTDump:                return new ASTDumpAction();
         case ASTPrint:               return new ASTPrintAction();
-        case ASTDumpXML:             return new ASTDumpXMLAction();
         case ASTView:                return new ASTViewAction();
         case DumpRawTokens:          return new DumpRawTokensAction();
         case DumpTokens:             return new DumpTokensAction();
@@ -198,8 +190,6 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
             llvm::InitializeAllAsmPrinters();
             llvm::InitializeAllTargetMCs();
             llvm::InitializeAllDisassemblers();
-            
-            llvm::DisablePrettyStackTrace = true;
         }
     } InitializeLLVM;
     
@@ -321,6 +311,8 @@ ClangExpressionParser::ClangExpressionParser (ExecutionContextScope *exe_scope,
     // Set CodeGen options
     m_compiler->getCodeGenOpts().EmitDeclMetadata = true;
     m_compiler->getCodeGenOpts().InstrumentFunctions = false;
+    m_compiler->getCodeGenOpts().DisableFPElim = true;
+    m_compiler->getCodeGenOpts().OmitLeafFramePointer = false;
     
     // Disable some warnings.
     m_compiler->getDiagnostics().setDiagnosticGroupMapping("unused-value", clang::diag::MAP_IGNORE, SourceLocation());
@@ -514,7 +506,7 @@ ClangExpressionParser::PrepareForExecution (lldb::addr_t &func_addr,
         Stream *error_stream = NULL;
         Target *target = exe_ctx.GetTargetPtr();
         if (target)
-            error_stream = &target->GetDebugger().GetErrorStream();
+            error_stream = target->GetDebugger().GetErrorFile().get();
     
         IRForTarget ir_for_target(decl_map,
                                   m_expr.NeedsVariableResolution(),

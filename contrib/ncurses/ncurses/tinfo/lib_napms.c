@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2005,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
+ *     and: Juergen Pfeifer                         2009                    *
  ****************************************************************************/
 
 /*
@@ -49,13 +51,21 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.17 2008/05/03 21:34:13 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.23 2012/06/30 22:08:24 tom Exp $")
 
 NCURSES_EXPORT(int)
-napms(int ms)
+NCURSES_SP_NAME(napms) (NCURSES_SP_DCLx int ms)
 {
     T((T_CALLED("napms(%d)"), ms));
 
+#ifdef USE_TERM_DRIVER
+    if (HasTerminal(SP_PARM)) {
+	CallDriver_1(SP_PARM, nap, ms);
+    }
+#else /* !USE_TERM_DRIVER */
+#if NCURSES_SP_FUNCS
+    (void) sp;
+#endif
 #if HAVE_NANOSLEEP
     {
 	struct timespec request, remaining;
@@ -69,6 +79,15 @@ napms(int ms)
 #else
     _nc_timed_wait(0, 0, ms, (int *) 0 EVENTLIST_2nd(0));
 #endif
+#endif /* !USE_TERM_DRIVER */
 
     returnCode(OK);
 }
+
+#if NCURSES_SP_FUNCS
+NCURSES_EXPORT(int)
+napms(int ms)
+{
+    return NCURSES_SP_NAME(napms) (CURRENT_SCREEN, ms);
+}
+#endif

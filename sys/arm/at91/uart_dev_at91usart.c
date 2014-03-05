@@ -228,6 +228,27 @@ static struct uart_ops at91_usart_ops = {
 	.getc = at91_usart_getc,
 };
 
+#ifdef EARLY_PRINTF
+/*
+ * Early printf support. This assumes that we have the SoC "system" devices
+ * mapped into AT91_BASE. To use this before we adjust the boostrap tables,
+ * you'll need to define SOCDEV_VA to be 0xdc000000 and SOCDEV_PA to be
+ * 0xfc000000 in your config file where you define EARLY_PRINTF
+ */
+volatile uint32_t *at91_dbgu = (volatile uint32_t *)(AT91_BASE + AT91_DBGU0);
+
+static void
+eputc(int c)
+{
+
+	while (!(at91_dbgu[USART_CSR / 4] & USART_CSR_TXRDY))
+		continue;
+	at91_dbgu[USART_THR / 4] = c;
+}
+
+early_putc_t * early_putc = eputc;
+#endif
+
 static int
 at91_usart_probe(struct uart_bas *bas)
 {
@@ -243,6 +264,22 @@ static void
 at91_usart_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
+
+#ifdef EARLY_PRINTF
+	if (early_putc != NULL) {
+		printf("Early printf yielding control to the real console.\n");
+		early_putc = NULL;
+	}
+#endif
+
+	/*
+	 * This routine is called multiple times, sometimes right after writing
+	 * some output, and the last byte is still shifting out.  If that's the
+	 * case delay briefly before resetting, but don't loop on TXRDY because
+	 * we don't want to hang here forever if the hardware is in a bad state.
+	 */
+	if (!(RD4(bas, USART_CSR) & USART_CSR_TXRDY))
+		DELAY(10000);
 
 	at91_usart_param(bas, baudrate, databits, stopbits, parity);
 
@@ -315,6 +352,8 @@ static int at91_usart_bus_param(struct uart_softc *, int, int, int, int);
 static int at91_usart_bus_receive(struct uart_softc *);
 static int at91_usart_bus_setsig(struct uart_softc *, int);
 static int at91_usart_bus_transmit(struct uart_softc *);
+static void at91_usart_bus_grab(struct uart_softc *);
+static void at91_usart_bus_ungrab(struct uart_softc *);
 
 static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_probe,		at91_usart_bus_probe),
@@ -327,6 +366,8 @@ static kobj_method_t at91_usart_methods[] = {
 	KOBJMETHOD(uart_receive,	at91_usart_bus_receive),
 	KOBJMETHOD(uart_setsig,		at91_usart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	at91_usart_bus_transmit),
+	KOBJMETHOD(uart_grab,		at91_usart_bus_grab),
+	KOBJMETHOD(uart_ungrab,		at91_usart_bus_ungrab),
 
 	KOBJMETHOD_END
 };
@@ -395,7 +436,6 @@ at91_usart_bus_attach(struct uart_softc *sc)
 {
 	int err;
 	int i;
-	uint32_t cr;
 	struct at91_usart_softc *atsc;
 
 	atsc = (struct at91_usart_softc *)sc;
@@ -464,8 +504,8 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	}
 
 	/* Turn on rx and tx */
-	cr = USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX;
-	WR4(&sc->sc_bas, USART_CR, cr);
+	DELAY(1000);		/* Give pending character a chance to drain.  */
+	WR4(&sc->sc_bas, USART_CR, USART_CR_RSTSTA | USART_CR_RSTRX | USART_CR_RSTTX);
 	WR4(&sc->sc_bas, USART_CR, USART_CR_RXEN | USART_CR_TXEN);
 
 	/*
@@ -797,6 +837,25 @@ at91_usart_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		return (0);
 	}
 	return (EINVAL);
+}
+
+
+static void
+at91_usart_bus_grab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IDR, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
+}
+
+static void
+at91_usart_bus_ungrab(struct uart_softc *sc)
+{
+
+	uart_lock(sc->sc_hwmtx);
+	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
+	uart_unlock(sc->sc_hwmtx);
 }
 
 struct uart_class at91_usart_class = {

@@ -1089,7 +1089,6 @@ if test "$enable_optimization" = "yes"; then
             SVN_CFLAGS_ADD_IFELSE([-O])])])])
       SVN_CFLAGS_ADD_IFELSE([-Wno-clobbered])
       SVN_CFLAGS_ADD_IFELSE([-flto])
-      SVN_CFLAGS_ADD_IFELSE([-fwhole-program])
     fi
   fi
   if test -z ["`echo $CXXUSERFLAGS' ' | $EGREP -- '-O[^ ]* '`"]; then
@@ -1106,7 +1105,6 @@ if test "$enable_optimization" = "yes"; then
             SVN_CXXFLAGS_ADD_IFELSE([-O])])])])
       SVN_CXXFLAGS_ADD_IFELSE([-Wno-clobbered])
       SVN_CXXFLAGS_ADD_IFELSE([-flto])
-      SVN_CXXFLAGS_ADD_IFELSE([-fwhole-program])
     fi
   fi
 elif test "$enable_optimization" = "no"; then
@@ -1444,6 +1442,11 @@ AC_SUBST(JAVAHL_COMPAT_TESTS_TARGET)
 if test "$CC" = "clang"; then
   SVN_STRIP_FLAG(CPPFLAGS, [-no-cpp-precomp ])
 fi
+
+# Need to strip '-no-cpp-precomp' from CPPFLAGS for SWIG as well.
+SWIG_CPPFLAGS="$CPPFLAGS"
+SVN_STRIP_FLAG(SWIG_CPPFLAGS, [-no-cpp-precomp ])
+AC_SUBST([SWIG_CPPFLAGS])
 
 dnl Since this is used only on Unix-y systems, define the path separator as '/'
 AC_DEFINE_UNQUOTED(SVN_PATH_LOCAL_SEPARATOR, '/',

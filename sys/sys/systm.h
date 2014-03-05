@@ -70,8 +70,10 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  * Detected virtual machine guest types. The intention is to expand
  * and/or add to the VM_GUEST_VM type if specific VM functionality is
  * ever implemented (e.g. vendor-specific paravirtualization features).
+ * Keep in sync with vm_guest_sysctl_names[].
  */
-enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV };
+enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN, VM_GUEST_HV,
+		VM_LAST };
 
 #if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...)  __printflike(1, 2);
@@ -194,6 +196,10 @@ void	init_param1(void);
 void	init_param2(long physpages);
 void	init_static_kenv(char *, size_t);
 void	tablefull(const char *);
+#ifdef  EARLY_PRINTF
+typedef void early_putc_t(int ch);
+extern early_putc_t *early_putc;
+#endif
 int	kvprintf(char const *, void (*)(int, void*), void *, int,
 	    __va_list) __printflike(1, 0);
 void	log(int, const char *, ...) __printflike(2, 3);

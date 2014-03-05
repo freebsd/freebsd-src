@@ -156,6 +156,10 @@ ValueObjectVariable::UpdateValue ()
         {
             m_resolved_value = m_value;
             m_value.SetContext(Value::eContextTypeVariable, variable);
+            
+            ClangASTType clang_type = GetClangType();
+            if (clang_type.IsValid())
+                m_value.SetClangType(clang_type);
 
             Value::ValueType value_type = m_value.GetValueType();
             
@@ -324,6 +328,12 @@ ValueObjectVariable::GetLocationAsCString ()
 bool
 ValueObjectVariable::SetValueFromCString (const char *value_str, Error& error)
 {
+    if (!UpdateValueIfNeeded())
+    {
+        error.SetErrorString("unable to update value before writing");
+        return false;
+    }
+    
     if (m_resolved_value.GetContextType() == Value::eContextTypeRegisterInfo)
     {
         RegisterInfo *reg_info = m_resolved_value.GetRegisterInfo();
@@ -356,6 +366,12 @@ ValueObjectVariable::SetValueFromCString (const char *value_str, Error& error)
 bool
 ValueObjectVariable::SetData (DataExtractor &data, Error &error)
 {
+    if (!UpdateValueIfNeeded())
+    {
+        error.SetErrorString("unable to update value before writing");
+        return false;
+    }
+    
     if (m_resolved_value.GetContextType() == Value::eContextTypeRegisterInfo)
     {
         RegisterInfo *reg_info = m_resolved_value.GetRegisterInfo();
@@ -367,7 +383,7 @@ ValueObjectVariable::SetData (DataExtractor &data, Error &error)
             error.SetErrorString("unable to retrieve register info");
             return false;
         }
-        error = reg_value.SetValueFromData(reg_info, data, 0, false);
+        error = reg_value.SetValueFromData(reg_info, data, 0, true);
         if (error.Fail())
             return false;
         if (reg_ctx->WriteRegister (reg_info, reg_value))

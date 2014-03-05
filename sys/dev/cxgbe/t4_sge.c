@@ -569,6 +569,10 @@ t4_read_chip_settings(struct adapter *sc)
 
 	r = t4_read_reg(sc, A_SGE_CONM_CTRL);
 	s->fl_starve_threshold = G_EGRTHRESHOLD(r) * 2 + 1;
+	if (is_t4(sc))
+		s->fl_starve_threshold2 = s->fl_starve_threshold;
+	else
+		s->fl_starve_threshold2 = G_EGRTHRESHOLDPACKING(r) * 2 + 1;
 
 	/* egress queues: log2 of # of doorbells per BAR2 page */
 	r = t4_read_reg(sc, A_SGE_EGRESS_QUEUES_PER_PAGE_PF);
@@ -1392,7 +1396,7 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
 {
 	uma_zone_t zone = arg1;
 	caddr_t cl = arg2;
-#ifdef INVARIANTS
+#ifdef notyet
 	u_int refcount;
 
 	refcount = *find_buf_refcnt(cl);
@@ -1447,7 +1451,7 @@ get_fl_payload1(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 		bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map,
 		    BUS_DMASYNC_POSTREAD);
-		if (len < RX_COPY_THRESHOLD) {
+		if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 			/* Leave room for a timestamp */
 			m0->m_data += 8;
@@ -1598,7 +1602,7 @@ get_fl_payload2(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
 
 	bus_dmamap_sync(fl->tag[sd->tag_idx], sd->map, BUS_DMASYNC_POSTREAD);
 
-	if (len < RX_COPY_THRESHOLD) {
+	if (sc->sc_do_rxcopy && (len < RX_COPY_THRESHOLD)) {
 #ifdef T4_PKT_TIMESTAMP
 		/* Leave room for a timestamp */
 		m0->m_data += 8;
@@ -1678,7 +1682,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
-	m0->m_pkthdr.flowid = rss->hash_val;
+	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
 		if (ifp->if_capenable & IFCAP_RXCSUM &&
@@ -2233,7 +2237,9 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 			return (rc);
 		}
 		fl->needed = fl->cap;
-		fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
+		fl->lowat = fl->flags & FL_BUF_PACKING ?
+		    roundup2(sc->sge.fl_starve_threshold2, 8) :
+		    roundup2(sc->sge.fl_starve_threshold, 8);
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2468,7 +2474,7 @@ tnl_cong(struct port_info *pi)
 	else if (cong_drop == 1)
 		return (0);
 	else
-		return (1 << pi->tx_chan);
+		return (pi->rx_chan_map);
 }
 
 static int
@@ -2575,7 +2581,7 @@ alloc_ofld_rxq(struct port_info *pi, struct sge_ofld_rxq *ofld_rxq,
 	char name[16];
 
 	rc = alloc_iq_fl(pi, &ofld_rxq->iq, &ofld_rxq->fl, intr_idx,
-	    1 << pi->tx_chan);
+	    pi->rx_chan_map);
 	if (rc != 0)
 		return (rc);
 
@@ -2900,7 +2906,6 @@ alloc_wrq(struct adapter *sc, struct port_info *pi, struct sge_wrq *wrq,
 	    "# of times queue ran out of hardware descriptors");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "unstalled", CTLFLAG_RD,
 	    &wrq->eq.unstalled, 0, "# of times queue recovered after stall");
-
 
 	return (rc);
 }

@@ -37,6 +37,7 @@
 
 struct vmctx;
 extern int guest_ncpus;
+extern char *guest_uuid_str;
 extern char *vmname;
 
 void *paddr_guest2host(struct vmctx *ctx, uintptr_t addr, size_t len);

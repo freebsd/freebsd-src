@@ -39,8 +39,8 @@ f_include $BSDCFG_SHARE/startup/rcvar.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ GLOBALS
 
@@ -210,7 +210,7 @@ while :; do
 	     *) value="YES"
 	esac
 
-	err=$( f_sysrc_set "$rcvar" "$value" 2>&1 ) || f_dialog_msgbox "$err"
+	f_eval_catch "$0" f_sysrc_set 'f_sysrc_set "%s" "%s"' "$rcvar" "$value"
 done
 
 exit $SUCCESS

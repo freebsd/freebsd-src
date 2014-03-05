@@ -129,12 +129,12 @@ uint32_t platform_arm_tmr_freq = 0;
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
-	.tc_name           = "ARM MPCore Timecounter",
+	.tc_name           = "MPCore",
 	.tc_get_timecount  = arm_tmr_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_quality        = 800,
 };
 
 /**
@@ -247,10 +247,14 @@ arm_tmr_intr(void *arg)
 static int
 arm_tmr_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,mpcore-timers"))
 		return (ENXIO);
 
-	device_set_desc(dev, "ARM Generic MPCore Timers");
+	device_set_desc(dev, "ARM MPCore Timers");
 	return (BUS_PROBE_DEFAULT);
 }
 
@@ -323,7 +327,7 @@ arm_tmr_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->et.et_name = "ARM MPCore Eventtimer";
+	sc->et.et_name = "MPCore";
 	sc->et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT | ET_FLAGS_PERCPU;
 	sc->et.et_quality = 1000;
 
@@ -355,25 +359,6 @@ static devclass_t arm_tmr_devclass;
 DRIVER_MODULE(mp_tmr, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
 
 /**
- *	cpu_initclocks - called by system to initialise the cpu clocks
- *
- *	This is a boilerplat function, most of the setup has already been done
- *	when the driver was attached.  Therefore this function must only be called
- *	after the driver is attached.
- *
- *	RETURNS
- *	nothing
- */
-void
-cpu_initclocks(void)
-{
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
-
-/**
  *	DELAY - Delay for at least usec microseconds.
  *	@usec: number of microseconds to delay by
  *
@@ -384,8 +369,8 @@ cpu_initclocks(void)
  *	RETURNS:
  *	nothing
  */
-void
-DELAY(int usec)
+static void __used /* Must emit function code for the weak ref below. */
+arm_tmr_DELAY(int usec)
 {
 	int32_t counts_per_usec;
 	int32_t counts;
@@ -423,3 +408,11 @@ DELAY(int usec)
 		first = last;
 	}
 }
+
+/*
+ * Supply a DELAY() implementation via weak linkage.  A platform may want to use
+ * the mpcore per-cpu eventtimers but provide its own DELAY() routine,
+ * especially when the core frequency can change on the fly.
+ */
+__weak_reference(arm_tmr_DELAY, DELAY);
+

@@ -1,9 +1,138 @@
-2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r23479)
+2007-08-08  Andrew Haley  <aph@redhat.com> (r128087)
+
+	* config/arm/libunwind.S (UNWIND_WRAPPER _Unwind_Backtrace): New.
+	* config/arm/unwind-arm.h (__gnu_Unwind_Backtrace): New.
+	* config/arm/unwind-arm.c (__gnu_Unwind_Backtrace): New.
+
+2007-07-12  Geoffrey Keating  <geoffk@apple.com> (r126588)
+
+	* builtins.c (get_pointer_alignment): Honor DECL_ALIGN on a
+	FUNCTION_DECL.
+	* tree.c (build_decl_stat): Move code from here...
+	(make_node_stat): ... to here.  Don't uselessly clear DECL_USER_ALIGN.
+	(expr_align): Honor DECL_ALIGN on a FUNCTION_DECL.  Add comment
+	about using DECL_ALIGN of LABEL_DECL and CONST_DECL.
+	* tree.h (DECL_USER_ALIGN): Fix misplaced comment.
+	* varasm.c (assemble_start_function): Use DECL_ALIGN instead of
+	FUNCTION_BOUNDARY.
+
+2007-07-09  Geoffrey Keating  <geoffk@apple.com> (r126529)
+
+	PR 32617
+	* c-common.c (c_alignof_expr): Look at DECL_ALIGN of
+	FUNCTION_DECLs.
+	(handle_aligned_attribute): Allow use on FUNCTION_DECLs.
+	* varasm.c (assemble_start_function): Honor DECL_ALIGN
+	for FUNCTION_DECLs.  Don't use align_functions_log if
+	DECL_USER_ALIGN.
+	* print-tree.c (print_node): Print DECL_ALIGN and DECL_USER_ALIGN
+	even for FUNCTION_DECLs.
+	* c-decl.c (merge_decls): Propagate DECL_ALIGN even for
+	FUNCTION_DECLs.
+	* tree.h (DECL_ALIGN): Update for new location of 'align'.
+	(DECL_FUNCTION_CODE): Update for new location and name of
+	'function_code'.
+	(DECL_OFFSET_ALIGN): Update for new location of 'off_align'.
+	(struct tree_decl_common): Move 'align' and 'off_align' out
+	of union, ensure they're still on a 32-bit boundary.  Remove
+	other fields in union 'u1'.
+	(struct tree_function_decl): Add field 'function_code' replacing
+	'u1.f' in tree_decl_common.
+	* tree.c (build_decl_stat): Set initial value of DECL_ALIGN.
+	* doc/extend.texi (Function Attributes): Add 'aligned' attribute.
+	(Variable Attributes): Cross-reference 'aligned' attribute
+	to Function Attributes.
+	* flags.h (force_align_functions_log): Delete.
+	* toplev.c (force_align_functions_log): Delete.
+
+2007-07-06  Josh Conner  <jconner@apple.com> (r126422)
+
+	PR middle-end/32602
+	PR middle-end/32603
+	* calls.c (store_one_arg): Handle arguments which are partially
+	on the stack when detecting argument overlap.
+
+2007-07-03  Eric Christopher  <echristo@apple.com> (r126278)
+
+	* doc/cppopts.texi: Add conflicting option note to -dM.
+	* doc/invoke.texi: Add note about possible conflicts with
+	-E for -dCHARS and note that -dM will not produce
+	any results if there is no machine dependent reorg.
+	
+2007-06-28  Geoffrey Keating  <geoffk@apple.com> (r126088)
+
+	* doc/invoke.texi (C++ Dialect Options): Document
+	fvisibility-ms-compat.
+	* c.opt (fvisibility-ms-compat): New.
+
+2007-06-23  Richard Earnshaw  <rearnsha@arm.com> (r125973)
+
+	PR target/31152
+	* arm.md (negscc): Match the correct operand for optimized LT0 test.
+	Remove optimization for GT.
+
+2007-06-05  Joerg Wunsch  <j.gnu@uriah.heep.sax.de> (r125346)
 
 	PR preprocessor/23479
 	* doc/extend.texi: Document the 0b-prefixed binary integer
 	constant extension.
 	
+2007-05-31  Eric Christopher  <echristo@apple.com> (r125246)
+
+	* expr.c (convert_move): Assert that we don't have a BLKmode
+	operand.
+	(store_expr): Handle BLKmode moves by calling emit_block_move.
+
+2007-05-31  Daniel Berlin  <dberlin@dberlin.org> (r125239)
+
+	* c-typeck.c (build_indirect_ref): Include type in error message.
+	(build_binary_op): Pass types to binary_op_error.
+	* c-common.c (binary_op_error): Take two type arguments, print out
+	types with error.
+	* c-common.h (binary_op_error): Update prototype.
+
+2007-05-27  Eric Christopher  <echristo@apple.com> (r125116)
+
+	* config/rs6000/rs6000.c (rs6000_emit_prologue): Update
+	sp_offset depending on stack size. Save r12 depending
+	on registers we're saving later.
+	(rs6000_emit_epilogue): Update sp_offset depending only
+	on stack size.
+
+2007-05-24  Richard Sandiford  <rsandifo@nildram.co.uk> (r125037)
+
+	* postreload-gcse.c (reg_changed_after_insn_p): New function.
+	(oprs_unchanged_p): Use it to check all registers in a REG.
+	(record_opr_changes): Look for clobbers in CALL_INSN_FUNCTION_USAGE.
+	(reg_set_between_after_reload_p): Delete.
+	(reg_used_between_after_reload_p): Likewise.
+	(reg_set_or_used_since_bb_start): Likewise.
+	(eliminate_partially_redundant_load): Use reg_changed_after_insn_p
+	and reg_used_between_p instead of reg_set_or_used_since_bb_start.
+	Use reg_set_between_p instead of reg_set_between_after_reload_p.
+	* rtlanal.c (reg_set_p): Check whether REG overlaps
+	regs_invalidated_by_call, rather than just checking the
+	membership of REGNO (REG).
+
+2007-05-18  Geoffrey Keating  <geoffk@apple.com> (r124839)
+ 
+	* dwarf2out.c (print_die): Use '%ld' not '%lu' to print a 'long'.
+	(output_die): Use 'unsigned long' with %x.
+	* sched-vis.c (print_value): Use 'unsigned HOST_WIDE_INT' and
+	HOST_WIDE_INT_PRINT_HEX to print HOST_WIDE_INT.
+	* tree-dump.c (dump_pointer): Use 'unsigned long' for %lx.
+
+2007-05-16  Eric Christopher  <echristo@apple.com> (r124763)
+
+       * config/rs6000/rs6000.c (rs6000_emit_prologue): Move altivec register
+        saving after stack push. Set sp_offset whenever we push.
+        (rs6000_emit_epilogue): Move altivec register restore before stack push.
+
+2007-05-03  Ian Lance Taylor  <iant@google.com> (r124381)
+
+	* config/rs6000/rs6000.c (rs6000_override_options): Don't set
+	MASK_PPC_GFXOPT for 8540 or 8548.
+
 2007-05-01  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r124341)
 
 	* doc/invoke.texi: Fix typo, 'AMD Family 10h core' instead of 
@@ -21,6 +150,68 @@
 	* config/i386/i386.c (override_options): Tuning 32-byte loop
 	alignment for amdfam10 architecture. Increasing the max loop
 	alignment to 24 bytes.
+
+2007-04-24  Hui-May Chang <hm.chang@apple.com> (r124115)
+
+	* reload1.c (merge_assigned_reloads) : Do not merge a RELOAD_OTHER
+	instruction with a RELOAD_FOR_OPERAND_ADDRESS instruction.
+
+2007-04-16  Lawrence Crowl  <crowl@google.com> (r123909)
+
+	* doc/invoke.texi (Debugging Options): Add documentation for the
+	-femit-struct-debug options -femit-struct-debug-baseonly,
+	-femit-struct-debug-reduced, and
+	-femit-struct-debug-detailed[=...].
+
+	* c-opts.c (c_common_handle_option): Add
+	OPT_femit_struct_debug_baseonly, OPT_femit_struct_debug_reduced,
+	and OPT_femit_struct_debug_detailed_.
+	* c.opt: Add specifications for
+	-femit-struct-debug-baseonly, -femit-struct-debug-reduced,
+	and -femit-struct-debug-detailed[=...].
+	* opts.c (set_struct_debug_option): Parse the
+	-femit-struct-debug-... options.
+	* opts.c (matches_main_base, main_input_basename,
+	main_input_baselength, base_of_path, matches_main_base): Add
+	variables and functions to compare header base name to compilation
+	unit base name.
+	* opts.c (should_emit_struct_debug): Add to determine to emit a
+	structure based on the option.
+	(dump_struct_debug) Also disabled function to debug this
+	function.
+	* opts.c (handle_options): Save the base name of the
+	compilation unit.
+
+	* langhooks-def.h (LANG_HOOKS_GENERIC_TYPE_P): Define.
+        (LANG_HOOKS_FOR_TYPES_INITIALIZER): Add.
+	This hook indicates if a type is generic.  Set it by default
+	to "never generic".
+	* langhooks.h (struct lang_hooks_for_types): Add a new hook
+	to determine if a struct type is generic or not.
+	* cp/cp-tree.h (class_tmpl_impl_spec_p): Declare a C++ hook.
+	* cp/tree.c (class_tmpl_impl_spec_p): Implement the C++ hook.
+	* cp/cp-lang.c (LANG_HOOKS_GENERIC_TYPE_P): Override null C hook
+	with live C++ hook.
+
+	* flags.h (enum debug_info_usage): Add an enumeration to describe
+	a program's use of a structure type.
+	* dwarf2out.c (gen_struct_or_union_type_die): Add a new parameter
+	to indicate the program's usage of the type.  Filter structs based
+	on the -femit-struct-debug-... specification.
+	(gen_type_die): Split into two routines, gen_type_die and
+	gen_type_die_with_usage.  gen_type_die is now a wrapper
+	that assumes direct usage.
+	(gen_type_die_with_usage): Replace calls to gen_type_die
+	with gen_type_die_with_usage adding the program usage of
+	the referenced type.
+	(dwarf2out_imported_module_or_decl): Suppress struct debug
+	information using should_emit_struct_debug when appropriate.
+
+2007-04-16  Ian Lance Taylor  <iant@google.com> (r123906)
+
+	* tree-ssa-propagate.c (cfg_blocks_add): Insert blocks with fewer
+	predecessors at head rather than tail.
+
 
 2007-04-12  Richard Guenther  <rguenther@suse.de> (r123736)
 
@@ -43,6 +234,19 @@
 	* config.gcc: Accept barcelona as a variant of amdfam10.
 	* config/i386/i386.c (override_options): Likewise.
 	* doc/invoke.texi: Likewise.
+
+2007-03-12  Seongbae Park <seongbae.park@gmail.com> (r122851)
+
+	* c-decl.c (warn_variable_length_array): New function.
+	Refactored from grokdeclarator to handle warn_vla
+	and handle unnamed array case.
+	(grokdeclarator): Refactored VLA warning case.
+	* c.opt (Wvla): New flag.
+
+2007-03-11  Ian Lance Taylor  <iant@google.com> (r122831 - partial)
+
+	* tree-vrp.c (vrp_int_const_binop): Handle PLUS_EXPR and
+	the *_DIV_EXPR codes correctly with overflow infinities.
 
 2007-02-09  Dwarakanath Rajagopal <dwarak.rajagopal@amd.com> (r121763)
 
@@ -228,9 +432,96 @@
 	(override_options): Add PTA_CX16 flag.  Set x86_cmpxchg16b
 	for CPUs that have PTA_CX16 set.
 
+2007-01-18  Josh Conner  <jconner@apple.com> (r120902)
+
+	PR target/30485
+	* config/rs6000/rs6000.c (rs6000_emit_vector_compare): Add
+	support for UNLE, UNLT, UNGE, and UNGT.
+
 2007-01-17  Eric Christopher  <echristo@apple.com> (r120846)
 
 	* config.gcc: Support core2 processor.
+
+2007-01-11  Joseph Myers  <joseph@codesourcery.com> (r120688)
+
+	* c-common.c (vector_types_convertible_p): Treat opaque types as
+	always convertible if they have the same size, but not otherwise.
+
+2007-01-08  Geoffrey Keating  <geoffk@apple.com> (r120611)
+ 
+	* target.h (struct gcc_target): New field library_rtti_comdat.
+	* target-def.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): New.
+	(TARGET_CXX): Add TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* doc/tm.texi (C++ ABI): Document TARGET_CXX_LIBRARY_RTTI_COMDAT.
+	* config/darwin.h (TARGET_CXX_LIBRARY_RTTI_COMDAT): Define.
+
+2007-01-08  Mark Shinwell  <shinwell@codesourcery.com> (r120572)
+
+	* c.opt: Add -flax-vector-conversions.
+	* c-typeck.c (convert_for_assignment): Pass flag to
+	vector_types_convertible_p to allow emission of note.
+	(digest_init): Likewise.
+	* c-opts.c: Handle -flax-vector-conversions.
+	* c-common.c (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Unless -flax-vector conversions
+	has been passed, disallow conversions between vectors with
+	differing numbers of subparts and/or element types.  If such
+	a conversion is disallowed, possibly emit a note on the first
+	occasion only to inform the user of -flax-vector-conversions.
+	The new last argument specifies this.
+	* c-common.h (flag_lax_vector_conversions): New.
+	(vector_types_convertible_p): Add extra argument.
+	* config/i386/i386.c (ix86_init_mmx_sse_builtins): Use
+	char_type_node for V*QI type vectors.
+	* config/rs6000/rs6000-c.c (altivec_overloaded_builtins):
+	Update to satisfy new typechecking rules.
+	* config/rs6000/altivec.h (vec_cmple): Use vec_cmpge, for both
+	C and C++ variants.
+	* doc/invoke.texi (C Dialect Options): Document
+	-flax-vector-conversions.
+
+2007-01-05  Manuel Lopez-Ibanez  <manu@gcc.gnu.org> (r120505)
+
+	PR c/19978
+	* tree.h (TREE_OVERFLOW_P): New.
+	* c-typeck.c (parser_build_unary_op): Warn only if result
+	overflowed and operands did not.
+	(parser_build_binary_op): Likewise.
+	(convert_for_assignment): Remove redundant overflow_warning.
+	* c-common.c (overflow_warning): Don't check or set TREE_OVERFLOW.
+
+2006-12-13  Ian Lance Taylor  <iant@google.com> (r119855)
+
+	PR c++/19564
+	PR c++/19756
+	* c-typeck.c (parser_build_binary_op): Move parentheses warnings
+	to warn_about_parentheses in c-common.c.
+	* c-common.c (warn_about_parentheses): New function.
+	* c-common.h (warn_about_parentheses): Declare.
+	* doc/invoke.texi (Warning Options): Update -Wparentheses
+	description.
+
+2006-12-12  Geoffrey Keating  <geoffk@apple.com> (r119820)
+ 
+	* mips-tdump.c: Replace CROSS_COMPILE with
+	CROSS_DIRECTORY_STRUCTURE.
+	* mips-tfile.c: Likewise.
+	* gcc.c: Likewise.
+	* configure.ac: Likewise.
+	* cppdefault.c: Likewise.
+	* Makefile.in: Likewise.
+	* config/alpha/osf.h: Likewise.
+	* config/i386/cygwin.h: Likewise.
+	* config/i386/beos-elf.h: Likewise.
+	* config/i386/nto.h: Likewise.
+	* config/svr4.h: Likewise.
+	* config/rs6000/aix.h: Likewise.
+	* config/rs6000/sysv4.h: Likewise.
+	* collect2.c: Likewise.
+	* configure: Regenerate.
+
+ 	* doc/tm.texi (Alignment Output): Document that ASM_OUTPUT_SKIP
+ 	actually takes an unsigned HOST_WIDE_INT for its second parameter.
 
 2006-12-02  H.J. Lu  <hongjiu.lu@intel.com> (r119454 - partial)
 
@@ -270,6 +561,98 @@
 	(override_options): Add entries for Core2.
 	(ix86_issue_rate): Add case for Core2.
 	
+2006-11-14  Caroline Tice  <ctice@apple.com> (r118826)
+		
+	* dwarf2out.c (debug_pubtypes_section): New static global variable.
+	(pubname_entry):  Add DEF_VEC_O and DEF_VEC_ALLOC_O statements for
+	this type.
+	(pubname_table):  Redefine as a vector.
+	(pubtype_table):  New static global variable, defined as a vector.
+	(pubname_table_allocated): Remove static global variable.
+	(pubname_table_in_use): Remove static global variable.
+	(PUBNAME_TABLE_INCREMENT): Remove constant.
+	(size_of_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(add_pubname):  Change to deal with table being a vector.
+	(add_pubtype):  New function.
+	(output_pubnames): Add parameter to deal with either pubnames or 
+	pubtypes, and change code to deal with table being a vector.
+	(gen_array_type_die):  Add call to add_pubtype.
+	(gen_enumeration_type_die): Add call to add_pubtype.
+	(gen_struct_or_union_type_die): Add call to add_pubtype.
+	(gen_subroutine_type_die): Add call to add_pubtype.
+	(gen_typedef_die):  Add call to add_pubtype.
+	(dwarf2out_init): Add code to initialize pubname_table and 
+	pubtype_table vectors; also initialize debug_pubtypes_section.
+	(prune_unused_types):  Change to deal with pubnames being a vector.
+	(dwarf2out_finish): Change to deal with pubnames being a vector; add 
+	pubnames table to call to output_pubnames;  Add code to output pubtypes 
+	table if DEBUG_PUBTYPES_SECTION is defined.
+	* config/darwin.c (darwin_file_start):  Add DEBUG_PUBTYPES_SECTION to 
+	debugnames.
+	* config/darwin.h (DEBUG_PUBTYPES_SECTION): Define new global variable.
+
+2006-11-07  Eric Christopher  <echristo@apple.com> (r118576)
+
+	* libgcc2.c (__bswapdi2): Rename from bswapDI2.
+	(__bswapsi2): Ditto.
+	* libgcc2.h: Remove transformation of bswap routines.
+	* config/i386/i386.md (bswapsi2): New.
+	(bswapdi2): Ditto.
+
+2006-11-03  Paul Brook  <paul@codesourcery.com> (r118461)
+
+	gcc/
+	* config/arm/arm.c (arm_file_start): New function.
+	(TARGET_ASM_FILE_START): Define.
+	(arm_default_cpu): New variable.
+	(arm_override_options): Set arm_default_cpu.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118360)
+ 
+	* coverage.c (coverage_checksum_string): Update comment.
+	* dwarf2out.c (switch_to_eh_frame_section): Update for removal
+	of get_file_function_name.
+	* cgraphunit.c (cgraph_build_static_cdtor): Update for rename
+	of get_file_function_name_long.
+	* tree.c (get_file_function_name): Rename from
+	get_file_function_name_long; improve comment; handle 'I' and 'D'
+	specially when the target has ctor/dtor support; remove special
+	handling for 'F'.
+	(get_file_function_name): Remove.
+	* tree.h (get_file_function_name): Rename from
+        get_file_function_name_long.
+	(get_file_function_name): Remove prototype.
+
+2006-10-31  Geoffrey Keating  <geoffk@apple.com> (r118356)
+
+	* c-decl.c (grokdeclarator): Don't set DECL_EXTERNAL on
+	inline static functions in c99 mode.
+
+	PR 16622
+	* doc/extend.texi (Inline): Update.
+	* c-tree.h (struct language_function): Remove field 'extern_inline'.
+	* c-decl.c (current_extern_inline): Delete.
+	(pop_scope): Adjust test for an undefined nested function.
+	Add warning about undeclared inline function.
+	(diagnose_mismatched_decls): Update comments.  Disallow overriding
+	of inline functions in a translation unit in C99.  Allow inline
+	declarations in C99 at any time.
+	(merge_decls): Boolize variables.  Handle C99 'extern inline'
+	semantics.
+	(grokdeclarator): Set DECL_EXTERNAL here for functions.  Handle
+	C99 inline semantics.
+	(start_function): Don't clear current_extern_inline.  Don't set
+	DECL_EXTERNAL.
+	(c_push_function_context): Don't push current_extern_inline.
+	(c_pop_function_context): Don't restore current_extern_inline.
+
+	PR 11377
+	* c-typeck.c (build_external_ref): Warn about static variables
+	used in extern inline functions.
+	* c-decl.c (start_decl): Warn about static variables declared
+	in extern inline functions.
+
 2006-10-27  Vladimir Makarov  <vmakarov@redhat.com> (r118090)
 
 	* config/i386/i386.h (TARGET_GEODE):
@@ -391,3 +774,51 @@
 
 	* builtins.c (fold_builtin_classify): Fix typo.
 
+2006-09-07  Eric Christopher  <echristo@apple.com> (r118361)
+	    Falk Hueffner  <falk@debian.org>
+
+	* doc/extend.texi (__builtin_bswap32): Document.
+	(__builtin_bswap64): Ditto.
+	* doc/libgcc.texi (bswapsi2): Document.
+	(bswapdi2): Ditto.
+	* doc/rtl.texi (bswap): Document.
+	* optabs.c (expand_unop): Don't widen a bswap.
+	(init_optabs): Init bswap. Set libfuncs explicitly
+	for bswapsi2 and bswapdi2.
+	* optabs.h (OTI_bswap): New.
+	(bswap_optab): Ditto.
+	* genopinit.c (optabs): Handle bswap_optab.
+	* tree.h (tree_index): Add TI_UINT32_TYPE and
+	TI_UINT64_TYPE.
+	(uint32_type_node): New.
+	(uint64_type_node): Ditto.
+	* tree.c (build_common_tree_nodes_2): Initialize
+	uint32_type_node and uint64_type_node.
+	* builtins.c (expand_builtin_bswap): New.
+	(expand_builtin): Call.
+	(fold_builtin_bswap): New.
+	(fold_builtin_1): Call.
+	* fold-const.c (tree_expr_nonnegative_p): Return true
+	for bswap.
+	* builtin-types.def (BT_UINT32): New.
+	(BT_UINT64): Ditto.
+	(BT_FN_UINT32_UINT32): Ditto.
+	(BT_FN_UINT64_UINT64): Ditto.
+	* builtins.def (BUILT_IN_BSWAP32): New.
+	(BUILT_IN_BSWAP64): Ditto.
+	* rtl.def (BSWAP): New.
+	* genattrtab.c (check_attr_value): New.
+	* libgcc2.c (__bswapSI2): New.
+	(__bswapDI2): Ditto.
+	* libgcc2.h (__bswapSI2): Declare.
+	(__bswapDI2): Ditto.
+	* mklibgcc.in (lib2funcs): Add _bswapsi2 and _bswapdi2.
+	* simplify-rtx.c (simplify_const_unary_operation): Return
+	0 for BSWAP.
+	* libgcc-std.ver (__bwapsi2): Add.
+	(__bswapdi2): Ditto.
+	* reload1.c (eliminate_regs_1): Add bswap.
+	(elimination_effects): Ditto.
+	* config/i386/i386.h (x86_bswap): New.
+	(TARGET_BSWAP): Use.
+	* config/i386/i386.c (x86_bswap): Set.

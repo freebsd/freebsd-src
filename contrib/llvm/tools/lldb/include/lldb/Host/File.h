@@ -11,7 +11,9 @@
 #define liblldb_File_h_
 #if defined(__cplusplus)
 
+#include <stdarg.h>
 #include <stdio.h>
+#include <sys/types.h>
 
 #include "lldb/lldb-private.h"
 
@@ -38,48 +40,21 @@ public:
         eOpenOptionTruncate             = (1u << 3),    // Truncate file when opening
         eOpenOptionNonBlocking          = (1u << 4),    // File reads
         eOpenOptionCanCreate            = (1u << 5),    // Create file if doesn't already exist
-        eOpenOptionCanCreateNewOnly     = (1u << 6)     // Can create file only if it doesn't already exist
+        eOpenOptionCanCreateNewOnly     = (1u << 6),    // Can create file only if it doesn't already exist
+        eOpenoptionDontFollowSymlinks   = (1u << 7)
     };
     
-    enum Permissions
-    {
-        ePermissionsUserRead        = (1u << 0),
-        ePermissionsUserWrite       = (1u << 1),
-        ePermissionsUserExecute     = (1u << 2),
-        ePermissionsGroupRead       = (1u << 3),
-        ePermissionsGroupWrite      = (1u << 4),
-        ePermissionsGroupExecute    = (1u << 5),
-        ePermissionsWorldRead       = (1u << 6),
-        ePermissionsWorldWrite      = (1u << 7),
-        ePermissionsWorldExecute    = (1u << 8),
-
-        ePermissionsUserRW      = (ePermissionsUserRead    | ePermissionsUserWrite    | 0                        ),
-        ePermissionsUserRX      = (ePermissionsUserRead    | 0                        | ePermissionsUserExecute  ),
-        ePermissionsUserRWX     = (ePermissionsUserRead    | ePermissionsUserWrite    | ePermissionsUserExecute  ),
-
-        ePermissionsGroupRW     = (ePermissionsGroupRead   | ePermissionsGroupWrite   | 0                        ),
-        ePermissionsGroupRX     = (ePermissionsGroupRead   | 0                        | ePermissionsGroupExecute ),
-        ePermissionsGroupRWX    = (ePermissionsGroupRead   | ePermissionsGroupWrite   | ePermissionsGroupExecute ),
-
-        ePermissionsWorldRW     = (ePermissionsWorldRead   | ePermissionsWorldWrite   | 0                        ),
-        ePermissionsWorldRX     = (ePermissionsWorldRead   | 0                        | ePermissionsWorldExecute ),
-        ePermissionsWorldRWX    = (ePermissionsWorldRead   | ePermissionsWorldWrite   | ePermissionsWorldExecute ),
-
-        ePermissionsEveryoneR   = (ePermissionsUserRead    | ePermissionsGroupRead    | ePermissionsWorldRead    ),
-        ePermissionsEveryoneW   = (ePermissionsUserWrite   | ePermissionsGroupWrite   | ePermissionsWorldWrite   ),
-        ePermissionsEveryoneX   = (ePermissionsUserExecute | ePermissionsGroupExecute | ePermissionsWorldExecute ),
-
-        ePermissionsEveryoneRW  = (ePermissionsEveryoneR   | ePermissionsEveryoneW    | 0                        ),
-        ePermissionsEveryoneRX  = (ePermissionsEveryoneR   | 0                        | ePermissionsEveryoneX    ),
-        ePermissionsEveryoneRWX = (ePermissionsEveryoneR   | ePermissionsEveryoneW    | ePermissionsEveryoneX    ),
-        ePermissionsDefault     = (ePermissionsUserRW      | ePermissionsGroupRead)
-    };
-
+    static mode_t
+    ConvertOpenOptionsForPOSIXOpen (uint32_t open_options);
+    
     File() : 
         m_descriptor (kInvalidDescriptor),
         m_stream (kInvalidStream),
         m_options (0),
-        m_owned (false)
+        m_own_stream (false),
+        m_own_descriptor (false),
+        m_is_interactive (eLazyBoolCalculate),
+        m_is_real_terminal (eLazyBoolCalculate)
     {
     }
     
@@ -87,7 +62,10 @@ public:
         m_descriptor (kInvalidDescriptor),
         m_stream (fh),
         m_options (0),
-        m_owned (transfer_ownership)
+        m_own_stream (transfer_ownership),
+        m_own_descriptor (false),
+        m_is_interactive (eLazyBoolCalculate),
+        m_is_real_terminal (eLazyBoolCalculate)
     {
     }
 
@@ -115,16 +93,39 @@ public:
     //------------------------------------------------------------------
     File (const char *path,
           uint32_t options,
-          uint32_t permissions = ePermissionsDefault);
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
 
+    //------------------------------------------------------------------
+    /// Constructor with FileSpec.
+    ///
+    /// Takes a FileSpec pointing to a file which can be just a filename, or a full
+    /// path. If \a path is not NULL or empty, this function will call
+    /// File::Open (const char *path, uint32_t options, uint32_t permissions).
+    ///
+    /// @param[in] path
+    ///     The FileSpec for this file.
+    ///
+    /// @param[in] options
+    ///     Options to use when opening (see File::OpenOptions)
+    ///
+    /// @param[in] permissions
+    ///     Options to use when opening (see File::Permissions)
+    ///
+    /// @see File::Open (const char *path, uint32_t options, uint32_t permissions)
+    //------------------------------------------------------------------
+    File (const FileSpec& filespec,
+          uint32_t options,
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
     
-    File (int fd, bool tranfer_ownership) : 
+    File (int fd, bool transfer_ownership) :
         m_descriptor (fd),
         m_stream (kInvalidStream),
         m_options (0),
-        m_owned (tranfer_ownership)
+        m_own_stream (false),
+        m_own_descriptor (transfer_ownership)
     {
     }
+
     //------------------------------------------------------------------
     /// Destructor.
     ///
@@ -210,7 +211,7 @@ public:
     Error
     Open (const char *path,
           uint32_t options,
-          uint32_t permissions = ePermissionsDefault);
+          uint32_t permissions = lldb::eFilePermissionsFileDefault);
 
     Error
     Close ();
@@ -451,6 +452,45 @@ public:
     //------------------------------------------------------------------
     Error
     Sync ();
+    
+    //------------------------------------------------------------------
+    /// Get the permissions for a this file.
+    ///
+    /// @return
+    ///     Bits logical OR'ed together from the permission bits defined
+    ///     in lldb_private::File::Permissions.
+    //------------------------------------------------------------------
+    uint32_t
+    GetPermissions(Error &error) const;
+    
+    static uint32_t
+    GetPermissions (const char *path, Error &error);
+
+    
+    //------------------------------------------------------------------
+    /// Return true if this file is interactive.
+    ///
+    /// @return
+    ///     True if this file is a terminal (tty or pty), false
+    ///     otherwise.
+    //------------------------------------------------------------------
+    bool
+    GetIsInteractive ();
+    
+    //------------------------------------------------------------------
+    /// Return true if this file from a real terminal.
+    ///
+    /// Just knowing a file is a interactive isn't enough, we also need
+    /// to know if the terminal has a width and height so we can do
+    /// cursor movement and other terminal maninpulations by sending
+    /// escape sequences.
+    ///
+    /// @return
+    ///     True if this file is a terminal (tty, not a pty) that has
+    ///     a non-zero width and height, false otherwise.
+    //------------------------------------------------------------------
+    bool
+    GetIsRealTerminal ();
 
     //------------------------------------------------------------------
     /// Output printf formatted output to the stream.
@@ -470,6 +510,12 @@ public:
     size_t
     PrintfVarArg(const char *format, va_list args);
 
+    
+    void
+    SetOptions (uint32_t options)
+    {
+        m_options = options;
+    }
 protected:
     
     
@@ -485,13 +531,19 @@ protected:
         return m_stream != kInvalidStream;
     }
     
+    void
+    CalculateInteractiveAndTerminal ();
+    
     //------------------------------------------------------------------
     // Member variables
     //------------------------------------------------------------------
     int m_descriptor;
     FILE *m_stream;
     uint32_t m_options;
-    bool m_owned;
+    bool m_own_stream;
+    bool m_own_descriptor;
+    LazyBool m_is_interactive;
+    LazyBool m_is_real_terminal;
 };
 
 } // namespace lldb_private

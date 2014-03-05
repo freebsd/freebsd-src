@@ -124,6 +124,8 @@ ehci_pci_match(device_t self)
 		return ("Intel Panther Point USB 2.0 controller");
 	case 0x1e2d8086:
 		return ("Intel Panther Point USB 2.0 controller");
+	case 0x1f2c8086:
+		return ("Intel Avoton USB 2.0 controller");
 	case 0x25ad8086:
 		return "Intel 6300ESB USB 2.0 controller";
 	case 0x24cd8086:

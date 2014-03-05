@@ -3,6 +3,7 @@
 \
 \ Includes additional commands
 include /boot/loader.4th
+try-include /boot/loader.rc.local
 
 \ Reads and processes loader.conf variables
 initialize

@@ -181,9 +181,9 @@ fi
 echo
 
 echo "------------------------------------------------------------------------"
-echo "ps -axl"
+echo "ps -axlww"
 echo
-ps -M $VMCORE -N $KERNEL -axl
+ps -M $VMCORE -N $KERNEL -axlww
 echo
 
 echo "------------------------------------------------------------------------"

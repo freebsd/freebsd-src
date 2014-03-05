@@ -35,6 +35,8 @@ typedef enum {
 	AR8X16_SWITCH_AR8226,
 	AR8X16_SWITCH_AR8316,
 	AR8X16_SWITCH_AR9340,
+	AR8X16_SWITCH_AR8327,
+	AR8X16_SWITCH_AR8337,
 } ar8x16_switch_type;
 
 /*
@@ -42,6 +44,9 @@ typedef enum {
  */
 #define	AR8X16_IS_SWITCH(_sc, _type) \
 	    (!!((_sc)->sc_switchtype == AR8X16_SWITCH_ ## _type))
+
+#define ARSWITCH_NUM_PORTS	MAX(AR8327_NUM_PORTS, AR8X16_NUM_PORTS)
+#define ARSWITCH_NUM_PHYS	MAX(AR8327_NUM_PHYS, AR8X16_NUM_PHYS)
 
 struct arswitch_softc {
 	struct mtx	sc_mtx;		/* serialize access to softc */
@@ -53,10 +58,14 @@ struct arswitch_softc {
 	int		is_mii;		/* PHY mode is MII (XXX which PHY?) */
 	int		page;
 	int		is_internal_switch;
+	int		chip_ver;
+	int		chip_rev;
+	int		mii_lo_first;
 	ar8x16_switch_type	sc_switchtype;
-	char		*ifname[AR8X16_NUM_PHYS];
-	device_t	miibus[AR8X16_NUM_PHYS];
-	struct ifnet	*ifp[AR8X16_NUM_PHYS];
+	/* should be the max of both pre-AR8327 and AR8327 ports */
+	char		*ifname[ARSWITCH_NUM_PHYS];
+	device_t	miibus[ARSWITCH_NUM_PHYS];
+	struct ifnet	*ifp[ARSWITCH_NUM_PHYS];
 	struct callout	callout_tick;
 	etherswitch_info_t info;
 
@@ -65,9 +74,37 @@ struct arswitch_softc {
 	uint32_t	vlan_mode;
 
 	struct {
+		/* Global setup */
 		int (* arswitch_hw_setup) (struct arswitch_softc *);
 		int (* arswitch_hw_global_setup) (struct arswitch_softc *);
+
+		/* Port functions */
+		void (* arswitch_port_init) (struct arswitch_softc *, int);
+
+		/* ATU functions */
+		int (* arswitch_atu_flush) (struct arswitch_softc *);
+
+		/* VLAN functions */
+		int (* arswitch_port_vlan_setup) (struct arswitch_softc *,
+		    etherswitch_port_t *);
+		int (* arswitch_port_vlan_get) (struct arswitch_softc *,
+		    etherswitch_port_t *);
+		void (* arswitch_vlan_init_hw) (struct arswitch_softc *);
+		int (* arswitch_vlan_getvgroup) (struct arswitch_softc *,
+		    etherswitch_vlangroup_t *);
+		int (* arswitch_vlan_setvgroup) (struct arswitch_softc *,
+		    etherswitch_vlangroup_t *);
+		int (* arswitch_vlan_get_pvid) (struct arswitch_softc *, int,
+		    int *);
+		int (* arswitch_vlan_set_pvid) (struct arswitch_softc *, int,
+		    int);
 	} hal;
+
+	struct {
+		uint32_t port0_status;
+		uint32_t port5_status;
+		uint32_t port6_status;
+	} ar8327;
 };
 
 #define	ARSWITCH_LOCK(_sc)			\

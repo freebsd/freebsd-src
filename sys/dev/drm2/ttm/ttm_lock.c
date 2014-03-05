@@ -107,6 +107,8 @@ ttm_read_lock(struct ttm_lock *lock, bool interruptible)
 	mtx_lock(&lock->lock);
 	while (!__ttm_read_lock(lock)) {
 		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == EINTR)
+			ret = ERESTARTSYS;
 		if (ret != 0)
 			break;
 	}
@@ -151,6 +153,8 @@ int ttm_read_trylock(struct ttm_lock *lock, bool interruptible)
 	mtx_lock(&lock->lock);
 	while (!__ttm_read_trylock(lock, &locked)) {
 		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == EINTR)
+			ret = ERESTARTSYS;
 		if (ret != 0)
 			break;
 	}
@@ -204,6 +208,8 @@ ttm_write_lock(struct ttm_lock *lock, bool interruptible)
 	/* XXXKIB: linux uses __ttm_read_lock for uninterruptible sleeps */
 	while (!__ttm_write_lock(lock)) {
 		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == EINTR)
+			ret = ERESTARTSYS;
 		if (interruptible && ret != 0) {
 			lock->flags &= ~TTM_WRITE_LOCK_PENDING;
 			wakeup(lock);
@@ -280,6 +286,8 @@ int ttm_vt_lock(struct ttm_lock *lock,
 	mtx_lock(&lock->lock);
 	while (!__ttm_vt_lock(lock)) {
 		ret = msleep(lock, &lock->lock, flags, wmsg, 0);
+		if (ret == EINTR)
+			ret = ERESTARTSYS;
 		if (interruptible && ret != 0) {
 			lock->flags &= ~TTM_VT_LOCK_PENDING;
 			wakeup(lock);

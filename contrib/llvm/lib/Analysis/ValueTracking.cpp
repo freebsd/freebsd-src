@@ -15,6 +15,7 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/GlobalAlias.h"
@@ -39,8 +40,8 @@ const unsigned MaxDepth = 6;
 static unsigned getBitWidth(Type *Ty, const DataLayout *TD) {
   if (unsigned BitWidth = Ty->getScalarSizeInBits())
     return BitWidth;
-  assert(isa<PointerType>(Ty) && "Expected a pointer type!");
-  return TD ? TD->getPointerSizeInBits() : 0;
+
+  return TD ? TD->getPointerTypeSizeInBits(Ty) : 0;
 }
 
 static void ComputeMaskedBitsAddSub(bool Add, Value *Op0, Value *Op1, bool NSW,
@@ -290,7 +291,7 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
     }
     if (Align > 0)
       KnownZero = APInt::getLowBitsSet(BitWidth,
-                                       CountTrailingZeros_32(Align));
+                                       countTrailingZeros(Align));
     else
       KnownZero.clearAllBits();
     KnownOne.clearAllBits();
@@ -321,7 +322,7 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
     }
 
     if (Align)
-      KnownZero = APInt::getLowBitsSet(BitWidth, CountTrailingZeros_32(Align));
+      KnownZero = APInt::getLowBitsSet(BitWidth, countTrailingZeros(Align));
     return;
   }
 
@@ -613,7 +614,7 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
       Align = TD->getABITypeAlignment(AI->getType()->getElementType());
 
     if (Align > 0)
-      KnownZero = APInt::getLowBitsSet(BitWidth, CountTrailingZeros_32(Align));
+      KnownZero = APInt::getLowBitsSet(BitWidth, countTrailingZeros(Align));
     break;
   }
   case Instruction::GetElementPtr: {
@@ -629,12 +630,22 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
       Value *Index = I->getOperand(i);
       if (StructType *STy = dyn_cast<StructType>(*GTI)) {
         // Handle struct member offset arithmetic.
-        if (!TD) return;
-        const StructLayout *SL = TD->getStructLayout(STy);
+        if (!TD)
+          return;
+
+        // Handle case when index is vector zeroinitializer
+        Constant *CIndex = cast<Constant>(Index);
+        if (CIndex->isZeroValue())
+          continue;
+
+        if (CIndex->getType()->isVectorTy())
+          Index = CIndex->getSplatValue();
+
         unsigned Idx = cast<ConstantInt>(Index)->getZExtValue();
+        const StructLayout *SL = TD->getStructLayout(STy);
         uint64_t Offset = SL->getElementOffset(Idx);
-        TrailZ = std::min(TrailZ,
-                          CountTrailingZeros_64(Offset));
+        TrailZ = std::min<unsigned>(TrailZ,
+                                    countTrailingZeros(Offset));
       } else {
         // Handle array index arithmetic.
         Type *IndexedTy = GTI.getIndexedType();
@@ -644,7 +655,7 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
         LocalKnownZero = LocalKnownOne = APInt(GEPOpiBits, 0);
         ComputeMaskedBits(Index, LocalKnownZero, LocalKnownOne, TD, Depth+1);
         TrailZ = std::min(TrailZ,
-                          unsigned(CountTrailingZeros_64(TypeSize) +
+                          unsigned(countTrailingZeros(TypeSize) +
                                    LocalKnownZero.countTrailingOnes()));
       }
     }
@@ -749,7 +760,6 @@ void llvm::ComputeMaskedBits(Value *V, APInt &KnownZero, APInt &KnownOne,
         KnownZero = APInt::getHighBitsSet(BitWidth, BitWidth - LowBits);
         break;
       }
-      case Intrinsic::x86_sse42_crc32_64_8:
       case Intrinsic::x86_sse42_crc32_64_64:
         KnownZero = APInt::getHighBitsSet(64, 32);
         break;
@@ -853,6 +863,37 @@ bool llvm::isKnownToBeAPowerOfTwo(Value *V, bool OrZero, unsigned Depth) {
     if (match(X, m_Neg(m_Specific(Y))) || match(Y, m_Neg(m_Specific(X))))
       return true;
     return false;
+  }
+
+  // Adding a power-of-two or zero to the same power-of-two or zero yields
+  // either the original power-of-two, a larger power-of-two or zero.
+  if (match(V, m_Add(m_Value(X), m_Value(Y)))) {
+    OverflowingBinaryOperator *VOBO = cast<OverflowingBinaryOperator>(V);
+    if (OrZero || VOBO->hasNoUnsignedWrap() || VOBO->hasNoSignedWrap()) {
+      if (match(X, m_And(m_Specific(Y), m_Value())) ||
+          match(X, m_And(m_Value(), m_Specific(Y))))
+        if (isKnownToBeAPowerOfTwo(Y, OrZero, Depth))
+          return true;
+      if (match(Y, m_And(m_Specific(X), m_Value())) ||
+          match(Y, m_And(m_Value(), m_Specific(X))))
+        if (isKnownToBeAPowerOfTwo(X, OrZero, Depth))
+          return true;
+
+      unsigned BitWidth = V->getType()->getScalarSizeInBits();
+      APInt LHSZeroBits(BitWidth, 0), LHSOneBits(BitWidth, 0);
+      ComputeMaskedBits(X, LHSZeroBits, LHSOneBits, 0, Depth);
+
+      APInt RHSZeroBits(BitWidth, 0), RHSOneBits(BitWidth, 0);
+      ComputeMaskedBits(Y, RHSZeroBits, RHSOneBits, 0, Depth);
+      // If i8 V is a power of two or zero:
+      //  ZeroBits: 1 1 1 0 1 1 1 1
+      // ~ZeroBits: 0 0 0 1 0 0 0 0
+      if ((~(LHSZeroBits & RHSZeroBits)).isPowerOf2())
+        // If OrZero isn't set, we cannot give back a zero result.
+        // Make sure either the LHS or RHS has a bit set.
+        if (OrZero || RHSOneBits.getBoolValue() || LHSOneBits.getBoolValue())
+          return true;
+    }
   }
 
   // An exact divide or right shift can only shift off zero bits, so the result
@@ -1509,7 +1550,7 @@ Value *llvm::isBytewiseValue(Value *V) {
 // struct. To is the result struct built so far, new insertvalue instructions
 // build on that.
 static Value *BuildSubAggregate(Value *From, Value* To, Type *IndexedType,
-                                SmallVector<unsigned, 10> &Idxs,
+                                SmallVectorImpl<unsigned> &Idxs,
                                 unsigned IdxSkip,
                                 Instruction *InsertBefore) {
   llvm::StructType *STy = dyn_cast<llvm::StructType>(IndexedType);
@@ -1673,20 +1714,24 @@ Value *llvm::FindInsertedValue(Value *V, ArrayRef<unsigned> idx_range,
 /// it can be expressed as a base pointer plus a constant offset.  Return the
 /// base and offset to the caller.
 Value *llvm::GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
-                                              const DataLayout *TD) {
+                                              const DataLayout *DL) {
   // Without DataLayout, conservatively assume 64-bit offsets, which is
   // the widest we support.
-  unsigned BitWidth = TD ? TD->getPointerSizeInBits() : 64;
+  unsigned BitWidth = DL ? DL->getPointerTypeSizeInBits(Ptr->getType()) : 64;
   APInt ByteOffset(BitWidth, 0);
   while (1) {
     if (Ptr->getType()->isVectorTy())
       break;
 
     if (GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr)) {
-      APInt GEPOffset(BitWidth, 0);
-      if (TD && !GEP->accumulateConstantOffset(*TD, GEPOffset))
-        break;
-      ByteOffset += GEPOffset;
+      if (DL) {
+        APInt GEPOffset(BitWidth, 0);
+        if (!GEP->accumulateConstantOffset(*DL, GEPOffset))
+          break;
+
+        ByteOffset += GEPOffset;
+      }
+
       Ptr = GEP->getPointerOperand();
     } else if (Operator::getOpcode(Ptr) == Instruction::BitCast) {
       Ptr = cast<Operator>(Ptr)->getOperand(0);
@@ -2019,7 +2064,7 @@ bool llvm::isSafeToSpeculativelyExecute(const Value *V,
 
 /// isKnownNonNull - Return true if we know that the specified value is never
 /// null.
-bool llvm::isKnownNonNull(const Value *V) {
+bool llvm::isKnownNonNull(const Value *V, const TargetLibraryInfo *TLI) {
   // Alloca never returns null, malloc might.
   if (isa<AllocaInst>(V)) return true;
 
@@ -2030,5 +2075,10 @@ bool llvm::isKnownNonNull(const Value *V) {
   // Global values are not null unless extern weak.
   if (const GlobalValue *GV = dyn_cast<GlobalValue>(V))
     return !GV->hasExternalWeakLinkage();
+
+  // operator new never returns null.
+  if (isOperatorNewLikeFn(V, TLI, /*LookThroughBitCast=*/true))
+    return true;
+
   return false;
 }

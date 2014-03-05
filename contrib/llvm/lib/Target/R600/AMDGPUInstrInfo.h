@@ -23,6 +23,7 @@
 
 #define GET_INSTRINFO_HEADER
 #define GET_INSTRINFO_ENUM
+#define GET_INSTRINFO_OPERAND_ENUM
 #include "AMDGPUGenInstrInfo.inc"
 
 #define OPCODE_IS_ZERO_INT AMDGPU::PRED_SETE_INT
@@ -42,6 +43,7 @@ private:
   const AMDGPURegisterInfo RI;
   bool getNextBranchInstr(MachineBasicBlock::iterator &iter,
                           MachineBasicBlock &MBB) const;
+  virtual void anchor();
 protected:
   TargetMachine &TM;
 public:
@@ -86,6 +88,8 @@ public:
                             unsigned DestReg, int FrameIndex,
                             const TargetRegisterClass *RC,
                             const TargetRegisterInfo *TRI) const;
+  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
+
 
 protected:
   MachineInstr *foldMemoryOperandImpl(MachineFunction &MF,
@@ -96,6 +100,14 @@ protected:
                                       MachineInstr *MI,
                                       const SmallVectorImpl<unsigned> &Ops,
                                       MachineInstr *LoadMI) const;
+  /// \returns the smallest register index that will be accessed by an indirect
+  /// read or write or -1 if indirect addressing is not used by this program.
+  virtual int getIndirectIndexBegin(const MachineFunction &MF) const;
+
+  /// \returns the largest register index that will be accessed by an indirect
+  /// read or write or -1 if indirect addressing is not used by this program.
+  virtual int getIndirectIndexEnd(const MachineFunction &MF) const;
+
 public:
   bool canFoldMemoryOperand(const MachineInstr *MI,
                             const SmallVectorImpl<unsigned> &Ops) const;
@@ -138,18 +150,8 @@ public:
 // Pure virtual funtions to be implemented by sub-classes.
 //===---------------------------------------------------------------------===//
 
-  virtual MachineInstr* getMovImmInstr(MachineFunction *MF, unsigned DstReg,
-                                       int64_t Imm) const = 0;
   virtual unsigned getIEQOpcode() const = 0;
   virtual bool isMov(unsigned opcode) const = 0;
-
-  /// \returns the smallest register index that will be accessed by an indirect
-  /// read or write or -1 if indirect addressing is not used by this program.
-  virtual int getIndirectIndexBegin(const MachineFunction &MF) const = 0;
-
-  /// \returns the largest register index that will be accessed by an indirect
-  /// read or write or -1 if indirect addressing is not used by this program.
-  virtual int getIndirectIndexEnd(const MachineFunction &MF) const = 0;
 
   /// \brief Calculate the "Indirect Address" for the given \p RegIndex and
   ///        \p Channel
@@ -161,14 +163,9 @@ public:
   virtual unsigned calculateIndirectAddress(unsigned RegIndex,
                                             unsigned Channel) const = 0;
 
-  /// \returns The register class to be used for storing values to an
-  /// "Indirect Address" .
-  virtual const TargetRegisterClass *getIndirectAddrStoreRegClass(
-                                                  unsigned SourceReg) const = 0;
-
-  /// \returns The register class to be used for loading values from
-  /// an "Indirect Address" .
-  virtual const TargetRegisterClass *getIndirectAddrLoadRegClass() const = 0;
+  /// \returns The register class to be used for loading and storing values
+  /// from an "Indirect Address" .
+  virtual const TargetRegisterClass *getIndirectAddrRegClass() const = 0;
 
   /// \brief Build instruction(s) for an indirect register write.
   ///
@@ -186,17 +183,26 @@ public:
                                     unsigned ValueReg, unsigned Address,
                                     unsigned OffsetReg) const = 0;
 
-  /// \returns the register class whose sub registers are the set of all
-  /// possible registers that can be used for indirect addressing.
-  virtual const TargetRegisterClass *getSuperIndirectRegClass() const = 0;
-
 
   /// \brief Convert the AMDIL MachineInstr to a supported ISA
   /// MachineInstr
   virtual void convertToISA(MachineInstr & MI, MachineFunction &MF,
     DebugLoc DL) const;
 
+  /// \brief Build a MOV instruction.
+  virtual MachineInstr *buildMovInstr(MachineBasicBlock *MBB,
+                                      MachineBasicBlock::iterator I,
+                                      unsigned DstReg, unsigned SrcReg) const = 0;
+
+  /// \brief Given a MIMG \p Opcode that writes all 4 channels, return the
+  /// equivalent opcode that writes \p Channels Channels.
+  int getMaskedMIMGOp(uint16_t Opcode, unsigned Channels) const;
+
 };
+
+namespace AMDGPU {
+  int16_t getNamedOperandIdx(uint16_t Opcode, uint16_t NamedIndex);
+}  // End namespace AMDGPU
 
 } // End llvm namespace
 

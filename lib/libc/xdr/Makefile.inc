@@ -1,12 +1,12 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/xdr ${.CURDIR}/.
+.PATH: ${LIBC_SRCTOP}/xdr ${LIBC_SRCTOP}/.
 SRCS+=	xdr.c xdr_array.c xdr_float.c xdr_mem.c \
 	xdr_rec.c xdr_reference.c xdr_sizeof.c \
 	xdr_stdio.c
 
-SYM_MAPS+=	${.CURDIR}/xdr/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/xdr/Symbol.map
 
 MAN+=	xdr.3
 

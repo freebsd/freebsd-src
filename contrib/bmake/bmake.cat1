@@ -690,7 +690,13 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
      ::MM_p_a_t_t_e_r_n
           Select only those words that match _p_a_t_t_e_r_n.  The standard shell
           wildcard characters (`*', `?', and `[]') may be used.  The wildcard
-          characters may be escaped with a backslash (`\').
+          characters may be escaped with a backslash (`\').  As a consequence
+          of the way values are split into words, matched, and then joined, a
+          construct like
+                ${VAR:M*}
+          will normalise the inter-word spacing, removing all leading and
+          trailing space, and converting multiple consecutive spaces to single
+          spaces.
 
      ::NN_p_a_t_t_e_r_n
           This is identical to `::MM', but selects all words which do not match
@@ -777,18 +783,18 @@ VVAARRIIAABBLLEE AASSSSIIGGNNMMEENNTTSS
 
      ::CC/_p_a_t_t_e_r_n/_r_e_p_l_a_c_e_m_e_n_t/[11ggWW]
           The ::CC modifier is just like the ::SS modifier except that the old and
-          new strings, instead of being simple strings, are a regular expres-
-          sion (see regex(3)) string _p_a_t_t_e_r_n and an ed(1)-style string
-          _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern _p_a_t_t_e_r_n
-          in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.  The `1'
-          modifier causes the substitution to apply to at most one word; the
-          `g' modifier causes the substitution to apply to as many instances
-          of the search pattern _p_a_t_t_e_r_n as occur in the word or words it is
-          found in; the `W' modifier causes the value to be treated as a sin-
-          gle word (possibly containing embedded white space).  Note that `1'
-          and `g' are orthogonal; the former specifies whether multiple words
-          are potentially affected, the latter whether multiple substitutions
-          can potentially occur within each affected word.
+          new strings, instead of being simple strings, are an extended regu-
+          lar expression (see regex(3)) string _p_a_t_t_e_r_n and an ed(1)-style
+          string _r_e_p_l_a_c_e_m_e_n_t.  Normally, the first occurrence of the pattern
+          _p_a_t_t_e_r_n in each word of the value is substituted with _r_e_p_l_a_c_e_m_e_n_t.
+          The `1' modifier causes the substitution to apply to at most one
+          word; the `g' modifier causes the substitution to apply to as many
+          instances of the search pattern _p_a_t_t_e_r_n as occur in the word or
+          words it is found in; the `W' modifier causes the value to be
+          treated as a single word (possibly containing embedded white space).
+          Note that `1' and `g' are orthogonal; the former specifies whether
+          multiple words are potentially affected, the latter whether multiple
+          substitutions can potentially occur within each affected word.
 
      ::TT   Replaces each word in the variable with its last component.
 
@@ -1107,7 +1113,7 @@ SSPPEECCIIAALL SSOOUURRCCEESS ((AATTTTRRIIBBUUTTEESS))
 
      ..MMAAKKEE     Execute the commands associated with this target even if the --nn
                or --tt options were specified.  Normally used to mark recursive
-               bbmmaakkee's.
+               bbmmaakkees.
 
      ..MMEETTAA     Create a meta file for the target, even if it is flagged as
                ..PPHHOONNYY, ..MMAAKKEE, or ..SSPPEECCIIAALL.  Usage in conjunction with ..MMAAKKEE is
@@ -1378,4 +1384,4 @@ BBUUGGSS
 
      There is no way of escaping a space character in a filename.
 
-NetBSD 5.1                      August 11, 2013                     NetBSD 5.1
+NetBSD 5.1                     October 25, 2013                     NetBSD 5.1

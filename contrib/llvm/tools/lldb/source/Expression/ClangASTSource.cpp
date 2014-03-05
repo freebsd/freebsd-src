@@ -318,6 +318,10 @@ ClangASTSource::CompleteType (clang::ObjCInterfaceDecl *interface_decl)
     
     m_ast_importer->CompleteObjCInterfaceDecl (interface_decl);
     
+    if (interface_decl->getSuperClass() &&
+        interface_decl->getSuperClass() != interface_decl)
+        CompleteType(interface_decl->getSuperClass());
+    
     if (log)
     {
         log->Printf("      [COID] After:");
@@ -878,30 +882,33 @@ FindObjCMethodDeclsWithOrigin (unsigned int current_id,
     if (!result[0])
         return false;
     
-    ObjCMethodDecl *result_method = dyn_cast<ObjCMethodDecl>(result[0]);
-    
-    if (!result_method)
-        return false;
-    
-    Decl *copied_decl = ast_importer->CopyDecl(ast_context, &result_method->getASTContext(), result_method);
-    
-    if (!copied_decl)
-        return false;
-    
-    ObjCMethodDecl *copied_method_decl = dyn_cast<ObjCMethodDecl>(copied_decl);
-    
-    if (!copied_method_decl)
-        return false;
-    
-    Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
-    
-    if (log)
+    for (NamedDecl *named_decl : result)
     {
-        ASTDumper dumper((Decl*)copied_method_decl);
-        log->Printf("  CAS::FOMD[%d] found (%s) %s", current_id, log_info, dumper.GetCString());
+        ObjCMethodDecl *result_method = dyn_cast<ObjCMethodDecl>(named_decl);
+        
+        if (!result_method)
+            return false;
+        
+        Decl *copied_decl = ast_importer->CopyDecl(ast_context, &result_method->getASTContext(), result_method);
+        
+        if (!copied_decl)
+            return false;
+        
+        ObjCMethodDecl *copied_method_decl = dyn_cast<ObjCMethodDecl>(copied_decl);
+        
+        if (!copied_method_decl)
+            return false;
+        
+        Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_EXPRESSIONS));
+        
+        if (log)
+        {
+            ASTDumper dumper((Decl*)copied_method_decl);
+            log->Printf("  CAS::FOMD[%d] found (%s) %s", current_id, log_info, dumper.GetCString());
+        }
+        
+        context.AddNamedDecl(copied_method_decl);
     }
-    
-    context.AddNamedDecl(copied_method_decl);
     
     return true;
 }
@@ -966,6 +973,9 @@ ClangASTSource::FindObjCMethodDecls (NameSearchContext &context)
         }
     }     
     ss.Flush();
+    
+    if (strstr(ss.GetData(), "$__lldb"))
+        return; // we don't need any results
     
     ConstString selector_name(ss.GetData());
     

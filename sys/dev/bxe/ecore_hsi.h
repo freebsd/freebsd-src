@@ -1057,6 +1057,9 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
 	#define PORT_FEATURE_MBA_VLAN_TAG_MASK              0x0000FFFF
 	#define PORT_FEATURE_MBA_VLAN_TAG_SHIFT                      0
 	#define PORT_FEATURE_MBA_VLAN_EN                    0x00010000
+	#define PORT_FEATUTE_BOFM_CFGD_EN                   0x00020000
+	#define PORT_FEATURE_BOFM_CFGD_FTGT                 0x00040000
+	#define PORT_FEATURE_BOFM_CFGD_VEN                  0x00080000
 
 	uint32_t Reserved1;
 	uint32_t smbus_config;
@@ -1099,8 +1102,8 @@ struct port_feat_cfg {		    /* port 0: 0x454  port 1: 0x4c8 */
     #define PORT_FEATURE_LINK_SPEED_MASK                0x000F0000
 		#define PORT_FEATURE_LINK_SPEED_SHIFT                16
 		#define PORT_FEATURE_LINK_SPEED_AUTO                 0x00000000
-		#define PORT_FEATURE_LINK_SPEED_10M_FULL             0x00010000
-		#define PORT_FEATURE_LINK_SPEED_10M_HALF             0x00020000
+		#define PORT_FEATURE_LINK_SPEED_10M_HALF             0x00010000
+		#define PORT_FEATURE_LINK_SPEED_10M_FULL             0x00020000
 		#define PORT_FEATURE_LINK_SPEED_100M_HALF            0x00030000
 		#define PORT_FEATURE_LINK_SPEED_100M_FULL            0x00040000
 		#define PORT_FEATURE_LINK_SPEED_1G                   0x00050000
@@ -1301,6 +1304,13 @@ struct extended_dev_info_shared_cfg {             /* NVRAM OFFSET */
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_SHOW_MENU_SHIFT    9
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_SHOW_MENU          0x00000000
 	#define EXTENDED_DEV_INFO_SHARED_CFG_SRIOV_HIDE_MENU          0x00000200
+
+	/*  Overide PCIE revision ID when enabled the,
+	    revision ID will set to B1=='0x11' */
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_MASK          0x00000400
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_SHIFT         10
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_DISABLED      0x00000000
+	#define EXTENDED_DEV_INFO_SHARED_CFG_OVR_REV_ID_ENABLED       0x00000400
 
 	/*  Threshold in celcius for max continuous operation */
 	uint32_t temperature_report;                             /* 0x4014 */
@@ -1654,6 +1664,7 @@ struct drv_func_mb {
 	#define DRV_MSG_CODE_LOAD_REQ_FORCE_LFA         0x00002000
 
 	#define DRV_MSG_CODE_USR_BLK_IMAGE_REQ          0x00000001
+	#define DRV_MSG_CODE_ISCSI_PERS_IMAGE_REQ       0x00000002
 
 	uint32_t fw_mb_header;
 	#define FW_MSG_CODE_MASK                        0xffff0000
@@ -2558,6 +2569,8 @@ struct shmem2_region {
 	uint32_t drv_func_info_size;			/* Offset 0x150 */
 	uint32_t link_attr_sync[PORT_MAX];		/* Offset 0x154 */
 	#define LINK_ATTR_SYNC_KR2_ENABLE	(1<<0)
+
+	uint32_t ibft_host_addr_hi;  /* Initialize by uEFI ROM */
 };
 
 

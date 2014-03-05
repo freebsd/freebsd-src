@@ -142,7 +142,7 @@ struct if_data {
 #define	IFF_DEBUG	0x4		/* (n) turn on debugging */
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
-#define	IFF_SMART	0x20		/* (i) interface manages own routes */
+/*			0x20		   was IFF_SMART */
 #define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
@@ -172,7 +172,7 @@ struct if_data {
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
 	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
-	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_SMART|IFF_PROMISC|\
+	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
 	    IFF_DYING|IFF_CANTCONFIG)
 
 /*
@@ -425,6 +425,14 @@ struct ifaliasreq {
 	int	ifra_vhid;
 };
 
+/* 9.x compat */
+struct oifaliasreq {
+	char	ifra_name[IFNAMSIZ];
+	struct	sockaddr ifra_addr;
+	struct	sockaddr ifra_broadaddr;
+	struct	sockaddr ifra_mask;
+};
+
 struct ifmediareq {
 	char	ifm_name[IFNAMSIZ];	/* if name, e.g. "en0" */
 	int	ifm_current;		/* current media options */
@@ -500,18 +508,6 @@ struct ifgroupreq {
 	} ifgr_ifgru;
 #define ifgr_group	ifgr_ifgru.ifgru_group
 #define ifgr_groups	ifgr_ifgru.ifgru_groups
-};
-
-/*
- * Structure for SIOC[AGD]LIFADDR
- */
-struct if_laddrreq {
-	char	iflr_name[IFNAMSIZ];
-	u_int	flags;
-#define	IFLR_PREFIX	0x8000  /* in: prefix given  out: kernel fills id */
-	u_int	prefixlen;         /* in/out */
-	struct	sockaddr_storage addr;   /* in/out */
-	struct	sockaddr_storage dstaddr; /* out */
 };
 
 #endif /* __BSD_VISIBLE */

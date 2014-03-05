@@ -182,9 +182,10 @@ svn_io_check_resolved_path(const char *path,
  * may be @c NULL.  If @a file is @c NULL, the file will be created but not
  * open.
  *
- * If @a delete_when is #svn_io_file_del_on_close, then the @c APR_DELONCLOSE
- * flag will be used when opening the file.  The @c APR_BUFFERED flag will
- * always be used.
+ * The file will be deleted according to @a delete_when.  If that is
+ * #svn_io_file_del_on_pool_cleanup, it refers to @a result_pool.
+ *
+ * The @c APR_BUFFERED flag will always be used when opening the file.
  *
  * The first attempt will just append @a suffix.  If the result is not
  * a unique name, then subsequent attempts will append a dot,
@@ -248,8 +249,9 @@ svn_io_open_uniquely_named(apr_file_t **file,
  * be possible to atomically rename the resulting file due to cross-device
  * issues.)
  *
- * The file will be deleted according to @a delete_when.  If @a delete_when
- * is @c svn_io_file_del_on_close and @a file is @c NULL, the file will be
+ * The file will be deleted according to @a delete_when.  If that is
+ * #svn_io_file_del_on_pool_cleanup, it refers to @a result_pool.  If it
+ * is #svn_io_file_del_on_close and @a file is @c NULL, the file will be
  * deleted before this function returns.
  *
  * When passing @c svn_io_file_del_none please don't forget to eventually
@@ -917,7 +919,7 @@ svn_stream_empty(apr_pool_t *pool);
 /** Return a stream allocated in @a pool which forwards all requests
  * to @a stream.  Destruction is explicitly excluded from forwarding.
  *
- * @see notes/destruction-of-stacked-resources
+ * @see http://subversion.apache.org/docs/community-guide/conventions.html#destruction-of-stacked-resources
  *
  * @since New in 1.4.
  */
@@ -972,7 +974,8 @@ svn_stream_open_writable(svn_stream_t **stream,
  * be possible to atomically rename the resulting file due to cross-device
  * issues.)
  *
- * The file will be deleted according to @a delete_when.
+ * The file will be deleted according to @a delete_when.  If that is
+ * #svn_io_file_del_on_pool_cleanup, it refers to @a result_pool.
  *
  * Temporary allocations will be performed in @a scratch_pool.
  *
@@ -1589,8 +1592,8 @@ svn_io_stat_dirent2(const svn_io_dirent2_t **dirent_p,
                     apr_pool_t *scratch_pool);
 
 
-/** Similar to svn_io_stat_dirent2, but always passes FALSE for
- * verify_truename.
+/** Similar to svn_io_stat_dirent2(), but always passes FALSE for
+ * @a verify_truename.
  *
  * @since New in 1.7.
  * @deprecated Provided for backwards compatibility with the 1.7 API.
@@ -1681,7 +1684,7 @@ svn_io_dir_walk(const char *dirname,
  *
  * @note An APR bug affects Windows: passing a NULL @a env does not
  * guarantee the invoked program to run with an empty environment when
- * @a inherits is FALSE, the program may inherit its parent's environment.
+ * @a inherit is FALSE, the program may inherit its parent's environment.
  * Explicitly pass an empty @a env to get an empty environment.
  *
  * @since New in 1.8.

@@ -33,6 +33,7 @@ BSDCFG_SHARE="/usr/share/bsdconfig"
 f_dprintf "%s: loading includes..." media/tcpip.subr
 f_include $BSDCFG_SHARE/device.subr
 f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/struct.subr
 f_include $BSDCFG_SHARE/variable.subr
 
@@ -110,10 +111,11 @@ f_struct_define DHCP_LEASE \
 # 	   	begin or end with a hyphen).
 # 	  3	One or more individual labels within the hostname are null.
 #
-# f_dialog_validate_hostname $hostname
+# To call this function and display an appropriate error message to the user
+# based on the above error codes, use the following function defined in
+# dialog.subr:
 #
-# If the hostname is determined to be invalid, the appropriate error will be
-# displayed using the f_show_msg function.
+# 	f_dialog_validate_hostname $hostname
 #
 f_validate_hostname()
 {
@@ -167,8 +169,9 @@ f_inet_atoi()
 {
 	local __addr="$1" __var_to_set="$2" __num=0
 	if f_validate_ipaddr "$__addr"; then
-		__num=$( IFS=.;  set -- $__addr; \
-			echo $(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 )) )
+		IFS=.
+		set -- $__addr
+		__num=$(( ($1 << 24) + ($2 << 16) + ($3 << 8) + $4 ))
 	fi
 	if [ "$__var_to_set" ]; then
 		setvar "$__var_to_set" $__num
@@ -573,7 +576,7 @@ f_ifconfig_netmask()
 
 	local __octet __netmask=
 	for __octet in $__octets; do
-		__netmask="$__netmask.$( printf "%u" "0x$__octet" )"
+		f_sprintf __netmask "%s.%u" "$__netmask" "0x$__octet"
 	done
 	__netmask="${__netmask#.}"
 	if [ "$__var_to_set" ]; then
@@ -1020,10 +1023,42 @@ f_host_lookup()
 	# Fall back to host(1) -- which is further governed by nsswitch.conf(5)
 	#
 
-	local __output __ip6 __addrs="" __wait=""
-	f_getvar $VAR_MEDIA_TIMEOUT __wait
-	[ "$__wait" ] && __wait="-W $(( $__wait / 2 ))"
+	local __output __ip6 __addrs=
 	f_getvar $VAR_IPV6_ENABLE __ip6
+
+	# If we have a TCP media type configured, check for an SRV record
+	local __srvtypes=
+	{ f_quietly f_getvar $VAR_HTTP_PATH ||
+	  f_quietly f_getvar $VAR_HTTP_PROXY_PATH
+	} && __srvtypes="$__srvtypes _http._tcp"
+	f_quietly f_getvar $VAR_FTP_PATH && __srvtypes="$__srvtypes _ftp._tcp"
+	f_quietly f_getvar $VAR_NFS_PATH &&
+		__srvtypes="$__srvtypes _nfs._tcp _nfs._udp"
+
+	# Calculate wait time as dividend of total time and host(1) invocations
+	local __host_runs __wait
+	f_count __host_runs $__srvtypes
+	if [ "$__ip6" = "YES" ]; then
+		__host_runs=$(( $__host_runs + 2 ))
+	else
+		__host_runs=$(( $__host_runs + 1 ))
+	fi
+	f_getvar $VAR_MEDIA_TIMEOUT __wait
+	[ "$__wait" ] && __wait="-W $(( $__wait / $__host_runs ))"
+
+	# Query SRV types first (1st host response taken as new host to query)
+	for __type in $__srvtypes; do
+		if __output=$(
+			host -t SRV $__wait -- "$__type.$__host" \
+			2> /dev/null
+		); then
+			__host=$( echo "$__output" |
+					awk '/ SRV /{print $NF;exit}' )
+			break
+		fi
+	done
+
+	# Try IPv6 first (if enabled)
 	if [ "$__ip6" = "YES" ]; then
 		if ! __output=$( host -t AAAA $__wait -- "$__host" 2>&1 ); then
 			# An error occurred, display in-full and return error
@@ -1031,13 +1066,17 @@ f_host_lookup()
 				setvar "$__var_to_set" "$__output"
 			return $FAILURE
 		fi
+		# Add the IPv6 addresses and fall-through to collect IPv4 too
 		__addrs=$( echo "$__output" | awk '/ address /{print $NF}' )
 	fi
+
+	# Good ol' IPv4
 	if ! __output=$( host -t A $__wait -- "$__host" 2>&1 ); then
 		# An error occurred, display it in-full and return error
 		[ "$__var_to_set" ] && setvar "$__var_to_set" "$__output"
 		return $FAILURE
 	fi
+
 	__addrs="$__addrs${__addrs:+ }$(
 		echo "$__output" | awk '/ address /{print $NF}' )"
 	if [ "$__var_to_set" ]; then
@@ -1578,7 +1617,7 @@ f_device_select_tcp()
 			esac
 
 			f_device_find "$dev" $DEVICE_TYPE_NETWORK devs
-			cnt=$( set -- $devs; echo $# )
+			f_count cnt $devs
 
 			if [ ${cnt:=0} -gt 0 ]; then
 				dev="${devs%%[$IFS]*}"
@@ -1596,7 +1635,7 @@ f_device_select_tcp()
 	fi # $network_dev
 
 	f_device_find "" $DEVICE_TYPE_NETWORK devs
-	cnt=$( set -- $devs; echo $# )
+	f_count cnt $devs
 	dev="${devs%%[$IFS]*}"
 
 	f_quietly f_getvar NETWORK_CONFIGURED # for debugging info

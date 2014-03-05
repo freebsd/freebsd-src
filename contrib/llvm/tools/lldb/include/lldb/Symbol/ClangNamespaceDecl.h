@@ -10,6 +10,8 @@
 #ifndef liblldb_ClangNamespaceDecl_h_
 #define liblldb_ClangNamespaceDecl_h_
 
+#include <string>
+
 #include "lldb/lldb-public.h"
 #include "lldb/Core/ClangForward.h"
 
@@ -60,7 +62,7 @@ public:
     ///     /b True this object contains a valid namespace decl, \b 
     ///     false otherwise.
     //------------------------------------------------------------------
-    operator bool() const
+    explicit operator bool() const
     {
         return m_ast != NULL && m_namespace_decl != NULL;
     }

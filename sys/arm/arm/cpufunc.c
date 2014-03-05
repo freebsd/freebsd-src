@@ -146,6 +146,7 @@ struct cpu_functions arm7tdmi_cpufuncs = {
 	(void *)arm7tdmi_cache_flushID,	/* dcache_inv_range	*/
 	(void *)cpufunc_nullop,		/* dcache_wb_range	*/
 
+	cpufunc_nullop,			/* idcache_inv_all	*/
 	arm7tdmi_cache_flushID,		/* idcache_wbinv_all	*/
 	(void *)arm7tdmi_cache_flushID,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -208,6 +209,7 @@ struct cpu_functions arm8_cpufuncs = {
 /*XXX*/	(void *)arm8_cache_purgeID,	/* dcache_inv_range	*/
 	(void *)arm8_cache_cleanID,	/* dcache_wb_range	*/
 
+	cpufunc_nullop,			/* idcache_inv_all	*/
 	arm8_cache_purgeID,		/* idcache_wbinv_all	*/
 	(void *)arm8_cache_purgeID,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -269,6 +271,7 @@ struct cpu_functions arm9_cpufuncs = {
 	arm9_dcache_inv_range,		/* dcache_inv_range	*/
 	arm9_dcache_wb_range,		/* dcache_wb_range	*/
 
+	armv4_idcache_inv_all,		/* idcache_inv_all	*/
 	arm9_idcache_wbinv_all,		/* idcache_wbinv_all	*/
 	arm9_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -331,6 +334,7 @@ struct cpu_functions armv5_ec_cpufuncs = {
 	armv5_ec_dcache_inv_range,	/* dcache_inv_range	*/
 	armv5_ec_dcache_wb_range,	/* dcache_wb_range	*/
 
+	armv4_idcache_inv_all,		/* idcache_inv_all	*/
 	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	armv5_ec_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 
@@ -392,6 +396,7 @@ struct cpu_functions sheeva_cpufuncs = {
 	sheeva_dcache_inv_range,	/* dcache_inv_range	*/
 	sheeva_dcache_wb_range,		/* dcache_wb_range	*/
 
+	armv4_idcache_inv_all,		/* idcache_inv_all	*/
 	armv5_ec_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	sheeva_idcache_wbinv_range,	/* idcache_wbinv_all	*/
 
@@ -454,6 +459,7 @@ struct cpu_functions arm10_cpufuncs = {
 	arm10_dcache_inv_range,		/* dcache_inv_range	*/
 	arm10_dcache_wb_range,		/* dcache_wb_range	*/
 
+	armv4_idcache_inv_all,		/* idcache_inv_all	*/
 	arm10_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	arm10_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -515,6 +521,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	armv7_dcache_inv_range,		/* dcache_inv_range	*/
 	armv7_dcache_wb_range,		/* dcache_wb_range	*/
 
+	armv7_idcache_inv_all,		/* idcache_inv_all	*/
 	armv7_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	armv7_idcache_wbinv_range,	/* idcache_wbinv_all	*/
 
@@ -577,6 +584,7 @@ struct cpu_functions sa110_cpufuncs = {
 /*XXX*/	sa1_cache_purgeD_rng,		/* dcache_inv_range	*/
 	sa1_cache_cleanD_rng,		/* dcache_wb_range	*/
 
+	sa1_cache_flushID,		/* idcache_inv_all	*/
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -638,6 +646,7 @@ struct cpu_functions sa11x0_cpufuncs = {
 /*XXX*/	sa1_cache_purgeD_rng,		/* dcache_inv_range	*/
 	sa1_cache_cleanD_rng,		/* dcache_wb_range	*/
 
+	sa1_cache_flushID,		/* idcache_inv_all	*/
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -699,6 +708,7 @@ struct cpu_functions ixp12x0_cpufuncs = {
 /*XXX*/	sa1_cache_purgeD_rng,		/* dcache_inv_range	*/
 	sa1_cache_cleanD_rng,		/* dcache_wb_range	*/
 
+	sa1_cache_flushID,		/* idcache_inv_all	*/
 	sa1_cache_purgeID,		/* idcache_wbinv_all	*/
 	sa1_cache_purgeID_rng,		/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -763,6 +773,7 @@ struct cpu_functions xscale_cpufuncs = {
 	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
 	xscale_cache_cleanD_rng,	/* dcache_wb_range	*/
 
+	xscale_cache_flushID,		/* idcache_inv_all	*/
 	xscale_cache_purgeID,		/* idcache_wbinv_all	*/
 	xscale_cache_purgeID_rng,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all 	*/
@@ -826,6 +837,7 @@ struct cpu_functions xscalec3_cpufuncs = {
 	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
 	xscalec3_cache_cleanD_rng,	/* dcache_wb_range	*/
 
+	xscale_cache_flushID,		/* idcache_inv_all	*/
 	xscalec3_cache_purgeID,		/* idcache_wbinv_all	*/
 	xscalec3_cache_purgeID_rng,	/* idcache_wbinv_range	*/
 	xscalec3_l2cache_purge,		/* l2cache_wbinv_all	*/
@@ -888,6 +900,7 @@ struct cpu_functions fa526_cpufuncs = {
 	fa526_dcache_inv_range,		/* dcache_inv_range	*/
 	fa526_dcache_wb_range,		/* dcache_wb_range	*/
 
+	armv4_idcache_inv_all,		/* idcache_inv_all	*/
 	fa526_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	fa526_idcache_wbinv_range,	/* idcache_wbinv_range	*/
 	cpufunc_nullop,			/* l2cache_wbinv_all	*/
@@ -949,6 +962,7 @@ struct cpu_functions arm1136_cpufuncs = {
 	armv6_dcache_inv_range,         /* dcache_inv_range     */
 	armv6_dcache_wb_range,          /* dcache_wb_range      */
 	
+	armv6_idcache_inv_all,		/* idcache_inv_all	*/
 	arm11x6_idcache_wbinv_all,      /* idcache_wbinv_all    */
 	arm11x6_idcache_wbinv_range,    /* idcache_wbinv_range  */
 	
@@ -1010,6 +1024,7 @@ struct cpu_functions arm1176_cpufuncs = {
 	armv6_dcache_inv_range,         /* dcache_inv_range     */
 	armv6_dcache_wb_range,          /* dcache_wb_range      */
 	
+	armv6_idcache_inv_all,		/* idcache_inv_all	*/
 	arm11x6_idcache_wbinv_all,      /* idcache_wbinv_all    */
 	arm11x6_idcache_wbinv_range,    /* idcache_wbinv_range  */
 	
@@ -1038,7 +1053,7 @@ struct cpu_functions arm1176_cpufuncs = {
 };
 #endif /*CPU_ARM1176 */
 
-#if defined(CPU_CORTEXA)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 struct cpu_functions cortexa_cpufuncs = {
 	/* CPU functions */
 	
@@ -1072,6 +1087,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	armv7_dcache_inv_range,         /* dcache_inv_range     */
 	armv7_dcache_wb_range,          /* dcache_wb_range      */
 	
+	armv7_idcache_inv_all,		/* idcache_inv_all	*/
 	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
 	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
 	
@@ -1091,7 +1107,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	cpufunc_nullop,                 /* flush_brnchtgt_C     */
 	(void *)cpufunc_nullop,         /* flush_brnchtgt_E     */
 	
-	arm11_sleep,                    /* sleep                */
+	armv7_sleep,                    /* sleep                */
 	
 	/* Soft functions */
 	
@@ -1118,7 +1134,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_FA526) || defined(CPU_FA626TE) || defined(CPU_MV_PJ4B) ||			\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342) || \
-  defined(CPU_CORTEXA)
+  defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 static void get_cachetype_cp15(void);
 
@@ -1416,7 +1432,7 @@ set_cpufuncs()
 		goto out;
 	}
 #endif /* CPU_ARM1136 || CPU_ARM1176 */
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 	if (cputype == CPU_ID_CORTEXA5 ||
 	    cputype == CPU_ID_CORTEXA7 ||
 	    cputype == CPU_ID_CORTEXA8R1 ||
@@ -1425,7 +1441,8 @@ set_cpufuncs()
 	    cputype == CPU_ID_CORTEXA9R1 ||
 	    cputype == CPU_ID_CORTEXA9R2 ||
 	    cputype == CPU_ID_CORTEXA9R3 ||
-	    cputype == CPU_ID_CORTEXA15 ) {
+	    cputype == CPU_ID_CORTEXA15 ||
+	    cputype == CPU_ID_KRAIT ) {
 		cpufuncs = cortexa_cpufuncs;
 		cpu_reset_needs_v4_MMU_disable = 1;     /* V4 or higher */
 		get_cachetype_cp15();
@@ -2407,7 +2424,7 @@ pj4bv7_setup(args)
 }
 #endif /* CPU_MV_PJ4B */
 
-#ifdef CPU_CORTEXA
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
 
 void
 cortexa_setup(char *args)

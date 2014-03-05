@@ -272,6 +272,8 @@ BreakpointResolverName::SearchCallback
         {
             if (func_list.GetContextAtIndex(i, sc))
             {
+                bool is_reexported = false;
+                
                 if (sc.block && sc.block->GetInlinedFunctionInfo())
                 {
                     if (!sc.block->GetStartAddress(break_addr))
@@ -289,7 +291,20 @@ BreakpointResolverName::SearchCallback
                 }
                 else if (sc.symbol)
                 {
-                    break_addr = sc.symbol->GetAddress();
+                    if (sc.symbol->GetType() == eSymbolTypeReExported)
+                    {
+                        const Symbol *actual_symbol = sc.symbol->ResolveReExportedSymbol(m_breakpoint->GetTarget());
+                        if (actual_symbol)
+                        {
+                            is_reexported = true;
+                            break_addr = actual_symbol->GetAddress();
+                        }
+                    }
+                    else
+                    {
+                        break_addr = sc.symbol->GetAddress();
+                    }
+                    
                     if (m_skip_prologue && break_addr.IsValid())
                     {
                         const uint32_t prologue_byte_size = sc.symbol->GetPrologueByteSize();
@@ -303,6 +318,7 @@ BreakpointResolverName::SearchCallback
                     if (filter.AddressPasses(break_addr))
                     {
                         BreakpointLocationSP bp_loc_sp (m_breakpoint->AddLocation(break_addr, &new_location));
+                        bp_loc_sp->SetIsReExported(is_reexported);
                         if (bp_loc_sp && new_location && !m_breakpoint->IsInternal())
                         {
                             if (log)

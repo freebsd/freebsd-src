@@ -61,9 +61,6 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (request->pdu_data_len == 0)
-		log_errx(1, "received Text PDU with empty data segment");
-
 	if (ntohl(bhstr->bhstr_cmdsn) < conn->conn_cmdsn) {
 		log_errx(1, "received Text PDU with decreasing CmdSN: "
 		    "was %d, is %d", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
@@ -186,10 +183,10 @@ discovery(struct connection *conn)
 			    conn->conn_portal->p_portal_group) {
 				log_debugx("not returning target \"%s\"; "
 				    "belongs to a different portal group",
-				    targ->t_iqn);
+				    targ->t_name);
 				continue;
 			}
-			keys_add(response_keys, "TargetName", targ->t_iqn);
+			keys_add(response_keys, "TargetName", targ->t_name);
 		}
 	} else {
 		targ = target_find(conn->conn_portal->p_portal_group->pg_conf,
@@ -198,7 +195,7 @@ discovery(struct connection *conn)
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
 		} else {
-			keys_add(response_keys, "TargetName", targ->t_iqn);
+			keys_add(response_keys, "TargetName", targ->t_name);
 		}
 	}
 	keys_save(response_keys, response);

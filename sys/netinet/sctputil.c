@@ -2602,7 +2602,7 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		notif_len = sizeof(struct sctp_assoc_change);
 		if (abort != NULL) {
-			abort_len = htons(abort->ch.chunk_length);
+			abort_len = ntohs(abort->ch.chunk_length);
 		} else {
 			abort_len = 0;
 		}
@@ -3474,7 +3474,7 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 		return;
 	}
 	if (chunk != NULL) {
-		chunk_len = htons(chunk->ch.chunk_length);
+		chunk_len = ntohs(chunk->ch.chunk_length);
 	} else {
 		chunk_len = 0;
 	}
@@ -5868,8 +5868,8 @@ get_more_data:
 			goto release;
 		}
 		if ((uio->uio_resid == 0) ||
-		    ((in_eeor_mode) && (copied_so_far >= max(so->so_rcv.sb_lowat, 1)))
-		    ) {
+		    ((in_eeor_mode) &&
+		    (copied_so_far >= (uint32_t) max(so->so_rcv.sb_lowat, 1)))) {
 			goto release;
 		}
 		/*

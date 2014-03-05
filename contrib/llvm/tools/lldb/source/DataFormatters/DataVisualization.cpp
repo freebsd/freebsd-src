@@ -40,67 +40,26 @@ DataVisualization::GetCurrentRevision ()
     return GetFormatManager().GetCurrentRevision();
 }
 
-lldb::TypeFormatImplSP
-DataVisualization::ValueFormats::GetFormat (ValueObject& valobj, lldb::DynamicValueType use_dynamic)
-{
-    lldb::TypeFormatImplSP entry;
-    GetFormatManager().GetValueNavigator().Get(valobj, entry, use_dynamic);
-    return entry;
-}
-
-lldb::TypeFormatImplSP
-DataVisualization::ValueFormats::GetFormat (const ConstString &type)
-{
-    lldb::TypeFormatImplSP entry;
-    GetFormatManager().GetValueNavigator().Get(type, entry);
-    return entry;
-}
-
-void
-DataVisualization::ValueFormats::Add (const ConstString &type, const lldb::TypeFormatImplSP &entry)
-{
-    GetFormatManager().GetValueNavigator().Add(FormatManager::GetValidTypeName(type),entry);
-}
-
 bool
-DataVisualization::ValueFormats::Delete (const ConstString &type)
+DataVisualization::ShouldPrintAsOneLiner (ValueObject& valobj)
 {
-    return GetFormatManager().GetValueNavigator().Delete(type);
-}
-
-void
-DataVisualization::ValueFormats::Clear ()
-{
-    GetFormatManager().GetValueNavigator().Clear();
-}
-
-void
-DataVisualization::ValueFormats::LoopThrough (TypeFormatImpl::ValueCallback callback, void* callback_baton)
-{
-    GetFormatManager().GetValueNavigator().LoopThrough(callback, callback_baton);
-}
-
-size_t
-DataVisualization::ValueFormats::GetCount ()
-{
-    return GetFormatManager().GetValueNavigator().GetCount();
-}
-
-lldb::TypeNameSpecifierImplSP
-DataVisualization::ValueFormats::GetTypeNameSpecifierForFormatAtIndex (size_t index)
-{
-    return GetFormatManager().GetValueNavigator().GetTypeNameSpecifierAtIndex(index);
+    return GetFormatManager().ShouldPrintAsOneLiner(valobj);
 }
 
 lldb::TypeFormatImplSP
-DataVisualization::ValueFormats::GetFormatAtIndex (size_t index)
+DataVisualization::GetFormat (ValueObject& valobj, lldb::DynamicValueType use_dynamic)
 {
-    return GetFormatManager().GetValueNavigator().GetAtIndex(index);
+    return GetFormatManager().GetFormat(valobj, use_dynamic);
+}
+
+lldb::TypeFormatImplSP
+DataVisualization::GetFormatForType (lldb::TypeNameSpecifierImplSP type_sp)
+{
+    return GetFormatManager().GetFormatForType(type_sp);
 }
 
 lldb::TypeSummaryImplSP
-DataVisualization::GetSummaryFormat (ValueObject& valobj,
-                                     lldb::DynamicValueType use_dynamic)
+DataVisualization::GetSummaryFormat (ValueObject& valobj, lldb::DynamicValueType use_dynamic)
 {
     return GetFormatManager().GetSummaryFormat(valobj, use_dynamic);
 }
@@ -245,35 +204,35 @@ DataVisualization::Categories::GetCategoryAtIndex (size_t index)
 bool
 DataVisualization::NamedSummaryFormats::GetSummaryFormat (const ConstString &type, lldb::TypeSummaryImplSP &entry)
 {
-    return GetFormatManager().GetNamedSummaryNavigator().Get(type,entry);
+    return GetFormatManager().GetNamedSummaryContainer().Get(type,entry);
 }
 
 void
 DataVisualization::NamedSummaryFormats::Add (const ConstString &type, const lldb::TypeSummaryImplSP &entry)
 {
-    GetFormatManager().GetNamedSummaryNavigator().Add(FormatManager::GetValidTypeName(type),entry);
+    GetFormatManager().GetNamedSummaryContainer().Add(FormatManager::GetValidTypeName(type),entry);
 }
 
 bool
 DataVisualization::NamedSummaryFormats::Delete (const ConstString &type)
 {
-    return GetFormatManager().GetNamedSummaryNavigator().Delete(type);
+    return GetFormatManager().GetNamedSummaryContainer().Delete(type);
 }
 
 void
 DataVisualization::NamedSummaryFormats::Clear ()
 {
-    GetFormatManager().GetNamedSummaryNavigator().Clear();
+    GetFormatManager().GetNamedSummaryContainer().Clear();
 }
 
 void
 DataVisualization::NamedSummaryFormats::LoopThrough (TypeSummaryImpl::SummaryCallback callback, void* callback_baton)
 {
-    GetFormatManager().GetNamedSummaryNavigator().LoopThrough(callback, callback_baton);
+    GetFormatManager().GetNamedSummaryContainer().LoopThrough(callback, callback_baton);
 }
 
 uint32_t
 DataVisualization::NamedSummaryFormats::GetCount ()
 {
-    return GetFormatManager().GetNamedSummaryNavigator().GetCount();
+    return GetFormatManager().GetNamedSummaryContainer().GetCount();
 }

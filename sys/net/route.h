@@ -33,6 +33,8 @@
 #ifndef _NET_ROUTE_H_
 #define _NET_ROUTE_H_
 
+#include <sys/counter.h>
+
 /*
  * Kernel resident routing tables.
  *
@@ -56,17 +58,6 @@ struct route {
 
 #define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
 #define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
-
-/*
- * These numbers are used by reliable protocols for determining
- * retransmission behavior and are included in the routing structure.
- */
-struct rt_metrics_lite {
-	u_long	rmx_mtu;	/* MTU for this path */
-	u_long	rmx_expire;	/* lifetime for route, e.g. redirect */
-	u_long	rmx_pksent;	/* packets sent using this route */
-	u_long	rmx_weight;	/* absolute weight */ 
-};
 
 struct rt_metrics {
 	u_long	rmx_locks;	/* Kernel must leave these values alone */
@@ -92,7 +83,9 @@ struct rt_metrics {
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
 
 #define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
-extern u_int rt_numfibs;	/* number fo usable routing tables */
+#define	RT_ALL_FIBS	-1	/* Announce event for every fib */
+extern u_int rt_numfibs;	/* number of usable routing tables */
+extern u_int rt_add_addr_allfibs;	/* Announce interfaces to all fibs */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
  */
@@ -112,6 +105,8 @@ struct mbuf;
 #include <net/radix_mpath.h>
 #endif
 #endif
+
+#if defined(_KERNEL) || defined(_WANT_RTENTRY)
 struct rtentry {
 	struct	radix_node rt_nodes[2];	/* tree glue, and other values */
 	/*
@@ -122,17 +117,19 @@ struct rtentry {
 #define	rt_key(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_key)))
 #define	rt_mask(r)	(*((struct sockaddr **)(&(r)->rt_nodes->rn_mask)))
 	struct	sockaddr *rt_gateway;	/* value */
-	int	rt_flags;		/* up/down?, host/net */
-	int	rt_refcnt;		/* # held references */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 	struct	ifaddr *rt_ifa;		/* the answer: interface address to use */
-	struct	rt_metrics_lite rt_rmx;	/* metrics used by rx'ing protocols */
-	u_int	rt_fibnum;		/* which FIB */
-#ifdef _KERNEL
-	/* XXX ugly, user apps use this definition but don't have a mtx def */
-	struct	mtx rt_mtx;		/* mutex for routing entry */
-#endif
+	int		rt_flags;	/* up/down?, host/net */
+	int		rt_refcnt;	/* # held references */
+	u_int		rt_fibnum;	/* which FIB */
+	u_long		rt_mtu;		/* MTU for this path */
+	u_long		rt_weight;	/* absolute weight */ 
+	u_long		rt_expire;	/* lifetime for route, e.g. redirect */
+#define	rt_endzero	rt_pksent
+	counter_u64_t	rt_pksent;	/* packets sent using this route */
+	struct mtx	rt_mtx;		/* mutex for routing entry */
 };
+#endif /* _KERNEL || _WANT_RTENTRY */
 
 /*
  * Following structure necessary for 4.3 compatibility;
@@ -147,8 +144,6 @@ struct ortentry {
 	u_long	rt_use;			/* raw # packets forwarded */
 	struct	ifnet *rt_ifp;		/* the answer: interface to use */
 };
-
-#define rt_use rt_rmx.rmx_pksent
 
 #define	RTF_UP		0x1		/* route usable */
 #define	RTF_GATEWAY	0x2		/* destination is a gateway */
@@ -368,9 +363,14 @@ void	 rt_missmsg(int, struct rt_addrinfo *, int, int);
 void	 rt_missmsg_fib(int, struct rt_addrinfo *, int, int, int);
 void	 rt_newaddrmsg(int, struct ifaddr *, int, struct rtentry *);
 void	 rt_newaddrmsg_fib(int, struct ifaddr *, int, struct rtentry *, int);
+int	 rt_addrmsg(int, struct ifaddr *, int);
+int	 rt_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 void	 rt_newmaddrmsg(int, struct ifmultiaddr *);
 int	 rt_setgate(struct rtentry *, struct sockaddr *, struct sockaddr *);
 void 	 rt_maskedcopy(struct sockaddr *, struct sockaddr *, struct sockaddr *);
+
+int	rtsock_addrmsg(int, struct ifaddr *, int);
+int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 
 /*
  * Note the following locking behavior:

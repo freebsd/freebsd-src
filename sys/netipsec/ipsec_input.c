@@ -603,6 +603,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
 
 	/* Save protocol */
+	prot = 0;
 	m_copydata(m, protoff, 1, (unsigned char *) &prot);
 
 #ifdef notyet

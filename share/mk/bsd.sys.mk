@@ -69,11 +69,11 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
-CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
+CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int -Wno-unused-const-variable
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-tautological-compare -Wno-unused-value\
-		-Wno-parentheses-equality -Wno-unused-function -Wno-conversion
+		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
@@ -114,12 +114,30 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if ${COMPILER_TYPE} == "clang" && !defined(EARLY_BUILD)
+.if !defined(EARLY_BUILD)
+.if ${COMPILER_TYPE} == "clang"
 CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
 CFLAGS+=	 -Qunused-arguments
+.if ${MACHINE_CPUARCH} == "sparc64"
+# Don't emit .cfi directives, since we must use GNU as on sparc64, for now.
+CFLAGS+=	 -fno-dwarf2-cfi-asm
+.endif # SPARC64
+# The libc++ headers use c++11 extensions.  These are normally silenced because
+# they are treated as system headers, but we explicitly disable that warning
+# suppression when building the base system to catch bugs in our headers.
+# Eventually we'll want to start building the base system C++ code as C++11,
+# but not yet.
+CXXFLAGS+=	 -Wno-c++11-extensions
+CFLAGS+=	 ${CFLAGS.clang}
+CXXFLAGS+=	 ${CXXFLAGS.clang}
+.else # !CLANG
+GCC_MS_EXTENSIONS= -fms-extensions
+CFLAGS+=	 ${CFLAGS.gcc}
+CXXFLAGS+=	 ${CXXFLAGS.gcc}
 .endif # CLANG
+.endif # !EARLY_BUILD
 
 .if ${MK_SSP} != "no" && ${MACHINE_CPUARCH} != "ia64" && \
     ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
@@ -137,11 +155,15 @@ CFLAGS+=	${CWARNFLAGS}
 PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 		beforelinking build build-tools buildfiles buildincludes \
 		checkdpadd clean cleandepend cleandir cleanobj configure \
-		depend dependall distclean distribute exe extract fetch \
+		depend dependall distclean distribute exe extract \
 		html includes install installfiles installincludes lint \
-		obj objlink objs objwarn patch realall realdepend \
+		obj objlink objs objwarn realall realdepend \
 		realinstall regress subdir-all subdir-depend subdir-install \
 		tags whereobj
+
+.if defined(PORTNAME)
+PHONY_NOTMAIN+=	fetch patch
+.endif
 
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}

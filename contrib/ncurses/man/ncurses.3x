@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2012,2013 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,43 +27,52 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: ncurses.3x,v 1.92 2008/10/25 23:31:45 tom Exp $
+.\" $Id: ncurses.3x,v 1.112 2013/07/20 19:29:59 tom Exp $
 .hy 0
 .TH ncurses 3X ""
+.ie \n(.g .ds `` \(lq
+.el       .ds `` ``
+.ie \n(.g .ds '' \(rq
+.el       .ds '' ''
+.de bP
+.IP \(bu 4
+..
 .ds n 5
 .ds d @TERMINFO@
 .SH NAME
-\fBncurses\fR - CRT screen handling and optimization package
+\fBncurses\fR \- CRT screen handling and optimization package
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .br
 .SH DESCRIPTION
 The \fBncurses\fR library routines give the user a terminal-independent method
 of updating character screens with reasonable optimization.
-This implementation is ``new curses'' (ncurses) and
+This implementation is \*(``new curses\*('' (ncurses) and
 is the approved replacement for
 4.4BSD classic curses, which has been discontinued.
 This describes \fBncurses\fR
 version @NCURSES_MAJOR@.@NCURSES_MINOR@ (patch @NCURSES_PATCH@).
 .PP
-The \fBncurses\fR library emulates the \fBcurses\fR(3X) library of
+The \fBncurses\fR library emulates the curses library of
 System V Release 4 UNIX,
 and XPG4 (X/Open Portability Guide) curses (also known as XSI curses).
 XSI stands for X/Open System Interfaces Extension.
 The \fBncurses\fR library is freely redistributable in source form.
 Differences from the SVr4
-curses are summarized under the \fBEXTENSIONS\fP and \fBPORTABILITY\fP sections below and
-described in detail in the respective \fBEXTENSIONS\fP, \fBPORTABILITY\fP and \fBBUGS\fP sections
+curses are summarized under the
+\fBEXTENSIONS\fP and \fBPORTABILITY\fP sections below and
+described in detail in the respective
+\fBEXTENSIONS\fP, \fBPORTABILITY\fP and \fBBUGS\fP sections
 of individual man pages.
 .PP
 The \fBncurses\fR library also provides many useful extensions,
 i.e., features which cannot be implemented by a simple add-on library
 but which require access to the internals of the library.
 .PP
-A program using these routines must be linked with the \fB-lncurses\fR option,
-or (if it has been generated) with the debugging library \fB-lncurses_g\fR.
+A program using these routines must be linked with the \fB\-lncurses\fR option,
+or (if it has been generated) with the debugging library \fB\-lncurses_g\fR.
 (Your system integrator may also have installed these libraries under
-the names \fB-lcurses\fR and \fB-lcurses_g\fR.)
+the names \fB\-lcurses\fR and \fB\-lcurses_g\fR.)
 The ncurses_g library generates trace logs (in a file called 'trace' in the
 current directory) that describe curses actions.
 See also the section on \fBALTERNATE CONFIGURATIONS\fP.
@@ -80,7 +89,7 @@ That is normally done with \fBsetlocale\fP:
       \fBsetlocale(LC_ALL, "");\fP
 .sp
 If the locale is not initialized,
-the library assumes that characters are printable as in ISO-8859-1,
+the library assumes that characters are printable as in ISO\-8859\-1,
 to work with certain legacy programs.
 You should initialize the locale and not rely on specific details of
 the library when the locale has not been setup.
@@ -105,9 +114,9 @@ Most programs would additionally use the sequence:
 .sp
 Before a \fBcurses\fR program is run, the tab stops of the terminal
 should be set and its initialization strings, if defined, must be output.
-This can be done by executing the \fBtput init\fR command
+This can be done by executing the \fB@TPUT@ init\fR command
 after the shell environment variable \fBTERM\fR has been exported.
-\fBtset(1)\fR is usually responsible for doing this.
+\fB@TSET@(1)\fR is usually responsible for doing this.
 [See \fBterminfo\fR(\*n) for further details.]
 .PP
 The \fBncurses\fR library permits manipulation of data structures,
@@ -246,7 +255,7 @@ Each cell (row and column) in a \fBWINDOW\fP is stored as a \fBchtype\fP.
 .TP 5
 ncursesw
 the so-called "wide" library, which handles multibyte characters
-(See the section on \fBALTERNATE CONFIGURATIONS\fP).
+(see the section on \fBALTERNATE CONFIGURATIONS\fP).
 The "wide" library includes all of the calls from the "normal" library.
 It adds about one third more calls using data types which store
 multibyte characters:
@@ -256,7 +265,7 @@ multibyte characters:
 corresponds to \fBchtype\fP.
 However it is a structure, because more data is stored than can fit into
 an integer.
-The characters are large enough to require a full integer value - and there
+The characters are large enough to require a full integer value \- and there
 may be more than one character per cell.
 The video attributes and color are stored in separate fields of the structure.
 .IP
@@ -267,7 +276,7 @@ stores a "wide" character.
 Like \fBchtype\fP, this may be an integer.
 .TP 5
 .B wint_t
-stores a \fBwchar_t\fP or \fBWEOF\fP - not the same, though both may have
+stores a \fBwchar_t\fP or \fBWEOF\fP \- not the same, though both may have
 the same size.
 .RE
 .IP
@@ -634,6 +643,7 @@ use_default_colors/\fBdefault_colors\fR(3X)*
 use_env/\fBcurs_util\fR(3X)
 use_extended_names/\fBcurs_extend\fR(3X)*
 use_legacy_coding/\fBlegacy_coding\fR(3X)*
+use_tioctl/\fBcurs_util\fR(3X)
 vid_attr/\fBcurs_terminfo\fR(3X)
 vid_puts/\fBcurs_terminfo\fR(3X)
 vidattr/\fBcurs_terminfo\fR(3X)
@@ -731,9 +741,16 @@ Routines that return an integer return \fBERR\fR upon failure and an
 integer value other than \fBERR\fR upon successful completion, unless
 otherwise noted in the routine descriptions.
 .PP
+As a general rule, routines check for null pointers passed as parameters,
+and handle this as an error.
+.PP
 All macros return the value of the \fBw\fR version, except \fBsetscrreg\fR,
 \fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and \fBgetmaxyx\fR.
-The return values of \fBsetscrreg\fR, \fBwsetscrreg\fR, \fBgetyx\fR, \fBgetbegyx\fR, and
+The return values of
+\fBsetscrreg\fR,
+\fBwsetscrreg\fR,
+\fBgetyx\fR,
+\fBgetbegyx\fR, and
 \fBgetmaxyx\fR are undefined (i.e., these should not be used as the
 right-hand side of assignment statements).
 .PP
@@ -744,9 +761,9 @@ runtime behavior of the \fBncurses\fR library.
 The most important ones have been already discussed in detail.
 .TP 5
 BAUDRATE
-The debugging library checks this environment symbol when the application
+The debugging library checks this environment variable when the application
 has redirected output to a file.
-The symbol's numeric value is used for the baudrate.
+The variable's numeric value is used for the baudrate.
 If no value is found, \fBncurses\fR uses 9600.
 This allows testers to construct repeatable test-cases
 that take into account costs that depend on baudrate.
@@ -754,8 +771,12 @@ that take into account costs that depend on baudrate.
 CC
 When set, change occurrences of the command_character
 (i.e., the \fBcmdch\fP capability)
-of the loaded terminfo entries to the value of this symbol.
+of the loaded terminfo entries to the value of this variable.
 Very few terminfo entries provide this feature.
+.IP
+Because this name is also used in development environments to represent
+the C compiler's name, \fBncurses\fR ignores it if it does not happen to
+be a single character.
 .TP 5
 COLUMNS
 Specify the width of the screen in characters.
@@ -779,7 +800,9 @@ For best results, \fBlines\fR and \fBcols\fR should not be specified in
 a terminal description for terminals which are run as emulations.
 .IP
 Use the \fBuse_env\fR function to disable all use of external environment
-(including system calls) to determine the screen size.
+(but not including system calls) to determine the screen size.
+Use the \fBuse_tioctl\fR function to update \fBCOLUMNS\fP or \fBLINES\fP
+to match the screen size obtained from system calls or the terminal database.
 .TP 5
 ESCDELAY
 Specifies the total time, in milliseconds, for which ncurses will
@@ -830,8 +853,8 @@ platforms:
 .br
 3 = middle.
 .sp
-This symbol lets you customize the mouse.
-The symbol must be three numeric digits 1-3 in any order, e.g., 123 or 321.
+This variable lets you customize the mouse.
+The variable must be three numeric digits 1\-3 in any order, e.g., 123 or 321.
 If it is not specified, \fBncurses\fR uses 132.
 .TP 5
 NCURSES_ASSUMED_COLORS
@@ -841,7 +864,7 @@ terminal's default colors are white-on-black
 You may set the foreground and background color values with this environment
 variable by proving a 2-element list: foreground,background.
 For example, to tell ncurses to not assume anything
-about the colors, set this to "-1,-1".
+about the colors, set this to "\-1,\-1".
 To make it green-on-black, set it to "2,0".
 Any positive value from zero to the terminfo \fBmax_colors\fR value is allowed.
 .TP 5
@@ -892,26 +915,51 @@ have delay times embedded.
 You may wish to use these descriptions,
 but not want to pay the performance penalty.
 .IP
-Set the NCURSES_NO_PADDING symbol to disable all but mandatory
+Set the NCURSES_NO_PADDING environment variable to disable all but mandatory
 padding.
 Mandatory padding is used as a part of special control
 sequences such as \fIflash\fR.
 .TP 5
 NCURSES_NO_SETBUF
-Normally \fBncurses\fR enables buffered output during terminal initialization.
-This is done (as in SVr4 curses) for performance reasons.
+This setting is obsolete.
+Before changes
+.RS
+.bP
+started with 5.9 patch 20120825 
+and
+.bP
+continued
+though 5.9 patch 20130126
+.RE
+.IP
+\fBncurses\fR enabled buffered output during terminal initialization.
+This was done (as in SVr4 curses) for performance reasons.
 For testing purposes, both of \fBncurses\fR and certain applications,
-this feature is made optional.
+this feature was made optional.
 Setting the NCURSES_NO_SETBUF variable
-disables output buffering, leaving the output in the original (usually
+disabled output buffering, leaving the output in the original (usually
 line buffered) mode.
+.IP
+In the current implementation,
+ncurses performs its own buffering and does not require this workaround.
+It does not modify the buffering of the standard output.
+.IP
+The reason for the change was to make the behavior for interrupts and
+other signals more robust.
+One drawback is that certain nonconventional programs would mix
+ordinary stdio calls with ncurses calls and (usually) work.
+This is no longer possible since ncurses is not using
+the buffered standard output but its own output (to the same file descriptor).
+As a special case, the low-level calls such as \fBputp\fP still use the
+standard output.
+But high-level curses calls do not.
 .TP 5
 NCURSES_NO_UTF8_ACS
 During initialization, the \fBncurses\fR library
 checks for special cases where VT100 line-drawing (and the corresponding
 alternate character set capabilities) described in the terminfo are known
 to be missing.
-Specifically, when running in a UTF-8 locale,
+Specifically, when running in a UTF\-8 locale,
 the Linux console emulator and the GNU screen program ignore these.
 Ncurses checks the TERM environment variable for these.
 For other special cases, you should set this environment variable.
@@ -922,11 +970,35 @@ and is likely to work for terminal emulators.
 .IP
 When setting this variable, you should set it to a nonzero value.
 Setting it to zero (or to a nonnumber)
-disables the special check for Linux and screen.
+disables the special check for "linux" and "screen".
+.IP
+As an alternative to the environment variable,
+ncurses checks for an extended terminfo capability \fBU8\fP.
+This is a numeric capability which can be compiled using \fB@TIC@\ \-x\fP.
+For example
+.RS 5
+.ft CW
+.sp
+.nf
+# linux console, if patched to provide working
+# VT100 shift-in/shift-out, with corresponding font.
+linux-vt100|linux console with VT100 line-graphics,
+        U8#0, use=linux,
+.sp
+# uxterm with vt100Graphics resource set to false
+xterm-utf8|xterm relying on UTF-8 line-graphics,
+        U8#1, use=xterm,
+.fi
+.ft
+.RE
+.IP
+The name "U8" is chosen to be two characters,
+to permit it to be used by applications that use ncurses'
+termcap interface.
 .TP 5
 NCURSES_TRACE
 During initialization, the \fBncurses\fR debugging library
-checks the NCURSES_TRACE symbol.
+checks the NCURSES_TRACE environment variable.
 If it is defined, to a numeric value, \fBncurses\fR calls the \fBtrace\fR
 function, using that value as the argument.
 .IP
@@ -944,9 +1016,10 @@ If the \fBncurses\fR library has been configured with \fItermcap\fR
 support, \fBncurses\fR will check for a terminal's description in
 termcap form if it is not available in the terminfo database.
 .IP
-The TERMCAP symbol contains either a terminal description (with
+The TERMCAP environment variable contains either a terminal description (with
 newlines stripped out),
-or a file name telling where the information denoted by the TERM symbol exists.
+or a file name telling where the information denoted by
+the TERM environment variable exists.
 In either case, setting it directs \fBncurses\fR to ignore
 the usual place for this information, e.g., /etc/termcap.
 .TP 5
@@ -956,41 +1029,54 @@ description.
 This is the simplest, but not the only way to change the list of directories.
 The complete list of directories in order follows:
 .RS
-.TP 3
--
+.bP
 the last directory to which \fBncurses\fR wrote, if any, is searched first
-.TP 3
--
-the directory specified by the TERMINFO symbol
-.TP 3
--
+.bP
+the directory specified by the TERMINFO environment variable
+.bP
 $HOME/.terminfo
-.TP 3
--
-directories listed in the TERMINFO_DIRS symbol
-.TP 3
--
+.bP
+directories listed in the TERMINFO_DIRS environment variable
+.bP
 one or more directories whose names are configured and compiled into the
-ncurses library, e.g.,
-@TERMINFO@
+ncurses library, i.e.,
+.RS
+.bP
+@TERMINFO_DIRS@ (corresponding to the TERMINFO_DIRS variable)
+.bP
+@TERMINFO@ (corresponding to the TERMINFO variable)
+.RE
 .RE
 .TP 5
 TERMINFO_DIRS
 Specifies a list of directories to search for terminal descriptions.
 The list is separated by colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
-All of the terminal descriptions are in terminfo form, which makes
-a subdirectory named for the first letter of the terminal names therein.
+.IP
+All of the terminal descriptions are in terminfo form.
+Normally these are stored in a directory tree,
+using subdirectories named by the first letter of the terminal names therein.
+.IP
+If \fBncurses\fP is built with a hashed database,
+then each entry in this list can also be the path of the corresponding
+database file.
+.IP
+If \fBncurses\fP is built with a support for reading termcap files
+directly, then an entry in this list may be the path of a termcap file.
 .TP 5
 TERMPATH
 If TERMCAP does not hold a file name then \fBncurses\fR checks
-the TERMPATH symbol.
-This is a list of filenames separated by spaces or colons (i.e., ":") on Unix, semicolons on OS/2 EMX.
-If the TERMPATH symbol is not set, \fBncurses\fR looks in the files
+the TERMPATH environment variable.
+This is a list of filenames separated by spaces or colons (i.e., ":") on Unix,
+semicolons on OS/2 EMX.
+.IP
+If the TERMPATH environment variable is not set,
+\fBncurses\fR looks in the files
 /etc/termcap, /usr/share/misc/termcap and $HOME/.termcap, in that order.
 .PP
 The library may be configured to disregard the following variables when the
 current user is the superuser (root), or if the application uses setuid or
 setgid permissions:
+.IP
 $TERMINFO, $TERMINFO_DIRS, $TERMPATH, as well as $HOME.
 .SH ALTERNATE CONFIGURATIONS
 Several different configurations are possible,
@@ -998,7 +1084,7 @@ depending on the configure script options used when building \fBncurses\fP.
 There are a few main options whose effects are visible to the applications
 developer using \fBncurses\fP:
 .TP 5
---disable-overwrite
+\-\-disable\-overwrite
 The standard include for \fBncurses\fP is as noted in \fBSYNOPSIS\fP:
 .RS
 .sp
@@ -1014,23 +1100,24 @@ a subdirectory, e.g.,
 \fB#include <ncurses/curses.h>\fR
 .RE
 .IP
-It also omits a symbolic link which would allow you to use \fB-lcurses\fP
+It also omits a symbolic link which would allow you to use \fB\-lcurses\fP
 to build executables.
 .TP 5
---enable-widec
-The configure script renames the library and (if the \fB--disable-overwrite\fP
-option is used) puts the header files in a different subdirectory.
+\-\-enable\-widec
+The configure script renames the library and
+(if the \fB\-\-disable\-overwrite\fP option is used)
+puts the header files in a different subdirectory.
 All of the library names have a "w" appended to them,
 i.e., instead of
 .RS
 .sp
-\fB-lncurses\fR
+\fB\-lncurses\fR
 .RE
 .IP
 you link with
 .RS
 .sp
-\fB-lncursesw\fR
+\fB\-lncursesw\fR
 .RE
 .IP
 You must also define \fB_XOPEN_SOURCE_EXTENDED\fP when compiling for the
@@ -1044,20 +1131,20 @@ the wide-character library's headers should be installed last,
 to allow applications to be built using either library
 from the same set of headers.
 .TP 5
---with-shared
+\-\-with\-shared
 .TP
---with-normal
+\-\-with\-normal
 .TP
---with-debug
+\-\-with\-debug
 .TP
---with-profile
+\-\-with\-profile
 The shared and normal (static) library names differ by their suffixes,
 e.g., \fBlibncurses.so\fP and \fBlibncurses.a\fP.
 The debug and profiling libraries add a "_g" and a "_p" to the root
 names respectively,
 e.g., \fBlibncurses_g.a\fP and \fBlibncurses_p.a\fP.
 .TP 5
---with-trace
+\-\-with\-trace
 The \fBtrace\fP function normally resides in the debug library,
 but it is sometimes useful to configure this in the shared library.
 Configure scripts should check for the function's existence rather
@@ -1069,10 +1156,12 @@ directory containing initialization files for the terminal capability database
 @TERMINFO@
 terminal capability database
 .SH SEE ALSO
-\fBterminfo\fR(\*n) and related pages whose names begin "curs_" for detailed routine
-descriptions.
+\fBterminfo\fR(\*n) and related pages whose names begin
+"curs_" for detailed routine descriptions.
+.br
+\fBcurs_variables\fR(3X) 
 .SH EXTENSIONS
-The \fBncurses\fR library can be compiled with an option (\fB-DUSE_GETCAP\fR)
+The \fBncurses\fR library can be compiled with an option (\fB\-DUSE_GETCAP\fR)
 that falls back to the old-style /etc/termcap file if the terminal setup code
 cannot find a terminfo entry corresponding to \fBTERM\fR.
 Use of this feature
@@ -1098,7 +1187,7 @@ See the \fBdefine_key\fR(3X)
 and \fBkeyok\fR(3X) manual pages for details.
 .PP
 The \fBncurses\fR library can exploit the capabilities of terminals which
-implement the ISO-6429 SGR 39 and SGR 49 controls, which allow an application
+implement the ISO\-6429 SGR 39 and SGR 49 controls, which allow an application
 to reset the terminal to its original foreground and background colors.
 From the users' perspective, the application is able to draw colored
 text on a background whose color is set independently, providing better
@@ -1118,30 +1207,45 @@ A small number of local differences (that is, individual differences between
 the XSI Curses and \fBncurses\fR calls) are described in \fBPORTABILITY\fR
 sections of the library man pages.
 .PP
-This implementation also contains several extensions:
-.RS 5
+Unlike other implementations, this one checks parameters such as pointers
+to WINDOW structures to ensure they are not null.
+The main reason for providing this behavior is to guard against programmer
+error.
+The standard interface does not provide a way for the library
+to tell an application which of several possible errors were detected.
+Relying on this (or some other) extension will adversely affect the
+portability of curses applications.
 .PP
+This implementation also contains several extensions:
+.bP
 The routine \fBhas_key\fR is not part of XPG4, nor is it present in SVr4.
 See the \fBcurs_getch\fR(3X) manual page for details.
-.PP
+.bP
 The routine \fBslk_attr\fR is not part of XPG4, nor is it present in SVr4.
 See the \fBcurs_slk\fR(3X) manual page for details.
-.PP
+.bP
 The routines \fBgetmouse\fR, \fBmousemask\fR, \fBungetmouse\fR,
 \fBmouseinterval\fR, and \fBwenclose\fR relating to mouse interfacing are not
 part of XPG4, nor are they present in SVr4.
 See the \fBcurs_mouse\fR(3X) manual page for details.
-.PP
+.bP
 The routine \fBmcprint\fR was not present in any previous curses implementation.
 See the \fBcurs_print\fR(3X) manual page for details.
-.PP
+.bP
 The routine \fBwresize\fR is not part of XPG4, nor is it present in SVr4.
 See the \fBwresize\fR(3X) manual page for details.
-.PP
+.bP
 The WINDOW structure's internal details can be hidden from application
 programs.
 See \fBcurs_opaque\fR(3X) for the discussion of \fBis_scrollok\fR, etc.
-.RE
+.bP
+This implementation can be configured to provide rudimentary support
+for multi-threaded applications.
+See \fBcurs_threads\fR(3X) for details.
+.bP
+This implementation can also be configured to provide a set of functions which
+improve the ability to manage multiple screens.
+See \fBcurs_sp_funcs\fR(3X) for details.
 .PP
 In historic curses versions, delays embedded in the capabilities \fBcr\fR,
 \fBind\fR, \fBcub1\fR, \fBff\fR and \fBtab\fR activated corresponding delay
@@ -1160,9 +1264,3 @@ This was an undocumented feature of AT&T System V Release 3 curses.
 .SH AUTHORS
 Zeyd M. Ben-Halim, Eric S. Raymond, Thomas E. Dickey.
 Based on pcurses by Pavel Curtis.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

@@ -1,4 +1,4 @@
-/* $OpenBSD: schnorr.c,v 1.7 2013/05/17 00:13:14 djm Exp $ */
+/* $OpenBSD: schnorr.c,v 1.9 2014/01/09 23:20:00 djm Exp $ */
 /* $FreeBSD$ */
 /*
  * Copyright (c) 2008 Damien Miller.  All rights reserved.
@@ -42,6 +42,7 @@
 #include "log.h"
 
 #include "schnorr.h"
+#include "digest.h"
 
 #ifdef JPAKE
 
@@ -60,12 +61,12 @@
 
 /*
  * Calculate hash component of Schnorr signature H(g || g^v || g^x || id)
- * using the hash function defined by "evp_md". Returns signature as
+ * using the hash function defined by "hash_alg". Returns signature as
  * bignum or NULL on error.
  */
 static BIGNUM *
 schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
-    const EVP_MD *evp_md, const BIGNUM *g_v, const BIGNUM *g_x,
+    int hash_alg, const BIGNUM *g_v, const BIGNUM *g_x,
     const u_char *id, u_int idlen)
 {
 	u_char *digest;
@@ -91,7 +92,7 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 
 	SCHNORR_DEBUG_BUF((buffer_ptr(&b), buffer_len(&b),
 	    "%s: hashblob", __func__));
-	if (hash_buffer(buffer_ptr(&b), buffer_len(&b), evp_md,
+	if (hash_buffer(buffer_ptr(&b), buffer_len(&b), hash_alg,
 	    &digest, &digest_len) != 0) {
 		error("%s: hash_buffer", __func__);
 		goto out;
@@ -116,7 +117,7 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
 /*
  * Generate Schnorr signature to prove knowledge of private value 'x' used
  * in public exponent g^x, under group defined by 'grp_p', 'grp_q' and 'grp_g'
- * using the hash function "evp_md".
+ * using the hash function "hash_alg".
  * 'idlen' bytes from 'id' will be included in the signature hash as an anti-
  * replay salt.
  * 
@@ -126,7 +127,7 @@ schnorr_hash(const BIGNUM *p, const BIGNUM *q, const BIGNUM *g,
  */
 int
 schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const EVP_MD *evp_md, const BIGNUM *x, const BIGNUM *g_x,
+    int hash_alg, const BIGNUM *x, const BIGNUM *g_x,
     const u_char *id, u_int idlen, BIGNUM **r_p, BIGNUM **e_p)
 {
 	int success = -1;
@@ -176,7 +177,7 @@ schnorr_sign(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	SCHNORR_DEBUG_BN((g_v, "%s: g_v = ", __func__));
 
 	/* h = H(g || g^v || g^x || id) */
-	if ((h = schnorr_hash(grp_p, grp_q, grp_g, evp_md, g_v, g_x,
+	if ((h = schnorr_hash(grp_p, grp_q, grp_g, hash_alg, g_v, g_x,
 	    id, idlen)) == NULL) {
 		error("%s: schnorr_hash failed", __func__);
 		goto out;
@@ -226,7 +227,7 @@ schnorr_sign_buf(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 	Buffer b;
 	BIGNUM *r, *e;
 
-	if (schnorr_sign(grp_p, grp_q, grp_g, EVP_sha256(),
+	if (schnorr_sign(grp_p, grp_q, grp_g, SSH_DIGEST_SHA256,
 	    x, g_x, id, idlen, &r, &e) != 0)
 		return -1;
 
@@ -251,13 +252,13 @@ schnorr_sign_buf(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 /*
  * Verify Schnorr signature { r (v - xh mod q), e (g^v mod p) } against
  * public exponent g_x (g^x) under group defined by 'grp_p', 'grp_q' and
- * 'grp_g' using hash "evp_md".
+ * 'grp_g' using hash "hash_alg".
  * Signature hash will be salted with 'idlen' bytes from 'id'.
  * Returns -1 on failure, 0 on incorrect signature or 1 on matching signature.
  */
 int
 schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
-    const EVP_MD *evp_md, const BIGNUM *g_x, const u_char *id, u_int idlen,
+    int hash_alg, const BIGNUM *g_x, const u_char *id, u_int idlen,
     const BIGNUM *r, const BIGNUM *e)
 {
 	int success = -1;
@@ -305,7 +306,7 @@ schnorr_verify(const BIGNUM *grp_p, const BIGNUM *grp_q, const BIGNUM *grp_g,
 
 	SCHNORR_DEBUG_BN((g_xh, "%s: g_xh = ", __func__));
 	/* h = H(g || g^v || g^x || id) */
-	if ((h = schnorr_hash(grp_p, grp_q, grp_g, evp_md, e, g_x,
+	if ((h = schnorr_hash(grp_p, grp_q, grp_g, hash_alg, e, g_x,
 	    id, idlen)) == NULL) {
 		error("%s: schnorr_hash failed", __func__);
 		goto out;
@@ -388,7 +389,7 @@ schnorr_verify_buf(const BIGNUM *grp_p, const BIGNUM *grp_q,
 		goto out;
 	}
 
-	ret = schnorr_verify(grp_p, grp_q, grp_g, EVP_sha256(),
+	ret = schnorr_verify(grp_p, grp_q, grp_g, SSH_DIGEST_SHA256,
 	    g_x, id, idlen, r, e);
  out:
 	BN_clear_free(e);
@@ -446,43 +447,33 @@ bn_rand_range_gt_one(const BIGNUM *high)
 	return NULL;
 }
 
+/* XXX convert all callers of this to use ssh_digest_memory() directly */
 /*
  * Hash contents of buffer 'b' with hash 'md'. Returns 0 on success,
  * with digest via 'digestp' (caller to free) and length via 'lenp'.
  * Returns -1 on failure.
  */
 int
-hash_buffer(const u_char *buf, u_int len, const EVP_MD *md,
+hash_buffer(const u_char *buf, u_int len, int hash_alg,
     u_char **digestp, u_int *lenp)
 {
-	u_char digest[EVP_MAX_MD_SIZE];
-	u_int digest_len;
-	EVP_MD_CTX evp_md_ctx;
-	int success = -1;
+	u_char digest[SSH_DIGEST_MAX_LENGTH];
+	u_int digest_len = ssh_digest_bytes(hash_alg);
 
-	EVP_MD_CTX_init(&evp_md_ctx);
-
-	if (EVP_DigestInit_ex(&evp_md_ctx, md, NULL) != 1) {
-		error("%s: EVP_DigestInit_ex", __func__);
-		goto out;
+	if (digest_len == 0) {
+		error("%s: invalid hash", __func__);
+		return -1;
 	}
-	if (EVP_DigestUpdate(&evp_md_ctx, buf, len) != 1) {
-		error("%s: EVP_DigestUpdate", __func__);
-		goto out;
-	}
-	if (EVP_DigestFinal_ex(&evp_md_ctx, digest, &digest_len) != 1) {
-		error("%s: EVP_DigestFinal_ex", __func__);
-		goto out;
+	if (ssh_digest_memory(hash_alg, buf, len, digest, digest_len) != 0) {
+		error("%s: digest_memory failed", __func__);
+		return -1;
 	}
 	*digestp = xmalloc(digest_len);
 	*lenp = digest_len;
 	memcpy(*digestp, digest, *lenp);
-	success = 0;
- out:
-	EVP_MD_CTX_cleanup(&evp_md_ctx);
 	bzero(digest, sizeof(digest));
 	digest_len = 0;
-	return success;
+	return 0;
 }
 
 /* print formatted string followed by bignum */
@@ -552,7 +543,7 @@ modp_group_from_g_and_safe_p(const char *grp_g, const char *grp_p)
 {
 	struct modp_group *ret;
 
-	ret = xmalloc(sizeof(*ret));
+	ret = xcalloc(1, sizeof(*ret));
 	ret->p = ret->q = ret->g = NULL;
 	if (BN_hex2bn(&ret->p, grp_p) == 0 ||
 	    BN_hex2bn(&ret->g, grp_g) == 0)

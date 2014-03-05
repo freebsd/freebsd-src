@@ -95,7 +95,11 @@ Warn when an inlined function cannot be inlined
 
 Wlarger-than-
 Common RejectNegative Joined UInteger
--Wlarger-than-<number>	Warn if an object is larger than <number> bytes
+-Wlarger-than-<number> Warn if an object is larger than <number> bytes
+
+Wframe-larger-than-
+Common RejectNegative Joined UInteger
+-Wframe-larger-than-<number> Warn if the frame size of a function is larger than <number> bytes
 
 Wunsafe-loop-optimizations
 Common Var(warn_unsafe_loop_optimizations)
@@ -536,6 +540,14 @@ Common RejectNegative Joined UInteger
 finstrument-functions
 Common Report Var(flag_instrument_function_entry_exit)
 Instrument function entry and exit with profiling calls
+
+finstrument-functions-exclude-function-list=
+Common RejectNegative Joined
+-finstrument-functions-exclude-function-list=name,...  Do not instrument listed functions
+
+finstrument-functions-exclude-file-list=
+Common RejectNegative Joined
+-finstrument-functions-exclude-file-list=filename,...  Do not instrument functions listed in files
 
 fipa-cp
 Common Report Var(flag_ipa_cp)

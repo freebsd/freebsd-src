@@ -181,8 +181,8 @@ nvme_chatham_populate_cdata(struct nvme_controller *ctrlr)
 	cdata->lpa.ns_smart = 1;
 	cdata->sqes.min = 6;
 	cdata->sqes.max = 6;
-	cdata->sqes.min = 4;
-	cdata->sqes.max = 4;
+	cdata->cqes.min = 4;
+	cdata->cqes.max = 4;
 	cdata->nn = 1;
 
 	/* Chatham2 doesn't support DSM command */
@@ -1041,6 +1041,27 @@ nvme_ctrlr_ioctl(struct cdev *cdev, u_long cmd, caddr_t arg, int flag,
 		break;
 	case NVME_PASSTHROUGH_CMD:
 		pt = (struct nvme_pt_command *)arg;
+#ifdef CHATHAM2
+		/*
+		 * Chatham IDENTIFY data is spoofed, so copy the spoofed data
+		 *  rather than issuing the command to the Chatham controller.
+		 */
+		if (pci_get_devid(ctrlr->dev) == CHATHAM_PCI_ID &&
+                    pt->cmd.opc == NVME_OPC_IDENTIFY) {
+			if (pt->cmd.cdw10 == 1) {
+                        	if (pt->len != sizeof(ctrlr->cdata))
+                                	return (EINVAL);
+                        	return (copyout(&ctrlr->cdata, pt->buf,
+				    pt->len));
+			} else {
+				if (pt->len != sizeof(ctrlr->ns[0].data) ||
+				    pt->cmd.nsid != 1)
+					return (EINVAL);
+				return (copyout(&ctrlr->ns[0].data, pt->buf,
+				    pt->len));
+			}
+		}
+#endif
 		return (nvme_ctrlr_passthrough_cmd(ctrlr, pt, pt->cmd.nsid,
 		    1 /* is_user_buffer */, 1 /* is_admin_cmd */));
 	default:

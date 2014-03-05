@@ -210,8 +210,8 @@ XZ Utils
         # <Edit the .po file in the po directory.>
         make -C po update-po
         make install
-        bash debug/translations.bash | less
-        bash debug/translations.bash | less -S  # For --list outputs
+        bash debug/translation.bash | less
+        bash debug/translation.bash | less -S  # For --list outputs
 
     Repeat the above as needed (no need to re-run configure though).
 

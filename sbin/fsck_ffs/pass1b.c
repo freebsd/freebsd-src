@@ -80,8 +80,10 @@ pass1b(void)
 				continue;
 			idesc.id_number = inumber;
 			if (inoinfo(inumber)->ino_state != USTATE &&
-			    (ckinode(dp, &idesc) & STOP))
+			    (ckinode(dp, &idesc) & STOP)) {
+				rerun = 1;
 				return;
+			}
 		}
 	}
 }
@@ -106,8 +108,10 @@ pass1bcheck(struct inodesc *idesc)
 			if (dlp == muldup)
 				break;
 		}
-		if (muldup == 0 || duphead == muldup->next)
+		if (muldup == 0 || duphead == muldup->next) {
+			rerun = 1;
 			return (STOP);
+		}
 	}
 	return (res);
 }

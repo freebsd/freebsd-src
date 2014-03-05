@@ -21,6 +21,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/RelocVisitor.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
@@ -37,11 +38,10 @@ public:
   DILineInfo()
     : FileName("<invalid>"), FunctionName("<invalid>"),
       Line(0), Column(0) {}
-  DILineInfo(const SmallString<16> &fileName,
-             const SmallString<16> &functionName,
-             uint32_t line, uint32_t column)
-    : FileName(fileName), FunctionName(functionName),
-      Line(line), Column(column) {}
+  DILineInfo(StringRef fileName, StringRef functionName, uint32_t line,
+             uint32_t column)
+      : FileName(fileName), FunctionName(functionName), Line(line),
+        Column(column) {}
 
   const char *getFileName() { return FileName.c_str(); }
   const char *getFunctionName() { return FunctionName.c_str(); }
@@ -104,9 +104,14 @@ enum DIDumpType {
   DIDT_Frames,
   DIDT_Info,
   DIDT_InfoDwo,
+  DIDT_Types,
   DIDT_Line,
+  DIDT_Loc,
   DIDT_Ranges,
   DIDT_Pubnames,
+  DIDT_Pubtypes,
+  DIDT_GnuPubnames,
+  DIDT_GnuPubtypes,
   DIDT_Str,
   DIDT_StrDwo,
   DIDT_StrOffsetsDwo
@@ -121,6 +126,12 @@ typedef DenseMap<uint64_t, std::pair<uint8_t, int64_t> > RelocAddrMap;
 
 class DIContext {
 public:
+  enum DIContextKind {
+    CK_DWARF
+  };
+  DIContextKind getKind() const { return Kind; }
+
+  DIContext(DIContextKind K) : Kind(K) {}
   virtual ~DIContext();
 
   /// getDWARFContext - get a context for binary DWARF data.
@@ -134,6 +145,8 @@ public:
       uint64_t Size, DILineInfoSpecifier Specifier = DILineInfoSpecifier()) = 0;
   virtual DIInliningInfo getInliningInfoForAddress(uint64_t Address,
       DILineInfoSpecifier Specifier = DILineInfoSpecifier()) = 0;
+private:
+  const DIContextKind Kind;
 };
 
 }

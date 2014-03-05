@@ -75,7 +75,7 @@ static int imx_gpt_probe(device_t);
 static int imx_gpt_attach(device_t);
 
 static struct timecounter imx_gpt_timecounter = {
-	.tc_name           = "i.MX GPT Timecounter",
+	.tc_name           = "iMXGPT",
 	.tc_get_timecount  = imx_gpt_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
@@ -120,6 +120,9 @@ static struct ofw_compat_data compat_data[] = {
 static int
 imx_gpt_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
 
 	if (ofw_bus_search_compatible(dev, compat_data)->ocd_data != 0) {
 		device_set_desc(dev, "Freescale i.MX GPT timer");
@@ -241,9 +244,9 @@ imx_gpt_attach(device_t dev)
 	}
 
 	/* Register as an eventtimer. */
-	sc->et.et_name = "i.MXxxx GPT Eventtimer";
+	sc->et.et_name = "iMXGPT";
 	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
-	sc->et.et_quality = 1000;
+	sc->et.et_quality = 800;
 	sc->et.et_frequency = sc->clkfreq;
 	sc->et.et_min_period = (MIN_ET_PERIOD << 32) / sc->et.et_frequency;
 	sc->et.et_max_period = (0xfffffffeLLU << 32) / sc->et.et_frequency;
@@ -283,9 +286,9 @@ imx_gpt_timer_start(struct eventtimer *et, sbintime_t first, sbintime_t period)
 		/* Do not disturb, otherwise event will be lost */
 		spinlock_enter();
 		/* Set expected value */
-		WRITE4(sc, IMX_GPT_OCR1, READ4(sc, IMX_GPT_CNT) + ticks);
+		WRITE4(sc, IMX_GPT_OCR3, READ4(sc, IMX_GPT_CNT) + ticks);
 		/* Enable compare register 1 Interrupt */
-		SET4(sc, IMX_GPT_IR, GPT_IR_OF1);
+		SET4(sc, IMX_GPT_IR, GPT_IR_OF3);
 		/* Now everybody can relax */
 		spinlock_exit();
 		return (0);
@@ -316,17 +319,6 @@ imx_gpt_get_timerfreq(struct imx_gpt_softc *sc)
 	return (sc->clkfreq);
 }
 
-void
-cpu_initclocks(void)
-{
-
-	if (imx_gpt_sc == NULL) {
-		panic("%s: i.MX GPT driver has not been initialized!", __func__);
-	}
-
-	cpu_initclocks_bsp();
-}
-
 static int
 imx_gpt_intr(void *arg)
 {
@@ -346,7 +338,7 @@ imx_gpt_intr(void *arg)
 	WRITE4(sc, IMX_GPT_SR, status);
 
 	/* Handle one-shot timer events. */
-	if (status & GPT_IR_OF1) {
+	if (status & GPT_IR_OF3) {
 		if (sc->et.et_active) {
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
 		}

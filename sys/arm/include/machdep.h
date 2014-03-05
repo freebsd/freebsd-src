@@ -32,6 +32,7 @@ vm_offset_t freebsd_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t linux_parse_boot_param(struct arm_boot_params *abp);
 vm_offset_t fake_preload_metadata(struct arm_boot_params *abp);
 vm_offset_t parse_boot_param(struct arm_boot_params *abp);
+void arm_generic_initclocks(void);
 
 /*
  * Initialization functions called by the common initarm() function in
@@ -41,10 +42,10 @@ vm_offset_t parse_boot_param(struct arm_boot_params *abp);
  *  - initarm_early_init() is called very early, after parsing the boot params
  *    and after physical memory has been located and sized.
  *
- *  - platform_devmap_init() is called as one of the last steps of early virtual
+ *  - initarm_devmap_init() is called as one of the last steps of early virtual
  *    memory initialization, shortly before the new page tables are installed.
  *
- *  - initarm_lastaddr() is called after platform_devmap_init(), and must return
+ *  - initarm_lastaddr() is called after initarm_devmap_init(), and must return
  *    the address of the first byte of unusable KVA space.  This allows a
  *    platform to carve out of the top of the KVA space whatever reserves it
  *    needs for things like static device mapping, and this is called to get the
@@ -70,8 +71,5 @@ void initarm_late_init(void);
 /* Board-specific attributes */
 void board_set_serial(uint64_t);
 void board_set_revision(uint32_t);
-
-/* Setup standard arrays */
-void arm_dump_avail_init( vm_offset_t memsize, size_t max);
 
 #endif /* !_MACHINE_MACHDEP_H_ */

@@ -114,7 +114,6 @@ ctl_frontend_register(struct ctl_frontend *fe, int master_shelf)
 	fe->targ_port = port_num + (master_shelf!=0 ? 0 : CTL_MAX_PORTS);
 	fe->max_initiators = CTL_MAX_INIT_PER_PORT;
 	STAILQ_INSERT_TAIL(&control_softc->fe_list, fe, links);
-	ctl_pool_acquire(pool);
 	control_softc->ctl_ports[port_num] = fe;
 
 	mtx_unlock(&control_softc->ctl_lock);
@@ -141,10 +140,6 @@ ctl_frontend_deregister(struct ctl_frontend *fe)
 	}
 
 	mtx_lock(&control_softc->ctl_lock);
-
-	ctl_pool_invalidate(pool);
-	ctl_pool_release(pool);
-
 	STAILQ_REMOVE(&control_softc->fe_list, fe, ctl_frontend, links);
 	control_softc->num_frontends--;
 	port_num = (fe->targ_port < CTL_MAX_PORTS) ? fe->targ_port :
@@ -152,6 +147,9 @@ ctl_frontend_deregister(struct ctl_frontend *fe)
 	ctl_clear_mask(&control_softc->ctl_port_mask, port_num);
 	control_softc->ctl_ports[port_num] = NULL;
 	mtx_unlock(&control_softc->ctl_lock);
+
+	ctl_pool_free(pool);
+
 bailout:
 	return (retval);
 }

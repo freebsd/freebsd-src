@@ -58,7 +58,7 @@ f_media_set_cdrom()
 
 	local devs ndevs
 	f_device_find "" $DEVICE_TYPE_CDROM devs
-	ndevs=$( set -- $devs; echo $# )
+	f_count ndevs $devs
 
 	if [ ${ndevs:=0} -eq 0 ]; then
 		f_interactive && f_show_msg "$msg_no_cd_dvd_devices_found"
@@ -95,6 +95,7 @@ f_media_set_cdrom()
 #
 f_media_init_cdrom()
 {
+	local funcname=f_media_init_cdrom
 	local dev="$1" devname err
 
 	device_$dev get devname devname || return $FAILURE
@@ -106,14 +107,13 @@ f_media_init_cdrom()
 		return $SUCCESS
 	fi
 
-	if [ ! -e "$MOUNTPOINT" ] &&
-	   ! err=$( mkdir -p "$MOUNTPOINT" 2>&1 )
-	then
-		f_dialog_msgbox "$err"
-		return $FAILURE
+	if [ ! -e "$MOUNTPOINT" ]; then
+		f_eval_catch $funcname mkdir 'mkdir -p "%s"' "$MOUNTPOINT" ||
+			return $FAILURE
 	fi
 
-	if ! err=$( mount_cd9660 "$devname" "$MOUNTPOINT" 2>&1 )
+	if ! f_eval_catch -dk err $funcname mount_cd9660 \
+		'mount_cd9660 "%s" "%s"' "$devname" "$MOUNTPOINT"
 	then
 		err="${err#mount_cd9660: }"; err="${err#$devname: }"
 		case "$err" in
@@ -163,11 +163,11 @@ f_media_get_cdrom()
 
 # f_media_shutdown_cdrom $device
 #
-# Shuts down the CDROM device and ejects the media using f_media_eject_cdrom(),
-# below. Return status should be ignored.
+# Shuts down the CDROM device. Return status should be ignored.
 #
 f_media_shutdown_cdrom()
 {
+	local funcname=f_media_shutdown_cdrom
 	local dev="$1" err
 
 	[ "$CDROM_MOUNTED" ] || return $FAILURE
@@ -177,15 +177,15 @@ f_media_shutdown_cdrom()
 		return $SUCCESS
 	fi
 
-	if ! err=$( umount -f "$MOUNTPOINT" 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname umount \
+		'umount -f "%s"' "$MOUNPOINT"
+	then
 		err="${err#umount: }"; err="${err#*: }"
 		f_show_msg "$msg_could_not_unmount_the_cdrom_dvd" \
 		           "$MOUNTPOINT" "$err"
 	else
 		CDROM_MOUNTED=
 	fi
-
-	f_media_eject_cdrom "$dev"
 }
 
 # f_media_eject_cdrom $device
@@ -194,11 +194,14 @@ f_media_shutdown_cdrom()
 #
 f_media_eject_cdrom()
 {
+	local funcname=f_media_eject_cdrom
 	local dev="$1" devname err
 	device_$dev get name devname || return $SUCCESS
 	case "$devname" in /dev/iso9660/*) return $SUCCESS; esac
 	f_dprintf "Ejecting CDROM/DVD at %s" "$devname"
-	if ! err=$( cdcontrol -f "$devname" eject 2>&1 ); then
+	if ! f_eval_catch -dk err $funcname cdcontrol \
+		'cdcontrol -f "%s" eject' "$devname"
+	then
 		f_dprintf "Could not eject the CDROM/DVD from %s: %s" \
 		          "$devname" "${err#cdcontrol: }"
 	fi

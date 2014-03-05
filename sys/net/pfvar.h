@@ -35,6 +35,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/counter.h>
 #include <sys/refcount.h>
 #include <sys/tree.h>
 
@@ -512,13 +513,9 @@ struct pf_rule {
 
 	int			 rtableid;
 	u_int32_t		 timeout[PFTM_MAX];
-	u_int32_t		 states_cur;
-	u_int32_t		 states_tot;
 	u_int32_t		 max_states;
-	u_int32_t		 src_nodes;
 	u_int32_t		 max_src_nodes;
 	u_int32_t		 max_src_states;
-	u_int32_t		 spare1;			/* netgraph */
 	u_int32_t		 max_src_conn;
 	struct {
 		u_int32_t		limit;
@@ -531,6 +528,10 @@ struct pf_rule {
 	u_int32_t		 prob;
 	uid_t			 cuid;
 	pid_t			 cpid;
+
+	counter_u64_t		 states_cur;
+	counter_u64_t		 states_tot;
+	counter_u64_t		 src_nodes;
 
 	u_int16_t		 return_icmp;
 	u_int16_t		 return_icmp6;
@@ -579,6 +580,10 @@ struct pf_rule {
 		struct pf_addr		addr;
 		u_int16_t		port;
 	}			divert;
+
+	uint64_t		 u_states_cur;
+	uint64_t		 u_states_tot;
+	uint64_t		 u_src_nodes;
 };
 
 /* rule flags */
@@ -1467,8 +1472,9 @@ struct pf_ifspeed {
 #define	DIOCGIFSPEED	_IOWR('D', 92, struct pf_ifspeed)
 
 #ifdef _KERNEL
+LIST_HEAD(pf_src_node_list, pf_src_node);
 struct pf_srchash {
-	LIST_HEAD(, pf_src_node)	nodes;
+	struct pf_src_node_list		nodes;
 	struct mtx			lock;
 };
 
@@ -1574,8 +1580,11 @@ pf_release_state(struct pf_state *s)
 extern struct pf_state		*pf_find_state_byid(uint64_t, uint32_t);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
-struct pf_src_node		*pf_find_src_node(struct pf_addr *, struct pf_rule *,
-				    sa_family_t, int);
+extern struct pf_src_node	*pf_find_src_node(struct pf_addr *,
+				    struct pf_rule *, sa_family_t, int);
+extern void			 pf_unlink_src_node(struct pf_src_node *);
+extern void			 pf_unlink_src_node_locked(struct pf_src_node *);
+extern u_int			 pf_free_src_nodes(struct pf_src_node_list *);
 extern void			 pf_print_state(struct pf_state *);
 extern void			 pf_print_flags(u_int8_t);
 extern u_int16_t		 pf_cksum_fixup(u_int16_t, u_int16_t, u_int16_t,

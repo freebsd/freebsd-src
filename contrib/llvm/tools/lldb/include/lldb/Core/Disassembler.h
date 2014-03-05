@@ -175,6 +175,9 @@ public:
     uint32_t
     GetIndexOfInstructionAtLoadAddress (lldb::addr_t load_addr, Target &target);
 
+    uint32_t
+    GetIndexOfInstructionAtAddress (const Address &addr);
+
     void
     Clear();
 
@@ -270,7 +273,8 @@ public:
                       const char *plugin_name,
                       const char *flavor,
                       const ExecutionContext &exe_ctx,
-                      const AddressRange &disasm_range);
+                      const AddressRange &disasm_range,
+                      bool prefer_file_cache);
     
     static lldb::DisassemblerSP 
     DisassembleBytes (const ArchSpec &arch,

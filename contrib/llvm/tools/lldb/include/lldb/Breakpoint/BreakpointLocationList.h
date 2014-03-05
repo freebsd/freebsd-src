@@ -236,7 +236,7 @@ protected:
     ///     Returns breakpoint location id.
     //------------------------------------------------------------------
     lldb::BreakpointLocationSP
-    Create (const Address &addr);
+    Create (const Address &addr, bool resolve_indirect_symbols);
     
     void
     StartRecordingNewLocations(BreakpointLocationCollection &new_locations);
@@ -246,10 +246,14 @@ protected:
     
     lldb::BreakpointLocationSP
     AddLocation (const Address &addr,
+                 bool resolve_indirect_symbols,
                  bool *new_location = NULL);
 
     bool
     RemoveLocation (const lldb::BreakpointLocationSP &bp_loc_sp);
+    
+    void
+    RemoveInvalidLocations (const ArchSpec &arch);
 
     typedef std::vector<lldb::BreakpointLocationSP> collection;
     typedef std::map<lldb_private::Address,
@@ -257,7 +261,7 @@ protected:
                      Address::ModulePointerAndOffsetLessThanFunctionObject> addr_map;
 
     Breakpoint &m_owner;
-    collection m_locations;
+    collection m_locations;         // Vector of locations, sorted by ID 
     addr_map m_address_to_location;
     mutable Mutex m_mutex;
     lldb::break_id_t m_next_id;

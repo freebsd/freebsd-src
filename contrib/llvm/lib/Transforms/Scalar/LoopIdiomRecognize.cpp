@@ -81,7 +81,7 @@ namespace {
     /// Return the condition of the branch terminating the given basic block.
     static Value *getBrCondtion(BasicBlock *);
 
-    /// Derive the precondition block (i.e the block that guards the loop 
+    /// Derive the precondition block (i.e the block that guards the loop
     /// preheader) from the given preheader.
     static BasicBlock *getPrecondBb(BasicBlock *PreHead);
   };
@@ -111,7 +111,7 @@ namespace {
     /// beween a variable and zero, and if the variable is non-zero, the
     /// control yeilds to the loop entry. If the branch matches the behavior,
     /// the variable involved in the comparion is returned. This function will
-    /// be called to see if the precondition and postcondition of the loop 
+    /// be called to see if the precondition and postcondition of the loop
     /// are in desirable form.
     Value *matchCondition (BranchInst *Br, BasicBlock *NonZeroTarget) const;
 
@@ -274,11 +274,11 @@ static void deleteIfDeadInstruction(Value *V, ScalarEvolution &SE,
 //
 //===----------------------------------------------------------------------===//
 
-// This fucntion will return true iff the given block contains nothing but goto. 
-// A typical usage of this function is to check if the preheader fucntion is 
-// "almost" empty such that generated intrinsic function can be moved across 
-// preheader and to be placed at the end of the preconditiona block without 
-// concerning of breaking data dependence.
+// This function will return true iff the given block contains nothing but goto.
+// A typical usage of this function is to check if the preheader function is
+// "almost" empty such that generated intrinsic functions can be moved across
+// the preheader and be placed at the end of the precondition block without
+// the concern of breaking data dependence.
 bool LIRUtil::isAlmostEmpty(BasicBlock *BB) {
   if (BranchInst *Br = getBranch(BB)) {
     return Br->isUnconditional() && BB->size() == 1;
@@ -314,7 +314,7 @@ bool NclPopcountRecognize::preliminaryScreen() {
   if (TTI->getPopcntSupport(32) != TargetTransformInfo::PSK_FastHardware)
     return false;
 
-  // Counting population are usually conducted by few arithmetic instrutions.
+  // Counting population are usually conducted by few arithmetic instructions.
   // Such instructions can be easilly "absorbed" by vacant slots in a
   // non-compact loop. Therefore, recognizing popcount idiom only makes sense
   // in a compact loop.
@@ -339,7 +339,7 @@ bool NclPopcountRecognize::preliminaryScreen() {
   PreCondBB = LIRUtil::getPrecondBb(PreHead);
   if (!PreCondBB)
     return false;
- 
+
   return true;
 }
 
@@ -504,7 +504,7 @@ void NclPopcountRecognize::transform(Instruction *CntInst,
   // Assuming before transformation, the loop is following:
   //  if (x) // the precondition
   //     do { cnt++; x &= x - 1; } while(x);
- 
+
   // Step 1: Insert the ctpop instruction at the end of the precondition block
   IRBuilderTy Builder(PreCondBr);
   Value *PopCnt, *PopCntZext, *NewCount, *TripCnt;
@@ -611,7 +611,7 @@ void NclPopcountRecognize::transform(Instruction *CntInst,
   SE->forgetLoop(CurLoop);
 }
 
-CallInst *NclPopcountRecognize::createPopcntIntrinsic(IRBuilderTy &IRBuilder, 
+CallInst *NclPopcountRecognize::createPopcntIntrinsic(IRBuilderTy &IRBuilder,
                                                       Value *Val, DebugLoc DL) {
   Value *Ops[] = { Val };
   Type *Tys[] = { Val->getType() };
@@ -667,13 +667,13 @@ bool LoopIdiomRecognize::runOnCountableLoop() {
   if (!getDataLayout())
     return false;
 
-  // set DT 
+  // set DT
   (void)getDominatorTree();
 
   LoopInfo &LI = getAnalysis<LoopInfo>();
   TLI = &getAnalysis<TargetLibraryInfo>();
 
-  // set TLI 
+  // set TLI
   (void)getTargetLibraryInfo();
 
   SmallVector<BasicBlock*, 8> ExitBlocks;
@@ -953,6 +953,8 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
   Value *SplatValue = isBytewiseValue(StoredVal);
   Constant *PatternValue = 0;
 
+  unsigned DestAS = DestPtr->getType()->getPointerAddressSpace();
+
   // If we're allowed to form a memset, and the stored value would be acceptable
   // for memset, use it.
   if (SplatValue && TLI->has(LibFunc::memset) &&
@@ -961,8 +963,10 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
       CurLoop->isLoopInvariant(SplatValue)) {
     // Keep and use SplatValue.
     PatternValue = 0;
-  } else if (TLI->has(LibFunc::memset_pattern16) &&
+  } else if (DestAS == 0 &&
+             TLI->has(LibFunc::memset_pattern16) &&
              (PatternValue = getMemSetPatternValue(StoredVal, *TD))) {
+    // Don't create memset_pattern16s with address spaces.
     // It looks like we can use PatternValue!
     SplatValue = 0;
   } else {
@@ -978,20 +982,20 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
   IRBuilder<> Builder(Preheader->getTerminator());
   SCEVExpander Expander(*SE, "loop-idiom");
 
+  Type *DestInt8PtrTy = Builder.getInt8PtrTy(DestAS);
+
   // Okay, we have a strided store "p[i]" of a splattable value.  We can turn
   // this into a memset in the loop preheader now if we want.  However, this
   // would be unsafe to do if there is anything else in the loop that may read
   // or write to the aliased location.  Check for any overlap by generating the
   // base pointer and checking the region.
-  unsigned AddrSpace = cast<PointerType>(DestPtr->getType())->getAddressSpace();
   Value *BasePtr =
-    Expander.expandCodeFor(Ev->getStart(), Builder.getInt8PtrTy(AddrSpace),
+    Expander.expandCodeFor(Ev->getStart(), DestInt8PtrTy,
                            Preheader->getTerminator());
-
 
   if (mayLoopAccessLocation(BasePtr, AliasAnalysis::ModRef,
                             CurLoop, BECount,
-                            StoreSize, getAnalysis<AliasAnalysis>(), TheStore)){
+                            StoreSize, getAnalysis<AliasAnalysis>(), TheStore)) {
     Expander.clear();
     // If we generated new code for the base pointer, clean up.
     deleteIfDeadInstruction(BasePtr, *SE, TLI);
@@ -1002,27 +1006,35 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
 
   // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
   // pointer size if it isn't already.
-  Type *IntPtr = TD->getIntPtrType(DestPtr->getContext());
+  Type *IntPtr = Builder.getIntPtrTy(TD, DestAS);
   BECount = SE->getTruncateOrZeroExtend(BECount, IntPtr);
 
   const SCEV *NumBytesS = SE->getAddExpr(BECount, SE->getConstant(IntPtr, 1),
                                          SCEV::FlagNUW);
-  if (StoreSize != 1)
+  if (StoreSize != 1) {
     NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtr, StoreSize),
                                SCEV::FlagNUW);
+  }
 
   Value *NumBytes =
     Expander.expandCodeFor(NumBytesS, IntPtr, Preheader->getTerminator());
 
   CallInst *NewCall;
-  if (SplatValue)
-    NewCall = Builder.CreateMemSet(BasePtr, SplatValue,NumBytes,StoreAlignment);
-  else {
+  if (SplatValue) {
+    NewCall = Builder.CreateMemSet(BasePtr,
+                                   SplatValue,
+                                   NumBytes,
+                                   StoreAlignment);
+  } else {
+    // Everything is emitted in default address space
+    Type *Int8PtrTy = DestInt8PtrTy;
+
     Module *M = TheStore->getParent()->getParent()->getParent();
     Value *MSP = M->getOrInsertFunction("memset_pattern16",
                                         Builder.getVoidTy(),
-                                        Builder.getInt8PtrTy(),
-                                        Builder.getInt8PtrTy(), IntPtr,
+                                        Int8PtrTy,
+                                        Int8PtrTy,
+                                        IntPtr,
                                         (void*)0);
 
     // Otherwise we should form a memset_pattern16.  PatternValue is known to be
@@ -1032,7 +1044,7 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
                                             PatternValue, ".memset_pattern");
     GV->setUnnamedAddr(true); // Ok to merge these.
     GV->setAlignment(16);
-    Value *PatternPtr = ConstantExpr::getBitCast(GV, Builder.getInt8PtrTy());
+    Value *PatternPtr = ConstantExpr::getBitCast(GV, Int8PtrTy);
     NewCall = Builder.CreateCall3(MSP, BasePtr, PatternPtr, NumBytes);
   }
 
@@ -1108,17 +1120,17 @@ processLoopStoreOfLoopLoad(StoreInst *SI, unsigned StoreSize,
 
   // The # stored bytes is (BECount+1)*Size.  Expand the trip count out to
   // pointer size if it isn't already.
-  Type *IntPtr = TD->getIntPtrType(SI->getContext());
-  BECount = SE->getTruncateOrZeroExtend(BECount, IntPtr);
+  Type *IntPtrTy = Builder.getIntPtrTy(TD, SI->getPointerAddressSpace());
+  BECount = SE->getTruncateOrZeroExtend(BECount, IntPtrTy);
 
-  const SCEV *NumBytesS = SE->getAddExpr(BECount, SE->getConstant(IntPtr, 1),
+  const SCEV *NumBytesS = SE->getAddExpr(BECount, SE->getConstant(IntPtrTy, 1),
                                          SCEV::FlagNUW);
   if (StoreSize != 1)
-    NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtr, StoreSize),
+    NumBytesS = SE->getMulExpr(NumBytesS, SE->getConstant(IntPtrTy, StoreSize),
                                SCEV::FlagNUW);
 
   Value *NumBytes =
-    Expander.expandCodeFor(NumBytesS, IntPtr, Preheader->getTerminator());
+    Expander.expandCodeFor(NumBytesS, IntPtrTy, Preheader->getTerminator());
 
   CallInst *NewCall =
     Builder.CreateMemCpy(StoreBasePtr, LoadBasePtr, NumBytes,

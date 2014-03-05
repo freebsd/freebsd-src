@@ -253,8 +253,6 @@ ia64_ap_startup(void)
 	ia64_set_tpr(0);
 	ia64_srlz_d();
 
-	ia64_enable_intr();
-
 	sched_throw(NULL);
 	/* NOTREACHED */
 }

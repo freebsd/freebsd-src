@@ -287,7 +287,8 @@ private:
         ///     Allocated space.
         //------------------------------------------------------------------
         virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                             unsigned SectionID);
+                                             unsigned SectionID,
+                                             llvm::StringRef SectionName);
         
         //------------------------------------------------------------------
         /// Allocate space for data, and add it to the m_spaceBlocks map
@@ -308,7 +309,9 @@ private:
         ///     Allocated space.
         //------------------------------------------------------------------
         virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                             unsigned SectionID, bool IsReadOnly);
+                                             unsigned SectionID,
+                                             llvm::StringRef SectionName,
+                                             bool IsReadOnly);
         
         //------------------------------------------------------------------
         /// Allocate space for a global variable, and add it to the
@@ -336,44 +339,18 @@ private:
         /// @return
         ///     True in case of failure, false in case of success.
         //------------------------------------------------------------------
-        bool applyPermissions(std::string *ErrMsg) { return false; }
+        virtual bool finalizeMemory(std::string *ErrMsg) {
+            // TODO: Ensure that the instruction cache is flushed because
+            // relocations are updated by dy-load.  See:
+            //   sys::Memory::InvalidateInstructionCache
+            //   llvm::SectionMemoryManager
+            return false;
+        }
         
         //------------------------------------------------------------------
         /// Passthrough interface stub
         //------------------------------------------------------------------
         virtual void deallocateFunctionBody(void *Body);
-        
-        //------------------------------------------------------------------
-        /// Passthrough interface stub
-        //------------------------------------------------------------------
-        virtual uint8_t* startExceptionTable(const llvm::Function* F,
-                                             uintptr_t &ActualSize);
-        
-        //------------------------------------------------------------------
-        /// Complete the exception table for a function, and add it to the
-        /// m_exception_tables map
-        ///
-        /// @param[in] F
-        ///     The function whose exception table is being written.
-        ///
-        /// @param[in] TableStart
-        ///     The first byte of the exception table.
-        ///
-        /// @param[in] TableEnd
-        ///     The last byte of the exception table.
-        ///
-        /// @param[in] FrameRegister
-        ///     I don't know what this does, but it's passed through.
-        //------------------------------------------------------------------
-        virtual void endExceptionTable(const llvm::Function *F,
-                                       uint8_t *TableStart,
-                                       uint8_t *TableEnd,
-                                       uint8_t* FrameRegister);
-        
-        //------------------------------------------------------------------
-        /// Passthrough interface stub
-        //------------------------------------------------------------------
-        virtual void deallocateExceptionTable(void *ET);
         
         //------------------------------------------------------------------
         /// Passthrough interface stub
@@ -412,6 +389,10 @@ private:
         //------------------------------------------------------------------
         virtual unsigned GetNumStubSlabs() {
             return m_default_mm_ap->GetNumStubSlabs();
+        }
+        
+        virtual void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr, size_t Size) {
+            return m_default_mm_ap->registerEHFrames(Addr, LoadAddr, Size);
         }
         
         //------------------------------------------------------------------

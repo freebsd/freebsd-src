@@ -212,6 +212,12 @@ ql_hw_add_sysctls(qla_host_t *ha)
 		"Number of Rcv Rings Entries to post before updating"
 		" RDS Ring Producer Index");
 
+	ha->hw.min_lro_pkt_size = 512;
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
+		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		OID_AUTO, "min_lro_pkt_size", CTLFLAG_RD, &ha->hw.min_lro_pkt_size,
+		ha->hw.min_lro_pkt_size, "minimum packet size to trigger lro");
+
 	ha->hw.mdump_active = 0;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(dev),
                 SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -1068,6 +1074,11 @@ qla_config_fw_lro(qla_host_t *ha, uint16_t cntxt_id)
 	fw_lro->flags |= Q8_MBX_FW_LRO_IPV4 | Q8_MBX_FW_LRO_IPV4_WO_DST_IP_CHK;
 
 	fw_lro->cntxt_id = cntxt_id;
+
+	if (ha->hw.min_lro_pkt_size) {
+		fw_lro->flags |= Q8_MBX_FW_LRO_LOW_THRESHOLD;
+		fw_lro->low_threshold = ha->hw.min_lro_pkt_size;
+	}
 
 	if (qla_mbx_cmd(ha, (uint32_t *)fw_lro,
 		(sizeof (q80_config_fw_lro_t) >> 2),

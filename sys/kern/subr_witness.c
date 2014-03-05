@@ -132,7 +132,7 @@ __FBSDID("$FreeBSD$");
 /* Define this to check for blessed mutexes */
 #undef BLESSING
 
-#define	WITNESS_COUNT 		1024
+#define	WITNESS_COUNT 		1536
 #define	WITNESS_CHILDCOUNT 	(WITNESS_COUNT * 4)
 #define	WITNESS_HASH_SIZE	251	/* Prime, gives load factor < 2 */
 #define	WITNESS_PENDLIST	1024
@@ -302,13 +302,6 @@ witness_lock_type_equal(struct witness *w1, struct witness *w2)
 
 	return ((w1->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)) ==
 		(w2->w_class->lc_flags & (LC_SLEEPLOCK | LC_SPINLOCK)));
-}
-
-static __inline int
-witness_lock_order_key_empty(const struct witness_lock_order_key *key)
-{
-
-	return (key->from == 0 && key->to == 0);
 }
 
 static __inline int

@@ -37,7 +37,6 @@ SUBDIR=	alias \
 	ctlstat \
 	cut \
 	dirname \
-	dtc \
 	du \
 	ee \
 	elf2aout \
@@ -160,6 +159,7 @@ SUBDIR=	alias \
 	tar \
 	tcopy \
 	tee \
+	${_tests} \
 	tftp \
 	time \
 	tip \
@@ -210,10 +210,6 @@ SUBDIR=	alias \
 SUBDIR+=	at
 .endif
 
-.if ${MK_ATF} != "no"
-_atf=		atf
-.endif
-
 .if ${MK_ATM} != "no"
 SUBDIR+=	atm
 .endif
@@ -232,6 +228,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_GPL_DTC} != "yes"
+SUBDIR+=	dtc
 .endif
 
 .if ${MK_GROFF} != "no"
@@ -330,6 +330,11 @@ SUBDIR+=	vacation
 
 .if ${MK_TELNET} != "no"
 SUBDIR+=	telnet
+.endif
+
+.if ${MK_TESTS} != "no"
+_atf=		atf
+_tests=		tests
 .endif
 
 .if ${MK_TEXTPROC} != "no"

@@ -27,19 +27,6 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${GCCDIR}/config -I${GCCDIR} -I. \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
-# Added to quiesce warning around gcc_assert() for an inline macro that uses
-# a static variable.  This code has been moved around in gcc, but is still in
-# use in the latest trunk version of the compiler.
-#
-# gnu/lib/libgcc/../../../contrib/gcc/unwind-dw2.c:208:36:
-#      warning: static variable 'dwarf_reg_size_table' is used in an inline
-#               function with external linkage [-Wstatic-in-inline]
-# gcc_assert (index < (int) sizeof(dwarf_reg_size_table));
-#                                  ^
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-Wno-static-in-inline
-.endif
-
 LDFLAGS+=	-nodefaultlibs
 LDADD+=		-lc
 
@@ -47,9 +34,9 @@ OBJS=		# added to below in various ways depending on TARGET_CPUARCH
 
 #---------------------------------------------------------------------------
 #
-# When upgrading GCC, get the following defintions straight from Makefile.in
-#
 # Library members defined in libgcc2.c.
+# When upgrading GCC, obtain the following list from mklibgcc.in
+#
 LIB2FUNCS= _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
 	_cmpdi2 _ucmpdi2 \
 	_enable_execute_stack _trampoline __main _absvsi2 _absvdi2 _addvsi3 \
@@ -57,7 +44,7 @@ LIB2FUNCS= _muldi3 _negdi2 _lshrdi3 _ashldi3 _ashrdi3 \
 	_ffssi2 _ffsdi2 _clz _clzsi2 _clzdi2 _ctzsi2 _ctzdi2 _popcount_tab \
 	_popcountsi2 _popcountdi2 _paritysi2 _paritydi2 _powisf2 _powidf2 \
 	_powixf2 _powitf2 _mulsc3 _muldc3 _mulxc3 _multc3 _divsc3 _divdc3 \
-	_divxc3 _divtc3
+	_divxc3 _divtc3 _bswapsi2 _bswapdi2
 .if ${COMPILER_TYPE} != "clang" || ${TARGET_CPUARCH} != "arm"
 LIB2FUNCS+= _clear_cache
 .endif
@@ -125,17 +112,15 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 .if ${TARGET_CPUARCH} == "arm"
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
-.if ${COMPILER_TYPE} == "clang"
-CFLAGS+=	-fheinous-gnu-extensions
-.endif
+CFLAGS.clang+=	-fheinous-gnu-extensions
 
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
 .if ${MK_ARM_EABI} != "no"
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
-DPADD+=		${LIBGCC}
-LDADD+=		-lgcc
+DPADD+=		${LIBCOMPILER_RT}
+LDADD+=		-lcompiler_rt
 .else
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .endif

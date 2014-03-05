@@ -281,6 +281,9 @@ static int
 pl310_probe(device_t dev)
 {
 	
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,pl310"))
 		return (ENXIO);
 	device_set_desc(dev, "PL310 L2 cache controller");

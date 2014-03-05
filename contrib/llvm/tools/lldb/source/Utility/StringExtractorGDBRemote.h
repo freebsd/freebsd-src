@@ -53,17 +53,93 @@ public:
         eServerPacketType_qGroupName,
         eServerPacketType_qHostInfo,
         eServerPacketType_qLaunchGDBServer,
+        eServerPacketType_qKillSpawnedProcess,
         eServerPacketType_qLaunchSuccess,
         eServerPacketType_qProcessInfoPID,
         eServerPacketType_qSpeedTest,
         eServerPacketType_qUserName,
+        eServerPacketType_qGetWorkingDir,
         eServerPacketType_QEnvironment,
+        eServerPacketType_QLaunchArch,
         eServerPacketType_QSetDisableASLR,
         eServerPacketType_QSetSTDIN,
         eServerPacketType_QSetSTDOUT,
         eServerPacketType_QSetSTDERR,
         eServerPacketType_QSetWorkingDir,
-        eServerPacketType_QStartNoAckMode
+        eServerPacketType_QStartNoAckMode,
+        eServerPacketType_qPlatform_shell,
+        eServerPacketType_qPlatform_mkdir,
+        eServerPacketType_qPlatform_chmod,
+        eServerPacketType_vFile_open,
+        eServerPacketType_vFile_close,
+        eServerPacketType_vFile_pread,
+        eServerPacketType_vFile_pwrite,
+        eServerPacketType_vFile_size,
+        eServerPacketType_vFile_mode,
+        eServerPacketType_vFile_exists,
+        eServerPacketType_vFile_md5,
+        eServerPacketType_vFile_stat,
+        eServerPacketType_vFile_symlink,
+        eServerPacketType_vFile_unlink,
+      // debug server packages
+        eServerPacketType_QEnvironmentHexEncoded,
+        eServerPacketType_QListThreadsInStopReply,
+        eServerPacketType_QRestoreRegisterState,
+        eServerPacketType_QSaveRegisterState,
+        eServerPacketType_QSetLogging,
+        eServerPacketType_QSetMaxPacketSize,
+        eServerPacketType_QSetMaxPayloadSize,
+        eServerPacketType_QSetEnableAsyncProfiling,
+        eServerPacketType_QSyncThreadState,
+        eServerPacketType_QThreadSuffixSupported,
+
+        eServerPacketType_qsThreadInfo,
+        eServerPacketType_qfThreadInfo,
+        eServerPacketType_qGetPid,
+        eServerPacketType_qGetProfileData,
+        eServerPacketType_qGDBServerVersion,
+        eServerPacketType_qMemoryRegionInfo,
+        eServerPacketType_qMemoryRegionInfoSupported,
+        eServerPacketType_qProcessInfo,
+        eServerPacketType_qRcmd,
+        eServerPacketType_qRegisterInfo,
+        eServerPacketType_qShlibInfoAddr,
+        eServerPacketType_qStepPacketSupported,
+        eServerPacketType_qSyncThreadStateSupported,
+        eServerPacketType_qThreadExtraInfo,
+        eServerPacketType_qThreadStopInfo,
+        eServerPacketType_qVAttachOrWaitSupported,
+        eServerPacketType_qWatchpointSupportInfo,
+        eServerPacketType_qWatchpointSupportInfoSupported,
+
+        eServerPacketType_vAttach,
+        eServerPacketType_vAttachWait,
+        eServerPacketType_vAttachOrWait,
+        eServerPacketType_vAttachName,
+        eServerPacketType_vCont,
+        eServerPacketType_vCont_actions, // vCont?
+
+        eServerPacketType_stop_reason, // '?'
+
+        eServerPacketType_c,
+        eServerPacketType_C,
+        eServerPacketType_D,
+        eServerPacketType_g,
+        eServerPacketType_G,
+        eServerPacketType_H,
+        eServerPacketType_k,
+        eServerPacketType_m,
+        eServerPacketType_M,
+        eServerPacketType_p,
+        eServerPacketType_P,
+        eServerPacketType_s,
+        eServerPacketType_S,
+        eServerPacketType_T,
+        eServerPacketType_Z,
+        eServerPacketType_z,
+
+        eServerPacketType__M,
+        eServerPacketType__m,
     };
     
     ServerPacketType
@@ -98,6 +174,10 @@ public:
     // digits. Otherwise the error encoded in XX is returned.
     uint8_t
     GetError();
+    
+    size_t
+    GetEscapedBinaryData (std::string &str);
+
 };
 
 #endif  // utility_StringExtractorGDBRemote_h_

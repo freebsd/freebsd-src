@@ -244,6 +244,9 @@ static int
 arm_tmr_probe(device_t dev)
 {
 
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "arm,armv7-timer"))
 		return (ENXIO);
 
@@ -327,16 +330,6 @@ static driver_t arm_tmr_driver = {
 static devclass_t arm_tmr_devclass;
 
 DRIVER_MODULE(timer, simplebus, arm_tmr_driver, arm_tmr_devclass, 0, 0);
-
-void
-cpu_initclocks(void)
-{
-
-	if (PCPU_GET(cpuid) == 0)
-		cpu_initclocks_bsp();
-	else
-		cpu_initclocks_ap();
-}
 
 void
 DELAY(int usec)

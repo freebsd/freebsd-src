@@ -29,11 +29,7 @@
 #ifndef _VMM_IPI_H_
 #define _VMM_IPI_H_
 
-struct vm;
-
-extern int vmm_ipinum;
-
-void	vmm_ipi_init(void);
-void	vmm_ipi_cleanup(void);
+int	vmm_ipi_alloc(void);
+void	vmm_ipi_free(int num);
 
 #endif

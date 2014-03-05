@@ -1271,10 +1271,11 @@ Init *TGParser::ParseSimpleValue(Record *CurRec, RecTy *ItemType,
     if (ItemType != 0) {
       ListRecTy *ListType = dyn_cast<ListRecTy>(ItemType);
       if (ListType == 0) {
-        std::stringstream s;
-        s << "Type mismatch for list, expected list type, got "
-          << ItemType->getAsString();
-        TokError(s.str());
+        std::string s;
+        raw_string_ostream ss(s);
+        ss << "Type mismatch for list, expected list type, got "
+           << ItemType->getAsString();
+        TokError(ss.str());
         return 0;
       }
       GivenListTy = ListType;
@@ -2494,6 +2495,9 @@ bool TGParser::ParseDefm(MultiClass *CurMultiClass) {
 
     if (Lex.getCode() != tgtok::comma) break;
     Lex.Lex(); // eat ','.
+
+    if (Lex.getCode() != tgtok::Id)
+      return TokError("expected identifier");
 
     SubClassLoc = Lex.getLoc();
 

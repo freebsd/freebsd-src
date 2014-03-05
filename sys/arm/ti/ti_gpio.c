@@ -543,9 +543,9 @@ ti_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *value)
 
 	/* Read the value on the pin */
 	if (val & mask)
-		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT) & mask) ? 1 : 0;
-	else
 		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAIN) & mask) ? 1 : 0;
+	else
+		*value = (ti_gpio_read_4(sc, bank, TI_GPIO_DATAOUT) & mask) ? 1 : 0;
 
 	TI_GPIO_UNLOCK(sc);
 
@@ -627,6 +627,10 @@ ti_gpio_intr(void *arg)
 static int
 ti_gpio_probe(device_t dev)
 {
+
+	if (!ofw_bus_status_okay(dev))
+		return (ENXIO);
+
 	if (!ofw_bus_is_compatible(dev, "ti,gpio"))
 		return (ENXIO);
 
@@ -788,6 +792,14 @@ ti_gpio_detach(device_t dev)
 	return(0);
 }
 
+static phandle_t
+ti_gpio_get_node(device_t bus, device_t dev)
+{
+
+	/* We only have one child, the GPIO bus, which needs our own node. */
+	return (ofw_bus_get_node(bus));
+}
+
 static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(device_probe, ti_gpio_probe),
 	DEVMETHOD(device_attach, ti_gpio_attach),
@@ -802,6 +814,10 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(gpio_pin_get, ti_gpio_pin_get),
 	DEVMETHOD(gpio_pin_set, ti_gpio_pin_set),
 	DEVMETHOD(gpio_pin_toggle, ti_gpio_pin_toggle),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_node, ti_gpio_get_node),
+
 	{0, 0},
 };
 

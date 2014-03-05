@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.                #
+# Copyright (c) 1998-2009,2010 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -26,7 +26,7 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: MKfallback.sh,v 1.13 2006/07/15 16:54:20 tom Exp $
+# $Id: MKfallback.sh,v 1.15 2010/08/07 20:32:34 tom Exp $
 #
 # MKfallback.sh -- create fallback table for entry reads
 #
@@ -42,6 +42,17 @@ shift
 terminfo_src=$1
 shift
 
+tic_path=$1
+shift
+
+case $tic_path in #(vi
+/*)
+	tic_head=`echo "$tic_path" | sed -e 's,/[^/]*$,,'`
+	PATH=$tic_head:$PATH
+	export PATH
+	;;
+esac
+
 if test $# != 0 ; then
 	tmp_info=tmp_info
 	echo creating temporary terminfo directory... >&2
@@ -52,7 +63,7 @@ if test $# != 0 ; then
 	TERMINFO_DIRS=$TERMINFO:$terminfo_dir
 	export TERMINFO_DIRS
 
-	tic -x $terminfo_src >&2
+	$tic_path -x $terminfo_src >&2
 else
 	tmp_info=
 fi
@@ -63,7 +74,6 @@ cat <<EOF
  */
 
 #include <curses.priv.h>
-#include <term.h>
 
 EOF
 

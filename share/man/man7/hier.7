@@ -32,7 +32,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2013
+.Dd December 25, 2013
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -104,10 +104,6 @@ Sendmail control files
 mtree configuration files;
 see
 .Xr mtree 8
-.It Pa namedb/
-named configuration files;
-see
-.Xr named 8
 .It Pa pam.d/
 configuration files for the Pluggable Authentication Modules (PAM)
 library
@@ -387,6 +383,9 @@ a.out backward compatibility libraries
 DTrace library scripts
 .It Pa engines/
 OpenSSL (Cryptography/SSL toolkit) dynamically loadable engines
+.It Pa private/
+Private system libraries not for use by third-party programs.
+ABI and API stability are not guaranteed.
 .El
 .Pp
 .It Pa libdata/
@@ -707,7 +706,9 @@ source code for files in
 The
 .Fx
 test suite.
-See tests(7) for more details.
+See
+.Xr tests 7
+for more details.
 .El
 .It Pa /var/
 multi-purpose log, temporary, transient, and spool files
@@ -804,11 +805,6 @@ system information files describing various info about
 system since it was booted
 .Pp
 .Bl -tag -width Fl -compact
-.It Pa named/
-writable by the
-.Dq bind
-user; see
-.Xr named 8
 .It Pa ppp/
 writable by the
 .Dq network

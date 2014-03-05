@@ -10,6 +10,7 @@
 #include "DisassemblerLLVMC.h"
 
 #include "llvm-c/Disassembler.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler.h"
@@ -17,6 +18,7 @@
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/MC/MCInstrInfo.h"
 #include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCRelocationInfo.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryObject.h"
@@ -33,10 +35,11 @@
 #include "lldb/Target/ExecutionContext.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/RegisterContext.h"
+#include "lldb/Target/SectionLoadList.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/StackFrame.h"
 
-#include <regex.h>
+#include "lldb/Core/RegularExpression.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -125,6 +128,7 @@ public:
         bool got_op = false;
         DisassemblerLLVMC &llvm_disasm = GetDisassemblerLLVMC();
         const ArchSpec &arch = llvm_disasm.GetArchitecture();
+        const lldb::ByteOrder byte_order = data.GetByteOrder();
         
         const uint32_t min_op_byte_size = arch.GetMinimumOpcodeByteSize();
         const uint32_t max_op_byte_size = arch.GetMaximumOpcodeByteSize();
@@ -133,26 +137,26 @@ public:
             // Fixed size instructions, just read that amount of data.
             if (!data.ValidOffsetForDataOfSize(data_offset, min_op_byte_size))
                 return false;
-            
+
             switch (min_op_byte_size)
             {
                 case 1:
-                    m_opcode.SetOpcode8  (data.GetU8  (&data_offset));
+                    m_opcode.SetOpcode8  (data.GetU8  (&data_offset), byte_order);
                     got_op = true;
                     break;
 
                 case 2:
-                    m_opcode.SetOpcode16 (data.GetU16 (&data_offset));
+                    m_opcode.SetOpcode16 (data.GetU16 (&data_offset), byte_order);
                     got_op = true;
                     break;
 
                 case 4:
-                    m_opcode.SetOpcode32 (data.GetU32 (&data_offset));
+                    m_opcode.SetOpcode32 (data.GetU32 (&data_offset), byte_order);
                     got_op = true;
                     break;
 
                 case 8:
-                    m_opcode.SetOpcode64 (data.GetU64 (&data_offset));
+                    m_opcode.SetOpcode64 (data.GetU64 (&data_offset), byte_order);
                     got_op = true;
                     break;
 
@@ -175,20 +179,20 @@ public:
                     uint32_t thumb_opcode = data.GetU16(&data_offset);
                     if ((thumb_opcode & 0xe000) != 0xe000 || ((thumb_opcode & 0x1800u) == 0))
                     {
-                        m_opcode.SetOpcode16 (thumb_opcode);
+                        m_opcode.SetOpcode16 (thumb_opcode, byte_order);
                         m_is_valid = true;
                     }
                     else
                     {
                         thumb_opcode <<= 16;
                         thumb_opcode |= data.GetU16(&data_offset);
-                        m_opcode.SetOpcode16_2 (thumb_opcode);
+                        m_opcode.SetOpcode16_2 (thumb_opcode, byte_order);
                         m_is_valid = true;
                     }
                 }
                 else
                 {
-                    m_opcode.SetOpcode32 (data.GetU32(&data_offset));
+                    m_opcode.SetOpcode32 (data.GetU32(&data_offset), byte_order);
                     m_is_valid = true;
                 }
             }
@@ -301,12 +305,13 @@ public:
                 inst_size = m_opcode.GetByteSize();
                 StreamString mnemonic_strm;
                 lldb::offset_t offset = 0;
+                lldb::ByteOrder byte_order = data.GetByteOrder();
                 switch (inst_size)
                 {
                     case 1:
                         {
                             const uint8_t uval8 = data.GetU8 (&offset);
-                            m_opcode.SetOpcode8 (uval8);
+                            m_opcode.SetOpcode8 (uval8, byte_order);
                             m_opcode_name.assign (".byte");
                             mnemonic_strm.Printf("0x%2.2x", uval8);
                         }
@@ -314,7 +319,7 @@ public:
                     case 2:
                         {
                             const uint16_t uval16 = data.GetU16(&offset);
-                            m_opcode.SetOpcode16(uval16);
+                            m_opcode.SetOpcode16(uval16, byte_order);
                             m_opcode_name.assign (".short");
                             mnemonic_strm.Printf("0x%4.4x", uval16);
                         }
@@ -322,7 +327,7 @@ public:
                     case 4:
                         {
                             const uint32_t uval32 = data.GetU32(&offset);
-                            m_opcode.SetOpcode32(uval32);
+                            m_opcode.SetOpcode32(uval32, byte_order);
                             m_opcode_name.assign (".long");
                             mnemonic_strm.Printf("0x%8.8x", uval32);
                         }
@@ -330,7 +335,7 @@ public:
                     case 8:
                         {
                             const uint64_t uval64 = data.GetU64(&offset);
-                            m_opcode.SetOpcode64(uval64);
+                            m_opcode.SetOpcode64(uval64, byte_order);
                             m_opcode_name.assign (".quad");
                             mnemonic_strm.Printf("0x%16.16" PRIx64, uval64);
                         }
@@ -367,20 +372,14 @@ public:
                 }
             }
             
-            if (!s_regex_compiled)
-            {
-                ::regcomp(&s_regex, "[ \t]*([^ ^\t]+)[ \t]*([^ ^\t].*)?", REG_EXTENDED);
-                s_regex_compiled = true;
-            }
+            static RegularExpression s_regex("[ \t]*([^ ^\t]+)[ \t]*([^ ^\t].*)?", REG_EXTENDED);
             
-            ::regmatch_t matches[3];
+            RegularExpression::Match matches(3);
             
-            if (!::regexec(&s_regex, out_string, sizeof(matches) / sizeof(::regmatch_t), matches, 0))
+            if (s_regex.Execute(out_string, &matches))
             {
-                if (matches[1].rm_so != -1)
-                    m_opcode_name.assign(out_string + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
-                if (matches[2].rm_so != -1)
-                    m_mnemonics.assign(out_string + matches[2].rm_so, matches[2].rm_eo - matches[2].rm_so);
+                matches.GetMatchAtIndex(out_string, 1, m_opcode_name);
+                matches.GetMatchAtIndex(out_string, 2, m_mnemonics);
             }
         }
     }
@@ -413,13 +412,9 @@ protected:
     LazyBool                m_does_branch;
     bool                    m_is_valid;
     bool                    m_using_file_addr;
-    
-    static bool             s_regex_compiled;
-    static ::regex_t        s_regex;
 };
 
-bool InstructionLLVMC::s_regex_compiled = false;
-::regex_t InstructionLLVMC::s_regex;
+
 
 DisassemblerLLVMC::LLVMCDisassembler::LLVMCDisassembler (const char *triple, unsigned flavor, DisassemblerLLVMC &owner):
     m_is_valid(true)
@@ -440,23 +435,31 @@ DisassemblerLLVMC::LLVMCDisassembler::LLVMCDisassembler (const char *triple, uns
     m_subtarget_info_ap.reset(curr_target->createMCSubtargetInfo(triple, "",
                                                                 features_str));
     
-    m_asm_info_ap.reset(curr_target->createMCAsmInfo(triple));
-    
+    std::unique_ptr<llvm::MCRegisterInfo> reg_info(curr_target->createMCRegInfo(triple));
+    m_asm_info_ap.reset(curr_target->createMCAsmInfo(*reg_info, triple));
+
     if (m_instr_info_ap.get() == NULL || m_reg_info_ap.get() == NULL || m_subtarget_info_ap.get() == NULL || m_asm_info_ap.get() == NULL)
     {
         m_is_valid = false;
         return;
     }
     
-    m_context_ap.reset(new llvm::MCContext(*m_asm_info_ap.get(), *(m_reg_info_ap.get()), 0));
+    m_context_ap.reset(new llvm::MCContext(m_asm_info_ap.get(), m_reg_info_ap.get(), 0));
     
     m_disasm_ap.reset(curr_target->createMCDisassembler(*m_subtarget_info_ap.get()));
-    if (m_disasm_ap.get())
+    if (m_disasm_ap.get() && m_context_ap.get())
     {
+        llvm::OwningPtr<llvm::MCRelocationInfo> RelInfo(curr_target->createMCRelocationInfo(triple, *m_context_ap.get()));
+        if (!RelInfo)
+        {
+            m_is_valid = false;
+            return;
+        }
         m_disasm_ap->setupForSymbolicDisassembly(NULL,
-                                                  DisassemblerLLVMC::SymbolLookupCallback,
-                                                  (void *) &owner,
-                                                  m_context_ap.get());
+                                                 DisassemblerLLVMC::SymbolLookupCallback,
+                                                 (void *) &owner,
+                                                 m_context_ap.get(),
+                                                 RelInfo);
         
         unsigned asm_printer_variant;
         if (flavor == ~0U)
@@ -642,9 +645,15 @@ DisassemblerLLVMC::DisassemblerLLVMC (const ArchSpec &arch, const char *flavor_s
     }
     
     // Cortex-M3 devices (e.g. armv7m) can only execute thumb (T2) instructions, 
-    // so hardcode the primary disassembler to thumb mode.
+    // so hardcode the primary disassembler to thumb mode.  Same for Cortex-M4 (armv7em).
+    //
+    // Handle the Cortex-M0 (armv6m) the same; the ISA is a subset of the T and T32
+    // instructions defined in ARMv7-A.  
+
     if (arch.GetTriple().getArch() == llvm::Triple::arm
-        && (arch.GetCore() == ArchSpec::Core::eCore_arm_armv7m || arch.GetCore() == ArchSpec::Core::eCore_arm_armv7em))
+        && (arch.GetCore() == ArchSpec::Core::eCore_arm_armv7m 
+            || arch.GetCore() == ArchSpec::Core::eCore_arm_armv7em
+            || arch.GetCore() == ArchSpec::Core::eCore_arm_armv6m))
     {
         triple = thumb_arch.GetTriple().getTriple().c_str();
     }
@@ -787,7 +796,7 @@ int DisassemblerLLVMC::OpInfo (uint64_t PC,
     default:
         break;
     case 1:
-        bzero (tag_bug, sizeof(::LLVMOpInfo1));
+        memset (tag_bug, 0, sizeof(::LLVMOpInfo1));
         break;
     }
     return 0;

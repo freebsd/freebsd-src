@@ -43,8 +43,8 @@ f_include $BSDCFG_SHARE/timezone/zones.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
-[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" ipgm &&
+	pgm="${ipgm:-$pgm}"
 
 ############################################################ CONFIGURATION
 
@@ -164,7 +164,7 @@ fi
 if [ "$REINSTALL" ]; then
 	[ -f "$_PATH_DB" -a -r "$_PATH_DB" ] ||
 		f_die 1 "$msg_cannot_open_for_reading" "$_PATH_DB"
-	zoneinfo=$( cat "$_PATH_DB" ) ||
+	f_eval_catch -dk zoneinfo "$0" cat 'cat "%s"' "$_PATH_DB" ||
 		f_die 1 "$msg_error_reading" "$_PATH_DB"
 	[ "$zoneinfo" ] ||
 		f_die 1 "$msg_unable_to_determine_name_from_db" "$_PATH_DB"
@@ -244,7 +244,7 @@ if [ $# -ge 1 ]; then
 	default="$1"
 
 	f_dialog_title "$msg_default_zone_provided"
-	msg=$( printf "\n$msg_use_default_zone" "$default" )
+	f_sprintf msg "\n$msg_use_default_zone" "$default"
 	hline=
 	f_dialog_yesno "$msg" "$hline"
 	result=$?
@@ -322,16 +322,16 @@ while :; do
 			# It's amazing how much good grammar really matters...
 			#
 			if [ ! "$isocean" ]; then
-				title=$( printf "$msg_country_title" \
-				                "$cont_title" )
+				f_sprintf title "$msg_country_title" \
+				                "$cont_title"
 				f_dialog_title "$title"
 				title="$DIALOG_TITLE"
 				btitle="$DIALOG_BACKTITLE"
 				f_dialog_title_restore
 				prompt="$msg_select_country"
 			else
-				title=$( printf "$msg_island_and_group_title" \
-				                "$cont_title" )
+				f_sprintf title "$msg_island_and_group_title" \
+				                "$cont_title"
 				f_dialog_title "$title"
 				title="$DIALOG_TITLE"
 				btitle="$DIALOG_BACKTITLE"
@@ -397,11 +397,10 @@ while :; do
 			continue
 		fi
 	else
-		title=$( printf "$msg_country_time_zones" \
-		                "$( f_country $tlc name )" )
+		f_sprintf title "$msg_country_time_zones" \
+		                "$( f_country $tlc name )"
 		f_dialog_title "$title"
-		title="$DIALOG_TITLE"
-		btitle="$DIALOG_BACKTITLE"
+		title="$DIALOG_TITLE" btitle="$DIALOG_BACKTITLE"
 		f_dialog_title_restore
 		prompt="$msg_select_zone"
 		menu_list=$( f_country $tlc menu_list )

@@ -28,7 +28,7 @@
  */
 
 #ifndef _CITRUS_CSMAPPER_H_
-#define _CITRUS_CSMAPPER_H
+#define _CITRUS_CSMAPPER_H_
 
 #define _citrus_csmapper		_citrus_mapper
 #define _citrus_csmapper_close		_citrus_mapper_close
