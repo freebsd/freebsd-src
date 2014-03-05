@@ -1349,16 +1349,9 @@ DIOCADDRULE_error:
 			break;
 		}
 		bcopy(rule, &pr->rule, sizeof(struct pf_rule));
-		/*
-		 * XXXGL: this is what happens when internal kernel
-		 * structures are used as ioctl API structures.
-		 */
-		pr->rule.states_cur =
-		    (counter_u64_t )counter_u64_fetch(rule->states_cur);
-		pr->rule.states_tot =
-		    (counter_u64_t )counter_u64_fetch(rule->states_tot);
-		pr->rule.src_nodes =
-		    (counter_u64_t )counter_u64_fetch(rule->src_nodes);
+		pr->rule.u_states_cur = counter_u64_fetch(rule->states_cur);
+		pr->rule.u_states_tot = counter_u64_fetch(rule->states_tot);
+		pr->rule.u_src_nodes = counter_u64_fetch(rule->src_nodes);
 		if (pf_anchor_copyout(ruleset, rule, pr)) {
 			PF_RULES_WUNLOCK();
 			error = EBUSY;
