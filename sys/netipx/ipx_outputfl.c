@@ -130,7 +130,7 @@ ipx_outputfl(struct mbuf *m0, struct route *ro, int flags)
 		error = ENETUNREACH;
 		goto bad;
 	}
-	ro->ro_rt->rt_use++;
+	counter_u64_add(ro->ro_rt->rt_pksent, 1);
 	if (ro->ro_rt->rt_flags & (RTF_GATEWAY|RTF_HOST))
 		dst = (struct sockaddr_ipx *)ro->ro_rt->rt_gateway;
 gotif:
