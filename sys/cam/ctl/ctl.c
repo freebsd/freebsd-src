@@ -8071,6 +8071,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 				ctl_done((union ctl_io *)ctsio);
 				return (CTL_RETVAL_COMPLETE);
 			}
+			mtx_unlock(&softc->ctl_lock);
 		} else /* create a reservation */ {
 			/*
 			 * If it's not an "all registrants" type record
