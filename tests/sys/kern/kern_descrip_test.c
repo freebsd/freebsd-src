@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <atf-c.h>
 
-ATF_TC_WITHOUT_HEAD(dup2_simple);
-ATF_TC_BODY(dup2_simple, tc)
+ATF_TC_WITHOUT_HEAD(dup2__simple);
+ATF_TC_BODY(dup2__simple, tc)
 {
 	int fd1, fd2;
 	struct stat sb1, sb2;
@@ -71,7 +71,7 @@ ATF_TC_BODY(dup2__ebadf_when_2nd_arg_out_of_range, tc)
 ATF_TP_ADD_TCS(tp)
 {
 
-        ATF_TP_ADD_TC(tp, dup2_simple);
+        ATF_TP_ADD_TC(tp, dup2__simple);
         ATF_TP_ADD_TC(tp, dup2__ebadf_when_2nd_arg_out_of_range);
 
         return atf_no_error();
