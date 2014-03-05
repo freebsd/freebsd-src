@@ -1,7 +1,7 @@
 #
-# Specific board setup for the D-Link DIR-825 router.
+# Specific board setup for the D-Link DIR-825B1 router.
 #
-# The DIR-825 has the following hardware:
+# The DIR-825B1 has the following hardware:
 #
 # + AR7161 CPU SoC
 # + AR9223 2.4GHz 11n
@@ -14,8 +14,8 @@
 # $FreeBSD$
 
 include		"AR71XX_BASE"
-ident		"DIR-825"
-hints		"DIR-825.hints"
+ident		"DIR-825B1"
+hints		"DIR-825B1.hints"
 
 # Since the kernel image must fit inside 1024KiB, we have to build almost
 # everything as modules.
