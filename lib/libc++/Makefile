@@ -25,8 +25,10 @@ SRCS+=		algorithm.cpp\
 		memory.cpp\
 		mutex.cpp\
 		new.cpp\
+		optional.cpp\
 		random.cpp\
 		regex.cpp\
+		shared_mutex.cpp\
 		stdexcept.cpp\
 		string.cpp\
 		strstream.cpp\
@@ -61,7 +63,7 @@ CXXFLAGS+=	-std=c++0x
 DPADD=		${LIBCXXRT}
 LDADD=		-lcxxrt
 LDFLAGS+=	--verbose
-INCSGROUPS=	STD EXT
+INCSGROUPS=	STD EXP EXT
 
 STD_HEADERS=	__bit_reference\
 		__config\
@@ -140,6 +142,7 @@ STD_HEADERS=	__bit_reference\
 		regex\
 		scoped_allocator\
 		set\
+		shared_mutex\
 		sstream\
 		stack\
 		stdexcept\
@@ -170,6 +173,14 @@ STD+=		${HDRDIR}/${hdr}
 STD+=		${LIBCXXRTDIR}/${hdr}
 .endfor
 STDDIR=		${CXXINCLUDEDIR}
+
+EXP_HEADERS=	dynarray\
+		optional
+
+.for hdr in ${EXP_HEADERS}
+EXP+=		${HDRDIR}/experimental/${hdr}
+.endfor
+EXPDIR=		${CXXINCLUDEDIR}/experimental
 
 EXT_HEADERS=	__hash\
 		hash_map\

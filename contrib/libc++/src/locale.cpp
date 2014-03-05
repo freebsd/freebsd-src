@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#define _LIBCPP_EXTERN_TEMPLATE(...) extern template __VA_ARGS__;
+
 // On Solaris, we need to define something to make the C99 parts of localeconv
 // visible.
 #ifdef __sun__
@@ -18,23 +20,27 @@
 #include "codecvt"
 #include "vector"
 #include "algorithm"
-#include "algorithm"
 #include "typeinfo"
-#include "type_traits"
+#ifndef _LIBCPP_NO_EXCEPTIONS
+#  include "type_traits"
+#endif
 #include "clocale"
 #include "cstring"
 #include "cwctype"
 #include "__sso_allocator"
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
 #include <support/win32/locale_win32.h>
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
 #include <langinfo.h>
-#endif // _!WIN32
+#endif // !_LIBCPP_MSVCRT
 #include <stdlib.h>
+#include <stdio.h>
 
 // On Linux, wint_t and wchar_t have different signed-ness, and this causes
 // lots of noise in the build log, but no bugs that I know of. 
+#if defined(__clang__)
 #pragma clang diagnostic ignored "-Wsign-conversion"
+#endif
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
@@ -105,6 +111,11 @@ countof(const T * const begin, const T * const end)
 
 }
 
+#if defined(_AIX)
+// Set priority to INT_MIN + 256 + 150
+# pragma priority ( -2147483242 )
+#endif
+
 const locale::category locale::none;
 const locale::category locale::collate;
 const locale::category locale::ctype;
@@ -114,14 +125,23 @@ const locale::category locale::time;
 const locale::category locale::messages;
 const locale::category locale::all;
 
+#if defined(__clang__)
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpadded"
+#endif
 
 class _LIBCPP_HIDDEN locale::__imp
     : public facet
 {
     enum {N = 28};
+#if defined(_LIBCPP_MSVC)
+// FIXME: MSVC doesn't support aligned parameters by value.
+// I can't get the __sso_allocator to work here
+// for MSVC I think for this reason.
+    vector<facet*> facets_;
+#else
     vector<facet*, __sso_allocator<facet*, N> > facets_;
+#endif
     string         name_;
 public:
     explicit __imp(size_t refs = 0);
@@ -145,7 +165,9 @@ private:
     template <class F> void install_from(const __imp& other);
 };
 
+#if defined(__clang__)
 #pragma clang diagnostic pop
+#endif
 
 locale::__imp::__imp(size_t refs)
     : facet(refs),
@@ -755,7 +777,7 @@ ctype<wchar_t>::~ctype()
 bool
 ctype<wchar_t>::do_is(mask m, char_type c) const
 {
-    return isascii(c) ? ctype<char>::classic_table()[c] & m : false;
+    return isascii(c) ? (ctype<char>::classic_table()[c] & m) != 0 : false;
 }
 
 const wchar_t*
@@ -790,7 +812,7 @@ ctype<wchar_t>::do_toupper(char_type c) const
 {
 #ifdef _LIBCPP_HAS_DEFAULTRUNELOCALE
     return isascii(c) ? _DefaultRuneLocale.__mapupper[c] : c;
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN) || defined(__NetBSD__)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__) || defined(__NetBSD__)
     return isascii(c) ? ctype<char>::__classic_upper_table()[c] : c;
 #else
     return (isascii(c) && iswlower_l(c, __cloc())) ? c-L'a'+L'A' : c;
@@ -803,7 +825,7 @@ ctype<wchar_t>::do_toupper(char_type* low, const char_type* high) const
     for (; low != high; ++low)
 #ifdef _LIBCPP_HAS_DEFAULTRUNELOCALE
         *low = isascii(*low) ? _DefaultRuneLocale.__mapupper[*low] : *low;
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN) || defined(__NetBSD__)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__) || defined(__NetBSD__)
         *low = isascii(*low) ? ctype<char>::__classic_upper_table()[*low]
                              : *low;
 #else
@@ -817,7 +839,7 @@ ctype<wchar_t>::do_tolower(char_type c) const
 {
 #ifdef _LIBCPP_HAS_DEFAULTRUNELOCALE
     return isascii(c) ? _DefaultRuneLocale.__maplower[c] : c;
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN) || defined(__NetBSD__)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__) || defined(__NetBSD__)
     return isascii(c) ? ctype<char>::__classic_lower_table()[c] : c;
 #else
     return (isascii(c) && isupper_l(c, __cloc())) ? c-L'A'+'a' : c;
@@ -830,7 +852,7 @@ ctype<wchar_t>::do_tolower(char_type* low, const char_type* high) const
     for (; low != high; ++low)
 #ifdef _LIBCPP_HAS_DEFAULTRUNELOCALE
         *low = isascii(*low) ? _DefaultRuneLocale.__maplower[*low] : *low;
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN) || defined(__NetBSD__)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__) || defined(__NetBSD__)
         *low = isascii(*low) ? ctype<char>::__classic_lower_table()[*low]
                              : *low;
 #else
@@ -899,7 +921,7 @@ ctype<char>::do_toupper(char_type c) const
       static_cast<char>(_DefaultRuneLocale.__mapupper[static_cast<ptrdiff_t>(c)]) : c;
 #elif defined(__NetBSD__)
     return static_cast<char>(__classic_upper_table()[static_cast<unsigned char>(c)]);
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__)
     return isascii(c) ? 
       static_cast<char>(__classic_upper_table()[static_cast<unsigned char>(c)]) : c;
 #else
@@ -916,7 +938,7 @@ ctype<char>::do_toupper(char_type* low, const char_type* high) const
           static_cast<char>(_DefaultRuneLocale.__mapupper[static_cast<ptrdiff_t>(*low)]) : *low;
 #elif defined(__NetBSD__)
         *low = static_cast<char>(__classic_upper_table()[static_cast<unsigned char>(*low)]);
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__)
         *low = isascii(*low) ?
           static_cast<char>(__classic_upper_table()[static_cast<size_t>(*low)]) : *low;
 #else
@@ -933,7 +955,7 @@ ctype<char>::do_tolower(char_type c) const
       static_cast<char>(_DefaultRuneLocale.__maplower[static_cast<ptrdiff_t>(c)]) : c;
 #elif defined(__NetBSD__)
     return static_cast<char>(__classic_lower_table()[static_cast<unsigned char>(c)]);
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN) || defined(__NetBSD__)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__) || defined(__NetBSD__)
     return isascii(c) ?
       static_cast<char>(__classic_lower_table()[static_cast<size_t>(c)]) : c;
 #else
@@ -949,7 +971,7 @@ ctype<char>::do_tolower(char_type* low, const char_type* high) const
         *low = isascii(*low) ? static_cast<char>(_DefaultRuneLocale.__maplower[static_cast<ptrdiff_t>(*low)]) : *low;
 #elif defined(__NetBSD__)
         *low = static_cast<char>(__classic_lower_table()[static_cast<unsigned char>(*low)]);
-#elif defined(__GLIBC__) || defined(EMSCRIPTEN)
+#elif defined(__GLIBC__) || defined(__EMSCRIPTEN__)
         *low = isascii(*low) ? static_cast<char>(__classic_lower_table()[static_cast<size_t>(*low)]) : *low;
 #else
         *low = (isascii(*low) && isupper_l(*low, __cloc())) ? *low-'A'+'a' : *low;
@@ -990,7 +1012,7 @@ ctype<char>::do_narrow(const char_type* low, const char_type* high, char dfault,
     return low;
 }
 
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 extern "C" const unsigned short ** __ctype_b_loc();
 extern "C" const int ** __ctype_tolower_loc();
 extern "C" const int ** __ctype_toupper_loc();
@@ -1007,16 +1029,19 @@ ctype<char>::classic_table()  _NOEXCEPT
     return __cloc()->__ctype_b;
 #elif __sun__
     return __ctype_mask;
-#elif defined(_WIN32)
+#elif defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     return _ctype+1; // internal ctype mask table defined in msvcrt.dll
 // This is assumed to be safe, which is a nonsense assumption because we're
 // going to end up dereferencing it later...
-#elif defined(EMSCRIPTEN)
+#elif defined(__EMSCRIPTEN__)
     return *__ctype_b_loc();
+#elif defined(_AIX)
+    return (const unsigned long *)__lc_ctype_ptr->obj->mask;
 #else
     // Platform not supported: abort so the person doing the port knows what to
     // fix
 # warning  ctype<char>::classic_table() is not implemented
+    printf("ctype<char>::classic_table() is not implemented\n");
     abort();
     return NULL;
 #endif
@@ -1047,7 +1072,7 @@ ctype<char>::__classic_upper_table() _NOEXCEPT
     return _C_toupper_tab_ + 1;
 }
 
-#elif defined(EMSCRIPTEN)
+#elif defined(__EMSCRIPTEN__)
 const int*
 ctype<char>::__classic_lower_table() _NOEXCEPT
 {
@@ -1059,7 +1084,7 @@ ctype<char>::__classic_upper_table() _NOEXCEPT
 {
     return *__ctype_toupper_loc();
 }
-#endif // __GLIBC__ || EMSCRIPTEN || __NETBSD__
+#endif // __GLIBC__ || __EMSCRIPTEN__ || __NETBSD__
 
 // template <> class ctype_byname<char>
 
@@ -3201,14 +3226,25 @@ __codecvt_utf8<wchar_t>::do_out(state_type&,
     const intern_type* frm, const intern_type* frm_end, const intern_type*& frm_nxt,
     extern_type* to, extern_type* to_end, extern_type*& to_nxt) const
 {
+#if _WIN32
+    const uint16_t* _frm = reinterpret_cast<const uint16_t*>(frm);
+    const uint16_t* _frm_end = reinterpret_cast<const uint16_t*>(frm_end);
+    const uint16_t* _frm_nxt = _frm;
+#else
     const uint32_t* _frm = reinterpret_cast<const uint32_t*>(frm);
     const uint32_t* _frm_end = reinterpret_cast<const uint32_t*>(frm_end);
     const uint32_t* _frm_nxt = _frm;
+#endif
     uint8_t* _to = reinterpret_cast<uint8_t*>(to);
     uint8_t* _to_end = reinterpret_cast<uint8_t*>(to_end);
     uint8_t* _to_nxt = _to;
+#if _WIN32
+    result r = ucs2_to_utf8(_frm, _frm_end, _frm_nxt, _to, _to_end, _to_nxt,
+                            _Maxcode_, _Mode_);
+#else
     result r = ucs4_to_utf8(_frm, _frm_end, _frm_nxt, _to, _to_end, _to_nxt,
                             _Maxcode_, _Mode_);
+#endif
     frm_nxt = frm + (_frm_nxt - _frm);
     to_nxt = to + (_to_nxt - _to);
     return r;
@@ -3222,11 +3258,19 @@ __codecvt_utf8<wchar_t>::do_in(state_type&,
     const uint8_t* _frm = reinterpret_cast<const uint8_t*>(frm);
     const uint8_t* _frm_end = reinterpret_cast<const uint8_t*>(frm_end);
     const uint8_t* _frm_nxt = _frm;
+#if _WIN32
+    uint16_t* _to = reinterpret_cast<uint16_t*>(to);
+    uint16_t* _to_end = reinterpret_cast<uint16_t*>(to_end);
+    uint16_t* _to_nxt = _to;
+    result r = utf8_to_ucs2(_frm, _frm_end, _frm_nxt, _to, _to_end, _to_nxt,
+                            _Maxcode_, _Mode_);
+#else
     uint32_t* _to = reinterpret_cast<uint32_t*>(to);
     uint32_t* _to_end = reinterpret_cast<uint32_t*>(to_end);
     uint32_t* _to_nxt = _to;
     result r = utf8_to_ucs4(_frm, _frm_end, _frm_nxt, _to, _to_end, _to_nxt,
                             _Maxcode_, _Mode_);
+#endif
     frm_nxt = frm + (_frm_nxt - _frm);
     to_nxt = to + (_to_nxt - _to);
     return r;
@@ -4328,7 +4372,7 @@ __num_put_base::__format_float(char* __fmtp, const char* __len,
     if (__flags & ios_base::showpoint)
         *__fmtp++ = '#';
     ios_base::fmtflags floatfield = __flags & ios_base::floatfield;
-    bool uppercase = __flags & ios_base::uppercase;
+    bool uppercase = (__flags & ios_base::uppercase) != 0;
     if (floatfield == (ios_base::fixed | ios_base::scientific))
         specify_precision = false;
     else
@@ -4659,9 +4703,12 @@ __time_get::~__time_get()
 {
     freelocale(__loc_);
 }
-
+#if defined(__clang__)
 #pragma clang diagnostic ignored "-Wmissing-field-initializers"
+#endif
+#if defined(__GNUG__)
 #pragma GCC   diagnostic ignored "-Wmissing-field-initializers"
+#endif
 
 template <>
 string
@@ -4807,7 +4854,9 @@ __time_get_storage<char>::__analyze(char fmt, const ctype<char>& ct)
     return result;
 }
 
+#if defined(__clang__)
 #pragma clang diagnostic ignored "-Wmissing-braces"
+#endif
 
 template <>
 wstring
@@ -5826,19 +5875,19 @@ moneypunct_byname<char, true>::init(const char* nm)
         __frac_digits_ = lc->int_frac_digits;
     else
         __frac_digits_ = base::do_frac_digits();
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     if (lc->p_sign_posn == 0)
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
     if (lc->int_p_sign_posn == 0)
-#endif //_WIN32
+#endif // !_LIBCPP_MSVCRT
         __positive_sign_ = "()";
     else
         __positive_sign_ = lc->positive_sign;
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     if(lc->n_sign_posn == 0)
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
     if (lc->int_n_sign_posn == 0)
-#endif // _WIN32
+#endif // !_LIBCPP_MSVCRT
         __negative_sign_ = "()";
     else
         __negative_sign_ = lc->negative_sign;
@@ -5846,19 +5895,19 @@ moneypunct_byname<char, true>::init(const char* nm)
     // the same places in curr_symbol since there's no way to
     // represent anything else.
     string_type __dummy_curr_symbol = __curr_symbol_;
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     __init_pat(__pos_format_, __dummy_curr_symbol, true,
                lc->p_cs_precedes, lc->p_sep_by_space, lc->p_sign_posn, ' ');
     __init_pat(__neg_format_, __curr_symbol_, true,
                lc->n_cs_precedes, lc->n_sep_by_space, lc->n_sign_posn, ' ');
-#else
+#else // _LIBCPP_MSVCRT
     __init_pat(__pos_format_, __dummy_curr_symbol, true,
                lc->int_p_cs_precedes, lc->int_p_sep_by_space,
                lc->int_p_sign_posn, ' ');
     __init_pat(__neg_format_, __curr_symbol_, true,
                lc->int_n_cs_precedes, lc->int_n_sep_by_space,
                lc->int_n_sign_posn, ' ');
-#endif // _WIN32
+#endif // !_LIBCPP_MSVCRT
 }
 
 template<>
@@ -5985,11 +6034,11 @@ moneypunct_byname<wchar_t, true>::init(const char* nm)
         __frac_digits_ = lc->int_frac_digits;
     else
         __frac_digits_ = base::do_frac_digits();
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     if (lc->p_sign_posn == 0)
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
     if (lc->int_p_sign_posn == 0)
-#endif // _WIN32
+#endif // !_LIBCPP_MSVCRT
         __positive_sign_ = L"()";
     else
     {
@@ -6005,11 +6054,11 @@ moneypunct_byname<wchar_t, true>::init(const char* nm)
         wbe = wbuf + j;
         __positive_sign_.assign(wbuf, wbe);
     }
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     if (lc->n_sign_posn == 0)
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
     if (lc->int_n_sign_posn == 0)
-#endif // _WIN32
+#endif // !_LIBCPP_MSVCRT
         __negative_sign_ = L"()";
     else
     {
@@ -6029,19 +6078,19 @@ moneypunct_byname<wchar_t, true>::init(const char* nm)
     // the same places in curr_symbol since there's no way to
     // represent anything else.
     string_type __dummy_curr_symbol = __curr_symbol_;
-#ifdef _WIN32
+#if defined(_LIBCPP_MSVCRT) || defined(__MINGW32__)
     __init_pat(__pos_format_, __dummy_curr_symbol, true,
                lc->p_cs_precedes, lc->p_sep_by_space, lc->p_sign_posn, L' ');
     __init_pat(__neg_format_, __curr_symbol_, true,
                lc->n_cs_precedes, lc->n_sep_by_space, lc->n_sign_posn, L' ');
-#else // _WIN32
+#else // _LIBCPP_MSVCRT
     __init_pat(__pos_format_, __dummy_curr_symbol, true,
                lc->int_p_cs_precedes, lc->int_p_sep_by_space,
                lc->int_p_sign_posn, L' ');
     __init_pat(__neg_format_, __curr_symbol_, true,
                lc->int_n_cs_precedes, lc->int_n_sep_by_space,
                lc->int_n_sign_posn, L' ');
-#endif // _WIN32
+#endif // !_LIBCPP_MSVCRT
 }
 
 void __do_nothing(void*) {}
