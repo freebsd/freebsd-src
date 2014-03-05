@@ -106,18 +106,18 @@ management information to a Simple Network Management Protocol (SNMP) agent.
 .Pp
 Depending on the options
 .Nm bsnmpget
-constructs either a SMNP GetRequest, GetNextRequest
+constructs either a SNMP GetRequest, GetNextRequest
 or a GetBulkRequest packet, fills in the object identifiers (OIDs) of the
 objects whose values will be retrived, waits for a response and prints it if
 received successfully.
 .Pp
 .Nm Bsnmpwalk
-queries an agent with ether SMNP GetNextRequest or GetBulkRequest packets,
+queries an agent with ether SNMP GetNextRequest or GetBulkRequest packets,
 asking for values of OID instances that are a part of the object subtree
 rooted at the provided OIDs.
 .Pp
 .Nm Bsnmpset
-constructs a SMNP SetRequest packet, fills in the OIDs (object identifiers),
+constructs a SNMP SetRequest packet, fills in the OIDs (object identifiers),
 syntaxes and values of the objects whose values are to be set and waits for a
 response from server.
 .Sh OPTIONS
@@ -151,7 +151,8 @@ The context to query with SNMPv3 PDUs.
 The context name. Default is "" (empty).
 .It Cm context-engine=engine-id
 The SNMP Engine ID of the context to query with SNMPv3 PDUs, represented as
-binary octet string. By default, this is set to the Engine ID of the SNMP agent.
+binary octet string.
+By default, this is set to the Engine ID of the SNMP agent.
 .El
 .It Fl D
 Perform SNMP USM Engine Discovery, rather than sending a request for the value
@@ -177,7 +178,8 @@ Specifies the initial OID that was cut by
 .Xr gensnmpdef 1
 when producing the MIB description file.
 The default value is .iso(1).org(3).dod(6) which is what should have been
-used for all the files installed under /usr/share/snmp/defs.
+used for all the files installed under
+.Pa /usr/share/snmp/defs .
 Use this only if you generated your own files, providing a
 .Fl c
 option to
@@ -198,7 +200,8 @@ If using spaces make sure the entire option string is one argument, for
 example using quotes.
 .It Fl i Ar filelist
 List of MIB description files produced by
-.Xr gensnmpdef 1 which
+.Xr gensnmpdef 1
+which
 .Nm bsnmpget ,
 .Nm bsnmpwalk
 or
@@ -207,12 +210,13 @@ will search to translate numerical OIDs to their symbolic object names.
 Multiple files can be provided either giving this option multiple times
 or a comma separated list of file names.
 If a filename begins with a letter the default directory,
-/usr/share/snmp/defs,
+.Pa /usr/share/snmp/defs ,
 will be searched.
 .It Fl K
 Calculate and display the localized authentication and privacy keys
-corresponding to a plain text password. The password is obtain via the
-environment. Additionally, if one or more OIDs are specified, the calculated
+corresponding to a plain text password.
+The password is obtained via the environment.
+Additionally, if one or more OIDs are specified, the calculated
 keys are used when processing the SNMPv3 requests.
 .It Fl l Ar filename
 The path of the posix local (unix domain) socket if local
@@ -242,9 +246,9 @@ In addition to the short output verbose prints the type before the value.
 Privacy options to use with SNMPv3 PDUs
 .Bl -tag -width \&
 .It Cm proto=[aes|des]
-The protocol to use when encypting/decrypting SNMPv3 PDU data.
+The protocol to use when encrypting/decrypting SNMPv3 PDU data.
 .It Cm key=privkey
-A binary localized privacy key to use when encypting/decrypting SNMPv3 PDU data.
+A binary localized privacy key to use when encrypting/decrypting SNMPv3 PDU data.
 .El
 .Pp
 By default plain text SNMPv3 PDUs are sent.
@@ -267,14 +271,14 @@ not respond after the first try.
 Default is 3.
 .It Fl s Ar [trans::] Ns Ar [community@] Ns Ar [server] Ns Ar [:port]
 Each of the server specification components is optional but at least one
-has to be provided if
+has to be provided if the
 .Ar s
 option is used.
 The server specification is constructed in the following manner:
 .Bl -tag -width \&
 .It Cm trans::
 Transport type may be one of udp, stream or dgram.
-If this option is not provided an udp inet/inet6 socket will be used, which
+If this option is not provided an UDP inet/inet6 socket will be used, which
 is the most common.
 Stream stands for a posix local stream socket and a posix local datagram
 socket will be used if dgram is specified.
@@ -317,11 +321,13 @@ The value of the snmpEngineTime of the SNMP agent.
 If any of the above is not specified, SNMP USM Engine Discovery is attempted.
 This is also the default behavior.
 .It Cm name=username
-The USM user name to include in the SNMPv3 PDUs. By default, the user name is
-obtain via the environment
+The USM user name to include in the SNMPv3 PDUs.
+By default, the user name is
+obtained via the environment.
 .El
 .It Fl v Ar version
-The SNMP protocol version to use when sending requests. SNMP versions 1, 2 and
+The SNMP protocol version to use when sending requests.
+SNMP versions 1, 2 and
 3 are supported.
 If no version option is provided
 .Nm bsnmpget ,
@@ -330,7 +336,7 @@ and
 .Nm bsnmpset
 will use version 2.
 Note that GetBulkRequest-PDUs were introduced in SNMPv2 thus setting the
-version to 1 is incompatiable with sending a GetBulk PDU.
+version to 1 is incompatible with sending a GetBulk PDU.
 .It OID
 The object identifier whose value to retrive.
 At least one OID should be provided for
@@ -355,7 +361,7 @@ is valid as input OID:
 .It ifRcvAddressStatus.2.6.255.255.255.255.255.255
 .It ifRcvAddressType[2,ff:ff:ff:ff:ff:ff]
 .It ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]
-(requires
+(requires the
 .Fl o Ar verbose
 option)
 .El
@@ -373,14 +379,14 @@ to be able to send a request.
 .It Cm OID
 OID may be input as a string, a string followed by a random number of integers
 (suboids) separated by dots, a sequence of integers separated by dots - that is
-if
+if the
 .Ar n
-options is used - and in such case a syntax is required for every value,
+option is used - and in such case a syntax is required for every value,
 or a string followed by square brackets (used to denote an entry's indexes) and
 corresponding indexes.
-Any of formats used to print a single variable by
-.Nm bsnmpset is
-valid for inpit OID as well:
+Any of the formats used to print a single variable by
+.Nm bsnmpset
+is valid as input OID as well:
 .Bl -tag -width \&
 .It 1.3.6.1.2.1.25.1.1.0=TimeTicks:537615486
 .It sysLocation=OctetString:"@ Home" (with Fl o Ar verbose No option)
@@ -389,17 +395,17 @@ valid for inpit OID as well:
 .It ifPhysAddress.1="00:02:b3:1d:1c:a3"
 .It ifRcvAddressStatus.1.6.255.255.255.255.255.255=1
 .It "ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]=Integer:1"
-(with
+(with the
 .Fl o Ar verbose
 option)
 .El
 .It Cm syntax
-where syntax string is one of:
+where the syntax string is one of:
 Integer, OctetString, OID, IpAddress, Counter32, Gauge, TimeTicks, Counter64.
 .It Cm value
 The value to be set - IP address in form of u.u.u.u - for example
 1.3.1.6.1.2.0=IpAddress:192.168.0.1, strings require inverted-commas if they
-contain any special characters or spaces, all other numeric types don't.
+contain any special characters or spaces, all other numeric types do not.
 .El
 .El
 .Sh ENVIRONMENT
@@ -417,8 +423,9 @@ Specifies a default SNMP USM privacy protocol.
 Specifies a default SNMP USM user name.
 .It Ev SNMPPASSWD
 Specifies the SNMP USM plain text password to use when calculating localized
-authentication and privacy keys. If this variable exists in the environment,
-SMNPv3 is the default version to use for outgoing requests.
+authentication and privacy keys.
+If this variable exists in the environment,
+SNMPv3 is the default version to use for outgoing requests.
 .El
 .Sh SEE ALSO
 .Xr gensnmpdef 1
