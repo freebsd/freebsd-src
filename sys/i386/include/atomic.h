@@ -32,6 +32,11 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
+#ifdef _KERNEL
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
+#endif
+
 #define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 #define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
@@ -54,12 +59,14 @@
  * atomic_clear_int(P, V)	(*(u_int *)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int *)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int *)(P) -= (V))
+ * atomic_swap_int(P, V)	(return (*(u_int *)(P)); *(u_int *)(P) = (V);)
  * atomic_readandclear_int(P)	(return (*(u_int *)(P)); *(u_int *)(P) = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long *)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long *)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long *)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long *)(P) -= (V))
+ * atomic_swap_long(P, V)	(return (*(u_long *)(P)); *(u_long *)(P) = (V);)
  * atomic_readandclear_long(P)	(return (*(u_long *)(P)); *(u_long *)(P) = 0;)
  */
 
@@ -78,11 +85,15 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
+int	atomic_testandset_int(volatile u_int *p, u_int v);
 
 #define	ATOMIC_LOAD(TYPE, LOP)					\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
 #define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
+
+int		atomic_cmpset_64(volatile uint64_t *, uint64_t, uint64_t);
+uint64_t	atomic_swap_64(volatile uint64_t *, uint64_t);
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
@@ -281,6 +292,23 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	return (v);
 }
 
+static __inline int
+atomic_testandset_int(volatile u_int *p, u_int v)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	btsl	%2,%1 ;		"
+	"	setc	%0 ;		"
+	"# atomic_testandset_int"
+	: "=q" (res),			/* 0 */
+	  "+m" (*p)			/* 1 */
+	: "Ir" (v & 0x1f)		/* 2 */
+	: "cc");
+	return (res);
+}
+
 /*
  * We assume that a = b will do atomic loads and stores.  Due to the
  * IA32 memory model, a simple store guarantees release semantics.
@@ -334,6 +362,125 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 struct __hack
 
 #endif /* _KERNEL && !SMP */
+
+#ifdef _KERNEL
+
+#ifdef WANT_FUNCTIONS
+int		atomic_cmpset_64_i386(volatile uint64_t *, uint64_t, uint64_t);
+int		atomic_cmpset_64_i586(volatile uint64_t *, uint64_t, uint64_t);
+uint64_t	atomic_swap_64_i386(volatile uint64_t *, uint64_t);
+uint64_t	atomic_swap_64_i586(volatile uint64_t *, uint64_t);
+#endif
+
+/* I486 does not support SMP or CMPXCHG8B. */
+static __inline int
+atomic_cmpset_64_i386(volatile uint64_t *dst, uint64_t expect, uint64_t src)
+{
+	volatile uint32_t *p;
+	u_char res;
+
+	p = (volatile uint32_t *)dst;
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	xorl	%1,%%eax ;	"
+	"	xorl	%2,%%edx ;	"
+	"	orl	%%edx,%%eax ;	"
+	"	jne	1f ;		"
+	"	movl	%4,%1 ;		"
+	"	movl	%5,%2 ;		"
+	"1:				"
+	"	sete	%3 ;		"
+	"	popfl"
+	: "+A" (expect),		/* 0 */
+	  "+m" (*p),			/* 1 */
+	  "+m" (*(p + 1)),		/* 2 */
+	  "=q" (res)			/* 3 */
+	: "r" ((uint32_t)src),		/* 4 */
+	  "r" ((uint32_t)(src >> 32))	/* 5 */
+	: "memory", "cc");
+	return (res);
+}
+
+static __inline uint64_t
+atomic_swap_64_i386(volatile uint64_t *p, uint64_t v)
+{
+	volatile uint32_t *q;
+	uint64_t res;
+
+	q = (volatile uint32_t *)p;
+	__asm __volatile(
+	"	pushfl ;		"
+	"	cli ;			"
+	"	movl	%1,%%eax ;	"
+	"	movl	%2,%%edx ;	"
+	"	movl	%4,%2 ;		"
+	"	movl	%3,%1 ;		"
+	"	popfl"
+	: "=&A" (res),			/* 0 */
+	  "+m" (*q),			/* 1 */
+	  "+m" (*(q + 1))		/* 2 */
+	: "r" ((uint32_t)v),		/* 3 */
+	  "r" ((uint32_t)(v >> 32)));	/* 4 */
+	return (res);
+}
+
+static __inline int
+atomic_cmpset_64_i586(volatile uint64_t *dst, uint64_t expect, uint64_t src)
+{
+	u_char res;
+
+	__asm __volatile(
+	"	" MPLOCKED "		"
+	"	cmpxchg8b %1 ;		"
+	"	sete	%0"
+	: "=q" (res),			/* 0 */
+	  "+m" (*dst),			/* 1 */
+	  "+A" (expect)			/* 2 */
+	: "b" ((uint32_t)src),		/* 3 */
+	  "c" ((uint32_t)(src >> 32))	/* 4 */
+	: "memory", "cc");
+	return (res);
+}
+
+static __inline uint64_t
+atomic_swap_64_i586(volatile uint64_t *p, uint64_t v)
+{
+
+	__asm __volatile(
+	"	movl	%%eax,%%ebx ;	"
+	"	movl	%%edx,%%ecx ;	"
+	"1:				"
+	"	" MPLOCKED "		"
+	"	cmpxchg8b %0 ;		"
+	"	jne	1b"
+	: "+m" (*p),			/* 0 */
+	  "+A" (v)			/* 1 */
+	: : "ebx", "ecx", "memory", "cc");
+	return (v);
+}
+
+static __inline int
+atomic_cmpset_64(volatile uint64_t *dst, uint64_t expect, uint64_t src)
+{
+
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_cmpset_64_i386(dst, expect, src));
+	else
+		return (atomic_cmpset_64_i586(dst, expect, src));
+}
+
+static __inline uint64_t
+atomic_swap_64(volatile uint64_t *p, uint64_t v)
+{
+
+	if ((cpu_feature & CPUID_CX8) == 0)
+		return (atomic_swap_64_i386(p, v));
+	else
+		return (atomic_swap_64_i586(p, v));
+}
+
+#endif /* _KERNEL */
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
@@ -393,6 +540,13 @@ atomic_fetchadd_long(volatile u_long *p, u_long v)
 	return (atomic_fetchadd_int((volatile u_int *)p, (u_int)v));
 }
 
+static __inline int
+atomic_testandset_long(volatile u_long *p, u_int v)
+{
+
+	return (atomic_testandset_int((volatile u_int *)p, v));
+}
+
 /* Read the current value and store a zero in the destination. */
 #ifdef __GNUCLIKE_ASM
 
@@ -428,10 +582,31 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (res);
 }
 
+static __inline u_int
+atomic_swap_int(volatile u_int *p, u_int v)
+{
+
+	__asm __volatile(
+	"	xchgl	%1,%0 ;		"
+	"# atomic_swap_int"
+	: "+r" (v),			/* 0 */
+	  "+m" (*p));			/* 1 */
+	return (v);
+}
+
+static __inline u_long
+atomic_swap_long(volatile u_long *p, u_long v)
+{
+
+	return (atomic_swap_int((volatile u_int *)p, (u_int)v));
+}
+
 #else /* !__GNUCLIKE_ASM */
 
 u_int	atomic_readandclear_int(volatile u_int *addr);
 u_long	atomic_readandclear_long(volatile u_long *addr);
+u_int	atomic_swap_int(volatile u_int *p, u_int v);
+u_long	atomic_swap_long(volatile u_long *p, u_long v);
 
 #endif /* __GNUCLIKE_ASM */
 
@@ -525,8 +700,10 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_32	atomic_cmpset_int
 #define	atomic_cmpset_acq_32	atomic_cmpset_acq_int
 #define	atomic_cmpset_rel_32	atomic_cmpset_rel_int
+#define	atomic_swap_32		atomic_swap_int
 #define	atomic_readandclear_32	atomic_readandclear_int
 #define	atomic_fetchadd_32	atomic_fetchadd_int
+#define	atomic_testandset_32	atomic_testandset_int
 
 /* Operations on pointers. */
 #define	atomic_set_ptr(p, v) \
@@ -565,6 +742,8 @@ u_long	atomic_readandclear_long(volatile u_long *addr);
 #define	atomic_cmpset_rel_ptr(dst, old, new) \
 	atomic_cmpset_rel_int((volatile u_int *)(dst), (u_int)(old), \
 	    (u_int)(new))
+#define	atomic_swap_ptr(p, v) \
+	atomic_swap_int((volatile u_int *)(p), (u_int)(v))
 #define	atomic_readandclear_ptr(p) \
 	atomic_readandclear_int((volatile u_int *)(p))
 

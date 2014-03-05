@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
+#include <machine/md_var.h>
 
 #include "common/common.h"
 #include "common/t4_regs.h"
@@ -195,10 +196,6 @@ static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
-
-#if defined(__i386__) || defined(__amd64__)
-extern u_int cpu_clflush_line_size;
-#endif
 
 /*
  * Called on MOD_LOAD.  Fills up fl_buf_info[] and validates/calculates the SGE
