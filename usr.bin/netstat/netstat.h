@@ -60,6 +60,7 @@ extern int	live;	/* true if we are examining a live system */
 
 struct nlist;
 int	kread(u_long addr, void *buf, size_t size);
+uint64_t kread_counter(u_long addr);
 int	kread_counters(u_long addr, void *buf, size_t size);
 int	kresolve_list(struct nlist *);
 const char *plural(uintmax_t);
