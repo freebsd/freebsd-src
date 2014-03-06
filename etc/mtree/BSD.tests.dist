@@ -23,8 +23,12 @@
         lib
             atf
                 libatf-c
+                    detail
+                    ..
                 ..
                 libatf-c++
+                    detail
+                    ..
                 ..
                 test-programs
                 ..
