@@ -261,7 +261,7 @@ mwl_collect(struct mwlstatfoo_p *wf, struct mwl_stats *stats)
 {
 	wf->ifr.ifr_data = (caddr_t) stats;
 	if (ioctl(wf->s, SIOCGMVSTATS, &wf->ifr) < 0)
-		err(1, wf->ifr.ifr_name);
+		err(1, "%s: ioctl: %s", __func__, wf->ifr.ifr_name);
 }
 
 static void
