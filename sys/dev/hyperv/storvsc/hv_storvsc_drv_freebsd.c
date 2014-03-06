@@ -1062,7 +1062,7 @@ storvsc_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = STORVSC_MAX_TARGETS;
 		cpi->max_lun = sc->hs_drv_props->drv_max_luns_per_target;
-		cpi->initiator_id = cpi->max_lun + 1;
+		cpi->initiator_id = cpi->max_target;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 300000;
 		cpi->transport = XPORT_SAS;
