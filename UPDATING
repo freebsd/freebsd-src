@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20140306:
+	Support for libwrap (TCP wrappers) in rpcbind was disabled by default
+	to improve performance.  To re-enable it, if needed, run rpcbind
+	with command line option -W.
+
 20140226:
 	Switched back to the GPL dtc compiler due to updates in the upstream
 	dts files not being supported by the BSDL dtc compiler. You will need
