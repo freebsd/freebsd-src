@@ -614,8 +614,8 @@ mps_iocfacts_free(struct mps_softc *sc)
 
 	if (sc->post_busaddr != 0)
 		bus_dmamap_unload(sc->queues_dmat, sc->queues_map);
-	if (sc->post_queue != NULL)
-		bus_dmamem_free(sc->queues_dmat, sc->post_queue,
+	if (sc->free_queue != NULL)
+		bus_dmamem_free(sc->queues_dmat, sc->free_queue,
 		    sc->queues_map);
 	if (sc->queues_dmat != NULL)
 		bus_dma_tag_destroy(sc->queues_dmat);
