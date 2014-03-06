@@ -4100,9 +4100,13 @@ OLD_FILES+=usr/share/man/man8/telnetd.8.gz
 .endif
 
 .if ${MK_TESTS} == yes
+OLD_LIBS+=usr/lib/libatf-c++.so.1
 OLD_FILES+=usr/tests/lib/atf/libatf-c/test_helpers_test
 OLD_FILES+=usr/tests/lib/atf/test-programs/fork_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/application_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/expand_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/parser_test
+OLD_FILES+=usr/tests/lib/atf/libatf-c++/detail/ui_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/env_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/exceptions_test
 OLD_FILES+=usr/tests/lib/atf/libatf-c++/expand_test
