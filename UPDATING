@@ -17,6 +17,14 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 
+20140306:
+	If a Makefile in a tests/ directory was auto-generating a Kyuafile
+	instead of providing an explicit one, this would prevent such
+	Makefile from providing its own Kyuafile in the future during
+	NO_CLEAN builds.  This has been fixed in the Makefiles but manual
+	intervention is needed to clean an objdir if you use NO_CLEAN:
+	  # find /usr/obj -name Kyuafile | xargs rm -f
+
 20140303:
 	OpenSSH will now ignore errors caused by kernel lacking of Capsicum
 	capability mode support.  Please note that enabling the feature in

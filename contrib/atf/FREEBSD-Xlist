@@ -8,7 +8,6 @@ Makefile*
 aclocal.m4
 admin/
 atf-*/atf-*.m4
-atf-*/atf-*.pc.in
 atf-config/
 atf-report/
 atf-run/
