@@ -1379,8 +1379,9 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
 /*
  *	vm_page_alloc:
  *
- *	Allocate and return a memory cell associated
- *	with this VM object/offset pair.
+ *	Allocate and return a page that is associated with the specified
+ *	object and offset pair.  By default, this page has the flag VPO_BUSY
+ *	set.
  *
  *	The caller must always specify an allocation class.
  *
@@ -1390,13 +1391,14 @@ vm_page_is_cached(vm_object_t object, vm_pindex_t pindex)
  *	VM_ALLOC_INTERRUPT	interrupt time request
  *
  *	optional allocation flags:
- *	VM_ALLOC_ZERO		prefer a zeroed page
- *	VM_ALLOC_WIRED		wire the allocated page
- *	VM_ALLOC_NOOBJ		page is not associated with a vm object
- *	VM_ALLOC_NOBUSY		do not set the page busy
  *	VM_ALLOC_IFCACHED	return page only if it is cached
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
+ *	VM_ALLOC_NOBUSY		do not set the flag VPO_BUSY on the page
+ *	VM_ALLOC_NOOBJ		page is not associated with an object and
+ *				should not have the flag VPO_BUSY set
+ *	VM_ALLOC_WIRED		wire the allocated page
+ *	VM_ALLOC_ZERO		prefer a zeroed page
  *
  *	This routine may not sleep.
  */
