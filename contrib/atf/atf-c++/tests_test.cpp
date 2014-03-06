@@ -40,8 +40,8 @@ extern "C" {
 
 #include "macros.hpp"
 
-#include "detail/parser.hpp"
 #include "detail/test_helpers.hpp"
+#include "detail/text.hpp"
 
 // ------------------------------------------------------------------------
 // Tests for the "atf_tp_writer" class.
