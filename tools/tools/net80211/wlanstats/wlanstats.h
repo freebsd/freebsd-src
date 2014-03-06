@@ -32,15 +32,15 @@
 #ifndef _WLANSTATS_H_
 #define	_WLANSTATS_H_
 
-#include "statfoo.h"
+#include "bsdstat.h"
 
 /*
  * wlan statistics class.
  */
 struct wlanstatfoo {
-	struct statfoo base;
+	struct bsdstat base;
 
-	STATFOO_DECL_METHODS(struct wlanstatfoo *);
+	BSDSTAT_DECL_METHODS(struct wlanstatfoo *);
 
 	/* set the network interface name for collection */
 	void (*setifname)(struct wlanstatfoo *, const char *ifname);
