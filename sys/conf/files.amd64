@@ -241,7 +241,7 @@ dev/hyperv/vmbus/hv_connection.c			optional	hyperv
 dev/hyperv/vmbus/hv_hv.c				optional	hyperv
 dev/hyperv/vmbus/hv_ring_buffer.c			optional	hyperv
 dev/hyperv/vmbus/hv_vmbus_drv_freebsd.c			optional	hyperv
-dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/kbd/kbd.c			optional	atkbd | sc | ukbd | vt
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
