@@ -69,6 +69,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libblocksruntime \
 	${_libbluetooth} \
 	${_libbsnmp} \
+	libbsdstat \
 	libbz2 \
 	libcalendar \
 	libcam \
