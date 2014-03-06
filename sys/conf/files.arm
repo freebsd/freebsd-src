@@ -62,7 +62,7 @@ crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_arm.c		optional	hwpmc
-dev/kbd/kbd.c			optional	sc
+dev/kbd/kbd.c			optional	sc | vt
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
