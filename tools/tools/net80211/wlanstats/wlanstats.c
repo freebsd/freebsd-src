@@ -531,7 +531,7 @@ wlan_collect(struct wlanstatfoo_p *wf,
 }
 
 static void
-wlan_collect_cur(struct statfoo *sf)
+wlan_collect_cur(struct bsdstat *sf)
 {
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) sf;
 
@@ -539,7 +539,7 @@ wlan_collect_cur(struct statfoo *sf)
 }
 
 static void
-wlan_collect_tot(struct statfoo *sf)
+wlan_collect_tot(struct bsdstat *sf)
 {
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) sf;
 
@@ -547,7 +547,7 @@ wlan_collect_tot(struct statfoo *sf)
 }
 
 static void
-wlan_update_tot(struct statfoo *sf)
+wlan_update_tot(struct bsdstat *sf)
 {
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) sf;
 
@@ -669,7 +669,7 @@ wlan_getinfo(struct wlanstatfoo_p *wf, int s, char b[], size_t bs)
 }
 
 static int
-wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
+wlan_get_curstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) sf;
 #define	STAT(x) \
@@ -833,7 +833,7 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 }
 
 static int
-wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
+wlan_get_totstat(struct bsdstat *sf, int s, char b[], size_t bs)
 {
 	struct wlanstatfoo_p *wf = (struct wlanstatfoo_p *) sf;
 #define	STAT(x) \
@@ -994,7 +994,7 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 #undef STAT
 }
 
-STATFOO_DEFINE_BOUNCE(wlanstatfoo)
+BSDSTAT_DEFINE_BOUNCE(wlanstatfoo)
 
 struct wlanstatfoo *
 wlanstats_new(const char *ifname, const char *fmtstring)
@@ -1004,7 +1004,7 @@ wlanstats_new(const char *ifname, const char *fmtstring)
 
 	wf = calloc(1, sizeof(struct wlanstatfoo_p));
 	if (wf != NULL) {
-		statfoo_init(&wf->base.base, "wlanstats", wlanstats, N(wlanstats));
+		bsdstat_init(&wf->base.base, "wlanstats", wlanstats, N(wlanstats));
 		/* override base methods */
 		wf->base.base.collect_cur = wlan_collect_cur;
 		wf->base.base.collect_tot = wlan_collect_tot;
@@ -1013,7 +1013,7 @@ wlanstats_new(const char *ifname, const char *fmtstring)
 		wf->base.base.update_tot = wlan_update_tot;
 
 		/* setup bounce functions for public methods */
-		STATFOO_BOUNCE(wf, wlanstatfoo);
+		BSDSTAT_BOUNCE(wf, wlanstatfoo);
 
 		/* setup our public methods */
 		wf->base.setifname = wlan_setifname;
