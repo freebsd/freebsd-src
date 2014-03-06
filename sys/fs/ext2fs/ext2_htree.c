@@ -471,7 +471,7 @@ ext2_htree_cmp_sort_entry(const void *e1, const void *e2)
 
 	if (entry1->h_hash < entry2->h_hash)
 		return (-1);
-	if (entry2->h_hash > entry2->h_hash)
+	if (entry1->h_hash > entry2->h_hash)
 		return (1);
 	return (0);
 }
