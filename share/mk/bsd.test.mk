@@ -41,6 +41,20 @@ TESTS_SUBDIRS?=
 # If 'no', no Kyuafile is installed.
 KYUAFILE?= auto
 
+# Per-test program interface definition.
+#
+# The name provided here must match one of the interface names supported by
+# Kyua as this is later encoded in the Kyuafile test program definitions.
+#TEST_INTERFACE.<test-program>= interface-name
+
+# Per-test program metadata properties as a list of key/value pairs.
+#
+# All the variables for a particular program are appended to the program's
+# definition in the Kyuafile.  This feature can be used to avoid having to
+# explicitly supply a Kyuafile in the source directory, allowing the caller
+# Makefile to rely on the KYUAFILE=auto behavior defined here.
+#TEST_METADATA.<test-program>+= key="value"
+
 # List of variables to pass to the tests at run-time via the environment.
 TESTS_ENV?=
 
@@ -102,7 +116,7 @@ Kyuafile.auto: Makefile
             echo; \
 	} >Kyuafile.auto.tmp
 .for _T in ${_TESTS}
-	@echo "${TEST_INTERFACE.${_T}}_test_program{name=\"${_T}\"}" \
+	@echo '${TEST_INTERFACE.${_T}}_test_program{name="${_T}"${TEST_METADATA.${_T}:C/$/,/:tW:C/^/, /W:C/,$//W}}' \
 	    >>Kyuafile.auto.tmp
 .endfor
 .for _T in ${TESTS_SUBDIRS:N.WAIT}
