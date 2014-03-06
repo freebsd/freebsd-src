@@ -32,15 +32,15 @@
 #ifndef _MWLSTATS_H_
 #define	_MWLSTATS_H_
 
-#include "statfoo.h"
+#include "bsdstat.h"
 
 /*
  * mv statistics class.
  */
 struct mwlstatfoo {
-	struct statfoo base;
+	struct bsdstat base;
 
-	STATFOO_DECL_METHODS(struct mwlstatfoo *);
+	BSDSTAT_DECL_METHODS(struct mwlstatfoo *);
 
 	/* set the network interface name for collection */
 	void (*setifname)(struct mwlstatfoo *, const char *ifname);
