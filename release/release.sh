@@ -107,6 +107,16 @@ while getopts c: opt; do
 done
 shift $(($OPTIND - 1))
 
+# Fix for backwards-compatibility with release.conf that does not have the
+# trailing '/'.
+case ${SVNROOT} in
+	*svn*)
+		SVNROOT="${SVNROOT}/"
+		;;
+	*)
+		;;
+esac
+
 # Prefix the branches with the SVNROOT for the full checkout URL.
 SRCBRANCH="${SVNROOT}${SRCBRANCH}"
 DOCBRANCH="${SVNROOT}${DOCBRANCH}"
