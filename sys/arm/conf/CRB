@@ -45,6 +45,9 @@ options 	NFSD			#New Network Filesystem Server
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 #options 	MSDOSFS			#MSDOS Filesystem
+options 	GEOM_PART_BSD		#BSD partition scheme
+options 	GEOM_PART_MBR		#MBR partition scheme
+options		TMPFS			#Efficient memory filesystem
 options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
