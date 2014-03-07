@@ -8,4 +8,6 @@ TEST_METADATA.unix_seqpacket_test+=	timeout="15"
 
 LDADD.unix_seqpacket_test+=		-lpthread
 
+WARNS?=	5
+
 .include <atf.test.mk>
