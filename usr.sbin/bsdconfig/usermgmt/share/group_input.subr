@@ -1,7 +1,7 @@
 if [ ! "$_USERMGMT_GROUP_INPUT_SUBR" ]; then _USERMGMT_GROUP_INPUT_SUBR=1
 #
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -48,14 +48,20 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_input_group()
 {
-	eval $( pw groupshow "$1" | awk -F: '
+	local funcname=f_input_group
+	local group="$1"
+
+	f_dprintf "$funcname: Getting info for group \`%s'" "$group"
+	eval "$( pw groupshow "$group" 2> /dev/null | awk -F: '
 	{
+		found = $1 != ""
 		printf "group_name='\'%s\''\n", $1
 		printf "group_password=\n"
 		printf "group_gid='\'%s\''\n", $3
 		printf "group_members='\'%s\''\n", $4
 		exit
-	}' )
+	}
+	END { if (!found) print "false" }' )"
 }
 
 # f_dialog_menu_group_list [$default]
@@ -105,298 +111,455 @@ f_dialog_menu_group_list()
 	return $retval
 }
 
-# f_dialog_input_group_name [$group_name]
+# f_dialog_input_group_name $var_to_set [$group_name]
 #
-# Allows the user to enter a new groupname for a given group. If the user does
-# not cancel or press ESC, the $group_name variable will hold the
-# newly-configured value upon return.
-#
-# If $cur_group_name is defined, the user can enter that and by-pass error-
-# checking (allowing the user to "revert" to an old value without, for example,
-# being told that the groupname already exists).
+# Allows the user to enter a name for a new group. If the user does not cancel
+# or press ESC, the $var_to_set variable will hold the newly-configured value
+# upon return.
 #
 f_dialog_input_group_name()
 {
+	local __var_to_set="$1" __name="$2"
+
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local _name="$1" _input="$1"
+	local __input="$__name"
 	while :; do
-
 		# Return if user has either pressed ESC or chosen Cancel/No
-		f_dialog_input _input "$msg_group" "$_input" \
+		f_dialog_input __input "$msg_group" "$__input" \
 		               "$hline_alnum_tab_enter" || return $?
 
 		# Check for no-change
-		[ "$_input" = "$_name" ] && return $DIALOG_OK
-
-		# Check for reversion
-		if [ "$_input" = "$cur_group_name" ]; then
-			group_name="$cur_group_name"
+		if [ "$__input" = "$__name" ]; then
+			setvar "$__var_to_set" "$__input"
 			return $DIALOG_OK
 		fi
 
 		# Check for NULL entry
-		if [ ! "$_input" ]; then
+		if [ ! "$__input" ]; then
 			f_show_msg "$msg_group_is_empty"
 			continue
 		fi
 
 		# Check for invalid entry
-		if ! echo "$_input" | grep -q "^[[:alpha:]]"; then
+		case "$__input" in [!a-zA-Z]*)
 			f_show_msg "$msg_group_must_start_with_letter"
 			continue
-		fi
+		esac
 
 		# Check for duplicate entry
-		if f_quietly pw groupshow -n "$_input"; then
-			f_show_msg "$msg_group_already_used" "$_input"
+		if f_quietly pw groupshow -n "$__input"; then
+			f_show_msg "$msg_group_already_used" "$__input"
 			continue
 		fi
 
-		group_name="$_input"
+		setvar "$__var_to_set" "$__input"
 		break
 	done
 	save_flag=1
 
-	f_dprintf "group_name: [%s]->[%s]" "$cur_group_name" "$group_name"
-
 	return $DIALOG_OK
 }
 
-# f_dialog_input_group_password
+# f_dialog_input_group_password $var_to_set $dvar_to_set
 #
-# Prompt the user to enter a password (twice).
+# Prompt the user to enter a password (twice). If the user does not cancel or
+# press ESC, $var_to_set will hold the confirmed user entry. Otherwise, if the
+# user cancels or enters a NULL password (twice), they are given the choice to
+# disable password authentication for the given group, wherein $dvar_to_set has
+# a value of 1 to indicate password authentication should be disabled.
 #
 f_dialog_input_group_password()
 {
-	local prompt1="$msg_group_password"
-	local prompt2="$msg_reenter_group_password"
-	local hline="$hline_alnum_punc_tab_enter"
+	local __var_to_set="$1" __dvar_to_set="$2"
+	local __prompt1="$msg_group_password"
+	local __prompt2="$msg_reenter_group_password"
+	local __hline="$hline_alnum_punc_tab_enter"
 
-	local height1 width1
-	f_dialog_inputbox_size height1 width1 \
+	local __height1 __width1
+	f_dialog_inputbox_size __height1 __width1 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt1"          \
+	        	"$__prompt1"        \
 	        	""                  \
-	        	"$hline"
+	        	"$__hline"
 
-	local height2 width2
-	f_dialog_inputbox_size height2 width2 \
+	local __height2 __width2
+	f_dialog_inputbox_size __height2 __width2 \
 	        	"$DIALOG_TITLE"     \
 	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt2"          \
+	        	"$__prompt2"        \
 	        	""                  \
-	        	"$hline"
+	        	"$__hline"
 
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local retval _password1 _password2
+	local __retval __password1 __password2
 	while :; do
-		_password1=$( $DIALOG \
+		__password1=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
-			--hline "$hline"                \
+			--hline "$__hline"              \
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$prompt1"        \
-			$height1 $width1                \
+			--passwordbox "$__prompt1"      \
+			$__height1 $__width1            \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-		retval=$?
-		debug= f_dialog_line_sanitize _password1
+		__retval=$?
+		debug= f_dialog_line_sanitize __password1
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $DIALOG_OK ] || return $retval
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
 
-		_password2=$( $DIALOG \
+		__password2=$( $DIALOG \
 			--title "$DIALOG_TITLE"         \
 			--backtitle "$DIALOG_BACKTITLE" \
-			--hline "$hline"                \
+			--hline "$__hline"              \
 			--ok-label "$msg_ok"            \
 			--cancel-label "$msg_cancel"    \
 			--insecure                      \
-			--passwordbox "$prompt2"        \
-			$height2 $width2                \
+			--passwordbox "$__prompt2"      \
+			$__height2 $__width2            \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-		retval=$?
-		debug= f_dialog_line_sanitize _password2
+		__retval=$?
+		debug= f_dialog_line_sanitize __password2
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $DIALOG_OK ] || return $retval
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
 
 		# Check for password mismatch
-		if [ "$_password1" != "$_password2" ]; then
+		if [ "$__password1" != "$__password2" ]; then
 			f_show_msg "$msg_group_passwords_do_not_match"
 			continue
 		fi
 
 		# Check for NULL entry
-		if [ ! "$_password1" ]; then
+		if [ ! "$__password1" ]; then
 			f_dialog_yesno "$msg_disable_password_auth_for_group"
-			local retval=$?
-			if [ $retval -eq $DIALOG_ESC ]; then
-				return $retval
-			elif [ $retval -eq $DIALOG_OK ]; then
-				pw_group_password_disable=1
+			__retval=$?
+			if [ $__retval -eq $DIALOG_ESC ]; then
+				return $__retval
+			elif [ $__retval -eq $DIALOG_OK ]; then
+				setvar "$__dvar_to_set" 1
 			else
 				continue # back to password prompt
 			fi
 		else
-			pw_group_password_disable=
+			setvar "$__dvar_to_set" ""
 		fi
 
-		group_password="$_password1"
+		setvar "$__var_to_set" "$__password1"
 		break
 	done
 	save_flag=1
 
-	f_dprintf "group_password: [%s]->[%s]" \
-	          "$cur_group_password" "$group_password"
-
 	return $DIALOG_OK
 }
 
-# f_dialog_input_group_gid [$group_gid]
+# f_dialog_input_group_gid $var_to_set [$group_gid]
 #
 # Allow the user to enter a new GID for a given group. If the user does not
-# cancel or press ESC, the $group_gid variable will hold the newly-configured
+# cancel or press ESC, the $var_to_set variable will hold the newly-configured
 # value upon return.
 #
 f_dialog_input_group_gid()
 {
-	local _input="$1"
+	local __var_to_set="$1" __input="$2"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	f_dialog_input _input "$msg_group_id_leave_empty_for_default" \
-	               "$_input" "$hline_num_tab_enter" || return $?
+	f_dialog_input __input "$msg_group_id_leave_empty_for_default" \
+	               "$__input" "$hline_num_tab_enter" || return $?
 
-	group_gid="$_input"
+	setvar "$__var_to_set" "$__input"
 	save_flag=1
-
-	f_dprintf "group_gid: [%s]->[%s]" "$cur_group_gid" "$group_gid"
 
 	return $DIALOG_OK
 }
 
-# f_dialog_input_group_members [$group_members]
+# f_dialog_input_group_members $var_to_set [$group_members]
 #
 # Allow the user to modify a list of members for a given group. If the user
-# does not cancel or press ESC, the $group_members variable will hold the
-# newly-configured value upon return.
+# does not cancel or press ESC, the $var_to_set variable will hold the newly-
+# configured value upon return.
 #
 f_dialog_input_group_members()
 {
-	local _input="$1"
-	local prompt="$msg_group_members:"
-	local menu_list="
+	local __var_to_set="$1" __input="$2"
+	local __prompt="$msg_group_members:"
+	local __menu_list="
 		'X' '$msg_continue'
 		'1' '$msg_select_group_members_from_list'
 		'2' '$msg_enter_group_members_manually'
 	" # END-QUOTE
-	local defaultitem=
-	local hline="$hline_num_arrows_tab_enter"
+	local __defaultitem=
+	local __hline="$hline_num_arrows_tab_enter"
 
-	local mheight mwidth mrows
-	eval f_dialog_menu_size mheight mwidth mrows \
+	local __mheight __mwidth __mrows
+	eval f_dialog_menu_size __mheight __mwidth __mrows \
 	                        \"\$DIALOG_TITLE\"     \
 	                        \"\$DIALOG_BACKTITLE\" \
-	                        \"\$prompt\"           \
-	                        \"\$hline\"            \
+	                        \"\$__prompt\"         \
+	                        \"\$__hline\"          \
 	                        $menu_list
 
-	local menu_choice retval
+	local __menu_choice __retval
 	while :; do
-		menu_choice=$( eval $DIALOG \
+		__menu_choice=$( eval $DIALOG \
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
+			--hline \"\$__hline\"              \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
-			--default-item \"\$defaultitem\"   \
-			--menu \"\$prompt\"                \
-			$mheight $mwidth $mrows            \
-			$menu_list                         \
+			--default-item \"\$__defaultitem\" \
+			--menu \"\$__prompt\"              \
+			$__mheight $__mwidth $__mrows      \
+			$__menu_list                       \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 		)
-		retval=$?
-		f_dialog_data_sanitize menu_choice
-		defaultitem="$menu_choice"
-		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
+		__retval=$?
+		f_dialog_data_sanitize __menu_choice
+		__defaultitem="$__menu_choice"
+		f_dprintf "retval=%u menu_choice=[%s]" \
+		          $__retval "$__menu_choice"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $DIALOG_OK ] || return $retval
+		[ $__retval -eq $DIALOG_OK ] || return $__retval
 
-		local _group_members
-		case "$menu_choice" in
+		local __group_members
+		case "$__menu_choice" in
 		X) # Exit
 			break ;;
 		1) # Select Group Members from a list
-			local user check_list=
-			for user in $( pw usershow -a |
-				awk -F: '!/^[[:space:]]*(#|$)/{print $1}'
-			); do
+			local __user_list __length=0 __user __check_list=
+			__user_list=$( pw usershow -a |
+				awk -F: '!/^[[:space:]]*(#|$)/{print $1}' )
+			while [ $__length -ne ${#__user_list} ]; do
+				__user="${__user_list%%$NL*}" # First line
+
 				# Format of a checklist entry: tag item status
-				if echo "$_input" | grep -q "\<$user\>"; then
-					check_list="$check_list $user '' on"
-				else
-					check_list="$check_list $user '' off"
-				fi
+				__check_list="$__check_list '$__user' ''"
+				case "$__input" in
+				"$__user"|"$__user",*|*,"$__user",*|*,"$__user")
+					__check_list="$__check_list on" ;;
+				*)
+					__check_list="$__check_list off"
+				esac
+
+				__length=${#__user_list}
+				__user_list="${__user_list#*$NL}" # Kill line
 			done
 
-			local cheight cwidth crows
-			eval f_dialog_checklist_size cheight cwidth crows \
-			                             \"\$DIALOG_TITLE\"     \
-			                             \"\$DIALOG_BACKTITLE\" \
-			                             \"\$prompt\"           \
-			                             \"\$hline\"            \
-			                             $check_list
-			_group_members=$( eval $DIALOG \
+			local __cheight __cwidth __crows
+			eval f_dialog_checklist_size \
+				__cheight __cwidth __crows \
+				\"\$DIALOG_TITLE\"     \
+				\"\$DIALOG_BACKTITLE\" \
+				\"\$__prompt\"         \
+				\"\$__hline\"          \
+				$__check_list
+			__group_members=$( eval $DIALOG \
 				--title \"\$DIALOG_TITLE\"         \
 				--backtitle \"\$DIALOG_BACKTITLE\" \
 				--separate-output                  \
-				--hline \"\$hline\"                \
+				--hline \"\$__hline\"              \
 				--ok-label \"\$msg_ok\"            \
 				--cancel-label \"\$msg_cancel\"    \
-				--checklist \"\$prompt\"           \
-				$cheight $cwidth $crows            \
-				$check_list                        \
+				--checklist \"\$__prompt\"         \
+				$__cheight $__cwidth $__crows      \
+				$__check_list                      \
 				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 			) || continue
 				# Return to previous menu if user either
 				# pressed ESC or chose Cancel/No
-			f_dialog_data_sanitize _group_members
+			f_dialog_data_sanitize __group_members
 
 			#
 			# Convert the newline separated list into a comma-
 			# separated one so that if the user switches over to
 			# manual editing, list reflects checklist selections
 			#
-			f_replaceall "$_group_members" "[$IFS]" "," _input
+			f_replaceall "$__group_members" "[$NL]" "," __input
 			;;
 		2) # Enter Group Members manually
-			local p="$msg_group_members ($msg_separated_by_commas)"
+			local __prompt2="$msg_group_members"
+			__prompt2="$__prompt2 ($msg_separated_by_commas)"
 
-			f_dialog_input _group_members "$p" "$_input" \
+			f_dialog_input __group_members \
+			               "$__prompt2" "$__input" \
 			               "$hline_num_tab_enter" || continue
 				# Return to previous menu if user either
 				# pressed ESC or chose Cancel/No
 
-			_input="$_group_members"
+			__input="$__group_members"
 			;;
 		esac
 	done
 
-	group_members="$_input"
+	setvar "$__var_to_set" "$__input"
 	save_flag=1
-	f_dprintf "group_members: [%s]->[%s]" \
-	          "$cur_group_members" "$group_members"
 
 	return $DIALOG_OK
+}
+
+# f_dialog_menu_group_add [$defaultitem]
+#
+# Present a menu detailing the properties of a group that is about to be added.
+# The user's menu choice is available using f_dialog_menutag_fetch(). Returns
+# success unless the user chose Cancel or pressed ESC. Data to display is taken
+# from environment variables group_name, group_gid, and group_members. If
+# $defaultitem is present and non-NULL, initially highlight the item in the
+# menu.
+#
+f_dialog_menu_group_add()
+{
+	local prompt="$msg_save_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
+
+	menu_list="
+		'X' '$msg_add/$msg_exit'
+		'1' '$msg_group: $group_name'
+		'2' '$msg_password: -----'
+		'3' '$msg_group_id: $group_gid'
+		'4' '$msg_group_members: $group_members'
+	" # END-QUOTE
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
+}
+
+# f_dialog_menu_group_delete $group [$defaultitem]
+#
+# Present a menu detailing the properties of a group that is about to be
+# deleted. The user's menu choice is available using f_dialog_menutag_fetch().
+# Returns success unless the user chose Cancel or pressed ESC. Data to display
+# is populated automatically from the system accounting database for the given
+# $group argument. If $defaultitem is present and non-NULL, initially highlight
+# the item in the menu.
+#
+f_dialog_menu_group_delete()
+{
+	local prompt="$msg_delete_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$2"
+	local hline="$hline_arrows_tab_enter"
+
+	local group_name group_password group_gid group_members
+	f_input_group "$1"
+
+	menu_list="
+		'X' '$msg_delete/$msg_exit'
+		'1' '$msg_group: $group_name'
+		'-' '$msg_password: -----'
+		'-' '$msg_group_id: $group_gid'
+		'-' '$msg_group_members: $group_members'
+	" # END-QUOTE
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
+}
+
+# f_dialog_menu_group_edit [$defaultitem]
+#
+# Present a menu detailing the properties of a group that is about to be
+# modified. The user's menu choice is available using f_dialog_menutag_fetch().
+# Returns success unless the user chose Cancel or pressed ESC. Data to display
+# is taken from environment variables group_name, group_gid, and group_members.
+# If $defaultitem is present and non-NULL, initially highlight the item in the
+# menu.
+#
+f_dialog_menu_group_edit()
+{
+	local prompt="$msg_save_exit_or_cancel"
+	local menu_list # Calculated below
+	local defaultitem="$1"
+	local hline="$hline_arrows_tab_enter"
+
+	menu_list="
+		'X' '$msg_save/$msg_exit'
+		'1' '$msg_group: $group_name'
+		'2' '$msg_password: -----'
+		'3' '$msg_group_id: $group_gid'
+		'4' '$msg_group_members: $group_members'
+	" # END-QUOTE
+
+	local height width rows
+	eval f_dialog_menu_size height width rows \
+	                        \"\$DIALOG_TITLE\"     \
+	                        \"\$DIALOG_BACKTITLE\" \
+	                        \"\$prompt\"           \
+	                        \"\$hline\"            \
+	                        $menu_list
+
+	local menu_choice
+	menu_choice=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--default-item \"\$defaultitem\"   \
+		--menu \"\$prompt\"                \
+		$height $width $rows               \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	f_dialog_data_sanitize menu_choice
+	f_dialog_menutag_store "$menu_choice"
+	return $retval
 }
 
 ############################################################ MAIN

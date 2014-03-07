@@ -1,5 +1,5 @@
 # Copyright (c) 2012 Ron McDowell
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -90,6 +90,7 @@ msg_login_updated="Login Updated"
 msg_member_of_groups="Member of Groups"
 msg_n_a="N/A"
 msg_no="No"
+msg_no_group_specified="No group specified!"
 msg_number_of_seconds_since_epoch="Number of seconds since the Epoch\n(1 = %s)\nNULL or zero to disable:"
 msg_ok="OK"
 msg_password="Password"
@@ -97,6 +98,7 @@ msg_password_does_not_expire="Password does not expire"
 msg_password_expires_in_how_many_days="Password expires in how many days?"
 msg_password_expires_on="Password Expires on"
 msg_passwords_do_not_match="Passwords do not match."
+msg_please_enter_a_group_name="Please enter a group name!"
 msg_reenter_group_password="Re-enter Group Password"
 msg_reenter_password="Re-enter Password"
 msg_save="Save"
