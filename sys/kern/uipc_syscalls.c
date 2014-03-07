@@ -2902,7 +2902,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	struct shmfd *shmfd;
 	struct vattr va;
 	off_t off, sbytes, rem, obj_size;
-	int error, serror, bsize, hdrlen, mwait, merror, sfwait;
+	int error, serror, bsize, hdrlen;
 
 	obj = NULL;
 	so = NULL;
@@ -2916,21 +2916,6 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 	error = kern_sendfile_getsock(td, sockfd, &sock_fp, &so);
 	if (error != 0)
 		goto out;
-
-	/*
-	 * Do not wait on memory allocations but return ENOMEM for
-	 * caller to retry later.
-	 * XXX: Experimental.
-	 */
-	if (flags & SF_MNOWAIT) {
-		mwait = M_NOWAIT;
-		merror = EAGAIN;
-		sfwait = SFB_NOWAIT;
-	} else {
-		mwait = M_WAITOK;
-		merror = ENOBUFS;
-		sfwait = SFB_CATCH;
-	}
 
 #ifdef MAC
 	error = mac_socket_check_send(td->td_ucred, so);
@@ -2953,11 +2938,7 @@ vn_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
 			else
 				nbytes = 0;
 		}
-		mh = m_uiotombuf(hdr_uio, mwait, 0, 0, 0);
-		if (mh == NULL) {
-			error = merror;
-			goto out;
-		}
+		mh = m_uiotombuf(hdr_uio, M_WAITOK, 0, 0, 0);
 		hdrlen = m_length(mh, &mhtail);
 	} else
 		hdrlen = 0;
@@ -3083,13 +3064,7 @@ retry_space:
 		else
 			npages = howmany(space, PAGE_SIZE);
 		sfio = malloc(sizeof(struct sf_io) +
-		    npages * sizeof(vm_page_t), M_TEMP, mwait);
-		if (sfio == NULL) {
-			if (vp != NULL)
-				VOP_UNLOCK(vp, 0);
-			error = merror;
-			goto done;
-		}
+		    npages * sizeof(vm_page_t), M_TEMP, M_WAITOK);
 		refcount_init(&sfio->nios, 1);
 		sfio->npages = npages;
 
@@ -3143,7 +3118,7 @@ retry_space:
 			 * deadlock.
 			 */
 			sf = sf_buf_alloc(pa[i],
-			    m != NULL ? SFB_NOWAIT : sfwait);
+			    m != NULL ? SFB_NOWAIT : SFB_CATCH);
 			if (sf == NULL) {
 				SFSTAT_INC(sf_allocfail);
 				for (int j = i; j < npages; j++) {
@@ -3152,7 +3127,7 @@ retry_space:
 					vm_page_unlock(pa[j]);
 				}
 				if (m == NULL)
-					error = merror;
+					error = ENOBUFS;
 				fixspace(npages, i, off, &space);
 				break;
 			}
@@ -3161,32 +3136,10 @@ retry_space:
 			 * Get an mbuf and set it up as having
 			 * external storage.
 			 */
-			m0 = m_get(mwait, MT_DATA);
-			if (m0 == NULL) {
-				for (int j = i; j < npages; j++) {
-					vm_page_lock(pa[j]);
-					vm_page_unwire(pa[j], 0);
-					vm_page_unlock(pa[j]);
-				}
-				(void)sf_buf_mext(NULL, NULL, sf);
-				error = merror;
-				fixspace(npages, i, off, &space);
-				break;
-			}
-			if (m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
-			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF, mwait)
-			    != 0) {
-				for (int j = i; j < npages; j++) {
-					vm_page_lock(pa[j]);
-					vm_page_unwire(pa[j], 0);
-					vm_page_unlock(pa[j]);
-				}
-				(void)sf_buf_mext(NULL, NULL, sf);
-				m_freem(m0);
-				error = merror;
-				fixspace(npages, i, off, &space);
-				break;
-			}
+			m0 = m_get(M_WAITOK, MT_DATA);
+			(void )m_extadd(m0, (caddr_t )sf_buf_kva(sf), PAGE_SIZE,
+			    sf_buf_mext, sfs, sf, M_RDONLY, EXT_SFBUF,
+			    M_WAITOK);
 			m0->m_data = (char *)sf_buf_kva(sf) +
 			    (vmoff(i, off) & PAGE_MASK);
 			m0->m_len = xfsize(i, npages, off, space);
