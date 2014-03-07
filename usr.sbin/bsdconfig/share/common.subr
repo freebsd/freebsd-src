@@ -523,7 +523,7 @@ f_include_lang()
 # 	f_usage $file "FOO" "BAR"
 #
 # Will cause instances of "@FOO@" appearing in $file to be replaced with the
-# text "BAR" before bering printed to the screen.
+# text "BAR" before being printed to the screen.
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
