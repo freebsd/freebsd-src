@@ -1,6 +1,6 @@
 if [ ! "$_SCRIPT_SUBR" ]; then _SCRIPT_SUBR=1
 #
-# Copyright (c) 2012-2013 Devin Teske
+# Copyright (c) 2012-2014 Devin Teske
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -50,25 +50,23 @@ RESWORDS=
 # Create a new `reserved' word for scripting purposes. Reswords call pre-
 # defined functions but differ from those functions in the following ways:
 #
-# 	+ Reswords do not take arguments but instead get all their data from
-# 	  the environment variable namespace.
 # 	+ Unless noError is set (must be non-NULL), if calling the resword
 # 	  results in failure, the application will terminate prematurely.
 # 	+ noError is unset after each/every resword is called.
 #
 # Reswords should not be used in bsdconfig itself (hence the name `reserved
-# word') but instead only in scripts loaded through f_script_load()).
+# word') but instead only in scripts loaded through f_script_load().
 #
 f_resword_new()
 {
 	local resword="$1" func="$2"
 	[ "$resword" ] || return $FAILURE
 	f_dprintf "script.subr: New resWord %s -> %s" "$resword" "$func"
-	eval $resword\(\){ f_dispatch $func $resword\; }
+	eval $resword\(\){ f_dispatch $func $resword \"\$@\"\; }
 	RESWORDS="$RESWORDS${RESWORDS:+ }$resword"
 }
 
-# f_dispatch $func [$resword]
+# f_dispatch $func $resword
 #
 # Wrapper function used by `reserved words' (reswords) to call other functions.
 # If $noError is set and non-NULL, a failure result from $func is ignored,
@@ -78,9 +76,10 @@ f_resword_new()
 #
 f_dispatch()
 {
-	local func="$1" resword="${2:-$1}"
+	local func="$1" resword="$2"
+	shift 2 # func resword
 	f_dprintf "f_dispatch: calling resword \`%s'" "$resword"
-	eval $func
+	eval $func "$@"
 	local retval=$?
 	if [ $retval -ne $SUCCESS ]; then
 		local _ignore_this_error

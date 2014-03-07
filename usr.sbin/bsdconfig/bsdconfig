@@ -324,7 +324,7 @@ if [ "$pgm" != "bsdconfig" ]; then
 			[ "$pgm" = "$resword" ] || continue
 			# Found a match
 			f_dprintf "pgm=[%s] A valid resWord!" "$pgm"
-			f_dispatch $resword
+			f_dispatch $resword $resword "$@"
 			exit $?
 		done
 	fi
