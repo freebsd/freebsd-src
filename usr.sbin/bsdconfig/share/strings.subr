@@ -271,6 +271,9 @@ f_uridecode()
 # capturing in a sub-shell (which is less recommended due to performance
 # degradation).
 #
+# To replace newlines or a sequence containing the newline character, use $NL
+# as `\n' is not supported.
+#
 f_replaceall()
 {
 	local __left="" __right="$1"
