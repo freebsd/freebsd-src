@@ -146,13 +146,18 @@
 			reg = <0x40048000 0x1000>;
 		};
 
+		port@40049000 {
+			compatible = "fsl,mvf600-port";
+			reg = <0x40049000 0x5000>;
+			interrupts = < 139 140 141 142 143 >;
+			interrupt-parent = <&GIC>;
+		};
+
 		gpio@400FF000 {
 			compatible = "fsl,mvf600-gpio";
 			reg = <0x400FF000 0x200>;
 			#gpio-cells = <3>;
 			gpio-controller;
-			interrupts = < 139 140 141 142 143 >;
-			interrupt-parent = <&GIC>;
 		};
 
 		nand@400E0000 {
