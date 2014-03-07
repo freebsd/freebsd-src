@@ -60,6 +60,51 @@
 		edma1: edma@40098000 {
 			status = "okay";
 		};
+
+		dcu0: dcu4@40058000 {
+			status = "okay";
+
+			panel-size = < 800 480 >;
+			panel-hsync = < 40 48 40 >;
+			panel-vsync = < 29 3 13 >;
+			panel-clk-div = < 17 >;
+			panel-backlight-pin = < 25 >;
+
+			iomux_config = < 105 0x1001c4 /* hsync */
+					 106 0x1001c4 /* vsync */
+					 107 0x1001e0 /* pclk */
+					 108 0x1001e0
+					 109 0x1001be /* de */
+					 110 0x1001e0 /* r0 */
+					 111 0x1001e0
+					 112 0x1001e0
+					 113 0x1001e0
+					 114 0x1001e0
+					 115 0x1001e0
+					 116 0x1001e0
+					 117 0x1001e0
+					 118 0x1001e0 /* g0 */
+					 119 0x1001e0
+					 120 0x1001e0
+					 121 0x1001e0
+					 122 0x1001e0
+					 123 0x1001e0
+					 124 0x1001e0
+					 125 0x1001e0
+					 126 0x1001e0 /* b0 */
+					 127 0x1001e0
+					 128 0x1001e0
+					 129 0x1001e0
+					 130 0x1001e0
+					 131 0x1001e0
+					 132 0x1001e0
+					 133 0x1001e0
+					  25 0x0001be >; /* led */
+		};
+
+		tcon0: tcon@4003D000 {
+			status = "okay";
+		};
 	};
 
 	chosen {
