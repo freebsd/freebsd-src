@@ -368,13 +368,10 @@ f_show_msg()
 # f_show_err $format [$arguments ...]
 #
 # Display a message in a dialog box with ``Error'' i18n title (overridden by
-# setting msg_error) using printf(1) syntax. If running non-interactively,
-# the process will terminate (using [above] f_die()).
+# setting msg_error) using printf(1) syntax.
 #
 f_show_err()
 {
-	[ "$nonInteractive" ] && f_die
-
 	local msg
 	msg=$( printf "$@" )
 
