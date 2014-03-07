@@ -270,9 +270,9 @@ f_getvar()
 {
 	local __var_to_get="$1" __var_to_set="$2"
 	[ "$__var_to_set" ] || local value
-	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
 	eval [ \"\${$__var_to_get+set}\" ]
 	local __retval=$?
+	eval ${__var_to_set:-value}=\"\${$__var_to_get}\"
 	eval f_dprintf '"f_getvar: var=[%s] value=[%s] r=%u"' \
 		\"\$__var_to_get\" \"\$${__var_to_set:-value}\" \$__retval
 	[ "$__var_to_set" ] || { [ "$value" ] && echo "$value"; }
