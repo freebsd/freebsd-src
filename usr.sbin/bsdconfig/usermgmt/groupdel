@@ -66,6 +66,14 @@ f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
+# If given a group name, operate on it and exit
+#
+if [ "$1" ]; then
+	f_group_delete "$1"
+	exit $SUCCESS
+fi
+
+#
 # Loop until the user Exits, Cancels or presses ESC
 #
 defaultitem=
