@@ -38,6 +38,8 @@
 #include <err.h>
 #include <net/if.h>
 #include <sys/endian.h>
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
 #include "net80211/ieee80211_ioctl.h"
 #include "net80211/ieee80211_radiotap.h"
@@ -269,6 +271,9 @@ main(int argc, char *argv[])
 	int ch;
 	char *ifname;
 	bool first;
+	char *sysctlname;
+	size_t len;
+	int ret;
 
 	ifname = strdup(IWN_DEFAULT_IF);
 
@@ -280,6 +285,19 @@ main(int argc, char *argv[])
 			if (ifname)
 				free(ifname);
 			ifname = strdup(optarg);
+			if (strncmp(ifname, "wlan", 4) == 0) {
+				free(ifname);
+				len = 0;
+				asprintf(&sysctlname, "net.wlan.%s.%%parent", ifname + 4);
+				ret = sysctlbyname(sysctlname, NULL, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				ifname = calloc(len, 1);
+				ret = sysctlbyname(sysctlname, ifname, &len, NULL, 0);
+				if (ret != 0)
+					err(1, "sysctl failed");
+				free(sysctlname);
+			}
 			break;
 		default:
 		case '?':
