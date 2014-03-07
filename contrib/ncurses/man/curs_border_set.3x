@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002-2004,2005 Free Software Foundation, Inc.              *
+.\" Copyright (c) 2002-2011,2012 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_border_set.3x,v 1.6 2005/05/15 16:17:37 tom Exp $
+.\" $Id: curs_border_set.3x,v 1.11 2012/11/03 23:03:59 tom Exp $
 .TH curs_border_set 3X ""
 .na
 .hy 0
@@ -110,21 +110,21 @@ These functions do not change the cursor position, and do not wrap.
 .PP
 Other than the window, each argument is a complex character with attributes:
 .RS
-\fIls\fR - left side,
+\fIls\fR \- left side,
 .br
-\fIrs\fR - right side,
+\fIrs\fR \- right side,
 .br
-\fIts\fR - top side,
+\fIts\fR \- top side,
 .br
-\fIbs\fR - bottom side,
+\fIbs\fR \- bottom side,
 .br
-\fItl\fR - top left-hand corner,
+\fItl\fR \- top left-hand corner,
 .br
-\fItr\fR - top right-hand corner,
+\fItr\fR \- top right-hand corner,
 .br
-\fIbl\fR - bottom left-hand corner, and
+\fIbl\fR \- bottom left-hand corner, and
 .br
-\fIbr\fR - bottom right-hand corner.
+\fIbr\fR \- bottom right-hand corner.
 .RE
 .PP
 If any of these arguments is zero, then the corresponding
@@ -187,7 +187,7 @@ Note that
 \fBvline_set\fR
 may be macros.
 .br
-.SH RETURN VALUES
+.SH RETURN VALUE
 .PP
 Upon successful completion, these functions return
 \fBOK\fR.
@@ -195,13 +195,12 @@ Otherwise, they return
 \fBERR\fR.
 .PP
 Functions using a window parameter return an error if it is null.
+.PP
+Functions with a "mv" prefix first perform a cursor movement using
+\fBwmove\fP, and return an error if the position is outside the window,
+or if the window pointer is null.
 .SH SEE ALSO
 \fBncurses\fR(3X),
+\fBcurs_add_wch\fR(3X),
 \fBcurs_border\fR(3X),
 \fBcurs_outopts\fR(3X)
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

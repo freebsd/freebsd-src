@@ -124,15 +124,21 @@ main(void)
 	struct open_file f;
 	const char * loaderdev;
 
+	/*
+	 * If we can't find the magic signature and related info, exit with a
+	 * unique error code that U-Boot reports as "## Application terminated,
+	 * rc = 0xnnbadab1". Hopefully 'badab1' looks enough like "bad api" to
+	 * provide a clue. It's better than 0xffffffff anyway.
+	 */
 	if (!api_search_sig(&sig))
-		return (-1);
+		return (0x01badab1);
 
 	syscall_ptr = sig->syscall;
 	if (syscall_ptr == NULL)
-		return (-2);
+		return (0x02badab1);
 
 	if (sig->version > API_SIG_VERSION)
-		return (-3);
+		return (0x03badab1);
 
         /* Clear BSS sections */
 	bzero(__sbss_start, __sbss_end - __sbss_start);

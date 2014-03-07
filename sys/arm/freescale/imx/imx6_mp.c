@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/smp.h>
@@ -72,6 +73,7 @@ void
 platform_mp_setmaxid(void)
 {
 	bus_space_handle_t scu;
+	int hwcpu, ncpu;
 	uint32_t val;
 
 	/* If we've already set the global vars don't bother to do it again. */
@@ -81,10 +83,16 @@ platform_mp_setmaxid(void)
 	if (bus_space_map(fdtbus_bs_tag, SCU_PHYSBASE, SCU_SIZE, 0, &scu) != 0)
 		panic("Couldn't map the SCU\n");
 	val = bus_space_read_4(fdtbus_bs_tag, scu, SCU_CONFIG_REG);
+	hwcpu = (val & SCU_CONFIG_REG_NCPU_MASK) + 1;
 	bus_space_unmap(fdtbus_bs_tag, scu, SCU_SIZE);
 
-	mp_maxid = (val & SCU_CONFIG_REG_NCPU_MASK);
-	mp_ncpus = mp_maxid + 1;
+	ncpu = hwcpu;
+	TUNABLE_INT_FETCH("hw.ncpu", &ncpu);
+	if (ncpu < 1 || ncpu > hwcpu)
+		ncpu = hwcpu;
+
+	mp_ncpus = ncpu;
+	mp_maxid = ncpu - 1;
 }
 
 int

@@ -43,3 +43,4 @@ BINDIR=/usr/bin
 build-tools: ${PROG}
 
 .include <bsd.prog.mk>
+CFLAGS+= -Wno-missing-prototypes

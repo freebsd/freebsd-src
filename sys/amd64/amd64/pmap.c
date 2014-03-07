@@ -367,7 +367,7 @@ static int pmap_flags = PMAP_PDE_SUPERPAGE;	/* flags for x86 pmaps */
 
 static struct unrhdr pcid_unr;
 static struct mtx pcid_mtx;
-int pmap_pcid_enabled = 1;
+int pmap_pcid_enabled = 0;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pcid_enabled, CTLFLAG_RDTUN, &pmap_pcid_enabled,
     0, "Is TLB Context ID enabled ?");
 int invpcid_works = 0;

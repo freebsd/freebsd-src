@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2008,2010 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,13 +27,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_buffer.3x,v 1.15 2008/10/18 18:35:17 tom Exp $
+.\" $Id: form_field_buffer.3x,v 1.19 2010/12/04 18:38:55 tom Exp $
 .TH form_field_buffer 3X ""
+.de bP
+.IP \(bu 4
+..
 .SH NAME
-\fBform_field_buffer\fR - field buffer control
+\fBform_field_buffer\fR \- field buffer control
 .SH SYNOPSIS
 \fB#include <form.h>\fR
-.br
+.sp
 int set_field_buffer(FIELD *field, int buf, const char *value);
 .br
 char *field_buffer(const FIELD *field, int buffer);
@@ -48,11 +51,9 @@ int set_max_field(FIELD *field, int max);
 The function \fBset_field_buffer\fR sets the numbered buffer of the given field
 to contain a given string:
 .RS 3
-.TP 3
--
+.bP
 Buffer 0 is the displayed value of the field.
-.TP 3
--
+.bP
 Other numbered buffers may be allocated by applications through the \fBnbuf\fR
 argument of (see \fBform_field_new\fR(3X))
 but are not manipulated by the forms library.
@@ -61,28 +62,23 @@ but are not manipulated by the forms library.
 The function \fBfield_buffer\fR returns a pointer to
 the contents of the given numbered buffer:
 .RS 3
-.TP 3
--
+.bP
 The buffer contents always have the same length,
 and are padded with trailing spaces
 as needed to ensure this length is the same.
-.TP 3
--
+.bP
 The buffer may contain leading spaces, depending on how it was set.
-.TP 3
--
+.bP
 The buffer contents are set with \fBset_field_buffer\fP,
 or as a side effect of any editing operations on the corresponding field.
-.TP 3
--
+.bP
 Editing operations are based on the \fIwindow\fP which displays the field,
 rather than a \fIstring\fP.
 The window contains only printable characters, and is filled with blanks.
 If you want the raw data, you must write your
 own routine that copies the value out of the buffer and removes the leading
 and trailing spaces.
-.TP 3
--
+.bP
 Because editing operations change the content of the buffer to
 correspond to the window, you should not rely on using buffers
 for long-term storage of form data.
@@ -122,7 +118,7 @@ descriptions of the entry points.
 .SH NOTES
 The header file \fB<form.h>\fR automatically includes the header file
 .PP
-When configured for wide-characters, \fBfield_buffer\fP returns a pointer
+When configured for wide characters, \fBfield_buffer\fP returns a pointer
 to temporary storage (allocated and freed by the library).
 The application should not attempt to modify the data.
 It will be freed on the next call to \fBfield_buffer\fP to return the
@@ -134,9 +130,3 @@ Version 7 or BSD versions.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.
-.\"#
-.\"# The following sets edit modes for GNU EMACS
-.\"# Local Variables:
-.\"# mode:nroff
-.\"# fill-column:79
-.\"# End:

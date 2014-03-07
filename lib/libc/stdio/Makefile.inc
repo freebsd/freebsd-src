@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 # stdio sources
-.PATH: ${.CURDIR}/stdio
+.PATH: ${LIBC_SRCTOP}/stdio
 
 SRCS+=	_flock_stub.c asprintf.c clrerr.c dprintf.c \
 	fclose.c fcloseall.c fdopen.c \
@@ -31,7 +31,7 @@ SRCS+=	xprintf.c xprintf_float.c xprintf_int.c xprintf_str.c
 SRCS+=	xprintf_errno.c xprintf_hexdump.c xprintf_quote.c 
 SRCS+=	xprintf_time.c xprintf_vis.c
 
-SYM_MAPS+=	${.CURDIR}/stdio/Symbol.map
+SYM_MAPS+=	${LIBC_SRCTOP}/stdio/Symbol.map
 
 MAN+=	fclose.3 ferror.3 fflush.3 fgetln.3 fgets.3 fgetwln.3 fgetws.3 \
 	flockfile.3 \

@@ -92,6 +92,7 @@ ccm_attach(device_t dev)
 {
 	struct ccm_softc *sc;
 	int err, rid;
+	uint32_t reg;
 
 	sc = device_get_softc(dev);
 	err = 0;
@@ -107,6 +108,26 @@ ccm_attach(device_t dev)
 	}
 
 	ccm_sc = sc;
+
+	/*
+	 * Configure the Low Power Mode setting to leave the ARM core power on
+	 * when a WFI instruction is executed.  This lets the MPCore timers and
+	 * GIC continue to run, which is helpful when the only thing that can
+	 * wake you up is an MPCore Private Timer interrupt delivered via GIC.
+	 *
+	 * XXX Based on the docs, setting CCM_CGPR_INT_MEM_CLK_LPM shouldn't be
+	 * required when the LPM bits are set to LPM_RUN.  But experimentally
+	 * I've experienced a fairly rare lockup when not setting it.  I was
+	 * unable to prove conclusively that the lockup was related to power
+	 * management or that this definitively fixes it.  Revisit this.
+	 */
+	reg = RD4(sc, CCM_CGPR);
+	reg |= CCM_CGPR_INT_MEM_CLK_LPM;
+	WR4(sc, CCM_CGPR, reg);
+	reg = RD4(sc, CCM_CLPCR);
+	reg = (reg & ~CCM_CLPCR_LPM_MASK) | CCM_CLPCR_LPM_RUN;
+	WR4(sc, CCM_CLPCR, reg);
+
 	err = 0;
 
 out:

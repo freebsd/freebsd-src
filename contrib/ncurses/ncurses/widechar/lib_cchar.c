@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001-2005,2007 Free Software Foundation, Inc.              *
+ * Copyright (c) 2001-2012,2014 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_cchar.c,v 1.12 2007/05/12 19:03:06 tom Exp $")
+MODULE_ID("$Id: lib_cchar.c,v 1.27 2014/02/01 22:10:42 tom Exp $")
 
 /* 
  * The SuSv2 description leaves some room for interpretation.  We'll assume wch
@@ -47,20 +47,20 @@ NCURSES_EXPORT(int)
 setcchar(cchar_t *wcval,
 	 const wchar_t *wch,
 	 const attr_t attrs,
-	 short color_pair,
+	 NCURSES_PAIRS_T color_pair,
 	 const void *opts)
 {
-    int i;
-    int len;
+    unsigned i;
+    unsigned len;
     int code = OK;
 
     TR(TRACE_CCALLS, (T_CALLED("setcchar(%p,%s,%lu,%d,%p)"),
-		      wcval, _nc_viswbuf(wch),
-		      (unsigned long) attrs, color_pair, opts));
+		      (void *) wcval, _nc_viswbuf(wch),
+		      (unsigned long) attrs, (int) color_pair, opts));
 
-    len = wcslen(wch);
     if (opts != NULL
-	|| (len > 1 && wcwidth(wch[0]) < 0)) {
+	|| wch == NULL
+	|| ((len = (unsigned) wcslen(wch)) > 1 && wcwidth(wch[0]) < 0)) {
 	code = ERR;
     } else {
 	if (len > CCHARW_MAX)
@@ -80,7 +80,7 @@ setcchar(cchar_t *wcval,
 	memset(wcval, 0, sizeof(*wcval));
 
 	if (len != 0) {
-	    SetAttr(*wcval, attrs | COLOR_PAIR(color_pair));
+	    SetAttr(*wcval, attrs);
 	    SetPair(CHDEREF(wcval), color_pair);
 	    memcpy(&wcval->chars, wch, len * sizeof(wchar_t));
 	    TR(TRACE_CCALLS, ("copy %d wchars, first is %s", len,
@@ -96,7 +96,7 @@ NCURSES_EXPORT(int)
 getcchar(const cchar_t *wcval,
 	 wchar_t *wch,
 	 attr_t *attrs,
-	 short *color_pair,
+	 NCURSES_PAIRS_T *color_pair,
 	 void *opts)
 {
     wchar_t *wp;
@@ -104,21 +104,29 @@ getcchar(const cchar_t *wcval,
     int code = ERR;
 
     TR(TRACE_CCALLS, (T_CALLED("getcchar(%p,%p,%p,%p,%p)"),
-		      wcval, wch, attrs, color_pair, opts));
+		      (const void *) wcval,
+		      (void *) wch,
+		      (void *) attrs,
+		      (void *) color_pair,
+		      opts));
 
-    if (opts == NULL) {
-	len = (wp = wmemchr(wcval->chars, L'\0', CCHARW_MAX))
-	    ? wp - wcval->chars
-	    : CCHARW_MAX;
+    if (opts == NULL && wcval != NULL) {
+	len = ((wp = wmemchr(wcval->chars, L'\0', (size_t) CCHARW_MAX))
+	       ? (int) (wp - wcval->chars)
+	       : CCHARW_MAX);
 
 	if (wch == NULL) {
-	    code = len;
+	    /*
+	     * If the value is a null, set the length to 1.
+	     * If the value is not a null, return the length plus 1 for null.
+	     */
+	    code = (len < CCHARW_MAX) ? (len + 1) : CCHARW_MAX;
 	} else if (attrs == 0 || color_pair == 0) {
 	    code = ERR;
 	} else if (len >= 0) {
 	    *attrs = AttrOf(*wcval) & A_ATTRIBUTES;
-	    *color_pair = GetPair(*wcval);
-	    wmemcpy(wch, wcval->chars, (unsigned) len);
+	    *color_pair = (NCURSES_PAIRS_T) GetPair(*wcval);
+	    wmemcpy(wch, wcval->chars, (size_t) len);
 	    wch[len] = L'\0';
 	    code = OK;
 	}

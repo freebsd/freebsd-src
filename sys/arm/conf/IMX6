@@ -40,7 +40,6 @@ options  	MSDOSFS			# MSDOS Filesystem
 options  	CD9660			# ISO 9660 Filesystem
 #options  	PROCFS			# Process filesystem (requires PSEUDOFS)
 options  	PSEUDOFS		# Pseudo-filesystem framework
-options  	TMPFS			# TMP Memory Filesystem
 options  	GEOM_PART_GPT		# GUID Partition Tables.
 options  	GEOM_LABEL		# Provides labelization
 options  	KTRACE			# ktrace(1) support
@@ -143,7 +142,7 @@ options  	ROOTDEVNAME=\"ufs:mmcsd0s2a\"
 
 # ARM and SoC-specific options
 options  	FDT			# Configure using FDT/DTB data.
-#options  	SMP			# Enable multiple cores
+options  	SMP			# Enable multiple cores
 options  	VFP			# Enable floating point hardware support
 options  	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2006,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,7 +36,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_bkgd.c,v 1.36 2008/03/23 00:09:14 tom Exp $")
+MODULE_ID("$Id: lib_bkgd.c,v 1.48 2012/12/09 01:01:19 tom Exp $")
 
 /*
  * Set the window's background information.
@@ -48,7 +48,7 @@ static NCURSES_INLINE void
 #endif
 wbkgrndset(WINDOW *win, const ARG_CH_T ch)
 {
-    T((T_CALLED("wbkgdset(%p,%s)"), win, _tracech_t(ch)));
+    T((T_CALLED("wbkgdset(%p,%s)"), (void *) win, _tracech_t(ch)));
 
     if (win) {
 	attr_t off = AttrOf(win->_nc_bkgd);
@@ -85,12 +85,13 @@ wbkgrndset(WINDOW *win, const ARG_CH_T ch)
 	    cchar_t wch;
 	    int tmp;
 
-	    wgetbkgrnd(win, &wch);
+	    memset(&wch, 0, sizeof(wch));
+	    (void) wgetbkgrnd(win, &wch);
 	    tmp = _nc_to_char((wint_t) CharOf(wch));
 
 	    win->_bkgd = (((tmp == EOF) ? ' ' : (chtype) tmp)
 			  | (AttrOf(wch) & ALL_BUT_COLOR)
-			  | COLOR_PAIR(GET_WINDOW_PAIR(win)));
+			  | (chtype) ColorPair(GET_WINDOW_PAIR(win)));
 	}
 #endif
     }
@@ -118,16 +119,18 @@ wbkgrnd(WINDOW *win, const ARG_CH_T ch)
 {
     int code = ERR;
     int x, y;
-    NCURSES_CH_T new_bkgd = CHDEREF(ch);
 
-    T((T_CALLED("wbkgd(%p,%s)"), win, _tracech_t(ch)));
+    T((T_CALLED("wbkgd(%p,%s)"), (void *) win, _tracech_t(ch)));
 
     if (win) {
+	NCURSES_CH_T new_bkgd = CHDEREF(ch);
 	NCURSES_CH_T old_bkgrnd;
+
+	memset(&old_bkgrnd, 0, sizeof(old_bkgrnd));
 	wgetbkgrnd(win, &old_bkgrnd);
 
-	wbkgrndset(win, CHREF(new_bkgd));
-	wattrset(win, AttrOf(win->_nc_bkgd));
+	(void) wbkgrndset(win, CHREF(new_bkgd));
+	(void) wattrset(win, (int) AttrOf(win->_nc_bkgd));
 
 	for (y = 0; y <= win->_maxy; y++) {
 	    for (x = 0; x <= win->_maxx; x++) {

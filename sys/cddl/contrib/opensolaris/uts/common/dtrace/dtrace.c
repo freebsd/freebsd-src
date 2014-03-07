@@ -155,7 +155,7 @@
 int		dtrace_destructive_disallow = 0;
 dtrace_optval_t	dtrace_nonroot_maxsize = (16 * 1024 * 1024);
 size_t		dtrace_difo_maxsize = (256 * 1024);
-dtrace_optval_t	dtrace_dof_maxsize = (256 * 1024);
+dtrace_optval_t	dtrace_dof_maxsize = (8 * 1024 * 1024);
 size_t		dtrace_global_maxsize = (16 * 1024);
 size_t		dtrace_actions_max = (16 * 1024);
 size_t		dtrace_retain_max = 1024;
@@ -303,7 +303,8 @@ static kmutex_t		dtrace_meta_lock;	/* meta-provider state lock */
 #define PRIV_PROC_ZONE		(1 << 5)
 #define PRIV_ALL		~0
 
-SYSCTL_NODE(_debug, OID_AUTO, dtrace, CTLFLAG_RD, 0, "DTrace Information");
+SYSCTL_DECL(_debug_dtrace);
+SYSCTL_DECL(_kern_dtrace);
 #endif
 
 #if defined(sun)

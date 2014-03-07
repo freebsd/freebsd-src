@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2007,2008 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2011,2012 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.20 2008/08/16 19:29:42 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.25 2012/03/24 18:37:17 tom Exp $")
 
 static int
 trailing_spaces(const char *src)
@@ -49,6 +49,8 @@ trailing_spaces(const char *src)
 #define REALCTL(s) (UChar(*(s)) < 127 && iscntrl(UChar(*(s))))
 #define REALPRINT(s) (UChar(*(s)) < 127 && isprint(UChar(*(s))))
 
+#define P_LIMIT(p) (length - (size_t)(p))
+
 NCURSES_EXPORT(char *)
 _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 {
@@ -61,15 +63,15 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
     size_t need = (2 + strlen(str)) * 4;
     int ch;
 
-#if NO_LEAKS
     if (srcp == 0) {
+#if NO_LEAKS
 	if (buffer != 0) {
 	    FreeAndNull(buffer);
 	    length = 0;
 	}
+#endif
 	return 0;
     }
-#endif
     if (buffer == 0 || need > length) {
 	if ((buffer = typeRealloc(char, length = need, buffer)) == 0)
 	      return 0;
@@ -90,8 +92,9 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 		    && str[1] != '\\'
 		    && REALPRINT(str + 1)
 		    && str[2] == S_QUOTE) {
-		    sprintf(buffer + bufp, "{%d}", str[1]);
-		    bufp += strlen(buffer + bufp);
+		    _nc_SPRINTF(buffer + bufp, _nc_SLIMIT(P_LIMIT(bufp))
+				"{%d}", str[1]);
+		    bufp += (int) strlen(buffer + bufp);
 		    str += 2;
 		} else {
 		    buffer[bufp++] = *str;
@@ -177,10 +180,12 @@ _nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 #define UnCtl(c) ((c) + '@')
 	else if (REALCTL(str) && ch != '\\'
 		 && (!islong || isdigit(UChar(str[1])))) {
-	    (void) sprintf(&buffer[bufp], "^%c", UnCtl(ch));
+	    _nc_SPRINTF(&buffer[bufp], _nc_SLIMIT(P_LIMIT(bufp))
+			"^%c", UnCtl(ch));
 	    bufp += 2;
 	} else {
-	    (void) sprintf(&buffer[bufp], "\\%03o", ch);
+	    _nc_SPRINTF(&buffer[bufp], _nc_SLIMIT(P_LIMIT(bufp))
+			"\\%03o", ch);
 	    bufp += 4;
 	}
 
