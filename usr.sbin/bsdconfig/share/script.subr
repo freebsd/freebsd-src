@@ -200,9 +200,9 @@ f_resword_new packageDelete	f_package_delete
 f_resword_new packageReinstall	f_package_reinstall
 
 # usermgmt/group.subr
-f_resword_new groupAdd		f_group_add
-f_resword_new groupDelete	f_group_delete
-f_resword_new groupEdit		f_group_edit
+f_resword_new addGroup		f_group_add
+f_resword_new deleteGroup	f_group_delete
+f_resword_new editGroup		f_group_edit
 
 # variable.subr
 f_resword_new installVarDefaults	f_variable_set_defaults
