@@ -390,6 +390,7 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
 #define	VM_ALLOC_NODUMP		0x2000	/* don't include in dump */
 #define	VM_ALLOC_SBUSY		0x4000	/* Shared busy the page */
+#define	VM_ALLOC_NOWAIT		0x8000	/* Return NULL instead of sleeping */
 
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
