@@ -233,9 +233,9 @@ packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
 	touch ${.TARGET}
 
 pkg-stage:
-.if !defined(NOPKG) && exists(${.CURDIR}/${TARGET}/pkg-stage.conf)
-	sh ${.CURDIR}/scripts/pkg-stage.sh ${.CURDIR}/${TARGET}/pkg-stage.conf \
-		${REVISION}
+.if !defined(NOPKG)
+	env REPOS_DIR=${.CURDIR}/pkg_repos/ \
+		sh ${.CURDIR}/scripts/pkg-stage.sh
 	mkdir -p ${.OBJDIR}/dvd/packages/repos/
 	cp ${.CURDIR}/scripts/FreeBSD_install_cdrom.conf \
 		${.OBJDIR}/dvd/packages/repos/
