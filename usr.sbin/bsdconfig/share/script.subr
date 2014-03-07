@@ -95,7 +95,7 @@ f_dispatch()
 # Load a script (usually filled with reswords). If $file is missing or NULL,
 # use one of the following instead (in order):
 #
-# 	$configFile
+# 	$configFile (global)
 # 	install.cfg
 # 	/stand/install.fg
 # 	/tmp/install.cfg
@@ -107,9 +107,10 @@ f_dispatch()
 #
 f_script_load()
 {
+	local funcname=f_script_load
 	local script="$1" config_file retval=$SUCCESS
 
-	f_dprintf "f_script_load: script=[%s]" "$script"
+	f_dprintf "$funcname: script=[%s]" "$script"
 	if [ ! "$script" ]; then
 		f_getvar $VAR_CONFIG_FILE config_file
 		for script in \
@@ -129,11 +130,11 @@ f_script_load()
 	setvar $VAR_NONINTERACTIVE yes
 
 	if [ "$script" = "-" ]; then
-		f_dprintf "f_script_load: Loading script from stdin"
+		f_dprintf "$funcname: Loading script from stdin"
 		eval "$( cat )"
 		retval=$?
 	else
-		f_dprintf "f_script_load: Loading script \`%s'" "$script"
+		f_dprintf "$funcname: Loading script \`%s'" "$script"
 		if [ ! -e "$script" ]; then
 			f_show_msg "$msg_unable_to_open" "$script"
 			return $FAILURE
