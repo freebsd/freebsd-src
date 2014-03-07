@@ -65,7 +65,7 @@ f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init
 
 #
-# Add a user
+# Add a group
 #
 # NB: If given an argument on the command-line use it; otherwise fall-back to
 #     environment variable $group (handle $VAR_GROUP).
