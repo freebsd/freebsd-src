@@ -38,7 +38,6 @@ options		CD9660			#ISO 9660 Filesystem
 options		PROCFS			#Process filesystem (requires PSEUDOFS)
 options		PSEUDOFS		#Pseudo-filesystem framework
 #options		NANDFS			#NAND Filesystem
-options		TMPFS
 options		COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=5000		#Delay (in ms) before probing SCSI
 options		KTRACE
