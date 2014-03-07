@@ -74,8 +74,8 @@ struct unpcb {
 	struct	unp_head unp_refs;	/* referencing socket linked list */
 	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
 	struct	sockaddr_un *unp_addr;	/* bound address of socket */
-	int	reserved1;
-	int	reserved2;
+	int	unp_cc;			/* copy of rcv.sb_cc */
+	int	unp_mbcnt;		/* copy of rcv.sb_mbcnt */
 	unp_gen_t unp_gencnt;		/* generation count of this instance */
 	short	unp_flags;		/* flags */
 	short	unp_gcflag;		/* Garbage collector flags. */
