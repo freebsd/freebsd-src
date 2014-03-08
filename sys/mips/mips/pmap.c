@@ -1073,7 +1073,8 @@ pmap_alloc_direct_page(unsigned int index, int req)
 {
 	vm_page_t m;
 
-	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req);
+	m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, req | VM_ALLOC_WIRED |
+	    VM_ALLOC_ZERO);
 	if (m == NULL)
 		return (NULL);
 
@@ -1081,8 +1082,6 @@ pmap_alloc_direct_page(unsigned int index, int req)
 		pmap_zero_page(m);
 
 	m->pindex = index;
-	atomic_add_int(&cnt.v_wire_count, 1);
-	m->wire_count = 1;
 	return (m);
 }
 
