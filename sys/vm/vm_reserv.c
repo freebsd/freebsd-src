@@ -630,7 +630,7 @@ vm_reserv_reclaim_inactive(void)
  */
 boolean_t
 vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
-    unsigned long alignment, unsigned long boundary)
+    u_long alignment, u_long boundary)
 {
 	vm_paddr_t pa, pa_length;
 	vm_reserv_t rv;
