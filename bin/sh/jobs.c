@@ -645,6 +645,8 @@ getjobpgrp(char *name)
 	struct job *jp;
 
 	jp = getjob(name);
+	if (jp->state == JOBDONE)
+		return 0;
 	return -jp->ps[0].pid;
 }
 
