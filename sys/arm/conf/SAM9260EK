@@ -25,6 +25,7 @@ include "../at91/std.sam9260ek"
 hints		"SAM9260EK.hints"
 
 #makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
+makeoptions	MODULES_OVERRIDE=""
 
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
@@ -171,3 +172,12 @@ device		at91_wdt	# Atmel AT91 Watchdog Timer
 
 # NAND Flash - Reference design has Samsung 256MB but others possible
 device		nand			# NAND interface on CS3
+
+# Coming soon, but not yet
+#options 	FDT
+#options 	FDT_DTB_STATIC
+#makeoptions	FDT_DTS_FILE=sam9260ek.dts
+
+options 	EARLY_PRINTF
+options  	SOCDEV_PA=0xfc000000
+options 	SOCDEV_VA=0xdc000000
