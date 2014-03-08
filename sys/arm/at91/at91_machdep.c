@@ -428,7 +428,7 @@ at91_try_id(uint32_t dbgu_base)
 	return (1);
 }
 
-static void
+void
 at91_soc_id(void)
 {
 
