@@ -210,7 +210,6 @@ rewrite(FS *fs)
 	int nconv, prec;
 	size_t len;
 
-	nextpr = NULL;
 	prec = 0;
 
 	for (fu = fs->nextfu; fu; fu = fu->nextfu) {
@@ -218,13 +217,11 @@ rewrite(FS *fs)
 		 * Break each format unit into print units; each conversion
 		 * character gets its own.
 		 */
+		nextpr = &fu->nextpr;
 		for (nconv = 0, fmtp = fu->fmt; *fmtp; nextpr = &pr->nextpr) {
 			if ((pr = calloc(1, sizeof(PR))) == NULL)
 				err(1, NULL);
-			if (!fu->nextpr)
-				fu->nextpr = pr;
-			else
-				*nextpr = pr;
+			*nextpr = pr;
 
 			/* Skip preceding text and up to the next % sign. */
 			for (p1 = fmtp; *p1 && *p1 != '%'; ++p1);
