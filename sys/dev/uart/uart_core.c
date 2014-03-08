@@ -473,7 +473,7 @@ uart_bus_attach(device_t dev)
 	}
 
 	if (sc->sc_sysdev != NULL) {
-		if (sc->sc_sysdev->baudrate != 0) {
+		if (sc->sc_sysdev->baudrate == 0) {
 			if (UART_IOCTL(sc, UART_IOCTL_BAUD,
 			    (intptr_t)&sc->sc_sysdev->baudrate) != 0)
 				sc->sc_sysdev->baudrate = -1;
