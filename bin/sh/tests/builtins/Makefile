@@ -86,6 +86,7 @@ FILES+=		hash3.0 hash3.0.stdout
 FILES+=		hash4.0
 FILES+=		jobid1.0
 FILES+=		jobid2.0
+FILES+=		kill1.0
 FILES+=		lineno.0 lineno.0.stdout
 FILES+=		lineno2.0
 FILES+=		local1.0

@@ -133,9 +133,15 @@ main(int argc, char *argv[])
 
 	for (errors = 0; argc; argc--, argv++) {
 #ifdef SHELL
-		if (**argv == '%')
+		if (**argv == '%') {
 			pid = getjobpgrp(*argv);
-		else
+			/*
+			 * Silently ignore terminated jobs, like the kernel
+			 * silently ignores zombies.
+			 */
+			if (pid == 0)
+				continue;
+		} else
 #endif
 		{
 			pid = strtol(*argv, &ep, 10);
