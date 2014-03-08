@@ -84,8 +84,12 @@ at91_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	vm_offset_t va, endva;
 
+	if (t == 0)
+		return;
 	va = trunc_page((vm_offset_t)t);
-	endva = va + round_page(size);
+	if (va >= AT91_BASE && va <= AT91_BASE + 0xff00000)
+		return;
+	endva = round_page((vm_offset_t)t + size);
 
 	/* Free the kernel virtual mapping. */
 	kva_free(va, endva - va);
