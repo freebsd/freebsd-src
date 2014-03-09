@@ -126,7 +126,6 @@ __FBSDID("$FreeBSD$");
 
 
 void swi_handler(struct trapframe *);
-void undefinedinstruction(struct trapframe *);
 
 #include <machine/disassem.h>
 #include <machine/machdep.h>

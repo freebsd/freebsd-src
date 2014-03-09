@@ -109,10 +109,6 @@ __FBSDID("$FreeBSD$");
 #define	KERNEL_VM_BASE		(KERNBASE + 0x00100000)
 #define	KERNEL_VM_SIZE		0x05000000
 
-extern u_int data_abort_handler_address;
-extern u_int prefetch_abort_handler_address;
-extern u_int undefined_handler_address;
-
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
 extern vm_offset_t sa1110_uart_vaddr;
@@ -329,9 +325,6 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, sa1_cache_clean_addr, 0xf0000000,
 	    CPU_SA110_CACHE_CLEAN_SIZE, VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 
-	data_abort_handler_address = (u_int)data_abort_handler;
-	prefetch_abort_handler_address = (u_int)prefetch_abort_handler;
-	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT);
 	setttb(kernel_l1pt.pv_pa);
