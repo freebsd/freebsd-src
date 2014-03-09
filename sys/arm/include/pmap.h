@@ -355,7 +355,7 @@ extern int pmap_needs_pte_sync;
 #define	L1_C_PROTO		pte_l1_c_proto
 #define	L2_S_PROTO		pte_l2_s_proto
 
-#elif (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#elif ARM_MMU_GENERIC != 0
 #define	L2_S_PROT_U		L2_S_PROT_U_generic
 #define	L2_S_PROT_W		L2_S_PROT_W_generic
 #define	L2_S_PROT_MASK		L2_S_PROT_MASK_generic
@@ -488,13 +488,10 @@ extern int pmap_needs_pte_sync;
 #endif /* SMP */
 #endif /* ARM_NMMUS > 1 */
 
-#if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
-#define	PMAP_NEEDS_PTE_SYNC	1
-#define	PMAP_INCLUDE_PTE_SYNC
-#elif defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
+#if defined(CPU_XSCALE_81342) || ARM_ARCH_6 || ARM_ARCH_7A
 #define PMAP_NEEDS_PTE_SYNC	1
 #define PMAP_INCLUDE_PTE_SYNC
-#elif (ARM_MMU_SA1 == 0)
+#else
 #define	PMAP_NEEDS_PTE_SYNC	0
 #endif
 
@@ -616,14 +613,11 @@ extern void (*pmap_copy_page_offs_func)(vm_paddr_t a_phys,
     vm_offset_t a_offs, vm_paddr_t b_phys, vm_offset_t b_offs, int cnt);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
+#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7) != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
 void	pmap_pte_init_generic(void);
-#if defined(CPU_ARM8)
-void	pmap_pte_init_arm8(void);
-#endif
 #if defined(CPU_ARM9)
 void	pmap_pte_init_arm9(void);
 #endif /* CPU_ARM9 */
@@ -633,11 +627,7 @@ void	pmap_pte_init_arm10(void);
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
 #endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
-#endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
-
-#if /* ARM_MMU_SA1 == */1
-void	pmap_pte_init_sa1(void);
-#endif /* ARM_MMU_SA1 == 1 */
+#endif /* (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7) != 0 */
 
 #if ARM_MMU_XSCALE == 1
 void	pmap_copy_page_xscale(vm_paddr_t, vm_paddr_t);

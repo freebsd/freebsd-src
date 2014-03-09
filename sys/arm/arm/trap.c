@@ -136,11 +136,6 @@ extern char fusubailout[];
 int last_fault_code;	/* For the benefit of pmap_fault_fixup() */
 #endif
 
-#if defined(CPU_ARM7TDMI)
-/* These CPUs may need data/prefetch abort fixups */
-#define	CPU_ABORT_FIXUP_REQUIRED
-#endif
-
 struct ksig {
 	int signb;
 	u_long code;
@@ -198,37 +193,6 @@ call_trapsignal(struct thread *td, int sig, u_long code)
 	ksi.ksi_signo = sig;
 	ksi.ksi_code = (int)code;
 	trapsignal(td, &ksi);
-}
-
-static __inline int
-data_abort_fixup(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
-    struct ksig *ksig)
-{
-#ifdef CPU_ABORT_FIXUP_REQUIRED
-	int error;
-
-	/* Call the cpu specific data abort fixup routine */
-	error = cpu_dataabt_fixup(tf);
-	if (__predict_true(error != ABORT_FIXUP_FAILED))
-		return (error);
-
-	/*
-	 * Oops, couldn't fix up the instruction
-	 */
-	printf("data_abort_fixup: fixup for %s mode data abort failed.\n",
-	    TRAP_USERMODE(tf) ? "user" : "kernel");
-	printf("pc = 0x%08x, opcode 0x%08x, insn = ", tf->tf_pc,
-	    *((u_int *)tf->tf_pc));
-	disassemble(tf->tf_pc);
-
-	/* Die now if this happened in kernel mode */
-	if (!TRAP_USERMODE(tf))
-		dab_fatal(tf, fsr, far, td, NULL, ksig);
-
-	return (error);
-#else
-	return (ABORT_FIXUP_OK);
-#endif /* CPU_ABORT_FIXUP_REQUIRED */
 }
 
 void
@@ -338,19 +302,6 @@ data_abort_handler(struct trapframe *tf)
 		printf("\ndata_abort_fault: Misaligned Kernel-mode "
 		    "Program Counter\n");
 		dab_fatal(tf, fsr, far, td, &ksig);
-	}
-
-	/* See if the cpu state needs to be fixed up */
-	switch (data_abort_fixup(tf, fsr, far, td, &ksig)) {
-	case ABORT_FIXUP_RETURN:
-		return;
-	case ABORT_FIXUP_FAILED:
-		/* Deliver a SIGILL to the process */
-		ksig.signb = SIGILL;
-		ksig.code = 0;
-		goto do_trapsignal;
-	default:
-		break;
 	}
 
 	va = trunc_page((vm_offset_t)far);
@@ -566,9 +517,6 @@ dab_align(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 
 	/* pcb_onfault *must* be NULL at this point */
 
-	/* See if the cpu state needs to be fixed up */
-	(void) data_abort_fixup(tf, fsr, far, td, ksig);
-
 	/* Deliver a bus error signal to the process */
 	ksig->code = 0;
 	ksig->signb = SIGBUS;
@@ -657,9 +605,6 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 		return (0);
 	}
 
-	/* See if the cpu state needs to be fixed up */
-	(void) data_abort_fixup(tf, fsr, far, td, ksig);
-
 	/*
 	 * At this point, if the fault happened in kernel mode, we're toast
 	 */
@@ -672,37 +617,6 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 	td->td_frame = tf;
 
 	return (1);
-}
-
-static __inline int
-prefetch_abort_fixup(struct trapframe *tf, struct ksig *ksig)
-{
-#ifdef CPU_ABORT_FIXUP_REQUIRED
-	int error;
-
-	/* Call the cpu specific prefetch abort fixup routine */
-	error = cpu_prefetchabt_fixup(tf);
-	if (__predict_true(error != ABORT_FIXUP_FAILED))
-		return (error);
-
-	/*
-	 * Oops, couldn't fix up the instruction
-	 */
-	printf(
-	    "prefetch_abort_fixup: fixup for %s mode prefetch abort failed.\n",
-	    TRAP_USERMODE(tf) ? "user" : "kernel");
-	printf("pc = 0x%08x, opcode 0x%08x, insn = ", tf->tf_pc,
-	    *((u_int *)tf->tf_pc));
-	disassemble(tf->tf_pc);
-
-	/* Die now if this happened in kernel mode */
-	if (!TRAP_USERMODE(tf))
-		dab_fatal(tf, 0, tf->tf_pc, NULL, ksig);
-
-	return (error);
-#else
-	return (ABORT_FIXUP_OK);
-#endif /* CPU_ABORT_FIXUP_REQUIRED */
 }
 
 /*
@@ -751,20 +665,6 @@ prefetch_abort_handler(struct trapframe *tf)
 			enable_interrupts(I32_bit);
 		if (__predict_true(tf->tf_spsr & F32_bit) == 0)
 			enable_interrupts(F32_bit);
-	}
-
-	/* See if the cpu state needs to be fixed up */
-	switch (prefetch_abort_fixup(tf, &ksig)) {
-	case ABORT_FIXUP_RETURN:
-		return;
-	case ABORT_FIXUP_FAILED:
-		/* Deliver a SIGILL to the process */
-		ksig.signb = SIGILL;
-		ksig.code = 0;
-		td->td_frame = tf;
-		goto do_trapsignal;
-	default:
-		break;
 	}
 
 	/* Prefetch aborts cannot happen in kernel mode */
