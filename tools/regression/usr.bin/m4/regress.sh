@@ -2,7 +2,7 @@
 
 LC_ALL=C; export LC_ALL
 
-echo 1..22
+echo 1..21
 
 REGRESSION_START($1)
 
@@ -17,7 +17,7 @@ REGRESSION_TEST(`gnuformat', `m4 -g gnuformat.m4')
 REGRESSION_TEST(`gnupatterns', `m4 -g gnupatterns.m4')
 REGRESSION_TEST(`gnupatterns2', `m4 -g gnupatterns2.m4')
 REGRESSION_TEST(`gnuprefix', `m4 -P gnuprefix.m4 2>&1')
-REGRESSION_TEST(`gnusofterror', `m4 -g gnusofterror.m4')
+REGRESSION_TEST(`gnusofterror', `m4 -g gnusofterror.m4 2>&1')
 REGRESSION_TEST(`gnutranslit2', `m4 -g translit2.m4')
 REGRESSION_TEST(`includes', `m4 -I. includes.m4')
 REGRESSION_TEST(`m4wrap3', `m4 m4wrap3.m4')
