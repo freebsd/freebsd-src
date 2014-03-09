@@ -303,17 +303,6 @@ ENTRY(cpu_switch)
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
 
-        mrs	r3, cpsr
-	/*
-	 * We can do that, since
-	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
-	 */
-	orr	r8, r3, #(PSR_UND32_MODE)
-        msr	cpsr_c, r8
-
-	str	sp, [r2, #(PCB_UND_SP)]
-
-        msr	cpsr_c, r3		/* Restore the old mode */
 	/* rem: r2 = old PCB */
 	/* rem: r9 = new PCB */
 	/* rem: interrupts are enabled */
@@ -422,10 +411,6 @@ ENTRY(cpu_switch)
 	movne	r0, #0			/* We *know* vector_page's VA is 0x0 */
 	movne	lr, pc
 	ldrne	pc, [r10, #CF_TLB_FLUSHID_SE]
-	/*
-	 * We can do that, since
-	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
-	 */
 
 .Lcs_context_switched:
 
@@ -444,17 +429,6 @@ ENTRY(cpu_switch)
 
 	/* rem: r9 = new PCB */
 
-        mrs	r3, cpsr
-	/*
-	 * We can do that, since
-	 * PSR_SVC32_MODE|PSR_UND32_MODE == MSR_UND32_MODE
-	 */
-	orr	r2, r3, #(PSR_UND32_MODE)
-	msr	cpsr_c, r2
-
-	ldr	sp, [r9, #(PCB_UND_SP)]
-
-        msr	cpsr_c, r3		/* Restore the old mode */
 	/* Restore all the save registers */
 #ifndef _ARM_ARCH_5E
 	add	r7, r9, #PCB_R8
